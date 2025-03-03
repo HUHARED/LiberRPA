@@ -1,4 +1,3 @@
-
 <div style="text-align: center;">
   <img src="./envs/assets/icon/LiberRPA_icon_v1_color.png" alt="LiberRPA icon">
 </div>
@@ -118,7 +117,7 @@ A VS Code extension that displays built-in and user-defined code snippets. You c
 
 ## Download Compressed Package
 
-If you're unfamiliar with creating conda environments and setting up VS Code,  it's recommended that download the latest version of the main program's compressed package from [this page](https://1drv.ms/f/s!AjBKSBwsKFwl0ZM5bPY2_oNz1XhPGg?e=JIabBh). After downloading, extract it to your target folder. The final name of the LiberRPA root directory should be "LiberRPA_Vx.x.x".
+If you're unfamiliar with creating conda environments and setting up VS Code,  it's recommended that download the latest version of the main program's compressed package from [this page](https://1drv.ms/f/s!AjBKSBwsKFwl0ZM5bPY2_oNz1XhPGg?e=JIabBh). After downloading, extract it to your target folder. The final name of the LiberRPA root directory should be "LiberRPA_vX.X.X".
 
 ## Initialization
 
