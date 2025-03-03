@@ -1,0 +1,2484 @@
+{
+  "Basic.delay": {
+    "prefix": "delay",
+    "body": [
+      "delay(${1:1000})",
+      ""
+    ],
+    "description": "Delay some time, in milliseconds."
+  },
+  "Basic.new python file": {
+    "prefix": "new",
+    "body": [
+      "# FileName: $TM_FILENAME",
+      "from liberrpa.Modules import  * # type: ignore - Import all from liberrpa",
+      "",
+      "",
+      "def main() -> None:",
+      "\traise NotImplementedError()",
+      "",
+      "",
+      "if __name__ == \"__main__\":",
+      "\tmain()",
+      "",
+      ""
+    ],
+    "description": "The default content for a new Python file.\nIf you click it in LIberRPA Snippets Tree, the modules in Utils and Selector can be imported automatically."
+  },
+  "Basic.def a function": {
+    "prefix": "def",
+    "body": [
+      "def ${1:function_name}($2) -> ${3:None}:",
+      "\t$4",
+      ""
+    ],
+    "description": "Define a new function."
+  },
+  "Basic.if __main__": {
+    "prefix": "main",
+    "body": [
+      "if __name__ == \"__main__\":",
+      "\t$1",
+      ""
+    ],
+    "description": "The logic to run when execute the file."
+  },
+  "Basic.File Header": {
+    "prefix": "header",
+    "body": [
+      "# FileName: $TM_FILENAME",
+      ""
+    ],
+    "description": "Note the file's name in comment."
+  },
+  "Basic.# type: ignore": {
+    "prefix": "ignore",
+    "body": [
+      " # type: ignore - ${1:Reason}",
+      ""
+    ],
+    "description": "Ignore the line's Pylance complain. It will be inserted into the current line's end once you clicked it."
+  },
+  "LogicControl.if": {
+    "prefix": "if",
+    "body": [
+      "if ${1:condition}:",
+      "\t$2",
+      ""
+    ],
+    "description": ""
+  },
+  "LogicControl.else": {
+    "prefix": "else",
+    "body": [
+      "else:",
+      "\t$1",
+      ""
+    ],
+    "description": ""
+  },
+  "LogicControl.elif": {
+    "prefix": "elif",
+    "body": [
+      "elif ${1:condition}:",
+      "\t$2",
+      ""
+    ],
+    "description": ""
+  },
+  "LogicControl.match case": {
+    "prefix": "match case",
+    "body": [
+      "match ${1:variableName}:",
+      "\tcase ${2:value}:",
+      "\t\t...",
+      "\tcase _:",
+      "\t\t...",
+      ""
+    ],
+    "description": ""
+  },
+  "LogicControl.case": {
+    "prefix": "case",
+    "body": [
+      "case ${1:value}:",
+      "\t...",
+      ""
+    ],
+    "description": ""
+  },
+  "LogicControl.for-index, item": {
+    "prefix": "for",
+    "body": [
+      "for ${1:idx}, ${2:item} in enumerate(${3:obj},start=${4:0}):",
+      "\t$5",
+      ""
+    ],
+    "description": "For-loop with enumerate and a starting index."
+  },
+  "LogicControl.for-item": {
+    "prefix": "for",
+    "body": [
+      "for ${1:item} in ${2:obj}:",
+      "\t$3",
+      ""
+    ],
+    "description": "Simple for loop."
+  },
+  "LogicControl.for-counting cycle": {
+    "prefix": "for",
+    "body": [
+      "for ${1:idx} in range(${2:0},${3:intStop},${4:1}):",
+      "\t$5",
+      ""
+    ],
+    "description": "Simple for loop using range."
+  },
+  "LogicControl.while": {
+    "prefix": "while",
+    "body": [
+      "while ${1:condition}:",
+      "\t$2",
+      ""
+    ],
+    "description": "Simple while loop."
+  },
+  "LogicControl.continue": {
+    "prefix": "continue",
+    "body": [
+      "continue",
+      ""
+    ],
+    "description": "Continue to the next cycle."
+  },
+  "LogicControl.break": {
+    "prefix": "break",
+    "body": [
+      "break",
+      ""
+    ],
+    "description": "End the loop."
+  },
+  "LogicControl.try catch": {
+    "prefix": "try",
+    "body": [
+      "try:",
+      "\t$1",
+      "except Exception as e:",
+      "\t...",
+      "else:",
+      "\t...",
+      "finally:",
+      "\t...",
+      ""
+    ],
+    "description": ""
+  },
+  "LogicControl.retry": {
+    "prefix": "retry",
+    "body": [
+      "intMaxTryCount = ${1:intMaxTryCount}",
+      "for intTryIdx in range(intMaxTryCount):",
+      "\ttry:",
+      "\t\t$2",
+      "\texcept Exception as e:",
+      "\t\tLog.exception_info(e)",
+      "\t\tif intTryIdx +1 == intMaxTryCount:",
+      "\t\t\traise e",
+      "\telse:",
+      "\t\tbreak",
+      ""
+    ],
+    "description": "Retry until the try scope completed, or raise the error after the last try."
+  },
+  "LogicControl.raise an exception": {
+    "prefix": "raise",
+    "body": [
+      "raise ${1:Exception}(${2:\"The description of the error\"})",
+      ""
+    ],
+    "description": ""
+  },
+  "LogicControl.return": {
+    "prefix": "return",
+    "body": [
+      "return ${1:value}",
+      ""
+    ],
+    "description": ""
+  },
+  "Log.verbose": {
+    "prefix": "Log.verbose",
+    "body": [
+      "Log.verbose($1)",
+      ""
+    ],
+    "description": "Write a log entry at the 'VERBOSE' level, only if the current log level allows it.\n\nParameters:\n    message: The message to log, which can be any type that can be converted to a string.\n    stackLevel: Adjusts the stack level to get the correct file name, line number, and function name for the log entry."
+  },
+  "Log.verbose_pretty": {
+    "prefix": "Log.verbose_pretty",
+    "body": [
+      "Log.verbose_pretty($1)",
+      ""
+    ],
+    "description": "Write a log entry at the 'VERBOSE' level, only if the current log level allows it.\n\nIf the message is a value of dict,list or tuple, it will be formatted with indent(4 space) in human_read log.\n\nParameters:\n    message: The message to log, which can be any type that can be converted to a string.\n    stackLevel: Adjusts the stack level to get the correct file name, line number, and function name for the log entry."
+  },
+  "Log.debug": {
+    "prefix": "Log.debug",
+    "body": [
+      "Log.debug($1)",
+      ""
+    ],
+    "description": "Write a log entry at the 'DEBUG' level, only if the current log level allows it.\n\nParameters:\n    message: The message to log, which can be any type that can be converted to a string.\n    stackLevel: Adjusts the stack level to get the correct file name, line number, and function name for the log entry."
+  },
+  "Log.debug_pretty": {
+    "prefix": "Log.debug_pretty",
+    "body": [
+      "Log.debug_pretty($1)",
+      ""
+    ],
+    "description": "Write a log entry at the 'DEBUG' level, only if the current log level allows it.\n\nIf the message is a value of dict,list or tuple, it will be formatted with indent(4 space) in human_read log.\n\nParameters:\n    message: The message to log, which can be any type that can be converted to a string.\n    stackLevel: Adjusts the stack level to get the correct file name, line number, and function name for the log entry."
+  },
+  "Log.info": {
+    "prefix": "Log.info",
+    "body": [
+      "Log.info($1)",
+      ""
+    ],
+    "description": "Write a log entry at the 'INFO' level, only if the current log level allows it.\n\nParameters:\n    message: The message to log, which can be any type that can be converted to a string.\n    stackLevel: Adjusts the stack level to get the correct file name, line number, and function name for the log entry."
+  },
+  "Log.info_pretty": {
+    "prefix": "Log.info_pretty",
+    "body": [
+      "Log.info_pretty($1)",
+      ""
+    ],
+    "description": "Write a log entry at the 'INFO' level, only if the current log level allows it.\n\nIf the message is a value of dict,list or tuple, it will be formatted with indent(4 space) in human_read log.\n\nParameters:\n    message: The message to log, which can be any type that can be converted to a string.\n    stackLevel: Adjusts the stack level to get the correct file name, line number, and function name for the log entry."
+  },
+  "Log.warning": {
+    "prefix": "Log.warning",
+    "body": [
+      "Log.warning($1)",
+      ""
+    ],
+    "description": "Write a log entry at the 'WARNING' level, only if the current log level allows it.\n\nParameters:\n    message: The message to log, which can be any type that can be converted to a string.\n    stackLevel: Adjusts the stack level to get the correct file name, line number, and function name for the log entry."
+  },
+  "Log.warning_pretty": {
+    "prefix": "Log.warning_pretty",
+    "body": [
+      "Log.warning_pretty($1)",
+      ""
+    ],
+    "description": "Write a log entry at the 'WARNING' level, only if the current log level allows it.\n\nIf the message is a value of dict,list or tuple, it will be formatted with indent(4 space) in human_read log.\n\nParameters:\n    message: The message to log, which can be any type that can be converted to a string.\n    stackLevel: Adjusts the stack level to get the correct file name, line number, and function name for the log entry."
+  },
+  "Log.error": {
+    "prefix": "Log.error",
+    "body": [
+      "Log.error($1)",
+      ""
+    ],
+    "description": "Write a log entry at the 'ERROR' level, only if the current log level allows it.\n\nParameters:\n    message: The message to log, which can be any type that can be converted to a string.\n    stackLevel: Adjusts the stack level to get the correct file name, line number, and function name for the log entry."
+  },
+  "Log.error_pretty": {
+    "prefix": "Log.error_pretty",
+    "body": [
+      "Log.error_pretty($1)",
+      ""
+    ],
+    "description": "Write a log entry at the 'ERROR' level, only if the current log level allows it.\n\nIf the message is a value of dict,list or tuple, it will be formatted with indent(4 space) in human_read log.\n\nParameters:\n    message: The message to log, which can be any type that can be converted to a string.\n    stackLevel: Adjusts the stack level to get the correct file name, line number, and function name for the log entry."
+  },
+  "Log.critical": {
+    "prefix": "Log.critical",
+    "body": [
+      "Log.critical($1)",
+      ""
+    ],
+    "description": "Write a log entry at the 'CRITICAL' level, only if the current log level allows it.\n\nParameters:\n    message: The message to log, which can be any type that can be converted to a string.\n    stackLevel: Adjusts the stack level to get the correct file name, line number, and function name for the log entry."
+  },
+  "Log.critical_pretty": {
+    "prefix": "Log.critical_pretty",
+    "body": [
+      "Log.critical_pretty($1)",
+      ""
+    ],
+    "description": "Write a log entry at the 'CRITICAL' level, only if the current log level allows it.\n\nIf the message is a value of dict,list or tuple, it will be formatted with indent(4 space) in human_read log.\n\nParameters:\n    message: The message to log, which can be any type that can be converted to a string.\n    stackLevel: Adjusts the stack level to get the correct file name, line number, and function name for the log entry."
+  },
+  "Log.exception_info": {
+    "prefix": "Log.exception_info",
+    "body": [
+      "Log.exception_info(exObj=$1)",
+      ""
+    ],
+    "description": "Record the Exception object's 'type', 'message', 'fileName' and 'lineNumber' in a dict format and \"ERROR\" log level, only if the current log level allows it.\n\nParameters:\n    exObj: The Exception object to record."
+  },
+  "Log.set_level": {
+    "prefix": "Log.set_level",
+    "body": [
+      "Log.set_level(level=$1, loggerType=${2:'both'})",
+      ""
+    ],
+    "description": "Set the minimum log level for the logger.\n\nParameters:\n    level: The minimum level to set. Must be one of ['VERBOSE', 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'].\n    loggerType: Which logger to set the level for. Must be one of ['both', 'human', 'machine']."
+  },
+  "Log.add_custom_log_part": {
+    "prefix": "Log.add_custom_log_part",
+    "body": [
+      "Log.add_custom_log_part(name=$1, text=$2)",
+      ""
+    ],
+    "description": "Adds a new part to the log entry format.\n\nIf the name already exists, the text will be updated.\n\nThe name cannot be one of the reserved keywords([\"timestamp\", \"level\", \"message\", \"userName\", \"machineName\", \"processName\", \"fileName\", \"lineNo\", \"projectName\", \"logId\"]) due to they are used in machine_read log.\n\nParameters:\n    name: The new part's name to be added. This will be a new key in the machine_read log entry, but it won't appear in human_read log.\n    text: The text of the new log part, which will be displayed in human_read log."
+  },
+  "Log.remove_custom_log_part": {
+    "prefix": "Log.remove_custom_log_part",
+    "body": [
+      "Log.remove_custom_log_part(name=$1)",
+      ""
+    ],
+    "description": "Remove a custom log part by name.\n\nIf the name is not found, no action is taken.\n\nThe name cannot be one of the reserved keywords([\"timestamp\", \"level\", \"message\", \"userName\", \"machineName\", \"processName\", \"fileName\", \"lineNo\", \"projectName\", \"logId\"]) due to they are used in machine_read log.\n\nParameters:\n    name: The name of the custom log part to remove from both the machine_read and human_read logs."
+  },
+  "Log.trace": {
+    "prefix": "Log.trace",
+    "body": [
+      "@Log.trace(level=${1:'DEBUG'})",
+      ""
+    ],
+    "description": "This decorator logs the start and end of a function at a specified log level, default is 'DEBUG'\n\nParameters:\n    level: The level to record log. Must be one of ['VERBOSE', 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']."
+  },
+  "Mouse.get_mouse_position": {
+    "prefix": "Mouse.get_mouse_position",
+    "body": [
+      "${1:<class 'liberrpa.UI._UiDict.DictPosition'>} = Mouse.get_mouse_position()",
+      ""
+    ],
+    "description": "Retrieves the current physical position of the cursor on the screen.\n\nReturns:\n    DictPosition: A dictionary like {\"x\": x, \"y\": y}"
+  },
+  "Mouse.click_element": {
+    "prefix": "Mouse.click_element",
+    "body": [
+      "Mouse.click_element(selector=$1, offsetX=${2:0}, offsetY=${3:0}, button=${4:'left'}, clickMode=${5:'single_click'}, executionMode=${6:'simulate'}, position=${7:'center'}, pressCtrl=${8:False}, pressShift=${9:False}, pressAlt=${10:False}, pressWin=${11:False}, duration=${12:0}, timeout=${13:10000}, preExecutionDelay=${14:300}, postExecutionDelay=${15:200})",
+      ""
+    ],
+    "description": "Click an element.\n\nParameters:\n    selector: The dictionary for locating an element, it is generated by UI Analyzer, you can modify it to make it more concise, more suitable for all situations.\n    offsetX: Horizontal offset from the element's specified click position (in pixels). Only works when executionMode is \"simulate\".\n    offsetY: Vertical offset from the element's specified click position (in pixels). Only works when executionMode is \"simulate\".\n    button: Specifies which mouse button to click. Options are \"left\", \"right\", and \"middle\".\n    clickMode: Defines the type of click to perform. Options are \"single_click\", \"double_click\", \"down\", and \"up\".\n    executionMode: Options are \"simulate\" and \"api\". \"simulate\" will move the cursor, support all arguements of the function. \"api\" will not move the cursor, it can handle some situations that the target element be covered, but it supports less arguments than \"simulate\".\n    position: Specifies where on the element to click. Options are \"center\", \"top_left\", \"top_right\", \"bottom_left\", and \"bottom_right\". It will only work if executionMode is \"simulate\".\n    pressCtrl: If True, holds the Ctrl key during the click.\n    pressShift: If True, holds the Shift key during the click.\n    pressAlt: If True, holds the Alt key during the click.\n    pressWin: If True, holds the Windows key during the click.\n    duration: Time to move the mouse to the target position (in seconds). If it is 0, it moves to \"position\" immediately.\n    timeout: Maximum time allowed for the function to complete (in milliseconds). If timeout < 3000 (milliseconds), it will be set to 3000. If the function doesn't completed after \"timeout\", it will throw an UiTimeoutError.\n    preExecutionDelay: Time to wait before performing the action (in milliseconds).\n    postExecutionDelay: Time to wait after performing the action (in milliseconds)."
+  },
+  "Mouse.move_to_element": {
+    "prefix": "Mouse.move_to_element",
+    "body": [
+      "Mouse.move_to_element(selector=$1, offsetX=${2:0}, offsetY=${3:0}, position=${4:'center'}, duration=${5:0}, timeout=${6:10000}, preExecutionDelay=${7:300}, postExecutionDelay=${8:200})",
+      ""
+    ],
+    "description": "Move to element.\n\nParameters:\n    selector: The dictionary for locating an element, it is generated by UI Analyzer, you can modify it to make it more concise, more suitable for all situations.\n    offsetX: Horizontal offset from the element's specified click position (in pixels). Only works when executionMode is \"simulate\".\n    offsetY: Vertical offset from the element's specified click position (in pixels). Only works when executionMode is \"simulate\".\n    position: Specifies where on the element to click. Options are \"center\", \"top_left\", \"top_right\", \"bottom_left\", and \"bottom_right\". It will only work if executionMode is \"simulate\".\n    duration: Time to move the mouse to the target position (in seconds). If it is 0, it moves to \"position\" immediately.\n    timeout: Maximum time allowed for the function to complete (in milliseconds). If timeout < 3000 (milliseconds), it will be set to 3000. If the function doesn't completed after \"timeout\", it will throw an UiTimeoutError.\n    preExecutionDelay: Time to wait before performing the action (in milliseconds).\n    postExecutionDelay: Time to wait after performing the action (in milliseconds)."
+  },
+  "Mouse.click": {
+    "prefix": "Mouse.click",
+    "body": [
+      "Mouse.click(button=${1:'left'}, clickMode=${2:'single_click'}, pressCtrl=${3:False}, pressShift=${4:False}, pressAlt=${5:False}, pressWin=${6:False}, preExecutionDelay=${7:300}, postExecutionDelay=${8:200})",
+      ""
+    ],
+    "description": "Mouse click.\n\nParameters:\n    button: Specifies which mouse button to click. Options are \"left\", \"right\", and \"middle\".\n    clickMode: Defines the type of click to perform. Options are \"single_click\", \"double_click\", \"down\", and \"up\".\n    pressCtrl: If True, holds the Ctrl key during the click.\n    pressShift: If True, holds the Shift key during the click.\n    pressAlt: If True, holds the Alt key during the click.\n    pressWin: If True, holds the Windows key during the click.\n    preExecutionDelay: Time to wait before performing the action (in milliseconds).\n    postExecutionDelay: Time to wait after performing the action (in milliseconds)."
+  },
+  "Mouse.move_cursor": {
+    "prefix": "Mouse.move_cursor",
+    "body": [
+      "Mouse.move_cursor(x=${1:0}, y=${2:0}, duration=${3:0}, relative=${4:True}, preExecutionDelay=${5:300}, postExecutionDelay=${6:200})",
+      ""
+    ],
+    "description": "Move mouse.\n\nParameters:\n    x: The x-coordinate or horizontal offset (if relative is True) for the cursor's destination.\n    y: The y-coordinate or vertical offset (if relative is True) for the cursor's destination.\n    duration: Time to move the mouse to the target position (in seconds). If it is 0, it moves to tatget position immediately.\n    relative: If True, the x and y coordinates are treated as offsets from the current cursor position. If False, they are treated as absolute screen coordinates.\n    preExecutionDelay: Time to wait before performing the action (in milliseconds).\n    postExecutionDelay: Time to wait after performing the action (in milliseconds)."
+  },
+  "Mouse.scroll_wheel": {
+    "prefix": "Mouse.scroll_wheel",
+    "body": [
+      "Mouse.scroll_wheel(times=${1:1}, direction=${2:'down'}, pressCtrl=${3:False}, pressShift=${4:False}, pressAlt=${5:False}, pressWin=${6:False}, preExecutionDelay=${7:300}, postExecutionDelay=${8:200})",
+      ""
+    ],
+    "description": "Make the mouse scroll down or up.\n\nParameters:\n    times: The number of increments to scroll the wheel.\n    direction: The direction to scroll the wheel; valid values are \"down\" or \"up\".\n    pressCtrl: If True, holds the Ctrl key during the scroll.\n    pressShift: If True, holds the Shift key during the scroll.\n    pressAlt: If True, holds the Alt key during the scroll.\n    pressWin: If True, holds the Windows key during the scroll.\n    preExecutionDelay: Time to wait before performing the action (in milliseconds).\n    postExecutionDelay: Time to wait after performing the action (in milliseconds)."
+  },
+  "Keyboard.write_text": {
+    "prefix": "Keyboard.write_text",
+    "body": [
+      "Keyboard.write_text(text=$1, executionMode=${2:'api'}, timeout=${3:10000}, preExecutionDelay=${4:300}, postExecutionDelay=${5:200})",
+      ""
+    ],
+    "description": "Write text in the current element focused.\n\nParameters:\n    text: The text to be written.\n    executionMode: Options are \"simulate\" and \"api\". \"simulate\" may be affected by IME(Input Method Editor) or Capslock but \"api\" will not, and \"uia\" supports more characters.\n    timeout: Maximum time allowed for the function to complete (in milliseconds). If timeout < 3000 (milliseconds), it will be set to 3000. If the function doesn't completed after \"timeout\", it will throw an UiTimeoutError.\n    preExecutionDelay: Time to wait before performing the action (in milliseconds).\n    postExecutionDelay: Time to wait after performing the action (in milliseconds)."
+  },
+  "Keyboard.write_text_into_element": {
+    "prefix": "Keyboard.write_text_into_element",
+    "body": [
+      "Keyboard.write_text_into_element(selector=$1, text=$2, executionMode=${3:'api'}, interval=${4:10}, emptyOriginalText=${5:False}, validateWrittenText=${6:False}, timeout=${7:10000}, preExecutionDelay=${8:300}, postExecutionDelay=${9:200})",
+      ""
+    ],
+    "description": "Focus an element then write text into it.\n\nParameters:\n    selector: The dictionary for locating an element, it is generated by UI Analyzer, you can modify it to make it more concise, more suitable for all situations.\n    text: The text to be written.\n    executionMode: Options are \"simulate\" and \"api\". \"simulate\" may be affected by IME(Input Method Editor) or Capslock but \"api\" will not, and \"uia\" supports more characters.\n    interval: the interval time(milliseconds) between type each character. Only works in \"simulate\" mode.\n    emptyOriginalText: Whether delete existing text(by typing ctrl+a and backspace).\n    validateWrittenText: Whether check the typed text, not support html element's simulate mode.\n    timeout: Maximum time allowed for the function to complete (in milliseconds). If timeout < 3000 (milliseconds), it will be set to 3000. If the function doesn't completed after \"timeout\", it will throw an UiTimeoutError.\n    preExecutionDelay: Time to wait before performing the action (in milliseconds).\n    postExecutionDelay: Time to wait after performing the action (in milliseconds)."
+  },
+  "Keyboard.type_key_in_element": {
+    "prefix": "Keyboard.type_key_in_element",
+    "body": [
+      "Keyboard.type_key_in_element(selector=$1, key=${2:'enter'}, pressCtrl=${3:False}, pressShift=${4:False}, pressAlt=${5:False}, pressWin=${6:False}, timeout=${7:10000}, preExecutionDelay=${8:300}, postExecutionDelay=${9:200})",
+      ""
+    ],
+    "description": "Focus an element then type a key.\n\nParameters:\n    selector: The dictionary for locating an element, it is generated by UI Analyzer, you can modify it to make it more concise, more suitable for all situations.\n    key: The key to be typed, all supported key in the type InputKey: ['enter', 'esc', 'tab', 'space', 'backspace', 'up', 'down', 'left', 'right', 'delete', 'insert', 'home', 'end', 'pageup', 'pagedown', 'capslock', 'numlock', 'printscreen', 'scrolllock', 'pause', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'num0', 'num1', 'num2', 'num3', 'num4', 'num5', 'num6', 'num7', 'num8', 'num9', 'add', 'subtract', 'multiply', 'divide', 'decimal', 'f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8', 'f9', 'f10', 'f11', 'f12', 'f13', 'f14', 'f15', 'f16', 'f17', 'f18', 'f19', 'f20', 'f21', 'f22', 'f23', 'f24', '`', '~', '!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '-', '_', '=', '+', '[', '{', ']', '}', '\\\\', '|', ';', ':', \"'\", '\"', ',', '<', '.', '>', '/', '?', 'shift', 'shiftleft', 'shiftright', 'ctrl', 'ctrlleft', 'ctrlright', 'alt', 'altleft', 'altright', 'win', 'winleft', 'winright', 'volumemute', 'volumedown', 'volumeup', 'playpause', 'stop', 'nexttrack', 'prevtrack', 'browserback', 'browserfavorites', 'browserforward', 'browserhome', 'browserrefresh', 'browsersearch', 'browserstop'] (2 backslash is not visual in Pylance, so use 4 backslash to express one visual backslash)\n    pressCtrl: If True, holds the Ctrl key during the type.\n    pressShift: If True, holds the Shift key during the type.\n    pressAlt: If True, holds the Alt key during the type.\n    pressWin: If True, holds the Windows key during the type.\n    timeout: Maximum time allowed for the function to complete (in milliseconds). If timeout < 3000 (milliseconds), it will be set to 3000. If the function doesn't completed after \"timeout\", it will throw an UiTimeoutError.\n    preExecutionDelay: Time to wait before performing the action (in milliseconds).\n    postExecutionDelay: Time to wait after performing the action (in milliseconds)."
+  },
+  "Keyboard.type_key": {
+    "prefix": "Keyboard.type_key",
+    "body": [
+      "Keyboard.type_key(key=${1:'enter'}, typeMode=${2:'click'}, pressCtrl=${3:False}, pressShift=${4:False}, pressAlt=${5:False}, pressWin=${6:False}, preExecutionDelay=${7:300}, postExecutionDelay=${8:200})",
+      ""
+    ],
+    "description": "Type a key in the current element focused.\n\nParameters:\n    key: The key to be typed, all supported key in the type InputKey: ['enter', 'esc', 'tab', 'space', 'backspace', 'up', 'down', 'left', 'right', 'delete', 'insert', 'home', 'end', 'pageup', 'pagedown', 'capslock', 'numlock', 'printscreen', 'scrolllock', 'pause', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'num0', 'num1', 'num2', 'num3', 'num4', 'num5', 'num6', 'num7', 'num8', 'num9', 'add', 'subtract', 'multiply', 'divide', 'decimal', 'f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8', 'f9', 'f10', 'f11', 'f12', 'f13', 'f14', 'f15', 'f16', 'f17', 'f18', 'f19', 'f20', 'f21', 'f22', 'f23', 'f24', '`', '~', '!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '-', '_', '=', '+', '[', '{', ']', '}', '\\\\', '|', ';', ':', \"'\", '\"', ',', '<', '.', '>', '/', '?', 'shift', 'shiftleft', 'shiftright', 'ctrl', 'ctrlleft', 'ctrlright', 'alt', 'altleft', 'altright', 'win', 'winleft', 'winright', 'volumemute', 'volumedown', 'volumeup', 'playpause', 'stop', 'nexttrack', 'prevtrack', 'browserback', 'browserfavorites', 'browserforward', 'browserhome', 'browserrefresh', 'browsersearch', 'browserstop'] (2 backslash is not visual in Pylance, so use 4 backslash to express one visual backslash)\n    typeMode: The type of keyboard action to perform. Options are:\n        \"click\" for a single press and release,\n        \"key_down\" for pressing the key down,\n        \"key_up\" for releasing a pressed key.\n    pressCtrl: If True, holds the Ctrl key during the type.\n    pressShift: If True, holds the Shift key during the type.\n    pressAlt: If True, holds the Alt key during the type.\n    pressWin: If True, holds the Windows key during the type.\n    preExecutionDelay: Time to wait before performing the action (in milliseconds).\n    postExecutionDelay: Time to wait after performing the action (in milliseconds)."
+  },
+  "Window.close_window": {
+    "prefix": "Window.close_window",
+    "body": [
+      "Window.close_window(selector=$1, timeout=${2:10000}, preExecutionDelay=${3:300}, postExecutionDelay=${4:200})",
+      ""
+    ],
+    "description": "Close the element's window.\n\nParameters:\n    selector: The dictionary for locating an element, it is generated by UI Analyzer, you can modify it to make it more concise, more suitable for all situations.\n    timeout: Maximum time allowed for the function to complete (in milliseconds). If timeout < 3000 (milliseconds), it will be set to 3000. If the function doesn't completed after \"timeout\", it will throw an UiTimeoutError.\n    preExecutionDelay: Time to wait before performing the action (in milliseconds).\n    postExecutionDelay: Time to wait after performing the action (in milliseconds)."
+  },
+  "Window.check_window_exists": {
+    "prefix": "Window.check_window_exists",
+    "body": [
+      "${1:<class 'bool'>} = Window.check_window_exists(selector=$2, timeout=${3:10000}, preExecutionDelay=${4:300}, postExecutionDelay=${5:200})",
+      ""
+    ],
+    "description": "Check whether the element's window is existing.\n\nParameters:\n    selector: The dictionary for locating an element, it is generated by UI Analyzer, you can modify it to make it more concise, more suitable for all situations.\n    timeout: Maximum time allowed for the function to complete (in milliseconds). If timeout < 3000 (milliseconds), it will be set to 3000. If the function doesn't completed after \"timeout\", it will throw an UiTimeoutError.\n    preExecutionDelay: Time to wait before performing the action (in milliseconds).\n    postExecutionDelay: Time to wait after performing the action (in milliseconds).\n\nReturns:\n    True if the element's window exists within the specified timeout, False otherwise."
+  },
+  "Window.get_active_window": {
+    "prefix": "Window.get_active_window",
+    "body": [
+      "${1:<class 'liberrpa.UI._UiDict.SelectorWindow'>} = Window.get_active_window()",
+      ""
+    ],
+    "description": "Get the selector of the currently active window.\n\nReturns:\n    SelectorWindow: The selector of the currently active window."
+  },
+  "Window.activate_element_window": {
+    "prefix": "Window.activate_element_window",
+    "body": [
+      "Window.activate_element_window(selector=$1)",
+      ""
+    ],
+    "description": "Activate the element's window.\n\nParameters:\n    selector: The dictionary for locating an element, it is generated by UI Analyzer, you can modify it to make it more concise, more suitable for all situations."
+  },
+  "Window.set_window_state": {
+    "prefix": "Window.set_window_state",
+    "body": [
+      "Window.set_window_state(selector=$1, state=${2:'maximize'}, timeout=${3:10000}, preExecutionDelay=${4:300}, postExecutionDelay=${5:200})",
+      ""
+    ],
+    "description": "Set the element's window to normal, maximize or minimize.\n\nParameters:\n    selector: The dictionary for locating an element, it is generated by UI Analyzer, you can modify it to make it more concise, more suitable for all situations.\n    state: Desired window state, can be 'normal', 'maximize', or 'minimize'.\n    timeout: Maximum time allowed for the function to complete (in milliseconds). If timeout < 3000 (milliseconds), it will be set to 3000. If the function doesn't completed after \"timeout\", it will throw an UiTimeoutError.\n    preExecutionDelay: Time to wait before performing the action (in milliseconds).\n    postExecutionDelay: Time to wait after performing the action (in milliseconds)."
+  },
+  "Window.get_window_position_and_size": {
+    "prefix": "Window.get_window_position_and_size",
+    "body": [
+      "${1:<class 'liberrpa.UI._UiDict.DictPositionAndSize'>} = Window.get_window_position_and_size(selector=$2, timeout=${3:10000}, preExecutionDelay=${4:300}, postExecutionDelay=${5:200})",
+      ""
+    ],
+    "description": "Get the position and size of the element's window.\n\nParameters:\n    selector: The dictionary for locating an element, it is generated by UI Analyzer, you can modify it to make it more concise, more suitable for all situations.\n    timeout: Maximum time allowed for the function to complete (in milliseconds). If timeout < 3000 (milliseconds), it will be set to 3000. If the function doesn't completed after \"timeout\", it will throw an UiTimeoutError.\n    preExecutionDelay: Time to wait before performing the action (in milliseconds).\n    postExecutionDelay: Time to wait after performing the action (in milliseconds).\n\nReturns:\n    DictPositionAndSize: {'x': <class 'int'>, 'y': <class 'int'>, 'width': <class 'int'>, 'height': <class 'int'>}"
+  },
+  "Window.set_window_position": {
+    "prefix": "Window.set_window_position",
+    "body": [
+      "Window.set_window_position(selector=$1, x=$2, y=$3, timeout=${4:10000}, preExecutionDelay=${5:300}, postExecutionDelay=${6:200})",
+      ""
+    ],
+    "description": "Set the position of the element's window.\n\nParameters:\n    selector: The dictionary for locating an element, it is generated by UI Analyzer, you can modify it to make it more concise, more suitable for all situations.\n    x: The horizontal position (in pixels) where the window's upper left corner should be moved to.\n    y: The vertical position (in pixels) where the window's upper left corner should be moved to.\n    timeout: Maximum time allowed for the function to complete (in milliseconds). If timeout < 3000 (milliseconds), it will be set to 3000. If the function doesn't completed after \"timeout\", it will throw an UiTimeoutError.\n    preExecutionDelay: Time to wait before performing the action (in milliseconds).\n    postExecutionDelay: Time to wait after performing the action (in milliseconds)."
+  },
+  "Window.set_window_size": {
+    "prefix": "Window.set_window_size",
+    "body": [
+      "Window.set_window_size(selector=$1, width=$2, height=$3, timeout=${4:10000}, preExecutionDelay=${5:300}, postExecutionDelay=${6:200})",
+      ""
+    ],
+    "description": "Set the size of the element's window.\n\nParameters:\n    selector: The dictionary for locating an element, it is generated by UI Analyzer, you can modify it to make it more concise, more suitable for all situations.\n    width: The new width of the window in pixels.\n    height: The new height of the window in pixels.\n    timeout: Maximum time allowed for the function to complete (in milliseconds). If timeout < 3000 (milliseconds), it will be set to 3000. If the function doesn't completed after \"timeout\", it will throw an UiTimeoutError.\n    preExecutionDelay: Time to wait before performing the action (in milliseconds).\n    postExecutionDelay: Time to wait after performing the action (in milliseconds)."
+  },
+  "Window.get_window_pid": {
+    "prefix": "Window.get_window_pid",
+    "body": [
+      "${1:<class 'int'>} = Window.get_window_pid(selector=$2, timeout=${3:10000}, preExecutionDelay=${4:300}, postExecutionDelay=${5:200})",
+      ""
+    ],
+    "description": "Get the pid of the element's window.\n\nParameters:\n    selector: The dictionary for locating an element, it is generated by UI Analyzer, you can modify it to make it more concise, more suitable for all situations.\n    timeout: Maximum time allowed for the function to complete (in milliseconds). If timeout < 3000 (milliseconds), it will be set to 3000. If the function doesn't completed after \"timeout\", it will throw an UiTimeoutError.\n    preExecutionDelay: Time to wait before performing the action (in milliseconds).\n    postExecutionDelay: Time to wait after performing the action (in milliseconds).\n\nReturns:\n    int: The pid of the window element."
+  },
+  "Window.get_window_file_path": {
+    "prefix": "Window.get_window_file_path",
+    "body": [
+      "${1:<class 'str'>} = Window.get_window_file_path(selector=$2, timeout=${3:10000}, preExecutionDelay=${4:300}, postExecutionDelay=${5:200})",
+      ""
+    ],
+    "description": "Get the file path of the element's window.\n\nParameters:\n    selector: The dictionary for locating an element, it is generated by UI Analyzer, you can modify it to make it more concise, more suitable for all situations.\n    timeout: Maximum time allowed for the function to complete (in milliseconds). If timeout < 3000 (milliseconds), it will be set to 3000. If the function doesn't completed after \"timeout\", it will throw an UiTimeoutError.\n    preExecutionDelay: Time to wait before performing the action (in milliseconds).\n    postExecutionDelay: Time to wait after performing the action (in milliseconds).\n\nReturns:\n    str: The file path string."
+  },
+  "UiInterface.highlight": {
+    "prefix": "UiInterface.highlight",
+    "body": [
+      "UiInterface.highlight(selector=$1, color=${2:'red'}, duration=${3:1000}, timeout=${4:10000}, preExecutionDelay=${5:300}, postExecutionDelay=${6:200})",
+      ""
+    ],
+    "description": "Draw a rectangle around the element.\n\nParameters:\n    selector: The dictionary for locating an element, it is generated by UI Analyzer, you can modify it to make it more concise, more suitable for all situations.\n    color: The color of the highlight border. Available options are \"red\", \"green\", \"blue\", \"yellow\", \"purple\", \"pink\", \"black\".\n    duration: The time in milliseconds for which the highlight should remain visible on the screen.\n    timeout: Maximum time allowed for the function to complete (in milliseconds). If timeout < 3000 (milliseconds), it will be set to 3000. If the function doesn't completed after \"timeout\", it will throw an UiTimeoutError.\n    preExecutionDelay: Time to wait before performing the action (in milliseconds).\n    postExecutionDelay: Time to wait after performing the action (in milliseconds)."
+  },
+  "UiInterface.screenshot": {
+    "prefix": "UiInterface.screenshot",
+    "body": [
+      "${1:<class 'str'>} = UiInterface.screenshot(selector=$2, saveFilePath=$3, offsetX=${4:0}, offsetY=${5:0}, width=${6:None}, height=${7:None}, override=${8:False}, timeout=${9:10000}, preExecutionDelay=${10:300}, postExecutionDelay=${11:200})",
+      ""
+    ],
+    "description": "Capture a screenshot of the element's area and save it.\n\nParameters:\n    selector: The dictionary for locating an element, it is generated by UI Analyzer, you can modify it to make it more concise, more suitable for all situations.\n    saveFilePath: The file path where the screenshot will be saved.\n    offsetX: The horizontal offset in pixels from the top-left corner of the element to start capturing the screenshot.\n    offsetY: The vertical offset in pixels from the top-left corner of the element to start capturing the screenshot.\n    width: The width of the screenshot in pixels. If None, the width of the element will be used.\n    height: The height of the screenshot in pixels. If None, the height of the element will be used.\n    override: If True, will overwrite an existing file at saveFilePath.\n    timeout: Maximum time allowed for the function to complete (in milliseconds). If timeout < 3000 (milliseconds), it will be set to 3000. If the function doesn't completed after \"timeout\", it will throw an UiTimeoutError.\n    preExecutionDelay: Time to wait before performing the action (in milliseconds).\n    postExecutionDelay: Time to wait after performing the action (in milliseconds).\n\nReturns:\n    str: The absolute path of the saved screenshot."
+  },
+  "UiInterface.get_image_position": {
+    "prefix": "UiInterface.get_image_position",
+    "body": [
+      "${1:list[liberrpa.UI._UiDict.DictPositionAndSize]} = UiInterface.get_image_position(filePath=$2, region=${3:None}, confidence=${4:0.95}, grayscale=${5:True}, limit=${6:1}, highlight=${7:False})",
+      ""
+    ],
+    "description": "Searches for an image on the screen and returns the coordinates of matched regions.\n\nParameters:\n    filePath: The path of the image file to locate.\n    region: A tuple (x, y, width, height) defining the search area. If None, searches the entire screen.\n    confidence: A float (0.0 to 1.0) indicating the required match accuracy.\n    grayscale: If True, searches in grayscale mode for faster detection.\n    limit: The maximum number of matches to return.\n    highlight: Whether highlight the matched position.\n\nReturns:\n    DictPositionAndSize: A list of dictionaries containing the x, y, width, and height of the matched images: {'x': <class 'int'>, 'y': <class 'int'>, 'width': <class 'int'>, 'height': <class 'int'>}"
+  },
+  "UiInterface.check_exists": {
+    "prefix": "UiInterface.check_exists",
+    "body": [
+      "${1:<class 'bool'>} = UiInterface.check_exists(selector=$2, timeout=${3:10000}, preExecutionDelay=${4:300}, postExecutionDelay=${5:200})",
+      ""
+    ],
+    "description": "Check if an element exists, raise False if it didn't appear at timeout.\n\nParameters:\n    selector: The dictionary for locating an element, it is generated by UI Analyzer, you can modify it to make it more concise, more suitable for all situations.\n    timeout: Maximum time allowed for the function to complete (in milliseconds). If timeout < 3000 (milliseconds), it will be set to 3000.\n    preExecutionDelay: Time to wait before performing the action (in milliseconds).\n    postExecutionDelay: Time to wait after performing the action (in milliseconds).\n\nReturns:\n    True if the element exists within the specified timeout, False otherwise."
+  },
+  "UiInterface.wait_appear": {
+    "prefix": "UiInterface.wait_appear",
+    "body": [
+      "UiInterface.wait_appear(selector=$1, timeout=${2:10000}, preExecutionDelay=${3:300}, postExecutionDelay=${4:200})",
+      ""
+    ],
+    "description": "Wait an element to appear.\n\nParameters:\n    selector: The dictionary for locating an element, it is generated by UI Analyzer, you can modify it to make it more concise, more suitable for all situations.\n    timeout: Maximum time allowed for the function to complete (in milliseconds). If timeout < 3000 (milliseconds), it will be set to 3000. If the element doesn't appear after \"timeout\", it will throw an UiTimeoutError.\n    preExecutionDelay: Time to wait before performing the action (in milliseconds).\n    postExecutionDelay: Time to wait after performing the action (in milliseconds)."
+  },
+  "UiInterface.wait_disappear": {
+    "prefix": "UiInterface.wait_disappear",
+    "body": [
+      "UiInterface.wait_disappear(selector=$1, timeout=${2:10000}, preExecutionDelay=${3:300}, postExecutionDelay=${4:200})",
+      ""
+    ],
+    "description": "Wait an element to disappear.\n\nParameters:\n    selector: The dictionary for locating an element, it is generated by UI Analyzer, you can modify it to make it more concise, more suitable for all situations.\n    timeout: Maximum time allowed for the function to complete (in milliseconds). If timeout < 3000 (milliseconds), it will be set to 3000. If the element doesn't disappear after \"timeout\", it will throw an UiTimeoutError.\n    preExecutionDelay: Time to wait before performing the action (in milliseconds).\n    postExecutionDelay: Time to wait after performing the action (in milliseconds)."
+  },
+  "UiInterface.get_parent": {
+    "prefix": "UiInterface.get_parent",
+    "body": [
+      "${1:liberrpa.UI._UiDict.SelectorWindow | liberrpa.UI._UiDict.SelectorUia | liberrpa.UI._UiDict.SelectorHtml} = UiInterface.get_parent(selector=$2, upwardLevel=${3:1}, timeout=${4:10000}, preExecutionDelay=${5:300}, postExecutionDelay=${6:200})",
+      ""
+    ],
+    "description": "Get the selector of an element's parent. Only support SelectorUia and SelectorHtml.\n\nParameters:\n    selector: The dictionary for locating an element, it is generated by UI Analyzer, you can modify it to make it more concise, more suitable for all situations.\n    upwardLevel: The upward layer to find its parent element.\n    timeout: Maximum time allowed for the function to complete (in milliseconds). If timeout < 3000 (milliseconds), it will be set to 3000. If the function doesn't completed after \"timeout\", it will throw an UiTimeoutError.\n    preExecutionDelay: Time to wait before performing the action (in milliseconds).\n    postExecutionDelay: Time to wait after performing the action (in milliseconds).\n\nReturns:\n    SelectorWindow | SelectorUia | SelectorHtml: The parent element's selector."
+  },
+  "UiInterface.get_children": {
+    "prefix": "UiInterface.get_children",
+    "body": [
+      "${1:list[liberrpa.UI._UiDict.SelectorUia] | list[liberrpa.UI._UiDict.SelectorHtml]} = UiInterface.get_children(selector=$2, timeout=${3:30000}, preExecutionDelay=${4:300}, postExecutionDelay=${5:200})",
+      ""
+    ],
+    "description": "Get the direct chilren elements' selectors. Only support SelectorWindow, SelectorUia and SelectorHtml.\n\nParameters:\n    selector: The dictionary for locating an element, it is generated by UI Analyzer, you can modify it to make it more concise, more suitable for all situations.\n    timeout: Maximum time allowed for the function to complete (in milliseconds). If timeout < 3000 (milliseconds), it will be set to 3000. If the function doesn't completed after \"timeout\", it will throw an UiTimeoutError.\n    preExecutionDelay: Time to wait before performing the action (in milliseconds).\n    postExecutionDelay: Time to wait after performing the action (in milliseconds).\n\nReturns:\n    list[SelectorUia] | list[SelectorHtml]: A list contains the selectors of the element's direct children."
+  },
+  "UiInterface.get_attr_dictionary": {
+    "prefix": "UiInterface.get_attr_dictionary",
+    "body": [
+      "${1:liberrpa.UI._UiDict.DictUiaAttr | liberrpa.UI._UiDict.DictHtmlAttr | liberrpa.UI._UiDict.DictImageAttr} = UiInterface.get_attr_dictionary(selector=$2, timeout=${3:10000}, preExecutionDelay=${4:300}, postExecutionDelay=${5:200})",
+      ""
+    ],
+    "description": "Get a dictionary contains all attributes of the element.\n\nParameters:\n    selector: The dictionary for locating an element, it is generated by UI Analyzer, you can modify it to make it more concise, more suitable for all situations.\n    timeout: Maximum time allowed for the function to complete (in milliseconds). If timeout < 3000 (milliseconds), it will be set to 3000. If the function doesn't completed after \"timeout\", it will throw an UiTimeoutError.\n    preExecutionDelay: Time to wait before performing the action (in milliseconds).\n    postExecutionDelay: Time to wait after performing the action (in milliseconds).\n\nReturns:\n    DictUiaAttr | DictHtmlAttr: The attributes dictionary of the element, note some attributes with the prefix of \"secondary-\"."
+  },
+  "UiInterface.get_text": {
+    "prefix": "UiInterface.get_text",
+    "body": [
+      "${1:tuple[list[str], str]} = UiInterface.get_text(selector=$2, timeout=${3:10000}, preExecutionDelay=${4:300}, postExecutionDelay=${5:200})",
+      ""
+    ],
+    "description": "Get all text of the element. Only support SelectorWindow, SelectorUia and SelectorHtml.\n\nParameters:\n    selector: The dictionary for locating an element, it is generated by UI Analyzer, you can modify it to make it more concise, more suitable for all situations.\n    timeout: Maximum time allowed for the function to complete (in milliseconds). If timeout < 3000 (milliseconds), it will be set to 3000. If the function doesn't completed after \"timeout\", it will throw an UiTimeoutError.\n    preExecutionDelay: Time to wait before performing the action (in milliseconds).\n    postExecutionDelay: Time to wait after performing the action (in milliseconds).\n\nReturns:\n    tuple[list[str], str]: A tuple contains the all children element's text(if it's an uia element) and all text."
+  },
+  "UiInterface.set_text": {
+    "prefix": "UiInterface.set_text",
+    "body": [
+      "UiInterface.set_text(selector=$1, text=$2, timeout=${3:10000}, preExecutionDelay=${4:300}, postExecutionDelay=${5:200})",
+      ""
+    ],
+    "description": "Set an element's text by its API instead of inputting by keyboard. Only support SelectorUia and SelectorHtml.\n\nParameters:\n    selector: The dictionary for locating an element, it is generated by UI Analyzer, you can modify it to make it more concise, more suitable for all situations.\n    text: The text to be set.\n    timeout: Maximum time allowed for the function to complete (in milliseconds). If timeout < 3000 (milliseconds), it will be set to 3000. If the function doesn't completed after \"timeout\", it will throw an UiTimeoutError.\n    preExecutionDelay: Time to wait before performing the action (in milliseconds).\n    postExecutionDelay: Time to wait after performing the action (in milliseconds)."
+  },
+  "UiInterface.get_check_state": {
+    "prefix": "UiInterface.get_check_state",
+    "body": [
+      "${1:typing.Literal['checked', 'unchecked', 'indeterminate']} = UiInterface.get_check_state(selector=$2, timeout=${3:10000}, preExecutionDelay=${4:300}, postExecutionDelay=${5:200})",
+      ""
+    ],
+    "description": "Get the check state of a checkbox or radio element. Only support SelectorUia and SelectorHtml.\n\nParameters:\n    selector: The dictionary for locating an element, it is generated by UI Analyzer, you can modify it to make it more concise, more suitable for all situations.\n    text: The text to be set.\n    timeout: Maximum time allowed for the function to complete (in milliseconds). If timeout < 3000 (milliseconds), it will be set to 3000. If the function doesn't completed after \"timeout\", it will throw an UiTimeoutError.\n    preExecutionDelay: Time to wait before performing the action (in milliseconds).\n    postExecutionDelay: Time to wait after performing the action (in milliseconds).\n\nReturns:\n    str: one of \"checked\", \"unchecked\", \"indeterminate\""
+  },
+  "UiInterface.set_check_state": {
+    "prefix": "UiInterface.set_check_state",
+    "body": [
+      "UiInterface.set_check_state(selector=$1, checkAction=${2:'checked'}, timeout=${3:10000}, preExecutionDelay=${4:300}, postExecutionDelay=${5:200})",
+      ""
+    ],
+    "description": "Set the check state of a checkbox or radio element. Only support SelectorUia and SelectorHtml.\n\nParameters:\n    selector: The dictionary for locating an element, it is generated by UI Analyzer, you can modify it to make it more concise, more suitable for all situations.\n    checkAction: Options are \"checked\", \"unchecked\", or \"toggle\". Note that if an HTML element's checked state is \"indeterminate\", action \"toggle\" will modity it to \"checked\" or \"unchecked\", depend on its previous check state, same like the mouse single click.\n    timeout: Maximum time allowed for the function to complete (in milliseconds). If timeout < 3000 (milliseconds), it will be set to 3000. If the function doesn't completed after \"timeout\", it will throw an UiTimeoutError.\n    preExecutionDelay: Time to wait before performing the action (in milliseconds).\n    postExecutionDelay: Time to wait after performing the action (in milliseconds)."
+  },
+  "UiInterface.get_selection": {
+    "prefix": "UiInterface.get_selection",
+    "body": [
+      "${1:str | int} = UiInterface.get_selection(selector=$2, selectionType=${3:'text'}, timeout=${4:10000}, preExecutionDelay=${5:300}, postExecutionDelay=${6:200})",
+      ""
+    ],
+    "description": "Get the check state of a checkbox or radio element. Only support SelectorHtml.\n\nParameters:\n    selector: The dictionary for locating an element, it is generated by UI Analyzer, you can modify it to make it more concise, more suitable for all situations.\n    selectionType: Options are \"text\", \"value\" or \"index\"\n    timeout: Maximum time allowed for the function to complete (in milliseconds). If timeout < 3000 (milliseconds), it will be set to 3000. If the function doesn't completed after \"timeout\", it will throw an UiTimeoutError.\n    preExecutionDelay: Time to wait before performing the action (in milliseconds).\n    postExecutionDelay: Time to wait after performing the action (in milliseconds).\n\nReturns:\n    str | int: Return a string if selectionType is \"text\" or \"value\", or an integer if selectionType is \"index\""
+  },
+  "UiInterface.set_selection": {
+    "prefix": "UiInterface.set_selection",
+    "body": [
+      "UiInterface.set_selection(selector=$1, text=${2:None}, value=${3:None}, index=${4:None}, timeout=${5:10000}, preExecutionDelay=${6:300}, postExecutionDelay=${7:200})",
+      ""
+    ],
+    "description": "Get the check state of a checkbox or radio element. Only support SelectorHtml.\n\nParameters:\n    selector: The dictionary for locating an element, it is generated by UI Analyzer, you can modify it to make it more concise, more suitable for all situations.\n    text: set the selection by an option's text, it's mutually exclusive with value and index.\n    value: set the selection by an option's value, it's mutually exclusive with text and index.\n    index: set the selection by an option's index(start from 0), it's mutually exclusive with text and value.\n    timeout: Maximum time allowed for the function to complete (in milliseconds). If timeout < 3000 (milliseconds), it will be set to 3000. If the function doesn't completed after \"timeout\", it will throw an UiTimeoutError.\n    preExecutionDelay: Time to wait before performing the action (in milliseconds).\n    postExecutionDelay: Time to wait after performing the action (in milliseconds)."
+  },
+  "Browser.open_browser": {
+    "prefix": "Browser.open_browser",
+    "body": [
+      "${1:browserObj} = Browser.open_browser(browserType=${2:'chrome'}, url=${3:'about:blank'}, path=${4:None}, params=${5:''}, timeout=${6:30000})",
+      ""
+    ],
+    "description": "Open a browser to access the url.\n\nIf the browser is running, it will open a new tab.\n\nParameters:\n    browserType: The type of browser to manipulate (currently only \"chrome\" is supported).\n    url: The URL to open in the browser.\n    path: The filesystem path to the browser exe. If not provided, it attempts to locate the browser in common directories.\n    params: Additional command-line parameters to pass when launching browser.\n\n        Such as \"--start-maximized\".\n\n        For Chrome, you can check all params in [List of Chromium Command Line Switches](https://peter.sh/experiments/chromium-command-line-switches/)\n\nReturns:\n    BrowserObj: An object representing the browser session."
+  },
+  "Browser.bind_browser": {
+    "prefix": "Browser.bind_browser",
+    "body": [
+      "${1:browserObj} = Browser.bind_browser(browserType=${2:'chrome'})",
+      ""
+    ],
+    "description": "Bind a running browser.\n\nParameters:\n    browserType: The type of browser to manipulate (currently only \"chrome\" is supported).\n\nReturns:\n    BrowserObj: An object representing the browser session."
+  },
+  "Browser.get_state": {
+    "prefix": "Browser.get_state",
+    "body": [
+      "${1:typing.Literal['unloaded', 'loading', 'complete']} = Browser.get_state(browserObj=${2:browserObj})",
+      ""
+    ],
+    "description": "Get the active tab's state.\n\nParameters:\n    browserObj: The browser object to manipulate.\n\nReturns:\n    str: one of \"unloaded\", \"loading\", \"complete\""
+  },
+  "Browser.go_backward": {
+    "prefix": "Browser.go_backward",
+    "body": [
+      "Browser.go_backward(browserObj=${1:browserObj})",
+      ""
+    ],
+    "description": "Make the active tab go backward.\n\nParameters:\n    browserObj: The browser object to manipulate."
+  },
+  "Browser.go_forward": {
+    "prefix": "Browser.go_forward",
+    "body": [
+      "Browser.go_forward(browserObj=${1:browserObj})",
+      ""
+    ],
+    "description": "Make the active tab go forward.\n\nParameters:\n    browserObj: The browser object to manipulate."
+  },
+  "Browser.refresh": {
+    "prefix": "Browser.refresh",
+    "body": [
+      "Browser.refresh(browserObj=${1:browserObj})",
+      ""
+    ],
+    "description": "Make the active tab refresh.\n\nParameters:\n    browserObj: The browser object to manipulate."
+  },
+  "Browser.wait_load_completed": {
+    "prefix": "Browser.wait_load_completed",
+    "body": [
+      "Browser.wait_load_completed(browserObj=${1:browserObj}, timeout=${2:30000})",
+      ""
+    ],
+    "description": "Wait for the active tab being loaded completed.\n\nParameters:\n    browserObj: The browser object to manipulate."
+  },
+  "Browser.navigate": {
+    "prefix": "Browser.navigate",
+    "body": [
+      "Browser.navigate(browserObj=${1:browserObj}, url=$2, waitLoadCompleted=${3:False}, timeout=${4:30000})",
+      ""
+    ],
+    "description": "Navigate the active tab to a specified url.\nThe url should starts with a protocol, such as http:// or https://\n\nParameters:\n    browserObj: The browser object to manipulate.\n    url: The URL to navigate to. It should starts with a protocol, such as http:// or https://\n    waitLoadCompleted: If True, waits for the page load to complete before returning.\n    timeout: The maximum time (in milliseconds) to wait for the page load to complete, applicable only if waitLoadCompleted is True."
+  },
+  "Browser.open_new_tab": {
+    "prefix": "Browser.open_new_tab",
+    "body": [
+      "Browser.open_new_tab(browserObj=${1:browserObj}, url=$2, waitLoadCompleted=${3:False}, timeout=${4:30000})",
+      ""
+    ],
+    "description": "Create a new tab to open a specified url.\nThe url should starts with a protocol, such as http:// or https://\n\nParameters:\n    browserObj: The browser object to manipulate.\n    url: The URL to access. It should starts with a protocol, such as http:// or https://\n    waitLoadCompleted: If True, waits for the page load to complete before returning.\n    timeout: The maximum time in milliseconds to wait for the page load to complete, applicable only if waitLoadCompleted is True."
+  },
+  "Browser.open_new_window": {
+    "prefix": "Browser.open_new_window",
+    "body": [
+      "Browser.open_new_window(browserObj=${1:browserObj}, url=$2, waitLoadCompleted=${3:False}, timeout=${4:30000})",
+      ""
+    ],
+    "description": "Create a new browser window to open a specified url.\nThe url should starts with a protocol, such as http:// or https://\n\nParameters:\n    browserObj: The browser object to manipulate.\n    url: The URL to access. It should starts with a protocol, such as http:// or https://\n    waitLoadCompleted: If True, waits for the page load to complete before returning.\n    timeout: The maximum time in milliseconds to wait for the page load to complete, applicable only if waitLoadCompleted is True."
+  },
+  "Browser.switch_tab": {
+    "prefix": "Browser.switch_tab",
+    "body": [
+      "Browser.switch_tab(browserObj=${1:browserObj}, titleOrIndex=$2)",
+      ""
+    ],
+    "description": "Switch to a specific tab of the active browser window.\n\nParameters:\n    browserObj: The browser object to manipulate.\n    titleOrIndex: The target tab's tile or index(start from 0)"
+  },
+  "Browser.close_current_tab": {
+    "prefix": "Browser.close_current_tab",
+    "body": [
+      "Browser.close_current_tab(browserObj=${1:browserObj})",
+      ""
+    ],
+    "description": "Close the active tab.\n\nParameters:\n    browserObj: The browser object to manipulate."
+  },
+  "Browser.get_download_list": {
+    "prefix": "Browser.get_download_list",
+    "body": [
+      "${1:list[liberrpa.Common._TypedValue.ChromeDownloadItem]} = Browser.get_download_list(browserObj=${2:browserObj}, limit=${3:5}, timeout=${4:10000})",
+      ""
+    ],
+    "description": ""
+  },
+  "Browser.get_source_code": {
+    "prefix": "Browser.get_source_code",
+    "body": [
+      "${1:<class 'str'>} = Browser.get_source_code(browserObj=${2:browserObj})",
+      ""
+    ],
+    "description": "Get the HTML source code of the active tab.\n\nParameters:\n    browserObj: The browser object to manipulate."
+  },
+  "Browser.get_all_text": {
+    "prefix": "Browser.get_all_text",
+    "body": [
+      "${1:<class 'str'>} = Browser.get_all_text(browserObj=${2:browserObj})",
+      ""
+    ],
+    "description": "Get all text in the active tab.\n\nParameters:\n    browserObj: The browser object to manipulate."
+  },
+  "Browser.get_url": {
+    "prefix": "Browser.get_url",
+    "body": [
+      "${1:<class 'str'>} = Browser.get_url(browserObj=${2:browserObj})",
+      ""
+    ],
+    "description": "Get the url of the active tab.\n\nParameters:\n    browserObj: The browser object to manipulate."
+  },
+  "Browser.get_title": {
+    "prefix": "Browser.get_title",
+    "body": [
+      "${1:<class 'str'>} = Browser.get_title(browserObj=${2:browserObj})",
+      ""
+    ],
+    "description": "Get the title of the active tab.\n\nParameters:\n    browserObj: The browser object to manipulate."
+  },
+  "Browser.get_cookies": {
+    "prefix": "Browser.get_cookies",
+    "body": [
+      "${1:list[liberrpa.Common._TypedValue.DictCookiesOfChrome]} = Browser.get_cookies(browserObj=${2:browserObj})",
+      ""
+    ],
+    "description": "Get the cookies of the active tab.\n\nParameters:\n    browserObj: The browser object to manipulate.\n\nReturns:\n    list[DictCookiesOfChrome]: The list of Chrome cookies standard attributes(refer to [Types-Cookie](https://developer.chrome.com/docs/extensions/reference/api/cookies#type-Cookie)), it will be improved with more browser type be added."
+  },
+  "Browser.set_cookies": {
+    "prefix": "Browser.set_cookies",
+    "body": [
+      "${1:<class 'liberrpa.Common._TypedValue.DictCookiesOfChrome'>} = Browser.set_cookies(browserObj=${2:browserObj}, domain=$3, name=$4, path=$5, value=${6:None}, expirationDate=${7:None}, httpOnly=${8:None}, secure=${9:None}, storeId=${10:None}, sameSite=${11:None})",
+      ""
+    ],
+    "description": "Sets a cookie to the active tab with the given cookie data; may overwrite equivalent cookies if they exist.\n\nParameters:\n    browserObj: The browser object to manipulate.\n    domain: The domain of the cookie.\n    name: The name of the cookie.\n    path: The path of the cookie.\n    value: The value of the cookie. If it's None, it will use the original value in browser.\n    expirationDate: The expiration date of the cookie as the number of seconds since the UNIX epoch. If it's None, it will use the original value in browser.\n    httpOnly: Whether the cookie should be marked as HttpOnly. If it's None, it will use the original value in browser.\n    secure: Whether the cookie should be marked as Secure. If it's None, it will use the original value in browser.\n    storeId: The ID of the cookie store in which to set the cookie. If it's None, it will use the original value in browser.\n    sameSite: The cookie's same-site status. If it's None, it will use the original value in browser.\n\nReturns:\n    DictCookiesOfChrome: The updated Chrome cookies standard attributes(refer to [Types-Cookie](https://developer.chrome.com/docs/extensions/reference/api/cookies#type-Cookie)), it will be improved with more browser type be added."
+  },
+  "Browser.get_scroll_position": {
+    "prefix": "Browser.get_scroll_position",
+    "body": [
+      "${1:tuple[int, int]} = Browser.get_scroll_position(browserObj=${2:browserObj})",
+      ""
+    ],
+    "description": "Get the scroll position of the active tab.\n\nParameters:\n    browserObj: The browser object to manipulate.\n\nReturns:\n    tuple[int,int]: The scrollX and scrollY."
+  },
+  "Browser.set_scroll_position": {
+    "prefix": "Browser.set_scroll_position",
+    "body": [
+      "Browser.set_scroll_position(browserObj=${1:browserObj}, x=${2:0}, y=${3:0})",
+      ""
+    ],
+    "description": "set the scroll position of the active tab.\n\nParameters:\n    browserObj: The browser object to manipulate.\n    x: The pixel along the horizontal axis of the web page that you want displayed in the upper left.\n    y: The pixel along the vertical axis of the web page that you want displayed in the upper left."
+  },
+  "Browser.execute_js_code": {
+    "prefix": "Browser.execute_js_code",
+    "body": [
+      "${1:typing.Any} = Browser.execute_js_code(browserObj=${2:browserObj}, jsCode=$3, returnImmediately=${4:False})",
+      ""
+    ],
+    "description": "Executes a JavaScript code string in the active tab of the specified browser.\n\nThis function allows you to run JavaScript code in the context of the current active tab's web page.\n\nThe code is executed as if it were being run directly in the browser's developer console.\n\nParameters:\n    browserObj: The browser object to manipulate.\n    jsCode: The JavaScript code to be executed.\n\n        This can include expressions, function calls, or IIFE (Immediately Invoked Function Expressions).\n\n        The code must be a valid JavaScript expression or function to execute correctly.\n    returnImmediately: If True, the function will return None immediately after execution and will not wait for a result.\n\n        If False, the function will wait for the JavaScript execution to complete and return the result of the JavaScript code.\n\nReturns:\n    the returned value of JavaScript code. It will alway be None if returnImmediately is True.\n\nUsage Example:\n    ```python\n    # Example 1: Execute a simple JavaScript expression and get the result\n    result = execute_js_code(browserObj, jsCode=\"123 + 456\", returnImmediately=False)\n    print(result)  # Outputs: 579\n\n    # Example 2: Execute an IIFE that returns a string\n    result = execute_js_code(browserObj, jsCode=\"(function(){ return 'Hello, World!'; })()\", returnImmediately=False)\n    print(result)  # Outputs: 'Hello, World!'\n\n    # Example 3: Execute JavaScript without waiting for the result\n    execute_js_code(browserObj, jsCode=\"document.body.style.backgroundColor = 'blue';\", returnImmediately=True)\n    ```"
+  },
+  "Excel.open_Excel_file": {
+    "prefix": "Excel.open_Excel_file",
+    "body": [
+      "${1:excelObj} = Excel.open_Excel_file(path=$2, visible=${3:True}, password=${4:''}, writePassword=${5:''}, createIfNotExist=${6:True}, readOnly=${7:False})",
+      ""
+    ],
+    "description": "Opens an Excel file, or creates it if specified.\n\nIf a file have be opened, it will be opened with read-only mode.\n\nParameters:\n    path: The path to the Excel file.\n    visible: If True, opens Excel in visible mode.\n    password: The password for opening the workbook, if required.\n    writePassword: The password for write access, if required.\n    createIfNotExist: If True, creates a new workbook if the file does not exist.\n    readOnly: If True, opens the workbook in read-only mode.\n\nReturns:\n    ExcelWorkbook: An object representing the opened workbook."
+  },
+  "Excel.bind_Excel_file": {
+    "prefix": "Excel.bind_Excel_file",
+    "body": [
+      "${1:excelObj} = Excel.bind_Excel_file(fileName=$2)",
+      ""
+    ],
+    "description": "If there are files with same name, it will bind only one of them.\n\nParameters:\n    fileName: The opening Excel workbook file name.\n    visible: If True, opens Excel in visible mode.\n    password: The password for opening the workbook, if required.\n    writePassword: The password for write access, if required.\n    createIfNotExist: If True, creates a new workbook if the file does not exist.\n    readOnly: If True, opens the workbook in read-only mode.\n\nReturns:\n    ExcelWorkbook: An object representing the opened workbook."
+  },
+  "Excel.save": {
+    "prefix": "Excel.save",
+    "body": [
+      "Excel.save(excelObj=${1:excelObj})",
+      ""
+    ],
+    "description": "Save the Excel workbook object.\n\nParameters:\n    excelObj: The Excel workbook object."
+  },
+  "Excel.save_as_and_reopen": {
+    "prefix": "Excel.save_as_and_reopen",
+    "body": [
+      "${1:<class 'str'>} = Excel.save_as_and_reopen(excelObj=${2:excelObj}, destinationPath=$3, password=${4:''})",
+      ""
+    ],
+    "description": "Saves the workbook to a new file and reopens it under the new name.\n\nParameters:\n    excelObj: The Excel workbook object.\n    destinationPath: The path where the workbook will be saved.\n    password: An optional password for saving the workbook."
+  },
+  "Excel.close": {
+    "prefix": "Excel.close",
+    "body": [
+      "Excel.close(excelObj=${1:excelObj}, save=${2:True})",
+      ""
+    ],
+    "description": "Close the Excel workbook object.\n\nParameters:\n    excelObj: The Excel workbook object.\n    save: If True, saves the workbook before closing."
+  },
+  "Excel.activate_window": {
+    "prefix": "Excel.activate_window",
+    "body": [
+      "Excel.activate_window(excelObj=${1:excelObj})",
+      ""
+    ],
+    "description": "Brings the Excel window to the front and restores it if minimized.\n\nParameters:\n    excelObj: The Excel workbook object."
+  },
+  "Excel.get_last_row": {
+    "prefix": "Excel.get_last_row",
+    "body": [
+      "${1:<class 'int'>} = Excel.get_last_row(excelObj=${2:excelObj}, sheet=$3, col=${4:None})",
+      ""
+    ],
+    "description": "Get the last row number of a given sheet.\n\nIf a specific column is provided, it returns the last row number of that column.\n\nParameters:\n    excelObj: The Excel workbook object.\n    sheet: The name or index(start from 0) of the sheet.\n    col: The column (name or number) to check. If None, checks the entire sheet.\n\nReturns:\n    int: The number of the last row with data in the specified sheet/column."
+  },
+  "Excel.get_last_column": {
+    "prefix": "Excel.get_last_column",
+    "body": [
+      "${1:tuple[str, int]} = Excel.get_last_column(excelObj=${2:excelObj}, sheet=$3, row=${4:None})",
+      ""
+    ],
+    "description": "Get the last column (number or name) of a given sheet.\n\nIf a specific row is provided, it returns the last column of that row.\n\nParameters:\n    excelObj: The Excel workbook object.\n    sheet: The name or index(start from 0) of the sheet.\n    row: The row number to check. If None, checks the entire sheet.\n\nReturns:\n    tuple[str,int]: The name and number of the last column with data in the specified sheet/row."
+  },
+  "Excel.convert_col_num_to_str": {
+    "prefix": "Excel.convert_col_num_to_str",
+    "body": [
+      "${1:<class 'str'>} = Excel.convert_col_num_to_str(colNum=$2)",
+      ""
+    ],
+    "description": ""
+  },
+  "Excel.convert_col_str_to_num": {
+    "prefix": "Excel.convert_col_str_to_num",
+    "body": [
+      "${1:<class 'int'>} = Excel.convert_col_str_to_num(colStr=$2)",
+      ""
+    ],
+    "description": ""
+  },
+  "Excel.read_cell": {
+    "prefix": "Excel.read_cell",
+    "body": [
+      "${1:TypeOfCellData} = Excel.read_cell(excelObj=${2:excelObj}, sheet=$3, cell=$4, returnDisplayed=${5:True})",
+      ""
+    ],
+    "description": "Read the value of a specific cell.\n\nCan return either the actual value or the displayed value.\n\nParameters:\n    excelObj: The Excel workbook object.\n    sheet: The name or index(start from 0) of the sheet.\n    cell: The cell to read, either as an address string or a [row, column] list.\n    returnDisplayed: If True, returns the displayed value; otherwise, returns the actual value.\n\nReturns:\n    TypeOfCellData: The value of the cell."
+  },
+  "Excel.read_row": {
+    "prefix": "Excel.read_row",
+    "body": [
+      "${1:list[TypeOfCellData]} = Excel.read_row(excelObj=${2:excelObj}, sheet=$3, startCell=$4, returnDisplayed=${5:True})",
+      ""
+    ],
+    "description": "Reads an entire row in an Excel sheet starting from the specified cell.\n\nCan return either the actual values or the displayed values of the cells in the row.\n\nParameters:\n    excelObj: The Excel workbook object.\n    sheet: The name or index(start from 0) of the sheet.\n    startCell: The starting cell of the row to be read. Can be specified as a string (e.g., 'A1') or a list indicating the row and column [row, column].\n    returnDisplayed: If True, returns the displayed values of the cells. If False, returns their actual values.\n\nReturns:\n    list[TypeOfCellData]|None: A list of values from the specified row. Returns None if the starting cell is beyond the last column with data."
+  },
+  "Excel.read_column": {
+    "prefix": "Excel.read_column",
+    "body": [
+      "${1:list[TypeOfCellData] | None} = Excel.read_column(excelObj=${2:excelObj}, sheet=$3, startCell=$4, returnDisplayed=${5:True})",
+      ""
+    ],
+    "description": "Reads an entire column in an Excel sheet starting from the specified cell.\n\nCan return either the actual values or the displayed values of the cells in the column.\n\nParameters:\n    excelObj: The Excel workbook object.\n    sheet: The name or index(start from 0) of the sheet.\n    startCell: The starting cell of the column to be read. Can be specified as a string (e.g., 'A1') or a list indicating the row and column [row, column].\n    returnDisplayed: If True, returns the displayed values of the cells. If False, returns their actual values.\n\nReturns:\n    list[TypeOfCellData]|None: A list of values from the specified column. Returns None if the starting cell is below the last row with data."
+  },
+  "Excel.read_range_list": {
+    "prefix": "Excel.read_range_list",
+    "body": [
+      "${1:list[list[str]] | list[list[TypeOfCellData]] | None} = Excel.read_range_list(excelObj=${2:excelObj}, sheet=$3, startCell=$4, endCell=${5:None}, returnDisplayed=${6:True})",
+      ""
+    ],
+    "description": "Reads a specified range from an Excel sheet and returns the data in the desired format.\n\nParameters:\n    excelObj: The Excel workbook object.\n    sheet: The name or index(start from 0) of the sheet.\n    startCell: The starting cell of the range.\n    endCell: The ending cell of the range. If None, reads till the last cell.\n    returnDisplayed: If True, returns the displayed values as string; otherwise, returns actual cell values(TypeOfCellData).\n\nReturns:\n    list[list[str]] | list[list[TypeOfCellData]] | None: The data from the specified range in the chosen format. | None"
+  },
+  "Excel.read_range_df": {
+    "prefix": "Excel.read_range_df",
+    "body": [
+      "${1:pandas.core.frame.DataFrame | None} = Excel.read_range_df(excelObj=${2:excelObj}, sheet=$3, startCell=$4, endCell=${5:None}, addTitle=${6:True}, returnDisplayed=${7:True})",
+      ""
+    ],
+    "description": "Reads a specified range from an Excel sheet and returns the data in the desired format.\n\nParameters:\n    excelObj: The Excel workbook object.\n    sheet: The name or index(start from 0) of the sheet.\n    startCell: The starting cell of the range.\n    endCell: The ending cell of the range. If None, reads till the last cell.\n    addTitle: If True, uses the first row as headers.\n    returnDisplayed: If True, returns the displayed values as string; otherwise, returns actual cell values(TypeOfCellData).\n\nReturns:\n    pandas.DataFrame | None"
+  },
+  "Excel.write_cell": {
+    "prefix": "Excel.write_cell",
+    "body": [
+      "Excel.write_cell(excelObj=${1:excelObj}, sheet=$2, cell=$3, data=$4, save=${5:False})",
+      ""
+    ],
+    "description": "Writes data to a specified cell in an Excel sheet.\n\nParameters:\n    excelObj: The Excel workbook object.\n    sheet: The name or index(start from 0) of the sheet.\n    cell: The cell to write to, specified as a string (e.g., 'A1') or a list [row, column].\n    data: The data to write to the cell.\n    save: If True, saves the workbook immediately after writing."
+  },
+  "Excel.write_row": {
+    "prefix": "Excel.write_row",
+    "body": [
+      "Excel.write_row(excelObj=${1:excelObj}, sheet=$2, startCell=$3, data=$4, save=${5:False})",
+      ""
+    ],
+    "description": "Writes a list of data to a row in an Excel sheet starting from a specified cell.\n\nParameters:\n    excelObj: The Excel workbook object.\n    sheet: The name or index(start from 0) of the sheet.\n    startCell: The starting cell of the row.\n    data: A list of data to be written to the row.\n    save: If True, saves the workbook immediately after writing."
+  },
+  "Excel.write_column": {
+    "prefix": "Excel.write_column",
+    "body": [
+      "Excel.write_column(excelObj=${1:excelObj}, sheet=$2, startCell=$3, data=$4, save=${5:False})",
+      ""
+    ],
+    "description": "Writes a list of data to a column in an Excel sheet starting from a specified cell.\n\nParameters:\n    excelObj: The Excel workbook object.\n    sheet: The name or index(start from 0) of the sheet.\n    startCell: The starting cell of the column.\n    data: A list of data to be written to the column.\n    save: If True, saves the workbook immediately after writing."
+  },
+  "Excel.write_range": {
+    "prefix": "Excel.write_range",
+    "body": [
+      "Excel.write_range(excelObj=${1:excelObj}, sheet=$2, startCell=$3, data=$4, writeTitleRow=${5:True}, save=${6:False})",
+      ""
+    ],
+    "description": "Writes a pandas DataFrame or a 2D list to a specified range in an Excel sheet.\n\nParameters:\n    excelObj: The Excel workbook object.\n    sheet: The name or index(start from 0) of the sheet.\n    startCell: The starting cell for the data range.\n    data: The data to write, either as a DataFrame or a 2D list.\n    writeTitleRow: If True, includes the DataFrame's column titles, or the first item of the 2D list.\n    save: If True, saves the workbook immediately after writing."
+  },
+  "Excel.insert_row": {
+    "prefix": "Excel.insert_row",
+    "body": [
+      "Excel.insert_row(excelObj=${1:excelObj}, sheet=$2, startCell=$3, data=$4, save=${5:False})",
+      ""
+    ],
+    "description": "Create a new empty row and then write a list of data to a row in an Excel sheet starting from a specified cell.\n\nParameters:\n    excelObj: The Excel workbook object.\n    sheet: The name or index(start from 0) of the sheet.\n    startCell: The starting cell of the row.\n    data: A list of data to be written to the row.\n    save: If True, saves the workbook immediately after inserting."
+  },
+  "Excel.insert_column": {
+    "prefix": "Excel.insert_column",
+    "body": [
+      "Excel.insert_column(excelObj=${1:excelObj}, sheet=$2, startCell=$3, data=$4, save=${5:False})",
+      ""
+    ],
+    "description": "Create a new empty row and then write a list of data to a column in an Excel sheet starting from a specified cell.\n\nParameters:\n    excelObj: The Excel workbook object.\n    sheet: The name or index(start from 0) of the sheet.\n    startCell: The starting cell of the column.\n    data: A list of data to be written to the column.\n    save: If True, saves the workbook immediately after inserting."
+  },
+  "Excel.delete_row": {
+    "prefix": "Excel.delete_row",
+    "body": [
+      "Excel.delete_row(excelObj=${1:excelObj}, sheet=$2, cell=$3, save=${4:False})",
+      ""
+    ],
+    "description": "Delete the row of the cell and move the next row up.\n\nParameters:\n    excelObj: The Excel workbook object.\n    sheet: The name or index(start from 0) of the sheet.\n    cell: A cell whthin the row to delete.\n    save: If True, saves the workbook immediately after deleting."
+  },
+  "Excel.delete_column": {
+    "prefix": "Excel.delete_column",
+    "body": [
+      "Excel.delete_column(excelObj=${1:excelObj}, sheet=$2, cell=$3, save=${4:False})",
+      ""
+    ],
+    "description": "Delete the column of the cell and move the next column left.\n\nParameters:\n    excelObj: The Excel workbook object.\n    sheet: The name or index(start from 0) of the sheet.\n    cell: A cell whthin the column to delete.\n    save: If True, saves the workbook immediately after deleting."
+  },
+  "Excel.select_range": {
+    "prefix": "Excel.select_range",
+    "body": [
+      "Excel.select_range(excelObj=${1:excelObj}, sheet=$2, startCell=$3, endCell=$4)",
+      ""
+    ],
+    "description": "Select the specific range.\n\nParameters:\n    excelObj: The Excel workbook object.\n    sheet: The name or index(start from 0) of the sheet.\n    startCell: The starting cell of the range.\n    endCell: The ending cell of the range.  If None, select till the last cell."
+  },
+  "Excel.get_selected_cells": {
+    "prefix": "Excel.get_selected_cells",
+    "body": [
+      "${1:list[str]} = Excel.get_selected_cells(excelObj=${2:excelObj})",
+      ""
+    ],
+    "description": "Get the list of all selected cells of the current activated sheet.\n\nParameters:\n    excelObj: The Excel workbook object.\n\nReturns:\n    list[str]: A list of selected ranges, with addresses in standard Excel format (e.g., 'A1:B2')."
+  },
+  "Excel.get_selected_range": {
+    "prefix": "Excel.get_selected_range",
+    "body": [
+      "${1:list[str]} = Excel.get_selected_range(excelObj=${2:excelObj})",
+      ""
+    ],
+    "description": "Get the list of all selected ranges of the current activated sheet.\n\nParameters:\n    excelObj: The Excel workbook object.\n\nReturns:\n    list[str]: A list of selected cells, with addresses in standard Excel format (e.g., 'A1')."
+  },
+  "Excel.clear_range": {
+    "prefix": "Excel.clear_range",
+    "body": [
+      "Excel.clear_range(excelObj=${1:excelObj}, sheet=$2, startCell=$3, endCell=$4, clearContent=${5:True}, clearFormat=${6:True}, save=${7:False})",
+      ""
+    ],
+    "description": "Clear the content or format of the range.\n\nParameters:\n    excelObj: The Excel workbook object.\n    sheet: The name or index(start from 0) of the sheet.\n    startCell: The starting cell of the range.\n    endCell: The ending cell of the range.  If None, clear till the last cell.\n    clearContent: Whether clear contents of the range.\n    clearFormat: Whether clear format of the range.\n    save: If True, saves the workbook immediately after clearing."
+  },
+  "Excel.activate_sheet": {
+    "prefix": "Excel.activate_sheet",
+    "body": [
+      "Excel.activate_sheet(excelObj=${1:excelObj}, sheet=$2)",
+      ""
+    ],
+    "description": "Activate sheet by name or index.\n\nParameters:\n    excelObj: The Excel workbook object.\n    sheet: The name or index(start from 0) of the sheet."
+  },
+  "Excel.add_sheet": {
+    "prefix": "Excel.add_sheet",
+    "body": [
+      "Excel.add_sheet(excelObj=${1:excelObj}, newSheetName=$2, anchorSheet=${3:'Sheet1'}, direction=${4:'after'}, save=${5:False})",
+      ""
+    ],
+    "description": "Add a new sheet in specific position.\n\nParameters:\n    excelObj: The Excel workbook object.\n    newSheetName: The new sheet's name.\n    anchorSheet: The new sheet will add before or after the anchor sheet.\n    direction: Options are \"before\" and \"after\".\n    save: If True, saves the workbook immediately after adding."
+  },
+  "Excel.rename_sheet": {
+    "prefix": "Excel.rename_sheet",
+    "body": [
+      "Excel.rename_sheet(excelObj=${1:excelObj}, sheet=$2, newSheetName=$3, save=${4:False})",
+      ""
+    ],
+    "description": "Rename a sheet.\n\nParameters:\n    excelObj: The Excel workbook object.\n    sheet: The name or index(start from 0) of the sheet.\n    newSheetName: The sheet's new name.\n    save: If True, saves the workbook immediately after renaming."
+  },
+  "Excel.copy_sheet": {
+    "prefix": "Excel.copy_sheet",
+    "body": [
+      "Excel.copy_sheet(srcExcelObj=$1, srcSheet=$2, dstExcelObj=$3, dstAnchorSheet=$4, newSheetName=$5, direction=${6:'after'}, save=${7:False})",
+      ""
+    ],
+    "description": "Copy a sheet.\n\nParameters:\n    srcExcelObj: The Excel workbook object that copy from.\n    srcSheet: The sheet name or index(start from 0) in the source workbook.\n    dstExcelObj: The Excel workbook object that copy into.\n    dstAnchorSheet: The new sheet will add before or after the anchor sheet in the dstExcelObj.\n    newSheetName: The sheet's new name.\n    direction: Options are \"before\" and \"after\".\n    save: If True, saves the workbook immediately after copying."
+  },
+  "Excel.delete_sheet": {
+    "prefix": "Excel.delete_sheet",
+    "body": [
+      "Excel.delete_sheet(excelObj=${1:excelObj}, sheet=$2, save=${3:False})",
+      ""
+    ],
+    "description": "Delete a sheet.\n\nParameters:\n    excelObj: The Excel workbook object.\n    sheet: The name or index(start from 0) of the sheet.\n    save: If True, saves the workbook immediately after writing."
+  },
+  "Excel.get_activate_sheet": {
+    "prefix": "Excel.get_activate_sheet",
+    "body": [
+      "${1:<class 'str'>} = Excel.get_activate_sheet(excelObj=${2:excelObj})",
+      ""
+    ],
+    "description": "Get the current activated sheet's name.\n\nParameters:\n    excelObj: The Excel workbook object."
+  },
+  "Excel.get_sheet_list": {
+    "prefix": "Excel.get_sheet_list",
+    "body": [
+      "${1:list[str]} = Excel.get_sheet_list(excelObj=${2:excelObj})",
+      ""
+    ],
+    "description": "Get the list of all sheets' names of the Excel workbook object.\n\nParameters:\n    excelObj: The Excel workbook object."
+  },
+  "Excel.run_macro": {
+    "prefix": "Excel.run_macro",
+    "body": [
+      "${1:typing.Any} = Excel.run_macro(excelObj=${2:excelObj}, macroName=$3, arguments=${4:[]})",
+      ""
+    ],
+    "description": "Run a macro of a xlsm file.\n\nParameters:\n    excelObj: The Excel workbook object(.xlsm file).\n    macroName: Name of Sub or Function with or without module name, e.g., 'Module1.MyMacro' or 'MyMacro'\n    arguments: The list of arguments that will send into the macro function.\n\nReturns:\n    The returned value of the marco."
+  },
+  "Outlook.send_email": {
+    "prefix": "Outlook.send_email",
+    "body": [
+      "Outlook.send_email(account=$1, to=$2, subject=$3, body=$4, bodyFormat=${5:'text'}, attachments=${6:None}, cc=${7:None}, bcc=${8:None})",
+      ""
+    ],
+    "description": "Send an email using a specified Outlook account.\n\nParameters:\n    account: The email address of the account to send the email from.\n    to: A semicolon-separated string of the recipient(s) of the email.\n    subject: The subject of the email.\n    body: The body content of the email.\n    bodyFormat: The format of the email body ('text' or 'html').\n    attachments: Path(s) to file(s) to attach. Can be a single path, a list of paths or None.\n    cc: A semicolon-separated string of the CC recipient(s) of the email.\n    bcc: A semicolon-separated string of the BCC recipient(s) of the email."
+  },
+  "Outlook.get_folder_list": {
+    "prefix": "Outlook.get_folder_list",
+    "body": [
+      "${1:list[str]} = Outlook.get_folder_list(account=$2)",
+      ""
+    ],
+    "description": "Retrieves a list of all folders from the Outlook account.\n\nParameters:\n    account: The email account to fetch folder names from.\n\nReturns:\n    list[str]: A list of folder names."
+  },
+  "Outlook.get_email_list": {
+    "prefix": "Outlook.get_email_list",
+    "body": [
+      "${1:tuple[list[liberrpa.Common._TypedValue.DictOutlookMailInfo], list[win32com.client.CDispatch]]} = Outlook.get_email_list(account=$2, folder=${3:'INBOX'}, filter=${4:''}, numToGet=${5:1}, onlyUnread=${6:False}, markAsRead=${7:False})",
+      ""
+    ],
+    "description": "Fetch a list of emails from a specified Outlook account and folder.\n\nParameters:\n    account: The email account to fetch emails from.\n    folder: The folder to fetch emails from.\n    filter: A string to filter emails based on their properties.\n    numToGet: Maximum number of emails to fetch.\n    onlyUnread: Whether to retrieve only unread emails.\n    markAsRead: Whether to mark retrieved emails as read.\n\nReturns:\n    tuple[list[DictOutlookMailInfo],list[win32com.client.CDispatch]]:\n        A list of basic information dictionaries for each email, adhering to the DictOutlookMailInfo structure.\n        A list of email objects."
+  },
+  "Outlook.move_email": {
+    "prefix": "Outlook.move_email",
+    "body": [
+      "Outlook.move_email(account=$1, emailObj=$2, folder=$3)",
+      ""
+    ],
+    "description": "Move an email by its uid.\n\nParameters:\n    account: The email account.\n    emailObj: The win32com.client.CDispatch objects to move.\n    folder: The name of the folder to move."
+  },
+  "Outlook.reply_to_email": {
+    "prefix": "Outlook.reply_to_email",
+    "body": [
+      "Outlook.reply_to_email(emailObj=$1, body=$2, bodyFormat=${3:'text'}, attachments=${4:None}, replyAll=${5:True}, newSubject=${6:None})",
+      ""
+    ],
+    "description": "Reply an email.\n\nParameters:\n    emailObj: The win32com.client.CDispatch objects to reply.\n    body: The body content of the email.\n    bodyFormat: The format of the email body ('text' or 'html').\n    attachments: Path(s) to file(s) to attach. Can be a single path ,a list of paths or None.\n    replyAll: Whether to reply all recipients.\n    newSubject: A custom subject for the reply."
+  },
+  "Outlook.delete_email": {
+    "prefix": "Outlook.delete_email",
+    "body": [
+      "Outlook.delete_email(emailObj=$1)",
+      ""
+    ],
+    "description": "Delete an email.\n\nParameters:\n    emailObj: A win32com.client.CDispatch objects."
+  },
+  "Outlook.download_attachments": {
+    "prefix": "Outlook.download_attachments",
+    "body": [
+      "${1:list[str]} = Outlook.download_attachments(emailObj=$2, downloadPath=$3)",
+      ""
+    ],
+    "description": "Download all attachments of an email.\n\nParameters:\n    emailObj: The win32com.client.CDispatch objects to download its attachments.\n    downloadPath: The folder to save download files.\n\nReturns:\n    list[str]: A list contains the path of all attachments."
+  },
+  "Application.run_application": {
+    "prefix": "Application.run_application",
+    "body": [
+      "${1:<class 'int'>} = Application.run_application(filePath=$2, windowState=${3:'default'})",
+      ""
+    ],
+    "description": "Run an application with a specified window state.\n\nParameters:\n    filePath: The path of the application to run.\n    windowState: 'default', 'maximize', 'minimize', 'hide'\n\nReturns:\n    int: The application's PID."
+  },
+  "Application.open_url": {
+    "prefix": "Application.open_url",
+    "body": [
+      "Application.open_url(url=$1)",
+      ""
+    ],
+    "description": "Open a file or webpage using the default application.\n\nParameters:\n    url: The url of the target file or webpage. It may need to start with a protocol (e.g., http:// or https://)"
+  },
+  "Application.check_process_running": {
+    "prefix": "Application.check_process_running",
+    "body": [
+      "${1:<class 'bool'>} = Application.check_process_running(nameOrPID=$2)",
+      ""
+    ],
+    "description": "Check whether an application is running by its name or PID.\n\nParameters:\n    nameOrPID: the process name or PID.\n\nReturns:\n    bool: If the process is running, return True, otherwise return False."
+  },
+  "Application.stop_process": {
+    "prefix": "Application.stop_process",
+    "body": [
+      "Application.stop_process(nameOrPID=$1)",
+      ""
+    ],
+    "description": "Stop(kill) an application by its name or PID.\n\nParameters:\n    nameOrPID: the process name or PID."
+  },
+  "Database.build database connection": {
+    "prefix": "Database.build database connection",
+    "body": [
+      "with DatabaseConnection(connectString=${1:None}, dbType=${2:None}, username=${3:None}, password=${4:None}, host=${5:None}, port=${6:None}, database=${7:None}, options={$8}) as ${9:connObj}:",
+      "\t$10",
+      ""
+    ],
+    "description": "You can learn how to use it in liberrpa.Database.DatabaseConnection's Docstring"
+  },
+  "Database.fetch_one": {
+    "prefix": "Database.fetch_one",
+    "body": [
+      "${1:dict[str, typing.Any] | list[typing.Any] | None} = Database.fetch_one(connObj=${2:connObj}, query=$3, params=${4:None}, returnDict=${5:True})",
+      ""
+    ],
+    "description": "Execute a query and fetch a single row.\n\nParameters:\n    connObj: The active database connection.\n    query: The SQL query to be executed.\n\n        Example: \"SELECT * FROM employees WHERE employee_id = :id\"\n    params: The parameters to bind to the query.\n\n        This should be a dictionary where the keys correspond to the placeholders in the SQL query (e.g., \":id\"). Example: {\"id\": 1}.\n\n        If no parameters are required, pass None.\n    returnDict: Whether to return the result as a dictionary (True) or list (False).\n\nReturns:\n    dict[str, Any] | list[Any] | None: The fetched row as a dictionary or list, or None if no row is found."
+  },
+  "Database.fetch_all": {
+    "prefix": "Database.fetch_all",
+    "body": [
+      "${1:list[dict[str, typing.Any]] | list[list[typing.Any]]} = Database.fetch_all(connObj=${2:connObj}, query=$3, params=${4:None}, returnDict=${5:True})",
+      ""
+    ],
+    "description": "Execute a query and fetch all rows.\n\nParameters:\n    connObj: The active database connection.\n    query: The SQL query to be executed.\n\n        Example: \"SELECT * FROM employees WHERE salary > :salary\"\n    params: The parameters to bind to the query.\n\n        This should be a dictionary where the keys correspond to the placeholders in the SQL query (e.g., \":salary\").\n\n        Example: {\"salary\": 50000}.\n\n        If no parameters are required, pass None.\n    returnDict: Whether to return the results as dictionaries (True) or lists (False).\n\nReturns:\n    list[dict[str, Any]] | list[list[Any]]: A list of rows, where each row is a dictionary or list."
+  },
+  "Database.execute": {
+    "prefix": "Database.execute",
+    "body": [
+      "${1:<class 'int'>} = Database.execute(connObj=${2:connObj}, query=$3, params=${4:None})",
+      ""
+    ],
+    "description": "Execute an SQL query and return the number of affected rows.\n\nParameters:\n    connObj: The active database connection.\n    query: The SQL query to be executed.\n\n        Example: \"UPDATE employees SET salary = :salary WHERE employee_id = :id\"\n    params: The parameters to bind to the query.\n\n        This can be a single dictionary or a list of dictionaries for bulk operations.\n\n        Example for single operation: {\"salary\": 55000, \"id\": 1}.\n\n        Example for bulk operation: [{\"salary\": 55000, \"id\": 1}, {\"salary\": 62000, \"id\": 2}].\n\n        If no parameters are required, pass None.\n\nReturns:\n    int: The number of rows affected by the query."
+  },
+  "Data.sanitize_filename": {
+    "prefix": "Data.sanitize_filename",
+    "body": [
+      "${1:<class 'str'>} = Data.sanitize_filename(filename=$2)",
+      ""
+    ],
+    "description": "Sanitize a given filename using the pathvalidate module.\n\nParameters:\n    filename: The original filename to sanitize.\n\nReturns:\n    str: The sanitized filename."
+  },
+  "Data.get_length": {
+    "prefix": "Data.get_length",
+    "body": [
+      "${1:<class 'int'>} = Data.get_length(value=$2)",
+      ""
+    ],
+    "description": "Get the length of the given value.\n\nParameters:\n    value: The value whose length is to be measured.\n\nReturns:\n    int: The length of the value."
+  },
+  "Data.to_integer": {
+    "prefix": "Data.to_integer",
+    "body": [
+      "${1:<class 'int'>} = Data.to_integer(value=$2)",
+      ""
+    ],
+    "description": "Convert the given value to an integer.\n\nParameters:\n    value: The value to convert.\n\nReturns:\n    int: The converted integer value."
+  },
+  "Data.to_float": {
+    "prefix": "Data.to_float",
+    "body": [
+      "${1:<class 'float'>} = Data.to_float(value=$2)",
+      ""
+    ],
+    "description": "Convert the given value to a float.\n\nParameters:\n    value: The value to convert.\n\nReturns:\n    float: The converted float value."
+  },
+  "Data.to_decimal": {
+    "prefix": "Data.to_decimal",
+    "body": [
+      "${1:<class 'decimal.Decimal'>} = Data.to_decimal(value=$2)",
+      ""
+    ],
+    "description": "Convert the given value to a Decimal.\n\nParameters:\n    value: The value to convert.\n\nReturns:\n    Decimal: The converted decimal value."
+  },
+  "Data.to_boolean": {
+    "prefix": "Data.to_boolean",
+    "body": [
+      "${1:<class 'bool'>} = Data.to_boolean(value=$2)",
+      ""
+    ],
+    "description": "Convert the given value to a boolean.\n\nParameters:\n    value: The value to convert.\n\nReturns:\n    bool: The converted boolean value."
+  },
+  "Data.clone": {
+    "prefix": "Data.clone",
+    "body": [
+      "${1:~T} = Data.clone(value=$2)",
+      ""
+    ],
+    "description": "Create a deep copy of the given value.\n\nParameters:\n    value: The value to clone.\n\nReturns:\n    T: The cloned value."
+  },
+  "Data.get_type": {
+    "prefix": "Data.get_type",
+    "body": [
+      "${1:<class 'str'>} = Data.get_type(value=$2)",
+      ""
+    ],
+    "description": "Get the type name of the given value.\n\nParameters:\n    value: The value whose type is to be identified.\n\nReturns:\n    str: The type name of the value."
+  },
+  "Data.get_uuid": {
+    "prefix": "Data.get_uuid",
+    "body": [
+      "${1:<class 'str'>} = Data.get_uuid()",
+      ""
+    ],
+    "description": "Generate a new UUID.\n\nReturns:\n    str: The generated UUID as a string."
+  },
+  "Data.get_random_integer": {
+    "prefix": "Data.get_random_integer",
+    "body": [
+      "${1:<class 'int'>} = Data.get_random_integer(start=$2, end=$3)",
+      ""
+    ],
+    "description": "Return a random integer in the range [start, end].\n\nParameters:\n    start: The start of the range.\n    end: The end of the range.\n\nReturns:\n    int: A random integer within the specified range."
+  },
+  "Data.get_random_float": {
+    "prefix": "Data.get_random_float",
+    "body": [
+      "${1:<class 'float'>} = Data.get_random_float(start=${2:None}, end=${3:None})",
+      ""
+    ],
+    "description": "Generate a random float in the specified range.\n\nParameters:\n    start: The start of the range, or None for [0.0, 1.0).\n    end: The end of the range, or None for [0.0, 1.0).\n\nReturns:\n    float: A random float within the specified range."
+  },
+  "Data.json_dumps": {
+    "prefix": "Data.json_dumps",
+    "body": [
+      "${1:<class 'str'>} = Data.json_dumps(value=$2, indent=${3:4})",
+      ""
+    ],
+    "description": "Serialize an object to a JSON formatted string.\n\nParameters:\n    value: The object to serialize.\n    indent: The number of spaces to use for indentation.\n\nReturns:\n    str: The JSON formatted string."
+  },
+  "Data.json_loads": {
+    "prefix": "Data.json_loads",
+    "body": [
+      "${1:typing.Any} = Data.json_loads(jsonStr=$2)",
+      ""
+    ],
+    "description": "Deserialize a JSON formatted string to a Python object.\n\nParameters:\n    jsonStr: The JSON string to deserialize.\n\nReturns:\n    Any: The deserialized Python object."
+  },
+  "Data.join_to_str": {
+    "prefix": "Data.join_to_str",
+    "body": [
+      "${1:<class 'str'>} = Data.join_to_str(iterableObj=$2, joinStr=${3:','})",
+      ""
+    ],
+    "description": "Join a list of strings into a single string with a specified separator.\n\nParameters:\n    iterableObj: The iterable value of strings to join.\n    joinStr: The string used to separate the joined strings.\n\nReturns:\n    str: The joined string."
+  },
+  "Str.replace": {
+    "prefix": "Str.replace",
+    "body": [
+      "${1:<class 'str'>} = Str.replace(strObj=$2, old=$3, new=$4, count=${5:-1})",
+      ""
+    ],
+    "description": "Replaces occurrences of a substring with a new substring in the given string.\n\nParameters:\n    strObj: The original string.\n    old: The substring to be replaced.\n    new: The substring to replace with.\n    count: Maximum number of occurrences to replace. Default is -1 (all occurrences).\n\nReturns:\n    str: The modified string."
+  },
+  "Str.split": {
+    "prefix": "Str.split",
+    "body": [
+      "${1:list[str]} = Str.split(strObj=$2, separator=$3, maxSplit=${4:-1})",
+      ""
+    ],
+    "description": "Splits the string into a list based on the given separator.\n\nParameters:\n    strObj: The string to be split.\n    separator: The delimiter used to split the string.\n    maxSplit: Maximum number of splits. Default is -1 (all occurrences).\n\nReturns:\n    list[str]: A list of split strings."
+  },
+  "Str.split_lines": {
+    "prefix": "Str.split_lines",
+    "body": [
+      "${1:list[str]} = Str.split_lines(strObj=$2, keepends=${3:False})",
+      ""
+    ],
+    "description": "Splits the string into lines.\n\nParameters:\n    strObj: The string to split into lines.\n    keepends: If True, line breaks are included in the resulting list.\n\nReturns:\n    list[str]: A list of lines from the string."
+  },
+  "Str.fill": {
+    "prefix": "Str.fill",
+    "body": [
+      "${1:<class 'str'>} = Str.fill(strObj=$2, width=$3, character=${4:'0'})",
+      ""
+    ],
+    "description": "Pads the string with a specified character to the desired width.\n\nParameters:\n    strObj: The original string.\n    width: The desired total width of the string after padding.\n    character: The character to use for padding. Default is '0'.\n\nReturns:\n    str: The padded string."
+  },
+  "Str.count": {
+    "prefix": "Str.count",
+    "body": [
+      "${1:<class 'int'>} = Str.count(strObj=$2, subStr=$3, start=${4:None}, end=${5:None})",
+      ""
+    ],
+    "description": "Counts occurrences of a substring within the string.\n\nParameters:\n    strObj: The string to search in.\n    subStr: The substring to count.\n    start: The starting index for the search. Default is None (start from the beginning).\n    end: The ending index for the search. Default is None (search to the end).\n\nReturns:\n    int: The number of occurrences of the substring."
+  },
+  "Str.find_from_start": {
+    "prefix": "Str.find_from_start",
+    "body": [
+      "${1:<class 'int'>} = Str.find_from_start(strObj=$2, subStr=$3, start=${4:None}, end=${5:None})",
+      ""
+    ],
+    "description": "Finds the first occurrence of a substring starting from the beginning of the string.\n\nReturn -1 if the substring is not found.\n\nParameters:\n    strObj: The string to search in.\n    subStr: The substring to find.\n    start: The starting index for the search. Default is None (start from the beginning).\n    end: The ending index for the search. Default is None (search to the end).\n\nReturns:\n    int: The index of the first occurrence. Return -1 if the substring is not found."
+  },
+  "Str.find_from_end": {
+    "prefix": "Str.find_from_end",
+    "body": [
+      "${1:<class 'int'>} = Str.find_from_end(strObj=$2, subStr=$3, start=${4:None}, end=${5:None})",
+      ""
+    ],
+    "description": "Finds the last occurrence of a substring starting from the end of the string.\n\nReturn -1 if the substring is not found.\n\nParameters:\n    strObj: The string to search in.\n    subStr: The substring to find.\n    start: The starting index for the search. Default is None (start from the beginning).\n    end: The ending index for the search. Default is None (search to the end).\n\nReturns:\n    int: The index of the last occurrence. Return -1 if the substring is not found."
+  },
+  "Str.case_to_lower": {
+    "prefix": "Str.case_to_lower",
+    "body": [
+      "${1:<class 'str'>} = Str.case_to_lower(strObj=$2)",
+      ""
+    ],
+    "description": "Converts all characters in the string to lowercase.\n\nParameters:\n    strObj: The string to convert.\n\nReturns:\n    str: The string in lowercase."
+  },
+  "Str.case_to_upper": {
+    "prefix": "Str.case_to_upper",
+    "body": [
+      "${1:<class 'str'>} = Str.case_to_upper(strObj=$2)",
+      ""
+    ],
+    "description": "Converts all characters in the string to uppercase.\n\nParameters:\n    strObj: The string to convert.\n\nReturns:\n    str: The string in uppercase."
+  },
+  "Str.check_case_lower": {
+    "prefix": "Str.check_case_lower",
+    "body": [
+      "${1:<class 'bool'>} = Str.check_case_lower(strObj=$2)",
+      ""
+    ],
+    "description": "Checks if all characters in the string are lowercase.\n\nParameters:\n    strObj: The string to check.\n\nReturns:\n    bool: True if all characters are lowercase, False otherwise."
+  },
+  "Str.check_case_upper": {
+    "prefix": "Str.check_case_upper",
+    "body": [
+      "${1:<class 'bool'>} = Str.check_case_upper(strObj=$2)",
+      ""
+    ],
+    "description": "Checks if all characters in the string are uppercase.\n\nParameters:\n    strObj: The string to check.\n\nReturns:\n    bool: True if all characters are uppercase, False otherwise."
+  },
+  "Str.case_swap": {
+    "prefix": "Str.case_swap",
+    "body": [
+      "${1:<class 'str'>} = Str.case_swap(strObj=$2)",
+      ""
+    ],
+    "description": "Swaps the case of each character in the string.\n\nParameters:\n    strObj: The string to modify.\n\nReturns:\n    str: The string with swapped cases."
+  },
+  "Str.strip": {
+    "prefix": "Str.strip",
+    "body": [
+      "${1:<class 'str'>} = Str.strip(strObj=$2, characters=${3:None}, direction=${4:'start'})",
+      ""
+    ],
+    "description": "Removes specified characters from the string based on the given direction.\n\nParameters:\n    strObj: The string to modify.\n    characters: A list of characters to strip. If None, strips whitespace.\n    direction: The direction to strip characters. Options are \"start\", \"end\", or \"both\". Default is \"start\".\n\nReturns:\n    str: The modified string."
+  },
+  "Str.remove_prefix": {
+    "prefix": "Str.remove_prefix",
+    "body": [
+      "${1:<class 'str'>} = Str.remove_prefix(strObj=$2, prefix=$3)",
+      ""
+    ],
+    "description": "Removes a specified prefix from the beginning of a string if it exists.\n\nParameters:\n    strObj: The string from which to remove the prefix.\n    prefix: The prefix to remove.\n\nReturns:\n    str: The string after removing the specified prefix."
+  },
+  "Str.remove_suffix": {
+    "prefix": "Str.remove_suffix",
+    "body": [
+      "${1:<class 'str'>} = Str.remove_suffix(strObj=$2, suffix=$3)",
+      ""
+    ],
+    "description": "Removes a specified suffix from the end of a string if it exists.\n\nParameters:\n    strObj: The string from which to remove the suffix.\n    suffix: The suffix to remove.\n\nReturns:\n    str: The string after removing the specified suffix."
+  },
+  "Str.check_start": {
+    "prefix": "Str.check_start",
+    "body": [
+      "${1:<class 'bool'>} = Str.check_start(strObj=$2, subStr=$3)",
+      ""
+    ],
+    "description": "Checks if the string starts with the specified substring.\n\nParameters:\n    strObj: The string to check.\n    subStr: The substring to look for at the start.\n\nReturns:\n    bool: True if the string starts with subStr, False otherwise."
+  },
+  "Str.check_end": {
+    "prefix": "Str.check_end",
+    "body": [
+      "${1:<class 'bool'>} = Str.check_end(strObj=$2, subStr=$3)",
+      ""
+    ],
+    "description": "Checks if the string ends with the specified substring.\n\nParameters:\n    strObj: The string to check.\n    subStr: The substring to look for at the end.\n\nReturns:\n    bool: True if the string ends with subStr, False otherwise."
+  },
+  "Str.is_alpha_and_numeric": {
+    "prefix": "Str.is_alpha_and_numeric",
+    "body": [
+      "${1:<class 'bool'>} = Str.is_alpha_and_numeric(strObj=$2)",
+      ""
+    ],
+    "description": "Checks if the string contains only alphanumeric characters.\n\nParameters:\n    strObj: The string to check.\n\nReturns:\n    bool: True if the string is alphanumeric, False otherwise."
+  },
+  "Str.is_alpha": {
+    "prefix": "Str.is_alpha",
+    "body": [
+      "${1:<class 'bool'>} = Str.is_alpha(strObj=$2)",
+      ""
+    ],
+    "description": "Checks if the string contains only alphabetic characters.\n\nParameters:\n    strObj: The string to check.\n\nReturns:\n    bool: True if the string is alphabetic, False otherwise."
+  },
+  "Str.is_numeric": {
+    "prefix": "Str.is_numeric",
+    "body": [
+      "${1:<class 'bool'>} = Str.is_numeric(strObj=$2)",
+      ""
+    ],
+    "description": "Checks if the string contains only numeric characters.\n\nParameters:\n    strObj: The string to check.\n\nReturns:\n    bool: True if the string is numeric, False otherwise."
+  },
+  "Str.is_ascii": {
+    "prefix": "Str.is_ascii",
+    "body": [
+      "${1:<class 'bool'>} = Str.is_ascii(strObj=$2)",
+      ""
+    ],
+    "description": "Checks if the string is empty or all characters in the string are ASCII.\n\nParameters:\n    strObj: The string to check.\n\nReturns:\n    bool: True if all characters are ASCII or the string is empty, False otherwise."
+  },
+  "Str.is_digit": {
+    "prefix": "Str.is_digit",
+    "body": [
+      "${1:<class 'bool'>} = Str.is_digit(strObj=$2)",
+      ""
+    ],
+    "description": "Checks if the string contains only digit characters.\n\nParameters:\n    strObj: The string to check.\n\nReturns:\n    bool: True if the string is composed of digits, False otherwise."
+  },
+  "Str.is_decimal": {
+    "prefix": "Str.is_decimal",
+    "body": [
+      "${1:<class 'bool'>} = Str.is_decimal(strObj=$2)",
+      ""
+    ],
+    "description": "Checks if the string represents a decimal number.\n\nParameters:\n    strObj: The string to check.\n\nReturns:\n    bool: True if the string is a decimal number, False otherwise."
+  },
+  "List.insert": {
+    "prefix": "List.insert",
+    "body": [
+      "List.insert(listObj=$1, index=$2, value=$3)",
+      ""
+    ],
+    "description": "Insert a value into a list at a specified index.\n\nParameters:\n    listObj: The list to modify.\n    index: The index at which to insert the value.\n    value: The value to insert."
+  },
+  "List.append": {
+    "prefix": "List.append",
+    "body": [
+      "List.append(listObj=$1, value=$2)",
+      ""
+    ],
+    "description": "Append a value to the end of a list.\n\nParameters:\n    listObj: The list to modify.\n    value: The value to append."
+  },
+  "List.pop": {
+    "prefix": "List.pop",
+    "body": [
+      "${1:~T} = List.pop(listObj=$2, index=${3:-1})",
+      ""
+    ],
+    "description": "Remove and return an item from a list at a specified index.\n\nParameters:\n    listObj: The list to modify.\n    index: The index of the item to remove. Default is -1 (last item).\n\nReturns:\n    T: The removed item."
+  },
+  "List.remove": {
+    "prefix": "List.remove",
+    "body": [
+      "List.remove(listObj=$1, value=$2)",
+      ""
+    ],
+    "description": "Remove the first occurrence of a value from a list.\n\nParameters:\n    listObj: The list to modify.\n    value: The value to remove."
+  },
+  "List.clear": {
+    "prefix": "List.clear",
+    "body": [
+      "List.clear(listObj=$1)",
+      ""
+    ],
+    "description": "Clear all items from a list.\n\nParameters:\n    listObj: The list to clear."
+  },
+  "List.slice": {
+    "prefix": "List.slice",
+    "body": [
+      "${1:list[~T]} = List.slice(listObj=$2, start=$3, end=$4)",
+      ""
+    ],
+    "description": "Return a slice of the list between start and end indices.\n\nParameters:\n    listObj: The list to slice.\n    start: The starting index of the slice.\n    end: The ending index of the slice.\n\nReturns:\n    list[T]: The sliced list."
+  },
+  "List.extend": {
+    "prefix": "List.extend",
+    "body": [
+      "List.extend(listObj=$1, listToExtend=$2)",
+      ""
+    ],
+    "description": "Extend the list by appending elements from another list.\n\nParameters:\n    listObj: The list to modify.\n    listToExtend: The list of elements to append."
+  },
+  "List.count": {
+    "prefix": "List.count",
+    "body": [
+      "${1:<class 'int'>} = List.count(listObj=$2, value=$3)",
+      ""
+    ],
+    "description": "Count occurrences of a value in the list.\n\nParameters:\n    listObj: The list to search.\n    value: The value to count.\n\nReturns:\n    int: The number of occurrences."
+  },
+  "List.find": {
+    "prefix": "List.find",
+    "body": [
+      "${1:<class 'int'>} = List.find(listObj=$2, value=$3, start=${4:0}, stop=${5:None})",
+      ""
+    ],
+    "description": "Return the first index of a value in the list.\nRaises ValueError if the value is not present.\n\nParameters:\n    listObj: The list to search.\n    value: The value to find.\n    start: The starting index for the search.\n    stop: The ending index for the search. If it's None, use sys.maxsize\n\nReturns:\n    int: The index of the value."
+  },
+  "List.reverse": {
+    "prefix": "List.reverse",
+    "body": [
+      "List.reverse(listObj=$1)",
+      ""
+    ],
+    "description": "Reverse the order of items in a list.\n\nParameters:\n    listObj: The list to reverse."
+  },
+  "List.sort": {
+    "prefix": "List.sort",
+    "body": [
+      "List.sort(listObj=$1, keyFunc=${2:None}, reverse=${3:False})",
+      ""
+    ],
+    "description": "Sort the items in a list.\n\nParameters:\n    listObj: The list to sort.\n    keyFunc: Optional function to specify the sort order.\n    reverse: If True, sort in descending order."
+  },
+  "Dict.clear": {
+    "prefix": "Dict.clear",
+    "body": [
+      "Dict.clear(dictObj=$1)",
+      ""
+    ],
+    "description": "Clear all items from the specified dictionary.\n\nParameters:\n    dictObj: The dictionary to clear."
+  },
+  "Dict.get": {
+    "prefix": "Dict.get",
+    "body": [
+      "${1:typing.Optional[~T2]} = Dict.get(dictObj=$2, key=$3, default=${4:None})",
+      ""
+    ],
+    "description": "Retrieve the value associated with a specified key from the dictionary.\n\nIf the key is not found, return the default.\n\nParameters:\n    dictObj: The dictionary to search.\n    key: The key whose value is to be retrieved.\n    default: The value to return if the key is not found.\n\nReturns:\n    T2 | None: The value associated with the key or the default value if not found."
+  },
+  "Dict.pop": {
+    "prefix": "Dict.pop",
+    "body": [
+      "${1:typing.Optional[~T2]} = Dict.pop(dictObj=$2, key=$3, default=${4:None})",
+      ""
+    ],
+    "description": "Remove a specified key from the dictionary and return its corresponding value.\n\nIf the key is not found, return the default.\n\nParameters:\n    dictObj: The dictionary to modify.\n    key: The key to remove from the dictionary.\n    default: The value to return if the key is not found.\n\nReturns:\n    T2 | None: The value associated with the removed key or the default value if not found."
+  },
+  "Dict.pop_item": {
+    "prefix": "Dict.pop_item",
+    "body": [
+      "${1:tuple[~T, ~T2]} = Dict.pop_item(dictObj=$2)",
+      ""
+    ],
+    "description": "Remove a specified key from the dictionary and return its corresponding value.\n\nRaise KeyError if dictObj is empty.\n\nParameters:\n    dictObj: The dictionary to modify.\n    key: The key to remove from the dictionary.\n    default: The value to return if the key is not found.\n\nReturns:\n    T2 | None: The value associated with the removed key or the default value if not found."
+  },
+  "Dict.get_key_list": {
+    "prefix": "Dict.get_key_list",
+    "body": [
+      "${1:list[~T]} = Dict.get_key_list(dictObj=$2)",
+      ""
+    ],
+    "description": "Retrieve a list of keys from the specified dictionary.\n\nParameters:\n    dictObj: The dictionary from which to get the keys.\n\nReturns:\n    list[T]: A list of keys in the dictionary."
+  },
+  "Dict.get_value_list": {
+    "prefix": "Dict.get_value_list",
+    "body": [
+      "${1:list[~T]} = Dict.get_value_list(dictObj=$2)",
+      ""
+    ],
+    "description": "Retrieve a list of values from the specified dictionary.\n\nParameters:\n    dictObj: The dictionary from which to get the values.\n\nReturns:\n    list[T]: A list of values in the dictionary."
+  },
+  "Dict.extend": {
+    "prefix": "Dict.extend",
+    "body": [
+      "Dict.extend(dictObj=$1, dictToExtend=$2)",
+      ""
+    ],
+    "description": "Retrieve a list of values from the specified dictionary.\n\nParameters:\n    dictObj: The dictionary from which to get the values.\n\nReturns:\n    list[T]: A list of values in the dictionary."
+  },
+  "Regex.find_one": {
+    "prefix": "Regex.find_one",
+    "body": [
+      "${1:str | None} = Regex.find_one(strObj=$2, pattern=$3, ignoreCase=${4:False}, multiLine=${5:False}, dotAll=${6:False}, verbose=${7:False}, ascii=${8:False}, local=${9:False})",
+      ""
+    ],
+    "description": "Finds the first occurrence of a pattern in the given string.\n\nParameters:\n    strObj: The string to search.\n    pattern: The regex pattern to match.\n    ignoreCase: If True, match case-insensitively.\n    multiLine: If True, treat input as multiple lines.\n    dotAll: If True, '.' matches any character, including newline.\n    verbose: If True, allows for more readable regex patterns.\n    ascii: If True, restricts matching to ASCII characters.\n    local: If True, uses locale-dependent matching.\n\nReturns:\n    str | None: The matched string or None if no match is found."
+  },
+  "Regex.find_all": {
+    "prefix": "Regex.find_all",
+    "body": [
+      "${1:list[str]} = Regex.find_all(strObj=$2, pattern=$3, ignoreCase=${4:False}, multiLine=${5:False}, dotAll=${6:False}, verbose=${7:False}, ascii=${8:False}, local=${9:False})",
+      ""
+    ],
+    "description": "Finds all occurrences of a pattern in the given string.\n\nParameters:\n    strObj: The string to search.\n    pattern: The regex pattern to match.\n    ignoreCase: If True, match case-insensitively.\n    multiLine: If True, treat input as multiple lines.\n    dotAll: If True, '.' matches any character, including newline.\n    verbose: If True, allows for more readable regex patterns.\n    ascii: If True, restricts matching to ASCII characters.\n    local: If True, uses locale-dependent matching.\n\nReturns:\n    list[str]: A list of all matched strings."
+  },
+  "Regex.match_start": {
+    "prefix": "Regex.match_start",
+    "body": [
+      "${1:str | None} = Regex.match_start(strObj=$2, pattern=$3, ignoreCase=${4:False}, multiLine=${5:False}, dotAll=${6:False}, verbose=${7:False}, ascii=${8:False}, local=${9:False})",
+      ""
+    ],
+    "description": "Checks for a match only at the start of the string.\n\nParameters:\n    strObj: The string to check.\n    pattern: The regex pattern to match.\n    ignoreCase: If True, match case-insensitively.\n    multiLine: If True, treat input as multiple lines.\n    dotAll: If True, '.' matches any character, including newline.\n    verbose: If True, allows for more readable regex patterns.\n    ascii: If True, restricts matching to ASCII characters.\n    local: If True, uses locale-dependent matching.\n\nReturns:\n    str | None: The matched string or None if no match is found."
+  },
+  "Regex.match_full": {
+    "prefix": "Regex.match_full",
+    "body": [
+      "${1:str | None} = Regex.match_full(strObj=$2, pattern=$3, ignoreCase=${4:False}, multiLine=${5:False}, dotAll=${6:False}, verbose=${7:False}, ascii=${8:False}, local=${9:False})",
+      ""
+    ],
+    "description": "Checks for a match that covers the entire string.\n\nParameters:\n    strObj: The string to check.\n    pattern: The regex pattern to match.\n    ignoreCase: If True, match case-insensitively.\n    multiLine: If True, treat input as multiple lines.\n    dotAll: If True, '.' matches any character, including newline.\n    verbose: If True, allows for more readable regex patterns.\n    ascii: If True, restricts matching to ASCII characters.\n    local: If True, uses locale-dependent matching.\n\nReturns:\n    str | None: The matched string or None if no match is found."
+  },
+  "Regex.split": {
+    "prefix": "Regex.split",
+    "body": [
+      "${1:list[str]} = Regex.split(strObj=$2, pattern=$3, maxSplit=${4:0}, ignoreCase=${5:False}, multiLine=${6:False}, dotAll=${7:False}, verbose=${8:False}, ascii=${9:False}, local=${10:False})",
+      ""
+    ],
+    "description": "Splits the string at each occurrence of the pattern.\n\nParameters:\n    strObj: The string to split.\n    pattern: The regex pattern to use for splitting.\n    maxSplit: The maximum number of splits to perform; 0 means no limit.\n    ignoreCase: If True, match case-insensitively.\n    multiLine: If True, treat input as multiple lines.\n    dotAll: If True, '.' matches any character, including newline.\n    verbose: If True, allows for more readable regex patterns.\n    ascii: If True, restricts matching to ASCII characters.\n    local: If True, uses locale-dependent matching.\n\nReturns:\n    list[str]: A list of substrings after splitting."
+  },
+  "Regex.replace": {
+    "prefix": "Regex.replace",
+    "body": [
+      "${1:<class 'str'>} = Regex.replace(strObj=$2, pattern=$3, newStr=$4, count=${5:0}, ignoreCase=${6:False}, multiLine=${7:False}, dotAll=${8:False}, verbose=${9:False}, ascii=${10:False}, local=${11:False})",
+      ""
+    ],
+    "description": "Replaces occurrences of the pattern in the string with a new string.\n\nParameters:\n    strObj: The original string.\n    pattern: The regex pattern to match.\n    newStr: The string to replace matches with.\n    count: The maximum number of replacements to perform; 0 means all.\n    ignoreCase: If True, match case-insensitively.\n    multiLine: If True, treat input as multiple lines.\n    dotAll: If True, '.' matches any character, including newline.\n    verbose: If True, allows for more readable regex patterns.\n    ascii: If True, restricts matching to ASCII characters.\n    local: If True, uses locale-dependent matching.\n\nReturns:\n    str: The modified string with replacements made."
+  },
+  "Math.round": {
+    "prefix": "Math.round",
+    "body": [
+      "${1:~number} = Math.round(value=$2, fraction=${3:0})",
+      ""
+    ],
+    "description": "Rounds a number to a specified precision in fractional digits.\nfraction may be negative.\n\nParameters:\n    value: The number to be rounded (int, float, or Decimal).\n    fraction: The number of decimal places to round to. Can be negative.\n\nReturns:\n    The rounded value, with the same type as the input number."
+  },
+  "Math.check_float_equal": {
+    "prefix": "Math.check_float_equal",
+    "body": [
+      "${1:<class 'bool'>} = Math.check_float_equal(value1=$2, value2=$3)",
+      ""
+    ],
+    "description": "Checks if two floating-point numbers are approximately equal.\n\nParameters:\n    value1: The first float to compare.\n    value2: The second float to compare.\n\nReturns:\n    True if the values are close, False otherwise."
+  },
+  "Math.absolute": {
+    "prefix": "Math.absolute",
+    "body": [
+      "${1:~number} = Math.absolute(value=$2)",
+      ""
+    ],
+    "description": "Computes the absolute value of a number.\n\nParameters:\n    value: The number for which to compute the absolute value.\n\nReturns:\n    The absolute value of the input number."
+  },
+  "Math.get_int_and_fraction": {
+    "prefix": "Math.get_int_and_fraction",
+    "body": [
+      "${1:tuple[int, float]} = Math.get_int_and_fraction(value=$2)",
+      ""
+    ],
+    "description": "Splits a number into its integer and fractional parts.\n\nParameters:\n    value: The number to split (int, float, or Decimal).\n\nReturns:\n    tuple[int, float]: A tuple containing the integer part and the fractional part."
+  },
+  "Time.get_unix_time": {
+    "prefix": "Time.get_unix_time",
+    "body": [
+      "${1:<class 'float'>} = Time.get_unix_time()",
+      ""
+    ],
+    "description": "Returns the current time in Unix timestamp format.\n\nReturns:\n    float: The current time in seconds since the epoch (January 1, 1970)."
+  },
+  "Time.get_datetime_now": {
+    "prefix": "Time.get_datetime_now",
+    "body": [
+      "${1:<class 'datetime.datetime'>} = Time.get_datetime_now()",
+      ""
+    ],
+    "description": "Returns the current local date and time.\n\nReturns:\n    datetime: The current local date and time."
+  },
+  "Time.build_datetime": {
+    "prefix": "Time.build_datetime",
+    "body": [
+      "${1:<class 'datetime.datetime'>} = Time.build_datetime(year=${2:1984}, month=${3:4}, day=${4:4}, hour=${5:0}, minute=${6:0}, second=${7:0}, microsecond=${8:0})",
+      ""
+    ],
+    "description": "Builds a datetime object from the provided components.\n\nParameters:\n    year: Year of the datetime.\n    month: Month of the datetime.\n    day: Day of the datetime.\n    hour: Hour of the datetime.\n    minute: Minute of the datetime.\n    second: Second of the datetime.\n    microsecond: Microsecond of the datetime.\n\nReturns:\n    datetime: The constructed datetime object."
+  },
+  "Time.str_to_datetime": {
+    "prefix": "Time.str_to_datetime",
+    "body": [
+      "${1:<class 'datetime.datetime'>} = Time.str_to_datetime(strObj=$2, format=${3:'%Y-%m-%d %H:%M:%S'})",
+      ""
+    ],
+    "description": "Converts a string representation of a date and time into a datetime object.\n\nCheck the format codes in [strftime() and strptime() Format Codes]( https://docs.python.org/3/library/datetime.html#strftime-and-strptime-format-codes)\n\nParameters:\n    strObj: The string representation of the date and time.\n    format: The format of the string.\n\nReturns:\n    datetime: The corresponding datetime object."
+  },
+  "Time.datetime_to_str": {
+    "prefix": "Time.datetime_to_str",
+    "body": [
+      "${1:<class 'str'>} = Time.datetime_to_str(datetimeObj=$2, format=${3:'%Y-%m-%d %H:%M:%S'})",
+      ""
+    ],
+    "description": "Converts a datetime object into a string representation.\n\nCheck the format codes in [strftime() and strptime() Format Codes]( https://docs.python.org/3/library/datetime.html#strftime-and-strptime-format-codes)\n\nParameters:\n    datetimeObj: The datetime object to convert.\n    format: The format for the output string (default is \"%Y-%m-%d %H:%M:%S\").\n\nReturns:\n    str: The string representation of the datetime object."
+  },
+  "Time.get_datetime_attr": {
+    "prefix": "Time.get_datetime_attr",
+    "body": [
+      "${1:<class 'int'>} = Time.get_datetime_attr(datetimeObj=$2, attr=$3)",
+      ""
+    ],
+    "description": "Retrieves a specific attribute from a datetime object.\n\nParameters:\n    datetimeObj: The datetime object from which to retrieve the attribute.\n    attr: The attribute to retrieve (one of \"year\", \"month\", \"day\", \"hour\", \"minute\", \"second\", \"millisecond\", \"microsecond\").\n\nReturns:\n    int: The value of the requested attribute."
+  },
+  "Time.add_datetime": {
+    "prefix": "Time.add_datetime",
+    "body": [
+      "${1:<class 'datetime.datetime'>} = Time.add_datetime(datetimeObj=$2, week=${3:0}, day=${4:0}, hour=${5:0}, minute=${6:0}, second=${7:0}, millisecond=${8:0}, microsecond=${9:0})",
+      ""
+    ],
+    "description": "Adds a specified amount of time to a datetime object.\n\nParameters:\n    datetimeObj: The original datetime object.\n    week: Number of weeks to addfraction.\n    day: Number of days to addfraction.\n    hour: Number of hours to addfraction.\n    minute: Number of minutes to addfraction.\n    second: Number of seconds to addfraction.\n    millisecond: Number of milliseconds to addfraction.\n    microsecond: Number of microseconds to addfraction.\n\nReturns:\n    datetime: The new datetime object after adding the specified time."
+  },
+  "File.create_folder": {
+    "prefix": "File.create_folder",
+    "body": [
+      "File.create_folder(folderPath=$1, createParent=${2:True}, errorIfExisted=${3:False})",
+      ""
+    ],
+    "description": "Creates a folder at the specified path.\n\nParameters:\n    folderPath: The path where the folder will be created.\n    createParent: If True, creates all missing parent directories. If False, an error is raised if a parent directory is missing.\n    errorIfExisted: If True, raises an error if the folder already exists; otherwise, does nothing if the folder exists."
+  },
+  "File.read_file_content": {
+    "prefix": "File.read_file_content",
+    "body": [
+      "${1:<class 'str'>} = File.read_file_content(filePath=$2, encoding=${3:'utf-8'})",
+      ""
+    ],
+    "description": "Reads the content of a file using the specified encoding.\n\nParameters:\n    filePath: The path of the file to read.\n    encoding: The encoding to use for reading the file. If None, uses the system default.\n\nReturns:\n    str: The content of the file as a string."
+  },
+  "File.write_file": {
+    "prefix": "File.write_file",
+    "body": [
+      "File.write_file(filePath=$1, text=$2, encoding=${3:'utf-8'})",
+      ""
+    ],
+    "description": "Overwrites the content of a specified file with the given text, using the specified encoding.\nA new file will be created if \"filePath\" doesn't exist.\n\nParameters:\n    filePath: The path of the file whose content is to be overwritten.\n    text: The text to write into the file.\n    encoding: The encoding to use for writing the text to the file. Defaults to \"utf-8\"."
+  },
+  "File.append_write_file": {
+    "prefix": "File.append_write_file",
+    "body": [
+      "File.append_write_file(filePath=$1, text=$2, encoding=${3:'utf-8'})",
+      ""
+    ],
+    "description": "Appends text to the end of a specified file without overwriting its existing content, using the specified encoding.\nA new file will be created if \"filePath\" doesn't exist.\n\nParameters:\n    filePath: The path of the file to which the text is to be appended.\n    text: The text to append to the file.\n    encoding: The encoding to use for writing the text to the file. Defaults to \"utf-8\"."
+  },
+  "File.wait_file_download": {
+    "prefix": "File.wait_file_download",
+    "body": [
+      "File.wait_file_download(filePath=$1, retryTimes=${2:10}, retryInterval=${3:1}, threshold=${4:1})",
+      ""
+    ],
+    "description": "Waits for a file to finish downloading by checking its size. It will throw a TimeoutError If the file does not reach the expected size within the given attempts.\n\nParameters:\n- filePath: The path of the file to check.\n- retryTimes: The number of times to check before timing out.\n- retryInterval: The time(in seconds) to wait between retries.\n- threshold: The minimum file size(in bytes) to consider the download complete."
+  },
+  "File.get_file_fullname": {
+    "prefix": "File.get_file_fullname",
+    "body": [
+      "${1:<class 'str'>} = File.get_file_fullname(filePath=$2)",
+      ""
+    ],
+    "description": "Get the final path component(basename and suffix).\n\nParameters:\n    filePath: The filePath path.\n\nReturns:\n    str: The file's name"
+  },
+  "File.get_file_basename": {
+    "prefix": "File.get_file_basename",
+    "body": [
+      "${1:<class 'str'>} = File.get_file_basename(filePath=$2)",
+      ""
+    ],
+    "description": "Get the final path component, minus its last suffix.\n\nParameters:\n    filePath: The filePath path.\n\nReturns:\n    str: The file's basename(without suffix)"
+  },
+  "File.get_file_suffix": {
+    "prefix": "File.get_file_suffix",
+    "body": [
+      "${1:<class 'str'>} = File.get_file_suffix(filePath=$2)",
+      ""
+    ],
+    "description": "Get the file's suffix(contains the dot).\n\nParameters:\n    filePath: The filePath path.\n\nReturns:\n    str: The file's suffix(contains the dot)"
+  },
+  "File.check_file_exists": {
+    "prefix": "File.check_file_exists",
+    "body": [
+      "${1:<class 'bool'>} = File.check_file_exists(filePath=$2)",
+      ""
+    ],
+    "description": "Whether this path is a regular file (also True for symlinks pointing to regular files).\n\nParameters:\n    filePath: The path of the folder to check.\n\nReturns:\n    bool: If the path is not exists, it will return False."
+  },
+  "File.check_folder_exists": {
+    "prefix": "File.check_folder_exists",
+    "body": [
+      "${1:<class 'bool'>} = File.check_folder_exists(folderPath=$2)",
+      ""
+    ],
+    "description": "Whether this path is a directory.\n\nParameters:\n    folderPath: The path of the folder to check.\n\nReturns:\n    bool: If the path is not exists, it will return False."
+  },
+  "File.get_parent_folder_path": {
+    "prefix": "File.get_parent_folder_path",
+    "body": [
+      "${1:<class 'str'>} = File.get_parent_folder_path(path=$2)",
+      ""
+    ],
+    "description": "Returns the absolute path of the parent folder for a given path.\n\nParameters:\n    path: The path for which to retrieve the parent directory.\n\nReturns:\n    str: The absolute path of the parent folder."
+  },
+  "File.get_file_size": {
+    "prefix": "File.get_file_size",
+    "body": [
+      "${1:<class 'int'>} = File.get_file_size(filePath=$2)",
+      ""
+    ],
+    "description": "Returns the size of the specified file in bytes.\n\nParameters:\n    filePath: The path to the file whose size is to be determined.\n\nReturns:\n    int: The size of the file in bytes."
+  },
+  "File.get_folder_size": {
+    "prefix": "File.get_folder_size",
+    "body": [
+      "${1:<class 'int'>} = File.get_folder_size(folderPath=$2)",
+      ""
+    ],
+    "description": "Calculates the total size of all files within the specified folder and its subfolders.\n\nParameters:\n    folderPath: The path of the folder for which the total file size is to be calculated.\n\nReturns:\n    int: The total size of all files in the specified folder, measured in bytes."
+  },
+  "File.copy_file": {
+    "prefix": "File.copy_file",
+    "body": [
+      "${1:<class 'str'>} = File.copy_file(srcFilePath=$2, dstFilePath=$3, overwriteIfExist=${4:False})",
+      ""
+    ],
+    "description": "Copies a file from a source path to a destination path and returns the absolute path of the destination file.\n\nOptionally allows overwriting of an existing file at the destination.\n\nParameters:\n    srcFilePath: The path of the source file to copy.\n    dstFilePath: The path where the source file should be copied to.\n    overwriteIfExist: If set to True, the destination file will be overwritten if it already exists;\n\n        if False, a FileExistsError will be raised if the destination file exists.\n\nReturns:\n    str: The absolute path of the copied file at the destination."
+  },
+  "File.copy_folder": {
+    "prefix": "File.copy_folder",
+    "body": [
+      "${1:<class 'str'>} = File.copy_folder(srcFolderPath=$2, dstFolderPath=$3)",
+      ""
+    ],
+    "description": "Recursively copy a directory tree. The destination directory must not already exist.\n\nParameters:\n    srcFolderPath: The path of the source folder to copy.\n    dstFolderPath: The path where the source folder should be copied to. This path must not already exist.\n\nReturns:\n    str: The absolute path of the destination folder after copying."
+  },
+  "File.move_file_or_folder": {
+    "prefix": "File.move_file_or_folder",
+    "body": [
+      "${1:<class 'str'>} = File.move_file_or_folder(srcPath=$2, dstPath=$3)",
+      ""
+    ],
+    "description": "Recursively move a file or directory to another location. This is similar to the Unix \"mv\".\n\nReturn the file or directory's destination. It will overwrite the destination file by default if it exists.\n\nParameters:\n    srcPath: The path of the file or folder to move.\n    dstPath: The path where the file or folder should be moved to.\n\nReturns:\n    str: The absolute path of the dstPath."
+  },
+  "File.remove_file": {
+    "prefix": "File.remove_file",
+    "body": [
+      "File.remove_file(filePath=$1)",
+      ""
+    ],
+    "description": ""
+  },
+  "File.remove_folder": {
+    "prefix": "File.remove_folder",
+    "body": [
+      "File.remove_folder(folderPath=$1)",
+      ""
+    ],
+    "description": ""
+  },
+  "File.get_file_or_folder_list": {
+    "prefix": "File.get_file_or_folder_list",
+    "body": [
+      "${1:list[str]} = File.get_file_or_folder_list(folderPath=$2, filter=${3:'both'}, getAbsolutePath=${4:True}, ignorePrefixes=${5:[]}, ignoreSuffixes=${6:[]})",
+      ""
+    ],
+    "description": "Retrieves a list of files or folders from a specified directory based on a filter.\n\nParameters:\n    folderPath: The directory path from which to list files or folders.\n    filter: Specifies the type of items to list; \"file\" for files only, \"folder\" for folders only, or \"both\" for all items.\n    getAbsolutePath: If True, returns absolute paths; if False, returns only the names.\n    ignorePrefixes: A list of path prefixes to ignore. Any item starting with one of these prefixes won't be included in the result.\n    ignoreSuffixes: A list of path suffixes to ignore. Any item ending with one of these prefixes won't be included in the result.\n\nReturns:\n    list[str]: A list of file or folder paths or names, depending on `getAbsolutePath`, filtered as specified."
+  },
+  "File.search_file_or_folder": {
+    "prefix": "File.search_file_or_folder",
+    "body": [
+      "${1:list[str]} = File.search_file_or_folder(folderPath=$2, name=$3, deepIterate=${4:True})",
+      ""
+    ],
+    "description": "Searches for files or folders within a given directory based on a name or pattern.\n\nParameters:\n    folderPath: The directory path within which to search.\n    name: The name or wildcard pattern to match against file or folder names. Patterns are Unix shell style:\n    * matches everything\n    ? matches any single character\n    [seq] matches any character in seq\n    [!seq] matches any char not in seq\n    deepIterate: If True, searches recursively through all subdirectories; if False, searches only in the specified directory.\n\nReturns:\n    list[str]: A list of paths to the files or folders that match the specified name or pattern."
+  },
+  "File.zip_create": {
+    "prefix": "File.zip_create",
+    "body": [
+      "${1:<class 'str'>} = File.zip_create(srcPath=$2, dstPath=$3, password=${4:''})",
+      ""
+    ],
+    "description": "Create a ZIP file from a file or folder, with optional password protection.\n\nParameters:\n    srcPath: Path to the file or folder to be zipped.\n    dstPath: Path where the ZIP file will be saved.\n    password: Password for the ZIP file, If it's empty string, means have no password.\n\nReturns:\n    str: The absolute path to the created ZIP file."
+  },
+  "File.zip_extract": {
+    "prefix": "File.zip_extract",
+    "body": [
+      "${1:<class 'str'>} = File.zip_extract(zipPath=$2, dstFolderPath=$3, password=${4:''})",
+      ""
+    ],
+    "description": "Extract a ZIP file, with optional password protection.\n\nParameters:\n    zipPath: Path to the ZIP file.\n    dstFolderPath: Path where the contents will be extracted.\n    password: Password for the ZIP file, If it's empty string, means have no password.\n\nReturns:\n    str: The absolute path to the created ZIP file."
+  },
+  "File.csv_read": {
+    "prefix": "File.csv_read",
+    "body": [
+      "${1:list[list[typing.Any]]} = File.csv_read(filePath=$2, separator=${3:','}, header=${4:0}, indexColumn=${5:None}, encoding=${6:'utf-8'})",
+      ""
+    ],
+    "description": "Reads a CSV file and returns its contents as a list of lists.\n\nParameters:\n    filePath: The path to the CSV file.\n    separator: The character used to separate values.\n    header: Row number(s) to use as the column names, or None.\n    indexColumn: Column to set as index; can be column number or name.\n    encoding: The encoding to use for reading the file.\n\nReturns:\n    list[list[Any]]: The contents of the CSV file as a list of rows, where each row is a list of values."
+  },
+  "File.csv_write": {
+    "prefix": "File.csv_write",
+    "body": [
+      "File.csv_write(listObj=$1, filePath=$2, separator=${3:','}, addHeader=${4:False}, addIndexColumn=${5:False}, encoding=${6:'utf-8'}, overwriteIfExist=${7:False})",
+      ""
+    ],
+    "description": "Writes a list of lists to a CSV file.\n\nParameters:\n    listObj: The data to write, as a list of lists.\n    filePath: The path to the CSV file where data will be saved.\n    separator: The character used to separate values.\n    addHeader: Whether to write column names.\n    addIndexColumn: Whether to write row names (index).\n    encoding: The encoding to use for writing the file.\n    overwriteIfExist: If False, raises an error if the file already exists."
+  },
+  "File.ini_read_value": {
+    "prefix": "File.ini_read_value",
+    "body": [
+      "${1:<class 'str'>} = File.ini_read_value(filePath=$2, sectionName=$3, optionName=$4, encoding=${5:'utf-8'})",
+      ""
+    ],
+    "description": "Reads and returns the value of a given option under a specified section in an INI file.\n\nParameters:\n    filePath: The path to the INI file.\n    sectionName: The section within the INI file where the option resides.\n    optionName: The name of the option to read.\n    encoding: The character encoding of the INI file.\n\nReturns:\n    str: The value of the specified option."
+  },
+  "File.ini_write_value": {
+    "prefix": "File.ini_write_value",
+    "body": [
+      "File.ini_write_value(filePath=$1, sectionName=$2, optionName=$3, optionValue=$4, encoding=${5:'utf-8'})",
+      ""
+    ],
+    "description": "Writes a value to a specific option under a certain section in an INI file.\n\nIf the section does not exist, it will be created.\n\nParameters:\n    filePath: The path to the INI file.\n    sectionName: The section within the INI file to modify or create.\n    optionName: The name of the option to modify or create.\n    optionValue: The value to write to the option.\n    encoding: The character encoding of the INI file."
+  },
+  "File.ini_get_all_sections": {
+    "prefix": "File.ini_get_all_sections",
+    "body": [
+      "${1:list[str]} = File.ini_get_all_sections(filePath=$2, encoding=${3:'utf-8'})",
+      ""
+    ],
+    "description": "Retrieves a list of all option names within a specific section of an INI file.\n\nParameters:\n    filePath: The path to the INI file.\n    sectionName: The section within the INI file.\n    encoding: The character encoding of the INI file.\n\nReturns:\n    list[str]: A list of option names within the specified section."
+  },
+  "File.ini_get_all_options": {
+    "prefix": "File.ini_get_all_options",
+    "body": [
+      "${1:list[str]} = File.ini_get_all_options(filePath=$2, sectionName=$3, encoding=${4:'utf-8'})",
+      ""
+    ],
+    "description": "Deletes a specific section from an INI file.\n\nParameters:\n    filePath: The path to the INI file.\n    sectionName: The section to be removed.\n    encoding: The character encoding of the INI file."
+  },
+  "File.ini_delete_section": {
+    "prefix": "File.ini_delete_section",
+    "body": [
+      "File.ini_delete_section(filePath=$1, sectionName=$2, encoding=${3:'utf-8'})",
+      ""
+    ],
+    "description": "Deletes a specific section from an INI file.\n\nParameters:\n    filePath: The path to the INI file.\n    sectionName: The section to be removed.\n    encoding: The character encoding of the INI file."
+  },
+  "File.ini_delete_option": {
+    "prefix": "File.ini_delete_option",
+    "body": [
+      "File.ini_delete_option(filePath=$1, sectionName=$2, optionName=$3, encoding=${4:'utf-8'})",
+      ""
+    ],
+    "description": "Deletes a specific option from a section in an INI file.\n\nParameters:\n    filePath: The path to the INI file.\n    sectionName: The section from which the option will be removed.\n    optionName: The option to be removed.\n    encoding: The character encoding of the INI file."
+  },
+  "File.pdf_get_page_count": {
+    "prefix": "File.pdf_get_page_count",
+    "body": [
+      "${1:<class 'int'>} = File.pdf_get_page_count(filePath=$2, password=${3:''})",
+      ""
+    ],
+    "description": "Returns the total number of pages in a PDF file.\n\nParameters:\n    filePath: The path to the PDF file.\n    password: The password for the PDF file if it is encrypted. If it's empty string, means have no password.\n\nReturns:\n    int: The total number of pages in the PDF."
+  },
+  "File.pdf_save_pages_as_images": {
+    "prefix": "File.pdf_save_pages_as_images",
+    "body": [
+      "${1:list[str]} = File.pdf_save_pages_as_images(filePath=$2, password=${3:''}, saveFolderPath=${4:'./'}, startPage=${5:1}, endPage=${6:1}, scale=${7:2.0})",
+      ""
+    ],
+    "description": "Saves specified pages of a PDF file as images in a specified folder.\n\nParameters:\n    filePath: The path to the PDF file.\n    password: The password for the PDF file if it is encrypted. If it's empty string, means have no password.\n    saveFolderPath: The directory to save the image files.\n    startPage: The first page to convert to an image.\n    endPage: The last page to convert to an image.\n    scale: Scaling factor to increase resolution.\n\nReturns:\n    list[str]: A list of paths to the saved image files."
+  },
+  "File.pdf_extract_images_from_pages": {
+    "prefix": "File.pdf_extract_images_from_pages",
+    "body": [
+      "${1:list[str]} = File.pdf_extract_images_from_pages(filePath=$2, password=${3:''}, saveFolderPath=${4:'./'}, format=${5:'png'}, startPage=${6:1}, endPage=${7:1})",
+      ""
+    ],
+    "description": "Extracts images from specified pages of a PDF and saves them in a specified format and folder.\n\nParameters:\n    filePath: The path to the PDF file.\n    password: The password for the PDF file if it is encrypted. If it's empty string, means have no password.\n    saveFolderPath: The directory to save the extracted images.\n    format: The image format for saving extracted images. Can be 'png', 'jpg', 'jpeg', or 'bmp'.\n    startPage: The first page to extract images from.\n    endPage: The last page to extract images from.\n\nReturns:\n    list[str]: A list of paths to the extracted image files."
+  },
+  "File.pdf_extract_text_from_pages": {
+    "prefix": "File.pdf_extract_text_from_pages",
+    "body": [
+      "${1:<class 'str'>} = File.pdf_extract_text_from_pages(filePath=$2, password=${3:''}, startPage=${4:1}, endPage=${5:1})",
+      ""
+    ],
+    "description": "Extracts text from specified pages of a PDF file.\n\nParameters:\n    filePath: The path to the PDF file.\n    password: The password for the PDF file if it is encrypted. If it's empty string, means have no password.\n    startPage: The first page to extract text from.\n    endPage: The last page to extract text from.\n\nReturns:\n    str: The extracted text from specified pages."
+  },
+  "File.pdf_extract_all_images": {
+    "prefix": "File.pdf_extract_all_images",
+    "body": [
+      "${1:list[str]} = File.pdf_extract_all_images(filePath=$2, password=${3:''}, saveFolderPath=${4:'./'}, format=${5:'png'})",
+      ""
+    ],
+    "description": "Extracts images in a PDF and saves them in a specified format and folder.\n\nParameters:\n    filePath: The path to the PDF file.\n    password: The password for the PDF file if it is encrypted. If it's empty string, means have no password.\n    saveFolderPath: The directory to save the extracted images.\n    format: The image format for saving extracted images. Can be 'png', 'jpg', 'jpeg', or 'bmp'.\n\nReturns:\n    list[str]: A list of paths to the extracted image files."
+  },
+  "File.pdf_extract_all_text": {
+    "prefix": "File.pdf_extract_all_text",
+    "body": [
+      "${1:<class 'str'>} = File.pdf_extract_all_text(filePath=$2, password=${3:''})",
+      ""
+    ],
+    "description": "Extracts all text in a PDF.\n\nParameters:\n    filePath: The path to the PDF file.\n    password: The password for the PDF file if it is encrypted. If it's empty string, means have no password.\n\nReturns:\n    str: The text in the PDF file."
+  },
+  "File.pdf_merge": {
+    "prefix": "File.pdf_merge",
+    "body": [
+      "${1:<class 'str'>} = File.pdf_merge(listFilePath=$2, savePath=$3)",
+      ""
+    ],
+    "description": "Merges multiple PDF files into a single PDF file and saves it to a specified path.\n\nParameters:\n    listFilePath: A list of paths to the PDF files to be merged.\n    savePath: The path to save the merged PDF file.\n\nReturns:\n    str: The absolute path to the saved merged PDF file."
+  },
+  "OCR.get_text_with_position": {
+    "prefix": "OCR.get_text_with_position",
+    "body": [
+      "${1:list[liberrpa.Common._TypedValue.DictTextBlock]} = OCR.get_text_with_position(image=$2, modelName=${3:'english_default'}, min_size=${4:10}, low_text=${5:0.4}, mag_ratio=${6:1}, add_margin=${7:0.2}, decoder=${8:'greedy'}, beamWidth=${9:5}, contrast_ths=${10:0.1}, adjust_contrast=${11:0.5}, filter_ths=${12:0.003}, text_threshold=${13:0.7}, link_threshold=${14:0.4}, canvas_size=${15:2560}, slope_ths=${16:0.1}, ycenter_ths=${17:0.5}, height_ths=${18:0.5}, width_ths=${19:0.5}, y_ths=${20:0.5}, x_ths=${21:1}, threshold=${22:0.2}, bbox_min_score=${23:0.2}, bbox_min_size=${24:3}, max_candidates=${25:0})",
+      ""
+    ],
+    "description": "Perform OCR on an image and returns text blocks with their positions.\nNote that it bases on EasyOCR, calculate by CPU in local machine, so the handle time will increase significantly with image's size.\nThe first run will take some time to initialize.\n\nmin_size, low_text, mag_ratio,add_margin are most useful generally.\nIf you don't know the arguments' meaning, refer to [EasyOCR api](https://www.jaided.ai/easyocr/documentation/)\n\nThe default model \"english_default\" is actually \"english_g2\" of EasyOCR. You can add your custom model into the path 'LiberRPA/envs/ocr', put the .pth file in 'model', the .yaml and .py file in '/model/CustomModel', then add the information into 'ocr.jsonc'. Restart LiberRPA Local Server, it will load the model automatically.\n\nParameters:\n    image: Path to the image file.\n    modelName: The model used for OCR.\n    min_size: Minimum text size (in pixel) to detect. Increase it may help to detect more text.\n    low_text: Text low-bound score. Increase it may help to detect more text.\n    mag_ratio: Image magnification ratio. Increase it may help to detect more text.\n    add_margin: Additional margin to add around text during detection. Increase it may help to detect more characters at the beginning and end of the text block.\n    decoder: Options are 'greedy', 'beamsearch' and 'wordbeamsearch'.\n    beamWidth: How many beam to keep when decoder = 'beamsearch' or 'wordbeamsearch'\n    contrast_ths: Text box with contrast lower than this value will be passed into model 2 times. First is with original image and second with contrast adjusted to 'adjust_contrast' value. The one with more confident level will be returned as a result.\n    adjust_contrast: Target contrast level for low contrast text box\n    filter_ths: Filter threshold.\n    text_threshold: Text confidence threshold.\n    link_threshold: Link confidence threshold.\n    canvas_size: Maximum image size. Image bigger than this value will be resized down.\n    slope_ths: Maximum slope (delta y/delta x) to considered merging. Low value means tiled boxes will not be merged.\n    ycenter_ths: Maximum shift in y direction. Boxes with different level should not be merged.\n    height_ths: Maximum different in box height. Boxes with very different text size should not be merged.\n    width_ths: Maximum horizontal distance to merge boxes.\n    y_ths: Maximum verticall distance to merge text boxes. (May not work due to paragraph=False in this function)\n    x_ths: Maximum horizontal distance to merge text boxes.(May not work due to paragraph=False in this function)\n    threshold: General threshold for detection.\n    bbox_min_score: Minimum score for bounding boxes.\n    bbox_min_size: Minimum size for bounding boxes.\n    max_candidates: Maximum number of candidate detections.\n\nReturns:\n    list[DictTextBlock]: A list of dictionaries containing the detected text and their positions: {'text': <class 'str'>,\n'top_left_x': <class 'int'>,\n'top_left_y': <class 'int'>,\n'top_right_x': <class 'int'>,\n'top_right_y': <class 'int'>,\n'bottom_left_x': <class 'int'>,\n'bottom_left_y': <class 'int'>,\n'bottom_right_x': <class 'int'>,\n'bottom_right_y': <class 'int'>}"
+  },
+  "OCR.get_text": {
+    "prefix": "OCR.get_text",
+    "body": [
+      "${1:<class 'str'>} = OCR.get_text(image=$2, modelName=${3:'english_default'}, min_size=${4:10}, low_text=${5:0.4}, mag_ratio=${6:1}, add_margin=${7:0.2}, decoder=${8:'greedy'}, beamWidth=${9:5}, contrast_ths=${10:0.1}, adjust_contrast=${11:0.5}, filter_ths=${12:0.003}, text_threshold=${13:0.7}, link_threshold=${14:0.4}, canvas_size=${15:2560}, slope_ths=${16:0.1}, ycenter_ths=${17:0.5}, height_ths=${18:0.5}, width_ths=${19:0.5}, y_ths=${20:0.5}, x_ths=${21:1}, threshold=${22:0.2}, bbox_min_score=${23:0.2}, bbox_min_size=${24:3}, max_candidates=${25:0})",
+      ""
+    ],
+    "description": "Perform OCR on an image and returns the extracted text as a single string.\nNote that it bases on EasyOCR, calculate by CPU in local machine, so the handle time will increase significantly with image's size.\nThe first run will take some time to initialize.\n\nmin_size, low_text, mag_ratio,add_margin are most useful generally.\nIf you don't know the arguments' meaning, refer to [EasyOCR api](https://www.jaided.ai/easyocr/documentation/)\n\nParameters:\n    image: Path to the image file.\n    modelName: The model used for OCR.\n    min_size: Minimum text size (in pixel) to detect. Increase it may help to detect more text.\n    low_text: Text low-bound score. Increase it may help to detect more text.\n    mag_ratio: Image magnification ratio. Increase it may help to detect more text.\n    add_margin: Additional margin to add around text during detection. Increase it may help to detect more characters at the beginning and end of the text block.\n    decoder: Options are 'greedy', 'beamsearch' and 'wordbeamsearch'.\n    beamWidth: How many beam to keep when decoder = 'beamsearch' or 'wordbeamsearch'\n    contrast_ths: Text box with contrast lower than this value will be passed into model 2 times. First is with original image and second with contrast adjusted to 'adjust_contrast' value. The one with more confident level will be returned as a result.\n    adjust_contrast: Target contrast level for low contrast text box\n    filter_ths: Filter threshold.\n    text_threshold: Text confidence threshold.\n    link_threshold: Link confidence threshold.\n    canvas_size: Maximum image size. Image bigger than this value will be resized down.\n    slope_ths: Maximum slope (delta y/delta x) to considered merging. Low value means tiled boxes will not be merged.\n    ycenter_ths: Maximum shift in y direction. Boxes with different level should not be merged.\n    height_ths: Maximum different in box height. Boxes with very different text size should not be merged.\n    width_ths: Maximum horizontal distance to merge boxes.\n    y_ths: Maximum verticall distance to merge text boxes.\n    x_ths: Maximum horizontal distance to merge text boxes.\n    threshold: General threshold for detection.\n    bbox_min_score: Minimum score for bounding boxes.\n    bbox_min_size: Minimum size for bounding boxes.\n    max_candidates: Maximum number of candidate detections.\n\nReturns:\n    str: The extracted text as a single string."
+  },
+  "Web.set_cookies": {
+    "prefix": "Web.set_cookies",
+    "body": [
+      "Web.set_cookies(cookies=$1)",
+      ""
+    ],
+    "description": "Sets the cookies to be used in subsequent HTTP requests.\n\nParameters:\n    cookies (dict[str, str]): A dictionary of cookies to set."
+  },
+  "Web.set_headers": {
+    "prefix": "Web.set_headers",
+    "body": [
+      "Web.set_headers(headers=$1)",
+      ""
+    ],
+    "description": "Sets the headers to be used in subsequent HTTP requests.\n\nParameters:\n    headers (dict[str, str]): A dictionary of headers to set."
+  },
+  "Web.get": {
+    "prefix": "Web.get",
+    "body": [
+      "${1:<class 'str'>} = Web.get(url=$2, params=${3:None}, timeout=${4:60})",
+      ""
+    ],
+    "description": "Sends an HTTP GET request to the given URL with the specified parameters, headers, and cookies.\n\nParameters:\n    url: The URL to send the GET request to.\n    params: The query parameters to include in the request.\n    timeout: The timeout duration for the request, in seconds.\n\nReturns:\n    str: The response body as a string if the request is successful."
+  },
+  "Web.post": {
+    "prefix": "Web.post",
+    "body": [
+      "${1:<class 'str'>} = Web.post(url=$2, data=${3:None}, json=${4:None}, files=${5:None}, params=${6:None}, timeout=${7:60})",
+      ""
+    ],
+    "description": "Sends an HTTP POST request to the given URL with the specified data, JSON, files, and query parameters.\n\nParameters:\n    url: The URL to send the POST request to.\n    data: The form data to include in the body of the request. Can be a string, bytes, dictionary, or list of tuples.\n    json: The JSON data to include in the body of the request.\n    files: Files to upload via multipart form data. Should be a dictionary where each key is a file field name and the value is a tuple (filename, file-object, file-type).\n    params: The query parameters to include in the request. Can be a dictionary, list of tuples, string, or bytes.\n    timeout: The timeout duration for the request, in seconds.\n\nReturns:\n    str: The response body as a string if the request is successful."
+  },
+  "Web.download_file": {
+    "prefix": "Web.download_file",
+    "body": [
+      "${1:<class 'str'>} = Web.download_file(url=$2, folderPath=$3, params=${4:None}, timeout=${5:60}, stream=${6:False}, overwriteIfExist=${7:False})",
+      ""
+    ],
+    "description": "Downloads a file from the given URL and saves it to the specified folder.\n\nParameters:\n    url: The URL of the file to download.\n    folderPath: The directory where the file will be saved.\n    params: Optional query parameters to include in the request.\n    timeout: Timeout duration for the request, in seconds.\n    stream: Whether to stream the download (useful for large files, to avoid excessive memory usage).\n    overwriteIfExist: If set to True, the destination file will be overwritten if it already exists; if False, a FileExistsError will be raised if the destination file exists.\n\nReturns:\n    str: The absolute path of the downloaded file."
+  },
+  "Web.upload_file": {
+    "prefix": "Web.upload_file",
+    "body": [
+      "${1:<class 'str'>} = Web.upload_file(url=$2, filePath=$3, data=${4:None}, json=${5:None}, params=${6:None}, timeout=${7:60})",
+      ""
+    ],
+    "description": "Send a POST request to the given URL with a file, data, and other optional parameters.\n\nParameters:\n    url: The URL to send the request to.\n    filePath: The path to the file to be uploaded.\n    data: Optional form data to include in the request.\n    json: Optional JSON data to include in the request body.\n    params: Optional query parameters to include in the request URL.\n    timeout: The request timeout duration in seconds.\n\nReturns:\n    str: The server's response text."
+  },
+  "Mail.send_by_SMTP": {
+    "prefix": "Mail.send_by_SMTP",
+    "body": [
+      "Mail.send_by_SMTP(user=$1, password=$2, to=$3, subject=$4, content=$5, host=$6, port=${7:465}, attachments=${8:None}, cc=${9:None}, bcc=${10:None}, bodyFormat=${11:'text'}, ssl=${12:True}, encoding=${13:'utf-8'})",
+      ""
+    ],
+    "description": "Sends an email via SMTP with optional attachments and HTML content.\n\nParameters:\n    user: The SMTP username.\n    password: The SMTP password.\n    to: Recipient email address or list of addresses.\n    subject: Email subject.\n    content: Main email body content. Can be plain text or HTML.\n    host: SMTP server host.\n    port: SMTP server port.\n    attachments: File path or list of file paths to be attached.\n    cc: Email address or list of addresses for CC.\n    bcc: Email address or list of addresses for BCC.\n    bodyFormat: The format of the email body ('text' or 'html').\n    ssl: Use SSL for the SMTP connection.\n    encoding: Character encoding for the email."
+  },
+  "Mail.IMAP_login": {
+    "prefix": "Mail.IMAP_login",
+    "body": [
+      "${1:imapObj} = Mail.IMAP_login(username=$2, password=$3, host=$4, port=${5:993}, ssl=${6:True})",
+      ""
+    ],
+    "description": "Log into an IMAP server and return the IMAP client object.\n\nParameters:\n    username: The IMAP username.\n    password: The IMAP password.\n    host: IMAP server host.\n    port: IMAP server port.\n    ssl: Use SSL for the IMAP connection.\n\nReturns:\n    IMAPClient: An authenticated IMAP client instance."
+  },
+  "Mail.get_folder_list": {
+    "prefix": "Mail.get_folder_list",
+    "body": [
+      "${1:list[str]} = Mail.get_folder_list(imapObj=${2:imapObj})",
+      ""
+    ],
+    "description": "Retrieves a list of all folders from an IMAP server.\n\nParameters:\n    imapObj: The authenticated IMAP client object.\n\nReturns:\n    list[str]: A list of folder names available on the IMAP server."
+  },
+  "Mail.get_email_list": {
+    "prefix": "Mail.get_email_list",
+    "body": [
+      "${1:tuple[list[int], list[liberrpa.Common._TypedValue.DictImapMailInfo], list[mailparser.core.MailParser]]} = Mail.get_email_list(imapObj=${2:imapObj}, folder=${3:'INBOX'}, numToGet=${4:1}, onlyUnread=${5:False}, markAsRead=${6:False}, charset=${7:None})",
+      ""
+    ],
+    "description": "Retrieve a list of emails from the specified IMAP folder.\n\nParameters:\n    imapObj: An instance of the IMAPClient connected to the email server.\n    folder: The name of the folder to fetch emails from.\n    numToGet: The maximum number of emails to retrieve.\n    onlyUnread: Whether to retrieve only unread emails.\n    markAsRead: Whether to mark retrieved emails as read.\n    charset: The charset to use for the search criteria.\n\nReturns:\n    tuple[list[int],list[DictMailInfo],list[MailParser]]:\n        A list of unique identifiers (UIDs) of the fetched emails.\n        A list of basic information dictionaries for each email, adhering to the DictMailInfo structure.\n        A list of MailParser objects representing the fetched emails."
+  },
+  "Mail.search_email": {
+    "prefix": "Mail.search_email",
+    "body": [
+      "${1:tuple[list[int], list[liberrpa.Common._TypedValue.DictImapMailInfo], list[mailparser.core.MailParser]]} = Mail.search_email(imapObj=${2:imapObj}, folder=${3:'INBOX'}, criteria=${4:'TEXT \"\"'}, charset=${5:None})",
+      ""
+    ],
+    "description": "Search for emails in the specified folder based on given criteria.\n\nParameters:\n    imapObj: An instance of the IMAPClient connected to the email server.\n    folder: The name of the folder to search.\n    criteria: The search criteria in IMAP format.\n    charset: The charset to use for the search criteria.\n\nReturns:\n    tuple[list[int],list[DictMailInfo],list[MailParser]]:\n        A list of unique identifiers (UIDs) of the fetched emails.\n        A list of basic information dictionaries for each email, adhering to the DictMailInfo structure.\n        A list of MailParser objects representing the fetched emails."
+  },
+  "Mail.move_email": {
+    "prefix": "Mail.move_email",
+    "body": [
+      "Mail.move_email(imapObj=${1:imapObj}, uid=$2, folder=$3)",
+      ""
+    ],
+    "description": "Move an email by its uid.\n\nParameters:\n    imapObj: An instance of the IMAPClient connected to the email server.\n    uid: The unique identifiers (UIDs) of the fetched emails.\n    folder: The name of the folder to move."
+  },
+  "Mail.download_attachments": {
+    "prefix": "Mail.download_attachments",
+    "body": [
+      "${1:list[str]} = Mail.download_attachments(emailObj=$2, downloadPath=$3)",
+      ""
+    ],
+    "description": "Download all attachments of an email.\n\nParameters:\n    emailObj: A MailParser objects.\n    downloadPath: The folder to save download files.\n\nReturns:\n    list[str]: A list contains the path of all attachments."
+  },
+  "FTP.build FTP connection": {
+    "prefix": "FTP.build FTP connection",
+    "body": [
+      "with FTP.Host(host=$1, user=$2, passwd=$3, encoding=${4:\"utf-8\"}) as ${5:ftpObj}:",
+      "\t$6",
+      ""
+    ],
+    "description": "It's an alias of ftputil.FTPHost, so you can search how to use ftputil.FTPHost."
+  },
+  "FTP.create_folder": {
+    "prefix": "FTP.create_folder",
+    "body": [
+      "FTP.create_folder(ftpObj=${1:ftpObj}, folderPath=$2)",
+      ""
+    ],
+    "description": "Creates a folder on the FTP server at the specified path.\n\nParameters:\n    ftpObj: The FTPHost object for making FTP connections.\n    folderPath: The path where the folder will be created."
+  },
+  "FTP.get_folder_list": {
+    "prefix": "FTP.get_folder_list",
+    "body": [
+      "${1:list[str]} = FTP.get_folder_list(ftpObj=${2:ftpObj}, folderPath=$3)",
+      ""
+    ],
+    "description": "Retrieves a list of folders from the specified path on the FTP server.\n\nParameters:\n    ftpObj: The FTPHost object for making FTP connections.\n    folderPath: The path from which to list the folders.\n\nReturns:\n    list[str]: A list of absolute folder paths."
+  },
+  "FTP.get_file_list": {
+    "prefix": "FTP.get_file_list",
+    "body": [
+      "${1:list[str]} = FTP.get_file_list(ftpObj=${2:ftpObj}, folderPath=$3)",
+      ""
+    ],
+    "description": "Retrieves a list of files from the specified path on the FTP server.\n\nParameters:\n    ftpObj: The FTPHost object for making FTP connections.\n    folderPath: The path from which to list the files.\n\nReturns:\n    list[str]: A list of absolute file paths."
+  },
+  "FTP.check_folder_exists": {
+    "prefix": "FTP.check_folder_exists",
+    "body": [
+      "${1:<class 'bool'>} = FTP.check_folder_exists(ftpObj=${2:ftpObj}, folderPath=$3)",
+      ""
+    ],
+    "description": "Checks if a folder exists on the FTP server.\n\nParameters:\n    ftpObj: The FTPHost object for making FTP connections.\n    folderPath: The path to check for existence.\n\nReturns:\n    bool: True if the folder exists, False otherwise."
+  },
+  "FTP.check_file_exists": {
+    "prefix": "FTP.check_file_exists",
+    "body": [
+      "${1:<class 'bool'>} = FTP.check_file_exists(ftpObj=${2:ftpObj}, filePath=$3)",
+      ""
+    ],
+    "description": "Checks if a file exists on the FTP server.\n\nParameters:\n    ftpObj: The FTPHost object for making FTP connections.\n    filePath: The path to check for existence.\n\nReturns:\n    bool: True if the file exists, False otherwise."
+  },
+  "FTP.download_file": {
+    "prefix": "FTP.download_file",
+    "body": [
+      "FTP.download_file(ftpObj=${1:ftpObj}, remoteFilePath=$2, localFilePath=$3, overwriteIfExist=${4:False})",
+      ""
+    ],
+    "description": "Downloads a file from the FTP server to the local machine.\n\nParameters:\n    ftpObj: The FTPHost object for making FTP connections.\n    remoteFilePath: The path of the file on the FTP server.\n    localFilePath: The path where the file will be saved locally.\n    overwriteIfExist: If True, allows overwriting an existing file."
+  },
+  "FTP.download_folder": {
+    "prefix": "FTP.download_folder",
+    "body": [
+      "FTP.download_folder(ftpObj=${1:ftpObj}, remoteFolderPath=$2, localFolderPath=$3, overwriteIfExist=${4:False})",
+      ""
+    ],
+    "description": "Downloads a folder from the FTP server to the local machine.\n\nParameters:\n    ftpObj: The FTPHost object for making FTP connections.\n    remoteFolderPath: The path of the folder on the FTP server.\n    localFolderPath: The path where the folder will be saved locally.\n    overwriteIfExist: If True, allows overwriting existing files."
+  },
+  "FTP.upload_file": {
+    "prefix": "FTP.upload_file",
+    "body": [
+      "FTP.upload_file(ftpObj=${1:ftpObj}, localFilePath=$2, remoteFilePath=$3)",
+      ""
+    ],
+    "description": "Uploads a file from the local machine to the FTP server.\n\nParameters:\n    ftpObj: The FTPHost object for making FTP connections.\n    localFilePath: The path of the file on the local machine.\n    remoteFilePath: The path where the file will be uploaded on the FTP server."
+  },
+  "FTP.upload_folder": {
+    "prefix": "FTP.upload_folder",
+    "body": [
+      "FTP.upload_folder(ftpObj=${1:ftpObj}, localFolderPath=$2, remoteFolderPath=$3)",
+      ""
+    ],
+    "description": "Uploads a local folder and its contents to the FTP server.\n\nParameters:\n    ftpObj: The FTPHost object for making FTP connections.\n    localFolderPath: The path of the local folder to upload.\n    remoteFolderPath: The path on the FTP server where the folder will be uploaded."
+  },
+  "FTP.delete_file": {
+    "prefix": "FTP.delete_file",
+    "body": [
+      "FTP.delete_file(ftpObj=${1:ftpObj}, remoteFilePath=$2)",
+      ""
+    ],
+    "description": "Deletes a file from the FTP server.\n\nParameters:\n    ftpObj: The FTPHost object for making FTP connections.\n    remoteFilePath: The path of the file on the FTP server to be deleted."
+  },
+  "FTP.delete_folder": {
+    "prefix": "FTP.delete_folder",
+    "body": [
+      "FTP.delete_folder(ftpObj=${1:ftpObj}, remoteFolderPath=$2)",
+      ""
+    ],
+    "description": "Deletes a folder and its contents from the FTP server.\n\nParameters:\n    ftpObj: The FTPHost object for making FTP connections.\n    remoteFolderPath: The path of the folder on the FTP server to be deleted."
+  },
+  "Clipboard.get_text": {
+    "prefix": "Clipboard.get_text",
+    "body": [
+      "${1:<class 'str'>} = Clipboard.get_text()",
+      ""
+    ],
+    "description": "Retrieves text from the clipboard.\n\nReturns:\n    str: The text currently stored in the clipboard."
+  },
+  "Clipboard.set_text": {
+    "prefix": "Clipboard.set_text",
+    "body": [
+      "Clipboard.set_text(text=$1)",
+      ""
+    ],
+    "description": "Places a string into the clipboard, making it the current clipboard text.\n\nParameters:\n    text: The string to be set to the clipboard."
+  },
+  "Clipboard.save_image": {
+    "prefix": "Clipboard.save_image",
+    "body": [
+      "Clipboard.save_image(savePath=$1)",
+      ""
+    ],
+    "description": "Saves an image from the clipboard to a specified path.\n\nIf there are multiple or no images, it throws an exception.\n\nParameters:\n    savePath: The file path where the image should be saved."
+  },
+  "Clipboard.set_image": {
+    "prefix": "Clipboard.set_image",
+    "body": [
+      "Clipboard.set_image(imagePath=$1)",
+      ""
+    ],
+    "description": "Places an image from a specified file into the clipboard.\n\nParameters:\n    imagePath: The path to the image file to be set to the clipboard."
+  },
+  "System.play_sound": {
+    "prefix": "System.play_sound",
+    "body": [
+      "System.play_sound(soundPath=$1)",
+      ""
+    ],
+    "description": "Plays a sound file specified by the soundPath parameter using the Windows Sound API.\nOnly support waveform audio files (WAV)."
+  },
+  "System.get_environment_variable": {
+    "prefix": "System.get_environment_variable",
+    "body": [
+      "${1:<class 'str'>} = System.get_environment_variable(name=$2)",
+      ""
+    ],
+    "description": ""
+  },
+  "System.set_environment_variable_temporarily": {
+    "prefix": "System.set_environment_variable_temporarily",
+    "body": [
+      "System.set_environment_variable_temporarily(name=$1, value=$2)",
+      ""
+    ],
+    "description": "It only affects the environment variables of the current process (and any child processes spawned by it after the variable is set).\n\nIt does not change the environment variables system-wide or for other processes running."
+  },
+  "System.get_user_home_folder_path": {
+    "prefix": "System.get_user_home_folder_path",
+    "body": [
+      "${1:<class 'str'>} = System.get_user_home_folder_path()",
+      ""
+    ],
+    "description": ""
+  },
+  "System.get_user_temp_folder_path": {
+    "prefix": "System.get_user_temp_folder_path",
+    "body": [
+      "${1:<class 'str'>} = System.get_user_temp_folder_path()",
+      ""
+    ],
+    "description": ""
+  },
+  "System.get_windows_product_id": {
+    "prefix": "System.get_windows_product_id",
+    "body": [
+      "${1:<class 'str'>} = System.get_windows_product_id()",
+      ""
+    ],
+    "description": "Unique to each Windows installation but can change with major system updates or reinstallation.\n\nReturns:\n    str: The product id."
+  },
+  "System.exit": {
+    "prefix": "System.exit",
+    "body": [
+      "System.exit()",
+      ""
+    ],
+    "description": ""
+  },
+  "Credential.get_windows_credential": {
+    "prefix": "Credential.get_windows_credential",
+    "body": [
+      "${1:<class 'liberrpa.Credential.DictCredential'>} = Credential.get_windows_credential(credentialType=${2:'GENERIC'}, targetName=${3:''})",
+      ""
+    ],
+    "description": "Reads a credential from the Windows Credential Manager.\n\nParameters:\n    credentialType: The type of the credential to be read.\n    targetName: The name used to identify the credential.\n\nReturns:\n    DictCredential: A dictionary containing the 'username' and 'password' from the credential."
+  },
+  "Credential.write_windows_credential": {
+    "prefix": "Credential.write_windows_credential",
+    "body": [
+      "Credential.write_windows_credential(credentialType=${1:'GENERIC'}, targetName=${2:''}, userName=${3:''}, credentialBlob=${4:''}, persist=${5:'LOCAL_MACHINE'})",
+      ""
+    ],
+    "description": "Writes a credential to the Windows Credential Manager.\n\nParameters:\n    credentialType: The type of the credential to be stored. Options:\n        'GENERIC': General-purpose credentials (most common).\n        'DOMAIN_PASSWORD': Standard domain password (used for domain authentication).\n        'DOMAIN_CERTIFICATE': Credentials backed by a certificate.\n        'DOMAIN_VISIBLE_PASSWORD': A domain password that is visible and retrievable.\n    targetName: The name used to identify the credential.\n    userName: The username associated with the credential.\n    credentialBlob: The secret (password or data) to be stored.\n    persist: Determines how long the credential persists. Options:\n        'SESSION': The credential persists for the current logon session only.\n        'LOCAL_MACHINE': The credential persists on the local machine (default).\n        'ENTERPRISE': The credential persists across the enterprise (domain-wide persistence)."
+  },
+  "Credential.delete_windows_credential": {
+    "prefix": "Credential.delete_windows_credential",
+    "body": [
+      "Credential.delete_windows_credential(credentialType=${1:'GENERIC'}, targetName=${2:''})",
+      ""
+    ],
+    "description": "Delete a credential from the Windows Credential Manager.\n\nParameters:\n    credentialType: The type of the credential to be deleted.\n    targetName: The name used to identify the credential."
+  },
+  "ScreenPrint.create_area": {
+    "prefix": "ScreenPrint.create_area",
+    "body": [
+      "${1:screenPrintObj} = ScreenPrint.create_area(x=${2:0}, y=${3:0}, width=${4:400}, height=${5:200}, fontFamily=${6:'Roboto Mono'}, fontSize=${7:16}, fontColor=${8:'red'})",
+      ""
+    ],
+    "description": "Creates and displays a floating text display area.\n\nParameters:\n    x: The x-coordinate of the top-left corner of the window.\n    y: The y-coordinate of the top-left corner of the window.\n    width: The width of the window.\n    height: The height of the window.\n    fontFamily: The font family for displaying text.\n    fontSize: The font size of the text.\n    fontColor: The text color. Must be one of [\"red\", \"green\", \"blue\", \"yellow\", \"purple\", \"pink\", \"black\"].\n\nReturns:\n    ScreenPrintObj: An instance of the floating text display window."
+  },
+  "ScreenPrint.display_text": {
+    "prefix": "ScreenPrint.display_text",
+    "body": [
+      "ScreenPrint.display_text(screenPrintObj=${1:screenPrintObj}, text=$2)",
+      ""
+    ],
+    "description": "Displays the specified text in the floating text display area.\n\nParameters:\n    screenPrintObj: The ScreenPrintObj instance where the text will be displayed.\n    text: The text to display."
+  },
+  "ScreenPrint.clean_text": {
+    "prefix": "ScreenPrint.clean_text",
+    "body": [
+      "ScreenPrint.clean_text(screenPrintObj=${1:screenPrintObj})",
+      ""
+    ],
+    "description": "Clears all text from the floating text display area.\n\nParameters:\n    screenPrintObj: The ScreenPrintObj instance to be cleared."
+  },
+  "ScreenPrint.close_area": {
+    "prefix": "ScreenPrint.close_area",
+    "body": [
+      "ScreenPrint.close_area(screenPrintObj=${1:screenPrintObj})",
+      ""
+    ],
+    "description": "Closes the floating text display window.\n\nParameters:\n    screenPrintObj: The ScreenPrintObj instance to be closed."
+  },
+  "Dialog.show_notification": {
+    "prefix": "Dialog.show_notification",
+    "body": [
+      "Dialog.show_notification(title=$1, message=$2, duration=${3:1}, wait=${4:True})",
+      ""
+    ],
+    "description": "Show a notification on at bottom-right of the primary screen.\n\nParameters:\n    title: The notification's title.\n    message: The notification's content. If it's too long, some text may be invisible.\n    duration: Duration to show the notification (seconds).\n    wait: Whether to wait the notification disappear."
+  },
+  "Dialog.open_file": {
+    "prefix": "Dialog.open_file",
+    "body": [
+      "${1:<class 'str'>} = Dialog.open_file(folder=${2:None}, title=${3:'open a file'}, filetypes=${4:[('All Files', '*.*')]})",
+      ""
+    ],
+    "description": "Opens a file dialog to select a file.\nA Value Error will be raised if no file selected.\n\nParameters:\n    folder: The directory that the dialog opens in. If None, defaults to the current working directory.\n    title: The title of the dialog window.\n    filetypes: A list of tuples defining the file types to display.\n\n        Each tuple contains a descriptive string and a file pattern, e.g., (\"Text Files\", \"*.txt\") where \"Text Files\" is the option's name, and \"*.txt\" filters all .txt files.\n\nReturns:\n    str: The file path selected by the user. Returns an empty string if the dialog is cancelled."
+  },
+  "Dialog.open_files": {
+    "prefix": "Dialog.open_files",
+    "body": [
+      "${1:list[str]} = Dialog.open_files(folder=${2:None}, title=${3:'open files'}, filetypes=${4:[('All Files', '*.*')]})",
+      ""
+    ],
+    "description": "Open a file dialog to select files.\nA Value Error will be raised if no files selected.\n\nParameters:\n    folder: The directory that the dialog opens in. If None, defaults to the current working directory.\n    title: The title of the dialog window.\n    filetypes: A list of tuples defining the file types to display.\n\n        Each tuple contains a descriptive string and a file pattern, e.g., (\"Text Files\", \"*.txt\") where \"Text Files\" is the option's name, and \"*.txt\" filters all .txt files.\n\nReturns:\n    list[str]: The files' paths selected by the user. Returns an empty list if the dialog is cancelled."
+  },
+  "Dialog.save_as": {
+    "prefix": "Dialog.save_as",
+    "body": [
+      "${1:<class 'str'>} = Dialog.save_as(folder=${2:None}, title=${3:'save as'}, filetypes=${4:[('All Files', '*.*')]})",
+      ""
+    ],
+    "description": "Open a file dialog to save file. It just return the save path string, then you should use other logic to save a file by the path.\nA Value Error will be raised if no file name specified.\n\nParameters:\n    folder: The directory that the dialog opens in. If None, defaults to the current working directory.\n    title: The title of the dialog window.\n    filetypes: A list of tuples defining the file types to display.\n\n        Each tuple contains a descriptive string and a file pattern, e.g., (\"Text Files\", \"*.txt\") where \"Text Files\" is the option's name, and \"*.txt\" filters all .txt files.\n\nReturns:\n    str: The file path selected by the user. Returns an empty string if the dialog is cancelled."
+  },
+  "Dialog.show_text_input_box": {
+    "prefix": "Dialog.show_text_input_box",
+    "body": [
+      "${1:str | None} = Dialog.show_text_input_box(title=$2, prompt=$3, initialvalue=${4:''})",
+      ""
+    ],
+    "description": "Displays a dialog box that prompts the user to enter text.\nA Value Error will be raised if no text input.\n\nParameters:\n    title: The title of the dialog box.\n    prompt: The text prompt displayed within the dialog box.\n    initialvalue: The initial placeholder text within the input field.\n\nReturns:\n    str | None: The text entered by the user, or None if the dialog is closed without an entry."
+  },
+  "Dialog.show_message_box": {
+    "prefix": "Dialog.show_message_box",
+    "body": [
+      "${1:typing.Literal['ok', 'yes', 'no', True, False]} = Dialog.show_message_box(title=$2, message=$3, type=${4:'info'}, infoButton=${5:'ok'})",
+      ""
+    ],
+    "description": "Shows a message box with specified title, message, icon, and button type.\n\nThe function displays a message box and returns the user's response.\n\nThe 'type' parameter changes the icon shown in the message box.\n\nThe 'infoButton' parameter only has an effect when 'type' is 'info'; it changes the set of buttons available.\n\nParameters:\n    title: The title of the dialog window.\n    message: The main content of the dialog window.\n    type: The icon type of the message box, one of ['info', 'warning', 'error', 'question'].\n    infoButton: The button type when 'type' is 'info', one of ['ok', 'okcancel', 'yesno', 'retrycancel'].\n\nReturns:\n    \"ok\"|\"yes\"|\"no\"|True|False:\n        For button types like 'okcancel', 'yesno', 'retrycancel', indicating the user's choice, it will return bool;\n        For the 'ok' button type, and for 'question' with responses like \"yes\" or \"no\", it will return str."
+  }
+}

@@ -1,0 +1,12 @@
+// FileName: snippets_favorite.jsonc
+{
+  // Copy any snippets from "liberrpa-snippets-tree/src/assets/snippets_final.snippets" and paste them in here, these snippets will be put at the top in liberrpa-snippets-tree.
+  // And you can write your custom snippets in here too.
+  // After you modified the file, restart vscode to make the changement works.
+  // Example:
+  "Test Snippets": {
+    "prefix": "test",
+    "body": ["delay(${1:1000})", ""],
+    "description": "Delay some time, in milliseconds."
+  }
+}
