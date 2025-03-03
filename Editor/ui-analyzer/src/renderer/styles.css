@@ -1,0 +1,54 @@
+/* FileName: styles.css */
+
+html {
+  overflow: hidden;
+}
+
+body {
+  font-family: "Noto Sans Mono", sans-serif;
+}
+
+.flex-row {
+  display: flex;
+  flex-direction: row;
+  min-width: 0;
+}
+
+.flex-column {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.flex-row-grow-1 {
+  flex-shrink: 1;
+  flex-grow: 1;
+  flex-basis: 0px;
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+.flex-column-grow-1 {
+  flex-shrink: 1;
+  flex-grow: 1;
+  flex-basis: 0px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.clean-space {
+  padding: 0px !important;
+  margin: 0px !important;
+}
+
+.v-btn {
+  text-transform: none !important;
+}
+
+.header-label {
+  padding: 0px !important;
+  margin: 0px !important;
+  display: block !important;
+  text-align: center !important;
+  flex-shrink: 0 !important;
+}
