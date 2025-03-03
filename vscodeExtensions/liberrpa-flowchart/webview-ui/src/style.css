@@ -1,0 +1,22 @@
+/* FileName: style.css */
+
+html {
+  overflow: hidden;
+}
+
+body {
+  /* margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%; */
+  font-family: 'Noto Sans Mono', sans-serif;
+}
+
+/* Reduce the default shadow of Vuetify. */
+.v-switch__thumb {
+  box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.2) !important;
+}
+
+.lf-element-text {
+  cursor: default;
+}

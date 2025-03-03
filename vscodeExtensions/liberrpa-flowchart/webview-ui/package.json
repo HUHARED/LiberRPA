@@ -1,0 +1,32 @@
+{
+  "name": "liberrpa-flowchart-webview",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc -b && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@logicflow/core": "2.0.10",
+    "@logicflow/extension": "2.0.14",
+    "lodash": "^4.17.21",
+    "pinia": "^2.1.7",
+    "uuid": "^11.0.3",
+    "vue": "^3.5.13",
+    "vuetify": "^3.7.5"
+  },
+  "devDependencies": {
+    "@mdi/font": "^7.4.47",
+    "@types/lodash": "^4.17.13",
+    "@types/mousetrap": "^1.6.15",
+    "@types/node": "^22.10.2",
+    "@types/vscode": "^1.96.0",
+    "@vitejs/plugin-vue": "^5.2.1",
+    "typescript": "~5.6.2",
+    "vite": "^6.0.1",
+    "vite-plugin-vuetify": "^2.0.4",
+    "vue-tsc": "^2.1.10"
+  }
+}
