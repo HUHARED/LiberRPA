@@ -1,0 +1,281 @@
+{
+  // It is snippets that cannot genereate by GenerateSnippets.py. It is not the final snippets, the final snippets should should not have nested dictionary.
+  "Basic": {
+    "Basic.delay": {
+      "prefix": "delay",
+      "body": [
+        "delay(${1:1000})"
+      ],
+      "description": "Delay some time, in milliseconds."
+    },
+    "Basic.new python file": {
+      "prefix": "new",
+      "body": [
+        "# FileName: $TM_FILENAME",
+        "from liberrpa.Modules import  * # type: ignore - Import all from liberrpa",
+        "",
+        "",
+        "def main() -> None:",
+        "\traise NotImplementedError()",
+        "",
+        "",
+        "if __name__ == \"__main__\":",
+        "\tmain()",
+        ""
+      ],
+      "description": "The default content for a new Python file.\nIf you click it in LIberRPA Snippets Tree, the modules in Utils and Selector can be imported automatically."
+    },
+    "Basic.def a function": {
+      "prefix": "def",
+      "body": [
+        "def ${1:function_name}($2) -> ${3:None}:",
+        "\t$4"
+      ],
+      "description": "Define a new function."
+    },
+    "Basic.if __main__": {
+      "prefix": "main",
+      "body": [
+        "if __name__ == \"__main__\":",
+        "\t$1"
+      ],
+      "description": "The logic to run when execute the file."
+    },
+    "Basic.File Header": {
+      "prefix": "header",
+      "body": [
+        "# FileName: $TM_FILENAME"
+      ],
+      "description": "Note the file's name in comment."
+    },
+    "Basic.# type: ignore": {
+      "prefix": "ignore",
+      "body": [
+        " # type: ignore - ${1:Reason}"
+      ],
+      "description": "Ignore the line's Pylance complain. It will be inserted into the current line's end once you clicked it."
+    }
+  },
+  "LogicControl": {
+    "LogicControl.if": {
+      "prefix": "if",
+      "body": [
+        "if ${1:condition}:",
+        "\t$2"
+      ],
+      "description": ""
+    },
+    "LogicControl.else": {
+      "prefix": "else",
+      "body": [
+        "else:",
+        "\t$1"
+      ],
+      "description": ""
+    },
+    "LogicControl.elif": {
+      "prefix": "elif",
+      "body": [
+        "elif ${1:condition}:",
+        "\t$2"
+      ],
+      "description": ""
+    },
+    "LogicControl.match case": {
+      "prefix": "match case",
+      "body": [
+        "match ${1:variableName}:",
+        "\tcase ${2:value}:",
+        "\t\t...",
+        "\tcase _:",
+        "\t\t..."
+      ],
+      "description": ""
+    },
+    "LogicControl.case": {
+      "prefix": "case",
+      "body": [
+        "case ${1:value}:",
+        "\t..."
+      ],
+      "description": ""
+    },
+    "LogicControl.for-index, item": {
+      "prefix": "for",
+      "body": [
+        "for ${1:idx}, ${2:item} in enumerate(${3:obj},start=${4:0}):",
+        "\t$5"
+      ],
+      "description": "For-loop with enumerate and a starting index."
+    },
+    "LogicControl.for-item": {
+      "prefix": "for",
+      "body": [
+        "for ${1:item} in ${2:obj}:",
+        "\t$3"
+      ],
+      "description": "Simple for loop."
+    },
+    "LogicControl.for-counting cycle": {
+      "prefix": "for",
+      "body": [
+        "for ${1:idx} in range(${2:0},${3:intStop},${4:1}):",
+        "\t$5"
+      ],
+      "description": "Simple for loop using range."
+    },
+    "LogicControl.while": {
+      "prefix": "while",
+      "body": [
+        "while ${1:condition}:",
+        "\t$2"
+      ],
+      "description": "Simple while loop."
+    },
+    "LogicControl.continue": {
+      "prefix": "continue",
+      "body": [
+        "continue"
+      ],
+      "description": "Continue to the next cycle."
+    },
+    "LogicControl.break": {
+      "prefix": "break",
+      "body": [
+        "break"
+      ],
+      "description": "End the loop."
+    },
+    "LogicControl.try catch": {
+      "prefix": "try",
+      "body": [
+        "try:",
+        "\t$1",
+        "except Exception as e:",
+        "\t...",
+        "else:",
+        "\t...",
+        "finally:",
+        "\t..."
+      ],
+      "description": ""
+    },
+    "LogicControl.retry": {
+      "prefix": "retry",
+      "body": [
+        "intMaxTryCount = ${1:intMaxTryCount}",
+        "for intTryIdx in range(intMaxTryCount):",
+        "\ttry:",
+        "\t\t$2",
+        "\texcept Exception as e:",
+        "\t\tLog.exception_info(e)",
+        "\t\tif intTryIdx +1 == intMaxTryCount:",
+        "\t\t\traise e",
+        "\telse:",
+        "\t\tbreak"
+      ],
+      "description": "Retry until the try scope completed, or raise the error after the last try."
+    },
+    "LogicControl.raise an exception": {
+      "prefix": "raise",
+      "body": [
+        "raise ${1:Exception}(${2:\"The description of the error\"})"
+      ],
+      "description": ""
+    },
+    "LogicControl.return": {
+      "prefix": "return",
+      "body": [
+        "return ${1:value}"
+      ],
+      "description": ""
+    }
+  },
+  "Log": {
+    "Log.verbose": {
+      "prefix": "Log.verbose",
+      "body": "Log.verbose($1)",
+      "description": "Write a log entry at the 'VERBOSE' level, only if the current log level allows it.\n\nParameters:\n    message: The message to log, which can be any type that can be converted to a string.\n    stackLevel: Adjusts the stack level to get the correct file name, line number, and function name for the log entry."
+    },
+    "Log.verbose_pretty": {
+      "prefix": "Log.verbose_pretty",
+      "body": "Log.verbose_pretty($1)",
+      "description": "Write a log entry at the 'VERBOSE' level, only if the current log level allows it.\n\nIf the message is a value of dict,list or tuple, it will be formatted with indent(4 space) in human_read log.\n\nParameters:\n    message: The message to log, which can be any type that can be converted to a string.\n    stackLevel: Adjusts the stack level to get the correct file name, line number, and function name for the log entry."
+    },
+    "Log.debug": {
+      "prefix": "Log.debug",
+      "body": "Log.debug($1)",
+      "description": "Write a log entry at the 'DEBUG' level, only if the current log level allows it.\n\nParameters:\n    message: The message to log, which can be any type that can be converted to a string.\n    stackLevel: Adjusts the stack level to get the correct file name, line number, and function name for the log entry."
+    },
+    "Log.debug_pretty": {
+      "prefix": "Log.debug_pretty",
+      "body": "Log.debug_pretty($1)",
+      "description": "Write a log entry at the 'DEBUG' level, only if the current log level allows it.\n\nIf the message is a value of dict,list or tuple, it will be formatted with indent(4 space) in human_read log.\n\nParameters:\n    message: The message to log, which can be any type that can be converted to a string.\n    stackLevel: Adjusts the stack level to get the correct file name, line number, and function name for the log entry."
+    },
+    "Log.info": {
+      "prefix": "Log.info",
+      "body": "Log.info($1)",
+      "description": "Write a log entry at the 'INFO' level, only if the current log level allows it.\n\nParameters:\n    message: The message to log, which can be any type that can be converted to a string.\n    stackLevel: Adjusts the stack level to get the correct file name, line number, and function name for the log entry."
+    },
+    "Log.info_pretty": {
+      "prefix": "Log.info_pretty",
+      "body": "Log.info_pretty($1)",
+      "description": "Write a log entry at the 'INFO' level, only if the current log level allows it.\n\nIf the message is a value of dict,list or tuple, it will be formatted with indent(4 space) in human_read log.\n\nParameters:\n    message: The message to log, which can be any type that can be converted to a string.\n    stackLevel: Adjusts the stack level to get the correct file name, line number, and function name for the log entry."
+    },
+    "Log.warning": {
+      "prefix": "Log.warning",
+      "body": "Log.warning($1)",
+      "description": "Write a log entry at the 'WARNING' level, only if the current log level allows it.\n\nParameters:\n    message: The message to log, which can be any type that can be converted to a string.\n    stackLevel: Adjusts the stack level to get the correct file name, line number, and function name for the log entry."
+    },
+    "Log.warning_pretty": {
+      "prefix": "Log.warning_pretty",
+      "body": "Log.warning_pretty($1)",
+      "description": "Write a log entry at the 'WARNING' level, only if the current log level allows it.\n\nIf the message is a value of dict,list or tuple, it will be formatted with indent(4 space) in human_read log.\n\nParameters:\n    message: The message to log, which can be any type that can be converted to a string.\n    stackLevel: Adjusts the stack level to get the correct file name, line number, and function name for the log entry."
+    },
+    "Log.error": {
+      "prefix": "Log.error",
+      "body": "Log.error($1)",
+      "description": "Write a log entry at the 'ERROR' level, only if the current log level allows it.\n\nParameters:\n    message: The message to log, which can be any type that can be converted to a string.\n    stackLevel: Adjusts the stack level to get the correct file name, line number, and function name for the log entry."
+    },
+    "Log.error_pretty": {
+      "prefix": "Log.error_pretty",
+      "body": "Log.error_pretty($1)",
+      "description": "Write a log entry at the 'ERROR' level, only if the current log level allows it.\n\nIf the message is a value of dict,list or tuple, it will be formatted with indent(4 space) in human_read log.\n\nParameters:\n    message: The message to log, which can be any type that can be converted to a string.\n    stackLevel: Adjusts the stack level to get the correct file name, line number, and function name for the log entry."
+    },
+    "Log.critical": {
+      "prefix": "Log.critical",
+      "body": "Log.critical($1)",
+      "description": "Write a log entry at the 'CRITICAL' level, only if the current log level allows it.\n\nParameters:\n    message: The message to log, which can be any type that can be converted to a string.\n    stackLevel: Adjusts the stack level to get the correct file name, line number, and function name for the log entry."
+    },
+    "Log.critical_pretty": {
+      "prefix": "Log.critical_pretty",
+      "body": "Log.critical_pretty($1)",
+      "description": "Write a log entry at the 'CRITICAL' level, only if the current log level allows it.\n\nIf the message is a value of dict,list or tuple, it will be formatted with indent(4 space) in human_read log.\n\nParameters:\n    message: The message to log, which can be any type that can be converted to a string.\n    stackLevel: Adjusts the stack level to get the correct file name, line number, and function name for the log entry."
+    },
+    "Log.exception_info": {
+      "prefix": "Log.exception_info",
+      "body": "Log.exception_info(exObj=$1)",
+      "description": "Record the Exception object's 'type', 'message', 'fileName' and 'lineNumber' in a dict format and \"ERROR\" log level, only if the current log level allows it.\n\nParameters:\n    exObj: The Exception object to record."
+    },
+    "Log.set_level": {
+      "prefix": "Log.set_level",
+      "body": "Log.set_level(level=$1, loggerType=${2:'both'})",
+      "description": "Set the minimum log level for the logger.\n\nParameters:\n    level: The minimum level to set. Must be one of ['VERBOSE', 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'].\n    loggerType: Which logger to set the level for. Must be one of ['both', 'human', 'machine']."
+    },
+    "Log.add_custom_log_part": {
+      "prefix": "Log.add_custom_log_part",
+      "body": "Log.add_custom_log_part(name=$1, text=$2)",
+      "description": "Adds a new part to the log entry format.\n\nIf the name already exists, the text will be updated.\n\nThe name cannot be one of the reserved keywords([\"timestamp\", \"level\", \"message\", \"userName\", \"machineName\", \"processName\", \"fileName\", \"lineNo\", \"projectName\", \"logId\"]) due to they are used in machine_read log.\n\nParameters:\n    name: The new part's name to be added. This will be a new key in the machine_read log entry, but it won't appear in human_read log.\n    text: The text of the new log part, which will be displayed in human_read log."
+    },
+    "Log.remove_custom_log_part": {
+      "prefix": "Log.remove_custom_log_part",
+      "body": "Log.remove_custom_log_part(name=$1)",
+      "description": "Remove a custom log part by name.\n\nIf the name is not found, no action is taken.\n\nThe name cannot be one of the reserved keywords([\"timestamp\", \"level\", \"message\", \"userName\", \"machineName\", \"processName\", \"fileName\", \"lineNo\", \"projectName\", \"logId\"]) due to they are used in machine_read log.\n\nParameters:\n    name: The name of the custom log part to remove from both the machine_read and human_read logs."
+    },
+    "Log.trace": {
+      "prefix": "Log.trace",
+      "body": "@Log.trace(level=${1:'DEBUG'})",
+      "description": "This decorator logs the start and end of a function at a specified log level, default is 'DEBUG'\n\nParameters:\n    level: The level to record log. Must be one of ['VERBOSE', 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']."
+    }
+  }
+}

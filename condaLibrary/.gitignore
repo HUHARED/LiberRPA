@@ -3,9 +3,13 @@
 /screenshot
 /_useless
 /liberrpa.egg-info
-/snippets
+
 /recipes
 
+/snippets/snippets_other.snippets
+/snippets/snippets_final.snippets
+
+api.md
 MANIFEST.in
 setup.py
 
