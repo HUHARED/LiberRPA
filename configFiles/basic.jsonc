@@ -1,0 +1,16 @@
+// FineName: basic.jsonc
+{
+  /* 
+  Predefined variables:
+        ${LiberRPA}: The value of "LiberRPA" in your computer's User Environment Variables. Since LiberRPA has a portability mechanism, so you should run the "InitLiberRPA.exe" in the LiberRPA root folder. It will add a "LiberRPA" variable in your computer's User Environment Variables.
+        ${UserName}: The name of the user currently logged into the system.
+        ${HostName}: The computer's hostname.
+        ${ToolName}: Don't delete it, it is a flag to control subfolder name in "OutputLog".
+        
+        */
+  "LiberRPAPath": "${LiberRPA}",
+  "outputLogPath": "C:\\Users\\${UserName}\\Documents\\LiberRPA\\OutputLog\\${ToolName}\\",
+  "localServerPort": "52000",
+  "uiAnalyzerTheme": "light", // "light" or "dark"
+  "uiAnalyzerMinimizeWindow": "false" // "true" or "false"
+}
