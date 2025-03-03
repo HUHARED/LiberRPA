@@ -1,3 +1,5 @@
 # Not trace the conda environments.
 jsenv
 pyenv
+
+*.pth

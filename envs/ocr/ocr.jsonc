@@ -1,0 +1,4 @@
+{
+  // "the pth file name(without suffix)": [the EasyOCR language sign], such as "english_default": ["en"], "custom_for_something_1": ["en","ch_sim"], "custom_for_something_2": ["en","ch_sim","ja"]
+  "english_default": ["en"]
+}
