@@ -1,0 +1,91 @@
+// FileName: keybindings.json
+// Place your key bindings in this file to override the defaults
+[
+  /* Move cursor when editing. */
+  // Insert a new line below (Shift+Enter).
+  {
+    "key": "shift+enter",
+    "command": "editor.action.insertLineAfter",
+    "when": "editorTextFocus && !editorReadonly"
+  },
+  // Insert a new line above (Use Ctrl+Shift+Enter), and disable the another shortcut(Ctrl+Enter).
+  {
+    "key": "ctrl+enter",
+    "command": "-editor.action.insertLineAfter",
+    "when": "editorTextFocus && !editorReadonly"
+  },
+
+  /* Navigate suggestions in autocomplete list. */
+  // Move to next suggestion (Ctrl+J).
+  {
+    "key": "ctrl+j",
+    "command": "-workbench.action.togglePanel"
+  },
+  {
+    "command": "selectNextSuggestion",
+    "key": "ctrl+j",
+    "when": "editorTextFocus && suggestWidgetVisible"
+  },
+  // Move to previous suggestion (Ctrl+K).
+  {
+    "command": "selectPrevSuggestion",
+    "key": "ctrl+k",
+    "when": "editorTextFocus && suggestWidgetVisible"
+  },
+
+  /* Switch editor tabs (Previous: Ctrl+Shift+Tab, Next: Ctrl+Tab). */
+  {
+    "key": "ctrl+shift+tab",
+    "command": "-workbench.action.openPreviousRecentlyUsedEditorInGroup"
+  },
+  {
+    "key": "ctrl+shift+tab",
+    "command": "workbench.action.previousEditor"
+  },
+  {
+    "key": "ctrl+tab",
+    "command": "-workbench.action.openNextRecentlyUsedEditorInGroup"
+  },
+  {
+    "key": "ctrl+tab",
+    "command": "workbench.action.nextEditor"
+  },
+  {
+    "key": "ctrl+pagedown",
+    "command": "-workbench.action.nextEditor"
+  },
+  {
+    "key": "ctrl+pageup",
+    "command": "-workbench.action.previousEditor"
+  },
+
+  // Delete the current line (Ctrl+D).
+  {
+    "key": "ctrl+shift+k",
+    "command": "-editor.action.deleteLines",
+    "when": "textInputFocus && !editorReadonly"
+  },
+  {
+    "key": "ctrl+d",
+    "command": "-editor.action.addSelectionToNextFindMatch",
+    "when": "editorFocus"
+  },
+  {
+    "key": "ctrl+d",
+    "command": "editor.action.deleteLines",
+    "when": "textInputFocus && !editorReadonly"
+  },
+
+  // Enable Python Paste And Indent for Python (Ctrl+V)
+  {
+    "key": "ctrl+v",
+    "command": "pyPasteIndent.pasteIndent",
+    "when": "editorLangId == 'python'"
+  },
+
+  // For Office Viewer(Markdown Editor), unbind Ctrl+B from toggling the sidebar
+  {
+    "key": "ctrl+b",
+    "command": "-workbench.action.toggleSidebarVisibility"
+  }
+]
