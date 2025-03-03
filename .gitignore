@@ -1,0 +1,6 @@
+# Ignore specific files in the root folder.
+README_chs.md
+InitLiberRPA.exe
+test/
+*.pyc
+# Other rules should follow .gitignore in subfolders.
