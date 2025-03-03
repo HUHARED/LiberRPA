@@ -1,0 +1,21 @@
+{
+  "nodes": [
+    {
+      "id": "LiberRPA_Start",
+      "type": "Start",
+      "x": 100,
+      "y": 100,
+      "text": "Start",
+      "properties": {
+        "pyFile": "liberrpa.FlowControl.Start.py"
+      }
+    }
+  ],
+  "edges": [],
+  "executeMode": "Debug",
+  "logLevel": "DEBUG",
+  "recordVideo": false,
+  "stopShortcut": true,
+  "highlightUi": false,
+  "customPrjArgs": []
+}
