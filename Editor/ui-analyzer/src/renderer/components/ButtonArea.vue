@@ -1,6 +1,5 @@
 <!-- FileName: ButtonArea.vue -->
 <template>
-  <!-- TODO: debug, why its width is not 100% of its parent?  -->
   <v-container fluid class="pa-2 ma-0" style="height: 70px">
     <v-label class="header-label">Operation Buttons</v-label>
     <v-row class="w-100">
