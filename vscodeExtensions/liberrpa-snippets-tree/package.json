@@ -2,7 +2,7 @@
   "name": "liberrpa-snippets-tree",
   "displayName": "LiberRPA Snippets Tree",
   "description": "This extension is part of LiberRPA to insert Python snippets.",
-  "version": "0.0.2",
+  "version": "0.1.0",
   "engines": {
     "vscode": "^1.95.0"
   },
