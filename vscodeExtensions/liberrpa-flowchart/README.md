@@ -82,7 +82,7 @@ Ensure that the line follow the [Link Rules](##link-rules).
 
   * When the whole project executing, if the Block node's Python script runs successfully, LiberRPA follows the Common-line.
   * If an uncaught exception occurs, it follows the Exception-line.
-    The exception will be stored in a global object `PrjArgs.errorObj`, [see more detail](https://github.com/HUHARED/LiberRPA/condaLibrary/README.md/#global-objects).(TODO: test the link later.)
+    The exception will be stored in a global object `PrjArgs.errorObj`, [see more detail](https://github.com/HUHARED/LiberRPA/tree/main/condaLibrary#global-objects).
   * If neither lines is connected, an End node is executed automatically.
     ![1740304582323](md_images/README/1740304582323.png)
 
@@ -156,7 +156,8 @@ LiberRPA sets the log level (using `Log.set_level()`) according to the configura
 
 You can enable it to save an execution video(`video_record.mkv`) in the corresponding log folder.
 
-The functionality relies on **[LiberRPA Local Server](https://github.com/HUHARED/LiberRPA?tab=readme-ov-file#liberrpa-local-server)**.(TODO: test the link later)
+The functionality relies on **[LiberRPA Local Server](https://github.com/HUHARED/LiberRPA/blob/main/README.md#liberrpa-local-server)**.
+
 
 ![1740307313698](md_images/README/1740307313698.png)
 
@@ -164,7 +165,7 @@ LiberRPA Local Server will also create a subtitle(`video_record.srt`) file for t
 
 ![1740307426364](md_images/README/1740307426364.png)
 
-For log folder path configuration, see [Configuration](https://github.com/HUHARED/LiberRPA?tab=readme-ov-file#configuration).(TODO: test the link later)
+For log folder path configuration, see [Configuration](https://github.com/HUHARED/LiberRPA/blob/main/README.md#configuration).
 
 ### Stop Shortcut
 
