@@ -53,6 +53,7 @@ Use `Ctrl+F` to search them.
 *(Automatically generated—if you notice any errors, please contact me.)*
 
 - [Python Library](#python-library)
+- [Global Objects](#global-objects)
 - [API](#api)
   - [Basic](#basic)
     - [delay](#delay)
@@ -388,7 +389,6 @@ Use `Ctrl+F` to search them.
     - [save\_as](#save_as)
     - [show\_text\_input\_box](#show_text_input_box)
     - [show\_message\_box](#show_message_box)
-
 ## Basic
 
 ### delay
@@ -4200,6 +4200,7 @@ str: The absolute path to the saved merged PDF file.
 
 Perform OCR on an image and returns text blocks with their positions.
 Note that it bases on EasyOCR, calculate by CPU in local machine, so the handle time will increase significantly with image's size.
+The first run will take some time to initialize.
 
 min_size, low_text, mag_ratio,add_margin are most useful generally.
 If you don't know the arguments' meaning, refer to [EasyOCR api](https://www.jaided.ai/easyocr/documentation/)
@@ -4253,6 +4254,8 @@ list[DictTextBlock]: A list of dictionaries containing the detected text and the
 
 Perform OCR on an image and returns the extracted text as a single string.
 Note that it bases on EasyOCR, calculate by CPU in local machine, so the handle time will increase significantly with image's size.
+The first run will take some time to initialize.
+
 min_size, low_text, mag_ratio,add_margin are most useful generally.
 If you don't know the arguments' meaning, refer to [EasyOCR api](https://www.jaided.ai/easyocr/documentation/)
 
