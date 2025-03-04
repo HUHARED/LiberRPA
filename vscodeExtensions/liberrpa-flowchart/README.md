@@ -1,5 +1,7 @@
 # LiberRPA Flowchart
 
+(If you can't see the images in the document, have a look on [GitHub](https://github.com/HUHARED/LiberRPA/blob/main/vscodeExtensions/liberrpa-flowchart/README.md).)
+
 This extension is a part of LiberRPA to manage the overall flow of an RPA project, including project arguments and settings.
 
 ![1740302097535](md_images/README/1740302097535.png)
@@ -158,7 +160,6 @@ You can enable it to save an execution video(`video_record.mkv`) in the correspo
 
 The functionality relies on **[LiberRPA Local Server](https://github.com/HUHARED/LiberRPA/blob/main/README.md#liberrpa-local-server)**.
 
-
 ![1740307313698](md_images/README/1740307313698.png)
 
 LiberRPA Local Server will also create a subtitle(`video_record.srt`) file for the video, generated automatically from  `human_read_MainProcess.log`.
@@ -209,10 +210,7 @@ This allows for wider input boxes so that you can view more content.
 
 If you need to edit extensive content, it may be more convenient to edit it elsewhere and then paste it here.
 
-<video width="1170" controls>
-  <source src="./md_images/resize.mp4" type="video/mp4">
-  Your browser not supports video in Markdown.
-</video>
+![resize](md_images/README/resize.gif)
 
 # Known Issues
 
