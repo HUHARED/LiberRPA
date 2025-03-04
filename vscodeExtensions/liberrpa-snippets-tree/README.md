@@ -2,7 +2,7 @@
 
 This extension is a part of LiberRPA to displays built-in and user-defined [code snippets](https://code.visualstudio.com/docs/editor/userdefinedsnippets).
 
-With it, you don't need to memorize the entire [LiberRPA API](https://github.com/HUHARED/LiberRPA/condaLibrary/README.md/#api). TODO: test the link later.
+With it, you don't need to memorize the entire [LiberRPA API](https://github.com/HUHARED/LiberRPA/tree/main/condaLibrary#api).
 
 # Usage
 
@@ -94,4 +94,4 @@ LiberRPA Snippets Tree will display these snippets in a `Favorite` category at t
   Simply press Ctrl+Z once more to remove it.
 
   ![1740386186601](md_images/README/1740386186601.png)
-* LiberRPA Snippets Tree doe not support searching for snippets. To locate snippets, please refer to the [LiberRPA API](https://github.com/HUHARED/LiberRPA/condaLibrary/README.md/#api).TODO: test the link later.
+* LiberRPA Snippets Tree doe not support searching for snippets. To locate snippets, please refer to the [LiberRPA API](https://github.com/HUHARED/LiberRPA/tree/main/condaLibrary#api).
