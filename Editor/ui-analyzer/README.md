@@ -6,10 +6,9 @@ It needs LiberRPA Local Server to function properly.
 
 Note the GUI shown here may differ slightly from the newest version.
 
-
 # Change Log
 
-Since LiberRPA has components across different platforms, all changes will be recorded in [the unified document](https://github.com/HUHARED/LiberRPA/docs/CHANGELOG.md).
+Since LiberRPA has components across different platforms, all changes will be recorded in [the unified document](https://github.com/HUHARED/LiberRPA/blob/main/docs/CHANGELOG.md).
 
 # Indicate UIA Element
 
