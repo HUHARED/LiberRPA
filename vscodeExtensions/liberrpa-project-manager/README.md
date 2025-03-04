@@ -1,5 +1,7 @@
 # LiberRPA Project Manager
 
+(If you can't see the images in the document, have a look on [GitHub](https://github.com/HUHARED/LiberRPA/blob/main/vscodeExtensions/liberrpa-project-manager/README.md).)
+
 This extension is a part of LiberRPA to create new RPA projects.
 
 It offers multiple templates to choose from, and you can customize the templates to fit your needs.
