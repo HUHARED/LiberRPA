@@ -20,10 +20,7 @@ Press `ESC` to exit the indicating.
 
 > It works for many situations, but for HTML elements, [Indicate HTML Element](#indicate-html-element) may better.
 
-<video width="1920" controls>
-  <source src="./md_images/IndicateUIA.mp4" type="video/mp4">
-  Your browser not supports video in Markdown.
-</video>
+![IndicateUIA](md_images/README/IndicateUIA.gif)
 
 Adjust **Indicate delay** to allow time for you to bring the target window into view.
 
@@ -39,10 +36,7 @@ Indicate an element in a usual webpage.
 
 If the element is not in viewport, LiberRPA will attempt to scroll it into view.
 
-<video width="1920" controls>
-  <source src="./md_images/IndicateHtml.mp4" type="video/mp4">
-  Your browser not supports video in Markdown.
-</video>
+![IndicateHtml](md_images/README/IndicateHtml.gif)
 
 HTML element can be located by **index**(**documentIndex** and **childIndex**, start from 0 and 0 will be ignored) or **path**([CSS selector](https://developer.mozilla.org/docs/Web/CSS/CSS_selectors) with the [:nth-child()](https://developer.mozilla.org/docs/Web/CSS/:nth-child)) if other attributes are not enough.
 ![1740147909983](md_images/README/1740147909983.png)
@@ -57,10 +51,7 @@ Indicate an element by image—useful when both UIA and HTML selectors fail.
 
 To select an image, drag and drop it while holding `Ctrl` and clicking the left mouse button.
 
-<video width="1920" controls>
-  <source src="./md_images/IndicateImage.mp4" type="video/mp4">
-  Your browser not supports video in Markdown.
-</video>
+![IndicateImage](md_images/README/IndicateImage.gif)
 
 You can configure the default confidence level for image matching and choose between grayscale or colorscale modes.
 
@@ -76,10 +67,7 @@ Note that All selector (UIA, HTML, Image) must have a window section—UI Analyz
 
 LiberRPA will try to locate the "window" then search the "specification" section.
 
-<video width="1920" controls>
-  <source src="./md_images/IndicateWindow.mp4" type="video/mp4">
-  Your browser not supports video in Markdown.
-</video>
+![IndicateWindow](md_images/README/IndicateWindow.gif)
 
 # Modify Selector
 
@@ -91,10 +79,7 @@ Use regular expressions (regex) to make the selector more suitable when the attr
 
 The changement will update **JSON Selector**.
 
-<video width="1920" controls>
-  <source src="./md_images/-omit-regex.mp4" type="video/mp4">
-  Your browser not supports video in Markdown.
-</video>
+![-omit-regex](md_images/README/-omit-regex.gif)
 
 Alternatively, you can directly edit them in **JSON Selector**—note that it will not update **Attribute Editor**.
 
@@ -104,10 +89,7 @@ Alternatively, you can directly edit them in **JSON Selector**—note that it wi
 
 Test whether the element can be located by the current data in **JSON Selector**.
 
-<video width="1920" controls>
-  <source src="./md_images/Validate.mp4" type="video/mp4">
-  Your browser not supports video in Markdown.
-</video>
+![Validate](md_images/README/Validate.gif)
 
 Set **Match timeout** to specify how long the validation should attempt to find a match.
 
@@ -117,10 +99,7 @@ Set **Match timeout** to specify how long the validation should attempt to find 
 
 You can utilize the element tree structure to view and locate all elements within a window.
 
-<video width="1920" controls>
-  <source src="./md_images/CheckElementTree.mp4" type="video/mp4">
-  Your browser not supports video in Markdown.
-</video>
+![CheckElementTree](md_images/README/CheckElementTree.gif)
 
 # Resize
 
@@ -128,19 +107,13 @@ Adjust the width of the left and right panels by dragging the dividers.
 
 The overall window size of UI Analyzer can also be modified.
 
-<video width="1920" controls>
-  <source src="./md_images/Resize.mp4" type="video/mp4">
-  Your browser not supports video in Markdown.
-</video>
+![Resize](md_images/README/Resize.gif)
 
 # Reset
 
 Reset the current selector data to the default states.
 
-<video width="1920" controls>
-  <source src="./md_images/Reset.mp4" type="video/mp4">
-  Your browser not supports video in Markdown.
-</video>
+![Reset](md_images/README/Reset.gif)
 
 # Check Log
 
