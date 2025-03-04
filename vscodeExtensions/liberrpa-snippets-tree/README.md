@@ -1,5 +1,7 @@
 # LiberRPA Snippets Tree
 
+(If you can't see the images in the document, have a look on [GitHub](https://github.com/HUHARED/LiberRPA/blob/main/vscodeExtensions/liberrpa-snippets-tree/README.md).)
+
 This extension is a part of LiberRPA to displays built-in and user-defined [code snippets](https://code.visualstudio.com/docs/editor/userdefinedsnippets).
 
 With it, you don't need to memorize the entire [LiberRPA API](https://github.com/HUHARED/LiberRPA/tree/main/condaLibrary#api).
@@ -14,26 +16,17 @@ You can add code snippets to your Python files in the editor using these methods
    Simply click an item in LiberRPA Snippets Tree with your mouse.
    If the current line of cursor is not empty, the snippets will be insert to the next line with the same indent.
 
-<video width="1258" controls>
-  <source src="./md_images/clickToAdd.mp4" type="video/mp4">
-  Your browser not supports video in Markdown.
-</video>
+![clickToAdd](md_images/README/clickToAdd.gif)
 
-2. **Drag and Drop:**
+1. **Drag and Drop:**
    Drag an item from LiberRPA Snippets Tree into your editor.
 
-<video width="1258" controls>
-  <source src="./md_images/dragToAdd.mp4" type="video/mp4">
-  Your browser not supports video in Markdown.
-</video>
+![dragToAdd](md_images/README/dragToAdd.gif)
 
-3. **Type the Prefix:**
+1. **Type the Prefix:**
    Type the corresponding code snippet prefix in the editor, the snippets will appear in [IntelliSense](https://code.visualstudio.com/docs/editor/intellisense).
 
-<video width="1258" controls>
-  <source src="./md_images/typeToAdd.mp4" type="video/mp4">
-  Your browser not supports video in Markdown.
-</video>
+![typeToAdd](md_images/README/typeToAdd.gif)
 
 ## Use Secondary Side Bar
 
@@ -41,24 +34,15 @@ When developing a new RPA project, you might need to switch between [VS Code Exp
 
 You can open the Secondary Sidebar, then drag the LiberRPA Snippets Tree icon from [VS Code Activity Bar](https://code.visualstudio.com/api/ux-guidelines/activity-bar) into the Secondary Sidebar.
 
-<video width="1258" controls>
-  <source src="./md_images/moveToSecondarySidebar_1.mp4" type="video/mp4">
-  Your browser not supports video in Markdown.
-</video>
+![moveToSecondarySidebar_1](md_images/README/moveToSecondarySidebar_1.gif)
 
 Alternatively, drag the LiberRPA Snippets Tree icon from the Activity Bar and drop it at the right region of [VS Code Editor](https://code.visualstudio.com/api/ux-guidelines/overview#editor).
 
-<video width="1258" controls>
-  <source src="./md_images/moveToSecondarySidebar_2.mp4" type="video/mp4">
-  Your browser not supports video in Markdown.
-</video>
+![moveToSecondarySidebar_2](md_images/README/moveToSecondarySidebar_2.gif)
 
 You can also move LiberRPA Snippets Tree back to Activity Bar.
 
-<video width="1258" controls>
-  <source src="./md_images/MoveBack.mp4" type="video/mp4">
-  Your browser not supports video in Markdown.
-</video>
+![MoveBack](md_images/README/MoveBack.gif)
 
 ## User-defined Code Snippets
 
