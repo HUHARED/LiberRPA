@@ -11,7 +11,7 @@
 
 api.md
 MANIFEST.in
-setup.py
+# setup.py
 
 *.pyc
 @AutomationLog.txt
