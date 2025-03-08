@@ -33,8 +33,8 @@ LiberRPA is an RPA toolkit built for hands-on, down-to-earth engineers.
   * Leverage the ecosystems of Python and VS Code to extend functionality beyond LiberRPA's built-in features.
   * With a simple `Ctrl+MouseLeft` click, you can jump directly to the corresponding LiberRPA source code. If you encounter difficulties, besides contacting the developer, you can also send the source code to an AI for help.
 
-> Note: There are currently no plans to integrate popular AI-assisted programming features into LiberRPA.
-
+  > Note: There are currently no plans to integrate popular AI-assisted programming features into LiberRPA.
+  >
 * **Code-Driven Approach Over Graphical Interfaces**
 
   * LiberRPA is not marketed as a low-code or no-code solution—it prioritizes a seamless coding experience for engineers.
@@ -56,6 +56,7 @@ LiberRPA is an RPA toolkit built for hands-on, down-to-earth engineers.
 # Limitations
 
 * Only supports Windows 10+ (Windows Server 2016+) platforms.
+* Many mouse and keyboard operations may only work properly if your computer's screen scale is set to 100%.
 * Still in development and not yet extensively tested—stability and bugs will be optimized based on user feedback.
 
 # Components
@@ -251,6 +252,8 @@ LiberRPA relies on these projects to deliver its functionality. There might be s
 # Get in Touch
 
 [Issues](https://github.com/HUHARED/LiberRPA/issues)
+
+[Discussions](https://github.com/HUHARED/LiberRPA/discussions)
 
 [Telegram](https://t.me/+U6oCH5Vs6CcxOTg9)
 
