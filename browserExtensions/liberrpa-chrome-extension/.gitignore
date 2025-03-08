@@ -24,7 +24,8 @@ dist-ssr
 *.sw?
 
 
-src/content/temp.txt
+/src/content/temp.txt
 project.json
 temp.txt
 .vscode/extensions.json
+upload_to_chrome_web_store/
