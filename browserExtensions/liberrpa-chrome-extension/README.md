@@ -8,17 +8,40 @@ The extension receives commands from the LiberRPA Local Server and returns resul
 
 Supported commands include:
 
-* getDownloadList
-* getElementAttrByCoordinates
-* getElementAttrBySelector
-* clickMouseEvent
-* setElementText
-* focusElement
-* getParentElementAttr
-* getChildrenElementAttr
-* setCheckState
-* getSelection
-* setSelection
+* **Background**
+
+  * getState
+  * goBackward
+  * goForward
+  * refresh
+  * waitLoadCompleted
+  * navigate
+  * openNewTab
+  * openNewWindow
+  * switchTab
+  * closeCurrentTab
+  * getDownloadList
+  * getUrl
+  * getTitle
+  * getCookies
+  * setCookies
+* **Centent**
+
+  * getElementAttrByCoordinates
+  * getElementAttrBySelector
+  * clickMouseEvent
+  * setElementText
+  * focusElement
+  * getParentElementAttr
+  * getChildrenElementAttr
+  * setCheckState
+  * getSelection
+  * setSelection
+  * getSourceCode
+  * getAllText
+  * getScrollPosition
+  * setScrollPosition
+  * executeJsCode
 
 ## Permissions
 
@@ -28,7 +51,6 @@ The extension requires the following permissions:
 * activeTab
 * scripting
 * cookies
-* storage
 * downloads
 * nativeMessaging
 
