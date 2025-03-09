@@ -50,7 +50,7 @@ You can define your frequently used snippets by editing the file: `C:/Users/<use
 
 Below is an example configuration:
 
-```json
+```jsonc
 // FineName: snippets_favorite.jsonc
 {
   // Copy any snippets from https://github.com/HUHARED/LiberRPA/vscodeExtensions/liberrpa-snippets-tree/assets/snippets_final.snippets and paste them in here, these snippets will be put at the top in LiberRPA Snippets Tree.
