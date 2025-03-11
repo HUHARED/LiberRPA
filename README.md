@@ -1,5 +1,5 @@
-<div style="text-align: center;">
-  <img src="./envs/assets/icon/LiberRPA_icon_v1_color.png" alt="LiberRPA icon">
+<div align="center">
+  <img src="./envs/assets/icon/LiberRPA_icon_v1_color.png" alt="LiberRPA icon" width="150px">
 </div>
 
 # LiberRPA
@@ -154,7 +154,7 @@ For more details, check [LiberRPA Project Manager](./vscodeExtensions/liberrpa-p
 
 You can modify some config of LiberRPA in `LiberRPA/configFiles/basic.jsonc`.
 
-```json
+```jsonc
 // FineName: basic.jsonc
 {
   /* 
