@@ -92,7 +92,7 @@ def create_native_messagin_file() -> None:
         "description": "Chrome call native app and sent message to app.",
         "path": strExePath,
         "type": "stdio",
-        "allowed_origins": ["chrome-extension://elnnnehambeohefmcdeiajpodhcdgigb/"],
+        "allowed_origins": ["chrome-extension://cffobgimbemkfgjmcedebofkfcamnajb/"],
     }
     Path(strNmFilePath).write_text(json.dumps(dictNM, indent=4), encoding="utf-8")
 
