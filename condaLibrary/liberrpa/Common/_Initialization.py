@@ -6,6 +6,10 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
 import multiprocessing
+
+# run freeze_support() to avoid re-running of it was packaged to an exe.
+multiprocessing.freeze_support()
+
 import time
 from datetime import datetime
 import json

@@ -16,7 +16,6 @@ if __name__ == "__main__":
     try:
         print("=== '__main__' block is running ===")
         # Set the log folder name.
-        # Run it before multiprocessing.freeze_support() to avoid the error after quitting.
         # ========================
         from liberrpa.Common._Initialization import set_log_folder_name
 
@@ -24,9 +23,6 @@ if __name__ == "__main__":
         from liberrpa.Logging import Log
 
         # ========================
-
-        # run freeze_support() to avoid re-running of it was packaged to an exe.
-        multiprocessing.freeze_support()
 
         print("Start QtWorker process.")
         from liberrpa.UI._QtWorker import run_qt_worker
