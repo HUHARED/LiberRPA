@@ -28,7 +28,7 @@ async function createWindow() {
     height: 900,
     minWidth: 1280,
     minHeight: 720,
-    // title: "UI Analyzer",
+    autoHideMenuBar: true,
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
@@ -36,12 +36,6 @@ async function createWindow() {
     },
     icon: iconPath,
   });
-
-  // Hide the menu bar.
-  mainWindow.setMenu(null);
-
-  // Hide DevTools.
-  // mainWindow.webContents.openDevTools();
 
   if (!app.isPackaged) {
     loggerMain.info("development mode");
