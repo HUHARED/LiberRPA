@@ -140,9 +140,7 @@ Currently, there is no uninstaller for LiberRPA. If you wish to uninstall it, yo
 
 ## Install Chrome Extension
 
-The LiberRPA Chrome Extension has uploaded to the Chrome Web Store, and you can install it on your existing Chrome.
-
-TODO: add link
+The LiberRPA Chrome Extension has uploaded to Chrome Web Store, and you can [install it](https://chromewebstore.google.com/detail/liberrpa-chrome-extension/cffobgimbemkfgjmcedebofkfcamnajb) on your existing Chrome.
 
 ## Create Project
 
