@@ -1,9 +1,9 @@
 // FileName: logger.ts
-import { format, transports, createLogger } from "winston";
 import path from "path";
 // import * as path from "path";
 import { shell } from "electron";
 import moment from "moment";
+import { format, transports, createLogger } from "winston";
 
 import { getBasicConfigDict } from "./commonFunc.js";
 

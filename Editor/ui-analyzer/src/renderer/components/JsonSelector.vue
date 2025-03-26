@@ -71,8 +71,8 @@ import { useSelectorStore } from "../store";
 import { fixTrailingCommas } from "../commonFunc";
 const selectorStore = useSelectorStore();
 
-let strInfoText = ref("Have no Json Selector.");
-let booleanJsonParse = ref(true);
+const strInfoText = ref("Have no Json Selector.");
+const booleanJsonParse = ref(true);
 
 watch(
   () => selectorStore.strJsonText,

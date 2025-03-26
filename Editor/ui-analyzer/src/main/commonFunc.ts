@@ -49,7 +49,7 @@ export function getBasicConfigDict(): DictBasicConfig {
     }
   } else {
     throw new Error(
-      "Don't find 'LiberRPA' in User Envirnment Variables, you should add it before using LiberRPA UI Analyzer."
+      "Not found 'LiberRPA' in User Envirnment Variables, you should add it before using LiberRPA UI Analyzer."
     );
   }
 }
