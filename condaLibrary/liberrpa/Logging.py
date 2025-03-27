@@ -20,9 +20,11 @@ from logging.handlers import RotatingFileHandler
 import logging
 import multiprocessing
 import sys
-from typing import Any, Literal
 from functools import wraps
 import ctypes
+from pathvalidate import sanitize_filepath
+from typing import Any, Literal
+
 
 VERBOSE_LEVEL_NUM = 5
 
@@ -103,19 +105,41 @@ class Logger:
 
         # Creates a time-based folder for logs specific to the current project.
 
+        dictProject: dict[str, Any] = json.loads(Path("project.json").read_text(encoding="utf-8"))
+
         strLogFolderName = os.getenv("LogFolderName")
         if strLogFolderName is not None:
             self.strProjectName = strLogFolderName
             print("Set log folder name:", strLogFolderName)
+
+        elif dictProject.get("executorPackage") == True:
+            # Executor package's name is not the project name, use data in project.json
+            self.strProjectName = dictProject["executorPackageName"]
+
         else:
             self.strProjectName = os.path.basename(os.getcwd())
 
-        dictProject = json.loads(Path("project.json").read_text(encoding="utf-8"))
-
-        self.strLastStartUpTime = dictProject["lastStartUpTime"]
-        self.strLogFolder = os.path.join(
-            self.dictEditorConfig["outputLogPath"], self.strProjectName, self.strLastStartUpTime
-        )
+        # If it's an Executor package, add version subfolder.
+        if dictProject.get("executorPackage") == True:
+            try:
+                self.strLogFolder = sanitize_filepath(
+                    os.path.join(
+                        self.dictEditorConfig["outputLogPath"],
+                        self.strProjectName,
+                        dictProject["executorPackageVersion"],
+                        dictProject["lastStartUpTime"],
+                    )
+                )
+            except Exception as e:
+                print(f"Error in handle executor file: {e}")
+        else:
+            self.strLogFolder = sanitize_filepath(
+                os.path.join(
+                    self.dictEditorConfig["outputLogPath"],
+                    self.strProjectName,
+                    dictProject["lastStartUpTime"],
+                )
+            )
 
         # Update project.json, add "logPath" for other parts to use later. Such as screen recording, screenshot.
         # Only the MainProcess can initialize log folder.

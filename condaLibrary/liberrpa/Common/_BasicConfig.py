@@ -9,7 +9,7 @@ import os
 from pathlib import Path
 import socket
 import json5
-from typing import Literal
+from typing import Literal, Any
 
 
 def get_basic_config_dict() -> dict[str, str]:
@@ -22,12 +22,16 @@ def get_basic_config_dict() -> dict[str, str]:
         "${HostName}": socket.gethostname(),
     }
 
+    dictProject: dict[str, Any] = json5.loads(Path("./project.json").read_text(encoding="utf-8"))  # type: ignore
+
     if os.getenv("LogFolderName") in ["_ChromeGetLocalServerPort", "_LiberRPALocalServer"]:
         dictReplaceKeywords["${ToolName}"] = "BuildinTools"
 
+    elif dictProject.get("executorPackage") == True:
+        dictReplaceKeywords["${ToolName}"] = "Executor"
+
     else:
         # Suppose other Python programs are running in vscode.
-        # NOTE: If LiberRPA Executor was started development, add more logic to distinguish.
         dictReplaceKeywords["${ToolName}"] = "Editor"
 
     # Open the json file to get original dict.
