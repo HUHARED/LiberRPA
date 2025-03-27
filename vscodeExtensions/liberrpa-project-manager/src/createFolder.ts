@@ -2,10 +2,10 @@
 import * as vscode from "vscode";
 import * as fs from "fs";
 import * as path from "path";
-import * as util from "util";
 import { execSync } from "child_process";
 
 import { outputChannel } from "./commonValue";
+import { printUserCanceled } from "./commonFunc";
 
 export async function createProject(): Promise<void> {
   try {
@@ -16,9 +16,8 @@ export async function createProject(): Promise<void> {
       canSelectMany: false,
       openLabel: "Select Folder for New Project",
     });
-    // User canceled.
     if (!folderUri) {
-      outputChannel.appendLine("User canceled.");
+      printUserCanceled();
       return;
     }
     const strTargetFolder = folderUri[0].fsPath;
@@ -41,9 +40,8 @@ export async function createProject(): Promise<void> {
       },
     });
 
-    // User canceled.
     if (!strProjectName) {
-      outputChannel.appendLine("User canceled.");
+      printUserCanceled();
       return;
     }
 
@@ -75,9 +73,8 @@ export async function createProject(): Promise<void> {
     const strSelectedTemplate = await vscode.window.showQuickPick(arrTemplates, {
       placeHolder: "Select a project template",
     });
-    // User canceled.
     if (!strSelectedTemplate) {
-      outputChannel.appendLine("User canceled.");
+      printUserCanceled();
       return;
     }
 
@@ -107,7 +104,7 @@ export async function createProject(): Promise<void> {
 
 async function copyFolder(src: string, dest: string) {
   try {
-    const entries = await util.promisify(fs.readdir)(src, { withFileTypes: true });
+    const entries = await fs.promises.readdir(src, { withFileTypes: true });
     await Promise.all(
       entries.map(async (entry) => {
         const srcPath = path.join(src, entry.name);
@@ -121,7 +118,7 @@ async function copyFolder(src: string, dest: string) {
       })
     );
   } catch (e) {
-    console.error(`Error copying folder from ${src} to ${dest}:`, e);
+    outputChannel.appendLine(`Error copying folder from ${src} to ${dest}: ${e}`);
     throw new Error(`Failed to copy files: ${e}`);
   }
 }
