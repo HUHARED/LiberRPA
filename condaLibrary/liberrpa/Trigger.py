@@ -15,6 +15,7 @@ import keyboard
 import threading
 import multiprocessing
 import os
+import sys
 from typing import Any, Literal, Callable, TypeVar
 
 T = TypeVar("T")
@@ -258,7 +259,7 @@ def register_force_exit() -> None:
 
     def on_hotkey_pressed() -> None:
         # Assign the value to record exit reason.
-        End.exitReason = "manual"
+        End.executorPackageStatus = "terminated"
         End.cleanup()
         print("on_hotkey_pressed - os._exit")
         os._exit(0)
@@ -270,6 +271,21 @@ def register_force_exit() -> None:
 
     except Exception as e:
         Log.error(f"Failed to register Ctrl+F12 hotkey: {e}")
+
+
+def _listen_for_exit() -> None:
+    for line in sys.stdin:
+        if line.strip() == "Executor-terminated":
+            Log.critical("Terminated by Executor.")
+            End.executorPackageStatus = "terminated"
+            End.cleanup()
+            print("_handle_sigterm - os._exit")
+            os._exit(0)
+
+
+# Start the stdin listener thread.
+listener_thread = threading.Thread(target=_listen_for_exit, daemon=True)
+listener_thread.start()
 
 
 if __name__ == "__main__":

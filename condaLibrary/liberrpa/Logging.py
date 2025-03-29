@@ -79,7 +79,15 @@ class ConditionalHumanReadFormatter(logging.Formatter):
         self.original_fmt = fmt
 
     def format(self, record) -> str:
-        if record.filename == "Logging.py":
+        if record.filename in [
+            "Logging.py",
+            "Run.py",
+            "End.py",
+            "ProjectFlowInit.py",
+            "_UiElement.py",
+            "_WebSocket.py",
+            "Trigger.py",
+        ]:
             # Not record [%(filename)s][%(lineno)d] in human-read log if the finename is "Logging.py", to make the log more concise.
             fmtNew = self.original_fmt.replace("[%(filename)s][%(lineno)d]", "")
             self._style._fmt = fmtNew
@@ -145,6 +153,7 @@ class Logger:
         # Only the MainProcess can initialize log folder.
         if processName == "MainProcess":
             dictProject["logPath"] = self.strLogFolder
+            dictProject["executorPackageStatus"] = "running"
             strTemp = json.dumps(dictProject, indent=4, ensure_ascii=False)
             Path("project.json").write_text(data=strTemp, encoding="utf-8", errors="strict")
             print("Update project.json: " + strTemp)
@@ -567,6 +576,7 @@ except Exception as e:
 
 boolIsAdmin = ctypes.windll.shell32.IsUserAnAdmin() != 0
 Log.info(f"Running as Admin: {boolIsAdmin}")
+
 
 if __name__ == "__main__":
 
