@@ -135,7 +135,7 @@ class ProjectArguments:
     def __init__(self):
         # The path of the current working directory.
         self.projectPath: str = os.getcwd()
-        self.projectName: str = os.path.basename(self.projectPath)
+        self.projectName: str = Log.strProjectName
         self.errorObj: Exception | None = None
         self.customArgs: dict[str, Any] = {}
 

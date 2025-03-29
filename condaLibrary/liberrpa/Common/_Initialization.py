@@ -39,8 +39,9 @@ def _initialize_project_json() -> None:
         if pathObj.is_file():
             dictProject = json.loads(pathObj.read_text(encoding="utf-8"))
 
-            # Assign project name no matter it has or not, to make sure the Executor can use the newest project name even user rename the project folder's name.
-            dictProject["executorPackageName"] = os.path.basename(strCwd)
+            # Assign project name if user rename the project folder's name. (An Executor package doesn't need to do it.)
+            if not dictProject["executorPackage"]:
+                dictProject["executorPackageName"] = os.path.basename(strCwd)
 
             # Logging module need its to name the log folder.
             dictProject["lastStartUpTime"] = time.strftime("%Y-%m-%d_%H%M%S", time.localtime())
