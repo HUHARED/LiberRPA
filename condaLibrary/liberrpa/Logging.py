@@ -8,7 +8,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 import liberrpa.Common._Initialization  # For initialization
 
 import multiprocessing
-from liberrpa.Common._BasicConfig import get_basic_config_dict
+from liberrpa.Common._BasicConfig import get_basic_config_dict, get_liberrpa_folder_path
 from liberrpa.Common._Exception import get_exception_info
 
 import os
@@ -130,14 +130,31 @@ class Logger:
         # If it's an Executor package, add version subfolder.
         if dictProject.get("executorPackage") == True:
             try:
-                self.strLogFolder = sanitize_filepath(
-                    os.path.join(
-                        self.dictEditorConfig["outputLogPath"],
-                        self.strProjectName,
-                        dictProject["executorPackageVersion"],
-                        dictProject["lastStartUpTime"],
-                    )
+
+                dictExecutorConfig: dict[str, str] = json.loads(
+                    Path(os.path.join(get_liberrpa_folder_path(), "./configFiles/Executor.jsonc")).read_text()
                 )
+
+                strProjectLogFolderPath = dictExecutorConfig.get("projectLogFolderPath", "")
+
+                if strProjectLogFolderPath != "":
+                    self.strLogFolder = sanitize_filepath(
+                        os.path.join(
+                            strProjectLogFolderPath,
+                            self.strProjectName,
+                            dictProject["executorPackageVersion"],
+                            dictProject["lastStartUpTime"],
+                        )
+                    )
+                else:
+                    self.strLogFolder = sanitize_filepath(
+                        os.path.join(
+                            self.dictEditorConfig["outputLogPath"],
+                            self.strProjectName,
+                            dictProject["executorPackageVersion"],
+                            dictProject["lastStartUpTime"],
+                        )
+                    )
             except Exception as e:
                 print(f"Error in handle executor file: {e}")
         else:
