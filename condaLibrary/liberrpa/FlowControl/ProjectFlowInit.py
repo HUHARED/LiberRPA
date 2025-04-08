@@ -25,7 +25,7 @@ dictFlowFile: DictProject_Original = json.loads(Path("project.flow").read_text(e
 # Update "logLevel", "recordVideo", "stopShortcut", "highlightUi", "customPrjArgs" if argument sent from command line.
 parser = argparse.ArgumentParser()
 parser.add_argument("--executor_args", required=False)
-args = parser.parse_args()
+args, unknown = parser.parse_known_args()
 
 if args.executor_args:
     dictArgs = json.loads(args.executor_args)
