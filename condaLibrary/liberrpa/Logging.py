@@ -156,7 +156,7 @@ class Logger:
                         )
                     )
             except Exception as e:
-                print(f"Error in handle executor file: {e}")
+                raise Exception(f"Error in handle Executor file: {e}")
         else:
             self.strLogFolder = sanitize_filepath(
                 os.path.join(
