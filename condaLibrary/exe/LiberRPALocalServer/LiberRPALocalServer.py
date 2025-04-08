@@ -37,7 +37,7 @@ if __name__ == "__main__":
 
         print("LiberRPA Local Server running in " + os.getcwd())
 
-        from liberrpa.Dialog import show_notification
+        # from liberrpa.Dialog import show_notification
 
         # The server take a little time to start, so, show the notification to make user know.
         # show_notification(title="LiberRPA Local Server", message="Try to launch...", duration=2, wait=False)
