@@ -97,4 +97,5 @@ export const dictIconMapping: { [key: string]: string } = {
 
   ScreenPrint: "info",
   Dialog: "bell",
+  Trigger: "rocket",
 };
