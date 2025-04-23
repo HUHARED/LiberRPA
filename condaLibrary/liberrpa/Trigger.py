@@ -210,7 +210,7 @@ def keyboard_trigger(
     def on_key_event_for_keyboard(event: keyboard.KeyboardEvent) -> None:
         try:
             strKeyName, boolPressed = _get_keyname_and_press(event=event)
-            print(boolPressed)
+            # print(boolPressed)
 
             if (strKeyName == key) and (
                 (timing == "on_press" and boolPressed) or (timing == "on_release" and not boolPressed)
