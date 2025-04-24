@@ -116,12 +116,17 @@ def install_font_for_current_user() -> None:
     strFontFilePath = os.path.join(strCwd, R"envs\assets\font\Noto_Sans_Mono\NotoSansMono-VariableFont_wdth,wght.ttf")
 
     if strLocalAppData:
+        # Create the folder if it doesn't exist.
+        pathUserFontsFolder = Path(strLocalAppData) / "Microsoft" / "Windows" / "Fonts"
+        pathUserFontsFolder.mkdir(parents=True, exist_ok=True)
+
         strTargetPath = (
             Path(strLocalAppData) / "Microsoft" / "Windows" / "Fonts" / "NotoSansMono-VariableFont_wdth,wght.ttf"
         )
         if Path(strTargetPath).is_file():
             print("The font 'Noto Sans Mono' has installed.")
         else:
+
             strPath = shutil.copy2(strFontFilePath, strTargetPath)
             print(f"Installed the font 'Noto Sans Mono' in {strPath}")
 
