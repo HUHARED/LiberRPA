@@ -45,7 +45,7 @@
       }
     ]
   },
-  "icon": "./assets/LiberRPA_icon_v1_color_128.png",
+  "icon": "./assets/LiberRPA_icon_v3_color_SnippetsTree_128.png",
   "license": "SEE LICENSE IN LICENSE",
   "homepage": "https://github.com/HUHARED/LiberRPA/blob/main/vscodeExtensions/liberrpa-snippets-tree/README.md",
   "repository": {
