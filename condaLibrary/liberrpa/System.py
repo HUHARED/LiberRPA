@@ -62,7 +62,7 @@ def get_user_temp_folder_path() -> str:
 def get_windows_product_id() -> str:
     """
     Unique to each Windows installation but can change with major system updates or reinstallation.
-    
+
     Returns:
         str: The product id.
     """
@@ -81,7 +81,9 @@ def get_windows_product_id() -> str:
 
 @Log.trace()
 def exit() -> None:
-    print("sys.exit(0)")
+    import liberrpa.FlowControl.End as End
+
+    End.main()
     sys.exit(0)
 
 
