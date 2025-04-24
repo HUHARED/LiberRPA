@@ -61,9 +61,9 @@ def get_liberrpa_folder_path() -> str:
 def get_liberrpa_ico_path(component: Literal["LiberRPALocalServer"] | None = None) -> str:
     strLiberRPAPath = get_liberrpa_folder_path()
     if component == "LiberRPALocalServer":
-        strIconPath = Path(strLiberRPAPath) / "envs/assets/icon/LiberRPA_icon_v1_color_LocalServer.ico"
+        strIconPath = Path(strLiberRPAPath) / "envs/assets/icon/LiberRPA_icon_v3_color_LocalServer.ico"
     else:
-        strIconPath = Path(strLiberRPAPath) / "envs/assets/icon/LiberRPA_icon_v1_color.ico"
+        strIconPath = Path(strLiberRPAPath) / "envs/assets/icon/LiberRPA_icon_v3_color.ico"
     if not Path(strIconPath).is_file():
         raise FileNotFoundError("LiberRPA icon file is missing: " + str(strIconPath))
     print("strIconPath=", strIconPath)
