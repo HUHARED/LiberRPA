@@ -3,7 +3,7 @@
   "name": "LiberRPA Chrome Extension",
   "description": "The Chrome extension to interact with LiberRPA Local Server.",
   "author": "mailwork.hu@gmail.com",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "permissions": [
     "tabs",
     "activeTab",
@@ -14,16 +14,16 @@
   ],
   "host_permissions": ["*://*/*"],
   "icons": {
-    "16": "assets/LiberRPA_icon_v1_color_16px.png",
-    "32": "assets/LiberRPA_icon_v1_color_32px.png",
-    "48": "assets/LiberRPA_icon_v1_color_48px.png",
-    "128": "assets/LiberRPA_icon_v1_color_128px.png"
+    "16": "assets/LiberRPA_icon_v3_color_16px.png",
+    "32": "assets/LiberRPA_icon_v3_color_32px.png",
+    "48": "assets/LiberRPA_icon_v3_color_48px.png",
+    "128": "assets/LiberRPA_icon_v3_color_128px.png"
   },
   "action": {
     "default_icon": {
-      "16": "assets/LiberRPA_icon_v1_color_16px.png",
-      "24": "assets/LiberRPA_icon_v1_color_24px.png",
-      "32": "assets/LiberRPA_icon_v1_color_32px.png"
+      "16": "assets/LiberRPA_icon_v3_color_16px.png",
+      "24": "assets/LiberRPA_icon_v3_color_24px.png",
+      "32": "assets/LiberRPA_icon_v3_color_32px.png"
     },
     "default_title": "LiberRPA Chrome Extension"
   },
