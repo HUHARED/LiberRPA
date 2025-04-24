@@ -2,5 +2,8 @@
 README_chs.md
 InitLiberRPA.exe
 test/
+Executor/
 *.pyc
+configFiles/Executor.jsonc
+
 # Other rules should follow .gitignore in subfolders.
