@@ -13,7 +13,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 loggerMain.debug(`__dirname= ${__dirname}`);
 const iconPath = path.join(
   __dirname,
-  "../../assets/LiberRPA_icon_v1_color_UiAnalyzer_256.ico"
+  "../../assets/LiberRPA_icon_v3_color_UiAnalyzer_256.ico"
 );
 loggerMain.debug(`iconPath= ${iconPath}`);
 

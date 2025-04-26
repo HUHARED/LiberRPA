@@ -55,7 +55,7 @@
         "to": "LICENSE"
       }
     ],
-    "icon": "assets/LiberRPA_icon_v1_color_UiAnalyzer_256.ico",
+    "icon": "assets/LiberRPA_icon_v3_color_UiAnalyzer_256.ico",
     "win": {
       "target": "portable",
       "defaultArch": "x64"
