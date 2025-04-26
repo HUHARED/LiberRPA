@@ -1,7 +1,7 @@
 {
 	"hidesExplorerArrows": false,
 	"iconDefinitions": {
-    "_f_liberrpa_flow": { "iconPath": "./icons/LiberRPA_icon_v1_color.svg" },
+    "_f_liberrpa_flow": { "iconPath": "./icons/LiberRPA_icon_v3_color.svg" },
 		"_file": { "iconPath": "./icons/file.png" },
 		"_fd_default": { "iconPath": "./icons/folders/default.svg" },
 		"_fd_default-open": { "iconPath": "./icons/folders/default-open.svg" },
