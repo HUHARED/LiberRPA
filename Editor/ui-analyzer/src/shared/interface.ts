@@ -1,4 +1,15 @@
-// FileName: interface.ts
+export interface DictBasicConfig {
+  outputLogPath: string;
+  localServerPort: number;
+  uiAnalyzerTheme: "light" | "dark";
+  uiAnalyzerMinimizeWindow: boolean;
+}
+
+export interface DictInvokeResult {
+  success: boolean;
+  data?: any;
+}
+
 export interface SelectorWindow {
   window: { [key: string]: string };
 }

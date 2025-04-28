@@ -2,28 +2,8 @@
 <template>
   <v-app class="clean-space" style="height: 100vh" :theme="settingStore.theme">
     <!-- The Alert area, doesn't join in layout -->
-    <Alert style="position: fixed; width: 100%; opacity: 0.9; z-index: 999" />
-
-    <div style="position: absolute; top: 35px; right: 10px">
-      <v-tooltip location="bottom">
-        <template #activator="{ props }">
-          <v-icon
-            v-if="settingStore.socketState"
-            v-bind="props"
-            icon="mdi-link-variant"
-            color="primary"
-          >
-          </v-icon>
-          <v-icon v-else v-bind="props" icon="mdi-link-variant-remove" color="error">
-          </v-icon>
-        </template>
-        <span>{{
-          settingStore.socketState
-            ? "LiberRPA Local Server is working."
-            : "Can't connect to LiberRPA Local Server."
-        }}</span>
-      </v-tooltip>
-    </div>
+    <Alert />
+    <SocketState />
 
     <v-main class="clean-space fill-height">
       <v-container class="clean-space fill-height flex-column" fluid>
@@ -45,8 +25,7 @@
               minWidth: '250px',
               maxWidth: '750px',
               flexShrink: '0',
-            }"
-          >
+            }">
             <ElementTree />
             <PreviewImage />
             <AttributeList />
@@ -57,14 +36,12 @@
             id="left-divider"
             class="clean-space fill-height border-thin"
             style="width: 0px; cursor: col-resize"
-            @mousedown="startResizingLeft"
-          ></div>
+            @mousedown="startResizingLeft"></div>
 
           <!-- Middle Column -->
           <v-container
             id="middle-column"
-            class="clean-space fill-height flex-row-grow-1 flex-column"
-          >
+            class="clean-space fill-height flex-row-grow-1 flex-column">
             <ElementHierarchy />
             <JsonSelector />
           </v-container>
@@ -74,8 +51,7 @@
             id="right-divider"
             class="clean-space fill-height border-thin"
             style="width: 0px; cursor: col-resize"
-            @mousedown="startResizingRight"
-          ></div>
+            @mousedown="startResizingRight"></div>
 
           <!-- Right Column -->
           <!-- Use :style to implement divider deag feature -->
@@ -87,8 +63,7 @@
               minWidth: '250px',
               maxWidth: '750px',
               flexShrink: '0',
-            }"
-          >
+            }">
             <SettingArea />
             <AttributeEditor />
             <Log />
@@ -101,6 +76,8 @@
 
 <script setup lang="ts">
 import Alert from "./components/Alert.vue";
+import SocketState from "./components/SocketState.vue";
+
 import ButtonArea from "./components/ButtonArea.vue";
 
 import ElementTree from "./components/ElementTree.vue";

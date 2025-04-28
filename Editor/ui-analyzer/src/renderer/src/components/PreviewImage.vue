@@ -5,13 +5,16 @@
 
     <v-container class="clean-space" style="height: 40px">
       <!-- Display the image only if imageTemp is not empty -->
-      <v-img v-if="imageTemp" :src="imageTemp" /> </v-container
-  ></v-container>
+      <v-img v-if="imageTemp" :src="imageTemp" />
+    </v-container>
+  </v-container>
 </template>
 
 <script setup lang="ts">
 import { watch, ref } from "vue";
+
 import { useInformationStore } from "../store";
+
 const informationStore = useInformationStore();
 
 const imageTemp = ref("");
@@ -19,7 +22,7 @@ const imageTemp = ref("");
 watch(
   () => informationStore.previewImage,
   (newValue) => {
-    console.log("Image updated");
+    // console.log("Image updated");
 
     if (newValue) {
       imageTemp.value = `data:image/png;base64,${newValue}`;

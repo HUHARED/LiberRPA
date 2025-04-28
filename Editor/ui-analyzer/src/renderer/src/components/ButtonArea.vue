@@ -5,11 +5,11 @@
     <v-row class="w-100">
       <v-col cols="auto">
         <v-btn
-          @click="indicateUia()"
           prepend-icon="mdi-monitor"
           density="compact"
           variant="tonal"
-          >uia
+          @click="indicateUia()">
+          uia
           <v-tooltip activator="parent" location="bottom">
             Indicate an uia element in the screen.
           </v-tooltip>
@@ -18,11 +18,11 @@
 
       <v-col cols="auto">
         <v-btn
-          @click="indicateChrome()"
           prepend-icon="mdi-web"
           density="compact"
           variant="tonal"
-          >html
+          @click="indicateChrome()">
+          html
           <v-tooltip activator="parent" location="bottom">
             Indicate an html element in the actived tab. (Only support Chrome now.)
           </v-tooltip>
@@ -31,11 +31,11 @@
 
       <v-col cols="auto">
         <v-btn
-          @click="indicateImage()"
           prepend-icon="mdi-image-search-outline"
           density="compact"
           variant="tonal"
-          >image
+          @click="indicateImage()">
+          image
           <v-tooltip activator="parent" location="bottom">
             Indicate an image element in the screen.
           </v-tooltip>
@@ -44,11 +44,11 @@
 
       <v-col cols="auto">
         <v-btn
-          @click="indicateWindow()"
           prepend-icon="mdi-window-restore"
           density="compact"
           variant="tonal"
-          >window
+          @click="indicateWindow()">
+          window
           <v-tooltip activator="parent" location="bottom">
             Indicate a window element in the screen. (It is also top-level uia element)
           </v-tooltip>
@@ -57,12 +57,11 @@
 
       <v-col cols="auto">
         <v-btn
-          @click="validateSelector()"
           prepend-icon="mdi-search-web"
           density="compact"
           :color="informationStore.updateValidateColor()"
           variant="tonal"
-        >
+          @click="validateSelector()">
           Validate
           <v-tooltip activator="parent" location="bottom">
             Try to find the element that defined by Json Selector.
@@ -72,11 +71,10 @@
 
       <v-col cols="auto">
         <v-btn
-          @click="reset()"
           prepend-icon="mdi-refresh"
           density="compact"
           variant="tonal"
-        >
+          @click="reset()">
           Reset
           <v-tooltip activator="parent" location="bottom">
             Clean the element and reset the GUI.
@@ -89,14 +87,14 @@
 
 <script setup lang="ts">
 import { sendCmdToFlask } from "../ipcOfRenderer";
+import { fixTrailingCommas } from "../attrHandleFunc";
 import { useSelectorStore, useSettingStore, useInformationStore } from "../store";
-import { fixTrailingCommas } from "../commonFunc";
 
 const selectorStore = useSelectorStore();
 const settingStore = useSettingStore();
 const informationStore = useInformationStore();
 
-function indicateUia() {
+function indicateUia(): void {
   settingStore.toggleWindow();
   sendCmdToFlask({
     commandName: "indicate_uia",
@@ -106,7 +104,7 @@ function indicateUia() {
   informationStore.$reset();
 }
 
-function indicateChrome() {
+function indicateChrome(): void {
   settingStore.toggleWindow();
   sendCmdToFlask({
     commandName: "indicate_chrome",
@@ -117,7 +115,7 @@ function indicateChrome() {
   informationStore.$reset();
 }
 
-function indicateImage() {
+function indicateImage(): void {
   // settingStore.toggleWindow(); Not minimize the UI Analyzer window, because the QT window will also be minimized.
   settingStore.boolIndicateImage = true;
   sendCmdToFlask({
@@ -130,7 +128,7 @@ function indicateImage() {
   informationStore.$reset();
 }
 
-function indicateWindow() {
+function indicateWindow(): void {
   settingStore.toggleWindow();
   sendCmdToFlask({
     commandName: "indicate_window",
@@ -140,7 +138,7 @@ function indicateWindow() {
   informationStore.$reset();
 }
 
-function validateSelector() {
+function validateSelector(): void {
   settingStore.toggleWindow();
 
   sendCmdToFlask({
@@ -162,7 +160,7 @@ function reset(): void {
 
   informationStore.previewImage = "";
   informationStore.information = "...";
-  selectorStore.processDescription === "Idle";
+  selectorStore.processDescription = "Idle";
 }
 </script>
 

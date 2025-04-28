@@ -6,18 +6,16 @@
       <!-- Information text -->
       <v-col cols="8" class="clean-space">
         <v-text-field
+          v-model="strInfoText"
           class="clean-space"
           density="compact"
           hide-details
           readonly
-          variant="plain"
-          v-model="strInfoText"
-        >
+          variant="plain">
           <template #prepend-inner>
             <v-icon
               :color="booleanJsonParse ? 'info' : 'error'"
-              :icon="booleanJsonParse ? 'mdi-dots-horizontal' : 'mdi-alert-box-outline'"
-            />
+              :icon="booleanJsonParse ? 'mdi-dots-horizontal' : 'mdi-alert-box-outline'" />
           </template>
           <v-tooltip activator="parent" location="top">
             {{ strInfoText }}
@@ -30,18 +28,18 @@
         <v-btn
           class="mr-2"
           prepend-icon="mdi-content-copy"
-          @click="copyJsonToClipboard"
           variant="tonal"
-          >Copy
+          @click="copyJsonToClipboard">
+          Copy
           <v-tooltip activator="parent" location="top"> Copy the JSON Selector </v-tooltip>
         </v-btn>
 
         <v-btn
           class="mr-2"
           prepend-icon="mdi-content-paste"
-          @click="pasteFromClipboard"
           variant="tonal"
-          >Paste
+          @click="pasteFromClipboard">
+          Paste
           <v-tooltip activator="parent" location="top">
             Paste the content in clipboard in JSON Selector
           </v-tooltip>
@@ -55,20 +53,22 @@
     </v-container> -->
 
     <textarea
+      v-model="selectorStore.strJsonText"
       class="ma-1 flex-column-grow-1"
       spellcheck="false"
-      v-model="selectorStore.strJsonText"
-      @input="validateJson"
-    ></textarea>
+      @input="validateJson">
+    </textarea>
   </v-container>
 </template>
 
 <script setup lang="ts">
-import { loggerRenderer } from "../ipcOfRenderer";
 import { ref, watch } from "vue";
 import { debounce } from "lodash";
+
+import { loggerRenderer } from "../ipcOfRenderer";
+import { fixTrailingCommas } from "../attrHandleFunc";
 import { useSelectorStore } from "../store";
-import { fixTrailingCommas } from "../commonFunc";
+
 const selectorStore = useSelectorStore();
 
 const strInfoText = ref("Have no Json Selector.");
@@ -90,7 +90,7 @@ watch(
   { deep: true }
 );
 
-const validateJson = () => {
+const validateJson = (): void => {
   if (!selectorStore.strJsonText.trim() || selectorStore.strJsonText === "") {
     strInfoText.value = "Have no Json Selector.";
     booleanJsonParse.value = true;
@@ -122,7 +122,7 @@ const validateJson = () => {
   }
 };
 
-const copyJsonToClipboard = async () => {
+const copyJsonToClipboard = async (): Promise<void> => {
   try {
     await navigator.clipboard.writeText(selectorStore.strJsonText);
     loggerRenderer.debug("JSON copied to clipboard:\n" + selectorStore.strJsonText);
@@ -131,7 +131,7 @@ const copyJsonToClipboard = async () => {
   }
 };
 
-const pasteFromClipboard = async () => {
+const pasteFromClipboard = async (): Promise<void> => {
   try {
     const text = await navigator.clipboard.readText();
     selectorStore.strJsonText = text;

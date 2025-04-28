@@ -1,4 +1,4 @@
-// FileName: commonFunc.ts
+// FileName: attrHandleFunc.ts
 
 export const strSuffixOmit = "-omit";
 export const strSuffixRegex = "-regex";

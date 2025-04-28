@@ -1,13 +1,20 @@
 // FileName: store.ts
 import { defineStore } from "pinia";
-import { loggerRenderer, sendIpcMessageToMain } from "./ipcOfRenderer";
+
+import { loggerRenderer, invokeMain, connectToServer } from "./ipcOfRenderer";
 import {
+  strSuffixOmit,
+  strSuffixRegex,
+  removeSuffix,
+  modifyKeyName,
+} from "./attrHandleFunc";
+import {
+  DictBasicConfig,
   SelectorWindow,
   SelectorNonWindow,
   DictForUiAnalyzer,
   DictEleTreeItem,
-} from "./interface";
-import { strSuffixOmit, strSuffixRegex, removeSuffix, modifyKeyName } from "./commonFunc";
+} from "../../shared/interface";
 
 export const useSelectorStore = defineStore("selector", {
   state: () => {
@@ -361,7 +368,7 @@ export const useSelectorStore = defineStore("selector", {
 export const useSettingStore = defineStore("setting", {
   state: () => {
     return {
-      theme: "light",
+      theme: "light" as "light" | "dark",
       intMatchTimeoutSeconds: 10,
       intIndicateDelaySeconds: 1,
       indexOrPath: "index",
@@ -378,7 +385,16 @@ export const useSettingStore = defineStore("setting", {
   },
   getters: {},
   actions: {
-    toggleWindow() {
+    initializeSetting(dictConfigBasic: DictBasicConfig): void {
+      this.strLogPath = dictConfigBasic.outputLogPath;
+      this.intLocalServerPort = dictConfigBasic.localServerPort;
+      this.theme = dictConfigBasic.uiAnalyzerTheme;
+      this.minimizeWindow = dictConfigBasic.uiAnalyzerMinimizeWindow;
+
+      connectToServer(this.intLocalServerPort);
+    },
+
+    async toggleWindow() {
       if (this.minimizeWindow) {
         if (this.boolIndicateImage) {
           // Not minimize the UI Analyzer window, because the QT window will also be minimized.
@@ -387,7 +403,7 @@ export const useSettingStore = defineStore("setting", {
           return;
         }
         loggerRenderer.debug("Toggle Ui Analyzer Window.");
-        sendIpcMessageToMain("cmd-toggle-window");
+        await invokeMain("cmd-toggle-window");
       } else {
         loggerRenderer.debug("Don't need to toggle Ui Analyzer Window.");
       }
@@ -414,6 +430,11 @@ export const useInformationStore = defineStore("information", {
       } else {
         return "error";
       }
+    },
+
+    showAlertMessage(message: string): void {
+      this.information = message;
+      this.showAlert = true;
     },
   },
 });

@@ -1,22 +1,16 @@
 // FileName: logger.ts
-import path from "path";
-// import * as path from "path";
 import { shell } from "electron";
+import path from "path";
 import moment from "moment";
 import { format, transports, createLogger } from "winston";
 
-import { getBasicConfigDict } from "./commonFunc.js";
-
-// console.log(new Date().toISOString());
-// console.log(moment().format("YYYY-MM-DD_HHmmss"));
+import { dictConfigBasic } from "./config";
 
 export const strLogPath = path.join(
-  getBasicConfigDict()["outputLogPath"],
+  dictConfigBasic["outputLogPath"],
   "_UiAnalyzer",
   `${moment().format("YYYY-MM-DD")}.log`
 );
-
-console.log("strLogPath=" + strLogPath);
 
 const logFormat = format.printf(({ level, message, timestamp }) => {
   return `[${timestamp}][${level.toUpperCase()}] ${message}`;
@@ -25,7 +19,7 @@ const logFormat = format.printf(({ level, message, timestamp }) => {
 export const loggerMain = createLogger({
   format: format.combine(
     format.timestamp({
-      format: () => moment().format("YYYY-MM-DD HH:mm:ss"),
+      format: () => moment().format("YYYY-MM-DD HH:mm:ss.SSS"),
     }),
     format.errors({ stack: true })
   ),
@@ -33,7 +27,7 @@ export const loggerMain = createLogger({
     new transports.File({
       filename: strLogPath,
       level: "debug",
-      format: logFormat, // Apply custom format for file transport
+      format: logFormat,
     }),
     new transports.Console({
       level: "debug",
@@ -47,8 +41,8 @@ export const loggerMain = createLogger({
   ],
 });
 
-export const openLogPath = () => {
+export function openLogPath(): void {
   shell.openPath(strLogPath).catch((error) => {
     loggerMain.log("error", `Error opening log file: ${strLogPath}` + error);
   });
-};
+}

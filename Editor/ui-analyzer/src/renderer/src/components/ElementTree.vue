@@ -1,12 +1,13 @@
 <!-- FileName: ElementTree.vue -->
 <template>
-  <v-container class="clean-space flex-column-grow-1 flex-column"
-    ><v-label class="header-label">Element Tree</v-label>
-    <v-card
-      v-if="selectorStore.arrEleTree.length === 0"
-      class="ma-1 h-60 pa-3"
-      v-html="strCardText"
-    ></v-card>
+  <v-container class="clean-space flex-column-grow-1 flex-column">
+    <v-label class="header-label">Element Tree</v-label>
+    <v-card v-if="selectorStore.arrEleTree.length === 0" class="ma-1 h-60 pa-3">
+      <div>
+        Indicate or validate an uia or html element to show its Element Tree.<br />
+        If the Element Tree is too big to handle in 10 seconds, LiberRPA will give up.
+      </div>
+    </v-card>
 
     <v-container v-else class="clean-space flex-column-grow-1">
       <v-treeview
@@ -22,8 +23,7 @@
         variant="flat"
         item-value="id"
         :activated="selectorStore.intEleTreeActivated"
-        :opened="selectorStore.arrEleTreeOpened"
-      >
+        :opened="selectorStore.arrEleTreeOpened">
         <template #title="{ item }">
           <span
             class="clean-space text-no-wrap"
@@ -31,19 +31,21 @@
             >{{ item.title }}</span
           >
           <v-tooltip activator="parent" location="bottom">
-            The layer's specification, click to replace the Element Hierarchy.
-            <br />
-            Note:
-            <br />
-            For uia element, you maybe need to add "Index" manually if there are other
-            elements with same attributes in its parent element, and add "Depth" manually if
-            you unchecked some layers;
-            <br />
-            For html element, you maybe need to edit or add "childIndex" manually.
-            <br />
-            ------------------------
-            <br />
-            {{ JSON.stringify(item.spec, null, 2) }}
+            <div>
+              {{ JSON.stringify(item.spec, null, 2) }}
+              <br />
+              ------------------------
+              <br />
+              The layer's specification, click to replace the Element Hierarchy.
+              <br />
+              Note:
+              <br />
+              For uia element, you maybe need to add "Index" manually if there are other
+              elements with same attributes in its parent element, and add "Depth" manually
+              if you unchecked some layers;
+              <br />
+              For html element, you maybe need to edit or add "childIndex" manually.
+            </div>
           </v-tooltip>
         </template>
       </v-treeview>
@@ -52,14 +54,13 @@
 </template>
 
 <script setup lang="ts">
-import { loggerRenderer } from "../ipcOfRenderer";
-
 import { VTreeview } from "vuetify/labs/VTreeview";
+
+import { loggerRenderer } from "../ipcOfRenderer";
+import { SelectorNonWindow } from "../../../shared/interface";
 import { useSelectorStore } from "../store";
-import { SelectorNonWindow } from "../interface";
+
 const selectorStore = useSelectorStore();
-const strCardText =
-  "Indicate or validate an uia or html element to show its Element Tree.<br />If the Element Tree is too big to handle in 10 seconds, LiberRPA will give up.";
 
 function handleNodeClick(_: MouseEvent, id: number): void {
   loggerRenderer.debug("Click Element Tree node " + id);

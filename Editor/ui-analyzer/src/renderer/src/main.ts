@@ -1,4 +1,6 @@
 // FileName: main.ts
+import "./assets/main.css";
+
 import { createApp } from "vue";
 import App from "./App.vue";
 
@@ -16,9 +18,6 @@ const pinia = createPinia();
 const vuetify = createVuetify({
   components,
   directives,
-  /* icons: {
-    defaultSet: "mdi",
-  }, */
 });
 
 app.use(pinia);
