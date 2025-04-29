@@ -5,8 +5,18 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
+import sys
+
+if len(sys.argv) >= 2 and sys.argv[1] == "--screenshot":
+    # Run the real screenshot code and leave
+    from liberrpa.UI._Screenshot import _create_screenshot_manually
+
+    _create_screenshot_manually()
+    sys.exit(0)
+
 import multiprocessing
 
+multiprocessing.freeze_support()
 
 processName = multiprocessing.current_process().name
 print(f"=== Starting LiberRPALocalServer.py in {processName} ===")

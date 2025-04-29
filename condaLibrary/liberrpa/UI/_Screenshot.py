@@ -171,7 +171,14 @@ def _create_screenshot_manually() -> None:
 def create_screenshot_manually() -> bool | None:
     # Because QT can't work finely with Flask, use subprocess to run the file in a isolate environment.
     strFilePath = inspect.stack()[0].filename
-    result = subprocess.run([sys.executable, strFilePath], shell=True, capture_output=True, text=True)
+
+    if getattr(sys, "frozen", False):
+        # In LiberRPALocalServer.exe.
+        listCmd = [sys.executable, "--screenshot"]
+    else:
+        listCmd = [sys.executable, strFilePath]
+
+    result = subprocess.run(listCmd, shell=False, capture_output=True, text=True)
     print("-" * 40)
     print(result.stdout)
     print(result.stderr)
