@@ -100,7 +100,7 @@ class ConditionalHumanReadFormatter(logging.Formatter):
 
 class Logger:
     def __init__(self) -> None:
-        self.dictEditorConfig = get_basic_config_dict()
+        self.dictBasicConfig = get_basic_config_dict()
         self.dictCustomLogPart: dict[str, str] = {}
         self.dictLevel = {
             "VERBOSE": VERBOSE_LEVEL_NUM,
@@ -149,7 +149,7 @@ class Logger:
                 else:
                     self.strLogFolder = sanitize_filepath(
                         os.path.join(
-                            self.dictEditorConfig["outputLogPath"],
+                            self.dictBasicConfig["outputLogPath"],
                             self.strProjectName,
                             dictProject["executorPackageVersion"],
                             dictProject["lastStartUpTime"],
@@ -160,7 +160,7 @@ class Logger:
         else:
             self.strLogFolder = sanitize_filepath(
                 os.path.join(
-                    self.dictEditorConfig["outputLogPath"],
+                    self.dictBasicConfig["outputLogPath"],
                     self.strProjectName,
                     dictProject["lastStartUpTime"],
                 )

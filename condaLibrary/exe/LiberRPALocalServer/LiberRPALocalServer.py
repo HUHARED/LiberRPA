@@ -67,9 +67,9 @@ if __name__ == "__main__":
 
         from liberrpa.Common._BasicConfig import get_basic_config_dict
 
-        dictTemp = get_basic_config_dict()
-        Log.info(f"EditorConfig = {dictTemp}")
-        create_flask_server(port=int(dictTemp["localServerPort"]))
+        dictBasicConfig = get_basic_config_dict()
+        Log.info(f"dictBasicConfig = {dictBasicConfig}")
+        create_flask_server(port=int(dictBasicConfig["localServerPort"]))
     except Exception as e:
         Log.exception_info(e)
     finally:

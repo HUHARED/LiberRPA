@@ -9,15 +9,22 @@ import os
 from pathlib import Path
 import socket
 import json5
-from typing import Literal, Any
+from typing import TypedDict, Literal, Any
 
 
-def get_basic_config_dict() -> dict[str, str]:
+class DictBasicConfig(TypedDict):
+    outputLogPath: str
+    localServerPort: int
+    uiAnalyzerTheme: Literal["light", "dark"]
+    uiAnalyzerMinimizeWindow: bool
 
-    strConfigPath: str = get_liberrpa_folder_path()
+
+def get_basic_config_dict() -> DictBasicConfig:
+
+    strLiberRPAPath: str = get_liberrpa_folder_path()
 
     dictReplaceKeywords: dict[str, str] = {
-        "${LiberRPA}": strConfigPath,
+        "${LiberRPA}": strLiberRPAPath,
         "${UserName}": os.getlogin(),
         "${HostName}": socket.gethostname(),
     }
@@ -35,17 +42,18 @@ def get_basic_config_dict() -> dict[str, str]:
         dictReplaceKeywords["${ToolName}"] = "Editor"
 
     # Open the json file to get original dict.
-    dictEditorConfig: dict[str, str] = json5.loads(
-        Path(strConfigPath).joinpath("./configFiles/basic.jsonc").read_text(encoding="utf-8", errors="strict")
+    dictBasicConfig: DictBasicConfig = json5.loads(
+        Path(strLiberRPAPath).joinpath("./configFiles/basic.jsonc").read_text(encoding="utf-8", errors="strict")
     )  # type: ignore - type is right
 
     # Replace predefined variables
-    for strKeyOuter in dictEditorConfig:
-        for strKeyInner in dictReplaceKeywords:
-            dictEditorConfig[strKeyOuter] = dictEditorConfig[strKeyOuter].replace(
-                strKeyInner, dictReplaceKeywords[strKeyInner]
-            )
-    return dictEditorConfig
+    for strKeyOuter in dictBasicConfig:
+        if isinstance(dictBasicConfig[strKeyOuter], str):
+            for strKeyInner in dictReplaceKeywords:
+                dictBasicConfig[strKeyOuter] = dictBasicConfig[strKeyOuter].replace(
+                    strKeyInner, dictReplaceKeywords[strKeyInner]
+                )
+    return dictBasicConfig
 
 
 def get_liberrpa_folder_path() -> str:
