@@ -1,7 +1,7 @@
 <!-- FileName: ElementHierarchy.vue -->
 <template>
   <v-container class="clean-space flex-column-grow-1 flex-column">
-    <v-label class="header-label"> Element Hierarchy </v-label>
+    <v-label class="area-header"> Element Hierarchy </v-label>
 
     <!-- Show tip card when have no element. -->
     <v-card
@@ -54,9 +54,9 @@ const settingStore = useSettingStore();
 watch(
   () => informationStore.information,
   () => {
-    loggerRenderer.debug(
+    /* loggerRenderer.debug(
       `watch informationStore.information:\n${informationStore.information}`
-    );
+    ); */
 
     // If it it a selector json.
     if (informationStore.information.startsWith('{"selector"')) {

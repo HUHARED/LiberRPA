@@ -1,7 +1,7 @@
 <!-- FileName: Log.vue -->
 <template>
   <v-container class="clean-space flex-column" style="height: 140px">
-    <v-label class="header-label"> Log </v-label>
+    <v-label class="area-header"> Log </v-label>
 
     <v-btn
       class="w-100"

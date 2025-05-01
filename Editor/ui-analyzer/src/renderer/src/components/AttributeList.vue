@@ -1,7 +1,7 @@
 <!-- FileName: AttributeList.vue -->
 <template>
   <v-container class="clean-space flex-column" style="height: 350px">
-    <v-label class="header-label"> Secondary Attribute List </v-label>
+    <v-label class="area-header"> Secondary Attribute List </v-label>
 
     <!-- Show tip card when have no element. -->
     <v-card

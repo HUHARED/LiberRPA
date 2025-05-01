@@ -1,7 +1,7 @@
 <!-- FileName: PreviewImage.vue -->
 <template>
   <v-container class="clean-space flex-column">
-    <v-label class="header-label">Preview Image</v-label>
+    <v-label class="area-header">Preview Image</v-label>
 
     <v-container class="clean-space" style="height: 40px">
       <!-- Display the image only if imageTemp is not empty -->

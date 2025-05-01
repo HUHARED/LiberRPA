@@ -1,7 +1,7 @@
 <!-- FileName: SettingArea.vue -->
 <template>
   <v-container class="clean-space" style="height: 300px">
-    <v-label class="header-label"> Settings </v-label>
+    <v-label class="area-header"> Settings </v-label>
 
     <v-number-input
       v-model="intMatchTimeout"

@@ -1,7 +1,7 @@
 <!-- FileName: AttributeEditor.vue -->
 <template>
   <v-container class="clean-space flex-column-grow-1 flex-column">
-    <v-label class="header-label"> Attribute Editor </v-label>
+    <v-label class="area-header"> Attribute Editor </v-label>
     <v-container class="clean-space flex-column-grow-1">
       <v-card
         v-if="

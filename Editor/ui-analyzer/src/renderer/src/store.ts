@@ -114,8 +114,8 @@ export const useSelectorStore = defineStore("selector", {
         });
       }
 
-      console.log("arrEleHierarchy=", this.arrEleHierarchy);
-      console.log("arrSecondaryAttr=", this.arrSecondaryAttr);
+      // console.log("arrEleHierarchy=", this.arrEleHierarchy);
+      // console.log("arrSecondaryAttr=", this.arrSecondaryAttr);
 
       // Initialize checked layer.
       // The situation of SelectorWindow.
@@ -208,7 +208,7 @@ export const useSelectorStore = defineStore("selector", {
         addSelectorRecursive(nodeTop.id, nodeTop.spec, [], nodeTop.children);
       });
 
-      console.log(JSON.stringify(this.dictEleTreeSelector));
+      // console.log(JSON.stringify(this.dictEleTreeSelector));
 
       this.idle();
     },
@@ -369,15 +369,15 @@ export const useSettingStore = defineStore("setting", {
   state: () => {
     return {
       theme: "light" as "light" | "dark",
-      intMatchTimeoutSeconds: 10,
-      intIndicateDelaySeconds: 1,
-      indexOrPath: "index",
-      grayscale: true,
-      confidence: 0.9,
-      minimizeWindow: false,
-      strLogPath: "Wait the log path.",
+      intMatchTimeoutSeconds: 10 as number,
+      intIndicateDelaySeconds: 1 as number,
+      indexOrPath: "index" as "index" | "path",
+      grayscale: true as boolean,
+      confidence: 0.9 as number,
+      minimizeWindow: false as boolean,
+      strLogPath: "Wait the log path." as string,
       intLocalServerPort: undefined as undefined | number,
-      socketState: false,
+      socketState: false as boolean,
       leftColumnWidth: 250 as number,
       rightColumnWidth: 250 as number,
       boolIndicateImage: false as boolean,
@@ -416,8 +416,8 @@ export const useInformationStore = defineStore("information", {
     return {
       information: "..." as string,
       validateState: undefined as undefined | boolean,
-      showAlert: false,
-      previewImage: "",
+      showAlert: false as boolean,
+      previewImage: "" as string,
     };
   },
   getters: {},
@@ -433,6 +433,7 @@ export const useInformationStore = defineStore("information", {
     },
 
     showAlertMessage(message: string): void {
+      loggerRenderer.error(message);
       this.information = message;
       this.showAlert = true;
     },

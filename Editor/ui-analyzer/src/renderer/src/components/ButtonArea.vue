@@ -1,7 +1,7 @@
 <!-- FileName: ButtonArea.vue -->
 <template>
   <v-container fluid class="pa-2 ma-0" style="height: 70px">
-    <v-label class="header-label">Operation Buttons</v-label>
+    <v-label class="area-header">Operation Buttons</v-label>
     <v-row class="w-100">
       <v-col cols="auto">
         <v-btn
@@ -24,7 +24,10 @@
           @click="indicateChrome()">
           html
           <v-tooltip activator="parent" location="bottom">
-            Indicate an html element in the actived tab. (Only support Chrome now.)
+            <div>
+              Indicate an html element in the actived tab.<br />
+              (Only support Chrome now.)
+            </div>
           </v-tooltip>
         </v-btn>
       </v-col>
@@ -50,7 +53,10 @@
           @click="indicateWindow()">
           window
           <v-tooltip activator="parent" location="bottom">
-            Indicate a window element in the screen. (It is also top-level uia element)
+            <div>
+              Indicate a window element in the screen.<br />
+              (It is also top-level uia element)
+            </div>
           </v-tooltip>
         </v-btn>
       </v-col>
@@ -74,7 +80,7 @@
           prepend-icon="mdi-refresh"
           density="compact"
           variant="tonal"
-          @click="reset()">
+          @click="resetUI()">
           Reset
           <v-tooltip activator="parent" location="bottom">
             Clean the element and reset the GUI.
@@ -86,7 +92,7 @@
 </template>
 
 <script setup lang="ts">
-import { loggerRenderer, sendCmdToFlask } from "../ipcOfRenderer";
+import { sendCmdToFlask } from "../ipcOfRenderer";
 import { fixTrailingCommas } from "../attrHandleFunc";
 import { useSelectorStore, useSettingStore, useInformationStore } from "../store";
 
@@ -118,6 +124,7 @@ function indicateChrome(): void {
 function indicateImage(): void {
   // settingStore.toggleWindow(); Not minimize the UI Analyzer window, because the QT window will also be minimized.
   settingStore.boolIndicateImage = true;
+
   sendCmdToFlask({
     commandName: "indicate_image",
     intIndicateDelaySeconds: settingStore.intIndicateDelaySeconds,
@@ -140,7 +147,7 @@ function indicateWindow(): void {
 
 function validateSelector(): void {
   if (selectorStore.strJsonText === "") {
-    loggerRenderer.error("Have no selector to validate.");
+    informationStore.showAlertMessage("Have no selector to validate.");
     return;
   }
 
@@ -155,17 +162,13 @@ function validateSelector(): void {
   informationStore.$reset();
 }
 
-function reset(): void {
+function resetUI(): void {
   // Clean Element Hierarchy, Json Selector, Attribute Editor.
   selectorStore.$reset();
-  // selectorStore.arrEleHierarchy = [];
-  informationStore.validateState = undefined;
+  informationStore.$reset();
+
   settingStore.leftColumnWidth = 250;
   settingStore.rightColumnWidth = 250;
-
-  informationStore.previewImage = "";
-  informationStore.information = "...";
-  selectorStore.processDescription = "Idle";
 }
 </script>
 

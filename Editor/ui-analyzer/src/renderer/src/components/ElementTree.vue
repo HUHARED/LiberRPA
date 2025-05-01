@@ -1,7 +1,7 @@
 <!-- FileName: ElementTree.vue -->
 <template>
   <v-container class="clean-space flex-column-grow-1 flex-column">
-    <v-label class="header-label">Element Tree</v-label>
+    <v-label class="area-header">Element Tree</v-label>
     <v-card v-if="selectorStore.arrEleTree.length === 0" class="ma-1 h-60 pa-3">
       <div>
         Indicate or validate an uia or html element to show its Element Tree.<br />
