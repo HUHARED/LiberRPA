@@ -4,7 +4,10 @@
     <v-label class="header-label"> Attribute Editor </v-label>
     <v-container class="clean-space flex-column-grow-1">
       <v-card
-        v-if="selectorStore.intClickedLayer < 0"
+        v-if="
+          selectorStore.intClickedLayer < 0 ||
+          !selectorStore.arrEleHierarchy[selectorStore.intClickedLayer]
+        "
         class="ma-1"
         text="Click a layer of Element Hierarchy to edit its attributes.">
       </v-card>
