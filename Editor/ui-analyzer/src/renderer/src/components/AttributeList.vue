@@ -7,23 +7,25 @@
     <v-card
       v-if="selectorStore.arrSecondaryAttr.length === 0"
       class="pa-0 ma-1"
-      text="Indicate or validate an element to show its secondary attributes."></v-card>
+      text="Indicate or validate an element to show its secondary attributes.">
+    </v-card>
 
     <v-container v-else class="clean-space flex-column-grow-1">
       <!-- Display secondary attributes -->
       <v-row
-        v-for="(attr, index) in selectorStore.arrSecondaryAttr"
+        v-for="(dictAttr, index) in selectorStore.arrSecondaryAttr"
         :key="index"
         class="clean-space">
         <v-col cols="12" class="clean-space">
-          <v-label v-for="(_, key) in attr" :key="key" class="clean-space pl-1 pr-1">
-            {{ key.toString() }}
+          <!-- In fact, all dictionary has only one item. -->
+
+          <v-label class="clean-space pl-1 pr-1">
+            {{ Object.keys(dictAttr)[0] }}
           </v-label>
+
           <v-text-field
-            v-for="(value, key) in attr"
-            :key="key"
-            :value="value"
             class="clean-space pl-1 pr-1"
+            :value="dictAttr[Object.keys(dictAttr)[0]]"
             variant="underlined"
             density="compact"
             hide-details
