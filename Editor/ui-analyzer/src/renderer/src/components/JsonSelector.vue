@@ -1,7 +1,7 @@
 <!-- FileName: JsonSelector.vue -->
 <template>
   <v-container class="clean-space flex-column" style="height: 350px">
-    <v-label class="header-label"> Json Selector </v-label>
+    <v-label class="area-header"> Json Selector </v-label>
     <v-row class="clean-space" style="max-height: 40px">
       <!-- Information text -->
       <v-col cols="8" class="clean-space">
@@ -85,7 +85,9 @@ watch(
 watch(
   () => selectorStore.arrEleHierarchy,
   debounce(() => {
-    selectorStore.updateCheckedLayerAndJsonText();
+    if (selectorStore.arrEleHierarchy.length !== 0) {
+      selectorStore.updateCheckedLayerAndJsonText();
+    }
   }, 300),
   { deep: true }
 );
