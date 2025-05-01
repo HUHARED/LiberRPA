@@ -82,13 +82,17 @@ watch(
 );
 
 // Update selectorStore.strJsonText when selectorStore.arrEleHierarchy is modified.
+const debounced_Update = debounce(() => {
+  if (selectorStore.arrEleHierarchy.length !== 0) {
+    selectorStore.updateCheckedLayerAndJsonText();
+  }
+}, 300);
+
 watch(
   () => selectorStore.arrEleHierarchy,
-  debounce(() => {
-    if (selectorStore.arrEleHierarchy.length !== 0) {
-      selectorStore.updateCheckedLayerAndJsonText();
-    }
-  }, 300),
+  () => {
+    debounced_Update();
+  },
   { deep: true }
 );
 
