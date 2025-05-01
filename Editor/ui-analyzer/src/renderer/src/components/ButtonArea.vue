@@ -86,7 +86,7 @@
 </template>
 
 <script setup lang="ts">
-import { sendCmdToFlask } from "../ipcOfRenderer";
+import { loggerRenderer, sendCmdToFlask } from "../ipcOfRenderer";
 import { fixTrailingCommas } from "../attrHandleFunc";
 import { useSelectorStore, useSettingStore, useInformationStore } from "../store";
 
@@ -139,6 +139,11 @@ function indicateWindow(): void {
 }
 
 function validateSelector(): void {
+  if (selectorStore.strJsonText === "") {
+    loggerRenderer.error("Have no selector to validate.");
+    return;
+  }
+
   settingStore.toggleWindow();
 
   sendCmdToFlask({
