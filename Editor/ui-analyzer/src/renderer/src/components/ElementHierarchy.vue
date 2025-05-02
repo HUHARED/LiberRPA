@@ -7,7 +7,8 @@
     <v-card
       v-if="selectorStore.arrEleHierarchy.length === 0"
       class="ma-1"
-      text="Indicate or validate an element to show its Element Hierarchy."></v-card>
+      text="Indicate or validate an element to show its Element Hierarchy.">
+    </v-card>
 
     <v-list
       v-else
@@ -16,9 +17,9 @@
       density="compact"
       slim>
       <v-list-item
-        v-for="(item, index) in selectorStore.arrEleHierarchy"
+        v-for="(dictAttr, index) in selectorStore.arrEleHierarchy"
         :key="index"
-        :value="item"
+        :value="dictAttr"
         color="primary"
         rounded="shaped">
         <!-- Add the checkbox for each layer. When check or uncheck a layer, emit an event. -->
@@ -32,9 +33,10 @@
               "></v-checkbox-btn>
           </v-list-item-action>
         </template>
+
         <!-- Show the value's JSON string of each layer. -->
         <v-list-item-title @click="selectorStore.refreshArrtibuteEditor(index)">
-          {{ JSON.stringify(item) }}
+          {{ JSON.stringify(dictAttr) }}
         </v-list-item-title>
       </v-list-item>
     </v-list>
@@ -54,10 +56,6 @@ const settingStore = useSettingStore();
 watch(
   () => informationStore.information,
   () => {
-    /* loggerRenderer.debug(
-      `watch informationStore.information:\n${informationStore.information}`
-    ); */
-
     // If it it a selector json.
     if (informationStore.information.startsWith('{"selector"')) {
       selectorStore.afterIndicate();
@@ -66,8 +64,7 @@ watch(
       settingStore.toggleWindow();
     } else if (informationStore.information.startsWith('{"validate"')) {
       // If it is element validation.
-
-      const boolResult = JSON.parse(informationStore.information)["validate"];
+      const boolResult = JSON.parse(informationStore.information)["validate"] as boolean;
       loggerRenderer.debug("boolResult=" + boolResult);
       informationStore.validateState = boolResult;
       settingStore.toggleWindow();
