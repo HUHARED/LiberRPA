@@ -1,27 +1,15 @@
-<!-- FileName: Log.vue -->
+<!-- FileName: Status.vue -->
 <template>
   <v-container class="clean-space flex-column" style="height: 140px">
-    <v-label class="area-header"> Log </v-label>
-
-    <v-btn
-      class="w-100"
-      prepend-icon="mdi-open-in-new"
-      density="compact"
-      variant="tonal"
-      @click="invokeMain('cmd-open-log-path')">
-      Open log file
-      <v-tooltip activator="parent" location="bottom">
-        {{ settingStore.strLogPath }}
-      </v-tooltip>
-    </v-btn>
+    <v-label class="area-header"> Status </v-label>
 
     <v-text-field
       v-model="selectorStore.processDescription"
       class="pa-1 ma-0"
       density="compact"
+      variant="plain"
       hide-details
-      readonly
-      variant="plain">
+      readonly>
       <template #prepend-inner>
         <v-icon
           :color="selectorStore.processDescription === 'Idle' ? 'success' : 'info'"
@@ -29,17 +17,19 @@
             selectorStore.processDescription === 'Idle'
               ? 'mdi-check-circle-outline'
               : 'mdi-dots-circle'
-          " />
+          "
+          class="clean-space" />
       </template>
     </v-text-field>
+
     <v-text-field
       v-model="informationStore.information"
       class="pa-1 ma-0"
+      label="Process Information"
+      variant="underlined"
       density="compact"
       hide-details
-      readonly
-      variant="underlined"
-      label="Process Information">
+      readonly>
       <v-tooltip activator="parent" location="top">
         {{ informationStore.information }}
       </v-tooltip>
@@ -48,11 +38,9 @@
 </template>
 
 <script setup lang="ts">
-import { invokeMain } from "../ipcOfRenderer";
-import { useSelectorStore, useSettingStore, useInformationStore } from "../store";
+import { useSelectorStore, useInformationStore } from "../store";
 
 const selectorStore = useSelectorStore();
-const settingStore = useSettingStore();
 const informationStore = useInformationStore();
 </script>
 

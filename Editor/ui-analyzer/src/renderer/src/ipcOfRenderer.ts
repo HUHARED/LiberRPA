@@ -54,7 +54,6 @@ window.electron.ipcRenderer.on(
       case "init-setting": {
         const settingStore = useSettingStore();
         settingStore.initializeSetting(data);
-        settingStore.strLogPath = data as string;
         break;
       }
 

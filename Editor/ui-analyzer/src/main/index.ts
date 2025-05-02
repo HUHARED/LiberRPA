@@ -4,7 +4,7 @@ import { join } from "path";
 import { electronApp, optimizer, is } from "@electron-toolkit/utils";
 import icon from "../../resources/LiberRPA_icon_v3_color_UiAnalyzer_256.ico?asset";
 
-import { loggerMain, openLogPath } from "./logger";
+import { loggerMain } from "./logger";
 import { deleteTimeoutScreenshot } from "./init";
 import { dictConfigBasic } from "./config";
 import { DictInvokeResult } from "../shared/interface";
@@ -89,10 +89,6 @@ app.whenReady().then(() => {
       try {
         let temp: any;
         switch (command) {
-          case "cmd-open-log-path":
-            openLogPath();
-            break;
-
           case "cmd-toggle-window":
             if (mainWindowObj.isMinimized()) {
               mainWindowObj.restore();

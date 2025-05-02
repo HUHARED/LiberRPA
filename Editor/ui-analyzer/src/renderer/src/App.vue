@@ -66,7 +66,7 @@
             }">
             <SettingArea />
             <AttributeEditor />
-            <Log />
+            <Status />
           </v-container>
         </v-container>
       </v-container>
@@ -89,7 +89,7 @@ import JsonSelector from "./components/JsonSelector.vue";
 
 import SettingArea from "./components/SettingArea.vue";
 import AttributeEditor from "./components/AttributeEditor.vue";
-import Log from "./components/Log.vue";
+import Status from "./components/Status.vue";
 
 import { useSettingStore } from "./store";
 

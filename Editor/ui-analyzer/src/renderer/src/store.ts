@@ -287,7 +287,7 @@ export const useSelectorStore = defineStore("selector", {
       this.idle();
     },
 
-    regexAttr(_: MouseEvent, keyName: string) {
+    regexAttr(_event: MouseEvent, keyName: string) {
       // Add or remove"-regex"
       this.setDescription("regexAttr");
 
@@ -369,13 +369,14 @@ export const useSettingStore = defineStore("setting", {
   state: () => {
     return {
       theme: "light" as "light" | "dark",
+      minimizeWindow: false as boolean,
+
       intMatchTimeoutSeconds: 10 as number,
       intIndicateDelaySeconds: 1 as number,
       indexOrPath: "index" as "index" | "path",
       grayscale: true as boolean,
       confidence: 0.9 as number,
-      minimizeWindow: false as boolean,
-      strLogPath: "Wait the log path." as string,
+
       intLocalServerPort: undefined as undefined | number,
       socketState: false as boolean,
       leftColumnWidth: 250 as number,
@@ -386,7 +387,6 @@ export const useSettingStore = defineStore("setting", {
   getters: {},
   actions: {
     initializeSetting(dictConfigBasic: DictBasicConfig): void {
-      this.strLogPath = dictConfigBasic.outputLogPath;
       this.intLocalServerPort = dictConfigBasic.localServerPort;
       this.theme = dictConfigBasic.uiAnalyzerTheme;
       this.minimizeWindow = dictConfigBasic.uiAnalyzerMinimizeWindow;

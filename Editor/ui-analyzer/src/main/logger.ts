@@ -1,5 +1,4 @@
 // FileName: logger.ts
-import { shell } from "electron";
 import path from "path";
 import moment from "moment";
 import { format, transports, createLogger } from "winston";
@@ -40,9 +39,3 @@ export const loggerMain = createLogger({
     }),
   ],
 });
-
-export function openLogPath(): void {
-  shell.openPath(strLogPath).catch((error) => {
-    loggerMain.log("error", `Error opening log file: ${strLogPath}` + error);
-  });
-}
