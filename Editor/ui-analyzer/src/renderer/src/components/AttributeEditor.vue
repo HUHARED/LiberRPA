@@ -2,6 +2,7 @@
 <template>
   <v-container class="clean-space flex-column-grow-1 flex-column">
     <v-label class="area-header"> Attribute Editor </v-label>
+
     <v-container class="clean-space flex-column-grow-1">
       <v-card
         v-if="
@@ -13,29 +14,31 @@
       </v-card>
 
       <v-row
-        v-for="(key, idx) in Object.keys(
+        v-for="(strAttrName, index) in Object.keys(
           selectorStore.arrEleHierarchy[selectorStore.intClickedLayer]
         )"
         v-else
-        :key="idx"
+        :key="index"
         class="clean-space">
         <v-col cols="12" class="pa-1 ma-0">
           <!-- Remove "-omit" and "-regex" in the key's name. -->
           <v-label>
-            {{ removeSuffix(removeSuffix(key, strSuffixOmit), strSuffixRegex) }}
+            {{ removeSuffix(removeSuffix(strAttrName, strSuffixOmit), strSuffixRegex) }}
           </v-label>
 
-          <!-- // Remove [" or " at the start and " or "] at the end, them will be showed in prefix and suffix. -->
-          <!-- Click prepend inner icon to swtich the mode between string and regex. -->
+          <!--
+          Remove " at the start and " at the end, them will be showed in prefix and suffix.
+          Click prepend inner icon to swtich the mode between string and regex.
+          -->
           <v-text-field
             :model-value="
               cutQuotesForTextfield(
-                selectorStore.arrEleHierarchy[selectorStore.intClickedLayer][key]
+                selectorStore.arrEleHierarchy[selectorStore.intClickedLayer][strAttrName]
               )
             "
             color="secondary"
             :prepend-inner-icon="
-              key.includes(strSuffixRegex) ? 'mdi-regex' : 'mdi-code-string'
+              strAttrName.includes(strSuffixRegex) ? 'mdi-regex' : 'mdi-code-string'
             "
             :prefix="'&quot;'"
             :suffix="'&quot;'"
@@ -43,17 +46,18 @@
             density="compact"
             hide-details
             spellcheck="false"
-            @click:prepend-inner="selectorStore.regexAttr($event, key)"
+            @click:prepend-inner="selectorStore.regexAttr($event, strAttrName)"
             @update:model-value="
-              selectorStore.arrEleHierarchy[selectorStore.intClickedLayer][key] =
-                generateEleForArr($event)
+              selectorStore.arrEleHierarchy[selectorStore.intClickedLayer][strAttrName] =
+                generateEleForArr($event) ??
+                selectorStore.arrEleHierarchy[selectorStore.intClickedLayer][strAttrName]
             ">
             <template #prepend>
               <v-list-item-action end>
                 <v-checkbox-btn
-                  :model-value="!key.includes('-omit')"
+                  :model-value="!strAttrName.includes('-omit')"
                   density="compact"
-                  @update:model-value="selectorStore.omitAttr($event, key)">
+                  @update:model-value="selectorStore.omitAttr($event, strAttrName)">
                 </v-checkbox-btn>
               </v-list-item-action>
             </template>
@@ -67,9 +71,11 @@
 import { watch } from "vue";
 
 import { strSuffixOmit, strSuffixRegex, removeSuffix } from "../attrHandleFunc";
-import { useSelectorStore } from "../store";
+import { useSelectorStore, useInformationStore } from "../store";
+import { loggerRenderer } from "@renderer/ipcOfRenderer";
 
 const selectorStore = useSelectorStore();
+const informationStore = useInformationStore();
 
 watch(
   () => selectorStore.intClickedLayer,
@@ -81,31 +87,41 @@ watch(
   }
 );
 
-function cutQuotesForTextfield(strText: string): string {
+function cutQuotesForTextfield(text: string): string {
   // console.log("cutQuotesForTextfield", strText);
 
-  strText = JSON.stringify(strText).replace(/^"(.*)"$/, "$1");
+  text = JSON.stringify(text).replace(/^"(.*)"$/, "$1");
   // console.log("cutQuotesForTextfield(stringify and replace)", strText);
 
-  return strText;
+  return text;
 }
 
-function generateEleForArr(strText: string): string {
-  console.log("generateEleForArr", strText);
-  if (strText.endsWith("\\") && !strText.endsWith("\\\\")) {
+function generateEleForArr(text: string): string | undefined {
+  // console.log("generateEleForArr", text);
+  if (text.trimEnd().endsWith("\\") && !text.trimEnd().endsWith("\\\\")) {
     // The escape character backslash(\) should always lead a character. So if there is a single \ at the end, didn't need to update, return undefined and Vue will not update component, just wait the next character be typed, and Vue will update normally.
-    throw new Error("End with backslash, wait the next character");
+    loggerRenderer.debug("End with backslash, wait the next character");
+    return undefined;
   }
-  // Add the original quotes to the text.
-  strText = '"' + strText + '"';
 
-  console.log(
+  // Add the original quotes to the text.
+  text = '"' + text + '"';
+
+  /* console.log(
     "generateEleForArr(add quotes)",
-    strText,
+    text,
     "\ngenerateEleForArr(deserialized)",
-    JSON.parse(strText)
-  );
-  return JSON.parse(strText);
+    JSON.parse(text)
+  ); */
+
+  try {
+    const strJson = JSON.parse(text);
+    return strJson;
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Unknown error";
+    informationStore.showAlertMessage(`Syntax error: ${message}`);
+    return undefined;
+  }
 }
 </script>
 
