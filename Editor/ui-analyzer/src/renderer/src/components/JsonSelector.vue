@@ -2,6 +2,7 @@
 <template>
   <v-container class="clean-space flex-column" style="height: 350px">
     <v-label class="area-header"> Json Selector </v-label>
+
     <v-row class="clean-space" style="max-height: 40px">
       <!-- Information text -->
       <v-col cols="8" class="clean-space">
@@ -17,6 +18,7 @@
               :color="booleanJsonParse ? 'info' : 'error'"
               :icon="booleanJsonParse ? 'mdi-dots-horizontal' : 'mdi-alert-box-outline'" />
           </template>
+
           <v-tooltip activator="parent" location="top">
             {{ strInfoText }}
           </v-tooltip>
@@ -48,15 +50,10 @@
     </v-row>
 
     <!-- v-textarea has some wrong in layout, so use textarea. -->
-    <!-- <v-container fluid class="clean-space flex-column-grow-1 overflow-y-hidden border-thin">
-      
-    </v-container> -->
-
     <textarea
       v-model="selectorStore.strJsonText"
       class="ma-1 flex-column-grow-1"
-      spellcheck="false"
-      @input="validateJson">
+      spellcheck="false">
     </textarea>
   </v-container>
 </template>
@@ -96,8 +93,8 @@ watch(
   { deep: true }
 );
 
-const validateJson = (): void => {
-  if (!selectorStore.strJsonText.trim() || selectorStore.strJsonText === "") {
+function validateJson(): void {
+  if (!selectorStore.strJsonText.trim()) {
     strInfoText.value = "Have no Json Selector.";
     booleanJsonParse.value = true;
     return;
@@ -126,18 +123,18 @@ const validateJson = (): void => {
       booleanJsonParse.value = false;
     }
   }
-};
+}
 
-const copyJsonToClipboard = async (): Promise<void> => {
+async function copyJsonToClipboard(): Promise<void> {
   try {
     await navigator.clipboard.writeText(selectorStore.strJsonText);
     loggerRenderer.debug("JSON copied to clipboard:\n" + selectorStore.strJsonText);
   } catch (error) {
     loggerRenderer.error("Failed to copy: " + String(error));
   }
-};
+}
 
-const pasteFromClipboard = async (): Promise<void> => {
+async function pasteFromClipboard(): Promise<void> {
   try {
     const text = await navigator.clipboard.readText();
     selectorStore.strJsonText = text;
@@ -145,7 +142,7 @@ const pasteFromClipboard = async (): Promise<void> => {
   } catch (error) {
     loggerRenderer.error("Failed to paste: " + String(error));
   }
-};
+}
 </script>
 
 <style scoped></style>
