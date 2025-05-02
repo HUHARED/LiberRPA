@@ -5,7 +5,7 @@
 
     <v-number-input
       v-model="intMatchTimeout"
-      class="clean-space mb-2"
+      class="clean-space mb-2 mt-1"
       style="width: 250px"
       control-variant="default"
       :min="3"
