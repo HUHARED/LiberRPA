@@ -1,7 +1,7 @@
 /* FileName: main.css */
 
 html {
-  overflow: hidden;
+  overflow: hidden !important;
 }
 
 body {
