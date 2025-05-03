@@ -107,7 +107,6 @@ function indicateUia(): void {
     intIndicateDelaySeconds: settingStore.intIndicateDelaySeconds,
   });
   selectorStore.setDescription("Indicating uia.");
-  informationStore.$reset();
 }
 
 function indicateChrome(): void {
@@ -118,7 +117,6 @@ function indicateChrome(): void {
     usePath: settingStore.indexOrPath === "path" ? true : false,
   });
   selectorStore.setDescription("Indicating Chrome.");
-  informationStore.$reset();
 }
 
 function indicateImage(): void {
@@ -132,7 +130,6 @@ function indicateImage(): void {
     confidence: settingStore.confidence,
   });
   selectorStore.setDescription("Indicating image.");
-  informationStore.$reset();
 }
 
 function indicateWindow(): void {
@@ -142,7 +139,6 @@ function indicateWindow(): void {
     intIndicateDelaySeconds: settingStore.intIndicateDelaySeconds,
   });
   selectorStore.setDescription("Indicating window.");
-  informationStore.$reset();
 }
 
 function validateSelector(): void {
@@ -159,7 +155,6 @@ function validateSelector(): void {
     strSelectorJson: JSON.parse(fixTrailingCommas(selectorStore.strJsonText)),
   });
   selectorStore.setDescription("Validate element.");
-  informationStore.$reset();
 }
 
 function resetUI(): void {
