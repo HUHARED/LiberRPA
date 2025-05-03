@@ -33,8 +33,8 @@ function createWindow(): void {
   mainWindowObj = mainWindow;
 
   webContentsObj.on("did-finish-load", () => {
-    // TODO: delete it before packaging. Open DevTools when the content finishes loading.
-    webContentsObj.openDevTools();
+    // NOTE：Delete it before packaging. Open DevTools when the content finishes loading.
+    // webContentsObj.openDevTools();
 
     webContentsObj.send("send-from-main", "init-setting", dictConfigBasic);
 
