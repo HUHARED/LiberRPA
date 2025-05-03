@@ -4,7 +4,7 @@ UI Analyzer is an Electron-based client designed to quickly selecting UI element
 
 It needs LiberRPA Local Server to function properly.
 
-Note the GUI shown here may differ slightly from the newest version.
+> **Note:** The GUI shown here may differ slightly from the newest version.
 
 # Change Log
 
@@ -115,11 +115,11 @@ Reset the current selector data to the default states.
 
 ![Reset](md_images/README/Reset.gif)
 
-# Check Log
+# Check Status
 
-View UI Analyzer's status in **Log** area.
+View UI Analyzer's status in **Status** area.
 
-If you encounter a bug, you may need to click `Open log file`, then share the log data with the LiberRPA developer.
+> **Note:** It called **Log** before, and the button "Open log file" has been removed.
 
 ![1740149086118](md_images/README/1740149086118.png)
 
