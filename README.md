@@ -153,7 +153,7 @@ For more details, check [LiberRPA Project Manager](./vscodeExtensions/liberrpa-p
 You can modify some config of LiberRPA in `LiberRPA/configFiles/basic.jsonc`.
 
 ```json
-// FineName: basic.jsonc
+// FileName: basic.jsonc
 {
   /* 
   Predefined variables:
@@ -161,15 +161,13 @@ You can modify some config of LiberRPA in `LiberRPA/configFiles/basic.jsonc`.
         ${UserName}: The name of the user currently logged into the system.
         ${HostName}: The computer's hostname.
         ${ToolName}: Don't delete it, it is a flag to control subfolder name in "OutputLog".
-  
+    
         */
-  "LiberRPAPath": "${LiberRPA}",
   "outputLogPath": "C:\\Users\\${UserName}\\Documents\\LiberRPA\\OutputLog\\${ToolName}\\",
-  "localServerPort": "52000",
+  "localServerPort": 52000,
   "uiAnalyzerTheme": "light", // "light" or "dark"
-  "uiAnalyzerMinimizeWindow": "false" // "true" or "false"
+  "uiAnalyzerMinimizeWindow": false
 }
-
 ```
 
 # Dependencies and Acknowledgments
