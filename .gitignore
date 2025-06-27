@@ -3,8 +3,7 @@ README_chs.md
 InitLiberRPA.exe
 test/
 Executor/
-Console/
-Editor/ui-analyzer-old
+djangoConsole/
 .vscode/
 *.pyc
 configFiles/Executor.jsonc

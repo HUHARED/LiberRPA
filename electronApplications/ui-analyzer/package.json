@@ -4,7 +4,7 @@
   "description": "UI Analyzer is an Electron-based client designed to quickly selecting UI elements and build the corresponding selectors (formatted as several specific dictionary) required for RPA operations.",
   "main": "./out/main/index.js",
   "author": "Jiyan Hu",
-  "homepage": "https://github.com/HUHARED/LiberRPA/blob/main/Editor/ui-analyzer/README.md",
+  "homepage": "https://github.com/HUHARED/LiberRPA/blob/main/electronApplications/ui-analyzer/README.md",
   "scripts": {
     "lint": "eslint --cache .",
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",

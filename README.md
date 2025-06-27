@@ -86,7 +86,7 @@ Since LiberRPA is still in development, you might encounter some instability. If
 
 A [Chrome extension](./browserExtensions/liberrpa-chrome-extension/README.md) that must be installed and enabled to perform operations on browsers and HTML elements.
 
-## [UI Analyzer](./Editor/ui-analyzer/README.md)
+## [UI Analyzer](./electronApplications/ui-analyzer/README.md)
 
 An Electron-based client designed to quickly select elements and build the selectors (a specific dictionary format) required for RPA operations.
 
@@ -94,7 +94,7 @@ An Electron-based client designed to quickly select elements and build the selec
 
 LiberRPA [Editor](./Editor/vscode) is essentially a modified version of [the official portable VS Code](https://code.visualstudio.com/docs/editor/portable)—with altered default settings, added plugins, and custom resources. This means you can deploy LiberRPA on your familiar VS Code or modify the LiberRPA Editor according to your own preferences.
 
-You can see [VS Code User Guide](https://github.com/HUHARED/LiberRPA/Editor/vscode/UserGuide.md) to learn how to use LiberRPA Editor.
+You can see [VS Code User Guide](https://github.com/HUHARED/LiberRPA/Editor/UserGuide.md) to learn how to use LiberRPA Editor.
 
 ## [LiberRPA Flowchart](./vscodeExtensions/liberrpa-flowchart/README.md)
 
@@ -144,7 +144,7 @@ The LiberRPA Chrome Extension has uploaded to Chrome Web Store, and you can [ins
 
 ## Create Project
 
-You can open `LiberRPA/Editor/vscode/Code.exe`, press the shortcut `Ctrl+Shift+P` to open the Command Palette, and run `LiberRPA:Create a New Project` to create a new RPA project.
+You can open `LiberRPA/Editor/Code.exe`, press the shortcut `Ctrl+Shift+P` to open the Command Palette, and run `LiberRPA:Create a New Project` to create a new RPA project.
 
 For more details, check [LiberRPA Project Manager](./vscodeExtensions/liberrpa-project-manager/README.md).
 
