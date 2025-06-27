@@ -2,7 +2,7 @@
   "name": "liberrpa-flowchart",
   "displayName": "LiberRPA Flowchart",
   "description": "This extension is part of LiberRPA to edit flowchart file.",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "publisher": "LiberRPA",
   "engines": {
     "vscode": "^1.95.0"
