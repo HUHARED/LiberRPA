@@ -88,7 +88,7 @@ class ConditionalHumanReadFormatter(logging.Formatter):
             "_WebSocket.py",
             "Trigger.py",
         ]:
-            # Not record [%(filename)s][%(lineno)d] in human-read log if the finename is "Logging.py", to make the log more concise.
+            # Not record [%(filename)s][%(lineno)d] in human-read log if the filnename is "Logging.py", to make the log more concise.
             fmtNew = self.original_fmt.replace("[%(filename)s][%(lineno)d]", "")
             self._style._fmt = fmtNew
             formatted = super().format(record)

@@ -1,4 +1,4 @@
-# FineName: default.py
+# FileName: default.py
 from liberrpa.Common._TypedValue import SelectorWindow, SelectorUia, SelectorHtml, SelectorImage
 
 
