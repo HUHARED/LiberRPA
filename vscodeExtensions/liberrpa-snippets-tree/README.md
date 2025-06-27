@@ -6,6 +6,8 @@ This extension is a part of LiberRPA to displays built-in and user-defined [code
 
 With it, you don't need to memorize the entire [LiberRPA API](https://github.com/HUHARED/LiberRPA/tree/main/condaLibrary#api).
 
+> Note: The gray icon in the VS Code activity bar still uses the previous LiberRPA icon because the newest gray icon doesn't look good in it.
+
 # Usage
 
 ## Insert Snippets
@@ -51,7 +53,7 @@ You can define your frequently used snippets by editing the file: `C:/Users/<use
 Below is an example configuration:
 
 ```jsonc
-// FineName: snippets_favorite.jsonc
+// FileName: snippets_favorite.jsonc
 {
   // Copy any snippets from https://github.com/HUHARED/LiberRPA/vscodeExtensions/liberrpa-snippets-tree/assets/snippets_final.snippets and paste them in here, these snippets will be put at the top in LiberRPA Snippets Tree.
   // And you can write your custom snippets in here too.
