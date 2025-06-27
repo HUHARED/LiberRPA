@@ -30,7 +30,7 @@ def send_by_SMTP(
     cc: str | list[str] | None = None,
     bcc: str | list[str] | None = None,
     bodyFormat: Literal["text", "html"] = "text",
-    ssl=True,
+    ssl: bool = True,
     encoding: str = "utf-8",
 ) -> None:
     """
