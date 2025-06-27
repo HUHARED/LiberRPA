@@ -3,7 +3,12 @@ README_chs.md
 InitLiberRPA.exe
 test/
 Executor/
+Console/
+Editor/ui-analyzer-old
+.vscode/
 *.pyc
 configFiles/Executor.jsonc
+project.json
+temp.txt
 
 # Other rules should follow .gitignore in subfolders.
