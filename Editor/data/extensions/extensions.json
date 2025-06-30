@@ -1,98 +1,10 @@
 [
   {
-    "identifier": { "id": "ms-python.black-formatter" },
-    "version": "2024.6.0",
-    "location": {
-      "$mid": 1,
-      "path": "/G:/vscode/data/extensions/ms-python.black-formatter-2024.6.0",
-      "scheme": "file"
-    },
-    "relativeLocation": "ms-python.black-formatter-2024.6.0",
-    "metadata": {
-      "installedTimestamp": 1740473894887,
-      "pinned": false,
-      "source": "gallery",
-      "id": "859e640c-c157-47da-8699-9080b81c8371",
-      "publisherId": "998b010b-e2af-44a5-a6cd-0b5fd3b9b6f8",
-      "publisherDisplayName": "Microsoft",
-      "targetPlatform": "undefined",
-      "updated": false,
-      "isPreReleaseVersion": false,
-      "hasPreReleaseVersion": false
-    }
-  },
-  {
-    "identifier": { "id": "ms-python.debugpy" },
-    "version": "2025.0.1",
-    "location": {
-      "$mid": 1,
-      "path": "/G:/vscode/data/extensions/ms-python.debugpy-2025.0.1-win32-x64",
-      "scheme": "file"
-    },
-    "relativeLocation": "ms-python.debugpy-2025.0.1-win32-x64",
-    "metadata": {
-      "installedTimestamp": 1740473894887,
-      "pinned": false,
-      "source": "gallery",
-      "id": "4bd5d2c9-9d65-401a-b0b2-7498d9f17615",
-      "publisherId": "998b010b-e2af-44a5-a6cd-0b5fd3b9b6f8",
-      "publisherDisplayName": "Microsoft",
-      "targetPlatform": "win32-x64",
-      "updated": false,
-      "isPreReleaseVersion": false,
-      "hasPreReleaseVersion": false
-    }
-  },
-  {
-    "identifier": { "id": "ms-python.python" },
-    "version": "2025.0.0",
-    "location": {
-      "$mid": 1,
-      "path": "/G:/vscode/data/extensions/ms-python.python-2025.0.0-win32-x64",
-      "scheme": "file"
-    },
-    "relativeLocation": "ms-python.python-2025.0.0-win32-x64",
-    "metadata": {
-      "installedTimestamp": 1740473894887,
-      "pinned": false,
-      "source": "gallery",
-      "id": "f1f59ae4-9318-4f3c-a9b5-81b2eaa5f8a5",
-      "publisherId": "998b010b-e2af-44a5-a6cd-0b5fd3b9b6f8",
-      "publisherDisplayName": "Microsoft",
-      "targetPlatform": "win32-x64",
-      "updated": false,
-      "isPreReleaseVersion": false,
-      "hasPreReleaseVersion": false
-    }
-  },
-  {
-    "identifier": { "id": "ms-python.vscode-pylance" },
-    "version": "2025.2.1",
-    "location": {
-      "$mid": 1,
-      "path": "/G:/vscode/data/extensions/ms-python.vscode-pylance-2025.2.1",
-      "scheme": "file"
-    },
-    "relativeLocation": "ms-python.vscode-pylance-2025.2.1",
-    "metadata": {
-      "installedTimestamp": 1740473894887,
-      "pinned": false,
-      "source": "gallery",
-      "id": "364d2426-116a-433a-a5d8-a5098dc3afbd",
-      "publisherId": "998b010b-e2af-44a5-a6cd-0b5fd3b9b6f8",
-      "publisherDisplayName": "Microsoft",
-      "targetPlatform": "undefined",
-      "updated": false,
-      "isPreReleaseVersion": false,
-      "hasPreReleaseVersion": false
-    }
-  },
-  {
     "identifier": { "id": "oderwat.indent-rainbow" },
     "version": "8.3.1",
     "location": {
       "$mid": 1,
-      "path": "/G:/vscode/data/extensions/oderwat.indent-rainbow-8.3.1",
+      "path": "/G:/OneDrive/LiberRPA/Editor/data/extensions/oderwat.indent-rainbow-8.3.1",
       "scheme": "file"
     },
     "relativeLocation": "oderwat.indent-rainbow-8.3.1",
@@ -117,7 +29,7 @@
     "version": "0.2.9",
     "location": {
       "$mid": 1,
-      "path": "/G:/vscode/data/extensions/visualstudioexptteam.intellicode-api-usage-examples-0.2.9",
+      "path": "/G:/OneDrive/LiberRPA/Editor/data/extensions/visualstudioexptteam.intellicode-api-usage-examples-0.2.9",
       "scheme": "file"
     },
     "relativeLocation": "visualstudioexptteam.intellicode-api-usage-examples-0.2.9",
@@ -142,7 +54,7 @@
     "version": "1.3.2",
     "location": {
       "$mid": 1,
-      "path": "/G:/vscode/data/extensions/visualstudioexptteam.vscodeintellicode-1.3.2",
+      "path": "/G:/OneDrive/LiberRPA/Editor/data/extensions/visualstudioexptteam.vscodeintellicode-1.3.2",
       "scheme": "file"
     },
     "relativeLocation": "visualstudioexptteam.vscodeintellicode-1.3.2",
@@ -160,33 +72,11 @@
     }
   },
   {
-    "identifier": { "id": "ms-python.isort" },
-    "version": "2023.10.1",
-    "location": {
-      "$mid": 1,
-      "path": "/G:/vscode/data/extensions/ms-python.isort-2023.10.1",
-      "scheme": "file"
-    },
-    "relativeLocation": "ms-python.isort-2023.10.1",
-    "metadata": {
-      "installedTimestamp": 1740474065715,
-      "pinned": false,
-      "source": "gallery",
-      "id": "4ad0ce32-ff3f-49f0-83b5-93e5dc00cfff",
-      "publisherId": "998b010b-e2af-44a5-a6cd-0b5fd3b9b6f8",
-      "publisherDisplayName": "Microsoft",
-      "targetPlatform": "undefined",
-      "updated": false,
-      "isPreReleaseVersion": false,
-      "hasPreReleaseVersion": false
-    }
-  },
-  {
     "identifier": { "id": "ms-toolsai.jupyter-keymap" },
     "version": "1.1.2",
     "location": {
       "$mid": 1,
-      "path": "/G:/vscode/data/extensions/ms-toolsai.jupyter-keymap-1.1.2",
+      "path": "/G:/OneDrive/LiberRPA/Editor/data/extensions/ms-toolsai.jupyter-keymap-1.1.2",
       "scheme": "file"
     },
     "relativeLocation": "ms-toolsai.jupyter-keymap-1.1.2",
@@ -208,7 +98,7 @@
     "version": "0.1.6",
     "location": {
       "$mid": 1,
-      "path": "/G:/vscode/data/extensions/ms-toolsai.vscode-jupyter-slideshow-0.1.6",
+      "path": "/G:/OneDrive/LiberRPA/Editor/data/extensions/ms-toolsai.vscode-jupyter-slideshow-0.1.6",
       "scheme": "file"
     },
     "relativeLocation": "ms-toolsai.vscode-jupyter-slideshow-0.1.6",
@@ -230,7 +120,7 @@
     "version": "0.1.9",
     "location": {
       "$mid": 1,
-      "path": "/G:/vscode/data/extensions/ms-toolsai.vscode-jupyter-cell-tags-0.1.9",
+      "path": "/G:/OneDrive/LiberRPA/Editor/data/extensions/ms-toolsai.vscode-jupyter-cell-tags-0.1.9",
       "scheme": "file"
     },
     "relativeLocation": "ms-toolsai.vscode-jupyter-cell-tags-0.1.9",
@@ -252,7 +142,7 @@
     "version": "2024.11.0",
     "location": {
       "$mid": 1,
-      "path": "/G:/vscode/data/extensions/ms-toolsai.jupyter-2024.11.0-win32-x64",
+      "path": "/G:/OneDrive/LiberRPA/Editor/data/extensions/ms-toolsai.jupyter-2024.11.0-win32-x64",
       "scheme": "file"
     },
     "relativeLocation": "ms-toolsai.jupyter-2024.11.0-win32-x64",
@@ -274,7 +164,7 @@
     "version": "1.1.0",
     "location": {
       "$mid": 1,
-      "path": "/G:/vscode/data/extensions/ms-toolsai.jupyter-renderers-1.1.0",
+      "path": "/G:/OneDrive/LiberRPA/Editor/data/extensions/ms-toolsai.jupyter-renderers-1.1.0",
       "scheme": "file"
     },
     "relativeLocation": "ms-toolsai.jupyter-renderers-1.1.0",
@@ -292,33 +182,11 @@
     }
   },
   {
-    "identifier": { "id": "cweijan.vscode-office" },
-    "version": "3.5.0",
-    "location": {
-      "$mid": 1,
-      "path": "/G:/vscode/data/extensions/cweijan.vscode-office-3.5.0",
-      "scheme": "file"
-    },
-    "relativeLocation": "cweijan.vscode-office-3.5.0",
-    "metadata": {
-      "installedTimestamp": 1740474116702,
-      "pinned": false,
-      "source": "gallery",
-      "id": "936b1be7-8595-4f76-b102-aa6bb915da73",
-      "publisherId": "43004267-e6e4-497f-b826-dda371e4ec49",
-      "publisherDisplayName": "Weijan Chen",
-      "targetPlatform": "undefined",
-      "updated": false,
-      "isPreReleaseVersion": false,
-      "hasPreReleaseVersion": false
-    }
-  },
-  {
     "identifier": { "id": "ryu1kn.partial-diff" },
     "version": "1.4.3",
     "location": {
       "$mid": 1,
-      "path": "/G:/vscode/data/extensions/ryu1kn.partial-diff-1.4.3",
+      "path": "/G:/OneDrive/LiberRPA/Editor/data/extensions/ryu1kn.partial-diff-1.4.3",
       "scheme": "file"
     },
     "relativeLocation": "ryu1kn.partial-diff-1.4.3",
@@ -340,7 +208,7 @@
     "version": "2.10.0",
     "location": {
       "$mid": 1,
-      "path": "/G:/vscode/data/extensions/christian-kohler.path-intellisense-2.10.0",
+      "path": "/G:/OneDrive/LiberRPA/Editor/data/extensions/christian-kohler.path-intellisense-2.10.0",
       "scheme": "file"
     },
     "relativeLocation": "christian-kohler.path-intellisense-2.10.0",
@@ -365,7 +233,7 @@
     "version": "11.0.0",
     "location": {
       "$mid": 1,
-      "path": "/G:/vscode/data/extensions/esbenp.prettier-vscode-11.0.0",
+      "path": "/G:/OneDrive/LiberRPA/Editor/data/extensions/esbenp.prettier-vscode-11.0.0",
       "scheme": "file"
     },
     "relativeLocation": "esbenp.prettier-vscode-11.0.0",
@@ -383,33 +251,11 @@
     }
   },
   {
-    "identifier": { "id": "kevinrose.vsc-python-indent" },
-    "version": "1.19.0",
-    "location": {
-      "$mid": 1,
-      "path": "/G:/vscode/data/extensions/kevinrose.vsc-python-indent-1.19.0",
-      "scheme": "file"
-    },
-    "relativeLocation": "kevinrose.vsc-python-indent-1.19.0",
-    "metadata": {
-      "installedTimestamp": 1740474304809,
-      "pinned": false,
-      "source": "gallery",
-      "id": "f3cbfb84-b1e1-40ff-b70f-877253461260",
-      "publisherId": "23d4ba77-bbea-4ea1-94ee-996a1a497aba",
-      "publisherDisplayName": "Kevin Rose",
-      "targetPlatform": "undefined",
-      "updated": false,
-      "isPreReleaseVersion": false,
-      "hasPreReleaseVersion": false
-    }
-  },
-  {
     "identifier": { "id": "hyesun.py-paste-indent" },
     "version": "0.3.0",
     "location": {
       "$mid": 1,
-      "path": "/G:/vscode/data/extensions/hyesun.py-paste-indent-0.3.0",
+      "path": "/G:/OneDrive/LiberRPA/Editor/data/extensions/hyesun.py-paste-indent-0.3.0",
       "scheme": "file"
     },
     "relativeLocation": "hyesun.py-paste-indent-0.3.0",
@@ -431,7 +277,7 @@
     "version": "0.0.2",
     "location": {
       "$mid": 1,
-      "path": "/G:/vscode/data/extensions/tomoki1207.selectline-statusbar-0.0.2",
+      "path": "/G:/OneDrive/LiberRPA/Editor/data/extensions/tomoki1207.selectline-statusbar-0.0.2",
       "scheme": "file"
     },
     "relativeLocation": "tomoki1207.selectline-statusbar-0.0.2",
@@ -453,10 +299,7 @@
     "version": "0.2.2",
     "location": {
       "$mid": 1,
-      "fsPath": "g:\\vscode\\data\\extensions\\albert.tabout-0.2.2",
-      "_sep": 1,
-      "external": "file:///g%3A/vscode/data/extensions/albert.tabout-0.2.2",
-      "path": "/g:/vscode/data/extensions/albert.tabout-0.2.2",
+      "path": "/G:/OneDrive/LiberRPA/Editor/data/extensions/albert.tabout-0.2.2",
       "scheme": "file"
     },
     "relativeLocation": "albert.tabout-0.2.2",
@@ -469,6 +312,251 @@
       "publisherDisplayName": "Albert Romkes",
       "targetPlatform": "undefined",
       "updated": false,
+      "isPreReleaseVersion": false,
+      "hasPreReleaseVersion": false
+    }
+  },
+  {
+    "identifier": { "id": "kevinrose.vsc-python-indent" },
+    "version": "1.21.0",
+    "location": {
+      "$mid": 1,
+      "path": "/G:/OneDrive/LiberRPA/Editor/data/extensions/kevinrose.vsc-python-indent-1.21.0",
+      "scheme": "file"
+    },
+    "relativeLocation": "kevinrose.vsc-python-indent-1.21.0",
+    "metadata": {
+      "isApplicationScoped": false,
+      "isMachineScoped": false,
+      "isBuiltin": false,
+      "installedTimestamp": 1751100568453,
+      "pinned": false,
+      "source": "gallery",
+      "id": "f3cbfb84-b1e1-40ff-b70f-877253461260",
+      "publisherId": "23d4ba77-bbea-4ea1-94ee-996a1a497aba",
+      "publisherDisplayName": "Kevin Rose",
+      "targetPlatform": "undefined",
+      "updated": true,
+      "isPreReleaseVersion": false,
+      "hasPreReleaseVersion": false,
+      "preRelease": false
+    }
+  },
+  {
+    "identifier": { "id": "cweijan.vscode-office" },
+    "version": "3.5.4",
+    "location": {
+      "$mid": 1,
+      "path": "/G:/OneDrive/LiberRPA/Editor/data/extensions/cweijan.vscode-office-3.5.4",
+      "scheme": "file"
+    },
+    "relativeLocation": "cweijan.vscode-office-3.5.4",
+    "metadata": {
+      "isApplicationScoped": false,
+      "isMachineScoped": false,
+      "isBuiltin": false,
+      "installedTimestamp": 1751100568669,
+      "pinned": false,
+      "source": "gallery",
+      "id": "936b1be7-8595-4f76-b102-aa6bb915da73",
+      "publisherId": "43004267-e6e4-497f-b826-dda371e4ec49",
+      "publisherDisplayName": "Database Client",
+      "targetPlatform": "undefined",
+      "updated": true,
+      "isPreReleaseVersion": false,
+      "hasPreReleaseVersion": false,
+      "preRelease": false
+    }
+  },
+  {
+    "identifier": { "id": "ms-python.python" },
+    "version": "2025.8.0",
+    "location": {
+      "$mid": 1,
+      "path": "/G:/OneDrive/LiberRPA/Editor/data/extensions/ms-python.python-2025.8.0-win32-x64",
+      "scheme": "file"
+    },
+    "relativeLocation": "ms-python.python-2025.8.0-win32-x64",
+    "metadata": {
+      "isApplicationScoped": false,
+      "isMachineScoped": false,
+      "isBuiltin": false,
+      "installedTimestamp": 1751100568161,
+      "pinned": false,
+      "source": "gallery",
+      "id": "f1f59ae4-9318-4f3c-a9b5-81b2eaa5f8a5",
+      "publisherId": "998b010b-e2af-44a5-a6cd-0b5fd3b9b6f8",
+      "publisherDisplayName": "Microsoft",
+      "targetPlatform": "win32-x64",
+      "updated": true,
+      "isPreReleaseVersion": false,
+      "hasPreReleaseVersion": false,
+      "preRelease": false
+    }
+  },
+  {
+    "identifier": { "id": "ms-python.debugpy" },
+    "version": "2025.8.0",
+    "location": {
+      "$mid": 1,
+      "path": "/G:/OneDrive/LiberRPA/Editor/data/extensions/ms-python.debugpy-2025.8.0-win32-x64",
+      "scheme": "file"
+    },
+    "relativeLocation": "ms-python.debugpy-2025.8.0-win32-x64",
+    "metadata": {
+      "isApplicationScoped": false,
+      "isMachineScoped": false,
+      "isBuiltin": false,
+      "installedTimestamp": 1751100575603,
+      "pinned": false,
+      "source": "gallery",
+      "id": "4bd5d2c9-9d65-401a-b0b2-7498d9f17615",
+      "publisherId": "998b010b-e2af-44a5-a6cd-0b5fd3b9b6f8",
+      "publisherDisplayName": "Microsoft",
+      "targetPlatform": "win32-x64",
+      "updated": true,
+      "isPreReleaseVersion": false,
+      "hasPreReleaseVersion": false,
+      "preRelease": false
+    }
+  },
+  {
+    "identifier": { "id": "ms-python.black-formatter" },
+    "version": "2025.2.0",
+    "location": {
+      "$mid": 1,
+      "path": "/G:/OneDrive/LiberRPA/Editor/data/extensions/ms-python.black-formatter-2025.2.0",
+      "scheme": "file"
+    },
+    "relativeLocation": "ms-python.black-formatter-2025.2.0",
+    "metadata": {
+      "isApplicationScoped": false,
+      "isMachineScoped": false,
+      "isBuiltin": false,
+      "installedTimestamp": 1751100578733,
+      "pinned": false,
+      "source": "gallery",
+      "id": "859e640c-c157-47da-8699-9080b81c8371",
+      "publisherId": "998b010b-e2af-44a5-a6cd-0b5fd3b9b6f8",
+      "publisherDisplayName": "Microsoft",
+      "targetPlatform": "undefined",
+      "updated": true,
+      "isPreReleaseVersion": false,
+      "hasPreReleaseVersion": false,
+      "preRelease": false
+    }
+  },
+  {
+    "identifier": { "id": "ms-python.isort" },
+    "version": "2025.0.0",
+    "location": {
+      "$mid": 1,
+      "path": "/G:/OneDrive/LiberRPA/Editor/data/extensions/ms-python.isort-2025.0.0",
+      "scheme": "file"
+    },
+    "relativeLocation": "ms-python.isort-2025.0.0",
+    "metadata": {
+      "isApplicationScoped": false,
+      "isMachineScoped": false,
+      "isBuiltin": false,
+      "installedTimestamp": 1751100581366,
+      "pinned": false,
+      "source": "gallery",
+      "id": "4ad0ce32-ff3f-49f0-83b5-93e5dc00cfff",
+      "publisherId": "998b010b-e2af-44a5-a6cd-0b5fd3b9b6f8",
+      "publisherDisplayName": "Microsoft",
+      "targetPlatform": "undefined",
+      "updated": true,
+      "isPreReleaseVersion": false,
+      "hasPreReleaseVersion": false,
+      "preRelease": false
+    }
+  },
+  {
+    "identifier": { "id": "ms-python.vscode-pylance" },
+    "version": "2025.4.1",
+    "location": {
+      "$mid": 1,
+      "path": "/G:/OneDrive/LiberRPA/Editor/data/extensions/ms-python.vscode-pylance-2025.4.1",
+      "scheme": "file"
+    },
+    "relativeLocation": "ms-python.vscode-pylance-2025.4.1",
+    "metadata": {
+      "isApplicationScoped": false,
+      "isMachineScoped": false,
+      "isBuiltin": false,
+      "installedTimestamp": 1751100572078,
+      "pinned": false,
+      "source": "gallery",
+      "id": "364d2426-116a-433a-a5d8-a5098dc3afbd",
+      "publisherId": "998b010b-e2af-44a5-a6cd-0b5fd3b9b6f8",
+      "publisherDisplayName": "Microsoft",
+      "targetPlatform": "undefined",
+      "updated": true,
+      "isPreReleaseVersion": false,
+      "hasPreReleaseVersion": false,
+      "preRelease": false
+    }
+  },
+  {
+    "identifier": { "id": "liberrpa.liberrpa-flowchart" },
+    "version": "0.2.0",
+    "location": {
+      "$mid": 1,
+      "path": "/G:/OneDrive/LiberRPA/Editor/data/extensions/liberrpa.liberrpa-flowchart-0.2.0",
+      "scheme": "file"
+    },
+    "relativeLocation": "liberrpa.liberrpa-flowchart-0.2.0",
+    "metadata": {
+      "installedTimestamp": 1751100648067,
+      "pinned": true,
+      "source": "vsix",
+      "id": "02a2722f-cc46-46c6-b11f-928c56a678a1",
+      "publisherDisplayName": "LiberRPA",
+      "publisherId": "d360b821-32c2-412f-a8ac-fd01eab4a1d0",
+      "isPreReleaseVersion": false,
+      "hasPreReleaseVersion": false
+    }
+  },
+  {
+    "identifier": { "id": "liberrpa.liberrpa-snippets-tree" },
+    "version": "0.1.1",
+    "location": {
+      "$mid": 1,
+      "path": "/G:/OneDrive/LiberRPA/Editor/data/extensions/liberrpa.liberrpa-snippets-tree-0.1.1",
+      "scheme": "file"
+    },
+    "relativeLocation": "liberrpa.liberrpa-snippets-tree-0.1.1",
+    "metadata": {
+      "installedTimestamp": 1751100663484,
+      "pinned": true,
+      "source": "vsix",
+      "id": "b2a00ebb-b5e7-4602-b6e8-d0ccfcb503b3",
+      "publisherDisplayName": "LiberRPA",
+      "publisherId": "d360b821-32c2-412f-a8ac-fd01eab4a1d0",
+      "isPreReleaseVersion": false,
+      "hasPreReleaseVersion": false
+    }
+  },
+  {
+    "identifier": { "id": "liberrpa.liberrpa-project-manager" },
+    "version": "0.2.0",
+    "location": {
+      "$mid": 1,
+      "path": "/G:/OneDrive/LiberRPA/Editor/data/extensions/liberrpa.liberrpa-project-manager-0.2.0",
+      "scheme": "file"
+    },
+    "relativeLocation": "liberrpa.liberrpa-project-manager-0.2.0",
+    "metadata": {
+      "isApplicationScoped": false,
+      "isMachineScoped": false,
+      "isBuiltin": false,
+      "installedTimestamp": 1751100795502,
+      "pinned": true,
+      "source": "vsix",
+      "id": "5e01d3eb-8741-4f59-8cd5-4c5da7951085",
+      "publisherDisplayName": "LiberRPA",
+      "publisherId": "d360b821-32c2-412f-a8ac-fd01eab4a1d0",
       "isPreReleaseVersion": false,
       "hasPreReleaseVersion": false
     }

@@ -88,8 +88,7 @@
     "*.csv": "default",
     "*.md": "cweijan.markdownViewer",
     "*.vue": "default",
-    "{git,gitlens}:/**/*.{md,csv}": "default",
-    "{git,gitlens,git-graph}:/**/*.{md,csv,svg}": "default"
+    "{git,gitlens}:/**/*.{md,csv}": "default"
   },
 
   // Editor settings
