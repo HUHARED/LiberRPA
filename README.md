@@ -4,7 +4,7 @@
 
 # LiberRPA
 
-LiberRPA is an RPA toolkit built for hands-on, down-to-earth engineers.
+LiberRPA is an RPA toolkit designed for practical, hands-on engineers.
 
 # Features
 
