@@ -20,7 +20,7 @@ from typing import Any
 @Log.trace()
 @sioServer.on("qt_command")
 def handle_qt_command(dictCommand: dict[str, Any]) -> DictSocketResult:
-    Log.info(f"Received Record command: {dictCommand}, SID: {get_client_id()}")
+    Log.info(f"Received QT command: {dictCommand}, SID: {get_client_id()}")
 
     result: DictSocketResult = {"boolSuccess": True, "data": None}
     temp: Any = None
