@@ -182,7 +182,12 @@ if __name__ == "__main__":
 
           vscode.workspace.openTextDocument(strFilePath).then(
             (document) => {
-              vscode.window.showTextDocument(document);
+              // Open it in a new tab.
+              vscode.window.showTextDocument(document, {
+                viewColumn: vscode.ViewColumn.Active,
+                preview: false,
+                preserveFocus: false,
+              });
             },
             (error) => {
               vscode.window.showErrorMessage(
@@ -194,6 +199,7 @@ if __name__ == "__main__":
 
           break;
         }
+
         case "execute": {
           outputChannel.appendLine(
             `Execute ${message.data.pyFile} in ${message.data.executeMode} mode.`
@@ -249,13 +255,26 @@ if __name__ == "__main__":
 
           // Save files before running.
           vscode.workspace.saveAll().then(() => {
+            const strLiberRPAEnvPath = process.env.LiberRPA;
+            if (!strLiberRPAEnvPath) {
+              throw new Error("Not found 'LiberRPA' in User Envirnment Variables.");
+            }
+
+            const strProgramTemp = path.join(
+              strLiberRPAEnvPath,
+              "envs/pyenv/Lib/site-packages/liberrpa/FlowControl/Run.py"
+            );
+
+            if (!strProgramTemp) {
+              throw new Error("The Python module 'liberrpa' didn't install correctly.");
+            }
+
             // Run or debug it.
             const config = {
               type: "debugpy",
               request: "launch",
               name: "Python Debugger: project",
-              // TODO: it should be library path instead of develpment path later.
-              program: "G:/OneDrive/LiberRPA/condaLibrary/liberrpa/FlowControl/Run.py",
+              program: strProgramTemp,
               console: "integratedTerminal",
               cwd: workspaceFolder.uri.fsPath,
               env: {

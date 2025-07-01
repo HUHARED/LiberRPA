@@ -51,6 +51,7 @@ import liberrpa.Credential as Credential
 # User interaction
 import liberrpa.ScreenPrint as ScreenPrint
 import liberrpa.Dialog as Dialog
+import liberrpa.Trigger as Trigger
 
 
 from liberrpa.FlowControl.ProjectFlowInit import PrjArgs, CustomArgs

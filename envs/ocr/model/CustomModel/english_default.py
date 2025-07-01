@@ -1,4 +1,4 @@
-# FineName: custom_example.py
+# FileName: custom_example.py
 import torch.nn as nn
 
 class BidirectionalLSTM(nn.Module):

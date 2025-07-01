@@ -2,7 +2,8 @@
   "name": "liberrpa-project-manager",
   "displayName": "LiberRPA Project Manager",
   "description": "This extension is part of LiberRPA to manage project.",
-  "version": "0.1.0",
+  "version": "0.2.0",
+  "publisher": "LiberRPA",
   "engines": {
     "vscode": "^1.95.0"
   },
@@ -17,14 +18,20 @@
         "command": "LiberRPA.createProject",
         "category": "LiberRPA",
         "title": "Create a New Project"
+      },
+      {
+        "command": "LiberRPA.packageProject",
+        "category": "LiberRPA",
+        "title": "Package the Project"
       }
     ]
   },
-  "icon": "./assets/LiberRPA_icon_v1_color_128.png",
+  "icon": "./assets/LiberRPA_icon_v3_color_ProjectManager_128.png",
   "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://github.com/HUHARED/LiberRPA/blob/main/vscodeExtensions/liberrpa-project-manager/README.md",
   "repository": {
     "type": "git",
-    "url": "https://github.com/HUHARED/LiberRPA/vscodeExtensions/liberrpa-project-manager/"
+    "url": "https://github.com/HUHARED/LiberRPA.git"
   },
   "scripts": {
     "vscode:prepublish": "npm run package",
@@ -38,17 +45,21 @@
     "test": "vscode-test"
   },
   "devDependencies": {
-    "@types/vscode": "^1.95.0",
+    "@types/archiver": "^6.0.3",
     "@types/mocha": "^10.0.9",
     "@types/node": "20.x",
+    "@types/vscode": "^1.95.0",
     "@typescript-eslint/eslint-plugin": "^8.10.0",
     "@typescript-eslint/parser": "^8.7.0",
-    "eslint": "^9.13.0",
-    "typescript": "^5.6.3",
-    "ts-loader": "^9.5.1",
-    "webpack": "^5.95.0",
-    "webpack-cli": "^5.1.4",
     "@vscode/test-cli": "^0.0.10",
-    "@vscode/test-electron": "^2.4.1"
+    "@vscode/test-electron": "^2.4.1",
+    "eslint": "^9.13.0",
+    "ts-loader": "^9.5.1",
+    "typescript": "^5.6.3",
+    "webpack": "^5.95.0",
+    "webpack-cli": "^5.1.4"
+  },
+  "dependencies": {
+    "archiver": "^7.0.1"
   }
 }

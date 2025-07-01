@@ -18,7 +18,7 @@ import os
 import io
 from PIL import Image
 from typing import Literal, Any
-import pandas as pd
+import pandas
 import time
 
 
@@ -471,7 +471,7 @@ def csv_read(
     Returns:
         list[list[Any]]: The contents of the CSV file as a list of rows, where each row is a list of values.
     """
-    return pd.read_csv(
+    return pandas.read_csv(
         filepath_or_buffer=filePath, sep=separator, header=header, index_col=indexColumn, encoding=encoding
     ).values.tolist()  # type: ignore - It should not be str.
 
@@ -500,7 +500,7 @@ def csv_write(
     """
     if overwriteIfExist == False and Path(filePath).is_file():
         raise FileExistsError(f"There is a file in the destination path: {Path(filePath).resolve()}")
-    pd.DataFrame(data=listObj).to_csv(
+    pandas.DataFrame(data=listObj).to_csv(
         path_or_buf=filePath, sep=separator, header=addHeader, index=addIndexColumn, mode="w", encoding=encoding
     )
 

@@ -6,7 +6,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
 from liberrpa.Logging import Log
-from liberrpa.Common._Exception import UiElementNotFoundError
+from liberrpa.Common._Exception import UiElementNotFoundError, get_exception_info
 from liberrpa.Common._TypedValue import DictImageAttr
 from liberrpa.UI._Screenshot import (
     SCREENSHOT_DOCUMENTS_PATH,
@@ -30,7 +30,6 @@ def find_image(
     moveFile: bool = True,
     buildinPath: bool = True,
 ) -> list[DictImageAttr]:
-
     # When other build-in modules invoke the function, "fileName" should be a fullname, but if UiInterface module invokes it ,"fileName" should be a path.
     if buildinPath:
         # Check whether file exists
@@ -69,6 +68,19 @@ def find_image(
             listRegion = list(region)
             listRegion[0] = listRegion[0] - intMinX
             listRegion[1] = listRegion[1] - intMinY
+
+            boolNegativeCoordinate = False
+            if listRegion[0] < 0:
+                listRegion[2] = listRegion[2] + listRegion[0]
+                listRegion[0] = 0
+                boolNegativeCoordinate = True
+            if listRegion[1] < 0:
+                listRegion[3] = listRegion[3] + listRegion[1]
+                listRegion[1] = 0
+                boolNegativeCoordinate = True
+            if boolNegativeCoordinate:
+                Log.verbose(f"The Window's top-left is not in the screen, search region={listRegion}")
+
             region = tuple(listRegion)  # type: ignore - it's 4 int.
 
         Log.verbose(f"region={region}")
@@ -92,7 +104,7 @@ def find_image(
         ]
         Log.debug(f"Found {len(listMatches)} matched images.")
     except Exception as e:
-        raise UiElementNotFoundError(str(e))
+        raise UiElementNotFoundError(str(get_exception_info(e)))
 
     return listMatches
 

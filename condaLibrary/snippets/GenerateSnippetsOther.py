@@ -46,6 +46,7 @@ listModule = [
     # User interaction
     "ScreenPrint",
     "Dialog",
+    "Trigger",
 ]
 
 dictSnippets = {}
@@ -85,12 +86,15 @@ for strModuleName in listModule:
 
     listFuncInOrder: list[str] = re.findall(R"(?<=^def )[^_][a-zA-z0-9_]+(?=\()", strScriptText, re.MULTILINE)
 
+    if strModuleName == "Trigger" and "register_force_exit" in listFuncInOrder:
+        listFuncInOrder.remove("register_force_exit")
     print(listFuncInOrder)
     # sys.exit()
 
     listFuncObj = inspect.getmembers(moduleObj, inspect.isfunction)
 
     for strFuncName in listFuncInOrder:
+
         func = getattr(moduleObj, strFuncName, None)
 
         if not func:

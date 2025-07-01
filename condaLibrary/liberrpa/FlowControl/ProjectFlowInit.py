@@ -8,6 +8,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 from liberrpa.Logging import Log
 from liberrpa.FlowControl._ProjectDict import DictProject_Original
 
+import argparse
 import os
 from pathlib import Path
 import json
@@ -20,6 +21,19 @@ if not Path("project.flow").is_file():
     raise FileNotFoundError(f"Not found the file '{os.getcwd()+"\\project.flow"}' to initialize the program.")
 
 dictFlowFile: DictProject_Original = json.loads(Path("project.flow").read_text(encoding="utf-8"))
+
+# Update "logLevel", "recordVideo", "stopShortcut", "highlightUi", "customPrjArgs" if argument sent from command line.
+parser = argparse.ArgumentParser()
+parser.add_argument("--executor_args", required=False)
+args, unknown = parser.parse_known_args()
+
+if args.executor_args:
+    dictArgs = json.loads(args.executor_args)
+    for keyName in dictArgs:
+        dictFlowFile[keyName] = dictArgs[keyName]
+    Log.info(f"Updated arguments from Executor: {dictArgs}")
+else:
+    print("No build-in and custom project argument from Executor.")
 
 
 def _generate_next_dict() -> tuple[
@@ -121,7 +135,7 @@ class ProjectArguments:
     def __init__(self):
         # The path of the current working directory.
         self.projectPath: str = os.getcwd()
-        self.projectName: str = os.path.basename(self.projectPath)
+        self.projectName: str = Log.strProjectName
         self.errorObj: Exception | None = None
         self.customArgs: dict[str, Any] = {}
 

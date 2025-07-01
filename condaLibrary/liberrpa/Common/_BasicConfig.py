@@ -9,39 +9,51 @@ import os
 from pathlib import Path
 import socket
 import json5
-from typing import Literal
+from typing import TypedDict, Literal, Any
 
 
-def get_basic_config_dict() -> dict[str, str]:
+class DictBasicConfig(TypedDict):
+    outputLogPath: str
+    localServerPort: int
+    uiAnalyzerTheme: Literal["light", "dark"]
+    uiAnalyzerMinimizeWindow: bool
 
-    strConfigPath: str = get_liberrpa_folder_path()
+
+def get_basic_config_dict() -> DictBasicConfig:
+
+    strLiberRPAPath: str = get_liberrpa_folder_path()
 
     dictReplaceKeywords: dict[str, str] = {
-        "${LiberRPA}": strConfigPath,
+        "${LiberRPA}": strLiberRPAPath,
         "${UserName}": os.getlogin(),
         "${HostName}": socket.gethostname(),
     }
 
+    dictProject: dict[str, Any] = json5.loads(Path("./project.json").read_text(encoding="utf-8"))  # type: ignore
+
     if os.getenv("LogFolderName") in ["_ChromeGetLocalServerPort", "_LiberRPALocalServer"]:
         dictReplaceKeywords["${ToolName}"] = "BuildinTools"
 
+    elif dictProject.get("executorPackage") == True:
+        dictReplaceKeywords["${ToolName}"] = "Executor"
+
     else:
         # Suppose other Python programs are running in vscode.
-        # NOTE: If LiberRPA Executor was started development, add more logic to distinguish.
         dictReplaceKeywords["${ToolName}"] = "Editor"
 
     # Open the json file to get original dict.
-    dictEditorConfig: dict[str, str] = json5.loads(
-        Path(strConfigPath).joinpath("./configFiles/basic.jsonc").read_text(encoding="utf-8", errors="strict")
+    dictBasicConfig: DictBasicConfig = json5.loads(
+        Path(strLiberRPAPath).joinpath("./configFiles/basic.jsonc").read_text(encoding="utf-8", errors="strict")
     )  # type: ignore - type is right
 
     # Replace predefined variables
-    for strKeyOuter in dictEditorConfig:
-        for strKeyInner in dictReplaceKeywords:
-            dictEditorConfig[strKeyOuter] = dictEditorConfig[strKeyOuter].replace(
-                strKeyInner, dictReplaceKeywords[strKeyInner]
-            )
-    return dictEditorConfig
+    for strKeyOuter in dictBasicConfig:
+        if isinstance(dictBasicConfig[strKeyOuter], str):
+            for strKeyInner in dictReplaceKeywords:
+                dictBasicConfig[strKeyOuter] = dictBasicConfig[strKeyOuter].replace(
+                    strKeyInner, dictReplaceKeywords[strKeyInner]
+                )
+    return dictBasicConfig
 
 
 def get_liberrpa_folder_path() -> str:
@@ -57,9 +69,9 @@ def get_liberrpa_folder_path() -> str:
 def get_liberrpa_ico_path(component: Literal["LiberRPALocalServer"] | None = None) -> str:
     strLiberRPAPath = get_liberrpa_folder_path()
     if component == "LiberRPALocalServer":
-        strIconPath = Path(strLiberRPAPath) / "envs/assets/icon/LiberRPA_icon_v1_color_LocalServer.ico"
+        strIconPath = Path(strLiberRPAPath) / "envs/assets/icon/LiberRPA_icon_v3_color_LocalServer.ico"
     else:
-        strIconPath = Path(strLiberRPAPath) / "envs/assets/icon/LiberRPA_icon_v1_color.ico"
+        strIconPath = Path(strLiberRPAPath) / "envs/assets/icon/LiberRPA_icon_v3_color.ico"
     if not Path(strIconPath).is_file():
         raise FileNotFoundError("LiberRPA icon file is missing: " + str(strIconPath))
     print("strIconPath=", strIconPath)

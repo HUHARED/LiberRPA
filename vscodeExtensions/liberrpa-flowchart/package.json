@@ -2,7 +2,8 @@
   "name": "liberrpa-flowchart",
   "displayName": "LiberRPA Flowchart",
   "description": "This extension is part of LiberRPA to edit flowchart file.",
-  "version": "0.1.0",
+  "version": "0.2.0",
+  "publisher": "LiberRPA",
   "engines": {
     "vscode": "^1.95.0"
   },
@@ -35,11 +36,12 @@
       }
     ]
   },
-  "icon": "./assets/LiberRPA_icon_v1_color_128.png",
+  "icon": "./assets/LiberRPA_icon_v3_color_Flowchart_128.png",
   "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://github.com/HUHARED/LiberRPA/blob/main/vscodeExtensions/liberrpa-flowchart/README.md",
   "repository": {
     "type": "git",
-    "url": "https://github.com/HUHARED/LiberRPA/vscodeExtensions/liberrpa-flowchart/"
+    "url": "https://github.com/HUHARED/LiberRPA.git"
   },
   "scripts": {
     "vscode:prepublish": "npm run package",

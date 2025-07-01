@@ -1,0 +1,162 @@
+// FileName: settings.json
+{
+  // Language settings:
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.black-formatter"
+  },
+  "[snippets]": {
+    "editor.defaultFormatter": "vscode.json-language-features"
+  },
+  "[markdown]": {
+    "editor.unicodeHighlight.ambiguousCharacters": false,
+    "editor.unicodeHighlight.invisibleCharacters": false,
+    "diffEditor.ignoreTrimWhitespace": false,
+    "editor.wordWrap": "on",
+    "editor.quickSuggestions": {
+      "comments": "off",
+      "strings": "off",
+      "other": "off"
+    }
+  },
+  "[json]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.tabSize": 2,
+    "editor.insertSpaces": true,
+    "editor.detectIndentation": false
+  },
+  "[jsonc]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+
+  "[vue]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.tabSize": 2,
+    "editor.insertSpaces": true,
+    "editor.detectIndentation": false
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.tabSize": 2,
+    "editor.insertSpaces": true,
+    "editor.detectIndentation": false
+  },
+  "[javascript]": {
+    "editor.tabSize": 2,
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[html]": {
+    "editor.tabSize": 2,
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[css]": {
+    "editor.tabSize": 2,
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+
+  // Python-specific settings
+  "python.analysis.completeFunctionParens": false,
+  "python.experiments.enabled": false,
+  "python.experiments.optOutFrom": ["All"],
+  "python.locator": "js",
+  "python.defaultInterpreterPath": "G:\\OneDrive\\LiberRPA\\envs\\pyenv\\python.exe",
+
+  // Pylance settings
+  "python.analysis.typeCheckingMode": "basic",
+  "python.analysis.inlayHints.functionReturnTypes": true,
+  "python.analysis.inlayHints.variableTypes": true,
+  "python.analysis.inlayHints.callArgumentNames": "all",
+  "python.analysis.autoFormatStrings": true,
+  "python.analysis.typeEvaluation.strictListInference": true,
+  "python.analysis.typeEvaluation.strictDictionaryInference": true,
+
+  // Jupyter Notebook settings
+  "jupyter.askForKernelRestart": false,
+  "jupyter.notebookFileRoot": "${workspaceFolder}",
+  "notebook.lineNumbers": "on",
+  "notebook.output.scrolling": true,
+  "notebook.output.textLineLimit": 300,
+
+  // Window settings
+  "window.zoomLevel": 0.25,
+
+  // Workbench settings
+  "workbench.colorTheme": "Default Light Modern",
+  "workbench.iconTheme": "vscode-great-icons-with-liberrpa",
+  "workbench.startupEditor": "newUntitledFile",
+  "workbench.editorAssociations": {
+    "*.png": "imagePreview.previewEditor",
+    "*.csv": "default",
+    "*.md": "cweijan.markdownViewer",
+    "*.vue": "default",
+    "{git,gitlens}:/**/*.{md,csv}": "default"
+  },
+
+  // Editor settings
+  "editor.quickSuggestions": {
+    "other": true,
+    "comments": true,
+    "strings": true
+  },
+  "editor.quickSuggestionsDelay": 0,
+  "editor.suggest.localityBonus": true,
+  "editor.formatOnType": true,
+  "editor.suggestSelection": "first",
+  "editor.tabCompletion": "on",
+  "editor.acceptSuggestionOnEnter": "off",
+  "editor.minimap.enabled": false,
+  "editor.fontFamily": "'Noto Sans Mono', Consolas, 'Courier New', monospace",
+  "editor.fontSize": 18,
+  "editor.wordWrapColumn": 100,
+  "editor.wordWrap": "bounded",
+  "editor.detectIndentation": true,
+  "editor.unicodeHighlight.ambiguousCharacters": false,
+  "editor.guides.bracketPairs": true,
+  "editor.renderWhitespace": "all",
+  "editor.accessibilitySupport": "off",
+
+  // File settings
+  "files.autoGuessEncoding": true,
+  "files.associations": {
+    "*.snippets": "snippets"
+    // "*.flow": "json"
+  },
+
+  // Security settings
+  "security.workspace.trust.enabled": false,
+
+  // Update settings
+  "update.showReleaseNotes": false,
+  "update.mode": "manual",
+
+  // Git settings
+  "git.enabled": false,
+  "git.ignoreMissingGitWarning": true,
+  "git.openRepositoryInParentFolders": "never",
+
+  // Explorer settings
+  "explorer.confirmDragAndDrop": false,
+  "explorer.confirmDelete": false,
+
+  // Accessibility settings
+  "accessibility.signals.lineHasError": {
+    "sound": "off"
+  },
+
+  // Extension configurations
+  "vscode-office.openOutline": true,
+  "vscode-office.editorTheme": "Auto",
+  "vscode-office.pasterImgPath": "md_images/${fileName}/${now}.png",
+  "vscode-office.previewCodeHighlight.style": "github",
+
+  "indentRainbow.errorColor": "rgba(128,32,32,0.05)",
+  "indentRainbow.excludedLanguages": ["markdown", "plaintext"],
+  "indentRainbow.ignoreErrorLanguages": ["json", "jsonc", "markdown"],
+
+  "partialDiff.enableTelemetry": false,
+
+  "prettier.printWidth": 92,
+  "prettier.bracketSameLine": true,
+  "prettier.useEditorConfig": false,
+
+  "black-formatter.args": ["--line-length=120"]
+}

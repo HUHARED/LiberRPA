@@ -21,7 +21,6 @@ from liberrpa.UI._Overlay import create_overlay
 from typing import Any, Literal
 
 
-@Log.trace()
 def get_download_list(limit: int = 5, timeout: int = 10000) -> list[ChromeDownloadItem]:
     dictCommand: dict[str, Any] = {"commandName": "getDownloadList", "timeout": timeout, "limit": limit}
     result: list[ChromeDownloadItem] = send_command(eventName="chrome_command", command=dictCommand, timeout=timeout)

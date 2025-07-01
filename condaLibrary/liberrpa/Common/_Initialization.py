@@ -6,6 +6,10 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
 import multiprocessing
+
+# run freeze_support() to avoid re-running of it was packaged to an exe.
+multiprocessing.freeze_support()
+
 import time
 from datetime import datetime
 import json
@@ -21,19 +25,43 @@ import ctypes
 from screeninfo import get_monitors
 from typing import Any
 
+strCwd = os.getcwd()
+
 
 def _print_program_info() -> None:
     # vscode will cd to the workspace's path.
-    print(f"The current workpath: {os.getcwd()}")
+    print(f"The current workpath: {strCwd}")
 
 
 def _initialize_project_json() -> None:
-    dictProject = {}
-    dictProject["lastStartUpTime"] = time.strftime("%Y-%m-%d_%H%M%S", time.localtime())
-    dictProject["workpath"] = os.getcwd()
-    strTemp = json.dumps(dictProject, indent=4, ensure_ascii=False)
-    Path("project.json").write_text(data=strTemp, encoding="utf-8", errors="strict")
-    # print("Initialize project.json: " + strTemp) - Log module will print it.
+    try:
+        pathObj = Path("./project.json")
+        if pathObj.is_file():
+            dictProject = json.loads(pathObj.read_text(encoding="utf-8"))
+
+            # Assign project name if user rename the project folder's name. (An Executor package doesn't need to do it.)
+            if not dictProject["executorPackage"]:
+                dictProject["executorPackageName"] = os.path.basename(strCwd)
+
+            # Logging module need its to name the log folder.
+            dictProject["lastStartUpTime"] = time.strftime("%Y-%m-%d_%H%M%S", time.localtime())
+
+        else:
+            # Create project.json
+            dictProject = {
+                "executorPackage": False,
+                "executorPackageName": os.path.basename(strCwd),
+                "executorPackageVersion": "1.0.0",
+                "lastStartUpTime": time.strftime("%Y-%m-%d_%H%M%S", time.localtime()),
+            }
+
+        # Save project.json
+        pathObj.write_text(
+            data=json.dumps(dictProject, indent=4, ensure_ascii=False), encoding="utf-8", errors="strict"
+        )
+
+    except Exception as e:
+        raise Exception(f"Error to handle project.json: {e}")
 
 
 def _check_update() -> None:

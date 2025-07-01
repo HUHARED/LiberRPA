@@ -1,4 +1,4 @@
-// FineName: basic.jsonc
+// FileName: basic.jsonc
 {
   /* 
   Predefined variables:
@@ -8,9 +8,14 @@
         ${ToolName}: Don't delete it, it is a flag to control subfolder name in "OutputLog".
         
         */
-  "LiberRPAPath": "${LiberRPA}",
+
+  // The basic log path for LiberRPA tools.
   "outputLogPath": "C:\\Users\\${UserName}\\Documents\\LiberRPA\\OutputLog\\${ToolName}\\",
-  "localServerPort": "52000",
+
+  // The port of LiberRPA Local Server.
+  "localServerPort": 52000,
+
+  // The default settings of UI Analyzer.
   "uiAnalyzerTheme": "light", // "light" or "dark"
-  "uiAnalyzerMinimizeWindow": "false" // "true" or "false"
+  "uiAnalyzerMinimizeWindow": false
 }

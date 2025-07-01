@@ -14,33 +14,46 @@ import psutil
 from pathlib import Path
 from datetime import datetime, timedelta
 import re
+import sys
 from screeninfo import get_monitors
 
 
+def _find_ffmpeg() -> str:
+    if getattr(sys, "frozen", False):
+        # When it packaged by pyinstaller, ffmpeg.exe may can't be found, so handle it.
+        return str(Path(sys.executable).parent / "_internal/ffmpeg.exe")
+    else:
+        return "ffmpeg"
+
+
+strFfmpegPath = _find_ffmpeg()
+Log.info(f"strFfmpegPath={strFfmpegPath}")
+
+
 def record_screen(pid: int, folderName: str) -> None:
-    Log.debug("Record start: " + folderName)
+
+    # Find primary monitor
+    primaryScreen = next((item for item in get_monitors() if item.is_primary), None)
+    if not primaryScreen:
+        raise RuntimeError("No primary monitor found.")
+
+    processRecord: subprocess.Popen | None = None
+    Log.debug(f"Record start: {folderName}")
     try:
-        for item in get_monitors():
-            if item.is_primary:
-                intX = item.x
-                intY = item.y
-                intWidth = item.width
-                intHeight = item.height
-                break
 
         command = [
-            "ffmpeg",
+            strFfmpegPath,
             "-y",  # Overwrite output files without asking
             "-f",
             "gdigrab",  # Use gdigrab for screen capture
             "-framerate",
             "5",  # Set frame rate to 5 fps, for a small size
             "-offset_x",
-            str(intX),
+            str(primaryScreen.x),
             "-offset_y",
-            str(intY),
+            str(primaryScreen.y),
             "-video_size",
-            f"{intWidth}x{intHeight}",
+            f"{primaryScreen.width}x{primaryScreen.height}",
             "-i",
             "desktop",  # Capture the entire desktop
             "-vcodec",
@@ -56,6 +69,7 @@ def record_screen(pid: int, folderName: str) -> None:
             command,
             stdin=subprocess.PIPE,
             stdout=subprocess.DEVNULL,
+            # stderr=subprocess.PIPE wil cause ffmpeg can't stop.
             stderr=subprocess.DEVNULL,
             creationflags=subprocess.CREATE_NO_WINDOW,
         )
@@ -64,30 +78,42 @@ def record_screen(pid: int, folderName: str) -> None:
         while psutil.pid_exists(pid):
             time.sleep(2)
 
+    except Exception as e:
+        Log.error(f"Failed to start recording: {e}")
+        return
+
     finally:
-        # Send "q" to the ffmpeg process
+
+        if processRecord is None:
+            Log.error("Failed to launch ffmpeg — skipping cleanup.")
+            return
+
+        # Politely tell ffmpeg to quit
         if processRecord.stdin:
-            Log.debug("Sending 'q' to ffmpeg process.")
+            Log.debug("Sending 'q' to ffmpeg...")
             processRecord.stdin.write(b"q\n")
             processRecord.stdin.flush()
-
         else:
             Log.warning("Teminate ffmpeg.")
             processRecord.terminate()
 
-        processRecord.wait()
+        processRecord.wait(timeout=10)
 
         if processRecord.returncode == 0:
-            Log.debug("Record end: " + folderName + " - Successfully terminated.")
+            Log.debug(f"Record end: {folderName} – clean exit.")
+            # Add subtitle.
+            _create_log_subtitle(folderName=folderName)
         else:
-            Log.warning("ffmpeg did not exit cleanly. Return code: " + str(processRecord.returncode))
-
-        # Add subtitle.
-        _create_log_subtitle(folderName=folderName)
+            Log.warning(f"ffmpeg exit {processRecord.returncode}.")
 
 
 def _create_log_subtitle(folderName: str) -> None:
     strLogPath = str(Path(folderName).joinpath("human_read_MainProcess.log"))
+
+    if Path(strLogPath).is_file() == False:
+        Log.error("Log file not found, skipping subtitles.")
+        return
+
     strSubtilePath = str(Path(folderName).joinpath("video_record.srt"))
 
     strLogTotal = Path(strLogPath).read_text()

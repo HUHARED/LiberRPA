@@ -389,6 +389,11 @@ Use `Ctrl+F` to search them.
     - [save\_as](#save_as)
     - [show\_text\_input\_box](#show_text_input_box)
     - [show\_message\_box](#show_message_box)
+  - [Trigger](#trigger)
+    - [mouse\_trigger](#mouse_trigger)
+    - [keyboard\_trigger](#keyboard_trigger)
+
+
 ## Basic
 
 ### delay
@@ -5000,4 +5005,56 @@ Returns:
 "ok"|"yes"|"no"|True|False:
         For button types like 'okcancel', 'yesno', 'retrycancel', indicating the user's choice, it will return bool;
         For the 'ok' button type, and for 'question' with responses like "yes" or "no", it will return str.
+```
+
+## Trigger
+
+### mouse_trigger
+
+Trigger a specified function when the given mouse button and modifier keys are pressed/released.
+
+Parameters:
+
+```
+func: The function to execute when the trigger is activated.
+args: Arguments to pass to the function.
+button: Mouse button to listen for ("left", "right", "middle").
+pressCtrl: Whether the Ctrl key must be pressed.
+pressShift: Whether the Shift key must be pressed.
+pressAlt: Whether the Alt key must be pressed.
+pressWin: Whether the Win key must be pressed.
+timing: When to trigger the function, "on_press" or "on_release".
+showNotification: Whether to show a notification when the function is triggered.
+block: Whether to block the main thread until the trigger is executed.
+```
+
+Returns:
+
+```
+T|None: The return value of the executed function if block=True, or None otherwise.
+```
+
+### keyboard_trigger
+
+Trigger a specified function when the given key and modifier keys are pressed/released.
+
+Parameters:
+
+```
+func: The function to execute when the trigger is activated.
+args: Arguments to pass to the function.
+key: Key to listen for. All supported key in the type "HookKey" (If a symbol is typed with Shift, note to set pressShift=True): ['ctrl', 'left ctrl', 'right ctrl', 'shift', 'left shift', 'right shift', 'alt', 'left alt', 'right alt', 'windows', 'left windows', 'right windows', 'tab', 'space', 'enter', 'esc', 'caps lock', 'left menu', 'right menu', 'backspace', 'insert', 'delete', 'end', 'home', 'page up', 'page down', 'left', 'up', 'right', 'down', 'print screen', 'scroll lock', 'pause', 'num lock', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '`', '~', '!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '-', '_', '=', '+', '[', '{', ']', '}', '\\', '|', ';', ':', "'", '"', ',', '<', '.', '>', '/', '?', 'separator', 'decimal', 'f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8', 'f9', 'f10', 'f11', 'f12', 'f13', 'f14', 'f15', 'f16', 'f17', 'f18', 'f19', 'f20', 'f21', 'f22', 'f23', 'f24', 'browser back', 'browser forward', 'browser refresh', 'browser stop', 'browser search key', 'browser favorites', 'browser start and home', 'volume mute', 'volume down', 'volume up', 'next track', 'previous track', 'stop media', 'play/pause media', 'start mail', 'select media', 'start application 1', 'start application 2', 'spacebar', 'clear', 'select', 'print', 'execute', 'help', 'control-break processing', 'applications', 'sleep'] (2 backslash is not visual in Pylance, so use 4 backslash to express one visual backslash.)
+pressCtrl: Whether the Ctrl key must be pressed. Set it be True if key is 'ctrl', 'left ctrl', 'right ctrl' and timing is "on_press"
+pressShift: Whether the Shift key must be pressed. Set it be True if key is 'shift', 'left shift', 'right shift' and timing is "on_press"
+pressAlt: Whether the Alt key must be pressed. Set it be True if key is 'alt', 'left alt', 'right alt' and timing is "on_press"
+pressWin: Whether the Win key must be pressed. Set it be True if key is 'windows', 'left windows', 'right windows' and timing is "on_press"
+timing: When to trigger the function, "on_press" or "on_release".
+showNotification: Whether to show a notification when the function is triggered.
+block: Whether to block the main thread until the trigger is executed.
+```
+
+Returns:
+
+```
+T|None: The return value of the executed function if block=True, or None otherwise.
 ```

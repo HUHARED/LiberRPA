@@ -5,8 +5,18 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
+import sys
+
+if len(sys.argv) >= 2 and sys.argv[1] == "--screenshot":
+    # Run the real screenshot code and leave
+    from liberrpa.UI._Screenshot import _create_screenshot_manually
+
+    _create_screenshot_manually()
+    sys.exit(0)
+
 import multiprocessing
 
+multiprocessing.freeze_support()
 
 processName = multiprocessing.current_process().name
 print(f"=== Starting LiberRPALocalServer.py in {processName} ===")
@@ -16,7 +26,6 @@ if __name__ == "__main__":
     try:
         print("=== '__main__' block is running ===")
         # Set the log folder name.
-        # Run it before multiprocessing.freeze_support() to avoid the error after quitting.
         # ========================
         from liberrpa.Common._Initialization import set_log_folder_name
 
@@ -24,9 +33,6 @@ if __name__ == "__main__":
         from liberrpa.Logging import Log
 
         # ========================
-
-        # run freeze_support() to avoid re-running of it was packaged to an exe.
-        multiprocessing.freeze_support()
 
         print("Start QtWorker process.")
         from liberrpa.UI._QtWorker import run_qt_worker
@@ -41,7 +47,7 @@ if __name__ == "__main__":
 
         print("LiberRPA Local Server running in " + os.getcwd())
 
-        from liberrpa.Dialog import show_notification
+        # from liberrpa.Dialog import show_notification
 
         # The server take a little time to start, so, show the notification to make user know.
         # show_notification(title="LiberRPA Local Server", message="Try to launch...", duration=2, wait=False)
@@ -71,9 +77,9 @@ if __name__ == "__main__":
 
         from liberrpa.Common._BasicConfig import get_basic_config_dict
 
-        dictTemp = get_basic_config_dict()
-        Log.info(f"EditorConfig = {dictTemp}")
-        create_flask_server(port=int(dictTemp["localServerPort"]))
+        dictBasicConfig = get_basic_config_dict()
+        Log.info(f"dictBasicConfig = {dictBasicConfig}")
+        create_flask_server(port=int(dictBasicConfig["localServerPort"]))
     except Exception as e:
         Log.exception_info(e)
     finally:

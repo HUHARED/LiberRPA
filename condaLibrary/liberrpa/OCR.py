@@ -38,8 +38,8 @@ def _initialize() -> None:
     import json5
     import easyocr
 
-    strLiberRPA = get_liberrpa_folder_path()
-    strConfigPath = os.path.join(strLiberRPA, R"envs\ocr\ocr.jsonc")
+    strLiberRPAPath = get_liberrpa_folder_path()
+    strConfigPath = os.path.join(strLiberRPAPath, R"envs\ocr\ocr.jsonc")
     strConfig = Path(strConfigPath).read_text()
     dictOcrConfig: dict[str, list[str]] = json5.loads(strConfig)  # type: ignore - type is right.
 
@@ -47,8 +47,8 @@ def _initialize() -> None:
         dictReader[strModelName] = easyocr.Reader(
             lang_list=dictOcrConfig[strModelName],
             gpu=False,
-            model_storage_directory=os.path.join(strLiberRPA, R"envs\ocr\model"),
-            user_network_directory=os.path.join(strLiberRPA, R"envs\ocr\model\CustomModel"),
+            model_storage_directory=os.path.join(strLiberRPAPath, R"envs\ocr\model"),
+            user_network_directory=os.path.join(strLiberRPAPath, R"envs\ocr\model\CustomModel"),
             detect_network="craft",
             recog_network=strModelName,
             download_enabled=False,
