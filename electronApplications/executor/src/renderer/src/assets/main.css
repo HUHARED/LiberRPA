@@ -1,0 +1,66 @@
+/* FileName: main.css */
+html {
+  overflow: hidden !important;
+}
+
+body {
+  font-family: "Noto Sans Mono", sans-serif;
+}
+
+.clean-space {
+  padding: 0px !important;
+  margin: 0px !important;
+}
+
+.v-btn {
+  text-transform: none !important;
+}
+
+.flex-row {
+  display: flex;
+  flex-direction: row;
+  min-width: 0;
+}
+
+.flex-column {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.flex-row-grow-1 {
+  flex-shrink: 1;
+  flex-grow: 1;
+  flex-basis: 0px;
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+.flex-column-grow-1 {
+  flex-shrink: 1;
+  flex-grow: 1;
+  flex-basis: 0px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.header-label {
+  padding: 0px !important;
+  margin: 0px !important;
+  display: block !important;
+  text-align: center !important;
+  flex-shrink: 0 !important;
+}
+
+.tab-header {
+  /* background-color: #4f959d; */
+  width: 100%;
+
+  border-bottom: 4px solid #4f959d;
+}
+
+.column-header {
+  width: 100%;
+  border-top: 1px solid #98d2c0;
+  border-bottom: 1px solid #98d2c0;
+}
