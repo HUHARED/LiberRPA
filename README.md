@@ -6,7 +6,7 @@
 
 LiberRPA is an RPA toolkit designed for practical, hands-on engineers.
 
-# ⌛ Features
+# ✨ Features
 
 * **Open Source**
 
@@ -198,7 +198,7 @@ You can modify some config of LiberRPA in `LiberRPA/configFiles/basic.jsonc`.
 
 ```
 
-# 🔧 Dependencies and Acknowledgments
+# 🏗️ Dependencies and Acknowledgments
 
 LiberRPA relies on many open-source projects to deliver its functionality.
 
