@@ -1,12 +1,17 @@
 # Ignore specific files in the root folder.
+
+/test/
+/Executor/
+# !electronApplications/executor/
+/djangoConsole/
+
+/configFiles/Executor.jsonc
+
+/.vscode/
+*.pyc
+
 README_chs.md
 InitLiberRPA.exe
-test/
-Executor/
-djangoConsole/
-.vscode/
-*.pyc
-configFiles/Executor.jsonc
 project.json
 temp.txt
 
