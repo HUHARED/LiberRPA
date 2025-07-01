@@ -84,6 +84,10 @@ If you do not want it to start automatically, you can delete the file at this pa
 
 Since LiberRPA is still in development, you might encounter some instability. If that happens, you can locate its icon in the system tray, right-click to exit, and then reopen `LiberRPA/exeFiles/LiberRPALocalServer/LiberRPALocalServer.exe` to restart it.
 
+> Note:
+>
+> You must run LiberRPA Local Server as administrator when It needs to interact with applications that are running with administrator privileges.
+
 ## LiberRPA Chrome Extension
 
 A [Chrome extension](./browserExtensions/liberrpa-chrome-extension/README.md) that must be installed and enabled to perform operations on browsers and HTML elements.
@@ -222,7 +226,7 @@ You can check them in the dependency files:
 
 [Telegram](https://t.me/+U6oCH5Vs6CcxOTg9)
 
-Email：`admin@liberrpa.com`
+Email：`mailwork.hu@gmail.com`
 
 # Change Log
 
