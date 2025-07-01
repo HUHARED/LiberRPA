@@ -1,12 +1,12 @@
 # LiberRPA Editor User Guide
 
-LiberRPA [Editor](./Editor/vscode) is essentially a modified version of [the official portable VS Code](https://code.visualstudio.com/docs/editor/portable)—with altered default settings, added plugins, and custom resources. This means you can deploy LiberRPA on your familiar VS Code or modify the LiberRPA Editor according to your own preferences.
+LiberRPA Editor is essentially a modified version of [the official portable VS Code](https://code.visualstudio.com/docs/editor/portable)—with altered default settings, added plugins, and custom resources. This means you can deploy LiberRPA on your familiar VS Code or modify the LiberRPA Editor according to your own preferences.
 
 # Settings
 
 Review the configurations that LiberRPA has modified by checking the following file:
 
-[LiberRPAEditor/vscode/data/user-data/User/settings.json](./data/user-data/User/settings.json)
+[LiberRPAEditor/data/user-data/User/settings.json](./data/user-data/User/settings.json)
 
 You can hover over each item to see a description of its functionality.
 
@@ -14,7 +14,7 @@ You can hover over each item to see a description of its functionality.
 
 To view the keybindings that LiberRPA has modified, refer to:
 
-[LiberRPAEditor/vscode/data/user-data/User/keybindings.json](./data/user-data/User/keybindings.json)
+[LiberRPAEditor/data/user-data/User/keybindings.json](./data/user-data/User/keybindings.json)
 
 If you're not familiar with the default VS Code shortcuts or haven't customized them, here is a summary to streamline your coding workflow:
 
