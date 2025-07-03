@@ -73,7 +73,7 @@ Ensure that the line follow the [Link Rules](##link-rules).
   * The `"./"` prefix is optional.
   * Avoid using LiberRPA built-in module names: ["Mouse", "Keyboard", "Window", "UiInterface", "Browser", "Excel", "Outlook", "Application", "Database", "Data", "Str", "List", "Dict", "Regex", "Math", "Time", "File", "OCR", "Web", "Mail", "FTP", "Clipboard", "System", "Credential", "ScreenPrint", "Dialog"]
 
-> The Python file must have a `main` function because when you clicking `⊳` in the Start node to execute the whole project, LiberRPA will run the `main` function in each Block node's Python file.
+> ⚠️ Note: The Python file must have a `main` function because when you clicking `⊳` in the Start node to execute the whole project, LiberRPA will run the `main` function in each Block node's Python file.
 
 * **File Creation:**
   Click ![1740304294046](md_images/README/1740304294046.png) in a Block node to open the corresponding Python file, If the file does not exist, LiberRPA will create it and add a default script.
