@@ -25,6 +25,7 @@ import json
 import uiautomation
 from pynput.keyboard import Controller, Key
 import pyautogui
+pyautogui.FAILSAFE = False  # Allow clicking screen corners
 import ctypes
 from typing import Literal
 

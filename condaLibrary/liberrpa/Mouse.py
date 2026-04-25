@@ -28,6 +28,7 @@ from liberrpa.Common._Chrome import click_mouse_event
 
 import uiautomation
 import pyautogui
+pyautogui.FAILSAFE = False  # Allow clicking screen corners
 from pynput.mouse import Controller
 from typing import Literal
 
