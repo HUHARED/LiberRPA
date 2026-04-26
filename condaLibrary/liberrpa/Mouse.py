@@ -33,7 +33,7 @@ from pynput.mouse import Controller
 from typing import Literal
 
 
-mouse = Controller()
+_mouseController = Controller()
 
 
 def _check_mouse_button(button: MouseButton) -> None:
@@ -466,12 +466,12 @@ def scroll_wheel(
     match direction:
         case "down":
             for i in range(0, times, 1):
-                mouse.scroll(dx=0, dy=-1)
+                _mouseController.scroll(dx=0, dy=-1)
                 delay(100)
 
         case "up":
             for i in range(0, times, 1):
-                mouse.scroll(dx=0, dy=1)
+                _mouseController.scroll(dx=0, dy=1)
                 delay(100)
 
         case _:

@@ -12,7 +12,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 # LiberRPA module
 # Basic module
 from liberrpa.Logging import Log
-from liberrpa.Basic import *
+from liberrpa.Basic import delay
 
 # UI element manipulation
 import liberrpa.Mouse as Mouse
@@ -64,5 +64,5 @@ from liberrpa.Common._TypedValue import SelectorWindow, SelectorUia, SelectorHtm
 from liberrpa.Common._Exception import UiElementNotFoundError, UiTimeoutError, UiOperationError, ChromeError, MailError
 
 
-# Build-in module that liberrpa-snippets-tree or users may need.
+# Build-in module that liberrpa-snippets-tree or users often need.
 import os
