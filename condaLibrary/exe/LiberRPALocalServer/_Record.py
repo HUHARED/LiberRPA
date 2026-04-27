@@ -26,8 +26,8 @@ def _find_ffmpeg() -> str:
         return "ffmpeg"
 
 
-strFfmpegPath = _find_ffmpeg()
-Log.info(f"strFfmpegPath={strFfmpegPath}")
+_strFfmpegPath = _find_ffmpeg()
+Log.info(f"_strFfmpegPath={_strFfmpegPath}")
 
 
 def record_screen(pid: int, folderName: str) -> None:
@@ -42,7 +42,7 @@ def record_screen(pid: int, folderName: str) -> None:
     try:
 
         command = [
-            strFfmpegPath,
+            _strFfmpegPath,
             "-y",  # Overwrite output files without asking
             "-f",
             "gdigrab",  # Use gdigrab for screen capture
@@ -56,12 +56,12 @@ def record_screen(pid: int, folderName: str) -> None:
             f"{primaryScreen.width}x{primaryScreen.height}",
             "-i",
             "desktop",  # Capture the entire desktop
-            "-vcodec",
+            "-c:v",
             "libx265",  # Use x265 codec, for a small size
             "-preset",
-            "medium",  # Use a medium preset for balancing CPU usage and size
+            "faster",  # Use a faster preset for reducing CPU usage, compress its size later.
             "-crf",
-            "38",  # Set the quality to a higher CRF value for smaller size
+            "28",  # Set the default quality, compress later.
             str(Path(folderName).joinpath("video_record.mkv")),  # Save the output as a single MKV file
         ]
 
@@ -93,16 +93,29 @@ def record_screen(pid: int, folderName: str) -> None:
             Log.debug("Sending 'q' to ffmpeg...")
             processRecord.stdin.write(b"q\n")
             processRecord.stdin.flush()
+
         else:
             Log.warning("Teminate ffmpeg.")
             processRecord.terminate()
 
-        processRecord.wait(timeout=10)
+        try:
+            processRecord.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            Log.warning("ffmpeg did not stop after 10 seconds. Terminating it.")
+            processRecord.terminate()
+
+            try:
+                processRecord.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                Log.warning("ffmpeg still did not stop. Killing it.")
+                processRecord.kill()
+                processRecord.wait()
 
         if processRecord.returncode == 0:
             Log.debug(f"Record end: {folderName} – clean exit.")
             # Add subtitle.
             _create_log_subtitle(folderName=folderName)
+            _compress_video(folderName=folderName)
         else:
             Log.warning(f"ffmpeg exit {processRecord.returncode}.")
 
@@ -172,6 +185,84 @@ def _create_log_subtitle(folderName: str) -> None:
             intIndex += 1
 
     Log.debug("Create subtitle: " + strSubtilePath)
+
+
+def _compress_video(folderName: str) -> None:
+    pathOriginal = Path(folderName).joinpath("video_record.mkv")
+    pathTemp = Path(folderName).joinpath("video_record_temp.mkv")
+
+    if not pathOriginal.is_file():
+        Log.error(f"Original video not found: {str(pathOriginal)}")
+        return
+
+    # Users may change log folder, so add the checker.
+    if pathTemp.is_file():
+        pathTemp.unlink()
+
+    command = [
+        _strFfmpegPath,
+        "-y",  # Overwrite output files without asking
+        "-i",
+        str(pathOriginal),
+        "-map",
+        "0:v:0",  # Use only the first video stream.
+        "-c:v",
+        "libx265",  # Use x265 codec, for a small size
+        "-preset",
+        "slow",  # Use a slow preset for reducing its size.
+        "-crf",
+        "38",  # Set the quality to a higher CRF value for smaller size
+        str(pathTemp),
+    ]
+
+    # processCompleted: subprocess.CompletedProcess | None = None
+
+    try:
+
+        # Use subprocess.run() to wait it completed.
+        processCompleted = subprocess.run(
+            command,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            text=True,
+            creationflags=subprocess.CREATE_NO_WINDOW,
+        )
+
+    except Exception as e:
+        Log.error(f"Failed to compress video: {e}")
+        return
+
+    """ if processCompleted is None:
+        Log.error("Failed to launch ffmpeg.")
+        return """
+
+    if processCompleted.returncode != 0:
+        Log.warning(f"ffmpeg exit {processCompleted.returncode}.")
+        Log.warning(processCompleted.stderr[-3000:])
+
+        if pathTemp.is_file():
+            pathTemp.unlink()
+
+        return
+
+    if not pathTemp.is_file():
+        Log.error("ffmpeg compression finished, but temp video was not created.")
+        return
+
+    # GPT said bigger output file is possible.
+    intOriginalSize = pathOriginal.stat().st_size
+    intNewSize = pathTemp.stat().st_size
+
+    Log.debug(f"Original size: {intOriginalSize}, compressed size: {intNewSize}")
+
+    if intNewSize >= intOriginalSize:
+        Log.warning("Compressed video is not smaller. Keep original video.")
+        pathTemp.unlink()
+        return
+
+    pathTemp.replace(pathOriginal)
+    Log.debug("Compressing done.")
 
 
 if __name__ == "__main__":
