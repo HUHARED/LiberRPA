@@ -15,6 +15,10 @@ from PIL import Image
 import os
 import threading
 import time
+from typing import Any, Literal
+
+_iconTray: Any | None = None
+_lockTray = threading.Lock()  # Ensure only one logic changes the icon at the same time.
 
 
 @Log.trace()
@@ -33,12 +37,43 @@ def stop_server():
     os._exit(0)
 
 
+def _load_icon_image(component: Literal["LiberRPALocalServer", "LiberRPALocalServer_Indicating"]) -> Image.Image:
+
+    # Use copy() so the file handle is closed immediately. This avoids possible file locking problems on Windows.
+    with Image.open(get_liberrpa_ico_path(component=component)) as img:
+        return img.copy()
+
+
 @Log.trace()
 def setup_tray_icon():
-    imgIcon = Image.open(get_liberrpa_ico_path(component="LiberRPALocalServer"))
+    global _iconTray
+
+    imgIcon = _load_icon_image(component="LiberRPALocalServer")
     menu = (MenuItem("Exit", stop_server),)
-    icon = Icon(name="LiberRPA", icon=imgIcon, title="LiberRPA Local Server", menu=menu)
+
+    icon = Icon(
+        name="LiberRPA",
+        icon=imgIcon,
+        title="LiberRPA Local Server",
+        menu=menu,
+    )
+
+    with _lockTray:
+        _iconTray = icon
+
     icon.run()
+
+
+@Log.trace()
+def change_tray_icon(component: Literal["LiberRPALocalServer", "LiberRPALocalServer_Indicating"]) -> None:
+    imgIcon = _load_icon_image(component=component)
+
+    with _lockTray:
+        if _iconTray is None:
+            Log.warning("Tray icon has not been initialized yet.")
+            return
+
+        _iconTray.icon = imgIcon
 
 
 @Log.trace()

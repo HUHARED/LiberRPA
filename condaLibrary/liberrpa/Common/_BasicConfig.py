@@ -66,10 +66,14 @@ def get_liberrpa_folder_path() -> str:
         )
 
 
-def get_liberrpa_ico_path(component: Literal["LiberRPALocalServer"] | None = None) -> str:
+def get_liberrpa_ico_path(
+    component: Literal["LiberRPALocalServer", "LiberRPALocalServer_Indicating"] | None = None,
+) -> str:
     strLiberRPAPath = get_liberrpa_folder_path()
     if component == "LiberRPALocalServer":
         strIconPath = Path(strLiberRPAPath) / "envs/assets/icon/LiberRPA_icon_v3_color_LocalServer.ico"
+    elif component == "LiberRPALocalServer_Indicating":
+        strIconPath = Path(strLiberRPAPath) / "envs/assets/icon/LiberRPA_icon_v3_color_LocalServer_indicating.ico"
     else:
         strIconPath = Path(strLiberRPAPath) / "envs/assets/icon/LiberRPA_icon_v3_color.ico"
     if not Path(strIconPath).is_file():

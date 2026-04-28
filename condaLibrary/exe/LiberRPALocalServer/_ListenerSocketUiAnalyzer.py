@@ -14,6 +14,7 @@ from liberrpa.Dialog import show_notification
 import exe.LiberRPALocalServer._UiAnalyzer as _UiAnalyzer
 import exe.LiberRPALocalServer._ElementTree as _ElementTree
 from exe.LiberRPALocalServer._ServerInit import sioServer, get_client_id
+from exe.LiberRPALocalServer._Tray import change_tray_icon
 
 
 from flask_socketio import emit
@@ -54,9 +55,14 @@ def handle_uianalyzer_command(message: str) -> None:
             "data": "Processing failed: An UI Analyzer command is running",
         }
         emit("message_flask_to_uianalyzer", json.dumps(result), to=dictUiAnalyzerCmd[strId])
-        return None
+
+        del dictUiAnalyzerCmd[strId]
+
+        return
+
     else:
         eventIsHandleUiAnalyzer.set()
+        change_tray_icon(component="LiberRPALocalServer_Indicating")
 
     try:
         dictCommand = json.loads(message)
@@ -103,7 +109,11 @@ def handle_uianalyzer_command(message: str) -> None:
                 }
                 Log.info(result)
                 emit("message_flask_to_uianalyzer", json.dumps(result), to=dictUiAnalyzerCmd[strId])
+
                 del dictUiAnalyzerCmd[strId]
+                eventIsHandleUiAnalyzer.clear()
+                change_tray_icon(component="LiberRPALocalServer")
+
                 return None
 
     except Exception as e:
@@ -139,3 +149,6 @@ def handle_uianalyzer_command(message: str) -> None:
 
     del dictUiAnalyzerCmd[strId]
     eventIsHandleUiAnalyzer.clear()
+    change_tray_icon(component="LiberRPALocalServer")
+
+    return
