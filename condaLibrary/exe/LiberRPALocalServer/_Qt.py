@@ -51,7 +51,7 @@ def create_area(
     y: int = 0,
     width: int = 400,
     height: int = 200,
-    fontFamily: str = "Roboto Mono",
+    fontFamily: str = "Noto Sans Mono",
     fontSize: int = 16,
     fontColor: Literal["red", "green", "blue", "yellow", "purple", "pink", "black"] = "red",
 ) -> ScreenPrintObj:

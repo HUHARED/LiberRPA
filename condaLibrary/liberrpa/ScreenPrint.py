@@ -21,7 +21,7 @@ def create_area(
     y: int = 0,
     width: int = 400,
     height: int = 200,
-    fontFamily: str = "Roboto Mono",
+    fontFamily: str = "Noto Sans Mono",
     fontSize: int = 16,
     fontColor: Literal["red", "green", "blue", "yellow", "purple", "pink", "black"] = "red",
 ) -> ScreenPrintObj:
@@ -113,10 +113,10 @@ if __name__ == "__main__":
     import time
 
     screenPrintObj = create_area(
-        x=0, y=0, width=400, height=200, fontFamily="Roboto Mono", fontSize=14, fontColor="red"
+        x=0, y=0, width=400, height=200, fontFamily="Noto Sans Mono", fontSize=14, fontColor="red"
     )
     screenPrintObj2 = create_area(
-        x=500, y=0, width=400, height=200, fontFamily="Roboto Mono", fontSize=14, fontColor="yellow"
+        x=500, y=0, width=400, height=200, fontFamily="Noto Sans Mono", fontSize=14, fontColor="yellow"
     )
     time.sleep(1)
     for i in range(1, 50, 1):
