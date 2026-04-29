@@ -5,19 +5,16 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vue-tsc && vite build",
+    "build": "tsc --noEmit && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
     "chrome-inject-eval": "^1.0.4",
-    "socket.io-client": "^4.7.5",
-    "vue": "^3.4.21"
+    "socket.io-client": "^4.7.5"
   },
   "devDependencies": {
     "@types/chrome": "^0.0.268",
-    "@vitejs/plugin-vue": "^5.0.4",
     "typescript": "^5.2.2",
-    "vite": "^5.2.0",
-    "vue-tsc": "^2.0.6"
+    "vite": "^5.2.0"
   }
 }
