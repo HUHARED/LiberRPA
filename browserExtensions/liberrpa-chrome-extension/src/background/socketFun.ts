@@ -1,6 +1,7 @@
 // FileName: socketFun.ts
 import io from "socket.io-client";
 import { handleCommand } from "./handleCommand";
+import { setSocketConnected } from "./icon";
 
 let intServerPort: number | null = null;
 let socket: ReturnType<typeof io> | null = null;
@@ -45,6 +46,8 @@ async function getServerPort(): Promise<number> {
 }
 
 export async function setupSocket(): Promise<void> {
+  await setSocketConnected(false);
+
   try {
     const port = await getServerPort();
     const url = `http://localhost:${port}`;
@@ -56,16 +59,19 @@ export async function setupSocket(): Promise<void> {
         "chrome_extension_connect",
         JSON.stringify("The message for recording sid.")
       );
+      void setSocketConnected(true);
     });
 
     socket.on("disconnect", () => {
       console.log("Socket.IO connection disconnected");
       // socket = null;
+      void setSocketConnected(false);
     });
 
     socket.on("connect_error", (e: Error) => {
       console.error("Socket.IO connection error:", e);
       // socket = null;
+      void setSocketConnected(false);
     });
 
     socket.on("message_flask_to_chrome", async (data: any) => {
@@ -88,13 +94,14 @@ export async function setupSocket(): Promise<void> {
     });
   } catch (e) {
     console.error("Failed to setup socket:", e);
+    await setSocketConnected(false);
   }
 }
 
 function sendResultToFlask(data: any) {
   console.log("--sendResultToFlask--");
 
-  if (socket) {
+  if (socket?.connected) {
     // Here doesn't need try-catch for json, due to handleCommand() has done it.
     socket.emit("result_chrome_to_flask", JSON.stringify(data));
   } else {

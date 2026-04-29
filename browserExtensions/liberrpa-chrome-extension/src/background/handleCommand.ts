@@ -19,6 +19,7 @@ import {
   getCookies,
   setCookies,
 } from "./tabFunc";
+import { runWithFindingIcon } from "./icon";
 
 export async function handleCommand(dictCommand: {
   [key: string]: any;
@@ -184,7 +185,7 @@ export async function handleCommand(dictCommand: {
       // Send all other command to content.
       default:
         // The result is assigned in content.ts with the same format, so just use it.
-        result = await sendCommandToContent(dictCommand);
+        result = await runWithFindingIcon(() => sendCommandToContent(dictCommand));
 
         break;
     }
@@ -207,9 +208,7 @@ export async function handleCommand(dictCommand: {
     const strTemp = JSON.stringify(result, null, 2);
     console.log(`result = ${strTemp}`);
   } catch (e) {
-    console.error(
-      `Failed to stringify the object: ${result}, convert data into string.`
-    );
+    console.error(`Failed to stringify the object: ${result}, convert data into string.`);
     result.data = String(result.data);
   }
 
