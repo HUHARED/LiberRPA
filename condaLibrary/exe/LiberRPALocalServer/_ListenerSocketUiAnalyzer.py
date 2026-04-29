@@ -52,8 +52,9 @@ def handle_uianalyzer_command(message: str) -> None:
     if eventIsHandleUiAnalyzer.is_set():
         result: DictSocketResult = {
             "boolSuccess": False,
-            "data": "Processing failed: An UI Analyzer command is running",
+            "data": "Processing failed: " + "Another UI Analyzer command is running",
         }
+        Log.debug(("Another UI Analyzer command is running."))
         emit("message_flask_to_uianalyzer", json.dumps(result), to=dictUiAnalyzerCmd[strId])
 
         del dictUiAnalyzerCmd[strId]
@@ -65,7 +66,7 @@ def handle_uianalyzer_command(message: str) -> None:
         change_tray_icon(component="LiberRPALocalServer_Indicating")
 
     try:
-        dictCommand = json.loads(message)
+        dictCommand: dict[str, Any] = json.loads(message)
         # Delay one seconds for avoiding the mouse's up when clicking UI Analyzer's button be captured.
         # delay(1000)
         match dictCommand.get("commandName"):
@@ -114,7 +115,7 @@ def handle_uianalyzer_command(message: str) -> None:
                 eventIsHandleUiAnalyzer.clear()
                 change_tray_icon(component="LiberRPALocalServer")
 
-                return None
+                return
 
     except Exception as e:
         result: DictSocketResult = {
@@ -123,32 +124,37 @@ def handle_uianalyzer_command(message: str) -> None:
         }
     else:
         result: DictSocketResult = {"boolSuccess": True, "data": temp}
-    # preview is so long, not print it.
-    if isinstance(result["data"], dict) and result["data"].get("preview") is not None:
-        resultTemp = deepcopy(result)
-        del resultTemp["data"]["preview"]
-        Log.debug(resultTemp)
-    else:
-        Log.info(result)
-    emit("message_flask_to_uianalyzer", json.dumps(result), to=dictUiAnalyzerCmd[strId])
 
-    # Genarate Element Tree.
-    if dictCommand.get("commandName") == "indicate_uia" and element:
-        try:
-            tupleTemp = _ElementTree.generate_control_tree(elementFinal=element)
-        except Exception as e:
-            Log.exception_info(e)
-            show_notification(
-                title="LiberRPA Local Server", message="Error to indicate uia\n" + str(e), duration=5, wait=False
-            )
+    try:
+        # preview is so long, not print it.
+        if isinstance(result["data"], dict) and result["data"].get("preview") is not None:
+            resultTemp = deepcopy(result)
+            del resultTemp["data"]["preview"]
+            Log.debug(resultTemp)
         else:
-            emit("message_flask_to_uianalyzer", "Element_Tree:" + json.dumps(tupleTemp), to=dictUiAnalyzerCmd[strId])
+            Log.info(result)
+        emit("message_flask_to_uianalyzer", json.dumps(result), to=dictUiAnalyzerCmd[strId])
 
-    if dictCommand.get("commandName") == "indicate_chrome" and tupleEleTree:
-        emit("message_flask_to_uianalyzer", "Element_Tree:" + json.dumps(tupleEleTree), to=dictUiAnalyzerCmd[strId])
+        # Genarate Element Tree.
+        if dictCommand.get("commandName") == "indicate_uia" and element:
+            try:
+                tupleTemp = _ElementTree.generate_control_tree(elementFinal=element)
+            except Exception as e:
+                Log.exception_info(e)
+                show_notification(
+                    title="LiberRPA Local Server", message="Error to indicate uia\n" + str(e), duration=5, wait=False
+                )
+            else:
+                emit(
+                    "message_flask_to_uianalyzer", "Element_Tree:" + json.dumps(tupleTemp), to=dictUiAnalyzerCmd[strId]
+                )
 
-    del dictUiAnalyzerCmd[strId]
-    eventIsHandleUiAnalyzer.clear()
-    change_tray_icon(component="LiberRPALocalServer")
+        if dictCommand.get("commandName") == "indicate_chrome" and tupleEleTree:
+            emit("message_flask_to_uianalyzer", "Element_Tree:" + json.dumps(tupleEleTree), to=dictUiAnalyzerCmd[strId])
+    except Exception as e:
+        Log.error(get_exception_info(e))
+    finally:
 
-    return
+        del dictUiAnalyzerCmd[strId]
+        eventIsHandleUiAnalyzer.clear()
+        change_tray_icon(component="LiberRPALocalServer")

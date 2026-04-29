@@ -152,7 +152,7 @@ def indicate_uia(indicateDelaySeconds: int = 1) -> tuple[DictForUiAnalyzer, uiau
     #     raise e
 
     finally:
-        Log.critical("Finnally?")
+        Log.critical("Finally?")
         if "threadHook" in locals() and threadHook.is_alive():
             Log.critical("Trying to unhook and join the thread.")
             _Hook.unhook(source="indicate_uia")
@@ -161,7 +161,10 @@ def indicate_uia(indicateDelaySeconds: int = 1) -> tuple[DictForUiAnalyzer, uiau
                 Log.error("Thread hook did not terminate in time. Continuing anyway.")
             else:
                 Log.debug("Successfully joined the hook thread.")
-        """ Log.critical("Finnally?")
+        else:
+            Log.debug("threadHook has gone.")
+
+        """ Log.critical("Finally?")
         _Hook.unhook(source="indicate_uia")
         threadHook.join()
         Log.debug("End finally.")
@@ -258,8 +261,17 @@ def indicate_chrome(
         return (dictReturn, tupleEleTree)
 
     finally:
-        _Hook.unhook(source="indicate_chrome")
-        threadHook.join()
+        Log.critical("Finally?")
+        if "threadHook" in locals() and threadHook.is_alive():
+            Log.critical("Trying to unhook and join the thread.")
+            _Hook.unhook(source="indicate_chrome")
+            threadHook.join(timeout=2)
+            if threadHook.is_alive():
+                Log.error("Thread hook did not terminate in time. Continuing anyway.")
+            else:
+                Log.debug("Successfully joined the hook thread.")
+        else:
+            Log.debug("threadHook has gone.")
 
 
 @Log.trace()
@@ -415,8 +427,17 @@ def indicate_window(indicateDelaySeconds: int = 1) -> DictForUiAnalyzer | None:
         return dictReturn
 
     finally:
-        _Hook.unhook(source="indicate_window")
-        threadHook.join()
+        Log.critical("Finally?")
+        if "threadHook" in locals() and threadHook.is_alive():
+            Log.critical("Trying to unhook and join the thread.")
+            _Hook.unhook(source="indicate_window")
+            threadHook.join(timeout=2)
+            if threadHook.is_alive():
+                Log.error("Thread hook did not terminate in time. Continuing anyway.")
+            else:
+                Log.debug("Successfully joined the hook thread.")
+        else:
+            Log.debug("threadHook has gone.")
 
 
 @Log.trace()
