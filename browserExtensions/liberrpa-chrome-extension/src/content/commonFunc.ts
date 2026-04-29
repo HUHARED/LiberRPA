@@ -26,7 +26,7 @@ export function getElementAttrByCoordinates(
 
   if (!tempElement) {
     throw new Error(
-      `Didn't found element in the coordinates (${x}, ${y}), maybe the web page scaling is not 100%?`
+      `Didn't found element in the coordinates (${x}, ${y}), maybe it's not the last focused tab, or its scaling is not 100%?`
     );
   }
 

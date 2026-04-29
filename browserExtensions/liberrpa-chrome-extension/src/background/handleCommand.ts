@@ -3,7 +3,7 @@
 import { DictResultToFlask } from "./interface";
 import { getDownloadList } from "./commonFun";
 import {
-  getActiveTabId,
+  getActiveCommonWebPageTabId,
   getState,
   goBackward,
   goForward,
@@ -227,13 +227,7 @@ async function sendCommandToContent(dictCommand: {
   };
 
   try {
-    const tabs = await chrome.tabs.query({
-      active: true,
-      lastFocusedWindow: true,
-    });
-    console.log("tabs", tabs);
-
-    const tabId = await getActiveTabId();
+    const tabId = await getActiveCommonWebPageTabId();
 
     return new Promise((resolve, _) => {
       chrome.tabs.sendMessage(tabId, dictCommand, (response: DictResultToFlask) => {
@@ -248,9 +242,7 @@ async function sendCommandToContent(dictCommand: {
       });
     });
   } catch (e) {
-    resultError.data = `Error sending command to Chrome content script: ${
-      (e as Error).message
-    }`;
+    resultError.data = `${(e as Error).message}`;
     return resultError;
   }
 }

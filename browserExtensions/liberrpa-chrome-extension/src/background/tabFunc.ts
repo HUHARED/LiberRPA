@@ -2,54 +2,64 @@
 
 import { DictResultToFlask } from "./interface";
 
-export async function getActiveTab(): Promise<chrome.tabs.Tab> {
-  console.log("--getActiveTab--");
+type CommonWebPageTab = chrome.tabs.Tab & { id: number; url: string };
 
-  const tabs = await chrome.tabs.query({
-    active: true,
-    lastFocusedWindow: true,
-  });
-  console.log("tabs", tabs);
+const STR_NO_PERMISSION =
+  "maybe it's a Chrome built-in page so LiberRPA extension has no permission?";
 
-  if (tabs.length === 0) {
-    throw new Error(
-      "Failed to locate the active tab, maybe it's a Chrome built-in page so LiberRPA extension has no permission?"
-    );
+// Type guard
+function isCommonWebPageTab(tab: chrome.tabs.Tab): tab is CommonWebPageTab {
+  if (tab.id === undefined || tab.url === undefined) {
+    return false;
   }
-  return tabs[0];
+
+  try {
+    const url = new URL(tab.url);
+
+    return (
+      url.protocol === "http:" || url.protocol === "https:" || url.protocol === "file:"
+    );
+  } catch (e) {
+    return false;
+  }
 }
 
-export async function getActiveTabId(): Promise<number> {
-  console.log("--getActiveTabId--");
+export async function getActiveCommonWebPageTab(): Promise<CommonWebPageTab> {
+  console.log("--getActiveCommonWebPageTab--");
 
-  let tabId: number;
+  const win = await chrome.windows.getLastFocused({
+    populate: true,
+    windowTypes: ["normal"],
+  });
 
-  // Confirmed there is an active tab and it has an ID
-  const tab = await getActiveTab();
+  const tabs = win.tabs ?? [];
+  console.log("tabs", tabs);
 
-  if (!tab.id) {
-    const fallbackTabs = await chrome.tabs.query({
-      active: true,
-    });
-    console.log("fallbackTabs", fallbackTabs);
-    if (fallbackTabs.length === 0 || !fallbackTabs[0].id) {
-      throw new Error(
-        "Failed to locate the active tab, maybe it's a Chrome built-in page so LiberRPA extension has no permission?"
-      );
-    } else {
-      tabId = fallbackTabs[0].id;
-    }
+  const tabActive = tabs.find(
+    (tab): tab is CommonWebPageTab => tab.active && isCommonWebPageTab(tab)
+  );
+
+  console.log("tabActive:", tabActive);
+
+  if (tabActive !== undefined) {
+    return tabActive;
   } else {
-    tabId = tab.id;
+    throw new Error("Failed to locate the active tab, " + STR_NO_PERMISSION);
   }
+}
 
-  return tabId;
+export async function getActiveCommonWebPageTabId(): Promise<number> {
+  console.log("--getActiveCommonWebPageTabId--");
+
+  const tab = await getActiveCommonWebPageTab();
+
+  return tab.id;
 }
 
 export async function getState(): Promise<DictResultToFlask> {
   console.log("--getState--");
 
-  const tab = await getActiveTab();
+  const tab = await getActiveCommonWebPageTab();
 
   const result: DictResultToFlask = {
     boolSuccess: true,
@@ -62,7 +72,7 @@ export async function getState(): Promise<DictResultToFlask> {
 export async function goBackward(): Promise<DictResultToFlask> {
   console.log("--goBackward--");
 
-  const tabId = await getActiveTabId();
+  const tabId = await getActiveCommonWebPageTabId();
   await chrome.tabs.goBack(tabId);
 
   const result: DictResultToFlask = {
@@ -76,7 +86,7 @@ export async function goBackward(): Promise<DictResultToFlask> {
 export async function goForward(): Promise<DictResultToFlask> {
   console.log("--goForward--");
 
-  const tabId = await getActiveTabId();
+  const tabId = await getActiveCommonWebPageTabId();
   await chrome.tabs.goForward(tabId);
 
   const result: DictResultToFlask = {
@@ -90,7 +100,7 @@ export async function goForward(): Promise<DictResultToFlask> {
 export async function refresh(): Promise<DictResultToFlask> {
   console.log("--refresh--");
 
-  const tabId = await getActiveTabId();
+  const tabId = await getActiveCommonWebPageTabId();
   await chrome.tabs.reload(tabId);
 
   const result: DictResultToFlask = {
@@ -101,9 +111,7 @@ export async function refresh(): Promise<DictResultToFlask> {
   return result;
 }
 
-export async function waitLoadCompleted(
-  timeout: number
-): Promise<DictResultToFlask> {
+export async function waitLoadCompleted(timeout: number): Promise<DictResultToFlask> {
   console.log("--waitLoadCompleted--");
 
   return new Promise<DictResultToFlask>((resolve, reject) => {
@@ -125,9 +133,7 @@ export async function waitLoadCompleted(
           console.log(`Tab is still loading. Checking again...`);
           timeUsed += 1000;
           if (timeUsed >= timeout) {
-            reject(
-              `The active tab doesn't load completed after ${timeout} milliseconds.`
-            );
+            reject(`The active tab doesn't load completed after ${timeout} milliseconds.`);
             return;
           }
           setTimeout(checkTabStatus, 1000);
@@ -147,7 +153,7 @@ export async function navigate(
 ): Promise<DictResultToFlask> {
   console.log("--navigate--");
 
-  const tabId = await getActiveTabId();
+  const tabId = await getActiveCommonWebPageTabId();
   await chrome.tabs.update(tabId, { url: url });
 
   if (shouldWaitLoadCompleted) {
@@ -204,9 +210,7 @@ export async function openNewWindow(
   return result;
 }
 
-export async function switchTab(
-  titleOrIndex: string | number
-): Promise<DictResultToFlask> {
+export async function switchTab(titleOrIndex: string | number): Promise<DictResultToFlask> {
   console.log("--switchTab--");
 
   const tabs = await chrome.tabs.query({ currentWindow: true });
@@ -224,7 +228,7 @@ export async function switchTab(
     const tabId = tabs[titleOrIndex].id;
     if (!tabId) {
       throw new Error(
-        `Failed to locate the target tab (index = ${titleOrIndex}), maybe it's a Chrome built-in page so LiberRPA extension has no permission?`
+        `Failed to locate the target tab (index = ${titleOrIndex}), ` + STR_NO_PERMISSION
       );
     }
 
@@ -233,7 +237,7 @@ export async function switchTab(
     const tabToSwitch = tabs.find((tab) => tab.title === titleOrIndex);
     if (!tabToSwitch || !tabToSwitch.id) {
       throw new Error(
-        `Failed to locate the target tab (title=${titleOrIndex}), maybe it's a Chrome built-in page so LiberRPA extension has no permission?`
+        `Failed to locate the target tab (title=${titleOrIndex}), ` + STR_NO_PERMISSION
       );
     }
     await chrome.tabs.update(tabToSwitch.id, { active: true });
@@ -250,7 +254,7 @@ export async function switchTab(
 export async function closeCurrentTab(): Promise<DictResultToFlask> {
   console.log("--closeCurrentTab--");
 
-  const tabId = await getActiveTabId();
+  const tabId = await getActiveCommonWebPageTabId();
   await chrome.tabs.remove(tabId);
 
   const result: DictResultToFlask = {
@@ -264,13 +268,7 @@ export async function closeCurrentTab(): Promise<DictResultToFlask> {
 export async function getUrl(): Promise<DictResultToFlask> {
   console.log("--getUrl--");
 
-  const tab = await getActiveTab();
-
-  if (!tab.url) {
-    throw new Error(
-      `Failed to get the url, maybe it's a Chrome built-in page so LiberRPA extension has no permission?`
-    );
-  }
+  const tab = await getActiveCommonWebPageTab();
 
   const result: DictResultToFlask = {
     boolSuccess: true,
@@ -283,12 +281,10 @@ export async function getUrl(): Promise<DictResultToFlask> {
 export async function getTitle(): Promise<DictResultToFlask> {
   console.log("--getTitle--");
 
-  const tab = await getActiveTab();
+  const tab = await getActiveCommonWebPageTab();
 
   if (!tab.title) {
-    throw new Error(
-      `Failed to get the title, maybe it's a Chrome built-in page so LiberRPA extension has no permission?`
-    );
+    throw new Error("Failed to get the title, " + STR_NO_PERMISSION);
   }
 
   const result: DictResultToFlask = {
@@ -302,13 +298,7 @@ export async function getTitle(): Promise<DictResultToFlask> {
 export async function getCookies(): Promise<DictResultToFlask> {
   console.log("--getCookies--");
 
-  const tab = await getActiveTab();
-
-  if (!tab.url) {
-    throw new Error(
-      `Failed to locate the target tab, maybe it's a Chrome built-in page so LiberRPA extension has no permission?`
-    );
-  }
+  const tab = await getActiveCommonWebPageTab();
 
   const url = new URL(tab.url);
   const domain = url.hostname;
@@ -346,13 +336,7 @@ export async function setCookies(
 ): Promise<DictResultToFlask> {
   console.log("--setCookies--");
 
-  const tab = await getActiveTab();
-
-  if (!tab.url) {
-    throw new Error(
-      `Failed to locate the target tab, maybe it's a Chrome built-in page so LiberRPA extension has no permission?`
-    );
-  }
+  const tab = await getActiveCommonWebPageTab();
 
   const url = new URL(tab.url);
   const domainTemp = url.hostname;
@@ -374,8 +358,7 @@ export async function setCookies(
   console.log(arrCookiesOriginal);
 
   const cookiesOriginal = arrCookiesOriginal.find(
-    (cookie) =>
-      cookie.domain === domain && cookie.name === name && cookie.path === path
+    (cookie) => cookie.domain === domain && cookie.name === name && cookie.path === path
   );
 
   if (!cookiesOriginal) {
