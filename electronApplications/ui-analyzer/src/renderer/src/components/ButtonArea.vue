@@ -26,7 +26,7 @@
           <v-tooltip activator="parent" location="bottom">
             <div>
               Indicate an html element in the actived tab.<br />
-              (Only support Chrome now.)
+              (Only support Chrome now. Can only find items in the last focused tab!)
             </div>
           </v-tooltip>
         </v-btn>
