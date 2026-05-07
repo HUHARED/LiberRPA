@@ -155,7 +155,6 @@
 </template>
 
 <script setup lang="ts">
-import { VNumberInput } from "vuetify/labs/VNumberInput";
 import { computed } from "vue";
 
 import { useSettingStore, useInformationStore } from "../store";

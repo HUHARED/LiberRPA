@@ -51,8 +51,6 @@
 </template>
 
 <script setup lang="ts">
-import { VTreeview } from "vuetify/labs/VTreeview";
-
 import { loggerRenderer } from "../ipcOfRenderer";
 import { SelectorNonWindow } from "../../../shared/interface";
 import { useSelectorStore, useInformationStore } from "../store";
