@@ -1,8 +1,9 @@
 // FileName: index.ts
-import { app, BrowserWindow, ipcMain, screen } from "electron";
+import { app, BrowserWindow, ipcMain, screen, nativeImage } from "electron";
 import { join } from "path";
 import { electronApp, optimizer, is } from "@electron-toolkit/utils";
 import icon from "../../resources/LiberRPA_icon_v3_color_UiAnalyzer_256.ico?asset";
+import noLinkIcon from "../../resources/NoLink_16px.png?asset";
 
 import { loggerMain } from "./logger";
 import { deleteTimeoutScreenshot } from "./init";
@@ -94,6 +95,19 @@ app.whenReady().then(() => {
               mainWindowObj.restore();
             } else {
               mainWindowObj.minimize();
+            }
+            break;
+
+          case "cmd-toggle-socket-status":
+            if ((data as boolean) === true) {
+              mainWindowObj.setTitle("UI Analyzer - LiberRPA");
+              mainWindowObj.setOverlayIcon(null, "Local Server is working.");
+            } else {
+              mainWindowObj.setTitle("UI Analyzer - No Local Server");
+              mainWindowObj.setOverlayIcon(
+                nativeImage.createFromPath(noLinkIcon),
+                "No Local Server"
+              );
             }
             break;
 

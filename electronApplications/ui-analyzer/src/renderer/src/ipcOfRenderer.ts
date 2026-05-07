@@ -86,16 +86,19 @@ export function connectToServer(port: number): void {
   socket.on("connect", () => {
     loggerRenderer.debug("Socket.IO connection established: " + socket?.id);
     settingStore.socketState = true;
+    invokeMain("cmd-toggle-socket-status", true);
   });
 
   socket.on("disconnect", () => {
     loggerRenderer.debug("Socket.IO connection disconnected");
     settingStore.socketState = false;
+    invokeMain("cmd-toggle-socket-status", false);
   });
 
   socket.on("connect_error", (e: Error) => {
     console.error("Socket.IO connection error:", e);
     settingStore.socketState = false;
+    invokeMain("cmd-toggle-socket-status", false);
   });
 
   socket.on("message_flask_to_uianalyzer", async (data: string) => {

@@ -4,6 +4,13 @@ UI Analyzer is an Electron-based client designed to quickly selecting UI element
 
 It needs LiberRPA Local Server to function properly.
 
+> If LiberRPA Local Server is not connected, the window title will change to "UI Analyzer - No Local Server". You can check the connection status using the icon in the top-right corner:
+>
+> <img src="./md_images/README/SocketConnected.svg" width="32" height="32" alt="SocketConnected">
+> Connected
+> <img src="./md_images/README/SocketDisconnected.svg" width="32" height="32" alt="SocketDisconnected">
+> Not Connected
+
 > **Note:** The GUI shown here may differ slightly from the newest version.
 
 # Change Log

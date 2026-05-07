@@ -1,6 +1,6 @@
 {
   "name": "ui-analyzer",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "UI Analyzer is an Electron-based client designed to quickly selecting UI elements and build the corresponding selectors (formatted as several specific dictionary) required for RPA operations.",
   "main": "./out/main/index.js",
   "author": "Jiyan Hu",
