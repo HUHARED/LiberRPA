@@ -100,9 +100,15 @@ let intStartWidth = 0;
 let boolResizing = false;
 
 function startResizingLeft(event: MouseEvent): void {
+  // Prevent text selection.
+  event.preventDefault();
+  window.getSelection()?.removeAllRanges();
+
   boolResizing = true;
   intStartX = event.clientX;
   intStartWidth = settingStore.leftColumnWidth;
+
+  document.body.classList.add("is-column-resizing");
 
   window.addEventListener("mousemove", mouseMoveHandlerLeft);
   window.addEventListener("mouseup", stopResizing);
@@ -110,6 +116,9 @@ function startResizingLeft(event: MouseEvent): void {
 
 function mouseMoveHandlerLeft(event: MouseEvent): void {
   if (!boolResizing) return;
+
+  event.preventDefault();
+
   const intDistanceX = event.clientX - intStartX;
 
   let intNewWidth = intStartWidth + intDistanceX;
@@ -122,9 +131,14 @@ function mouseMoveHandlerLeft(event: MouseEvent): void {
 }
 
 function startResizingRight(event: MouseEvent): void {
+  event.preventDefault();
+  window.getSelection()?.removeAllRanges();
+
   boolResizing = true;
   intStartX = event.clientX;
   intStartWidth = settingStore.rightColumnWidth;
+
+  document.body.classList.add("is-column-resizing");
 
   window.addEventListener("mousemove", mouseMoveHandlerRight);
   window.addEventListener("mouseup", stopResizing);
@@ -132,6 +146,9 @@ function startResizingRight(event: MouseEvent): void {
 
 function mouseMoveHandlerRight(event: MouseEvent): void {
   if (!boolResizing) return;
+
+  event.preventDefault();
+
   const intDistanceX = event.clientX - intStartX;
 
   let intNewWidth = intStartWidth - intDistanceX;
@@ -143,9 +160,19 @@ function mouseMoveHandlerRight(event: MouseEvent): void {
 
 function stopResizing(): void {
   boolResizing = false;
+
+  document.body.classList.remove("is-column-resizing");
+  window.getSelection()?.removeAllRanges();
+
   window.removeEventListener("mousemove", mouseMoveHandlerLeft);
+  window.removeEventListener("mousemove", mouseMoveHandlerRight);
   window.removeEventListener("mouseup", stopResizing);
 }
 </script>
 
-<style scoped></style>
+<style scoped>
+:global(body.is-column-resizing *) {
+  /* Keep the resize cursor visible while dragging outside the divider */
+  cursor: col-resize !important;
+}
+</style>
