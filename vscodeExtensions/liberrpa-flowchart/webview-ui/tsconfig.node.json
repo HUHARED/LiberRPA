@@ -4,7 +4,7 @@
     "target": "ES2022",
     "lib": ["ES2023", "DOM"],
     "module": "ESNext",
-    "skipLibCheck": false,
+    "skipLibCheck": true,
 
     /* Bundler mode */
     "moduleResolution": "bundler",
