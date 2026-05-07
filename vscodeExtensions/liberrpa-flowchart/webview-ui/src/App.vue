@@ -112,9 +112,15 @@ let intStartWidth = 0;
 let boolResizing = false;
 
 function startResizing(event: MouseEvent): void {
+  // Prevent text selection.
+  event.preventDefault();
+  window.getSelection()?.removeAllRanges();
+
   boolResizing = true;
   intStartX = event.clientX;
   intStartWidth = intRightColumnWidth.value;
+
+  document.body.classList.add("is-column-resizing");
 
   window.addEventListener("mousemove", mouseMoveHandler);
   window.addEventListener("mouseup", stopResizing);
@@ -122,6 +128,9 @@ function startResizing(event: MouseEvent): void {
 
 function mouseMoveHandler(event: MouseEvent): void {
   if (!boolResizing) return;
+
+  event.preventDefault();
+
   const intDistanceX = event.clientX - intStartX;
 
   let intNewWidth = intStartWidth - intDistanceX;
@@ -135,8 +144,11 @@ function mouseMoveHandler(event: MouseEvent): void {
 }
 
 function stopResizing(): void {
-  // console.log("stop");
   boolResizing = false;
+
+  document.body.classList.remove("is-column-resizing");
+  window.getSelection()?.removeAllRanges();
+
   window.removeEventListener("mousemove", mouseMoveHandler);
   window.removeEventListener("mouseup", stopResizing);
 }
@@ -144,14 +156,16 @@ function stopResizing(): void {
 // Handle keydown events and prevent VS Code from intercepting
 function handleKeydown(event: KeyboardEvent) {
   // Check if Ctrl + Z or Ctrl + Y is pressed
-  if (
-    (event.ctrlKey || event.metaKey) &&
-    (event.key === "z" || event.key === "y")
-  ) {
+  if ((event.ctrlKey || event.metaKey) && (event.key === "z" || event.key === "y")) {
     // Prevent the event from bubbling up to VS Code
     event.stopPropagation();
   }
 }
 </script>
 
-<style scoped></style>
+<style scoped>
+:global(body.is-column-resizing *) {
+  /* Keep the resize cursor visible while dragging outside the divider */
+  cursor: col-resize !important;
+}
+</style>
