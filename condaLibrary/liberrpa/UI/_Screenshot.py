@@ -178,7 +178,14 @@ def create_screenshot_manually() -> bool | None:
     else:
         listCmd = [sys.executable, strFilePath]
 
-    result = subprocess.run(listCmd, shell=False, capture_output=True, text=True)
+    result = subprocess.run(
+        listCmd,
+        shell=False,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
     print("-" * 40)
     print(result.stdout)
     print(result.stderr)
