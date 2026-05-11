@@ -1,8 +1,11 @@
 // FileName: mouseFunc.ts
 
-import { DictLayerHtml } from "./interface";
-import { MouseButton, ClickMode } from "./interface";
+import type { DictLayerHtml, MouseButton, ClickMode } from "./interface";
 import { findElementWithPredelay } from "./timeFunc";
+
+function assertNever(value: never): never {
+  throw new Error(`Unexpected value: ${String(value)}`);
+}
 
 export async function clickMouseEvent(
   selector: DictLayerHtml[],
@@ -15,10 +18,7 @@ export async function clickMouseEvent(
   preExecutionDelay: number = 300
 ): Promise<void> {
   console.log("--clickMouseEvent--");
-  const element: HTMLElement = await findElementWithPredelay(
-    selector,
-    preExecutionDelay
-  );
+  const element: HTMLElement = await findElementWithPredelay(selector, preExecutionDelay);
 
   let clickModeForEvent: string;
   switch (clickMode) {
@@ -36,7 +36,7 @@ export async function clickMouseEvent(
       break;
     default:
       // It will not happen, Python will check it.
-      throw new Error("Unknown clickMode" + clickMode);
+      return assertNever(clickMode);
   }
   let buttonForEvent: number;
   switch (button) {
@@ -50,7 +50,7 @@ export async function clickMouseEvent(
       buttonForEvent = 1;
       break;
     default:
-      throw new Error("Unknown button" + button);
+      return assertNever(button);
   }
   const event: MouseEvent = new MouseEvent(clickModeForEvent, {
     button: buttonForEvent,

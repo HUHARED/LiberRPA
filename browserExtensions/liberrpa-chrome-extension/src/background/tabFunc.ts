@@ -1,6 +1,8 @@
 // FileName: tabFunc.ts
 
-import { DictResultToFlask } from "./interface";
+import type { DictResultOriginal } from "./interface";
+
+type TabStatus = "unloaded" | "loading" | "complete";
 
 type CommonWebPageTab = chrome.tabs.Tab & { id: number; url: string };
 
@@ -22,6 +24,10 @@ function isCommonWebPageTab(tab: chrome.tabs.Tab): tab is CommonWebPageTab {
   } catch (e) {
     return false;
   }
+}
+
+function isTabStatus(value: unknown): value is TabStatus {
+  return value === "unloaded" || value === "loading" || value === "complete";
 }
 
 export async function getActiveCommonWebPageTab(): Promise<CommonWebPageTab> {
@@ -56,89 +62,96 @@ export async function getActiveCommonWebPageTabId(): Promise<number> {
   return tab.id;
 }
 
-export async function getState(): Promise<DictResultToFlask> {
+export async function getState(): Promise<DictResultOriginal> {
   console.log("--getState--");
 
   const tab = await getActiveCommonWebPageTab();
 
-  const result: DictResultToFlask = {
+  if (!isTabStatus(tab.status)) {
+    throw new Error(`Unexpected tab status: ${String(tab.status)}`);
+  }
+
+  const result: DictResultOriginal = {
     boolSuccess: true,
-    boolNeedResponse: true,
-    data: tab.status as "unloaded" | "loading" | "complete" | undefined,
+    data: tab.status,
   };
   return result;
 }
 
-export async function goBackward(): Promise<DictResultToFlask> {
+export async function goBackward(): Promise<DictResultOriginal> {
   console.log("--goBackward--");
 
   const tabId = await getActiveCommonWebPageTabId();
   await chrome.tabs.goBack(tabId);
 
-  const result: DictResultToFlask = {
+  const result: DictResultOriginal = {
     boolSuccess: true,
-    boolNeedResponse: true,
     data: null,
   };
   return result;
 }
 
-export async function goForward(): Promise<DictResultToFlask> {
+export async function goForward(): Promise<DictResultOriginal> {
   console.log("--goForward--");
 
   const tabId = await getActiveCommonWebPageTabId();
   await chrome.tabs.goForward(tabId);
 
-  const result: DictResultToFlask = {
+  const result: DictResultOriginal = {
     boolSuccess: true,
-    boolNeedResponse: true,
     data: null,
   };
   return result;
 }
 
-export async function refresh(): Promise<DictResultToFlask> {
+export async function refresh(): Promise<DictResultOriginal> {
   console.log("--refresh--");
 
   const tabId = await getActiveCommonWebPageTabId();
   await chrome.tabs.reload(tabId);
 
-  const result: DictResultToFlask = {
+  const result: DictResultOriginal = {
     boolSuccess: true,
-    boolNeedResponse: true,
     data: null,
   };
   return result;
 }
 
-export async function waitLoadCompleted(timeout: number): Promise<DictResultToFlask> {
+export async function waitLoadCompleted(timeout: number): Promise<DictResultOriginal> {
   console.log("--waitLoadCompleted--");
 
-  return new Promise<DictResultToFlask>((resolve, reject) => {
+  return new Promise<DictResultOriginal>((resolve, reject) => {
     let timeUsed = 0;
     const checkTabStatus = () => {
-      getState().then((dictTemp) => {
-        // If the tab status is 'complete', resolve the promise
-        if (dictTemp.data === "complete") {
-          console.log(`Tab has completed loading.`);
-          const result: DictResultToFlask = {
-            boolSuccess: true,
-            boolNeedResponse: true,
-            data: null,
-          };
-          resolve(result);
-          return;
-        } else {
-          // Otherwise, check again after a delay
-          console.log(`Tab is still loading. Checking again...`);
-          timeUsed += 1000;
-          if (timeUsed >= timeout) {
-            reject(`The active tab doesn't load completed after ${timeout} milliseconds.`);
+      void getState()
+        .then((dictTemp) => {
+          // If the tab status is 'complete', resolve the promise
+          if (dictTemp.data === "complete") {
+            console.log(`Tab has completed loading.`);
+            const result: DictResultOriginal = {
+              boolSuccess: true,
+              data: null,
+            };
+            resolve(result);
             return;
+          } else {
+            // Otherwise, check again after a delay
+            console.log(`Tab is still loading. Checking again...`);
+            timeUsed += 1000;
+            if (timeUsed >= timeout) {
+              reject(
+                new Error(
+                  `The active tab doesn't load completed after ${timeout} milliseconds.`
+                )
+              );
+              return;
+            }
+            setTimeout(checkTabStatus, 1000);
           }
-          setTimeout(checkTabStatus, 1000);
-        }
-      });
+        })
+        .catch((e: unknown) => {
+          reject(e instanceof Error ? e : new Error(String(e)));
+        });
     };
 
     // Start checking the tab's status
@@ -150,7 +163,7 @@ export async function navigate(
   url: string,
   shouldWaitLoadCompleted: boolean,
   timeout: number
-): Promise<DictResultToFlask> {
+): Promise<DictResultOriginal> {
   console.log("--navigate--");
 
   const tabId = await getActiveCommonWebPageTabId();
@@ -160,9 +173,8 @@ export async function navigate(
     await waitLoadCompleted(timeout);
   }
 
-  const result: DictResultToFlask = {
+  const result: DictResultOriginal = {
     boolSuccess: true,
-    boolNeedResponse: true,
     data: null,
   };
   return result;
@@ -172,7 +184,7 @@ export async function openNewTab(
   url: string,
   shouldWaitLoadCompleted: boolean,
   timeout: number
-): Promise<DictResultToFlask> {
+): Promise<DictResultOriginal> {
   console.log("--openNewTab--");
 
   await chrome.tabs.create({ url: url });
@@ -181,9 +193,8 @@ export async function openNewTab(
     await waitLoadCompleted(timeout);
   }
 
-  const result: DictResultToFlask = {
+  const result: DictResultOriginal = {
     boolSuccess: true,
-    boolNeedResponse: true,
     data: null,
   };
   return result;
@@ -193,24 +204,25 @@ export async function openNewWindow(
   url: string,
   shouldWaitLoadCompleted: boolean,
   timeout: number
-): Promise<DictResultToFlask> {
+): Promise<DictResultOriginal> {
   console.log("--openNewWindow--");
 
-  chrome.windows.create({ url: url });
+  await chrome.windows.create({ url: url });
 
   if (shouldWaitLoadCompleted) {
     await waitLoadCompleted(timeout);
   }
 
-  const result: DictResultToFlask = {
+  const result: DictResultOriginal = {
     boolSuccess: true,
-    boolNeedResponse: true,
     data: null,
   };
   return result;
 }
 
-export async function switchTab(titleOrIndex: string | number): Promise<DictResultToFlask> {
+export async function switchTab(
+  titleOrIndex: string | number
+): Promise<DictResultOriginal> {
   console.log("--switchTab--");
 
   const tabs = await chrome.tabs.query({ currentWindow: true });
@@ -235,6 +247,7 @@ export async function switchTab(titleOrIndex: string | number): Promise<DictResu
     await chrome.tabs.update(tabId, { active: true });
   } else {
     const tabToSwitch = tabs.find((tab) => tab.title === titleOrIndex);
+    // eslint-disable-next-line @typescript-eslint/prefer-optional-chain
     if (!tabToSwitch || !tabToSwitch.id) {
       throw new Error(
         `Failed to locate the target tab (title=${titleOrIndex}), ` + STR_NO_PERMISSION
@@ -243,42 +256,39 @@ export async function switchTab(titleOrIndex: string | number): Promise<DictResu
     await chrome.tabs.update(tabToSwitch.id, { active: true });
   }
 
-  const result: DictResultToFlask = {
+  const result: DictResultOriginal = {
     boolSuccess: true,
-    boolNeedResponse: true,
     data: null,
   };
   return result;
 }
 
-export async function closeCurrentTab(): Promise<DictResultToFlask> {
+export async function closeCurrentTab(): Promise<DictResultOriginal> {
   console.log("--closeCurrentTab--");
 
   const tabId = await getActiveCommonWebPageTabId();
   await chrome.tabs.remove(tabId);
 
-  const result: DictResultToFlask = {
+  const result: DictResultOriginal = {
     boolSuccess: true,
-    boolNeedResponse: true,
     data: null,
   };
   return result;
 }
 
-export async function getUrl(): Promise<DictResultToFlask> {
+export async function getUrl(): Promise<DictResultOriginal> {
   console.log("--getUrl--");
 
   const tab = await getActiveCommonWebPageTab();
 
-  const result: DictResultToFlask = {
+  const result: DictResultOriginal = {
     boolSuccess: true,
-    boolNeedResponse: true,
     data: tab.url,
   };
   return result;
 }
 
-export async function getTitle(): Promise<DictResultToFlask> {
+export async function getTitle(): Promise<DictResultOriginal> {
   console.log("--getTitle--");
 
   const tab = await getActiveCommonWebPageTab();
@@ -287,15 +297,14 @@ export async function getTitle(): Promise<DictResultToFlask> {
     throw new Error("Failed to get the title, " + STR_NO_PERMISSION);
   }
 
-  const result: DictResultToFlask = {
+  const result: DictResultOriginal = {
     boolSuccess: true,
-    boolNeedResponse: true,
     data: tab.title,
   };
   return result;
 }
 
-export async function getCookies(): Promise<DictResultToFlask> {
+export async function getCookies(): Promise<DictResultOriginal> {
   console.log("--getCookies--");
 
   const tab = await getActiveCommonWebPageTab();
@@ -306,18 +315,17 @@ export async function getCookies(): Promise<DictResultToFlask> {
   const cookies = await new Promise<chrome.cookies.Cookie[]>((resolve, reject) => {
     chrome.cookies.getAll({ domain: domain }, function (temp) {
       if (chrome.runtime.lastError) {
-        reject(chrome.runtime.lastError);
-        return;
-      } else {
-        resolve(temp);
+        reject(
+          new Error(chrome.runtime.lastError.message ?? "Unknown Chrome runtime error.")
+        );
         return;
       }
+      resolve(temp);
     });
   });
 
-  const result: DictResultToFlask = {
+  const result: DictResultOriginal = {
     boolSuccess: true,
-    boolNeedResponse: true,
     data: cookies,
   };
   return result;
@@ -333,7 +341,7 @@ export async function setCookies(
   secure: boolean | null,
   storeId: string | null,
   sameSite: "no_restriction" | "lax" | "strict" | "unspecified" | null
-): Promise<DictResultToFlask> {
+): Promise<DictResultOriginal> {
   console.log("--setCookies--");
 
   const tab = await getActiveCommonWebPageTab();
@@ -345,12 +353,12 @@ export async function setCookies(
     (resolve, reject) => {
       chrome.cookies.getAll({ domain: domainTemp }, function (temp) {
         if (chrome.runtime.lastError) {
-          reject(chrome.runtime.lastError);
-          return;
-        } else {
-          resolve(temp);
+          reject(
+            new Error(chrome.runtime.lastError.message ?? "Unknown Chrome runtime error.")
+          );
           return;
         }
+        resolve(temp);
       });
     }
   );
@@ -372,22 +380,20 @@ export async function setCookies(
     domain: domain,
     name: name,
     path: path,
-    // Use !== null to make sure false and "" will not trigger the fallback.
-    value: value !== null ? value : cookiesOriginal.value,
-    expirationDate:
-      expirationDate !== null ? expirationDate : cookiesOriginal.expirationDate,
-    httpOnly: httpOnly !== null ? httpOnly : cookiesOriginal.httpOnly,
-    secure: secure !== null ? secure : cookiesOriginal.secure,
-    storeId: storeId !== null ? storeId : cookiesOriginal.storeId,
-    sameSite: sameSite !== null ? sameSite : cookiesOriginal.sameSite,
+    // Make sure false and "" will not trigger the fallback.
+    value: value ?? cookiesOriginal.value,
+    expirationDate: expirationDate ?? cookiesOriginal.expirationDate,
+    httpOnly: httpOnly ?? cookiesOriginal.httpOnly,
+    secure: secure ?? cookiesOriginal.secure,
+    storeId: storeId ?? cookiesOriginal.storeId,
+    sameSite: sameSite ?? cookiesOriginal.sameSite,
   };
 
   // Set the cookie
   const newCookies = await chrome.cookies.set(cookieDetails);
 
-  const result: DictResultToFlask = {
+  const result: DictResultOriginal = {
     boolSuccess: true,
-    boolNeedResponse: true,
     data: newCookies,
   };
   return result;

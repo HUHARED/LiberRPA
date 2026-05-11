@@ -3,6 +3,10 @@ import { setupSocket } from "./socketFun";
 
 console.info("This is background.js");
 
+// Setup socket when the service worker starts.
+// This also covers extension reload.
+void setupSocket();
+
 // Inject content scripts into all existing tabs after installation or update
 chrome.runtime.onInstalled.addListener(() => {
   console.log("Extension installed or updated. Inject content script.");
@@ -11,8 +15,7 @@ chrome.runtime.onInstalled.addListener(() => {
 
 // Run when Chrome starts
 chrome.runtime.onStartup.addListener(() => {
-  console.log("Chrome started. Setting up WebSocket and content script injection.");
-  setupSocket();
+  console.log("Chrome started. Inject content script.");
   injectContentScripts();
 });
 
@@ -29,13 +32,9 @@ function injectContentScripts() {
           .then((_) => {
             console.info("Injected content script into " + tab.url);
           })
-          .catch((err) =>
-            console.error(`Error injecting script into tab ${tab.id}:`, err)
-          );
+          .catch((err) => console.error(`Error injecting script into tab ${tab.id}:`, err));
       }
     });
   });
 }
 
-// Setup socket if reload extension.
-setupSocket();

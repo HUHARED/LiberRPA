@@ -1,45 +1,51 @@
 // FileName: commonFun.ts
 
-import { DictResultToFlask } from "./interface";
+import type { DictResultOriginal } from "./interface";
+const INT_MAX_DISPLAY_STRING_LENGTH = 1024;
+const STR_LONG_VALUE_PLACEHOLDER =
+  "The value is too long (longer than 1024 characters), so it is hidden.";
 
-export function getDownloadList(limit: number): Promise<DictResultToFlask> {
+type DictSanitizedDownloadItem = Record<string, unknown>;
+
+function sanitizedDownloadItem(
+  item: chrome.downloads.DownloadItem
+): DictSanitizedDownloadItem {
+  // Process results to truncate long attributes. The default incoming message size is 1,000,000 bytes. I didn't modify the size to avoid pingTimeout.
+
+  const dictSanitizedItem: DictSanitizedDownloadItem = {};
+
+  const arrKeys = Object.keys(item) as (keyof chrome.downloads.DownloadItem)[];
+  for (const key of arrKeys) {
+    const value = item[key];
+    // Ensure type compatibility before assignment
+    if (typeof value === "string" && value.length > INT_MAX_DISPLAY_STRING_LENGTH) {
+      dictSanitizedItem[key] = STR_LONG_VALUE_PLACEHOLDER;
+    } else {
+      dictSanitizedItem[key] = value;
+    }
+  }
+  return dictSanitizedItem;
+}
+
+export function getDownloadList(limit: number): Promise<DictResultOriginal> {
   console.log("--getDownloadList--");
 
   return new Promise((resolve, reject) => {
     chrome.downloads.search({ limit: limit, orderBy: ["-startTime"] }, (results) => {
       if (chrome.runtime.lastError) {
-        reject(chrome.runtime.lastError.message);
+        reject(
+          new Error(chrome.runtime.lastError.message ?? "Unknown Chrome runtime error.")
+        );
         return;
       } else {
-        // Process results to truncate long attributes
-        const sanitizedResults = results.map((item) => {
-          // Partial makes it a valid type without requiring all properties
-          const sanitizedItem: Partial<chrome.downloads.DownloadItem> = {};
+        const sanitizedResults = results.map((item) => sanitizedDownloadItem(item));
 
-          (Object.keys(item) as Array<keyof chrome.downloads.DownloadItem>).forEach(
-            (key) => {
-              const value = item[key];
-
-              // Ensure type compatibility before assignment
-              if (typeof value === "string" && value.length > 1024) {
-                sanitizedItem[key] =
-                  "The value is too long (longer than 1024 characters), so not show it." as any;
-              } else {
-                sanitizedItem[key] = value as any; // Explicit type assertion
-              }
-            }
-          );
-
-          return sanitizedItem;
-        });
         console.log("List of downloaded files(after filtering):", sanitizedResults);
 
-        const result: DictResultToFlask = {
+        resolve({
           boolSuccess: true,
-          boolNeedResponse: true,
           data: sanitizedResults,
-        };
-        resolve(result);
+        });
         return;
       }
     });

@@ -32,9 +32,6 @@ def handle_chrome_extension_connect(message: dict[str, str]):
     dictClients["Chrome"] = clientSid
     Log.info(f"The Chrome clients: {dictClients}")
 
-    # Send confirmation to Chrome.
-    emit("message_flask_to_chrome", json.dumps({"commandName": "confirmConnection"}), to=dictClients["Chrome"])
-
 
 @Log.trace()
 @sioServer.on("chrome_command")
@@ -64,7 +61,7 @@ def _check_Chrome_extension() -> bool:
     return True
 
 
-def _wait_for_response_by_id(commandId: str, dictCommand: dict[str, str]) -> DictSocketResult:
+def _wait_for_response_by_id(commandId: str, dictCommand: dict[str, Any]) -> DictSocketResult:
 
     # If dictCommand can't be serizlized, return an error result directly.
     try:

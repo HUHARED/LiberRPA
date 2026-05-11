@@ -2,6 +2,8 @@
 // import injectEval from "chrome-inject-eval";
 import { getEvalInstance, transformCode } from "chrome-inject-eval";
 
+type EvalFunction = (code: string) => unknown;
+
 export function getSourceCode(): string {
   console.log("--getSourceCode--");
 
@@ -26,15 +28,15 @@ export function setScrollPosition(x: number, y: number): void {
   window.scrollTo(x, y);
 }
 
-export function executeJsCode(jsCode: string, returnImmediately: boolean): any {
+export function executeJsCode(jsCode: string, returnImmediately: boolean): unknown {
   console.log("--executeJsCode--");
 
   try {
-    const evil = getEvalInstance(window);
-    const resutl = evil(transformCode(jsCode));
+    const evil = getEvalInstance(window) as EvalFunction;
+    const result = evil(transformCode(jsCode));
 
     if (!returnImmediately) {
-      return resutl;
+      return result;
     } else {
       return null;
     }

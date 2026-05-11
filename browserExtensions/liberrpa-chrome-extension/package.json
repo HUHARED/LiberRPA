@@ -5,7 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint --cache .",
+    "lint:fix": "eslint --cache . --fix",
+    "build": "npm run typecheck && npm run lint && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -13,8 +16,13 @@
     "socket.io-client": "^4.7.5"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/chrome": "^0.0.268",
+    "eslint": "^10.3.0",
+    "eslint-plugin-unused-imports": "^4.4.1",
+    "globals": "^17.6.0",
     "typescript": "^5.2.2",
+    "typescript-eslint": "^8.59.2",
     "vite": "^5.2.0"
   }
 }

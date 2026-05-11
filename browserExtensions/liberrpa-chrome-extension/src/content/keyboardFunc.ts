@@ -1,6 +1,6 @@
 // FileName: keyboardFunc.ts
 
-import { DictLayerHtml } from "./interface";
+import type { DictLayerHtml } from "./interface";
 import { findElementWithPredelay } from "./timeFunc";
 
 export async function setElementText(
@@ -11,55 +11,48 @@ export async function setElementText(
   preExecutionDelay: number = 300
 ): Promise<void> {
   console.log("--setElementText--");
-  const element: HTMLElement = await findElementWithPredelay(
-    selector,
-    preExecutionDelay
-  );
 
-  if (
-    !(
-      element.isContentEditable ||
-      element.tagName === "TEXTAREA" ||
-      (element.tagName === "INPUT" && element.getAttribute("type") === "text")
-    )
-  ) {
-    throw new Error("The element's content is not editable.");
-  }
+  const element: HTMLElement = await findElementWithPredelay(selector, preExecutionDelay);
 
-  const boolUseValue =
-    element.tagName === "INPUT" || element.tagName === "TEXTAREA";
+  let strWrittenText: string;
 
-  if (emptyOriginalText) {
-    if (boolUseValue) {
-      (element as HTMLInputElement).value = text;
+  if (isTextInputOrTextare(element)) {
+    if (emptyOriginalText) {
+      element.value = text;
     } else {
-      element.innerText = text;
+      element.value += text;
     }
-  } else {
-    if (boolUseValue) {
-      (element as HTMLInputElement).value += text;
+    strWrittenText = element.value;
+    console.log("element.value", element.value);
+  } else if (element.isContentEditable) {
+    if (emptyOriginalText) {
+      element.innerText = text;
     } else {
       element.innerText += text;
     }
+    strWrittenText = element.innerText;
+    console.log("element.innerText", element.innerText);
+  } else {
+    throw new Error("The element's content is not editable.");
   }
-
-  console.log(
-    "(element as HTMLInputElement).value",
-    (element as HTMLInputElement).value
-  );
-  console.log("element.innerText", element.innerText);
 
   if (
     validateWrittenText &&
-    (boolUseValue
-      ? (element as HTMLInputElement).value
-      : element.innerText
-    ).replace("\r\n", "\n") !== text.replace("\r\n", "\n")
+    strWrittenText.replace("\r\n", "\n") !== text.replace("\r\n", "\n")
   ) {
     throw new Error(
       `The written text (${JSON.stringify(
-        boolUseValue ? (element as HTMLInputElement).value : element.innerText
+        strWrittenText
       )}) is not equals with the argument text(${JSON.stringify(text)}).`
     );
   }
+}
+
+function isTextInputOrTextare(
+  element: HTMLElement
+): element is HTMLInputElement | HTMLTextAreaElement {
+  return (
+    element instanceof HTMLTextAreaElement ||
+    (element instanceof HTMLInputElement && element.type === "text")
+  );
 }

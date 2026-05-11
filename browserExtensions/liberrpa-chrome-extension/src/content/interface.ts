@@ -8,10 +8,15 @@ export interface DictHtmlSecondaryAttr {
   "secondary-height": string;
 }
 
-export interface DictOriginalAttr extends DictHtmlSecondaryAttr {
-  [key: string]: string | null | undefined;
+export type AttrDraftValue = string | null | undefined;
+type AttrFinalValue = string | undefined;
+export type BooleanString = "true" | "false";
+export type CheckedString = BooleanString | "indeterminate";
 
-  // The attributes that support querySelectorAll;
+export interface DictRawAttr extends DictHtmlSecondaryAttr {
+  [key: string]: AttrDraftValue;
+
+  // The attributes that support querySelectorAll; - Basic attributes.
   tagName: string;
   id: string;
   className: string;
@@ -20,33 +25,28 @@ export interface DictOriginalAttr extends DictHtmlSecondaryAttr {
   name?: string | null;
   "aria-label"?: string | null;
   "aria-labelledby"?: string | null;
-  checked?: "true" | "false" | "indeterminate" | null;
-  disabled?: "true" | "false" | null;
+  checked?: CheckedString | null;
+  disabled?: BooleanString | null;
 
-  // The attributes that not support querySelectorAll;
+  // Non-querySelector attributes.
   href?: string | null;
   src?: string | null;
   alt?: string | null;
-  isHidden?: "true" | "false" | null;
-  isDisplayedNone?: "true" | "false" | null;
+  isHidden?: BooleanString | null;
+  isDisplayedNone?: BooleanString | null;
   innerText?: string;
   directText?: string;
   parentId?: string | null;
   parentClass?: string | null;
   parentName?: string | null;
-  isLeaf?: "true" | "false" | null;
+  isLeaf?: BooleanString | null;
   tableRowIndex?: string | null;
   tableColumnIndex?: string | null;
   tableColumnName?: string | null;
-
-  // The attributes that be calculated.
-  childIndex?: string | null; // Indicate the order of the current element among its siblings with the same attribute.
-  documentIndex?: string | null; // Indicate the order of the current element among all elements in the document with the same attribute.
-  path?: string | null; // nth-child() selector.
 }
 
-export interface DictFinalAttr extends DictHtmlSecondaryAttr {
-  [key: string]: string | undefined;
+export interface DictOriginalAttr extends DictHtmlSecondaryAttr {
+  [key: string]: AttrFinalValue;
 
   tagName: string;
   id?: string;
@@ -56,31 +56,43 @@ export interface DictFinalAttr extends DictHtmlSecondaryAttr {
   name?: string;
   "aria-label"?: string;
   "aria-labelledby"?: string;
-  checked?: string;
-  disabled?: string;
+  checked?: CheckedString;
+  disabled?: BooleanString;
 
   href?: string;
   src?: string;
   alt?: string;
-  isHidden?: string;
-  isDisplayedNone?: string;
+  isHidden?: BooleanString;
+  isDisplayedNone?: BooleanString;
   innerText?: string;
   directText?: string;
   parentId?: string;
   parentClass?: string;
   parentName?: string;
-  isLeaf?: string;
+  isLeaf?: BooleanString;
   tableRowIndex?: string;
   tableColumnIndex?: string;
   tableColumnName?: string;
-
-  childIndex?: string;
-  documentIndex?: string;
-  path?: string;
 }
 
-export interface DictLayerHtml {
-  [key: string]: string | undefined;
+export interface DictLayerIndexAttr {
+  // Calculated attributes.
+  childIndex?: string; // Indicate the order of the current element among its siblings with the same attribute.
+  documentIndex?: string; // Indicate the order of the current element among all elements in the document with the same attribute.
+}
+interface DictLayerPathAttr {
+  path?: string; // nth-child() selector.
+}
+
+export interface DictFinalAttr
+  extends DictOriginalAttr,
+    DictLayerIndexAttr,
+    DictLayerPathAttr {}
+
+// export type DictLayerIndexAttr = Pick<DictFinalAttr, "childIndex" | "documentIndex">;
+
+export interface DictLayerHtml extends DictLayerIndexAttr, DictLayerPathAttr {
+  [key: string]: AttrFinalValue;
 
   // The basic attributes.
 
@@ -100,9 +112,9 @@ export interface DictLayerHtml {
   "aria-label-regex"?: string;
   "aria-labelledby"?: string;
   "aria-labelledby-regex"?: string;
-  checked?: string;
+  checked?: CheckedString;
   "checked-regex"?: string;
-  disabled?: string;
+  disabled?: BooleanString;
   "disabled-regex"?: string;
 
   href?: string;
@@ -111,9 +123,9 @@ export interface DictLayerHtml {
   "src-regex"?: string;
   alt?: string;
   "alt-regex"?: string;
-  isHidden?: string;
+  isHidden?: BooleanString;
   "isHidden-regex"?: string;
-  isDisplayedNone?: string;
+  isDisplayedNone?: BooleanString;
   "isDisplayedNone-regex"?: string;
   innerText?: string;
   "innerText-regex"?: string;
@@ -125,7 +137,7 @@ export interface DictLayerHtml {
   "parentClass-regex"?: string;
   parentName?: string;
   "parentName-regex"?: string;
-  isLeaf?: string;
+  isLeaf?: BooleanString;
   "isLeaf-regex"?: string;
   tableRowIndex?: string;
   "tableRowIndex-regex"?: string;
@@ -135,17 +147,16 @@ export interface DictLayerHtml {
   "tableColumnName-regex"?: string;
 
   // The non-basic attributes. path and index should not appear in a same time.
-
-  childIndex?: string;
   "childIndex-regex"?: string;
-  documentIndex?: string;
   "documentIndex-regex"?: string;
-  path?: string;
   "path-regex"?: string;
 }
 
-export interface DictFinalAttrWithoutPosition {
-  [key: string]: string | undefined;
+export type DictAttrForIndex = DictOriginalAttr | DictLayerHtml;
+
+export interface DictFinalSpec extends DictLayerIndexAttr, DictLayerPathAttr {
+  /* Compared with DictFinalAttr, it has no innerText, position. */
+  [key: string]: AttrFinalValue;
 
   tagName: string;
   id?: string;
@@ -155,33 +166,28 @@ export interface DictFinalAttrWithoutPosition {
   name?: string;
   "aria-label"?: string;
   "aria-labelledby"?: string;
-  checked?: string;
-  disabled?: string;
+  checked?: CheckedString;
+  disabled?: BooleanString;
 
   href?: string;
   src?: string;
   alt?: string;
-  isHidden?: string;
-  isDisplayedNone?: string;
-  innerText?: string;
+  isHidden?: BooleanString;
+  isDisplayedNone?: BooleanString;
   directText?: string;
   parentId?: string;
   parentClass?: string;
   parentName?: string;
-  isLeaf?: string;
+  isLeaf?: BooleanString;
   tableRowIndex?: string;
   tableColumnIndex?: string;
   tableColumnName?: string;
-
-  childIndex?: string;
-  documentIndex?: string;
-  path?: string;
 }
 
 export interface DictElementTreeItem {
   id: number;
   title: string;
-  spec: DictFinalAttrWithoutPosition;
+  spec: DictFinalSpec;
   children?: DictElementTreeItem[];
 }
 
@@ -195,3 +201,111 @@ export interface DictElementTreeItem {
 export type MouseButton = "left" | "right" | "middle";
 export type ClickMode = "single_click" | "double_click" | "down" | "up";
 // export type ExecutionMode = "simulate" | "api";
+
+/* Dict Type for content.ts */
+
+interface DictCommonAttribute {
+  htmlSelector: DictLayerHtml[];
+  preExecutionDelay: number;
+  timeout: number;
+}
+
+type DictCommandClickMouseEvent = DictCommonAttribute & {
+  commandName: "clickMouseEvent";
+  button: MouseButton;
+  clickMode: ClickMode;
+  pressCtrl: boolean;
+  pressShift: boolean;
+  pressAlt: boolean;
+  pressWin: boolean;
+};
+
+type DictCommandSetElementText = DictCommonAttribute & {
+  commandName: "setElementText";
+  text: string;
+  emptyOriginalText: boolean;
+  validateWrittenText: boolean;
+};
+
+type DictCommandFocusElement = DictCommonAttribute & {
+  commandName: "focusElement";
+};
+
+type DictCommandGetParentElementAttr = DictCommonAttribute & {
+  commandName: "getParentElementAttr";
+  upwardLevel: number;
+};
+
+type DictCommandGetChildrenElementAttr = DictCommonAttribute & {
+  commandName: "getChildrenElementAttr";
+};
+
+type DictCommandSetCheckState = DictCommonAttribute & {
+  commandName: "setCheckState";
+  checkAction: "checked" | "unchecked" | "toggle";
+};
+
+type DictCommandGetSelection = DictCommonAttribute & {
+  commandName: "getSelection";
+  selectionType: "text" | "value" | "index";
+};
+
+type DictCommandSetSelection = DictCommonAttribute & {
+  commandName: "setSelection";
+  text: string | null;
+  value: string | null;
+  index: number | null;
+};
+
+interface DictCommandGetElementAttrByCoordinates {
+  commandName: "getElementAttrByCoordinates";
+  x: number;
+  y: number;
+  usePath: boolean;
+}
+
+interface DictCommandGetElementAttrBySelector {
+  commandName: "getElementAttrBySelector";
+  htmlSelector: DictLayerHtml[];
+}
+
+interface DictCommandGetSourceCode {
+  commandName: "getSourceCode";
+}
+
+interface DictCommandGetAllText {
+  commandName: "getAllText";
+}
+
+interface DictCommandGetScrollPosition {
+  commandName: "getScrollPosition";
+}
+
+interface DictCommandSetScrollPosition {
+  commandName: "setScrollPosition";
+  x: number;
+  y: number;
+}
+
+interface DictCommandExecuteJsCode {
+  commandName: "executeJsCode";
+  jsCode: string;
+  returnImmediately: boolean;
+}
+
+export type DictCommandContent =
+  | DictCommandClickMouseEvent
+  | DictCommandSetElementText
+  | DictCommandFocusElement
+  | DictCommandGetParentElementAttr
+  | DictCommandGetChildrenElementAttr
+  | DictCommandSetCheckState
+  | DictCommandGetSelection
+  | DictCommandSetSelection
+  | DictCommandGetElementAttrByCoordinates
+  | DictCommandGetElementAttrBySelector
+  | DictCommandGetSourceCode
+  | DictCommandGetAllText
+  | DictCommandGetScrollPosition
+  | DictCommandSetScrollPosition
+  | DictCommandExecuteJsCode;

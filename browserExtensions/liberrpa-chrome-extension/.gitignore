@@ -22,7 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-
+.eslintcache
 
 /src/content/temp.txt
 project.json

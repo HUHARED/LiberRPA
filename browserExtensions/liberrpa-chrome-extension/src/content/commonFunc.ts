@@ -1,9 +1,9 @@
 // FileName: commonFunc.ts
-import {
+import type {
   DictFinalAttr,
   DictLayerHtml,
-  DictOriginalAttr,
   DictElementTreeItem,
+  DictOriginalAttr,
 } from "./interface";
 import { getBasicAttr, getFinalAttr, getPath } from "./elementAttrFunc";
 import {
@@ -104,10 +104,12 @@ export function findElementBySelector(arrSelector: DictLayerHtml[]): HTMLElement
       // "path" is useless now.
       delete selector.path;
 
-      const boolSame = compareBasicAttr(elementByPath as HTMLElement, selector);
+      // checkWhetherContinue() has ensured that elementByPath is not null.
+
+      const boolSame = compareBasicAttr(elementByPath, selector);
       checkWhetherContinue(boolSame, i, selectorBackup);
 
-      elementFound = elementByPath as HTMLElement;
+      elementFound = elementByPath;
       // Use the elementFound to find next layer's target.
       continue;
     }
@@ -142,8 +144,10 @@ export function findElementBySelector(arrSelector: DictLayerHtml[]): HTMLElement
           }
         }
       } else if (
+        // eslint-disable-next-line @typescript-eslint/dot-notation
         selector["childIndex"] ||
         selector["childIndex-regex"] ||
+        // eslint-disable-next-line @typescript-eslint/dot-notation
         selector["documentIndex"] ||
         selector["documentIndex-regex"]
       ) {
@@ -170,7 +174,11 @@ export function findElementBySelector(arrSelector: DictLayerHtml[]): HTMLElement
     checkWhetherContinue(boolFoundedInArray, i, selectorBackup);
   }
 
-  const temp: HTMLElement = elementFound as HTMLElement;
+  if (!(elementFound instanceof HTMLElement)) {
+    throw new Error("The html layer of the selector is empty.");
+  }
+
+  const temp = elementFound;
   moveIntoViewIfNeeded(temp);
 
   // Highlight the element for debugging, delete it later.
@@ -180,14 +188,14 @@ export function findElementBySelector(arrSelector: DictLayerHtml[]): HTMLElement
     removeTestOverlay();
   }, 1000); */
 
-  return elementFound as HTMLElement;
+  return elementFound;
 }
 
-function checkWhetherContinue(
-  checkValue: boolean | HTMLElement | null,
+function checkWhetherContinue<T>(
+  checkValue: T | boolean | null,
   layer: number,
   selector: DictLayerHtml
-) {
+): asserts checkValue is T {
   // If it's falsy, throw an error to stop the process.
   console.log("--checkFindResult--");
 
@@ -238,44 +246,11 @@ function getElementByCoordinates(x: number, y: number): HTMLElement | null {
   return null;
 }
 
-/* function createTestOverlay(
-  x: number,
-  y: number,
-  width: number = 100,
-  height: number = 100
-): void {
-  // Create a overlay to check weather the point is I want.
-  console.log("--createOverlay--");
-
-  removeTestOverlay();
-
-  overlayForMouseHover = document.createElement("div");
-  overlayForMouseHover.style.position = "absolute";
-  overlayForMouseHover.style.left = `${x}px`;
-  overlayForMouseHover.style.top = `${y}px`;
-  overlayForMouseHover.style.width = `${width}px`;
-  overlayForMouseHover.style.height = `${height}px`;
-  overlayForMouseHover.style.backgroundColor = "rgba(93, 173, 226, 0.42)"; // Semi-transparent blue
-  overlayForMouseHover.style.border = "2px solid rgba(255, 0, 0, 0.84)";
-  overlayForMouseHover.style.zIndex = "1000";
-  overlayForMouseHover.style.pointerEvents = "none"; // Allow clicks to pass through
-
-  document.body.appendChild(overlayForMouseHover);
-}
-
-function removeTestOverlay(): void {
-  console.log("--removeOverlay--");
-  if (overlayForMouseHover) {
-    overlayForMouseHover.remove();
-    overlayForMouseHover = null;
-  }
-} */
-
 function moveIntoViewIfNeeded(targetElement: HTMLElement) {
   const rect = targetElement.getBoundingClientRect();
 
   // 1. Check if it's within the viewport boundaries
-  let boolInViewPort =
+  const boolInViewPort =
     rect.top >= 0 &&
     rect.left >= 0 &&
     rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&

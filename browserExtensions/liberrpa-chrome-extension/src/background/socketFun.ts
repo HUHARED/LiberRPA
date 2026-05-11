@@ -3,6 +3,8 @@ import io from "socket.io-client";
 import { handleCommand } from "./handleCommand";
 import { setSocketConnected } from "./icon";
 
+import type { DictCommandFromFlask, DictResultToFlask } from "./interface";
+
 let intServerPort: number | null = null;
 let socket: ReturnType<typeof io> | null = null;
 
@@ -22,9 +24,9 @@ async function getServerPort(): Promise<number> {
 
     const nativeTemp = chrome.runtime.connectNative(strHostName);
 
-    nativeTemp.onMessage.addListener((msg) => {
+    nativeTemp.onMessage.addListener((msg: Record<string, number>) => {
       console.log("Receive message from native messaging host:", msg);
-      intServerPort = msg["port"] as number;
+      intServerPort = msg.port;
       console.log(`serverPort=${intServerPort}`);
       resolve(intServerPort);
     });
@@ -33,10 +35,13 @@ async function getServerPort(): Promise<number> {
       const error = chrome.runtime.lastError;
 
       if (!intServerPort) {
-        reject(error ? error.message : "Disconnected without receiving port.");
+        reject(new Error(error ? error.message : "Disconnected without receiving port."));
       }
 
-      console.info("Disconnected:", error ? error.message : "No error message.");
+      console.info(
+        "Disconnected:",
+        error ? error.message : "Unknown Chrome runtime error."
+      );
     });
 
     console.log("Post message start.");
@@ -74,20 +79,15 @@ export async function setupSocket(): Promise<void> {
       void setSocketConnected(false);
     });
 
-    socket.on("message_flask_to_chrome", async (data: any) => {
+    socket.on("message_flask_to_chrome", async (data: string) => {
       console.log("--message_flask_to_chrome--");
       console.log(data);
 
       try {
-        const parseData: { [key: string]: any } = JSON.parse(data);
+        const parseData = JSON.parse(data) as DictCommandFromFlask;
         const result = await handleCommand(parseData);
 
-        // Return the result if it's necessary.
-        if (result.boolNeedResponse === true) {
-          // boolNeedResponse is useless in Python, so delete it.
-          delete result.boolNeedResponse;
-          sendResultToFlask(result);
-        }
+        sendResultToFlask(result);
       } catch (e) {
         console.error("Error handling  message from server:", e);
       }
@@ -98,7 +98,7 @@ export async function setupSocket(): Promise<void> {
   }
 }
 
-function sendResultToFlask(data: any) {
+function sendResultToFlask(data: DictResultToFlask) {
   console.log("--sendResultToFlask--");
 
   if (socket?.connected) {

@@ -1,6 +1,6 @@
 // FileName: elementMatchFunc.ts
 
-import { DictOriginalAttr, DictLayerHtml } from "./interface";
+import type { DictOriginalAttr, DictLayerHtml, DictAttrForIndex } from "./interface";
 import {
   getBasicAttr,
   createQuerySelectorFromAttrDict,
@@ -37,70 +37,84 @@ export function compareBasicAndIndexAttr(
   dictSelector: DictLayerHtml
 ): boolean {
   console.log("--compareBasicAndIndexAttr--");
-  const dictAttrCurrEle: DictOriginalAttr = getBasicAttr(elementCurrent);
 
-  // Delete attributes which dictSelector doesn't have, to make the index be calculated in same attributes as possible.
-  for (const keyName of Object.keys(dictAttrCurrEle)) {
-    if (
-      dictSelector[keyName] === undefined &&
-      dictSelector[keyName + "-regex"] === undefined
-    ) {
+  const dictAttrForIndex: DictLayerHtml = { ...getBasicAttr(elementCurrent) };
+
+  // Delete attributes that dictSelector does not have, so the index can be calculated under the same attribute constraints as the selector.
+  for (const keyName of Object.keys(dictAttrForIndex)) {
+    const strKeyWithRegex = `${keyName}-regex`;
+    const valueSelector = dictSelector[keyName];
+    const valueSelectorRegex = dictSelector[strKeyWithRegex];
+
+    const valueCurrent = dictAttrForIndex[keyName];
+
+    if (valueSelector === undefined && valueSelectorRegex === undefined) {
       // console.log(`Delete '${keyName}' for adding index.`);
 
-      delete dictAttrCurrEle[keyName];
-    } else if (
-      dictSelector[keyName + "-regex"] &&
-      new RegExp(`^${dictSelector[keyName + "-regex"]}$`, "u").test(
-        dictAttrCurrEle[keyName] as string
-      )
+      delete dictAttrForIndex[keyName];
+      continue;
+    }
+
+    if (
+      typeof valueSelectorRegex === "string" &&
+      typeof valueCurrent === "string" &&
+      new RegExp(`^${valueSelectorRegex}$`, "u").test(valueCurrent)
     ) {
       console.log(`Delete '${keyName}' for adding index(It's use regex).`);
-      delete dictAttrCurrEle[keyName];
-      dictAttrCurrEle[keyName + "-regex"] = dictSelector[keyName + "-regex"];
+      delete dictAttrForIndex[keyName];
+      dictAttrForIndex[strKeyWithRegex] = valueSelectorRegex;
     }
   }
-  addIndexForTheLayer(elementCurrent, dictAttrCurrEle);
 
-  console.log("dictAttrCurrEle", JSON.stringify(dictAttrCurrEle, null, 2));
+  const dictAttrCurrEleWithIndex = addIndexForTheLayer(elementCurrent, dictAttrForIndex);
 
-  return compareAttrWithSelector(dictSelector, dictAttrCurrEle);
+  console.log("dictAttrCurrEle", JSON.stringify(dictAttrForIndex, null, 2));
+
+  return compareAttrWithSelector(dictSelector, dictAttrCurrEleWithIndex);
 }
 
 function compareAttrWithSelector(
   dictSelector: DictLayerHtml,
-  dictAttrCurrEle: DictOriginalAttr
+  dictAttrCurrEle: DictAttrForIndex
 ): boolean {
   console.log("--compareAttrWithSelector--");
 
   // If all item in dictSelector matched, return true.
   for (const keyName of Object.keys(dictSelector)) {
-    const valueRight = dictSelector[keyName] as string;
+    const valueSelector = dictSelector[keyName];
+
+    if (typeof valueSelector !== "string") {
+      return false;
+    }
 
     if (keyName.endsWith("-regex")) {
       // The regex string.
 
-      let valueToCheck = dictAttrCurrEle[keyName];
-      if (valueToCheck) {
+      let valueToCheck_Regex = dictAttrCurrEle[keyName];
+      if (typeof valueToCheck_Regex === "string") {
         // The key is a regex and dictAttrCurrEle also use the regex to add index.
+        // NOTE: 20260507, I have forgotten the logic... Why is it here?
         continue;
       }
 
-      valueToCheck = dictAttrCurrEle[keyName.replace(/-regex$/, "")];
-      if (!valueToCheck) {
+      const strBaseKeyName = keyName.replace(/-regex$/u, "");
+      valueToCheck_Regex = dictAttrCurrEle[strBaseKeyName];
+
+      if (typeof valueToCheck_Regex !== "string") {
         // The value is not in currentElement's attributes.
         return false;
       }
 
       // The value must match the whole regex expression.
-      const re = new RegExp(`^${valueRight}$`, "u");
-      if (re.test(valueToCheck) === false) {
+      const re = new RegExp(`^${valueSelector}$`, "u");
+      if (re.test(valueToCheck_Regex) === false) {
         // The attribute doesn't match the selector.
         console.log(
           keyName,
           "in current element is",
-          valueToCheck,
+          valueToCheck_Regex,
           "it doesn't match: ",
-          valueRight
+          valueSelector
         );
         return false;
       }
@@ -109,17 +123,17 @@ function compareAttrWithSelector(
 
       const valueToCheck = dictAttrCurrEle[keyName];
 
-      if (!valueToCheck) {
+      if (typeof valueToCheck !== "string") {
         // The value is not in currentElement's attributes.
         return false;
       }
 
-      if (valueToCheck !== valueRight) {
+      if (valueToCheck !== valueSelector) {
         return false;
       }
     }
   }
-  // Have no attribute return false in the previous loop.
+  // No attribute returned false in the previous loop.
   return true;
 }
 

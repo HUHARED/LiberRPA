@@ -1,7 +1,7 @@
 // FileName: timeFunc.ts
 
 import { findElementBySelector } from "./commonFunc";
-import { DictLayerHtml } from "./interface";
+import type { DictLayerHtml } from "./interface";
 
 export async function delay(ms: number): Promise<void> {
   console.log(`Dealy ${ms} ms.`);
@@ -11,10 +11,7 @@ export async function delay(ms: number): Promise<void> {
   });
 }
 
-export async function withTimeout<T>(
-  func: () => Promise<T>,
-  timeout: number
-): Promise<T> {
+export async function withTimeout<T>(func: () => Promise<T>, timeout: number): Promise<T> {
   let timeoutHandle: number;
   const timeoutPromise = new Promise<never>((_, reject) => {
     timeoutHandle = setTimeout(() => {

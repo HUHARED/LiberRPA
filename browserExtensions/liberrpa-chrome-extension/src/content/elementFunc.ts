@@ -1,9 +1,9 @@
 // FileName: elementFunc.ts
-import {
+import type {
   DictLayerHtml,
   DictFinalAttr,
   DictElementTreeItem,
-  DictFinalAttrWithoutPosition,
+  DictFinalSpec,
 } from "./interface";
 import { findElementWithPredelay } from "./timeFunc";
 import { getBasicAttr, getFinalAttr, addIndexForTheLayer } from "./elementAttrFunc";
@@ -40,17 +40,17 @@ export async function getChildrenElementAttr(
   selector: DictLayerHtml[],
   preExecutionDelay: number = 300
 ): Promise<DictFinalAttr[]> {
-  console.log("--getParentAttr--");
-  let element: HTMLElement = await findElementWithPredelay(selector, preExecutionDelay);
+  console.log("--getChildrenElementAttr--");
+  const element: HTMLElement = await findElementWithPredelay(selector, preExecutionDelay);
   const arrChilrenElementAttr: DictFinalAttr[] = [];
-  const arrChilrenElement = Array.from(element.children) as HTMLElement[];
+  const arrChilrenElement = getHtmlElementChildren(element);
 
   arrChilrenElement.forEach((childElement) => {
     // Only use index on html parment element, due to uia element has no path attributes.
     // Just need its attributes. Not handle upward layer.
-    const dictAttr = getBasicAttr(childElement);
-    addIndexForTheLayer(childElement, dictAttr);
-    arrChilrenElementAttr.push(dictAttr as DictFinalAttr);
+    arrChilrenElementAttr.push(
+      addIndexForTheLayer(childElement, getBasicAttr(childElement))
+    );
   });
 
   return arrChilrenElementAttr;
@@ -63,7 +63,7 @@ export async function setCheckState(
 ): Promise<void> {
   console.log("--setCheckState--");
 
-  let element: HTMLElement = await findElementWithPredelay(selector, preExecutionDelay);
+  const element: HTMLElement = await findElementWithPredelay(selector, preExecutionDelay);
 
   if (
     element instanceof HTMLInputElement &&
@@ -87,7 +87,7 @@ export async function setCheckState(
         element.checked = !element.checked; // Toggle the checked state
         break;
       default:
-        throw new Error(`Unsupported check action: ${checkAction}`);
+        return assertNever(checkAction);
     }
   } else {
     throw new Error("The selected element is not a checkbox or radio button.");
@@ -101,7 +101,7 @@ export async function getSelection(
 ): Promise<string | number> {
   console.log("--getSelection--");
 
-  let element: HTMLElement = await findElementWithPredelay(selector, preExecutionDelay);
+  const element: HTMLElement = await findElementWithPredelay(selector, preExecutionDelay);
 
   if (!(element instanceof HTMLSelectElement)) {
     throw new Error("The target element is not a <select> element.");
@@ -119,7 +119,7 @@ export async function getSelection(
     case "index":
       return element.selectedIndex;
     default:
-      throw new Error(`Unknown selectionType: '${selectionType}'`);
+      return assertNever(selectionType);
   }
 }
 
@@ -140,7 +140,7 @@ export async function setSelection(
     );
   }
 
-  let element: HTMLElement = await findElementWithPredelay(selector, preExecutionDelay);
+  const element: HTMLElement = await findElementWithPredelay(selector, preExecutionDelay);
 
   if (!(element instanceof HTMLSelectElement)) {
     throw new Error("The target element is not a <select> element.");
@@ -187,31 +187,48 @@ export function getElementTree(
   targetElement: HTMLElement,
   usePath: boolean
 ): [DictElementTreeItem[], number[], number] | null {
-  console.log("--getElementTree--");
+  console.log("--getElementTree start--");
 
   try {
     const arrExpanedId: number[] = [0]; // the <html>'s id is 0, it should be opened always.
-    let intActivedId: number = 0;
+    let intActivedId = 0;
 
-    function* idGenerator(): Generator<number, void, unknown> {
-      let i = 0;
-      while (true) {
-        yield i++;
-      }
+    let intNextElementId = 0;
+
+    function getNextElementId(): number {
+      return intNextElementId++;
     }
-    const idObj = idGenerator();
 
-    function handleSpec(spec: DictFinalAttrWithoutPosition): void {
-      // innerText may have too many text, delete it.
-      delete spec.innerText;
-      if (spec.directText && spec.directText.length > 1024) {
-        spec.directText =
-          "The directText is too long (longer than 1024 characters), so not show it in Element Tree.";
+    function getSpec(dictFinalAttr: DictFinalAttr): DictFinalSpec {
+      const dictFinalSpec: DictFinalSpec = { tagName: dictFinalAttr.tagName };
+
+      const keysIgnoredInSpec = new Set<string>([
+        "innerText",
+        "secondary-x",
+        "secondary-y",
+        "secondary-width",
+        "secondary-height",
+      ]);
+
+      for (const key of Object.keys(dictFinalAttr)) {
+        // innerText may have too many text, delete it.
+        // positions are useless in spec layer.
+        if (keysIgnoredInSpec.has(key)) {
+          continue;
+        }
+
+        const value = dictFinalAttr[key];
+
+        if (key === "directText" && value && value.length > 1024) {
+          dictFinalSpec.directText =
+            "The directText is too long (longer than 1024 characters), so not show it in Element Tree.";
+          continue;
+        }
+
+        dictFinalSpec[key] = value;
       }
-      delete spec["secondary-x"];
-      delete spec["secondary-y"];
-      delete spec["secondary-width"];
-      delete spec["secondary-height"];
+
+      return dictFinalSpec;
     }
 
     function getChildrenSpecRecursive(
@@ -220,9 +237,9 @@ export function getElementTree(
     ): DictElementTreeItem[] {
       const arrChildren: DictElementTreeItem[] = [];
 
-      const arrChilrenElement = Array.from(elementParent.children) as HTMLElement[];
+      const arrChilrenElement = getHtmlElementChildren(elementParent);
       for (const element of arrChilrenElement) {
-        const intId = idObj.next().value as number;
+        const intId = getNextElementId();
 
         if (element.contains(targetElement) && element !== targetElement) {
           arrExpanedId.push(intId);
@@ -232,16 +249,16 @@ export function getElementTree(
           intActivedId = intId;
         }
 
-        const specTemp: DictFinalAttrWithoutPosition = getFinalAttr(element, usePath);
-        handleSpec(specTemp);
+        const tempDictFinalAttr = getFinalAttr(element, usePath);
+        const tempDictFinalSpec = getSpec(tempDictFinalAttr);
 
         const dictTemp: DictElementTreeItem = {
           id: intId,
           title:
-            specTemp.tagName +
-            (specTemp.id ? "-" + specTemp.id : "") +
-            (specTemp.name ? "-" + specTemp.name : ""),
-          spec: specTemp,
+            tempDictFinalSpec.tagName +
+            (tempDictFinalSpec.id ? "-" + tempDictFinalSpec.id : "") +
+            (tempDictFinalSpec.name ? "-" + tempDictFinalSpec.name : ""),
+          spec: tempDictFinalSpec,
           children: getChildrenSpecRecursive(element, usePath),
         };
 
@@ -255,16 +272,16 @@ export function getElementTree(
       return arrChildren;
     }
 
-    let rootElement = document.documentElement;
+    const rootElement = document.documentElement;
 
-    const specTemp: DictFinalAttrWithoutPosition = getFinalAttr(rootElement, usePath);
-    handleSpec(specTemp);
+    const rootDictFinalAttr = getFinalAttr(rootElement, usePath);
+    const rootDictFinalSpec = getSpec(rootDictFinalAttr);
 
     const arrFinalTree: DictElementTreeItem[] = [
       {
-        id: idObj.next().value as number,
+        id: getNextElementId(),
         title: rootElement.tagName.toLowerCase(),
-        spec: specTemp,
+        spec: rootDictFinalSpec,
         children: getChildrenSpecRecursive(rootElement, usePath),
       },
     ];
@@ -275,4 +292,13 @@ export function getElementTree(
     console.error(e);
     return null;
   }
+}
+function assertNever(value: never): never {
+  throw new Error(`Unexpected value: ${JSON.stringify(value)}`);
+}
+
+function getHtmlElementChildren(element: Element): HTMLElement[] {
+  return Array.from(element.children).filter(
+    (child): child is HTMLElement => child instanceof HTMLElement
+  );
 }
