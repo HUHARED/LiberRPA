@@ -15,21 +15,27 @@ export async function setElementText(
   const element: HTMLElement = await findElementWithPredelay(selector, preExecutionDelay);
 
   let strWrittenText: string;
+  let strOriginal: string;
+  let strExpected: string;
 
-  if (isTextInputOrTextare(element)) {
-    if (emptyOriginalText) {
-      element.value = text;
-    } else {
-      element.value += text;
-    }
+  if (isTextInputOrTextarea(element)) {
+    strOriginal = element.value;
+
+    strExpected = emptyOriginalText ? text : strOriginal + text;
+
+    element.value = strExpected;
+    dispatchInputAndChange(element);
+
     strWrittenText = element.value;
     console.log("element.value", element.value);
   } else if (element.isContentEditable) {
-    if (emptyOriginalText) {
-      element.innerText = text;
-    } else {
-      element.innerText += text;
-    }
+    strOriginal = element.innerText;
+
+    strExpected = emptyOriginalText ? text : strOriginal + text;
+
+    element.innerText = strExpected;
+    dispatchInputAndChange(element);
+
     strWrittenText = element.innerText;
     console.log("element.innerText", element.innerText);
   } else {
@@ -38,21 +44,41 @@ export async function setElementText(
 
   if (
     validateWrittenText &&
-    strWrittenText.replace("\r\n", "\n") !== text.replace("\r\n", "\n")
+    strWrittenText.replace(/\r\n/g, "\n") !== strExpected.replace(/\r\n/g, "\n")
   ) {
     throw new Error(
       `The written text (${JSON.stringify(
         strWrittenText
-      )}) is not equals with the argument text(${JSON.stringify(text)}).`
+      )}) is not equal to the expected text(${JSON.stringify(strExpected)}).`
     );
   }
 }
 
-function isTextInputOrTextare(
+const editableInputTypes = new Set([
+  "text",
+  "search",
+  "email",
+  "password",
+  "tel",
+  "url",
+  "number",
+]);
+
+function isTextInputOrTextarea(
   element: HTMLElement
 ): element is HTMLInputElement | HTMLTextAreaElement {
   return (
     element instanceof HTMLTextAreaElement ||
-    (element instanceof HTMLInputElement && element.type === "text")
+    (element instanceof HTMLInputElement && editableInputTypes.has(element.type))
   );
+}
+
+function dispatchInputAndChange(element: HTMLElement): void {
+  // Notify the page that the element's value has changed.
+  // This improves compatibility with Vue, React, Angular, and ordinary event-driven forms.
+  // Some heavily controlled React components or custom input components may still require special handling.
+  // Call it before assigning strWrittenText because the value might change during the event period.
+
+  element.dispatchEvent(new Event("input", { bubbles: true, composed: true }));
+  element.dispatchEvent(new Event("change", { bubbles: true, composed: true }));
 }
