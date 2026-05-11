@@ -45,7 +45,7 @@ def handle_record_command(dictCommand: dict[str, Any]) -> DictSocketResult:
     except Exception as e:
         result: DictSocketResult = {
             "boolSuccess": False,
-            "data": "Processing failed: " + str(get_exception_info(e)),
+            "data": "Error: " + str(get_exception_info(e)),
         }
         Log.info(result)
         return result

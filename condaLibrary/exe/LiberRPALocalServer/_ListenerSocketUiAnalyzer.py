@@ -52,7 +52,7 @@ def handle_uianalyzer_command(message: str) -> None:
     if eventIsHandleUiAnalyzer.is_set():
         result: DictSocketResult = {
             "boolSuccess": False,
-            "data": "Processing failed: " + "Another UI Analyzer command is running",
+            "data": "Error: " + "Another UI Analyzer command is running",
         }
         Log.debug(("Another UI Analyzer command is running."))
         emit("message_flask_to_uianalyzer", json.dumps(result), to=dictUiAnalyzerCmd[strId])
@@ -120,7 +120,7 @@ def handle_uianalyzer_command(message: str) -> None:
     except Exception as e:
         result: DictSocketResult = {
             "boolSuccess": False,
-            "data": "Processing failed: " + str(get_exception_info(e)),
+            "data": "Error: " + str(get_exception_info(e)),
         }
     else:
         result: DictSocketResult = {"boolSuccess": True, "data": temp}

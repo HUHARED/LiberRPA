@@ -54,7 +54,7 @@ def handle_application_command(dictCommand: dict[str, Any]) -> DictSocketResult:
     except Exception as e:
         result: DictSocketResult = {
             "boolSuccess": False,
-            "data": "Processing failed: " + str(get_exception_info(e)),
+            "data": "Error: " + str(get_exception_info(e)),
         }
     else:
         result: DictSocketResult = {"boolSuccess": True, "data": temp}
