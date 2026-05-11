@@ -143,15 +143,20 @@ Customize the **Theme** settings to suit your preferences.
 
 # Selector
 
-> **Note:** The **Definitions** provided here are simplified explanations and do not represent the actual, complete format.
+> **Note:** The definitions in this section are simplified pseudo-schema.
+> They are intended to explain field meanings, not to provide complete runnable JSON, Python `TypedDict`, or TypeScript type definitions.
+>
+> Notations such as `NotRequired[str]` are descriptive only.
+> Do not copy the pseudo-schema directly as executable code.
+> Use UI Analyzer to create, edit and validate real selectors.
 
 ## SelectorUia
 
 It will search the "window" value first, then sequentially search through each layer in the "specification."
 
-Definition:
+pseudo-schema:
 
-```json
+```plaintext
 {
   "window": {
     "ControlTypeName": str,
@@ -174,7 +179,7 @@ Definition:
     "FrameworkId": NotRequired[str],
     "FrameworkId-regex": NotRequired[str],
     "ProcessName": NotRequired[str],
-    "ProcessName-regex": NotRequired[str]"
+    "ProcessName-regex": NotRequired[str]
   },
   "category": 'uia',
   "specification": list[
@@ -229,11 +234,237 @@ Example:
 
 ## SelectorHtml
 
-It will search the "window" value first, then sequentially search through each layer in the "specification."
+A `SelectorHtml` contains a `window` section and a `specification` list.
 
-Definition:
+The `window` section is used to locate the browser window first. After that, the Chrome extension searches the active web page using the `specification ` layers one by one.
+
+Each item in `specification` represents one HTML layer. The search starts from `document`, then each matched layer becomes the search root for the next layer.
+
+In simplified form:
+
+```plaintext
+document
+  -> match specification[0]
+    -> match specification[1] under the previous matched element
+      -> ...
+        -> final target element
+```
+
+Each HTML layer can use three kinds of locating information:
+
+* Basic attributes
+* Index attributes
+* Path attributes
+
+### Basic attributes
+
+Basic attributes describe the element itself.
+
+Examples:
 
 ```json
+{
+  "tagName": "button",
+  "directText": "Submit"
+}
+```
+
+```json
+{
+  "tagName": "input",
+  "type": "text",
+  "aria-label": "Search"
+}
+```
+
+Some attributes can be used directly in `querySelectorAll()` as a fast pre-filter,
+
+for example:
+
+```plaintext
+tagName
+id
+className
+type
+name
+aria-label
+aria-labelledby
+checked
+disabled
+```
+
+Other attributes are checked after the pre-filter step, for example:
+
+```plaintext
+value
+href
+src
+alt
+isHidden
+isDisplayedNone
+innerText
+directText
+parentId
+parentClass
+parentName
+isLeaf
+tableRowIndex
+tableColumnIndex
+tableColumnName
+```
+
+### Regex attributes
+
+Most attributes can also be written as a `-regex` field.
+
+For example:
+
+```json
+{
+  "tagName": "button",
+  "directText-regex": "Submit|Save"
+}
+```
+
+The regex value is used as a JavaScript regular expression string.
+
+The Chrome extension matches the whole value internally, so this:
+
+```json
+{
+  "directText-regex": "Submit"
+}
+```
+
+behaves like:
+
+```plaintext
+^Submit$
+```
+
+To match partial text, use `.*` explicitly:
+
+```json
+{
+  "directText-regex": ".*Submit.*"
+}
+```
+
+Do not write JavaScript regex slashes such as `/Submit/`. Use only the regex
+
+pattern string:
+
+```json
+{
+  "directText-regex": "Submit"
+}
+```
+
+### Index attributes
+
+Index attributes are used when the basic attributes are not enough to uniquely locate an element.
+
+There are two index fields: `childIndex`, `documentIndex`
+
+`documentIndex` is the target element's zero-based position among all elements in the document that match the same selected attributes.
+
+`childIndex` is the target element's zero-based position among matching descendant elements under the target element's parent search area.
+
+> `childIndex` is calculated by searching within the parent element's DOM subtree using `parentElement.querySelectorAll(...)`, then applying additional attribute filtering. Therefore, it is not limited to direct children only.
+
+A `childIndex` value of `"0"` is treated as unnecessary and ignored during matching.
+
+> Index values start from `0`. However, `0` is usually omitted because the first matched element is already selected by default. Index fields are most useful when the target is the second, third, or later matching element.
+
+Example:
+
+```json
+{
+  "tagName": "button",
+  "directText": "Delete",
+  "documentIndex": "2"
+}
+```
+
+Index fields also support regex:
+
+```
+{
+  "tagName": "button",
+  "directText": "Delete",
+  "documentIndex-regex": "[1-3]"
+}
+```
+
+Index attributes are calculated from the same attributes that remain in the current selector layer. If you remove an attribute from the selector, the index may need to be recalculated using a broader candidate set.
+
+### Path attributes
+
+When `usePath` is enabled, a `path` field will be generated for each HTML selector layer.
+
+Path attributes use a generated CSS path based on tag names and `:nth-child()`.
+
+Example:
+
+```json
+{
+  "path": "html>body>div:nth-child(2)>button"
+}
+```
+
+There is also a regex version:
+
+```json
+{
+  "path-regex": "html>body>.*>button"
+}
+```
+
+Do not combine `path` / `path-regex` with `childIndex` / `documentIndex` in the same layer. They are different fallback strategies. A layer should normally use either path-based locating or index-based locating, not both.
+
+> LiberRPA Chrome Extension passes this `path` string directly to `elementParent.querySelector(path)`. Therefore, the value must be a valid CSS selector string that can be understood by the browser.
+>
+> The generated path is an implementation detail of LiberRPA. It is a CSS-selector-like path made of tag names joined by `>`. When there are multiple sibling elements with the same tag name, the generator may append `:nth-child(...)` to make the path more specific.
+
+> Note: In the current implementation, the generated `:nth-child(...)` value is created from the element's order among siblings with the same tag name, while CSS `:nth-child(...)` itself counts the element's position among all sibling elements. Because of this, a generated path may be less reliable on DOM structures where different tag names are mixed under the same parent.
+
+In most cases, users should prefer stable attributes such as `id`, `name`, `aria-label`, text attributes, or index-based locating. Path-based locating is mainly a fallback when normal attributes are not reliable enough.
+
+### Secondary attributes
+
+Some generated attributes are secondary information and are not used as selector fields:
+
+```plaintext
+secondary-x
+secondary-y
+secondary-width
+secondary-height
+```
+
+These values describe the element's screen position and size. They are useful for display, preview, debugging, or UI Analyzer panels, but they are not part of the HTML selector matching logic.
+
+### Recommended selector editing workflow
+
+When editing an HTML selector manually:
+
+1. Prefer stable semantic attributes first:
+   1. `tagName`
+   2. `id`
+   3. `name`
+   4. `aria-label`
+   5. `directText`
+   6. `type`
+   7. `href`
+2. Use `-regex` when the value changes slightly.
+3. Use `childIndex` or `documentIndex` only when multiple elements still match.
+4. Use `path` only when attributes and indexes are not reliable enough.
+5. Avoid using too many text attributes if the page content changes frequently.
+
+---
+
+pseudo-schema:
+
+```plaintext
 {
   "window": {
     "ControlTypeName": str,
@@ -256,7 +487,7 @@ Definition:
     "FrameworkId": NotRequired[str],
     "FrameworkId-regex": NotRequired[str],
     "ProcessName": NotRequired[str],
-    "ProcessName-regex": NotRequired[str]"
+    "ProcessName-regex": NotRequired[str]
   },
   "category": 'html',
   "specification": list[
@@ -346,9 +577,9 @@ Example:
 
 It will search the "window" value first, then search **the only one layer** in "specification".
 
-Definition:
+pseudo-schema:
 
-```json
+```plaintext
 {
   "window": {
     "ControlTypeName": str,
@@ -371,7 +602,7 @@ Definition:
     "FrameworkId": NotRequired[str],
     "FrameworkId-regex": NotRequired[str],
     "ProcessName": NotRequired[str],
-    "ProcessName-regex": NotRequired[str]"
+    "ProcessName-regex": NotRequired[str]
   },
   "category": 'image',
   "specification": list[
@@ -411,7 +642,7 @@ Example:
 
 It will search the "window" value, **have no other sections**.
 
-Definition:
+pseudo-schema:
 
 ```json
 {
@@ -436,7 +667,7 @@ Definition:
     "FrameworkId": NotRequired[str],
     "FrameworkId-regex": NotRequired[str],
     "ProcessName": NotRequired[str],
-    "ProcessName-regex": NotRequired[str]"
+    "ProcessName-regex": NotRequired[str]
   }
 }
 ```
