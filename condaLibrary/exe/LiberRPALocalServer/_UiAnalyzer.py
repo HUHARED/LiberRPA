@@ -76,7 +76,7 @@ def indicate_uia(indicateDelaySeconds: int = 1) -> tuple[DictForUiAnalyzer, uiau
                         + str(e)
                     )
                     Log.error(strError)
-                    show_notification(title="UI Analyzer Error", message=strError, duration=5, wait=True)
+                    show_notification(title="UI Analyzer Error", message=strError, duration=5, wait=False)
                     raise e
                 else:
                     break
@@ -99,7 +99,7 @@ def indicate_uia(indicateDelaySeconds: int = 1) -> tuple[DictForUiAnalyzer, uiau
                     + str(e)
                 )
                 Log.error(strError)
-                show_notification(title="UI Analyzer Error", message=strError, duration=5, wait=True)
+                show_notification(title="UI Analyzer Error", message=strError, duration=5, wait=False)
                 raise e
 
             """ # Only need the element has "Name"
@@ -217,7 +217,7 @@ def indicate_chrome(
                         + str(e)
                     )
                     Log.error(strError)
-                    show_notification(title="UI Analyzer Error", message=strError, duration=5, wait=True)
+                    show_notification(title="UI Analyzer Error", message=strError, duration=5, wait=False)
                     raise e
                 else:
                     break
@@ -389,7 +389,7 @@ def indicate_window(indicateDelaySeconds: int = 1) -> DictForUiAnalyzer | None:
                         + str(e)
                     )
                     Log.error(strError)
-                    show_notification(title="UI Analyzer Error", message=strError, duration=2, wait=True)
+                    show_notification(title="UI Analyzer Error", message=strError, duration=2, wait=False)
                 else:
                     break
 
