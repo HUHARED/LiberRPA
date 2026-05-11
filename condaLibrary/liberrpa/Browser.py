@@ -323,7 +323,7 @@ def open_new_window(browserObj: BrowserObj, url: str, waitLoadCompleted: bool = 
         waitLoadCompleted: If True, waits for the page load to complete before returning.
         timeout: The maximum time in milliseconds to wait for the page load to complete, applicable only if waitLoadCompleted is True.
     """
-    
+
     _check_url(url=url)
 
     match browserObj.browserType:
@@ -605,9 +605,23 @@ def execute_js_code(browserObj: BrowserObj, jsCode: str, returnImmediately: bool
     """
     Executes a JavaScript code string in the active tab of the specified browser.
 
-    This function allows you to run JavaScript code in the context of the current active tab's web page.
+    For Chrome, the code is executed by LiberRPA Chrome Extension's content script.
+    This is not exactly the same as running code in the browser DevTools Console.
 
-    The code is executed as if it were being run directly in the browser's developer console.
+    Chrome content scripts normally run in an isolated environment. The executed code can access and manipulate the page DOM, such as `document`, `document.body`, and normal DOM nodes.
+    However, it may not be able to access JavaScript variables, functions, or objects that
+    exist only in the web page's own main-world JavaScript context.
+
+    The current Chrome extension implementation catches JavaScript execution errors inside the content script and returns `null` instead of reporting the execution as a failed LiberRPA command. Therefore, a Python return value of `None` may mean one of the following:
+
+    - `returnImmediately` is True.
+    - The JavaScript code actually returned `null` or `undefined`.
+    - The JavaScript code threw an error and the extension converted the error result to `null`.
+
+    For reliable result passing, the JavaScript return value should be JSON-serializable.
+    Recommended return values are strings, numbers, booleans, `null`, arrays, and plain objects.
+    Avoid returning DOM nodes, functions, class instances, cyclic objects, Window objects,
+    or other complex browser/runtime objects.
 
     Parameters:
         browserObj: The browser object to manipulate.
@@ -621,7 +635,7 @@ def execute_js_code(browserObj: BrowserObj, jsCode: str, returnImmediately: bool
             If False, the function will wait for the JavaScript execution to complete and return the result of the JavaScript code.
 
     Returns:
-        the returned value of JavaScript code. It will alway be None if returnImmediately is True.
+        The returned value of the JavaScript code, or None in the cases described above.
 
     Usage Example:
         ```python
