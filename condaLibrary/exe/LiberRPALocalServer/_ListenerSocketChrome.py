@@ -15,7 +15,8 @@ from exe.LiberRPALocalServer._ServerInit import sioServer, dictClients, get_clie
 from flask_socketio import emit
 import json
 import uuid
-from typing import Any
+from time import sleep
+from typing import Any, cast
 
 # Record the command be responsed or not, when the command sended to Chrome, create a new key-value pair{id:""}, when Chrome send a result with id, update it to {id:result}, and the function _wait_for_response_by_id() check it, if it's value is not "", means the result returned.
 dictCommandIdResponsed: dict[str, dict[str, Any] | None] = {}
@@ -67,17 +68,20 @@ def _wait_for_response_by_id(commandId: str, dictCommand: dict[str, Any]) -> Dic
     try:
         strTemp = json.dumps({"id": commandId, **dictCommand})
     except Exception as e:
-        return {"boolSuccess": False, "data": f"Error when serialize the command {dictCommand}"}
+        return {"boolSuccess": False, "data": f"Error when serializing the command {dictCommand}"}
 
+    # Some commands may complete very quickly, so register the command id before emitting.
+    dictCommandIdResponsed[commandId] = None
     emit("message_flask_to_chrome", strTemp, to=dictClients["Chrome"])
 
-    dictCommandIdResponsed[commandId] = None
     # Wait the result to be updated by handle_result_from_chrome().
     while dictCommandIdResponsed[commandId] is None:
+        # Reduce performance overhead caused by idle spinning.
+        sleep(0.01)
         continue
 
     # Pop the data from dictionary. it will not use again.
-    dictResult: DictSocketResult = dictCommandIdResponsed.pop(commandId)  # type: ignore - its type is right
+    dictResult = cast(DictSocketResult, dictCommandIdResponsed.pop(commandId))
 
     return dictResult
 
