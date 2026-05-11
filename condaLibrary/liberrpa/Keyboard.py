@@ -209,7 +209,7 @@ def _write_text_into_element(
                     if validateWrittenText:
                         if pattern.Value != text:
                             raise ValueError(
-                                f"The written text ({json.dumps(pattern.Value,ensure_ascii=False)}) is not equals with the argument text({json.dumps(text,ensure_ascii=False)}."
+                                f"The written text ({json.dumps(pattern.Value,ensure_ascii=False)}) is not equal to the argument text({json.dumps(text,ensure_ascii=False)}."
                             )  # Use json instead of str() to show \n, \t, etc.
                     delay(postExecutionDelay)
                     return None
@@ -264,7 +264,7 @@ def _write_text_into_element(
                     if strWrittenTextTemp != textTemp:
                         # Due to pyautogui use Enter to input '\n', it may become '\r\n', so replace it.
                         raise ValueError(
-                            f"The written text ({json.dumps(strWrittenText,ensure_ascii=False)}) is not equals with the argument text({json.dumps(text,ensure_ascii=False)})."
+                            f"The written text ({json.dumps(strWrittenText,ensure_ascii=False)}) is not equal to the argument text({json.dumps(text,ensure_ascii=False)})."
                         )  # Use json instead of str() to show \n, \t, etc.
                 else:
                     # html or image element simulate validate
