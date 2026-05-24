@@ -11,10 +11,10 @@ from liberrpa.Common._TypedValue import DictSocketResult
 from liberrpa.Common._Exception import get_exception_info
 from liberrpa.Dialog import show_notification
 
-import exe.LiberRPALocalServer._UiAnalyzer as _UiAnalyzer
-import exe.LiberRPALocalServer._ElementTree as _ElementTree
-from exe.LiberRPALocalServer._ServerInit import sioServer, get_client_id
-from exe.LiberRPALocalServer._Tray import change_tray_icon
+import liberrpa.LiberRPALocalServer._UiAnalyzer as _UiAnalyzer
+import liberrpa.LiberRPALocalServer._ElementTree as _ElementTree
+from liberrpa.LiberRPALocalServer._ServerInit import sioServer, get_client_id
+from liberrpa.LiberRPALocalServer._Tray import change_tray_icon
 
 
 from flask_socketio import emit

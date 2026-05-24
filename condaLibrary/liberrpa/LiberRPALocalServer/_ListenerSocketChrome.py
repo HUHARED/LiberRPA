@@ -9,7 +9,7 @@ print("=== import _ListenerSocketChrome ===")
 from liberrpa.Logging import Log
 from liberrpa.Common._TypedValue import DictSocketResult
 
-from exe.LiberRPALocalServer._ServerInit import sioServer, dictClients, get_client_id
+from liberrpa.LiberRPALocalServer._ServerInit import sioServer, dictClients, get_client_id
 
 
 from flask_socketio import emit

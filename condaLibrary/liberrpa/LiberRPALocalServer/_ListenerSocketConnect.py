@@ -8,8 +8,8 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 print("=== import _ListenerSocketConnect ===")
 from liberrpa.Logging import Log
 
-from exe.LiberRPALocalServer._Qt import dictClientAreaCache, close_area
-from exe.LiberRPALocalServer._ServerInit import sioServer, dictClients, get_client_id
+from liberrpa.LiberRPALocalServer._Qt import dictClientAreaCache, close_area
+from liberrpa.LiberRPALocalServer._ServerInit import sioServer, dictClients, get_client_id
 
 
 @sioServer.on("connect")

@@ -35,7 +35,7 @@ from liberrpa.Common._TypedValue import (
 )
 from liberrpa.Common._Exception import UiElementNotFoundError
 from liberrpa.Common._Chrome import get_element_attr_by_coordinates
-import exe.LiberRPALocalServer._Hook as _Hook
+import liberrpa.LiberRPALocalServer._Hook as _Hook
 
 import uiautomation
 import threading

@@ -52,18 +52,18 @@ if __name__ == "__main__":
         # The server take a little time to start, so, show the notification to make user know.
         # show_notification(title="LiberRPA Local Server", message="Try to launch...", duration=2, wait=False)
 
-        from exe.LiberRPALocalServer._ServerInit import boolHasRunServer, create_flask_server
+        from liberrpa.LiberRPALocalServer._ServerInit import boolHasRunServer, create_flask_server
 
         # Import listeners
         # ========================
         print("======================================")
         print("=== Import listeners start ===========")
-        import exe.LiberRPALocalServer._ListenerSocketConnect
-        import exe.LiberRPALocalServer._ListenerSocketChrome
-        import exe.LiberRPALocalServer._ListenerSocketUiAnalyzer
-        import exe.LiberRPALocalServer._ListenerSocketApplication
-        import exe.LiberRPALocalServer._ListenerSocketRecord
-        import exe.LiberRPALocalServer._ListenerSocketQt
+        import liberrpa.LiberRPALocalServer._ListenerSocketConnect
+        import liberrpa.LiberRPALocalServer._ListenerSocketChrome
+        import liberrpa.LiberRPALocalServer._ListenerSocketUiAnalyzer
+        import liberrpa.LiberRPALocalServer._ListenerSocketApplication
+        import liberrpa.LiberRPALocalServer._ListenerSocketRecord
+        import liberrpa.LiberRPALocalServer._ListenerSocketQt
 
         print("=== Import listeners done ============")
         print("======================================")
@@ -71,7 +71,7 @@ if __name__ == "__main__":
         # ========================
 
         # Create system tray icon.
-        import exe.LiberRPALocalServer._Tray as _Tray
+        import liberrpa.LiberRPALocalServer._Tray as _Tray
 
         _Tray.run_tray()
 

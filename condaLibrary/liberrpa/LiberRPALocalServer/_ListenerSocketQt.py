@@ -10,8 +10,8 @@ from liberrpa.Logging import Log
 from liberrpa.Common._TypedValue import DictSocketResult
 from liberrpa.Common._Exception import get_exception_info
 
-import exe.LiberRPALocalServer._Qt as _Qt
-from exe.LiberRPALocalServer._ServerInit import sioServer, get_client_id
+import liberrpa.LiberRPALocalServer._Qt as _Qt
+from liberrpa.LiberRPALocalServer._ServerInit import sioServer, get_client_id
 
 
 from typing import Any
