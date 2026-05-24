@@ -80,7 +80,7 @@ def _check_update() -> None:
     try:
         response = requests.get(
             url="https://raw.githubusercontent.com/HUHARED/LiberRPA/refs/heads/main/data.json",
-            timeout=10,
+            timeout=(1.5, 2.5),  # connect timeout, read timeout
         )
         response.raise_for_status()
         dictTemp = response.json()
@@ -97,6 +97,9 @@ def _update_daily_data() -> None:
     """Update some data on the first run of the day, to get some important data, but do not run it every time to save time."""
 
     strBase = os.path.join(os.environ.get("USERPROFILE", "N/A"), "Documents\\LiberRPA\\")
+    if not os.path.isdir(strBase):
+        raise RuntimeError("LiberRPA folder is missing. Please run InitLiberRPA.exe before using LiberRPA.")
+
     strDatePath = os.path.join(strBase, "UpdateDate.txt")
     strSystemDataPath = os.path.join(strBase, "SystemData.json")
 
