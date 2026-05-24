@@ -4,6 +4,10 @@ __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
+"""
+This module intentionally initializes project context and logger on import.
+It is expected to be imported at RPA project startup.
+"""
 
 import liberrpa.Common._Initialization  # For initialization
 
@@ -12,16 +16,17 @@ from liberrpa.Common._BasicConfig import get_basic_config_dict, get_liberrpa_fol
 from liberrpa.Common._Exception import get_exception_info
 
 import os
+import getpass
 import io
 import traceback
 from pathlib import Path
 from uuid import uuid4
+import json5
 import json
 import re
 import socket
 from logging.handlers import RotatingFileHandler
 import logging
-import multiprocessing
 import sys
 from functools import wraps
 import ctypes
@@ -33,6 +38,7 @@ logging.addLevelName(VERBOSE_LEVEL_NUM, "VERBOSE")
 type LogLevel = Literal["VERBOSE", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 
 _processName = multiprocessing.current_process().name
+
 
 _SET_BUILTIN_KEY = {
     "timestamp",
@@ -46,6 +52,8 @@ _SET_BUILTIN_KEY = {
     "projectName",
     "logId",
 }
+_SET_BUILTIN_KEY.update(set(logging.makeLogRecord({}).__dict__.keys()))
+# {'msg', 'levelname', 'exc_info', 'thread', 'threadName', 'name', 'process', 'funcName', 'args', 'pathname', 'taskName', 'levelno', 'lineno', 'msecs', 'created', 'filename', 'module', 'relativeCreated', 'exc_text', 'processName', 'stack_info'}
 
 _SET_INTERNAL_FILE = {
     "Logging.py",
@@ -85,20 +93,16 @@ def _find_caller(stack_info=False, stacklevel=2):
 
 
 class ConditionalHumanReadFormatter(logging.Formatter):
-    def __init__(self, fmt: str, datefmt: str):
-        super().__init__(fmt, datefmt)
-        self.original_fmt = fmt
+    def __init__(self, normalFmt: str, internalFmt: str, datefmt: str):
+        super().__init__()
+        self.normalFormatter = logging.Formatter(normalFmt, datefmt=datefmt)
+        self.internalFormatter = logging.Formatter(internalFmt, datefmt=datefmt)
 
-    def format(self, record) -> str:
+    def format(self, record: logging.LogRecord) -> str:
+        # Not record [%(filename)s][%(lineno)d] in human-read log if the filnename is "Logging.py" and so on, to make the log more concise.
         if record.filename in _SET_INTERNAL_FILE:
-            # Not record [%(filename)s][%(lineno)d] in human-read log if the filnename is "Logging.py" and so on, to make the log more concise.
-            fmtNew = self.original_fmt.replace("[%(filename)s][%(lineno)d]", "")
-            self._style._fmt = fmtNew
-            formatted = super().format(record)
-            self._style._fmt = self.original_fmt
-            return formatted
-        else:
-            return super().format(record)
+            return self.internalFormatter.format(record)
+        return self.normalFormatter.format(record)
 
 
 class JsonLineFormatter(logging.Formatter):
@@ -106,14 +110,23 @@ class JsonLineFormatter(logging.Formatter):
         super().__init__(datefmt="%Y-%m-%d %H:%M:%S")
         self.projectName = projectName
         self.customLogPartDict = customLogPartDict
+        self.userName = getpass.getuser()
+        self.machineName = socket.gethostname()
+
+    def _get_serializable_obj_or_str(self, value: Any) -> Any:
+        try:
+            json.dumps(value, ensure_ascii=False, allow_nan=False)
+            return value
+        except (TypeError, ValueError):
+            return repr(value)
 
     def format(self, record: logging.LogRecord) -> str:
         dictData = {
             "timestamp": self.formatTime(record, self.datefmt),
             "level": record.levelname,
-            "message": record.getMessage(),
-            "userName": os.getlogin(),
-            "machineName": socket.gethostname(),
+            "message": self._get_serializable_obj_or_str(record.msg),
+            "userName": self.userName,
+            "machineName": self.machineName,
             "processName": record.processName,
             "fileName": record.filename,
             "lineNo": record.lineno,
@@ -124,7 +137,7 @@ class JsonLineFormatter(logging.Formatter):
         for key in self.customLogPartDict:
             dictData[key] = getattr(record, key, self.customLogPartDict[key])
 
-        return json.dumps(dictData, ensure_ascii=False)
+        return json.dumps(dictData, ensure_ascii=False, allow_nan=False)
 
 
 class ColoredConsoleFormatter(logging.Formatter):
@@ -243,7 +256,7 @@ class Logger:
 
         # Creates a time-based folder for logs specific to the current project.
 
-        dictProject: dict[str, Any] = json.loads(Path("project.json").read_text(encoding="utf-8"))
+        dictProject: dict[str, Any] = json5.loads(Path("project.json").read_text(encoding="utf-8"))  # type: ignore
 
         strLogFolderName = os.getenv("LogFolderName")
         if strLogFolderName is not None:
@@ -261,9 +274,9 @@ class Logger:
         if dictProject.get("executorPackage") == True:
             try:
 
-                dictExecutorConfig: dict[str, str] = json.loads(
+                dictExecutorConfig: dict[str, str] = json5.loads(
                     Path(os.path.join(get_liberrpa_folder_path(), "./configFiles/Executor.jsonc")).read_text()
-                )
+                )  # type: ignore
 
                 strProjectLogFolderPath = dictExecutorConfig.get("projectLogFolderPath", "")
 
@@ -297,15 +310,21 @@ class Logger:
             )
 
         # Update project.json, add "logPath" for other parts to use later. Such as screen recording, screenshot.
-        # Only the MainProcess can initialize log folder.
+
+        # All processes create the folder to avoid a subprocess writes file before MainProcess.
+        os.makedirs(self.strLogFolder, exist_ok=True)
+
+        # Only the MainProcess can initialize project.json.
         if _processName == "MainProcess":
             dictProject["logPath"] = self.strLogFolder
             dictProject["executorPackageStatus"] = "running"
-            strTemp = json.dumps(dictProject, indent=4, ensure_ascii=False)
-            Path("project.json").write_text(data=strTemp, encoding="utf-8", errors="strict")
-            print("Update project.json: " + strTemp)
+            strTemp = json.dumps(dictProject, indent=4, ensure_ascii=False, allow_nan=False)
 
-            os.makedirs(self.strLogFolder, exist_ok=True)
+            # Avoid the situation that MainProcess was killed accidently and created a incompleted file.
+            pathTemp = Path("project.json.tmp")
+            pathTemp.write_text(data=strTemp, encoding="utf-8", errors="strict")
+            pathTemp.replace("project.json")
+            print("Update project.json: " + strTemp)
 
         # Create loggers
         self.colorfulConsoleHandlerObj = logging.StreamHandler(stream=sys.stderr)  # Console handler
@@ -317,6 +336,12 @@ class Logger:
         logger = logging.getLogger(fileName)
 
         # Avoid multiple processes if its imported or reloaded multiple times.
+
+        # Use [:] to create duplicate.
+        for handler in logger.handlers[:]:
+            logger.removeHandler(handler)
+            handler.close()
+
         logger.handlers.clear()
         logger.propagate = False
 
@@ -337,17 +362,38 @@ class Logger:
         logger.findCaller = _find_caller
         return logger
 
-    def _get_human_formatter(self) -> logging.Formatter:
+    def _build_human_format(self, includeSource: bool) -> str:
+        listParts: list[str] = [
+            "%(asctime)s",
+            "%(levelname)s",
+        ]
 
         # Not show processName in MainProcess to make log more concise.
         if _processName != "MainProcess":
-            strFormat = "[%(asctime)s][%(levelname)s][%(processName)s][%(filename)s][%(lineno)d]"
-        else:
-            strFormat = "[%(asctime)s][%(levelname)s][%(filename)s][%(lineno)d]"
+            listParts.append("%(processName)s")
+
+        if includeSource:
+            listParts.extend(
+                [
+                    "%(filename)s",
+                    "%(lineno)d",
+                ]
+            )
+
         for key in self.dictCustomLogPart:
-            strFormat += "[%(" + key + ")s]"
-        strFormat += " %(message)s"
-        return ConditionalHumanReadFormatter(strFormat, datefmt="%Y-%m-%d %H:%M:%S")
+            listParts.append(f"%({key})s")
+
+        return "".join(f"[{part}]" for part in listParts) + " %(message)s"
+
+    def _get_human_formatter(self) -> logging.Formatter:
+        fmtNormal = self._build_human_format(includeSource=True)
+        fmtInternal = self._build_human_format(includeSource=False)
+
+        return ConditionalHumanReadFormatter(
+            normalFmt=fmtNormal,
+            internalFmt=fmtInternal,
+            datefmt="%Y-%m-%d %H:%M:%S",
+        )
 
     def _get_console_formatter(self) -> logging.Formatter:
         return ColoredConsoleFormatter(
@@ -387,7 +433,7 @@ class Logger:
         The name cannot be one of the reserved keywords(["timestamp", "level", "message", "userName", "machineName", "processName", "fileName", "lineNo", "projectName", "logId"]) due to they are used in machine_read log.
 
         Parameters:
-            name: The new part's name to be added. This will be a new key in the machine_read log entry, but it won't appear in human_read log.
+            name: The new part's name to be added. This will be a new key in the machine_read log entry, but the name won't show in human_read log.
             text: The text of the new log part, which will be displayed in human_read log.
         """
 
@@ -397,6 +443,9 @@ class Logger:
             raise ValueError(
                 f"The argumnent 'name'({name}) cann't be one of {_SET_BUILTIN_KEY}, it has been used in machine_read log."
             )
+        if not name.isidentifier():
+            raise ValueError("custom log part name must be a valid identifier")
+
         self.dictCustomLogPart[name] = str(text)
         self._refresh_loggers_format()
 
@@ -415,6 +464,9 @@ class Logger:
             raise ValueError(
                 f"The argumnent 'name'({name}) cann't be one of {_SET_BUILTIN_KEY}, it has been used in machine_read log."
             )
+        if not name.isidentifier():
+            raise ValueError("custom log part name must be a valid identifier")
+
         if name in self.dictCustomLogPart:
             del self.dictCustomLogPart[name]
             self._refresh_loggers_format()
@@ -422,7 +474,7 @@ class Logger:
     def _pretty_format_message(self, message: Any):
         """Format dict, list, tuple to make the log more readable."""
         if isinstance(message, (dict, list, tuple)):
-            return json.dumps(message, indent=4, ensure_ascii=False)
+            return json.dumps(message, indent=4, ensure_ascii=False, allow_nan=False)
         return message
 
     def verbose(self, message: Any, stackLevel: int = 4):
@@ -435,7 +487,7 @@ class Logger:
         """
         extra = self._get_custom_log_parts()
         self.humanLogger.log(VERBOSE_LEVEL_NUM, message, stacklevel=stackLevel, extra=extra)
-        self.machineLogger.log(VERBOSE_LEVEL_NUM, repr(message), stacklevel=stackLevel, extra=extra)
+        self.machineLogger.log(VERBOSE_LEVEL_NUM, message, stacklevel=stackLevel, extra=extra)
 
     def debug(self, message: Any, stackLevel: int = 4):
         """
@@ -447,7 +499,7 @@ class Logger:
         """
         extra = self._get_custom_log_parts()
         self.humanLogger.debug(message, stacklevel=stackLevel, extra=extra)
-        self.machineLogger.debug(repr(message), stacklevel=stackLevel, extra=extra)
+        self.machineLogger.debug(message, stacklevel=stackLevel, extra=extra)
 
     def info(self, message: Any, stackLevel=4):
         """
@@ -459,7 +511,7 @@ class Logger:
         """
         extra = self._get_custom_log_parts()
         self.humanLogger.info(message, stacklevel=stackLevel, extra=extra)
-        self.machineLogger.info(repr(message), stacklevel=stackLevel, extra=extra)
+        self.machineLogger.info(message, stacklevel=stackLevel, extra=extra)
 
     def warning(self, message: Any, stackLevel=4):
         """
@@ -471,7 +523,7 @@ class Logger:
         """
         extra = self._get_custom_log_parts()
         self.humanLogger.warning(message, stacklevel=stackLevel, extra=extra)
-        self.machineLogger.warning(repr(message), stacklevel=stackLevel, extra=extra)
+        self.machineLogger.warning(message, stacklevel=stackLevel, extra=extra)
 
     def error(self, message: Any, stackLevel=4):
         """
@@ -483,7 +535,7 @@ class Logger:
         """
         extra = self._get_custom_log_parts()
         self.humanLogger.error(message, stacklevel=stackLevel, extra=extra)
-        self.machineLogger.error(repr(message), stacklevel=stackLevel, extra=extra)
+        self.machineLogger.error(message, stacklevel=stackLevel, extra=extra)
 
     def critical(self, message: Any, stackLevel=4):
         """
@@ -495,7 +547,7 @@ class Logger:
         """
         extra = self._get_custom_log_parts()
         self.humanLogger.critical(message, stacklevel=stackLevel, extra=extra)
-        self.machineLogger.critical(repr(message), stacklevel=stackLevel, extra=extra)
+        self.machineLogger.critical(message, stacklevel=stackLevel, extra=extra)
 
     def verbose_pretty(self, message: Any, stackLevel=4):
         """
@@ -511,7 +563,7 @@ class Logger:
         self.humanLogger.log(
             VERBOSE_LEVEL_NUM, self._pretty_format_message(message), stacklevel=stackLevel, extra=extra
         )
-        self.machineLogger.log(VERBOSE_LEVEL_NUM, repr(message), stacklevel=stackLevel, extra=extra)
+        self.machineLogger.log(VERBOSE_LEVEL_NUM, message, stacklevel=stackLevel, extra=extra)
 
     def debug_pretty(self, message: Any, stackLevel=4):
         """
@@ -525,7 +577,7 @@ class Logger:
         """
         extra = self._get_custom_log_parts()
         self.humanLogger.debug(self._pretty_format_message(message), stacklevel=stackLevel, extra=extra)
-        self.machineLogger.debug(repr(message), stacklevel=stackLevel, extra=extra)
+        self.machineLogger.debug(message, stacklevel=stackLevel, extra=extra)
 
     def info_pretty(self, message: Any, stackLevel=4):
         """
@@ -539,7 +591,7 @@ class Logger:
         """
         extra = self._get_custom_log_parts()
         self.humanLogger.info(self._pretty_format_message(message), stacklevel=stackLevel, extra=extra)
-        self.machineLogger.info(repr(message), stacklevel=stackLevel, extra=extra)
+        self.machineLogger.info(message, stacklevel=stackLevel, extra=extra)
 
     def warning_pretty(self, message: Any, stackLevel=4):
         """
@@ -553,7 +605,7 @@ class Logger:
         """
         extra = self._get_custom_log_parts()
         self.humanLogger.warning(self._pretty_format_message(message), stacklevel=stackLevel, extra=extra)
-        self.machineLogger.warning(repr(message), stacklevel=stackLevel, extra=extra)
+        self.machineLogger.warning(message, stacklevel=stackLevel, extra=extra)
 
     def error_pretty(self, message: Any, stackLevel=4):
         """
@@ -567,7 +619,7 @@ class Logger:
         """
         extra = self._get_custom_log_parts()
         self.humanLogger.error(self._pretty_format_message(message), stacklevel=stackLevel, extra=extra)
-        self.machineLogger.error(repr(message), stacklevel=stackLevel, extra=extra)
+        self.machineLogger.error(message, stacklevel=stackLevel, extra=extra)
 
     def critical_pretty(self, message: Any, stackLevel=4):
         """
@@ -581,7 +633,7 @@ class Logger:
         """
         extra = self._get_custom_log_parts()
         self.humanLogger.critical(self._pretty_format_message(message), stacklevel=stackLevel, extra=extra)
-        self.machineLogger.critical(repr(message), stacklevel=stackLevel, extra=extra)
+        self.machineLogger.critical(message, stacklevel=stackLevel, extra=extra)
 
     def set_level(self, level: LogLevel, loggerType: Literal["both", "human", "machine"] = "both"):
         """
@@ -649,7 +701,7 @@ class Logger:
                 except Exception as e:
                     self.exception_info(e)
                     boolError = True
-                    raise e
+                    raise
                 finally:
                     # Log END only if no error occurred
                     if not boolError:

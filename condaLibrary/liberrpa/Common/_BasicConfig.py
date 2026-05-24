@@ -6,6 +6,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
 import os
+import getpass
 from pathlib import Path
 import socket
 import json5
@@ -25,7 +26,7 @@ def get_basic_config_dict() -> DictBasicConfig:
 
     dictReplaceKeywords: dict[str, str] = {
         "${LiberRPA}": strLiberRPAPath,
-        "${UserName}": os.getlogin(),
+        "${UserName}": getpass.getuser(),
         "${HostName}": socket.gethostname(),
     }
 

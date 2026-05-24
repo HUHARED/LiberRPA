@@ -62,15 +62,19 @@ class DictExceptionInfo(TypedDict):
 
 
 def get_exception_info(ex: Exception) -> DictExceptionInfo:
-    excType, excObj, excTraceback = sys.exc_info()
-    fileName = traceback.extract_tb(excTraceback)[-1].filename
-    lineNumber = traceback.extract_tb(excTraceback)[-1].lineno
-    excMessage = str(ex)
-    excTypeName = excType.__name__  # type: ignore - excType is not None
+    excTraceback = ex.__traceback__
+
+    if excTraceback is not None:
+        lastFrame = traceback.extract_tb(excTraceback)[-1]
+        fileName = lastFrame.filename
+        lineNumber = lastFrame.lineno
+    else:
+        fileName = ""
+        lineNumber = None
 
     return {
-        "type": excTypeName,
-        "message": excMessage,
+        "type": type(ex).__name__,
+        "message": str(ex),
         "fileName": fileName,
         "lineNumber": lineNumber,
         "process": multiprocessing.current_process().name,
