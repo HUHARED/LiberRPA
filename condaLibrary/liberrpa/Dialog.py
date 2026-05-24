@@ -41,7 +41,7 @@ def show_notification(title: str, message: str, duration: int = 1, wait: bool = 
 
         send_command(eventName="qt_command", command=dictCommand)
     except QtError as e:
-        raise e
+        raise
     except Exception as e:
         pass
 

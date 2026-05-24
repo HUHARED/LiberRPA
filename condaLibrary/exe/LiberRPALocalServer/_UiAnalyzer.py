@@ -77,7 +77,7 @@ def indicate_uia(indicateDelaySeconds: int = 1) -> tuple[DictForUiAnalyzer, uiau
                     )
                     Log.error(strError)
                     show_notification(title="UI Analyzer Error", message=strError, duration=5, wait=False)
-                    raise e
+                    raise
                 else:
                     break
 
@@ -100,7 +100,7 @@ def indicate_uia(indicateDelaySeconds: int = 1) -> tuple[DictForUiAnalyzer, uiau
                 )
                 Log.error(strError)
                 show_notification(title="UI Analyzer Error", message=strError, duration=5, wait=False)
-                raise e
+                raise
 
             """ # Only need the element has "Name"
             while element is not None:
@@ -147,9 +147,6 @@ def indicate_uia(indicateDelaySeconds: int = 1) -> tuple[DictForUiAnalyzer, uiau
         Log.debug({"selector": selector, "attributes": dictSecondaryAttr})
         return dictReturn, element
 
-    # except Exception as e:
-    #     Log.exception_info(e)
-    #     raise e
 
     finally:
         Log.critical("Finally?")
@@ -218,7 +215,7 @@ def indicate_chrome(
                     )
                     Log.error(strError)
                     show_notification(title="UI Analyzer Error", message=strError, duration=5, wait=False)
-                    raise e
+                    raise
                 else:
                     break
 

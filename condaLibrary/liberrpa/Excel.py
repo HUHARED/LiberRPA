@@ -56,7 +56,7 @@ def _check_edit_mode():
         if not excelApp.Interactive:
             raise ExcelError("Excel is in Edit mode or not responsive.")
     except ExcelError as e:
-        raise e
+        raise
     except Exception as e:
         raise ExcelError(f"{e}, Excel is in Edit mode or not responsive.")
     finally:

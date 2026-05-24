@@ -330,7 +330,7 @@ def check_exists(
         Log.debug("Timeout for find the image.")
         return False
     except Exception as e:
-        raise e
+        raise
     finally:
         delay(postExecutionDelay)
 
@@ -374,7 +374,7 @@ def wait_appear(
     except UiTimeoutError as e:
         raise UiTimeoutError(f"Timeout exceeded for UI element to appear. timeout={timeoutTemp}, selector: {selector}")
     except Exception as e:
-        raise e
+        raise
 
 
 @Log.trace()
@@ -427,7 +427,7 @@ def wait_disappear(
         delay(postExecutionDelay)
         return None
     except Exception as e:
-        raise e
+        raise
 
 
 def _get_parent(
