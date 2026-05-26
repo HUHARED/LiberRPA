@@ -6,7 +6,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
 from liberrpa.Logging import Log
-from liberrpa.Common._BasicConfig import get_basic_config_dict
+from liberrpa.Common._BasicConfig import get_basic_config_dict, get_token
 from liberrpa.Common._Exception import ChromeError, QtError
 from liberrpa.Common._TypedValue import DictSocketResult
 
@@ -19,6 +19,7 @@ SIGN_START_RECORD_VIDEO = "$SIGN-START_RECORD_VIDEO"
 
 # Initialize the socket client.
 intPort = int(get_basic_config_dict()["localServerPort"])
+strToken = get_token("python")
 sioClient = socketio.Client(logger=False, engineio_logger=False)
 
 
@@ -44,7 +45,11 @@ def send_command(eventName: str, command: dict[str, Any], timeout: int = 10000) 
         # Connect to the LiberRPA local server if not connected.
         # Put it in the function instead of outside, due to LiberRPA local server will import the file, and the web socket has not been build at that time.
         if not sioClient.connected:
-            sioClient.connect(f"http://localhost:{intPort}", transports=["websocket"])
+            sioClient.connect(
+                f"http://127.0.0.1:{intPort}",
+                transports=["websocket"],
+                auth={"clientType": "python", "token": strToken},
+            )
             # log.debug(f"Connected to server, sid: {sioClient.sid}")
     except ConnectionError as e:
         raise ConnectionError(f"Failed to connect LiberRPA local server: {e}, is the server running?")

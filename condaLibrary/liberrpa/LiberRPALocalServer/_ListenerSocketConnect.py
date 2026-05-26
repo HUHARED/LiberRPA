@@ -10,11 +10,87 @@ from liberrpa.Logging import Log
 
 from liberrpa.LiberRPALocalServer._Qt import dictClientAreaCache, close_area
 from liberrpa.LiberRPALocalServer._ServerInit import sioServer, dictClients, get_client_id
+from liberrpa.Common._BasicConfig import get_basic_config_dict, get_token
+
+import hmac
+from urllib.parse import urlparse
+from flask import request
+from socketio.exceptions import ConnectionRefusedError as SocketConnectionRefusedError
+from typing import Literal, cast
+
+ClientType = Literal["python", "chrome", "uiAnalyzer"]
+
+
+SET_ALLOWED_CLIENT_TYPES: set[str] = {"python", "chrome", "uiAnalyzer"}
+SET_ALLOWED_UI_ANALYZER_ORIGINS = {
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "file://",
+}
+SET_ALLOWED_CHROME_EXTENSION_ORIGINS = {
+    # Without the final "/"
+    "chrome-extension://cffobgimbemkfgjmcedebofkfcamnajb",
+    "chrome-extension://elnnnehambeohefmcdeiajpodhcdgigb",
+}
+
+
+def is_same_local_server_origin(origin: str) -> bool:
+    parsed = urlparse(origin)
+
+    if parsed.scheme != "http":
+        return False
+
+    if parsed.hostname != "127.0.0.1":
+        return False
+
+    return parsed.port == get_basic_config_dict()["localServerPort"]
+
+
+def validate_origin(clientType: ClientType) -> None:
+    origin = request.headers.get("Origin")
+    Log.debug(f"Socket.IO connect origin: {origin!r}, clientType={clientType}")
+
+    if origin is None:
+        return
+
+    if clientType == "python":
+        if is_same_local_server_origin(origin):
+            return
+        raise SocketConnectionRefusedError("origin not allowed")
+
+    if clientType == "chrome":
+        if origin in SET_ALLOWED_CHROME_EXTENSION_ORIGINS:
+            return
+        raise SocketConnectionRefusedError("origin not allowed")
+
+    if clientType == "uiAnalyzer":
+        if origin in SET_ALLOWED_UI_ANALYZER_ORIGINS:
+            return
+        raise SocketConnectionRefusedError("origin not allowed")
+
+    raise SocketConnectionRefusedError("origin not allowed")
 
 
 @sioServer.on("connect")
-def handle_connect() -> None:
-    Log.info("Client connected: " + get_client_id())
+def handle_connect(auth: dict[str, str] | None) -> None:
+    auth = auth or {}
+
+    clientType = auth.get("clientType")
+    token = auth.get("token")
+
+    if clientType not in SET_ALLOWED_CLIENT_TYPES:
+        raise SocketConnectionRefusedError("unknown client type")
+
+    clientType = cast(ClientType, clientType)
+
+    validate_origin(clientType)
+
+    tokenExpected = get_token(clientType)
+
+    if not hmac.compare_digest(str(token or ""), tokenExpected):
+        raise SocketConnectionRefusedError("unauthorized")
+
+    Log.info(f"Client connected: sid={get_client_id()}, clientType={clientType}")
 
 
 @sioServer.on("disconnect")

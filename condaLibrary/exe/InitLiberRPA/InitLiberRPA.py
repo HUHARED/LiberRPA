@@ -12,7 +12,7 @@ import subprocess
 import re
 import json
 import winreg
-
+import secrets
 
 pathCwd = Path.cwd()
 print(f"The current work folder: {pathCwd}, LiberRPA will be initialized according to the current path.")
@@ -53,7 +53,7 @@ def set_liberrpa_environment() -> None:
 
     if strLiberRPAPath:
         print(
-            f"The current LiberRPA path has be added into User Environment variables is '{strLiberRPAPath}',do you want to replace it into '{pathCwd}'?"
+            f"The current LiberRPA path has be added into User Environment variables is '{strLiberRPAPath}',do you want to replace it into '{pathCwd}'? (Choose 'y' when installing or updating LiberRPA, even if the folder path is unchanged. This refreshes local config files and WebSocket auth tokens, so related local services should be restarted.)"
         )
 
         strUserInput = input("(y/other)").strip().lower()
@@ -79,6 +79,7 @@ def set_liberrpa_environment() -> None:
     # Do other settings.
     set_vscode_python_interpreter()
     create_native_messaging_file()
+    create_local_auth()
     install_font_for_current_user()
     set_startup()
     put_shortcuts_to_desktop()
@@ -126,7 +127,10 @@ def create_native_messaging_file() -> None:
         "description": "Chrome call native app and sent message to app.",
         "path": str(pathExe),
         "type": "stdio",
-        "allowed_origins": ["chrome-extension://cffobgimbemkfgjmcedebofkfcamnajb/"],
+        "allowed_origins": [
+            "chrome-extension://cffobgimbemkfgjmcedebofkfcamnajb/", # Web Store version
+            "chrome-extension://elnnnehambeohefmcdeiajpodhcdgigb/", # Developing
+        ],
     }
     Path(pathNmFile).write_text(json.dumps(dictNM, indent=4), encoding="utf-8")
 
@@ -210,6 +214,23 @@ def check_Executor_config() -> None:
         print("Executor will be initialized when user first open it.")
 
     print_step_done(name="check_Executor_config")
+
+
+def create_local_auth() -> None:
+    print_step(name="create_local_auth")
+
+    pathAuthFile = pathUser / R"Documents\LiberRPA\WebSocketAuth.json"
+
+    # Generate independent tokens for different client types.
+    dictAuth = {
+        "python": secrets.token_urlsafe(32),
+        "uiAnalyzer": secrets.token_urlsafe(32),
+        "chrome": secrets.token_urlsafe(32),
+    }
+
+    Path(pathAuthFile).write_text(json.dumps(dictAuth, indent=4), encoding="utf-8")
+    print("WebSocket auth file has been created.")
+    print_step_done(name="create_local_auth")
 
 
 if __name__ == "__main__":

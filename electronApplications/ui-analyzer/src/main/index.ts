@@ -7,7 +7,7 @@ import noLinkIcon from "../../resources/NoLink_16px.png?asset";
 
 import { loggerMain } from "./logger";
 import { deleteTimeoutScreenshot } from "./init";
-import { dictConfigBasic } from "./config";
+import { dictConfigBasic, strToken } from "./config";
 import { DictInvokeResult } from "../shared/interface";
 
 let webContentsObj: Electron.WebContents;
@@ -37,7 +37,7 @@ function createWindow(): void {
     // NOTE：Delete it before packaging. Open DevTools when the content finishes loading.
     // webContentsObj.openDevTools();
 
-    webContentsObj.send("send-from-main", "init-setting", dictConfigBasic);
+    webContentsObj.send("send-from-main", "init-setting", [dictConfigBasic, strToken]);
 
     deleteTimeoutScreenshot();
   });

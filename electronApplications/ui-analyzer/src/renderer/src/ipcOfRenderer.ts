@@ -46,8 +46,13 @@ export async function invokeMain(command: string, data?: any): Promise<any> {
 window.electron.ipcRenderer.on(
   "send-from-main",
   async (_: Electron.IpcRendererEvent, command: string, data?: any) => {
+
+    // Redact token.
+    const dataForLog =
+      command === "init-setting" && Array.isArray(data) ? [data[0], "[redacted]"] : data;
+
     loggerRenderer.debug(
-      `[send-from-main]\ncommand=${command}\ndata=${JSON.stringify(data, null, 2)}`
+      `[send-from-main]\ncommand=${command}\ndata=${JSON.stringify(dataForLog, null, 2)}`
     );
 
     switch (command) {
@@ -73,14 +78,18 @@ window.electron.ipcRenderer.on(
 /* Create socket. */
 let socket: ReturnType<typeof io> | null = null;
 
-export function connectToServer(port: number): void {
+export function connectToServer(port: number, token: string): void {
   const settingStore = useSettingStore();
   if (socket && socket.connected) {
     loggerRenderer.debug("Socket.IO already connected: " + socket.id);
     return;
   }
-  socket = io(`http://localhost:${port}`, {
+  socket = io(`http://127.0.0.1:${port}`, {
     transports: ["websocket"],
+    auth: {
+      clientType: "uiAnalyzer",
+      token: token,
+    },
   });
 
   socket.on("connect", () => {

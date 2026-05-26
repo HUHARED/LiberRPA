@@ -2,6 +2,13 @@
 
 import type { DictCommandContent } from "../content/interface";
 
+/* For Web Socket */
+
+export interface DictNativeHostPortMessage {
+  port: number;
+  token: string;
+}
+
 /* Dict Type for the command executed in backgound */
 interface DictCommandGetDownloadList {
   commandName: "getDownloadList";

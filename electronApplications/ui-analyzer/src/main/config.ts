@@ -47,3 +47,21 @@ function getBasicConfigDict(): DictBasicConfig {
 }
 
 export const dictConfigBasic = getBasicConfigDict();
+
+function getToken(): string {
+  const strAuthPath = path.join(strDocumentsFolderPath, "LiberRPA/WebSocketAuth.json");
+  try {
+    let data = fs.readFileSync(strAuthPath, { encoding: "utf-8" });
+
+    const strToken = jsoncParser.parse(data)["uiAnalyzer"];
+
+    if (!strToken) {
+      throw new Error(`No UI Analyzer Token in ${strAuthPath}`);
+    }
+    return strToken;
+  } catch (e: unknown) {
+    throw new Error(`Error reading or parsing file: ${e}`);
+  }
+}
+
+export const strToken = getToken();

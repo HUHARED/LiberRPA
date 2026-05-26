@@ -9,6 +9,7 @@ print("=== import _ServerInit ===")
 from liberrpa.Logging import Log
 from liberrpa.Dialog import show_message_box, show_notification
 from liberrpa.Common._Exception import get_exception_info
+from liberrpa.Common._BasicConfig import get_basic_config_dict
 
 from flask import Flask, request
 from flask_socketio import SocketIO
@@ -16,7 +17,19 @@ import socket
 import requests
 
 flaskApp = Flask(__name__)
-sioServer = SocketIO(flaskApp, cors_allowed_origins="*", async_mode="threading")
+
+sioServer = SocketIO(
+    flaskApp,
+    cors_allowed_origins=[
+        f"http://127.0.0.1:{get_basic_config_dict()["localServerPort"]}",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "file://",
+        "chrome-extension://cffobgimbemkfgjmcedebofkfcamnajb",
+        "chrome-extension://elnnnehambeohefmcdeiajpodhcdgigb",
+    ],
+    async_mode="threading",
+)
 boolHasRunServer = False
 
 # Dictionary to track connected clients, only "Chrome" now.
@@ -32,12 +45,12 @@ def verify() -> str:
 # Create or use existing Flask server.
 def _check_port_in_use(port: int) -> bool:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        return s.connect_ex(("localhost", port)) == 0
+        return s.connect_ex(("127.0.0.1", port)) == 0
 
 
 def _check_if_liberrpa_server_has_run(port: int) -> bool:
     try:
-        response = requests.get(f"http://localhost:{port}/verify")
+        response = requests.get(f"http://127.0.0.1:{port}/verify", timeout=2)
         if response.status_code == 200 and response.text == "LiberRPA Local Server Verification":
             return True
     except requests.exceptions.RequestException:
@@ -77,7 +90,7 @@ def create_flask_server(port) -> None:
             sioServer.run(
                 flaskApp,
                 debug=False,
-                host="localhost",
+                host="127.0.0.1",
                 port=port,
                 use_reloader=False,
                 log_output=True,

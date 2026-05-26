@@ -10,7 +10,7 @@ import getpass
 from pathlib import Path
 import socket
 import json5
-from typing import TypedDict, Literal, Any
+from typing import TypedDict, Literal, Any, cast
 
 
 class DictBasicConfig(TypedDict):
@@ -18,6 +18,12 @@ class DictBasicConfig(TypedDict):
     localServerPort: int
     uiAnalyzerTheme: Literal["light", "dark"]
     uiAnalyzerMinimizeWindow: bool
+
+
+class DictAuth(TypedDict):
+    python: str
+    uiAnalyzer: str
+    chrome: str
 
 
 def get_basic_config_dict() -> DictBasicConfig:
@@ -55,6 +61,25 @@ def get_basic_config_dict() -> DictBasicConfig:
                     strKeyInner, dictReplaceKeywords[strKeyInner]
                 )
     return dictBasicConfig
+
+
+def get_token(clientType: Literal["python", "chrome", "uiAnalyzer"]) -> str:
+
+    pathAuthFile = Path.home() / R"Documents\LiberRPA\WebSocketAuth.json"
+
+    if not pathAuthFile.is_file():
+        raise FileNotFoundError(
+            "WebSocketAuth.json was not found. Please run InitLiberRPA.exe to initialize or update LiberRPA."
+        )
+
+    dictAuth: DictAuth = cast(DictAuth, json5.loads(pathAuthFile.read_text(encoding="utf-8")))
+    try:
+        return dictAuth[clientType]
+    except KeyError:
+        raise KeyError(
+            f"Token for client type {clientType!r} was not found in WebSocketAuth.json. "
+            "Please run InitLiberRPA.exe to refresh local WebSocket auth tokens."
+        )
 
 
 def get_liberrpa_folder_path() -> str:

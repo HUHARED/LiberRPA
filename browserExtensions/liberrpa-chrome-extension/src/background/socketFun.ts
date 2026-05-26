@@ -3,17 +3,22 @@ import io from "socket.io-client";
 import { handleCommand } from "./handleCommand";
 import { setSocketConnected } from "./icon";
 
-import type { DictCommandFromFlask, DictResultToFlask } from "./interface";
+import type {
+  DictCommandFromFlask,
+  DictResultToFlask,
+  DictNativeHostPortMessage,
+} from "./interface";
 
 let intServerPort: number | null = null;
+let strToken: string | null = null;
 let socket: ReturnType<typeof io> | null = null;
 
 // Function to connect to native messaging host and receive server port
-async function getServerPort(): Promise<number> {
-  return new Promise<number>((resolve, reject) => {
+async function getServerPort(): Promise<[number, string]> {
+  return new Promise<[number, string]>((resolve, reject) => {
     // It should run only once to get port from native messaging host.
-    if (intServerPort) {
-      resolve(intServerPort);
+    if (intServerPort && strToken) {
+      resolve([intServerPort, strToken]);
       return;
     }
 
@@ -24,17 +29,20 @@ async function getServerPort(): Promise<number> {
 
     const nativeTemp = chrome.runtime.connectNative(strHostName);
 
-    nativeTemp.onMessage.addListener((msg: Record<string, number>) => {
-      console.log("Receive message from native messaging host:", msg);
+    nativeTemp.onMessage.addListener((msg: DictNativeHostPortMessage) => {
+      console.log("Receive message from native messaging host:", {
+        port: msg.port,
+        token: "[redacted]",
+      });
       intServerPort = msg.port;
-      console.log(`serverPort=${intServerPort}`);
-      resolve(intServerPort);
+      strToken = msg.token;
+      resolve([intServerPort, strToken]);
     });
 
     nativeTemp.onDisconnect.addListener(() => {
       const error = chrome.runtime.lastError;
 
-      if (!intServerPort) {
+      if (!intServerPort || !strToken) {
         reject(new Error(error ? error.message : "Disconnected without receiving port."));
       }
 
@@ -54,9 +62,15 @@ export async function setupSocket(): Promise<void> {
   await setSocketConnected(false);
 
   try {
-    const port = await getServerPort();
-    const url = `http://localhost:${port}`;
-    socket = io(url, { transports: ["websocket"] });
+    const [port, token] = await getServerPort();
+    const url = `http://127.0.0.1:${port}`;
+    socket = io(url, {
+      transports: ["websocket"],
+      auth: {
+        clientType: "chrome",
+        token: token,
+      },
+    });
 
     socket.on("connect", () => {
       console.log("Socket.IO connection established.", socket?.id);

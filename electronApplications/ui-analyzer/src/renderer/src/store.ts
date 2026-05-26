@@ -378,6 +378,7 @@ export const useSettingStore = defineStore("setting", {
       confidence: 0.9 as number,
 
       intLocalServerPort: undefined as undefined | number,
+      strToken: undefined as undefined | string,
       socketState: false as boolean,
       leftColumnWidth: 250 as number,
       rightColumnWidth: 250 as number,
@@ -386,12 +387,15 @@ export const useSettingStore = defineStore("setting", {
   },
   getters: {},
   actions: {
-    initializeSetting(dictConfigBasic: DictBasicConfig): void {
+    initializeSetting(tupleConfig: [DictBasicConfig, string]): void {
+      const dictConfigBasic = tupleConfig[0];
+
       this.intLocalServerPort = dictConfigBasic.localServerPort;
+      this.strToken = tupleConfig[1];
       this.theme = dictConfigBasic.uiAnalyzerTheme;
       this.minimizeWindow = dictConfigBasic.uiAnalyzerMinimizeWindow;
 
-      connectToServer(this.intLocalServerPort);
+      connectToServer(this.intLocalServerPort, this.strToken);
     },
 
     async toggleWindow() {
