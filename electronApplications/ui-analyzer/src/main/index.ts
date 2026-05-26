@@ -50,14 +50,24 @@ function createWindow(): void {
   // Load the remote URL for development or the local html file for production.
   if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
     loggerMain.info("development mode");
-    mainWindow.loadURL(process.env["ELECTRON_RENDERER_URL"]);
+    void mainWindow
+      .loadURL(process.env["ELECTRON_RENDERER_URL"])
+      .catch((error: unknown) => {
+        loggerMain.error("Failed to load renderer URL.", error);
+      });
   } else {
     loggerMain.info("production mode");
-    mainWindow.loadFile(join(__dirname, "../renderer/index.html"));
+    void mainWindow
+      .loadFile(join(__dirname, "../renderer/index.html"))
+      .catch((error: unknown) => {
+        loggerMain.error("Failed to load renderer HTML file.", error);
+      });
   }
 }
 
-app.whenReady().then(() => {
+async function bootstrap(): Promise<void> {
+  await app.whenReady();
+
   electronApp.setAppUserModelId("com.liberrpa.ui-analyzer");
 
   const displays = screen.getAllDisplays();
@@ -83,12 +93,12 @@ app.whenReady().then(() => {
 
   ipcMain.handle(
     "invoke-from-renderer",
-    async (_event, command: string, data?: any): Promise<DictInvokeResult> => {
+    async (_event, command: string, data?: unknown): Promise<DictInvokeResult> => {
       loggerMain.debug(
         `[invoke-from-renderer] (${command}) ${JSON.stringify(data, null, 2)}`
       );
       try {
-        let temp: any;
+        let temp: unknown;
         switch (command) {
           case "cmd-toggle-window":
             if (mainWindowObj.isMinimized()) {
@@ -128,6 +138,10 @@ app.whenReady().then(() => {
   app.on("activate", function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
+}
+void bootstrap().catch((error: unknown) => {
+  loggerMain.error("Failed to bootstrap UI Analyzer.", error);
+  app.quit();
 });
 
 app.on("window-all-closed", () => {

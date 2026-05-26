@@ -18,7 +18,7 @@ export function removePrefix(originalText: string, prefix: string): string {
 }
 
 export function modifyKeyName(
-  dictToModify: { [key: string]: any },
+  dictToModify: { [key: string]: unknown },
   originalKeyName: string,
   newKeyName: string
 ): void {
@@ -29,7 +29,7 @@ export function modifyKeyName(
       delete dictToModify[keyName];
     } else {
       // Delete the key so it will after the newKeyName
-      const valueCache: any = dictToModify[keyName];
+      const valueCache: unknown = dictToModify[keyName];
       delete dictToModify[keyName];
       dictToModify[keyName] = valueCache;
     }

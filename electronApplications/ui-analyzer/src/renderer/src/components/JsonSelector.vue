@@ -114,7 +114,7 @@ function validateJson(): void {
         JSON.parse(fixTrailingCommas(selectorStore.strJsonText));
         strInfoText.value = "It's a correct Python dictionary.";
         booleanJsonParse.value = true;
-      } catch (e) {
+      } catch {
         strInfoText.value = `Syntax error: ${message}`;
         booleanJsonParse.value = false;
       }

@@ -3,9 +3,9 @@ import io from "socket.io-client";
 
 import { useSettingStore, useInformationStore, useSelectorStore } from "./store";
 import { removePrefix } from "./attrHandleFunc";
-import { DictInvokeResult, DictEleTreeItem } from "../../shared/interface";
+import { DictInvokeResult, DictEleTreeItem, DictBasicConfig } from "../../shared/interface";
 
-const sendLogToMain = (level: string, message: any): void => {
+const sendLogToMain = (level: string, message: unknown): void => {
   // Log to Electron console.
   console.log(`[${level}] ${message}`);
   // Log to local file.
@@ -13,16 +13,16 @@ const sendLogToMain = (level: string, message: any): void => {
 };
 
 export const loggerRenderer = {
-  error: (message: any): void => sendLogToMain("error", message),
-  warn: (message: any): void => sendLogToMain("warn", message),
-  info: (message: any): void => sendLogToMain("info", message),
-  http: (message: any): void => sendLogToMain("http", message),
-  verbose: (message: any): void => sendLogToMain("verbose", message),
-  debug: (message: any): void => sendLogToMain("debug", message),
-  silly: (message: any): void => sendLogToMain("silly", message),
+  error: (message: unknown): void => sendLogToMain("error", message),
+  warn: (message: unknown): void => sendLogToMain("warn", message),
+  info: (message: unknown): void => sendLogToMain("info", message),
+  http: (message: unknown): void => sendLogToMain("http", message),
+  verbose: (message: unknown): void => sendLogToMain("verbose", message),
+  debug: (message: unknown): void => sendLogToMain("debug", message),
+  silly: (message: unknown): void => sendLogToMain("silly", message),
 };
 
-export async function invokeMain(command: string, data?: any): Promise<any> {
+export async function invokeMain(command: string, data?: unknown): Promise<unknown | void> {
   // loggerRenderer.debug("--invokeMain--");
   const result: DictInvokeResult = await window.electron.ipcRenderer.invoke(
     "invoke-from-renderer",
@@ -34,19 +34,19 @@ export async function invokeMain(command: string, data?: any): Promise<any> {
   ); */
   if (result.success) {
     return result.data;
-  } else {
-    const settingStore = useSettingStore();
-    settingStore.toggleWindow();
-
-    const informationStore = useInformationStore();
-    informationStore.showAlertMessage(JSON.stringify(result.data));
   }
+
+  /* const settingStore = useSettingStore();
+  settingStore.toggleWindow(); */
+
+  const informationStore = useInformationStore();
+  informationStore.showAlertMessage(JSON.stringify(result.data));
+  return undefined;
 }
 
 window.electron.ipcRenderer.on(
   "send-from-main",
-  async (_: Electron.IpcRendererEvent, command: string, data?: any) => {
-
+  async (_: Electron.IpcRendererEvent, command: string, data?: unknown) => {
     // Redact token.
     const dataForLog =
       command === "init-setting" && Array.isArray(data) ? [data[0], "[redacted]"] : data;
@@ -58,7 +58,7 @@ window.electron.ipcRenderer.on(
     switch (command) {
       case "init-setting": {
         const settingStore = useSettingStore();
-        settingStore.initializeSetting(data);
+        settingStore.initializeSetting(data as [DictBasicConfig, string]);
         break;
       }
 
@@ -95,22 +95,22 @@ export function connectToServer(port: number, token: string): void {
   socket.on("connect", () => {
     loggerRenderer.debug("Socket.IO connection established: " + socket?.id);
     settingStore.socketState = true;
-    invokeMain("cmd-toggle-socket-status", true);
+    void invokeMain("cmd-toggle-socket-status", true);
   });
 
   socket.on("disconnect", () => {
     loggerRenderer.debug("Socket.IO connection disconnected");
     settingStore.socketState = false;
-    invokeMain("cmd-toggle-socket-status", false);
+    void invokeMain("cmd-toggle-socket-status", false);
   });
 
   socket.on("connect_error", (e: Error) => {
     console.error("Socket.IO connection error:", e);
     settingStore.socketState = false;
-    invokeMain("cmd-toggle-socket-status", false);
+    void invokeMain("cmd-toggle-socket-status", false);
   });
 
-  socket.on("message_flask_to_uianalyzer", async (data: string) => {
+  socket.on("message_flask_to_uianalyzer", (data: string) => {
     // settingStore.socketState = true;
     loggerRenderer.debug("--message_flask_to_uianalyzer--");
     // loggerRenderer.debug(data);
@@ -133,7 +133,7 @@ export function connectToServer(port: number, token: string): void {
   });
 }
 
-export function sendCmdToFlask(dictCommand: { [key: string]: any }): void {
+export function sendCmdToFlask(dictCommand: { [key: string]: unknown }): void {
   loggerRenderer.debug("--sendCmdToFlask--");
   if (socket) {
     socket.emit("uianalyzer_command", JSON.stringify(dictCommand));

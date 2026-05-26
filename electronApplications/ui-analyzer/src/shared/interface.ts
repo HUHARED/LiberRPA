@@ -7,7 +7,7 @@ export interface DictBasicConfig {
 
 export interface DictInvokeResult {
   success: boolean;
-  data?: any;
+  data?: unknown;
 }
 
 export interface SelectorWindow {

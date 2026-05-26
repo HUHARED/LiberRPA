@@ -8,7 +8,7 @@
           prepend-icon="mdi-monitor"
           density="compact"
           variant="tonal"
-          @click="indicateUia()">
+          @click="void indicateUia()">
           uia
           <v-tooltip activator="parent" location="bottom">
             Indicate an uia element in the screen.
@@ -21,7 +21,7 @@
           prepend-icon="mdi-web"
           density="compact"
           variant="tonal"
-          @click="indicateChrome()">
+          @click="void indicateChrome()">
           html
           <v-tooltip activator="parent" location="bottom">
             <div>
@@ -50,7 +50,7 @@
           prepend-icon="mdi-window-restore"
           density="compact"
           variant="tonal"
-          @click="indicateWindow()">
+          @click="void indicateWindow()">
           window
           <v-tooltip activator="parent" location="bottom">
             <div>
@@ -67,7 +67,7 @@
           density="compact"
           :color="informationStore.updateValidateColor()"
           variant="tonal"
-          @click="validateSelector()">
+          @click="void validateSelector()">
           Validate
           <v-tooltip activator="parent" location="bottom">
             Try to find the element that defined by Json Selector.
@@ -100,8 +100,8 @@ const selectorStore = useSelectorStore();
 const settingStore = useSettingStore();
 const informationStore = useInformationStore();
 
-function indicateUia(): void {
-  settingStore.toggleWindow();
+async function indicateUia(): Promise<void> {
+  await settingStore.toggleWindow();
   sendCmdToFlask({
     commandName: "indicate_uia",
     intIndicateDelaySeconds: settingStore.intIndicateDelaySeconds,
@@ -109,8 +109,8 @@ function indicateUia(): void {
   selectorStore.setDescription("Indicating uia.");
 }
 
-function indicateChrome(): void {
-  settingStore.toggleWindow();
+async function indicateChrome(): Promise<void> {
+  await settingStore.toggleWindow();
   sendCmdToFlask({
     commandName: "indicate_chrome",
     intIndicateDelaySeconds: settingStore.intIndicateDelaySeconds,
@@ -132,8 +132,8 @@ function indicateImage(): void {
   selectorStore.setDescription("Indicating image.");
 }
 
-function indicateWindow(): void {
-  settingStore.toggleWindow();
+async function indicateWindow(): Promise<void> {
+  await settingStore.toggleWindow();
   sendCmdToFlask({
     commandName: "indicate_window",
     intIndicateDelaySeconds: settingStore.intIndicateDelaySeconds,
@@ -141,13 +141,13 @@ function indicateWindow(): void {
   selectorStore.setDescription("Indicating window.");
 }
 
-function validateSelector(): void {
+async function validateSelector(): Promise<void> {
   if (selectorStore.strJsonText === "") {
     informationStore.showAlertMessage("Have no selector to validate.");
     return;
   }
 
-  settingStore.toggleWindow();
+  await settingStore.toggleWindow();
 
   sendCmdToFlask({
     commandName: "validate",

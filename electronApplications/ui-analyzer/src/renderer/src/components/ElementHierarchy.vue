@@ -61,13 +61,13 @@ watch(
       selectorStore.afterIndicate();
       // Reset validateState
       informationStore.validateState = undefined;
-      settingStore.toggleWindow();
+      void settingStore.toggleWindow();
     } else if (informationStore.information.startsWith('{"validate"')) {
       // If it is element validation.
       const boolResult = JSON.parse(informationStore.information)["validate"] as boolean;
       loggerRenderer.debug("boolResult=" + boolResult);
       informationStore.validateState = boolResult;
-      settingStore.toggleWindow();
+      void settingStore.toggleWindow();
     } else {
       loggerRenderer.debug("It's not a known expected result.");
       // Reset validateState

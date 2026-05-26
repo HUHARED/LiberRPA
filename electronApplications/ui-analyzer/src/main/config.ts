@@ -51,7 +51,7 @@ export const dictConfigBasic = getBasicConfigDict();
 function getToken(): string {
   const strAuthPath = path.join(strDocumentsFolderPath, "LiberRPA/WebSocketAuth.json");
   try {
-    let data = fs.readFileSync(strAuthPath, { encoding: "utf-8" });
+    const data = fs.readFileSync(strAuthPath, { encoding: "utf-8" });
 
     const strToken = jsoncParser.parse(data)["uiAnalyzer"];
 
