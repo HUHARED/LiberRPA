@@ -4,6 +4,7 @@
   "description": "The Chrome extension to interact with LiberRPA Local Server.",
   "author": "mailwork.hu@gmail.com",
   "version": "0.1.1",
+  "minimum_chrome_version": "116",
   "permissions": [
     "tabs",
     "activeTab",
@@ -34,7 +35,7 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["dist/content.js", "node_modules/chrome-inject-eval/dist/umd.min.js"]
+      "js": ["dist/content.js"]
     }
   ]
 }

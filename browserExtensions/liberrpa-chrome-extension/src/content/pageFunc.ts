@@ -1,5 +1,5 @@
 // FileName: pageFunc.ts
-// import injectEval from "chrome-inject-eval";
+
 import { getEvalInstance, transformCode } from "chrome-inject-eval";
 
 type EvalFunction = (code: string) => unknown;
