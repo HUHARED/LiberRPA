@@ -17,11 +17,11 @@ import socket
 import requests
 
 flaskApp = Flask(__name__)
-
+intPort = int(get_basic_config_dict()["localServerPort"])
 sioServer = SocketIO(
     flaskApp,
     cors_allowed_origins=[
-        f"http://127.0.0.1:{get_basic_config_dict()["localServerPort"]}",
+        f"http://127.0.0.1:{intPort}",
         "http://localhost:5173",
         "http://127.0.0.1:5173",
         "file://",
