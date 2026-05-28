@@ -30,6 +30,12 @@ def show_notification(title: str, message: str, duration: int = 1, wait: bool = 
         wait: Whether to wait the notification disappear.
     """
 
+    # Local Server has done the check, but I think checking it here is better.
+    if message is None or message == "":
+        raise ValueError("The message can't be empty or None.")
+    if duration <= 0:
+        raise ValueError("The duration should larger than 0.")
+
     try:
         dictCommand = {
             "commandName": "show_notification",
