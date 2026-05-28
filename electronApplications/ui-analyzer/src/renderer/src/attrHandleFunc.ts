@@ -1,7 +1,7 @@
 // FileName: attrHandleFunc.ts
 
-export const strSuffixOmit = "-omit";
-export const strSuffixRegex = "-regex";
+export const STR_SUFFIX_OMIT = "-omit";
+export const STR_SUFFIX_REGEX = "-regex";
 
 export function removeSuffix(originalText: string, suffix: string): string {
   if (originalText.endsWith(suffix)) {

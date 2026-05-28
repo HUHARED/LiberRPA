@@ -5,7 +5,7 @@ import fs from "fs";
 import * as os from "os";
 import * as jsoncParser from "jsonc-parser";
 
-import { DictBasicConfig } from "../shared/interface";
+import type { DictBasicConfig } from "../shared/interface";
 
 const strLiberRPAEnvPath = process.env.LiberRPA;
 

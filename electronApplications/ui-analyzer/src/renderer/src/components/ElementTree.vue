@@ -52,7 +52,7 @@
 
 <script setup lang="ts">
 import { loggerRenderer } from "../ipcOfRenderer";
-import { SelectorNonWindow } from "../../../shared/interface";
+import type { SelectorNonWindow } from "../../../shared/interface";
 import { useSelectorStore, useInformationStore } from "../store";
 
 const selectorStore = useSelectorStore();

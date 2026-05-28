@@ -29,11 +29,30 @@ export default tseslint.config(
       },
     },
     rules: {
+      "@typescript-eslint/explicit-function-return-type": [
+        "error",
+        {
+          allowExpressions: true,
+          allowTypedFunctionExpressions: true,
+          allowHigherOrderFunctions: true,
+          allowDirectConstAssertionInArrowFunctions: true,
+          allowIIFEs: true,
+        },
+      ],
+
       "@typescript-eslint/no-unused-vars": [
         "warn",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
       ],
       "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/consistent-type-imports": [
+        "warn",
+        {
+          prefer: "type-imports",
+          fixStyle: "inline-type-imports",
+        },
+      ],
+
       "@typescript-eslint/no-floating-promises": [
         "error",
         {

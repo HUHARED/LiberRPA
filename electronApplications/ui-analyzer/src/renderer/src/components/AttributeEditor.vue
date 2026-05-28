@@ -23,7 +23,7 @@
         <v-col cols="12" class="pa-1 ma-0">
           <!-- Remove "-omit" and "-regex" in the key's name. -->
           <v-label>
-            {{ removeSuffix(removeSuffix(strAttrName, strSuffixOmit), strSuffixRegex) }}
+            {{ removeSuffix(removeSuffix(strAttrName, STR_SUFFIX_OMIT), STR_SUFFIX_REGEX) }}
           </v-label>
 
           <!--
@@ -38,7 +38,7 @@
             "
             color="secondary"
             :prepend-inner-icon="
-              strAttrName.includes(strSuffixRegex) ? 'mdi-regex' : 'mdi-code-string'
+              strAttrName.includes(STR_SUFFIX_REGEX) ? 'mdi-regex' : 'mdi-code-string'
             "
             :prefix="'&quot;'"
             :suffix="'&quot;'"
@@ -70,7 +70,7 @@
 <script setup lang="ts">
 import { watch } from "vue";
 
-import { strSuffixOmit, strSuffixRegex, removeSuffix } from "../attrHandleFunc";
+import { STR_SUFFIX_OMIT, STR_SUFFIX_REGEX, removeSuffix } from "../attrHandleFunc";
 import { useSelectorStore, useInformationStore } from "../store";
 import { loggerRenderer } from "@renderer/ipcOfRenderer";
 

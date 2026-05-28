@@ -3,12 +3,12 @@ import { defineStore } from "pinia";
 
 import { loggerRenderer, invokeMain, connectToServer } from "./ipcOfRenderer";
 import {
-  strSuffixOmit,
-  strSuffixRegex,
+  STR_SUFFIX_OMIT,
+  STR_SUFFIX_REGEX,
   removeSuffix,
   modifyKeyName,
 } from "./attrHandleFunc";
-import {
+import type {
   DictBasicConfig,
   SelectorWindow,
   SelectorNonWindow,
@@ -20,32 +20,32 @@ export const useSelectorStore = defineStore("selector", {
   state: () => {
     return {
       dictFromPython: {} as DictForUiAnalyzer,
-      arrEleHierarchy: [] as { [key: string]: string }[],
-      arrSecondaryAttr: [] as { [key: string]: string }[],
+      arrEleHierarchy: [] as Record<string, string>[],
+      arrSecondaryAttr: [] as Record<string, string>[],
       arrLayerCheckState: [] as boolean[],
-      arrCheckedLayers: [] as { [key: string]: string }[],
+      arrCheckedLayers: [] as Record<string, string>[],
       intClickedLayer: -1 as number,
       strJsonText: "" as string,
       processDescription: "Idle" as string,
       arrEleTree: [] as DictEleTreeItem[],
       arrEleTreeOpened: [] as number[],
       intEleTreeActivated: 0 as number,
-      dictEleTreeSelector: {} as { [key: number]: { [key: string]: string }[] },
+      dictEleTreeSelector: {} as Record<number, Record<string, string>[]>,
     };
   },
   getters: {},
   actions: {
-    setDescription(description: string) {
+    setDescription(description: string): void {
       loggerRenderer.debug(`-start-${description}-`);
       this.processDescription = description;
     },
 
-    idle() {
+    idle(): void {
       loggerRenderer.debug(`-end-`);
       this.processDescription = "Idle";
     },
 
-    afterIndicate() {
+    afterIndicate(): void {
       this.setDescription("afterIndicate");
 
       // Clean Element Tree
@@ -71,7 +71,7 @@ export const useSelectorStore = defineStore("selector", {
       this.idle();
     },
 
-    updateByDictFromPython() {
+    updateByDictFromPython(): void {
       // Update arrSecondaryAttr.
       this.arrSecondaryAttr = [];
 
@@ -106,7 +106,7 @@ export const useSelectorStore = defineStore("selector", {
                 "parentName",
               ].includes(keyName)
             ) {
-              modifyKeyName(dictTemp, keyName, keyName + strSuffixOmit);
+              modifyKeyName(dictTemp, keyName, keyName + STR_SUFFIX_OMIT);
             }
           }
 
@@ -137,7 +137,7 @@ export const useSelectorStore = defineStore("selector", {
       this.intClickedLayer = this.arrLayerCheckState.length - 1;
     },
 
-    updateCheckedLayerAndJsonText() {
+    updateCheckedLayerAndJsonText(): void {
       // this.setDescription("updateCheckedLayerAndJsonText");
 
       // Loop all elements in arrEleHierarchy(by index, arrEleHierarchy and arrLayerCheckState should have same length), if it's checked, add it to arrCheckedLayers
@@ -156,7 +156,7 @@ export const useSelectorStore = defineStore("selector", {
           // if a key contains "-omit", ignore it.
           const dictCheckAttributes: { [key: string]: string } = {};
           Object.keys(this.arrEleHierarchy[index]).forEach((key) => {
-            if (!key.endsWith(strSuffixOmit)) {
+            if (!key.endsWith(STR_SUFFIX_OMIT)) {
               dictCheckAttributes[key] = this.arrEleHierarchy[index][key];
             }
           });
@@ -175,7 +175,7 @@ export const useSelectorStore = defineStore("selector", {
       } else {
         const dictTemp: SelectorNonWindow = {
           window: this.arrCheckedLayers[0],
-          category: this.arrCheckedLayers[1]["category"] as "uia" | "html",
+          category: this.arrCheckedLayers[1]["category"] as SelectorNonWindow["category"],
           specification: this.arrCheckedLayers.slice(2),
         };
         dictSelector = dictTemp;
@@ -187,7 +187,7 @@ export const useSelectorStore = defineStore("selector", {
       // this.idle();
     },
 
-    updateEleTreeSelector() {
+    updateEleTreeSelector(): void {
       this.setDescription("updateEleTreeSelector");
       const addSelectorRecursive = (
         id: number,
@@ -213,13 +213,13 @@ export const useSelectorStore = defineStore("selector", {
       this.idle();
     },
 
-    handleLayerCheck(index: number, event: boolean) {
+    handleLayerCheck(index: number, event: boolean): void {
       this.setDescription("handleLayerCheck");
 
       // If check or uncheck a layer, update arrCheckedLayers, and generate Json Selector. But the layer 0 and 1 (window and category) should alway be checked.
       loggerRenderer.debug(`Check or uncheck layer: ${index} ${event}`);
       if (index !== 0 && index !== 1) {
-        this.arrLayerCheckState[index] = !this.arrLayerCheckState[index];
+        this.arrLayerCheckState[index] = event;
         this.updateCheckedLayerAndJsonText();
         this.refreshArrtibuteEditor(index);
       } else {
@@ -232,7 +232,7 @@ export const useSelectorStore = defineStore("selector", {
       this.idle();
     },
 
-    refreshArrtibuteEditor(index: number) {
+    refreshArrtibuteEditor(index: number): void {
       this.setDescription("refreshArrtibuteEditor");
 
       // Update intClickedLayer to make the changement be watched, then refresh automatically.
@@ -242,7 +242,7 @@ export const useSelectorStore = defineStore("selector", {
       this.idle();
     },
 
-    omitAttr(event: boolean, keyName: string) {
+    omitAttr(event: boolean, keyName: string): void {
       // Add "-omit" for unchecked attributes. Remove "-omit" for checked attributes.
       this.setDescription("omitAttr");
       const arrMustCheckedKey = [
@@ -274,25 +274,25 @@ export const useSelectorStore = defineStore("selector", {
         modifyKeyName(
           this.arrEleHierarchy[this.intClickedLayer],
           keyName,
-          removeSuffix(keyName, strSuffixOmit)
+          removeSuffix(keyName, STR_SUFFIX_OMIT)
         );
       } else {
         modifyKeyName(
           this.arrEleHierarchy[this.intClickedLayer],
           keyName,
-          keyName + strSuffixOmit
+          keyName + STR_SUFFIX_OMIT
         );
       }
 
       this.idle();
     },
 
-    regexAttr(_event: MouseEvent, keyName: string) {
+    regexAttr(_event: MouseEvent, keyName: string): void {
       // Add or remove"-regex"
       this.setDescription("regexAttr");
 
       // Not change a omitted attribute. Otherwise the attribute will be lost(disappear).
-      if (keyName.endsWith(strSuffixOmit)) {
+      if (keyName.endsWith(STR_SUFFIX_OMIT)) {
         const informationStore = useInformationStore();
         informationStore.information =
           "Make the attribute checked, then try to modify regex again.";
@@ -325,38 +325,20 @@ export const useSelectorStore = defineStore("selector", {
         return;
       }
 
-      if (keyName.endsWith(strSuffixOmit)) {
-        if (keyName.includes(strSuffixRegex)) {
-          // The omited regex attribute.
-          modifyKeyName(
-            this.arrEleHierarchy[this.intClickedLayer],
-            keyName,
-            removeSuffix(keyName, strSuffixRegex)
-          );
-        } else {
-          // The omited string attribute.
-          modifyKeyName(
-            this.arrEleHierarchy[this.intClickedLayer],
-            keyName,
-            keyName.replace(strSuffixOmit, strSuffixRegex + strSuffixOmit)
-          );
-        }
+      if (keyName.endsWith(STR_SUFFIX_REGEX)) {
+        // The regex attribute.
+        modifyKeyName(
+          this.arrEleHierarchy[this.intClickedLayer],
+          keyName,
+          removeSuffix(keyName, STR_SUFFIX_REGEX)
+        );
       } else {
-        if (keyName.endsWith(strSuffixRegex)) {
-          // The regex attribute.
-          modifyKeyName(
-            this.arrEleHierarchy[this.intClickedLayer],
-            keyName,
-            removeSuffix(keyName, strSuffixRegex)
-          );
-        } else {
-          // The string attribute.
-          modifyKeyName(
-            this.arrEleHierarchy[this.intClickedLayer],
-            keyName,
-            keyName + strSuffixRegex
-          );
-        }
+        // The string attribute.
+        modifyKeyName(
+          this.arrEleHierarchy[this.intClickedLayer],
+          keyName,
+          keyName + STR_SUFFIX_REGEX
+        );
       }
       // Delete original keyName.
 
@@ -398,7 +380,7 @@ export const useSettingStore = defineStore("setting", {
       connectToServer(this.intLocalServerPort, this.strToken);
     },
 
-    async toggleWindow() {
+    async toggleWindow(): Promise<void> {
       if (this.minimizeWindow) {
         if (this.boolIndicateImage) {
           // Not minimize the UI Analyzer window, because the QT window will also be minimized.
@@ -426,7 +408,7 @@ export const useInformationStore = defineStore("information", {
   },
   getters: {},
   actions: {
-    updateValidateColor() {
+    updateValidateColor(): "success" | "error" | undefined {
       if (this.validateState === undefined) {
         return undefined;
       } else if (this.validateState === true) {
