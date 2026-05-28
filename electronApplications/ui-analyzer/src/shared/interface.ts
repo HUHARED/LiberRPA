@@ -1,3 +1,5 @@
+// FileName: interface.ts
+
 export interface DictBasicConfig {
   outputLogPath: string;
   localServerPort: number;
@@ -5,10 +7,25 @@ export interface DictBasicConfig {
   uiAnalyzerMinimizeWindow: boolean;
 }
 
-export interface DictInvokeResult {
-  success: boolean;
-  data?: unknown;
-}
+export type DictInvokeResult =
+  | {
+      success: true;
+      data?: unknown;
+    }
+  | {
+      success: false;
+      data: string;
+    };
+
+export type MainInvokeCommand = "cmd-toggle-window" | "cmd-toggle-socket-status";
+export type RendererLogLevel =
+  | "error"
+  | "warn"
+  | "info"
+  | "http"
+  | "verbose"
+  | "debug"
+  | "silly";
 
 export interface SelectorWindow {
   window: { [key: string]: string };

@@ -3,87 +3,93 @@ import io from "socket.io-client";
 
 import { useSettingStore, useInformationStore, useSelectorStore } from "./store";
 import { removePrefix } from "./attrHandleFunc";
-import { DictInvokeResult, DictEleTreeItem, DictBasicConfig } from "../../shared/interface";
+import type {
+  DictInvokeResult,
+  DictEleTreeItem,
+  RendererLogLevel,
+  MainInvokeCommand,
+} from "../../shared/interface";
 
-const sendLogToMain = (level: string, message: unknown): void => {
+function formatLogMessage(message: unknown): string {
+  if (typeof message === "string") {
+    return message;
+  }
+
+  if (message instanceof Error) {
+    return message.stack ?? message.message;
+  }
+
+  try {
+    return JSON.stringify(message);
+  } catch {
+    return String(message);
+  }
+}
+
+const sendLogToMain = (level: RendererLogLevel, message: unknown): void => {
   // Log to Electron console.
-  console.log(`[${level}] ${message}`);
-  // Log to local file.
-  window.electron.ipcRenderer.send("send-from-renderer-log", { level, message });
+  const formattedMessage = formatLogMessage(message);
+
+  console.log(`[${level}] ${formattedMessage}`);
+  window.uiAnalyzer.logToMain(level, formattedMessage);
 };
 
 export const loggerRenderer = {
-  error: (message: unknown): void => sendLogToMain("error", message),
-  warn: (message: unknown): void => sendLogToMain("warn", message),
-  info: (message: unknown): void => sendLogToMain("info", message),
-  http: (message: unknown): void => sendLogToMain("http", message),
-  verbose: (message: unknown): void => sendLogToMain("verbose", message),
-  debug: (message: unknown): void => sendLogToMain("debug", message),
-  silly: (message: unknown): void => sendLogToMain("silly", message),
+  error: (message: unknown) => sendLogToMain("error", message),
+  warn: (message: unknown) => sendLogToMain("warn", message),
+  info: (message: unknown) => sendLogToMain("info", message),
+  http: (message: unknown) => sendLogToMain("http", message),
+  verbose: (message: unknown) => sendLogToMain("verbose", message),
+  debug: (message: unknown) => sendLogToMain("debug", message),
+  silly: (message: unknown) => sendLogToMain("silly", message),
 };
 
-export async function invokeMain(command: string, data?: unknown): Promise<unknown | void> {
+export async function invokeMain(
+  command: MainInvokeCommand,
+  data?: unknown
+): Promise<unknown | undefined> {
   // loggerRenderer.debug("--invokeMain--");
-  const result: DictInvokeResult = await window.electron.ipcRenderer.invoke(
-    "invoke-from-renderer",
-    command,
-    data
-  );
-  /* loggerRenderer.debug(
-    `invokeMain result (${command})=\n${JSON.stringify(result, null, 2)}`
-  ); */
+  const result: DictInvokeResult = await window.uiAnalyzer.invokeMain(command, data);
+
   if (result.success) {
     return result.data;
   }
-
-  /* const settingStore = useSettingStore();
-  settingStore.toggleWindow(); */
 
   const informationStore = useInformationStore();
   informationStore.showAlertMessage(JSON.stringify(result.data));
   return undefined;
 }
 
-window.electron.ipcRenderer.on(
-  "send-from-main",
-  async (_: Electron.IpcRendererEvent, command: string, data?: unknown) => {
-    // Redact token.
-    const dataForLog =
-      command === "init-setting" && Array.isArray(data) ? [data[0], "[redacted]"] : data;
+window.uiAnalyzer.onInitSetting((data) => {
+  loggerRenderer.debug(
+    `[send-from-main]\ncommand=init-setting\ndata=${JSON.stringify(
+      [data[0], "[redacted]"],
+      null,
+      2
+    )}`
+  );
 
-    loggerRenderer.debug(
-      `[send-from-main]\ncommand=${command}\ndata=${JSON.stringify(dataForLog, null, 2)}`
-    );
-
-    switch (command) {
-      case "init-setting": {
-        const settingStore = useSettingStore();
-        settingStore.initializeSetting(data as [DictBasicConfig, string]);
-        break;
-      }
-
-      default:
-        loggerRenderer.error(
-          `An unidentified command in send-from-main: ${command}, data: ${JSON.stringify(
-            data,
-            null,
-            2
-          )}`
-        );
-        break;
-    }
-  }
-);
+  const settingStore = useSettingStore();
+  settingStore.initializeSetting(data);
+});
 
 /* Create socket. */
 let socket: ReturnType<typeof io> | null = null;
 
 export function connectToServer(port: number, token: string): void {
   const settingStore = useSettingStore();
+
   if (socket && socket.connected) {
     loggerRenderer.debug("Socket.IO already connected: " + socket.id);
     return;
   }
+
+  if (socket) {
+    socket.removeAllListeners();
+    socket.disconnect();
+    socket = null;
+  }
+
   socket = io(`http://127.0.0.1:${port}`, {
     transports: ["websocket"],
     auth: {
@@ -118,24 +124,64 @@ export function connectToServer(port: number, token: string): void {
 
     if (data.startsWith("Element_Tree:")) {
       data = removePrefix(data, "Element_Tree:");
-      const dictResult: [DictEleTreeItem[], number[], number] = JSON.parse(data);
-      selectorStore.arrEleTree = dictResult[0];
-      selectorStore.arrEleTreeOpened = dictResult[1];
-      selectorStore.intEleTreeActivated = dictResult[2];
-      selectorStore.updateEleTreeSelector();
-    } else {
-      const dictResult = JSON.parse(data);
 
-      const informationStore = useInformationStore();
-      informationStore.information = JSON.stringify(dictResult["data"]);
-      selectorStore.processDescription = "Idle";
+      // Simple type guard.
+      try {
+        const parsedData: unknown = JSON.parse(data);
+
+        if (!Array.isArray(parsedData)) {
+          throw new Error("Element tree result is not an array.");
+        }
+
+        const dictResult = parsedData as [DictEleTreeItem[], number[], number];
+
+        selectorStore.arrEleTree = dictResult[0];
+        selectorStore.arrEleTreeOpened = dictResult[1];
+        selectorStore.intEleTreeActivated = dictResult[2];
+        selectorStore.updateEleTreeSelector();
+      } catch (error) {
+        const informationStore = useInformationStore();
+        informationStore.showAlertMessage(
+          error instanceof Error ? error.message : "Failed to parse Local Server response."
+        );
+      }
+    } else {
+      try {
+        const parsedData: unknown = JSON.parse(data);
+
+        if (
+          typeof parsedData !== "object" ||
+          parsedData === null ||
+          !("data" in parsedData)
+        ) {
+          throw new Error("Local Server response does not contain data.");
+        }
+
+        const dictResult = parsedData as Record<string, unknown>;
+
+        const informationStore = useInformationStore();
+        informationStore.information = JSON.stringify(dictResult["data"]);
+        selectorStore.processDescription = "Idle";
+      } catch (error) {
+        const informationStore = useInformationStore();
+        informationStore.showAlertMessage(
+          error instanceof Error ? error.message : "Failed to parse Local Server response."
+        );
+        selectorStore.processDescription = "Idle";
+      }
     }
   });
 }
 
-export function sendCmdToFlask(dictCommand: { [key: string]: unknown }): void {
+export function sendCmdToFlask(dictCommand: Record<string, unknown>): void {
   loggerRenderer.debug("--sendCmdToFlask--");
-  if (socket) {
-    socket.emit("uianalyzer_command", JSON.stringify(dictCommand));
+
+  // Prevent command cache to be executed after reconnection.
+  if (!socket || !socket.connected) {
+    const informationStore = useInformationStore();
+    informationStore.showAlertMessage("Local Server is not connected.");
+    return;
   }
+
+  socket.emit("uianalyzer_command", JSON.stringify(dictCommand));
 }

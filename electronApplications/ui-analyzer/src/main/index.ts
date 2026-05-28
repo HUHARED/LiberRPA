@@ -8,7 +8,7 @@ import noLinkIcon from "../../resources/NoLink_16px.png?asset";
 import { loggerMain } from "./logger";
 import { deleteTimeoutScreenshot } from "./init";
 import { dictConfigBasic, strToken } from "./config";
-import { DictInvokeResult } from "../shared/interface";
+import type { DictInvokeResult, RendererLogLevel } from "../shared/interface";
 
 let webContentsObj: Electron.WebContents;
 let mainWindowObj: Electron.BrowserWindow;
@@ -26,6 +26,8 @@ function createWindow(): void {
     icon: icon,
     webPreferences: {
       preload: join(__dirname, "../preload/index.js"),
+      nodeIntegration: false,
+      contextIsolation: true,
       sandbox: false,
     },
   });
@@ -65,6 +67,45 @@ function createWindow(): void {
   }
 }
 
+function isExpectedSender(
+  event: Electron.IpcMainInvokeEvent | Electron.IpcMainEvent
+): boolean {
+  return event.sender === webContentsObj;
+}
+
+function isSocketStatusPayload(data: unknown): data is boolean {
+  return typeof data === "boolean";
+}
+
+type RendererLogPayload = {
+  level: RendererLogLevel;
+  message: string;
+};
+
+const SET_ALLOWED_LOG_LEVELS = new Set<RendererLogLevel>([
+  "error",
+  "warn",
+  "info",
+  "http",
+  "verbose",
+  "debug",
+  "silly",
+]);
+
+function isRendererLogPayload(payload: unknown): payload is RendererLogPayload {
+  if (typeof payload !== "object" || payload === null) {
+    return false;
+  }
+
+  const dictPayload = payload as Record<string, unknown>;
+
+  return (
+    typeof dictPayload.level === "string" &&
+    SET_ALLOWED_LOG_LEVELS.has(dictPayload.level as RendererLogLevel) &&
+    typeof dictPayload.message === "string"
+  );
+}
+
 async function bootstrap(): Promise<void> {
   await app.whenReady();
 
@@ -87,18 +128,30 @@ async function bootstrap(): Promise<void> {
     optimizer.watchWindowShortcuts(window);
   });
 
-  ipcMain.on("send-from-renderer-log", (_event, { level, message }) =>
-    loggerMain.log(level, "[Renderer] " + message)
-  );
+  ipcMain.on("send-from-renderer-log", (event, payload: unknown) => {
+    if (!isExpectedSender(event)) {
+      return;
+    }
+
+    if (!isRendererLogPayload(payload)) {
+      return;
+    }
+
+    loggerMain.log(payload.level, "[Renderer] " + payload.message);
+  });
 
   ipcMain.handle(
     "invoke-from-renderer",
-    async (_event, command: string, data?: unknown): Promise<DictInvokeResult> => {
+    async (event, command: string, data?: unknown): Promise<DictInvokeResult> => {
+      if (!isExpectedSender(event)) {
+        return { success: false, data: "Unexpected IPC sender." };
+      }
+
       loggerMain.debug(
         `[invoke-from-renderer] (${command}) ${JSON.stringify(data, null, 2)}`
       );
+
       try {
-        let temp: unknown;
         switch (command) {
           case "cmd-toggle-window":
             if (mainWindowObj.isMinimized()) {
@@ -106,10 +159,17 @@ async function bootstrap(): Promise<void> {
             } else {
               mainWindowObj.minimize();
             }
-            break;
+            return { success: true };
 
           case "cmd-toggle-socket-status":
-            if ((data as boolean) === true) {
+            if (!isSocketStatusPayload(data)) {
+              return {
+                success: false,
+                data: "Invalid payload for cmd-toggle-socket-status.",
+              };
+            }
+
+            if (data) {
               mainWindowObj.setTitle("UI Analyzer - LiberRPA");
               mainWindowObj.setOverlayIcon(null, "Local Server is working.");
             } else {
@@ -119,16 +179,17 @@ async function bootstrap(): Promise<void> {
                 "No Local Server"
               );
             }
-            break;
+            return { success: true };
 
           default:
-            throw new Error(`An unidentified command in invoke-from-renderer: ${command}.`);
+            return {
+              success: false,
+              data: `Unknown command: ${command}`,
+            };
         }
-
-        return { success: true, data: temp };
       } catch (e) {
         loggerMain.error(`Error running command: ${command}`, e);
-        return { success: false, data: (e as Error).message ? (e as Error).message : e };
+        return { success: false, data: e instanceof Error ? e.message : String(e) };
       }
     }
   );
