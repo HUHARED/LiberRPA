@@ -105,10 +105,9 @@ function validateJson(): void {
     strInfoText.value = "JSON syntax is correct.";
     booleanJsonParse.value = true;
   } catch (error) {
-    // Asserting error as an instance of Error
     const message = error instanceof Error ? error.message : "Unknown error";
 
-    // If it's Black format, don't treat as error.
+    // If it's Black format, don't treat it as an error.
     if (message.startsWith("Expected double-quoted property name in JSON at position")) {
       try {
         JSON.parse(fixTrailingCommas(selectorStore.strJsonText));
