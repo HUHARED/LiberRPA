@@ -99,7 +99,7 @@ def timeout_kill_thread(timeout: int) -> Callable[[Callable[P, T]], Callable[P, 
 
             # If we exit the loop without success, raise UiTimeoutError
             raise UiTimeoutError(
-                f"(!!!It should not appear.)Function {func.__name__[1:]} timed out after {timeout} milliseconds."
+                f"(!!!It should not appear.) Function {func.__name__[1:]} timed out after {timeout} milliseconds."
             )
 
         return wrapped_func
