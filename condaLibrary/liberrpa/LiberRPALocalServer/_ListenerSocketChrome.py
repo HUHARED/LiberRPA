@@ -15,8 +15,14 @@ from liberrpa.LiberRPALocalServer._ServerInit import sioServer, dictClients, get
 from flask_socketio import emit
 import json
 import uuid
-from time import sleep
+from time import sleep, monotonic
 from typing import Any, cast
+
+# Chrome commands use milliseconds for business timeouts.
+# This listener timeout is only a communication fallback.
+# It should be slightly longer than the Chrome-side timeout, so Chrome can return its own timeout result first.
+_DEFAULT_CHROME_COMMAND_TIMEOUT_MS = 15000
+_CHROME_RESPONSE_GRACE_MS = 3000
 
 # Record the command be responsed or not, when the command sended to Chrome, create a new key-value pair{id:""}, when Chrome send a result with id, update it to {id:result}, and the function _wait_for_response_by_id() check it, if it's value is not "", means the result returned.
 dictCommandIdResponsed: dict[str, dict[str, Any] | None] = {}
@@ -62,28 +68,50 @@ def _check_Chrome_extension() -> bool:
     return True
 
 
+def _get_chrome_response_timeout_ms(dictCommand: dict[str, Any]) -> int:
+    timeout = dictCommand.get("timeout")
+    # timeout should only be int, but adding float in case.
+    if isinstance(timeout, (int, float)) and timeout > 0:
+        return int(timeout) + _CHROME_RESPONSE_GRACE_MS
+    return _DEFAULT_CHROME_COMMAND_TIMEOUT_MS + _CHROME_RESPONSE_GRACE_MS
+
+
 def _wait_for_response_by_id(commandId: str, dictCommand: dict[str, Any]) -> DictSocketResult:
 
     # If dictCommand can't be serizlized, return an error result directly.
     try:
         strTemp = json.dumps({"id": commandId, **dictCommand})
-    except Exception as e:
+    except Exception:
         return {"boolSuccess": False, "data": f"Error when serializing the command {dictCommand}"}
+
+    timeoutMs = _get_chrome_response_timeout_ms(dictCommand=dictCommand)
+    deadline = monotonic() + timeoutMs / 1000
 
     # Some commands may complete very quickly, so register the command id before emitting.
     dictCommandIdResponsed[commandId] = None
     emit("message_flask_to_chrome", strTemp, to=dictClients["Chrome"])
 
     # Wait the result to be updated by handle_result_from_chrome().
-    while dictCommandIdResponsed[commandId] is None:
+    while True:
+        dictResult = dictCommandIdResponsed.get(commandId)
+
+        if dictResult is not None:
+            # Pop the data from dictionary. it will not use again.
+            dictCommandIdResponsed.pop(commandId, None)
+            return cast(DictSocketResult, dictResult)
+
+        if monotonic() >= deadline:
+            dictCommandIdResponsed.pop(commandId, None)
+            return {
+                "boolSuccess": False,
+                "data": (
+                    "Chrome command response timed out "
+                    f"after {timeoutMs} milliseconds: {dictCommand.get('commandName')}"
+                ),
+            }
+
         # Reduce performance overhead caused by idle spinning.
         sleep(0.01)
-        continue
-
-    # Pop the data from dictionary. it will not use again.
-    dictResult = cast(DictSocketResult, dictCommandIdResponsed.pop(commandId))
-
-    return dictResult
 
 
 @Log.trace()
@@ -91,13 +119,25 @@ def _wait_for_response_by_id(commandId: str, dictCommand: dict[str, Any]) -> Dic
 def handle_result_from_chrome(message: str) -> None:
     # Receive and update result from Chrome.
 
-    Log.info(f"Received result from Chrome extension: {message}, SID: {get_client_id()}")
+    clientSid = get_client_id()
+    Log.info(f"Received result from Chrome extension: {message}, SID: {clientSid}")
+
+    if clientSid != dictClients.get("Chrome"):
+        Log.error("Ignore Chrome result from an unexpected client.")
+        return
 
     # The result from Chrome must have be serialized correctly, so just deserialize it.
-    dictResult: dict[str, Any] = json.loads(message)
+    try:
+        dictResult: dict[str, Any] = json.loads(message)
+    except Exception as e:
+        # It should not happen.
+        Log.exception_info(e)
+        return
+
     strId = dictResult.pop("id", None)
     if strId in dictCommandIdResponsed.keys():
         Log.debug("Update result into dictionary.")
         dictCommandIdResponsed[strId] = dictResult
     else:
-        Log.error("The result from Chrome doesn't have id.")
+        # In case Chrome data arrives after Python has treat it as timeout.
+        Log.warning(f"Ignore a late or unknown Chrome result. commandId={strId}")
