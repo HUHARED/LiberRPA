@@ -354,7 +354,7 @@ export const useSettingStore = defineStore("setting", {
       minimizeWindow: false as boolean,
 
       intMatchTimeoutSeconds: 10 as number,
-      intIndicateDelaySeconds: 1 as number,
+      intIndicateDelaySeconds: 2 as number,
       indexOrPath: "index" as "index" | "path",
       grayscale: true as boolean,
       confidence: 0.9 as number,
