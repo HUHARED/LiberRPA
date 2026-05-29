@@ -30,8 +30,6 @@ import type { DictInvokeResult, RendererLogLevel } from "../shared/interface";
 let webContentsObj: Electron.WebContents;
 let mainWindowObj: Electron.BrowserWindow;
 
-throw new Error("test..");
-
 function createWindow(): void {
   loggerMain.debug("--createWindow--");
 
