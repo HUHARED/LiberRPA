@@ -43,6 +43,7 @@ def handle_uianalyzer_command(message: str) -> None:
     dictUiAnalyzerCmd[strId] = clientSid
 
     result: DictSocketResult = {"boolSuccess": False, "data": None}
+    dictCommand: dict[str, Any] = {}
     temp: Any = None
     element = None
     tupleEleTree = None
@@ -65,34 +66,45 @@ def handle_uianalyzer_command(message: str) -> None:
         change_tray_icon(component="LiberRPALocalServer_Indicating")
 
     try:
-        dictCommand: dict[str, Any] = json.loads(message)
-        # Delay one seconds for avoiding the mouse's up when clicking UI Analyzer's button be captured.
-        # delay(1000)
-        match dictCommand.get("commandName"):
+        dictCommand = json.loads(message)
 
+        strCommandName = dictCommand.get("commandName")
+
+        # Check some arguments to avoid incompatible argument and too long delays in case. (e.g. Local Server's version doesn't equal to UI Analyzer's version)
+        if strCommandName in ["indicate_uia", "indicate_chrome", "indicate_image", "indicate_window"]:
+            intIndicateDelay = dictCommand["intIndicateDelaySeconds"]
+            if not isinstance(intIndicateDelay, int) or intIndicateDelay < 1 or intIndicateDelay > 10:
+                raise ValueError(f"(!!!It should not appear.) incompatible indicate delay: {intIndicateDelay}")
+
+        if strCommandName == "validate":
+            intMatchTimeout = dictCommand["intMatchTimeoutSeconds"]
+            if not isinstance(intMatchTimeout, int) or intMatchTimeout < 3 or intMatchTimeout > 60:
+                raise ValueError(f"(!!!It should not appear.) incompatible match timeout: {intMatchTimeout}")
+
+        match strCommandName:
             case "indicate_uia":
                 # NOTE: If it is running in LiberRPA Local Server, some element may not useable when getattr(element, "Name"), like MenuItemControl in notepad.exe, I don't know why yet.
                 Log.debug("_UiAnalyzer.indicate_uia")
-                temp, element = _UiAnalyzer.indicate_uia(dictCommand["intIndicateDelaySeconds"])
+                temp, element = _UiAnalyzer.indicate_uia(intIndicateDelay)
 
             case "indicate_chrome":
-                temp = _UiAnalyzer.indicate_chrome(dictCommand["intIndicateDelaySeconds"], dictCommand["usePath"])
+                temp = _UiAnalyzer.indicate_chrome(intIndicateDelay, dictCommand["usePath"])
                 if temp is not None:
                     tupleEleTree = temp[1]
                     temp = temp[0]
 
             case "indicate_image":
                 temp = _UiAnalyzer.indicate_image(
-                    indicateDelaySeconds=dictCommand["intIndicateDelaySeconds"],
+                    indicateDelaySeconds=intIndicateDelay,
                     grayscale=dictCommand["grayscale"],
                     confidence=dictCommand["confidence"],
                 )
 
             case "indicate_window":
-                temp = _UiAnalyzer.indicate_window(dictCommand["intIndicateDelaySeconds"])
+                temp = _UiAnalyzer.indicate_window(intIndicateDelay)
 
             case "validate":
-                temp = _UiAnalyzer.validate(dictCommand["strSelectorJson"], dictCommand["intMatchTimeoutSeconds"])
+                temp = _UiAnalyzer.validate(dictCommand["strSelectorJson"], intMatchTimeout)
 
             case _:
                 result: DictSocketResult = {
@@ -127,7 +139,7 @@ def handle_uianalyzer_command(message: str) -> None:
         emit("message_flask_to_uianalyzer", json.dumps(result), to=dictUiAnalyzerCmd[strId])
 
         # Genarate Element Tree.
-        if dictCommand.get("commandName") == "indicate_uia" and element:
+        if strCommandName == "indicate_uia" and element:
             try:
                 tupleTemp = _ElementTree.generate_control_tree(elementFinal=element)
             except Exception as e:
@@ -140,7 +152,7 @@ def handle_uianalyzer_command(message: str) -> None:
                     "message_flask_to_uianalyzer", "Element_Tree:" + json.dumps(tupleTemp), to=dictUiAnalyzerCmd[strId]
                 )
 
-        if dictCommand.get("commandName") == "indicate_chrome" and tupleEleTree:
+        if strCommandName == "indicate_chrome" and tupleEleTree:
             emit("message_flask_to_uianalyzer", "Element_Tree:" + json.dumps(tupleEleTree), to=dictUiAnalyzerCmd[strId])
     except Exception as e:
         Log.error(get_exception_info(e))
