@@ -1,5 +1,22 @@
 // FileName: index.ts
-import { app, BrowserWindow, ipcMain, screen, nativeImage } from "electron";
+import { app, dialog, BrowserWindow, ipcMain, nativeImage } from "electron";
+
+function showFatalError(error: unknown): void {
+  const message = error instanceof Error ? error.stack ?? error.message : String(error);
+
+  dialog.showErrorBox("UI Analyzer failed to start", message);
+}
+
+process.on("uncaughtException", (error: unknown): void => {
+  showFatalError(error);
+  app.exit(1);
+});
+
+process.on("unhandledRejection", (reason: unknown): void => {
+  showFatalError(reason);
+  app.exit(1);
+});
+
 import { join } from "path";
 import { electronApp, optimizer, is } from "@electron-toolkit/utils";
 import icon from "../../resources/LiberRPA_icon_v3_color_UiAnalyzer_256.ico?asset";
@@ -12,6 +29,8 @@ import type { DictInvokeResult, RendererLogLevel } from "../shared/interface";
 
 let webContentsObj: Electron.WebContents;
 let mainWindowObj: Electron.BrowserWindow;
+
+throw new Error("test..");
 
 function createWindow(): void {
   loggerMain.debug("--createWindow--");
@@ -110,18 +129,6 @@ async function bootstrap(): Promise<void> {
   await app.whenReady();
 
   electronApp.setAppUserModelId("com.liberrpa.ui-analyzer");
-
-  const displays = screen.getAllDisplays();
-  if (displays.length === 0) {
-    loggerMain.info("Have no screen.");
-  } else {
-    const mainDisplay = displays.find(
-      (display) => display.bounds.x === 0 && display.bounds.y === 0
-    );
-    if (!mainDisplay) {
-      throw new Error("Not found main screen.");
-    }
-  }
 
   // Default open or close DevTools by F12 in development and ignore CommandOrControl + R in production.
   app.on("browser-window-created", (_event, window) => {
