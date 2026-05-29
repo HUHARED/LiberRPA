@@ -93,7 +93,7 @@
 
 <script setup lang="ts">
 import { sendCmdToFlask } from "../ipcOfRenderer";
-import { fixTrailingCommas } from "../attrHandleFunc";
+import { parseSelectorJsonText } from "../attrHandleFunc";
 import { useSelectorStore, useSettingStore, useInformationStore } from "../store";
 
 const selectorStore = useSelectorStore();
@@ -114,7 +114,7 @@ async function indicateChrome(): Promise<void> {
   sendCmdToFlask({
     commandName: "indicate_chrome",
     intIndicateDelaySeconds: settingStore.intIndicateDelaySeconds,
-    usePath: settingStore.indexOrPath === "path" ? true : false,
+    usePath: settingStore.indexOrPath === "path",
   });
   selectorStore.setDescription("Indicating Chrome.");
 }
@@ -142,8 +142,10 @@ async function indicateWindow(): Promise<void> {
 }
 
 async function validateSelector(): Promise<void> {
-  if (selectorStore.strJsonText === "") {
-    informationStore.showAlertMessage("Have no selector to validate.");
+  const dictParseResult = parseSelectorJsonText(selectorStore.strJsonText);
+
+  if (!dictParseResult.success) {
+    informationStore.showAlertMessage(dictParseResult.errorMessage);
     return;
   }
 
@@ -152,7 +154,7 @@ async function validateSelector(): Promise<void> {
   sendCmdToFlask({
     commandName: "validate",
     intMatchTimeoutSeconds: settingStore.intMatchTimeoutSeconds,
-    strSelectorJson: JSON.parse(fixTrailingCommas(selectorStore.strJsonText)),
+    strSelectorJson: dictParseResult.data,
   });
   selectorStore.setDescription("Validate element.");
 }

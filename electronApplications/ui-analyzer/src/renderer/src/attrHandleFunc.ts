@@ -1,5 +1,18 @@
 // FileName: attrHandleFunc.ts
 
+import { parse, printParseErrorCode, type ParseError } from "jsonc-parser";
+
+export type SelectorJsonParseResult =
+  | {
+      success: true;
+      data: unknown;
+      mode: "json" | "json-compatible";
+    }
+  | {
+      success: false;
+      errorMessage: string;
+    };
+
 export const STR_SUFFIX_OMIT = "-omit";
 export const STR_SUFFIX_REGEX = "-regex";
 
@@ -36,7 +49,48 @@ export function modifyKeyName(
   }
 }
 
-export const fixTrailingCommas = (jsonText: string): string => {
-  // Remove trailing commas before } or ], because the dictionary formatted by Python Black may add them.
-  return jsonText.replace(/,(\s*[}\]])/g, "$1");
-};
+function formatJsoncErrors(errors: ParseError[]): string {
+  return errors.map((error) => printParseErrorCode(error.error)).join(", ");
+}
+
+export function parseSelectorJsonText(text: string): SelectorJsonParseResult {
+  const strTrimmedText = text.trim();
+
+  if (strTrimmedText === "") {
+    return {
+      success: false,
+      errorMessage: "Selector JSON is empty.",
+    };
+  }
+
+  try {
+    return {
+      success: true,
+      data: JSON.parse(strTrimmedText),
+      mode: "json",
+    };
+  } catch {
+    // Continue to JSONC parsing for trailing commas.
+  }
+
+  const arrErrors: ParseError[] = [];
+  const data: unknown = parse(strTrimmedText, arrErrors, {
+    allowTrailingComma: true,
+    disallowComments: true,
+  });
+
+  if (arrErrors.length === 0) {
+    return {
+      success: true,
+      data,
+      mode: "json-compatible",
+    };
+  }
+
+  return {
+    success: false,
+    errorMessage:
+      "Invalid selector JSON. Please use double quotes for keys and values. Trailing commas are allowed, but comments and Python literals are not supported. " +
+      formatJsoncErrors(arrErrors),
+  };
+}

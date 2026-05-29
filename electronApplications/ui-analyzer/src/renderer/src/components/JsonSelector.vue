@@ -31,7 +31,7 @@
           class="mr-2"
           prepend-icon="mdi-content-copy"
           variant="tonal"
-          @click="copyJsonToClipboard">
+          @click="void copyJsonToClipboard()">
           Copy
           <v-tooltip activator="parent" location="top"> Copy the JSON Selector </v-tooltip>
         </v-btn>
@@ -40,7 +40,7 @@
           class="mr-2"
           prepend-icon="mdi-content-paste"
           variant="tonal"
-          @click="pasteFromClipboard">
+          @click="void pasteFromClipboard()">
           Paste
           <v-tooltip activator="parent" location="top">
             Paste the content in clipboard in JSON Selector
@@ -63,12 +63,12 @@ import { ref, watch } from "vue";
 import { debounce } from "lodash";
 
 import { loggerRenderer } from "../ipcOfRenderer";
-import { fixTrailingCommas } from "../attrHandleFunc";
+import { parseSelectorJsonText } from "../attrHandleFunc";
 import { useSelectorStore } from "../store";
 
 const selectorStore = useSelectorStore();
 
-const strInfoText = ref("Have no Json Selector.");
+const strInfoText = ref("Have no JSON Selector.");
 const booleanJsonParse = ref(true);
 
 watch(
@@ -95,33 +95,25 @@ watch(
 
 function validateJson(): void {
   if (!selectorStore.strJsonText.trim()) {
-    strInfoText.value = "Have no Json Selector.";
+    strInfoText.value = "Have no JSON Selector.";
     booleanJsonParse.value = true;
     return;
   }
 
-  try {
-    JSON.parse(selectorStore.strJsonText);
-    strInfoText.value = "JSON syntax is correct.";
-    booleanJsonParse.value = true;
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
+  const dictParseResult = parseSelectorJsonText(selectorStore.strJsonText);
 
-    // If it's Black format, don't treat it as an error.
-    if (message.startsWith("Expected double-quoted property name in JSON at position")) {
-      try {
-        JSON.parse(fixTrailingCommas(selectorStore.strJsonText));
-        strInfoText.value = "It's a correct Python dictionary.";
-        booleanJsonParse.value = true;
-      } catch {
-        strInfoText.value = `Syntax error: ${message}`;
-        booleanJsonParse.value = false;
-      }
-    } else {
-      strInfoText.value = `Syntax error: ${message}`;
-      booleanJsonParse.value = false;
-    }
+  if (dictParseResult.success) {
+    strInfoText.value =
+      dictParseResult.mode === "json"
+        ? "JSON syntax is correct."
+        : "JSON-like selector syntax is correct. Trailing commas were accepted.";
+
+    booleanJsonParse.value = true;
+    return;
   }
+
+  strInfoText.value = dictParseResult.errorMessage;
+  booleanJsonParse.value = false;
 }
 
 async function copyJsonToClipboard(): Promise<void> {
