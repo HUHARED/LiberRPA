@@ -28,16 +28,21 @@ export function deleteTimeoutScreenshot(): void {
   for (const file of arrFiles) {
     const strFilePath = path.join(strScreenshotPath, file);
 
-    if (
-      fs.statSync(strFilePath).isFile() &&
-      fs.statSync(strFilePath).mtime.getTime() < sevenDaysAgo
-    ) {
-      try {
-        fs.unlinkSync(strFilePath);
-        loggerMain.info(`Deleted file: ${strFilePath}`);
-      } catch (e) {
-        loggerMain.error(`Failed to delete file ${strFilePath}: ${e}`);
+    try {
+      const stats = fs.statSync(strFilePath);
+
+      if (!stats.isFile()) {
+        continue;
       }
+
+      if (stats.mtime.getTime() >= sevenDaysAgo) {
+        continue;
+      }
+
+      fs.unlinkSync(strFilePath);
+      loggerMain.info(`Deleted file: ${strFilePath}`);
+    } catch (e) {
+      loggerMain.error(`Failed to process screenshot file ${strFilePath}: ${e}`);
     }
   }
 }
