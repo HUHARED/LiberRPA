@@ -24,7 +24,6 @@ import threading
 from copy import deepcopy
 from typing import Any
 
-
 # Record the command be responsed or not, when the command sended to Chrome, create a new key-value pair{id:""}, when Chrome send a result with id, update it to {id:result}, and the function _wait_for_response_by_id() check it, if it's value is not "", means the result returned.
 dictCommandIdResponsed: dict[str, dict[str, Any] | None] = {}
 
@@ -72,17 +71,9 @@ def handle_uianalyzer_command(message: str) -> None:
         match dictCommand.get("commandName"):
 
             case "indicate_uia":
-                while True:
-                    try:
-                        # If it is running in LiberRPA Local Server, some element may not useable when getattr(element, "Name"), like MenuItemControl in notepad.exe, I don't know why.
-                        Log.debug("_UiAnalyzer.indicate_uia")
-                        temp, element = _UiAnalyzer.indicate_uia(dictCommand["intIndicateDelaySeconds"])
-                    except Exception as e:
-                        Log.exception_info(e)
-                        Log.debug("Retry.")
-                        continue
-                    else:
-                        break
+                # NOTE: If it is running in LiberRPA Local Server, some element may not useable when getattr(element, "Name"), like MenuItemControl in notepad.exe, I don't know why yet.
+                Log.debug("_UiAnalyzer.indicate_uia")
+                temp, element = _UiAnalyzer.indicate_uia(dictCommand["intIndicateDelaySeconds"])
 
             case "indicate_chrome":
                 temp = _UiAnalyzer.indicate_chrome(dictCommand["intIndicateDelaySeconds"], dictCommand["usePath"])

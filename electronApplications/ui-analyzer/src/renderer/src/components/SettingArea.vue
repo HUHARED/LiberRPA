@@ -42,7 +42,9 @@
       <v-tooltip activator="parent" location="bottom">
         <div>
           The delay for indicating element.<br />
-          It should be an integer between 1 and 10.
+          It should be an integer between 1 and 10.<br />
+          After the delay, if you do not complete an action within 15 seconds, the process
+          will be cancelled.
         </div>
       </v-tooltip>
     </v-number-input>

@@ -49,21 +49,36 @@ import io
 import base64
 from PIL import Image
 
-HIGHLIGHT_DURATION = 500
+_HIGHLIGHT_DURATION = 500
+
+# This timeout is only for user interaction after the indicate delay.
+# It is unrelated to selector search timeouts or Chrome business timeouts.
+_INDICATE_TIMEOUT_SECONDS = 15  # create_screenshot_manually in _Screenshot.py use an argument to manage.
 
 
 @Log.trace()
 def indicate_uia(indicateDelaySeconds: int = 1) -> tuple[DictForUiAnalyzer, uiautomation.Control] | tuple[None, None]:
 
-    global HIGHLIGHT_DURATION
+    global _HIGHLIGHT_DURATION
     try:
         _delay(indicateDelaySeconds)
+        deadline = _create_deadline()
         threadHook = _start_hook()
+        dictCoordinate: DictPosition | None = None
+        element: uiautomation.Control | None = None
 
         # Press mouse button left to stop the loop, then return result. Or Press ESC to return None.
         while _Hook.check_key_not_press():
+            if _has_timed_out(deadline):
+                _raise_indicate_timeout("indicate_uia")
+                return (None, None)
+
             # The inner loop for get the element be hovered.
             while True:
+                if _has_timed_out(deadline):
+                    _raise_indicate_timeout("indicate_uia")
+                    return (None, None)
+
                 try:
                     dictCoordinate = get_mouse_position()
                     with uiautomation.UIAutomationInitializerInThread():
@@ -119,13 +134,16 @@ def indicate_uia(indicateDelaySeconds: int = 1) -> tuple[DictForUiAnalyzer, uiau
                 element.BoundingRectangle.width(),
                 element.BoundingRectangle.height(),
                 color="red",
-                duration=HIGHLIGHT_DURATION,
+                duration=_HIGHLIGHT_DURATION,
                 label=element.ControlTypeName,
             )
 
         if _Hook.check_ESC_pressed():
             Log.debug("Pressed ESC, return None.")
             return (None, None)
+
+        if element is None:
+            raise UiElementNotFoundError("(!!!It should not appear.) Didn't find an element from cursor.")
 
         # Mouse left pressed.
         Log.debug("Pressed mouse left.")
@@ -147,11 +165,10 @@ def indicate_uia(indicateDelaySeconds: int = 1) -> tuple[DictForUiAnalyzer, uiau
         Log.debug({"selector": selector, "attributes": dictSecondaryAttr})
         return dictReturn, element
 
-
     finally:
-        Log.critical("Finally?")
+        Log.debug("Clean up hook thread.")
         if "threadHook" in locals() and threadHook.is_alive():
-            Log.critical("Trying to unhook and join the thread.")
+            Log.debug("Trying to unhook and join the thread.")
             _Hook.unhook(source="indicate_uia")
             threadHook.join(timeout=2)
             if threadHook.is_alive():
@@ -161,28 +178,34 @@ def indicate_uia(indicateDelaySeconds: int = 1) -> tuple[DictForUiAnalyzer, uiau
         else:
             Log.debug("threadHook has gone.")
 
-        """ Log.critical("Finally?")
-        _Hook.unhook(source="indicate_uia")
-        threadHook.join()
-        Log.debug("End finally.")
-        Log.debug(dictReturn) """
-
 
 @Log.trace()
 def indicate_chrome(
     indicateDelaySeconds: int = 1, usePath: bool = True
 ) -> tuple[DictForUiAnalyzer, tuple[list[DictElementTreeItem], list[int], int]] | None:
 
-    global HIGHLIGHT_DURATION
+    global _HIGHLIGHT_DURATION
     try:
         _delay(indicateDelaySeconds)
+        deadline = _create_deadline()
         threadHook = _start_hook()
+        dictCoordinate: DictPosition | None = None
+        dictSecondaryAttr: DictHtmlSecondaryAttr | None = None
+        tupleEleTree: tuple[list[DictElementTreeItem], list[int], int] | None = None
 
         # Press mouse button left to stop the loop, then return result. Or Press ESC to return None.
         listAllAttr: list[DictHtmlAttr] = []
         while _Hook.check_key_not_press():
+            if _has_timed_out(deadline):
+                _raise_indicate_timeout("indicate_chrome")
+                return None
+
             # The inner loop for get the element be hovered.
             while True:
+                if _has_timed_out(deadline):
+                    _raise_indicate_timeout("indicate_chrome")
+                    return None
+
                 try:
                     dictCoordinate = get_mouse_position()
                     # Call Chrome
@@ -190,7 +213,7 @@ def indicate_chrome(
                     listAllAttr, tupleEleTree = get_element_attr_by_coordinates(
                         x=dictCoordinate["x"], y=dictCoordinate["y"], usePath=usePath
                     )
-                    dictSecondaryAttr: DictHtmlSecondaryAttr = {
+                    dictSecondaryAttr = {
                         "secondary-x": listAllAttr[-1]["secondary-x"],
                         "secondary-y": listAllAttr[-1]["secondary-y"],
                         "secondary-width": listAllAttr[-1]["secondary-width"],
@@ -204,8 +227,8 @@ def indicate_chrome(
                         int(dictSecondaryAttr["secondary-width"]),
                         int(dictSecondaryAttr["secondary-height"]),
                         color="red",
-                        duration=HIGHLIGHT_DURATION,
-                        label=f"<{listAllAttr[-1].get("tagName", "")}> {listAllAttr[-1].get("id", "")} {listAllAttr[-1].get("name", "")}",
+                        duration=_HIGHLIGHT_DURATION,
+                        label=f"<{listAllAttr[-1].get('tagName', '')}> {listAllAttr[-1].get('id', '')} {listAllAttr[-1].get('name', '')}",
                     )
 
                 except Exception as e:
@@ -219,12 +242,16 @@ def indicate_chrome(
                 else:
                     break
 
-        # After click, get the window element once.
-        elementWindow = _get_window_element(dictCoordinate=dictCoordinate)
-
         if _Hook.check_ESC_pressed():
             Log.debug("Pressed ESC, return None.")
             return None
+
+        if (dictCoordinate is None) or (dictSecondaryAttr is None) or (tupleEleTree is None) or len(listAllAttr) == 0:
+            Log.warning("(!!!It should not appear.) Didn't get a Chrome element before the hook stopped.")
+            return None
+
+        # After click, get the window element once.
+        elementWindow = _get_window_element(dictCoordinate=dictCoordinate)
 
         # Mouse left pressed.
         Log.debug("Pressed mouse left.")
@@ -258,9 +285,9 @@ def indicate_chrome(
         return (dictReturn, tupleEleTree)
 
     finally:
-        Log.critical("Finally?")
+        Log.debug("Clean up hook thread.")
         if "threadHook" in locals() and threadHook.is_alive():
-            Log.critical("Trying to unhook and join the thread.")
+            Log.debug("Trying to unhook and join the thread.")
             _Hook.unhook(source="indicate_chrome")
             threadHook.join(timeout=2)
             if threadHook.is_alive():
@@ -276,11 +303,11 @@ def indicate_image(
     indicateDelaySeconds: int = 1, grayscale: bool = True, confidence: float = 0.9
 ) -> DictForUiAnalyzer | None:
 
-    global HIGHLIGHT_DURATION
+    global _HIGHLIGHT_DURATION
     try:
         _delay(indicateDelaySeconds)
 
-        temp = create_screenshot_manually()
+        temp = create_screenshot_manually(timeoutSeconds=15)
         if not temp:
             print("Quit indicating.")
             return None
@@ -348,7 +375,7 @@ def indicate_image(
             y=int(dictSecondaryAttr["secondary-y"]),
             width=int(dictSecondaryAttr["secondary-width"]),
             height=int(dictSecondaryAttr["secondary-height"]),
-            duration=HIGHLIGHT_DURATION,
+            duration=_HIGHLIGHT_DURATION,
         )
 
         dictReturn: DictForUiAnalyzer = {"selector": selector, "attributes": dictSecondaryAttr, "preview": preview}
@@ -364,14 +391,25 @@ def indicate_image(
 @Log.trace()
 def indicate_window(indicateDelaySeconds: int = 1) -> DictForUiAnalyzer | None:
 
-    global HIGHLIGHT_DURATION
+    global _HIGHLIGHT_DURATION
     try:
         _delay(indicateDelaySeconds)
+        deadline = _create_deadline()
         threadHook = _start_hook()
+        dictCoordinate: DictPosition | None = None
+        element = None
 
         # Press mouse button left to stop the loop, then return result. Or Press ESC to return None.
         while _Hook.check_key_not_press():
+            if _has_timed_out(deadline):
+                _raise_indicate_timeout("indicate_window")
+                return None
+
             while True:
+                if _has_timed_out(deadline):
+                    _raise_indicate_timeout("indicate_window")
+                    return None
+
                 try:
                     dictCoordinate = get_mouse_position()
                     # Find the element under the cursor
@@ -382,7 +420,7 @@ def indicate_window(indicateDelaySeconds: int = 1) -> DictForUiAnalyzer | None:
                         ).GetTopLevelControl()  # type: ignore - It will not be None.
                 except Exception as e:
                     strError = (
-                        "Error to get window at {dictCoordinate}.Maybe LiberRPA Local Server have no permission for the window. "
+                        f"Error to get window at {dictCoordinate}.Maybe LiberRPA Local Server have no permission for the window. "
                         + str(e)
                     )
                     Log.error(strError)
@@ -399,16 +437,19 @@ def indicate_window(indicateDelaySeconds: int = 1) -> DictForUiAnalyzer | None:
                 element.BoundingRectangle.width(),
                 element.BoundingRectangle.height(),
                 color="red",
-                duration=HIGHLIGHT_DURATION,
+                duration=_HIGHLIGHT_DURATION,
             )
-
-        # Only need the element has "Name"
-        if not getattr(element, "Name"):
-            raise UiElementNotFoundError("(!!!It should not appear.) The window element has no Name.")
 
         if _Hook.check_ESC_pressed():
             Log.debug("Pressed ESC, return None.")
             return None
+
+        if element is None:
+            raise UiElementNotFoundError("(!!!It should not appear.) Didn't find a window element from cursor.")
+
+        # Only need the element has "Name"
+        if not getattr(element, "Name"):
+            raise UiElementNotFoundError("(!!!It should not appear.) The window element has no Name.")
 
         # Mouse left pressed.
         Log.debug("Pressed mouse left.")
@@ -424,9 +465,9 @@ def indicate_window(indicateDelaySeconds: int = 1) -> DictForUiAnalyzer | None:
         return dictReturn
 
     finally:
-        Log.critical("Finally?")
+        Log.debug("Clean up hook thread.")
         if "threadHook" in locals() and threadHook.is_alive():
-            Log.critical("Trying to unhook and join the thread.")
+            Log.debug("Trying to unhook and join the thread.")
             _Hook.unhook(source="indicate_window")
             threadHook.join(timeout=2)
             if threadHook.is_alive():
@@ -475,6 +516,18 @@ def validate(selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorIma
         return {"validate": True}
 
 
+def _create_deadline() -> float:
+    return time.monotonic() + _INDICATE_TIMEOUT_SECONDS
+
+
+def _has_timed_out(deadline: float) -> bool:
+    return time.monotonic() >= deadline
+
+
+def _raise_indicate_timeout(indicateName: str) -> None:
+    raise TimeoutError(f"{indicateName} timed out after {_INDICATE_TIMEOUT_SECONDS} seconds.")
+
+
 def _delay(indicateDelaySeconds: int) -> None:
     if indicateDelaySeconds > 0:
         delay(indicateDelaySeconds * 1000)
@@ -514,7 +567,7 @@ def _get_window_element(dictCoordinate: DictPosition) -> uiautomation.Control:
         elementWindow.BoundingRectangle.width(),
         elementWindow.BoundingRectangle.height(),
         color="red",
-        duration=HIGHLIGHT_DURATION,
+        duration=_HIGHLIGHT_DURATION,
     )
     print("elementWindow before return", elementWindow)
 
@@ -601,5 +654,5 @@ if __name__ == "__main__":
                 element.BoundingRectangle.width(),
                 element.BoundingRectangle.height(),
                 color="red",
-                duration=HIGHLIGHT_DURATION,
+                duration=_HIGHLIGHT_DURATION,
             )

@@ -11,7 +11,6 @@ import sys
 import inspect
 import subprocess
 
-
 SCREENSHOT_DOCUMENTS_PATH = os.path.join(os.environ.get("USERPROFILE", "N/A"), R"Documents\LiberRPA\Screenshot")
 os.makedirs(name=SCREENSHOT_DOCUMENTS_PATH, exist_ok=True)
 FULL_SCREENSHOT_PATH = os.path.join(SCREENSHOT_DOCUMENTS_PATH, "LiberRPA_full_screenshot.png")
@@ -19,6 +18,8 @@ SCREENSHOT_PROJECT_PATH = os.path.join(os.getcwd(), "Screenshot")
 SCREENSHOT_TEMP_NAME = "captured_temp.png"
 
 SELECTED_KEYWORD = "Save completed!"
+
+_INDICATE_TIMEOUT_SECONDS = 15
 
 
 class ScreenshotCapture(QtWidgets.QWidget):
@@ -168,7 +169,7 @@ def _create_screenshot_manually() -> None:
     print("create_screenshot_manually done.")
 
 
-def create_screenshot_manually() -> bool | None:
+def create_screenshot_manually(timeoutSeconds: int = _INDICATE_TIMEOUT_SECONDS) -> bool | None:
     # Because QT can't work finely with Flask, use subprocess to run the file in a isolate environment.
     strFilePath = inspect.stack()[0].filename
 
@@ -178,14 +179,18 @@ def create_screenshot_manually() -> bool | None:
     else:
         listCmd = [sys.executable, strFilePath]
 
-    result = subprocess.run(
-        listCmd,
-        shell=False,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-    )
+    try:
+        result = subprocess.run(
+            listCmd,
+            shell=False,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=timeoutSeconds,
+        )
+    except subprocess.TimeoutExpired:
+        raise TimeoutError(f"indicate_image timed out after {timeoutSeconds} seconds.")
     print("-" * 40)
     print(result.stdout)
     print(result.stderr)
