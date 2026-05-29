@@ -15,7 +15,7 @@ app.setPath("userData", path.join(strDocumentsFolderPath, "LiberRPA/AppData/ui-a
 function getBasicConfigDict(): DictBasicConfig {
   if (!strLiberRPAEnvPath) {
     throw new Error(
-      "Not found 'LiberRPA' in User Envirnment Variables, you should add it before using LiberRPA UI Analyzer."
+      "Not found 'LiberRPA' in User Environment Variables. Please run InitLiberRPA.exe before using LiberRPA UI Analyzer."
     );
   }
 
