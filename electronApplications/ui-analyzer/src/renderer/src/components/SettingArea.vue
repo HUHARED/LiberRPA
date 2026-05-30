@@ -19,8 +19,8 @@
       hide-details>
       <v-tooltip activator="parent" location="bottom">
         <div>
-          The timeout for matching element by selector.<br />
-          It should be an integer between 3 and 60.
+          How long validation should try to locate the target element.<br />
+          It must be an integer between 3 and 60.
         </div>
       </v-tooltip>
     </v-number-input>
@@ -41,15 +41,17 @@
       hide-details>
       <v-tooltip activator="parent" location="bottom">
         <div>
-          The delay for indicating element.<br />
-          It should be an integer between 1 and 10.<br />
-          After the delay, if you do not complete an action within 15 seconds, the process
-          will be cancelled.
+          Delay before starting indicate operation.<br />
+          It must be an integer between 1 and 10.<br />
+          After the delay, the operation times out if no target is selected within 15
+          seconds.
         </div>
       </v-tooltip>
     </v-number-input>
 
-    <v-tooltip text="Use index or path to locate the target HTML element." location="top">
+    <v-tooltip
+      text="Use index or path attributes to locate the target HTML element."
+      location="top">
       <template #activator="{ props }">
         <v-switch
           v-model="settingStore.indexOrPath"
@@ -68,7 +70,7 @@
     </v-tooltip>
 
     <v-tooltip
-      text="Whether grayscale when locating the target image element."
+      text="Use grayscale matching when locating the target image element."
       location="top">
       <template #activator="{ props }">
         <!-- true-value and false-value should not use for a bool value -->
@@ -102,9 +104,8 @@
       hide-details>
       <v-tooltip activator="parent" location="bottom">
         <div>
-          'confidence' will specify the accuracy when locating the target image element on
-          screen.<br />
-          It should be a float between 0.1 and 0.999.
+          Confidence threshold for image matching.<br />
+          It must be a number between 0.1 and 0.999.
         </div>
       </v-tooltip>
     </v-number-input>
@@ -125,9 +126,9 @@
       </template>
 
       <div>
-        Whether minimizing Ui Analyzer's window when indicating or validating an
-        element(excluding indicating image).<br />
-        You can config its default value in 'LiberRPA/configFiles/basic.jsonc'.
+        Minimize UI Analyzer before indicating or validating an element, except image
+        indication.<br />
+        You can configure the default value in `LiberRPA/configFiles/basic.jsonc`.
       </div>
     </v-tooltip>
 
@@ -149,8 +150,8 @@
       </template>
 
       <div>
-        Modify the UI theme.<br />
-        You can config its default value in 'LiberRPA/configFiles/basic.jsonc'.
+        Change the UI theme.<br />
+        You can configure the default value in `LiberRPA/configFiles/basic.jsonc`.
       </div>
     </v-tooltip>
   </v-container>
@@ -170,7 +171,7 @@ const intMatchTimeout = computed<number>({
   },
   set(newValue: number | null) {
     if (newValue === null) {
-      informationStore.showAlertMessage(`It's not an integer between 3 and 60.`);
+      informationStore.showAlertMessage(`Please enter an integer between 3 and 60.`);
       return;
     }
     if (newValue >= 3 && newValue <= 60) {
@@ -185,7 +186,7 @@ const intIndicateDelay = computed<number>({
   },
   set(newValue: number | null) {
     if (newValue === null) {
-      informationStore.showAlertMessage(`It's not an integer between 1 and 10.`);
+      informationStore.showAlertMessage(`Please enter an integer between 1 and 10.`);
       return;
     }
     if (newValue >= 1 && newValue <= 10) {
@@ -200,7 +201,7 @@ const floatConfidence = computed<number>({
   },
   set(newValue: number | null) {
     if (newValue === null) {
-      informationStore.showAlertMessage(`It's not a float between 0.1 and 0.999.`);
+      informationStore.showAlertMessage(`Please enter a number between 0.1 and 0.999.`);
       return;
     }
     if (newValue >= 0.1 && newValue <= 0.999) {

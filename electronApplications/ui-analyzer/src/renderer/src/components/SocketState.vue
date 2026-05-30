@@ -15,8 +15,8 @@
       </template>
       <span>{{
         settingStore.socketState
-          ? "LiberRPA Local Server is working."
-          : "Can't connect to LiberRPA Local Server."
+          ? "LiberRPA Local Server is connected."
+          : "LiberRPA Local Server is not connected."
       }}</span>
     </v-tooltip>
   </div>

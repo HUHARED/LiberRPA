@@ -33,7 +33,7 @@
           variant="tonal"
           @click="void copyJsonToClipboard()">
           Copy
-          <v-tooltip activator="parent" location="top"> Copy the JSON Selector </v-tooltip>
+          <v-tooltip activator="parent" location="top"> Copy the JSON Selector. </v-tooltip>
         </v-btn>
 
         <v-btn
@@ -43,13 +43,13 @@
           @click="void pasteFromClipboard()">
           Paste
           <v-tooltip activator="parent" location="top">
-            Paste the content in clipboard in JSON Selector
+            Paste clipboard content into JSON Selector.
           </v-tooltip>
         </v-btn>
       </v-col>
     </v-row>
 
-    <!-- v-textarea has some wrong in layout, so use textarea. -->
+    <!-- Use a native textarea because v-textarea has layout issues here. -->
     <textarea
       v-model="selectorStore.strJsonText"
       class="ma-1 flex-column-grow-1"
@@ -106,7 +106,7 @@ function validateJson(): void {
     strInfoText.value =
       dictParseResult.mode === "json"
         ? "JSON syntax is correct."
-        : "JSON-like selector syntax is correct. Trailing commas were accepted.";
+        : "JSON-like selector syntax is correct. Trailing commas are accepted.";
 
     booleanJsonParse.value = true;
     return;

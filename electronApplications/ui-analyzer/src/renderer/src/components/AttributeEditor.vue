@@ -10,7 +10,7 @@
           !selectorStore.arrEleHierarchy[selectorStore.intClickedLayer]
         "
         class="ma-1"
-        text="Click a layer of Element Hierarchy to edit its attributes.">
+        text="Click a layer in Element Hierarchy to edit its attributes.">
       </v-card>
 
       <v-row
@@ -27,8 +27,9 @@
           </v-label>
 
           <!--
-          Remove " at the start and " at the end, them will be showed in prefix and suffix.
-          Click prepend inner icon to swtich the mode between string and regex.
+          Remove the leading and trailing quotes. They are shown as the prefix and
+          suffix.
+          Click the prepend-inner icon to switch between string and regex mode.
           -->
           <v-text-field
             :model-value="
@@ -99,7 +100,10 @@ function cutQuotesForTextfield(text: string): string {
 function generateEleForArr(text: string): string | undefined {
   // console.log("generateEleForArr", text);
   if (text.trimEnd().endsWith("\\") && !text.trimEnd().endsWith("\\\\")) {
-    // The escape character backslash(\) should always lead a character. So if there is a single \ at the end, didn't need to update, return undefined and Vue will not update component, just wait the next character be typed, and Vue will update normally.
+    /*
+    A trailing single backslash is an incomplete escape sequence.
+    Return undefined and wait for the next character before updating Vue state.
+    */
     loggerRenderer.debug("End with backslash, wait the next character");
     return undefined;
   }

@@ -7,7 +7,7 @@
     <v-card
       v-if="selectorStore.arrEleHierarchy.length === 0"
       class="ma-1"
-      text="Indicate or validate an element to show its Element Hierarchy.">
+      text="Indicate or validate an element to show Element Hierarchy.">
     </v-card>
 
     <v-list
@@ -56,14 +56,14 @@ const settingStore = useSettingStore();
 watch(
   () => informationStore.information,
   () => {
-    // If it it a selector json.
+    // If it is selector JSON.
     if (informationStore.information.startsWith('{"selector"')) {
       selectorStore.afterIndicate();
       // Reset validateState
       informationStore.validateState = undefined;
       void settingStore.toggleWindow();
     } else if (informationStore.information.startsWith('{"validate"')) {
-      // If it is element validation.
+      // If it is a validation result.
       const boolResult = JSON.parse(informationStore.information)["validate"] as boolean;
       loggerRenderer.debug("boolResult=" + boolResult);
       informationStore.validateState = boolResult;

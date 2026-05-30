@@ -3,7 +3,7 @@
   <v-container class="clean-space flex-column" style="height: 350px">
     <v-label class="area-header"> Secondary Attribute List </v-label>
 
-    <!-- Show tip card when have no element. -->
+    <!-- Show a tip card when there is no element. -->
     <v-card
       v-if="selectorStore.arrSecondaryAttr.length === 0"
       class="pa-0 ma-1"

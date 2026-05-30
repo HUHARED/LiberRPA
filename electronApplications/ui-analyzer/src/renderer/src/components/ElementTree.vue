@@ -5,8 +5,9 @@
 
     <v-card v-if="selectorStore.arrEleTree.length === 0" class="ma-1 h-60 pa-3">
       <div>
-        Indicate or validate an uia or html element to show its Element Tree.<br />
-        If the Element Tree is too big to handle in 10 seconds, LiberRPA will give up.
+        Indicate or validate a UIA or HTML element to show its element tree.<br />
+        If the element tree is too large to process within 10 seconds, LiberRPA will stop
+        building it.
       </div>
     </v-card>
 
@@ -36,12 +37,11 @@
             <div>
               {{ JSON.stringify(item.spec, null, 0) }}<br />
               ------------------------<br />
-              The layer's specification, click to replace the Element Hierarchy.<br />
-              Note:<br />
-              For uia element, you maybe need to add "Index" manually if there are other
-              elements with same attributes in its parent element, and add "Depth" manually
-              if you unchecked some layers;<br />
-              For html element, you maybe need to edit or add "childIndex" manually.
+              The layer specification. Click to replace Element Hierarchy.<br />
+              For UIA elements, you may need to add "Index" manually if sibling elements
+              have the same attributes. You may also need to add "Depth" if the layer is too
+              close to its ancestor.<br />
+              For HTML elements, you may need to edit or add "childIndex" manually.
             </div>
           </v-tooltip>
         </template>
@@ -65,7 +65,7 @@ function handleNodeClick(_: MouseEvent, id: number): void {
   selectorStore.arrEleHierarchy = [];
   informationStore.$reset();
 
-  /* // Reassign to to clean the highlight. Due to the watcher has 300 ms delay, so add delay before add element into arrEleHierarchy again.
+  /* // Reassign to clean the highlight. Due to the watcher has 300 ms delay, so add delay before add element into arrEleHierarchy again.
   setTimeout(() => {
     const selectorTemp = selectorStore.dictFromPython["selector"] as SelectorNonWindow;
 

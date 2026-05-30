@@ -11,7 +11,7 @@
           @click="void indicateUia()">
           uia
           <v-tooltip activator="parent" location="bottom">
-            Indicate an uia element in the screen.
+            Indicate a UIA element on the screen.
           </v-tooltip>
         </v-btn>
       </v-col>
@@ -25,8 +25,9 @@
           html
           <v-tooltip activator="parent" location="bottom">
             <div>
-              Indicate an html element in the actived tab.<br />
-              (Only support Chrome now. Can only find items in the last focused tab!)
+              Indicate an HTML element in the active tab.<br />
+              Currently only Chrome is supported. The target must be in the last focused
+              tab.
             </div>
           </v-tooltip>
         </v-btn>
@@ -40,7 +41,7 @@
           @click="indicateImage()">
           image
           <v-tooltip activator="parent" location="bottom">
-            Indicate an image element in the screen.
+            Indicate an image element on the screen.
           </v-tooltip>
         </v-btn>
       </v-col>
@@ -54,8 +55,8 @@
           window
           <v-tooltip activator="parent" location="bottom">
             <div>
-              Indicate a window element in the screen.<br />
-              (It is also top-level uia element)
+              Indicate a window element on the screen.<br />
+              It is also a top-level UIA element.
             </div>
           </v-tooltip>
         </v-btn>
@@ -70,7 +71,7 @@
           @click="void validateSelector()">
           Validate
           <v-tooltip activator="parent" location="bottom">
-            Try to find the element that defined by Json Selector.
+            Validate the current JSON Selector by locating the target element.
           </v-tooltip>
         </v-btn>
       </v-col>
@@ -83,7 +84,7 @@
           @click="resetUI()">
           Reset
           <v-tooltip activator="parent" location="bottom">
-            Clean the element and reset the GUI.
+            Clear the current selector data and reset the UI.
           </v-tooltip>
         </v-btn>
       </v-col>
@@ -106,7 +107,7 @@ async function indicateUia(): Promise<void> {
     commandName: "indicate_uia",
     intIndicateDelaySeconds: settingStore.intIndicateDelaySeconds,
   });
-  selectorStore.setDescription("Indicating uia.");
+  selectorStore.setDescription("Indicating UIA element.");
 }
 
 async function indicateChrome(): Promise<void> {
@@ -116,7 +117,7 @@ async function indicateChrome(): Promise<void> {
     intIndicateDelaySeconds: settingStore.intIndicateDelaySeconds,
     usePath: settingStore.indexOrPath === "path",
   });
-  selectorStore.setDescription("Indicating Chrome.");
+  selectorStore.setDescription("Indicating Chrome element.");
 }
 
 function indicateImage(): void {
@@ -129,7 +130,7 @@ function indicateImage(): void {
     grayscale: settingStore.grayscale,
     confidence: settingStore.confidence,
   });
-  selectorStore.setDescription("Indicating image.");
+  selectorStore.setDescription("Indicating image element.");
 }
 
 async function indicateWindow(): Promise<void> {
@@ -138,7 +139,7 @@ async function indicateWindow(): Promise<void> {
     commandName: "indicate_window",
     intIndicateDelaySeconds: settingStore.intIndicateDelaySeconds,
   });
-  selectorStore.setDescription("Indicating window.");
+  selectorStore.setDescription("Indicating window element.");
 }
 
 async function validateSelector(): Promise<void> {
@@ -156,7 +157,7 @@ async function validateSelector(): Promise<void> {
     intMatchTimeoutSeconds: settingStore.intMatchTimeoutSeconds,
     strSelectorJson: dictParseResult.data,
   });
-  selectorStore.setDescription("Validate element.");
+  selectorStore.setDescription("Validating element.");
 }
 
 function resetUI(): void {
