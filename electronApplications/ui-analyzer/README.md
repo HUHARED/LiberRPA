@@ -1,8 +1,10 @@
 # UI Analyzer
 
-UI Analyzer is an Electron-based client designed to quickly selecting UI elements and build the corresponding selectors (formatted as several specific dictionary) required for RPA operations.
+UI Analyzer is an Electron-based client designed to quickly select UI elements and build the corresponding selectors required for RPA operations.
 
-It needs LiberRPA Local Server to function properly.
+It requires **LiberRPA Local Server**.
+
+For HTML element indication, **LiberRPA Chrome extension** must also be installed and connected.
 
 > If LiberRPA Local Server is not connected, the window title will change to "UI Analyzer - No Local Server". You can check the connection status using the icon in the top-right corner:
 >
@@ -19,38 +21,50 @@ Since LiberRPA has components across different platforms, all changes will be re
 
 # Indicate UIA Element
 
-Indicate an element that supports [UI Automation](https://learn.microsoft.com/en-us/dotnet/framework/ui-automation/ui-automation-overview), genereate a [SelectorUia](#selectoruia).
+Indicate an element that supports [UI Automation](https://learn.microsoft.com/en-us/dotnet/framework/ui-automation/ui-automation-overview) and generate a [SelectorUia](#selectoruia).
 
 Simply single-click `MouseLeft` to select the target element.
 
-Press `ESC` to exit the indicating.
+Press `ESC` to cancel the indicating operation.
 
-> It works for many situations, but for HTML elements, [Indicate HTML Element](#indicate-html-element) may better.
+> It works for many situations, but for HTML elements, [Indicate HTML Element](#indicate-html-element) may be better.
 
 ![IndicateUIA](md_images/README/IndicateUIA.gif)
 
-Adjust **Indicate delay** to allow time for you to bring the target window into view.
+Adjust **Indicate delay** to allow time for you to bring the target window into view and hover the cursor over the target element.
+
+> `Indicate delay` only delays the start of indication. It is not the same as `match timeout`(It is explained in [Validate Element](#validate-element)).
+
+> It is especially important for [Indicate HTML Element](#indicate-html-element) because Chrome extension can only identify elements in the last focus webpage.
+
+After the indicate delay finishes, UI Analyzer waits for a limited time (15 seconds) for the user action. If no target is selected, the operation times out automatically.
 
 ![1740149355230](md_images/README/1740149355230.png)
 
-If you want, enable **Minimize** option to make UI Analyzer minimize itself before each indicating operation, and it will restore once a indicating operation completed or exited.
+If you want, enable **Minimize** option to make UI Analyzer minimize itself before each indicating operation. It will restore after an indicating operation completes, is cancelled, or times out.
 
 ![1740149627121](md_images/README/1740149627121.png)
 
 # Indicate HTML Element
 
-Indicate an element in a usual webpage.
+Indicate an element in a regular web page.
 
 If the element is not in viewport, LiberRPA will attempt to scroll it into view.
 
 ![IndicateHtml](md_images/README/IndicateHtml.gif)
 
-HTML element can be located by **index**(**documentIndex** and **childIndex**, start from 0 and 0 will be ignored) or **path**([CSS selector](https://developer.mozilla.org/docs/Web/CSS/CSS_selectors) with the [:nth-child()](https://developer.mozilla.org/docs/Web/CSS/:nth-child)) if other attributes are not enough.
+HTML elements can use index attributes or path([CSS selector](https://developer.mozilla.org/docs/Web/CSS/CSS_selectors) with the [:nth-child()](https://developer.mozilla.org/docs/Web/CSS/:nth-child)) attributes when normal attributes are not enough.
+
+Index attributes include `documentIndex` and `childIndex`. Index values start from `0`, but `0` is usually omitted because the first match is selected by default.
+
+> However, you can still explicitly use `"documentIndex": "0"` or `"childIndex": "0"` when it makes selector generation logic easier, such as when looping through elements in a list.
+
+
 ![1740147909983](md_images/README/1740147909983.png)
 
 **documentIndex:** The target element's position among all elements on the page having the same primary attributes.
 
-**childIndex:** The target element's position among the children of its parent that having the same primary attributes.
+**childIndex:** The target element's position among matching elements under its parent search area.
 
 # Indicate Image Element
 
@@ -60,7 +74,7 @@ To select an image, drag and drop it while holding `Ctrl` and clicking the left 
 
 ![IndicateImage](md_images/README/IndicateImage.gif)
 
-You can configure the default confidence level for image matching and choose between grayscale or colorscale modes.
+You can configure the default confidence level for image matching and choose whether to use grayscale matching.
 
 ![1740148367585](md_images/README/1740148367585.png)
 
@@ -70,7 +84,7 @@ You can configure the default confidence level for image matching and choose bet
 
 Indicate a window element.
 
-Note that All selector (UIA, HTML, Image) must have a window section—UI Analyzer adds it automatically.
+> All selectors, including UIA, HTML, and Image selectors, must have a `window` section. UI Analyzer adds it automatically.
 
 LiberRPA will try to locate the "window" then search the "specification" section.
 
@@ -78,19 +92,30 @@ LiberRPA will try to locate the "window" then search the "specification" section
 
 # Modify Selector
 
-Adjust a selector by click a layer in **Element Hierarchy**.
+Adjust a selector by clicking a layer in **Element Hierarchy**.
 
 Then, check or uncheck attributes in **Attribute Editor**.
 
-Use regular expressions (regex) to make the selector more suitable when the attribute may different.
+Use regular expressions (regex) to make the selector more suitable when the attribute value may vary.
 
-The changement will update **JSON Selector**.
+**JSON Selector** will update automatically.
 
 ![-omit-regex](md_images/README/-omit-regex.gif)
 
-Alternatively, you can directly edit them in **JSON Selector**—note that it will not update **Attribute Editor**.
+Alternatively, you can directly edit them in **JSON Selector** — Note that it will not update **Attribute Editor**.
 
 ![1740148560108](md_images/README/1740148560108.png)
+
+It accepts:
+
+- Standard JSON generated by UI Analyzer.
+- JSON-like text with trailing commas, such as selectors copied from Black-formatted Python code.
+
+It does not support:
+
+- Python literals such as single-quoted strings.
+- `True`, `False`, or `None`.
+- `#` comments.
 
 # Validate Element
 
@@ -99,6 +124,8 @@ Test whether the element can be located by the current data in **JSON Selector**
 ![Validate](md_images/README/Validate.gif)
 
 Set **Match timeout** to specify how long the validation should attempt to find a match.
+
+> `Match timeout` only affects validation and selector matching. It does not change `indicate delay`.
 
 ![1740149519175](md_images/README/1740149519175.png)
 
@@ -126,7 +153,7 @@ Reset the current selector data to the default states.
 
 View UI Analyzer's status in **Status** area.
 
-> **Note:** It called **Log** before, and the button "Open log file" has been removed.
+> **Note:** This area was previously called **Log**, and the button "Open log file" has been removed.
 
 ![1740149086118](md_images/README/1740149086118.png)
 
@@ -181,7 +208,7 @@ pseudo-schema:
     "ProcessName": NotRequired[str],
     "ProcessName-regex": NotRequired[str]
   },
-  "category": 'uia',
+  "category": "uia",
   "specification": list[
     {
       "ControlTypeName": str,
@@ -277,9 +304,9 @@ Examples:
 }
 ```
 
-Some attributes can be used directly in `querySelectorAll()` as a fast pre-filter,
+Some attributes can be used directly in `querySelectorAll()` as a fast pre-filter.
 
-for example:
+For example:
 
 ```plaintext
 tagName
@@ -489,7 +516,7 @@ pseudo-schema:
     "ProcessName": NotRequired[str],
     "ProcessName-regex": NotRequired[str]
   },
-  "category": 'html',
+  "category": "html",
   "specification": list[
     {
       "tagName": NotRequired[str],
@@ -604,13 +631,13 @@ pseudo-schema:
     "ProcessName": NotRequired[str],
     "ProcessName-regex": NotRequired[str]
   },
-  "category": 'image',
+  "category": "image",
   "specification": list[
     {
-      'FileName': str,
-      'Grayscale': str,
-      'Confidence': str',
-      'Index': NotRequired[str]
+      "FileName": str,
+      "Grayscale": str,
+      "Confidence": str,
+      "Index": NotRequired[str]
     }
   ]
 }
@@ -644,7 +671,7 @@ It will search the "window" value, **have no other sections**.
 
 pseudo-schema:
 
-```json
+```plaintext
 {
   "window": {
     "ControlTypeName": str,
