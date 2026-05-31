@@ -6,9 +6,9 @@ import { loggerMain } from "./logger";
 import { strDocumentsFolderPath } from "./config";
 
 export function deleteTimeoutScreenshot(): void {
-  // Delete files from 7 days ago in "user/Documents/LiberRPA/Screenshot"
+  // Delete files from 7 days ago in "user/Documents/LiberRPA/Screenshots"
 
-  const strScreenshotPath = path.join(strDocumentsFolderPath, "LiberRPA/Screenshot");
+  const strScreenshotPath = path.join(strDocumentsFolderPath, "LiberRPA/Screenshots");
   const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
 
   if (!fs.existsSync(strScreenshotPath)) {
@@ -21,7 +21,7 @@ export function deleteTimeoutScreenshot(): void {
   try {
     arrFiles = fs.readdirSync(strScreenshotPath);
   } catch (e) {
-    loggerMain.error(`Failed to read the Screenshot folder: ${e}`);
+    loggerMain.error(`Failed to read the Screenshots folder: ${e}`);
     return;
   }
 

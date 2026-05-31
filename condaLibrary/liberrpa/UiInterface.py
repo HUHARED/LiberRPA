@@ -1096,7 +1096,7 @@ if __name__ == "__main__":
 
     print(
         get_image_position(
-            filePath=R".\Screenshot\_20250129_185915.png",
+            filePath=R".\Screenshots\_20250129_185915.png",
             region=None,
             confidence=0.97,
             grayscale=True,

@@ -309,7 +309,7 @@ class Logger:
                 )
             )
 
-        # Update project.json, add "logPath" for other parts to use later. Such as screen recording, screenshot.
+        # Update project.json, add "logPath" for other parts to use later. Such as screen recording, screenshots.
 
         # All processes create the folder to avoid a subprocess writes file before MainProcess.
         os.makedirs(self.strLogFolder, exist_ok=True)
