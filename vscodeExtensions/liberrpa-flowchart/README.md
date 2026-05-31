@@ -4,6 +4,12 @@
 
 This extension is a part of LiberRPA to manage the overall flow of an RPA project, including project arguments and settings.
 
+> **Note:**
+>
+> The GUI shown here may differ slightly from the newest version.
+>
+> For example: Icon has become ![new icon](./md_images/README/LiberRPA_icon_v3_color_32px.png) from ![old icon](./md_images/README/LiberRPA_icon_v1_color_32px.png) .
+
 ![1740302097535](md_images/README/1740302097535.png)
 
 The `project.flow` file (in JSON format) contains:
