@@ -18,8 +18,9 @@ import multiprocessing
 
 multiprocessing.freeze_support()
 
-processName = multiprocessing.current_process().name
-print(f"=== Starting LiberRPALocalServer.py in {processName} ===")
+from liberrpa.Common._Utils import PROCESS_NAME
+
+print(f"=== Starting LiberRPALocalServer.py in {PROCESS_NAME} ===")
 
 
 if __name__ == "__main__":
@@ -34,6 +35,8 @@ if __name__ == "__main__":
 
         # ========================
 
+        from liberrpa.Common._Utils import STR_PROJECT_ROOT
+
         print("Start QtWorker process.")
         from liberrpa.UI._QtWorker import run_qt_worker
         from liberrpa.UI._Queue import queueCommand, queueReturn
@@ -43,9 +46,7 @@ if __name__ == "__main__":
         )
         p.start()
 
-        import os
-
-        print("LiberRPA Local Server running in " + os.getcwd())
+        print("LiberRPA Local Server running in " + STR_PROJECT_ROOT)
 
         # from liberrpa.Dialog import show_notification
 

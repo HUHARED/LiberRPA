@@ -7,9 +7,9 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import multiprocessing
 
-processName = multiprocessing.current_process().name
-# print("Run.py:", processName)
+
 from liberrpa.Logging import Log
+from liberrpa.Common._Utils import PROCESS_NAME
 from liberrpa.Trigger import register_force_exit
 from liberrpa.Basic import start_video_record
 from liberrpa.Dialog import show_notification
@@ -132,7 +132,7 @@ def _run_by_direction(id: str) -> str | None:
 def _run_substart(id: str) -> None:
     # In Windows, the subprocess will re-import all, not forking anything from MainProcess.
     # Log.set_level(level=dictFlowFile["logLevel"], loggerType="both")
-    Log.info(f"Run an SubStart process, '{processName}'")
+    Log.info(f"Run an SubStart process, '{PROCESS_NAME}'")
 
     while True:
         idTemp = _run_by_direction(id=id)

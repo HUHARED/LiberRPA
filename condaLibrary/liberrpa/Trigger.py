@@ -6,6 +6,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
 from liberrpa.Logging import Log
+from liberrpa.Common._Utils import PROCESS_NAME
 from liberrpa.Dialog import show_notification
 from liberrpa.Common._TypedValue import MouseButton, HookKey
 import liberrpa.FlowControl.End as End
@@ -13,7 +14,6 @@ import liberrpa.FlowControl.End as End
 from pynput.mouse import Button, Listener as MouseListener
 import keyboard
 import threading
-import multiprocessing
 import os
 import sys
 from typing import Any, Literal, Callable, TypeVar
@@ -253,7 +253,7 @@ def register_force_exit() -> None:
     """LiberRPA Main block will invoke it, should not invoke it by user."""
 
     # Only works on the MainProcess
-    if multiprocessing.current_process().name != "MainProcess":
+    if PROCESS_NAME != "MainProcess":
         Log.error("Should only invoke hotkey_exit() in main process.")
         return None
 

@@ -8,10 +8,10 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 """ The Basic module should package the functions that be called without module name """
 from liberrpa.Logging import Log
 from liberrpa.Common._WebSocket import send_command
+from liberrpa.Common._Utils import PROCESS_NAME
 
 
 import time
-import multiprocessing
 import os
 
 _boolHaveRecordVideo = False
@@ -42,7 +42,7 @@ def start_video_record() -> None:
         Log.warning("The process has started a video recording.")
     else:
         # Only the main process can start the record.
-        if multiprocessing.current_process().name == "MainProcess":
+        if PROCESS_NAME == "MainProcess":
             send_command(
                 eventName="record_command",
                 command={"commandName": "video", "pid": os.getpid(), "folderName": Log.strLogFolder},

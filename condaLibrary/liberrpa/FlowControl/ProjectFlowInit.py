@@ -6,6 +6,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
 from liberrpa.Logging import Log
+from liberrpa.Common._Utils import STR_PROJECT_ROOT
 from liberrpa.FlowControl._ProjectDict import DictProject_Original
 
 import argparse
@@ -18,7 +19,7 @@ from typing import Literal, Any
 _time_start = time.time()
 
 if not Path("project.flow").is_file():
-    raise FileNotFoundError(f"Not found the file '{os.getcwd()+"\\project.flow"}' to initialize the program.")
+    raise FileNotFoundError(f"Not found the file '{STR_PROJECT_ROOT+"\\project.flow"}' to initialize the program.")
 
 dictFlowFile: DictProject_Original = json.loads(Path("project.flow").read_text(encoding="utf-8"))
 
@@ -134,7 +135,7 @@ class ProjectArguments:
 
     def __init__(self):
         # The path of the current working directory.
-        self.projectPath: str = os.getcwd()
+        self.projectPath: str = STR_PROJECT_ROOT
         self.projectName: str = Log.strProjectName
         self.errorObj: Exception | None = None
         self.customArgs: dict[str, Any] = {}

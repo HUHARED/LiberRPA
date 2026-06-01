@@ -10,6 +10,8 @@ import multiprocessing
 # run freeze_support() to avoid re-running of it was packaged to an exe.
 multiprocessing.freeze_support()
 
+from liberrpa.Common._Utils import STR_PROJECT_ROOT, PROCESS_NAME
+
 import time
 from datetime import datetime
 import json
@@ -25,12 +27,10 @@ import ctypes
 from screeninfo import get_monitors
 from typing import Any
 
-strCwd = os.getcwd()
-
 
 def _print_program_info() -> None:
     # vscode will cd to the workspace's path.
-    print(f"The current workpath: {strCwd}")
+    print(f"The current workpath: {STR_PROJECT_ROOT}")
 
 
 def _initialize_project_json() -> None:
@@ -41,7 +41,7 @@ def _initialize_project_json() -> None:
 
             # Assign project name if user rename the project folder's name. (An Executor package doesn't need to do it.)
             if not dictProject["executorPackage"]:
-                dictProject["executorPackageName"] = os.path.basename(strCwd)
+                dictProject["executorPackageName"] = os.path.basename(STR_PROJECT_ROOT)
 
             # Logging module need its to name the log folder.
             dictProject["lastStartUpTime"] = time.strftime("%Y-%m-%d_%H%M%S", time.localtime())
@@ -50,7 +50,7 @@ def _initialize_project_json() -> None:
             # Create project.json
             dictProject = {
                 "executorPackage": False,
-                "executorPackageName": os.path.basename(strCwd),
+                "executorPackageName": os.path.basename(STR_PROJECT_ROOT),
                 "executorPackageVersion": "1.0.0",
                 "lastStartUpTime": time.strftime("%Y-%m-%d_%H%M%S", time.localtime()),
             }
@@ -268,7 +268,7 @@ def get_system_data() -> dict[str, Any]:
         return {}
 
 
-if multiprocessing.current_process().name == "MainProcess":
+if PROCESS_NAME == "MainProcess":
     _print_program_info()
     _initialize_project_json()
     _update_daily_data()

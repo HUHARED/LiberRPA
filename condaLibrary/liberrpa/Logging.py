@@ -8,10 +8,9 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 This module intentionally initializes project context and logger on import.
 It is expected to be imported at RPA project startup.
 """
-
 import liberrpa.Common._Initialization  # For initialization
 
-import multiprocessing
+from liberrpa.Common._Utils import STR_PROJECT_ROOT, PROCESS_NAME
 from liberrpa.Common._BasicConfig import get_basic_config_dict, get_liberrpa_folder_path
 from liberrpa.Common._Exception import get_exception_info
 
@@ -36,8 +35,6 @@ from typing import Any, Literal
 VERBOSE_LEVEL_NUM = 5
 logging.addLevelName(VERBOSE_LEVEL_NUM, "VERBOSE")
 type LogLevel = Literal["VERBOSE", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
-
-_processName = multiprocessing.current_process().name
 
 
 _SET_BUILTIN_KEY = {
@@ -268,7 +265,7 @@ class Logger:
             self.strProjectName = dictProject["executorPackageName"]
 
         else:
-            self.strProjectName = os.path.basename(os.getcwd())
+            self.strProjectName = os.path.basename(STR_PROJECT_ROOT)
 
         # If it's an Executor package, add version subfolder.
         if dictProject.get("executorPackage") == True:
@@ -315,7 +312,7 @@ class Logger:
         os.makedirs(self.strLogFolder, exist_ok=True)
 
         # Only the MainProcess can initialize project.json.
-        if _processName == "MainProcess":
+        if PROCESS_NAME == "MainProcess":
             dictProject["logPath"] = self.strLogFolder
             dictProject["executorPackageStatus"] = "running"
             strTemp = json.dumps(dictProject, indent=4, ensure_ascii=False, allow_nan=False)
@@ -328,9 +325,9 @@ class Logger:
 
         # Create loggers
         self.colorfulConsoleHandlerObj = logging.StreamHandler(stream=sys.stderr)  # Console handler
-        self.humanLogger = self._create_logger(f"human_read_{_processName}.log", humanReadable=True)
+        self.humanLogger = self._create_logger(f"human_read_{PROCESS_NAME}.log", humanReadable=True)
         self.humanLogger.addHandler(self.colorfulConsoleHandlerObj)  # Add the StreamHandler to human_logger
-        self.machineLogger = self._create_logger(fileName=f"machine_read_{_processName}.jsonl", humanReadable=False)
+        self.machineLogger = self._create_logger(fileName=f"machine_read_{PROCESS_NAME}.jsonl", humanReadable=False)
 
     def _create_logger(self, fileName: str, humanReadable: bool) -> logging.Logger:
         logger = logging.getLogger(fileName)
@@ -369,7 +366,7 @@ class Logger:
         ]
 
         # Not show processName in MainProcess to make log more concise.
-        if _processName != "MainProcess":
+        if PROCESS_NAME != "MainProcess":
             listParts.append("%(processName)s")
 
         if includeSource:
@@ -732,7 +729,9 @@ try:
     else:
         Log.set_level(level="DEBUG", loggerType="both")
 except Exception as e:
-    Log.debug(f"Failure to use '{os.getcwd()+"\\project.flow"}' to set log level. It is not a normal LiberRPA project?")
+    Log.debug(
+        f"Failure to use '{STR_PROJECT_ROOT+"\\project.flow"}' to set log level. It is not a normal LiberRPA project?"
+    )
     Log.set_level(level="DEBUG", loggerType="both")
 
 boolIsAdmin = ctypes.windll.shell32.IsUserAnAdmin() != 0

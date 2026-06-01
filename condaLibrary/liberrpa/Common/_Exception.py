@@ -4,11 +4,10 @@ __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
+from liberrpa.Common._Utils import PROCESS_NAME
 
 import traceback
-import sys
 from typing import TypedDict
-import multiprocessing
 
 
 class UiElementNotFoundError(Exception):
@@ -77,5 +76,5 @@ def get_exception_info(ex: Exception) -> DictExceptionInfo:
         "message": str(ex),
         "fileName": fileName,
         "lineNumber": lineNumber,
-        "process": multiprocessing.current_process().name,
+        "process": PROCESS_NAME,
     }

@@ -6,12 +6,12 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
 from liberrpa.Logging import Log
+from liberrpa.Common._Utils import PROCESS_NAME
 from liberrpa.Dialog import show_notification
 from liberrpa.FlowControl.ProjectFlowInit import PrjArgs
 
 from datetime import timedelta
 import sys
-import multiprocessing
 import json
 from pathlib import Path
 from typing import Literal
@@ -19,13 +19,11 @@ from typing import Literal
 # Python use executorPackageStatus to sign its status, but the status may modified by Exectuor because "terminated" may caused by timeout or user clicked cancel button in Executor.
 executorPackageStatus: Literal["error", "terminated", "running"] = "running"
 
-processName = multiprocessing.current_process().name
-
 
 @Log.trace()
 def cleanup() -> None:
     # Update project.json's executorPackageStatus value for Executor update status in Task History.
-    if processName != "MainProcess":
+    if PROCESS_NAME != "MainProcess":
         # Only run cleanup in MainProcess.
         return None
 
@@ -58,7 +56,7 @@ def main() -> None:
     global boolRan
     cleanup()
     # Stop the current process
-    Log.info(f"'{processName}' exit.")
+    Log.info(f"'{PROCESS_NAME}' exit.")
     sys.exit()
 
 

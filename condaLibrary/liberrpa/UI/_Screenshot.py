@@ -4,6 +4,7 @@ __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
+from liberrpa.Common._Utils import STR_PROJECT_ROOT
 
 from PyQt5 import QtWidgets, QtCore, QtGui
 import os
@@ -14,7 +15,7 @@ import subprocess
 SCREENSHOT_DOCUMENTS_PATH = os.path.join(os.environ.get("USERPROFILE", "N/A"), R"Documents\LiberRPA\Screenshots")
 os.makedirs(name=SCREENSHOT_DOCUMENTS_PATH, exist_ok=True)
 FULL_SCREENSHOT_PATH = os.path.join(SCREENSHOT_DOCUMENTS_PATH, "LiberRPA_full_screenshot.png")
-SCREENSHOT_PROJECT_PATH = os.path.join(os.getcwd(), "Screenshots")
+SCREENSHOT_PROJECT_PATH = os.path.join(STR_PROJECT_ROOT, "Screenshots")
 SCREENSHOT_TEMP_NAME = "captured_temp.png"
 
 SELECTED_KEYWORD = "Save completed!"
