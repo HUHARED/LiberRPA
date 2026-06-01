@@ -23,8 +23,6 @@ import uuid
 from multiprocessing import Queue
 from typing import Literal, Any
 
-# print(f"Import QtWorker in process: {current_process().name}")
-
 # Put the qtApp in global, otherwise Python may clean it after create_area() return.
 qtApp = QApplication([])
 
@@ -250,8 +248,6 @@ def run_qt_worker(queueCommand: Queue, queueReturn: Queue) -> None:
     This function runs in a separate process.
     It holds the Qt Event Loop, creates RealScreenPrintObj objects, etc.
     """
-
-    # print(f"Run QtWorker in process: {current_process().name}")
 
     # Poll commands without blocking the PyQt event loop
     timer = QTimer()
