@@ -140,7 +140,7 @@ class FlowchartEditorProvider implements vscode.CustomTextEditorProvider {
               fs.mkdirSync(strFolderPath, { recursive: true });
             }
 
-            // Follow liberrpa-snippets-tree, add modules in Utils and selector.
+            // Follow liberrpa-snippets-tree, add modules in Utils and Selectors.
             function getPythonModules(folderPath: string): string[] {
               if (!fs.existsSync(folderPath)) {
                 return [];
@@ -156,13 +156,13 @@ class FlowchartEditorProvider implements vscode.CustomTextEditorProvider {
             }
 
             const utilsPath = path.join(workspaceFolder.uri.fsPath, "Utils");
-            const selectorPath = path.join(workspaceFolder.uri.fsPath, "Selector");
+            const selectorsPath = path.join(workspaceFolder.uri.fsPath, "Selectors");
 
             const utilsModules = getPythonModules(utilsPath);
-            const selectorModules = getPythonModules(selectorPath);
+            const selectorsModules = getPythonModules(selectorsPath);
             const modulesText = [
               ...utilsModules.map((mod) => `from Utils.${mod} import *\n`),
-              ...selectorModules.map((mod) => `from Selector.${mod} import *\n`),
+              ...selectorsModules.map((mod) => `from Selectors.${mod} import *\n`),
             ];
 
             const strNewPython = `# FileName: ${path.basename(strFileSystemPath)}
