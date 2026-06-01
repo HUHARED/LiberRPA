@@ -16,27 +16,27 @@ from liberrpa.UI._Screenshot import (
     create_screenshot_manually,
 )
 
+
 import pyautogui
 import os
 import shutil
+from typing import cast
 
 
-def find_image(
-    fileName: str,
-    region: tuple[int, int, int, int] | None,
-    confidence: float,
-    grayscale: bool = True,
-    limit: int = 1,
+def _get_image_path(
+    fileNameOrPath: str,
     moveFile: bool = True,
-    buildinPath: bool = True,
-) -> list[DictImageAttr]:
-    # When other build-in modules invoke the function, "fileName" should be a fullname, but if UiInterface module invokes it ,"fileName" should be a path.
-    if buildinPath:
-        # Check whether file exists
-        if not os.path.isfile(os.path.join(SCREENSHOT_PROJECT_PATH, fileName)):
-            if not os.path.isfile(os.path.join(SCREENSHOT_DOCUMENTS_PATH, fileName)):
+    inScreenshotFolder: bool = True,
+) -> str:
+    # When other build-in modules invoke the function, "fileName" should be a literally filename, but if UiInterface.get_image_position invokes it, it will give a path and inScreenshotFolder is False.
+    if not inScreenshotFolder:
+        strFilePath = fileNameOrPath
+    else:
+        if not os.path.isfile(os.path.join(SCREENSHOT_PROJECT_PATH, fileNameOrPath)):
+
+            if not os.path.isfile(os.path.join(SCREENSHOT_DOCUMENTS_PATH, fileNameOrPath)):
                 raise FileNotFoundError(
-                    f"Not found the image file '{fileName}' in '{SCREENSHOT_PROJECT_PATH}' or '{SCREENSHOT_DOCUMENTS_PATH}'."
+                    f"Not found the image file '{fileNameOrPath}' in '{SCREENSHOT_PROJECT_PATH}' or '{SCREENSHOT_DOCUMENTS_PATH}'."
                 )
             else:
                 # If UI Analyzer call it, should not move the file. And a normal RPA project should move the file.
@@ -45,19 +45,35 @@ def find_image(
                     os.makedirs(SCREENSHOT_PROJECT_PATH, exist_ok=True)
                     strFilePath = os.path.abspath(
                         shutil.move(
-                            src=os.path.join(SCREENSHOT_DOCUMENTS_PATH, fileName),
-                            dst=os.path.join(SCREENSHOT_PROJECT_PATH, fileName),
+                            src=os.path.join(SCREENSHOT_DOCUMENTS_PATH, fileNameOrPath),
+                            dst=os.path.join(SCREENSHOT_PROJECT_PATH, fileNameOrPath),
                         )
                     )
-                    Log.info(f"Move '{fileName}' from '{SCREENSHOT_DOCUMENTS_PATH}' to '{SCREENSHOT_PROJECT_PATH}'.")
+                    Log.info(
+                        f"Move '{fileNameOrPath}' from '{SCREENSHOT_DOCUMENTS_PATH}' to '{SCREENSHOT_PROJECT_PATH}'."
+                    )
                 else:
-                    strFilePath = os.path.join(SCREENSHOT_DOCUMENTS_PATH, fileName)
+                    strFilePath = os.path.join(SCREENSHOT_DOCUMENTS_PATH, fileNameOrPath)
                     Log.info("File in Documents.")
+
         else:
-            strFilePath = os.path.join(SCREENSHOT_PROJECT_PATH, fileName)
+            strFilePath = os.path.join(SCREENSHOT_PROJECT_PATH, fileNameOrPath)
             Log.verbose("File in project.")
-    else:
-        strFilePath = fileName
+
+    return strFilePath
+
+
+def find_image(
+    fileNameOrPath: str,
+    region: tuple[int, int, int, int] | None,
+    confidence: float,
+    grayscale: bool = True,
+    limit: int = 1,
+    moveFile: bool = True,
+    inScreenshotFolder: bool = True,
+) -> list[DictImageAttr]:
+
+    strFilePath = _get_image_path(fileNameOrPath=fileNameOrPath, moveFile=moveFile, inScreenshotFolder=inScreenshotFolder)
 
     try:
         # puautogui can't locate image in non-main screen, so save all screens as an image.
@@ -81,7 +97,7 @@ def find_image(
             if boolNegativeCoordinate:
                 Log.verbose(f"The Window's top-left is not in the screen, search region={listRegion}")
 
-            region = tuple(listRegion)  # type: ignore - it's 4 int.
+            region = cast(tuple[int, int, int, int], tuple(listRegion))
 
         Log.verbose(f"region={region}")
 
@@ -126,4 +142,4 @@ if __name__ == "__main__":
             height=int(position["secondary-height"]),
             duration=200,
         )"""
-    create_screenshot_manually()
+    create_screenshot_manually(timeoutSeconds=10)

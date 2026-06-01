@@ -350,12 +350,13 @@ def indicate_image(
         }
 
         listDictImageAttr = find_image(
-            fileName=strNewFileName,
+            fileNameOrPath=strNewFileName,
             region=None,
             confidence=confidence,
             grayscale=grayscale,
             limit=1,
             moveFile=False,
+            inScreenshotFolder=True,
         )
         if len(listDictImageAttr) == 0:
             raise UiElementNotFoundError(
@@ -622,7 +623,7 @@ def _get_image_element(
         imageSelector: DictSepcImage = selectorTemp["specification"][0]
 
         listDictImageAttr = find_image(
-            fileName=imageSelector["FileName"],
+            fileNameOrPath=imageSelector["FileName"],
             region=(
                 controlTop.BoundingRectangle.left,
                 controlTop.BoundingRectangle.top,
@@ -634,6 +635,7 @@ def _get_image_element(
             # If have no Index or Index = "0", limit should be 1, else limit should be Index+1, due to All Index in LiberRPA selector start from 0.
             limit=int(imageSelector.get("Index", "0")) + 1,
             moveFile=False,
+            inScreenshotFolder=True,
         )
         # The list's length has limited by Index, but it may not find enough image(0 or less than Index+1), so check it.
         if len(listDictImageAttr) < int(imageSelector.get("Index", "0")) + 1:

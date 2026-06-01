@@ -43,7 +43,6 @@ from time import time, sleep
 import threading
 from typing import Sequence
 
-
 # Set the global variable of uiautomation.
 uiautomation.SEARCH_INTERVAL = 1.0
 uiautomation.OPERATION_WAIT_TIME = 0
@@ -323,7 +322,7 @@ def get_element(
                 sleep(0.1)
 
                 listDictImageAttr = find_image(
-                    fileName=imageSelector["FileName"],
+                    fileNameOrPath=imageSelector["FileName"],
                     region=(
                         controlTop.BoundingRectangle.left,
                         controlTop.BoundingRectangle.top,
@@ -335,6 +334,7 @@ def get_element(
                     # If have no Index or Index = "0", limit should be 1, else limit should be Index+1, due to All Index in LiberRPA selector start from 0.
                     limit=int(imageSelector.get("Index", "0")) + 1,
                     moveFile=True,
+                    inScreenshotFolder=True,
                 )
                 # The list's length has limited by Index, but it may not find enough image(0 or less than Index+1), so check it.
                 if len(listDictImageAttr) < int(imageSelector.get("Index", "0")) + 1:
