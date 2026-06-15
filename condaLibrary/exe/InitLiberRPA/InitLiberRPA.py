@@ -14,7 +14,7 @@ import json
 import winreg
 import secrets
 
-pathCwd = Path.cwd()
+pathCwd = Path.cwd().resolve()
 print(f"The current work folder: {pathCwd}, LiberRPA will be initialized according to the current path.")
 pathUser = Path.home()
 
@@ -128,8 +128,8 @@ def create_native_messaging_file() -> None:
         "path": str(pathExe),
         "type": "stdio",
         "allowed_origins": [
-            "chrome-extension://cffobgimbemkfgjmcedebofkfcamnajb/", # Web Store version
-            "chrome-extension://elnnnehambeohefmcdeiajpodhcdgigb/", # Developing
+            "chrome-extension://cffobgimbemkfgjmcedebofkfcamnajb/",  # Web Store version
+            "chrome-extension://elnnnehambeohefmcdeiajpodhcdgigb/",  # Developing
         ],
     }
     Path(pathNmFile).write_text(json.dumps(dictNM, indent=4), encoding="utf-8")
