@@ -2,6 +2,8 @@
 import * as vscode from "vscode";
 import * as path from "path";
 import * as fs from "fs";
+import { isWebviewMessage } from "./utils";
+import type { WebviewToExtensionMessage } from "./utils";
 
 const outputChannel = vscode.window.createOutputChannel("liberrpa-flowchart");
 outputChannel.show(true);
@@ -118,188 +120,17 @@ class FlowchartEditorProvider implements vscode.CustomTextEditorProvider {
     webviewPanel.webview.html = this.getWebviewContent(webviewPanel.webview);
 
     // Receive message from webview.
-    webviewPanel.webview.onDidReceiveMessage((message) => {
-      const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-
-      switch (message.command) {
-        case "update":
-          this.updateDocument(document, message.data);
-          break;
-
-        case "open": {
-          outputChannel.appendLine(`Open ${message.path}`);
-
-          if (!workspaceFolder) {
-            vscode.window.showErrorMessage("No workspace folder is open.");
-            break;
-          }
-
-          const strFilePath = vscode.Uri.joinPath(workspaceFolder.uri, message.path);
-          const strFileSystemPath = strFilePath.fsPath;
-
-          // If the path doesn't exist, create it and write the default script.
-          if (
-            !fs.existsSync(strFileSystemPath) ||
-            !fs.statSync(strFileSystemPath).isFile()
-          ) {
-            const strFolderPath = path.dirname(strFileSystemPath);
-            if (!fs.existsSync(strFolderPath)) {
-              fs.mkdirSync(strFolderPath, { recursive: true });
-            }
-
-            // Follow liberrpa-snippets-tree, add modules in Utils and Selectors.
-            function getPythonModules(folderPath: string): string[] {
-              if (!fs.existsSync(folderPath)) {
-                return [];
-              }
-
-              return (
-                fs
-                  .readdirSync(folderPath)
-                  .filter((file) => file.endsWith(".py"))
-                  // Remove .py extension
-                  .map((file) => path.parse(file).name)
-              );
-            }
-
-            const utilsPath = path.join(workspaceFolder.uri.fsPath, "Utils");
-            const selectorsPath = path.join(workspaceFolder.uri.fsPath, "Selectors");
-
-            const utilsModules = getPythonModules(utilsPath);
-            const selectorsModules = getPythonModules(selectorsPath);
-            const modulesText = [
-              ...utilsModules.map((mod) => `from Utils.${mod} import *\n`),
-              ...selectorsModules.map((mod) => `from Selectors.${mod} import *\n`),
-            ];
-
-            const strNewPython = `# FileName: ${path.basename(strFileSystemPath)}
-from liberrpa.Modules import *  # type: ignore - Import all from liberrpa
-${modulesText.join("")}
-
-def main() -> None:
-    raise NotImplementedError()
-
-
-if __name__ == "__main__":
-    main()
-`;
-
-            fs.writeFileSync(strFileSystemPath, strNewPython, { encoding: "utf-8" });
-          }
-
-          vscode.workspace.openTextDocument(strFilePath).then(
-            (document) => {
-              // Open it in a new tab.
-              vscode.window.showTextDocument(document, {
-                viewColumn: vscode.ViewColumn.Active,
-                preview: false,
-                preserveFocus: false,
-              });
-            },
-            (error) => {
-              vscode.window.showErrorMessage(
-                `Could not open or create file: ${strFilePath.fsPath}`
-              );
-              console.error(error);
-            }
-          );
-
-          break;
-        }
-
-        case "execute": {
-          outputChannel.appendLine(
-            `Execute ${message.data.pyFile} in ${message.data.executeMode} mode.`
-          );
-          if (!workspaceFolder) {
-            vscode.window.showErrorMessage("No workspace folder is open.");
-            break;
-          }
-
-          // Ensure the file exists
-          const strFilePath = vscode.Uri.joinPath(workspaceFolder.uri, message.data.pyFile);
-          const strFileSystemPath = strFilePath.fsPath;
-          if (
-            !fs.existsSync(strFileSystemPath) ||
-            !fs.statSync(strFileSystemPath).isFile()
-          ) {
-            vscode.window.showErrorMessage(
-              `File does not exist: ${strFileSystemPath}, you should create it manually or click "open" button in Block to create it.`
-            );
-            break;
-          }
-
-          // Save files before running.
-          vscode.workspace.saveAll().then(() => {
-            // Run or debug it.
-            const config = {
-              type: "debugpy",
-              request: "launch",
-              name: "Python Debugger: block file",
-              program: strFileSystemPath,
-              console: "integratedTerminal",
-              cwd: workspaceFolder.uri.fsPath,
-              env: {
-                PYTHONPATH: "${workspaceFolder}",
-              },
-            };
-            if (message.data.executeMode === "Run") {
-              vscode.debug.startDebugging(workspaceFolder, config, { noDebug: true });
-            } else {
-              vscode.debug.startDebugging(workspaceFolder, config, { noDebug: false });
-            }
-          });
-
-          break;
-        }
-
-        case "executeProject":
-          outputChannel.appendLine(`Execute Project in ${message.data.executeMode} mode.`);
-          if (!workspaceFolder) {
-            vscode.window.showErrorMessage("No workspace folder is open.");
-            break;
-          }
-
-          // Save files before running.
-          vscode.workspace.saveAll().then(() => {
-            const strLiberRPAEnvPath = process.env.LiberRPA;
-            if (!strLiberRPAEnvPath) {
-              throw new Error("Not found 'LiberRPA' in User Envirnment Variables.");
-            }
-
-            const strProgramTemp = path.join(
-              strLiberRPAEnvPath,
-              "envs/pyenv/Lib/site-packages/liberrpa/FlowControl/Run.py"
-            );
-
-            if (!strProgramTemp) {
-              throw new Error("The Python module 'liberrpa' didn't install correctly.");
-            }
-
-            // Run or debug it.
-            const config = {
-              type: "debugpy",
-              request: "launch",
-              name: "Python Debugger: project",
-              program: strProgramTemp,
-              console: "integratedTerminal",
-              cwd: workspaceFolder.uri.fsPath,
-              env: {
-                PYTHONPATH: "${workspaceFolder}",
-              },
-            };
-            if (message.data.executeMode === "Run") {
-              vscode.debug.startDebugging(workspaceFolder, config, { noDebug: true });
-            } else {
-              vscode.debug.startDebugging(workspaceFolder, config, { noDebug: false });
-            }
-          });
-
-          break;
-
-        default:
-          break;
+    webviewPanel.webview.onDidReceiveMessage((message: unknown) => {
+      if (!isWebviewMessage(message)) {
+        outputChannel.appendLine(`Ignored invalid webview message.`);
+        return;
       }
+
+      void this.handleWebviewMessage(document, message).catch((error: unknown) => {
+        const messageText = error instanceof Error ? error.message : String(error);
+        outputChannel.appendLine(messageText);
+        void vscode.window.showErrorMessage(messageText);
+      });
     });
 
     this.loadWebviewData(document, webviewPanel.webview);
@@ -376,11 +207,196 @@ if __name__ == "__main__":
     // update it in editor but not automatically saved to disk.
     vscode.workspace.applyEdit(edit);
   }
+
+  private async handleWebviewMessage(
+    document: vscode.TextDocument,
+    message: WebviewToExtensionMessage
+  ): Promise<void> {
+    // Only work for the first workspace.
+    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+
+    switch (message.command) {
+      case "update": {
+        this.updateDocument(document, message.data);
+        break;
+      }
+
+      case "open": {
+        outputChannel.appendLine(`Open ${message.path}`);
+
+        if (!workspaceFolder) {
+          vscode.window.showErrorMessage("No workspace folder is open.");
+          break;
+        }
+
+        const strFilePath = vscode.Uri.joinPath(workspaceFolder.uri, message.path);
+        const strFileSystemPath = strFilePath.fsPath;
+
+        // If the path doesn't exist, create it and write the default script.
+        if (!fs.existsSync(strFileSystemPath) || !fs.statSync(strFileSystemPath).isFile()) {
+          const strFolderPath = path.dirname(strFileSystemPath);
+          if (!fs.existsSync(strFolderPath)) {
+            fs.mkdirSync(strFolderPath, { recursive: true });
+          }
+
+          // Follow liberrpa-snippets-tree, add modules in Utils and Selectors.
+          function getPythonModules(folderPath: string): string[] {
+            if (!fs.existsSync(folderPath)) {
+              return [];
+            }
+
+            return (
+              fs
+                .readdirSync(folderPath)
+                .filter((file) => file.endsWith(".py"))
+                // Remove .py extension
+                .map((file) => path.parse(file).name)
+            );
+          }
+
+          const utilsPath = path.join(workspaceFolder.uri.fsPath, "Utils");
+          const selectorsPath = path.join(workspaceFolder.uri.fsPath, "Selectors");
+
+          const utilsModules = getPythonModules(utilsPath);
+          const selectorsModules = getPythonModules(selectorsPath);
+          const modulesText = [
+            ...utilsModules.map((mod) => `from Utils.${mod} import *\n`),
+            ...selectorsModules.map((mod) => `from Selectors.${mod} import *\n`),
+          ];
+
+          const strNewPython = `# FileName: ${path.basename(strFileSystemPath)}
+from liberrpa.Modules import *  # type: ignore - Import all from liberrpa
+${modulesText.join("")}
+
+def main() -> None:
+  raise NotImplementedError()
+
+
+if __name__ == "__main__":
+  main()
+`;
+
+          fs.writeFileSync(strFileSystemPath, strNewPython, { encoding: "utf-8" });
+        }
+
+        vscode.workspace.openTextDocument(strFilePath).then(
+          (document) => {
+            // Open it in a new tab.
+            vscode.window.showTextDocument(document, {
+              viewColumn: vscode.ViewColumn.Active,
+              preview: false,
+              preserveFocus: false,
+            });
+          },
+          (error) => {
+            vscode.window.showErrorMessage(
+              `Could not open or create file: ${strFilePath.fsPath}`
+            );
+            console.error(error);
+          }
+        );
+
+        break;
+      }
+
+      case "execute": {
+        outputChannel.appendLine(
+          `Execute "${message.data.pyFile}" in ${message.data.executeMode} mode.`
+        );
+        if (!workspaceFolder) {
+          vscode.window.showErrorMessage("No workspace folder is open.");
+          break;
+        }
+
+        // Ensure the file exists
+        const strFilePath = vscode.Uri.joinPath(workspaceFolder.uri, message.data.pyFile);
+        const strFileSystemPath = strFilePath.fsPath;
+        if (!fs.existsSync(strFileSystemPath) || !fs.statSync(strFileSystemPath).isFile()) {
+          vscode.window.showErrorMessage(
+            `File does not exist: ${strFileSystemPath}, you should create it manually or click "open" button in Block to create it.`
+          );
+          break;
+        }
+
+        // Save files before running.
+        vscode.workspace.saveAll().then(() => {
+          // Run or debug it.
+          const config = {
+            type: "debugpy",
+            request: "launch",
+            name: "Python Debugger: block file",
+            program: strFileSystemPath,
+            console: "integratedTerminal",
+            cwd: workspaceFolder.uri.fsPath,
+            env: {
+              PYTHONPATH: "${workspaceFolder}",
+            },
+          };
+          if (message.data.executeMode === "Run") {
+            vscode.debug.startDebugging(workspaceFolder, config, { noDebug: true });
+          } else {
+            vscode.debug.startDebugging(workspaceFolder, config, { noDebug: false });
+          }
+        });
+
+        break;
+      }
+
+      case "executeProject": {
+        outputChannel.appendLine(`Execute the project in ${message.data.executeMode} mode.`);
+        if (!workspaceFolder) {
+          vscode.window.showErrorMessage("No workspace folder is open.");
+          break;
+        }
+
+        // Save files before running.
+        vscode.workspace.saveAll().then(() => {
+          const strLiberRPAEnvPath = process.env.LiberRPA;
+          if (!strLiberRPAEnvPath) {
+            throw new Error("Not found 'LiberRPA' in User Envirnment Variables.");
+          }
+
+          const strProgramTemp = path.join(
+            strLiberRPAEnvPath,
+            "envs/pyenv/Lib/site-packages/liberrpa/FlowControl/Run.py"
+          );
+
+          if (!strProgramTemp) {
+            throw new Error("The Python module 'liberrpa' didn't install correctly.");
+          }
+
+          // Run or debug it.
+          const config = {
+            type: "debugpy",
+            request: "launch",
+            name: "Python Debugger: project",
+            program: strProgramTemp,
+            console: "integratedTerminal",
+            cwd: workspaceFolder.uri.fsPath,
+            env: {
+              PYTHONPATH: "${workspaceFolder}",
+            },
+          };
+          if (message.data.executeMode === "Run") {
+            vscode.debug.startDebugging(workspaceFolder, config, { noDebug: true });
+          } else {
+            vscode.debug.startDebugging(workspaceFolder, config, { noDebug: false });
+          }
+        });
+
+        break;
+      }
+
+      default:
+        break;
+    }
+  }
 }
 
 function getCustomArgNames(): string[] {
   // outputChannel.appendLine("--getCustomArgNames--");
 
+  // Only work for the first workspace.
   const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
 
   if (!workspaceFolder) {
