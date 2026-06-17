@@ -104,8 +104,15 @@ class FlowchartEditorProvider implements vscode.CustomTextEditorProvider {
     webviewPanel: vscode.WebviewPanel,
     _token: vscode.CancellationToken
   ): Promise<void> {
+    // Control the local resources that Webview can load.
+    const webviewDistUri = vscode.Uri.joinPath(
+      this.context.extensionUri,
+      "webview-ui",
+      "dist"
+    );
     webviewPanel.webview.options = {
       enableScripts: true,
+      localResourceRoots: [webviewDistUri],
     };
 
     webviewPanel.webview.html = this.getWebviewContent(webviewPanel.webview);
@@ -314,47 +321,33 @@ if __name__ == "__main__":
 
   // Get the static html used for the editor webviews.
   private getWebviewContent(webview: vscode.Webview): string {
-    // Path to the dist folder
-    const distPath = vscode.Uri.file(
-      path.join(this.context.extensionPath, "webview-ui", "dist")
+    const uriHtml = vscode.Uri.joinPath(
+      this.context.extensionUri,
+      "webview-ui",
+      "dist",
+      "index.html"
     );
 
-    // Convert the dist folder to a webview URI
-    const baseUri = webview.asWebviewUri(distPath);
+    let html = fs.readFileSync(uriHtml.fsPath, "utf-8");
 
-    // Read the built index.html file from the dist folder
-    const indexPath = path.join(distPath.fsPath, "index.html");
-    let html = fs.readFileSync(indexPath, "utf8");
-
-    // Update the paths in the HTML to use the webview URIs for assets
-    html = html.replace(/(href|src)="([^"]*)"/g, (_, tag, src) => {
-      if (src.startsWith("http") || src.startsWith("//")) {
-        return `${tag}="${src}"`;
-      }
-      return `${tag}="${baseUri}/${src.replace(/^\//, "")}"`;
-    });
-
-    // Remove crossorigin attributes
-    html = html.replace(/\scrossorigin/g, "");
-
-    // Dynamically rewrite font URLs in the CSS file
-    const cssPath = path.join(distPath.fsPath, "assets", "index.css");
-    let cssContent = fs.readFileSync(cssPath, "utf8");
-
-    cssContent = cssContent.replace(
-      /url\(["']?(\/?assets\/.*?\.(woff2?|woff|ttf|eot)(\?.*?)?)["']?\)/g,
-      (_, src) => {
-        return `url(${baseUri}/${src.replace(/^\//, "")})`;
-      }
+    const uriAssets = vscode.Uri.joinPath(
+      this.context.extensionUri,
+      "webview-ui",
+      "dist",
+      "assets"
     );
 
-    // Inject the modified CSS directly into the HTML
-    html = html.replace(
-      /<link rel="stylesheet" href="[^"]*">/,
-      `<style>${cssContent}</style>`
-    );
+    const uriAssetsWebview = webview.asWebviewUri(uriAssets).toString();
 
-    // outputChannel.appendLine("html", html);
+    html = html.replaceAll('"/assets/', `"${uriAssetsWebview}/`);
+    html = html.replaceAll("'/assets/", `'${uriAssetsWebview}/`);
+
+    html = html.replaceAll('"./assets/', `"${uriAssetsWebview}/`);
+    html = html.replaceAll("'./assets/", `'${uriAssetsWebview}/`);
+
+    html = html.replace(/\scrossorigin\b/g, "");
+
+    html = html.replaceAll("{{WEBVIEW_CSP_SOURCE}}", webview.cspSource);
 
     return html;
   }
