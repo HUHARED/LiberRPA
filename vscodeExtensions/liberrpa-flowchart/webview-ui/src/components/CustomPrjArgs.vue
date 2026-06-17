@@ -48,9 +48,26 @@
             @blur="updateValue(index, arrValueCache[index])"
             @keyup.enter="updateValue(index, arrValueCache[index])">
             <v-tooltip activator="parent" location="top">
-              <span v-html="generateValueNote(item[1])"></span>
-            </v-tooltip> </v-text-field
-        ></v-col>
+              <div style="max-width: 560px">
+                <div class="font-weight-medium mb-1">Original value:</div>
+
+                <!-- Use <pre> to keep the format. -->
+                <pre
+                  class="pa-2 my-1"
+                  style="white-space: pre-wrap; word-break: break-word"
+                  v-text="stringifyValue(item[1])"></pre>
+
+                <div>The value must be JSON-deserializable.</div>
+                <div>Press Enter or leave the input box to update.</div>
+
+                <div v-if="isPlainObject(item[1])" class="mt-1 font-italic">
+                  It is an object. Object key order should not be relied on, and
+                  integer-like keys may be reordered.
+                </div>
+              </div>
+            </v-tooltip>
+          </v-text-field>
+        </v-col>
       </v-row>
     </v-container>
 
@@ -123,16 +140,20 @@ function updateValue(index: number, value: string): void {
   }
 }
 
-function generateValueNote(value: any): string {
-  return (
-    "Original value:<br/>" +
-    JSON.stringify(value, null, 0) +
-    "<br/>(The value must can be deserialized.<br/>Press Enter or leave the inputbox to update.)" +
-    (typeof value === "object" && value !== null && !Array.isArray(value)
-      ? "<br/>(It is a dictionary, the keys may be reordered.)"
-      : "")
-  );
+function stringifyValue(value: unknown): string {
+  const result = JSON.stringify(value, null, 0);
+
+  if (result === undefined) {
+    return String(value);
+  }
+
+  return result;
 }
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 function addNewArgument(): void {
   argsStore.customPrjArgs.push(["", ""]);
 }

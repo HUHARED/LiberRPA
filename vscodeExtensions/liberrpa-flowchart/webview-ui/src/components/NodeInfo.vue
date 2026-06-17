@@ -32,13 +32,43 @@
           v-if="informationStore.nodeType === 'Block'"
           activator="parent"
           location="top">
-          <span v-html="generatePyInfoNote()"></span>
+          <div style="max-width: 560px">
+            <div class="font-weight-medium mb-1">Note:</div>
+
+            <div>The path must be a relative path to a .py file.</div>
+
+            <div class="font-weight-medium mt-2">
+              The Python file's name can only contain:
+            </div>
+
+            <div class="pl-5 mt-1">
+              <div v-for="item in arrPyFileNameRules" :key="item" class="d-flex ga-2">
+                <span>•</span>
+                <span>{{ item }}</span>
+              </div>
+            </div>
+
+            <div class="mt-2">Use "/" as the folder separator.</div>
+            <div>The "./" prefix is optional.</div>
+
+            <div class="font-weight-medium mt-2">
+              Avoid using LiberRPA built-in module names:
+            </div>
+
+            <div class="pl-5 mt-1">
+              {{ arrBuiltinModuleNames.join(", ") }}
+            </div>
+          </div>
         </v-tooltip>
+
         <v-tooltip
           v-if="informationStore.nodeType === 'Choose'"
           activator="parent"
           location="top">
-          <span v-html="generateConditionNote()"></span>
+          <div>
+            <div class="font-weight-medium mb-1">Note:</div>
+            <div>The condition will be evaluated by eval().</div>
+          </div>
         </v-tooltip>
       </v-text-field>
     </v-card>
@@ -108,53 +138,43 @@ function updateProperty(text: string): void {
   }
 }
 
-function generatePyInfoNote(): string {
-  return `Note:<br/>
-    The path must be a relative path to a .py file.<br/>
-    The Python file's name can only contain:<br/>
-      - English letters (a-z, A-Z)<br/>
-      - Numbers (0-9) (but cannot start with a number)<br/>
-      - Underscores(_)<br/>
-    Use "/" as the folder separator.<br/>
-    The "./" prefix is optional.<br/>
-    Avoid using LiberRPA built-in module names: ["Mouse", "Keyboard", "Window", "UiInterface", "Browser", "Excel", "Outlook", "Application", "Database", "Data", "Str", "List", "Dict", "Regex", "Math", "Time", "File", "OCR", "Web", "Mail", "FTP", "Clipboard", "System", "Credential", "ScreenPrint", "Dialog"]
-    `;
-}
-function generateConditionNote(): string {
-  return `Note:<br/>
-    The condition will be evaluate by eval().`;
-}
+const arrPyFileNameRules: string[] = [
+  "English letters: a-z, A-Z",
+  "Numbers: 0-9, but cannot start with a number",
+  "Underscores: _",
+];
+
+const arrBuiltinModuleNames: string[] = [
+  "Mouse",
+  "Keyboard",
+  "Window",
+  "UiInterface",
+  "Browser",
+  "Excel",
+  "Outlook",
+  "Application",
+  "Database",
+  "Data",
+  "Str",
+  "List",
+  "Dict",
+  "Regex",
+  "Math",
+  "Time",
+  "File",
+  "OCR",
+  "Web",
+  "Mail",
+  "FTP",
+  "Clipboard",
+  "System",
+  "Credential",
+  "ScreenPrint",
+  "Dialog",
+];
 
 function generateBgcolor(): string {
   if (informationStore.nodeType === "Block" && informationStore.nodeProperty) {
-    const arrBuildinName = [
-      "Mouse",
-      "Keyboard",
-      "Window",
-      "UiInterface",
-      "Browser",
-      "Excel",
-      "Outlook",
-      "Application",
-      "Database",
-      "Data",
-      "Str",
-      "List",
-      "Dict",
-      "Regex",
-      "Math",
-      "Time",
-      "File",
-      "OCR",
-      "Web",
-      "Mail",
-      "FTP",
-      "Clipboard",
-      "System",
-      "Credential",
-      "ScreenPrint",
-      "Dialog",
-    ];
     let strNameTemp = informationStore.nodeProperty;
     if (strNameTemp.startsWith("./")) {
       strNameTemp = strNameTemp.slice(2);
@@ -163,7 +183,7 @@ function generateBgcolor(): string {
       strNameTemp = strNameTemp.slice(0, -3);
     }
 
-    if (arrBuildinName.includes(strNameTemp)) {
+    if (arrBuiltinModuleNames.includes(strNameTemp)) {
       return "warning";
     }
   }
