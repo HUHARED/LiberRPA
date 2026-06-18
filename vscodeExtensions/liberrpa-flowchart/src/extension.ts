@@ -8,7 +8,7 @@ import type { WebviewToExtensionMessage } from "./utils";
 const outputChannel = vscode.window.createOutputChannel("liberrpa-flowchart");
 outputChannel.show(true);
 
-export function activate(context: vscode.ExtensionContext) {
+export function activate(context: vscode.ExtensionContext): void {
   outputChannel.appendLine('"liberrpa-flowchart" is now active.');
 
   context.subscriptions.push(FlowchartEditorProvider.register(context));
@@ -20,7 +20,7 @@ export function activate(context: vscode.ExtensionContext) {
         const linePrefix = document.lineAt(position).text.substring(0, position.character);
 
         // outputChannel.appendLine(`linePrefix: "${linePrefix}"`);
-        let intOffset: number = 0;
+        let intOffset: number;
 
         // Show suggestions if the line ends with CustomArgs, CustomArgs[ or CustomArgs["
         if (linePrefix.endsWith("CustomArgs")) {
@@ -79,7 +79,7 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(provider);
 }
 
-export function deactivate() {
+export function deactivate(): void {
   outputChannel.appendLine('"liberrpa-flowchart" is now deactivated.');
 }
 
@@ -133,7 +133,7 @@ class FlowchartEditorProvider implements vscode.CustomTextEditorProvider {
       });
     });
 
-    this.loadWebviewData(document, webviewPanel.webview);
+    await this.loadWebviewData(document, webviewPanel.webview);
 
     // Update webview when text changed.
     // (It is useless now, always webview changed then update text.)
@@ -184,7 +184,10 @@ class FlowchartEditorProvider implements vscode.CustomTextEditorProvider {
   }
 
   // Send the file content to webview.
-  private loadWebviewData(document: vscode.TextDocument, webview: vscode.Webview): void {
+  private async loadWebviewData(
+    document: vscode.TextDocument,
+    webview: vscode.Webview
+  ): Promise<void> {
     const strDocumentContent = document.getText();
     // Init color theme of flowchart. "Light" for Light and HighContrast.
     const dictData = {
@@ -196,16 +199,16 @@ class FlowchartEditorProvider implements vscode.CustomTextEditorProvider {
             : "light",
       },
     };
-    webview.postMessage({ command: "load", data: dictData });
+    await webview.postMessage({ command: "load", data: dictData });
   }
 
   // Write out the json to a given document.
-  private updateDocument(document: vscode.TextDocument, data: string): void {
+  private async updateDocument(document: vscode.TextDocument, data: string): Promise<void> {
     const edit = new vscode.WorkspaceEdit();
     // Replace the entire document every time.
     edit.replace(document.uri, new vscode.Range(0, 0, document.lineCount, 0), data);
     // update it in editor but not automatically saved to disk.
-    vscode.workspace.applyEdit(edit);
+    await vscode.workspace.applyEdit(edit);
   }
 
   private async handleWebviewMessage(
@@ -217,7 +220,7 @@ class FlowchartEditorProvider implements vscode.CustomTextEditorProvider {
 
     switch (message.command) {
       case "update": {
-        this.updateDocument(document, message.data);
+        await this.updateDocument(document, message.data);
         break;
       }
 
@@ -225,7 +228,7 @@ class FlowchartEditorProvider implements vscode.CustomTextEditorProvider {
         outputChannel.appendLine(`Open ${message.path}`);
 
         if (!workspaceFolder) {
-          vscode.window.showErrorMessage("No workspace folder is open.");
+          void vscode.window.showErrorMessage("No workspace folder is open.");
           break;
         }
 
@@ -279,22 +282,23 @@ if __name__ == "__main__":
           fs.writeFileSync(strFileSystemPath, strNewPython, { encoding: "utf-8" });
         }
 
-        vscode.workspace.openTextDocument(strFilePath).then(
-          (document) => {
-            // Open it in a new tab.
-            vscode.window.showTextDocument(document, {
-              viewColumn: vscode.ViewColumn.Active,
-              preview: false,
-              preserveFocus: false,
-            });
-          },
-          (error) => {
-            vscode.window.showErrorMessage(
-              `Could not open or create file: ${strFilePath.fsPath}`
-            );
-            console.error(error);
-          }
-        );
+        try {
+          const pythonDocument = await vscode.workspace.openTextDocument(strFilePath);
+
+          // Open it in a new tab.
+          await vscode.window.showTextDocument(pythonDocument, {
+            viewColumn: vscode.ViewColumn.Active,
+            preview: false,
+            preserveFocus: false,
+          });
+        } catch (e) {
+          const strMessageText = e instanceof Error ? e.message : String(e);
+
+          throw new Error(
+            `Could not open or create file: ${strFilePath.fsPath}\n${strMessageText}`,
+            { cause: e }
+          );
+        }
 
         break;
       }
@@ -304,7 +308,7 @@ if __name__ == "__main__":
           `Execute "${message.data.pyFile}" in ${message.data.executeMode} mode.`
         );
         if (!workspaceFolder) {
-          vscode.window.showErrorMessage("No workspace folder is open.");
+          void vscode.window.showErrorMessage("No workspace folder is open.");
           break;
         }
 
@@ -312,77 +316,98 @@ if __name__ == "__main__":
         const strFilePath = vscode.Uri.joinPath(workspaceFolder.uri, message.data.pyFile);
         const strFileSystemPath = strFilePath.fsPath;
         if (!fs.existsSync(strFileSystemPath) || !fs.statSync(strFileSystemPath).isFile()) {
-          vscode.window.showErrorMessage(
+          void vscode.window.showErrorMessage(
             `File does not exist: ${strFileSystemPath}, you should create it manually or click "open" button in Block to create it.`
           );
           break;
         }
 
         // Save files before running.
-        vscode.workspace.saveAll().then(() => {
-          // Run or debug it.
-          const config = {
-            type: "debugpy",
-            request: "launch",
-            name: "Python Debugger: block file",
-            program: strFileSystemPath,
-            console: "integratedTerminal",
-            cwd: workspaceFolder.uri.fsPath,
-            env: {
-              PYTHONPATH: "${workspaceFolder}",
-            },
-          };
-          if (message.data.executeMode === "Run") {
-            vscode.debug.startDebugging(workspaceFolder, config, { noDebug: true });
-          } else {
-            vscode.debug.startDebugging(workspaceFolder, config, { noDebug: false });
-          }
+        const saved = await vscode.workspace.saveAll();
+
+        if (!saved) {
+          throw new Error("Could not save all files before running the block.");
+        }
+
+        const config: vscode.DebugConfiguration = {
+          type: "debugpy",
+          request: "launch",
+          name: "Python Debugger: block file",
+          program: strFileSystemPath,
+          console: "integratedTerminal",
+          cwd: workspaceFolder.uri.fsPath,
+          env: {
+            PYTHONPATH: workspaceFolder.uri.fsPath,
+          },
+        };
+
+        const started = await vscode.debug.startDebugging(workspaceFolder, config, {
+          noDebug: message.data.executeMode === "Run",
         });
+
+        if (!started) {
+          throw new Error(
+            `Failed to start Python ${message.data.executeMode}: ${strFileSystemPath}`
+          );
+        }
 
         break;
       }
 
       case "executeProject": {
-        outputChannel.appendLine(`Execute the project in ${message.data.executeMode} mode.`);
+        outputChannel.appendLine(
+          `Execute the project in ${message.data.executeMode} mode.`
+        );
         if (!workspaceFolder) {
-          vscode.window.showErrorMessage("No workspace folder is open.");
+          void vscode.window.showErrorMessage("No workspace folder is open.");
           break;
         }
 
         // Save files before running.
-        vscode.workspace.saveAll().then(() => {
-          const strLiberRPAEnvPath = process.env.LiberRPA;
-          if (!strLiberRPAEnvPath) {
-            throw new Error("Not found 'LiberRPA' in User Envirnment Variables.");
-          }
+        const saved = await vscode.workspace.saveAll();
 
-          const strProgramTemp = path.join(
-            strLiberRPAEnvPath,
-            "envs/pyenv/Lib/site-packages/liberrpa/FlowControl/Run.py"
+        if (!saved) {
+          throw new Error("Could not save all files before running the project.");
+        }
+
+        const strLiberRPAEnvPath = process.env.LiberRPA;
+
+        if (!strLiberRPAEnvPath) {
+          throw new Error("Not found 'LiberRPA' in User Envirnment Variables.");
+        }
+
+        const strProgramTemp = path.join(
+          strLiberRPAEnvPath,
+          "envs/pyenv/Lib/site-packages/liberrpa/FlowControl/Run.py"
+        );
+
+        if (!fs.existsSync(strProgramTemp) || !fs.statSync(strProgramTemp).isFile()) {
+          throw new Error(
+            `The Python module 'liberrpa' was not installed correctly. Run.py was not found: ${strProgramTemp}`
           );
+        }
 
-          if (!strProgramTemp) {
-            throw new Error("The Python module 'liberrpa' didn't install correctly.");
-          }
+        const config: vscode.DebugConfiguration = {
+          type: "debugpy",
+          request: "launch",
+          name: "Python Debugger: project",
+          program: strProgramTemp,
+          console: "integratedTerminal",
+          cwd: workspaceFolder.uri.fsPath,
+          env: {
+            PYTHONPATH: workspaceFolder.uri.fsPath,
+          },
+        };
 
-          // Run or debug it.
-          const config = {
-            type: "debugpy",
-            request: "launch",
-            name: "Python Debugger: project",
-            program: strProgramTemp,
-            console: "integratedTerminal",
-            cwd: workspaceFolder.uri.fsPath,
-            env: {
-              PYTHONPATH: "${workspaceFolder}",
-            },
-          };
-          if (message.data.executeMode === "Run") {
-            vscode.debug.startDebugging(workspaceFolder, config, { noDebug: true });
-          } else {
-            vscode.debug.startDebugging(workspaceFolder, config, { noDebug: false });
-          }
+        const started = await vscode.debug.startDebugging(workspaceFolder, config, {
+          noDebug: message.data.executeMode === "Run",
         });
+
+        if (!started) {
+          throw new Error(
+            `Failed to start Python ${message.data.executeMode}: ${strProgramTemp}`
+          );
+        }
 
         break;
       }
