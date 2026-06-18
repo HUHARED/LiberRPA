@@ -3,6 +3,7 @@
 
 import js from "@eslint/js";
 import tseslint from "typescript-eslint";
+import eslintPluginVue from "eslint-plugin-vue";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -10,25 +11,34 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default tseslint.config(
   {
-    ignores: [
-      "**/node_modules/**",
-      "**/dist/**",
-      "**/out/**",
-      ".vscode-test/**",
-      "webview-ui/**",
-    ],
+    ignores: ["**/node_modules/**", "**/dist/**"],
   },
 
   js.configs.recommended,
   ...tseslint.configs.recommended,
+  ...eslintPluginVue.configs["flat/recommended"],
 
   {
-    files: ["src/**/*.ts"],
+    files: ["**/*.vue"],
+
+    languageOptions: {
+      parserOptions: {
+        parser: tseslint.parser,
+        projectService: true,
+        tsconfigRootDir: __dirname,
+        extraFileExtensions: [".vue"],
+      },
+    },
+  },
+
+  {
+    files: ["**/*.{ts,tsx,vue}"],
 
     languageOptions: {
       parserOptions: {
         projectService: true,
         tsconfigRootDir: __dirname,
+        extraFileExtensions: [".vue"],
       },
     },
 
@@ -76,10 +86,19 @@ export default tseslint.config(
       "@typescript-eslint/await-thenable": "error",
       "@typescript-eslint/no-unnecessary-type-assertion": "warn",
 
-      curly: ["warn", "all"],
-      eqeqeq: ["warn", "always"],
-      "no-throw-literal": "warn",
-      semi: ["warn", "always"],
+      "vue/require-default-prop": "off",
+      "vue/multi-word-component-names": "off",
+
+      "vue/max-attributes-per-line": "off",
+      "vue/html-self-closing": "off",
+      "vue/html-closing-bracket-newline": "off",
+      "vue/singleline-html-element-content-newline": "off",
+      "vue/multiline-html-element-content-newline": "off",
+      "vue/html-indent": "off",
+
+      "vue/no-v-html": "warn",
+      "vue/valid-v-slot": "off",
+      "vue/v-slot-style": "off",
     },
   }
 );

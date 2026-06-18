@@ -2,7 +2,7 @@
   "name": "liberrpa-flowchart",
   "displayName": "LiberRPA Flowchart",
   "description": "This extension is part of LiberRPA to edit flowchart file.",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "publisher": "LiberRPA",
   "engines": {
     "vscode": "^1.95.0"
@@ -52,9 +52,11 @@
     "watch-tests": "tsc -p . -w --outDir out",
     "pretest": "npm run compile-tests && npm run compile && npm run lint",
     "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
     "test": "vscode-test"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/mocha": "^10.0.9",
     "@types/node": "20.x",
     "@types/vscode": "^1.95.0",
@@ -62,9 +64,10 @@
     "@typescript-eslint/parser": "^8.7.0",
     "@vscode/test-cli": "^0.0.10",
     "@vscode/test-electron": "^2.4.1",
-    "eslint": "^9.13.0",
+    "eslint": "^9.39.4",
     "ts-loader": "^9.5.1",
     "typescript": "^5.6.3",
+    "typescript-eslint": "^8.61.1",
     "webpack": "^5.95.0",
     "webpack-cli": "^5.1.4"
   }
