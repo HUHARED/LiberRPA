@@ -39,8 +39,11 @@ export interface DictBuildinProjectArguments {
   highlightUi: boolean;
 }
 
+export type ExecuteMode = "Run" | "Debug";
+export type Theme = "light" | "dark";
+
 export interface DictProject extends DictFlowchart, DictBuildinProjectArguments {
-  executeMode: "Run" | "Debug";
-  customPrjArgs: [string, any][];
-  theme?: "light" | "dark";
+  executeMode: ExecuteMode;
+  customPrjArgs: [string, unknown][];
+  theme?: Theme;
 }

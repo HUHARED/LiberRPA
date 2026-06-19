@@ -1,7 +1,7 @@
 // FileName: store.ts
 import { defineStore } from "pinia";
-import { DictFlowchart } from "./interface";
-import LogicFlow from "@logicflow/core";
+import type { DictFlowchart, ExecuteMode, Theme } from "./interface";
+import type LogicFlow from "@logicflow/core";
 
 export const useFlowchartStore = defineStore("flowchart", {
   state: () => {
@@ -33,8 +33,8 @@ export const useInformationStore = defineStore("information", {
 export const useSettingStore = defineStore("setting", {
   state: () => {
     return {
-      executeMode: "Run" as "Run" | "Debug",
-      theme: "light" as "light" | "dark",
+      executeMode: "Run" as ExecuteMode,
+      theme: "light" as Theme,
       // theme: "dark" as "light" | "dark",
     };
   },
@@ -51,7 +51,7 @@ export const useArgsStore = defineStore("args", {
       recordVideo: false as boolean,
       stopShortcut: true as boolean,
       highlightUi: false as boolean,
-      customPrjArgs: [] as [string, any][],
+      customPrjArgs: [] as [string, unknown][],
     };
   },
   getters: {},

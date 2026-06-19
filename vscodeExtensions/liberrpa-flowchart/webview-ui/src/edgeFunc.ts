@@ -1,8 +1,11 @@
 // FileName: edgeFunc.ts
 
-import LogicFlow from "@logicflow/core";
+import type { LogicFlow, BaseEdgeModel } from "@logicflow/core";
 
-export function getCurrentSourceEdges(node: LogicFlow.NodeData, lfObj: LogicFlow) {
+export function getCurrentSourceEdges(
+  node: LogicFlow.NodeData,
+  lfObj: LogicFlow
+): BaseEdgeModel<LogicFlow.PropertiesType>[] {
   // console.log("--getCurrentSourceEdges--");
   const arrEdges = lfObj.graphModel.getNodeEdges(node.id).filter((edge) => {
     if (edge.sourceNodeId === node.id) {

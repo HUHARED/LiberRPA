@@ -3,11 +3,10 @@
   <v-alert
     v-if="informationStore.showAlert"
     :text="informationStore.information"
-    @click:close="clearInformation"
     variant="flat"
     type="warning"
     closable
-  >
+    @click:close="clearInformation">
   </v-alert>
 </template>
 
@@ -16,7 +15,7 @@ import { watch } from "vue";
 import { useInformationStore } from "../store";
 const informationStore = useInformationStore();
 
-function clearInformation() {
+function clearInformation(): void {
   informationStore.information = "...";
   informationStore.showAlert = false;
 }

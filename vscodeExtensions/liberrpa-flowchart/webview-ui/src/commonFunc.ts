@@ -1,15 +1,19 @@
 // FileName: commonFunc.ts
-import LogicFlow from "@logicflow/core";
+import type LogicFlow from "@logicflow/core";
 import { useFlowchartStore, useInformationStore, useSettingStore } from "./store";
-import { DictProject } from "./interface";
+import type { DictProject } from "./interface";
 
 declare function acquireVsCodeApi(): {
-  postMessage(message: any): void;
+  postMessage(message: unknown): void;
 };
 
 const vscode = acquireVsCodeApi();
 
 let strCache = "";
+
+export function notifyWebviewReady(): void {
+  vscode.postMessage({ command: "ready" });
+}
 
 export function showAlert(message: string): void {
   const informationStore = useInformationStore();
@@ -39,7 +43,7 @@ export function updateLocalData(
   recordVideo: boolean | null,
   stopShortcut: boolean | null,
   highlightUi: boolean | null,
-  customPrjArgs: [string, any][] | null
+  customPrjArgs: [string, unknown][] | null
 ): void {
   console.log("--updateLocalData--");
 

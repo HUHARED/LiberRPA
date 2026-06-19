@@ -1,5 +1,5 @@
 // FileName: linkRule.ts
-import { LogicFlow, Model, BaseNodeModel } from "@logicflow/core";
+import type { LogicFlow, Model, BaseNodeModel } from "@logicflow/core";
 import { useFlowchartStore } from "./store";
 
 export const arrRuleBase: Model.ConnectRule[] = [

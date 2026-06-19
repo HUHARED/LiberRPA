@@ -3,6 +3,7 @@
 export type ExecuteMode = "Run" | "Debug";
 
 export type WebviewToExtensionMessage =
+  | { command: "ready" }
   | { command: "update"; data: string }
   | { command: "open"; path: string }
   | { command: "execute"; data: { pyFile: string; executeMode: ExecuteMode } }
@@ -18,6 +19,10 @@ export function isWebviewMessage(value: unknown): value is WebviewToExtensionMes
   }
 
   const msg = value as Record<string, unknown>;
+
+  if (msg.command === "ready") {
+    return true;
+  }
 
   if (msg.command === "update") {
     return typeof msg.data === "string";

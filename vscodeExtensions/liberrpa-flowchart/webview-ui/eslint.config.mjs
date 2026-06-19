@@ -1,6 +1,7 @@
 // FileName: eslint.config.mjs
 // @ts-check
 
+import globals from "globals";
 import js from "@eslint/js";
 import tseslint from "typescript-eslint";
 import eslintPluginVue from "eslint-plugin-vue";
@@ -22,6 +23,9 @@ export default tseslint.config(
     files: ["**/*.vue"],
 
     languageOptions: {
+      globals: {
+        ...globals.browser,
+      },
       parserOptions: {
         parser: tseslint.parser,
         projectService: true,
@@ -35,6 +39,9 @@ export default tseslint.config(
     files: ["**/*.{ts,tsx,vue}"],
 
     languageOptions: {
+      globals: {
+        ...globals.browser,
+      },
       parserOptions: {
         projectService: true,
         tsconfigRootDir: __dirname,
@@ -84,7 +91,7 @@ export default tseslint.config(
 
       "@typescript-eslint/no-misused-promises": "error",
       "@typescript-eslint/await-thenable": "error",
-      "@typescript-eslint/no-unnecessary-type-assertion": "warn",
+      // "@typescript-eslint/no-unnecessary-type-assertion": "warn",
 
       "vue/require-default-prop": "off",
       "vue/multi-word-component-names": "off",

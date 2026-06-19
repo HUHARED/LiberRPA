@@ -2,9 +2,9 @@
 <template>
   <v-app
     v-if="boolLoaded"
-    @keydown="handleKeydown"
     class="pa-0 ma-0 fill-height overflow-y-hidden"
-    :theme="settingStore.theme">
+    :theme="settingStore.theme"
+    @keydown="handleKeydown">
     <v-main class="pa-0 ma-0 fill-height d-flex">
       <Alert style="position: fixed; width: 100%; opacity: 0.9; z-index: 999" />
       <!-- Left column -->
@@ -28,8 +28,8 @@
       <!-- Divider -->
       <div
         class="pa-0 ma-0 fill-height border-thin"
-        @mousedown="startResizing"
-        style="width: 0px; cursor: col-resize"></div>
+        style="width: 0px; cursor: col-resize"
+        @mousedown="startResizing"></div>
 
       <!-- Right column -->
       <div
@@ -50,7 +50,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onBeforeMount } from "vue";
+import { ref, onBeforeMount, onUnmounted } from "vue";
 import FlowchartArea from "./components/FlowchartArea.vue";
 import NodePanel from "./components/NodePanel.vue";
 import NodeInfo from "./components/NodeInfo.vue";
@@ -59,8 +59,8 @@ import BuildinPrjArgs from "./components/BuildinPrjArgs.vue";
 import CustomPrjArgs from "./components/CustomPrjArgs.vue";
 import Alert from "./components/Alert.vue";
 import { useFlowchartStore, useSettingStore, useArgsStore } from "./store";
-import { DictProject } from "./interface";
-import { initDictFinal } from "./commonFunc";
+import type { DictProject } from "./interface";
+import { initDictFinal, notifyWebviewReady } from "./commonFunc";
 
 const flowchartStore = useFlowchartStore();
 const settingStore = useSettingStore();
@@ -68,42 +68,54 @@ const argsStore = useArgsStore();
 
 const boolLoaded = ref(false);
 
-onBeforeMount(() => {
-  window.addEventListener("message", (event) => {
-    console.log("event", event);
+onUnmounted(() => {
+  window.removeEventListener("message", handleMessage);
+});
 
-    const message = event.data;
-    switch (message.command) {
-      case "load":
-        console.log(message.data);
+function handleMessage(event: MessageEvent): void {
+  console.log("event", event);
 
-        // const dictVscodeData = JSON.parse(message.data) as DictProject;
-        const dictVscodeData = message.data as DictProject;
+  const message = event.data;
 
-        flowchartStore.data = {
-          nodes: dictVscodeData.nodes,
-          edges: dictVscodeData.edges,
-        };
-        settingStore.executeMode = dictVscodeData.executeMode;
-        argsStore.logLevel = dictVscodeData.logLevel;
-        argsStore.recordVideo = dictVscodeData.recordVideo;
-        argsStore.stopShortcut = dictVscodeData.stopShortcut;
-        argsStore.highlightUi = dictVscodeData.highlightUi;
-        argsStore.customPrjArgs = dictVscodeData.customPrjArgs;
-        if (dictVscodeData.theme) {
-          settingStore.theme = dictVscodeData.theme;
-        }
+  switch (message.command) {
+    case "load": {
+      console.log(message.data);
 
-        delete dictVscodeData.theme;
-        initDictFinal(dictVscodeData);
+      const dictVscodeData = message.data as DictProject;
 
-        boolLoaded.value = true;
-        break;
+      flowchartStore.data = {
+        nodes: dictVscodeData.nodes,
+        edges: dictVscodeData.edges,
+      };
 
-      default:
-        break;
+      settingStore.executeMode = dictVscodeData.executeMode;
+      argsStore.logLevel = dictVscodeData.logLevel;
+      argsStore.recordVideo = dictVscodeData.recordVideo;
+      argsStore.stopShortcut = dictVscodeData.stopShortcut;
+      argsStore.highlightUi = dictVscodeData.highlightUi;
+      argsStore.customPrjArgs = dictVscodeData.customPrjArgs;
+
+      if (dictVscodeData.theme) {
+        settingStore.theme = dictVscodeData.theme;
+      }
+
+      delete dictVscodeData.theme;
+      initDictFinal(dictVscodeData);
+
+      boolLoaded.value = true;
+      break;
     }
-  });
+
+    default:
+      break;
+  }
+}
+
+onBeforeMount(() => {
+  window.addEventListener("message", handleMessage);
+
+  // Tell the extension that the webview is ready to receive the initial data.
+  notifyWebviewReady();
 });
 
 const intRightColumnWidth = ref(300);
@@ -154,7 +166,7 @@ function stopResizing(): void {
 }
 
 // Handle keydown events and prevent VS Code from intercepting
-function handleKeydown(event: KeyboardEvent) {
+function handleKeydown(event: KeyboardEvent): void {
   // Check if Ctrl + Z or Ctrl + Y is pressed
   if ((event.ctrlKey || event.metaKey) && (event.key === "z" || event.key === "y")) {
     // Prevent the event from bubbling up to VS Code

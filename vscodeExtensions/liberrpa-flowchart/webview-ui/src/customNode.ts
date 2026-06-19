@@ -1,12 +1,12 @@
 // FileName: customNode.ts
+import type { LogicFlow } from "@logicflow/core";
 import {
-  LogicFlow,
-  EllipseNode as EllipseNodeView,
   EllipseNodeModel,
-  RectNode as RectNodeView,
+  EllipseNode as EllipseNodeView,
   RectNodeModel,
-  DiamondNode as DiamondNodeView,
+  RectNode as RectNodeView,
   DiamondNodeModel,
+  DiamondNode as DiamondNodeView,
   h,
 } from "@logicflow/core";
 
@@ -22,6 +22,10 @@ import {
 import { clickBlockExecute, clickStartExecute, clickOpen } from "./commonFunc";
 
 import { useSettingStore } from "./store";
+
+type EllipseShape = ReturnType<EllipseNodeView["getShape"]>;
+type RectShape = ReturnType<RectNodeView["getShape"]>;
+type DiamondShape = ReturnType<DiamondNodeView["getShape"]>;
 
 class StartModel extends EllipseNodeModel {
   getNodeStyle(): {
@@ -102,7 +106,7 @@ class StartModel extends EllipseNodeModel {
 }
 
 class StartView extends EllipseNodeView {
-  getShape() {
+  getShape(): EllipseShape {
     const { x, y } = this.props.model;
 
     // Only Block in flowchart area show the Run symbol.
@@ -387,7 +391,7 @@ class BlockModel extends RectNodeModel {
 }
 
 class BlockView extends RectNodeView {
-  getShape() {
+  getShape(): RectShape {
     const { x, y, properties } = this.props.model;
     const additionText = (properties.pyFile as string) || "";
     const settingStore = useSettingStore();
@@ -541,14 +545,13 @@ class ChooseModel extends DiamondNodeModel {
 }
 
 class ChooseView extends DiamondNodeView {
-  getShape() {
+  getShape(): DiamondShape {
     const { x, y, properties } = this.props.model;
     const additionText = properties.condition as string;
     const settingStore = useSettingStore();
 
     return h("g", {}, [
       super.getShape(),
-      ,
       h(
         "text",
         {

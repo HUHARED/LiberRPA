@@ -8,11 +8,11 @@
     <v-tooltip text="Set the minimum log level." location="top">
       <template #activator="{ props }">
         <v-select
+          v-model="argsStore.logLevel"
           label="Log Level"
           prepend-icon="mdi-database-edit-outline"
           variant="underlined"
           class="pa-1 ma-0 mb-2"
-          v-model="argsStore.logLevel"
           density="compact"
           hide-details
           v-bind="props"
@@ -48,7 +48,9 @@
       </template>
     </v-tooltip>
 
-    <v-tooltip text="Highlight a UI element before manipulating it. (Few UI functions are invalid.)" location="top">
+    <v-tooltip
+      text="Highlight a UI element before manipulating it. (Few UI functions are invalid.)"
+      location="top">
       <template #activator="{ props }">
         <v-switch
           v-model="argsStore.highlightUi"

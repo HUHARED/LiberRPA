@@ -126,24 +126,16 @@ class FlowchartEditorProvider implements vscode.CustomTextEditorProvider {
         return;
       }
 
-      void this.handleWebviewMessage(document, message).catch((error: unknown) => {
-        const messageText = error instanceof Error ? error.message : String(error);
-        outputChannel.appendLine(messageText);
-        void vscode.window.showErrorMessage(messageText);
-      });
+      void this.handleWebviewMessage(document, webviewPanel.webview, message).catch(
+        (error: unknown) => {
+          const messageText = error instanceof Error ? error.message : String(error);
+          outputChannel.appendLine(messageText);
+          void vscode.window.showErrorMessage(messageText);
+        }
+      );
     });
 
-    await this.loadWebviewData(document, webviewPanel.webview);
-
-    // Update webview when text changed.
-    // (It is useless now, always webview changed then update text.)
-    /* const changeDocumentsSubscription = vscode.workspace.onDidChangeTextDocument(
-      (event) => {
-        if (event.document.uri.toString() === document.uri.toString()) {
-          this.loadWebviewData(document, webviewPanel.webview);
-        }
-      }
-    ); */
+    // await this.loadWebviewData(document, webviewPanel.webview);
 
     webviewPanel.onDidDispose(() => {
       // changeDocumentsSubscription.dispose();
@@ -213,12 +205,20 @@ class FlowchartEditorProvider implements vscode.CustomTextEditorProvider {
 
   private async handleWebviewMessage(
     document: vscode.TextDocument,
+    webview: vscode.Webview,
+
     message: WebviewToExtensionMessage
   ): Promise<void> {
     // Only work for the first workspace.
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
 
     switch (message.command) {
+      case "ready": {
+        outputChannel.appendLine("Webview is ready. Loading flow data.");
+        await this.loadWebviewData(document, webview);
+        break;
+      }
+
       case "update": {
         await this.updateDocument(document, message.data);
         break;

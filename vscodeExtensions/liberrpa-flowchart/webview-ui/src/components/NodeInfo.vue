@@ -12,19 +12,19 @@
       style="border: none; width: 150px">
       <v-label class="pa-2 ma-0 text-center" style="display: block">Node Info</v-label>
       <v-text-field
+        v-model="informationStore.nodeText"
         prepend-icon="mdi-card-text-outline"
         variant="underlined"
         hide-details
-        spellcheck="false"
-        v-model="informationStore.nodeText"></v-text-field>
+        spellcheck="false"></v-text-field>
       <v-text-field
-        :prepend-icon="strIcon"
-        variant="underlined"
-        :bg-color="generateBgcolor()"
         v-if="
           informationStore.nodeType === 'Block' || informationStore.nodeType === 'Choose'
         "
         v-model="informationStore.nodeProperty"
+        :prepend-icon="strIcon"
+        variant="underlined"
+        :bg-color="generateBgcolor()"
         density="compact"
         hide-details
         spellcheck="false">

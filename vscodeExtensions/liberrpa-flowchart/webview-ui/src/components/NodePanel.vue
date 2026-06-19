@@ -1,9 +1,7 @@
 <!-- FileName: NodePanel.vue -->
 <template>
   <v-container class="pa-0 ma-0 border-b-thin">
-    <v-label class="pa-2 ma-0 text-center" style="display: block"
-      >Node Panel</v-label
-    >
+    <v-label class="pa-2 ma-0 text-center" style="display: block">Node Panel</v-label>
     <div
       id="node-panel"
       ref="flowchartContainer"
@@ -18,7 +16,7 @@ import { LogicFlow } from "@logicflow/core";
 import "@logicflow/core/lib/style/index.css";
 import { BlockNode, SubStartNode, EndNode, ChooseNode } from "../customNode";
 import { useFlowchartStore, useSettingStore } from "../store";
-import { DictFlowchart } from "../interface";
+import type { DictFlowchart } from "../interface";
 const settingStore = useSettingStore();
 
 const flowchartStore = useFlowchartStore();

@@ -9,20 +9,20 @@
     <!-- All argument inputboxes -->
     <v-container class="pa-0 ma-0 flex-grow-1 overflow-y-auto">
       <v-row
-        class="pa-0 ma-0"
         v-for="(item, index) in argsStore.customPrjArgs"
-        :key="index">
+        :key="index"
+        class="pa-0 ma-0">
         <!-- The value name inputbox, should not have same name. -->
         <v-col cols="6" class="pa-0 ma-0"
           ><v-text-field
-            variant="underlined"
             v-model="item[0]"
+            variant="underlined"
             density="comfortable"
             hide-details
             spellcheck="false"
             prepend-inner-icon="mdi-minus"
-            prefix='"'
-            suffix='"'
+            :prefix="strDoubleQuote"
+            :suffix="strDoubleQuote"
             :bg-color="generateBgcolor(item[0])"
             @click:prepend-inner="deleteArgument(index)">
             <v-tooltip
@@ -40,11 +40,11 @@
         <!-- The variable's value, it must can be deserialized. -->
         <v-col cols="5" class="pa-0 ma-0">
           <v-text-field
+            v-model="arrValueCache[index]"
             variant="underlined"
             density="comfortable"
             hide-details
             spellcheck="false"
-            v-model="arrValueCache[index]"
             @blur="updateValue(index, arrValueCache[index])"
             @keyup.enter="updateValue(index, arrValueCache[index])">
             <v-tooltip activator="parent" location="top">
@@ -86,6 +86,8 @@ import { watch, ref } from "vue";
 import { debounce } from "lodash";
 import { useArgsStore } from "../store";
 import { showAlert, updateLocalData } from "../commonFunc";
+
+const strDoubleQuote = '"';
 
 const argsStore = useArgsStore();
 
@@ -131,7 +133,7 @@ function generateBgcolor(valueName: string): string {
 function updateValue(index: number, value: string): void {
   try {
     argsStore.customPrjArgs[index][1] = JSON.parse(value);
-  } catch (e) {
+  } catch {
     showAlert(`It can't be deserialized: ${value}`);
     // Reset inputbox.
     arrValueCache.value = argsStore.customPrjArgs.map((item) =>

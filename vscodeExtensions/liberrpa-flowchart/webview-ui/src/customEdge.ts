@@ -1,9 +1,9 @@
 // FileName: customEdge.ts
-import { LogicFlow } from "@logicflow/core";
+import type { LogicFlow } from "@logicflow/core";
 
 import { CurvedEdge as CurvedEdgeView, CurvedEdgeModel } from "@logicflow/extension";
 
-import { DictPosition } from "./interface";
+import type { DictPosition } from "./interface";
 
 class CommonLineModel extends CurvedEdgeModel {
   initEdgeData(data: LogicFlow.EdgeConfig): void {
@@ -198,40 +198,25 @@ function calculateTextPosition(
   position: DictPosition,
   arrCurrentPosition: string[]
 ): { x: number; y: number } {
-  const arrPoints: DictPosition[] = [];
-  arrCurrentPosition &&
-    arrCurrentPosition.forEach((item) => {
-      const [x, y] = item.split(",");
-      arrPoints.push({ x: Number(x), y: Number(y) });
-    });
-  if (arrCurrentPosition.length > 1) {
-    let [strX1, strY1] = arrCurrentPosition[0].split(",");
-    let [strX2, strY2] = arrCurrentPosition[1].split(",");
-    const intX1 = Number(strX1);
-    const intY1 = Number(strY1);
-    const intX2 = Number(strX2);
-    const intY2 = Number(strY2);
-    if (intX1 === intX2) {
-      // Vertical direction
-      if (intY2 < intY1) {
-        //
-        position.y = intY1 - 40;
-      } else {
-        //
-        position.y = intY1 + 40;
-      }
-      position.x = intX1;
-    } else {
-      // y1 === y2，Horizontal direction
-      if (intX2 < intX1) {
-        //
-        position.x = intX1 - 40;
-      } else {
-        //
-        position.x = intX1 + 40;
-      }
-      position.y = intY1;
-    }
+  if (arrCurrentPosition.length <= 1) {
+    return position;
   }
+
+  const [strX1, strY1] = arrCurrentPosition[0].split(",");
+  const [strX2, strY2] = arrCurrentPosition[1].split(",");
+  const intX1 = Number(strX1);
+  const intY1 = Number(strY1);
+  const intX2 = Number(strX2);
+  const intY2 = Number(strY2);
+  if (intX1 === intX2) {
+    // Vertical direction
+    position.y = intY2 < intY1 ? intY1 - 40 : intY1 + 40;
+    position.x = intX1;
+  } else {
+    // y1 === y2，Horizontal direction
+    position.x = intX2 < intX1 ? intX1 - 40 : intX1 + 40;
+    position.y = intY1;
+  }
+
   return position;
 }
