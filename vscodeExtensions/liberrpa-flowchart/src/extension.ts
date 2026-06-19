@@ -2,11 +2,13 @@
 import * as vscode from "vscode";
 import * as path from "path";
 import * as fs from "fs";
-import { isWebviewMessage } from "./utils";
 import type { WebviewToExtensionMessage } from "./utils";
-
-const outputChannel = vscode.window.createOutputChannel("liberrpa-flowchart");
-outputChannel.show(true);
+import {
+  outputChannel,
+  isWebviewMessage,
+  getCustomArgNames,
+  resolveWorkspacePythonFile,
+} from "./utils";
 
 export function activate(context: vscode.ExtensionContext): void {
   outputChannel.appendLine('"liberrpa-flowchart" is now active.');
@@ -38,7 +40,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
         // outputChannel.appendLine(`Go on: ${linePrefix}`);
 
-        const customArgNames = getCustomArgNames();
+        const customArgNames = getCustomArgNames(document);
         if (!customArgNames || customArgNames.length === 0) {
           // outputChannel.appendLine(`!customArgNames || customArgNames.length === 0`);
           return undefined;
@@ -209,8 +211,8 @@ class FlowchartEditorProvider implements vscode.CustomTextEditorProvider {
 
     message: WebviewToExtensionMessage
   ): Promise<void> {
-    // Only work for the first workspace.
-    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+    // Find the related workspace.
+    const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);
 
     switch (message.command) {
       case "ready": {
@@ -228,12 +230,11 @@ class FlowchartEditorProvider implements vscode.CustomTextEditorProvider {
         outputChannel.appendLine(`Open ${message.path}`);
 
         if (!workspaceFolder) {
-          void vscode.window.showErrorMessage("No workspace folder is open.");
-          break;
+          throw new Error("No workspace folder is open.");
         }
 
-        const strFilePath = vscode.Uri.joinPath(workspaceFolder.uri, message.path);
-        const strFileSystemPath = strFilePath.fsPath;
+        const uriPythonFile = resolveWorkspacePythonFile(workspaceFolder, message.path);
+        const strFileSystemPath = uriPythonFile.fsPath;
 
         // If the path doesn't exist, create it and write the default script.
         if (!fs.existsSync(strFileSystemPath) || !fs.statSync(strFileSystemPath).isFile()) {
@@ -248,13 +249,21 @@ class FlowchartEditorProvider implements vscode.CustomTextEditorProvider {
               return [];
             }
 
-            return (
-              fs
-                .readdirSync(folderPath)
-                .filter((file) => file.endsWith(".py"))
-                // Remove .py extension
-                .map((file) => path.parse(file).name)
-            );
+            return fs
+              .readdirSync(folderPath)
+              .filter((file) => {
+                if (!file.endsWith(".py")) {
+                  return false;
+                }
+
+                if (file === "__init__.py") {
+                  return false;
+                }
+
+                const moduleName = path.parse(file).name;
+                return /^[A-Za-z_][A-Za-z0-9_]*$/.test(moduleName);
+              })
+              .map((file) => path.parse(file).name);
           }
 
           const utilsPath = path.join(workspaceFolder.uri.fsPath, "Utils");
@@ -283,7 +292,7 @@ if __name__ == "__main__":
         }
 
         try {
-          const pythonDocument = await vscode.workspace.openTextDocument(strFilePath);
+          const pythonDocument = await vscode.workspace.openTextDocument(uriPythonFile);
 
           // Open it in a new tab.
           await vscode.window.showTextDocument(pythonDocument, {
@@ -295,7 +304,7 @@ if __name__ == "__main__":
           const strMessageText = e instanceof Error ? e.message : String(e);
 
           throw new Error(
-            `Could not open or create file: ${strFilePath.fsPath}\n${strMessageText}`,
+            `Could not open or create file: ${strFileSystemPath}\n${strMessageText}`,
             { cause: e }
           );
         }
@@ -308,18 +317,19 @@ if __name__ == "__main__":
           `Execute "${message.data.pyFile}" in ${message.data.executeMode} mode.`
         );
         if (!workspaceFolder) {
-          void vscode.window.showErrorMessage("No workspace folder is open.");
-          break;
+          throw new Error("No workspace folder is open.");
         }
 
-        // Ensure the file exists
-        const strFilePath = vscode.Uri.joinPath(workspaceFolder.uri, message.data.pyFile);
-        const strFileSystemPath = strFilePath.fsPath;
+        const uriPythonFile = resolveWorkspacePythonFile(
+          workspaceFolder,
+          message.data.pyFile
+        );
+        const strFileSystemPath = uriPythonFile.fsPath;
+
         if (!fs.existsSync(strFileSystemPath) || !fs.statSync(strFileSystemPath).isFile()) {
-          void vscode.window.showErrorMessage(
-            `File does not exist: ${strFileSystemPath}, you should create it manually or click "open" button in Block to create it.`
+          throw new Error(
+            `File does not exist: ${strFileSystemPath}. Create it manually or click the "open" button in the Block node.`
           );
-          break;
         }
 
         // Save files before running.
@@ -359,8 +369,7 @@ if __name__ == "__main__":
           `Execute the project in ${message.data.executeMode} mode.`
         );
         if (!workspaceFolder) {
-          void vscode.window.showErrorMessage("No workspace folder is open.");
-          break;
+          throw new Error("No workspace folder is open.");
         }
 
         // Save files before running.
@@ -416,61 +425,4 @@ if __name__ == "__main__":
         break;
     }
   }
-}
-
-function getCustomArgNames(): string[] {
-  // outputChannel.appendLine("--getCustomArgNames--");
-
-  // Only work for the first workspace.
-  const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-
-  if (!workspaceFolder) {
-    return [];
-  }
-
-  const projectFlowPath = path.join(workspaceFolder.uri.fsPath, "project.flow");
-
-  // Try to get the open "project.flow" document
-  const openDocument = vscode.workspace.textDocuments.find(
-    (doc) => doc.uri.fsPath === projectFlowPath
-  );
-
-  let content: string | undefined;
-
-  if (openDocument) {
-    // Read the latest unsaved content from the open document
-    content = openDocument.getText();
-    // outputChannel.appendLine("Using unsaved project.flow content.");
-  } else {
-    // Fallback: read from disk if the file is not open in the editor
-
-    if (!fs.existsSync(projectFlowPath)) {
-      // outputChannel.appendLine("Not found project.flow.");
-      return [];
-    }
-
-    try {
-      content = fs.readFileSync(projectFlowPath, "utf-8");
-      // outputChannel.appendLine("Using saved project.flow content from disk.");
-    } catch (e) {
-      outputChannel.appendLine(`Error reading project.flow: ${e}`);
-      return [];
-    }
-  }
-
-  // Parse JSON and extract customPrjArgs
-  try {
-    const jsonData = JSON.parse(content);
-
-    if (Array.isArray(jsonData.customPrjArgs)) {
-      const result: string[] = jsonData.customPrjArgs.map((item: string[]) => item[0]);
-      // outputChannel.appendLine("customPrjArgs result" + result);
-
-      return result;
-    }
-  } catch (e) {
-    outputChannel.appendLine(`parsing project.flow JSON: ${e}`);
-  }
-
-  return [];
 }
