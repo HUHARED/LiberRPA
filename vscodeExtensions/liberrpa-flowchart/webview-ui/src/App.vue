@@ -59,7 +59,7 @@ import BuildinPrjArgs from "./components/BuildinPrjArgs.vue";
 import CustomPrjArgs from "./components/CustomPrjArgs.vue";
 import Alert from "./components/Alert.vue";
 import { useFlowchartStore, useSettingStore, useArgsStore } from "./store";
-import type { DictProject } from "./interface";
+import type { DictProject, DictProjectForWebview } from "./interface";
 import { initDictFinal, notifyWebviewReady } from "./commonFunc";
 
 const flowchartStore = useFlowchartStore();
@@ -81,26 +81,34 @@ function handleMessage(event: MessageEvent): void {
     case "load": {
       console.log(message.data);
 
-      const dictVscodeData = message.data as DictProject;
+      const dictVscodeData = message.data as DictProjectForWebview;
 
-      flowchartStore.data = {
+      const dictProject: DictProject = {
         nodes: dictVscodeData.nodes,
         edges: dictVscodeData.edges,
+        executeMode: dictVscodeData.executeMode,
+        logLevel: dictVscodeData.logLevel,
+        recordVideo: dictVscodeData.recordVideo,
+        stopShortcut: dictVscodeData.stopShortcut,
+        highlightUi: dictVscodeData.highlightUi,
+        customPrjArgs: dictVscodeData.customPrjArgs,
       };
 
-      settingStore.executeMode = dictVscodeData.executeMode;
-      argsStore.logLevel = dictVscodeData.logLevel;
-      argsStore.recordVideo = dictVscodeData.recordVideo;
-      argsStore.stopShortcut = dictVscodeData.stopShortcut;
-      argsStore.highlightUi = dictVscodeData.highlightUi;
-      argsStore.customPrjArgs = dictVscodeData.customPrjArgs;
+      flowchartStore.data = {
+        nodes: dictProject.nodes,
+        edges: dictProject.edges,
+      };
 
-      if (dictVscodeData.theme) {
-        settingStore.theme = dictVscodeData.theme;
-      }
+      settingStore.executeMode = dictProject.executeMode;
+      argsStore.logLevel = dictProject.logLevel;
+      argsStore.recordVideo = dictProject.recordVideo;
+      argsStore.stopShortcut = dictProject.stopShortcut;
+      argsStore.highlightUi = dictProject.highlightUi;
+      argsStore.customPrjArgs = dictProject.customPrjArgs;
 
-      delete dictVscodeData.theme;
-      initDictFinal(dictVscodeData);
+      settingStore.theme = dictVscodeData.theme;
+
+      initDictFinal(dictProject);
 
       boolLoaded.value = true;
       break;

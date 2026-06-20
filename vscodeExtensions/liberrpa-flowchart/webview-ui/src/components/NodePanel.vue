@@ -16,14 +16,14 @@ import { LogicFlow } from "@logicflow/core";
 import "@logicflow/core/lib/style/index.css";
 import { BlockNode, SubStartNode, EndNode, ChooseNode } from "../customNode";
 import { useFlowchartStore, useSettingStore } from "../store";
-import type { DictFlowchart } from "../interface";
+import type { Flowchart } from "../interface";
 const settingStore = useSettingStore();
 
 const flowchartStore = useFlowchartStore();
 
 const flowchartContainer = ref<HTMLElement | null>(null);
 
-const dictNodeExample: DictFlowchart = {
+const dictNodeExample: Flowchart = {
   nodes: [
     {
       id: "0",
@@ -31,7 +31,9 @@ const dictNodeExample: DictFlowchart = {
       x: 75,
       y: 50,
       text: "SubStart",
-      properties: {},
+      properties: {
+        pyFile: "liberrpa.FlowControl.SubStart.py",
+      },
     },
     {
       id: "1",
@@ -39,15 +41,21 @@ const dictNodeExample: DictFlowchart = {
       x: 75,
       y: 135,
       text: "Block",
-      properties: { pyFile: "..." },
+      properties: {
+        // initDragEvent() in FlowchartArea.vue will update the value.
+        pyFile: "...",
+      },
     },
     {
       id: "2",
       type: "Choose",
-      properties: { condition: "..." },
       x: 75,
       y: 240,
       text: "Choose",
+      properties: {
+        // initDragEvent() in FlowchartArea.vue will update the value.
+        condition: "...",
+      },
     },
     {
       id: "3",
@@ -55,9 +63,12 @@ const dictNodeExample: DictFlowchart = {
       x: 75,
       y: 340,
       text: "End",
-      properties: {},
+      properties: {
+        pyFile: "liberrpa.FlowControl.End.py",
+      },
     },
   ],
+  edges: [],
 };
 
 onMounted(() => {

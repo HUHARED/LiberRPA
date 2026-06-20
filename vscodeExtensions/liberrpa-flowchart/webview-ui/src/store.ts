@@ -1,12 +1,12 @@
 // FileName: store.ts
 import { defineStore } from "pinia";
-import type { DictFlowchart, ExecuteMode, Theme } from "./interface";
+import type { Flowchart, ExecuteMode, LogLevel, Theme } from "./interface";
 import type LogicFlow from "@logicflow/core";
 
 export const useFlowchartStore = defineStore("flowchart", {
   state: () => {
     return {
-      data: {} as DictFlowchart,
+      data: {} as Flowchart,
       nodePanelMounted: false,
       lfObj: null as LogicFlow | null,
     };
@@ -35,23 +35,24 @@ export const useSettingStore = defineStore("setting", {
     return {
       executeMode: "Run" as ExecuteMode,
       theme: "light" as Theme,
-      // theme: "dark" as "light" | "dark",
+      // theme: "dark" as Theme,
     };
   },
   getters: {},
   actions: {},
 });
 
-// type CustomArgument = [string, any];
+// JsonValue cannot be calculated correctly in Pinia store state.
+export type StoreCustomPrjArg = [name: string, value: unknown];
 
 export const useArgsStore = defineStore("args", {
   state: () => {
     return {
-      logLevel: "DEBUG" as "VERBOSE" | "DEBUG" | "INFO" | "WARNING" | "ERROR" | "CRITICAL",
+      logLevel: "DEBUG" as LogLevel,
       recordVideo: false as boolean,
       stopShortcut: true as boolean,
       highlightUi: false as boolean,
-      customPrjArgs: [] as [string, unknown][],
+      customPrjArgs: [] as StoreCustomPrjArg[],
     };
   },
   getters: {},

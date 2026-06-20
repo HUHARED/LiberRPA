@@ -85,15 +85,17 @@
 import { watch, ref } from "vue";
 import { debounce } from "lodash";
 import { useArgsStore } from "../store";
+import type { StoreCustomPrjArg } from "../store";
 import { showAlert, updateLocalData } from "../commonFunc";
+import type { JsonValue, CustomPrjArg } from "../interface";
 
 const strDoubleQuote = '"';
 
 const argsStore = useArgsStore();
 
 // Initialize localValues as an array of stringified item values
-const arrValueCache = ref(
-  argsStore.customPrjArgs.map((item) => JSON.stringify(item[1], null, 0))
+const arrValueCache = ref<string[]>(
+  argsStore.customPrjArgs.map((item: StoreCustomPrjArg) => JSON.stringify(item[1], null, 0))
 );
 
 /* console.log("arrValueCache.value", arrValueCache.value);
@@ -113,10 +115,22 @@ watch(
       JSON.stringify(item[1], null, 0)
     );
 
-    updateLocalData(null, null, null, null, null, null, argsStore.customPrjArgs);
+    updateLocalData(
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      toCustomPrjArgs(argsStore.customPrjArgs)
+    );
   }, 300),
   { deep: true }
 );
+
+function toCustomPrjArgs(args: StoreCustomPrjArg[]): CustomPrjArg[] {
+  return args.map(([name, value]) => [name, value as JsonValue]);
+}
 
 function generateBgcolor(valueName: string): string {
   const arrNames = argsStore.customPrjArgs.filter((arrIn) => {
@@ -132,7 +146,8 @@ function generateBgcolor(valueName: string): string {
 
 function updateValue(index: number, value: string): void {
   try {
-    argsStore.customPrjArgs[index][1] = JSON.parse(value);
+    const parsedValue = JSON.parse(value) as JsonValue;
+    argsStore.customPrjArgs[index][1] = parsedValue;
   } catch {
     showAlert(`It can't be deserialized: ${value}`);
     // Reset inputbox.

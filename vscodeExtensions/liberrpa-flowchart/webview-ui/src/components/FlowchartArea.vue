@@ -272,7 +272,7 @@ function initDragEvent(): void {
         const nodeNew: {
           id: string;
           type: string;
-          text?: string;
+          text: string;
           properties: {
             pyFile?: string;
             condition?: string;
@@ -297,7 +297,9 @@ function initDragEvent(): void {
         }
         lfObj.dnd.startDrag(nodeNew);
       } else {
-        console.error("It is not a node.");
+        console.error(
+          "You didn't drop the node into main flowchart area, or it is not a node."
+        );
       }
     });
   }
