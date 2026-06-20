@@ -2,13 +2,14 @@
 import * as vscode from "vscode";
 import * as path from "path";
 import * as fs from "fs";
-import type { WebviewToExtensionMessage } from "./utils";
+import type { DictProjectForWebview, WebviewToExtensionMessage } from "./interface";
 import {
   outputChannel,
   isWebviewMessage,
   getCustomArgNames,
   resolveWorkspacePythonFile,
 } from "./utils";
+import { parseFlowProjectFromText } from "./checkFlowchart";
 
 export function activate(context: vscode.ExtensionContext): void {
   outputChannel.appendLine('"liberrpa-flowchart" is now active.');
@@ -137,8 +138,6 @@ class FlowchartEditorProvider implements vscode.CustomTextEditorProvider {
       );
     });
 
-    // await this.loadWebviewData(document, webviewPanel.webview);
-
     webviewPanel.onDidDispose(() => {
       // changeDocumentsSubscription.dispose();
     });
@@ -182,27 +181,33 @@ class FlowchartEditorProvider implements vscode.CustomTextEditorProvider {
     document: vscode.TextDocument,
     webview: vscode.Webview
   ): Promise<void> {
-    const strDocumentContent = document.getText();
+    const dictProject = parseFlowProjectFromText(document.getText());
+
     // Init color theme of flowchart. "Light" for Light and HighContrast.
-    const dictData = {
-      ...JSON.parse(strDocumentContent),
-      ...{
-        theme:
-          vscode.ColorThemeKind[vscode.window.activeColorTheme.kind] === "Dark"
-            ? "dark"
-            : "light",
-      },
+    const strTheme: DictProjectForWebview["theme"] =
+      vscode.ColorThemeKind[vscode.window.activeColorTheme.kind] === "Dark"
+        ? "dark"
+        : "light";
+
+    const dictData: DictProjectForWebview = {
+      ...dictProject,
+      theme: strTheme,
     };
     await webview.postMessage({ command: "load", data: dictData });
   }
 
   // Write out the json to a given document.
   private async updateDocument(document: vscode.TextDocument, data: string): Promise<void> {
+    parseFlowProjectFromText(data);
+
     const edit = new vscode.WorkspaceEdit();
     // Replace the entire document every time.
     edit.replace(document.uri, new vscode.Range(0, 0, document.lineCount, 0), data);
     // update it in editor but not automatically saved to disk.
-    await vscode.workspace.applyEdit(edit);
+    const boolApplied = await vscode.workspace.applyEdit(edit);
+    if (!boolApplied) {
+      throw new Error("Failed to update .flow document.");
+    }
   }
 
   private async handleWebviewMessage(
@@ -382,7 +387,7 @@ if __name__ == "__main__":
         const strLiberRPAEnvPath = process.env.LiberRPA;
 
         if (!strLiberRPAEnvPath) {
-          throw new Error("Not found 'LiberRPA' in User Envirnment Variables.");
+          throw new Error("Not found 'LiberRPA' in User Environment Variables.");
         }
 
         const strProgramTemp = path.join(

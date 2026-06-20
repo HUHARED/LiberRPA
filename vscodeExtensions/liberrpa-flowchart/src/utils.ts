@@ -2,22 +2,11 @@
 import * as vscode from "vscode";
 import * as path from "path";
 import * as fs from "fs";
+import type { WebviewToExtensionMessage } from "./interface";
+import { isExecuteMode, parseFlowProjectFromText } from "./checkFlowchart";
 
 export const outputChannel = vscode.window.createOutputChannel("liberrpa-flowchart");
 outputChannel.show(true);
-
-export type ExecuteMode = "Run" | "Debug";
-
-export type WebviewToExtensionMessage =
-  | { command: "ready" }
-  | { command: "update"; data: string }
-  | { command: "open"; path: string }
-  | { command: "execute"; data: { pyFile: string; executeMode: ExecuteMode } }
-  | { command: "executeProject"; data: { executeMode: ExecuteMode } };
-
-function isExecuteMode(value: unknown): value is ExecuteMode {
-  return value === "Run" || value === "Debug";
-}
 
 export function isWebviewMessage(value: unknown): value is WebviewToExtensionMessage {
   if (!value || typeof value !== "object") {
@@ -97,16 +86,10 @@ export function getCustomArgNames(document: vscode.TextDocument): string[] {
 
   // Parse JSON and extract customPrjArgs
   try {
-    const jsonData = JSON.parse(content);
-
-    if (Array.isArray(jsonData.customPrjArgs)) {
-      const result: string[] = jsonData.customPrjArgs.map((item: string[]) => item[0]);
-      // outputChannel.appendLine("customPrjArgs result" + result);
-
-      return result;
-    }
-  } catch (e) {
-    outputChannel.appendLine(`parsing project.flow JSON: ${e}`);
+    const dictProject = parseFlowProjectFromText(content);
+    return dictProject.customPrjArgs.map((item) => item[0]);
+  } catch (error) {
+    outputChannel.appendLine(`Parsing project.flow JSON failed: ${error}`);
   }
 
   return [];
