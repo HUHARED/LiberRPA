@@ -9,14 +9,13 @@ import type {
   FlowNode,
   LogLevel,
 } from "./interface";
+import { createTwoFilesPatch } from "diff";
 
 declare function acquireVsCodeApi(): {
   postMessage(message: unknown): void;
 };
 
 const vscode = acquireVsCodeApi();
-
-let strCache = "";
 
 export function notifyWebviewReady(): void {
   vscode.postMessage({ command: "ready" });
@@ -43,6 +42,10 @@ export function initDictFinal(documentData: DictProject): void {
   dictFinal = documentData;
 }
 
+function stringifyProject(project: DictProject): string {
+  return JSON.stringify(project, null, 2);
+}
+
 export function updateLocalData(
   lfObj: LogicFlow | null,
   executeMode: ExecuteMode | null,
@@ -52,7 +55,7 @@ export function updateLocalData(
   highlightUi: boolean | null,
   customPrjArgs: CustomPrjArg[] | null
 ): void {
-  console.log("--updateLocalData--");
+  const dictBefore = JSON.parse(JSON.stringify(dictFinal)) as DictProject;
 
   if (lfObj !== null) {
     const nodes = lfObj.graphModel.nodes;
@@ -98,18 +101,45 @@ export function updateLocalData(
     dictFinal.customPrjArgs = customPrjArgs;
   }
 
-  const strDocument = JSON.stringify(dictFinal, null, 2);
+  const strBefore = stringifyProject(dictBefore);
+  const strAfter = stringifyProject(dictFinal);
 
-  if (strCache === strDocument) {
-    console.log("The flowchart data didn't changed, not update.");
+  if (strBefore === strAfter) {
+    console.log("[updateLocalData] No change.");
     return;
-  } else {
-    strCache = strDocument;
   }
 
-  console.log(strDocument);
+  const patchText = createTwoFilesPatch(
+    "before.flow",
+    "after.flow",
+    strBefore,
+    strAfter,
+    "",
+    "",
+    {
+      context: 3,
+    }
+  );
 
-  vscode.postMessage({ command: "update", data: strDocument });
+  const arrLines = patchText.split(/\r?\n/);
+
+  console.log("[updateLocalData] Diff:");
+
+  for (const line of arrLines) {
+    if (line.startsWith("---") || line.startsWith("+++")) {
+      console.log(`%c${line}`, "color: #888;");
+    } else if (line.startsWith("@@")) {
+      console.log(`%c${line}`, "color: #569cd6;");
+    } else if (line.startsWith("-")) {
+      console.log(`%c${line}`, "color: #f85149; background: rgba(248, 81, 73, 0.12);");
+    } else if (line.startsWith("+")) {
+      console.log(`%c${line}`, "color: #3fb950; background: rgba(63, 185, 80, 0.12);");
+    } else {
+      console.log(`%c${line}`, "color: inherit;");
+    }
+  }
+
+  vscode.postMessage({ command: "update", data: JSON.stringify(dictFinal, null, 2) });
 }
 
 type LogicFlowNodeLike = {
