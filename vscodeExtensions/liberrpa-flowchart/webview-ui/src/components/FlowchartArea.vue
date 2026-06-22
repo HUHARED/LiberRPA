@@ -24,7 +24,6 @@ import {
 import { getCurrentSourceEdges } from "../edgeFunc";
 import { showAlert, updateLocalData } from "../commonFunc";
 
-// import { dictTemp } from "../_testData";
 const flowchartStore = useFlowchartStore();
 const informationStore = useInformationStore();
 const settingStore = useSettingStore();
@@ -33,36 +32,47 @@ const flowchartContainer = ref<HTMLElement | null>(null);
 
 let selectedNode: LogicFlow.GraphData | null = null;
 const TRANSLATION_DISTANCE = 40;
-// flowchartStore.data = dictTemp;
 
-let lfObj: LogicFlow;
+let lfObj: LogicFlow | null = null; // Current LogicFlow instance for this component.
+
+let resizeObserver: ResizeObserver | null = null;
+let nodePanelElement: Element | null = null;
 
 onMounted(() => {
   const container = flowchartContainer.value;
 
-  if (container instanceof HTMLElement) {
-    const resizeObserver = new ResizeObserver(() => {
-      /* console.log(
-        `width = ${container.offsetWidth}, height = ${container.offsetHeight}`
-      ); */
-
-      getLogicFlowObj(container);
-      lfObj.render(flowchartStore.data);
-      initDragEvent();
-    });
-
-    resizeObserver.observe(container);
-
-    onUnmounted(() => {
-      resizeObserver.disconnect();
-    });
-  } else {
+  if (!(container instanceof HTMLElement)) {
     console.error("flowchartContainer is not an HTMLElement:", container);
+    return;
   }
+
+  const logicFlow = createLogicFlowObj(container);
+  lfObj = logicFlow;
+  flowchartStore.lfObj = logicFlow;
+
+  logicFlow.render(flowchartStore.data);
+
+  initDragEvent();
+
+  resizeObserver = new ResizeObserver(() => {
+    logicFlow.resize(container.offsetWidth, container.offsetHeight);
+  });
+
+  resizeObserver.observe(container);
 });
 
-function getLogicFlowObj(container: HTMLElement): void {
-  lfObj = new LogicFlow({
+onUnmounted(() => {
+  resizeObserver?.disconnect();
+  resizeObserver = null;
+
+  removeDragEvent();
+
+  lfObj = null;
+  flowchartStore.lfObj = null;
+});
+
+function createLogicFlowObj(container: HTMLElement): LogicFlow {
+  const logicFlow = new LogicFlow({
     container: container,
     width: container.offsetWidth,
     height: container.offsetHeight,
@@ -81,11 +91,18 @@ function getLogicFlowObj(container: HTMLElement): void {
     },
     adjustEdge: false,
     adjustEdgeStartAndEnd: false,
-    // edgeType: "CommonLine",
+
     edgeGenerator: (sourceNode, _targetNode, _currentEdge) => {
-      // console.log(`Link from a "${sourceNode.type}" to a "${targetNode.type}"`);
-      const arrEdges = getCurrentSourceEdges(sourceNode, lfObj);
+      const currentLfObj = lfObj;
+
+      if (!currentLfObj) {
+        // If the instance has not initialized completely.
+        return "CommonLine";
+      }
+
+      const arrEdges = getCurrentSourceEdges(sourceNode, currentLfObj);
       let strEdgeType: string;
+
       if (sourceNode.type === "Block") {
         if (arrEdges.length === 0) {
           strEdgeType = "CommonLine";
@@ -105,7 +122,6 @@ function getLogicFlowObj(container: HTMLElement): void {
       } else {
         strEdgeType = "CommonLine";
       }
-      // console.log(`Try to create a new ${strEdgeType} edge.`);
       return strEdgeType;
     },
     keyboard: {
@@ -115,35 +131,52 @@ function getLogicFlowObj(container: HTMLElement): void {
         {
           keys: ["delete", "backspace"],
           callback: () => {
-            const lfGraphData: LogicFlow.GraphData = lfObj.getSelectElements(true);
-            console.log(lfGraphData);
-            lfObj.clearSelectElements();
-            if (lfGraphData.nodes.length >= 1 && lfGraphData.nodes[0].type === "Start") {
+            const currentLfObj = lfObj;
+
+            if (!currentLfObj) {
+              return;
+            }
+
+            const lfGraphData: LogicFlow.GraphData = currentLfObj.getSelectElements(true);
+            // console.log(lfGraphData);
+
+            currentLfObj.clearSelectElements();
+
+            if (lfGraphData.nodes.some((node) => node.type === "Start")) {
               showAlert("Start node cannot be deleted.");
               return;
             }
+
             lfGraphData.nodes.forEach((node) => {
-              lfObj.deleteNode(node.id);
+              currentLfObj.deleteNode(node.id);
             });
             lfGraphData.edges.forEach((edge) => {
-              lfObj.deleteEdge(edge.id);
+              currentLfObj.deleteEdge(edge.id);
             });
           },
         },
         {
           keys: ["cmd + c", "ctrl + c"],
           callback: () => {
-            const lfGraphData: LogicFlow.GraphData = lfObj.getSelectElements(true);
+            const currentLfObj = lfObj;
+
+            if (!currentLfObj) {
+              return;
+            }
+
+            const lfGraphData: LogicFlow.GraphData = currentLfObj.getSelectElements(true);
             if (lfGraphData.edges.length > 0) {
               showAlert("Line cannot be copied.");
               return;
             }
+
             if (
-              lfGraphData.nodes.length >= 1 &&
-              (lfGraphData.nodes[0].type === "Start" ||
-                lfGraphData.nodes[0].type === "SubStart")
+              lfGraphData.nodes.some(
+                (node) => node.type === "Start" || node.type === "SubStart"
+              )
             ) {
               showAlert("Start and SubStart node cannot be copied.");
+              return;
             }
             selectedNode = lfGraphData;
           },
@@ -151,16 +184,25 @@ function getLogicFlowObj(container: HTMLElement): void {
         {
           keys: ["cmd + v", "ctrl + v"],
           callback: () => {
+            const currentLfObj = lfObj;
+
+            if (!currentLfObj) {
+              return;
+            }
+
             if (selectedNode && selectedNode.nodes) {
-              lfObj.clearSelectElements();
-              const element: LogicFlow.GraphElements = lfObj.addElements(selectedNode);
+              currentLfObj.clearSelectElements();
+              const element: LogicFlow.GraphElements =
+                currentLfObj.addElements(selectedNode);
+
               if (!element) {
                 showAlert("Paste failed.");
                 return;
               }
+
               // Set selection on the copy and move it, to make it more visible.
               element.nodes.forEach((node) => {
-                lfObj.selectElementById(node.id);
+                currentLfObj.selectElementById(node.id);
                 node.x += TRANSLATION_DISTANCE;
                 node.y += TRANSLATION_DISTANCE;
                 if (node.text) {
@@ -175,33 +217,31 @@ function getLogicFlowObj(container: HTMLElement): void {
     },
   });
 
-  flowchartStore.lfObj = lfObj;
+  logicFlow.register(StartNode);
+  logicFlow.register(SubStartNode);
+  logicFlow.register(EndNode);
+  logicFlow.register(BlockNode);
+  logicFlow.register(ChooseNode);
+  logicFlow.register(CommonLineEdge);
+  logicFlow.register(TrueLineEdge);
+  logicFlow.register(FalseLineEdge);
+  logicFlow.register(ExceptionLineEdge);
 
-  lfObj.register(StartNode);
-  lfObj.register(SubStartNode);
-  lfObj.register(EndNode);
-  lfObj.register(BlockNode);
-  lfObj.register(ChooseNode);
-  lfObj.register(CommonLineEdge);
-  lfObj.register(TrueLineEdge);
-  lfObj.register(FalseLineEdge);
-  lfObj.register(ExceptionLineEdge);
-
-  lfObj.setTheme({
+  logicFlow.setTheme({
     arrow: {
       offset: 8,
       verticalLength: 3,
     },
   });
 
-  lfObj.on("connection:not-allowed", (data) => {
+  logicFlow.on("connection:not-allowed", (data) => {
     if (data.msg) {
       showAlert(data.msg);
     }
   });
 
   // Update Node Info when click a node.
-  lfObj.on("node:click", (data) => {
+  logicFlow.on("node:click", (data) => {
     // console.log(data);
     informationStore.nodeId = data.data.id;
     informationStore.nodeType = data.data.type;
@@ -217,7 +257,7 @@ function getLogicFlowObj(container: HTMLElement): void {
   });
 
   // Clean Node Info when click blank area.
-  lfObj.on("blank:click", () => {
+  logicFlow.on("blank:click", () => {
     // console.log(data);
     informationStore.nodeId = "";
     informationStore.nodeType = "";
@@ -226,10 +266,12 @@ function getLogicFlowObj(container: HTMLElement): void {
   });
 
   // Generate json when flowchart modified.
-  lfObj.on("history:change", () => {
-    updateLocalData(lfObj, null, null, null, null, null, null);
+  logicFlow.on("history:change", () => {
+    updateLocalData(logicFlow, null, null, null, null, null, null);
     // console.log("history:change");
   });
+
+  return logicFlow;
 }
 
 watch(
@@ -241,68 +283,109 @@ watch(
   }
 );
 
-function initDragEvent(): void {
-  const elementNodePanel = document.querySelector("#node-panel");
-  if (elementNodePanel) {
-    elementNodePanel.addEventListener("mousedown", (event) => {
-      const element = event.target as SVGElement;
-      // console.log(element);
-      // Can't get type of text from the element, so use stroke's color to distinguish Node type
-      const strStroke = element.getAttribute("stroke");
-      // console.log(strStroke);
-      let strType: string = "";
-      switch (strStroke) {
-        case "Teal":
-          strType = "SubStart";
-          break;
-        case "gray":
-          strType = "Block";
-          break;
-        case "orange":
-          strType = "Choose";
-          break;
-        case "Olive":
-          strType = "End";
-          break;
-        default:
-          break;
-      }
-
-      if (strType !== "") {
-        const nodeNew: {
-          id: string;
-          type: string;
-          text: string;
-          properties: {
-            pyFile?: string;
-            condition?: string;
-          };
-        } = {
-          id: uuidV4(),
-          type: strType,
-          text: strType,
-          properties: {},
-        };
-        switch (strType) {
-          case "Block":
-            nodeNew.properties.pyFile = ".py";
-            break;
-          case "Choose":
-            nodeNew.properties.condition = `CustomArgs[""]`;
-            break;
-          default:
-            // SubStart.py or End.py, the files are in Python library.
-            nodeNew.properties.pyFile = "liberrpa.FlowControl." + strType + ".py";
-            break;
-        }
-        lfObj.dnd.startDrag(nodeNew);
-      } else {
-        console.error(
-          "You didn't drop the node into main flowchart area, or it is not a node."
-        );
-      }
-    });
+function removeDragEvent(): void {
+  if (!nodePanelElement) {
+    return;
   }
+
+  nodePanelElement.removeEventListener("mousedown", handleNodePanelMouseDown);
+  nodePanelElement = null;
+}
+
+function initDragEvent(): void {
+  const elementTemp = document.querySelector("#node-panel");
+  if (!elementTemp) {
+    // If the area doesn't be created correctly.
+    return;
+  }
+
+  if (nodePanelElement === elementTemp) {
+    // It has been initialized.
+    return;
+  }
+
+  removeDragEvent();
+
+  elementTemp.addEventListener("mousedown", handleNodePanelMouseDown);
+  nodePanelElement = elementTemp;
+}
+
+function handleNodePanelMouseDown(event: Event): void {
+  const currentLfObj = lfObj;
+
+  if (!currentLfObj) {
+    return;
+  }
+
+  if (!(event.target instanceof SVGElement)) {
+    return;
+  }
+
+  const elementTemp = event.target;
+
+  // Can't get type of text from the element, so use stroke's color to distinguish Node type.
+  const strStroke = elementTemp.getAttribute("stroke");
+
+  let strType = "";
+
+  switch (strStroke) {
+    case "Teal":
+      strType = "SubStart";
+      break;
+
+    case "gray":
+      strType = "Block";
+      break;
+
+    case "orange":
+      strType = "Choose";
+      break;
+
+    case "Olive":
+      strType = "End";
+      break;
+
+    default:
+      break;
+  }
+
+  if (strType === "") {
+    console.error(
+      "You didn't drop the node into main flowchart area, or it is not a node."
+    );
+    return;
+  }
+
+  const nodeNew: {
+    id: string;
+    type: string;
+    text?: string;
+    properties: {
+      pyFile?: string;
+      condition?: string;
+    };
+  } = {
+    id: uuidV4(),
+    type: strType,
+    text: strType,
+    properties: {},
+  };
+
+  switch (strType) {
+    case "Block":
+      nodeNew.properties.pyFile = ".py";
+      break;
+
+    case "Choose":
+      nodeNew.properties.condition = `CustomArgs[""]`;
+      break;
+
+    default:
+      nodeNew.properties.pyFile = `liberrpa.FlowControl.${strType}.py`;
+      break;
+  }
+
+  currentLfObj.dnd.startDrag(nodeNew);
 }
 </script>
 

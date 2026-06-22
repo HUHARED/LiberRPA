@@ -220,7 +220,13 @@ If you need to edit extensive content, it may be more convenient to edit it else
 
 # Known Issues
 
-* Drag a node from Node Panel may occasionally fail, please try again.
+* Drag a node from Node Panel may occasionally fail.
+* Shortcuts for node may unresponsive.
+
+> Known issues about occasional drag failure and unresponsive shortcuts have been improved by avoiding repeated LogicFlow initialization and duplicated drag event listeners.
+>
+> If drag or shortcuts still feel unstable, click the flowchart canvas once to refocus it.
+
 * Text in a node and inputbox can't display optimally if it is not very short, due to the nodes and inputboxes all have a limited width.
 * The values in **Custom Project Arguments** will not appear when you first type `CustomArgs` in a Python script.
-* Shortcuts for node often unresponsive.
+*
