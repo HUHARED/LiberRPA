@@ -1,15 +1,43 @@
 // FileName: linkRule.ts
-import type { LogicFlow, Model, BaseNodeModel } from "@logicflow/core";
+import type { Model } from "@logicflow/core";
 import { useFlowchartStore } from "./store";
+import { isObjectRecord } from "./commonFunc";
+
+function getLogicFlowNodeType(node: unknown): string {
+  if (!isObjectRecord(node)) {
+    return "";
+  }
+
+  const nodeType = node.type;
+
+  if (typeof nodeType === "string") {
+    return nodeType;
+  }
+
+  return "";
+}
+
+function getLogicFlowNodeId(node: unknown): string {
+  if (!isObjectRecord(node)) {
+    return "";
+  }
+
+  const nodeId = node.id;
+
+  if (typeof nodeId === "string") {
+    return nodeId;
+  }
+
+  return "";
+}
 
 export const arrRuleBase: Model.ConnectRule[] = [
   {
     message: "Cannot link to Start and SubStart node.",
     validate: (_sourceNode, targetNode, _sourceAnchor, _targetAnchor, _edgeId) => {
-      if (
-        (targetNode?.type as string) !== "Start" &&
-        (targetNode?.type as string) !== "SubStart"
-      ) {
+      const targetNodeType = getLogicFlowNodeType(targetNode);
+
+      if (targetNodeType !== "Start" && targetNodeType !== "SubStart") {
         return true;
       } else {
         return false;
@@ -30,8 +58,19 @@ export const arrRuleBase: Model.ConnectRule[] = [
     message: "Cannot create line from same sourceAnchor to same targetAnchor.",
     validate: (sourceNode, _targetNode, sourceAnchor, targetAnchor, _edgeId) => {
       const flowchartStore = useFlowchartStore();
-      const lfObj = flowchartStore.lfObj as LogicFlow;
-      const arrEdges = lfObj.getNodeOutgoingEdge((sourceNode as BaseNodeModel).id);
+
+      const lfObj = flowchartStore.lfObj;
+      if (!lfObj) {
+        return false;
+      }
+
+      const sourceNodeId = getLogicFlowNodeId(sourceNode);
+
+      if (!sourceNodeId) {
+        return false;
+      }
+
+      const arrEdges = lfObj.getNodeOutgoingEdge(sourceNodeId);
       for (let index = 0; index < arrEdges.length; index++) {
         const edge = arrEdges[index];
         if (
@@ -52,9 +91,9 @@ export const arrRuleBase: Model.ConnectRule[] = [
 export const ruleStart_SubStart_NextNode: Model.ConnectRule = {
   message: "The next node of Start or SubStart node can only be Block or Choose.",
   validate: (_sourceNode, targetNode, _sourceAnchor, _targetAnchor, _edgeID) => {
-    return (
-      (targetNode?.type as string) === "Block" || (targetNode?.type as string) === "Choose"
-    );
+    const targetNodeType = getLogicFlowNodeType(targetNode);
+
+    return targetNodeType === "Block" || targetNodeType === "Choose";
   },
 };
 
@@ -74,7 +113,9 @@ export const ruleStart_SubStart_OneOutgoingEdge: Model.ConnectRule = {
 export const ruleEnd_NoOutgoing: Model.ConnectRule = {
   message: "The End node cannot have outgoing lines.",
   validate: (sourceNode, _targetNode, _sourceAnchor, _targetAnchor, _edgeID) => {
-    return (sourceNode?.type as string) !== "End";
+    const sourceNodeType = getLogicFlowNodeType(sourceNode);
+
+    return sourceNodeType !== "End";
   },
 };
 

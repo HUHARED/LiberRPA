@@ -20,7 +20,7 @@ export default tseslint.config(
   },
 
   js.configs.recommended,
-  ...tseslint.configs.recommended,
+  ...tseslint.configs.recommendedTypeChecked,
 
   {
     files: ["src/**/*.ts"],
@@ -74,6 +74,7 @@ export default tseslint.config(
 
       "@typescript-eslint/no-misused-promises": "error",
       "@typescript-eslint/await-thenable": "error",
+
       "@typescript-eslint/no-unnecessary-type-assertion": "warn",
 
       curly: ["warn", "all"],

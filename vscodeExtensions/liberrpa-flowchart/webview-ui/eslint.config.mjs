@@ -16,7 +16,7 @@ export default tseslint.config(
   },
 
   js.configs.recommended,
-  ...tseslint.configs.recommended,
+  ...tseslint.configs.recommendedTypeChecked,
   ...eslintPluginVue.configs["flat/recommended"],
 
   {
@@ -91,7 +91,8 @@ export default tseslint.config(
 
       "@typescript-eslint/no-misused-promises": "error",
       "@typescript-eslint/await-thenable": "error",
-      // "@typescript-eslint/no-unnecessary-type-assertion": "warn",
+
+      "@typescript-eslint/no-unnecessary-type-assertion": "warn",
 
       "vue/require-default-prop": "off",
       "vue/multi-word-component-names": "off",
@@ -106,6 +107,20 @@ export default tseslint.config(
       "vue/no-v-html": "warn",
       "vue/valid-v-slot": "off",
       "vue/v-slot-style": "off",
+
+      "vue/html-quotes": [
+        "warn",
+        "double",
+        {
+          avoidEscape: true,
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/store.ts"],
+    rules: {
+      "@typescript-eslint/no-unnecessary-type-assertion": "off",
     },
   }
 );

@@ -104,11 +104,11 @@ class FlowchartEditorProvider implements vscode.CustomTextEditorProvider {
   }
 
   // Called when the custom editor is opened.
-  public async resolveCustomTextEditor(
+  public resolveCustomTextEditor(
     document: vscode.TextDocument,
     webviewPanel: vscode.WebviewPanel,
     _token: vscode.CancellationToken
-  ): Promise<void> {
+  ): void {
     // Control the local resources that Webview can load.
     const webviewDistUri = vscode.Uri.joinPath(
       this.context.extensionUri,
@@ -130,8 +130,8 @@ class FlowchartEditorProvider implements vscode.CustomTextEditorProvider {
       }
 
       void this.handleWebviewMessage(document, webviewPanel.webview, message).catch(
-        (error: unknown) => {
-          const messageText = error instanceof Error ? error.message : String(error);
+        (e: unknown) => {
+          const messageText = e instanceof Error ? e.message : String(e);
           outputChannel.appendLine(messageText);
           void vscode.window.showErrorMessage(messageText);
         }

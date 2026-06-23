@@ -79,7 +79,9 @@ export function getCustomArgNames(document: vscode.TextDocument): string[] {
       content = fs.readFileSync(projectFlowPath, "utf-8");
       // outputChannel.appendLine("Using saved project.flow content from disk.");
     } catch (e) {
-      outputChannel.appendLine(`Error reading project.flow: ${e}`);
+      outputChannel.appendLine(
+        `Error reading project.flow: ${e instanceof Error ? e.message : String(e)}}`
+      );
       return [];
     }
   }
@@ -88,8 +90,10 @@ export function getCustomArgNames(document: vscode.TextDocument): string[] {
   try {
     const dictProject = parseFlowProjectFromText(content);
     return dictProject.customPrjArgs.map((item) => item[0]);
-  } catch (error) {
-    outputChannel.appendLine(`Parsing project.flow JSON failed: ${error}`);
+  } catch (e) {
+    outputChannel.appendLine(
+      `Parsing project.flow JSON failed: ${e instanceof Error ? e.message : String(e)}}`
+    );
   }
 
   return [];

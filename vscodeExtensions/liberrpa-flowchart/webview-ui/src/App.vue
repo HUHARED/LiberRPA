@@ -72,16 +72,38 @@ onUnmounted(() => {
   window.removeEventListener("message", handleMessage);
 });
 
-function handleMessage(event: MessageEvent): void {
-  console.log("event", event);
+type ExtensionToWebviewMessage = {
+  command: "load";
+  data: DictProjectForWebview;
+};
 
-  const message = event.data;
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isExtensionToWebviewMessage(value: unknown): value is ExtensionToWebviewMessage {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  if (value.command !== "load") {
+    return false;
+  }
+
+  return isRecord(value.data);
+}
+
+function handleMessage(event: MessageEvent): void {
+  const message: unknown = event.data;
+
+  if (!isExtensionToWebviewMessage(message)) {
+    console.warn("Ignored invalid extension message:", message);
+    return;
+  }
 
   switch (message.command) {
     case "load": {
-      console.log(message.data);
-
-      const dictVscodeData = message.data as DictProjectForWebview;
+      const dictVscodeData = message.data;
 
       const dictProject: DictProject = {
         nodes: dictVscodeData.nodes,

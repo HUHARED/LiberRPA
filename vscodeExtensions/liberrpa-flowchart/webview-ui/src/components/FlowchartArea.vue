@@ -21,7 +21,7 @@ import {
   ExceptionLineEdge,
 } from "../customEdge";
 import { getCurrentSourceEdges } from "../edgeFunc";
-import { showAlert, updateLocalData } from "../commonFunc";
+import { showAlert, updateLocalData, isObjectRecord } from "../commonFunc";
 
 const flowchartStore = useFlowchartStore();
 const informationStore = useInformationStore();
@@ -235,24 +235,25 @@ function createLogicFlowObj(container: HTMLElement): LogicFlow {
   });
 
   // Update Node Info when click a node.
-  logicFlow.on("node:click", (data) => {
-    // console.log(data);
-    informationStore.nodeId = data.data.id;
-    informationStore.nodeType = data.data.type;
-    if (data.data.text) {
-      informationStore.nodeText = data.data.text.value;
+  logicFlow.on("node:click", (data: unknown) => {
+    const nodeData = getLogicFlowNodeClickData(data);
+
+    if (!nodeData) {
+      console.error("Invalid node:click data:", data);
+      return;
     }
-    if (data.data.properties && data.data.properties.pyFile) {
-      informationStore.nodeProperty = data.data.properties.pyFile;
-    }
-    if (data.data.properties && data.data.properties.condition) {
-      informationStore.nodeProperty = data.data.properties.condition;
-    }
+
+    informationStore.nodeId = nodeData.id;
+    informationStore.nodeType = nodeData.type;
+    informationStore.nodeText = nodeData.text?.value ?? "";
+
+    const pyFile = getStringProperty(nodeData.properties, "pyFile");
+    const condition = getStringProperty(nodeData.properties, "condition");
+    informationStore.nodeProperty = pyFile || condition;
   });
 
   // Clean Node Info when click blank area.
   logicFlow.on("blank:click", () => {
-    // console.log(data);
     informationStore.nodeId = "";
     informationStore.nodeType = "";
     informationStore.nodeText = "";
@@ -266,6 +267,61 @@ function createLogicFlowObj(container: HTMLElement): LogicFlow {
   });
 
   return logicFlow;
+}
+
+type LogicFlowNodeClickData = {
+  id: string;
+  type: string;
+  text?: {
+    value: string;
+  };
+  properties?: Record<string, unknown>;
+};
+
+function getStringProperty(
+  properties: Record<string, unknown> | undefined,
+  key: string
+): string {
+  const value = properties?.[key];
+
+  if (typeof value === "string") {
+    return value;
+  }
+
+  return "";
+}
+
+function getLogicFlowNodeClickData(value: unknown): LogicFlowNodeClickData | null {
+  if (!isObjectRecord(value)) {
+    return null;
+  }
+
+  const data = value.data;
+
+  if (!isObjectRecord(data)) {
+    return null;
+  }
+
+  if (typeof data.id !== "string" || typeof data.type !== "string") {
+    return null;
+  }
+
+  const result: LogicFlowNodeClickData = {
+    id: data.id,
+    type: data.type,
+  };
+
+  if (isObjectRecord(data.text) && typeof data.text.value === "string") {
+    result.text = {
+      value: data.text.value,
+    };
+  }
+
+  if (isObjectRecord(data.properties)) {
+    result.properties = data.properties;
+  }
+
+  return result;
 }
 </script>
 

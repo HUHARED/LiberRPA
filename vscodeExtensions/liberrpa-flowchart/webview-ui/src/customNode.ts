@@ -417,7 +417,10 @@ class BlockModel extends RectNodeModel {
 class BlockView extends RectNodeView {
   getShape(): RectShape {
     const { x, y, properties } = this.props.model;
-    const additionText = (properties.pyFile as string) || "";
+
+    const pyFile = properties.pyFile;
+    const additionText = typeof pyFile === "string" ? pyFile : "";
+
     const settingStore = useSettingStore();
 
     const arrShape = [
@@ -571,7 +574,10 @@ class ChooseModel extends DiamondNodeModel {
 class ChooseView extends DiamondNodeView {
   getShape(): DiamondShape {
     const { x, y, properties } = this.props.model;
-    const additionText = properties.condition as string;
+
+    const condition = properties.condition;
+    const additionText = typeof condition === "string" ? condition : "";
+
     const settingStore = useSettingStore();
 
     return h("g", {}, [
