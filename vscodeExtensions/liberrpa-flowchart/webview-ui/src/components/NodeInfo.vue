@@ -145,6 +145,8 @@ const arrPyFileNameRules: string[] = [
 ];
 
 const arrBuiltinModuleNames: string[] = [
+  "liberrpa",
+
   "Mouse",
   "Keyboard",
   "Window",
@@ -171,6 +173,7 @@ const arrBuiltinModuleNames: string[] = [
   "Credential",
   "ScreenPrint",
   "Dialog",
+  "Trigger",
 ];
 
 function generateBgcolor(): string {
