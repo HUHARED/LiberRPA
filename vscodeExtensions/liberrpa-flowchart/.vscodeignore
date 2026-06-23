@@ -12,5 +12,10 @@ vsc-extension-quickstart.md
 **/*.map
 **/*.ts
 **/.vscode-test.*
+
+# Include only the runtime assets that are actually needed.
 webview-ui/**
-!webview-ui/dist/**
+!webview-ui/dist/index.html
+!webview-ui/dist/assets/index.css
+!webview-ui/dist/assets/index.js
+!webview-ui/dist/assets/materialdesignicons-webfont.woff2
