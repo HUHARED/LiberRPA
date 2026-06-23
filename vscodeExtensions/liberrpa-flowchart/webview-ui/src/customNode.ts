@@ -27,6 +27,30 @@ type EllipseShape = ReturnType<EllipseNodeView["getShape"]>;
 type RectShape = ReturnType<RectNodeView["getShape"]>;
 type DiamondShape = ReturnType<DiamondNodeView["getShape"]>;
 
+export const NODE_SHAPE_SIZE = {
+  Start: {
+    width: 110,
+    height: 66,
+  },
+  SubStart: {
+    width: 90,
+    height: 54,
+  },
+  End: {
+    width: 110,
+    height: 66,
+  },
+  Block: {
+    width: 130,
+    height: 80,
+    radius: 10,
+  },
+  Choose: {
+    width: 100,
+    height: 100,
+  },
+} as const;
+
 class StartModel extends EllipseNodeModel {
   getNodeStyle(): {
     [x: string]: unknown;
@@ -49,8 +73,8 @@ class StartModel extends EllipseNodeModel {
 
   initNodeData(data: LogicFlow.NodeConfig): void {
     super.initNodeData(data);
-    this.rx = 55;
-    this.ry = 33;
+    this.rx = NODE_SHAPE_SIZE.Start.width / 2;
+    this.ry = NODE_SHAPE_SIZE.Start.height / 2;
     this.text.editable = false;
     this.sourceRules = this.sourceRules
       .concat(arrRuleBase)
@@ -156,8 +180,8 @@ class SubStartModel extends EllipseNodeModel {
 
   initNodeData(data: LogicFlow.NodeConfig): void {
     super.initNodeData(data);
-    this.rx = 45;
-    this.ry = 27;
+    this.rx = NODE_SHAPE_SIZE.SubStart.width / 2;
+    this.ry = NODE_SHAPE_SIZE.SubStart.height / 2;
     this.text.editable = false;
     this.sourceRules = this.sourceRules
       .concat(arrRuleBase)
@@ -241,8 +265,8 @@ class EndModel extends EllipseNodeModel {
 
   initNodeData(data: LogicFlow.NodeConfig): void {
     super.initNodeData(data);
-    this.rx = 55;
-    this.ry = 33;
+    this.rx = NODE_SHAPE_SIZE.End.width / 2;
+    this.ry = NODE_SHAPE_SIZE.End.height / 2;
     this.text.editable = false;
     this.sourceRules = this.sourceRules.concat(arrRuleBase).concat([ruleEnd_NoOutgoing]);
   }
@@ -324,9 +348,9 @@ class BlockModel extends RectNodeModel {
 
   initNodeData(data: LogicFlow.NodeConfig): void {
     super.initNodeData(data);
-    this.width = 130;
-    this.height = 80;
-    this.radius = 10;
+    this.width = NODE_SHAPE_SIZE.Block.width;
+    this.height = NODE_SHAPE_SIZE.Block.height;
+    this.radius = NODE_SHAPE_SIZE.Block.radius;
     this.text.editable = false;
     this.sourceRules = this.sourceRules
       .concat(arrRuleBase)
@@ -479,8 +503,8 @@ class ChooseModel extends DiamondNodeModel {
 
   initNodeData(data: LogicFlow.NodeConfig): void {
     super.initNodeData(data);
-    this.rx = 50;
-    this.ry = 50;
+    this.rx = NODE_SHAPE_SIZE.Choose.width / 2;
+    this.ry = NODE_SHAPE_SIZE.Choose.height / 2;
     this.text.editable = false;
     this.sourceRules = this.sourceRules
       .concat(arrRuleBase)

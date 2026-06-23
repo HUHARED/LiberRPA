@@ -7,7 +7,6 @@ export const useFlowchartStore = defineStore("flowchart", {
   state: () => {
     return {
       data: {} as Flowchart,
-      nodePanelMounted: false,
       lfObj: null as LogicFlow | null,
     };
   },

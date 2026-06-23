@@ -9,11 +9,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted } from "vue";
+import { ref, onMounted, onUnmounted } from "vue";
 import { LogicFlow } from "@logicflow/core";
 import "@logicflow/core/lib/style/index.css";
 import { useFlowchartStore, useInformationStore, useSettingStore } from "../store";
-import { v4 as uuidV4 } from "uuid";
 import { StartNode, BlockNode, SubStartNode, EndNode, ChooseNode } from "../customNode";
 import {
   CommonLineEdge,
@@ -36,7 +35,6 @@ const TRANSLATION_DISTANCE = 40;
 let lfObj: LogicFlow | null = null; // Current LogicFlow instance for this component.
 
 let resizeObserver: ResizeObserver | null = null;
-let nodePanelElement: Element | null = null;
 
 onMounted(() => {
   const container = flowchartContainer.value;
@@ -52,8 +50,6 @@ onMounted(() => {
 
   logicFlow.render(flowchartStore.data);
 
-  initDragEvent();
-
   resizeObserver = new ResizeObserver(() => {
     logicFlow.resize(container.offsetWidth, container.offsetHeight);
   });
@@ -64,8 +60,6 @@ onMounted(() => {
 onUnmounted(() => {
   resizeObserver?.disconnect();
   resizeObserver = null;
-
-  removeDragEvent();
 
   lfObj = null;
   flowchartStore.lfObj = null;
@@ -272,120 +266,6 @@ function createLogicFlowObj(container: HTMLElement): LogicFlow {
   });
 
   return logicFlow;
-}
-
-watch(
-  () => flowchartStore.nodePanelMounted,
-  (newValue: boolean) => {
-    if (newValue === true) {
-      initDragEvent();
-    }
-  }
-);
-
-function removeDragEvent(): void {
-  if (!nodePanelElement) {
-    return;
-  }
-
-  nodePanelElement.removeEventListener("mousedown", handleNodePanelMouseDown);
-  nodePanelElement = null;
-}
-
-function initDragEvent(): void {
-  const elementTemp = document.querySelector("#node-panel");
-  if (!elementTemp) {
-    // If the area doesn't be created correctly.
-    return;
-  }
-
-  if (nodePanelElement === elementTemp) {
-    // It has been initialized.
-    return;
-  }
-
-  removeDragEvent();
-
-  elementTemp.addEventListener("mousedown", handleNodePanelMouseDown);
-  nodePanelElement = elementTemp;
-}
-
-function handleNodePanelMouseDown(event: Event): void {
-  const currentLfObj = lfObj;
-
-  if (!currentLfObj) {
-    return;
-  }
-
-  if (!(event.target instanceof SVGElement)) {
-    return;
-  }
-
-  const elementTemp = event.target;
-
-  // Can't get type of text from the element, so use stroke's color to distinguish Node type.
-  const strStroke = elementTemp.getAttribute("stroke");
-
-  let strType = "";
-
-  switch (strStroke) {
-    case "Teal":
-      strType = "SubStart";
-      break;
-
-    case "gray":
-      strType = "Block";
-      break;
-
-    case "orange":
-      strType = "Choose";
-      break;
-
-    case "Olive":
-      strType = "End";
-      break;
-
-    default:
-      break;
-  }
-
-  if (strType === "") {
-    console.error(
-      "You didn't drop the node into main flowchart area, or it is not a node."
-    );
-    return;
-  }
-
-  const nodeNew: {
-    id: string;
-    type: string;
-    text?: string;
-    properties: {
-      pyFile?: string;
-      condition?: string;
-    };
-  } = {
-    id: uuidV4(),
-    type: strType,
-    text: strType,
-    properties: {},
-  };
-
-  switch (strType) {
-    case "Block":
-      nodeNew.properties.pyFile = ".py";
-      break;
-
-    case "Choose":
-      nodeNew.properties.condition = `CustomArgs[""]`;
-      break;
-
-    default:
-      nodeNew.properties.pyFile = `liberrpa.FlowControl.${strType}.py`;
-      break;
-  }
-
-  currentLfObj.dnd.startDrag(nodeNew);
 }
 </script>
 
