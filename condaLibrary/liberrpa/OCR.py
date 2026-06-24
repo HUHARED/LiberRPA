@@ -9,11 +9,8 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 from liberrpa.Logging import Log
 from liberrpa.Common._TypedValue import DictTextBlock
 from liberrpa.Common._BasicConfig import get_liberrpa_folder_path
-from liberrpa.Common._TypedValue import DictTextBlock
-
 
 import os
-
 
 """
 If it throw the error:
