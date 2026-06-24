@@ -55,7 +55,8 @@ def open_browser(
             For Chrome, you can check all params in [List of Chromium Command Line Switches](https://peter.sh/experiments/chromium-command-line-switches/)
 
     Returns:
-        BrowserObj: An object representing the browser session.
+        BrowserObj: A handle indicating browser type and Chrome extension availability. Browser operations target the currently active common web page tab in the last focused browser window.
+
     """
 
     browserObj = BrowserObj()
@@ -84,11 +85,12 @@ def open_browser(
 
             # Make sure Chrome extension is working.
             dictCommand = {"commandName": "get_chrome_socket_id"}
-            timeStart = time.time()
+            timeStart = time.monotonic()
             while True:
                 strSocketId = send_command(eventName="application_command", command=dictCommand)
                 if not strSocketId:
-                    if (time.time() - timeStart) * 1000 <= timeout:
+                    if (time.monotonic() - timeStart) * 1000 <= timeout:
+                        time.sleep(0.5)
                         continue
                     else:
                         raise ChromeError(
@@ -112,7 +114,7 @@ def bind_browser(browserType: Literal["chrome"] = "chrome") -> BrowserObj:
         browserType: The type of browser to manipulate (currently only "chrome" is supported).
 
     Returns:
-        BrowserObj: An object representing the browser session.
+        BrowserObj: A handle indicating browser type and Chrome extension availability. Browser operations target the currently active common web page tab in the last focused browser window.
     """
     browserObj = BrowserObj()
 
