@@ -10,7 +10,7 @@ if (process.contextIsolated) {
   try {
     contextBridge.exposeInMainWorld("electron", electronAPI);
     contextBridge.exposeInMainWorld("api", api);
-  } catch (error) {
+  } catch (e) {
     console.error(error);
   }
 } else {
