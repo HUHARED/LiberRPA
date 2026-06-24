@@ -120,7 +120,7 @@ async function copyJsonToClipboard(): Promise<void> {
   try {
     await navigator.clipboard.writeText(selectorStore.strJsonText);
     loggerRenderer.debug("JSON copied to clipboard:\n" + selectorStore.strJsonText);
-  } catch (error) {
+  } catch (e) {
     loggerRenderer.error("Failed to copy: " + String(error));
   }
 }
@@ -130,7 +130,7 @@ async function pasteFromClipboard(): Promise<void> {
     const text = await navigator.clipboard.readText();
     selectorStore.strJsonText = text;
     loggerRenderer.debug("Pasted content from clipboard:\n" + selectorStore.strJsonText);
-  } catch (error) {
+  } catch (e) {
     loggerRenderer.error("Failed to paste: " + String(error));
   }
 }

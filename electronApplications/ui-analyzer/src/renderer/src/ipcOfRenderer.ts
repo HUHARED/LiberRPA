@@ -139,7 +139,7 @@ export function connectToServer(port: number, token: string): void {
         selectorStore.arrEleTreeOpened = dictResult[1];
         selectorStore.intEleTreeActivated = dictResult[2];
         selectorStore.updateEleTreeSelector();
-      } catch (error) {
+      } catch (e) {
         const informationStore = useInformationStore();
         informationStore.showAlertMessage(
           error instanceof Error ? error.message : "Failed to parse Local Server response."
@@ -162,7 +162,7 @@ export function connectToServer(port: number, token: string): void {
         const informationStore = useInformationStore();
         informationStore.information = JSON.stringify(dictResult["data"]);
         selectorStore.processDescription = "Idle";
-      } catch (error) {
+      } catch (e) {
         const informationStore = useInformationStore();
         informationStore.showAlertMessage(
           error instanceof Error ? error.message : "Failed to parse Local Server response."
