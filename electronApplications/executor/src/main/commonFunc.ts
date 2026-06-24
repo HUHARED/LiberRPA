@@ -15,7 +15,7 @@ export const strLiberRPAEnvPath = process.env.LiberRPA as string;
 
 if (!strLiberRPAEnvPath) {
   throw new Error(
-    "Not found 'LiberRPA' in User Envirnment Variables, you should add it before using LiberRPA Executor."
+    "Not found 'LiberRPA' in User Environment Variables, you should add it before using LiberRPA Executor."
   );
 }
 
