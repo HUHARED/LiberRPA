@@ -313,6 +313,15 @@ function getChildElements(
   return childElementsFinal;
 }
 
+function escapeCssAttrValue(value: string): string {
+  return value
+    .replace(/\\/g, "\\\\")
+    .replace(/"/g, '\\"')
+    .replace(/\n/g, "\\A ")
+    .replace(/\r/g, "\\D ")
+    .replace(/\f/g, "\\C ");
+}
+
 export function createQuerySelectorFromAttrDict(dictAttrOrSlct: DictAttrForIndex): string {
   // Join the attributes that supported by querySelectorAll.
   // console.log("--createQuerySelectorFromAttrDict--");
@@ -339,6 +348,7 @@ export function createQuerySelectorFromAttrDict(dictAttrOrSlct: DictAttrForIndex
   // Add attributes using a loop for cleaner code
   const arrAttrToInclude = [
     "type",
+    /* NOTE: I don't remember why "value" was commented out. It may be because the value attribute is unstable or unreliable for selector matching. */
     // "value",
     "name",
     "aria-label",
@@ -347,7 +357,7 @@ export function createQuerySelectorFromAttrDict(dictAttrOrSlct: DictAttrForIndex
   for (const attr of arrAttrToInclude) {
     const strTemp = dictAttrOrSlct[attr];
     if (strTemp) {
-      arrSelectorParts.push(`[${attr}="${CSS.escape(strTemp)}"]`);
+      arrSelectorParts.push(`[${attr}="${escapeCssAttrValue(strTemp)}"]`);
     }
   }
 
