@@ -10,7 +10,7 @@ import multiprocessing
 # run freeze_support() to avoid re-running of it was packaged to an exe.
 multiprocessing.freeze_support()
 
-from liberrpa.Common._Utils import STR_PROJECT_ROOT, PROCESS_NAME
+from liberrpa.Common._Utils import PATH_PROJECT_JSON, STR_PROJECT_ROOT, PROCESS_NAME
 
 import time
 from datetime import datetime
@@ -35,7 +35,7 @@ def _print_program_info() -> None:
 
 def _initialize_project_json() -> None:
     try:
-        pathObj = Path("./project.json")
+        pathObj = PATH_PROJECT_JSON
         if pathObj.is_file():
             dictProject = json.loads(pathObj.read_text(encoding="utf-8"))
 

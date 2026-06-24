@@ -11,6 +11,7 @@ from pathlib import Path
 import socket
 import json5
 from typing import TypedDict, Literal, Any, cast
+from liberrpa.Common._Utils import PATH_PROJECT_JSON
 
 
 class DictBasicConfig(TypedDict):
@@ -36,7 +37,7 @@ def get_basic_config_dict() -> DictBasicConfig:
         "${HostName}": socket.gethostname(),
     }
 
-    dictProject: dict[str, Any] = json5.loads(Path("./project.json").read_text(encoding="utf-8"))  # type: ignore
+    dictProject: dict[str, Any] = json5.loads(PATH_PROJECT_JSON.read_text(encoding="utf-8"))  # type: ignore
 
     if os.getenv("LogFolderName") in ["_ChromeGetLocalServerPort", "_LiberRPALocalServer"]:
         dictReplaceKeywords["${ToolName}"] = "BuildinTools"

@@ -6,22 +6,20 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
 from liberrpa.Logging import Log
-from liberrpa.Common._Utils import STR_PROJECT_ROOT
+from liberrpa.Common._Utils import STR_PROJECT_ROOT, PATH_PROJECT_FLOW
 from liberrpa.FlowControl._ProjectDict import DictProject_Original
 
 import argparse
-import os
-from pathlib import Path
 import json
 import time
 from typing import Literal, Any
 
-_time_start = time.time()
+_time_start = time.monotonic()
 
-if not Path("project.flow").is_file():
-    raise FileNotFoundError(f"Not found the file '{STR_PROJECT_ROOT+"\\project.flow"}' to initialize the program.")
+if not PATH_PROJECT_FLOW.is_file():
+    raise FileNotFoundError(f"Not found the file '{PATH_PROJECT_FLOW}' to initialize the program.")
 
-dictFlowFile: DictProject_Original = json.loads(Path("project.flow").read_text(encoding="utf-8"))
+dictFlowFile: DictProject_Original = json.loads(PATH_PROJECT_FLOW.read_text(encoding="utf-8"))
 
 # Update "logLevel", "recordVideo", "stopShortcut", "highlightUi", "customPrjArgs" if argument sent from command line.
 parser = argparse.ArgumentParser()
@@ -152,7 +150,7 @@ class ProjectArguments:
         Returns:
             float: The time in seconds since the object was initialized.
         """
-        current_time = time.time()
+        current_time = time.monotonic()
         return current_time - _time_start
 
     def __str__(self) -> str:

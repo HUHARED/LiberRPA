@@ -37,7 +37,7 @@ listParentChain: list[uiautomation.Control] = []
 listExpandedId: list[int] = []
 intActivatedId = 0
 controlTarget: uiautomation.Control
-timeStart = time.time()
+timeStart = time.monotonic()
 
 
 def generate_control_tree(elementFinal: uiautomation.Control) -> tuple[list[DictElementTreeItem], list[int], int]:
@@ -49,7 +49,7 @@ def generate_control_tree(elementFinal: uiautomation.Control) -> tuple[list[Dict
     listExpandedId = []
     intActivatedId = 0
     idObj.reset()
-    timeStart = time.time()
+    timeStart = time.monotonic()
 
     listFinalTree: list[DictElementTreeItem] = []
 
@@ -108,7 +108,7 @@ def _get_children_spec_recursive(
 ) -> list[DictElementTreeItem]:
     global listParentChain, listExpandedId, intActivatedId, controlTarget, idObj, timeStart
 
-    if (time.time() - timeStart) >= 10:
+    if (time.monotonic() - timeStart) >= 10:
         # Some uia window may have too many elements, give up.
         raise UiOperationError("Cannot get all elements in 10 seconds, so give up to generate Element Tree.")
 

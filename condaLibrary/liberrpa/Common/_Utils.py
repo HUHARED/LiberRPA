@@ -1,7 +1,7 @@
 # FileName: _Utils.py
 __author__ = "Jiyan Hu"
 __email__ = "mailwork.hu@gmail.com"
-__license__ = "GNU General Public License v3.0 or later"
+__license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from pathlib import Path, PureWindowsPath
@@ -11,6 +11,8 @@ import multiprocessing
 # Use it to replace all os.getcwd(), to avoid influence caused by os.chdir() that users execute.
 PATH_PROJECT_ROOT = Path.cwd().resolve()
 STR_PROJECT_ROOT: str = str(PATH_PROJECT_ROOT)
+PATH_PROJECT_JSON = PATH_PROJECT_ROOT / "project.json"
+PATH_PROJECT_FLOW = PATH_PROJECT_ROOT / "project.flow"
 
 PROCESS_NAME = multiprocessing.current_process().name
 

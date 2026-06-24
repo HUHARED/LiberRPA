@@ -132,9 +132,9 @@ if __name__ == "__main__":
 
     hm.HookMouse()
     hm.HookKeyboard()
-    timeStart = time.time()
+    timeStart = time.monotonic()
     while True:
-        if time.time() - timeStart <= 10:
+        if time.monotonic() - timeStart <= 10:
             pythoncom.PumpWaitingMessages()
         else:
             break

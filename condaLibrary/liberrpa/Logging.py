@@ -10,7 +10,13 @@ It is expected to be imported at RPA project startup.
 """
 import liberrpa.Common._Initialization  # For initialization
 
-from liberrpa.Common._Utils import STR_PROJECT_ROOT, PROCESS_NAME
+from liberrpa.Common._Utils import (
+    PATH_PROJECT_ROOT,
+    STR_PROJECT_ROOT,
+    PATH_PROJECT_JSON,
+    PATH_PROJECT_FLOW,
+    PROCESS_NAME,
+)
 from liberrpa.Common._BasicConfig import get_basic_config_dict, get_liberrpa_folder_path
 from liberrpa.Common._Exception import get_exception_info
 
@@ -253,7 +259,7 @@ class Logger:
 
         # Creates a time-based folder for logs specific to the current project.
 
-        dictProject: dict[str, Any] = json5.loads(Path("project.json").read_text(encoding="utf-8"))  # type: ignore
+        dictProject: dict[str, Any] = json5.loads(PATH_PROJECT_JSON.read_text(encoding="utf-8"))  # type: ignore
 
         strLogFolderName = os.getenv("LogFolderName")
         if strLogFolderName is not None:
@@ -318,9 +324,9 @@ class Logger:
             strTemp = json.dumps(dictProject, indent=4, ensure_ascii=False, allow_nan=False)
 
             # Avoid the situation that MainProcess was killed accidently and created a incompleted file.
-            pathTemp = Path("project.json.tmp")
+            pathTemp = PATH_PROJECT_ROOT / "project.json.tmp"
             pathTemp.write_text(data=strTemp, encoding="utf-8", errors="strict")
-            pathTemp.replace("project.json")
+            pathTemp.replace(PATH_PROJECT_JSON)
             print("Update project.json: " + strTemp)
 
         # Create loggers
@@ -728,10 +734,8 @@ try:
         Log.set_level(level=dictFlowFile["logLevel"], loggerType="both")
     else:
         Log.set_level(level="DEBUG", loggerType="both")
-except Exception as e:
-    Log.debug(
-        f"Failure to use '{STR_PROJECT_ROOT+"\\project.flow"}' to set log level. It is not a normal LiberRPA project?"
-    )
+except Exception:
+    Log.debug(f"Failure to use '{PATH_PROJECT_FLOW}' to set log level. It is not a normal LiberRPA project?")
     Log.set_level(level="DEBUG", loggerType="both")
 
 boolIsAdmin = ctypes.windll.shell32.IsUserAnAdmin() != 0

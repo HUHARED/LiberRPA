@@ -6,14 +6,13 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
 from liberrpa.Logging import Log
-from liberrpa.Common._Utils import PROCESS_NAME
+from liberrpa.Common._Utils import PATH_PROJECT_JSON, PROCESS_NAME
 from liberrpa.Dialog import show_notification
 from liberrpa.FlowControl.ProjectFlowInit import PrjArgs
 
 from datetime import timedelta
 import sys
 import json
-from pathlib import Path
 from typing import Literal
 
 # Python use executorPackageStatus to sign its status, but the status may modified by Exectuor because "terminated" may caused by timeout or user clicked cancel button in Executor.
@@ -27,7 +26,7 @@ def cleanup() -> None:
         # Only run cleanup in MainProcess.
         return None
 
-    dictProject = json.loads(Path("project.json").read_text(encoding="utf-8"))
+    dictProject = json.loads(PATH_PROJECT_JSON.read_text(encoding="utf-8"))
     strInfo = f"{PrjArgs.projectName}: "
 
     match executorPackageStatus:
@@ -44,7 +43,7 @@ def cleanup() -> None:
 
     dictProject["executorPackageStatus"] = executorPackageStatus
     strTemp = json.dumps(dictProject, indent=4, ensure_ascii=False)
-    Path("project.json").write_text(data=strTemp, encoding="utf-8", errors="strict")
+    PATH_PROJECT_JSON.write_text(data=strTemp, encoding="utf-8", errors="strict")
     print("Update project.json: " + strTemp)
 
     show_notification(title="LiberRPA", message=strInfo, duration=2, wait=False)
