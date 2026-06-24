@@ -15,7 +15,7 @@ import subprocess
 SCREENSHOT_DOCUMENTS_PATH = os.path.join(os.environ.get("USERPROFILE", "N/A"), R"Documents\LiberRPA\Screenshots")
 os.makedirs(name=SCREENSHOT_DOCUMENTS_PATH, exist_ok=True)
 FULL_SCREENSHOT_PATH = os.path.join(SCREENSHOT_DOCUMENTS_PATH, "LiberRPA_full_screenshot.png")
-SCREENSHOT_PROJECT_PATH = os.path.join(STR_PROJECT_ROOT, "Screenshots")
+SCREENSHOT_PROJECT_PATH = os.path.join(STR_PROJECT_ROOT, "_Screenshots")
 SCREENSHOT_TEMP_NAME = "captured_temp.png"
 
 SELECTED_KEYWORD = "Save completed!"

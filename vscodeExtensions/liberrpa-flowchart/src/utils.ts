@@ -4,6 +4,7 @@ import * as path from "path";
 import * as fs from "fs";
 import type { WebviewToExtensionMessage } from "./interface";
 import { isExecuteMode, parseFlowProjectFromText } from "./checkFlowchart";
+import { getRiskyPyModuleNameReason } from "./riskyPyModuleNames";
 
 export const outputChannel = vscode.window.createOutputChannel("liberrpa-flowchart");
 outputChannel.show(true);
@@ -80,7 +81,7 @@ export function getCustomArgNames(document: vscode.TextDocument): string[] {
       // outputChannel.appendLine("Using saved project.flow content from disk.");
     } catch (e) {
       outputChannel.appendLine(
-        `Error reading project.flow: ${e instanceof Error ? e.message : String(e)}}`
+        `Error reading project.flow: ${e instanceof Error ? e.message : String(e)}`
       );
       return [];
     }
@@ -92,11 +93,44 @@ export function getCustomArgNames(document: vscode.TextDocument): string[] {
     return dictProject.customPrjArgs.map((item) => item[0]);
   } catch (e) {
     outputChannel.appendLine(
-      `Parsing project.flow JSON failed: ${e instanceof Error ? e.message : String(e)}}`
+      `Parsing project.flow JSON failed: ${e instanceof Error ? e.message : String(e)}`
     );
   }
 
   return [];
+}
+
+export function validatePythonImportSafety(pyFile: string): void {
+  const reason = getRiskyPyModuleNameReason(pyFile);
+
+  if (reason) {
+    throw new Error(`${reason}\nPath: ${pyFile}`);
+  }
+}
+
+export function validateProjectBlockPythonFiles(
+  workspaceFolder: vscode.WorkspaceFolder,
+  document: vscode.TextDocument
+): void {
+  const dictProject = parseFlowProjectFromText(document.getText());
+
+  for (const node of dictProject.nodes) {
+    if (node.type !== "Block") {
+      continue;
+    }
+
+    const pyFile = node.properties.pyFile;
+
+    const uriPythonFile = resolveWorkspacePythonFile(workspaceFolder, pyFile);
+    validatePythonImportSafety(pyFile);
+
+    if (
+      !fs.existsSync(uriPythonFile.fsPath) ||
+      !fs.statSync(uriPythonFile.fsPath).isFile()
+    ) {
+      throw new Error(`Block Python file does not exist: ${uriPythonFile.fsPath}`);
+    }
+  }
 }
 
 export function resolveWorkspacePythonFile(

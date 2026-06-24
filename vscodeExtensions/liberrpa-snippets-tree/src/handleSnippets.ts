@@ -36,8 +36,9 @@ function getFavoriteSnippets(): {
 }
 
 function addDynamicPart(fileContent: string): string {
-  // Get .py files in ./Utils and ./Selector, add them in snippets text. Not including the subfolders.
+  // Get .py files in ./_Utils and ./_Selectors, add them in snippets text. Not including the subfolders.
 
+  // Only work for the first workspace.
   const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
   if (!workspaceFolder) {
     outputChannel.appendLine("No workspace folder is open.");
@@ -59,14 +60,14 @@ function addDynamicPart(fileContent: string): string {
   }
 
   // Define target folders
-  const utilsPath = path.join(workspaceFolder.uri.fsPath, "Utils");
-  const selectorPath = path.join(workspaceFolder.uri.fsPath, "Selector");
+  const utilsPath = path.join(workspaceFolder.uri.fsPath, "_Utils");
+  const selectorPath = path.join(workspaceFolder.uri.fsPath, "_Selectors");
 
   const utilsModules = getPythonModules(utilsPath);
   const selectorModules = getPythonModules(selectorPath);
   const modulesText = [
-    ...utilsModules.map((mod) => `"from Utils.${mod} import *",`),
-    ...selectorModules.map((mod) => `"from Selector.${mod} import *",`),
+    ...utilsModules.map((mod) => `"from _Utils.${mod} import *",`),
+    ...selectorModules.map((mod) => `"from _Selectors.${mod} import *",`),
   ];
 
   const strAnchorText = 'Import all from liberrpa",';
@@ -96,7 +97,7 @@ function generateTreeItemFromSnippets(
   const dictTree: { [key: string]: { [key: string]: DictSnippetNodeInfo } } = {};
   try {
     // Replace \t in snippets to 4 space.(\t in description will also be replaced.)
-    fileContent = fileContent.replace("\t", '"    ');
+    fileContent = fileContent.replace(/\t/g, "    ");
     const dictSnippets: {
       [key: string]: DictSnippetsItem;
     } = jsoncParser.parse(fileContent);

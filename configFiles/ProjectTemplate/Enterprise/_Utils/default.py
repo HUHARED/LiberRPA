@@ -1,5 +1,5 @@
 from liberrpa.Modules import *  # type: ignore - Import all from liberrpa
-from Selector.default import *
+from _Selectors.default import *
 
 
 if __name__ == "__main__":

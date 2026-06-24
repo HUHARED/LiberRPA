@@ -393,7 +393,6 @@ Use `Ctrl+F` to search them.
     - [mouse\_trigger](#mouse_trigger)
     - [keyboard\_trigger](#keyboard_trigger)
 
-
 ## Basic
 
 ### delay
@@ -403,7 +402,7 @@ Delay some time, in milliseconds.
 ### new python file
 
 The default content for a new Python file.
-If you click it in LIberRPA Snippets Tree, the modules in Utils and Selector can be imported automatically.
+If you click it in LIberRPA Snippets Tree, the modules in _Utils and _Selectors can be imported automatically.
 
 ### def a function
 

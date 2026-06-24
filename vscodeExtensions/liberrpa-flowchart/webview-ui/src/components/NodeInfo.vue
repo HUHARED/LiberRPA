@@ -51,12 +51,16 @@
             <div class="mt-2">Use "/" as the folder separator.</div>
             <div>The "./" prefix is optional.</div>
 
-            <div class="font-weight-medium mt-2">
-              Avoid using LiberRPA built-in module names:
+            <div class="font-weight-medium mt-2">Avoid risky Python module names:</div>
+
+            <div class="pl-5 mt-1">
+              Avoid names that conflict with Python standard library modules, LiberRPA
+              command/module names, or important third-party packages used by LiberRPA.
             </div>
 
             <div class="pl-5 mt-1">
-              {{ arrBuiltinModuleNames.join(", ") }}
+              If the input background color changes, the file name may cause import
+              conflicts during execution.
             </div>
           </div>
         </v-tooltip>
@@ -78,6 +82,7 @@
 <script setup lang="ts">
 import { watch, ref } from "vue";
 import { useFlowchartStore, useInformationStore } from "../store";
+import { getRiskyPyModuleNameReason } from "../riskyPyModuleNames";
 const flowchartStore = useFlowchartStore();
 const informationStore = useInformationStore();
 
@@ -144,53 +149,16 @@ const arrPyFileNameRules: string[] = [
   "Underscores: _",
 ];
 
-const arrBuiltinModuleNames: string[] = [
-  "liberrpa",
-
-  "Mouse",
-  "Keyboard",
-  "Window",
-  "UiInterface",
-  "Browser",
-  "Excel",
-  "Outlook",
-  "Application",
-  "Database",
-  "Data",
-  "Str",
-  "List",
-  "Dict",
-  "Regex",
-  "Math",
-  "Time",
-  "File",
-  "OCR",
-  "Web",
-  "Mail",
-  "FTP",
-  "Clipboard",
-  "System",
-  "Credential",
-  "ScreenPrint",
-  "Dialog",
-  "Trigger",
-];
-
 function generateBgcolor(): string {
-  if (informationStore.nodeType === "Block" && informationStore.nodeProperty) {
-    let strNameTemp = informationStore.nodeProperty;
-    if (strNameTemp.startsWith("./")) {
-      strNameTemp = strNameTemp.slice(2);
-    }
-    if (strNameTemp.endsWith(".py")) {
-      strNameTemp = strNameTemp.slice(0, -3);
-    }
-
-    if (arrBuiltinModuleNames.includes(strNameTemp)) {
-      return "warning";
-    }
+  if (informationStore.nodeType !== "Block") {
+    return "";
   }
-  return "";
+
+  if (!informationStore.nodeProperty) {
+    return "";
+  }
+
+  return getRiskyPyModuleNameReason(informationStore.nodeProperty) ? "warning" : "";
 }
 </script>
 

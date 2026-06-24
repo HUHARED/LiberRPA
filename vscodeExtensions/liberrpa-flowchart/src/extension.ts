@@ -8,6 +8,8 @@ import {
   isWebviewMessage,
   getCustomArgNames,
   resolveWorkspacePythonFile,
+  validatePythonImportSafety,
+  validateProjectBlockPythonFiles,
 } from "./utils";
 import { parseFlowProjectFromText } from "./checkFlowchart";
 
@@ -239,6 +241,7 @@ class FlowchartEditorProvider implements vscode.CustomTextEditorProvider {
         }
 
         const uriPythonFile = resolveWorkspacePythonFile(workspaceFolder, message.path);
+        validatePythonImportSafety(message.path);
         const strFileSystemPath = uriPythonFile.fsPath;
 
         // If the path doesn't exist, create it and write the default script.
@@ -248,7 +251,7 @@ class FlowchartEditorProvider implements vscode.CustomTextEditorProvider {
             fs.mkdirSync(strFolderPath, { recursive: true });
           }
 
-          // Follow liberrpa-snippets-tree, add modules in Utils and Selectors.
+          // Follow liberrpa-snippets-tree, add modules in _Utils and _Selectors.
           function getPythonModules(folderPath: string): string[] {
             if (!fs.existsSync(folderPath)) {
               return [];
@@ -268,17 +271,18 @@ class FlowchartEditorProvider implements vscode.CustomTextEditorProvider {
                 const moduleName = path.parse(file).name;
                 return /^[A-Za-z_][A-Za-z0-9_]*$/.test(moduleName);
               })
-              .map((file) => path.parse(file).name);
+              .map((file) => path.parse(file).name)
+              .sort();
           }
 
-          const utilsPath = path.join(workspaceFolder.uri.fsPath, "Utils");
-          const selectorsPath = path.join(workspaceFolder.uri.fsPath, "Selectors");
+          const utilsPath = path.join(workspaceFolder.uri.fsPath, "_Utils");
+          const selectorsPath = path.join(workspaceFolder.uri.fsPath, "_Selectors");
 
           const utilsModules = getPythonModules(utilsPath);
           const selectorsModules = getPythonModules(selectorsPath);
           const modulesText = [
-            ...utilsModules.map((mod) => `from Utils.${mod} import *\n`),
-            ...selectorsModules.map((mod) => `from Selectors.${mod} import *\n`),
+            ...utilsModules.map((mod) => `from _Utils.${mod} import *\n`),
+            ...selectorsModules.map((mod) => `from _Selectors.${mod} import *\n`),
           ];
 
           const strNewPython = `# FileName: ${path.basename(strFileSystemPath)}
@@ -329,6 +333,7 @@ if __name__ == "__main__":
           workspaceFolder,
           message.data.pyFile
         );
+        validatePythonImportSafety(message.data.pyFile);
         const strFileSystemPath = uriPythonFile.fsPath;
 
         if (!fs.existsSync(strFileSystemPath) || !fs.statSync(strFileSystemPath).isFile()) {
@@ -376,6 +381,8 @@ if __name__ == "__main__":
         if (!workspaceFolder) {
           throw new Error("No workspace folder is open.");
         }
+
+        validateProjectBlockPythonFiles(workspaceFolder, document);
 
         // Save files before running.
         const saved = await vscode.workspace.saveAll();
