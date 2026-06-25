@@ -16,11 +16,14 @@ import win32com.client
 import pythoncom
 import re
 from datetime import datetime
-from typing import Literal, Any
+from typing import Literal, Any, cast
 
+type TypeOfExcelFile = Literal["xlsx", "xls", "xlsm", "xlsb"]
 type TypeOfSheet = str | int
 type TypeOfCell = str | list[int]
 type TypeOfCellData = str | int | float | datetime | bool | None
+
+_VALID_EXCEL_FILE_TYPES: set[str] = {"xlsx", "xls", "xlsm", "xlsb"}
 
 
 class ExcelError(Exception):
@@ -33,15 +36,27 @@ class ExcelError(Exception):
 class ExcelObj:
     def __init__(self) -> None:
         self.path: str
-        self.visible: bool
-        self.readOnly: bool
-        self.password: str
-        self.writePassword: str
-        self.type: Literal["xlsx", "xls", "xlsm"]
+        # Some attributes need default value to avoid AttributeError if it is created by bind_Excel_file().
+        self.visible: bool = True
+        self.readOnly: bool = False
+        self.password: str = ""
+        self.writePassword: str = ""
+        self.type: TypeOfExcelFile
         self.book: Book
 
     def __str__(self) -> str:
-        return f"ExcelWorkbook(path: {self.path}, visible: {self.visible}, readOnly: {self.readOnly}, password: {'*****' if self.password else ''}, writePassword: {'*****' if self.writePassword else ''}, type: {self.type})"
+        return f"ExcelObj(path: {self.path}, visible: {self.visible}, readOnly: {self.readOnly}, password: {'*****' if self.password else ''}, writePassword: {'*****' if self.writePassword else ''}, type: {self.type})"
+
+
+def _check_excel_file_type(path: str) -> TypeOfExcelFile:
+    fileType = Path(path).suffix.replace(".", "").lower()
+
+    if fileType not in _VALID_EXCEL_FILE_TYPES:
+        raise ExcelError(
+            f"Unsupported Excel file type: {fileType!r}. Supported types: {sorted(_VALID_EXCEL_FILE_TYPES)}"
+        )
+
+    return cast(TypeOfExcelFile, fileType)
 
 
 def _check_edit_mode():
@@ -113,19 +128,16 @@ def _check_and_standardize_cell(cell: TypeOfCell) -> str:
 
 def _extract_row_column_from_cell(cell: str) -> tuple[str, int, int]:
     cell = _check_and_standardize_cell(cell=cell)
-    match = re.search(pattern="""^[A-Z]*""", string=cell, flags=0)
-    if match:
-        strCol = match.group()
-    else:
-        raise ExcelError(f"Failed to extract column string from '{cell}'.")
-    intCol = convert_col_str_to_num(colStr=strCol)
-    match = re.search(pattern="""\\d*$""", string=cell, flags=0)
-    if match:
-        row = int(match.group())
-    else:
-        raise ExcelError(f"Failed to extract row from '{cell}'.")
 
-    return (strCol, intCol, row)
+    match = re.fullmatch(r"([A-Z]+)([1-9]\d*)", cell)
+    if match is None:
+        raise ExcelError(f"Invalid Excel cell address: {cell!r}.")
+
+    strCol = match.group(1)
+    intRow = int(match.group(2))
+    intCol = convert_col_str_to_num(colStr=strCol)
+
+    return (strCol, intCol, intRow)
 
 
 def _print_xw_info(excelObj: ExcelObj) -> None:
@@ -149,6 +161,9 @@ def open_Excel_file(
 
     If a file have be opened, it will be opened with read-only mode.
 
+    Supported workbook file types are .xlsx, .xls, .xlsm, and .xlsb.
+    CSV files should be handled by CSV-specific functions instead of Excel workbook functions.
+
     Parameters:
         path: The path to the Excel file.
         visible: If True, opens Excel in visible mode.
@@ -158,7 +173,7 @@ def open_Excel_file(
         readOnly: If True, opens the workbook in read-only mode.
 
     Returns:
-        ExcelWorkbook: An object representing the opened workbook.
+        ExcelObj: An object representing the opened workbook.
     """
     _check_edit_mode()
     excelObj = ExcelObj()
@@ -168,7 +183,7 @@ def open_Excel_file(
     excelObj.readOnly = readOnly
     excelObj.password = password
     excelObj.writePassword = writePassword
-    excelObj.type = Path(path).suffix.replace(".", "")  # type: ignore
+    excelObj.type = _check_excel_file_type(excelObj.path)
 
     if Path(excelObj.path).is_file():
         xwApp = xw.App(visible=excelObj.visible, add_book=False)
@@ -198,16 +213,14 @@ def bind_Excel_file(fileName: str) -> ExcelObj:
     """
     If there are files with same name, it will bind only one of them.
 
+    Supported workbook file types are .xlsx, .xls, .xlsm, and .xlsb.
+    CSV files should be handled by CSV-specific functions instead of Excel workbook functions.
+
     Parameters:
         fileName: The opening Excel workbook file name.
-        visible: If True, opens Excel in visible mode.
-        password: The password for opening the workbook, if required.
-        writePassword: The password for write access, if required.
-        createIfNotExist: If True, creates a new workbook if the file does not exist.
-        readOnly: If True, opens the workbook in read-only mode.
 
     Returns:
-        ExcelWorkbook: An object representing the opened workbook.
+        ExcelObj: An object representing the opened workbook.
     """
     _check_edit_mode()
     excelObj = ExcelObj()
@@ -221,7 +234,7 @@ def bind_Excel_file(fileName: str) -> ExcelObj:
                 boolFound = True
                 excelObj.book = book
                 excelObj.path = book.fullname
-                excelObj.type = Path(book.fullname).suffix.replace(".", "")  # type: ignore
+                excelObj.type = _check_excel_file_type(book.fullname)
                 break
         if not boolFound:
             raise FileNotFoundError(f"No open workbook with name '{fileName}' found")
@@ -248,21 +261,37 @@ def save(excelObj: ExcelObj) -> None:
 
 
 @Log.trace()
-def save_as_and_reopen(excelObj: ExcelObj, destinationPath: str, password: str = "") -> str:
+def save_as(excelObj: ExcelObj, destinationPath: str, password: str = "") -> str:
     """
-    Saves the workbook to a new file and reopens it under the new name.
+    Save the current workbook as a new file.
+
+    This behaves like Excel's "Save As" operation. The current workbook remains open, and Excel/xlwings will usually treat it as the workbook at the new path after saving.
 
     Parameters:
         excelObj: The Excel workbook object.
         destinationPath: The path where the workbook will be saved.
         password: An optional password for saving the workbook.
+
+    Returns:
+        str: The absolute path of the saved workbook.
     """
     _check_edit_mode()
 
     strFilePath = str(Path(destinationPath).absolute())
+    newFileType = _check_excel_file_type(strFilePath)
+
     if Path(strFilePath).is_file():
         raise ExcelError(f"The file '{strFilePath}' exists.")
+
+    # Create the folder if it doesn't exist.
+    Path(strFilePath).parent.mkdir(parents=True, exist_ok=True)
+
     excelObj.book.save(path=strFilePath, password=password)
+
+    excelObj.path = strFilePath
+    excelObj.password = password
+    excelObj.type = newFileType
+
     return strFilePath
 
 
@@ -366,12 +395,31 @@ def get_last_column(excelObj: ExcelObj, sheet: TypeOfSheet, row: int | None = No
 
 @Log.trace()
 def convert_col_num_to_str(colNum: int) -> str:
+    """
+    Convert an Excel column number to a column letter.
+
+    Parameters:
+        colNum: The Excel column number, starting from 1.
+
+    Returns:
+        str: The Excel column letter, such as "A", "D", or "AA".
+    """
     strCol: str = xw.utils.col_name(colNum)
     return strCol
 
 
 @Log.trace()
 def convert_col_str_to_num(colStr: str) -> int:
+    """
+    Convert an Excel column letter to a column number.
+
+    Parameters:
+        colStr: The Excel column letter, such as "A", "D", or "AA".
+
+    Returns:
+        int: The Excel column number, starting from 1.
+    """
+
     intCol = 0
     for char in colStr.upper():
         if char < "A" or char > "Z":
@@ -423,7 +471,7 @@ def read_row(
         returnDisplayed: If True, returns the displayed values of the cells. If False, returns their actual values.
 
     Returns:
-        list[TypeOfCellData]|None: A list of values from the specified row. Returns None if the starting cell is beyond the last column with data.
+        list[TypeOfCellData]: A list of values from the specified row. Returns an empty list if the starting cell is to the right of the last used cell in the row.
     """
     _check_edit_mode()
     sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
@@ -458,7 +506,7 @@ def read_row(
 @Log.trace()
 def read_column(
     excelObj: ExcelObj, sheet: TypeOfSheet, startCell: TypeOfCell, returnDisplayed: bool = True
-) -> list[TypeOfCellData] | None:
+) -> list[TypeOfCellData]:
     """
     Reads an entire column in an Excel sheet starting from the specified cell.
 
@@ -471,7 +519,7 @@ def read_column(
         returnDisplayed: If True, returns the displayed values of the cells. If False, returns their actual values.
 
     Returns:
-        list[TypeOfCellData]|None: A list of values from the specified column. Returns None if the starting cell is below the last row with data.
+        list[TypeOfCellData]: A list of values from the specified column. Returns an empty list if the starting cell is below the last used cell in the column.
     """
     _check_edit_mode()
     sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
@@ -837,7 +885,7 @@ def insert_column(
     save: bool = False,
 ) -> None:
     """
-    Create a new empty row and then write a list of data to a column in an Excel sheet starting from a specified cell.
+    Create a new empty column and then write a list of data to a column in an Excel sheet starting from a specified cell.
 
     Parameters:
         excelObj: The Excel workbook object.
@@ -942,7 +990,7 @@ def get_selected_cells(excelObj: ExcelObj) -> list[str]:
         excelObj: The Excel workbook object.
 
     Returns:
-        list[str]: A list of selected ranges, with addresses in standard Excel format (e.g., 'A1:B2').
+        list[str]: A list of selected cell addresses, such as ["B3", "C3", "B4"].
     """
     _check_edit_mode()
     rangeSelected = excelObj.book.selection
@@ -960,7 +1008,7 @@ def get_selected_range(excelObj: ExcelObj) -> list[str]:
         excelObj: The Excel workbook object.
 
     Returns:
-        list[str]: A list of selected cells, with addresses in standard Excel format (e.g., 'A1').
+        list[str]: A list of selected range addresses, such as ["B3"], ["B3:C6"], or ["A1:B2", "D1:E2"].
     """
     _check_edit_mode()
     rangeSelected = excelObj.book.selection
@@ -1188,6 +1236,9 @@ def get_activate_sheet(excelObj: ExcelObj) -> str:
 
     Parameters:
         excelObj: The Excel workbook object.
+
+    Returns:
+        str: The name of the current active sheet.
     """
     _check_edit_mode()
     return excelObj.book.sheets.active.name
@@ -1200,25 +1251,30 @@ def get_sheet_list(excelObj: ExcelObj) -> list[str]:
 
     Parameters:
         excelObj: The Excel workbook object.
+
+    Returns:
+        list[str]: A list of all sheet names in the workbook.
     """
     _check_edit_mode()
     return [sheet.name for sheet in excelObj.book.sheets]
 
 
 @Log.trace()
-def run_macro(excelObj: ExcelObj, macroName: str, arguments: list[Any] = []) -> Any:
+def run_macro(excelObj: ExcelObj, macroName: str, arguments: list[Any] | None = None) -> Any:
     """
     Run a macro of a xlsm file.
 
     Parameters:
         excelObj: The Excel workbook object(.xlsm file).
-        macroName: Name of Sub or Function with or without module name, e.g., 'Module1.MyMacro' or 'MyMacro'
-        arguments: The list of arguments that will send into the macro function.
+        macroName: Name of a Sub or Function, with or without module name, such as "Module1.MyMacro" or "MyMacro".
+        arguments: Optional list of arguments passed to the macro.
 
     Returns:
-        The returned value of the marco.
+        Any: The value returned by the macro.
     """
     _check_edit_mode()
+    arguments = [] if arguments is None else arguments
+
     try:
         result = excelObj.book.macro(name=macroName)(*arguments)
     except Exception as e:
