@@ -12,19 +12,26 @@ from sqlalchemy import create_engine, text, Connection, URL
 from types import TracebackType
 from typing import Any, Literal, Mapping, Sequence
 
+type TypeOfDatabase = Literal["SQLite", "PostgreSQL", "MariaDB", "MySQL", "SQL Server", "Oracle"]
+type TypeOfDbOptions = Mapping[str, Sequence[str] | str]
+
+_SUPPORTED_DATABASE_TYPES = ["SQLite", "PostgreSQL", "MariaDB", "MySQL", "SQL Server", "Oracle"]
+
+
 class DatabaseConnection:
     """
-    A context manager for managing database connections. It based on SQLAlchemy.
+    A short-lived context manager for database connections, based on SQLAlchemy.
 
-    You can either provide separate parameters (dbType, username, password, host, etc.) or use a full connection string.
-    Based on the dbType provided, the correct connection string is built using the URL.create method.
+    You can either provide a full connection string or provide separate parameters
+    such as dbType, username, password, host, port, database, and options.
 
     The connection is opened when entering the context, and a transaction is started.
-    Upon exiting the context, the transaction is committed if successful or rolled back if an error occurs.
+    When exiting the context, the transaction is committed if no exception occurred;
+    otherwise, it is rolled back. The connection is then closed and the engine is disposed.
 
     Supported database types: SQLite, PostgreSQL, MariaDB, MySQL, SQL Server, Oracle.
 
-    Example of connection strings (Don't modify the driver(+psycopg2, +pymysql, +pymssql, +oracledb) because LiberRPA only support these):
+    Example connection strings:
         SQLite: "sqlite:///<path_to_db>"
         PostgreSQL: "postgresql+psycopg2://<username>:<password>@<host>:<port>/<database>"
         MariaDB/MySQL: "mysql+pymysql://<username>:<password>@<host>:<port>/<database>"
@@ -32,14 +39,14 @@ class DatabaseConnection:
         Oracle: "oracle+oracledb://<username>:<password>@<host>:<port>/<service_name>"
 
     Parameters:
-        connectString: A full connection string. If you assign it, other arguments are useless.
-        dbType: One of ["SQLite", "PostgreSQL", "MariaDB", "MySQL", "SQL Server", "Oracle"]. (if not using connectString)
-        username: Username for the database. (if not using connectString)
-        password: Password for the database. (if not using connectString)
-        host: Database host. (if not using connectString)
-        port: Port for the database connection. (if not using connectString)
-        database: Database name. (if not using connectString)
-        options: Additional options, such as charset or sslmode. (if not using connectString)
+        connectString: A full connection string. If it is provided, all other connection arguments are ignored.
+        dbType: One of ["SQLite", "PostgreSQL", "MariaDB", "MySQL", "SQL Server", "Oracle"]. Used only when connectString is not provided.
+        username: Username for the database. Ignored for SQLite.
+        password: Password for the database. Ignored for SQLite.
+        host: Database host. Ignored for SQLite.
+        port: Port for the database connection. Ignored for SQLite.
+        database: Database name or SQLite database file path.
+        options: Additional connection options, such as charset, sslmode, or service_name.
 
     Example usage:
     ```
@@ -64,12 +71,7 @@ class DatabaseConnection:
 
     with DatabaseConnection(
         dbType="SQLite",
-        username=None,
-        password=None,
-        host=None,
-        port=None,
-        database=R"./test.db",
-        options={},
+        database=r"./test.db",
     ) as connObj:
         print(fetch_all(connObj=connObj, query="SELECT * FROM users;", params=None, returnDict=False))
     ```
@@ -78,22 +80,30 @@ class DatabaseConnection:
     def __init__(
         self,
         connectString: str | None = None,
-        dbType: Literal["SQLite", "PostgreSQL", "MariaDB", "MySQL", "SQL Server", "Oracle"] | None = None,
+        dbType: TypeOfDatabase | None = None,
         username: str | None = None,
         password: str | None = None,
         host: str | None = "localhost",
         port: int | None = None,
         database: str = "",
-        options: Mapping[str, Sequence[str] | str] = {},
-    ):
+        options: TypeOfDbOptions | None = None,
+    ) -> None:
         self.connection: Connection
+        self.queryOptions: dict[str, Sequence[str] | str] = {} if options is None else dict(options)
 
         if connectString:
             self.engine = create_engine(connectString, echo=False)
+            return None
+
         else:
             match dbType:
                 case "SQLite":
                     drivername = "sqlite"
+                    # SQLite URLs should not include username, password, host, or port.
+                    username = None
+                    password = None
+                    host = None
+                    port = None
                 case "PostgreSQL":
                     drivername = "postgresql+psycopg2"
                 case "MariaDB":
@@ -105,9 +115,7 @@ class DatabaseConnection:
                 case "Oracle":
                     drivername = "oracle+oracledb"
                 case _:
-                    raise ValueError(
-                        f"The argument 'dbType' should be one of {["SQLite","PostgreSQL","MariaDB","MySQL","SQL Server","Oracle"]}"
-                    )
+                    raise ValueError(f"The argument 'dbType' should be one of {_SUPPORTED_DATABASE_TYPES}")
 
             url = URL.create(
                 drivername=drivername,
@@ -116,28 +124,40 @@ class DatabaseConnection:
                 host=host,
                 port=port,
                 database=database,
-                query=options,
+                query=self.queryOptions,
             )
             # echo=True for debugging
             self.engine = create_engine(url, echo=False)
 
-    def __enter__(self):
+    def __enter__(self) -> Connection:
         Log.verbose("Opening database connection...")
-        self.connection = self.engine.connect()
-        self.transaction = self.connection.begin()
+
+        try:
+            self.connection = self.engine.connect()
+            self.transaction = self.connection.begin()
+        except Exception:
+            self.engine.dispose()
+            raise
+
         return self.connection
 
     def __exit__(
-        self, excType: type[BaseException] | None, excValue: BaseException | None, traceback: TracebackType | None
-    ):
-        if excType:
-            Log.error(f"Error occurred: {excValue}, rolling back changes...")
-            self.transaction.rollback()
-        else:
-            Log.verbose("Committing changes before disconnection...")
-            self.transaction.commit()
-        Log.verbose("Closing database connection...")
-        self.connection.close()
+        self,
+        excType: type[BaseException] | None,
+        excValue: BaseException | None,
+        _traceback: TracebackType | None,
+    ) -> None:
+        try:
+            if excType:
+                Log.error(f"Error occurred: {excValue}, rolling back changes...")
+                self.transaction.rollback()
+            else:
+                Log.verbose("Committing changes before disconnection...")
+                self.transaction.commit()
+        finally:
+            Log.verbose("Closing database connection...")
+            self.connection.close()
+            self.engine.dispose()
 
 
 @Log.trace()
