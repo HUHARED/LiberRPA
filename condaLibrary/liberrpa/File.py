@@ -265,7 +265,6 @@ def copy_folder(srcFolderPath: str, dstFolderPath: str) -> str:
     Returns:
         str: The absolute path of the destination folder after copying.
     """
-    Path(dstFolderPath).mkdir(parents=True, exist_ok=False)
 
     return str(Path(shutil.copytree(src=srcFolderPath, dst=dstFolderPath)).resolve())
 
