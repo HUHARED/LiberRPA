@@ -1031,9 +1031,9 @@ def _set_selection(
     postExecutionDelay: int = 200,
 ) -> None:
 
-    listTemp = [param for param in [[text, value, index]] if param is not None]
-    if len(listTemp) != 1:
-        raise ValueError("Exactly one of 'text', 'value', or 'index' must be non-null to set the selection.")
+    provided = [text is not None, value is not None, index is not None]
+    if sum(provided) != 1:
+        raise ValueError("Exactly one of 'text', 'value', or 'index' must be non-null.")
 
     if selector.get("category") != "html":
         raise UiOperationError(f"Can only set selected value for html <select> element.")
