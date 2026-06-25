@@ -7,7 +7,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from liberrpa.Logging import Log
 from liberrpa.Common._TypedValue import Encoding
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 import shutil
 import fnmatch
 import pyzipper
@@ -17,7 +17,7 @@ import fitz  # PyMuPDF
 import os
 import io
 from PIL import Image
-from typing import Literal, Any
+from typing import Literal, Any, cast
 import pandas
 import time
 
@@ -87,31 +87,44 @@ def append_write_file(filePath: str, text: str, encoding: Encoding = "utf-8") ->
 @Log.trace()
 def wait_file_download(filePath: str, retryTimes: int = 10, retryInterval: int = 1, threshold: int = 1) -> None:
     """
-    Waits for a file to finish downloading by checking its size. It will throw a TimeoutError If the file does not reach the expected size within the given attempts.
+    Waits for the final target file to appear and reach a minimum size.
+
+    This function is designed for cases where the caller knows the final target file path.
+    It does not inspect tool-specific temporary download files such as ".crdownload" or ".tmp".
+    It considers the download complete when the final target file exists and its size is
+    greater than or equal to the threshold.
 
     Parameters:
-    - filePath: The path of the file to check.
-    - retryTimes: The number of times to check before timing out.
-    - retryInterval: The time(in seconds) to wait between retries.
-    - threshold: The minimum file size(in bytes) to consider the download complete.
+        filePath: The final target file path to check.
+        retryTimes: The number of times to check before timing out.
+        retryInterval: The time in seconds to wait between retries.
+        threshold: The minimum file size in bytes to consider the final file available.
     """
-    for idx in range(0, retryTimes, 1):
-        # If Path(filePath).stat() is called on a non-existent file, it will raise a FileNotFoundError.
+    if retryTimes < 1:
+        raise ValueError("The argument retryTimes should be greater than or equal to 1.")
+    if retryInterval < 0:
+        raise ValueError("The argument retryInterval should be greater than or equal to 0.")
+    if threshold < 0:
+        raise ValueError("The argument threshold should be greater than or equal to 0.")
 
-        # Sometimes, the file may not be created.
-        if not Path(filePath).exists():
-            Log.debug(f"Not found file in the path: {filePath}")
-            time.sleep(retryInterval)
-            continue
+    pathObj = Path(filePath)
 
-        intFileSize = Path(filePath).stat().st_size
-        if intFileSize < threshold:
-            Log.debug(f"Current file size is {intFileSize} bytes.")
-            time.sleep(retryInterval)
-            continue
+    for idx in range(retryTimes):
+        if not pathObj.is_file():
+            Log.debug(f"Target file is not available yet: {filePath}")
         else:
-            return None
-    raise TimeoutError(f"The file {filePath} didn't download completed.")
+            intFileSize = pathObj.stat().st_size
+            if intFileSize >= threshold:
+                return None
+
+            Log.debug(f"Current target file size is {intFileSize} bytes, threshold is {threshold} bytes.")
+
+        if idx < retryTimes - 1:
+            time.sleep(retryInterval)
+
+    raise TimeoutError(
+        f"The file did not reach the expected size before timeout. filePath: {filePath}, retryTimes: {retryTimes}, retryInterval: {retryInterval}, threshold: {threshold}"
+    )
 
 
 @Log.trace()
@@ -162,7 +175,7 @@ def check_file_exists(filePath: str) -> bool:
     Whether this path is a regular file (also True for symlinks pointing to regular files).
 
     Parameters:
-        filePath: The path of the folder to check.
+        filePath: The path of the file to check.
 
     Returns:
         bool: If the path is not exists, it will return False.
@@ -288,11 +301,23 @@ def move_file_or_folder(srcPath: str, dstPath: str) -> str:
 
 @Log.trace()
 def remove_file(filePath: str) -> None:
+    """
+    Removes a file.
+
+    Parameters:
+        filePath: The path of the file to remove.
+    """
     Path(filePath).unlink()
 
 
 @Log.trace()
 def remove_folder(folderPath: str) -> None:
+    """
+    Removes a folder and all its contents.
+
+    Parameters:
+        folderPath: The path of the folder to remove.
+    """
     shutil.rmtree(path=folderPath)
 
 
@@ -301,8 +326,8 @@ def get_file_or_folder_list(
     folderPath: str,
     filter: Literal["file", "folder", "both"] = "both",
     getAbsolutePath: bool = True,
-    ignorePrefixes: list[str] = [],
-    ignoreSuffixes: list[str] = [],
+    ignorePrefixes: list[str] | None = None,
+    ignoreSuffixes: list[str] | None = None,
 ) -> list[str]:
     """
     Retrieves a list of files or folders from a specified directory based on a filter.
@@ -310,15 +335,18 @@ def get_file_or_folder_list(
     Parameters:
         folderPath: The directory path from which to list files or folders.
         filter: Specifies the type of items to list; "file" for files only, "folder" for folders only, or "both" for all items.
-        getAbsolutePath: If True, returns absolute paths; if False, returns only the names.
-        ignorePrefixes: A list of path prefixes to ignore. Any item starting with one of these prefixes won't be included in the result.
-        ignoreSuffixes: A list of path suffixes to ignore. Any item ending with one of these prefixes won't be included in the result.
+        getAbsolutePath: If True, returns absolute paths; if False, returns paths relative to folderPath.
+        ignorePrefixes: A list of path prefixes to ignore. Any item starting with one of these prefixes will not be included in the result.
+        ignoreSuffixes: A list of path suffixes to ignore. Any item ending with one of these suffixes will not be included in the result.
 
     Returns:
-        list[str]: A list of file or folder paths or names, depending on `getAbsolutePath`, filtered as specified.
+        list[str]: A list of file or folder paths, filtered as specified.
     """
+
+    ignorePrefixes = [] if ignorePrefixes is None else ignorePrefixes
+    ignoreSuffixes = [] if ignoreSuffixes is None else ignoreSuffixes
+
     pathObj = Path(folderPath).resolve()
-    # print(pathObj)
     if not pathObj.is_dir():
         raise ValueError(f"Provided path({folderPath}) is not a folder")
 
@@ -327,11 +355,10 @@ def get_file_or_folder_list(
         raise ValueError(f"The argument filter should be one of {listValue}")
 
     paths = pathObj.rglob("*")
-
     listResult: list[Path] = []
 
     for path in paths:
-        if any(str(path).startswith(str(Path(folderPath).resolve().joinpath(prefix))) for prefix in ignorePrefixes):
+        if any(str(path).startswith(str(pathObj.joinpath(prefix))) for prefix in ignorePrefixes):
             continue
         if any(str(path).endswith(suffix) for suffix in ignoreSuffixes):
             continue
@@ -424,26 +451,59 @@ def zip_create(srcPath: str, dstPath: str, password: str = "") -> str:
     return str(dstPathObj.resolve())
 
 
+def _check_zip_member_path(memberName: str, dstFolderPath: str) -> None:
+    """
+    Check whether a ZIP member path is safe to extract into the destination folder.
+
+    It rejects absolute paths, Windows drive paths, UNC paths, and paths containing '..'.
+    """
+    normalizedName = memberName.replace("\\", "/")
+
+    purePosixPath = PurePosixPath(normalizedName)
+    pureWindowsPath = PureWindowsPath(memberName)
+
+    if purePosixPath.is_absolute() or pureWindowsPath.is_absolute() or pureWindowsPath.drive:
+        raise ValueError(f"Unsafe ZIP member path: {memberName!r}")
+
+    if any(part in ("", ".", "..") for part in purePosixPath.parts):
+        raise ValueError(f"Unsafe ZIP member path: {memberName!r}")
+
+    dstRoot = Path(dstFolderPath).resolve()
+    targetPath = (dstRoot / normalizedName).resolve()
+
+    if targetPath != dstRoot and dstRoot not in targetPath.parents:
+        raise ValueError(f"ZIP member path escapes destination folder: {memberName!r}")
+
+
+def _check_zip_members(zipFile: pyzipper.AESZipFile, dstFolderPath: str) -> None:
+    for zipInfo in zipFile.infolist():
+        _check_zip_member_path(memberName=zipInfo.filename, dstFolderPath=dstFolderPath)
+
+
 @Log.trace()
 def zip_extract(zipPath: str, dstFolderPath: str, password: str = "") -> str:
     """
-    Extract a ZIP file, with optional password protection.
+    Extract a ZIP file to a folder, with optional password protection.
+
+    The ZIP member paths are checked before extraction to prevent path traversal.
 
     Parameters:
         zipPath: Path to the ZIP file.
         dstFolderPath: Path where the contents will be extracted.
-        password: Password for the ZIP file, If it's empty string, means have no password.
+        password: Password for the ZIP file. If it is an empty string, the ZIP file is treated as not password-protected.
 
     Returns:
-        str: The absolute path to the created ZIP file.
+        str: The absolute path of the destination folder.
     """
 
-    zipPathObj = Path(zipPath)
     dstPathObj = Path(dstFolderPath)
+    dstPathObj.mkdir(parents=True, exist_ok=True)
 
-    with pyzipper.AESZipFile(str(zipPathObj)) as zipFile:
+    with pyzipper.AESZipFile(zipPath) as zipFile:
         if password:
             zipFile.setpassword(password.encode())
+
+        _check_zip_members(zipFile=zipFile, dstFolderPath=str(dstPathObj))
         zipFile.extractall(str(dstPathObj))
 
     return str(dstPathObj.resolve())
@@ -460,19 +520,28 @@ def csv_read(
     """
     Reads a CSV file and returns its contents as a list of lists.
 
+    By default, header=0 means the first row is used as column names and is not included
+    in the returned data. Use header=None if the first row should also be returned as data.
+
+    If indexColumn is not None, that column is used as the DataFrame index and is not
+    included in the returned row values.
+
     Parameters:
         filePath: The path to the CSV file.
         separator: The character used to separate values.
-        header: Row number(s) to use as the column names, or None.
+        header: Row number to use as the column names, or None to treat all rows as data.
         indexColumn: Column to set as index; can be column number or name.
         encoding: The encoding to use for reading the file.
 
     Returns:
-        list[list[Any]]: The contents of the CSV file as a list of rows, where each row is a list of values.
+        list[list[Any]]: The CSV data as a list of rows, where each row is a list of values.
     """
-    return pandas.read_csv(
-        filepath_or_buffer=filePath, sep=separator, header=header, index_col=indexColumn, encoding=encoding
-    ).values.tolist()  # type: ignore - It should not be str.
+    return cast(
+        list[list[Any]],
+        pandas.read_csv(
+            filepath_or_buffer=filePath, sep=separator, header=header, index_col=indexColumn, encoding=encoding
+        ).values.tolist(),
+    )
 
 
 @Log.trace()
@@ -523,6 +592,11 @@ def ini_read_value(filePath: str, sectionName: str, optionName: str, encoding: E
     return iniObj.get(section=sectionName, option=optionName)
 
 
+def _write_ini_file(iniObj: configparser.ConfigParser, filePath: str, encoding: Encoding) -> None:
+    with Path(filePath).open(mode="w", encoding=encoding, errors="strict", newline=None) as fileObj:
+        iniObj.write(fileObj)
+
+
 @Log.trace()
 def ini_write_value(
     filePath: str, sectionName: str, optionName: str, optionValue: str, encoding: Encoding = "utf-8"
@@ -541,25 +615,25 @@ def ini_write_value(
     """
     iniObj = configparser.ConfigParser()
     iniObj.read(filenames=filePath, encoding=encoding)
-    if iniObj.has_section(section=sectionName) == False:
+
+    if not iniObj.has_section(section=sectionName):
         iniObj.add_section(section=sectionName)
+
     iniObj.set(section=sectionName, option=optionName, value=optionValue)
-    with open(file=filePath, mode="w") as fileObj:
-        iniObj.write(fileObj)
+    _write_ini_file(iniObj=iniObj, filePath=filePath, encoding=encoding)
 
 
 @Log.trace()
 def ini_get_all_sections(filePath: str, encoding: Encoding = "utf-8") -> list[str]:
     """
-    Retrieves a list of all option names within a specific section of an INI file.
+    Retrieves all section names from an INI file.
 
     Parameters:
         filePath: The path to the INI file.
-        sectionName: The section within the INI file.
         encoding: The character encoding of the INI file.
 
     Returns:
-        list[str]: A list of option names within the specified section.
+        list[str]: A list of all section names in the INI file.
     """
     iniObj = configparser.ConfigParser()
     iniObj.read(filenames=filePath, encoding=encoding)
@@ -569,12 +643,15 @@ def ini_get_all_sections(filePath: str, encoding: Encoding = "utf-8") -> list[st
 @Log.trace()
 def ini_get_all_options(filePath: str, sectionName: str, encoding: Encoding = "utf-8") -> list[str]:
     """
-    Deletes a specific section from an INI file.
+    Retrieves all option names from a section in an INI file.
 
     Parameters:
         filePath: The path to the INI file.
-        sectionName: The section to be removed.
+        sectionName: The section from which option names will be retrieved.
         encoding: The character encoding of the INI file.
+
+    Returns:
+        list[str]: A list of all option names in the specified section.
     """
     iniObj = configparser.ConfigParser()
     iniObj.read(filenames=filePath, encoding=encoding)
@@ -594,8 +671,7 @@ def ini_delete_section(filePath: str, sectionName: str, encoding: Encoding = "ut
     iniObj = configparser.ConfigParser()
     iniObj.read(filenames=filePath, encoding=encoding)
     iniObj.remove_section(section=sectionName)
-    with open(file=filePath, mode="w") as fileObj:
-        iniObj.write(fileObj)
+    _write_ini_file(iniObj=iniObj, filePath=filePath, encoding=encoding)
 
 
 @Log.trace()
@@ -612,8 +688,7 @@ def ini_delete_option(filePath: str, sectionName: str, optionName: str, encoding
     iniObj = configparser.ConfigParser()
     iniObj.read(filenames=filePath, encoding=encoding)
     iniObj.remove_option(section=sectionName, option=optionName)
-    with open(file=filePath, mode="w") as fileObj:
-        iniObj.write(fileObj)
+    _write_ini_file(iniObj=iniObj, filePath=filePath, encoding=encoding)
 
 
 @Log.trace()
