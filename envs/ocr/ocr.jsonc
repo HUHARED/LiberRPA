@@ -1,4 +1,20 @@
 {
-  // "the pth file name(without suffix)": [the EasyOCR language sign], such as "english_default": ["en"], "custom_for_something_1": ["en","ch_sim"], "custom_for_something_2": ["en","ch_sim","ja"]
+  /* 
+  Runtime settings for OCR.
+  allowDuplicateOpenMP:
+    false: Do not set KMP_DUPLICATE_LIB_OK. This is safer and should be the default.
+    true: Set KMP_DUPLICATE_LIB_OK=TRUE before importing EasyOCR.
+          Only enable it if EasyOCR throws the libiomp5md.dll duplicate OpenMP runtime error.
+  */
+  "_settings": {
+    "allowDuplicateOpenMP": false
+  },
+
+  /*
+  "the pth file name(without suffix)": [the EasyOCR language sign],
+  such as "english_default": ["en"],
+  "custom_for_something_1": ["en", "ch_sim"],
+  "custom_for_something_2": ["en", "ch_sim", "ja"]
+  */
   "english_default": ["en"]
 }

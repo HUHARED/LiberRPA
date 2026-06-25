@@ -13,36 +13,92 @@ from liberrpa.Common._BasicConfig import get_liberrpa_folder_path
 import os
 
 """
-If it throw the error:
-OMP: Error #15: Initializing libiomp5md.dll, but found libiomp5md.dll already initialized.
-OMP: Hint This means that multiple copies of the OpenMP runtime have been linked into the program. That is dangerous, since it can degrade performance or cause incorrect results. The best thing to do is to ensure that only a single OpenMP runtime is linked into the process, e.g. by avoiding static linking of the OpenMP runtime in any library. As an unsafe, unsupported, undocumented workaround 
-you can set the environment variable KMP_DUPLICATE_LIB_OK=TRUE to allow the program to continue to execute, but that may cause crashes or silently produce incorrect results. For more information, please see http://www.intel.com/software/products/support/. 
-set this:
+If EasyOCR throws this error:
 
-import os
-os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+OMP: Error #15: Initializing libiomp5md.dll, but found libiomp5md.dll already initialized.
+
+It usually means multiple OpenMP runtimes were loaded into the same process.
+KMP_DUPLICATE_LIB_OK=TRUE is an unsafe workaround, so LiberRPA does not enable it by default.
+If it is really needed in a specific portable environment, set
+"_settings.allowDuplicateOpenMP" to true in envs/ocr/ocr.jsonc.
 """
 
-dictReader = {}  # dict[str, easyocr.Reader]
+type TypeOfOcrConfig = dict[str, list[str]]
+type TypeOfOcrSettings = dict[str, bool]
+
+_reader_cache = {}  # dict[str, easyocr.Reader]
+
+
+def _load_ocr_config() -> tuple[TypeOfOcrConfig, TypeOfOcrSettings]:
+    from pathlib import Path
+    import json5
+
+    strLiberRPAPath = get_liberrpa_folder_path()
+    strConfigPath = os.path.join(strLiberRPAPath, R"envs\ocr\ocr.jsonc")
+    strConfig = Path(strConfigPath).read_text(encoding="utf-8")
+
+    dictRawConfig = json5.loads(strConfig)
+    if not isinstance(dictRawConfig, dict):
+        raise ValueError(f"OCR config should be a JSON object. Config path: {strConfigPath}")
+
+    dictSettingsRaw = dictRawConfig.get("_settings")
+
+    if dictSettingsRaw is None:
+        dictSettingsRaw = {}
+
+    if not isinstance(dictSettingsRaw, dict):
+        raise ValueError('OCR config field "_settings" should be a dictionary.')
+
+    valueAllowDuplicateOpenMP = dictSettingsRaw.get("allowDuplicateOpenMP", False)
+
+    if not isinstance(valueAllowDuplicateOpenMP, bool):
+        raise ValueError('OCR config field "_settings.allowDuplicateOpenMP" should be a boolean.')
+
+    dictSettings: TypeOfOcrSettings = {
+        "allowDuplicateOpenMP": valueAllowDuplicateOpenMP,
+    }
+
+    dictModelConfig: TypeOfOcrConfig = {}
+    for strModelName, listLang in dictRawConfig.items():
+        if strModelName.startswith("_"):
+            continue
+
+        if not isinstance(listLang, list) or not all(isinstance(item, str) for item in listLang):
+            raise ValueError(
+                f"OCR model config for {strModelName!r} should be a list of language strings, "
+                f"such as ['en'] or ['en', 'ch_sim']."
+            )
+
+        dictModelConfig[strModelName] = listLang
+
+    if not dictModelConfig:
+        raise ValueError(f"No OCR model config found. Config path: {strConfigPath}")
+
+    return dictModelConfig, dictSettings
+
+
+def _apply_ocr_runtime_settings(dictSettings: TypeOfOcrSettings) -> None:
+    if dictSettings.get("allowDuplicateOpenMP", False):
+        os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+        Log.warning(
+            "KMP_DUPLICATE_LIB_OK=TRUE is enabled by OCR config. "
+            "This is an unsafe workaround and should only be used when EasyOCR fails because of duplicate OpenMP runtime loading."
+        )
 
 
 @Log.trace()
 def _initialize() -> None:
-    global dictReader
-    os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
-    from pathlib import Path
-    import json5
+    dictOcrConfig, dictOcrSettings = _load_ocr_config()
+    _apply_ocr_runtime_settings(dictSettings=dictOcrSettings)
+
     import easyocr
 
     strLiberRPAPath = get_liberrpa_folder_path()
-    strConfigPath = os.path.join(strLiberRPAPath, R"envs\ocr\ocr.jsonc")
-    strConfig = Path(strConfigPath).read_text()
-    dictOcrConfig: dict[str, list[str]] = json5.loads(strConfig)  # type: ignore - type is right.
 
-    for strModelName in dictOcrConfig.keys():
-        dictReader[strModelName] = easyocr.Reader(
-            lang_list=dictOcrConfig[strModelName],
+    for strModelName, listLang in dictOcrConfig.items():
+        _reader_cache[strModelName] = easyocr.Reader(
+            lang_list=listLang,
             gpu=False,
             model_storage_directory=os.path.join(strLiberRPAPath, R"envs\ocr\model"),
             user_network_directory=os.path.join(strLiberRPAPath, R"envs\ocr\model\CustomModel"),
@@ -133,12 +189,13 @@ def get_text_with_position(
     'bottom_right_y': <class 'int'>}
     """
 
-    global dictReader
-
-    if len(dictReader.keys()) == 0:
+    if len(_reader_cache.keys()) == 0:
         _initialize()
 
-    listResult: list[tuple[list[list[int]], str, float]] = dictReader[modelName].readtext(
+    if modelName not in _reader_cache:
+        raise ValueError(f"OCR model {modelName!r} is not configured. Available models: {list(_reader_cache.keys())}")
+
+    listResult: list[tuple[list[list[int]], str, float]] = _reader_cache[modelName].readtext(
         image=image,
         decoder=decoder,
         beamWidth=beamWidth,
@@ -170,8 +227,8 @@ def get_text_with_position(
         bbox_min_size=bbox_min_size,
         max_candidates=max_candidates,
         output_format="standard",
-    )  # type: ignore
-    print(listResult)
+    )
+    Log.verbose(listResult)
 
     listReturn: list[DictTextBlock] = []
     if len(listResult) != 0:
@@ -257,12 +314,15 @@ def get_text(
         str: The extracted text as a single string.
     """
 
-    global dictReader
+    global _reader_cache
 
-    if len(dictReader.keys()) == 0:
+    if len(_reader_cache.keys()) == 0:
         _initialize()
 
-    listResult: list[list[list[list[int]] | str]] = dictReader[modelName].readtext(
+    if modelName not in _reader_cache:
+        raise ValueError(f"OCR model {modelName!r} is not configured. Available models: {list(_reader_cache.keys())}")
+
+    listResult: list[list[list[list[int]] | str]] = _reader_cache[modelName].readtext(
         image=image,
         decoder=decoder,
         beamWidth=beamWidth,
@@ -294,8 +354,8 @@ def get_text(
         bbox_min_size=bbox_min_size,
         max_candidates=max_candidates,
         output_format="standard",
-    )  # type: ignore
-    print(listResult)
+    )
+    Log.verbose(listResult)
 
     if len(listResult) != 0:
         """strTemp = ""
