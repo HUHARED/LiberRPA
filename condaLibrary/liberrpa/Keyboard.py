@@ -25,9 +25,10 @@ import json
 import uiautomation
 from pynput.keyboard import Controller, Key
 import pyautogui
+
 pyautogui.FAILSAFE = False  # Allow clicking screen corners
 import ctypes
-from typing import Literal
+from typing import Literal, cast
 
 keyboard = Controller()
 
@@ -56,7 +57,7 @@ def _simulate_write(text: str, interval: int = 0) -> None:
 
     dictCannotType: dict[int, str] = {}
     for idx, item in enumerate(text, start=0):
-        if (item in strTypableCharacters) == False:
+        if item not in strTypableCharacters:
             dictCannotType[idx] = item
 
     if len(dictCannotType.keys()) != 0:
@@ -101,31 +102,30 @@ def _write_text(
         case "api":
             # When use IME(Input Method Editor) or opening Capslock, the written text may be incorrect. So close Capslock if it's opening.
             boolCapslockChanged = False
-            if ctypes.windll.user32.GetKeyState(0x14) == 1:
+            if ctypes.windll.user32.GetKeyState(0x14) & 1:
                 # NOTE: Use press&release(pynput) instead of type() due to type() need a char instead of Key.caps_lock
                 keyboard.press(Key.caps_lock)
                 keyboard.release(Key.caps_lock)
                 boolCapslockChanged = True
 
-            for char in text:
-                if char == "\n":
-                    keyboard.press(Key.enter)
-                    keyboard.release(Key.enter)
-                elif char == "\t":
-                    keyboard.press(Key.tab)
-                    keyboard.release(Key.tab)
-                else:
-                    try:
-                        keyboard.type(char)
-                    except Exception as e:
-                        # Change CapsLock back.
-                        keyboard.press(Key.caps_lock)
-                        keyboard.release(Key.caps_lock)
-                        raise UiOperationError(f"Error when type '{char}', error: {e}")
-            # Change CapsLock back.
-            if boolCapslockChanged == True:
-                keyboard.press(Key.caps_lock)
-                keyboard.release(Key.caps_lock)
+            try:
+                for char in text:
+                    if char == "\n":
+                        keyboard.press(Key.enter)
+                        keyboard.release(Key.enter)
+                    elif char == "\t":
+                        keyboard.press(Key.tab)
+                        keyboard.release(Key.tab)
+                    else:
+                        try:
+                            keyboard.type(char)
+                        except Exception as e:
+                            raise UiOperationError(f"Error when type '{char}', error: {e}")
+            finally:
+                # Change CapsLock back.
+                if boolCapslockChanged:
+                    keyboard.press(Key.caps_lock)
+                    keyboard.release(Key.caps_lock)
 
         case "simulate":
             _simulate_write(text=text, interval=0)
@@ -146,7 +146,7 @@ def write_text(
 
     Parameters:
         text: The text to be written.
-        executionMode: Options are "simulate" and "api". "simulate" may be affected by IME(Input Method Editor) or Capslock but "api" will not, and "uia" supports more characters.
+        executionMode: Options are "simulate" and "api". "simulate" may be affected by IME(Input Method Editor) or CapsLock, while "api" can input more characters more reliably.
         timeout: Maximum time allowed for the function to complete (in milliseconds). If timeout < 3000 (milliseconds), it will be set to 3000. If the function doesn't completed after "timeout", it will throw an UiTimeoutError.
         preExecutionDelay: Time to wait before performing the action (in milliseconds).
         postExecutionDelay: Time to wait after performing the action (in milliseconds).
@@ -159,6 +159,42 @@ def write_text(
         preExecutionDelay,
         postExecutionDelay,
     )
+
+
+def _get_value_pattern(control: uiautomation.Control) -> uiautomation.ValuePattern | None:
+    return cast(
+        uiautomation.ValuePattern | None,
+        control.GetPattern(uiautomation.PatternId.ValuePattern),
+    )
+
+
+def _get_text_pattern(control: uiautomation.Control) -> uiautomation.TextPattern | None:
+    return cast(
+        uiautomation.TextPattern | None,
+        control.GetPattern(uiautomation.PatternId.TextPattern),
+    )
+
+
+def _normalize_written_text(text: str) -> str:
+    return text.replace("\r\n", "\n").replace("\r", "\n")
+
+
+def _get_uia_control_text(control: uiautomation.Control) -> str | None:
+    valuePattern = _get_value_pattern(control)
+    if valuePattern is not None:
+        value = valuePattern.Value
+        if value is None:
+            return ""
+        return str(value)
+
+    textPattern = _get_text_pattern(control)
+    if textPattern is not None:
+        text = textPattern.DocumentRange.GetText(-1)
+        if text is None:
+            return ""
+        return str(text)
+
+    return None
 
 
 def _write_text_into_element(
@@ -175,11 +211,11 @@ def _write_text_into_element(
     _UiElement.check_execution_type(executionMode=executionMode)
 
     if selector.get("category") == "image":
-        raise UiOperationError(f"Not support writing text into an image element.")
+        raise UiOperationError("Not support writing text into an image element.")
 
     if selector.get("category") == "html" and executionMode == "simulate" and validateWrittenText:
-        # Even html element can get text, but its logic in here is too complex, take more time, so don't do it.
-        raise UiOperationError("Not support validating text to an html element by simuate mode.")
+        # Even html element can get text, but its logic here is too complex and takes more time.
+        raise UiOperationError("Not support validating text to an html element by simulate mode.")
 
     if selector.get("category") == "html" and executionMode == "api":
         _UiElement.activate_element_window(selector=selector)
@@ -194,83 +230,92 @@ def _write_text_into_element(
         delay(postExecutionDelay)
         return None
 
-    uiTarget, dictTarget = _UiElement.get_element_with_pre_delay(selector=selector, preExecutionDelay=preExecutionDelay)
+    uiTarget, dictTarget = _UiElement.get_element_with_pre_delay(
+        selector=selector,
+        preExecutionDelay=preExecutionDelay,
+    )
 
     match executionMode:
         case "api":
-            if isinstance(uiTarget, uiautomation.Control):
-                pattern = uiTarget.GetPattern(uiautomation.PatternId.ValuePattern)
-                if pattern:
-                    if emptyOriginalText == True:
-                        pattern.SetValue(text)
-                    else:
-                        pattern.SetValue(pattern.Value + text)
-
-                    if validateWrittenText:
-                        if pattern.Value != text:
-                            raise ValueError(
-                                f"The written text ({json.dumps(pattern.Value,ensure_ascii=False)}) is not equal to the argument text({json.dumps(text,ensure_ascii=False)}."
-                            )  # Use json instead of str() to show \n, \t, etc.
-                    delay(postExecutionDelay)
-                    return None
-                else:
-                    raise ValueError(
-                        "The element doesn't support the argument executionMode('api'). selector: {selector}"
-                    )
-            else:
-                # html or image element api write
+            if not isinstance(uiTarget, uiautomation.Control):
+                # html api mode has already been handled above. image is not supported.
                 raise UiOperationError(
-                    "(!!!It should not appear.) Use api mode for html or image element should have be handle!!! selector: {selector}"
+                    f"(!!!It should not appear.) API mode for html or image element should have been handled. "
+                    f"selector: {selector}"
                 )
 
-        case "simulate":
-            # If use simulate type, must click it before writing.
-            dictcoordinates = _get_5_coordinates(dictAttr=dictTarget)
-            pyautogui.moveTo(x=dictcoordinates["center"][0], y=dictcoordinates["center"][1])
-            pyautogui.click()
+            valuePattern = _get_value_pattern(uiTarget)
+            if valuePattern is None:
+                raise ValueError(f"The element doesn't support the argument executionMode('api'). selector: {selector}")
 
-            if emptyOriginalText:
-                # The simulate type to empty text.
-                pyautogui.hotkey("ctrl", "a")
-                pyautogui.press("backspace")
-            else:
-                # If didn't need to empty orginal text, type Ctrl+End to move to end.
-                pyautogui.hotkey("ctrl", "end")
+            strOldText = "" if valuePattern.Value is None else str(valuePattern.Value)
+            strTargetText = text if emptyOriginalText else strOldText + text
 
-            _simulate_write(text=text, interval=interval)
+            if not valuePattern.SetValue(strTargetText):
+                raise UiOperationError(f"Failed to set text by ValuePattern. selector: {selector}")
 
             if validateWrittenText:
-                if isinstance(uiTarget, uiautomation.Control):
-                    strWrittenText: str | None = None
-                    # Try to retrieve text using ValuePattern if available
-                    pattern = uiTarget.GetPattern(uiautomation.PatternId.ValuePattern)
-                    if pattern and pattern.Value:
-                        strWrittenText = pattern.Value
-                    else:
-                        # If ValuePattern is not available or provides no text, check TextPattern
-                        pattern = uiTarget.GetPattern(uiautomation.PatternId.TextPattern)
-                        if pattern:
-                            strText = pattern.DocumentRange.GetText(-1)
-                            if strText:
-                                strWrittenText = strText
-                    if strWrittenText is None:
-                        raise ValueError(
-                            f"The element doesn't support getting text for validation. selector: {selector}"
-                        )
+                strWrittenText = "" if valuePattern.Value is None else str(valuePattern.Value)
 
-                    strWrittenTextTemp = strWrittenText.replace("\r\n", "\n")
-                    textTemp = text.replace("\r\n", "\n")
-
-                    if strWrittenTextTemp != textTemp:
-                        # Due to pyautogui use Enter to input '\n', it may become '\r\n', so replace it.
-                        raise ValueError(
-                            f"The written text ({json.dumps(strWrittenText,ensure_ascii=False)}) is not equal to the argument text({json.dumps(text,ensure_ascii=False)})."
-                        )  # Use json instead of str() to show \n, \t, etc.
-                else:
-                    # html or image element simulate validate
-                    raise UiOperationError(
-                        "(!!!It should not appear.) Use simulate mode for html or image element should have be handle!!! selector: {selector}"
+                if _normalize_written_text(strWrittenText) != _normalize_written_text(strTargetText):
+                    raise ValueError(
+                        f"The written text ({json.dumps(strWrittenText, ensure_ascii=False)}) is not equal to the expected text ({json.dumps(strTargetText, ensure_ascii=False)})."
                     )
+
+            delay(postExecutionDelay)
+            return None
+
+        case "simulate":
+
+            def _write_by_simulation() -> None:
+                # If use simulate type, must click it before writing.
+                dictCoordinates = _get_5_coordinates(dictAttr=dictTarget)
+                pyautogui.moveTo(x=dictCoordinates["center"][0], y=dictCoordinates["center"][1])
+                pyautogui.click()
+
+                if emptyOriginalText:
+                    # The simulate type to empty text.
+                    pyautogui.hotkey("ctrl", "a")
+                    pyautogui.press("backspace")
+                else:
+                    # If didn't need to empty original text, type Ctrl+End to move to end.
+                    pyautogui.hotkey("ctrl", "end")
+
+                _simulate_write(text=text, interval=interval)
+
+            if validateWrittenText:
+                if not isinstance(uiTarget, uiautomation.Control):
+                    raise UiOperationError(
+                        f"(!!!It should not appear.) Simulate mode for html or image element should have been handled. "
+                        f"selector: {selector}"
+                    )
+
+                if emptyOriginalText:
+                    strExpectedText = text
+                else:
+                    strOldText = _get_uia_control_text(control=uiTarget)
+                    if strOldText is None:
+                        raise ValueError(
+                            f"The element doesn't support getting original text for validation. selector: {selector}"
+                        )
+                    strExpectedText = strOldText + text
+
+                _write_by_simulation()
+
+                strWrittenText = _get_uia_control_text(control=uiTarget)
+                if strWrittenText is None:
+                    raise ValueError(f"The element doesn't support getting text for validation. selector: {selector}")
+
+                if _normalize_written_text(strWrittenText) != _normalize_written_text(strExpectedText):
+                    raise ValueError(
+                        f"The written text ({json.dumps(strWrittenText, ensure_ascii=False)}) "
+                        f"is not equal to the expected text "
+                        f"({json.dumps(strExpectedText, ensure_ascii=False)})."
+                    )
+
+            else:
+                _write_by_simulation()
+
             delay(postExecutionDelay)
             return None
 
@@ -297,7 +342,7 @@ def write_text_into_element(
     Parameters:
         selector: The dictionary for locating an element, it is generated by UI Analyzer, you can modify it to make it more concise, more suitable for all situations.
         text: The text to be written.
-        executionMode: Options are "simulate" and "api". "simulate" may be affected by IME(Input Method Editor) or Capslock but "api" will not, and "uia" supports more characters.
+        executionMode: Options are "simulate" and "api". "simulate" may be affected by IME(Input Method Editor) or CapsLock, while "api" can input more characters more reliably.
         interval: the interval time(milliseconds) between type each character. Only works in "simulate" mode.
         emptyOriginalText: Whether delete existing text(by typing ctrl+a and backspace).
         validateWrittenText: Whether check the typed text, not support html element's simulate mode.
@@ -335,7 +380,7 @@ def _type_key_in_element(
     _check_key(key=key)
 
     if selector.get("category") == "image":
-        raise UiOperationError(f"Not support typing key in an image element.")
+        raise UiOperationError("Not support typing key in an image element.")
 
     if selector.get("category") == "html":
         _UiElement.activate_element_window(selector=selector)
@@ -344,13 +389,15 @@ def _type_key_in_element(
             preExecutionDelay=preExecutionDelay,
             timeout=timeout,
         )
-        _UiElement.modifier_keys_down_pyautogui(
-            pressCtrl=pressCtrl, pressShift=pressShift, pressAlt=pressAlt, pressWin=pressWin
-        )
-        pyautogui.press(key)
-        _UiElement.modifier_keys_up_pyautogui(
-            pressCtrl=pressCtrl, pressShift=pressShift, pressAlt=pressAlt, pressWin=pressWin
-        )
+
+        with _UiElement.holding_modifier_keys(
+            pressCtrl=pressCtrl,
+            pressShift=pressShift,
+            pressAlt=pressAlt,
+            pressWin=pressWin,
+        ):
+            pyautogui.press(key)
+
     else:
         # uia
         uiTarget, _ = _UiElement.get_element_with_pre_delay(selector=selector, preExecutionDelay=preExecutionDelay)
@@ -358,13 +405,13 @@ def _type_key_in_element(
             # Use pyautogui, must focus it first.
             uiTarget.SetFocus()
 
-        _UiElement.modifier_keys_down_pyautogui(
-            pressCtrl=pressCtrl, pressShift=pressShift, pressAlt=pressAlt, pressWin=pressWin
-        )
-        pyautogui.press(key)
-        _UiElement.modifier_keys_up_pyautogui(
-            pressCtrl=pressCtrl, pressShift=pressShift, pressAlt=pressAlt, pressWin=pressWin
-        )
+        with _UiElement.holding_modifier_keys(
+            pressCtrl=pressCtrl,
+            pressShift=pressShift,
+            pressAlt=pressAlt,
+            pressWin=pressWin,
+        ):
+            pyautogui.press(key)
 
     delay(postExecutionDelay)
 
@@ -431,10 +478,10 @@ def type_key(
             "click" for a single press and release,
             "key_down" for pressing the key down,
             "key_up" for releasing a pressed key.
-        pressCtrl: If True, holds the Ctrl key during the type.
-        pressShift: If True, holds the Shift key during the type.
-        pressAlt: If True, holds the Alt key during the type.
-        pressWin: If True, holds the Windows key during the type.
+        pressCtrl: If True, holds the Ctrl key while pressing the key. Only supports typeMode='click'.
+        pressShift: If True, holds the Shift key while pressing the key. Only supports typeMode='click'.
+        pressAlt: If True, holds the Alt key while pressing the key. Only supports typeMode='click'.
+        pressWin: If True, holds the Windows key while pressing the key. Only supports typeMode='click'.
         preExecutionDelay: Time to wait before performing the action (in milliseconds).
         postExecutionDelay: Time to wait after performing the action (in milliseconds).
     """
@@ -442,25 +489,28 @@ def type_key(
     _check_key(key=key)
     _check_keyboard_type_mode(typeMode=typeMode)
 
-    delay(preExecutionDelay)
+    if typeMode != "click" and any((pressCtrl, pressShift, pressAlt, pressWin)):
+        raise ValueError(
+            "pressCtrl/pressShift/pressAlt/pressWin only support typeMode='click'. For key_down/key_up, call type_key() for modifier keys explicitly."
+        )
 
-    _UiElement.modifier_keys_down_pyautogui(
-        pressCtrl=pressCtrl, pressShift=pressShift, pressAlt=pressAlt, pressWin=pressWin
-    )
+    delay(preExecutionDelay)
 
     match typeMode:
         case "click":
-            pyautogui.press(key)
+            with _UiElement.holding_modifier_keys(
+                pressCtrl=pressCtrl,
+                pressShift=pressShift,
+                pressAlt=pressAlt,
+                pressWin=pressWin,
+            ):
+                pyautogui.press(key)
         case "key_down":
             pyautogui.keyDown(key)
         case "key_up":
             pyautogui.keyUp(key)
         case _:
-            raise ValueError(f"The argument state({typeMode}) should be one of {['click', 'key_down', 'key_up']}")
-
-    _UiElement.modifier_keys_up_pyautogui(
-        pressCtrl=pressCtrl, pressShift=pressShift, pressAlt=pressAlt, pressWin=pressWin
-    )
+            raise ValueError(f"The argument typeMode({typeMode}) should be one of {['click', 'key_down', 'key_up']}")
 
     delay(postExecutionDelay)
     return None

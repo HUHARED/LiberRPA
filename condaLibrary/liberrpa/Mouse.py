@@ -28,10 +28,10 @@ from liberrpa.Common._Chrome import click_mouse_event
 
 import uiautomation
 import pyautogui
+
 pyautogui.FAILSAFE = False  # Allow clicking screen corners
 from pynput.mouse import Controller
 from typing import Literal
-
 
 _mouseController = Controller()
 
@@ -154,21 +154,21 @@ def _click_element(
                 y=dictCoordinates[position][1] + offsetY,
                 duration=duration / 1000,
             )
-            _UiElement.modifier_keys_down_pyautogui(
-                pressCtrl=pressCtrl, pressShift=pressShift, pressAlt=pressAlt, pressWin=pressWin
-            )
-            match clickMode:
-                case "single_click":
-                    pyautogui.click(button=button)
-                case "double_click":
-                    pyautogui.doubleClick(button=button)
-                case "down":
-                    pyautogui.mouseDown(button=button)
-                case "up":
-                    pyautogui.mouseUp(button=button)
-            _UiElement.modifier_keys_up_pyautogui(
-                pressCtrl=pressCtrl, pressShift=pressShift, pressAlt=pressAlt, pressWin=pressWin
-            )
+            with _UiElement.holding_modifier_keys(
+                pressCtrl=pressCtrl,
+                pressShift=pressShift,
+                pressAlt=pressAlt,
+                pressWin=pressWin,
+            ):
+                match clickMode:
+                    case "single_click":
+                        pyautogui.click(button=button)
+                    case "double_click":
+                        pyautogui.doubleClick(button=button)
+                    case "down":
+                        pyautogui.mouseDown(button=button)
+                    case "up":
+                        pyautogui.mouseUp(button=button)
 
         case "api":
             if isinstance(uiTarget, uiautomation.Control):
@@ -364,23 +364,22 @@ def click(
 
     delay(preExecutionDelay)
 
-    _UiElement.modifier_keys_down_pyautogui(
-        pressCtrl=pressCtrl, pressShift=pressShift, pressAlt=pressAlt, pressWin=pressWin
-    )
+    with _UiElement.holding_modifier_keys(
+        pressCtrl=pressCtrl,
+        pressShift=pressShift,
+        pressAlt=pressAlt,
+        pressWin=pressWin,
+    ):
 
-    match clickMode:
-        case "single_click":
-            pyautogui.click(button=button)
-        case "double_click":
-            pyautogui.doubleClick(button=button)
-        case "down":
-            pyautogui.mouseDown(button=button)
-        case "up":
-            pyautogui.mouseUp(button=button)
-
-    _UiElement.modifier_keys_up_pyautogui(
-        pressCtrl=pressCtrl, pressShift=pressShift, pressAlt=pressAlt, pressWin=pressWin
-    )
+        match clickMode:
+            case "single_click":
+                pyautogui.click(button=button)
+            case "double_click":
+                pyautogui.doubleClick(button=button)
+            case "down":
+                pyautogui.mouseDown(button=button)
+            case "up":
+                pyautogui.mouseUp(button=button)
 
     delay(postExecutionDelay)
 
@@ -443,7 +442,7 @@ def scroll_wheel(
 ) -> None:
     """
     Make the mouse scroll down or up.
-    
+
     Parameters:
         times: The number of increments to scroll the wheel.
         direction: The direction to scroll the wheel; valid values are "down" or "up".
@@ -459,27 +458,25 @@ def scroll_wheel(
 
     delay(preExecutionDelay)
 
-    _UiElement.modifier_keys_down_pyautogui(
-        pressCtrl=pressCtrl, pressShift=pressShift, pressAlt=pressAlt, pressWin=pressWin
-    )
+    with _UiElement.holding_modifier_keys(
+        pressCtrl=pressCtrl,
+        pressShift=pressShift,
+        pressAlt=pressAlt,
+        pressWin=pressWin,
+    ):
+        match direction:
+            case "down":
+                for i in range(0, times, 1):
+                    _mouseController.scroll(dx=0, dy=-1)
+                    delay(100)
 
-    match direction:
-        case "down":
-            for i in range(0, times, 1):
-                _mouseController.scroll(dx=0, dy=-1)
-                delay(100)
+            case "up":
+                for i in range(0, times, 1):
+                    _mouseController.scroll(dx=0, dy=1)
+                    delay(100)
 
-        case "up":
-            for i in range(0, times, 1):
-                _mouseController.scroll(dx=0, dy=1)
-                delay(100)
-
-        case _:
-            raise ValueError(f"The argument direction({direction}) should be 'down' or 'up'.")
-
-    _UiElement.modifier_keys_up_pyautogui(
-        pressCtrl=pressCtrl, pressShift=pressShift, pressAlt=pressAlt, pressWin=pressWin
-    )
+            case _:
+                raise ValueError(f"The argument direction({direction}) should be 'down' or 'up'.")
 
     delay(postExecutionDelay)
 

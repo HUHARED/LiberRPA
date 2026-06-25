@@ -41,6 +41,7 @@ import uiautomation
 import pyautogui
 from time import time, sleep
 import threading
+from contextlib import contextmanager
 from typing import Sequence
 
 # Set the global variable of uiautomation.
@@ -50,32 +51,29 @@ uiautomation.SetGlobalSearchTimeout(10)
 Log.verbose(f"Initialize uiautomation in thread: {threading.current_thread().name}")
 
 
-def modifier_keys_down_pyautogui(
-    pressCtrl: bool = False, pressShift: bool = False, pressAlt: bool = False, pressWin: bool = False
-) -> None:
-    """Down modifier keys by pyautogui."""
-    if pressCtrl:
-        pyautogui.keyDown(key="ctrl")
-    if pressAlt:
-        pyautogui.keyDown(key="alt")
-    if pressShift:
-        pyautogui.keyDown(key="shift")
-    if pressWin:
-        pyautogui.keyDown(key="win")
+@contextmanager
+def holding_modifier_keys(*, pressCtrl=False, pressShift=False, pressAlt=False, pressWin=False):
+    pressedKeys: list[str] = []
 
+    try:
+        if pressCtrl:
+            pyautogui.keyDown(key="ctrl")
+            pressedKeys.append("ctrl")
+        if pressAlt:
+            pyautogui.keyDown(key="alt")
+            pressedKeys.append("alt")
+        if pressShift:
+            pyautogui.keyDown(key="shift")
+            pressedKeys.append("shift")
+        if pressWin:
+            pyautogui.keyDown(key="win")
+            pressedKeys.append("win")
 
-def modifier_keys_up_pyautogui(
-    pressCtrl: bool = False, pressShift: bool = False, pressAlt: bool = False, pressWin: bool = False
-) -> None:
-    """Up modifier keys by pyautogui."""
-    if pressCtrl:
-        pyautogui.keyUp(key="ctrl")
-    if pressAlt:
-        pyautogui.keyUp(key="alt")
-    if pressShift:
-        pyautogui.keyUp(key="shift")
-    if pressWin:
-        pyautogui.keyUp(key="win")
+        yield
+
+    finally:
+        for key in reversed(pressedKeys):
+            pyautogui.keyUp(key=key)
 
 
 def check_execution_type(executionMode: ExecutionMode) -> None:
