@@ -94,16 +94,19 @@ def _check_and_standardize_column(column: str | int) -> str:
 def _check_and_standardize_cell(cell: TypeOfCell) -> str:
     if not (isinstance(cell, str) or isinstance(cell, list)):
         raise ExcelError("The argument cell should be a string or list[int].")
+
     if isinstance(cell, list) and len(cell) == 2 and isinstance(cell[0], int) and isinstance(cell[1], int):
         strCol: str = xw.utils.col_name(cell[0])
         strCell = (strCol + str(cell[1])).upper()
         Log.debug("cell standardized=" + strCell)
         return strCell
+
     elif isinstance(cell, str):
         strCell = cell.upper()
         if strCell != cell:
             Log.debug("cell standardized=" + strCell)
         return strCell
+
     else:
         raise ValueError(f"Invalid cell: {repr(cell)}")
 
@@ -387,7 +390,7 @@ def read_cell(excelObj: ExcelObj, sheet: TypeOfSheet, cell: TypeOfCell, returnDi
     Parameters:
         excelObj: The Excel workbook object.
         sheet: The name or index(start from 0) of the sheet.
-        cell: The cell to read, either as an address string or a [row, column] list.
+        cell: The cell to read, either as an address string or a [column, row] list.
         returnDisplayed: If True, returns the displayed value; otherwise, returns the actual value.
 
     Returns:
@@ -416,7 +419,7 @@ def read_row(
     Parameters:
         excelObj: The Excel workbook object.
         sheet: The name or index(start from 0) of the sheet.
-        startCell: The starting cell of the row to be read. Can be specified as a string (e.g., 'A1') or a list indicating the row and column [row, column].
+        startCell: The starting cell of the row to be read. Can be specified as a string (e.g., 'A1') or a list indicating the row and column [column, row].
         returnDisplayed: If True, returns the displayed values of the cells. If False, returns their actual values.
 
     Returns:
@@ -464,7 +467,7 @@ def read_column(
     Parameters:
         excelObj: The Excel workbook object.
         sheet: The name or index(start from 0) of the sheet.
-        startCell: The starting cell of the column to be read. Can be specified as a string (e.g., 'A1') or a list indicating the row and column [row, column].
+        startCell: The starting cell of the column to be read. Can be specified as a string (e.g., 'A1') or a list indicating the row and column [column, row].
         returnDisplayed: If True, returns the displayed values of the cells. If False, returns their actual values.
 
     Returns:
@@ -520,19 +523,10 @@ def _read_range(
     startCell: TypeOfCell,
     endCell: TypeOfCell | None = None,
     returnDisplayed: bool = True,
-) -> list[list[str]] | list[list[TypeOfCellData]] | None:
+) -> list[list[str]] | list[list[TypeOfCellData]]:
     sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
     startCell = _check_and_standardize_cell(cell=startCell)
     endCell = _get_endCell_if_not_provided(excelObj=excelObj, sheet=sheet, endCell=endCell)
-
-    # Extract row and column information for start and end cells
-    _, intColStart, intRowStart = _extract_row_column_from_cell(cell=startCell)
-    _, intColEnd, intEndRow = _extract_row_column_from_cell(cell=startCell)
-
-    # Validate the range
-    if intColStart > intColEnd and intRowStart > intEndRow:
-        Log.debug(f"The startCell({startCell}) is beyond the endCell({endCell}). Return None")
-        return None
 
     strRange = f"{startCell}:{endCell}"
     Log.debug(f"Reading range: {strRange}")
@@ -567,7 +561,7 @@ def read_range_list(
     startCell: TypeOfCell,
     endCell: TypeOfCell | None = None,
     returnDisplayed: bool = True,
-) -> list[list[str]] | list[list[TypeOfCellData]] | None:
+) -> list[list[str]] | list[list[TypeOfCellData]]:
     """
     Reads a specified range from an Excel sheet and returns the data in the desired format.
 
@@ -579,7 +573,7 @@ def read_range_list(
         returnDisplayed: If True, returns the displayed values as string; otherwise, returns actual cell values(TypeOfCellData).
 
     Returns:
-        list[list[str]] | list[list[TypeOfCellData]] | None: The data from the specified range in the chosen format. | None
+        list[list[str]] | list[list[TypeOfCellData]]: The data from the specified range in the chosen format.
     """
     _check_edit_mode()
     listRange = _read_range(
@@ -600,7 +594,7 @@ def read_range_df(
     endCell: TypeOfCell | None = None,
     addTitle: bool = True,
     returnDisplayed: bool = True,
-) -> pandas.DataFrame | None:
+) -> pandas.DataFrame:
     """
     Reads a specified range from an Excel sheet and returns the data in the desired format.
 
@@ -613,7 +607,7 @@ def read_range_df(
         returnDisplayed: If True, returns the displayed values as string; otherwise, returns actual cell values(TypeOfCellData).
 
     Returns:
-        pandas.DataFrame | None
+        pandas.DataFrame
     """
     _check_edit_mode()
     listRange = _read_range(
@@ -623,8 +617,6 @@ def read_range_df(
         endCell=endCell,
         returnDisplayed=returnDisplayed,
     )
-    if listRange is None:
-        return None
 
     if addTitle:
         dfRange = pandas.DataFrame(data=listRange[1:], index=None, columns=listRange[0])
@@ -648,7 +640,7 @@ def write_cell(
     Parameters:
         excelObj: The Excel workbook object.
         sheet: The name or index(start from 0) of the sheet.
-        cell: The cell to write to, specified as a string (e.g., 'A1') or a list [row, column].
+        cell: The cell to write to, specified as a string (e.g., 'A1') or a list [column, row].
         data: The data to write to the cell.
         save: If True, saves the workbook immediately after writing.
     """
