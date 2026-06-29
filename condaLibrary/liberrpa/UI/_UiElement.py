@@ -7,7 +7,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from liberrpa.Logging import Log
 from liberrpa.UI._UiAutomation import (
-    dictControlTypeNum,
+    DICT_CONTROL_TYPE_NUM,
     get_top_control,
     get_control_attr,
     get_control_primary_attr,
@@ -180,7 +180,7 @@ def get_control_selector(
                     controlFound = controlParent.Control(
                         searchDepth=intSearchDepth,
                         foundIndex=intFoundIndex,
-                        ControlType=dictControlTypeNum.get(dictTargetLayerAttr["ControlTypeName"]),
+                        ControlType=DICT_CONTROL_TYPE_NUM.get(dictTargetLayerAttr["ControlTypeName"]),
                         Name=dictTargetLayerAttr["Name"],
                         ClassName=ClassName,
                     )
@@ -188,7 +188,7 @@ def get_control_selector(
                     controlFound = controlParent.Control(
                         searchDepth=intSearchDepth,
                         foundIndex=intFoundIndex,
-                        ControlType=dictControlTypeNum.get(dictTargetLayerAttr["ControlTypeName"]),
+                        ControlType=DICT_CONTROL_TYPE_NUM.get(dictTargetLayerAttr["ControlTypeName"]),
                         Name=dictTargetLayerAttr["Name"],
                     )
                 # Because control find process seems asynchronous, use an assign to wait it done or timeout,.

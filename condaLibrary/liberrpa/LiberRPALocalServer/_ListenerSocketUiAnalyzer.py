@@ -24,13 +24,10 @@ import threading
 from copy import deepcopy
 from typing import Any
 
-# Record the command be responsed or not, when the command sended to Chrome, create a new key-value pair{id:""}, when Chrome send a result with id, update it to {id:result}, and the function _wait_for_response_by_id() check it, if it's value is not "", means the result returned.
-dictCommandIdResponsed: dict[str, dict[str, Any] | None] = {}
-
 # Store the command from UI Analyzer.
-dictUiAnalyzerCmd: dict[str, str] = {}
+_dictUiAnalyzerCmd: dict[str, str] = {}
 
-eventIsHandleUiAnalyzer = threading.Event()
+_eventIsHandleUiAnalyzer = threading.Event()
 
 
 @Log.trace()
@@ -40,7 +37,7 @@ def handle_uianalyzer_command(message: str) -> None:
     Log.info(f"Received UI Analyzer command: {message}, SID: {clientSid}")
 
     strId = str(uuid.uuid4())
-    dictUiAnalyzerCmd[strId] = clientSid
+    _dictUiAnalyzerCmd[strId] = clientSid
 
     result: DictSocketResult = {"boolSuccess": False, "data": None}
     dictCommand: dict[str, Any] = {}
@@ -49,20 +46,20 @@ def handle_uianalyzer_command(message: str) -> None:
     tupleEleTree = None
 
     # Make sure only one uianalyzer_command can be run.
-    if eventIsHandleUiAnalyzer.is_set():
+    if _eventIsHandleUiAnalyzer.is_set():
         result: DictSocketResult = {
             "boolSuccess": False,
             "data": "Error: " + "Another UI Analyzer command is running",
         }
         Log.debug(("Another UI Analyzer command is running."))
-        emit("message_flask_to_uianalyzer", json.dumps(result), to=dictUiAnalyzerCmd[strId])
+        emit("message_flask_to_uianalyzer", json.dumps(result), to=_dictUiAnalyzerCmd[strId])
 
-        del dictUiAnalyzerCmd[strId]
+        del _dictUiAnalyzerCmd[strId]
 
         return
 
     else:
-        eventIsHandleUiAnalyzer.set()
+        _eventIsHandleUiAnalyzer.set()
         change_tray_icon(component="LiberRPALocalServer_Indicating")
 
     try:
@@ -112,10 +109,10 @@ def handle_uianalyzer_command(message: str) -> None:
                     "data": "Unknown command: " + str(dictCommand.get("commandName")),
                 }
                 Log.info(result)
-                emit("message_flask_to_uianalyzer", json.dumps(result), to=dictUiAnalyzerCmd[strId])
+                emit("message_flask_to_uianalyzer", json.dumps(result), to=_dictUiAnalyzerCmd[strId])
 
-                del dictUiAnalyzerCmd[strId]
-                eventIsHandleUiAnalyzer.clear()
+                del _dictUiAnalyzerCmd[strId]
+                _eventIsHandleUiAnalyzer.clear()
                 change_tray_icon(component="LiberRPALocalServer")
 
                 return
@@ -136,7 +133,7 @@ def handle_uianalyzer_command(message: str) -> None:
             Log.debug(resultTemp)
         else:
             Log.info(result)
-        emit("message_flask_to_uianalyzer", json.dumps(result), to=dictUiAnalyzerCmd[strId])
+        emit("message_flask_to_uianalyzer", json.dumps(result), to=_dictUiAnalyzerCmd[strId])
 
         # Genarate Element Tree.
         if strCommandName == "indicate_uia" and element:
@@ -149,15 +146,15 @@ def handle_uianalyzer_command(message: str) -> None:
                 )
             else:
                 emit(
-                    "message_flask_to_uianalyzer", "Element_Tree:" + json.dumps(tupleTemp), to=dictUiAnalyzerCmd[strId]
+                    "message_flask_to_uianalyzer", "Element_Tree:" + json.dumps(tupleTemp), to=_dictUiAnalyzerCmd[strId]
                 )
 
         if strCommandName == "indicate_chrome" and tupleEleTree:
-            emit("message_flask_to_uianalyzer", "Element_Tree:" + json.dumps(tupleEleTree), to=dictUiAnalyzerCmd[strId])
+            emit("message_flask_to_uianalyzer", "Element_Tree:" + json.dumps(tupleEleTree), to=_dictUiAnalyzerCmd[strId])
     except Exception as e:
         Log.error(get_exception_info(e))
     finally:
 
-        del dictUiAnalyzerCmd[strId]
-        eventIsHandleUiAnalyzer.clear()
+        del _dictUiAnalyzerCmd[strId]
+        _eventIsHandleUiAnalyzer.clear()
         change_tray_icon(component="LiberRPALocalServer")

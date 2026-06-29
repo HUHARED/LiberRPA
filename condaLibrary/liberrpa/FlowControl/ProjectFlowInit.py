@@ -14,7 +14,7 @@ import json
 import time
 from typing import Literal, Any
 
-_time_start = time.monotonic()
+_timeStart = time.monotonic()
 
 if not PATH_PROJECT_FLOW.is_file():
     raise FileNotFoundError(f"Not found the file '{PATH_PROJECT_FLOW}' to initialize the program.")
@@ -22,12 +22,12 @@ if not PATH_PROJECT_FLOW.is_file():
 dictFlowFile: DictProject_Original = json.loads(PATH_PROJECT_FLOW.read_text(encoding="utf-8"))
 
 # Update "logLevel", "recordVideo", "stopShortcut", "highlightUi", "customPrjArgs" if argument sent from command line.
-parser = argparse.ArgumentParser()
-parser.add_argument("--executor_args", required=False)
-args, unknown = parser.parse_known_args()
+_parser = argparse.ArgumentParser()
+_parser.add_argument("--executor_args", required=False)
+_args, _unknown = _parser.parse_known_args()
 
-if args.executor_args:
-    dictArgs = json.loads(args.executor_args)
+if _args.executor_args:
+    dictArgs = json.loads(_args.executor_args)
     for keyName in dictArgs:
         dictFlowFile[keyName] = dictArgs[keyName]
     Log.info(f"Updated arguments from Executor: {dictArgs}")
@@ -151,7 +151,7 @@ class ProjectArguments:
             float: The time in seconds since the object was initialized.
         """
         current_time = time.monotonic()
-        return current_time - _time_start
+        return current_time - _timeStart
 
     def __str__(self) -> str:
         return f"ProjectArguments(projectPath: {self.projectPath}, projectName: {self.projectName}, errorObj: {self.errorObj}, customArgs: {self.customArgs}, elapsedTime: {self.elapsedTime})"

@@ -11,10 +11,9 @@ import multiprocessing
 import uuid
 from typing import Any
 
-
 # Use the same Queues for all processes to use the QtWorker process.
-queueCommand: multiprocessing.Queue = multiprocessing.Queue()
-queueReturn: multiprocessing.Queue = multiprocessing.Queue()
+_queueCommand: multiprocessing.Queue = multiprocessing.Queue()
+_queueReturn: multiprocessing.Queue = multiprocessing.Queue()
 
 
 def send_command_to_qt(command: str, data: dict[str, Any]) -> Any:
@@ -26,13 +25,13 @@ def send_command_to_qt(command: str, data: dict[str, Any]) -> Any:
     # print("queueReturn", queueReturn)
 
     requestId = str(uuid.uuid4())
-    queueCommand.put({"command": command, "data": data, "requestId": requestId})
+    _queueCommand.put({"command": command, "data": data, "requestId": requestId})
     # print("queueCommand.put")
 
     # Wait for the matching response
     while True:
         # blocks until getting something
-        response: dict[str, Any] = queueReturn.get()
+        response: dict[str, Any] = _queueReturn.get()
         # print(response)
         if response.get("requestId") == requestId:
             # print("Get response.")

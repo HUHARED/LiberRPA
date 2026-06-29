@@ -30,10 +30,10 @@ pyautogui.FAILSAFE = False  # Allow clicking screen corners
 import ctypes
 from typing import Literal, cast
 
-keyboard = Controller()
+_keyboard = Controller()
 
 # Get list from KeyboardKey.
-listKeys: list[str] = list(InputKey.__args__)
+_LIST_INPUT_KEYS: list[str] = list(InputKey.__args__)
 
 
 def _check_keyboard_type_mode(typeMode: str) -> None:
@@ -43,9 +43,9 @@ def _check_keyboard_type_mode(typeMode: str) -> None:
 
 
 def _check_key(key: str) -> None:
-    global listKeys
-    if key not in listKeys:
-        raise ValueError(f"The argument key({key}) should be one of {listKeys}")
+    global _LIST_INPUT_KEYS
+    if key not in _LIST_INPUT_KEYS:
+        raise ValueError(f"The argument key({key}) should be one of {_LIST_INPUT_KEYS}")
 
 
 def _simulate_write(text: str, interval: int = 0) -> None:
@@ -104,28 +104,28 @@ def _write_text(
             boolCapslockChanged = False
             if ctypes.windll.user32.GetKeyState(0x14) & 1:
                 # NOTE: Use press&release(pynput) instead of type() due to type() need a char instead of Key.caps_lock
-                keyboard.press(Key.caps_lock)
-                keyboard.release(Key.caps_lock)
+                _keyboard.press(Key.caps_lock)
+                _keyboard.release(Key.caps_lock)
                 boolCapslockChanged = True
 
             try:
                 for char in text:
                     if char == "\n":
-                        keyboard.press(Key.enter)
-                        keyboard.release(Key.enter)
+                        _keyboard.press(Key.enter)
+                        _keyboard.release(Key.enter)
                     elif char == "\t":
-                        keyboard.press(Key.tab)
-                        keyboard.release(Key.tab)
+                        _keyboard.press(Key.tab)
+                        _keyboard.release(Key.tab)
                     else:
                         try:
-                            keyboard.type(char)
+                            _keyboard.type(char)
                         except Exception as e:
                             raise UiOperationError(f"Error when type '{char}', error: {e}")
             finally:
                 # Change CapsLock back.
                 if boolCapslockChanged:
-                    keyboard.press(Key.caps_lock)
-                    keyboard.release(Key.caps_lock)
+                    _keyboard.press(Key.caps_lock)
+                    _keyboard.release(Key.caps_lock)
 
         case "simulate":
             _simulate_write(text=text, interval=0)

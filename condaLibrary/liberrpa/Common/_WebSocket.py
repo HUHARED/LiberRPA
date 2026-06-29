@@ -18,24 +18,24 @@ from typing import Any
 SIGN_START_RECORD_VIDEO = "$SIGN-START_RECORD_VIDEO"
 
 # Initialize the socket client.
-intPort = int(get_basic_config_dict()["localServerPort"])
-strToken = get_token("python")
-sioClient = socketio.Client(logger=False, engineio_logger=False)
+_INT_PORT = int(get_basic_config_dict()["localServerPort"])
+_STR_TOKEN = get_token("python")
+_sioClient = socketio.Client(logger=False, engineio_logger=False)
 
 
-@sioClient.event
+@_sioClient.event
 def connect():
     # log.debug("Connection established")
     pass
 
 
-@sioClient.event
+@_sioClient.event
 def disconnect():
     # log.debug("Disconnected from server")
     pass
 
 
-@sioClient.event
+@_sioClient.event
 def connect_error(data):
     Log.error("Connection failed: " + str(data))
 
@@ -44,11 +44,11 @@ def send_command(eventName: str, command: dict[str, Any], timeout: int = 10000) 
     try:
         # Connect to the LiberRPA local server if not connected.
         # Put it in the function instead of outside, due to LiberRPA local server will import the file, and the web socket has not been build at that time.
-        if not sioClient.connected:
-            sioClient.connect(
-                f"http://127.0.0.1:{intPort}",
+        if not _sioClient.connected:
+            _sioClient.connect(
+                f"http://127.0.0.1:{_INT_PORT}",
                 transports=["websocket"],
-                auth={"clientType": "python", "token": strToken},
+                auth={"clientType": "python", "token": _STR_TOKEN},
             )
             # log.debug(f"Connected to server, sid: {sioClient.sid}")
     except ConnectionError as e:
@@ -67,7 +67,7 @@ def send_command(eventName: str, command: dict[str, Any], timeout: int = 10000) 
             Log.critical(data["data"])
 
     # Send command to LiberRPA local server or target platform(such as Chrome extension) by LiberRPA local server.
-    sioClient.emit(event=eventName, data=command, callback=response_handler)
+    _sioClient.emit(event=eventName, data=command, callback=response_handler)
 
     # Wait the response. Add 1 more second than the original.
     """ while not eventResponse.is_set():

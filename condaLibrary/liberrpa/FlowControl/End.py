@@ -16,7 +16,7 @@ import json
 from typing import Literal
 
 # Python use executorPackageStatus to sign its status, but the status may modified by Exectuor because "terminated" may caused by timeout or user clicked cancel button in Executor.
-executorPackageStatus: Literal["error", "terminated", "running"] = "running"
+_executorPackageStatus: Literal["error", "terminated", "running"] = "running"
 
 
 @Log.trace()
@@ -29,7 +29,7 @@ def cleanup() -> None:
     dictProject = json.loads(PATH_PROJECT_JSON.read_text(encoding="utf-8"))
     strInfo = f"{PrjArgs.projectName}: "
 
-    match executorPackageStatus:
+    match _executorPackageStatus:
         case "running":
             strInfo += "Completed."
 
@@ -41,7 +41,7 @@ def cleanup() -> None:
 
     Log.info(strInfo)
 
-    dictProject["executorPackageStatus"] = executorPackageStatus
+    dictProject["executorPackageStatus"] = _executorPackageStatus
     strTemp = json.dumps(dictProject, indent=4, ensure_ascii=False)
     PATH_PROJECT_JSON.write_text(data=strTemp, encoding="utf-8", errors="strict")
     print("Update project.json: " + strTemp)

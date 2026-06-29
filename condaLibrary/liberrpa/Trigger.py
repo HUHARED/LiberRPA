@@ -20,7 +20,7 @@ from typing import Any, Literal, Callable, TypeVar
 
 T = TypeVar("T")
 
-dictModifierState = {"ctrl": False, "shift": False, "alt": False, "win": False}
+_dictModifierState = {"ctrl": False, "shift": False, "alt": False, "win": False}
 
 
 def _check_timing(timing: str) -> None:
@@ -57,13 +57,13 @@ def _get_keyname_and_press(event: keyboard.KeyboardEvent) -> tuple[str, bool]:
     Log.debug(f"Keyboard Event: {strKeyName} - {strDirection}")
 
     if strKeyName in {"ctrl", "left ctrl", "right ctrl"}:
-        dictModifierState["ctrl"] = boolPressed
+        _dictModifierState["ctrl"] = boolPressed
     elif strKeyName in {"shift", "left shift", "right shift"}:
-        dictModifierState["shift"] = boolPressed
+        _dictModifierState["shift"] = boolPressed
     elif strKeyName in {"alt", "left alt", "right alt"}:
-        dictModifierState["alt"] = boolPressed
+        _dictModifierState["alt"] = boolPressed
     elif strKeyName in {"windows", "left windows", "right windows"}:
-        dictModifierState["win"] = boolPressed
+        _dictModifierState["win"] = boolPressed
 
     return (strKeyName, boolPressed)
 
@@ -75,10 +75,10 @@ def _check_modifiers(
     pressWin: bool,
 ) -> bool:
     return (
-        dictModifierState["ctrl"] == pressCtrl
-        and dictModifierState["shift"] == pressShift
-        and dictModifierState["alt"] == pressAlt
-        and dictModifierState["win"] == pressWin
+        _dictModifierState["ctrl"] == pressCtrl
+        and _dictModifierState["shift"] == pressShift
+        and _dictModifierState["alt"] == pressAlt
+        and _dictModifierState["win"] == pressWin
     )
 
 
@@ -259,7 +259,7 @@ def register_force_exit() -> None:
 
     def on_hotkey_pressed() -> None:
         # Assign the value to record exit reason.
-        End.executorPackageStatus = "terminated"
+        End._executorPackageStatus = "terminated"
         End.cleanup()
         print("on_hotkey_pressed - os._exit")
         os._exit(0)
@@ -277,15 +277,15 @@ def _listen_for_exit() -> None:
     for line in sys.stdin:
         if line.strip() == "Executor-terminated":
             Log.critical("Terminated by Executor.")
-            End.executorPackageStatus = "terminated"
+            End._executorPackageStatus = "terminated"
             End.cleanup()
             print("_handle_sigterm - os._exit")
             os._exit(0)
 
 
 # Start the stdin listener thread.
-listener_thread = threading.Thread(target=_listen_for_exit, daemon=True)
-listener_thread.start()
+_listenerThread = threading.Thread(target=_listen_for_exit, daemon=True)
+_listenerThread.start()
 
 
 if __name__ == "__main__":

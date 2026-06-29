@@ -15,8 +15,8 @@ import os
 from typing import Any
 from copy import deepcopy
 
-dictCookies: dict[str, str] = {}
-dictHeaders: dict[str, str] = {}
+_dictCookies: dict[str, str] = {}
+_dictHeaders: dict[str, str] = {}
 
 
 @Log.trace()
@@ -27,8 +27,8 @@ def set_cookies(cookies: dict[str, str]) -> None:
     Parameters:
         cookies (dict[str, str]): A dictionary of cookies to set.
     """
-    global dictCookies
-    dictCookies = deepcopy(cookies)
+    global _dictCookies
+    _dictCookies = deepcopy(cookies)
 
 
 @Log.trace()
@@ -39,8 +39,8 @@ def set_headers(headers: dict[str, str]) -> None:
     Parameters:
         headers (dict[str, str]): A dictionary of headers to set.
     """
-    global dictHeaders
-    dictHeaders = deepcopy(headers)
+    global _dictHeaders
+    _dictHeaders = deepcopy(headers)
 
 
 @Log.trace()
@@ -60,7 +60,7 @@ def get(
     Returns:
         str: The response body as a string if the request is successful.
     """
-    response = requests.get(url=url, params=params, headers=dictHeaders, cookies=dictCookies, timeout=timeout)
+    response = requests.get(url=url, params=params, headers=_dictHeaders, cookies=_dictCookies, timeout=timeout)
     response.raise_for_status()
     return response.text
 
@@ -94,8 +94,8 @@ def post(
         json=json,
         files=files,
         params=params,
-        headers=dictHeaders,
-        cookies=dictCookies,
+        headers=_dictHeaders,
+        cookies=_dictCookies,
         timeout=timeout,
     )
     response.raise_for_status()
@@ -126,7 +126,7 @@ def download_file(
         str: The absolute path of the downloaded file.
     """
     response = requests.get(
-        url=url, params=params, headers=dictHeaders, cookies=dictCookies, stream=stream, timeout=timeout
+        url=url, params=params, headers=_dictHeaders, cookies=_dictCookies, stream=stream, timeout=timeout
     )
 
     response.raise_for_status()
@@ -193,8 +193,8 @@ def upload_file(
             json=json,
             params=params,
             files=files,
-            headers=dictHeaders,
-            cookies=dictCookies,
+            headers=_dictHeaders,
+            cookies=_dictCookies,
             timeout=timeout,
         )
 

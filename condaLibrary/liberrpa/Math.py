@@ -11,11 +11,11 @@ import math
 from decimal import Decimal
 from typing import TypeVar
 
-number = TypeVar("number", int, float, Decimal)
+NumberT = TypeVar("NumberT", int, float, Decimal)
 
 
 @Log.trace()
-def round(value: number, fraction: int = 0) -> number:
+def round(value: NumberT, fraction: int = 0) -> NumberT:
     """
     Rounds a number to a specified precision in fractional digits.
     fraction may be negative.
@@ -46,7 +46,7 @@ def check_float_equal(value1: float, value2: float) -> bool:
 
 
 @Log.trace()
-def absolute(value: number) -> number:
+def absolute(value: NumberT) -> NumberT:
     """
     Computes the absolute value of a number.
 
@@ -60,7 +60,7 @@ def absolute(value: number) -> number:
 
 
 @Log.trace()
-def get_int_and_fraction(value: number) -> tuple[int, float]:
+def get_int_and_fraction(value: NumberT) -> tuple[int, float]:
     """
     Splits a number into its integer and fractional parts.
 

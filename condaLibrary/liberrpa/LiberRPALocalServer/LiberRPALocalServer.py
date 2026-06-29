@@ -39,10 +39,10 @@ if __name__ == "__main__":
 
         print("Start QtWorker process.")
         from liberrpa.UI._QtWorker import run_qt_worker
-        from liberrpa.UI._Queue import queueCommand, queueReturn
+        from liberrpa.UI._Queue import _queueCommand, _queueReturn
 
         p = multiprocessing.Process(
-            target=run_qt_worker, name="QtWorker", args=(queueCommand, queueReturn), daemon=True
+            target=run_qt_worker, name="QtWorker", args=(_queueCommand, _queueReturn), daemon=True
         )
         p.start()
 

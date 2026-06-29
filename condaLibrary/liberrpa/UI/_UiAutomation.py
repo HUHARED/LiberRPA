@@ -21,7 +21,7 @@ import json
 import re
 from copy import deepcopy
 
-dictControlTypeNum: dict[str, int] = {
+DICT_CONTROL_TYPE_NUM: dict[str, int] = {
     "AppBarControl": 50040,
     "ButtonControl": 50000,
     "CalendarControl": 50001,
@@ -65,7 +65,7 @@ dictControlTypeNum: dict[str, int] = {
     "WindowControl": 50032,
 }
 
-tuplePrimaryAttr = (
+_TUPLE_PRIMARY_ATTR = (
     "FrameworkId",
     "ControlTypeName",
     "Name",
@@ -78,7 +78,7 @@ tuplePrimaryAttr = (
 )
 
 
-tupleSecondaryAttr = (
+_TUPLE_SECONDARY_ATTR = (
     "ControlType",
     "AutomationId",
     "Culture",
@@ -123,7 +123,7 @@ def get_control_primary_attr(control: uiautomation.Control) -> DictUiaPrimaryAtt
         raise ValueError("(!!!It should not appear.) Unknown Process")
 
     # Find primary attributes.
-    for strAttrName in tuplePrimaryAttr:
+    for strAttrName in _TUPLE_PRIMARY_ATTR:
         try:
             # Using getattr to fetch the attribute from the control.
             value = getattr(control, strAttrName)
@@ -145,7 +145,7 @@ def get_control_primary_attr(control: uiautomation.Control) -> DictUiaPrimaryAtt
 
 def get_control_secondary_attr(control: uiautomation.Control) -> DictUiaSecondaryAttr:
     dictTemp: dict[str, str | int] = {}
-    for strAttrName in tupleSecondaryAttr:
+    for strAttrName in _TUPLE_SECONDARY_ATTR:
         try:
             value = getattr(control, strAttrName)
             if value == "" or value is None:

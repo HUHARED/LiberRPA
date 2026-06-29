@@ -16,12 +16,12 @@ from flask_socketio import SocketIO
 import socket
 import requests
 
-flaskApp = Flask(__name__)
-intPort = int(get_basic_config_dict()["localServerPort"])
+_flaskApp = Flask(__name__)
+_INT_PORT = int(get_basic_config_dict()["localServerPort"])
 sioServer = SocketIO(
-    flaskApp,
+    _flaskApp,
     cors_allowed_origins=[
-        f"http://127.0.0.1:{intPort}",
+        f"http://127.0.0.1:{_INT_PORT}",
         "http://localhost:5173",
         "http://127.0.0.1:5173",
         "file://",
@@ -36,7 +36,7 @@ boolHasRunServer = False
 dictClients: dict[str, str] = {}
 
 
-@flaskApp.route("/verify")
+@_flaskApp.route("/verify")
 def verify() -> str:
     # Test weather the Flask server is running.
     return "LiberRPA Local Server Verification"
@@ -88,7 +88,7 @@ def create_flask_server(port) -> None:
         try:
             """show_notification(title="LiberRPA Local Server", message="Launch ...", duration=3, wait=False)"""
             sioServer.run(
-                flaskApp,
+                _flaskApp,
                 debug=False,
                 host="127.0.0.1",
                 port=port,

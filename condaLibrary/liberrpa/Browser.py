@@ -18,8 +18,8 @@ from urllib.parse import urlparse
 from typing import Literal, Any
 
 # Chrome Enterprise has the same path.
-CHROMEPATHX86 = R"C:/Program Files (x86)/Google/Chrome/Application/chrome.exe"
-CHROMEPATHX64 = R"C:/Program Files/Google/Chrome/Application/chrome.exe"
+_CHROME_PATH_X86 = R"C:/Program Files (x86)/Google/Chrome/Application/chrome.exe"
+_CHROME_PATH_X64 = R"C:/Program Files/Google/Chrome/Application/chrome.exe"
 
 
 class BrowserObj:
@@ -67,13 +67,13 @@ def open_browser(
             browserObj.browserType = "chrome"
 
             if not path:
-                if Path(CHROMEPATHX64).is_file():
-                    browserObj.path = CHROMEPATHX64
-                elif Path(CHROMEPATHX86).is_file():
-                    browserObj.path = CHROMEPATHX86
+                if Path(_CHROME_PATH_X64).is_file():
+                    browserObj.path = _CHROME_PATH_X64
+                elif Path(_CHROME_PATH_X86).is_file():
+                    browserObj.path = _CHROME_PATH_X86
                 else:
                     raise FileNotFoundError(
-                        f"Could not find Chrome executable at '{CHROMEPATHX64}' or '{CHROMEPATHX86}'. If Chrome is not installed in the default location, you can open it using Application.run_application() and then bind it using Browser.bind_browser()."
+                        f"Could not find Chrome executable at '{_CHROME_PATH_X64}' or '{_CHROME_PATH_X86}'. If Chrome is not installed in the default location, you can open it using Application.run_application() and then bind it using Browser.bind_browser()."
                     )
             else:
                 if Path(path).is_file():

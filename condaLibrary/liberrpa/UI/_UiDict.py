@@ -130,7 +130,7 @@ class DictHtmlAttr(DictSpecHtmlOriginal, DictHtmlSecondaryAttr):
 
 # UIA
 DictUiaSecondaryAttr = TypedDict(
-    # All item in tupleSecondaryAttr, and x, y, width, height.
+    # All item in _TUPLE_SECONDARY_ATTR, and x, y, width, height.
     "DictUiaSecondaryAttr",
     {
         "secondary-ControlType": NotRequired[str],
@@ -161,7 +161,7 @@ DictUiaSecondaryAttr = TypedDict(
 
 
 class DictUiaNonWindowPrimaryAttrBasic(TypedDict):
-    # FrameworkId is a item tuplePrimaryAttr, but it is deleted in Non-Window, but Window keeps. To make the final selector concise.
+    # FrameworkId is a item of _TUPLE_PRIMARY_ATTR, but it is deleted in Non-Window, but Window keeps. To make the final selector concise.
     ControlTypeName: str
     Name: str
     AcceleratorKey: NotRequired[str]

@@ -26,7 +26,7 @@ If it is really needed in a specific portable environment, set
 type TypeOfOcrConfig = dict[str, list[str]]
 type TypeOfOcrSettings = dict[str, bool]
 
-_reader_cache = {}  # dict[str, easyocr.Reader]
+_dictReaderCache = {}  # dict[str, easyocr.Reader]
 
 
 def _load_ocr_config() -> tuple[TypeOfOcrConfig, TypeOfOcrSettings]:
@@ -97,7 +97,7 @@ def _initialize() -> None:
     strLiberRPAPath = get_liberrpa_folder_path()
 
     for strModelName, listLang in dictOcrConfig.items():
-        _reader_cache[strModelName] = easyocr.Reader(
+        _dictReaderCache[strModelName] = easyocr.Reader(
             lang_list=listLang,
             gpu=False,
             model_storage_directory=os.path.join(strLiberRPAPath, R"envs\ocr\model"),
@@ -189,13 +189,13 @@ def get_text_with_position(
     'bottom_right_y': <class 'int'>}
     """
 
-    if len(_reader_cache.keys()) == 0:
+    if len(_dictReaderCache.keys()) == 0:
         _initialize()
 
-    if modelName not in _reader_cache:
-        raise ValueError(f"OCR model {modelName!r} is not configured. Available models: {list(_reader_cache.keys())}")
+    if modelName not in _dictReaderCache:
+        raise ValueError(f"OCR model {modelName!r} is not configured. Available models: {list(_dictReaderCache.keys())}")
 
-    listResult: list[tuple[list[list[int]], str, float]] = _reader_cache[modelName].readtext(
+    listResult: list[tuple[list[list[int]], str, float]] = _dictReaderCache[modelName].readtext(
         image=image,
         decoder=decoder,
         beamWidth=beamWidth,
@@ -314,15 +314,15 @@ def get_text(
         str: The extracted text as a single string.
     """
 
-    global _reader_cache
+    global _dictReaderCache
 
-    if len(_reader_cache.keys()) == 0:
+    if len(_dictReaderCache.keys()) == 0:
         _initialize()
 
-    if modelName not in _reader_cache:
-        raise ValueError(f"OCR model {modelName!r} is not configured. Available models: {list(_reader_cache.keys())}")
+    if modelName not in _dictReaderCache:
+        raise ValueError(f"OCR model {modelName!r} is not configured. Available models: {list(_dictReaderCache.keys())}")
 
-    listResult: list[list[list[list[int]] | str]] = _reader_cache[modelName].readtext(
+    listResult: list[list[list[list[int]] | str]] = _dictReaderCache[modelName].readtext(
         image=image,
         decoder=decoder,
         beamWidth=beamWidth,
