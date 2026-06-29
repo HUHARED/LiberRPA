@@ -17,6 +17,7 @@ import psutil
 from urllib.parse import urlparse
 from typing import Literal, Any
 
+# Chrome Enterprise has the same path.
 CHROMEPATHX86 = R"C:/Program Files (x86)/Google/Chrome/Application/chrome.exe"
 CHROMEPATHX64 = R"C:/Program Files/Google/Chrome/Application/chrome.exe"
 
@@ -72,7 +73,7 @@ def open_browser(
                     browserObj.path = CHROMEPATHX86
                 else:
                     raise FileNotFoundError(
-                        f"Could not find Chrome executable at '{CHROMEPATHX64}' or '{CHROMEPATHX86}'."
+                        f"Could not find Chrome executable at '{CHROMEPATHX64}' or '{CHROMEPATHX86}'. If Chrome is not installed in the default location, you can open it using Application.run_application() and then bind it using Browser.bind_browser()."
                     )
             else:
                 if Path(path).is_file():
@@ -351,7 +352,7 @@ def switch_tab(browserObj: BrowserObj, titleOrIndex: str | int) -> None:
 
     Parameters:
         browserObj: The browser object to manipulate.
-        titleOrIndex: The target tab's tile or index(start from 0)
+        titleOrIndex: The target tab's title or index(start from 0)
     """
 
     match browserObj.browserType:
