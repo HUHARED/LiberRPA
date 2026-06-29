@@ -2,10 +2,10 @@
 
 The conda library serves several purposes:
 
-* Execute [Specific operations](./liberrpa) for RPA projects—only this section will be published to conda-forgeunder the name "liberrpa".
+* Execute [Specific operations](./liberrpa) for RPA projects—only this section will be published to conda-forge under the name "liberrpa".
 * [Initialize](./exe/InitLiberRPA) LiberRPA on computers that do not have it installed.
 * Communicate with [the Chrome extension](./exe/ChromeGetLocalServerPort) to pass WebSocket initialization information.
-* Create [a local Flask server](./exe/LiberRPALocalServer) to accomplish tasks that are difficult to achieve in a standalone Python project.
+* Create [a local Flask server](./liberrpa/LiberRPALocalServer) to accomplish tasks that are difficult to achieve in a standalone Python project.
 
 # Global Objects
 
