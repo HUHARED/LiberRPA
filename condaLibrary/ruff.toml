@@ -1,0 +1,46 @@
+# ruff.toml
+
+target-version = "py312"
+line-length = 120
+indent-width = 4
+
+# Do not let Ruff automatically modify code.
+# Since this project does not use format-on-save, keep automatic fixes disabled by default.
+fix = false
+
+# Respect exclude rules even if specific paths are passed from the command line.
+force-exclude = true
+
+exclude = [
+    ".git",
+    ".ruff_cache",
+    "__pycache__",
+    "build",
+    "dist",
+    "*.egg-info",
+    ".vscode",
+]
+
+[lint]
+select = [
+    "E4",
+    "E7",
+    "E9",
+    "F",
+    "B",
+]
+
+
+ignore = [
+"E501",  # Line length. Many docstrings and error messages are intentionally long.
+"E402",  # Module-level imports not at the top. Some imports are intentionally delayed or used for side effects.
+"B904",  # Requires "raise ... from err". Useful, but not urgent for the current cleanup stage.
+]
+
+[lint.per-file-ignores]
+# This file intentionally re-exports many user-facing APIs.
+# Unused imports and star imports are part of its design.
+"**/liberrpa/Modules.py" = ["F401", "F403"]
+
+# Snippets and project templates may intentionally use star imports to provide a simple user experience.
+"**/snippets/**/*.py" = ["F401", "F403", "F405"]
