@@ -7,13 +7,8 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from liberrpa.Logging import Log
 import liberrpa.UI._UiElement as _UiElement
-from liberrpa.Common._TypedValue import (
-    ExecutionMode,
-    InputKey,
-    SelectorWindow,
-    SelectorUia,
-    SelectorHtml,
-)
+from liberrpa.Common._TypedValue import ExecutionMode, InputKey
+from liberrpa.UI._UiDict import SelectorWindow, SelectorUia, SelectorHtml
 from liberrpa.UI._TerminableThread import timeout_kill_thread
 from liberrpa.Common._Exception import UiOperationError
 from liberrpa.Mouse import _get_5_coordinates
@@ -62,7 +57,7 @@ def _simulate_write(text: str, interval: int = 0) -> None:
 
     if len(dictCannotType.keys()) != 0:
         raise ValueError(
-            f"In the argument text, the characters of these position cannot be typed: {json.dumps(dictCannotType,ensure_ascii=False)}"
+            f"In the argument text, the characters of these position cannot be typed: {json.dumps(dictCannotType, ensure_ascii=False)}"
         )  # Use json instead of str() to show \n, \t, etc.
 
     # Due to the interval time between type each character is not right, so use the interval argument in pyautogui.write(), so split the original text by '\n'.

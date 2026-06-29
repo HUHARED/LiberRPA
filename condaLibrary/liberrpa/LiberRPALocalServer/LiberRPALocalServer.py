@@ -53,18 +53,18 @@ if __name__ == "__main__":
         # The server take a little time to start, so, show the notification to make user know.
         # show_notification(title="LiberRPA Local Server", message="Try to launch...", duration=2, wait=False)
 
-        from liberrpa.LiberRPALocalServer._ServerInit import boolHasRunServer, create_flask_server
+        from liberrpa.LiberRPALocalServer._ServerInit import create_flask_server
 
         # Import listeners
         # ========================
         print("======================================")
         print("=== Import listeners start ===========")
-        import liberrpa.LiberRPALocalServer._ListenerSocketConnect
-        import liberrpa.LiberRPALocalServer._ListenerSocketChrome
-        import liberrpa.LiberRPALocalServer._ListenerSocketUiAnalyzer
-        import liberrpa.LiberRPALocalServer._ListenerSocketApplication
-        import liberrpa.LiberRPALocalServer._ListenerSocketRecord
-        import liberrpa.LiberRPALocalServer._ListenerSocketQt
+        import liberrpa.LiberRPALocalServer._ListenerSocketConnect  # noqa: F401  # Register Socket.IO listeners.
+        import liberrpa.LiberRPALocalServer._ListenerSocketChrome  # noqa: F401  # Register Socket.IO listeners.
+        import liberrpa.LiberRPALocalServer._ListenerSocketUiAnalyzer  # noqa: F401  # Register Socket.IO listeners.
+        import liberrpa.LiberRPALocalServer._ListenerSocketApplication  # noqa: F401  # Register Socket.IO listeners.
+        import liberrpa.LiberRPALocalServer._ListenerSocketRecord  # noqa: F401  # Register Socket.IO listeners.
+        import liberrpa.LiberRPALocalServer._ListenerSocketQt  # noqa: F401  # Register Socket.IO listeners.
 
         print("=== Import listeners done ============")
         print("======================================")
@@ -84,19 +84,4 @@ if __name__ == "__main__":
     except Exception as e:
         Log.exception_info(e)
     finally:
-        """Log.critical("Quit the server. __main__")
-        if not boolHasRunServer:
-            show_notification(title="LiberRPA Local Server", message="Quit.", duration=1, wait=True)
-
-        from liberrpa.UI._Queue import send_command_to_qt
-
-        send_command_to_qt(command="quit", data={})
-
-        # Force exiting for stop Other logic.
-        Log.critical("__main__ os._exit(0)")
-
-        import time
-
-        time.sleep(0.5)
-        os._exit(0)"""
         pass

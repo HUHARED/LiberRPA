@@ -62,7 +62,7 @@ def send_by_SMTP(
                 to=to, subject=subject, contents=content, attachments=attachments, cc=cc, bcc=bcc, prettify_html=True
             )
         case _:
-            raise ValueError(f"The argument bodyFormat should be 'text' or 'html'.")
+            raise ValueError("The argument bodyFormat should be 'text' or 'html'.")
 
 
 @Log.trace()
@@ -290,7 +290,6 @@ def download_attachments(emailObj: MailParser, downloadPath: str) -> list[str]:
 
 
 if __name__ == "__main__":
-
     # send_by_SMTP(
     #     user="",
     #     password="",

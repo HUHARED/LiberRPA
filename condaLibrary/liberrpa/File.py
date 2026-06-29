@@ -260,7 +260,7 @@ def copy_file(srcFilePath: str, dstFilePath: str, overwriteIfExist: bool = False
     Returns:
         str: The absolute path of the copied file at the destination.
     """
-    if overwriteIfExist == False and Path(dstFilePath).is_file():
+    if not overwriteIfExist and Path(dstFilePath).is_file():
         raise FileExistsError(f"There is a file in the destination path: {Path(dstFilePath).resolve()}")
 
     return str(Path(shutil.copyfile(src=srcFilePath, dst=dstFilePath)).resolve())
@@ -566,7 +566,7 @@ def csv_write(
         encoding: The encoding to use for writing the file.
         overwriteIfExist: If False, raises an error if the file already exists.
     """
-    if overwriteIfExist == False and Path(filePath).is_file():
+    if not overwriteIfExist and Path(filePath).is_file():
         raise FileExistsError(f"There is a file in the destination path: {Path(filePath).resolve()}")
     pandas.DataFrame(data=listObj).to_csv(
         path_or_buf=filePath, sep=separator, header=addHeader, index=addIndexColumn, mode="w", encoding=encoding
@@ -746,7 +746,7 @@ def pdf_save_pages_as_images(
             page = doc.load_page(index)
             pix = page.get_pixmap(matrix=matrix)  # type: ignore
             img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)  # type: ignore
-            imageFileName = f"{Path(filePath).stem}_{index+1}.png"
+            imageFileName = f"{Path(filePath).stem}_{index + 1}.png"
             imageFilePath = os.path.join(saveFolderPath, imageFileName)
             img.save(imageFilePath, "PNG")
             listExtractedImagePath.append(str(Path(imageFilePath).resolve()))

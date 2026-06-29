@@ -37,7 +37,7 @@ def create_folder_in_documents() -> None:
 
     pathObj = pathUser / "Documents" / "LiberRPA"
 
-    if pathObj.is_dir() == False:
+    if not pathObj.is_dir():
         print(f"Create LiberRPA folder in User Documents: '{pathObj}'")
         pathObj.mkdir(parents=True, exist_ok=False)
     else:
@@ -118,7 +118,7 @@ def create_native_messaging_file() -> None:
     # Create json file.
     pathNmFolder = pathUser / R"Documents\LiberRPA\NativeMessaging"
     pathNmFile = pathNmFolder / "liberrpachromemessage.json"
-    if pathNmFolder.is_dir() == False:
+    if not pathNmFolder.is_dir():
         print(f"Create Native Messaging folder: '{pathNmFolder}'")
         pathNmFolder.mkdir(parents=True, exist_ok=True)
     pathExe = pathCwd / R"exeFiles\ChromeGetLocalServerPort\ChromeGetLocalServerPort.exe"
@@ -166,7 +166,6 @@ def install_font_for_current_user() -> None:
         if pathTarget.is_file():
             print("The font 'Noto Sans Mono' has installed.")
         else:
-
             pathFontFile = pathCwd / R"envs\assets\font\Noto_Sans_Mono\NotoSansMono-VariableFont_wdth,wght.ttf"
 
             strPath = shutil.copy2(pathFontFile, pathTarget)
@@ -208,7 +207,7 @@ def check_Executor_config() -> None:
     strSettingFilePath = pathCwd / R"configFiles\Executor.jsonc"
     if Path(strSettingFilePath).is_file():
         print(
-            f"[Note] Please check Executor's setting, make sure it suit your needs. (Especially if the current LiberRPA folder is copied from another computer.)"
+            "[Note] Please check Executor's setting, make sure it suit your needs. (Especially if the current LiberRPA folder is copied from another computer.)"
         )
     else:
         print("Executor will be initialized when user first open it.")

@@ -85,7 +85,7 @@ def _check_modifiers(
 @Log.trace()
 def mouse_trigger(
     func: Callable[..., T],
-    args: list[Any] = [],
+    args: list[Any] | None = None,
     button: MouseButton = "left",
     pressCtrl: bool = False,
     pressShift: bool = False,
@@ -113,6 +113,9 @@ def mouse_trigger(
     Returns:
         T|None: The return value of the executed function if block=True, or None otherwise.
     """
+
+    args = [] if args is None else args
+
     listValue = ["left", "right", "middle"]
     if button not in listValue:
         raise ValueError(f"The argument button({button}) should be one of {listValue}")
@@ -126,7 +129,7 @@ def mouse_trigger(
         _get_keyname_and_press(event=event)
 
     def on_mouse_event(x: int, y: int, mouseButton: Button, pressed: bool) -> None:
-        Log.debug(f"Mouse Event: {mouseButton.name} - {"press" if pressed else "release"}")
+        Log.debug(f"Mouse Event: {mouseButton.name} - {'press' if pressed else 'release'}")
         try:
             if (mouseButton.name == button) and (
                 (timing == "on_press" and pressed) or (timing == "on_release" and not pressed)
@@ -169,7 +172,7 @@ def mouse_trigger(
 @Log.trace()
 def keyboard_trigger(
     func: Callable[..., T],
-    args: list[Any] = [],
+    args: list[Any] | None = None,
     key: HookKey = "enter",
     pressCtrl: bool = False,
     pressShift: bool = False,
@@ -197,6 +200,8 @@ def keyboard_trigger(
     Returns:
         T|None: The return value of the executed function if block=True, or None otherwise.
     """
+
+    args = [] if args is None else args
 
     listKeys: list[str] = list(HookKey.__args__)
     if key not in listKeys:

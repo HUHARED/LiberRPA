@@ -16,18 +16,15 @@ from liberrpa.UI._UiAutomation import (
 )
 from liberrpa.UI._CommonValue import boolHighlightUi
 from liberrpa.Common._Exception import UiElementNotFoundError
-from liberrpa.Common._TypedValue import (
-    ExecutionMode,
-    # DictSpecUiaOriginal,
+from liberrpa.Common._TypedValue import ExecutionMode
+from liberrpa.UI._UiDict import (
     DictSpecUia,
     DictSpecUiaOriginalTemp,
     DictSepcImage,
     DictUiaAttr,
     DictHtmlAttr,
     DictImageAttr,
-    # SelectorWindowOriginal,
     SelectorWindow,
-    # SelectorUiaOriginal,
     SelectorUia,
     SelectorHtml,
     SelectorImage,
@@ -154,7 +151,6 @@ def get_control_selector(
     Use the current one(currentControl) to add index into the next one(controlTarget), so the last one doesn't to process.
     """
     for i in range(0, len(listAllLayerControl) - 1, 1):
-
         controlParent = listAllLayerControl[i]
         controlTarget = listAllLayerControl[i + 1]
         dictTargetLayerAttr = listLayersAttr[i]
@@ -163,7 +159,6 @@ def get_control_selector(
 
         # Loop to find, until found it or time out.
         while True:
-
             # "ClassName" may not exist.
             ClassName = dictTargetLayerAttr.get("ClassName")
 
@@ -219,7 +214,7 @@ def get_control_selector(
                 if getattr(controlFound, attr) != getattr(controlTarget, attr):
                     boolOtherPrimaryAttrSame = False
                     break
-            if boolOtherPrimaryAttrSame == False:
+            if not boolOtherPrimaryAttrSame:
                 intFoundIndex += 1
                 continue
 
@@ -262,7 +257,6 @@ def get_element(
     global boolHighlightUi
 
     with uiautomation.UIAutomationInitializerInThread():
-
         # Find and activate top control.
         controlTop = get_top_control(selectorWindowPart=selector["window"])
         activate_control_window(control=controlTop)
@@ -279,7 +273,9 @@ def get_element(
 
         match selector.get("category"):
             case "uia":
-                controlTemp = get_child_control_by_selector(selectorUiaPart=selector["specification"], controlTop=controlTop)  # type: ignore selector: SelectorUia
+                controlTemp = get_child_control_by_selector(
+                    selectorUiaPart=selector["specification"], controlTop=controlTop
+                )  # type: ignore selector: SelectorUia
                 if boolHighlightUi:
                     create_overlay(
                         controlTemp.BoundingRectangle.left,
@@ -312,7 +308,7 @@ def get_element(
                 selectorTemp: SelectorImage = selector  # type: ignore - declare its type
                 if len(selectorTemp["specification"]) != 1:
                     raise ValueError(
-                        f"It should have only one dictionary in 'specification', but it has {len(selectorTemp["specification"])}"
+                        f"It should have only one dictionary in 'specification', but it has {len(selectorTemp['specification'])}"
                     )
                 imageSelector: DictSepcImage = selectorTemp["specification"][0]
 

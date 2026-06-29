@@ -19,7 +19,6 @@ from liberrpa.Logging import Log
 
 import json
 import struct
-from pathlib import Path
 from liberrpa.Common._BasicConfig import get_basic_config_dict, get_token
 
 Log.info("Get port start.")

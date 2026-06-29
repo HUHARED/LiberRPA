@@ -40,7 +40,6 @@ def record_screen(pid: int, folderName: str) -> None:
     processRecord: subprocess.Popen | None = None
     Log.debug(f"Record start: {folderName}")
     try:
-
         command = [
             _strFfmpegPath,
             "-y",  # Overwrite output files without asking
@@ -83,47 +82,45 @@ def record_screen(pid: int, folderName: str) -> None:
         return
 
     finally:
-
         if processRecord is None:
             Log.error("Failed to launch ffmpeg — skipping cleanup.")
-            return
-
-        # Politely tell ffmpeg to quit
-        if processRecord.stdin:
-            Log.debug("Sending 'q' to ffmpeg...")
-            processRecord.stdin.write(b"q\n")
-            processRecord.stdin.flush()
-
         else:
-            Log.warning("Teminate ffmpeg.")
-            processRecord.terminate()
+            # Politely tell ffmpeg to quit
+            if processRecord.stdin:
+                Log.debug("Sending 'q' to ffmpeg...")
+                processRecord.stdin.write(b"q\n")
+                processRecord.stdin.flush()
 
-        try:
-            processRecord.wait(timeout=10)
-        except subprocess.TimeoutExpired:
-            Log.warning("ffmpeg did not stop after 10 seconds. Terminating it.")
-            processRecord.terminate()
+            else:
+                Log.warning("Teminate ffmpeg.")
+                processRecord.terminate()
 
             try:
-                processRecord.wait(timeout=5)
+                processRecord.wait(timeout=10)
             except subprocess.TimeoutExpired:
-                Log.warning("ffmpeg still did not stop. Killing it.")
-                processRecord.kill()
-                processRecord.wait()
+                Log.warning("ffmpeg did not stop after 10 seconds. Terminating it.")
+                processRecord.terminate()
 
-        if processRecord.returncode == 0:
-            Log.debug(f"Record end: {folderName} – clean exit.")
-            # Add subtitle.
-            _create_log_subtitle(folderName=folderName)
-            _compress_video(folderName=folderName)
-        else:
-            Log.warning(f"ffmpeg exit {processRecord.returncode}.")
+                try:
+                    processRecord.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    Log.warning("ffmpeg still did not stop. Killing it.")
+                    processRecord.kill()
+                    processRecord.wait()
+
+            if processRecord.returncode == 0:
+                Log.debug(f"Record end: {folderName} – clean exit.")
+                # Add subtitle.
+                _create_log_subtitle(folderName=folderName)
+                _compress_video(folderName=folderName)
+            else:
+                Log.warning(f"ffmpeg exit {processRecord.returncode}.")
 
 
 def _create_log_subtitle(folderName: str) -> None:
     strLogPath = str(Path(folderName).joinpath("human_read_MainProcess.log"))
 
-    if Path(strLogPath).is_file() == False:
+    if not Path(strLogPath).is_file():
         Log.error("Log file not found, skipping subtitles.")
         return
 
@@ -136,7 +133,7 @@ def _create_log_subtitle(folderName: str) -> None:
     boolFoundSign = False
 
     for strLine in listEachLine:
-        if boolFoundSign == False:
+        if not boolFoundSign:
             # Before save log, should find the start sign.
             if strLine.endswith(SIGN_START_RECORD_VIDEO):
                 # print("Found sign.")
@@ -218,7 +215,6 @@ def _compress_video(folderName: str) -> None:
     # processCompleted: subprocess.CompletedProcess | None = None
 
     try:
-
         # Use subprocess.run() to wait it completed.
         processCompleted = subprocess.run(
             command,

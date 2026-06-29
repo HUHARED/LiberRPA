@@ -135,7 +135,7 @@ def bind_browser(browserType: Literal["chrome"] = "chrome") -> BrowserObj:
                     pass
 
             if not temp:
-                raise ChromeError(f"Can't find a running 'chrome.exe' to bind.")
+                raise ChromeError("Can't find a running 'chrome.exe' to bind.")
             else:
                 browserObj.path = temp
 
@@ -143,7 +143,7 @@ def bind_browser(browserType: Literal["chrome"] = "chrome") -> BrowserObj:
             strSocketId = send_command(eventName="application_command", command=dictCommand)
             if not strSocketId:
                 raise ChromeError(
-                    f"Can't access LiberRPA Chrome extension, if Chrome is running, you should install LiberRPA Chrome extension and turn it on."
+                    "Can't access LiberRPA Chrome extension, if Chrome is running, you should install LiberRPA Chrome extension and turn it on."
                 )
             else:
                 browserObj.socketId = strSocketId

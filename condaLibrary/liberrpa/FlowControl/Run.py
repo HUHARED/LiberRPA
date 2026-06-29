@@ -24,7 +24,7 @@ from liberrpa.FlowControl.ProjectFlowInit import (
     dictNodeType,
     dictNodeText,
     PrjArgs,
-    CustomArgs,  # The eval() needs it.
+    CustomArgs,  # noqa: F401  # Used by eval().
 )
 import liberrpa.FlowControl.End as End
 
@@ -109,7 +109,7 @@ def _run_by_direction(id: str) -> str | None:
         """
 
         Log.error(
-            f"An uncaught error in Node '{dictNodeText[id]}': {json.dumps(get_exception_info(e),ensure_ascii=False,indent=4)}"
+            f"An uncaught error in Node '{dictNodeText[id]}': {json.dumps(get_exception_info(e), ensure_ascii=False, indent=4)}"
         )
 
         if dictNonChooseNext.get(id) and dictNonChooseNext[id].get("Error"):
@@ -158,10 +158,10 @@ def main() -> None:
         start_video_record()
 
     # Print running information.
-    Log.debug(f"Custom Project Arguments: {json.dumps(PrjArgs.customArgs,ensure_ascii=False,indent=4)}")
-    Log.verbose(f"dictNonChooseNext: {json.dumps(dictNonChooseNext,ensure_ascii=False,indent=4)}")
-    Log.verbose(f"dictChooseNext: {json.dumps(dictChooseNext,ensure_ascii=False,indent=4)}")
-    Log.verbose(f"dictPyInfo: {json.dumps(dictPyInfo,ensure_ascii=False,indent=4)}")
+    Log.debug(f"Custom Project Arguments: {json.dumps(PrjArgs.customArgs, ensure_ascii=False, indent=4)}")
+    Log.verbose(f"dictNonChooseNext: {json.dumps(dictNonChooseNext, ensure_ascii=False, indent=4)}")
+    Log.verbose(f"dictChooseNext: {json.dumps(dictChooseNext, ensure_ascii=False, indent=4)}")
+    Log.verbose(f"dictPyInfo: {json.dumps(dictPyInfo, ensure_ascii=False, indent=4)}")
 
     # Run "SubStart" in other processes.
     intSubStartIndex: int = 0
@@ -171,7 +171,7 @@ def main() -> None:
     # Loop all keys(NodeId) of dictNonChooseNext, find the SubStart.
     for strNodeId in dictNonChooseNext:
         if dictNodeType[strNodeId] == "SubStart":
-            import liberrpa.Common._Initialization as _Initialization
+            import liberrpa.Common._Initialization as _Initialization  # noqa: F401  # Import for initialization side effects.
 
             strProcessName = sanitize_filename(f"SubProcess_{str(intSubStartIndex)}_{dictNodeText[strNodeId]}")
 

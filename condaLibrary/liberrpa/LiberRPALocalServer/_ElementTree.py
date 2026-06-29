@@ -4,10 +4,8 @@ __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
-
-from liberrpa.Logging import Log
 import liberrpa.UI._UiElement as _UiElement
-from liberrpa.Common._TypedValue import DictElementTreeItem
+from liberrpa.UI._UiDict import DictElementTreeItem
 from liberrpa.Common._Exception import UiOperationError
 
 
@@ -114,7 +112,7 @@ def _get_children_spec_recursive(
 
     listFinalRecursive: list[DictElementTreeItem] = []
     for idx, ele in enumerate(controlAnchor.GetChildren(), start=0):
-        layerSignNew = f"{layerSign+"-"+str(idx)}"
+        layerSignNew = f"{layerSign + '-' + str(idx)}"
         # Log.debug(f"Handle layerSign {layerSignNew}")
 
         intId = idObj.get_id()

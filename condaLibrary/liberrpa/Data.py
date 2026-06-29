@@ -176,7 +176,7 @@ def get_random_float(start: float | None = None, end: float | None = None) -> fl
     Returns:
         float: A random float within the specified range.
     """
-    if start is None and end == None:
+    if start is None and end is None:
         return random.random()
     elif isinstance(start, float) and isinstance(end, float):
         return random.uniform(start, end)

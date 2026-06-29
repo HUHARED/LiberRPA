@@ -7,7 +7,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from liberrpa.Logging import Log
 from liberrpa.Common._Exception import UiElementNotFoundError
-from liberrpa.Common._TypedValue import (
+from liberrpa.UI._UiDict import (
     DictUiaPrimaryAttrBasic,
     DictUiaSecondaryAttr,
     DictUiaAttr,
@@ -378,8 +378,8 @@ def activate_control_window(control: uiautomation.Control) -> None:
 def get_children_control_recursive(control: uiautomation.Control) -> list[uiautomation.Control]:
     listReturn: list[uiautomation.Control] = []
     for controlChild in control.GetChildren():
-        strNameTemp = getattr(controlChild, "Name")
-        if strNameTemp == None or strNameTemp == "":
+        strNameTemp = getattr(controlChild, "Name", None)
+        if strNameTemp is None or strNameTemp == "":
             # If the control has no "Name", get its children control.
             listTemp = get_children_control_recursive(control=controlChild)
             listReturn = [*listReturn, *listTemp]

@@ -120,7 +120,7 @@ def download_file(
     """
     remoteFilePath = remoteFilePath.replace("\\", "/")
     Path(Path(localFilePath).parent).mkdir(parents=True, exist_ok=True)
-    if Path(localFilePath).exists() and Path(localFilePath).is_file() and overwriteIfExist == False:
+    if Path(localFilePath).exists() and Path(localFilePath).is_file() and not overwriteIfExist:
         raise FileExistsError(f"The file '{localFilePath}' exists.")
     else:
         ftpObj.download(source=remoteFilePath, target=localFilePath)

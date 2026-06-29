@@ -81,7 +81,6 @@ class RealScreenPrintObj(QMainWindow):
 
         # Make sure the text is a string
         if not isinstance(text, str):
-            typeTemp = type(text)
             text = str(text)
 
         # Append the new text to the end

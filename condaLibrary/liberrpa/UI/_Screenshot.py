@@ -141,7 +141,7 @@ def capture_all_screen(needImage: bool = False) -> tuple[QtGui.QPixmap | None, i
             )
 
         # Save the screenshot into the specified folder.
-        if pixmapCombined.save(FULL_SCREENSHOT_PATH, "PNG") == False:
+        if not pixmapCombined.save(FULL_SCREENSHOT_PATH, "PNG"):
             raise RuntimeError("Failed to save the full screenshot.")
 
         # Also return the top-left corner of the entire virtual desktop to draw it later.

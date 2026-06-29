@@ -42,7 +42,7 @@ def get_basic_config_dict() -> DictBasicConfig:
     if os.getenv("LogFolderName") in ["_ChromeGetLocalServerPort", "_LiberRPALocalServer"]:
         dictReplaceKeywords["${ToolName}"] = "BuildinTools"
 
-    elif dictProject.get("executorPackage") == True:
+    elif dictProject.get("executorPackage"):
         dictReplaceKeywords["${ToolName}"] = "Executor"
 
     else:
@@ -78,8 +78,7 @@ def get_token(clientType: Literal["python", "chrome", "uiAnalyzer"]) -> str:
         return dictAuth[clientType]
     except KeyError:
         raise KeyError(
-            f"Token for client type {clientType!r} was not found in WebSocketAuth.json. "
-            "Please run InitLiberRPA.exe to refresh local WebSocket auth tokens."
+            f"Token for client type {clientType!r} was not found in WebSocketAuth.json.\nPlease run InitLiberRPA.exe to refresh local WebSocket auth tokens."
         )
 
 
@@ -89,7 +88,7 @@ def get_liberrpa_folder_path() -> str:
         return strPath
     else:
         raise ValueError(
-            f'Didn\'t find LiberRPA in System Environment Variable. You should run the "InitLiberRPA.exe" in the LiberRPA root folder. It will add a "LiberRPA" variable in your computer\'s User Environment Variables.'
+            'Didn\'t find LiberRPA in System Environment Variable. You should run the "InitLiberRPA.exe" in the LiberRPA root folder. It will add a "LiberRPA" variable in your computer\'s User Environment Variables.'
         )
 
 

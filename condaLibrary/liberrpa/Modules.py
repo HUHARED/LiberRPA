@@ -58,7 +58,7 @@ from liberrpa.FlowControl.ProjectFlowInit import PrjArgs, CustomArgs
 from liberrpa.Database import DatabaseConnection
 
 # The selector for users to declare.
-from liberrpa.Common._TypedValue import SelectorWindow, SelectorUia, SelectorHtml, SelectorImage
+from liberrpa.UI._UiDict import SelectorWindow, SelectorUia, SelectorHtml, SelectorImage
 
 # The LiberRPA errors
 from liberrpa.Common._Exception import UiElementNotFoundError, UiTimeoutError, UiOperationError, ChromeError, MailError

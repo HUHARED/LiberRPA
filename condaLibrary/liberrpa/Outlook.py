@@ -65,7 +65,7 @@ def send_email(
         case "html":
             mail.HTMLBody = body
         case _:
-            raise ValueError(f"The argument bodyFormat should be 'text' or 'html'.")
+            raise ValueError("The argument bodyFormat should be 'text' or 'html'.")
 
     if isinstance(attachments, str):
         if attachments != "":
@@ -269,7 +269,7 @@ def reply_to_email(
         case "html":
             reply.HTMLBody = body + reply.HTMLBody
         case _:
-            raise ValueError(f"The argument bodyFormat should be 'text' or 'html'.")
+            raise ValueError("The argument bodyFormat should be 'text' or 'html'.")
 
     if isinstance(attachments, str):
         if attachments != "":
@@ -334,4 +334,4 @@ if __name__ == "__main__":
     # delete_email(listEmail[0])
     # print(get_folder_list(account="XXXX@qq.com"))
     # move_email(account="XXXX@qq.com",emailObj=listEmail[0],folder="Junk")
-    reply_to_email(emailObj=listEmail[0], body="Reply test", bodyFormat="text",newSubject="New Subject Test")
+    reply_to_email(emailObj=listEmail[0], body="Reply test", bodyFormat="text", newSubject="New Subject Test")

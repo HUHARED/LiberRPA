@@ -7,7 +7,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from liberrpa.Logging import Log
 from liberrpa.Common._Exception import UiElementNotFoundError, get_exception_info
-from liberrpa.Common._TypedValue import DictImageAttr
+from liberrpa.UI._UiDict import DictImageAttr
 from liberrpa.UI._Screenshot import (
     SCREENSHOT_DOCUMENTS_PATH,
     FULL_SCREENSHOT_PATH,
@@ -33,7 +33,6 @@ def _get_image_path(
         strFilePath = fileNameOrPath
     else:
         if not os.path.isfile(os.path.join(SCREENSHOT_PROJECT_PATH, fileNameOrPath)):
-
             if not os.path.isfile(os.path.join(SCREENSHOT_DOCUMENTS_PATH, fileNameOrPath)):
                 raise FileNotFoundError(
                     f"Not found the image file '{fileNameOrPath}' in '{SCREENSHOT_PROJECT_PATH}' or '{SCREENSHOT_DOCUMENTS_PATH}'."
@@ -73,7 +72,9 @@ def find_image(
     inScreenshotFolder: bool = True,
 ) -> list[DictImageAttr]:
 
-    strFilePath = _get_image_path(fileNameOrPath=fileNameOrPath, moveFile=moveFile, inScreenshotFolder=inScreenshotFolder)
+    strFilePath = _get_image_path(
+        fileNameOrPath=fileNameOrPath, moveFile=moveFile, inScreenshotFolder=inScreenshotFolder
+    )
 
     try:
         # puautogui can't locate image in non-main screen, so save all screens as an image.

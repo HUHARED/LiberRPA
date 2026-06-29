@@ -7,7 +7,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 """ Subordinate Start, it is a parallel process, not share memory with Main Process. So the Project Custom Arguments will not be synchronized. """
 
-from liberrpa.Logging import Log
+# from liberrpa.Logging import Log
 
 
 def main():

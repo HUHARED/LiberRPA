@@ -8,7 +8,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 This module intentionally initializes project context and logger on import.
 It is expected to be imported at RPA project startup.
 """
-import liberrpa.Common._Initialization  # For initialization
+import liberrpa.Common._Initialization  # noqa: F401  # Import for LiberRPA project initialization side effects.
 
 from liberrpa.Common._Utils import (
     PATH_PROJECT_ROOT,
@@ -266,7 +266,7 @@ class Logger:
             self.strProjectName = strLogFolderName
             print("Set log folder name:", strLogFolderName)
 
-        elif dictProject.get("executorPackage") == True:
+        elif dictProject.get("executorPackage"):
             # Executor package's name is not the project name, use data in project.json
             self.strProjectName = dictProject["executorPackageName"]
 
@@ -274,9 +274,8 @@ class Logger:
             self.strProjectName = os.path.basename(STR_PROJECT_ROOT)
 
         # If it's an Executor package, add version subfolder.
-        if dictProject.get("executorPackage") == True:
+        if dictProject.get("executorPackage"):
             try:
-
                 dictExecutorConfig: dict[str, str] = json5.loads(
                     Path(os.path.join(get_liberrpa_folder_path(), "./configFiles/Executor.jsonc")).read_text()
                 )  # type: ignore
@@ -743,7 +742,6 @@ Log.info(f"Running as Admin: {boolIsAdmin}")
 
 
 if __name__ == "__main__":
-
     Log.set_level("VERBOSE", loggerType="both")
 
     Log.verbose("verbose")

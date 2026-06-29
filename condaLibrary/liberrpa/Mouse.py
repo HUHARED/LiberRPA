@@ -12,6 +12,8 @@ from liberrpa.Common._TypedValue import (
     ClickMode,
     FivePosition,
     ExecutionMode,
+)
+from liberrpa.UI._UiDict import (
     DictUiaAttr,
     DictHtmlAttr,
     DictImageAttr,
@@ -180,10 +182,10 @@ def _click_element(
                     and position == "center"
                     and offsetX == 0
                     and offsetY == 0
-                    and pressCtrl == False
-                    and pressShift == False
-                    and pressAlt == False
-                    and pressWin == False
+                    and not pressCtrl
+                    and not pressShift
+                    and not pressAlt
+                    and not pressWin
                     and duration == 0
                 ):
                     boolFoundPattern = False
@@ -200,7 +202,7 @@ def _click_element(
                             boolFoundPattern = True
                             break
 
-                    if boolFoundPattern == False:
+                    if not boolFoundPattern:
                         raise UiOperationError("The target element didn't support 'api' method. selector: {selector}")
                 else:
                     raise UiOperationError(
@@ -370,7 +372,6 @@ def click(
         pressAlt=pressAlt,
         pressWin=pressWin,
     ):
-
         match clickMode:
             case "single_click":
                 pyautogui.click(button=button)
@@ -466,12 +467,12 @@ def scroll_wheel(
     ):
         match direction:
             case "down":
-                for i in range(0, times, 1):
+                for _ in range(0, times, 1):
                     _mouseController.scroll(dx=0, dy=-1)
                     delay(100)
 
             case "up":
-                for i in range(0, times, 1):
+                for _ in range(0, times, 1):
                     _mouseController.scroll(dx=0, dy=1)
                     delay(100)
 

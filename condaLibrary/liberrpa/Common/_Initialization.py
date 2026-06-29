@@ -113,7 +113,7 @@ def _update_daily_data() -> None:
 
         _check_update()
 
-        print(f"Write system information and check update(Only once a day).")
+        print("Write system information and check update(Only once a day).")
 
         # Update date file.
         Path(strDatePath).write_text(data=strToday, encoding="utf-8")
@@ -129,7 +129,7 @@ def _update_daily_data() -> None:
 
         _check_update()
 
-        print(f"Write system information and check update(Only once a day).")
+        print("Write system information and check update(Only once a day).")
 
         # Update date file.
         Path(strDatePath).write_text(data=strToday, encoding="utf-8")
@@ -155,7 +155,6 @@ def _is_user_admin() -> bool:
 
 def get_system_data() -> dict[str, Any]:
     try:
-
         dictUserInfo = {
             "Username": getpass.getuser(),
             "Home Directory": os.path.expanduser("~"),
@@ -193,9 +192,9 @@ def get_system_data() -> dict[str, Any]:
                         "Device": partition.device,
                         "Mount Point": partition.mountpoint,
                         "File System": partition.fstype,
-                        "Total Space (GB)": f"{usage.total / (1024 ** 3):.2f} GB",
-                        "Used Space (GB)": f"{usage.used / (1024 ** 3):.2f} GB",
-                        "Free Space (GB)": f"{usage.free / (1024 ** 3):.2f} GB",
+                        "Total Space (GB)": f"{usage.total / (1024**3):.2f} GB",
+                        "Used Space (GB)": f"{usage.used / (1024**3):.2f} GB",
+                        "Free Space (GB)": f"{usage.free / (1024**3):.2f} GB",
                         "Percentage Used": f"{usage.percent}%",
                     }
                 )
@@ -221,8 +220,8 @@ def get_system_data() -> dict[str, Any]:
             "CPU Cores (Logical)": psutil.cpu_count(logical=True),
             "CPU Cores (Physical)": psutil.cpu_count(logical=False),
             "CPU Frequency (MHz)": psutil.cpu_freq().max if psutil.cpu_freq() else "N/A",
-            "RAM (Total)": f"{psutil.virtual_memory().total / (1024 ** 3):.2f} GB",
-            "RAM (Available)": f"{psutil.virtual_memory().available / (1024 ** 3):.2f} GB",
+            "RAM (Total)": f"{psutil.virtual_memory().total / (1024**3):.2f} GB",
+            "RAM (Available)": f"{psutil.virtual_memory().available / (1024**3):.2f} GB",
             "Disk": listDiskInfo,
             "Screen": [str(temp) for temp in get_monitors()],
         }

@@ -13,6 +13,10 @@ from tkinter import filedialog, simpledialog, messagebox
 import time
 from typing import Literal
 
+type FileTypes = list[tuple[str, str | list[str] | tuple[str, ...]]]
+
+_DEFAULT_FILETYPES: FileTypes = [("All Files", "*.*")]
+
 
 @Log.trace()
 def show_notification(title: str, message: str, duration: int = 1, wait: bool = True) -> None:
@@ -42,9 +46,10 @@ def show_notification(title: str, message: str, duration: int = 1, wait: bool = 
         }
 
         send_command(eventName="qt_command", command=dictCommand)
-    except QtError as e:
+    except QtError:
         raise
-    except Exception as e:
+    except Exception:
+        # If Qt dialog is unavailable, fall back to the local tkinter dialog.
         pass
 
 
@@ -52,7 +57,7 @@ def show_notification(title: str, message: str, duration: int = 1, wait: bool = 
 def open_file(
     folder: None | str = None,
     title: str = "open a file",
-    filetypes: list[tuple[str, str | list[str] | tuple[str, ...]]] = [("All Files", "*.*")],
+    filetypes: FileTypes | None = None,
 ) -> str:
     """
     Opens a file dialog to select a file.
@@ -68,6 +73,9 @@ def open_file(
     Returns:
         str: The file path selected by the user. Returns an empty string if the dialog is cancelled.
     """
+
+    filetypes = _DEFAULT_FILETYPES.copy() if filetypes is None else filetypes
+
     root = tk.Tk()
     root.withdraw()
 
@@ -83,7 +91,7 @@ def open_file(
 def open_files(
     folder: None | str = None,
     title: str = "open files",
-    filetypes: list[tuple[str, str | list[str] | tuple[str, ...]]] = [("All Files", "*.*")],
+    filetypes: FileTypes | None = None,
 ) -> list[str]:
     """
     Open a file dialog to select files.
@@ -99,6 +107,9 @@ def open_files(
     Returns:
         list[str]: The files' paths selected by the user. Returns an empty list if the dialog is cancelled.
     """
+
+    filetypes = _DEFAULT_FILETYPES.copy() if filetypes is None else filetypes
+
     root = tk.Tk()
     root.withdraw()
 
@@ -113,7 +124,7 @@ def open_files(
 def save_as(
     folder: None | str = None,
     title: str = "save as",
-    filetypes: list[tuple[str, str | list[str] | tuple[str, ...]]] = [("All Files", "*.*")],
+    filetypes: FileTypes | None = None,
 ) -> str:
     """
     Open a file dialog to save file. It just return the save path string, then you should use other logic to save a file by the path.
@@ -129,6 +140,9 @@ def save_as(
     Returns:
         str: The file path selected by the user. Returns an empty string if the dialog is cancelled.
     """
+
+    filetypes = _DEFAULT_FILETYPES.copy() if filetypes is None else filetypes
+
     root = tk.Tk()
     root.withdraw()
 
@@ -226,7 +240,6 @@ def show_message_box(
 
 
 if __name__ == "__main__":
-
     # print("Start")
     show_notification(title="LiberRPA", message="", duration=3, wait=False)
     import time

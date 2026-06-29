@@ -10,17 +10,14 @@ from liberrpa.UI._Overlay import create_overlay
 from liberrpa.UI._Image import find_image
 import liberrpa.UI._UiElement as _UiElement
 from liberrpa.UI._UiAutomation import get_children_control_recursive
-from liberrpa.Common._TypedValue import (
+from liberrpa.UI._UiDict import (
     DictSpecHtml,
     DictUiaAttr,
     DictHtmlAttr,
     DictImageAttr,
     DictPositionAndSize,
-    # SelectorWindowOriginal,
     SelectorWindow,
-    # SelectorUiaOriginal,
     SelectorUia,
-    # SelectorHtmlOriginal,
     SelectorHtml,
     SelectorImage,
 )
@@ -40,7 +37,7 @@ from time import time
 import uiautomation
 from PIL import Image
 import mss
-from pathlib import Path, PureWindowsPath
+from pathlib import Path
 from typing import Literal
 import re
 
@@ -118,7 +115,7 @@ def _screenshot(
     postExecutionDelay: int = 200,
 ) -> str:
 
-    if override == False and Path(saveFilePath).exists():
+    if not override and Path(saveFilePath).exists():
         raise FileExistsError(
             f"The argument 'override' is False, and the file '{Path(saveFilePath).absolute()}' already exists."
         )
@@ -279,10 +276,10 @@ def _check_exists(
 
     try:
         _, _ = _UiElement.get_element(selector=selector)
-    except UiElementNotFoundError as e:
+    except UiElementNotFoundError:
         # print(e)
         return False
-    except Exception as e:
+    except Exception:
         # print(e)
         return False
     else:
@@ -317,7 +314,7 @@ def check_exists(
             timeStart = time()
             boolExists = bool(timeout_kill_thread(timeout=timeout)(_check_exists)(selector))
 
-            if boolExists == True:
+            if boolExists:
                 return True
             else:
                 timeout = _decrease_timeout(timeout=timeout, timeStart=timeStart)
@@ -326,10 +323,10 @@ def check_exists(
                     return False
                 else:
                     continue
-    except UiTimeoutError as e:
+    except UiTimeoutError:
         Log.debug("Timeout for find the image.")
         return False
-    except Exception as e:
+    except Exception:
         raise
     finally:
         delay(postExecutionDelay)
@@ -361,7 +358,7 @@ def wait_appear(
             timeStart = time()
             boolExists = bool(timeout_kill_thread(timeout=timeout)(_check_exists)(selector))
 
-            if boolExists == True:
+            if boolExists:
                 delay(postExecutionDelay)
                 return None
             else:
@@ -371,9 +368,9 @@ def wait_appear(
                 else:
                     continue
 
-    except UiTimeoutError as e:
+    except UiTimeoutError:
         raise UiTimeoutError(f"Timeout exceeded for UI element to appear. timeout={timeoutTemp}, selector: {selector}")
-    except Exception as e:
+    except Exception:
         raise
 
 
@@ -403,10 +400,10 @@ def wait_disappear(
             timeStart = time()
             boolExists = bool(timeout_kill_thread(timeout=timeout)(_check_exists)(selector))
 
-            if boolExists == True:
+            if boolExists:
                 timeout = _decrease_timeout(timeout=timeout, timeStart=timeStart)
                 if timeout <= 0:
-                    raise UiTimeoutError(f"Timeout exceeded for UI element to disappear.")
+                    raise UiTimeoutError("Timeout exceeded for UI element to disappear.")
                 else:
                     continue
             else:
@@ -423,10 +420,10 @@ def wait_disappear(
         else:
             delay(postExecutionDelay)
             return None
-    except UiElementNotFoundError as e:
+    except UiElementNotFoundError:
         delay(postExecutionDelay)
         return None
-    except Exception as e:
+    except Exception:
         raise
 
 
@@ -439,13 +436,13 @@ def _get_parent(
 ) -> SelectorWindow | SelectorUia | SelectorHtml:
 
     if selector.get("category") == "image":
-        raise UiOperationError(f"Not support getting an image element's parent.")
+        raise UiOperationError("Not support getting an image element's parent.")
 
     if selector.get("category") is None:
-        raise UiOperationError(f"Not support getting an UIA window element's parent.")
+        raise UiOperationError("Not support getting an UIA window element's parent.")
 
-    if isinstance(upwardLevel, int) == False or upwardLevel < 1:
-        raise ValueError(f"The argument 'upwardLevel' should be an integer equal to or greater than 1.")
+    if not isinstance(upwardLevel, int) or upwardLevel < 1:
+        raise ValueError("The argument 'upwardLevel' should be an integer equal to or greater than 1.")
 
     if selector.get("category") == "html":
         _UiElement.activate_element_window(selector=selector)
@@ -525,7 +522,7 @@ def _get_children(
 ) -> list[SelectorUia] | list[SelectorHtml]:
 
     if selector.get("category") == "image":
-        raise UiOperationError(f"Not support getting an image element's children.")
+        raise UiOperationError("Not support getting an image element's children.")
 
     if selector.get("category") == "html":
         _UiElement.activate_element_window(selector=selector)
@@ -664,7 +661,7 @@ def _get_text(
 ) -> tuple[list[str], str]:
 
     if selector.get("category") == "image":
-        raise UiOperationError(f"Not support getting text by the function, consider using OCR.")
+        raise UiOperationError("Not support getting text by the function, consider using OCR.")
 
     uiTarget, dictTarget = _UiElement.get_element_with_pre_delay(selector=selector, preExecutionDelay=preExecutionDelay)
 
@@ -724,10 +721,10 @@ def _set_text(
 ) -> None:
 
     if selector.get("category") == "image":
-        raise UiOperationError(f"Not support setting text in an image element.")
+        raise UiOperationError("Not support setting text in an image element.")
 
     if selector.get("category") is None:
-        raise UiOperationError(f"Not support setting text in an UIA window element.")
+        raise UiOperationError("Not support setting text in an UIA window element.")
 
     if selector.get("category") == "html":
         _UiElement.activate_element_window(selector=selector)
@@ -799,7 +796,7 @@ def _get_check_state(
 ) -> Literal["checked", "unchecked", "indeterminate"]:
 
     if selector.get("category") != "html" and selector.get("category") != "uia":
-        raise UiOperationError(f"Can only get check state for html and uia non window elements which support check.")
+        raise UiOperationError("Can only get check state for html and uia non window elements which support check.")
 
     uiTarget, dictTarget = _UiElement.get_element_with_pre_delay(selector=selector, preExecutionDelay=preExecutionDelay)
 
@@ -808,7 +805,6 @@ def _get_check_state(
     if isinstance(uiTarget, uiautomation.Control):
         pattern = uiTarget.GetPattern(uiautomation.PatternId.TogglePattern)
         if pattern:
-
             intState: int = pattern.ToggleState  # type: ignore
             if intState == 0:
                 strReturn = "unchecked"
@@ -970,10 +966,10 @@ def _get_selection(
 ) -> str | int:
 
     if selectionType not in ["text", "value", "index"]:
-        raise ValueError(f"The argument selectionType should be 'text', 'value' or 'index'.")
+        raise ValueError("The argument selectionType should be 'text', 'value' or 'index'.")
 
     if selector.get("category") != "html":
-        raise UiOperationError(f"Can only get selected value for html <select> element.")
+        raise UiOperationError("Can only get selected value for html <select> element.")
 
     # NOTE: Project highlightUI setting will not work for it. (Because the part not only get attributes.)
 
@@ -1038,7 +1034,7 @@ def _set_selection(
         raise ValueError("Exactly one of 'text', 'value', or 'index' must be non-null.")
 
     if selector.get("category") != "html":
-        raise UiOperationError(f"Can only set selected value for html <select> element.")
+        raise UiOperationError("Can only set selected value for html <select> element.")
 
     # NOTE: Project highlightUI setting will not work for it. (Because the part not only get attributes.)
 

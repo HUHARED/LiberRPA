@@ -147,7 +147,7 @@ def download_file(
 
     strFilePath = Path(folderPath).joinpath(sanitize_filename(strFileName))
 
-    if overwriteIfExist == False and Path(strFilePath).is_file():
+    if not overwriteIfExist and Path(strFilePath).is_file():
         raise FileExistsError(f"There is a file in the destination path: {Path(strFilePath).resolve()}")
 
     with open(file=strFilePath, mode="wb") as fileObj:

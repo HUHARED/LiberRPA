@@ -5,7 +5,6 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
-
 from pathlib import Path
 import json5
 from typing import TypedDict, NotRequired
@@ -35,7 +34,7 @@ for strModuleName in dictBasic:
                 dictBasic[strModuleName][strTitle]["body"] = [dictBasic[strModuleName][strTitle]["body"], ""]  # type: ignore - Convert body to list
             else:
                 dictBasic[strModuleName][strTitle]["body"].append("")  # type: ignore - It's list.
-        except Exception as e:
+        except Exception:
             print("Error at", dictBasic[strModuleName][strTitle])
             sys.exit()
 
@@ -48,7 +47,7 @@ for strModuleName in dictOther:
                 dictOther[strModuleName][strTitle]["body"] = [dictOther[strModuleName][strTitle]["body"], ""]  # type: ignore - Convert body to list
             else:
                 dictOther[strModuleName][strTitle]["body"].append("")  # type: ignore - It's list.
-        except Exception as e:
+        except Exception:
             print("Error at", dictOther[strModuleName][strTitle])
             sys.exit()
         dictFinal[strTitle] = dictOther[strModuleName][strTitle]
@@ -59,4 +58,3 @@ if strFinal:
     Path("./snippets/snippets_final.snippets").write_text(strFinal)
 else:
     raise Exception("Error.")
-

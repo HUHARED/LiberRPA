@@ -5,7 +5,7 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
-from liberrpa.UI._UiDict import *
+# from liberrpa.UI._UiDict import *
 from typing import TypedDict, Literal, NotRequired, Any
 
 

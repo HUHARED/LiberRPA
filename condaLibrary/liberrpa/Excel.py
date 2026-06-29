@@ -70,7 +70,7 @@ def _check_edit_mode():
         # Check if Excel is in interactive mode
         if not excelApp.Interactive:
             raise ExcelError("Excel is in Edit mode or not responsive.")
-    except ExcelError as e:
+    except ExcelError:
         raise
     except Exception as e:
         raise ExcelError(f"{e}, Excel is in Edit mode or not responsive.")
@@ -86,7 +86,9 @@ def _check_and_standardize_sheet(excelObj: ExcelObj, sheet: TypeOfSheet) -> str:
     if isinstance(sheet, str) and (sheet not in listSheetName):
         raise ExcelError(f"The sheet({sheet}) doest not exist. The current sheets: {listSheetName}")
     if isinstance(sheet, int) and sheet >= len(listSheetName):
-        raise ExcelError(f"The sheet index ({sheet}) is greater than the largest sheet index({len(listSheetName)-1}).")
+        raise ExcelError(
+            f"The sheet index ({sheet}) is greater than the largest sheet index({len(listSheetName) - 1})."
+        )
 
     strSheet = excelObj.book.sheets[sheet].name
     if isinstance(sheet, int):
@@ -449,7 +451,7 @@ def read_cell(excelObj: ExcelObj, sheet: TypeOfSheet, cell: TypeOfCell, returnDi
     cell = _check_and_standardize_cell(cell=cell)
 
     Log.debug("Reading cell=" + cell)
-    if returnDisplayed == True:
+    if returnDisplayed:
         return excelObj.book.sheets[sheet].range(cell).api.Text
     else:
         return excelObj.book.sheets[sheet].range(cell).value
@@ -491,7 +493,7 @@ def read_row(
     strRange = f"{startCell}:{strColStop}{intRowStart}"
     Log.debug(f"Reading range: {strRange}")
     range: Range = excelObj.book.sheets[sheet].range(strRange)
-    if returnDisplayed == True:
+    if returnDisplayed:
         returnValue = [cell.api.Text for cell in range]
     else:
         returnValue = range.value
@@ -539,7 +541,7 @@ def read_column(
     strRange = f"{startCell}:{strColStart}{intRowStop}"
     Log.debug(f"Reading range: {strRange}")
     range: Range = excelObj.book.sheets[sheet].range(strRange)
-    if returnDisplayed == True:
+    if returnDisplayed:
         returnValue = [cell.api.Text for cell in range]
     else:
         returnValue = range.value
@@ -580,7 +582,7 @@ def _read_range(
     Log.debug(f"Reading range: {strRange}")
     range: Range = excelObj.book.sheets[sheet].range(strRange)
 
-    if returnDisplayed == True:
+    if returnDisplayed:
         # list[list[str]]
         return [[cell.api.Text for cell in row] for row in range.rows]
     else:
@@ -1040,7 +1042,7 @@ def clear_range(
         save: If True, saves the workbook immediately after clearing.
     """
 
-    if clearContent == False and clearFormat == False:
+    if not clearContent and not clearFormat:
         raise ValueError("At least oneof the argument clearContents or clearFormats must be True")
 
     _check_edit_mode()
@@ -1051,9 +1053,9 @@ def clear_range(
     strRange = f"{startCell}:{endCell}"
     Log.debug(f"Clearing range: {strRange}, clearContents: {clearContent}, clearFormats: {clearFormat}")
     range: Range = excelObj.book.sheets[sheet].range(f"{startCell}:{endCell}")
-    if clearContent == True and clearFormat == True:
+    if clearContent and clearFormat:
         range.clear()
-    elif clearContent == True:
+    elif clearContent:
         range.clear_contents()
     else:
         # clearFormats == True
@@ -1085,7 +1087,7 @@ def _check_sheet_name_compliance(sheetName: str) -> None:
     A sheet name can't be empty.
     """
     if sheetName == "":
-        raise ValueError(f"Sheet name should not be empty.")
+        raise ValueError("Sheet name should not be empty.")
     listErrorChar = ["\\", "/", "?", "*", "[", "]"]
     for item in listErrorChar:
         if sheetName.find(item) != -1:
@@ -1295,7 +1297,7 @@ if __name__ == "__main__":
     # excelObj.book.macro("MyMacro")()
 
     excelObj = bind_Excel_file(fileName="1.xls")
-    from time import sleep
+    # from time import sleep
 
     # print("Delay.")
     # sleep(3)

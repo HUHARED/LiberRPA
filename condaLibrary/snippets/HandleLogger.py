@@ -23,7 +23,7 @@ for name, func in functions:
 
     param_parts = []
     intIdx = 1
-    for i, (param_name, param) in enumerate(params.items()):
+    for _, (param_name, param) in enumerate(params.items()):
         if param_name == "self":
             continue
         if param.default is inspect.Parameter.empty:

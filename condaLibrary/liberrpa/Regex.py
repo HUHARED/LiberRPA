@@ -204,7 +204,7 @@ def split(
     if maxSplit <= 0:
         # Split all.
         maxSplit = 0
-    return re.split(pattern, strObj, maxSplit, flags)
+    return re.split(pattern=pattern, string=strObj, maxsplit=maxSplit, flags=flags)
 
 
 @Log.trace()
@@ -244,7 +244,7 @@ def replace(
     if count <= 0:
         # Replace all.
         count = 0
-    return re.sub(pattern, newStr, strObj, count, flags)
+    return re.sub(pattern=pattern, repl=newStr, string=strObj, count=count, flags=flags)
 
 
 if __name__ == "__main__":
@@ -257,4 +257,3 @@ if __name__ == "__main__":
     # )
     # print(split("123123", "1", maxSplit=0))
     # print(replace("123123", "1", "4", count=0))
-    

@@ -15,19 +15,15 @@ from liberrpa.UI._Screenshot import SCREENSHOT_DOCUMENTS_PATH, SCREENSHOT_TEMP_N
 from liberrpa.UI._Image import find_image
 from liberrpa.Mouse import get_mouse_position
 from liberrpa.Dialog import show_notification
-from liberrpa.Common._TypedValue import (
+from liberrpa.UI._UiDict import (
     DictForUiAnalyzer,
     DictHtmlAttr,
-    # DictSpecHtmlOriginal,
     DictSpecHtml,
     DictSepcImage,
     DictHtmlSecondaryAttr,
     DictImageAttr,
-    # SelectorWindowOriginal,
     SelectorWindow,
-    # SelectorUiaOriginal,
     SelectorUia,
-    # SelectorHtmlOriginal,
     SelectorHtml,
     SelectorImage,
     DictPosition,
@@ -100,7 +96,7 @@ def indicate_uia(indicateDelaySeconds: int = 1) -> tuple[DictForUiAnalyzer, uiau
             # Only need the element has "Name"
             try:
                 while element is not None:
-                    if getattr(element, "Name"):
+                    if getattr(element, "Name", None):
                         Log.debug("Have Name(getattr).")
                         break
                     else:
@@ -449,14 +445,14 @@ def indicate_window(indicateDelaySeconds: int = 1) -> DictForUiAnalyzer | None:
             raise UiElementNotFoundError("(!!!It should not appear.) Didn't find a window element from cursor.")
 
         # Only need the element has "Name"
-        if not getattr(element, "Name"):
+        if not getattr(element, "Name", None):
             raise UiElementNotFoundError("(!!!It should not appear.) The window element has no Name.")
 
         # Mouse left pressed.
         Log.debug("Pressed mouse left.")
 
         # Only need the element has "Name"
-        if not getattr(element, "Name"):
+        if not getattr(element, "Name", None):
             raise ValueError("The element doen't have 'Name' attribute.")
 
         selector: SelectorWindow = _UiElement.get_control_selector(control=element)
@@ -557,7 +553,7 @@ def _get_window_element(dictCoordinate: DictPosition) -> uiautomation.Control:
         raise UiElementNotFoundError("(!!!It should not appear.) Didn't find an window element from cursor.")
 
     # Only need the element has "Name"
-    if not getattr(elementWindow, "Name"):
+    if not getattr(elementWindow, "Name", None):
         raise UiElementNotFoundError("(!!!It should not appear.) The window element has no Name.")
 
     print("create_overlay in _get_window_element")
@@ -610,7 +606,6 @@ def _get_image_element(
     """a reduced version of _UiElement.get_element, for get imgae element and not move the file."""
 
     with uiautomation.UIAutomationInitializerInThread():
-
         # Find and activate top control.
         controlTop = get_top_control(selectorWindowPart=selector["window"])
         _UiElement.activate_control_window(control=controlTop)
@@ -618,7 +613,7 @@ def _get_image_element(
         selectorTemp: SelectorImage = selector
         if len(selectorTemp["specification"]) != 1:
             raise ValueError(
-                f"It should have only one dictionary in 'specification', but it has {len(selectorTemp["specification"])}"
+                f"It should have only one dictionary in 'specification', but it has {len(selectorTemp['specification'])}"
             )
         imageSelector: DictSepcImage = selectorTemp["specification"][0]
 
@@ -645,7 +640,6 @@ def _get_image_element(
 
 
 if __name__ == "__main__":
-
     with uiautomation.UIAutomationInitializerInThread():
         element = uiautomation.ControlFromPoint(x=400, y=140)
         print(element)

@@ -5,13 +5,14 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
-from liberrpa.Logging import Log
 from liberrpa.Common._TypedValue import (
-    DictHtmlAttr,
-    DictSpecHtml,
     ChromeDownloadItem,
     MouseButton,
     ClickMode,
+)
+from liberrpa.UI._UiDict import (
+    DictHtmlAttr,
+    DictSpecHtml,
     DictElementTreeItem,
 )
 from liberrpa.Common._WebSocket import send_command

@@ -5,7 +5,7 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
-from liberrpa.Logging import Log
+# from liberrpa.Logging import Log
 
 
 def main():
