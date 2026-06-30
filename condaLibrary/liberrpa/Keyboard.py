@@ -156,35 +156,27 @@ def write_text(
     )
 
 
-def _get_value_pattern(control: uiautomation.Control) -> uiautomation.ValuePattern | None:
-    return cast(
-        uiautomation.ValuePattern | None,
-        control.GetPattern(uiautomation.PatternId.ValuePattern),
-    )
-
-
-def _get_text_pattern(control: uiautomation.Control) -> uiautomation.TextPattern | None:
-    return cast(
-        uiautomation.TextPattern | None,
-        control.GetPattern(uiautomation.PatternId.TextPattern),
-    )
-
-
 def _normalize_written_text(text: str) -> str:
     return text.replace("\r\n", "\n").replace("\r", "\n")
 
 
 def _get_uia_control_text(control: uiautomation.Control) -> str | None:
-    valuePattern = _get_value_pattern(control)
-    if valuePattern is not None:
-        value = valuePattern.Value
+    pattern = cast(
+        uiautomation.ValuePattern | None,
+        control.GetPattern(uiautomation.PatternId.ValuePattern),
+    )
+    if pattern is not None:
+        value = pattern.Value
         if value is None:
             return ""
         return str(value)
 
-    textPattern = _get_text_pattern(control)
-    if textPattern is not None:
-        text = textPattern.DocumentRange.GetText(-1)
+    pattern = cast(
+        uiautomation.TextPattern | None,
+        control.GetPattern(uiautomation.PatternId.TextPattern),
+    )
+    if pattern is not None:
+        text = pattern.DocumentRange.GetText(-1)
         if text is None:
             return ""
         return str(text)
@@ -215,7 +207,7 @@ def _write_text_into_element(
     if selector.get("category") == "html" and executionMode == "api":
         _UiElement.activate_element_window(selector=selector)
         set_element_text(
-            htmlSelector=selector["specification"],  # type: ignore - it's SelectorHtml
+            htmlSelector=_UiElement.as_selector_html(selector=selector)["specification"],
             text=text,
             emptyOriginalText=emptyOriginalText,
             validateWrittenText=validateWrittenText,
@@ -239,18 +231,21 @@ def _write_text_into_element(
                     f"selector: {selector}"
                 )
 
-            valuePattern = _get_value_pattern(uiTarget)
-            if valuePattern is None:
+            pattern = cast(
+                uiautomation.ValuePattern | None,
+                uiTarget.GetPattern(uiautomation.PatternId.ValuePattern),
+            )
+            if pattern is None:
                 raise ValueError(f"The element doesn't support the argument executionMode('api'). selector: {selector}")
 
-            strOldText = "" if valuePattern.Value is None else str(valuePattern.Value)
+            strOldText = "" if pattern.Value is None else str(pattern.Value)
             strTargetText = text if emptyOriginalText else strOldText + text
 
-            if not valuePattern.SetValue(strTargetText):
+            if not pattern.SetValue(strTargetText):
                 raise UiOperationError(f"Failed to set text by ValuePattern. selector: {selector}")
 
             if validateWrittenText:
-                strWrittenText = "" if valuePattern.Value is None else str(valuePattern.Value)
+                strWrittenText = "" if pattern.Value is None else str(pattern.Value)
 
                 if _normalize_written_text(strWrittenText) != _normalize_written_text(strTargetText):
                     raise ValueError(
@@ -380,7 +375,7 @@ def _type_key_in_element(
     if selector.get("category") == "html":
         _UiElement.activate_element_window(selector=selector)
         focus_element(
-            htmlSelector=selector["specification"],  # type: ignore - it's SelectorHtml
+            htmlSelector=_UiElement.as_selector_html(selector=selector)["specification"],
             preExecutionDelay=preExecutionDelay,
             timeout=timeout,
         )
@@ -538,9 +533,9 @@ if __name__ == "__main__":
     """ for key in ["a", "b"]:
         print(f"==={key}===")
         # type_key_in_element(selector=selector, key=key, pressCtrl=False, pressAlt=False, pressShift=False, pressWin=False, preExecutionDelay=1000, postExecutionDelay=200)
-        type_key(key=key, typeMode="click", pressCtrl=True, pressAlt=False, pressShift=False, pressWin=False, preExecutionDelay=1000, postExecutionDelay=200)  # type: ignore
-        type_key(key=key, typeMode="key_down", pressCtrl=False, pressAlt=False, pressShift=True, pressWin=False, preExecutionDelay=1000, postExecutionDelay=200)  # type: ignore
-        type_key(key=key, typeMode="key_up", pressCtrl=False, pressAlt=False, pressShift=True, pressWin=False, preExecutionDelay=1000, postExecutionDelay=200)  # type: ignore """
+        type_key(key=key, typeMode="click", pressCtrl=True, pressAlt=False, pressShift=False, pressWin=False, preExecutionDelay=1000, postExecutionDelay=200)
+        type_key(key=key, typeMode="key_down", pressCtrl=False, pressAlt=False, pressShift=True, pressWin=False, preExecutionDelay=1000, postExecutionDelay=200)
+        type_key(key=key, typeMode="key_up", pressCtrl=False, pressAlt=False, pressShift=True, pressWin=False, preExecutionDelay=1000, postExecutionDelay=200) """
 
     """ write_text_into_element(
         selector=image1,

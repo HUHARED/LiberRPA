@@ -19,7 +19,7 @@ from liberrpa.Common._WebSocket import send_command
 from liberrpa.UI._CommonValue import boolHighlightUi
 from liberrpa.UI._Overlay import create_overlay
 
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 
 def get_download_list(limit: int = 5, timeout: int = 10000) -> list[ChromeDownloadItem]:
@@ -121,6 +121,10 @@ def get_parent_element_attr(
     }
     dictParentAttr: DictHtmlAttr = send_command(eventName="chrome_command", command=dictCommand, timeout=timeout)
     if boolHighlightUi:
+        strTagName = dictParentAttr.get("tagName")
+        if not isinstance(strTagName, str) or not strTagName:
+            raise ValueError(f"HTML attribute dictionary has no valid tagName: {dictParentAttr}")
+
         create_overlay(
             int(dictParentAttr["secondary-x"]),
             int(dictParentAttr["secondary-y"]),
@@ -128,13 +132,15 @@ def get_parent_element_attr(
             int(dictParentAttr["secondary-height"]),
             color="red",
             duration=200,
-            label=dictParentAttr["tagName"],  # type: ignore - It must have tagName when get its attributes.
+            label=strTagName,
         )
-    dictToAppend: DictSpecHtml = {}  # type: ignore
+    dictToAppendTemp: dict[str, Any] = {}
+
     for strKey in dictParentAttr:
         if not strKey.startswith("secondary-"):
-            dictToAppend[strKey] = dictParentAttr[strKey]
-    listSpecification: list[DictSpecHtml] = [dictToAppend]
+            dictToAppendTemp[strKey] = dictParentAttr[strKey]
+
+    listSpecification: list[DictSpecHtml] = [cast(DictSpecHtml, dictToAppendTemp)]
     return listSpecification
 
 
@@ -157,6 +163,10 @@ def get_children_element_attr(
     listSpecification: list[DictSpecHtml] = []
     for dictAttr in listChildrenAttr:
         if boolHighlightUi:
+            strTagName = dictAttr.get("tagName")
+            if not isinstance(strTagName, str) or not strTagName:
+                raise ValueError(f"HTML attribute dictionary has no valid tagName: {dictAttr}")
+
             create_overlay(
                 int(dictAttr["secondary-x"]),
                 int(dictAttr["secondary-y"]),
@@ -164,14 +174,16 @@ def get_children_element_attr(
                 int(dictAttr["secondary-height"]),
                 color="red",
                 duration=200,
-                label=dictAttr["tagName"],  # type: ignore - It must have tagName when get its attributes.
+                label=strTagName,
             )
 
-        dictToAppend: DictSpecHtml = {}  # type: ignore
+        dictToAppendTemp: dict[str, Any] = {}
+
         for strKey in dictAttr:
             if not strKey.startswith("secondary-"):
-                dictToAppend[strKey] = dictAttr[strKey]
-        listSpecification.append(dictToAppend)
+                dictToAppendTemp[strKey] = dictAttr[strKey]
+
+        listSpecification.append(cast(DictSpecHtml, dictToAppendTemp))
     return listSpecification
 
 

@@ -126,7 +126,7 @@ def _click_element(
             )
         _UiElement.activate_element_window(selector=selector)
         click_mouse_event(
-            htmlSelector=selector["specification"],  # type: ignore - it's SelectorHtml
+            htmlSelector=_UiElement.as_selector_html(selector=selector)["specification"],
             button=button,
             clickMode=clickMode,
             pressCtrl=pressCtrl,
@@ -196,7 +196,7 @@ def _click_element(
                         (uiautomation.PatternId.SelectionItemPattern, "Select"),
                     ]:
                         pattern = uiTarget.GetPattern(patternId)
-                        if pattern:
+                        if pattern is not None:
                             # Get and call the method by ()
                             getattr(pattern, method)()
                             boolFoundPattern = True

@@ -14,7 +14,7 @@ from pathlib import Path
 import base64
 import yagmail
 from datetime import datetime
-from typing import Literal
+from typing import Literal, Any, cast
 
 
 @Log.trace()
@@ -107,6 +107,83 @@ def get_folder_list(imapObj: IMAPClient) -> list[str]:
     return listFolderName
 
 
+def _none_if_empty(value: Any) -> Any:
+    return None if value in ("", [], {}, ()) else value
+
+
+def _mail_str(value: Any) -> str | None:
+    return cast(str | None, _none_if_empty(value))
+
+
+def _mail_bool(value: Any) -> bool | None:
+    return cast(bool | None, _none_if_empty(value))
+
+
+def _mail_address_list(value: Any) -> list[tuple[str, str]] | None:
+    return cast(list[tuple[str, str]] | None, _none_if_empty(value))
+
+
+def _mail_list_dict(value: Any) -> list[dict[str, Any]] | None:
+    return cast(list[dict[str, Any]] | None, _none_if_empty(value))
+
+
+def _mail_list_str(value: Any) -> list[str] | None:
+    return cast(list[str] | None, _none_if_empty(value))
+
+
+def _mail_dict_str(value: Any) -> dict[str, str] | None:
+    return cast(dict[str, str] | None, _none_if_empty(value))
+
+
+def _mail_dict_any(value: Any) -> dict[str, Any] | None:
+    return cast(dict[str, Any] | None, _none_if_empty(value))
+
+
+def _mail_str_or_list_str(value: Any) -> str | list[str] | None:
+    return cast(str | list[str] | None, _none_if_empty(value))
+
+
+def _mail_list_any(value: Any) -> list[Any] | None:
+    return cast(list[Any] | None, _none_if_empty(value))
+
+
+def _mail_date(value: Any) -> str | None:
+    if isinstance(value, datetime):
+        return value.strftime("%Y-%m-%d %H:%M:%S")
+    return _mail_str(value)
+
+
+def _get_basic_mail_info(email: MailParser) -> DictImapMailInfo:
+    dictInfo: DictImapMailInfo = {
+        "subject": _mail_str(email.subject),
+        "from_": _mail_address_list(email.from_),
+        "to": _mail_address_list(email.to),
+        "cc": _mail_address_list(email.cc),
+        "bcc": _mail_address_list(email.bcc),
+        "date": _mail_date(email.date),
+        "received": _mail_list_dict(email.received),
+        "text_plain": _mail_list_str(email.text_plain),
+        "text_html": _mail_list_str(email.text_html),
+        "attachments": _mail_list_dict(email.attachments),
+        "headers": _mail_dict_str(email.headers),
+        "message_id": _mail_str(email.message_id),
+        "to_domains": _mail_str_or_list_str(email.to_domains),
+        "from_domains": _mail_str_or_list_str(email.from_domains),
+        "cc_domains": _mail_str_or_list_str(email.cc_domains),
+        "bcc_domains": _mail_str_or_list_str(email.bcc_domains),
+        "delivered_to": _mail_list_str(email.delivered_to),
+        "reply_to": _mail_list_str(email.reply_to),
+        "body": _mail_str(email.body),
+        "anomalies": _mail_str(email.anomalies),
+        "mail": _mail_dict_any(email.mail),
+        "defects": _mail_list_any(email.defects),
+        "defects_category": _mail_str(email.defects_category),
+        "has_defects": _mail_bool(email.has_defects),
+    }
+
+    return dictInfo
+
+
 @Log.trace()
 def get_email_list(
     imapObj: IMAPClient,
@@ -147,36 +224,7 @@ def get_email_list(
             imapObj.add_flags(messages=UID, flags=[R"\Seen"])
         listEmail.append(email)
 
-        dictTemp = {
-            "subject": email.subject or None,
-            "from_": email.from_ or None,
-            "to": email.to or None,
-            "cc": email.cc or None,
-            "bcc": email.bcc or None,
-            "date": email.date or None,
-            "received": email.received or None,
-            "text_plain": email.text_plain or None,
-            "text_html": email.text_html or None,
-            "attachments": email.attachments or None,
-            "headers": email.headers or None,
-            "message_id": email.message_id or None,
-            "to_domains": email.to_domains or None,
-            "from_domains": email.from_domains or None,
-            "cc_domains": email.cc_domains or None,
-            "bcc_domains": email.bcc_domains or None,
-            "delivered_to": email.delivered_to or None,
-            "reply_to": email.reply_to or None,
-            "body": email.body or None,
-            "anomalies": email.anomalies or None,
-            "mail": email.mail or None,
-            "defects": email.defects or None,
-            "defects_category": email.defects_category or None,
-            "has_defects": email.has_defects or None,
-        }
-
-        if isinstance(dictTemp["date"], datetime):
-            dictTemp["date"] = dictTemp["date"].strftime("%Y-%m-%d %H:%M:%S")
-        listBasicInfo.append(dictTemp)  # type: ignore
+        listBasicInfo.append(_get_basic_mail_info(email=email))
 
     return (listUid, listBasicInfo, listEmail)
 
@@ -208,36 +256,8 @@ def search_email(
         rawEmail = imapObj.fetch(messages=UID, data=["RFC822"])[UID][b"RFC822"]
         email: MailParser = parse_from_bytes(rawEmail)
         listEmail.append(email)
-        dictTemp = {
-            "subject": email.subject or None,
-            "from_": email.from_ or None,
-            "to": email.to or None,
-            "cc": email.cc or None,
-            "bcc": email.bcc or None,
-            "date": email.date or None,
-            "received": email.received or None,
-            "text_plain": email.text_plain or None,
-            "text_html": email.text_html or None,
-            "attachments": email.attachments or None,
-            "headers": email.headers or None,
-            "message_id": email.message_id or None,
-            "to_domains": email.to_domains or None,
-            "from_domains": email.from_domains or None,
-            "cc_domains": email.cc_domains or None,
-            "bcc_domains": email.bcc_domains or None,
-            "delivered_to": email.delivered_to or None,
-            "reply_to": email.reply_to or None,
-            "body": email.body or None,
-            "anomalies": email.anomalies or None,
-            "mail": email.mail or None,
-            "defects": email.defects or None,
-            "defects_category": email.defects_category or None,
-            "has_defects": email.has_defects or None,
-        }
 
-        if isinstance(dictTemp["date"], datetime):
-            dictTemp["date"] = dictTemp["date"].strftime("%Y-%m-%d %H:%M:%S")
-        listBasicInfo.append(dictTemp)  # type: ignore
+        listBasicInfo.append(_get_basic_mail_info(email=email))
 
     return (listUid, listBasicInfo, listEmail)
 

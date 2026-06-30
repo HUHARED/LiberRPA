@@ -37,7 +37,7 @@ def get_basic_config_dict() -> DictBasicConfig:
         "${HostName}": socket.gethostname(),
     }
 
-    dictProject: dict[str, Any] = json5.loads(PATH_PROJECT_JSON.read_text(encoding="utf-8"))  # type: ignore
+    dictProject = cast(dict[str, Any], json5.loads(PATH_PROJECT_JSON.read_text(encoding="utf-8")))
 
     if os.getenv("LogFolderName") in ["_ChromeGetLocalServerPort", "_LiberRPALocalServer"]:
         dictReplaceKeywords["${ToolName}"] = "BuildinTools"
@@ -50,9 +50,12 @@ def get_basic_config_dict() -> DictBasicConfig:
         dictReplaceKeywords["${ToolName}"] = "Editor"
 
     # Open the json file to get original dict.
-    dictBasicConfig: DictBasicConfig = json5.loads(
-        Path(strLiberRPAPath).joinpath("./configFiles/basic.jsonc").read_text(encoding="utf-8", errors="strict")
-    )  # type: ignore - type is right
+    dictBasicConfig = cast(
+        DictBasicConfig,
+        json5.loads(
+            Path(strLiberRPAPath).joinpath("./configFiles/basic.jsonc").read_text(encoding="utf-8", errors="strict")
+        ),
+    )
 
     # Replace predefined variables
     for strKeyOuter in dictBasicConfig:

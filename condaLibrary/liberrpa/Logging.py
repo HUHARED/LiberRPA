@@ -36,7 +36,7 @@ import sys
 from functools import wraps
 import ctypes
 from pathvalidate import sanitize_filepath
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 VERBOSE_LEVEL_NUM = 5
 logging.addLevelName(VERBOSE_LEVEL_NUM, "VERBOSE")
@@ -78,15 +78,15 @@ def _find_caller(stack_info=False, stacklevel=2):
         for _ in range(stacklevel):
             if f is None:
                 break
-            f = f.f_back  # type: ignore
+            f = f.f_back
     rv = "(unknown file)", 0, "(unknown function)", None
     if f is not None:
         co = f.f_code
         sinfo = None
         if stack_info:
-            sio = io.StringIO()  # type: ignore
+            sio = io.StringIO()
             sio.write("Stack (most recent call last):\n")
-            traceback.print_stack(f, file=sio)  # type: ignore
+            traceback.print_stack(f, file=sio)
             sinfo = sio.getvalue()
             if sinfo[-1] == "\n":
                 sinfo = sinfo[:-1]
@@ -259,7 +259,7 @@ class Logger:
 
         # Creates a time-based folder for logs specific to the current project.
 
-        dictProject: dict[str, Any] = json5.loads(PATH_PROJECT_JSON.read_text(encoding="utf-8"))  # type: ignore
+        dictProject = cast(dict[str, Any], json5.loads(PATH_PROJECT_JSON.read_text(encoding="utf-8")))
 
         strLogFolderName = os.getenv("LogFolderName")
         if strLogFolderName is not None:
@@ -276,9 +276,12 @@ class Logger:
         # If it's an Executor package, add version subfolder.
         if dictProject.get("executorPackage"):
             try:
-                dictExecutorConfig: dict[str, str] = json5.loads(
-                    Path(os.path.join(get_liberrpa_folder_path(), "./configFiles/Executor.jsonc")).read_text()
-                )  # type: ignore
+                dictExecutorConfig = cast(
+                    dict[str, str],
+                    json5.loads(
+                        Path(os.path.join(get_liberrpa_folder_path(), "./configFiles/Executor.jsonc")).read_text()
+                    ),
+                )
 
                 strProjectLogFolderPath = dictExecutorConfig.get("projectLogFolderPath", "")
 

@@ -20,6 +20,7 @@ import psutil
 import json
 import re
 from copy import deepcopy
+from typing import cast
 
 DICT_CONTROL_TYPE_NUM: dict[str, int] = {
     "AppBarControl": 50040,
@@ -140,7 +141,7 @@ def get_control_primary_attr(control: uiautomation.Control) -> DictUiaPrimaryAtt
             # If some value doesn't be got, just ignore.
             Log.error(f"Error fetching {strAttrName}: {e}")
 
-    return _convert_value_to_str(dictTemp)  # type: ignore
+    return cast(DictUiaPrimaryAttrBasic, _convert_value_to_str(dictTemp))
 
 
 def get_control_secondary_attr(control: uiautomation.Control) -> DictUiaSecondaryAttr:
@@ -164,7 +165,7 @@ def get_control_secondary_attr(control: uiautomation.Control) -> DictUiaSecondar
     dictTemp["secondary-width"] = control.BoundingRectangle.width()
     dictTemp["secondary-height"] = control.BoundingRectangle.height()
 
-    return _convert_value_to_str(dictTemp)  # type: ignore
+    return cast(DictUiaSecondaryAttr, _convert_value_to_str(dictTemp))
 
 
 def get_control_attr(control: uiautomation.Control) -> DictUiaAttr:
@@ -364,11 +365,17 @@ def get_child_control_by_selector(
 
 def activate_control_window(control: uiautomation.Control) -> None:
     with uiautomation.UIAutomationInitializerInThread():
-        controlTop: uiautomation.Control = control.GetTopLevelControl()  # type: ignore - It will not be None.
+        controlTop = control.GetTopLevelControl()
+        if controlTop is None:
+            raise UiElementNotFoundError("Failed to get top-level control.")
+
         intHandle = controlTop.NativeWindowHandle
-        pattern = controlTop.GetPattern(uiautomation.PatternId.WindowPattern)
-        if pattern:
-            intCurrentState = pattern.WindowVisualState  # type: ignore
+        pattern = cast(
+            uiautomation.WindowPattern | None,
+            controlTop.GetPattern(uiautomation.PatternId.WindowPattern),
+        )
+        if pattern is not None:
+            intCurrentState = pattern.WindowVisualState
             # 0: normal; 1: maximized; 2: minimized
             if intCurrentState == 2:
                 uiautomation.ShowWindow(handle=intHandle, cmdShow=uiautomation.SW.Restore)

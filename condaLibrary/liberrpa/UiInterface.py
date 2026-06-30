@@ -38,7 +38,7 @@ import uiautomation
 from PIL import Image
 import mss
 from pathlib import Path
-from typing import Literal
+from typing import Literal, cast
 import re
 
 
@@ -451,7 +451,7 @@ def _get_parent(
             "window": selector["window"],
             "category": "html",
             "specification": get_parent_element_attr(
-                htmlSelector=selector["specification"],  # type: ignore - it's SelectorHtml
+                htmlSelector=_UiElement.as_selector_html(selector=selector)["specification"],
                 upwardLevel=upwardLevel,
                 preExecutionDelay=preExecutionDelay,
                 timeout=timeout,
@@ -529,7 +529,7 @@ def _get_children(
         _UiElement.activate_element_window(selector=selector)
 
         listSpecification: list[DictSpecHtml] = get_children_element_attr(
-            htmlSelector=selector["specification"],  # type: ignore - it's SelectorHtml
+            htmlSelector=_UiElement.as_selector_html(selector=selector)["specification"],
             preExecutionDelay=preExecutionDelay,
             timeout=timeout,
         )
@@ -550,8 +550,9 @@ def _get_children(
         # uia
         listControlChildren = get_children_control_recursive(control=uiTarget)
         listSelectorsUia: list[SelectorUia] = [
-            _UiElement.get_control_selector(control=childControl) for childControl in listControlChildren
-        ]  # type: ignore - it's list[SelectorUia]
+            _UiElement.as_selector_uia(selector=_UiElement.get_control_selector(control=childControl))
+            for childControl in listControlChildren
+        ]
 
     delay(postExecutionDelay)
 
@@ -638,12 +639,12 @@ def _get_control_text_recursive(control) -> list[str]:
 
     # Try to retrieve text using ValuePattern if available
     pattern = control.GetPattern(uiautomation.PatternId.ValuePattern)
-    if pattern and pattern.Value:
+    if pattern is not None and pattern.Value:
         listText.append(pattern.Value)
     else:
         # If ValuePattern is not available or provides no text, check TextPattern
         pattern = control.GetPattern(uiautomation.PatternId.TextPattern)
-        if pattern:
+        if pattern is not None:
             strText = pattern.DocumentRange.GetText(-1)
             if strText:
                 listText.append(strText)
@@ -675,12 +676,15 @@ def _get_text(
     else:
         # html
         delay(postExecutionDelay)
-        if dictTarget.get("innerText", None):
-            strTemp: str = dictTarget.get("innerText")  # type: ignore
-        elif dictTarget.get("value"):
-            strTemp: str = dictTarget["value"]  # type: ignore
+        innerText = dictTarget.get("innerText")
+        value = dictTarget.get("value")
+
+        if isinstance(innerText, str) and innerText:
+            strTemp = innerText
+        elif isinstance(value, str) and value:
+            strTemp = value
         else:
-            strTemp: str = ""
+            strTemp = ""
         return ([strTemp], strTemp)
 
 
@@ -731,7 +735,7 @@ def _set_text(
         _UiElement.activate_element_window(selector=selector)
 
         Chrome_set_element_text(
-            htmlSelector=selector["specification"],  # type: ignore - it's SelectorHtml
+            htmlSelector=_UiElement.as_selector_html(selector=selector)["specification"],
             text=text,
             emptyOriginalText=True,
             validateWrittenText=False,
@@ -746,12 +750,14 @@ def _set_text(
     uiTarget, _ = _UiElement.get_element_with_pre_delay(selector=selector, preExecutionDelay=preExecutionDelay)
 
     if isinstance(uiTarget, uiautomation.Control):
-        pattern = uiTarget.GetPattern(uiautomation.PatternId.ValuePattern)
-        if pattern:
-            if uiTarget.IsEnabled:
-                pattern.SetValue(text)  # type: ignore
-                delay(postExecutionDelay)
-                return None
+        pattern = cast(
+            uiautomation.ValuePattern | None,
+            uiTarget.GetPattern(uiautomation.PatternId.ValuePattern),
+        )
+        if pattern is not None and uiTarget.IsEnabled:
+            pattern.SetValue(text)
+            delay(postExecutionDelay)
+            return None
 
     # Other elements don't support setting text and not be checked before.
 
@@ -804,9 +810,13 @@ def _get_check_state(
     strReturn: str = ""
 
     if isinstance(uiTarget, uiautomation.Control):
-        pattern = uiTarget.GetPattern(uiautomation.PatternId.TogglePattern)
-        if pattern:
-            intState: int = pattern.ToggleState  # type: ignore
+        pattern = cast(
+            uiautomation.TogglePattern | None,
+            uiTarget.GetPattern(uiautomation.PatternId.TogglePattern),
+        )
+
+        if pattern is not None:
+            intState: int = pattern.ToggleState
             if intState == 0:
                 strReturn = "unchecked"
             elif intState == 1:
@@ -880,7 +890,7 @@ def _set_check_state(
         # NOTE: Project highlightUI setting will not work for it. (Because the part not only get attributes.)
 
         Chrome_set_check_state(
-            htmlSelector=selector["specification"],  # type: ignore - it's SelectorHtml
+            htmlSelector=_UiElement.as_selector_html(selector=selector)["specification"],
             checkAction=checkAction,
             preExecutionDelay=preExecutionDelay,
             timeout=timeout,
@@ -892,15 +902,19 @@ def _set_check_state(
     uiTarget, _ = _UiElement.get_element_with_pre_delay(selector=selector, preExecutionDelay=preExecutionDelay)
 
     if isinstance(uiTarget, uiautomation.Control):
-        pattern = uiTarget.GetPattern(uiautomation.PatternId.TogglePattern)
-        if pattern:
-            intState: int = pattern.ToggleState  # type: ignore
+        pattern = cast(
+            uiautomation.TogglePattern | None,
+            uiTarget.GetPattern(uiautomation.PatternId.TogglePattern),
+        )
+
+        if pattern is not None:
+            intState: int = pattern.ToggleState
             match checkAction:
                 case "checked":
                     if intState == 1:
                         pass
                     elif intState == 0:
-                        pattern.Toggle()  # type: ignore
+                        pattern.Toggle()
                     else:
                         # intState == 2
                         raise ValueError("The element's check state is 'indeterminate', can't be set.")
@@ -908,12 +922,12 @@ def _set_check_state(
                     if intState == 0:
                         pass
                     elif intState == 1:
-                        pattern.Toggle()  # type: ignore
+                        pattern.Toggle()
                     else:
                         # intState == 2
                         raise ValueError("The element's check state is 'indeterminate', can't be set.")
                 case "toggle":
-                    pattern.Toggle()  # type: ignore
+                    pattern.Toggle()
                 case _:
                     raise ValueError(
                         f"The argument checkAction({checkAction}) should be one of {['checked', 'unchecked', 'toggle']}"

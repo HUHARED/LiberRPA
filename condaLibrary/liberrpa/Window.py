@@ -9,6 +9,7 @@ from liberrpa.Logging import Log
 import liberrpa.UI._UiElement as _UiElement
 from liberrpa.UI._UiDict import (
     DictPositionAndSize,
+    DictUiaSecondaryAttr,
     SelectorWindow,
     SelectorUia,
     SelectorHtml,
@@ -22,7 +23,7 @@ from liberrpa.Basic import delay
 import uiautomation
 import win32gui
 import psutil
-from typing import Literal
+from typing import Literal, cast
 
 
 def _extract_window_element(
@@ -41,9 +42,12 @@ def _close_window(
     uiTarget, _ = _UiElement.get_element_with_pre_delay(selector=selectorWindow, preExecutionDelay=preExecutionDelay)
 
     if isinstance(uiTarget, uiautomation.WindowControl) or isinstance(uiTarget, uiautomation.PaneControl):
-        pattern = uiTarget.GetPattern(uiautomation.PatternId.WindowPattern)
-        if pattern:
-            pattern.Close()  # type: ignore
+        pattern = cast(
+            uiautomation.WindowPattern | None,
+            uiTarget.GetPattern(uiautomation.PatternId.WindowPattern),
+        )
+        if pattern is not None:
+            pattern.Close()
 
             delay(postExecutionDelay)
             return None
@@ -118,7 +122,10 @@ def get_active_window() -> SelectorWindow:
     """
     hwnd = win32gui.GetForegroundWindow()
     if hwnd:
-        control: uiautomation.Control = uiautomation.ControlFromHandle(hwnd)  # type: ignore - It should not be None
+        control = uiautomation.ControlFromHandle(hwnd)
+        if control is None:
+            raise UiElementNotFoundError(f"Failed to get control from window handle: {hwnd}")
+
         return _UiElement.get_control_selector(control=control)
     else:
         raise UiElementNotFoundError("Not found a currently active window.")
@@ -145,15 +152,18 @@ def _set_window_state(
     uiTarget, _ = _UiElement.get_element_with_pre_delay(selector=selectorWindow, preExecutionDelay=preExecutionDelay)
 
     if isinstance(uiTarget, uiautomation.WindowControl) or isinstance(uiTarget, uiautomation.PaneControl):
-        pattern = uiTarget.GetPattern(uiautomation.PatternId.WindowPattern)
-        if pattern:
+        pattern = cast(
+            uiautomation.WindowPattern | None,
+            uiTarget.GetPattern(uiautomation.PatternId.WindowPattern),
+        )
+        if pattern is not None:
             match state:
                 case "normal":
-                    pattern.SetWindowVisualState(state=0)  # type: ignore
+                    pattern.SetWindowVisualState(state=0)
                 case "maximize":
-                    pattern.SetWindowVisualState(state=1)  # type: ignore
+                    pattern.SetWindowVisualState(state=1)
                 case "minimize":
-                    pattern.SetWindowVisualState(state=2)  # type: ignore
+                    pattern.SetWindowVisualState(state=2)
                 case _:
                     raise ValueError(
                         f"The argument state({state}) should be one of {['normal', 'maximize', 'minimize']}"
@@ -254,8 +264,10 @@ def _set_window_position(
     selectorWindow = _extract_window_element(selector=selector)
     _, dictTarget = _UiElement.get_element_with_pre_delay(selector=selectorWindow, preExecutionDelay=preExecutionDelay)
 
+    dictWindowAttr = cast(DictUiaSecondaryAttr, dictTarget)
+
     uiautomation.MoveWindow(
-        handle=int(dictTarget["secondary-NativeWindowHandle"]),  # type: ignore - it's DictUiaWindowAttr
+        handle=int(dictWindowAttr["secondary-NativeWindowHandle"]),
         x=x,
         y=y,
         width=int(dictTarget["secondary-width"]),
@@ -308,8 +320,10 @@ def _set_window_size(
     selectorWindow = _extract_window_element(selector=selector)
     _, dictTarget = _UiElement.get_element_with_pre_delay(selector=selectorWindow, preExecutionDelay=preExecutionDelay)
 
+    dictWindowAttr = cast(DictUiaSecondaryAttr, dictTarget)
+
     uiautomation.MoveWindow(
-        handle=int(dictTarget["secondary-NativeWindowHandle"]),  # type: ignore : it's DictUiaWindowAttr
+        handle=int(dictWindowAttr["secondary-NativeWindowHandle"]),
         x=int(dictTarget["secondary-x"]),
         y=int(dictTarget["secondary-y"]),
         width=width,
@@ -362,7 +376,9 @@ def _get_window_pid(
     _, dictTarget = _UiElement.get_element_with_pre_delay(selector=selectorWindow, preExecutionDelay=preExecutionDelay)
 
     delay(postExecutionDelay)
-    return int(dictTarget["secondary-ProcessId"])  # type: ignore : it's DictUiaWindowAttr
+
+    dictWindowAttr = cast(DictUiaSecondaryAttr, dictTarget)
+    return int(dictWindowAttr["secondary-ProcessId"])
 
 
 @Log.trace()
@@ -404,7 +420,9 @@ def _get_window_file_path(
     _, dictTarget = _UiElement.get_element_with_pre_delay(selector=selectorWindow, preExecutionDelay=preExecutionDelay)
 
     delay(postExecutionDelay)
-    return psutil.Process(int(dictTarget["secondary-ProcessId"])).exe()  # type: ignore : it's DictUiaWindowAttr
+
+    dictWindowAttr = cast(DictUiaSecondaryAttr, dictTarget)
+    return psutil.Process(int(dictWindowAttr["secondary-ProcessId"])).exe()
 
 
 @Log.trace()

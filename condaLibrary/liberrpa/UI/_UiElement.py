@@ -18,6 +18,7 @@ from liberrpa.UI._CommonValue import boolHighlightUi
 from liberrpa.Common._Exception import UiElementNotFoundError
 from liberrpa.Common._TypedValue import ExecutionMode
 from liberrpa.UI._UiDict import (
+    DictSpecWindow,
     DictSpecUia,
     DictSpecUiaOriginalTemp,
     DictSepcImage,
@@ -40,12 +41,32 @@ from time import time, sleep
 import threading
 from contextlib import contextmanager
 from collections.abc import Sequence
+from typing import cast
+
 
 # Set the global variable of uiautomation.
 uiautomation.SEARCH_INTERVAL = 1.0
 uiautomation.OPERATION_WAIT_TIME = 0
 uiautomation.SetGlobalSearchTimeout(10)
 Log.verbose(f"Initialize uiautomation in thread: {threading.current_thread().name}")
+
+
+def as_selector_uia(selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage) -> SelectorUia:
+    if selector.get("category") != "uia":
+        raise ValueError(f"Expected SelectorUia, got selector category: {selector.get('category')!r}")
+    return cast(SelectorUia, selector)
+
+
+def as_selector_html(selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage) -> SelectorHtml:
+    if selector.get("category") != "html":
+        raise ValueError(f"Expected SelectorHtml, got selector category: {selector.get('category')!r}")
+    return cast(SelectorHtml, selector)
+
+
+def as_selector_image(selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage) -> SelectorImage:
+    if selector.get("category") != "image":
+        raise ValueError(f"Expected SelectorImage, got selector category: {selector.get('category')!r}")
+    return cast(SelectorImage, selector)
 
 
 @contextmanager
@@ -107,7 +128,9 @@ def get_control_selector(
         intToNamedParentDepth: int = 1
         while element is not None:
             # Add the current layer's attributes.
-            dictCurrentLayerPrimaryAttr: DictSpecUiaOriginalTemp = get_control_primary_attr(control=element)  # type: ignore - "FrameworkId", "ProcessName", "NextLayerDepth" be added later or be deleted.
+            dictCurrentLayerPrimaryAttr = cast(
+                DictSpecUiaOriginalTemp, get_control_primary_attr(control=element)
+            )  # "FrameworkId", "ProcessName", "NextLayerDepth" be added later or be deleted.
 
             # Keep only the layer that contains "Name", and add it to listAllLayerControl for adding Index later.
             if dictCurrentLayerPrimaryAttr.get("Name"):
@@ -238,15 +261,14 @@ def get_control_selector(
     if len(listLayersAttr) == 1:
         # If it's a window control(just one layer)
         # SelectorWindowOriginal, treat it as SelectorWindow for use later.
-        return {"window": listLayersAttr[0]}  # type: ignore - the fields are right.
+        return {"window": cast(DictSpecWindow, listLayersAttr[0])}
     else:
         # SelectorUiaOriginal, treat it as SelectorUia for use later.
         # Use Sequence to convert the type for Pylance
-        listNonWindowTemp: Sequence[DictSpecUia] = listLayersAttr[1:]  # type: ignore - treat DictSpecUiaOriginalTemp as DictSpecUia
         return {
-            "window": listLayersAttr[0],  # type: ignore - treat it as DictSpecWindow
+            "window": cast(DictSpecWindow, listLayersAttr[0]),
             "category": "uia",
-            "specification": list(listNonWindowTemp),
+            "specification": list(cast(Sequence[DictSpecUia], listLayersAttr[1:])),
         }
 
 
@@ -274,8 +296,8 @@ def get_element(
         match selector.get("category"):
             case "uia":
                 controlTemp = get_child_control_by_selector(
-                    selectorUiaPart=selector["specification"], controlTop=controlTop
-                )  # type: ignore selector: SelectorUia
+                    selectorUiaPart=as_selector_uia(selector=selector)["specification"], controlTop=controlTop
+                )
                 if boolHighlightUi:
                     create_overlay(
                         controlTemp.BoundingRectangle.left,
@@ -291,9 +313,15 @@ def get_element(
                 # Only Chrome now. If has other browser, use ProcessName to call the browser extension.
 
                 # The target window has been activated. Call the Chrome module to get the attributes.
-                dictAttr: DictHtmlAttr = _Chrome.get_element_attr_by_selector(htmlSelector=selector["specification"])  # type: ignore selector: SelectorUia
+                dictAttr: DictHtmlAttr = _Chrome.get_element_attr_by_selector(
+                    htmlSelector=as_selector_html(selector=selector)["specification"]
+                )
 
                 if boolHighlightUi:
+                    tagName = dictAttr.get("tagName")
+                    if not isinstance(tagName, str) or not tagName:
+                        raise UiElementNotFoundError(f"HTML element has no valid tagName. attr: {dictAttr}")
+
                     create_overlay(
                         int(dictAttr["secondary-x"]),
                         int(dictAttr["secondary-y"]),
@@ -301,11 +329,11 @@ def get_element(
                         int(dictAttr["secondary-height"]),
                         color="red",
                         duration=200,
-                        label=dictAttr["tagName"],  # type: ignore - It must have tagName when get its attributes.
+                        label=tagName,
                     )
                 return (None, dictAttr)
             case "image":
-                selectorTemp: SelectorImage = selector  # type: ignore - declare its type
+                selectorTemp: SelectorImage = as_selector_image(selector)
                 if len(selectorTemp["specification"]) != 1:
                     raise ValueError(
                         f"It should have only one dictionary in 'specification', but it has {len(selectorTemp['specification'])}"

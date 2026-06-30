@@ -58,16 +58,29 @@ def _generate_next_dict() -> tuple[
 
     for node in listNode:
         # The Choose node use "condition", the others(Start, Substart, Block, End) use "pyFile".
+        nodeId = node["id"]
+        nodeProperties = node["properties"]
+
         if node["type"] == "Choose":
-            dictConditionInfo[node["id"]] = node["properties"]["condition"]  # type: ignore - It must have "condition"
+            condition = nodeProperties.get("condition")
+            if not isinstance(condition, str):
+                raise ValueError(f"Choose node {nodeId} has no valid condition.")
+            dictConditionInfo[nodeId] = condition
+
         else:
-            dictPyInfo[node["id"]] = node["properties"]["pyFile"]  # type: ignore - It must have "pyFile"
+            pyFile = nodeProperties.get("pyFile")
+            if not isinstance(pyFile, str):
+                raise ValueError(f"Node {nodeId} has no valid pyFile.")
+            dictPyInfo[nodeId] = pyFile
 
         dictNodeType[node["id"]] = node["type"]
         dictNodeText[node["id"]] = node["text"]
 
     for edge in listEdge:
-        strSourceNodeType: Literal["Start", "SubStart", "Block", "Choose"] = dictNodeType[edge["sourceNodeId"]]  # type: ignore - "End" will not be a source.
+        strSourceNodeType = dictNodeType[edge["sourceNodeId"]]
+
+        if strSourceNodeType == "End":
+            raise ValueError("End node should not be an edge source.")
 
         match strSourceNodeType:
             case "Start":

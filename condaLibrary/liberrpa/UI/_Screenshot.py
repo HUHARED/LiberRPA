@@ -11,6 +11,7 @@ import os
 import sys
 import inspect
 import subprocess
+from typing import overload, Literal, cast, Any
 
 SCREENSHOT_DOCUMENTS_PATH = os.path.join(os.environ.get("USERPROFILE", "N/A"), R"Documents\LiberRPA\Screenshots")
 os.makedirs(name=SCREENSHOT_DOCUMENTS_PATH, exist_ok=True)
@@ -29,7 +30,7 @@ class ScreenshotCapture(QtWidgets.QWidget):
 
         # Capture all screens and combine them into one large pixmap with correct positioning
         temp = capture_all_screen(needImage=True)
-        self.pixmapScreenshot: QtGui.QPixmap = temp[0]  # type: ignore
+        self.pixmapScreenshot: QtGui.QPixmap = temp[0]
         self.intMinX = temp[1]
         self.intMinY = temp[2]
         print("intMinX=" + str(self.intMinX) + ", intMinY=" + str(self.intMinY))
@@ -85,6 +86,14 @@ class ScreenshotCapture(QtWidgets.QWidget):
             self.close()
 
 
+@overload
+def capture_all_screen(needImage: Literal[True]) -> tuple[QtGui.QPixmap, int, int]: ...
+
+
+@overload
+def capture_all_screen(needImage: Literal[False] = False) -> tuple[None, int, int]: ...
+
+
 def capture_all_screen(needImage: bool = False) -> tuple[QtGui.QPixmap | None, int, int]:
     """
     Returns (combinedPixmap, minX, minY)
@@ -128,7 +137,8 @@ def capture_all_screen(needImage: bool = False) -> tuple[QtGui.QPixmap | None, i
         # Capture each screen and paint it onto the combined QPixmap at the correct position
         for screen in screens:
             geometry = screen.geometry()
-            pixmap = screen.grabWindow(0)  # type: ignore - use QtWidgets.QApplication.desktop().winId() will not show error but it can't get the right whole screen.
+            windowId = cast(Any, 0)
+            pixmap = screen.grabWindow(windowId)
             # Draw the screenshot at the correct position based on the monitor's geometry
             painter.drawPixmap(geometry.x() - intMinX, geometry.y() - intMinY, pixmap)
 

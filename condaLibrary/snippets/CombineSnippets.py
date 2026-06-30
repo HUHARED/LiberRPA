@@ -7,7 +7,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from pathlib import Path
 import json5
-from typing import TypedDict, NotRequired
+from typing import TypedDict, NotRequired, cast
 import json
 import sys
 
@@ -21,19 +21,26 @@ class DictSnippetsItem(TypedDict):
 strBasic = Path("./snippets/snippets_basic.snippets").read_text()
 strOther = Path("./snippets/snippets_other.snippets").read_text()
 
-dictBasic: dict[str, dict[str, DictSnippetsItem]] = json5.loads(strBasic)  # type: ignore
-dictOther: dict[str, dict[str, DictSnippetsItem]] = json5.loads(strOther)  # type: ignore
+dictBasic = cast(dict[str, dict[str, DictSnippetsItem]], json5.loads(strBasic))
+dictOther = cast(dict[str, dict[str, DictSnippetsItem]], json5.loads(strOther))
 
 dictFinal: dict[str, DictSnippetsItem] = {}
+
+
+def _append_empty_line_to_snippet_body(item: DictSnippetsItem) -> None:
+    body = item["body"]
+
+    if isinstance(body, str):
+        item["body"] = [body, ""]
+    else:
+        body.append("")
+
 
 for strModuleName in dictBasic:
     for strTitle in dictBasic[strModuleName]:
         # Add a new line, otherwise vscode will add a cursor postion at the line end. Add a new cursor in the new line is more reasonable.
         try:
-            if isinstance(dictBasic[strModuleName][strTitle]["body"], str):
-                dictBasic[strModuleName][strTitle]["body"] = [dictBasic[strModuleName][strTitle]["body"], ""]  # type: ignore - Convert body to list
-            else:
-                dictBasic[strModuleName][strTitle]["body"].append("")  # type: ignore - It's list.
+            _append_empty_line_to_snippet_body(dictBasic[strModuleName][strTitle])
         except Exception:
             print("Error at", dictBasic[strModuleName][strTitle])
             sys.exit()
@@ -43,10 +50,7 @@ for strModuleName in dictBasic:
 for strModuleName in dictOther:
     for strTitle in dictOther[strModuleName]:
         try:
-            if isinstance(dictOther[strModuleName][strTitle]["body"], str):
-                dictOther[strModuleName][strTitle]["body"] = [dictOther[strModuleName][strTitle]["body"], ""]  # type: ignore - Convert body to list
-            else:
-                dictOther[strModuleName][strTitle]["body"].append("")  # type: ignore - It's list.
+            _append_empty_line_to_snippet_body(dictOther[strModuleName][strTitle])
         except Exception:
             print("Error at", dictOther[strModuleName][strTitle])
             sys.exit()

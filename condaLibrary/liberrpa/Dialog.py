@@ -236,7 +236,10 @@ def show_message_box(
             raise ValueError("type should be one of ['info', 'warning', 'error', 'question'].")
 
     root.destroy()
-    return response  # type: ignore
+
+    if response not in ("ok", "yes", "no", True, False):
+        raise ValueError(f"Unexpected message box response: {response!r}")
+    return response
 
 
 if __name__ == "__main__":

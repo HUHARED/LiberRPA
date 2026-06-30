@@ -44,6 +44,7 @@ import mss
 import io
 import base64
 from PIL import Image
+from typing import Any, cast
 
 _HIGHLIGHT_DURATION = 500
 
@@ -145,7 +146,13 @@ def indicate_uia(indicateDelaySeconds: int = 1) -> tuple[DictForUiAnalyzer, uiau
         Log.debug("Pressed mouse left.")
 
         # Get the selector(contains primary attributes) and secondary attributes.
-        selector: SelectorUia = _UiElement.get_control_selector(control=element)  # type: ignore - it will return SelectorUia
+        selector = _UiElement.get_control_selector(control=element)
+
+        if selector.get("category") != "uia":
+            raise UiElementNotFoundError(f"Expected SelectorUia, got {selector.get('category')!r}")
+
+        selector = cast(SelectorUia, selector)
+
         dictSecondaryAttr = get_control_secondary_attr(control=element)
 
         preview = _screenshot_to_base64(
@@ -255,11 +262,13 @@ def indicate_chrome(
         # Delete all secondary attributes in listAllAttr, assign it to listSpecification
         listSpecification: list[DictSpecHtml] = []
         for dictAttr in listAllAttr:
-            dictToAppend: DictSpecHtml = {}  # type: ignore - add value later.
+            dictToAppendTemp: dict[str, Any] = {}
+
             for strKey in dictAttr:
                 if not strKey.startswith("secondary-"):
-                    dictToAppend[strKey] = dictAttr[strKey]
-            listSpecification.append(dictToAppend)
+                    dictToAppendTemp[strKey] = dictAttr[strKey]
+
+            listSpecification.append(cast(DictSpecHtml, dictToAppendTemp))
 
         selector: SelectorHtml = {
             "window": _UiElement.get_control_selector(control=elementWindow)["window"],
@@ -412,9 +421,13 @@ def indicate_window(indicateDelaySeconds: int = 1) -> DictForUiAnalyzer | None:
                     # Find the element under the cursor
                     # print("Get element.")
                     with uiautomation.UIAutomationInitializerInThread():
-                        element = uiautomation.ControlFromPoint(
-                            x=dictCoordinate["x"], y=dictCoordinate["y"]
-                        ).GetTopLevelControl()  # type: ignore - It will not be None.
+                        control = uiautomation.ControlFromPoint(x=dictCoordinate["x"], y=dictCoordinate["y"])
+
+                        if control is None:
+                            raise UiElementNotFoundError("Failed to get top-level control from point.")
+
+                        element = control.GetTopLevelControl()
+
                 except Exception as e:
                     strError = (
                         f"Error to get window at {dictCoordinate}.Maybe LiberRPA Local Server have no permission for the window. "
@@ -493,7 +506,7 @@ def validate(selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorIma
 
             timeout = _UiElement.check_set_timeout(timeout=timeout * 1000)
 
-            selectorTemp: SelectorImage = selector  # type: ignore - It is SelectorImage
+            selectorTemp: SelectorImage = _UiElement.as_selector_image(selector)
 
             _, dictTarget = timeout_kill_thread(timeout=timeout)(_get_image_element)(selectorTemp)
             create_overlay(
@@ -545,7 +558,12 @@ def _get_window_element(dictCoordinate: DictPosition) -> uiautomation.Control:
     print(dictCoordinate)
     # After click, get the window element once.
     with uiautomation.UIAutomationInitializerInThread():
-        elementWindow = uiautomation.ControlFromPoint(x=dictCoordinate["x"], y=dictCoordinate["y"]).GetTopLevelControl()  # type: ignore - It will not be None.
+        control = uiautomation.ControlFromPoint(x=dictCoordinate["x"], y=dictCoordinate["y"])
+
+        if control is None:
+            raise UiElementNotFoundError("Failed to get top-level control from point.")
+
+        elementWindow = control.GetTopLevelControl()
 
     print("elementWindow=", elementWindow)
 

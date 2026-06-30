@@ -112,7 +112,7 @@ def create_area(
     fontColor: Literal["red", "green", "blue", "yellow", "purple", "pink", "black"] = "red",
 ) -> ScreenPrintObj:
 
-    screenPrintObj: ScreenPrintObj = str(uuid.uuid4())  # type: ignore
+    screenPrintObj = ScreenPrintObj(str(uuid.uuid4()))
     dictScreenPrintObj[screenPrintObj] = RealScreenPrintObj(
         x=x, y=y, width=width, height=height, fontFamily=fontFamily, fontSize=fontSize, fontColor=fontColor
     )

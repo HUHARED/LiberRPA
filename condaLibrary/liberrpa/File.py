@@ -743,9 +743,9 @@ def pdf_save_pages_as_images(
         matrix = fitz.Matrix(scale, scale)
 
         for index in range(startPage - 1, endPage):
-            page = doc.load_page(index)
-            pix = page.get_pixmap(matrix=matrix)  # type: ignore
-            img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)  # type: ignore
+            page = cast(Any, doc.load_page(index))
+            pix = page.get_pixmap(matrix=matrix)
+            img = Image.frombytes("RGB", (pix.width, pix.height), bytes(pix.samples))
             imageFileName = f"{Path(filePath).stem}_{index + 1}.png"
             imageFilePath = os.path.join(saveFolderPath, imageFileName)
             img.save(imageFilePath, "PNG")
@@ -777,7 +777,7 @@ def pdf_extract_images_from_pages(
     Returns:
         list[str]: A list of paths to the extracted image files.
     """
-    with fitz.open(filePath, filetype="pdf") as doc:  # type: ignore
+    with fitz.open(filePath, filetype="pdf") as doc:
         if password != "":
             doc.authenticate(password)
         listExtractedImagePath: list[str] = []
@@ -835,13 +835,13 @@ def pdf_extract_text_from_pages(
     Returns:
         str: The extracted text from specified pages.
     """
-    with fitz.open(filePath, filetype="pdf") as doc:  # type: ignore
+    with fitz.open(filePath, filetype="pdf") as doc:
         if password != "":
             doc.authenticate(password)
         text: str = ""
         for page_num in range(startPage - 1, endPage):
-            page = doc.load_page(page_num)
-            text += page.get_text()  # type: ignore
+            page = cast(Any, doc.load_page(page_num))
+            text += str(page.get_text())
     return text
 
 

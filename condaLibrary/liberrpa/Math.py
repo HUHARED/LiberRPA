@@ -9,6 +9,7 @@ from liberrpa.Logging import Log
 from builtins import round as _round
 import math
 from decimal import Decimal
+from typing import cast
 
 
 @Log.trace()
@@ -24,7 +25,7 @@ def round[NumberT: (int, float, Decimal)](value: NumberT, fraction: int = 0) -> 
     Returns:
         The rounded value, with the same type as the input number.
     """
-    return _round(value, fraction)  # type: ignore
+    return cast(NumberT, _round(value, fraction))
 
 
 @Log.trace()
@@ -53,7 +54,7 @@ def absolute[NumberT: (int, float, Decimal)](value: NumberT) -> NumberT:
     Returns:
         The absolute value of the input number.
     """
-    return abs(value)  # type: ignore
+    return cast(NumberT, abs(value))
 
 
 @Log.trace()

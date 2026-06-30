@@ -66,7 +66,7 @@ def create_area(
             "fontSize": fontSize,
             "fontColor": fontColor,
         },
-    )  # type: ignore - It will be ScreenPrintObj
+    )
 
     return screenPrintObj
 

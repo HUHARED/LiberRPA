@@ -575,7 +575,10 @@ def get_scroll_position(browserObj: BrowserObj) -> tuple[int, int]:
                 command={"commandName": "getScrollPosition"},
             )
 
-            return tuple(temp)  # type: ignore - it has 2 item.
+            if len(temp) != 2:
+                raise ValueError(f"Expected 2 values, got {len(temp)}: {temp}")
+
+            return (temp[0], temp[1])
 
         case _:
             raise ValueError(f"(!!!It should not appear.) Not support the browser: '{browserObj}'")

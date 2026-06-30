@@ -5,12 +5,13 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import liberrpa.UI._UiElement as _UiElement
-from liberrpa.UI._UiDict import DictElementTreeItem
-from liberrpa.Common._Exception import UiOperationError
+from liberrpa.UI._UiDict import DictElementTreeItem, DictSpecUiaOriginal
+from liberrpa.Common._Exception import UiOperationError, UiElementNotFoundError
 
 
 import uiautomation
 import time
+from typing import cast
 
 
 class IdGenerator:
@@ -52,7 +53,9 @@ def generate_control_tree(elementFinal: uiautomation.Control) -> tuple[list[Dict
     listFinalTree: list[DictElementTreeItem] = []
 
     # Log.debug(f"target info = {elementFinal}")
-    controlTop: uiautomation.Control = elementFinal.GetTopLevelControl()  # type: ignore - It should not be None
+    controlTop = elementFinal.GetTopLevelControl()
+    if controlTop is None:
+        raise UiElementNotFoundError("Failed to get top-level control.")
     # Log.debug(f"Top control: {controlTop}")
 
     controlTarget = elementFinal
@@ -83,13 +86,14 @@ def generate_control_tree(elementFinal: uiautomation.Control) -> tuple[list[Dict
         # Get spec
         dictSpecCurrent = _UiElement.get_control_primary_attr(control=ele)
         if dictSpecCurrent.get("ProcessName"):
-            del dictSpecCurrent["ProcessName"]  # type: ignore - it exists
+            dictSpecCurrent.pop("ProcessName", None)
         if dictSpecCurrent.get("FrameworkId"):
-            del dictSpecCurrent["FrameworkId"]  # type: ignore - it exists
+            dictSpecCurrent.pop("FrameworkId", None)
+
         dictTemp: DictElementTreeItem = {
             "id": intId,
             "title": dictSpecCurrent["ControlTypeName"].removesuffix("Control") + "-" + dictSpecCurrent.get("Name", ""),
-            "spec": dictSpecCurrent,  # type: ignore - it's DictSpecUiaOriginal now. But may not have Name.
+            "spec": cast(DictSpecUiaOriginal, dictSpecCurrent),
         }
         listChildrenTemp = _get_children_spec_recursive(controlAnchor=ele, layerSign=str(idx))
         if len(listChildrenTemp) != 0:
@@ -127,13 +131,13 @@ def _get_children_spec_recursive(
         # Get spec
         dictSpecCurrent = _UiElement.get_control_primary_attr(control=ele)
         if dictSpecCurrent.get("ProcessName"):
-            del dictSpecCurrent["ProcessName"]  # type: ignore - it exists
+            dictSpecCurrent.pop("ProcessName", None)
         if dictSpecCurrent.get("FrameworkId"):
-            del dictSpecCurrent["FrameworkId"]  # type: ignore - it exists
+            dictSpecCurrent.pop("FrameworkId", None)
         dictTemp: DictElementTreeItem = {
             "id": intId,
             "title": dictSpecCurrent["ControlTypeName"].removesuffix("Control") + "-" + dictSpecCurrent.get("Name", ""),
-            "spec": dictSpecCurrent,  # type: ignore - it's DictSpecUiaOriginal now. But may not have Name.
+            "spec": cast(DictSpecUiaOriginal, dictSpecCurrent),
         }
         listChildrenTemp = _get_children_spec_recursive(controlAnchor=ele, layerSign=layerSignNew)
         if len(listChildrenTemp) != 0:

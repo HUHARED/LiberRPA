@@ -114,27 +114,27 @@ type Encoding = Literal[
 
 # Mail
 class DictImapMailInfo(TypedDict):
-    subject: str
-    from_: list[tuple[str, str]]
-    to: list[tuple[str, str]]
+    subject: str | None
+    from_: list[tuple[str, str]] | None
+    to: list[tuple[str, str]] | None
     cc: list[tuple[str, str]] | None
     bcc: list[tuple[str, str]] | None
-    date: str
-    received: list[dict[str, Any]]
-    text_plain: list[str]
-    text_html: list[str]
-    attachments: list[dict[str, Any]]
-    headers: dict[str, str]
-    message_id: str
-    to_domains: str | list[str]
+    date: str | None
+    received: list[dict[str, Any]] | None
+    text_plain: list[str] | None
+    text_html: list[str] | None
+    attachments: list[dict[str, Any]] | None
+    headers: dict[str, str] | None
+    message_id: str | None
+    to_domains: str | list[str] | None
     from_domains: str | list[str] | None
     cc_domains: str | list[str] | None
     bcc_domains: str | list[str] | None
     delivered_to: list[str] | None
     reply_to: list[str] | None
-    body: str
+    body: str | None
     anomalies: str | None
-    mail: dict[str, Any]
+    mail: dict[str, Any] | None
     defects: list[Any] | None
     defects_category: str | None
     has_defects: bool | None

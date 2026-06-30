@@ -60,11 +60,12 @@ def _check_if_liberrpa_server_has_run(port: int) -> bool:
 
 
 def get_client_id() -> str:
-    try:
-        strClientSid: str = request.sid  # type: ignore - Pylance can't find sid, but it has.
-        return strClientSid
-    except Exception as e:
-        return str(e)
+    sid = getattr(request, "sid", None)
+
+    if not isinstance(sid, str):
+        raise RuntimeError("Failed to get Socket.IO client sid from request.")
+
+    return sid
 
 
 def create_flask_server(port) -> None:
