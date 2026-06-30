@@ -19,15 +19,12 @@ from liberrpa.LiberRPALocalServer._Tray import change_tray_icon
 
 from flask_socketio import emit
 import json
-import uuid
 import threading
 from copy import deepcopy
 from typing import Any
 
-# Store the command from UI Analyzer.
-_dictUiAnalyzerCmd: dict[str, str] = {}
-
-_eventIsHandleUiAnalyzer = threading.Event()
+# Make sure only one UI Analyzer command is handled at a time.
+_lockHandleUiAnalyzer = threading.Lock()
 
 
 @Log.trace()
@@ -36,36 +33,35 @@ def handle_uianalyzer_command(message: str) -> None:
     clientSid = get_client_id()
     Log.info(f"Received UI Analyzer command: {message}, SID: {clientSid}")
 
-    strId = str(uuid.uuid4())
-    _dictUiAnalyzerCmd[strId] = clientSid
+    if not _lockHandleUiAnalyzer.acquire(blocking=False):
+        result: DictSocketResult = {
+            "boolSuccess": False,
+            "data": "Error: Another UI Analyzer command is running",
+        }
+        Log.debug("Another UI Analyzer command is running.")
+        emit(
+            "message_flask_to_uianalyzer",
+            json.dumps(result),
+            to=clientSid,
+        )
+        return None
 
     result: DictSocketResult = {"boolSuccess": False, "data": None}
     dictCommand: dict[str, Any] = {}
+    strCommandName: str | None = None
     temp: Any = None
     element = None
     tupleEleTree = None
 
-    # Make sure only one uianalyzer_command can be run.
-    if _eventIsHandleUiAnalyzer.is_set():
-        result: DictSocketResult = {
-            "boolSuccess": False,
-            "data": "Error: " + "Another UI Analyzer command is running",
-        }
-        Log.debug("Another UI Analyzer command is running.")
-        emit("message_flask_to_uianalyzer", json.dumps(result), to=_dictUiAnalyzerCmd[strId])
-
-        del _dictUiAnalyzerCmd[strId]
-
-        return
-
-    else:
-        _eventIsHandleUiAnalyzer.set()
+    try:
         change_tray_icon(component="LiberRPALocalServer_Indicating")
 
-    try:
         dictCommand = json.loads(message)
+        strCommandNameTemp = dictCommand.get("commandName")
+        if not isinstance(strCommandNameTemp, str):
+            raise ValueError(f"Invalid commandName: {strCommandNameTemp!r}")
 
-        strCommandName = dictCommand.get("commandName")
+        strCommandName = strCommandNameTemp
 
         # Check some arguments to avoid incompatible argument and too long delays in case. (e.g. Local Server's version doesn't equal to UI Analyzer's version)
         if strCommandName in ["indicate_uia", "indicate_chrome", "indicate_image", "indicate_window"]:
@@ -104,18 +100,7 @@ def handle_uianalyzer_command(message: str) -> None:
                 temp = _UiAnalyzer.validate(dictCommand["strSelectorJson"], intMatchTimeout)
 
             case _:
-                result: DictSocketResult = {
-                    "boolSuccess": False,
-                    "data": "Unknown command: " + str(dictCommand.get("commandName")),
-                }
-                Log.info(result)
-                emit("message_flask_to_uianalyzer", json.dumps(result), to=_dictUiAnalyzerCmd[strId])
-
-                del _dictUiAnalyzerCmd[strId]
-                _eventIsHandleUiAnalyzer.clear()
-                change_tray_icon(component="LiberRPALocalServer")
-
-                return
+                raise ValueError(f"Unknown command: {strCommandName}")
 
     except Exception as e:
         result: DictSocketResult = {
@@ -129,33 +114,48 @@ def handle_uianalyzer_command(message: str) -> None:
         # preview is so long, not print it.
         if isinstance(result["data"], dict) and result["data"].get("preview") is not None:
             resultTemp = deepcopy(result)
-            del resultTemp["data"]["preview"]
+
+            resultDataTemp = resultTemp.get("data")
+            if isinstance(resultDataTemp, dict):
+                resultDataTemp.pop("preview", None)
+
             Log.debug(resultTemp)
         else:
             Log.info(result)
-        emit("message_flask_to_uianalyzer", json.dumps(result), to=_dictUiAnalyzerCmd[strId])
 
-        # Genarate Element Tree.
+        emit(
+            "message_flask_to_uianalyzer",
+            json.dumps(result),
+            to=clientSid,
+        )
+
+        # Generate Element Tree.
         if strCommandName == "indicate_uia" and element:
             try:
                 tupleTemp = _ElementTree.generate_control_tree(elementFinal=element)
             except Exception as e:
                 Log.exception_info(e)
                 show_notification(
-                    title="LiberRPA Local Server", message="Error to indicate uia\n" + str(e), duration=5, wait=False
+                    title="LiberRPA Local Server",
+                    message="Error to indicate uia\n" + str(e),
+                    duration=5,
+                    wait=False,
                 )
             else:
                 emit(
-                    "message_flask_to_uianalyzer", "Element_Tree:" + json.dumps(tupleTemp), to=_dictUiAnalyzerCmd[strId]
+                    "message_flask_to_uianalyzer",
+                    "Element_Tree:" + json.dumps(tupleTemp),
+                    to=clientSid,
                 )
 
         if strCommandName == "indicate_chrome" and tupleEleTree:
             emit(
-                "message_flask_to_uianalyzer", "Element_Tree:" + json.dumps(tupleEleTree), to=_dictUiAnalyzerCmd[strId]
+                "message_flask_to_uianalyzer",
+                "Element_Tree:" + json.dumps(tupleEleTree),
+                to=clientSid,
             )
     except Exception as e:
         Log.error(get_exception_info(e))
     finally:
-        del _dictUiAnalyzerCmd[strId]
-        _eventIsHandleUiAnalyzer.clear()
+        _lockHandleUiAnalyzer.release()
         change_tray_icon(component="LiberRPALocalServer")
