@@ -9,13 +9,10 @@ from liberrpa.Logging import Log
 from builtins import round as _round
 import math
 from decimal import Decimal
-from typing import TypeVar
-
-NumberT = TypeVar("NumberT", int, float, Decimal)
 
 
 @Log.trace()
-def round(value: NumberT, fraction: int = 0) -> NumberT:
+def round[NumberT: (int, float, Decimal)](value: NumberT, fraction: int = 0) -> NumberT:
     """
     Rounds a number to a specified precision in fractional digits.
     fraction may be negative.
@@ -46,7 +43,7 @@ def check_float_equal(value1: float, value2: float) -> bool:
 
 
 @Log.trace()
-def absolute(value: NumberT) -> NumberT:
+def absolute[NumberT: (int, float, Decimal)](value: NumberT) -> NumberT:
     """
     Computes the absolute value of a number.
 
@@ -60,7 +57,7 @@ def absolute(value: NumberT) -> NumberT:
 
 
 @Log.trace()
-def get_int_and_fraction(value: NumberT) -> tuple[int, float]:
+def get_int_and_fraction[NumberT: (int, float, Decimal)](value: NumberT) -> tuple[int, float]:
     """
     Splits a number into its integer and fractional parts.
 

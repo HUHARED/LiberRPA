@@ -6,10 +6,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
 from liberrpa.Logging import Log
-from typing import Any, TypeVar
-
-T = TypeVar("T")
-T2 = TypeVar("T2")
+from typing import Any
 
 
 @Log.trace()
@@ -24,10 +21,10 @@ def clear(dictObj: dict) -> None:
 
 
 @Log.trace()
-def get(dictObj: dict[T, T2], key: T, default: T2 | None = None) -> T2 | None:
+def get[T, T2](dictObj: dict[T, T2], key: T, default: T2 | None = None) -> T2 | None:
     """
     Retrieve the value associated with a specified key from the dictionary.
-    
+
     If the key is not found, return the default.
 
     Parameters:
@@ -42,10 +39,10 @@ def get(dictObj: dict[T, T2], key: T, default: T2 | None = None) -> T2 | None:
 
 
 @Log.trace()
-def pop(dictObj: dict[T, T2], key: T, default: T2 | None = None) -> T2 | None:
+def pop[T, T2](dictObj: dict[T, T2], key: T, default: T2 | None = None) -> T2 | None:
     """
     Remove a specified key from the dictionary and return its corresponding value.
-    
+
     If the key is not found, return the default.
 
     Parameters:
@@ -60,10 +57,10 @@ def pop(dictObj: dict[T, T2], key: T, default: T2 | None = None) -> T2 | None:
 
 
 @Log.trace()
-def pop_item(dictObj: dict[T, T2]) -> tuple[T, T2]:
+def pop_item[T, T2](dictObj: dict[T, T2]) -> tuple[T, T2]:
     """
     Remove a specified key from the dictionary and return its corresponding value.
-    
+
     Raise KeyError if dictObj is empty.
 
     Parameters:
@@ -78,7 +75,7 @@ def pop_item(dictObj: dict[T, T2]) -> tuple[T, T2]:
 
 
 @Log.trace()
-def get_key_list(dictObj: dict[T, Any]) -> list[T]:
+def get_key_list[T](dictObj: dict[T, Any]) -> list[T]:
     """
     Retrieve a list of keys from the specified dictionary.
 
@@ -92,7 +89,7 @@ def get_key_list(dictObj: dict[T, Any]) -> list[T]:
 
 
 @Log.trace()
-def get_value_list(dictObj: dict[Any, T]) -> list[T]:
+def get_value_list[T](dictObj: dict[Any, T]) -> list[T]:
     """
     Retrieve a list of values from the specified dictionary.
 
@@ -106,7 +103,7 @@ def get_value_list(dictObj: dict[Any, T]) -> list[T]:
 
 
 @Log.trace()
-def extend(dictObj: dict[T, T2], dictToExtend: dict[T, T2]) -> None:
+def extend[T, T2](dictObj: dict[T, T2], dictToExtend: dict[T, T2]) -> None:
     """
     Retrieve a list of values from the specified dictionary.
 

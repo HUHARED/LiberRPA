@@ -111,13 +111,13 @@ def write_windows_credential(
             raise ValueError(f"The argument persist should be one of {listTemp}")
 
     win32cred.CredWrite(
-        Credential=dict(
-            Type=Type,
-            TargetName=targetName,
-            UserName=userName,
-            CredentialBlob=credentialBlob,
-            Persist=Persist,
-        ),
+        Credential={
+            "Type": Type,
+            "TargetName": targetName,
+            "UserName": userName,
+            "CredentialBlob": credentialBlob,
+            "Persist": Persist,
+        },
         Flags=0,
     )
 

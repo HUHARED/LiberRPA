@@ -759,7 +759,7 @@ if __name__ == "__main__":
     Log.info("info")
     Log.info_pretty({"enabled": True, "value": None, "count": 123})
 
-    Log.warning(("warning"))
+    Log.warning("warning")
     Log.error("error")
     Log.critical("critical")
 
@@ -774,7 +774,7 @@ if __name__ == "__main__":
     Log.remove_custom_log_part("new")
 
     Log.info('He said "hello"')
-    Log.info(("Test \n test \t \\"))
+    Log.info("Test \n test \t \\")
 
     # Log.remove_custom_log_part(name="new")
     test()

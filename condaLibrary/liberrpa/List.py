@@ -6,15 +6,13 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
 from liberrpa.Logging import Log
-from typing import Any, TypeVar, Callable
+from typing import Any
+from collections.abc import Callable
 import sys
-
-T = TypeVar("T")
-T2 = TypeVar("T2")
 
 
 @Log.trace()
-def insert(listObj: list[T], index: int, value: T) -> None:
+def insert[T](listObj: list[T], index: int, value: T) -> None:
     """
     Insert a value into a list at a specified index.
 
@@ -27,7 +25,7 @@ def insert(listObj: list[T], index: int, value: T) -> None:
 
 
 @Log.trace()
-def append(listObj: list[T], value: T) -> None:
+def append[T](listObj: list[T], value: T) -> None:
     """
     Append a value to the end of a list.
 
@@ -39,7 +37,7 @@ def append(listObj: list[T], value: T) -> None:
 
 
 @Log.trace()
-def pop(listObj: list[T], index: int = -1) -> T:
+def pop[T](listObj: list[T], index: int = -1) -> T:
     """
     Remove and return an item from a list at a specified index.
 
@@ -54,7 +52,7 @@ def pop(listObj: list[T], index: int = -1) -> T:
 
 
 @Log.trace()
-def remove(listObj: list[T], value: T) -> None:
+def remove[T](listObj: list[T], value: T) -> None:
     """
     Remove the first occurrence of a value from a list.
 
@@ -77,7 +75,7 @@ def clear(listObj: list[Any]) -> None:
 
 
 @Log.trace()
-def slice(listObj: list[T], start: int, end: int) -> list[T]:
+def slice[T](listObj: list[T], start: int, end: int) -> list[T]:
     """
     Return a slice of the list between start and end indices.
 
@@ -93,7 +91,7 @@ def slice(listObj: list[T], start: int, end: int) -> list[T]:
 
 
 @Log.trace()
-def extend(listObj: list[T], listToExtend: list[T]) -> None:
+def extend[T](listObj: list[T], listToExtend: list[T]) -> None:
     """
     Extend the list by appending elements from another list.
 
@@ -105,7 +103,7 @@ def extend(listObj: list[T], listToExtend: list[T]) -> None:
 
 
 @Log.trace()
-def count(listObj: list[T], value: T) -> int:
+def count[T](listObj: list[T], value: T) -> int:
     """
     Count occurrences of a value in the list.
 
@@ -120,7 +118,7 @@ def count(listObj: list[T], value: T) -> int:
 
 
 @Log.trace()
-def find(listObj: list[T], value: T, start: int = 0, stop: int | None = None) -> int:
+def find[T](listObj: list[T], value: T, start: int = 0, stop: int | None = None) -> int:
     """
     Return the first index of a value in the list.
     Raises ValueError if the value is not present.

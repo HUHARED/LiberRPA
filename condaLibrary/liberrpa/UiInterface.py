@@ -241,10 +241,11 @@ def get_image_position(
         inScreenshotFolder=False,
     )
 
-    """ if len(listTemp) == 0:
-        raise UiElementNotFoundError(f"Not found matched image '{Path(filePath).absolute()}' in the region {region}") 
-        find_image will raise an Exception if found no match.
-        """
+    """
+    if len(listTemp) == 0:
+    raise UiElementNotFoundError(f"Not found matched image '{Path(filePath).absolute()}' in the region {region}")
+    find_image will raise an Exception if found no match.
+    """
 
     listReturn: list[DictPositionAndSize] = []
     for item in listTemp:
@@ -1176,7 +1177,7 @@ if __name__ == "__main__":
     # print(get_selection(selector=uiaGoogleBookmark1))
     # set_selection(selector=uiaGoogleBookmark1,text="1")
 
-    """ 
+    """
     temp = get_parent(
         selector=image1, upwardLevel=2, timeout=10000, preExecutionDelay=300, postExecutionDelay=200
     )

@@ -88,7 +88,7 @@ class RealScreenPrintObj(QMainWindow):
 
         # Scroll the end
         cursor = self.text_widget.textCursor()
-        cursor.movePosition((QTextCursor.End))
+        cursor.movePosition(QTextCursor.End)
         self.text_widget.setTextCursor(cursor)
 
     def clean_text(self) -> None:

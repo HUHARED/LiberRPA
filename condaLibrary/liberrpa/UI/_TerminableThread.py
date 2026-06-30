@@ -10,13 +10,11 @@ from liberrpa.Common._Exception import UiTimeoutError, UiElementNotFoundError, C
 import threading
 import ctypes
 from time import sleep, monotonic
-from typing import Callable, Generic, TypeVar, ParamSpec, Any, cast
-
-T = TypeVar("T")
-P = ParamSpec("P")
+from typing import Any, cast
+from collections.abc import Callable
 
 
-class TerminableThread(threading.Thread, Generic[T]):
+class TerminableThread[T](threading.Thread):
     """The class for killing thread when the target function is timeout."""
 
     def __init__(
@@ -34,7 +32,6 @@ class TerminableThread(threading.Thread, Generic[T]):
 
     def run(self) -> None:
         try:
-
             self.result = self.target(*self.args, **self.kwargs)
 
         except Exception as e:
@@ -51,7 +48,7 @@ class TerminableThread(threading.Thread, Generic[T]):
                 raise SystemError("PyThreadState_SetAsyncExc failed")
 
 
-def timeout_kill_thread(timeout: int) -> Callable[[Callable[P, T]], Callable[P, T]]:
+def timeout_kill_thread[T, **P](timeout: int) -> Callable[[Callable[P, T]], Callable[P, T]]:
     """The decorator for executing a function with retry logic and timeout control."""
 
     def decorator(func: Callable[P, T]) -> Callable[P, T]:

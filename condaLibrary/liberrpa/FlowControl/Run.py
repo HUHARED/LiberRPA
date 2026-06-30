@@ -58,13 +58,13 @@ def _get_module_name(pyFile: str) -> str:
             # print(f"Created '{strInitPyFile}' for importlib.import_module can recognize it as a module")
             strInitPyFile.write_text("")
 
-    """ 
+    """
     Standardize the module name for importlib.import_module to use:
     Remove "./" in the start if it has.
     Remove the suffix(".py") from the Python file's name.
     Use . to split path.
     """
-    return str(Path(pyFile).relative_to(".")).removesuffix((Path(pyFile).suffix)).replace("\\", ".")
+    return str(Path(pyFile).relative_to(".")).removesuffix(Path(pyFile).suffix).replace("\\", ".")
     # return re.sub(pattern=R"\.py$", repl="", string=pyFile, count=1, flags=re.IGNORECASE)
 
 

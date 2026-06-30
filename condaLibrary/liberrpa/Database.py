@@ -10,7 +10,8 @@ from liberrpa.Logging import Log
 
 from sqlalchemy import create_engine, text, Connection, URL
 from types import TracebackType
-from typing import Any, Literal, Mapping, Sequence
+from typing import Any, Literal
+from collections.abc import Mapping, Sequence
 
 type TypeOfDatabase = Literal["SQLite", "PostgreSQL", "MariaDB", "MySQL", "SQL Server", "Oracle"]
 type TypeOfDbOptions = Mapping[str, Sequence[str] | str]

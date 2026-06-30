@@ -76,7 +76,7 @@ def check_process_running(nameOrPID: str | int) -> bool:
 def stop_process(nameOrPID: str | int) -> None:
     """
     Stop(kill) an application by its name or PID.
-    
+
     Parameters:
         nameOrPID: the process name or PID.
     """
@@ -86,7 +86,6 @@ def stop_process(nameOrPID: str | int) -> None:
 
 
 if __name__ == "__main__":
-
     # print(check_process_running(nameOrPID="notepad.exe"))
     open_url(url=R"http://www.google.com")
     # pid = run_application(filePath=R"C:\Windows\System32\notepad.exe", windowState="minimize")

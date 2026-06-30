@@ -89,7 +89,7 @@ def send_command(eventName: str, command: dict[str, Any], timeout: int = 10000) 
         if eventName == "chrome_command":
             raise ChromeError(strData)
         elif eventName == "qt_command":
-            raise QtError((strData))
+            raise QtError(strData)
         else:
             raise Exception(strData)
     else:

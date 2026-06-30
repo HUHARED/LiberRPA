@@ -16,9 +16,8 @@ import keyboard
 import threading
 import os
 import sys
-from typing import Any, Literal, Callable, TypeVar
-
-T = TypeVar("T")
+from typing import Any, Literal
+from collections.abc import Callable
 
 _dictModifierState = {"ctrl": False, "shift": False, "alt": False, "win": False}
 
@@ -83,7 +82,7 @@ def _check_modifiers(
 
 
 @Log.trace()
-def mouse_trigger(
+def mouse_trigger[T](
     func: Callable[..., T],
     args: list[Any] | None = None,
     button: MouseButton = "left",
@@ -170,7 +169,7 @@ def mouse_trigger(
 
 
 @Log.trace()
-def keyboard_trigger(
+def keyboard_trigger[T](
     func: Callable[..., T],
     args: list[Any] | None = None,
     key: HookKey = "enter",

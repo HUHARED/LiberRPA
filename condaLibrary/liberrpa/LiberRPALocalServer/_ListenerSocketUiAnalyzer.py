@@ -51,7 +51,7 @@ def handle_uianalyzer_command(message: str) -> None:
             "boolSuccess": False,
             "data": "Error: " + "Another UI Analyzer command is running",
         }
-        Log.debug(("Another UI Analyzer command is running."))
+        Log.debug("Another UI Analyzer command is running.")
         emit("message_flask_to_uianalyzer", json.dumps(result), to=_dictUiAnalyzerCmd[strId])
 
         del _dictUiAnalyzerCmd[strId]
@@ -150,11 +150,12 @@ def handle_uianalyzer_command(message: str) -> None:
                 )
 
         if strCommandName == "indicate_chrome" and tupleEleTree:
-            emit("message_flask_to_uianalyzer", "Element_Tree:" + json.dumps(tupleEleTree), to=_dictUiAnalyzerCmd[strId])
+            emit(
+                "message_flask_to_uianalyzer", "Element_Tree:" + json.dumps(tupleEleTree), to=_dictUiAnalyzerCmd[strId]
+            )
     except Exception as e:
         Log.error(get_exception_info(e))
     finally:
-
         del _dictUiAnalyzerCmd[strId]
         _eventIsHandleUiAnalyzer.clear()
         change_tray_icon(component="LiberRPALocalServer")

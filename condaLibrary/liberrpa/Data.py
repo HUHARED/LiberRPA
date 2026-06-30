@@ -9,13 +9,11 @@ from liberrpa.Logging import Log
 from pathvalidate import sanitize_filename as _sanitize_filename
 from decimal import Decimal
 from copy import deepcopy
-from typing import Literal, Any, TypeVar, Iterable
+from typing import Literal, Any
+from collections.abc import Iterable
 import uuid
 import random
 import json
-
-T = TypeVar("T")
-T2 = TypeVar("T2")
 
 
 @Log.trace()
@@ -111,7 +109,7 @@ def to_boolean(value) -> bool:
 
 
 @Log.trace()
-def clone(value: T) -> T:
+def clone[T](value: T) -> T:
     """
     Create a deep copy of the given value.
 

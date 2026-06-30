@@ -39,7 +39,7 @@ import pyautogui
 from time import time, sleep
 import threading
 from contextlib import contextmanager
-from typing import Sequence
+from collections.abc import Sequence
 
 # Set the global variable of uiautomation.
 uiautomation.SEARCH_INTERVAL = 1.0
@@ -195,7 +195,7 @@ def get_control_selector(
             if controlFound is None:
                 raise UiElementNotFoundError("(!!!It should not appear.) Not found element when adding Index.")
 
-            """ 
+            """
             Check whether other primary attributes are same.
             If one of them is different, continue to find next.
             Note that "ProcessName" is not a direct attribute, replace it by "ProcessId".

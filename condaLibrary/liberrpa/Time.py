@@ -10,6 +10,7 @@ import time
 from datetime import datetime, timedelta
 from typing import Literal
 
+
 @Log.trace()
 def get_unix_time() -> float:
     """
@@ -64,7 +65,7 @@ def build_datetime(
 def str_to_datetime(strObj: str, format: str = "%Y-%m-%d %H:%M:%S") -> datetime:
     """
     Converts a string representation of a date and time into a datetime object.
-    
+
     Check the format codes in [strftime() and strptime() Format Codes]( https://docs.python.org/3/library/datetime.html#strftime-and-strptime-format-codes)
 
     Parameters:
@@ -81,7 +82,7 @@ def str_to_datetime(strObj: str, format: str = "%Y-%m-%d %H:%M:%S") -> datetime:
 def datetime_to_str(datetimeObj: datetime, format: str = "%Y-%m-%d %H:%M:%S") -> str:
     """
     Converts a datetime object into a string representation.
-    
+
     Check the format codes in [strftime() and strptime() Format Codes]( https://docs.python.org/3/library/datetime.html#strftime-and-strptime-format-codes)
 
     Parameters:
@@ -93,8 +94,12 @@ def datetime_to_str(datetimeObj: datetime, format: str = "%Y-%m-%d %H:%M:%S") ->
     """
     return datetimeObj.strftime(format)
 
+
 @Log.trace()
-def get_datetime_attr(datetimeObj: datetime,attr:Literal["year","month","day","hour","minute","second","millisecond","microsecond"]) -> int:
+def get_datetime_attr(
+    datetimeObj: datetime,
+    attr: Literal["year", "month", "day", "hour", "minute", "second", "millisecond", "microsecond"],
+) -> int:
     """
     Retrieves a specific attribute from a datetime object.
 
@@ -119,11 +124,14 @@ def get_datetime_attr(datetimeObj: datetime,attr:Literal["year","month","day","h
         case "second":
             return datetimeObj.second
         case "millisecond":
-            return datetimeObj.microsecond//1000
+            return datetimeObj.microsecond // 1000
         case "microsecond":
             return datetimeObj.microsecond
         case _:
-            raise ValueError(f"The argument attr should be one of {["year","month","day","hour","minute","second","millisecond","microsecond"]}")
+            raise ValueError(
+                f"The argument attr should be one of {['year', 'month', 'day', 'hour', 'minute', 'second', 'millisecond', 'microsecond']}"
+            )
+
 
 @Log.trace()
 def add_datetime(
@@ -133,7 +141,7 @@ def add_datetime(
     hour: int = 0,
     minute: int = 0,
     second: int = 0,
-    millisecond:int=0,
+    millisecond: int = 0,
     microsecond: int = 0,
 ) -> datetime:
     """
@@ -152,7 +160,15 @@ def add_datetime(
     Returns:
         datetime: The new datetime object after adding the specified time.
     """
-    return datetimeObj+timedelta(weeks=week,  days=day, hours=hour, minutes=minute, seconds=second, milliseconds=millisecond,microseconds=microsecond)
+    return datetimeObj + timedelta(
+        weeks=week,
+        days=day,
+        hours=hour,
+        minutes=minute,
+        seconds=second,
+        milliseconds=millisecond,
+        microseconds=microsecond,
+    )
 
 
 if __name__ == "__main__":
@@ -160,4 +176,4 @@ if __name__ == "__main__":
 
     # print(get_datetime_attr(datetimeObj=dt,attr="microsecond"))
     # print(get_datetime_attr(datetimeObj=dt,attr="millisecond"))
-    print(add_datetime(dt,millisecond=1000))
+    print(add_datetime(dt, millisecond=1000))
