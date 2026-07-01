@@ -263,7 +263,7 @@ def register_force_exit() -> None:
 
     def on_hotkey_pressed() -> None:
         # Assign the value to record exit reason.
-        End._executorPackageStatus = "terminated"
+        End.executorPackageStatus = "terminated"
         End.cleanup()
         print("on_hotkey_pressed - os._exit")
         os._exit(0)
@@ -281,7 +281,7 @@ def _listen_for_exit() -> None:
     for line in sys.stdin:
         if line.strip() == "Executor-terminated":
             Log.critical("Terminated by Executor.")
-            End._executorPackageStatus = "terminated"
+            End.executorPackageStatus = "terminated"
             End.cleanup()
             print("_handle_sigterm - os._exit")
             os._exit(0)
