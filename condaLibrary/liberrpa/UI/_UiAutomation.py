@@ -6,7 +6,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
 from liberrpa.Logging import Log
-from liberrpa.Common._Exception import UiElementNotFoundError
+from liberrpa.Common._Exception import UiElementNotFoundError, UiSelectorError
 from liberrpa.UI._UiDict import (
     DictUiaPrimaryAttrBasic,
     DictUiaSecondaryAttr,
@@ -20,7 +20,7 @@ import psutil
 import json
 import re
 from copy import deepcopy
-from typing import cast
+from typing import cast, TypedDict
 
 DICT_CONTROL_TYPE_NUM: dict[str, int] = {
     "AppBarControl": 50040,
@@ -264,6 +264,59 @@ def get_top_control(selectorWindowPart: DictSpecWindow) -> uiautomation.Control:
     return controlTarget
 
 
+class DictUiaBuiltinSearchKwargs(TypedDict, total=False):
+    searchDepth: int
+    foundIndex: int
+    RegexName: str
+    Name: str
+    ClassName: str
+    AutomationId: str
+    ControlType: int
+
+
+def _get_uia_builtin_search_kwargs(
+    dictSelectorTemp: DictSpecUia,
+    searchDepth: int,
+    foundIndex: int,
+) -> DictUiaBuiltinSearchKwargs:
+    """
+    Build search kwargs for uiautomation.Control() without changing LiberRPA selector semantics.
+
+    Only exact fields are pushed down to uiautomation. Regex fields are still checked by LiberRPA
+    because uiautomation.RegexName uses re.match while LiberRPA selector regex uses re.fullmatch.
+    """
+    dictSearchKwargs: DictUiaBuiltinSearchKwargs = {
+        "searchDepth": searchDepth,
+        "foundIndex": foundIndex,
+        # Only search controls with a non-empty Name, unless an exact non-empty Name is pushed down.
+        "RegexName": ".+",
+    }
+
+    strName = dictSelectorTemp.get("Name")
+    if isinstance(strName, str) and strName != "":
+        # Name and RegexName should not be used together.
+        dictSearchKwargs.pop("RegexName", None)
+        dictSearchKwargs["Name"] = strName
+
+    strClassName = dictSelectorTemp.get("ClassName")
+    if isinstance(strClassName, str):
+        dictSearchKwargs["ClassName"] = strClassName
+
+    strAutomationId = dictSelectorTemp.get("AutomationId")
+    if isinstance(strAutomationId, str):
+        dictSearchKwargs["AutomationId"] = strAutomationId
+
+    strControlTypeName = dictSelectorTemp.get("ControlTypeName")
+    if isinstance(strControlTypeName, str):
+        intControlType = DICT_CONTROL_TYPE_NUM.get(strControlTypeName)
+        if intControlType is None:
+            raise UiSelectorError(f"Unsupported ControlTypeName: {strControlTypeName!r}.")
+
+        dictSearchKwargs["ControlType"] = intControlType
+
+    return dictSearchKwargs
+
+
 def get_child_control_by_selector(
     selectorUiaPart: list[DictSpecUia], controlTop: uiautomation.Control
 ) -> uiautomation.Control:
@@ -292,13 +345,19 @@ def get_child_control_by_selector(
 
         while True:
             try:
-                controlFound = controlAnchor.Control(
+                dictSearchKwargs = _get_uia_builtin_search_kwargs(
+                    dictSelectorTemp=dictSelectorTemp,
                     searchDepth=intSearchDepth,
                     foundIndex=intFoundIndex,
-                    RegexName=".+",  # Must have Name
                 )
-                # Because control find process seems asynchronous, use an assign to wait it done or timeout,.
+
+                controlFound = controlAnchor.Control(**dictSearchKwargs)
+                # Because control find process seems asynchronous, use an assign to wait it done or timeout.
                 _ = str(controlFound)
+
+            except UiSelectorError:
+                raise
+
             except Exception as e:
                 Log.error(e)
                 controlFound = None
