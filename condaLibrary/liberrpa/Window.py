@@ -455,11 +455,11 @@ def get_window_file_path(
 
 
 if __name__ == "__main__":
-    from time import time
+    from time import monotonic
 
     # from liberrpa._Selector import *
 
-    timeStart = time()
+    timeStart = monotonic()
 
     # close_window(selector=image1)
     # print(check_window_exists(selector=image1))
@@ -478,4 +478,4 @@ if __name__ == "__main__":
     """ pattern = uiTarget.GetPattern(uiautomation.PatternId.WindowPattern)
     print(pattern.WindowVisualState) """
 
-    print("time used:", time() - timeStart)
+    print("time used:", monotonic() - timeStart)

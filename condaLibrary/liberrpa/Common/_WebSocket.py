@@ -7,7 +7,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from liberrpa.Logging import Log
 from liberrpa.Common._BasicConfig import get_basic_config_dict, get_token
-from liberrpa.Common._Exception import ChromeError, QtError
+from liberrpa.Common._Exception import ChromeError, ChromeElementNotFoundError, QtError
 from liberrpa.Common._TypedValue import DictSocketResult
 
 import threading
@@ -87,9 +87,13 @@ def send_command(eventName: str, command: dict[str, Any], timeout: int = 10000) 
         # Log.debug(eventName)
         # More specific error type.
         if eventName == "chrome_command":
+            if isinstance(strData, str) and strData.startswith("Not found the target element"):
+                raise ChromeElementNotFoundError(strData)
             raise ChromeError(strData)
+
         elif eventName == "qt_command":
             raise QtError(strData)
+
         else:
             raise Exception(strData)
     else:

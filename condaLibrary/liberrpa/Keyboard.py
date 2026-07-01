@@ -10,6 +10,7 @@ import liberrpa.UI._UiElement as _UiElement
 from liberrpa.Common._TypedValue import ExecutionMode, InputKey
 from liberrpa.UI._UiDict import SelectorWindow, SelectorUia, SelectorHtml
 from liberrpa.UI._TerminableThread import timeout_kill_thread
+from liberrpa.UI._SelectorValidation import as_selector_html
 from liberrpa.Common._Exception import UiOperationError
 from liberrpa.Mouse import _get_5_coordinates
 from liberrpa.Common._Chrome import set_element_text, focus_element
@@ -207,7 +208,7 @@ def _write_text_into_element(
     if selector.get("category") == "html" and executionMode == "api":
         _UiElement.activate_element_window(selector=selector)
         set_element_text(
-            htmlSelector=_UiElement.as_selector_html(selector=selector)["specification"],
+            htmlSelector=as_selector_html(selector=selector)["specification"],
             text=text,
             emptyOriginalText=emptyOriginalText,
             validateWrittenText=validateWrittenText,
@@ -375,7 +376,7 @@ def _type_key_in_element(
     if selector.get("category") == "html":
         _UiElement.activate_element_window(selector=selector)
         focus_element(
-            htmlSelector=_UiElement.as_selector_html(selector=selector)["specification"],
+            htmlSelector=as_selector_html(selector=selector)["specification"],
             preExecutionDelay=preExecutionDelay,
             timeout=timeout,
         )
@@ -508,9 +509,9 @@ def type_key(
 
 if __name__ == "__main__":
     # from liberrpa._Selector import *
-    from time import time
+    from time import monotonic
 
-    timeStart = time()
+    timeStart = monotonic()
 
     text = "1234567890こんにちは世界-=,./!@#$%^&*()ÄäÖöÜü中文字符✔\nEnter\r\nNewLine\tTab\nÄäÖöÜü\n中文字符✔🤷😊Emoji：こんにちは世界"
     # text = "1234567890こんにちは世界-=,./!@#$%^&*()\nEnter\rNewLine\tTab\nÄäÖöÜü\n中文字符✔Emoji：こんにちは世界"
@@ -550,4 +551,4 @@ if __name__ == "__main__":
     ) """
 
     # type_key_in_element(selector=image1, key="c", pressCtrl=True)
-    print("time used:", time() - timeStart)
+    print("time used:", monotonic() - timeStart)

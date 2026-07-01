@@ -34,13 +34,20 @@ from liberrpa.Basic import delay
 import liberrpa.Common._Chrome as _Chrome
 from liberrpa.UI._Overlay import create_overlay
 from liberrpa.UI._Image import find_image
+from liberrpa.UI._SelectorValidation import (
+    as_selector_uia,
+    as_selector_html,
+    as_selector_image,
+    validate_selector,
+)
 
 import uiautomation
 import pyautogui
-from time import time, sleep
+from time import monotonic, sleep
 import threading
 from contextlib import contextmanager
 from collections.abc import Sequence
+
 from typing import cast
 
 
@@ -49,24 +56,6 @@ uiautomation.SEARCH_INTERVAL = 1.0
 uiautomation.OPERATION_WAIT_TIME = 0
 uiautomation.SetGlobalSearchTimeout(10)
 Log.verbose(f"Initialize uiautomation in thread: {threading.current_thread().name}")
-
-
-def as_selector_uia(selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage) -> SelectorUia:
-    if selector.get("category") != "uia":
-        raise ValueError(f"Expected SelectorUia, got selector category: {selector.get('category')!r}")
-    return cast(SelectorUia, selector)
-
-
-def as_selector_html(selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage) -> SelectorHtml:
-    if selector.get("category") != "html":
-        raise ValueError(f"Expected SelectorHtml, got selector category: {selector.get('category')!r}")
-    return cast(SelectorHtml, selector)
-
-
-def as_selector_image(selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage) -> SelectorImage:
-    if selector.get("category") != "image":
-        raise ValueError(f"Expected SelectorImage, got selector category: {selector.get('category')!r}")
-    return cast(SelectorImage, selector)
 
 
 @contextmanager
@@ -278,6 +267,8 @@ def get_element(
     """Get a control or html and its attributes dictionary by selector, so the following code can use them."""
     global boolHighlightUi
 
+    validate_selector(selector=selector)
+
     with uiautomation.UIAutomationInitializerInThread():
         # Find and activate top control.
         controlTop = get_top_control(selectorWindowPart=selector["window"])
@@ -385,10 +376,10 @@ def get_element_with_pre_delay(
 ) -> tuple[uiautomation.Control, DictUiaAttr] | tuple[None, DictHtmlAttr] | tuple[None, DictImageAttr]:
     """Calculate the time-consuming of get element, if it's more than preExecutionDelay, didn't need to delay."""
 
-    timeStart = time()
+    timeStart = monotonic()
     temp = get_element(selector=selector)
     # log.debug(temp)
-    timeUsed = (time() - timeStart) * 1000
+    timeUsed = (monotonic() - timeStart) * 1000
     if timeUsed < preExecutionDelay:
         delay(preExecutionDelay - int(timeUsed))
 

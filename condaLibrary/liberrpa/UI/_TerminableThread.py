@@ -5,7 +5,11 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
-from liberrpa.Common._Exception import UiTimeoutError, UiElementNotFoundError, ChromeError
+from liberrpa.Common._Exception import (
+    UiTimeoutError,
+    UiElementNotFoundError,
+    ChromeElementNotFoundError,
+)
 
 import threading
 import ctypes
@@ -82,14 +86,9 @@ def timeout_kill_thread[T, **P](timeout: int) -> Callable[[Callable[P, T]], Call
                     )
 
                 if thread.exception:
-                    if (
-                        isinstance(thread.exception, UiElementNotFoundError)
-                        or (isinstance(thread.exception, ChromeError))
-                        and str(thread.exception).startswith("Not found the target element")
-                    ):
-                        # Delay 1s.
+                    if isinstance(thread.exception, (UiElementNotFoundError, ChromeElementNotFoundError)):
                         sleep(1)
-                        # Calculate remaining time
+
                         timeElapsed = int((monotonic() - timeStart) * 1000)
                         timeRemaining = timeout - timeElapsed
 
@@ -97,6 +96,7 @@ def timeout_kill_thread[T, **P](timeout: int) -> Callable[[Callable[P, T]], Call
                             raise UiTimeoutError(
                                 f"Function {func.__name__[1:]} timed out after {timeout} milliseconds. {thread.exception}"
                             )
+
                         # Retry the function
                         continue
 

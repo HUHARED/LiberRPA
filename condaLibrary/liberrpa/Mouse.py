@@ -23,6 +23,7 @@ from liberrpa.UI._UiDict import (
     SelectorHtml,
     SelectorImage,
 )
+from liberrpa.UI._SelectorValidation import as_selector_html
 from liberrpa.UI._TerminableThread import timeout_kill_thread
 from liberrpa.Common._Exception import UiOperationError
 from liberrpa.Basic import delay
@@ -126,7 +127,7 @@ def _click_element(
             )
         _UiElement.activate_element_window(selector=selector)
         click_mouse_event(
-            htmlSelector=_UiElement.as_selector_html(selector=selector)["specification"],
+            htmlSelector=as_selector_html(selector=selector)["specification"],
             button=button,
             clickMode=clickMode,
             pressCtrl=pressCtrl,
@@ -484,9 +485,9 @@ def scroll_wheel(
 
 if __name__ == "__main__":
     # from liberrpa._Selector import *
-    from time import time
+    from time import monotonic
 
-    timeStart = time()
+    timeStart = monotonic()
 
     """ print(selector)
     move_cursor(x=100)
@@ -537,4 +538,4 @@ if __name__ == "__main__":
     # while True:
     #     print(get_mouse_position())
 
-    print("time used:", time() - timeStart)
+    print("time used:", monotonic() - timeStart)

@@ -24,6 +24,34 @@ class UiTimeoutError(Exception):
         super().__init__(message, *args)
 
 
+class UiWaitTimeoutError(UiTimeoutError):
+    """Base exception for UI wait timeout."""
+
+    def __init__(self, message="Timeout for UI wait operation exceeded.", *args):
+        super().__init__(message, *args)
+
+
+class UiElementAppearTimeoutError(UiWaitTimeoutError):
+    """Timeout while waiting for a UI element to appear."""
+
+    def __init__(self, message="Timeout exceeded for UI element to appear.", *args):
+        super().__init__(message, *args)
+
+
+class UiElementDisappearTimeoutError(UiWaitTimeoutError):
+    """Timeout while waiting for a UI element to disappear."""
+
+    def __init__(self, message="Timeout exceeded for UI element to disappear.", *args):
+        super().__init__(message, *args)
+
+
+class UiSelectorError(ValueError):
+    """Invalid UI selector structure or selector value."""
+
+    def __init__(self, message="Invalid UI selector.", *args):
+        super().__init__(message, *args)
+
+
 class UiOperationError(Exception):
     """Custom exception for UI operation"""
 
@@ -35,6 +63,13 @@ class ChromeError(Exception):
     """Custom exception for Chrome manipulation."""
 
     def __init__(self, message="Error when manipulating Chrome.", *args):
+        super().__init__(message, *args)
+
+
+class ChromeElementNotFoundError(ChromeError):
+    """Chrome command succeeded, but the target HTML element was not found."""
+
+    def __init__(self, message="Not found the target element in Chrome.", *args):
         super().__init__(message, *args)
 
 

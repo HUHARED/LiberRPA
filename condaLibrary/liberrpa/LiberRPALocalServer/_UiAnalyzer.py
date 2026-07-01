@@ -29,6 +29,7 @@ from liberrpa.UI._UiDict import (
     DictPosition,
     DictElementTreeItem,
 )
+from liberrpa.UI._SelectorValidation import as_selector_image
 from liberrpa.Common._Exception import UiElementNotFoundError
 from liberrpa.Common._Chrome import get_element_attr_by_coordinates
 import liberrpa.LiberRPALocalServer._Hook as _Hook
@@ -506,7 +507,7 @@ def validate(selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorIma
 
             timeout = _UiElement.check_set_timeout(timeout=timeout * 1000)
 
-            selectorTemp: SelectorImage = _UiElement.as_selector_image(selector)
+            selectorTemp: SelectorImage = as_selector_image(selector)
 
             _, dictTarget = timeout_kill_thread(timeout=timeout)(_get_image_element)(selectorTemp)
             create_overlay(
