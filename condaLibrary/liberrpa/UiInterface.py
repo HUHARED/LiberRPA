@@ -21,7 +21,7 @@ from liberrpa.UI._UiDict import (
     SelectorHtml,
     SelectorImage,
 )
-from liberrpa.UI._SelectorValidation import as_selector_uia, as_selector_html
+from liberrpa.UI._SelectorValidation import as_selector_uia, as_selector_html, validate_selector
 from liberrpa.UI._TerminableThread import timeout_kill_thread
 from liberrpa.Common._Exception import (
     UiElementNotFoundError,
@@ -256,12 +256,6 @@ def get_image_position(
         moveFile=False,
         inScreenshotFolder=False,
     )
-
-    """
-    if len(listTemp) == 0:
-    raise UiElementNotFoundError(f"Not found matched image '{Path(filePath).absolute()}' in the region {region}")
-    find_image will raise an Exception if found no match.
-    """
 
     listReturn: list[DictPositionAndSize] = []
     for item in listTemp:
@@ -1054,6 +1048,8 @@ def _get_selection(
     postExecutionDelay: int = 200,
 ) -> str | int:
 
+    validate_selector(selector=selector)
+
     if selectionType not in ["text", "value", "index"]:
         raise ValueError("The argument selectionType should be 'text', 'value' or 'index'.")
 
@@ -1062,8 +1058,9 @@ def _get_selection(
 
     # NOTE: Project highlightUI setting will not work for it. (Because the part not only get attributes.)
 
+    selectorHtml = as_selector_html(selector)
     selectionTemp = Chrome_get_selection(
-        htmlSelector=selector["specification"],
+        htmlSelector=selectorHtml["specification"],
         selectionType=selectionType,
         preExecutionDelay=preExecutionDelay,
         timeout=timeout,
@@ -1118,6 +1115,8 @@ def _set_selection(
     postExecutionDelay: int = 200,
 ) -> None:
 
+    validate_selector(selector=selector)
+
     provided = [text is not None, value is not None, index is not None]
     if sum(provided) != 1:
         raise ValueError("Exactly one of 'text', 'value', or 'index' must be non-null.")
@@ -1126,9 +1125,9 @@ def _set_selection(
         raise UiOperationError("Can only set selected value for html <select> element.")
 
     # NOTE: Project highlightUI setting will not work for it. (Because the part not only get attributes.)
-
+    selectorHtml = as_selector_html(selector)
     Chrome_set_selection(
-        htmlSelector=selector["specification"],
+        htmlSelector=selectorHtml["specification"],
         text=text,
         value=value,
         index=index,

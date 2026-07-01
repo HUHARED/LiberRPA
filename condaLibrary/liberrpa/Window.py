@@ -15,6 +15,7 @@ from liberrpa.UI._UiDict import (
     SelectorHtml,
     SelectorImage,
 )
+from liberrpa.UI._SelectorValidation import validate_selector
 from liberrpa.UI._TerminableThread import timeout_kill_thread
 from liberrpa.Common._Exception import UiElementNotFoundError, UiOperationError
 from liberrpa.UiInterface import check_exists
@@ -29,6 +30,7 @@ from typing import Literal, cast
 def _extract_window_element(
     selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
 ) -> SelectorWindow:
+    validate_selector(selector=selector)
     selectorWindow: SelectorWindow = {"window": selector["window"]}
     return selectorWindow
 

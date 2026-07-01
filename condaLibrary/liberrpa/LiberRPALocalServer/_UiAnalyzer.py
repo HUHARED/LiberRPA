@@ -29,7 +29,7 @@ from liberrpa.UI._UiDict import (
     DictPosition,
     DictElementTreeItem,
 )
-from liberrpa.UI._SelectorValidation import as_selector_image
+from liberrpa.UI._SelectorValidation import as_selector_image, validate_selector
 from liberrpa.Common._Exception import UiElementNotFoundError
 from liberrpa.Common._Chrome import get_element_attr_by_coordinates
 import liberrpa.LiberRPALocalServer._Hook as _Hook
@@ -492,6 +492,8 @@ def indicate_window(indicateDelaySeconds: int = 1) -> DictForUiAnalyzer | None:
 @Log.trace()
 def validate(selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage, timeout: int) -> dict[str, bool]:
     try:
+        validate_selector(selector=selector)
+
         if selector.get("category") != "image":
             highlight(
                 selector=selector,

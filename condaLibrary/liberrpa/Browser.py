@@ -7,7 +7,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from liberrpa.Logging import Log
 from liberrpa.Common._WebSocket import send_command
-from liberrpa.Common._Exception import ChromeError
+from liberrpa.Common._Exception import ChromeCommandError
 from liberrpa.Common._TypedValue import DictCookiesOfChrome, ChromeDownloadItem
 from liberrpa.Common._Chrome import get_download_list as _get_download_list
 
@@ -94,7 +94,7 @@ def open_browser(
                         time.sleep(0.5)
                         continue
                     else:
-                        raise ChromeError(
+                        raise ChromeCommandError(
                             f"Can't access LiberRPA Chrome extension after {timeout} milliseconds, if Chrome is running, you should install LiberRPA Chrome extension and turn it on."
                         )
                 else:
@@ -135,14 +135,14 @@ def bind_browser(browserType: Literal["chrome"] = "chrome") -> BrowserObj:
                     pass
 
             if not temp:
-                raise ChromeError("Can't find a running 'chrome.exe' to bind.")
+                raise ChromeCommandError("Can't find a running 'chrome.exe' to bind.")
             else:
                 browserObj.path = temp
 
             dictCommand = {"commandName": "get_chrome_socket_id"}
             strSocketId = send_command(eventName="application_command", command=dictCommand)
             if not strSocketId:
-                raise ChromeError(
+                raise ChromeCommandError(
                     "Can't access LiberRPA Chrome extension, if Chrome is running, you should install LiberRPA Chrome extension and turn it on."
                 )
             else:

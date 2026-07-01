@@ -387,6 +387,9 @@ def get_element_with_pre_delay(
 
 
 def activate_element_window(selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage) -> None:
+
+    validate_selector(selector=selector)
+
     with uiautomation.UIAutomationInitializerInThread():
         # Find and activate top control.
         controlTop = get_top_control(selectorWindowPart=selector["window"])

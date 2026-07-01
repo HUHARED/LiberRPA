@@ -121,7 +121,7 @@ def find_image(
         ]
         Log.debug(f"Found {len(listMatches)} matched images.")
     except Exception as e:
-        raise UiElementNotFoundError(str(get_exception_info(e)))
+        raise UiElementNotFoundError(str(get_exception_info(e))) from e
 
     return listMatches
 

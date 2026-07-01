@@ -53,20 +53,20 @@ class UiSelectorError(ValueError):
 
 
 class UiOperationError(Exception):
-    """Custom exception for UI operation"""
+    """Custom exception for unsupported or failed UI operations."""
 
-    def __init__(self, message="Have some arguments that the target element doesn't support.", *args):
+    def __init__(self, message="Failed to perform the UI operation.", *args):
         super().__init__(message, *args)
 
 
-class ChromeError(Exception):
+class ChromeCommandError(Exception):
     """Custom exception for Chrome manipulation."""
 
     def __init__(self, message="Error when manipulating Chrome.", *args):
         super().__init__(message, *args)
 
 
-class ChromeElementNotFoundError(ChromeError):
+class ChromeElementNotFoundError(ChromeCommandError):
     """Chrome command succeeded, but the target HTML element was not found."""
 
     def __init__(self, message="Not found the target element in Chrome.", *args):

@@ -61,7 +61,7 @@ from liberrpa.Database import DatabaseConnection
 from liberrpa.UI._UiDict import SelectorWindow, SelectorUia, SelectorHtml, SelectorImage
 
 # The LiberRPA errors
-from liberrpa.Common._Exception import UiElementNotFoundError, UiTimeoutError, UiOperationError, ChromeError, MailError
+from liberrpa.Common._Exception import UiElementNotFoundError, UiTimeoutError, UiOperationError, ChromeCommandError, MailError
 
 
 # Build-in module that liberrpa-snippets-tree or users often need.
