@@ -19,7 +19,7 @@ from liberrpa.UI._UiDict import (
     DictForUiAnalyzer,
     DictHtmlAttr,
     DictSpecHtml,
-    DictSepcImage,
+    DictSpecImage,
     DictHtmlSecondaryAttr,
     DictImageAttr,
     SelectorWindow,
@@ -636,7 +636,7 @@ def _get_image_element(
             raise ValueError(
                 f"It should have only one dictionary in 'specification', but it has {len(selectorTemp['specification'])}"
             )
-        imageSelector: DictSepcImage = selectorTemp["specification"][0]
+        imageSelector: DictSpecImage = selectorTemp["specification"][0]
 
         listDictImageAttr = find_image(
             fileNameOrPath=imageSelector["FileName"],

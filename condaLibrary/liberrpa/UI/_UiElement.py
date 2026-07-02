@@ -21,7 +21,7 @@ from liberrpa.UI._UiDict import (
     DictSpecWindow,
     DictSpecUia,
     DictSpecUiaOriginalTemp,
-    DictSepcImage,
+    DictSpecImage,
     DictUiaAttr,
     DictHtmlAttr,
     DictImageAttr,
@@ -333,7 +333,7 @@ def get_element(
                     raise ValueError(
                         f"It should have only one dictionary in 'specification', but it has {len(selectorTemp['specification'])}"
                     )
-                imageSelector: DictSepcImage = selectorTemp["specification"][0]
+                imageSelector: DictSpecImage = selectorTemp["specification"][0]
 
                 # delay 100 ms before find_image due to the window may just activate.
                 sleep(0.1)

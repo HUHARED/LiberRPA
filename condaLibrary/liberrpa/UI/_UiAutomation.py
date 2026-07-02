@@ -182,10 +182,6 @@ def get_top_control(selectorWindowPart: DictSpecWindow) -> uiautomation.Control:
     # print("controlRoot", controlRoot)
     controlTarget: uiautomation.Control | None = None
 
-    # It's a top control. depth = 1. So selector should not have Depth. Add a check here.
-    if selectorWindowPart.get("Depth"):
-        raise ValueError("(!!!It should not appear.) A window selector Should not have Depth.")
-
     # May have multiple top controls that have same attributes. So save Index to a variable to check it later.
 
     strTemp = selectorWindowPart.pop("Index", None)

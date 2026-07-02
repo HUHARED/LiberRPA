@@ -250,7 +250,8 @@ DictSpecWindow = TypedDict(
         # "ClassName-regex": NotRequired[str],
         "HelpText": NotRequired[str],
         "HelpText-regex": NotRequired[str],
-        "Depth": NotRequired[str],
+        # Window elements have no Depth.
+        # "Depth": NotRequired[str],
         # "Depth-regex": NotRequired[str],
         "Index": NotRequired[str],
         "Index-regex": NotRequired[str],
@@ -279,7 +280,7 @@ DictImageAttr = TypedDict(
 )
 
 
-class DictSepcImage(TypedDict):
+class DictSpecImage(TypedDict):
     FileName: str
     Grayscale: str
     Confidence: str
@@ -318,7 +319,7 @@ class SelectorHtml(SelectorWindow):
 class SelectorImage(SelectorWindow):
     category: Literal["image"]
     # Image has only one layer but use list to compatible with others.
-    specification: list[DictSepcImage]
+    specification: list[DictSpecImage]
 
 
 class DictElementTreeItem(TypedDict):

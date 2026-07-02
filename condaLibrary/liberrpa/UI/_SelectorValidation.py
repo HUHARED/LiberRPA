@@ -5,19 +5,21 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from liberrpa.Common._Exception import UiSelectorError
-
 from liberrpa.UI._UiDict import (
     DictSpecWindow,
     DictSpecUia,
     DictSpecHtml,
-    DictSepcImage,
+    DictSpecImage,
     SelectorWindow,
     SelectorUia,
     SelectorHtml,
     SelectorImage,
 )
+
 import re
+import math
 from typing import cast, Any
+from collections.abc import Mapping
 
 
 def as_selector_uia(selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage) -> SelectorUia:
@@ -42,16 +44,31 @@ _ALLOWED_SELECTOR_ROOT_KEYS = {"window", "category", "specification"}
 _ALLOWED_WINDOW_KEYS = set(getattr(DictSpecWindow, "__annotations__", {}))
 _ALLOWED_UIA_SPEC_KEYS = set(getattr(DictSpecUia, "__annotations__", {}))
 _ALLOWED_HTML_SPEC_KEYS = set(getattr(DictSpecHtml, "__annotations__", {}))
-_ALLOWED_IMAGE_SPEC_KEYS = set(getattr(DictSepcImage, "__annotations__", {}))
+_ALLOWED_IMAGE_SPEC_KEYS = set(getattr(DictSpecImage, "__annotations__", {}))
 
-_UIA_INT_TEXT_KEYS = {"Depth", "Index"}
+type IntRange = tuple[int | None, int | None]
+type FloatRange = tuple[float | None, float | None]
 
-_HTML_INT_TEXT_KEYS = {"tableRowIndex", "tableColumnIndex", "childIndex", "documentIndex"}
+_WINDOW_INT_TEXT_RULES: Mapping[str, IntRange] = {
+    "Index": (0, None),
+}
+
+_UIA_INT_TEXT_RULES: Mapping[str, IntRange] = {
+    "Depth": (1, None),
+    "Index": (0, None),
+}
+
+_HTML_INT_TEXT_RULES: Mapping[str, IntRange] = {
+    "tableRowIndex": (0, None),
+    "tableColumnIndex": (0, None),
+    "childIndex": (0, None),
+    "documentIndex": (0, None),
+}
 _HTML_BOOL_TEXT_KEYS = {"disabled", "isHidden", "isDisplayedNone", "isLeaf"}
 _HTML_TRISTATE_TEXT_KEYS = {"checked"}
 
-_IMAGE_INT_TEXT_KEYS = {"Index"}
-_IMAGE_FLOAT_TEXT_KEYS = {"Confidence"}
+_IMAGE_INT_TEXT_RULES: Mapping[str, IntRange] = {"Index": (0, None)}
+_IMAGE_FLOAT_TEXT_RULES: Mapping[str, FloatRange] = {"Confidence": (0.0, 1.0)}
 _IMAGE_BOOL_TEXT_KEYS = {"Grayscale"}
 
 _BOOL_TEXT_VALUES = {"true", "false"}
@@ -129,28 +146,71 @@ def _get_optional_str(dictObj: dict[str, object], key: str, selectorPartName: st
     return value
 
 
-def _validate_int_text_items(dictObj: dict[str, object], keys: set[str], selectorPartName: str) -> None:
-    for key in keys:
+def _format_number_range(minValue: int | float | None, maxValue: int | float | None) -> str:
+    if minValue is not None and maxValue is not None:
+        return f"between {minValue} and {maxValue}"
+    if minValue is not None:
+        return f">= {minValue}"
+    if maxValue is not None:
+        return f"<= {maxValue}"
+    return ""
+
+
+def _validate_int_text_items(
+    dictObj: dict[str, object],
+    rules: Mapping[str, IntRange],
+    selectorPartName: str,
+) -> None:
+    for key, (minValue, maxValue) in rules.items():
         value = _get_optional_str(dictObj=dictObj, key=key, selectorPartName=selectorPartName)
         if value is None:
             continue
 
         try:
-            int(value)
+            intValue = int(value)
         except ValueError as e:
-            raise UiSelectorError(f"{selectorPartName}.{key} should be a valid integer string.") from e
+            raise UiSelectorError(f"{selectorPartName}.{key} should be a valid integer string, got {value!r}.") from e
+
+        if minValue is not None and intValue < minValue:
+            raise UiSelectorError(
+                f"{selectorPartName}.{key} should be an integer string {_format_number_range(minValue, maxValue)}, got {value!r}."
+            )
+
+        if maxValue is not None and intValue > maxValue:
+            raise UiSelectorError(
+                f"{selectorPartName}.{key} should be an integer string {_format_number_range(minValue, maxValue)}, got {value!r}."
+            )
 
 
-def _validate_float_text_items(dictObj: dict[str, object], keys: set[str], selectorPartName: str) -> None:
-    for key in keys:
+def _validate_float_text_items(
+    dictObj: dict[str, object],
+    rules: Mapping[str, FloatRange],
+    selectorPartName: str,
+) -> None:
+    for key, (minValue, maxValue) in rules.items():
         value = _get_optional_str(dictObj=dictObj, key=key, selectorPartName=selectorPartName)
         if value is None:
             continue
 
         try:
-            float(value)
+            floatValue = float(value)
         except ValueError as e:
-            raise UiSelectorError(f"{selectorPartName}.{key} should be a valid float string.") from e
+            raise UiSelectorError(f"{selectorPartName}.{key} should be a valid float string, got {value!r}.") from e
+
+        if not math.isfinite(floatValue):
+            raise UiSelectorError(
+                f"{selectorPartName}.{key} should be a finite float string {_format_number_range(minValue, maxValue)}, got {value!r}."
+            )
+
+        if minValue is not None and floatValue < minValue:
+            raise UiSelectorError(
+                f"{selectorPartName}.{key} should be a float string {_format_number_range(minValue, maxValue)}, got {value!r}."
+            )
+
+        if maxValue is not None and floatValue > maxValue:
+            raise UiSelectorError(
+                f"{selectorPartName}.{key} should be a float string {_format_number_range(minValue, maxValue)}, got {value!r}."
+            )
 
 
 def _validate_text_value_items(
@@ -190,10 +250,9 @@ def validate_selector(selector: object) -> None:
 
     _validate_int_text_items(
         dictObj=windowPart,
-        keys=_UIA_INT_TEXT_KEYS,
+        rules=_WINDOW_INT_TEXT_RULES,
         selectorPartName="selector.window",
     )
-
     category = selector.get("category")
 
     if category is None:
@@ -222,7 +281,7 @@ def validate_selector(selector: object) -> None:
                 selectorPartName = f"selector.specification[{index}]"
                 _validate_int_text_items(
                     dictObj=specDict,
-                    keys=_UIA_INT_TEXT_KEYS,
+                    rules=_UIA_INT_TEXT_RULES,
                     selectorPartName=selectorPartName,
                 )
 
@@ -238,7 +297,7 @@ def validate_selector(selector: object) -> None:
 
                 _validate_int_text_items(
                     dictObj=specDict,
-                    keys=_HTML_INT_TEXT_KEYS,
+                    rules=_HTML_INT_TEXT_RULES,
                     selectorPartName=selectorPartName,
                 )
                 _validate_text_value_items(
@@ -267,12 +326,12 @@ def validate_selector(selector: object) -> None:
 
             _validate_int_text_items(
                 dictObj=specDict,
-                keys=_IMAGE_INT_TEXT_KEYS,
+                rules=_IMAGE_INT_TEXT_RULES,
                 selectorPartName="selector.specification[0]",
             )
             _validate_float_text_items(
                 dictObj=specDict,
-                keys=_IMAGE_FLOAT_TEXT_KEYS,
+                rules=_IMAGE_FLOAT_TEXT_RULES,
                 selectorPartName="selector.specification[0]",
             )
             _validate_text_value_items(
