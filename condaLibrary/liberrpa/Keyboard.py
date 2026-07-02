@@ -143,7 +143,7 @@ def write_text(
     Parameters:
         text: The text to be written.
         executionMode: Options are "simulate" and "api". "simulate" may be affected by IME(Input Method Editor) or CapsLock, while "api" can input more characters more reliably.
-        timeout: Maximum time allowed for the function to complete (in milliseconds). If timeout < 3000 (milliseconds), it will be set to 3000. If the function does not complete before the timeout, it raises UiTimeoutError.
+        timeout: Maximum time allowed for normal completion, in milliseconds. Values below 3000 are treated as 3000. The actual elapsed time may be longer if LiberRPA enters its hard-timeout fallback before raising a timeout-related exception.
         preExecutionDelay: Time to wait before performing the action (in milliseconds).
         postExecutionDelay: Time to wait after performing the action (in milliseconds).
     """
@@ -337,7 +337,7 @@ def write_text_into_element(
         interval: the interval time(milliseconds) between type each character. Only works in "simulate" mode.
         emptyOriginalText: Whether delete existing text(by typing ctrl+a and backspace).
         validateWrittenText: Whether check the typed text, not support html element's simulate mode.
-        timeout: Maximum time allowed for the function to complete (in milliseconds). If timeout < 3000 (milliseconds), it will be set to 3000. If the function does not complete before the timeout, it raises UiTimeoutError.
+        timeout: Maximum time allowed for normal completion, in milliseconds. Values below 3000 are treated as 3000. The actual elapsed time may be longer if LiberRPA enters its hard-timeout fallback before raising a timeout-related exception.
         preExecutionDelay: Time to wait before performing the action (in milliseconds).
         postExecutionDelay: Time to wait after performing the action (in milliseconds).
     """
@@ -429,7 +429,7 @@ def type_key_in_element(
         pressShift: If True, holds the Shift key during the type.
         pressAlt: If True, holds the Alt key during the type.
         pressWin: If True, holds the Windows key during the type.
-        timeout: Maximum time allowed for the function to complete (in milliseconds). If timeout < 3000 (milliseconds), it will be set to 3000. If the function does not complete before the timeout, it raises UiTimeoutError.
+        timeout: Maximum time allowed for normal completion, in milliseconds. Values below 3000 are treated as 3000. The actual elapsed time may be longer if LiberRPA enters its hard-timeout fallback before raising a timeout-related exception.
         preExecutionDelay: Time to wait before performing the action (in milliseconds).
         postExecutionDelay: Time to wait after performing the action (in milliseconds).
     """

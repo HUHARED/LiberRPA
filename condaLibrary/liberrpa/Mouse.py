@@ -256,7 +256,7 @@ def click_element(
         pressAlt: If True, holds the Alt key during the click.
         pressWin: If True, holds the Windows key during the click.
         duration: Time to move the mouse to the target position (in milliseconds). If it is 0, it moves to "position" immediately.
-        timeout: Maximum time allowed for the function to complete (in milliseconds). If timeout < 3000 (milliseconds), it will be set to 3000. If the function does not complete before the timeout, it raises UiTimeoutError.
+        timeout: Maximum time allowed for normal completion, in milliseconds. Values below 3000 are treated as 3000. The actual elapsed time may be longer if LiberRPA enters its hard-timeout fallback before raising a timeout-related exception.
         preExecutionDelay: Time to wait before performing the action (in milliseconds).
         postExecutionDelay: Time to wait after performing the action (in milliseconds).
     """
@@ -326,7 +326,7 @@ def move_to_element(
         offsetY: Vertical offset from the element's specified click position (in pixels). Only works when executionMode is "simulate".
         position: Specifies where on the element to click. Options are "center", "top_left", "top_right", "bottom_left", and "bottom_right". It will only work if executionMode is "simulate".
         duration: Time to move the mouse to the target position (in milliseconds). If it is 0, it moves to "position" immediately.
-        timeout: Maximum time allowed for the function to complete (in milliseconds). If timeout < 3000 (milliseconds), it will be set to 3000. If the function does not complete before the timeout, it raises UiTimeoutError.
+        timeout: Maximum time allowed for normal completion, in milliseconds. Values below 3000 are treated as 3000. The actual elapsed time may be longer if LiberRPA enters its hard-timeout fallback before raising a timeout-related exception.
         preExecutionDelay: Time to wait before performing the action (in milliseconds).
         postExecutionDelay: Time to wait after performing the action (in milliseconds).
     """
