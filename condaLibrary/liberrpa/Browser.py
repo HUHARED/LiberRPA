@@ -15,6 +15,7 @@ from pathlib import Path
 import time
 import psutil
 from urllib.parse import urlparse
+from dataclasses import dataclass
 from typing import Literal, Any
 
 # Chrome Enterprise has the same path.
@@ -22,11 +23,19 @@ _CHROME_PATH_X86 = R"C:/Program Files (x86)/Google/Chrome/Application/chrome.exe
 _CHROME_PATH_X64 = R"C:/Program Files/Google/Chrome/Application/chrome.exe"
 
 
+@dataclass
 class BrowserObj:
-    def __init__(self) -> None:
-        self.browserType: Literal["chrome"]
-        self.path: str
-        self.socketId: str
+    """
+    Represents the browser capability used by LiberRPA.
+
+    This object does not bind to a specific browser window or tab. Browser
+    commands are sent to the active supported browser tab through the local
+    LiberRPA browser bridge.
+    """
+
+    browserType: Literal["chrome"] = "chrome"
+    path: str = ""
+    socketId: str = ""
 
     def __str__(self) -> str:
         return f"BrowserObj(type: {self.browserType}, path: {self.path}, socketId: {self.socketId})"
@@ -54,6 +63,7 @@ def open_browser(
             Such as "--start-maximized".
 
             For Chrome, you can check all params in [List of Chromium Command Line Switches](https://peter.sh/experiments/chromium-command-line-switches/)
+        timeout: Maximum time to wait until the browser's extension can communicate with LiberRPA Local Server, in milliseconds.
 
     Returns:
         BrowserObj: A handle indicating browser type and Chrome extension availability. Browser operations target the currently active common web page tab in the last focused browser window.
@@ -81,7 +91,12 @@ def open_browser(
                 else:
                     raise FileNotFoundError(f"Not find a file at '{path}'.")
 
-            dictCommand = {"commandName": "open_browser", "url": url, "path": browserObj.path, "params": params}
+            dictCommand = {
+                "commandName": "open_browser",
+                "url": url,
+                "path": browserObj.path,
+                "params": params,
+            }
             send_command(eventName="application_command", command=dictCommand)
 
             # Make sure Chrome extension is working.
@@ -127,7 +142,7 @@ def bind_browser(browserType: Literal["chrome"] = "chrome") -> BrowserObj:
             for process in psutil.process_iter(["name", "exe"]):
                 try:
                     # Check if the process name is 'chrome.exe'
-                    if process.name().lower() == "chrome.exe" and process.status() == "running":
+                    if process.name().lower() == "chrome.exe" and process.status() == psutil.STATUS_RUNNING:
                         # Return the executable path if found
                         temp = process.info["exe"]
                         break
@@ -670,48 +685,48 @@ def execute_js_code(browserObj: BrowserObj, jsCode: str, returnImmediately: bool
 
 
 if __name__ == "__main__":
-    # browserObj = open_browser(browserType="chrome", path=None, params="")
-    # print(browserObj)
-    # import time
-
-    # time.sleep(3)
-    # print("Done.")
-
-    browserObj = bind_browser(browserType="chrome")
+    browserObj = open_browser(browserType="chrome", path=None, params="")
     print(browserObj)
+    # # import time
 
-    # refresh(browserObj=browserObj)
-    # print(get_state(browserObj=browserObj))
-    # wait_load_completed(browserObj=browserObj, timeout=3000)
-    # go_backward(browserObj=browserObj)
-    # go_forward(browserObj=browserObj)
+    # # time.sleep(3)
+    # # print("Done.")
 
-    # open_new_tab(browserObj=browserObj, url="https://www.reddit.com/", waitLoadCompleted=True, timeout=2000)
-    # open_new_window(browserObj=browserObj, url="https://www.reddit.com/", waitLoadCompleted=True, timeout=2000)
-    # switch_tab(browserObj=browserObj,titleOrIndex=1)
-    # close_current_tab(browserObj=browserObj)
-    # log.info(get_source_code(browserObj=browserObj))
-    # log.info(get_all_text(browserObj=browserObj))
-    # print(get_url(browserObj=browserObj))
-    # print(get_title(browserObj=browserObj))
-    # temp = get_cookies(browserObj=browserObj)
-    # print(temp)
-    # print(
-    #     set_cookies(
-    #         browserObj=browserObj, domain=temp[0]["domain"], name=temp[0]["name"], path=temp[0]["path"], value="123"
-    #     )
-    # )
-    # print(get_cookies(browserObj=browserObj))
-    # print(get_scroll_position(browserObj=browserObj))
-    # set_scroll_position(browserObj=browserObj,x=10,y=20)
-    # print(get_scroll_position(browserObj=browserObj))
-    print(
-        execute_js_code(
-            browserObj=browserObj, jsCode="""document.body.style.backgroundColor = 'blue';""", returnImmediately=False
-        )
-    )
+    # browserObj = bind_browser(browserType="chrome")
+    # print(browserObj)
+
+    # # refresh(browserObj=browserObj)
+    # # print(get_state(browserObj=browserObj))
+    # # wait_load_completed(browserObj=browserObj, timeout=3000)
+    # # go_backward(browserObj=browserObj)
+    # # go_forward(browserObj=browserObj)
+
+    # # open_new_tab(browserObj=browserObj, url="https://www.reddit.com/", waitLoadCompleted=True, timeout=2000)
+    # # open_new_window(browserObj=browserObj, url="https://www.reddit.com/", waitLoadCompleted=True, timeout=2000)
+    # # switch_tab(browserObj=browserObj,titleOrIndex=1)
+    # # close_current_tab(browserObj=browserObj)
+    # # log.info(get_source_code(browserObj=browserObj))
+    # # log.info(get_all_text(browserObj=browserObj))
+    # # print(get_url(browserObj=browserObj))
+    # # print(get_title(browserObj=browserObj))
+    # # temp = get_cookies(browserObj=browserObj)
+    # # print(temp)
+    # # print(
+    # #     set_cookies(
+    # #         browserObj=browserObj, domain=temp[0]["domain"], name=temp[0]["name"], path=temp[0]["path"], value="123"
+    # #     )
+    # # )
+    # # print(get_cookies(browserObj=browserObj))
+    # # print(get_scroll_position(browserObj=browserObj))
+    # # set_scroll_position(browserObj=browserObj,x=10,y=20)
+    # # print(get_scroll_position(browserObj=browserObj))
     # print(
     #     execute_js_code(
-    #         browserObj=browserObj, jsCode="""alert("Hello! I am an alert box!!");""", returnImmediately=False
+    #         browserObj=browserObj, jsCode="""document.body.style.backgroundColor = 'blue';""", returnImmediately=False
     #     )
     # )
+    # # print(
+    # #     execute_js_code(
+    # #         browserObj=browserObj, jsCode="""alert("Hello! I am an alert box!!");""", returnImmediately=False
+    # #     )
+    # # )
