@@ -16,7 +16,7 @@ from liberrpa.UI._UiDict import (
     DictElementTreeItem,
 )
 from liberrpa.Common._WebSocket import send_command
-from liberrpa.UI._CommonValue import boolHighlightUi
+import liberrpa.UI._CommonValue as _CommonValue
 from liberrpa.UI._Overlay import create_overlay
 
 from typing import Any, Literal, cast
@@ -110,7 +110,6 @@ def get_parent_element_attr(
     preExecutionDelay: int = 300,
     timeout: int = 10000,
 ) -> list[DictSpecHtml]:
-    global boolHighlightUi
 
     dictCommand: dict[str, Any] = {
         "commandName": "getParentElementAttr",
@@ -120,7 +119,7 @@ def get_parent_element_attr(
         "timeout": timeout,
     }
     dictParentAttr: DictHtmlAttr = send_command(eventName="chrome_command", command=dictCommand, timeout=timeout)
-    if boolHighlightUi:
+    if _CommonValue.boolHighlightUi:
         strTagName = dictParentAttr.get("tagName")
         if not isinstance(strTagName, str) or not strTagName:
             raise ValueError(f"HTML attribute dictionary has no valid tagName: {dictParentAttr}")
@@ -149,7 +148,6 @@ def get_children_element_attr(
     preExecutionDelay: int = 300,
     timeout: int = 10000,
 ) -> list[DictSpecHtml]:
-    global boolHighlightUi
 
     dictCommand: dict[str, Any] = {
         "commandName": "getChildrenElementAttr",
@@ -162,7 +160,7 @@ def get_children_element_attr(
     )
     listSpecification: list[DictSpecHtml] = []
     for dictAttr in listChildrenAttr:
-        if boolHighlightUi:
+        if _CommonValue.boolHighlightUi:
             strTagName = dictAttr.get("tagName")
             if not isinstance(strTagName, str) or not strTagName:
                 raise ValueError(f"HTML attribute dictionary has no valid tagName: {dictAttr}")

@@ -14,7 +14,7 @@ from liberrpa.UI._UiAutomation import (
     activate_control_window,
     get_child_control_by_selector,
 )
-from liberrpa.UI._CommonValue import boolHighlightUi
+import liberrpa.UI._CommonValue as _CommonValue
 from liberrpa.Common._Exception import UiElementNotFoundError
 from liberrpa.Common._TypedValue import ExecutionMode
 from liberrpa.UI._UiDict import (
@@ -265,7 +265,6 @@ def get_element(
     selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
 ) -> tuple[uiautomation.Control, DictUiaAttr] | tuple[None, DictHtmlAttr] | tuple[None, DictImageAttr]:
     """Get a control or html and its attributes dictionary by selector, so the following code can use them."""
-    global boolHighlightUi
 
     validate_selector(selector=selector)
 
@@ -289,7 +288,7 @@ def get_element(
                 controlTemp = get_child_control_by_selector(
                     selectorUiaPart=as_selector_uia(selector=selector)["specification"], controlTop=controlTop
                 )
-                if boolHighlightUi:
+                if _CommonValue.boolHighlightUi:
                     create_overlay(
                         controlTemp.BoundingRectangle.left,
                         controlTemp.BoundingRectangle.top,
@@ -308,7 +307,7 @@ def get_element(
                     htmlSelector=as_selector_html(selector=selector)["specification"]
                 )
 
-                if boolHighlightUi:
+                if _CommonValue.boolHighlightUi:
                     tagName = dictAttr.get("tagName")
                     if not isinstance(tagName, str) or not tagName:
                         raise UiElementNotFoundError(f"HTML element has no valid tagName. attr: {dictAttr}")
@@ -354,7 +353,7 @@ def get_element(
                     raise UiElementNotFoundError(f"Not Found image element. selector's specification: {imageSelector}")
                 # length = Index+1, return the last one.
 
-                if boolHighlightUi:
+                if _CommonValue.boolHighlightUi:
                     create_overlay(
                         int(listDictImageAttr[-1]["secondary-x"]),
                         int(listDictImageAttr[-1]["secondary-y"]),
