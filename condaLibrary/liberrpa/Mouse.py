@@ -54,7 +54,7 @@ def _check_mouse_click_mode(clickMode: ClickMode) -> None:
 def _check_five_position(position: FivePosition) -> None:
     listValue = ["center", "top_left", "top_right", "bottom_left", "bottom_right"]
     if position not in listValue:
-        raise ValueError(f"The argument position({position}) should be one of {listValue}")
+        raise ValueError(f"The argument 'position'({position}) should be one of {listValue}")
 
 
 def _get_5_coordinates(dictAttr: DictUiaAttr | DictHtmlAttr | DictImageAttr) -> dict[str, tuple[int, int]]:
@@ -119,11 +119,13 @@ def _click_element(
     if selector.get("category") == "html" and executionMode == "api":
         if position != "center":
             Log.warning(
-                "The argument position is useless when clicking an html element by 'api', it will just send a click event to the element."
+                "The argument 'position' is ignored when clicking an HTML element with executionMode='api', "
+                "because it only sends a click event to the element."
             )
         if duration != 0:
             Log.warning(
-                "The argument duration will always be 0 when clicking an html element by 'api', due to it will just send a click event to the element."
+                "The argument 'duration' is ignored when clicking an HTML element with executionMode='api', "
+                "because it only sends a click event to the element."
             )
         _UiElement.activate_element_window(selector=selector)
         click_mouse_event(
@@ -141,7 +143,7 @@ def _click_element(
         return None
 
     if selector.get("category") == "image" and executionMode != "simulate":
-        raise UiOperationError("Only support 'simulate' click for an image element")
+        raise UiOperationError("Only executionMode='simulate' is supported for image elements.")
 
     # The simulate click, and uia api click.
 
@@ -204,15 +206,17 @@ def _click_element(
                             break
 
                     if not boolFoundPattern:
-                        raise UiOperationError("The target element didn't support 'api' method. selector: {selector}")
+                        raise UiOperationError(
+                            f"The target element does not support executionMode='api'. selector: {selector}"
+                        )
                 else:
                     raise UiOperationError(
-                        "When use 'api' method to click an uia element, only a simple mouse_left single click is supported. selector: {selector}"
+                        f"When clicking a UIA element with executionMode='api', only a simple left single-click at the center is supported. selector: {selector}"
                     )
             else:
                 # html or image element api click
                 raise UiOperationError(
-                    "(!!!It should not appear.) Use api mode for html or image element should have be handle!!! selector: {selector}"
+                    f"(!!!It should not appear.) Use api mode for html or image element should have be handle!!! selector: {selector}"
                 )
 
     delay(postExecutionDelay)
@@ -245,14 +249,14 @@ def click_element(
         offsetY: Vertical offset from the element's specified click position (in pixels). Only works when executionMode is "simulate".
         button: Specifies which mouse button to click. Options are "left", "right", and "middle".
         clickMode: Defines the type of click to perform. Options are "single_click", "double_click", "down", and "up".
-        executionMode: Options are "simulate" and "api". "simulate" will move the cursor, support all arguements of the function. "api" will not move the cursor, it can handle some situations that the target element be covered, but it supports less arguments than "simulate".
+        executionMode: Options are "simulate" and "api". "simulate" will move the cursor, support all arguments of the function. "api" will not move the cursor, it can handle some situations that the target element be covered, but it supports less arguments than "simulate".
         position: Specifies where on the element to click. Options are "center", "top_left", "top_right", "bottom_left", and "bottom_right". It will only work if executionMode is "simulate".
         pressCtrl: If True, holds the Ctrl key during the click.
         pressShift: If True, holds the Shift key during the click.
         pressAlt: If True, holds the Alt key during the click.
         pressWin: If True, holds the Windows key during the click.
-        duration: Time to move the mouse to the target position (in seconds). If it is 0, it moves to "position" immediately.
-        timeout: Maximum time allowed for the function to complete (in milliseconds). If timeout < 3000 (milliseconds), it will be set to 3000. If the function doesn't completed after "timeout", it will throw an UiTimeoutError.
+        duration: Time to move the mouse to the target position (in milliseconds). If it is 0, it moves to "position" immediately.
+        timeout: Maximum time allowed for the function to complete (in milliseconds). If timeout < 3000 (milliseconds), it will be set to 3000. If the function does not complete before the timeout, it raises UiTimeoutError.
         preExecutionDelay: Time to wait before performing the action (in milliseconds).
         postExecutionDelay: Time to wait after performing the action (in milliseconds).
     """
@@ -321,8 +325,8 @@ def move_to_element(
         offsetX: Horizontal offset from the element's specified click position (in pixels). Only works when executionMode is "simulate".
         offsetY: Vertical offset from the element's specified click position (in pixels). Only works when executionMode is "simulate".
         position: Specifies where on the element to click. Options are "center", "top_left", "top_right", "bottom_left", and "bottom_right". It will only work if executionMode is "simulate".
-        duration: Time to move the mouse to the target position (in seconds). If it is 0, it moves to "position" immediately.
-        timeout: Maximum time allowed for the function to complete (in milliseconds). If timeout < 3000 (milliseconds), it will be set to 3000. If the function doesn't completed after "timeout", it will throw an UiTimeoutError.
+        duration: Time to move the mouse to the target position (in milliseconds). If it is 0, it moves to "position" immediately.
+        timeout: Maximum time allowed for the function to complete (in milliseconds). If timeout < 3000 (milliseconds), it will be set to 3000. If the function does not complete before the timeout, it raises UiTimeoutError.
         preExecutionDelay: Time to wait before performing the action (in milliseconds).
         postExecutionDelay: Time to wait after performing the action (in milliseconds).
     """
@@ -401,7 +405,7 @@ def move_cursor(
     Parameters:
         x: The x-coordinate or horizontal offset (if relative is True) for the cursor's destination.
         y: The y-coordinate or vertical offset (if relative is True) for the cursor's destination.
-        duration: Time to move the mouse to the target position (in seconds). If it is 0, it moves to tatget position immediately.
+        duration: Time to move the mouse to the target position (in milliseconds). If it is 0, it moves to target position immediately.
         relative: If True, the x and y coordinates are treated as offsets from the current cursor position. If False, they are treated as absolute screen coordinates.
         preExecutionDelay: Time to wait before performing the action (in milliseconds).
         postExecutionDelay: Time to wait after performing the action (in milliseconds).
@@ -409,26 +413,10 @@ def move_cursor(
     delay(preExecutionDelay)
 
     if relative:
-        pyautogui.moveTo(x=get_mouse_position()["x"] + x, y=get_mouse_position()["y"] + y, duration=duration)
+        pyautogui.moveTo(x=get_mouse_position()["x"] + x, y=get_mouse_position()["y"] + y, duration=duration / 1000)
     else:
-        pyautogui.moveTo(x=x, y=y, duration=duration)
+        pyautogui.moveTo(x=x, y=y, duration=duration / 1000)
     delay(postExecutionDelay)
-
-
-""" def drag(
-    xStart: int = 0,
-    yStart: int = 0,
-    xEnd: int = 0,
-    yEnd: int = 0,
-    button: MouseButton= "left",
-    pressCtrl: bool = False,
-    pressShift: bool = False,
-    pressAlt: bool = False,
-    pressWin: bool = False,
-    duration: int = 0,
-    preExecutionDelay: int = 300,
-    postExecutionDelay: int = 200,
-) -> None: ... """
 
 
 @Log.trace()

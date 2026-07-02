@@ -11,7 +11,10 @@ fix = false
 # Respect exclude rules even if specific paths are passed from the command line.
 force-exclude = true
 
-exclude = [
+preview = true
+
+
+extend-exclude = [
     ".git",
     ".ruff_cache",
     "__pycache__",
@@ -32,7 +35,7 @@ select = [
     "C4",
     "UP"
 ]
-
+extend-select = ["RUF027"]
 
 ignore = [
 "E501",  # Line length. Many docstrings and error messages are intentionally long.
