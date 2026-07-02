@@ -266,7 +266,8 @@ class DictUiaBuiltinSearchKwargs(TypedDict, total=False):
     RegexName: str
     Name: str
     ClassName: str
-    AutomationId: str
+    # uiautomation supports AutomationId, but LiberRPA currently treats it as a secondary attribute instead of a selector field because it is often missing in tested applications.
+    # AutomationId: str
     ControlType: int
 
 
@@ -280,6 +281,9 @@ def _get_uia_builtin_search_kwargs(
 
     Only exact fields are pushed down to uiautomation. Regex fields are still checked by LiberRPA
     because uiautomation.RegexName uses re.match while LiberRPA selector regex uses re.fullmatch.
+
+    By default, search is limited to controls with a non-empty Name because Name is the most
+    useful built-in UIA search key in current LiberRPA selector design.
     """
     dictSearchKwargs: DictUiaBuiltinSearchKwargs = {
         "searchDepth": searchDepth,
@@ -297,10 +301,6 @@ def _get_uia_builtin_search_kwargs(
     strClassName = dictSelectorTemp.get("ClassName")
     if isinstance(strClassName, str):
         dictSearchKwargs["ClassName"] = strClassName
-
-    strAutomationId = dictSelectorTemp.get("AutomationId")
-    if isinstance(strAutomationId, str):
-        dictSearchKwargs["AutomationId"] = strAutomationId
 
     strControlTypeName = dictSelectorTemp.get("ControlTypeName")
     if isinstance(strControlTypeName, str):

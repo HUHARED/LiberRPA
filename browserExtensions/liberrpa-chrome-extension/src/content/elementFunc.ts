@@ -42,18 +42,18 @@ export async function getChildrenElementAttr(
 ): Promise<DictFinalAttr[]> {
   console.log("--getChildrenElementAttr--");
   const element: HTMLElement = await findElementWithPredelay(selector, preExecutionDelay);
-  const arrChilrenElementAttr: DictFinalAttr[] = [];
-  const arrChilrenElement = getHtmlElementChildren(element);
+  const arrChildrenElementAttr: DictFinalAttr[] = [];
+  const arrChildrenElement = getHtmlElementChildren(element);
 
-  arrChilrenElement.forEach((childElement) => {
+  arrChildrenElement.forEach((childElement) => {
     // Only use index on html parment element, due to uia element has no path attributes.
     // Just need its attributes. Not handle upward layer.
-    arrChilrenElementAttr.push(
+    arrChildrenElementAttr.push(
       addIndexForTheLayer(childElement, getBasicAttr(childElement))
     );
   });
 
-  return arrChilrenElementAttr;
+  return arrChildrenElementAttr;
 }
 
 export async function setCheckState(
