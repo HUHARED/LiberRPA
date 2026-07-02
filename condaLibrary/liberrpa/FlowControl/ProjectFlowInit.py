@@ -163,8 +163,8 @@ class ProjectArguments:
         Returns:
             float: The time in seconds since the object was initialized.
         """
-        current_time = time.monotonic()
-        return current_time - _timeStart
+        currentTime = time.monotonic()
+        return currentTime - _timeStart
 
     def __str__(self) -> str:
         return f"ProjectArguments(projectPath: {self.projectPath}, projectName: {self.projectName}, errorObj: {self.errorObj}, customArgs: {self.customArgs}, elapsedTime: {self.elapsedTime})"
