@@ -59,12 +59,11 @@ Index attributes include `documentIndex` and `childIndex`. Index values start fr
 
 > However, you can still explicitly use `"documentIndex": "0"` or `"childIndex": "0"` when it makes selector generation logic easier, such as when looping through elements in a list.
 
-
 ![1740147909983](md_images/README/1740147909983.png)
 
 **documentIndex:** The target element's position among all elements on the page having the same primary attributes.
 
-**childIndex:** The target element's position among matching elements under its parent search area.
+**childIndex:** The target element's zero-based position among matching descendant elements under its parent search area. It is not limited to direct children.
 
 # Indicate Image Element
 
@@ -200,7 +199,6 @@ pseudo-schema:
     "ClassName": NotRequired[str],
     "HelpText": NotRequired[str],
     "HelpText-regex": NotRequired[str],
-    "Depth": NotRequired[str],
     "Index": NotRequired[str],
     "Index-regex": NotRequired[str],
     "FrameworkId": NotRequired[str],
@@ -397,7 +395,7 @@ There are two index fields: `childIndex`, `documentIndex`
 
 `childIndex` is the target element's zero-based position among matching descendant elements under the target element's parent search area.
 
-> `childIndex` is calculated by searching within the parent element's DOM subtree using `parentElement.querySelectorAll(...)`, then applying additional attribute filtering. Therefore, it is not limited to direct children only.
+> `childIndex` is calculated by searching within the parent element's DOM subtree using `parentElement.querySelectorAll(...)`, then applying additional attribute filtering. Therefore, it is not limited to direct children.
 
 A `childIndex` value of `"0"` is treated as unnecessary and ignored during matching.
 
@@ -508,7 +506,6 @@ pseudo-schema:
     "ClassName": NotRequired[str],
     "HelpText": NotRequired[str],
     "HelpText-regex": NotRequired[str],
-    "Depth": NotRequired[str],
     "Index": NotRequired[str],
     "Index-regex": NotRequired[str],
     "FrameworkId": NotRequired[str],
@@ -623,7 +620,6 @@ pseudo-schema:
     "ClassName": NotRequired[str],
     "HelpText": NotRequired[str],
     "HelpText-regex": NotRequired[str],
-    "Depth": NotRequired[str],
     "Index": NotRequired[str],
     "Index-regex": NotRequired[str],
     "FrameworkId": NotRequired[str],
@@ -688,7 +684,6 @@ pseudo-schema:
     "ClassName": NotRequired[str],
     "HelpText": NotRequired[str],
     "HelpText-regex": NotRequired[str],
-    "Depth": NotRequired[str],
     "Index": NotRequired[str],
     "Index-regex": NotRequired[str],
     "FrameworkId": NotRequired[str],

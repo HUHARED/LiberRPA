@@ -41,7 +41,7 @@
               For UIA elements, you may need to add "Index" manually if sibling elements
               have the same attributes. You may also need to add "Depth" if the layer is too
               close to its ancestor.<br />
-              For HTML elements, you may need to edit or add "childIndex" manually.
+              For HTML elements, you may need to edit or add "childIndex" manually when multiple matching descendants exist.
             </div>
           </v-tooltip>
         </template>

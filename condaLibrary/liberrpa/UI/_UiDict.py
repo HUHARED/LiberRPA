@@ -222,6 +222,7 @@ DictSpecUia = TypedDict(
         # "ClassName-regex": NotRequired[str],
         "HelpText": NotRequired[str],
         "HelpText-regex": NotRequired[str],
+        # If Depth is undefined, it means Depth is 1 and therefore searching direct children.
         "Depth": NotRequired[str],
         # "Depth-regex": NotRequired[str],
         "Index": NotRequired[str],
