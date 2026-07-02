@@ -15,3 +15,5 @@ try:
         boolHighlightUi = False
 except Exception:
     boolHighlightUi = False
+
+INT_TIMEOUT_MIN = 3000

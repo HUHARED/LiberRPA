@@ -9,6 +9,7 @@ from liberrpa.Logging import Log
 from liberrpa.Common._BasicConfig import get_basic_config_dict, get_token
 from liberrpa.Common._Exception import ChromeCommandError, ChromeElementNotFoundError, QtError
 from liberrpa.Common._TypedValue import DictSocketResult
+import liberrpa.UI._CommonValue as _CommonValue
 
 import threading
 import socketio
@@ -21,6 +22,9 @@ SIGN_START_RECORD_VIDEO = "$SIGN-START_RECORD_VIDEO"
 _INT_PORT = int(get_basic_config_dict()["localServerPort"])
 _STR_TOKEN = get_token("python")
 _sioClient = socketio.Client(logger=False, engineio_logger=False)
+_LOCK_SOCKET_CLIENT = threading.Lock()
+
+_INT_TIMEOUT_DEFAULT = 10000
 
 
 @_sioClient.event
@@ -40,21 +44,27 @@ def connect_error(data):
     Log.error("Connection failed: " + str(data))
 
 
-def send_command(eventName: str, command: dict[str, Any], timeout: int = 10000) -> Any:
-    try:
-        # Connect to the LiberRPA local server if not connected.
-        # Put it in the function instead of outside, due to LiberRPA local server will import the file, and the web socket has not been build at that time.
-        if not _sioClient.connected:
-            _sioClient.connect(
-                f"http://127.0.0.1:{_INT_PORT}",
-                transports=["websocket"],
-                auth={"clientType": "python", "token": _STR_TOKEN},
-            )
-            # log.debug(f"Connected to server, sid: {sioClient.sid}")
-    except ConnectionError as e:
-        raise ConnectionError(f"Failed to connect LiberRPA local server: {e}, is the server running?")
+def _normalize_timeout(timeout: object | None) -> int:
+    if timeout is None:
+        return _INT_TIMEOUT_DEFAULT
 
-    Log.verbose(f"The command sent to LiberRPA local server:{command}")
+    if not isinstance(timeout, int):
+        raise ValueError("The argument 'timeout' must be an integer.")
+
+    if timeout < _CommonValue.INT_TIMEOUT_MIN:
+        Log.warning(
+            f"The argument 'timeout' should be at least {_CommonValue.INT_TIMEOUT_MIN}; "
+            f"using {_CommonValue.INT_TIMEOUT_MIN}."
+        )
+        return _CommonValue.INT_TIMEOUT_MIN
+
+    return timeout
+
+
+def send_command(eventName: str, command: dict[str, Any], timeout: int | None = None) -> Any:
+    # Some commands include "timeout" in the command dictionary instead of passing it as a separate argument.
+    # If timeout is passed explicitly, the explicit argument takes priority.
+    timeoutFinal = _normalize_timeout(timeout if timeout is not None else command.get("timeout"))
 
     eventResponse = threading.Event()
     dictResponseData: dict[str, DictSocketResult] = {}
@@ -66,39 +76,61 @@ def send_command(eventName: str, command: dict[str, Any], timeout: int = 10000) 
         if data.get("data") == SIGN_START_RECORD_VIDEO:
             Log.critical(data["data"])
 
-    # Send command to LiberRPA local server or target platform(such as Chrome extension) by LiberRPA local server.
-    _sioClient.emit(event=eventName, data=command, callback=response_handler)
+    try:
+        # Protect the shared Socket.IO client.
+        # Do not keep this lock while waiting for the response, otherwise a slow command would block unrelated commands.
+        with _LOCK_SOCKET_CLIENT:
+            # Connect to LiberRPA Local Server if not connected.
+            # Keep the connection logic inside this function because LiberRPA Local Server may import this module before the WebSocket connection is needed.
+            if not _sioClient.connected:
+                _sioClient.connect(
+                    f"http://127.0.0.1:{_INT_PORT}",
+                    transports=["websocket"],
+                    auth={
+                        "clientType": "python",
+                        "token": _STR_TOKEN,
+                    },
+                )
 
-    # Wait the response. Add 1 more second than the original.
-    """ while not eventResponse.is_set():
-        continue """
-    if not eventResponse.wait(timeout=(timeout + 1000) / 1000):
+            Log.verbose(f"The command sent to LiberRPA Local Server: {command}")
+
+            # Send the command to LiberRPA Local Server, or forward it to a target platform
+            # such as the Chrome extension through LiberRPA Local Server.
+            _sioClient.emit(event=eventName, data=command, callback=response_handler)
+    except ConnectionError as e:
+        raise ConnectionError(f"Failed to connect to LiberRPA Local Server: {e}. Is the server running?") from e
+
+    timeoutWithGrace = (timeoutFinal + 1000) / 1000
+
+    if not eventResponse.wait(timeout=timeoutWithGrace):
         raise TimeoutError(
-            f"No response received from LiberRPA local server within {timeout / 1000} seconds. Maybe the data is too huge for Web Socket setting?"
+            f"No response was received from LiberRPA Local Server within "
+            f"{timeoutFinal / 1000} seconds. The server may be busy, the target platform may not be responding, "
+            f"or the response data may be too large for the current WebSocket settings."
         )
 
     # Process the received response.
     dictResult: DictSocketResult | None = dictResponseData.get("result")
+
     if dictResult is None:
-        raise ValueError("Not get result from LiberRPA local server.")
-    elif not dictResult.get("boolSuccess"):
-        # Log.error("Error here!")
+        raise ValueError("Did not receive a result from LiberRPA Local Server.")
+
+    if not dictResult.get("boolSuccess"):
         strData = dictResult.get("data")
-        # Log.debug(eventName)
+
         # More specific error type.
         if eventName == "chrome_command":
             if isinstance(strData, str) and strData.startswith("Not found the target element"):
                 raise ChromeElementNotFoundError(strData)
             raise ChromeCommandError(strData)
 
-        elif eventName == "qt_command":
+        if eventName == "qt_command":
             raise QtError(strData)
 
-        else:
-            raise Exception(strData)
-    else:
-        # dictResult.get("boolSuccess") == True, Return the data from the successful result.
-        return dictResult.get("data")
+        raise Exception(strData)
+
+    # dictResult.get("boolSuccess") == True, Return the data from the successful result.
+    return dictResult.get("data")
 
 
 if __name__ == "__main__":

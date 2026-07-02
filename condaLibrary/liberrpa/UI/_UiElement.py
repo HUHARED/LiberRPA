@@ -92,10 +92,13 @@ def check_execution_type(executionMode: ExecutionMode) -> None:
 
 def check_set_timeout(timeout: int) -> int:
     """Invoke by GUI manipulation functions to check timeout. If timeout < 3000 (milliseconds), set it to 3000."""
-    timeoutMin = 3000
-    if timeout < timeoutMin:
-        timeout = timeoutMin
-        Log.warning(f"The argument 'timeout' should be at least {timeoutMin}, set it.")
+
+    if timeout < _CommonValue.INT_TIMEOUT_MIN:
+        timeout = _CommonValue.INT_TIMEOUT_MIN
+        Log.warning(
+            f"The argument 'timeout' should be at least {_CommonValue.INT_TIMEOUT_MIN}; "
+            f"using {_CommonValue.INT_TIMEOUT_MIN}."
+        )
     # Synchronize uiautomation's TIME_OUT_SECOND.
     uiautomation.SetGlobalSearchTimeout(timeout / 1000)
     return timeout
@@ -271,6 +274,8 @@ def get_element(
     with uiautomation.UIAutomationInitializerInThread():
         # Find and activate top control.
         controlTop = get_top_control(selectorWindowPart=selector["window"])
+
+        # Ensure the target window is visible.
         activate_control_window(control=controlTop)
 
         # A window element.
