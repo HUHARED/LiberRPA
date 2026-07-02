@@ -20,6 +20,7 @@ import sys
 import traceback
 from typing import Any, cast
 from collections.abc import Callable
+from functools import wraps
 
 """
 There are two timeout concepts in this module:
@@ -152,13 +153,13 @@ class TerminableThread[T](threading.Thread):
         self.args = args
         self.kwargs = kwargs if kwargs is not None else {}
         self.result: T | None = None
-        self.exception: Exception | None = None
+        self.exception: BaseException | None = None
 
     def run(self) -> None:
         try:
             self.result = self.target(*self.args, **self.kwargs)
 
-        except Exception as e:
+        except BaseException as e:
             self.exception = e
 
     def terminate(self) -> bool:
@@ -173,10 +174,9 @@ class TerminableThread[T](threading.Thread):
             return False
 
         res = ctypes.pythonapi.PyThreadState_SetAsyncExc(
-            ctypes.c_long(self.ident),
+            ctypes.c_ulong(self.ident),
             ctypes.py_object(UiUnsafeThreadTerminationError),
         )
-
         if res == 0:
             # No thread state was modified. The thread may have already ended.
             return False
@@ -184,10 +184,10 @@ class TerminableThread[T](threading.Thread):
         if res > 1:
             # More than one thread state was modified. This should not happen. Roll back immediately by injecting None.
             ctypes.pythonapi.PyThreadState_SetAsyncExc(
-                ctypes.c_long(self.ident),
-                ctypes.py_object(None),
+                ctypes.c_ulong(self.ident),
+                None,
             )
-            raise SystemError("PyThreadState_SetAsyncExc failed")
+            raise SystemError("PyThreadState_SetAsyncExc affected multiple thread states and was rolled back.")
 
         # res == 1: exactly one thread state was modified, which means the exception was injected.
         return True
@@ -210,6 +210,7 @@ def timeout_kill_thread[T, **P](timeout: int) -> Callable[[Callable[P, T]], Call
 
     def decorator(func: Callable[P, T]) -> Callable[P, T]:
 
+        @wraps(func)
         def wrapped_func(*args: P.args, **kwargs: P.kwargs) -> T:
             from liberrpa.Logging import Log
 
@@ -326,8 +327,6 @@ def timeout_kill_thread[T, **P](timeout: int) -> Callable[[Callable[P, T]], Call
                 if thread.exception is not None:
                     # Not-found errors are normal retry signals for UI search. They do not mean the thread is unsafe; keep retrying until the soft timeout expires.
                     if isinstance(thread.exception, (UiElementNotFoundError, ChromeElementNotFoundError)):
-                        sleep(1)
-
                         timeRemainingSoft = int((softDeadline - monotonic()) * 1000)
 
                         if timeRemainingSoft <= 0:
@@ -336,6 +335,7 @@ def timeout_kill_thread[T, **P](timeout: int) -> Callable[[Callable[P, T]], Call
                                 f"{thread.exception}"
                             ) from thread.exception
 
+                        sleep(min(1, timeRemainingSoft / 1000))
                         # Retry the function
                         continue
 
