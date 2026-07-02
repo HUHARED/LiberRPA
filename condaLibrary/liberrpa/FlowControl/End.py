@@ -79,7 +79,6 @@ def cleanup() -> None:
 
 
 def main() -> None:
-    global boolRan
     cleanup()
     # Stop the current process
     Log.info(f"'{PROCESS_NAME}' exit.")
