@@ -7,6 +7,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from liberrpa.Logging import Log
 from liberrpa.Common._Utils import PATH_PROJECT_JSON, PROCESS_NAME
+import liberrpa.UI._TerminableThread as _TerminableThread
 from liberrpa.Dialog import show_notification
 from liberrpa.FlowControl.ProjectFlowInit import PrjArgs
 
@@ -49,6 +50,32 @@ def cleanup() -> None:
     show_notification(title="LiberRPA", message=strInfo, duration=2, wait=False)
 
     Log.info(f"Elapsed time: {timedelta(seconds=int(PrjArgs.elapsedTime))}")
+
+    """
+    Summarize unsafe timeout fallback events at process end.
+    These counters are read from the module instead of imported by value, because integers are immutable and `from module import counter` would not track later rebinding in _TerminableThread.
+    """
+    if _TerminableThread.intUnsafeThreadTerminationCount > 0 or _TerminableThread.intUnstoppableThreadCount > 0:
+        strTemp = ""
+
+        if _TerminableThread.intUnsafeThreadTerminationCount > 0:
+            # The worker thread was actually interrupted by injected exception and then stopped.
+            strTemp += (
+                f"Unsafe timeout fallback interrupted worker threads "
+                f"{_TerminableThread.intUnsafeThreadTerminationCount} times. "
+            )
+
+        if _TerminableThread.intUnstoppableThreadCount > 0:
+            # The worker thread could not be stopped. The specific call raised UiUnstoppableThreadError.
+            strTemp += (
+                f"Unsafe timeout fallback failed to stop worker threads "
+                f"{_TerminableThread.intUnstoppableThreadCount} times. "
+            )
+
+        Log.critical(
+            strTemp + "This means a UI or third-party call did not return in time. "
+            "Please report this case with logs if it happens repeatedly."
+        )
 
 
 def main() -> None:

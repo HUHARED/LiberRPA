@@ -45,6 +45,30 @@ class UiElementDisappearTimeoutError(UiWaitTimeoutError):
         super().__init__(message, *args)
 
 
+class UiUnsafeThreadTerminationError(UiTimeoutError):
+    """Unsafe timeout fallback injected an exception into a worker thread."""
+
+    def __init__(
+        self,
+        message="Unsafe UI timeout fallback was triggered. A worker thread was forcibly interrupted.",
+        *args,
+    ):
+        super().__init__(message, *args)
+
+
+class UiUnstoppableThreadError(UiUnsafeThreadTerminationError):
+    """Unsafe timeout fallback was triggered, but the worker thread did not stop."""
+
+    def __init__(
+        self,
+        message=(
+            "Unsafe UI timeout fallback was triggered, but the worker thread did not stop.\nThe current Python process may be in an unsafe state."
+        ),
+        *args,
+    ):
+        super().__init__(message, *args)
+
+
 class UiSelectorError(ValueError):
     """Invalid UI selector structure or selector value."""
 
