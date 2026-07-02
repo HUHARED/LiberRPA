@@ -237,8 +237,8 @@ export function getElementTree(
     ): DictElementTreeItem[] {
       const arrChildren: DictElementTreeItem[] = [];
 
-      const arrChilrenElement = getHtmlElementChildren(elementParent);
-      for (const element of arrChilrenElement) {
+      const arrChildrenElement = getHtmlElementChildren(elementParent);
+      for (const element of arrChildrenElement) {
         const intId = getNextElementId();
 
         if (element.contains(targetElement) && element !== targetElement) {
