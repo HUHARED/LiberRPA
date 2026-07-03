@@ -324,23 +324,23 @@ def remove_folder(folderPath: str) -> None:
 @Log.trace()
 def get_file_or_folder_list(
     folderPath: str,
-    filter: Literal["file", "folder", "both"] = "both",
+    itemType: Literal["file", "folder", "both"] = "both",
     getAbsolutePath: bool = True,
     ignorePrefixes: list[str] | None = None,
     ignoreSuffixes: list[str] | None = None,
 ) -> list[str]:
     """
-    Retrieves a list of files or folders from a specified directory based on a filter.
+    Retrieves files and/or folders under a specified directory recursively.
 
     Parameters:
         folderPath: The directory path from which to list files or folders.
-        filter: Specifies the type of items to list; "file" for files only, "folder" for folders only, or "both" for all items.
-        getAbsolutePath: If True, returns absolute paths; if False, returns paths relative to folderPath.
-        ignorePrefixes: A list of path prefixes to ignore. Any item starting with one of these prefixes will not be included in the result.
-        ignoreSuffixes: A list of path suffixes to ignore. Any item ending with one of these suffixes will not be included in the result.
+        itemType: Which item types to include. Use "file" for files only, "folder" for folders only, or "both" for both files and folders.
+        getAbsolutePath: If True, returns absolute paths. If False, returns paths relative to folderPath.
+        ignorePrefixes: Path prefixes to exclude. This uses simple string startswith() matching after joining each prefix with folderPath. It does not check path boundaries, so a prefix such as "a" may also exclude "abc". Use precise prefixes to avoid excluding unintended paths.
+        ignoreSuffixes: Path suffixes to exclude. Any item whose path string ends with one of these suffixes is excluded.
 
     Returns:
-        list[str]: A list of file or folder paths, filtered as specified.
+        list[str]: A list of file or folder paths after filtering.
     """
 
     ignorePrefixes = [] if ignorePrefixes is None else ignorePrefixes
@@ -351,8 +351,8 @@ def get_file_or_folder_list(
         raise ValueError(f"Provided path({folderPath}) is not a folder")
 
     listValue = ["file", "folder", "both"]
-    if filter not in listValue:
-        raise ValueError(f"The argument filter should be one of {listValue}")
+    if itemType not in listValue:
+        raise ValueError(f"The argument 'itemType' should be one of {listValue}")
 
     paths = pathObj.rglob("*")
     listResult: list[Path] = []
@@ -363,11 +363,11 @@ def get_file_or_folder_list(
         if any(str(path).endswith(suffix) for suffix in ignoreSuffixes):
             continue
 
-        if filter == "file" and path.is_file():
+        if itemType == "file" and path.is_file():
             listResult.append(path)
-        elif filter == "folder" and path.is_dir():
+        elif itemType == "folder" and path.is_dir():
             listResult.append(path)
-        elif filter == "both":
+        elif itemType == "both":
             listResult.append(path)
 
     if getAbsolutePath:
@@ -413,7 +413,12 @@ def search_file_or_folder(folderPath: str, name: str, deepIterate=True) -> list[
 
 
 @Log.trace()
-def zip_create(srcPath: str, dstPath: str, password: str = "") -> str:
+def zip_create(
+    srcPath: str,
+    dstPath: str,
+    password: str = "",
+    overwriteIfExist: bool = False,
+) -> str:
     """
     Create a ZIP file from a file or folder, with optional password protection.
 
@@ -421,6 +426,7 @@ def zip_create(srcPath: str, dstPath: str, password: str = "") -> str:
         srcPath: Path to the file or folder to be zipped.
         dstPath: Path where the ZIP file will be saved.
         password: Password for the ZIP file, If it's empty string, means have no password.
+        overwriteIfExist: If False, raises an error if the file already exists.
 
     Returns:
         str: The absolute path to the created ZIP file.
@@ -428,9 +434,19 @@ def zip_create(srcPath: str, dstPath: str, password: str = "") -> str:
 
     srcPathObj = Path(srcPath)
     dstPathObj = Path(dstPath)
+
+    if not srcPathObj.is_file() and not srcPathObj.is_dir():
+        raise FileNotFoundError(f"Source path does not exist: {srcPath}")
+
     if dstPathObj.is_dir():
         dstPathObj = dstPathObj / (srcPathObj.name + ".zip")
-    # print(destinationPathObj)
+
+    # Use new path to check.
+    if not str(dstPathObj).lower().endswith(".zip"):
+        Log.warning("The target file's name does not end with '.zip'.")
+
+    if not overwriteIfExist and dstPathObj.is_file():
+        raise FileExistsError(f"There is a file in the destination path: {dstPathObj.resolve()}")
 
     encryption_method = pyzipper.WZ_AES if password else None
 

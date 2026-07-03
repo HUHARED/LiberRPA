@@ -191,13 +191,13 @@ def upload_folder(ftpObj: ftputil.FTPHost, localFolderPath: str, remoteFolderPat
 
     # Create all folder
     for strFolderPath in File.get_file_or_folder_list(
-        folderPath=localFolderPath, filter="folder", getAbsolutePath=True
+        folderPath=localFolderPath, itemType="folder", getAbsolutePath=True
     ):
         strRelativePath = str(Path(strFolderPath).relative_to(Path(localFolderPath)))
         create_folder(ftpObj=ftpObj, folderPath=ftpObj.path.join(remoteFolderPath, strRelativePath))
 
     # Upload all files to according folders.
-    for strFilePath in File.get_file_or_folder_list(folderPath=localFolderPath, filter="file", getAbsolutePath=True):
+    for strFilePath in File.get_file_or_folder_list(folderPath=localFolderPath, itemType="file", getAbsolutePath=True):
         strRelativePath = str(Path(strFilePath).relative_to(Path(localFolderPath)))
         upload_file(
             ftpObj=ftpObj, localFilePath=strFilePath, remoteFilePath=ftpObj.path.join(remoteFolderPath, strRelativePath)
