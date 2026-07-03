@@ -38,7 +38,7 @@ import liberrpa.Time as Time
 import liberrpa.File as File
 import liberrpa.OCR as OCR
 
-# Web protocal
+# Web protocol
 import liberrpa.Web as Web
 import liberrpa.Mail as Mail
 import liberrpa.FTP as FTP
