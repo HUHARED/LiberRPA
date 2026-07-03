@@ -112,27 +112,30 @@ def get_folder_list(account: str) -> list[str]:
 def get_email_list(
     account: str,
     folder: str = "INBOX",
-    filter: str = "",
+    searchText: str = "",
     numToGet: int = 1,
     onlyUnread: bool = False,
     markAsRead: bool = False,
 ) -> tuple[list[DictOutlookMailInfo], list[win32com.client.CDispatch]]:
     """
-    Fetch a list of emails from a specified Outlook account and folder.
+    Fetch emails from a specified Outlook account and folder.
 
     Parameters:
         account: The email account to fetch emails from.
         folder: The folder to fetch emails from.
-        filter: A string to filter emails based on their properties.
-        numToGet: Maximum number of emails to fetch.
-        onlyUnread: Whether to retrieve only unread emails.
-        markAsRead: Whether to mark retrieved emails as read.
+        searchText: Text to search for in each email. If it is not empty, only emails containing this text in the subject, body, HTML body, sender email address, recipient addresses, CC, or BCC are returned. The search is performed by LiberRPA after emails are retrieved from Outlook, not by Outlook's Restrict filter syntax.
+        numToGet: Maximum number of matched emails to return.
+        onlyUnread: If True, retrieves only unread emails.
+        markAsRead: If True, marks only the returned matched emails as read.
 
     Returns:
-        tuple[list[DictOutlookMailInfo],list[win32com.client.CDispatch]]:
-            A list of basic information dictionaries for each email, adhering to the DictOutlookMailInfo structure.
-            A list of email objects.
+        tuple[list[DictOutlookMailInfo], list[win32com.client.CDispatch]]:
+            A list of basic information dictionaries for each returned email.
+            A list of Outlook email objects for further operations.
     """
+
+    if numToGet < 1:
+        raise ValueError("The argument 'numToGet' should be greater than or equal to 1.")
 
     mapi: win32com.client.CDispatch = win32com.client.Dispatch("Outlook.Application").GetNamespace("MAPI")
 
@@ -153,21 +156,29 @@ def get_email_list(
 
     listEmail: list[win32com.client.CDispatch] = []
     listBasicInfo: list[DictOutlookMailInfo] = []
+
+    searchTextLower = searchText.lower()
+
     for message in messages:
-        if filter != "":
-            # Check if the filter string is in any of the email properties
-            if (
-                filter in message.Subject
-                or filter in message.Body
-                or filter in message.HTMLBody
-                or filter.lower() in message.SenderEmailAddress.lower()
-                or any(filter.lower() in recipient.Address.lower() for recipient in message.Recipients)
-                or filter.lower() in (message.CC if message.CC else "").lower()
-                or filter.lower() in (message.BCC if message.BCC else "").lower()
-            ):
-                listEmail.append(message)
+        if searchText:
+            # Check if the searchText string is in any of the email properties
+            boolMatched = (
+                searchTextLower in str(message.Subject).lower()
+                or searchTextLower in str(message.Body).lower()
+                or searchTextLower in str(message.HTMLBody).lower()
+                or searchTextLower in str(message.SenderEmailAddress).lower()
+                or any(searchTextLower in str(recipient.Address).lower() for recipient in message.Recipients)
+                or searchTextLower in str(message.CC or "").lower()
+                or searchTextLower in str(message.BCC or "").lower()
+            )
         else:
-            listEmail.append(message)
+            boolMatched = True
+
+        if not boolMatched:
+            # Emails which do not match should not be handled.
+            continue
+
+        listEmail.append(message)
 
         if markAsRead:
             message.Unread = False
