@@ -7,6 +7,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from liberrpa.Logging import Log
 import winsound
+from pathlib import Path
 import sys
 import os
 import re
@@ -14,14 +15,30 @@ import subprocess
 
 
 @Log.trace()
-def play_sound(soundPath: str) -> None:
+def play_sound(filePath: str, wait: bool = True) -> None:
     """
-    Plays a sound file specified by the soundPath parameter using the Windows Sound API.
-    Only support waveform audio files (WAV).
+    Play a WAV sound file.
+
+    Only WAV files are supported because this function uses Windows winsound.PlaySound().
+    MP3 and other formats are not supported.
+
+    Parameters:
+        filePath: The path to the WAV file to play.
+        wait: If True, waits until the sound finishes. If False, starts playing and returns immediately.
     """
-    if not os.path.isfile(soundPath):
-        raise FileNotFoundError(f"Sound file '{soundPath}' not found.")
-    winsound.PlaySound(sound=soundPath, flags=winsound.SND_FILENAME)
+    pathObj = Path(filePath)
+
+    if not pathObj.is_file():
+        raise FileNotFoundError(f"Sound file does not exist: {filePath}")
+
+    if pathObj.suffix.lower() != ".wav":
+        raise ValueError("Only WAV files are supported by System.play_sound().")
+
+    flags = winsound.SND_FILENAME | winsound.SND_NODEFAULT
+    if not wait:
+        flags |= winsound.SND_ASYNC
+
+    winsound.PlaySound(str(pathObj.resolve()), flags)
 
 
 @Log.trace()
@@ -92,4 +109,7 @@ if __name__ == "__main__":
 
     # print(os.environ.get("USERPROFILE", "N/A"))
     # exit()
-    play_sound(soundPath=R"G:\OneDrive\Workspace\LiberRPA_ProjectTest\all_modules_test\success.mp3")
+    play_sound(filePath=R"C:\Program Files\Microsoft Office\root\Office16\MEDIA\CHIMES.WAV", wait=False)
+    from time import sleep
+
+    sleep(5)
