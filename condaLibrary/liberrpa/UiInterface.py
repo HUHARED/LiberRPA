@@ -144,7 +144,7 @@ def _screenshot(
     intYStart = int(dictTarget["secondary-y"]) + offsetY
     # If width or height is None, use the default size.
     if width == 0 or height == 0:
-        raise ValueError("The arguments width or height cann't be 0.")
+        raise ValueError("The arguments width or height cannot be 0.")
 
     if width is None:
         intXEnd = int(dictTarget["secondary-x"]) + int(dictTarget["secondary-width"]) + offsetX
@@ -831,7 +831,7 @@ def _set_text(
     # Other elements don't support setting text and not be checked before.
 
     raise UiOperationError(
-        f"The element doesn't support setting text or LiberRPA doesn't have permission. selector: {selector}"
+        f"The element does not support setting text or LiberRPA does not have permission. selector: {selector}"
     )
 
 
@@ -898,7 +898,7 @@ def _get_check_state(
             return strReturn
 
         raise UiOperationError(
-            f"The element doesn't support getting check state or LiberRPA doesn't have permission. selector: {selector}"
+            f"The element does not support getting check state or LiberRPA does not have permission. selector: {selector}"
         )
     else:
         # html
@@ -909,7 +909,7 @@ def _get_check_state(
         elif dictTarget.get("checked") == "indeterminate":
             strReturn = "indeterminate"
         else:
-            raise UiOperationError(f"The element doesn't have the 'checked' attribute. selector: {selector}")
+            raise UiOperationError(f"The element does not have the 'checked' attribute. selector: {selector}")
 
         delay(postExecutionDelay)
         return strReturn
@@ -1007,7 +1007,7 @@ def _set_check_state(
 
     # image or uia element does't support setting check.
     raise UiOperationError(
-        f"The element doesn't support setting check state or LiberRPA doesn't have permission. selector: {selector}"
+        f"The element does not support setting check state or LiberRPA does not have permission. selector: {selector}"
     )
 
 

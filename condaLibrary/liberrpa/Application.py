@@ -25,7 +25,7 @@ def run_application(filePath: str, windowState: Literal["default", "maximize", "
         int: The application's PID.
     """
 
-    # NOTE: Use LiberRPA local server to run the application. If use subprocess or os module to run the application in the current Python process, it will kill the new application when the Python process exits(when the application process is the first process instance).
+    # NOTE: Use LiberRPA Local Server to run the application. If use subprocess or os module to run the application in the current Python process, it will kill the new application when the Python process exits(when the application process is the first process instance).
 
     dictCommand = {"commandName": "run_application", "filePath": filePath, "windowState": windowState}
 
@@ -42,7 +42,7 @@ def open_url(url: str) -> None:
     Parameters:
         url: The url of the target file or webpage. It may need to start with a protocol (e.g., http:// or https://)
     """
-    # NOTE: Use LiberRPA local server to run the application. Due to it has the same problem like run_application.
+    # NOTE: Use LiberRPA Local Server to run the application. Due to it has the same problem like run_application.
 
     dictCommand = {"commandName": "open_url", "url": url}
 

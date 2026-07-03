@@ -64,5 +64,5 @@ from liberrpa.UI._UiDict import SelectorWindow, SelectorUia, SelectorHtml, Selec
 from liberrpa.Common._Exception import UiElementNotFoundError, UiTimeoutError, UiOperationError, ChromeCommandError, MailError
 
 
-# Build-in module that liberrpa-snippets-tree or users often need.
+# built-in module that liberrpa-snippets-tree or users often need.
 import os

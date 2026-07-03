@@ -284,7 +284,7 @@ def get_element(
             return (controlTop, get_control_attr(control=controlTop))
 
         if selector.get("specification") is None:
-            raise ValueError(f"Not find 'specification' value in the selector: {selector}")
+            raise ValueError(f"Could not find 'specification' value in the selector: {selector}")
 
         # An uia or html element
 
@@ -371,7 +371,7 @@ def get_element(
                 return (None, listDictImageAttr[-1])
 
             case _:
-                raise ValueError(f"Not find right 'category'(uia/html/image) value in the selector: {selector}")
+                raise ValueError(f"Could not find right 'category'(uia/html/image) value in the selector: {selector}")
 
 
 def get_element_with_pre_delay(

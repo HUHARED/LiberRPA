@@ -55,7 +55,7 @@ def _close_window(
             return None
 
     raise UiOperationError(
-        f"The element doesn't support closing or LiberRPA doesn't have permission. selector: {selector}"
+        f"The element does not support closing or LiberRPA does not have permission. selector: {selector}"
     )
 
 
@@ -175,7 +175,7 @@ def _set_window_state(
             return None
 
     raise UiOperationError(
-        f"The element doesn't support setting window state or LiberRPA doesn't have permission. selector: {selector}"
+        f"The element does not support setting window state or LiberRPA does not have permission. selector: {selector}"
     )
 
 

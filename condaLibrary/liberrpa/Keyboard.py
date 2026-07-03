@@ -237,7 +237,7 @@ def _write_text_into_element(
                 uiTarget.GetPattern(uiautomation.PatternId.ValuePattern),
             )
             if pattern is None:
-                raise ValueError(f"The element doesn't support the argument executionMode('api'). selector: {selector}")
+                raise ValueError(f"The element does not support the argument executionMode('api'). selector: {selector}")
 
             strOldText = "" if pattern.Value is None else str(pattern.Value)
             strTargetText = text if emptyOriginalText else strOldText + text
@@ -287,7 +287,7 @@ def _write_text_into_element(
                     strOldText = _get_uia_control_text(control=uiTarget)
                     if strOldText is None:
                         raise ValueError(
-                            f"The element doesn't support getting original text for validation. selector: {selector}"
+                            f"The element does not support getting original text for validation. selector: {selector}"
                         )
                     strExpectedText = strOldText + text
 
@@ -295,7 +295,7 @@ def _write_text_into_element(
 
                 strWrittenText = _get_uia_control_text(control=uiTarget)
                 if strWrittenText is None:
-                    raise ValueError(f"The element doesn't support getting text for validation. selector: {selector}")
+                    raise ValueError(f"The element does not support getting text for validation. selector: {selector}")
 
                 if _normalize_written_text(strWrittenText) != _normalize_written_text(strExpectedText):
                     raise ValueError(
@@ -311,7 +311,7 @@ def _write_text_into_element(
             return None
 
     raise UiOperationError(
-        f"The element doesn't support setting text or LiberRPA doesn't have permission. selector: {selector}"
+        f"The element does not support setting text or LiberRPA does not have permission. selector: {selector}"
     )
 
 

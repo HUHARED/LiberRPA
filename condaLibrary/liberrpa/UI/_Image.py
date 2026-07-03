@@ -28,7 +28,7 @@ def _get_image_path(
     moveFile: bool = True,
     inScreenshotFolder: bool = True,
 ) -> str:
-    # When other build-in modules invoke the function, "fileName" should be a literally filename, but if UiInterface.get_image_position invokes it, it will give a path and inScreenshotFolder is False.
+    # When other built-in modules invoke the function, "fileName" should be a literally filename, but if UiInterface.get_image_position invokes it, it will give a path and inScreenshotFolder is False.
     if not inScreenshotFolder:
         strFilePath = fileNameOrPath
     else:

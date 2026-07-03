@@ -89,7 +89,7 @@ def open_browser(
                 if Path(path).is_file():
                     browserObj.path = path
                 else:
-                    raise FileNotFoundError(f"Not find a file at '{path}'.")
+                    raise FileNotFoundError(f"Could not find a file at '{path}'.")
 
             dictCommand = {
                 "commandName": "open_browser",
@@ -119,7 +119,6 @@ def open_browser(
 
         case _:
             raise ValueError(f"This not a supported browser type: '{browserType}'")
-
 
 @Log.trace()
 def bind_browser(browserType: Literal["chrome"] = "chrome") -> BrowserObj:
@@ -190,7 +189,7 @@ def get_state(browserObj: BrowserObj) -> Literal["unloaded", "loading", "complet
             return strState
 
         case _:
-            raise ValueError(f"(!!!It should not appear.) Not support the browser: '{browserObj}'")
+            raise ValueError(f"(!!!It should not appear.) Unsupported browser type: '{browserObj}'")
 
 
 @Log.trace()
@@ -207,7 +206,7 @@ def go_backward(browserObj: BrowserObj) -> None:
             send_command(eventName="chrome_command", command={"commandName": "goBackward"})
 
         case _:
-            raise ValueError(f"(!!!It should not appear.) Not support the browser: '{browserObj}'")
+            raise ValueError(f"(!!!It should not appear.) Unsupported browser type: '{browserObj}'")
 
 
 @Log.trace()
@@ -224,7 +223,7 @@ def go_forward(browserObj: BrowserObj) -> None:
             send_command(eventName="chrome_command", command={"commandName": "goForward"})
 
         case _:
-            raise ValueError(f"(!!!It should not appear.) Not support the browser: '{browserObj}'")
+            raise ValueError(f"(!!!It should not appear.) Unsupported browser type: '{browserObj}'")
 
 
 @Log.trace()
@@ -241,7 +240,7 @@ def refresh(browserObj: BrowserObj) -> None:
             send_command(eventName="chrome_command", command={"commandName": "refresh"})
 
         case _:
-            raise ValueError(f"(!!!It should not appear.) Not support the browser: '{browserObj}'")
+            raise ValueError(f"(!!!It should not appear.) Unsupported browser type: '{browserObj}'")
 
 
 @Log.trace()
@@ -258,7 +257,7 @@ def wait_load_completed(browserObj: BrowserObj, timeout: int = 30000) -> None:
             send_command(eventName="chrome_command", command={"commandName": "waitLoadCompleted", "timeout": timeout})
 
         case _:
-            raise ValueError(f"(!!!It should not appear.) Not support the browser: '{browserObj}'")
+            raise ValueError(f"(!!!It should not appear.) Unsupported browser type: '{browserObj}'")
 
 
 def _check_url(url: str) -> None:
@@ -295,7 +294,7 @@ def navigate(browserObj: BrowserObj, url: str, waitLoadCompleted: bool = False, 
             )
 
         case _:
-            raise ValueError(f"(!!!It should not appear.) Not support the browser: '{browserObj}'")
+            raise ValueError(f"(!!!It should not appear.) Unsupported browser type: '{browserObj}'")
 
 
 @Log.trace()
@@ -326,7 +325,7 @@ def open_new_tab(browserObj: BrowserObj, url: str, waitLoadCompleted: bool = Fal
             )
 
         case _:
-            raise ValueError(f"(!!!It should not appear.) Not support the browser: '{browserObj}'")
+            raise ValueError(f"(!!!It should not appear.) Unsupported browser type: '{browserObj}'")
 
 
 @Log.trace()
@@ -357,7 +356,7 @@ def open_new_window(browserObj: BrowserObj, url: str, waitLoadCompleted: bool = 
             )
 
         case _:
-            raise ValueError(f"(!!!It should not appear.) Not support the browser: '{browserObj}'")
+            raise ValueError(f"(!!!It should not appear.) Unsupported browser type: '{browserObj}'")
 
 
 @Log.trace()
@@ -378,7 +377,7 @@ def switch_tab(browserObj: BrowserObj, titleOrIndex: str | int) -> None:
             )
 
         case _:
-            raise ValueError(f"(!!!It should not appear.) Not support the browser: '{browserObj}'")
+            raise ValueError(f"(!!!It should not appear.) Unsupported browser type: '{browserObj}'")
 
 
 @Log.trace()
@@ -398,7 +397,7 @@ def close_current_tab(browserObj: BrowserObj) -> None:
             )
 
         case _:
-            raise ValueError(f"(!!!It should not appear.) Not support the browser: '{browserObj}'")
+            raise ValueError(f"(!!!It should not appear.) Unsupported browser type: '{browserObj}'")
 
 
 @Log.trace()
@@ -409,7 +408,7 @@ def get_download_list(browserObj: BrowserObj, limit: int = 5, timeout: int = 100
             return _get_download_list(limit=limit, timeout=timeout)
 
         case _:
-            raise ValueError(f"(!!!It should not appear.) Not support the browser: '{browserObj}'")
+            raise ValueError(f"(!!!It should not appear.) Unsupported browser type: '{browserObj}'")
 
 
 @Log.trace()
@@ -429,7 +428,7 @@ def get_source_code(browserObj: BrowserObj) -> str:
             )
 
         case _:
-            raise ValueError(f"(!!!It should not appear.) Not support the browser: '{browserObj}'")
+            raise ValueError(f"(!!!It should not appear.) Unsupported browser type: '{browserObj}'")
 
 
 @Log.trace()
@@ -449,7 +448,7 @@ def get_all_text(browserObj: BrowserObj) -> str:
             )
 
         case _:
-            raise ValueError(f"(!!!It should not appear.) Not support the browser: '{browserObj}'")
+            raise ValueError(f"(!!!It should not appear.) Unsupported browser type: '{browserObj}'")
 
 
 @Log.trace()
@@ -469,7 +468,7 @@ def get_url(browserObj: BrowserObj) -> str:
             )
 
         case _:
-            raise ValueError(f"(!!!It should not appear.) Not support the browser: '{browserObj}'")
+            raise ValueError(f"(!!!It should not appear.) Unsupported browser type: '{browserObj}'")
 
 
 @Log.trace()
@@ -489,7 +488,7 @@ def get_title(browserObj: BrowserObj) -> str:
             )
 
         case _:
-            raise ValueError(f"(!!!It should not appear.) Not support the browser: '{browserObj}'")
+            raise ValueError(f"(!!!It should not appear.) Unsupported browser type: '{browserObj}'")
 
 
 @Log.trace()
@@ -512,7 +511,7 @@ def get_cookies(browserObj: BrowserObj) -> list[DictCookiesOfChrome]:
             )
 
         case _:
-            raise ValueError(f"(!!!It should not appear.) Not support the browser: '{browserObj}'")
+            raise ValueError(f"(!!!It should not appear.) Unsupported browser type: '{browserObj}'")
 
 
 @Log.trace()
@@ -568,7 +567,7 @@ def set_cookies(
             )
 
         case _:
-            raise ValueError(f"(!!!It should not appear.) Not support the browser: '{browserObj}'")
+            raise ValueError(f"(!!!It should not appear.) Unsupported browser type: '{browserObj}'")
 
 
 @Log.trace()
@@ -596,7 +595,7 @@ def get_scroll_position(browserObj: BrowserObj) -> tuple[int, int]:
             return (temp[0], temp[1])
 
         case _:
-            raise ValueError(f"(!!!It should not appear.) Not support the browser: '{browserObj}'")
+            raise ValueError(f"(!!!It should not appear.) Unsupported browser type: '{browserObj}'")
 
 
 @Log.trace()
@@ -618,7 +617,7 @@ def set_scroll_position(browserObj: BrowserObj, x: int = 0, y: int = 0) -> None:
             )
 
         case _:
-            raise ValueError(f"(!!!It should not appear.) Not support the browser: '{browserObj}'")
+            raise ValueError(f"(!!!It should not appear.) Unsupported browser type: '{browserObj}'")
 
 
 @Log.trace()
@@ -681,7 +680,7 @@ def execute_js_code(browserObj: BrowserObj, jsCode: str, returnImmediately: bool
             )
 
         case _:
-            raise ValueError(f"(!!!It should not appear.) Not support the browser: '{browserObj}'")
+            raise ValueError(f"(!!!It should not appear.) Unsupported browser type: '{browserObj}'")
 
 
 if __name__ == "__main__":

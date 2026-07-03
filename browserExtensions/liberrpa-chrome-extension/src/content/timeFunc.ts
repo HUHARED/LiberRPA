@@ -4,7 +4,7 @@ import { findElementBySelector } from "./commonFunc";
 import type { DictLayerHtml } from "./interface";
 
 export async function delay(ms: number): Promise<void> {
-  console.log(`Dealy ${ms} ms.`);
+  console.log(`Delay ${ms} ms.`);
 
   return new Promise((resolve) => {
     setTimeout(resolve, ms);

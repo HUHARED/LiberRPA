@@ -1,8 +1,8 @@
-<!-- FileName: BuildinPrjArgs.vue -->
+<!-- FileName: BuiltinPrjArgs.vue -->
 <template>
   <v-container class="pa-0 ma-0 border-b-thin">
     <v-label class="pa-2 ma-0 text-center" style="display: block"
-      >Build-in Project Arguments</v-label
+      >Built-in Project Arguments</v-label
     >
 
     <v-tooltip text="Set the minimum log level." location="top">

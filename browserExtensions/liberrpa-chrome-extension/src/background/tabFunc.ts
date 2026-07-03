@@ -141,7 +141,7 @@ export async function waitLoadCompleted(timeout: number): Promise<DictResultOrig
             if (timeUsed >= timeout) {
               reject(
                 new Error(
-                  `The active tab doesn't load completed after ${timeout} milliseconds.`
+                  `The active tab does not load completed after ${timeout} milliseconds.`
                 )
               );
               return;

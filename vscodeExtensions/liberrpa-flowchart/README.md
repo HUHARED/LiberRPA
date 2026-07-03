@@ -16,7 +16,7 @@ The `project.flow` file (in JSON format) contains:
 
 * Flowchart information(nodes and lines)
 * Project setting
-* Build-in project arguments
+* Built-in project arguments
 * Custom project arguments
 
 Since LiberRPA Flowchart is actually a [VS Code custom editor](https://code.visualstudio.com/api/extension-guides/custom-editors), so you can open the `project.flow` with another editor and take advantage of [VS Code Timeline](https://code.visualstudio.com/docs/sourcecontrol/overview#_timeline-view):

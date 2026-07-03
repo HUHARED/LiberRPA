@@ -446,7 +446,7 @@ class Logger:
 
         if name in _SET_BUILTIN_KEY:
             raise ValueError(
-                f"The argumnent 'name'({name}) cann't be one of {_SET_BUILTIN_KEY}, it has been used in machine_read log."
+                f"The argument 'name'({name}) cannot be one of {_SET_BUILTIN_KEY}, it has been used in machine_read log."
             )
         if not name.isidentifier():
             raise ValueError("custom log part name must be a valid identifier")
@@ -467,7 +467,7 @@ class Logger:
         """
         if name in _SET_BUILTIN_KEY:
             raise ValueError(
-                f"The argumnent 'name'({name}) cann't be one of {_SET_BUILTIN_KEY}, it has been used in machine_read log."
+                f"The argument 'name'({name}) cannot be one of {_SET_BUILTIN_KEY}, it has been used in machine_read log."
             )
         if not name.isidentifier():
             raise ValueError("custom log part name must be a valid identifier")

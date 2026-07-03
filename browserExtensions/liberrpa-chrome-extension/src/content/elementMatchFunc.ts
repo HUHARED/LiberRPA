@@ -113,7 +113,7 @@ function compareAttrWithSelector(
           keyName,
           "in current element is",
           valueToCheck_Regex,
-          "it doesn't match: ",
+          "it does not match: ",
           valueSelector
         );
         return false;
