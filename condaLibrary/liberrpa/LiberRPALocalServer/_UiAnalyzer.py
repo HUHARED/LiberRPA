@@ -315,18 +315,17 @@ def indicate_image(
 
         temp = create_screenshot_manually(timeoutSeconds=15)
         if not temp:
-            print("Quit indicating.")
+            Log.debug("Quit indicating.")
             return None
 
         # After Screenshot, get window selector to generate  image selector
         dictCoordinate = get_mouse_position()
         # time.sleep(0.1)
         elementWindow = _get_window_element(dictCoordinate=dictCoordinate)
-        print(elementWindow)
+        Log.verbose(elementWindow)
 
         # Rename the screenshot: window's name + datetime + .png
         # Remove some common part in it to make the name concise.
-        print("_sanitize_filename")
         strTemp = elementWindow.Name.replace(" - Google Chrome", "")
         # Remove non-ASCII characters because pyautogui may raise an error.
         strTemp = "".join(char for char in strTemp if char.isascii())
@@ -338,8 +337,6 @@ def indicate_image(
                 dst=os.path.join(SCREENSHOT_DOCUMENTS_PATH, strNewFileName),
             )
         )
-
-        print("get_control_selector")
 
         selector: SelectorImage = {
             "window": _UiElement.get_control_selector(control=elementWindow)["window"],
@@ -558,7 +555,7 @@ def _start_hook() -> threading.Thread:
 def _get_window_element(dictCoordinate: DictPosition) -> uiautomation.Control:
     """Get and highlight the window of Chrome and Image element."""
 
-    print(dictCoordinate)
+    # print(dictCoordinate)
     # After click, get the window element once.
     with uiautomation.UIAutomationInitializerInThread():
         control = uiautomation.ControlFromPoint(x=dictCoordinate["x"], y=dictCoordinate["y"])
@@ -568,7 +565,7 @@ def _get_window_element(dictCoordinate: DictPosition) -> uiautomation.Control:
 
         elementWindow = control.GetTopLevelControl()
 
-    print("elementWindow=", elementWindow)
+    # print("elementWindow=", elementWindow)
 
     if elementWindow is None:
         raise UiElementNotFoundError("(!!!It should not appear.) Didn't find an window element from cursor.")
@@ -577,7 +574,7 @@ def _get_window_element(dictCoordinate: DictPosition) -> uiautomation.Control:
     if not getattr(elementWindow, "Name", None):
         raise UiElementNotFoundError("(!!!It should not appear.) The window element has no Name.")
 
-    print("create_overlay in _get_window_element")
+    # print("create_overlay in _get_window_element")
     # Highlight window.
     create_overlay(
         elementWindow.BoundingRectangle.left,
@@ -587,7 +584,7 @@ def _get_window_element(dictCoordinate: DictPosition) -> uiautomation.Control:
         color="red",
         duration=_HIGHLIGHT_DURATION,
     )
-    print("elementWindow before return", elementWindow)
+    # print("elementWindow before return", elementWindow)
 
     return elementWindow
 
@@ -617,7 +614,7 @@ def _screenshot_to_base64(x: int, y: int, width: int, height: int) -> str:
 
         # Encode this image as base64
         strBase64 = base64.b64encode(imageByte.getvalue()).decode("utf-8")
-        print("Size of image:", strBase64.__len__())
+        # print("Size of image:", strBase64.__len__())
         return strBase64
 
 

@@ -32,7 +32,7 @@ if _args.executor_args:
         dictFlowFile[keyName] = dictArgs[keyName]
     Log.info(f"Updated arguments from Executor: {dictArgs}")
 else:
-    print("No build-in and custom project argument from Executor.")
+    Log.debug("No build-in and custom project argument from Executor.")
 
 
 def _generate_next_dict() -> tuple[

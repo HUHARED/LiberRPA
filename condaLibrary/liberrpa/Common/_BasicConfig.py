@@ -107,7 +107,7 @@ def get_liberrpa_ico_path(
         strIconPath = Path(strLiberRPAPath) / "envs/assets/icon/LiberRPA_icon_v3_color.ico"
     if not Path(strIconPath).is_file():
         raise FileNotFoundError("LiberRPA icon file is missing: " + str(strIconPath))
-    print("strIconPath=", strIconPath)
+    # print("strIconPath=", strIconPath)
     return str(strIconPath)
 
 

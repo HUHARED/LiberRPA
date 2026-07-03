@@ -17,7 +17,7 @@ import threading
 
 # The job must to do before exiting.
 def normal_exit() -> None:
-    print("normal_exit, sys.exit(0)")
+    Log.verbose("normal_exit, sys.exit(0)")
     sys.exit(0)
 
 

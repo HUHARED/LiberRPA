@@ -265,7 +265,7 @@ def register_force_exit() -> None:
         # Assign the value to record exit reason.
         End.executorPackageStatus = "terminated"
         End.cleanup()
-        print("on_hotkey_pressed - os._exit")
+        Log.verbose("on_hotkey_pressed - os._exit")
         os._exit(0)
 
     try:
@@ -283,7 +283,7 @@ def _listen_for_exit() -> None:
             Log.critical("Terminated by Executor.")
             End.executorPackageStatus = "terminated"
             End.cleanup()
-            print("_handle_sigterm - os._exit")
+            Log.verbose("_handle_sigterm - os._exit")
             os._exit(0)
 
 

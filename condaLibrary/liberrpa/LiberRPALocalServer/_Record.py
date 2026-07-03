@@ -160,7 +160,7 @@ def _create_log_subtitle(folderName: str) -> None:
         Log.error("Not found SIGN_START_RECORD_VIDEO.")
         return None
 
-    print(dictLogSeconds)
+    # print(dictLogSeconds)
 
     with open(file=strSubtilePath, mode="w", encoding="utf-8") as fileObj:
         intIndex = 1
