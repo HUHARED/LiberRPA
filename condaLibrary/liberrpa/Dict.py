@@ -59,17 +59,13 @@ def pop[T, T2](dictObj: dict[T, T2], key: T, default: T2 | None = None) -> T2 | 
 @Log.trace()
 def pop_item[T, T2](dictObj: dict[T, T2]) -> tuple[T, T2]:
     """
-    Remove a specified key from the dictionary and return its corresponding value.
-
-    Raise KeyError if dictObj is empty.
+    Remove and return the last inserted key-value pair from a dictionary.
 
     Parameters:
         dictObj: The dictionary to modify.
-        key: The key to remove from the dictionary.
-        default: The value to return if the key is not found.
 
     Returns:
-        T2 | None: The value associated with the removed key or the default value if not found.
+        tuple[T, T2]: The removed key-value pair.
     """
     return dictObj.popitem()
 
@@ -105,12 +101,12 @@ def get_value_list[T](dictObj: dict[Any, T]) -> list[T]:
 @Log.trace()
 def extend[T, T2](dictObj: dict[T, T2], dictToExtend: dict[T, T2]) -> None:
     """
-    Retrieve a list of values from the specified dictionary.
+    Extend a dictionary with the key-value pairs from another dictionary.
+
+    Existing keys in dictObj are overwritten by values from dictToExtend.
 
     Parameters:
-        dictObj: The dictionary from which to get the values.
-
-    Returns:
-        list[T]: A list of values in the dictionary.
+        dictObj: The dictionary to update in place.
+        dictToExtend: The dictionary whose key-value pairs are added to dictObj.
     """
     dictObj.update(dictToExtend)
