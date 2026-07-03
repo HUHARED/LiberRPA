@@ -10,8 +10,8 @@ import winsound
 from pathlib import Path
 import sys
 import os
-import re
-import subprocess
+import getpass
+import platform
 
 
 @Log.trace()
@@ -43,61 +43,100 @@ def play_sound(filePath: str, wait: bool = True) -> None:
 
 @Log.trace()
 def get_environment_variable(name: str) -> str:
+    """
+    Get the value of an environment variable.
+
+    Parameters:
+        name: The name of the environment variable.
+
+    Returns:
+        str: The value of the environment variable.
+    """
     value = os.environ.get(name)
 
     if value is None:
-        raise ValueError(f"Not found the environment named '{name}'")
+        raise ValueError(f"Environment variable '{name}' was not found.")
+
     return value
 
 
 @Log.trace()
 def set_environment_variable_temporarily(name: str, value: str) -> None:
     """
-    It only affects the environment variables of the current process (and any child processes spawned by it after the variable is set).
+    Set an environment variable for the current process temporarily.
 
-    It does not change the environment variables system-wide or for other processes running.
+    This only affects the current process and child processes started after this variable is set. It does not change system-wide environment variables or environment variables of already running processes.
+
+    Parameters:
+        name: The name of the environment variable.
+        value: The value to set.
     """
     os.environ[name] = value
 
 
 @Log.trace()
 def get_user_home_folder_path() -> str:
-    return os.environ.get("USERPROFILE", "N/A")
+    """
+    Get the home/profile folder path for the Windows account running this process.
+
+    Returns:
+        str: The home/profile folder path.
+    """
+    return str(Path.home())
 
 
 @Log.trace()
 def get_user_temp_folder_path() -> str:
+    """
+    Get the current user's temporary folder path.
+
+    Returns:
+        str: The current user's temporary folder path.
+    """
     value = os.environ.get("TEMP")
 
     if value is None:
-        raise ValueError("TEMP environment variable is not set or TEMP folder does not exist.")
+        raise ValueError("TEMP environment variable is not set.")
 
-    return str(value)
+    if not Path(value).is_dir():
+        raise FileNotFoundError(f"TEMP folder does not exist: {value}")
+
+    return value
 
 
 @Log.trace()
-def get_windows_product_id() -> str:
+def get_computer_info() -> dict[str, str]:
     """
-    Unique to each Windows installation but can change with major system updates or reinstallation.
+    Get readable information about the current computer and Windows user.
+
+    This function is intended for business logs, reports, and environment checks.
+    The returned values can help users recognize which computer is running a process, but they should not be treated as secure or guaranteed-unique identifiers.
 
     Returns:
-        str: The product id.
+        dict[str, str]: Readable computer and user information, including computer name, Windows user name, home folder path, temporary folder path, operating system, OS version, OS release, architecture, and machine type.
     """
-    result = subprocess.run("wmic os get SerialNumber", capture_output=True, text=True)
 
-    if result.returncode != 0:
-        raise RuntimeError("Failed to retrieve Windows Product ID.")
-
-    match = re.search(r"([A-Z0-9]+-)+([A-Z0-9]+)", result.stdout)
-
-    if match is None:
-        raise ValueError("Failed to extract a valid Windows Product ID.")
-
-    return match.group()
+    return {
+        "computerName": platform.node(),
+        "userName": getpass.getuser(),
+        "homeFolderPath": get_user_home_folder_path(),
+        "tempFolderPath": get_user_temp_folder_path(),
+        "os": platform.system(),
+        "osVersion": platform.version(),
+        "osRelease": platform.release(),
+        "architecture": platform.architecture()[0],
+        "machine": platform.machine(),
+    }
 
 
 @Log.trace()
 def exit() -> None:
+    """
+    End the current LiberRPA process.
+
+    This function runs LiberRPA's process-ending logic first, then exits the
+    Python process with exit code 0.
+    """
     import liberrpa.FlowControl.End as End
 
     End.main()
@@ -105,10 +144,6 @@ def exit() -> None:
 
 
 if __name__ == "__main__":
-    # print(get_windows_product_id())
-
-    # print(os.environ.get("USERPROFILE", "N/A"))
-    # exit()
     play_sound(filePath=R"C:\Program Files\Microsoft Office\root\Office16\MEDIA\CHIMES.WAV", wait=False)
     from time import sleep
 
