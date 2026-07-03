@@ -60,7 +60,7 @@ def remove[T](listObj: list[T], value: T) -> None:
         listObj: The list to modify.
         value: The value to remove.
     """
-    return listObj.remove(value)
+    listObj.remove(value)
 
 
 @Log.trace()
@@ -127,7 +127,7 @@ def find[T](listObj: list[T], value: T, start: int = 0, stop: int | None = None)
         listObj: The list to search.
         value: The value to find.
         start: The starting index for the search.
-        stop: The ending index for the search. If it's None, use sys.maxsize
+        stop: The ending index for the search. If it is None, sys.maxsize is used.
 
     Returns:
         int: The index of the value.
