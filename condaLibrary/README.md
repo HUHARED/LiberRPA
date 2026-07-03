@@ -7,6 +7,20 @@ The conda library serves several purposes:
 * Communicate with [the Chrome extension](./exe/ChromeGetLocalServerPort) to pass WebSocket initialization information.
 * Create [a local Flask server](./liberrpa/LiberRPALocalServer) to accomplish tasks that are difficult to achieve in a standalone Python project.
 
+## Python package installation
+
+`liberrpa` is the core Python library of LiberRPA. It is designed to run inside the LiberRPA standard Python environment on Windows 10 or later.
+
+For normal users, installing the Python package alone is not enough. The full LiberRPA runtime also includes the local server, desktop applications, Chrome extension, project templates, and external tools such as FFmpeg.
+
+Recommended installation:
+
+1. Install LiberRPA from the official release package.
+2. Use the bundled Python environment.
+3. Install or update `liberrpa` only when following the official LiberRPA update instructions.
+
+Advanced users may install the Python package manually, but they are responsible for preparing all required runtime dependencies.
+
 # Global Objects
 
 LiberRPA creates a global object to store project-related information.
