@@ -42,6 +42,10 @@ VERBOSE_LEVEL_NUM = 5
 logging.addLevelName(VERBOSE_LEVEL_NUM, "VERBOSE")
 type LogLevel = Literal["VERBOSE", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 
+# Public Log.xxx() methods call a shared helper before entering Python logging internals.
+# With the current call chain, this stacklevel points log records back to the user call site.
+_INT_PUBLIC_LOG_STACKLEVEL = 5
+
 
 _SET_BUILTIN_KEY = {
     "timestamp",
@@ -96,7 +100,7 @@ def _find_caller(stack_info=False, stacklevel=2):
 
 
 class ConditionalHumanReadFormatter(logging.Formatter):
-    def __init__(self, normalFmt: str, internalFmt: str, datefmt: str):
+    def __init__(self, normalFmt: str, internalFmt: str, datefmt: str) -> None:
         super().__init__()
         self.normalFormatter = logging.Formatter(normalFmt, datefmt=datefmt)
         self.internalFormatter = logging.Formatter(internalFmt, datefmt=datefmt)
@@ -109,7 +113,7 @@ class ConditionalHumanReadFormatter(logging.Formatter):
 
 
 class JsonLineFormatter(logging.Formatter):
-    def __init__(self, projectName: str, customLogPartDict: dict[str, str]):
+    def __init__(self, projectName: str, customLogPartDict: dict[str, str]) -> None:
         super().__init__(datefmt="%Y-%m-%d %H:%M:%S")
         self.projectName = projectName
         self.customLogPartDict = customLogPartDict
@@ -378,12 +382,10 @@ class Logger:
             listParts.append("%(processName)s")
 
         if includeSource:
-            listParts.extend(
-                [
-                    "%(filename)s",
-                    "%(lineno)d",
-                ]
-            )
+            listParts.extend([
+                "%(filename)s",
+                "%(lineno)d",
+            ])
 
         for key in self.dictCustomLogPart:
             listParts.append(f"%({key})s")
@@ -429,7 +431,7 @@ class Logger:
         if len(self.humanLogger.handlers) > 1 and isinstance(self.humanLogger.handlers[1], logging.StreamHandler):
             self.humanLogger.handlers[1].setFormatter(self._get_console_formatter())
 
-    def add_custom_log_part(self, name: str, text: str):
+    def add_custom_log_part(self, name: str, text: str) -> None:
         """
         Adds a new part to the log entry format.
 
@@ -454,7 +456,7 @@ class Logger:
         self.dictCustomLogPart[name] = str(text)
         self._refresh_loggers_format()
 
-    def remove_custom_log_part(self, name: str):
+    def remove_custom_log_part(self, name: str) -> None:
         """
         Remove a custom log part by name.
 
@@ -476,171 +478,180 @@ class Logger:
             del self.dictCustomLogPart[name]
             self._refresh_loggers_format()
 
-    def _pretty_format_message(self, message: Any):
-        """Format dict, list, tuple to make the log more readable."""
+    def _format(self, message: Any) -> str:
+        """
+        Format a single value for the human_read log only.
+
+        This improves readability for dict, list, and tuple values in human-readable logs.
+        The machine_read log keeps the original value unchanged.
+        """
         if isinstance(message, (dict, list, tuple)):
-            return json.dumps(message, indent=4, ensure_ascii=False, allow_nan=False)
-        return message
+            try:
+                return json.dumps(message, indent=4, ensure_ascii=False, allow_nan=False)
+            except (TypeError, ValueError):
+                return repr(message)
 
-    def verbose(self, message: Any, stackLevel: int = 4):
+        return str(message)
+
+    def _build_human_message(self, messages: tuple[Any, ...], sep: str, formatMessage: bool) -> str:
+        if not messages:
+            return ""
+
+        if formatMessage:
+            return sep.join(self._format(message) for message in messages)
+
+        return sep.join(str(message) for message in messages)
+
+    def _build_machine_message(self, messages: tuple[Any, ...]) -> Any:
+        if not messages:
+            return ""
+
+        if len(messages) == 1:
+            return messages[0]
+
+        return list(messages)
+
+    def _write_log(self, level: int, messages: tuple[Any, ...], sep: str, formatMessage: bool) -> None:
+        extra = self._get_custom_log_parts()
+        humanMessage = self._build_human_message(messages=messages, sep=sep, formatMessage=formatMessage)
+        machineMessage = self._build_machine_message(messages=messages)
+
+        self.humanLogger.log(level, humanMessage, stacklevel=_INT_PUBLIC_LOG_STACKLEVEL, extra=extra)
+        self.machineLogger.log(level, machineMessage, stacklevel=_INT_PUBLIC_LOG_STACKLEVEL, extra=extra)
+
+    def verbose(self, *messages: Any, sep: str = " ") -> None:
         """
-        Write a log entry at the 'VERBOSE' level, only if the current log level allows it.
+        Write a log entry at the VERBOSE level, only if the current log level allows it.
 
         Parameters:
-            message: The message to log, which can be any type that can be converted to a string.
-            stackLevel: Adjusts the stack level to get the correct file name, line number, and function name for the log entry.
+            messages: Values to write to the log. Multiple values are converted to strings and joined by sep in the human_read log. In the machine_read log, a single value is stored as-is, and multiple values are stored as a list of original values.
+            sep: Separator inserted between multiple values in the human_read log. It does not change values stored in the machine_read log.
         """
-        extra = self._get_custom_log_parts()
-        self.humanLogger.log(VERBOSE_LEVEL_NUM, message, stacklevel=stackLevel, extra=extra)
-        self.machineLogger.log(VERBOSE_LEVEL_NUM, message, stacklevel=stackLevel, extra=extra)
+        self._write_log(level=VERBOSE_LEVEL_NUM, messages=messages, sep=sep, formatMessage=False)
 
-    def debug(self, message: Any, stackLevel: int = 4):
+    def debug(self, *messages: Any, sep: str = " ") -> None:
         """
-        Write a log entry at the 'DEBUG' level, only if the current log level allows it.
+        Write a log entry at the DEBUG level, only if the current log level allows it.
 
         Parameters:
-            message: The message to log, which can be any type that can be converted to a string.
-            stackLevel: Adjusts the stack level to get the correct file name, line number, and function name for the log entry.
+            messages: Values to write to the log. Multiple values are converted to strings and joined by sep in the human_read log. In the machine_read log, a single value is stored as-is, and multiple values are stored as a list of original values.
+            sep: Separator inserted between multiple values in the human_read log. It does not change values stored in the machine_read log.
         """
-        extra = self._get_custom_log_parts()
-        self.humanLogger.debug(message, stacklevel=stackLevel, extra=extra)
-        self.machineLogger.debug(message, stacklevel=stackLevel, extra=extra)
+        self._write_log(level=logging.DEBUG, messages=messages, sep=sep, formatMessage=False)
 
-    def info(self, message: Any, stackLevel=4):
+    def info(self, *messages: Any, sep: str = " ") -> None:
         """
-        Write a log entry at the 'INFO' level, only if the current log level allows it.
+        Write a log entry at the INFO level, only if the current log level allows it.
 
         Parameters:
-            message: The message to log, which can be any type that can be converted to a string.
-            stackLevel: Adjusts the stack level to get the correct file name, line number, and function name for the log entry.
+            messages: Values to write to the log. Multiple values are converted to strings and joined by sep in the human_read log. In the machine_read log, a single value is stored as-is, and multiple values are stored as a list of original values.
+            sep: Separator inserted between multiple values in the human_read log. It does not change values stored in the machine_read log.
         """
-        extra = self._get_custom_log_parts()
-        self.humanLogger.info(message, stacklevel=stackLevel, extra=extra)
-        self.machineLogger.info(message, stacklevel=stackLevel, extra=extra)
+        self._write_log(level=logging.INFO, messages=messages, sep=sep, formatMessage=False)
 
-    def warning(self, message: Any, stackLevel=4):
+    def warning(self, *messages: Any, sep: str = " ") -> None:
         """
-        Write a log entry at the 'WARNING' level, only if the current log level allows it.
+        Write a log entry at the WARNING level, only if the current log level allows it.
 
         Parameters:
-            message: The message to log, which can be any type that can be converted to a string.
-            stackLevel: Adjusts the stack level to get the correct file name, line number, and function name for the log entry.
+            messages: Values to write to the log. Multiple values are converted to strings and joined by sep in the human_read log. In the machine_read log, a single value is stored as-is, and multiple values are stored as a list of original values.
+            sep: Separator inserted between multiple values in the human_read log. It does not change values stored in the machine_read log.
         """
-        extra = self._get_custom_log_parts()
-        self.humanLogger.warning(message, stacklevel=stackLevel, extra=extra)
-        self.machineLogger.warning(message, stacklevel=stackLevel, extra=extra)
+        self._write_log(level=logging.WARNING, messages=messages, sep=sep, formatMessage=False)
 
-    def error(self, message: Any, stackLevel=4):
+    def error(self, *messages: Any, sep: str = " ") -> None:
         """
-        Write a log entry at the 'ERROR' level, only if the current log level allows it.
+        Write a log entry at the ERROR level, only if the current log level allows it.
 
         Parameters:
-            message: The message to log, which can be any type that can be converted to a string.
-            stackLevel: Adjusts the stack level to get the correct file name, line number, and function name for the log entry.
+            messages: Values to write to the log. Multiple values are converted to strings and joined by sep in the human_read log. In the machine_read log, a single value is stored as-is, and multiple values are stored as a list of original values.
+            sep: Separator inserted between multiple values in the human_read log. It does not change values stored in the machine_read log.
         """
-        extra = self._get_custom_log_parts()
-        self.humanLogger.error(message, stacklevel=stackLevel, extra=extra)
-        self.machineLogger.error(message, stacklevel=stackLevel, extra=extra)
+        self._write_log(level=logging.ERROR, messages=messages, sep=sep, formatMessage=False)
 
-    def critical(self, message: Any, stackLevel=4):
+    def critical(self, *messages: Any, sep: str = " ") -> None:
         """
-        Write a log entry at the 'CRITICAL' level, only if the current log level allows it.
+        Write a log entry at the CRITICAL level, only if the current log level allows it.
 
         Parameters:
-            message: The message to log, which can be any type that can be converted to a string.
-            stackLevel: Adjusts the stack level to get the correct file name, line number, and function name for the log entry.
+            messages: Values to write to the log. Multiple values are converted to strings and joined by sep in the human_read log. In the machine_read log, a single value is stored as-is, and multiple values are stored as a list of original values.
+            sep: Separator inserted between multiple values in the human_read log. It does not change values stored in the machine_read log.
         """
-        extra = self._get_custom_log_parts()
-        self.humanLogger.critical(message, stacklevel=stackLevel, extra=extra)
-        self.machineLogger.critical(message, stacklevel=stackLevel, extra=extra)
+        self._write_log(level=logging.CRITICAL, messages=messages, sep=sep, formatMessage=False)
 
-    def verbose_pretty(self, message: Any, stackLevel=4):
+    def verbose_pretty(self, *messages: Any, sep: str = " ") -> None:
         """
-        Write a log entry at the 'VERBOSE' level, only if the current log level allows it.
+        Write a formatted log entry at the VERBOSE level, only if the current log level allows it.
 
-        If the message is a value of dict,list or tuple, it will be formatted with indent(4 space) in human_read log.
+        Dict, list, and tuple values are formatted with indentation in the human_read log only. The machine_read log keeps the original values unchanged.
 
         Parameters:
-            message: The message to log, which can be any type that can be converted to a string.
-            stackLevel: Adjusts the stack level to get the correct file name, line number, and function name for the log entry.
+            messages: Values to write to the log.
+            sep: Separator inserted between multiple values in the human_read log.
         """
-        extra = self._get_custom_log_parts()
-        self.humanLogger.log(
-            VERBOSE_LEVEL_NUM, self._pretty_format_message(message), stacklevel=stackLevel, extra=extra
-        )
-        self.machineLogger.log(VERBOSE_LEVEL_NUM, message, stacklevel=stackLevel, extra=extra)
+        self._write_log(level=VERBOSE_LEVEL_NUM, messages=messages, sep=sep, formatMessage=True)
 
-    def debug_pretty(self, message: Any, stackLevel=4):
+    def debug_pretty(self, *messages: Any, sep: str = " ") -> None:
         """
-        Write a log entry at the 'DEBUG' level, only if the current log level allows it.
+        Write a formatted log entry at the DEBUG level, only if the current log level allows it.
 
-        If the message is a value of dict,list or tuple, it will be formatted with indent(4 space) in human_read log.
+        Dict, list, and tuple values are formatted with indentation in the human_read log only. The machine_read log keeps the original values unchanged.
 
         Parameters:
-            message: The message to log, which can be any type that can be converted to a string.
-            stackLevel: Adjusts the stack level to get the correct file name, line number, and function name for the log entry.
+            messages: Values to write to the log.
+            sep: Separator inserted between multiple values in the human_read log.
         """
-        extra = self._get_custom_log_parts()
-        self.humanLogger.debug(self._pretty_format_message(message), stacklevel=stackLevel, extra=extra)
-        self.machineLogger.debug(message, stacklevel=stackLevel, extra=extra)
+        self._write_log(level=logging.DEBUG, messages=messages, sep=sep, formatMessage=True)
 
-    def info_pretty(self, message: Any, stackLevel=4):
+    def info_pretty(self, *messages: Any, sep: str = " ") -> None:
         """
-        Write a log entry at the 'INFO' level, only if the current log level allows it.
+        Write a formatted log entry at the INFO level, only if the current log level allows it.
 
-        If the message is a value of dict,list or tuple, it will be formatted with indent(4 space) in human_read log.
+        Dict, list, and tuple values are formatted with indentation in the human_read log only. The machine_read log keeps the original values unchanged.
 
         Parameters:
-            message: The message to log, which can be any type that can be converted to a string.
-            stackLevel: Adjusts the stack level to get the correct file name, line number, and function name for the log entry.
+            messages: Values to write to the log.
+            sep: Separator inserted between multiple values in the human_read log.
         """
-        extra = self._get_custom_log_parts()
-        self.humanLogger.info(self._pretty_format_message(message), stacklevel=stackLevel, extra=extra)
-        self.machineLogger.info(message, stacklevel=stackLevel, extra=extra)
+        self._write_log(level=logging.INFO, messages=messages, sep=sep, formatMessage=True)
 
-    def warning_pretty(self, message: Any, stackLevel=4):
+    def warning_pretty(self, *messages: Any, sep: str = " ") -> None:
         """
-        Write a log entry at the 'WARNING' level, only if the current log level allows it.
+        Write a formatted log entry at the WARNING level, only if the current log level allows it.
 
-        If the message is a value of dict,list or tuple, it will be formatted with indent(4 space) in human_read log.
+        Dict, list, and tuple values are formatted with indentation in the human_read log only. The machine_read log keeps the original values unchanged.
 
         Parameters:
-            message: The message to log, which can be any type that can be converted to a string.
-            stackLevel: Adjusts the stack level to get the correct file name, line number, and function name for the log entry.
+            messages: Values to write to the log.
+            sep: Separator inserted between multiple values in the human_read log.
         """
-        extra = self._get_custom_log_parts()
-        self.humanLogger.warning(self._pretty_format_message(message), stacklevel=stackLevel, extra=extra)
-        self.machineLogger.warning(message, stacklevel=stackLevel, extra=extra)
+        self._write_log(level=logging.WARNING, messages=messages, sep=sep, formatMessage=True)
 
-    def error_pretty(self, message: Any, stackLevel=4):
+    def error_pretty(self, *messages: Any, sep: str = " ") -> None:
         """
-        Write a log entry at the 'ERROR' level, only if the current log level allows it.
+        Write a formatted log entry at the ERROR level, only if the current log level allows it.
 
-        If the message is a value of dict,list or tuple, it will be formatted with indent(4 space) in human_read log.
+        Dict, list, and tuple values are formatted with indentation in the human_read log only. The machine_read log keeps the original values unchanged.
 
         Parameters:
-            message: The message to log, which can be any type that can be converted to a string.
-            stackLevel: Adjusts the stack level to get the correct file name, line number, and function name for the log entry.
+            messages: Values to write to the log.
+            sep: Separator inserted between multiple values in the human_read log.
         """
-        extra = self._get_custom_log_parts()
-        self.humanLogger.error(self._pretty_format_message(message), stacklevel=stackLevel, extra=extra)
-        self.machineLogger.error(message, stacklevel=stackLevel, extra=extra)
+        self._write_log(level=logging.ERROR, messages=messages, sep=sep, formatMessage=True)
 
-    def critical_pretty(self, message: Any, stackLevel=4):
+    def critical_pretty(self, *messages: Any, sep: str = " ") -> None:
         """
-        Write a log entry at the 'CRITICAL' level, only if the current log level allows it.
+        Write a formatted log entry at the CRITICAL level, only if the current log level allows it.
 
-        If the message is a value of dict,list or tuple, it will be formatted with indent(4 space) in human_read log.
+        Dict, list, and tuple values are formatted with indentation in the human_read log only. The machine_read log keeps the original values unchanged.
 
         Parameters:
-            message: The message to log, which can be any type that can be converted to a string.
-            stackLevel: Adjusts the stack level to get the correct file name, line number, and function name for the log entry.
+            messages: Values to write to the log.
+            sep: Separator inserted between multiple values in the human_read log.
         """
-        extra = self._get_custom_log_parts()
-        self.humanLogger.critical(self._pretty_format_message(message), stacklevel=stackLevel, extra=extra)
-        self.machineLogger.critical(message, stacklevel=stackLevel, extra=extra)
+        self._write_log(level=logging.CRITICAL, messages=messages, sep=sep, formatMessage=True)
 
-    def set_level(self, level: LogLevel, loggerType: Literal["both", "human", "machine"] = "both"):
+    def set_level(self, level: LogLevel, loggerType: Literal["both", "human", "machine"] = "both") -> None:
         """
         Set the minimum log level for the logger.
 
@@ -745,46 +756,4 @@ Log.info(f"Running as Admin: {boolIsAdmin}")
 
 
 if __name__ == "__main__":
-    Log.set_level("VERBOSE", loggerType="both")
-
-    Log.verbose("verbose")
-    Log.verbose_pretty(["verbose1", 1, 2, 3])
-
-    Log.set_level("DEBUG", loggerType="both")
-
-    Log.verbose("verbose")
-    Log.verbose_pretty(["verbose2", 1, 2, 3])
-
-    Log.add_custom_log_part(name="new", text="test")
-    Log.debug("debug")
-    Log.debug_pretty(["debug", 1, 2, 3])
-
-    Log.info("info")
-    Log.info_pretty({"enabled": True, "value": None, "count": 123})
-
-    Log.warning("warning")
-    Log.error("error")
-    Log.critical("critical")
-
-    @Log.trace()
-    def test() -> None:
-        # log.func_start()
-        print("test")
-        # raise ValueError("test error.")
-        # log.func_end()
-
-    test()
-    Log.remove_custom_log_part("new")
-
-    Log.info('He said "hello"')
-    Log.info("Test \n test \t \\")
-
-    # Log.remove_custom_log_part(name="new")
-    test()
-    # Log.debug_pretty((1,2,3))
-
-    # try:
-    #     raise ValueError("test error.")
-
-    # except Exception as e:
-    #     log.exception_info(e)
+    pass
