@@ -257,8 +257,8 @@ def click_element(
         pressWin: If True, holds the Windows key during the click.
         duration: Time to move the mouse to the target position (in milliseconds). If it is 0, it moves to "position" immediately.
         timeout: Maximum time allowed for normal completion, in milliseconds. Values below 3000 are treated as 3000. The actual elapsed time may be longer if LiberRPA enters its hard-timeout fallback before raising a timeout-related exception.
-        preExecutionDelay: Time to wait before performing the action (in milliseconds).
-        postExecutionDelay: Time to wait after performing the action (in milliseconds).
+        preExecutionDelay: Time to wait before performing the action, in milliseconds.
+        postExecutionDelay: Time to wait after performing the action, in milliseconds.
     """
     timeout = _UiElement.check_set_timeout(timeout=timeout)
 
@@ -327,8 +327,8 @@ def move_to_element(
         position: Specifies where on the element to click. Options are "center", "top_left", "top_right", "bottom_left", and "bottom_right". It will only work if executionMode is "simulate".
         duration: Time to move the mouse to the target position (in milliseconds). If it is 0, it moves to "position" immediately.
         timeout: Maximum time allowed for normal completion, in milliseconds. Values below 3000 are treated as 3000. The actual elapsed time may be longer if LiberRPA enters its hard-timeout fallback before raising a timeout-related exception.
-        preExecutionDelay: Time to wait before performing the action (in milliseconds).
-        postExecutionDelay: Time to wait after performing the action (in milliseconds).
+        preExecutionDelay: Time to wait before performing the action, in milliseconds.
+        postExecutionDelay: Time to wait after performing the action, in milliseconds.
     """
     timeout = _UiElement.check_set_timeout(timeout=timeout)
     return timeout_kill_thread(timeout=timeout)(_move_to_element)(
@@ -363,8 +363,8 @@ def click(
         pressShift: If True, holds the Shift key during the click.
         pressAlt: If True, holds the Alt key during the click.
         pressWin: If True, holds the Windows key during the click.
-        preExecutionDelay: Time to wait before performing the action (in milliseconds).
-        postExecutionDelay: Time to wait after performing the action (in milliseconds).
+        preExecutionDelay: Time to wait before performing the action, in milliseconds.
+        postExecutionDelay: Time to wait after performing the action, in milliseconds.
     """
     _check_mouse_button(button=button)
     _check_mouse_click_mode(clickMode=clickMode)
@@ -407,8 +407,8 @@ def move_cursor(
         y: The y-coordinate or vertical offset (if relative is True) for the cursor's destination.
         duration: Time to move the mouse to the target position (in milliseconds). If it is 0, it moves to target position immediately.
         relative: If True, the x and y coordinates are treated as offsets from the current cursor position. If False, they are treated as absolute screen coordinates.
-        preExecutionDelay: Time to wait before performing the action (in milliseconds).
-        postExecutionDelay: Time to wait after performing the action (in milliseconds).
+        preExecutionDelay: Time to wait before performing the action, in milliseconds.
+        postExecutionDelay: Time to wait after performing the action, in milliseconds.
     """
     delay(preExecutionDelay)
 
@@ -440,8 +440,8 @@ def scroll_wheel(
         pressShift: If True, holds the Shift key during the scroll.
         pressAlt: If True, holds the Alt key during the scroll.
         pressWin: If True, holds the Windows key during the scroll.
-        preExecutionDelay: Time to wait before performing the action (in milliseconds).
-        postExecutionDelay: Time to wait after performing the action (in milliseconds).
+        preExecutionDelay: Time to wait before performing the action, in milliseconds.
+        postExecutionDelay: Time to wait after performing the action, in milliseconds.
     """
     if direction not in ["down", "up"]:
         raise ValueError(f"The argument direction({direction}) should be one of {['down', 'up']}")

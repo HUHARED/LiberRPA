@@ -144,8 +144,8 @@ def write_text(
         text: The text to be written.
         executionMode: Options are "simulate" and "api". "simulate" may be affected by IME(Input Method Editor) or CapsLock, while "api" can input more characters more reliably.
         timeout: Maximum time allowed for normal completion, in milliseconds. Values below 3000 are treated as 3000. The actual elapsed time may be longer if LiberRPA enters its hard-timeout fallback before raising a timeout-related exception.
-        preExecutionDelay: Time to wait before performing the action (in milliseconds).
-        postExecutionDelay: Time to wait after performing the action (in milliseconds).
+        preExecutionDelay: Time to wait before performing the action, in milliseconds.
+        postExecutionDelay: Time to wait after performing the action, in milliseconds.
     """
     timeout = _UiElement.check_set_timeout(timeout=timeout)
 
@@ -338,8 +338,8 @@ def write_text_into_element(
         emptyOriginalText: Whether delete existing text(by typing ctrl+a and backspace).
         validateWrittenText: Whether check the typed text, not support html element's simulate mode.
         timeout: Maximum time allowed for normal completion, in milliseconds. Values below 3000 are treated as 3000. The actual elapsed time may be longer if LiberRPA enters its hard-timeout fallback before raising a timeout-related exception.
-        preExecutionDelay: Time to wait before performing the action (in milliseconds).
-        postExecutionDelay: Time to wait after performing the action (in milliseconds).
+        preExecutionDelay: Time to wait before performing the action, in milliseconds.
+        postExecutionDelay: Time to wait after performing the action, in milliseconds.
     """
     timeout = _UiElement.check_set_timeout(timeout=timeout)
 
@@ -430,8 +430,8 @@ def type_key_in_element(
         pressAlt: If True, holds the Alt key during the type.
         pressWin: If True, holds the Windows key during the type.
         timeout: Maximum time allowed for normal completion, in milliseconds. Values below 3000 are treated as 3000. The actual elapsed time may be longer if LiberRPA enters its hard-timeout fallback before raising a timeout-related exception.
-        preExecutionDelay: Time to wait before performing the action (in milliseconds).
-        postExecutionDelay: Time to wait after performing the action (in milliseconds).
+        preExecutionDelay: Time to wait before performing the action, in milliseconds.
+        postExecutionDelay: Time to wait after performing the action, in milliseconds.
     """
 
     timeout = _UiElement.check_set_timeout(timeout=timeout)
@@ -473,8 +473,8 @@ def type_key(
         pressShift: If True, holds the Shift key while pressing the key. Only supports typeMode='click'.
         pressAlt: If True, holds the Alt key while pressing the key. Only supports typeMode='click'.
         pressWin: If True, holds the Windows key while pressing the key. Only supports typeMode='click'.
-        preExecutionDelay: Time to wait before performing the action (in milliseconds).
-        postExecutionDelay: Time to wait after performing the action (in milliseconds).
+        preExecutionDelay: Time to wait before performing the action, in milliseconds.
+        postExecutionDelay: Time to wait after performing the action, in milliseconds.
     """
 
     _check_key(key=key)
