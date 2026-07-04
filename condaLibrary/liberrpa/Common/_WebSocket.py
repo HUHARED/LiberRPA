@@ -40,7 +40,7 @@ def disconnect() -> None:
 
 
 @_sioClient.event
-def connect_error(data) -> None:
+def connect_error(data: object) -> None:
     Log.error("Connection failed: " + str(data))
 
 

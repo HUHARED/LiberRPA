@@ -13,6 +13,7 @@ import sys
 import signal
 import atexit
 import threading
+from types import FrameType
 
 
 # The job must to do before exiting.
@@ -114,7 +115,7 @@ def hook_in_another_thread() -> None:
 
 
 # The quit command from cmd.
-def signal_handler(sig, frame) -> None:
+def signal_handler(sig: int, _frame: FrameType | None) -> None:
     Log.critical("Signal received:", sig)
     unhook(source="signal_handler")
     normal_exit()

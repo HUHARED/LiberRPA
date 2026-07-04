@@ -59,7 +59,9 @@ Log.verbose(f"Initialize uiautomation in thread: {threading.current_thread().nam
 
 
 @contextmanager
-def holding_modifier_keys(*, pressCtrl=False, pressShift=False, pressAlt=False, pressWin=False) -> Iterator[None]:
+def holding_modifier_keys(
+    *, pressCtrl: bool = False, pressShift: bool = False, pressAlt: bool = False, pressWin: bool = False
+) -> Iterator[None]:
     pressedKeys: list[str] = []
 
     try:

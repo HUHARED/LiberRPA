@@ -323,11 +323,11 @@ def activate_window(excelObj: ExcelObj) -> None:
         excelObj: The Excel workbook object.
     """
 
-    def window_enum_handler(hwnd, resultList) -> None:
+    def window_enum_handler(hwnd: int, resultList: list[Any]) -> None:
         if win32gui.IsWindowVisible(hwnd) and win32gui.GetWindowText(hwnd):
             resultList.append((hwnd, win32gui.GetWindowText(hwnd)))
 
-    def get_appropriate_window(fileName) -> None:
+    def get_appropriate_window(fileName: str) -> None:
         listWindow = []
         win32gui.EnumWindows(window_enum_handler, listWindow)
         for hwnd, strWindowText in listWindow:

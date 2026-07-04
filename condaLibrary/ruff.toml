@@ -37,12 +37,14 @@ select = [
 ]
 extend-select = [
     "RUF027",
+    "ANN001",  # missing-type-function-argument
     # Return annotation checks.
     "ANN201",  # Missing return type annotation for public function.
     "ANN202",  # Missing return type annotation for private function.
     "ANN204",  # Missing return type annotation for special method, such as __init__.
     "ANN205",  # Missing return type annotation for staticmethod.
     "ANN206",  # Missing return type annotation for classmethod.
+    "ARG",  # unused arguments: ARG001-ARG005
 ]
 
 ignore = [

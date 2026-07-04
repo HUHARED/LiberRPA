@@ -77,7 +77,7 @@ P = ParamSpec("P")
 T = TypeVar("T")
 
 
-def _find_caller(stack_info=False, stacklevel=2) -> tuple[str, int, str, str | None]:
+def _find_caller(stack_info: bool = False, stacklevel: int = 2) -> tuple[str, int, str, str | None]:
     """
     Find the stack frame of the caller so that we can note the source file name, line number, and function name.
     """

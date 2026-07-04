@@ -68,7 +68,7 @@ def get_client_id() -> str:
     return sid
 
 
-def create_flask_server(port) -> None:
+def create_flask_server(port: int) -> None:
     """Create a new or use a existing Flask server."""
     global boolHasRunServer
     if _check_port_in_use(port=port):

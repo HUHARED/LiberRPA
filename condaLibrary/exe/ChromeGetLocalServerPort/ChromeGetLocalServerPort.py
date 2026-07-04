@@ -15,10 +15,10 @@ msvcrt.setmode(sys.stdout.fileno(), os.O_BINARY)
 import json
 import struct
 from liberrpa.Common._BasicConfig import get_basic_config_dict, get_token
-from typing import NoReturn
+from typing import Any, NoReturn
 
 
-def send_message(message) -> None:
+def send_message(message: dict[str, Any]) -> None:
     encoded_message = json.dumps(message).encode("utf-8")
     sys.stdout.buffer.write(struct.pack("<I", len(encoded_message)) + encoded_message)
     sys.stdout.flush()

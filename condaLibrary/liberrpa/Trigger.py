@@ -127,7 +127,7 @@ def mouse_trigger[T](
     def on_key_event_for_mouse(event: keyboard.KeyboardEvent) -> None:
         _get_keyname_and_press(event=event)
 
-    def on_mouse_event(x: int, y: int, mouseButton: Button, pressed: bool) -> None:
+    def on_mouse_event(_x: int, _y: int, mouseButton: Button, pressed: bool) -> None:
         Log.debug(f"Mouse Event: {mouseButton.name} - {'press' if pressed else 'release'}")
         try:
             if (mouseButton.name == button) and (

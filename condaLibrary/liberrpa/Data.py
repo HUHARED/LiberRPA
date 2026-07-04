@@ -95,7 +95,7 @@ def to_decimal(value: str | int | float | tuple[Literal[0, 1], tuple[int, ...], 
 
 
 @Log.trace()
-def to_boolean(value) -> bool:
+def to_boolean(value: object) -> bool:
     """
     Convert the given value to a boolean.
 

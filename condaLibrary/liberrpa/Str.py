@@ -241,7 +241,7 @@ def strip(
 
 
 @Log.trace()
-def remove_prefix(strObj: str, prefix) -> str:
+def remove_prefix(strObj: str, prefix: str) -> str:
     """
     Removes a specified prefix from the beginning of a string if it exists.
 
@@ -256,7 +256,7 @@ def remove_prefix(strObj: str, prefix) -> str:
 
 
 @Log.trace()
-def remove_suffix(strObj: str, suffix) -> str:
+def remove_suffix(strObj: str, suffix: str) -> str:
     """
     Removes a specified suffix from the end of a string if it exists.
 
@@ -385,7 +385,6 @@ def is_decimal(strObj: str) -> bool:
 
 
 if __name__ == "__main__":
-
     # print(strip("  1122331  ", characters=None, direction="both"))
     # print(is_numeric("  112"))
     # print(split("123123123", "1", maxSplit=0))

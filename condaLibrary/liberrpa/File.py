@@ -377,7 +377,7 @@ def get_file_or_folder_list(
 
 
 @Log.trace()
-def search_file_or_folder(folderPath: str, name: str, deepIterate=True) -> list[str]:
+def search_file_or_folder(folderPath: str, name: str, deepIterate: bool = True) -> list[str]:
     """
     Searches for files or folders within a given directory based on a name or pattern.
 

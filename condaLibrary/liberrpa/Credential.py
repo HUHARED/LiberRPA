@@ -68,9 +68,9 @@ def get_windows_credential(
 @Log.trace()
 def write_windows_credential(
     credentialType: TypeOfCredential = "GENERIC",
-    targetName="",
-    userName="",
-    credentialBlob="",
+    targetName: str = "",
+    userName: str = "",
+    credentialBlob: str = "",
     persist: Literal["SESSION", "LOCAL_MACHINE", "ENTERPRISE"] = "LOCAL_MACHINE",
 ) -> None:
     """

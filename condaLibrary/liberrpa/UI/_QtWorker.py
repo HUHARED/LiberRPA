@@ -16,7 +16,7 @@ from PyQt5.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from PyQt5.QtGui import QTextCursor, QFont, QFontMetrics, QColor, QPainter, QPen
+from PyQt5.QtGui import QTextCursor, QFont, QFontMetrics, QColor, QPainter, QPen, QPaintEvent
 
 from queue import Empty
 import uuid
@@ -141,7 +141,15 @@ def close_area(screenPrintObj: ScreenPrintObj) -> None:
 
 
 class TransparentOverlay(QWidget):
-    def __init__(self, x, y, width, height, color="red", label: str = "") -> None:
+    def __init__(
+        self,
+        x: int,
+        y: int,
+        width: int,
+        height: int,
+        color: Literal["red", "green", "blue", "yellow", "purple", "pink", "black"] = "red",
+        label: str = "",
+    ) -> None:
         super().__init__()
 
         # Check if the specified color is one of the allowed values
@@ -183,7 +191,7 @@ class TransparentOverlay(QWidget):
         # Set up the border color and thickness
         self.border_color = QColor(color)
 
-    def paintEvent(self, event) -> None:
+    def paintEvent(self, _event: QPaintEvent) -> None:
         painter = QPainter(self)
         try:
             painter.setRenderHint(QPainter.Antialiasing)
@@ -217,7 +225,13 @@ dictOverlayCache: dict[str, TransparentOverlay] = {}
 
 
 def create_overlay(
-    x: int, y: int, width: int, height: int, color: str = "red", duration: int = 1000, label: str = ""
+    x: int,
+    y: int,
+    width: int,
+    height: int,
+    color: Literal["red", "green", "blue", "yellow", "purple", "pink", "black"] = "red",
+    duration: int = 1000,
+    label: str = "",
 ) -> None:
     # print("Funciton create_overlay start")
     overlay = TransparentOverlay(x, y, width, height, color, label)
