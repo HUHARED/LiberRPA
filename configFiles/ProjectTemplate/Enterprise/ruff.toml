@@ -1,0 +1,48 @@
+target-version = "py312"
+line-length = 120
+indent-width = 4
+
+# Do not let Ruff automatically modify code from command-line checks.
+# Users can still apply fixes manually in VS Code when needed.
+fix = false
+
+# Respect exclude rules even if specific paths are passed from the command line.
+force-exclude = true
+
+# Required for some useful newer rules such as RUF027.
+preview = true
+
+extend-exclude = [
+    ".git",
+    ".ruff_cache",
+    "__pycache__",
+    ".vscode",
+    "OutputLog",
+    "Output",
+    "Logs",
+    "dist",
+    "build",
+]
+
+[lint]
+select = [
+    "E4",
+    "E7",
+    "E9",
+    "F",
+    "B",
+    "W",
+    "C4",
+    "UP",
+]
+
+extend-select = [
+    "RUF027",  # Detect strings that look like missing f-strings.
+    "F541",   # Detect f-strings without placeholders.
+]
+
+ignore = [
+    "E501",  # Line length. RPA strings, selectors, and logs may be intentionally long.
+    "E402",  # Some generated or snippet-based code may place imports after setup code.
+    "B904",  # Useful, but too strict for normal RPA users at this stage.
+]
