@@ -19,7 +19,7 @@ def run_application(filePath: str, windowState: Literal["default", "maximize", "
 
     Parameters:
         filePath: The path of the application to run.
-        windowState: 'default', 'maximize', 'minimize', 'hide'
+        windowState: 'default', 'maximize', 'minimize'
 
     Returns:
         int: The application's PID.
