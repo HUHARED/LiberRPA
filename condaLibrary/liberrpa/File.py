@@ -336,8 +336,8 @@ def get_file_or_folder_list(
         folderPath: The directory path from which to list files or folders.
         itemType: Which item types to include. Use "file" for files only, "folder" for folders only, or "both" for both files and folders.
         getAbsolutePath: If True, returns absolute paths. If False, returns paths relative to folderPath.
-        ignorePrefixes: Path prefixes to exclude. This uses simple string startswith() matching after joining each prefix with folderPath. It does not check path boundaries, so a prefix such as "a" may also exclude "abc". Use precise prefixes to avoid excluding unintended paths.
-        ignoreSuffixes: Path suffixes to exclude. Any item whose path string ends with one of these suffixes is excluded.
+        ignorePrefixes: Relative path string prefixes to exclude after joining each prefix with folderPath. This is a simple startswith() convenience filter, not a glob matcher or path-boundary matcher. For example, "a" may also exclude "abc". If you need exact folder-name, file-name, or path-segment filtering, leave this argument as None and filter the returned list yourself.
+        ignoreSuffixes: Path string suffixes to exclude. This is a simple endswith() convenience filter, not a glob matcher.
 
     Returns:
         list[str]: A list of file or folder paths after filtering.
