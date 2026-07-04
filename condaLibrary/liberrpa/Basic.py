@@ -20,7 +20,7 @@ _boolHaveRecordVideo = False
 @Log.trace(level="VERBOSE")
 def delay(ms: int = 1000) -> None:
     """
-    Delay a specific time.
+    Wait for a specified time, in milliseconds.
 
     Parameters:
         ms: The milliseconds to delay.

@@ -4,61 +4,62 @@ __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
+"""Combine manually written snippets and generated snippets into snippets_final.snippets."""
 
-from pathlib import Path
-import json5
-from typing import TypedDict, NotRequired, cast
-import json
-import sys
+from copy import deepcopy
+from typing import cast
 
-
-class DictSnippetsItem(TypedDict):
-    prefix: str
-    body: list[str] | str
-    description: NotRequired[str]
+from ApiConfig import DictSnippetsItem
+from SnippetUtils import get_snippets_dir, read_json5, write_json
 
 
-strBasic = Path("./snippets/snippets_basic.snippets").read_text()
-strOther = Path("./snippets/snippets_other.snippets").read_text()
-
-dictBasic = cast(dict[str, dict[str, DictSnippetsItem]], json5.loads(strBasic))
-dictOther = cast(dict[str, dict[str, DictSnippetsItem]], json5.loads(strOther))
-
-dictFinal: dict[str, DictSnippetsItem] = {}
+def _read_snippet_groups(fileName: str) -> dict[str, dict[str, DictSnippetsItem]]:
+    path = get_snippets_dir() / fileName
+    return cast(dict[str, dict[str, DictSnippetsItem]], read_json5(path, dict))
 
 
-def _append_empty_line_to_snippet_body(item: DictSnippetsItem) -> None:
-    body = item["body"]
+def _copy_with_empty_line(item: DictSnippetsItem) -> DictSnippetsItem:
+    itemCopy = deepcopy(item)
+    body = itemCopy["body"]
 
     if isinstance(body, str):
-        item["body"] = [body, ""]
+        itemCopy["body"] = [body, ""]
     else:
-        body.append("")
+        # As a safety net.
+        if len(body) == 0:
+            raise ValueError("Snippet body list should not be empty.")
+
+        if body[-1] != "":
+            body.append("")
+
+    return itemCopy
 
 
-for strModuleName in dictBasic:
-    for strTitle in dictBasic[strModuleName]:
-        # Add a new line, otherwise vscode will add a cursor postion at the line end. Add a new cursor in the new line is more reasonable.
-        try:
-            _append_empty_line_to_snippet_body(dictBasic[strModuleName][strTitle])
-        except Exception:
-            print("Error at", dictBasic[strModuleName][strTitle])
-            sys.exit()
+def _merge_groups(
+    dictFinal: dict[str, DictSnippetsItem],
+    snippetGroups: dict[str, dict[str, DictSnippetsItem]],
+) -> None:
+    for moduleName, group in snippetGroups.items():
+        for title, item in group.items():
+            if title in dictFinal:
+                raise ValueError(f"Duplicate snippet title: {title!r} in group {moduleName!r}.")
+            dictFinal[title] = _copy_with_empty_line(item)
 
-        dictFinal[strTitle] = dictBasic[strModuleName][strTitle]
 
-for strModuleName in dictOther:
-    for strTitle in dictOther[strModuleName]:
-        try:
-            _append_empty_line_to_snippet_body(dictOther[strModuleName][strTitle])
-        except Exception:
-            print("Error at", dictOther[strModuleName][strTitle])
-            sys.exit()
-        dictFinal[strTitle] = dictOther[strModuleName][strTitle]
+def main() -> None:
+    snippetsDir = get_snippets_dir()
+    dictBasic = _read_snippet_groups("snippets_basic.snippets")
+    dictOther = _read_snippet_groups("snippets_other.snippets")
 
-strFinal = json.dumps(dictFinal, indent=2, ensure_ascii=False)
+    dictFinal: dict[str, DictSnippetsItem] = {}
+    _merge_groups(dictFinal=dictFinal, snippetGroups=dictBasic)
+    _merge_groups(dictFinal=dictFinal, snippetGroups=dictOther)
 
-if strFinal:
-    Path("./snippets/snippets_final.snippets").write_text(strFinal)
-else:
-    raise Exception("Error.")
+    if not dictFinal:
+        raise ValueError("No snippets were generated.")
+
+    write_json(snippetsDir / "snippets_final.snippets", dictFinal)
+
+
+if __name__ == "__main__":
+    main()

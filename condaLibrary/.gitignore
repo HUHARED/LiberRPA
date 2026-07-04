@@ -9,8 +9,10 @@
 
 /snippets/snippets_other.snippets
 /snippets/snippets_final.snippets
-
-api.md
+/snippets/snippets_log_generated.snippets
+/snippets/api_manifest.json
+/snippets/import_manifest.json
+/snippets/api.md
 MANIFEST.in
 # setup.py
 

@@ -4,165 +4,129 @@ __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
+"""Generate VS Code snippets for public liberrpa API functions."""
 
-import inspect
-import json
-import importlib
-import re
-from pathlib import Path
+from typing import cast
 
-
-# Modules need to generate snippets
-listModule = [
-    # UI element manipulation
-    "Mouse",
-    "Keyboard",
-    "Window",
-    "UiInterface",
-    # Common software manipulation
-    "Browser",
-    "Excel",
-    "Outlook",
-    "Application",
-    "Database",
-    # Data processing
-    "Data",
-    "Str",
-    "List",
-    "Dict",
-    "Regex",
-    "Math",
-    "Time",
-    "File",
-    "OCR",
-    # Web protocal
-    "Web",
-    "Mail",
-    "FTP",
-    # System information.
-    "Clipboard",
-    "System",
-    "Credential",
-    # User interaction
-    "ScreenPrint",
-    "Dialog",
-    "Trigger",
-]
-
-dictSnippets = {}
+from ApiConfig import (
+    DictSnippetsItem,
+    PARAMETER_PLACEHOLDER_NAMES,
+    PUBLIC_MODULE_ORDER,
+    RETURN_PLACEHOLDER_BY_ANNOTATION,
+    SPECIAL_SNIPPETS,
+)
+from GenerateApiData import DictApiItem, DictParameterInfo, generate_api_manifest
+from SnippetUtils import get_snippets_dir, read_json, write_json
 
 
-for strModuleName in listModule:
-    print(strModuleName)
+def _load_or_generate_api_manifest() -> list[DictApiItem]:
+    manifestPath = get_snippets_dir() / "api_manifest.json"
+    if manifestPath.is_file():
+        return cast(list[DictApiItem], read_json(manifestPath, list))
+    return generate_api_manifest()
 
-    dictSnippets[strModuleName] = {}
 
-    # Database and FTP have "with" statement, add the snippets.
-    if strModuleName == "Database":
-        strTitleAndPrefix = strModuleName + "." + "build database connection"
-        dictSnippets[strModuleName][strTitleAndPrefix] = {
-            "prefix": strTitleAndPrefix,
-            "body": [
-                "with DatabaseConnection(connectString=${1:None}, dbType=${2:None}, username=${3:None}, password=${4:None}, host=${5:None}, port=${6:None}, database=${7:None}, options={$8}) as ${9:connObj}:",
-                "\t$10",
-            ],
-            "description": "You can learn how to use it in liberrpa.Database.DatabaseConnection's Docstring",
-        }
-    if strModuleName == "FTP":
-        strTitleAndPrefix = strModuleName + "." + "build FTP connection"
-        dictSnippets[strModuleName][strTitleAndPrefix] = {
-            "prefix": strTitleAndPrefix,
-            "body": [
-                'with FTP.Host(host=$1, user=$2, passwd=$3, encoding=${4:"utf-8"}) as ${5:ftpObj}:',
-                "\t$6",
-            ],
-            "description": "It's an alias of ftputil.FTPHost, so you can search how to use ftputil.FTPHost.",
-        }
+def _get_return_placeholder(returnAnnotation: str | None) -> str:
 
-    moduleObj = importlib.import_module("liberrpa." + strModuleName)
+    # As a safety net.
+    if returnAnnotation is None:
+        raise ValueError("returnAnnotation should not be None when hasReturnValue is True.")
 
-    # Get the "def" functions, to make sure the function belongs to the module, and keep its order.
-    strScriptText = Path("./liberrpa/" + strModuleName + ".py").read_text(encoding="utf-8")
+    placeholder = RETURN_PLACEHOLDER_BY_ANNOTATION.get(returnAnnotation)
+    if placeholder is not None:
+        return placeholder
 
-    listFuncInOrder: list[str] = re.findall(R"(?<=^def )[^_][a-zA-z0-9_]+(?=\()", strScriptText, re.MULTILINE)
+    annotationLower = returnAnnotation.lower()
+    if annotationLower.startswith("list[") or "list[" in annotationLower:
+        return "listResult"
+    if annotationLower.startswith("dict[") or "dict[" in annotationLower:
+        return "dictResult"
+    if annotationLower.startswith("tuple[") or "tuple[" in annotationLower:
+        return "tupleResult"
+    if "literal" in annotationLower:
+        return "strResult"
 
-    if strModuleName == "Trigger" and "register_force_exit" in listFuncInOrder:
-        listFuncInOrder.remove("register_force_exit")
-    print(listFuncInOrder)
-    # sys.exit()
+    return "result"
 
-    listFuncObj = inspect.getmembers(moduleObj, inspect.isfunction)
 
-    for strFuncName in listFuncInOrder:
+def _format_parameter_placeholder(parameter: DictParameterInfo, index: int) -> str:
+    name = parameter["name"]
+    kind = parameter["kind"]
 
-        func = getattr(moduleObj, strFuncName, None)
+    # As a safety net. Only Logging module has these kinds of arguments but they are generately manually.
+    if kind == "VAR_POSITIONAL":
+        return f"*${{{index}:{name}}}"
+    if kind == "VAR_KEYWORD":
+        return f"**${{{index}:{name}}}"
 
-        if not func:
-            raise Exception("Error.")
+    if parameter["required"]:
+        placeholder = PARAMETER_PLACEHOLDER_NAMES.get(name)
+        if placeholder is not None:
+            return f"{name}=${{{index}:{placeholder}}}"
+        return f"{name}=${index}"
 
-        returnValues = inspect.signature(func).return_annotation
-        # print("returnValues", returnValues)
-        if returnValues is not None:
-            # Some objects, like ExcelObj, BrowserObj, they have only one instance in most situations, so give them a default name.
-            strType = str(returnValues)
-            match strType:
-                case "<class 'liberrpa.Browser.BrowserObj'>":
-                    strReturn = "${1:browserObj} = "
-                case "<class 'liberrpa.Excel.ExcelObj'>":
-                    strReturn = "${1:excelObj} = "
-                case "<class 'liberrpa.ScreenPrint.ScreenPrintObj'>":
-                    strReturn = "${1:screenPrintObj} = "
-                case "<class 'imapclient.imapclient.IMAPClient'>":
-                    strReturn = "${1:imapObj} = "
-                case _:
-                    strReturn = f"${{1:{strType}}} = "
+    default = parameter["default"]
+    return f"{name}=${{{index}:{default}}}"
 
-            intIdx = 2
-        else:
-            strReturn = ""
-            intIdx = 1
 
-        params = inspect.signature(func).parameters
+def _build_body(item: DictApiItem) -> str:
+    index = 1
+    returnPart = ""
 
-        listParam = []
+    if item["hasReturnValue"]:
+        placeholder = _get_return_placeholder(item["returnAnnotation"])
+        returnPart = f"${{{index}:{placeholder}}} = "
+        index += 1
 
-        for strParamName, param in params.items():
-            if param.default is inspect.Parameter.empty:
+    parameters = [
+        _format_parameter_placeholder(parameter, idx + index) for idx, parameter in enumerate(item["parameters"])
+    ]
+    paramsText = ", ".join(parameters)
+    return f"{returnPart}{item['module']}.{item['name']}({paramsText})"
 
-                # Some objects, like ExcelObj, BrowserObj, they have only one instance in most situations, so give them a default name.
-                match strParamName:
-                    case "browserObj":
-                        listParam.append(f"{strParamName}=${{{intIdx}:{strParamName}}}")
-                    case "excelObj":
-                        listParam.append(f"{strParamName}=${{{intIdx}:{strParamName}}}")
-                    case "screenPrintObj":
-                        listParam.append(f"{strParamName}=${{{intIdx}:{strParamName}}}")
-                    case "connObj":
-                        listParam.append(f"{strParamName}=${{{intIdx}:{strParamName}}}")
-                    case "imapObj":
-                        listParam.append(f"{strParamName}=${{{intIdx}:{strParamName}}}")
-                    case "ftpObj":
-                        listParam.append(f"{strParamName}=${{{intIdx}:{strParamName}}}")
-                    case _:
-                        listParam.append(f"{strParamName}=${intIdx}")
-            else:
-                strDefaultValue = repr(param.default)
-                listParam.append(f"{strParamName}=${{{intIdx}:{strDefaultValue}}}")
-            intIdx += 1
 
-        strParam = ", ".join(listParam)
-        strBody = f"{strReturn}{strModuleName}.{strFuncName}({strParam})"
+def _build_generated_snippet(item: DictApiItem) -> DictSnippetsItem:
+    return {
+        "prefix": item["prefix"],
+        "body": _build_body(item),
+        "description": item["description"],
+    }
 
-        strDoc = inspect.getdoc(func) or ""
 
-        strTitleAndPrefix = strModuleName + "." + strFuncName
+def _generate_snippets(apiManifest: list[DictApiItem]) -> dict[str, dict[str, DictSnippetsItem]]:
+    """Generate snippet groups in PUBLIC_MODULE_ORDER."""
+    manifestByModule: dict[str, list[DictApiItem]] = {}
+    for item in apiManifest:
+        manifestByModule.setdefault(item["module"], []).append(item)
 
-        # Define the snippet structure
-        dictSnippets[strModuleName][strTitleAndPrefix] = {
-            "prefix": strTitleAndPrefix,
-            "body": strBody,
-            "description": strDoc,
-        }
+    dictSnippets: dict[str, dict[str, DictSnippetsItem]] = {}
 
-strSnippetsDict = json.dumps(dictSnippets, indent=2)
-Path("./snippets/snippets_other.snippets").write_text(strSnippetsDict)
+    for moduleName in PUBLIC_MODULE_ORDER:
+        moduleSnippets: dict[str, DictSnippetsItem] = {}
+
+        for title, snippet in SPECIAL_SNIPPETS.get(moduleName, {}).items():
+            moduleSnippets[title] = cast(DictSnippetsItem, snippet)
+
+        for item in manifestByModule.get(moduleName, []):
+            moduleSnippets[item["title"]] = _build_generated_snippet(item)
+
+        if moduleSnippets:
+            dictSnippets[moduleName] = moduleSnippets
+
+    # Make unexpected modules visible instead of silently dropping them.
+    unexpectedModules = sorted(set(manifestByModule) - set(PUBLIC_MODULE_ORDER))
+    if unexpectedModules:
+        raise ValueError(f"Unexpected modules in API manifest: {unexpectedModules}")
+
+    return dictSnippets
+
+
+def main() -> None:
+    snippetsDir = get_snippets_dir()
+    apiManifest = _load_or_generate_api_manifest()
+    dictSnippets = _generate_snippets(apiManifest=apiManifest)
+    write_json(snippetsDir / "snippets_other.snippets", dictSnippets)
+
+
+if __name__ == "__main__":
+    main()

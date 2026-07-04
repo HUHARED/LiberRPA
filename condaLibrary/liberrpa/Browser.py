@@ -120,6 +120,7 @@ def open_browser(
         case _:
             raise ValueError(f"This not a supported browser type: '{browserType}'")
 
+
 @Log.trace()
 def bind_browser(browserType: Literal["chrome"] = "chrome") -> BrowserObj:
     """
@@ -246,10 +247,11 @@ def refresh(browserObj: BrowserObj) -> None:
 @Log.trace()
 def wait_load_completed(browserObj: BrowserObj, timeout: int = 30000) -> None:
     """
-    Wait for the active tab being loaded completed.
+    Wait until the active browser tab finishes loading.
 
     Parameters:
         browserObj: The browser object to manipulate.
+        timeout: Maximum time to wait for the active tab to finish loading, in milliseconds.
     """
 
     match browserObj.browserType:
@@ -402,6 +404,17 @@ def close_current_tab(browserObj: BrowserObj) -> None:
 
 @Log.trace()
 def get_download_list(browserObj: BrowserObj, limit: int = 5, timeout: int = 10000) -> list[ChromeDownloadItem]:
+    """
+    Get recent download items from the browser.
+
+    Parameters:
+        browserObj: The browser object to manipulate.
+        limit: Maximum number of download items to return.
+        timeout: Maximum time to wait for the browser download query to complete, in milliseconds.
+
+    Returns:
+        list[ChromeDownloadItem]: A list of recent Chrome download items.
+    """
 
     match browserObj.browserType:
         case "chrome":
