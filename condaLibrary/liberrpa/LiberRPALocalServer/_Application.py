@@ -51,13 +51,26 @@ def open_url(url: str) -> None:
 def open_browser(
     url: str,
     path: str,
-    params: str,
+    params: str | list[str],
 ) -> None:
-    cmd = [path] + params.split() + [url]
-    Log.debug(f"Start browser: {cmd}")
 
-    # Using Popen to start the browser without blocking the script
-    subprocess.Popen(cmd, creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP)
+    if isinstance(params, str):
+        commandLine = subprocess.list2cmdline([path])
+
+        params = params.strip()
+        if params:
+            # Keep the raw command-line string so quoted parameter values are preserved.
+            commandLine += f" {params}"
+
+        commandLine += f" {subprocess.list2cmdline([url])}"
+
+    else:
+        commandLine = [path, *params, url]
+
+    Log.debug(f"Start browser: {commandLine}")
+
+    # Use LiberRPA Local Server to start the browser so the browser process is not tied to the RPA script process.
+    subprocess.Popen(commandLine, creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP)
 
     return None
 

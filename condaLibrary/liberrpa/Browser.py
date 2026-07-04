@@ -46,7 +46,7 @@ def open_browser(
     browserType: Literal["chrome"] = "chrome",
     url: str = "about:blank",
     path: str | None = None,
-    params: str = "",
+    params: str | list[str] = "",
     timeout: int = 30000,
 ) -> BrowserObj:
     """
@@ -58,9 +58,11 @@ def open_browser(
         browserType: The type of browser to manipulate (currently only "chrome" is supported).
         url: The URL to open in the browser.
         path: The filesystem path to the browser exe. If not provided, it attempts to locate the browser in common directories.
-        params: Additional command-line parameters to pass when launching browser.
+        params: Additional command-line parameters to pass when launching the browser.
 
-            Such as "--start-maximized".
+            You can pass a string for simple cases, such as "--start-maximized".
+            If a parameter value contains spaces, passing a list[str] is recommended,
+            for example ["--user-data-dir=C:/Temp/Chrome Profile"].
 
             For Chrome, you can check all params in [List of Chromium Command Line Switches](https://peter.sh/experiments/chromium-command-line-switches/)
         timeout: Maximum time to wait until the browser's extension can communicate with LiberRPA Local Server, in milliseconds.
