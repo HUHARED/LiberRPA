@@ -86,13 +86,16 @@ def record_screen(pid: int, folderName: str) -> None:
             Log.error("Failed to launch ffmpeg — skipping cleanup.")
         else:
             # Politely tell ffmpeg to quit
-            if processRecord.stdin:
-                Log.debug("Sending 'q' to ffmpeg...")
-                processRecord.stdin.write(b"q\n")
-                processRecord.stdin.flush()
-
-            else:
-                Log.warning("Teminate ffmpeg.")
+            try:
+                if processRecord.stdin:
+                    Log.debug("Sending 'q' to ffmpeg...")
+                    processRecord.stdin.write(b"q\n")
+                    processRecord.stdin.flush()
+                else:
+                    Log.warning("Terminate ffmpeg.")
+                    processRecord.terminate()
+            except OSError as e:
+                Log.warning(f"Failed to send quit command to ffmpeg: {e}. Terminating it.")
                 processRecord.terminate()
 
             try:
