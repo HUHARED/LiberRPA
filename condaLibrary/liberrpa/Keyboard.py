@@ -230,7 +230,7 @@ def _write_text_into_element(
             if not isinstance(uiTarget, uiautomation.Control):
                 # html api mode has already been handled above. image is not supported.
                 raise UiOperationError(
-                    f"(!!!It should not appear.) API mode for html or image element should have been handled. "
+                    f"Unexpected internal state: API mode for HTML or image selectors should have been handled earlier. "
                     f"selector: {selector}"
                 )
 
@@ -281,7 +281,7 @@ def _write_text_into_element(
             if validateWrittenText:
                 if not isinstance(uiTarget, uiautomation.Control):
                     raise UiOperationError(
-                        f"(!!!It should not appear.) Simulate mode for html or image element should have been handled. "
+                        f"Unexpected internal state: simulate mode for HTML or image selectors should have been handled earlier. "
                         f"selector: {selector}"
                     )
 

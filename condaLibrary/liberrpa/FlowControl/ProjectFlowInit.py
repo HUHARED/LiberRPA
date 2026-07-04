@@ -123,7 +123,7 @@ def _generate_next_dict() -> tuple[
 
             case _:
                 # End node doesn't have a next direction.
-                raise ValueError(f"(!!!It should not appear.) It is not a known SourceNode type: '{strSourceNodeType}'")
+                raise ValueError(f"Unknown source node type: {strSourceNodeType!r}")
 
     return dictNonChooseNext, dictChooseNext, dictPyInfo, dictConditionInfo, dictNodeType, dictNodeText
 

@@ -123,7 +123,7 @@ def indicate_uia(indicateDelaySeconds: int = 1) -> tuple[DictForUiAnalyzer, uiau
                     element = element.GetParentControl() """
 
             if element is None:
-                raise UiElementNotFoundError("(!!!It should not appear.) Didn't find an element from cursor.")
+                raise UiElementNotFoundError("No UI element was found at the cursor position.")
 
             # Highlight it for checking.
             create_overlay(
@@ -141,7 +141,7 @@ def indicate_uia(indicateDelaySeconds: int = 1) -> tuple[DictForUiAnalyzer, uiau
             return (None, None)
 
         if element is None:
-            raise UiElementNotFoundError("(!!!It should not appear.) Didn't find an element from cursor.")
+            raise UiElementNotFoundError("No UI element was found at the cursor position.")
 
         # Mouse left pressed.
         Log.debug("Pressed mouse left.")
@@ -251,7 +251,7 @@ def indicate_chrome(
             return None
 
         if (dictCoordinate is None) or (dictSecondaryAttr is None) or (tupleEleTree is None) or len(listAllAttr) == 0:
-            Log.warning("(!!!It should not appear.) Didn't get a Chrome element before the hook stopped.")
+            Log.warning("No Chrome element was captured before the indication hook stopped.")
             return None
 
         # After click, get the window element once.
@@ -437,7 +437,7 @@ def indicate_window(indicateDelaySeconds: int = 1) -> DictForUiAnalyzer | None:
                     break
 
             if element is None:
-                raise UiElementNotFoundError("(!!!It should not appear.) Didn't find an element from cursor.")
+                raise UiElementNotFoundError("No UI element was found at the cursor position.")
 
             create_overlay(
                 element.BoundingRectangle.left,
@@ -453,11 +453,13 @@ def indicate_window(indicateDelaySeconds: int = 1) -> DictForUiAnalyzer | None:
             return None
 
         if element is None:
-            raise UiElementNotFoundError("(!!!It should not appear.) Didn't find a window element from cursor.")
+            raise UiElementNotFoundError("No window element was found at the cursor position.")
 
         # Only need the element has "Name"
         if not getattr(element, "Name", None):
-            raise UiElementNotFoundError("(!!!It should not appear.) The window element has no Name.")
+            raise UiElementNotFoundError(
+                "The selected window has no name, so LiberRPA cannot build a stable window selector."
+            )
 
         # Mouse left pressed.
         Log.debug("Pressed mouse left.")
@@ -568,11 +570,13 @@ def _get_window_element(dictCoordinate: DictPosition) -> uiautomation.Control:
     # print("elementWindow=", elementWindow)
 
     if elementWindow is None:
-        raise UiElementNotFoundError("(!!!It should not appear.) Didn't find an window element from cursor.")
+        raise UiElementNotFoundError("No window element was found at the cursor position.")
 
     # Only need the element has "Name"
     if not getattr(elementWindow, "Name", None):
-        raise UiElementNotFoundError("(!!!It should not appear.) The window element has no Name.")
+        raise UiElementNotFoundError(
+            "The selected window has no name, so LiberRPA cannot build a stable window selector."
+        )
 
     # print("create_overlay in _get_window_element")
     # Highlight window.

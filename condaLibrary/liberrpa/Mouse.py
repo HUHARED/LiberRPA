@@ -218,7 +218,8 @@ def _click_element(
             else:
                 # html or image element api click
                 raise UiOperationError(
-                    f"(!!!It should not appear.) Use api mode for html or image element should have be handle!!! selector: {selector}"
+                    f"Unexpected internal state: API mode for HTML or image selectors should have been handled earlier. "
+                    f"selector: {selector}"
                 )
 
     delay(postExecutionDelay)

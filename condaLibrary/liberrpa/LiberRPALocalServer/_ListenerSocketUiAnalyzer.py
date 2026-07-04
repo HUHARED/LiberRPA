@@ -67,12 +67,16 @@ def handle_uianalyzer_command(message: str) -> None:
         if strCommandName in ["indicate_uia", "indicate_chrome", "indicate_image", "indicate_window"]:
             intIndicateDelay = dictCommand["intIndicateDelaySeconds"]
             if not isinstance(intIndicateDelay, int) or intIndicateDelay < 1 or intIndicateDelay > 10:
-                raise ValueError(f"(!!!It should not appear.) incompatible indicate delay: {intIndicateDelay}")
+                raise ValueError(
+                    f"Invalid UI Analyzer indicate delay: {intIndicateDelay!r}. Expected an integer from 1 to 10."
+                )
 
         if strCommandName == "validate":
             intMatchTimeout = dictCommand["intMatchTimeoutSeconds"]
             if not isinstance(intMatchTimeout, int) or intMatchTimeout < 3 or intMatchTimeout > 60:
-                raise ValueError(f"(!!!It should not appear.) incompatible match timeout: {intMatchTimeout}")
+                raise ValueError(
+                    f"Invalid UI Analyzer match timeout: {intMatchTimeout!r}. Expected an integer from 3 to 60."
+                )
 
         match strCommandName:
             case "indicate_uia":

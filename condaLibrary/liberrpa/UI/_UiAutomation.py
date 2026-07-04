@@ -121,7 +121,7 @@ def get_control_primary_attr(control: uiautomation.Control) -> DictUiaPrimaryAtt
         # Try to get "ProcessName".
         dictTemp["ProcessName"] = psutil.Process(control.ProcessId).name()
     except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-        raise ValueError("(!!!It should not appear.) Unknown Process")
+        raise ValueError("The target process is no longer available or cannot be accessed.")
 
     # Find primary attributes.
     for strAttrName in _TUPLE_PRIMARY_ATTR:

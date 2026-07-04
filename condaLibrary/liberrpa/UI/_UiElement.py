@@ -160,7 +160,7 @@ def get_control_selector(
                 break
 
     except Exception as e:
-        Log.error(f"(!!!It should not appear.) Error finding element: {e}")
+        Log.error(f"Unexpected error while finding a UI element: {e}")
 
     """
     Add "Index" to each layer of selector(if needed)
@@ -210,7 +210,9 @@ def get_control_selector(
                 controlFound = None
 
             if controlFound is None:
-                raise UiElementNotFoundError("(!!!It should not appear.) Not found element when adding Index.")
+                raise UiElementNotFoundError(
+                    "Unexpected internal state: no UI element was found while adding selector index information."
+                )
 
             """
             Check whether other primary attributes are same.
