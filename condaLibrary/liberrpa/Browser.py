@@ -433,6 +433,9 @@ def get_source_code(browserObj: BrowserObj) -> str:
 
     Parameters:
         browserObj: The browser object to manipulate.
+
+    Returns:
+        str: The HTML source code of the active tab.
     """
 
     match browserObj.browserType:
@@ -453,6 +456,9 @@ def get_all_text(browserObj: BrowserObj) -> str:
 
     Parameters:
         browserObj: The browser object to manipulate.
+
+    Returns:
+        str: All text in the active tab.
     """
 
     match browserObj.browserType:
@@ -473,6 +479,9 @@ def get_url(browserObj: BrowserObj) -> str:
 
     Parameters:
         browserObj: The browser object to manipulate.
+
+    Returns:
+        str: The URL of the active tab.
     """
 
     match browserObj.browserType:
@@ -493,6 +502,9 @@ def get_title(browserObj: BrowserObj) -> str:
 
     Parameters:
         browserObj: The browser object to manipulate.
+
+    Returns:
+        str: The title of the active tab.
     """
 
     match browserObj.browserType:
