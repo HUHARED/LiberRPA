@@ -48,6 +48,22 @@ intUnsafeThreadTerminationCount = 0
 # Count cases where exception injection failed or the worker thread was still alive after injection.
 intUnstoppableThreadCount = 0
 
+_UNSAFE_TERMINATION_JOIN_SECONDS = 1
+
+_PY_THREAD_STATE_SET_ASYNC_EXC = ctypes.pythonapi.PyThreadState_SetAsyncExc
+_PY_THREAD_STATE_SET_ASYNC_EXC.argtypes = (ctypes.c_ulong, ctypes.c_void_p)
+_PY_THREAD_STATE_SET_ASYNC_EXC.restype = ctypes.c_int
+
+
+def _set_async_exception(threadId: int, exceptionType: type[BaseException] | None) -> int:
+    """Set or clear an asynchronous exception for a CPython thread."""
+    exceptionPointer = None if exceptionType is None else ctypes.c_void_p(id(exceptionType))
+
+    return _PY_THREAD_STATE_SET_ASYNC_EXC(
+        ctypes.c_ulong(threadId),
+        exceptionPointer,
+    )
+
 
 def _get_thread_stack(thread: threading.Thread) -> str:
     """Return the current stack of a worker thread before unsafe termination is attempted."""
@@ -174,20 +190,15 @@ class TerminableThread[T](threading.Thread):
         if not self.is_alive() or self.ident is None:
             return False
 
-        res = ctypes.pythonapi.PyThreadState_SetAsyncExc(
-            ctypes.c_ulong(self.ident),
-            ctypes.py_object(UiUnsafeThreadTerminationError),
-        )
+        res = _set_async_exception(self.ident, UiUnsafeThreadTerminationError)
+
         if res == 0:
             # No thread state was modified. The thread may have already ended.
             return False
 
         if res > 1:
             # More than one thread state was modified. This should not happen. Roll back immediately by injecting None.
-            ctypes.pythonapi.PyThreadState_SetAsyncExc(
-                ctypes.c_ulong(self.ident),
-                None,
-            )
+            _set_async_exception(self.ident, None)
             raise SystemError("PyThreadState_SetAsyncExc affected multiple thread states and was rolled back.")
 
         # res == 1: exactly one thread state was modified, which means the exception was injected.
@@ -277,11 +288,12 @@ def timeout_kill_thread[T, **P](timeout: int) -> Callable[[Callable[P, T]], Call
 
                         raise UiUnstoppableThreadError(
                             f"Failed to inject timeout exception into worker thread for function {func.__name__}. "
-                            "Please report this case with logs if it happens repeatedly."
+                            "The old worker thread may still be running in the background, so UI automation in this process is no longer safe. "
+                            "Stop this RPA process, keep the log file, and report this case if possible."
                         ) from e
 
                     # Give the injected exception a short chance to take effect.
-                    thread.join(1)
+                    thread.join(_UNSAFE_TERMINATION_JOIN_SECONDS)
 
                     _notify_unsafe_timeout(
                         functionName=f"{func.__module__}.{func.__name__}",
@@ -304,7 +316,8 @@ def timeout_kill_thread[T, **P](timeout: int) -> Callable[[Callable[P, T]], Call
                             f"softTimeout={softTimeout} ms, "
                             f"hardTimeout={hardTimeout} ms. "
                             "Unsafe timeout fallback was triggered, but the worker thread did not stop. "
-                            "Please report this case with logs if it happens repeatedly."
+                            "The old worker thread may still be running in the background, so UI automation in this process is no longer safe. "
+                            "Stop this RPA process, keep the log file, and report this case if possible."
                         )
 
                     if boolInjected:
