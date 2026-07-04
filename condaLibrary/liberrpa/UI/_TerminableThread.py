@@ -12,6 +12,7 @@ from liberrpa.Common._Exception import (
     UiElementNotFoundError,
     ChromeElementNotFoundError,
 )
+from liberrpa.UI._OperationLock import mark_ui_operation_unsafe
 
 import threading
 import ctypes
@@ -270,6 +271,10 @@ def timeout_kill_thread[T, **P](timeout: int) -> Callable[[Callable[P, T]], Call
                             hardTimeout=hardTimeout,
                         )
 
+                        mark_ui_operation_unsafe(
+                            f"Failed to inject timeout exception into worker thread for function {func.__module__}.{func.__name__}."
+                        )
+
                         raise UiUnstoppableThreadError(
                             f"Failed to inject timeout exception into worker thread for function {func.__name__}. "
                             "Please report this case with logs if it happens repeatedly."
@@ -289,6 +294,10 @@ def timeout_kill_thread[T, **P](timeout: int) -> Callable[[Callable[P, T]], Call
 
                         intUnstoppableThreadCount += 1
                         Log.critical("Worker thread is still alive after unsafe timeout fallback.")
+
+                        mark_ui_operation_unsafe(
+                            f"Function {func.__module__}.{func.__name__} exceeded unsafe hard timeout and the worker thread did not stop."
+                        )
 
                         raise UiUnstoppableThreadError(
                             f"Function {func.__name__} exceeded unsafe hard timeout. "

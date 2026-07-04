@@ -23,6 +23,7 @@ from liberrpa.UI._UiDict import (
 )
 from liberrpa.UI._SelectorValidation import as_selector_uia, as_selector_html, validate_selector
 from liberrpa.UI._TerminableThread import timeout_kill_thread
+from liberrpa.UI._OperationLock import lock_ui_operation
 from liberrpa.Common._Exception import (
     UiElementNotFoundError,
     UiTimeoutError,
@@ -89,6 +90,7 @@ def _highlight(
 
 
 @Log.trace()
+@lock_ui_operation
 def highlight(
     selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
     color: Literal["red", "green", "blue", "yellow", "purple", "pink", "black"] = "red",
@@ -174,6 +176,7 @@ def _screenshot(
 
 
 @Log.trace()
+@lock_ui_operation
 def screenshot(
     selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
     saveFilePath: str,
@@ -221,6 +224,8 @@ def screenshot(
     )
 
 
+@Log.trace()
+@lock_ui_operation
 def get_image_position(
     filePath: str,
     region: tuple[int, int, int, int] | None = None,
@@ -292,6 +297,7 @@ def _check_exists(
 
 
 @Log.trace()
+@lock_ui_operation
 def check_exists(
     selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
     timeout: int = 10000,
@@ -356,6 +362,7 @@ def check_exists(
 
 
 @Log.trace()
+@lock_ui_operation
 def wait_appear(
     selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
     timeout: int = 10000,
@@ -420,6 +427,7 @@ def wait_appear(
 
 
 @Log.trace()
+@lock_ui_operation
 def wait_disappear(
     selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
     timeout: int = 10000,
@@ -550,6 +558,7 @@ def _get_parent(
 
 
 @Log.trace()
+@lock_ui_operation
 def get_parent(
     selector: SelectorUia | SelectorHtml,
     upwardLevel: int = 1,
@@ -626,6 +635,7 @@ def _get_children(
 
 
 @Log.trace()
+@lock_ui_operation
 def get_children(
     selector: SelectorWindow | SelectorUia | SelectorHtml,
     timeout: int = 30000,
@@ -669,6 +679,7 @@ def _get_attr_dictionary(
 
 
 @Log.trace()
+@lock_ui_operation
 def get_attr_dictionary(
     selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
     timeout: int = 10000,
@@ -697,7 +708,7 @@ def get_attr_dictionary(
     )
 
 
-def _get_control_text_recursive(control) -> list[str]:
+def _get_control_text_recursive(control: uiautomation.Control) -> list[str]:
     listText: list[str] = []
 
     # Get text from Name and HelpText which are common properties
@@ -707,12 +718,18 @@ def _get_control_text_recursive(control) -> list[str]:
         listText.append(control.HelpText)
 
     # Try to retrieve text using ValuePattern if available
-    pattern = control.GetPattern(uiautomation.PatternId.ValuePattern)
+    pattern = cast(
+        uiautomation.ValuePattern | None,
+        control.GetPattern(uiautomation.PatternId.ValuePattern),
+    )
     if pattern is not None and pattern.Value:
         listText.append(pattern.Value)
     else:
         # If ValuePattern is not available or provides no text, check TextPattern
-        pattern = control.GetPattern(uiautomation.PatternId.TextPattern)
+        pattern = cast(
+            uiautomation.TextPattern | None,
+            control.GetPattern(uiautomation.PatternId.TextPattern),
+        )
         if pattern is not None:
             strText = pattern.DocumentRange.GetText(-1)
             if strText:
@@ -758,6 +775,7 @@ def _get_text(
 
 
 @Log.trace()
+@lock_ui_operation
 def get_text(
     selector: SelectorWindow | SelectorUia | SelectorHtml,
     timeout: int = 10000,
@@ -836,6 +854,7 @@ def _set_text(
 
 
 @Log.trace()
+@lock_ui_operation
 def set_text(
     selector: SelectorUia | SelectorHtml,
     text: str,
@@ -916,6 +935,7 @@ def _get_check_state(
 
 
 @Log.trace()
+@lock_ui_operation
 def get_check_state(
     selector: SelectorUia | SelectorHtml,
     timeout: int = 10000,
@@ -1011,6 +1031,7 @@ def _set_check_state(
 
 
 @Log.trace()
+@lock_ui_operation
 def set_check_state(
     selector: SelectorUia | SelectorHtml,
     checkAction: Literal["checked", "unchecked", "toggle"] = "checked",
@@ -1071,6 +1092,7 @@ def _get_selection(
 
 
 @Log.trace()
+@lock_ui_operation
 def get_selection(
     selector: SelectorHtml,
     selectionType: Literal["text", "value", "index"] = "text",
@@ -1139,6 +1161,7 @@ def _set_selection(
 
 
 @Log.trace()
+@lock_ui_operation
 def set_selection(
     selector: SelectorHtml,
     text: str | None = None,
@@ -1183,37 +1206,49 @@ if __name__ == "__main__":
 
     timeStart = monotonic()
 
-    print(
-        get_image_position(
-            filePath=R".\Screenshots\_20250129_185915.png",
-            region=None,
-            confidence=0.97,
-            grayscale=True,
-            limit=1,
-            highlight=True,
-        )
-    )
+    # print(
+    #     get_image_position(
+    #         filePath=R".\Screenshots\_20250129_185915.png",
+    #         region=None,
+    #         confidence=0.97,
+    #         grayscale=True,
+    #         limit=1,
+    #         highlight=True,
+    #     )
+    # )
 
-    print(
-        check_exists(
-            selector={
-                "window": {
-                    "ProcessName": "chrome.exe",
-                    "FrameworkId": "Win32",
-                    "ControlTypeName": "PaneControl",
-                    "Name": "处理报销单 - Google Chrome",
-                    "ClassName": "Chrome_WidgetWin_1",
-                },
-                "category": "image",
-                "specification": [{"FileName": "_20250129_185915.png", "Grayscale": "true", "Confidence": "0.97"}],
+    # print(
+    #     check_exists(
+    #         selector={
+    #             "window": {
+    #                 "ProcessName": "chrome.exe",
+    #                 "FrameworkId": "Win32",
+    #                 "ControlTypeName": "PaneControl",
+    #                 "Name": "处理报销单 - Google Chrome",
+    #                 "ClassName": "Chrome_WidgetWin_1",
+    #             },
+    #             "category": "image",
+    #             "specification": [{"FileName": "_20250129_185915.png", "Grayscale": "true", "Confidence": "0.97"}],
+    #         },
+    #         timeout=3000,
+    #         preExecutionDelay=0,
+    #         postExecutionDelay=0,
+    #     )
+    # )
+
+    highlight(
+        selector={
+            "window": {
+                "ProcessName": "notepad.exe",
+                "FrameworkId": "Win32",
+                "ControlTypeName": "WindowControl",
+                "Name-regex": ".* - Notepad",
+                "ClassName": "Notepad",
             },
-            timeout=3000,
-            preExecutionDelay=0,
-            postExecutionDelay=0,
-        )
+            "category": "uia",
+            "specification": [{"ControlTypeName": "EditControl", "Name": "Text Editor", "ClassName": "Edit"}],
+        }
     )
-
-    # highlight(selector=uiaWin2)
 
     # print(get_selection(selector=selector,selectionType="text"))
     # set_selection(selector=selector, index=3)

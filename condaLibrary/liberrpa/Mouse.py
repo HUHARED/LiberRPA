@@ -25,6 +25,7 @@ from liberrpa.UI._UiDict import (
 )
 from liberrpa.UI._SelectorValidation import as_selector_html
 from liberrpa.UI._TerminableThread import timeout_kill_thread
+from liberrpa.UI._OperationLock import lock_ui_operation
 from liberrpa.Common._Exception import UiOperationError
 from liberrpa.Basic import delay
 from liberrpa.Common._Chrome import click_mouse_event
@@ -81,6 +82,7 @@ def _get_5_coordinates(dictAttr: DictUiaAttr | DictHtmlAttr | DictImageAttr) -> 
 
 
 @Log.trace()
+@lock_ui_operation
 def get_mouse_position() -> DictPosition:
     """
     Retrieves the current physical position of the cursor on the screen.
@@ -223,6 +225,7 @@ def _click_element(
 
 
 @Log.trace()
+@lock_ui_operation
 def click_element(
     selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
     offsetX: int = 0,
@@ -307,6 +310,7 @@ def _move_to_element(
 
 
 @Log.trace()
+@lock_ui_operation
 def move_to_element(
     selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
     offsetX: int = 0,
@@ -343,6 +347,7 @@ def move_to_element(
 
 
 @Log.trace()
+@lock_ui_operation
 def click(
     button: MouseButton = "left",
     clickMode: ClickMode = "single_click",
@@ -391,6 +396,7 @@ def click(
 
 
 @Log.trace()
+@lock_ui_operation
 def move_cursor(
     x: int = 0,
     y: int = 0,
@@ -413,13 +419,19 @@ def move_cursor(
     delay(preExecutionDelay)
 
     if relative:
-        pyautogui.moveTo(x=get_mouse_position()["x"] + x, y=get_mouse_position()["y"] + y, duration=duration / 1000)
+        position = get_mouse_position()
+        pyautogui.moveTo(
+            x=position["x"] + x,
+            y=position["y"] + y,
+            duration=duration / 1000,
+        )
     else:
         pyautogui.moveTo(x=x, y=y, duration=duration / 1000)
     delay(postExecutionDelay)
 
 
 @Log.trace()
+@lock_ui_operation
 def scroll_wheel(
     times: int = 1,
     direction: Literal["down", "up"] = "down",

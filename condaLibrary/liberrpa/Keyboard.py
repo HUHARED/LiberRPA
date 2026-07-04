@@ -10,6 +10,7 @@ import liberrpa.UI._UiElement as _UiElement
 from liberrpa.Common._TypedValue import ExecutionMode, InputKey
 from liberrpa.UI._UiDict import SelectorWindow, SelectorUia, SelectorHtml
 from liberrpa.UI._TerminableThread import timeout_kill_thread
+from liberrpa.UI._OperationLock import lock_ui_operation
 from liberrpa.UI._SelectorValidation import as_selector_html
 from liberrpa.Common._Exception import UiOperationError
 from liberrpa.Mouse import _get_5_coordinates
@@ -130,6 +131,7 @@ def _write_text(
 
 
 @Log.trace()
+@lock_ui_operation
 def write_text(
     text: str,
     executionMode: ExecutionMode = "api",
@@ -237,7 +239,9 @@ def _write_text_into_element(
                 uiTarget.GetPattern(uiautomation.PatternId.ValuePattern),
             )
             if pattern is None:
-                raise ValueError(f"The element does not support the argument executionMode('api'). selector: {selector}")
+                raise ValueError(
+                    f"The element does not support the argument executionMode('api'). selector: {selector}"
+                )
 
             strOldText = "" if pattern.Value is None else str(pattern.Value)
             strTargetText = text if emptyOriginalText else strOldText + text
@@ -316,6 +320,7 @@ def _write_text_into_element(
 
 
 @Log.trace()
+@lock_ui_operation
 def write_text_into_element(
     selector: SelectorWindow | SelectorUia | SelectorHtml,
     text: str,
@@ -408,6 +413,7 @@ def _type_key_in_element(
 
 
 @Log.trace()
+@lock_ui_operation
 def type_key_in_element(
     selector: SelectorWindow | SelectorUia | SelectorHtml,
     key: InputKey = "enter",
@@ -450,6 +456,7 @@ def type_key_in_element(
 
 
 @Log.trace()
+@lock_ui_operation
 def type_key(
     key: InputKey = "enter",
     typeMode: Literal["click", "key_down", "key_up"] = "click",
@@ -508,19 +515,31 @@ def type_key(
 
 
 if __name__ == "__main__":
-    # from liberrpa._Selector import *
+    # from ..test._Selector import SlctNotepad2
     from time import monotonic
 
     timeStart = monotonic()
+
+    SlctNotepad2 = {
+        "window": {
+            "ProcessName": "notepad.exe",
+            "FrameworkId": "Win32",
+            "ControlTypeName": "WindowControl",
+            "Name": "New Text Document.txt - Notepad",
+            "ClassName": "Notepad",
+        },
+        "category": "uia",
+        "specification": [{"ControlTypeName": "EditControl", "Name": "Text Editor", "ClassName": "Edit"}],
+    }
 
     text = "1234567890こんにちは世界-=,./!@#$%^&*()ÄäÖöÜü中文字符✔\nEnter\r\nNewLine\tTab\nÄäÖöÜü\n中文字符✔🤷😊Emoji：こんにちは世界"
     # text = "1234567890こんにちは世界-=,./!@#$%^&*()\nEnter\rNewLine\tTab\nÄäÖöÜü\n中文字符✔Emoji：こんにちは世界"
     # text = "123123abclkjaf1024uag123123\t44\r\n44"
     # text = "\nHello, how are\n you today?\n"
     # text = "\nHello. How are\n you today?" * 100
-    # write_text(text=text, executionMode="api", timeout=3000, preExecutionDelay=2000, postExecutionDelay=200)
+    write_text(text=text, executionMode="api", timeout=3000, preExecutionDelay=2000, postExecutionDelay=200)
     """ write_text_into_element(
-        selector=selector,
+        selector=SlctNotepad2,
         text=text,
         executionMode="api",
         interval=10,

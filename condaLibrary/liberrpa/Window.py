@@ -17,6 +17,7 @@ from liberrpa.UI._UiDict import (
 )
 from liberrpa.UI._SelectorValidation import validate_selector
 from liberrpa.UI._TerminableThread import timeout_kill_thread
+from liberrpa.UI._OperationLock import lock_ui_operation
 from liberrpa.Common._Exception import UiElementNotFoundError, UiOperationError
 from liberrpa.UiInterface import check_exists
 from liberrpa.Basic import delay
@@ -60,6 +61,7 @@ def _close_window(
 
 
 @Log.trace()
+@lock_ui_operation
 def close_window(
     selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
     timeout: int = 10000,
@@ -85,6 +87,7 @@ def close_window(
 
 
 @Log.trace()
+@lock_ui_operation
 def check_window_exists(
     selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
     timeout: int = 10000,
@@ -115,6 +118,7 @@ def check_window_exists(
 
 
 @Log.trace()
+@lock_ui_operation
 def get_active_window() -> SelectorWindow:
     """
     Get the selector of the currently active window.
@@ -134,6 +138,7 @@ def get_active_window() -> SelectorWindow:
 
 
 @Log.trace()
+@lock_ui_operation
 def activate_element_window(selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage) -> None:
     """
     Activate the element's window.
@@ -180,6 +185,7 @@ def _set_window_state(
 
 
 @Log.trace()
+@lock_ui_operation
 def set_window_state(
     selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
     state: Literal["normal", "maximize", "minimize"] = "maximize",
@@ -228,6 +234,7 @@ def _get_window_position_and_size(
 
 
 @Log.trace()
+@lock_ui_operation
 def get_window_position_and_size(
     selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
     timeout: int = 10000,
@@ -281,6 +288,7 @@ def _set_window_position(
 
 
 @Log.trace()
+@lock_ui_operation
 def set_window_position(
     selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
     x: int,
@@ -337,6 +345,7 @@ def _set_window_size(
 
 
 @Log.trace()
+@lock_ui_operation
 def set_window_size(
     selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
     width: int,
@@ -384,6 +393,7 @@ def _get_window_pid(
 
 
 @Log.trace()
+@lock_ui_operation
 def get_window_pid(
     selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
     timeout: int = 10000,
@@ -428,6 +438,7 @@ def _get_window_file_path(
 
 
 @Log.trace()
+@lock_ui_operation
 def get_window_file_path(
     selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
     timeout: int = 10000,
@@ -464,7 +475,21 @@ if __name__ == "__main__":
     timeStart = monotonic()
 
     # close_window(selector=image1)
-    # print(check_window_exists(selector=image1))
+    print(
+        check_window_exists(
+            selector={
+                "window": {
+                    "ProcessName": "notepad.exe",
+                    "FrameworkId": "Win32",
+                    "ControlTypeName": "WindowControl",
+                    "Name": "*New Text Document.txt - Notepad",
+                    "ClassName": "Notepad",
+                },
+                "category": "uia",
+                "specification": [{"ControlTypeName": "EditControl", "Name": "Text Editor", "ClassName": "Edit"}],
+            }
+        )
+    )
     # print(get_active_window())
     # set_window_state(selector=image1, state="minimize")
     # print(get_window_position_and_size(selector=image1))
