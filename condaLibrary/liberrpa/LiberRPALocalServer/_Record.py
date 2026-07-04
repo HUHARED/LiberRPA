@@ -127,7 +127,7 @@ def _create_log_subtitle(folderName: str) -> None:
         Log.error("Log file not found, skipping subtitles.")
         return
 
-    strSubtilePath = str(Path(folderName).joinpath("video_record.srt"))
+    strSubtitlePath = str(Path(folderName).joinpath("video_record.srt"))
 
     strLogTotal = Path(strLogPath).read_text()
     dictLogSeconds: dict[str, list[str]] = {}
@@ -165,7 +165,7 @@ def _create_log_subtitle(folderName: str) -> None:
 
     # print(dictLogSeconds)
 
-    with open(file=strSubtilePath, mode="w", encoding="utf-8") as fileObj:
+    with open(file=strSubtitlePath, mode="w", encoding="utf-8") as fileObj:
         intIndex = 1
         for strTimestamp, listLog in dictLogSeconds.items():
             # Parse time for SRT format
@@ -184,7 +184,7 @@ def _create_log_subtitle(folderName: str) -> None:
 
             intIndex += 1
 
-    Log.debug("Create subtitle: " + strSubtilePath)
+    Log.debug("Create subtitle: " + strSubtitlePath)
 
 
 def _compress_video(folderName: str) -> None:

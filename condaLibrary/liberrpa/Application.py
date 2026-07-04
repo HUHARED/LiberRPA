@@ -40,7 +40,7 @@ def open_url(url: str) -> None:
     Open a file or webpage using the default application.
 
     Parameters:
-        url: The url of the target file or webpage. It may need to start with a protocol (e.g., http:// or https://)
+        url: The URL of the target file or webpage. It may need to start with a protocol (e.g., http:// or https://)
     """
     # NOTE: Use LiberRPA Local Server to run the application. Due to it has the same problem like run_application.
 

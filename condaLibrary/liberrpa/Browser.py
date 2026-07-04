@@ -120,7 +120,7 @@ def open_browser(
             return browserObj
 
         case _:
-            raise ValueError(f"This not a supported browser type: '{browserType}'")
+            raise ValueError(f"This is not a supported browser type: '{browserType}'")
 
 
 @Log.trace()
@@ -168,7 +168,7 @@ def bind_browser(browserType: Literal["chrome"] = "chrome") -> BrowserObj:
             return browserObj
 
         case _:
-            raise ValueError(f"This not a supported browser type: '{browserType}'")
+            raise ValueError(f"This is not a supported browser type: '{browserType}'")
 
 
 @Log.trace()

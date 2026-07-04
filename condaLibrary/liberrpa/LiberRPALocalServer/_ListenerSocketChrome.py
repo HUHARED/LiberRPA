@@ -24,7 +24,7 @@ from typing import Any, cast
 _DEFAULT_CHROME_COMMAND_TIMEOUT_MS = 15000
 _CHROME_RESPONSE_GRACE_MS = 3000
 
-# Record the command be responsed or not, when the command sended to Chrome, create a new key-value pair{id:""}, when Chrome send a result with id, update it to {id:result}, and the function _wait_for_response_by_id() check it, if it's value is not "", means the result returned.
+# Record the command be responded or not, when the command sent to Chrome, create a new key-value pair{id:""}, when Chrome send a result with id, update it to {id:result}, and the function _wait_for_response_by_id() check it, if it's value is not "", means the result returned.
 _dictPendingChromeCommands: dict[str, dict[str, Any] | None] = {}
 
 
@@ -78,7 +78,7 @@ def _get_chrome_response_timeout_ms(dictCommand: dict[str, Any]) -> int:
 
 def _wait_for_response_by_id(commandId: str, dictCommand: dict[str, Any]) -> DictSocketResult:
 
-    # If dictCommand can't be serizlized, return an error result directly.
+    # If dictCommand can't be serialized, return an error result directly.
     try:
         strTemp = json.dumps({"id": commandId, **dictCommand})
     except Exception:
@@ -126,7 +126,7 @@ def handle_result_from_chrome(message: str) -> None:
         Log.error("Ignore Chrome result from an unexpected client.")
         return
 
-    # The result from Chrome must have be serialized correctly, so just deserialize it.
+    # The result from Chrome must have been serialized correctly, so just deserialize it.
     try:
         dictResult: dict[str, Any] = json.loads(message)
     except Exception as e:
@@ -139,5 +139,5 @@ def handle_result_from_chrome(message: str) -> None:
         Log.debug("Update result into dictionary.")
         _dictPendingChromeCommands[strId] = dictResult
     else:
-        # In case Chrome data arrives after Python has treat it as timeout.
+        # In case Chrome data arrives after Python has treated it as timed out.
         Log.warning(f"Ignore a late or unknown Chrome result. commandId={strId}")
