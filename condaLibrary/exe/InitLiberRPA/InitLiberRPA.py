@@ -9,7 +9,6 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
-import re
 import json
 import winreg
 import secrets
@@ -46,6 +45,13 @@ def create_folder_in_documents() -> None:
     print_step_done(name="create_folder_in_documents")
 
 
+def _set_user_environment_variable(name: str, value: str) -> None:
+    """Set a persistent user environment variable and update this process immediately."""
+    subprocess.run(["setx", name, value], check=True)
+    os.environ[name] = value
+    print("[Note] Please restart LiberRPA Editor after initialization so it can read the updated environment variable.")
+
+
 def set_liberrpa_environment() -> None:
     print_step(name="set_liberrpa_environment")
 
@@ -53,63 +59,35 @@ def set_liberrpa_environment() -> None:
 
     if strLiberRPAPath:
         print(
-            f"The current LiberRPA path has be added into User Environment variables is '{strLiberRPAPath}',do you want to replace it into '{pathCwd}'? (Choose 'y' when installing or updating LiberRPA, even if the folder path is unchanged. This refreshes local config files and WebSocket auth tokens, so related local services should be restarted.)"
+            f"The current LiberRPA user environment variable is '{strLiberRPAPath}'.\n"
+            f"Do you want to replace it with '{pathCwd}'?\n"
+            "Choose 'y' when installing or updating LiberRPA, even if the folder path is unchanged. "
+            "This refreshes local config files and WebSocket auth tokens, so related local services should be restarted."
         )
 
         strUserInput = input("(y/other)").strip().lower()
 
         if strUserInput == "y":
-            subprocess.run(["setx", "LiberRPA", str(pathCwd)])
-            print(
-                f"You pressed '{strUserInput}'. The LiberRPA path has be added into User Environment variables '{pathCwd}'"
-            )
-            # Make sure it works immediately.
-            os.environ["LiberRPA"] = str(pathCwd)
+            _set_user_environment_variable(name="LiberRPA", value=str(pathCwd))
+            print(f"You pressed '{strUserInput}'. The LiberRPA user environment variable has been set to '{pathCwd}'.")
 
         else:
             print(f"You pressed '{strUserInput}'. Do nothing.")
             return None
 
     else:
-        subprocess.run(["setx", "LiberRPA", str(pathCwd)])
-        print(f"The LiberRPA path has be added into User Environment variables '{pathCwd}'")
+        _set_user_environment_variable(name="LiberRPA", value=str(pathCwd))
+        print(f"The LiberRPA user environment variable has been set to '{pathCwd}'.")
 
     print_step_done(name="set_liberrpa_environment")
 
     # Do other settings.
-    set_vscode_python_interpreter()
     create_native_messaging_file()
     create_local_auth()
     install_font_for_current_user()
     set_startup()
     put_shortcuts_to_desktop()
     check_Executor_config()
-
-
-def set_vscode_python_interpreter() -> None:
-    print_step(name="set_vscode_python_interpreter")
-
-    pathSettingFile = pathCwd / R"Editor\data\user-data\User\settings.json"
-    print(f"The vscode setting.json's path is '{pathSettingFile}'")
-
-    strOriginal = pathSettingFile.read_text()
-    match = re.search('"python.defaultInterpreterPath": ".*?exe"', strOriginal)
-    if match:
-        strFound = match.group()
-
-        pathPythonInterpreter = pathCwd / R"envs\pyenv\python.exe"
-
-        print(
-            f"Update 'python.defaultInterpreterPath' from \n'{strFound}'\nto\n'\"python.defaultInterpreterPath\": {json.dumps(str(pathPythonInterpreter))}'."
-        )
-        strNew = strOriginal.replace(
-            strFound, f'"python.defaultInterpreterPath": {json.dumps(str(pathPythonInterpreter))}'
-        )
-        pathSettingFile.write_text(data=strNew)
-    else:
-        print("[Error] Have no key 'python.defaultInterpreterPath' in the setting.json!")
-
-    print_step_done(name="set_vscode_python_interpreter")
 
 
 def create_native_messaging_file() -> None:
@@ -124,7 +102,7 @@ def create_native_messaging_file() -> None:
     pathExe = pathCwd / R"exeFiles\ChromeGetLocalServerPort\ChromeGetLocalServerPort.exe"
     dictNM = {
         "name": "com.liberrpa.chrome.msghost",
-        "description": "Chrome call native app and sent message to app.",
+        "description": "Allows the LiberRPA Chrome extension to call the local native app.",
         "path": str(pathExe),
         "type": "stdio",
         "allowed_origins": [
@@ -207,7 +185,8 @@ def check_Executor_config() -> None:
     strSettingFilePath = pathCwd / R"configFiles\Executor.jsonc"
     if Path(strSettingFilePath).is_file():
         print(
-            "[Note] Please check Executor's setting, make sure it suit your needs. (Especially if the current LiberRPA folder is copied from another computer.)"
+            "[Note] Please check the Executor settings and make sure they suit your needs. "
+            "(Especially if the current LiberRPA folder was copied from another computer.)"
         )
     else:
         print("Executor will be initialized when user first open it.")

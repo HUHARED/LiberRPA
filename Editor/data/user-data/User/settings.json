@@ -2,7 +2,7 @@
 {
   // Language settings:
   "[python]": {
-    "editor.defaultFormatter": "ms-python.black-formatter"
+    "editor.defaultFormatter": "charliermarsh.ruff"
   },
   "[snippets]": {
     "editor.defaultFormatter": "vscode.json-language-features"
@@ -54,11 +54,11 @@
   },
 
   // Python-specific settings
-  "python.analysis.completeFunctionParens": false,
+  "python.analysis.completeFunctionParens": true,
   "python.experiments.enabled": false,
   "python.experiments.optOutFrom": ["All"],
   "python.locator": "js",
-  "python.defaultInterpreterPath": "G:\\OneDrive\\LiberRPA\\envs\\pyenv\\python.exe",
+  "python.defaultInterpreterPath": "${env:LiberRPA}\\envs\\pyenv\\python.exe",
 
   // Pylance settings
   "python.analysis.typeCheckingMode": "basic",
@@ -81,7 +81,7 @@
 
   // Workbench settings
   "workbench.colorTheme": "Default Light Modern",
-  "workbench.iconTheme": "vscode-great-icons-with-liberrpa",
+  "workbench.iconTheme": null,
   "workbench.startupEditor": "newUntitledFile",
   "workbench.editorAssociations": {
     "*.png": "imagePreview.previewEditor",
@@ -158,5 +158,7 @@
   "prettier.bracketSameLine": true,
   "prettier.useEditorConfig": false,
 
-  "black-formatter.args": ["--line-length=120"]
+  "ruff.interpreter": ["${env:LiberRPA}\\envs\\pyenv\\python.exe"],
+  "ruff.nativeServer": "on",
+  
 }
