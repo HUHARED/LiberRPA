@@ -29,7 +29,7 @@ _VALID_EXCEL_FILE_TYPES: set[str] = {"xlsx", "xls", "xlsm", "xlsb"}
 class ExcelError(Exception):
     """Custom exception for Excel manipulation"""
 
-    def __init__(self, message: str, *args):
+    def __init__(self, message: str, *args) -> None:
         super().__init__(message, *args)
 
 
@@ -59,7 +59,7 @@ def _check_excel_file_type(path: str) -> TypeOfExcelFile:
     return cast(TypeOfExcelFile, fileType)
 
 
-def _check_edit_mode():
+def _check_edit_mode() -> None:
     try:
         # Ensure Python uses the same COM thread as xlwings
         pythoncom.CoInitialize()
@@ -323,7 +323,7 @@ def activate_window(excelObj: ExcelObj) -> None:
         excelObj: The Excel workbook object.
     """
 
-    def window_enum_handler(hwnd, resultList):
+    def window_enum_handler(hwnd, resultList) -> None:
         if win32gui.IsWindowVisible(hwnd) and win32gui.GetWindowText(hwnd):
             resultList.append((hwnd, win32gui.GetWindowText(hwnd)))
 

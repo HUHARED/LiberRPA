@@ -28,19 +28,19 @@ _INT_TIMEOUT_DEFAULT = 10000
 
 
 @_sioClient.event
-def connect():
+def connect() -> None:
     # log.debug("Connection established")
     pass
 
 
 @_sioClient.event
-def disconnect():
+def disconnect() -> None:
     # log.debug("Disconnected from server")
     pass
 
 
 @_sioClient.event
-def connect_error(data):
+def connect_error(data) -> None:
     Log.error("Connection failed: " + str(data))
 
 
@@ -69,7 +69,7 @@ def send_command(eventName: str, command: dict[str, Any], timeout: int | None = 
     eventResponse = threading.Event()
     dictResponseData: dict[str, DictSocketResult] = {}
 
-    def response_handler(data: DictSocketResult):
+    def response_handler(data: DictSocketResult) -> None:
         Log.verbose(f"Data received from server: {data}")
         dictResponseData["result"] = data
         eventResponse.set()

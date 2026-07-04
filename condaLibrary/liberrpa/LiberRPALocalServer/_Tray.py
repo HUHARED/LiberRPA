@@ -15,14 +15,14 @@ from PIL import Image
 import os
 import threading
 import time
-from typing import Any, Literal
+from typing import Any, Literal, NoReturn
 
 _iconTray: Any | None = None
 _lockTray = threading.Lock()  # Ensure only one logic changes the icon at the same time.
 
 
 @Log.trace()
-def stop_server():
+def stop_server() -> NoReturn:
     Log.critical("Quit the server. _Tray")
     show_notification(title="LiberRPA Local Server", message="Quit.", duration=1, wait=True)
 
@@ -45,7 +45,7 @@ def _load_icon_image(component: Literal["LiberRPALocalServer", "LiberRPALocalSer
 
 
 @Log.trace()
-def setup_tray_icon():
+def setup_tray_icon() -> None:
     global _iconTray
 
     imgIcon = _load_icon_image(component="LiberRPALocalServer")
@@ -77,6 +77,6 @@ def change_tray_icon(component: Literal["LiberRPALocalServer", "LiberRPALocalSer
 
 
 @Log.trace()
-def run_tray():
+def run_tray() -> None:
     threadTray = threading.Thread(target=setup_tray_icon, daemon=True)
     threadTray.start()

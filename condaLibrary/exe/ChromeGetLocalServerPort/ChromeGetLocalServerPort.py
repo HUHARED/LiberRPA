@@ -20,6 +20,7 @@ from liberrpa.Logging import Log
 import json
 import struct
 from liberrpa.Common._BasicConfig import get_basic_config_dict, get_token
+from typing import NoReturn
 
 Log.info("Get port start.")
 
@@ -33,7 +34,7 @@ def send_message(message) -> None:
 
 
 @Log.trace()
-def main():
+def main() -> NoReturn:
     while True:
         length = sys.stdin.buffer.read(4)
         Log.debug(f"length={length}")

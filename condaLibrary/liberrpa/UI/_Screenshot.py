@@ -66,21 +66,21 @@ class ScreenshotCapture(QtWidgets.QWidget):
         if self.origin is not None:
             self.rubberBand.setGeometry(QtCore.QRect(self.origin, event.pos()).normalized())
 
-    def mouseReleaseEvent(self, event: QtGui.QMouseEvent):
+    def mouseReleaseEvent(self, event: QtGui.QMouseEvent) -> None:
         if event.button() == QtCore.Qt.LeftButton:
             self.rubberBand.hide()
             # Capture the rectangle's coordinates
             rect = self.rubberBand.geometry()
             self.save_cropped_image(rect)
 
-    def save_cropped_image(self, rect: QtCore.QRect):
+    def save_cropped_image(self, rect: QtCore.QRect) -> None:
         # Crop the selected region and save it as a PNG
         cropped_pixmap = self.pixmapScreenshot.copy(rect)
         cropped_pixmap.save(os.path.join(SCREENSHOT_DOCUMENTS_PATH, SCREENSHOT_TEMP_NAME), "PNG")
         print(SELECTED_KEYWORD)
         self.close()
 
-    def keyPressEvent(self, event: QtGui.QKeyEvent):
+    def keyPressEvent(self, event: QtGui.QKeyEvent) -> None:
         if event.key() == QtCore.Qt.Key_Escape:
             print("ESC pressed, exiting.")
             self.close()

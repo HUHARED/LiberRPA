@@ -36,7 +36,8 @@ import sys
 from functools import wraps
 import ctypes
 from pathvalidate import sanitize_filepath
-from typing import Any, Literal, cast
+from collections.abc import Callable
+from typing import Any, Literal, cast, ParamSpec, TypeVar
 
 VERBOSE_LEVEL_NUM = 5
 logging.addLevelName(VERBOSE_LEVEL_NUM, "VERBOSE")
@@ -72,8 +73,11 @@ _SET_INTERNAL_FILE = {
     "Trigger.py",
 }
 
+P = ParamSpec("P")
+T = TypeVar("T")
 
-def _find_caller(stack_info=False, stacklevel=2):
+
+def _find_caller(stack_info=False, stacklevel=2) -> tuple[str, int, str, str | None]:
     """
     Find the stack frame of the caller so that we can note the source file name, line number, and function name.
     """
@@ -699,17 +703,20 @@ class Logger:
                     f'The argument level({level}) should be one of ["VERBOSE", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]'
                 )
 
-    def trace(self, level: LogLevel = "DEBUG"):
+    def trace(self, level: LogLevel = "DEBUG") -> Callable[[Callable[P, T]], Callable[P, T]]:
         """
-        This decorator logs the start and end of a function at a specified log level, default is 'DEBUG'
+        Decorate a function to log its start and end at a specified log level.
 
         Parameters:
             level: The level to record log. Must be one of ['VERBOSE', 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'].
+
+        Returns:
+            Callable[[Callable[P, T]], Callable[P, T]]: A decorator that wraps the target function.
         """
 
-        def decorator(func):
+        def decorator(func: Callable[P, T]) -> Callable[P, T]:
             @wraps(func)
-            def wrapper(*args, **kwargs):
+            def wrapper(*args, **kwargs) -> T:
                 boolError = False
                 try:
                     self._trace_call(level=level, prefix="START", funcName=func.__name__)

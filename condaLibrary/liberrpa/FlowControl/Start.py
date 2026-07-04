@@ -8,7 +8,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 # from liberrpa.Logging import Log
 
 
-def main():
+def main() -> None:
     """pass"""
 
 

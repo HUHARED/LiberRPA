@@ -144,7 +144,7 @@ class ProjectArguments:
         elapsedTime (float): The time elapsed since the program started (in seconds).
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         # The path of the current working directory.
         self.projectPath: str = STR_PROJECT_ROOT
         self.projectName: str = Log.strProjectName

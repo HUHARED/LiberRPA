@@ -46,7 +46,7 @@ import pyautogui
 from time import monotonic, sleep
 import threading
 from contextlib import contextmanager
-from collections.abc import Sequence
+from collections.abc import Sequence, Iterator
 
 from typing import cast
 
@@ -59,7 +59,7 @@ Log.verbose(f"Initialize uiautomation in thread: {threading.current_thread().nam
 
 
 @contextmanager
-def holding_modifier_keys(*, pressCtrl=False, pressShift=False, pressAlt=False, pressWin=False):
+def holding_modifier_keys(*, pressCtrl=False, pressShift=False, pressAlt=False, pressWin=False) -> Iterator[None]:
     pressedKeys: list[str] = []
 
     try:

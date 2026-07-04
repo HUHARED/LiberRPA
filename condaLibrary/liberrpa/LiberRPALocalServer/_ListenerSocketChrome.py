@@ -30,7 +30,7 @@ _dictPendingChromeCommands: dict[str, dict[str, Any] | None] = {}
 
 @Log.trace()
 @sioServer.on("chrome_extension_connect")
-def handle_chrome_extension_connect(message: dict[str, str]):
+def handle_chrome_extension_connect(message: dict[str, str]) -> None:
     # Save the Chrome extension's sid for send command to it later, call by Chrome extension.
     clientSid = get_client_id()
     Log.info(f"Chrome connection established. {message}, SID: {clientSid}")

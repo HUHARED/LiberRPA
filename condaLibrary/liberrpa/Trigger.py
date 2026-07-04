@@ -294,7 +294,7 @@ _listenerThread.start()
 
 if __name__ == "__main__":
 
-    def my_function_1():
+    def my_function_1() -> Literal["Done"]:
         print("Triggered function executed!")
         return "Done"
 

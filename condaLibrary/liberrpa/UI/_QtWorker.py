@@ -41,7 +41,7 @@ class RealScreenPrintObj(QMainWindow):
         fontFamily: str = "Noto Sans Mono",
         fontSize: int = 16,
         fontColor: Literal["red", "green", "blue", "yellow", "purple", "pink", "black"] = "red",
-    ):
+    ) -> None:
         super().__init__()
 
         # Check if the specified color is one of the allowed values

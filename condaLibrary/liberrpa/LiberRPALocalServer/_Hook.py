@@ -114,7 +114,7 @@ def hook_in_another_thread() -> None:
 
 
 # The quit command from cmd.
-def signal_handler(sig, frame):
+def signal_handler(sig, frame) -> None:
     Log.critical("Signal received:", sig)
     unhook(source="signal_handler")
     normal_exit()

@@ -275,7 +275,7 @@
     "Log.trace": {
       "prefix": "Log.trace",
       "body": "@Log.trace(level=${1:'DEBUG'})",
-      "description": "This decorator logs the start and end of a function at a specified log level, default is 'DEBUG'\n\nParameters:\n    level: The level to record log. Must be one of ['VERBOSE', 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']."
+      "description": "Decorate a function to log its start and end at a specified log level.\n\nParameters:\n    level: The level to record log. Must be one of ['VERBOSE', 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'].\n\nReturns:\n    Callable[[Callable[P, T]], Callable[P, T]]: A decorator that wraps the target function."
     }
   }
 }
