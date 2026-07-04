@@ -173,14 +173,8 @@ def fetch_one(
 
     Parameters:
         connObj: The active database connection.
-        query: The SQL query to be executed.
-
-            Example: "SELECT * FROM employees WHERE employee_id = :id"
-        params: The parameters to bind to the query.
-
-            This should be a dictionary where the keys correspond to the placeholders in the SQL query (e.g., ":id"). Example: {"id": 1}.
-
-            If no parameters are required, pass None.
+        query: The SQL query to execute. For example: "SELECT * FROM employees WHERE employee_id = :id".
+        params: Parameters to bind to the query. Use a dictionary whose keys match the named placeholders in the SQL query without the leading colon. For example, use {"id": 1} for ":id". If no parameters are required, pass None.
         returnDict: Whether to return the result as a dictionary (True) or list (False).
 
     Returns:
@@ -208,16 +202,8 @@ def fetch_all(
 
     Parameters:
         connObj: The active database connection.
-        query: The SQL query to be executed.
-
-            Example: "SELECT * FROM employees WHERE salary > :salary"
-        params: The parameters to bind to the query.
-
-            This should be a dictionary where the keys correspond to the placeholders in the SQL query (e.g., ":salary").
-
-            Example: {"salary": 50000}.
-
-            If no parameters are required, pass None.
+        query: The SQL query to execute. For example: "SELECT * FROM employees WHERE salary > :salary".
+        params: Parameters to bind to the query. Use a dictionary whose keys match the named placeholders in the SQL query without the leading colon. For example, use {"salary": 50000} for ":salary". If no parameters are required, pass None.
         returnDict: Whether to return the results as dictionaries (True) or lists (False).
 
     Returns:
@@ -237,18 +223,8 @@ def execute(connObj: Connection, query: str, params: list[dict[str, Any]] | dict
 
     Parameters:
         connObj: The active database connection.
-        query: The SQL query to be executed.
-
-            Example: "UPDATE employees SET salary = :salary WHERE employee_id = :id"
-        params: The parameters to bind to the query.
-
-            This can be a single dictionary or a list of dictionaries for bulk operations.
-
-            Example for single operation: {"salary": 55000, "id": 1}.
-
-            Example for bulk operation: [{"salary": 55000, "id": 1}, {"salary": 62000, "id": 2}].
-
-            If no parameters are required, pass None.
+        query: The SQL query to execute. For example: "UPDATE employees SET salary = :salary WHERE employee_id = :id".
+        params: Parameters to bind to the query. Use a single dictionary for one operation, or a list of dictionaries for bulk operations. The dictionary keys should match the named placeholders in the SQL query without the leading colon. For example, use {"salary": 55000, "id": 1} for a single operation, or [{"salary": 55000, "id": 1}, {"salary": 62000, "id": 2}] for bulk operations. If no parameters are required, pass None.
 
     Returns:
         int: The number of rows affected by the query.
