@@ -53,7 +53,7 @@ Supported commands include:
   * goBackward
   * goForward
   * refresh
-  * waitLoadCompleted
+  * waitForLoad
   * navigate
   * openNewTab
   * openNewWindow

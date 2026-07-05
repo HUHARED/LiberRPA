@@ -10,10 +10,10 @@ import { getBasicAttr, getFinalAttr, addIndexForTheLayer } from "./elementAttrFu
 
 export async function focusElement(
   selector: DictLayerHtml[],
-  preExecutionDelay: number = 300
+  preDelay: number = 300
 ): Promise<void> {
   console.log("--focusElement--");
-  const element: HTMLElement = await findElementWithPredelay(selector, preExecutionDelay);
+  const element: HTMLElement = await findElementWithPredelay(selector, preDelay);
 
   element.focus();
 }
@@ -21,10 +21,10 @@ export async function focusElement(
 export async function getParentElementAttr(
   selector: DictLayerHtml[],
   upwardLevel: number = 1,
-  preExecutionDelay: number = 300
+  preDelay: number = 300
 ): Promise<DictFinalAttr> {
   console.log("--getParentAttr--");
-  let element: HTMLElement = await findElementWithPredelay(selector, preExecutionDelay);
+  let element: HTMLElement = await findElementWithPredelay(selector, preDelay);
   for (let index = 0; index < upwardLevel; index++) {
     if (element.parentElement) {
       element = element.parentElement;
@@ -38,10 +38,10 @@ export async function getParentElementAttr(
 
 export async function getChildrenElementAttr(
   selector: DictLayerHtml[],
-  preExecutionDelay: number = 300
+  preDelay: number = 300
 ): Promise<DictFinalAttr[]> {
   console.log("--getChildrenElementAttr--");
-  const element: HTMLElement = await findElementWithPredelay(selector, preExecutionDelay);
+  const element: HTMLElement = await findElementWithPredelay(selector, preDelay);
   const arrChildrenElementAttr: DictFinalAttr[] = [];
   const arrChildrenElement = getHtmlElementChildren(element);
 
@@ -59,11 +59,11 @@ export async function getChildrenElementAttr(
 export async function setCheckState(
   selector: DictLayerHtml[],
   checkAction: "checked" | "unchecked" | "toggle" = "checked",
-  preExecutionDelay: number = 300
+  preDelay: number = 300
 ): Promise<void> {
   console.log("--setCheckState--");
 
-  const element: HTMLElement = await findElementWithPredelay(selector, preExecutionDelay);
+  const element: HTMLElement = await findElementWithPredelay(selector, preDelay);
 
   if (
     element instanceof HTMLInputElement &&
@@ -97,11 +97,11 @@ export async function setCheckState(
 export async function getSelection(
   selector: DictLayerHtml[],
   selectionType: "text" | "value" | "index",
-  preExecutionDelay: number = 300
+  preDelay: number = 300
 ): Promise<string | number> {
   console.log("--getSelection--");
 
-  const element: HTMLElement = await findElementWithPredelay(selector, preExecutionDelay);
+  const element: HTMLElement = await findElementWithPredelay(selector, preDelay);
 
   if (!(element instanceof HTMLSelectElement)) {
     throw new Error("The target element is not a <select> element.");
@@ -128,7 +128,7 @@ export async function setSelection(
   text: string | null,
   value: string | null,
   index: number | null,
-  preExecutionDelay: number = 300
+  preDelay: number = 300
 ): Promise<void> {
   console.log("--setSelection--");
 
@@ -140,7 +140,7 @@ export async function setSelection(
     );
   }
 
-  const element: HTMLElement = await findElementWithPredelay(selector, preExecutionDelay);
+  const element: HTMLElement = await findElementWithPredelay(selector, preDelay);
 
   if (!(element instanceof HTMLSelectElement)) {
     throw new Error("The target element is not a <select> element.");

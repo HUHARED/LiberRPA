@@ -15,10 +15,10 @@ export async function clickMouseEvent(
   pressShift: boolean = false,
   pressAlt: boolean = false,
   pressWin: boolean = false,
-  preExecutionDelay: number = 300
+  preDelay: number = 300
 ): Promise<void> {
   console.log("--clickMouseEvent--");
-  const element: HTMLElement = await findElementWithPredelay(selector, preExecutionDelay);
+  const element: HTMLElement = await findElementWithPredelay(selector, preDelay);
 
   let clickModeForEvent: string;
   switch (clickMode) {

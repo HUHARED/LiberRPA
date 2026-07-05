@@ -32,29 +32,29 @@ interface DictCommandRefresh {
   commandName: "refresh";
 }
 
-interface DictCommandWaitLoadCompleted {
-  commandName: "waitLoadCompleted";
+interface DictCommandwaitForLoad {
+  commandName: "waitForLoad";
   timeout: number;
 }
 
 interface DictCommandNavigate {
   commandName: "navigate";
   url: string;
-  waitLoadCompleted: boolean;
+  waitForLoad: boolean;
   timeout: number;
 }
 
 interface DictCommandOpenNewTab {
   commandName: "openNewTab";
   url: string;
-  waitLoadCompleted: boolean;
+  waitForLoad: boolean;
   timeout: number;
 }
 
 interface DictCommandOpenNewWindow {
   commandName: "openNewWindow";
   url: string;
-  waitLoadCompleted: boolean;
+  waitForLoad: boolean;
   timeout: number;
 }
 
@@ -98,7 +98,7 @@ type DictCommandBackground =
   | DictCommandGoBackward
   | DictCommandGoForward
   | DictCommandRefresh
-  | DictCommandWaitLoadCompleted
+  | DictCommandwaitForLoad
   | DictCommandNavigate
   | DictCommandOpenNewTab
   | DictCommandOpenNewWindow

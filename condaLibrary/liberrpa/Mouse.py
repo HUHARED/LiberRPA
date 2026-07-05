@@ -109,8 +109,8 @@ def _click_element(
     pressWin: bool = False,
     duration: int = 0,
     timeout: int = 10000,
-    preExecutionDelay: int = 300,
-    postExecutionDelay: int = 200,
+    preDelay: int = 300,
+    postDelay: int = 200,
 ) -> None:
     _check_mouse_button(button=button)
     _check_mouse_click_mode(clickMode=clickMode)
@@ -138,10 +138,10 @@ def _click_element(
             pressShift=pressShift,
             pressAlt=pressAlt,
             pressWin=pressWin,
-            preExecutionDelay=preExecutionDelay,
+            preDelay=preDelay,
             timeout=timeout,
         )
-        delay(postExecutionDelay)
+        delay(postDelay)
         return None
 
     if selector.get("category") == "image" and executionMode != "simulate":
@@ -149,7 +149,7 @@ def _click_element(
 
     # The simulate click, and uia api click.
 
-    uiTarget, dictTarget = _UiElement.get_element_with_pre_delay(selector=selector, preExecutionDelay=preExecutionDelay)
+    uiTarget, dictTarget = _UiElement.get_element_with_pre_delay(selector=selector, preDelay=preDelay)
 
     dictCoordinates = _get_5_coordinates(dictAttr=dictTarget)
 
@@ -222,7 +222,7 @@ def _click_element(
                     f"selector: {selector}"
                 )
 
-    delay(postExecutionDelay)
+    delay(postDelay)
 
 
 @Log.trace()
@@ -241,8 +241,8 @@ def click_element(
     pressWin: bool = False,
     duration: int = 0,
     timeout: int = 10000,
-    preExecutionDelay: int = 300,
-    postExecutionDelay: int = 200,
+    preDelay: int = 300,
+    postDelay: int = 200,
 ) -> None:
     """
     Click an element.
@@ -261,8 +261,8 @@ def click_element(
         pressWin: If True, holds the Windows key during the click.
         duration: Time to move the mouse to the target position (in milliseconds). If it is 0, it moves to "position" immediately.
         timeout: Maximum time allowed for normal completion, in milliseconds. Values below 3000 are treated as 3000. The actual elapsed time may be longer if LiberRPA enters its hard-timeout fallback before raising a timeout-related exception.
-        preExecutionDelay: Time to wait before performing the action, in milliseconds.
-        postExecutionDelay: Time to wait after performing the action, in milliseconds.
+        preDelay: Time to wait before performing the action, in milliseconds.
+        postDelay: Time to wait after performing the action, in milliseconds.
     """
     timeout = _UiElement.check_set_timeout(timeout=timeout)
 
@@ -280,8 +280,8 @@ def click_element(
         pressWin,
         duration,
         timeout,
-        preExecutionDelay,
-        postExecutionDelay,
+        preDelay,
+        postDelay,
     )
 
 
@@ -291,13 +291,13 @@ def _move_to_element(
     offsetY: int = 0,
     position: FivePosition = "center",
     duration: int = 0,
-    preExecutionDelay: int = 300,
-    postExecutionDelay: int = 200,
+    preDelay: int = 300,
+    postDelay: int = 200,
 ) -> None:
 
     _check_five_position(position=position)
 
-    _, dictTarget = _UiElement.get_element_with_pre_delay(selector=selector, preExecutionDelay=preExecutionDelay)
+    _, dictTarget = _UiElement.get_element_with_pre_delay(selector=selector, preDelay=preDelay)
 
     dictCoordinates = _get_5_coordinates(dictAttr=dictTarget)
     # Use pyautogui
@@ -307,7 +307,7 @@ def _move_to_element(
         duration=duration / 1000,
     )
 
-    delay(postExecutionDelay)
+    delay(postDelay)
 
 
 @Log.trace()
@@ -319,8 +319,8 @@ def move_to_element(
     position: FivePosition = "center",
     duration: int = 0,
     timeout: int = 10000,
-    preExecutionDelay: int = 300,
-    postExecutionDelay: int = 200,
+    preDelay: int = 300,
+    postDelay: int = 200,
 ) -> None:
     """
     Move to element.
@@ -332,8 +332,8 @@ def move_to_element(
         position: Specifies where on the element to click. Options are "center", "top_left", "top_right", "bottom_left", and "bottom_right". It will only work if executionMode is "simulate".
         duration: Time to move the mouse to the target position (in milliseconds). If it is 0, it moves to "position" immediately.
         timeout: Maximum time allowed for normal completion, in milliseconds. Values below 3000 are treated as 3000. The actual elapsed time may be longer if LiberRPA enters its hard-timeout fallback before raising a timeout-related exception.
-        preExecutionDelay: Time to wait before performing the action, in milliseconds.
-        postExecutionDelay: Time to wait after performing the action, in milliseconds.
+        preDelay: Time to wait before performing the action, in milliseconds.
+        postDelay: Time to wait after performing the action, in milliseconds.
     """
     timeout = _UiElement.check_set_timeout(timeout=timeout)
     return timeout_kill_thread(timeout=timeout)(_move_to_element)(
@@ -342,8 +342,8 @@ def move_to_element(
         offsetY,
         position,
         duration,
-        preExecutionDelay,
-        postExecutionDelay,
+        preDelay,
+        postDelay,
     )
 
 
@@ -356,8 +356,8 @@ def click(
     pressShift: bool = False,
     pressAlt: bool = False,
     pressWin: bool = False,
-    preExecutionDelay: int = 300,
-    postExecutionDelay: int = 200,
+    preDelay: int = 300,
+    postDelay: int = 200,
 ) -> None:
     """
     Mouse click.
@@ -369,13 +369,13 @@ def click(
         pressShift: If True, holds the Shift key during the click.
         pressAlt: If True, holds the Alt key during the click.
         pressWin: If True, holds the Windows key during the click.
-        preExecutionDelay: Time to wait before performing the action, in milliseconds.
-        postExecutionDelay: Time to wait after performing the action, in milliseconds.
+        preDelay: Time to wait before performing the action, in milliseconds.
+        postDelay: Time to wait after performing the action, in milliseconds.
     """
     _check_mouse_button(button=button)
     _check_mouse_click_mode(clickMode=clickMode)
 
-    delay(preExecutionDelay)
+    delay(preDelay)
 
     with _UiElement.holding_modifier_keys(
         pressCtrl=pressCtrl,
@@ -393,7 +393,7 @@ def click(
             case "up":
                 pyautogui.mouseUp(button=button)
 
-    delay(postExecutionDelay)
+    delay(postDelay)
 
 
 @Log.trace()
@@ -403,8 +403,8 @@ def move_cursor(
     y: int = 0,
     duration: int = 0,
     relative: bool = True,
-    preExecutionDelay: int = 300,
-    postExecutionDelay: int = 200,
+    preDelay: int = 300,
+    postDelay: int = 200,
 ) -> None:
     """
     Move mouse.
@@ -414,10 +414,10 @@ def move_cursor(
         y: The y-coordinate or vertical offset (if relative is True) for the cursor's destination.
         duration: Time to move the mouse to the target position (in milliseconds). If it is 0, it moves to target position immediately.
         relative: If True, the x and y coordinates are treated as offsets from the current cursor position. If False, they are treated as absolute screen coordinates.
-        preExecutionDelay: Time to wait before performing the action, in milliseconds.
-        postExecutionDelay: Time to wait after performing the action, in milliseconds.
+        preDelay: Time to wait before performing the action, in milliseconds.
+        postDelay: Time to wait after performing the action, in milliseconds.
     """
-    delay(preExecutionDelay)
+    delay(preDelay)
 
     if relative:
         position = get_mouse_position()
@@ -428,7 +428,7 @@ def move_cursor(
         )
     else:
         pyautogui.moveTo(x=x, y=y, duration=duration / 1000)
-    delay(postExecutionDelay)
+    delay(postDelay)
 
 
 @Log.trace()
@@ -440,8 +440,8 @@ def scroll_wheel(
     pressShift: bool = False,
     pressAlt: bool = False,
     pressWin: bool = False,
-    preExecutionDelay: int = 300,
-    postExecutionDelay: int = 200,
+    preDelay: int = 300,
+    postDelay: int = 200,
 ) -> None:
     """
     Make the mouse scroll down or up.
@@ -453,13 +453,13 @@ def scroll_wheel(
         pressShift: If True, holds the Shift key during the scroll.
         pressAlt: If True, holds the Alt key during the scroll.
         pressWin: If True, holds the Windows key during the scroll.
-        preExecutionDelay: Time to wait before performing the action, in milliseconds.
-        postExecutionDelay: Time to wait after performing the action, in milliseconds.
+        preDelay: Time to wait before performing the action, in milliseconds.
+        postDelay: Time to wait after performing the action, in milliseconds.
     """
     if direction not in ["down", "up"]:
         raise ValueError(f"The argument direction({direction}) should be one of {['down', 'up']}")
 
-    delay(preExecutionDelay)
+    delay(preDelay)
 
     with _UiElement.holding_modifier_keys(
         pressCtrl=pressCtrl,
@@ -481,7 +481,7 @@ def scroll_wheel(
             case _:
                 raise ValueError(f"The argument direction({direction}) should be 'down' or 'up'.")
 
-    delay(postExecutionDelay)
+    delay(postDelay)
 
 
 if __name__ == "__main__":
@@ -495,8 +495,8 @@ if __name__ == "__main__":
     move_to_element(
         selector=selector,
         timeout=10000,
-        preExecutionDelay=300,
-        postExecutionDelay=200,
+        preDelay=300,
+        postDelay=200,
         offsetX=0,
         offsetY=0,
         position="center",
@@ -517,14 +517,14 @@ if __name__ == "__main__":
         pressWin=False,
         duration=0,
         timeout=10000,
-        preExecutionDelay=300,
-        postExecutionDelay=200,
+        preDelay=300,
+        postDelay=200,
     ) """
     """ move_to_element(
         selector=image1,
         timeout=10000,
-        preExecutionDelay=300,
-        postExecutionDelay=200,
+        preDelay=300,
+        postDelay=200,
         offsetX=0,
         offsetY=0,
         position="top_left",

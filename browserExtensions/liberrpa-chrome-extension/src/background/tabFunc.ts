@@ -117,8 +117,8 @@ export async function refresh(): Promise<DictResultOriginal> {
   return result;
 }
 
-export async function waitLoadCompleted(timeout: number): Promise<DictResultOriginal> {
-  console.log("--waitLoadCompleted--");
+export async function waitForLoad(timeout: number): Promise<DictResultOriginal> {
+  console.log("--waitForLoad--");
 
   return new Promise<DictResultOriginal>((resolve, reject) => {
     let timeUsed = 0;
@@ -161,7 +161,7 @@ export async function waitLoadCompleted(timeout: number): Promise<DictResultOrig
 
 export async function navigate(
   url: string,
-  shouldWaitLoadCompleted: boolean,
+  shouldwaitForLoad: boolean,
   timeout: number
 ): Promise<DictResultOriginal> {
   console.log("--navigate--");
@@ -169,8 +169,8 @@ export async function navigate(
   const tabId = await getActiveCommonWebPageTabId();
   await chrome.tabs.update(tabId, { url: url });
 
-  if (shouldWaitLoadCompleted) {
-    await waitLoadCompleted(timeout);
+  if (shouldwaitForLoad) {
+    await waitForLoad(timeout);
   }
 
   const result: DictResultOriginal = {
@@ -182,15 +182,15 @@ export async function navigate(
 
 export async function openNewTab(
   url: string,
-  shouldWaitLoadCompleted: boolean,
+  shouldwaitForLoad: boolean,
   timeout: number
 ): Promise<DictResultOriginal> {
   console.log("--openNewTab--");
 
   await chrome.tabs.create({ url: url });
 
-  if (shouldWaitLoadCompleted) {
-    await waitLoadCompleted(timeout);
+  if (shouldwaitForLoad) {
+    await waitForLoad(timeout);
   }
 
   const result: DictResultOriginal = {
@@ -202,15 +202,15 @@ export async function openNewTab(
 
 export async function openNewWindow(
   url: string,
-  shouldWaitLoadCompleted: boolean,
+  shouldwaitForLoad: boolean,
   timeout: number
 ): Promise<DictResultOriginal> {
   console.log("--openNewWindow--");
 
   await chrome.windows.create({ url: url });
 
-  if (shouldWaitLoadCompleted) {
-    await waitLoadCompleted(timeout);
+  if (shouldwaitForLoad) {
+    await waitForLoad(timeout);
   }
 
   const result: DictResultOriginal = {

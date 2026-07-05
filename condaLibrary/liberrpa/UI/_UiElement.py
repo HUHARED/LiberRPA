@@ -380,16 +380,16 @@ def get_element(
 
 def get_element_with_pre_delay(
     selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
-    preExecutionDelay: int = 300,
+    preDelay: int = 300,
 ) -> tuple[uiautomation.Control, DictUiaAttr] | tuple[None, DictHtmlAttr] | tuple[None, DictImageAttr]:
-    """Calculate the time-consuming of get element, if it's more than preExecutionDelay, didn't need to delay."""
+    """Calculate the time-consuming of get element, if it's more than preDelay, didn't need to delay."""
 
     timeStart = monotonic()
     temp = get_element(selector=selector)
     # log.debug(temp)
     timeUsed = (monotonic() - timeStart) * 1000
-    if timeUsed < preExecutionDelay:
-        delay(preExecutionDelay - int(timeUsed))
+    if timeUsed < preDelay:
+        delay(preDelay - int(timeUsed))
 
     return temp
 

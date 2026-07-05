@@ -52,7 +52,7 @@ def click_mouse_event(
     pressShift: bool = False,
     pressAlt: bool = False,
     pressWin: bool = False,
-    preExecutionDelay: int = 300,
+    preDelay: int = 300,
     timeout: int = 10000,
 ) -> None:
     dictCommand: dict[str, Any] = {
@@ -64,7 +64,7 @@ def click_mouse_event(
         "pressShift": pressShift,
         "pressAlt": pressAlt,
         "pressWin": pressWin,
-        "preExecutionDelay": preExecutionDelay,
+        "preDelay": preDelay,
         "timeout": timeout,
     }
     send_command(eventName="chrome_command", command=dictCommand, timeout=timeout)
@@ -73,18 +73,18 @@ def click_mouse_event(
 def set_element_text(
     htmlSelector: list[DictSpecHtml],
     text: str,
-    emptyOriginalText: bool = False,
-    validateWrittenText: bool = False,
-    preExecutionDelay: int = 300,
+    clearBeforeWrite: bool = False,
+    validateText: bool = False,
+    preDelay: int = 300,
     timeout: int = 10000,
 ) -> None:
     dictCommand: dict[str, Any] = {
         "commandName": "setElementText",
         "htmlSelector": htmlSelector,
         "text": text,
-        "emptyOriginalText": emptyOriginalText,
-        "validateWrittenText": validateWrittenText,
-        "preExecutionDelay": preExecutionDelay,
+        "clearBeforeWrite": clearBeforeWrite,
+        "validateText": validateText,
+        "preDelay": preDelay,
         "timeout": timeout,
     }
     send_command(eventName="chrome_command", command=dictCommand, timeout=timeout)
@@ -92,13 +92,13 @@ def set_element_text(
 
 def focus_element(
     htmlSelector: list[DictSpecHtml],
-    preExecutionDelay: int = 300,
+    preDelay: int = 300,
     timeout: int = 10000,
 ) -> None:
     dictCommand: dict[str, Any] = {
         "commandName": "focusElement",
         "htmlSelector": htmlSelector,
-        "preExecutionDelay": preExecutionDelay,
+        "preDelay": preDelay,
         "timeout": timeout,
     }
     send_command(eventName="chrome_command", command=dictCommand, timeout=timeout)
@@ -107,7 +107,7 @@ def focus_element(
 def get_parent_element_attr(
     htmlSelector: list[DictSpecHtml],
     upwardLevel: int = 1,
-    preExecutionDelay: int = 300,
+    preDelay: int = 300,
     timeout: int = 10000,
 ) -> list[DictSpecHtml]:
 
@@ -115,7 +115,7 @@ def get_parent_element_attr(
         "commandName": "getParentElementAttr",
         "htmlSelector": htmlSelector,
         "upwardLevel": upwardLevel,
-        "preExecutionDelay": preExecutionDelay,
+        "preDelay": preDelay,
         "timeout": timeout,
     }
     dictParentAttr: DictHtmlAttr = send_command(eventName="chrome_command", command=dictCommand, timeout=timeout)
@@ -145,14 +145,14 @@ def get_parent_element_attr(
 
 def get_children_element_attr(
     htmlSelector: list[DictSpecHtml],
-    preExecutionDelay: int = 300,
+    preDelay: int = 300,
     timeout: int = 10000,
 ) -> list[DictSpecHtml]:
 
     dictCommand: dict[str, Any] = {
         "commandName": "getChildrenElementAttr",
         "htmlSelector": htmlSelector,
-        "preExecutionDelay": preExecutionDelay,
+        "preDelay": preDelay,
         "timeout": timeout,
     }
     listChildrenAttr: list[DictHtmlAttr] = send_command(
@@ -188,14 +188,14 @@ def get_children_element_attr(
 def set_check_state(
     htmlSelector: list[DictSpecHtml],
     checkAction: Literal["checked", "unchecked", "toggle"] = "checked",
-    preExecutionDelay: int = 300,
+    preDelay: int = 300,
     timeout: int = 10000,
 ) -> None:
     dictCommand: dict[str, Any] = {
         "commandName": "setCheckState",
         "checkAction": checkAction,
         "htmlSelector": htmlSelector,
-        "preExecutionDelay": preExecutionDelay,
+        "preDelay": preDelay,
         "timeout": timeout,
     }
     send_command(eventName="chrome_command", command=dictCommand, timeout=timeout)
@@ -204,14 +204,14 @@ def set_check_state(
 def get_selection(
     htmlSelector: list[DictSpecHtml],
     selectionType: Literal["text", "value", "index"] = "text",
-    preExecutionDelay: int = 300,
+    preDelay: int = 300,
     timeout: int = 10000,
 ) -> str | int:
     dictCommand: dict[str, Any] = {
         "commandName": "getSelection",
         "htmlSelector": htmlSelector,
         "selectionType": selectionType,
-        "preExecutionDelay": preExecutionDelay,
+        "preDelay": preDelay,
         "timeout": timeout,
     }
     result: str | int = send_command(eventName="chrome_command", command=dictCommand, timeout=timeout)
@@ -223,7 +223,7 @@ def set_selection(
     text: str | None = None,
     value: str | None = None,
     index: int | None = None,
-    preExecutionDelay: int = 300,
+    preDelay: int = 300,
     timeout: int = 10000,
 ) -> None:
     dictCommand: dict[str, Any] = {
@@ -232,7 +232,7 @@ def set_selection(
         "text": text,
         "value": value,
         "index": index,
-        "preExecutionDelay": preExecutionDelay,
+        "preDelay": preDelay,
         "timeout": timeout,
     }
     send_command(eventName="chrome_command", command=dictCommand, timeout=timeout)

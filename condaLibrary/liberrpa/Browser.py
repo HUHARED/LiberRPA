@@ -271,7 +271,7 @@ def wait_load_completed(browserObj: BrowserObj, timeout: int = 30000) -> None:
 
     match browserObj.browserType:
         case "chrome":
-            send_command(eventName="chrome_command", command={"commandName": "waitLoadCompleted", "timeout": timeout})
+            send_command(eventName="chrome_command", command={"commandName": "waitForLoad", "timeout": timeout})
 
         case _:
             raise ValueError(
@@ -287,7 +287,7 @@ def _check_url(url: str) -> None:
 
 
 @Log.trace()
-def navigate(browserObj: BrowserObj, url: str, waitLoadCompleted: bool = False, timeout: int = 30000) -> None:
+def navigate(browserObj: BrowserObj, url: str, waitForLoad: bool = False, timeout: int = 30000) -> None:
     """
     Navigate the active tab to a specified url.
     The url should starts with a protocol, such as http:// or https://
@@ -295,8 +295,8 @@ def navigate(browserObj: BrowserObj, url: str, waitLoadCompleted: bool = False, 
     Parameters:
         browserObj: The browser object to manipulate.
         url: The URL to navigate to. It should starts with a protocol, such as http:// or https://
-        waitLoadCompleted: If True, waits for the page load to complete before returning.
-        timeout: The maximum time (in milliseconds) to wait for the page load to complete, applicable only if waitLoadCompleted is True.
+        waitForLoad: If True, waits for the page load to complete before returning.
+        timeout: The maximum time (in milliseconds) to wait for the page load to complete, applicable only if waitForLoad is True.
     """
 
     _check_url(url=url)
@@ -308,7 +308,7 @@ def navigate(browserObj: BrowserObj, url: str, waitLoadCompleted: bool = False, 
                 command={
                     "commandName": "navigate",
                     "url": url,
-                    "waitLoadCompleted": waitLoadCompleted,
+                    "waitForLoad": waitForLoad,
                     "timeout": timeout,
                 },
             )
@@ -321,7 +321,7 @@ def navigate(browserObj: BrowserObj, url: str, waitLoadCompleted: bool = False, 
 
 
 @Log.trace()
-def open_new_tab(browserObj: BrowserObj, url: str, waitLoadCompleted: bool = False, timeout: int = 30000) -> None:
+def open_new_tab(browserObj: BrowserObj, url: str, waitForLoad: bool = False, timeout: int = 30000) -> None:
     """
     Create a new tab to open a specified url.
     The url should starts with a protocol, such as http:// or https://
@@ -329,8 +329,8 @@ def open_new_tab(browserObj: BrowserObj, url: str, waitLoadCompleted: bool = Fal
     Parameters:
         browserObj: The browser object to manipulate.
         url: The URL to access. It should starts with a protocol, such as http:// or https://
-        waitLoadCompleted: If True, waits for the page load to complete before returning.
-        timeout: The maximum time in milliseconds to wait for the page load to complete, applicable only if waitLoadCompleted is True.
+        waitForLoad: If True, waits for the page load to complete before returning.
+        timeout: The maximum time in milliseconds to wait for the page load to complete, applicable only if waitForLoad is True.
     """
 
     _check_url(url=url)
@@ -342,7 +342,7 @@ def open_new_tab(browserObj: BrowserObj, url: str, waitLoadCompleted: bool = Fal
                 command={
                     "commandName": "openNewTab",
                     "url": url,
-                    "waitLoadCompleted": waitLoadCompleted,
+                    "waitForLoad": waitForLoad,
                     "timeout": timeout,
                 },
             )
@@ -355,7 +355,7 @@ def open_new_tab(browserObj: BrowserObj, url: str, waitLoadCompleted: bool = Fal
 
 
 @Log.trace()
-def open_new_window(browserObj: BrowserObj, url: str, waitLoadCompleted: bool = False, timeout: int = 30000) -> None:
+def open_new_window(browserObj: BrowserObj, url: str, waitForLoad: bool = False, timeout: int = 30000) -> None:
     """
     Create a new browser window to open a specified url.
     The url should starts with a protocol, such as http:// or https://
@@ -363,8 +363,8 @@ def open_new_window(browserObj: BrowserObj, url: str, waitLoadCompleted: bool = 
     Parameters:
         browserObj: The browser object to manipulate.
         url: The URL to access. It should starts with a protocol, such as http:// or https://
-        waitLoadCompleted: If True, waits for the page load to complete before returning.
-        timeout: The maximum time in milliseconds to wait for the page load to complete, applicable only if waitLoadCompleted is True.
+        waitForLoad: If True, waits for the page load to complete before returning.
+        timeout: The maximum time in milliseconds to wait for the page load to complete, applicable only if waitForLoad is True.
     """
 
     _check_url(url=url)
@@ -376,7 +376,7 @@ def open_new_window(browserObj: BrowserObj, url: str, waitLoadCompleted: bool = 
                 command={
                     "commandName": "openNewWindow",
                     "url": url,
-                    "waitLoadCompleted": waitLoadCompleted,
+                    "waitForLoad": waitForLoad,
                     "timeout": timeout,
                 },
             )
@@ -808,8 +808,8 @@ if __name__ == "__main__":
     # # go_backward(browserObj=browserObj)
     # # go_forward(browserObj=browserObj)
 
-    # # open_new_tab(browserObj=browserObj, url="https://www.reddit.com/", waitLoadCompleted=True, timeout=2000)
-    # # open_new_window(browserObj=browserObj, url="https://www.reddit.com/", waitLoadCompleted=True, timeout=2000)
+    # # open_new_tab(browserObj=browserObj, url="https://www.reddit.com/", waitForLoad=True, timeout=2000)
+    # # open_new_window(browserObj=browserObj, url="https://www.reddit.com/", waitForLoad=True, timeout=2000)
     # # switch_tab(browserObj=browserObj,titleOrIndex=1)
     # # close_current_tab(browserObj=browserObj)
     # # log.info(get_source_code(browserObj=browserObj))

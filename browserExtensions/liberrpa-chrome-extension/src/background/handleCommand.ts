@@ -32,7 +32,7 @@ import {
   goBackward,
   goForward,
   refresh,
-  waitLoadCompleted,
+  waitForLoad,
   navigate,
   openNewTab,
   openNewWindow,
@@ -99,27 +99,27 @@ async function handleCommandCore(
     case "refresh":
       return await refresh();
 
-    case "waitLoadCompleted":
-      return await waitLoadCompleted(dictCommand.timeout);
+    case "waitForLoad":
+      return await waitForLoad(dictCommand.timeout);
 
     case "navigate":
       return await navigate(
         dictCommand.url,
-        dictCommand.waitLoadCompleted,
+        dictCommand.waitForLoad,
         dictCommand.timeout
       );
 
     case "openNewTab":
       return await openNewTab(
         dictCommand.url,
-        dictCommand.waitLoadCompleted,
+        dictCommand.waitForLoad,
         dictCommand.timeout
       );
 
     case "openNewWindow":
       return await openNewWindow(
         dictCommand.url,
-        dictCommand.waitLoadCompleted,
+        dictCommand.waitForLoad,
         dictCommand.timeout
       );
 

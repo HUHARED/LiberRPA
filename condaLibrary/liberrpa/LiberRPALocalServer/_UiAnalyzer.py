@@ -499,8 +499,8 @@ def validate(selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorIma
                 color="red",
                 duration=2000,
                 timeout=timeout * 1000,
-                preExecutionDelay=0,
-                postExecutionDelay=0,
+                preDelay=0,
+                postDelay=0,
             )
         else:
             """If use highlight() directly, image file will be moved to LiberRPALocalServer/screenshot. So create a function similar with _UiElement.get_element but not move file."""

@@ -206,7 +206,7 @@ export type ClickMode = "single_click" | "double_click" | "down" | "up";
 
 interface DictCommonAttribute {
   htmlSelector: DictLayerHtml[];
-  preExecutionDelay: number;
+  preDelay: number;
   timeout: number;
 }
 
@@ -223,8 +223,8 @@ type DictCommandClickMouseEvent = DictCommonAttribute & {
 type DictCommandSetElementText = DictCommonAttribute & {
   commandName: "setElementText";
   text: string;
-  emptyOriginalText: boolean;
-  validateWrittenText: boolean;
+  clearBeforeWrite: boolean;
+  validateText: boolean;
 };
 
 type DictCommandFocusElement = DictCommonAttribute & {

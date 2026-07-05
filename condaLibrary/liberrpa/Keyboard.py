@@ -87,13 +87,13 @@ def _simulate_write(text: str, interval: int = 0) -> None:
 def _write_text(
     text: str,
     executionMode: ExecutionMode = "api",
-    preExecutionDelay: int = 300,
-    postExecutionDelay: int = 200,
+    preDelay: int = 300,
+    postDelay: int = 200,
 ) -> None:
 
     _UiElement.check_execution_type(executionMode=executionMode)
 
-    delay(preExecutionDelay)
+    delay(preDelay)
 
     match executionMode:
         case "api":
@@ -127,7 +127,7 @@ def _write_text(
         case "simulate":
             _simulate_write(text=text, interval=0)
 
-    delay(postExecutionDelay)
+    delay(postDelay)
 
 
 @Log.trace()
@@ -136,8 +136,8 @@ def write_text(
     text: str,
     executionMode: ExecutionMode = "api",
     timeout: int = 10000,
-    preExecutionDelay: int = 300,
-    postExecutionDelay: int = 200,
+    preDelay: int = 300,
+    postDelay: int = 200,
 ) -> None:
     """
     Write text in the current element focused.
@@ -146,16 +146,16 @@ def write_text(
         text: The text to be written.
         executionMode: Options are "simulate" and "api". "simulate" may be affected by IME(Input Method Editor) or CapsLock, while "api" can input more characters more reliably.
         timeout: Maximum time allowed for normal completion, in milliseconds. Values below 3000 are treated as 3000. The actual elapsed time may be longer if LiberRPA enters its hard-timeout fallback before raising a timeout-related exception.
-        preExecutionDelay: Time to wait before performing the action, in milliseconds.
-        postExecutionDelay: Time to wait after performing the action, in milliseconds.
+        preDelay: Time to wait before performing the action, in milliseconds.
+        postDelay: Time to wait after performing the action, in milliseconds.
     """
     timeout = _UiElement.check_set_timeout(timeout=timeout)
 
     return timeout_kill_thread(timeout=timeout)(_write_text)(
         text,
         executionMode,
-        preExecutionDelay,
-        postExecutionDelay,
+        preDelay,
+        postDelay,
     )
 
 
@@ -192,18 +192,18 @@ def _write_text_into_element(
     text: str,
     executionMode: ExecutionMode = "api",
     interval: int = 10,
-    emptyOriginalText: bool = False,
-    validateWrittenText: bool = False,
+    clearBeforeWrite: bool = False,
+    validateText: bool = False,
     timeout: int = 10000,
-    preExecutionDelay: int = 300,
-    postExecutionDelay: int = 200,
+    preDelay: int = 300,
+    postDelay: int = 200,
 ) -> None:
     _UiElement.check_execution_type(executionMode=executionMode)
 
     if selector.get("category") == "image":
         raise UiOperationError("Not support writing text into an image element.")
 
-    if selector.get("category") == "html" and executionMode == "simulate" and validateWrittenText:
+    if selector.get("category") == "html" and executionMode == "simulate" and validateText:
         # Even html element can get text, but its logic here is too complex and takes more time.
         raise UiOperationError("Not support validating text to an html element by simulate mode.")
 
@@ -212,17 +212,17 @@ def _write_text_into_element(
         set_element_text(
             htmlSelector=as_selector_html(selector=selector)["specification"],
             text=text,
-            emptyOriginalText=emptyOriginalText,
-            validateWrittenText=validateWrittenText,
-            preExecutionDelay=preExecutionDelay,
+            clearBeforeWrite=clearBeforeWrite,
+            validateText=validateText,
+            preDelay=preDelay,
             timeout=timeout,
         )
-        delay(postExecutionDelay)
+        delay(postDelay)
         return None
 
     uiTarget, dictTarget = _UiElement.get_element_with_pre_delay(
         selector=selector,
-        preExecutionDelay=preExecutionDelay,
+        preDelay=preDelay,
     )
 
     match executionMode:
@@ -244,12 +244,12 @@ def _write_text_into_element(
                 )
 
             strOldText = "" if pattern.Value is None else str(pattern.Value)
-            strTargetText = text if emptyOriginalText else strOldText + text
+            strTargetText = text if clearBeforeWrite else strOldText + text
 
             if not pattern.SetValue(strTargetText):
                 raise UiOperationError(f"Failed to set text by ValuePattern. selector: {selector}")
 
-            if validateWrittenText:
+            if validateText:
                 strWrittenText = "" if pattern.Value is None else str(pattern.Value)
 
                 if _normalize_written_text(strWrittenText) != _normalize_written_text(strTargetText):
@@ -257,7 +257,7 @@ def _write_text_into_element(
                         f"The written text ({json.dumps(strWrittenText, ensure_ascii=False)}) is not equal to the expected text ({json.dumps(strTargetText, ensure_ascii=False)})."
                     )
 
-            delay(postExecutionDelay)
+            delay(postDelay)
             return None
 
         case "simulate":
@@ -268,7 +268,7 @@ def _write_text_into_element(
                 pyautogui.moveTo(x=dictCoordinates["center"][0], y=dictCoordinates["center"][1])
                 pyautogui.click()
 
-                if emptyOriginalText:
+                if clearBeforeWrite:
                     # The simulate type to empty text.
                     pyautogui.hotkey("ctrl", "a")
                     pyautogui.press("backspace")
@@ -278,14 +278,14 @@ def _write_text_into_element(
 
                 _simulate_write(text=text, interval=interval)
 
-            if validateWrittenText:
+            if validateText:
                 if not isinstance(uiTarget, uiautomation.Control):
                     raise UiOperationError(
                         f"Unexpected internal state: simulate mode for HTML or image selectors should have been handled earlier. "
                         f"selector: {selector}"
                     )
 
-                if emptyOriginalText:
+                if clearBeforeWrite:
                     strExpectedText = text
                 else:
                     strOldText = _get_uia_control_text(control=uiTarget)
@@ -311,7 +311,7 @@ def _write_text_into_element(
             else:
                 _write_by_simulation()
 
-            delay(postExecutionDelay)
+            delay(postDelay)
             return None
 
     raise UiOperationError(
@@ -326,11 +326,11 @@ def write_text_into_element(
     text: str,
     executionMode: ExecutionMode = "api",
     interval: int = 10,
-    emptyOriginalText: bool = False,
-    validateWrittenText: bool = False,
+    clearBeforeWrite: bool = False,
+    validateText: bool = False,
     timeout: int = 10000,
-    preExecutionDelay: int = 300,
-    postExecutionDelay: int = 200,
+    preDelay: int = 300,
+    postDelay: int = 200,
 ) -> None:
     """
     Focus an element then write text into it.
@@ -340,11 +340,11 @@ def write_text_into_element(
         text: The text to be written.
         executionMode: Options are "simulate" and "api". "simulate" may be affected by IME(Input Method Editor) or CapsLock, while "api" can input more characters more reliably.
         interval: the interval time(milliseconds) between type each character. Only works in "simulate" mode.
-        emptyOriginalText: Whether delete existing text(by typing ctrl+a and backspace).
-        validateWrittenText: Whether check the typed text, not support html element's simulate mode.
+        clearBeforeWrite: Whether delete existing text(by typing ctrl+a and backspace).
+        validateText: Whether check the typed text, not support html element's simulate mode.
         timeout: Maximum time allowed for normal completion, in milliseconds. Values below 3000 are treated as 3000. The actual elapsed time may be longer if LiberRPA enters its hard-timeout fallback before raising a timeout-related exception.
-        preExecutionDelay: Time to wait before performing the action, in milliseconds.
-        postExecutionDelay: Time to wait after performing the action, in milliseconds.
+        preDelay: Time to wait before performing the action, in milliseconds.
+        postDelay: Time to wait after performing the action, in milliseconds.
     """
     timeout = _UiElement.check_set_timeout(timeout=timeout)
 
@@ -353,11 +353,11 @@ def write_text_into_element(
         text,
         executionMode,
         interval,
-        emptyOriginalText,
-        validateWrittenText,
+        clearBeforeWrite,
+        validateText,
         timeout,
-        preExecutionDelay,
-        postExecutionDelay,
+        preDelay,
+        postDelay,
     )
 
 
@@ -369,8 +369,8 @@ def _type_key_in_element(
     pressAlt: bool = False,
     pressWin: bool = False,
     timeout: int = 10000,
-    preExecutionDelay: int = 300,
-    postExecutionDelay: int = 200,
+    preDelay: int = 300,
+    postDelay: int = 200,
 ) -> None:
 
     _check_key(key=key)
@@ -382,7 +382,7 @@ def _type_key_in_element(
         _UiElement.activate_element_window(selector=selector)
         focus_element(
             htmlSelector=as_selector_html(selector=selector)["specification"],
-            preExecutionDelay=preExecutionDelay,
+            preDelay=preDelay,
             timeout=timeout,
         )
 
@@ -396,7 +396,7 @@ def _type_key_in_element(
 
     else:
         # uia
-        uiTarget, _ = _UiElement.get_element_with_pre_delay(selector=selector, preExecutionDelay=preExecutionDelay)
+        uiTarget, _ = _UiElement.get_element_with_pre_delay(selector=selector, preDelay=preDelay)
         if isinstance(uiTarget, uiautomation.Control):
             # Use pyautogui, must focus it first.
             uiTarget.SetFocus()
@@ -409,7 +409,7 @@ def _type_key_in_element(
         ):
             pyautogui.press(key)
 
-    delay(postExecutionDelay)
+    delay(postDelay)
 
 
 @Log.trace()
@@ -422,8 +422,8 @@ def type_key_in_element(
     pressAlt: bool = False,
     pressWin: bool = False,
     timeout: int = 10000,
-    preExecutionDelay: int = 300,
-    postExecutionDelay: int = 200,
+    preDelay: int = 300,
+    postDelay: int = 200,
 ) -> None:
     """
     Focus an element then type a key.
@@ -436,8 +436,8 @@ def type_key_in_element(
         pressAlt: If True, holds the Alt key during the type.
         pressWin: If True, holds the Windows key during the type.
         timeout: Maximum time allowed for normal completion, in milliseconds. Values below 3000 are treated as 3000. The actual elapsed time may be longer if LiberRPA enters its hard-timeout fallback before raising a timeout-related exception.
-        preExecutionDelay: Time to wait before performing the action, in milliseconds.
-        postExecutionDelay: Time to wait after performing the action, in milliseconds.
+        preDelay: Time to wait before performing the action, in milliseconds.
+        postDelay: Time to wait after performing the action, in milliseconds.
     """
 
     timeout = _UiElement.check_set_timeout(timeout=timeout)
@@ -450,8 +450,8 @@ def type_key_in_element(
         pressAlt,
         pressWin,
         timeout,
-        preExecutionDelay,
-        postExecutionDelay,
+        preDelay,
+        postDelay,
     )
 
 
@@ -464,8 +464,8 @@ def type_key(
     pressShift: bool = False,
     pressAlt: bool = False,
     pressWin: bool = False,
-    preExecutionDelay: int = 300,
-    postExecutionDelay: int = 200,
+    preDelay: int = 300,
+    postDelay: int = 200,
 ) -> None:
     """
     Type a key in the current element focused.
@@ -480,8 +480,8 @@ def type_key(
         pressShift: If True, holds the Shift key while pressing the key. Only supports typeMode='click'.
         pressAlt: If True, holds the Alt key while pressing the key. Only supports typeMode='click'.
         pressWin: If True, holds the Windows key while pressing the key. Only supports typeMode='click'.
-        preExecutionDelay: Time to wait before performing the action, in milliseconds.
-        postExecutionDelay: Time to wait after performing the action, in milliseconds.
+        preDelay: Time to wait before performing the action, in milliseconds.
+        postDelay: Time to wait after performing the action, in milliseconds.
     """
 
     _check_key(key=key)
@@ -492,7 +492,7 @@ def type_key(
             "pressCtrl/pressShift/pressAlt/pressWin only support typeMode='click'. For key_down/key_up, call type_key() for modifier keys explicitly."
         )
 
-    delay(preExecutionDelay)
+    delay(preDelay)
 
     match typeMode:
         case "click":
@@ -510,7 +510,7 @@ def type_key(
         case _:
             raise ValueError(f"The argument typeMode({typeMode}) should be one of {['click', 'key_down', 'key_up']}")
 
-    delay(postExecutionDelay)
+    delay(postDelay)
     return None
 
 
@@ -537,36 +537,36 @@ if __name__ == "__main__":
     # text = "123123abclkjaf1024uag123123\t44\r\n44"
     # text = "\nHello, how are\n you today?\n"
     # text = "\nHello. How are\n you today?" * 100
-    write_text(text=text, executionMode="api", timeout=3000, preExecutionDelay=2000, postExecutionDelay=200)
+    write_text(text=text, executionMode="api", timeout=3000, preDelay=2000, postDelay=200)
     """ write_text_into_element(
         selector=SlctNotepad2,
         text=text,
         executionMode="api",
         interval=10,
-        emptyOriginalText=True,
-        validateWrittenText=False,
+        clearBeforeWrite=True,
+        validateText=False,
         timeout=10000,
-        preExecutionDelay=2000,
-        postExecutionDelay=200,
+        preDelay=2000,
+        postDelay=200,
     ) """
 
     """ for key in ["a", "b"]:
         print(f"==={key}===")
-        # type_key_in_element(selector=selector, key=key, pressCtrl=False, pressAlt=False, pressShift=False, pressWin=False, preExecutionDelay=1000, postExecutionDelay=200)
-        type_key(key=key, typeMode="click", pressCtrl=True, pressAlt=False, pressShift=False, pressWin=False, preExecutionDelay=1000, postExecutionDelay=200)
-        type_key(key=key, typeMode="key_down", pressCtrl=False, pressAlt=False, pressShift=True, pressWin=False, preExecutionDelay=1000, postExecutionDelay=200)
-        type_key(key=key, typeMode="key_up", pressCtrl=False, pressAlt=False, pressShift=True, pressWin=False, preExecutionDelay=1000, postExecutionDelay=200) """
+        # type_key_in_element(selector=selector, key=key, pressCtrl=False, pressAlt=False, pressShift=False, pressWin=False, preDelay=1000, postDelay=200)
+        type_key(key=key, typeMode="click", pressCtrl=True, pressAlt=False, pressShift=False, pressWin=False, preDelay=1000, postDelay=200)
+        type_key(key=key, typeMode="key_down", pressCtrl=False, pressAlt=False, pressShift=True, pressWin=False, preDelay=1000, postDelay=200)
+        type_key(key=key, typeMode="key_up", pressCtrl=False, pressAlt=False, pressShift=True, pressWin=False, preDelay=1000, postDelay=200) """
 
     """ write_text_into_element(
         selector=image1,
         text="123",
         executionMode="api",
         interval=10,
-        emptyOriginalText=False,
-        validateWrittenText=False,
+        clearBeforeWrite=False,
+        validateText=False,
         timeout=10000,
-        preExecutionDelay=300,
-        postExecutionDelay=200,
+        preDelay=300,
+        postDelay=200,
     ) """
 
     # type_key_in_element(selector=image1, key="c", pressCtrl=True)

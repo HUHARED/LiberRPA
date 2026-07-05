@@ -48,7 +48,7 @@ chrome.runtime.onMessage.addListener(
                   dictCommand.pressShift,
                   dictCommand.pressAlt,
                   dictCommand.pressWin,
-                  dictCommand.preExecutionDelay
+                  dictCommand.preDelay
                 ),
               dictCommand.timeout
             ),
@@ -64,9 +64,9 @@ chrome.runtime.onMessage.addListener(
                 setElementText(
                   dictCommand.htmlSelector,
                   dictCommand.text,
-                  dictCommand.emptyOriginalText,
-                  dictCommand.validateWrittenText,
-                  dictCommand.preExecutionDelay
+                  dictCommand.clearBeforeWrite,
+                  dictCommand.validateText,
+                  dictCommand.preDelay
                 ),
               dictCommand.timeout
             ),
@@ -78,7 +78,7 @@ chrome.runtime.onMessage.addListener(
         case "focusElement":
           handleAsyncResult(
             withTimeout(
-              () => focusElement(dictCommand.htmlSelector, dictCommand.preExecutionDelay),
+              () => focusElement(dictCommand.htmlSelector, dictCommand.preDelay),
               dictCommand.timeout
             ),
             sendResponse
@@ -92,7 +92,7 @@ chrome.runtime.onMessage.addListener(
                 getParentElementAttr(
                   dictCommand.htmlSelector,
                   dictCommand.upwardLevel,
-                  dictCommand.preExecutionDelay
+                  dictCommand.preDelay
                 ),
               dictCommand.timeout
             ),
@@ -106,7 +106,7 @@ chrome.runtime.onMessage.addListener(
               () =>
                 getChildrenElementAttr(
                   dictCommand.htmlSelector,
-                  dictCommand.preExecutionDelay
+                  dictCommand.preDelay
                 ),
               dictCommand.timeout
             ),
@@ -121,7 +121,7 @@ chrome.runtime.onMessage.addListener(
                 setCheckState(
                   dictCommand.htmlSelector,
                   dictCommand.checkAction,
-                  dictCommand.preExecutionDelay
+                  dictCommand.preDelay
                 ),
               dictCommand.timeout
             ),
@@ -136,7 +136,7 @@ chrome.runtime.onMessage.addListener(
                 getSelection(
                   dictCommand.htmlSelector,
                   dictCommand.selectionType,
-                  dictCommand.preExecutionDelay
+                  dictCommand.preDelay
                 ),
               dictCommand.timeout
             ),
@@ -153,7 +153,7 @@ chrome.runtime.onMessage.addListener(
                   dictCommand.text,
                   dictCommand.value,
                   dictCommand.index,
-                  dictCommand.preExecutionDelay
+                  dictCommand.preDelay
                 ),
               dictCommand.timeout
             ),

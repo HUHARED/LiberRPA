@@ -74,10 +74,10 @@ def _highlight(
     selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
     color: str = "red",
     duration: int = 1000,
-    preExecutionDelay: int = 300,
-    postExecutionDelay: int = 200,
+    preDelay: int = 300,
+    postDelay: int = 200,
 ) -> None:
-    _, dictTarget = _UiElement.get_element_with_pre_delay(selector=selector, preExecutionDelay=preExecutionDelay)
+    _, dictTarget = _UiElement.get_element_with_pre_delay(selector=selector, preDelay=preDelay)
 
     create_overlay(
         x=int(dictTarget["secondary-x"]),
@@ -88,7 +88,7 @@ def _highlight(
         duration=duration,
     )
 
-    delay(postExecutionDelay)
+    delay(postDelay)
 
 
 @Log.trace()
@@ -98,8 +98,8 @@ def highlight(
     color: Literal["red", "green", "blue", "yellow", "purple", "pink", "black"] = "red",
     duration: int = 1000,
     timeout: int = 10000,
-    preExecutionDelay: int = 300,
-    postExecutionDelay: int = 200,
+    preDelay: int = 300,
+    postDelay: int = 200,
 ) -> None:
     """
     Draw a rectangle around the element.
@@ -109,8 +109,8 @@ def highlight(
         color: The color of the highlight border. Available options are "red", "green", "blue", "yellow", "purple", "pink", "black".
         duration: The time in milliseconds for which the highlight should remain visible on the screen.
         timeout: Maximum time allowed for normal completion, in milliseconds. Values below 3000 are treated as 3000. The actual elapsed time may be longer if LiberRPA enters its hard-timeout fallback before raising a timeout-related exception.
-        preExecutionDelay: Time to wait before performing the action, in milliseconds.
-        postExecutionDelay: Time to wait after performing the action, in milliseconds.
+        preDelay: Time to wait before performing the action, in milliseconds.
+        postDelay: Time to wait after performing the action, in milliseconds.
     """
     timeout = _UiElement.check_set_timeout(timeout=timeout)
 
@@ -118,8 +118,8 @@ def highlight(
         selector,
         color,
         duration,
-        preExecutionDelay,
-        postExecutionDelay,
+        preDelay,
+        postDelay,
     )
 
 
@@ -131,8 +131,8 @@ def _screenshot(
     width: int | None = None,
     height: int | None = None,
     override: bool = False,
-    preExecutionDelay: int = 300,
-    postExecutionDelay: int = 200,
+    preDelay: int = 300,
+    postDelay: int = 200,
 ) -> str:
 
     if not override and Path(saveFilePath).exists():
@@ -140,7 +140,7 @@ def _screenshot(
             f"The argument 'override' is False, and the file '{Path(saveFilePath).absolute()}' already exists."
         )
 
-    _, dictTarget = _UiElement.get_element_with_pre_delay(selector=selector, preExecutionDelay=preExecutionDelay)
+    _, dictTarget = _UiElement.get_element_with_pre_delay(selector=selector, preDelay=preDelay)
 
     # Define the bounding box of the area
 
@@ -172,7 +172,7 @@ def _screenshot(
     Path(saveFilePath).parent.mkdir(parents=True, exist_ok=True)
     imgTemp.save(os.fspath(saveFilePath))
 
-    delay(postExecutionDelay)
+    delay(postDelay)
 
     return str(Path(saveFilePath).absolute())
 
@@ -188,8 +188,8 @@ def screenshot(
     height: int | None = None,
     override: bool = False,
     timeout: int = 10000,
-    preExecutionDelay: int = 300,
-    postExecutionDelay: int = 200,
+    preDelay: int = 300,
+    postDelay: int = 200,
 ) -> str:
     """
     Capture a screenshot of the element's area and save it.
@@ -203,8 +203,8 @@ def screenshot(
         height: The height of the screenshot in pixels. If None, the height of the element will be used.
         override: If True, will overwrite an existing file at saveFilePath.
         timeout: Maximum time allowed for normal completion, in milliseconds. Values below 3000 are treated as 3000. The actual elapsed time may be longer if LiberRPA enters its hard-timeout fallback before raising a timeout-related exception.
-        preExecutionDelay: Time to wait before performing the action, in milliseconds.
-        postExecutionDelay: Time to wait after performing the action, in milliseconds.
+        preDelay: Time to wait before performing the action, in milliseconds.
+        postDelay: Time to wait after performing the action, in milliseconds.
 
     Returns:
         str: The absolute path of the saved screenshot.
@@ -220,8 +220,8 @@ def screenshot(
             width,
             height,
             override,
-            preExecutionDelay,
-            postExecutionDelay,
+            preDelay,
+            postDelay,
         )
     )
 
@@ -303,8 +303,8 @@ def _check_exists(
 def check_exists(
     selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
     timeout: int = 10000,
-    preExecutionDelay: int = 300,
-    postExecutionDelay: int = 200,
+    preDelay: int = 300,
+    postDelay: int = 200,
 ) -> bool:
     """
     Check if an element exists.
@@ -315,8 +315,8 @@ def check_exists(
     Parameters:
         selector: The dictionary for locating an element.
         timeout: Maximum time to keep checking whether the element exists, in milliseconds. Values below 3000 are treated as 3000. The actual elapsed time may be longer if an individual UI check enters its hard-timeout fallback.
-        preExecutionDelay: Time to wait before performing the action, in milliseconds.
-        postExecutionDelay: Time to wait after performing the action, in milliseconds.
+        preDelay: Time to wait before performing the action, in milliseconds.
+        postDelay: Time to wait after performing the action, in milliseconds.
 
     Returns:
         bool: True if the element exists within the specified timeout, False if it is not found.
@@ -325,7 +325,7 @@ def check_exists(
     timeout = _UiElement.check_set_timeout(timeout=timeout)
     lastException: Exception | None = None
 
-    delay(preExecutionDelay)
+    delay(preDelay)
 
     try:
         while True:
@@ -360,7 +360,7 @@ def check_exists(
                 raise lastException
 
     finally:
-        delay(postExecutionDelay)
+        delay(postDelay)
 
 
 @Log.trace()
@@ -368,8 +368,8 @@ def check_exists(
 def wait_appear(
     selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
     timeout: int = 10000,
-    preExecutionDelay: int = 300,
-    postExecutionDelay: int = 200,
+    preDelay: int = 300,
+    postDelay: int = 200,
 ) -> None:
     """
     Wait for an element to appear.
@@ -377,15 +377,15 @@ def wait_appear(
     Parameters:
         selector: The dictionary for locating an element.
         timeout: Maximum time to wait for the element to appear, in milliseconds. Values below 3000 are treated as 3000. The actual elapsed time may be longer if an individual UI check enters its hard-timeout fallback.
-        preExecutionDelay: Time to wait before performing the action, in milliseconds.
-        postExecutionDelay: Time to wait after performing the action, in milliseconds.
+        preDelay: Time to wait before performing the action, in milliseconds.
+        postDelay: Time to wait after performing the action, in milliseconds.
     """
 
     timeout = _UiElement.check_set_timeout(timeout=timeout)
     timeoutOriginal = timeout
     lastException: Exception | None = None
 
-    delay(preExecutionDelay)
+    delay(preDelay)
 
     try:
         while True:
@@ -425,7 +425,7 @@ def wait_appear(
                 raise lastException
 
     finally:
-        delay(postExecutionDelay)
+        delay(postDelay)
 
 
 @Log.trace()
@@ -433,8 +433,8 @@ def wait_appear(
 def wait_disappear(
     selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
     timeout: int = 10000,
-    preExecutionDelay: int = 300,
-    postExecutionDelay: int = 200,
+    preDelay: int = 300,
+    postDelay: int = 200,
 ) -> None:
     """
     Wait for an element to disappear.
@@ -442,8 +442,8 @@ def wait_disappear(
     Parameters:
         selector: The dictionary for locating an element.
         timeout: Maximum time to wait for the element to disappear, in milliseconds. Values below 3000 are treated as 3000. The actual elapsed time may be longer if an individual UI check enters its hard-timeout fallback.
-        preExecutionDelay: Time to wait before performing the action, in milliseconds.
-        postExecutionDelay: Time to wait after performing the action, in milliseconds.
+        preDelay: Time to wait before performing the action, in milliseconds.
+        postDelay: Time to wait after performing the action, in milliseconds.
     """
 
     timeout = _UiElement.check_set_timeout(timeout=timeout)
@@ -451,7 +451,7 @@ def wait_disappear(
     lastException: Exception | None = None
     lastCheckStatus: Literal["exists", "not_found", "error"] | None = None
 
-    delay(preExecutionDelay)
+    delay(preDelay)
 
     try:
         while True:
@@ -501,15 +501,15 @@ def wait_disappear(
                 )
 
     finally:
-        delay(postExecutionDelay)
+        delay(postDelay)
 
 
 def _get_parent(
     selector: SelectorUia | SelectorHtml,
     upwardLevel: int = 1,
     timeout: int = 10000,
-    preExecutionDelay: int = 300,
-    postExecutionDelay: int = 200,
+    preDelay: int = 300,
+    postDelay: int = 200,
 ) -> SelectorWindow | SelectorUia | SelectorHtml:
 
     if selector.get("category") == "image":
@@ -529,16 +529,16 @@ def _get_parent(
             "specification": get_parent_element_attr(
                 htmlSelector=as_selector_html(selector=selector)["specification"],
                 upwardLevel=upwardLevel,
-                preExecutionDelay=preExecutionDelay,
+                preDelay=preDelay,
                 timeout=timeout,
             ),
         }
 
-        delay(postExecutionDelay)
+        delay(postDelay)
         return selectorParentHtml
 
     # uia
-    uiTarget, _ = _UiElement.get_element_with_pre_delay(selector=selector, preExecutionDelay=preExecutionDelay)
+    uiTarget, _ = _UiElement.get_element_with_pre_delay(selector=selector, preDelay=preDelay)
     for i in range(1, upwardLevel + 1, 1):
         if isinstance(uiTarget, uiautomation.Control):
             # Only choose non-Desktop controls that have 'Name'.
@@ -554,7 +554,7 @@ def _get_parent(
                     selectorParentUia: SelectorWindow | SelectorUia = _UiElement.get_control_selector(control=uiTarget)
                     Log.debug(f"Found parent at upwardLevel {i}." + str(selectorParentUia))
                     break
-    delay(postExecutionDelay)
+    delay(postDelay)
 
     return selectorParentUia
 
@@ -565,8 +565,8 @@ def get_parent(
     selector: SelectorUia | SelectorHtml,
     upwardLevel: int = 1,
     timeout: int = 10000,
-    preExecutionDelay: int = 300,
-    postExecutionDelay: int = 200,
+    preDelay: int = 300,
+    postDelay: int = 200,
 ) -> SelectorWindow | SelectorUia | SelectorHtml:
     """
     Get the selector of an element's parent. Only support SelectorUia and SelectorHtml.
@@ -575,8 +575,8 @@ def get_parent(
         selector: A selector dictionary generated by UI Analyzer for locating an element. You can edit it to make it more concise or more robust in different situations.
         upwardLevel: The upward layer to find its parent element.
         timeout: Maximum time allowed for normal completion, in milliseconds. Values below 3000 are treated as 3000. The actual elapsed time may be longer if LiberRPA enters its hard-timeout fallback before raising a timeout-related exception.
-        preExecutionDelay: Time to wait before performing the action, in milliseconds.
-        postExecutionDelay: Time to wait after performing the action, in milliseconds.
+        preDelay: Time to wait before performing the action, in milliseconds.
+        postDelay: Time to wait after performing the action, in milliseconds.
 
     Returns:
         SelectorWindow | SelectorUia | SelectorHtml: The parent element's selector.
@@ -587,16 +587,16 @@ def get_parent(
         selector,
         upwardLevel,
         timeout,
-        preExecutionDelay,
-        postExecutionDelay,
+        preDelay,
+        postDelay,
     )
 
 
 def _get_children(
     selector: SelectorWindow | SelectorUia | SelectorHtml,
     timeout: int = 30000,
-    preExecutionDelay: int = 300,
-    postExecutionDelay: int = 200,
+    preDelay: int = 300,
+    postDelay: int = 200,
 ) -> list[SelectorUia] | list[SelectorHtml]:
 
     if selector.get("category") == "image":
@@ -607,7 +607,7 @@ def _get_children(
 
         listSpecification: list[DictSpecHtml] = get_children_element_attr(
             htmlSelector=as_selector_html(selector=selector)["specification"],
-            preExecutionDelay=preExecutionDelay,
+            preDelay=preDelay,
             timeout=timeout,
         )
 
@@ -618,11 +618,11 @@ def _get_children(
         for item in listSpecification:
             listSelectorsHtml.append({"window": selectorWindow["window"], "category": "html", "specification": [item]})
 
-        delay(postExecutionDelay)
+        delay(postDelay)
         return listSelectorsHtml
 
     # uia
-    uiTarget, _ = _UiElement.get_element_with_pre_delay(selector=selector, preExecutionDelay=preExecutionDelay)
+    uiTarget, _ = _UiElement.get_element_with_pre_delay(selector=selector, preDelay=preDelay)
     if isinstance(uiTarget, uiautomation.Control):
         # uia
         listControlChildren = get_children_control_recursive(control=uiTarget)
@@ -631,7 +631,7 @@ def _get_children(
             for childControl in listControlChildren
         ]
 
-    delay(postExecutionDelay)
+    delay(postDelay)
 
     return listSelectorsUia
 
@@ -641,8 +641,8 @@ def _get_children(
 def get_children(
     selector: SelectorWindow | SelectorUia | SelectorHtml,
     timeout: int = 30000,
-    preExecutionDelay: int = 300,
-    postExecutionDelay: int = 200,
+    preDelay: int = 300,
+    postDelay: int = 200,
 ) -> list[SelectorUia] | list[SelectorHtml]:
     """
     Get selectors of child elements. Only supports SelectorWindow, SelectorUia, and SelectorHtml.
@@ -653,8 +653,8 @@ def get_children(
     Parameters:
         selector: A selector dictionary generated by UI Analyzer for locating an element. You can edit it to make it more concise or more robust in different situations.
         timeout: Maximum time allowed for normal completion, in milliseconds. Values below 3000 are treated as 3000. The actual elapsed time may be longer if LiberRPA enters its hard-timeout fallback before raising a timeout-related exception.
-        preExecutionDelay: Time to wait before performing the action, in milliseconds.
-        postExecutionDelay: Time to wait after performing the action, in milliseconds.
+        preDelay: Time to wait before performing the action, in milliseconds.
+        postDelay: Time to wait after performing the action, in milliseconds.
 
     Returns:
         list[SelectorUia] | list[SelectorHtml]: Selectors of child elements. For UIA, unnamed container controls may be skipped and named descendants may be returned.
@@ -664,19 +664,19 @@ def get_children(
     return timeout_kill_thread(timeout=timeout)(_get_children)(
         selector,
         timeout,
-        preExecutionDelay,
-        postExecutionDelay,
+        preDelay,
+        postDelay,
     )
 
 
 def _get_attr_dictionary(
     selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
-    preExecutionDelay: int = 300,
-    postExecutionDelay: int = 200,
+    preDelay: int = 300,
+    postDelay: int = 200,
 ) -> DictUiaAttr | DictHtmlAttr | DictImageAttr:
-    _, dictTarget = _UiElement.get_element_with_pre_delay(selector=selector, preExecutionDelay=preExecutionDelay)
+    _, dictTarget = _UiElement.get_element_with_pre_delay(selector=selector, preDelay=preDelay)
 
-    delay(postExecutionDelay)
+    delay(postDelay)
     return dictTarget
 
 
@@ -685,8 +685,8 @@ def _get_attr_dictionary(
 def get_attr_dictionary(
     selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
     timeout: int = 10000,
-    preExecutionDelay: int = 300,
-    postExecutionDelay: int = 200,
+    preDelay: int = 300,
+    postDelay: int = 200,
 ) -> DictUiaAttr | DictHtmlAttr | DictImageAttr:
     """
     Get a dictionary contains all attributes of the element.
@@ -694,8 +694,8 @@ def get_attr_dictionary(
     Parameters:
         selector: A selector dictionary generated by UI Analyzer for locating an element. You can edit it to make it more concise or more robust in different situations.
         timeout: Maximum time allowed for normal completion, in milliseconds. Values below 3000 are treated as 3000. The actual elapsed time may be longer if LiberRPA enters its hard-timeout fallback before raising a timeout-related exception.
-        preExecutionDelay: Time to wait before performing the action, in milliseconds.
-        postExecutionDelay: Time to wait after performing the action, in milliseconds.
+        preDelay: Time to wait before performing the action, in milliseconds.
+        postDelay: Time to wait after performing the action, in milliseconds.
 
     Returns:
         DictUiaAttr | DictHtmlAttr | DictImageAttr: The attributes dictionary of the element, note some attributes with the prefix of "secondary-".
@@ -705,8 +705,8 @@ def get_attr_dictionary(
 
     return timeout_kill_thread(timeout=timeout)(_get_attr_dictionary)(
         selector,
-        preExecutionDelay,
-        postExecutionDelay,
+        preDelay,
+        postDelay,
     )
 
 
@@ -746,24 +746,24 @@ def _get_control_text_recursive(control: uiautomation.Control) -> list[str]:
 
 def _get_text(
     selector: SelectorWindow | SelectorUia | SelectorHtml,
-    preExecutionDelay: int = 300,
-    postExecutionDelay: int = 200,
+    preDelay: int = 300,
+    postDelay: int = 200,
 ) -> tuple[list[str], str]:
 
     if selector.get("category") == "image":
         raise UiOperationError("Not support getting text by the function, consider using OCR.")
 
-    uiTarget, dictTarget = _UiElement.get_element_with_pre_delay(selector=selector, preExecutionDelay=preExecutionDelay)
+    uiTarget, dictTarget = _UiElement.get_element_with_pre_delay(selector=selector, preDelay=preDelay)
 
     listText: list[str] = []
 
     if isinstance(uiTarget, uiautomation.Control):
         listText = _get_control_text_recursive(control=uiTarget)
-        delay(postExecutionDelay)
+        delay(postDelay)
         return (listText, "\n".join(listText))
     else:
         # html
-        delay(postExecutionDelay)
+        delay(postDelay)
         innerText = dictTarget.get("innerText")
         value = dictTarget.get("value")
 
@@ -781,8 +781,8 @@ def _get_text(
 def get_text(
     selector: SelectorWindow | SelectorUia | SelectorHtml,
     timeout: int = 10000,
-    preExecutionDelay: int = 300,
-    postExecutionDelay: int = 200,
+    preDelay: int = 300,
+    postDelay: int = 200,
 ) -> tuple[list[str], str]:
     """
     Get all text of the element. Only support SelectorWindow, SelectorUia and SelectorHtml.
@@ -790,8 +790,8 @@ def get_text(
     Parameters:
         selector: A selector dictionary generated by UI Analyzer for locating an element. You can edit it to make it more concise or more robust in different situations.
         timeout: Maximum time allowed for normal completion, in milliseconds. Values below 3000 are treated as 3000. The actual elapsed time may be longer if LiberRPA enters its hard-timeout fallback before raising a timeout-related exception.
-        preExecutionDelay: Time to wait before performing the action, in milliseconds.
-        postExecutionDelay: Time to wait after performing the action, in milliseconds.
+        preDelay: Time to wait before performing the action, in milliseconds.
+        postDelay: Time to wait after performing the action, in milliseconds.
 
     Returns:
         tuple[list[str], str]: A tuple contains the all children element's text(if it's an uia element) and all text.
@@ -801,8 +801,8 @@ def get_text(
 
     return timeout_kill_thread(timeout=timeout)(_get_text)(
         selector,
-        preExecutionDelay,
-        postExecutionDelay,
+        preDelay,
+        postDelay,
     )
 
 
@@ -810,8 +810,8 @@ def _set_text(
     selector: SelectorUia | SelectorHtml,
     text: str,
     timeout: int = 10000,
-    preExecutionDelay: int = 300,
-    postExecutionDelay: int = 200,
+    preDelay: int = 300,
+    postDelay: int = 200,
 ) -> None:
 
     if selector.get("category") == "image":
@@ -826,17 +826,17 @@ def _set_text(
         Chrome_set_element_text(
             htmlSelector=as_selector_html(selector=selector)["specification"],
             text=text,
-            emptyOriginalText=True,
-            validateWrittenText=False,
-            preExecutionDelay=preExecutionDelay,
+            clearBeforeWrite=True,
+            validateText=False,
+            preDelay=preDelay,
             timeout=timeout,
         )
 
-        delay(postExecutionDelay)
+        delay(postDelay)
         return None
 
     # uia
-    uiTarget, _ = _UiElement.get_element_with_pre_delay(selector=selector, preExecutionDelay=preExecutionDelay)
+    uiTarget, _ = _UiElement.get_element_with_pre_delay(selector=selector, preDelay=preDelay)
 
     if isinstance(uiTarget, uiautomation.Control):
         pattern = cast(
@@ -845,7 +845,7 @@ def _set_text(
         )
         if pattern is not None and uiTarget.IsEnabled:
             pattern.SetValue(text)
-            delay(postExecutionDelay)
+            delay(postDelay)
             return None
 
     # Other elements don't support setting text and not be checked before.
@@ -861,8 +861,8 @@ def set_text(
     selector: SelectorUia | SelectorHtml,
     text: str,
     timeout: int = 10000,
-    preExecutionDelay: int = 300,
-    postExecutionDelay: int = 200,
+    preDelay: int = 300,
+    postDelay: int = 200,
 ) -> None:
     """
     Set an element's text by its API instead of inputting by keyboard. Only support SelectorUia and SelectorHtml.
@@ -871,8 +871,8 @@ def set_text(
         selector: A selector dictionary generated by UI Analyzer for locating an element. You can edit it to make it more concise or more robust in different situations.
         text: The text to be set.
         timeout: Maximum time allowed for normal completion, in milliseconds. Values below 3000 are treated as 3000. The actual elapsed time may be longer if LiberRPA enters its hard-timeout fallback before raising a timeout-related exception.
-        preExecutionDelay: Time to wait before performing the action, in milliseconds.
-        postExecutionDelay: Time to wait after performing the action, in milliseconds.
+        preDelay: Time to wait before performing the action, in milliseconds.
+        postDelay: Time to wait after performing the action, in milliseconds.
     """
 
     timeout = _UiElement.check_set_timeout(timeout=timeout)
@@ -881,21 +881,21 @@ def set_text(
         selector,
         text,
         timeout,
-        preExecutionDelay,
-        postExecutionDelay,
+        preDelay,
+        postDelay,
     )
 
 
 def _get_check_state(
     selector: SelectorUia | SelectorHtml,
-    preExecutionDelay: int = 300,
-    postExecutionDelay: int = 200,
+    preDelay: int = 300,
+    postDelay: int = 200,
 ) -> Literal["checked", "unchecked", "indeterminate"]:
 
     if selector.get("category") != "html" and selector.get("category") != "uia":
         raise UiOperationError("Can only get check state for html and uia non window elements which support check.")
 
-    uiTarget, dictTarget = _UiElement.get_element_with_pre_delay(selector=selector, preExecutionDelay=preExecutionDelay)
+    uiTarget, dictTarget = _UiElement.get_element_with_pre_delay(selector=selector, preDelay=preDelay)
 
     strReturn: str = ""
 
@@ -915,7 +915,7 @@ def _get_check_state(
                 # intState == 2
                 strReturn = "indeterminate"
 
-            delay(postExecutionDelay)
+            delay(postDelay)
             return strReturn
 
         raise UiOperationError(
@@ -932,7 +932,7 @@ def _get_check_state(
         else:
             raise UiOperationError(f"The element does not have the 'checked' attribute. selector: {selector}")
 
-        delay(postExecutionDelay)
+        delay(postDelay)
         return strReturn
 
 
@@ -941,8 +941,8 @@ def _get_check_state(
 def get_check_state(
     selector: SelectorUia | SelectorHtml,
     timeout: int = 10000,
-    preExecutionDelay: int = 300,
-    postExecutionDelay: int = 200,
+    preDelay: int = 300,
+    postDelay: int = 200,
 ) -> Literal["checked", "unchecked", "indeterminate"]:
     """
     Get the check state of a checkbox or radio element. Only supports SelectorUia and SelectorHtml.
@@ -950,8 +950,8 @@ def get_check_state(
     Parameters:
         selector: A selector dictionary generated by UI Analyzer for locating an element. You can edit it to make it more concise or more robust in different situations.
         timeout: Maximum time allowed for normal completion, in milliseconds. Values below 3000 are treated as 3000. The actual elapsed time may be longer if LiberRPA enters its hard-timeout fallback before raising a timeout-related exception.
-        preExecutionDelay: Time to wait before performing the action, in milliseconds.
-        postExecutionDelay: Time to wait after performing the action, in milliseconds.
+        preDelay: Time to wait before performing the action, in milliseconds.
+        postDelay: Time to wait after performing the action, in milliseconds.
 
     Returns:
         str: one of "checked", "unchecked", "indeterminate"
@@ -961,8 +961,8 @@ def get_check_state(
 
     return timeout_kill_thread(timeout=timeout)(_get_check_state)(
         selector,
-        preExecutionDelay,
-        postExecutionDelay,
+        preDelay,
+        postDelay,
     )
 
 
@@ -970,8 +970,8 @@ def _set_check_state(
     selector: SelectorUia | SelectorHtml,
     checkAction: Literal["checked", "unchecked", "toggle"] = "checked",
     timeout: int = 10000,
-    preExecutionDelay: int = 300,
-    postExecutionDelay: int = 200,
+    preDelay: int = 300,
+    postDelay: int = 200,
 ) -> None:
 
     if selector.get("category") == "html":
@@ -982,14 +982,14 @@ def _set_check_state(
         Chrome_set_check_state(
             htmlSelector=as_selector_html(selector=selector)["specification"],
             checkAction=checkAction,
-            preExecutionDelay=preExecutionDelay,
+            preDelay=preDelay,
             timeout=timeout,
         )
-        delay(postExecutionDelay)
+        delay(postDelay)
         return None
 
     # uia
-    uiTarget, _ = _UiElement.get_element_with_pre_delay(selector=selector, preExecutionDelay=preExecutionDelay)
+    uiTarget, _ = _UiElement.get_element_with_pre_delay(selector=selector, preDelay=preDelay)
 
     if isinstance(uiTarget, uiautomation.Control):
         pattern = cast(
@@ -1023,7 +1023,7 @@ def _set_check_state(
                         f"The argument checkAction({checkAction}) should be one of {['checked', 'unchecked', 'toggle']}"
                     )
 
-            delay(postExecutionDelay)
+            delay(postDelay)
             return None
 
     # image or uia element does't support setting check.
@@ -1038,8 +1038,8 @@ def set_check_state(
     selector: SelectorUia | SelectorHtml,
     checkAction: Literal["checked", "unchecked", "toggle"] = "checked",
     timeout: int = 10000,
-    preExecutionDelay: int = 300,
-    postExecutionDelay: int = 200,
+    preDelay: int = 300,
+    postDelay: int = 200,
 ) -> None:
     """
     Set the check state of a checkbox or radio element. Only support SelectorUia and SelectorHtml.
@@ -1048,8 +1048,8 @@ def set_check_state(
         selector: A selector dictionary generated by UI Analyzer for locating an element. You can edit it to make it more concise or more robust in different situations.
         checkAction: Options are "checked", "unchecked", or "toggle". Note that if an HTML element's checked state is "indeterminate", action "toggle" will modity it to "checked" or "unchecked", depend on its previous check state, same like the mouse single click.
         timeout: Maximum time allowed for normal completion, in milliseconds. Values below 3000 are treated as 3000. The actual elapsed time may be longer if LiberRPA enters its hard-timeout fallback before raising a timeout-related exception.
-        preExecutionDelay: Time to wait before performing the action, in milliseconds.
-        postExecutionDelay: Time to wait after performing the action, in milliseconds.
+        preDelay: Time to wait before performing the action, in milliseconds.
+        postDelay: Time to wait after performing the action, in milliseconds.
     """
 
     timeout = _UiElement.check_set_timeout(timeout=timeout)
@@ -1058,8 +1058,8 @@ def set_check_state(
         selector,
         checkAction,
         timeout,
-        preExecutionDelay,
-        postExecutionDelay,
+        preDelay,
+        postDelay,
     )
 
 
@@ -1067,8 +1067,8 @@ def _get_selection(
     selector: SelectorHtml,
     selectionType: Literal["text", "value", "index"] = "text",
     timeout: int = 10000,
-    preExecutionDelay: int = 300,
-    postExecutionDelay: int = 200,
+    preDelay: int = 300,
+    postDelay: int = 200,
 ) -> str | int:
 
     validate_selector(selector=selector)
@@ -1085,11 +1085,11 @@ def _get_selection(
     selectionTemp = Chrome_get_selection(
         htmlSelector=selectorHtml["specification"],
         selectionType=selectionType,
-        preExecutionDelay=preExecutionDelay,
+        preDelay=preDelay,
         timeout=timeout,
     )
 
-    delay(postExecutionDelay)
+    delay(postDelay)
     return selectionTemp
 
 
@@ -1098,8 +1098,8 @@ def get_selection(
     selector: SelectorHtml,
     selectionType: Literal["text"] = "text",
     timeout: int = 10000,
-    preExecutionDelay: int = 300,
-    postExecutionDelay: int = 200,
+    preDelay: int = 300,
+    postDelay: int = 200,
 ) -> str: ...
 
 
@@ -1108,8 +1108,8 @@ def get_selection(
     selector: SelectorHtml,
     selectionType: Literal["value"],
     timeout: int = 10000,
-    preExecutionDelay: int = 300,
-    postExecutionDelay: int = 200,
+    preDelay: int = 300,
+    postDelay: int = 200,
 ) -> str: ...
 
 
@@ -1118,8 +1118,8 @@ def get_selection(
     selector: SelectorHtml,
     selectionType: Literal["index"],
     timeout: int = 10000,
-    preExecutionDelay: int = 300,
-    postExecutionDelay: int = 200,
+    preDelay: int = 300,
+    postDelay: int = 200,
 ) -> int: ...
 
 
@@ -1129,8 +1129,8 @@ def get_selection(
     selector: SelectorHtml,
     selectionType: Literal["text", "value", "index"] = "text",
     timeout: int = 10000,
-    preExecutionDelay: int = 300,
-    postExecutionDelay: int = 200,
+    preDelay: int = 300,
+    postDelay: int = 200,
 ) -> str | int:
     """
     Get the selected option from an HTML <select> element.
@@ -1141,8 +1141,8 @@ def get_selection(
         selector: The dictionary for locating an element. It is generated by UI Analyzer, and you can modify it to make it more concise or more suitable for different situations.
         selectionType: The type of selected option data to return. Options are "text", "value", and "index".
         timeout: Maximum time allowed for normal completion, in milliseconds. Values below 3000 are treated as 3000. The actual elapsed time may be longer if LiberRPA enters its hard-timeout fallback before raising a timeout-related exception.
-        preExecutionDelay: Time to wait before performing the action, in milliseconds.
-        postExecutionDelay: Time to wait after performing the action, in milliseconds.
+        preDelay: Time to wait before performing the action, in milliseconds.
+        postDelay: Time to wait after performing the action, in milliseconds.
 
     Returns:
         str | int: The selected option's text if selectionType is "text", its value if selectionType is "value", or its index if selectionType is "index".
@@ -1154,8 +1154,8 @@ def get_selection(
         selector,
         selectionType,
         timeout,
-        preExecutionDelay,
-        postExecutionDelay,
+        preDelay,
+        postDelay,
     )
 
 
@@ -1165,8 +1165,8 @@ def _set_selection(
     value: str | None = None,
     index: int | None = None,
     timeout: int = 10000,
-    preExecutionDelay: int = 300,
-    postExecutionDelay: int = 200,
+    preDelay: int = 300,
+    postDelay: int = 200,
 ) -> None:
 
     validate_selector(selector=selector)
@@ -1185,11 +1185,11 @@ def _set_selection(
         text=text,
         value=value,
         index=index,
-        preExecutionDelay=preExecutionDelay,
+        preDelay=preDelay,
         timeout=timeout,
     )
 
-    delay(postExecutionDelay)
+    delay(postDelay)
 
 
 @Log.trace()
@@ -1200,8 +1200,8 @@ def set_selection(
     value: str | None = None,
     index: int | None = None,
     timeout: int = 10000,
-    preExecutionDelay: int = 300,
-    postExecutionDelay: int = 200,
+    preDelay: int = 300,
+    postDelay: int = 200,
 ) -> None:
     """
     Set the selected option of an HTML <select> element.
@@ -1215,8 +1215,8 @@ def set_selection(
         value: Select an option by its value attribute. It is mutually exclusive with text and index.
         index: Select an option by its index, starting from 0. It is mutually exclusive with text and value.
         timeout: Maximum time allowed for normal completion, in milliseconds. Values below 3000 are treated as 3000. The actual elapsed time may be longer if LiberRPA enters its hard-timeout fallback before raising a timeout-related exception.
-        preExecutionDelay: Time to wait before performing the action, in milliseconds.
-        postExecutionDelay: Time to wait after performing the action, in milliseconds.
+        preDelay: Time to wait before performing the action, in milliseconds.
+        postDelay: Time to wait after performing the action, in milliseconds.
     """
 
     timeout = _UiElement.check_set_timeout(timeout=timeout)
@@ -1227,8 +1227,8 @@ def set_selection(
         value,
         index,
         timeout,
-        preExecutionDelay,
-        postExecutionDelay,
+        preDelay,
+        postDelay,
     )
 
 
@@ -1263,8 +1263,8 @@ if __name__ == "__main__":
     #             "specification": [{"FileName": "_20250129_185915.png", "Grayscale": "true", "Confidence": "0.97"}],
     #         },
     #         timeout=3000,
-    #         preExecutionDelay=0,
-    #         postExecutionDelay=0,
+    #         preDelay=0,
+    #         postDelay=0,
     #     )
     # )
 
@@ -1297,8 +1297,8 @@ if __name__ == "__main__":
             # selector=htmlRpaChallenge2,
             # selector=image2,
             timeout=10000,
-            preExecutionDelay=3000,
-            postExecutionDelay=200,
+            preDelay=3000,
+            postDelay=200,
             color="yellow",
             duration=1000,
         )
@@ -1315,7 +1315,7 @@ if __name__ == "__main__":
     # wait_disappear(selector=image1, timeout=3000)
     # wait_disappear(selector=uiaGoogleBookmark2, timeout=3200)
 
-    """ temp = get_parent(selector=image1, timeout=10000, preExecutionDelay=300, postExecutionDelay=200)
+    """ temp = get_parent(selector=image1, timeout=10000, preDelay=300, postDelay=200)
     print(temp) """
 
     # print(get_attr_dictionary(selector=image1))
@@ -1333,14 +1333,14 @@ if __name__ == "__main__":
 
     """
     temp = get_parent(
-        selector=image1, upwardLevel=2, timeout=10000, preExecutionDelay=300, postExecutionDelay=200
+        selector=image1, upwardLevel=2, timeout=10000, preDelay=300, postDelay=200
     )
     print(temp)
     highlight(selector=temp)
     # highlight(selector=selector)
-    # print(get_parent(selector=selector, upwardLevel=1, timeout=10000, preExecutionDelay=300, postExecutionDelay=200))
+    # print(get_parent(selector=selector, upwardLevel=1, timeout=10000, preDelay=300, postDelay=200))
 
-    listTemp = get_children(selector=temp, timeout=30000, preExecutionDelay=300, postExecutionDelay=200)
+    listTemp = get_children(selector=temp, timeout=30000, preDelay=300, postDelay=200)
     import json
 
     print(json.dumps(listTemp, ensure_ascii=False)) """

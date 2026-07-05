@@ -30,15 +30,15 @@ export async function withTimeout<T>(func: () => Promise<T>, timeout: number): P
 
 export async function findElementWithPredelay(
   selector: DictLayerHtml[],
-  preExecutionDelay: number = 300
+  preDelay: number = 300
 ): Promise<HTMLElement> {
   console.log("--findElementWithPredelay--");
   const timeStart = Date.now();
   const element: HTMLElement = findElementBySelector(selector);
   const timeUsed = Date.now() - timeStart;
 
-  if (timeUsed < preExecutionDelay) {
-    await delay(preExecutionDelay - timeUsed);
+  if (timeUsed < preDelay) {
+    await delay(preDelay - timeUsed);
   }
   return element;
 }

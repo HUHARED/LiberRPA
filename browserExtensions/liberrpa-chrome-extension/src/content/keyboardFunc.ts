@@ -6,13 +6,13 @@ import { findElementWithPredelay } from "./timeFunc";
 export async function setElementText(
   selector: DictLayerHtml[],
   text: string,
-  emptyOriginalText: boolean = false,
-  validateWrittenText: boolean = false,
-  preExecutionDelay: number = 300
+  clearBeforeWrite: boolean = false,
+  validateText: boolean = false,
+  preDelay: number = 300
 ): Promise<void> {
   console.log("--setElementText--");
 
-  const element: HTMLElement = await findElementWithPredelay(selector, preExecutionDelay);
+  const element: HTMLElement = await findElementWithPredelay(selector, preDelay);
 
   let strWrittenText: string;
   let strOriginal: string;
@@ -21,7 +21,7 @@ export async function setElementText(
   if (isTextInputOrTextarea(element)) {
     strOriginal = element.value;
 
-    strExpected = emptyOriginalText ? text : strOriginal + text;
+    strExpected = clearBeforeWrite ? text : strOriginal + text;
 
     element.value = strExpected;
     dispatchInputAndChange(element);
@@ -31,7 +31,7 @@ export async function setElementText(
   } else if (element.isContentEditable) {
     strOriginal = element.innerText;
 
-    strExpected = emptyOriginalText ? text : strOriginal + text;
+    strExpected = clearBeforeWrite ? text : strOriginal + text;
 
     element.innerText = strExpected;
     dispatchInputAndChange(element);
@@ -43,7 +43,7 @@ export async function setElementText(
   }
 
   if (
-    validateWrittenText &&
+    validateText &&
     strWrittenText.replace(/\r\n/g, "\n") !== strExpected.replace(/\r\n/g, "\n")
   ) {
     throw new Error(
