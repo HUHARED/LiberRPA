@@ -163,7 +163,7 @@ class TransparentOverlay(QWidget):
         self.label = label
 
         # Determine label width using a QFontMetrics
-        font = QFont("Arial", 10)
+        font = QFont("Noto Sans Mono", 10)
         fontMetrics = QFontMetrics(font)
         intLabelWidth = fontMetrics.width(label) + 10  # Add padding to the label width
 
@@ -208,7 +208,7 @@ class TransparentOverlay(QWidget):
 
             # Draw the label
             if self.label:
-                painter.setFont(QFont("Arial", 10))
+                painter.setFont(QFont("Noto Sans Mono", 10))
                 painter.setPen(QPen(self.border_color))
                 label_rect = QRectF(
                     self.borderThickness // 2,
