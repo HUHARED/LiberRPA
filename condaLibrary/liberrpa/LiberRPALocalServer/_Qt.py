@@ -27,14 +27,12 @@ def show_notification(title: str, message: str, duration: int = 1, wait: bool = 
 def create_overlay(
     x: int, y: int, width: int, height: int, color: str = "red", duration: int = 1000, label: str = ""
 ) -> None:
-    # print("create_overlay before send command to qt")
     send_command_to_qt(
         command="create_overlay",
         data={"x": x, "y": y, "width": width, "height": height, "color": color, "duration": duration, "label": label},
     )
     # QtWorker didn't wait the command completed, so wait here.
     time.sleep(duration / 1000)
-    # print("create_overlay sleeps done.")
 
 
 class ScreenPrintObj(str):

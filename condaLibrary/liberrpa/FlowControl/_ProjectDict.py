@@ -52,13 +52,3 @@ class DictProject_Original(TypedDict):
     stopShortcut: bool
     highlightUi: bool
     customPrjArgs: list[tuple[str, Any]]
-
-
-""" class DictProject(TypedDict):
-    nodes: list[DictProject_Node]
-    edges: list[DictProject_Edge]
-    logLevel: Literal["VERBOSE", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
-    recordVideo: bool
-    stopShortcut: bool
-    customPrjArgs: dict[str, Any]
- """
