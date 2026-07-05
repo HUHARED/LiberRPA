@@ -23,14 +23,16 @@ def _copy_with_empty_line(item: DictSnippetsItem) -> DictSnippetsItem:
     body = itemCopy["body"]
 
     if isinstance(body, str):
-        itemCopy["body"] = [body, ""]
+        itemCopy["body"] = [body, "$0"]
     else:
         # As a safety net.
         if len(body) == 0:
             raise ValueError("Snippet body list should not be empty.")
 
         if body[-1] != "":
-            body.append("")
+            body.append("$0")
+        else:
+            body[-1] = "$0"
 
     return itemCopy
 
