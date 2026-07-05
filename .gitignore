@@ -14,5 +14,6 @@ README_chs.md
 InitLiberRPA.exe
 project.json
 temp.txt
+temp.md
 
 # Other rules should follow .gitignore in subfolders.
