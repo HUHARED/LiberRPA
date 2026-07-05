@@ -16,7 +16,7 @@ from ApiConfig import (
     SPECIAL_SNIPPETS,
 )
 from GenerateApiData import DictApiItem, DictParameterInfo, generate_api_manifest
-from SnippetUtils import get_snippets_dir, read_json, write_json
+from SnippetUtils import get_snippets_dir, read_json, write_json, format_snippet_choice
 
 
 def _load_or_generate_api_manifest() -> list[DictApiItem]:
@@ -26,11 +26,19 @@ def _load_or_generate_api_manifest() -> list[DictApiItem]:
     return generate_api_manifest()
 
 
-def _get_return_placeholder(returnAnnotation: str | None) -> str:
+def _get_return_placeholder(returnAnnotation: str | None, item: DictApiItem) -> str:
 
     # As a safety net.
     if returnAnnotation is None:
         raise ValueError("returnAnnotation should not be None when hasReturnValue is True.")
+
+    overloadReturnAnnotations = {
+        overload["returnAnnotation"]
+        for overload in item.get("overloads", [])
+        if overload["returnAnnotation"] is not None
+    }
+    if len(overloadReturnAnnotations) > 1:
+        return "result"
 
     placeholder = RETURN_PLACEHOLDER_BY_ANNOTATION.get(returnAnnotation)
     if placeholder is not None:
@@ -53,11 +61,15 @@ def _format_parameter_placeholder(parameter: DictParameterInfo, index: int) -> s
     name = parameter["name"]
     kind = parameter["kind"]
 
-    # As a safety net. Only Logging module has these kinds of arguments but they are generately manually.
+    # As a safety net. Only Logging module has these kinds of arguments but they are generated manually.
     if kind == "VAR_POSITIONAL":
         return f"*${{{index}:{name}}}"
     if kind == "VAR_KEYWORD":
         return f"**${{{index}:{name}}}"
+
+    snippetChoices = parameter.get("snippetChoices")
+    if snippetChoices:
+        return f"{name}={format_snippet_choice(index=index, choices=snippetChoices)}"
 
     if parameter["required"]:
         placeholder = PARAMETER_PLACEHOLDER_NAMES.get(name)
@@ -74,7 +86,7 @@ def _build_body(item: DictApiItem) -> str:
     returnPart = ""
 
     if item["hasReturnValue"]:
-        placeholder = _get_return_placeholder(item["returnAnnotation"])
+        placeholder = _get_return_placeholder(item["returnAnnotation"], item=item)
         returnPart = f"${{{index}:{placeholder}}} = "
         index += 1
 

@@ -9,7 +9,42 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 from pathlib import Path
 import json
 import json5
+import inspect
 from typing import Any, cast
+
+
+# VS Code snippet choices treat comma and pipe as delimiters.
+def _escape_snippet_choice(value: str) -> str:
+    """Escape a value used inside VS Code snippet choice syntax."""
+    return value.replace("\\", "\\\\").replace(",", "\\,").replace("|", "\\|")
+
+
+def format_snippet_choice(index: int, choices: list[str]) -> str:
+    """Return a VS Code choice placeholder."""
+    if not choices:
+        raise ValueError("Snippet choices should not be empty.")
+
+    escapedChoices = [_escape_snippet_choice(choice) for choice in choices]
+    return f"${{{index}|{','.join(escapedChoices)}|}}"
+
+
+def get_bool_choices(parameter: inspect.Parameter) -> list[str] | None:
+    """Return bool snippet choices, keeping the default value first."""
+    if parameter.annotation is not bool and not isinstance(parameter.default, bool):
+        return None
+
+    if parameter.default is inspect.Parameter.empty:
+        raise ValueError(
+            f"Bool parameter {parameter.name!r} has no default value. "
+            "Check whether this is intentional before generating snippets."
+        )
+
+    if not isinstance(parameter.default, bool):
+        raise ValueError(f"Bool parameter {parameter.name!r} has a non-bool default: {parameter.default!r}")
+
+    if parameter.default is True:
+        return ["True", "False"]
+    return ["False", "True"]
 
 
 def find_project_root() -> Path:

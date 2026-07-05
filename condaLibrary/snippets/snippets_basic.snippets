@@ -259,7 +259,7 @@
     },
     "Log.set_level": {
       "prefix": "Log.set_level",
-      "body": "Log.set_level(level=$1, loggerType=${2:'both'})",
+      "body": "Log.set_level(level=${1|'VERBOSE','DEBUG','INFO','WARNING','ERROR','CRITICAL'|}, loggerType=${2|'both','human','machine'|})",
       "description": "Set the minimum log level for the logger.\n\nParameters:\n    level: The minimum level to set. Must be one of ['VERBOSE', 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'].\n    loggerType: Which logger to set the level for. Must be one of ['both', 'human', 'machine']."
     },
     "Log.add_custom_log_part": {
@@ -274,7 +274,7 @@
     },
     "Log.trace": {
       "prefix": "Log.trace",
-      "body": "@Log.trace(level=${1:'DEBUG'})",
+      "body": "@Log.trace(level=${1|'DEBUG','VERBOSE','INFO','WARNING','ERROR','CRITICAL'|})",
       "description": "Decorate a function to log its start and end at a specified log level.\n\nParameters:\n    level: The level to record log. Must be one of ['VERBOSE', 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'].\n\nReturns:\n    Callable[[Callable[P, T]], Callable[P, T]]: A decorator that wraps the target function."
     }
   }
