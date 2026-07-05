@@ -8,15 +8,16 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 from liberrpa.Logging import Log
 from liberrpa.Common._WebSocket import send_command
 from liberrpa.Common._Exception import ChromeCommandError
-from liberrpa.Common._TypedValue import DictCookiesOfChrome, ChromeDownloadItem
+from liberrpa.Common._TypedValue import DictCookiesOfChrome, ChromeDownloadItem, JsonValue, StrPath
 from liberrpa.Common._Chrome import get_download_list as _get_download_list
 
 from pathlib import Path
 import time
 import psutil
+import os
 from urllib.parse import urlparse
 from dataclasses import dataclass
-from typing import Literal, Any
+from typing import Literal, overload
 
 # Chrome Enterprise has the same path.
 _CHROME_PATH_X86 = R"C:/Program Files (x86)/Google/Chrome/Application/chrome.exe"
@@ -45,7 +46,7 @@ class BrowserObj:
 def open_browser(
     browserType: Literal["chrome"] = "chrome",
     url: str = "about:blank",
-    path: str | None = None,
+    path: StrPath | None = None,
     params: str | list[str] = "",
     timeout: int = 30000,
 ) -> BrowserObj:
@@ -89,7 +90,7 @@ def open_browser(
                     )
             else:
                 if Path(path).is_file():
-                    browserObj.path = path
+                    browserObj.path = os.fspath(path)
                 else:
                     raise FileNotFoundError(f"Could not find a file at '{path}'.")
 
@@ -704,8 +705,28 @@ def set_scroll_position(browserObj: BrowserObj, x: int = 0, y: int = 0) -> None:
             )
 
 
+@overload
+def execute_js_code(
+    browserObj: BrowserObj,
+    jsCode: str,
+    returnImmediately: Literal[True],
+) -> None: ...
+
+
+@overload
+def execute_js_code(
+    browserObj: BrowserObj,
+    jsCode: str,
+    returnImmediately: Literal[False] = False,
+) -> JsonValue: ...
+
+
 @Log.trace()
-def execute_js_code(browserObj: BrowserObj, jsCode: str, returnImmediately: bool = False) -> Any:
+def execute_js_code(
+    browserObj: BrowserObj,
+    jsCode: str,
+    returnImmediately: bool = False,
+) -> JsonValue | None:
     """
     Executes a JavaScript code string in the active tab of the specified browser.
 

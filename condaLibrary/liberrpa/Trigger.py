@@ -91,7 +91,7 @@ def mouse_trigger[T](
     pressAlt: bool = False,
     pressWin: bool = False,
     timing: Literal["on_press", "on_release"] = "on_release",
-    showNotification: bool = True,
+    notify: bool = True,
     block: bool = True,
 ) -> T | None:
     """
@@ -106,7 +106,7 @@ def mouse_trigger[T](
         pressAlt: Whether the Alt key must be pressed.
         pressWin: Whether the Win key must be pressed.
         timing: When to trigger the function, "on_press" or "on_release".
-        showNotification: Whether to show a notification when the function is triggered.
+        notify: Whether to show a notification when the function is triggered.
         block: Whether to block the main thread until the trigger is executed.
 
     Returns:
@@ -134,7 +134,7 @@ def mouse_trigger[T](
                 (timing == "on_press" and pressed) or (timing == "on_release" and not pressed)
             ):
                 if _check_modifiers(pressCtrl=pressCtrl, pressShift=pressShift, pressAlt=pressAlt, pressWin=pressWin):
-                    if showNotification:
+                    if notify:
                         strAddition = _generate_addition(
                             pressCtrl=pressCtrl, pressShift=pressShift, pressAlt=pressAlt, pressWin=pressWin
                         )
@@ -178,7 +178,7 @@ def keyboard_trigger[T](
     pressAlt: bool = False,
     pressWin: bool = False,
     timing: Literal["on_press", "on_release"] = "on_release",
-    showNotification: bool = True,
+    notify: bool = True,
     block: bool = True,
 ) -> T | None:
     """
@@ -193,7 +193,7 @@ def keyboard_trigger[T](
         pressAlt: Whether the Alt key must be pressed. Set it be True if key is 'alt', 'left alt', 'right alt' and timing is "on_press"
         pressWin: Whether the Win key must be pressed. Set it be True if key is 'windows', 'left windows', 'right windows' and timing is "on_press"
         timing: When to trigger the function, "on_press" or "on_release".
-        showNotification: Whether to show a notification when the function is triggered.
+        notify: Whether to show a notification when the function is triggered.
         block: Whether to block the main thread until the trigger is executed.
 
     Returns:
@@ -225,7 +225,7 @@ def keyboard_trigger[T](
                     pressAlt=pressAlt,
                     pressWin=pressWin,
                 ):
-                    if showNotification:
+                    if notify:
                         strAddition = _generate_addition(
                             pressCtrl=pressCtrl, pressShift=pressShift, pressAlt=pressAlt, pressWin=pressWin
                         )
@@ -312,7 +312,7 @@ if __name__ == "__main__":
             pressShift=False,
             pressWin=False,
             timing="on_release",
-            showNotification=True,
+            notify=True,
             block=True,
         )
     ) """
@@ -327,7 +327,7 @@ if __name__ == "__main__":
             pressShift=False,
             pressWin=False,
             timing="on_release",
-            showNotification=True,
+            notify=True,
             block=True,
         )
     ) """
@@ -341,7 +341,7 @@ if __name__ == "__main__":
             pressShift=False,
             pressWin=False,
             timing="on_release",
-            showNotification=True,
+            notify=True,
             block=True,
         )
     ) """

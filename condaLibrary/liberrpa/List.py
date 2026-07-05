@@ -64,7 +64,7 @@ def remove[T](listObj: list[T], value: T) -> None:
 
 
 @Log.trace()
-def clear(listObj: list[Any]) -> None:
+def clear[T](listObj: list[T]) -> None:
     """
     Clear all items from a list.
 
@@ -138,7 +138,7 @@ def find[T](listObj: list[T], value: T, start: int = 0, stop: int | None = None)
 
 
 @Log.trace()
-def reverse(listObj: list[Any]) -> None:
+def reverse[T](listObj: list[T]) -> None:
     """
     Reverse the order of items in a list.
 

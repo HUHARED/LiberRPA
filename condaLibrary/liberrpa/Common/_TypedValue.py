@@ -6,6 +6,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
 # from liberrpa.UI._UiDict import *
+from os import PathLike
 from typing import TypedDict, Literal, NotRequired, Any
 
 
@@ -630,6 +631,10 @@ type ClickMode = Literal["single_click", "double_click", "down", "up"]
 type FivePosition = Literal["center", "top_left", "top_right", "bottom_left", "bottom_right"]
 type ExecutionMode = Literal["simulate", "api"]
 
+type JsonValue = None | bool | int | float | str | list[JsonValue] | dict[str, JsonValue]
+
+
+type StrPath = str | PathLike[str]
 
 if __name__ == "__main__":
     print(DictTextBlock.__annotations__)

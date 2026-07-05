@@ -6,6 +6,8 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
 from liberrpa.Logging import Log
+from liberrpa.Common._TypedValue import StrPath
+
 import pandas
 import xlwings as xw
 from xlwings import Book, Range
@@ -16,12 +18,12 @@ import win32com.client
 import pythoncom
 import re
 from datetime import datetime
-from typing import Literal, Any, cast
+from typing import Literal, Any, cast, overload
 
-type TypeOfExcelFile = Literal["xlsx", "xls", "xlsm", "xlsb"]
-type TypeOfSheet = str | int
-type TypeOfCell = str | list[int]
-type TypeOfCellData = str | int | float | datetime | bool | None
+type ExcelFileType = Literal["xlsx", "xls", "xlsm", "xlsb"]
+type ExcelSheet = str | int
+type ExcelCell = str | list[int]
+type ExcelCellValue = str | int | float | datetime | bool | None
 
 _VALID_EXCEL_FILE_TYPES: set[str] = {"xlsx", "xls", "xlsm", "xlsb"}
 
@@ -41,14 +43,14 @@ class ExcelObj:
         self.readOnly: bool = False
         self.password: str = ""
         self.writePassword: str = ""
-        self.type: TypeOfExcelFile
+        self.type: ExcelFileType
         self.book: Book
 
     def __str__(self) -> str:
         return f"ExcelObj(path: {self.path}, visible: {self.visible}, readOnly: {self.readOnly}, password: {'*****' if self.password else ''}, writePassword: {'*****' if self.writePassword else ''}, type: {self.type})"
 
 
-def _check_excel_file_type(path: str) -> TypeOfExcelFile:
+def _check_excel_file_type(path: StrPath) -> ExcelFileType:
     fileType = Path(path).suffix.replace(".", "").lower()
 
     if fileType not in _VALID_EXCEL_FILE_TYPES:
@@ -56,7 +58,7 @@ def _check_excel_file_type(path: str) -> TypeOfExcelFile:
             f"Unsupported Excel file type: {fileType!r}. Supported types: {sorted(_VALID_EXCEL_FILE_TYPES)}"
         )
 
-    return cast(TypeOfExcelFile, fileType)
+    return cast(ExcelFileType, fileType)
 
 
 def _check_edit_mode() -> None:
@@ -78,7 +80,7 @@ def _check_edit_mode() -> None:
         pythoncom.CoUninitialize()
 
 
-def _check_and_standardize_sheet(excelObj: ExcelObj, sheet: TypeOfSheet) -> str:
+def _check_and_standardize_sheet(excelObj: ExcelObj, sheet: ExcelSheet) -> str:
     if not (isinstance(sheet, int) or isinstance(sheet, str)):
         raise ExcelError("The argument sheet should be a int or string.")
     listSheetName: list[str] = [sheet.name for sheet in excelObj.book.sheets]
@@ -108,7 +110,7 @@ def _check_and_standardize_column(column: str | int) -> str:
     return strCol
 
 
-def _check_and_standardize_cell(cell: TypeOfCell) -> str:
+def _check_and_standardize_cell(cell: ExcelCell) -> str:
     if not (isinstance(cell, str) or isinstance(cell, list)):
         raise ExcelError("The argument cell should be a string or list[int].")
 
@@ -151,11 +153,11 @@ def _print_xw_info(excelObj: ExcelObj) -> None:
 
 @Log.trace()
 def open_Excel_file(
-    path: str,
+    path: StrPath,
     visible: bool = True,
     password: str = "",
     writePassword: str = "",
-    createIfNotExist: bool = True,
+    createIfMissing: bool = True,
     readOnly: bool = False,
 ) -> ExcelObj:
     """
@@ -171,7 +173,7 @@ def open_Excel_file(
         visible: If True, opens Excel in visible mode.
         password: The password for opening the workbook, if required.
         writePassword: The password for write access, if required.
-        createIfNotExist: If True, creates a new workbook if the file does not exist.
+        createIfMissing: If True, creates a new workbook if the file does not exist.
         readOnly: If True, opens the workbook in read-only mode.
 
     Returns:
@@ -198,7 +200,7 @@ def open_Excel_file(
             local=True,
         )
     else:
-        if createIfNotExist:
+        if createIfMissing:
             # Create a new file
             xwApp = xw.App(visible=excelObj.visible, add_book=False)
             excelObj.book = xwApp.books.add()
@@ -263,7 +265,7 @@ def save(excelObj: ExcelObj) -> None:
 
 
 @Log.trace()
-def save_as(excelObj: ExcelObj, destinationPath: str, password: str = "") -> str:
+def save_as(excelObj: ExcelObj, dstPath: StrPath, password: str = "") -> str:
     """
     Save the current workbook as a new file.
 
@@ -271,7 +273,7 @@ def save_as(excelObj: ExcelObj, destinationPath: str, password: str = "") -> str
 
     Parameters:
         excelObj: The Excel workbook object.
-        destinationPath: The path where the workbook will be saved.
+        dstPath: The path where the workbook will be saved.
         password: An optional password for saving the workbook.
 
     Returns:
@@ -279,7 +281,7 @@ def save_as(excelObj: ExcelObj, destinationPath: str, password: str = "") -> str
     """
     _check_edit_mode()
 
-    strFilePath = str(Path(destinationPath).absolute())
+    strFilePath = str(Path(dstPath).absolute())
     newFileType = _check_excel_file_type(strFilePath)
 
     if Path(strFilePath).is_file():
@@ -343,7 +345,7 @@ def activate_window(excelObj: ExcelObj) -> None:
 
 
 @Log.trace()
-def get_last_row(excelObj: ExcelObj, sheet: TypeOfSheet, col: str | int | None = None) -> int:
+def get_last_row(excelObj: ExcelObj, sheet: ExcelSheet, col: str | int | None = None) -> int:
     """
     Get the last row number of a given sheet.
 
@@ -368,7 +370,7 @@ def get_last_row(excelObj: ExcelObj, sheet: TypeOfSheet, col: str | int | None =
 
 
 @Log.trace()
-def get_last_column(excelObj: ExcelObj, sheet: TypeOfSheet, row: int | None = None) -> tuple[str, int]:
+def get_last_column(excelObj: ExcelObj, sheet: ExcelSheet, row: int | None = None) -> tuple[str, int]:
     """
     Get the last column (number or name) of a given sheet.
 
@@ -430,8 +432,26 @@ def convert_col_str_to_num(colStr: str) -> int:
     return intCol
 
 
+@overload
+def read_cell(
+    excelObj: ExcelObj,
+    sheet: ExcelSheet,
+    cell: ExcelCell,
+    returnDisplayed: Literal[True] = True,
+) -> str: ...
+
+
+@overload
+def read_cell(
+    excelObj: ExcelObj,
+    sheet: ExcelSheet,
+    cell: ExcelCell,
+    returnDisplayed: Literal[False],
+) -> ExcelCellValue: ...
+
+
 @Log.trace()
-def read_cell(excelObj: ExcelObj, sheet: TypeOfSheet, cell: TypeOfCell, returnDisplayed: bool = True) -> TypeOfCellData:
+def read_cell(excelObj: ExcelObj, sheet: ExcelSheet, cell: ExcelCell, returnDisplayed: bool = True) -> ExcelCellValue:
     """
     Read the value of a specific cell.
 
@@ -457,10 +477,22 @@ def read_cell(excelObj: ExcelObj, sheet: TypeOfSheet, cell: TypeOfCell, returnDi
         return excelObj.book.sheets[sheet].range(cell).value
 
 
+@overload
+def read_row(
+    excelObj: ExcelObj, sheet: ExcelSheet, startCell: ExcelCell, returnDisplayed: Literal[True] = True
+) -> list[str]: ...
+
+
+@overload
+def read_row(
+    excelObj: ExcelObj, sheet: ExcelSheet, startCell: ExcelCell, returnDisplayed: Literal[False] = False
+) -> list[ExcelCellValue]: ...
+
+
 @Log.trace()
 def read_row(
-    excelObj: ExcelObj, sheet: TypeOfSheet, startCell: TypeOfCell, returnDisplayed: bool = True
-) -> list[TypeOfCellData]:
+    excelObj: ExcelObj, sheet: ExcelSheet, startCell: ExcelCell, returnDisplayed: bool = True
+) -> list[ExcelCellValue]:
     """
     Reads an entire row in an Excel sheet starting from the specified cell.
 
@@ -505,10 +537,22 @@ def read_row(
         return [returnValue]
 
 
+@overload
+def read_column(
+    excelObj: ExcelObj, sheet: ExcelSheet, startCell: ExcelCell, returnDisplayed: Literal[True] = True
+) -> list[str]: ...
+
+
+@overload
+def read_column(
+    excelObj: ExcelObj, sheet: ExcelSheet, startCell: ExcelCell, returnDisplayed: Literal[False] = False
+) -> list[ExcelCellValue]: ...
+
+
 @Log.trace()
 def read_column(
-    excelObj: ExcelObj, sheet: TypeOfSheet, startCell: TypeOfCell, returnDisplayed: bool = True
-) -> list[TypeOfCellData]:
+    excelObj: ExcelObj, sheet: ExcelSheet, startCell: ExcelCell, returnDisplayed: bool = True
+) -> list[ExcelCellValue]:
     """
     Reads an entire column in an Excel sheet starting from the specified cell.
 
@@ -553,7 +597,7 @@ def read_column(
         return [returnValue]
 
 
-def _get_endCell_if_not_provided(excelObj: ExcelObj, sheet: TypeOfSheet, endCell: TypeOfCell | None) -> str:
+def _get_endCell_if_not_provided(excelObj: ExcelObj, sheet: ExcelSheet, endCell: ExcelCell | None) -> str:
     # Determine the end cell if not provided
     if endCell is not None:
         endCell = _check_and_standardize_cell(cell=endCell)
@@ -569,11 +613,11 @@ def _get_endCell_if_not_provided(excelObj: ExcelObj, sheet: TypeOfSheet, endCell
 
 def _read_range(
     excelObj: ExcelObj,
-    sheet: TypeOfSheet,
-    startCell: TypeOfCell,
-    endCell: TypeOfCell | None = None,
+    sheet: ExcelSheet,
+    startCell: ExcelCell,
+    endCell: ExcelCell | None = None,
     returnDisplayed: bool = True,
-) -> list[list[str]] | list[list[TypeOfCellData]]:
+) -> list[list[str]] | list[list[ExcelCellValue]]:
     sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
     startCell = _check_and_standardize_cell(cell=startCell)
     endCell = _get_endCell_if_not_provided(excelObj=excelObj, sheet=sheet, endCell=endCell)
@@ -604,14 +648,34 @@ def _read_range(
         return [[cell.value for cell in row] for row in range.rows]
 
 
+@overload
+def read_range_list(
+    excelObj: ExcelObj,
+    sheet: ExcelSheet,
+    startCell: ExcelCell,
+    endCell: ExcelCell | None = None,
+    returnDisplayed: Literal[True] = True,
+) -> list[list[str]]: ...
+
+
+@overload
+def read_range_list(
+    excelObj: ExcelObj,
+    sheet: ExcelSheet,
+    startCell: ExcelCell,
+    endCell: ExcelCell | None = None,
+    returnDisplayed: Literal[False] = False,
+) -> list[list[ExcelCellValue]]: ...
+
+
 @Log.trace()
 def read_range_list(
     excelObj: ExcelObj,
-    sheet: TypeOfSheet,
-    startCell: TypeOfCell,
-    endCell: TypeOfCell | None = None,
+    sheet: ExcelSheet,
+    startCell: ExcelCell,
+    endCell: ExcelCell | None = None,
     returnDisplayed: bool = True,
-) -> list[list[str]] | list[list[TypeOfCellData]]:
+) -> list[list[str]] | list[list[ExcelCellValue]]:
     """
     Reads a specified range from an Excel sheet and returns the data in the desired format.
 
@@ -639,9 +703,9 @@ def read_range_list(
 @Log.trace()
 def read_range_df(
     excelObj: ExcelObj,
-    sheet: TypeOfSheet,
-    startCell: TypeOfCell,
-    endCell: TypeOfCell | None = None,
+    sheet: ExcelSheet,
+    startCell: ExcelCell,
+    endCell: ExcelCell | None = None,
     addTitle: bool = True,
     returnDisplayed: bool = True,
 ) -> pandas.DataFrame:
@@ -679,9 +743,9 @@ def read_range_df(
 @Log.trace()
 def write_cell(
     excelObj: ExcelObj,
-    sheet: TypeOfSheet,
-    cell: TypeOfCell,
-    data: TypeOfCellData,
+    sheet: ExcelSheet,
+    cell: ExcelCell,
+    data: ExcelCellValue,
     save: bool = False,
 ) -> None:
     """
@@ -708,9 +772,9 @@ def write_cell(
 @Log.trace()
 def write_row(
     excelObj: ExcelObj,
-    sheet: TypeOfSheet,
-    startCell: TypeOfCell,
-    data: list[TypeOfCellData],
+    sheet: ExcelSheet,
+    startCell: ExcelCell,
+    data: list[ExcelCellValue],
     save: bool = False,
 ) -> None:
     """
@@ -748,9 +812,9 @@ def write_row(
 @Log.trace()
 def write_column(
     excelObj: ExcelObj,
-    sheet: TypeOfSheet,
-    startCell: TypeOfCell,
-    data: list[TypeOfCellData],
+    sheet: ExcelSheet,
+    startCell: ExcelCell,
+    data: list[ExcelCellValue],
     save: bool = False,
 ) -> None:
     """
@@ -787,9 +851,9 @@ def write_column(
 @Log.trace()
 def write_range(
     excelObj: ExcelObj,
-    sheet: TypeOfSheet,
-    startCell: TypeOfCell,
-    data: pandas.DataFrame | list[list[TypeOfCellData]] | None,
+    sheet: ExcelSheet,
+    startCell: ExcelCell,
+    data: pandas.DataFrame | list[list[ExcelCellValue]] | None,
     writeTitleRow: bool = True,
     save: bool = False,
 ) -> None:
@@ -850,9 +914,9 @@ def write_range(
 @Log.trace()
 def insert_row(
     excelObj: ExcelObj,
-    sheet: TypeOfSheet,
-    startCell: TypeOfCell,
-    data: list[TypeOfCellData],
+    sheet: ExcelSheet,
+    startCell: ExcelCell,
+    data: list[ExcelCellValue],
     save: bool = False,
 ) -> None:
     """
@@ -881,9 +945,9 @@ def insert_row(
 @Log.trace()
 def insert_column(
     excelObj: ExcelObj,
-    sheet: TypeOfSheet,
-    startCell: TypeOfCell,
-    data: list[TypeOfCellData],
+    sheet: ExcelSheet,
+    startCell: ExcelCell,
+    data: list[ExcelCellValue],
     save: bool = False,
 ) -> None:
     """
@@ -910,7 +974,7 @@ def insert_column(
 
 
 @Log.trace()
-def delete_row(excelObj: ExcelObj, sheet: TypeOfSheet, cell: TypeOfCell, save: bool = False) -> None:
+def delete_row(excelObj: ExcelObj, sheet: ExcelSheet, cell: ExcelCell, save: bool = False) -> None:
     """
     Delete the row of the cell and move the next row up.
 
@@ -935,7 +999,7 @@ def delete_row(excelObj: ExcelObj, sheet: TypeOfSheet, cell: TypeOfCell, save: b
 
 
 @Log.trace()
-def delete_column(excelObj: ExcelObj, sheet: TypeOfSheet, cell: TypeOfCell, save: bool = False) -> None:
+def delete_column(excelObj: ExcelObj, sheet: ExcelSheet, cell: ExcelCell, save: bool = False) -> None:
     """
     Delete the column of the cell and move the next column left.
 
@@ -961,7 +1025,7 @@ def delete_column(excelObj: ExcelObj, sheet: TypeOfSheet, cell: TypeOfCell, save
 
 
 @Log.trace()
-def select_range(excelObj: ExcelObj, sheet: TypeOfSheet, startCell: TypeOfCell, endCell: TypeOfCell | None) -> None:
+def select_range(excelObj: ExcelObj, sheet: ExcelSheet, startCell: ExcelCell, endCell: ExcelCell | None) -> None:
     """
     Select the specific range.
 
@@ -1022,9 +1086,9 @@ def get_selected_range(excelObj: ExcelObj) -> list[str]:
 @Log.trace()
 def clear_range(
     excelObj: ExcelObj,
-    sheet: TypeOfSheet,
-    startCell: TypeOfCell,
-    endCell: TypeOfCell | None,
+    sheet: ExcelSheet,
+    startCell: ExcelCell,
+    endCell: ExcelCell | None,
     clearContent: bool = True,
     clearFormat: bool = True,
     save: bool = False,
@@ -1066,7 +1130,7 @@ def clear_range(
 
 
 @Log.trace()
-def activate_sheet(excelObj: ExcelObj, sheet: TypeOfSheet) -> None:
+def activate_sheet(excelObj: ExcelObj, sheet: ExcelSheet) -> None:
     """
     Activate sheet by name or index.
 
@@ -1108,7 +1172,7 @@ def _check_sheet_name_exist(excelObj: ExcelObj, sheetName: str) -> None:
 def add_sheet(
     excelObj: ExcelObj,
     newSheetName: str,
-    anchorSheet: TypeOfSheet = "Sheet1",
+    anchorSheet: ExcelSheet = "Sheet1",
     direction: Literal["before", "after"] = "after",
     save: bool = False,
 ) -> None:
@@ -1141,7 +1205,7 @@ def add_sheet(
 
 
 @Log.trace()
-def rename_sheet(excelObj: ExcelObj, sheet: TypeOfSheet, newSheetName: str, save: bool = False) -> None:
+def rename_sheet(excelObj: ExcelObj, sheet: ExcelSheet, newSheetName: str, save: bool = False) -> None:
     """
     Rename a sheet.
 
@@ -1165,9 +1229,9 @@ def rename_sheet(excelObj: ExcelObj, sheet: TypeOfSheet, newSheetName: str, save
 @Log.trace()
 def copy_sheet(
     srcExcelObj: ExcelObj,
-    srcSheet: TypeOfSheet,
+    srcSheet: ExcelSheet,
     dstExcelObj: ExcelObj,
-    dstAnchorSheet: TypeOfSheet,
+    dstAnchorSheet: ExcelSheet,
     newSheetName: str,
     direction: Literal["before", "after"] = "after",
     save: bool = False,
@@ -1213,7 +1277,7 @@ def copy_sheet(
 
 
 @Log.trace()
-def delete_sheet(excelObj: ExcelObj, sheet: TypeOfSheet, save: bool = False) -> None:
+def delete_sheet(excelObj: ExcelObj, sheet: ExcelSheet, save: bool = False) -> None:
     """
     Delete a sheet.
 

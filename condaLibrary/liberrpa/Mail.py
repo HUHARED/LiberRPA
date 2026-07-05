@@ -6,7 +6,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
 from liberrpa.Logging import Log
-from liberrpa.Common._TypedValue import DictImapMailInfo
+from liberrpa.Common._TypedValue import DictImapMailInfo, StrPath
 from liberrpa.Common._Exception import MailError
 from imapclient import IMAPClient
 from mailparser import parse_from_bytes, MailParser
@@ -188,7 +188,7 @@ def _get_basic_mail_info(email: MailParser) -> DictImapMailInfo:
 def get_email_list(
     imapObj: IMAPClient,
     folder: str = "INBOX",
-    numToGet: int = 1,
+    limit: int = 1,
     onlyUnread: bool = False,
     markAsRead: bool = False,
     charset: str | None = None,
@@ -199,7 +199,7 @@ def get_email_list(
     Parameters:
         imapObj: An instance of the IMAPClient connected to the email server.
         folder: The name of the folder to fetch emails from.
-        numToGet: The maximum number of emails to retrieve.
+        limit: The maximum number of emails to retrieve.
         onlyUnread: Whether to retrieve only unread emails.
         markAsRead: Whether to mark retrieved emails as read.
         charset: The charset to use for the search criteria.
@@ -213,7 +213,7 @@ def get_email_list(
     imapObj.select_folder(folder=folder, readonly=not markAsRead)
     criteria = "UNSEEN" if onlyUnread else "ALL"
     listUid = imapObj.search(criteria=criteria, charset=charset)
-    listUid = listUid[:numToGet]
+    listUid = listUid[:limit]
 
     listEmail: list[MailParser] = []
     listBasicInfo: list[DictImapMailInfo] = []
@@ -276,7 +276,7 @@ def move_email(imapObj: IMAPClient, uid: int, folder: str) -> None:
 
 
 @Log.trace()
-def download_attachments(emailObj: MailParser, downloadPath: str) -> list[str]:
+def download_attachments(emailObj: MailParser, downloadPath: StrPath) -> list[str]:
     """
     Download all attachments of an email.
 
@@ -326,7 +326,7 @@ if __name__ == "__main__":
     #     get_email_list(
     #         imapObj=imapObj,
     #         folder="其他文件夹/测试文件夹",
-    #         numToGet=1,
+    #         limit=1,
     #         onlyUnread=False,
     #         markAsRead=False,
     #         charset=None,

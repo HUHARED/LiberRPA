@@ -10,7 +10,7 @@ from typing import Any
 
 
 @Log.trace()
-def clear(dictObj: dict) -> None:
+def clear[K, V](dictObj: dict[K, V]) -> None:
     """
     Clear all items from the specified dictionary.
 
@@ -21,7 +21,7 @@ def clear(dictObj: dict) -> None:
 
 
 @Log.trace()
-def get[T, T2](dictObj: dict[T, T2], key: T, default: T2 | None = None) -> T2 | None:
+def get[K, V](dictObj: dict[K, V], key: K, default: V | None = None) -> V | None:
     """
     Retrieve the value associated with a specified key from the dictionary.
 
@@ -39,7 +39,7 @@ def get[T, T2](dictObj: dict[T, T2], key: T, default: T2 | None = None) -> T2 | 
 
 
 @Log.trace()
-def pop[T, T2](dictObj: dict[T, T2], key: T, default: T2 | None = None) -> T2 | None:
+def pop[K, V](dictObj: dict[K, V], key: K, default: V | None = None) -> V | None:
     """
     Remove a specified key from the dictionary and return its corresponding value.
 
@@ -57,7 +57,7 @@ def pop[T, T2](dictObj: dict[T, T2], key: T, default: T2 | None = None) -> T2 | 
 
 
 @Log.trace()
-def pop_item[T, T2](dictObj: dict[T, T2]) -> tuple[T, T2]:
+def pop_item[K, V](dictObj: dict[K, V]) -> tuple[K, V]:
     """
     Remove and return the last inserted key-value pair from a dictionary.
 
@@ -71,7 +71,7 @@ def pop_item[T, T2](dictObj: dict[T, T2]) -> tuple[T, T2]:
 
 
 @Log.trace()
-def get_key_list[T](dictObj: dict[T, Any]) -> list[T]:
+def get_key_list[K](dictObj: dict[K, Any]) -> list[K]:
     """
     Retrieve a list of keys from the specified dictionary.
 
@@ -85,7 +85,7 @@ def get_key_list[T](dictObj: dict[T, Any]) -> list[T]:
 
 
 @Log.trace()
-def get_value_list[T](dictObj: dict[Any, T]) -> list[T]:
+def get_value_list[V](dictObj: dict[Any, V]) -> list[V]:
     """
     Retrieve a list of values from the specified dictionary.
 
@@ -99,7 +99,7 @@ def get_value_list[T](dictObj: dict[Any, T]) -> list[T]:
 
 
 @Log.trace()
-def extend[T, T2](dictObj: dict[T, T2], dictToExtend: dict[T, T2]) -> None:
+def extend[K, V](dictObj: dict[K, V], dictToExtend: dict[K, V]) -> None:
     """
     Extend a dictionary with the key-value pairs from another dictionary.
 

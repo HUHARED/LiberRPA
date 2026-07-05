@@ -8,6 +8,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 from liberrpa.Logging import Log
 from liberrpa.Common._Exception import UiElementNotFoundError, get_exception_info
 from liberrpa.UI._UiDict import DictImageAttr
+from liberrpa.Common._TypedValue import StrPath
 from liberrpa.UI._Screenshot import (
     SCREENSHOT_DOCUMENTS_PATH,
     FULL_SCREENSHOT_PATH,
@@ -24,13 +25,13 @@ from typing import cast
 
 
 def _get_image_path(
-    fileNameOrPath: str,
+    fileNameOrPath: StrPath,
     moveFile: bool = True,
     inScreenshotFolder: bool = True,
 ) -> str:
     # When other built-in modules invoke the function, "fileName" should be a literally filename, but if UiInterface.get_image_position invokes it, it will give a path and inScreenshotFolder is False.
     if not inScreenshotFolder:
-        strFilePath = fileNameOrPath
+        strFilePath = os.fspath(fileNameOrPath)
     else:
         if not os.path.isfile(os.path.join(SCREENSHOT_PROJECT_PATH, fileNameOrPath)):
             if not os.path.isfile(os.path.join(SCREENSHOT_DOCUMENTS_PATH, fileNameOrPath)):
@@ -63,7 +64,7 @@ def _get_image_path(
 
 
 def find_image(
-    fileNameOrPath: str,
+    fileNameOrPath: StrPath,
     region: tuple[int, int, int, int] | None,
     confidence: float,
     grayscale: bool = True,

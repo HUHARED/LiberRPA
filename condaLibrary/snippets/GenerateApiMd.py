@@ -10,6 +10,7 @@ import textwrap
 from typing import cast
 
 from ApiConfig import DictSnippetsItem
+from GenerateApiData import DictApiItem, DictOverloadInfo
 from SnippetUtils import get_snippets_dir, read_json
 
 
@@ -45,11 +46,27 @@ def _render_code_section(title: str, content: str) -> str:
     return f"{title}:\n\n```text\n{content}\n```"
 
 
+def _render_python_section(title: str, content: str) -> str:
+    return f"{title}:\n\n```python\n{content}\n```"
+
+
 def _render_markdown_section(title: str, content: str) -> str:
     return f"{title}:\n\n{content}"
 
 
-def _render_description(description: str) -> str:
+def _render_overload_signatures(overloads: list[DictOverloadInfo]) -> str:
+    if not overloads:
+        return ""
+
+    lines: list[str] = []
+    for overload in overloads:
+        lines.append("@overload")
+        lines.append(f"def {overload['signature']}: ...")
+
+    return _render_python_section(title="Overload signatures", content="\n".join(lines))
+
+
+def _render_description(description: str, overloads: list[DictOverloadInfo]) -> str:
     if not description:
         return ""
 
@@ -59,6 +76,10 @@ def _render_description(description: str) -> str:
     descriptionText = sections.get("description", "")
     if descriptionText:
         parts.append(descriptionText)
+
+    overloadsText = _render_overload_signatures(overloads=overloads)
+    if overloadsText:
+        parts.append(overloadsText)
 
     parametersText = sections.get("parameters", "")
     if parametersText:
@@ -87,9 +108,19 @@ def _render_description(description: str) -> str:
     return "\n\n".join(parts)
 
 
+def _load_api_manifest_by_title() -> dict[str, DictApiItem]:
+    manifestPath = get_snippets_dir() / "api_manifest.json"
+    if not manifestPath.is_file():
+        return {}
+
+    apiManifest = cast(list[DictApiItem], read_json(manifestPath, list))
+    return {item["title"]: item for item in apiManifest}
+
+
 def _generate_api_markdown(dictSnippets: dict[str, DictSnippetsItem]) -> str:
     markdownParts: list[str] = []
     currentModule: str | None = None
+    apiManifestByTitle = _load_api_manifest_by_title()
 
     for title, snippet in dictSnippets.items():
         if "." in title:
@@ -104,8 +135,11 @@ def _generate_api_markdown(dictSnippets: dict[str, DictSnippetsItem]) -> str:
 
         markdownParts.append(f"### {functionName}")
 
+        apiItem = apiManifestByTitle.get(title)
+        overloads = apiItem.get("overloads", []) if apiItem is not None else []
+
         description = snippet.get("description", "")
-        renderedDescription = _render_description(description)
+        renderedDescription = _render_description(description=description, overloads=overloads)
         if renderedDescription:
             markdownParts.append(renderedDescription)
         else:

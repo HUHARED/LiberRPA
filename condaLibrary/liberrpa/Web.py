@@ -7,6 +7,8 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from liberrpa.Logging import Log
 from liberrpa.Data import sanitize_filename
+from liberrpa.Common._TypedValue import StrPath
+
 import requests
 from pathlib import Path
 import re
@@ -105,11 +107,11 @@ def post(
 @Log.trace()
 def download_file(
     url: str,
-    folderPath: str,
+    folderPath: StrPath,
     params: dict[str, str] | list[tuple[str, str]] | str | bytes | None = None,
     timeout: int = 60,
     stream: bool = False,
-    overwriteIfExist: bool = False,
+    overwrite: bool = False,
 ) -> str:
     """
     Downloads a file from the given URL and saves it to the specified folder.
@@ -120,7 +122,7 @@ def download_file(
         params: Optional query parameters to include in the request.
         timeout: Timeout duration for the request, in seconds.
         stream: Whether to stream the download (useful for large files, to avoid excessive memory usage).
-        overwriteIfExist: If set to True, the destination file will be overwritten if it already exists; if False, a FileExistsError will be raised if the destination file exists.
+        overwrite: If set to True, the destination file will be overwritten if it already exists; if False, a FileExistsError will be raised if the destination file exists.
 
     Returns:
         str: The absolute path of the downloaded file.
@@ -147,7 +149,7 @@ def download_file(
 
     strFilePath = Path(folderPath).joinpath(sanitize_filename(strFileName))
 
-    if not overwriteIfExist and Path(strFilePath).is_file():
+    if not overwrite and Path(strFilePath).is_file():
         raise FileExistsError(f"There is a file in the destination path: {Path(strFilePath).resolve()}")
 
     with open(file=strFilePath, mode="wb") as fileObj:
@@ -165,7 +167,7 @@ def download_file(
 @Log.trace()
 def upload_file(
     url: str,
-    filePath: str,
+    filePath: StrPath,
     data: str | bytes | dict[str, str] | list[tuple[str, str]] | None = None,
     json: Any = None,
     params: dict[str, str] | list[tuple[str, str]] | str | bytes | None = None,
@@ -217,7 +219,7 @@ if __name__ == "__main__":
     #         url="https://developer.mozilla.org/static/media/mdn_contributor.14a24dcfda486f000754.png",
     #         folderPath="./",
     #         stream=True,
-    #         overwriteIfExist=True,
+    #         overwrite=True,
     #     )
     # )
     print(upload_file(url="https://httpbin.org/post", filePath="./project.json"))

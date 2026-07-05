@@ -21,6 +21,7 @@ from liberrpa.UI._UiDict import (
     SelectorHtml,
     SelectorImage,
 )
+from liberrpa.Common._TypedValue import StrPath
 from liberrpa.UI._SelectorValidation import as_selector_uia, as_selector_html, validate_selector
 from liberrpa.UI._TerminableThread import timeout_kill_thread
 from liberrpa.UI._OperationLock import lock_ui_operation
@@ -45,10 +46,11 @@ from liberrpa.Basic import delay
 
 from time import monotonic
 import uiautomation
+import os
 from PIL import Image
 import mss
 from pathlib import Path
-from typing import Literal, cast
+from typing import Literal, cast, overload
 
 
 _WAIT_RETRY_INTERVAL = 200
@@ -123,7 +125,7 @@ def highlight(
 
 def _screenshot(
     selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
-    saveFilePath: str,
+    saveFilePath: StrPath,
     offsetX: int = 0,
     offsetY: int = 0,
     width: int | None = None,
@@ -168,7 +170,7 @@ def _screenshot(
         imgTemp = Image.frombytes("RGB", screenshotTemp.size, screenshotTemp.rgb)
 
     Path(saveFilePath).parent.mkdir(parents=True, exist_ok=True)
-    imgTemp.save(saveFilePath)
+    imgTemp.save(os.fspath(saveFilePath))
 
     delay(postExecutionDelay)
 
@@ -179,7 +181,7 @@ def _screenshot(
 @lock_ui_operation
 def screenshot(
     selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
-    saveFilePath: str,
+    saveFilePath: StrPath,
     offsetX: int = 0,
     offsetY: int = 0,
     width: int | None = None,
@@ -227,7 +229,7 @@ def screenshot(
 @Log.trace()
 @lock_ui_operation
 def get_image_position(
-    filePath: str,
+    filePath: StrPath,
     region: tuple[int, int, int, int] | None = None,
     confidence: float = 0.95,
     grayscale: bool = True,
@@ -1089,6 +1091,36 @@ def _get_selection(
 
     delay(postExecutionDelay)
     return selectionTemp
+
+
+@overload
+def get_selection(
+    selector: SelectorHtml,
+    selectionType: Literal["text"] = "text",
+    timeout: int = 10000,
+    preExecutionDelay: int = 300,
+    postExecutionDelay: int = 200,
+) -> str: ...
+
+
+@overload
+def get_selection(
+    selector: SelectorHtml,
+    selectionType: Literal["value"],
+    timeout: int = 10000,
+    preExecutionDelay: int = 300,
+    postExecutionDelay: int = 200,
+) -> str: ...
+
+
+@overload
+def get_selection(
+    selector: SelectorHtml,
+    selectionType: Literal["index"],
+    timeout: int = 10000,
+    preExecutionDelay: int = 300,
+    postExecutionDelay: int = 200,
+) -> int: ...
 
 
 @Log.trace()

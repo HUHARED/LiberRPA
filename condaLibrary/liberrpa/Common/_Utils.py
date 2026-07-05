@@ -4,7 +4,10 @@ __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
+from liberrpa.Common._TypedValue import StrPath
+
 from pathlib import Path, PureWindowsPath
+import os
 import re
 import multiprocessing
 
@@ -17,7 +20,7 @@ PATH_PROJECT_FLOW = PATH_PROJECT_ROOT / "project.flow"
 PROCESS_NAME = multiprocessing.current_process().name
 
 
-def _normalize_filepath(filePath: str) -> str:
+def _normalize_filepath(filePath: StrPath) -> str:
     """
     Normalize path string for logs/config display.
     - Windows absolute path: G:\\foo\\bar -> G:/foo/bar
@@ -26,7 +29,7 @@ def _normalize_filepath(filePath: str) -> str:
     - Existing ./ or ../ is preserved
     """
 
-    path = filePath.strip()
+    path = os.fspath(filePath).strip()
 
     if not path:
         return "."

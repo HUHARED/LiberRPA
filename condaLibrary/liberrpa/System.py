@@ -6,6 +6,8 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
 from liberrpa.Logging import Log
+from liberrpa.Common._TypedValue import StrPath
+
 import winsound
 from pathlib import Path
 import sys
@@ -15,7 +17,7 @@ import platform
 
 
 @Log.trace()
-def play_sound(filePath: str, wait: bool = True) -> None:
+def play_sound(filePath: StrPath, wait: bool = True) -> None:
     """
     Play a WAV sound file.
 

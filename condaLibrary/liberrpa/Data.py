@@ -10,7 +10,7 @@ from pathvalidate import sanitize_filename as _sanitize_filename
 from decimal import Decimal
 from copy import deepcopy
 from typing import Literal, Any
-from collections.abc import Iterable
+from collections.abc import Iterable, Sized
 import uuid
 import random
 import json
@@ -39,7 +39,7 @@ def sanitize_filename(filename: str) -> str:
 
 
 @Log.trace()
-def get_length(value: str | bytes | list | tuple | range | dict | set | frozenset) -> int:
+def get_length(value: Sized) -> int:
     """
     Get the length of the given value.
 
@@ -168,18 +168,22 @@ def get_random_float(start: float | None = None, end: float | None = None) -> fl
     Generate a random float in the specified range.
 
     Parameters:
-        start: The start of the range, or None for [0.0, 1.0).
-        end: The end of the range, or None for [0.0, 1.0).
+        start: If start and end are omitted, returns a value in [0.0, 1.0). If start and end are provided, returns a value in [start, end).
+        end: If start and end are omitted, returns a value in [0.0, 1.0). If start and end are provided, returns a value in [start, end).
 
     Returns:
         float: A random float within the specified range.
     """
     if start is None and end is None:
         return random.random()
-    elif isinstance(start, float) and isinstance(end, float):
-        return random.uniform(start, end)
-    else:
-        raise ValueError("The argument start and end cannot be None both.")
+
+    if start is None or end is None:
+        raise ValueError("The arguments start and end must be provided together.")
+
+    if start >= end:
+        raise ValueError("The argument start must be less than end.")
+
+    return start + (end - start) * random.random()
 
 
 @Log.trace()

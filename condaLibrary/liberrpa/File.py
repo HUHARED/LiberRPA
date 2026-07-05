@@ -6,7 +6,8 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
 from liberrpa.Logging import Log
-from liberrpa.Common._TypedValue import Encoding
+from liberrpa.Common._TypedValue import Encoding, StrPath
+
 from pathlib import Path, PurePosixPath, PureWindowsPath
 import shutil
 import fnmatch
@@ -23,20 +24,20 @@ import time
 
 
 @Log.trace()
-def create_folder(folderPath: str, createParent: bool = True, errorIfExisted: bool = False) -> None:
+def create_folder(folderPath: StrPath, createParent: bool = True, errorIfExists: bool = False) -> None:
     """
     Creates a folder at the specified path.
 
     Parameters:
         folderPath: The path where the folder will be created.
         createParent: If True, creates all missing parent directories. If False, an error is raised if a parent directory is missing.
-        errorIfExisted: If True, raises an error if the folder already exists; otherwise, does nothing if the folder exists.
+        errorIfExists: If True, raises an error if the folder already exists; otherwise, does nothing if the folder exists.
     """
-    Path(folderPath).mkdir(parents=createParent, exist_ok=not errorIfExisted)
+    Path(folderPath).mkdir(parents=createParent, exist_ok=not errorIfExists)
 
 
 @Log.trace()
-def read_file_content(filePath: str, encoding: Encoding = "utf-8") -> str:
+def read_file_content(filePath: StrPath, encoding: Encoding = "utf-8") -> str:
     """
     Reads the content of a file using the specified encoding.
 
@@ -52,7 +53,7 @@ def read_file_content(filePath: str, encoding: Encoding = "utf-8") -> str:
 
 @Log.trace()
 def write_file(
-    filePath: str,
+    filePath: StrPath,
     text: str,
     encoding: Encoding = "utf-8",
 ) -> None:
@@ -70,7 +71,7 @@ def write_file(
 
 
 @Log.trace()
-def append_write_file(filePath: str, text: str, encoding: Encoding = "utf-8") -> None:
+def append_write_file(filePath: StrPath, text: str, encoding: Encoding = "utf-8") -> None:
     """
     Appends text to the end of a specified file without overwriting its existing content, using the specified encoding.
     A new file will be created if "filePath" doesn't exist.
@@ -85,7 +86,7 @@ def append_write_file(filePath: str, text: str, encoding: Encoding = "utf-8") ->
 
 
 @Log.trace()
-def wait_file_download(filePath: str, retryTimes: int = 10, retryInterval: int = 1, threshold: int = 1) -> None:
+def wait_file_download(filePath: StrPath, retryTimes: int = 10, retryInterval: int = 1, threshold: int = 1) -> None:
     """
     Waits for the final target file to appear and reach a minimum size.
 
@@ -128,7 +129,7 @@ def wait_file_download(filePath: str, retryTimes: int = 10, retryInterval: int =
 
 
 @Log.trace()
-def get_file_fullname(filePath: str) -> str:
+def get_file_fullname(filePath: StrPath) -> str:
     """
     Get the final path component(basename and suffix).
 
@@ -142,7 +143,7 @@ def get_file_fullname(filePath: str) -> str:
 
 
 @Log.trace()
-def get_file_basename(filePath: str) -> str:
+def get_file_basename(filePath: StrPath) -> str:
     """
     Get the final path component, minus its last suffix.
 
@@ -156,7 +157,7 @@ def get_file_basename(filePath: str) -> str:
 
 
 @Log.trace()
-def get_file_suffix(filePath: str) -> str:
+def get_file_suffix(filePath: StrPath) -> str:
     """
     Get the file's suffix(contains the dot).
 
@@ -170,7 +171,7 @@ def get_file_suffix(filePath: str) -> str:
 
 
 @Log.trace()
-def check_file_exists(filePath: str) -> bool:
+def check_file_exists(filePath: StrPath) -> bool:
     """
     Whether this path is a regular file (also True for symlinks pointing to regular files).
 
@@ -184,7 +185,7 @@ def check_file_exists(filePath: str) -> bool:
 
 
 @Log.trace()
-def check_folder_exists(folderPath: str) -> bool:
+def check_folder_exists(folderPath: StrPath) -> bool:
     """
     Whether this path is a directory.
 
@@ -198,7 +199,7 @@ def check_folder_exists(folderPath: str) -> bool:
 
 
 @Log.trace()
-def get_parent_folder_path(path: str) -> str:
+def get_parent_folder_path(path: StrPath) -> str:
     """
     Returns the absolute path of the parent folder for a given path.
 
@@ -212,7 +213,7 @@ def get_parent_folder_path(path: str) -> str:
 
 
 @Log.trace()
-def get_file_size(filePath: str) -> int:
+def get_file_size(filePath: StrPath) -> int:
     """
     Returns the size of the specified file in bytes.
 
@@ -226,7 +227,7 @@ def get_file_size(filePath: str) -> int:
 
 
 @Log.trace()
-def get_folder_size(folderPath: str) -> int:
+def get_folder_size(folderPath: StrPath) -> int:
     """
     Calculates the total size of all files within the specified folder and its subfolders.
 
@@ -244,7 +245,7 @@ def get_folder_size(folderPath: str) -> int:
 
 
 @Log.trace()
-def copy_file(srcFilePath: str, dstFilePath: str, overwriteIfExist: bool = False) -> str:
+def copy_file(srcFilePath: StrPath, dstFilePath: StrPath, overwrite: bool = False) -> str:
     """
     Copies a file from a source path to a destination path and returns the absolute path of the destination file.
 
@@ -253,21 +254,21 @@ def copy_file(srcFilePath: str, dstFilePath: str, overwriteIfExist: bool = False
     Parameters:
         srcFilePath: The path of the source file to copy.
         dstFilePath: The path where the source file should be copied to.
-        overwriteIfExist: If set to True, the destination file will be overwritten if it already exists;
+        overwrite: If set to True, the destination file will be overwritten if it already exists;
 
             if False, a FileExistsError will be raised if the destination file exists.
 
     Returns:
         str: The absolute path of the copied file at the destination.
     """
-    if not overwriteIfExist and Path(dstFilePath).is_file():
+    if not overwrite and Path(dstFilePath).is_file():
         raise FileExistsError(f"There is a file in the destination path: {Path(dstFilePath).resolve()}")
 
     return str(Path(shutil.copyfile(src=srcFilePath, dst=dstFilePath)).resolve())
 
 
 @Log.trace()
-def copy_folder(srcFolderPath: str, dstFolderPath: str) -> str:
+def copy_folder(srcFolderPath: StrPath, dstFolderPath: StrPath) -> str:
     """
     Recursively copy a directory tree. The destination directory must not already exist.
 
@@ -283,7 +284,7 @@ def copy_folder(srcFolderPath: str, dstFolderPath: str) -> str:
 
 
 @Log.trace()
-def move_file_or_folder(srcPath: str, dstPath: str) -> str:
+def move_file_or_folder(srcPath: StrPath, dstPath: StrPath) -> str:
     """
     Recursively move a file or directory to another location. This is similar to the Unix "mv".
 
@@ -300,7 +301,7 @@ def move_file_or_folder(srcPath: str, dstPath: str) -> str:
 
 
 @Log.trace()
-def remove_file(filePath: str) -> None:
+def remove_file(filePath: StrPath) -> None:
     """
     Removes a file.
 
@@ -311,7 +312,7 @@ def remove_file(filePath: str) -> None:
 
 
 @Log.trace()
-def remove_folder(folderPath: str) -> None:
+def remove_folder(folderPath: StrPath) -> None:
     """
     Removes a folder and all its contents.
 
@@ -323,7 +324,7 @@ def remove_folder(folderPath: str) -> None:
 
 @Log.trace()
 def get_file_or_folder_list(
-    folderPath: str,
+    folderPath: StrPath,
     itemType: Literal["file", "folder", "both"] = "both",
     getAbsolutePath: bool = True,
     ignorePrefixes: list[str] | None = None,
@@ -377,7 +378,7 @@ def get_file_or_folder_list(
 
 
 @Log.trace()
-def search_file_or_folder(folderPath: str, name: str, deepIterate: bool = True) -> list[str]:
+def search_file_or_folder(folderPath: StrPath, name: str, recursive: bool = True) -> list[str]:
     """
     Searches for files or folders within a given directory based on a name or pattern.
 
@@ -388,7 +389,7 @@ def search_file_or_folder(folderPath: str, name: str, deepIterate: bool = True) 
         ? matches any single character
         [seq] matches any character in seq
         [!seq] matches any char not in seq
-        deepIterate: If True, searches recursively through all subdirectories; if False, searches only in the specified directory.
+        recursive: If True, searches recursively through all subdirectories; if False, searches only in the specified directory.
 
     Returns:
         list[str]: A list of paths to the files or folders that match the specified name or pattern.
@@ -401,7 +402,7 @@ def search_file_or_folder(folderPath: str, name: str, deepIterate: bool = True) 
     listRetPath = []
 
     pathObj = Path(folderPath).resolve()
-    if deepIterate:
+    if recursive:
         for item in pathObj.rglob("*"):
             if fnmatch.fnmatch(item.name, name):
                 listRetPath.append(str(item))
@@ -414,10 +415,10 @@ def search_file_or_folder(folderPath: str, name: str, deepIterate: bool = True) 
 
 @Log.trace()
 def zip_create(
-    srcPath: str,
-    dstPath: str,
+    srcPath: StrPath,
+    dstPath: StrPath,
     password: str = "",
-    overwriteIfExist: bool = False,
+    overwrite: bool = False,
 ) -> str:
     """
     Create a ZIP file from a file or folder, with optional password protection.
@@ -426,7 +427,7 @@ def zip_create(
         srcPath: Path to the file or folder to be zipped.
         dstPath: Path where the ZIP file will be saved.
         password: Password for the ZIP file, If it's empty string, means have no password.
-        overwriteIfExist: If False, raises an error if the file already exists.
+        overwrite: If False, raises an error if the file already exists.
 
     Returns:
         str: The absolute path to the created ZIP file.
@@ -445,7 +446,7 @@ def zip_create(
     if not str(dstPathObj).lower().endswith(".zip"):
         Log.warning("The target file's name does not end with '.zip'.")
 
-    if not overwriteIfExist and dstPathObj.is_file():
+    if not overwrite and dstPathObj.is_file():
         raise FileExistsError(f"There is a file in the destination path: {dstPathObj.resolve()}")
 
     encryption_method = pyzipper.WZ_AES if password else None
@@ -467,7 +468,7 @@ def zip_create(
     return str(dstPathObj.resolve())
 
 
-def _check_zip_member_path(memberName: str, dstFolderPath: str) -> None:
+def _check_zip_member_path(memberName: str, dstFolderPath: StrPath) -> None:
     """
     Check whether a ZIP member path is safe to extract into the destination folder.
 
@@ -491,13 +492,13 @@ def _check_zip_member_path(memberName: str, dstFolderPath: str) -> None:
         raise ValueError(f"ZIP member path escapes destination folder: {memberName!r}")
 
 
-def _check_zip_members(zipFile: pyzipper.AESZipFile, dstFolderPath: str) -> None:
+def _check_zip_members(zipFile: pyzipper.AESZipFile, dstFolderPath: StrPath) -> None:
     for zipInfo in zipFile.infolist():
         _check_zip_member_path(memberName=zipInfo.filename, dstFolderPath=dstFolderPath)
 
 
 @Log.trace()
-def zip_extract(zipPath: str, dstFolderPath: str, password: str = "") -> str:
+def zip_extract(zipPath: StrPath, dstFolderPath: StrPath, password: str = "") -> str:
     """
     Extract a ZIP file to a folder, with optional password protection.
 
@@ -515,19 +516,19 @@ def zip_extract(zipPath: str, dstFolderPath: str, password: str = "") -> str:
     dstPathObj = Path(dstFolderPath)
     dstPathObj.mkdir(parents=True, exist_ok=True)
 
-    with pyzipper.AESZipFile(zipPath) as zipFile:
+    with pyzipper.AESZipFile(os.fspath(zipPath)) as zipFile:
         if password:
             zipFile.setpassword(password.encode())
 
-        _check_zip_members(zipFile=zipFile, dstFolderPath=str(dstPathObj))
-        zipFile.extractall(str(dstPathObj))
+        _check_zip_members(zipFile=zipFile, dstFolderPath=dstPathObj)
+        zipFile.extractall(os.fspath(dstPathObj))
 
     return str(dstPathObj.resolve())
 
 
 @Log.trace()
 def csv_read(
-    filePath: str,
+    filePath: StrPath,
     separator: str = ",",
     header: int | None = 0,
     indexColumn: int | str | None = None,
@@ -563,12 +564,12 @@ def csv_read(
 @Log.trace()
 def csv_write(
     listObj: list[list[Any]],
-    filePath: str,
+    filePath: StrPath,
     separator: str = ",",
     addHeader: bool = False,
     addIndexColumn: bool = False,
     encoding: Encoding = "utf-8",
-    overwriteIfExist: bool = False,
+    overwrite: bool = False,
 ) -> None:
     """
     Writes a list of lists to a CSV file.
@@ -580,9 +581,9 @@ def csv_write(
         addHeader: Whether to write column names.
         addIndexColumn: Whether to write row names (index).
         encoding: The encoding to use for writing the file.
-        overwriteIfExist: If False, raises an error if the file already exists.
+        overwrite: If False, raises an error if the file already exists.
     """
-    if not overwriteIfExist and Path(filePath).is_file():
+    if not overwrite and Path(filePath).is_file():
         raise FileExistsError(f"There is a file in the destination path: {Path(filePath).resolve()}")
     pandas.DataFrame(data=listObj).to_csv(
         path_or_buf=filePath, sep=separator, header=addHeader, index=addIndexColumn, mode="w", encoding=encoding
@@ -590,7 +591,7 @@ def csv_write(
 
 
 @Log.trace()
-def ini_read_value(filePath: str, sectionName: str, optionName: str, encoding: Encoding = "utf-8") -> str:
+def ini_read_value(filePath: StrPath, sectionName: str, optionName: str, encoding: Encoding = "utf-8") -> str:
     """
     Reads and returns the value of a given option under a specified section in an INI file.
 
@@ -604,18 +605,18 @@ def ini_read_value(filePath: str, sectionName: str, optionName: str, encoding: E
         str: The value of the specified option.
     """
     iniObj = configparser.ConfigParser()
-    iniObj.read(filenames=filePath, encoding=encoding)
+    iniObj.read(filenames=os.fspath(filePath), encoding=encoding)
     return iniObj.get(section=sectionName, option=optionName)
 
 
-def _write_ini_file(iniObj: configparser.ConfigParser, filePath: str, encoding: Encoding) -> None:
+def _write_ini_file(iniObj: configparser.ConfigParser, filePath: StrPath, encoding: Encoding) -> None:
     with Path(filePath).open(mode="w", encoding=encoding, errors="strict", newline=None) as fileObj:
         iniObj.write(fileObj)
 
 
 @Log.trace()
 def ini_write_value(
-    filePath: str, sectionName: str, optionName: str, optionValue: str, encoding: Encoding = "utf-8"
+    filePath: StrPath, sectionName: str, optionName: str, optionValue: str, encoding: Encoding = "utf-8"
 ) -> None:
     """
     Writes a value to a specific option under a certain section in an INI file.
@@ -630,7 +631,7 @@ def ini_write_value(
         encoding: The character encoding of the INI file.
     """
     iniObj = configparser.ConfigParser()
-    iniObj.read(filenames=filePath, encoding=encoding)
+    iniObj.read(filenames=os.fspath(filePath), encoding=encoding)
 
     if not iniObj.has_section(section=sectionName):
         iniObj.add_section(section=sectionName)
@@ -640,7 +641,7 @@ def ini_write_value(
 
 
 @Log.trace()
-def ini_get_all_sections(filePath: str, encoding: Encoding = "utf-8") -> list[str]:
+def ini_get_all_sections(filePath: StrPath, encoding: Encoding = "utf-8") -> list[str]:
     """
     Retrieves all section names from an INI file.
 
@@ -652,12 +653,12 @@ def ini_get_all_sections(filePath: str, encoding: Encoding = "utf-8") -> list[st
         list[str]: A list of all section names in the INI file.
     """
     iniObj = configparser.ConfigParser()
-    iniObj.read(filenames=filePath, encoding=encoding)
+    iniObj.read(filenames=os.fspath(filePath), encoding=encoding)
     return iniObj.sections()
 
 
 @Log.trace()
-def ini_get_all_options(filePath: str, sectionName: str, encoding: Encoding = "utf-8") -> list[str]:
+def ini_get_all_options(filePath: StrPath, sectionName: str, encoding: Encoding = "utf-8") -> list[str]:
     """
     Retrieves all option names from a section in an INI file.
 
@@ -670,12 +671,12 @@ def ini_get_all_options(filePath: str, sectionName: str, encoding: Encoding = "u
         list[str]: A list of all option names in the specified section.
     """
     iniObj = configparser.ConfigParser()
-    iniObj.read(filenames=filePath, encoding=encoding)
+    iniObj.read(filenames=os.fspath(filePath), encoding=encoding)
     return iniObj.options(section=sectionName)
 
 
 @Log.trace()
-def ini_delete_section(filePath: str, sectionName: str, encoding: Encoding = "utf-8") -> None:
+def ini_delete_section(filePath: StrPath, sectionName: str, encoding: Encoding = "utf-8") -> None:
     """
     Deletes a specific section from an INI file.
 
@@ -685,13 +686,13 @@ def ini_delete_section(filePath: str, sectionName: str, encoding: Encoding = "ut
         encoding: The character encoding of the INI file.
     """
     iniObj = configparser.ConfigParser()
-    iniObj.read(filenames=filePath, encoding=encoding)
+    iniObj.read(filenames=os.fspath(filePath), encoding=encoding)
     iniObj.remove_section(section=sectionName)
     _write_ini_file(iniObj=iniObj, filePath=filePath, encoding=encoding)
 
 
 @Log.trace()
-def ini_delete_option(filePath: str, sectionName: str, optionName: str, encoding: Encoding = "utf-8") -> None:
+def ini_delete_option(filePath: StrPath, sectionName: str, optionName: str, encoding: Encoding = "utf-8") -> None:
     """
     Deletes a specific option from a section in an INI file.
 
@@ -702,13 +703,13 @@ def ini_delete_option(filePath: str, sectionName: str, optionName: str, encoding
         encoding: The character encoding of the INI file.
     """
     iniObj = configparser.ConfigParser()
-    iniObj.read(filenames=filePath, encoding=encoding)
+    iniObj.read(filenames=os.fspath(filePath), encoding=encoding)
     iniObj.remove_option(section=sectionName, option=optionName)
     _write_ini_file(iniObj=iniObj, filePath=filePath, encoding=encoding)
 
 
 @Log.trace()
-def pdf_get_page_count(filePath: str, password: str = "") -> int:
+def pdf_get_page_count(filePath: StrPath, password: str = "") -> int:
     """
     Returns the total number of pages in a PDF file.
 
@@ -720,16 +721,16 @@ def pdf_get_page_count(filePath: str, password: str = "") -> int:
         int: The total number of pages in the PDF.
     """
     if password == "":
-        return len(PdfReader(stream=filePath, strict=False, password=None).pages)
+        return len(PdfReader(stream=os.fspath(filePath), strict=False, password=None).pages)
     else:
-        return len(PdfReader(stream=filePath, strict=False, password=password).pages)
+        return len(PdfReader(stream=os.fspath(filePath), strict=False, password=password).pages)
 
 
 @Log.trace()
 def pdf_save_pages_as_images(
-    filePath: str,
+    filePath: StrPath,
     password: str = "",
-    saveFolderPath: str = "./",
+    saveFolderPath: StrPath = "./",
     startPage: int = 1,
     endPage: int = 1,
     scale: float = 2.0,
@@ -748,7 +749,7 @@ def pdf_save_pages_as_images(
     Returns:
         list[str]: A list of paths to the saved image files.
     """
-    with fitz.open(filePath) as doc:
+    with fitz.open(os.fspath(filePath)) as doc:
         if password != "":
             doc.authenticate(password)
         listExtractedImagePath: list[str] = []
@@ -772,9 +773,9 @@ def pdf_save_pages_as_images(
 
 @Log.trace()
 def pdf_extract_images_from_pages(
-    filePath: str,
+    filePath: StrPath,
     password: str = "",
-    saveFolderPath: str = "./",
+    saveFolderPath: StrPath = "./",
     format: Literal["png", "jpg", "jpeg", "bmp"] = "png",
     startPage: int = 1,
     endPage: int = 1,
@@ -793,7 +794,7 @@ def pdf_extract_images_from_pages(
     Returns:
         list[str]: A list of paths to the extracted image files.
     """
-    with fitz.open(filePath, filetype="pdf") as doc:
+    with fitz.open(os.fspath(filePath), filetype="pdf") as doc:
         if password != "":
             doc.authenticate(password)
         listExtractedImagePath: list[str] = []
@@ -834,7 +835,7 @@ def pdf_extract_images_from_pages(
 
 @Log.trace()
 def pdf_extract_text_from_pages(
-    filePath: str,
+    filePath: StrPath,
     password: str = "",
     startPage: int = 1,
     endPage: int = 1,
@@ -851,7 +852,7 @@ def pdf_extract_text_from_pages(
     Returns:
         str: The extracted text from specified pages.
     """
-    with fitz.open(filePath, filetype="pdf") as doc:
+    with fitz.open(os.fspath(filePath), filetype="pdf") as doc:
         if password != "":
             doc.authenticate(password)
         text: str = ""
@@ -863,7 +864,10 @@ def pdf_extract_text_from_pages(
 
 @Log.trace()
 def pdf_extract_all_images(
-    filePath: str, password: str = "", saveFolderPath: str = "./", format: Literal["png", "jpg", "jpeg", "bmp"] = "png"
+    filePath: StrPath,
+    password: str = "",
+    saveFolderPath: StrPath = "./",
+    format: Literal["png", "jpg", "jpeg", "bmp"] = "png",
 ) -> list[str]:
     """
     Extracts images in a PDF and saves them in a specified format and folder.
@@ -888,7 +892,7 @@ def pdf_extract_all_images(
 
 
 @Log.trace()
-def pdf_extract_all_text(filePath: str, password: str = "") -> str:
+def pdf_extract_all_text(filePath: StrPath, password: str = "") -> str:
     """
     Extracts all text in a PDF.
 
@@ -908,7 +912,7 @@ def pdf_extract_all_text(filePath: str, password: str = "") -> str:
 
 
 @Log.trace()
-def pdf_merge(listFilePath: list[str], savePath: str) -> str:
+def pdf_merge(listFilePath: list[StrPath], savePath: StrPath) -> str:
     """
     Merges multiple PDF files into a single PDF file and saves it to a specified path.
 
@@ -921,7 +925,7 @@ def pdf_merge(listFilePath: list[str], savePath: str) -> str:
     """
     writer = PdfWriter()
     for strPath in listFilePath:
-        reader = PdfReader(stream=strPath, strict=False, password=None)
+        reader = PdfReader(stream=os.fspath(strPath), strict=False, password=None)
         for page in reader.pages:
             writer.add_page(page=page)
     with open(file=savePath, mode="wb") as fileObj:

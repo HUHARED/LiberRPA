@@ -6,6 +6,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
 from liberrpa.Logging import Log
+from liberrpa.Common._TypedValue import StrPath
 
 import subprocess
 import win32con
@@ -16,7 +17,7 @@ from pathlib import Path
 from typing import Literal
 
 
-def run_application(filePath: str, windowState: Literal["default", "maximize", "minimize"] = "default") -> int:
+def run_application(filePath: StrPath, windowState: Literal["default", "maximize", "minimize"] = "default") -> int:
     match windowState:
         case "maximize":
             showState = win32con.SW_SHOWMAXIMIZED

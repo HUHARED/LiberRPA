@@ -10,7 +10,7 @@ from liberrpa.Logging import Log
 
 from sqlalchemy import create_engine, text, Connection, URL
 from types import TracebackType
-from typing import Any, Literal
+from typing import Any, Literal, overload
 from collections.abc import Mapping, Sequence
 
 type TypeOfDatabase = Literal["SQLite", "PostgreSQL", "MariaDB", "MySQL", "SQL Server", "Oracle"]
@@ -161,6 +161,24 @@ class DatabaseConnection:
             self.engine.dispose()
 
 
+@overload
+def fetch_one(
+    connObj: Connection,
+    query: str,
+    params: dict[str, Any] | None = None,
+    returnDict: Literal[True] = True,
+) -> dict[str, Any] | None: ...
+
+
+@overload
+def fetch_one(
+    connObj: Connection,
+    query: str,
+    params: dict[str, Any] | None = None,
+    returnDict: Literal[False] = False,
+) -> list[Any] | None: ...
+
+
 @Log.trace()
 def fetch_one(
     connObj: Connection,
@@ -188,6 +206,18 @@ def fetch_one(
         return row._asdict()
     else:
         return list(row)
+
+
+@overload
+def fetch_all(
+    connObj: Connection, query: str, params: dict[str, Any] | None = None, returnDict: Literal[True] = True
+) -> list[dict[str, Any]]: ...
+
+
+@overload
+def fetch_all(
+    connObj: Connection, query: str, params: dict[str, Any] | None = None, returnDict: Literal[False] = False
+) -> list[list[Any]]: ...
 
 
 @Log.trace()
@@ -299,7 +329,7 @@ if __name__ == "__main__":
         password=None,
         host=None,
         port=None,
-        database=strSqlitePath,
+        database="",
         options={},
     ) as connObj:
         print(fetch_all(connObj=connObj, query="SELECT * FROM users;", params=None, returnDict=False)) """

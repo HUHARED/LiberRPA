@@ -6,7 +6,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
 from liberrpa.Logging import Log
-from liberrpa.Common._TypedValue import DictOutlookMailInfo
+from liberrpa.Common._TypedValue import DictOutlookMailInfo, StrPath
 import win32com.client
 from pathlib import Path
 from typing import Literal
@@ -113,7 +113,7 @@ def get_email_list(
     account: str,
     folder: str = "INBOX",
     searchText: str = "",
-    numToGet: int = 1,
+    limit: int = 1,
     onlyUnread: bool = False,
     markAsRead: bool = False,
 ) -> tuple[list[DictOutlookMailInfo], list[win32com.client.CDispatch]]:
@@ -124,7 +124,7 @@ def get_email_list(
         account: The email account to fetch emails from.
         folder: The folder to fetch emails from.
         searchText: Text to search for in each email. If it is not empty, only emails containing this text in the subject, body, HTML body, sender email address, recipient addresses, CC, or BCC are returned. The search is performed by LiberRPA after emails are retrieved from Outlook, not by Outlook's Restrict filter syntax.
-        numToGet: Maximum number of matched emails to return.
+        limit: Maximum number of matched emails to return.
         onlyUnread: If True, retrieves only unread emails.
         markAsRead: If True, marks only the returned matched emails as read.
 
@@ -134,8 +134,8 @@ def get_email_list(
             A list of Outlook email objects for further operations.
     """
 
-    if numToGet < 1:
-        raise ValueError("The argument 'numToGet' should be greater than or equal to 1.")
+    if limit < 1:
+        raise ValueError("The argument 'limit' should be greater than or equal to 1.")
 
     mapi: win32com.client.CDispatch = win32com.client.Dispatch("Outlook.Application").GetNamespace("MAPI")
 
@@ -183,7 +183,7 @@ def get_email_list(
         if markAsRead:
             message.Unread = False
 
-        if len(listEmail) >= numToGet:
+        if len(listEmail) >= limit:
             break
 
     for email in listEmail:
@@ -308,7 +308,7 @@ def delete_email(emailObj: win32com.client.CDispatch) -> None:
 
 
 @Log.trace()
-def download_attachments(emailObj: win32com.client.CDispatch, downloadPath: str) -> list[str]:
+def download_attachments(emailObj: win32com.client.CDispatch, downloadPath: StrPath) -> list[str]:
     """
     Download all attachments of an email.
 
@@ -339,7 +339,7 @@ if __name__ == "__main__":
     #     cc="XXXX@qq.com;YYYY@qq.com",
     #     bcc=None,
     # )
-    listBasicInfo, listEmail = get_email_list(account="XXXX@qq.com", folder="草稿", numToGet=1)
+    listBasicInfo, listEmail = get_email_list(account="XXXX@qq.com", folder="草稿", limit=1)
     Log.debug(listBasicInfo)
     # print(download_attachments(emailObj=listEmail[0], downloadPath="./emailtest/"))
     # delete_email(listEmail[0])

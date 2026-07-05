@@ -6,9 +6,11 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
 from liberrpa.Logging import Log
+from liberrpa.Common._TypedValue import StrPath
 
 from PIL import Image, ImageGrab
 import io
+import os
 import win32clipboard
 import pyperclip
 
@@ -40,7 +42,7 @@ def set_text(text: str) -> None:
 
 
 @Log.trace()
-def save_image(savePath: str) -> None:
+def save_image(savePath: StrPath) -> None:
     """
     Saves an image from the clipboard to a specified path.
 
@@ -51,7 +53,7 @@ def save_image(savePath: str) -> None:
     """
     imageTemp = ImageGrab.grabclipboard()
     if isinstance(imageTemp, Image.Image):
-        imageTemp.save(fp=savePath)
+        imageTemp.save(fp=os.fspath(savePath))
     elif isinstance(imageTemp, list):
         raise SystemError("Not support saving multiple images.")
     else:
@@ -59,7 +61,7 @@ def save_image(savePath: str) -> None:
 
 
 @Log.trace()
-def set_image(imagePath: str) -> None:
+def set_image(imagePath: StrPath) -> None:
     """
     Places an image from a specified file into the clipboard.
 
@@ -67,7 +69,7 @@ def set_image(imagePath: str) -> None:
         imagePath: The path to the image file to be set to the clipboard.
     """
     try:
-        image = Image.open(imagePath)
+        image = Image.open(os.fspath(imagePath))
     except FileNotFoundError:
         raise ValueError(f"Image file not found: {imagePath}")
     except Exception as e:
