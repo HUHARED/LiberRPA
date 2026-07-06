@@ -12,8 +12,14 @@ import inspect
 from pathlib import Path
 from typing import Any, Literal, NotRequired, TypedDict, get_args, get_origin, get_overloads
 
-from ApiConfig import PUBLIC_MODULE_ORDER, SKIP_FUNCTIONS
-from SnippetUtils import find_project_root, get_snippets_dir, write_json, get_bool_choices
+from ApiConfig import (
+    MANAGED_IMPORT_ORDER,
+    MANAGED_IMPORT_SOURCE,
+    PUBLIC_MODULE_ORDER,
+    SKIP_FUNCTIONS,
+    MANUAL_SNIPPET_IMPORTS,
+)
+from SnippetUtils import find_project_root, get_snippets_dir, write_json, get_bool_choices, unwrap_type_alias
 
 
 class DictParameterInfo(TypedDict):
@@ -41,6 +47,12 @@ class DictApiItem(TypedDict):
     hasReturnValue: bool
     parameters: list[DictParameterInfo]
     overloads: list[DictOverloadInfo]
+
+
+class DictImportManifest(TypedDict):
+    importSource: str
+    importOrder: list[str]
+    items: dict[str, list[str]]
 
 
 def _is_overload_decorator(decorator: ast.expr) -> bool:
@@ -119,7 +131,7 @@ def _move_default_choice_to_first(choices: list[str], parameter: inspect.Paramet
 
 def _get_literal_choices(parameter: inspect.Parameter) -> list[str] | None:
     """Extract snippet choices from Literal annotations when possible."""
-    annotation = parameter.annotation
+    annotation = unwrap_type_alias(parameter.annotation)
     if annotation is inspect.Signature.empty:
         return None
 
@@ -225,24 +237,45 @@ def generate_api_manifest() -> list[DictApiItem]:
     return manifest
 
 
-def _generate_import_manifest(apiManifest: list[DictApiItem]) -> dict[str, list[str]]:
-    """
-    Generate import metadata for the future liberrpa-snippets-tree import manager.
+def _sort_import_names(importNames: list[str]) -> list[str]:
+    """Return unique import names sorted by MANAGED_IMPORT_ORDER."""
+    orderIndex = {name: index for index, name in enumerate(MANAGED_IMPORT_ORDER)}
+    unknownNames = sorted(set(importNames) - set(orderIndex))
+    if unknownNames:
+        raise ValueError(f"Unknown import names in snippet import metadata: {unknownNames}")
 
-    The import source is fixed as:
-        from liberrpa.Modules import ...
+    return sorted(set(importNames), key=orderIndex.__getitem__)
 
-    Therefore each snippet only needs to declare which public names are required.
-    """
-    result: dict[str, list[str]] = {}
+
+def _validate_import_order() -> None:
+    """Validate managed import configuration before writing import_manifest.json."""
+    duplicatedNames = sorted({name for name in MANAGED_IMPORT_ORDER if MANAGED_IMPORT_ORDER.count(name) > 1})
+    if duplicatedNames:
+        raise ValueError(f"Duplicate names in MANAGED_IMPORT_ORDER: {duplicatedNames}")
+
+    missingPublicModules = sorted(set(PUBLIC_MODULE_ORDER) - set(MANAGED_IMPORT_ORDER))
+    if missingPublicModules:
+        raise ValueError(f"PUBLIC_MODULE_ORDER names missing from MANAGED_IMPORT_ORDER: {missingPublicModules}")
+
+
+def _generate_import_manifest(apiManifest: list[DictApiItem]) -> DictImportManifest:
+    """Generate import metadata for the liberrpa-snippets-tree import manager."""
+    _validate_import_order()
+
+    items: dict[str, list[str]] = {}
 
     for item in apiManifest:
-        result[item["title"]] = [item["module"]]
+        items[item["title"]] = _sort_import_names([item["module"]])
 
-    result["Database.build database connection"] = ["DatabaseConnection"]
-    result["FTP.build FTP connection"] = ["FTP"]
+    for title, importNames in MANUAL_SNIPPET_IMPORTS.items():
+        existingImportNames = items.get(title, [])
+        items[title] = _sort_import_names([*existingImportNames, *importNames])
 
-    return result
+    return {
+        "importSource": MANAGED_IMPORT_SOURCE,
+        "importOrder": list(MANAGED_IMPORT_ORDER),
+        "items": items,
+    }
 
 
 def main() -> None:

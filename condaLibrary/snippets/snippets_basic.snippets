@@ -12,7 +12,9 @@
       "prefix": "new",
       "body": [
         "# FileName: $TM_FILENAME",
-        "from liberrpa.Modules import *  # type: ignore - Import all public LiberRPA APIs.",
+        "# <LiberRPA imports: managed>",
+        "# This block is managed by LiberRPA. Do not edit it manually.",
+        "# </LiberRPA imports: managed>",
         "",
         "",
         "def main() -> None:",
@@ -23,7 +25,7 @@
         "\tmain()",
         ""
       ],
-      "description": "Create a basic LiberRPA Python file template with imports, main(), and a direct-run entry point."
+      "description": "Create a basic LiberRPA Python file template with a managed import block, main(), and a direct-run entry point."
     },
     "Basic.def a function": {
       "prefix": "def",

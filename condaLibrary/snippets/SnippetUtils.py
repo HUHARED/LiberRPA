@@ -28,9 +28,19 @@ def format_snippet_choice(index: int, choices: list[str]) -> str:
     return f"${{{index}|{','.join(escapedChoices)}|}}"
 
 
+def unwrap_type_alias(annotation: object) -> object:
+    """Return the underlying value of a PEP 695 type alias when available."""
+    value = getattr(annotation, "__value__", None)
+    if value is None:
+        return annotation
+    return value
+
+
 def get_bool_choices(parameter: inspect.Parameter) -> list[str] | None:
     """Return bool snippet choices, keeping the default value first."""
-    if parameter.annotation is not bool and not isinstance(parameter.default, bool):
+    annotation = unwrap_type_alias(parameter.annotation)
+
+    if annotation is not bool and not isinstance(parameter.default, bool):
         return None
 
     if parameter.default is inspect.Parameter.empty:

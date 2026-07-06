@@ -13,6 +13,8 @@ the compact form:
 Users can still manually write:
 
     Log.info("a", "b", sep=" | ")
+
+Copy the result into snippets_basic.snippets manually.
 """
 
 from __future__ import annotations
@@ -26,7 +28,7 @@ import inspect
 from typing import Any, Literal, get_args, get_origin
 
 from ApiConfig import DictSnippetsItem
-from SnippetUtils import get_snippets_dir, write_json, format_snippet_choice, get_bool_choices
+from SnippetUtils import get_snippets_dir, write_json, format_snippet_choice, get_bool_choices, unwrap_type_alias
 from liberrpa.Logging import Logger
 
 
@@ -89,19 +91,9 @@ def _format_string_choices(index: int, values: list[str], default: str | None = 
     return format_snippet_choice(index=index, choices=choices)
 
 
-def _unwrap_type_alias(annotation: object) -> object:
-    """Return the underlying value of a PEP 695 type alias when available."""
-    # Python 3.12+ type aliases expose __value__. Keep this helper generic so the script
-    # also works for direct Literal annotations.
-    value = getattr(annotation, "__value__", None)
-    if value is None:
-        return annotation
-    return value
-
-
 def _get_literal_choices(parameter: inspect.Parameter) -> list[str] | None:
     """Extract snippet choices from Literal annotations when possible."""
-    annotation = _unwrap_type_alias(parameter.annotation)
+    annotation = unwrap_type_alias(parameter.annotation)
     if annotation is inspect.Signature.empty:
         return None
 

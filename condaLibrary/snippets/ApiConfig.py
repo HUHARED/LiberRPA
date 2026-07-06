@@ -15,8 +15,9 @@ class DictSnippetsItem(TypedDict):
     description: NotRequired[str]
 
 
-# Keep this order aligned with liberrpa.Modules. It is used by API docs,
-# generated snippets, and the future snippets-tree import manager.
+# Public modules that should be scanned for normal function snippets.
+#
+# Do not include Log, delay, PrjArgs, CustomArgs, or helper classes here. They are user-facing import targets, but they are not normal liberrpa.<Module> function modules to scan.
 PUBLIC_MODULE_ORDER = [
     # UI element manipulation
     "Mouse",
@@ -53,6 +54,20 @@ PUBLIC_MODULE_ORDER = [
     "Trigger",
 ]
 
+
+# Managed import block configuration for liberrpa-snippets-tree.
+# Keep this order aligned with liberrpa.Modules.__all__.
+MANAGED_IMPORT_SOURCE = "liberrpa.Modules"
+
+MANAGED_IMPORT_ORDER = [
+    "Log",
+    "delay",
+    *PUBLIC_MODULE_ORDER,
+    "DatabaseConnection",
+    "PrjArgs",
+    "CustomArgs",
+]
+
 # Some public functions should not be exposed as snippets.
 SKIP_FUNCTIONS: dict[str, set[str]] = {
     "Trigger": {"register_force_exit"},
@@ -81,6 +96,33 @@ SPECIAL_SNIPPETS: dict[str, dict[str, dict[str, object]]] = {
             "description": "Create an ftputil.FTPHost context manager. See ftputil.FTPHost documentation for details.",
         },
     },
+}
+
+
+# Import requirements for snippets that are not generated from normal public functions.
+# This includes snippets_basic.snippets and SPECIAL_SNIPPETS above. Snippets that do not need LiberRPA imports, such as control-flow snippets or a full new-file template, should not be listed here.
+MANUAL_SNIPPET_IMPORTS: dict[str, list[str]] = {
+    "Basic.delay": ["delay"],
+    "LogicControl.retry": ["Log"],
+    "Log.verbose": ["Log"],
+    "Log.verbose_pretty": ["Log"],
+    "Log.debug": ["Log"],
+    "Log.debug_pretty": ["Log"],
+    "Log.info": ["Log"],
+    "Log.info_pretty": ["Log"],
+    "Log.warning": ["Log"],
+    "Log.warning_pretty": ["Log"],
+    "Log.error": ["Log"],
+    "Log.error_pretty": ["Log"],
+    "Log.critical": ["Log"],
+    "Log.critical_pretty": ["Log"],
+    "Log.exception_info": ["Log"],
+    "Log.set_level": ["Log"],
+    "Log.add_custom_log_part": ["Log"],
+    "Log.remove_custom_log_part": ["Log"],
+    "Log.trace": ["Log"],
+    "Database.build database connection": ["DatabaseConnection"],
+    "FTP.build FTP connection": ["FTP"],
 }
 
 # Common object parameter names should get meaningful default placeholders.
