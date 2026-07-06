@@ -9,7 +9,7 @@ print("=== import _ServerInit ===")
 from liberrpa.Logging import Log
 from liberrpa.Dialog import show_message_box, show_notification
 from liberrpa.Common._Exception import get_exception_info
-from liberrpa.Common._BasicConfig import get_basic_config_dict
+from liberrpa.Common._BasicConfig import get_local_server_port
 
 from flask import Flask, request
 from flask_socketio import SocketIO
@@ -17,7 +17,7 @@ import socket
 import requests
 
 _flaskApp = Flask(__name__)
-_INT_PORT = int(get_basic_config_dict()["localServerPort"])
+_INT_PORT = get_local_server_port()
 sioServer = SocketIO(
     _flaskApp,
     cors_allowed_origins=[

@@ -14,7 +14,7 @@ msvcrt.setmode(sys.stdout.fileno(), os.O_BINARY)
 
 import json
 import struct
-from liberrpa.Common._BasicConfig import get_basic_config_dict, get_token
+from liberrpa.Common._BasicConfig import get_local_server_port, get_token
 from typing import Any, NoReturn
 
 
@@ -35,7 +35,7 @@ def main() -> NoReturn:
 
         message = json.loads(message_data.decode("utf-8"))
         if message.get("command") == "get_port":
-            port: int = int(get_basic_config_dict()["localServerPort"])
+            port: int = get_local_server_port()
             token: str = get_token(clientType="chrome")
             send_message({"port": port, "token": token})
 

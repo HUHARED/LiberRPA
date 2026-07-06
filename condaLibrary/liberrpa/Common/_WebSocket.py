@@ -6,7 +6,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
 from liberrpa.Logging import Log
-from liberrpa.Common._BasicConfig import get_basic_config_dict, get_token
+from liberrpa.Common._BasicConfig import get_local_server_port, get_token
 from liberrpa.Common._Exception import ChromeCommandError, ChromeElementNotFoundError, QtError
 from liberrpa.Common._TypedValue import DictSocketResult
 import liberrpa.UI._CommonValue as _CommonValue
@@ -19,7 +19,7 @@ from typing import Any
 SIGN_START_RECORD_VIDEO = "$SIGN-START_RECORD_VIDEO"
 
 # Initialize the socket client.
-_INT_PORT = int(get_basic_config_dict()["localServerPort"])
+_INT_PORT = get_local_server_port()
 _STR_TOKEN = get_token("python")
 _sioClient = socketio.Client(logger=False, engineio_logger=False)
 _LOCK_SOCKET_CLIENT = threading.Lock()

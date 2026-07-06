@@ -10,7 +10,7 @@ from liberrpa.Logging import Log
 
 from liberrpa.LiberRPALocalServer._Qt import dictClientAreaCache, close_area
 from liberrpa.LiberRPALocalServer._ServerInit import sioServer, dictClients, get_client_id
-from liberrpa.Common._BasicConfig import get_basic_config_dict, get_token
+from liberrpa.Common._BasicConfig import get_local_server_port, get_token
 
 import hmac
 from urllib.parse import urlparse
@@ -43,7 +43,7 @@ def is_same_local_server_origin(origin: str) -> bool:
     if parsed.hostname != "127.0.0.1":
         return False
 
-    return parsed.port == get_basic_config_dict()["localServerPort"]
+    return parsed.port == get_local_server_port()
 
 
 def validate_origin(clientType: ClientType) -> None:

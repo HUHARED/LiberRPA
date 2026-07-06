@@ -27,35 +27,39 @@ class DictAuth(TypedDict):
     chrome: str
 
 
+def _read_basic_config_dict() -> DictBasicConfig:
+    return cast(
+        DictBasicConfig,
+        json5.loads(
+            Path(get_liberrpa_folder_path())
+            .joinpath("configFiles/basic.jsonc")
+            .read_text(encoding="utf-8", errors="strict")
+        ),
+    )
+
+
 def get_basic_config_dict() -> DictBasicConfig:
 
-    strLiberRPAPath = get_liberrpa_folder_path()
-
     dictReplaceKeywords: dict[str, str] = {
-        "${LiberRPA}": strLiberRPAPath,
+        "${LiberRPA}": get_liberrpa_folder_path(),
         "${UserName}": getpass.getuser(),
         "${HostName}": socket.gethostname(),
     }
 
-    dictProject = cast(dict[str, Any], json5.loads(PATH_PROJECT_JSON.read_text(encoding="utf-8")))
-
-    if os.getenv("LogFolderName") in ["_ChromeGetLocalServerPort", "_LiberRPALocalServer"]:
+    if os.getenv("LogFolderName") in ["_LiberRPALocalServer"]:
         dictReplaceKeywords["${ToolName}"] = "BuiltInTools"
-
-    elif dictProject.get("executorPackage"):
-        dictReplaceKeywords["${ToolName}"] = "Executor"
-
     else:
-        # Suppose other Python programs are running in vscode.
-        dictReplaceKeywords["${ToolName}"] = "Editor"
+        dictProject = cast(dict[str, Any], json5.loads(PATH_PROJECT_JSON.read_text(encoding="utf-8")))
+
+        if dictProject.get("executorPackage"):
+            dictReplaceKeywords["${ToolName}"] = "Executor"
+
+        else:
+            # Suppose other Python programs are running in vscode.
+            dictReplaceKeywords["${ToolName}"] = "Editor"
 
     # Open the json file to get original dict.
-    dictBasicConfig = cast(
-        DictBasicConfig,
-        json5.loads(
-            Path(strLiberRPAPath).joinpath("./configFiles/basic.jsonc").read_text(encoding="utf-8", errors="strict")
-        ),
-    )
+    dictBasicConfig = _read_basic_config_dict()
 
     # Replace predefined variables
     for strKeyOuter in dictBasicConfig:
@@ -65,6 +69,27 @@ def get_basic_config_dict() -> DictBasicConfig:
                     strKeyInner, dictReplaceKeywords[strKeyInner]
                 )
     return dictBasicConfig
+
+
+def get_local_server_port() -> int:
+
+    dictBasicConfig = _read_basic_config_dict()
+
+    try:
+        port = dictBasicConfig["localServerPort"]
+
+    except KeyError:
+        raise KeyError(
+            "'localServerPort' was not found in basic.jsonc.\nPlease run InitLiberRPA.exe to initialize LiberRPA."
+        )
+
+    if not isinstance(port, int):
+        raise TypeError("'localServerPort' in basic.jsonc must be an integer.")
+
+    if not 1 <= port <= 65535:
+        raise ValueError("'localServerPort' in basic.jsonc must be between 1 and 65535.")
+
+    return port
 
 
 def get_token(clientType: Literal["python", "chrome", "uiAnalyzer"]) -> str:
