@@ -10,6 +10,7 @@ from liberrpa.Common._WebSocket import send_command
 from liberrpa.Common._TypedValue import StrPath
 
 import psutil
+import os
 from typing import Literal
 
 
@@ -28,7 +29,11 @@ def run_application(filePath: StrPath, windowState: Literal["default", "maximize
 
     # NOTE: Use LiberRPA Local Server to run the application. If use subprocess or os module to run the application in the current Python process, it will kill the new application when the Python process exits(when the application process is the first process instance).
 
-    dictCommand = {"commandName": "run_application", "filePath": filePath, "windowState": windowState}
+    dictCommand = {
+        "commandName": "run_application",
+        "filePath": os.fspath(filePath),
+        "windowState": windowState,
+    }
 
     pid: int = send_command(eventName="application_command", command=dictCommand)
 
