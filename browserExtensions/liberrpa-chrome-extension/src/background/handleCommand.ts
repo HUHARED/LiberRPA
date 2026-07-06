@@ -46,11 +46,11 @@ import {
 import { runWithFindingIcon } from "./icon";
 
 export async function handleCommand(
-  dictCommand: DictCommandFromFlask
+  dictCommand: DictCommandFromFlask,
 ): Promise<DictResultToFlask> {
   console.log("--handleCommand--");
 
-  const { id, ...dictCommandWithoutId } = dictCommand;
+  const { ServerWaitId, ...dictCommandWithoutId } = dictCommand;
 
   try {
     const result: DictResultOriginal = await handleCommandCore(dictCommandWithoutId);
@@ -65,12 +65,12 @@ export async function handleCommand(
     }
 
     return {
-      id: id,
+      ServerWaitId,
       ...result,
     };
   } catch (e) {
     return {
-      id: id,
+      ServerWaitId,
       boolSuccess: false,
       data: `${e instanceof Error ? e.message : String(e)}`,
     };
@@ -78,7 +78,7 @@ export async function handleCommand(
 }
 
 async function handleCommandCore(
-  dictCommand: DictCommandFromFlaskWithoutId
+  dictCommand: DictCommandFromFlaskWithoutId,
 ): Promise<DictResultOriginal> {
   console.log("--handleCommandCore--");
 
@@ -103,24 +103,20 @@ async function handleCommandCore(
       return await waitForLoad(dictCommand.timeout);
 
     case "navigate":
-      return await navigate(
-        dictCommand.url,
-        dictCommand.waitForLoad,
-        dictCommand.timeout
-      );
+      return await navigate(dictCommand.url, dictCommand.waitForLoad, dictCommand.timeout);
 
     case "openNewTab":
       return await openNewTab(
         dictCommand.url,
         dictCommand.waitForLoad,
-        dictCommand.timeout
+        dictCommand.timeout,
       );
 
     case "openNewWindow":
       return await openNewWindow(
         dictCommand.url,
         dictCommand.waitForLoad,
-        dictCommand.timeout
+        dictCommand.timeout,
       );
 
     case "switchTab":
@@ -148,7 +144,7 @@ async function handleCommandCore(
         dictCommand.httpOnly,
         dictCommand.secure,
         dictCommand.storeId,
-        dictCommand.sameSite
+        dictCommand.sameSite,
       );
 
     // Send all other command to content.
@@ -160,7 +156,7 @@ async function handleCommandCore(
 
 // The interaction with content.ts
 async function sendCommandToContent(
-  dictCommand: DictCommandContent
+  dictCommand: DictCommandContent,
 ): Promise<DictResultOriginal> {
   const tabId = await getActiveCommonWebPageTabId();
 
@@ -185,7 +181,7 @@ async function sendCommandToContent(
         }
 
         resolve(response);
-      }
+      },
     );
   });
 }

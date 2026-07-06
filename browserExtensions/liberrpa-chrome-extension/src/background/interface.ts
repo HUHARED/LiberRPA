@@ -112,9 +112,9 @@ type DictCommandBackground =
 export type DictCommandFromFlaskWithoutId = DictCommandBackground | DictCommandContent;
 
 export type DictCommandFromFlask<
-  T extends DictCommandFromFlaskWithoutId = DictCommandFromFlaskWithoutId
+  T extends DictCommandFromFlaskWithoutId = DictCommandFromFlaskWithoutId,
 > = T & {
-  id: string;
+  ServerWaitId: string;
 };
 
 /* The types for result */
@@ -125,5 +125,5 @@ export interface DictResultOriginal {
 }
 
 export interface DictResultToFlask extends DictResultOriginal {
-  id: string;
+  ServerWaitId: string;
 }
