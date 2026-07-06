@@ -28,7 +28,7 @@ function getBasicConfigDict(): DictBasicConfig {
       "${LiberRPA}": strLiberRPAEnvPath.replace(/\\/g, "\\\\"),
       "${UserName}": os.userInfo().username,
       "${HostName}": os.hostname(),
-      "${ToolName}": "BuildinTools",
+      "${ToolName}": "BuiltInTools",
     };
 
     for (const keyName of Object.keys(dictReplaceKeywords)) {

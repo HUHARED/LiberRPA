@@ -77,8 +77,8 @@
           <v-container fluid class="pa-2 ma-0 pt-0 flex-column-grow-1">
             <v-row class="clean-space fill-height">
               <!-- Left half -->
-              <!-- Use v-if to make the intTimeoutMin in ProjectLocalPackage_Detail_BuildinArgs can be recreated. -->
-              <ProjectLocalPackage_Detail_BuildinArgs v-if="projectStore.dictDetail_edit" />
+              <!-- Use v-if to make the intTimeoutMin in ProjectLocalPackage_Detail_BuiltInArgs can be recreated. -->
+              <ProjectLocalPackage_Detail_BuiltInArgs v-if="projectStore.dictDetail_edit" />
 
               <!-- Right half: Custom Project Arguments -->
               <v-col cols="6" class="clean-space flex-column">
@@ -146,7 +146,7 @@
 <script setup lang="ts">
 import ProjectLocalPackage_Detail_Uneditable from "./ProjectLocalPackage_Detail_Uneditable.vue";
 import ProjectLocalPackage_Dialog_Delete from "./ProjectLocalPackage_Dialog_Delete.vue";
-import ProjectLocalPackage_Detail_BuildinArgs from "./ProjectLocalPackage_Detail_BuildinArgs.vue";
+import ProjectLocalPackage_Detail_BuiltInArgs from "./ProjectLocalPackage_Detail_BuiltInArgs.vue";
 import ProjectLocalPackage_Detail_CusPrjArgs from "./ProjectLocalPackage_Detail_CusPrjArgs.vue";
 import VerticalDivider from "./utils/VerticalDivider.vue";
 

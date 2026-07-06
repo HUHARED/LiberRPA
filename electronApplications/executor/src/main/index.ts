@@ -107,7 +107,7 @@ function createWindow(): void {
 
     if (dictConfigExecutor["projectLogFolderPath"] === "") {
       dictConfigExecutor["projectLogFolderPath"] = dictConfigBasic["outputLogPath"].replace(
-        "\\BuildinTools",
+        "\\BuiltInTools",
         "\\Executor"
       );
     }

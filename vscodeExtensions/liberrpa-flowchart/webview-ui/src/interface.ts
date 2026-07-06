@@ -112,7 +112,7 @@ export type LogLevel = "VERBOSE" | "DEBUG" | "INFO" | "WARNING" | "ERROR" | "CRI
 
 export type CustomPrjArg = [name: string, value: JsonValue];
 
-export interface BuildinProjectArguments {
+export interface BuiltInProjectArguments {
   logLevel: LogLevel;
   recordVideo: boolean;
   stopShortcut: boolean;
@@ -121,7 +121,7 @@ export interface BuildinProjectArguments {
 
 /* Combined project types */
 
-export interface DictProject extends Flowchart, BuildinProjectArguments {
+export interface DictProject extends Flowchart, BuiltInProjectArguments {
   executeMode: ExecuteMode;
   customPrjArgs: CustomPrjArg[];
 }

@@ -1,4 +1,4 @@
-<!-- FileName: ProjectLocalPackage_Detail_BuildinArgs.vue -->
+<!-- FileName: ProjectLocalPackage_Detail_BuiltInArgs.vue -->
 <template>
   <v-col v-if="projectStore.dictDetail_edit" cols="6" class="clean-space fill-height pt-3">
     <!-- Timeout and Log Level -->

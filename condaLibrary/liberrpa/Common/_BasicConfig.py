@@ -29,7 +29,7 @@ class DictAuth(TypedDict):
 
 def get_basic_config_dict() -> DictBasicConfig:
 
-    strLiberRPAPath: str = get_liberrpa_folder_path()
+    strLiberRPAPath = get_liberrpa_folder_path()
 
     dictReplaceKeywords: dict[str, str] = {
         "${LiberRPA}": strLiberRPAPath,
@@ -40,7 +40,7 @@ def get_basic_config_dict() -> DictBasicConfig:
     dictProject = cast(dict[str, Any], json5.loads(PATH_PROJECT_JSON.read_text(encoding="utf-8")))
 
     if os.getenv("LogFolderName") in ["_ChromeGetLocalServerPort", "_LiberRPALocalServer"]:
-        dictReplaceKeywords["${ToolName}"] = "BuildinTools"
+        dictReplaceKeywords["${ToolName}"] = "BuiltInTools"
 
     elif dictProject.get("executorPackage"):
         dictReplaceKeywords["${ToolName}"] = "Executor"

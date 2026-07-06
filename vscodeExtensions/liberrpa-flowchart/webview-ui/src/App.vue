@@ -41,7 +41,7 @@
           flexShrink: '0',
         }">
         <SettingArea />
-        <BuildinPrjArgs />
+        <BuiltInPrjArgs />
         <!-- Give it a fixed height, otherwise the overflow-y-auto of argument list will never work. Why? -->
         <CustomPrjArgs class="flex-grow-1" style="height: 100px" />
       </div>
@@ -55,7 +55,7 @@ import FlowchartArea from "./components/FlowchartArea.vue";
 import NodePanel from "./components/NodePanel.vue";
 import NodeInfo from "./components/NodeInfo.vue";
 import SettingArea from "./components/SettingArea.vue";
-import BuildinPrjArgs from "./components/BuildinPrjArgs.vue";
+import BuiltInPrjArgs from "./components/BuiltInPrjArgs.vue";
 import CustomPrjArgs from "./components/CustomPrjArgs.vue";
 import Alert from "./components/Alert.vue";
 import { useFlowchartStore, useSettingStore, useArgsStore } from "./store";

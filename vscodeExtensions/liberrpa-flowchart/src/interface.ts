@@ -110,7 +110,7 @@ export type JsonValue =
 
 export type CustomPrjArg = [name: string, value: JsonValue];
 
-interface BuildinProjectArguments {
+interface BuiltInProjectArguments {
   logLevel: LogLevel;
   recordVideo: boolean;
   stopShortcut: boolean;
@@ -119,7 +119,7 @@ interface BuildinProjectArguments {
 
 /* Combine them. */
 
-export interface DictProject extends Flowchart, BuildinProjectArguments {
+export interface DictProject extends Flowchart, BuiltInProjectArguments {
   executeMode: ExecuteMode;
   customPrjArgs: CustomPrjArg[];
 }
