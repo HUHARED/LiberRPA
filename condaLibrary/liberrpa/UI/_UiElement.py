@@ -15,7 +15,7 @@ from liberrpa.UI._UiAutomation import (
     get_child_control_by_selector,
 )
 import liberrpa.UI._CommonValue as _CommonValue
-from liberrpa.Common._Exception import UiElementNotFoundError
+from liberrpa.Common._Exception import UiElementNotFoundError, UiOperationError
 from liberrpa.Common._TypedValue import ExecutionMode
 from liberrpa.UI._UiDict import (
     DictSpecWindow,
@@ -95,6 +95,9 @@ def check_execution_type(executionMode: ExecutionMode) -> None:
 def check_set_timeout(timeout: int) -> int:
     """Invoke by GUI manipulation functions to check timeout. If timeout < 3000 (milliseconds), set it to 3000."""
 
+    if isinstance(timeout, bool) or not isinstance(timeout, int):
+        raise ValueError("timeout must be an integer number of milliseconds.")
+
     if timeout < _CommonValue.INT_TIMEOUT_MIN:
         timeout = _CommonValue.INT_TIMEOUT_MIN
         Log.warning(
@@ -160,7 +163,7 @@ def get_control_selector(
                 break
 
     except Exception as e:
-        Log.error(f"Unexpected error while finding a UI element: {e}")
+        raise UiOperationError("Unexpected error while building the UI selector.") from e
 
     """
     Add "Index" to each layer of selector(if needed)
@@ -205,14 +208,11 @@ def get_control_selector(
                     )
                 # Because control find process seems asynchronous, use an assign to wait it done or timeout,.
                 _ = str(controlFound)
-            except Exception as e:
-                Log.error(f"Error when searching control: {e}")
-                controlFound = None
 
-            if controlFound is None:
+            except Exception as e:
                 raise UiElementNotFoundError(
                     "Unexpected internal state: no UI element was found while adding selector index information."
-                )
+                ) from e
 
             """
             Check whether other primary attributes are same.
