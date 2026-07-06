@@ -66,7 +66,7 @@ def str_to_datetime(strObj: str, format: str = "%Y-%m-%d %H:%M:%S") -> datetime:
     """
     Converts a string representation of a date and time into a datetime object.
 
-    Check the format codes in [strftime() and strptime() Format Codes]( https://docs.python.org/3/library/datetime.html#strftime-and-strptime-format-codes)
+    Check the format codes in [strftime() and strptime() Format Codes](https://docs.python.org/3/library/datetime.html#strftime-and-strptime-format-codes)
 
     Parameters:
         strObj: The string representation of the date and time.

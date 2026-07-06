@@ -27,7 +27,7 @@ def set_cookies(cookies: dict[str, str]) -> None:
     Sets the cookies to be used in subsequent HTTP requests.
 
     Parameters:
-        cookies (dict[str, str]): A dictionary of cookies to set.
+        cookies: A dictionary of cookies to set.
     """
     global _dictCookies
     _dictCookies = deepcopy(cookies)
@@ -39,7 +39,7 @@ def set_headers(headers: dict[str, str]) -> None:
     Sets the headers to be used in subsequent HTTP requests.
 
     Parameters:
-        headers (dict[str, str]): A dictionary of headers to set.
+        headers: A dictionary of headers to set.
     """
     global _dictHeaders
     _dictHeaders = deepcopy(headers)

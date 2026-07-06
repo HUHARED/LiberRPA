@@ -6,7 +6,6 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
 from liberrpa.Logging import Log
-from typing import Any
 
 
 @Log.trace()
@@ -33,7 +32,7 @@ def get[K, V](dictObj: dict[K, V], key: K, default: V | None = None) -> V | None
         default: The value to return if the key is not found.
 
     Returns:
-        T2 | None: The value associated with the key or the default value if not found.
+        V | None: The value associated with the key or the default value if not found.
     """
     return dictObj.get(key, default)
 
@@ -51,7 +50,7 @@ def pop[K, V](dictObj: dict[K, V], key: K, default: V | None = None) -> V | None
         default: The value to return if the key is not found.
 
     Returns:
-        T2 | None: The value associated with the removed key or the default value if not found.
+        V | None: The value associated with the removed key or the default value if not found.
     """
     return dictObj.pop(key, default)
 
@@ -65,13 +64,13 @@ def pop_item[K, V](dictObj: dict[K, V]) -> tuple[K, V]:
         dictObj: The dictionary to modify.
 
     Returns:
-        tuple[T, T2]: The removed key-value pair.
+        tuple[K, V]: The removed key-value pair.
     """
     return dictObj.popitem()
 
 
 @Log.trace()
-def get_key_list[K](dictObj: dict[K, Any]) -> list[K]:
+def get_key_list[K, V](dictObj: dict[K, V]) -> list[K]:
     """
     Retrieve a list of keys from the specified dictionary.
 
@@ -79,13 +78,13 @@ def get_key_list[K](dictObj: dict[K, Any]) -> list[K]:
         dictObj: The dictionary from which to get the keys.
 
     Returns:
-        list[T]: A list of keys in the dictionary.
+        list[K]: A list of keys in the dictionary.
     """
     return list(dictObj.keys())
 
 
 @Log.trace()
-def get_value_list[V](dictObj: dict[Any, V]) -> list[V]:
+def get_value_list[K, V](dictObj: dict[K, V]) -> list[V]:
     """
     Retrieve a list of values from the specified dictionary.
 
@@ -93,7 +92,7 @@ def get_value_list[V](dictObj: dict[Any, V]) -> list[V]:
         dictObj: The dictionary from which to get the values.
 
     Returns:
-        list[T]: A list of values in the dictionary.
+        list[V]: A list of values in the dictionary.
     """
     return list(dictObj.values())
 

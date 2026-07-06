@@ -86,7 +86,7 @@ def _check_and_standardize_sheet(excelObj: ExcelObj, sheet: ExcelSheet) -> str:
     listSheetName: list[str] = [sheet.name for sheet in excelObj.book.sheets]
 
     if isinstance(sheet, str) and (sheet not in listSheetName):
-        raise ExcelError(f"The sheet({sheet}) doest not exist. The current sheets: {listSheetName}")
+        raise ExcelError(f"The sheet({sheet}) does not exist. The current sheets: {listSheetName}")
     if isinstance(sheet, int) and sheet >= len(listSheetName):
         raise ExcelError(
             f"The sheet index ({sheet}) is greater than the largest sheet index({len(listSheetName) - 1})."
@@ -464,7 +464,7 @@ def read_cell(excelObj: ExcelObj, sheet: ExcelSheet, cell: ExcelCell, returnDisp
         returnDisplayed: If True, returns the displayed value; otherwise, returns the actual value.
 
     Returns:
-        TypeOfCellData: The value of the cell.
+        ExcelCellValue: The value of the cell.
     """
     _check_edit_mode()
     sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
@@ -505,7 +505,7 @@ def read_row(
         returnDisplayed: If True, returns the displayed values of the cells. If False, returns their actual values.
 
     Returns:
-        list[TypeOfCellData]: A list of values from the specified row. Returns an empty list if the starting cell is to the right of the last used cell in the row.
+        list[ExcelCellValue]: A list of values from the specified row. Returns an empty list if the starting cell is to the right of the last used cell in the row.
     """
     _check_edit_mode()
     sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
@@ -565,7 +565,7 @@ def read_column(
         returnDisplayed: If True, returns the displayed values of the cells. If False, returns their actual values.
 
     Returns:
-        list[TypeOfCellData]: A list of values from the specified column. Returns an empty list if the starting cell is below the last used cell in the column.
+        list[ExcelCellValue]: A list of values from the specified column. Returns an empty list if the starting cell is below the last used cell in the column.
     """
     _check_edit_mode()
     sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
@@ -644,7 +644,7 @@ def _read_range(
             # A 2D range
             return range.value
         """
-        # list[list[TypeOfCellData]]
+        # list[list[ExcelCellValue]]
         return [[cell.value for cell in row] for row in range.rows]
 
 
@@ -684,10 +684,10 @@ def read_range_list(
         sheet: The name or index(start from 0) of the sheet.
         startCell: The starting cell of the range.
         endCell: The ending cell of the range. If None, reads till the last cell.
-        returnDisplayed: If True, returns the displayed values as string; otherwise, returns actual cell values(TypeOfCellData).
+        returnDisplayed: If True, returns the displayed values as string; otherwise, returns actual cell values(ExcelCellValue).
 
     Returns:
-        list[list[str]] | list[list[TypeOfCellData]]: The data from the specified range in the chosen format.
+        list[list[str]] | list[list[ExcelCellValue]]: The data from the specified range in the chosen format.
     """
     _check_edit_mode()
     listRange = _read_range(
@@ -718,7 +718,7 @@ def read_range_df(
         startCell: The starting cell of the range.
         endCell: The ending cell of the range. If None, reads till the last cell.
         addTitle: If True, uses the first row as headers.
-        returnDisplayed: If True, returns the displayed values as string; otherwise, returns actual cell values(TypeOfCellData).
+        returnDisplayed: If True, returns the displayed values as string; otherwise, returns actual cell values(ExcelCellValue).
 
     Returns:
         pandas.DataFrame
