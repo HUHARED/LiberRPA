@@ -333,8 +333,8 @@ class DictElementTreeItem(TypedDict):
 
 # Dictionary for UI Anaylyzer.
 class DictForUiAnalyzer(TypedDict):
-    selector: SelectorWindow | SelectorUia | SelectorHtml
-    attributes: DictUiaSecondaryAttr | DictHtmlSecondaryAttr
+    selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage
+    attributes: DictUiaSecondaryAttr | DictHtmlSecondaryAttr | DictImageAttr
     preview: NotRequired[str]
 
 
