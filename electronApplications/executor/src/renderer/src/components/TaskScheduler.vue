@@ -137,10 +137,10 @@ function newTaskScheduler(): void {
     period_end: "2084-04-04 00:00:00",
     enable: true,
     timeout_min: 0,
-    buildin_log_level: "DEBUG",
-    buildin_record_video: true,
-    buildin_stop_shortcut: true,
-    buildin_highlight_ui: false,
+    builtin_log_level: "DEBUG",
+    builtin_record_video: true,
+    builtin_stop_shortcut: true,
+    builtin_highlight_ui: false,
     custom_prj_args: [],
   };
 

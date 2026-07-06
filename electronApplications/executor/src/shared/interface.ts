@@ -38,28 +38,28 @@ type TypeColumns_ModifyTime = "created_at" | "updated_at";
 type TypeColumns_LogLevel = "VERBOSE" | "DEBUG" | "INFO" | "WARNING" | "ERROR" | "CRITICAL";
 
 type TypeColumns_Project_NeedConvert =
-  | "buildin_record_video"
-  | "buildin_stop_shortcut"
-  | "buildin_highlight_ui"
+  | "builtin_record_video"
+  | "builtin_stop_shortcut"
+  | "builtin_highlight_ui"
   | "custom_prj_args";
 
 interface DictColumns_Project_NeedConvert_DB {
-  buildin_record_video: 0 | 1;
-  buildin_stop_shortcut: 0 | 1;
-  buildin_highlight_ui: 0 | 1;
+  builtin_record_video: 0 | 1;
+  builtin_stop_shortcut: 0 | 1;
+  builtin_highlight_ui: 0 | 1;
   custom_prj_args: string;
 }
 
 interface DictColumns_Project_NeedConvert_TS {
-  buildin_record_video: boolean;
-  buildin_stop_shortcut: boolean;
-  buildin_highlight_ui: boolean;
+  builtin_record_video: boolean;
+  builtin_stop_shortcut: boolean;
+  builtin_highlight_ui: boolean;
   custom_prj_args: string[][];
 }
 
 interface DictColumns_Project_TimeoutAndLog {
   timeout_min: number;
-  buildin_log_level: TypeColumns_LogLevel;
+  builtin_log_level: TypeColumns_LogLevel;
 }
 
 /* Project Local Package */

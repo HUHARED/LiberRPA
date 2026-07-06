@@ -5,8 +5,8 @@ CREATE TABLE
         version TEXT NOT NULL,
         description TEXT NOT NULL DEFAULT '',
         timeout_min INTEGER NOT NULL DEFAULT 0,
-        buildin_log_level TEXT NOT NULL DEFAULT 'DEBUG' CHECK (
-            buildin_log_level IN (
+        builtin_log_level TEXT NOT NULL DEFAULT 'DEBUG' CHECK (
+            builtin_log_level IN (
                 'VERBOSE',
                 'DEBUG',
                 'INFO',
@@ -15,9 +15,9 @@ CREATE TABLE
                 'CRITICAL'
             )
         ),
-        buildin_record_video BOOLEAN NOT NULL DEFAULT FALSE,
-        buildin_stop_shortcut BOOLEAN NOT NULL DEFAULT TRUE,
-        buildin_highlight_ui BOOLEAN NOT NULL DEFAULT FALSE,
+        builtin_record_video BOOLEAN NOT NULL DEFAULT FALSE,
+        builtin_stop_shortcut BOOLEAN NOT NULL DEFAULT TRUE,
+        builtin_highlight_ui BOOLEAN NOT NULL DEFAULT FALSE,
         custom_prj_args TEXT NOT NULL DEFAULT '',
         created_at DATETIME NOT NULL DEFAULT (datetime ('now', 'localtime')),
         updated_at DATETIME NOT NULL DEFAULT (datetime ('now', 'localtime')),
@@ -36,8 +36,8 @@ CREATE TABLE
         period_end DATETIME NOT NULL,
         enable BOOLEAN NOT NULL DEFAULT TRUE,
         timeout_min INTEGER NOT NULL DEFAULT 0,
-        buildin_log_level TEXT NOT NULL DEFAULT 'DEBUG' CHECK (
-            buildin_log_level IN (
+        builtin_log_level TEXT NOT NULL DEFAULT 'DEBUG' CHECK (
+            builtin_log_level IN (
                 'VERBOSE',
                 'DEBUG',
                 'INFO',
@@ -46,9 +46,9 @@ CREATE TABLE
                 'CRITICAL'
             )
         ),
-        buildin_record_video BOOLEAN NOT NULL DEFAULT FALSE,
-        buildin_stop_shortcut BOOLEAN NOT NULL DEFAULT TRUE,
-        buildin_highlight_ui BOOLEAN NOT NULL DEFAULT FALSE,
+        builtin_record_video BOOLEAN NOT NULL DEFAULT FALSE,
+        builtin_stop_shortcut BOOLEAN NOT NULL DEFAULT TRUE,
+        builtin_highlight_ui BOOLEAN NOT NULL DEFAULT FALSE,
         custom_prj_args TEXT NOT NULL DEFAULT '',
         created_at DATETIME NOT NULL DEFAULT (datetime ('now', 'localtime')),
         updated_at DATETIME NOT NULL DEFAULT (datetime ('now', 'localtime'))

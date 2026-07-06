@@ -33,7 +33,7 @@ export async function pythonRun(
 
   if (!boolPackageExists) {
     throw new Error(
-      `${dictDetail["name"]}-${dictDetail["version"]} doesn't exist in ${strExecutorPackageFolderPath}.`
+      `${dictDetail["name"]}-${dictDetail["version"]} does not exist in ${strExecutorPackageFolderPath}.`
     );
   }
 
@@ -44,10 +44,10 @@ export async function pythonRun(
       strRunFilePath,
       "--executor_args",
       JSON.stringify({
-        logLevel: dictDetail["buildin_log_level"],
-        recordVideo: dictDetail["buildin_record_video"],
-        stopShortcut: dictDetail["buildin_stop_shortcut"],
-        highlightUi: dictDetail["buildin_highlight_ui"],
+        logLevel: dictDetail["builtin_log_level"],
+        recordVideo: dictDetail["builtin_record_video"],
+        stopShortcut: dictDetail["builtin_stop_shortcut"],
+        highlightUi: dictDetail["builtin_highlight_ui"],
         customPrjArgs: dictDetail["custom_prj_args"],
       }),
     ],
@@ -55,6 +55,7 @@ export async function pythonRun(
       cwd: strExecutorPackagePath,
       // Follow the values in os.environ.get("PATH") and os.environ.get("PYTHONPATH") when run it in vscode.
       env: {
+        ...process.env,
         PATH: [
           strPyEnvPath,
           path.join(strPyEnvPath, "Library", "mingw-w64", "bin"),
@@ -62,10 +63,13 @@ export async function pythonRun(
           path.join(strPyEnvPath, "Library", "bin"),
           path.join(strPyEnvPath, "Scripts"),
           path.join(strPyEnvPath, "bin"),
-          process.env.PATH,
-        ].join(";"),
-        PYTHONPATH: [strExecutorPackagePath].join(";"),
-        ...process.env,
+          process.env.PATH ?? "",
+        ]
+          .filter(Boolean)
+          .join(path.delimiter),
+        PYTHONPATH: [strExecutorPackagePath, process.env.PYTHONPATH ?? ""]
+          .filter(Boolean)
+          .join(path.delimiter),
       },
       stdio: ["pipe", "pipe", "pipe"],
     }

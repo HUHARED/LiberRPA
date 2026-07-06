@@ -234,7 +234,7 @@
 
                 <v-col cols="6">
                   <v-select
-                    v-model="schedulerStore.dictDetail_edit['buildin_log_level']"
+                    v-model="schedulerStore.dictDetail_edit['builtin_log_level']"
                     label="Log Level"
                     variant="underlined"
                     class="clean-space"
@@ -252,7 +252,7 @@
                 </v-label>
 
                 <v-switch
-                  v-model="schedulerStore.dictDetail_edit['buildin_record_video']"
+                  v-model="schedulerStore.dictDetail_edit['builtin_record_video']"
                   hide-details
                   class="clean-space pl-1"
                   density="compact"
@@ -264,7 +264,7 @@
                 </v-label>
 
                 <v-switch
-                  v-model="schedulerStore.dictDetail_edit['buildin_stop_shortcut']"
+                  v-model="schedulerStore.dictDetail_edit['builtin_stop_shortcut']"
                   hide-details
                   class="clean-space pl-1"
                   density="compact"
@@ -276,7 +276,7 @@
                 </v-label>
 
                 <v-switch
-                  v-model="schedulerStore.dictDetail_edit['buildin_highlight_ui']"
+                  v-model="schedulerStore.dictDetail_edit['builtin_highlight_ui']"
                   hide-details
                   class="clean-space pl-1"
                   density="compact"
@@ -520,14 +520,14 @@ async function updateProjectDetailInScheduler(
   if (schedulerStore.dictDetail_edit && projectStore.dictDetail_edit) {
     schedulerStore.dictDetail_edit.project_id = projectStore.dictDetail_edit.id;
     schedulerStore.dictDetail_edit.timeout_min = projectStore.dictDetail_edit.timeout_min;
-    schedulerStore.dictDetail_edit.buildin_log_level =
-      projectStore.dictDetail_edit.buildin_log_level;
-    schedulerStore.dictDetail_edit.buildin_record_video =
-      projectStore.dictDetail_edit.buildin_record_video;
-    schedulerStore.dictDetail_edit.buildin_stop_shortcut =
-      projectStore.dictDetail_edit.buildin_stop_shortcut;
-    schedulerStore.dictDetail_edit.buildin_highlight_ui =
-      projectStore.dictDetail_edit.buildin_highlight_ui;
+    schedulerStore.dictDetail_edit.builtin_log_level =
+      projectStore.dictDetail_edit.builtin_log_level;
+    schedulerStore.dictDetail_edit.builtin_record_video =
+      projectStore.dictDetail_edit.builtin_record_video;
+    schedulerStore.dictDetail_edit.builtin_stop_shortcut =
+      projectStore.dictDetail_edit.builtin_stop_shortcut;
+    schedulerStore.dictDetail_edit.builtin_highlight_ui =
+      projectStore.dictDetail_edit.builtin_highlight_ui;
     schedulerStore.dictDetail_edit.custom_prj_args =
       projectStore.dictDetail_edit.custom_prj_args;
 

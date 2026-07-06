@@ -289,10 +289,10 @@ async function runProject(): Promise<void> {
       name: projectStore.dictDetail_edit.name,
       version: projectStore.dictDetail_edit.version,
       timeout_min: projectStore.dictDetail_edit.timeout_min,
-      buildin_log_level: projectStore.dictDetail_edit.buildin_log_level,
-      buildin_record_video: projectStore.dictDetail_edit.buildin_record_video,
-      buildin_stop_shortcut: projectStore.dictDetail_edit.buildin_stop_shortcut,
-      buildin_highlight_ui: projectStore.dictDetail_edit.buildin_highlight_ui,
+      builtin_log_level: projectStore.dictDetail_edit.builtin_log_level,
+      builtin_record_video: projectStore.dictDetail_edit.builtin_record_video,
+      builtin_stop_shortcut: projectStore.dictDetail_edit.builtin_stop_shortcut,
+      builtin_highlight_ui: projectStore.dictDetail_edit.builtin_highlight_ui,
       custom_prj_args: projectStore.dictDetail_edit.custom_prj_args,
     };
 

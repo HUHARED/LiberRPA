@@ -15,6 +15,23 @@ export const strExecutorPackageFolderPath = path.join(
   "ExecutorPackage"
 );
 
+function validateZipEntries(zipObj: AdmZip, targetRoot: string): void {
+  const root = path.resolve(targetRoot);
+
+  for (const entry of zipObj.getEntries()) {
+    const normalizedName = entry.entryName.replace(/\\/g, "/");
+
+    if (path.isAbsolute(normalizedName) || normalizedName.split("/").includes("..")) {
+      throw new Error(`Unsafe zip entry path: ${entry.entryName}`);
+    }
+
+    const targetPath = path.resolve(root, normalizedName);
+    if (targetPath !== root && !targetPath.startsWith(root + path.sep)) {
+      throw new Error(`Zip entry escapes target folder: ${entry.entryName}`);
+    }
+  }
+}
+
 export async function fileSelectPackageAndExtractToTempFolder(): Promise<
   DictColumns_Project_Detail_ToInsert | string
 > {
@@ -35,6 +52,7 @@ export async function fileSelectPackageAndExtractToTempFolder(): Promise<
       fs.mkdirSync(strTempFolderPath, { recursive: true });
 
       const zipObj = new AdmZip(result.filePaths[0]);
+      validateZipEntries(zipObj, strTempFolderPath);
       zipObj.extractAllTo(strTempFolderPath, false);
 
       const strJsonData = fs.readFileSync(path.join(strTempFolderPath, "project.json"), {
@@ -69,16 +87,16 @@ export async function fileSelectPackageAndExtractToTempFolder(): Promise<
         version: dictProjectJson["executorPackageVersion"] as string,
         description: dictProjectJson["executorPackageDescription"] as string,
         timeout_min: 0,
-        buildin_log_level: dictProjectFlow["logLevel"] as
+        builtin_log_level: dictProjectFlow["logLevel"] as
           | "VERBOSE"
           | "DEBUG"
           | "INFO"
           | "WARNING"
           | "ERROR"
           | "CRITICAL",
-        buildin_record_video: (dictProjectFlow["recordVideo"] as boolean) ? 1 : 0,
-        buildin_stop_shortcut: (dictProjectFlow["stopShortcut"] as boolean) ? 1 : 0,
-        buildin_highlight_ui: (dictProjectFlow["highlightUi"] as boolean) ? 1 : 0,
+        builtin_record_video: (dictProjectFlow["recordVideo"] as boolean) ? 1 : 0,
+        builtin_stop_shortcut: (dictProjectFlow["stopShortcut"] as boolean) ? 1 : 0,
+        builtin_highlight_ui: (dictProjectFlow["highlightUi"] as boolean) ? 1 : 0,
         custom_prj_args: JSON.stringify(dictProjectFlow["customPrjArgs"] as string[][]),
       };
     } else {

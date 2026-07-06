@@ -99,10 +99,10 @@ export function dbInsertProjectDetail(
               version,
               description,
               timeout_min,
-              buildin_log_level,
-              buildin_record_video,
-              buildin_stop_shortcut,
-              buildin_highlight_ui,
+              builtin_log_level,
+              builtin_record_video,
+              builtin_stop_shortcut,
+              builtin_highlight_ui,
               custom_prj_args
             )
       VALUES
@@ -114,10 +114,10 @@ export function dbInsertProjectDetail(
       dictDetail.version,
       dictDetail.description,
       dictDetail.timeout_min,
-      dictDetail.buildin_log_level,
-      dictDetail.buildin_record_video,
-      dictDetail.buildin_stop_shortcut,
-      dictDetail.buildin_highlight_ui,
+      dictDetail.builtin_log_level,
+      dictDetail.builtin_record_video,
+      dictDetail.builtin_stop_shortcut,
+      dictDetail.builtin_highlight_ui,
       dictDetail.custom_prj_args
     );
 }
@@ -134,10 +134,10 @@ export function dbUpdateProjectDetail(
           version = ?,
           description = ?,
           timeout_min = ?,
-          buildin_log_level = ?,
-          buildin_record_video = ?,
-          buildin_stop_shortcut = ?,
-          buildin_highlight_ui = ?,
+          builtin_log_level = ?,
+          builtin_record_video = ?,
+          builtin_stop_shortcut = ?,
+          builtin_highlight_ui = ?,
           custom_prj_args = ?
       WHERE id = ?;
       `
@@ -147,10 +147,10 @@ export function dbUpdateProjectDetail(
       dictDetail.version,
       dictDetail.description,
       dictDetail.timeout_min,
-      dictDetail.buildin_log_level,
-      dictDetail.buildin_record_video,
-      dictDetail.buildin_stop_shortcut,
-      dictDetail.buildin_highlight_ui,
+      dictDetail.builtin_log_level,
+      dictDetail.builtin_record_video,
+      dictDetail.builtin_stop_shortcut,
+      dictDetail.builtin_highlight_ui,
       dictDetail.custom_prj_args,
       dictDetail.id
     );
@@ -218,10 +218,10 @@ export function dbSelectSchedulerDetail(name: string): DictColumns_Scheduler_Det
           ts.period_end,
           ts.enable,
           ts.timeout_min,
-          ts.buildin_log_level,
-          ts.buildin_record_video,
-          ts.buildin_stop_shortcut,
-          ts.buildin_highlight_ui,
+          ts.builtin_log_level,
+          ts.builtin_record_video,
+          ts.builtin_stop_shortcut,
+          ts.builtin_highlight_ui,
           ts.custom_prj_args,
           ts.created_at,
           ts.updated_at
@@ -255,10 +255,10 @@ export function dbInsertSchedulerDetail(
               period_end,
               enable,
               timeout_min,
-              buildin_log_level,
-              buildin_record_video,
-              buildin_stop_shortcut,
-              buildin_highlight_ui,
+              builtin_log_level,
+              builtin_record_video,
+              builtin_stop_shortcut,
+              builtin_highlight_ui,
               custom_prj_args
           )
       VALUES
@@ -275,10 +275,10 @@ export function dbInsertSchedulerDetail(
       dictDetail.period_end,
       dictDetail.enable,
       dictDetail.timeout_min,
-      dictDetail.buildin_log_level,
-      dictDetail.buildin_record_video,
-      dictDetail.buildin_stop_shortcut,
-      dictDetail.buildin_highlight_ui,
+      dictDetail.builtin_log_level,
+      dictDetail.builtin_record_video,
+      dictDetail.builtin_stop_shortcut,
+      dictDetail.builtin_highlight_ui,
       dictDetail.custom_prj_args
     );
 }
@@ -301,10 +301,10 @@ export function dbUpdateSchedulerDetail(
           period_end=?,
           enable=?,
           timeout_min=?,
-          buildin_log_level=?,
-          buildin_record_video=?,
-          buildin_stop_shortcut=?,
-          buildin_highlight_ui=?,
+          builtin_log_level=?,
+          builtin_record_video=?,
+          builtin_stop_shortcut=?,
+          builtin_highlight_ui=?,
           custom_prj_args=?
       WHERE
           id = ?
@@ -320,10 +320,10 @@ export function dbUpdateSchedulerDetail(
       dictDetail.period_end,
       dictDetail.enable,
       dictDetail.timeout_min,
-      dictDetail.buildin_log_level,
-      dictDetail.buildin_record_video,
-      dictDetail.buildin_stop_shortcut,
-      dictDetail.buildin_highlight_ui,
+      dictDetail.builtin_log_level,
+      dictDetail.builtin_record_video,
+      dictDetail.builtin_stop_shortcut,
+      dictDetail.builtin_highlight_ui,
       dictDetail.custom_prj_args,
       dictDetail.id
     );

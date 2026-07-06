@@ -269,10 +269,10 @@ async function runProjectNewestVersion(
         name: dictDetail.name,
         version: dictDetail.version,
         timeout_min: dictDetail.timeout_min,
-        buildin_log_level: dictDetail.buildin_log_level,
-        buildin_record_video: dictDetail.buildin_record_video === 1,
-        buildin_stop_shortcut: dictDetail.buildin_stop_shortcut === 1,
-        buildin_highlight_ui: dictDetail.buildin_highlight_ui === 1,
+        builtin_log_level: dictDetail.builtin_log_level,
+        builtin_record_video: dictDetail.builtin_record_video === 1,
+        builtin_stop_shortcut: dictDetail.builtin_stop_shortcut === 1,
+        builtin_highlight_ui: dictDetail.builtin_highlight_ui === 1,
         custom_prj_args: dictDetail.custom_prj_args
           ? JSON.parse(dictDetail.custom_prj_args)
           : [],
