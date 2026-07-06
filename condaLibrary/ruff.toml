@@ -38,6 +38,7 @@ select = [
 extend-select = [
     "RUF027",
     "ANN001",  # missing-type-function-argument
+    "ANN002",  # missing-type-args
     # Return annotation checks.
     "ANN201",  # Missing return type annotation for public function.
     "ANN202",  # Missing return type annotation for private function.

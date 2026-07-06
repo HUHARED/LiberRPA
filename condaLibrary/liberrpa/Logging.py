@@ -716,7 +716,7 @@ class Logger:
 
         def decorator(func: Callable[P, T]) -> Callable[P, T]:
             @wraps(func)
-            def wrapper(*args, **kwargs) -> T:
+            def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
                 boolError = False
                 try:
                     self._trace_call(level=level, prefix="START", funcName=func.__name__)

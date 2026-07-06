@@ -13,35 +13,35 @@ from typing import TypedDict
 class UiElementNotFoundError(Exception):
     """Custom exception for UI not found"""
 
-    def __init__(self, message: str = "Not found the target element.", *args) -> None:
+    def __init__(self, message: str = "Not found the target element.", *args: object) -> None:
         super().__init__(message, *args)
 
 
 class UiTimeoutError(Exception):
     """Custom exception for UI operation timeout"""
 
-    def __init__(self, message: str = "Timeout for UI operation exceeded.", *args) -> None:
+    def __init__(self, message: str = "Timeout for UI operation exceeded.", *args: object) -> None:
         super().__init__(message, *args)
 
 
 class UiWaitTimeoutError(UiTimeoutError):
     """Base exception for UI wait timeout."""
 
-    def __init__(self, message: str = "Timeout for UI wait operation exceeded.", *args) -> None:
+    def __init__(self, message: str = "Timeout for UI wait operation exceeded.", *args: object) -> None:
         super().__init__(message, *args)
 
 
 class UiElementAppearTimeoutError(UiWaitTimeoutError):
     """Timeout while waiting for a UI element to appear."""
 
-    def __init__(self, message: str = "Timeout exceeded for UI element to appear.", *args) -> None:
+    def __init__(self, message: str = "Timeout exceeded for UI element to appear.", *args: object) -> None:
         super().__init__(message, *args)
 
 
 class UiElementDisappearTimeoutError(UiWaitTimeoutError):
     """Timeout while waiting for a UI element to disappear."""
 
-    def __init__(self, message: str = "Timeout exceeded for UI element to disappear.", *args) -> None:
+    def __init__(self, message: str = "Timeout exceeded for UI element to disappear.", *args: object) -> None:
         super().__init__(message, *args)
 
 
@@ -51,7 +51,7 @@ class UiUnsafeThreadTerminationError(UiTimeoutError):
     def __init__(
         self,
         message: str = "Unsafe UI timeout fallback was triggered. A worker thread was forcibly interrupted.",
-        *args,
+        *args: object,
     ) -> None:
         super().__init__(message, *args)
 
@@ -64,7 +64,7 @@ class UiUnstoppableThreadError(UiUnsafeThreadTerminationError):
         message: str = (
             "Unsafe UI timeout fallback was triggered, but the worker thread did not stop.\nThe current Python process may be in an unsafe state."
         ),
-        *args,
+        *args: object,
     ) -> None:
         super().__init__(message, *args)
 
@@ -72,42 +72,42 @@ class UiUnstoppableThreadError(UiUnsafeThreadTerminationError):
 class UiSelectorError(ValueError):
     """Invalid UI selector structure or selector value."""
 
-    def __init__(self, message: str = "Invalid UI selector.", *args) -> None:
+    def __init__(self, message: str = "Invalid UI selector.", *args: object) -> None:
         super().__init__(message, *args)
 
 
 class UiOperationError(Exception):
     """Custom exception for unsupported or failed UI operations."""
 
-    def __init__(self, message: str = "Failed to perform the UI operation.", *args) -> None:
+    def __init__(self, message: str = "Failed to perform the UI operation.", *args: object) -> None:
         super().__init__(message, *args)
 
 
 class ChromeCommandError(Exception):
     """Custom exception for Chrome manipulation."""
 
-    def __init__(self, message: str = "Error when manipulating Chrome.", *args) -> None:
+    def __init__(self, message: str = "Error when manipulating Chrome.", *args: object) -> None:
         super().__init__(message, *args)
 
 
 class ChromeElementNotFoundError(ChromeCommandError):
     """Chrome command succeeded, but the target HTML element was not found."""
 
-    def __init__(self, message: str = "Not found the target element in Chrome.", *args) -> None:
+    def __init__(self, message: str = "Not found the target element in Chrome.", *args: object) -> None:
         super().__init__(message, *args)
 
 
 class MailError(Exception):
     """Custom exception for Mail manipulation."""
 
-    def __init__(self, message: str = "Error when manipulating Mail.", *args) -> None:
+    def __init__(self, message: str = "Error when manipulating Mail.", *args: object) -> None:
         super().__init__(message, *args)
 
 
 class QtError(Exception):
     """Custom exception for QtWorker."""
 
-    def __init__(self, message: str = "Error when manipulating QT object.", *args) -> None:
+    def __init__(self, message: str = "Error when manipulating QT object.", *args: object) -> None:
         super().__init__(message, *args)
 
 
