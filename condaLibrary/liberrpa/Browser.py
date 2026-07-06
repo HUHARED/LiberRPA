@@ -8,6 +8,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 from liberrpa.Logging import Log
 from liberrpa.Common._WebSocket import send_command
 from liberrpa.Common._Exception import ChromeCommandError
+from liberrpa.UI._OperationLock import lock_ui_operation
 from liberrpa.Common._TypedValue import DictCookiesOfChrome, ChromeDownloadItem, JsonValue, StrPath
 from liberrpa.Common._Chrome import get_download_list as _get_download_list
 
@@ -43,6 +44,7 @@ class BrowserObj:
 
 
 @Log.trace()
+@lock_ui_operation
 def open_browser(
     browserType: Literal["chrome"] = "chrome",
     url: str = "about:blank",
@@ -125,6 +127,7 @@ def open_browser(
 
 
 @Log.trace()
+@lock_ui_operation
 def bind_browser(browserType: Literal["chrome"] = "chrome") -> BrowserObj:
     """
     Bind a running browser.
@@ -173,6 +176,7 @@ def bind_browser(browserType: Literal["chrome"] = "chrome") -> BrowserObj:
 
 
 @Log.trace()
+@lock_ui_operation
 def get_state(browserObj: BrowserObj) -> Literal["unloaded", "loading", "complete"]:
     """
     Get the active tab's state.
@@ -200,6 +204,7 @@ def get_state(browserObj: BrowserObj) -> Literal["unloaded", "loading", "complet
 
 
 @Log.trace()
+@lock_ui_operation
 def go_backward(browserObj: BrowserObj) -> None:
     """
     Make the active tab go backward.
@@ -220,6 +225,7 @@ def go_backward(browserObj: BrowserObj) -> None:
 
 
 @Log.trace()
+@lock_ui_operation
 def go_forward(browserObj: BrowserObj) -> None:
     """
     Make the active tab go forward.
@@ -240,6 +246,7 @@ def go_forward(browserObj: BrowserObj) -> None:
 
 
 @Log.trace()
+@lock_ui_operation
 def refresh(browserObj: BrowserObj) -> None:
     """
     Make the active tab refresh.
@@ -260,6 +267,7 @@ def refresh(browserObj: BrowserObj) -> None:
 
 
 @Log.trace()
+@lock_ui_operation
 def wait_load_completed(browserObj: BrowserObj, timeout: int = 30000) -> None:
     """
     Wait until the active browser tab finishes loading.
@@ -287,6 +295,7 @@ def _check_url(url: str) -> None:
 
 
 @Log.trace()
+@lock_ui_operation
 def navigate(browserObj: BrowserObj, url: str, waitForLoad: bool = False, timeout: int = 30000) -> None:
     """
     Navigate the active tab to a specified url.
@@ -321,6 +330,7 @@ def navigate(browserObj: BrowserObj, url: str, waitForLoad: bool = False, timeou
 
 
 @Log.trace()
+@lock_ui_operation
 def open_new_tab(browserObj: BrowserObj, url: str, waitForLoad: bool = False, timeout: int = 30000) -> None:
     """
     Create a new tab to open a specified url.
@@ -355,6 +365,7 @@ def open_new_tab(browserObj: BrowserObj, url: str, waitForLoad: bool = False, ti
 
 
 @Log.trace()
+@lock_ui_operation
 def open_new_window(browserObj: BrowserObj, url: str, waitForLoad: bool = False, timeout: int = 30000) -> None:
     """
     Create a new browser window to open a specified url.
@@ -389,6 +400,7 @@ def open_new_window(browserObj: BrowserObj, url: str, waitForLoad: bool = False,
 
 
 @Log.trace()
+@lock_ui_operation
 def switch_tab(browserObj: BrowserObj, titleOrIndex: str | int) -> None:
     """
     Switch to a specific tab of the active browser window.
@@ -413,6 +425,7 @@ def switch_tab(browserObj: BrowserObj, titleOrIndex: str | int) -> None:
 
 
 @Log.trace()
+@lock_ui_operation
 def close_current_tab(browserObj: BrowserObj) -> None:
     """
     Close the active tab.
@@ -436,6 +449,7 @@ def close_current_tab(browserObj: BrowserObj) -> None:
 
 
 @Log.trace()
+@lock_ui_operation
 def get_download_list(browserObj: BrowserObj, limit: int = 5, timeout: int = 10000) -> list[ChromeDownloadItem]:
     """
     Get recent download items from the browser.
@@ -461,6 +475,7 @@ def get_download_list(browserObj: BrowserObj, limit: int = 5, timeout: int = 100
 
 
 @Log.trace()
+@lock_ui_operation
 def get_source_code(browserObj: BrowserObj) -> str:
     """
     Get the HTML source code of the active tab.
@@ -487,6 +502,7 @@ def get_source_code(browserObj: BrowserObj) -> str:
 
 
 @Log.trace()
+@lock_ui_operation
 def get_all_text(browserObj: BrowserObj) -> str:
     """
     Get all text in the active tab.
@@ -513,6 +529,7 @@ def get_all_text(browserObj: BrowserObj) -> str:
 
 
 @Log.trace()
+@lock_ui_operation
 def get_url(browserObj: BrowserObj) -> str:
     """
     Get the url of the active tab.
@@ -539,6 +556,7 @@ def get_url(browserObj: BrowserObj) -> str:
 
 
 @Log.trace()
+@lock_ui_operation
 def get_title(browserObj: BrowserObj) -> str:
     """
     Get the title of the active tab.
@@ -565,6 +583,7 @@ def get_title(browserObj: BrowserObj) -> str:
 
 
 @Log.trace()
+@lock_ui_operation
 def get_cookies(browserObj: BrowserObj) -> list[DictCookiesOfChrome]:
     """
     Get the cookies of the active tab.
@@ -591,6 +610,7 @@ def get_cookies(browserObj: BrowserObj) -> list[DictCookiesOfChrome]:
 
 
 @Log.trace()
+@lock_ui_operation
 def set_cookies(
     browserObj: BrowserObj,
     domain: str,
@@ -650,6 +670,7 @@ def set_cookies(
 
 
 @Log.trace()
+@lock_ui_operation
 def get_scroll_position(browserObj: BrowserObj) -> tuple[int, int]:
     """
     Get the scroll position of the active tab.
@@ -681,6 +702,7 @@ def get_scroll_position(browserObj: BrowserObj) -> tuple[int, int]:
 
 
 @Log.trace()
+@lock_ui_operation
 def set_scroll_position(browserObj: BrowserObj, x: int = 0, y: int = 0) -> None:
     """
     set the scroll position of the active tab.
@@ -722,6 +744,7 @@ def execute_js_code(
 
 
 @Log.trace()
+@lock_ui_operation
 def execute_js_code(
     browserObj: BrowserObj,
     jsCode: str,
