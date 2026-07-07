@@ -10,7 +10,7 @@ import ast
 import importlib
 import inspect
 from pathlib import Path
-from typing import Any, Literal, NotRequired, TypedDict, get_args, get_origin, get_overloads
+from typing import Any, NotRequired, TypedDict, get_overloads
 
 from ApiConfig import (
     MANAGED_IMPORT_ORDER,
@@ -19,7 +19,7 @@ from ApiConfig import (
     SKIP_FUNCTIONS,
     MANUAL_SNIPPET_IMPORTS,
 )
-from SnippetUtils import find_project_root, get_snippets_dir, write_json, get_bool_choices, unwrap_type_alias
+from SnippetUtils import find_project_root, get_snippets_dir, write_json, get_snippet_choices
 
 
 class DictParameterInfo(TypedDict):
@@ -110,52 +110,6 @@ def _default_to_str(default: object) -> str | None:
     return repr(default)
 
 
-def _value_to_python_source(value: object) -> str:
-    """Return Python source text suitable for a VS Code snippet choice."""
-    return repr(value)
-
-
-def _move_default_choice_to_first(choices: list[str], parameter: inspect.Parameter) -> list[str]:
-    """Move the default value to the first choice so snippets preserve default behavior."""
-    if parameter.default is inspect.Parameter.empty:
-        return choices
-
-    defaultChoice = _value_to_python_source(parameter.default)
-    if defaultChoice not in choices:
-        raise ValueError(
-            f"Parameter {parameter.name!r} has default {defaultChoice}, but it is not present in snippet choices: {choices}"
-        )
-
-    return [defaultChoice, *(choice for choice in choices if choice != defaultChoice)]
-
-
-def _get_literal_choices(parameter: inspect.Parameter) -> list[str] | None:
-    """Extract snippet choices from Literal annotations when possible."""
-    annotation = unwrap_type_alias(parameter.annotation)
-    if annotation is inspect.Signature.empty:
-        return None
-
-    origin = get_origin(annotation)
-    if origin is Literal:
-        choices = [_value_to_python_source(value) for value in get_args(annotation)]
-        return _move_default_choice_to_first(choices=choices, parameter=parameter)
-
-    return None
-
-
-def _get_snippet_choices(parameter: inspect.Parameter) -> list[str] | None:
-    """Return optional VS Code snippet choices for a parameter."""
-    literalChoices = _get_literal_choices(parameter=parameter)
-    if literalChoices:
-        return literalChoices
-
-    boolChoices = get_bool_choices(parameter=parameter)
-    if boolChoices:
-        return boolChoices
-
-    return None
-
-
 def _build_parameter_info(parameter: inspect.Parameter) -> DictParameterInfo:
     result: DictParameterInfo = {
         "name": parameter.name,
@@ -165,7 +119,7 @@ def _build_parameter_info(parameter: inspect.Parameter) -> DictParameterInfo:
         "annotation": _annotation_to_str(parameter.annotation),
     }
 
-    snippetChoices = _get_snippet_choices(parameter)
+    snippetChoices = get_snippet_choices(parameter)
     if snippetChoices:
         result["snippetChoices"] = snippetChoices
 

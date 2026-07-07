@@ -17,7 +17,9 @@ class DictSnippetsItem(TypedDict):
 
 # Public modules that should be scanned for normal function snippets.
 #
-# Do not include Log, delay, PrjArgs, CustomArgs, or helper classes here. They are user-facing import targets, but they are not normal liberrpa.<Module> function modules to scan.
+# Do not include Log, delay, PrjArgs, CustomArgs, or helper classes here.
+# They are user-facing import targets, but they are not normal
+# liberrpa.<Module> function modules to scan.
 PUBLIC_MODULE_ORDER = [
     # UI element manipulation
     "Mouse",
@@ -100,7 +102,9 @@ SPECIAL_SNIPPETS: dict[str, dict[str, dict[str, object]]] = {
 
 
 # Import requirements for snippets that are not generated from normal public functions.
-# This includes snippets_basic.snippets and SPECIAL_SNIPPETS above. Snippets that do not need LiberRPA imports, such as control-flow snippets or a full new-file template, should not be listed here.
+# This includes snippets_basic.snippets, generated Log snippets, and SPECIAL_SNIPPETS above.
+# Snippets that do not need LiberRPA imports, such as control-flow snippets or a full new-file template,
+# should not be listed here.
 MANUAL_SNIPPET_IMPORTS: dict[str, list[str]] = {
     "Basic.delay": ["delay"],
     "LogicControl.retry": ["Log"],

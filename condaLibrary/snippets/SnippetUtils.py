@@ -10,7 +10,7 @@ from pathlib import Path
 import json
 import json5
 import inspect
-from typing import Any, cast
+from typing import Any, Literal, cast, get_args, get_origin
 
 
 # VS Code snippet choices treat comma and pipe as delimiters.
@@ -28,7 +28,7 @@ def format_snippet_choice(index: int, choices: list[str]) -> str:
     return f"${{{index}|{','.join(escapedChoices)}|}}"
 
 
-def unwrap_type_alias(annotation: object) -> object:
+def _unwrap_type_alias(annotation: object) -> object:
     """Return the underlying value of a PEP 695 type alias when available."""
     value = getattr(annotation, "__value__", None)
     if value is None:
@@ -36,9 +36,40 @@ def unwrap_type_alias(annotation: object) -> object:
     return value
 
 
-def get_bool_choices(parameter: inspect.Parameter) -> list[str] | None:
+def _value_to_python_source(value: object) -> str:
+    """Return Python source text suitable for a VS Code snippet choice."""
+    return repr(value)
+
+
+def _move_default_choice_to_first(choices: list[str], default: object) -> list[str]:
+    """Move a default Python value to the first snippet choice."""
+    defaultChoice = _value_to_python_source(default)
+    if defaultChoice not in choices:
+        raise ValueError(f"Default choice {defaultChoice!r} is not present in snippet choices: {choices}")
+
+    return [defaultChoice, *(choice for choice in choices if choice != defaultChoice)]
+
+
+def _get_literal_choices(parameter: inspect.Parameter) -> list[str] | None:
+    """Extract snippet choices from Literal annotations when possible."""
+    annotation = _unwrap_type_alias(parameter.annotation)
+    if annotation is inspect.Signature.empty:
+        return None
+
+    if get_origin(annotation) is not Literal:
+        return None
+
+    choices = [_value_to_python_source(value) for value in get_args(annotation)]
+    if parameter.default is not inspect.Parameter.empty:
+        choices = _move_default_choice_to_first(choices=choices, default=parameter.default)
+
+    return choices
+
+
+
+def _get_bool_choices(parameter: inspect.Parameter) -> list[str] | None:
     """Return bool snippet choices, keeping the default value first."""
-    annotation = unwrap_type_alias(parameter.annotation)
+    annotation = _unwrap_type_alias(parameter.annotation)
 
     if annotation is not bool and not isinstance(parameter.default, bool):
         return None
@@ -55,6 +86,29 @@ def get_bool_choices(parameter: inspect.Parameter) -> list[str] | None:
     if parameter.default is True:
         return ["True", "False"]
     return ["False", "True"]
+
+
+def get_snippet_choices(parameter: inspect.Parameter) -> list[str] | None:
+    """Return optional VS Code snippet choices for a parameter."""
+    literalChoices = _get_literal_choices(parameter=parameter)
+    if literalChoices:
+        return literalChoices
+
+    boolChoices = _get_bool_choices(parameter=parameter)
+    if boolChoices:
+        return boolChoices
+
+    return None
+
+
+def format_string_choices(index: int, values: list[str], default: str | None = None) -> str:
+    """Return a choice placeholder for Python string literal values."""
+    choices = [_value_to_python_source(value) for value in values]
+    if default is not None:
+        choices = _move_default_choice_to_first(choices=choices, default=default)
+
+    return format_snippet_choice(index=index, choices=choices)
+
 
 
 def find_project_root() -> Path:

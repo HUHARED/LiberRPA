@@ -1,5 +1,4 @@
 {
-  // These snippets cannot be generated automatically. This is not the final snippet file; the final snippet file should not use nested dictionaries.
   "Basic": {
     "Basic.delay": {
       "prefix": "delay",
@@ -191,93 +190,6 @@
         "return ${1:value}"
       ],
       "description": "Return a value from the current function."
-    }
-  },
-  "Log": {
-    "Log.verbose": {
-      "prefix": "Log.verbose",
-      "body": "Log.verbose($1)",
-      "description": "Write a log entry at the VERBOSE level, only if the current log level allows it.\n\nParameters:\n    messages: Values to write to the log. Multiple values are converted to strings and joined by sep in the human_read log. In the machine_read log, a single value is stored as-is, and multiple values are stored as a list of original values.\n    sep: Separator inserted between multiple values in the human_read log. It does not change values stored in the machine_read log."
-    },
-    "Log.verbose_pretty": {
-      "prefix": "Log.verbose_pretty",
-      "body": "Log.verbose_pretty($1)",
-      "description": "Write a formatted log entry at the VERBOSE level, only if the current log level allows it.\n\nDict, list, and tuple values are formatted with indentation in the human_read log only. The machine_read log keeps the original values unchanged.\n\nParameters:\n    messages: Values to write to the log.\n    sep: Separator inserted between multiple values in the human_read log."
-    },
-    "Log.debug": {
-      "prefix": "Log.debug",
-      "body": "Log.debug($1)",
-      "description": "Write a log entry at the DEBUG level, only if the current log level allows it.\n\nParameters:\n    messages: Values to write to the log. Multiple values are converted to strings and joined by sep in the human_read log. In the machine_read log, a single value is stored as-is, and multiple values are stored as a list of original values.\n    sep: Separator inserted between multiple values in the human_read log. It does not change values stored in the machine_read log."
-    },
-    "Log.debug_pretty": {
-      "prefix": "Log.debug_pretty",
-      "body": "Log.debug_pretty($1)",
-      "description": "Write a formatted log entry at the DEBUG level, only if the current log level allows it.\n\nDict, list, and tuple values are formatted with indentation in the human_read log only. The machine_read log keeps the original values unchanged.\n\nParameters:\n    messages: Values to write to the log.\n    sep: Separator inserted between multiple values in the human_read log."
-    },
-    "Log.info": {
-      "prefix": "Log.info",
-      "body": "Log.info($1)",
-      "description": "Write a log entry at the INFO level, only if the current log level allows it.\n\nParameters:\n    messages: Values to write to the log. Multiple values are converted to strings and joined by sep in the human_read log. In the machine_read log, a single value is stored as-is, and multiple values are stored as a list of original values.\n    sep: Separator inserted between multiple values in the human_read log. It does not change values stored in the machine_read log."
-    },
-    "Log.info_pretty": {
-      "prefix": "Log.info_pretty",
-      "body": "Log.info_pretty($1)",
-      "description": "Write a formatted log entry at the INFO level, only if the current log level allows it.\n\nDict, list, and tuple values are formatted with indentation in the human_read log only. The machine_read log keeps the original values unchanged.\n\nParameters:\n    messages: Values to write to the log.\n    sep: Separator inserted between multiple values in the human_read log."
-    },
-    "Log.warning": {
-      "prefix": "Log.warning",
-      "body": "Log.warning($1)",
-      "description": "Write a log entry at the WARNING level, only if the current log level allows it.\n\nParameters:\n    messages: Values to write to the log. Multiple values are converted to strings and joined by sep in the human_read log. In the machine_read log, a single value is stored as-is, and multiple values are stored as a list of original values.\n    sep: Separator inserted between multiple values in the human_read log. It does not change values stored in the machine_read log."
-    },
-    "Log.warning_pretty": {
-      "prefix": "Log.warning_pretty",
-      "body": "Log.warning_pretty($1)",
-      "description": "Write a formatted log entry at the WARNING level, only if the current log level allows it.\n\nDict, list, and tuple values are formatted with indentation in the human_read log only. The machine_read log keeps the original values unchanged.\n\nParameters:\n    messages: Values to write to the log.\n    sep: Separator inserted between multiple values in the human_read log."
-    },
-    "Log.error": {
-      "prefix": "Log.error",
-      "body": "Log.error($1)",
-      "description": "Write a log entry at the ERROR level, only if the current log level allows it.\n\nParameters:\n    messages: Values to write to the log. Multiple values are converted to strings and joined by sep in the human_read log. In the machine_read log, a single value is stored as-is, and multiple values are stored as a list of original values.\n    sep: Separator inserted between multiple values in the human_read log. It does not change values stored in the machine_read log."
-    },
-    "Log.error_pretty": {
-      "prefix": "Log.error_pretty",
-      "body": "Log.error_pretty($1)",
-      "description": "Write a formatted log entry at the ERROR level, only if the current log level allows it.\n\nDict, list, and tuple values are formatted with indentation in the human_read log only. The machine_read log keeps the original values unchanged.\n\nParameters:\n    messages: Values to write to the log.\n    sep: Separator inserted between multiple values in the human_read log."
-    },
-    "Log.critical": {
-      "prefix": "Log.critical",
-      "body": "Log.critical($1)",
-      "description": "Write a log entry at the CRITICAL level, only if the current log level allows it.\n\nParameters:\n    messages: Values to write to the log. Multiple values are converted to strings and joined by sep in the human_read log. In the machine_read log, a single value is stored as-is, and multiple values are stored as a list of original values.\n    sep: Separator inserted between multiple values in the human_read log. It does not change values stored in the machine_read log."
-    },
-    "Log.critical_pretty": {
-      "prefix": "Log.critical_pretty",
-      "body": "Log.critical_pretty($1)",
-      "description": "Write a formatted log entry at the CRITICAL level, only if the current log level allows it.\n\nDict, list, and tuple values are formatted with indentation in the human_read log only. The machine_read log keeps the original values unchanged.\n\nParameters:\n    messages: Values to write to the log.\n    sep: Separator inserted between multiple values in the human_read log."
-    },
-    "Log.exception_info": {
-      "prefix": "Log.exception_info",
-      "body": "Log.exception_info(exObj=$1)",
-      "description": "Record the Exception object's 'type', 'message', 'fileName' and 'lineNumber' in a dict format and \"ERROR\" log level, only if the current log level allows it.\n\nParameters:\n    exObj: The Exception object to record."
-    },
-    "Log.set_level": {
-      "prefix": "Log.set_level",
-      "body": "Log.set_level(level=${1|'VERBOSE','DEBUG','INFO','WARNING','ERROR','CRITICAL'|}, loggerType=${2|'both','human','machine'|})",
-      "description": "Set the minimum log level for the logger.\n\nParameters:\n    level: The minimum level to set. Must be one of ['VERBOSE', 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'].\n    loggerType: Which logger to set the level for. Must be one of ['both', 'human', 'machine']."
-    },
-    "Log.add_custom_log_part": {
-      "prefix": "Log.add_custom_log_part",
-      "body": "Log.add_custom_log_part(name=$1, text=$2)",
-      "description": "Adds a new part to the log entry format.\n\nIf the name already exists, the text will be updated.\n\nThe name cannot be one of the reserved keywords([\"timestamp\", \"level\", \"message\", \"userName\", \"machineName\", \"processName\", \"fileName\", \"lineNo\", \"projectName\", \"logId\"]) due to they are used in machine_read log.\n\nParameters:\n    name: The new part's name to be added. This will be a new key in the machine_read log entry, but the name won't show in human_read log.\n    text: The text of the new log part, which will be displayed in human_read log."
-    },
-    "Log.remove_custom_log_part": {
-      "prefix": "Log.remove_custom_log_part",
-      "body": "Log.remove_custom_log_part(name=$1)",
-      "description": "Remove a custom log part by name.\n\nIf the name is not found, no action is taken.\n\nThe name cannot be one of the reserved keywords([\"timestamp\", \"level\", \"message\", \"userName\", \"machineName\", \"processName\", \"fileName\", \"lineNo\", \"projectName\", \"logId\"]) due to they are used in machine_read log.\n\nParameters:\n    name: The name of the custom log part to remove from both the machine_read and human_read logs."
-    },
-    "Log.trace": {
-      "prefix": "Log.trace",
-      "body": "@Log.trace(level=${1|'DEBUG','VERBOSE','INFO','WARNING','ERROR','CRITICAL'|})",
-      "description": "Decorate a function to log its start and end at a specified log level.\n\nParameters:\n    level: The level to record log. Must be one of ['VERBOSE', 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'].\n\nReturns:\n    Callable[[Callable[P, T]], Callable[P, T]]: A decorator that wraps the target function."
     }
   }
 }

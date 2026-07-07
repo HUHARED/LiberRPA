@@ -1,9 +1,9 @@
-# FileName: HandleLogger.py
+# FileName: GenerateSnippetsLog.py
 """Generate Log snippets from liberrpa.Logging.Logger docstrings.
 
-This script is intentionally separate from the main snippet generation pipeline because
-Log is a special user-facing object, not a normal module. It keeps snippet descriptions
-synchronized with Logger method docstrings while keeping snippet bodies compact.
+Log is a special user-facing object, not a normal liberrpa.<Module> function module.
+This script keeps Log snippet descriptions synchronized with Logger method docstrings
+while keeping snippet bodies compact.
 
 Normal log methods support print-like *messages and sep, but snippets intentionally use
 the compact form:
@@ -14,7 +14,7 @@ Users can still manually write:
 
     Log.info("a", "b", sep=" | ")
 
-Copy the result into snippets_basic.snippets manually.
+The generated snippets_log_generated.snippets file is merged by CombineSnippets.py.
 """
 
 from __future__ import annotations
@@ -25,10 +25,10 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import inspect
-from typing import Any, Literal, get_args, get_origin
+from typing import Any
 
 from ApiConfig import DictSnippetsItem
-from SnippetUtils import get_snippets_dir, write_json, format_snippet_choice, get_bool_choices, unwrap_type_alias
+from SnippetUtils import format_snippet_choice, format_string_choices, get_snippet_choices, get_snippets_dir, write_json
 from liberrpa.Logging import Logger
 
 
@@ -72,53 +72,6 @@ SKIP_LOG_METHODS = {
 LOG_LEVEL_VALUES = ["VERBOSE", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 LOGGER_TYPE_VALUES = ["both", "human", "machine"]
 
-
-def _move_default_choice_to_first(choices: list[str], default: object) -> list[str]:
-    """Move the default Python value to the first snippet choice."""
-    defaultChoice = repr(default)
-    if defaultChoice not in choices:
-        raise ValueError(f"Default choice {defaultChoice!r} is not present in snippet choices: {choices}")
-
-    return [defaultChoice, *(choice for choice in choices if choice != defaultChoice)]
-
-
-def _format_string_choices(index: int, values: list[str], default: str | None = None) -> str:
-    """Return a choice placeholder for Python string literal values."""
-    choices = [repr(value) for value in values]
-    if default is not None:
-        choices = _move_default_choice_to_first(choices=choices, default=default)
-
-    return format_snippet_choice(index=index, choices=choices)
-
-
-def _get_literal_choices(parameter: inspect.Parameter) -> list[str] | None:
-    """Extract snippet choices from Literal annotations when possible."""
-    annotation = unwrap_type_alias(parameter.annotation)
-    if annotation is inspect.Signature.empty:
-        return None
-
-    origin = get_origin(annotation)
-    if origin is not Literal:
-        return None
-
-    choices = [repr(value) for value in get_args(annotation)]
-    if parameter.default is not inspect.Parameter.empty:
-        choices = _move_default_choice_to_first(choices=choices, default=parameter.default)
-
-    return choices
-
-
-def _get_snippet_choices(parameter: inspect.Parameter) -> list[str] | None:
-    """Return optional VS Code snippet choices for a parameter."""
-    literalChoices = _get_literal_choices(parameter=parameter)
-    if literalChoices:
-        return literalChoices
-
-    boolChoices = get_bool_choices(parameter=parameter)
-    if boolChoices:
-        return boolChoices
-
-    return None
 
 
 def _get_docstring(func: Any) -> str:
@@ -171,8 +124,8 @@ def _build_log_method_body(method_name: str) -> str:
     if method_name == "set_level":
         # level has no function default. Keep the annotation/order-defined choices
         # instead of moving any value to the first position as a fake default.
-        levelChoice = _format_string_choices(index=1, values=LOG_LEVEL_VALUES)
-        loggerTypeChoice = _format_string_choices(index=2, values=LOGGER_TYPE_VALUES, default="both")
+        levelChoice = format_string_choices(index=1, values=LOG_LEVEL_VALUES)
+        loggerTypeChoice = format_string_choices(index=2, values=LOGGER_TYPE_VALUES, default="both")
         return f"Log.set_level(level={levelChoice}, loggerType={loggerTypeChoice})"
 
     if method_name == "add_custom_log_part":
@@ -184,7 +137,7 @@ def _build_log_method_body(method_name: str) -> str:
         return "Log.remove_custom_log_part(name=$1)"
 
     if method_name == "trace":
-        levelChoice = _format_string_choices(index=1, values=LOG_LEVEL_VALUES, default="DEBUG")
+        levelChoice = format_string_choices(index=1, values=LOG_LEVEL_VALUES, default="DEBUG")
         return f"@Log.trace(level={levelChoice})"
 
     # Fallback for future public methods: generate a simple keyword-style call.
@@ -205,7 +158,7 @@ def _build_log_method_body(method_name: str) -> str:
         if param.kind == inspect.Parameter.VAR_KEYWORD:
             continue
 
-        snippetChoices = _get_snippet_choices(parameter=param)
+        snippetChoices = get_snippet_choices(parameter=param)
         if snippetChoices:
             parts.append(f"{param_name}={format_snippet_choice(index=index, choices=snippetChoices)}")
         elif param.default is inspect.Parameter.empty:

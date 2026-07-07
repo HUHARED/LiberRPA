@@ -51,10 +51,12 @@ def _merge_groups(
 def main() -> None:
     snippetsDir = get_snippets_dir()
     dictBasic = _read_snippet_groups("snippets_basic.snippets")
+    dictLog = _read_snippet_groups("snippets_log_generated.snippets")
     dictOther = _read_snippet_groups("snippets_other.snippets")
 
     dictFinal: dict[str, DictSnippetsItem] = {}
     _merge_groups(dictFinal=dictFinal, snippetGroups=dictBasic)
+    _merge_groups(dictFinal=dictFinal, snippetGroups=dictLog)
     _merge_groups(dictFinal=dictFinal, snippetGroups=dictOther)
 
     if not dictFinal:
