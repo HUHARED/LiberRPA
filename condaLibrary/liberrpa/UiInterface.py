@@ -248,7 +248,7 @@ def get_image_position(
         highlight: Whether highlight the matched position.
 
     Returns:
-        DictPositionAndSize: A list of dictionaries containing the x, y, width, and height of the matched images: {'x': <class 'int'>, 'y': <class 'int'>, 'width': <class 'int'>, 'height': <class 'int'>}
+        list[DictPositionAndSize]: A list of dictionaries containing the x, y, width, and height of the matched images: {'x': <class 'int'>, 'y': <class 'int'>, 'width': <class 'int'>, 'height': <class 'int'>}
     """
 
     if limit < 1:

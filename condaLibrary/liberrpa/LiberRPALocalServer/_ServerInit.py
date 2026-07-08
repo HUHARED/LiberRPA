@@ -79,7 +79,7 @@ def create_flask_server(port: int) -> None:
             boolHasRunServer = True
         else:
             show_message_box(
-                title="Error on start LiberRPA server",
+                title="Failed to start LiberRPA Local Server",
                 type="error",
                 message=f"Server port({port}) for browser interaction is occupied, maybe you should modify the LiberRPA config file to use another port or closing the program which is using port {port}",
             )
@@ -99,5 +99,5 @@ def create_flask_server(port: int) -> None:
             )
 
         except Exception as e:
-            show_message_box(title="Error on start LiberRPA server", type="error", message=str(get_exception_info(e)))
+            show_message_box(title="Failed to start LiberRPA Local Server", type="error", message=str(get_exception_info(e)))
             raise Exception(f"Failed to start Flask server on port {port}: {str(get_exception_info(e))}")

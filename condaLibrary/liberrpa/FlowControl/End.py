@@ -16,7 +16,7 @@ import sys
 import json
 from typing import Literal
 
-# Python use executorPackageStatus to sign its status, but the status may modified by Exectuor because "terminated" may caused by timeout or user clicked cancel button in Executor.
+# Python use executorPackageStatus to sign its status, but the status may modified by Executor because "terminated" may caused by timeout or user clicked cancel button in Executor.
 executorPackageStatus: Literal["error", "terminated", "running"] = "running"
 
 
