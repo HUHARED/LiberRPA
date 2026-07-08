@@ -636,5 +636,18 @@ type JsonValue = None | bool | int | float | str | list[JsonValue] | dict[str, J
 
 type StrPath = str | PathLike[str]
 
+
+class DictComputerInfo(TypedDict):
+    computerName: str
+    userName: str
+    homeFolderPath: str
+    tempFolderPath: str
+    os: str
+    osVersion: str
+    osRelease: str
+    architecture: str
+    machine: str
+
+
 if __name__ == "__main__":
     print(DictTextBlock.__annotations__)

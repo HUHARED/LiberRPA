@@ -6,7 +6,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
 from liberrpa.Logging import Log
-from liberrpa.Common._TypedValue import StrPath
+from liberrpa.Common._TypedValue import StrPath, DictComputerInfo
 
 import winsound
 from pathlib import Path
@@ -107,7 +107,7 @@ def get_user_temp_folder_path() -> str:
 
 
 @Log.trace()
-def get_computer_info() -> dict[str, str]:
+def get_computer_info() -> DictComputerInfo:
     """
     Get readable information about the current computer and Windows user.
 
@@ -115,7 +115,7 @@ def get_computer_info() -> dict[str, str]:
     The returned values can help users recognize which computer is running a process, but they should not be treated as secure or guaranteed-unique identifiers.
 
     Returns:
-        dict[str, str]: Readable computer and user information, including computer name, Windows user name, home folder path, temporary folder path, operating system, OS version, OS release, architecture, and machine type.
+        DictComputerInfo: Readable computer and user information, including computer name, Windows user name, home folder path, temporary folder path, operating system, OS version, OS release, architecture, and machine type.
     """
 
     return {
