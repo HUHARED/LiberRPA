@@ -48,7 +48,7 @@ def _normalize_timeout(timeout: object | None) -> int:
     if timeout is None:
         return _INT_TIMEOUT_DEFAULT
 
-    if not isinstance(timeout, int):
+    if not isinstance(timeout, int) or isinstance(timeout, bool):
         raise ValueError("The argument 'timeout' must be an integer.")
 
     if timeout < _CommonValue.INT_TIMEOUT_MIN:
