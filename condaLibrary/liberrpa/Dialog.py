@@ -10,10 +10,14 @@ from liberrpa.Common._Exception import QtError
 
 import tkinter as tk
 from tkinter import filedialog, simpledialog, messagebox
-import time
-from typing import Literal
+from typing import Literal, overload, get_args
 
 type FileTypes = list[tuple[str, str | list[str] | tuple[str, ...]]]
+
+type MessageBoxType = Literal["info", "warning", "error", "question"]
+type InfoButton = Literal["ok", "okcancel", "yesno", "retrycancel"]
+type MessageBoxResponse = Literal["ok", "yes", "no"] | bool
+
 
 _DEFAULT_FILETYPES: FileTypes = [("All Files", "*.*")]
 
@@ -66,12 +70,10 @@ def open_file(
     Parameters:
         folder: The directory that the dialog opens in. If None, defaults to the current working directory.
         title: The title of the dialog window.
-        filetypes: A list of tuples defining the file types to display.
-
-            Each tuple contains a descriptive string and a file pattern, e.g., ("Text Files", "*.txt") where "Text Files" is the option's name, and "*.txt" filters all .txt files.
+        filetypes: A list of tuples defining the file types to display. Each tuple contains a descriptive string and a file pattern, e.g., ("Text Files", "*.txt") where "Text Files" is the option's name, and "*.txt" filters all .txt files. If None, all files are shown.
 
     Returns:
-        str: The file path selected by the user. Returns an empty string if the dialog is cancelled.
+        str: The file path selected by the user.
     """
 
     filetypes = _DEFAULT_FILETYPES.copy() if filetypes is None else filetypes
@@ -100,12 +102,10 @@ def open_files(
     Parameters:
         folder: The directory that the dialog opens in. If None, defaults to the current working directory.
         title: The title of the dialog window.
-        filetypes: A list of tuples defining the file types to display.
-
-            Each tuple contains a descriptive string and a file pattern, e.g., ("Text Files", "*.txt") where "Text Files" is the option's name, and "*.txt" filters all .txt files.
+        filetypes: A list of tuples defining the file types to display. Each tuple contains a descriptive string and a file pattern, e.g., ("Text Files", "*.txt") where "Text Files" is the option's name, and "*.txt" filters all .txt files. If None, all files are shown.
 
     Returns:
-        list[str]: The files' paths selected by the user. Returns an empty list if the dialog is cancelled.
+        list[str]: The files' paths selected by the user.
     """
 
     filetypes = _DEFAULT_FILETYPES.copy() if filetypes is None else filetypes
@@ -116,7 +116,7 @@ def open_files(
     listFilePath = filedialog.askopenfilenames(initialdir=folder, title=title, filetypes=filetypes)
     root.destroy()
     if len(listFilePath) == 0:
-        raise ValueError("No files selected.")
+        raise ValueError("No file selected.")
     return list(listFilePath)
 
 
@@ -133,12 +133,10 @@ def save_as(
     Parameters:
         folder: The directory that the dialog opens in. If None, defaults to the current working directory.
         title: The title of the dialog window.
-        filetypes: A list of tuples defining the file types to display.
-
-            Each tuple contains a descriptive string and a file pattern, e.g., ("Text Files", "*.txt") where "Text Files" is the option's name, and "*.txt" filters all .txt files.
+        filetypes: A list of tuples defining the file types to display. Each tuple contains a descriptive string and a file pattern, e.g., ("Text Files", "*.txt") where "Text Files" is the option's name, and "*.txt" filters all .txt files. If None, all files are shown.
 
     Returns:
-        str: The file path selected by the user. Returns an empty string if the dialog is cancelled.
+        str: The file path selected by the user.
     """
 
     filetypes = _DEFAULT_FILETYPES.copy() if filetypes is None else filetypes
@@ -154,7 +152,7 @@ def save_as(
 
 
 @Log.trace()
-def show_text_input_box(title: str, prompt: str, initialvalue: str = "") -> str | None:
+def show_text_input_box(title: str, prompt: str, initialvalue: str = "") -> str:
     """
     Displays a dialog box that prompts the user to enter text.
     A Value Error will be raised if no text input.
@@ -165,7 +163,7 @@ def show_text_input_box(title: str, prompt: str, initialvalue: str = "") -> str 
         initialvalue: The initial placeholder text within the input field.
 
     Returns:
-        str | None: The text entered by the user, or None if the dialog is closed without an entry.
+        str: The text entered by the user.
     """
     root = tk.Tk()
     root.withdraw()
@@ -178,73 +176,122 @@ def show_text_input_box(title: str, prompt: str, initialvalue: str = "") -> str 
     return strInputText
 
 
+@overload
+def show_message_box(
+    title: str,
+    message: str,
+    *,
+    type: Literal["info"] = "info",
+    infoButton: Literal["ok"] = "ok",
+) -> Literal["ok"]: ...
+
+
+@overload
+def show_message_box(
+    title: str,
+    message: str,
+    *,
+    type: Literal["info"] = "info",
+    infoButton: Literal["okcancel", "yesno", "retrycancel"],
+) -> bool: ...
+
+
+@overload
+def show_message_box(
+    title: str,
+    message: str,
+    *,
+    type: Literal["info"] = "info",
+    infoButton: InfoButton,
+) -> Literal["ok"] | bool: ...
+
+
+@overload
+def show_message_box(
+    title: str,
+    message: str,
+    *,
+    type: Literal["warning", "error"],
+) -> Literal["ok"]: ...
+
+
+@overload
+def show_message_box(
+    title: str,
+    message: str,
+    *,
+    type: Literal["question"],
+) -> Literal["yes", "no"]: ...
+
+
 @Log.trace()
 def show_message_box(
     title: str,
     message: str,
-    type: Literal["info", "warning", "error", "question"] = "info",
-    infoButton: Literal["ok", "okcancel", "yesno", "retrycancel"] = "ok",
-) -> Literal["ok", "yes", "no", True, False]:
+    *,
+    type: MessageBoxType = "info",
+    infoButton: InfoButton | None = None,
+) -> MessageBoxResponse:
     """
-    Shows a message box with specified title, message, icon, and button type.
-
-    The function displays a message box and returns the user's response.
-
-    The 'type' parameter changes the icon shown in the message box.
-
-    The 'infoButton' parameter only has an effect when 'type' is 'info'; it changes the set of buttons available.
+    Show a message box and return the user's response.
 
     Parameters:
         title: The title of the dialog window.
         message: The main content of the dialog window.
-        type: The icon type of the message box, one of ['info', 'warning', 'error', 'question'].
-        infoButton: The button type when 'type' is 'info', one of ['ok', 'okcancel', 'yesno', 'retrycancel'].
+        type: The message box type, one of ["info", "warning", "error", "question"].
+        infoButton: The button type for type="info", one of ["ok", "okcancel", "yesno", "retrycancel"].
 
     Returns:
-        "ok"|"yes"|"no"|True|False:
-            For button types like 'okcancel', 'yesno', 'retrycancel', indicating the user's choice, it will return bool;
-            For the 'ok' button type, and for 'question' with responses like "yes" or "no", it will return str.
+        MessageBoxResponse: The user's response. For type="info" with "ok", "warning", or "error", returns "ok". For type="info" with "okcancel", "yesno", or "retrycancel", returns bool. For type="question", returns "yes" or "no".
     """
+
+    if type != "info" and infoButton is not None:
+        raise ValueError("infoButton is only valid when type='info'.")
+
     root = tk.Tk()
     root.withdraw()  # Hide the main window
 
-    match type:
-        case "info":
-            match infoButton:
-                case "ok":
-                    response = messagebox.showinfo(title, message)
-                    # Return "ok"
-                case "okcancel":
-                    response = messagebox.askokcancel(title, message)
-                case "yesno":
-                    response = messagebox.askyesno(title, message)
-                case "retrycancel":
-                    response = messagebox.askretrycancel(title, message)
-                case _:
-                    raise ValueError("infoButton should be one of ['ok', 'okcancel', 'yesno', 'retrycancel'].")
-                # Return bool
-        case "warning":
-            response = messagebox.showwarning(title, message)
-            # Return "ok"
-        case "error":
-            response = messagebox.showerror(title, message)
-            # Return "ok"
-        case "question":
-            response = messagebox.askquestion(title, message)
-            # Return "yes" or "no"
-        case _:
-            raise ValueError("type should be one of ['info', 'warning', 'error', 'question'].")
+    try:
+        match type:
+            case "info":
+                button = infoButton or "ok"
+                match button:
+                    case "ok":
+                        response = messagebox.showinfo(title, message)
+                        # Return "ok"
+                    case "okcancel":
+                        response = messagebox.askokcancel(title, message)
+                    case "yesno":
+                        response = messagebox.askyesno(title, message)
+                    case "retrycancel":
+                        response = messagebox.askretrycancel(title, message)
+                    case _:
+                        raise ValueError(f"infoButton should be one of {list(get_args(InfoButton.__value__))}.")
+                    # Return bool
+            case "warning":
+                response = messagebox.showwarning(title, message)
+                # Return "ok"
+            case "error":
+                response = messagebox.showerror(title, message)
+                # Return "ok"
+            case "question":
+                response = messagebox.askquestion(title, message)
+                # Return "yes" or "no"
+            case _:
+                raise ValueError(f"type should be one of {list(get_args(MessageBoxType.__value__))}.")
 
-    root.destroy()
+    finally:
+        root.destroy()
 
     if response not in ("ok", "yes", "no", True, False):
         raise ValueError(f"Unexpected message box response: {response!r}")
+
     return response
 
 
 if __name__ == "__main__":
     # print("Start")
-    show_notification(title="LiberRPA", message="", duration=3, wait=False)
+    """ show_notification(title="LiberRPA", message="", duration=3, wait=False)
     import time
 
     for i in range(0, 5, 1):
@@ -253,10 +300,13 @@ if __name__ == "__main__":
 
     show_notification(title="LiberRPA", message="456", duration=3, wait=False)
     time.sleep(1)
-    show_notification(title="LiberRPA", message="789", duration=3, wait=True)
+    show_notification(title="LiberRPA", message="789", duration=3, wait=True) """
     # print("Done")
     # print(open_file(folder=R"C:\software", title="Open a file", filetypes=[("some file", "*.zip")]))
     # print(open_files(folder=R"C:\software", title="Open a file", filetypes=[("some file", "*.*")]))
     # print(save_as(folder=R"C:\software", title="save a file", filetypes=[("some file", "*.*")]))
     # print(repr(show_text_input_box(title="Input something.", prompt="Prompt here.", initialvalue="123")))
-    # print(show_message_box(title="Title", message="Message here.", type="info", infoButton="ok"))
+    temp: InfoButton = "okcancel"
+    # print(show_message_box(title="Title", message="Message here.", infoButton=temp))
+    print(show_message_box("TTT", "MMM", type="error"))
+    # print(list(get_args(InfoButton.__value__)))
