@@ -7,6 +7,8 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from liberrpa.Logging import Log
 
+from typing import overload
+
 
 @Log.trace()
 def clear[K, V](dictObj: dict[K, V]) -> None:
@@ -19,8 +21,16 @@ def clear[K, V](dictObj: dict[K, V]) -> None:
     dictObj.clear()
 
 
+@overload
+def get[K, V](dictObj: dict[K, V], key: K) -> V | None: ...
+
+
+@overload
+def get[K, V, D](dictObj: dict[K, V], key: K, default: D) -> V | D: ...
+
+
 @Log.trace()
-def get[K, V](dictObj: dict[K, V], key: K, default: V | None = None) -> V | None:
+def get[K, V, D](dictObj: dict[K, V], key: K, default: D | None = None) -> V | D | None:
     """
     Retrieve the value associated with a specified key from the dictionary.
 
@@ -32,13 +42,21 @@ def get[K, V](dictObj: dict[K, V], key: K, default: V | None = None) -> V | None
         default: The value to return if the key is not found.
 
     Returns:
-        V | None: The value associated with the key or the default value if not found.
+        V | D | None: The value associated with the key or the default value if not found.
     """
     return dictObj.get(key, default)
 
 
+@overload
+def pop[K, V](dictObj: dict[K, V], key: K) -> V | None: ...
+
+
+@overload
+def pop[K, V, D](dictObj: dict[K, V], key: K, default: D) -> V | D: ...
+
+
 @Log.trace()
-def pop[K, V](dictObj: dict[K, V], key: K, default: V | None = None) -> V | None:
+def pop[K, V, D](dictObj: dict[K, V], key: K, default: D | None = None) -> V | D | None:
     """
     Remove a specified key from the dictionary and return its corresponding value.
 
@@ -50,7 +68,7 @@ def pop[K, V](dictObj: dict[K, V], key: K, default: V | None = None) -> V | None
         default: The value to return if the key is not found.
 
     Returns:
-        V | None: The value associated with the removed key or the default value if not found.
+        V | D | None: The value associated with the removed key or the default value if not found.
     """
     return dictObj.pop(key, default)
 

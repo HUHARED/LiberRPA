@@ -26,7 +26,7 @@ def create_folder(ftpObj: ftputil.FTPHost, folderPath: StrPath) -> None:
 
     Parameters:
         ftpObj: The FTPHost object for making FTP connections.
-        folderPath: The path where the folder will be created.
+        folderPath: The path where the folder will be created. Accepts str or PathLike[str].
     """
     folderPath = _to_ftp_path(folderPath)
     if ftpObj.path.exists(path=folderPath) and ftpObj.path.isdir(path=folderPath):
@@ -42,7 +42,7 @@ def get_folder_list(ftpObj: ftputil.FTPHost, folderPath: StrPath) -> list[str]:
 
     Parameters:
         ftpObj: The FTPHost object for making FTP connections.
-        folderPath: The path from which to list the folders.
+        folderPath: The path from which to list the folders. Accepts str or PathLike[str].
 
     Returns:
         list[str]: A list of absolute folder paths.
@@ -66,7 +66,7 @@ def get_file_list(ftpObj: ftputil.FTPHost, folderPath: StrPath) -> list[str]:
 
     Parameters:
         ftpObj: The FTPHost object for making FTP connections.
-        folderPath: The path from which to list the files.
+        folderPath: The path from which to list the files. Accepts str or PathLike[str].
 
     Returns:
         list[str]: A list of absolute file paths.
@@ -90,7 +90,7 @@ def check_folder_exists(ftpObj: ftputil.FTPHost, folderPath: StrPath) -> bool:
 
     Parameters:
         ftpObj: The FTPHost object for making FTP connections.
-        folderPath: The path to check for existence.
+        folderPath: The path to check for existence. Accepts str or PathLike[str].
 
     Returns:
         bool: True if the folder exists, False otherwise.
@@ -106,7 +106,7 @@ def check_file_exists(ftpObj: ftputil.FTPHost, filePath: StrPath) -> bool:
 
     Parameters:
         ftpObj: The FTPHost object for making FTP connections.
-        filePath: The path to check for existence.
+        filePath: The path to check for existence. Accepts str or PathLike[str].
 
     Returns:
         bool: True if the file exists, False otherwise.
@@ -127,8 +127,8 @@ def download_file(
 
     Parameters:
         ftpObj: The FTPHost object for making FTP connections.
-        remoteFilePath: The path of the file on the FTP server.
-        localFilePath: The path where the file will be saved locally.
+        remoteFilePath: The path of the file on the FTP server. Accepts str or PathLike[str].
+        localFilePath: The path where the file will be saved locally. Accepts str or PathLike[str].
         overwrite: If True, allows overwriting an existing file.
     """
     remoteFilePath = _to_ftp_path(remoteFilePath)
@@ -154,8 +154,8 @@ def download_folder(
 
     Parameters:
         ftpObj: The FTPHost object for making FTP connections.
-        remoteFolderPath: The path of the folder on the FTP server.
-        localFolderPath: The path where the folder will be saved locally.
+        remoteFolderPath: The path of the folder on the FTP server. Accepts str or PathLike[str].
+        localFolderPath: The path where the folder will be saved locally. Accepts str or PathLike[str].
         overwrite: If True, allows overwriting existing files.
     """
 
@@ -193,8 +193,8 @@ def upload_file(ftpObj: ftputil.FTPHost, localFilePath: StrPath, remoteFilePath:
 
     Parameters:
         ftpObj: The FTPHost object for making FTP connections.
-        localFilePath: The path of the file on the local machine.
-        remoteFilePath: The path where the file will be uploaded on the FTP server.
+        localFilePath: The path of the file on the local machine. Accepts str or PathLike[str].
+        remoteFilePath: The path where the file will be uploaded on the FTP server. Accepts str or PathLike[str].
     """
     remoteFilePath = _to_ftp_path(remoteFilePath)
 
@@ -211,8 +211,8 @@ def upload_folder(ftpObj: ftputil.FTPHost, localFolderPath: StrPath, remoteFolde
 
     Parameters:
         ftpObj: The FTPHost object for making FTP connections.
-        localFolderPath: The path of the local folder to upload.
-        remoteFolderPath: The path on the FTP server where the folder will be uploaded.
+        localFolderPath: The path of the local folder to upload. Accepts str or PathLike[str].
+        remoteFolderPath: The path on the FTP server where the folder will be uploaded. Accepts str or PathLike[str].
     """
 
     remoteFolderPath = _to_ftp_path(remoteFolderPath)
@@ -252,7 +252,7 @@ def delete_file(ftpObj: ftputil.FTPHost, remoteFilePath: StrPath) -> None:
 
     Parameters:
         ftpObj: The FTPHost object for making FTP connections.
-        remoteFilePath: The path of the file on the FTP server to be deleted.
+        remoteFilePath: The path of the file on the FTP server to be deleted. Accepts str or PathLike[str].
     """
     remoteFilePath = _to_ftp_path(remoteFilePath)
     if ftpObj.path.exists(path=remoteFilePath) and ftpObj.path.isfile(path=remoteFilePath):
@@ -268,7 +268,7 @@ def delete_folder(ftpObj: ftputil.FTPHost, remoteFolderPath: StrPath) -> None:
 
     Parameters:
         ftpObj: The FTPHost object for making FTP connections.
-        remoteFolderPath: The path of the folder on the FTP server to be deleted.
+        remoteFolderPath: The path of the folder on the FTP server to be deleted. Accepts str or PathLike[str].
     """
     remoteFolderPath = _to_ftp_path(remoteFolderPath)
 

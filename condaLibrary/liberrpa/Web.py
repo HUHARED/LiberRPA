@@ -118,7 +118,7 @@ def download_file(
 
     Parameters:
         url: The URL of the file to download.
-        folderPath: The directory where the file will be saved.
+        folderPath: The directory where the file will be saved. Accepts str or PathLike[str].
         params: Optional query parameters to include in the request.
         timeout: Timeout duration for the request, in seconds.
         stream: Whether to stream the download (useful for large files, to avoid excessive memory usage).
@@ -178,7 +178,7 @@ def upload_file(
 
     Parameters:
         url: The URL to send the request to.
-        filePath: The path to the file to be uploaded.
+        filePath: The path to the file to be uploaded. Accepts str or PathLike[str].
         data: Optional form data to include in the request.
         json: Optional JSON data to include in the request body.
         params: Optional query parameters to include in the request URL.

@@ -29,7 +29,7 @@ def create_folder(folderPath: StrPath, createParent: bool = True, errorIfExists:
     Creates a folder at the specified path.
 
     Parameters:
-        folderPath: The path where the folder will be created.
+        folderPath: The path where the folder will be created. Accepts str or PathLike[str].
         createParent: If True, creates all missing parent directories. If False, an error is raised if a parent directory is missing.
         errorIfExists: If True, raises an error if the folder already exists; otherwise, does nothing if the folder exists.
     """
@@ -42,7 +42,7 @@ def read_file_content(filePath: StrPath, encoding: Encoding = "utf-8") -> str:
     Reads the content of a file using the specified encoding.
 
     Parameters:
-        filePath: The path of the file to read.
+        filePath: The path of the file to read. Accepts str or PathLike[str].
         encoding: The encoding to use for reading the file. If None, uses the system default.
 
     Returns:
@@ -62,9 +62,9 @@ def write_file(
     A new file will be created if "filePath" doesn't exist.
 
     Parameters:
-        filePath: The path of the file whose content is to be overwritten.
+        filePath: The path of the file whose content is to be overwritten. Accepts str or PathLike[str].
         text: The text to write into the file.
-        encoding: The encoding to use for writing the text to the file. Defaults to "utf-8".
+        encoding: The encoding to use for writing the text to the file. If None, uses the system default.
     """
 
     Path(filePath).write_text(data=text, encoding=encoding, errors="strict")
@@ -77,9 +77,9 @@ def append_write_file(filePath: StrPath, text: str, encoding: Encoding = "utf-8"
     A new file will be created if "filePath" doesn't exist.
 
     Parameters:
-        filePath: The path of the file to which the text is to be appended.
+        filePath: The path of the file to which the text is to be appended. Accepts str or PathLike[str].
         text: The text to append to the file.
-        encoding: The encoding to use for writing the text to the file. Defaults to "utf-8".
+        encoding: The encoding to use for writing the text to the file. If None, uses the system default.
     """
     with Path(filePath).open(mode="a", encoding=encoding, errors="strict", newline=None) as fileObj:
         fileObj.write(text)
@@ -96,7 +96,7 @@ def wait_file_download(filePath: StrPath, retryTimes: int = 10, retryInterval: i
     greater than or equal to the threshold.
 
     Parameters:
-        filePath: The final target file path to check.
+        filePath: The final target file path to check. Accepts str or PathLike[str].
         retryTimes: The number of times to check before timing out.
         retryInterval: The time in seconds to wait between retries.
         threshold: The minimum file size in bytes to consider the final file available.
@@ -134,7 +134,7 @@ def get_file_fullname(filePath: StrPath) -> str:
     Get the final path component(basename and suffix).
 
     Parameters:
-        filePath: The filePath path.
+        filePath: The filePath path. Accepts str or PathLike[str].
 
     Returns:
         str: The file's name
@@ -148,7 +148,7 @@ def get_file_basename(filePath: StrPath) -> str:
     Get the final path component, minus its last suffix.
 
     Parameters:
-        filePath: The filePath path.
+        filePath: The filePath path. Accepts str or PathLike[str].
 
     Returns:
         str: The file's basename(without suffix)
@@ -162,7 +162,7 @@ def get_file_suffix(filePath: StrPath) -> str:
     Get the file's suffix(contains the dot).
 
     Parameters:
-        filePath: The filePath path.
+        filePath: The filePath path. Accepts str or PathLike[str].
 
     Returns:
         str: The file's suffix(contains the dot)
@@ -176,7 +176,7 @@ def check_file_exists(filePath: StrPath) -> bool:
     Whether this path is a regular file (also True for symlinks pointing to regular files).
 
     Parameters:
-        filePath: The path of the file to check.
+        filePath: The path of the file to check. Accepts str or PathLike[str].
 
     Returns:
         bool: If the path is not exists, it will return False.
@@ -190,7 +190,7 @@ def check_folder_exists(folderPath: StrPath) -> bool:
     Whether this path is a directory.
 
     Parameters:
-        folderPath: The path of the folder to check.
+        folderPath: The path of the folder to check. Accepts str or PathLike[str].
 
     Returns:
         bool: If the path is not exists, it will return False.
@@ -204,7 +204,7 @@ def get_parent_folder_path(path: StrPath) -> str:
     Returns the absolute path of the parent folder for a given path.
 
     Parameters:
-        path: The path for which to retrieve the parent directory.
+        path: The path for which to retrieve the parent directory. Accepts str or PathLike[str].
 
     Returns:
         str: The absolute path of the parent folder.
@@ -218,7 +218,7 @@ def get_file_size(filePath: StrPath) -> int:
     Returns the size of the specified file in bytes.
 
     Parameters:
-        filePath: The path to the file whose size is to be determined.
+        filePath: The path to the file whose size is to be determined. Accepts str or PathLike[str].
 
     Returns:
         int: The size of the file in bytes.
@@ -232,7 +232,7 @@ def get_folder_size(folderPath: StrPath) -> int:
     Calculates the total size of all files within the specified folder and its subfolders.
 
     Parameters:
-        folderPath: The path of the folder for which the total file size is to be calculated.
+        folderPath: The path of the folder for which the total file size is to be calculated. Accepts str or PathLike[str].
 
     Returns:
         int: The total size of all files in the specified folder, measured in bytes.
@@ -252,8 +252,8 @@ def copy_file(srcFilePath: StrPath, dstFilePath: StrPath, overwrite: bool = Fals
     Optionally allows overwriting of an existing file at the destination.
 
     Parameters:
-        srcFilePath: The path of the source file to copy.
-        dstFilePath: The path where the source file should be copied to.
+        srcFilePath: The path of the source file to copy. Accepts str or PathLike[str].
+        dstFilePath: The path where the source file should be copied to. Accepts str or PathLike[str].
         overwrite: If set to True, the destination file will be overwritten if it already exists;
 
             if False, a FileExistsError will be raised if the destination file exists.
@@ -273,8 +273,8 @@ def copy_folder(srcFolderPath: StrPath, dstFolderPath: StrPath) -> str:
     Recursively copy a directory tree. The destination directory must not already exist.
 
     Parameters:
-        srcFolderPath: The path of the source folder to copy.
-        dstFolderPath: The path where the source folder should be copied to. This path must not already exist.
+        srcFolderPath: The path of the source folder to copy. Accepts str or PathLike[str].
+        dstFolderPath: The path where the source folder should be copied to. This path must not already exist. Accepts str or PathLike[str].
 
     Returns:
         str: The absolute path of the destination folder after copying.
@@ -291,8 +291,8 @@ def move_file_or_folder(srcPath: StrPath, dstPath: StrPath) -> str:
     Return the file or directory's destination. It will overwrite the destination file by default if it exists.
 
     Parameters:
-        srcPath: The path of the file or folder to move.
-        dstPath: The path where the file or folder should be moved to.
+        srcPath: The path of the file or folder to move. Accepts str or PathLike[str].
+        dstPath: The path where the file or folder should be moved to. Accepts str or PathLike[str].
 
     Returns:
         str: The absolute path of the dstPath.
@@ -306,7 +306,7 @@ def remove_file(filePath: StrPath) -> None:
     Removes a file.
 
     Parameters:
-        filePath: The path of the file to remove.
+        filePath: The path of the file to remove. Accepts str or PathLike[str].
     """
     Path(filePath).unlink()
 
@@ -317,7 +317,7 @@ def remove_folder(folderPath: StrPath) -> None:
     Removes a folder and all its contents.
 
     Parameters:
-        folderPath: The path of the folder to remove.
+        folderPath: The path of the folder to remove. Accepts str or PathLike[str].
     """
     shutil.rmtree(path=folderPath)
 
@@ -334,7 +334,7 @@ def get_file_or_folder_list(
     Retrieves files and/or folders under a specified directory recursively.
 
     Parameters:
-        folderPath: The directory path from which to list files or folders.
+        folderPath: The directory path from which to list files or folders. Accepts str or PathLike[str].
         itemType: Which item types to include. Use "file" for files only, "folder" for folders only, or "both" for both files and folders.
         getAbsolutePath: If True, returns absolute paths. If False, returns paths relative to folderPath.
         ignorePrefixes: Relative path string prefixes to exclude after joining each prefix with folderPath. This is a simple startswith() convenience filter, not a glob matcher or path-boundary matcher. For example, "a" may also exclude "abc". If you need exact folder-name, file-name, or path-segment filtering, leave this argument as None and filter the returned list yourself.
@@ -383,7 +383,7 @@ def search_file_or_folder(folderPath: StrPath, name: str, recursive: bool = True
     Searches for files or folders within a given directory based on a name or pattern.
 
     Parameters:
-        folderPath: The directory path within which to search.
+        folderPath: The directory path within which to search. Accepts str or PathLike[str].
         name: The name or wildcard pattern to match against file or folder names. Patterns are Unix shell style:
         * matches everything
         ? matches any single character
@@ -424,8 +424,8 @@ def zip_create(
     Create a ZIP file from a file or folder, with optional password protection.
 
     Parameters:
-        srcPath: Path to the file or folder to be zipped.
-        dstPath: Path where the ZIP file will be saved.
+        srcPath: Path to the file or folder to be zipped. Accepts str or PathLike[str].
+        dstPath: Path where the ZIP file will be saved. Accepts str or PathLike[str].
         password: Password for the ZIP file, If it's empty string, means have no password.
         overwrite: If False, raises an error if the file already exists.
 
@@ -505,8 +505,8 @@ def zip_extract(zipPath: StrPath, dstFolderPath: StrPath, password: str = "") ->
     The ZIP member paths are checked before extraction to prevent path traversal.
 
     Parameters:
-        zipPath: Path to the ZIP file.
-        dstFolderPath: Path where the contents will be extracted.
+        zipPath: Path to the ZIP file. Accepts str or PathLike[str].
+        dstFolderPath: Path where the contents will be extracted. Accepts str or PathLike[str].
         password: Password for the ZIP file. If it is an empty string, the ZIP file is treated as not password-protected.
 
     Returns:
@@ -544,11 +544,11 @@ def csv_read(
     included in the returned row values.
 
     Parameters:
-        filePath: The path to the CSV file.
+        filePath: The path to the CSV file. Accepts str or PathLike[str].
         separator: The character used to separate values.
         header: Row number to use as the column names, or None to treat all rows as data.
         indexColumn: Column to set as index; can be column number or name.
-        encoding: The encoding to use for reading the file.
+        encoding: The encoding to use for reading the file. If None, uses the system default.
 
     Returns:
         list[list[Any]]: The CSV data as a list of rows, where each row is a list of values.
@@ -576,11 +576,11 @@ def csv_write(
 
     Parameters:
         listObj: The data to write, as a list of lists.
-        filePath: The path to the CSV file where data will be saved.
+        filePath: The path to the CSV file where data will be saved. Accepts str or PathLike[str].
         separator: The character used to separate values.
         addHeader: Whether to write column names.
         addIndexColumn: Whether to write row names (index).
-        encoding: The encoding to use for writing the file.
+        encoding: The encoding to use for writing the file. If None, uses the system default.
         overwrite: If False, raises an error if the file already exists.
     """
     if not overwrite and Path(filePath).is_file():
@@ -596,10 +596,10 @@ def ini_read_value(filePath: StrPath, sectionName: str, optionName: str, encodin
     Reads and returns the value of a given option under a specified section in an INI file.
 
     Parameters:
-        filePath: The path to the INI file.
+        filePath: The path to the INI file. Accepts str or PathLike[str].
         sectionName: The section within the INI file where the option resides.
         optionName: The name of the option to read.
-        encoding: The character encoding of the INI file.
+        encoding: The character encoding of the INI file. If None, uses the system default.
 
     Returns:
         str: The value of the specified option.
@@ -624,11 +624,11 @@ def ini_write_value(
     If the section does not exist, it will be created.
 
     Parameters:
-        filePath: The path to the INI file.
+        filePath: The path to the INI file. Accepts str or PathLike[str].
         sectionName: The section within the INI file to modify or create.
         optionName: The name of the option to modify or create.
         optionValue: The value to write to the option.
-        encoding: The character encoding of the INI file.
+        encoding: The character encoding of the INI file. If None, uses the system default.
     """
     iniObj = configparser.ConfigParser()
     iniObj.read(filenames=os.fspath(filePath), encoding=encoding)
@@ -646,8 +646,8 @@ def ini_get_all_sections(filePath: StrPath, encoding: Encoding = "utf-8") -> lis
     Retrieves all section names from an INI file.
 
     Parameters:
-        filePath: The path to the INI file.
-        encoding: The character encoding of the INI file.
+        filePath: The path to the INI file. Accepts str or PathLike[str].
+        encoding: The character encoding of the INI file. If None, uses the system default.
 
     Returns:
         list[str]: A list of all section names in the INI file.
@@ -663,9 +663,9 @@ def ini_get_all_options(filePath: StrPath, sectionName: str, encoding: Encoding 
     Retrieves all option names from a section in an INI file.
 
     Parameters:
-        filePath: The path to the INI file.
+        filePath: The path to the INI file. Accepts str or PathLike[str].
         sectionName: The section from which option names will be retrieved.
-        encoding: The character encoding of the INI file.
+        encoding: The character encoding of the INI file. If None, uses the system default.
 
     Returns:
         list[str]: A list of all option names in the specified section.
@@ -681,9 +681,9 @@ def ini_delete_section(filePath: StrPath, sectionName: str, encoding: Encoding =
     Deletes a specific section from an INI file.
 
     Parameters:
-        filePath: The path to the INI file.
+        filePath: The path to the INI file. Accepts str or PathLike[str].
         sectionName: The section to be removed.
-        encoding: The character encoding of the INI file.
+        encoding: The character encoding of the INI file. If None, uses the system default.
     """
     iniObj = configparser.ConfigParser()
     iniObj.read(filenames=os.fspath(filePath), encoding=encoding)
@@ -697,10 +697,10 @@ def ini_delete_option(filePath: StrPath, sectionName: str, optionName: str, enco
     Deletes a specific option from a section in an INI file.
 
     Parameters:
-        filePath: The path to the INI file.
+        filePath: The path to the INI file. Accepts str or PathLike[str].
         sectionName: The section from which the option will be removed.
         optionName: The option to be removed.
-        encoding: The character encoding of the INI file.
+        encoding: The character encoding of the INI file. If None, uses the system default.
     """
     iniObj = configparser.ConfigParser()
     iniObj.read(filenames=os.fspath(filePath), encoding=encoding)
@@ -714,7 +714,7 @@ def pdf_get_page_count(filePath: StrPath, password: str = "") -> int:
     Returns the total number of pages in a PDF file.
 
     Parameters:
-        filePath: The path to the PDF file.
+        filePath: The path to the PDF file. Accepts str or PathLike[str].
         password: The password for the PDF file if it is encrypted. If it's empty string, means have no password.
 
     Returns:
@@ -739,9 +739,9 @@ def pdf_save_pages_as_images(
     Saves specified pages of a PDF file as images in a specified folder.
 
     Parameters:
-        filePath: The path to the PDF file.
+        filePath: The path to the PDF file. Accepts str or PathLike[str].
         password: The password for the PDF file if it is encrypted. If it's empty string, means have no password.
-        saveFolderPath: The directory to save the image files.
+        saveFolderPath: The directory to save the image files. Accepts str or PathLike[str].
         startPage: The first page to convert to an image.
         endPage: The last page to convert to an image.
         scale: Scaling factor to increase resolution.
@@ -784,9 +784,9 @@ def pdf_extract_images_from_pages(
     Extracts images from specified pages of a PDF and saves them in a specified format and folder.
 
     Parameters:
-        filePath: The path to the PDF file.
+        filePath: The path to the PDF file. Accepts str or PathLike[str].
         password: The password for the PDF file if it is encrypted. If it's empty string, means have no password.
-        saveFolderPath: The directory to save the extracted images.
+        saveFolderPath: The directory to save the extracted images. Accepts str or PathLike[str].
         format: The image format for saving extracted images. Can be 'png', 'jpg', 'jpeg', or 'bmp'.
         startPage: The first page to extract images from.
         endPage: The last page to extract images from.
@@ -844,7 +844,7 @@ def pdf_extract_text_from_pages(
     Extracts text from specified pages of a PDF file.
 
     Parameters:
-        filePath: The path to the PDF file.
+        filePath: The path to the PDF file. Accepts str or PathLike[str].
         password: The password for the PDF file if it is encrypted. If it's empty string, means have no password.
         startPage: The first page to extract text from.
         endPage: The last page to extract text from.
@@ -873,9 +873,9 @@ def pdf_extract_all_images(
     Extracts images in a PDF and saves them in a specified format and folder.
 
     Parameters:
-        filePath: The path to the PDF file.
+        filePath: The path to the PDF file. Accepts str or PathLike[str].
         password: The password for the PDF file if it is encrypted. If it's empty string, means have no password.
-        saveFolderPath: The directory to save the extracted images.
+        saveFolderPath: The directory to save the extracted images. Accepts str or PathLike[str].
         format: The image format for saving extracted images. Can be 'png', 'jpg', 'jpeg', or 'bmp'.
 
     Returns:
@@ -897,7 +897,7 @@ def pdf_extract_all_text(filePath: StrPath, password: str = "") -> str:
     Extracts all text in a PDF.
 
     Parameters:
-        filePath: The path to the PDF file.
+        filePath: The path to the PDF file. Accepts str or PathLike[str].
         password: The password for the PDF file if it is encrypted. If it's empty string, means have no password.
 
     Returns:
@@ -918,7 +918,7 @@ def pdf_merge(listFilePath: list[StrPath], savePath: StrPath) -> str:
 
     Parameters:
         listFilePath: A list of paths to the PDF files to be merged.
-        savePath: The path to save the merged PDF file.
+        savePath: The path to save the merged PDF file. Accepts str or PathLike[str].
 
     Returns:
         str: The absolute path to the saved merged PDF file.

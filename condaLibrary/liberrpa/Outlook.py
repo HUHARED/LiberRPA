@@ -314,7 +314,7 @@ def download_attachments(emailObj: win32com.client.CDispatch, downloadPath: StrP
 
     Parameters:
         emailObj: The win32com.client.CDispatch objects to download its attachments.
-        downloadPath: The folder to save download files.
+        downloadPath: The folder to save download files. Accepts str or PathLike[str].
 
     Returns:
         list[str]: A list contains the path of all attachments.

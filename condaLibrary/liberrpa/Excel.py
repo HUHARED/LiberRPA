@@ -81,23 +81,26 @@ def _check_edit_mode() -> None:
 
 
 def _check_and_standardize_sheet(excelObj: ExcelObj, sheet: ExcelSheet) -> str:
-    if not (isinstance(sheet, int) or isinstance(sheet, str)):
-        raise ExcelError("The argument sheet should be a int or string.")
+    if isinstance(sheet, bool) or not isinstance(sheet, int | str):
+        raise ExcelError("The argument sheet should be an int or a string.")
+
     listSheetName: list[str] = [sheet.name for sheet in excelObj.book.sheets]
 
-    if isinstance(sheet, str) and (sheet not in listSheetName):
-        raise ExcelError(f"The sheet({sheet}) does not exist. The current sheets: {listSheetName}")
-    if isinstance(sheet, int):
-        if sheet >= len(listSheetName):
-            raise ExcelError(
-                f"The sheet index ({sheet}) is greater than the largest sheet index({len(listSheetName) - 1})."
-            )
-        if sheet < 0:
-            raise ValueError(f"The sheet index ({sheet}) must be greater than or equal to 0.")
+    if isinstance(sheet, str):
+        if sheet not in listSheetName:
+            raise ExcelError(f"The sheet ({sheet}) does not exist. The current sheets: {listSheetName}")
+        return sheet
+
+    if sheet < 0:
+        raise ExcelError(f"The sheet index ({sheet}) must be greater than or equal to 0.")
+
+    if sheet >= len(listSheetName):
+        raise ExcelError(
+            f"The sheet index ({sheet}) is greater than the largest sheet index ({len(listSheetName) - 1})."
+        )
 
     strSheet = excelObj.book.sheets[sheet].name
-    if isinstance(sheet, int):
-        Log.debug("sheet standardized=" + strSheet)
+    Log.debug("sheet standardized=" + strSheet)
     return strSheet
 
 
@@ -164,15 +167,15 @@ def open_Excel_file(
     readOnly: bool = False,
 ) -> ExcelObj:
     """
-    Opens an Excel file, or creates it if specified.
+    Open an Excel workbook, or create it if it does not exist.
 
-    If a file have be opened, it will be opened with read-only mode.
+    If the workbook is already open in Excel, Excel may open another connection to it in read-only mode.
 
     Supported workbook file types are .xlsx, .xls, .xlsm, and .xlsb.
     CSV files should be handled by CSV-specific functions instead of Excel workbook functions.
 
     Parameters:
-        path: The path to the Excel file.
+        path: The path to the Excel workbook. Accepts str or PathLike[str].
         visible: If True, opens Excel in visible mode.
         password: The password for opening the workbook, if required.
         writePassword: The password for write access, if required.
@@ -218,16 +221,18 @@ def open_Excel_file(
 @Log.trace()
 def bind_Excel_file(fileName: str) -> ExcelObj:
     """
-    If there are files with same name, it will bind only one of them.
+    Bind to an already open Excel workbook by file name.
+
+    If multiple open workbooks have the same file name, only one of them will be bound.
 
     Supported workbook file types are .xlsx, .xls, .xlsm, and .xlsb.
     CSV files should be handled by CSV-specific functions instead of Excel workbook functions.
 
     Parameters:
-        fileName: The opening Excel workbook file name.
+        fileName: The file name of an already open Excel workbook, such as "Report.xlsx".
 
     Returns:
-        ExcelObj: An object representing the opened workbook.
+        ExcelObj: An object representing the bound workbook.
     """
     _check_edit_mode()
     excelObj = ExcelObj()
@@ -276,7 +281,7 @@ def save_as(excelObj: ExcelObj, dstPath: StrPath, password: str = "") -> str:
 
     Parameters:
         excelObj: The Excel workbook object.
-        dstPath: The path where the workbook will be saved.
+        dstPath: The path where the workbook will be saved. Accepts str or PathLike[str].
         password: An optional password for saving the workbook.
 
     Returns:
@@ -356,7 +361,7 @@ def get_last_row(excelObj: ExcelObj, sheet: ExcelSheet, col: str | int | None = 
 
     Parameters:
         excelObj: The Excel workbook object.
-        sheet: The name or index(start from 0) of the sheet.
+        sheet: The sheet name as str, or zero-based sheet index as int.
         col: The column (name or number) to check. If None, checks the entire sheet.
 
     Returns:
@@ -381,7 +386,7 @@ def get_last_column(excelObj: ExcelObj, sheet: ExcelSheet, row: int | None = Non
 
     Parameters:
         excelObj: The Excel workbook object.
-        sheet: The name or index(start from 0) of the sheet.
+        sheet: The sheet name as str, or zero-based sheet index as int.
         row: The row number to check. If None, checks the entire sheet.
 
     Returns:
@@ -454,7 +459,12 @@ def read_cell(
 
 
 @Log.trace()
-def read_cell(excelObj: ExcelObj, sheet: ExcelSheet, cell: ExcelCell, returnDisplayed: bool = True) -> ExcelCellValue:
+def read_cell(
+    excelObj: ExcelObj,
+    sheet: ExcelSheet,
+    cell: ExcelCell,
+    returnDisplayed: bool = True,
+) -> ExcelCellValue:
     """
     Read the value of a specific cell.
 
@@ -462,12 +472,12 @@ def read_cell(excelObj: ExcelObj, sheet: ExcelSheet, cell: ExcelCell, returnDisp
 
     Parameters:
         excelObj: The Excel workbook object.
-        sheet: The name or index(start from 0) of the sheet.
-        cell: The cell to read, either as an address string or a [column, row] list.
-        returnDisplayed: If True, returns the displayed value; otherwise, returns the actual value.
+        sheet: The sheet name as str, or zero-based sheet index as int.
+        cell: The cell address, such as "A1", or [column, row], such as [1, 1] for A1.
+        returnDisplayed: If True, returns displayed values as strings; otherwise, returns the actual value.
 
     Returns:
-        ExcelCellValue: The value of the cell.
+        str | ExcelCellValue: The displayed value as str if returnDisplayed=True; otherwise the actual cell value as str, int, float, datetime, bool, or None.
     """
     _check_edit_mode()
     sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
@@ -482,33 +492,40 @@ def read_cell(excelObj: ExcelObj, sheet: ExcelSheet, cell: ExcelCell, returnDisp
 
 @overload
 def read_row(
-    excelObj: ExcelObj, sheet: ExcelSheet, startCell: ExcelCell, returnDisplayed: Literal[True] = True
+    excelObj: ExcelObj,
+    sheet: ExcelSheet,
+    startCell: ExcelCell,
+    returnDisplayed: Literal[True] = True,
 ) -> list[str]: ...
 
 
 @overload
 def read_row(
-    excelObj: ExcelObj, sheet: ExcelSheet, startCell: ExcelCell, returnDisplayed: Literal[False] = False
+    excelObj: ExcelObj,
+    sheet: ExcelSheet,
+    startCell: ExcelCell,
+    returnDisplayed: Literal[False],
 ) -> list[ExcelCellValue]: ...
 
 
 @Log.trace()
 def read_row(
-    excelObj: ExcelObj, sheet: ExcelSheet, startCell: ExcelCell, returnDisplayed: bool = True
-) -> list[ExcelCellValue]:
+    excelObj: ExcelObj,
+    sheet: ExcelSheet,
+    startCell: ExcelCell,
+    returnDisplayed: bool = True,
+) -> list[str] | list[ExcelCellValue]:
     """
-    Reads an entire row in an Excel sheet starting from the specified cell.
-
-    Can return either the actual values or the displayed values of the cells in the row.
+    Read an entire row starting from a cell.
 
     Parameters:
         excelObj: The Excel workbook object.
-        sheet: The name or index(start from 0) of the sheet.
-        startCell: The starting cell of the row to be read. Can be specified as a string (e.g., 'A1') or a list indicating the row and column [column, row].
-        returnDisplayed: If True, returns the displayed values of the cells. If False, returns their actual values.
+        sheet: The sheet name as str, or zero-based sheet index as int.
+        startCell: The starting cell address, such as "A1", or [column, row], such as [1, 1] for A1.
+        returnDisplayed: If True, returns displayed values as strings. If False, returns actual cell values.
 
     Returns:
-        list[ExcelCellValue]: A list of values from the specified row. Returns an empty list if the starting cell is to the right of the last used cell in the row.
+        list[str] | list[ExcelCellValue]: Displayed values as strings if returnDisplayed=True; otherwise actual values as str, int, float, datetime, bool, or None. Returns an empty list if startCell is to the right of the last used cell in the row.
     """
     _check_edit_mode()
     sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
@@ -542,33 +559,40 @@ def read_row(
 
 @overload
 def read_column(
-    excelObj: ExcelObj, sheet: ExcelSheet, startCell: ExcelCell, returnDisplayed: Literal[True] = True
+    excelObj: ExcelObj,
+    sheet: ExcelSheet,
+    startCell: ExcelCell,
+    returnDisplayed: Literal[True] = True,
 ) -> list[str]: ...
 
 
 @overload
 def read_column(
-    excelObj: ExcelObj, sheet: ExcelSheet, startCell: ExcelCell, returnDisplayed: Literal[False] = False
+    excelObj: ExcelObj,
+    sheet: ExcelSheet,
+    startCell: ExcelCell,
+    returnDisplayed: Literal[False],
 ) -> list[ExcelCellValue]: ...
 
 
 @Log.trace()
 def read_column(
-    excelObj: ExcelObj, sheet: ExcelSheet, startCell: ExcelCell, returnDisplayed: bool = True
-) -> list[ExcelCellValue]:
+    excelObj: ExcelObj,
+    sheet: ExcelSheet,
+    startCell: ExcelCell,
+    returnDisplayed: bool = True,
+) -> list[str] | list[ExcelCellValue]:
     """
-    Reads an entire column in an Excel sheet starting from the specified cell.
-
-    Can return either the actual values or the displayed values of the cells in the column.
+    Read an entire column starting from a cell.
 
     Parameters:
         excelObj: The Excel workbook object.
-        sheet: The name or index(start from 0) of the sheet.
-        startCell: The starting cell of the column to be read. Can be specified as a string (e.g., 'A1') or a list indicating the row and column [column, row].
-        returnDisplayed: If True, returns the displayed values of the cells. If False, returns their actual values.
+        sheet: The sheet name as str, or zero-based sheet index as int.
+        startCell: The starting cell address, such as "A1", or [column, row], such as [1, 1] for A1.
+        returnDisplayed: If True, returns displayed values as strings. If False, returns actual cell values.
 
     Returns:
-        list[ExcelCellValue]: A list of values from the specified column. Returns an empty list if the starting cell is below the last used cell in the column.
+        list[str] | list[ExcelCellValue]: Displayed values as strings if returnDisplayed=True; otherwise actual values as str, int, float, datetime, bool, or None. Returns an empty list if startCell is below the last used cell in the column.
     """
     _check_edit_mode()
     sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
@@ -619,6 +643,7 @@ def _read_range(
     sheet: ExcelSheet,
     startCell: ExcelCell,
     endCell: ExcelCell | None = None,
+    *,
     returnDisplayed: bool = True,
 ) -> list[list[str]] | list[list[ExcelCellValue]]:
     sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
@@ -657,6 +682,7 @@ def read_range_list(
     sheet: ExcelSheet,
     startCell: ExcelCell,
     endCell: ExcelCell | None = None,
+    *,
     returnDisplayed: Literal[True] = True,
 ) -> list[list[str]]: ...
 
@@ -667,7 +693,8 @@ def read_range_list(
     sheet: ExcelSheet,
     startCell: ExcelCell,
     endCell: ExcelCell | None = None,
-    returnDisplayed: Literal[False] = False,
+    *,
+    returnDisplayed: Literal[False],
 ) -> list[list[ExcelCellValue]]: ...
 
 
@@ -677,20 +704,21 @@ def read_range_list(
     sheet: ExcelSheet,
     startCell: ExcelCell,
     endCell: ExcelCell | None = None,
+    *,
     returnDisplayed: bool = True,
 ) -> list[list[str]] | list[list[ExcelCellValue]]:
     """
-    Reads a specified range from an Excel sheet and returns the data in the desired format.
+    Read a range and return it as a 2D list.
 
     Parameters:
         excelObj: The Excel workbook object.
-        sheet: The name or index(start from 0) of the sheet.
-        startCell: The starting cell of the range.
-        endCell: The ending cell of the range. If None, reads till the last cell.
-        returnDisplayed: If True, returns the displayed values as string; otherwise, returns actual cell values(ExcelCellValue).
+        sheet: The sheet name as str, or zero-based sheet index as int.
+        startCell: The starting cell address, such as "A1", or [column, row], such as [1, 1] for A1.
+        endCell: The ending cell address. If None, reads to the last used cell.
+        returnDisplayed: If True, returns displayed values as strings. If False, returns actual cell values.
 
     Returns:
-        list[list[str]] | list[list[ExcelCellValue]]: The data from the specified range in the chosen format.
+        list[list[str]] | list[list[ExcelCellValue]]: Displayed values as strings if returnDisplayed=True; otherwise actual values as str, int, float, datetime, bool, or None.
     """
     _check_edit_mode()
     listRange = _read_range(
@@ -713,18 +741,18 @@ def read_range_df(
     returnDisplayed: bool = True,
 ) -> pandas.DataFrame:
     """
-    Reads a specified range from an Excel sheet and returns the data in the desired format.
+    Read a range and return it as a pandas DataFrame.
 
     Parameters:
         excelObj: The Excel workbook object.
-        sheet: The name or index(start from 0) of the sheet.
-        startCell: The starting cell of the range.
-        endCell: The ending cell of the range. If None, reads till the last cell.
-        addTitle: If True, uses the first row as headers.
-        returnDisplayed: If True, returns the displayed values as string; otherwise, returns actual cell values(ExcelCellValue).
+        sheet: The sheet name as str, or zero-based sheet index as int.
+        startCell: The starting cell address, such as "A1", or [column, row], such as [1, 1] for A1.
+        endCell: The ending cell address. If None, reads to the last used cell.
+        addTitle: If True, uses the first row as DataFrame column names.
+        returnDisplayed: If True, reads displayed values as strings. If False, reads actual cell values.
 
     Returns:
-        pandas.DataFrame
+        pandas.DataFrame: The range data as a DataFrame.
     """
     _check_edit_mode()
     listRange = _read_range(
@@ -756,9 +784,9 @@ def write_cell(
 
     Parameters:
         excelObj: The Excel workbook object.
-        sheet: The name or index(start from 0) of the sheet.
-        cell: The cell to write to, specified as a string (e.g., 'A1') or a list [column, row].
-        data: The data to write to the cell.
+        sheet: The sheet name as str, or zero-based sheet index as int.
+        cell: The cell to write to, such as "A1", or [column, row], such as [1, 1] for A1.
+        data: The value to write. Can be str, int, float, datetime, bool, or None.
         save: If True, saves the workbook immediately after writing.
     """
     _check_edit_mode()
@@ -785,9 +813,9 @@ def write_row(
 
     Parameters:
         excelObj: The Excel workbook object.
-        sheet: The name or index(start from 0) of the sheet.
-        startCell: The starting cell of the row.
-        data: A list of data to be written to the row.
+        sheet: The sheet name as str, or zero-based sheet index as int.
+        startCell: The starting cell of the row, such as "A1", or [column, row], such as [1, 1] for A1.
+        data: The value to write. Can be str, int, float, datetime, bool, or None.
         save: If True, saves the workbook immediately after writing.
     """
     _check_edit_mode()
@@ -825,9 +853,9 @@ def write_column(
 
     Parameters:
         excelObj: The Excel workbook object.
-        sheet: The name or index(start from 0) of the sheet.
-        startCell: The starting cell of the column.
-        data: A list of data to be written to the column.
+        sheet: The sheet name as str, or zero-based sheet index as int.
+        startCell: The starting cell of the column, such as "A1", or [column, row], such as [1, 1] for A1.
+        data: The value to write. Can be str, int, float, datetime, bool, or None.
         save: If True, saves the workbook immediately after writing.
     """
     _check_edit_mode()
@@ -861,15 +889,15 @@ def write_range(
     save: bool = False,
 ) -> None:
     """
-    Writes a pandas DataFrame or a 2D list to a specified range in an Excel sheet.
+    Write a pandas DataFrame or a 2D list to a range.
 
     Parameters:
         excelObj: The Excel workbook object.
-        sheet: The name or index(start from 0) of the sheet.
-        startCell: The starting cell for the data range.
-        data: The data to write, either as a DataFrame or a 2D list.
-        writeTitleRow: If True, includes the DataFrame's column titles, or the first item of the 2D list.
-        save: If True, saves the workbook immediately after writing.
+        sheet: The sheet name as str, or zero-based sheet index as int.
+        startCell: The starting cell address, such as "A1", or [column, row], such as [1, 1] for A1.
+        data: The data to write. Pass a pandas DataFrame or a 2D list. For a 2D list, each cell value can be str, int, float, datetime, bool, or None.
+        writeTitleRow: If data is a DataFrame, writes its column names when True. If data is a 2D list, treats the first row as a title row and writes it only when True.
+        save: If True, saves the workbook after writing.
     """
 
     if data is None:
@@ -923,14 +951,14 @@ def insert_row(
     save: bool = False,
 ) -> None:
     """
-    Create a new empty row and then write a list of data to a row in an Excel sheet starting from a specified cell.
+    Insert a new row at startCell's row, then write data from startCell.
 
     Parameters:
         excelObj: The Excel workbook object.
-        sheet: The name or index(start from 0) of the sheet.
-        startCell: The starting cell of the row.
-        data: A list of data to be written to the row.
-        save: If True, saves the workbook immediately after inserting.
+        sheet: The sheet name as str, or zero-based sheet index as int.
+        startCell: The first cell to write after inserting the row, such as "A1", or [column, row], such as [1, 1] for A1.
+        data: A list of values to write. Each value can be str, int, float, datetime, bool, or None.
+        save: If True, saves the workbook after inserting.
     """
     _check_edit_mode()
     sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
@@ -954,14 +982,14 @@ def insert_column(
     save: bool = False,
 ) -> None:
     """
-    Create a new empty column and then write a list of data to a column in an Excel sheet starting from a specified cell.
+    Insert a new column at startCell's column, then write data from startCell.
 
     Parameters:
         excelObj: The Excel workbook object.
-        sheet: The name or index(start from 0) of the sheet.
-        startCell: The starting cell of the column.
-        data: A list of data to be written to the column.
-        save: If True, saves the workbook immediately after inserting.
+        sheet: The sheet name as str, or zero-based sheet index as int.
+        startCell: The first cell to write after inserting the column, such as "A1", or [column, row], such as [1, 1] for A1.
+        data: A list of values to write. Each value can be str, int, float, datetime, bool, or None.
+        save: If True, saves the workbook after inserting.
     """
     _check_edit_mode()
     sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
@@ -979,13 +1007,13 @@ def insert_column(
 @Log.trace()
 def delete_row(excelObj: ExcelObj, sheet: ExcelSheet, cell: ExcelCell, save: bool = False) -> None:
     """
-    Delete the row of the cell and move the next row up.
+    Delete the entire row that contains the specified cell.
 
     Parameters:
         excelObj: The Excel workbook object.
-        sheet: The name or index(start from 0) of the sheet.
-        cell: A cell whthin the row to delete.
-        save: If True, saves the workbook immediately after deleting.
+        sheet: The sheet name as str, or zero-based sheet index as int.
+        cell: A cell within the row to delete, such as "A1", or [column, row], such as [1, 1] for A1.
+        save: If True, saves the workbook after deleting.
     """
     _check_edit_mode()
     sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
@@ -1004,13 +1032,13 @@ def delete_row(excelObj: ExcelObj, sheet: ExcelSheet, cell: ExcelCell, save: boo
 @Log.trace()
 def delete_column(excelObj: ExcelObj, sheet: ExcelSheet, cell: ExcelCell, save: bool = False) -> None:
     """
-    Delete the column of the cell and move the next column left.
+    Delete the entire column that contains the specified cell.
 
     Parameters:
         excelObj: The Excel workbook object.
-        sheet: The name or index(start from 0) of the sheet.
-        cell: A cell whthin the column to delete.
-        save: If True, saves the workbook immediately after deleting.
+        sheet: The sheet name as str, or zero-based sheet index as int.
+        cell: A cell within the column to delete, such as "A1", or [column, row], such as [1, 1] for A1.
+        save: If True, saves the workbook after deleting.
     """
 
     _check_edit_mode()
@@ -1034,8 +1062,8 @@ def select_range(excelObj: ExcelObj, sheet: ExcelSheet, startCell: ExcelCell, en
 
     Parameters:
         excelObj: The Excel workbook object.
-        sheet: The name or index(start from 0) of the sheet.
-        startCell: The starting cell of the range.
+        sheet: The sheet name as str, or zero-based sheet index as int.
+        startCell: The starting cell of the range, such as "A1", or [column, row], such as [1, 1] for A1.
         endCell: The ending cell of the range.  If None, select till the last cell.
     """
     _check_edit_mode()
@@ -1071,13 +1099,13 @@ def get_selected_cells(excelObj: ExcelObj) -> list[str]:
 @Log.trace()
 def get_selected_range(excelObj: ExcelObj) -> list[str]:
     """
-    Get the list of all selected ranges of the current activated sheet.
+    Get the selected range addresses from the active sheet.
 
     Parameters:
         excelObj: The Excel workbook object.
 
     Returns:
-        list[str]: A list of selected range addresses, such as ["B3"], ["B3:C6"], or ["A1:B2", "D1:E2"].
+        list[str]: Selected range addresses, such as ["B3"], ["B3:C6"], or ["A1:B2", "D1:E2"].
     """
     _check_edit_mode()
     rangeSelected = excelObj.book.selection
@@ -1097,20 +1125,20 @@ def clear_range(
     save: bool = False,
 ) -> None:
     """
-    Clear the content or format of the range.
+    Clear values, formatting, or both from a range.
 
     Parameters:
         excelObj: The Excel workbook object.
-        sheet: The name or index(start from 0) of the sheet.
-        startCell: The starting cell of the range.
-        endCell: The ending cell of the range.  If None, clear till the last cell.
-        clearContent: Whether clear contents of the range.
-        clearFormat: Whether clear format of the range.
-        save: If True, saves the workbook immediately after clearing.
+        sheet: The sheet name as str, or zero-based sheet index as int.
+        startCell: The starting cell address, such as "A1", or [column, row], such as [1, 1] for A1.
+        endCell: The ending cell address. If None, clears to the last used cell.
+        clearContent: If True, clears cell values.
+        clearFormat: If True, clears cell formatting.
+        save: If True, saves the workbook after clearing.
     """
 
     if not clearContent and not clearFormat:
-        raise ValueError("At least oneof the argument clearContents or clearFormats must be True")
+        raise ValueError("At least one of 'clearContent' or 'clearFormat' must be True.")
 
     _check_edit_mode()
     sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
@@ -1139,7 +1167,7 @@ def activate_sheet(excelObj: ExcelObj, sheet: ExcelSheet) -> None:
 
     Parameters:
         excelObj: The Excel workbook object.
-        sheet: The name or index(start from 0) of the sheet.
+        sheet: The sheet name as str, or zero-based sheet index as int.
     """
     _check_edit_mode()
     sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
@@ -1180,14 +1208,14 @@ def add_sheet(
     save: bool = False,
 ) -> None:
     """
-    Add a new sheet in specific position.
+    Add a new sheet before or after an existing sheet.
 
     Parameters:
         excelObj: The Excel workbook object.
-        newSheetName: The new sheet's name.
-        anchorSheet: The new sheet will add before or after the anchor sheet.
-        direction: Options are "before" and "after".
-        save: If True, saves the workbook immediately after adding.
+        newSheetName: The name of the new sheet.
+        anchorSheet: The existing sheet used as the insert position. Accepts sheet name as str or zero-based sheet index as int.
+        direction: Where to insert the new sheet relative to anchorSheet, either "before" or "after".
+        save: If True, saves the workbook after adding the sheet.
     """
 
     _check_edit_mode()
@@ -1195,13 +1223,15 @@ def add_sheet(
     _check_sheet_name_exist(excelObj=excelObj, sheetName=newSheetName)
 
     anchorSheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=anchorSheet)
+    anchorSheetObj = excelObj.book.sheets[anchorSheet]
+
     if direction not in ["before", "after"]:
         raise ValueError("The argument direction should be 'before' or 'after'.")
     if direction == "before":
-        excelObj.book.sheets.add(name=newSheetName, before=anchorSheet, after=None)
+        excelObj.book.sheets.add(name=newSheetName, before=anchorSheetObj, after=None)
     else:
         # after
-        excelObj.book.sheets.add(name=newSheetName, before=None, after=anchorSheet)
+        excelObj.book.sheets.add(name=newSheetName, before=None, after=anchorSheetObj)
 
     if save:
         _save(excelObj=excelObj)
@@ -1214,7 +1244,7 @@ def rename_sheet(excelObj: ExcelObj, sheet: ExcelSheet, newSheetName: str, save:
 
     Parameters:
         excelObj: The Excel workbook object.
-        sheet: The name or index(start from 0) of the sheet.
+        sheet: The sheet name as str, or zero-based sheet index as int.
         newSheetName: The sheet's new name.
         save: If True, saves the workbook immediately after renaming.
     """
@@ -1240,16 +1270,16 @@ def copy_sheet(
     save: bool = False,
 ) -> None:
     """
-    Copy a sheet.
+    Copy a sheet to another workbook, before or after an existing destination sheet.
 
     Parameters:
-        srcExcelObj: The Excel workbook object that copy from.
-        srcSheet: The sheet name or index(start from 0) in the source workbook.
-        dstExcelObj: The Excel workbook object that copy into.
-        dstAnchorSheet: The new sheet will add before or after the anchor sheet in the dstExcelObj.
-        newSheetName: The sheet's new name.
-        direction: Options are "before" and "after".
-        save: If True, saves the workbook immediately after copying.
+        srcExcelObj: The source Excel workbook object.
+        srcSheet: The sheet to copy. Accepts sheet name as str or zero-based sheet index as int.
+        dstExcelObj: The destination Excel workbook object.
+        dstAnchorSheet: The destination sheet used as the insert position. Accepts sheet name as str or zero-based sheet index as int.
+        newSheetName: The name of the copied sheet in the destination workbook.
+        direction: Where to insert the copied sheet relative to dstAnchorSheet, either "before" or "after".
+        save: If True, saves the destination workbook after copying.
     """
 
     _check_edit_mode()
@@ -1286,8 +1316,8 @@ def delete_sheet(excelObj: ExcelObj, sheet: ExcelSheet, save: bool = False) -> N
 
     Parameters:
         excelObj: The Excel workbook object.
-        sheet: The name or index(start from 0) of the sheet.
-        save: If True, saves the workbook immediately after writing.
+        sheet: The sheet name as str, or zero-based sheet index as int.
+        save: If True, saves the workbook after deleting the sheet.
     """
     _check_edit_mode()
     sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
@@ -1331,12 +1361,12 @@ def get_sheet_list(excelObj: ExcelObj) -> list[str]:
 @Log.trace()
 def run_macro(excelObj: ExcelObj, macroName: str, arguments: list[Any] | None = None) -> Any:
     """
-    Run a macro of a xlsm file.
+    Run an Excel macro.
 
     Parameters:
-        excelObj: The Excel workbook object(.xlsm file).
+        excelObj: The Excel workbook object that contains the macro.
         macroName: Name of a Sub or Function, with or without module name, such as "Module1.MyMacro" or "MyMacro".
-        arguments: Optional list of arguments passed to the macro.
+        arguments: Arguments passed to the macro. If None, no arguments are passed.
 
     Returns:
         Any: The value returned by the macro.
@@ -1368,6 +1398,13 @@ if __name__ == "__main__":
 
     # print("Delay.")
     # sleep(3)
-    # print(read_cell(excelObj=excelObj, sheet="Sheet3", cell="A1", returnDisplayed=True))
+    flag: bool = False
+    temp = read_row(
+        excelObj=excelObj,
+        sheet="Sheet3",
+        startCell="A1",
+        # returnDisplayed=flag,
+    )
+
     # activate_window(excelObj=excelObj)
-    write_cell(excelObj=excelObj, sheet="Sheet3", cell="C32", data="123")
+    # write_cell(excelObj=excelObj, sheet="Sheet3", cell="C32", data="123")

@@ -49,7 +49,7 @@ def save_image(savePath: StrPath) -> None:
     If there are multiple or no images, it throws an exception.
 
     Parameters:
-        savePath: The file path where the image should be saved.
+        savePath: The file path where the image should be saved. Accepts str or PathLike[str].
     """
     imageTemp = ImageGrab.grabclipboard()
     if isinstance(imageTemp, Image.Image):
@@ -66,7 +66,7 @@ def set_image(imagePath: StrPath) -> None:
     Places an image from a specified file into the clipboard.
 
     Parameters:
-        imagePath: The path to the image file to be set to the clipboard.
+        imagePath: The path to the image file to be set to the clipboard. Accepts str or PathLike[str].
     """
     try:
         image = Image.open(os.fspath(imagePath))

@@ -6,6 +6,8 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
 from liberrpa.Logging import Log
+from liberrpa.Common._TypedValue import JsonValue
+
 from pathvalidate import sanitize_filename as _sanitize_filename
 from decimal import Decimal
 from copy import deepcopy
@@ -202,7 +204,7 @@ def json_dumps(value: Any, indent: int = 4) -> str:
 
 
 @Log.trace()
-def json_loads(jsonStr: str) -> Any:
+def json_loads(jsonStr: str) -> JsonValue:
     """
     Deserialize a JSON formatted string to a Python object.
 
@@ -210,7 +212,7 @@ def json_loads(jsonStr: str) -> Any:
         jsonStr: The JSON string to deserialize.
 
     Returns:
-        Any: The deserialized Python object.
+        JsonValue: Parsed JSON data. It can be None, bool, int, float, str, list, or dict.
     """
     return json.loads(jsonStr)
 

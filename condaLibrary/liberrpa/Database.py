@@ -47,7 +47,7 @@ class DatabaseConnection:
         host: Database host. Ignored for SQLite.
         port: Port for the database connection. Ignored for SQLite.
         database: Database name or SQLite database file path.
-        options: Additional connection options, such as charset, sslmode, or service_name.
+        options: Additional connection options, such as charset, sslmode, or service_name. Values can be str or a sequence of str.
 
     Example usage:
     ```

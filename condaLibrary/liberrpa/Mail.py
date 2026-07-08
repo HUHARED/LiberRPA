@@ -282,7 +282,7 @@ def download_attachments(emailObj: MailParser, downloadPath: StrPath) -> list[st
 
     Parameters:
         emailObj: A MailParser objects.
-        downloadPath: The folder to save download files.
+        downloadPath: The folder to save download files. Accepts str or PathLike[str].
 
     Returns:
         list[str]: A list contains the path of all attachments.

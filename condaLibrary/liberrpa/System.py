@@ -25,7 +25,7 @@ def play_sound(filePath: StrPath, wait: bool = True) -> None:
     MP3 and other formats are not supported.
 
     Parameters:
-        filePath: The path to the WAV file to play.
+        filePath: The path to the WAV file to play. Accepts str or PathLike[str].
         wait: If True, waits until the sound finishes. If False, starts playing and returns immediately.
     """
     pathObj = Path(filePath)

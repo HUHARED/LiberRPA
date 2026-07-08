@@ -783,7 +783,7 @@ def execute_js_code(
             If False, the function will wait for the JavaScript execution to complete and return the result of the JavaScript code.
 
     Returns:
-        The returned value of the JavaScript code, or None in the cases described above.
+        JsonValue | None: The returned value of the JavaScript code. It can be None, bool, int, float, str, list, or dict. Or None in the cases described above.
 
     Usage Example:
         ```python

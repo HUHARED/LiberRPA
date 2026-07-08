@@ -631,7 +631,8 @@ type ClickMode = Literal["single_click", "double_click", "down", "up"]
 type FivePosition = Literal["center", "top_left", "top_right", "bottom_left", "bottom_right"]
 type ExecutionMode = Literal["simulate", "api"]
 
-type JsonValue = None | bool | int | float | str | list[JsonValue] | dict[str, JsonValue]
+type JsonPrimitive = str | int | float | bool | None
+type JsonValue = JsonPrimitive | list[JsonValue] | dict[str, JsonValue]
 
 
 type StrPath = str | PathLike[str]

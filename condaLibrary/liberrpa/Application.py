@@ -20,7 +20,7 @@ def run_application(filePath: StrPath, windowState: Literal["default", "maximize
     Run an application with a specified window state.
 
     Parameters:
-        filePath: The path of the application to run.
+        filePath: The path of the application to run. Accepts str or PathLike[str].
         windowState: 'default', 'maximize', 'minimize'
 
     Returns:
