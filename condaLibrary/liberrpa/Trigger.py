@@ -16,10 +16,12 @@ import keyboard
 import threading
 import os
 import sys
-from typing import Any, Literal
+from typing import Any, Literal, overload, cast
 from collections.abc import Callable
 
 _dictModifierState = {"ctrl": False, "shift": False, "alt": False, "win": False}
+
+_MISSING = object()
 
 
 def _check_timing(timing: str) -> None:
@@ -81,6 +83,51 @@ def _check_modifiers(
     )
 
 
+def _check_at_least_one_modifier(
+    pressCtrl: bool,
+    pressShift: bool,
+    pressAlt: bool,
+    pressWin: bool,
+) -> None:
+    if not any((pressCtrl, pressShift, pressAlt, pressWin)):
+        raise ValueError(
+            "A trigger must require at least one modifier key. "
+            "Set at least one of pressCtrl, pressShift, pressAlt, or pressWin to True."
+        )
+
+
+@overload
+def mouse_trigger[T](
+    func: Callable[..., T],
+    args: list[Any] | None = None,
+    button: MouseButton = "left",
+    pressCtrl: bool = False,
+    pressShift: bool = False,
+    pressAlt: bool = False,
+    pressWin: bool = False,
+    timing: Literal["on_press", "on_release"] = "on_release",
+    notify: bool = True,
+    *,
+    block: Literal[False],
+) -> None: ...
+
+
+@overload
+def mouse_trigger[T](
+    func: Callable[..., T],
+    args: list[Any] | None = None,
+    button: MouseButton = "left",
+    pressCtrl: bool = False,
+    pressShift: bool = False,
+    pressAlt: bool = False,
+    pressWin: bool = False,
+    timing: Literal["on_press", "on_release"] = "on_release",
+    notify: bool = True,
+    *,
+    block: Literal[True] = True,
+) -> T: ...
+
+
 @Log.trace()
 def mouse_trigger[T](
     func: Callable[..., T],
@@ -92,15 +139,18 @@ def mouse_trigger[T](
     pressWin: bool = False,
     timing: Literal["on_press", "on_release"] = "on_release",
     notify: bool = True,
+    *,
     block: bool = True,
 ) -> T | None:
     """
     Trigger a specified function when the given mouse button and modifier keys are pressed/released.
 
+    At least one modifier key must be required. Ordinary single-key or single-click triggers are intentionally not supported, to avoid accidental execution.
+
     Parameters:
         func: The function to execute when the trigger is activated.
         args: Arguments to pass to the function.
-        button: Mouse button to listen for ("left", "right", "middle").
+        button: Mouse button, one of ["left", "right", "middle"].
         pressCtrl: Whether the Ctrl key must be pressed.
         pressShift: Whether the Shift key must be pressed.
         pressAlt: Whether the Alt key must be pressed.
@@ -110,50 +160,90 @@ def mouse_trigger[T](
         block: Whether to block the main thread until the trigger is executed.
 
     Returns:
-        T|None: The return value of the executed function if block=True, or None otherwise.
+        T | None: The return value of the executed function if block=True, or None if block=False.
+
+    Raises:
+        Exception: Re-raises the exception raised by func when block=True.
     """
 
     args = [] if args is None else args
 
     listValue = ["left", "right", "middle"]
     if button not in listValue:
-        raise ValueError(f"The argument button({button}) should be one of {listValue}")
+        raise ValueError(f"The argument button ({button}) should be one of {listValue}.")
 
     _check_timing(timing=timing)
 
-    dictResult: dict[str, T | None] = {"result": None}
+    _check_at_least_one_modifier(
+        pressCtrl=pressCtrl,
+        pressShift=pressShift,
+        pressAlt=pressAlt,
+        pressWin=pressWin,
+    )
+
+    resultMissing = object()
+    result: object = resultMissing
+    triggerError: Exception | None = None
     eventStop = threading.Event()
+
+    listenerMouse: MouseListener
+
+    def stop_listeners() -> None:
+        nonlocal triggerError
+
+        try:
+            listenerMouse.stop()
+        except Exception as e:
+            Log.error(f"Failed to stop mouse listener: {e}")
+            if triggerError is None:
+                triggerError = e
+
+        try:
+            keyboard.unhook(listenerKeyboard)
+        except Exception as e:
+            Log.error(f"Failed to unhook keyboard listener: {e}")
+            if triggerError is None:
+                triggerError = e
 
     def on_key_event_for_mouse(event: keyboard.KeyboardEvent) -> None:
         _get_keyname_and_press(event=event)
 
     def on_mouse_event(_x: int, _y: int, mouseButton: Button, pressed: bool) -> None:
+        nonlocal result, triggerError
+
         Log.debug(f"Mouse Event: {mouseButton.name} - {'press' if pressed else 'release'}")
+
+        if not (
+            (mouseButton.name == button)
+            and ((timing == "on_press" and pressed) or (timing == "on_release" and not pressed))
+        ):
+            return
+
+        if not _check_modifiers(pressCtrl=pressCtrl, pressShift=pressShift, pressAlt=pressAlt, pressWin=pressWin):
+            return
+
         try:
-            if (mouseButton.name == button) and (
-                (timing == "on_press" and pressed) or (timing == "on_release" and not pressed)
-            ):
-                if _check_modifiers(pressCtrl=pressCtrl, pressShift=pressShift, pressAlt=pressAlt, pressWin=pressWin):
-                    if notify:
-                        strAddition = _generate_addition(
-                            pressCtrl=pressCtrl, pressShift=pressShift, pressAlt=pressAlt, pressWin=pressWin
-                        )
-                        show_notification(
-                            title="LiberRPA - Mouse Trigger",
-                            message=f"Mouse {timing}: [{strAddition}mouse_{button}] triggered.",
-                            duration=2,
-                        )
+            if notify:
+                strAddition = _generate_addition(
+                    pressCtrl=pressCtrl,
+                    pressShift=pressShift,
+                    pressAlt=pressAlt,
+                    pressWin=pressWin,
+                )
+                show_notification(
+                    title="LiberRPA - Mouse Trigger",
+                    message=f"Mouse {timing}: [{strAddition}mouse_{button}] triggered.",
+                    duration=2,
+                )
 
-                    dictResult["result"] = func(*args)
-
-                    listenerMouse.stop()
-                    keyboard.unhook(listenerKeyboard)
-                    eventStop.set()
+            result = func(*args)
 
         except Exception as e:
             Log.error(f"Error in mouse trigger: {e}")
-            listenerMouse.stop()
-            keyboard.unhook(listenerKeyboard)
+            triggerError = e
+
+        finally:
+            stop_listeners()
             eventStop.set()
 
     listenerKeyboard = keyboard.hook(on_key_event_for_mouse)
@@ -161,11 +251,50 @@ def mouse_trigger[T](
     listenerMouse.daemon = True
     listenerMouse.start()
 
-    if block:
-        # Wait for the event to be triggered
-        eventStop.wait()
+    if not block:
+        return None
 
-    return dictResult["result"]
+    eventStop.wait()
+
+    if triggerError is not None:
+        raise triggerError
+
+    if result is resultMissing:
+        raise RuntimeError("The mouse trigger stopped before the callback returned a result.")
+
+    return cast(T, result)
+
+
+@overload
+def keyboard_trigger[T](
+    func: Callable[..., T],
+    args: list[Any] | None = None,
+    key: HookKey = "enter",
+    pressCtrl: bool = False,
+    pressShift: bool = False,
+    pressAlt: bool = False,
+    pressWin: bool = False,
+    timing: Literal["on_press", "on_release"] = "on_release",
+    notify: bool = True,
+    *,
+    block: Literal[False],
+) -> None: ...
+
+
+@overload
+def keyboard_trigger[T](
+    func: Callable[..., T],
+    args: list[Any] | None = None,
+    key: HookKey = "enter",
+    pressCtrl: bool = False,
+    pressShift: bool = False,
+    pressAlt: bool = False,
+    pressWin: bool = False,
+    timing: Literal["on_press", "on_release"] = "on_release",
+    notify: bool = True,
+    *,
+    block: Literal[True] = True,
+) -> T: ...
 
 
 @Log.trace()
@@ -179,15 +308,18 @@ def keyboard_trigger[T](
     pressWin: bool = False,
     timing: Literal["on_press", "on_release"] = "on_release",
     notify: bool = True,
+    *,
     block: bool = True,
 ) -> T | None:
     """
     Trigger a specified function when the given key and modifier keys are pressed/released.
 
+    At least one modifier key must be required. Ordinary single-key or single-click triggers are intentionally not supported, to avoid accidental execution.
+
     Parameters:
         func: The function to execute when the trigger is activated.
         args: Arguments to pass to the function.
-        key: Key to listen for. All supported key in the type "HookKey" (If a symbol is typed with Shift, note to set pressShift=True): ['ctrl', 'left ctrl', 'right ctrl', 'shift', 'left shift', 'right shift', 'alt', 'left alt', 'right alt', 'windows', 'left windows', 'right windows', 'tab', 'space', 'enter', 'esc', 'caps lock', 'left menu', 'right menu', 'backspace', 'insert', 'delete', 'end', 'home', 'page up', 'page down', 'left', 'up', 'right', 'down', 'print screen', 'scroll lock', 'pause', 'num lock', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '`', '~', '!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '-', '_', '=', '+', '[', '{', ']', '}', '\\\\', '|', ';', ':', "'", '"', ',', '<', '.', '>', '/', '?', 'separator', 'decimal', 'f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8', 'f9', 'f10', 'f11', 'f12', 'f13', 'f14', 'f15', 'f16', 'f17', 'f18', 'f19', 'f20', 'f21', 'f22', 'f23', 'f24', 'browser back', 'browser forward', 'browser refresh', 'browser stop', 'browser search key', 'browser favorites', 'browser start and home', 'volume mute', 'volume down', 'volume up', 'next track', 'previous track', 'stop media', 'play/pause media', 'start mail', 'select media', 'start application 1', 'start application 2', 'spacebar', 'clear', 'select', 'print', 'execute', 'help', 'control-break processing', 'applications', 'sleep'] (2 backslash is not visual in Pylance, so use 4 backslash to express one visual backslash.)
+        key: Key to listen for. All supported key in the type "HookKey" (If a symbol is typed with Shift, note to set pressShift=True): ['ctrl', 'left ctrl', 'right ctrl', 'shift', 'left shift', 'right shift', 'alt', 'left alt', 'right alt', 'windows', 'left windows', 'right windows', 'tab', 'space', 'enter', 'esc', 'caps lock', 'left menu', 'right menu', 'backspace', 'insert', 'delete', 'end', 'home', 'page up', 'page down', 'left', 'up', 'right', 'down', 'print screen', 'scroll lock', 'pause', 'num lock', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '`', '~', '!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '-', '_', '=', '+', '[', '{', ']', '}', '\\', '|', ';', ':', "'", '"', ',', '<', '.', '>', '/', '?', 'separator', 'decimal', 'f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8', 'f9', 'f10', 'f11', 'f12', 'f13', 'f14', 'f15', 'f16', 'f17', 'f18', 'f19', 'f20', 'f21', 'f22', 'f23', 'f24', 'browser back', 'browser forward', 'browser refresh', 'browser stop', 'browser search key', 'browser favorites', 'browser start and home', 'volume mute', 'volume down', 'volume up', 'next track', 'previous track', 'stop media', 'play/pause media', 'start mail', 'select media', 'start application 1', 'start application 2', 'spacebar', 'clear', 'select', 'print', 'execute', 'help', 'control-break processing', 'applications', 'sleep']
         pressCtrl: Whether the Ctrl key must be pressed. Set it be True if key is 'ctrl', 'left ctrl', 'right ctrl' and timing is "on_press"
         pressShift: Whether the Shift key must be pressed. Set it be True if key is 'shift', 'left shift', 'right shift' and timing is "on_press"
         pressAlt: Whether the Alt key must be pressed. Set it be True if key is 'alt', 'left alt', 'right alt' and timing is "on_press"
@@ -197,60 +329,99 @@ def keyboard_trigger[T](
         block: Whether to block the main thread until the trigger is executed.
 
     Returns:
-        T|None: The return value of the executed function if block=True, or None otherwise.
+        T | None: The return value of the executed function if block=True, or None if block=False.
+
+    Raises:
+        Exception: Re-raises the exception raised by func when block=True.
     """
 
     args = [] if args is None else args
 
     listKeys: list[str] = list(HookKey.__args__)
     if key not in listKeys:
-        raise ValueError(f"The argument key({key}) should be one of {listKeys}")
+        raise ValueError(f"The argument key ({key}) should be one of {listKeys}.")
 
     _check_timing(timing=timing)
 
-    dictResult: dict[str, T | None] = {"result": None}
+    _check_at_least_one_modifier(
+        pressCtrl=pressCtrl,
+        pressShift=pressShift,
+        pressAlt=pressAlt,
+        pressWin=pressWin,
+    )
+
+    resultMissing = object()
+    result: object = resultMissing
+    triggerError: Exception | None = None
     eventStop = threading.Event()
 
+    def unhook_keyboard() -> None:
+        nonlocal triggerError
+
+        try:
+            keyboard.unhook(listenerKeyboard)
+        except Exception as e:
+            Log.error(f"Failed to unhook keyboard listener: {e}")
+            if triggerError is None:
+                triggerError = e
+
     def on_key_event_for_keyboard(event: keyboard.KeyboardEvent) -> None:
+        nonlocal result, triggerError
+
         try:
             strKeyName, boolPressed = _get_keyname_and_press(event=event)
-            # print(boolPressed)
 
-            if (strKeyName == key) and (
-                (timing == "on_press" and boolPressed) or (timing == "on_release" and not boolPressed)
+            if not (
+                (strKeyName == key)
+                and ((timing == "on_press" and boolPressed) or (timing == "on_release" and not boolPressed))
             ):
-                if _check_modifiers(
+                return
+
+            if not _check_modifiers(
+                pressCtrl=pressCtrl,
+                pressShift=pressShift,
+                pressAlt=pressAlt,
+                pressWin=pressWin,
+            ):
+                return
+
+            if notify:
+                strAddition = _generate_addition(
                     pressCtrl=pressCtrl,
                     pressShift=pressShift,
                     pressAlt=pressAlt,
                     pressWin=pressWin,
-                ):
-                    if notify:
-                        strAddition = _generate_addition(
-                            pressCtrl=pressCtrl, pressShift=pressShift, pressAlt=pressAlt, pressWin=pressWin
-                        )
-                        show_notification(
-                            title="LiberRPA - Keyboard Trigger",
-                            message=f"Keyboard {timing}: [{strAddition}{key}] triggered.",
-                            duration=2,
-                        )
+                )
+                show_notification(
+                    title="LiberRPA - Keyboard Trigger",
+                    message=f"Keyboard {timing}: [{strAddition}{key}] triggered.",
+                    duration=2,
+                )
 
-                    dictResult["result"] = func(*args)
-
-                    keyboard.unhook(listenerKeyboard)
-                    eventStop.set()
+            result = func(*args)
 
         except Exception as e:
             Log.error(f"Error in keyboard trigger: {e}")
-            keyboard.unhook(listenerKeyboard)
+            triggerError = e
+
+        finally:
+            unhook_keyboard()
             eventStop.set()
 
     listenerKeyboard = keyboard.hook(on_key_event_for_keyboard)
 
-    if block:
-        eventStop.wait()
+    if not block:
+        return None
 
-    return dictResult["result"]
+    eventStop.wait()
+
+    if triggerError is not None:
+        raise triggerError
+
+    if result is resultMissing:
+        raise RuntimeError("The keyboard trigger stopped before the callback returned a result.")
+
+    return cast(T, result)
 
 
 def register_force_exit() -> None:
@@ -302,12 +473,12 @@ if __name__ == "__main__":
         print("Triggered function executed! " + text)
         return "Done " + text
 
-    """ print(
+    print(
         mouse_trigger(
             func=my_function_1,
             args=[],
             button="left",
-            pressCtrl=True,
+            pressCtrl=False,
             pressAlt=False,
             pressShift=False,
             pressWin=False,
@@ -315,7 +486,7 @@ if __name__ == "__main__":
             notify=True,
             block=True,
         )
-    ) """
+    )
 
     """ print(
         keyboard_trigger(
