@@ -87,10 +87,13 @@ def _check_and_standardize_sheet(excelObj: ExcelObj, sheet: ExcelSheet) -> str:
 
     if isinstance(sheet, str) and (sheet not in listSheetName):
         raise ExcelError(f"The sheet({sheet}) does not exist. The current sheets: {listSheetName}")
-    if isinstance(sheet, int) and sheet >= len(listSheetName):
-        raise ExcelError(
-            f"The sheet index ({sheet}) is greater than the largest sheet index({len(listSheetName) - 1})."
-        )
+    if isinstance(sheet, int):
+        if sheet >= len(listSheetName):
+            raise ExcelError(
+                f"The sheet index ({sheet}) is greater than the largest sheet index({len(listSheetName) - 1})."
+            )
+        if sheet < 0:
+            raise ValueError(f"The sheet index ({sheet}) must be greater than or equal to 0.")
 
     strSheet = excelObj.book.sheets[sheet].name
     if isinstance(sheet, int):
