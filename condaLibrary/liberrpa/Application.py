@@ -87,7 +87,7 @@ def stop_process(nameOrPid: str | int) -> None:
         nameOrPid: the process name or PID.
     """
     for process in psutil.process_iter(["pid", "name"]):
-        if process.pid == nameOrPid or process.name() == nameOrPid:
+        if process.pid == nameOrPid or (isinstance(nameOrPid, str) and process.name().lower() == nameOrPid.lower()):
             process.kill()
 
 
