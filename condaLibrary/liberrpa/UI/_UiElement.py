@@ -48,7 +48,7 @@ import threading
 from contextlib import contextmanager
 from collections.abc import Sequence, Iterator
 
-from typing import cast
+from typing import cast, overload
 
 
 # Set the global variable of uiautomation.
@@ -60,7 +60,11 @@ Log.verbose(f"Initialize uiautomation in thread: {threading.current_thread().nam
 
 @contextmanager
 def holding_modifier_keys(
-    *, pressCtrl: bool = False, pressShift: bool = False, pressAlt: bool = False, pressWin: bool = False
+    *,
+    pressCtrl: bool = False,
+    pressShift: bool = False,
+    pressAlt: bool = False,
+    pressWin: bool = False,
 ) -> Iterator[None]:
     pressedKeys: list[str] = []
 
@@ -268,6 +272,18 @@ def get_control_selector(
         }
 
 
+@overload
+def get_element(selector: SelectorWindow | SelectorUia) -> tuple[uiautomation.Control, DictUiaAttr]: ...
+
+
+@overload
+def get_element(selector: SelectorHtml) -> tuple[None, DictHtmlAttr]: ...
+
+
+@overload
+def get_element(selector: SelectorImage) -> tuple[None, DictImageAttr]: ...
+
+
 def get_element(
     selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
 ) -> tuple[uiautomation.Control, DictUiaAttr] | tuple[None, DictHtmlAttr] | tuple[None, DictImageAttr]:
@@ -376,6 +392,27 @@ def get_element(
 
             case _:
                 raise ValueError(f"Could not find right 'category'(uia/html/image) value in the selector: {selector}")
+
+
+@overload
+def get_element_with_pre_delay(
+    selector: SelectorWindow | SelectorUia,
+    preDelay: int = 300,
+) -> tuple[uiautomation.Control, DictUiaAttr]: ...
+
+
+@overload
+def get_element_with_pre_delay(
+    selector: SelectorHtml,
+    preDelay: int = 300,
+) -> tuple[None, DictHtmlAttr]: ...
+
+
+@overload
+def get_element_with_pre_delay(
+    selector: SelectorImage,
+    preDelay: int = 300,
+) -> tuple[None, DictImageAttr]: ...
 
 
 def get_element_with_pre_delay(
