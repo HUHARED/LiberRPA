@@ -46,7 +46,7 @@ export const loggerRenderer = {
 
 export async function invokeMain(
   command: MainInvokeCommand,
-  data?: unknown
+  data?: unknown,
 ): Promise<unknown | undefined> {
   // loggerRenderer.debug("--invokeMain--");
   const result: DictInvokeResult = await window.uiAnalyzer.invokeMain(command, data);
@@ -65,8 +65,8 @@ window.uiAnalyzer.onInitSetting((data) => {
     `[send-from-main]\ncommand=init-setting\ndata=${JSON.stringify(
       [data[0], "[redacted]"],
       null,
-      2
-    )}`
+      2,
+    )}`,
   );
 
   const settingStore = useSettingStore();
@@ -142,7 +142,7 @@ export function connectToServer(port: number, token: string): void {
       } catch (e) {
         const informationStore = useInformationStore();
         informationStore.showAlertMessage(
-          error instanceof Error ? error.message : "Failed to parse Local Server response."
+          e instanceof Error ? e.message : "Failed to parse Local Server response.",
         );
       }
     } else {
@@ -165,7 +165,7 @@ export function connectToServer(port: number, token: string): void {
       } catch (e) {
         const informationStore = useInformationStore();
         informationStore.showAlertMessage(
-          error instanceof Error ? error.message : "Failed to parse Local Server response."
+          e instanceof Error ? e.message : "Failed to parse Local Server response.",
         );
         selectorStore.processDescription = "Idle";
       }
