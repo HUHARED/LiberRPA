@@ -14,30 +14,13 @@ from liberrpa.UI._UiDict import (
     SelectorUia,
     SelectorHtml,
     SelectorImage,
+    Selector,
 )
 
 import re
 import math
-from typing import cast, Any
+from typing import Any, cast, TypeIs
 from collections.abc import Mapping
-
-
-def as_selector_uia(selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage) -> SelectorUia:
-    if selector.get("category") != "uia":
-        raise UiSelectorError(f"Expected SelectorUia, got selector category: {selector.get('category')!r}")
-    return cast(SelectorUia, selector)
-
-
-def as_selector_html(selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage) -> SelectorHtml:
-    if selector.get("category") != "html":
-        raise UiSelectorError(f"Expected SelectorHtml, got selector category: {selector.get('category')!r}")
-    return cast(SelectorHtml, selector)
-
-
-def as_selector_image(selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage) -> SelectorImage:
-    if selector.get("category") != "image":
-        raise UiSelectorError(f"Expected SelectorImage, got selector category: {selector.get('category')!r}")
-    return cast(SelectorImage, selector)
 
 
 _ALLOWED_SELECTOR_ROOT_KEYS = {"window", "category", "specification"}
@@ -229,6 +212,13 @@ def _validate_text_value_items(
 
 
 def validate_selector(selector: object) -> None:
+    """
+    Validate selector structure.
+
+    Raises:
+        UiSelectorError: If the selector structure is invalid.
+    """
+
     if not isinstance(selector, dict):
         raise UiSelectorError(f"selector should be a dictionary, got {type(selector).__name__}.")
 
@@ -340,3 +330,60 @@ def validate_selector(selector: object) -> None:
                 allowedValues=_BOOL_TEXT_VALUES,
                 selectorPartName="selector.specification[0]",
             )
+
+
+def ensure_selector(value: object) -> Selector:
+    validate_selector(selector=value)
+    return cast(Selector, value)
+
+
+def is_selector_window(selector: Selector) -> TypeIs[SelectorWindow]:
+    return selector.get("category") is None
+
+
+def is_selector_uia(selector: Selector) -> TypeIs[SelectorUia]:
+    return selector.get("category") == "uia"
+
+
+def is_selector_html(selector: Selector) -> TypeIs[SelectorHtml]:
+    return selector.get("category") == "html"
+
+
+def is_selector_image(selector: Selector) -> TypeIs[SelectorImage]:
+    return selector.get("category") == "image"
+
+
+def ensure_selector_window(value: object) -> SelectorWindow:
+    selector = ensure_selector(value)
+
+    if is_selector_window(selector):
+        return selector
+
+    raise UiSelectorError(f"Expected SelectorWindow, got selector category: {selector.get('category')!r}.")
+
+
+def ensure_selector_uia(value: object) -> SelectorUia:
+    selector = ensure_selector(value)
+
+    if is_selector_uia(selector):
+        return selector
+
+    raise UiSelectorError(f"Expected SelectorUia, got selector category: {selector.get('category')!r}.")
+
+
+def ensure_selector_html(value: object) -> SelectorHtml:
+    selector = ensure_selector(value)
+
+    if is_selector_html(selector):
+        return selector
+
+    raise UiSelectorError(f"Expected SelectorHtml, got selector category: {selector.get('category')!r}.")
+
+
+def ensure_selector_image(value: object) -> SelectorImage:
+    selector = ensure_selector(value)
+
+    if is_selector_image(selector):
+        return selector
+
+    raise UiSelectorError(f"Expected SelectorImage, got selector category: {selector.get('category')!r}.")

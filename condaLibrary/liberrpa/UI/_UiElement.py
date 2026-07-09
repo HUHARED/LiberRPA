@@ -29,15 +29,16 @@ from liberrpa.UI._UiDict import (
     SelectorUia,
     SelectorHtml,
     SelectorImage,
+    Selector,
 )
 from liberrpa.Basic import delay
 import liberrpa.Common._Chrome as _Chrome
 from liberrpa.UI._Overlay import create_overlay
 from liberrpa.UI._Image import find_image
 from liberrpa.UI._SelectorValidation import (
-    as_selector_uia,
-    as_selector_html,
-    as_selector_image,
+    ensure_selector_uia,
+    ensure_selector_html,
+    ensure_selector_image,
     validate_selector,
 )
 
@@ -285,7 +286,7 @@ def get_element(selector: SelectorImage) -> tuple[None, DictImageAttr]: ...
 
 
 def get_element(
-    selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
+    selector: Selector,
 ) -> tuple[uiautomation.Control, DictUiaAttr] | tuple[None, DictHtmlAttr] | tuple[None, DictImageAttr]:
     """Get a control or html and its attributes dictionary by selector, so the following code can use them."""
 
@@ -311,7 +312,7 @@ def get_element(
         match selector.get("category"):
             case "uia":
                 controlTemp = get_child_control_by_selector(
-                    selectorUiaPart=as_selector_uia(selector=selector)["specification"], controlTop=controlTop
+                    selectorUiaPart=ensure_selector_uia(selector)["specification"], controlTop=controlTop
                 )
                 if _CommonValue.boolHighlightUi:
                     create_overlay(
@@ -329,7 +330,7 @@ def get_element(
 
                 # The target window has been activated. Call the Chrome module to get the attributes.
                 dictAttr: DictHtmlAttr = _Chrome.get_element_attr_by_selector(
-                    htmlSelector=as_selector_html(selector=selector)["specification"]
+                    htmlSelector=ensure_selector_html(selector)["specification"]
                 )
 
                 if _CommonValue.boolHighlightUi:
@@ -348,7 +349,7 @@ def get_element(
                     )
                 return (None, dictAttr)
             case "image":
-                selectorTemp: SelectorImage = as_selector_image(selector)
+                selectorTemp: SelectorImage = ensure_selector_image(selector)
                 if len(selectorTemp["specification"]) != 1:
                     raise ValueError(
                         f"It should have only one dictionary in 'specification', but it has {len(selectorTemp['specification'])}"
@@ -416,7 +417,7 @@ def get_element_with_pre_delay(
 
 
 def get_element_with_pre_delay(
-    selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
+    selector: Selector,
     preDelay: int = 300,
 ) -> tuple[uiautomation.Control, DictUiaAttr] | tuple[None, DictHtmlAttr] | tuple[None, DictImageAttr]:
     """Calculate the time-consuming of get element, if it's more than preDelay, didn't need to delay."""
@@ -431,7 +432,7 @@ def get_element_with_pre_delay(
     return temp
 
 
-def activate_element_window(selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage) -> None:
+def activate_element_window(selector: Selector) -> None:
 
     validate_selector(selector=selector)
 

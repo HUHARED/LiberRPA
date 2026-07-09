@@ -20,9 +20,10 @@ from liberrpa.UI._UiDict import (
     SelectorUia,
     SelectorHtml,
     SelectorImage,
+    Selector,
 )
 from liberrpa.Common._TypedValue import StrPath
-from liberrpa.UI._SelectorValidation import as_selector_uia, as_selector_html, validate_selector
+from liberrpa.UI._SelectorValidation import ensure_selector_uia, ensure_selector_html, validate_selector
 from liberrpa.UI._TerminableThread import timeout_kill_thread
 from liberrpa.UI._OperationLock import lock_ui_operation
 from liberrpa.Common._Exception import (
@@ -71,7 +72,7 @@ def _decrease_timeout_with_retry_delay(timeout: int, timeStart: float) -> int:
 
 
 def _highlight(
-    selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
+    selector: Selector,
     color: str = "red",
     duration: int = 1000,
     preDelay: int = 300,
@@ -94,7 +95,7 @@ def _highlight(
 @Log.trace()
 @lock_ui_operation
 def highlight(
-    selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
+    selector: Selector,
     color: Literal["red", "green", "blue", "yellow", "purple", "pink", "black"] = "red",
     duration: int = 1000,
     timeout: int = 10000,
@@ -124,7 +125,7 @@ def highlight(
 
 
 def _screenshot(
-    selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
+    selector: Selector,
     saveFilePath: StrPath,
     offsetX: int = 0,
     offsetY: int = 0,
@@ -180,7 +181,7 @@ def _screenshot(
 @Log.trace()
 @lock_ui_operation
 def screenshot(
-    selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
+    selector: Selector,
     saveFilePath: StrPath,
     offsetX: int = 0,
     offsetY: int = 0,
@@ -287,7 +288,7 @@ def get_image_position(
 
 
 def _check_exists(
-    selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
+    selector: Selector,
 ) -> bool:
 
     try:
@@ -301,7 +302,7 @@ def _check_exists(
 @Log.trace()
 @lock_ui_operation
 def check_exists(
-    selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
+    selector: Selector,
     timeout: int = 10000,
     preDelay: int = 300,
     postDelay: int = 200,
@@ -366,7 +367,7 @@ def check_exists(
 @Log.trace()
 @lock_ui_operation
 def wait_appear(
-    selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
+    selector: Selector,
     timeout: int = 10000,
     preDelay: int = 300,
     postDelay: int = 200,
@@ -431,7 +432,7 @@ def wait_appear(
 @Log.trace()
 @lock_ui_operation
 def wait_disappear(
-    selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
+    selector: Selector,
     timeout: int = 10000,
     preDelay: int = 300,
     postDelay: int = 200,
@@ -527,7 +528,7 @@ def _get_parent(
             "window": selector["window"],
             "category": "html",
             "specification": get_parent_element_attr(
-                htmlSelector=as_selector_html(selector=selector)["specification"],
+                htmlSelector=ensure_selector_html(selector)["specification"],
                 upwardLevel=upwardLevel,
                 preDelay=preDelay,
                 timeout=timeout,
@@ -626,7 +627,7 @@ def _get_children(
         _UiElement.activate_element_window(selector=selector)
 
         listSpecification: list[DictSpecHtml] = get_children_element_attr(
-            htmlSelector=as_selector_html(selector=selector)["specification"],
+            htmlSelector=ensure_selector_html(selector)["specification"],
             preDelay=preDelay,
             timeout=timeout,
         )
@@ -647,7 +648,7 @@ def _get_children(
         # uia
         listControlChildren = get_children_control_recursive(control=uiTarget)
         listSelectorsUia: list[SelectorUia] = [
-            as_selector_uia(selector=_UiElement.get_control_selector(control=childControl))
+            ensure_selector_uia(_UiElement.get_control_selector(control=childControl))
             for childControl in listControlChildren
         ]
 
@@ -708,7 +709,7 @@ def get_children(
 
 
 def _get_attr_dictionary(
-    selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
+    selector: Selector,
     preDelay: int = 300,
     postDelay: int = 200,
 ) -> DictUiaAttr | DictHtmlAttr | DictImageAttr:
@@ -748,7 +749,7 @@ def get_attr_dictionary(
 @Log.trace()
 @lock_ui_operation
 def get_attr_dictionary(
-    selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
+    selector: Selector,
     timeout: int = 10000,
     preDelay: int = 300,
     postDelay: int = 200,
@@ -889,7 +890,7 @@ def _set_text(
         _UiElement.activate_element_window(selector=selector)
 
         Chrome_set_element_text(
-            htmlSelector=as_selector_html(selector=selector)["specification"],
+            htmlSelector=ensure_selector_html(selector)["specification"],
             text=text,
             clearBeforeWrite=True,
             validateText=False,
@@ -1045,7 +1046,7 @@ def _set_check_state(
         # NOTE: Project highlightUI setting will not work for it. (Because the part not only get attributes.)
 
         Chrome_set_check_state(
-            htmlSelector=as_selector_html(selector=selector)["specification"],
+            htmlSelector=ensure_selector_html(selector)["specification"],
             checkAction=checkAction,
             preDelay=preDelay,
             timeout=timeout,
@@ -1146,7 +1147,7 @@ def _get_selection(
 
     # NOTE: Project highlightUI setting will not work for it. (Because the part not only get attributes.)
 
-    selectorHtml = as_selector_html(selector)
+    selectorHtml = ensure_selector_html(selector)
     selectionTemp = Chrome_get_selection(
         htmlSelector=selectorHtml["specification"],
         selectionType=selectionType,
@@ -1244,7 +1245,7 @@ def _set_selection(
         raise UiOperationError("Can only set selected value for html <select> element.")
 
     # NOTE: Project highlightUI setting will not work for it. (Because the part not only get attributes.)
-    selectorHtml = as_selector_html(selector)
+    selectorHtml = ensure_selector_html(selector)
     Chrome_set_selection(
         htmlSelector=selectorHtml["specification"],
         text=text,

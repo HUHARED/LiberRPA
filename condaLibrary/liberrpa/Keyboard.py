@@ -11,7 +11,7 @@ from liberrpa.Common._TypedValue import ExecutionMode, InputKey
 from liberrpa.UI._UiDict import SelectorWindow, SelectorUia, SelectorHtml
 from liberrpa.UI._TerminableThread import timeout_kill_thread
 from liberrpa.UI._OperationLock import lock_ui_operation
-from liberrpa.UI._SelectorValidation import as_selector_html
+from liberrpa.UI._SelectorValidation import ensure_selector_html
 from liberrpa.Common._Exception import UiOperationError
 from liberrpa.Mouse import _get_5_coordinates
 from liberrpa.Common._Chrome import set_element_text, focus_element
@@ -210,7 +210,7 @@ def _write_text_into_element(
     if selector.get("category") == "html" and executionMode == "api":
         _UiElement.activate_element_window(selector=selector)
         set_element_text(
-            htmlSelector=as_selector_html(selector=selector)["specification"],
+            htmlSelector=ensure_selector_html(selector)["specification"],
             text=text,
             clearBeforeWrite=clearBeforeWrite,
             validateText=validateText,
@@ -381,7 +381,7 @@ def _type_key_in_element(
     if selector.get("category") == "html":
         _UiElement.activate_element_window(selector=selector)
         focus_element(
-            htmlSelector=as_selector_html(selector=selector)["specification"],
+            htmlSelector=ensure_selector_html(selector)["specification"],
             preDelay=preDelay,
             timeout=timeout,
         )

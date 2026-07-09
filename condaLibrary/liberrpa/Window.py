@@ -11,9 +11,7 @@ from liberrpa.UI._UiDict import (
     DictPositionAndSize,
     DictUiaSecondaryAttr,
     SelectorWindow,
-    SelectorUia,
-    SelectorHtml,
-    SelectorImage,
+    Selector,
 )
 from liberrpa.UI._SelectorValidation import validate_selector
 from liberrpa.UI._TerminableThread import timeout_kill_thread
@@ -29,7 +27,7 @@ from typing import Literal, cast
 
 
 def _extract_window_element(
-    selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
+    selector: Selector,
 ) -> SelectorWindow:
     validate_selector(selector=selector)
     selectorWindow: SelectorWindow = {"window": selector["window"]}
@@ -37,7 +35,7 @@ def _extract_window_element(
 
 
 def _close_window(
-    selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
+    selector: Selector,
     preDelay: int = 300,
     postDelay: int = 200,
 ) -> None:
@@ -63,7 +61,7 @@ def _close_window(
 @Log.trace()
 @lock_ui_operation
 def close_window(
-    selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
+    selector: Selector,
     timeout: int = 10000,
     preDelay: int = 300,
     postDelay: int = 200,
@@ -89,7 +87,7 @@ def close_window(
 @Log.trace()
 @lock_ui_operation
 def check_window_exists(
-    selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
+    selector: Selector,
     timeout: int = 10000,
     preDelay: int = 300,
     postDelay: int = 200,
@@ -139,7 +137,7 @@ def get_active_window() -> SelectorWindow:
 
 @Log.trace()
 @lock_ui_operation
-def activate_element_window(selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage) -> None:
+def activate_element_window(selector: Selector) -> None:
     """
     Activate the element's window.
 
@@ -150,7 +148,7 @@ def activate_element_window(selector: SelectorWindow | SelectorUia | SelectorHtm
 
 
 def _set_window_state(
-    selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
+    selector: Selector,
     state: Literal["normal", "maximize", "minimize"] = "maximize",
     preDelay: int = 300,
     postDelay: int = 200,
@@ -187,7 +185,7 @@ def _set_window_state(
 @Log.trace()
 @lock_ui_operation
 def set_window_state(
-    selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
+    selector: Selector,
     state: Literal["normal", "maximize", "minimize"] = "maximize",
     timeout: int = 10000,
     preDelay: int = 300,
@@ -214,7 +212,7 @@ def set_window_state(
 
 
 def _get_window_position_and_size(
-    selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
+    selector: Selector,
     preDelay: int = 300,
     postDelay: int = 200,
 ) -> DictPositionAndSize:
@@ -236,7 +234,7 @@ def _get_window_position_and_size(
 @Log.trace()
 @lock_ui_operation
 def get_window_position_and_size(
-    selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
+    selector: Selector,
     timeout: int = 10000,
     preDelay: int = 300,
     postDelay: int = 200,
@@ -263,7 +261,7 @@ def get_window_position_and_size(
 
 
 def _set_window_position(
-    selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
+    selector: Selector,
     x: int,
     y: int,
     preDelay: int = 300,
@@ -290,7 +288,7 @@ def _set_window_position(
 @Log.trace()
 @lock_ui_operation
 def set_window_position(
-    selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
+    selector: Selector,
     x: int,
     y: int,
     timeout: int = 10000,
@@ -320,7 +318,7 @@ def set_window_position(
 
 
 def _set_window_size(
-    selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
+    selector: Selector,
     width: int,
     height: int,
     preDelay: int = 300,
@@ -347,7 +345,7 @@ def _set_window_size(
 @Log.trace()
 @lock_ui_operation
 def set_window_size(
-    selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
+    selector: Selector,
     width: int,
     height: int,
     timeout: int = 10000,
@@ -378,7 +376,7 @@ def set_window_size(
 
 
 def _get_window_pid(
-    selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
+    selector: Selector,
     preDelay: int = 300,
     postDelay: int = 200,
 ) -> int:
@@ -395,7 +393,7 @@ def _get_window_pid(
 @Log.trace()
 @lock_ui_operation
 def get_window_pid(
-    selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
+    selector: Selector,
     timeout: int = 10000,
     preDelay: int = 300,
     postDelay: int = 200,
@@ -423,7 +421,7 @@ def get_window_pid(
 
 
 def _get_window_file_path(
-    selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
+    selector: Selector,
     preDelay: int = 300,
     postDelay: int = 200,
 ) -> str:
@@ -440,7 +438,7 @@ def _get_window_file_path(
 @Log.trace()
 @lock_ui_operation
 def get_window_file_path(
-    selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
+    selector: Selector,
     timeout: int = 10000,
     preDelay: int = 300,
     postDelay: int = 200,

@@ -18,12 +18,9 @@ from liberrpa.UI._UiDict import (
     DictHtmlAttr,
     DictImageAttr,
     DictPosition,
-    SelectorWindow,
-    SelectorUia,
-    SelectorHtml,
-    SelectorImage,
+    Selector,
 )
-from liberrpa.UI._SelectorValidation import as_selector_html
+from liberrpa.UI._SelectorValidation import ensure_selector_html
 from liberrpa.UI._TerminableThread import timeout_kill_thread
 from liberrpa.UI._OperationLock import lock_ui_operation
 from liberrpa.Common._Exception import UiOperationError
@@ -96,7 +93,7 @@ def get_mouse_position() -> DictPosition:
 
 
 def _click_element(
-    selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
+    selector: Selector,
     offsetX: int = 0,
     offsetY: int = 0,
     button: MouseButton = "left",
@@ -131,7 +128,7 @@ def _click_element(
             )
         _UiElement.activate_element_window(selector=selector)
         click_mouse_event(
-            htmlSelector=as_selector_html(selector=selector)["specification"],
+            htmlSelector=ensure_selector_html(selector)["specification"],
             button=button,
             clickMode=clickMode,
             pressCtrl=pressCtrl,
@@ -228,7 +225,7 @@ def _click_element(
 @Log.trace()
 @lock_ui_operation
 def click_element(
-    selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
+    selector: Selector,
     offsetX: int = 0,
     offsetY: int = 0,
     button: MouseButton = "left",
@@ -286,7 +283,7 @@ def click_element(
 
 
 def _move_to_element(
-    selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
+    selector: Selector,
     offsetX: int = 0,
     offsetY: int = 0,
     position: FivePosition = "center",
@@ -313,7 +310,7 @@ def _move_to_element(
 @Log.trace()
 @lock_ui_operation
 def move_to_element(
-    selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage,
+    selector: Selector,
     offsetX: int = 0,
     offsetY: int = 0,
     position: FivePosition = "center",

@@ -323,6 +323,9 @@ class SelectorImage(SelectorWindow):
     specification: list[DictSpecImage]
 
 
+type Selector = SelectorWindow | SelectorUia | SelectorHtml | SelectorImage
+
+
 class DictElementTreeItem(TypedDict):
     id: int
     title: str
