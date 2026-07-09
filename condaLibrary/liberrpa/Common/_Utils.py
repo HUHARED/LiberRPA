@@ -11,6 +11,7 @@ import os
 import re
 import multiprocessing
 
+
 # Use it to replace all os.getcwd(), to avoid influence caused by os.chdir() that users execute.
 PATH_PROJECT_ROOT = Path.cwd().resolve()
 STR_PROJECT_ROOT: str = str(PATH_PROJECT_ROOT)
@@ -48,6 +49,23 @@ def _normalize_filepath(filePath: StrPath) -> str:
         return normalized
 
     return f"./{normalized}"
+
+
+def _is_empty_path(path: StrPath) -> bool:
+    return isinstance(path, str) and path == ""
+
+
+def normalize_attachment_paths(attachments: StrPath | list[StrPath] | None) -> list[str]:
+    if attachments is None:
+        return []
+
+    if isinstance(attachments, list):
+        return [str(Path(path).absolute()) for path in attachments if not _is_empty_path(path)]
+
+    if _is_empty_path(attachments):
+        return []
+
+    return [str(Path(attachments).absolute())]
 
 
 if __name__ == "__main__":

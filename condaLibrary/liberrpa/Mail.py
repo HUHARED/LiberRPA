@@ -7,6 +7,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from liberrpa.Logging import Log
 from liberrpa.Common._TypedValue import DictImapMailInfo, StrPath
+from liberrpa.Common._Utils import normalize_attachment_paths
 from liberrpa.Common._Exception import MailError
 from imapclient import IMAPClient
 from mailparser import parse_from_bytes, MailParser
@@ -26,7 +27,7 @@ def send_by_SMTP(
     content: str,
     host: str,
     port: int = 465,
-    attachments: str | list[str] | Path | None = None,
+    attachments: StrPath | list[StrPath] | None = None,
     cc: str | list[str] | None = None,
     bcc: str | list[str] | None = None,
     bodyFormat: Literal["text", "html"] = "text",
@@ -34,35 +35,50 @@ def send_by_SMTP(
     encoding: str = "utf-8",
 ) -> None:
     """
-    Sends an email via SMTP with optional attachments and HTML content.
+    Send an email via SMTP.
 
     Parameters:
         user: The SMTP username.
         password: The SMTP password.
-        to: Recipient email address or list of addresses.
+        to: Recipient email address.
         subject: Email subject.
         content: Main email body content. Can be plain text or HTML.
         host: SMTP server host.
         port: SMTP server port.
-        attachments: File path or list of file paths to be attached.
+        attachments: File path or list of file paths to attach. Accepts str or PathLike[str].
         cc: Email address or list of addresses for CC.
         bcc: Email address or list of addresses for BCC.
-        bodyFormat: The format of the email body ('text' or 'html').
+        bodyFormat: The format of the email body, either "text" or "html".
         ssl: Use SSL for the SMTP connection.
         encoding: Character encoding for the email.
     """
+    attachmentsNormalized = normalize_attachment_paths(attachments)
+
     yag = yagmail.SMTP(user=user, password=password, host=host, port=port, smtp_ssl=ssl, encoding=encoding)
+
     match bodyFormat:
         case "text":
             yag.send(
-                to=to, subject=subject, contents=content, attachments=attachments, cc=cc, bcc=bcc, prettify_html=False
+                to=to,
+                subject=subject,
+                contents=content,
+                attachments=attachmentsNormalized or None,
+                cc=cc,
+                bcc=bcc,
+                prettify_html=False,
             )
         case "html":
             yag.send(
-                to=to, subject=subject, contents=content, attachments=attachments, cc=cc, bcc=bcc, prettify_html=True
+                to=to,
+                subject=subject,
+                contents=content,
+                attachments=attachmentsNormalized or None,
+                cc=cc,
+                bcc=bcc,
+                prettify_html=True,
             )
         case _:
-            raise ValueError("The argument bodyFormat should be 'text' or 'html'.")
+            raise ValueError('The argument bodyFormat should be "text" or "html".')
 
 
 @Log.trace()

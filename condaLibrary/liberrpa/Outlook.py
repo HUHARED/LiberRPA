@@ -7,10 +7,19 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from liberrpa.Logging import Log
 from liberrpa.Common._TypedValue import DictOutlookMailInfo, StrPath
+from liberrpa.Common._Utils import normalize_attachment_paths
 import win32com.client
 from pathlib import Path
 from typing import Literal
 from datetime import datetime
+
+
+def _add_attachments(
+    mailObj: win32com.client.CDispatch,
+    attachments: StrPath | list[StrPath] | None,
+) -> None:
+    for path in normalize_attachment_paths(attachments):
+        mailObj.Attachments.Add(path)
 
 
 @Log.trace()
@@ -20,7 +29,7 @@ def send_email(
     subject: str,
     body: str,
     bodyFormat: Literal["text", "html"] = "text",
-    attachments: str | list[str] | None = None,
+    attachments: StrPath | list[StrPath] | None = None,
     cc: str | None = None,
     bcc: str | None = None,
 ) -> None:
@@ -28,16 +37,15 @@ def send_email(
     Send an email using a specified Outlook account.
 
     Parameters:
-        account: The email address of the account to send the email from.
-        to: A semicolon-separated string of the recipient(s) of the email.
-        subject: The subject of the email.
-        body: The body content of the email.
-        bodyFormat: The format of the email body ('text' or 'html').
-        attachments: Path(s) to file(s) to attach. Can be a single path, a list of paths or None.
-        cc: A semicolon-separated string of the CC recipient(s) of the email.
-        bcc: A semicolon-separated string of the BCC recipient(s) of the email.
+        account: The email address of the Outlook account to send the email from.
+        to: A semicolon-separated string of recipient email addresses.
+        subject: The email subject.
+        body: The email body content.
+        bodyFormat: The format of the email body, either "text" or "html".
+        attachments: File path or list of file paths to attach. Accepts str or PathLike[str].
+        cc: A semicolon-separated string of CC recipient email addresses.
+        bcc: A semicolon-separated string of BCC recipient email addresses.
     """
-
     outlook = win32com.client.Dispatch("Outlook.Application")
     mapi = outlook.GetNamespace("MAPI")
 
@@ -46,6 +54,7 @@ def send_email(
         if acc.SmtpAddress.lower() == account.lower():
             selectAccount = acc
             break
+
     if not selectAccount:
         raise ValueError(f"No account found for email: {account}")
 
@@ -57,6 +66,7 @@ def send_email(
         mail.CC = cc
     if bcc is not None:
         mail.BCC = bcc
+
     mail.Subject = subject
 
     match bodyFormat:
@@ -65,18 +75,9 @@ def send_email(
         case "html":
             mail.HTMLBody = body
         case _:
-            raise ValueError("The argument bodyFormat should be 'text' or 'html'.")
+            raise ValueError('The argument bodyFormat should be "text" or "html".')
 
-    if isinstance(attachments, str):
-        if attachments != "":
-            mail.Attachments.Add(str(Path(attachments).absolute()))
-    elif isinstance(attachments, list):
-        for strPath in attachments:
-            if strPath != "":
-                mail.Attachments.Add(str(Path(strPath).absolute()))
-    else:
-        # None
-        pass
+    _add_attachments(mailObj=mail, attachments=attachments)
 
     mail.Send()
 
@@ -254,24 +255,24 @@ def reply_to_email(
     emailObj: win32com.client.CDispatch,
     body: str,
     bodyFormat: Literal["text", "html"] = "text",
-    attachments: str | list[str] | None = None,
+    attachments: StrPath | list[StrPath] | None = None,
     replyAll: bool = True,
     newSubject: str | None = None,
 ) -> None:
     """
-    Reply an email.
+    Reply to an email.
 
     Parameters:
-        emailObj: The win32com.client.CDispatch objects to reply.
-        body: The body content of the email.
-        bodyFormat: The format of the email body ('text' or 'html').
-        attachments: Path(s) to file(s) to attach. Can be a single path ,a list of paths or None.
-        replyAll: Whether to reply all recipients.
-        newSubject: A custom subject for the reply.
+        emailObj: The Outlook email object to reply to.
+        body: The reply body content.
+        bodyFormat: The format of the email body, either "text" or "html".
+        attachments: File path or list of file paths to attach. Accepts str or PathLike[str].
+        replyAll: If True, replies to all recipients. If False, replies only to the sender.
+        newSubject: A custom subject for the reply. If None or empty, keeps Outlook's default reply subject.
     """
     reply: win32com.client.CDispatch = emailObj.ReplyAll() if replyAll else emailObj.Reply()
 
-    if newSubject is not None and newSubject != "":
+    if newSubject:
         reply.Subject = newSubject
 
     match bodyFormat:
@@ -280,18 +281,9 @@ def reply_to_email(
         case "html":
             reply.HTMLBody = body + reply.HTMLBody
         case _:
-            raise ValueError("The argument bodyFormat should be 'text' or 'html'.")
+            raise ValueError('The argument bodyFormat should be "text" or "html".')
 
-    if isinstance(attachments, str):
-        if attachments != "":
-            reply.Attachments.Add(str(Path(attachments).absolute()))
-    elif isinstance(attachments, list):
-        for strPath in attachments:
-            if strPath != "":
-                reply.Attachments.Add(str(Path(strPath).absolute()))
-    else:
-        # None
-        pass
+    _add_attachments(mailObj=reply, attachments=attachments)
 
     reply.Send()
 
