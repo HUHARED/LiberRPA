@@ -28,13 +28,28 @@ class DictAuth(TypedDict):
 
 
 def _read_basic_config_dict() -> DictBasicConfig:
-    return cast(
-        DictBasicConfig,
-        json5.loads(
-            Path(get_liberrpa_folder_path())
-            .joinpath("configFiles/basic.jsonc")
-            .read_text(encoding="utf-8", errors="strict")
-        ),
+    value = json5.loads(
+        Path(get_liberrpa_folder_path())
+        .joinpath("configFiles/basic.jsonc")
+        .read_text(encoding="utf-8", errors="strict")
+    )
+
+    if (
+        isinstance(value, dict)
+        and set(value) == {"outputLogPath", "localServerPort", "uiAnalyzerTheme", "uiAnalyzerMinimizeWindow"}
+        and isinstance(value.get("outputLogPath"), str)
+        and isinstance(value.get("localServerPort"), int)
+        and not isinstance(value.get("localServerPort"), bool)
+        and 1 <= value["localServerPort"] <= 65535
+        and value.get("uiAnalyzerTheme") in ("light", "dark")
+        and isinstance(value.get("uiAnalyzerMinimizeWindow"), bool)
+    ):
+        return cast(DictBasicConfig, value)
+
+    raise ValueError(
+        "Invalid 'basic.jsonc'. Expected keys: "
+        "outputLogPath(str), localServerPort(int 1-65535), "
+        "uiAnalyzerTheme('light'|'dark'), uiAnalyzerMinimizeWindow(bool)."
     )
 
 
@@ -72,24 +87,7 @@ def get_basic_config_dict() -> DictBasicConfig:
 
 
 def get_local_server_port() -> int:
-
-    dictBasicConfig = _read_basic_config_dict()
-
-    try:
-        port = dictBasicConfig["localServerPort"]
-
-    except KeyError:
-        raise KeyError(
-            "'localServerPort' was not found in basic.jsonc.\nPlease run InitLiberRPA.exe to initialize LiberRPA."
-        )
-
-    if not isinstance(port, int):
-        raise TypeError("'localServerPort' in basic.jsonc must be an integer.")
-
-    if not 1 <= port <= 65535:
-        raise ValueError("'localServerPort' in basic.jsonc must be between 1 and 65535.")
-
-    return port
+    return _read_basic_config_dict()["localServerPort"]
 
 
 def get_token(clientType: Literal["python", "chrome", "uiAnalyzer"]) -> str:
@@ -101,13 +99,18 @@ def get_token(clientType: Literal["python", "chrome", "uiAnalyzer"]) -> str:
             "WebSocketAuth.json was not found. Please run InitLiberRPA.exe to initialize or update LiberRPA."
         )
 
-    dictAuth: DictAuth = cast(DictAuth, json5.loads(pathAuthFile.read_text(encoding="utf-8")))
-    try:
-        return dictAuth[clientType]
-    except KeyError:
-        raise KeyError(
-            f"Token for client type {clientType!r} was not found in WebSocketAuth.json.\nPlease run InitLiberRPA.exe to refresh local WebSocket auth tokens."
-        )
+    value = json5.loads(pathAuthFile.read_text(encoding="utf-8"))
+
+    if (
+        isinstance(value, dict)
+        and set(value) == {"python", "uiAnalyzer", "chrome"}
+        and isinstance(value.get("python"), str)
+        and isinstance(value.get("uiAnalyzer"), str)
+        and isinstance(value.get("chrome"), str)
+    ):
+        return value[clientType]
+    else:
+        raise ValueError("Invalid 'WebSocketAuth.json'. Expected keys: python(str), uiAnalyzer(str), chrome(str).")
 
 
 def get_liberrpa_folder_path() -> str:
