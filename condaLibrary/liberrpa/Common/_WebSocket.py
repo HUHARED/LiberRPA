@@ -7,6 +7,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from liberrpa.Logging import Log
 from liberrpa.Common._BasicConfig import get_local_server_port, get_token
+from liberrpa.Common._ProtocolValidation import ensure_socket_result
 from liberrpa.Common._Exception import ChromeCommandError, ChromeElementNotFoundError, QtError
 from liberrpa.Common._TypedValue import DictSocketResult
 import liberrpa.UI._CommonValue as _CommonValue
@@ -69,12 +70,15 @@ def send_command(eventName: str, command: dict[str, Any], timeout: int | None = 
     eventResponse = threading.Event()
     dictResponseData: dict[str, DictSocketResult] = {}
 
-    def response_handler(data: DictSocketResult) -> None:
-        Log.verbose(f"Data received from server: {data}")
-        dictResponseData["result"] = data
+    def response_handler(data: object) -> None:
+        result = ensure_socket_result(data, source="LiberRPA Local Server")
+        Log.verbose(f"Data received from server: {result}")
+
+        dictResponseData["result"] = result
         eventResponse.set()
-        if data.get("data") == SIGN_START_RECORD_VIDEO:
-            Log.critical(data["data"])
+
+        if result["data"] == SIGN_START_RECORD_VIDEO:
+            Log.critical(result["data"])
 
     try:
         # Protect the shared Socket.IO client.
@@ -115,8 +119,8 @@ def send_command(eventName: str, command: dict[str, Any], timeout: int | None = 
     if dictResult is None:
         raise ValueError("Did not receive a result from LiberRPA Local Server.")
 
-    if not dictResult.get("boolSuccess"):
-        strData = dictResult.get("data")
+    if not dictResult["boolSuccess"]:
+        strData = dictResult["data"]
 
         # More specific error type.
         if eventName == "chrome_command":

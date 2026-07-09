@@ -7,8 +7,8 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 print("=== import _ListenerSocketChrome ===")
 from liberrpa.Logging import Log
+from liberrpa.Common._ProtocolValidation import ensure_socket_result
 from liberrpa.Common._TypedValue import DictSocketResult
-
 from liberrpa.LiberRPALocalServer._ServerInit import sioServer, dictClients, get_client_id
 
 
@@ -17,7 +17,7 @@ import json
 import uuid
 from dataclasses import dataclass
 from threading import Event, Lock
-from typing import Any, cast
+from typing import Any
 
 # Chrome commands use milliseconds for business timeouts.
 # This listener timeout is only a communication fallback.
@@ -149,15 +149,24 @@ def handle_result_from_chrome(message: str) -> None:
 
     # The result from Chrome must have been serialized correctly, so just deserialize it.
     try:
-        dictResult: dict[str, Any] = json.loads(message)
+        rawResult = json.loads(message)
     except Exception as e:
-        # It should not happen.
         Log.exception_info(e)
         return
 
-    strId = dictResult.pop(_SERVER_WAIT_ID_KEY, None)
+    if not isinstance(rawResult, dict):
+        Log.warning(f"Ignore an invalid Chrome result. Expected dict, got {type(rawResult).__name__}.")
+        return
+
+    strId = rawResult.pop(_SERVER_WAIT_ID_KEY, None)
     if not isinstance(strId, str):
         Log.warning("Ignore a Chrome result without a valid command id.")
+        return
+
+    try:
+        dictResult = ensure_socket_result(rawResult, source="Chrome extension")
+    except ValueError as e:
+        Log.warning(str(e))
         return
 
     with _pendingChromeCommandLock:
@@ -169,5 +178,5 @@ def handle_result_from_chrome(message: str) -> None:
             return
 
         Log.debug("Update Chrome command result.")
-        pendingCommand.result = cast(DictSocketResult, dictResult)
+        pendingCommand.result = dictResult
         pendingCommand.event.set()
