@@ -7,7 +7,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 """ The module bases on EasyOCR, calculate by CPU in local machine, so the handle time will increase significantly with image's size. """
 from liberrpa.Logging import Log
-from liberrpa.Common._TypedValue import DictTextBlock
+from liberrpa.Common._TypedValue import DictTextBlock, StrPath
 from liberrpa.Common._BasicConfig import get_liberrpa_folder_path
 
 import os
@@ -116,7 +116,7 @@ def _initialize() -> None:
 
 @Log.trace()
 def get_text_with_position(
-    image: str,
+    image: StrPath,
     modelName: str = "english_default",
     min_size: int = 10,
     low_text: float = 0.4,
@@ -152,7 +152,7 @@ def get_text_with_position(
     The default model "english_default" is actually "english_g2" of EasyOCR. You can add your custom model into the path 'LiberRPA/envs/ocr', put the .pth file in 'model', the .yaml and .py file in '/model/CustomModel', then add the information into 'ocr.jsonc'. Restart LiberRPA Local Server, it will load the model automatically.
 
     Parameters:
-        image: Path to the image file.
+        image: Path to the image file. Accepts str or PathLike[str].
         modelName: The model used for OCR.
         min_size: Minimum text size (in pixel) to detect. Increase it may help to detect more text.
         low_text: Text low-bound score. Increase it may help to detect more text.
@@ -193,10 +193,12 @@ def get_text_with_position(
         _initialize()
 
     if modelName not in _dictReaderCache:
-        raise ValueError(f"OCR model {modelName!r} is not configured. Available models: {list(_dictReaderCache.keys())}")
+        raise ValueError(
+            f"OCR model {modelName!r} is not configured. Available models: {list(_dictReaderCache.keys())}"
+        )
 
     listResult: list[tuple[list[list[int]], str, float]] = _dictReaderCache[modelName].readtext(
-        image=image,
+        image=os.fspath(image),
         decoder=decoder,
         beamWidth=beamWidth,
         batch_size=1,
@@ -251,7 +253,7 @@ def get_text_with_position(
 
 @Log.trace()
 def get_text(
-    image: str,
+    image: StrPath,
     modelName: str = "english_default",
     min_size: int = 10,
     low_text: float = 0.4,
@@ -285,7 +287,7 @@ def get_text(
     If you don't know the arguments' meaning, refer to [EasyOCR api](https://www.jaided.ai/easyocr/documentation/)
 
     Parameters:
-        image: Path to the image file.
+        image: Path to the image file. Accepts str or PathLike[str].
         modelName: The model used for OCR.
         min_size: Minimum text size (in pixel) to detect. Increase it may help to detect more text.
         low_text: Text low-bound score. Increase it may help to detect more text.
@@ -320,10 +322,12 @@ def get_text(
         _initialize()
 
     if modelName not in _dictReaderCache:
-        raise ValueError(f"OCR model {modelName!r} is not configured. Available models: {list(_dictReaderCache.keys())}")
+        raise ValueError(
+            f"OCR model {modelName!r} is not configured. Available models: {list(_dictReaderCache.keys())}"
+        )
 
     listResult: list[list[list[list[int]] | str]] = _dictReaderCache[modelName].readtext(
-        image=image,
+        image=os.fspath(image),
         decoder=decoder,
         beamWidth=beamWidth,
         batch_size=1,
