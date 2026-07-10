@@ -2,7 +2,7 @@
   "name": "liberrpa-snippets-tree",
   "displayName": "LiberRPA Snippets Tree",
   "description": "This extension is part of LiberRPA to insert Python snippets.",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "publisher": "LiberRPA",
   "engines": {
     "vscode": "^1.121.0"
@@ -10,7 +10,9 @@
   "categories": [
     "Snippets"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "onLanguage:python"
+  ],
   "main": "./dist/extension.js",
   "contributes": {
     "viewsContainers": {
@@ -27,23 +29,11 @@
         {
           "type": "tree",
           "id": "LiberRPA.snippetsTreeView",
-          "name": "Snippets Tree"
+          "name": "Snippets Tree",
+          "icon": "./assets/LiberRPA_icon_v2_line.svg"
         }
       ]
-    },
-    "commands": [
-      {
-        "command": "LiberRPA.insertSnippet",
-        "category": "LiberRPA",
-        "title": "Insert Snippet"
-      }
-    ],
-    "snippets": [
-      {
-        "language": "python",
-        "path": "./assets/snippets_final.snippets"
-      }
-    ]
+    }
   },
   "icon": "./assets/LiberRPA_icon_v3_color_SnippetsTree_128.png",
   "license": "SEE LICENSE IN LICENSE",
@@ -65,9 +55,8 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "typescript-eslint": "^8.63.0",
     "@types/mocha": "^10.0.10",
-    "@types/node": "26.x",
+    "@types/node": "^26.1.1",
     "@types/vscode": "^1.121.0",
     "@vscode/test-cli": "^0.0.15",
     "@vscode/test-electron": "^3.0.0",
@@ -75,6 +64,7 @@
     "eslint": "^10.6.0",
     "ts-loader": "^9.6.2",
     "typescript": "^6.0.3",
+    "typescript-eslint": "^8.63.0",
     "webpack": "^5.108.4",
     "webpack-cli": "^7.2.1"
   },

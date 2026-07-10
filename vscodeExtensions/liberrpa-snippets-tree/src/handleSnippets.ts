@@ -1,140 +1,144 @@
 // FileName: handleSnippets.ts
-import { DictSnippetsItem, DictSnippetNodeInfo } from "./interface";
-import { outputChannel } from "./output";
-import * as vscode from "vscode";
+import { log } from "./output";
+import type { ImportManifest, SnippetTotalInfo } from "./interface";
+import { isSnippetsRecord, isImportManifest } from "./typeCheck";
+
 import * as path from "path";
 import * as fs from "fs";
 import * as os from "os";
 import * as jsoncParser from "jsonc-parser";
 
-export function getSnippets(): {
-  [key: string]: { [key: string]: DictSnippetNodeInfo };
-} {
-  // outputChannel.appendLine("--getSnippets--");
-  return { ...getFavoriteSnippets(), ...getDefaultSnippets() };
-}
-
-function getFavoriteSnippets(): {
-  [key: string]: { [key: string]: DictSnippetNodeInfo };
-} {
-  // outputChannel.appendLine("--getFavoriteSnippets--");
-  const strFilePath = path.join(os.homedir(), "Documents/LiberRPA/snippets_favorite.jsonc");
-
-  if (!fs.existsSync(strFilePath)) {
-    outputChannel.appendLine(`${strFilePath} doesn't exist, create it.`);
-
-    const strFileContent = fs.readFileSync(
-      path.join(__dirname, "../assets/snippets_favorite_template.jsonc"),
-      "utf-8"
-    );
-    fs.writeFileSync(strFilePath, strFileContent, { encoding: "utf-8" });
-    // return {};
+function normalizeSnippetBody(body: string[] | string): string[] {
+  if (Array.isArray(body)) {
+    return body;
   }
 
-  const strFileContent = fs.readFileSync(strFilePath, "utf-8");
-  return generateTreeItemFromSnippets(strFileContent, true);
-}
-
-function addDynamicPart(fileContent: string): string {
-  // Get .py files in ./_Utils and ./_Selectors, add them in snippets text. Not including the subfolders.
-
-  // Only work for the first workspace.
-  const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-  if (!workspaceFolder) {
-    outputChannel.appendLine("No workspace folder is open.");
-    return fileContent;
-  }
-
-  function getPythonModules(folderPath: string): string[] {
-    if (!fs.existsSync(folderPath)) {
-      return [];
-    }
-
-    return (
-      fs
-        .readdirSync(folderPath)
-        .filter((file) => file.endsWith(".py"))
-        // Remove .py extension
-        .map((file) => path.parse(file).name)
-    );
-  }
-
-  // Define target folders
-  const utilsPath = path.join(workspaceFolder.uri.fsPath, "_Utils");
-  const selectorPath = path.join(workspaceFolder.uri.fsPath, "_Selectors");
-
-  const utilsModules = getPythonModules(utilsPath);
-  const selectorModules = getPythonModules(selectorPath);
-  const modulesText = [
-    ...utilsModules.map((mod) => `"from _Utils.${mod} import *",`),
-    ...selectorModules.map((mod) => `"from _Selectors.${mod} import *",`),
-  ];
-
-  const strAnchorText = 'Import all from liberrpa",';
-  return fileContent.replace(strAnchorText, strAnchorText + modulesText.join(""));
-}
-
-function getDefaultSnippets(): {
-  [key: string]: { [key: string]: DictSnippetNodeInfo };
-} {
-  // outputChannel.appendLine("--getDefaultSnippets--");
-  const strFileContent = fs.readFileSync(
-    path.join(__dirname, "../assets/snippets_final.snippets"),
-    "utf-8"
-  );
-  // outputChannel.appendLine("strFileContent", strFileContent);
-
-  return generateTreeItemFromSnippets(addDynamicPart(strFileContent), false);
+  return body.split(/\r?\n/);
 }
 
 function generateTreeItemFromSnippets(
   fileContent: string,
-  isFavorite: boolean
-): {
-  [key: string]: { [key: string]: DictSnippetNodeInfo };
-} {
-  // outputChannel.appendLine("--generateTreeItemFromSnippets--");
-  const dictTree: { [key: string]: { [key: string]: DictSnippetNodeInfo } } = {};
-  try {
-    // Replace \t in snippets to 4 space.(\t in description will also be replaced.)
-    fileContent = fileContent.replace(/\t/g, "    ");
-    const dictSnippets: {
-      [key: string]: DictSnippetsItem;
-    } = jsoncParser.parse(fileContent);
+  isFavorite: boolean,
+  importManifest: ImportManifest,
+): Record<string, Record<string, SnippetTotalInfo>> {
+  const dictTree: Record<string, Record<string, SnippetTotalInfo>> = {};
 
-    for (const [strTitle, dictSnippet] of Object.entries(dictSnippets)) {
-      // Split Category name and Snippet name if it is not favorite snippets.
+  fileContent = fileContent.replace(/\t/g, "    ");
 
-      let strCategoryName: string;
-      let strSnippetName: string;
-      if (isFavorite) {
-        strCategoryName = "Favorite";
-        strSnippetName = strTitle;
-      } else {
-        const intDotIndex = strTitle.indexOf(".");
-        strCategoryName =
-          intDotIndex !== -1 ? strTitle.substring(0, intDotIndex) : strTitle;
-        strSnippetName =
-          intDotIndex !== -1
-            ? strTitle.substring(intDotIndex + 1, strTitle.length)
-            : strTitle;
-      }
+  const parsedSnippets: unknown = jsoncParser.parse(fileContent);
 
-      if (!dictTree[strCategoryName]) {
-        dictTree[strCategoryName] = {};
-      }
+  if (!isSnippetsRecord(parsedSnippets)) {
+    throw new Error("Invalid snippets file structure.");
+  }
 
-      dictTree[strCategoryName][strSnippetName] = {
-        body: dictSnippet.body,
-        description:
-          dictSnippet.description ??
-          "There is no description. Maybe it's enough to see the name of the function?",
-      };
+  const dictSnippets = parsedSnippets;
+
+  for (const [strKey, dictSnippetDetail] of Object.entries(dictSnippets)) {
+    let strCategoryName: string;
+    let strSnippetLabel: string;
+
+    if (isFavorite) {
+      strCategoryName = "Favorite";
+      // Keep the original key as the label for favorite snippets.
+      strSnippetLabel = strKey;
+    } else {
+      // Use the text before "." as the category's name. Use the text after "." as the children node's name.
+      const intDotIndex = strKey.indexOf(".");
+
+      strCategoryName = intDotIndex !== -1 ? strKey.substring(0, intDotIndex) : strKey;
+      strSnippetLabel = intDotIndex !== -1 ? strKey.substring(intDotIndex + 1) : strKey;
     }
 
-    return dictTree;
-  } catch (e) {
-    console.error("An error occured:", e);
-    return {};
+    // Create the category group.
+    if (!dictTree[strCategoryName]) {
+      dictTree[strCategoryName] = {};
+    }
+
+    // Add children into the category group.
+    dictTree[strCategoryName][strSnippetLabel] = {
+      // Store all metadata needed by TreeView, IntelliSense, and import management.
+      title: strKey,
+      prefix: dictSnippetDetail.prefix,
+      body: normalizeSnippetBody(dictSnippetDetail.body),
+      description:
+        dictSnippetDetail.description ??
+        "There is no description. Maybe it's enough to see the name of the function?",
+      importNames: importManifest.items[strKey] ?? [],
+    };
   }
+
+  log.debug(
+    `[Snippets]Loaded ${Object.values(dictTree).reduce((total, category) => total + Object.keys(category).length, 0)} snippets from ${isFavorite ? "favorite" : "default"} snippets.`,
+  );
+
+  return dictTree;
+}
+
+function getFavoriteSnippets(importManifest: ImportManifest): {
+  [key: string]: { [key: string]: SnippetTotalInfo };
+} {
+  const strFilePath = path.join(os.homedir(), "Documents/LiberRPA/snippets_favorite.jsonc");
+
+  if (!fs.existsSync(strFilePath)) {
+    log.info(`${strFilePath} doesn't exist, create it.`);
+
+    const strFileContent = fs.readFileSync(
+      path.join(__dirname, "../assets/snippets_favorite_template.jsonc"),
+      "utf-8",
+    );
+    fs.writeFileSync(strFilePath, strFileContent, { encoding: "utf-8" });
+  }
+
+  const strFileContent = fs.readFileSync(strFilePath, "utf-8");
+  return generateTreeItemFromSnippets(strFileContent, true, importManifest);
+}
+
+function getDefaultSnippets(importManifest: ImportManifest): {
+  [key: string]: { [key: string]: SnippetTotalInfo };
+} {
+  const strFileContent = fs.readFileSync(
+    path.join(__dirname, "../assets/snippets_final.snippets"),
+    "utf-8",
+  );
+
+  return generateTreeItemFromSnippets(strFileContent, false, importManifest);
+}
+
+export function getSnippets(): {
+  [key: string]: { [key: string]: SnippetTotalInfo };
+} {
+  const importManifest = getImportManifest();
+  return {
+    ...getFavoriteSnippets(importManifest),
+    ...getDefaultSnippets(importManifest),
+  };
+}
+
+export function getImportManifest(): ImportManifest {
+  const manifestPath = path.join(__dirname, "../assets/import_manifest.json");
+
+  if (!fs.existsSync(manifestPath)) {
+    log.error(
+      `import_manifest.json was not found: ${manifestPath}. Managed imports will be disabled.`,
+    );
+
+    return {
+      importSource: "liberrpa.Modules",
+      importOrder: [],
+      items: {},
+    };
+  }
+
+  const value: unknown = JSON.parse(fs.readFileSync(manifestPath, "utf-8"));
+
+  if (!isImportManifest(value)) {
+    throw new Error(`Invalid import_manifest.json: ${manifestPath}`);
+  }
+
+  // TODO: More "import_manifest.json" would be used after LiberRPA Component feature completed.
+  log.trace(
+    `[Manifest] Loaded import manifest: ${manifestPath}, items=${Object.keys(value.items).length}.`,
+  );
+
+  return value;
 }

@@ -1,0 +1,903 @@
+{
+  "importSource": "liberrpa.Modules",
+  "importOrder": [
+    "Log",
+    "delay",
+    "Mouse",
+    "Keyboard",
+    "Window",
+    "UiInterface",
+    "Browser",
+    "Excel",
+    "Outlook",
+    "Application",
+    "Database",
+    "Data",
+    "Str",
+    "List",
+    "Dict",
+    "Regex",
+    "Math",
+    "Time",
+    "File",
+    "OCR",
+    "Web",
+    "Mail",
+    "FTP",
+    "Clipboard",
+    "System",
+    "Credential",
+    "ScreenPrint",
+    "Dialog",
+    "Trigger",
+    "DatabaseConnection",
+    "PrjArgs",
+    "CustomArgs"
+  ],
+  "items": {
+    "Mouse.get_mouse_position": [
+      "Mouse"
+    ],
+    "Mouse.click_element": [
+      "Mouse"
+    ],
+    "Mouse.move_to_element": [
+      "Mouse"
+    ],
+    "Mouse.click": [
+      "Mouse"
+    ],
+    "Mouse.move_cursor": [
+      "Mouse"
+    ],
+    "Mouse.scroll_wheel": [
+      "Mouse"
+    ],
+    "Keyboard.write_text": [
+      "Keyboard"
+    ],
+    "Keyboard.write_text_into_element": [
+      "Keyboard"
+    ],
+    "Keyboard.type_key_in_element": [
+      "Keyboard"
+    ],
+    "Keyboard.type_key": [
+      "Keyboard"
+    ],
+    "Window.close_window": [
+      "Window"
+    ],
+    "Window.check_window_exists": [
+      "Window"
+    ],
+    "Window.get_active_window": [
+      "Window"
+    ],
+    "Window.activate_element_window": [
+      "Window"
+    ],
+    "Window.set_window_state": [
+      "Window"
+    ],
+    "Window.get_window_position_and_size": [
+      "Window"
+    ],
+    "Window.set_window_position": [
+      "Window"
+    ],
+    "Window.set_window_size": [
+      "Window"
+    ],
+    "Window.get_window_pid": [
+      "Window"
+    ],
+    "Window.get_window_file_path": [
+      "Window"
+    ],
+    "UiInterface.highlight": [
+      "UiInterface"
+    ],
+    "UiInterface.screenshot": [
+      "UiInterface"
+    ],
+    "UiInterface.get_image_position": [
+      "UiInterface"
+    ],
+    "UiInterface.check_exists": [
+      "UiInterface"
+    ],
+    "UiInterface.wait_appear": [
+      "UiInterface"
+    ],
+    "UiInterface.wait_disappear": [
+      "UiInterface"
+    ],
+    "UiInterface.get_parent": [
+      "UiInterface"
+    ],
+    "UiInterface.get_children": [
+      "UiInterface"
+    ],
+    "UiInterface.get_attr_dictionary": [
+      "UiInterface"
+    ],
+    "UiInterface.get_text": [
+      "UiInterface"
+    ],
+    "UiInterface.set_text": [
+      "UiInterface"
+    ],
+    "UiInterface.get_check_state": [
+      "UiInterface"
+    ],
+    "UiInterface.set_check_state": [
+      "UiInterface"
+    ],
+    "UiInterface.get_selection": [
+      "UiInterface"
+    ],
+    "UiInterface.set_selection": [
+      "UiInterface"
+    ],
+    "Browser.open_browser": [
+      "Browser"
+    ],
+    "Browser.bind_browser": [
+      "Browser"
+    ],
+    "Browser.get_state": [
+      "Browser"
+    ],
+    "Browser.go_backward": [
+      "Browser"
+    ],
+    "Browser.go_forward": [
+      "Browser"
+    ],
+    "Browser.refresh": [
+      "Browser"
+    ],
+    "Browser.wait_load_completed": [
+      "Browser"
+    ],
+    "Browser.navigate": [
+      "Browser"
+    ],
+    "Browser.open_new_tab": [
+      "Browser"
+    ],
+    "Browser.open_new_window": [
+      "Browser"
+    ],
+    "Browser.switch_tab": [
+      "Browser"
+    ],
+    "Browser.close_current_tab": [
+      "Browser"
+    ],
+    "Browser.get_download_list": [
+      "Browser"
+    ],
+    "Browser.get_source_code": [
+      "Browser"
+    ],
+    "Browser.get_all_text": [
+      "Browser"
+    ],
+    "Browser.get_url": [
+      "Browser"
+    ],
+    "Browser.get_title": [
+      "Browser"
+    ],
+    "Browser.get_cookies": [
+      "Browser"
+    ],
+    "Browser.set_cookies": [
+      "Browser"
+    ],
+    "Browser.get_scroll_position": [
+      "Browser"
+    ],
+    "Browser.set_scroll_position": [
+      "Browser"
+    ],
+    "Browser.execute_js_code": [
+      "Browser"
+    ],
+    "Excel.open_Excel_file": [
+      "Excel"
+    ],
+    "Excel.bind_Excel_file": [
+      "Excel"
+    ],
+    "Excel.save": [
+      "Excel"
+    ],
+    "Excel.save_as": [
+      "Excel"
+    ],
+    "Excel.close": [
+      "Excel"
+    ],
+    "Excel.activate_window": [
+      "Excel"
+    ],
+    "Excel.get_last_row": [
+      "Excel"
+    ],
+    "Excel.get_last_column": [
+      "Excel"
+    ],
+    "Excel.convert_col_num_to_str": [
+      "Excel"
+    ],
+    "Excel.convert_col_str_to_num": [
+      "Excel"
+    ],
+    "Excel.read_cell": [
+      "Excel"
+    ],
+    "Excel.read_row": [
+      "Excel"
+    ],
+    "Excel.read_column": [
+      "Excel"
+    ],
+    "Excel.read_range_list": [
+      "Excel"
+    ],
+    "Excel.read_range_df": [
+      "Excel"
+    ],
+    "Excel.write_cell": [
+      "Excel"
+    ],
+    "Excel.write_row": [
+      "Excel"
+    ],
+    "Excel.write_column": [
+      "Excel"
+    ],
+    "Excel.write_range": [
+      "Excel"
+    ],
+    "Excel.insert_row": [
+      "Excel"
+    ],
+    "Excel.insert_column": [
+      "Excel"
+    ],
+    "Excel.delete_row": [
+      "Excel"
+    ],
+    "Excel.delete_column": [
+      "Excel"
+    ],
+    "Excel.select_range": [
+      "Excel"
+    ],
+    "Excel.get_selected_cells": [
+      "Excel"
+    ],
+    "Excel.get_selected_range": [
+      "Excel"
+    ],
+    "Excel.clear_range": [
+      "Excel"
+    ],
+    "Excel.activate_sheet": [
+      "Excel"
+    ],
+    "Excel.add_sheet": [
+      "Excel"
+    ],
+    "Excel.rename_sheet": [
+      "Excel"
+    ],
+    "Excel.copy_sheet": [
+      "Excel"
+    ],
+    "Excel.delete_sheet": [
+      "Excel"
+    ],
+    "Excel.get_activate_sheet": [
+      "Excel"
+    ],
+    "Excel.get_sheet_list": [
+      "Excel"
+    ],
+    "Excel.run_macro": [
+      "Excel"
+    ],
+    "Outlook.send_email": [
+      "Outlook"
+    ],
+    "Outlook.get_folder_list": [
+      "Outlook"
+    ],
+    "Outlook.get_email_list": [
+      "Outlook"
+    ],
+    "Outlook.move_email": [
+      "Outlook"
+    ],
+    "Outlook.reply_to_email": [
+      "Outlook"
+    ],
+    "Outlook.delete_email": [
+      "Outlook"
+    ],
+    "Outlook.download_attachments": [
+      "Outlook"
+    ],
+    "Application.run_application": [
+      "Application"
+    ],
+    "Application.open_url": [
+      "Application"
+    ],
+    "Application.check_process_running": [
+      "Application"
+    ],
+    "Application.stop_process": [
+      "Application"
+    ],
+    "Database.fetch_one": [
+      "Database"
+    ],
+    "Database.fetch_all": [
+      "Database"
+    ],
+    "Database.execute": [
+      "Database"
+    ],
+    "Data.sanitize_filename": [
+      "Data"
+    ],
+    "Data.get_length": [
+      "Data"
+    ],
+    "Data.to_integer": [
+      "Data"
+    ],
+    "Data.to_float": [
+      "Data"
+    ],
+    "Data.to_decimal": [
+      "Data"
+    ],
+    "Data.to_boolean": [
+      "Data"
+    ],
+    "Data.clone": [
+      "Data"
+    ],
+    "Data.get_type": [
+      "Data"
+    ],
+    "Data.get_uuid": [
+      "Data"
+    ],
+    "Data.get_random_integer": [
+      "Data"
+    ],
+    "Data.get_random_float": [
+      "Data"
+    ],
+    "Data.json_dumps": [
+      "Data"
+    ],
+    "Data.json_loads": [
+      "Data"
+    ],
+    "Data.join_to_str": [
+      "Data"
+    ],
+    "Str.replace": [
+      "Str"
+    ],
+    "Str.split": [
+      "Str"
+    ],
+    "Str.split_lines": [
+      "Str"
+    ],
+    "Str.fill": [
+      "Str"
+    ],
+    "Str.count": [
+      "Str"
+    ],
+    "Str.find_from_start": [
+      "Str"
+    ],
+    "Str.find_from_end": [
+      "Str"
+    ],
+    "Str.case_to_lower": [
+      "Str"
+    ],
+    "Str.case_to_upper": [
+      "Str"
+    ],
+    "Str.check_case_lower": [
+      "Str"
+    ],
+    "Str.check_case_upper": [
+      "Str"
+    ],
+    "Str.case_swap": [
+      "Str"
+    ],
+    "Str.strip": [
+      "Str"
+    ],
+    "Str.remove_prefix": [
+      "Str"
+    ],
+    "Str.remove_suffix": [
+      "Str"
+    ],
+    "Str.check_start": [
+      "Str"
+    ],
+    "Str.check_end": [
+      "Str"
+    ],
+    "Str.is_alpha_and_numeric": [
+      "Str"
+    ],
+    "Str.is_alpha": [
+      "Str"
+    ],
+    "Str.is_numeric": [
+      "Str"
+    ],
+    "Str.is_ascii": [
+      "Str"
+    ],
+    "Str.is_digit": [
+      "Str"
+    ],
+    "Str.is_decimal": [
+      "Str"
+    ],
+    "List.insert": [
+      "List"
+    ],
+    "List.append": [
+      "List"
+    ],
+    "List.pop": [
+      "List"
+    ],
+    "List.remove": [
+      "List"
+    ],
+    "List.clear": [
+      "List"
+    ],
+    "List.slice": [
+      "List"
+    ],
+    "List.extend": [
+      "List"
+    ],
+    "List.count": [
+      "List"
+    ],
+    "List.find": [
+      "List"
+    ],
+    "List.reverse": [
+      "List"
+    ],
+    "List.sort": [
+      "List"
+    ],
+    "Dict.clear": [
+      "Dict"
+    ],
+    "Dict.get": [
+      "Dict"
+    ],
+    "Dict.pop": [
+      "Dict"
+    ],
+    "Dict.pop_item": [
+      "Dict"
+    ],
+    "Dict.get_key_list": [
+      "Dict"
+    ],
+    "Dict.get_value_list": [
+      "Dict"
+    ],
+    "Dict.extend": [
+      "Dict"
+    ],
+    "Regex.find_one": [
+      "Regex"
+    ],
+    "Regex.find_all": [
+      "Regex"
+    ],
+    "Regex.match_start": [
+      "Regex"
+    ],
+    "Regex.match_full": [
+      "Regex"
+    ],
+    "Regex.split": [
+      "Regex"
+    ],
+    "Regex.replace": [
+      "Regex"
+    ],
+    "Math.round": [
+      "Math"
+    ],
+    "Math.check_float_equal": [
+      "Math"
+    ],
+    "Math.absolute": [
+      "Math"
+    ],
+    "Math.get_int_and_fraction": [
+      "Math"
+    ],
+    "Time.get_unix_time": [
+      "Time"
+    ],
+    "Time.get_datetime_now": [
+      "Time"
+    ],
+    "Time.build_datetime": [
+      "Time"
+    ],
+    "Time.str_to_datetime": [
+      "Time"
+    ],
+    "Time.datetime_to_str": [
+      "Time"
+    ],
+    "Time.get_datetime_attr": [
+      "Time"
+    ],
+    "Time.add_datetime": [
+      "Time"
+    ],
+    "File.create_folder": [
+      "File"
+    ],
+    "File.read_file_content": [
+      "File"
+    ],
+    "File.write_file": [
+      "File"
+    ],
+    "File.append_write_file": [
+      "File"
+    ],
+    "File.wait_file_download": [
+      "File"
+    ],
+    "File.get_file_fullname": [
+      "File"
+    ],
+    "File.get_file_basename": [
+      "File"
+    ],
+    "File.get_file_suffix": [
+      "File"
+    ],
+    "File.check_file_exists": [
+      "File"
+    ],
+    "File.check_folder_exists": [
+      "File"
+    ],
+    "File.get_parent_folder_path": [
+      "File"
+    ],
+    "File.get_file_size": [
+      "File"
+    ],
+    "File.get_folder_size": [
+      "File"
+    ],
+    "File.copy_file": [
+      "File"
+    ],
+    "File.copy_folder": [
+      "File"
+    ],
+    "File.move_file_or_folder": [
+      "File"
+    ],
+    "File.remove_file": [
+      "File"
+    ],
+    "File.remove_folder": [
+      "File"
+    ],
+    "File.get_file_or_folder_list": [
+      "File"
+    ],
+    "File.search_file_or_folder": [
+      "File"
+    ],
+    "File.zip_create": [
+      "File"
+    ],
+    "File.zip_extract": [
+      "File"
+    ],
+    "File.csv_read": [
+      "File"
+    ],
+    "File.csv_write": [
+      "File"
+    ],
+    "File.ini_read_value": [
+      "File"
+    ],
+    "File.ini_write_value": [
+      "File"
+    ],
+    "File.ini_get_all_sections": [
+      "File"
+    ],
+    "File.ini_get_all_options": [
+      "File"
+    ],
+    "File.ini_delete_section": [
+      "File"
+    ],
+    "File.ini_delete_option": [
+      "File"
+    ],
+    "File.pdf_get_page_count": [
+      "File"
+    ],
+    "File.pdf_save_pages_as_images": [
+      "File"
+    ],
+    "File.pdf_extract_images_from_pages": [
+      "File"
+    ],
+    "File.pdf_extract_text_from_pages": [
+      "File"
+    ],
+    "File.pdf_extract_all_images": [
+      "File"
+    ],
+    "File.pdf_extract_all_text": [
+      "File"
+    ],
+    "File.pdf_merge": [
+      "File"
+    ],
+    "OCR.get_text_with_position": [
+      "OCR"
+    ],
+    "OCR.get_text": [
+      "OCR"
+    ],
+    "Web.set_cookies": [
+      "Web"
+    ],
+    "Web.set_headers": [
+      "Web"
+    ],
+    "Web.get": [
+      "Web"
+    ],
+    "Web.post": [
+      "Web"
+    ],
+    "Web.download_file": [
+      "Web"
+    ],
+    "Web.upload_file": [
+      "Web"
+    ],
+    "Mail.send_by_SMTP": [
+      "Mail"
+    ],
+    "Mail.IMAP_login": [
+      "Mail"
+    ],
+    "Mail.get_folder_list": [
+      "Mail"
+    ],
+    "Mail.get_email_list": [
+      "Mail"
+    ],
+    "Mail.search_email": [
+      "Mail"
+    ],
+    "Mail.move_email": [
+      "Mail"
+    ],
+    "Mail.download_attachments": [
+      "Mail"
+    ],
+    "FTP.create_folder": [
+      "FTP"
+    ],
+    "FTP.get_folder_list": [
+      "FTP"
+    ],
+    "FTP.get_file_list": [
+      "FTP"
+    ],
+    "FTP.check_folder_exists": [
+      "FTP"
+    ],
+    "FTP.check_file_exists": [
+      "FTP"
+    ],
+    "FTP.download_file": [
+      "FTP"
+    ],
+    "FTP.download_folder": [
+      "FTP"
+    ],
+    "FTP.upload_file": [
+      "FTP"
+    ],
+    "FTP.upload_folder": [
+      "FTP"
+    ],
+    "FTP.delete_file": [
+      "FTP"
+    ],
+    "FTP.delete_folder": [
+      "FTP"
+    ],
+    "Clipboard.get_text": [
+      "Clipboard"
+    ],
+    "Clipboard.set_text": [
+      "Clipboard"
+    ],
+    "Clipboard.save_image": [
+      "Clipboard"
+    ],
+    "Clipboard.set_image": [
+      "Clipboard"
+    ],
+    "System.play_sound": [
+      "System"
+    ],
+    "System.get_environment_variable": [
+      "System"
+    ],
+    "System.set_environment_variable_temporarily": [
+      "System"
+    ],
+    "System.get_user_home_folder_path": [
+      "System"
+    ],
+    "System.get_user_temp_folder_path": [
+      "System"
+    ],
+    "System.get_computer_info": [
+      "System"
+    ],
+    "System.exit": [
+      "System"
+    ],
+    "Credential.get_windows_credential": [
+      "Credential"
+    ],
+    "Credential.write_windows_credential": [
+      "Credential"
+    ],
+    "Credential.delete_windows_credential": [
+      "Credential"
+    ],
+    "ScreenPrint.create_area": [
+      "ScreenPrint"
+    ],
+    "ScreenPrint.display_text": [
+      "ScreenPrint"
+    ],
+    "ScreenPrint.clean_text": [
+      "ScreenPrint"
+    ],
+    "ScreenPrint.close_area": [
+      "ScreenPrint"
+    ],
+    "Dialog.show_notification": [
+      "Dialog"
+    ],
+    "Dialog.open_file": [
+      "Dialog"
+    ],
+    "Dialog.open_files": [
+      "Dialog"
+    ],
+    "Dialog.save_as": [
+      "Dialog"
+    ],
+    "Dialog.show_text_input_box": [
+      "Dialog"
+    ],
+    "Dialog.show_message_box": [
+      "Dialog"
+    ],
+    "Trigger.mouse_trigger": [
+      "Trigger"
+    ],
+    "Trigger.keyboard_trigger": [
+      "Trigger"
+    ],
+    "Basic.delay": [
+      "delay"
+    ],
+    "LogicControl.retry": [
+      "Log"
+    ],
+    "Log.verbose": [
+      "Log"
+    ],
+    "Log.verbose_pretty": [
+      "Log"
+    ],
+    "Log.debug": [
+      "Log"
+    ],
+    "Log.debug_pretty": [
+      "Log"
+    ],
+    "Log.info": [
+      "Log"
+    ],
+    "Log.info_pretty": [
+      "Log"
+    ],
+    "Log.warning": [
+      "Log"
+    ],
+    "Log.warning_pretty": [
+      "Log"
+    ],
+    "Log.error": [
+      "Log"
+    ],
+    "Log.error_pretty": [
+      "Log"
+    ],
+    "Log.critical": [
+      "Log"
+    ],
+    "Log.critical_pretty": [
+      "Log"
+    ],
+    "Log.exception_info": [
+      "Log"
+    ],
+    "Log.set_level": [
+      "Log"
+    ],
+    "Log.add_custom_log_part": [
+      "Log"
+    ],
+    "Log.remove_custom_log_part": [
+      "Log"
+    ],
+    "Log.trace": [
+      "Log"
+    ],
+    "Database.build database connection": [
+      "DatabaseConnection"
+    ],
+    "FTP.build FTP connection": [
+      "FTP"
+    ]
+  }
+}
