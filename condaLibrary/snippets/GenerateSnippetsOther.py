@@ -10,6 +10,7 @@ from typing import cast
 
 from ApiConfig import (
     DictSnippetsItem,
+    MANAGED_IMPORT_SOURCE,
     PARAMETER_PLACEHOLDER_NAMES,
     PUBLIC_MODULE_ORDER,
     RETURN_PLACEHOLDER_BY_ANNOTATION,
@@ -102,6 +103,7 @@ def _build_generated_snippet(item: DictApiItem) -> DictSnippetsItem:
         "prefix": item["prefix"],
         "body": _build_body(item),
         "description": item["description"],
+        "imports": {MANAGED_IMPORT_SOURCE: [item["module"]]},
     }
 
 

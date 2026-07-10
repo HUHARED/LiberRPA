@@ -27,7 +27,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 import inspect
 from typing import Any
 
-from ApiConfig import DictSnippetsItem
+from ApiConfig import DictSnippetsItem, MANAGED_IMPORT_SOURCE
 from SnippetUtils import format_snippet_choice, format_string_choices, get_snippet_choices, get_snippets_dir, write_json
 from liberrpa.Logging import Logger
 
@@ -71,7 +71,6 @@ SKIP_LOG_METHODS = {
 
 LOG_LEVEL_VALUES = ["VERBOSE", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 LOGGER_TYPE_VALUES = ["both", "human", "machine"]
-
 
 
 def _get_docstring(func: Any) -> str:
@@ -180,6 +179,7 @@ def _generate_log_snippets() -> dict[str, dict[str, DictSnippetsItem]]:
             "prefix": title,
             "body": _build_log_method_body(method_name=name),
             "description": _get_docstring(func),
+            "imports": {MANAGED_IMPORT_SOURCE: ["Log"]},
         }
 
     return {"Log": snippets}

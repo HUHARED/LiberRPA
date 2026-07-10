@@ -4,12 +4,12 @@ __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
-"""Generate Markdown API documentation from the final snippet descriptions."""
+"""Generate Markdown API documentation from snippets_catalog.json."""
 
 import textwrap
 from typing import cast
 
-from ApiConfig import DictSnippetsItem
+from ApiConfig import DictCatalogSnippet, DictSnippetsCatalog
 from GenerateApiData import DictApiItem, DictOverloadInfo
 from SnippetUtils import get_snippets_dir, read_json
 
@@ -117,42 +117,59 @@ def _load_api_manifest_by_title() -> dict[str, DictApiItem]:
     return {item["title"]: item for item in apiManifest}
 
 
-def _generate_api_markdown(dictSnippets: dict[str, DictSnippetsItem]) -> str:
+def _group_snippets_by_category(
+    catalog: DictSnippetsCatalog,
+) -> dict[str, list[tuple[str, DictCatalogSnippet]]]:
+    snippetsByCategory: dict[str, list[tuple[str, DictCatalogSnippet]]] = {
+        category: [] for category in catalog["categoryOrder"]
+    }
+
+    for title, snippet in catalog["snippets"].items():
+        category = snippet["category"]
+        if category not in snippetsByCategory:
+            raise ValueError(
+                f"Snippet {title!r} uses category {category!r}, "
+                "but the category is missing from categoryOrder."
+            )
+
+        snippetsByCategory[category].append((title, snippet))
+
+    return snippetsByCategory
+
+
+def _generate_api_markdown(catalog: DictSnippetsCatalog) -> str:
     markdownParts: list[str] = []
-    currentModule: str | None = None
     apiManifestByTitle = _load_api_manifest_by_title()
+    snippetsByCategory = _group_snippets_by_category(catalog=catalog)
 
-    for title, snippet in dictSnippets.items():
-        if "." in title:
-            moduleName, functionName = title.split(".", maxsplit=1)
-        else:
-            moduleName = "Other"
-            functionName = title
+    for category in catalog["categoryOrder"]:
+        categorySnippets = snippetsByCategory[category]
+        if not categorySnippets:
+            continue
 
-        if moduleName != currentModule:
-            currentModule = moduleName
-            markdownParts.append(f"## {moduleName}")
+        markdownParts.append(f"## {category}")
 
-        markdownParts.append(f"### {functionName}")
+        for title, snippet in categorySnippets:
+            markdownParts.append(f"### {snippet['label']}")
 
-        apiItem = apiManifestByTitle.get(title)
-        overloads = apiItem.get("overloads", []) if apiItem is not None else []
+            apiItem = apiManifestByTitle.get(title)
+            overloads = apiItem.get("overloads", []) if apiItem is not None else []
 
-        description = snippet.get("description", "")
-        renderedDescription = _render_description(description=description, overloads=overloads)
-        if renderedDescription:
+            description = snippet.get("description", "")
+            renderedDescription = _render_description(description=description, overloads=overloads)
+            if not renderedDescription:
+                raise ValueError(f"Snippet {title!r} has no description.")
+
             markdownParts.append(renderedDescription)
-        else:
-            raise ValueError(f"No description.{currentModule}")
 
     return "\n\n".join(markdownParts).strip() + "\n"
 
 
 def main() -> None:
     snippetsDir = get_snippets_dir()
-    snippetsPath = snippetsDir / "snippets_final.snippets"
-    dictSnippets = cast(dict[str, DictSnippetsItem], read_json(snippetsPath, dict))
-    apiMarkdown = _generate_api_markdown(dictSnippets=dictSnippets)
+    catalogPath = snippetsDir / "snippets_catalog.json"
+    catalog = cast(DictSnippetsCatalog, read_json(catalogPath, dict))
+    apiMarkdown = _generate_api_markdown(catalog=catalog)
     (snippetsDir / "api.md").write_text(apiMarkdown, encoding="utf-8")
     # Then copy the content of api.md into README.md.
 

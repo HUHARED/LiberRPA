@@ -1,11 +1,70 @@
 {
+  "Project Values": {
+    "PrjArgs.elapsedTime": {
+      "prefix": "PrjArgs.elapsedTime",
+      "body": [
+        "PrjArgs.elapsedTime"
+      ],
+      "description": "Get elapsed seconds since the current RPA project started.",
+      "imports": {
+        "liberrpa.Modules": [
+          "PrjArgs"
+        ]
+      },
+      "appendFinalTabstop": false
+    },
+    "PrjArgs.customArgs": {
+      "prefix": "PrjArgs.customArgs",
+      "body": [
+        "PrjArgs.customArgs"
+      ],
+      "description": "Get all custom project arguments as a dictionary.",
+      "imports": {
+        "liberrpa.Modules": [
+          "PrjArgs"
+        ]
+      },
+      "appendFinalTabstop": false
+    },
+    "PrjArgs.errorObj": {
+      "prefix": "PrjArgs.errorObj",
+      "body": [
+        "PrjArgs.errorObj"
+      ],
+      "description": "Get the current flow error object, or None if no error is being handled.",
+      "imports": {
+        "liberrpa.Modules": [
+          "PrjArgs"
+        ]
+      },
+      "appendFinalTabstop": false
+    },
+    "PrjArgs.projectPath": {
+      "prefix": "PrjArgs.projectPath",
+      "body": [
+        "PrjArgs.projectPath"
+      ],
+      "description": "Get the absolute path of the current RPA project.",
+      "imports": {
+        "liberrpa.Modules": [
+          "PrjArgs"
+        ]
+      },
+      "appendFinalTabstop": false
+    }
+  },
   "Basic": {
     "Basic.delay": {
       "prefix": "delay",
       "body": [
         "delay(${1:1000})"
       ],
-      "description": "Wait for a specified time, in milliseconds."
+      "description": "Wait for a specified time, in milliseconds.",
+      "imports": {
+        "liberrpa.Modules": [
+          "delay"
+        ]
+      }
     },
     "Basic.new python file": {
       "prefix": "new",
@@ -175,7 +234,12 @@
         "\telse:",
         "\t\tbreak"
       ],
-      "description": "Retry a block until it succeeds, or raise the last error after the maximum try count is reached."
+      "description": "Retry a block until it succeeds, or raise the last error after the maximum try count is reached.",
+      "imports": {
+        "liberrpa.Modules": [
+          "Log"
+        ]
+      }
     },
     "LogicControl.raise an exception": {
       "prefix": "raise",

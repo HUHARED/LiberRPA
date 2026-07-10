@@ -4,15 +4,44 @@ __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
-"""Shared configuration for LiberRPA API, snippet, and import-manifest generation."""
+"""Shared configuration for LiberRPA API, snippet, and catalog generation."""
 
-from typing import TypedDict, NotRequired
+from typing import Literal, NotRequired, TypedDict
+
+
+type DictSnippetImports = dict[str, list[str]]
 
 
 class DictSnippetsItem(TypedDict):
     prefix: str
     body: list[str] | str
     description: NotRequired[str]
+
+    label: NotRequired[str]
+    imports: NotRequired[DictSnippetImports]
+    appendFinalTabstop: NotRequired[bool]
+
+
+class DictCatalogSnippet(TypedDict):
+    category: str
+    label: str
+
+    prefix: str
+    body: list[str]
+    description: NotRequired[str]
+
+    imports: NotRequired[DictSnippetImports]
+
+
+class DictImportSourceConfig(TypedDict):
+    order: list[str]
+
+
+class DictSnippetsCatalog(TypedDict):
+    schemaVersion: Literal[1]
+    categoryOrder: list[str]
+    importSources: dict[str, DictImportSourceConfig]
+    snippets: dict[str, DictCatalogSnippet]
 
 
 # Public modules that should be scanned for normal function snippets.
@@ -57,6 +86,16 @@ PUBLIC_MODULE_ORDER = [
 ]
 
 
+# Category order in the snippets tree. Favorite is added by the extension at runtime.
+SNIPPET_CATEGORY_ORDER = [
+    "Project Values",
+    "Basic",
+    "LogicControl",
+    "Log",
+    *PUBLIC_MODULE_ORDER,
+]
+
+
 # Managed import block configuration for liberrpa-snippets-tree.
 # Keep this order aligned with liberrpa.Modules.__all__.
 MANAGED_IMPORT_SOURCE = "liberrpa.Modules"
@@ -77,7 +116,7 @@ SKIP_FUNCTIONS: dict[str, set[str]] = {
 
 # Snippets that cannot be generated directly from public functions.
 # They are inserted under their module according to PUBLIC_MODULE_ORDER.
-SPECIAL_SNIPPETS: dict[str, dict[str, dict[str, object]]] = {
+SPECIAL_SNIPPETS: dict[str, dict[str, DictSnippetsItem]] = {
     "Database": {
         "Database.build database connection": {
             "prefix": "Database.build database connection",
@@ -86,6 +125,7 @@ SPECIAL_SNIPPETS: dict[str, dict[str, dict[str, object]]] = {
                 "\t$10",
             ],
             "description": "Create a DatabaseConnection context manager. See liberrpa.Database.DatabaseConnection's docstring for details.",
+            "imports": {MANAGED_IMPORT_SOURCE: ["DatabaseConnection"]},
         },
     },
     "FTP": {
@@ -96,38 +136,11 @@ SPECIAL_SNIPPETS: dict[str, dict[str, dict[str, object]]] = {
                 "\t$6",
             ],
             "description": "Create an ftputil.FTPHost context manager. See ftputil.FTPHost documentation for details.",
+            "imports": {MANAGED_IMPORT_SOURCE: ["FTP"]},
         },
     },
 }
 
-
-# Import requirements for snippets that are not generated from normal public functions.
-# This includes snippets_basic.snippets, generated Log snippets, and SPECIAL_SNIPPETS above.
-# Snippets that do not need LiberRPA imports, such as control-flow snippets or a full new-file template,
-# should not be listed here.
-MANUAL_SNIPPET_IMPORTS: dict[str, list[str]] = {
-    "Basic.delay": ["delay"],
-    "LogicControl.retry": ["Log"],
-    "Log.verbose": ["Log"],
-    "Log.verbose_pretty": ["Log"],
-    "Log.debug": ["Log"],
-    "Log.debug_pretty": ["Log"],
-    "Log.info": ["Log"],
-    "Log.info_pretty": ["Log"],
-    "Log.warning": ["Log"],
-    "Log.warning_pretty": ["Log"],
-    "Log.error": ["Log"],
-    "Log.error_pretty": ["Log"],
-    "Log.critical": ["Log"],
-    "Log.critical_pretty": ["Log"],
-    "Log.exception_info": ["Log"],
-    "Log.set_level": ["Log"],
-    "Log.add_custom_log_part": ["Log"],
-    "Log.remove_custom_log_part": ["Log"],
-    "Log.trace": ["Log"],
-    "Database.build database connection": ["DatabaseConnection"],
-    "FTP.build FTP connection": ["FTP"],
-}
 
 # Common object parameter names should get meaningful default placeholders.
 PARAMETER_PLACEHOLDER_NAMES = {
