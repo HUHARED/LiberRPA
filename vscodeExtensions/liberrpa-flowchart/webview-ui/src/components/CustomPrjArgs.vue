@@ -13,26 +13,33 @@
         :key="index"
         class="pa-0 ma-0">
         <!-- The value name inputbox, should not have same name. -->
-        <v-col cols="6" class="pa-0 ma-0"
-          ><v-text-field
-            v-model="item[0]"
+        <v-col cols="6" class="pa-0 ma-0">
+          <!--
+          The input field displays the surrounding double quotes as prefix and suffix.
+          The user edits only the string content inside the quotes.
+          -->
+          <v-text-field
+            v-model="arrKeyCache[index]"
             variant="underlined"
             density="comfortable"
             hide-details
             spellcheck="false"
             prepend-inner-icon="mdi-minus"
-            :prefix="strDoubleQuote"
-            :suffix="strDoubleQuote"
+            :prefix="'&quot;'"
+            :suffix="'&quot;'"
             :bg-color="generateBgcolor(item[0])"
+            @blur="updateKey(index, arrKeyCache[index])"
+            @keyup.enter="updateKey(index, arrKeyCache[index])"
             @click:prepend-inner="deleteArgument(index)">
             <v-tooltip
               v-if="generateBgcolor(item[0]) !== ''"
               activator="parent"
               location="top">
-              Duplicate names exist.
+              Duplicate keys exist. At runtime, the last value with the same key takes
+              effect.
             </v-tooltip>
-          </v-text-field></v-col
-        >
+          </v-text-field>
+        </v-col>
 
         <!-- The equal symbol. -->
         <v-col cols="1" class="pa-0 ma-0 pt-4">{{ "=" }}</v-col>
@@ -82,51 +89,48 @@
 </template>
 
 <script setup lang="ts">
-import { watch, ref } from "vue";
+import { watch, ref, onBeforeUnmount } from "vue";
 import { debounce } from "lodash";
 import { useArgsStore } from "../store";
 import type { StoreCustomPrjArg } from "../store";
 import { showAlert, updateLocalData } from "../commonFunc";
 import type { JsonValue, CustomPrjArg } from "../interface";
 
-const strDoubleQuote = '"';
-
 const argsStore = useArgsStore();
 
+function stringifyKeyForInput(key: string): string {
+  return JSON.stringify(key).slice(1, -1);
+}
+
 // Initialize localValues as an array of stringified item values
+const arrKeyCache = ref<string[]>(
+  argsStore.customPrjArgs.map(([key]) => stringifyKeyForInput(key))
+);
 const arrValueCache = ref<string[]>(
   argsStore.customPrjArgs.map((item: StoreCustomPrjArg) => JSON.stringify(item[1], null, 0))
 );
 
-/* console.log("arrValueCache.value", arrValueCache.value);
+const syncCustomPrjArgs = debounce((): void => {
+  arrKeyCache.value = argsStore.customPrjArgs.map(([key]) => stringifyKeyForInput(key));
 
-watch(
-  () => arrValueCache.value,
-  () => {
-    console.log("arrValueCache", JSON.stringify(arrValueCache.value, null, 4));
-  },
-  { deep: true }
-);
- */
-watch(
-  () => argsStore.customPrjArgs,
-  debounce(() => {
-    arrValueCache.value = argsStore.customPrjArgs.map((item) =>
-      JSON.stringify(item[1], null, 0)
-    );
+  arrValueCache.value = argsStore.customPrjArgs.map(([, value]) => JSON.stringify(value));
 
-    updateLocalData(
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      toCustomPrjArgs(argsStore.customPrjArgs)
-    );
-  }, 300),
-  { deep: true }
-);
+  updateLocalData(
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    toCustomPrjArgs(argsStore.customPrjArgs)
+  );
+}, 300);
+
+watch(() => argsStore.customPrjArgs, syncCustomPrjArgs, { deep: true });
+
+onBeforeUnmount(() => {
+  syncCustomPrjArgs.cancel();
+});
 
 function toCustomPrjArgs(args: StoreCustomPrjArg[]): CustomPrjArg[] {
   return args.map(([name, value]) => [name, value as JsonValue]);
@@ -142,6 +146,32 @@ function generateBgcolor(valueName: string): string {
     return "warning";
   }
   return "";
+}
+
+function updateKey(index: number, input: string): void {
+  try {
+    const parsedKey: unknown = JSON.parse(`"${input}"`);
+
+    if (typeof parsedKey !== "string") {
+      throw new TypeError("The custom argument key must be a string.");
+    }
+
+    // Avoid triggering Store updates when the key has not changed.
+    if (argsStore.customPrjArgs[index][0] === parsedKey) {
+      return;
+    }
+
+    argsStore.customPrjArgs[index][0] = parsedKey;
+  } catch (error) {
+    showAlert(
+      `Invalid custom argument key: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
+
+    // Restore only the invalid key input.
+    arrKeyCache.value[index] = stringifyKeyForInput(argsStore.customPrjArgs[index][0]);
+  }
 }
 
 function updateValue(index: number, value: string): void {
@@ -173,10 +203,14 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 
 function addNewArgument(): void {
   argsStore.customPrjArgs.push(["", ""]);
+  arrKeyCache.value.push("");
+  arrValueCache.value.push('""');
 }
 
 function deleteArgument(index: number): void {
   argsStore.customPrjArgs.splice(index, 1);
+  arrKeyCache.value.splice(index, 1);
+  arrValueCache.value.splice(index, 1);
 }
 </script>
 
