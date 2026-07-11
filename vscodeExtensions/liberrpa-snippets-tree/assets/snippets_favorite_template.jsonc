@@ -1,12 +1,33 @@
 // FileName: snippets_favorite.jsonc
 {
-  // Copy any snippets from "liberrpa-snippets-tree/src/assets/snippets_final.snippets" and paste them in here, these snippets will be put at the top in liberrpa-snippets-tree.
-  // And you can write your custom snippets in here too.
-  // After you modified the file, restart vscode to make the changement works.
-  // Example:
-  "Test Snippets": {
-    "prefix": "test",
-    "body": ["delay(${1:1000})", ""],
-    "description": "Delay some time, in milliseconds."
+  // Favorite snippets appear in the "Favorite" category at the top of
+  // LiberRPA Snippets Tree and are also available through IntelliSense.
+  //
+  // After editing this file, run "Developer: Reload Window" in VS Code.
+  //
+  // You can copy a complete snippet entry from the "snippets" object in
+  // snippets_catalog.json and paste it into the "snippets" object below.
+  // The category field is ignored for favorites, and label is optional.
+  //
+  // Properties:
+  //   prefix: Text used to find the snippet in IntelliSense.
+  //   body: Code to insert. It can be one string or an array of lines.
+  //   description: Optional text shown in TreeView and IntelliSense.
+  //   imports: Optional managed imports grouped by Python import source.
+  //
+  // VS Code snippet placeholders are supported, for example:
+  //   $1
+  //   ${1:default value}
+  //   $0
+  "schemaVersion": 1,
+  "snippets": {
+    /* "Custom Delay": {
+      "prefix": "custom_delay",
+      "body": ["delay(${1:1000})", "$0"],
+      "description": "Wait for a specified time, in milliseconds.",
+      "imports": {
+        "liberrpa.Modules": ["delay"],
+      },
+    }, */
   }
 }

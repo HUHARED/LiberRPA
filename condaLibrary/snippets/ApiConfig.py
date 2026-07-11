@@ -8,6 +8,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from typing import Literal, NotRequired, TypedDict
 
+type SnippetInsertionMode = Literal["line", "cursor"]
 
 type DictSnippetImports = dict[str, list[str]]
 
@@ -19,7 +20,9 @@ class DictSnippetsItem(TypedDict):
 
     label: NotRequired[str]
     imports: NotRequired[DictSnippetImports]
+
     appendFinalTabstop: NotRequired[bool]
+    insertionMode: NotRequired[SnippetInsertionMode]
 
 
 class DictCatalogSnippet(TypedDict):
@@ -31,6 +34,7 @@ class DictCatalogSnippet(TypedDict):
     description: NotRequired[str]
 
     imports: NotRequired[DictSnippetImports]
+    insertionMode: SnippetInsertionMode
 
 
 class DictImportSourceConfig(TypedDict):

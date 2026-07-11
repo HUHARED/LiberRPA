@@ -75,6 +75,7 @@ def _build_catalog_item(category: str, title: str, item: DictSnippetsItem) -> Di
         "label": item.get("label", _get_default_label(category=category, title=title)),
         "prefix": item["prefix"],
         "body": _normalize_body(item=item),
+        "insertionMode": item.get("insertionMode", "line"),
     }
 
     description = item.get("description")

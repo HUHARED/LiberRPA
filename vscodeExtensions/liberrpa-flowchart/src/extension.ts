@@ -6,7 +6,6 @@ import type { DictProjectForWebview, WebviewToExtensionMessage } from "./interfa
 import {
   outputChannel,
   isWebviewMessage,
-  getCustomArgNames,
   resolveWorkspacePythonFile,
   validatePythonImportSafety,
   validateProjectBlockPythonFiles,
@@ -17,71 +16,6 @@ export function activate(context: vscode.ExtensionContext): void {
   outputChannel.appendLine('"liberrpa-flowchart" is now active.');
 
   context.subscriptions.push(FlowchartEditorProvider.register(context));
-
-  const provider = vscode.languages.registerCompletionItemProvider(
-    { language: "python" },
-    {
-      provideCompletionItems(document: vscode.TextDocument, position: vscode.Position) {
-        const linePrefix = document.lineAt(position).text.substring(0, position.character);
-
-        // outputChannel.appendLine(`linePrefix: "${linePrefix}"`);
-        let intOffset: number;
-
-        // Show suggestions if the line ends with CustomArgs, CustomArgs[ or CustomArgs["
-        if (linePrefix.endsWith("CustomArgs")) {
-          intOffset = 0;
-        } else if (linePrefix.endsWith("CustomArgs[")) {
-          intOffset = 1;
-        } else if (linePrefix.endsWith('CustomArgs["')) {
-          intOffset = 2;
-        } else if (linePrefix.endsWith("CustomArgs['")) {
-          intOffset = 2;
-        } else {
-          // outputChannel.appendLine(`${linePrefix}`);
-          return undefined;
-        }
-
-        // outputChannel.appendLine(`Go on: ${linePrefix}`);
-
-        const customArgNames = getCustomArgNames(document);
-        if (!customArgNames || customArgNames.length === 0) {
-          // outputChannel.appendLine(`!customArgNames || customArgNames.length === 0`);
-          return undefined;
-        }
-
-        // Build completion items
-        const completionItems: vscode.CompletionItem[] = [];
-        for (const argName of customArgNames) {
-          let strSnippets: string = "";
-          if (intOffset === 0) {
-            strSnippets = `["${argName}"]`;
-          } else if (intOffset === 1) {
-            strSnippets = `"${argName}"`;
-          } else if (intOffset === 2) {
-            strSnippets = `${argName}`;
-          }
-          const item = new vscode.CompletionItem(
-            strSnippets,
-            vscode.CompletionItemKind.Snippet,
-          );
-          item.insertText = strSnippets;
-          item.range = new vscode.Range(position, position);
-          // outputChannel.appendLine(`item: ["${argName}"]`);
-
-          completionItems.push(item);
-        }
-
-        return completionItems;
-      },
-    },
-    "[",
-    '"',
-    "'",
-  );
-
-  // outputChannel.appendLine("push CompletionItemProvider.");
-
-  context.subscriptions.push(provider);
 }
 
 export function deactivate(): void {

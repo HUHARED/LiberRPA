@@ -7,6 +7,8 @@ import { isExecuteMode, parseFlowProjectFromText } from "./checkFlowchart";
 import { getRiskyPyModuleNameReason } from "./riskyPyModuleNames";
 
 export const outputChannel = vscode.window.createOutputChannel("liberrpa-flowchart");
+// Show the output channel automatically during development.
+// Remove this before publishing if it becomes too intrusive.
 outputChannel.show(true);
 
 export function isWebviewMessage(value: unknown): value is WebviewToExtensionMessage {
@@ -45,61 +47,6 @@ export function isWebviewMessage(value: unknown): value is WebviewToExtensionMes
   return false;
 }
 
-export function getCustomArgNames(document: vscode.TextDocument): string[] {
-  // outputChannel.appendLine("--getCustomArgNames--");
-
-  // Find the related workspace.
-  const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);
-
-  if (!workspaceFolder) {
-    return [];
-  }
-
-  const projectFlowPath = path.join(workspaceFolder.uri.fsPath, "project.flow");
-
-  // Try to get the open "project.flow" document
-  const openDocument = vscode.workspace.textDocuments.find(
-    (doc) => doc.uri.fsPath === projectFlowPath
-  );
-
-  let content: string | undefined;
-
-  if (openDocument) {
-    // Read the latest unsaved content from the open document
-    content = openDocument.getText();
-    // outputChannel.appendLine("Using unsaved project.flow content.");
-  } else {
-    // Fallback: read from disk if the file is not open in the editor
-
-    if (!fs.existsSync(projectFlowPath)) {
-      // outputChannel.appendLine("Not found project.flow.");
-      return [];
-    }
-
-    try {
-      content = fs.readFileSync(projectFlowPath, "utf-8");
-      // outputChannel.appendLine("Using saved project.flow content from disk.");
-    } catch (e) {
-      outputChannel.appendLine(
-        `Error reading project.flow: ${e instanceof Error ? e.message : String(e)}`
-      );
-      return [];
-    }
-  }
-
-  // Parse JSON and extract customPrjArgs
-  try {
-    const dictProject = parseFlowProjectFromText(content);
-    return dictProject.customPrjArgs.map((item) => item[0]);
-  } catch (e) {
-    outputChannel.appendLine(
-      `Parsing project.flow JSON failed: ${e instanceof Error ? e.message : String(e)}`
-    );
-  }
-
-  return [];
-}
-
 export function validatePythonImportSafety(pyFile: string): void {
   const reason = getRiskyPyModuleNameReason(pyFile);
 
@@ -110,7 +57,7 @@ export function validatePythonImportSafety(pyFile: string): void {
 
 export function validateProjectBlockPythonFiles(
   workspaceFolder: vscode.WorkspaceFolder,
-  document: vscode.TextDocument
+  document: vscode.TextDocument,
 ): void {
   const dictProject = parseFlowProjectFromText(document.getText());
 
@@ -135,7 +82,7 @@ export function validateProjectBlockPythonFiles(
 
 export function resolveWorkspacePythonFile(
   workspaceFolder: vscode.WorkspaceFolder,
-  pyFile: string
+  pyFile: string,
 ): vscode.Uri {
   const strInput = pyFile.trim();
 
@@ -177,7 +124,7 @@ export function resolveWorkspacePythonFile(
 
     if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(strNameWithoutExt)) {
       throw new Error(
-        `Invalid Python module name "${strNameWithoutExt}" in path: ${pyFile}`
+        `Invalid Python module name "${strNameWithoutExt}" in path: ${pyFile}`,
       );
     }
   }

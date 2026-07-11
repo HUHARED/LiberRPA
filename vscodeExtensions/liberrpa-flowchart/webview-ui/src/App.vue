@@ -55,7 +55,7 @@ import FlowchartArea from "./components/FlowchartArea.vue";
 import NodePanel from "./components/NodePanel.vue";
 import NodeInfo from "./components/NodeInfo.vue";
 import SettingArea from "./components/SettingArea.vue";
-import BuiltInPrjArgs from "./components/BuiltInPrjArgs.vue";
+import BuiltInPrjArgs from "./components/BuiltinPrjArgs.vue";
 import CustomPrjArgs from "./components/CustomPrjArgs.vue";
 import Alert from "./components/Alert.vue";
 import { useFlowchartStore, useSettingStore, useArgsStore } from "./store";

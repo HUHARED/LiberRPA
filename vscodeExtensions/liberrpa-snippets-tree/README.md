@@ -48,22 +48,28 @@ You can also move LiberRPA Snippets Tree back to Activity Bar.
 
 ## User-defined Code Snippets
 
-You can define your frequently used snippets by editing the file: `C:/Users/<username>/Documents/LiberRPA/snippets_favorite.jsonc`
+You can define frequently used snippets in:
 
-Below is an example configuration:
+```text
+C:/Users/<username>/Documents/LiberRPA/snippets_favorite.jsonc
+```
+
+Favorite snippets use the same snippet-item structure as `assets/snippets_catalog.json`. You can copy a complete entry from the catalog's `snippets` object, or create your own entry. The optional `imports` field lists names that should be added to the LiberRPA managed import block.
+
+After editing the file, run `Developer: Reload Window` in VS Code.
 
 ```jsonc
-// FileName: snippets_favorite.jsonc
 {
-  // Copy any snippets from https://github.com/HUHARED/LiberRPA/vscodeExtensions/liberrpa-snippets-tree/assets/snippets_final.snippets and paste them in here, these snippets will be put at the top in LiberRPA Snippets Tree.
-  // And you can write your custom snippets in here too.
-  // After you modified the file, restart vscode to make the changement works.
-  // Example:
-
-  "Test Snippets": {
-    "prefix": "test",
-    "body": ["delay(${1:1000})", ""],
-    "description": "Delay some time, in milliseconds."
+  "schemaVersion": 1,
+  "snippets": {
+    "Custom Delay": {
+      "prefix": "custom_delay",
+      "body": ["delay(${1:1000})", "$0"],
+      "description": "Wait for a specified time, in milliseconds.",
+      "imports": {
+        "liberrpa.Modules": ["delay"]
+      }
+    }
   }
 }
 ```

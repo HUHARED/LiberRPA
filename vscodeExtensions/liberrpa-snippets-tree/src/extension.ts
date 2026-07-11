@@ -1,122 +1,137 @@
 // FileName: extension.ts
 import { log } from "./output";
-import type { SnippetNodeCommandArg, SnippetCompletionCommandArg } from "./interface";
+import type {
+  DictSnippetCompletionCommandArg,
+  DictSnippetNodeCommandArg,
+  DictSnippetRepository,
+} from "./interface";
 
-import { SnippetTreeDataProvider, checkWhetherHandleDrop } from "./treeViewProvider";
-import { LiberRPACompletionItemProvider } from "./completionProvider";
+import { SnippetTreeDataProvider } from "./treeViewProvider";
+import { MainCompletionItemProvider } from "./completionProvider";
+import { CustomArgsCompletionItemProvider } from "./customArgsCompletionProvider";
 
-import { insertSnippet } from "./utils";
-import { getImportManifest } from "./handleSnippets";
+import { loadSnippetRepository, insertSnippetFromTreeNode } from "./handleSnippets";
 import { updateManagedImports } from "./managedImports";
+import { reportError, runAsyncBoundary } from "./errorHandling";
+
 import * as vscode from "vscode";
 
-export function activate(context: vscode.ExtensionContext): void {
-  console.log(
-    `[liberrpa-snippets-tree] Current log level: ${vscode.LogLevel[log.logLevel]}`,
-  );
-
-  log.info("LiberRPA Snippets Tree activated.");
+function registerExtensionFeatures(
+  context: vscode.ExtensionContext,
+  repository: DictSnippetRepository
+): void {
+  const treeViewProvider = new SnippetTreeDataProvider(repository);
 
   /* TreeView-related */
-  const treeViewProvider = new SnippetTreeDataProvider();
   context.subscriptions.push(
     vscode.window.createTreeView("LiberRPA.snippetsTreeView", {
       treeDataProvider: treeViewProvider,
       showCollapseAll: true,
       canSelectMany: false,
       dragAndDropController: treeViewProvider,
-    }),
+    })
   );
   context.subscriptions.push(
     vscode.commands.registerCommand(
       "LiberRPA.insertSnippetByNodeClicking",
-      async (arg: SnippetNodeCommandArg): Promise<void> => {
-        try {
-          // Click insertion path:
-          // TreeItem.command -> LiberRPA.insertSnippetByNodeClicking -> insert snippet -> update imports.
-          log.debug(
-            `[Click] Inserting snippet: ${arg.title}, imports=[${arg.importNames.join(", ")}].`,
-          );
+      async (arg: DictSnippetNodeCommandArg): Promise<void> => {
+        await runAsyncBoundary(
+          "Failed to insert LiberRPA snippet",
+          async (): Promise<void> => {
+            const inserted = await insertSnippetFromTreeNode(arg.body, arg.insertionMode);
 
-          /* Insert the snippet. */
-          const inserted = await insertSnippet(arg.body);
-          if (!inserted) {
-            log.error(`[Click] Failed to insert snippet: ${arg.title}.`);
-            void vscode.window.showWarningMessage(
-              `Failed to insert LiberRPA snippet: ${arg.title}`,
-            );
-            return;
-          }
+            if (!inserted) {
+              throw new Error(`VS Code rejected snippet ${arg.title}.`);
+            }
 
-          /* Update imports. */
-          const editor = vscode.window.activeTextEditor;
-          if (!editor) {
-            log.error(`[Click] No active editor after inserting snippet: ${arg.title}.`);
-            void vscode.window.showWarningMessage(
-              "No active editor for updating LiberRPA imports.",
-            );
-            return;
-          }
-          await updateManagedImports(editor, getImportManifest(), arg.importNames);
+            const editor = vscode.window.activeTextEditor;
 
-          log.debug(`[Click] Snippet inserted: ${arg.title}.`);
-        } catch (e) {
-          log.error(
-            `[Click] Failed to insert LiberRPA snippet: ${e instanceof Error ? e.message : String(e)}`,
-          );
-          void vscode.window.showErrorMessage(
-            `Failed to insert LiberRPA snippet: ${e instanceof Error ? e.message : String(e)}`,
-          );
-        }
-      },
-    ),
+            if (!editor) {
+              throw new Error(
+                `No active editor was found after inserting snippet ${arg.title}.`
+              );
+            }
+
+            await updateManagedImports(editor, repository.importSources, arg.imports);
+
+            log.debug(`[Click] Inserted snippet: ${arg.title}.`);
+          },
+          true
+        );
+      }
+    )
   );
+
+  /* Drag-related */
   context.subscriptions.push(
     vscode.workspace.onDidChangeTextDocument((event): void => {
-      // Drag insertion path:
-      // VS Code first inserts a temporary drop marker into the editor.
-      // checkWhetherHandleDrop() replaces that marker with the real snippet and updates imports.
-
-      // Once the file content changed, the inside logic of the function will analyze whether it was triggered by dragging event and then choose the correct following behavior.
-      void checkWhetherHandleDrop(event);
-    }),
+      void runAsyncBoundary(
+        "Failed to insert dragged LiberRPA snippet",
+        async (): Promise<void> => {
+          await treeViewProvider.handlePossibleSnippetDrop(event);
+        },
+        true
+      );
+    })
   );
 
   /* Completion-related */
   context.subscriptions.push(
     vscode.languages.registerCompletionItemProvider(
       { language: "python", scheme: "file" },
-      new LiberRPACompletionItemProvider(),
-    ),
+      new MainCompletionItemProvider(repository)
+    )
+  );
+  context.subscriptions.push(
+    vscode.languages.registerCompletionItemProvider(
+      { language: "python", scheme: "file" },
+      new CustomArgsCompletionItemProvider(),
+      "[",
+      '"',
+      "'"
+    )
   );
   context.subscriptions.push(
     vscode.commands.registerCommand(
       "LiberRPA.updateManagedImportsAfterCompletion",
-      async (arg: SnippetCompletionCommandArg): Promise<void> => {
-        try {
-          const editor = vscode.window.activeTextEditor;
-          if (!editor) {
-            log.error(`[Completion] No active editor for updating imports: ${arg.title}.`);
-            return;
-          }
+      async (arg: DictSnippetCompletionCommandArg): Promise<void> => {
+        await runAsyncBoundary(
+          "Failed to update LiberRPA managed imports",
+          async (): Promise<void> => {
+            const editor = vscode.window.activeTextEditor;
 
-          log.debug(
-            `[Completion] Update imports for snippet: ${arg.title}, imports=[${arg.importNames.join(", ")}].`,
-          );
+            if (!editor) {
+              throw new Error(`No active editor was found for completion ${arg.title}.`);
+            }
 
-          await updateManagedImports(editor, getImportManifest(), arg.importNames);
-        } catch (e) {
-          const message = e instanceof Error ? e.message : String(e);
-          log.error(`[Completion] Failed to update imports: ${message}`);
-          void vscode.window.showErrorMessage(
-            `Failed to update LiberRPA imports: ${message}`,
-          );
-        }
-      },
-    ),
+            await updateManagedImports(editor, repository.importSources, arg.imports);
+
+            log.debug(`[Completion] Updated imports for: ${arg.title}.`);
+          },
+          true
+        );
+      }
+    )
   );
 }
 
+export function activate(context: vscode.ExtensionContext): void {
+  // Let vscode manage log's lifecycle.
+  context.subscriptions.push(log);
+
+  try {
+    const repository = loadSnippetRepository();
+    registerExtensionFeatures(context, repository);
+
+    log.info("LiberRPA Snippets Tree activated.");
+  } catch (e) {
+    reportError("Failed to activate LiberRPA Snippets Tree", e, true);
+
+    // Activation did not complete, so report the failure to VS Code as well.
+    throw e;
+  }
+}
+
 export function deactivate(): void {
-  log.debug('"liberrpa-snippets-tree" is now deactivated.');
+  log.info("LiberRPA Snippets Tree deactivated.");
 }

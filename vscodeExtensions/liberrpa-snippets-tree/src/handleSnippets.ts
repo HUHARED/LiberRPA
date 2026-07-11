@@ -1,144 +1,240 @@
 // FileName: handleSnippets.ts
 import { log } from "./output";
-import type { ImportManifest, SnippetTotalInfo } from "./interface";
-import { isSnippetsRecord, isImportManifest } from "./typeCheck";
+import type {
+  DictSnippetFavoriteFile,
+  DictImportsInfo,
+  DictSnippetCatalogFile,
+  DictSnippetRepository,
+  DictSnippetTotalInfo,
+  SnippetInsertionMode,
+} from "./interface";
+import { isFavoriteSnippetsFile, isSnippetCatalog } from "./typeCheck";
 
-import * as path from "path";
-import * as fs from "fs";
-import * as os from "os";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
 import * as jsoncParser from "jsonc-parser";
+import * as vscode from "vscode";
+
+const STR_FAVORITE_CATEGORY = "Favorite";
 
 function normalizeSnippetBody(body: string[] | string): string[] {
-  if (Array.isArray(body)) {
-    return body;
-  }
-
-  return body.split(/\r?\n/);
+  const lines = Array.isArray(body) ? body : body.split(/\r?\n/);
+  return lines.map((line) => line.replace(/\t/g, "    "));
 }
 
-function generateTreeItemFromSnippets(
-  fileContent: string,
-  isFavorite: boolean,
-  importManifest: ImportManifest,
-): Record<string, Record<string, SnippetTotalInfo>> {
-  const dictTree: Record<string, Record<string, SnippetTotalInfo>> = {};
+function loadDefaultCatalog(): DictSnippetCatalogFile {
+  const strCatalogPath = path.join(__dirname, "../assets/snippets_catalog.json");
 
-  fileContent = fileContent.replace(/\t/g, "    ");
-
-  const parsedSnippets: unknown = jsoncParser.parse(fileContent);
-
-  if (!isSnippetsRecord(parsedSnippets)) {
-    throw new Error("Invalid snippets file structure.");
+  if (!fs.existsSync(strCatalogPath)) {
+    throw new Error(`snippets_catalog.json was not found: ${strCatalogPath}`);
   }
 
-  const dictSnippets = parsedSnippets;
-
-  for (const [strKey, dictSnippetDetail] of Object.entries(dictSnippets)) {
-    let strCategoryName: string;
-    let strSnippetLabel: string;
-
-    if (isFavorite) {
-      strCategoryName = "Favorite";
-      // Keep the original key as the label for favorite snippets.
-      strSnippetLabel = strKey;
-    } else {
-      // Use the text before "." as the category's name. Use the text after "." as the children node's name.
-      const intDotIndex = strKey.indexOf(".");
-
-      strCategoryName = intDotIndex !== -1 ? strKey.substring(0, intDotIndex) : strKey;
-      strSnippetLabel = intDotIndex !== -1 ? strKey.substring(intDotIndex + 1) : strKey;
-    }
-
-    // Create the category group.
-    if (!dictTree[strCategoryName]) {
-      dictTree[strCategoryName] = {};
-    }
-
-    // Add children into the category group.
-    dictTree[strCategoryName][strSnippetLabel] = {
-      // Store all metadata needed by TreeView, IntelliSense, and import management.
-      title: strKey,
-      prefix: dictSnippetDetail.prefix,
-      body: normalizeSnippetBody(dictSnippetDetail.body),
-      description:
-        dictSnippetDetail.description ??
-        "There is no description. Maybe it's enough to see the name of the function?",
-      importNames: importManifest.items[strKey] ?? [],
-    };
+  const value: unknown = JSON.parse(fs.readFileSync(strCatalogPath, "utf-8"));
+  if (!isSnippetCatalog(value)) {
+    throw new Error(`Invalid snippets_catalog.json: ${strCatalogPath}`);
   }
 
   log.debug(
-    `[Snippets]Loaded ${Object.values(dictTree).reduce((total, category) => total + Object.keys(category).length, 0)} snippets from ${isFavorite ? "favorite" : "default"} snippets.`,
-  );
-
-  return dictTree;
-}
-
-function getFavoriteSnippets(importManifest: ImportManifest): {
-  [key: string]: { [key: string]: SnippetTotalInfo };
-} {
-  const strFilePath = path.join(os.homedir(), "Documents/LiberRPA/snippets_favorite.jsonc");
-
-  if (!fs.existsSync(strFilePath)) {
-    log.info(`${strFilePath} doesn't exist, create it.`);
-
-    const strFileContent = fs.readFileSync(
-      path.join(__dirname, "../assets/snippets_favorite_template.jsonc"),
-      "utf-8",
-    );
-    fs.writeFileSync(strFilePath, strFileContent, { encoding: "utf-8" });
-  }
-
-  const strFileContent = fs.readFileSync(strFilePath, "utf-8");
-  return generateTreeItemFromSnippets(strFileContent, true, importManifest);
-}
-
-function getDefaultSnippets(importManifest: ImportManifest): {
-  [key: string]: { [key: string]: SnippetTotalInfo };
-} {
-  const strFileContent = fs.readFileSync(
-    path.join(__dirname, "../assets/snippets_final.snippets"),
-    "utf-8",
-  );
-
-  return generateTreeItemFromSnippets(strFileContent, false, importManifest);
-}
-
-export function getSnippets(): {
-  [key: string]: { [key: string]: SnippetTotalInfo };
-} {
-  const importManifest = getImportManifest();
-  return {
-    ...getFavoriteSnippets(importManifest),
-    ...getDefaultSnippets(importManifest),
-  };
-}
-
-export function getImportManifest(): ImportManifest {
-  const manifestPath = path.join(__dirname, "../assets/import_manifest.json");
-
-  if (!fs.existsSync(manifestPath)) {
-    log.error(
-      `import_manifest.json was not found: ${manifestPath}. Managed imports will be disabled.`,
-    );
-
-    return {
-      importSource: "liberrpa.Modules",
-      importOrder: [],
-      items: {},
-    };
-  }
-
-  const value: unknown = JSON.parse(fs.readFileSync(manifestPath, "utf-8"));
-
-  if (!isImportManifest(value)) {
-    throw new Error(`Invalid import_manifest.json: ${manifestPath}`);
-  }
-
-  // TODO: More "import_manifest.json" would be used after LiberRPA Component feature completed.
-  log.trace(
-    `[Manifest] Loaded import manifest: ${manifestPath}, items=${Object.keys(value.items).length}.`,
+    `[Catalog] Loaded ${Object.keys(value.snippets).length} snippets from ${strCatalogPath}.`
   );
 
   return value;
+}
+
+function loadFavoriteSnippets(): DictSnippetFavoriteFile {
+  const strFavoritePath = path.join(
+    os.homedir(),
+    "Documents/LiberRPA/snippets_favorite.jsonc"
+  );
+
+  const strTargetFolderPath = path.dirname(strFavoritePath);
+  if (
+    !fs.existsSync(strTargetFolderPath) ||
+    !fs.statSync(strTargetFolderPath).isDirectory()
+  ) {
+    throw new Error(
+      `${strTargetFolderPath} was not found. Please run InitLiberRPA.exe to initialize or update LiberRPA.`
+    );
+  }
+
+  if (!fs.existsSync(strFavoritePath)) {
+    const strTemplatePath = path.join(
+      __dirname,
+      "../assets/snippets_favorite_template.jsonc"
+    );
+    fs.copyFileSync(strTemplatePath, strFavoritePath);
+
+    log.info(`[Favorite] Created favorite snippets file: ${strFavoritePath}.`);
+  }
+
+  const value: unknown = jsoncParser.parse(fs.readFileSync(strFavoritePath, "utf-8"));
+
+  if (!isFavoriteSnippetsFile(value)) {
+    throw new Error(`Invalid favorite snippets file: ${strFavoritePath}`);
+  }
+
+  log.debug(
+    `[Favorite] Loaded ${Object.keys(value.snippets).length} snippets from ${strFavoritePath}.`
+  );
+
+  return value;
+}
+
+function normalizeImports(imports: DictImportsInfo | undefined): DictImportsInfo {
+  if (!imports) {
+    return {};
+  }
+
+  const dictResult: DictImportsInfo = {};
+
+  for (const [importSource, importNames] of Object.entries(imports)) {
+    dictResult[importSource] = [...new Set(importNames)];
+  }
+
+  return dictResult;
+}
+
+function validateSnippetImports(
+  snippetTotalInfo: DictSnippetTotalInfo,
+  knownImportSources: ReadonlySet<string>
+): void {
+  const unknownSources = Object.keys(snippetTotalInfo.imports).filter(
+    (source) => !knownImportSources.has(source)
+  );
+
+  if (unknownSources.length > 0) {
+    log.warn(
+      `[Catalog] Snippet ${snippetTotalInfo.title} uses import sources without an order configuration: ${unknownSources.join(", ")}.`
+    );
+    // The source is still preserved by managed import handling,
+    // but its names will use alphabetical order.
+  }
+}
+
+export function loadSnippetRepository(): DictSnippetRepository {
+  const dictCatalog = loadDefaultCatalog();
+  const dictFavorites = loadFavoriteSnippets();
+  const dictCategories: Record<string, DictSnippetTotalInfo[]> = {};
+  const setKnownImportSources = new Set(Object.keys(dictCatalog.importSources));
+
+  for (const [strTitle, dictDefinition] of Object.entries(dictFavorites.snippets)) {
+    const dictSnippetTemp = {
+      id: `favorite:${strTitle}`,
+      title: strTitle,
+      category: STR_FAVORITE_CATEGORY,
+      label: dictDefinition.label ?? strTitle,
+      prefix: dictDefinition.prefix,
+      body: normalizeSnippetBody(dictDefinition.body),
+      description:
+        dictDefinition.description ?? "No description is available for this snippet.",
+      imports: normalizeImports(dictDefinition.imports),
+      insertionMode: dictDefinition.insertionMode ?? "line",
+    };
+
+    validateSnippetImports(dictSnippetTemp, setKnownImportSources);
+
+    dictCategories[dictSnippetTemp.category] ??= [];
+    dictCategories[dictSnippetTemp.category].push(dictSnippetTemp);
+  }
+
+  for (const [strTitle, dictDefinition] of Object.entries(dictCatalog.snippets)) {
+    const dictSnippetTemp = {
+      id: `builtin:${strTitle}`,
+      title: strTitle,
+      category: dictDefinition.category ?? "Uncategorized",
+      label: dictDefinition.label ?? strTitle,
+      prefix: dictDefinition.prefix,
+      body: normalizeSnippetBody(dictDefinition.body),
+      description:
+        dictDefinition.description ?? "No description is available for this snippet.",
+      imports: normalizeImports(dictDefinition.imports),
+      insertionMode: dictDefinition.insertionMode ?? "line",
+    };
+
+    validateSnippetImports(dictSnippetTemp, setKnownImportSources);
+
+    dictCategories[dictSnippetTemp.category] ??= [];
+    dictCategories[dictSnippetTemp.category].push(dictSnippetTemp);
+  }
+
+  const arrCategoryOrder: string[] = [];
+
+  if ((dictCategories[STR_FAVORITE_CATEGORY]?.length ?? 0) > 0) {
+    arrCategoryOrder.push(STR_FAVORITE_CATEGORY);
+  }
+
+  for (const category of dictCatalog.categoryOrder) {
+    if ((dictCategories[category]?.length ?? 0) > 0) {
+      arrCategoryOrder.push(category);
+    }
+  }
+
+  const arrUnknownCategories = Object.keys(dictCategories)
+    .filter((category) => !arrCategoryOrder.includes(category))
+    .sort();
+  arrCategoryOrder.push(...arrUnknownCategories);
+
+  return {
+    categoryOrder: arrCategoryOrder,
+    categories: dictCategories,
+    importSources: dictCatalog.importSources,
+  };
+}
+
+export async function insertSnippetFromTreeNode(
+  arrSnippetsLines: string[],
+  insertionMode: SnippetInsertionMode
+): Promise<boolean> {
+  const editor = vscode.window.activeTextEditor;
+
+  if (!editor) {
+    throw new Error(`No visible editor was found before inserting the snippet.`);
+  }
+  const snippetObj = new vscode.SnippetString(arrSnippetsLines.join("\n"));
+
+  /*
+   * Expression-like snippets, such as PrjArgs.projectPath, should be
+   * inserted exactly at the current cursor or replace the current selection.
+   */
+  if (insertionMode === "cursor") {
+    return await editor.insertSnippet(snippetObj);
+  }
+
+  const positionCurrent = editor.selection.active;
+  const intLineNumberCurrent = positionCurrent.line;
+  const lineCurrent = editor.document.lineAt(intLineNumberCurrent);
+
+  if (lineCurrent.isEmptyOrWhitespace) {
+    // It's a empty line, add the snippet directly.
+    return await editor.insertSnippet(snippetObj);
+  }
+
+  if (arrSnippetsLines[0].startsWith(" # type: ignore")) {
+    // For type ignore, add it at the line's end.
+    const positionEnd = new vscode.Position(intLineNumberCurrent, lineCurrent.text.length);
+    editor.selection = new vscode.Selection(positionEnd, positionEnd);
+    return await editor.insertSnippet(snippetObj);
+  }
+
+  // Keep the current indent by insert spaces.
+  const strCurrentLineIndent = lineCurrent.text.match(/^\s*/)?.[0] || "";
+  const boolEdited = await editor.edit((editBuilder) => {
+    editBuilder.insert(
+      positionCurrent.with(intLineNumberCurrent, lineCurrent.text.length),
+      "\n" + strCurrentLineIndent
+    );
+  });
+
+  if (!boolEdited) {
+    throw new Error("Failed to create a new line for the snippet.");
+  }
+
+  // Add the snippet at the new empty line.
+  const positionNextLine = new vscode.Position(
+    intLineNumberCurrent + 1,
+    strCurrentLineIndent.length
+  );
+  editor.selection = new vscode.Selection(positionNextLine, positionNextLine);
+  return await editor.insertSnippet(snippetObj);
 }
