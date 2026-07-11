@@ -40,12 +40,11 @@ setup(
         "Environment :: Win32 (MS Windows)",
         "Intended Audience :: Developers",
         "Intended Audience :: End Users/Desktop",
-        "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
         "Operating System :: Microsoft :: Windows",
         "Operating System :: Microsoft :: Windows :: Windows 10",
         "Operating System :: Microsoft :: Windows :: Windows 11",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
         "Topic :: Office/Business",
         "Topic :: Software Development :: Libraries :: Python Modules",
     ],
@@ -57,8 +56,11 @@ setup(
         "browser-automation",
     ],
     packages=find_packages(include=["liberrpa", "liberrpa.*"]),
+    package_data={
+        "liberrpa": ["py.typed"],
+    },
     include_package_data=True,
-    python_requires=">=3.12,<3.13",
+    python_requires=">=3.13,<3.14",
     platforms=["Windows"],
     install_requires=[
         # Keep this list intentionally small.
