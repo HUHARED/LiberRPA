@@ -19,7 +19,7 @@ The `project.flow` file (in JSON format) contains:
 * Built-in project arguments
 * Custom project arguments
 
-Since LiberRPA Flowchart is actually a [VS Code custom editor](https://code.visualstudio.com/api/extension-guides/custom-editors), so you can open the `project.flow` with another editor and take advantage of [VS Code Timeline](https://code.visualstudio.com/docs/sourcecontrol/overview#_timeline-view):
+LiberRPA Flowchart is implemented as a [VS Code custom editor](https://code.visualstudio.com/api/extension-guides/custom-editors), so you can also open project.flow with the text editor and use features such as [VS Code Timeline](https://code.visualstudio.com/docs/sourcecontrol/overview#_timeline-view):
 
 ![1740311326677](md_images/README/1740311326677.png)
 
@@ -31,7 +31,7 @@ Since LiberRPA Flowchart is actually a [VS Code custom editor](https://code.visu
 2. Execute the command `Preferences: File Icon Theme`
 3. Select **VSCode Great Icons with LiberRPA Flowchart File**
 
-This ensure that `.flow` files can display the correct icon.
+This ensures that `.flow` files can display the correct icon.
 
 > Note: This is purely a UI enhancement, the project will work correctly even if you skip this step.
 
@@ -41,7 +41,7 @@ When you click or hover a node, four anchors appear.
 
 Drag an anchor to another node to create a new line.
 
-Ensure that the line follow the [Link Rules](##link-rules).
+Ensure that the connection follows the [Link Rules](#link-rules).
 
 ![1740310630113](md_images/README/1740310630113.png)![1740310650278](md_images/README/1740310650278.png)![1740310668391](md_images/README/1740310668391.png)![1740310693259](md_images/README/1740310693259.png)![1740310706782](md_images/README/1740310706782.png)
 
@@ -70,16 +70,19 @@ Ensure that the line follow the [Link Rules](##link-rules).
 * **Python File Path Rules:**
 
   * Must be a relative path to a `.py` file.
-  * The filename may only contain only:
+  * The filename may contain only:
 
     * English letters (`a-z`, `A-Z`)
     * Numbers (`0-9`) (but cannot start with a number)
     * Underscores(`_`)
   * Use `"/"` as the folder separator.
   * The `"./"` prefix is optional.
-  * Avoid using LiberRPA built-in module names: ["Mouse", "Keyboard", "Window", "UiInterface", "Browser", "Excel", "Outlook", "Application", "Database", "Data", "Str", "List", "Dict", "Regex", "Math", "Time", "File", "OCR", "Web", "Mail", "FTP", "Clipboard", "System", "Credential", "ScreenPrint", "Dialog"]
+  * Avoid risky Python module names:
 
-> ⚠️ Note: The Python file must have a `main` function because when you clicking `⊳` in the Start node to execute the whole project, LiberRPA will run the `main` function in each Block node's Python file.
+    * The top-level file or folder name must not conflict with Python standard-library modules or reserved LiberRPA module names.
+    * The Flowchart editor validates the path and displays an error when a risky module name is detected.
+
+> ⚠️ Note: The Python file must have a `main` function because when you click `⊳` in the Start node to execute the whole project, LiberRPA will run the `main` function in each Block node's Python file.
 
 * **File Creation:**
   Click ![1740304294046](md_images/README/1740304294046.png) in a Block node to open the corresponding Python file, If the file does not exist, LiberRPA will create it and add a default script.
@@ -97,7 +100,7 @@ Ensure that the line follow the [Link Rules](##link-rules).
 ### Choose Node
 
 * **Create:**
-  Drag to create a Choose node and Modify it description and condition. The condition will be evaluated using [eval()](https://docs.python.org/3/library/functions.html#eval).
+  Drag to create a Choose node and modify its description and condition. The condition will be evaluated using [eval()](https://docs.python.org/3/library/functions.html#eval).
 
   * When referring values in **Custom Project Argument**, use `CustomArgs["valueName"]`.
     ![1740306458764](md_images/README/1740306458764.png)
@@ -194,19 +197,53 @@ You can define project arguments in **Custom Project Arguments** area.
 
 ![1740309307537](md_images/README/1740309307537.png)
 
-When editing a Python script, typing `CustomArgs`, `CustomArgs[` or `CustomArgs["` will prompty an [IntelliSense](https://code.visualstudio.com/docs/editor/intellisense) list showing the available arguments.
+Each argument consists of a string key and a JSON-deserializable value.
+
+### Key
+
+The key is stored as a string. It does not need to be a valid Python identifier.
+
+The input field displays surrounding double quotes. You edit only the string content inside the quotes. JSON string escaping rules apply, so backslashes and double quotes must be escaped when necessary.
+
+Empty-string keys are allowed.
+
+Duplicate keys are also allowed while editing. The Flowchart highlights duplicate keys as a warning. At runtime, the last value with the same key takes effect.
+
+### Value
+
+The value must be JSON-deserializable. Supported values include strings, numbers, booleans, `null`, arrays, and objects.
+
+Press Enter or leave the input field to apply a key or value change.
+
+### Using Custom Arguments in Python
+
+Custom argument completions are provided by  **LiberRPA Snippets Tree** .
+
+When editing a Python file, type `CustomArgs` or one of the following forms to display the available keys:
+
+```
+CustomArgs
+CustomArgs[
+CustomArgs["
+CustomArgs['
+```
+
+The completion list is generated from the current `project.flow` document, including changes that have not yet been saved to disk.
+
+Selecting a completion also adds `CustomArgs` to the LiberRPA managed import block when necessary.
+
+For example:
+
+```
+customer_name = CustomArgs["customerName"]
+```
+
 
 ![1740309273810](md_images/README/1740309273810.png)
 
 ![1740309284626](md_images/README/1740309284626.png)
 
 ![1740309294818](md_images/README/1740309294818.png)
-
-> Note:
->
-> There is an issue now, the values in **Custom Project Arguments** will not appear when you first type `CustomArgs`.
->
-> Anyway, use `CustomArgs[` and `CustomArgs["` will be better.
 
 ## Resize
 
@@ -228,5 +265,3 @@ If you need to edit extensive content, it may be more convenient to edit it else
 > If drag or shortcuts still feel unstable, click the flowchart canvas once to refocus it.
 
 * Text in a node and inputbox can't display optimally if it is not very short, due to the nodes and inputboxes all have a limited width.
-* The values in **Custom Project Arguments** will not appear when you first type `CustomArgs` in a Python script.
-*

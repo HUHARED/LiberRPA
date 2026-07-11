@@ -20,7 +20,7 @@
         {
           "id": "liberrpa_view_container",
           "title": "LiberRPA",
-          "icon": "./assets/LiberRPA_icon_v2_line.svg"
+          "icon": "./assets/LiberRPA_icon_v3_monochrome_24.svg"
         }
       ]
     },
@@ -30,7 +30,7 @@
           "type": "tree",
           "id": "LiberRPA.snippetsTreeView",
           "name": "Snippets Tree",
-          "icon": "./assets/LiberRPA_icon_v2_line.svg"
+          "icon": "./assets/LiberRPA_icon_v3_monochrome_24.svg"
         }
       ]
     }
