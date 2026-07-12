@@ -134,13 +134,24 @@ class DatabaseConnection:
         Log.verbose("Opening database connection...")
 
         try:
-            self.connection = self.engine.connect()
-            self.transaction = self.connection.begin()
+            connection = self.engine.connect()
         except Exception:
             self.engine.dispose()
             raise
 
-        return self.connection
+        try:
+            transaction = connection.begin()
+        except Exception:
+            try:
+                connection.close()
+            finally:
+                self.engine.dispose()
+            raise
+
+        self.connection = connection
+        self.transaction = transaction
+
+        return connection
 
     def __exit__(
         self,
@@ -166,6 +177,7 @@ def fetch_one(
     connObj: Connection,
     query: str,
     params: dict[str, Any] | None = None,
+    *,
     returnDict: Literal[True] = True,
 ) -> dict[str, Any] | None: ...
 
@@ -175,7 +187,8 @@ def fetch_one(
     connObj: Connection,
     query: str,
     params: dict[str, Any] | None = None,
-    returnDict: Literal[False] = False,
+    *,
+    returnDict: Literal[False],
 ) -> list[Any] | None: ...
 
 
@@ -184,6 +197,7 @@ def fetch_one(
     connObj: Connection,
     query: str,
     params: dict[str, Any] | None = None,
+    *,
     returnDict: bool = True,
 ) -> dict[str, Any] | list[Any] | None:
     """
@@ -210,13 +224,21 @@ def fetch_one(
 
 @overload
 def fetch_all(
-    connObj: Connection, query: str, params: dict[str, Any] | None = None, returnDict: Literal[True] = True
+    connObj: Connection,
+    query: str,
+    params: dict[str, Any] | None = None,
+    *,
+    returnDict: Literal[True] = True,
 ) -> list[dict[str, Any]]: ...
 
 
 @overload
 def fetch_all(
-    connObj: Connection, query: str, params: dict[str, Any] | None = None, returnDict: Literal[False] = False
+    connObj: Connection,
+    query: str,
+    params: dict[str, Any] | None = None,
+    *,
+    returnDict: Literal[False],
 ) -> list[list[Any]]: ...
 
 
@@ -225,6 +247,7 @@ def fetch_all(
     connObj: Connection,
     query: str,
     params: dict[str, Any] | None = None,
+    *,
     returnDict: bool = True,
 ) -> list[dict[str, Any]] | list[list[Any]]:
     """
