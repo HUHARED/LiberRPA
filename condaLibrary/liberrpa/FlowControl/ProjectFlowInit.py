@@ -21,6 +21,14 @@ if not PATH_PROJECT_FLOW.is_file():
 
 dictFlowFile: DictProject_Original = json.loads(PATH_PROJECT_FLOW.read_text(encoding="utf-8"))
 
+_SET_EXECUTOR_ARG_KEYS = {
+    "logLevel",
+    "recordVideo",
+    "stopShortcut",
+    "highlightUi",
+    "customPrjArgs",
+}
+
 # Update "logLevel", "recordVideo", "stopShortcut", "highlightUi", "customPrjArgs" if argument sent from command line.
 _parser = argparse.ArgumentParser()
 _parser.add_argument("--executor_args", required=False)
@@ -30,8 +38,14 @@ boolRunByExecutor = _strExecutorArgs is not None
 
 if boolRunByExecutor:
     dictArgs = json.loads(_strExecutorArgs)
-    for keyName in dictArgs:
-        dictFlowFile[keyName] = dictArgs[keyName]
+    if not isinstance(dictArgs, dict):
+        raise TypeError("Executor arguments must be a JSON object.")
+
+    setUnknownKeys = dictArgs.keys() - _SET_EXECUTOR_ARG_KEYS
+    if setUnknownKeys:
+        raise ValueError(f"Unknown Executor argument(s): {sorted(setUnknownKeys)}")
+
+    dictFlowFile.update(dictArgs)
     Log.info(f"Updated arguments from Executor: {dictArgs}")
 else:
     Log.debug("No built-in and custom project argument from Executor.")
