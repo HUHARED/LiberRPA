@@ -19,7 +19,7 @@ from liberrpa.UI._UiDict import (
 
 import re
 import math
-from typing import Any, cast, TypeIs
+from typing import Any, cast
 from collections.abc import Mapping
 
 
@@ -337,27 +337,11 @@ def ensure_selector(value: object) -> Selector:
     return cast(Selector, value)
 
 
-def is_selector_window(selector: Selector) -> TypeIs[SelectorWindow]:
-    return selector.get("category") is None
-
-
-def is_selector_uia(selector: Selector) -> TypeIs[SelectorUia]:
-    return selector.get("category") == "uia"
-
-
-def is_selector_html(selector: Selector) -> TypeIs[SelectorHtml]:
-    return selector.get("category") == "html"
-
-
-def is_selector_image(selector: Selector) -> TypeIs[SelectorImage]:
-    return selector.get("category") == "image"
-
-
 def ensure_selector_window(value: object) -> SelectorWindow:
     selector = ensure_selector(value)
 
-    if is_selector_window(selector):
-        return selector
+    if selector.get("category") is None:
+        return cast(SelectorWindow, selector)
 
     raise UiSelectorError(f"Expected SelectorWindow, got selector category: {selector.get('category')!r}.")
 
@@ -365,8 +349,8 @@ def ensure_selector_window(value: object) -> SelectorWindow:
 def ensure_selector_uia(value: object) -> SelectorUia:
     selector = ensure_selector(value)
 
-    if is_selector_uia(selector):
-        return selector
+    if selector.get("category") == "uia":
+        return cast(SelectorUia, selector)
 
     raise UiSelectorError(f"Expected SelectorUia, got selector category: {selector.get('category')!r}.")
 
@@ -374,8 +358,8 @@ def ensure_selector_uia(value: object) -> SelectorUia:
 def ensure_selector_html(value: object) -> SelectorHtml:
     selector = ensure_selector(value)
 
-    if is_selector_html(selector):
-        return selector
+    if selector.get("category") == "html":
+        return cast(SelectorHtml, selector)
 
     raise UiSelectorError(f"Expected SelectorHtml, got selector category: {selector.get('category')!r}.")
 
@@ -383,7 +367,7 @@ def ensure_selector_html(value: object) -> SelectorHtml:
 def ensure_selector_image(value: object) -> SelectorImage:
     selector = ensure_selector(value)
 
-    if is_selector_image(selector):
-        return selector
+    if selector.get("category") == "image":
+        return cast(SelectorImage, selector)
 
     raise UiSelectorError(f"Expected SelectorImage, got selector category: {selector.get('category')!r}.")
