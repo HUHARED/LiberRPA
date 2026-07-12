@@ -9,7 +9,7 @@ import multiprocessing
 
 
 from liberrpa.Logging import Log
-from liberrpa.Common._Utils import PROCESS_NAME
+from liberrpa.Common._Utils import PATH_PROJECT_ROOT, PROCESS_NAME
 from liberrpa.Trigger import _register_force_exit, _register_executor_exit_listener
 from liberrpa.Basic import _start_video_record
 from liberrpa.Dialog import show_notification
@@ -29,47 +29,53 @@ from liberrpa.FlowControl.ProjectFlowInit import (
 )
 import liberrpa.FlowControl.End as End
 
-import json
-
 import importlib
+import json
 from pathlib import Path
-import sys
 
 if __name__ == "__main__" and PROCESS_NAME == "MainProcess" and boolRunByExecutor:
     _register_executor_exit_listener()
 
 
+_SET_FLOW_CONTROL_MODULE_FILES = {
+    "liberrpa.FlowControl.Start.py",
+    "liberrpa.FlowControl.SubStart.py",
+    "liberrpa.FlowControl.End.py",
+}
+
+
 def _get_module_name(pyFile: str) -> str:
-
-    # Try to add "__init__.py" for all middle folders, otherwise importlib.import_module may can't recognize the module.
-    strForCheckInitPy = Path(pyFile)
-    # print("str:", strForCheckInitPy)
-    # print("strForCheckInitPy(Original)", strForCheckInitPy.absolute())
-    while True:
-        strForCheckInitPy = Path(strForCheckInitPy).parent
-        # print("strForCheckInitPy(Parent)", strForCheckInitPy.absolute())
-        strInitPyFile = strForCheckInitPy / "__init__.py"
-        if str(strForCheckInitPy.absolute()) in sys.path:
-            # Not have middle folder, importlib.import_module can recognize it without __init__.py
-            # print("Not have middle folder")
-            break
-        elif strInitPyFile.is_file():
-            # Have __init__.py
-            # print("Have __init__.py")
-            break
-        else:
-            # Create a __init__.py
-            # print(f"Created '{strInitPyFile}' for importlib.import_module can recognize it as a module")
-            strInitPyFile.write_text("")
-
     """
-    Standardize the module name for importlib.import_module to use:
-    Remove "./" in the start if it has.
-    Remove the suffix(".py") from the Python file's name.
-    Use . to split path.
+    Convert a project Python file path or built-in FlowControl file name to an importable module name.
     """
-    return str(Path(pyFile).relative_to(".")).removesuffix(Path(pyFile).suffix).replace("\\", ".")
-    # return re.sub(pattern=R"\.py$", repl="", string=pyFile, count=1, flags=re.IGNORECASE)
+
+    if pyFile in _SET_FLOW_CONTROL_MODULE_FILES:
+        return pyFile.removesuffix(".py")
+
+    pathPyFile = Path(pyFile)
+
+    if pathPyFile.is_absolute() or pathPyFile.anchor:
+        raise ValueError(f"The Block Python file path must be relative to the project folder: {pyFile}")
+
+    if pathPyFile.suffix.lower() != ".py":
+        raise ValueError(f"The Block Python file path must end with '.py': {pyFile}")
+
+    pathResolved = (PATH_PROJECT_ROOT / pathPyFile).resolve()
+
+    try:
+        pathRelative = pathResolved.relative_to(PATH_PROJECT_ROOT)
+    except ValueError:
+        raise ValueError(f"The Block Python file path must stay within the project folder: {pyFile}")
+
+    if not pathResolved.is_file():
+        raise FileNotFoundError(f"Block Python file does not exist: {pathResolved}")
+
+    moduleParts = pathRelative.with_suffix("").parts
+
+    if not moduleParts or any(not part.isidentifier() for part in moduleParts):
+        raise ValueError(f"The Block Python file path contains an invalid Python module name: {pyFile}")
+
+    return ".".join(moduleParts)
 
 
 def _run_by_direction(id: str) -> str | None:
