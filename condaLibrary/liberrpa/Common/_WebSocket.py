@@ -42,7 +42,7 @@ def disconnect() -> None:
 
 @_sioClient.event
 def connect_error(data: object) -> None:
-    Log.error("Connection failed: " + str(data))
+    Log.error("Local Server Connection failed: " + str(data))
 
 
 def _normalize_timeout(timeout: object | None) -> int:
@@ -69,16 +69,25 @@ def send_command(eventName: str, command: dict[str, Any], timeout: int | None = 
 
     eventResponse = threading.Event()
     dictResponseData: dict[str, DictSocketResult] = {}
+    callbackError: Exception | None = None
 
     def response_handler(data: object) -> None:
-        result = ensure_socket_result(data, source="LiberRPA Local Server")
-        Log.verbose(f"Data received from server: {result}")
+        nonlocal callbackError
 
-        dictResponseData["result"] = result
-        eventResponse.set()
+        try:
+            result = ensure_socket_result(data, source="LiberRPA Local Server")
+            Log.verbose(f"Data received from server: {result}")
 
-        if result["data"] == SIGN_START_RECORD_VIDEO:
-            Log.critical(result["data"])
+            if result["data"] == SIGN_START_RECORD_VIDEO:
+                Log.critical(result["data"])
+
+            dictResponseData["result"] = result
+
+        except Exception as e:
+            callbackError = e
+
+        finally:
+            eventResponse.set()
 
     try:
         # Protect the shared Socket.IO client.
@@ -112,6 +121,9 @@ def send_command(eventName: str, command: dict[str, Any], timeout: int | None = 
             f"{timeoutFinal / 1000} seconds. The server may be busy, the target platform may not be responding, "
             f"or the response data may be too large for the current WebSocket settings."
         )
+
+    if callbackError is not None:
+        raise callbackError
 
     # Process the received response.
     dictResult: DictSocketResult | None = dictResponseData.get("result")
