@@ -30,7 +30,7 @@ def delay(ms: int = 1000) -> None:
 
 
 @Log.trace()
-def start_video_record() -> None:
+def _start_video_record() -> None:
     """
     Start the video recording.
 
@@ -53,7 +53,7 @@ def start_video_record() -> None:
 
 
 if __name__ == "__main__":
-    start_video_record()
+    _start_video_record()
 
     import time
 
