@@ -9,11 +9,10 @@ from liberrpa.Logging import Log
 import liberrpa.UI._UiElement as _UiElement
 from liberrpa.UI._UiDict import (
     DictPositionAndSize,
-    DictUiaSecondaryAttr,
     SelectorWindow,
     Selector,
 )
-from liberrpa.UI._SelectorValidation import validate_selector
+from liberrpa.UI._SelectorValidation import validate_selector, ensure_selector_window
 from liberrpa.UI._TerminableThread import timeout_kill_thread
 from liberrpa.UI._OperationLock import lock_ui_operation
 from liberrpa.Common._Exception import UiElementNotFoundError, UiOperationError
@@ -130,7 +129,7 @@ def get_active_window() -> SelectorWindow:
         if control is None:
             raise UiElementNotFoundError(f"Failed to get control from window handle: {hwnd}")
 
-        return _UiElement.get_control_selector(control=control)
+        return ensure_selector_window(_UiElement.get_control_selector(control=control))
     else:
         raise UiElementNotFoundError("Not found a currently active window.")
 
@@ -269,12 +268,10 @@ def _set_window_position(
 ) -> None:
 
     selectorWindow = _extract_window_element(selector=selector)
-    _, dictTarget = _UiElement.get_element_with_pre_delay(selector=selectorWindow, preDelay=preDelay)
-
-    dictWindowAttr = cast(DictUiaSecondaryAttr, dictTarget)
+    controlWindow, dictTarget = _UiElement.get_element_with_pre_delay(selector=selectorWindow, preDelay=preDelay)
 
     uiautomation.MoveWindow(
-        handle=int(dictWindowAttr["secondary-NativeWindowHandle"]),
+        handle=controlWindow.NativeWindowHandle,
         x=x,
         y=y,
         width=int(dictTarget["secondary-width"]),
@@ -326,12 +323,10 @@ def _set_window_size(
 ) -> None:
 
     selectorWindow = _extract_window_element(selector=selector)
-    _, dictTarget = _UiElement.get_element_with_pre_delay(selector=selectorWindow, preDelay=preDelay)
-
-    dictWindowAttr = cast(DictUiaSecondaryAttr, dictTarget)
+    controlWindow, dictTarget = _UiElement.get_element_with_pre_delay(selector=selectorWindow, preDelay=preDelay)
 
     uiautomation.MoveWindow(
-        handle=int(dictWindowAttr["secondary-NativeWindowHandle"]),
+        handle=controlWindow.NativeWindowHandle,
         x=int(dictTarget["secondary-x"]),
         y=int(dictTarget["secondary-y"]),
         width=width,
@@ -382,12 +377,11 @@ def _get_window_pid(
 ) -> int:
 
     selectorWindow = _extract_window_element(selector=selector)
-    _, dictTarget = _UiElement.get_element_with_pre_delay(selector=selectorWindow, preDelay=preDelay)
+    controlWindow, _ = _UiElement.get_element_with_pre_delay(selector=selectorWindow, preDelay=preDelay)
 
     delay(postDelay)
 
-    dictWindowAttr = cast(DictUiaSecondaryAttr, dictTarget)
-    return int(dictWindowAttr["secondary-ProcessId"])
+    return controlWindow.ProcessId
 
 
 @Log.trace()
@@ -427,12 +421,11 @@ def _get_window_file_path(
 ) -> str:
 
     selectorWindow = _extract_window_element(selector=selector)
-    _, dictTarget = _UiElement.get_element_with_pre_delay(selector=selectorWindow, preDelay=preDelay)
+    controlWindow, _ = _UiElement.get_element_with_pre_delay(selector=selectorWindow, preDelay=preDelay)
 
     delay(postDelay)
 
-    dictWindowAttr = cast(DictUiaSecondaryAttr, dictTarget)
-    return psutil.Process(int(dictWindowAttr["secondary-ProcessId"])).exe()
+    return psutil.Process(controlWindow.ProcessId).exe()
 
 
 @Log.trace()

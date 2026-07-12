@@ -16,21 +16,25 @@ from liberrpa.UI._Image import find_image
 from liberrpa.Mouse import get_mouse_position
 from liberrpa.Dialog import show_notification
 from liberrpa.UI._UiDict import (
-    DictForUiAnalyzer,
+    DictUiAnalyzerIndicateResult,
     DictHtmlAttr,
-    DictSpecHtml,
     DictSpecImage,
     DictHtmlSecondaryAttr,
     DictImageAttr,
     SelectorWindow,
-    SelectorUia,
     SelectorHtml,
     SelectorImage,
     Selector,
     DictPosition,
     DictElementTreeItem,
 )
-from liberrpa.UI._SelectorValidation import ensure_selector_image, validate_selector
+from liberrpa.UI._SelectorValidation import (
+    ensure_selector_window,
+    ensure_selector_uia,
+    ensure_selector_html,
+    ensure_selector_image,
+    validate_selector,
+)
 from liberrpa.Common._Exception import UiElementNotFoundError
 from liberrpa.Common._Chrome import get_element_attr_by_coordinates
 import liberrpa.LiberRPALocalServer._Hook as _Hook
@@ -46,7 +50,7 @@ import mss
 import io
 import base64
 from PIL import Image
-from typing import Any, cast
+from typing import Literal
 
 _HIGHLIGHT_DURATION = 500
 
@@ -56,9 +60,11 @@ _INDICATE_TIMEOUT_SECONDS = 15  # create_screenshot_manually in _Screenshot.py u
 
 
 @Log.trace()
-def indicate_uia(indicateDelaySeconds: int = 1) -> tuple[DictForUiAnalyzer, uiautomation.Control] | tuple[None, None]:
-
+def indicate_uia(
+    indicateDelaySeconds: int = 1,
+) -> tuple[DictUiAnalyzerIndicateResult, uiautomation.Control] | tuple[None, None]:
     global _HIGHLIGHT_DURATION
+    threadHook: threading.Thread | None = None
     try:
         _delay(indicateDelaySeconds)
         deadline = _create_deadline()
@@ -95,34 +101,6 @@ def indicate_uia(indicateDelaySeconds: int = 1) -> tuple[DictForUiAnalyzer, uiau
                 else:
                     break
 
-            Log.debug("Check Name")
-            # Only need the element has "Name"
-            try:
-                while element is not None:
-                    if getattr(element, "Name", None):
-                        Log.debug("Have Name(getattr).")
-                        break
-                    else:
-                        Log.debug("Have no Name.")
-                        element = element.GetParentControl()
-                        Log.debug(f"Parent: {element}")
-            except Exception as e:
-                # If it is running in LiberRPA Local Server, some element may not useable when getattr(element, "Name"), like MenuItemControl in notepad.exe, I don't know why. But it can be handle by find another element in the windin, then locate the target element by Element Tree.
-                strError = (
-                    f"Error to get UI element at {dictCoordinate}. If the error persists, you may need to restart LiberRPA Local Server, then try to find another element in the window, then locate the target element by Element Tree, or try to indicate an image instead of uia element.\n"
-                    + str(e)
-                )
-                Log.error(strError)
-                show_notification(title="UI Analyzer Error", message=strError, duration=5, wait=False)
-                raise
-
-            """ # Only need the element has "Name"
-            while element is not None:
-                if getattr(element, "Name"):
-                    break
-                else:
-                    element = element.GetParentControl() """
-
             if element is None:
                 raise UiElementNotFoundError("No UI element was found at the cursor position.")
 
@@ -148,12 +126,7 @@ def indicate_uia(indicateDelaySeconds: int = 1) -> tuple[DictForUiAnalyzer, uiau
         Log.debug("Pressed mouse left.")
 
         # Get the selector(contains primary attributes) and secondary attributes.
-        selector = _UiElement.get_control_selector(control=element)
-
-        if selector.get("category") != "uia":
-            raise UiElementNotFoundError(f"Expected SelectorUia, got {selector.get('category')!r}")
-
-        selector = cast(SelectorUia, selector)
+        selector = ensure_selector_uia(_UiElement.get_control_selector(control=element))
 
         dictSecondaryAttr = get_control_secondary_attr(control=element)
 
@@ -164,7 +137,11 @@ def indicate_uia(indicateDelaySeconds: int = 1) -> tuple[DictForUiAnalyzer, uiau
             height=int(dictSecondaryAttr["secondary-height"]),
         )
 
-        dictReturn: DictForUiAnalyzer = {"selector": selector, "attributes": dictSecondaryAttr, "preview": preview}
+        dictReturn: DictUiAnalyzerIndicateResult = {
+            "selector": selector,
+            "attributes": dictSecondaryAttr,
+            "preview": preview,
+        }
         # Log.debug(dictReturn)
         # preview is so long, not print it.
         Log.debug({"selector": selector, "attributes": dictSecondaryAttr})
@@ -172,7 +149,7 @@ def indicate_uia(indicateDelaySeconds: int = 1) -> tuple[DictForUiAnalyzer, uiau
 
     finally:
         Log.debug("Clean up hook thread.")
-        if "threadHook" in locals() and threadHook.is_alive():
+        if threadHook is not None and threadHook.is_alive():
             Log.debug("Trying to unhook and join the thread.")
             _Hook.unhook(source="indicate_uia")
             threadHook.join(timeout=2)
@@ -187,9 +164,9 @@ def indicate_uia(indicateDelaySeconds: int = 1) -> tuple[DictForUiAnalyzer, uiau
 @Log.trace()
 def indicate_chrome(
     indicateDelaySeconds: int = 1, usePath: bool = True
-) -> tuple[DictForUiAnalyzer, tuple[list[DictElementTreeItem], list[int], int]] | None:
-
+) -> tuple[DictUiAnalyzerIndicateResult, tuple[list[DictElementTreeItem], list[int], int]] | None:
     global _HIGHLIGHT_DURATION
+    threadHook: threading.Thread | None = None
     try:
         _delay(indicateDelaySeconds)
         deadline = _create_deadline()
@@ -262,21 +239,21 @@ def indicate_chrome(
         Log.debug("Pressed mouse left.")
 
         # Delete all secondary attributes in listAllAttr, assign it to listSpecification
-        listSpecification: list[DictSpecHtml] = []
+        listSpecification: list[dict[str, object]] = []
         for dictAttr in listAllAttr:
-            dictToAppendTemp: dict[str, Any] = {}
+            dictToAppendTemp: dict[str, object] = {}
 
             for strKey in dictAttr:
                 if not strKey.startswith("secondary-"):
                     dictToAppendTemp[strKey] = dictAttr[strKey]
 
-            listSpecification.append(cast(DictSpecHtml, dictToAppendTemp))
+            listSpecification.append(dictToAppendTemp)
 
-        selector: SelectorHtml = {
-            "window": _UiElement.get_control_selector(control=elementWindow)["window"],
+        selector: SelectorHtml = ensure_selector_html({
+            "window": ensure_selector_window(_UiElement.get_control_selector(control=elementWindow))["window"],
             "category": "html",
             "specification": listSpecification,
-        }
+        })
 
         preview = _screenshot_to_base64(
             x=int(dictSecondaryAttr["secondary-x"]),
@@ -285,7 +262,11 @@ def indicate_chrome(
             height=int(dictSecondaryAttr["secondary-height"]),
         )
 
-        dictReturn: DictForUiAnalyzer = {"selector": selector, "attributes": dictSecondaryAttr, "preview": preview}
+        dictReturn: DictUiAnalyzerIndicateResult = {
+            "selector": selector,
+            "attributes": dictSecondaryAttr,
+            "preview": preview,
+        }
         # Log.debug(dictReturn)
         # preview is so long, not print it.
         Log.debug({"selector": selector, "attributes": dictSecondaryAttr})
@@ -293,7 +274,7 @@ def indicate_chrome(
 
     finally:
         Log.debug("Clean up hook thread.")
-        if "threadHook" in locals() and threadHook.is_alive():
+        if threadHook is not None and threadHook.is_alive():
             Log.debug("Trying to unhook and join the thread.")
             _Hook.unhook(source="indicate_chrome")
             threadHook.join(timeout=2)
@@ -308,8 +289,7 @@ def indicate_chrome(
 @Log.trace()
 def indicate_image(
     indicateDelaySeconds: int = 1, grayscale: bool = True, confidence: float = 0.9
-) -> DictForUiAnalyzer | None:
-
+) -> DictUiAnalyzerIndicateResult | None:
     global _HIGHLIGHT_DURATION
     try:
         _delay(indicateDelaySeconds)
@@ -327,10 +307,11 @@ def indicate_image(
 
         # Rename the screenshot: window's name + datetime + .png
         # Remove some common part in it to make the name concise.
-        strTemp = elementWindow.Name.replace(" - Google Chrome", "")
+        strTemp = (elementWindow.Name or "window").replace(" - Google Chrome", "")
         # Remove non-ASCII characters because pyautogui may raise an error.
         strTemp = "".join(char for char in strTemp if char.isascii())
-        strNewFileName = _sanitize_filename(filename=strTemp) + "_" + datetime.now().strftime("%Y%m%d_%H%M%S") + ".png"
+        strFileNamePrefix = _sanitize_filename(filename=strTemp) or "window"
+        strNewFileName = strFileNamePrefix + "_" + datetime.now().strftime("%Y%m%d_%H%M%S") + ".png"
         Log.debug(strNewFileName)
         os.path.abspath(
             shutil.move(
@@ -339,19 +320,18 @@ def indicate_image(
             )
         )
 
-        selector: SelectorImage = {
-            "window": _UiElement.get_control_selector(control=elementWindow)["window"],
+        strGrayscale: Literal["true", "false"] = "true" if grayscale else "false"
+        selector: SelectorImage = ensure_selector_image({
+            "window": ensure_selector_window(_UiElement.get_control_selector(control=elementWindow))["window"],
             "category": "image",
             "specification": [
                 {
                     "FileName": strNewFileName,
-                    "Grayscale": str(
-                        grayscale
-                    ).lower(),  # json.dumps(grayscale) will make it to be 'GrayScale': '"true"'
+                    "Grayscale": strGrayscale,
                     "Confidence": str(confidence),
                 }
             ],
-        }
+        })
 
         listDictImageAttr = find_image(
             fileNameOrPath=strNewFileName,
@@ -383,7 +363,11 @@ def indicate_image(
             duration=_HIGHLIGHT_DURATION,
         )
 
-        dictReturn: DictForUiAnalyzer = {"selector": selector, "attributes": dictSecondaryAttr, "preview": preview}
+        dictReturn: DictUiAnalyzerIndicateResult = {
+            "selector": selector,
+            "attributes": dictSecondaryAttr,
+            "preview": preview,
+        }
         # Log.debug(dictReturn)
         # preview is so long, not print it.
         Log.debug({"selector": selector, "attributes": dictSecondaryAttr})
@@ -394,9 +378,9 @@ def indicate_image(
 
 
 @Log.trace()
-def indicate_window(indicateDelaySeconds: int = 1) -> DictForUiAnalyzer | None:
-
+def indicate_window(indicateDelaySeconds: int = 1) -> DictUiAnalyzerIndicateResult | None:
     global _HIGHLIGHT_DURATION
+    threadHook: threading.Thread | None = None
     try:
         _delay(indicateDelaySeconds)
         deadline = _create_deadline()
@@ -456,28 +440,18 @@ def indicate_window(indicateDelaySeconds: int = 1) -> DictForUiAnalyzer | None:
         if element is None:
             raise UiElementNotFoundError("No window element was found at the cursor position.")
 
-        # Only need the element has "Name"
-        if not getattr(element, "Name", None):
-            raise UiElementNotFoundError(
-                "The selected window has no name, so LiberRPA cannot build a stable window selector."
-            )
-
         # Mouse left pressed.
         Log.debug("Pressed mouse left.")
 
-        # Only need the element has "Name"
-        if not getattr(element, "Name", None):
-            raise ValueError("The element doen't have 'Name' attribute.")
-
-        selector: SelectorWindow = _UiElement.get_control_selector(control=element)
+        selector: SelectorWindow = ensure_selector_window(_UiElement.get_control_selector(control=element))
         dictSecondaryAttr = get_control_secondary_attr(control=element)
-        dictReturn: DictForUiAnalyzer = {"selector": selector, "attributes": dictSecondaryAttr}
+        dictReturn: DictUiAnalyzerIndicateResult = {"selector": selector, "attributes": dictSecondaryAttr}
         Log.debug(dictReturn)
         return dictReturn
 
     finally:
         Log.debug("Clean up hook thread.")
-        if "threadHook" in locals() and threadHook.is_alive():
+        if threadHook is not None and threadHook.is_alive():
             Log.debug("Trying to unhook and join the thread.")
             _Hook.unhook(source="indicate_window")
             threadHook.join(timeout=2)
@@ -572,12 +546,6 @@ def _get_window_element(dictCoordinate: DictPosition) -> uiautomation.Control:
 
     if elementWindow is None:
         raise UiElementNotFoundError("No window element was found at the cursor position.")
-
-    # Only need the element has "Name"
-    if not getattr(elementWindow, "Name", None):
-        raise UiElementNotFoundError(
-            "The selected window has no name, so LiberRPA cannot build a stable window selector."
-        )
 
     # print("create_overlay in _get_window_element")
     # Highlight window.

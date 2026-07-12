@@ -5,13 +5,12 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import liberrpa.UI._UiElement as _UiElement
-from liberrpa.UI._UiDict import DictElementTreeItem, DictSpecUiaOriginal
+from liberrpa.UI._UiDict import DictElementTreeItem, DictElementTreeUiaAttr
 from liberrpa.Common._Exception import UiOperationError, UiElementNotFoundError
 
 
 import uiautomation
 import time
-from typing import cast
 
 
 class IdGenerator:
@@ -37,6 +36,32 @@ listExpandedId: list[int] = []
 intActivatedId = 0
 controlTarget: uiautomation.Control
 timeStart = time.monotonic()
+
+
+def _get_control_tree_attr(control: uiautomation.Control) -> DictElementTreeUiaAttr:
+    """Return the primary attributes displayed by UI Analyzer's element tree."""
+
+    dictPrimaryAttr = _UiElement.get_control_primary_attr(control=control)
+    dictTreeAttr: DictElementTreeUiaAttr = {
+        "ControlTypeName": dictPrimaryAttr["ControlTypeName"],
+    }
+
+    if "Name" in dictPrimaryAttr:
+        dictTreeAttr["Name"] = dictPrimaryAttr["Name"]
+    if "AcceleratorKey" in dictPrimaryAttr:
+        dictTreeAttr["AcceleratorKey"] = dictPrimaryAttr["AcceleratorKey"]
+    if "AccessKey" in dictPrimaryAttr:
+        dictTreeAttr["AccessKey"] = dictPrimaryAttr["AccessKey"]
+    if "AriaProperties" in dictPrimaryAttr:
+        dictTreeAttr["AriaProperties"] = dictPrimaryAttr["AriaProperties"]
+    if "AriaRole" in dictPrimaryAttr:
+        dictTreeAttr["AriaRole"] = dictPrimaryAttr["AriaRole"]
+    if "ClassName" in dictPrimaryAttr:
+        dictTreeAttr["ClassName"] = dictPrimaryAttr["ClassName"]
+    if "HelpText" in dictPrimaryAttr:
+        dictTreeAttr["HelpText"] = dictPrimaryAttr["HelpText"]
+
+    return dictTreeAttr
 
 
 def generate_control_tree(elementFinal: uiautomation.Control) -> tuple[list[DictElementTreeItem], list[int], int]:
@@ -83,17 +108,12 @@ def generate_control_tree(elementFinal: uiautomation.Control) -> tuple[list[Dict
         if uiautomation.ControlsAreSame(controlTarget, ele):
             intActivatedId = intId
 
-        # Get spec
-        dictSpecCurrent = _UiElement.get_control_primary_attr(control=ele)
-        if dictSpecCurrent.get("ProcessName"):
-            dictSpecCurrent.pop("ProcessName", None)
-        if dictSpecCurrent.get("FrameworkId"):
-            dictSpecCurrent.pop("FrameworkId", None)
+        dictAttrCurrent = _get_control_tree_attr(control=ele)
 
         dictTemp: DictElementTreeItem = {
             "id": intId,
-            "title": dictSpecCurrent["ControlTypeName"].removesuffix("Control") + "-" + dictSpecCurrent.get("Name", ""),
-            "spec": cast(DictSpecUiaOriginal, dictSpecCurrent),
+            "title": dictAttrCurrent["ControlTypeName"].removesuffix("Control") + "-" + dictAttrCurrent.get("Name", ""),
+            "spec": dictAttrCurrent,
         }
         listChildrenTemp = _get_children_spec_recursive(controlAnchor=ele, layerSign=str(idx))
         if len(listChildrenTemp) != 0:
@@ -128,16 +148,11 @@ def _get_children_spec_recursive(
         if uiautomation.ControlsAreSame(controlTarget, ele):
             intActivatedId = intId
 
-        # Get spec
-        dictSpecCurrent = _UiElement.get_control_primary_attr(control=ele)
-        if dictSpecCurrent.get("ProcessName"):
-            dictSpecCurrent.pop("ProcessName", None)
-        if dictSpecCurrent.get("FrameworkId"):
-            dictSpecCurrent.pop("FrameworkId", None)
+        dictAttrCurrent = _get_control_tree_attr(control=ele)
         dictTemp: DictElementTreeItem = {
             "id": intId,
-            "title": dictSpecCurrent["ControlTypeName"].removesuffix("Control") + "-" + dictSpecCurrent.get("Name", ""),
-            "spec": cast(DictSpecUiaOriginal, dictSpecCurrent),
+            "title": dictAttrCurrent["ControlTypeName"].removesuffix("Control") + "-" + dictAttrCurrent.get("Name", ""),
+            "spec": dictAttrCurrent,
         }
         listChildrenTemp = _get_children_spec_recursive(controlAnchor=ele, layerSign=layerSignNew)
         if len(listChildrenTemp) != 0:

@@ -6,9 +6,13 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
 from liberrpa.Logging import Log
-from liberrpa.Common._Exception import UiElementNotFoundError, UiSelectorError
+from liberrpa.Common._Exception import (
+    UiElementNotFoundError,
+    UiOperationError,
+    UiSelectorError,
+)
 from liberrpa.UI._UiDict import (
-    DictUiaPrimaryAttrBasic,
+    DictUiaPrimaryAttr,
     DictUiaSecondaryAttr,
     DictUiaAttr,
     DictSpecWindow,
@@ -115,13 +119,17 @@ def _convert_value_to_str(dictToConvert: dict[str, str | int]) -> dict[str, str]
     return dictReturn
 
 
-def get_control_primary_attr(control: uiautomation.Control) -> DictUiaPrimaryAttrBasic:
+def get_control_primary_attr(control: uiautomation.Control) -> DictUiaPrimaryAttr:
     dictTemp: dict[str, str | int] = {}
     try:
-        # Try to get "ProcessName".
-        dictTemp["ProcessName"] = psutil.Process(control.ProcessId).name()
-    except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-        raise ValueError("The target process is no longer available or cannot be accessed.")
+        intProcessId = control.ProcessId
+        strProcessName = psutil.Process(intProcessId).name() if intProcessId else ""
+    except Exception as e:
+        # ProcessName is useful for a window selector but is not required to describe or locate every UIA control.
+        Log.debug(f"Failed to get ProcessName from the target control: {e}")
+    else:
+        if strProcessName:
+            dictTemp["ProcessName"] = strProcessName
 
     # Find primary attributes.
     for strAttrName in _TUPLE_PRIMARY_ATTR:
@@ -141,7 +149,13 @@ def get_control_primary_attr(control: uiautomation.Control) -> DictUiaPrimaryAtt
             # If some value doesn't be got, just ignore.
             Log.error(f"Error fetching {strAttrName}: {e}")
 
-    return cast(DictUiaPrimaryAttrBasic, _convert_value_to_str(dictTemp))
+    dictResult = _convert_value_to_str(dictTemp)
+
+    # The return type requires only ControlTypeName. Every other primary attribute is optional because empty or unavailable values are skipped.
+    if "ControlTypeName" not in dictResult:
+        raise UiOperationError("Failed to get the target control's ControlTypeName.")
+
+    return cast(DictUiaPrimaryAttr, dictResult)
 
 
 def get_control_secondary_attr(control: uiautomation.Control) -> DictUiaSecondaryAttr:
@@ -194,7 +208,7 @@ def get_top_control(selectorWindowPart: DictSpecWindow) -> uiautomation.Control:
     # print("controlChild", controlChild)
 
     while controlChild:
-        dictPrimaryAttrTemp: DictUiaPrimaryAttrBasic = get_control_primary_attr(control=controlChild)
+        dictPrimaryAttrTemp: DictUiaPrimaryAttr = get_control_primary_attr(control=controlChild)
         boolAttrSame = True
 
         # Check all attributes in selector. (index popped)
@@ -263,10 +277,9 @@ def get_top_control(selectorWindowPart: DictSpecWindow) -> uiautomation.Control:
 class DictUiaBuiltinSearchKwargs(TypedDict, total=False):
     searchDepth: int
     foundIndex: int
-    RegexName: str
     Name: str
     ClassName: str
-    # uiautomation supports AutomationId, but LiberRPA currently treats it as a secondary attribute instead of a selector field because it is often missing in tested applications.
+    # uiautomation can search by AutomationId, but LiberRPA currently keeps it as a secondary attribute because it is often missing or not human-readable in tested applications. Generated selectors do not use it.
     # AutomationId: str
     ControlType: int
 
@@ -282,20 +295,15 @@ def _get_uia_builtin_search_kwargs(
     Only exact fields are pushed down to uiautomation. Regex fields are still checked by LiberRPA
     because uiautomation.RegexName uses re.match while LiberRPA selector regex uses re.fullmatch.
 
-    By default, search is limited to controls with a non-empty Name because Name is the most
-    useful built-in UIA search key in current LiberRPA selector design.
+    If the selector layer has no Name condition, no implicit Name filter is added. This allows selectors to target controls whose Name is empty.
     """
     dictSearchKwargs: DictUiaBuiltinSearchKwargs = {
         "searchDepth": searchDepth,
         "foundIndex": foundIndex,
-        # Only search controls with a non-empty Name, unless an exact non-empty Name is pushed down.
-        "RegexName": ".+",
     }
 
     strName = dictSelectorTemp.get("Name")
-    if isinstance(strName, str) and strName != "":
-        # Name and RegexName should not be used together.
-        dictSearchKwargs.pop("RegexName", None)
+    if isinstance(strName, str):
         dictSearchKwargs["Name"] = strName
 
     strClassName = dictSelectorTemp.get("ClassName")
@@ -361,7 +369,7 @@ def get_child_control_by_selector(
             if controlFound is None:
                 raise UiElementNotFoundError(f"Not found an uia element by the selector: {selectorUiaPart}")
 
-            dictPrimaryAttrTemp: DictUiaPrimaryAttrBasic = get_control_primary_attr(control=controlFound)
+            dictPrimaryAttrTemp: DictUiaPrimaryAttr = get_control_primary_attr(control=controlFound)
             boolAttrSame = True
 
             # Check all attributes in dictCurrentLayer. (index and depth popped)
@@ -437,18 +445,10 @@ def activate_control_window(control: uiautomation.Control) -> None:
         uiautomation.SetForegroundWindow(handle=intHandle)
 
 
-def get_children_control_recursive(control: uiautomation.Control) -> list[uiautomation.Control]:
-    listReturn: list[uiautomation.Control] = []
-    for controlChild in control.GetChildren():
-        strNameTemp = getattr(controlChild, "Name", None)
-        if strNameTemp is None or strNameTemp == "":
-            # If the control has no "Name", get its children control.
-            listTemp = get_children_control_recursive(control=controlChild)
-            listReturn = [*listReturn, *listTemp]
-        else:
-            listReturn.append(controlChild)
+def get_child_controls(control: uiautomation.Control) -> list[uiautomation.Control]:
+    """Return direct child controls, including controls whose Name is empty."""
 
-    return listReturn
+    return list(control.GetChildren())
 
 
 if __name__ == "__main__":

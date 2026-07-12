@@ -148,9 +148,9 @@ DictUiaSecondaryAttr = TypedDict(
         "secondary-ItemStatus": NotRequired[str],
         "secondary-ItemType": NotRequired[str],
         "secondary-LocalizedControlType": NotRequired[str],
-        "secondary-NativeWindowHandle": str,
+        "secondary-NativeWindowHandle": NotRequired[str],
         "secondary-Orientation": NotRequired[str],
-        "secondary-ProcessId": str,
+        "secondary-ProcessId": NotRequired[str],
         "secondary-ProviderDescription": NotRequired[str],
         "secondary-x": str,
         "secondary-y": str,
@@ -160,10 +160,11 @@ DictUiaSecondaryAttr = TypedDict(
 )
 
 
-class DictUiaNonWindowPrimaryAttrBasic(TypedDict):
-    # FrameworkId is a item of _TUPLE_PRIMARY_ATTR, but it is deleted in Non-Window, but Window keeps. To make the final selector concise.
+class _DictUiaCommonPrimaryAttr(TypedDict):
+    """Primary UIA attributes shared by collected data and selector layers."""
+
     ControlTypeName: str
-    Name: str
+    Name: NotRequired[str]
     AcceleratorKey: NotRequired[str]
     AccessKey: NotRequired[str]
     AriaProperties: NotRequired[str]
@@ -172,39 +173,36 @@ class DictUiaNonWindowPrimaryAttrBasic(TypedDict):
     HelpText: NotRequired[str]
 
 
-class DictUiaPrimaryAttrBasic(DictUiaNonWindowPrimaryAttrBasic):
-    FrameworkId: str
-    ProcessName: str
+class DictUiaPrimaryAttr(_DictUiaCommonPrimaryAttr):
+    """
+    Primary attributes collected from one UIA control.
 
+    LiberRPA attempts to collect FrameworkId for every control, but keeps it
+    only in the window layer of generated selectors because it has usually been
+    redundant within an anchored child search scope.
 
-class DictUiaWindowPrimaryAttrBasic(DictUiaNonWindowPrimaryAttrBasic):
-    # All uia elements have the 2 attributes, but selector can ignore them, so make them NotRequired.
-    FrameworkId: NotRequired[str]  # It's a direct attribute
-    ProcessName: NotRequired[str]  # It's generate by FrameworkId.
+    ProcessName is derived from ProcessId when available. It is likewise kept
+    only in the window layer of generated selectors.
+    """
 
-
-class DictUiaAttr(DictUiaPrimaryAttrBasic, DictUiaSecondaryAttr):
-    pass
-
-
-class DictSpecUiaOriginal(DictUiaNonWindowPrimaryAttrBasic):
-    Depth: NotRequired[str]
-    Index: NotRequired[str]
-
-
-class DictSpecWindowOriginal(DictSpecUiaOriginal):
     FrameworkId: NotRequired[str]
     ProcessName: NotRequired[str]
 
 
-class DictSpecUiaOriginalTemp(DictSpecWindowOriginal):
-    NextLayerDepth: NotRequired[str]
+class DictUiaAttr(DictUiaPrimaryAttr, DictUiaSecondaryAttr):
+    pass
 
 
-DictSpecUia = TypedDict(
-    # It adds some -regex from DictSpecUiaOriginal
+class DictElementTreeUiaAttr(_DictUiaCommonPrimaryAttr):
+    """UIA attributes displayed in one UI Analyzer element-tree item."""
+
+    pass
+
+
+_DictSpecUiaCommon = TypedDict(
+    # Exact and regex fields shared by window and non-window UIA selector layers.
     # Comment out some attributes that cannot use regex.
-    "DictSpecUia",
+    "_DictSpecUiaCommon",
     {
         "ControlTypeName": str,
         # "ControlTypeName-regex": str,
@@ -222,40 +220,14 @@ DictSpecUia = TypedDict(
         # "ClassName-regex": NotRequired[str],
         "HelpText": NotRequired[str],
         "HelpText-regex": NotRequired[str],
-        # If Depth is undefined, it means Depth is 1 and therefore searching direct children.
-        "Depth": NotRequired[str],
-        # "Depth-regex": NotRequired[str],
         "Index": NotRequired[str],
         "Index-regex": NotRequired[str],
     },
 )
 
-DictSpecWindow = TypedDict(
-    # It adds some -regex from DictSpecUia
-    # Comment out some attributes that cannot use regex.
-    "DictSpecWindow",
+_DictSpecWindowOnly = TypedDict(
+    "_DictSpecWindowOnly",
     {
-        "ControlTypeName": str,
-        # "ControlTypeName-regex": str,
-        "Name": NotRequired[str],
-        "Name-regex": NotRequired[str],
-        "AcceleratorKey": NotRequired[str],
-        "AcceleratorKey-regex": NotRequired[str],
-        "AccessKey": NotRequired[str],
-        "AccessKey-regex": NotRequired[str],
-        "AriaProperties": NotRequired[str],
-        "AriaProperties-regex": NotRequired[str],
-        "AriaRole": NotRequired[str],
-        "AriaRole-regex": NotRequired[str],
-        "ClassName": NotRequired[str],
-        # "ClassName-regex": NotRequired[str],
-        "HelpText": NotRequired[str],
-        "HelpText-regex": NotRequired[str],
-        # Window elements have no Depth.
-        # "Depth": NotRequired[str],
-        # "Depth-regex": NotRequired[str],
-        "Index": NotRequired[str],
-        "Index-regex": NotRequired[str],
         "FrameworkId": NotRequired[str],
         "FrameworkId-regex": NotRequired[str],
         "ProcessName": NotRequired[str],
@@ -263,11 +235,17 @@ DictSpecWindow = TypedDict(
     },
 )
 
-""" class DictSpecWindow(DictSpecUia):
-    # NOTE: It should not have Depth, maybe create another class later.
-    FrameworkId: NotRequired[str]
-    ProcessName: NotRequired[str]
- """
+
+class DictSpecWindow(_DictSpecUiaCommon, _DictSpecWindowOnly):
+    """Top-level window selector layer; unlike DictSpecUia, it has no Depth."""
+
+    pass
+
+
+class DictSpecUia(_DictSpecUiaCommon):
+    # If Depth is undefined, it means Depth is 1 and therefore searching direct children.
+    Depth: NotRequired[str]
+
 
 # Image
 DictImageAttr = TypedDict(
@@ -283,41 +261,31 @@ DictImageAttr = TypedDict(
 
 class DictSpecImage(TypedDict):
     FileName: str
-    Grayscale: str
+    Grayscale: Literal["true", "false"]
     Confidence: str
     Index: NotRequired[str]
 
 
 # Selector
-class SelectorWindowOriginal(TypedDict):
-    window: DictSpecWindowOriginal
-
-
-class SelectorWindow(TypedDict):
+class _SelectorBase(TypedDict):
     window: DictSpecWindow
 
 
-class SelectorUiaOriginal(SelectorWindowOriginal):
-    category: Literal["uia"]
-    specification: list[DictSpecUiaOriginal]
+class SelectorWindow(_SelectorBase):
+    category: NotRequired[None]
 
 
-class SelectorUia(SelectorWindow):
+class SelectorUia(_SelectorBase):
     category: Literal["uia"]
     specification: list[DictSpecUia]
 
 
-class SelectorHtmlOriginal(SelectorWindowOriginal):
-    category: Literal["html"]
-    specification: list[DictSpecHtmlOriginal]
-
-
-class SelectorHtml(SelectorWindow):
+class SelectorHtml(_SelectorBase):
     category: Literal["html"]
     specification: list[DictSpecHtml]
 
 
-class SelectorImage(SelectorWindow):
+class SelectorImage(_SelectorBase):
     category: Literal["image"]
     # Image has only one layer but use list to compatible with others.
     specification: list[DictSpecImage]
@@ -329,98 +297,18 @@ type Selector = SelectorWindow | SelectorUia | SelectorHtml | SelectorImage
 class DictElementTreeItem(TypedDict):
     id: int
     title: str
-    spec: DictSpecUiaOriginal | DictSpecHtmlOriginal
+    # Keep the existing "spec" wire key for UI Analyzer compatibility. It contains display attributes, not a selector "specification" layer.
+    spec: DictElementTreeUiaAttr | DictSpecHtmlOriginal
     # Quoted forward references
     children: NotRequired[list["DictElementTreeItem"]]
 
 
 # Dictionary for UI Anaylyzer.
-class DictForUiAnalyzer(TypedDict):
-    selector: SelectorWindow | SelectorUia | SelectorHtml | SelectorImage
+class DictUiAnalyzerIndicateResult(TypedDict):
+    selector: Selector
     attributes: DictUiaSecondaryAttr | DictHtmlSecondaryAttr | DictImageAttr
     preview: NotRequired[str]
 
 
 if __name__ == "__main__":
-    # print(DictSpecUiaOriginalTemp.__annotations__)
-    # print(DictSpecUia.__annotations__)
-    # print(DictSpecWindow.__annotations__)
-    # print(DictElementTreeItem.__annotations__)
-
-    temp: DictElementTreeItem = {
-        "id": 1,
-        "title": "test2",
-        "spec": {
-            "tagName": "h1",
-            "innerText": "键盘按键测试",
-            "directText": "键盘按键测试",
-            "isLeaf": "true",
-        },
-        "children": [
-            {
-                "id": 2,
-                "title": "test3",
-                "spec": {
-                    "tagName": "h1",
-                    "innerText": "键盘按键测试",
-                    "directText": "键盘按键测试",
-                    "isLeaf": "true",
-                },
-            },
-        ],
-    }
-    print(temp)
-
-    temp2: DictElementTreeItem = {
-        "id": 0,
-        "title": "test1",
-        "spec": {"tagName": "h1", "innerText": "键盘按键测试", "directText": "键盘按键测试", "isLeaf": "true"},
-        "children": [
-            {
-                "id": 1,
-                "title": "test2",
-                "spec": {
-                    "tagName": "h1",
-                    "innerText": "键盘按键测试",
-                    "directText": "键盘按键测 试",
-                    "isLeaf": "true",
-                },
-            },
-            {
-                "id": 2,
-                "title": "test3",
-                "spec": {
-                    "tagName": "h1",
-                    "innerText": "键盘按键测试",
-                    "directText": "键盘按键测试",
-                    "isLeaf": "true",
-                },
-                "children": [
-                    {
-                        "id": 4,
-                        "title": "test4",
-                        "spec": {
-                            "tagName": "h1",
-                            "innerText": "键盘按键测试",
-                            "directText": "键盘按键测试",
-                            "isLeaf": "true",
-                        },
-                        "children": [
-                            {
-                                "id": 5,
-                                "title": "test5",
-                                "spec": {
-                                    "tagName": "h1",
-                                    "innerText": "键盘按键测试",
-                                    "directText": "键盘按键测试",
-                                    "isLeaf": "true",
-                                },
-                            }
-                        ],
-                    },
-                ],
-            },
-        ],
-    }
-
-    print(temp2)
+    ...

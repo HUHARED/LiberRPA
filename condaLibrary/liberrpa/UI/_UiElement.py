@@ -8,6 +8,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 from liberrpa.Logging import Log
 from liberrpa.UI._UiAutomation import (
     DICT_CONTROL_TYPE_NUM,
+    DictUiaBuiltinSearchKwargs,
     get_top_control,
     get_control_attr,
     get_control_primary_attr,
@@ -18,9 +19,6 @@ import liberrpa.UI._CommonValue as _CommonValue
 from liberrpa.Common._Exception import UiElementNotFoundError, UiOperationError
 from liberrpa.Common._TypedValue import ExecutionMode
 from liberrpa.UI._UiDict import (
-    DictSpecWindow,
-    DictSpecUia,
-    DictSpecUiaOriginalTemp,
     DictSpecImage,
     DictUiaAttr,
     DictHtmlAttr,
@@ -36,6 +34,7 @@ import liberrpa.Common._Chrome as _Chrome
 from liberrpa.UI._Overlay import create_overlay
 from liberrpa.UI._Image import find_image
 from liberrpa.UI._SelectorValidation import (
+    ensure_selector_window,
     ensure_selector_uia,
     ensure_selector_html,
     ensure_selector_image,
@@ -47,9 +46,9 @@ import pyautogui
 from time import monotonic, sleep
 import threading
 from contextlib import contextmanager
-from collections.abc import Sequence, Iterator
-
-from typing import cast, overload
+from collections.abc import Iterator
+from dataclasses import dataclass
+from typing import overload
 
 
 # Set the global variable of uiautomation.
@@ -114,163 +113,168 @@ def check_set_timeout(timeout: int) -> int:
     return timeout
 
 
+@dataclass
+class _UiaSelectorLayerDraft:
+    control: uiautomation.Control
+    attributes: dict[str, str]
+    depthFromParent: int = 1
+    index: int | None = None
+
+
+def _copy_control_primary_attr(control: uiautomation.Control) -> dict[str, str]:
+    """Copy a TypedDict to a normal homogeneous dictionary."""
+
+    dictResult: dict[str, str] = {}
+    for strKey, value in get_control_primary_attr(control=control).items():
+        if not isinstance(value, str):
+            raise UiOperationError(f"Unexpected non-string UIA primary attribute {strKey!r}: {value!r}.")
+        dictResult[strKey] = value
+
+    return dictResult
+
+
+def _control_matches_attributes(
+    control: uiautomation.Control,
+    dictExpected: dict[str, str],
+) -> bool:
+    dictActual = _copy_control_primary_attr(control=control)
+    return all(dictActual.get(strKey) == strValue for strKey, strValue in dictExpected.items())
+
+
+def _get_layer_index(
+    controlParent: uiautomation.Control,
+    layer: _UiaSelectorLayerDraft,
+) -> int | None:
+    """Return the target's zero-based index among controls matching the final layer."""
+
+    intControlType = DICT_CONTROL_TYPE_NUM.get(layer.attributes["ControlTypeName"])
+    if intControlType is None:
+        raise UiOperationError(
+            f"Unsupported ControlTypeName while building selector: {layer.attributes['ControlTypeName']!r}."
+        )
+
+    intFoundIndex = 1
+    intMatchedIndex = 0
+
+    while True:
+        dictSearchKwargs: DictUiaBuiltinSearchKwargs = {
+            "searchDepth": layer.depthFromParent,
+            "foundIndex": intFoundIndex,
+            "ControlType": intControlType,
+        }
+
+        if "Name" in layer.attributes:
+            dictSearchKwargs["Name"] = layer.attributes["Name"]
+        if "ClassName" in layer.attributes:
+            dictSearchKwargs["ClassName"] = layer.attributes["ClassName"]
+
+        try:
+            controlFound = controlParent.Control(**dictSearchKwargs)
+            # Force uiautomation to finish resolving the lazy Control object.
+            _ = str(controlFound)
+        except Exception as e:
+            raise UiElementNotFoundError(
+                "The target UI element disappeared while selector index information was being built."
+            ) from e
+
+        if _control_matches_attributes(control=controlFound, dictExpected=layer.attributes):
+            if uiautomation.ControlsAreSame(controlFound, layer.control):
+                # Index 0 is the default and is omitted to keep the selector concise.
+                return intMatchedIndex if intMatchedIndex > 0 else None
+
+            intMatchedIndex += 1
+
+        intFoundIndex += 1
+
+
+def _get_control_path(control: uiautomation.Control) -> list[uiautomation.Control]:
+    """Return the controls from the top-level window through control."""
+
+    controlTop = control.GetTopLevelControl()
+    if controlTop is None:
+        raise UiElementNotFoundError("Failed to get the target element's top-level control.")
+
+    listPath = [control]
+    controlCurrent = control
+
+    while not uiautomation.ControlsAreSame(controlCurrent, controlTop):
+        controlParent = controlCurrent.GetParentControl()
+        if controlParent is None:
+            raise UiElementNotFoundError(
+                "Failed to reach the target element's top-level control while building its selector."
+            )
+
+        listPath.insert(0, controlParent)
+        controlCurrent = controlParent
+
+    return listPath
+
+
 def get_control_selector(
     control: uiautomation.Control,
 ) -> SelectorWindow | SelectorUia:
+    """Build a selector for the exact control, including an unnamed target."""
 
-    listAllLayerControl: list[uiautomation.Control] = []
-    listLayersAttr: list[DictSpecUiaOriginalTemp] = []
-
-    # Add all attributes to selector except Index.
     try:
-        # Find the element under the cursor
-        element = control
+        listControlPath = _get_control_path(control=control)
+        listLayers: list[_UiaSelectorLayerDraft] = []
+        intPreviousIncludedPathIndex = -1
 
-        # Depth to its parent which has "Name".
-        intToNamedParentDepth: int = 1
-        while element is not None:
-            # Add the current layer's attributes.
-            dictCurrentLayerPrimaryAttr = cast(
-                DictSpecUiaOriginalTemp, get_control_primary_attr(control=element)
-            )  # "FrameworkId", "ProcessName", "NextLayerDepth" be added later or be deleted.
+        for intPathIndex, controlCurrent in enumerate(listControlPath):
+            boolIsWindowLayer = intPathIndex == 0
+            boolIsTarget = intPathIndex == len(listControlPath) - 1
+            dictAttributes = _copy_control_primary_attr(control=controlCurrent)
 
-            # Keep only the layer that contains "Name", and add it to listAllLayerControl for adding Index later.
-            if dictCurrentLayerPrimaryAttr.get("Name"):
-                dictCurrentLayerPrimaryAttr["NextLayerDepth"] = str(intToNamedParentDepth)
+            # Always keep the window and exact target. Unnamed intermediate containers remain omitted; Depth preserves the skipped distance.
+            if not (boolIsWindowLayer or boolIsTarget or "Name" in dictAttributes):
+                continue
 
-                listLayersAttr.insert(0, dictCurrentLayerPrimaryAttr)
-                listAllLayerControl.insert(0, element)
+            if not boolIsWindowLayer:
+                dictAttributes.pop("FrameworkId", None)
+                dictAttributes.pop("ProcessName", None)
 
-                intToNamedParentDepth = 1
-            else:
-                intToNamedParentDepth += 1
+            intDepthFromParent = 1 if boolIsWindowLayer else intPathIndex - intPreviousIncludedPathIndex
+            listLayers.append(
+                _UiaSelectorLayerDraft(
+                    control=controlCurrent,
+                    attributes=dictAttributes,
+                    depthFromParent=intDepthFromParent,
+                )
+            )
+            intPreviousIncludedPathIndex = intPathIndex
 
-            # Assign the parent element for next loop.
-            element = element.GetParentControl()
-            if element is not None and element.ControlTypeName == "PaneControl" and element.ClassName == "#32769":
-                """
-                This is the desktop layer.
-                Move the "NextLayerDepth" of each layer to next layer, renamed as "Depth"
-                Add the Desktop control to the start of listAllLayerControl, to calculate Index attribute later.
-                Then break out of the loop.
-                """
-                # Give the Depth to its child(next) layer, which means the maximum depth when finding next layer. Ignore when it's 1.
-                # From the last to the second.
-                for i in range(len(listLayersAttr) - 1, 0, -1):
-                    del listLayersAttr[i]["NextLayerDepth"]
-                    temp = listLayersAttr[i - 1].get("NextLayerDepth")
-                    if temp and int(temp) > 1:
-                        listLayersAttr[i]["Depth"] = temp
-                # Delete NextLayerDepth of the window layer. Because it has no previous element in the list, just need to delete NextLayerDepth, didn't need to add Depth.
-                del listLayersAttr[0]["NextLayerDepth"]
-                # Add the Desktop control for adding Index later.
-                listAllLayerControl.insert(0, element)
-                break
+        if not listLayers:
+            raise UiOperationError("No selector layer could be built for the target control.")
 
+        controlParent = uiautomation.GetRootControl()
+        for layer in listLayers:
+            layer.index = _get_layer_index(controlParent=controlParent, layer=layer)
+            controlParent = layer.control
+
+        listSelectorLayers: list[dict[str, str]] = []
+        for intLayerIndex, layer in enumerate(listLayers):
+            dictLayer = layer.attributes.copy()
+
+            if intLayerIndex > 0 and layer.depthFromParent > 1:
+                dictLayer["Depth"] = str(layer.depthFromParent)
+            if layer.index is not None:
+                dictLayer["Index"] = str(layer.index)
+
+            listSelectorLayers.append(dictLayer)
+
+        if len(listSelectorLayers) == 1:
+            return ensure_selector_window({"window": listSelectorLayers[0]})
+
+        return ensure_selector_uia({
+            "window": listSelectorLayers[0],
+            "category": "uia",
+            "specification": listSelectorLayers[1:],
+        })
+
+    except (UiElementNotFoundError, UiOperationError):
+        raise
     except Exception as e:
         raise UiOperationError("Unexpected error while building the UI selector.") from e
-
-    """
-    Add "Index" to each layer of selector(if needed)
-    The attribute "Index" means the order of the current layer element in its parent element's children have same primary attributes. It's not the Control() arguemnt "foundIndex".
-    Use the current one(currentControl) to add index into the next one(controlTarget), so the last one doesn't to process.
-    """
-    for i in range(0, len(listAllLayerControl) - 1, 1):
-        controlParent = listAllLayerControl[i]
-        controlTarget = listAllLayerControl[i + 1]
-        dictTargetLayerAttr = listLayersAttr[i]
-        intFoundIndex = 1
-        intIndex = 0
-
-        # Loop to find, until found it or time out.
-        while True:
-            # "ClassName" may not exist.
-            ClassName = dictTargetLayerAttr.get("ClassName")
-
-            # If the layer's attributes have no "Depth", means it's a direct child control, set searchDepth to 1.
-            temp = dictTargetLayerAttr.get("Depth")
-            if temp is None:
-                intSearchDepth = 1
-            else:
-                intSearchDepth = int(temp)
-
-            # Find target in the current control.
-            try:
-                if ClassName:
-                    controlFound = controlParent.Control(
-                        searchDepth=intSearchDepth,
-                        foundIndex=intFoundIndex,
-                        ControlType=DICT_CONTROL_TYPE_NUM.get(dictTargetLayerAttr["ControlTypeName"]),
-                        Name=dictTargetLayerAttr["Name"],
-                        ClassName=ClassName,
-                    )
-                else:
-                    controlFound = controlParent.Control(
-                        searchDepth=intSearchDepth,
-                        foundIndex=intFoundIndex,
-                        ControlType=DICT_CONTROL_TYPE_NUM.get(dictTargetLayerAttr["ControlTypeName"]),
-                        Name=dictTargetLayerAttr["Name"],
-                    )
-                # Because control find process seems asynchronous, use an assign to wait it done or timeout,.
-                _ = str(controlFound)
-
-            except Exception as e:
-                raise UiElementNotFoundError(
-                    "Unexpected internal state: no UI element was found while adding selector index information."
-                ) from e
-
-            """
-            Check whether other primary attributes are same.
-            If one of them is different, continue to find next.
-            Note that "ProcessName" is not a direct attribute, replace it by "ProcessId".
-            Name and ClassName, ControlType were checked in previous.
-            """
-            boolOtherPrimaryAttrSame = True
-            for attr in [
-                "FrameworkId",
-                "AcceleratorKey",
-                "AccessKey",
-                "AriaProperties",
-                "AriaRole",
-                "HelpText",
-                "ProcessId",
-            ]:
-                if getattr(controlFound, attr) != getattr(controlTarget, attr):
-                    boolOtherPrimaryAttrSame = False
-                    break
-            if not boolOtherPrimaryAttrSame:
-                intFoundIndex += 1
-                continue
-
-            # If all primiary attributes are same, check whether they are the same one. If they are the same one, assign the Index and break out theloop. Else increase intIndex to find next.
-            if uiautomation.ControlsAreSame(controlFound, controlTarget):
-                # There is no need to add "Index" when intIndex == 0, for keeping the selector concise.
-                if intIndex > 0:
-                    dictTargetLayerAttr["Index"] = str(intIndex)
-                break
-            else:
-                intFoundIndex += 1
-                intIndex += 1
-                continue
-
-    # Only the top layer need the attributes "ProcessName" and "FrameworkId", to make the selector more concise.
-    for i in range(1, len(listLayersAttr), 1):
-        del listLayersAttr[i]["ProcessName"]
-        if listLayersAttr[i].get("FrameworkId") is not None:
-            del listLayersAttr[i]["FrameworkId"]
-
-    if len(listLayersAttr) == 1:
-        # If it's a window control(just one layer)
-        # SelectorWindowOriginal, treat it as SelectorWindow for use later.
-        return {"window": cast(DictSpecWindow, listLayersAttr[0])}
-    else:
-        # SelectorUiaOriginal, treat it as SelectorUia for use later.
-        # Use Sequence to convert the type for Pylance
-        return {
-            "window": cast(DictSpecWindow, listLayersAttr[0]),
-            "category": "uia",
-            "specification": list(cast(Sequence[DictSpecUia], listLayersAttr[1:])),
-        }
 
 
 @overload

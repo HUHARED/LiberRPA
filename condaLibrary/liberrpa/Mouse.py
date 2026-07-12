@@ -175,7 +175,7 @@ def _click_element(
                         pyautogui.mouseUp(button=button)
 
         case "api":
-            if isinstance(uiTarget, uiautomation.Control):
+            if uiTarget is not None:
                 # The uia control element
                 # When use uiautomation, can only execute a simple mouse_left single click behavior. Maybe use ctypes to achieve more functions later.
                 if (

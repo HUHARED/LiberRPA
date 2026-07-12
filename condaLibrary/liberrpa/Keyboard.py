@@ -227,7 +227,7 @@ def _write_text_into_element(
 
     match executionMode:
         case "api":
-            if not isinstance(uiTarget, uiautomation.Control):
+            if uiTarget is None:
                 # html api mode has already been handled above. image is not supported.
                 raise UiOperationError(
                     f"Unexpected internal state: API mode for HTML or image selectors should have been handled earlier. "
@@ -279,7 +279,7 @@ def _write_text_into_element(
                 _simulate_write(text=text, interval=interval)
 
             if validateText:
-                if not isinstance(uiTarget, uiautomation.Control):
+                if uiTarget is None:
                     raise UiOperationError(
                         f"Unexpected internal state: simulate mode for HTML or image selectors should have been handled earlier. "
                         f"selector: {selector}"
@@ -397,7 +397,7 @@ def _type_key_in_element(
     else:
         # uia
         uiTarget, _ = _UiElement.get_element_with_pre_delay(selector=selector, preDelay=preDelay)
-        if isinstance(uiTarget, uiautomation.Control):
+        if uiTarget is not None:
             # Use pyautogui, must focus it first.
             uiTarget.SetFocus()
 
