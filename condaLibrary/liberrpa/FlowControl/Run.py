@@ -10,8 +10,8 @@ import multiprocessing
 
 from liberrpa.Logging import Log
 from liberrpa.Common._Utils import PROCESS_NAME
-from liberrpa.Trigger import register_force_exit
-from liberrpa.Basic import start_video_record
+from liberrpa.Trigger import _register_force_exit, _register_executor_exit_listener
+from liberrpa.Basic import _start_video_record
 from liberrpa.Dialog import show_notification
 from liberrpa.Data import sanitize_filename
 from liberrpa.Common._Exception import get_exception_info
@@ -25,6 +25,7 @@ from liberrpa.FlowControl.ProjectFlowInit import (
     dictNodeText,
     PrjArgs,
     CustomArgs,  # noqa: F401  # Used by eval().
+    boolRunByExecutor,
 )
 import liberrpa.FlowControl.End as End
 
@@ -33,6 +34,9 @@ import json
 import importlib
 from pathlib import Path
 import sys
+
+if __name__ == "__main__" and PROCESS_NAME == "MainProcess" and boolRunByExecutor:
+    _register_executor_exit_listener()
 
 
 def _get_module_name(pyFile: str) -> str:
@@ -153,9 +157,9 @@ def main() -> None:
     # Config running setting.
     # Log.set_level(level=dictFlowFile["logLevel"])
     if dictFlowFile["stopShortcut"]:
-        register_force_exit()
+        _register_force_exit()
     if dictFlowFile["recordVideo"]:
-        start_video_record()
+        _start_video_record()
 
     # Print running information.
     Log.debug(f"Custom Project Arguments: {json.dumps(PrjArgs.customArgs, ensure_ascii=False, indent=4)}")

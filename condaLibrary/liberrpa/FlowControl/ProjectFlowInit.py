@@ -25,9 +25,11 @@ dictFlowFile: DictProject_Original = json.loads(PATH_PROJECT_FLOW.read_text(enco
 _parser = argparse.ArgumentParser()
 _parser.add_argument("--executor_args", required=False)
 _args, _unknown = _parser.parse_known_args()
+_strExecutorArgs: str | None = _args.executor_args
+boolRunByExecutor = _strExecutorArgs is not None
 
-if _args.executor_args:
-    dictArgs = json.loads(_args.executor_args)
+if boolRunByExecutor:
+    dictArgs = json.loads(_strExecutorArgs)
     for keyName in dictArgs:
         dictFlowFile[keyName] = dictArgs[keyName]
     Log.info(f"Updated arguments from Executor: {dictArgs}")

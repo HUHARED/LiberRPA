@@ -19,10 +19,6 @@ import sys
 from typing import Any, Literal, overload, cast
 from collections.abc import Callable
 
-_dictModifierState = {"ctrl": False, "shift": False, "alt": False, "win": False}
-
-_MISSING = object()
-
 
 def _check_timing(timing: str) -> None:
     listValue = ["on_press", "on_release"]
@@ -57,15 +53,6 @@ def _get_keyname_and_press(event: keyboard.KeyboardEvent) -> tuple[str, bool]:
     boolPressed = True if strDirection == "press" else False
     Log.debug(f"Keyboard Event: {strKeyName} - {strDirection}")
 
-    if strKeyName in {"ctrl", "left ctrl", "right ctrl"}:
-        _dictModifierState["ctrl"] = boolPressed
-    elif strKeyName in {"shift", "left shift", "right shift"}:
-        _dictModifierState["shift"] = boolPressed
-    elif strKeyName in {"alt", "left alt", "right alt"}:
-        _dictModifierState["alt"] = boolPressed
-    elif strKeyName in {"windows", "left windows", "right windows"}:
-        _dictModifierState["win"] = boolPressed
-
     return (strKeyName, boolPressed)
 
 
@@ -76,10 +63,10 @@ def _check_modifiers(
     pressWin: bool,
 ) -> bool:
     return (
-        _dictModifierState["ctrl"] == pressCtrl
-        and _dictModifierState["shift"] == pressShift
-        and _dictModifierState["alt"] == pressAlt
-        and _dictModifierState["win"] == pressWin
+        keyboard.is_pressed("ctrl") == pressCtrl
+        and keyboard.is_pressed("shift") == pressShift
+        and keyboard.is_pressed("alt") == pressAlt
+        and keyboard.is_pressed("windows") == pressWin
     )
 
 
@@ -185,8 +172,19 @@ def mouse_trigger[T](
     result: object = resultMissing
     triggerError: Exception | None = None
     eventStop = threading.Event()
+    triggerLock = threading.Lock()
+    triggerClaimed = False
 
     listenerMouse: MouseListener
+
+    def claim_trigger() -> bool:
+        nonlocal triggerClaimed
+
+        with triggerLock:
+            if triggerClaimed:
+                return False
+            triggerClaimed = True
+            return True
 
     def stop_listeners() -> None:
         nonlocal triggerError
@@ -199,14 +197,11 @@ def mouse_trigger[T](
                 triggerError = e
 
         try:
-            keyboard.unhook(listenerKeyboard)
+            removeKeyboardHook()
         except Exception as e:
             Log.error(f"Failed to unhook keyboard listener: {e}")
             if triggerError is None:
                 triggerError = e
-
-    def on_key_event_for_mouse(event: keyboard.KeyboardEvent) -> None:
-        _get_keyname_and_press(event=event)
 
     def on_mouse_event(_x: int, _y: int, mouseButton: Button, pressed: bool) -> None:
         nonlocal result, triggerError
@@ -219,7 +214,22 @@ def mouse_trigger[T](
         ):
             return
 
-        if not _check_modifiers(pressCtrl=pressCtrl, pressShift=pressShift, pressAlt=pressAlt, pressWin=pressWin):
+        try:
+            boolModifiersMatch = _check_modifiers(
+                pressCtrl=pressCtrl,
+                pressShift=pressShift,
+                pressAlt=pressAlt,
+                pressWin=pressWin,
+            )
+        except Exception as e:
+            if not claim_trigger():
+                return
+            Log.error(f"Failed to check modifiers for mouse trigger: {e}")
+            triggerError = e
+            eventStop.set()
+            return
+
+        if not boolModifiersMatch or not claim_trigger():
             return
 
         try:
@@ -243,18 +253,30 @@ def mouse_trigger[T](
             triggerError = e
 
         finally:
-            stop_listeners()
             eventStop.set()
 
-    listenerKeyboard = keyboard.hook(on_key_event_for_mouse)
-    listenerMouse = MouseListener(on_click=on_mouse_event)
-    listenerMouse.daemon = True
-    listenerMouse.start()
+    # Keep keyboard's internal pressed-key state current while waiting for a mouse event.
+    # The trigger itself reads that state through is_pressed().
+    removeKeyboardHook: Callable[[], None] = keyboard.hook(lambda _event: None)
+    try:
+        listenerMouse = MouseListener(on_click=on_mouse_event)
+        listenerMouse.daemon = True
+        listenerMouse.start()
+    except Exception:
+        removeKeyboardHook()
+        raise
 
     if not block:
+
+        def stop_listeners_after_trigger() -> None:
+            eventStop.wait()
+            stop_listeners()
+
+        threading.Thread(target=stop_listeners_after_trigger, daemon=True).start()
         return None
 
     eventStop.wait()
+    stop_listeners()
 
     if triggerError is not None:
         raise triggerError
@@ -354,12 +376,23 @@ def keyboard_trigger[T](
     result: object = resultMissing
     triggerError: Exception | None = None
     eventStop = threading.Event()
+    triggerLock = threading.Lock()
+    triggerClaimed = False
+
+    def claim_trigger() -> bool:
+        nonlocal triggerClaimed
+
+        with triggerLock:
+            if triggerClaimed:
+                return False
+            triggerClaimed = True
+            return True
 
     def unhook_keyboard() -> None:
         nonlocal triggerError
 
         try:
-            keyboard.unhook(listenerKeyboard)
+            removeKeyboardHook()
         except Exception as e:
             Log.error(f"Failed to unhook keyboard listener: {e}")
             if triggerError is None:
@@ -370,21 +403,35 @@ def keyboard_trigger[T](
 
         try:
             strKeyName, boolPressed = _get_keyname_and_press(event=event)
+        except ValueError as e:
+            Log.warning(f"Ignored keyboard event: {e}")
+            return
 
-            if not (
-                (strKeyName == key)
-                and ((timing == "on_press" and boolPressed) or (timing == "on_release" and not boolPressed))
-            ):
-                return
+        if not (
+            (strKeyName == key)
+            and ((timing == "on_press" and boolPressed) or (timing == "on_release" and not boolPressed))
+        ):
+            return
 
-            if not _check_modifiers(
+        try:
+            modifiersMatch = _check_modifiers(
                 pressCtrl=pressCtrl,
                 pressShift=pressShift,
                 pressAlt=pressAlt,
                 pressWin=pressWin,
-            ):
+            )
+        except Exception as e:
+            if not claim_trigger():
                 return
+            Log.error(f"Failed to check modifiers for keyboard trigger: {e}")
+            triggerError = e
+            eventStop.set()
+            return
 
+        if not modifiersMatch or not claim_trigger():
+            return
+
+        try:
             if notify:
                 strAddition = _generate_addition(
                     pressCtrl=pressCtrl,
@@ -405,15 +452,21 @@ def keyboard_trigger[T](
             triggerError = e
 
         finally:
-            unhook_keyboard()
             eventStop.set()
 
-    listenerKeyboard = keyboard.hook(on_key_event_for_keyboard)
+    removeKeyboardHook: Callable[[], None] = keyboard.hook(on_key_event_for_keyboard)
 
     if not block:
+
+        def unhook_keyboard_after_trigger() -> None:
+            eventStop.wait()
+            unhook_keyboard()
+
+        threading.Thread(target=unhook_keyboard_after_trigger, daemon=True).start()
         return None
 
     eventStop.wait()
+    unhook_keyboard()
 
     if triggerError is not None:
         raise triggerError
@@ -424,7 +477,7 @@ def keyboard_trigger[T](
     return cast(T, result)
 
 
-def register_force_exit() -> None:
+def _register_force_exit() -> None:
     """LiberRPA Main block will invoke it, should not invoke it by user."""
 
     # Only works on the MainProcess
@@ -441,8 +494,6 @@ def register_force_exit() -> None:
 
     try:
         keyboard.add_hotkey("ctrl+f12", on_hotkey_pressed)
-        # Start a thread to keep the keyboard listener active
-        threading.Thread(target=keyboard.wait, daemon=True).start()
 
     except Exception as e:
         Log.error(f"Failed to register Ctrl+F12 hotkey: {e}")
@@ -459,8 +510,25 @@ def _listen_for_exit() -> None:
 
 
 # Start the stdin listener thread.
-_listenerThread = threading.Thread(target=_listen_for_exit, daemon=True)
-_listenerThread.start()
+_listenerThread: threading.Thread | None = None
+_listenerThreadLock = threading.Lock()
+
+
+def _register_executor_exit_listener() -> None:
+    """Start the Executor stdin listener once in the current process."""
+
+    global _listenerThread
+
+    with _listenerThreadLock:
+        if _listenerThread is not None:
+            return
+
+        _listenerThread = threading.Thread(
+            target=_listen_for_exit,
+            name="LiberRPAExecutorExitListener",
+            daemon=True,
+        )
+        _listenerThread.start()
 
 
 if __name__ == "__main__":
@@ -478,7 +546,7 @@ if __name__ == "__main__":
             func=my_function_1,
             args=[],
             button="left",
-            pressCtrl=False,
+            pressCtrl=True,
             pressAlt=False,
             pressShift=False,
             pressWin=False,
@@ -499,7 +567,7 @@ if __name__ == "__main__":
             pressWin=False,
             timing="on_release",
             notify=True,
-            block=True,
+            block=False,
         )
     ) """
     """ print(
@@ -517,7 +585,7 @@ if __name__ == "__main__":
         )
     ) """
 
-    register_force_exit()
+    _register_force_exit()
 
     import time
 

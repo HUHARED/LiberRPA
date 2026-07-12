@@ -115,7 +115,7 @@ MANAGED_IMPORT_ORDER = [
 
 # Some public functions should not be exposed as snippets.
 SKIP_FUNCTIONS: dict[str, set[str]] = {
-    "Trigger": {"register_force_exit"},
+    # "Trigger": {"register_force_exit"}, Its name has been modified.
 }
 
 # Snippets that cannot be generated directly from public functions.
