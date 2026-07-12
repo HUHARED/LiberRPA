@@ -113,7 +113,7 @@ def generate_control_tree(elementFinal: uiautomation.Control) -> tuple[list[Dict
         dictTemp: DictElementTreeItem = {
             "id": intId,
             "title": dictAttrCurrent["ControlTypeName"].removesuffix("Control") + "-" + dictAttrCurrent.get("Name", ""),
-            "spec": dictAttrCurrent,
+            "attributes": dictAttrCurrent,
         }
         listChildrenTemp = _get_children_spec_recursive(controlAnchor=ele, layerSign=str(idx))
         if len(listChildrenTemp) != 0:
@@ -152,7 +152,7 @@ def _get_children_spec_recursive(
         dictTemp: DictElementTreeItem = {
             "id": intId,
             "title": dictAttrCurrent["ControlTypeName"].removesuffix("Control") + "-" + dictAttrCurrent.get("Name", ""),
-            "spec": dictAttrCurrent,
+            "attributes": dictAttrCurrent,
         }
         listChildrenTemp = _get_children_spec_recursive(controlAnchor=ele, layerSign=layerSignNew)
         if len(listChildrenTemp) != 0:

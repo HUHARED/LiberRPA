@@ -45,6 +45,6 @@ export interface DictForUiAnalyzer {
 export interface DictEleTreeItem {
   id: number;
   title: string;
-  spec: { [key: string]: string };
+  attributes: { [key: string]: string };
   children?: DictEleTreeItem[];
 }

@@ -191,21 +191,21 @@ export const useSelectorStore = defineStore("selector", {
       this.setDescription("updateEleTreeSelector");
       const addSelectorRecursive = (
         id: number,
-        spec: { [key: string]: string },
+        attributes: { [key: string]: string },
         parentSelector: { [key: string]: string }[],
         children?: DictEleTreeItem[]
       ): void => {
-        const arrTemp = [...parentSelector, spec];
+        const arrTemp = [...parentSelector, attributes];
         this.dictEleTreeSelector[id] = arrTemp;
         if (children) {
           children.forEach((child) => {
-            addSelectorRecursive(child.id, child.spec, arrTemp, child.children);
+            addSelectorRecursive(child.id, child.attributes, arrTemp, child.children);
           });
         }
       };
 
       this.arrEleTree.forEach((nodeTop) => {
-        addSelectorRecursive(nodeTop.id, nodeTop.spec, [], nodeTop.children);
+        addSelectorRecursive(nodeTop.id, nodeTop.attributes, [], nodeTop.children);
       });
 
       // console.log(JSON.stringify(this.dictEleTreeSelector));

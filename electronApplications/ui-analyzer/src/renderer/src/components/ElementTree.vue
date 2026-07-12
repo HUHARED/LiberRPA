@@ -35,7 +35,7 @@
 
           <v-tooltip activator="parent" location="bottom">
             <div>
-              {{ JSON.stringify(item.spec, null, 0) }}<br />
+              {{ JSON.stringify(item.attributes, null, 0) }}<br />
               ------------------------<br />
               The layer specification. Click to replace Element Hierarchy.<br />
               For UIA elements, you may need to add "Index" manually if sibling elements

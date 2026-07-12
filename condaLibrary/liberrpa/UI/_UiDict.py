@@ -297,8 +297,7 @@ type Selector = SelectorWindow | SelectorUia | SelectorHtml | SelectorImage
 class DictElementTreeItem(TypedDict):
     id: int
     title: str
-    # Keep the existing "spec" wire key for UI Analyzer compatibility. It contains display attributes, not a selector "specification" layer.
-    spec: DictElementTreeUiaAttr | DictSpecHtmlOriginal
+    attributes: DictElementTreeUiaAttr | DictSpecHtmlOriginal
     # Quoted forward references
     children: NotRequired[list["DictElementTreeItem"]]
 
