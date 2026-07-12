@@ -439,8 +439,18 @@ def zip_create(
     if not srcPathObj.is_file() and not srcPathObj.is_dir():
         raise FileNotFoundError(f"Source path does not exist: {srcPath}")
 
+    # If dstPath is a folder, determine the actual ZIP path first.
     if dstPathObj.is_dir():
         dstPathObj = dstPathObj / (srcPathObj.name + ".zip")
+
+    srcResolved = srcPathObj.resolve()
+    dstResolved = dstPathObj.resolve()
+
+    if srcResolved == dstResolved:
+        raise ValueError("Source and destination paths must be different.")
+
+    if srcPathObj.is_dir() and srcResolved in dstResolved.parents:
+        raise ValueError("The destination ZIP file cannot be inside the source folder.")
 
     # Use new path to check.
     if not str(dstPathObj).lower().endswith(".zip"):

@@ -6,7 +6,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from liberrpa.Common._TypedValue import StrPath
 
-from pathlib import Path, PureWindowsPath
+from pathlib import Path, PurePosixPath, PureWindowsPath
 import os
 import re
 import multiprocessing
@@ -21,6 +21,7 @@ PATH_PROJECT_FLOW = PATH_PROJECT_ROOT / "project.flow"
 PROCESS_NAME = multiprocessing.current_process().name
 
 
+""" No function needs it yet. """
 def _normalize_filepath(filePath: StrPath) -> str:
     """
     Normalize path string for logs/config display.
@@ -67,6 +68,47 @@ def normalize_attachment_paths(attachments: StrPath | list[StrPath] | None) -> l
 
     return [str(Path(attachments).absolute())]
 
+def get_attachment_download_path(
+    downloadPath: StrPath,
+    attachmentFileName: str,
+) -> Path:
+    """
+    Return an available path for an attachment inside downloadPath.
+
+    Directory components supplied by the attachment are discarded. If a file
+    with the same name already exists, a numeric suffix is added.
+    """
+
+    if not isinstance(attachmentFileName, str) or not attachmentFileName:
+        raise ValueError("Attachment filename must be a non-empty string.")
+
+    # Treat both slash styles as separators, regardless of the current OS.
+    strNormalizedName = attachmentFileName.replace("\\", "/")
+    strSafeFileName = PurePosixPath(strNormalizedName).name
+
+    if strSafeFileName in ("", ".", ".."):
+        raise ValueError(f"Invalid attachment filename: {attachmentFileName!r}")
+
+    pathDownloadRoot = Path(downloadPath).resolve()
+    pathTarget = (pathDownloadRoot / strSafeFileName).resolve()
+
+    # This also rejects an existing symlink that points outside downloadPath.
+    if pathTarget.parent != pathDownloadRoot:
+        raise ValueError(
+            f"Attachment path escapes the download folder: {attachmentFileName!r}"
+        )
+
+    pathAvailable = pathTarget
+    intSuffix = 1
+
+    while pathAvailable.exists():
+        pathAvailable = pathDownloadRoot / (
+            f"{pathTarget.stem} ({intSuffix}){pathTarget.suffix}"
+        )
+        intSuffix += 1
+
+    return pathAvailable
+
 
 if __name__ == "__main__":
     cases = [
@@ -83,3 +125,4 @@ if __name__ == "__main__":
         print("===")
         print(Path(Path.cwd()) / _normalize_filepath(item))
         print(f"{item!r} -> {_normalize_filepath(item)}")
+    ...

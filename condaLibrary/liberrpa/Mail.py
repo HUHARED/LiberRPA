@@ -7,7 +7,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from liberrpa.Logging import Log
 from liberrpa.Common._TypedValue import DictImapMailInfo, StrPath
-from liberrpa.Common._Utils import normalize_attachment_paths
+from liberrpa.Common._Utils import normalize_attachment_paths, get_attachment_download_path
 from liberrpa.Common._Exception import MailError
 from imapclient import IMAPClient
 from mailparser import parse_from_bytes, MailParser
@@ -292,35 +292,60 @@ def move_email(imapObj: IMAPClient, uid: int, folder: str) -> None:
 
 
 @Log.trace()
-def download_attachments(emailObj: MailParser, downloadPath: StrPath) -> list[str]:
+def download_attachments(
+    emailObj: MailParser,
+    downloadPath: StrPath,
+) -> list[str]:
     """
     Download all attachments of an email.
 
     Parameters:
-        emailObj: A MailParser objects.
-        downloadPath: The folder to save download files. Accepts str or PathLike[str].
+        emailObj: A MailParser object.
+        downloadPath: The folder to save downloaded files. Accepts str or PathLike[str].
 
     Returns:
-        list[str]: A list contains the path of all attachments.
+        list[str]: Absolute paths of the downloaded attachments.
     """
+
+    pathDownloadRoot = Path(downloadPath)
+    pathDownloadRoot.mkdir(parents=True, exist_ok=True)
+
     listFilePath: list[str] = []
-    Path(downloadPath).mkdir(parents=True, exist_ok=True)
+
     for attachment in emailObj.attachments:
-        strFilePath = Path(downloadPath).joinpath(attachment["filename"])
+        attachmentFileName = attachment.get("filename")
 
         try:
-            # Decode the payload if it's base64 encoded
-            if isinstance(attachment["payload"], str):
-                payloadBytes = base64.b64decode(attachment["payload"])
-            else:
-                payloadBytes = attachment["payload"]
+            if not isinstance(attachmentFileName, str):
+                raise ValueError(f"Attachment filename must be a string, got {type(attachmentFileName).__name__}.")
 
-            with Path(strFilePath).open(mode="wb") as fileObj:
+            pathFile = get_attachment_download_path(
+                downloadPath=pathDownloadRoot,
+                attachmentFileName=attachmentFileName,
+            )
+
+            if pathFile.name != attachmentFileName:
+                Log.warning(
+                    f"Attachment filename changed from {attachmentFileName!r} "
+                    f"to {pathFile.name!r} to keep it inside the download "
+                    f"folder or avoid overwriting an existing file."
+                )
+
+            payload = attachment["payload"]
+
+            if isinstance(payload, str):
+                payloadBytes = base64.b64decode(payload)
+            else:
+                payloadBytes = payload
+
+            # Exclusive creation prevents an unexpected concurrent overwrite.
+            with pathFile.open(mode="xb") as fileObj:
                 fileObj.write(payloadBytes)
 
-            listFilePath.append(str(strFilePath.absolute()))
+            listFilePath.append(str(pathFile))
+
         except Exception as e:
-            raise MailError(f"Error downloading attachment {attachment['filename']}: {e}")
+            raise MailError(f"Error downloading attachment {attachmentFileName!r}: {e}") from e
 
     return listFilePath
 

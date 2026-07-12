@@ -7,7 +7,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from liberrpa.Logging import Log
 from liberrpa.Common._TypedValue import DictOutlookMailInfo, StrPath
-from liberrpa.Common._Utils import normalize_attachment_paths
+from liberrpa.Common._Utils import normalize_attachment_paths, get_attachment_download_path
 import win32com.client
 from pathlib import Path
 from typing import Literal
@@ -188,6 +188,16 @@ def get_email_list(
             break
 
     for email in listEmail:
+        match email.Importance:
+            case 0:
+                strImportance = "low"
+            case 1:
+                strImportance = "normal"
+            case 2:
+                strImportance = "high"
+            case value:
+                raise ValueError(f"Unexpected Outlook Importance value: {value!r}")
+
         dictTemp: DictOutlookMailInfo = {
             "Subject": email.Subject,
             "Body": email.Body,
@@ -199,7 +209,7 @@ def get_email_list(
             "BCC": email.BCC,
             "ReceivedTime": email.ReceivedTime,
             "SentOn": email.SentOn,
-            "Importance": email.Importance,
+            "Importance": strImportance,
             "Attachments": str([ele.FileName for ele in email.Attachments]),
             "Size": email.Size,
         }
@@ -208,14 +218,6 @@ def get_email_list(
             dictTemp["ReceivedTime"] = dictTemp["ReceivedTime"].strftime("%Y-%m-%d %H:%M:%S")
         if isinstance(dictTemp["SentOn"], datetime):
             dictTemp["SentOn"] = dictTemp["SentOn"].strftime("%Y-%m-%d %H:%M:%S")
-
-        match dictTemp["Importance"]:
-            case 1:
-                dictTemp["Importance"] = "high"
-            case 2:
-                dictTemp["Importance"] = "normal"
-            case _:
-                dictTemp["Importance"] = "low"
 
         listBasicInfo.append(dictTemp)
 
@@ -300,23 +302,44 @@ def delete_email(emailObj: win32com.client.CDispatch) -> None:
 
 
 @Log.trace()
-def download_attachments(emailObj: win32com.client.CDispatch, downloadPath: StrPath) -> list[str]:
+def download_attachments(
+    emailObj: win32com.client.CDispatch,
+    downloadPath: StrPath,
+) -> list[str]:
     """
     Download all attachments of an email.
 
     Parameters:
-        emailObj: The win32com.client.CDispatch objects to download its attachments.
-        downloadPath: The folder to save download files. Accepts str or PathLike[str].
+        emailObj: The Outlook email object.
+        downloadPath: The folder to save downloaded files. Accepts str or PathLike[str].
 
     Returns:
-        list[str]: A list contains the path of all attachments.
+        list[str]: Absolute paths of the downloaded attachments.
     """
+
+    pathDownloadRoot = Path(downloadPath)
+    pathDownloadRoot.mkdir(parents=True, exist_ok=True)
+
     listFilePath: list[str] = []
-    Path(downloadPath).mkdir(parents=True, exist_ok=True)
-    for attachment in emailObj.attachments:
-        strFilePath = Path(downloadPath).joinpath(attachment.FileName)
-        attachment.SaveAsFile(str(strFilePath.absolute()))
-        listFilePath.append(str(strFilePath.absolute()))
+
+    for attachment in emailObj.Attachments:
+        strAttachmentFileName = str(attachment.FileName)
+
+        pathFile = get_attachment_download_path(
+            downloadPath=pathDownloadRoot,
+            attachmentFileName=strAttachmentFileName,
+        )
+
+        if pathFile.name != strAttachmentFileName:
+            Log.warning(
+                f"Attachment filename changed from {strAttachmentFileName!r} "
+                f"to {pathFile.name!r} to keep it inside the download folder "
+                f"or avoid overwriting an existing file."
+            )
+
+        attachment.SaveAsFile(str(pathFile))
+        listFilePath.append(str(pathFile))
+
     return listFilePath
 
 
