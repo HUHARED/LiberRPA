@@ -89,7 +89,6 @@ def set_image(imagePath: StrPath) -> None:
 
 
 if __name__ == "__main__":
-    # set_image(imagePath=R"C:\Users\huhar\Desktop\123.jpg")
     print(repr(get_text()))
     # set_text(text="")
     # save_image(savePath="./123.png")
