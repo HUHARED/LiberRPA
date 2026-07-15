@@ -7,226 +7,241 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from liberrpa.Logging import Log
 from liberrpa.Common._TypedValue import StrPath
+from liberrpa.Common._Excel import (
+    _ExcelAppState,
+    ExcelObj,
+    #
+    ExcelSheet,
+    ExcelCell,
+    ExcelCellValue,
+    #
+    ExcelError,
+    ExcelBusyError,
+    _STR_EXCEL_BUSY_ERROR_MESSAGE,
+    _is_excel_busy_error,
+    #
+    _claim_excel_thread,
+    _get_or_create_shared_app_state,
+    #
+    _excel_operation,
+    #
+    _get_shared_app_state,
+    _register_shared_app_state,
+    _unregister_shared_app_state,
+    #
+    _get_workbook_key,
+    _ensure_workbook_not_open,
+    _ensure_workbook_key_available,
+    _update_managed_workbook_key,
+    #
+    _register_managed_excel_obj,
+    _unregister_managed_excel_obj,
+    #
+    _temporary_display_alerts,
+    _save,
+    _save_as,
+    #
+    _quit_excel_app_best_effort,
+    #
+    _check_excel_file_type,
+    _check_and_standardize_sheet,
+    _check_sheet_name_compliance,
+    _check_sheet_name_available,
+    #
+    _validate_excel_column_number,
+    _validate_excel_row_number,
+    #
+    _convert_col_num_to_str,
+    _convert_col_str_to_num,
+    #
+    _check_and_standardize_cell,
+    _extract_row_column_from_cell,
+    #
+    _get_last_row,
+    _get_last_column,
+    _get_endCell_if_not_provided,
+    #
+    _validate_range_order,
+    _read_range,
+    #
+    _preserve_screen_updating,
+    _validate_write_range_data,
+    #
+    _log_excel_info,
+)
+
+import xlwings as xw
+import xlwings._xlwindows as _xwWindows
 
 import pandas
-import xlwings as xw
-from xlwings import Book, Range
 from pathlib import Path
 import win32gui
 import win32con
-import win32com.client
-import pythoncom
-import re
-from datetime import datetime
-from typing import Literal, Any, cast, overload
-
-type ExcelFileType = Literal["xlsx", "xls", "xlsm", "xlsb"]
-type ExcelSheet = str | int
-type ExcelCell = str | list[int]
-type ExcelCellValue = str | int | float | datetime | bool | None
-
-_VALID_EXCEL_FILE_TYPES: set[str] = {"xlsx", "xls", "xlsm", "xlsb"}
-
-
-class ExcelError(Exception):
-    """Custom exception for Excel manipulation"""
-
-    def __init__(self, message: str, *args: object) -> None:
-        super().__init__(message, *args)
-
-
-class ExcelObj:
-    def __init__(self) -> None:
-        self.path: str
-        # Some attributes need default value to avoid AttributeError if it is created by bind_Excel_file().
-        self.visible: bool = True
-        self.readOnly: bool = False
-        self.password: str = ""
-        self.writePassword: str = ""
-        self.type: ExcelFileType
-        self.book: Book
-
-    def __str__(self) -> str:
-        return f"ExcelObj(path: {self.path}, visible: {self.visible}, readOnly: {self.readOnly}, password: {'*****' if self.password else ''}, writePassword: {'*****' if self.writePassword else ''}, type: {self.type})"
-
-
-def _check_excel_file_type(path: StrPath) -> ExcelFileType:
-    fileType = Path(path).suffix.replace(".", "").lower()
-
-    if fileType not in _VALID_EXCEL_FILE_TYPES:
-        raise ExcelError(
-            f"Unsupported Excel file type: {fileType!r}. Supported types: {sorted(_VALID_EXCEL_FILE_TYPES)}"
-        )
-
-    return cast(ExcelFileType, fileType)
-
-
-def _check_edit_mode() -> None:
-    try:
-        # Ensure Python uses the same COM thread as xlwings
-        pythoncom.CoInitialize()
-
-        # Access the Excel COM object
-        excelApp = win32com.client.Dispatch("Excel.Application")
-
-        # Check if Excel is in interactive mode
-        if not excelApp.Interactive:
-            raise ExcelError("Excel is in Edit mode or not responsive.")
-    except ExcelError:
-        raise
-    except Exception as e:
-        raise ExcelError(f"{e}, Excel is in Edit mode or not responsive.")
-    finally:
-        pythoncom.CoUninitialize()
-
-
-def _check_and_standardize_sheet(excelObj: ExcelObj, sheet: ExcelSheet) -> str:
-    if isinstance(sheet, bool) or not isinstance(sheet, int | str):
-        raise ExcelError("The argument sheet should be an int or a string.")
-
-    listSheetName: list[str] = [sheet.name for sheet in excelObj.book.sheets]
-
-    if isinstance(sheet, str):
-        if sheet not in listSheetName:
-            raise ExcelError(f"The sheet ({sheet}) does not exist. The current sheets: {listSheetName}")
-        return sheet
-
-    if sheet < 0:
-        raise ExcelError(f"The sheet index ({sheet}) must be greater than or equal to 0.")
-
-    if sheet >= len(listSheetName):
-        raise ExcelError(
-            f"The sheet index ({sheet}) is greater than the largest sheet index ({len(listSheetName) - 1})."
-        )
-
-    strSheet = excelObj.book.sheets[sheet].name
-    Log.debug("sheet standardized=" + strSheet)
-    return strSheet
-
-
-def _check_and_standardize_column(column: str | int) -> str:
-    if not (isinstance(column, int) or isinstance(column, str)):
-        raise ExcelError("The argument column(col) should be a int or string.")
-    if isinstance(column, int):
-        strCol: str = xw.utils.col_name(column)
-        Log.debug("column standardized=" + strCol)
-    else:
-        # str
-        strCol: str = column
-    return strCol
-
-
-def _check_and_standardize_cell(cell: ExcelCell) -> str:
-    if not (isinstance(cell, str) or isinstance(cell, list)):
-        raise ExcelError("The argument cell should be a string or list[int].")
-
-    if isinstance(cell, list) and len(cell) == 2 and isinstance(cell[0], int) and isinstance(cell[1], int):
-        strCol: str = xw.utils.col_name(cell[0])
-        strCell = (strCol + str(cell[1])).upper()
-        Log.debug("cell standardized=" + strCell)
-        return strCell
-
-    elif isinstance(cell, str):
-        strCell = cell.upper()
-        if strCell != cell:
-            Log.debug("cell standardized=" + strCell)
-        return strCell
-
-    else:
-        raise ValueError(f"Invalid cell: {repr(cell)}")
-
-
-def _extract_row_column_from_cell(cell: str) -> tuple[str, int, int]:
-    cell = _check_and_standardize_cell(cell=cell)
-
-    match = re.fullmatch(r"([A-Z]+)([1-9]\d*)", cell)
-    if match is None:
-        raise ExcelError(f"Invalid Excel cell address: {cell!r}.")
-
-    strCol = match.group(1)
-    intRow = int(match.group(2))
-    intCol = convert_col_str_to_num(colStr=strCol)
-
-    return (strCol, intCol, intRow)
-
-
-def _print_xw_info(excelObj: ExcelObj) -> None:
-    xwApp = excelObj.book.app
-    Log.verbose(
-        f"Workbook info: books: {xwApp.books}, pid: {xwApp.pid}, version: {xwApp.version}, visible: {xwApp.visible}, screen_updating: {xwApp.screen_updating}, calculation: {xwApp.calculation}, display_alerts: {xwApp.display_alerts}, enable_events: {xwApp.enable_events}, interactive: {xwApp.interactive}, path: {xwApp.path}, startup_path: {xwApp.startup_path}"
-    )
+import pywintypes
+from typing import Literal, Any, overload
 
 
 @Log.trace()
-def open_Excel_file(
+def open_excel_file(
     path: StrPath,
     visible: bool = True,
     password: str = "",
     writePassword: str = "",
     createIfMissing: bool = True,
     readOnly: bool = False,
+    updateLinks: bool = False,
 ) -> ExcelObj:
     """
     Open an Excel workbook, or create it if it does not exist.
 
-    If the workbook is already open in Excel, Excel may open another connection to it in read-only mode.
+    If the workbook is already open in the selected Excel instance, use bind_excel_file() instead.
 
     Supported workbook file types are .xlsx, .xls, .xlsm, and .xlsb.
     CSV files should be handled by CSV-specific functions instead of Excel workbook functions.
 
+    LiberRPA restricts Excel automation to one Python thread and reuses one shared Excel application instance for all managed workbooks. If exactly one Excel instance is running, it is reused. If multiple instances are running and no shared instance has been selected yet, call bind_excel_file() first to select the intended instance. Because visible is an application-level setting, every workbook opened through this module must use the same visible value.
+
+    Do not manually close the workbook or save it under another path while its ExcelObj is managed by LiberRPA. Use close() and save_as() so the shared application state and managed workbook registry remain synchronized.
+
     Parameters:
         path: The path to the Excel workbook. Accepts str or PathLike[str].
-        visible: If True, opens Excel in visible mode.
-        password: The password for opening the workbook, if required.
-        writePassword: The password for write access, if required.
+        visible: The visibility of the shared Excel application instance. It must match the value used by earlier workbook objects.
+        password: The password for opening the workbook, if required. password is also used as a new workbook's opening password.
+        writePassword: The password for write access, if required. writePassword applies only when opening an existing write-reserved workbook.
         createIfMissing: If True, creates a new workbook if the file does not exist.
-        readOnly: If True, opens the workbook in read-only mode.
+        readOnly: If True, opens the workbook in read-only mode. For a newly created workbook, readOnly must be False.
+        updateLinks: If True, updates links to external workbooks while opening the file. If False, keeps the workbook's cached link values and avoids Excel's update-links prompt.
 
     Returns:
         ExcelObj: An object representing the opened workbook.
     """
-    _check_edit_mode()
-    excelObj = ExcelObj()
 
-    excelObj.path = str(Path(path).absolute())
-    excelObj.visible = visible
+    strPath = str(Path(path).absolute())
+    pathExcel = Path(strPath)
+    boolFileExists = pathExcel.is_file()
+
+    # Validate everything that does not require Excel/COM before selecting or creating an Excel application. Invalid arguments must not start Excel, select a user instance, or claim the process-wide Excel thread.
+    excelFileType = _check_excel_file_type(strPath)
+
+    if not boolFileExists and not createIfMissing:
+        raise FileNotFoundError(f"No such file: {strPath!r}")
+
+    if not boolFileExists and readOnly:
+        raise ExcelError("readOnly=True cannot be used when creating a new workbook.")
+
+    if not boolFileExists and writePassword:
+        raise ExcelError("writePassword is only used when opening an existing write-reserved workbook.")
+
+    workbookKey = _get_workbook_key(strPath)
+    appState, boolNewState = _get_or_create_shared_app_state(visible=visible)
+    _ensure_workbook_key_available(appState=appState, workbookKey=workbookKey)
+
+    excelObj = ExcelObj(appState=appState)
+    excelObj.path = strPath
     excelObj.readOnly = readOnly
     excelObj.password = password
     excelObj.writePassword = writePassword
-    excelObj.type = _check_excel_file_type(excelObj.path)
+    excelObj.type = excelFileType
 
-    if Path(excelObj.path).is_file():
-        xwApp = xw.App(visible=excelObj.visible, add_book=False)
-        excelObj.book = xwApp.books.open(
-            fullname=excelObj.path,
-            read_only=excelObj.readOnly,
-            password=excelObj.password,
-            write_res_password=excelObj.writePassword,
-            add_to_mru=False,
-            local=True,
-        )
-    else:
-        if createIfMissing:
-            # Create a new file
-            xwApp = xw.App(visible=excelObj.visible, add_book=False)
-            excelObj.book = xwApp.books.add()
-            # Save the new book if the path is specified
-            excelObj.book.save(path=excelObj.path)
-        else:
-            raise FileNotFoundError(f"No such file: '{excelObj.path}'")
-    _print_xw_info(excelObj=excelObj)
-    return excelObj
+    boolBookOpened = False
+    boolWorkbookRegistered = False
+
+    try:
+        with _excel_operation(excelObj=excelObj):
+            # configuredVisible is the value selected when the shared state was created. Do not overwrite it with a live value: doing so would silently turn an external UI change into LiberRPA's new contract.
+            boolActualVisible = bool(appState.api.Visible)
+            if boolActualVisible != appState.configuredVisible:
+                raise ExcelError(
+                    "Excel.Visible was changed outside LiberRPA. "
+                    f"Expected {appState.configuredVisible}, but found {boolActualVisible}."
+                )
+
+            if boolFileExists:
+                # Workbooks.Open may prompt, return an existing workbook, or open a read-only connection when the same file is already open.
+                # Require an explicit bind instead, so cleanup can never close a workbook that the user opened manually.
+                _ensure_workbook_not_open(
+                    appState=appState,
+                    workbookPath=excelObj.path,
+                )
+
+                excelObj._book = appState.app.books.open(
+                    fullname=excelObj.path,
+                    # None can display an update-links prompt. An explicit bool keeps unattended RPA deterministic; False retains cached values.
+                    update_links=updateLinks,
+                    read_only=excelObj.readOnly,
+                    password=excelObj.password,
+                    write_res_password=excelObj.writePassword,
+                    # This only suppresses Excel's "read-only recommended" prompt; read_only above still determines the requested open mode.
+                    ignore_read_only_recommended=True,
+                    add_to_mru=False,
+                    local=True,
+                )
+                # Mark the workbook immediately after open succeeds. ReadOnly or any later COM property can still fail and must trigger cleanup.
+                boolBookOpened = True
+
+                # Store the actual state, which may differ from the requested value.
+                excelObj.readOnly = bool(excelObj._book.api.ReadOnly)
+
+            else:
+                excelObj._book = appState.app.books.add()
+                # books.add() has already created a live workbook. If its first save fails, the exception path must still close that workbook.
+                boolBookOpened = True
+
+                _save_as(
+                    excelObj=excelObj,
+                    path=excelObj.path,
+                    fileType=excelObj.type,
+                    password=excelObj.password or "",
+                )
+
+                excelObj.readOnly = False
+
+            _log_excel_info(excelObj=excelObj)
+
+        _register_managed_excel_obj(excelObj=excelObj, workbookKey=workbookKey)
+        boolWorkbookRegistered = True
+
+        # Only a successful first open commits the selected application as the shared state. ownsApp separately records who created the Excel process.
+        if boolNewState:
+            _register_shared_app_state(appState)
+        return excelObj
+
+    except Exception:
+        if boolWorkbookRegistered:
+            _unregister_managed_excel_obj(excelObj)
+
+        if boolBookOpened:
+            try:
+                excelObj._book.close()
+            except Exception as cleanupError:
+                Log.error(f"Failed to close the workbook after opening it failed: {cleanupError}")
+
+        if boolNewState:
+            _unregister_shared_app_state(appState)
+
+            # Never quit an Excel instance that belonged to the user. If LiberRPA created the Excel process and initialization failed before any ExcelObj was returned, force-terminate it only when normal shutdown also fails.
+            if appState.ownsApp:
+                _quit_excel_app_best_effort(
+                    appState=appState,
+                    killOnFailure=True,
+                    failureContext="Failed to quit Excel after opening the workbook failed",
+                )
+
+        raise
 
 
 @Log.trace()
-def bind_Excel_file(fileName: str) -> ExcelObj:
+def bind_excel_file(fileName: str) -> ExcelObj:
     """
     Bind to an already open Excel workbook by file name.
 
-    If multiple open workbooks have the same file name, only one of them will be bound.
-
     Supported workbook file types are .xlsx, .xls, .xlsm, and .xlsb.
     CSV files should be handled by CSV-specific functions instead of Excel workbook functions.
+
+    The first successful open or bind operation determines the shared Excel application instance. Later bind operations search only that same instance, so all ExcelObj objects remain compatible with each other. If no shared instance has been selected yet, all running Excel instances are searched. If the same file name exists in multiple instances, binding is
+    rejected as ambiguous.
+
+    Do not manually close the workbook or save it under another path while its ExcelObj is managed by LiberRPA. Use close() and save_as() so the shared application state and managed workbook registry remain synchronized.
 
     Parameters:
         fileName: The file name of an already open Excel workbook, such as "Report.xlsx".
@@ -234,31 +249,94 @@ def bind_Excel_file(fileName: str) -> ExcelObj:
     Returns:
         ExcelObj: An object representing the bound workbook.
     """
-    _check_edit_mode()
-    excelObj = ExcelObj()
 
-    boolFound = False
-    xwApp = xw.apps.active
-    if xwApp:
-        for book in xwApp.books:
-            book: Book
-            if book.name == fileName:
-                boolFound = True
-                excelObj.book = book
+    # Reject unsupported names before this call claims the process-wide Excel thread.
+    _check_excel_file_type(fileName)
+    _claim_excel_thread()
+
+    appState = _get_shared_app_state()
+
+    if appState is not None:
+        excelObj = ExcelObj(appState=appState)
+        workbookKey: str | None = None
+
+        with _excel_operation(excelObj=excelObj):
+            for book in appState.app.books:
+                if str(book.name).casefold() != fileName.casefold():
+                    continue
+
+                excelObj._book = book
                 excelObj.path = book.fullname
-                excelObj.type = _check_excel_file_type(book.fullname)
+                workbookKey = _get_workbook_key(excelObj.path)
+                _ensure_workbook_key_available(appState=appState, workbookKey=workbookKey)
+                excelObj.readOnly = bool(excelObj._book.api.ReadOnly)
+                excelObj.type = _check_excel_file_type(excelObj.path)
+                _log_excel_info(excelObj=excelObj)
                 break
-        if not boolFound:
-            raise FileNotFoundError(f"No open workbook with name '{fileName}' found")
-        _print_xw_info(excelObj=excelObj)
+
+        if workbookKey is None:
+            raise FileNotFoundError(
+                f"No open workbook with name {fileName!r} was found in the shared Excel application instance."
+            )
+
+        _register_managed_excel_obj(excelObj=excelObj, workbookKey=workbookKey)
         return excelObj
-    else:
-        raise ExcelError("No Workbook instance found.")
 
+    try:
+        listApps = list(xw.apps)
+    except _xwWindows.ExcelBusyError as e:
+        raise ExcelBusyError(_STR_EXCEL_BUSY_ERROR_MESSAGE) from e
+    except pywintypes.com_error as e:
+        if _is_excel_busy_error(e):
+            raise ExcelBusyError(_STR_EXCEL_BUSY_ERROR_MESSAGE) from e
+        raise
 
-def _save(excelObj: ExcelObj) -> None:
-    _check_edit_mode()
-    excelObj.book.save()
+    if not listApps:
+        raise ExcelError("No running Excel instance was found.")
+
+    listMatches: list[tuple[_ExcelAppState, xw.Book, str]] = []
+
+    for xwApp in listApps:
+        candidateState = _ExcelAppState(app=xwApp, ownsApp=False)
+        candidateObj = ExcelObj(appState=candidateState)
+
+        # Do not skip a busy instance. It could contain another workbook with the same name, so binding from an incomplete search would be ambiguous. ExcelBusyError intentionally propagates immediately from this context.
+        with _excel_operation(excelObj=candidateObj):
+            for book in xwApp.books:
+                if str(book.name).casefold() == fileName.casefold():
+                    listMatches.append((candidateState, book, book.fullname))
+
+    if len(listMatches) > 1:
+        raise ExcelError(
+            f"Multiple open workbooks with name {fileName!r} were found in different Excel application instances."
+        )
+
+    if not listMatches:
+        raise FileNotFoundError(f"No open workbook with name {fileName!r} was found.")
+
+    appState, book, strPath = listMatches[0]
+
+    excelObj = ExcelObj(appState=appState)
+    excelObj._book = book
+    excelObj.path = strPath
+    excelObj.type = _check_excel_file_type(strPath)
+    workbookKey = _get_workbook_key(strPath)
+    _ensure_workbook_key_available(appState=appState, workbookKey=workbookKey)
+
+    with _excel_operation(excelObj=excelObj):
+        excelObj.readOnly = bool(excelObj._book.api.ReadOnly)
+        _log_excel_info(excelObj=excelObj)
+
+    _register_managed_excel_obj(excelObj=excelObj, workbookKey=workbookKey)
+
+    try:
+        # Registration happens only after every COM property needed to initialize the first bound ExcelObj has been read successfully.
+        _register_shared_app_state(appState)
+    except Exception:
+        _unregister_managed_excel_obj(excelObj)
+        raise
+
+    return excelObj
 
 
 @Log.trace()
@@ -269,7 +347,8 @@ def save(excelObj: ExcelObj) -> None:
     Parameters:
         excelObj: The Excel workbook object.
     """
-    _save(excelObj=excelObj)
+    with _excel_operation(excelObj=excelObj):
+        _save(excelObj=excelObj)
 
 
 @Log.trace()
@@ -277,7 +356,9 @@ def save_as(excelObj: ExcelObj, dstPath: StrPath, password: str = "") -> str:
     """
     Save the current workbook as a new file.
 
-    This behaves like Excel's "Save As" operation. The current workbook remains open, and Excel/xlwings will usually treat it as the workbook at the new path after saving.
+    This behaves like Excel's "Save As" operation. The current workbook remains open as the workbook at the new path after saving.
+
+    Do not manually close or save the workbook under another path while its ExcelObj is managed by LiberRPA.
 
     Parameters:
         excelObj: The Excel workbook object.
@@ -287,41 +368,126 @@ def save_as(excelObj: ExcelObj, dstPath: StrPath, password: str = "") -> str:
     Returns:
         str: The absolute path of the saved workbook.
     """
-    _check_edit_mode()
+    with _excel_operation(excelObj=excelObj):
+        strFilePath = str(Path(dstPath).absolute())
+        newFileType = _check_excel_file_type(strFilePath)
+        newWorkbookKey = _get_workbook_key(strFilePath)
 
-    strFilePath = str(Path(dstPath).absolute())
-    newFileType = _check_excel_file_type(strFilePath)
+        if Path(strFilePath).is_file():
+            raise ExcelError(f"The file '{strFilePath}' exists.")
 
-    if Path(strFilePath).is_file():
-        raise ExcelError(f"The file '{strFilePath}' exists.")
+        _ensure_workbook_key_available(
+            appState=excelObj._appState,
+            workbookKey=newWorkbookKey,
+            currentKey=excelObj._managedWorkbookKey,
+        )
 
-    # Create the folder if it doesn't exist.
-    Path(strFilePath).parent.mkdir(parents=True, exist_ok=True)
+        # Create the folder if it doesn't exist.
+        Path(strFilePath).parent.mkdir(parents=True, exist_ok=True)
 
-    excelObj.book.save(path=strFilePath, password=password)
+        _save_as(
+            excelObj=excelObj,
+            path=strFilePath,
+            fileType=newFileType,
+            password=password,
+        )
 
-    excelObj.path = strFilePath
-    excelObj.password = password
-    excelObj.type = newFileType
+        # SaveAs has already changed the identity of the open workbook.
+        # Update the registry and identity immediately.
+        _update_managed_workbook_key(excelObj=excelObj, workbookKey=newWorkbookKey)
+        excelObj.path = strFilePath
+        excelObj.password = password
+        excelObj.type = newFileType
 
-    return strFilePath
+        # SaveAs does not preserve a recoverable write-reservation password, so do not keep reporting the old password as current metadata.
+        excelObj.writePassword = None
+
+        try:
+            bookApi = excelObj._book.api
+            excelObj.readOnly = bool(bookApi.ReadOnly)
+
+            # Whether write reservation exists can be determined, but it cannot reliably recover the actual password.
+            if not bool(bookApi.WriteReserved):
+                excelObj.writePassword = ""
+
+        except Exception as metadataError:
+            Log.warning(
+                "The workbook was saved successfully, but its post-SaveAs "
+                f"metadata could not be refreshed: {metadataError}"
+            )
+
+        return strFilePath
 
 
 @Log.trace()
 def close(excelObj: ExcelObj, save: bool = True) -> None:
     """
-    Close the Excel workbook object.
+    Close the Excel workbook.
+
+    Workbooks share one Excel application instance. LiberRPA quits that instance only when it created the instance, no managed ExcelObj remains, and the instance contains no other workbooks.
+
+    Do not close the workbook or save it under another path directly in the Excel UI while it is managed. LiberRPA intentionally avoids a COM liveness probe before every operation because a closed workbook cannot be reliably distinguished from a temporarily busy Excel without extra failure-prone calls.
 
     Parameters:
         excelObj: The Excel workbook object.
         save: If True, saves the workbook before closing.
     """
-    _check_edit_mode()
 
-    if save:
-        _save(excelObj)
-    excelObj.book.close()
-    del excelObj
+    appState = excelObj._appState
+    boolBookClosed = False
+
+    try:
+        with _excel_operation(excelObj=excelObj):
+            if save:
+                _save(excelObj=excelObj)
+
+            workbookKey = _get_workbook_key(excelObj.path)
+            strWorkbookName = Path(excelObj.path).name.casefold()
+
+            excelObj._book.close()
+
+            # Workbook.Close() can return normally even when a BeforeClose event cancels the close operation. Confirm that the workbook is no longer present before changing LiberRPA's managed state.
+            for book in appState.app.books:
+                if str(book.name).casefold() != strWorkbookName:
+                    continue
+
+                if _get_workbook_key(book.fullname) == workbookKey:
+                    raise ExcelError(
+                        "Excel returned from Close(), but the workbook is still open. "
+                        "A Workbook.BeforeClose event may have cancelled the close."
+                    )
+
+            boolBookClosed = True
+
+    finally:
+        if boolBookClosed:
+            excelObj._boolClosed = True
+            _unregister_managed_excel_obj(excelObj)
+
+            if appState.excelObjCount == 0:
+                # Quit the Excel instance only if LiberRPA created it and no workbook remains open.
+                try:
+                    boolShouldQuit = appState.ownsApp and int(appState.api.Workbooks.Count) == 0
+
+                except Exception as cleanupError:
+                    Log.error(
+                        "Failed to inspect the shared Excel application after "
+                        f"closing its last managed workbook: {cleanupError}"
+                    )
+
+                else:
+                    if boolShouldQuit:
+                        # Normal close is best-effort. Do not force-terminate an Excel process after ExcelObj objects have been returned, because it might now contain workbooks that the user opened manually.
+                        _quit_excel_app_best_effort(
+                            appState=appState,
+                            killOnFailure=False,
+                            failureContext=(
+                                "Failed to quit the shared Excel application; the Excel process may require manual cleanup"
+                            ),
+                        )
+
+                finally:
+                    _unregister_shared_app_state(appState)
 
 
 @Log.trace()
@@ -333,23 +499,15 @@ def activate_window(excelObj: ExcelObj) -> None:
         excelObj: The Excel workbook object.
     """
 
-    def window_enum_handler(hwnd: int, resultList: list[Any]) -> None:
-        if win32gui.IsWindowVisible(hwnd) and win32gui.GetWindowText(hwnd):
-            resultList.append((hwnd, win32gui.GetWindowText(hwnd)))
+    with _excel_operation(excelObj=excelObj):
+        # Use the exact COM Window that belongs to this workbook. Matching a desktop title by substring could confuse e.g. 1.xlsx with 11.xlsx.
+        bookApi = excelObj._book.api
+        windowApi = bookApi.Windows(1)
+        hwnd = int(windowApi.Hwnd)
 
-    def get_appropriate_window(fileName: str) -> None:
-        listWindow = []
-        win32gui.EnumWindows(window_enum_handler, listWindow)
-        for hwnd, strWindowText in listWindow:
-            if fileName in strWindowText and "Excel" in strWindowText:
-                return hwnd
-
-    hwnd = get_appropriate_window(Path(excelObj.path).name)
-    if hwnd:
-        win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)  # Restore the window if it's minimized
-        win32gui.SetForegroundWindow(hwnd)  # Bring the window to the front
-    else:
-        raise ExcelError(f"No window with title containing '{Path(excelObj.path).name}' found")
+        win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
+        windowApi.Activate()
+        win32gui.SetForegroundWindow(hwnd)
 
 
 @Log.trace()
@@ -367,14 +525,7 @@ def get_last_row(excelObj: ExcelObj, sheet: ExcelSheet, col: str | int | None = 
     Returns:
         int: The number of the last row with data in the specified sheet/column.
     """
-    _check_edit_mode()
-    sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
-
-    if col is None:
-        return excelObj.book.sheets[sheet].used_range.last_cell.row
-    else:
-        col = _check_and_standardize_column(column=col)
-        return excelObj.book.sheets[sheet].range(col + "1048576").end("up").row
+    return _get_last_row(excelObj=excelObj, sheet=sheet, col=col)
 
 
 @Log.trace()
@@ -392,17 +543,7 @@ def get_last_column(excelObj: ExcelObj, sheet: ExcelSheet, row: int | None = Non
     Returns:
         tuple[str,int]: The name and number of the last column with data in the specified sheet/row.
     """
-    _check_edit_mode()
-    sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
-
-    if row is None:
-        intCol: int = excelObj.book.sheets[sheet].used_range.last_cell.column
-        strCol: str = convert_col_num_to_str(colNum=intCol)
-    else:
-        intCol: int = excelObj.book.sheets[sheet].range("XFD" + str(row)).end("left").column
-        strCol: str = convert_col_num_to_str(colNum=intCol)
-
-    return strCol, intCol
+    return _get_last_column(excelObj=excelObj, sheet=sheet, row=row)
 
 
 @Log.trace()
@@ -416,8 +557,7 @@ def convert_col_num_to_str(colNum: int) -> str:
     Returns:
         str: The Excel column letter, such as "A", "D", or "AA".
     """
-    strCol: str = xw.utils.col_name(colNum)
-    return strCol
+    return _convert_col_num_to_str(colNum=colNum)
 
 
 @Log.trace()
@@ -431,13 +571,7 @@ def convert_col_str_to_num(colStr: str) -> int:
     Returns:
         int: The Excel column number, starting from 1.
     """
-
-    intCol = 0
-    for char in colStr.upper():
-        if char < "A" or char > "Z":
-            raise ValueError(f"Invalid column string '{colStr}'")
-        intCol = intCol * 26 + (ord(char) - ord("A")) + 1
-    return intCol
+    return _convert_col_str_to_num(colStr=colStr)
 
 
 @overload
@@ -479,15 +613,15 @@ def read_cell(
     Returns:
         str | ExcelCellValue: The displayed value as str if returnDisplayed=True; otherwise the actual cell value as str, int, float, datetime, bool, or None.
     """
-    _check_edit_mode()
-    sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
-    cell = _check_and_standardize_cell(cell=cell)
+    with _excel_operation(excelObj=excelObj):
+        sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
+        cell = _check_and_standardize_cell(cell=cell, excelObj=excelObj)
 
-    Log.debug("Reading cell=" + cell)
-    if returnDisplayed:
-        return excelObj.book.sheets[sheet].range(cell).api.Text
-    else:
-        return excelObj.book.sheets[sheet].range(cell).value
+        Log.debug("Reading cell=" + cell)
+        if returnDisplayed:
+            return excelObj._book.sheets[sheet].range(cell).api.Text
+        else:
+            return excelObj._book.sheets[sheet].range(cell).value
 
 
 @overload
@@ -525,36 +659,36 @@ def read_row(
         returnDisplayed: If True, returns displayed values as strings. If False, returns actual cell values.
 
     Returns:
-        list[str] | list[ExcelCellValue]: Displayed values as strings if returnDisplayed=True; otherwise actual values as str, int, float, datetime, bool, or None. Returns an empty list if startCell is to the right of the last used cell in the row.
+        list[str] | list[ExcelCellValue]: Displayed values as strings if returnDisplayed=True; otherwise actual values as str, int, float, datetime, bool, or None. Returns an empty list if startCell is to the right of the last cell containing a value or formula in the row.
     """
-    _check_edit_mode()
-    sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
-    startCell = _check_and_standardize_cell(cell=startCell)
+    with _excel_operation(excelObj=excelObj):
+        sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
+        startCell = _check_and_standardize_cell(cell=startCell, excelObj=excelObj)
 
-    # Extract row and column information from the starting cell
-    _, intColStart, intRowStart = _extract_row_column_from_cell(cell=startCell)
+        # Extract row and column information from the starting cell
+        _, intColStart, intRowStart = _extract_row_column_from_cell(cell=startCell, excelObj=excelObj)
 
-    # Get the last column in the specified row
-    strColStop, intColStop = get_last_column(excelObj=excelObj, sheet=sheet, row=intRowStart)
+        # Get the last column in the specified row
+        strColStop, intColStop = get_last_column(excelObj=excelObj, sheet=sheet, row=intRowStart)
 
-    # Check if the starting cell is beyond the last used cell in the row
-    if intColStart > intColStop:
-        Log.warning(f"The startCell({startCell}) is more right than the last cell in the row. Return empty list.")
-        return []
+        # Check if the starting cell is beyond the last cell containing a value or formula in the row
+        if intColStart > intColStop:
+            Log.warning(f"The startCell({startCell}) is more right than the last cell in the row. Return empty list.")
+            return []
 
-    strRange = f"{startCell}:{strColStop}{intRowStart}"
-    Log.debug(f"Reading range: {strRange}")
-    range: Range = excelObj.book.sheets[sheet].range(strRange)
-    if returnDisplayed:
-        returnValue = [cell.api.Text for cell in range]
-    else:
-        returnValue = range.value
+        strRange = f"{startCell}:{strColStop}{intRowStart}"
+        Log.debug(f"Reading range: {strRange}")
+        range: xw.Range = excelObj._book.sheets[sheet].range(strRange)
+        if returnDisplayed:
+            returnValue = [cell.api.Text for cell in range]
+        else:
+            returnValue = range.value
 
-    if isinstance(returnValue, list):
-        return returnValue
-    else:
-        # The startCell is the rightmost cell in the row, xlwings won't return a list, so nest it.
-        return [returnValue]
+        if isinstance(returnValue, list):
+            return returnValue
+        else:
+            # The startCell is the rightmost cell in the row, xlwings won't return a list, so nest it.
+            return [returnValue]
 
 
 @overload
@@ -592,88 +726,36 @@ def read_column(
         returnDisplayed: If True, returns displayed values as strings. If False, returns actual cell values.
 
     Returns:
-        list[str] | list[ExcelCellValue]: Displayed values as strings if returnDisplayed=True; otherwise actual values as str, int, float, datetime, bool, or None. Returns an empty list if startCell is below the last used cell in the column.
+        list[str] | list[ExcelCellValue]: Displayed values as strings if returnDisplayed=True; otherwise actual values as str, int, float, datetime, bool, or None. Returns an empty list if startCell is below the last cell containing a value or formula in the column.
     """
-    _check_edit_mode()
-    sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
-    startCell = _check_and_standardize_cell(cell=startCell)
+    with _excel_operation(excelObj=excelObj):
+        sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
+        startCell = _check_and_standardize_cell(cell=startCell, excelObj=excelObj)
 
-    # Extract row and column information from the starting cell
-    strColStart, _, intRowStart = _extract_row_column_from_cell(cell=startCell)
+        # Extract row and column information from the starting cell
+        strColStart, _, intRowStart = _extract_row_column_from_cell(cell=startCell, excelObj=excelObj)
 
-    # Get the last row in the specified column
-    intRowStop = get_last_row(excelObj=excelObj, sheet=sheet, col=strColStart)
+        # Get the last row in the specified column
+        intRowStop = get_last_row(excelObj=excelObj, sheet=sheet, col=strColStart)
 
-    # Check if the starting cell is below the last used cell in the column
-    if intRowStart > intRowStop:
-        Log.warning(f"The startCell({startCell}) is more down than the last cell in the column. Return empty list.")
-        return []
+        # Check if the starting cell is below the last cell containing a value or formula in the column
+        if intRowStart > intRowStop:
+            Log.warning(f"The startCell({startCell}) is more down than the last cell in the column. Return empty list.")
+            return []
 
-    strRange = f"{startCell}:{strColStart}{intRowStop}"
-    Log.debug(f"Reading range: {strRange}")
-    range: Range = excelObj.book.sheets[sheet].range(strRange)
-    if returnDisplayed:
-        returnValue = [cell.api.Text for cell in range]
-    else:
-        returnValue = range.value
-
-    if isinstance(returnValue, list):
-        return returnValue
-    else:
-        # The startCell is the downmost cell in the column, xlwings won't return a list, so nest it.
-        return [returnValue]
-
-
-def _get_endCell_if_not_provided(excelObj: ExcelObj, sheet: ExcelSheet, endCell: ExcelCell | None) -> str:
-    # Determine the end cell if not provided
-    if endCell is not None:
-        endCell = _check_and_standardize_cell(cell=endCell)
-    else:
-        # Default to the last cell in the sheet if endCell is not specified
-        endCell = get_last_column(excelObj=excelObj, sheet=sheet, row=None)[0] + str(
-            get_last_row(excelObj=excelObj, sheet=sheet, col=None)
-        )
-        Log.debug(f"The argument endCell is None, get the last cell({endCell}).")
-
-    return endCell
-
-
-def _read_range(
-    excelObj: ExcelObj,
-    sheet: ExcelSheet,
-    startCell: ExcelCell,
-    endCell: ExcelCell | None = None,
-    *,
-    returnDisplayed: bool = True,
-) -> list[list[str]] | list[list[ExcelCellValue]]:
-    sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
-    startCell = _check_and_standardize_cell(cell=startCell)
-    endCell = _get_endCell_if_not_provided(excelObj=excelObj, sheet=sheet, endCell=endCell)
-
-    strRange = f"{startCell}:{endCell}"
-    Log.debug(f"Reading range: {strRange}")
-    range: Range = excelObj.book.sheets[sheet].range(strRange)
-
-    if returnDisplayed:
-        # list[list[str]]
-        return [[cell.api.Text for cell in row] for row in range.rows]
-    else:
-        """If it takes a long time, consider to split the situations of a cell, a row, a column or a range:
-        if startCell == endCell:
-            # A cell
-            return [[range.value]]
-        elif intRowStart == intEndRow:
-            # A row
-            return [range.value]
-        elif strColStart == strColEnd:
-            # A column
-            return [[ele] for ele in range.value]
+        strRange = f"{startCell}:{strColStart}{intRowStop}"
+        Log.debug(f"Reading range: {strRange}")
+        range: xw.Range = excelObj._book.sheets[sheet].range(strRange)
+        if returnDisplayed:
+            returnValue = [cell.api.Text for cell in range]
         else:
-            # A 2D range
-            return range.value
-        """
-        # list[list[ExcelCellValue]]
-        return [[cell.value for cell in row] for row in range.rows]
+            returnValue = range.value
+
+        if isinstance(returnValue, list):
+            return returnValue
+        else:
+            # The startCell is the downmost cell in the column, xlwings won't return a list, so nest it.
+            return [returnValue]
 
 
 @overload
@@ -714,21 +796,21 @@ def read_range_list(
         excelObj: The Excel workbook object.
         sheet: The sheet name as str, or zero-based sheet index as int.
         startCell: The starting cell address, such as "A1", or [column, row], such as [1, 1] for A1.
-        endCell: The ending cell address. If None, reads to the last used cell.
+        endCell: The ending cell address. If None, reads to the last cell containing a value or formula.
         returnDisplayed: If True, returns displayed values as strings. If False, returns actual cell values.
 
     Returns:
         list[list[str]] | list[list[ExcelCellValue]]: Displayed values as strings if returnDisplayed=True; otherwise actual values as str, int, float, datetime, bool, or None.
     """
-    _check_edit_mode()
-    listRange = _read_range(
-        excelObj=excelObj,
-        sheet=sheet,
-        startCell=startCell,
-        endCell=endCell,
-        returnDisplayed=returnDisplayed,
-    )
-    return listRange
+    with _excel_operation(excelObj=excelObj):
+        listRange = _read_range(
+            excelObj=excelObj,
+            sheet=sheet,
+            startCell=startCell,
+            endCell=endCell,
+            returnDisplayed=returnDisplayed,
+        )
+        return listRange
 
 
 @Log.trace()
@@ -747,28 +829,30 @@ def read_range_df(
         excelObj: The Excel workbook object.
         sheet: The sheet name as str, or zero-based sheet index as int.
         startCell: The starting cell address, such as "A1", or [column, row], such as [1, 1] for A1.
-        endCell: The ending cell address. If None, reads to the last used cell.
+        endCell: The ending cell address. If None, reads to the last cell containing a value or formula.
         addTitle: If True, uses the first row as DataFrame column names.
         returnDisplayed: If True, reads displayed values as strings. If False, reads actual cell values.
 
     Returns:
         pandas.DataFrame: The range data as a DataFrame.
     """
-    _check_edit_mode()
-    listRange = _read_range(
-        excelObj=excelObj,
-        sheet=sheet,
-        startCell=startCell,
-        endCell=endCell,
-        returnDisplayed=returnDisplayed,
-    )
+    with _excel_operation(excelObj=excelObj):
+        listRange = _read_range(
+            excelObj=excelObj,
+            sheet=sheet,
+            startCell=startCell,
+            endCell=endCell,
+            returnDisplayed=returnDisplayed,
+        )
 
-    if addTitle:
-        dfRange = pandas.DataFrame(data=listRange[1:], index=None, columns=listRange[0])
-    else:
-        dfRange = pandas.DataFrame(data=listRange, index=None, columns=None)
+        if addTitle:
+            # Constructing an Index makes the supported pandas columns type explicit and avoids an invariant list union in Pylance.
+            columnIndex = pandas.Index(listRange[0])
+            dfRange = pandas.DataFrame(data=listRange[1:], index=None, columns=columnIndex)
+        else:
+            dfRange = pandas.DataFrame(data=listRange, index=None, columns=None)
 
-    return dfRange
+        return dfRange
 
 
 @Log.trace()
@@ -787,17 +871,17 @@ def write_cell(
         sheet: The sheet name as str, or zero-based sheet index as int.
         cell: The cell to write to, such as "A1", or [column, row], such as [1, 1] for A1.
         data: The value to write. Can be str, int, float, datetime, bool, or None.
-        save: If True, saves the workbook immediately after writing.
+        save: If True, saves the workbook immediately after writing. This is not transactional: if saving fails, the operation may already have been applied to the open workbook.
     """
-    _check_edit_mode()
-    sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
-    cell = _check_and_standardize_cell(cell=cell)
+    with _excel_operation(excelObj=excelObj):
+        sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
+        cell = _check_and_standardize_cell(cell=cell, excelObj=excelObj)
 
-    Log.debug(f"Writing cell: {cell}")
-    excelObj.book.sheets[sheet].range(cell).value = data
+        Log.debug(f"Writing cell: {cell}")
+        excelObj._book.sheets[sheet].range(cell).value = data
 
-    if save:
-        _save(excelObj=excelObj)
+        if save:
+            _save(excelObj=excelObj)
 
 
 @Log.trace()
@@ -816,28 +900,28 @@ def write_row(
         sheet: The sheet name as str, or zero-based sheet index as int.
         startCell: The starting cell of the row, such as "A1", or [column, row], such as [1, 1] for A1.
         data: The value to write. Can be str, int, float, datetime, bool, or None.
-        save: If True, saves the workbook immediately after writing.
+        save: If True, saves the workbook immediately after writing. This is not transactional: if saving fails, the operation may already have been applied to the open workbook.
     """
-    _check_edit_mode()
-    sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
-    startCell = _check_and_standardize_cell(cell=startCell)
+    if not data:
+        raise ValueError("The argument 'data' must not be empty.")
 
-    # For debugging purposes, print the range.
-    _, intColStart, intRowStart = _extract_row_column_from_cell(cell=startCell)
-    strColEnd = convert_col_num_to_str(colNum=(intColStart + len(data) - 1))
-    endCell = strColEnd + str(intRowStart)
-    strRange = f"{startCell}:{endCell}"
-    Log.debug(f"Writing range: {strRange}")
+    with _excel_operation(excelObj=excelObj):
+        sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
+        startCell = _check_and_standardize_cell(cell=startCell, excelObj=excelObj)
 
-    excelObj.book.app.screen_updating = False
+        # For debugging purposes, print the range.
+        _, intColStart, intRowStart = _extract_row_column_from_cell(cell=startCell, excelObj=excelObj)
+        intColEnd = _validate_excel_column_number(intColStart + len(data) - 1, excelObj=excelObj)
+        strColEnd = convert_col_num_to_str(colNum=intColEnd)
+        endCell = strColEnd + str(intRowStart)
+        strRange = f"{startCell}:{endCell}"
+        Log.debug(f"Writing range: {strRange}")
 
-    try:
-        excelObj.book.sheets[sheet].range(startCell).value = data
-    finally:
-        excelObj.book.app.screen_updating = True
+        with _preserve_screen_updating(excelObj=excelObj):
+            excelObj._book.sheets[sheet].range(startCell).value = data
 
-    if save:
-        _save(excelObj=excelObj)
+        if save:
+            _save(excelObj=excelObj)
 
 
 @Log.trace()
@@ -856,27 +940,27 @@ def write_column(
         sheet: The sheet name as str, or zero-based sheet index as int.
         startCell: The starting cell of the column, such as "A1", or [column, row], such as [1, 1] for A1.
         data: The value to write. Can be str, int, float, datetime, bool, or None.
-        save: If True, saves the workbook immediately after writing.
+        save: If True, saves the workbook immediately after writing. This is not transactional: if saving fails, the operation may already have been applied to the open workbook.
     """
-    _check_edit_mode()
-    sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
-    startCell = _check_and_standardize_cell(cell=startCell)
+    if not data:
+        raise ValueError("The argument 'data' must not be empty.")
 
-    # For debugging purposes, print the range.
-    strColStart, _, intRowStart = _extract_row_column_from_cell(cell=startCell)
-    endCell = strColStart + str(intRowStart + len(data) - 1)
-    strRange = f"{startCell}:{endCell}"
-    Log.debug(f"Writing range: {strRange}")
+    with _excel_operation(excelObj=excelObj):
+        sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
+        startCell = _check_and_standardize_cell(cell=startCell, excelObj=excelObj)
 
-    excelObj.book.app.screen_updating = False
+        # For debugging purposes, print the range.
+        strColStart, _, intRowStart = _extract_row_column_from_cell(cell=startCell, excelObj=excelObj)
+        intRowEnd = _validate_excel_row_number(intRowStart + len(data) - 1, excelObj=excelObj)
+        endCell = strColStart + str(intRowEnd)
+        strRange = f"{startCell}:{endCell}"
+        Log.debug(f"Writing range: {strRange}")
 
-    try:
-        excelObj.book.sheets[sheet].range(startCell).options(transpose=True).value = data
-    finally:
-        excelObj.book.app.screen_updating = True
+        with _preserve_screen_updating(excelObj=excelObj):
+            excelObj._book.sheets[sheet].range(startCell).options(transpose=True).value = data
 
-    if save:
-        _save(excelObj=excelObj)
+        if save:
+            _save(excelObj=excelObj)
 
 
 @Log.trace()
@@ -897,49 +981,51 @@ def write_range(
         startCell: The starting cell address, such as "A1", or [column, row], such as [1, 1] for A1.
         data: The data to write. Pass a pandas DataFrame or a 2D list. For a 2D list, each cell value can be str, int, float, datetime, bool, or None.
         writeTitleRow: If data is a DataFrame, writes its column names when True. If data is a 2D list, treats the first row as a title row and writes it only when True.
-        save: If True, saves the workbook after writing.
+        save: If True, saves the workbook after writing. This is not transactional: if saving fails, the operation may already have been applied to the open workbook.
     """
 
     if data is None:
         Log.warning("The argument data is None.")
         return None
 
-    _check_edit_mode()
-    sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
-    startCell = _check_and_standardize_cell(cell=startCell)
+    _validate_write_range_data(
+        data=data,
+        writeTitleRow=writeTitleRow,
+    )
 
-    # For debugging purposes, print the range.
-    _, intColStart, intRowStart = _extract_row_column_from_cell(cell=startCell)
-    if isinstance(data, pandas.DataFrame):
-        strColEnd = convert_col_num_to_str(colNum=(intColStart + len(data.columns) - 1))
-        if writeTitleRow:
-            endCell = strColEnd + str(intRowStart + len(data))
-        else:
-            endCell = strColEnd + str(intRowStart + len(data) - 1)
-    else:
-        strColEnd = convert_col_num_to_str(colNum=(intColStart + len(data[0]) - 1))
-        if writeTitleRow:
-            endCell = strColEnd + str(intRowStart + len(data) - 1)
-        else:
-            endCell = strColEnd + str(intRowStart + len(data) - 2)
-    strRange = f"{startCell}:{endCell}"
-    Log.debug(f"Writing range: {strRange}")
+    with _excel_operation(excelObj=excelObj):
+        sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
+        startCell = _check_and_standardize_cell(cell=startCell, excelObj=excelObj)
 
-    excelObj.book.app.screen_updating = False
-
-    try:
+        # For debugging purposes, print the range.
+        _, intColStart, intRowStart = _extract_row_column_from_cell(cell=startCell, excelObj=excelObj)
         if isinstance(data, pandas.DataFrame):
-            excelObj.book.sheets[sheet].range(startCell).options(index=False, header=writeTitleRow).value = data
-        else:
-            if writeTitleRow:
-                excelObj.book.sheets[sheet].range(startCell).value = data
-            else:
-                excelObj.book.sheets[sheet].range(startCell).value = data[1:]
-    finally:
-        excelObj.book.app.screen_updating = True
+            intColEnd = intColStart + len(data.columns) - 1
+            intRowEnd = intRowStart + len(data) if writeTitleRow else intRowStart + len(data) - 1
 
-    if save:
-        _save(excelObj=excelObj)
+        else:
+            intColEnd = intColStart + len(data[0]) - 1
+            intRowEnd = intRowStart + len(data) - 1 if writeTitleRow else intRowStart + len(data) - 2
+
+        intColEnd = _validate_excel_column_number(intColEnd, excelObj=excelObj)
+        intRowEnd = _validate_excel_row_number(intRowEnd, excelObj=excelObj)
+        strColEnd = convert_col_num_to_str(colNum=intColEnd)
+        endCell = f"{strColEnd}{intRowEnd}"
+
+        strRange = f"{startCell}:{endCell}"
+        Log.debug(f"Writing range: {strRange}")
+
+        with _preserve_screen_updating(excelObj=excelObj):
+            if isinstance(data, pandas.DataFrame):
+                excelObj._book.sheets[sheet].range(startCell).options(index=False, header=writeTitleRow).value = data
+            else:
+                if writeTitleRow:
+                    excelObj._book.sheets[sheet].range(startCell).value = data
+                else:
+                    excelObj._book.sheets[sheet].range(startCell).value = data[1:]
+
+        if save:
+            _save(excelObj=excelObj)
 
 
 @Log.trace()
@@ -958,19 +1044,24 @@ def insert_row(
         sheet: The sheet name as str, or zero-based sheet index as int.
         startCell: The first cell to write after inserting the row, such as "A1", or [column, row], such as [1, 1] for A1.
         data: A list of values to write. Each value can be str, int, float, datetime, bool, or None.
-        save: If True, saves the workbook after inserting.
+        save: If True, saves the workbook after inserting. This is not transactional: if saving fails, the operation may already have been applied to the open workbook.
     """
-    _check_edit_mode()
-    sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
-    startCell = _check_and_standardize_cell(cell=startCell)
+    if not data:
+        raise ValueError("The argument 'data' must not be empty.")
 
-    _, _, intRowStart = _extract_row_column_from_cell(cell=startCell)
+    with _excel_operation(excelObj=excelObj):
+        sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
+        startCell = _check_and_standardize_cell(cell=startCell, excelObj=excelObj)
 
-    excelObj.book.sheets[sheet].range(f"{intRowStart}:{intRowStart}").insert(
-        shift="down", copy_origin="format_from_left_or_above"
-    )
+        # Validate the complete write range before inserting anything.
+        _, intColStart, intRowStart = _extract_row_column_from_cell(cell=startCell, excelObj=excelObj)
+        _validate_excel_column_number(intColStart + len(data) - 1, excelObj=excelObj)
 
-    write_row(excelObj=excelObj, sheet=sheet, startCell=startCell, data=data, save=save)
+        excelObj._book.sheets[sheet].range(f"{intRowStart}:{intRowStart}").insert(
+            shift="down", copy_origin="format_from_left_or_above"
+        )
+
+        write_row(excelObj=excelObj, sheet=sheet, startCell=startCell, data=data, save=save)
 
 
 @Log.trace()
@@ -989,19 +1080,25 @@ def insert_column(
         sheet: The sheet name as str, or zero-based sheet index as int.
         startCell: The first cell to write after inserting the column, such as "A1", or [column, row], such as [1, 1] for A1.
         data: A list of values to write. Each value can be str, int, float, datetime, bool, or None.
-        save: If True, saves the workbook after inserting.
+        save: If True, saves the workbook after inserting. This is not transactional: if saving fails, the operation may already have been applied to the open workbook.
     """
-    _check_edit_mode()
-    sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
-    startCell = _check_and_standardize_cell(cell=startCell)
+    if not data:
+        raise ValueError("The argument 'data' must not be empty.")
 
-    strColStart, _, _ = _extract_row_column_from_cell(cell=startCell)
+    with _excel_operation(excelObj=excelObj):
+        sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
+        startCell = _check_and_standardize_cell(cell=startCell, excelObj=excelObj)
 
-    excelObj.book.sheets[sheet].range(f"{strColStart}:{strColStart}").insert(
-        shift="right", copy_origin="format_from_left_or_above"
-    )
+        strColStart, _, intRowStart = _extract_row_column_from_cell(cell=startCell, excelObj=excelObj)
 
-    write_column(excelObj=excelObj, sheet=sheet, startCell=startCell, data=data, save=save)
+        # Validate the complete write range before inserting anything.
+        _validate_excel_row_number(intRowStart + len(data) - 1, excelObj=excelObj)
+
+        excelObj._book.sheets[sheet].range(f"{strColStart}:{strColStart}").insert(
+            shift="right", copy_origin="format_from_left_or_above"
+        )
+
+        write_column(excelObj=excelObj, sheet=sheet, startCell=startCell, data=data, save=save)
 
 
 @Log.trace()
@@ -1013,20 +1110,20 @@ def delete_row(excelObj: ExcelObj, sheet: ExcelSheet, cell: ExcelCell, save: boo
         excelObj: The Excel workbook object.
         sheet: The sheet name as str, or zero-based sheet index as int.
         cell: A cell within the row to delete, such as "A1", or [column, row], such as [1, 1] for A1.
-        save: If True, saves the workbook after deleting.
+        save: If True, saves the workbook after deleting. This is not transactional: if saving fails, the operation may already have been applied to the open workbook.
     """
-    _check_edit_mode()
-    sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
-    cell = _check_and_standardize_cell(cell=cell)
+    with _excel_operation(excelObj=excelObj):
+        sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
+        cell = _check_and_standardize_cell(cell=cell, excelObj=excelObj)
 
-    _, _, intRowStart = _extract_row_column_from_cell(cell=cell)
+        _, _, intRowStart = _extract_row_column_from_cell(cell=cell, excelObj=excelObj)
 
-    Log.debug(f"Deleting row: {intRowStart}")
+        Log.debug(f"Deleting row: {intRowStart}")
 
-    excelObj.book.sheets[sheet].range(f"{intRowStart}:{intRowStart}").delete(shift="up")
+        excelObj._book.sheets[sheet].range(f"{intRowStart}:{intRowStart}").delete(shift="up")
 
-    if save:
-        _save(excelObj=excelObj)
+        if save:
+            _save(excelObj=excelObj)
 
 
 @Log.trace()
@@ -1038,21 +1135,20 @@ def delete_column(excelObj: ExcelObj, sheet: ExcelSheet, cell: ExcelCell, save: 
         excelObj: The Excel workbook object.
         sheet: The sheet name as str, or zero-based sheet index as int.
         cell: A cell within the column to delete, such as "A1", or [column, row], such as [1, 1] for A1.
-        save: If True, saves the workbook after deleting.
+        save: If True, saves the workbook after deleting. This is not transactional: if saving fails, the operation may already have been applied to the open workbook.
     """
+    with _excel_operation(excelObj=excelObj):
+        sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
+        cell = _check_and_standardize_cell(cell=cell, excelObj=excelObj)
 
-    _check_edit_mode()
-    sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
-    cell = _check_and_standardize_cell(cell=cell)
+        strColStart, _, _ = _extract_row_column_from_cell(cell=cell, excelObj=excelObj)
 
-    strColStart, _, _ = _extract_row_column_from_cell(cell=cell)
+        Log.debug(f"Deleting column: {strColStart}")
 
-    Log.debug(f"Deleting column: {strColStart}")
+        excelObj._book.sheets[sheet].range(f"{strColStart}:{strColStart}").delete(shift="left")
 
-    excelObj.book.sheets[sheet].range(f"{strColStart}:{strColStart}").delete(shift="left")
-
-    if save:
-        _save(excelObj=excelObj)
+        if save:
+            _save(excelObj=excelObj)
 
 
 @Log.trace()
@@ -1064,18 +1160,20 @@ def select_range(excelObj: ExcelObj, sheet: ExcelSheet, startCell: ExcelCell, en
         excelObj: The Excel workbook object.
         sheet: The sheet name as str, or zero-based sheet index as int.
         startCell: The starting cell of the range, such as "A1", or [column, row], such as [1, 1] for A1.
-        endCell: The ending cell of the range.  If None, select till the last cell.
+        endCell: The ending cell of the range. If None, select till the last cell containing a value or formula.
     """
-    _check_edit_mode()
-    sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
-    startCell = _check_and_standardize_cell(cell=startCell)
-    endCell = _get_endCell_if_not_provided(excelObj=excelObj, sheet=sheet, endCell=endCell)
+    with _excel_operation(excelObj=excelObj):
+        sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
+        startCell = _check_and_standardize_cell(cell=startCell, excelObj=excelObj)
+        endCell = _get_endCell_if_not_provided(excelObj=excelObj, sheet=sheet, endCell=endCell)
 
-    strRange = f"{startCell}:{endCell}"
-    Log.debug(f"Selecting range: {strRange}")
+        _validate_range_order(excelObj=excelObj, startCell=startCell, endCell=endCell)
 
-    activate_sheet(excelObj=excelObj, sheet=sheet)
-    excelObj.book.sheets[sheet].range(f"{startCell}:{endCell}").select()
+        strRange = f"{startCell}:{endCell}"
+        Log.debug(f"Selecting range: {strRange}")
+
+        activate_sheet(excelObj=excelObj, sheet=sheet)
+        excelObj._book.sheets[sheet].range(f"{startCell}:{endCell}").select()
 
 
 @Log.trace()
@@ -1089,11 +1187,11 @@ def get_selected_cells(excelObj: ExcelObj) -> list[str]:
     Returns:
         list[str]: A list of selected cell addresses, such as ["B3", "C3", "B4"].
     """
-    _check_edit_mode()
-    rangeSelected = excelObj.book.selection
-    if not rangeSelected:
-        raise ExcelError("No range is selected in the active sheet.")
-    return [str(cell.address).replace("$", "") for cell in rangeSelected]
+    with _excel_operation(excelObj=excelObj):
+        rangeSelected = excelObj._book.selection
+        if not rangeSelected:
+            raise ExcelError("No range is selected in the active sheet.")
+        return [str(cell.address).replace("$", "") for cell in rangeSelected]
 
 
 @Log.trace()
@@ -1107,11 +1205,11 @@ def get_selected_range(excelObj: ExcelObj) -> list[str]:
     Returns:
         list[str]: Selected range addresses, such as ["B3"], ["B3:C6"], or ["A1:B2", "D1:E2"].
     """
-    _check_edit_mode()
-    rangeSelected = excelObj.book.selection
-    if not rangeSelected:
-        raise ExcelError("Not select any range.")
-    return [range.replace("$", "") for range in str(rangeSelected.address).split(",")]
+    with _excel_operation(excelObj=excelObj):
+        rangeSelected = excelObj._book.selection
+        if not rangeSelected:
+            raise ExcelError("Not select any range.")
+        return [range.replace("$", "") for range in str(rangeSelected.address).split(",")]
 
 
 @Log.trace()
@@ -1127,6 +1225,8 @@ def clear_range(
     """
     Clear values, formatting, or both from a range.
 
+    When endCell is None, Excel's UsedRange is used. It may include cells that were formatted or used previously and can therefore be larger than the current visible data area.
+
     Parameters:
         excelObj: The Excel workbook object.
         sheet: The sheet name as str, or zero-based sheet index as int.
@@ -1134,30 +1234,47 @@ def clear_range(
         endCell: The ending cell address. If None, clears to the last used cell.
         clearContent: If True, clears cell values.
         clearFormat: If True, clears cell formatting.
-        save: If True, saves the workbook after clearing.
+        save: If True, saves the workbook after clearing. This is not transactional: if saving fails, the operation may already have been applied to the open workbook.
     """
 
     if not clearContent and not clearFormat:
         raise ValueError("At least one of 'clearContent' or 'clearFormat' must be True.")
 
-    _check_edit_mode()
-    sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
-    startCell = _check_and_standardize_cell(cell=startCell)
-    endCell = _get_endCell_if_not_provided(excelObj=excelObj, sheet=sheet, endCell=endCell)
+    with _excel_operation(excelObj=excelObj):
+        sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
+        startCell = _check_and_standardize_cell(cell=startCell, excelObj=excelObj)
 
-    strRange = f"{startCell}:{endCell}"
-    Log.debug(f"Clearing range: {strRange}, clearContents: {clearContent}, clearFormats: {clearFormat}")
-    range: Range = excelObj.book.sheets[sheet].range(f"{startCell}:{endCell}")
-    if clearContent and clearFormat:
-        range.clear()
-    elif clearContent:
-        range.clear_contents()
-    else:
-        # clearFormats == True
-        range.clear_formats()
+        sheetObj = excelObj._book.sheets[sheet]
 
-    if save:
-        _save(excelObj=excelObj)
+        if endCell is None:
+            lastUsedCell = sheetObj.used_range.last_cell
+            strLastColumn = _convert_col_num_to_str(
+                colNum=int(lastUsedCell.column),
+                excelObj=excelObj,
+            )
+            endCell = f"{strLastColumn}{int(lastUsedCell.row)}"
+        else:
+            endCell = _check_and_standardize_cell(
+                cell=endCell,
+                excelObj=excelObj,
+            )
+
+        _validate_range_order(excelObj=excelObj, startCell=startCell, endCell=endCell)
+
+        strRange = f"{startCell}:{endCell}"
+        Log.debug(f"Clearing range: {strRange}, clearContents: {clearContent}, clearFormats: {clearFormat}")
+        range: xw.Range = sheetObj.range(strRange)
+
+        if clearContent and clearFormat:
+            range.clear()
+        elif clearContent:
+            range.clear_contents()
+        else:
+            # clearFormats == True
+            range.clear_formats()
+
+        if save:
+            _save(excelObj=excelObj)
 
 
 @Log.trace()
@@ -1169,34 +1286,10 @@ def activate_sheet(excelObj: ExcelObj, sheet: ExcelSheet) -> None:
         excelObj: The Excel workbook object.
         sheet: The sheet name as str, or zero-based sheet index as int.
     """
-    _check_edit_mode()
-    sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
-    Log.debug(f"Activating sheet: {sheet}")
-    excelObj.book.sheets[sheet].activate()
-
-
-def _check_sheet_name_compliance(sheetName: str) -> None:
-    """
-    The max. length of a sheet name is 31 characters.
-    A sheet name must not contain any of the following characters: \\ / ? * [ ]
-    A sheet name can't be empty.
-    """
-    if sheetName == "":
-        raise ValueError("Sheet name should not be empty.")
-    listErrorChar = ["\\", "/", "?", "*", "[", "]"]
-    for item in listErrorChar:
-        if sheetName.find(item) != -1:
-            raise ValueError(f"Sheet name should not contain any one of {listErrorChar}")
-    if len(sheetName) > 31:
-        raise ValueError(f"Sheet name should not be longer than 31 characters. Current: {len(sheetName)}")
-
-
-def _check_sheet_name_exist(excelObj: ExcelObj, sheetName: str) -> None:
-    listCurrentSheetName = [sheet.name for sheet in excelObj.book.sheets]
-    if sheetName in listCurrentSheetName:
-        raise ValueError(
-            f"The new sheet name({sheetName}) has been used in target Excel workbook object: {listCurrentSheetName}"
-        )
+    with _excel_operation(excelObj=excelObj):
+        sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
+        Log.debug(f"Activating sheet: {sheet}")
+        excelObj._book.sheets[sheet].activate()
 
 
 @Log.trace()
@@ -1215,26 +1308,28 @@ def add_sheet(
         newSheetName: The name of the new sheet.
         anchorSheet: The existing sheet used as the insert position. Accepts sheet name as str or zero-based sheet index as int.
         direction: Where to insert the new sheet relative to anchorSheet, either "before" or "after".
-        save: If True, saves the workbook after adding the sheet.
+        save: If True, saves the workbook after adding the sheet. This is not transactional: if saving fails, the operation may already have been applied to the open workbook.
     """
-
-    _check_edit_mode()
+    # This validation is pure Python. Reject invalid input before touching the shared Excel application or changing its Interactive state.
     _check_sheet_name_compliance(sheetName=newSheetName)
-    _check_sheet_name_exist(excelObj=excelObj, sheetName=newSheetName)
-
-    anchorSheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=anchorSheet)
-    anchorSheetObj = excelObj.book.sheets[anchorSheet]
 
     if direction not in ["before", "after"]:
         raise ValueError("The argument direction should be 'before' or 'after'.")
-    if direction == "before":
-        excelObj.book.sheets.add(name=newSheetName, before=anchorSheetObj, after=None)
-    else:
-        # after
-        excelObj.book.sheets.add(name=newSheetName, before=None, after=anchorSheetObj)
 
-    if save:
-        _save(excelObj=excelObj)
+    with _excel_operation(excelObj=excelObj):
+        _check_sheet_name_available(excelObj=excelObj, sheetName=newSheetName)
+
+        anchorSheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=anchorSheet)
+        anchorSheetObj = excelObj._book.sheets[anchorSheet]
+
+        if direction == "before":
+            excelObj._book.sheets.add(name=newSheetName, before=anchorSheetObj, after=None)
+        else:
+            # after
+            excelObj._book.sheets.add(name=newSheetName, before=None, after=anchorSheetObj)
+
+        if save:
+            _save(excelObj=excelObj)
 
 
 @Log.trace()
@@ -1246,17 +1341,18 @@ def rename_sheet(excelObj: ExcelObj, sheet: ExcelSheet, newSheetName: str, save:
         excelObj: The Excel workbook object.
         sheet: The sheet name as str, or zero-based sheet index as int.
         newSheetName: The sheet's new name.
-        save: If True, saves the workbook immediately after renaming.
+        save: If True, saves the workbook immediately after renaming. This is not transactional: if saving fails, the operation may already have been applied to the open workbook.
     """
-    _check_edit_mode()
     _check_sheet_name_compliance(sheetName=newSheetName)
 
-    sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
-    Log.debug(f"Renaming sheet: {sheet} -> {newSheetName}")
-    excelObj.book.sheets[sheet].name = newSheetName
+    with _excel_operation(excelObj=excelObj):
+        sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
+        _check_sheet_name_available(excelObj=excelObj, sheetName=newSheetName, currentSheetName=sheet)
+        Log.debug(f"Renaming sheet: {sheet} -> {newSheetName}")
+        excelObj._book.sheets[sheet].name = newSheetName
 
-    if save:
-        _save(excelObj=excelObj)
+        if save:
+            _save(excelObj=excelObj)
 
 
 @Log.trace()
@@ -1272,6 +1368,8 @@ def copy_sheet(
     """
     Copy a sheet to another workbook, before or after an existing destination sheet.
 
+    Excel can directly copy a worksheet only when both workbooks belong to the same Excel application instance. LiberRPA normally guarantees this by using one shared application state for all opened and bound workbooks.
+
     Parameters:
         srcExcelObj: The source Excel workbook object.
         srcSheet: The sheet to copy. Accepts sheet name as str or zero-based sheet index as int.
@@ -1279,34 +1377,45 @@ def copy_sheet(
         dstAnchorSheet: The destination sheet used as the insert position. Accepts sheet name as str or zero-based sheet index as int.
         newSheetName: The name of the copied sheet in the destination workbook.
         direction: Where to insert the copied sheet relative to dstAnchorSheet, either "before" or "after".
-        save: If True, saves the destination workbook after copying.
+        save: If True, saves the destination workbook after copying. This is not transactional: if saving fails, the operation may already have been applied to the open workbook.
     """
 
-    _check_edit_mode()
     _check_sheet_name_compliance(sheetName=newSheetName)
-    _check_sheet_name_exist(excelObj=dstExcelObj, sheetName=newSheetName)
-
-    srcSheet = _check_and_standardize_sheet(excelObj=srcExcelObj, sheet=srcSheet)
-    dstAnchorSheet = _check_and_standardize_sheet(excelObj=dstExcelObj, sheet=dstAnchorSheet)
-
-    Log.debug(
-        f"Coping sheet from {srcExcelObj}-{srcSheet} to {dstExcelObj}-{dstAnchorSheet}'s {direction}, new sheet name is {newSheetName}"
-    )
-
     if direction not in ["before", "after"]:
         raise ValueError("The argument direction should be 'before' or 'after'.")
-    if direction == "before":
-        srcExcelObj.book.sheets[srcSheet].copy(
-            name=newSheetName, before=dstExcelObj.book.sheets[dstAnchorSheet], after=None
-        )
-    else:
-        # after
-        srcExcelObj.book.sheets[srcSheet].copy(
-            name=newSheetName, before=None, after=dstExcelObj.book.sheets[dstAnchorSheet]
+
+    srcExcelObj._ensure_open()
+    dstExcelObj._ensure_open()
+
+    if srcExcelObj._appState is not dstExcelObj._appState:
+        raise ExcelError("The source and destination workbooks do not share the same Excel application instance.")
+
+    with _excel_operation(excelObj=srcExcelObj):
+        _check_sheet_name_available(excelObj=dstExcelObj, sheetName=newSheetName)
+
+        srcSheet = _check_and_standardize_sheet(excelObj=srcExcelObj, sheet=srcSheet)
+        dstAnchorSheet = _check_and_standardize_sheet(excelObj=dstExcelObj, sheet=dstAnchorSheet)
+
+        Log.debug(
+            f"Copying sheet from {srcExcelObj}-{srcSheet} to {dstExcelObj}-{dstAnchorSheet}'s {direction}, new sheet name is {newSheetName}"
         )
 
-    if save:
-        _save(excelObj=dstExcelObj)
+        if direction == "before":
+            srcExcelObj._book.sheets[srcSheet].copy(
+                name=newSheetName,
+                before=dstExcelObj._book.sheets[dstAnchorSheet],
+                after=None,
+            )
+        else:
+            # after
+            srcExcelObj._book.sheets[srcSheet].copy(
+                name=newSheetName,
+                before=None,
+                after=dstExcelObj._book.sheets[dstAnchorSheet],
+            )
+
+        if save:
+            _save(excelObj=dstExcelObj)
 
 
 @Log.trace()
@@ -1317,19 +1426,26 @@ def delete_sheet(excelObj: ExcelObj, sheet: ExcelSheet, save: bool = False) -> N
     Parameters:
         excelObj: The Excel workbook object.
         sheet: The sheet name as str, or zero-based sheet index as int.
-        save: If True, saves the workbook after deleting the sheet.
+        save: If True, saves the workbook after deleting the sheet. This is not transactional: if saving fails, the operation may already have been applied to the open workbook.
     """
-    _check_edit_mode()
-    sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
-    Log.debug(f"Deleting sheet: {sheet}")
-    excelObj.book.sheets[sheet].delete()
+    with _excel_operation(excelObj=excelObj):
+        sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
+        if len(excelObj._book.sheets) <= 1:
+            raise ExcelError("Excel requires at least one worksheet in a workbook.")
 
-    if save:
-        _save(excelObj=excelObj)
+        Log.debug(f"Deleting sheet: {sheet}")
+
+        # Call Excel's COM Delete() through the xlwings API wrapper so LiberRPA alone controls DisplayAlerts restoration.
+        sheetApi = excelObj._book.sheets[sheet].api
+        with _temporary_display_alerts(excelObj=excelObj, value=False):
+            sheetApi.Delete()
+
+        if save:
+            _save(excelObj=excelObj)
 
 
 @Log.trace()
-def get_activate_sheet(excelObj: ExcelObj) -> str:
+def get_active_sheet(excelObj: ExcelObj) -> str:
     """
     Get the current activated sheet's name.
 
@@ -1339,8 +1455,8 @@ def get_activate_sheet(excelObj: ExcelObj) -> str:
     Returns:
         str: The name of the current active sheet.
     """
-    _check_edit_mode()
-    return excelObj.book.sheets.active.name
+    with _excel_operation(excelObj=excelObj):
+        return excelObj._book.sheets.active.name
 
 
 @Log.trace()
@@ -1354,8 +1470,8 @@ def get_sheet_list(excelObj: ExcelObj) -> list[str]:
     Returns:
         list[str]: A list of all sheet names in the workbook.
     """
-    _check_edit_mode()
-    return [sheet.name for sheet in excelObj.book.sheets]
+    with _excel_operation(excelObj=excelObj):
+        return [sheet.name for sheet in excelObj._book.sheets]
 
 
 @Log.trace()
@@ -1371,40 +1487,54 @@ def run_macro(excelObj: ExcelObj, macroName: str, arguments: list[Any] | None = 
     Returns:
         Any: The value returned by the macro.
     """
-    _check_edit_mode()
     arguments = [] if arguments is None else arguments
 
     try:
-        result = excelObj.book.macro(name=macroName)(*arguments)
+        with _excel_operation(excelObj=excelObj):
+            return excelObj._book.macro(name=macroName)(*arguments)
+
+    except ExcelError:
+        raise
+
     except Exception as e:
-        raise ExcelError(f"Failed to run macro '{macroName}': {e} Please check the macroName and Excel config.")
-    else:
-        return result
+        raise ExcelError(f"Failed to run macro '{macroName}': {e} Please check the macroName and Excel config.") from e
 
 
 if __name__ == "__main__":
-    # excelObj = bind_Excel_file(fileName="1.xlsm")
+    Log.set_level("VERBOSE")
+    excelObj1 = bind_excel_file(fileName="1.xlsx")
+    # excelObj2 = bind_excel_file(fileName="2.xlsx")
+    # excelObj3 = bind_excel_file(fileName="3.xlsx")
+    # excelObj2 = open_excel_file(path=R"C:\Users\huhar\Desktop\ExcelTest\3.xlsx")
 
-    # temp = get_selected_cells(excelObj=excelObj)
-    # print(temp)
-    # print(get_selected_range(excelObj=excelObj))
-    # run_macro(excelObj=excelObj,macroName="MyMacro")
-    # print(run_macro(excelObj=excelObj, macroName="MultiplyByTwo1", arguments=[6]))
-    # excelObj.book.macro("宏1")()
-    # excelObj.book.macro("MyMacro")()
+    print(excelObj1)
+    # print(excelObj2)
 
-    excelObj = bind_Excel_file(fileName="1.xls")
-    # from time import sleep
+    from time import sleep
 
-    # print("Delay.")
-    # sleep(3)
-    flag: bool = False
+    print("sleep start")
+    sleep(3)
+    print("sleep done")
+
+    """ flag: bool = False
     temp = read_row(
-        excelObj=excelObj,
+        excelObj=excelObj1,
         sheet="Sheet3",
-        startCell="A1",
+        startCell="A2",
         # returnDisplayed=flag,
     )
+    print(temp) """
+    """ copy_sheet(
+        srcExcelObj=excelObj1,
+        srcSheet="Sheet3",
+        dstExcelObj=excelObj2,
+        dstAnchorSheet="Sheet1",
+        newSheetName="test copy",
+        direction="before",
+        save=False,
+    ) """
+    # close(excelObj=excelObj)
 
-    # activate_window(excelObj=excelObj)
-    # write_cell(excelObj=excelObj, sheet="Sheet3", cell="C32", data="123")
+    # write_cell(excelObj=excelObj1, sheet="Sheet3", cell="A36", data=None, save=False)
+    print(get_last_row(excelObj=excelObj1, sheet="Sheet1", col=None))
+    print(get_last_column(excelObj=excelObj1, sheet="Sheet1", row=None))
