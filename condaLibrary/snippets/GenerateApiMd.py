@@ -110,8 +110,6 @@ def _render_description(description: str, overloads: list[DictOverloadInfo]) -> 
 
 def _load_api_manifest_by_title() -> dict[str, DictApiItem]:
     manifestPath = get_snippets_dir() / "api_manifest.json"
-    if not manifestPath.is_file():
-        return {}
 
     apiManifest = cast(list[DictApiItem], read_json(manifestPath, list))
     return {item["title"]: item for item in apiManifest}
@@ -128,8 +126,7 @@ def _group_snippets_by_category(
         category = snippet["category"]
         if category not in snippetsByCategory:
             raise ValueError(
-                f"Snippet {title!r} uses category {category!r}, "
-                "but the category is missing from categoryOrder."
+                f"Snippet {title!r} uses category {category!r}, but the category is missing from categoryOrder."
             )
 
         snippetsByCategory[category].append((title, snippet))
