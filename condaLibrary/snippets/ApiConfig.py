@@ -31,7 +31,7 @@ class DictCatalogSnippet(TypedDict):
 
     prefix: str
     body: list[str]
-    description: NotRequired[str]
+    description: str
 
     imports: NotRequired[DictSnippetImports]
     insertionMode: SnippetInsertionMode

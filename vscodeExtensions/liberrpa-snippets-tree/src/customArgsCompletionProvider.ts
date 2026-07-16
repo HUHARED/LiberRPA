@@ -1,8 +1,10 @@
 // FileName: customArgsCompletionProvider.ts
 import { log } from "./output";
-import type { DictSnippetCompletionCommandArg } from "./interface";
+import type { ImportSourceConfig } from "./interface";
 import { isRecord } from "./typeCheck";
 import { runSyncBoundary } from "./errorHandling";
+import { buildManagedImportTextEdits } from "./managedImports";
+import { planSnippetImportEdits } from "./snippetImportEdits";
 
 import * as fs from "node:fs";
 import * as vscode from "vscode";
@@ -13,21 +15,9 @@ type CompletionContext =
   | "insideDoubleQuote"
   | "insideSingleQuote";
 const STR_CUSTOM_ARGS_NAME = "CustomArgs";
-
-function addCustomArgsImportCommand(item: vscode.CompletionItem, title: string): void {
-  const dictCommandArg: DictSnippetCompletionCommandArg = {
-    title,
-    imports: {
-      "liberrpa.Modules": [STR_CUSTOM_ARGS_NAME],
-    },
-  };
-  item.command = {
-    command: "LiberRPA.updateManagedImportsAfterCompletion",
-    // Required by VS Code. This internal command is not contributed to Command Palette.
-    title: "Update LiberRPA Imports After Completion",
-    arguments: [dictCommandArg],
-  };
-}
+const DICT_CUSTOM_ARGS_IMPORTS = {
+  "liberrpa.Modules": [STR_CUSTOM_ARGS_NAME],
+};
 
 /**
  * Create the completion item for the CustomArgs variable itself.
@@ -42,7 +32,8 @@ function addCustomArgsImportCommand(item: vscode.CompletionItem, title: string):
  */
 function buildCustomArgsVariableCompletion(
   document: vscode.TextDocument,
-  position: vscode.Position
+  position: vscode.Position,
+  importSources: Record<string, ImportSourceConfig>
 ): vscode.CompletionItem | undefined {
   const wordRange = document.getWordRangeAtPosition(position, /[A-Za-z_][A-Za-z0-9_]*/);
 
@@ -74,30 +65,50 @@ function buildCustomArgsVariableCompletion(
     vscode.CompletionItemKind.Variable
   );
 
-  completionItem.insertText = STR_CUSTOM_ARGS_NAME;
+  const importEdits = buildManagedImportTextEdits(
+    document,
+    importSources,
+    DICT_CUSTOM_ARGS_IMPORTS
+  );
+  const importPlan = planSnippetImportEdits(wordRange, importEdits);
+
+  if (!importPlan) {
+    return undefined;
+  }
+
+  completionItem.insertText = importPlan.snippetPrefix + STR_CUSTOM_ARGS_NAME;
   completionItem.range = wordRange;
+  completionItem.additionalTextEdits = importPlan.additionalTextEdits;
   completionItem.detail = "LiberRPA custom project arguments";
   completionItem.documentation = new vscode.MarkdownString(
     "The custom project arguments defined in `project.flow`."
   );
 
-  addCustomArgsImportCommand(completionItem, STR_CUSTOM_ARGS_NAME);
-
   return completionItem;
 }
 
 function getCompletionContext(linePrefix: string): CompletionContext | undefined {
-  if (linePrefix.endsWith("CustomArgs")) {
-    return "afterCustomArgs";
-  }
-  if (linePrefix.endsWith("CustomArgs[")) {
-    return "afterBracket";
-  }
-  if (linePrefix.endsWith('CustomArgs["')) {
-    return "insideDoubleQuote";
-  }
-  if (linePrefix.endsWith("CustomArgs['")) {
-    return "insideSingleQuote";
+  const arrContexts: ReadonlyArray<[string, CompletionContext]> = [
+    ['CustomArgs["', "insideDoubleQuote"],
+    ["CustomArgs['", "insideSingleQuote"],
+    ["CustomArgs[", "afterBracket"],
+    ["CustomArgs", "afterCustomArgs"],
+  ];
+
+  for (const [strSuffix, context] of arrContexts) {
+    if (!linePrefix.endsWith(strSuffix)) {
+      continue;
+    }
+
+    const intStart = linePrefix.length - strSuffix.length;
+    const strPreviousCharacter = intStart > 0 ? linePrefix[intStart - 1] : "";
+
+    // CustomArgs is a standalone project variable, not a suffix of another identifier and not an object attribute.
+    if (/[A-Za-z0-9_.]/.test(strPreviousCharacter)) {
+      return undefined;
+    }
+
+    return context;
   }
   return undefined;
 }
@@ -152,20 +163,10 @@ function extractCustomArgNames(content: string): string[] {
 }
 
 function escapeQuotedContent(value: string, quoteCharacter: '"' | "'"): string {
-  let strEscapedValue = value
-    // Backslash must be escaped first, otherwise later escape sequences may accidentally modify backslashes added by this function.
-    .replace(/\\/g, "\\\\")
-    .replace(/\r/g, "\\r")
-    .replace(/\n/g, "\\n")
-    .replace(/\t/g, "\\t");
-
-  if (quoteCharacter === '"') {
-    strEscapedValue = strEscapedValue.replace(/"/g, '\\"');
-  } else {
-    strEscapedValue = strEscapedValue.replace(/'/g, "\\'");
-  }
-
-  return strEscapedValue;
+  // JSON.stringify escapes every JSON control character, including backspace,
+  // form feed, and NUL. Remove only its surrounding double quotes.
+  const strJsonContent = JSON.stringify(value).slice(1, -1);
+  return quoteCharacter === "'" ? strJsonContent.replace(/'/g, "\\'") : strJsonContent;
 }
 
 function buildInsertedText(context: CompletionContext, argName: string): string {
@@ -196,6 +197,8 @@ function buildInsertedText(context: CompletionContext, argName: string): string 
 }
 
 export class CustomArgsCompletionItemProvider implements vscode.CompletionItemProvider {
+  constructor(private readonly importSources: Record<string, ImportSourceConfig>) {}
+
   provideCompletionItems(
     document: vscode.TextDocument,
     position: vscode.Position
@@ -248,22 +251,32 @@ export class CustomArgsCompletionItemProvider implements vscode.CompletionItemPr
         return [];
       }
 
+      const range = new vscode.Range(position, position);
+      const importEdits = buildManagedImportTextEdits(
+        document,
+        this.importSources,
+        DICT_CUSTOM_ARGS_IMPORTS
+      );
+      const importPlan = planSnippetImportEdits(range, importEdits);
+
+      if (!importPlan) {
+        return [];
+      }
+
       return arrArgNames.map((strArgName) => {
         const strInsertedText = buildInsertedText(context, strArgName);
 
         const completionItem = new vscode.CompletionItem(
-          strInsertedText,
+          `[${JSON.stringify(strArgName)}]`,
           vscode.CompletionItemKind.Snippet
         );
 
-        completionItem.insertText = strInsertedText;
-        completionItem.range = new vscode.Range(position, position);
+        completionItem.insertText = importPlan.snippetPrefix + strInsertedText;
+        completionItem.range = range;
+        completionItem.additionalTextEdits = importPlan.additionalTextEdits;
+        // Keep the same high sorting priority that the old quoted label had, while the visible label remains non-empty for an empty-string key.
+        completionItem.sortText = JSON.stringify(strArgName);
         completionItem.detail = "LiberRPA custom project argument";
-
-        addCustomArgsImportCommand(
-          completionItem,
-          `CustomArgs[${JSON.stringify(strArgName)}]`
-        );
 
         return completionItem;
       });
@@ -278,7 +291,11 @@ export class CustomArgsCompletionItemProvider implements vscode.CompletionItemPr
      *
      * Provide CustomArgs even if it has never appeared in the current file.
      */
-    const variableCompletion = buildCustomArgsVariableCompletion(document, position);
+    const variableCompletion = buildCustomArgsVariableCompletion(
+      document,
+      position,
+      this.importSources
+    );
 
     return variableCompletion ? [variableCompletion] : [];
   }

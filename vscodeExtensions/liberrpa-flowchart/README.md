@@ -199,6 +199,10 @@ You can define project arguments in **Custom Project Arguments** area.
 
 Each argument consists of a string key and a JSON-deserializable value.
 
+Press Enter or leave the input field to apply a key or value change. Pressing
+`Ctrl+S` while the input is still focused saves only the last applied value; it
+does not apply the text currently being edited.
+
 ### Key
 
 The key is stored as a string. It does not need to be a valid Python identifier.
@@ -212,8 +216,6 @@ Duplicate keys are also allowed while editing. The Flowchart highlights duplicat
 ### Value
 
 The value must be JSON-deserializable. Supported values include strings, numbers, booleans, `null`, arrays, and objects.
-
-Press Enter or leave the input field to apply a key or value change.
 
 ### Using Custom Arguments in Python
 
@@ -237,7 +239,6 @@ For example:
 ```
 customer_name = CustomArgs["customerName"]
 ```
-
 
 ![1740309273810](md_images/README/1740309273810.png)
 

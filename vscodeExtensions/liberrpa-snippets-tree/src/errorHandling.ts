@@ -10,9 +10,9 @@ import * as vscode from "vscode";
  * The stack trace is written to the log channel at Debug level.
  */
 export function reportError(context: string, error: unknown, notifyUser: boolean): void {
-  const strMmessage = error instanceof Error ? error.message : String(error);
+  const strMessage = error instanceof Error ? error.message : String(error);
 
-  log.error(`[${context}] ${strMmessage}`);
+  log.error(`[${context}] ${strMessage}`);
 
   if (error instanceof Error && error.stack) {
     log.debug(error.stack);
@@ -23,7 +23,26 @@ export function reportError(context: string, error: unknown, notifyUser: boolean
   }
 
   void vscode.window
-    .showErrorMessage(`${context}: ${strMmessage}`, "Show Logs")
+    .showErrorMessage(`${context}: ${strMessage}`, "Show Logs")
+    .then((action) => {
+      if (action === "Show Logs") {
+        log.show(true);
+      }
+    });
+}
+
+/** Log a recoverable problem and optionally warn the user. */
+export function reportWarning(context: string, error: unknown, notifyUser: boolean): void {
+  const strMessage = error instanceof Error ? error.message : String(error);
+
+  log.warn(`[${context}] ${strMessage}`);
+
+  if (!notifyUser) {
+    return;
+  }
+
+  void vscode.window
+    .showWarningMessage(`${context}: ${strMessage}`, "Show Logs")
     .then((action) => {
       if (action === "Show Logs") {
         log.show(true);

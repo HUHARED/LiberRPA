@@ -70,17 +70,18 @@ def _validate_imports(title: str, item: DictSnippetsItem) -> None:
 def _build_catalog_item(category: str, title: str, item: DictSnippetsItem) -> DictCatalogSnippet:
     _validate_imports(title=title, item=item)
 
+    description = item.get("description")
+    if description is None:
+        raise ValueError(f"Snippet {title!r} is missing its description.")
+
     result: DictCatalogSnippet = {
         "category": category,
         "label": item.get("label", _get_default_label(category=category, title=title)),
         "prefix": item["prefix"],
         "body": _normalize_body(item=item),
+        "description": description,
         "insertionMode": item.get("insertionMode", "line"),
     }
-
-    description = item.get("description")
-    if description is not None:
-        result["description"] = description
 
     imports = item.get("imports")
     if imports:

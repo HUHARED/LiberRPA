@@ -20,14 +20,24 @@ export interface DictSnippetDefinition {
   description?: string;
   imports?: DictImportsInfo;
 
-  /**
-   * line:
-   *   Insert on the current empty line, or create a new line first.
-   *
-   * cursor:
-   *   Insert directly at the current cursor or replace the current selection.
-   */
   insertionMode?: SnippetInsertionMode;
+}
+
+/**
+ * The generated catalog has already been normalized by CombineSnippets.py,
+ * so these fields are intentionally stricter than user-maintained favorites.
+ */
+export interface DictCatalogSnippetDefinition {
+  category: string;
+  label: string;
+
+  prefix: string;
+  body: string[];
+
+  description: string;
+  imports?: DictImportsInfo;
+
+  insertionMode: SnippetInsertionMode;
 }
 
 export interface DictSnippetCatalogFile {
@@ -38,7 +48,7 @@ export interface DictSnippetCatalogFile {
 
   // Source name, module order in the source
   importSources: Record<string, ImportSourceConfig>;
-  snippets: Record<string, DictSnippetDefinition>;
+  snippets: Record<string, DictCatalogSnippetDefinition>;
 }
 
 export interface DictSnippetFavoriteFile {
@@ -72,10 +82,4 @@ export interface DictSnippetNodeCommandArg {
   body: string[];
   imports: DictImportsInfo;
   insertionMode: SnippetInsertionMode;
-}
-
-export interface DictSnippetCompletionCommandArg {
-  // title is used for logging; imports contains the data used by import management.
-  title: string;
-  imports: DictImportsInfo;
 }

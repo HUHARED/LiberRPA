@@ -1,12 +1,9 @@
 // FileName: extension.ts
 import { log } from "./output";
-import type {
-  DictSnippetCompletionCommandArg,
-  DictSnippetNodeCommandArg,
-  DictSnippetRepository,
-} from "./interface";
+import type { DictSnippetNodeCommandArg, DictSnippetRepository } from "./interface";
 
-import { SnippetTreeDataProvider } from "./treeViewProvider";
+import { SnippetTreeDataProvider, STR_SNIPPET_DRAG_MIME } from "./treeViewProvider";
+import { DropEditProvider } from "./documentDropProvider";
 import { MainCompletionItemProvider } from "./completionProvider";
 import { CustomArgsCompletionItemProvider } from "./customArgsCompletionProvider";
 
@@ -38,21 +35,27 @@ function registerExtensionFeatures(
         await runAsyncBoundary(
           "Failed to insert LiberRPA snippet",
           async (): Promise<void> => {
-            const inserted = await insertSnippetFromTreeNode(arg.body, arg.insertionMode);
+            const editor = vscode.window.activeTextEditor;
+
+            if (!editor || editor.document.languageId !== "python") {
+              throw new Error("Open a Python editor before inserting a LiberRPA snippet.");
+            }
+
+            const inserted = await insertSnippetFromTreeNode(
+              editor,
+              arg.body,
+              arg.insertionMode
+            );
 
             if (!inserted) {
               throw new Error(`VS Code rejected snippet ${arg.title}.`);
             }
 
-            const editor = vscode.window.activeTextEditor;
-
-            if (!editor) {
-              throw new Error(
-                `No active editor was found after inserting snippet ${arg.title}.`
-              );
-            }
-
-            await updateManagedImports(editor, repository.importSources, arg.imports);
+            await updateManagedImports(
+              editor.document,
+              repository.importSources,
+              arg.imports
+            );
 
             log.debug(`[Click] Inserted snippet: ${arg.title}.`);
           },
@@ -62,17 +65,15 @@ function registerExtensionFeatures(
     )
   );
 
-  /* Drag-related */
+  /*
+   * Drag-related: A custom tree MIME type lets snippets drop directly at the editor position instead of being treated as resources that require Shift.
+   */
   context.subscriptions.push(
-    vscode.workspace.onDidChangeTextDocument((event): void => {
-      void runAsyncBoundary(
-        "Failed to insert dragged LiberRPA snippet",
-        async (): Promise<void> => {
-          await treeViewProvider.handlePossibleSnippetDrop(event);
-        },
-        true
-      );
-    })
+    vscode.languages.registerDocumentDropEditProvider(
+      { language: "python" },
+      new DropEditProvider(repository, () => treeViewProvider.finishDrag()),
+      { dropMimeTypes: [STR_SNIPPET_DRAG_MIME] }
+    )
   );
 
   /* Completion-related */
@@ -85,32 +86,10 @@ function registerExtensionFeatures(
   context.subscriptions.push(
     vscode.languages.registerCompletionItemProvider(
       { language: "python", scheme: "file" },
-      new CustomArgsCompletionItemProvider(),
+      new CustomArgsCompletionItemProvider(repository.importSources),
       "[",
       '"',
       "'"
-    )
-  );
-  context.subscriptions.push(
-    vscode.commands.registerCommand(
-      "LiberRPA.updateManagedImportsAfterCompletion",
-      async (arg: DictSnippetCompletionCommandArg): Promise<void> => {
-        await runAsyncBoundary(
-          "Failed to update LiberRPA managed imports",
-          async (): Promise<void> => {
-            const editor = vscode.window.activeTextEditor;
-
-            if (!editor) {
-              throw new Error(`No active editor was found for completion ${arg.title}.`);
-            }
-
-            await updateManagedImports(editor, repository.importSources, arg.imports);
-
-            log.debug(`[Completion] Updated imports for: ${arg.title}.`);
-          },
-          true
-        );
-      }
     )
   );
 }

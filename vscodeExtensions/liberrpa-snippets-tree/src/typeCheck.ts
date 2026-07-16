@@ -1,5 +1,6 @@
 // FileName: typeCheck.ts
 import type {
+  DictCatalogSnippetDefinition,
   DictSnippetFavoriteFile,
   ImportSourceConfig,
   DictImportsInfo,
@@ -17,6 +18,10 @@ function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === "string");
 }
 
+function isNonEmptyStringArray(value: unknown): value is string[] {
+  return isStringArray(value) && value.length > 0;
+}
+
 function isSnippetBody(value: unknown): value is string[] | string {
   return typeof value === "string" || isStringArray(value);
 }
@@ -29,8 +34,24 @@ function hasOnlyAllowedKeys(value: UnknownRecord, allowedKeys: readonly string[]
   return Object.keys(value).every((key) => allowedKeys.includes(key));
 }
 
+function isPythonIdentifier(value: string): boolean {
+  return /^[A-Za-z_][A-Za-z0-9_]*$/.test(value);
+}
+
+function isPythonImportSource(value: string): boolean {
+  return value.split(".").every(isPythonIdentifier);
+}
+
 function isImportsBySource(value: unknown): value is DictImportsInfo {
-  return isRecord(value) && Object.values(value).every(isStringArray);
+  return (
+    isRecord(value) &&
+    Object.entries(value).every(
+      ([source, names]) =>
+        isPythonImportSource(source) &&
+        isStringArray(names) &&
+        names.every(isPythonIdentifier)
+    )
+  );
 }
 
 function isSnippetInsertionMode(value: unknown): value is "line" | "cursor" {
@@ -38,7 +59,7 @@ function isSnippetInsertionMode(value: unknown): value is "line" | "cursor" {
 }
 
 const ARR_SNIPPET_REQUIRED_KEYS = ["prefix", "body"] as const;
-const ARR_SNIPPET_ALLOWED_KEYSs = [
+const ARR_SNIPPET_ALLOWED_KEYS = [
   "category",
   "label",
   "prefix",
@@ -55,7 +76,7 @@ function isSnippetDefinition(value: unknown): value is DictSnippetDefinition {
 
   if (
     !hasRequiredKeys(value, ARR_SNIPPET_REQUIRED_KEYS) ||
-    !hasOnlyAllowedKeys(value, ARR_SNIPPET_ALLOWED_KEYSs)
+    !hasOnlyAllowedKeys(value, ARR_SNIPPET_ALLOWED_KEYS)
   ) {
     return false;
   }
@@ -77,12 +98,60 @@ function isSnippetDefinitions(
   return isRecord(value) && Object.values(value).every(isSnippetDefinition);
 }
 
+function isCatalogSnippetDefinition(value: unknown): value is DictCatalogSnippetDefinition {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  const requiredKeys = [
+    "category",
+    "label",
+    "prefix",
+    "body",
+    "insertionMode",
+    "description",
+  ] as const;
+
+  if (
+    !hasRequiredKeys(value, requiredKeys) ||
+    !hasOnlyAllowedKeys(value, ARR_SNIPPET_ALLOWED_KEYS)
+  ) {
+    return false;
+  }
+
+  return (
+    typeof value.category === "string" &&
+    typeof value.label === "string" &&
+    typeof value.prefix === "string" &&
+    isNonEmptyStringArray(value.body) &&
+    typeof value.description === "string" &&
+    (value.imports === undefined || isImportsBySource(value.imports)) &&
+    isSnippetInsertionMode(value.insertionMode)
+  );
+}
+
+function isCatalogSnippetDefinitions(
+  value: unknown
+): value is Record<string, DictCatalogSnippetDefinition> {
+  return isRecord(value) && Object.values(value).every(isCatalogSnippetDefinition);
+}
+
 function isImportSourceConfig(value: unknown): value is ImportSourceConfig {
-  return isRecord(value) && Object.keys(value).length === 1 && isStringArray(value.order);
+  return (
+    isRecord(value) &&
+    Object.keys(value).length === 1 &&
+    isStringArray(value.order) &&
+    value.order.every(isPythonIdentifier)
+  );
 }
 
 function isImportSources(value: unknown): value is Record<string, ImportSourceConfig> {
-  return isRecord(value) && Object.values(value).every(isImportSourceConfig);
+  return (
+    isRecord(value) &&
+    Object.entries(value).every(
+      ([source, config]) => isPythonImportSource(source) && isImportSourceConfig(config)
+    )
+  );
 }
 
 export function isSnippetCatalog(value: unknown): value is DictSnippetCatalogFile {
@@ -103,10 +172,7 @@ export function isSnippetCatalog(value: unknown): value is DictSnippetCatalogFil
     value.schemaVersion === 1 &&
     isStringArray(value.categoryOrder) &&
     isImportSources(value.importSources) &&
-    isSnippetDefinitions(value.snippets) &&
-    Object.values(value.snippets).every(
-      (snippet) => typeof snippet.category === "string" && typeof snippet.label === "string"
-    )
+    isCatalogSnippetDefinitions(value.snippets)
   );
 }
 

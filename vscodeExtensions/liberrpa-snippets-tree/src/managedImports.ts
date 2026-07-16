@@ -38,12 +38,12 @@ const STR_MANAGED_IMPORT_END = "# </LiberRPA imports: managed>";
 // # coding=utf-8
 const STR_PYTHON_ENCODING_PATTERN = /^#.*coding[:=]\s*[-\w.]+/;
 
-// Only handles ordinary top-level Python module docstrings that start with
-// triple single or double quotes, optionally prefixed by r/R/u/U.
+// Handles ordinary top-level Python module docstrings that start with single or triple quotes, optionally prefixed by r/R/u/U.
 // Examples:
 // """Module docstring."""
 // r"""Raw module docstring."""
-const STR_MODULE_DOCSTRING_START_PATTERN = /^(?:[rRuU]{0,2})?("""|''')/;
+// "Module docstring."
+const STR_MODULE_DOCSTRING_START_PATTERN = /^(?:[rRuU]{0,2})?("""|'''|"|')/;
 
 // __future__ imports must remain before normal imports.
 const STR_FUTURE_IMPORT_PATTERN = /^from\s+__future__\s+import\b/;
@@ -67,15 +67,29 @@ function findManagedImportBlock(
   document: vscode.TextDocument
 ): ManagedImportBlock | undefined {
   let intStartLine: number | undefined;
+  let dictBlock: ManagedImportBlock | undefined;
 
   for (let intLine = 0; intLine < document.lineCount; intLine += 1) {
-    const strText = document.lineAt(intLine).text.trim();
+    const strRawText = document.lineAt(intLine).text;
+    const strText = strRawText.trim();
 
     if (strText === STR_MANAGED_IMPORT_START) {
-      // A second start marker before finding an end marker means that the file already contains an invalid/nested managed block.
+      if (strRawText !== STR_MANAGED_IMPORT_START) {
+        throw new Error(
+          `The LiberRPA managed import start marker on line ${intLine + 1} must appear alone without indentation or trailing whitespace.`
+        );
+      }
+
+      // A second start marker before finding an end marker means that the file contains a nested block.
+      // A start marker after a complete block means that the file contains two managed blocks.
       if (intStartLine !== undefined) {
         throw new Error(
-          "The Python file contains more than one LiberRPA managed import start marker."
+          `The Python file contains a nested LiberRPA managed import start marker on line ${intLine + 1}.`
+        );
+      }
+      if (dictBlock !== undefined) {
+        throw new Error(
+          `The Python file contains more than one LiberRPA managed import block; the second block starts on line ${intLine + 1}.`
         );
       }
 
@@ -83,18 +97,34 @@ function findManagedImportBlock(
       continue;
     }
 
-    // The end marker only belongs to a block after a start marker has already been found.
-    if (strText === STR_MANAGED_IMPORT_END && intStartLine !== undefined) {
-      return { startLine: intStartLine, endLine: intLine };
+    if (strText !== STR_MANAGED_IMPORT_END) {
+      continue;
     }
+
+    if (strRawText !== STR_MANAGED_IMPORT_END) {
+      throw new Error(
+        `The LiberRPA managed import end marker on line ${intLine + 1} must appear alone without indentation or trailing whitespace.`
+      );
+    }
+
+    if (intStartLine === undefined) {
+      throw new Error(
+        `The Python file contains a LiberRPA managed import end marker without a matching start marker on line ${intLine + 1}.`
+      );
+    }
+
+    dictBlock = { startLine: intStartLine, endLine: intLine };
+    intStartLine = undefined;
   }
 
   // A start marker without an end marker should not be overwritten, because doing so could delete or duplicate user code.
   if (intStartLine !== undefined) {
-    throw new Error("The LiberRPA managed import block is missing its end marker.");
+    throw new Error(
+      `The LiberRPA managed import block starting on line ${intStartLine + 1} is missing its end marker.`
+    );
   }
 
-  return undefined;
+  return dictBlock;
 }
 
 /**
@@ -128,7 +158,7 @@ function skipBlankAndCommentLines(
  *
  * Returns undefined when startLine is not a module docstring.
  *
- * This intentionally handles only simple triple-quoted docstrings. It is not intended to be a complete Python parser.
+ * This intentionally handles only simple single- or triple-quoted docstrings. It is not intended to be a complete Python parser.
  */
 function findModuleDocstringEndLine(
   document: vscode.TextDocument,
@@ -145,9 +175,29 @@ function findModuleDocstringEndLine(
     return undefined;
   }
 
-  // match[1] is either """ or '''.
+  // match[1] is a single- or triple-quote delimiter.
   const strDelimiter = match[1];
   const strTextAfterOpening = strFirstLineText.slice(match[0].length);
+
+  if (strDelimiter.length === 1) {
+    let boolEscaped = false;
+
+    for (const strCharacter of strTextAfterOpening) {
+      if (strCharacter === strDelimiter && !boolEscaped) {
+        return startLine;
+      }
+
+      if (strCharacter === "\\" && !boolEscaped) {
+        boolEscaped = true;
+      } else {
+        boolEscaped = false;
+      }
+    }
+
+    throw new Error(
+      "The single-quoted Python module docstring is not closed on its starting line, so LiberRPA imports cannot be inserted safely."
+    );
+  }
 
   // Single-line docstring:
   // """Module documentation."""
@@ -227,6 +277,12 @@ function findPythonStatementEndLine(
  * 7. ordinary imports and code
  */
 function getDefaultInsertLine(document: vscode.TextDocument): number {
+  // A document containing only whitespace is still an empty Python script.
+  // Insert at its beginning instead of after its final blank line.
+  if (document.getText().trim() === "") {
+    return 0;
+  }
+
   let intLine = 0;
 
   // A shebang must remain on the first physical line.
@@ -249,11 +305,15 @@ function getDefaultInsertLine(document: vscode.TextDocument): number {
   // Skip header comments and blank lines before checking for a module
   // docstring. For example, "# FileName:" should stay above the docstring.
   const intPossibleDocstringLine = skipBlankAndCommentLines(document, intLine);
-  const intDocstringEndLine = findModuleDocstringEndLine(document, intPossibleDocstringLine);
+  const intDocstringEndLine = findModuleDocstringEndLine(
+    document,
+    intPossibleDocstringLine
+  );
 
   // If there is a module docstring, continue after it.
   // Otherwise, continue from the first non-comment/non-blank line.
-  intLine = intDocstringEndLine === undefined ? intPossibleDocstringLine : intDocstringEndLine + 1;
+  intLine =
+    intDocstringEndLine === undefined ? intPossibleDocstringLine : intDocstringEndLine + 1;
 
   // There can be more than one __future__ import. Keep moving downward until
   // the first ordinary statement is found.
@@ -311,12 +371,30 @@ function parseExistingManagedImports(
   for (let intLine = block.startLine + 1; intLine < block.endLine; intLine += 1) {
     const strText = document.lineAt(intLine).text.trim();
 
-    // Start of one import group.
-    const sourceMatch = /^from\s+(.+?)\s+import\s+\($/.exec(strText);
+    if (!strCurrentSource) {
+      if (strText === "" || strText === STR_MANAGED_IMPORT_NOTICE) {
+        continue;
+      }
 
-    if (sourceMatch) {
-      strCurrentSource = sourceMatch[1];
-      dictResult[strCurrentSource] ??= [];
+      // Start of one import group.
+      const sourceMatch =
+        /^from\s+([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s+import\s+\($/.exec(
+          strText
+        );
+
+      if (sourceMatch) {
+        strCurrentSource = sourceMatch[1];
+        dictResult[strCurrentSource] ??= [];
+        continue;
+      }
+
+      throw new Error(
+        `Unexpected content in the LiberRPA managed import block on line ${intLine + 1}: ${strText}`
+      );
+    }
+
+    // Empty lines inside an import group are harmless and may exist in files created by an older version. The rebuilt block removes them.
+    if (strText === "") {
       continue;
     }
 
@@ -326,18 +404,23 @@ function parseExistingManagedImports(
       continue;
     }
 
-    // Ignore notice text, blank lines, or unsupported text outside an
-    // active "from ... import (" group.
-    if (!strCurrentSource) {
-      continue;
-    }
-
     // Import name line, for example: "Mouse,"
     const nameMatch = /^([A-Za-z_][A-Za-z0-9_]*)\s*,\s*$/.exec(strText);
 
     if (nameMatch) {
       dictResult[strCurrentSource].push(nameMatch[1]);
+      continue;
     }
+
+    throw new Error(
+      `Invalid import entry in the LiberRPA managed import block on line ${intLine + 1}: ${strText}`
+    );
+  }
+
+  if (strCurrentSource !== undefined) {
+    throw new Error(
+      `The import group for ${strCurrentSource} in the LiberRPA managed block is missing its closing parenthesis.`
+    );
   }
 
   return dictResult;
@@ -376,7 +459,9 @@ function sortImportNames(
 
   // The non-null assertion is safe here because knownNames only contains
   // values already confirmed by orderIndexes.has(name).
-  arrKnownNames.sort((left, right) => mapOrderIndexes.get(left)! - mapOrderIndexes.get(right)!);
+  arrKnownNames.sort(
+    (left, right) => mapOrderIndexes.get(left)! - mapOrderIndexes.get(right)!
+  );
 
   arrUnknownNames.sort();
 
@@ -454,12 +539,15 @@ function mergeImports(
  */
 function buildManagedImportBlock(
   imports: DictImportsInfo,
-  importSources: Record<string, ImportSourceConfig>
+  importSources: Record<string, ImportSourceConfig>,
+  strEol: string
 ): string {
   const arrLines = [STR_MANAGED_IMPORT_START, STR_MANAGED_IMPORT_NOTICE];
   const arrSources = sortImportSources(imports, importSources);
 
-  arrSources.forEach((strName, intIndex) => {
+  let boolHasImportGroup = false;
+
+  arrSources.forEach((strName) => {
     const importNames = imports[strName];
 
     // Empty groups do not produce Python import statements.
@@ -468,7 +556,7 @@ function buildManagedImportBlock(
     }
 
     // Separate different import sources with one blank line.
-    if (intIndex > 0) {
+    if (boolHasImportGroup) {
       arrLines.push("");
     }
 
@@ -479,10 +567,11 @@ function buildManagedImportBlock(
     }
 
     arrLines.push(")");
+    boolHasImportGroup = true;
   });
 
   arrLines.push(STR_MANAGED_IMPORT_END);
-  return arrLines.join("\n");
+  return arrLines.join(strEol);
 }
 
 function getDisplayPath(document: vscode.TextDocument): string {
@@ -506,7 +595,8 @@ function getDisplayPath(document: vscode.TextDocument): string {
 function buildInsertedBlockText(
   document: vscode.TextDocument,
   insertLine: number,
-  blockText: string
+  blockText: string,
+  strEol: string
 ): string {
   const boolPreviousLineIsBlank =
     insertLine === 0 || document.lineAt(insertLine - 1).text.trim() === "";
@@ -514,14 +604,123 @@ function buildInsertedBlockText(
   const boolNextLineIsBlank =
     insertLine >= document.lineCount || document.lineAt(insertLine).text.trim() === "";
 
-  const strPrefix = boolPreviousLineIsBlank ? "" : "\n";
-  const strSuffix = boolNextLineIsBlank ? "\n" : "\n\n";
+  const strPrefix = boolPreviousLineIsBlank ? "" : strEol;
+  const strSuffix = boolNextLineIsBlank ? strEol : strEol.repeat(2);
 
   return `${strPrefix}${blockText}${strSuffix}`;
 }
 
+function getDocumentEol(document: vscode.TextDocument): string {
+  return document.eol === vscode.EndOfLine.CRLF ? "\r\n" : "\n";
+}
+
 /**
- * Add snippet-required imports to the current Python editor.
+ * Build the text edits needed to add imports to one Python document.
+ *
+ * The function does not apply the edits. Completion and drop providers can therefore attach them to the same VS Code operation that inserts a snippet.
+ */
+export function createManagedImportTextEditBuilder(
+  document: vscode.TextDocument,
+  importSources: Record<string, ImportSourceConfig>
+): (importsToAdd: DictImportsInfo) => vscode.TextEdit[] {
+  let prepared:
+    | {
+        block: ManagedImportBlock | undefined;
+        existingImports: DictImportsInfo;
+        eol: string;
+        insertLine: number | undefined;
+      }
+    | undefined;
+
+  return (importsToAdd: DictImportsInfo): vscode.TextEdit[] => {
+    if (Object.values(importsToAdd).every((names) => names.length === 0)) {
+      return [];
+    }
+
+    if (!prepared) {
+      const block = findManagedImportBlock(document);
+      prepared = {
+        block,
+        existingImports: block ? parseExistingManagedImports(document, block) : {},
+        eol: getDocumentEol(document),
+        insertLine: block ? undefined : getDefaultInsertLine(document),
+      };
+    }
+
+    const dictNextImports = mergeImports(
+      prepared.existingImports,
+      importsToAdd,
+      importSources
+    );
+    const strNextBlockText = buildManagedImportBlock(
+      dictNextImports,
+      importSources,
+      prepared.eol
+    );
+
+    if (prepared.block) {
+      const positionStart = new vscode.Position(prepared.block.startLine, 0);
+      const endLine = document.lineAt(prepared.block.endLine);
+      const positionEnd = new vscode.Position(prepared.block.endLine, endLine.text.length);
+      const range = new vscode.Range(positionStart, positionEnd);
+
+      if (document.getText(range) === strNextBlockText) {
+        return [];
+      }
+
+      return [vscode.TextEdit.replace(range, strNextBlockText)];
+    }
+
+    // insertLine is prepared whenever no managed block exists.
+    const intInsertLine = prepared.insertLine!;
+    const positionInsert =
+      intInsertLine >= document.lineCount
+        ? document.positionAt(document.getText().length)
+        : new vscode.Position(intInsertLine, 0);
+
+    return [
+      vscode.TextEdit.insert(
+        positionInsert,
+        buildInsertedBlockText(document, intInsertLine, strNextBlockText, prepared.eol)
+      ),
+    ];
+  };
+}
+
+export function buildManagedImportTextEdits(
+  document: vscode.TextDocument,
+  importSources: Record<string, ImportSourceConfig>,
+  importsToAdd: DictImportsInfo
+): vscode.TextEdit[] {
+  return createManagedImportTextEditBuilder(document, importSources)(importsToAdd);
+}
+
+const mapImportUpdateQueues = new Map<string, Promise<void>>();
+
+async function applyManagedImportUpdate(
+  document: vscode.TextDocument,
+  importSources: Record<string, ImportSourceConfig>,
+  importsToAdd: DictImportsInfo
+): Promise<void> {
+  const arrEdits = buildManagedImportTextEdits(document, importSources, importsToAdd);
+
+  if (arrEdits.length === 0) {
+    return;
+  }
+
+  const workspaceEdit = new vscode.WorkspaceEdit();
+  workspaceEdit.set(document.uri, arrEdits);
+
+  const boolEdited = await vscode.workspace.applyEdit(workspaceEdit);
+  if (!boolEdited) {
+    throw new Error("Failed to update the LiberRPA managed import block.");
+  }
+
+  log.debug("[Imports] Managed import block updated.");
+}
+
+/**
+ * Add snippet-required imports to one Python document.
  *
  * High-level flow:
  *
@@ -532,64 +731,25 @@ function buildInsertedBlockText(
  * 5. Replace the old block or insert a new block.
  */
 export async function updateManagedImports(
-  editor: vscode.TextEditor,
+  document: vscode.TextDocument,
   importSources: Record<string, ImportSourceConfig>,
   importsToAdd: DictImportsInfo
 ): Promise<void> {
-  // A snippet can be pure Python syntax and require no managed imports.
-  if (Object.values(importsToAdd).every((names) => names.length === 0)) {
-    return;
-  }
-
-  const document = editor.document;
-
-  // Existing block path:
-  // parse and preserve its current imports before adding new ones.
-  const dictBlock = findManagedImportBlock(document);
-  const dictExistingImports = dictBlock ? parseExistingManagedImports(document, dictBlock) : {};
-
-  // Produce one normalized data structure before generating any text.
-  const dictNextImports = mergeImports(dictExistingImports, importsToAdd, importSources);
-
-  const strNextBlockText = buildManagedImportBlock(dictNextImports, importSources);
-
   const strDisplayPath = getDisplayPath(document);
-  log.trace(
-    `[Imports] Updating managed block in ${strDisplayPath}; mode=${dictBlock ? "replace" : "insert"}.`
-  );
+  log.trace(`[Imports] Queued managed import update for ${strDisplayPath}.`);
 
-  const edited = await editor.edit((editBuilder) => {
-    if (dictBlock) {
-      // Replace the entire managed block. Rebuilding the whole block is simpler
-      // and safer than trying to patch individual lines in place.
-      const positionStart = new vscode.Position(dictBlock.startLine, 0);
-      const endLine = document.lineAt(dictBlock.endLine);
-      const positionEnd = new vscode.Position(dictBlock.endLine, endLine.text.length);
+  const strDocumentKey = document.uri.toString();
+  const previousUpdate = mapImportUpdateQueues.get(strDocumentKey) ?? Promise.resolve();
 
-      editBuilder.replace(new vscode.Range(positionStart, positionEnd), strNextBlockText);
+  const currentUpdate = previousUpdate
+    .catch(() => undefined)
+    .then(() => applyManagedImportUpdate(document, importSources, importsToAdd))
+    .finally(() => {
+      if (mapImportUpdateQueues.get(strDocumentKey) === currentUpdate) {
+        mapImportUpdateQueues.delete(strDocumentKey);
+      }
+    });
 
-      return;
-    }
-
-    // No block exists yet. Find a safe Python module-level insertion position.
-    const intInsertLine = getDefaultInsertLine(document);
-
-    // VS Code positions normally refer to a line/column. At end-of-file, use
-    // the final text offset because insertLine can equal document.lineCount.
-    const positionInsert =
-      intInsertLine >= document.lineCount
-        ? document.positionAt(document.getText().length)
-        : new vscode.Position(intInsertLine, 0);
-
-    editBuilder.insert(
-      positionInsert,
-      buildInsertedBlockText(document, intInsertLine, strNextBlockText)
-    );
-  });
-
-  if (!edited) {
-    throw new Error("Failed to update the LiberRPA managed import block.");
-  }
-
-  log.debug("[Imports] Managed import block updated.");
+  mapImportUpdateQueues.set(strDocumentKey, currentUpdate);
+  await currentUpdate;
 }

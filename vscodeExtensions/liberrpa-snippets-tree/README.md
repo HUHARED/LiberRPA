@@ -132,11 +132,13 @@ The optional `insertionMode` field controls how a TreeView click inserts the sni
 - `"line"` inserts the snippet as a statement, creating a new line when necessary.
 - `"cursor"` inserts it directly at the current cursor position.
 
-    The default value is`"line"`.
+    The default value is `"line"`.
 
 The imports field is copied together with the snippet, so renaming a favorite snippet does not remove its import metadata.
 
 After editing the file, run `Developer: Reload Window` in VS Code.
+
+If the Favorite file contains invalid JSONC or snippet fields, LiberRPA shows a warning and skips Favorites for that window. Built-in snippets remain available.
 
 ```jsonc
 {
@@ -161,7 +163,4 @@ LiberRPA Snippets Tree will display these snippets in a `Favorite` category at t
 
 # Known Issues
 
-* Undoing a drag-and-drop insertion several times may temporarily reveal LiberRPA's internal drop placeholder. Continue undoing once more to remove it.
-
-  ![1740386186601](md_images/README/1740386186601.png)
 * The TreeView itself does not currently provide a search box. Use IntelliSense to search snippets by typing their prefix or API name, or refer to the [LiberRPA API](https://github.com/HUHARED/LiberRPA/tree/main/condaLibrary#api).

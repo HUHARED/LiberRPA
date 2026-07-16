@@ -4,27 +4,28 @@ import type { DictSnippetNodeCommandArg, DictSnippetRepository } from "./interfa
 import type { TreeNode } from "./nodeDefinition";
 import { CategoryNode, SnippetNode } from "./nodeDefinition";
 import { dictIconMapping } from "./utils";
-import { updateManagedImports } from "./managedImports";
 
 import * as vscode from "vscode";
 
-const STR_DROP_MARKER =
-  "$LIBERRPA_SNIPPET_DROP_PLACEHOLDER(you may see it when you undo(Ctrl+Z), please undo again.)";
+export const STR_SNIPPET_DRAG_MIME = "application/vnd.code.tree.liberrpa.snippetstreeview";
 
 export class SnippetTreeDataProvider
   implements vscode.TreeDataProvider<TreeNode>, vscode.TreeDragAndDropController<TreeNode>
 {
-  // VS Code inserts this plain-text marker into the editor during a drag.
-  // checkWhetherHandleDrop() replaces it with the real snippet.
-  readonly dragMimeTypes: readonly string[] = ["text/plain"];
+  private readonly treeDataChangeEmitter = new vscode.EventEmitter<TreeNode | undefined>();
+
+  readonly onDidChangeTreeData = this.treeDataChangeEmitter.event;
+
+  readonly dragMimeTypes: readonly string[] = [STR_SNIPPET_DRAG_MIME];
 
   // This tree does not accept drops from other sources.
   readonly dropMimeTypes: readonly string[] = [];
 
   private readonly categoryNodes: CategoryNode[];
-  private snippetToDrop: DictSnippetNodeCommandArg | null = null;
+  private draggedSnippetNode: SnippetNode | undefined;
+  private dragCancellationListener: vscode.Disposable | undefined;
 
-  constructor(private readonly repository: DictSnippetRepository) {
+  constructor(repository: DictSnippetRepository) {
     this.categoryNodes = repository.categoryOrder.map((strCategoryName) => {
       const arrSnippetNodes = (repository.categories[strCategoryName] ?? []).map(
         (dictSnippet) =>
@@ -70,7 +71,6 @@ export class SnippetTreeDataProvider
       );
 
       treenodeItem.id = nodeObj.id;
-      treenodeItem.tooltip = `${nodeObj.body.join("\n")}\n----------------\n${nodeObj.description}`;
 
       // Clicking a snippet node runs the internal insert command.
       const dictCommandArg: DictSnippetNodeCommandArg = {
@@ -103,10 +103,36 @@ export class SnippetTreeDataProvider
     return treenodeItem;
   }
 
+  resolveTreeItem(treenodeItem: vscode.TreeItem, nodeObj: TreeNode): vscode.TreeItem {
+    // vscode seems to have a bug that a node's tooltip sometimes appears while draging it quickly. Use the function and finishDrag() to handle this issue.
+    if (nodeObj.kind === "snippet") {
+      treenodeItem.tooltip =
+        nodeObj === this.draggedSnippetNode
+          ? ""
+          : `${nodeObj.body.join("\n")}\n----------------\n${nodeObj.description}`;
+    }
+
+    return treenodeItem;
+  }
+
+  finishDrag(): void {
+    const draggedSnippetNode = this.draggedSnippetNode;
+    if (!draggedSnippetNode) {
+      return;
+    }
+
+    this.draggedSnippetNode = undefined;
+    this.dragCancellationListener?.dispose();
+    this.dragCancellationListener = undefined;
+
+    // A tooltip request made during the drag resolved to an empty string. Refresh the item so its complete preview can be resolved on the next hover.
+    this.treeDataChangeEmitter.fire(draggedSnippetNode);
+  }
+
   handleDrag(
     sourceNodes: readonly TreeNode[],
     dataTransfer: vscode.DataTransfer,
-    _token: vscode.CancellationToken
+    token: vscode.CancellationToken
   ): Thenable<void> | void {
     if (sourceNodes.length !== 1) {
       // Allow drag one node at once.
@@ -119,81 +145,13 @@ export class SnippetTreeDataProvider
       return;
     }
 
-    this.snippetToDrop = {
-      title: nodeObj.title,
-      body: nodeObj.body,
-      imports: nodeObj.imports,
-      insertionMode: nodeObj.insertionMode,
-    };
-
-    // Drop a marker first. checkWhetherHandleDrop() will replace it with the real snippet.
-    log.debug(`[Drag] Started dragging snippet: ${nodeObj.title}.`);
-    dataTransfer.set("text/plain", new vscode.DataTransferItem(STR_DROP_MARKER));
-  }
-
-  public async handlePossibleSnippetDrop(
-    event: vscode.TextDocumentChangeEvent
-  ): Promise<void> {
-    if (!this.snippetToDrop) {
-      // Don't add log here. It will be triggered always.
-      return;
-    }
-
-    // Ignore unrelated document changes while a snippet is being dragged.
-    // Only the change containing DROP_MARKER belongs to the drop operation.
-    const markerChange = event.contentChanges.find((change) =>
-      change.text.includes(STR_DROP_MARKER)
-    );
-    if (markerChange !== undefined) {
-      log.trace("markerChange=", String(markerChange?.text));
-    }
-    if (!markerChange) {
-      return;
-    }
-
-    const editor = vscode.window.visibleTextEditors.find(
-      (visibleEditor) =>
-        visibleEditor.document.uri.toString() === event.document.uri.toString()
-    );
-    if (!editor) {
-      this.snippetToDrop = null;
-      throw new Error(`No visible editor was found for ${event.document.uri.fsPath}.`);
-    }
-
-    const intMarkerIndex = markerChange.text.indexOf(STR_DROP_MARKER);
-    const intMarkerStartOffset = markerChange.rangeOffset + intMarkerIndex;
-    const intMarkerEndOffset = intMarkerStartOffset + STR_DROP_MARKER.length;
-    const positionMarkerStart = event.document.positionAt(intMarkerStartOffset);
-    const positionMarkerEnd = event.document.positionAt(intMarkerEndOffset);
-
-    // Save the current drop metadata locally and clear the shared state first.
-    // Deleting the marker and inserting the snippet trigger more document-change events, which must not be handled as another drag operation.
-    const droppedSnippet = this.snippetToDrop;
-    this.snippetToDrop = null;
-
-    const boolDeleted = await editor.edit((editBuilder) => {
-      editBuilder.delete(new vscode.Range(positionMarkerStart, positionMarkerEnd));
+    this.finishDrag();
+    this.draggedSnippetNode = nodeObj;
+    this.dragCancellationListener = token.onCancellationRequested(() => {
+      this.finishDrag();
     });
-    if (!boolDeleted) {
-      throw new Error(
-        `Failed to delete the drop marker for snippet: ${droppedSnippet.title}.`
-      );
-    }
 
-    const boolInserted = await editor.insertSnippet(
-      new vscode.SnippetString(droppedSnippet.body.join("\n")),
-      positionMarkerStart
-    );
-    if (!boolInserted) {
-      throw new Error(`Failed to insert dragged snippet: ${droppedSnippet.title}.`);
-    }
-
-    await updateManagedImports(
-      editor,
-      this.repository.importSources,
-      droppedSnippet.imports
-    );
-
-    log.debug(`[Drop] Inserted snippet: ${droppedSnippet.title}.`);
+    log.debug(`[Drag] Started dragging snippet: ${nodeObj.title}.`);
+    dataTransfer.set(STR_SNIPPET_DRAG_MIME, new vscode.DataTransferItem(nodeObj.id));
   }
 }

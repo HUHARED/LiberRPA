@@ -9,6 +9,7 @@ import type {
   SnippetInsertionMode,
 } from "./interface";
 import { isFavoriteSnippetsFile, isSnippetCatalog } from "./typeCheck";
+import { reportWarning } from "./errorHandling";
 
 import * as fs from "node:fs";
 import * as os from "node:os";
@@ -68,7 +69,27 @@ function loadFavoriteSnippets(): DictSnippetFavoriteFile {
     log.info(`[Favorite] Created favorite snippets file: ${strFavoritePath}.`);
   }
 
-  const value: unknown = jsoncParser.parse(fs.readFileSync(strFavoritePath, "utf-8"));
+  const strFileContent = fs.readFileSync(strFavoritePath, "utf-8");
+  const arrParseErrors: jsoncParser.ParseError[] = [];
+  const value: unknown = jsoncParser.parse(strFileContent, arrParseErrors, {
+    allowTrailingComma: true,
+  });
+
+  if (arrParseErrors.length > 0) {
+    const firstError = arrParseErrors[0];
+    const strBeforeError = strFileContent.slice(0, firstError.offset);
+    const intLine = strBeforeError.split(/\r?\n/).length;
+    const intLastLineBreak = Math.max(
+      strBeforeError.lastIndexOf("\n"),
+      strBeforeError.lastIndexOf("\r")
+    );
+    const intColumn = firstError.offset - intLastLineBreak;
+
+    throw new Error(
+      `Invalid JSONC in ${strFavoritePath} at line ${intLine}, column ${intColumn}: ` +
+        jsoncParser.printParseErrorCode(firstError.error)
+    );
+  }
 
   if (!isFavoriteSnippetsFile(value)) {
     throw new Error(`Invalid favorite snippets file: ${strFavoritePath}`);
@@ -113,8 +134,18 @@ function validateSnippetImports(
 }
 
 export function loadSnippetRepository(): DictSnippetRepository {
+  let dictFavorites: DictSnippetFavoriteFile;
+
+  try {
+    dictFavorites = loadFavoriteSnippets();
+  } catch (e) {
+    // Favorites are user-maintained and optional. A malformed file should not
+    // disable the generated built-in TreeView and IntelliSense catalog.
+    reportWarning("Favorite snippets were skipped", e, true);
+    dictFavorites = { schemaVersion: 1, snippets: {} };
+  }
+
   const dictCatalog = loadDefaultCatalog();
-  const dictFavorites = loadFavoriteSnippets();
   const dictCategories: Record<string, DictSnippetTotalInfo[]> = {};
   const setKnownImportSources = new Set(Object.keys(dictCatalog.importSources));
 
@@ -142,14 +173,13 @@ export function loadSnippetRepository(): DictSnippetRepository {
     const dictSnippetTemp = {
       id: `builtin:${strTitle}`,
       title: strTitle,
-      category: dictDefinition.category ?? "Uncategorized",
-      label: dictDefinition.label ?? strTitle,
+      category: dictDefinition.category,
+      label: dictDefinition.label,
       prefix: dictDefinition.prefix,
       body: normalizeSnippetBody(dictDefinition.body),
-      description:
-        dictDefinition.description ?? "No description is available for this snippet.",
+      description: dictDefinition.description,
       imports: normalizeImports(dictDefinition.imports),
-      insertionMode: dictDefinition.insertionMode ?? "line",
+      insertionMode: dictDefinition.insertionMode,
     };
 
     validateSnippetImports(dictSnippetTemp, setKnownImportSources);
@@ -183,14 +213,10 @@ export function loadSnippetRepository(): DictSnippetRepository {
 }
 
 export async function insertSnippetFromTreeNode(
+  editor: vscode.TextEditor,
   arrSnippetsLines: string[],
   insertionMode: SnippetInsertionMode
 ): Promise<boolean> {
-  const editor = vscode.window.activeTextEditor;
-
-  if (!editor) {
-    throw new Error(`No visible editor was found before inserting the snippet.`);
-  }
   const snippetObj = new vscode.SnippetString(arrSnippetsLines.join("\n"));
 
   /*
