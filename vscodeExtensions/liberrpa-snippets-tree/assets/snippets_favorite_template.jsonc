@@ -10,7 +10,7 @@
   // on GitHub, copy a complete entry from its "snippets" object, and paste
   // it into the "snippets" object below:
   //
-  // https://github.com/HUHARED/LiberRPA/blob/main/condaLibrary/snippets/snippets_catalog.json
+  // https://github.com/HUHARED/LiberRPA/blob/main/vscodeExtensions/liberrpa-snippets-tree/assets/snippets_catalog.json
   //
   // Keeping the complete entry preserves its import and insertion metadata.
   // The "category" field is ignored for favorite snippets.
