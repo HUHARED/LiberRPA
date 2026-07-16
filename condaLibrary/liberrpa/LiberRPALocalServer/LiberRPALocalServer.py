@@ -22,18 +22,15 @@ from liberrpa.Common._Utils import PROCESS_NAME
 
 print(f"=== Starting LiberRPALocalServer.py in {PROCESS_NAME} ===")
 
+# Set the log folder name.
+from liberrpa.Common._Initialization import set_log_folder_name
+
+set_log_folder_name(folderName="_LiberRPALocalServer")
+from liberrpa.Logging import Log
 
 if __name__ == "__main__":
     try:
         print("=== '__main__' block is running ===")
-        # Set the log folder name.
-        # ========================
-        from liberrpa.Common._Initialization import set_log_folder_name
-
-        set_log_folder_name(folderName="_LiberRPALocalServer")
-        from liberrpa.Logging import Log
-
-        # ========================
 
         from liberrpa.Common._Utils import STR_PROJECT_ROOT
 

@@ -217,5 +217,6 @@ if __name__ == "__main__":
         set_liberrpa_environment()
     except Exception as e:
         print(f"[Error] {e}")
+        raise SystemExit(1) from e
     finally:
         input("Press any key to exit...")

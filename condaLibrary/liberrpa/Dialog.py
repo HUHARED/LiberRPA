@@ -38,7 +38,7 @@ def show_notification(title: str, message: str, duration: int = 1, wait: bool = 
     if message is None or message == "":
         raise ValueError("The message can't be empty or None.")
     if duration <= 0:
-        raise ValueError("The duration should larger than 0.")
+        raise ValueError("The duration must be greater than 0.")
 
     try:
         dictCommand = {
@@ -52,9 +52,9 @@ def show_notification(title: str, message: str, duration: int = 1, wait: bool = 
         send_command(eventName="qt_command", command=dictCommand)
     except QtError:
         raise
-    except Exception:
-        # If Qt dialog is unavailable, fall back to the local tkinter dialog.
-        pass
+    except Exception as e:
+        # Notifications are non-critical. Log unexpected failures and continue.
+        Log.exception_info(e)
 
 
 @Log.trace()

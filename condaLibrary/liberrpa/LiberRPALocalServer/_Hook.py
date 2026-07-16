@@ -22,18 +22,12 @@ def normal_exit() -> None:
     sys.exit(0)
 
 
-def error_exit(e: Exception) -> None:
-    unhook(source="error_quit")
-    Log.exception_info(e)
-    sys.exit(0)
-
-
 # Create hook manager.
 try:
     hm = HookManager()
 except Exception as e:
-    # If it error, directly quit.
-    error_exit(e)
+    Log.exception_info(e)
+    raise SystemExit(1) from e
 
 
 # The event to check whether mouse left or ESC is pressed.
