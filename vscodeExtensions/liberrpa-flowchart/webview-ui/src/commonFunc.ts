@@ -43,7 +43,7 @@ let dictFinal: DictProject = {
 };
 
 export function initDictFinal(documentData: DictProject): void {
-  dictFinal = documentData;
+  dictFinal = JSON.parse(JSON.stringify(documentData)) as DictProject;
 }
 
 function stringifyProject(project: DictProject): string {

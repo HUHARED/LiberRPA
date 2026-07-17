@@ -89,8 +89,7 @@
 </template>
 
 <script setup lang="ts">
-import { watch, ref, onBeforeUnmount } from "vue";
-import { debounce } from "lodash";
+import { watch, ref } from "vue";
 import { useArgsStore } from "../store";
 import type { StoreCustomPrjArg } from "../store";
 import { showAlert, updateLocalData } from "../commonFunc";
@@ -110,7 +109,7 @@ const arrValueCache = ref<string[]>(
   argsStore.customPrjArgs.map((item: StoreCustomPrjArg) => JSON.stringify(item[1], null, 0))
 );
 
-const syncCustomPrjArgs = debounce((): void => {
+const syncCustomPrjArgs = (): void => {
   arrKeyCache.value = argsStore.customPrjArgs.map(([key]) => stringifyKeyForInput(key));
 
   arrValueCache.value = argsStore.customPrjArgs.map(([, value]) => JSON.stringify(value));
@@ -124,13 +123,9 @@ const syncCustomPrjArgs = debounce((): void => {
     null,
     toCustomPrjArgs(argsStore.customPrjArgs)
   );
-}, 300);
+};
 
 watch(() => argsStore.customPrjArgs, syncCustomPrjArgs, { deep: true });
-
-onBeforeUnmount(() => {
-  syncCustomPrjArgs.cancel();
-});
 
 function toCustomPrjArgs(args: StoreCustomPrjArg[]): CustomPrjArg[] {
   return args.map(([name, value]) => [name, value as JsonValue]);

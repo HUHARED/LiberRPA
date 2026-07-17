@@ -34,7 +34,7 @@ class FlowchartEditorProvider implements vscode.CustomTextEditorProvider {
         webviewOptions: {
           retainContextWhenHidden: true,
         },
-      },
+      }
     );
     return providerRegistration;
   }
@@ -43,13 +43,13 @@ class FlowchartEditorProvider implements vscode.CustomTextEditorProvider {
   public resolveCustomTextEditor(
     document: vscode.TextDocument,
     webviewPanel: vscode.WebviewPanel,
-    _token: vscode.CancellationToken,
+    _token: vscode.CancellationToken
   ): void {
     // Control the local resources that Webview can load.
     const webviewDistUri = vscode.Uri.joinPath(
       this.context.extensionUri,
       "webview-ui",
-      "dist",
+      "dist"
     );
     webviewPanel.webview.options = {
       enableScripts: true,
@@ -58,24 +58,73 @@ class FlowchartEditorProvider implements vscode.CustomTextEditorProvider {
 
     webviewPanel.webview.html = this.getWebviewContent(webviewPanel.webview);
 
-    // Receive message from webview.
-    webviewPanel.webview.onDidReceiveMessage((message: unknown) => {
-      if (!isWebviewMessage(message)) {
-        outputChannel.appendLine(`Ignored invalid webview message.`);
-        return;
-      }
+    let strExpectedWebviewDocumentText: string | undefined;
+    let promiseMessageQueue = Promise.resolve();
 
-      void this.handleWebviewMessage(document, webviewPanel.webview, message).catch(
-        (e: unknown) => {
-          const messageText = e instanceof Error ? e.message : String(e);
-          outputChannel.appendLine(messageText);
-          void vscode.window.showErrorMessage(messageText);
-        },
-      );
-    });
+    const reportError = (e: unknown): void => {
+      const messageText = e instanceof Error ? e.message : String(e);
+      outputChannel.appendLine(messageText);
+      void vscode.window.showErrorMessage(messageText);
+    };
+
+    // Keep messages and document reloads ordered. Catch each task so one failure does not
+    // leave the queue rejected and prevent later user actions from being processed.
+    const enqueueTask = (task: () => Promise<void>): void => {
+      promiseMessageQueue = promiseMessageQueue.then(task).catch(reportError);
+    };
+
+    // Receive message from webview.
+    const messageSubscription = webviewPanel.webview.onDidReceiveMessage(
+      (message: unknown) => {
+        if (!isWebviewMessage(message)) {
+          outputChannel.appendLine(`Ignored invalid webview message.`);
+          return;
+        }
+
+        enqueueTask(async () => {
+          const boolIsUpdate = message.command === "update";
+          if (boolIsUpdate) {
+            strExpectedWebviewDocumentText = message.data;
+          }
+
+          try {
+            await this.handleWebviewMessage(document, webviewPanel.webview, message);
+          } catch (e) {
+            // If an update was rejected, restore the GUI from the actual document instead of leaving it showing data that was never applied.
+            if (boolIsUpdate) {
+              strExpectedWebviewDocumentText = undefined;
+              await this.loadWebviewData(document, webviewPanel.webview);
+            }
+            throw e;
+          }
+        });
+      }
+    );
+
+    // Undo/redo and edits made outside this webview must also be reflected in the GUI.
+    // applyEdit() fires the same event, so ignore only the event caused by our own update.
+    const changeDocumentsSubscription = vscode.workspace.onDidChangeTextDocument(
+      (event) => {
+        if (event.document.uri.toString() !== document.uri.toString()) {
+          return;
+        }
+
+        if (
+          strExpectedWebviewDocumentText !== undefined &&
+          event.document.getText() === strExpectedWebviewDocumentText
+        ) {
+          strExpectedWebviewDocumentText = undefined;
+          return;
+        }
+
+        strExpectedWebviewDocumentText = undefined;
+        enqueueTask(() => this.loadWebviewData(document, webviewPanel.webview));
+      }
+    );
 
     webviewPanel.onDidDispose(() => {
-      // changeDocumentsSubscription.dispose();
+      messageSubscription.dispose();
+      changeDocumentsSubscription.dispose();
     });
   }
 
@@ -85,7 +134,7 @@ class FlowchartEditorProvider implements vscode.CustomTextEditorProvider {
       this.context.extensionUri,
       "webview-ui",
       "dist",
-      "index.html",
+      "index.html"
     );
 
     let html = fs.readFileSync(uriHtml.fsPath, "utf-8");
@@ -94,7 +143,7 @@ class FlowchartEditorProvider implements vscode.CustomTextEditorProvider {
       this.context.extensionUri,
       "webview-ui",
       "dist",
-      "assets",
+      "assets"
     );
 
     const uriAssetsWebview = webview.asWebviewUri(uriAssets).toString();
@@ -115,7 +164,7 @@ class FlowchartEditorProvider implements vscode.CustomTextEditorProvider {
   // Send the file content to webview.
   private async loadWebviewData(
     document: vscode.TextDocument,
-    webview: vscode.Webview,
+    webview: vscode.Webview
   ): Promise<void> {
     const dictProject = parseFlowProjectFromText(document.getText());
 
@@ -150,7 +199,7 @@ class FlowchartEditorProvider implements vscode.CustomTextEditorProvider {
     document: vscode.TextDocument,
     webview: vscode.Webview,
 
-    message: WebviewToExtensionMessage,
+    message: WebviewToExtensionMessage
   ): Promise<void> {
     // Find the related workspace.
     const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);
@@ -217,11 +266,11 @@ class FlowchartEditorProvider implements vscode.CustomTextEditorProvider {
           const modulesText = [
             ...utilsModules.map(
               (mod) =>
-                `from _Utils.${mod} import *  # noqa: F403 - Import project selector variables.\n`,
+                `from _Utils.${mod} import *  # noqa: F403 - Import project selector variables.\n`
             ),
             ...selectorsModules.map(
               (mod) =>
-                `from _Selectors.${mod} import *  # noqa: F403 - Import project selector variables.\n`,
+                `from _Selectors.${mod} import *  # noqa: F403 - Import project selector variables.\n`
             ),
           ];
 
@@ -256,7 +305,7 @@ if __name__ == "__main__":
 
           throw new Error(
             `Could not open or create file: ${strFileSystemPath}\n${strMessageText}`,
-            { cause: e },
+            { cause: e }
           );
         }
 
@@ -265,7 +314,7 @@ if __name__ == "__main__":
 
       case "execute": {
         outputChannel.appendLine(
-          `Execute "${message.data.pyFile}" in ${message.data.executeMode} mode.`,
+          `Execute "${message.data.pyFile}" in ${message.data.executeMode} mode.`
         );
         if (!workspaceFolder) {
           throw new Error("No workspace folder is open.");
@@ -273,14 +322,14 @@ if __name__ == "__main__":
 
         const uriPythonFile = resolveWorkspacePythonFile(
           workspaceFolder,
-          message.data.pyFile,
+          message.data.pyFile
         );
         validatePythonImportSafety(message.data.pyFile);
         const strFileSystemPath = uriPythonFile.fsPath;
 
         if (!fs.existsSync(strFileSystemPath) || !fs.statSync(strFileSystemPath).isFile()) {
           throw new Error(
-            `File does not exist: ${strFileSystemPath}. Create it manually or click the "open" button in the Block node.`,
+            `File does not exist: ${strFileSystemPath}. Create it manually or click the "open" button in the Block node.`
           );
         }
 
@@ -309,7 +358,7 @@ if __name__ == "__main__":
 
         if (!started) {
           throw new Error(
-            `Failed to start Python ${message.data.executeMode}: ${strFileSystemPath}`,
+            `Failed to start Python ${message.data.executeMode}: ${strFileSystemPath}`
           );
         }
 
@@ -318,7 +367,7 @@ if __name__ == "__main__":
 
       case "executeProject": {
         outputChannel.appendLine(
-          `Execute the project in ${message.data.executeMode} mode.`,
+          `Execute the project in ${message.data.executeMode} mode.`
         );
         if (!workspaceFolder) {
           throw new Error("No workspace folder is open.");
@@ -341,12 +390,12 @@ if __name__ == "__main__":
 
         const strProgramTemp = path.join(
           strLiberRPAEnvPath,
-          "envs/pyenv/Lib/site-packages/liberrpa/FlowControl/Run.py",
+          "envs/pyenv/Lib/site-packages/liberrpa/FlowControl/Run.py"
         );
 
         if (!fs.existsSync(strProgramTemp) || !fs.statSync(strProgramTemp).isFile()) {
           throw new Error(
-            `The Python module 'liberrpa' was not installed correctly. Run.py was not found: ${strProgramTemp}`,
+            `The Python module 'liberrpa' was not installed correctly. Run.py was not found: ${strProgramTemp}`
           );
         }
 
@@ -368,7 +417,7 @@ if __name__ == "__main__":
 
         if (!started) {
           throw new Error(
-            `Failed to start Python ${message.data.executeMode}: ${strProgramTemp}`,
+            `Failed to start Python ${message.data.executeMode}: ${strProgramTemp}`
           );
         }
 
