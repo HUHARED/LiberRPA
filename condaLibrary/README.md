@@ -14,7 +14,7 @@ Installing the Python package alone is not enough to set up a complete LiberRPA 
 
 LiberRPA creates a global object to store project-related information.
 
-You can view its implementation in [ProjectFlowInit.py](https://github.com/HUHARED/LiberRPA/condaLibrary/liberrpa/FlowControl/ProjectFlowInit.py).
+You can view its implementation in [ProjectFlowInit.py](https://github.com/HUHARED/LiberRPA/blob/main/condaLibrary/liberrpa/FlowControl/ProjectFlowInit.py).
 
 ```python
 class ProjectArguments:
@@ -39,7 +39,6 @@ In your RPA project, you can use the two global objects—`PrjArgs` and `CustomA
 ```python
 print(PrjArgs)
 print(PrjArgs.elapsedTime)
-print(PrjArgs.customArgs)
 print(PrjArgs.errorObj)
 print(PrjArgs.projectPath)
 print(CustomArgs)
@@ -400,8 +399,6 @@ Use `Ctrl+F` to search them.
   - [Trigger](#trigger)
     - [mouse\_trigger](#mouse_trigger)
     - [keyboard\_trigger](#keyboard_trigger)
-
-
 
 ## Project Values
 
