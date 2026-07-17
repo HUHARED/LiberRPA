@@ -13,6 +13,8 @@ from pathlib import Path
 from typing import Literal
 from datetime import datetime
 
+_INT_OUTLOOK_MAIL_ITEM_CLASS = 43
+
 
 def _add_attachments(
     mailObj: win32com.client.CDispatch,
@@ -161,6 +163,10 @@ def get_email_list(
     searchTextLower = searchText.lower()
 
     for message in messages:
+        # Outlook folders can also contain MeetingItem, ReportItem, and other item types.
+        if message.Class != _INT_OUTLOOK_MAIL_ITEM_CLASS:
+            continue
+
         if searchText:
             # Check if the searchText string is in any of the email properties
             boolMatched = (
@@ -231,7 +237,7 @@ def move_email(account: str, emailObj: win32com.client.CDispatch, folder: str) -
 
     Parameters:
         account: The email account.
-        emailObj: The win32com.client.CDispatch objects to move.
+        emailObj: The win32com.client.CDispatch object to move.
         folder: The name of the folder to move.
     """
     mapi = win32com.client.Dispatch("Outlook.Application").GetNamespace("MAPI")
@@ -265,7 +271,7 @@ def reply_to_email(
     Reply to an email.
 
     Parameters:
-        emailObj: The Outlook email object to reply to.
+        emailObj: The win32com.client.CDispatch object to reply to.
         body: The reply body content.
         bodyFormat: The format of the email body, either "text" or "html".
         attachments: File path or list of file paths to attach. Accepts str or PathLike[str].
@@ -296,7 +302,7 @@ def delete_email(emailObj: win32com.client.CDispatch) -> None:
     Delete an email.
 
     Parameters:
-        emailObj: A win32com.client.CDispatch objects.
+        emailObj: The win32com.client.CDispatch object.
     """
     emailObj.delete()
 
@@ -310,11 +316,11 @@ def download_attachments(
     Download all attachments of an email.
 
     Parameters:
-        emailObj: The Outlook email object.
-        downloadPath: The folder to save downloaded files. Accepts str or PathLike[str].
+        emailObj: The win32com.client.CDispatch object to download its attachments.
+        downloadPath: The folder to save download files. Accepts str or PathLike[str].
 
     Returns:
-        list[str]: Absolute paths of the downloaded attachments.
+        list[str]: A list contains the path of all attachments.
     """
 
     pathDownloadRoot = Path(downloadPath)
@@ -332,9 +338,7 @@ def download_attachments(
 
         if pathFile.name != strAttachmentFileName:
             Log.warning(
-                f"Attachment filename changed from {strAttachmentFileName!r} "
-                f"to {pathFile.name!r} to keep it inside the download folder "
-                f"or avoid overwriting an existing file."
+                f"Attachment filename changed from {strAttachmentFileName!r} to {pathFile.name!r} to keep it inside the download folder or avoid overwriting an existing file."
             )
 
         attachment.SaveAsFile(str(pathFile))
