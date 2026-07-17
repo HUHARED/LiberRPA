@@ -6,7 +6,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
 from liberrpa.Logging import Log
-from typing import Any
+from typing import Any, cast
 from collections.abc import Callable
 import sys
 
@@ -149,7 +149,12 @@ def reverse[T](listObj: list[T]) -> None:
 
 
 @Log.trace()
-def sort(listObj: list[Any], keyFunc: Callable | None = None, reverse: bool = False) -> None:
+def sort[T](
+    listObj: list[T],
+    *,
+    keyFunc: Callable[[T], Any] | None = None,
+    reverse: bool = False,
+) -> None:
     """
     Sort the items in a list.
 
@@ -158,4 +163,7 @@ def sort(listObj: list[Any], keyFunc: Callable | None = None, reverse: bool = Fa
         keyFunc: Optional function to specify the sort order.
         reverse: If True, sort in descending order.
     """
-    listObj.sort(key=keyFunc, reverse=reverse)
+    if keyFunc is None:
+        cast(list[Any], listObj).sort(reverse=reverse)
+    else:
+        listObj.sort(key=keyFunc, reverse=reverse)
