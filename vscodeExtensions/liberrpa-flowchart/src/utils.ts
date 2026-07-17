@@ -6,11 +6,6 @@ import type { WebviewToExtensionMessage } from "./interface";
 import { isExecuteMode, parseFlowProjectFromText } from "./checkFlowchart";
 import { getRiskyPyModuleNameReason } from "./riskyPyModuleNames";
 
-export const outputChannel = vscode.window.createOutputChannel("liberrpa-flowchart");
-// Show the output channel automatically during development.
-// Remove this before publishing if it becomes too intrusive.
-outputChannel.show(true);
-
 export function isWebviewMessage(value: unknown): value is WebviewToExtensionMessage {
   if (!value || typeof value !== "object") {
     return false;
@@ -57,7 +52,7 @@ export function validatePythonImportSafety(pyFile: string): void {
 
 export function validateProjectBlockPythonFiles(
   workspaceFolder: vscode.WorkspaceFolder,
-  document: vscode.TextDocument,
+  document: vscode.TextDocument
 ): void {
   const dictProject = parseFlowProjectFromText(document.getText());
 
@@ -82,7 +77,7 @@ export function validateProjectBlockPythonFiles(
 
 export function resolveWorkspacePythonFile(
   workspaceFolder: vscode.WorkspaceFolder,
-  pyFile: string,
+  pyFile: string
 ): vscode.Uri {
   const strInput = pyFile.trim();
 
@@ -124,7 +119,7 @@ export function resolveWorkspacePythonFile(
 
     if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(strNameWithoutExt)) {
       throw new Error(
-        `Invalid Python module name "${strNameWithoutExt}" in path: ${pyFile}`,
+        `Invalid Python module name "${strNameWithoutExt}" in path: ${pyFile}`
       );
     }
   }

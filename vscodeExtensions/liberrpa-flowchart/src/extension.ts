@@ -3,8 +3,8 @@ import * as vscode from "vscode";
 import * as path from "path";
 import * as fs from "fs";
 import type { DictProjectForWebview, WebviewToExtensionMessage } from "./interface";
+import { log } from "./output";
 import {
-  outputChannel,
   isWebviewMessage,
   resolveWorkspacePythonFile,
   validatePythonImportSafety,
@@ -13,13 +13,16 @@ import {
 import { parseFlowProjectFromText } from "./checkFlowchart";
 
 export function activate(context: vscode.ExtensionContext): void {
-  outputChannel.appendLine('"liberrpa-flowchart" is now active.');
+  // Let vscode manage log's lifecycle.
+  context.subscriptions.push(log);
+
+  log.info('"liberrpa-flowchart" is now active.');
 
   context.subscriptions.push(FlowchartEditorProvider.register(context));
 }
 
 export function deactivate(): void {
-  outputChannel.appendLine('"liberrpa-flowchart" is now deactivated.');
+  log.info('"liberrpa-flowchart" is now deactivated.');
 }
 
 class FlowchartEditorProvider implements vscode.CustomTextEditorProvider {
@@ -63,7 +66,7 @@ class FlowchartEditorProvider implements vscode.CustomTextEditorProvider {
 
     const reportError = (e: unknown): void => {
       const messageText = e instanceof Error ? e.message : String(e);
-      outputChannel.appendLine(messageText);
+      log.error(messageText);
       void vscode.window.showErrorMessage(messageText);
     };
 
@@ -77,7 +80,7 @@ class FlowchartEditorProvider implements vscode.CustomTextEditorProvider {
     const messageSubscription = webviewPanel.webview.onDidReceiveMessage(
       (message: unknown) => {
         if (!isWebviewMessage(message)) {
-          outputChannel.appendLine(`Ignored invalid webview message.`);
+          log.warn(`Ignored invalid webview message.`);
           return;
         }
 
@@ -206,7 +209,7 @@ class FlowchartEditorProvider implements vscode.CustomTextEditorProvider {
 
     switch (message.command) {
       case "ready": {
-        outputChannel.appendLine("Webview is ready. Loading flow data.");
+        log.debug("Webview is ready. Loading flow data.");
         await this.loadWebviewData(document, webview);
         break;
       }
@@ -217,7 +220,7 @@ class FlowchartEditorProvider implements vscode.CustomTextEditorProvider {
       }
 
       case "open": {
-        outputChannel.appendLine(`Open ${message.path}`);
+        log.debug(`Open ${message.path}`);
 
         if (!workspaceFolder) {
           throw new Error("No workspace folder is open.");
@@ -313,9 +316,7 @@ if __name__ == "__main__":
       }
 
       case "execute": {
-        outputChannel.appendLine(
-          `Execute "${message.data.pyFile}" in ${message.data.executeMode} mode.`
-        );
+        log.debug(`Execute "${message.data.pyFile}" in ${message.data.executeMode} mode.`);
         if (!workspaceFolder) {
           throw new Error("No workspace folder is open.");
         }
@@ -366,9 +367,7 @@ if __name__ == "__main__":
       }
 
       case "executeProject": {
-        outputChannel.appendLine(
-          `Execute the project in ${message.data.executeMode} mode.`
-        );
+        log.debug(`Execute the project in ${message.data.executeMode} mode.`);
         if (!workspaceFolder) {
           throw new Error("No workspace folder is open.");
         }
