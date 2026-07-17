@@ -11,7 +11,6 @@
     "Visualization"
   ],
   "activationEvents": [
-    "onLanguage:python",
     "workspaceContains:./project.flow"
   ],
   "main": "./dist/extension.js",
