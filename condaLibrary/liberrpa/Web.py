@@ -11,6 +11,7 @@ from liberrpa.Common._TypedValue import StrPath
 
 import requests
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 import re
 from urllib.parse import urlparse
 import os
@@ -127,41 +128,65 @@ def download_file(
     Returns:
         str: The absolute path of the downloaded file.
     """
-    response = requests.get(
-        url=url, params=params, headers=_dictHeaders, cookies=_dictCookies, stream=stream, timeout=timeout
-    )
+    pathFolder = Path(folderPath)
+    pathFolder.mkdir(parents=True, exist_ok=True)
 
-    response.raise_for_status()
+    pathTemp: Path | None = None
 
-    # Extract filename from Content-Disposition header if available
-    contentDisposition = response.headers.get("Content-Disposition")
+    with requests.get(
+        url=url,
+        params=params,
+        headers=_dictHeaders,
+        cookies=_dictCookies,
+        stream=stream,
+        timeout=timeout,
+    ) as response:
+        response.raise_for_status()
 
-    if contentDisposition:
-        # If 'Content-Disposition' is provided and contains a filename, extract it
-        listFileName = re.findall('filename="(.+)"', contentDisposition)
-        strFileName = listFileName[0] if listFileName else "download.file"
-    else:
-        # Fallback to extracting the filename from the URL path
-        strFileName = os.path.basename(urlparse(url).path) or "download.file"
+        # Extract filename from Content-Disposition header if available.
+        contentDisposition = response.headers.get("Content-Disposition")
 
-    # Create the target folder if it doesn't exist.
-    Path(folderPath).mkdir(parents=True, exist_ok=True)
-
-    strFilePath = Path(folderPath).joinpath(sanitize_filename(strFileName))
-
-    if not overwrite and Path(strFilePath).is_file():
-        raise FileExistsError(f"There is a file in the destination path: {Path(strFilePath).resolve()}")
-
-    with open(file=strFilePath, mode="wb") as fileObj:
-        if stream:
-            # If streaming is enabled, write the file in chunks
-            for chunk in response.iter_content(chunk_size=8192):
-                fileObj.write(chunk)
+        if contentDisposition:
+            # If 'Content-Disposition' is provided and contains a filename, extract it
+            listFileName = re.findall('filename="(.+)"', contentDisposition)
+            strFileName = listFileName[0] if listFileName else "download.file"
         else:
-            # If streaming is not enabled, write the entire content at once
-            fileObj.write(response.content)
+            # Fallback to extracting the filename from the URL path
+            strFileName = os.path.basename(urlparse(url).path) or "download.file"
 
-    return str(strFilePath.absolute())
+        pathFile = pathFolder / sanitize_filename(strFileName)
+
+        if not overwrite and pathFile.exists():
+            raise FileExistsError(f"There is a file in the destination path: {pathFile.resolve()}")
+
+        try:
+            with NamedTemporaryFile(
+                mode="wb",
+                dir=pathFolder,
+                prefix=f".{pathFile.name}.",
+                suffix=".tmp",
+                delete=False,
+            ) as fileObj:
+                pathTemp = Path(fileObj.name)
+
+                if stream:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        if chunk:
+                            fileObj.write(chunk)
+                else:
+                    fileObj.write(response.content)
+
+            # Check again in case another process created the destination while downloading.
+            if not overwrite and pathFile.exists():
+                raise FileExistsError(f"There is a file in the destination path: {pathFile.resolve()}")
+
+            os.replace(pathTemp, pathFile)
+            pathTemp = None
+        finally:
+            if pathTemp is not None:
+                pathTemp.unlink(missing_ok=True)
+
+    return str(pathFile.absolute())
 
 
 @Log.trace()
