@@ -11,6 +11,7 @@ from liberrpa.Common._TypedValue import DictTextBlock, StrPath
 from liberrpa.Common._BasicConfig import get_liberrpa_folder_path
 
 import os
+from threading import Lock
 
 """
 If EasyOCR throws this error:
@@ -27,6 +28,7 @@ type TypeOfOcrConfig = dict[str, list[str]]
 type TypeOfOcrSettings = dict[str, bool]
 
 _dictReaderCache = {}  # dict[str, easyocr.Reader]
+_lockReaderCache = Lock()
 
 
 def _load_ocr_config() -> tuple[TypeOfOcrConfig, TypeOfOcrSettings]:
@@ -88,30 +90,38 @@ def _apply_ocr_runtime_settings(dictSettings: TypeOfOcrSettings) -> None:
 
 @Log.trace()
 def _initialize() -> None:
+    global _dictReaderCache
 
-    dictOcrConfig, dictOcrSettings = _load_ocr_config()
-    _apply_ocr_runtime_settings(dictSettings=dictOcrSettings)
+    with _lockReaderCache:
+        if _dictReaderCache:
+            return
 
-    import easyocr
+        dictOcrConfig, dictOcrSettings = _load_ocr_config()
+        _apply_ocr_runtime_settings(dictSettings=dictOcrSettings)
 
-    strLiberRPAPath = get_liberrpa_folder_path()
+        import easyocr
 
-    for strModelName, listLang in dictOcrConfig.items():
-        _dictReaderCache[strModelName] = easyocr.Reader(
-            lang_list=listLang,
-            gpu=False,
-            model_storage_directory=os.path.join(strLiberRPAPath, R"envs\ocr\model"),
-            user_network_directory=os.path.join(strLiberRPAPath, R"envs\ocr\model\CustomModel"),
-            detect_network="craft",
-            recog_network=strModelName,
-            download_enabled=False,
-            detector=True,
-            recognizer=True,
-            verbose=False,
-            quantize=True,
-            cudnn_benchmark=False,
-        )
-        Log.debug(f"Create {strModelName} model.")
+        strLiberRPAPath = get_liberrpa_folder_path()
+        dictReaderCache = {}
+
+        for strModelName, listLang in dictOcrConfig.items():
+            dictReaderCache[strModelName] = easyocr.Reader(
+                lang_list=listLang,
+                gpu=False,
+                model_storage_directory=os.path.join(strLiberRPAPath, R"envs\ocr\model"),
+                user_network_directory=os.path.join(strLiberRPAPath, R"envs\ocr\model\CustomModel"),
+                detect_network="craft",
+                recog_network=strModelName,
+                download_enabled=False,
+                detector=True,
+                recognizer=True,
+                verbose=False,
+                quantize=True,
+                cudnn_benchmark=False,
+            )
+            Log.debug(f"Create {strModelName} model.")
+
+        _dictReaderCache = dictReaderCache
 
 
 @Log.trace()
@@ -120,7 +130,7 @@ def get_text_with_position(
     modelName: str = "english_default",
     min_size: int = 10,
     low_text: float = 0.4,
-    mag_ratio: int = 1,
+    mag_ratio: float = 1,
     add_margin: float = 0.2,
     decoder: str = "greedy",
     beamWidth: int = 5,
@@ -257,7 +267,7 @@ def get_text(
     modelName: str = "english_default",
     min_size: int = 10,
     low_text: float = 0.4,
-    mag_ratio: int = 1,
+    mag_ratio: float = 1,
     add_margin: float = 0.2,
     decoder: str = "greedy",
     beamWidth: int = 5,
@@ -315,8 +325,6 @@ def get_text(
     Returns:
         str: The extracted text as a single string.
     """
-
-    global _dictReaderCache
 
     if len(_dictReaderCache.keys()) == 0:
         _initialize()
