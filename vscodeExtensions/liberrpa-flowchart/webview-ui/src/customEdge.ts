@@ -213,7 +213,7 @@ function calculateTextPosition(
     position.y = intY2 < intY1 ? intY1 - 40 : intY1 + 40;
     position.x = intX1;
   } else {
-    // y1 === y2，Horizontal direction
+    // y1 === y2, Horizontal direction
     position.x = intX2 < intX1 ? intX1 - 40 : intX1 + 40;
     position.y = intY1;
   }

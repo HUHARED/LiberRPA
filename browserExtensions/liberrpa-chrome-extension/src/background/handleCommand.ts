@@ -8,7 +8,7 @@ _WebSocket.py
 Python Client Layer：Send command to Local Server and wait the result
 
 _ListenerSocketChrome.py
-Local Server Layer：Add an id in command，transfer it to Chrome extension, then wait the result with id.
+Local Server Layer：Add an id in command, transfer it to Chrome extension, then wait the result with id.
 
 Chrome extension
 socketFun.ts -> handleCommand.ts -> tabFunc.ts(backgound) / content
