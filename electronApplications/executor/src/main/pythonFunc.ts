@@ -1,6 +1,6 @@
 // FileName: pythonFunc.ts
 
-import { spawn, ChildProcessWithoutNullStreams } from "child_process";
+import type { spawn, ChildProcessWithoutNullStreams } from "child_process";
 import path from "path";
 import fs from "fs";
 import moment from "moment";
@@ -9,7 +9,7 @@ import { loggerMain } from "./logger";
 import { strExecutorPackageFolderPath } from "./fileFunc";
 import { dbInsertHistoryDetail, dbUpdateHistoryDetail } from "./database";
 import { strPyEnvPath } from "./commonFunc";
-import { DictColumns_Project_Detail_Run } from "../shared/interface";
+import type { DictColumns_Project_Detail_Run } from "../shared/interface";
 
 const dictProcessCache: { [key: string]: ChildProcessWithoutNullStreams } = {};
 const strRunFilePath = path.join(
@@ -104,22 +104,25 @@ export async function pythonRun(
   let timeoutId: NodeJS.Timeout | undefined;
   if (dictDetail.timeout_min !== 0) {
     loggerMain.info(`Set timeout: ${dictDetail.timeout_min}`);
-    timeoutId = setTimeout(() => {
-      // Is the Python program is running.
-      if (processPy) {
-        loggerMain.info(
-          `Timeout reached. Killing ${dictDetail["name"]}-${dictDetail["version"]}`
-        );
-        try {
-          processPy.stdin.write("Executor-terminated\n");
-          processPy.stdin.end();
-        } catch (e) {
-          loggerMain.error(`Failed to send shutdown signal to Python process: ${e}`);
-        }
+    timeoutId = setTimeout(
+      () => {
+        // Is the Python program is running.
+        if (processPy) {
+          loggerMain.info(
+            `Timeout reached. Killing ${dictDetail["name"]}-${dictDetail["version"]}`
+          );
+          try {
+            processPy.stdin.write("Executor-terminated\n");
+            processPy.stdin.end();
+          } catch (e) {
+            loggerMain.error(`Failed to send shutdown signal to Python process: ${e}`);
+          }
 
-        boolTimeout = true;
-      }
-    }, dictDetail.timeout_min * 60 * 1000);
+          boolTimeout = true;
+        }
+      },
+      dictDetail.timeout_min * 60 * 1000
+    );
   }
 
   /* When the Python process closed. */

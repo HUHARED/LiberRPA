@@ -158,6 +158,7 @@ async function writeOriginalProjectJson(dictProject: {
 }
 
 function getWorkspaceFolder(): vscode.WorkspaceFolder {
+  // Only work for the first workspace.
   const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
   if (!workspaceFolder) {
     throw Error("No workspace folder is open.");

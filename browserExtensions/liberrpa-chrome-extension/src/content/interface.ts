@@ -85,9 +85,7 @@ interface DictLayerPathAttr {
 }
 
 export interface DictFinalAttr
-  extends DictOriginalAttr,
-    DictLayerIndexAttr,
-    DictLayerPathAttr {}
+  extends DictOriginalAttr, DictLayerIndexAttr, DictLayerPathAttr {}
 
 // export type DictLayerIndexAttr = Pick<DictFinalAttr, "childIndex" | "documentIndex">;
 
@@ -191,16 +189,8 @@ export interface DictElementTreeItem {
   children?: DictElementTreeItem[];
 }
 
-/* export interface Position {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-} */
-
 export type MouseButton = "left" | "right" | "middle";
 export type ClickMode = "single_click" | "double_click" | "down" | "up";
-// export type ExecutionMode = "simulate" | "api";
 
 /* Dict Type for content.ts */
 

@@ -1,7 +1,7 @@
 // FileName: rdpSessionFunc.ts
 
 import { is } from "@electron-toolkit/utils";
-import { spawn, ChildProcessWithoutNullStreams } from "child_process";
+import type { spawn, ChildProcessWithoutNullStreams } from "child_process";
 import path from "path";
 
 import { loggerMain } from "./logger";

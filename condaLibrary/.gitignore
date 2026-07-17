@@ -11,7 +11,7 @@
 /snippets/snippets_final.snippets
 /snippets/snippets_log_generated.snippets
 /snippets/api_manifest.json
-/snippets/import_manifest.json
+/snippets/snippets_catalog.json
 /snippets/api.md
 MANIFEST.in
 # setup.py

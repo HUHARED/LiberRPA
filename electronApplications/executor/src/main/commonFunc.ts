@@ -5,7 +5,7 @@ import fs from "fs";
 import * as os from "os";
 import * as jsoncParser from "jsonc-parser";
 
-import { DictBasicConfig, DictExecutorConfig } from "../shared/interface";
+import type { DictBasicConfig, DictExecutorConfig } from "../shared/interface";
 
 export const strDocumentsFolderPath = app.getPath("documents");
 app.setPath("userData", path.join(strDocumentsFolderPath, "LiberRPA/AppData/executor/"));

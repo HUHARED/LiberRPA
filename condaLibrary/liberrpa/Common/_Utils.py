@@ -22,6 +22,8 @@ PROCESS_NAME = multiprocessing.current_process().name
 
 
 """ No function needs it yet. """
+
+
 def _normalize_filepath(filePath: StrPath) -> str:
     """
     Normalize path string for logs/config display.
@@ -68,6 +70,7 @@ def normalize_attachment_paths(attachments: StrPath | list[StrPath] | None) -> l
 
     return [str(Path(attachments).absolute())]
 
+
 def get_attachment_download_path(
     downloadPath: StrPath,
     attachmentFileName: str,
@@ -94,20 +97,15 @@ def get_attachment_download_path(
 
     # This also rejects an existing symlink that points outside downloadPath.
     if pathTarget.parent != pathDownloadRoot:
-        raise ValueError(
-            f"Attachment path escapes the download folder: {attachmentFileName!r}"
-        )
+        raise ValueError(f"Attachment path escapes the download folder: {attachmentFileName!r}")
 
-    pathAvailable = pathTarget
     intSuffix = 1
 
-    while pathAvailable.exists():
-        pathAvailable = pathDownloadRoot / (
-            f"{pathTarget.stem} ({intSuffix}){pathTarget.suffix}"
-        )
+    while pathTarget.exists():
+        pathTarget = pathDownloadRoot / f"{Path(strSafeFileName).stem} ({intSuffix}){Path(strSafeFileName).suffix}"
         intSuffix += 1
 
-    return pathAvailable
+    return pathTarget
 
 
 if __name__ == "__main__":
