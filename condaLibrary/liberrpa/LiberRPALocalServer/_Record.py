@@ -129,7 +129,7 @@ def _create_log_subtitle(folderName: str) -> None:
 
     strSubtitlePath = str(Path(folderName).joinpath("video_record.srt"))
 
-    strLogTotal = Path(strLogPath).read_text()
+    strLogTotal = Path(strLogPath).read_text(encoding="utf-8")
     dictLogSeconds: dict[str, list[str]] = {}
 
     listEachLine = strLogTotal.split("\n")
