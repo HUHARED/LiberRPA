@@ -23,9 +23,6 @@ import uuid
 from multiprocessing import Queue
 from typing import Literal, Any
 
-# Put the qtApp in global, otherwise Python may clean it after create_area() return.
-qtApp = QApplication([])
-
 
 class ScreenPrintObj(str):
     pass
@@ -261,6 +258,9 @@ def run_qt_worker(queueCommand: Queue, queueReturn: Queue) -> None:
     This function runs in a separate process.
     It holds the Qt Event Loop, creates RealScreenPrintObj objects, etc.
     """
+
+    # QApplication belongs to this worker process and must be created in its main thread.
+    qtApp = QApplication([])
 
     # Poll commands without blocking the PyQt event loop
     timer = QTimer()
