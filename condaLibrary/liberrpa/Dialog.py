@@ -7,7 +7,9 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 from liberrpa.Logging import Log
 from liberrpa.Common._WebSocket import send_command
 from liberrpa.Common._Exception import QtError
+from liberrpa.Common._TypedValue import StrPath
 
+import os
 import tkinter as tk
 from tkinter import filedialog, simpledialog, messagebox
 from typing import Literal, overload, get_args
@@ -59,7 +61,7 @@ def show_notification(title: str, message: str, duration: int = 1, wait: bool = 
 
 @Log.trace()
 def open_file(
-    folder: None | str = None,
+    folder: StrPath | None = None,
     title: str = "open a file",
     filetypes: FileTypes | None = None,
 ) -> str:
@@ -68,7 +70,7 @@ def open_file(
     A Value Error will be raised if no file selected.
 
     Parameters:
-        folder: The directory that the dialog opens in. If None, defaults to the current working directory.
+        folder: The directory that the dialog opens in. Accepts str or PathLike[str]. If None, defaults to the current working directory.
         title: The title of the dialog window.
         filetypes: A list of tuples defining the file types to display. Each tuple contains a descriptive string and a file pattern, e.g., ("Text Files", "*.txt") where "Text Files" is the option's name, and "*.txt" filters all .txt files. If None, all files are shown.
 
@@ -81,6 +83,7 @@ def open_file(
     root = tk.Tk()
     root.withdraw()
 
+    folder = os.fspath(folder) if folder is not None else None
     strFilePath = filedialog.askopenfilename(initialdir=folder, title=title, filetypes=filetypes)
     root.destroy()
 
@@ -91,7 +94,7 @@ def open_file(
 
 @Log.trace()
 def open_files(
-    folder: None | str = None,
+    folder: StrPath | None = None,
     title: str = "open files",
     filetypes: FileTypes | None = None,
 ) -> list[str]:
@@ -100,7 +103,7 @@ def open_files(
     A Value Error will be raised if no files selected.
 
     Parameters:
-        folder: The directory that the dialog opens in. If None, defaults to the current working directory.
+        folder: The directory that the dialog opens in. Accepts str or PathLike[str]. If None, defaults to the current working directory.
         title: The title of the dialog window.
         filetypes: A list of tuples defining the file types to display. Each tuple contains a descriptive string and a file pattern, e.g., ("Text Files", "*.txt") where "Text Files" is the option's name, and "*.txt" filters all .txt files. If None, all files are shown.
 
@@ -113,6 +116,7 @@ def open_files(
     root = tk.Tk()
     root.withdraw()
 
+    folder = os.fspath(folder) if folder is not None else None
     listFilePath = filedialog.askopenfilenames(initialdir=folder, title=title, filetypes=filetypes)
     root.destroy()
     if len(listFilePath) == 0:
@@ -122,7 +126,7 @@ def open_files(
 
 @Log.trace()
 def save_as(
-    folder: None | str = None,
+    folder: StrPath | None = None,
     title: str = "save as",
     filetypes: FileTypes | None = None,
 ) -> str:
@@ -131,7 +135,7 @@ def save_as(
     A Value Error will be raised if no file name specified.
 
     Parameters:
-        folder: The directory that the dialog opens in. If None, defaults to the current working directory.
+        folder: The directory that the dialog opens in. Accepts str or PathLike[str]. If None, defaults to the current working directory.
         title: The title of the dialog window.
         filetypes: A list of tuples defining the file types to display. Each tuple contains a descriptive string and a file pattern, e.g., ("Text Files", "*.txt") where "Text Files" is the option's name, and "*.txt" filters all .txt files. If None, all files are shown.
 
@@ -144,6 +148,7 @@ def save_as(
     root = tk.Tk()
     root.withdraw()
 
+    folder = os.fspath(folder) if folder is not None else None
     strFilePath = filedialog.asksaveasfilename(initialdir=folder, title=title, filetypes=filetypes)
     root.destroy()
     if not strFilePath:
