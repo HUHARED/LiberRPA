@@ -201,7 +201,7 @@ You can modify some config of LiberRPA in `LiberRPA/configFiles/basic.jsonc`.
         ${UserName}: The name of the user currently logged into the system.
         ${HostName}: The computer's hostname.
         ${ToolName}: Don't delete it, it is a flag to control subfolder name in "OutputLog".
-  
+      
         */
 
   // The basic log path for LiberRPA tools.
@@ -212,9 +212,14 @@ You can modify some config of LiberRPA in `LiberRPA/configFiles/basic.jsonc`.
 
   // The default settings of UI Analyzer.
   "uiAnalyzerTheme": "light", // "light" or "dark"
-  "uiAnalyzerMinimizeWindow": false
-}
+  "uiAnalyzerMinimizeWindow": false,
 
+  // The Component Repository directory.
+  // A local directory is recommended.
+  // A shared network directory may be used only if it supports reliable file locking and atomic file operations.
+  // Cloud-synchronized directories such as OneDrive are not recommended as multi-user repositories.
+  "componentRepositoryPath": "C:\\Users\\${UserName}\\Documents\\LiberRPA\\ComponentRepository\\"
+}
 ```
 
 # 🏗️ Dependencies and Acknowledgments

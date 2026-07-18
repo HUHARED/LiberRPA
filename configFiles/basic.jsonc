@@ -17,5 +17,11 @@
 
   // The default settings of UI Analyzer.
   "uiAnalyzerTheme": "light", // "light" or "dark"
-  "uiAnalyzerMinimizeWindow": false
+  "uiAnalyzerMinimizeWindow": false,
+
+  // The Component Repository directory.
+  // A local directory is recommended.
+  // A shared network directory may be used only if it supports reliable file locking and atomic file operations.
+  // Cloud-synchronized directories such as OneDrive are not recommended as multi-user repositories.
+  "componentRepositoryPath": "C:\\Users\\${UserName}\\Documents\\LiberRPA\\ComponentRepository\\"
 }

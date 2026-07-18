@@ -5,6 +5,7 @@ export interface DictBasicConfig {
   localServerPort: number;
   uiAnalyzerTheme: "light" | "dark";
   uiAnalyzerMinimizeWindow: boolean;
+  componentRepositoryPath: string;
 }
 
 export type DictInvokeResult =

@@ -19,6 +19,7 @@ class DictBasicConfig(TypedDict):
     localServerPort: int
     uiAnalyzerTheme: Literal["light", "dark"]
     uiAnalyzerMinimizeWindow: bool
+    componentRepositoryPath: str
 
 
 class DictAuth(TypedDict):
@@ -36,13 +37,21 @@ def _read_basic_config_dict() -> DictBasicConfig:
 
     if (
         isinstance(value, dict)
-        and set(value) == {"outputLogPath", "localServerPort", "uiAnalyzerTheme", "uiAnalyzerMinimizeWindow"}
+        and set(value)
+        == {
+            "outputLogPath",
+            "localServerPort",
+            "uiAnalyzerTheme",
+            "uiAnalyzerMinimizeWindow",
+            "componentRepositoryPath",
+        }
         and isinstance(value.get("outputLogPath"), str)
         and isinstance(value.get("localServerPort"), int)
         and not isinstance(value.get("localServerPort"), bool)
         and 1 <= value["localServerPort"] <= 65535
         and value.get("uiAnalyzerTheme") in ("light", "dark")
         and isinstance(value.get("uiAnalyzerMinimizeWindow"), bool)
+        and isinstance(value.get("componentRepositoryPath"), str)
     ):
         return cast(DictBasicConfig, value)
 

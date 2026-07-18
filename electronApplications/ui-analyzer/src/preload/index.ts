@@ -4,12 +4,12 @@ import type {
   DictBasicConfig,
   DictInvokeResult,
   MainInvokeCommand,
-  RendererLogLevel,
+  RendererLogLevel
 } from "../shared/interface";
 
 const SET_ALLOWED_INVOKE_COMMANDS = new Set<MainInvokeCommand>([
   "cmd-toggle-window",
-  "cmd-toggle-socket-status",
+  "cmd-toggle-socket-status"
 ]);
 
 const SET_ALLOWED_LOG_LEVELS = new Set<RendererLogLevel>([
@@ -19,7 +19,7 @@ const SET_ALLOWED_LOG_LEVELS = new Set<RendererLogLevel>([
   "http",
   "verbose",
   "debug",
-  "silly",
+  "silly"
 ]);
 
 function isDictInvokeResult(value: unknown): value is DictInvokeResult {
@@ -47,7 +47,8 @@ function isDictBasicConfig(value: unknown): value is DictBasicConfig {
     typeof dictValue.outputLogPath === "string" &&
     typeof dictValue.localServerPort === "number" &&
     (dictValue.uiAnalyzerTheme === "light" || dictValue.uiAnalyzerTheme === "dark") &&
-    typeof dictValue.uiAnalyzerMinimizeWindow === "boolean"
+    typeof dictValue.uiAnalyzerMinimizeWindow === "boolean" &&
+    typeof dictValue.componentRepositoryPath === "string"
   );
 }
 
@@ -66,7 +67,7 @@ const uiAnalyzerApi = {
     if (!SET_ALLOWED_LOG_LEVELS.has(level)) {
       ipcRenderer.send("send-from-renderer-log", {
         level: "info",
-        message: `Blocked unknown log level: ${level}`,
+        message: `Blocked unknown log level: ${level}`
       });
       return;
     }
@@ -78,7 +79,7 @@ const uiAnalyzerApi = {
     if (!SET_ALLOWED_INVOKE_COMMANDS.has(command)) {
       return {
         success: false,
-        data: `Blocked IPC command: ${command}`,
+        data: `Blocked IPC command: ${command}`
       };
     }
 
@@ -87,7 +88,7 @@ const uiAnalyzerApi = {
     if (!isDictInvokeResult(result)) {
       return {
         success: false,
-        data: "Invalid IPC response from main process.",
+        data: "Invalid IPC response from main process."
       };
     }
 
@@ -116,7 +117,7 @@ const uiAnalyzerApi = {
     return () => {
       ipcRenderer.off("send-from-main", listener);
     };
-  },
+  }
 };
 
 contextBridge.exposeInMainWorld("uiAnalyzer", uiAnalyzerApi);

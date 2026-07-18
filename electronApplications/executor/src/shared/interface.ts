@@ -3,6 +3,7 @@ export interface DictBasicConfig {
   localServerPort: number;
   uiAnalyzerTheme: "light" | "dark";
   uiAnalyzerMinimizeWindow: boolean;
+  componentRepositoryPath: string;
 }
 
 export interface DictExecutorConfig {
@@ -65,7 +66,8 @@ interface DictColumns_Project_TimeoutAndLog {
 /* Project Local Package */
 
 export interface DictColumns_Project_Detail_DB
-  extends DictColumns_Base,
+  extends
+    DictColumns_Base,
     DictColumns_Project_NeedConvert_DB,
     DictColumns_Project_TimeoutAndLog {
   name: string;
@@ -121,7 +123,8 @@ export type DictColumns_Scheduler_ListItem = Omit<
 };
 
 export interface DictColumns_Scheduler_Detail_DB
-  extends DictColumns_Base,
+  extends
+    DictColumns_Base,
     DictColumns_Scheduler_ListItem_DB,
     DictColumns_Project_NeedConvert_DB,
     DictColumns_Project_TimeoutAndLog {
