@@ -182,7 +182,7 @@ It will search the "window" value first, then sequentially search through each l
 
 pseudo-schema:
 
-```plaintext
+```text
 {
   "window": {
     "ControlTypeName": str,
@@ -267,7 +267,7 @@ Each item in `specification` represents one HTML layer. The search starts from `
 
 In simplified form:
 
-```plaintext
+```text
 document
   -> match specification[0]
     -> match specification[1] under the previous matched element
@@ -306,7 +306,7 @@ Some attributes can be used directly in `querySelectorAll()` as a fast pre-filte
 
 For example:
 
-```plaintext
+```text
 tagName
 id
 className
@@ -320,7 +320,7 @@ disabled
 
 Other attributes are checked after the pre-filter step, for example:
 
-```plaintext
+```text
 value
 href
 src
@@ -363,7 +363,7 @@ The Chrome extension matches the whole value internally, so this:
 
 behaves like:
 
-```plaintext
+```text
 ^Submit$
 ```
 
@@ -459,7 +459,7 @@ In most cases, users should prefer stable attributes such as `id`, `name`, `aria
 
 Some generated attributes are secondary information and are not used as selector fields:
 
-```plaintext
+```text
 secondary-x
 secondary-y
 secondary-width
@@ -489,7 +489,7 @@ When editing an HTML selector manually:
 
 pseudo-schema:
 
-```plaintext
+```text
 {
   "window": {
     "ControlTypeName": str,
@@ -603,7 +603,7 @@ It will search the "window" value first, then search **the only one layer** in "
 
 pseudo-schema:
 
-```plaintext
+```text
 {
   "window": {
     "ControlTypeName": str,
@@ -667,7 +667,7 @@ It will search the "window" value, **have no other sections**.
 
 pseudo-schema:
 
-```plaintext
+```text
 {
   "window": {
     "ControlTypeName": str,
