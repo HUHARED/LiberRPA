@@ -12,7 +12,6 @@ This project template is licensed under the GNU Affero General Public License, e
 
 Anyone who copies, modifies, or incorporates material covered by this license must comply with the applicable terms of the GNU Affero General Public License.
 
-
 ## Folder usage guide
 
 ### Project structure
@@ -21,8 +20,6 @@ Anyone who copies, modifies, or incorporates material covered by this license mu
 Project Root
 ├── .vscode
 │   └── launch.json
-├── _Components
-│   └── .gitkeep
 ├── _Config
 │   └── .gitkeep
 ├── _Screenshots
@@ -34,10 +31,20 @@ Project Root
 ├── _Utils
 │   └── default.py
 ├── .gitignore
+├── flow.json
 ├── LICENSE
 ├── project.flow
 └── README.md
 ```
+
+When the project first adds a Component dependency, LiberRPA Project Manager creates and manages:
+
+```text
+_Components/
+components.lock.json
+```
+
+Do not create, copy, replace, or delete these managed Component files manually.
 
 ### `.vscode/launch.json`
 
@@ -94,12 +101,13 @@ Project Root
   * manual verification code
 * Code in this folder should not be treated as production RPA flow logic.
 
-### `_Components/`
+### `flow.json`
 
-* Reserved for future component/library support.
-* This is a TODO area.
-* Component creation, import, packaging, and version management are not fully implemented yet.
-* Do not rely on this folder for production component management at the moment.
+* Stores the stable Flow Project manifest.
+* Contains the project name, version, description, required `liberrpa` version range, and directly declared Component dependencies.
+* Managed primarily by LiberRPA Project Manager.
+* Do not store runtime state or Flowchart data in this file.
+* Manual editing is possible, but invalid values may prevent the project from being opened, packaged, or restored correctly.
 
 ### `project.flow`
 
@@ -107,6 +115,22 @@ Project Root
 * Stores flowchart and project metadata.
 * Edit it through LiberRPA Flowchart instead of manually editing it.
 * Only edit it manually if you clearly understand its structure.
+
+### Managed Component files
+
+After the project adds its first Component dependency, LiberRPA Project Manager creates:
+
+```text
+_Components/
+components.lock.json
+```
+
+* `components.lock.json` records the exact resolved Component versions and integrity information.
+* `_Components/` contains the Component packages restored from the lock file and local Component Repository.
+* Both are managed by LiberRPA Project Manager.
+* Do not manually copy, overwrite, rename, or delete their contents.
+* If `_Components/` is missing or damaged while the lock file remains valid, use the Component repair function instead of editing it manually.
+* When the project has no Component dependencies, these files normally do not exist.
 
 ### `.gitignore`
 

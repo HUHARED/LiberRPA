@@ -48,7 +48,7 @@ export async function createProject(): Promise<void> {
     // 3. Get project templates
     const strTemplateFolder = path.join(
       process.env["LiberRPA"] as string,
-      "configFiles/ProjectTemplate"
+      "configFiles/ProjectTemplate",
     );
     if (
       !fs.existsSync(strTemplateFolder) ||
@@ -65,7 +65,7 @@ export async function createProject(): Promise<void> {
 
     if (arrTemplates.length === 0) {
       vscode.window.showErrorMessage(
-        "No templates found in the 'LiberRPA/configFiles/ProjectTemplate'."
+        "No templates found in the 'LiberRPA/configFiles/ProjectTemplate'.",
       );
       return;
     }
@@ -83,8 +83,11 @@ export async function createProject(): Promise<void> {
     fs.mkdirSync(strNewProjectPath, { recursive: true });
     const strTemplatePath = path.join(strTemplateFolder, strSelectedTemplate);
     await copyFolder(strTemplatePath, strNewProjectPath);
+
+    initializeFlowManifest(strNewProjectPath, strProjectName);
+
     // If a .gitignore exists, initialize Git.
-    if (fs.existsSync(path.join(strNewProjectPath, "./.gitignore"))) {
+    if (fs.existsSync(path.join(strNewProjectPath, ".gitignore"))) {
       outputChannel.appendLine("Git init.");
       initGit(strNewProjectPath);
     }
@@ -93,12 +96,37 @@ export async function createProject(): Promise<void> {
     await vscode.commands.executeCommand(
       "vscode.openFolder",
       vscode.Uri.file(strNewProjectPath),
-      { forceNewWindow: true }
+      { forceNewWindow: true },
     );
 
     outputChannel.appendLine(`Project "${strProjectName}" created successfully.`);
   } catch (e) {
     vscode.window.showErrorMessage(`Error creating project: ${e}`);
+  }
+}
+
+function initializeFlowManifest(projectPath: string, projectName: string): void {
+  const flowManifestPath = path.join(projectPath, "flow.json");
+
+  // Component Project and other future project types do not use flow.json.
+  if (!fs.existsSync(flowManifestPath)) {
+    return;
+  }
+
+  try {
+    const flowManifest = JSON.parse(
+      fs.readFileSync(flowManifestPath, {
+        encoding: "utf-8",
+      }),
+    ) as Record<string, unknown>;
+
+    flowManifest["name"] = projectName;
+
+    fs.writeFileSync(flowManifestPath, `${JSON.stringify(flowManifest, null, 2)}\n`, {
+      encoding: "utf-8",
+    });
+  } catch (e) {
+    throw new Error(`Failed to initialize flow.json: ${e}`);
   }
 }
 
@@ -115,7 +143,7 @@ async function copyFolder(src: string, dest: string) {
         } else {
           fs.copyFileSync(srcPath, destPath);
         }
-      })
+      }),
     );
   } catch (e) {
     outputChannel.appendLine(`Error copying folder from ${src} to ${dest}: ${e}`);
