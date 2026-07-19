@@ -1,6 +1,8 @@
 // FileName: pythonFunc.ts
 
-import type { spawn, ChildProcessWithoutNullStreams } from "child_process";
+import type { ChildProcessWithoutNullStreams } from "child_process";
+import { spawn } from "child_process";
+import { randomUUID } from "crypto";
 import path from "path";
 import fs from "fs";
 import moment from "moment";
@@ -8,13 +10,31 @@ import moment from "moment";
 import { loggerMain } from "./logger";
 import { strExecutorPackageFolderPath } from "./fileFunc";
 import { dbInsertHistoryDetail, dbUpdateHistoryDetail } from "./database";
-import { strPyEnvPath } from "./commonFunc";
+import { strDocumentsFolderPath, strPyEnvPath } from "./commonFunc";
 import type { DictColumns_Project_Detail_Run } from "../shared/interface";
+
+type ExecutorRunStateStatus = "running" | "completed" | "error" | "terminated";
+type ExecutorHistoryStatus = "cancel" | "completed" | "error" | "timeout";
+
+interface ExecutorRunState {
+  schemaVersion: 1;
+  runId: string;
+  packageName: string;
+  packageVersion: string;
+  startedAt: string;
+  logPath: string;
+  status: ExecutorRunStateStatus;
+  endedAt?: string;
+}
 
 const dictProcessCache: { [key: string]: ChildProcessWithoutNullStreams } = {};
 const strRunFilePath = path.join(
   strPyEnvPath,
   "Lib/site-packages/liberrpa/FlowControl/Run.py"
+);
+const strExecutorRunStateFolderPath = path.join(
+  strDocumentsFolderPath,
+  "LiberRPA/ExecutorRunState"
 );
 
 export async function pythonRun(
@@ -27,28 +47,29 @@ export async function pythonRun(
     `${dictDetail.name}_${dictDetail.version}`
   );
 
-  const strProjectJsonPath = path.join(strExecutorPackagePath, "project.json");
-
-  const boolPackageExists = fs.existsSync(strExecutorPackagePath);
-
-  if (!boolPackageExists) {
+  if (!fs.existsSync(strExecutorPackagePath)) {
     throw new Error(
-      `${dictDetail["name"]}-${dictDetail["version"]} does not exist in ${strExecutorPackageFolderPath}.`
+      `${dictDetail.name}-${dictDetail.version} does not exist in ${strExecutorPackageFolderPath}.`
     );
   }
 
   /* Run python. */
+  const strRunId = randomUUID();
+  const strStartedAt = new Date().toISOString();
+  fs.mkdirSync(strExecutorRunStateFolderPath, { recursive: true });
+  const strRunStatePath = path.join(strExecutorRunStateFolderPath, `${strRunId}.json`);
+
   const processPy = spawn(
     path.join(strPyEnvPath, "python.exe"),
     [
       strRunFilePath,
       "--executor_args",
       JSON.stringify({
-        logLevel: dictDetail["builtin_log_level"],
-        recordVideo: dictDetail["builtin_record_video"],
-        stopShortcut: dictDetail["builtin_stop_shortcut"],
-        highlightUi: dictDetail["builtin_highlight_ui"],
-        customPrjArgs: dictDetail["custom_prj_args"],
+        logLevel: dictDetail.builtin_log_level,
+        recordVideo: dictDetail.builtin_record_video,
+        stopShortcut: dictDetail.builtin_stop_shortcut,
+        highlightUi: dictDetail.builtin_highlight_ui,
+        customPrjArgs: dictDetail.custom_prj_args,
       }),
     ],
     {
@@ -56,6 +77,11 @@ export async function pythonRun(
       // Follow the values in os.environ.get("PATH") and os.environ.get("PYTHONPATH") when run it in vscode.
       env: {
         ...process.env,
+        LIBERRPA_RUN_STARTED_AT: strStartedAt,
+        LIBERRPA_EXECUTOR_RUN_ID: strRunId,
+        LIBERRPA_EXECUTOR_RUN_STATE_PATH: strRunStatePath,
+        LIBERRPA_EXECUTOR_PACKAGE_NAME: dictDetail.name,
+        LIBERRPA_EXECUTOR_PACKAGE_VERSION: dictDetail.version,
         PATH: [
           strPyEnvPath,
           path.join(strPyEnvPath, "Library", "mingw-w64", "bin"),
@@ -75,11 +101,14 @@ export async function pythonRun(
     }
   );
 
-  // Get lastStartUpTime, logPath from project.json(when "executorPackageStatus" is "running").
-  await waitForProjectJsonValueRunning(strProjectJsonPath);
-  loggerMain.debug("executorPackageStatus is 'running'.");
-
-  const dictProject = readProjectJson(strProjectJsonPath);
+  const dictRunState = await waitForExecutorRunStateAvailable({
+    filePath: strRunStatePath,
+    processPy,
+    expectedRunId: strRunId,
+    expectedPackageName: dictDetail.name,
+    expectedPackageVersion: dictDetail.version,
+  });
+  loggerMain.debug(`Executor run state is available: ${strRunId}`);
 
   // Insert data into database. Only "local" source now.
   const intHistoryId = dbInsertHistoryDetail({
@@ -88,14 +117,10 @@ export async function pythonRun(
     project_id: dictDetail.id,
     project_name: dictDetail.name,
     project_version: dictDetail.version,
-    run_start: `${dictProject["lastStartUpTime"].slice(0, 10)} ${dictProject[
-      "lastStartUpTime"
-    ].slice(11, 13)}:${dictProject["lastStartUpTime"].slice(13, 15)}:${dictProject[
-      "lastStartUpTime"
-    ].slice(15, 17)}`,
-    status: dictProject["executorPackageStatus"] as "running",
-    log_path: dictProject["logPath"],
-  })["lastInsertRowid"];
+    run_start: moment(dictRunState.startedAt).format("YYYY-MM-DD HH:mm:ss"),
+    status: "running",
+    log_path: dictRunState.logPath,
+  }).lastInsertRowid as number;
 
   dictProcessCache[String(intHistoryId)] = processPy;
 
@@ -107,18 +132,17 @@ export async function pythonRun(
     timeoutId = setTimeout(
       () => {
         // Is the Python program is running.
-        if (processPy) {
+        if (processPy.exitCode === null && processPy.signalCode === null) {
           loggerMain.info(
-            `Timeout reached. Killing ${dictDetail["name"]}-${dictDetail["version"]}`
+            `Timeout reached. Stopping ${dictDetail.name}-${dictDetail.version}`
           );
           try {
             processPy.stdin.write("Executor-terminated\n");
             processPy.stdin.end();
+            boolTimeout = true;
           } catch (e) {
             loggerMain.error(`Failed to send shutdown signal to Python process: ${e}`);
           }
-
-          boolTimeout = true;
         }
       },
       dictDetail.timeout_min * 60 * 1000
@@ -126,77 +150,161 @@ export async function pythonRun(
   }
 
   /* When the Python process closed. */
-  processPy.on("close", (code) => {
-    loggerMain.info(
-      `${dictDetail["name"]}-${dictDetail["version"]} exited with code ${code}`
-    );
+  let boolFinalized = false;
+  const finalize = (code: number | null): void => {
+    if (boolFinalized) {
+      return;
+    }
+    boolFinalized = true;
+
+    loggerMain.info(`${dictDetail.name}-${dictDetail.version} exited with code ${code}`);
 
     if (timeoutId) {
       clearTimeout(timeoutId);
     }
 
-    // Get data from project.json, modify executorPackageStatus if it's "running" or "terminated"
+    let strHistoryStatus: ExecutorHistoryStatus = "error";
 
-    const dictProject = readProjectJson(strProjectJsonPath);
-    if (dictProject["executorPackageStatus"] === "terminated" && boolTimeout) {
-      dictProject["executorPackageStatus"] = "timeout";
-    } else if (dictProject["executorPackageStatus"] === "terminated") {
-      dictProject["executorPackageStatus"] = "cancel";
-    } else if (dictProject["executorPackageStatus"] === "running") {
-      dictProject["executorPackageStatus"] = "completed";
+    try {
+      const dictFinalState = readExecutorRunState({
+        filePath: strRunStatePath,
+        expectedRunId: strRunId,
+        expectedPackageName: dictDetail.name,
+        expectedPackageVersion: dictDetail.version,
+      });
+
+      switch (dictFinalState.status) {
+        case "completed":
+          strHistoryStatus = "completed";
+          break;
+
+        case "error":
+          strHistoryStatus = "error";
+          break;
+
+        case "terminated":
+          strHistoryStatus = boolTimeout ? "timeout" : "cancel";
+          break;
+
+        case "running":
+          loggerMain.error(
+            `Python exited before publishing a final Executor run state: ${strRunId}`
+          );
+          strHistoryStatus = "error";
+          break;
+      }
+    } catch (e) {
+      loggerMain.error(`Failed to read final Executor run state: ${e}`);
     }
-    fs.writeFileSync(strProjectJsonPath, JSON.stringify(dictProject, null, 4), {
-      encoding: "utf-8",
-    });
 
     // Update database
     dbUpdateHistoryDetail({
-      id: intHistoryId as number,
+      id: intHistoryId,
       run_end: moment(new Date()).format("YYYY-MM-DD HH:mm:ss"),
-      status: dictProject["executorPackageStatus"] as
-        | "cancel"
-        | "completed"
-        | "error"
-        | "timeout",
+      status: strHistoryStatus,
     });
 
     // Remove cache.
     delete dictProcessCache[String(intHistoryId)];
 
     webContentsObj.send("send-from-main", "pythonResult:taskEnd");
-  });
+  };
 
-  // End the function but the "close" listener will still run until the Python process object deleted.
-  return;
+  processPy.once("close", finalize);
+
+  // The process may have exited after the initial state was read but before the listener was registered.
+  if (processPy.exitCode !== null || processPy.signalCode !== null) {
+    finalize(processPy.exitCode);
+  }
 }
 
-function readProjectJson(filePath: string): { [key: string]: string } {
+function readExecutorRunState({
+  filePath,
+  expectedRunId,
+  expectedPackageName,
+  expectedPackageVersion,
+}: {
+  filePath: string;
+  expectedRunId: string;
+  expectedPackageName: string;
+  expectedPackageVersion: string;
+}): ExecutorRunState {
   const strContent = fs.readFileSync(filePath, { encoding: "utf-8" });
-  const dictProject: { [key: string]: string } = JSON.parse(strContent);
-  console.log("dictProject=", JSON.stringify(dictProject));
+  const value: unknown = JSON.parse(strContent);
 
-  return dictProject;
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error("Executor run state must be a JSON object.");
+  }
+
+  const dictState = value as Partial<ExecutorRunState>;
+  const setValidStatus = new Set<ExecutorRunStateStatus>([
+    "running",
+    "completed",
+    "error",
+    "terminated",
+  ]);
+
+  if (
+    dictState.schemaVersion !== 1 ||
+    dictState.runId !== expectedRunId ||
+    dictState.packageName !== expectedPackageName ||
+    dictState.packageVersion !== expectedPackageVersion ||
+    typeof dictState.startedAt !== "string" ||
+    Number.isNaN(Date.parse(dictState.startedAt)) ||
+    typeof dictState.logPath !== "string" ||
+    dictState.logPath.length === 0 ||
+    typeof dictState.status !== "string" ||
+    !setValidStatus.has(dictState.status as ExecutorRunStateStatus) ||
+    (dictState.endedAt !== undefined &&
+      (typeof dictState.endedAt !== "string" ||
+        Number.isNaN(Date.parse(dictState.endedAt))))
+  ) {
+    throw new Error(`Invalid Executor run state: ${filePath}`);
+  }
+
+  return dictState as ExecutorRunState;
 }
 
-async function waitForProjectJsonValueRunning(filePath: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const intInterval = 1000;
-    let intElapsed = 0;
+async function waitForExecutorRunStateAvailable({
+  filePath,
+  processPy,
+  expectedRunId,
+  expectedPackageName,
+  expectedPackageVersion,
+}: {
+  filePath: string;
+  processPy: ChildProcessWithoutNullStreams;
+  expectedRunId: string;
+  expectedPackageName: string;
+  expectedPackageVersion: string;
+}): Promise<ExecutorRunState> {
+  const intInterval = 250;
+  const intTimeout = 15 * 1000;
+  let intElapsed = 0;
 
-    const intervalId = setInterval(() => {
-      const dictProject = readProjectJson(filePath);
+  while (intElapsed < intTimeout) {
+    if (fs.existsSync(filePath)) {
+      const dictState = readExecutorRunState({
+        filePath,
+        expectedRunId,
+        expectedPackageName,
+        expectedPackageVersion,
+      });
 
-      if (dictProject["executorPackageStatus"] === "running") {
-        clearInterval(intervalId);
-        resolve();
-      }
-      intElapsed += intInterval;
-      if (intElapsed >= 15 * 1000) {
-        clearInterval(intervalId);
-        reject(new Error("Timeout waiting for executorPackageStatus to be running"));
-      }
-    }, intInterval);
-  });
+      return dictState;
+    }
+
+    if (processPy.exitCode !== null || processPy.signalCode !== null) {
+      throw new Error(
+        `Python exited before publishing the initial Executor run state: ${expectedRunId}`
+      );
+    }
+
+    await new Promise<void>((resolve) => setTimeout(resolve, intInterval));
+    intElapsed += intInterval;
+  }
+
+  throw new Error(`Timeout waiting for the initial Executor run state: ${expectedRunId}`);
 }
 
 export function pythonCancel(
@@ -216,7 +324,7 @@ export function pythonCancel(
   loggerMain.error(`${historyId} has closed.`);
 
   dbUpdateHistoryDetail({
-    id: historyId as number,
+    id: historyId,
     run_end: "unknown",
     status: "cancel",
   });

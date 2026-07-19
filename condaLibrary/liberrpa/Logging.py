@@ -10,14 +10,22 @@ It is expected to be imported at RPA project startup.
 """
 import liberrpa.Common._Initialization  # noqa: F401  # Import for LiberRPA project initialization side effects.
 
+
 from liberrpa.Common._Utils import (
-    PATH_PROJECT_ROOT,
     STR_PROJECT_ROOT,
-    PATH_PROJECT_JSON,
     PATH_PROJECT_FLOW,
     PROCESS_NAME,
 )
-from liberrpa.Common._BasicConfig import get_basic_config_dict, get_liberrpa_folder_path
+from liberrpa.Common._BasicConfig import (
+    BasicConfigToolName,
+    get_basic_config_dict,
+    get_liberrpa_folder_path,
+)
+from liberrpa.Common._RunContext import (
+    get_executor_run_context,
+    get_or_create_run_started_at,
+    write_executor_run_state,
+)
 from liberrpa.Common._Exception import get_exception_info
 
 import os
@@ -254,7 +262,7 @@ class ColoredConsoleFormatter(logging.Formatter):
 
 class Logger:
     def __init__(self) -> None:
-        self.dictBasicConfig = get_basic_config_dict()
+
         self.dictCustomLogPart: dict[str, str] = {}
         self.dictLevel = {
             "VERBOSE": VERBOSE_LEVEL_NUM,
@@ -265,81 +273,72 @@ class Logger:
             "CRITICAL": logging.CRITICAL,
         }
 
-        # Creates a time-based folder for logs specific to the current project.
-
-        dictProject = cast(dict[str, Any], json5.loads(PATH_PROJECT_JSON.read_text(encoding="utf-8")))
-
+        strToolName: BasicConfigToolName
         strLogFolderName = os.getenv("LogFolderName")
+        dictExecutorRunContext = None if strLogFolderName is not None else get_executor_run_context()
+        datetimeStartedAt = get_or_create_run_started_at()
+        strStartedAtFolderName = datetimeStartedAt.strftime("%Y-%m-%d_%H%M%S_%f")
+
         if strLogFolderName is not None:
+            strToolName = "BuiltInTools"
             self.strProjectName = strLogFolderName
             print("Set log folder name:", strLogFolderName)
 
-        elif dictProject.get("executorPackage"):
-            # Executor package's name is not the project name, use data in project.json
-            self.strProjectName = dictProject["executorPackageName"]
+        elif dictExecutorRunContext is not None:
+            strToolName = "Executor"
+            self.strProjectName = dictExecutorRunContext.packageName
 
         else:
+            strToolName = "Editor"
             self.strProjectName = os.path.basename(STR_PROJECT_ROOT)
 
-        # If it's an Executor package, add version subfolder.
-        if dictProject.get("executorPackage"):
+        self.dictBasicConfig = get_basic_config_dict(toolName=strToolName)
+
+        if dictExecutorRunContext is not None and strLogFolderName is None:
+            # Run by Executor.
             try:
                 dictExecutorConfig = cast(
                     dict[str, str],
                     json5.loads(
-                        Path(os.path.join(get_liberrpa_folder_path(), "./configFiles/Executor.jsonc")).read_text()
+                        Path(os.path.join(get_liberrpa_folder_path(), "./configFiles/Executor.jsonc")).read_text(
+                            encoding="utf-8", errors="strict"
+                        )
                     ),
                 )
 
                 strProjectLogFolderPath = dictExecutorConfig.get("projectLogFolderPath", "")
+                strLogBasePath = strProjectLogFolderPath or self.dictBasicConfig["outputLogPath"]
+                strRunFolderName = f"{strStartedAtFolderName}_{dictExecutorRunContext.runId}"
 
-                if strProjectLogFolderPath != "":
-                    self.strLogFolder = sanitize_filepath(
-                        os.path.join(
-                            strProjectLogFolderPath,
-                            self.strProjectName,
-                            dictProject["executorPackageVersion"],
-                            dictProject["lastStartUpTime"],
-                        )
+                self.strLogFolder = sanitize_filepath(
+                    os.path.join(
+                        strLogBasePath,
+                        self.strProjectName,
+                        dictExecutorRunContext.packageVersion,
+                        strRunFolderName,
                     )
-                else:
-                    self.strLogFolder = sanitize_filepath(
-                        os.path.join(
-                            self.dictBasicConfig["outputLogPath"],
-                            self.strProjectName,
-                            dictProject["executorPackageVersion"],
-                            dictProject["lastStartUpTime"],
-                        )
-                    )
+                )
+
             except Exception as e:
                 raise Exception(f"Error in handle Executor file: {e}")
         else:
+            # Run by Editor.
             self.strLogFolder = sanitize_filepath(
                 os.path.join(
                     self.dictBasicConfig["outputLogPath"],
                     self.strProjectName,
-                    dictProject["lastStartUpTime"],
+                    strStartedAtFolderName,
                 )
             )
 
-        # Update project.json, add "logPath" for other parts to use later. Such as screen recording, screenshots.
-
-        # All processes create the folder to avoid a subprocess writes file before MainProcess.
+        # All processes create the folder to avoid a subprocess writing a file before MainProcess.
         os.makedirs(self.strLogFolder, exist_ok=True)
 
-        # Only the MainProcess can initialize project.json.
-        if PROCESS_NAME == "MainProcess":
-            dictProject["logPath"] = self.strLogFolder
-            dictProject["executorPackageStatus"] = "running"
-            strTemp = json.dumps(dictProject, indent=4, ensure_ascii=False, allow_nan=False)
+        # Only the MainProcess publishes Executor runtime state.
+        if PROCESS_NAME == "MainProcess" and dictExecutorRunContext is not None:
+            write_executor_run_state(status="running", logPath=self.strLogFolder)
 
-            # Avoid the situation that MainProcess was killed accidently and created a incompleted file.
-            pathTemp = PATH_PROJECT_ROOT / "project.json.tmp"
-            pathTemp.write_text(data=strTemp, encoding="utf-8", errors="strict")
-            pathTemp.replace(PATH_PROJECT_JSON)
-            print("Update project.json: " + strTemp)
-
-        # Create loggers
+        # Create loggers.
         self.colorfulConsoleHandlerObj = logging.StreamHandler(stream=sys.stderr)  # Console handler
         self.humanLogger = self._create_logger(f"human_read_{PROCESS_NAME}.log", humanReadable=True)
         self.humanLogger.addHandler(self.colorfulConsoleHandlerObj)  # Add the StreamHandler to human_logger

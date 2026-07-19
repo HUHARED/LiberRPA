@@ -6,46 +6,44 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
 from liberrpa.Logging import Log
-from liberrpa.Common._Utils import PATH_PROJECT_JSON, PROCESS_NAME
+from liberrpa.Common._RunContext import write_executor_run_state
+from liberrpa.Common._Utils import PROCESS_NAME
 import liberrpa.UI._TerminableThread as _TerminableThread
 from liberrpa.Dialog import show_notification
 from liberrpa.FlowControl.ProjectFlowInit import PrjArgs
 
 from datetime import timedelta
 import sys
-import json
 from typing import Literal
 
-# Python use executorPackageStatus to sign its status, but the status may modified by Executor because "terminated" may caused by timeout or user clicked cancel button in Executor.
-executorPackageStatus: Literal["error", "terminated", "running"] = "running"
+type FlowExecutionResult = Literal["completed", "error", "terminated"]
+
+# The final execution result of the current Flow. Executor maps "terminated" to
+# "cancel" or "timeout" according to the action that requested termination.
+executionResult: FlowExecutionResult = "completed"
 
 
 @Log.trace()
 def cleanup() -> None:
-    # Update project.json's executorPackageStatus value for Executor update status in Task History.
     if PROCESS_NAME != "MainProcess":
         # Only run cleanup in MainProcess.
         return None
 
-    dictProject = json.loads(PATH_PROJECT_JSON.read_text(encoding="utf-8"))
     strInfo = f"{PrjArgs.projectName}: "
 
-    match executorPackageStatus:
-        case "running":
+    match executionResult:
+        case "completed":
             strInfo += "Completed."
 
         case "error":
             strInfo += "Encounter an error."
 
         case "terminated":
-            strInfo += "You pressed Ctrl+F12 or Executor stop it."
+            strInfo += "You pressed Ctrl+F12 or Executor stopped it."
 
     Log.info(strInfo)
 
-    dictProject["executorPackageStatus"] = executorPackageStatus
-    strTemp = json.dumps(dictProject, indent=4, ensure_ascii=False)
-    PATH_PROJECT_JSON.write_text(data=strTemp, encoding="utf-8", errors="strict")
-    print("Update project.json: " + strTemp)
+    write_executor_run_state(status=executionResult, logPath=Log.strLogFolder)
 
     show_notification(title="LiberRPA", message=strInfo, duration=2, wait=False)
 
@@ -80,7 +78,7 @@ def cleanup() -> None:
 
 def main() -> None:
     cleanup()
-    # Stop the current process
+    # Stop the current process.
     Log.info(f"'{PROCESS_NAME}' exit.")
     sys.exit()
 

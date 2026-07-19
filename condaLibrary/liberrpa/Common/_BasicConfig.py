@@ -10,8 +10,9 @@ import getpass
 from pathlib import Path
 import socket
 import json5
-from typing import TypedDict, Literal, Any, cast
-from liberrpa.Common._Utils import PATH_PROJECT_JSON
+from typing import TypedDict, Literal, cast
+
+type BasicConfigToolName = Literal["BuiltInTools", "Editor", "Executor"]
 
 
 class DictBasicConfig(TypedDict):
@@ -46,52 +47,46 @@ def _read_basic_config_dict() -> DictBasicConfig:
             "componentRepositoryPath",
         }
         and isinstance(value.get("outputLogPath"), str)
+        and bool(value["outputLogPath"].strip())
         and isinstance(value.get("localServerPort"), int)
         and not isinstance(value.get("localServerPort"), bool)
         and 1 <= value["localServerPort"] <= 65535
         and value.get("uiAnalyzerTheme") in ("light", "dark")
         and isinstance(value.get("uiAnalyzerMinimizeWindow"), bool)
         and isinstance(value.get("componentRepositoryPath"), str)
+        and bool(value["componentRepositoryPath"].strip())
     ):
         return cast(DictBasicConfig, value)
 
     raise ValueError(
         "Invalid 'basic.jsonc'. Expected keys: "
-        "outputLogPath(str), localServerPort(int 1-65535), "
-        "uiAnalyzerTheme('light'|'dark'), uiAnalyzerMinimizeWindow(bool)."
+        "outputLogPath(non-empty str), localServerPort(int 1-65535), "
+        "uiAnalyzerTheme('light'|'dark'), uiAnalyzerMinimizeWindow(bool), "
+        "componentRepositoryPath(non-empty str)."
     )
 
 
-def get_basic_config_dict() -> DictBasicConfig:
+def get_basic_config_dict(toolName: BasicConfigToolName) -> DictBasicConfig:
 
     dictReplaceKeywords: dict[str, str] = {
         "${LiberRPA}": get_liberrpa_folder_path(),
         "${UserName}": getpass.getuser(),
         "${HostName}": socket.gethostname(),
+        "${ToolName}": toolName,
     }
-
-    if os.getenv("LogFolderName") in ["_LiberRPALocalServer"]:
-        dictReplaceKeywords["${ToolName}"] = "BuiltInTools"
-    else:
-        dictProject = cast(dict[str, Any], json5.loads(PATH_PROJECT_JSON.read_text(encoding="utf-8")))
-
-        if dictProject.get("executorPackage"):
-            dictReplaceKeywords["${ToolName}"] = "Executor"
-
-        else:
-            # Suppose other Python programs are running in vscode.
-            dictReplaceKeywords["${ToolName}"] = "Editor"
 
     # Open the json file to get original dict.
     dictBasicConfig = _read_basic_config_dict()
 
-    # Replace predefined variables
+    # Replace predefined variables.
     for strKeyOuter in dictBasicConfig:
         if isinstance(dictBasicConfig[strKeyOuter], str):
-            for strKeyInner in dictReplaceKeywords:
+            for strKeyInner, strReplacement in dictReplaceKeywords.items():
                 dictBasicConfig[strKeyOuter] = dictBasicConfig[strKeyOuter].replace(
-                    strKeyInner, dictReplaceKeywords[strKeyInner]
+                    strKeyInner,
+                    strReplacement,
                 )
+
     return dictBasicConfig
 
 
@@ -149,5 +144,4 @@ def get_liberrpa_ico_path(
 
 
 if __name__ == "__main__":
-    print(type(get_basic_config_dict()))
-    print(get_basic_config_dict())
+    ...

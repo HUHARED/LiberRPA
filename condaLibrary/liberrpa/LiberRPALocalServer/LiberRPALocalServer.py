@@ -73,11 +73,9 @@ if __name__ == "__main__":
 
         _Tray.run_tray()
 
-        from liberrpa.Common._BasicConfig import get_basic_config_dict
+        from liberrpa.Common._BasicConfig import get_local_server_port
 
-        dictBasicConfig = get_basic_config_dict()
-        Log.info(f"dictBasicConfig = {dictBasicConfig}")
-        create_flask_server(port=int(dictBasicConfig["localServerPort"]))
+        create_flask_server(port=get_local_server_port())
     except Exception as e:
         Log.exception_info(e)
     finally:

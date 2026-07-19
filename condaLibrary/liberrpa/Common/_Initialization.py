@@ -10,9 +10,8 @@ import multiprocessing
 # run freeze_support() to avoid re-running of it was packaged to an exe.
 multiprocessing.freeze_support()
 
-from liberrpa.Common._Utils import PATH_PROJECT_JSON, STR_PROJECT_ROOT, PROCESS_NAME
+from liberrpa.Common._Utils import STR_PROJECT_ROOT, PROCESS_NAME
 
-import time
 from datetime import datetime
 import json
 import requests
@@ -31,37 +30,6 @@ from typing import Any
 def _print_program_info() -> None:
     # vscode will cd to the workspace's path.
     print(f"The current workpath: {STR_PROJECT_ROOT}")
-
-
-def _initialize_project_json() -> None:
-    try:
-        pathObj = PATH_PROJECT_JSON
-        if pathObj.is_file():
-            dictProject = json.loads(pathObj.read_text(encoding="utf-8"))
-
-            # Assign project name if user rename the project folder's name. (An Executor package doesn't need to do it.)
-            if not dictProject["executorPackage"]:
-                dictProject["executorPackageName"] = os.path.basename(STR_PROJECT_ROOT)
-
-            # Logging module need its to name the log folder.
-            dictProject["lastStartUpTime"] = time.strftime("%Y-%m-%d_%H%M%S", time.localtime())
-
-        else:
-            # Create project.json
-            dictProject = {
-                "executorPackage": False,
-                "executorPackageName": os.path.basename(STR_PROJECT_ROOT),
-                "executorPackageVersion": "1.0.0",
-                "lastStartUpTime": time.strftime("%Y-%m-%d_%H%M%S", time.localtime()),
-            }
-
-        # Save project.json
-        pathObj.write_text(
-            data=json.dumps(dictProject, indent=4, ensure_ascii=False), encoding="utf-8", errors="strict"
-        )
-
-    except Exception as e:
-        raise Exception(f"Error to handle project.json: {e}")
 
 
 def _check_update() -> None:
@@ -187,34 +155,30 @@ def get_system_data() -> dict[str, Any]:
                 usage = psutil.disk_usage(partition.mountpoint)
 
                 # Append the partition information to the list
-                listDiskInfo.append(
-                    {
-                        "Device": partition.device,
-                        "Mount Point": partition.mountpoint,
-                        "File System": partition.fstype,
-                        "Total Space (GB)": f"{usage.total / (1024**3):.2f} GB",
-                        "Used Space (GB)": f"{usage.used / (1024**3):.2f} GB",
-                        "Free Space (GB)": f"{usage.free / (1024**3):.2f} GB",
-                        "Percentage Used": f"{usage.percent}%",
-                    }
-                )
+                listDiskInfo.append({
+                    "Device": partition.device,
+                    "Mount Point": partition.mountpoint,
+                    "File System": partition.fstype,
+                    "Total Space (GB)": f"{usage.total / (1024**3):.2f} GB",
+                    "Used Space (GB)": f"{usage.used / (1024**3):.2f} GB",
+                    "Free Space (GB)": f"{usage.free / (1024**3):.2f} GB",
+                    "Percentage Used": f"{usage.percent}%",
+                })
             except PermissionError:
                 # If access to a partition is denied, skip it
                 print(f"Permission denied for partition: {partition.device}")
 
             except Exception as e:
                 # Append the partition information to the list
-                listDiskInfo.append(
-                    {
-                        "Device": partition.device,
-                        "Mount Point": partition.mountpoint,
-                        "File System": partition.fstype,
-                        "Total Space (GB)": f"Unexpected error retrieving Disk info: {e}",
-                        "Used Space (GB)": f"Unexpected error retrieving Disk info: {e}",
-                        "Free Space (GB)": f"Unexpected error retrieving Disk info: {e}",
-                        "Percentage Used": f"Unexpected error retrieving Disk info: {e}",
-                    }
-                )
+                listDiskInfo.append({
+                    "Device": partition.device,
+                    "Mount Point": partition.mountpoint,
+                    "File System": partition.fstype,
+                    "Total Space (GB)": f"Unexpected error retrieving Disk info: {e}",
+                    "Used Space (GB)": f"Unexpected error retrieving Disk info: {e}",
+                    "Free Space (GB)": f"Unexpected error retrieving Disk info: {e}",
+                    "Percentage Used": f"Unexpected error retrieving Disk info: {e}",
+                })
 
         dictHardwareInfo = {
             "CPU Cores (Logical)": psutil.cpu_count(logical=True),
@@ -228,9 +192,8 @@ def get_system_data() -> dict[str, Any]:
 
         try:
             listGpuInfo = (
-                subprocess.check_output(
-                    "wmic path win32_VideoController get caption,adapterram,driverversion", shell=True
-                )
+                subprocess
+                .check_output("wmic path win32_VideoController get caption,adapterram,driverversion", shell=True)
                 .decode()
                 .strip()
                 .split("\n")
@@ -244,13 +207,17 @@ def get_system_data() -> dict[str, Any]:
         for interface, addrs in psutil.net_if_addrs().items():
             for addr in addrs:
                 if addr.family == socket.AF_INET:  # IPv4
-                    listNetworkInfo.append(
-                        {"Interface": interface, "Address Family": "IPv4", "IP Address": addr.address}
-                    )
+                    listNetworkInfo.append({
+                        "Interface": interface,
+                        "Address Family": "IPv4",
+                        "IP Address": addr.address,
+                    })
                 elif addr.family == socket.AF_INET6:  # IPv6
-                    listNetworkInfo.append(
-                        {"Interface": interface, "Address Family": "IPv6", "IP Address": addr.address}
-                    )
+                    listNetworkInfo.append({
+                        "Interface": interface,
+                        "Address Family": "IPv6",
+                        "IP Address": addr.address,
+                    })
 
         dictSystemData = {
             "User Information": dictUserInfo,
@@ -269,7 +236,6 @@ def get_system_data() -> dict[str, Any]:
 
 if PROCESS_NAME == "MainProcess":
     _print_program_info()
-    _initialize_project_json()
     _update_daily_data()
 
 if __name__ == "__main__":

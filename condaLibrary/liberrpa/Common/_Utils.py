@@ -15,7 +15,6 @@ import multiprocessing
 # Use it to replace all os.getcwd(), to avoid influence caused by os.chdir() that users execute.
 PATH_PROJECT_ROOT = Path.cwd().resolve()
 STR_PROJECT_ROOT: str = str(PATH_PROJECT_ROOT)
-PATH_PROJECT_JSON = PATH_PROJECT_ROOT / "project.json"
 PATH_PROJECT_FLOW = PATH_PROJECT_ROOT / "project.flow"
 
 PROCESS_NAME = multiprocessing.current_process().name

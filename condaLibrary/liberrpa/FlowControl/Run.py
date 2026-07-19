@@ -131,7 +131,7 @@ def _run_by_direction(id: str) -> str | None:
             return dictNonChooseNext[id]["Error"]
         else:
             # Assign the value to record exit reason.
-            End.executorPackageStatus = "error"
+            End.executionResult = "error"
             # The node has no "Error" direction. return None to stop the loop.
             return None
 
