@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "id": "",
+  "packageName": "",
+  "displayName": "",
+  "version": "1.0.0",
+  "description": "",
+  "requiresLiberrpa": ">=0.2,<0.3",
+  "componentDependencies": {}
+}

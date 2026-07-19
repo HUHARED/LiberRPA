@@ -10,7 +10,7 @@
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
       "env": {
-        "PYTHONPATH": "${workspaceFolder}" // to make the subfolder script can search modules in root folder.
+        "PYTHONPATH": "${workspaceFolder};${workspaceFolder}\\_Components"
       }
     }
   ]

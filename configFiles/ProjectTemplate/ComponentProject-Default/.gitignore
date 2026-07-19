@@ -4,3 +4,4 @@ __pycache__/
 build/
 dist/
 _Components/
+_Snippets/ast.snippets.json

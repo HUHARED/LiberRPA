@@ -177,6 +177,31 @@ LiberRPA may manage the import block at the top of Python files:
 # </LiberRPA imports: managed>
 ```
 
+## Version
+
+The Flow Project version is stored in `flow.json`.
+
+Versions must follow Python PEP 440. Most projects should use the familiar `MAJOR.MINOR.PATCH` format:
+
+```text
+1.0.0
+1.0.1
+1.1.0
+2.0.0
+```
+
+As a general guideline:
+
+* Increase `PATCH` for compatible fixes.
+* Increase `MINOR` for compatible new features.
+* Increase `MAJOR` for incompatible changes.
+
+LiberRPA validates and compares versions according to Python version rules rather than file creation or import time.
+
+LiberRPA does not automatically change the project version.
+Set an appropriate new version before distributing a changed release.
+Existing package files are not replaced without explicit confirmation.
+
 ## License
 
 This project template is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License as published by the Free Software Foundation, either version 3 of the License or, at your option, any later version.

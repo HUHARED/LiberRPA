@@ -1,0 +1,4 @@
+// FileName: setting.json
+{
+  "python.analysis.extraPaths": ["./_Components"]
+}
