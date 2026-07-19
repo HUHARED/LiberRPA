@@ -1,7 +1,7 @@
 // FileName: commonFunc.ts
 
-import { outputChannel } from "./commonValue";
+import { log } from "./output";
 
 export function printUserCanceled(): void {
-  outputChannel.appendLine("User canceled.");
+  log.info("User canceled.");
 }

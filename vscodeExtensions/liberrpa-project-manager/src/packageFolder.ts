@@ -5,7 +5,7 @@ import * as fs from "fs";
 import * as path from "path";
 import archiver from "archiver";
 
-import { outputChannel } from "./commonValue";
+import { log } from "./output";
 import { printUserCanceled } from "./commonFunc";
 
 export async function packageProject(): Promise<void> {
@@ -72,7 +72,7 @@ export async function packageProject(): Promise<void> {
     await copyFolderToTemp(
       getWorkspaceFolder().uri.fsPath,
       strTempFolderPath,
-      strContainGit === "Yes"
+      strContainGit === "Yes",
     );
 
     // Update executorPackage and executorPackageDescription values in Temp folder.
@@ -83,7 +83,7 @@ export async function packageProject(): Promise<void> {
       JSON.stringify(dictProject, null, 4),
       {
         encoding: "utf-8",
-      }
+      },
     );
 
     // 6. Ask for compress file store path.
@@ -105,14 +105,14 @@ export async function packageProject(): Promise<void> {
       strTempFolderPath,
       strTargetFolder,
       dictProject["executorPackageName"] as string,
-      dictProject["executorPackageVersion"]
+      dictProject["executorPackageVersion"] as string,
     );
 
     // 8. Clean Temp folder.
     fs.rmSync(strTempFolderPath, { recursive: true, force: true });
 
     // 9. Reveal the compressed file.
-    outputChannel.appendLine(`Reveal the package file: ${strZipFilePath}`);
+    log.info(`Reveal the package file: ${strZipFilePath}`);
     vscode.commands.executeCommand("revealFileInOS", vscode.Uri.file(strZipFilePath));
   } catch (e) {
     vscode.window.showErrorMessage(`Error packaging project: ${e}`);
@@ -120,7 +120,7 @@ export async function packageProject(): Promise<void> {
 }
 
 async function readProjectJson(): Promise<{ [key: string]: string | boolean }> {
-  outputChannel.appendLine("Read project.json in current workspaceFolder.");
+  log.info("Read project.json in current workspaceFolder.");
 
   const projectJsonPath = getProjectJsonPath();
   const strContent = fs.readFileSync(projectJsonPath, "utf-8");
@@ -132,7 +132,7 @@ async function readProjectJson(): Promise<{ [key: string]: string | boolean }> {
     !dictProject["executorPackageVersion"]
   ) {
     throw Error(
-      "'executorPackage': false, executorPackageName and executorPackageVersion should in project.json"
+      "'executorPackage': false, executorPackageName and executorPackageVersion should in project.json",
     );
   }
 
@@ -143,9 +143,7 @@ async function writeOriginalProjectJson(dictProject: {
   [key: string]: string | boolean;
 }): Promise<void> {
   try {
-    outputChannel.appendLine(
-      `Update project.json's version to ${dictProject["executorPackageVersion"]}`
-    );
+    log.info(`Update project.json's version to ${dictProject["executorPackageVersion"]}`);
 
     const projectJsonPath = getProjectJsonPath();
 
@@ -174,7 +172,7 @@ function getProjectJsonPath(): string {
 async function copyFolderToTemp(
   src: string,
   dest: string,
-  containGit: boolean
+  containGit: boolean,
 ): Promise<void> {
   try {
     const entries = await fs.promises.readdir(src, { withFileTypes: true });
@@ -197,10 +195,10 @@ async function copyFolderToTemp(
         } else {
           fs.copyFileSync(srcPath, destPath);
         }
-      })
+      }),
     );
   } catch (e) {
-    outputChannel.appendLine(`Error copying folder from ${src} to ${dest}: ${e}`);
+    log.error(`Error copying folder from ${src} to ${dest}: ${e}`);
     throw new Error(`Failed to copy files: ${e}`);
   }
 }
@@ -209,7 +207,7 @@ async function compressFolder(
   sourceFolder: string,
   targetFolder: string,
   packageName: string,
-  packageVersion: string
+  packageVersion: string,
 ): Promise<string> {
   const strZipFileName = `${packageName}_${packageVersion}.rpa.zip`;
   const strZipFilePath = path.join(targetFolder, strZipFileName);
@@ -219,7 +217,7 @@ async function compressFolder(
     const archive = archiver("zip", { zlib: { level: 9 } });
 
     output.on("close", () => {
-      outputChannel.appendLine(`Create zip file with ${archive.pointer()} bytes.`);
+      log.info(`Create zip file with ${archive.pointer()} bytes.`);
       resolve(strZipFilePath);
     });
 

@@ -4,7 +4,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { execSync } from "child_process";
 
-import { outputChannel } from "./commonValue";
+import { log } from "./output";
 import { printUserCanceled } from "./commonFunc";
 
 export async function createProject(): Promise<void> {
@@ -88,7 +88,7 @@ export async function createProject(): Promise<void> {
 
     // If a .gitignore exists, initialize Git.
     if (fs.existsSync(path.join(strNewProjectPath, ".gitignore"))) {
-      outputChannel.appendLine("Git init.");
+      log.info("Git init.");
       initGit(strNewProjectPath);
     }
 
@@ -99,7 +99,7 @@ export async function createProject(): Promise<void> {
       { forceNewWindow: true },
     );
 
-    outputChannel.appendLine(`Project "${strProjectName}" created successfully.`);
+    log.info(`Project "${strProjectName}" created successfully.`);
   } catch (e) {
     vscode.window.showErrorMessage(`Error creating project: ${e}`);
   }
@@ -130,7 +130,7 @@ function initializeFlowManifest(projectPath: string, projectName: string): void 
   }
 }
 
-async function copyFolder(src: string, dest: string) {
+async function copyFolder(src: string, dest: string): Promise<void> {
   try {
     const entries = await fs.promises.readdir(src, { withFileTypes: true });
     await Promise.all(
@@ -146,7 +146,7 @@ async function copyFolder(src: string, dest: string) {
       }),
     );
   } catch (e) {
-    outputChannel.appendLine(`Error copying folder from ${src} to ${dest}: ${e}`);
+    log.error(`Error copying folder from ${src} to ${dest}: ${e}`);
     throw new Error(`Failed to copy files: ${e}`);
   }
 }
@@ -154,10 +154,10 @@ async function copyFolder(src: string, dest: string) {
 function initGit(cwd: string): void {
   try {
     execSync("git init", { cwd: cwd });
-    outputChannel.appendLine("Git repository initialized.");
+    log.info("Git repository initialized.");
   } catch (e) {
     const strErrorText = `Error initializing git repository: ${e}, make sure you installed Git in the computer.`;
-    outputChannel.appendLine(strErrorText);
+    log.error(strErrorText);
     vscode.window.showErrorMessage(strErrorText);
   }
 }
