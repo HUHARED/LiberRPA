@@ -1,205 +1,233 @@
 // FileName: packageFolder.ts
 import * as vscode from "vscode";
-import * as os from "os";
-import * as fs from "fs";
-import * as path from "path";
-import archiver from "archiver";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
+import { finished } from "node:stream/promises";
 
 import { log } from "./output";
-import { printUserCanceled } from "./commonFunc";
+import { getErrorMessage, isRecord, printUserCanceled, stringifyJson } from "./commonFunc";
+
+interface LegacyProjectJson extends Record<string, unknown> {
+  executorPackage: false;
+  executorPackageName: string;
+  executorPackageVersion: string;
+  executorPackageDescription?: string;
+}
 
 export async function packageProject(): Promise<void> {
-  try {
-    // 1. Check executor item in project.json
-    const dictProject = await readProjectJson();
+  let tempFolderPath: string | undefined;
 
-    // 2. Ask for the project version
-    const strProjectVersion = await vscode.window.showInputBox({
+  try {
+    // This flow intentionally keeps using project.json until the new package
+    // manifest design is implemented.
+    const originalProjectJson = readProjectJson();
+
+    const projectVersion = await vscode.window.showInputBox({
       prompt: "Enter the version for the package",
-      value: dictProject["executorPackageVersion"] as string,
+      value: originalProjectJson.executorPackageVersion,
       validateInput: (input) => {
-        const regexInvalidChars = /[<>:"/\\|?*]/;
-        if (regexInvalidChars.test(input)) {
-          return `Package version can't contain these characters: ${'<>:"/\\|?*'}`;
+        if (input.length === 0) {
+          return "Package version cannot be empty.";
         }
+
+        if (/[<>:"/\\|?*]/.test(input)) {
+          return `Package version cannot contain these characters: ${'<>:"/\\|?*'}`;
+        }
+
         if (input.length > 255) {
-          return `Package version length can't longer than 255.`;
+          return "Package version cannot be longer than 255 characters.";
         }
-        return null;
+
+        return undefined;
       },
     });
 
-    if (!strProjectVersion) {
+    if (projectVersion === undefined) {
       printUserCanceled();
       return;
-    } else {
-      dictProject["executorPackageVersion"] = strProjectVersion;
-      await writeOriginalProjectJson(dictProject);
     }
 
-    // 3. Ask for the project description.
-
-    const strDescription = await vscode.window.showInputBox({
+    const description = await vscode.window.showInputBox({
       prompt: "Enter the description for the package",
+      value: originalProjectJson.executorPackageDescription ?? "",
     });
 
-    if (strDescription === undefined) {
+    if (description === undefined) {
       printUserCanceled();
       return;
-    } else {
-      dictProject["executorPackageDescription"] = strDescription;
     }
 
-    // 4. Ask for whether package .git folder.
-    const strContainGit = await vscode.window.showQuickPick(["Yes", "No"], {
+    const containGit = await vscode.window.showQuickPick(["Yes", "No"] as const, {
       placeHolder: "Contain the .git folder? (If it exists)",
     });
 
-    if (!strContainGit) {
+    if (containGit === undefined) {
       printUserCanceled();
       return;
     }
 
-    // 5. Create copy.
-
-    // Clean temp folder to paste new files later.
-    const strTempFolderPath = path.join(os.homedir(), "Documents", "LiberRPA", "Temp");
-    fs.rmSync(strTempFolderPath, { recursive: true, force: true });
-    // Recreate the Temp folder to avoid the error ignore copy .git folder.
-    fs.mkdirSync(strTempFolderPath, { recursive: true });
-
-    // Copy the workspace folder to temp folder.
-    await copyFolderToTemp(
-      getWorkspaceFolder().uri.fsPath,
-      strTempFolderPath,
-      strContainGit === "Yes",
-    );
-
-    // Update executorPackage and executorPackageDescription values in Temp folder.
-    dictProject["executorPackage"] = true;
-
-    fs.writeFileSync(
-      path.join(strTempFolderPath, "project.json"),
-      JSON.stringify(dictProject, null, 4),
-      {
-        encoding: "utf-8",
-      },
-    );
-
-    // 6. Ask for compress file store path.
-    const folderUri = await vscode.window.showOpenDialog({
+    const folderUris = await vscode.window.showOpenDialog({
       canSelectFolders: true,
       canSelectFiles: false,
       canSelectMany: false,
       openLabel: "Select Folder for saving the package file",
     });
-    if (!folderUri) {
+
+    const targetFolder = folderUris?.[0]?.fsPath;
+    if (targetFolder === undefined) {
       printUserCanceled();
       return;
     }
-    const strTargetFolder = folderUri[0].fsPath;
 
-    // 7. Compress all files in strTempFolderPath to strTargetFolder, named the file as "dictProject["executorPackageName"]_dictProject["executorPackageVersion"].rpa.zip"
+    tempFolderPath = fs.mkdtempSync(path.join(os.tmpdir(), "LiberRPA-package-"));
 
-    const strZipFilePath = await compressFolder(
-      strTempFolderPath,
-      strTargetFolder,
-      dictProject["executorPackageName"] as string,
-      dictProject["executorPackageVersion"] as string,
+    const workspaceFolderPath = getWorkspaceFolder().uri.fsPath;
+    await copyFolderToTemp(
+      workspaceFolderPath,
+      tempFolderPath,
+      containGit === "Yes",
+      workspaceFolderPath,
     );
 
-    // 8. Clean Temp folder.
-    fs.rmSync(strTempFolderPath, { recursive: true, force: true });
+    const packagedProjectJson: Record<string, unknown> = {
+      ...originalProjectJson,
+      executorPackage: true,
+      executorPackageVersion: projectVersion,
+      executorPackageDescription: description,
+    };
 
-    // 9. Reveal the compressed file.
-    log.info(`Reveal the package file: ${strZipFilePath}`);
-    vscode.commands.executeCommand("revealFileInOS", vscode.Uri.file(strZipFilePath));
-  } catch (e) {
-    vscode.window.showErrorMessage(`Error packaging project: ${e}`);
+    fs.writeFileSync(
+      path.join(tempFolderPath, "project.json"),
+      stringifyJson(packagedProjectJson, 4),
+      { encoding: "utf-8" },
+    );
+
+    const zipFilePath = await compressFolder(
+      tempFolderPath,
+      targetFolder,
+      originalProjectJson.executorPackageName,
+      projectVersion,
+    );
+
+    const updatedOriginalProjectJson: LegacyProjectJson = {
+      ...originalProjectJson,
+      executorPackageVersion: projectVersion,
+      executorPackageDescription: description,
+    };
+    writeOriginalProjectJson(updatedOriginalProjectJson);
+
+    log.info(`Reveal the package file: ${zipFilePath}`);
+    await vscode.commands.executeCommand("revealFileInOS", vscode.Uri.file(zipFilePath));
+  } catch (error: unknown) {
+    const errorMessage = getErrorMessage(error);
+    log.error(`Error packaging Project: ${errorMessage}`);
+    void vscode.window.showErrorMessage(`Error packaging Project: ${errorMessage}`);
+  } finally {
+    if (tempFolderPath !== undefined) {
+      try {
+        fs.rmSync(tempFolderPath, { recursive: true, force: true });
+      } catch (error: unknown) {
+        log.error(
+          `Failed to remove temporary package folder "${tempFolderPath}": ${getErrorMessage(error)}`,
+        );
+      }
+    }
   }
 }
 
-async function readProjectJson(): Promise<{ [key: string]: string | boolean }> {
-  log.info("Read project.json in current workspaceFolder.");
+function readProjectJson(): LegacyProjectJson {
+  log.info("Read project.json in current workspace folder.");
 
   const projectJsonPath = getProjectJsonPath();
-  const strContent = fs.readFileSync(projectJsonPath, "utf-8");
-  const dictProject: { [key: string]: string | boolean } = JSON.parse(strContent);
+  const content = fs.readFileSync(projectJsonPath, { encoding: "utf-8" });
+  const value = JSON.parse(content) as unknown;
 
-  if (
-    !(dictProject["executorPackage"] === false) ||
-    !dictProject["executorPackageName"] ||
-    !dictProject["executorPackageVersion"]
-  ) {
-    throw Error(
-      "'executorPackage': false, executorPackageName and executorPackageVersion should in project.json",
-    );
+  if (isLegacyProjectJson(value)) {
+    return value;
   }
 
-  return dictProject;
+  throw new Error(
+    "project.json must contain executorPackage=false, executorPackageName, and executorPackageVersion.",
+  );
 }
 
-async function writeOriginalProjectJson(dictProject: {
-  [key: string]: string | boolean;
-}): Promise<void> {
+function isLegacyProjectJson(value: unknown): value is LegacyProjectJson {
+  return (
+    isRecord(value) &&
+    value["executorPackage"] === false &&
+    typeof value["executorPackageName"] === "string" &&
+    value["executorPackageName"].length > 0 &&
+    typeof value["executorPackageVersion"] === "string" &&
+    value["executorPackageVersion"].length > 0 &&
+    (value["executorPackageDescription"] === undefined ||
+      typeof value["executorPackageDescription"] === "string")
+  );
+}
+
+function writeOriginalProjectJson(projectJson: LegacyProjectJson): void {
   try {
-    log.info(`Update project.json's version to ${dictProject["executorPackageVersion"]}`);
+    log.info(`Update project.json version to ${projectJson.executorPackageVersion}.`);
 
-    const projectJsonPath = getProjectJsonPath();
-
-    fs.writeFileSync(projectJsonPath, JSON.stringify(dictProject, null, 4), {
+    fs.writeFileSync(getProjectJsonPath(), stringifyJson(projectJson, 4), {
       encoding: "utf-8",
     });
-  } catch (e) {
-    throw new Error(`Failed to update project.json: ${e}`);
+  } catch (error: unknown) {
+    throw new Error(`Failed to update project.json: ${getErrorMessage(error)}`, {
+      cause: error,
+    });
   }
 }
 
 function getWorkspaceFolder(): vscode.WorkspaceFolder {
-  // Only work for the first workspace.
   const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-  if (!workspaceFolder) {
-    throw Error("No workspace folder is open.");
+  if (workspaceFolder === undefined) {
+    throw new Error("No workspace folder is open.");
   }
+
   return workspaceFolder;
 }
 
 function getProjectJsonPath(): string {
-  const projectJsonPath = path.join(getWorkspaceFolder().uri.fsPath, "project.json");
-  return projectJsonPath;
+  return path.join(getWorkspaceFolder().uri.fsPath, "project.json");
 }
 
 async function copyFolderToTemp(
-  src: string,
-  dest: string,
+  source: string,
+  destination: string,
   containGit: boolean,
+  workspaceFolderPath: string,
 ): Promise<void> {
   try {
-    const entries = await fs.promises.readdir(src, { withFileTypes: true });
+    const entries = await fs.promises.readdir(source, { withFileTypes: true });
+
     await Promise.all(
       entries.map(async (entry) => {
-        // If we are at the root level and the entry is ".git" and user does NOT want it, skip it.
-        if (
-          src === getWorkspaceFolder().uri.fsPath &&
-          entry.name === ".git" &&
-          !containGit
-        ) {
+        if (source === workspaceFolderPath && entry.name === ".git" && !containGit) {
           return;
         }
 
-        const srcPath = path.join(src, entry.name);
-        const destPath = path.join(dest, entry.name);
+        const sourcePath = path.join(source, entry.name);
+        const destinationPath = path.join(destination, entry.name);
+
         if (entry.isDirectory()) {
-          fs.mkdirSync(destPath, { recursive: true });
-          await copyFolderToTemp(srcPath, destPath, containGit);
-        } else {
-          fs.copyFileSync(srcPath, destPath);
+          await fs.promises.mkdir(destinationPath, { recursive: true });
+          await copyFolderToTemp(
+            sourcePath,
+            destinationPath,
+            containGit,
+            workspaceFolderPath,
+          );
+          return;
         }
+
+        await fs.promises.copyFile(sourcePath, destinationPath);
       }),
     );
-  } catch (e) {
-    log.error(`Error copying folder from ${src} to ${dest}: ${e}`);
-    throw new Error(`Failed to copy files: ${e}`);
+  } catch (error: unknown) {
+    const errorMessage = getErrorMessage(error);
+    log.error(`Error copying folder from ${source} to ${destination}: ${errorMessage}`);
+    throw new Error(`Failed to copy Project files: ${errorMessage}`, { cause: error });
   }
 }
 
@@ -209,28 +237,24 @@ async function compressFolder(
   packageName: string,
   packageVersion: string,
 ): Promise<string> {
-  const strZipFileName = `${packageName}_${packageVersion}.rpa.zip`;
-  const strZipFilePath = path.join(targetFolder, strZipFileName);
+  const zipFileName = `${packageName}_${packageVersion}.rpa.zip`;
+  const zipFilePath = path.join(targetFolder, zipFileName);
+  const output = fs.createWriteStream(zipFilePath);
+  const { ZipArchive } = await import("archiver");
+  const archive = new ZipArchive({ zlib: { level: 9 } });
 
-  return new Promise((resolve, reject) => {
-    const output = fs.createWriteStream(strZipFilePath);
-    const archive = archiver("zip", { zlib: { level: 9 } });
-
-    output.on("close", () => {
-      log.info(`Create zip file with ${archive.pointer()} bytes.`);
-      resolve(strZipFilePath);
-    });
-
-    output.on("error", (err) => {
-      reject(err);
-    });
-
-    archive.on("error", (err) => {
-      reject(err);
-    });
-
+  try {
     archive.pipe(output);
     archive.directory(sourceFolder, false);
-    archive.finalize();
-  });
+    await archive.finalize();
+    await finished(output);
+  } catch (error: unknown) {
+    output.destroy();
+    throw new Error(`Failed to create package archive: ${getErrorMessage(error)}`, {
+      cause: error,
+    });
+  }
+
+  log.info(`Create zip file with ${archive.pointer()} bytes.`);
+  return zipFilePath;
 }
