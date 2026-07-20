@@ -56,6 +56,19 @@
         ]
       }
     },
+    "Basic.get_component_resource_path": {
+      "prefix": "get_component_resource_path",
+      "body": [
+        "${1:strResult} = get_component_resource_path(relativePath=$2)",
+        "$0"
+      ],
+      "description": "Get the absolute path of a resource in the current Component package.",
+      "imports": {
+        "liberrpa.Modules": [
+          "get_component_resource_path"
+        ]
+      }
+    },
     "Basic.new python file": {
       "prefix": "new",
       "body": [

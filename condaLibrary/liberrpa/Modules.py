@@ -31,6 +31,7 @@ __all__ = [
     # Basic module
     "Log",
     "delay",
+    "get_component_resource_path",
     # UI element manipulation
     "Mouse",
     "Keyboard",
@@ -109,6 +110,7 @@ _LAZY_MODULE_EXPORTS: dict[str, str] = {
 _LAZY_OBJECT_EXPORTS: dict[str, tuple[str, str]] = {
     "Log": ("liberrpa.Logging", "Log"),
     "delay": ("liberrpa.Basic", "delay"),
+    "get_component_resource_path": ("liberrpa.Basic", "get_component_resource_path"),
     "DatabaseConnection": ("liberrpa.Database", "DatabaseConnection"),
     "PrjArgs": ("liberrpa.FlowControl.ProjectFlowInit", "PrjArgs"),
     "CustomArgs": ("liberrpa.FlowControl.ProjectFlowInit", "CustomArgs"),
@@ -149,7 +151,10 @@ if TYPE_CHECKING:
     # These imports are for static analyzers only.
     # They make tools like Pylance understand the public names exported by this module without importing all modules at runtime.
     from liberrpa.Logging import Log as Log
-    from liberrpa.Basic import delay as delay
+    from liberrpa.Basic import (
+        delay as delay,
+        get_component_resource_path as get_component_resource_path,
+    )
 
     from liberrpa import Mouse as Mouse
     from liberrpa import Keyboard as Keyboard

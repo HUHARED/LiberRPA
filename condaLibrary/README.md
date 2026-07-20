@@ -59,11 +59,11 @@ Use `Ctrl+F` to search them.
 - [API](#api)
   - [Project Values](#project-values)
     - [PrjArgs.elapsedTime](#prjargselapsedtime)
-    - [PrjArgs.customArgs](#prjargscustomargs)
     - [PrjArgs.errorObj](#prjargserrorobj)
     - [PrjArgs.projectPath](#prjargsprojectpath)
   - [Basic](#basic)
     - [delay](#delay)
+    - [get\_component\_resource\_path](#get_component_resource_path)
     - [new python file](#new-python-file)
     - [def a function](#def-a-function)
     - [if __main__](#if-main)
@@ -166,8 +166,8 @@ Use `Ctrl+F` to search them.
     - [set\_scroll\_position](#set_scroll_position)
     - [execute\_js\_code](#execute_js_code)
   - [Excel](#excel)
-    - [open\_Excel\_file](#open_excel_file)
-    - [bind\_Excel\_file](#bind_excel_file)
+    - [open\_excel\_file](#open_excel_file)
+    - [bind\_excel\_file](#bind_excel_file)
     - [save](#save)
     - [save\_as](#save_as)
     - [close](#close)
@@ -198,7 +198,7 @@ Use `Ctrl+F` to search them.
     - [rename\_sheet](#rename_sheet)
     - [copy\_sheet](#copy_sheet)
     - [delete\_sheet](#delete_sheet)
-    - [get\_activate\_sheet](#get_activate_sheet)
+    - [get\_active\_sheet](#get_active_sheet)
     - [get\_sheet\_list](#get_sheet_list)
     - [run\_macro](#run_macro)
   - [Outlook](#outlook)
@@ -400,6 +400,7 @@ Use `Ctrl+F` to search them.
     - [mouse\_trigger](#mouse_trigger)
     - [keyboard\_trigger](#keyboard_trigger)
 
+
 ## Project Values
 
 ### PrjArgs.elapsedTime
@@ -419,6 +420,10 @@ Get the absolute path of the current RPA project.
 ### delay
 
 Wait for a specified time, in milliseconds.
+
+### get_component_resource_path
+
+Get the absolute path of a resource in the current Component package.
 
 ### new python file
 
@@ -2425,7 +2430,7 @@ Parameters:
 
 ```text
 account: The email account.
-emailObj: The win32com.client.CDispatch objects to move.
+emailObj: The win32com.client.CDispatch object to move.
 folder: The name of the folder to move.
 ```
 
@@ -2436,7 +2441,7 @@ Reply to an email.
 Parameters:
 
 ```text
-emailObj: The Outlook email object to reply to.
+emailObj: The win32com.client.CDispatch object to reply to.
 body: The reply body content.
 bodyFormat: The format of the email body, either "text" or "html".
 attachments: File path or list of file paths to attach. Accepts str or PathLike[str].
@@ -2451,7 +2456,7 @@ Delete an email.
 Parameters:
 
 ```text
-emailObj: A win32com.client.CDispatch objects.
+emailObj: The win32com.client.CDispatch object.
 ```
 
 ### download_attachments
@@ -2461,14 +2466,14 @@ Download all attachments of an email.
 Parameters:
 
 ```text
-emailObj: The Outlook email object.
-downloadPath: The folder to save downloaded files. Accepts str or PathLike[str].
+emailObj: The win32com.client.CDispatch object to download its attachments.
+downloadPath: The folder to save download files. Accepts str or PathLike[str].
 ```
 
 Returns:
 
 ```text
-list[str]: Absolute paths of the downloaded attachments.
+list[str]: A list contains the path of all attachments.
 ```
 
 ## Application
@@ -5226,7 +5231,7 @@ A Value Error will be raised if no file selected.
 Parameters:
 
 ```text
-folder: The directory that the dialog opens in. If None, defaults to the current working directory.
+folder: The directory that the dialog opens in. Accepts str or PathLike[str]. If None, defaults to the current working directory.
 title: The title of the dialog window.
 filetypes: A list of tuples defining the file types to display. Each tuple contains a descriptive string and a file pattern, e.g., ("Text Files", "*.txt") where "Text Files" is the option's name, and "*.txt" filters all .txt files. If None, all files are shown.
 ```
@@ -5245,7 +5250,7 @@ A Value Error will be raised if no files selected.
 Parameters:
 
 ```text
-folder: The directory that the dialog opens in. If None, defaults to the current working directory.
+folder: The directory that the dialog opens in. Accepts str or PathLike[str]. If None, defaults to the current working directory.
 title: The title of the dialog window.
 filetypes: A list of tuples defining the file types to display. Each tuple contains a descriptive string and a file pattern, e.g., ("Text Files", "*.txt") where "Text Files" is the option's name, and "*.txt" filters all .txt files. If None, all files are shown.
 ```
@@ -5264,7 +5269,7 @@ A Value Error will be raised if no file name specified.
 Parameters:
 
 ```text
-folder: The directory that the dialog opens in. If None, defaults to the current working directory.
+folder: The directory that the dialog opens in. Accepts str or PathLike[str]. If None, defaults to the current working directory.
 title: The title of the dialog window.
 filetypes: A list of tuples defining the file types to display. Each tuple contains a descriptive string and a file pattern, e.g., ("Text Files", "*.txt") where "Text Files" is the option's name, and "*.txt" filters all .txt files. If None, all files are shown.
 ```

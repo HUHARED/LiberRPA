@@ -107,6 +107,7 @@ MANAGED_IMPORT_SOURCE = "liberrpa.Modules"
 MANAGED_IMPORT_ORDER = [
     "Log",
     "delay",
+    "get_component_resource_path",
     *PUBLIC_MODULE_ORDER,
     "DatabaseConnection",
     "PrjArgs",
