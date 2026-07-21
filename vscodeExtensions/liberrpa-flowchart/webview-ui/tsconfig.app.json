@@ -13,7 +13,6 @@
     "isolatedModules": true,
     "moduleDetection": "force",
     "noEmit": true,
-    "jsx": "preserve",
 
     /* Linting */
     "strict": true,
@@ -23,5 +22,5 @@
     "noUncheckedSideEffectImports": true,
     "types": ["vuetify", "@types/mousetrap"]
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"]
+  "include": ["src/**/*.ts", "src/**/*.vue"]
 }
