@@ -4,37 +4,12 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { randomUUID } from "node:crypto";
 
-import { isRecord, stringifyJson } from "./commonFunc";
+import { isRecord, isStringRecord, hasExactKeys } from "./typeCheck";
+import type { ProjectType } from "./webviewMessages";
+import { getComponentPackageNameError, getDisplayNameError } from "./projectValidation";
+import { readJsonFile, writeJsonFile } from "./utils";
 
-export const COMPONENT_PACKAGE_NAME_PATTERN = /^[A-Z][A-Za-z0-9]*$/;
-
-const SET_INVALID_PYTHON_IDENTIFIERS = new Set(["False", "None", "True"]);
-const SET_RESERVED_WINDOWS_NAMES = new Set([
-  "CON",
-  "PRN",
-  "AUX",
-  "NUL",
-  "COM1",
-  "COM2",
-  "COM3",
-  "COM4",
-  "COM5",
-  "COM6",
-  "COM7",
-  "COM8",
-  "COM9",
-  "LPT1",
-  "LPT2",
-  "LPT3",
-  "LPT4",
-  "LPT5",
-  "LPT6",
-  "LPT7",
-  "LPT8",
-  "LPT9",
-]);
-
-const FLOW_MANIFEST_KEYS = new Set([
+const SET_FLOW_MANIFEST_KEYS = new Set([
   "schemaVersion",
   "name",
   "version",
@@ -43,7 +18,7 @@ const FLOW_MANIFEST_KEYS = new Set([
   "componentDependencies",
 ]);
 
-const COMPONENT_MANIFEST_KEYS = new Set([
+const SET_COMPONENT_MANIFEST_KEYS = new Set([
   "schemaVersion",
   "id",
   "packageName",
@@ -74,27 +49,40 @@ interface ComponentManifestV1 {
   componentDependencies: Record<string, string>;
 }
 
-export function getComponentPackageNameError(packageName: string): string | undefined {
-  if (!COMPONENT_PACKAGE_NAME_PATTERN.test(packageName)) {
-    return "Package name must use PascalCase and contain only ASCII letters and digits, for example: ExcelTools.";
-  }
-
-  if (SET_INVALID_PYTHON_IDENTIFIERS.has(packageName)) {
-    return `Package name cannot be the Python keyword "${packageName}".`;
-  }
-
-  if (packageName.toLowerCase() === "liberrpa") {
-    return 'Package name "Liberrpa" is reserved by LiberRPA.';
-  }
-
-  if (SET_RESERVED_WINDOWS_NAMES.has(packageName.toUpperCase())) {
-    return `Package name "${packageName}" is reserved by Windows.`;
-  }
-
-  return undefined;
+export interface ProjectManifestDefaults {
+  version: string;
+  description: string;
 }
 
-export function initializeFlowProject(projectPath: string, projectName: string): void {
+export function getProjectManifestDefaults(
+  templatePath: string,
+  projectType: ProjectType,
+): ProjectManifestDefaults {
+  switch (projectType) {
+    case "flow": {
+      const manifest = readFlowManifest(path.join(templatePath, "flow.json"));
+      return {
+        version: manifest.version,
+        description: manifest.description,
+      };
+    }
+
+    case "component": {
+      const manifest = readComponentManifest(path.join(templatePath, "component.json"));
+      return {
+        version: manifest.version,
+        description: manifest.description,
+      };
+    }
+  }
+}
+
+export function initializeFlowProject(
+  projectPath: string,
+  projectName: string,
+  version: string,
+  description: string,
+): void {
   const normalizedProjectName = projectName.trim();
   if (normalizedProjectName.length === 0) {
     throw new Error("Flow Project name cannot be empty.");
@@ -103,6 +91,8 @@ export function initializeFlowProject(projectPath: string, projectName: string):
   const manifestPath = path.join(projectPath, "flow.json");
   const manifest = readFlowManifest(manifestPath);
   manifest.name = normalizedProjectName;
+  manifest.version = version;
+  manifest.description = description;
   writeJsonFile(manifestPath, manifest);
 }
 
@@ -110,29 +100,32 @@ export function initializeComponentProject(
   projectPath: string,
   packageName: string,
   displayName: string,
+  version: string,
+  description: string,
 ): void {
   const packageNameError = getComponentPackageNameError(packageName);
   if (packageNameError !== undefined) {
     throw new Error(packageNameError);
   }
 
-  const normalizedDisplayName = displayName.trim();
-  if (normalizedDisplayName.length === 0) {
-    throw new Error("Component display name cannot be empty.");
+  const displayNameError = getDisplayNameError(displayName);
+  if (displayNameError !== undefined) {
+    throw new Error(displayNameError);
   }
 
   const manifestPath = path.join(projectPath, "component.json");
   const manifest = readComponentManifest(manifestPath);
   manifest.id = randomUUID();
   manifest.packageName = packageName;
-  manifest.displayName = normalizedDisplayName;
+  manifest.displayName = displayName.trim();
+  manifest.version = version;
+  manifest.description = description;
   writeJsonFile(manifestPath, manifest);
 
-  const sourcePath = path.join(projectPath, "src");
-  const packagePath = path.join(sourcePath, packageName);
+  const packagePath = path.join(projectPath, "src", packageName);
 
-  fs.mkdirSync(sourcePath, { recursive: true });
-  fs.mkdirSync(packagePath);
+  fs.mkdirSync(packagePath, { recursive: true });
+
   fs.writeFileSync(path.join(packagePath, "__init__.py"), "", {
     encoding: "utf-8",
     flag: "wx",
@@ -148,7 +141,7 @@ function readFlowManifest(manifestPath: string): FlowManifestV1 {
 
   if (
     isRecord(value) &&
-    hasExactKeys(value, FLOW_MANIFEST_KEYS) &&
+    hasExactKeys(value, SET_FLOW_MANIFEST_KEYS) &&
     value["schemaVersion"] === 1 &&
     typeof value["name"] === "string" &&
     typeof value["version"] === "string" &&
@@ -174,7 +167,7 @@ function readComponentManifest(manifestPath: string): ComponentManifestV1 {
 
   if (
     isRecord(value) &&
-    hasExactKeys(value, COMPONENT_MANIFEST_KEYS) &&
+    hasExactKeys(value, SET_COMPONENT_MANIFEST_KEYS) &&
     value["schemaVersion"] === 1 &&
     typeof value["id"] === "string" &&
     typeof value["packageName"] === "string" &&
@@ -197,25 +190,4 @@ function readComponentManifest(manifestPath: string): ComponentManifestV1 {
   }
 
   throw new Error(`Invalid Component Project manifest: ${manifestPath}`);
-}
-
-function readJsonFile(filePath: string): unknown {
-  const content = fs.readFileSync(filePath, { encoding: "utf-8" });
-  return JSON.parse(content) as unknown;
-}
-
-function writeJsonFile(filePath: string, value: object): void {
-  fs.writeFileSync(filePath, stringifyJson(value, 2), { encoding: "utf-8" });
-}
-
-function hasExactKeys(
-  value: Record<string, unknown>,
-  expectedKeys: ReadonlySet<string>,
-): boolean {
-  const keys = Object.keys(value);
-  return keys.length === expectedKeys.size && keys.every((key) => expectedKeys.has(key));
-}
-
-function isStringRecord(value: unknown): value is Record<string, string> {
-  return isRecord(value) && Object.values(value).every((item) => typeof item === "string");
 }

@@ -5,133 +5,26 @@ import * as path from "node:path";
 import { execFileSync } from "node:child_process";
 
 import { log } from "./output";
-import { getErrorMessage, printUserCanceled } from "./commonFunc";
+import type { CreateProjectResult } from "./interface";
 import {
-  COMPONENT_PACKAGE_NAME_PATTERN,
   getComponentPackageNameError,
+  getDisplayNameError,
+  getProjectFolderNameError,
+  getVersionInputError,
+} from "./projectValidation";
+import type {
+  CreateProjectInput,
+  ProjectTemplateInfo,
+  ProjectType,
+} from "./webviewMessages";
+import {
+  getProjectManifestDefaults,
   initializeComponentProject,
   initializeFlowProject,
 } from "./projectManifest";
+import { getErrorMessage } from "./utils";
 
-type ProjectType = "flow" | "component";
-
-interface ProjectTemplateItem extends vscode.QuickPickItem {
-  projectType: ProjectType;
-  templateName: string;
-}
-
-interface ComponentProjectInput {
-  packageName: string;
-  displayName: string;
-}
-
-const SET_RESERVED_WINDOWS_NAMES = new Set([
-  "CON",
-  "PRN",
-  "AUX",
-  "NUL",
-  "COM1",
-  "COM2",
-  "COM3",
-  "COM4",
-  "COM5",
-  "COM6",
-  "COM7",
-  "COM8",
-  "COM9",
-  "LPT1",
-  "LPT2",
-  "LPT3",
-  "LPT4",
-  "LPT5",
-  "LPT6",
-  "LPT7",
-  "LPT8",
-  "LPT9",
-]);
-
-export async function createProject(): Promise<void> {
-  let newProjectPath: string | undefined;
-  let projectFolderCreated = false;
-
-  try {
-    const targetFolder = await selectTargetFolder();
-    if (targetFolder === undefined) {
-      printUserCanceled();
-      return;
-    }
-
-    const templateFolder = getTemplateFolder();
-    const selectedTemplate = await selectProjectTemplate(templateFolder);
-    if (selectedTemplate === undefined) {
-      printUserCanceled();
-      return;
-    }
-
-    const projectName = await askProjectName(targetFolder);
-    if (projectName === undefined) {
-      printUserCanceled();
-      return;
-    }
-
-    const componentInput =
-      selectedTemplate.projectType === "component"
-        ? await askComponentProjectInput(projectName)
-        : undefined;
-
-    if (selectedTemplate.projectType === "component" && componentInput === undefined) {
-      printUserCanceled();
-      return;
-    }
-
-    newProjectPath = path.join(targetFolder, projectName);
-    fs.mkdirSync(newProjectPath);
-    projectFolderCreated = true;
-
-    const templatePath = path.join(templateFolder, selectedTemplate.templateName);
-    await copyFolder(templatePath, newProjectPath);
-
-    switch (selectedTemplate.projectType) {
-      case "flow":
-        initializeFlowProject(newProjectPath, projectName);
-        break;
-
-      case "component":
-        if (componentInput === undefined) {
-          throw new Error("Missing Component Project input.");
-        }
-
-        initializeComponentProject(
-          newProjectPath,
-          componentInput.packageName,
-          componentInput.displayName,
-        );
-        break;
-    }
-
-    if (fs.existsSync(path.join(newProjectPath, ".gitignore"))) {
-      initGit(newProjectPath);
-    }
-
-    log.info(`Project "${projectName}" created successfully.`);
-
-    await vscode.commands.executeCommand(
-      "vscode.openFolder",
-      vscode.Uri.file(newProjectPath),
-      { forceNewWindow: true },
-    );
-  } catch (error: unknown) {
-    if (projectFolderCreated && newProjectPath !== undefined) {
-      removeIncompleteProject(newProjectPath);
-    }
-
-    const errorMessage = getErrorMessage(error);
-    log.error(`Error creating Project: ${errorMessage}`);
-    void vscode.window.showErrorMessage(`Error creating Project: ${errorMessage}`);
-  }
-}
-
-async function selectTargetFolder(): Promise<string | undefined> {
+export async function selectTargetFolder(): Promise<string | undefined> {
   const folderUris = await vscode.window.showOpenDialog({
     canSelectFolders: true,
     canSelectFiles: false,
@@ -142,8 +35,123 @@ async function selectTargetFolder(): Promise<string | undefined> {
   return folderUris?.[0]?.fsPath;
 }
 
+export function getProjectTemplates(): ProjectTemplateInfo[] {
+  const templateFolder = getTemplateFolder();
+
+  const templates = fs
+    .readdirSync(templateFolder, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .flatMap<ProjectTemplateInfo>((entry) => {
+      const projectType = getProjectType(entry.name);
+      if (projectType === undefined) {
+        log.warn(`Ignore unrecognized Project template folder: ${entry.name}`);
+        return [];
+      }
+
+      const templatePath = path.join(templateFolder, entry.name);
+      const defaults = getProjectManifestDefaults(templatePath, projectType);
+
+      return [
+        {
+          templateName: entry.name,
+          projectType,
+          version: defaults.version,
+          description: defaults.description,
+        },
+      ];
+    })
+    .sort((left, right) => left.templateName.localeCompare(right.templateName));
+
+  if (templates.length === 0) {
+    throw new Error(`No valid Project templates found in: ${templateFolder}`);
+  }
+
+  return templates;
+}
+
+export async function createProject(
+  input: CreateProjectInput,
+): Promise<CreateProjectResult> {
+  validateCreateProjectInput(input);
+
+  const templateFolder = getTemplateFolder();
+  const template = getProjectTemplates().find(
+    (item) => item.templateName === input.templateName,
+  );
+
+  if (template === undefined) {
+    throw new Error(`Project template not found: ${input.templateName}`);
+  }
+
+  if (template.projectType !== input.projectType) {
+    throw new Error(
+      `Project template "${input.templateName}" does not match Project type "${input.projectType}".`,
+    );
+  }
+
+  const projectPath = path.join(input.targetFolder, input.projectFolderName);
+  if (fs.existsSync(projectPath)) {
+    throw new Error(`The target Project folder already exists: ${projectPath}`);
+  }
+
+  const stagingPath = fs.mkdtempSync(path.join(input.targetFolder, ".liberrpa-create-"));
+  const warnings: string[] = [];
+  let committed = false;
+
+  try {
+    const templatePath = path.join(templateFolder, input.templateName);
+    await copyFolder(templatePath, stagingPath);
+
+    switch (input.projectType) {
+      case "flow":
+        initializeFlowProject(
+          stagingPath,
+          input.projectFolderName,
+          input.version,
+          input.description,
+        );
+        break;
+
+      case "component":
+        initializeComponentProject(
+          stagingPath,
+          input.packageName,
+          input.displayName,
+          input.version,
+          input.description,
+        );
+        break;
+    }
+
+    if (fs.existsSync(path.join(stagingPath, ".gitignore"))) {
+      const warning = initGit(stagingPath);
+      if (warning !== undefined) {
+        warnings.push(warning);
+      }
+    }
+
+    if (fs.existsSync(projectPath)) {
+      throw new Error(`The target Project folder already exists: ${projectPath}`);
+    }
+
+    fs.renameSync(stagingPath, projectPath);
+    committed = true;
+  } finally {
+    if (!committed && fs.existsSync(stagingPath)) {
+      removeIncompleteProject(stagingPath);
+    }
+  }
+
+  log.info(`Project "${input.projectFolderName}" created successfully.`);
+
+  return {
+    projectPath,
+    warnings,
+  };
+}
+
 function getTemplateFolder(): string {
-  const liberRpaFolder = process.env["LiberRPA"];
+  const liberRpaFolder = process.env.LiberRPA;
   if (liberRpaFolder === undefined || liberRpaFolder.length === 0) {
     throw new Error(
       'The "LiberRPA" User Environment Variable is missing. Run InitLiberRPA.exe first.',
@@ -159,38 +167,6 @@ function getTemplateFolder(): string {
   return templateFolder;
 }
 
-async function selectProjectTemplate(
-  templateFolder: string,
-): Promise<ProjectTemplateItem | undefined> {
-  const templates = fs
-    .readdirSync(templateFolder, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .flatMap<ProjectTemplateItem>((entry) => {
-      const projectType = getProjectType(entry.name);
-      if (projectType === undefined) {
-        log.warn(`Ignore unrecognized Project template folder: ${entry.name}`);
-        return [];
-      }
-
-      return [
-        {
-          label: entry.name,
-          projectType,
-          templateName: entry.name,
-        },
-      ];
-    })
-    .sort((left, right) => left.label.localeCompare(right.label));
-
-  if (templates.length === 0) {
-    throw new Error(`No valid Project templates found in: ${templateFolder}`);
-  }
-
-  return vscode.window.showQuickPick(templates, {
-    placeHolder: "Select a Project template",
-  });
-}
-
 function getProjectType(templateName: string): ProjectType | undefined {
   if (templateName.startsWith("FlowProject-")) {
     return "flow";
@@ -203,95 +179,40 @@ function getProjectType(templateName: string): ProjectType | undefined {
   return undefined;
 }
 
-async function askProjectName(targetFolder: string): Promise<string | undefined> {
-  return vscode.window.showInputBox({
-    prompt: "Enter the folder name for the new Project",
-    validateInput: (input) => getProjectFolderNameError(targetFolder, input),
-  });
-}
-
-function getProjectFolderNameError(
-  targetFolder: string,
-  projectName: string,
-): string | undefined {
-  if (projectName.length === 0) {
-    return "Project folder name cannot be empty.";
+function validateCreateProjectInput(input: CreateProjectInput): void {
+  if (!path.isAbsolute(input.targetFolder)) {
+    throw new Error("Target folder must be an absolute path.");
   }
 
-  if (projectName !== projectName.trim()) {
-    return "Project folder name cannot start or end with whitespace.";
+  if (!fs.existsSync(input.targetFolder)) {
+    throw new Error(`Target folder not found: ${input.targetFolder}`);
   }
 
-  if (/[<>:"/\\|?*]/.test(projectName)) {
-    return `Project folder name cannot contain Windows reserved characters: ${'<>:"/\\|?*'}`;
+  if (!fs.statSync(input.targetFolder).isDirectory()) {
+    throw new Error(`Target path is not a folder: ${input.targetFolder}`);
   }
 
-  if ([...projectName].some((character) => character.charCodeAt(0) <= 0x1f)) {
-    return "Project folder name cannot contain ASCII control characters.";
+  const projectFolderNameError = getProjectFolderNameError(input.projectFolderName);
+  if (projectFolderNameError !== undefined) {
+    throw new Error(projectFolderNameError);
   }
 
-  if (projectName.endsWith(".")) {
-    return "Project folder name cannot end with a period.";
+  const versionError = getVersionInputError(input.version);
+  if (versionError !== undefined) {
+    throw new Error(versionError);
   }
 
-  const nameBeforeFirstPeriod = projectName.split(".", 1)[0]?.toUpperCase();
-  if (
-    nameBeforeFirstPeriod !== undefined &&
-    SET_RESERVED_WINDOWS_NAMES.has(nameBeforeFirstPeriod)
-  ) {
-    return `Project folder name "${projectName}" is reserved by Windows.`;
+  if (input.projectType === "component") {
+    const packageNameError = getComponentPackageNameError(input.packageName);
+    if (packageNameError !== undefined) {
+      throw new Error(packageNameError);
+    }
+
+    const displayNameError = getDisplayNameError(input.displayName);
+    if (displayNameError !== undefined) {
+      throw new Error(displayNameError);
+    }
   }
-
-  if (projectName.length > 255) {
-    return "Project folder name cannot be longer than 255 characters.";
-  }
-
-  if (fs.existsSync(path.join(targetFolder, projectName))) {
-    return "A folder with this name already exists.";
-  }
-
-  return undefined;
-}
-
-async function askComponentProjectInput(
-  projectName: string,
-): Promise<ComponentProjectInput | undefined> {
-  const suggestedPackageName = COMPONENT_PACKAGE_NAME_PATTERN.test(projectName)
-    ? projectName
-    : "";
-
-  const packageName = await vscode.window.showInputBox({
-    prompt: "Enter the Component package name",
-    placeHolder: "PascalCase, for example: ExcelTools",
-    value: suggestedPackageName,
-    validateInput: getComponentPackageNameError,
-  });
-
-  if (packageName === undefined) {
-    return undefined;
-  }
-
-  const displayName = await vscode.window.showInputBox({
-    prompt: "Enter the Component display name",
-    placeHolder: "A readable name shown in user interfaces",
-    value: projectName,
-    validateInput: (input) => {
-      if (input.trim().length === 0) {
-        return "Display name cannot be empty.";
-      }
-
-      return undefined;
-    },
-  });
-
-  if (displayName === undefined) {
-    return undefined;
-  }
-
-  return {
-    packageName,
-    displayName: displayName.trim(),
-  };
 }
 
 async function copyFolder(source: string, destination: string): Promise<void> {
@@ -312,29 +233,29 @@ async function copyFolder(source: string, destination: string): Promise<void> {
         await fs.promises.copyFile(sourcePath, destinationPath);
       }),
     );
-  } catch (error: unknown) {
-    const errorMessage = getErrorMessage(error);
+  } catch (e: unknown) {
+    const errorMessage = getErrorMessage(e);
     log.error(`Error copying folder from ${source} to ${destination}: ${errorMessage}`);
     throw new Error(`Failed to copy template files: ${errorMessage}`, {
-      cause: error,
+      cause: e,
     });
   }
 }
 
-function initGit(projectPath: string): void {
+function initGit(projectPath: string): string | undefined {
   try {
     execFileSync("git", ["init"], {
       cwd: projectPath,
       stdio: "ignore",
     });
     log.info("Git repository initialized.");
-  } catch (error: unknown) {
-    const errorMessage = getErrorMessage(error);
-    const message =
-      `Failed to initialize Git repository: ${errorMessage}. ` +
+    return undefined;
+  } catch (e: unknown) {
+    const warning =
+      `Failed to initialize Git repository: ${getErrorMessage(e)}. ` +
       "Make sure Git is installed and available in PATH.";
-    log.error(message);
-    void vscode.window.showErrorMessage(message);
+    log.warn(warning);
+    return warning;
   }
 }
 
@@ -342,9 +263,9 @@ function removeIncompleteProject(projectPath: string): void {
   try {
     fs.rmSync(projectPath, { recursive: true, force: true });
     log.info(`Removed incomplete Project folder: ${projectPath}`);
-  } catch (error: unknown) {
+  } catch (e: unknown) {
     log.error(
-      `Failed to remove incomplete Project folder "${projectPath}": ${getErrorMessage(error)}`,
+      `Failed to remove incomplete Project folder "${projectPath}": ${getErrorMessage(e)}`,
     );
   }
 }

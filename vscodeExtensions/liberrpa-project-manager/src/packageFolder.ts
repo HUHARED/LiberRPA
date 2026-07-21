@@ -6,7 +6,8 @@ import * as path from "node:path";
 import { finished } from "node:stream/promises";
 
 import { log } from "./output";
-import { getErrorMessage, isRecord, printUserCanceled, stringifyJson } from "./commonFunc";
+import { isRecord } from "./typeCheck";
+import { getErrorMessage, printUserCanceled, stringifyJson } from "./utils";
 
 interface LegacyProjectJson extends Record<string, unknown> {
   executorPackage: false;
@@ -119,17 +120,17 @@ export async function packageProject(): Promise<void> {
 
     log.info(`Reveal the package file: ${zipFilePath}`);
     await vscode.commands.executeCommand("revealFileInOS", vscode.Uri.file(zipFilePath));
-  } catch (error: unknown) {
-    const errorMessage = getErrorMessage(error);
+  } catch (e: unknown) {
+    const errorMessage = getErrorMessage(e);
     log.error(`Error packaging Project: ${errorMessage}`);
     void vscode.window.showErrorMessage(`Error packaging Project: ${errorMessage}`);
   } finally {
     if (tempFolderPath !== undefined) {
       try {
         fs.rmSync(tempFolderPath, { recursive: true, force: true });
-      } catch (error: unknown) {
+      } catch (e: unknown) {
         log.error(
-          `Failed to remove temporary package folder "${tempFolderPath}": ${getErrorMessage(error)}`,
+          `Failed to remove temporary package folder "${tempFolderPath}": ${getErrorMessage(e)}`,
         );
       }
     }
@@ -172,9 +173,9 @@ function writeOriginalProjectJson(projectJson: LegacyProjectJson): void {
     fs.writeFileSync(getProjectJsonPath(), stringifyJson(projectJson, 4), {
       encoding: "utf-8",
     });
-  } catch (error: unknown) {
-    throw new Error(`Failed to update project.json: ${getErrorMessage(error)}`, {
-      cause: error,
+  } catch (e: unknown) {
+    throw new Error(`Failed to update project.json: ${getErrorMessage(e)}`, {
+      cause: e,
     });
   }
 }
@@ -224,10 +225,10 @@ async function copyFolderToTemp(
         await fs.promises.copyFile(sourcePath, destinationPath);
       }),
     );
-  } catch (error: unknown) {
-    const errorMessage = getErrorMessage(error);
+  } catch (e: unknown) {
+    const errorMessage = getErrorMessage(e);
     log.error(`Error copying folder from ${source} to ${destination}: ${errorMessage}`);
-    throw new Error(`Failed to copy Project files: ${errorMessage}`, { cause: error });
+    throw new Error(`Failed to copy Project files: ${errorMessage}`, { cause: e });
   }
 }
 
@@ -248,10 +249,10 @@ async function compressFolder(
     archive.directory(sourceFolder, false);
     await archive.finalize();
     await finished(output);
-  } catch (error: unknown) {
+  } catch (e: unknown) {
     output.destroy();
-    throw new Error(`Failed to create package archive: ${getErrorMessage(error)}`, {
-      cause: error,
+    throw new Error(`Failed to create package archive: ${getErrorMessage(e)}`, {
+      cause: e,
     });
   }
 
