@@ -1,25 +1,15 @@
 // FileName: vscodeApi.ts
 
-import type { WebviewToExtensionMessage } from "./webviewMessages";
+import type { DictMessage_WebviewToExtension } from "./extensionMessages";
 
 interface VsCodeApi {
-  postMessage(message: WebviewToExtensionMessage): void;
-  getState<T>(): T | undefined;
-  setState<T>(state: T): void;
+  postMessage(message: DictMessage_WebviewToExtension): void;
 }
 
 declare function acquireVsCodeApi(): VsCodeApi;
 
 const vscodeApi = acquireVsCodeApi();
 
-export function postMessage(message: WebviewToExtensionMessage): void {
+export function postMessage(message: DictMessage_WebviewToExtension): void {
   vscodeApi.postMessage(message);
-}
-
-export function getState<T>(): T | undefined {
-  return vscodeApi.getState<T>();
-}
-
-export function setState<T>(state: T): void {
-  vscodeApi.setState(state);
 }

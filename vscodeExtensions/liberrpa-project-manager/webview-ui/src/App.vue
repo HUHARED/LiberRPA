@@ -98,7 +98,7 @@
                   <v-text-field
                     v-model="projectManagerStore.displayName"
                     label="Component display name"
-                    hint="A readable name shown in Project Manager and Snippets Tree."
+                    hint="A readable name shown in Project Manager and Snippets Tree; leading and trailing whitespace is not allowed."
                     persistent-hint
                     :error-messages="toErrorMessages(displayNameError)"
                     :disabled="projectManagerStore.busy">
@@ -149,15 +149,15 @@ import { computed, onBeforeMount, onUnmounted, watch } from "vue";
 import { postMessage } from "./vscodeApi";
 import Alert from "./components/Alert.vue";
 import { useProjectManagerStore } from "./store";
-import { toErrorMessages } from "./commonFunc";
 import {
-  COMPONENT_PACKAGE_NAME_PATTERN,
-  getComponentPackageNameError,
-  getDisplayNameError,
+  REGEX_COMPONENT_PACKAGE_NAME,
   getProjectFolderNameError,
   getVersionInputError,
+  getComponentPackageNameError,
+  getDisplayNameError,
 } from "./projectValidation";
-import { isExtensionToWebviewMessage, type CreateProjectInput } from "./webviewMessages";
+import type { DictCreateProjectInput } from "./extensionMessages.ts";
+import { isMessage_ExtensionToWebview } from "./extensionMessages.ts";
 
 const projectManagerStore = useProjectManagerStore();
 
@@ -201,9 +201,10 @@ const canConfirm = computed(
     displayNameError.value === undefined,
 );
 
-let lastSuggestedPackageName = "";
-let lastSuggestedDisplayName = "";
+let strLastSuggestedPackageName = "";
+let strLastSuggestedDisplayName = "";
 
+// Automatically suggest packageName and displayName.
 watch(
   () => projectManagerStore.projectFolderName,
   (projectFolderName) => {
@@ -213,21 +214,21 @@ watch(
 
     if (
       projectManagerStore.packageName.length === 0 ||
-      projectManagerStore.packageName === lastSuggestedPackageName
+      projectManagerStore.packageName === strLastSuggestedPackageName
     ) {
-      const packageName = COMPONENT_PACKAGE_NAME_PATTERN.test(projectFolderName)
+      const packageName = REGEX_COMPONENT_PACKAGE_NAME.test(projectFolderName)
         ? projectFolderName
         : "";
       projectManagerStore.packageName = packageName;
-      lastSuggestedPackageName = packageName;
+      strLastSuggestedPackageName = packageName;
     }
 
     if (
       projectManagerStore.displayName.length === 0 ||
-      projectManagerStore.displayName === lastSuggestedDisplayName
+      projectManagerStore.displayName === strLastSuggestedDisplayName
     ) {
       projectManagerStore.displayName = projectFolderName;
-      lastSuggestedDisplayName = projectFolderName;
+      strLastSuggestedDisplayName = projectFolderName;
     }
   },
 );
@@ -252,20 +253,24 @@ function updateComponentSuggestions(): void {
   const projectFolderName = projectManagerStore.projectFolderName;
 
   if (projectManagerStore.packageName.length === 0) {
-    const packageName = COMPONENT_PACKAGE_NAME_PATTERN.test(projectFolderName)
+    const packageName = REGEX_COMPONENT_PACKAGE_NAME.test(projectFolderName)
       ? projectFolderName
       : "";
     projectManagerStore.packageName = packageName;
-    lastSuggestedPackageName = packageName;
+    strLastSuggestedPackageName = packageName;
   }
 
   if (projectManagerStore.displayName.length === 0) {
     projectManagerStore.displayName = projectFolderName;
-    lastSuggestedDisplayName = projectFolderName;
+    strLastSuggestedDisplayName = projectFolderName;
   }
 }
 
 function selectTargetFolder(): void {
+  if (projectManagerStore.busy) {
+    return;
+  }
+
   postMessage({ command: "selectTargetFolder" });
 }
 
@@ -274,7 +279,7 @@ function confirm(): void {
     return;
   }
 
-  const input: CreateProjectInput = {
+  const dictInput: DictCreateProjectInput = {
     templateName: projectManagerStore.templateName,
     projectType: projectManagerStore.projectType,
     targetFolder: projectManagerStore.targetFolder,
@@ -285,23 +290,29 @@ function confirm(): void {
     displayName: projectManagerStore.displayName,
   };
 
-  postMessage({ command: "confirmCreateProject", input });
+  // Disable all actions immediately instead of waiting for the Extension response.
+  projectManagerStore.busy = true;
+  postMessage({ command: "confirmCreateProject", input: dictInput });
 }
 
 function cancel(): void {
+  if (projectManagerStore.busy) {
+    return;
+  }
+
   postMessage({ command: "cancel" });
 }
 
 function handleMessage(event: MessageEvent): void {
   const message: unknown = event.data;
-  if (!isExtensionToWebviewMessage(message)) {
+  if (!isMessage_ExtensionToWebview(message)) {
     console.warn("Ignored invalid extension message:", message);
     return;
   }
 
   switch (message.command) {
-    case "load":
-      projectManagerStore.loadCreateProject(message.context);
+    case "loadCreateProject":
+      projectManagerStore.loadCreateProject(message.initialData);
       break;
 
     case "targetFolderSelected":
@@ -312,16 +323,6 @@ function handleMessage(event: MessageEvent): void {
       projectManagerStore.busy = message.busy;
       break;
 
-    case "completed": {
-      const warnings =
-        message.warnings.length > 0 ? `\n\nWarnings:\n${message.warnings.join("\n")}` : "";
-      projectManagerStore.showMessage(
-        message.warnings.length > 0 ? "warning" : "success",
-        `${message.message}${warnings}`,
-      );
-      break;
-    }
-
     case "error":
       projectManagerStore.showMessage("error", message.message);
       break;
@@ -330,6 +331,10 @@ function handleMessage(event: MessageEvent): void {
       projectManagerStore.theme = message.theme;
       break;
   }
+}
+
+function toErrorMessages(message: string | undefined): string[] {
+  return message === undefined ? [] : [message];
 }
 
 onBeforeMount(() => {

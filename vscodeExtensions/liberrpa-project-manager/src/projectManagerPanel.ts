@@ -1,18 +1,24 @@
 // FileName: projectManagerPanel.ts
-
 import * as vscode from "vscode";
 import * as fs from "node:fs";
 
-import { createProject, getProjectTemplates, selectTargetFolder } from "./createFolder";
 import { log } from "./output";
+import { getProjectTemplates, selectTargetFolder, createProject } from "./createFolder";
 import { getErrorMessage } from "./utils";
-import {
-  isWebviewToExtensionMessage,
-  type CreateProjectInput,
-  type ExtensionToWebviewMessage,
-  type ProjectManagerOperation,
-  type ProjectManagerTheme,
+import type {
+  Theme,
+  DictCreateProjectInput,
+  DictMessage_ExtensionToWebview,
+  ProjectManagerOperation,
 } from "./webviewMessages";
+import { isMessage_WebviewToExtension } from "./webviewMessages";
+
+function getTheme(theme: vscode.ColorTheme): Theme {
+  return theme.kind === vscode.ColorThemeKind.Dark ||
+    theme.kind === vscode.ColorThemeKind.HighContrast
+    ? "dark"
+    : "light";
+}
 
 export class ProjectManagerPanel {
   private static currentPanel: ProjectManagerPanel | undefined;
@@ -22,6 +28,177 @@ export class ProjectManagerPanel {
   private currentOperation: ProjectManagerOperation;
   private webviewReady = false;
   private busy = false;
+
+  private getWebviewContent(webview: vscode.Webview): string {
+    const indexHtmlUri = vscode.Uri.joinPath(
+      this.context.extensionUri,
+      "webview-ui",
+      "dist",
+      "index.html",
+    );
+
+    if (!fs.existsSync(indexHtmlUri.fsPath)) {
+      throw new Error(
+        "Project Manager Webview has not been built. Run npm run build in webview-ui first.",
+      );
+    }
+
+    let html = fs.readFileSync(indexHtmlUri.fsPath, { encoding: "utf-8" });
+
+    const assetsUri = vscode.Uri.joinPath(
+      this.context.extensionUri,
+      "webview-ui",
+      "dist",
+      "assets",
+    );
+    const webviewAssetsUri = webview.asWebviewUri(assetsUri).toString();
+
+    html = html.replaceAll('"/assets/', `"${webviewAssetsUri}/`);
+    html = html.replaceAll("'/assets/", `'${webviewAssetsUri}/`);
+    html = html.replaceAll('"./assets/', `"${webviewAssetsUri}/`);
+    html = html.replaceAll("'./assets/", `'${webviewAssetsUri}/`);
+    html = html.replace(/\scrossorigin\b/g, "");
+    html = html.replaceAll("{{WEBVIEW_CSP_SOURCE}}", webview.cspSource);
+
+    return html;
+  }
+
+  private async postMessage(message: DictMessage_ExtensionToWebview): Promise<void> {
+    const boolPosted = await this.panel.webview.postMessage(message);
+
+    if (!boolPosted) {
+      throw new Error("Project Manager Webview is not available.");
+    }
+  }
+
+  private async loadCurrentOperation(): Promise<void> {
+    if (!this.webviewReady) {
+      return;
+    }
+
+    try {
+      switch (this.currentOperation) {
+        case "createProject": {
+          await this.postMessage({
+            command: "loadCreateProject",
+            initialData: {
+              templates: getProjectTemplates(),
+              theme: getTheme(vscode.window.activeColorTheme),
+            },
+          });
+          break;
+        }
+      }
+    } catch (e: unknown) {
+      log.error(`Failed to load Project Manager operation: ${getErrorMessage(e)}`);
+      await this.sendError(e);
+    }
+  }
+
+  private async handleCreateProject(input: DictCreateProjectInput): Promise<void> {
+    if (this.busy) {
+      return;
+    }
+
+    this.busy = true;
+
+    try {
+      await this.postMessage({ command: "setBusy", busy: true });
+
+      const dictResult = await createProject(input);
+
+      log.info(`Project created successfully: ${dictResult.projectPath}`);
+
+      if (dictResult.warnings.length > 0) {
+        void vscode.window.showWarningMessage(dictResult.warnings.join("\n"));
+      }
+
+      try {
+        await vscode.commands.executeCommand(
+          "vscode.openFolder",
+          vscode.Uri.file(dictResult.projectPath),
+          {
+            forceNewWindow: true,
+          },
+        );
+      } catch (e: unknown) {
+        const strErrorMessage = getErrorMessage(e);
+        log.error(`Project was created, but failed to open it: ${strErrorMessage}`);
+        void vscode.window.showErrorMessage(
+          `The Project was created successfully, but VS Code failed to open it: ${strErrorMessage}`,
+        );
+      }
+
+      // Project creation has completed even if opening it failed. Close the tab.
+      this.panel.dispose();
+    } catch (e: unknown) {
+      try {
+        await this.postMessage({
+          command: "setBusy",
+          busy: false,
+        });
+      } catch (postError: unknown) {
+        log.error(
+          `Failed to restore Project Manager Webview busy state: ${getErrorMessage(postError)}`,
+        );
+      }
+
+      throw e;
+    } finally {
+      this.busy = false;
+    }
+  }
+
+  private async handleMessage(message: unknown): Promise<void> {
+    try {
+      if (!isMessage_WebviewToExtension(message)) {
+        log.warn("Ignored invalid Project Manager Webview message.");
+        return;
+      }
+
+      if (this.busy && message.command !== "ready") {
+        log.debug(`Ignored Project Manager Webview message while busy: ${message.command}`);
+        return;
+      }
+
+      switch (message.command) {
+        case "ready": {
+          if (this.webviewReady) {
+            log.debug("Ignored repeated Project Manager Webview ready message.");
+            return;
+          }
+
+          this.webviewReady = true;
+          await this.loadCurrentOperation();
+          break;
+        }
+        case "selectTargetFolder": {
+          const strTargetFolder = await selectTargetFolder();
+          if (strTargetFolder !== undefined) {
+            await this.postMessage({
+              command: "targetFolderSelected",
+              path: strTargetFolder,
+            });
+          }
+          break;
+        }
+
+        case "confirmCreateProject": {
+          await this.handleCreateProject(message.input);
+          break;
+        }
+
+        case "cancel": {
+          this.panel.dispose();
+          break;
+        }
+      }
+    } catch (e) {
+      const strErrorMessage = getErrorMessage(e);
+      log.error(`Failed to handle Webview message: ${strErrorMessage}`);
+      await this.sendError(e);
+    }
+  }
 
   private constructor(
     private readonly context: vscode.ExtensionContext,
@@ -70,7 +247,9 @@ export class ProjectManagerPanel {
         if (this.webviewReady) {
           void this.postMessage({
             command: "themeChanged",
-            theme: getProjectManagerTheme(theme),
+            theme: getTheme(theme),
+          }).catch((e: unknown) => {
+            log.warn(`Failed to update Project Manager theme: ${getErrorMessage(e)}`);
           });
         }
       },
@@ -84,10 +263,24 @@ export class ProjectManagerPanel {
     operation: ProjectManagerOperation,
   ): void {
     try {
-      if (ProjectManagerPanel.currentPanel !== undefined) {
-        ProjectManagerPanel.currentPanel.currentOperation = operation;
-        ProjectManagerPanel.currentPanel.panel.reveal(vscode.ViewColumn.Active);
-        void ProjectManagerPanel.currentPanel.loadCurrentOperation();
+      const currentPanel = ProjectManagerPanel.currentPanel;
+
+      if (currentPanel !== undefined) {
+        currentPanel.panel.reveal(vscode.ViewColumn.Active);
+
+        if (currentPanel.currentOperation === operation) {
+          return;
+        }
+
+        if (currentPanel.busy) {
+          void vscode.window.showInformationMessage(
+            "Project Manager cannot switch operations while the current operation is running.",
+          );
+          return;
+        }
+
+        currentPanel.currentOperation = operation;
+        void currentPanel.loadCurrentOperation();
         return;
       }
 
@@ -99,159 +292,25 @@ export class ProjectManagerPanel {
     }
   }
 
-  private async handleMessage(message: unknown): Promise<void> {
-    if (!isWebviewToExtensionMessage(message)) {
-      log.warn("Ignored invalid Project Manager Webview message.");
-      return;
-    }
-
-    switch (message.command) {
-      case "ready":
-        this.webviewReady = true;
-        await this.loadCurrentOperation();
-        break;
-
-      case "selectTargetFolder": {
-        const targetFolder = await selectTargetFolder();
-        if (targetFolder !== undefined) {
-          await this.postMessage({
-            command: "targetFolderSelected",
-            path: targetFolder,
-          });
-        }
-        break;
-      }
-
-      case "confirmCreateProject":
-        await this.handleCreateProject(message.input);
-        break;
-
-      case "cancel":
-        this.panel.dispose();
-        break;
-    }
-  }
-
-  private async loadCurrentOperation(): Promise<void> {
-    if (!this.webviewReady) {
-      return;
-    }
-
-    try {
-      switch (this.currentOperation) {
-        case "createProject":
-          await this.postMessage({
-            command: "load",
-            operation: "createProject",
-            context: {
-              templates: getProjectTemplates(),
-              theme: getProjectManagerTheme(vscode.window.activeColorTheme),
-            },
-          });
-          break;
-      }
-    } catch (e: unknown) {
-      await this.sendError(e);
-    }
-  }
-
-  private async handleCreateProject(input: CreateProjectInput): Promise<void> {
-    if (this.busy) {
-      return;
-    }
-
-    this.busy = true;
-    await this.postMessage({ command: "setBusy", busy: true });
-
-    try {
-      const result = await createProject(input);
-      const warnings = [...result.warnings];
-
-      try {
-        await vscode.commands.executeCommand(
-          "vscode.openFolder",
-          vscode.Uri.file(result.projectPath),
-          { forceNewWindow: true },
-        );
-      } catch (e: unknown) {
-        const warning = `Project was created, but VS Code could not open it: ${getErrorMessage(e)}`;
-        log.warn(warning);
-        warnings.push(warning);
-      }
-
-      await this.postMessage({ command: "setBusy", busy: false });
-
-      await this.postMessage({
-        command: "completed",
-        message: `Project "${input.projectFolderName}" was created successfully.`,
-        projectPath: result.projectPath,
-        warnings,
-      });
-      this.panel.dispose();
-    } catch (e: unknown) {
-      await this.postMessage({ command: "setBusy", busy: false });
-      await this.sendError(e);
-    } finally {
-      this.busy = false;
-    }
-  }
-
   private async sendError(error: unknown): Promise<void> {
-    const message = getErrorMessage(error);
-    log.error(message);
-    await this.postMessage({ command: "error", message });
-  }
-
-  private async postMessage(message: ExtensionToWebviewMessage): Promise<void> {
-    await this.panel.webview.postMessage(message);
-  }
-
-  private getWebviewContent(webview: vscode.Webview): string {
-    const indexHtmlUri = vscode.Uri.joinPath(
-      this.context.extensionUri,
-      "webview-ui",
-      "dist",
-      "index.html",
-    );
-
-    if (!fs.existsSync(indexHtmlUri.fsPath)) {
-      throw new Error(
-        "Project Manager Webview has not been built. Run npm run build in webview-ui first.",
-      );
+    const strErrorMessage = getErrorMessage(error);
+    try {
+      await this.postMessage({
+        command: "error",
+        message: strErrorMessage,
+      });
+    } catch (e: unknown) {
+      log.error(`Failed to send error to Project Manager Webview: ${getErrorMessage(e)}`);
     }
-
-    let html = fs.readFileSync(indexHtmlUri.fsPath, { encoding: "utf-8" });
-
-    const assetsUri = vscode.Uri.joinPath(
-      this.context.extensionUri,
-      "webview-ui",
-      "dist",
-      "assets",
-    );
-    const webviewAssetsUri = webview.asWebviewUri(assetsUri).toString();
-
-    html = html.replaceAll('"/assets/', `"${webviewAssetsUri}/`);
-    html = html.replaceAll("'/assets/", `'${webviewAssetsUri}/`);
-    html = html.replaceAll('"./assets/', `"${webviewAssetsUri}/`);
-    html = html.replaceAll("'./assets/", `'${webviewAssetsUri}/`);
-    html = html.replace(/\scrossorigin\b/g, "");
-    html = html.replaceAll("{{WEBVIEW_CSP_SOURCE}}", webview.cspSource);
-
-    return html;
   }
 
   private disposeResources(): void {
-    ProjectManagerPanel.currentPanel = undefined;
+    if (ProjectManagerPanel.currentPanel === this) {
+      ProjectManagerPanel.currentPanel = undefined;
+    }
 
     while (this.disposables.length > 0) {
       this.disposables.pop()?.dispose();
     }
   }
-}
-
-function getProjectManagerTheme(theme: vscode.ColorTheme): ProjectManagerTheme {
-  return theme.kind === vscode.ColorThemeKind.Dark ||
-    theme.kind === vscode.ColorThemeKind.HighContrast
-    ? "dark"
-    : "light";
 }

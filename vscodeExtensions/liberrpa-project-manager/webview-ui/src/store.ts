@@ -1,23 +1,23 @@
 // FileName: store.ts
 
 import { defineStore } from "pinia";
-import type { AlertType } from "./interface";
+
 import type {
-  CreateProjectLoadContext,
-  ProjectManagerOperation,
-  ProjectManagerTheme,
-  ProjectTemplateInfo,
+  Theme,
   ProjectType,
-} from "./webviewMessages";
+  DictCreateProjectInitialData,
+  DictProjectTemplateInfo,
+} from "./extensionMessages";
+
+type AlertType = "info" | "warning" | "error";
 
 export const useProjectManagerStore = defineStore("projectManager", {
   state: () => ({
     loaded: false as boolean,
     busy: false as boolean,
-    operation: "createProject" as ProjectManagerOperation,
-    theme: "light" as ProjectManagerTheme,
+    theme: "light" as Theme,
 
-    templates: [] as ProjectTemplateInfo[],
+    templates: [] as DictProjectTemplateInfo[],
     projectType: "flow" as ProjectType,
     templateName: "" as string,
     targetFolder: "" as string,
@@ -33,12 +33,11 @@ export const useProjectManagerStore = defineStore("projectManager", {
   }),
 
   actions: {
-    loadCreateProject(context: CreateProjectLoadContext): void {
+    loadCreateProject(initialData: DictCreateProjectInitialData): void {
       this.loaded = true;
       this.busy = false;
-      this.operation = "createProject";
-      this.theme = context.theme;
-      this.templates = context.templates;
+      this.theme = initialData.theme;
+      this.templates = initialData.templates;
       this.targetFolder = "";
       this.projectFolderName = "";
       this.packageName = "";
@@ -46,8 +45,8 @@ export const useProjectManagerStore = defineStore("projectManager", {
       this.clearAlert();
 
       const initialTemplate =
-        context.templates.find((item) => item.projectType === "flow") ??
-        context.templates[0];
+        initialData.templates.find((item) => item.projectType === "flow") ??
+        initialData.templates[0];
 
       if (initialTemplate === undefined) {
         this.templateName = "";
@@ -77,10 +76,10 @@ export const useProjectManagerStore = defineStore("projectManager", {
       }
     },
 
-    applyTemplate(template: ProjectTemplateInfo): void {
+    applyTemplate(template: DictProjectTemplateInfo): void {
       this.templateName = template.templateName;
-      this.version = template.version;
-      this.description = template.description;
+      this.version = template.defaultVersion;
+      this.description = template.defaultDescription;
     },
 
     showMessage(type: AlertType, message: string): void {

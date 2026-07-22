@@ -21,13 +21,10 @@ Project Root
 ├── .vscode
 │   └── launch.json
 ├── _Config
-│   └── .gitkeep
 ├── _Screenshots
-│   └── .gitkeep
 ├── _Selectors
 │   └── default.py
 ├── _Test
-│   └── .gitkeep
 ├── _Utils
 │   └── default.py
 ├── .gitignore

@@ -4,9 +4,8 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { randomUUID } from "node:crypto";
 
-import { isRecord, isStringRecord, hasExactKeys } from "./typeCheck";
 import type { ProjectType } from "./webviewMessages";
-import { getComponentPackageNameError, getDisplayNameError } from "./projectValidation";
+import { isRecord, isStringRecord, hasExactKeys } from "./typeCheck";
 import { readJsonFile, writeJsonFile } from "./utils";
 
 const SET_FLOW_MANIFEST_KEYS = new Set([
@@ -29,7 +28,7 @@ const SET_COMPONENT_MANIFEST_KEYS = new Set([
   "componentDependencies",
 ]);
 
-interface FlowManifestV1 {
+interface DictFlowManifestV1 {
   schemaVersion: 1;
   name: string;
   version: string;
@@ -38,7 +37,7 @@ interface FlowManifestV1 {
   componentDependencies: Record<string, string>;
 }
 
-interface ComponentManifestV1 {
+interface DictComponentManifestV1 {
   schemaVersion: 1;
   id: string;
   packageName: string;
@@ -49,94 +48,12 @@ interface ComponentManifestV1 {
   componentDependencies: Record<string, string>;
 }
 
-export interface ProjectManifestDefaults {
-  version: string;
-  description: string;
+interface DictProjectManifestDefaultInfo {
+  defaultVersion: string;
+  defaultDescription: string;
 }
 
-export function getProjectManifestDefaults(
-  templatePath: string,
-  projectType: ProjectType,
-): ProjectManifestDefaults {
-  switch (projectType) {
-    case "flow": {
-      const manifest = readFlowManifest(path.join(templatePath, "flow.json"));
-      return {
-        version: manifest.version,
-        description: manifest.description,
-      };
-    }
-
-    case "component": {
-      const manifest = readComponentManifest(path.join(templatePath, "component.json"));
-      return {
-        version: manifest.version,
-        description: manifest.description,
-      };
-    }
-  }
-}
-
-export function initializeFlowProject(
-  projectPath: string,
-  projectName: string,
-  version: string,
-  description: string,
-): void {
-  const normalizedProjectName = projectName.trim();
-  if (normalizedProjectName.length === 0) {
-    throw new Error("Flow Project name cannot be empty.");
-  }
-
-  const manifestPath = path.join(projectPath, "flow.json");
-  const manifest = readFlowManifest(manifestPath);
-  manifest.name = normalizedProjectName;
-  manifest.version = version;
-  manifest.description = description;
-  writeJsonFile(manifestPath, manifest);
-}
-
-export function initializeComponentProject(
-  projectPath: string,
-  packageName: string,
-  displayName: string,
-  version: string,
-  description: string,
-): void {
-  const packageNameError = getComponentPackageNameError(packageName);
-  if (packageNameError !== undefined) {
-    throw new Error(packageNameError);
-  }
-
-  const displayNameError = getDisplayNameError(displayName);
-  if (displayNameError !== undefined) {
-    throw new Error(displayNameError);
-  }
-
-  const manifestPath = path.join(projectPath, "component.json");
-  const manifest = readComponentManifest(manifestPath);
-  manifest.id = randomUUID();
-  manifest.packageName = packageName;
-  manifest.displayName = displayName.trim();
-  manifest.version = version;
-  manifest.description = description;
-  writeJsonFile(manifestPath, manifest);
-
-  const packagePath = path.join(projectPath, "src", packageName);
-
-  fs.mkdirSync(packagePath, { recursive: true });
-
-  fs.writeFileSync(path.join(packagePath, "__init__.py"), "", {
-    encoding: "utf-8",
-    flag: "wx",
-  });
-  fs.writeFileSync(path.join(packagePath, "py.typed"), "", {
-    encoding: "utf-8",
-    flag: "wx",
-  });
-}
-
-function readFlowManifest(manifestPath: string): FlowManifestV1 {
+function readFlowManifest(manifestPath: string): DictFlowManifestV1 {
   const value = readJsonFile(manifestPath);
 
   if (
@@ -162,7 +79,7 @@ function readFlowManifest(manifestPath: string): FlowManifestV1 {
   throw new Error(`Invalid Flow Project manifest: ${manifestPath}`);
 }
 
-function readComponentManifest(manifestPath: string): ComponentManifestV1 {
+function readComponentManifest(manifestPath: string): DictComponentManifestV1 {
   const value = readJsonFile(manifestPath);
 
   if (
@@ -190,4 +107,72 @@ function readComponentManifest(manifestPath: string): ComponentManifestV1 {
   }
 
   throw new Error(`Invalid Component Project manifest: ${manifestPath}`);
+}
+
+export function getProjectManifestDefaults(
+  templatePath: string,
+  projectType: ProjectType,
+): DictProjectManifestDefaultInfo {
+  switch (projectType) {
+    case "flow": {
+      const dictManifest = readFlowManifest(path.join(templatePath, "flow.json"));
+      return {
+        defaultVersion: dictManifest.version,
+        defaultDescription: dictManifest.description,
+      };
+    }
+
+    case "component": {
+      const dictManifest = readComponentManifest(path.join(templatePath, "component.json"));
+      return {
+        defaultVersion: dictManifest.version,
+        defaultDescription: dictManifest.description,
+      };
+    }
+  }
+}
+
+export function initializeFlowProject(
+  projectPath: string,
+  projectName: string,
+  version: string,
+  description: string,
+): void {
+  const strManifestPath = path.join(projectPath, "flow.json");
+  const dictManifest = readFlowManifest(strManifestPath);
+  dictManifest.name = projectName;
+  dictManifest.version = version;
+  dictManifest.description = description;
+  writeJsonFile(strManifestPath, dictManifest);
+}
+
+export function initializeComponentProject(
+  projectPath: string,
+  packageName: string,
+  displayName: string,
+  version: string,
+  description: string,
+): void {
+  const strManifestPath = path.join(projectPath, "component.json");
+  const dictManifest = readComponentManifest(strManifestPath);
+  dictManifest.id = randomUUID();
+  dictManifest.packageName = packageName;
+  dictManifest.displayName = displayName;
+  dictManifest.version = version;
+  dictManifest.description = description;
+  writeJsonFile(strManifestPath, dictManifest);
+
+  // The "src" folder needs packageName.
+  const packagePath = path.join(projectPath, "src", packageName);
+
+  fs.mkdirSync(packagePath, { recursive: true });
+
+  fs.writeFileSync(path.join(packagePath, "__init__.py"), "", {
+    encoding: "utf-8",
+    flag: "wx",
+  });
+  fs.writeFileSync(path.join(packagePath, "py.typed"), "", {
+    encoding: "utf-8",
+    flag: "wx",
+  });
 }

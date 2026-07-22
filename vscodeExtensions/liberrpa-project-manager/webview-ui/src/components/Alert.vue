@@ -24,8 +24,8 @@ function clearInformation(): void {
 }
 
 watch(
-  () => projectManagerStore.showAlert,
-  (showAlert) => {
+  [() => projectManagerStore.showAlert, () => projectManagerStore.alertMessage],
+  ([showAlert, _alertMessage]) => {
     if (timeoutId !== undefined) {
       clearTimeout(timeoutId);
       timeoutId = undefined;

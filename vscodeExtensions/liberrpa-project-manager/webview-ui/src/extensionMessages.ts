@@ -1,11 +1,6 @@
-// FileName: webviewMessages.ts
-
-import { isRecord } from "./typeCheck";
+// FileName: extensionMessages.ts
 
 export type Theme = "light" | "dark";
-
-// TODO: Add packageProject later.
-export type ProjectManagerOperation = "createProject";
 
 export type ProjectType = "flow" | "component";
 
@@ -26,23 +21,22 @@ export interface DictProjectTemplateInfo {
   templateName: string;
   projectType: ProjectType;
 
-  // These data comes from component.json or flow.json.
   defaultVersion: string;
   defaultDescription: string;
 }
 
-type DictMessage_WebviewToExtension =
+export type DictMessage_WebviewToExtension =
   | { command: "ready" }
   | { command: "selectTargetFolder" }
   | { command: "confirmCreateProject"; input: DictCreateProjectInput }
   | { command: "cancel" };
 
-interface DictCreateProjectInitialData {
+export interface DictCreateProjectInitialData {
   templates: DictProjectTemplateInfo[];
   theme: Theme;
 }
 
-export type DictMessage_ExtensionToWebview =
+type DictMessage_ExtensionToWebview =
   | {
       command: "loadCreateProject";
       initialData: DictCreateProjectInitialData;
@@ -52,35 +46,53 @@ export type DictMessage_ExtensionToWebview =
   | { command: "error"; message: string }
   | { command: "themeChanged"; theme: Theme };
 
-function isCreateProjectInput(value: unknown): value is DictCreateProjectInput {
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isProjectTemplateInfo(value: unknown): value is DictProjectTemplateInfo {
   return (
     isRecord(value) &&
     typeof value["templateName"] === "string" &&
     (value["projectType"] === "flow" || value["projectType"] === "component") &&
-    typeof value["targetFolder"] === "string" &&
-    typeof value["projectFolderName"] === "string" &&
-    typeof value["version"] === "string" &&
-    typeof value["description"] === "string" &&
-    typeof value["packageName"] === "string" &&
-    typeof value["displayName"] === "string"
+    typeof value["defaultVersion"] === "string" &&
+    typeof value["defaultDescription"] === "string"
   );
 }
 
-export function isMessage_WebviewToExtension(
+function isCreateProjectLoadInitialData(
   value: unknown,
-): value is DictMessage_WebviewToExtension {
+): value is DictCreateProjectInitialData {
+  return (
+    isRecord(value) &&
+    Array.isArray(value["templates"]) &&
+    value["templates"].every(isProjectTemplateInfo) &&
+    (value["theme"] === "light" || value["theme"] === "dark")
+  );
+}
+
+export function isMessage_ExtensionToWebview(
+  value: unknown,
+): value is DictMessage_ExtensionToWebview {
   if (!isRecord(value) || typeof value["command"] !== "string") {
     return false;
   }
 
   switch (value["command"]) {
-    case "ready":
-    case "selectTargetFolder":
-    case "cancel":
-      return true;
+    case "loadCreateProject":
+      return isCreateProjectLoadInitialData(value["initialData"]);
 
-    case "confirmCreateProject":
-      return isCreateProjectInput(value["input"]);
+    case "targetFolderSelected":
+      return typeof value["path"] === "string";
+
+    case "setBusy":
+      return typeof value["busy"] === "boolean";
+
+    case "error":
+      return typeof value["message"] === "string";
+
+    case "themeChanged":
+      return value["theme"] === "light" || value["theme"] === "dark";
 
     default:
       return false;

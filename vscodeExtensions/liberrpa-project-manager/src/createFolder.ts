@@ -5,181 +5,30 @@ import * as path from "node:path";
 import { execFileSync } from "node:child_process";
 
 import { log } from "./output";
-import type { CreateProjectResult } from "./interface";
 import {
-  getComponentPackageNameError,
-  getDisplayNameError,
   getProjectFolderNameError,
   getVersionInputError,
+  getComponentPackageNameError,
+  getDisplayNameError,
 } from "./projectValidation";
 import type {
-  CreateProjectInput,
-  ProjectTemplateInfo,
+  DictCreateProjectInput,
+  DictProjectTemplateInfo,
   ProjectType,
 } from "./webviewMessages";
 import {
   getProjectManifestDefaults,
-  initializeComponentProject,
   initializeFlowProject,
+  initializeComponentProject,
 } from "./projectManifest";
 import { getErrorMessage } from "./utils";
 
-export async function selectTargetFolder(): Promise<string | undefined> {
-  const folderUris = await vscode.window.showOpenDialog({
-    canSelectFolders: true,
-    canSelectFiles: false,
-    canSelectMany: false,
-    openLabel: "Select Folder for New Project",
-  });
-
-  return folderUris?.[0]?.fsPath;
+interface DictCreateProjectResult {
+  projectPath: string;
+  warnings: string[];
 }
 
-export function getProjectTemplates(): ProjectTemplateInfo[] {
-  const templateFolder = getTemplateFolder();
-
-  const templates = fs
-    .readdirSync(templateFolder, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .flatMap<ProjectTemplateInfo>((entry) => {
-      const projectType = getProjectType(entry.name);
-      if (projectType === undefined) {
-        log.warn(`Ignore unrecognized Project template folder: ${entry.name}`);
-        return [];
-      }
-
-      const templatePath = path.join(templateFolder, entry.name);
-      const defaults = getProjectManifestDefaults(templatePath, projectType);
-
-      return [
-        {
-          templateName: entry.name,
-          projectType,
-          version: defaults.version,
-          description: defaults.description,
-        },
-      ];
-    })
-    .sort((left, right) => left.templateName.localeCompare(right.templateName));
-
-  if (templates.length === 0) {
-    throw new Error(`No valid Project templates found in: ${templateFolder}`);
-  }
-
-  return templates;
-}
-
-export async function createProject(
-  input: CreateProjectInput,
-): Promise<CreateProjectResult> {
-  validateCreateProjectInput(input);
-
-  const templateFolder = getTemplateFolder();
-  const template = getProjectTemplates().find(
-    (item) => item.templateName === input.templateName,
-  );
-
-  if (template === undefined) {
-    throw new Error(`Project template not found: ${input.templateName}`);
-  }
-
-  if (template.projectType !== input.projectType) {
-    throw new Error(
-      `Project template "${input.templateName}" does not match Project type "${input.projectType}".`,
-    );
-  }
-
-  const projectPath = path.join(input.targetFolder, input.projectFolderName);
-  if (fs.existsSync(projectPath)) {
-    throw new Error(`The target Project folder already exists: ${projectPath}`);
-  }
-
-  const stagingPath = fs.mkdtempSync(path.join(input.targetFolder, ".liberrpa-create-"));
-  const warnings: string[] = [];
-  let committed = false;
-
-  try {
-    const templatePath = path.join(templateFolder, input.templateName);
-    await copyFolder(templatePath, stagingPath);
-
-    switch (input.projectType) {
-      case "flow":
-        initializeFlowProject(
-          stagingPath,
-          input.projectFolderName,
-          input.version,
-          input.description,
-        );
-        break;
-
-      case "component":
-        initializeComponentProject(
-          stagingPath,
-          input.packageName,
-          input.displayName,
-          input.version,
-          input.description,
-        );
-        break;
-    }
-
-    if (fs.existsSync(path.join(stagingPath, ".gitignore"))) {
-      const warning = initGit(stagingPath);
-      if (warning !== undefined) {
-        warnings.push(warning);
-      }
-    }
-
-    if (fs.existsSync(projectPath)) {
-      throw new Error(`The target Project folder already exists: ${projectPath}`);
-    }
-
-    fs.renameSync(stagingPath, projectPath);
-    committed = true;
-  } finally {
-    if (!committed && fs.existsSync(stagingPath)) {
-      removeIncompleteProject(stagingPath);
-    }
-  }
-
-  log.info(`Project "${input.projectFolderName}" created successfully.`);
-
-  return {
-    projectPath,
-    warnings,
-  };
-}
-
-function getTemplateFolder(): string {
-  const liberRpaFolder = process.env.LiberRPA;
-  if (liberRpaFolder === undefined || liberRpaFolder.length === 0) {
-    throw new Error(
-      'The "LiberRPA" User Environment Variable is missing. Run InitLiberRPA.exe first.',
-    );
-  }
-
-  const templateFolder = path.join(liberRpaFolder, "configFiles", "ProjectTemplate");
-
-  if (!fs.existsSync(templateFolder) || !fs.statSync(templateFolder).isDirectory()) {
-    throw new Error(`Template directory not found: ${templateFolder}`);
-  }
-
-  return templateFolder;
-}
-
-function getProjectType(templateName: string): ProjectType | undefined {
-  if (templateName.startsWith("FlowProject-")) {
-    return "flow";
-  }
-
-  if (templateName.startsWith("ComponentProject-")) {
-    return "component";
-  }
-
-  return undefined;
-}
-
-function validateCreateProjectInput(input: CreateProjectInput): void {
+function validateCreateProjectInput(input: DictCreateProjectInput): void {
   if (!path.isAbsolute(input.targetFolder)) {
     throw new Error("Target folder must be an absolute path.");
   }
@@ -215,22 +64,101 @@ function validateCreateProjectInput(input: CreateProjectInput): void {
   }
 }
 
+function getTemplateFolder(): string {
+  const liberRpaFolder = process.env.LiberRPA;
+  if (liberRpaFolder === undefined || liberRpaFolder.length === 0) {
+    throw new Error(
+      'The "LiberRPA" User Environment Variable is missing. Run InitLiberRPA.exe first.',
+    );
+  }
+
+  const templateFolder = path.join(liberRpaFolder, "configFiles", "ProjectTemplate");
+
+  if (!fs.existsSync(templateFolder) || !fs.statSync(templateFolder).isDirectory()) {
+    throw new Error(`Template directory not found: ${templateFolder}`);
+  }
+
+  return templateFolder;
+}
+
+function getProjectType(templateName: string): ProjectType | undefined {
+  if (templateName.startsWith("FlowProject-")) {
+    return "flow";
+  }
+
+  if (templateName.startsWith("ComponentProject-")) {
+    return "component";
+  }
+
+  return undefined;
+}
+
+export function getProjectTemplates(): DictProjectTemplateInfo[] {
+  const strTemplateFolder = getTemplateFolder();
+
+  const arrTemplates = fs
+    .readdirSync(strTemplateFolder, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .flatMap<DictProjectTemplateInfo>((entry) => {
+      const strProjectType = getProjectType(entry.name);
+      if (strProjectType === undefined) {
+        log.warn(`Ignore unrecognized Project template folder: ${entry.name}`);
+        return [];
+      }
+
+      const strTemplatePath = path.join(strTemplateFolder, entry.name);
+      const dictDefaultInfo = getProjectManifestDefaults(strTemplatePath, strProjectType);
+
+      return [
+        {
+          templateName: entry.name,
+          projectType: strProjectType,
+          defaultVersion: dictDefaultInfo.defaultVersion,
+          defaultDescription: dictDefaultInfo.defaultDescription,
+        },
+      ];
+    })
+    .sort((left, right) => left.templateName.localeCompare(right.templateName));
+
+  if (arrTemplates.length === 0) {
+    throw new Error(`No valid Project templates found in: ${strTemplateFolder}`);
+  }
+
+  return arrTemplates;
+}
+
+export async function selectTargetFolder(): Promise<string | undefined> {
+  const folderUris = await vscode.window.showOpenDialog({
+    canSelectFolders: true,
+    canSelectFiles: false,
+    canSelectMany: false,
+    openLabel: "Select Folder for New Project",
+  });
+
+  return folderUris?.[0]?.fsPath;
+}
+
 async function copyFolder(source: string, destination: string): Promise<void> {
   try {
-    const entries = await fs.promises.readdir(source, { withFileTypes: true });
+    const arrEntries = await fs.promises.readdir(source, { withFileTypes: true });
 
     await Promise.all(
-      entries.map(async (entry) => {
-        const sourcePath = path.join(source, entry.name);
-        const destinationPath = path.join(destination, entry.name);
-
-        if (entry.isDirectory()) {
-          await fs.promises.mkdir(destinationPath, { recursive: true });
-          await copyFolder(sourcePath, destinationPath);
+      arrEntries.map(async (entry) => {
+        if (entry.name === ".gitkeep") {
+          log.debug(`Ignore template placeholder file: ${path.join(source, entry.name)}`);
           return;
         }
 
-        await fs.promises.copyFile(sourcePath, destinationPath);
+        const strSrcPath = path.join(source, entry.name);
+        const strDstPath = path.join(destination, entry.name);
+
+        if (entry.isDirectory()) {
+          await fs.promises.mkdir(strDstPath, { recursive: true });
+          await copyFolder(strSrcPath, strDstPath);
+          return;
+        }
+
+        await fs.promises.copyFile(strSrcPath, strDstPath);
       }),
     );
   } catch (e: unknown) {
@@ -251,11 +179,11 @@ function initGit(projectPath: string): string | undefined {
     log.info("Git repository initialized.");
     return undefined;
   } catch (e: unknown) {
-    const warning =
+    const strWarning =
       `Failed to initialize Git repository: ${getErrorMessage(e)}. ` +
       "Make sure Git is installed and available in PATH.";
-    log.warn(warning);
-    return warning;
+    log.warn(strWarning);
+    return strWarning;
   }
 }
 
@@ -268,4 +196,86 @@ function removeIncompleteProject(projectPath: string): void {
       `Failed to remove incomplete Project folder "${projectPath}": ${getErrorMessage(e)}`,
     );
   }
+}
+
+export async function createProject(
+  input: DictCreateProjectInput,
+): Promise<DictCreateProjectResult> {
+  validateCreateProjectInput(input);
+
+  const strTemplateFolder = getTemplateFolder();
+  const dictTemplate = getProjectTemplates().find(
+    (item) => item.templateName === input.templateName,
+  );
+
+  if (dictTemplate === undefined) {
+    throw new Error(`Project template not found: ${input.templateName}`);
+  }
+
+  if (dictTemplate.projectType !== input.projectType) {
+    throw new Error(
+      `Project template "${input.templateName}" does not match Project type "${input.projectType}".`,
+    );
+  }
+
+  const strProjectPath = path.join(input.targetFolder, input.projectFolderName);
+  if (fs.existsSync(strProjectPath)) {
+    throw new Error(`The target Project folder already exists: ${strProjectPath}`);
+  }
+
+  const strStagingPath = fs.mkdtempSync(path.join(input.targetFolder, ".liberrpa-create-"));
+  const arrWarning: string[] = [];
+  let boolCommitted = false;
+
+  try {
+    const strTemplatePath = path.join(strTemplateFolder, input.templateName);
+    await copyFolder(strTemplatePath, strStagingPath);
+
+    switch (input.projectType) {
+      case "flow":
+        initializeFlowProject(
+          strStagingPath,
+          input.projectFolderName,
+          input.version,
+          input.description,
+        );
+        break;
+
+      case "component":
+        initializeComponentProject(
+          strStagingPath,
+          input.packageName,
+          input.displayName,
+          input.version,
+          input.description,
+        );
+        break;
+    }
+
+    if (fs.existsSync(path.join(strStagingPath, ".gitignore"))) {
+      const strWarning = initGit(strStagingPath);
+      if (strWarning !== undefined) {
+        arrWarning.push(strWarning);
+      }
+    }
+
+    if (fs.existsSync(strProjectPath)) {
+      throw new Error(`The target Project folder already exists: ${strProjectPath}`);
+    }
+
+    // Atomically create the target folder.
+    fs.renameSync(strStagingPath, strProjectPath);
+    boolCommitted = true;
+  } finally {
+    if (!boolCommitted && fs.existsSync(strStagingPath)) {
+      removeIncompleteProject(strStagingPath);
+    }
+  }
+
+  log.info(`Project "${input.projectFolderName}" created successfully.`);
+
+  return {
+    projectPath: strProjectPath,
+    warnings: arrWarning,
+  };
 }

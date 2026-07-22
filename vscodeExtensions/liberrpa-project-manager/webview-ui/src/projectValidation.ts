@@ -3,7 +3,8 @@
 // - src/projectValidation.ts
 // - webview-ui/src/projectValidation.ts
 
-export const COMPONENT_PACKAGE_NAME_PATTERN = /^[A-Z][A-Za-z0-9]*$/;
+// Use this kind of pattern to ensure Components have the same naming conversation like LiberRPA built-in modules.
+export const REGEX_COMPONENT_PACKAGE_NAME = /^[A-Z][A-Za-z0-9]*$/;
 
 const SET_INVALID_PYTHON_IDENTIFIERS = new Set(["False", "None", "True"]);
 const SET_RESERVED_WINDOWS_NAMES = new Set([
@@ -67,8 +68,20 @@ export function getProjectFolderNameError(projectName: string): string | undefin
   return undefined;
 }
 
+export function getVersionInputError(version: string): string | undefined {
+  if (version.length === 0) {
+    return "Version cannot be empty.";
+  }
+
+  if (version !== version.trim()) {
+    return "Version cannot start or end with whitespace.";
+  }
+
+  return undefined;
+}
+
 export function getComponentPackageNameError(packageName: string): string | undefined {
-  if (!COMPONENT_PACKAGE_NAME_PATTERN.test(packageName)) {
+  if (!REGEX_COMPONENT_PACKAGE_NAME.test(packageName)) {
     return "Package name must use PascalCase and contain only ASCII letters and digits, for example: ExcelTools.";
   }
 
@@ -77,7 +90,7 @@ export function getComponentPackageNameError(packageName: string): string | unde
   }
 
   if (packageName.toLowerCase() === "liberrpa") {
-    return 'Package name "Liberrpa" is reserved by LiberRPA.';
+    return 'Package name "liberrpa" is reserved by LiberRPA.';
   }
 
   if (SET_RESERVED_WINDOWS_NAMES.has(packageName.toUpperCase())) {
@@ -92,20 +105,12 @@ export function getDisplayNameError(displayName: string): string | undefined {
     return "Display name cannot be empty.";
   }
 
+  if (displayName !== displayName.trim()) {
+    return "Display name cannot start or end with whitespace.";
+  }
+
   if (displayName.includes("\r") || displayName.includes("\n")) {
     return "Display name must be a single line.";
-  }
-
-  return undefined;
-}
-
-export function getVersionInputError(version: string): string | undefined {
-  if (version.length === 0) {
-    return "Version cannot be empty.";
-  }
-
-  if (version !== version.trim()) {
-    return "Version cannot start or end with whitespace.";
   }
 
   return undefined;
