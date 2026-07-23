@@ -7,7 +7,7 @@
 // Windows file systems are usually case-insensitive, so compare risky module names in lower case.
 
 const SET_RESERVED_PACKAGE_NAMES = new Set<string>(
-  ["liberrpa"].map((name) => name.toLowerCase())
+  ["liberrpa"].map((name) => name.toLowerCase()),
 );
 
 const SET_LIBERRPA_EXPORTED_NAMES = new Set<string>(
@@ -42,13 +42,15 @@ const SET_LIBERRPA_EXPORTED_NAMES = new Set<string>(
 
     "Log",
     "delay",
+    "get_component_resource_path",
     "PrjArgs",
     "CustomArgs",
     "DatabaseConnection",
-  ].map((name) => name.toLowerCase())
+  ].map((name) => name.toLowerCase()),
 );
 
 const SET_PYTHON_STDLIB_MODULE_NAMES = new Set<string>(
+  // Python 3.13 top-level standard library module names.
   [
     "__future__",
     "_abc",
@@ -340,7 +342,7 @@ const SET_PYTHON_STDLIB_MODULE_NAMES = new Set<string>(
     "zipimport",
     "zlib",
     "zoneinfo",
-  ].map((name) => name.toLowerCase())
+  ].map((name) => name.toLowerCase()),
 );
 
 const SET_LIBERRPA_THIRD_PARTY_MODULE_NAMES = new Set<string>(
@@ -381,7 +383,7 @@ const SET_LIBERRPA_THIRD_PARTY_MODULE_NAMES = new Set<string>(
     "pystray",
     "mss",
     "PyQt5",
-  ].map((name) => name.toLowerCase())
+  ].map((name) => name.toLowerCase()),
 );
 
 export function getRiskyPyModuleNameReason(pyFile: string): string | null {

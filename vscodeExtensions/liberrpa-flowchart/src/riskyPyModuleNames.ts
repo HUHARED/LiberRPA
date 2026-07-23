@@ -42,6 +42,7 @@ const SET_LIBERRPA_EXPORTED_NAMES = new Set<string>(
 
     "Log",
     "delay",
+    "get_component_resource_path",
     "PrjArgs",
     "CustomArgs",
     "DatabaseConnection",
@@ -49,6 +50,7 @@ const SET_LIBERRPA_EXPORTED_NAMES = new Set<string>(
 );
 
 const SET_PYTHON_STDLIB_MODULE_NAMES = new Set<string>(
+  // Python 3.13 top-level standard library module names.
   [
     "__future__",
     "_abc",
