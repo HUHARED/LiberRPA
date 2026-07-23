@@ -36,7 +36,7 @@ def _normalize_body(item: DictSnippetsItem) -> list[str]:
             raise ValueError("Snippet body list should not be empty.")
         bodyLines = list(body)
 
-    if itemCopy.get("appendFinalTabstop", True):
+    if itemCopy.get("insertionMode", "line") == "line":
         if bodyLines[-1] == "":
             bodyLines[-1] = "$0"
         elif bodyLines[-1] != "$0":

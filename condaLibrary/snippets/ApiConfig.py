@@ -21,7 +21,6 @@ class DictSnippetsItem(TypedDict):
     label: NotRequired[str]
     imports: NotRequired[DictSnippetImports]
 
-    appendFinalTabstop: NotRequired[bool]
     insertionMode: NotRequired[SnippetInsertionMode]
 
 
@@ -39,6 +38,7 @@ class DictCatalogSnippet(TypedDict):
 
 class DictImportSourceConfig(TypedDict):
     order: list[str]
+    aliasMode: NotRequired[Literal["source_module"]]
 
 
 class DictSnippetsCatalog(TypedDict):
