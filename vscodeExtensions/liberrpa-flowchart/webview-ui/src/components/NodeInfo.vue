@@ -38,7 +38,7 @@
             <div>The path must be a relative path to a .py file.</div>
 
             <div class="font-weight-medium mt-2">
-              The Python file's name can only contain:
+              Each folder name and the Python file name can only contain:
             </div>
 
             <div class="pl-5 mt-1">

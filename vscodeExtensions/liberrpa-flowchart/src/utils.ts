@@ -6,6 +6,33 @@ import type { WebviewToExtensionMessage } from "./interface";
 import { isExecuteMode, parseFlowProjectFromText } from "./checkFlowchart";
 import { getRiskyPyModuleNameReason } from "./riskyPyModuleNames";
 
+const REGEX_PYTHON_PATH_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+const SET_RESERVED_WINDOWS_PATH_NAMES = new Set<string>([
+  "CON",
+  "PRN",
+  "AUX",
+  "NUL",
+  "COM1",
+  "COM2",
+  "COM3",
+  "COM4",
+  "COM5",
+  "COM6",
+  "COM7",
+  "COM8",
+  "COM9",
+  "LPT1",
+  "LPT2",
+  "LPT3",
+  "LPT4",
+  "LPT5",
+  "LPT6",
+  "LPT7",
+  "LPT8",
+  "LPT9",
+]);
+
 export function isWebviewMessage(value: unknown): value is WebviewToExtensionMessage {
   if (!value || typeof value !== "object") {
     return false;
@@ -52,7 +79,7 @@ export function validatePythonImportSafety(pyFile: string): void {
 
 export function validateProjectBlockPythonFiles(
   workspaceFolder: vscode.WorkspaceFolder,
-  document: vscode.TextDocument
+  document: vscode.TextDocument,
 ): void {
   const dictProject = parseFlowProjectFromText(document.getText());
 
@@ -77,7 +104,7 @@ export function validateProjectBlockPythonFiles(
 
 export function resolveWorkspacePythonFile(
   workspaceFolder: vscode.WorkspaceFolder,
-  pyFile: string
+  pyFile: string,
 ): vscode.Uri {
   const strInput = pyFile.trim();
 
@@ -113,13 +140,21 @@ export function resolveWorkspacePythonFile(
     throw new Error(`Python file path contains invalid path segment: ${pyFile}`);
   }
 
-  for (const part of arrPathParts) {
-    const strNameWithoutExt =
-      part === arrPathParts[arrPathParts.length - 1] ? path.parse(part).name : part;
+  const intLastPathPartIndex = arrPathParts.length - 1;
 
-    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(strNameWithoutExt)) {
+  for (const [intIndex, strPathPart] of arrPathParts.entries()) {
+    const strNameWithoutExt =
+      intIndex === intLastPathPartIndex ? path.parse(strPathPart).name : strPathPart;
+
+    if (!REGEX_PYTHON_PATH_NAME.test(strNameWithoutExt)) {
       throw new Error(
-        `Invalid Python module name "${strNameWithoutExt}" in path: ${pyFile}`
+        `Invalid Python file or folder name "${strNameWithoutExt}" in path: ${pyFile}`,
+      );
+    }
+
+    if (SET_RESERVED_WINDOWS_PATH_NAMES.has(strNameWithoutExt.toUpperCase())) {
+      throw new Error(
+        `Python file or folder name "${strNameWithoutExt}" is reserved by Windows.\nPath: ${pyFile}`,
       );
     }
   }

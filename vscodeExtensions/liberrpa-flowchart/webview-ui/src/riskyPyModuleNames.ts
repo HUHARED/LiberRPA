@@ -386,6 +386,11 @@ const SET_LIBERRPA_THIRD_PARTY_MODULE_NAMES = new Set<string>(
   ].map((name) => name.toLowerCase()),
 );
 
+/*
+The Python file path must be validated by resolveWorkspacePythonFile() first.
+
+This function only checks import-shadowing risks. It does not validate Windows path syntax or require Block file and folder names to be Python identifiers.
+*/
 export function getRiskyPyModuleNameReason(pyFile: string): string | null {
   let strNormalizedPath = pyFile.trim();
 

@@ -7,7 +7,7 @@
 // Windows file systems are usually case-insensitive, so compare risky module names in lower case.
 
 const SET_RESERVED_PACKAGE_NAMES = new Set<string>(
-  ["liberrpa"].map((name) => name.toLowerCase())
+  ["liberrpa"].map((name) => name.toLowerCase()),
 );
 
 const SET_LIBERRPA_EXPORTED_NAMES = new Set<string>(
@@ -46,7 +46,7 @@ const SET_LIBERRPA_EXPORTED_NAMES = new Set<string>(
     "PrjArgs",
     "CustomArgs",
     "DatabaseConnection",
-  ].map((name) => name.toLowerCase())
+  ].map((name) => name.toLowerCase()),
 );
 
 const SET_PYTHON_STDLIB_MODULE_NAMES = new Set<string>(
@@ -342,7 +342,7 @@ const SET_PYTHON_STDLIB_MODULE_NAMES = new Set<string>(
     "zipimport",
     "zlib",
     "zoneinfo",
-  ].map((name) => name.toLowerCase())
+  ].map((name) => name.toLowerCase()),
 );
 
 const SET_LIBERRPA_THIRD_PARTY_MODULE_NAMES = new Set<string>(
@@ -383,9 +383,14 @@ const SET_LIBERRPA_THIRD_PARTY_MODULE_NAMES = new Set<string>(
     "pystray",
     "mss",
     "PyQt5",
-  ].map((name) => name.toLowerCase())
+  ].map((name) => name.toLowerCase()),
 );
 
+/*
+The Python file path must be validated by resolveWorkspacePythonFile() first.
+
+This function only checks import-shadowing risks. It does not validate Windows path syntax or require Block file and folder names to be Python identifiers.
+*/
 export function getRiskyPyModuleNameReason(pyFile: string): string | null {
   let strNormalizedPath = pyFile.trim();
 
