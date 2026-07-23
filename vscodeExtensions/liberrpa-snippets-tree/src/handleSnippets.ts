@@ -62,7 +62,7 @@ function loadFavoriteSnippets(): DictSnippetFavoriteFile {
   if (!fs.existsSync(strFavoritePath)) {
     const strTemplatePath = path.join(
       __dirname,
-      "../assets/snippets_favorite_template.jsonc"
+      "../assets/snippets_favorite.jsonc.template"
     );
     fs.copyFileSync(strTemplatePath, strFavoritePath);
 
