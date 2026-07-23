@@ -1,0 +1,10 @@
+# FileName: ruff.toml
+
+extend = "../../ruff.toml"
+
+[lint]
+# Component Management stdout is reserved for its single JSON protocol response.
+extend-select = [
+    "T201",  # print
+    "T203",  # pprint
+]

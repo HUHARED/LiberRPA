@@ -1,0 +1,112 @@
+# FileName: _Publish.py
+__author__ = "Jiyan Hu"
+__email__ = "mailwork.hu@gmail.com"
+__license__ = "GNU Affero General Public License v3.0 or later"
+__copyright__ = f"Copyright (C) 2025 {__author__}"
+
+from liberrpa.ComponentManagement._Exception import ComponentManagementError
+from liberrpa.ComponentManagement._File import write_json_atomic
+from liberrpa.ComponentManagement._Manifest import ComponentManifest, read_component_manifest
+from liberrpa.ComponentManagement._ProjectLock import project_lock
+from liberrpa.ComponentManagement._SnippetAst import DictAstSnippetsFile, scan_component_snippets
+from liberrpa.ComponentManagement._SnippetConfig import create_snippet_config
+
+from pathlib import Path
+
+
+def _validate_component_project(
+    projectPath: Path,
+) -> tuple[ComponentManifest, Path]:
+    pathComponentManifest = projectPath / "component.json"
+    pathFlowManifest = projectPath / "flow.json"
+
+    if pathFlowManifest.exists():
+        raise ComponentManagementError(
+            code="not_component_project",
+            message="Publish Component is only available for a Component Project.",
+            details={"flowManifest": str(pathFlowManifest)},
+        )
+
+    manifestObj = read_component_manifest(pathComponentManifest)
+    pathSrc = projectPath / "src"
+    pathPackage = pathSrc / manifestObj.packageName
+
+    if not pathSrc.is_dir():
+        raise ComponentManagementError(
+            code="component_source_invalid",
+            message=f"Component source folder was not found: {pathSrc}",
+        )
+
+    listUnexpectedEntry = sorted(entry.name for entry in pathSrc.iterdir() if entry.name != manifestObj.packageName)
+    if listUnexpectedEntry:
+        raise ComponentManagementError(
+            code="component_source_invalid",
+            message="The src folder can only contain the Component's top-level package.",
+            details={"unexpectedEntries": listUnexpectedEntry},
+        )
+
+    if not pathPackage.is_dir() or pathPackage.is_symlink():
+        raise ComponentManagementError(
+            code="component_source_invalid",
+            message=f"Component package folder was not found or is invalid: {pathPackage}",
+        )
+
+    for strRequiredFile in ("__init__.py", "py.typed"):
+        pathRequiredFile = pathPackage / strRequiredFile
+        if not pathRequiredFile.is_file() or pathRequiredFile.is_symlink():
+            raise ComponentManagementError(
+                code="component_source_invalid",
+                message=f"Required Component package file was not found or is invalid: {pathRequiredFile}",
+            )
+
+    return manifestObj, pathPackage
+
+
+def _write_ast_snippets(astSnippetsPath: Path, astSnippets: DictAstSnippetsFile) -> None:
+    try:
+        write_json_atomic(path=astSnippetsPath, value=astSnippets)
+    except OSError as e:
+        raise ComponentManagementError(
+            code="io_error",
+            message=f"Failed to write AST Snippet scan result: {astSnippetsPath}",
+        ) from e
+
+
+def publish_component_preparation(projectInputPath: str) -> tuple[dict[str, object], list[dict[str, object]]]:
+    pathProject = Path(projectInputPath).expanduser().resolve()
+
+    if not pathProject.is_dir():
+        raise ComponentManagementError(
+            code="project_path_invalid",
+            message=f"Project folder was not found: {pathProject}",
+        )
+
+    with project_lock(lockPath=pathProject, operation="publishComponent"):
+        manifestObj, pathPackage = _validate_component_project(pathProject)
+        dictAstSnippets = scan_component_snippets(
+            projectPath=pathProject,
+            packagePath=pathPackage,
+            manifestObj=manifestObj,
+        )
+
+        pathSnippetsFolder = pathProject / "_Snippets"
+        pathAstSnippets = pathSnippetsFolder / "ast.snippets.json"
+        pathSnippetConfig = pathSnippetsFolder / "snippets.jsonc"
+
+        _write_ast_snippets(astSnippetsPath=pathAstSnippets, astSnippets=dictAstSnippets)
+        boolConfigCreated = create_snippet_config(configPath=pathSnippetConfig)
+
+    strStatus = "preparationCreated" if boolConfigCreated else "preparationUpdated"
+    dictResult: dict[str, object] = {
+        "status": strStatus,
+        "componentId": manifestObj.id,
+        "packageName": manifestObj.packageName,
+        "astSnippetsFile": pathAstSnippets.relative_to(pathProject).as_posix(),
+        "snippetsConfigFile": pathSnippetConfig.relative_to(pathProject).as_posix(),
+        "generatedCount": len(dictAstSnippets["snippets"]),
+        "skippedCount": len(dictAstSnippets["skipped"]),
+        "warningCount": len(dictAstSnippets["warnings"]),
+    }
+
+    listWarning: list[dict[str, object]] = [dict(item) for item in dictAstSnippets["warnings"]]
+    return dictResult, listWarning

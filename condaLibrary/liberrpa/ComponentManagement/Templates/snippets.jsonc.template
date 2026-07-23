@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+
+  /* 
+  All public top-level functions in public top-level Modules are published automatically.
+  
+  Prefer prefixing private Modules and functions with "_".
+  
+  Use this list only when a publicly named function should not be exposed as a Snippet.
+  */
+  "excludedAstSnippets": [],
+
+  /*
+  Override selected fields of AST-generated Snippets.
+  
+  Supported fields:
+  - label
+  - body
+  - description
+  - insertionMode
+  - imports
+  
+  category, prefix and the main Component Module import are generated automatically and cannot be overridden.
+  */
+  "astSnippetOverrides": {
+    /*
+    "PackageName_ModuleName.function_name": {
+      "description": "Custom description.",
+      "imports": {
+        "liberrpa.Modules": ["Log"]
+      }
+    }
+    */
+  },
+
+  /*
+  Fully hand-written Component Snippets.
+  
+  The key must use:
+  PackageName_ModuleName.snippet_name
+  
+  Supported fields:
+  - prefix
+  - body
+  - description
+  - label
+  - insertionMode
+  - imports
+  
+  category and the main Component Module import are generated automatically.
+  */
+  "snippets": {
+    /*
+    "PackageName_ModuleName.custom_snippet": {
+      "body": [
+        "PackageName_ModuleName.function_name()",
+        "$0"
+      ],
+      "description": "Describe what this Snippet does.",
+      "insertionMode": "line",
+      "imports": {
+        "liberrpa.Modules": ["Log"]
+      }
+    }
+    */
+  }
+}
