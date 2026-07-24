@@ -10,7 +10,9 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "main": "./dist/extension.js",
   "contributes": {
     "commands": [
@@ -23,8 +25,22 @@
         "command": "LiberRPA.packageProject",
         "category": "LiberRPA",
         "title": "Package the Project"
+      },
+      {
+        "command": "LiberRPA.publishComponent",
+        "category": "LiberRPA",
+        "title": "Publish Component",
+        "enablement": "liberrpaProjectManager.projectType == component"
       }
-    ]
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "LiberRPA.publishComponent",
+          "when": "liberrpaProjectManager.projectType == component"
+        }
+      ]
+    }
   },
   "icon": "./assets/LiberRPA_icon_v3_color_ProjectManager_128.png",
   "license": "SEE LICENSE IN LICENSE",

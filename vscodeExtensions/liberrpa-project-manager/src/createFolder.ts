@@ -65,14 +65,14 @@ function validateCreateProjectInput(input: DictCreateProjectInput): void {
 }
 
 function getTemplateFolder(): string {
-  const liberRpaFolder = process.env.LiberRPA;
-  if (liberRpaFolder === undefined || liberRpaFolder.length === 0) {
+  const strLiberRPAEnvPath = process.env.LiberRPA;
+  if (strLiberRPAEnvPath === undefined || strLiberRPAEnvPath.length === 0) {
     throw new Error(
       'The "LiberRPA" User Environment Variable is missing. Run InitLiberRPA.exe first.',
     );
   }
 
-  const templateFolder = path.join(liberRpaFolder, "configFiles", "ProjectTemplate");
+  const templateFolder = path.join(strLiberRPAEnvPath, "configFiles", "ProjectTemplate");
 
   if (!fs.existsSync(templateFolder) || !fs.statSync(templateFolder).isDirectory()) {
     throw new Error(`Template directory not found: ${templateFolder}`);
@@ -162,9 +162,9 @@ async function copyFolder(source: string, destination: string): Promise<void> {
       }),
     );
   } catch (e: unknown) {
-    const errorMessage = getErrorMessage(e);
-    log.error(`Error copying folder from ${source} to ${destination}: ${errorMessage}`);
-    throw new Error(`Failed to copy template files: ${errorMessage}`, {
+    const strErrorMessage = getErrorMessage(e);
+    log.error(`Error copying folder from ${source} to ${destination}: ${strErrorMessage}`);
+    throw new Error(`Failed to copy template files: ${strErrorMessage}`, {
       cause: e,
     });
   }

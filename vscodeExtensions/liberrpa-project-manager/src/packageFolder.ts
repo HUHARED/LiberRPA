@@ -121,9 +121,9 @@ export async function packageProject(): Promise<void> {
     log.info(`Reveal the package file: ${zipFilePath}`);
     await vscode.commands.executeCommand("revealFileInOS", vscode.Uri.file(zipFilePath));
   } catch (e: unknown) {
-    const errorMessage = getErrorMessage(e);
-    log.error(`Error packaging Project: ${errorMessage}`);
-    void vscode.window.showErrorMessage(`Error packaging Project: ${errorMessage}`);
+    const strErrorMessage = getErrorMessage(e);
+    log.error(`Error packaging Project: ${strErrorMessage}`);
+    void vscode.window.showErrorMessage(`Error packaging Project: ${strErrorMessage}`);
   } finally {
     if (tempFolderPath !== undefined) {
       try {
@@ -226,9 +226,9 @@ async function copyFolderToTemp(
       }),
     );
   } catch (e: unknown) {
-    const errorMessage = getErrorMessage(e);
-    log.error(`Error copying folder from ${source} to ${destination}: ${errorMessage}`);
-    throw new Error(`Failed to copy Project files: ${errorMessage}`, { cause: e });
+    const strErrorMessage = getErrorMessage(e);
+    log.error(`Error copying folder from ${source} to ${destination}: ${strErrorMessage}`);
+    throw new Error(`Failed to copy Project files: ${strErrorMessage}`, { cause: e });
   }
 }
 

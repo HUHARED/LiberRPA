@@ -286,9 +286,9 @@ export class ProjectManagerPanel {
 
       ProjectManagerPanel.currentPanel = new ProjectManagerPanel(context, operation);
     } catch (e: unknown) {
-      const message = `Failed to open Project Manager: ${getErrorMessage(e)}`;
-      log.error(message);
-      void vscode.window.showErrorMessage(message);
+      const strErrorMessage = `Failed to open Project Manager: ${getErrorMessage(e)}`;
+      log.error(strErrorMessage);
+      void vscode.window.showErrorMessage(strErrorMessage);
     }
   }
 

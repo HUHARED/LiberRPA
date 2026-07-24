@@ -3,6 +3,8 @@
 // - src/projectValidation.ts
 // - webview-ui/src/projectValidation.ts
 
+import { getRiskyComponentPackageNameReason } from "./riskyComponentPackageNames";
+
 // Use this kind of pattern to ensure Components have the same naming conversation like LiberRPA built-in modules.
 export const REGEX_COMPONENT_PACKAGE_NAME = /^[A-Z][A-Za-z0-9]*$/;
 
@@ -89,12 +91,14 @@ export function getComponentPackageNameError(packageName: string): string | unde
     return `Package name cannot be the Python keyword "${packageName}".`;
   }
 
-  if (packageName.toLowerCase() === "liberrpa") {
-    return 'Package name "liberrpa" is reserved by LiberRPA.';
-  }
-
   if (SET_RESERVED_WINDOWS_NAMES.has(packageName.toUpperCase())) {
     return `Package name "${packageName}" is reserved by Windows.`;
+  }
+
+  const strRiskyPackageNameReason = getRiskyComponentPackageNameReason(packageName);
+
+  if (strRiskyPackageNameReason !== undefined) {
+    return strRiskyPackageNameReason;
   }
 
   return undefined;
