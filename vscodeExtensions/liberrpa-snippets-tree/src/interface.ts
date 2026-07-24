@@ -6,8 +6,10 @@ export type SnippetInsertionMode = "line" | "cursor";
 export type DictImportsInfo = Record<string, string[]>;
 
 export interface ImportSourceConfig {
-  // the config about import source, has only order now.
+  // The config about import source.
   order: string[];
+  // For Components.
+  aliasMode?: "source_module";
 }
 
 export interface DictSnippetDefinition {

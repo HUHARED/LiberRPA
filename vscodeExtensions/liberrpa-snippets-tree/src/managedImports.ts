@@ -12,6 +12,10 @@ Managed import block format:
 from liberrpa.Modules import (
     Mouse,
 )
+
+from ExcelTools import (
+    Workbook as ExcelTools_Workbook,
+)
 # </LiberRPA imports: managed>
 
 This module has two main jobs:
@@ -64,7 +68,7 @@ interface ManagedImportBlock {
  * inserting another block would make the file harder to repair.
  */
 function findManagedImportBlock(
-  document: vscode.TextDocument
+  document: vscode.TextDocument,
 ): ManagedImportBlock | undefined {
   let intStartLine: number | undefined;
   let dictBlock: ManagedImportBlock | undefined;
@@ -76,7 +80,7 @@ function findManagedImportBlock(
     if (strText === STR_MANAGED_IMPORT_START) {
       if (strRawText !== STR_MANAGED_IMPORT_START) {
         throw new Error(
-          `The LiberRPA managed import start marker on line ${intLine + 1} must appear alone without indentation or trailing whitespace.`
+          `The LiberRPA managed import start marker on line ${intLine + 1} must appear alone without indentation or trailing whitespace.`,
         );
       }
 
@@ -84,12 +88,12 @@ function findManagedImportBlock(
       // A start marker after a complete block means that the file contains two managed blocks.
       if (intStartLine !== undefined) {
         throw new Error(
-          `The Python file contains a nested LiberRPA managed import start marker on line ${intLine + 1}.`
+          `The Python file contains a nested LiberRPA managed import start marker on line ${intLine + 1}.`,
         );
       }
       if (dictBlock !== undefined) {
         throw new Error(
-          `The Python file contains more than one LiberRPA managed import block; the second block starts on line ${intLine + 1}.`
+          `The Python file contains more than one LiberRPA managed import block; the second block starts on line ${intLine + 1}.`,
         );
       }
 
@@ -103,13 +107,13 @@ function findManagedImportBlock(
 
     if (strRawText !== STR_MANAGED_IMPORT_END) {
       throw new Error(
-        `The LiberRPA managed import end marker on line ${intLine + 1} must appear alone without indentation or trailing whitespace.`
+        `The LiberRPA managed import end marker on line ${intLine + 1} must appear alone without indentation or trailing whitespace.`,
       );
     }
 
     if (intStartLine === undefined) {
       throw new Error(
-        `The Python file contains a LiberRPA managed import end marker without a matching start marker on line ${intLine + 1}.`
+        `The Python file contains a LiberRPA managed import end marker without a matching start marker on line ${intLine + 1}.`,
       );
     }
 
@@ -120,7 +124,7 @@ function findManagedImportBlock(
   // A start marker without an end marker should not be overwritten, because doing so could delete or duplicate user code.
   if (intStartLine !== undefined) {
     throw new Error(
-      `The LiberRPA managed import block starting on line ${intStartLine + 1} is missing its end marker.`
+      `The LiberRPA managed import block starting on line ${intStartLine + 1} is missing its end marker.`,
     );
   }
 
@@ -135,7 +139,7 @@ function findManagedImportBlock(
  */
 function skipBlankAndCommentLines(
   document: vscode.TextDocument,
-  startLine: number
+  startLine: number,
 ): number {
   let intLine = startLine;
 
@@ -162,7 +166,7 @@ function skipBlankAndCommentLines(
  */
 function findModuleDocstringEndLine(
   document: vscode.TextDocument,
-  startLine: number
+  startLine: number,
 ): number | undefined {
   if (startLine >= document.lineCount) {
     return undefined;
@@ -195,7 +199,7 @@ function findModuleDocstringEndLine(
     }
 
     throw new Error(
-      "The single-quoted Python module docstring is not closed on its starting line, so LiberRPA imports cannot be inserted safely."
+      "The single-quoted Python module docstring is not closed on its starting line, so LiberRPA imports cannot be inserted safely.",
     );
   }
 
@@ -215,7 +219,7 @@ function findModuleDocstringEndLine(
 
   // Do not guess an insertion position when the docstring is incomplete.
   throw new Error(
-    "The Python module docstring is not closed, so LiberRPA imports cannot be inserted safely."
+    "The Python module docstring is not closed, so LiberRPA imports cannot be inserted safely.",
   );
 }
 
@@ -233,7 +237,7 @@ function findModuleDocstringEndLine(
  */
 function findPythonStatementEndLine(
   document: vscode.TextDocument,
-  startLine: number
+  startLine: number,
 ): number {
   let intParenthesisDepth = 0;
 
@@ -307,7 +311,7 @@ function getDefaultInsertLine(document: vscode.TextDocument): number {
   const intPossibleDocstringLine = skipBlankAndCommentLines(document, intLine);
   const intDocstringEndLine = findModuleDocstringEndLine(
     document,
-    intPossibleDocstringLine
+    intPossibleDocstringLine,
   );
 
   // If there is a module docstring, continue after it.
@@ -358,9 +362,22 @@ function getDefaultInsertLine(document: vscode.TextDocument): number {
  *   "some.module": ["NameA", "NameB"]
  * }
  */
+function getExpectedImportAlias(
+  importSource: string,
+  importName: string,
+  sourceConfig: ImportSourceConfig | undefined,
+): string | undefined {
+  if (sourceConfig?.aliasMode === "source_module") {
+    return `${importSource}_${importName}`;
+  }
+
+  return undefined;
+}
+
 function parseExistingManagedImports(
   document: vscode.TextDocument,
-  block: ManagedImportBlock
+  block: ManagedImportBlock,
+  importSources: Record<string, ImportSourceConfig>,
 ): DictImportsInfo {
   const dictResult: DictImportsInfo = {};
 
@@ -379,7 +396,7 @@ function parseExistingManagedImports(
       // Start of one import group.
       const sourceMatch =
         /^from\s+([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s+import\s+\($/.exec(
-          strText
+          strText,
         );
 
       if (sourceMatch) {
@@ -389,7 +406,7 @@ function parseExistingManagedImports(
       }
 
       throw new Error(
-        `Unexpected content in the LiberRPA managed import block on line ${intLine + 1}: ${strText}`
+        `Unexpected content in the LiberRPA managed import block on line ${intLine + 1}: ${strText}`,
       );
     }
 
@@ -404,22 +421,45 @@ function parseExistingManagedImports(
       continue;
     }
 
-    // Import name line, for example: "Mouse,"
-    const nameMatch = /^([A-Za-z_][A-Za-z0-9_]*)\s*,\s*$/.exec(strText);
+    // Import entry, for example:
+    // Mouse,
+    // Workbook as ExcelTools_Workbook,
+    const importEntryMatch =
+      /^([A-Za-z_][A-Za-z0-9_]*)(?:\s+as\s+([A-Za-z_][A-Za-z0-9_]*))?\s*,\s*$/.exec(
+        strText,
+      );
 
-    if (nameMatch) {
-      dictResult[strCurrentSource].push(nameMatch[1]);
-      continue;
+    if (!importEntryMatch) {
+      throw new Error(
+        `Invalid import entry in the LiberRPA managed import block on line ${intLine + 1}: ${strText}`,
+      );
     }
 
-    throw new Error(
-      `Invalid import entry in the LiberRPA managed import block on line ${intLine + 1}: ${strText}`
+    const strImportName = importEntryMatch[1];
+    const strActualAlias = importEntryMatch[2];
+    const strExpectedAlias = getExpectedImportAlias(
+      strCurrentSource,
+      strImportName,
+      importSources[strCurrentSource],
     );
+
+    if (strActualAlias !== strExpectedAlias) {
+      const strExpectedText =
+        strExpectedAlias === undefined
+          ? `Import ${strImportName} from ${strCurrentSource} must not use an alias.`
+          : `Expected alias ${strExpectedAlias} for ${strCurrentSource}.${strImportName}.`;
+
+      throw new Error(
+        `${strExpectedText} Invalid entry on line ${intLine + 1}: ${strText}`,
+      );
+    }
+
+    dictResult[strCurrentSource].push(strImportName);
   }
 
   if (strCurrentSource !== undefined) {
     throw new Error(
-      `The import group for ${strCurrentSource} in the LiberRPA managed block is missing its closing parenthesis.`
+      `The import group for ${strCurrentSource} in the LiberRPA managed block is missing its closing parenthesis.`,
     );
   }
 
@@ -437,7 +477,7 @@ function parseExistingManagedImports(
 function sortImportNames(
   importSource: string,
   importNames: string[],
-  sourceConfig: ImportSourceConfig | undefined
+  sourceConfig: ImportSourceConfig | undefined,
 ): string[] {
   const arrUniqueNames = [...new Set(importNames)];
 
@@ -445,7 +485,7 @@ function sortImportNames(
   // is used as a predictable fallback.
   if (!sourceConfig) {
     log.warn(
-      `[Imports] Import source ${importSource} has no order configuration; names are sorted alphabetically.`
+      `[Imports] Import source ${importSource} has no order configuration; names are sorted alphabetically.`,
     );
     return arrUniqueNames.sort();
   }
@@ -460,14 +500,14 @@ function sortImportNames(
   // The non-null assertion is safe here because knownNames only contains
   // values already confirmed by orderIndexes.has(name).
   arrKnownNames.sort(
-    (left, right) => mapOrderIndexes.get(left)! - mapOrderIndexes.get(right)!
+    (left, right) => mapOrderIndexes.get(left)! - mapOrderIndexes.get(right)!,
   );
 
   arrUnknownNames.sort();
 
   if (arrUnknownNames.length > 0) {
     log.warn(
-      `[Imports] Names are missing from ${importSource}'s import order: ${arrUnknownNames.join(", ")}.`
+      `[Imports] Names are missing from ${importSource}'s import order: ${arrUnknownNames.join(", ")}.`,
     );
   }
 
@@ -482,7 +522,7 @@ function sortImportNames(
  */
 function sortImportSources(
   imports: DictImportsInfo,
-  importSources: Record<string, ImportSourceConfig>
+  importSources: Record<string, ImportSourceConfig>,
 ): string[] {
   const arrConfiguredSources = Object.keys(importSources);
   const arrPresentSources = Object.keys(imports);
@@ -513,21 +553,21 @@ function sortImportSources(
 function mergeImports(
   existingImports: DictImportsInfo,
   importsToAdd: DictImportsInfo,
-  importSources: Record<string, ImportSourceConfig>
+  importSources: Record<string, ImportSourceConfig>,
 ): DictImportsInfo {
   const dictResult: DictImportsInfo = {};
 
   // A Set produces the union of import sources from both objects.
-  const setAllSources = new Set([
+  const setAllSource = new Set([
     ...Object.keys(existingImports),
     ...Object.keys(importsToAdd),
   ]);
 
-  for (const strSource of setAllSources) {
+  for (const strSource of setAllSource) {
     dictResult[strSource] = sortImportNames(
       strSource,
       [...(existingImports[strSource] ?? []), ...(importsToAdd[strSource] ?? [])],
-      importSources[strSource]
+      importSources[strSource],
     );
   }
 
@@ -540,38 +580,42 @@ function mergeImports(
 function buildManagedImportBlock(
   imports: DictImportsInfo,
   importSources: Record<string, ImportSourceConfig>,
-  strEol: string
+  strEol: string,
 ): string {
-  const arrLines = [STR_MANAGED_IMPORT_START, STR_MANAGED_IMPORT_NOTICE];
-  const arrSources = sortImportSources(imports, importSources);
+  const arrLine = [STR_MANAGED_IMPORT_START, STR_MANAGED_IMPORT_NOTICE];
+  const arrSource = sortImportSources(imports, importSources);
 
   let boolHasImportGroup = false;
 
-  arrSources.forEach((strName) => {
-    const importNames = imports[strName];
+  arrSource.forEach((strSourceName) => {
+    const arrImportName = imports[strSourceName];
 
     // Empty groups do not produce Python import statements.
-    if (importNames.length === 0) {
+    if (arrImportName.length === 0) {
       return;
     }
 
     // Separate different import sources with one blank line.
     if (boolHasImportGroup) {
-      arrLines.push("");
+      arrLine.push("");
     }
 
-    arrLines.push(`from ${strName} import (`);
+    arrLine.push(`from ${strSourceName} import (`);
 
-    for (const name of importNames) {
-      arrLines.push(`    ${name},`);
+    const dictSourceConfig = importSources[strSourceName];
+
+    for (const strimportName of arrImportName) {
+      const strAlias = getExpectedImportAlias(strimportName, strimportName, dictSourceConfig);
+      const strImportEntry = strAlias === undefined ? strimportName : `${strimportName} as ${strAlias}`;
+      arrLine.push(`    ${strImportEntry},`);
     }
 
-    arrLines.push(")");
+    arrLine.push(")");
     boolHasImportGroup = true;
   });
 
-  arrLines.push(STR_MANAGED_IMPORT_END);
-  return arrLines.join(strEol);
+  arrLine.push(STR_MANAGED_IMPORT_END);
+  return arrLine.join(strEol);
 }
 
 function getDisplayPath(document: vscode.TextDocument): string {
@@ -596,7 +640,7 @@ function buildInsertedBlockText(
   document: vscode.TextDocument,
   insertLine: number,
   blockText: string,
-  strEol: string
+  strEol: string,
 ): string {
   const boolPreviousLineIsBlank =
     insertLine === 0 || document.lineAt(insertLine - 1).text.trim() === "";
@@ -621,7 +665,7 @@ function getDocumentEol(document: vscode.TextDocument): string {
  */
 export function createManagedImportTextEditBuilder(
   document: vscode.TextDocument,
-  importSources: Record<string, ImportSourceConfig>
+  importSources: Record<string, ImportSourceConfig>,
 ): (importsToAdd: DictImportsInfo) => vscode.TextEdit[] {
   let prepared:
     | {
@@ -641,7 +685,9 @@ export function createManagedImportTextEditBuilder(
       const block = findManagedImportBlock(document);
       prepared = {
         block,
-        existingImports: block ? parseExistingManagedImports(document, block) : {},
+        existingImports: block
+          ? parseExistingManagedImports(document, block, importSources)
+          : {},
         eol: getDocumentEol(document),
         insertLine: block ? undefined : getDefaultInsertLine(document),
       };
@@ -650,12 +696,12 @@ export function createManagedImportTextEditBuilder(
     const dictNextImports = mergeImports(
       prepared.existingImports,
       importsToAdd,
-      importSources
+      importSources,
     );
     const strNextBlockText = buildManagedImportBlock(
       dictNextImports,
       importSources,
-      prepared.eol
+      prepared.eol,
     );
 
     if (prepared.block) {
@@ -681,7 +727,7 @@ export function createManagedImportTextEditBuilder(
     return [
       vscode.TextEdit.insert(
         positionInsert,
-        buildInsertedBlockText(document, intInsertLine, strNextBlockText, prepared.eol)
+        buildInsertedBlockText(document, intInsertLine, strNextBlockText, prepared.eol),
       ),
     ];
   };
@@ -690,7 +736,7 @@ export function createManagedImportTextEditBuilder(
 export function buildManagedImportTextEdits(
   document: vscode.TextDocument,
   importSources: Record<string, ImportSourceConfig>,
-  importsToAdd: DictImportsInfo
+  importsToAdd: DictImportsInfo,
 ): vscode.TextEdit[] {
   return createManagedImportTextEditBuilder(document, importSources)(importsToAdd);
 }
@@ -700,7 +746,7 @@ const mapImportUpdateQueues = new Map<string, Promise<void>>();
 async function applyManagedImportUpdate(
   document: vscode.TextDocument,
   importSources: Record<string, ImportSourceConfig>,
-  importsToAdd: DictImportsInfo
+  importsToAdd: DictImportsInfo,
 ): Promise<void> {
   const arrEdits = buildManagedImportTextEdits(document, importSources, importsToAdd);
 
@@ -733,7 +779,7 @@ async function applyManagedImportUpdate(
 export async function updateManagedImports(
   document: vscode.TextDocument,
   importSources: Record<string, ImportSourceConfig>,
-  importsToAdd: DictImportsInfo
+  importsToAdd: DictImportsInfo,
 ): Promise<void> {
   const strDisplayPath = getDisplayPath(document);
   log.trace(`[Imports] Queued managed import update for ${strDisplayPath}.`);

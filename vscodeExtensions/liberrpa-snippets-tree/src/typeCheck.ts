@@ -49,7 +49,7 @@ function isImportsBySource(value: unknown): value is DictImportsInfo {
       ([source, names]) =>
         isPythonImportSource(source) &&
         isStringArray(names) &&
-        names.every(isPythonIdentifier)
+        names.every(isPythonIdentifier),
     )
   );
 }
@@ -93,7 +93,7 @@ function isSnippetDefinition(value: unknown): value is DictSnippetDefinition {
 }
 
 function isSnippetDefinitions(
-  value: unknown
+  value: unknown,
 ): value is Record<string, DictSnippetDefinition> {
   return isRecord(value) && Object.values(value).every(isSnippetDefinition);
 }
@@ -131,26 +131,43 @@ function isCatalogSnippetDefinition(value: unknown): value is DictCatalogSnippet
 }
 
 function isCatalogSnippetDefinitions(
-  value: unknown
+  value: unknown,
 ): value is Record<string, DictCatalogSnippetDefinition> {
   return isRecord(value) && Object.values(value).every(isCatalogSnippetDefinition);
 }
 
+const ARR_IMPORT_SOURCE_CONFIG_REQUIRED_KEYS = ["order"] as const;
+const ARR_IMPORT_SOURCE_CONFIG_ALLOWED_KEYS = ["order", "aliasMode"] as const;
+
 function isImportSourceConfig(value: unknown): value is ImportSourceConfig {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  if (
+    !hasRequiredKeys(value, ARR_IMPORT_SOURCE_CONFIG_REQUIRED_KEYS) ||
+    !hasOnlyAllowedKeys(value, ARR_IMPORT_SOURCE_CONFIG_ALLOWED_KEYS)
+  ) {
+    return false;
+  }
   return (
-    isRecord(value) &&
-    Object.keys(value).length === 1 &&
     isStringArray(value.order) &&
-    value.order.every(isPythonIdentifier)
+    value.order.every(isPythonIdentifier) &&
+    (value.aliasMode === undefined || value.aliasMode === "source_module")
   );
 }
 
 function isImportSources(value: unknown): value is Record<string, ImportSourceConfig> {
   return (
     isRecord(value) &&
-    Object.entries(value).every(
-      ([source, config]) => isPythonImportSource(source) && isImportSourceConfig(config)
-    )
+    Object.entries(value).every(([strSource, dictConfig]) => {
+      if (!isPythonImportSource(strSource) || !isImportSourceConfig(dictConfig)) {
+        return false;
+      }
+
+      // source_module derives aliases as <source>_<module>, so the source must be one Python identifier rather than a dotted import path.
+      return dictConfig.aliasMode !== "source_module" || isPythonIdentifier(strSource);
+    })
   );
 }
 
