@@ -81,7 +81,7 @@ def publish_component_preparation(projectInputPath: str) -> tuple[dict[str, obje
             message=f"Project folder was not found: {pathProject}",
         )
 
-    with project_lock(lockPath=pathProject, operation="publishComponent"):
+    with project_lock(projectPath=pathProject, operation="publishComponent"):
         manifestObj, pathPackage = _validate_component_project(pathProject)
         dictAstSnippets = scan_component_snippets(
             projectPath=pathProject,

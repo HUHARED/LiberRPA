@@ -116,8 +116,8 @@ def _release_lock(lockPath: Path, ownerId: str) -> None:
 
 
 @contextmanager
-def project_lock(lockPath: Path, operation: str) -> Iterator[None]:
-    pathLock = lockPath / _STR_LOCK_FILE_NAME
+def project_lock(projectPath: Path, operation: str) -> Iterator[None]:
+    pathLock = projectPath / _STR_LOCK_FILE_NAME
     strOwnerId = _create_lock(lockPath=pathLock, operation=operation)
 
     try:

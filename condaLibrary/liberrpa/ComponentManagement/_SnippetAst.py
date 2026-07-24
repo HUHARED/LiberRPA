@@ -12,6 +12,7 @@ from typing import Literal, NotRequired, TypedDict
 import ast
 import re
 import tokenize
+import keyword
 
 
 type SnippetInsertionMode = Literal["line", "cursor"]
@@ -66,6 +67,12 @@ class _ReturnValueVisitor(ast.NodeVisitor):
 
     def visit_Lambda(self, _node: ast.Lambda) -> None:
         return None
+
+    def visit_Yield(self, _node: ast.Yield) -> None:
+        self.hasReturnValue = True
+
+    def visit_YieldFrom(self, _node: ast.YieldFrom) -> None:
+        self.hasReturnValue = True
 
 
 _REGEX_PASCAL_CASE = re.compile(r"^[A-Z][A-Za-z0-9]*$")
@@ -360,6 +367,13 @@ def _scan_module(
         raise ComponentManagementError(
             code="component_source_invalid",
             message=f"Public Component Module filename is not a valid Python identifier: {modulePath.name}",
+            details={"file": modulePath.relative_to(projectPath).as_posix()},
+        )
+
+    if keyword.iskeyword(strModuleName):
+        raise ComponentManagementError(
+            code="component_source_invalid",
+            message=(f"Public Component Module filename cannot use a Python keyword: {modulePath.name}"),
             details={"file": modulePath.relative_to(projectPath).as_posix()},
         )
 
