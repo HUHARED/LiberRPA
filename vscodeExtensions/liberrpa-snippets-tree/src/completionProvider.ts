@@ -48,7 +48,7 @@ function flattenSnippetInfos(repository: DictSnippetRepository): DictSnippetTota
 function getCompletionRange(
   document: vscode.TextDocument,
   position: vscode.Position,
-  snippetPrefix: string
+  snippetPrefix: string,
 ): vscode.Range | undefined {
   const strLinePrefix = document.lineAt(position.line).text.slice(0, position.character);
   const strExpected = snippetPrefix.toLowerCase();
@@ -86,7 +86,7 @@ function buildCompletionItem(
   document: vscode.TextDocument,
   position: vscode.Position,
   snippetInfo: DictSnippetTotalInfo,
-  buildImportEdits: (imports: DictSnippetTotalInfo["imports"]) => vscode.TextEdit[]
+  buildImportEdits: (imports: DictSnippetTotalInfo["imports"]) => vscode.TextEdit[],
 ): vscode.CompletionItem | undefined {
   const range = getCompletionRange(document, position, snippetInfo.prefix);
   if (!range) {
@@ -103,7 +103,7 @@ function buildCompletionItem(
 
   const completionItem = new vscode.CompletionItem(
     snippetInfo.prefix,
-    vscode.CompletionItemKind.Snippet
+    vscode.CompletionItemKind.Snippet,
   );
 
   // Shown as secondary information in the IntelliSense details.
@@ -113,7 +113,7 @@ function buildCompletionItem(
   completionItem.documentation = new vscode.MarkdownString(snippetInfo.description);
 
   completionItem.insertText = new vscode.SnippetString(
-    importPlan.snippetPrefix + snippetInfo.body.join("\n")
+    importPlan.snippetPrefix + snippetInfo.body.join("\n"),
   );
   completionItem.range = range;
   completionItem.additionalTextEdits = importPlan.additionalTextEdits;
@@ -125,23 +125,27 @@ function buildCompletionItem(
 }
 
 export class MainCompletionItemProvider implements vscode.CompletionItemProvider {
-  private readonly snippetInfos: DictSnippetTotalInfo[];
+  private snippetInfos: DictSnippetTotalInfo[] = [];
 
   constructor(private readonly repository: DictSnippetRepository) {
-    this.snippetInfos = flattenSnippetInfos(repository);
+    this.refresh();
+  }
+
+  refresh(): void {
+    this.snippetInfos = flattenSnippetInfos(this.repository);
     log.debug(`[Completion] Loaded ${this.snippetInfos.length} completion snippets.`);
   }
 
   provideCompletionItems(
     document: vscode.TextDocument,
-    position: vscode.Position
+    position: vscode.Position,
   ): vscode.ProviderResult<vscode.CompletionItem[]> {
     return runSyncBoundary(
       "LiberRPA snippet completion failed",
       () => {
         const buildImportEdits = createManagedImportTextEditBuilder(
           document,
-          this.repository.importSources
+          this.repository.importSources,
         );
         const mapEditsByImports = new Map<string, vscode.TextEdit[]>();
 
@@ -162,13 +166,13 @@ export class MainCompletionItemProvider implements vscode.CompletionItemProvider
             document,
             position,
             snippetInfo,
-            getImportEdits
+            getImportEdits,
           );
           return completionItem ? [completionItem] : [];
         });
       },
       [],
-      false
+      false,
     );
   }
 }

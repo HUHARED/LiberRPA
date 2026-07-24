@@ -7,17 +7,34 @@ import { DropEditProvider } from "./documentDropProvider";
 import { MainCompletionItemProvider } from "./completionProvider";
 import { CustomArgsCompletionItemProvider } from "./customArgsCompletionProvider";
 
-import { loadSnippetRepository, insertSnippetFromTreeNode } from "./handleSnippets";
+import {
+  loadSnippetRepository,
+  insertSnippetFromTreeNode,
+  replaceSnippetRepository,
+} from "./handleSnippets";
 import { updateManagedImports } from "./managedImports";
-import { reportError, runAsyncBoundary } from "./errorHandling";
+import { reportError, reportWarning, runAsyncBoundary } from "./errorHandling";
 
 import * as vscode from "vscode";
 
+const INT_REPOSITORY_RELOAD_DELAY_MS = 300;
+
+function getSingleWorkspaceFolder(): vscode.WorkspaceFolder | undefined {
+  const arrWorkspaceFolders = vscode.workspace.workspaceFolders;
+
+  if (arrWorkspaceFolders === undefined || arrWorkspaceFolders.length !== 1) {
+    return undefined;
+  }
+
+  return arrWorkspaceFolders[0];
+}
+
 function registerExtensionFeatures(
   context: vscode.ExtensionContext,
-  repository: DictSnippetRepository
-): void {
+  repository: DictSnippetRepository,
+): () => void {
   const treeViewProvider = new SnippetTreeDataProvider(repository);
+  const mainCompletionItemProvider = new MainCompletionItemProvider(repository);
 
   /* TreeView-related */
   context.subscriptions.push(
@@ -26,7 +43,7 @@ function registerExtensionFeatures(
       showCollapseAll: true,
       canSelectMany: false,
       dragAndDropController: treeViewProvider,
-    })
+    }),
   );
   context.subscriptions.push(
     vscode.commands.registerCommand(
@@ -44,7 +61,7 @@ function registerExtensionFeatures(
             const inserted = await insertSnippetFromTreeNode(
               editor,
               arg.body,
-              arg.insertionMode
+              arg.insertionMode,
             );
 
             if (!inserted) {
@@ -54,15 +71,15 @@ function registerExtensionFeatures(
             await updateManagedImports(
               editor.document,
               repository.importSources,
-              arg.imports
+              arg.imports,
             );
 
             log.debug(`[Click] Inserted snippet: ${arg.title}.`);
           },
-          true
+          true,
         );
-      }
-    )
+      },
+    ),
   );
 
   /*
@@ -72,16 +89,16 @@ function registerExtensionFeatures(
     vscode.languages.registerDocumentDropEditProvider(
       { language: "python" },
       new DropEditProvider(repository, () => treeViewProvider.finishDrag()),
-      { dropMimeTypes: [STR_SNIPPET_DRAG_MIME] }
-    )
+      { dropMimeTypes: [STR_SNIPPET_DRAG_MIME] },
+    ),
   );
 
   /* Completion-related */
   context.subscriptions.push(
     vscode.languages.registerCompletionItemProvider(
       { language: "python", scheme: "file" },
-      new MainCompletionItemProvider(repository)
-    )
+      mainCompletionItemProvider,
+    ),
   );
   context.subscriptions.push(
     vscode.languages.registerCompletionItemProvider(
@@ -89,9 +106,26 @@ function registerExtensionFeatures(
       new CustomArgsCompletionItemProvider(repository.importSources),
       "[",
       '"',
-      "'"
-    )
+      "'",
+    ),
   );
+
+  return (): void => {
+    treeViewProvider.refresh(repository);
+    mainCompletionItemProvider.refresh();
+  };
+}
+
+function loadInitialRepository(): DictSnippetRepository {
+  const workspaceFolder = getSingleWorkspaceFolder();
+
+  try {
+    return loadSnippetRepository(workspaceFolder);
+  } catch (e) {
+    // A damaged Component catalog should not disable built-in snippets.
+    reportWarning("Component snippets were skipped", e, true);
+    return loadSnippetRepository();
+  }
 }
 
 export function activate(context: vscode.ExtensionContext): void {
@@ -99,8 +133,77 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(log);
 
   try {
-    const repository = loadSnippetRepository();
-    registerExtensionFeatures(context, repository);
+    const repository = loadInitialRepository();
+    const refreshFeatures = registerExtensionFeatures(context, repository);
+
+    let componentWatcherDisposable: vscode.Disposable | undefined;
+    let reloadTimer: NodeJS.Timeout | undefined;
+
+    const reloadRepository = (): void => {
+      reloadTimer = undefined;
+
+      try {
+        const nextRepository = loadSnippetRepository(getSingleWorkspaceFolder());
+        replaceSnippetRepository(repository, nextRepository);
+        refreshFeatures();
+
+        log.info("LiberRPA snippet repository reloaded.");
+      } catch (e) {
+        // Keep the last valid repository during a transient or damaged _Components replacement instead of clearing working snippets.
+        reportWarning("Failed to reload Component snippets", e, true);
+      }
+    };
+
+    const scheduleRepositoryReload = (): void => {
+      if (reloadTimer !== undefined) {
+        clearTimeout(reloadTimer);
+      }
+
+      reloadTimer = setTimeout(reloadRepository, INT_REPOSITORY_RELOAD_DELAY_MS);
+    };
+
+    const updateComponentWatcher = (): void => {
+      componentWatcherDisposable?.dispose();
+      componentWatcherDisposable = undefined;
+
+      const workspaceFolder = getSingleWorkspaceFolder();
+      if (!workspaceFolder) {
+        return;
+      }
+
+      const watcher = vscode.workspace.createFileSystemWatcher(
+        new vscode.RelativePattern(
+          workspaceFolder,
+          "_Components/*.dist-info/liberrpa/snippets_catalog.json",
+        ),
+      );
+
+      componentWatcherDisposable = vscode.Disposable.from(
+        watcher,
+        watcher.onDidCreate(scheduleRepositoryReload),
+        watcher.onDidChange(scheduleRepositoryReload),
+        watcher.onDidDelete(scheduleRepositoryReload),
+      );
+    };
+
+    updateComponentWatcher();
+
+    context.subscriptions.push(
+      vscode.workspace.onDidChangeWorkspaceFolders(() => {
+        updateComponentWatcher();
+        scheduleRepositoryReload();
+      }),
+      vscode.commands.registerCommand("LiberRPA.refreshSnippetRepository", (): void => {
+        scheduleRepositoryReload();
+      }),
+      new vscode.Disposable(() => {
+        componentWatcherDisposable?.dispose();
+
+        if (reloadTimer !== undefined) {
+          clearTimeout(reloadTimer);
+        }
+      }),
+    );
 
     log.info("LiberRPA Snippets Tree activated.");
   } catch (e) {

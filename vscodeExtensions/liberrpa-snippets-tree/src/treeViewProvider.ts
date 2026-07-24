@@ -21,11 +21,17 @@ export class SnippetTreeDataProvider
   // This tree does not accept drops from other sources.
   readonly dropMimeTypes: readonly string[] = [];
 
-  private readonly categoryNodes: CategoryNode[];
+  private categoryNodes: CategoryNode[] = [];
   private draggedSnippetNode: SnippetNode | undefined;
   private dragCancellationListener: vscode.Disposable | undefined;
 
   constructor(repository: DictSnippetRepository) {
+    this.refresh(repository);
+  }
+
+  refresh(repository: DictSnippetRepository): void {
+    this.finishDrag();
+
     this.categoryNodes = repository.categoryOrder.map((strCategoryName) => {
       const arrSnippetNodes = (repository.categories[strCategoryName] ?? []).map(
         (dictSnippet) =>
@@ -36,16 +42,18 @@ export class SnippetTreeDataProvider
             dictSnippet.description,
             dictSnippet.body,
             dictSnippet.imports,
-            dictSnippet.insertionMode
-          )
+            dictSnippet.insertionMode,
+          ),
       );
 
       return new CategoryNode(
         `category:${strCategoryName}`,
         strCategoryName,
-        arrSnippetNodes
+        arrSnippetNodes,
       );
     });
+
+    this.treeDataChangeEmitter.fire(undefined);
   }
 
   getChildren(nodeObj: TreeNode | undefined): vscode.ProviderResult<TreeNode[]> {
@@ -67,7 +75,7 @@ export class SnippetTreeDataProvider
     if (nodeObj.kind === "snippet") {
       const treenodeItem = new vscode.TreeItem(
         nodeObj.label,
-        vscode.TreeItemCollapsibleState.None
+        vscode.TreeItemCollapsibleState.None,
       );
 
       treenodeItem.id = nodeObj.id;
@@ -93,12 +101,12 @@ export class SnippetTreeDataProvider
     // Category.
     const treenodeItem = new vscode.TreeItem(
       nodeObj.label,
-      vscode.TreeItemCollapsibleState.Collapsed
+      vscode.TreeItemCollapsibleState.Collapsed,
     );
     treenodeItem.id = nodeObj.id;
     treenodeItem.tooltip = "Click to expand";
     treenodeItem.iconPath = new vscode.ThemeIcon(
-      dictIconMapping[nodeObj.label] ?? "library"
+      dictIconMapping[nodeObj.label] ?? "library",
     );
     return treenodeItem;
   }
@@ -132,7 +140,7 @@ export class SnippetTreeDataProvider
   handleDrag(
     sourceNodes: readonly TreeNode[],
     dataTransfer: vscode.DataTransfer,
-    token: vscode.CancellationToken
+    token: vscode.CancellationToken,
   ): Thenable<void> | void {
     if (sourceNodes.length !== 1) {
       // Allow drag one node at once.

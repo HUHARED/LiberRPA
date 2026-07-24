@@ -1,12 +1,13 @@
 // FileName: handleSnippets.ts
 import { log } from "./output";
 import type {
-  DictSnippetFavoriteFile,
+  SnippetInsertionMode,
   DictImportsInfo,
+  ImportSourceConfig,
   DictSnippetCatalogFile,
+  DictSnippetFavoriteFile,
   DictSnippetRepository,
   DictSnippetTotalInfo,
-  SnippetInsertionMode,
 } from "./interface";
 import { isFavoriteSnippetsFile, isSnippetCatalog } from "./typeCheck";
 import { reportWarning } from "./errorHandling";
@@ -18,35 +19,105 @@ import * as jsoncParser from "jsonc-parser";
 import * as vscode from "vscode";
 
 const STR_FAVORITE_CATEGORY = "Favorite";
+const STR_COMPONENTS_FOLDER = "_Components";
+const STR_COMPONENT_CATALOG_RELATIVE_PATH = "liberrpa/snippets_catalog.json";
+
+interface LoadedSnippetCatalog {
+  idPrefix: string;
+  displayPath: string;
+  catalog: DictSnippetCatalogFile;
+}
 
 function normalizeSnippetBody(body: string[] | string): string[] {
   const lines = Array.isArray(body) ? body : body.split(/\r?\n/);
   return lines.map((line) => line.replace(/\t/g, "    "));
 }
 
-function loadDefaultCatalog(): DictSnippetCatalogFile {
-  const strCatalogPath = path.join(__dirname, "../assets/snippets_catalog.json");
-
-  if (!fs.existsSync(strCatalogPath)) {
-    throw new Error(`snippets_catalog.json was not found: ${strCatalogPath}`);
+function loadSnippetCatalogFile(catalogPath: string): DictSnippetCatalogFile {
+  if (!fs.existsSync(catalogPath) || !fs.statSync(catalogPath).isFile()) {
+    throw new Error(`Snippet catalog was not found: ${catalogPath}`);
   }
 
-  const value: unknown = JSON.parse(fs.readFileSync(strCatalogPath, "utf-8"));
+  const value: unknown = JSON.parse(fs.readFileSync(catalogPath, "utf-8"));
   if (!isSnippetCatalog(value)) {
-    throw new Error(`Invalid snippets_catalog.json: ${strCatalogPath}`);
+    throw new Error(`Invalid snippet catalog: ${catalogPath}`);
   }
 
   log.debug(
-    `[Catalog] Loaded ${Object.keys(value.snippets).length} snippets from ${strCatalogPath}.`
+    `[Catalog] Loaded ${Object.keys(value.snippets).length} snippets from ${catalogPath}.`,
   );
 
   return value;
 }
 
+function loadDefaultCatalog(): LoadedSnippetCatalog {
+  const strCatalogPath = path.join(__dirname, "../assets/snippets_catalog.json");
+
+  return {
+    idPrefix: "builtin",
+    displayPath: strCatalogPath,
+    catalog: loadSnippetCatalogFile(strCatalogPath),
+  };
+}
+
+function compareFileNames(firstName: string, secondName: string): number {
+  const intInsensitiveComparison = firstName
+    .toLowerCase()
+    .localeCompare(secondName.toLowerCase());
+
+  if (intInsensitiveComparison !== 0) {
+    return intInsensitiveComparison;
+  }
+
+  return firstName.localeCompare(secondName);
+}
+
+function loadComponentCatalogs(
+  workspaceFolder: vscode.WorkspaceFolder | undefined,
+): LoadedSnippetCatalog[] {
+  if (!workspaceFolder) {
+    return [];
+  }
+
+  const strComponentsPath = path.join(workspaceFolder.uri.fsPath, STR_COMPONENTS_FOLDER);
+  if (!fs.existsSync(strComponentsPath)) {
+    return [];
+  }
+
+  if (!fs.statSync(strComponentsPath).isDirectory()) {
+    throw new Error(`Component folder is not a directory: ${strComponentsPath}`);
+  }
+
+  const arrDistInfoFolder = fs
+    .readdirSync(strComponentsPath, { withFileTypes: true })
+    .filter(
+      (entry) => entry.isDirectory() && entry.name.toLowerCase().endsWith(".dist-info"),
+    )
+    .sort((first, second) => compareFileNames(first.name, second.name));
+
+  return arrDistInfoFolder.map((entry) => {
+    const strCatalogPath = path.join(
+      strComponentsPath,
+      entry.name,
+      ...STR_COMPONENT_CATALOG_RELATIVE_PATH.split("/"),
+    );
+    const strDisplayPath = path
+      .relative(workspaceFolder.uri.fsPath, strCatalogPath)
+      .split(path.sep)
+      .join("/");
+
+    return {
+      idPrefix: `component:${entry.name}`,
+      displayPath: strDisplayPath,
+      catalog: loadSnippetCatalogFile(strCatalogPath),
+    };
+  });
+}
+
 function loadFavoriteSnippets(): DictSnippetFavoriteFile {
   const strFavoritePath = path.join(
     os.homedir(),
-    "Documents/LiberRPA/snippets_favorite.jsonc"
+    "Documents/LiberRPA/snippets_favorite.jsonc",
   );
 
   const strTargetFolderPath = path.dirname(strFavoritePath);
@@ -55,14 +126,14 @@ function loadFavoriteSnippets(): DictSnippetFavoriteFile {
     !fs.statSync(strTargetFolderPath).isDirectory()
   ) {
     throw new Error(
-      `${strTargetFolderPath} was not found. Please run InitLiberRPA.exe to initialize or update LiberRPA.`
+      `${strTargetFolderPath} was not found. Please run InitLiberRPA.exe to initialize or update LiberRPA.`,
     );
   }
 
   if (!fs.existsSync(strFavoritePath)) {
     const strTemplatePath = path.join(
       __dirname,
-      "../assets/snippets_favorite.jsonc.template"
+      "../assets/snippets_favorite.jsonc.template",
     );
     fs.copyFileSync(strTemplatePath, strFavoritePath);
 
@@ -70,24 +141,24 @@ function loadFavoriteSnippets(): DictSnippetFavoriteFile {
   }
 
   const strFileContent = fs.readFileSync(strFavoritePath, "utf-8");
-  const arrParseErrors: jsoncParser.ParseError[] = [];
-  const value: unknown = jsoncParser.parse(strFileContent, arrParseErrors, {
+  const arrParseError: jsoncParser.ParseError[] = [];
+  const value: unknown = jsoncParser.parse(strFileContent, arrParseError, {
     allowTrailingComma: true,
   });
 
-  if (arrParseErrors.length > 0) {
-    const firstError = arrParseErrors[0];
+  if (arrParseError.length > 0) {
+    const firstError = arrParseError[0];
     const strBeforeError = strFileContent.slice(0, firstError.offset);
     const intLine = strBeforeError.split(/\r?\n/).length;
     const intLastLineBreak = Math.max(
       strBeforeError.lastIndexOf("\n"),
-      strBeforeError.lastIndexOf("\r")
+      strBeforeError.lastIndexOf("\r"),
     );
     const intColumn = firstError.offset - intLastLineBreak;
 
     throw new Error(
       `Invalid JSONC in ${strFavoritePath} at line ${intLine}, column ${intColumn}: ` +
-        jsoncParser.printParseErrorCode(firstError.error)
+        jsoncParser.printParseErrorCode(firstError.error),
     );
   }
 
@@ -96,7 +167,7 @@ function loadFavoriteSnippets(): DictSnippetFavoriteFile {
   }
 
   log.debug(
-    `[Favorite] Loaded ${Object.keys(value.snippets).length} snippets from ${strFavoritePath}.`
+    `[Favorite] Loaded ${Object.keys(value.snippets).length} snippets from ${strFavoritePath}.`,
   );
 
   return value;
@@ -116,24 +187,112 @@ function normalizeImports(imports: DictImportsInfo | undefined): DictImportsInfo
   return dictResult;
 }
 
+function cloneImportSourceConfig(config: ImportSourceConfig): ImportSourceConfig {
+  return {
+    order: [...config.order],
+    ...(config.aliasMode === undefined ? {} : { aliasMode: config.aliasMode }),
+  };
+}
+
 function validateSnippetImports(
   snippetTotalInfo: DictSnippetTotalInfo,
-  knownImportSources: ReadonlySet<string>
+  knownImportSources: ReadonlySet<string>,
 ): void {
   const unknownSources = Object.keys(snippetTotalInfo.imports).filter(
-    (source) => !knownImportSources.has(source)
+    (source) => !knownImportSources.has(source),
   );
 
   if (unknownSources.length > 0) {
     log.warn(
-      `[Catalog] Snippet ${snippetTotalInfo.title} uses import sources without an order configuration: ${unknownSources.join(", ")}.`
+      `[Catalog] Snippet ${snippetTotalInfo.title} uses import sources without an order configuration: ${unknownSources.join(", ")}.`,
     );
     // The source is still preserved by managed import handling,
     // but its names will use alphabetical order.
   }
 }
 
-export function loadSnippetRepository(): DictSnippetRepository {
+function addCatalogToRepository(
+  loadedCatalog: LoadedSnippetCatalog,
+  categoryDict: Record<string, DictSnippetTotalInfo[]>,
+  importSourceDict: Record<string, ImportSourceConfig>,
+  catalogCategoryOrderArr: string[],
+  snippetOwnerMap: Map<string, string>,
+  importSourceOwnerMap: Map<string, string>,
+): void {
+  for (const [strImportSource, dictConfig] of Object.entries(
+    loadedCatalog.catalog.importSources,
+  )) {
+    const strExistingOwner = importSourceOwnerMap.get(strImportSource);
+    if (strExistingOwner !== undefined) {
+      throw new Error(
+        `Duplicate import source "${strImportSource}" in ${loadedCatalog.displayPath}; it is already provided by ${strExistingOwner}.`,
+      );
+    }
+
+    importSourceOwnerMap.set(strImportSource, loadedCatalog.displayPath);
+    importSourceDict[strImportSource] = cloneImportSourceConfig(dictConfig);
+  }
+
+  for (const strCategory of loadedCatalog.catalog.categoryOrder) {
+    if (!catalogCategoryOrderArr.includes(strCategory)) {
+      catalogCategoryOrderArr.push(strCategory);
+    }
+  }
+
+  for (const [strTitle, dictDefinition] of Object.entries(loadedCatalog.catalog.snippets)) {
+    const strExistingOwner = snippetOwnerMap.get(strTitle);
+    if (strExistingOwner !== undefined) {
+      throw new Error(
+        `Duplicate snippet key "${strTitle}" in ${loadedCatalog.displayPath}; it is already provided by ${strExistingOwner}.`,
+      );
+    }
+
+    snippetOwnerMap.set(strTitle, loadedCatalog.displayPath);
+
+    const dictSnippetTemp: DictSnippetTotalInfo = {
+      id: `${loadedCatalog.idPrefix}:${strTitle}`,
+      title: strTitle,
+      category: dictDefinition.category,
+      label: dictDefinition.label,
+      prefix: dictDefinition.prefix,
+      body: normalizeSnippetBody(dictDefinition.body),
+      description: dictDefinition.description,
+      imports: normalizeImports(dictDefinition.imports),
+      insertionMode: dictDefinition.insertionMode,
+    };
+
+    categoryDict[dictSnippetTemp.category] ??= [];
+    categoryDict[dictSnippetTemp.category].push(dictSnippetTemp);
+  }
+}
+
+function replaceRecord<T>(
+  targetDict: Record<string, T>,
+  sourceDict: Record<string, T>,
+): void {
+  for (const strKey of Object.keys(targetDict)) {
+    delete targetDict[strKey];
+  }
+
+  Object.assign(targetDict, sourceDict);
+}
+
+export function replaceSnippetRepository(
+  repository: DictSnippetRepository,
+  nextRepository: DictSnippetRepository,
+): void {
+  repository.categoryOrder.splice(
+    0,
+    repository.categoryOrder.length,
+    ...nextRepository.categoryOrder,
+  );
+  replaceRecord(repository.categories, nextRepository.categories);
+  replaceRecord(repository.importSources, nextRepository.importSources);
+}
+
+export function loadSnippetRepository(
+  workspaceFolder?: vscode.WorkspaceFolder,
+): DictSnippetRepository {
   let dictFavorites: DictSnippetFavoriteFile;
 
   try {
@@ -145,12 +304,37 @@ export function loadSnippetRepository(): DictSnippetRepository {
     dictFavorites = { schemaVersion: 1, snippets: {} };
   }
 
-  const dictCatalog = loadDefaultCatalog();
-  const dictCategories: Record<string, DictSnippetTotalInfo[]> = {};
-  const setKnownImportSources = new Set(Object.keys(dictCatalog.importSources));
+  const arrLoadedCatalogs = [
+    loadDefaultCatalog(),
+    ...loadComponentCatalogs(workspaceFolder),
+  ];
+  const dictCategory: Record<string, DictSnippetTotalInfo[]> = {};
+  const dictImportSource: Record<string, ImportSourceConfig> = {};
+  const arrCatalogCategoryOrder: string[] = [];
+  const mapSnippetOwner = new Map<string, string>();
+  const mapImportSourceOwner = new Map<string, string>();
+
+  for (const loadedCatalog of arrLoadedCatalogs) {
+    addCatalogToRepository(
+      loadedCatalog,
+      dictCategory,
+      dictImportSource,
+      arrCatalogCategoryOrder,
+      mapSnippetOwner,
+      mapImportSourceOwner,
+    );
+  }
+
+  const setKnownImportSource = new Set(Object.keys(dictImportSource));
+
+  for (const arrSnippet of Object.values(dictCategory)) {
+    for (const snippetTotalInfo of arrSnippet) {
+      validateSnippetImports(snippetTotalInfo, setKnownImportSource);
+    }
+  }
 
   for (const [strTitle, dictDefinition] of Object.entries(dictFavorites.snippets)) {
-    const dictSnippetTemp = {
+    const dictSnippetTemp: DictSnippetTotalInfo = {
       id: `favorite:${strTitle}`,
       title: strTitle,
       category: STR_FAVORITE_CATEGORY,
@@ -163,59 +347,43 @@ export function loadSnippetRepository(): DictSnippetRepository {
       insertionMode: dictDefinition.insertionMode ?? "line",
     };
 
-    validateSnippetImports(dictSnippetTemp, setKnownImportSources);
+    validateSnippetImports(dictSnippetTemp, setKnownImportSource);
 
-    dictCategories[dictSnippetTemp.category] ??= [];
-    dictCategories[dictSnippetTemp.category].push(dictSnippetTemp);
-  }
-
-  for (const [strTitle, dictDefinition] of Object.entries(dictCatalog.snippets)) {
-    const dictSnippetTemp = {
-      id: `builtin:${strTitle}`,
-      title: strTitle,
-      category: dictDefinition.category,
-      label: dictDefinition.label,
-      prefix: dictDefinition.prefix,
-      body: normalizeSnippetBody(dictDefinition.body),
-      description: dictDefinition.description,
-      imports: normalizeImports(dictDefinition.imports),
-      insertionMode: dictDefinition.insertionMode,
-    };
-
-    validateSnippetImports(dictSnippetTemp, setKnownImportSources);
-
-    dictCategories[dictSnippetTemp.category] ??= [];
-    dictCategories[dictSnippetTemp.category].push(dictSnippetTemp);
+    dictCategory[dictSnippetTemp.category] ??= [];
+    dictCategory[dictSnippetTemp.category].push(dictSnippetTemp);
   }
 
   const arrCategoryOrder: string[] = [];
 
-  if ((dictCategories[STR_FAVORITE_CATEGORY]?.length ?? 0) > 0) {
+  if ((dictCategory[STR_FAVORITE_CATEGORY]?.length ?? 0) > 0) {
     arrCategoryOrder.push(STR_FAVORITE_CATEGORY);
   }
 
-  for (const category of dictCatalog.categoryOrder) {
-    if ((dictCategories[category]?.length ?? 0) > 0) {
-      arrCategoryOrder.push(category);
+  for (const strCategory of arrCatalogCategoryOrder) {
+    if (
+      (dictCategory[strCategory]?.length ?? 0) > 0 &&
+      !arrCategoryOrder.includes(strCategory)
+    ) {
+      arrCategoryOrder.push(strCategory);
     }
   }
 
-  const arrUnknownCategories = Object.keys(dictCategories)
+  const arrUnknownCategories = Object.keys(dictCategory)
     .filter((category) => !arrCategoryOrder.includes(category))
-    .sort();
+    .sort(compareFileNames);
   arrCategoryOrder.push(...arrUnknownCategories);
 
   return {
     categoryOrder: arrCategoryOrder,
-    categories: dictCategories,
-    importSources: dictCatalog.importSources,
+    categories: dictCategory,
+    importSources: dictImportSource,
   };
 }
 
 export async function insertSnippetFromTreeNode(
   editor: vscode.TextEditor,
   arrSnippetsLines: string[],
-  insertionMode: SnippetInsertionMode
+  insertionMode: SnippetInsertionMode,
 ): Promise<boolean> {
   const snippetObj = new vscode.SnippetString(arrSnippetsLines.join("\n"));
 
@@ -248,7 +416,7 @@ export async function insertSnippetFromTreeNode(
   const boolEdited = await editor.edit((editBuilder) => {
     editBuilder.insert(
       positionCurrent.with(intLineNumberCurrent, lineCurrent.text.length),
-      "\n" + strCurrentLineIndent
+      "\n" + strCurrentLineIndent,
     );
   });
 
@@ -259,7 +427,7 @@ export async function insertSnippetFromTreeNode(
   // Add the snippet at the new empty line.
   const positionNextLine = new vscode.Position(
     intLineNumberCurrent + 1,
-    strCurrentLineIndent.length
+    strCurrentLineIndent.length,
   );
   editor.selection = new vscode.Selection(positionNextLine, positionNextLine);
   return await editor.insertSnippet(snippetObj);
