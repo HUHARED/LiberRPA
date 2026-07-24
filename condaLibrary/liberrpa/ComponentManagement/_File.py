@@ -6,6 +6,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from pathlib import Path
 import json
+import json5
 import os
 import uuid
 
@@ -40,6 +41,20 @@ def read_json(path: Path) -> object:
         return parse_json(path.read_text(encoding="utf-8", errors="strict"))
     except ValueError as e:
         raise ValueError(f"Invalid JSON file {path}: {e}.") from e
+
+
+def parse_jsonc(value: str) -> object:
+    try:
+        return json5.loads(value, allow_duplicate_keys=False)
+    except ValueError as e:
+        raise ValueError(f"Invalid JSONC: {e}.") from e
+
+
+def read_jsonc(path: Path) -> object:
+    try:
+        return parse_jsonc(path.read_text(encoding="utf-8", errors="strict"))
+    except ValueError as e:
+        raise ValueError(f"Invalid JSONC file {path}: {e}.") from e
 
 
 def serialize_json(value: object, *, compact: bool = False) -> str:

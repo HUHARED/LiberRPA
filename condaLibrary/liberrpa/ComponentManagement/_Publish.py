@@ -9,7 +9,7 @@ from liberrpa.ComponentManagement._File import write_json_atomic
 from liberrpa.ComponentManagement._Manifest import ComponentManifest, read_component_manifest
 from liberrpa.ComponentManagement._ProjectLock import project_lock
 from liberrpa.ComponentManagement._SnippetAst import DictAstSnippetsFile, scan_component_snippets
-from liberrpa.ComponentManagement._SnippetConfig import create_snippet_config
+from liberrpa.ComponentManagement._SnippetConfig import build_snippet_catalog, create_snippet_config
 
 from pathlib import Path
 
@@ -72,7 +72,7 @@ def _write_ast_snippets(astSnippetsPath: Path, astSnippets: DictAstSnippetsFile)
         ) from e
 
 
-def publish_component_preparation(projectInputPath: str) -> tuple[dict[str, object], list[dict[str, object]]]:
+def publish_component(projectInputPath: str) -> tuple[dict[str, object], list[dict[str, object]]]:
     pathProject = Path(projectInputPath).expanduser().resolve()
 
     if not pathProject.is_dir():
@@ -96,17 +96,39 @@ def publish_component_preparation(projectInputPath: str) -> tuple[dict[str, obje
         _write_ast_snippets(astSnippetsPath=pathAstSnippets, astSnippets=dictAstSnippets)
         boolConfigCreated = create_snippet_config(configPath=pathSnippetConfig)
 
-    strStatus = "preparationCreated" if boolConfigCreated else "preparationUpdated"
-    dictResult: dict[str, object] = {
-        "status": strStatus,
-        "componentId": manifestObj.id,
-        "packageName": manifestObj.packageName,
-        "astSnippetsFile": pathAstSnippets.relative_to(pathProject).as_posix(),
-        "snippetsConfigFile": pathSnippetConfig.relative_to(pathProject).as_posix(),
-        "generatedCount": len(dictAstSnippets["snippets"]),
-        "skippedCount": len(dictAstSnippets["skipped"]),
-        "warningCount": len(dictAstSnippets["warnings"]),
-    }
+        listWarning: list[dict[str, object]] = [dict(item) for item in dictAstSnippets["warnings"]]
+        if boolConfigCreated:
+            dictResult: dict[str, object] = {
+                "status": "preparationCreated",
+                "componentId": manifestObj.id,
+                "packageName": manifestObj.packageName,
+                "astSnippetsFile": pathAstSnippets.relative_to(pathProject).as_posix(),
+                "snippetsConfigFile": pathSnippetConfig.relative_to(pathProject).as_posix(),
+                "generatedCount": len(dictAstSnippets["snippets"]),
+                "skippedCount": len(dictAstSnippets["skipped"]),
+                "warningCount": len(listWarning),
+            }
+            return dictResult, listWarning
 
-    listWarning: list[dict[str, object]] = [dict(item) for item in dictAstSnippets["warnings"]]
-    return dictResult, listWarning
+        dicBuildResult = build_snippet_catalog(
+            configPath=pathSnippetConfig,
+            astSnippets=dictAstSnippets,
+            packagePath=pathPackage,
+            manifestObj=manifestObj,
+        )
+        listWarning.extend(dict(item) for item in dicBuildResult.warnings)
+
+        dictResult = {
+            "status": "catalogValidated",
+            "componentId": manifestObj.id,
+            "packageName": manifestObj.packageName,
+            "astSnippetsFile": pathAstSnippets.relative_to(pathProject).as_posix(),
+            "snippetsConfigFile": pathSnippetConfig.relative_to(pathProject).as_posix(),
+            "generatedCount": len(dictAstSnippets["snippets"]),
+            "skippedCount": len(dictAstSnippets["skipped"]),
+            "excludedCount": dicBuildResult.excludedCount,
+            "handWrittenCount": dicBuildResult.handWrittenCount,
+            "finalCount": len(dicBuildResult.catalog["snippets"]),
+            "warningCount": len(listWarning),
+        }
+        return dictResult, listWarning

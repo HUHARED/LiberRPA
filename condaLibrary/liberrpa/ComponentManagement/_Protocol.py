@@ -6,7 +6,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from liberrpa.ComponentManagement._Exception import ComponentManagementError
 from liberrpa.ComponentManagement._File import parse_json
-from liberrpa.ComponentManagement._Publish import publish_component_preparation
+from liberrpa.ComponentManagement._Publish import publish_component
 
 from typing import Literal, TypedDict
 
@@ -103,7 +103,7 @@ def _build_error_response(errorObj: ComponentManagementError) -> DictErrorRespon
 def handle_request(requestInfo: str) -> ProtocolResponse:
     try:
         dictRequest = _parse_request(requestInfo)
-        dictResult, listWarning = publish_component_preparation(str(dictRequest["projectPath"]))
+        dictResult, listWarning = publish_component(str(dictRequest["projectPath"]))
         return {
             "schemaVersion": 1,
             "ok": True,

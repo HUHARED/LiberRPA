@@ -8,6 +8,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 from liberrpa.ComponentManagement._Exception import ComponentManagementError
 from liberrpa.ComponentManagement._File import read_json
 from liberrpa.ComponentManagement._Version import normalize_specifier, normalize_version
+from liberrpa.ComponentManagement._Validation import add_issue
 
 from dataclasses import dataclass
 from pathlib import Path
@@ -112,19 +113,15 @@ class ComponentManifest:
     componentDependencies: dict[str, str]
 
 
-def _add_issue(issues: list[dict[str, object]], field: str, message: str) -> None:
-    issues.append({"field": field, "message": message})
-
-
 def _normalize_uuid(value: str, field: str, issues: list[dict[str, object]]) -> str | None:
     try:
         uuidObj = uuid.UUID(value)
     except ValueError:
-        _add_issue(issues, field, "Value must be a valid UUID.")
+        add_issue(issues, field, "Value must be a valid UUID.")
         return None
 
     if uuidObj.version != 4 or uuidObj.variant != uuid.RFC_4122:
-        _add_issue(issues, field, "Value must be a UUID v4.")
+        add_issue(issues, field, "Value must be a UUID v4.")
         return None
 
     return str(uuidObj)
@@ -171,11 +168,11 @@ def _validate_string_field(
     allowEmpty: bool,
 ) -> str | None:
     if not isinstance(value, str):
-        _add_issue(issues, field, "Value must be a string.")
+        add_issue(issues, field, "Value must be a string.")
         return None
 
     if not allowEmpty and value == "":
-        _add_issue(issues, field, "Value cannot be empty.")
+        add_issue(issues, field, "Value cannot be empty.")
         return None
 
     return value
@@ -212,14 +209,14 @@ def read_component_manifest(manifestPath: Path) -> ComponentManifest:
         listUnknownKey = sorted(setKeys - _SET_COMPONENT_MANIFEST_KEYS)
 
         if listMissingKey:
-            _add_issue(listIssue, "component.json", f"Missing fields: {listMissingKey}.")
+            add_issue(listIssue, "component.json", f"Missing fields: {listMissingKey}.")
 
         if listUnknownKey:
-            _add_issue(listIssue, "component.json", f"Unknown fields: {listUnknownKey}.")
+            add_issue(listIssue, "component.json", f"Unknown fields: {listUnknownKey}.")
 
     schemaVersionValue = value.get("schemaVersion")
     if type(schemaVersionValue) is not int or schemaVersionValue != 1:
-        _add_issue(listIssue, "schemaVersion", "Only schemaVersion 1 is supported.")
+        add_issue(listIssue, "schemaVersion", "Only schemaVersion 1 is supported.")
 
     strId = _validate_string_field(
         value.get("id"),
@@ -261,46 +258,46 @@ def read_component_manifest(manifestPath: Path) -> ComponentManifest:
     strNormalizedId: str | None = None
     if strId is not None:
         if strId != strId.strip():
-            _add_issue(listIssue, "id", "Value cannot start or end with whitespace.")
+            add_issue(listIssue, "id", "Value cannot start or end with whitespace.")
         else:
             strNormalizedId = _normalize_uuid(strId, "id", listIssue)
 
     if strPackageName is not None:
         strPackageNameError = _get_package_name_error(strPackageName)
         if strPackageNameError is not None:
-            _add_issue(listIssue, "packageName", strPackageNameError)
+            add_issue(listIssue, "packageName", strPackageNameError)
 
     if strDisplayName is not None:
         if strDisplayName != strDisplayName.strip():
-            _add_issue(listIssue, "displayName", "Value cannot start or end with whitespace.")
+            add_issue(listIssue, "displayName", "Value cannot start or end with whitespace.")
         if "\r" in strDisplayName or "\n" in strDisplayName:
-            _add_issue(listIssue, "displayName", "Value must be a single line.")
+            add_issue(listIssue, "displayName", "Value must be a single line.")
 
     strNormalizedVersion: str | None = None
     if strVersion is not None:
         if strVersion != strVersion.strip():
-            _add_issue(listIssue, "version", "Value cannot start or end with whitespace.")
+            add_issue(listIssue, "version", "Value cannot start or end with whitespace.")
         else:
             try:
                 strNormalizedVersion = normalize_version(strVersion)
             except ValueError as e:
-                _add_issue(listIssue, "version", str(e))
+                add_issue(listIssue, "version", str(e))
 
     strNormalizedRequiresLiberrpa: str | None = None
     if strRequiresLiberrpa is not None:
         if strRequiresLiberrpa != strRequiresLiberrpa.strip():
-            _add_issue(listIssue, "requiresLiberrpa", "Value cannot start or end with whitespace.")
+            add_issue(listIssue, "requiresLiberrpa", "Value cannot start or end with whitespace.")
         else:
             try:
                 strNormalizedRequiresLiberrpa = normalize_specifier(strRequiresLiberrpa)
             except ValueError as e:
-                _add_issue(listIssue, "requiresLiberrpa", str(e))
+                add_issue(listIssue, "requiresLiberrpa", str(e))
 
     dependenciesValue = value.get("componentDependencies")
     dictNormalizedDependency: dict[str, str] = {}
 
     if not isinstance(dependenciesValue, dict):
-        _add_issue(
+        add_issue(
             listIssue,
             "componentDependencies",
             "Value must be an object containing Component ID and version range pairs.",
@@ -312,7 +309,7 @@ def read_component_manifest(manifestPath: Path) -> ComponentManifest:
             strField = f"componentDependencies.{strDependencyId}"
 
             if not isinstance(strDependencyId, str):
-                _add_issue(listIssue, "componentDependencies", "Every Component ID must be a string.")
+                add_issue(listIssue, "componentDependencies", "Every Component ID must be a string.")
                 continue
 
             strNormalizedDependencyId = _normalize_uuid(strDependencyId, strField, listIssue)
@@ -321,29 +318,29 @@ def read_component_manifest(manifestPath: Path) -> ComponentManifest:
                 continue
 
             if strNormalizedDependencyId in setNormalizedDependencyId:
-                _add_issue(listIssue, strField, "The same Component ID is declared more than once.")
+                add_issue(listIssue, strField, "The same Component ID is declared more than once.")
                 continue
 
             setNormalizedDependencyId.add(strNormalizedDependencyId)
 
             if not isinstance(dependencySpecifierValue, str):
-                _add_issue(listIssue, strField, "Version range must be a string.")
+                add_issue(listIssue, strField, "Version range must be a string.")
                 continue
 
             if dependencySpecifierValue != dependencySpecifierValue.strip():
-                _add_issue(listIssue, strField, "Version range cannot start or end with whitespace.")
+                add_issue(listIssue, strField, "Version range cannot start or end with whitespace.")
                 continue
 
             try:
                 strNormalizedSpecifier = normalize_specifier(dependencySpecifierValue)
             except ValueError as e:
-                _add_issue(listIssue, strField, str(e))
+                add_issue(listIssue, strField, str(e))
                 continue
 
             dictNormalizedDependency[strNormalizedDependencyId] = strNormalizedSpecifier
 
     if strNormalizedId is not None and strNormalizedId in dictNormalizedDependency:
-        _add_issue(listIssue, "componentDependencies", "A Component cannot depend on itself.")
+        add_issue(listIssue, "componentDependencies", "A Component cannot depend on itself.")
 
     if listIssue:
         raise ComponentManagementError(
