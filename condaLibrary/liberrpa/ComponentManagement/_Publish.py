@@ -10,6 +10,7 @@ from liberrpa.ComponentManagement._Manifest import ComponentManifest, read_compo
 from liberrpa.ComponentManagement._ProjectLock import project_lock
 from liberrpa.ComponentManagement._SnippetAst import DictAstSnippetsFile, scan_component_snippets
 from liberrpa.ComponentManagement._SnippetConfig import build_snippet_catalog, create_snippet_config
+from liberrpa.ComponentManagement._Wheel import build_component_wheel
 
 from pathlib import Path
 
@@ -118,10 +119,21 @@ def publish_component(projectInputPath: str) -> tuple[dict[str, object], list[di
         )
         listWarning.extend(dict(item) for item in dicBuildResult.warnings)
 
+        wheelResult = build_component_wheel(
+            projectPath=pathProject,
+            packagePath=pathPackage,
+            manifestObj=manifestObj,
+            snippetCatalog=dicBuildResult.catalog,
+        )
+
         dictResult = {
-            "status": "catalogValidated",
+            "status": "wheelBuilt",
             "componentId": manifestObj.id,
             "packageName": manifestObj.packageName,
+            "version": manifestObj.version,
+            "wheelFile": wheelResult.wheelFile,
+            "wheelPath": wheelResult.wheelPath.relative_to(pathProject).as_posix(),
+            "sha256": wheelResult.sha256,
             "astSnippetsFile": pathAstSnippets.relative_to(pathProject).as_posix(),
             "snippetsConfigFile": pathSnippetConfig.relative_to(pathProject).as_posix(),
             "generatedCount": len(dictAstSnippets["snippets"]),
