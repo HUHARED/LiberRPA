@@ -1,23 +1,24 @@
-# FileName: _ProjectLock.py
+# FileName: _RepositoryLock.py
 __author__ = "Jiyan Hu"
 __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
+
 from liberrpa.ComponentManagement._Exception import ComponentManagementError
 from liberrpa.ComponentManagement._File import read_json, serialize_json
 
+from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
-from collections.abc import Generator
 import os
 import time
 import uuid
 import psutil
 
 
-_STR_LOCK_FILE_NAME = ".liberrpa-project-manager.lock"
+_STR_LOCK_FILE_NAME = ".repository.lock"
 _FLOAT_INVALID_LOCK_GRACE_SECONDS = 5.0
 _FLOAT_PROCESS_CREATE_TIME_TOLERANCE = 1.0
 
@@ -73,7 +74,7 @@ def _create_lock(lockPath: Path, operation: str) -> str:
         "operation": operation,
         "createdAt": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
     }
-    bytesLock = (serialize_json(dictLock, compact=True) + "\n").encode("utf-8")
+    bytesLock = (serialize_json(dictLock, compact=True) + "\n").encode()
 
     for intAttempt in range(2):
         try:
@@ -83,8 +84,8 @@ def _create_lock(lockPath: Path, operation: str) -> str:
                 continue
 
             raise ComponentManagementError(
-                code="project_busy",
-                message="Another Component operation is currently modifying this Project.",
+                code="repository_busy",
+                message="Another Component operation is currently modifying the Component Repository.",
                 details={"lockFile": str(lockPath)},
             )
 
@@ -96,8 +97,8 @@ def _create_lock(lockPath: Path, operation: str) -> str:
         return strOwnerId
 
     raise ComponentManagementError(
-        code="project_busy",
-        message="Another Component operation is currently modifying this Project.",
+        code="repository_busy",
+        message="Another Component operation is currently modifying the Component Repository.",
         details={"lockFile": str(lockPath)},
     )
 
@@ -116,11 +117,11 @@ def _release_lock(lockPath: Path, ownerId: str) -> None:
 
 
 @contextmanager
-def project_lock(projectPath: Path, operation: str) -> Generator[None]:
-    pathLock = projectPath / _STR_LOCK_FILE_NAME
-    strOwnerId = _create_lock(lockPath=pathLock, operation=operation)
+def repository_lock(repositoryPath: Path, operation: str) -> Generator[None]:
+    lockPath = repositoryPath / _STR_LOCK_FILE_NAME
+    strOwnerId = _create_lock(lockPath=lockPath, operation=operation)
 
     try:
         yield
     finally:
-        _release_lock(lockPath=pathLock, ownerId=strOwnerId)
+        _release_lock(lockPath=lockPath, ownerId=strOwnerId)

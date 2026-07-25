@@ -8,6 +8,7 @@ from liberrpa.ComponentManagement._Exception import ComponentManagementError
 from liberrpa.ComponentManagement._File import write_json_atomic
 from liberrpa.ComponentManagement._Manifest import ComponentManifest, read_component_manifest
 from liberrpa.ComponentManagement._ProjectLock import project_lock
+from liberrpa.ComponentManagement._Repository import publish_component_wheel
 from liberrpa.ComponentManagement._SnippetAst import DictAstSnippetsFile, scan_component_snippets
 from liberrpa.ComponentManagement._SnippetConfig import build_snippet_catalog, create_snippet_config
 from liberrpa.ComponentManagement._Wheel import build_component_wheel
@@ -73,6 +74,27 @@ def _write_ast_snippets(astSnippetsPath: Path, astSnippets: DictAstSnippetsFile)
         ) from e
 
 
+def _cleanup_build_output(wheelPath: Path) -> dict[str, object] | None:
+    try:
+        wheelPath.unlink(missing_ok=True)
+
+        buildPath = wheelPath.parent
+        if buildPath.is_dir() and not any(buildPath.iterdir()):
+            buildPath.rmdir()
+
+        managerPath = buildPath.parent
+        if managerPath.is_dir() and not any(managerPath.iterdir()):
+            managerPath.rmdir()
+    except OSError as e:
+        return {
+            "code": "build_cleanup_pending",
+            "message": f"The Component was published, but temporary build files could not be removed: {wheelPath}",
+            "details": {"reason": str(e)},
+        }
+
+    return None
+
+
 def publish_component(projectInputPath: str) -> tuple[dict[str, object], list[dict[str, object]]]:
     pathProject = Path(projectInputPath).expanduser().resolve()
 
@@ -126,13 +148,23 @@ def publish_component(projectInputPath: str) -> tuple[dict[str, object], list[di
             snippetCatalog=dicBuildResult.catalog,
         )
 
+        repositoryResult = publish_component_wheel(
+            manifestObj=manifestObj,
+            wheelResult=wheelResult,
+        )
+
+        listWarning.extend(repositoryResult.warnings)
+
+        cleanupWarning = _cleanup_build_output(wheelResult.wheelPath)
+        if cleanupWarning is not None:
+            listWarning.append(cleanupWarning)
+
         dictResult = {
-            "status": "wheelBuilt",
+            "status": repositoryResult.status,
             "componentId": manifestObj.id,
             "packageName": manifestObj.packageName,
             "version": manifestObj.version,
             "wheelFile": wheelResult.wheelFile,
-            "wheelPath": wheelResult.wheelPath.relative_to(pathProject).as_posix(),
             "sha256": wheelResult.sha256,
             "astSnippetsFile": pathAstSnippets.relative_to(pathProject).as_posix(),
             "snippetsConfigFile": pathSnippetConfig.relative_to(pathProject).as_posix(),

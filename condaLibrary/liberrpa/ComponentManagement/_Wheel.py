@@ -32,7 +32,7 @@ import uuid
 
 
 _STR_WHEEL_TAG = "py313-none-any"
-_TUPLE_ZIP_TIMESTAMP = (1980, 1, 1, 0, 0, 0)  # A fixed timestamp for keeping zip binary result same.
+_TUPLE_ZIP_TIMESTAMP = (1984, 4, 4, 0, 0, 0)  # A fixed timestamp for keeping zip binary result same.
 _INT_ZIP_FILE_MODE = (stat.S_IFREG | 0o644) << 16  # Owner can edit, others can read.
 
 _SET_IGNORED_FILE_SUFFIX = {
