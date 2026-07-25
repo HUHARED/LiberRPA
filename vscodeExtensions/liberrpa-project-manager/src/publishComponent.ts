@@ -21,18 +21,17 @@ interface PublishPreparationResult extends PublishComponentResultBase {
   status: "preparationCreated" | "preparationUpdated";
 }
 
-interface WheelBuiltResult extends PublishComponentResultBase {
-  status: "wheelBuilt";
+interface PublishedComponentResult extends PublishComponentResultBase {
+  status: "published" | "alreadyPublished";
   version: string;
   wheelFile: string;
-  wheelPath: string;
   sha256: string;
   excludedCount: number;
   handWrittenCount: number;
   finalCount: number;
 }
 
-type PublishComponentResult = PublishPreparationResult | WheelBuiltResult;
+type PublishComponentResult = PublishPreparationResult | PublishedComponentResult;
 
 let boolPublishBusy = false;
 
@@ -77,7 +76,8 @@ function parsePublishComponentResult(
   if (
     status !== "preparationCreated" &&
     status !== "preparationUpdated" &&
-    status !== "wheelBuilt"
+    status !== "published" &&
+    status !== "alreadyPublished"
   ) {
     throw new Error(`Unsupported Publish Component result status: ${String(status)}.`);
   }
@@ -92,13 +92,12 @@ function parsePublishComponentResult(
     warningCount: getRequiredNonNegativeInteger(result, "warningCount"),
   };
 
-  if (status === "wheelBuilt") {
+  if (status === "published" || status === "alreadyPublished") {
     return {
       ...baseResult,
       status,
       version: getRequiredString(result, "version"),
       wheelFile: getRequiredString(result, "wheelFile"),
-      wheelPath: getRequiredString(result, "wheelPath"),
       sha256: getRequiredSha256(result, "sha256"),
       excludedCount: getRequiredNonNegativeInteger(result, "excludedCount"),
       handWrittenCount: getRequiredNonNegativeInteger(result, "handWrittenCount"),
@@ -194,7 +193,7 @@ export async function publishComponent(): Promise<void> {
     await vscode.window.withProgress(
       {
         location: vscode.ProgressLocation.Notification,
-        title: "Preparing Component publish...",
+        title: "Publishing Component...",
         cancellable: false,
       },
       async () => {
@@ -244,13 +243,17 @@ export async function publishComponent(): Promise<void> {
 
         let strSummary: string;
 
-        if (result.status === "wheelBuilt") {
-          const wheelUri = resolveProjectRelativeFile(workspaceFolder, result.wheelPath);
-          log.info(`Built Component Wheel: ${wheelUri.fsPath}`);
+        if (result.status === "published" || result.status === "alreadyPublished") {
+          log.info(`Published Component Wheel: ${result.wheelFile}`);
           log.info(`Component Wheel SHA-256: ${result.sha256}`);
 
+          const strPublishStatus =
+            result.status === "published"
+              ? `Component ${result.packageName} ${result.version} was published.`
+              : `Component ${result.packageName} ${result.version} was already published with identical content.`;
+
           strSummary =
-            `Component Wheel ${result.wheelFile} was built. ` +
+            `${strPublishStatus} ` +
             `Generated: ${String(result.generatedCount)}, ` +
             `excluded: ${String(result.excludedCount)}, ` +
             `hand-written: ${String(result.handWrittenCount)}, ` +
