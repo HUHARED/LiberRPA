@@ -7,8 +7,7 @@ import type { ComponentManagementWarning } from "./componentManagementProcess";
 import { runComponentManagement } from "./componentManagementProcess";
 import { getWorkspaceProjectType, updateProjectTypeContext } from "./projectTypeContext";
 
-interface PublishPreparationResult {
-  status: "preparationCreated" | "preparationUpdated";
+interface PublishComponentResultBase {
   componentId: string;
   packageName: string;
   astSnippetsFile: string;
@@ -17,6 +16,23 @@ interface PublishPreparationResult {
   skippedCount: number;
   warningCount: number;
 }
+
+interface PublishPreparationResult extends PublishComponentResultBase {
+  status: "preparationCreated" | "preparationUpdated";
+}
+
+interface WheelBuiltResult extends PublishComponentResultBase {
+  status: "wheelBuilt";
+  version: string;
+  wheelFile: string;
+  wheelPath: string;
+  sha256: string;
+  excludedCount: number;
+  handWrittenCount: number;
+  finalCount: number;
+}
+
+type PublishComponentResult = PublishPreparationResult | WheelBuiltResult;
 
 let boolPublishBusy = false;
 
@@ -43,16 +59,30 @@ function getRequiredNonNegativeInteger(
   return fieldValue;
 }
 
-function parsePublishPreparationResult(
+function getRequiredSha256(value: Record<string, unknown>, key: string): string {
+  const fieldValue = getRequiredString(value, key);
+  if (!/^[0-9a-f]{64}$/.test(fieldValue)) {
+    throw new Error(
+      `Component Management result field ${key} must be a lowercase SHA-256 value.`,
+    );
+  }
+
+  return fieldValue;
+}
+
+function parsePublishComponentResult(
   result: Record<string, unknown>,
-): PublishPreparationResult {
+): PublishComponentResult {
   const status = result.status;
-  if (status !== "preparationCreated" && status !== "preparationUpdated") {
+  if (
+    status !== "preparationCreated" &&
+    status !== "preparationUpdated" &&
+    status !== "wheelBuilt"
+  ) {
     throw new Error(`Unsupported Publish Component result status: ${String(status)}.`);
   }
 
-  return {
-    status,
+  const baseResult: PublishComponentResultBase = {
     componentId: getRequiredString(result, "componentId"),
     packageName: getRequiredString(result, "packageName"),
     astSnippetsFile: getRequiredString(result, "astSnippetsFile"),
@@ -60,6 +90,25 @@ function parsePublishPreparationResult(
     generatedCount: getRequiredNonNegativeInteger(result, "generatedCount"),
     skippedCount: getRequiredNonNegativeInteger(result, "skippedCount"),
     warningCount: getRequiredNonNegativeInteger(result, "warningCount"),
+  };
+
+  if (status === "wheelBuilt") {
+    return {
+      ...baseResult,
+      status,
+      version: getRequiredString(result, "version"),
+      wheelFile: getRequiredString(result, "wheelFile"),
+      wheelPath: getRequiredString(result, "wheelPath"),
+      sha256: getRequiredSha256(result, "sha256"),
+      excludedCount: getRequiredNonNegativeInteger(result, "excludedCount"),
+      handWrittenCount: getRequiredNonNegativeInteger(result, "handWrittenCount"),
+      finalCount: getRequiredNonNegativeInteger(result, "finalCount"),
+    };
+  }
+
+  return {
+    ...baseResult,
+    status,
   };
 }
 
@@ -74,7 +123,9 @@ function resolveProjectRelativeFile(
   const arrPathParts = relativePath.split("/");
   if (
     arrPathParts.length === 0 ||
-    arrPathParts.some((pathPart) => pathPart === "" || pathPart === "." || pathPart === "..")
+    arrPathParts.some(
+      (pathPart) => pathPart === "" || pathPart === "." || pathPart === "..",
+    )
   ) {
     throw new Error(
       `Component Management returned an invalid relative path: ${relativePath}`,
@@ -94,7 +145,7 @@ function getWarningMessage(warning: ComponentManagementWarning): string {
 
 async function openPreparationFiles(
   workspaceFolder: vscode.WorkspaceFolder,
-  result: PublishPreparationResult,
+  result: PublishComponentResult,
 ): Promise<void> {
   const astSnippetsUri = resolveProjectRelativeFile(
     workspaceFolder,
@@ -121,12 +172,12 @@ async function openPreparationFiles(
 }
 
 function getSingleWorkspaceFolder(): vscode.WorkspaceFolder {
-  const workspaceFolders = vscode.workspace.workspaceFolders;
-  if (workspaceFolders === undefined || workspaceFolders.length !== 1) {
+  const arrWorkspaceFolder = vscode.workspace.workspaceFolders;
+  if (arrWorkspaceFolder === undefined || arrWorkspaceFolder.length !== 1) {
     throw new Error("Publish Component requires exactly one open workspace folder.");
   }
 
-  return workspaceFolders[0];
+  return arrWorkspaceFolder[0];
 }
 
 export async function publishComponent(): Promise<void> {
@@ -183,7 +234,7 @@ export async function publishComponent(): Promise<void> {
           return;
         }
 
-        const result = parsePublishPreparationResult(response.result);
+        const result = parsePublishComponentResult(response.result);
 
         for (const warning of response.warnings) {
           log.warn(getWarningMessage(warning));
@@ -191,13 +242,31 @@ export async function publishComponent(): Promise<void> {
 
         await openPreparationFiles(workspaceFolder, result);
 
-        const strStatusText =
-          result.status === "preparationCreated"
-            ? "Component publish preparation was created."
-            : "Component publish preparation was updated.";
-        const strSummary =
-          `${strStatusText} Generated: ${String(result.generatedCount)}, ` +
-          `skipped: ${String(result.skippedCount)}, warnings: ${String(result.warningCount)}.`;
+        let strSummary: string;
+
+        if (result.status === "wheelBuilt") {
+          const wheelUri = resolveProjectRelativeFile(workspaceFolder, result.wheelPath);
+          log.info(`Built Component Wheel: ${wheelUri.fsPath}`);
+          log.info(`Component Wheel SHA-256: ${result.sha256}`);
+
+          strSummary =
+            `Component Wheel ${result.wheelFile} was built. ` +
+            `Generated: ${String(result.generatedCount)}, ` +
+            `excluded: ${String(result.excludedCount)}, ` +
+            `hand-written: ${String(result.handWrittenCount)}, ` +
+            `final: ${String(result.finalCount)}, ` +
+            `skipped: ${String(result.skippedCount)}, ` +
+            `warnings: ${String(result.warningCount)}.`;
+        } else {
+          const strStatusText =
+            result.status === "preparationCreated"
+              ? "Component publish preparation was created."
+              : "Component publish preparation was updated.";
+          strSummary =
+            `${strStatusText} Generated: ${String(result.generatedCount)}, ` +
+            `skipped: ${String(result.skippedCount)}, ` +
+            `warnings: ${String(result.warningCount)}.`;
+        }
 
         log.info(strSummary);
 
