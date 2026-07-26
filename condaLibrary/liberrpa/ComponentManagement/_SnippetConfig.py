@@ -4,34 +4,39 @@ __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
-from liberrpa.ComponentManagement._Exception import ComponentManagementError
-from liberrpa.ComponentManagement._File import read_jsonc, write_text_atomic
-from liberrpa.ComponentManagement._Manifest import ComponentManifest
-from liberrpa.ComponentManagement._SnippetAst import (
-    DictSnippetImports,
+from liberrpa.ComponentManagement.Utils._Exception import ComponentManagementError
+from liberrpa.ComponentManagement.Utils._File import read_jsonc, write_text_atomic
+from liberrpa.ComponentManagement.Utils._TypedValue import (
+    ComponentManifest,
     SnippetInsertionMode,
+    DictSnippetImports,
     DictAstSnippet,
     DictAstSnippetsFile,
+    DictImportSourceConfig,
+    DictSnippetCatalogFile,
+    DictAstSnippetOverride,
+    DictSnippetConfigWarning,
 )
-from liberrpa.ComponentManagement._Validation import add_issue
+from liberrpa.ComponentManagement.Utils._Validation import add_issue, raise_config_issues, validate_json_object_fields
 
 from pathlib import Path
 from copy import deepcopy
 import keyword
 from dataclasses import dataclass
-from typing import Literal, NotRequired, TypedDict
+
 
 _PATH_TEMPLATE = Path(__file__).resolve().parent / "Templates/snippets.jsonc.template"
 
 
 _SET_SNIPPET_CONFIG_KEYS = {
+    # snippets.jsonc.template has the four keys only.
     "schemaVersion",
     "excludedAstSnippets",
     "astSnippetOverrides",
     "snippets",
 }
 
-_SET_AST_SNIPPET_OVERRIDE_KEYS = {
+_SET_AST_SNIPPET_OVERRIDE_ALLOWED_KEYS = {
     "label",
     "body",
     "description",
@@ -39,7 +44,7 @@ _SET_AST_SNIPPET_OVERRIDE_KEYS = {
     "imports",
 }
 
-_SET_HAND_WRITTEN_SNIPPET_KEYS = {
+_SET_HAND_WRITTEN_SNIPPET_ALLOWED_KEYS = {
     "prefix",
     "label",
     "body",
@@ -93,137 +98,26 @@ _TUPLE_LIBERRPA_IMPORT_ORDER = (
 )
 
 
-class DictImportSourceConfig(TypedDict):
-    order: list[str]
-    aliasMode: NotRequired[Literal["source_module"]]
-
-
-class DictSnippetCatalogFile(TypedDict):
-    schemaVersion: Literal[1]
-    categoryOrder: list[str]
-    importSources: dict[str, DictImportSourceConfig]
-    snippets: dict[str, DictAstSnippet]
-
-
-class DictAstSnippetOverride(TypedDict):
-    label: NotRequired[str]
-    body: NotRequired[list[str]]
-    description: NotRequired[str]
-    insertionMode: NotRequired[SnippetInsertionMode]
-    imports: NotRequired[DictSnippetImports]
-
-
-class DictSnippetConfigWarning(TypedDict):
-    code: str
-    snippetKey: str
-    message: str
-
-
 @dataclass(frozen=True)
-class SnippetCatalogBuildResult:
+class _SnippetCatalogBuildResult:
     catalog: DictSnippetCatalogFile
     warnings: list[DictSnippetConfigWarning]
     excludedCount: int
     handWrittenCount: int
 
 
-def _raise_config_issues(issues: list[dict[str, object]]) -> None:
-    if not issues:
-        return
-
-    raise ComponentManagementError(
-        code="snippet_config_invalid",
-        message="Invalid Component Snippet configuration.",
-        details={"issues": issues},
-    )
-
-
-def _validate_json_object_fields(
-    value: dict[object, object],
-    allowedKeys: set[str],
-    field: str,
-    issues: list[dict[str, object]],
-) -> None:
-    listUnknownKey: list[str] = []
-
-    for key in value:
-        if not isinstance(key, str):
-            listUnknownKey.append(repr(key))
-        elif key not in allowedKeys:
-            listUnknownKey.append(key)
-
-    listUnknownKey.sort()
-
-    if listUnknownKey:
-        add_issue(issues, field, f"Unknown fields: {listUnknownKey}.")
-
-
-def _get_public_module_names(packagePath: Path) -> list[str]:
-    return sorted(
-        modulePath.stem
-        for modulePath in packagePath.iterdir()
-        if modulePath.is_file()
-        and modulePath.suffix.casefold() == ".py"
-        and modulePath.name != "__init__.py"
-        and not modulePath.name.startswith("_")
-    )
-
-
-def _parse_component_snippet_key(
-    snippetKey: str,
-    packageName: str,
-    publicModuleNameSet: set[str],
-    field: str,
-    issues: list[dict[str, object]],
-    *,
-    requireExistingModule: bool,
-) -> tuple[str, str, str] | None:
-    strCategory, strSeparator, strSnippetName = snippetKey.partition(".")
-    strCategoryPrefix = f"{packageName}_"
-
-    if strSeparator == "" or "." in strSnippetName or not strCategory.startswith(strCategoryPrefix):
-        add_issue(
-            issues,
-            field,
-            f"Snippet key must use {packageName}_ModuleName.snippet_name.",
-        )
-        return None
-
-    strModuleName = strCategory[len(strCategoryPrefix) :]
-    if strModuleName == "":
-        add_issue(issues, field, "Snippet key must contain a public Component Module name.")
-        return None
-
-    if requireExistingModule and strModuleName not in publicModuleNameSet:
-        add_issue(
-            issues,
-            field,
-            f"Public Component Module was not found: {strModuleName!r}.",
-        )
-        return None
-
-    if not strSnippetName.isidentifier() or keyword.iskeyword(strSnippetName):
-        add_issue(
-            issues,
-            field,
-            f"Snippet name must be a valid non-keyword Python identifier: {strSnippetName!r}.",
-        )
-        return None
-
-    return strCategory, strModuleName, strSnippetName
-
-
 def _normalize_single_line_string(
     value: object,
     field: str,
-    issues: list[dict[str, object]],
+    issueList: list[dict[str, object]],
 ) -> str | None:
+    """a snippet's label and prefix must be a single line string."""
     if not isinstance(value, str) or value == "":
-        add_issue(issues, field, "Value must be a non-empty string.")
+        add_issue(issueList, field, "Value must be a non-empty string.")
         return None
 
     if "\r" in value or "\n" in value:
-        add_issue(issues, field, "Value must be a single line.")
+        add_issue(issueList, field, "Value must be a single line.")
         return None
 
     return value
@@ -232,10 +126,10 @@ def _normalize_single_line_string(
 def _normalize_description(
     value: object,
     field: str,
-    issues: list[dict[str, object]],
+    issueList: list[dict[str, object]],
 ) -> str | None:
     if not isinstance(value, str) or value == "":
-        add_issue(issues, field, "Value must be a non-empty string.")
+        add_issue(issueList, field, "Value must be a non-empty string.")
         return None
 
     return value
@@ -244,7 +138,7 @@ def _normalize_description(
 def _normalize_insertion_mode(
     value: object,
     field: str,
-    issues: list[dict[str, object]],
+    issueList: list[dict[str, object]],
 ) -> SnippetInsertionMode | None:
     if value == "line":
         return "line"
@@ -253,7 +147,7 @@ def _normalize_insertion_mode(
         return "cursor"
 
     add_issue(
-        issues,
+        issueList,
         field,
         'Value must be either "line" or "cursor".',
     )
@@ -264,18 +158,18 @@ def _normalize_snippet_body(
     value: object,
     insertionMode: SnippetInsertionMode,
     field: str,
-    issues: list[dict[str, object]],
+    issueList: list[dict[str, object]],
 ) -> list[str] | None:
     if isinstance(value, str):
         listBodyLine = [value]
     elif isinstance(value, list) and all(isinstance(item, str) for item in value):
         listBodyLine = list(value)
     else:
-        add_issue(issues, field, "Value must be a string or a list of strings.")
+        add_issue(issueList, field, "Value must be a string or a list of strings.")
         return None
 
     if not listBodyLine or all(line == "" for line in listBodyLine):
-        add_issue(issues, field, "Snippet body cannot be empty.")
+        add_issue(issueList, field, "Snippet body cannot be empty.")
         return None
 
     if insertionMode == "line":
@@ -293,10 +187,10 @@ def _normalize_imports(
     value: object,
     field: str,
     availableImportOrder: dict[str, tuple[str, ...]],
-    issues: list[dict[str, object]],
+    issueList: list[dict[str, object]],
 ) -> DictSnippetImports | None:
     if not isinstance(value, dict):
-        add_issue(issues, field, "Value must be an object containing import source and name-list pairs.")
+        add_issue(issueList, field, "Value must be an object containing import source and name-list pairs.")
         return None
 
     dictResult: DictSnippetImports = {}
@@ -305,19 +199,19 @@ def _normalize_imports(
         strImportField = f"{field}.{importSource}"
 
         if not isinstance(importSource, str) or importSource == "":
-            add_issue(issues, field, "Every import source must be a non-empty string.")
+            add_issue(issueList, field, "Every import source must be a non-empty string.")
             continue
 
         if importSource not in availableImportOrder:
             add_issue(
-                issues,
+                issueList,
                 strImportField,
                 f"Import source is not available to this Component Snippet: {importSource!r}.",
             )
             continue
 
         if not isinstance(importNameValue, list) or not importNameValue:
-            add_issue(issues, strImportField, "Import names must be a non-empty list.")
+            add_issue(issueList, strImportField, "Import names must be a non-empty list.")
             continue
 
         listImportName: list[str] = []
@@ -326,14 +220,14 @@ def _normalize_imports(
         for importName in importNameValue:
             if not isinstance(importName, str) or not importName.isidentifier() or keyword.iskeyword(importName):
                 add_issue(
-                    issues,
+                    issueList,
                     strImportField,
                     f"Import name must be a valid non-keyword Python identifier: {importName!r}.",
                 )
                 continue
 
             if importName in setImportName:
-                add_issue(issues, strImportField, f"Duplicate import name: {importName!r}.")
+                add_issue(issueList, strImportField, f"Duplicate import name: {importName!r}.")
                 continue
 
             setImportName.add(importName)
@@ -345,7 +239,7 @@ def _normalize_imports(
 
         if listUnknownImportName:
             add_issue(
-                issues,
+                issueList,
                 strImportField,
                 f"Import names are not available from {importSource!r}: {listUnknownImportName}.",
             )
@@ -354,6 +248,99 @@ def _normalize_imports(
         dictResult[importSource] = sorted(listImportName, key=dictImportIndex.__getitem__)
 
     return dict(sorted(dictResult.items()))
+
+
+def _normalize_override(
+    value: object,
+    field: str,
+    availableImportOrder: dict[str, tuple[str, ...]],
+    issueList: list[dict[str, object]],
+) -> DictAstSnippetOverride | None:
+    if not isinstance(value, dict):
+        add_issue(issueList, field, "Value must be an object.")
+        return None
+
+    validate_json_object_fields(
+        value,
+        _SET_AST_SNIPPET_OVERRIDE_ALLOWED_KEYS,
+        field,
+        issueList,
+    )
+    dictResult: DictAstSnippetOverride = {}
+
+    if "label" in value:
+        strLabel = _normalize_single_line_string(value["label"], f"{field}.label", issueList)
+        if strLabel is not None:
+            dictResult["label"] = strLabel
+
+    if "description" in value:
+        strDescription = _normalize_description(value["description"], f"{field}.description", issueList)
+        if strDescription is not None:
+            dictResult["description"] = strDescription
+
+    insertionMode: SnippetInsertionMode | None = None
+    if "insertionMode" in value:
+        insertionMode = _normalize_insertion_mode(value["insertionMode"], f"{field}.insertionMode", issueList)
+        if insertionMode is not None:
+            dictResult["insertionMode"] = insertionMode
+
+    if "body" in value:
+        bodyInsertionMode: SnippetInsertionMode = insertionMode or "line"
+        listBody = _normalize_snippet_body(value["body"], bodyInsertionMode, f"{field}.body", issueList)
+        if listBody is not None:
+            dictResult["body"] = listBody
+
+    if "imports" in value:
+        dictImports = _normalize_imports(value["imports"], f"{field}.imports", availableImportOrder, issueList)
+        if dictImports is not None:
+            dictResult["imports"] = dictImports
+
+    return dictResult
+
+
+def _parse_component_snippet_key(
+    snippetKey: str,
+    packageName: str,
+    publicModuleNameSet: set[str],
+    field: str,
+    issueList: list[dict[str, object]],
+    *,
+    requireExistingModule: bool,
+) -> tuple[str, str, str] | None:
+    """Check a snippet's attributes, if there is anything wrong, add an issue into issue list."""
+    strCategory, strSeparator, strSnippetName = snippetKey.partition(".")
+    strCategoryPrefix = f"{packageName}_"
+
+    if strSeparator == "" or "." in strSnippetName or not strCategory.startswith(strCategoryPrefix):
+        add_issue(
+            issueList,
+            field,
+            f"Snippet key must use {packageName}_ModuleName.snippet_name.",
+        )
+        return None
+
+    strModuleName = strCategory[len(strCategoryPrefix) :]
+    if strModuleName == "":
+        add_issue(issueList, field, "Snippet key must contain a public Component Module name.")
+        return None
+
+    if requireExistingModule and strModuleName not in publicModuleNameSet:
+        add_issue(
+            issueList,
+            field,
+            f"Public Component Module was not found: {strModuleName!r}.",
+        )
+        return None
+
+    if not strSnippetName.isidentifier() or keyword.iskeyword(strSnippetName):
+        add_issue(
+            issueList,
+            field,
+            f"Snippet name must be a valid non-keyword Python identifier: {strSnippetName!r}.",
+        )
+        return None
+
+    return strCategory, strModuleName, strSnippetName
 
 
 def _merge_imports(
@@ -379,87 +366,49 @@ def _merge_imports(
     return dictResult
 
 
-def _normalize_override(
-    value: object,
-    field: str,
-    availableImportOrder: dict[str, tuple[str, ...]],
-    issues: list[dict[str, object]],
-) -> DictAstSnippetOverride | None:
-    if not isinstance(value, dict):
-        add_issue(issues, field, "Value must be an object.")
-        return None
-
-    _validate_json_object_fields(value, _SET_AST_SNIPPET_OVERRIDE_KEYS, field, issues)
-    dictResult: DictAstSnippetOverride = {}
-
-    if "label" in value:
-        strLabel = _normalize_single_line_string(value["label"], f"{field}.label", issues)
-        if strLabel is not None:
-            dictResult["label"] = strLabel
-
-    if "description" in value:
-        strDescription = _normalize_description(value["description"], f"{field}.description", issues)
-        if strDescription is not None:
-            dictResult["description"] = strDescription
-
-    insertionMode: SnippetInsertionMode | None = None
-    if "insertionMode" in value:
-        insertionMode = _normalize_insertion_mode(value["insertionMode"], f"{field}.insertionMode", issues)
-        if insertionMode is not None:
-            dictResult["insertionMode"] = insertionMode
-
-    if "body" in value:
-        bodyInsertionMode: SnippetInsertionMode = insertionMode or "line"
-        listBody = _normalize_snippet_body(value["body"], bodyInsertionMode, f"{field}.body", issues)
-        if listBody is not None:
-            dictResult["body"] = listBody
-
-    if "imports" in value:
-        dictImports = _normalize_imports(value["imports"], f"{field}.imports", availableImportOrder, issues)
-        if dictImports is not None:
-            dictResult["imports"] = dictImports
-
-    return dictResult
-
-
 def _normalize_hand_written_snippet(
     snippetKey: str,
     value: object,
     packageName: str,
     publicModuleNameSet: set[str],
     availableImportOrder: dict[str, tuple[str, ...]],
-    issues: list[dict[str, object]],
+    issueList: list[dict[str, object]],
 ) -> DictAstSnippet | None:
     strField = f"snippets.{snippetKey}"
-    keyParts = _parse_component_snippet_key(
+    tupleKeyPart = _parse_component_snippet_key(
         snippetKey=snippetKey,
         packageName=packageName,
         publicModuleNameSet=publicModuleNameSet,
         field=strField,
-        issues=issues,
+        issueList=issueList,
         requireExistingModule=True,
     )
 
     if not isinstance(value, dict):
-        add_issue(issues, strField, "Value must be an object.")
+        add_issue(issueList, strField, "Value must be an object.")
         return None
 
-    _validate_json_object_fields(value, _SET_HAND_WRITTEN_SNIPPET_KEYS, strField, issues)
+    validate_json_object_fields(
+        value,
+        _SET_HAND_WRITTEN_SNIPPET_ALLOWED_KEYS,
+        strField,
+        issueList,
+    )
 
-    if keyParts is None:
+    if tupleKeyPart is None:
         return None
 
-    strCategory, strModuleName, strSnippetName = keyParts
+    strCategory, strModuleName, strSnippetName = tupleKeyPart
 
     strPrefix = snippetKey
     if "prefix" in value:
-        normalizedPrefix = _normalize_single_line_string(value["prefix"], f"{strField}.prefix", issues)
+        normalizedPrefix = _normalize_single_line_string(value["prefix"], f"{strField}.prefix", issueList)
         if normalizedPrefix is not None:
             strPrefix = normalizedPrefix
 
     strLabel = strSnippetName
     if "label" in value:
-        normalizedLabel = _normalize_single_line_string(value["label"], f"{strField}.label", issues)
+        normalizedLabel = _normalize_single_line_string(value["label"], f"{strField}.label", issueList)
         if normalizedLabel is not None:
             strLabel = normalizedLabel
 
@@ -468,22 +417,22 @@ def _normalize_hand_written_snippet(
         normalizedInsertionMode = _normalize_insertion_mode(
             value["insertionMode"],
             f"{strField}.insertionMode",
-            issues,
+            issueList,
         )
         if normalizedInsertionMode is not None:
             insertionMode = normalizedInsertionMode
 
     if "body" not in value:
-        add_issue(issues, strField, "Missing required field: body.")
+        add_issue(issueList, strField, "Missing required field: body.")
         listBody = None
     else:
-        listBody = _normalize_snippet_body(value["body"], insertionMode, f"{strField}.body", issues)
+        listBody = _normalize_snippet_body(value["body"], insertionMode, f"{strField}.body", issueList)
 
     if "description" not in value:
-        add_issue(issues, strField, "Missing required field: description.")
+        add_issue(issueList, strField, "Missing required field: description.")
         strDescription = None
     else:
-        strDescription = _normalize_description(value["description"], f"{strField}.description", issues)
+        strDescription = _normalize_description(value["description"], f"{strField}.description", issueList)
 
     dictAdditionalImport: DictSnippetImports = {}
     if "imports" in value:
@@ -491,7 +440,7 @@ def _normalize_hand_written_snippet(
             value["imports"],
             f"{strField}.imports",
             availableImportOrder,
-            issues,
+            issueList,
         )
         if normalizedImports is not None:
             dictAdditionalImport = normalizedImports
@@ -567,7 +516,7 @@ def build_snippet_catalog(
     astSnippets: DictAstSnippetsFile,
     packagePath: Path,
     manifestObj: ComponentManifest,
-) -> SnippetCatalogBuildResult:
+) -> _SnippetCatalogBuildResult:
     try:
         value = read_jsonc(configPath)
     except (OSError, ValueError) as e:
@@ -585,26 +534,38 @@ def build_snippet_catalog(
         )
 
     listIssue: list[dict[str, object]] = []
-    _validate_json_object_fields(value, _SET_SNIPPET_CONFIG_KEYS, "snippets.jsonc", listIssue)
+    validate_json_object_fields(
+        value,
+        _SET_SNIPPET_CONFIG_KEYS,
+        "snippets.jsonc",
+        listIssue,
+    )
 
     schemaVersionValue = value.get("schemaVersion")
     if type(schemaVersionValue) is not int or schemaVersionValue != 1:
         add_issue(listIssue, "schemaVersion", "Only schemaVersion 1 is supported.")
 
-    listPublicModuleName = _get_public_module_names(packagePath)
+    listPublicModuleName = sorted(
+        modulePath.stem
+        for modulePath in packagePath.iterdir()
+        if modulePath.is_file()
+        and modulePath.suffix.casefold() == ".py"
+        and modulePath.name != "__init__.py"
+        and not modulePath.name.startswith("_")
+    )
     setPublicModuleName = set(listPublicModuleName)
     dictAvailableImportOrder: dict[str, tuple[str, ...]] = {
         "liberrpa.Modules": _TUPLE_LIBERRPA_IMPORT_ORDER,
         manifestObj.packageName: tuple(listPublicModuleName),
     }
 
-    excludedValue = value.get("excludedAstSnippets")
+    listExcludedValue = value.get("excludedAstSnippets")
     setExcludedSnippet: set[str] = set()
 
-    if not isinstance(excludedValue, list):
+    if not isinstance(listExcludedValue, list):
         add_issue(listIssue, "excludedAstSnippets", "Value must be a list of Snippet keys.")
     else:
-        for intIndex, strSnippetKey in enumerate(excludedValue):
+        for intIndex, strSnippetKey in enumerate(listExcludedValue):
             strField = f"excludedAstSnippets[{intIndex}]"
 
             if not isinstance(strSnippetKey, str):
@@ -621,7 +582,7 @@ def build_snippet_catalog(
                     packageName=manifestObj.packageName,
                     publicModuleNameSet=setPublicModuleName,
                     field=strField,
-                    issues=listIssue,
+                    issueList=listIssue,
                     requireExistingModule=False,
                 )
                 is None
@@ -630,13 +591,13 @@ def build_snippet_catalog(
 
             setExcludedSnippet.add(strSnippetKey)
 
-    overrideValue = value.get("astSnippetOverrides")
+    dictOverrideValue = value.get("astSnippetOverrides")
     dictOverride: dict[str, DictAstSnippetOverride] = {}
 
-    if not isinstance(overrideValue, dict):
+    if not isinstance(dictOverrideValue, dict):
         add_issue(listIssue, "astSnippetOverrides", "Value must be an object.")
     else:
-        for strSnippetKey, overrideItem in overrideValue.items():
+        for strSnippetKey, dictOverrideItem in dictOverrideValue.items():
             strField = f"astSnippetOverrides.{strSnippetKey}"
 
             if not isinstance(strSnippetKey, str):
@@ -655,22 +616,22 @@ def build_snippet_catalog(
                 add_issue(listIssue, strField, "The AST-generated Snippet does not exist.")
                 continue
 
-            normalizedOverride = _normalize_override(
-                value=overrideItem,
+            dictNormalizedOverride = _normalize_override(
+                value=dictOverrideItem,
                 field=strField,
                 availableImportOrder=dictAvailableImportOrder,
-                issues=listIssue,
+                issueList=listIssue,
             )
-            if normalizedOverride is not None:
-                dictOverride[strSnippetKey] = normalizedOverride
+            if dictNormalizedOverride is not None:
+                dictOverride[strSnippetKey] = dictNormalizedOverride
 
-    handWrittenValue = value.get("snippets")
+    dictHandWrittenValue = value.get("snippets")
     dictHandWrittenSnippet: dict[str, DictAstSnippet] = {}
 
-    if not isinstance(handWrittenValue, dict):
+    if not isinstance(dictHandWrittenValue, dict):
         add_issue(listIssue, "snippets", "Value must be an object.")
     else:
-        for strSnippetKey, dictSnippetItem in handWrittenValue.items():
+        for strSnippetKey, dictSnippetItem in dictHandWrittenValue.items():
             if not isinstance(strSnippetKey, str):
                 add_issue(listIssue, "snippets", "Every Snippet key must be a string.")
                 continue
@@ -686,18 +647,18 @@ def build_snippet_catalog(
                 )
                 continue
 
-            normalizedSnippet = _normalize_hand_written_snippet(
+            dictNormalizedSnippet = _normalize_hand_written_snippet(
                 snippetKey=strSnippetKey,
                 value=dictSnippetItem,
                 packageName=manifestObj.packageName,
                 publicModuleNameSet=setPublicModuleName,
                 availableImportOrder=dictAvailableImportOrder,
-                issues=listIssue,
+                issueList=listIssue,
             )
-            if normalizedSnippet is not None:
-                dictHandWrittenSnippet[strSnippetKey] = normalizedSnippet
+            if dictNormalizedSnippet is not None:
+                dictHandWrittenSnippet[strSnippetKey] = dictNormalizedSnippet
 
-    _raise_config_issues(listIssue)
+    raise_config_issues(listIssue)
 
     listWarning: list[DictSnippetConfigWarning] = []
     for strSnippetKey in sorted(setExcludedSnippet - set(astSnippets["snippets"])):
@@ -731,7 +692,7 @@ def build_snippet_catalog(
                 value=bodyValue,
                 insertionMode=dictSnippet["insertionMode"],
                 field=f"astSnippetOverrides.{strSnippetKey}.body",
-                issues=[],
+                issueList=[],
             )
             assert listBody is not None
             dictSnippet["body"] = listBody
@@ -774,7 +735,7 @@ def build_snippet_catalog(
         else:
             dictPrefixOwner[strPrefix] = strSnippetKey
 
-    _raise_config_issues(listConflictIssue)
+    raise_config_issues(listConflictIssue)
 
     listCategoryOrder = [
         f"{manifestObj.packageName}_{moduleName}"
@@ -799,7 +760,7 @@ def build_snippet_catalog(
         }
     }
 
-    return SnippetCatalogBuildResult(
+    return _SnippetCatalogBuildResult(
         catalog={
             "schemaVersion": 1,
             "categoryOrder": listCategoryOrder,

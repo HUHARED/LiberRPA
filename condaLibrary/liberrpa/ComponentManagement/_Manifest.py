@@ -4,13 +4,14 @@ __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
+""" This module handle component.json in a Component Project. """
 
-from liberrpa.ComponentManagement._Exception import ComponentManagementError
-from liberrpa.ComponentManagement._File import read_json
-from liberrpa.ComponentManagement._Version import normalize_specifier, normalize_version
-from liberrpa.ComponentManagement._Validation import add_issue
+from liberrpa.ComponentManagement.Utils._Exception import ComponentManagementError
+from liberrpa.ComponentManagement.Utils._File import read_json
+from liberrpa.ComponentManagement.Utils._Version import normalize_specifier, normalize_version
+from liberrpa.ComponentManagement.Utils._Validation import add_issue
+from liberrpa.ComponentManagement.Utils._TypedValue import ComponentManifest
 
-from dataclasses import dataclass
 from pathlib import Path
 import keyword
 import re
@@ -101,27 +102,15 @@ _SET_LIBERRPA_THIRD_PARTY_MODULE_NAMES = {
 }
 
 
-@dataclass(frozen=True)
-class ComponentManifest:
-    schemaVersion: int
-    id: str
-    packageName: str
-    displayName: str
-    version: str
-    description: str
-    requiresLiberrpa: str
-    componentDependencies: dict[str, str]
-
-
-def _normalize_uuid(value: str, field: str, issues: list[dict[str, object]]) -> str | None:
+def _normalize_uuid(value: str, field: str, issueList: list[dict[str, object]]) -> str | None:
     try:
         uuidObj = uuid.UUID(value)
     except ValueError:
-        add_issue(issues, field, "Value must be a valid UUID.")
+        add_issue(issueList, field, "Value must be a valid UUID.")
         return None
 
     if uuidObj.version != 4 or uuidObj.variant != uuid.RFC_4122:
-        add_issue(issues, field, "Value must be a UUID v4.")
+        add_issue(issueList, field, "Value must be a UUID v4.")
         return None
 
     return str(uuidObj)
@@ -163,16 +152,16 @@ def _get_package_name_error(packageName: str) -> str | None:
 def _validate_string_field(
     value: object,
     field: str,
-    issues: list[dict[str, object]],
+    issueList: list[dict[str, object]],
     *,
     allowEmpty: bool,
 ) -> str | None:
     if not isinstance(value, str):
-        add_issue(issues, field, "Value must be a string.")
+        add_issue(issueList, field, "Value must be a string.")
         return None
 
     if not allowEmpty and value == "":
-        add_issue(issues, field, "Value cannot be empty.")
+        add_issue(issueList, field, "Value cannot be empty.")
         return None
 
     return value

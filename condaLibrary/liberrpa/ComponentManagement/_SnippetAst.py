@@ -4,51 +4,25 @@ __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
-from liberrpa.ComponentManagement._Exception import ComponentManagementError
-from liberrpa.ComponentManagement._Manifest import ComponentManifest
+from liberrpa.ComponentManagement.Utils._Exception import ComponentManagementError
+from liberrpa.ComponentManagement.Utils._TypedValue import (
+    ComponentManifest,
+    DictAstSnippet,
+    DictSnippetDiagnostic,
+    DictAstSnippetsFile,
+)
 
 from pathlib import Path
-from typing import Literal, NotRequired, TypedDict
+
 import ast
 import re
 import tokenize
 import keyword
 
-
-type SnippetInsertionMode = Literal["line", "cursor"]
-type DictSnippetImports = dict[str, list[str]]
+_REGEX_COMPONENT_MODULE_NAME = re.compile(r"^[A-Z][A-Za-z0-9]*$")
 
 
-class DictAstSnippet(TypedDict):
-    category: str
-    label: str
-
-    prefix: str
-    body: list[str]
-    description: str
-
-    imports: DictSnippetImports
-    insertionMode: SnippetInsertionMode
-
-
-class DictSnippetDiagnostic(TypedDict):
-    code: str
-    file: str
-    line: int
-    functionName: NotRequired[str]
-    message: str
-
-
-class DictAstSnippetsFile(TypedDict):
-    schemaVersion: Literal[1]
-    componentId: str
-    packageName: str
-    snippets: dict[str, DictAstSnippet]
-    skipped: list[DictSnippetDiagnostic]
-    warnings: list[DictSnippetDiagnostic]
-
-
-class _ReturnValueVisitor(ast.NodeVisitor):
+class _FunctionReturnVisitor(ast.NodeVisitor):
     def __init__(self) -> None:
         self.hasReturnValue = False
 
@@ -75,30 +49,15 @@ class _ReturnValueVisitor(ast.NodeVisitor):
         self.hasReturnValue = True
 
 
-_REGEX_PASCAL_CASE = re.compile(r"^[A-Z][A-Za-z0-9]*$")
+def _format_snippet_choice(index: int, choiceList: list[str]) -> str:
+    def escape_snippet_choice(value: str) -> str:
+        return value.replace("\\", "\\\\").replace(",", "\\,").replace("|", "\\|")
 
-
-def _escape_snippet_choice(value: str) -> str:
-    return value.replace("\\", "\\\\").replace(",", "\\,").replace("|", "\\|")
-
-
-def _format_snippet_choice(index: int, choices: list[str]) -> str:
-    return f"${{{index}|{','.join(_escape_snippet_choice(choice) for choice in choices)}|}}"
+    return f"${{{index}|{','.join(escape_snippet_choice(strChoice) for strChoice in choiceList)}|}}"
 
 
 def _escape_snippet_placeholder_text(value: str) -> str:
     return value.replace("\\", "\\\\").replace("$", "\\$").replace("}", "\\}")
-
-
-def _is_overload_function(functionObj: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
-    for decoratorObj in functionObj.decorator_list:
-        if isinstance(decoratorObj, ast.Name) and decoratorObj.id == "overload":
-            return True
-
-        if isinstance(decoratorObj, ast.Attribute) and decoratorObj.attr == "overload":
-            return True
-
-    return False
 
 
 def _is_supported_literal(value: object) -> bool:
@@ -190,7 +149,7 @@ def _format_parameter(
     index: int,
     defaultObj: ast.expr | None,
     *,
-    boolPositionalOnly: bool,
+    positionalOnly: bool,
 ) -> str:
     strDefaultSource = _get_default_source(defaultObj) if defaultObj is not None else None
     listChoice = _get_literal_choices(parameterObj.annotation, strDefaultSource)
@@ -199,14 +158,14 @@ def _format_parameter(
         listChoice = _get_bool_choices(parameterObj.annotation, strDefaultSource)
 
     if listChoice is not None:
-        strPlaceholder = _format_snippet_choice(index=index, choices=listChoice)
+        strPlaceholder = _format_snippet_choice(index=index, choiceList=listChoice)
     elif strDefaultSource is not None:
         strEscapedDefault = _escape_snippet_placeholder_text(strDefaultSource)
         strPlaceholder = f"${{{index}:{strEscapedDefault}}}"
     else:
         strPlaceholder = f"${{{index}:{parameterObj.arg}}}"
 
-    if boolPositionalOnly:
+    if positionalOnly:
         return strPlaceholder
 
     return f"{parameterObj.arg}={strPlaceholder}"
@@ -221,19 +180,13 @@ def _function_has_return_value(functionObj: ast.FunctionDef) -> bool:
             return False
         return True
 
-    visitorObj = _ReturnValueVisitor()
+    visitorObj = _FunctionReturnVisitor()
     for statementObj in functionObj.body:
         visitorObj.visit(statementObj)
         if visitorObj.hasReturnValue:
             return True
 
     return False
-
-
-def _lower_first(value: str) -> str:
-    if value == "":
-        return value
-    return value[0].lower() + value[1:]
 
 
 def _get_return_placeholder(functionObj: ast.FunctionDef) -> str:
@@ -260,7 +213,10 @@ def _get_return_placeholder(functionObj: ast.FunctionDef) -> str:
 
     strSimpleName = strAnnotation.rsplit(".", 1)[-1]
     if strSimpleName.endswith("Obj") and strSimpleName.isidentifier():
-        return _lower_first(strSimpleName)
+        # Convert the first character into lowercase.
+        if strSimpleName == "":
+            return strSimpleName
+        return strSimpleName[0].lower() + strSimpleName[1:]
 
     return "result"
 
@@ -292,7 +248,7 @@ def _build_function_body(moduleAlias: str, functionObj: ast.FunctionDef) -> list
                 parameterObj,
                 intIndex,
                 defaultObj,
-                boolPositionalOnly=intParameterIndex < len(argumentsObj.posonlyargs),
+                positionalOnly=intParameterIndex < len(argumentsObj.posonlyargs),
             )
         )
         intIndex += 1
@@ -303,7 +259,7 @@ def _build_function_body(moduleAlias: str, functionObj: ast.FunctionDef) -> list
                 parameterObj,
                 intIndex,
                 defaultObj,
-                boolPositionalOnly=False,
+                positionalOnly=False,
             )
         )
         intIndex += 1
@@ -331,6 +287,17 @@ def _build_diagnostic(
         dictResult["functionName"] = functionName
 
     return dictResult
+
+
+def _is_overload_function(functionObj: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+    for decoratorObj in functionObj.decorator_list:
+        if isinstance(decoratorObj, ast.Name) and decoratorObj.id == "overload":
+            return True
+
+        if isinstance(decoratorObj, ast.Attribute) and decoratorObj.attr == "overload":
+            return True
+
+    return False
 
 
 def _scan_module(
@@ -382,7 +349,7 @@ def _scan_module(
     listSkipped: list[DictSnippetDiagnostic] = []
     listWarning: list[DictSnippetDiagnostic] = []
 
-    if _REGEX_PASCAL_CASE.fullmatch(strModuleName) is None:
+    if _REGEX_COMPONENT_MODULE_NAME.fullmatch(strModuleName) is None:
         listWarning.append(
             _build_diagnostic(
                 code="module_name_not_pascal_case",

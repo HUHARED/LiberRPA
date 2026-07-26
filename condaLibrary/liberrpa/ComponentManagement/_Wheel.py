@@ -5,17 +5,12 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
-from liberrpa.ComponentManagement._Exception import ComponentManagementError
-from liberrpa.ComponentManagement._File import parse_json, serialize_json
-from liberrpa.ComponentManagement._Hash import (
-    calculate_file_sha256,
-    calculate_record_hash,
-)
-from liberrpa.ComponentManagement._Manifest import ComponentManifest
-from liberrpa.ComponentManagement._SnippetConfig import DictSnippetCatalogFile
+from liberrpa.ComponentManagement.Utils._Exception import ComponentManagementError
+from liberrpa.ComponentManagement.Utils._File import parse_json, serialize_json
+from liberrpa.ComponentManagement.Utils._Hash import calculate_file_sha256, calculate_record_hash
+from liberrpa.ComponentManagement.Utils._TypedValue import ComponentManifest, DictSnippetCatalogFile, WheelBuildResult
 
 from csv import reader, writer
-from dataclasses import dataclass
 from email import policy
 from email.message import Message
 from email.parser import BytesParser
@@ -24,14 +19,19 @@ from pathlib import Path, PurePosixPath
 from packaging.tags import Tag
 from packaging.utils import canonicalize_name, parse_wheel_filename
 from packaging.version import Version
-from zipfile import ZIP_STORED, BadZipFile, ZipFile, ZipInfo
+from zipfile import (
+    ZIP_STORED,  # Use ZIP_STORED to keep the same content has the same zip binary results' size.
+    BadZipFile,
+    ZipFile,
+    ZipInfo,
+)
 import os
 import re
 import stat
 import uuid
 
 
-_STR_WHEEL_TAG = "py313-none-any"
+_STR_WHEEL_TAG = "py313-none-any"  # Without any binary file related to system platforms or CPU architectures.
 _TUPLE_ZIP_TIMESTAMP = (1984, 4, 4, 0, 0, 0)  # A fixed timestamp for keeping zip binary result same.
 _INT_ZIP_FILE_MODE = (stat.S_IFREG | 0o644) << 16  # Owner can edit, others can read.
 
@@ -54,13 +54,6 @@ _SET_FORBIDDEN_FILE_SUFFIX = {
 _REGEX_WINDOWS_DRIVE_PATH = re.compile(r"^[A-Za-z]:")
 
 
-@dataclass(frozen=True)
-class WheelBuildResult:
-    wheelPath: Path
-    wheelFile: str
-    sha256: str
-
-
 def _get_wheel_names(manifestObj: ComponentManifest) -> tuple[str, str]:
     strDistributionName = canonicalize_name(manifestObj.packageName).replace("-", "_")
     strDistInfoFolder = f"{strDistributionName}-{manifestObj.version}.dist-info"
@@ -68,7 +61,7 @@ def _get_wheel_names(manifestObj: ComponentManifest) -> tuple[str, str]:
     return strDistInfoFolder, strWheelFile
 
 
-def _build_published_manifest(manifestObj: ComponentManifest) -> dict[str, object]:
+def _get_manifest_dict(manifestObj: ComponentManifest) -> dict[str, object]:
     return {
         "schemaVersion": manifestObj.schemaVersion,
         "id": manifestObj.id,
@@ -85,6 +78,7 @@ def _get_package_archive_entries(
     packagePath: Path,
     packageName: str,
 ) -> dict[str, bytes]:
+    """Determine which files can be packaged."""
     dictEntry: dict[str, bytes] = {}
     dictCaseInsensitivePath: dict[str, str] = {}
 
@@ -145,82 +139,6 @@ def _get_package_archive_entries(
             ) from e
 
     return dictEntry
-
-
-def _get_metadata_bytes(manifestObj: ComponentManifest) -> bytes:
-    strMetadata = (
-        # Core Metadata 2.4 is required because License-File was introduced in 2.4.
-        "Metadata-Version: 2.4\n"
-        f"Name: {manifestObj.packageName}\n"
-        f"Version: {manifestObj.version}\n"
-        "License-File: licenses/LICENSE\n"
-        "\n"
-    )
-    return strMetadata.encode("utf-8")
-
-
-def _get_wheel_metadata_bytes() -> bytes:
-    return (
-        # LiberRPA Component Wheels currently follow Wheel specification 1.0.
-        f"Wheel-Version: 1.0\nGenerator: LiberRPA ComponentManagement\nRoot-Is-Purelib: true\nTag: {_STR_WHEEL_TAG}\n\n"
-    ).encode()
-
-
-def _get_record_bytes(
-    archiveEntry: dict[str, bytes],
-    recordPath: str,
-) -> bytes:
-    strBuffer = StringIO(newline="")
-    csvWriter = writer(strBuffer, lineterminator="\n")
-
-    for strArchivePath in sorted(archiveEntry):
-        value = archiveEntry[strArchivePath]
-        csvWriter.writerow([
-            strArchivePath,
-            calculate_record_hash(value),
-            str(len(value)),
-        ])
-
-    csvWriter.writerow([recordPath, "", ""])
-    return strBuffer.getvalue().encode("utf-8")
-
-
-def _create_zip_info(archivePath: str) -> ZipInfo:
-    infoObj = ZipInfo(filename=archivePath, date_time=_TUPLE_ZIP_TIMESTAMP)
-    infoObj.compress_type = ZIP_STORED
-    infoObj.create_system = 3
-    infoObj.external_attr = _INT_ZIP_FILE_MODE
-    return infoObj
-
-
-def _write_wheel_file(
-    wheelPath: Path,
-    archiveEntry: dict[str, bytes],
-    recordPath: str,
-) -> None:
-    pathTemp = wheelPath.parent / f".{wheelPath.name}.{uuid.uuid4()}.tmp"
-
-    try:
-        with ZipFile(pathTemp, mode="x", compression=ZIP_STORED) as wheelObj:
-            for strArchivePath in sorted(archiveEntry):
-                wheelObj.writestr(
-                    _create_zip_info(strArchivePath),
-                    archiveEntry[strArchivePath],
-                )
-
-            wheelObj.writestr(
-                _create_zip_info(recordPath),
-                _get_record_bytes(archiveEntry=archiveEntry, recordPath=recordPath),
-            )
-
-        os.replace(pathTemp, wheelPath)
-    except (OSError, BadZipFile) as e:
-        raise ComponentManagementError(
-            code="wheel_build_failed",
-            message=f"Failed to build Component Wheel: {wheelPath}",
-        ) from e
-    finally:
-        pathTemp.unlink(missing_ok=True)
 
 
 def _validate_archive_path(archivePath: str) -> None:
@@ -292,9 +210,9 @@ def _validate_record(
 def validate_component_wheel(
     wheelPath: Path,
     manifestObj: ComponentManifest,
-    snippetCatalog: DictSnippetCatalogFile,
+    snippetCatalogDict: DictSnippetCatalogFile,
 ) -> str:
-    dictPublishedManifest = _build_published_manifest(manifestObj)
+    dictPublishedManifest = _get_manifest_dict(manifestObj)
     strDistInfoFolder, strExpectedWheelFile = _get_wheel_names(manifestObj)
 
     if wheelPath.name != strExpectedWheelFile:
@@ -400,7 +318,7 @@ def validate_component_wheel(
                 raise ValueError("Embedded component.json does not match the published Component Manifest.")
 
             embeddedCatalog = parse_json(wheelObj.read(strCatalogPath).decode("utf-8", errors="strict"))
-            if embeddedCatalog != snippetCatalog:
+            if embeddedCatalog != snippetCatalogDict:
                 raise ValueError("Embedded snippets_catalog.json does not match the generated catalog.")
 
             _validate_record(
@@ -418,6 +336,82 @@ def validate_component_wheel(
     return calculate_file_sha256(wheelPath)
 
 
+def _get_manifest_metadata_bytes(manifestObj: ComponentManifest) -> bytes:
+    strMetadata = (
+        # Core Metadata 2.4 is required because License-File was introduced in 2.4.
+        "Metadata-Version: 2.4\n"
+        f"Name: {manifestObj.packageName}\n"
+        f"Version: {manifestObj.version}\n"
+        "License-File: licenses/LICENSE\n"
+        "\n"
+    )
+    return strMetadata.encode("utf-8")
+
+
+def _get_wheel_metadata_bytes() -> bytes:
+    return (
+        # LiberRPA Component Wheels currently follow Wheel specification 1.0.
+        f"Wheel-Version: 1.0\nGenerator: LiberRPA ComponentManagement\nRoot-Is-Purelib: true\nTag: {_STR_WHEEL_TAG}\n\n"
+    ).encode()
+
+
+def _get_record_bytes(
+    archiveEntryDict: dict[str, bytes],
+    recordPath: str,
+) -> bytes:
+    strBuffer = StringIO(newline="")
+    csvWriter = writer(strBuffer, lineterminator="\n")
+
+    for strArchivePath in sorted(archiveEntryDict):
+        value = archiveEntryDict[strArchivePath]
+        csvWriter.writerow([
+            strArchivePath,
+            calculate_record_hash(value),
+            str(len(value)),
+        ])
+
+    csvWriter.writerow([recordPath, "", ""])
+    return strBuffer.getvalue().encode("utf-8")
+
+
+def _create_zip_info(archivePath: str) -> ZipInfo:
+    infoObj = ZipInfo(filename=archivePath, date_time=_TUPLE_ZIP_TIMESTAMP)
+    infoObj.compress_type = ZIP_STORED
+    infoObj.create_system = 3
+    infoObj.external_attr = _INT_ZIP_FILE_MODE
+    return infoObj
+
+
+def _write_wheel_file(
+    wheelPath: Path,
+    archiveEntryDict: dict[str, bytes],
+    recordPath: str,
+) -> None:
+    pathTemp = wheelPath.parent / f".{wheelPath.name}.{uuid.uuid4()}.tmp"
+
+    try:
+        with ZipFile(pathTemp, mode="x", compression=ZIP_STORED) as wheelObj:
+            for strArchivePath in sorted(archiveEntryDict):
+                wheelObj.writestr(
+                    _create_zip_info(strArchivePath),
+                    archiveEntryDict[strArchivePath],
+                )
+
+            wheelObj.writestr(
+                _create_zip_info(recordPath),
+                _get_record_bytes(archiveEntryDict=archiveEntryDict, recordPath=recordPath),
+            )
+
+        os.replace(pathTemp, wheelPath)
+    except (OSError, BadZipFile) as e:
+        raise ComponentManagementError(
+            code="wheel_build_failed",
+            message=f"Failed to build Component Wheel: {wheelPath}",
+        ) from e
+    finally:
+        pathTemp.unlink(missing_ok=True)
+
+
 def build_component_wheel(
     projectPath: Path,
     packagePath: Path,
@@ -432,8 +426,8 @@ def build_component_wheel(
         )
 
     strDistInfoFolder, strWheelFile = _get_wheel_names(manifestObj)
-    buildFolder = projectPath / ".liberrpa-project-manager" / "build"
-    wheelPath = buildFolder / strWheelFile
+    pathBuildFolder = projectPath / ".liberrpa-project-manager" / "build"
+    pathWheel = pathBuildFolder / strWheelFile
 
     try:
         licenseValue = licensePath.read_bytes()
@@ -448,10 +442,10 @@ def build_component_wheel(
         packageName=manifestObj.packageName,
     )
 
-    dictPublishedManifest = _build_published_manifest(manifestObj)
+    dictPublishedManifest = _get_manifest_dict(manifestObj)
     strDistInfoPrefix = f"{strDistInfoFolder}/"
     dictArchiveEntry.update({
-        f"{strDistInfoPrefix}METADATA": _get_metadata_bytes(manifestObj),
+        f"{strDistInfoPrefix}METADATA": _get_manifest_metadata_bytes(manifestObj),
         f"{strDistInfoPrefix}WHEEL": _get_wheel_metadata_bytes(),
         f"{strDistInfoPrefix}licenses/LICENSE": licenseValue,
         f"{strDistInfoPrefix}liberrpa/component.json": serialize_json(dictPublishedManifest).encode("utf-8"),
@@ -461,26 +455,26 @@ def build_component_wheel(
     strRecordPath = f"{strDistInfoPrefix}RECORD"
 
     try:
-        buildFolder.mkdir(parents=True, exist_ok=True)
+        pathBuildFolder.mkdir(parents=True, exist_ok=True)
     except OSError as e:
         raise ComponentManagementError(
             code="io_error",
-            message=f"Failed to create Component build folder: {buildFolder}",
+            message=f"Failed to create Component build folder: {pathBuildFolder}",
         ) from e
 
     _write_wheel_file(
-        wheelPath=wheelPath,
-        archiveEntry=dictArchiveEntry,
+        wheelPath=pathWheel,
+        archiveEntryDict=dictArchiveEntry,
         recordPath=strRecordPath,
     )
     strSha256 = validate_component_wheel(
-        wheelPath=wheelPath,
+        wheelPath=pathWheel,
         manifestObj=manifestObj,
-        snippetCatalog=snippetCatalog,
+        snippetCatalogDict=snippetCatalog,
     )
 
     return WheelBuildResult(
-        wheelPath=wheelPath,
+        wheelPath=pathWheel,
         wheelFile=strWheelFile,
         sha256=strSha256,
     )

@@ -4,33 +4,11 @@ __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
-from liberrpa.ComponentManagement._Exception import ComponentManagementError
-from liberrpa.ComponentManagement._File import parse_json
+from liberrpa.ComponentManagement.Utils._Exception import ComponentManagementError
+from liberrpa.ComponentManagement.Utils._File import parse_json
+from liberrpa.ComponentManagement.Utils._TypedValue import DictErrorResponse, DictProtocolResponse
 from liberrpa.ComponentManagement._Publish import publish_component
 
-from typing import Literal, TypedDict
-
-
-class DictProtocolError(TypedDict):
-    code: str
-    message: str
-    details: dict[str, object]
-
-
-class DictSuccessResponse(TypedDict):
-    schemaVersion: Literal[1]
-    ok: Literal[True]
-    result: dict[str, object]
-    warnings: list[dict[str, object]]
-
-
-class DictErrorResponse(TypedDict):
-    schemaVersion: Literal[1]
-    ok: Literal[False]
-    error: DictProtocolError
-
-
-type ProtocolResponse = DictSuccessResponse | DictErrorResponse
 
 _SET_REQUEST_KEYS = {"schemaVersion", "operation", "projectPath"}
 
@@ -100,7 +78,7 @@ def _build_error_response(errorObj: ComponentManagementError) -> DictErrorRespon
     }
 
 
-def handle_request(requestInfo: str) -> ProtocolResponse:
+def handle_request(requestInfo: str) -> DictProtocolResponse:
     try:
         dictRequest = _parse_request(requestInfo)
         dictResult, listWarning = publish_component(str(dictRequest["projectPath"]))

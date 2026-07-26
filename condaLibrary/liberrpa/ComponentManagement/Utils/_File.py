@@ -43,7 +43,7 @@ def read_json(path: Path) -> object:
         raise ValueError(f"Invalid JSON file {path}: {e}.") from e
 
 
-def parse_jsonc(value: str) -> object:
+def _parse_jsonc(value: str) -> object:
     try:
         return json5.loads(value, allow_duplicate_keys=False)
     except ValueError as e:
@@ -52,7 +52,7 @@ def parse_jsonc(value: str) -> object:
 
 def read_jsonc(path: Path) -> object:
     try:
-        return parse_jsonc(path.read_text(encoding="utf-8", errors="strict"))
+        return _parse_jsonc(path.read_text(encoding="utf-8", errors="strict"))
     except ValueError as e:
         raise ValueError(f"Invalid JSONC file {path}: {e}.") from e
 
