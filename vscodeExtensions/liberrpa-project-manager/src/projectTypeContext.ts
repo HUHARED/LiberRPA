@@ -6,7 +6,7 @@ import { getErrorMessage } from "./utils";
 
 export type ProjectTypeContext = "component" | "flow" | "none" | "invalid";
 
-const PROJECT_TYPE_CONTEXT_KEY = "liberrpaProjectManager.projectType";
+const STR_PROJECT_TYPE_CONTEXT_KEY = "liberrpaProjectManager.projectType";
 
 async function isFile(uri: vscode.Uri): Promise<boolean> {
   try {
@@ -51,7 +51,11 @@ export async function updateProjectTypeContext(): Promise<void> {
     projectType = await getWorkspaceProjectType(workspaceFolders[0]);
   }
 
-  await vscode.commands.executeCommand("setContext", PROJECT_TYPE_CONTEXT_KEY, projectType);
+  await vscode.commands.executeCommand(
+    "setContext",
+    STR_PROJECT_TYPE_CONTEXT_KEY,
+    projectType,
+  );
 }
 
 export function registerProjectTypeContext(context: vscode.ExtensionContext): void {

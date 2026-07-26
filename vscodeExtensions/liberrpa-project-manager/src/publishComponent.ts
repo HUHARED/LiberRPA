@@ -3,25 +3,25 @@ import * as vscode from "vscode";
 
 import { log } from "./output";
 import { getErrorMessage } from "./utils";
-import type { ComponentManagementWarning } from "./componentManagementProcess";
+import type { DictComponentManagementWarning } from "./componentManagementProcess";
 import { runComponentManagement } from "./componentManagementProcess";
 import { getWorkspaceProjectType, updateProjectTypeContext } from "./projectTypeContext";
 
-interface PublishComponentResultBase {
+interface DictPublishComponentResultBase {
   componentId: string;
   packageName: string;
   astSnippetsFile: string;
-  snippetsConfigFile: string;
+  snippetsJsoncFile: string;
   generatedCount: number;
   skippedCount: number;
   warningCount: number;
 }
 
-interface PublishPreparationResult extends PublishComponentResultBase {
+interface DictResult_PublishPreparation extends DictPublishComponentResultBase {
   status: "preparationCreated" | "preparationUpdated";
 }
 
-interface PublishedComponentResult extends PublishComponentResultBase {
+interface DictResult_PublishedComponent extends DictPublishComponentResultBase {
   status: "published" | "alreadyPublished";
   version: string;
   wheelFile: string;
@@ -31,7 +31,9 @@ interface PublishedComponentResult extends PublishComponentResultBase {
   finalCount: number;
 }
 
-type PublishComponentResult = PublishPreparationResult | PublishedComponentResult;
+type DictPublishComponentResult =
+  | DictResult_PublishPreparation
+  | DictResult_PublishedComponent;
 
 let boolPublishBusy = false;
 
@@ -71,7 +73,7 @@ function getRequiredSha256(value: Record<string, unknown>, key: string): string 
 
 function parsePublishComponentResult(
   result: Record<string, unknown>,
-): PublishComponentResult {
+): DictPublishComponentResult {
   const status = result.status;
   if (
     status !== "preparationCreated" &&
@@ -82,11 +84,11 @@ function parsePublishComponentResult(
     throw new Error(`Unsupported Publish Component result status: ${String(status)}.`);
   }
 
-  const baseResult: PublishComponentResultBase = {
+  const dictBaseResult: DictPublishComponentResultBase = {
     componentId: getRequiredString(result, "componentId"),
     packageName: getRequiredString(result, "packageName"),
     astSnippetsFile: getRequiredString(result, "astSnippetsFile"),
-    snippetsConfigFile: getRequiredString(result, "snippetsConfigFile"),
+    snippetsJsoncFile: getRequiredString(result, "snippetsConfigFile"),
     generatedCount: getRequiredNonNegativeInteger(result, "generatedCount"),
     skippedCount: getRequiredNonNegativeInteger(result, "skippedCount"),
     warningCount: getRequiredNonNegativeInteger(result, "warningCount"),
@@ -94,7 +96,7 @@ function parsePublishComponentResult(
 
   if (status === "published" || status === "alreadyPublished") {
     return {
-      ...baseResult,
+      ...dictBaseResult,
       status,
       version: getRequiredString(result, "version"),
       wheelFile: getRequiredString(result, "wheelFile"),
@@ -106,7 +108,7 @@ function parsePublishComponentResult(
   }
 
   return {
-    ...baseResult,
+    ...dictBaseResult,
     status,
   };
 }
@@ -119,40 +121,30 @@ function resolveProjectRelativeFile(
     throw new Error(`Component Management returned a non-portable path: ${relativePath}`);
   }
 
-  const arrPathParts = relativePath.split("/");
+  const arrPathPart = relativePath.split("/");
   if (
-    arrPathParts.length === 0 ||
-    arrPathParts.some(
-      (pathPart) => pathPart === "" || pathPart === "." || pathPart === "..",
-    )
+    arrPathPart.length === 0 ||
+    arrPathPart.some((pathPart) => pathPart === "" || pathPart === "." || pathPart === "..")
   ) {
     throw new Error(
       `Component Management returned an invalid relative path: ${relativePath}`,
     );
   }
 
-  return vscode.Uri.joinPath(workspaceFolder.uri, ...arrPathParts);
-}
-
-function getWarningMessage(warning: ComponentManagementWarning): string {
-  if (typeof warning.message === "string" && warning.message.length > 0) {
-    return warning.message;
-  }
-
-  return JSON.stringify(warning);
+  return vscode.Uri.joinPath(workspaceFolder.uri, ...arrPathPart);
 }
 
 async function openPreparationFiles(
   workspaceFolder: vscode.WorkspaceFolder,
-  result: PublishComponentResult,
+  result: DictPublishComponentResult,
 ): Promise<void> {
   const astSnippetsUri = resolveProjectRelativeFile(
     workspaceFolder,
     result.astSnippetsFile,
   );
-  const snippetsConfigUri = resolveProjectRelativeFile(
+  const snippetsJsoncUri = resolveProjectRelativeFile(
     workspaceFolder,
-    result.snippetsConfigFile,
+    result.snippetsJsoncFile,
   );
 
   const astSnippetsDocument = await vscode.workspace.openTextDocument(astSnippetsUri);
@@ -162,7 +154,7 @@ async function openPreparationFiles(
     preserveFocus: true,
   });
 
-  const snippetsConfigDocument = await vscode.workspace.openTextDocument(snippetsConfigUri);
+  const snippetsConfigDocument = await vscode.workspace.openTextDocument(snippetsJsoncUri);
   await vscode.window.showTextDocument(snippetsConfigDocument, {
     viewColumn: vscode.ViewColumn.Active,
     preview: false,
@@ -177,6 +169,14 @@ function getSingleWorkspaceFolder(): vscode.WorkspaceFolder {
   }
 
   return arrWorkspaceFolder[0];
+}
+
+function getWarningMessage(warning: DictComponentManagementWarning): string {
+  if (typeof warning.message === "string" && warning.message.length > 0) {
+    return warning.message;
+  }
+
+  return JSON.stringify(warning);
 }
 
 export async function publishComponent(): Promise<void> {
@@ -210,70 +210,70 @@ export async function publishComponent(): Promise<void> {
           throw new Error("Could not save all files before publishing the Component.");
         }
 
-        const response = await runComponentManagement({
+        const dictResponse = await runComponentManagement({
           schemaVersion: 1,
           operation: "publishComponent",
           projectPath: workspaceFolder.uri.fsPath,
         });
 
-        if (!response.ok) {
+        if (!dictResponse.ok) {
           log.error(
-            `Publish Component failed [${response.error.code}]: ${response.error.message}`,
+            `Publish Component failed [${dictResponse.error.code}]: ${dictResponse.error.message}`,
           );
 
-          if (Object.keys(response.error.details).length > 0) {
+          if (Object.keys(dictResponse.error.details).length > 0) {
             log.debug(
-              `Publish Component error details:\n${JSON.stringify(response.error.details, null, 2)}`,
+              `Publish Component error details:\n${JSON.stringify(dictResponse.error.details, null, 2)}`,
             );
           }
 
           void vscode.window.showErrorMessage(
-            `Publish Component failed: ${response.error.message}`,
+            `Publish Component failed: ${dictResponse.error.message}`,
           );
           return;
         }
 
-        const result = parsePublishComponentResult(response.result);
+        const dictResult = parsePublishComponentResult(dictResponse.result);
 
-        for (const warning of response.warnings) {
+        for (const warning of dictResponse.warnings) {
           log.warn(getWarningMessage(warning));
         }
 
-        await openPreparationFiles(workspaceFolder, result);
+        await openPreparationFiles(workspaceFolder, dictResult);
 
         let strSummary: string;
 
-        if (result.status === "published" || result.status === "alreadyPublished") {
-          log.info(`Published Component Wheel: ${result.wheelFile}`);
-          log.info(`Component Wheel SHA-256: ${result.sha256}`);
+        if (dictResult.status === "published" || dictResult.status === "alreadyPublished") {
+          log.info(`Published Component Wheel: ${dictResult.wheelFile}`);
+          log.info(`Component Wheel SHA-256: ${dictResult.sha256}`);
 
           const strPublishStatus =
-            result.status === "published"
-              ? `Component ${result.packageName} ${result.version} was published.`
-              : `Component ${result.packageName} ${result.version} was already published with identical content.`;
+            dictResult.status === "published"
+              ? `Component ${dictResult.packageName} ${dictResult.version} was published.`
+              : `Component ${dictResult.packageName} ${dictResult.version} was already published with identical content.`;
 
           strSummary =
             `${strPublishStatus} ` +
-            `Generated: ${String(result.generatedCount)}, ` +
-            `excluded: ${String(result.excludedCount)}, ` +
-            `hand-written: ${String(result.handWrittenCount)}, ` +
-            `final: ${String(result.finalCount)}, ` +
-            `skipped: ${String(result.skippedCount)}, ` +
-            `warnings: ${String(result.warningCount)}.`;
+            `Generated: ${String(dictResult.generatedCount)}, ` +
+            `excluded: ${String(dictResult.excludedCount)}, ` +
+            `hand-written: ${String(dictResult.handWrittenCount)}, ` +
+            `final: ${String(dictResult.finalCount)}, ` +
+            `skipped: ${String(dictResult.skippedCount)}, ` +
+            `warnings: ${String(dictResult.warningCount)}.`;
         } else {
           const strStatusText =
-            result.status === "preparationCreated"
+            dictResult.status === "preparationCreated"
               ? "Component publish preparation was created."
               : "Component publish preparation was updated.";
           strSummary =
-            `${strStatusText} Generated: ${String(result.generatedCount)}, ` +
-            `skipped: ${String(result.skippedCount)}, ` +
-            `warnings: ${String(result.warningCount)}.`;
+            `${strStatusText} Generated: ${String(dictResult.generatedCount)}, ` +
+            `skipped: ${String(dictResult.skippedCount)}, ` +
+            `warnings: ${String(dictResult.warningCount)}.`;
         }
 
         log.info(strSummary);
 
-        if (result.warningCount > 0) {
+        if (dictResult.warningCount > 0) {
           void vscode.window.showWarningMessage(
             `${strSummary} See the Output panel for details.`,
           );

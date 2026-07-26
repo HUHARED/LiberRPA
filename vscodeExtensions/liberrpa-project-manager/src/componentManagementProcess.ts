@@ -6,49 +6,47 @@ import { spawn } from "node:child_process";
 import { log } from "./output";
 import { isRecord } from "./typeCheck";
 
-export interface ComponentManagementWarning {
+export interface DictComponentManagementWarning {
   code?: string;
   message?: string;
   [key: string]: unknown;
 }
 
-interface ComponentManagementSuccessResponse {
+interface DictSuccessResponse {
   schemaVersion: 1;
   ok: true;
   result: Record<string, unknown>;
-  warnings: ComponentManagementWarning[];
+  warnings: DictComponentManagementWarning[];
 }
 
-interface ComponentManagementErrorInfo {
+interface DictProtocolError {
   code: string;
   message: string;
   details: Record<string, unknown>;
 }
 
-interface ComponentManagementErrorResponse {
+interface DictErrorResponse {
   schemaVersion: 1;
   ok: false;
-  error: ComponentManagementErrorInfo;
+  error: DictProtocolError;
 }
 
-type ComponentManagementResponse =
-  | ComponentManagementSuccessResponse
-  | ComponentManagementErrorResponse;
+type DictProtocolResponse = DictSuccessResponse | DictErrorResponse;
 
-interface PublishComponentRequest {
+interface DictPublishComponentRequest {
   schemaVersion: 1;
   operation: "publishComponent";
   projectPath: string;
 }
 
-function parseComponentManagementResponse(output: string): ComponentManagementResponse {
+function parseComponentManagementResponse(output: string): DictProtocolResponse {
   let value: unknown;
 
   try {
     value = JSON.parse(output) as unknown;
-  } catch (error: unknown) {
+  } catch (e: unknown) {
     throw new Error("Component Management returned invalid JSON on stdout.", {
-      cause: error,
+      cause: e,
     });
   }
 
@@ -61,7 +59,7 @@ function parseComponentManagementResponse(output: string): ComponentManagementRe
       throw new Error("Component Management returned an invalid success response.");
     }
 
-    const arrWarnings: ComponentManagementWarning[] = [];
+    const arrWarnings: DictComponentManagementWarning[] = [];
     for (const warning of value.warnings) {
       if (!isRecord(warning)) {
         throw new Error("Component Management returned an invalid warning item.");
@@ -99,7 +97,7 @@ function parseComponentManagementResponse(output: string): ComponentManagementRe
 }
 
 function getPythonEnvironmentInfo(): {
-  pythonExecutable: string;
+  pythonExecutablePath: string;
   pythonEnvironmentPath: string;
   environment: NodeJS.ProcessEnv;
 } {
@@ -109,10 +107,10 @@ function getPythonEnvironmentInfo(): {
   }
 
   const strPyEnvPath = path.join(strLiberRPAEnvPath, "envs/pyenv");
-  const strPyExe = path.join(strPyEnvPath, "python.exe");
+  const strPyExePath = path.join(strPyEnvPath, "python.exe");
 
-  if (!fs.existsSync(strPyExe) || !fs.statSync(strPyExe).isFile()) {
-    throw new Error(`The LiberRPA Python executable was not found: ${strPyExe}`);
+  if (!fs.existsSync(strPyExePath) || !fs.statSync(strPyExePath).isFile()) {
+    throw new Error(`The LiberRPA Python executable was not found: ${strPyExePath}`);
   }
 
   const environment: NodeJS.ProcessEnv = {
@@ -133,26 +131,30 @@ function getPythonEnvironmentInfo(): {
   };
 
   return {
-    pythonExecutable: strPyExe,
+    pythonExecutablePath: strPyExePath,
     pythonEnvironmentPath: strPyEnvPath,
     environment,
   };
 }
 
 export async function runComponentManagement(
-  requestInfo: PublishComponentRequest,
-): Promise<ComponentManagementResponse> {
-  const { pythonExecutable, pythonEnvironmentPath, environment } =
+  requestInfo: DictPublishComponentRequest,
+): Promise<DictProtocolResponse> {
+  const { pythonExecutablePath, pythonEnvironmentPath, environment } =
     getPythonEnvironmentInfo();
 
-  return await new Promise<ComponentManagementResponse>((resolve, reject) => {
-    const pythonProcess = spawn(pythonExecutable, ["-m", "liberrpa.ComponentManagement"], {
-      cwd: pythonEnvironmentPath,
-      env: environment,
-      shell: false,
-      windowsHide: true,
-      stdio: ["pipe", "pipe", "pipe"],
-    });
+  return await new Promise<DictProtocolResponse>((resolve, reject) => {
+    const pythonProcess = spawn(
+      pythonExecutablePath,
+      ["-m", "liberrpa.ComponentManagement"],
+      {
+        cwd: pythonEnvironmentPath,
+        env: environment,
+        shell: false,
+        windowsHide: true,
+        stdio: ["pipe", "pipe", "pipe"],
+      },
+    );
 
     let strStdout = "";
     let strStderr = "";
@@ -227,11 +229,11 @@ export async function runComponentManagement(
 
     try {
       pythonProcess.stdin.end(JSON.stringify(requestInfo));
-    } catch (error: unknown) {
+    } catch (e: unknown) {
       pythonProcess.kill();
       reject(
         new Error("Failed to send the request to Component Management.", {
-          cause: error,
+          cause: e,
         }),
       );
     }
