@@ -5,7 +5,7 @@ export type SnippetInsertionMode = "line" | "cursor";
 // source name, modules needed in the source.
 export type DictImportsInfo = Record<string, string[]>;
 
-export interface ImportSourceConfig {
+export interface DictImportSourceConfig {
   // The config about import source.
   order: string[];
   // For Components.
@@ -49,7 +49,7 @@ export interface DictSnippetCatalogFile {
   categoryOrder: string[];
 
   // Source name, module order in the source
-  importSources: Record<string, ImportSourceConfig>;
+  importSources: Record<string, DictImportSourceConfig>;
   snippets: Record<string, DictCatalogSnippetDefinition>;
 }
 
@@ -75,7 +75,7 @@ export interface DictSnippetRepository {
   // Providers use the repository to create snippet items and completion items.
   categoryOrder: string[];
   categories: Record<string, DictSnippetTotalInfo[]>;
-  importSources: Record<string, ImportSourceConfig>;
+  importSources: Record<string, DictImportSourceConfig>;
 }
 
 export interface DictSnippetNodeCommandArg {

@@ -1,6 +1,6 @@
 // FileName: managedImports.ts
 import { log } from "./output";
-import type { DictImportsInfo, ImportSourceConfig } from "./interface";
+import type { DictImportsInfo, DictImportSourceConfig } from "./interface";
 
 import * as vscode from "vscode";
 
@@ -365,9 +365,9 @@ function getDefaultInsertLine(document: vscode.TextDocument): number {
 function getExpectedImportAlias(
   importSource: string,
   importName: string,
-  sourceConfig: ImportSourceConfig | undefined,
+  sourceConfigDict: DictImportSourceConfig | undefined,
 ): string | undefined {
-  if (sourceConfig?.aliasMode === "source_module") {
+  if (sourceConfigDict?.aliasMode === "source_module") {
     return `${importSource}_${importName}`;
   }
 
@@ -377,7 +377,7 @@ function getExpectedImportAlias(
 function parseExistingManagedImports(
   document: vscode.TextDocument,
   block: ManagedImportBlock,
-  importSources: Record<string, ImportSourceConfig>,
+  importSourceDict: Record<string, DictImportSourceConfig>,
 ): DictImportsInfo {
   const dictResult: DictImportsInfo = {};
 
@@ -440,7 +440,7 @@ function parseExistingManagedImports(
     const strExpectedAlias = getExpectedImportAlias(
       strCurrentSource,
       strImportName,
-      importSources[strCurrentSource],
+      importSourceDict[strCurrentSource],
     );
 
     if (strActualAlias !== strExpectedAlias) {
@@ -477,7 +477,7 @@ function parseExistingManagedImports(
 function sortImportNames(
   importSource: string,
   importNames: string[],
-  sourceConfig: ImportSourceConfig | undefined,
+  sourceConfig: DictImportSourceConfig | undefined,
 ): string[] {
   const arrUniqueNames = [...new Set(importNames)];
 
@@ -522,7 +522,7 @@ function sortImportNames(
  */
 function sortImportSources(
   imports: DictImportsInfo,
-  importSources: Record<string, ImportSourceConfig>,
+  importSources: Record<string, DictImportSourceConfig>,
 ): string[] {
   const arrConfiguredSources = Object.keys(importSources);
   const arrPresentSources = Object.keys(imports);
@@ -553,7 +553,7 @@ function sortImportSources(
 function mergeImports(
   existingImports: DictImportsInfo,
   importsToAdd: DictImportsInfo,
-  importSources: Record<string, ImportSourceConfig>,
+  importSources: Record<string, DictImportSourceConfig>,
 ): DictImportsInfo {
   const dictResult: DictImportsInfo = {};
 
@@ -579,7 +579,7 @@ function mergeImports(
  */
 function buildManagedImportBlock(
   imports: DictImportsInfo,
-  importSources: Record<string, ImportSourceConfig>,
+  importSources: Record<string, DictImportSourceConfig>,
   strEol: string,
 ): string {
   const arrLine = [STR_MANAGED_IMPORT_START, STR_MANAGED_IMPORT_NOTICE];
@@ -605,8 +605,13 @@ function buildManagedImportBlock(
     const dictSourceConfig = importSources[strSourceName];
 
     for (const strimportName of arrImportName) {
-      const strAlias = getExpectedImportAlias(strimportName, strimportName, dictSourceConfig);
-      const strImportEntry = strAlias === undefined ? strimportName : `${strimportName} as ${strAlias}`;
+      const strAlias = getExpectedImportAlias(
+        strimportName,
+        strimportName,
+        dictSourceConfig,
+      );
+      const strImportEntry =
+        strAlias === undefined ? strimportName : `${strimportName} as ${strAlias}`;
       arrLine.push(`    ${strImportEntry},`);
     }
 
@@ -665,7 +670,7 @@ function getDocumentEol(document: vscode.TextDocument): string {
  */
 export function createManagedImportTextEditBuilder(
   document: vscode.TextDocument,
-  importSources: Record<string, ImportSourceConfig>,
+  importSources: Record<string, DictImportSourceConfig>,
 ): (importsToAdd: DictImportsInfo) => vscode.TextEdit[] {
   let prepared:
     | {
@@ -735,7 +740,7 @@ export function createManagedImportTextEditBuilder(
 
 export function buildManagedImportTextEdits(
   document: vscode.TextDocument,
-  importSources: Record<string, ImportSourceConfig>,
+  importSources: Record<string, DictImportSourceConfig>,
   importsToAdd: DictImportsInfo,
 ): vscode.TextEdit[] {
   return createManagedImportTextEditBuilder(document, importSources)(importsToAdd);
@@ -745,7 +750,7 @@ const mapImportUpdateQueues = new Map<string, Promise<void>>();
 
 async function applyManagedImportUpdate(
   document: vscode.TextDocument,
-  importSources: Record<string, ImportSourceConfig>,
+  importSources: Record<string, DictImportSourceConfig>,
   importsToAdd: DictImportsInfo,
 ): Promise<void> {
   const arrEdits = buildManagedImportTextEdits(document, importSources, importsToAdd);
@@ -778,7 +783,7 @@ async function applyManagedImportUpdate(
  */
 export async function updateManagedImports(
   document: vscode.TextDocument,
-  importSources: Record<string, ImportSourceConfig>,
+  importSources: Record<string, DictImportSourceConfig>,
   importsToAdd: DictImportsInfo,
 ): Promise<void> {
   const strDisplayPath = getDisplayPath(document);

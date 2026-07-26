@@ -1,6 +1,6 @@
 // FileName: customArgsCompletionProvider.ts
 import { log } from "./output";
-import type { ImportSourceConfig } from "./interface";
+import type { DictImportSourceConfig } from "./interface";
 import { isRecord } from "./typeCheck";
 import { runSyncBoundary } from "./errorHandling";
 import { buildManagedImportTextEdits } from "./managedImports";
@@ -33,7 +33,7 @@ const DICT_CUSTOM_ARGS_IMPORTS = {
 function buildCustomArgsVariableCompletion(
   document: vscode.TextDocument,
   position: vscode.Position,
-  importSources: Record<string, ImportSourceConfig>
+  importSources: Record<string, DictImportSourceConfig>
 ): vscode.CompletionItem | undefined {
   const wordRange = document.getWordRangeAtPosition(position, /[A-Za-z_][A-Za-z0-9_]*/);
 
@@ -197,7 +197,7 @@ function buildInsertedText(context: CompletionContext, argName: string): string 
 }
 
 export class CustomArgsCompletionItemProvider implements vscode.CompletionItemProvider {
-  constructor(private readonly importSources: Record<string, ImportSourceConfig>) {}
+  constructor(private readonly importSources: Record<string, DictImportSourceConfig>) {}
 
   provideCompletionItems(
     document: vscode.TextDocument,

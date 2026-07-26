@@ -3,7 +3,7 @@ import { log } from "./output";
 import type {
   SnippetInsertionMode,
   DictImportsInfo,
-  ImportSourceConfig,
+  DictImportSourceConfig,
   DictSnippetCatalogFile,
   DictSnippetFavoriteFile,
   DictSnippetRepository,
@@ -22,15 +22,15 @@ const STR_FAVORITE_CATEGORY = "Favorite";
 const STR_COMPONENTS_FOLDER = "_Components";
 const STR_COMPONENT_CATALOG_RELATIVE_PATH = "liberrpa/snippets_catalog.json";
 
-interface LoadedSnippetCatalog {
+interface DictLoadedSnippetCatalog {
   idPrefix: string;
   displayPath: string;
   catalog: DictSnippetCatalogFile;
 }
 
 function normalizeSnippetBody(body: string[] | string): string[] {
-  const lines = Array.isArray(body) ? body : body.split(/\r?\n/);
-  return lines.map((line) => line.replace(/\t/g, "    "));
+  const arrline = Array.isArray(body) ? body : body.split(/\r?\n/);
+  return arrline.map((line) => line.replace(/\t/g, "    "));
 }
 
 function loadSnippetCatalogFile(catalogPath: string): DictSnippetCatalogFile {
@@ -50,7 +50,7 @@ function loadSnippetCatalogFile(catalogPath: string): DictSnippetCatalogFile {
   return value;
 }
 
-function loadDefaultCatalog(): LoadedSnippetCatalog {
+function loadDefaultCatalog(): DictLoadedSnippetCatalog {
   const strCatalogPath = path.join(__dirname, "../assets/snippets_catalog.json");
 
   return {
@@ -74,7 +74,7 @@ function compareFileNames(firstName: string, secondName: string): number {
 
 function loadComponentCatalogs(
   workspaceFolder: vscode.WorkspaceFolder | undefined,
-): LoadedSnippetCatalog[] {
+): DictLoadedSnippetCatalog[] {
   if (!workspaceFolder) {
     return [];
   }
@@ -187,7 +187,7 @@ function normalizeImports(imports: DictImportsInfo | undefined): DictImportsInfo
   return dictResult;
 }
 
-function cloneImportSourceConfig(config: ImportSourceConfig): ImportSourceConfig {
+function cloneImportSourceConfig(config: DictImportSourceConfig): DictImportSourceConfig {
   return {
     order: [...config.order],
     ...(config.aliasMode === undefined ? {} : { aliasMode: config.aliasMode }),
@@ -198,13 +198,13 @@ function validateSnippetImports(
   snippetTotalInfo: DictSnippetTotalInfo,
   knownImportSources: ReadonlySet<string>,
 ): void {
-  const unknownSources = Object.keys(snippetTotalInfo.imports).filter(
+  const arrUnknownSource = Object.keys(snippetTotalInfo.imports).filter(
     (source) => !knownImportSources.has(source),
   );
 
-  if (unknownSources.length > 0) {
+  if (arrUnknownSource.length > 0) {
     log.warn(
-      `[Catalog] Snippet ${snippetTotalInfo.title} uses import sources without an order configuration: ${unknownSources.join(", ")}.`,
+      `[Catalog] Snippet ${snippetTotalInfo.title} uses import sources without an order configuration: ${arrUnknownSource.join(", ")}.`,
     );
     // The source is still preserved by managed import handling,
     // but its names will use alphabetical order.
@@ -212,45 +212,47 @@ function validateSnippetImports(
 }
 
 function addCatalogToRepository(
-  loadedCatalog: LoadedSnippetCatalog,
+  loadedCatalogDict: DictLoadedSnippetCatalog,
   categoryDict: Record<string, DictSnippetTotalInfo[]>,
-  importSourceDict: Record<string, ImportSourceConfig>,
+  importSourceDict: Record<string, DictImportSourceConfig>,
   catalogCategoryOrderArr: string[],
   snippetOwnerMap: Map<string, string>,
   importSourceOwnerMap: Map<string, string>,
 ): void {
   for (const [strImportSource, dictConfig] of Object.entries(
-    loadedCatalog.catalog.importSources,
+    loadedCatalogDict.catalog.importSources,
   )) {
     const strExistingOwner = importSourceOwnerMap.get(strImportSource);
     if (strExistingOwner !== undefined) {
       throw new Error(
-        `Duplicate import source "${strImportSource}" in ${loadedCatalog.displayPath}; it is already provided by ${strExistingOwner}.`,
+        `Duplicate import source "${strImportSource}" in ${loadedCatalogDict.displayPath}; it is already provided by ${strExistingOwner}.`,
       );
     }
 
-    importSourceOwnerMap.set(strImportSource, loadedCatalog.displayPath);
+    importSourceOwnerMap.set(strImportSource, loadedCatalogDict.displayPath);
     importSourceDict[strImportSource] = cloneImportSourceConfig(dictConfig);
   }
 
-  for (const strCategory of loadedCatalog.catalog.categoryOrder) {
+  for (const strCategory of loadedCatalogDict.catalog.categoryOrder) {
     if (!catalogCategoryOrderArr.includes(strCategory)) {
       catalogCategoryOrderArr.push(strCategory);
     }
   }
 
-  for (const [strTitle, dictDefinition] of Object.entries(loadedCatalog.catalog.snippets)) {
+  for (const [strTitle, dictDefinition] of Object.entries(
+    loadedCatalogDict.catalog.snippets,
+  )) {
     const strExistingOwner = snippetOwnerMap.get(strTitle);
     if (strExistingOwner !== undefined) {
       throw new Error(
-        `Duplicate snippet key "${strTitle}" in ${loadedCatalog.displayPath}; it is already provided by ${strExistingOwner}.`,
+        `Duplicate snippet key "${strTitle}" in ${loadedCatalogDict.displayPath}; it is already provided by ${strExistingOwner}.`,
       );
     }
 
-    snippetOwnerMap.set(strTitle, loadedCatalog.displayPath);
+    snippetOwnerMap.set(strTitle, loadedCatalogDict.displayPath);
 
     const dictSnippetTemp: DictSnippetTotalInfo = {
-      id: `${loadedCatalog.idPrefix}:${strTitle}`,
+      id: `${loadedCatalogDict.idPrefix}:${strTitle}`,
       title: strTitle,
       category: dictDefinition.category,
       label: dictDefinition.label,
@@ -309,7 +311,7 @@ export function loadSnippetRepository(
     ...loadComponentCatalogs(workspaceFolder),
   ];
   const dictCategory: Record<string, DictSnippetTotalInfo[]> = {};
-  const dictImportSource: Record<string, ImportSourceConfig> = {};
+  const dictImportSource: Record<string, DictImportSourceConfig> = {};
   const arrCatalogCategoryOrder: string[] = [];
   const mapSnippetOwner = new Map<string, string>();
   const mapImportSourceOwner = new Map<string, string>();
@@ -382,10 +384,10 @@ export function loadSnippetRepository(
 
 export async function insertSnippetFromTreeNode(
   editor: vscode.TextEditor,
-  arrSnippetsLines: string[],
+  arrSnippetsLine: string[],
   insertionMode: SnippetInsertionMode,
 ): Promise<boolean> {
-  const snippetObj = new vscode.SnippetString(arrSnippetsLines.join("\n"));
+  const snippetObj = new vscode.SnippetString(arrSnippetsLine.join("\n"));
 
   /*
    * Expression-like snippets, such as PrjArgs.projectPath, should be
@@ -404,7 +406,7 @@ export async function insertSnippetFromTreeNode(
     return await editor.insertSnippet(snippetObj);
   }
 
-  if (arrSnippetsLines[0].startsWith(" # type: ignore")) {
+  if (arrSnippetsLine[0].startsWith(" # type: ignore")) {
     // For type ignore, add it at the line's end.
     const positionEnd = new vscode.Position(intLineNumberCurrent, lineCurrent.text.length);
     editor.selection = new vscode.Selection(positionEnd, positionEnd);

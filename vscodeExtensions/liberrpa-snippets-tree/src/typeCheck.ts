@@ -2,7 +2,7 @@
 import type {
   DictCatalogSnippetDefinition,
   DictSnippetFavoriteFile,
-  ImportSourceConfig,
+  DictImportSourceConfig,
   DictImportsInfo,
   DictSnippetCatalogFile,
   DictSnippetDefinition,
@@ -139,7 +139,7 @@ function isCatalogSnippetDefinitions(
 const ARR_IMPORT_SOURCE_CONFIG_REQUIRED_KEYS = ["order"] as const;
 const ARR_IMPORT_SOURCE_CONFIG_ALLOWED_KEYS = ["order", "aliasMode"] as const;
 
-function isImportSourceConfig(value: unknown): value is ImportSourceConfig {
+function isImportSourceConfig(value: unknown): value is DictImportSourceConfig {
   if (!isRecord(value)) {
     return false;
   }
@@ -157,7 +157,7 @@ function isImportSourceConfig(value: unknown): value is ImportSourceConfig {
   );
 }
 
-function isImportSources(value: unknown): value is Record<string, ImportSourceConfig> {
+function isImportSources(value: unknown): value is Record<string, DictImportSourceConfig> {
   return (
     isRecord(value) &&
     Object.entries(value).every(([strSource, dictConfig]) => {
