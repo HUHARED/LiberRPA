@@ -18,7 +18,7 @@ interface DictPublishComponentResultBase {
 }
 
 interface DictResult_PublishPreparation extends DictPublishComponentResultBase {
-  status: "preparationCreated" | "preparationUpdated";
+  status: "preparationCreated";
 }
 
 interface DictResult_PublishedComponent extends DictPublishComponentResultBase {
@@ -77,7 +77,6 @@ function parsePublishComponentResult(
   const status = result.status;
   if (
     status !== "preparationCreated" &&
-    status !== "preparationUpdated" &&
     status !== "published" &&
     status !== "alreadyPublished"
   ) {
@@ -88,7 +87,7 @@ function parsePublishComponentResult(
     componentId: getRequiredString(result, "componentId"),
     packageName: getRequiredString(result, "packageName"),
     astSnippetsFile: getRequiredString(result, "astSnippetsFile"),
-    snippetsJsoncFile: getRequiredString(result, "snippetsConfigFile"),
+    snippetsJsoncFile: getRequiredString(result, "snippetsJsoncFile"),
     generatedCount: getRequiredNonNegativeInteger(result, "generatedCount"),
     skippedCount: getRequiredNonNegativeInteger(result, "skippedCount"),
     warningCount: getRequiredNonNegativeInteger(result, "warningCount"),
@@ -239,7 +238,9 @@ export async function publishComponent(): Promise<void> {
           log.warn(getWarningMessage(warning));
         }
 
-        await openPreparationFiles(workspaceFolder, dictResult);
+        if (dictResult.status === "preparationCreated") {
+          await openPreparationFiles(workspaceFolder, dictResult);
+        }
 
         let strSummary: string;
 
@@ -261,12 +262,9 @@ export async function publishComponent(): Promise<void> {
             `skipped: ${String(dictResult.skippedCount)}, ` +
             `warnings: ${String(dictResult.warningCount)}.`;
         } else {
-          const strStatusText =
-            dictResult.status === "preparationCreated"
-              ? "Component publish preparation was created."
-              : "Component publish preparation was updated.";
           strSummary =
-            `${strStatusText} Generated: ${String(dictResult.generatedCount)}, ` +
+            "Component publish preparation was created. " +
+            `Generated: ${String(dictResult.generatedCount)}, ` +
             `skipped: ${String(dictResult.skippedCount)}, ` +
             `warnings: ${String(dictResult.warningCount)}.`;
         }

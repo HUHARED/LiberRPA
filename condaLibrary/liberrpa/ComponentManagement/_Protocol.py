@@ -6,14 +6,20 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from liberrpa.ComponentManagement.Utils._Exception import ComponentManagementError
 from liberrpa.ComponentManagement.Utils._File import parse_json
-from liberrpa.ComponentManagement.Utils._TypedValue import DictErrorResponse, DictProtocolResponse
+from liberrpa.ComponentManagement.Utils._TypedValue import (
+    DictPublishComponentRequest,
+    DictErrorResponse,
+    DictProtocolResponse,
+)
 from liberrpa.ComponentManagement._Publish import publish_component
+
+from typing import cast
 
 
 _SET_REQUEST_KEYS = {"schemaVersion", "operation", "projectPath"}
 
 
-def _parse_request(requestInfo: str) -> dict[str, object]:
+def _parse_request(requestInfo: str) -> DictPublishComponentRequest:
     if requestInfo.strip() == "":
         raise ComponentManagementError(
             code="invalid_request",
@@ -63,7 +69,7 @@ def _parse_request(requestInfo: str) -> dict[str, object]:
             message="projectPath must be a non-empty string.",
         )
 
-    return value
+    return cast(DictPublishComponentRequest, value)
 
 
 def _build_error_response(errorObj: ComponentManagementError) -> DictErrorResponse:

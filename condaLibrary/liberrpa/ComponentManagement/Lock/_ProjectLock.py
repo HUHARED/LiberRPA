@@ -21,7 +21,7 @@ def project_lock(projectPath: Path, operation: str) -> Generator[None]:
     strOwnerId = create_lock(
         lockPath=pathLock,
         operation=operation,
-        type="project",
+        lockType="project",
     )
 
     try:

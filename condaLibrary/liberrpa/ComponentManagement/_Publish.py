@@ -7,7 +7,15 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from liberrpa.ComponentManagement.Utils._Exception import ComponentManagementError
 from liberrpa.ComponentManagement.Utils._File import write_json_atomic
-from liberrpa.ComponentManagement.Utils._TypedValue import ComponentManifest, DictAstSnippetsFile
+from liberrpa.ComponentManagement.Utils._TypedValue import (
+    DictOperationWarning,
+    DictComponentManagementWarning,
+    ComponentManifest,
+    DictAstSnippetsFile,
+    DictPreparationCreatedResult,
+    DictPublishedComponentResult,
+    DictPublishComponentResult,
+)
 from liberrpa.ComponentManagement._Manifest import read_component_manifest
 from liberrpa.ComponentManagement.Lock._ProjectLock import project_lock
 from liberrpa.ComponentManagement._Repository import publish_component_wheel
@@ -16,6 +24,8 @@ from liberrpa.ComponentManagement._SnippetConfig import build_snippet_catalog, c
 from liberrpa.ComponentManagement._Wheel import build_component_wheel
 
 from pathlib import Path
+from shutil import rmtree
+import uuid
 
 
 def _validate_component_project(
@@ -76,28 +86,60 @@ def _write_ast_snippets(astSnippetsPath: Path, astSnippetsDict: DictAstSnippetsF
         ) from e
 
 
-def _cleanup_build_output(wheelPath: Path) -> dict[str, object] | None:
+def _prepare_build_folder(projectPath: Path) -> tuple[Path, Path]:
+    pathBuildRoot = projectPath / ".liberrpa-project-manager" / "build"
+
     try:
-        wheelPath.unlink(missing_ok=True)
+        if pathBuildRoot.exists():
+            if pathBuildRoot.is_symlink() or not pathBuildRoot.is_dir():
+                raise ComponentManagementError(
+                    code="component_build_path_invalid",
+                    message=f"Component build path is invalid: {pathBuildRoot}",
+                )
 
-        pathBuild = wheelPath.parent
-        if pathBuild.is_dir() and not any(pathBuild.iterdir()):
-            pathBuild.rmdir()
+            rmtree(pathBuildRoot)
 
-        pathManager = pathBuild.parent
+        pathBuildFolder = pathBuildRoot / f"publish_{uuid.uuid4()}"
+        pathBuildFolder.mkdir(parents=True)
+    except ComponentManagementError:
+        raise
+    except OSError as e:
+        raise ComponentManagementError(
+            code="io_error",
+            message=f"Failed to prepare Component build folder: {pathBuildRoot}",
+        ) from e
+
+    return pathBuildRoot, pathBuildFolder
+
+
+def _cleanup_build_output(
+    buildRootPath: Path,
+) -> DictOperationWarning | None:
+    try:
+        if buildRootPath.exists():
+            rmtree(buildRootPath)
+
+        pathManager = buildRootPath.parent
         if pathManager.is_dir() and not any(pathManager.iterdir()):
             pathManager.rmdir()
     except OSError as e:
         return {
             "code": "build_cleanup_pending",
-            "message": f"The Component was published, but temporary build files could not be removed: {wheelPath}",
+            "message": (
+                f"The Component operation completed, but temporary build files could not be removed: {buildRootPath}"
+            ),
             "details": {"reason": str(e)},
         }
 
     return None
 
 
-def publish_component(projectInputPath: str) -> tuple[dict[str, object], list[dict[str, object]]]:
+def publish_component(
+    projectInputPath: str,
+) -> tuple[
+    DictPublishComponentResult,
+    list[DictComponentManagementWarning],
+]:
     pathProject = Path(projectInputPath).expanduser().resolve()
 
     if not pathProject.is_dir():
@@ -121,9 +163,9 @@ def publish_component(projectInputPath: str) -> tuple[dict[str, object], list[di
         _write_ast_snippets(astSnippetsPath=pathAstSnippetsFile, astSnippetsDict=dictAstSnippets)
         boolConfigCreated = create_snippet_config(configPath=pathSnippetsJsoncFile)
 
-        listWarning: list[dict[str, object]] = [dict(item) for item in dictAstSnippets["warnings"]]
+        listWarning: list[DictComponentManagementWarning] = list(dictAstSnippets["warnings"])
         if boolConfigCreated:
-            dictResult: dict[str, object] = {
+            dictPreparationResult: DictPreparationCreatedResult = {
                 "status": "preparationCreated",
                 "componentId": manifestObj.id,
                 "packageName": manifestObj.packageName,
@@ -133,7 +175,7 @@ def publish_component(projectInputPath: str) -> tuple[dict[str, object], list[di
                 "skippedCount": len(dictAstSnippets["skipped"]),
                 "warningCount": len(listWarning),
             }
-            return dictResult, listWarning
+            return dictPreparationResult, listWarning
 
         dicBuildResult = build_snippet_catalog(
             configPath=pathSnippetsJsoncFile,
@@ -141,27 +183,35 @@ def publish_component(projectInputPath: str) -> tuple[dict[str, object], list[di
             packagePath=pathPackage,
             manifestObj=manifestObj,
         )
-        listWarning.extend(dict(item) for item in dicBuildResult.warnings)
+        listWarning.extend(item for item in dicBuildResult.warnings)
 
-        wheelResult = build_component_wheel(
-            projectPath=pathProject,
-            packagePath=pathPackage,
-            manifestObj=manifestObj,
-            snippetCatalog=dicBuildResult.catalog,
-        )
+        pathBuildRoot, pathBuildFolder = _prepare_build_folder(pathProject)
 
-        repositoryResult = publish_component_wheel(
-            manifestObj=manifestObj,
-            wheelResult=wheelResult,
-        )
+        dictCleanupWarning: DictOperationWarning | None = None
 
-        listWarning.extend(repositoryResult.warnings)
+        try:
+            wheelResult = build_component_wheel(
+                projectPath=pathProject,
+                packagePath=pathPackage,
+                buildFolderPath=pathBuildFolder,
+                manifestObj=manifestObj,
+                snippetCatalog=dicBuildResult.catalog,
+            )
 
-        dictCleanupWarning = _cleanup_build_output(wheelResult.wheelPath)
+            repositoryResult = publish_component_wheel(
+                manifestObj=manifestObj,
+                wheelResult=wheelResult,
+            )
+        finally:
+            dictCleanupWarning = _cleanup_build_output(pathBuildRoot)
+
+        # Reaching here means the Wheel build and Repository publish both succeeded.
         if dictCleanupWarning is not None:
             listWarning.append(dictCleanupWarning)
 
-        dictResult = {
+        listWarning.extend(repositoryResult.warnings)
+
+        dictPublishedResult: DictPublishedComponentResult = {
             "status": repositoryResult.status,
             "componentId": manifestObj.id,
             "packageName": manifestObj.packageName,
@@ -177,4 +227,4 @@ def publish_component(projectInputPath: str) -> tuple[dict[str, object], list[di
             "finalCount": len(dicBuildResult.catalog["snippets"]),
             "warningCount": len(listWarning),
         }
-        return dictResult, listWarning
+        return dictPublishedResult, listWarning

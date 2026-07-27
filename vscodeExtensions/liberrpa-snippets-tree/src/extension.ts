@@ -136,21 +136,49 @@ export function activate(context: vscode.ExtensionContext): void {
     const repository = loadInitialRepository();
     const refreshFeatures = registerExtensionFeatures(context, repository);
 
+    let strLoadedWorkspaceUri = getSingleWorkspaceFolder()?.uri.toString();
+
     let componentWatcherDisposable: vscode.Disposable | undefined;
     let reloadTimer: NodeJS.Timeout | undefined;
 
     const reloadRepository = (): void => {
       reloadTimer = undefined;
 
+      const workspaceFolder = getSingleWorkspaceFolder();
+      const strWorkspaceUri = workspaceFolder?.uri.toString();
+      const boolWorkspaceChanged = strWorkspaceUri !== strLoadedWorkspaceUri;
+
       try {
-        const nextRepository = loadSnippetRepository(getSingleWorkspaceFolder());
+        const nextRepository = loadSnippetRepository(workspaceFolder);
         replaceSnippetRepository(repository, nextRepository);
         refreshFeatures();
 
+        strLoadedWorkspaceUri = strWorkspaceUri;
+
         log.info("LiberRPA snippet repository reloaded.");
       } catch (e) {
-        // Keep the last valid repository during a transient or damaged _Components replacement instead of clearing working snippets.
-        reportWarning("Failed to reload Component snippets", e, true);
+        if (!boolWorkspaceChanged) {
+          // Keep the last valid repository during a transient replacement in the same Project.
+          reportWarning("Failed to reload Component snippets", e, true);
+          return;
+        }
+
+        // The previous repository belongs to another Project and must not remain visible after a workspace change.
+        try {
+          const fallbackRepository = loadSnippetRepository();
+          replaceSnippetRepository(repository, fallbackRepository);
+          refreshFeatures();
+
+          strLoadedWorkspaceUri = strWorkspaceUri;
+
+          reportWarning("Component snippets for the new workspace were skipped", e, true);
+        } catch (fallbackError) {
+          reportError(
+            "Failed to load the built-in Snippet repository",
+            fallbackError,
+            true,
+          );
+        }
       }
     };
 
@@ -174,7 +202,7 @@ export function activate(context: vscode.ExtensionContext): void {
       const watcher = vscode.workspace.createFileSystemWatcher(
         new vscode.RelativePattern(
           workspaceFolder,
-          "_Components/*.dist-info/liberrpa/snippets_catalog.json",
+          "_Components/*.dist-info/snippets_catalog.json",
         ),
       );
 

@@ -57,7 +57,7 @@
 
   For insertionMode "line", "$0" is added as the final body line when the last line is not already "$0". For insertionMode "cursor", the body is kept as written.
 
-  A hand-written Snippet can replace an AST-generated Snippet only when the same stable key is also listed in excludedAstSnippets.
+  A hand-written Snippet cannot use the stable key of an AST-generated Snippet. Use astSnippetOverrides to customize an AST-generated Snippet.
   */
   "snippets": {
     /*

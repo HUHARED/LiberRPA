@@ -61,7 +61,11 @@ def _try_remove_stale_lock(lockPath: Path) -> bool:
     return True
 
 
-def create_lock(lockPath: Path, operation: str, type: Literal["project", "repository"]) -> str:
+def create_lock(
+    lockPath: Path,
+    operation: str,
+    lockType: Literal["project", "repository"],
+) -> str:
     strOwnerId = str(uuid.uuid4())
     dictLock = {
         "schemaVersion": 1,
@@ -71,33 +75,57 @@ def create_lock(lockPath: Path, operation: str, type: Literal["project", "reposi
         "operation": operation,
         "createdAt": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
     }
-    bytesLock = (serialize_json(dictLock, compact=True) + "\n").encode("utf-8")
+    bytesLock = (serialize_json(dictLock, compact=True) + "\n").encode()
 
-    for intAttempt in range(2):
+    boolRetried = False
+
+    while True:
         try:
-            intFileDescriptor = os.open(lockPath, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            intFileDescriptor = os.open(
+                lockPath,
+                os.O_CREAT | os.O_EXCL | os.O_WRONLY,
+            )
         except FileExistsError:
-            if intAttempt == 0 and _try_remove_stale_lock(lockPath):
+            if not boolRetried and _try_remove_stale_lock(lockPath):
+                boolRetried = True
                 continue
 
             raise ComponentManagementError(
-                code=f"{type}_busy",
-                message=f"Another Component operation is currently modifying the {type}.",
+                code=f"{lockType}_busy",
+                message=(f"Another Component operation is currently modifying the {lockType}."),
                 details={"lockFile": str(lockPath)},
             )
+        except OSError as e:
+            raise ComponentManagementError(
+                code=f"{lockType}_lock_failed",
+                message=f"Failed to create the {lockType} lock.",
+                details={
+                    "lockFile": str(lockPath),
+                    "reason": str(e),
+                },
+            ) from e
 
-        with os.fdopen(intFileDescriptor, "wb", closefd=True) as fileObj:
-            fileObj.write(bytesLock)
-            fileObj.flush()
-            os.fsync(fileObj.fileno())
+        try:
+            with os.fdopen(intFileDescriptor, "wb", closefd=True) as fileObj:
+                fileObj.write(bytesLock)
+                fileObj.flush()
+                os.fsync(fileObj.fileno())
+        except OSError as e:
+            try:
+                lockPath.unlink(missing_ok=True)
+            except OSError:
+                pass
+
+            raise ComponentManagementError(
+                code=f"{lockType}_lock_failed",
+                message=f"Failed to write the {lockType} lock.",
+                details={
+                    "lockFile": str(lockPath),
+                    "reason": str(e),
+                },
+            ) from e
 
         return strOwnerId
-
-    raise ComponentManagementError(
-        code="repository_busy",
-        message="Another Component operation is currently modifying the Component Repository.",
-        details={"lockFile": str(lockPath)},
-    )
 
 
 def release_lock(lockPath: Path, ownerId: str) -> None:

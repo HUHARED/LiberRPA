@@ -7,8 +7,15 @@ import { log } from "./output";
 import { isRecord } from "./typeCheck";
 
 export interface DictComponentManagementWarning {
-  code?: string;
-  message?: string;
+  code: string;
+  message: string;
+  details?: Record<string, unknown>;
+
+  file?: string;
+  line?: number;
+  functionName?: string;
+  snippetKey?: string;
+
   [key: string]: unknown;
 }
 
@@ -39,6 +46,40 @@ interface DictPublishComponentRequest {
   projectPath: string;
 }
 
+function parseComponentManagementWarning(value: unknown): DictComponentManagementWarning {
+  if (!isRecord(value)) {
+    throw new Error("Component Management returned an invalid warning item.");
+  }
+
+  const { code, message, details, file, line, functionName, snippetKey } = value;
+
+  if (typeof code !== "string" || typeof message !== "string") {
+    throw new Error("Component Management returned an invalid warning item.");
+  }
+
+  if (details !== undefined && !isRecord(details)) {
+    throw new Error("Component Management warning details must be an object.");
+  }
+
+  if (file !== undefined && typeof file !== "string") {
+    throw new Error("Component Management warning file must be a string.");
+  }
+
+  if (line !== undefined && !Number.isInteger(line)) {
+    throw new Error("Component Management warning line must be an integer.");
+  }
+
+  if (functionName !== undefined && typeof functionName !== "string") {
+    throw new Error("Component Management warning functionName must be a string.");
+  }
+
+  if (snippetKey !== undefined && typeof snippetKey !== "string") {
+    throw new Error("Component Management warning snippetKey must be a string.");
+  }
+
+  return value as DictComponentManagementWarning;
+}
+
 function parseComponentManagementResponse(output: string): DictProtocolResponse {
   let value: unknown;
 
@@ -59,20 +100,13 @@ function parseComponentManagementResponse(output: string): DictProtocolResponse 
       throw new Error("Component Management returned an invalid success response.");
     }
 
-    const arrWarnings: DictComponentManagementWarning[] = [];
-    for (const warning of value.warnings) {
-      if (!isRecord(warning)) {
-        throw new Error("Component Management returned an invalid warning item.");
-      }
-
-      arrWarnings.push(warning);
-    }
+    const arrWarning = value.warnings.map(parseComponentManagementWarning);
 
     return {
       schemaVersion: 1,
       ok: true,
       result: value.result,
-      warnings: arrWarnings,
+      warnings: arrWarning,
     };
   }
 

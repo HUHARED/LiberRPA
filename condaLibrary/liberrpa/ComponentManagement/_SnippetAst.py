@@ -7,7 +7,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 from liberrpa.ComponentManagement.Utils._Exception import ComponentManagementError
 from liberrpa.ComponentManagement.Utils._TypedValue import (
     ComponentManifest,
-    DictAstSnippet,
+    DictNormalizedSnippet,
     DictSnippetDiagnostic,
     DictAstSnippetsFile,
 )
@@ -305,7 +305,7 @@ def _scan_module(
     projectPath: Path,
     packageName: str,
 ) -> tuple[
-    dict[str, DictAstSnippet],
+    dict[str, DictNormalizedSnippet],
     list[DictSnippetDiagnostic],
     list[DictSnippetDiagnostic],
 ]:
@@ -345,7 +345,7 @@ def _scan_module(
         )
 
     strModuleAlias = f"{packageName}_{strModuleName}"
-    dictSnippet: dict[str, DictAstSnippet] = {}
+    dictSnippet: dict[str, DictNormalizedSnippet] = {}
     listSkipped: list[DictSnippetDiagnostic] = []
     listWarning: list[DictSnippetDiagnostic] = []
 
@@ -466,7 +466,7 @@ def scan_component_snippets(
     packagePath: Path,
     manifestObj: ComponentManifest,
 ) -> DictAstSnippetsFile:
-    dictSnippet: dict[str, DictAstSnippet] = {}
+    dictSnippet: dict[str, DictNormalizedSnippet] = {}
     listSkipped: list[DictSnippetDiagnostic] = []
     listWarning: list[DictSnippetDiagnostic] = []
 

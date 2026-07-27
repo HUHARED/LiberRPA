@@ -2,13 +2,13 @@
 
 export type SnippetInsertionMode = "line" | "cursor";
 
-// source name, modules needed in the source.
+// Import source name mapped to the required imported names.
 export type DictImportsInfo = Record<string, string[]>;
 
 export interface DictImportSourceConfig {
   // The config about import source.
   order: string[];
-  // For Components.
+  // Component sources use deterministic PackageName_ModuleName aliases.
   aliasMode?: "source_module";
 }
 

@@ -10,14 +10,14 @@ from liberrpa.ComponentManagement.Utils._TypedValue import (
     ComponentManifest,
     SnippetInsertionMode,
     DictSnippetImports,
-    DictAstSnippet,
+    DictNormalizedSnippet,
     DictAstSnippetsFile,
     DictImportSourceConfig,
     DictSnippetCatalogFile,
     DictAstSnippetOverride,
     DictSnippetConfigWarning,
 )
-from liberrpa.ComponentManagement.Utils._Validation import add_issue, raise_config_issues, validate_json_object_fields
+from liberrpa.ComponentManagement.Utils._Validation import add_issue, validate_json_object_fields
 
 from pathlib import Path
 from copy import deepcopy
@@ -53,7 +53,8 @@ _SET_HAND_WRITTEN_SNIPPET_ALLOWED_KEYS = {
     "imports",
 }
 
-# It's same with "MANAGED_IMPORT_ORDER" in snippets\ApiConfig.py, but snippets folder doesn't be involved in Python library.
+# Keep this order synchronized with MANAGED_IMPORT_ORDER in snippets/ApiConfig.py.
+# The Snippet generation scripts are not imported by the runtime liberrpa package.
 _TUPLE_LIBERRPA_IMPORT_ORDER = (
     "Log",
     "delay",
@@ -111,7 +112,7 @@ def _normalize_single_line_string(
     field: str,
     issueList: list[dict[str, object]],
 ) -> str | None:
-    """a snippet's label and prefix must be a single line string."""
+    """Validate a non-empty single-line Snippet label or prefix."""
     if not isinstance(value, str) or value == "":
         add_issue(issueList, field, "Value must be a non-empty string.")
         return None
@@ -307,7 +308,7 @@ def _parse_component_snippet_key(
     *,
     requireExistingModule: bool,
 ) -> tuple[str, str, str] | None:
-    """Check a snippet's attributes, if there is anything wrong, add an issue into issue list."""
+    """Validate a Component Snippet key and append any validation issues."""
     strCategory, strSeparator, strSnippetName = snippetKey.partition(".")
     strCategoryPrefix = f"{packageName}_"
 
@@ -373,7 +374,7 @@ def _normalize_hand_written_snippet(
     publicModuleNameSet: set[str],
     availableImportOrder: dict[str, tuple[str, ...]],
     issueList: list[dict[str, object]],
-) -> DictAstSnippet | None:
+) -> DictNormalizedSnippet | None:
     strField = f"snippets.{snippetKey}"
     tupleKeyPart = _parse_component_snippet_key(
         snippetKey=snippetKey,
@@ -465,7 +466,7 @@ def _normalize_hand_written_snippet(
     }
 
 
-def _stabilize_snippet(snippet: DictAstSnippet) -> DictAstSnippet:
+def _stabilize_snippet(snippet: DictNormalizedSnippet) -> DictNormalizedSnippet:
     return {
         "category": snippet["category"],
         "label": snippet["label"],
@@ -509,6 +510,17 @@ def create_snippet_config(configPath: Path) -> bool:
         ) from e
 
     return True
+
+
+def raise_config_issues(issueList: list[dict[str, object]]) -> None:
+    if not issueList:
+        return
+
+    raise ComponentManagementError(
+        code="snippet_config_invalid",
+        message="Invalid Component Snippet configuration.",
+        details={"issues": issueList},
+    )
 
 
 def build_snippet_catalog(
@@ -626,7 +638,7 @@ def build_snippet_catalog(
                 dictOverride[strSnippetKey] = dictNormalizedOverride
 
     dictHandWrittenValue = value.get("snippets")
-    dictHandWrittenSnippet: dict[str, DictAstSnippet] = {}
+    dictHandWrittenSnippet: dict[str, DictNormalizedSnippet] = {}
 
     if not isinstance(dictHandWrittenValue, dict):
         add_issue(listIssue, "snippets", "Value must be an object.")
@@ -662,13 +674,14 @@ def build_snippet_catalog(
 
     listWarning: list[DictSnippetConfigWarning] = []
     for strSnippetKey in sorted(setExcludedSnippet - set(astSnippets["snippets"])):
+        # Users have configured excluded snippets, but these snippets have no related functions.
         listWarning.append({
             "code": "excluded_ast_snippet_missing",
             "snippetKey": strSnippetKey,
             "message": f"Excluded AST Snippet no longer exists: {strSnippetKey}",
         })
 
-    dictFinalSnippet: dict[str, DictAstSnippet] = {}
+    dictFinalSnippet: dict[str, DictNormalizedSnippet] = {}
 
     for strSnippetKey, dictAstSnippet in astSnippets["snippets"].items():
         if strSnippetKey in setExcludedSnippet:
@@ -746,7 +759,7 @@ def build_snippet_catalog(
         )
     ]
 
-    dictStableSnippet: dict[str, DictAstSnippet] = {}
+    dictStableSnippet: dict[str, DictNormalizedSnippet] = {}
     for strCategory in listCategoryOrder:
         for strSnippetKey in sorted(
             key for key, dictItem in dictFinalSnippet.items() if dictItem["category"] == strCategory
@@ -768,6 +781,7 @@ def build_snippet_catalog(
             "snippets": dictStableSnippet,
         },
         warnings=listWarning,
+        # Count only exclusions that match current AST-generated Snippets.
         excludedCount=len(setExcludedSnippet & set(astSnippets["snippets"])),
         handWrittenCount=len(dictHandWrittenSnippet),
     )

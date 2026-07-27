@@ -21,7 +21,7 @@ def repository_lock(repositoryPath: Path, operation: str) -> Generator[None]:
     strOwnerId = create_lock(
         lockPath=pathLock,
         operation=operation,
-        type="repository",
+        lockType="repository",
     )
 
     try:

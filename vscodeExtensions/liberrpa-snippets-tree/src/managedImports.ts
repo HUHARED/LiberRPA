@@ -604,14 +604,14 @@ function buildManagedImportBlock(
 
     const dictSourceConfig = importSources[strSourceName];
 
-    for (const strimportName of arrImportName) {
+    for (const strImportName of arrImportName) {
       const strAlias = getExpectedImportAlias(
-        strimportName,
-        strimportName,
+        strSourceName,
+        strImportName,
         dictSourceConfig,
       );
       const strImportEntry =
-        strAlias === undefined ? strimportName : `${strimportName} as ${strAlias}`;
+        strAlias === undefined ? strImportName : `${strImportName} as ${strAlias}`;
       arrLine.push(`    ${strImportEntry},`);
     }
 

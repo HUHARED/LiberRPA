@@ -10,6 +10,12 @@ from dataclasses import dataclass
 from typing import Literal, NotRequired, TypedDict
 
 
+class DictOperationWarning(TypedDict):
+    code: str
+    message: str
+    details: NotRequired[dict[str, object]]
+
+
 ##### Manifest #####
 
 
@@ -17,7 +23,7 @@ from typing import Literal, NotRequired, TypedDict
 class ComponentManifest:
     """component.json in a Component Project"""
 
-    schemaVersion: int
+    schemaVersion: Literal[1]
     id: str
     packageName: str
     displayName: str
@@ -34,7 +40,7 @@ type SnippetInsertionMode = Literal["line", "cursor"]
 type DictSnippetImports = dict[str, list[str]]  # "SourceName": ["ModuleName1", "ModuleName2", ...]
 
 
-class DictAstSnippet(TypedDict):
+class DictNormalizedSnippet(TypedDict):
     category: str
     label: str
 
@@ -60,7 +66,7 @@ class DictAstSnippetsFile(TypedDict):
     schemaVersion: Literal[1]
     componentId: str
     packageName: str
-    snippets: dict[str, DictAstSnippet]
+    snippets: dict[str, DictNormalizedSnippet]
     skipped: list[DictSnippetDiagnostic]
     warnings: list[DictSnippetDiagnostic]
 
@@ -71,12 +77,12 @@ class DictImportSourceConfig(TypedDict):
 
 
 class DictSnippetCatalogFile(TypedDict):
-    """snippets.jsonc.template, _Snippets/snippets.jsonc"""
+    """snippets_catalog.json in a Component Wheel."""
 
     schemaVersion: Literal[1]
     categoryOrder: list[str]
     importSources: dict[str, DictImportSourceConfig]
-    snippets: dict[str, DictAstSnippet]
+    snippets: dict[str, DictNormalizedSnippet]
 
 
 class DictAstSnippetOverride(TypedDict):
@@ -89,9 +95,11 @@ class DictAstSnippetOverride(TypedDict):
 
 class DictSnippetConfigWarning(TypedDict):
     code: str
-    snippetKey: str
     message: str
+    snippetKey: str
 
+
+type DictComponentManagementWarning = DictSnippetDiagnostic | DictSnippetConfigWarning | DictOperationWarning
 
 ##### Wheel #####
 
@@ -110,7 +118,7 @@ class DictRepositoryComponentVersion(TypedDict):
     version: str
     displayName: str
     description: str
-    manifestSchemaVersion: int
+    manifestSchemaVersion: Literal[1]
     wheelFile: str
     sha256: str
     requiresLiberrpa: str
@@ -123,12 +131,12 @@ class DictRepositoryComponent(TypedDict):
 
 
 class DictRepositoryIndex(TypedDict):
-    schemaVersion: int
+    schemaVersion: Literal[1]
     components: dict[str, DictRepositoryComponent]
 
 
 class DictRepositoryTransaction(TypedDict):
-    schemaVersion: int
+    schemaVersion: Literal[1]
     operation: Literal["publishComponent"]
     state: Literal["prepared", "wheelCommitted"]
     componentId: str
@@ -143,10 +151,46 @@ class DictRepositoryTransaction(TypedDict):
 @dataclass(frozen=True)
 class RepositoryPublishResult:
     status: Literal["published", "alreadyPublished"]
-    warnings: list[dict[str, object]]
+    warnings: list[DictComponentManagementWarning]
+
+
+##### Publish #####
+
+
+class DictPublishResultBase(TypedDict):
+    componentId: str
+    packageName: str
+    astSnippetsFile: str
+    snippetsJsoncFile: str
+    generatedCount: int
+    skippedCount: int
+    warningCount: int
+
+
+class DictPreparationCreatedResult(DictPublishResultBase):
+    status: Literal["preparationCreated"]
+
+
+class DictPublishedComponentResult(DictPublishResultBase):
+    status: Literal["published", "alreadyPublished"]
+    version: str
+    wheelFile: str
+    sha256: str
+    excludedCount: int
+    handWrittenCount: int
+    finalCount: int
+
+
+type DictPublishComponentResult = DictPreparationCreatedResult | DictPublishedComponentResult
 
 
 ##### Protocol #####
+
+
+class DictPublishComponentRequest(TypedDict):
+    schemaVersion: Literal[1]
+    operation: Literal["publishComponent"]
+    projectPath: str
 
 
 class DictProtocolError(TypedDict):
@@ -158,8 +202,8 @@ class DictProtocolError(TypedDict):
 class DictSuccessResponse(TypedDict):
     schemaVersion: Literal[1]
     ok: Literal[True]
-    result: dict[str, object]
-    warnings: list[dict[str, object]]
+    result: DictPublishComponentResult
+    warnings: list[DictComponentManagementWarning]
 
 
 class DictErrorResponse(TypedDict):

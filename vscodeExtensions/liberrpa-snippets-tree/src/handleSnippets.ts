@@ -20,7 +20,7 @@ import * as vscode from "vscode";
 
 const STR_FAVORITE_CATEGORY = "Favorite";
 const STR_COMPONENTS_FOLDER = "_Components";
-const STR_COMPONENT_CATALOG_RELATIVE_PATH = "liberrpa/snippets_catalog.json";
+const STR_COMPONENT_CATALOG_RELATIVE_PATH = "snippets_catalog.json";
 
 interface DictLoadedSnippetCatalog {
   idPrefix: string;
@@ -29,8 +29,8 @@ interface DictLoadedSnippetCatalog {
 }
 
 function normalizeSnippetBody(body: string[] | string): string[] {
-  const arrline = Array.isArray(body) ? body : body.split(/\r?\n/);
-  return arrline.map((line) => line.replace(/\t/g, "    "));
+  const arrLine = Array.isArray(body) ? body : body.split(/\r?\n/);
+  return arrLine.map((line) => line.replace(/\t/g, "    "));
 }
 
 function loadSnippetCatalogFile(catalogPath: string): DictSnippetCatalogFile {
