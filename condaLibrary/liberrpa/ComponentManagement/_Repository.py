@@ -7,35 +7,37 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from liberrpa.Common._BasicConfig import get_basic_config_dict
 from liberrpa.ComponentManagement.Utils._Exception import ComponentManagementError
-from liberrpa.ComponentManagement.Utils._File import read_json, write_json_atomic
+from liberrpa.ComponentManagement.Utils._File import write_json_atomic
 from liberrpa.ComponentManagement.Utils._Hash import calculate_file_sha256
 from liberrpa.ComponentManagement.Utils._TypedValue import (
     DictComponentManagementWarning,
     ComponentManifest,
     WheelBuildResult,
     DictRepositoryComponentVersion,
-    DictRepositoryComponent,
-    DictRepositoryIndex,
     DictRepositoryTransaction,
     RepositoryPublishResult,
 )
 from liberrpa.ComponentManagement.Lock._RepositoryLock import repository_lock
-from liberrpa.ComponentManagement.Utils._Version import normalize_specifier, normalize_version
-from liberrpa.ComponentManagement.Utils._Validation import get_package_name_error
-
-from pathlib import Path, PurePosixPath
-from packaging.version import Version
-from packaging.tags import Tag
-from packaging.utils import (
-    InvalidWheelFilename,
-    canonicalize_name,
-    parse_wheel_filename,
+from liberrpa.ComponentManagement._RepositoryIndex import (
+    get_repository_components_path,
+    get_wheel_path,
+    raise_rebuild_required,
+    load_repository_index,
+    write_repository_index,
+    find_equivalent_version,
+    add_version_to_index,
 )
+from liberrpa.ComponentManagement._RepositoryTransaction import (
+    remove_transaction_folder,
+    get_repository_staging_path,
+    recover_publish_transactions,
+    copy_wheel_to_staging,
+)
+
+from pathlib import Path
 import os
-import re
-import shutil
 import uuid
-from typing import cast
+
 
 """
 The file structure:
@@ -53,642 +55,6 @@ ComponentRepository/
 
 """
 
-_STR_INDEX_FILE_NAME = "repository.json"
-_STR_COMPONENT_FOLDER_NAME = "components"
-_STR_STAGING_FOLDER_NAME = ".staging"
-
-_REGEX_SHA256 = re.compile(r"^[0-9a-f]{64}$")
-
-_SET_REPOSITORY_INDEX_KEYS = {"schemaVersion", "components"}
-_SET_REPOSITORY_COMPONENT_KEYS = {"packageName", "versions"}
-_SET_REPOSITORY_VERSION_KEYS = {
-    "version",
-    "displayName",
-    "description",
-    "manifestSchemaVersion",
-    "wheelFile",
-    "sha256",
-    "requiresLiberrpa",
-    "componentDependencies",
-}
-_SET_TRANSACTION_KEYS = {
-    "schemaVersion",
-    "operation",
-    "state",
-    "componentId",
-    "packageName",
-    "version",
-    "wheelFile",
-    "sha256",
-    "targetRelativePath",
-    "versionEntry",
-}
-
-
-def _validate_exact_keys(value: dict[object, object], expectedKey: set[str], field: str) -> None:
-    setStringKey = {key for key in value if isinstance(key, str)}
-    listNonStringKey = sorted(repr(key) for key in value if not isinstance(key, str))
-    listMissingKey = sorted(expectedKey - setStringKey)
-    listUnknownKey = sorted(setStringKey - expectedKey)
-
-    if listNonStringKey or listMissingKey or listUnknownKey:
-        raise ValueError(
-            f"{field} has invalid fields. Missing: {listMissingKey}; "
-            f"unknown: {listUnknownKey}; non-string: {listNonStringKey}."
-        )
-
-
-def _validate_wheel_file_name(
-    value: object,
-    field: str,
-    *,
-    packageName: str,
-    version: str,
-) -> str:
-    if not isinstance(value, str) or value == "":
-        raise ValueError(f"{field} must be a non-empty string.")
-
-    if "/" in value or "\\" in value or Path(value).name != value:
-        raise ValueError(f"{field} must be a Wheel filename without folder separators.")
-
-    try:
-        normalizedName, wheelVersion, buildTag, tagSet = parse_wheel_filename(value)
-    except InvalidWheelFilename as e:
-        raise ValueError(f"{field} must be a valid Wheel filename.") from e
-
-    if normalizedName != canonicalize_name(packageName):
-        raise ValueError(f"{field} distribution name does not match packageName {packageName!r}.")
-
-    if wheelVersion != Version(version):
-        raise ValueError(f"{field} version does not match version {version!r}.")
-
-    if buildTag:
-        raise ValueError(f"{field} cannot contain a Wheel build tag.")
-
-    if tagSet != frozenset({Tag("py313", "none", "any")}):
-        raise ValueError(f"{field} must use the py313-none-any tag.")
-
-    strExpectedFileName = f"{canonicalize_name(packageName).replace('-', '_')}-{version}-py313-none-any.whl"
-
-    if value != strExpectedFileName:
-        raise ValueError(f"{field} must use the normalized filename {strExpectedFileName!r}.")
-
-    return value
-
-
-def _validate_sha256(value: object, field: str) -> str:
-    if not isinstance(value, str) or _REGEX_SHA256.fullmatch(value) is None:
-        raise ValueError(f"{field} must be a lowercase SHA-256 value.")
-
-    return value
-
-
-def _normalize_component_id(value: object, field: str) -> str:
-    if not isinstance(value, str):
-        raise ValueError(f"{field} must be a UUID string.")
-
-    try:
-        uuidObj = uuid.UUID(value)
-    except ValueError as e:
-        raise ValueError(f"{field} must be a valid UUID.") from e
-
-    if uuidObj.version != 4 or uuidObj.variant != uuid.RFC_4122:
-        raise ValueError(f"{field} must be a UUID v4.")
-
-    strNormalizedId = str(uuidObj)
-    if value != strNormalizedId:
-        raise ValueError(f"{field} must use the normalized lowercase UUID form.")
-
-    return strNormalizedId
-
-
-def _validate_dependency_dict(
-    value: object,
-    field: str,
-    *,
-    componentId: str,
-) -> dict[str, str]:
-    if not isinstance(value, dict):
-        raise ValueError(f"{field} must be an object.")
-
-    dictDependency: dict[str, str] = {}
-
-    for dependencyId, specifier in value.items():
-        strDependencyId = _normalize_component_id(dependencyId, f"{field}.{dependencyId}")
-        if strDependencyId == componentId:
-            raise ValueError(f"{field} cannot contain a self-dependency.")
-
-        if not isinstance(specifier, str):
-            raise ValueError(f"{field}.{strDependencyId} must be a string.")
-
-        strNormalizedSpecifier = normalize_specifier(specifier)
-        if specifier != strNormalizedSpecifier:
-            raise ValueError(f"{field}.{strDependencyId} must use the normalized version range.")
-
-        dictDependency[strDependencyId] = strNormalizedSpecifier
-
-    return dict(sorted(dictDependency.items()))
-
-
-def _validate_repository_version(
-    value: object,
-    field: str,
-    *,
-    componentId: str,
-    packageName: str,
-) -> DictRepositoryComponentVersion:
-    if not isinstance(value, dict):
-        raise ValueError(f"{field} must be an object.")
-
-    _validate_exact_keys(value, _SET_REPOSITORY_VERSION_KEYS, field)
-
-    version = value.get("version")
-    if not isinstance(version, str):
-        raise ValueError(f"{field}.version must be a string.")
-    strNormalizedVersion = normalize_version(version)
-    if version != strNormalizedVersion:
-        raise ValueError(f"{field}.version must use the normalized PEP 440 form.")
-
-    displayName = value.get("displayName")
-    if not isinstance(displayName, str) or displayName == "":
-        raise ValueError(f"{field}.displayName must be a non-empty string.")
-
-    description = value.get("description")
-    if not isinstance(description, str):
-        raise ValueError(f"{field}.description must be a string.")
-
-    manifestSchemaVersion = value.get("manifestSchemaVersion")
-    if type(manifestSchemaVersion) is not int or manifestSchemaVersion != 1:
-        raise ValueError(f"{field}.manifestSchemaVersion must be 1.")
-
-    strWheelFile = _validate_wheel_file_name(
-        value.get("wheelFile"),
-        f"{field}.wheelFile",
-        packageName=packageName,
-        version=strNormalizedVersion,
-    )
-    strSha256 = _validate_sha256(value.get("sha256"), f"{field}.sha256")
-
-    requiresLiberrpa = value.get("requiresLiberrpa")
-    if not isinstance(requiresLiberrpa, str):
-        raise ValueError(f"{field}.requiresLiberrpa must be a string.")
-    strNormalizedRequiresLiberrpa = normalize_specifier(requiresLiberrpa)
-    if requiresLiberrpa != strNormalizedRequiresLiberrpa:
-        raise ValueError(f"{field}.requiresLiberrpa must use the normalized version range.")
-
-    dictDependency = _validate_dependency_dict(
-        value.get("componentDependencies"),
-        f"{field}.componentDependencies",
-        componentId=componentId,
-    )
-
-    return {
-        "version": strNormalizedVersion,
-        "displayName": displayName,
-        "description": description,
-        "manifestSchemaVersion": manifestSchemaVersion,
-        "wheelFile": strWheelFile,
-        "sha256": strSha256,
-        "requiresLiberrpa": strNormalizedRequiresLiberrpa,
-        "componentDependencies": dictDependency,
-    }
-
-
-def _validate_repository_index(value: object) -> DictRepositoryIndex:
-    if not isinstance(value, dict):
-        raise ValueError("repository.json root value must be an object.")
-
-    _validate_exact_keys(value, _SET_REPOSITORY_INDEX_KEYS, "repository.json")
-
-    schemaVersion = value.get("schemaVersion")
-    if type(schemaVersion) is not int or schemaVersion != 1:
-        raise ValueError("repository.json schemaVersion must be 1.")
-
-    components = value.get("components")
-    if not isinstance(components, dict):
-        raise ValueError("repository.json components must be an object.")
-
-    dictComponent: dict[str, DictRepositoryComponent] = {}
-
-    for componentId, componentValue in components.items():
-        strComponentId = _normalize_component_id(componentId, f"components.{componentId}")
-        if not isinstance(componentValue, dict):
-            raise ValueError(f"components.{strComponentId} must be an object.")
-
-        _validate_exact_keys(
-            componentValue,
-            _SET_REPOSITORY_COMPONENT_KEYS,
-            f"components.{strComponentId}",
-        )
-
-        packageName = componentValue.get("packageName")
-        if not isinstance(packageName, str):
-            raise ValueError(f"components.{strComponentId}.packageName must be a string.")
-        strPackageNameError = get_package_name_error(packageName)
-        if strPackageNameError is not None:
-            raise ValueError(f"components.{strComponentId}.packageName: {strPackageNameError}")
-
-        versions = componentValue.get("versions")
-        if not isinstance(versions, list):
-            raise ValueError(f"components.{strComponentId}.versions must be an array.")
-        if not versions:
-            raise ValueError(f"components.{strComponentId}.versions cannot be empty.")
-
-        listVersion: list[DictRepositoryComponentVersion] = []
-        setVersion: set[Version] = set()
-
-        for intIndex, versionValue in enumerate(versions):
-            dictVersion = _validate_repository_version(
-                versionValue,
-                f"components.{strComponentId}.versions[{intIndex}]",
-                componentId=strComponentId,
-                packageName=packageName,
-            )
-            versionObj = Version(dictVersion["version"])
-            if versionObj in setVersion:
-                raise ValueError(f"components.{strComponentId}.versions contains equivalent PEP 440 versions.")
-
-            setVersion.add(versionObj)
-            listVersion.append(dictVersion)
-
-        listVersion.sort(key=lambda item: Version(item["version"]))
-        dictComponent[strComponentId] = {
-            "packageName": packageName,
-            "versions": listVersion,
-        }
-
-    return {
-        "schemaVersion": 1,
-        "components": dict(sorted(dictComponent.items())),
-    }
-
-
-def _get_component_folder_name(packageName: str, componentId: str) -> str:
-    return f"{packageName}_{componentId}"
-
-
-def _get_wheel_relative_path(
-    componentId: str,
-    packageName: str,
-    wheelFile: str,
-) -> str:
-    return PurePosixPath(
-        _STR_COMPONENT_FOLDER_NAME,
-        _get_component_folder_name(packageName, componentId),
-        wheelFile,
-    ).as_posix()
-
-
-def _get_expected_wheel_path_set(index: DictRepositoryIndex) -> set[str]:
-    setWheelPath: set[str] = set()
-
-    for strComponentId, dictComponent in index["components"].items():
-        for dictVersion in dictComponent["versions"]:
-            setWheelPath.add(
-                _get_wheel_relative_path(
-                    componentId=strComponentId,
-                    packageName=dictComponent["packageName"],
-                    wheelFile=dictVersion["wheelFile"],
-                )
-            )
-
-    return setWheelPath
-
-
-def raise_rebuild_required(message: str, details: dict[str, object] | None = None) -> None:
-    raise ComponentManagementError(
-        code="repository_rebuild_required",
-        message=message,
-        details=details,
-    )
-
-
-def _get_actual_wheel_path_set(repositoryPath: Path) -> set[str]:
-    pathComponents = repositoryPath / _STR_COMPONENT_FOLDER_NAME
-    if not pathComponents.exists():
-        return set()
-
-    if not pathComponents.is_dir():
-        raise_rebuild_required(
-            "The Component Repository components path is not a folder.",
-            {"path": str(pathComponents)},
-        )
-
-    return {
-        pathWheel.relative_to(repositoryPath).as_posix()
-        for pathWheel in pathComponents.rglob("*.whl")
-        if pathWheel.is_file()
-    }
-
-
-def _load_repository_index(
-    repositoryPath: Path,
-    *,
-    checkWheelPaths: bool,
-) -> DictRepositoryIndex:
-    pathIndexFile = repositoryPath / _STR_INDEX_FILE_NAME
-
-    if not pathIndexFile.exists():
-        dictIndex: DictRepositoryIndex = {
-            "schemaVersion": 1,
-            "components": {},
-        }
-    elif not pathIndexFile.is_file() or pathIndexFile.is_symlink():
-        raise_rebuild_required(
-            "Component Repository index is invalid.",
-            {"indexFile": str(pathIndexFile)},
-        )
-    else:
-        try:
-            dictIndex = _validate_repository_index(read_json(pathIndexFile))
-        except (OSError, ValueError) as e:
-            raise_rebuild_required(
-                "Component Repository index is invalid and must be rebuilt.",
-                {"indexFile": str(pathIndexFile), "reason": str(e)},
-            )
-
-    if checkWheelPaths:
-        setExpectedPath = _get_expected_wheel_path_set(dictIndex)
-        setActualPath = _get_actual_wheel_path_set(repositoryPath)
-
-        if setExpectedPath != setActualPath:
-            raise_rebuild_required(
-                "Component Repository index does not match the stored Wheels.",
-                {
-                    "missingWheels": sorted(setExpectedPath - setActualPath),
-                    "unindexedWheels": sorted(setActualPath - setExpectedPath),
-                },
-            )
-
-    return dictIndex
-
-
-def _find_equivalent_version(
-    componentDict: DictRepositoryComponent,
-    version: str,
-) -> DictRepositoryComponentVersion | None:
-    targetVersion = Version(version)
-
-    for dictVersionEntry in componentDict["versions"]:
-        if Version(dictVersionEntry["version"]) == targetVersion:
-            return dictVersionEntry
-
-    return None
-
-
-def _add_version_to_index(
-    indexDict: DictRepositoryIndex,
-    componentId: str,
-    packageName: str,
-    versionEntry: DictRepositoryComponentVersion,
-) -> None:
-    dictComponent: DictRepositoryComponent | None = indexDict["components"].get(componentId)
-
-    if dictComponent is None:
-        dictComponent = {
-            "packageName": packageName,
-            "versions": [],
-        }
-        indexDict["components"][componentId] = dictComponent
-    elif dictComponent["packageName"] != packageName:
-        raise ComponentManagementError(
-            code="component_identity_conflict",
-            message=(f"Component ID {componentId} is already bound to packageName {dictComponent['packageName']!r}."),
-            details={
-                "componentId": componentId,
-                "existingPackageName": dictComponent["packageName"],
-                "publishedPackageName": packageName,
-            },
-        )
-
-    dictExistingVersion = _find_equivalent_version(dictComponent, versionEntry["version"])
-    if dictExistingVersion is not None:
-        if dictExistingVersion["sha256"] != versionEntry["sha256"]:
-            raise ComponentManagementError(
-                code="immutable_version_conflict",
-                message=(f"Component {packageName} {versionEntry['version']} already exists with different content."),
-                details={
-                    "componentId": componentId,
-                    "version": versionEntry["version"],
-                    "existingSha256": dictExistingVersion["sha256"],
-                    "publishedSha256": versionEntry["sha256"],
-                },
-            )
-        return
-
-    dictComponent["versions"].append(versionEntry)
-    dictComponent["versions"].sort(key=lambda item: Version(item["version"]))
-    indexDict["components"] = dict(sorted(indexDict["components"].items()))
-
-
-def _validate_transaction(value: object) -> DictRepositoryTransaction:
-    if not isinstance(value, dict):
-        raise ValueError("Transaction root value must be an object.")
-
-    _validate_exact_keys(value, _SET_TRANSACTION_KEYS, "transaction.json")
-
-    if value.get("schemaVersion") != 1 or value.get("operation") != "publishComponent":
-        raise ValueError("Unsupported Repository transaction.")
-
-    state = value.get("state")
-    if state not in {"prepared", "wheelCommitted"}:
-        raise ValueError("Invalid Repository transaction state.")
-
-    strComponentId = _normalize_component_id(value.get("componentId"), "componentId")
-
-    packageName = value.get("packageName")
-    if not isinstance(packageName, str):
-        raise ValueError("packageName must be a string.")
-    strPackageNameError = get_package_name_error(packageName)
-    if strPackageNameError is not None:
-        raise ValueError(f"packageName: {strPackageNameError}")
-
-    version = value.get("version")
-    if not isinstance(version, str) or normalize_version(version) != version:
-        raise ValueError("version must use the normalized PEP 440 form.")
-
-    strWheelFile = _validate_wheel_file_name(
-        value.get("wheelFile"),
-        "wheelFile",
-        packageName=packageName,
-        version=version,
-    )
-    strSha256 = _validate_sha256(value.get("sha256"), "sha256")
-
-    targetRelativePath = value.get("targetRelativePath")
-    if not isinstance(targetRelativePath, str):
-        raise ValueError("targetRelativePath must be a string.")
-
-    strExpectedRelativePath = _get_wheel_relative_path(
-        componentId=strComponentId,
-        packageName=packageName,
-        wheelFile=strWheelFile,
-    )
-    if targetRelativePath != strExpectedRelativePath:
-        raise ValueError("targetRelativePath does not match the Component identity.")
-
-    dictVersionEntry = _validate_repository_version(
-        value.get("versionEntry"),
-        "versionEntry",
-        componentId=strComponentId,
-        packageName=packageName,
-    )
-    if (
-        dictVersionEntry["version"] != version
-        or dictVersionEntry["wheelFile"] != strWheelFile
-        or dictVersionEntry["sha256"] != strSha256
-    ):
-        raise ValueError("Transaction versionEntry does not match the transaction fields.")
-
-    return cast(
-        DictRepositoryTransaction,
-        {
-            "schemaVersion": 1,
-            "operation": "publishComponent",
-            "state": state,
-            "componentId": strComponentId,
-            "packageName": packageName,
-            "version": version,
-            "wheelFile": strWheelFile,
-            "sha256": strSha256,
-            "targetRelativePath": targetRelativePath,
-            "versionEntry": dictVersionEntry,
-        },
-    )
-
-
-def _remove_transaction_folder(transactionPath: Path) -> DictComponentManagementWarning | None:
-    try:
-        shutil.rmtree(transactionPath)
-    except OSError as e:
-        return {
-            "code": "repository_cleanup_pending",
-            "message": f"Repository transaction recovery completed, but temporary files could not be removed: {transactionPath}",
-            "details": {"reason": str(e)},
-        }
-
-    return None
-
-
-def _recover_publish_transactions(repositoryPath: Path) -> list[DictComponentManagementWarning]:
-    pathStaging = repositoryPath / _STR_STAGING_FOLDER_NAME
-    if not pathStaging.exists():
-        return []
-
-    if not pathStaging.is_dir():
-        raise ComponentManagementError(
-            code="repository_recovery_failed",
-            message=f"Component Repository staging path is invalid: {pathStaging}",
-        )
-
-    listWarning: list[DictComponentManagementWarning] = []
-    dictIndex = _load_repository_index(repositoryPath, checkWheelPaths=False)
-
-    for pathTransaction in sorted(pathStaging.glob("publish_*"), key=lambda pathObj: pathObj.name):
-        if not pathTransaction.is_dir():
-            continue
-
-        pathTransactionFile = pathTransaction / "transaction.json"
-        if not pathTransactionFile.is_file():
-            dictWarning: DictComponentManagementWarning | None = _remove_transaction_folder(pathTransaction)
-            if dictWarning is not None:
-                listWarning.append(dictWarning)
-            continue
-
-        try:
-            dictTransaction = _validate_transaction(read_json(pathTransactionFile))
-        except (OSError, ValueError) as e:
-            raise ComponentManagementError(
-                code="repository_recovery_failed",
-                message=f"Invalid Component Repository transaction: {pathTransactionFile}",
-                details={"reason": str(e)},
-            ) from e
-
-        pathTargetWheel = repositoryPath.joinpath(*PurePosixPath(dictTransaction["targetRelativePath"]).parts)
-        dictComponent = dictIndex["components"].get(dictTransaction["componentId"])
-        dictExistingVersion = (
-            None if dictComponent is None else _find_equivalent_version(dictComponent, dictTransaction["version"])
-        )
-
-        if pathTargetWheel.exists() and not pathTargetWheel.is_file():
-            raise ComponentManagementError(
-                code="repository_recovery_failed",
-                message="The target path of an interrupted Repository transaction is not a Wheel file.",
-                details={
-                    "transactionFile": str(pathTransactionFile),
-                    "wheelFile": str(pathTargetWheel),
-                },
-            )
-
-        if pathTargetWheel.is_file():
-            strActualSha256 = calculate_file_sha256(pathTargetWheel)
-            if strActualSha256 != dictTransaction["sha256"]:
-                raise ComponentManagementError(
-                    code="repository_recovery_failed",
-                    message="A committed Component Wheel does not match its interrupted transaction.",
-                    details={
-                        "wheelFile": str(pathTargetWheel),
-                        "expectedSha256": dictTransaction["sha256"],
-                        "actualSha256": strActualSha256,
-                    },
-                )
-
-            if dictExistingVersion is None:
-                try:
-                    _add_version_to_index(
-                        indexDict=dictIndex,
-                        componentId=dictTransaction["componentId"],
-                        packageName=dictTransaction["packageName"],
-                        versionEntry=dictTransaction["versionEntry"],
-                    )
-                    write_json_atomic(repositoryPath / _STR_INDEX_FILE_NAME, dictIndex)
-                except ComponentManagementError as e:
-                    raise ComponentManagementError(
-                        code="repository_recovery_failed",
-                        message="The Repository index conflicts with an interrupted publish transaction.",
-                        details={"transactionFile": str(pathTransactionFile)},
-                    ) from e
-                except OSError as e:
-                    raise ComponentManagementError(
-                        code="repository_recovery_failed",
-                        message="Failed to finish an interrupted Component Repository publish transaction.",
-                    ) from e
-            elif dictExistingVersion != dictTransaction["versionEntry"]:
-                # Dict objects will compare each item when using ==. It's more comprehensive and accurate than comparing SHA.
-                raise ComponentManagementError(
-                    code="repository_recovery_failed",
-                    message="The Repository index conflicts with an interrupted publish transaction.",
-                    details={"transactionFile": str(pathTransactionFile)},
-                )
-        else:
-            if dictExistingVersion is not None:
-                raise ComponentManagementError(
-                    code="repository_recovery_failed",
-                    message=("The Repository index references a Wheel missing from an interrupted transaction."),
-                    details={"wheelFile": str(pathTargetWheel)},
-                )
-
-            if dictTransaction["state"] == "wheelCommitted":
-                raise ComponentManagementError(
-                    code="repository_recovery_failed",
-                    message=(
-                        "An interrupted Repository transaction recorded the Wheel as committed, but the target Wheel is missing."
-                    ),
-                    details={
-                        "transactionFile": str(pathTransactionFile),
-                        "wheelFile": str(pathTargetWheel),
-                    },
-                )
-
-        # prepared + no target Wheel + no index entry:
-        # nothing entered the formal Repository, so the transaction can be removed.
-
-        dictWarning = _remove_transaction_folder(pathTransaction)
-        if dictWarning is not None:
-            listWarning.append(dictWarning)
-
-    return listWarning
-
 
 def _get_repository_path() -> Path:
     try:
@@ -703,6 +69,8 @@ def _get_repository_path() -> Path:
             )
 
         pathRepository = pathRepository.resolve()
+    except ComponentManagementError:
+        raise
 
     except (OSError, RuntimeError, ValueError) as e:
         raise ComponentManagementError(
@@ -717,20 +85,6 @@ def _get_repository_path() -> Path:
         )
 
     return pathRepository
-
-
-def _get_wheel_path(
-    repositoryPath: Path,
-    componentId: str,
-    packageName: str,
-    wheelFileName: str,
-) -> Path:
-    return (
-        repositoryPath
-        / _STR_COMPONENT_FOLDER_NAME
-        / _get_component_folder_name(packageName, componentId)
-        / wheelFileName
-    )
 
 
 def _build_version_entry(
@@ -749,19 +103,6 @@ def _build_version_entry(
     }
 
 
-def _copy_wheel_to_staging(sourcePath: Path, targetPath: Path) -> None:
-    try:
-        with sourcePath.open("rb") as sourceFileObj, targetPath.open("xb") as targetFileObj:
-            shutil.copyfileobj(sourceFileObj, targetFileObj, length=1024 * 1024)
-            targetFileObj.flush()
-            os.fsync(targetFileObj.fileno())
-    except OSError as e:
-        raise ComponentManagementError(
-            code="io_error",
-            message=f"Failed to copy the Component Wheel into Repository staging: {targetPath}",
-        ) from e
-
-
 def publish_component_wheel(
     manifestObj: ComponentManifest,
     wheelResult: WheelBuildResult,
@@ -769,17 +110,20 @@ def publish_component_wheel(
     pathRepository = _get_repository_path()
 
     with repository_lock(repositoryPath=pathRepository, operation="publishComponent"):
+        pathComponents = get_repository_components_path(pathRepository)
+        pathStaging = get_repository_staging_path(pathRepository)
+
         try:
-            (pathRepository / _STR_COMPONENT_FOLDER_NAME).mkdir(exist_ok=True)
-            (pathRepository / _STR_STAGING_FOLDER_NAME).mkdir(exist_ok=True)
+            pathComponents.mkdir(exist_ok=True)
+            pathStaging.mkdir(exist_ok=True)
         except OSError as e:
             raise ComponentManagementError(
                 code="repository_unavailable",
                 message=f"Failed to initialize the Component Repository structure: {pathRepository}",
             ) from e
 
-        listWarning: list[DictComponentManagementWarning] = _recover_publish_transactions(pathRepository)
-        dictIndex = _load_repository_index(pathRepository, checkWheelPaths=True)
+        listWarning = recover_publish_transactions(pathRepository)
+        dictIndex = load_repository_index(pathRepository, checkWheelPaths=True)
         dictComponent = dictIndex["components"].get(manifestObj.id)
 
         if dictComponent is not None and dictComponent["packageName"] != manifestObj.packageName:
@@ -796,14 +140,14 @@ def publish_component_wheel(
             )
 
         dictExistingVersion = (
-            None if dictComponent is None else _find_equivalent_version(dictComponent, manifestObj.version)
+            None if dictComponent is None else find_equivalent_version(dictComponent, manifestObj.version)
         )
         if dictExistingVersion is not None:
-            pathExistingWheel = _get_wheel_path(
+            pathExistingWheel = get_wheel_path(
                 repositoryPath=pathRepository,
                 componentId=manifestObj.id,
                 packageName=manifestObj.packageName,
-                wheelFileName=dictExistingVersion["wheelFile"],
+                wheelFile=dictExistingVersion["wheelFile"],
             )
             if not pathExistingWheel.is_file():
                 raise_rebuild_required(
@@ -854,13 +198,13 @@ def publish_component_wheel(
             )
 
         strTransactionId = str(uuid.uuid4())
-        pathTransaction = pathRepository / _STR_STAGING_FOLDER_NAME / f"publish_{strTransactionId}"
+        pathTransaction = pathStaging / f"publish_{strTransactionId}"
         pathCandidate = pathTransaction / "candidate.whl"
-        pathTargetWheel = _get_wheel_path(
+        pathTargetWheel = get_wheel_path(
             repositoryPath=pathRepository,
             componentId=manifestObj.id,
             packageName=manifestObj.packageName,
-            wheelFileName=wheelResult.wheelFile,
+            wheelFile=wheelResult.wheelFile,
         )
         strTargetRelativePath = pathTargetWheel.relative_to(pathRepository).as_posix()
         dictVersionEntry = _build_version_entry(manifestObj, wheelResult)
@@ -879,7 +223,7 @@ def publish_component_wheel(
 
         try:
             pathTransaction.mkdir(parents=False)
-            _copy_wheel_to_staging(wheelResult.wheelPath, pathCandidate)
+            copy_wheel_to_staging(wheelResult.wheelPath, pathCandidate)
 
             if calculate_file_sha256(pathCandidate) != wheelResult.sha256:
                 raise ComponentManagementError(
@@ -900,13 +244,13 @@ def publish_component_wheel(
             dictTransaction["state"] = "wheelCommitted"
             write_json_atomic(pathTransaction / "transaction.json", dictTransaction)
 
-            _add_version_to_index(
+            add_version_to_index(
                 indexDict=dictIndex,
                 componentId=manifestObj.id,
                 packageName=manifestObj.packageName,
                 versionEntry=dictVersionEntry,
             )
-            write_json_atomic(pathRepository / _STR_INDEX_FILE_NAME, dictIndex)
+            write_repository_index(pathRepository, dictIndex)
         except ComponentManagementError:
             raise
         except OSError as e:
@@ -916,7 +260,7 @@ def publish_component_wheel(
                 details={"repositoryPath": str(pathRepository)},
             ) from e
 
-        dictWarning: DictComponentManagementWarning | None = _remove_transaction_folder(pathTransaction)
+        dictWarning: DictComponentManagementWarning | None = remove_transaction_folder(pathTransaction)
         if dictWarning is not None:
             listWarning.append(dictWarning)
 
