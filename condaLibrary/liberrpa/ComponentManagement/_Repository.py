@@ -10,15 +10,20 @@ from liberrpa.ComponentManagement.Utils._Exception import ComponentManagementErr
 from liberrpa.ComponentManagement.Utils._File import write_json_atomic
 from liberrpa.ComponentManagement.Utils._Hash import calculate_file_sha256
 from liberrpa.ComponentManagement.Utils._TypedValue import (
-    DictComponentManagementWarning,
     ComponentManifest,
+    DictComponentManagementWarning,
     WheelBuildResult,
+    ComponentWheelInfo,
     DictRepositoryComponentVersion,
+    DictRepositoryIndex,
     DictRepositoryTransaction,
     RepositoryPublishResult,
+    RepositoryRebuildResult,
 )
+from liberrpa.ComponentManagement._Wheel import inspect_component_wheel
 from liberrpa.ComponentManagement.Lock._RepositoryLock import repository_lock
 from liberrpa.ComponentManagement._RepositoryIndex import (
+    STR_INDEX_FILE_NAME,
     get_repository_components_path,
     get_wheel_path,
     raise_rebuild_required,
@@ -32,9 +37,11 @@ from liberrpa.ComponentManagement._RepositoryTransaction import (
     get_repository_staging_path,
     recover_publish_transactions,
     copy_wheel_to_staging,
+    validate_publish_transactions_for_rebuild,
 )
 
 from pathlib import Path
+from packaging.version import Version
 import os
 import uuid
 
@@ -266,5 +273,196 @@ def publish_component_wheel(
 
         return RepositoryPublishResult(
             status="published",
+            warnings=listWarning,
+        )
+
+
+def _build_version_entry_from_wheel(
+    wheelInfo: ComponentWheelInfo,
+) -> DictRepositoryComponentVersion:
+    manifestObj = wheelInfo.manifest
+    return {
+        "version": manifestObj.version,
+        "displayName": manifestObj.displayName,
+        "description": manifestObj.description,
+        "manifestSchemaVersion": manifestObj.schemaVersion,
+        "wheelFile": wheelInfo.wheelFile,
+        "sha256": wheelInfo.sha256,
+        "requiresLiberrpa": manifestObj.requiresLiberrpa,
+        "componentDependencies": dict(sorted(manifestObj.componentDependencies.items())),
+    }
+
+
+def _add_rebuild_issue(
+    issueList: list[dict[str, object]],
+    *,
+    code: str,
+    path: Path,
+    message: str,
+    details: dict[str, object] | None = None,
+) -> None:
+    dictIssue: dict[str, object] = {
+        "code": code,
+        "path": str(path),
+        "message": message,
+    }
+    if details is not None:
+        dictIssue["details"] = details
+
+    issueList.append(dictIssue)
+
+
+def rebuild_repository_index() -> RepositoryRebuildResult:
+    pathRepository = _get_repository_path()
+
+    with repository_lock(repositoryPath=pathRepository, operation="rebuildRepositoryIndex"):
+        pathComponents = get_repository_components_path(pathRepository)
+        pathStaging = get_repository_staging_path(pathRepository)
+
+        try:
+            pathComponents.mkdir(exist_ok=True)
+            pathStaging.mkdir(exist_ok=True)
+        except OSError as e:
+            raise ComponentManagementError(
+                code="repository_unavailable",
+                message=(f"Failed to initialize the Component Repository structure: {pathRepository}"),
+            ) from e
+
+        if pathComponents.is_symlink() or not pathComponents.is_dir():
+            raise ComponentManagementError(
+                code="repository_rebuild_failed",
+                message="The Component Repository components path is invalid.",
+                details={"path": str(pathComponents)},
+            )
+
+        dictNewIndex: DictRepositoryIndex = {
+            "schemaVersion": 1,
+            "components": {},
+        }
+        listIssue: list[dict[str, object]] = []
+        listWarning: list[DictComponentManagementWarning] = []
+        dictVersionPath: dict[tuple[str, Version], Path] = {}
+
+        for pathComponentFolder in sorted(pathComponents.iterdir(), key=lambda pathObj: pathObj.name):
+            if pathComponentFolder.is_symlink() or not pathComponentFolder.is_dir():
+                _add_rebuild_issue(
+                    listIssue,
+                    code="invalid_component_folder",
+                    path=pathComponentFolder,
+                    message="Repository components may contain only Component folders.",
+                )
+                continue
+
+            listWheelPath: list[Path] = []
+            boolHasUnexpectedEntry = False
+
+            for pathEntry in sorted(pathComponentFolder.iterdir(), key=lambda pathObj: pathObj.name):
+                if pathEntry.is_symlink() or not pathEntry.is_file() or pathEntry.suffix.casefold() != ".whl":
+                    boolHasUnexpectedEntry = True
+                    _add_rebuild_issue(
+                        listIssue,
+                        code="unexpected_repository_entry",
+                        path=pathEntry,
+                        message="A Component Repository folder may contain only Wheel files.",
+                    )
+                    continue
+
+                listWheelPath.append(pathEntry)
+
+            if not listWheelPath and not boolHasUnexpectedEntry:
+                listWarning.append({
+                    "code": "empty_component_repository_folder",
+                    "message": f"Ignored empty Component Repository folder: {pathComponentFolder}",
+                })
+                continue
+
+            for pathWheel in listWheelPath:
+                try:
+                    wheelInfo = inspect_component_wheel(pathWheel)
+                except ComponentManagementError as e:
+                    _add_rebuild_issue(
+                        listIssue,
+                        code=e.code,
+                        path=pathWheel,
+                        message=e.message,
+                        details=e.details,
+                    )
+                    continue
+
+                manifestObj = wheelInfo.manifest
+                strExpectedFolderName = f"{manifestObj.packageName}_{manifestObj.id}"
+                if pathComponentFolder.name != strExpectedFolderName:
+                    _add_rebuild_issue(
+                        listIssue,
+                        code="component_folder_mismatch",
+                        path=pathWheel,
+                        message=(f"Wheel is stored in the wrong Component folder. Expected {strExpectedFolderName!r}."),
+                    )
+                    continue
+
+                tupleVersionKey = (manifestObj.id, Version(manifestObj.version))
+                pathExistingVersion = dictVersionPath.get(tupleVersionKey)
+                if pathExistingVersion is not None:
+                    _add_rebuild_issue(
+                        listIssue,
+                        code="duplicate_component_version",
+                        path=pathWheel,
+                        message=(
+                            "Repository contains more than one Wheel for the same Component ID and PEP 440 equivalent version."
+                        ),
+                        details={"existingWheel": str(pathExistingVersion)},
+                    )
+                    continue
+
+                dictVersionPath[tupleVersionKey] = pathWheel
+                dictVersionEntry = _build_version_entry_from_wheel(wheelInfo)
+
+                try:
+                    add_version_to_index(
+                        indexDict=dictNewIndex,
+                        componentId=manifestObj.id,
+                        packageName=manifestObj.packageName,
+                        versionEntry=dictVersionEntry,
+                    )
+                except ComponentManagementError as e:
+                    _add_rebuild_issue(
+                        listIssue,
+                        code=e.code,
+                        path=pathWheel,
+                        message=e.message,
+                        details=e.details,
+                    )
+
+        if listIssue:
+            raise ComponentManagementError(
+                code="repository_rebuild_failed",
+                message=("Repository index could not be rebuilt because one or more Repository entries are invalid."),
+                details={"issues": listIssue},
+            )
+
+        listTransactionCleanup = validate_publish_transactions_for_rebuild(
+            repositoryPath=pathRepository,
+            indexDict=dictNewIndex,
+        )
+
+        try:
+            write_repository_index(pathRepository, dictNewIndex)
+        except OSError as e:
+            raise ComponentManagementError(
+                code="repository_rebuild_failed",
+                message="Failed to write the rebuilt Component Repository index.",
+                details={"indexFile": str(pathRepository / STR_INDEX_FILE_NAME)},
+            ) from e
+
+        for pathTransaction in listTransactionCleanup:
+            dictWarning = remove_transaction_folder(pathTransaction)
+            if dictWarning is not None:
+                listWarning.append(dictWarning)
+
+        intVersionCount = sum(len(dictComponent["versions"]) for dictComponent in dictNewIndex["components"].values())
+
+        return RepositoryRebuildResult(
+            componentCount=len(dictNewIndex["components"]),
+            versionCount=intVersionCount,
             warnings=listWarning,
         )

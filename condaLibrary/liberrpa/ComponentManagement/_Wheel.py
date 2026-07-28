@@ -8,7 +8,16 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 from liberrpa.ComponentManagement.Utils._Exception import ComponentManagementError
 from liberrpa.ComponentManagement.Utils._File import parse_json, serialize_json
 from liberrpa.ComponentManagement.Utils._Hash import calculate_file_sha256, calculate_record_hash
-from liberrpa.ComponentManagement.Utils._TypedValue import ComponentManifest, DictSnippetCatalogFile, WheelBuildResult
+from liberrpa.ComponentManagement.Utils._TypedValue import (
+    ComponentManifest,
+    DictSnippetImports,
+    DictNormalizedSnippet,
+    DictSnippetCatalogFile,
+    WheelBuildResult,
+    ComponentWheelInfo,
+)
+from liberrpa.ComponentManagement.Utils._Validation import validate_exact_keys
+from liberrpa.ComponentManagement._Manifest import parse_component_manifest
 
 from csv import reader, writer
 from email import policy
@@ -25,6 +34,7 @@ from zipfile import (
     ZipFile,
     ZipInfo,
 )
+import keyword
 import os
 import re
 import stat
@@ -359,6 +369,277 @@ def _validate_record(
             raise ValueError(f"Wheel RECORD size does not match: {strPath!r}.")
 
 
+_SET_SNIPPET_CATALOG_KEYS = {
+    "schemaVersion",
+    "categoryOrder",
+    "importSources",
+    "snippets",
+}
+_SET_IMPORT_SOURCE_CONFIG_KEYS = {"order", "aliasMode"}
+_SET_NORMALIZED_SNIPPET_KEYS = {
+    "category",
+    "label",
+    "prefix",
+    "body",
+    "description",
+    "imports",
+    "insertionMode",
+}
+
+
+def _validate_identifier(value: object, field: str) -> str:
+    if not isinstance(value, str) or not value.isidentifier() or keyword.iskeyword(value):
+        raise ValueError(f"{field} must be a valid non-keyword Python identifier.")
+
+    return value
+
+
+def _validate_single_line_string(value: object, field: str) -> str:
+    if not isinstance(value, str) or value == "":
+        raise ValueError(f"{field} must be a non-empty string.")
+
+    if "\r" in value or "\n" in value:
+        raise ValueError(f"{field} must be a single line.")
+
+    return value
+
+
+def _validate_catalog_imports(
+    value: object,
+    field: str,
+    *,
+    packageName: str,
+    publicModuleSet: set[str],
+) -> DictSnippetImports:
+    if not isinstance(value, dict):
+        raise ValueError(f"{field} must be an object.")
+
+    dictResult: DictSnippetImports = {}
+
+    for importSource, importNameValue in value.items():
+        if not isinstance(importSource, str) or importSource == "":
+            raise ValueError(f"{field} contains an invalid import source.")
+
+        if not isinstance(importNameValue, list) or not importNameValue:
+            raise ValueError(f"{field}.{importSource} must be a non-empty array.")
+
+        listImportName: list[str] = []
+        setImportName: set[str] = set()
+
+        for intIndex, importName in enumerate(importNameValue):
+            strImportName = _validate_identifier(
+                importName,
+                f"{field}.{importSource}[{intIndex}]",
+            )
+
+            if strImportName in setImportName:
+                raise ValueError(f"{field}.{importSource} contains duplicate import name {strImportName!r}.")
+
+            if importSource == packageName and strImportName not in publicModuleSet:
+                raise ValueError(f"{field}.{importSource} contains unknown public Module {strImportName!r}.")
+
+            setImportName.add(strImportName)
+            listImportName.append(strImportName)
+
+        dictResult[importSource] = listImportName
+
+    return dictResult
+
+
+def _validate_snippet_catalog(
+    value: object,
+    manifestObj: ComponentManifest,
+) -> DictSnippetCatalogFile:
+    if not isinstance(value, dict):
+        raise ValueError("snippets_catalog.json root value must be an object.")
+
+    validate_exact_keys(value, _SET_SNIPPET_CATALOG_KEYS, "snippets_catalog.json")
+
+    if value.get("schemaVersion") != 1:
+        raise ValueError("snippets_catalog.json schemaVersion must be 1.")
+
+    importSourcesValue = value.get("importSources")
+    if not isinstance(importSourcesValue, dict):
+        raise ValueError("snippets_catalog.json importSources must be an object.")
+
+    if set(importSourcesValue) != {manifestObj.packageName}:
+        raise ValueError("A Component snippets catalog must define exactly its own packageName as the import source.")
+
+    sourceConfigValue = importSourcesValue[manifestObj.packageName]
+    if not isinstance(sourceConfigValue, dict):
+        raise ValueError(f"importSources.{manifestObj.packageName} must be an object.")
+
+    validate_exact_keys(
+        sourceConfigValue,
+        _SET_IMPORT_SOURCE_CONFIG_KEYS,
+        f"importSources.{manifestObj.packageName}",
+    )
+
+    if sourceConfigValue.get("aliasMode") != "source_module":
+        raise ValueError(f"importSources.{manifestObj.packageName}.aliasMode must be 'source_module'.")
+
+    moduleOrderValue = sourceConfigValue.get("order")
+    if not isinstance(moduleOrderValue, list):
+        raise ValueError(f"importSources.{manifestObj.packageName}.order must be an array.")
+
+    listModuleOrder: list[str] = []
+    setModule: set[str] = set()
+
+    for intIndex, moduleName in enumerate(moduleOrderValue):
+        strModuleName = _validate_identifier(
+            moduleName,
+            f"importSources.{manifestObj.packageName}.order[{intIndex}]",
+        )
+        if strModuleName in setModule:
+            raise ValueError(
+                f"importSources.{manifestObj.packageName}.order contains duplicate Module {strModuleName!r}."
+            )
+        setModule.add(strModuleName)
+        listModuleOrder.append(strModuleName)
+
+    categoryOrderValue = value.get("categoryOrder")
+    if not isinstance(categoryOrderValue, list):
+        raise ValueError("snippets_catalog.json categoryOrder must be an array.")
+
+    listCategoryOrder: list[str] = []
+    setCategory: set[str] = set()
+    strCategoryPrefix = f"{manifestObj.packageName}_"
+
+    for intIndex, category in enumerate(categoryOrderValue):
+        if not isinstance(category, str) or not category.startswith(strCategoryPrefix):
+            raise ValueError(f"categoryOrder[{intIndex}] must use {manifestObj.packageName}_ModuleName.")
+
+        strModuleName = category[len(strCategoryPrefix) :]
+        if strModuleName not in setModule:
+            raise ValueError(f"categoryOrder[{intIndex}] refers to an unknown public Module.")
+
+        if category in setCategory:
+            raise ValueError(f"categoryOrder contains duplicate category {category!r}.")
+
+        setCategory.add(category)
+        listCategoryOrder.append(category)
+
+    snippetsValue = value.get("snippets")
+    if not isinstance(snippetsValue, dict):
+        raise ValueError("snippets_catalog.json snippets must be an object.")
+
+    dictSnippet: dict[str, DictNormalizedSnippet] = {}
+    setUsedCategory: set[str] = set()
+    dictLabelOwner: dict[tuple[str, str], str] = {}
+    dictPrefixOwner: dict[str, str] = {}
+
+    for snippetKey, snippetValue in snippetsValue.items():
+        if not isinstance(snippetKey, str):
+            raise ValueError("Every Snippet key must be a string.")
+
+        strCategory, strSeparator, strSnippetName = snippetKey.partition(".")
+        if (
+            strSeparator == ""
+            or "." in strSnippetName
+            or strCategory not in setCategory
+            or not strSnippetName.isidentifier()
+            or keyword.iskeyword(strSnippetName)
+        ):
+            raise ValueError(f"Invalid Component Snippet key: {snippetKey!r}.")
+
+        if not isinstance(snippetValue, dict):
+            raise ValueError(f"snippets.{snippetKey} must be an object.")
+
+        validate_exact_keys(
+            snippetValue,
+            _SET_NORMALIZED_SNIPPET_KEYS,
+            f"snippets.{snippetKey}",
+        )
+
+        if snippetValue.get("category") != strCategory:
+            raise ValueError(f"snippets.{snippetKey}.category does not match its key.")
+
+        strLabel = _validate_single_line_string(
+            snippetValue.get("label"),
+            f"snippets.{snippetKey}.label",
+        )
+        strPrefix = _validate_single_line_string(
+            snippetValue.get("prefix"),
+            f"snippets.{snippetKey}.prefix",
+        )
+
+        bodyValue = snippetValue.get("body")
+        if (
+            not isinstance(bodyValue, list)
+            or not bodyValue
+            or not all(isinstance(line, str) for line in bodyValue)
+            or all(line == "" for line in bodyValue)
+        ):
+            raise ValueError(f"snippets.{snippetKey}.body must be a non-empty array of strings.")
+        listBody = list(bodyValue)
+
+        description = snippetValue.get("description")
+        if not isinstance(description, str) or description == "":
+            raise ValueError(f"snippets.{snippetKey}.description must be a non-empty string.")
+
+        insertionMode = snippetValue.get("insertionMode")
+        if insertionMode not in {"line", "cursor"}:
+            raise ValueError(f"snippets.{snippetKey}.insertionMode must be 'line' or 'cursor'.")
+
+        dictImports = _validate_catalog_imports(
+            snippetValue.get("imports"),
+            f"snippets.{snippetKey}.imports",
+            packageName=manifestObj.packageName,
+            publicModuleSet=setModule,
+        )
+
+        strModuleName = strCategory[len(strCategoryPrefix) :]
+        if strModuleName not in dictImports.get(manifestObj.packageName, []):
+            raise ValueError(f"snippets.{snippetKey}.imports must include its own public Module {strModuleName!r}.")
+
+        tupleLabel = (strCategory, strLabel)
+        strExistingLabelOwner = dictLabelOwner.get(tupleLabel)
+        if strExistingLabelOwner is not None:
+            raise ValueError(
+                f"snippets.{snippetKey}.label duplicates {strExistingLabelOwner!r} within category {strCategory!r}."
+            )
+        dictLabelOwner[tupleLabel] = snippetKey
+
+        strExistingPrefixOwner = dictPrefixOwner.get(strPrefix)
+        if strExistingPrefixOwner is not None:
+            raise ValueError(f"snippets.{snippetKey}.prefix duplicates {strExistingPrefixOwner!r}.")
+        dictPrefixOwner[strPrefix] = snippetKey
+
+        setUsedCategory.add(strCategory)
+        dictSnippet[snippetKey] = {
+            "category": strCategory,
+            "label": strLabel,
+            "prefix": strPrefix,
+            "body": listBody,
+            "description": description,
+            "imports": dictImports,
+            "insertionMode": insertionMode,
+        }
+
+    if setCategory != setUsedCategory:
+        raise ValueError("categoryOrder must contain exactly the categories used by the final Snippets.")
+
+    listExpectedCategoryOrder = [
+        f"{manifestObj.packageName}_{moduleName}"
+        for moduleName in listModuleOrder
+        if f"{manifestObj.packageName}_{moduleName}" in setUsedCategory
+    ]
+    if listCategoryOrder != listExpectedCategoryOrder:
+        raise ValueError("categoryOrder must follow the Component import source Module order.")
+
+    return {
+        "schemaVersion": 1,
+        "categoryOrder": listCategoryOrder,
+        "importSources": {
+            manifestObj.packageName: {
+                "order": listModuleOrder,
+                "aliasMode": "source_module",
+            }
+        },
+        "snippets": dictSnippet,
+    }
+
+
 def validate_component_wheel(
     wheelPath: Path,
     manifestObj: ComponentManifest,
@@ -489,3 +770,57 @@ def validate_component_wheel(
         ) from e
 
     return calculate_file_sha256(wheelPath)
+
+
+def inspect_component_wheel(wheelPath: Path) -> ComponentWheelInfo:
+    if not wheelPath.is_file() or wheelPath.is_symlink():
+        raise ComponentManagementError(
+            code="wheel_validation_failed",
+            message=f"Component Wheel file was not found or is invalid: {wheelPath}",
+        )
+
+    try:
+        with ZipFile(wheelPath, mode="r") as wheelObj:
+            listManifestPath = [
+                infoObj.filename
+                for infoObj in wheelObj.infolist()
+                if PurePosixPath(infoObj.filename).name == "component.json"
+                and PurePosixPath(infoObj.filename).parent.name.endswith(".dist-info")
+            ]
+
+            if len(listManifestPath) != 1:
+                raise ValueError("Wheel must contain exactly one component.json directly inside its .dist-info folder.")
+
+            strManifestPath = listManifestPath[0]
+            pathDistInfo = PurePosixPath(strManifestPath).parent
+            strCatalogPath = (pathDistInfo / "snippets_catalog.json").as_posix()
+
+            embeddedManifest = parse_json(wheelObj.read(strManifestPath).decode("utf-8", errors="strict"))
+            manifestObj = parse_component_manifest(
+                embeddedManifest,
+                sourceName=strManifestPath,
+            )
+
+            embeddedCatalog = parse_json(wheelObj.read(strCatalogPath).decode("utf-8", errors="strict"))
+            dictSnippetCatalog = _validate_snippet_catalog(embeddedCatalog, manifestObj)
+    except ComponentManagementError:
+        raise
+    except (BadZipFile, KeyError, OSError, UnicodeDecodeError, ValueError) as e:
+        raise ComponentManagementError(
+            code="wheel_validation_failed",
+            message=f"Component Wheel is invalid: {wheelPath}",
+            details={"reason": str(e)},
+        ) from e
+
+    strSha256 = validate_component_wheel(
+        wheelPath=wheelPath,
+        manifestObj=manifestObj,
+        snippetCatalogDict=dictSnippetCatalog,
+    )
+
+    return ComponentWheelInfo(
+        manifest=manifestObj,
+        snippetCatalog=dictSnippetCatalog,
+        wheelFile=wheelPath.name,
+        sha256=strSha256,
+    )

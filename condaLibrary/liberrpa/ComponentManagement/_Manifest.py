@@ -4,7 +4,7 @@ __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
-# Handle component.json in a Component Project.
+# Handle component.json in a Component Project or Component Wheel.
 
 from liberrpa.ComponentManagement.Utils._Exception import ComponentManagementError
 from liberrpa.ComponentManagement.Utils._File import read_json
@@ -62,27 +62,23 @@ def _validate_string_field(
     return value
 
 
-def read_component_manifest(manifestPath: Path) -> ComponentManifest:
-    if not manifestPath.is_file():
-        raise ComponentManagementError(
-            code="component_manifest_missing",
-            message=f"Component Project manifest was not found: {manifestPath}",
-        )
-
-    try:
-        value = read_json(manifestPath)
-    except (OSError, ValueError) as e:
-        raise ComponentManagementError(
-            code="component_manifest_invalid",
-            message="Failed to read component.json.",
-            details={"issues": [{"field": "component.json", "message": str(e)}]},
-        ) from e
-
+def parse_component_manifest(
+    value: object,
+    *,
+    sourceName: str = "component.json",
+) -> ComponentManifest:
     if not isinstance(value, dict):
         raise ComponentManagementError(
             code="component_manifest_invalid",
-            message="Invalid component.json.",
-            details={"issues": [{"field": "component.json", "message": "The root value must be an object."}]},
+            message=f"Invalid {sourceName}.",
+            details={
+                "issues": [
+                    {
+                        "field": sourceName,
+                        "message": "The root value must be an object.",
+                    },
+                ]
+            },
         )
 
     listIssue: list[dict[str, object]] = []
@@ -93,10 +89,10 @@ def read_component_manifest(manifestPath: Path) -> ComponentManifest:
         listUnknownKey = sorted(setKeys - _SET_COMPONENT_MANIFEST_KEYS)
 
         if listMissingKey:
-            add_issue(listIssue, "component.json", f"Missing fields: {listMissingKey}.")
+            add_issue(listIssue, sourceName, f"Missing fields: {listMissingKey}.")
 
         if listUnknownKey:
-            add_issue(listIssue, "component.json", f"Unknown fields: {listUnknownKey}.")
+            add_issue(listIssue, sourceName, f"Unknown fields: {listUnknownKey}.")
 
     schemaVersionValue = value.get("schemaVersion")
     if type(schemaVersionValue) is not int or schemaVersionValue != 1:
@@ -229,7 +225,7 @@ def read_component_manifest(manifestPath: Path) -> ComponentManifest:
     if listIssue:
         raise ComponentManagementError(
             code="component_manifest_invalid",
-            message="Invalid component.json.",
+            message=f"Invalid {sourceName}.",
             details={"issues": listIssue},
         )
 
@@ -250,3 +246,22 @@ def read_component_manifest(manifestPath: Path) -> ComponentManifest:
         requiresLiberrpa=strNormalizedRequiresLiberrpa,
         componentDependencies=dict(sorted(dictNormalizedDependency.items())),
     )
+
+
+def read_component_manifest(manifestPath: Path) -> ComponentManifest:
+    if not manifestPath.is_file():
+        raise ComponentManagementError(
+            code="component_manifest_missing",
+            message=f"Component Project manifest was not found: {manifestPath}",
+        )
+
+    try:
+        value = read_json(manifestPath)
+    except (OSError, ValueError) as e:
+        raise ComponentManagementError(
+            code="component_manifest_invalid",
+            message="Failed to read component.json.",
+            details={"issues": [{"field": "component.json", "message": str(e)}]},
+        ) from e
+
+    return parse_component_manifest(value)

@@ -10,6 +10,7 @@ from liberrpa.ComponentManagement.Utils._File import read_json
 from liberrpa.ComponentManagement.Utils._Hash import calculate_file_sha256
 from liberrpa.ComponentManagement.Utils._TypedValue import (
     DictComponentManagementWarning,
+    DictRepositoryIndex,
     DictRepositoryTransaction,
 )
 from liberrpa.ComponentManagement.Utils._Version import normalize_version
@@ -263,3 +264,104 @@ def copy_wheel_to_staging(sourcePath: Path, targetPath: Path) -> None:
             code="io_error",
             message=(f"Failed to copy the Component Wheel into Repository staging: {targetPath}"),
         ) from e
+
+
+def validate_publish_transactions_for_rebuild(
+    repositoryPath: Path,
+    indexDict: DictRepositoryIndex,
+) -> list[Path]:
+    pathStaging = get_repository_staging_path(repositoryPath)
+    if not pathStaging.exists():
+        return []
+
+    if not pathStaging.is_dir() or pathStaging.is_symlink():
+        raise ComponentManagementError(
+            code="repository_rebuild_failed",
+            message=f"Component Repository staging path is invalid: {pathStaging}",
+        )
+
+    listCleanupPath: list[Path] = []
+
+    for pathTransaction in sorted(pathStaging.glob("publish_*"), key=lambda pathObj: pathObj.name):
+        if not pathTransaction.is_dir() or pathTransaction.is_symlink():
+            raise ComponentManagementError(
+                code="repository_rebuild_failed",
+                message="Component Repository staging contains an invalid publish transaction path.",
+                details={"transactionPath": str(pathTransaction)},
+            )
+
+        pathTransactionFile = pathTransaction / "transaction.json"
+        if not pathTransactionFile.is_file() or pathTransactionFile.is_symlink():
+            listCleanupPath.append(pathTransaction)
+            continue
+
+        try:
+            dictTransaction = _validate_transaction(read_json(pathTransactionFile))
+        except (OSError, ValueError) as e:
+            raise ComponentManagementError(
+                code="repository_rebuild_failed",
+                message=f"Invalid Component Repository transaction: {pathTransactionFile}",
+                details={"reason": str(e)},
+            ) from e
+
+        pathTargetWheel = repositoryPath.joinpath(*PurePosixPath(dictTransaction["targetRelativePath"]).parts)
+        dictComponent = indexDict["components"].get(dictTransaction["componentId"])
+        dictExistingVersion = (
+            None if dictComponent is None else find_equivalent_version(dictComponent, dictTransaction["version"])
+        )
+
+        if pathTargetWheel.exists() and not pathTargetWheel.is_file():
+            raise ComponentManagementError(
+                code="repository_rebuild_failed",
+                message=("The target path of an interrupted Repository transaction is not a Wheel file."),
+                details={
+                    "transactionFile": str(pathTransactionFile),
+                    "wheelFile": str(pathTargetWheel),
+                },
+            )
+
+        if pathTargetWheel.is_file():
+            strActualSha256 = calculate_file_sha256(pathTargetWheel)
+            if strActualSha256 != dictTransaction["sha256"]:
+                raise ComponentManagementError(
+                    code="repository_rebuild_failed",
+                    message=("A committed Component Wheel does not match its interrupted transaction."),
+                    details={
+                        "wheelFile": str(pathTargetWheel),
+                        "expectedSha256": dictTransaction["sha256"],
+                        "actualSha256": strActualSha256,
+                    },
+                )
+
+            if dictExistingVersion != dictTransaction["versionEntry"]:
+                raise ComponentManagementError(
+                    code="repository_rebuild_failed",
+                    message=("The rebuilt Repository index conflicts with an interrupted publish transaction."),
+                    details={"transactionFile": str(pathTransactionFile)},
+                )
+        else:
+            if dictExistingVersion is not None:
+                raise ComponentManagementError(
+                    code="repository_rebuild_failed",
+                    message=(
+                        "The rebuilt Repository index references a Wheel missing from an interrupted transaction."
+                    ),
+                    details={"wheelFile": str(pathTargetWheel)},
+                )
+
+            if dictTransaction["state"] == "wheelCommitted":
+                raise ComponentManagementError(
+                    code="repository_rebuild_failed",
+                    message=(
+                        "An interrupted Repository transaction recorded the Wheel "
+                        "as committed, but the target Wheel is missing."
+                    ),
+                    details={
+                        "transactionFile": str(pathTransactionFile),
+                        "wheelFile": str(pathTargetWheel),
+                    },
+                )
+
+        listCleanupPath.append(pathTransaction)
+
+    return listCleanupPath

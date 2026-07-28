@@ -12,7 +12,7 @@ from liberrpa.ComponentManagement.Utils._TypedValue import (
     DictRepositoryIndex,
 )
 from liberrpa.ComponentManagement.Utils._Version import normalize_specifier, normalize_version
-from liberrpa.ComponentManagement.Utils._Validation import get_package_name_error
+from liberrpa.ComponentManagement.Utils._Validation import get_package_name_error, validate_exact_keys
 
 from pathlib import Path, PurePosixPath
 from packaging.version import Version
@@ -26,7 +26,7 @@ import re
 import uuid
 
 
-_STR_INDEX_FILE_NAME = "repository.json"
+STR_INDEX_FILE_NAME = "repository.json"
 _STR_COMPONENT_FOLDER_NAME = "components"
 
 _REGEX_SHA256 = re.compile(r"^[0-9a-f]{64}$")
@@ -43,19 +43,6 @@ _SET_REPOSITORY_VERSION_KEYS = {
     "requiresLiberrpa",
     "componentDependencies",
 }
-
-
-def validate_exact_keys(value: dict[object, object], expectedKeySet: set[str], field: str) -> None:
-    setStringKey = {key for key in value if isinstance(key, str)}
-    listNonStringKey = sorted(repr(key) for key in value if not isinstance(key, str))
-    listMissingKey = sorted(expectedKeySet - setStringKey)
-    listUnknownKey = sorted(setStringKey - expectedKeySet)
-
-    if listNonStringKey or listMissingKey or listUnknownKey:
-        raise ValueError(
-            f"{field} has invalid fields. Missing: {listMissingKey}; "
-            f"unknown: {listUnknownKey}; non-string: {listNonStringKey}."
-        )
 
 
 def _validate_wheel_file_name(
@@ -363,7 +350,7 @@ def load_repository_index(
     *,
     checkWheelPaths: bool,
 ) -> DictRepositoryIndex:
-    pathIndexFile = repositoryPath / _STR_INDEX_FILE_NAME
+    pathIndexFile = repositoryPath / STR_INDEX_FILE_NAME
 
     if not pathIndexFile.exists():
         dictIndex: DictRepositoryIndex = {
@@ -401,7 +388,7 @@ def load_repository_index(
 
 
 def write_repository_index(repositoryPath: Path, indexDict: DictRepositoryIndex) -> None:
-    write_json_atomic(repositoryPath / _STR_INDEX_FILE_NAME, indexDict)
+    write_json_atomic(repositoryPath / STR_INDEX_FILE_NAME, indexDict)
 
 
 def find_equivalent_version(

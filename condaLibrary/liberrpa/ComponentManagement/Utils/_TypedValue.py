@@ -111,6 +111,14 @@ class WheelBuildResult:
     sha256: str
 
 
+@dataclass(frozen=True)
+class ComponentWheelInfo:
+    manifest: ComponentManifest
+    snippetCatalog: DictSnippetCatalogFile
+    wheelFile: str
+    sha256: str
+
+
 ##### Repository #####
 
 
@@ -154,6 +162,13 @@ class RepositoryPublishResult:
     warnings: list[DictComponentManagementWarning]
 
 
+@dataclass(frozen=True)
+class RepositoryRebuildResult:
+    componentCount: int
+    versionCount: int
+    warnings: list[DictComponentManagementWarning]
+
+
 ##### Publish #####
 
 
@@ -184,6 +199,15 @@ class DictPublishedComponentResult(DictPublishResultBase):
 type DictPublishComponentResult = DictPreparationCreatedResult | DictPublishedComponentResult
 
 
+class DictRepositoryIndexRebuiltResult(TypedDict):
+    status: Literal["repositoryIndexRebuilt"]
+    componentCount: int
+    versionCount: int
+
+
+type DictComponentManagementResult = DictPublishComponentResult | DictRepositoryIndexRebuiltResult
+
+
 ##### Protocol #####
 
 
@@ -193,17 +217,35 @@ class DictPublishComponentRequest(TypedDict):
     projectPath: str
 
 
+class DictRebuildRepositoryIndexRequest(TypedDict):
+    schemaVersion: Literal[1]
+    operation: Literal["rebuildRepositoryIndex"]
+
+
+type DictComponentManagementRequest = DictPublishComponentRequest | DictRebuildRepositoryIndexRequest
+
+
 class DictProtocolError(TypedDict):
     code: str
     message: str
     details: dict[str, object]
 
 
-class DictSuccessResponse(TypedDict):
+class DictPublishComponentSuccessResponse(TypedDict):
     schemaVersion: Literal[1]
     ok: Literal[True]
     result: DictPublishComponentResult
     warnings: list[DictComponentManagementWarning]
+
+
+class DictRepositoryIndexRebuiltSuccessResponse(TypedDict):
+    schemaVersion: Literal[1]
+    ok: Literal[True]
+    result: DictRepositoryIndexRebuiltResult
+    warnings: list[DictComponentManagementWarning]
+
+
+type DictSuccessResponse = DictPublishComponentSuccessResponse | DictRepositoryIndexRebuiltSuccessResponse
 
 
 class DictErrorResponse(TypedDict):

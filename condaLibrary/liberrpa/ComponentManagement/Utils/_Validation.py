@@ -137,3 +137,20 @@ def get_package_name_error(packageName: str) -> str | None:
         return f"Package name {packageName!r} conflicts with a third-party package used by LiberRPA."
 
     return None
+
+
+def validate_exact_keys(
+    value: dict[object, object],
+    expectedKeys: set[str],
+    field: str,
+) -> None:
+    setStringKey = {key for key in value if isinstance(key, str)}
+    listNonStringKey = sorted(repr(key) for key in value if not isinstance(key, str))
+    listMissingKey = sorted(expectedKeys - setStringKey)
+    listUnknownKey = sorted(setStringKey - expectedKeys)
+
+    if listNonStringKey or listMissingKey or listUnknownKey:
+        raise ValueError(
+            f"{field} has invalid fields. Missing: {listMissingKey}; "
+            f"unknown: {listUnknownKey}; non-string: {listNonStringKey}."
+        )
