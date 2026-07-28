@@ -96,6 +96,23 @@ def get_repository_path() -> Path:
     return pathRepository
 
 
+def load_repository_resolution_snapshot() -> tuple[
+    DictRepositoryIndex,
+    list[DictComponentManagementWarning],
+]:
+    """Read a consistent Repository index snapshot after recovering interrupted publishes."""
+    pathRepository = get_repository_path()
+
+    with repository_lock(
+        repositoryPath=pathRepository,
+        operation="resolveProjectDependencies",
+    ):
+        listWarning = recover_publish_transactions(pathRepository)
+        dictIndex = load_repository_index(pathRepository, checkWheelPaths=True)
+
+    return dictIndex, listWarning
+
+
 def _build_version_entry(
     manifestObj: ComponentManifest,
     wheelResult: WheelBuildResult,
