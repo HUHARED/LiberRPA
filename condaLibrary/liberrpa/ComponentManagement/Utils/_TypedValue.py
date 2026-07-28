@@ -18,6 +18,20 @@ class DictOperationWarning(TypedDict):
 
 ##### Manifest #####
 
+type ProjectType = Literal["flow", "component"]
+
+
+@dataclass(frozen=True)
+class FlowManifest:
+    """flow.json in a Flow Project"""
+
+    schemaVersion: Literal[1]
+    name: str
+    version: str
+    description: str
+    requiresLiberrpa: str
+    componentDependencies: dict[str, str]
+
 
 @dataclass(frozen=True)
 class ComponentManifest:
@@ -31,6 +45,9 @@ class ComponentManifest:
     description: str
     requiresLiberrpa: str
     componentDependencies: dict[str, str]
+
+
+type ProjectManifest = FlowManifest | ComponentManifest
 
 
 ##### Snippet attributes #####
@@ -167,6 +184,74 @@ class RepositoryRebuildResult:
     componentCount: int
     versionCount: int
     warnings: list[DictComponentManagementWarning]
+
+
+##### Components lock #####
+
+
+class DictFlowProjectComponentsLockRoot(TypedDict):
+    manifestFile: Literal["flow.json"]
+    manifestSchemaVersion: Literal[1]
+    requiresLiberrpa: str
+    componentDependencies: dict[str, str]
+    resolutionInputSha256: str
+
+
+class DictComponentProjectComponentsLockRoot(TypedDict):
+    manifestFile: Literal["component.json"]
+    manifestSchemaVersion: Literal[1]
+    componentId: str
+    packageName: str
+    requiresLiberrpa: str
+    componentDependencies: dict[str, str]
+    resolutionInputSha256: str
+
+
+type DictComponentsLockRoot = DictFlowProjectComponentsLockRoot | DictComponentProjectComponentsLockRoot
+
+
+class DictLockedComponent(TypedDict):
+    manifestSchemaVersion: Literal[1]
+    packageName: str
+    displayName: str
+    version: str
+    wheelFile: str
+    sha256: str
+    requiresLiberrpa: str
+    componentDependencies: dict[str, str]
+
+
+class DictComponentsLockFile(TypedDict):
+    """components.lock.json in a Flow or Component Project."""
+
+    schemaVersion: Literal[1]
+    root: DictComponentsLockRoot
+    components: dict[str, DictLockedComponent]
+
+
+type ComponentsLockState = Literal["notRequired", "missing", "invalid", "stale", "valid"]
+type ComponentsState = Literal["notRequired", "unverified", "missing", "damaged", "valid"]
+type EnvironmentState = Literal["unknown", "compatible", "incompatible"]
+type RepairState = Literal[
+    "notApplicable",
+    "available",
+    "repositoryUnavailable",
+    "wheelMissing",
+    "wheelHashMismatch",
+]
+
+
+@dataclass(frozen=True)
+class ProjectDependencyState:
+    projectPath: Path
+    projectType: ProjectType
+    manifest: ProjectManifest
+    componentsLock: DictComponentsLockFile | None
+    lockState: ComponentsLockState
+    componentsState: ComponentsState
+    environmentState: EnvironmentState
+    repairState: RepairState
+    details: dict[str, object]
 
 
 ##### Publish #####

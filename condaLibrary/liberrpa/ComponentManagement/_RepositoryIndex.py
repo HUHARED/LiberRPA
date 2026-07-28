@@ -45,7 +45,7 @@ _SET_REPOSITORY_VERSION_KEYS = {
 }
 
 
-def _validate_wheel_file_name(
+def validate_wheel_file_name(
     value: object,
     field: str,
     *,
@@ -83,7 +83,7 @@ def _validate_wheel_file_name(
     return value
 
 
-def _validate_sha256(value: object, field: str) -> str:
+def validate_sha256(value: object, field: str) -> str:
     if not isinstance(value, str) or _REGEX_SHA256.fullmatch(value) is None:
         raise ValueError(f"{field} must be a lowercase SHA-256 value.")
 
@@ -109,11 +109,11 @@ def normalize_component_id(value: object, field: str) -> str:
     return strNormalizedId
 
 
-def _validate_dependency_dict(
+def validate_component_dependency_dict(
     value: object,
     field: str,
     *,
-    componentId: str,
+    componentId: str | None,
 ) -> dict[str, str]:
     if not isinstance(value, dict):
         raise ValueError(f"{field} must be an object.")
@@ -122,7 +122,7 @@ def _validate_dependency_dict(
 
     for dependencyId, specifier in value.items():
         strDependencyId = normalize_component_id(dependencyId, f"{field}.{dependencyId}")
-        if strDependencyId == componentId:
+        if componentId is not None and strDependencyId == componentId:
             raise ValueError(f"{field} cannot contain a self-dependency.")
 
         if not isinstance(specifier, str):
@@ -157,8 +157,10 @@ def validate_repository_version(
         raise ValueError(f"{field}.version must use the normalized PEP 440 form.")
 
     displayName = value.get("displayName")
-    if not isinstance(displayName, str) or displayName == "":
+    if not isinstance(displayName, str) or displayName.strip() == "":
         raise ValueError(f"{field}.displayName must be a non-empty string.")
+    if displayName != displayName.strip() or "\r" in displayName or "\n" in displayName:
+        raise ValueError(f"{field}.displayName must be a trimmed single-line string.")
 
     description = value.get("description")
     if not isinstance(description, str):
@@ -168,13 +170,13 @@ def validate_repository_version(
     if type(manifestSchemaVersion) is not int or manifestSchemaVersion != 1:
         raise ValueError(f"{field}.manifestSchemaVersion must be 1.")
 
-    strWheelFile = _validate_wheel_file_name(
+    strWheelFile = validate_wheel_file_name(
         value.get("wheelFile"),
         f"{field}.wheelFile",
         packageName=packageName,
         version=strNormalizedVersion,
     )
-    strSha256 = _validate_sha256(value.get("sha256"), f"{field}.sha256")
+    strSha256 = validate_sha256(value.get("sha256"), f"{field}.sha256")
 
     requiresLiberrpa = value.get("requiresLiberrpa")
     if not isinstance(requiresLiberrpa, str):
@@ -183,7 +185,7 @@ def validate_repository_version(
     if requiresLiberrpa != strNormalizedRequiresLiberrpa:
         raise ValueError(f"{field}.requiresLiberrpa must use the normalized version range.")
 
-    dictDependency = _validate_dependency_dict(
+    dictDependency = validate_component_dependency_dict(
         value.get("componentDependencies"),
         f"{field}.componentDependencies",
         componentId=componentId,
@@ -332,17 +334,24 @@ def _get_actual_wheel_path_set(repositoryPath: Path) -> set[str]:
     if not pathComponents.exists():
         return set()
 
-    if not pathComponents.is_dir():
+    if not pathComponents.is_dir() or pathComponents.is_symlink():
         raise_rebuild_required(
-            "The Component Repository components path is not a folder.",
+            "The Component Repository components path is not a valid folder.",
             {"path": str(pathComponents)},
         )
 
-    return {
-        pathWheel.relative_to(repositoryPath).as_posix()
-        for pathWheel in pathComponents.rglob("*.whl")
-        if pathWheel.is_file()
-    }
+    setWheelPath: set[str] = set()
+
+    for pathWheel in pathComponents.rglob("*.whl"):
+        if not pathWheel.is_file() or pathWheel.is_symlink():
+            raise_rebuild_required(
+                "The Component Repository contains an invalid Wheel path.",
+                {"wheelFile": str(pathWheel)},
+            )
+
+        setWheelPath.add(pathWheel.relative_to(repositoryPath).as_posix())
+
+    return setWheelPath
 
 
 def load_repository_index(

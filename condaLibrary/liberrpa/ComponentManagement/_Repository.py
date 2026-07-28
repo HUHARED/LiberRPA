@@ -59,11 +59,13 @@ ComponentRepository/
 │   └── ComponentName2_uuidv4/
 │       └── componentname2-2.3.1-py313-none-any.whl
 └── .staging/
-
+    └── publish_<Transaction UUID>/
+    ├── transaction.json
+    └── candidate.whl  # Present only before the Wheel is committed.
 """
 
 
-def _get_repository_path() -> Path:
+def get_repository_path() -> Path:
     try:
         dictBasicConfig = get_basic_config_dict(toolName="Editor")
 
@@ -114,7 +116,7 @@ def publish_component_wheel(
     manifestObj: ComponentManifest,
     wheelResult: WheelBuildResult,
 ) -> RepositoryPublishResult:
-    pathRepository = _get_repository_path()
+    pathRepository = get_repository_path()
 
     with repository_lock(repositoryPath=pathRepository, operation="publishComponent"):
         pathComponents = get_repository_components_path(pathRepository)
@@ -132,6 +134,7 @@ def publish_component_wheel(
         listWarning = recover_publish_transactions(pathRepository)
         dictIndex = load_repository_index(pathRepository, checkWheelPaths=True)
         dictComponent = dictIndex["components"].get(manifestObj.id)
+        dictVersionEntry = _build_version_entry(manifestObj, wheelResult)
 
         if dictComponent is not None and dictComponent["packageName"] != manifestObj.packageName:
             raise ComponentManagementError(
@@ -156,7 +159,7 @@ def publish_component_wheel(
                 packageName=manifestObj.packageName,
                 wheelFile=dictExistingVersion["wheelFile"],
             )
-            if not pathExistingWheel.is_file():
+            if not pathExistingWheel.is_file() or pathExistingWheel.is_symlink():
                 raise_rebuild_required(
                     "A Component Wheel referenced by repository.json is missing.",
                     {"wheelFile": str(pathExistingWheel)},
@@ -174,6 +177,17 @@ def publish_component_wheel(
                 )
 
             if strExistingSha256 == wheelResult.sha256:
+                if dictExistingVersion != dictVersionEntry:
+                    raise_rebuild_required(
+                        "The Component version metadata in repository.json does not match the stored Wheel.",
+                        {
+                            "componentId": manifestObj.id,
+                            "version": manifestObj.version,
+                            "existingVersionEntry": dictExistingVersion,
+                            "expectedVersionEntry": dictVersionEntry,
+                        },
+                    )
+
                 return RepositoryPublishResult(
                     status="alreadyPublished",
                     warnings=listWarning,
@@ -214,7 +228,6 @@ def publish_component_wheel(
             wheelFile=wheelResult.wheelFile,
         )
         strTargetRelativePath = pathTargetWheel.relative_to(pathRepository).as_posix()
-        dictVersionEntry = _build_version_entry(manifestObj, wheelResult)
         dictTransaction: DictRepositoryTransaction = {
             "schemaVersion": 1,
             "operation": "publishComponent",
@@ -241,7 +254,7 @@ def publish_component_wheel(
             write_json_atomic(pathTransaction / "transaction.json", dictTransaction)
             pathTargetWheel.parent.mkdir(parents=True, exist_ok=True)
 
-            if pathTargetWheel.exists():
+            if pathTargetWheel.exists() or pathTargetWheel.is_symlink():
                 raise_rebuild_required(
                     "An unindexed Component Wheel already exists at the publish target.",
                     {"wheelFile": str(pathTargetWheel)},
@@ -313,7 +326,7 @@ def _add_rebuild_issue(
 
 
 def rebuild_repository_index() -> RepositoryRebuildResult:
-    pathRepository = _get_repository_path()
+    pathRepository = get_repository_path()
 
     with repository_lock(repositoryPath=pathRepository, operation="rebuildRepositoryIndex"):
         pathComponents = get_repository_components_path(pathRepository)

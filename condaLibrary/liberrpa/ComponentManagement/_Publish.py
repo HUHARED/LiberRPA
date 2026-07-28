@@ -177,13 +177,13 @@ def publish_component(
             }
             return dictPreparationResult, listWarning
 
-        dicBuildResult = build_snippet_catalog(
+        dictBuildResult = build_snippet_catalog(
             configPath=pathSnippetsJsoncFile,
             astSnippets=dictAstSnippets,
             packagePath=pathPackage,
             manifestObj=manifestObj,
         )
-        listWarning.extend(item for item in dicBuildResult.warnings)
+        listWarning.extend(item for item in dictBuildResult.warnings)
 
         pathBuildRoot, pathBuildFolder = _prepare_build_folder(pathProject)
 
@@ -195,7 +195,7 @@ def publish_component(
                 packagePath=pathPackage,
                 buildFolderPath=pathBuildFolder,
                 manifestObj=manifestObj,
-                snippetCatalog=dicBuildResult.catalog,
+                snippetCatalog=dictBuildResult.catalog,
             )
 
             repositoryResult = publish_component_wheel(
@@ -222,9 +222,9 @@ def publish_component(
             "snippetsJsoncFile": pathSnippetsJsoncFile.relative_to(pathProject).as_posix(),
             "generatedCount": len(dictAstSnippets["snippets"]),
             "skippedCount": len(dictAstSnippets["skipped"]),
-            "excludedCount": dicBuildResult.excludedCount,
-            "handWrittenCount": dicBuildResult.handWrittenCount,
-            "finalCount": len(dicBuildResult.catalog["snippets"]),
+            "excludedCount": dictBuildResult.excludedCount,
+            "handWrittenCount": dictBuildResult.handWrittenCount,
+            "finalCount": len(dictBuildResult.catalog["snippets"]),
             "warningCount": len(listWarning),
         }
         return dictPublishedResult, listWarning

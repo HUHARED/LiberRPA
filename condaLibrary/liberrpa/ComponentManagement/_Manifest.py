@@ -4,19 +4,33 @@ __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
-# Handle component.json in a Component Project or Component Wheel.
+# Handle flow.json and component.json in a Project or Component Wheel.
 
 from liberrpa.ComponentManagement.Utils._Exception import ComponentManagementError
 from liberrpa.ComponentManagement.Utils._File import read_json
 from liberrpa.ComponentManagement.Utils._Version import normalize_specifier, normalize_version
 from liberrpa.ComponentManagement.Utils._Validation import add_issue, get_package_name_error
-from liberrpa.ComponentManagement.Utils._TypedValue import ComponentManifest
+from liberrpa.ComponentManagement.Utils._TypedValue import (
+    ProjectType,
+    FlowManifest,
+    ComponentManifest,
+    ProjectManifest,
+)
 
 from pathlib import Path
 
 
 import uuid
 
+
+_SET_FLOW_MANIFEST_KEYS = {
+    "schemaVersion",
+    "name",
+    "version",
+    "description",
+    "requiresLiberrpa",
+    "componentDependencies",
+}
 
 _SET_COMPONENT_MANIFEST_KEYS = {
     "schemaVersion",
@@ -44,6 +58,23 @@ def _normalize_uuid(value: str, field: str, issueList: list[dict[str, object]]) 
     return str(uuidObj)
 
 
+def _validate_manifest_keys(
+    value: dict[str, object],
+    expectedKeySet: set[str],
+    sourceName: str,
+    issueList: list[dict[str, object]],
+) -> None:
+    setKey = set(value)
+    listMissingKey = sorted(expectedKeySet - setKey)
+    listUnknownKey = sorted(setKey - expectedKeySet)
+
+    if listMissingKey:
+        add_issue(issueList, sourceName, f"Missing fields: {listMissingKey}.")
+
+    if listUnknownKey:
+        add_issue(issueList, sourceName, f"Unknown fields: {listUnknownKey}.")
+
+
 def _validate_string_field(
     value: object,
     field: str,
@@ -60,6 +91,223 @@ def _validate_string_field(
         return None
 
     return value
+
+
+def _validate_trimmed_single_line_field(
+    value: object,
+    field: str,
+    issueList: list[dict[str, object]],
+) -> str | None:
+    strValue = _validate_string_field(value, field, issueList, allowEmpty=False)
+    if strValue is None:
+        return None
+
+    boolValid = True
+    if strValue != strValue.strip():
+        add_issue(issueList, field, "Value cannot start or end with whitespace.")
+        boolValid = False
+
+    if "\r" in strValue or "\n" in strValue:
+        add_issue(issueList, field, "Value must be a single line.")
+        boolValid = False
+
+    return strValue if boolValid else None
+
+
+def _normalize_uuid_field(
+    value: object,
+    field: str,
+    issueList: list[dict[str, object]],
+) -> str | None:
+    strValue = _validate_string_field(value, field, issueList, allowEmpty=False)
+    if strValue is None:
+        return None
+
+    if strValue != strValue.strip():
+        add_issue(issueList, field, "Value cannot start or end with whitespace.")
+        return None
+
+    return _normalize_uuid(strValue, field, issueList)
+
+
+def _validate_package_name_field(
+    value: object,
+    field: str,
+    issueList: list[dict[str, object]],
+) -> str | None:
+    strValue = _validate_string_field(value, field, issueList, allowEmpty=False)
+    if strValue is None:
+        return None
+
+    strPackageNameError = get_package_name_error(strValue)
+    if strPackageNameError is not None:
+        add_issue(issueList, field, strPackageNameError)
+        return None
+
+    return strValue
+
+
+def _normalize_version_field(
+    value: object,
+    field: str,
+    issueList: list[dict[str, object]],
+) -> str | None:
+    strValue = _validate_string_field(value, field, issueList, allowEmpty=False)
+    if strValue is None:
+        return None
+
+    if strValue != strValue.strip():
+        add_issue(issueList, field, "Value cannot start or end with whitespace.")
+        return None
+
+    try:
+        return normalize_version(strValue)
+    except ValueError as e:
+        add_issue(issueList, field, str(e))
+        return None
+
+
+def _normalize_specifier_field(
+    value: object,
+    field: str,
+    issueList: list[dict[str, object]],
+) -> str | None:
+    strValue = _validate_string_field(value, field, issueList, allowEmpty=False)
+    if strValue is None:
+        return None
+
+    if strValue != strValue.strip():
+        add_issue(issueList, field, "Value cannot start or end with whitespace.")
+        return None
+
+    try:
+        return normalize_specifier(strValue)
+    except ValueError as e:
+        add_issue(issueList, field, str(e))
+        return None
+
+
+def _normalize_component_dependencies(
+    value: object,
+    issueList: list[dict[str, object]],
+    *,
+    rootComponentId: str | None = None,
+) -> dict[str, str]:
+    dictNormalizedDependency: dict[str, str] = {}
+
+    if not isinstance(value, dict):
+        add_issue(
+            issueList,
+            "componentDependencies",
+            "Value must be an object containing Component ID and version range pairs.",
+        )
+        return dictNormalizedDependency
+
+    setNormalizedDependencyId: set[str] = set()
+
+    for dependencyId, dependencySpecifierValue in value.items():
+        if not isinstance(dependencyId, str):
+            add_issue(issueList, "componentDependencies", "Every Component ID must be a string.")
+            continue
+
+        strField = f"componentDependencies.{dependencyId}"
+        strNormalizedDependencyId = _normalize_uuid(dependencyId, strField, issueList)
+        if strNormalizedDependencyId is None:
+            continue
+
+        if strNormalizedDependencyId in setNormalizedDependencyId:
+            add_issue(issueList, strField, "The same Component ID is declared more than once.")
+            continue
+
+        setNormalizedDependencyId.add(strNormalizedDependencyId)
+
+        if not isinstance(dependencySpecifierValue, str):
+            add_issue(issueList, strField, "Version range must be a string.")
+            continue
+
+        if dependencySpecifierValue != dependencySpecifierValue.strip():
+            add_issue(issueList, strField, "Version range cannot start or end with whitespace.")
+            continue
+
+        try:
+            strNormalizedSpecifier = normalize_specifier(dependencySpecifierValue)
+        except ValueError as e:
+            add_issue(issueList, strField, str(e))
+            continue
+
+        dictNormalizedDependency[strNormalizedDependencyId] = strNormalizedSpecifier
+
+    if rootComponentId is not None and rootComponentId in dictNormalizedDependency:
+        add_issue(issueList, "componentDependencies", "A Component cannot depend on itself.")
+
+    return dict(sorted(dictNormalizedDependency.items()))
+
+
+def parse_flow_manifest(
+    value: object,
+    *,
+    sourceName: str = "flow.json",
+) -> FlowManifest:
+    if not isinstance(value, dict):
+        raise ComponentManagementError(
+            code="flow_manifest_invalid",
+            message=f"Invalid {sourceName}.",
+            details={
+                "issues": [
+                    {
+                        "field": sourceName,
+                        "message": "The root value must be an object.",
+                    },
+                ]
+            },
+        )
+
+    listIssue: list[dict[str, object]] = []
+    _validate_manifest_keys(value, _SET_FLOW_MANIFEST_KEYS, sourceName, listIssue)
+
+    schemaVersionValue = value.get("schemaVersion")
+    if type(schemaVersionValue) is not int or schemaVersionValue != 1:
+        add_issue(listIssue, "schemaVersion", "Only schemaVersion 1 is supported.")
+
+    strName = _validate_trimmed_single_line_field(value.get("name"), "name", listIssue)
+    strNormalizedVersion = _normalize_version_field(value.get("version"), "version", listIssue)
+    strDescription = _validate_string_field(
+        value.get("description"),
+        "description",
+        listIssue,
+        allowEmpty=True,
+    )
+    strNormalizedRequiresLiberrpa = _normalize_specifier_field(
+        value.get("requiresLiberrpa"),
+        "requiresLiberrpa",
+        listIssue,
+    )
+
+    dictNormalizedDependency = _normalize_component_dependencies(
+        value.get("componentDependencies"),
+        listIssue,
+    )
+
+    if listIssue:
+        raise ComponentManagementError(
+            code="flow_manifest_invalid",
+            message=f"Invalid {sourceName}.",
+            details={"issues": listIssue},
+        )
+
+    assert strName is not None
+    assert strNormalizedVersion is not None
+    assert strDescription is not None
+    assert strNormalizedRequiresLiberrpa is not None
+
+    return FlowManifest(
+        schemaVersion=1,
+        name=strName,
+        version=strNormalizedVersion,
+        description=strDescription,
+        requiresLiberrpa=strNormalizedRequiresLiberrpa,
+        componentDependencies=dictNormalizedDependency,
+    )
 
 
 def parse_component_manifest(
@@ -82,145 +330,33 @@ def parse_component_manifest(
         )
 
     listIssue: list[dict[str, object]] = []
-    setKeys = set(value)
-
-    if setKeys != _SET_COMPONENT_MANIFEST_KEYS:
-        listMissingKey = sorted(_SET_COMPONENT_MANIFEST_KEYS - setKeys)
-        listUnknownKey = sorted(setKeys - _SET_COMPONENT_MANIFEST_KEYS)
-
-        if listMissingKey:
-            add_issue(listIssue, sourceName, f"Missing fields: {listMissingKey}.")
-
-        if listUnknownKey:
-            add_issue(listIssue, sourceName, f"Unknown fields: {listUnknownKey}.")
+    _validate_manifest_keys(value, _SET_COMPONENT_MANIFEST_KEYS, sourceName, listIssue)
 
     schemaVersionValue = value.get("schemaVersion")
     if type(schemaVersionValue) is not int or schemaVersionValue != 1:
         add_issue(listIssue, "schemaVersion", "Only schemaVersion 1 is supported.")
 
-    strId = _validate_string_field(
-        value.get("id"),
-        "id",
-        listIssue,
-        allowEmpty=False,
-    )
-    strPackageName = _validate_string_field(
-        value.get("packageName"),
-        "packageName",
-        listIssue,
-        allowEmpty=False,
-    )
-    strDisplayName = _validate_string_field(
-        value.get("displayName"),
-        "displayName",
-        listIssue,
-        allowEmpty=False,
-    )
-    strVersion = _validate_string_field(
-        value.get("version"),
-        "version",
-        listIssue,
-        allowEmpty=False,
-    )
+    strNormalizedId = _normalize_uuid_field(value.get("id"), "id", listIssue)
+    strPackageName = _validate_package_name_field(value.get("packageName"), "packageName", listIssue)
+    strDisplayName = _validate_trimmed_single_line_field(value.get("displayName"), "displayName", listIssue)
+    strNormalizedVersion = _normalize_version_field(value.get("version"), "version", listIssue)
     strDescription = _validate_string_field(
         value.get("description"),
         "description",
         listIssue,
         allowEmpty=True,
     )
-    strRequiresLiberrpa = _validate_string_field(
+    strNormalizedRequiresLiberrpa = _normalize_specifier_field(
         value.get("requiresLiberrpa"),
         "requiresLiberrpa",
         listIssue,
-        allowEmpty=False,
     )
 
-    strNormalizedId: str | None = None
-    if strId is not None:
-        if strId != strId.strip():
-            add_issue(listIssue, "id", "Value cannot start or end with whitespace.")
-        else:
-            strNormalizedId = _normalize_uuid(strId, "id", listIssue)
-
-    if strPackageName is not None:
-        strPackageNameError = get_package_name_error(strPackageName)
-        if strPackageNameError is not None:
-            add_issue(listIssue, "packageName", strPackageNameError)
-
-    if strDisplayName is not None:
-        if strDisplayName != strDisplayName.strip():
-            add_issue(listIssue, "displayName", "Value cannot start or end with whitespace.")
-        if "\r" in strDisplayName or "\n" in strDisplayName:
-            add_issue(listIssue, "displayName", "Value must be a single line.")
-
-    strNormalizedVersion: str | None = None
-    if strVersion is not None:
-        if strVersion != strVersion.strip():
-            add_issue(listIssue, "version", "Value cannot start or end with whitespace.")
-        else:
-            try:
-                strNormalizedVersion = normalize_version(strVersion)
-            except ValueError as e:
-                add_issue(listIssue, "version", str(e))
-
-    strNormalizedRequiresLiberrpa: str | None = None
-    if strRequiresLiberrpa is not None:
-        if strRequiresLiberrpa != strRequiresLiberrpa.strip():
-            add_issue(listIssue, "requiresLiberrpa", "Value cannot start or end with whitespace.")
-        else:
-            try:
-                strNormalizedRequiresLiberrpa = normalize_specifier(strRequiresLiberrpa)
-            except ValueError as e:
-                add_issue(listIssue, "requiresLiberrpa", str(e))
-
-    dependenciesValue = value.get("componentDependencies")
-    dictNormalizedDependency: dict[str, str] = {}
-
-    if not isinstance(dependenciesValue, dict):
-        add_issue(
-            listIssue,
-            "componentDependencies",
-            "Value must be an object containing Component ID and version range pairs.",
-        )
-    else:
-        setNormalizedDependencyId: set[str] = set()
-
-        for strDependencyId, dependencySpecifierValue in dependenciesValue.items():
-            strField = f"componentDependencies.{strDependencyId}"
-
-            if not isinstance(strDependencyId, str):
-                add_issue(listIssue, "componentDependencies", "Every Component ID must be a string.")
-                continue
-
-            strNormalizedDependencyId = _normalize_uuid(strDependencyId, strField, listIssue)
-            if strNormalizedDependencyId is None:
-                # The ID has something wrong and an issue has been added.
-                continue
-
-            if strNormalizedDependencyId in setNormalizedDependencyId:
-                add_issue(listIssue, strField, "The same Component ID is declared more than once.")
-                continue
-
-            setNormalizedDependencyId.add(strNormalizedDependencyId)
-
-            if not isinstance(dependencySpecifierValue, str):
-                add_issue(listIssue, strField, "Version range must be a string.")
-                continue
-
-            if dependencySpecifierValue != dependencySpecifierValue.strip():
-                add_issue(listIssue, strField, "Version range cannot start or end with whitespace.")
-                continue
-
-            try:
-                strNormalizedSpecifier = normalize_specifier(dependencySpecifierValue)
-            except ValueError as e:
-                add_issue(listIssue, strField, str(e))
-                continue
-
-            dictNormalizedDependency[strNormalizedDependencyId] = strNormalizedSpecifier
-
-    if strNormalizedId is not None and strNormalizedId in dictNormalizedDependency:
-        add_issue(listIssue, "componentDependencies", "A Component cannot depend on itself.")
+    dictNormalizedDependency = _normalize_component_dependencies(
+        value.get("componentDependencies"),
+        listIssue,
+        rootComponentId=strNormalizedId,
+    )
 
     if listIssue:
         raise ComponentManagementError(
@@ -244,15 +380,46 @@ def parse_component_manifest(
         version=strNormalizedVersion,
         description=strDescription,
         requiresLiberrpa=strNormalizedRequiresLiberrpa,
-        componentDependencies=dict(sorted(dictNormalizedDependency.items())),
+        componentDependencies=dictNormalizedDependency,
     )
 
 
+def read_flow_manifest(manifestPath: Path) -> FlowManifest:
+    if not manifestPath.exists():
+        raise ComponentManagementError(
+            code="flow_manifest_missing",
+            message=f"Flow Project manifest was not found: {manifestPath}",
+        )
+
+    if not manifestPath.is_file() or manifestPath.is_symlink():
+        raise ComponentManagementError(
+            code="flow_manifest_invalid",
+            message=f"Flow Project manifest path is invalid: {manifestPath}",
+        )
+
+    try:
+        value = read_json(manifestPath)
+    except (OSError, ValueError) as e:
+        raise ComponentManagementError(
+            code="flow_manifest_invalid",
+            message="Failed to read flow.json.",
+            details={"issues": [{"field": "flow.json", "message": str(e)}]},
+        ) from e
+
+    return parse_flow_manifest(value)
+
+
 def read_component_manifest(manifestPath: Path) -> ComponentManifest:
-    if not manifestPath.is_file():
+    if not manifestPath.exists():
         raise ComponentManagementError(
             code="component_manifest_missing",
             message=f"Component Project manifest was not found: {manifestPath}",
+        )
+
+    if not manifestPath.is_file() or manifestPath.is_symlink():
+        raise ComponentManagementError(
+            code="component_manifest_invalid",
+            message=f"Component Project manifest path is invalid: {manifestPath}",
         )
 
     try:
@@ -265,3 +432,33 @@ def read_component_manifest(manifestPath: Path) -> ComponentManifest:
         ) from e
 
     return parse_component_manifest(value)
+
+
+def read_project_manifest(projectPath: Path) -> tuple[ProjectType, ProjectManifest]:
+    pathFlowManifest = projectPath / "flow.json"
+    pathComponentManifest = projectPath / "component.json"
+
+    boolHasFlowManifest = pathFlowManifest.exists()
+    boolHasComponentManifest = pathComponentManifest.exists()
+
+    if boolHasFlowManifest and boolHasComponentManifest:
+        raise ComponentManagementError(
+            code="project_manifest_conflict",
+            message="A Project cannot contain both flow.json and component.json.",
+            details={
+                "flowManifest": str(pathFlowManifest),
+                "componentManifest": str(pathComponentManifest),
+            },
+        )
+
+    if boolHasFlowManifest:
+        return "flow", read_flow_manifest(pathFlowManifest)
+
+    if boolHasComponentManifest:
+        return "component", read_component_manifest(pathComponentManifest)
+
+    raise ComponentManagementError(
+        code="project_manifest_missing",
+        message="The Project does not contain flow.json or component.json.",
+        details={"projectPath": str(projectPath)},
+    )

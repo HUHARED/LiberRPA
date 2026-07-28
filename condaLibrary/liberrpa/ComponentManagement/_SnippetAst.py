@@ -434,7 +434,7 @@ def _scan_module(
             continue
 
         strDescription = ast.get_docstring(functionObj, clean=True)
-        if strDescription is None:
+        if strDescription is None or strDescription.strip() == "":
             strDescription = f"Call {strModuleAlias}.{functionObj.name}."
             listWarning.append(
                 _build_diagnostic(
@@ -443,7 +443,7 @@ def _scan_module(
                     projectPath=projectPath,
                     line=functionObj.lineno,
                     functionName=functionObj.name,
-                    message="No function docstring was found. A fallback description was generated.",
+                    message="No non-empty function docstring was found. A fallback description was generated.",
                 )
             )
 

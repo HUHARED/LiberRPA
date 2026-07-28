@@ -395,7 +395,7 @@ def _validate_identifier(value: object, field: str) -> str:
 
 
 def _validate_single_line_string(value: object, field: str) -> str:
-    if not isinstance(value, str) or value == "":
+    if not isinstance(value, str) or value.strip() == "":
         raise ValueError(f"{field} must be a non-empty string.")
 
     if "\r" in value or "\n" in value:
@@ -455,7 +455,8 @@ def _validate_snippet_catalog(
 
     validate_exact_keys(value, _SET_SNIPPET_CATALOG_KEYS, "snippets_catalog.json")
 
-    if value.get("schemaVersion") != 1:
+    schemaVersion = value.get("schemaVersion")
+    if type(schemaVersion) is not int or schemaVersion != 1:
         raise ValueError("snippets_catalog.json schemaVersion must be 1.")
 
     importSourcesValue = value.get("importSources")
@@ -568,13 +569,13 @@ def _validate_snippet_catalog(
             not isinstance(bodyValue, list)
             or not bodyValue
             or not all(isinstance(line, str) for line in bodyValue)
-            or all(line == "" for line in bodyValue)
+            or all(line.strip() == "" for line in bodyValue)
         ):
             raise ValueError(f"snippets.{snippetKey}.body must be a non-empty array of strings.")
         listBody = list(bodyValue)
 
         description = snippetValue.get("description")
-        if not isinstance(description, str) or description == "":
+        if not isinstance(description, str) or description.strip() == "":
             raise ValueError(f"snippets.{snippetKey}.description must be a non-empty string.")
 
         insertionMode = snippetValue.get("insertionMode")
@@ -659,6 +660,8 @@ def validate_component_wheel(
         )
 
     try:
+        dictExpectedSnippetCatalog = _validate_snippet_catalog(snippetCatalogDict, manifestObj)
+
         normalizedName, versionObj, buildTag, tagSet = parse_wheel_filename(wheelPath.name)
         if normalizedName != canonicalize_name(manifestObj.packageName):
             raise ValueError("Wheel distribution name does not match packageName.")
@@ -674,6 +677,13 @@ def validate_component_wheel(
             if strBadFile is not None:
                 raise ValueError(f"Wheel ZIP integrity check failed: {strBadFile!r}.")
 
+            strMetadataPath = f"{strDistInfoFolder}/METADATA"
+            strWheelMetadataPath = f"{strDistInfoFolder}/WHEEL"
+            strLicensePath = f"{strDistInfoFolder}/licenses/LICENSE"
+            strManifestPath = f"{strDistInfoFolder}/component.json"
+            strCatalogPath = f"{strDistInfoFolder}/snippets_catalog.json"
+            strRecordPath = f"{strDistInfoFolder}/RECORD"
+
             listInfo = wheelObj.infolist()
             listArchivePath = [infoObj.filename for infoObj in listInfo]
             setArchivePath = set(listArchivePath)
@@ -685,6 +695,13 @@ def validate_component_wheel(
             for infoObj in listInfo:
                 strArchivePath = infoObj.filename
                 _validate_archive_path(strArchivePath)
+
+                if infoObj.compress_type != ZIP_STORED:
+                    raise ValueError(f"Wheel file must use ZIP_STORED compression: {strArchivePath!r}.")
+                if infoObj.date_time != _TUPLE_ZIP_TIMESTAMP:
+                    raise ValueError(f"Wheel file has a non-deterministic timestamp: {strArchivePath!r}.")
+                if infoObj.create_system != 3 or infoObj.external_attr != _INT_ZIP_FILE_MODE:
+                    raise ValueError(f"Wheel file has invalid permission metadata: {strArchivePath!r}.")
 
                 intFileType = stat.S_IFMT(infoObj.external_attr >> 16)
                 if intFileType == stat.S_IFLNK:
@@ -705,19 +722,12 @@ def validate_component_wheel(
                 if pathObj.parts[0] == manifestObj.packageName:
                     if "__pycache__" in pathObj.parts:
                         raise ValueError(f"Wheel cannot contain __pycache__: {strArchivePath!r}.")
+                    if pathObj.suffix.casefold() in _SET_IGNORED_FILE_SUFFIX:
+                        raise ValueError(f"Wheel cannot contain ignored Python cache files: {strArchivePath!r}.")
                     if pathObj.suffix.casefold() in _SET_FORBIDDEN_FILE_SUFFIX:
                         raise ValueError(f"Wheel contains an unsupported file type: {strArchivePath!r}.")
 
-            strMetadataPath = f"{strDistInfoFolder}/METADATA"
-            strWheelMetadataPath = f"{strDistInfoFolder}/WHEEL"
-            strLicensePath = f"{strDistInfoFolder}/licenses/LICENSE"
-            strManifestPath = f"{strDistInfoFolder}/component.json"
-            strCatalogPath = f"{strDistInfoFolder}/snippets_catalog.json"
-            strRecordPath = f"{strDistInfoFolder}/RECORD"
-
-            setRequiredPath = {
-                f"{manifestObj.packageName}/__init__.py",
-                f"{manifestObj.packageName}/py.typed",
+            setExpectedDistInfoPath = {
                 strMetadataPath,
                 strWheelMetadataPath,
                 strLicensePath,
@@ -725,9 +735,32 @@ def validate_component_wheel(
                 strCatalogPath,
                 strRecordPath,
             }
+            setRequiredPath = {
+                f"{manifestObj.packageName}/__init__.py",
+                f"{manifestObj.packageName}/py.typed",
+                *setExpectedDistInfoPath,
+            }
             listMissingPath = sorted(setRequiredPath - setArchivePath)
             if listMissingPath:
                 raise ValueError(f"Wheel is missing required files: {listMissingPath}.")
+
+            setActualDistInfoPath = {
+                strArchivePath
+                for strArchivePath in setArchivePath
+                if PurePosixPath(strArchivePath).parts[0] == strDistInfoFolder
+            }
+            if setActualDistInfoPath != setExpectedDistInfoPath:
+                raise ValueError(
+                    "Wheel .dist-info files do not match the LiberRPA Component Wheel structure. "
+                    f"Unexpected: {sorted(setActualDistInfoPath - setExpectedDistInfoPath)}."
+                )
+
+            listExpectedArchivePath = [
+                *sorted(setArchivePath - {strRecordPath}),
+                strRecordPath,
+            ]
+            if listArchivePath != listExpectedArchivePath:
+                raise ValueError("Wheel files are not stored in the deterministic LiberRPA order.")
 
             metadataObj = _read_metadata(wheelObj.read(strMetadataPath), "METADATA")
             if metadataObj.get("Metadata-Version") != "2.4":
@@ -754,7 +787,8 @@ def validate_component_wheel(
                 raise ValueError("Embedded component.json does not match the published Component Manifest.")
 
             embeddedCatalog = parse_json(wheelObj.read(strCatalogPath).decode("utf-8", errors="strict"))
-            if embeddedCatalog != snippetCatalogDict:
+            dictEmbeddedSnippetCatalog = _validate_snippet_catalog(embeddedCatalog, manifestObj)
+            if dictEmbeddedSnippetCatalog != dictExpectedSnippetCatalog:
                 raise ValueError("Embedded snippets_catalog.json does not match the generated catalog.")
 
             _validate_record(
