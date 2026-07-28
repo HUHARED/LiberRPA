@@ -46,6 +46,15 @@ interface DictPublishComponentRequest {
   projectPath: string;
 }
 
+interface DictRebuildRepositoryIndexRequest {
+  schemaVersion: 1;
+  operation: "rebuildRepositoryIndex";
+}
+
+type DictComponentManagementRequest =
+  | DictPublishComponentRequest
+  | DictRebuildRepositoryIndexRequest;
+
 function parseComponentManagementWarning(value: unknown): DictComponentManagementWarning {
   if (!isRecord(value)) {
     throw new Error("Component Management returned an invalid warning item.");
@@ -172,7 +181,7 @@ function getPythonEnvironmentInfo(): {
 }
 
 export async function runComponentManagement(
-  requestInfo: DictPublishComponentRequest,
+  requestInfo: DictComponentManagementRequest,
 ): Promise<DictProtocolResponse> {
   const { pythonExecutablePath, pythonEnvironmentPath, environment } =
     getPythonEnvironmentInfo();

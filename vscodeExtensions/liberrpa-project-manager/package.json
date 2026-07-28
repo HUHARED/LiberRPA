@@ -31,6 +31,11 @@
         "category": "LiberRPA",
         "title": "Publish Component",
         "enablement": "liberrpaProjectManager.projectType == component"
+      },
+      {
+        "command": "LiberRPA.rebuildComponentRepositoryIndex",
+        "category": "LiberRPA",
+        "title": "Rebuild Component Repository Index"
       }
     ],
     "menus": {

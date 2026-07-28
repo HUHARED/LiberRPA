@@ -6,6 +6,7 @@ import { packageProject } from "./packageFolder";
 import { ProjectManagerPanel } from "./projectManagerPanel";
 import { registerProjectTypeContext } from "./projectTypeContext";
 import { publishComponent } from "./publishComponent";
+import { rebuildRepositoryIndex } from "./rebuildRepositoryIndex";
 
 export function activate(context: vscode.ExtensionContext): void {
   // Let vscode manage log's lifecycle.
@@ -27,6 +28,13 @@ export function activate(context: vscode.ExtensionContext): void {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("LiberRPA.publishComponent", publishComponent),
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "LiberRPA.rebuildComponentRepositoryIndex",
+      rebuildRepositoryIndex,
+    ),
   );
 }
 
