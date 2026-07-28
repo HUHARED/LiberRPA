@@ -48,7 +48,7 @@ def _read_basic_config_dict() -> DictBasicConfig:
         }
         and isinstance(value.get("outputLogPath"), str)
         and bool(value["outputLogPath"].strip())
-        and isinstance(value.get("localServerPort"), int)
+        and type(value.get("localServerPort")) is int
         and not isinstance(value.get("localServerPort"), bool)
         and 1 <= value["localServerPort"] <= 65535
         and value.get("uiAnalyzerTheme") in ("light", "dark")

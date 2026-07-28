@@ -70,7 +70,7 @@ def handle_chrome_command(dictCommand: dict[str, Any]) -> DictSocketResult:
 def _get_chrome_response_timeout_ms(dictCommand: dict[str, Any]) -> int:
     timeout = dictCommand.get("timeout")
 
-    if isinstance(timeout, int) and not isinstance(timeout, bool) and timeout > 0:
+    if type(timeout) is int and timeout > 0:
         return timeout + _CHROME_RESPONSE_GRACE_MS
 
     return _DEFAULT_CHROME_COMMAND_TIMEOUT_MS + _CHROME_RESPONSE_GRACE_MS

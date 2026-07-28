@@ -99,7 +99,7 @@ def check_execution_type(executionMode: ExecutionMode) -> None:
 def check_set_timeout(timeout: int) -> int:
     """Invoke by GUI manipulation functions to check timeout. If timeout < 3000 (milliseconds), set it to 3000."""
 
-    if isinstance(timeout, bool) or not isinstance(timeout, int):
+    if type(timeout) is not int:
         raise ValueError("timeout must be an integer number of milliseconds.")
 
     if timeout < _CommonValue.INT_TIMEOUT_MIN:

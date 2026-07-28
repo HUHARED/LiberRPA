@@ -524,7 +524,7 @@ def _get_parent(
     if selector.get("category") is None:
         raise UiOperationError("Not support getting an UIA window element's parent.")
 
-    if not isinstance(upwardLevel, int) or upwardLevel < 1:
+    if type(upwardLevel) is not int or upwardLevel < 1:
         raise ValueError("The argument 'upwardLevel' should be an integer equal to or greater than 1.")
 
     if selector.get("category") == "html":

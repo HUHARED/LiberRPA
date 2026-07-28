@@ -92,13 +92,13 @@ def _get_com_error_codes(error: pywintypes.com_error) -> set[int]:
     codes: set[int] = set()
 
     hresult = getattr(error, "hresult", None)
-    if isinstance(hresult, int):
+    if type(hresult) is int:
         codes.add(hresult)
 
     excepinfo = getattr(error, "excepinfo", None)
     if isinstance(excepinfo, tuple) and len(excepinfo) >= 6:
         scode = excepinfo[5]
-        if isinstance(scode, int):
+        if type(scode) is int:
             codes.add(scode)
 
     return codes
@@ -725,7 +725,7 @@ def _validate_excel_column_number(
     *,
     excelObj: ExcelObj | None = None,
 ) -> int:
-    if isinstance(column, bool) or not isinstance(column, int):
+    if type(column) is not int:
         raise ValueError("Excel column number must be an integer.")
 
     intMaxColumn, _ = _get_excel_grid_limits(excelObj=excelObj)
@@ -740,7 +740,7 @@ def _validate_excel_row_number(
     *,
     excelObj: ExcelObj | None = None,
 ) -> int:
-    if isinstance(row, bool) or not isinstance(row, int):
+    if type(row) is not int:
         raise ValueError("Excel row number must be an integer.")
 
     _, intMaxRow = _get_excel_grid_limits(excelObj=excelObj)
@@ -834,7 +834,7 @@ def _check_and_standardize_column(
     if isinstance(column, bool):
         raise ValueError("The argument 'column' must not be a bool.")
 
-    if isinstance(column, int):
+    if type(column) is int:
         intColumn = _validate_excel_column_number(column, excelObj=excelObj)
         strColumn = xw.utils.col_name(intColumn)
 
