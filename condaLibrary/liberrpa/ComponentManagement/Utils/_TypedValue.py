@@ -50,6 +50,36 @@ class ComponentManifest:
 type ProjectManifest = FlowManifest | ComponentManifest
 
 
+@dataclass(frozen=True)
+class AddComponentDependencyOperation:
+    componentId: str
+    requirement: str
+
+
+@dataclass(frozen=True)
+class UpdateComponentsOperation:
+    componentIds: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class ChangeComponentRequirementOperation:
+    componentId: str
+    requirement: str
+
+
+@dataclass(frozen=True)
+class RemoveComponentDependencyOperation:
+    componentId: str
+
+
+type ProjectDependencyOperation = (
+    AddComponentDependencyOperation
+    | UpdateComponentsOperation
+    | ChangeComponentRequirementOperation
+    | RemoveComponentDependencyOperation
+)
+
+
 ##### Snippet attributes #####
 
 
@@ -227,6 +257,40 @@ class DictComponentsLockFile(TypedDict):
     schemaVersion: Literal[1]
     root: DictComponentsLockRoot
     components: dict[str, DictLockedComponent]
+
+
+type DirectDependencyChangeType = Literal["added", "removed", "requirementChanged"]
+
+
+class DictDirectDependencyChange(TypedDict):
+    componentId: str
+    change: DirectDependencyChangeType
+    previousRequirement: NotRequired[str]
+    targetRequirement: NotRequired[str]
+
+
+type ResolvedComponentChangeType = Literal["added", "removed", "upgraded", "downgraded"]
+
+
+class DictResolvedComponentChange(TypedDict):
+    componentId: str
+    packageName: str
+    displayName: str
+    change: ResolvedComponentChangeType
+    previousVersion: NotRequired[str]
+    targetVersion: NotRequired[str]
+
+
+@dataclass(frozen=True)
+class ProjectDependencyPlan:
+    operation: ProjectDependencyOperation
+    sourceManifest: ProjectManifest
+    sourceComponentsLock: DictComponentsLockFile | None
+    targetManifest: ProjectManifest
+    targetComponentsLock: DictComponentsLockFile | None
+    directDependencyChanges: list[DictDirectDependencyChange]
+    resolvedComponentChanges: list[DictResolvedComponentChange]
+    planSha256: str
 
 
 type ComponentsLockState = Literal["notRequired", "missing", "invalid", "stale", "valid"]

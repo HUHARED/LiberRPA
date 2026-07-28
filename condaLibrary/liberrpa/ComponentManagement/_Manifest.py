@@ -384,6 +384,31 @@ def parse_component_manifest(
     )
 
 
+def build_project_manifest_dict(manifestObj: ProjectManifest) -> dict[str, object]:
+    dictDependency = dict(sorted(manifestObj.componentDependencies.items()))
+
+    if isinstance(manifestObj, FlowManifest):
+        return {
+            "schemaVersion": manifestObj.schemaVersion,
+            "name": manifestObj.name,
+            "version": manifestObj.version,
+            "description": manifestObj.description,
+            "requiresLiberrpa": manifestObj.requiresLiberrpa,
+            "componentDependencies": dictDependency,
+        }
+
+    return {
+        "schemaVersion": manifestObj.schemaVersion,
+        "id": manifestObj.id,
+        "packageName": manifestObj.packageName,
+        "displayName": manifestObj.displayName,
+        "version": manifestObj.version,
+        "description": manifestObj.description,
+        "requiresLiberrpa": manifestObj.requiresLiberrpa,
+        "componentDependencies": dictDependency,
+    }
+
+
 def read_flow_manifest(manifestPath: Path) -> FlowManifest:
     if not manifestPath.exists():
         raise ComponentManagementError(
