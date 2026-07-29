@@ -12,7 +12,12 @@ from liberrpa.ComponentManagement.Utils._TypedValue import (
     DictRepositoryIndex,
 )
 from liberrpa.ComponentManagement.Utils._Version import normalize_specifier, normalize_version
-from liberrpa.ComponentManagement.Utils._Validation import get_package_name_error, validate_exact_keys
+from liberrpa.ComponentManagement.Utils._Validation import (
+    get_package_name_error,
+    validate_exact_keys,
+    file_invalid,
+    folder_invalid,
+)
 from liberrpa.ComponentManagement.Utils._WheelName import (
     STR_COMPONENT_WHEEL_TAG,
     TAG_COMPONENT_WHEEL,
@@ -338,7 +343,7 @@ def _get_actual_wheel_path_set(repositoryPath: Path) -> set[str]:
     if not pathComponents.exists():
         return set()
 
-    if not pathComponents.is_dir() or pathComponents.is_symlink():
+    if folder_invalid(pathComponents):
         raise_rebuild_required(
             "The Component Repository components path is not a valid folder.",
             {"path": str(pathComponents)},
@@ -347,7 +352,7 @@ def _get_actual_wheel_path_set(repositoryPath: Path) -> set[str]:
     setWheelPath: set[str] = set()
 
     for pathWheel in pathComponents.rglob("*.whl"):
-        if not pathWheel.is_file() or pathWheel.is_symlink():
+        if file_invalid(pathWheel):
             raise_rebuild_required(
                 "The Component Repository contains an invalid Wheel path.",
                 {"wheelFile": str(pathWheel)},
@@ -370,7 +375,7 @@ def load_repository_index(
             "schemaVersion": 1,
             "components": {},
         }
-    elif not pathIndexFile.is_file() or pathIndexFile.is_symlink():
+    elif file_invalid(pathIndexFile):
         raise_rebuild_required(
             "Component Repository index is invalid.",
             {"indexFile": str(pathIndexFile)},

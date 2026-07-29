@@ -9,7 +9,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 from liberrpa.ComponentManagement.Utils._Exception import ComponentManagementError
 from liberrpa.ComponentManagement.Utils._File import read_json
 from liberrpa.ComponentManagement.Utils._Version import normalize_specifier, normalize_version
-from liberrpa.ComponentManagement.Utils._Validation import add_issue, get_package_name_error
+from liberrpa.ComponentManagement.Utils._Validation import add_issue, get_package_name_error, file_invalid
 from liberrpa.ComponentManagement.Utils._TypedValue import (
     ProjectType,
     FlowManifest,
@@ -416,7 +416,7 @@ def read_flow_manifest(manifestPath: Path) -> FlowManifest:
             message=f"Flow Project manifest was not found: {manifestPath}",
         )
 
-    if not manifestPath.is_file() or manifestPath.is_symlink():
+    if file_invalid(manifestPath):
         raise ComponentManagementError(
             code="flow_manifest_invalid",
             message=f"Flow Project manifest path is invalid: {manifestPath}",
@@ -441,7 +441,7 @@ def read_component_manifest(manifestPath: Path) -> ComponentManifest:
             message=f"Component Project manifest was not found: {manifestPath}",
         )
 
-    if not manifestPath.is_file() or manifestPath.is_symlink():
+    if file_invalid(manifestPath):
         raise ComponentManagementError(
             code="component_manifest_invalid",
             message=f"Component Project manifest path is invalid: {manifestPath}",

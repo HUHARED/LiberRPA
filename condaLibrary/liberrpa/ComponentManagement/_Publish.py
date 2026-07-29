@@ -16,6 +16,7 @@ from liberrpa.ComponentManagement.Utils._TypedValue import (
     DictPublishedComponentResult,
     DictPublishComponentResult,
 )
+from liberrpa.ComponentManagement.Utils._Validation import file_invalid, folder_invalid
 from liberrpa.ComponentManagement._Manifest import read_component_manifest
 from liberrpa.ComponentManagement.Lock._ProjectLock import project_lock
 from liberrpa.ComponentManagement._Repository import publish_component_wheel
@@ -59,7 +60,7 @@ def _validate_component_project(
             details={"unexpectedEntries": listUnexpectedEntry},
         )
 
-    if not pathPackage.is_dir() or pathPackage.is_symlink():
+    if folder_invalid(pathPackage):
         raise ComponentManagementError(
             code="component_source_invalid",
             message=f"Component package folder was not found or is invalid: {pathPackage}",
@@ -67,7 +68,7 @@ def _validate_component_project(
 
     for strRequiredFile in ("__init__.py", "py.typed"):
         pathRequiredFile = pathPackage / strRequiredFile
-        if not pathRequiredFile.is_file() or pathRequiredFile.is_symlink():
+        if file_invalid(pathRequiredFile):
             raise ComponentManagementError(
                 code="component_source_invalid",
                 message=f"Required Component package file was not found or is invalid: {pathRequiredFile}",
@@ -91,7 +92,7 @@ def _prepare_build_folder(projectPath: Path) -> tuple[Path, Path]:
 
     try:
         if pathBuildRoot.exists():
-            if pathBuildRoot.is_symlink() or not pathBuildRoot.is_dir():
+            if folder_invalid(pathBuildRoot):
                 raise ComponentManagementError(
                     code="component_build_path_invalid",
                     message=f"Component build path is invalid: {pathBuildRoot}",

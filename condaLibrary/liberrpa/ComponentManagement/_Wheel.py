@@ -16,7 +16,7 @@ from liberrpa.ComponentManagement.Utils._TypedValue import (
     WheelBuildResult,
     ComponentWheelInfo,
 )
-from liberrpa.ComponentManagement.Utils._Validation import validate_exact_keys
+from liberrpa.ComponentManagement.Utils._Validation import validate_exact_keys, file_invalid
 from liberrpa.ComponentManagement.Utils._Record import validate_archive_path, validate_record
 from liberrpa.ComponentManagement.Utils._WheelName import (
     STR_COMPONENT_WHEEL_TAG,
@@ -232,7 +232,7 @@ def build_component_wheel(
     snippetCatalog: DictSnippetCatalogFile,
 ) -> WheelBuildResult:
     licensePath = projectPath / "LICENSE"
-    if not licensePath.is_file() or licensePath.is_symlink():
+    if file_invalid(licensePath):
         raise ComponentManagementError(
             code="component_source_invalid",
             message=f"Component Project LICENSE file was not found or is invalid: {licensePath}",
@@ -742,7 +742,7 @@ def validate_component_wheel(
 
 
 def inspect_component_wheel(wheelPath: Path) -> ComponentWheelInfo:
-    if not wheelPath.is_file() or wheelPath.is_symlink():
+    if file_invalid(wheelPath):
         raise ComponentManagementError(
             code="wheel_validation_failed",
             message=f"Component Wheel file was not found or is invalid: {wheelPath}",

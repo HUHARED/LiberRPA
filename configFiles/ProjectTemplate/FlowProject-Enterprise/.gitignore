@@ -4,3 +4,5 @@ __pycache__/
 build/
 dist/
 _Components/
+.liberrpa-project-manager/
+.liberrpa-project-manager.lock

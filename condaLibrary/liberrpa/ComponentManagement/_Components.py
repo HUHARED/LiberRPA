@@ -17,6 +17,7 @@ from liberrpa.ComponentManagement.Utils._TypedValue import (
 )
 from liberrpa.ComponentManagement.Utils._WheelName import get_component_wheel_names
 from liberrpa.ComponentManagement.Utils._Record import validate_archive_path, validate_record
+from liberrpa.ComponentManagement.Utils._Validation import path_exists, file_invalid, folder_invalid
 from liberrpa.ComponentManagement._ComponentsLock import validate_components_lock
 from liberrpa.ComponentManagement._Manifest import parse_component_manifest
 from liberrpa.ComponentManagement._RepositoryIndex import get_wheel_path
@@ -215,7 +216,7 @@ def _prepare_locked_wheel_source_list(
             wheelFile=dictLockedComponent["wheelFile"],
         )
 
-        if not pathWheel.is_file() or pathWheel.is_symlink():
+        if file_invalid(pathWheel):
             raise ComponentManagementError(
                 code="component_wheel_missing",
                 message="A Component Wheel required by components.lock.json was not found.",
@@ -474,7 +475,7 @@ def validate_components_folder(
             message=f"_Components folder was not found: {componentsPath}",
         )
 
-    if not componentsPath.is_dir() or componentsPath.is_symlink():
+    if folder_invalid(componentsPath):
         raise ComponentManagementError(
             code="components_folder_damaged",
             message=f"_Components path is invalid: {componentsPath}",
@@ -544,7 +545,7 @@ def build_components_folder(
             message=f"Component Repository folder was not found: {repositoryPath}",
         )
 
-    if targetPath.exists() or targetPath.is_symlink():
+    if path_exists(targetPath):
         raise ComponentManagementError(
             code="components_target_exists",
             message=f"_Components build target already exists: {targetPath}",
@@ -569,7 +570,7 @@ def build_components_folder(
 
         folderInfo = validate_components_folder(pathTemp, dictValidatedLock)
 
-        if targetPath.exists() or targetPath.is_symlink():
+        if path_exists(targetPath):
             raise ComponentManagementError(
                 code="components_target_exists",
                 message=f"_Components build target appeared while it was being built: {targetPath}",

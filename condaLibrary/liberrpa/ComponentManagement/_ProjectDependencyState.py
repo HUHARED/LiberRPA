@@ -16,6 +16,7 @@ from liberrpa.ComponentManagement.Utils._TypedValue import (
     RepairState,
     ProjectDependencyState,
 )
+from liberrpa.ComponentManagement.Utils._Validation import path_exists, file_invalid
 from liberrpa.ComponentManagement._Components import (
     STR_COMPONENTS_FOLDER_NAME,
     validate_components_folder,
@@ -145,7 +146,7 @@ def _get_repair_state(
             wheelFile=dictComponent["wheelFile"],
         )
 
-        if not pathWheel.is_file() or pathWheel.is_symlink():
+        if file_invalid(pathWheel):
             return "wheelMissing", {
                 "componentId": strComponentId,
                 "wheelFile": str(pathWheel),
@@ -195,7 +196,7 @@ def get_project_dependency_state(projectPath: Path) -> ProjectDependencyState:
 
     if not boolDependenciesRequired:
         lockState = "notRequired"
-        if pathLock.exists() or pathLock.is_symlink():
+        if path_exists(pathLock):
             dictDetails["unusedLockFile"] = str(pathLock)
     elif not pathLock.exists() and not pathLock.is_symlink():
         lockState = "missing"

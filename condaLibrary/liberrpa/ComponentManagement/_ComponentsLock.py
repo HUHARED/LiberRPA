@@ -16,7 +16,7 @@ from liberrpa.ComponentManagement.Utils._TypedValue import (
     DictLockedComponent,
     DictComponentsLockFile,
 )
-from liberrpa.ComponentManagement.Utils._Validation import get_package_name_error, validate_exact_keys
+from liberrpa.ComponentManagement.Utils._Validation import get_package_name_error, validate_exact_keys, file_invalid
 from liberrpa.ComponentManagement.Utils._Version import normalize_specifier, normalize_version
 from liberrpa.ComponentManagement._RepositoryIndex import (
     normalize_component_id,
@@ -412,7 +412,7 @@ def read_components_lock(lockPath: Path) -> DictComponentsLockFile:
             message=f"Components lock file was not found: {lockPath}",
         )
 
-    if not lockPath.is_file() or lockPath.is_symlink():
+    if file_invalid(lockPath):
         raise ComponentManagementError(
             code="components_lock_invalid",
             message=f"Components lock path is invalid: {lockPath}",

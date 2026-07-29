@@ -5,6 +5,7 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
+from pathlib import Path
 import keyword
 import re
 import sys
@@ -154,3 +155,15 @@ def validate_exact_keys(
             f"{field} has invalid fields. Missing: {listMissingKey}; "
             f"unknown: {listUnknownKey}; non-string: {listNonStringKey}."
         )
+
+
+def path_exists(path: Path) -> bool:
+    return path.exists() or path.is_symlink()
+
+
+def file_invalid(path: Path) -> bool:
+    return not path.is_file() or path.is_symlink()
+
+
+def folder_invalid(path: Path) -> bool:
+    return not path.is_dir() or path.is_symlink()

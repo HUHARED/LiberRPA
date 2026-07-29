@@ -20,6 +20,7 @@ from liberrpa.ComponentManagement.Utils._TypedValue import (
     RepositoryPublishResult,
     RepositoryRebuildResult,
 )
+from liberrpa.ComponentManagement.Utils._Validation import path_exists, file_invalid, folder_invalid
 from liberrpa.ComponentManagement._Wheel import inspect_component_wheel
 from liberrpa.ComponentManagement.Lock._RepositoryLock import repository_lock
 from liberrpa.ComponentManagement._RepositoryIndex import (
@@ -176,7 +177,7 @@ def publish_component_wheel(
                 packageName=manifestObj.packageName,
                 wheelFile=dictExistingVersion["wheelFile"],
             )
-            if not pathExistingWheel.is_file() or pathExistingWheel.is_symlink():
+            if file_invalid(pathExistingWheel):
                 raise_rebuild_required(
                     "A Component Wheel referenced by repository.json is missing.",
                     {"wheelFile": str(pathExistingWheel)},
@@ -271,7 +272,7 @@ def publish_component_wheel(
             write_json_atomic(pathTransaction / "transaction.json", dictTransaction)
             pathTargetWheel.parent.mkdir(parents=True, exist_ok=True)
 
-            if pathTargetWheel.exists() or pathTargetWheel.is_symlink():
+            if path_exists(pathTargetWheel):
                 raise_rebuild_required(
                     "An unindexed Component Wheel already exists at the publish target.",
                     {"wheelFile": str(pathTargetWheel)},
@@ -358,7 +359,7 @@ def rebuild_repository_index() -> RepositoryRebuildResult:
                 message=(f"Failed to initialize the Component Repository structure: {pathRepository}"),
             ) from e
 
-        if pathComponents.is_symlink() or not pathComponents.is_dir():
+        if folder_invalid(pathComponents):
             raise ComponentManagementError(
                 code="repository_rebuild_failed",
                 message="The Component Repository components path is invalid.",
@@ -374,7 +375,7 @@ def rebuild_repository_index() -> RepositoryRebuildResult:
         dictVersionPath: dict[tuple[str, Version], Path] = {}
 
         for pathComponentFolder in sorted(pathComponents.iterdir(), key=lambda pathObj: pathObj.name):
-            if pathComponentFolder.is_symlink() or not pathComponentFolder.is_dir():
+            if folder_invalid(pathComponentFolder):
                 _add_rebuild_issue(
                     listIssue,
                     code="invalid_component_folder",
@@ -387,7 +388,7 @@ def rebuild_repository_index() -> RepositoryRebuildResult:
             boolHasUnexpectedEntry = False
 
             for pathEntry in sorted(pathComponentFolder.iterdir(), key=lambda pathObj: pathObj.name):
-                if pathEntry.is_symlink() or not pathEntry.is_file() or pathEntry.suffix.casefold() != ".whl":
+                if file_invalid(pathEntry) or pathEntry.suffix.casefold() != ".whl":
                     boolHasUnexpectedEntry = True
                     _add_rebuild_issue(
                         listIssue,

@@ -15,7 +15,12 @@ from liberrpa.ComponentManagement.Utils._TypedValue import (
     DictRepositoryTransaction,
 )
 from liberrpa.ComponentManagement.Utils._Version import normalize_version
-from liberrpa.ComponentManagement.Utils._Validation import get_package_name_error, validate_exact_keys
+from liberrpa.ComponentManagement.Utils._Validation import (
+    get_package_name_error,
+    validate_exact_keys,
+    file_invalid,
+    folder_invalid,
+)
 from liberrpa.ComponentManagement._RepositoryIndex import (
     normalize_component_id,
     validate_repository_version,
@@ -145,7 +150,7 @@ def _collect_publish_transactions(
     if not pathStaging.exists():
         return [], []
 
-    if not pathStaging.is_dir() or pathStaging.is_symlink():
+    if folder_invalid(pathStaging):
         raise ComponentManagementError(
             code=errorCode,
             message=f"Component Repository staging path is invalid: {pathStaging}",
@@ -155,7 +160,7 @@ def _collect_publish_transactions(
     listTransaction: list[tuple[Path, Path, DictRepositoryTransaction]] = []
 
     for pathTransaction in sorted(pathStaging.glob("publish_*"), key=lambda pathObj: pathObj.name):
-        if not pathTransaction.is_dir() or pathTransaction.is_symlink():
+        if folder_invalid(pathTransaction):
             raise ComponentManagementError(
                 code=errorCode,
                 message="Component Repository staging contains an invalid publish transaction path.",
@@ -163,7 +168,7 @@ def _collect_publish_transactions(
             )
 
         pathTransactionFile = pathTransaction / "transaction.json"
-        if not pathTransactionFile.is_file() or pathTransactionFile.is_symlink():
+        if file_invalid(pathTransactionFile):
             listCleanupPath.append(pathTransaction)
             continue
 

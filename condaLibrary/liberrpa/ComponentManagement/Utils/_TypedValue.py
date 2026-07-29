@@ -18,6 +18,7 @@ class DictOperationWarning(TypedDict):
 
 ##### Manifest #####
 
+
 type ProjectType = Literal["flow", "component"]
 
 
@@ -298,6 +299,34 @@ class ProjectDependencyPlan:
     directDependencyChanges: list[DictDirectDependencyChange]
     resolvedComponentChanges: list[DictResolvedComponentChange]
     planSha256: str
+
+
+type ProjectTransactionState = Literal["prepared", "committing", "manifestCommitted"]
+
+
+class DictProjectTransactionSnapshot(TypedDict):
+    manifestSha256: str
+    componentsLockExists: bool
+    componentsPathExists: bool
+    componentsLockSha256: NotRequired[str]
+
+
+class DictProjectTransaction(TypedDict):
+    schemaVersion: Literal[1]
+    operation: Literal["applyDependencyPlan"]
+    state: ProjectTransactionState
+    projectType: ProjectType
+    manifestFile: Literal["flow.json", "component.json"]
+    planSha256: str
+    source: DictProjectTransactionSnapshot
+    target: DictProjectTransactionSnapshot
+
+
+@dataclass(frozen=True)
+class ProjectDependencyApplyResult:
+    plan: ProjectDependencyPlan
+    componentsFolderInfo: ComponentsFolderInfo | None
+    warnings: list[DictComponentManagementWarning]
 
 
 type ComponentsLockState = Literal["notRequired", "missing", "invalid", "stale", "valid"]
