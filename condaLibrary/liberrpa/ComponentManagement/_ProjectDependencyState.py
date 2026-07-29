@@ -16,6 +16,10 @@ from liberrpa.ComponentManagement.Utils._TypedValue import (
     RepairState,
     ProjectDependencyState,
 )
+from liberrpa.ComponentManagement._Components import (
+    STR_COMPONENTS_FOLDER_NAME,
+    validate_components_folder,
+)
 from liberrpa.ComponentManagement._ComponentsLock import (
     STR_COMPONENTS_LOCK_FILE_NAME,
     read_components_lock,
@@ -29,9 +33,6 @@ from importlib.metadata import PackageNotFoundError, version as get_package_vers
 from pathlib import Path
 from packaging.specifiers import SpecifierSet
 from packaging.version import InvalidVersion, Version
-
-
-_STR_COMPONENTS_FOLDER_NAME = "_Components"
 
 
 def _get_environment_state(
@@ -80,35 +81,42 @@ def _get_components_state(
     *,
     dependenciesRequired: bool,
     lockState: ComponentsLockState,
+    lockDict: DictComponentsLockFile | None,
 ) -> tuple[ComponentsState, dict[str, object]]:
     if not dependenciesRequired:
         return "notRequired", {}
 
-    if lockState != "valid":
+    if lockState != "valid" or lockDict is None:
         return "unverified", {"reason": "A valid components.lock.json is required before _Components can be verified."}
 
-    pathComponents = projectPath / _STR_COMPONENTS_FOLDER_NAME
-    if not pathComponents.exists():
+    pathComponents = projectPath / STR_COMPONENTS_FOLDER_NAME
+    if not pathComponents.exists() and not pathComponents.is_symlink():
         return "missing", {"componentsPath": str(pathComponents)}
 
-    if not pathComponents.is_dir() or pathComponents.is_symlink():
-        return "damaged", {"componentsPath": str(pathComponents)}
+    if pathComponents.is_dir() and not pathComponents.is_symlink():
+        try:
+            if not any(pathComponents.iterdir()):
+                return "missing", {"componentsPath": str(pathComponents)}
+        except OSError as e:
+            return "damaged", {
+                "componentsPath": str(pathComponents),
+                "reason": str(e),
+            }
 
     try:
-        boolHasContent = any(pathComponents.iterdir())
-    except OSError as e:
+        folderInfo = validate_components_folder(pathComponents, lockDict)
+    except ComponentManagementError as e:
         return "damaged", {
             "componentsPath": str(pathComponents),
-            "reason": str(e),
+            "code": e.code,
+            "message": e.message,
+            "details": e.details or {},
         }
 
-    if not boolHasContent:
-        return "missing", {"componentsPath": str(pathComponents)}
-
-    # TODO: Full RECORD-based verification is implemented together with the _Components extraction format.
-    return "unverified", {
+    return "valid", {
         "componentsPath": str(pathComponents),
-        "reason": "The _Components folder exists, but full integrity verification is not implemented yet.",
+        "componentCount": folderInfo.componentCount,
+        "fileCount": folderInfo.fileCount,
     }
 
 
@@ -213,6 +221,7 @@ def get_project_dependency_state(projectPath: Path) -> ProjectDependencyState:
         pathProject,
         dependenciesRequired=boolDependenciesRequired,
         lockState=lockState,
+        lockDict=dictComponentsLock,
     )
     if dictComponentsDetails:
         dictDetails["components"] = dictComponentsDetails

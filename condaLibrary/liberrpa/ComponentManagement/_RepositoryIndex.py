@@ -13,10 +13,14 @@ from liberrpa.ComponentManagement.Utils._TypedValue import (
 )
 from liberrpa.ComponentManagement.Utils._Version import normalize_specifier, normalize_version
 from liberrpa.ComponentManagement.Utils._Validation import get_package_name_error, validate_exact_keys
+from liberrpa.ComponentManagement.Utils._WheelName import (
+    STR_COMPONENT_WHEEL_TAG,
+    TAG_COMPONENT_WHEEL,
+    get_component_wheel_names,
+)
 
 from pathlib import Path, PurePosixPath
 from packaging.version import Version
-from packaging.tags import Tag
 from packaging.utils import (
     InvalidWheelFilename,
     canonicalize_name,
@@ -72,10 +76,10 @@ def validate_wheel_file_name(
     if buildTag:
         raise ValueError(f"{field} cannot contain a Wheel build tag.")
 
-    if tagSet != frozenset({Tag("py313", "none", "any")}):
-        raise ValueError(f"{field} must use the py313-none-any tag.")
+    if tagSet != frozenset({TAG_COMPONENT_WHEEL}):
+        raise ValueError(f"{field} must use the {STR_COMPONENT_WHEEL_TAG} tag.")
 
-    strExpectedFileName = f"{canonicalize_name(packageName).replace('-', '_')}-{version}-py313-none-any.whl"
+    _, strExpectedFileName = get_component_wheel_names(packageName, version)
 
     if value != strExpectedFileName:
         raise ValueError(f"{field} must use the normalized filename {strExpectedFileName!r}.")

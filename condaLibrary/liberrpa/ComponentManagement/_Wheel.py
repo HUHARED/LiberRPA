@@ -17,15 +17,21 @@ from liberrpa.ComponentManagement.Utils._TypedValue import (
     ComponentWheelInfo,
 )
 from liberrpa.ComponentManagement.Utils._Validation import validate_exact_keys
+from liberrpa.ComponentManagement.Utils._Record import validate_archive_path, validate_record
+from liberrpa.ComponentManagement.Utils._WheelName import (
+    STR_COMPONENT_WHEEL_TAG,
+    TAG_COMPONENT_WHEEL,
+    get_component_wheel_names,
+)
 from liberrpa.ComponentManagement._Manifest import parse_component_manifest
 
-from csv import reader, writer
+
+from csv import writer
 from email import policy
 from email.message import Message
 from email.parser import BytesParser
 from io import StringIO
 from pathlib import Path, PurePosixPath
-from packaging.tags import Tag
 from packaging.utils import canonicalize_name, parse_wheel_filename
 from packaging.version import Version
 from zipfile import (
@@ -36,12 +42,10 @@ from zipfile import (
 )
 import keyword
 import os
-import re
 import stat
 import uuid
 
 
-_STR_WHEEL_TAG = "py313-none-any"  # Without any binary file related to system platforms or CPU architectures.
 _TUPLE_ZIP_TIMESTAMP = (1984, 4, 4, 0, 0, 0)  # A fixed timestamp for keeping zip binary result same.
 _INT_ZIP_FILE_MODE = (stat.S_IFREG | 0o644) << 16  # Owner can edit, others can read.
 
@@ -61,15 +65,6 @@ _SET_FORBIDDEN_FILE_SUFFIX = {
     ".pyd",
     ".so",
 }
-
-_REGEX_WINDOWS_DRIVE_PATH = re.compile(r"^[A-Za-z]:")
-
-
-def _get_wheel_names(manifestObj: ComponentManifest) -> tuple[str, str]:
-    strDistributionName = canonicalize_name(manifestObj.packageName).replace("-", "_")
-    strDistInfoFolder = f"{strDistributionName}-{manifestObj.version}.dist-info"
-    strWheelFile = f"{strDistributionName}-{manifestObj.version}-{_STR_WHEEL_TAG}.whl"
-    return strDistInfoFolder, strWheelFile
 
 
 def _get_manifest_dict(manifestObj: ComponentManifest) -> dict[str, object]:
@@ -168,7 +163,7 @@ def _get_manifest_metadata_bytes(manifestObj: ComponentManifest) -> bytes:
 def _get_wheel_metadata_bytes() -> bytes:
     return (
         # LiberRPA Component Wheels currently follow Wheel specification 1.0.
-        f"Wheel-Version: 1.0\nGenerator: LiberRPA ComponentManagement\nRoot-Is-Purelib: true\nTag: {_STR_WHEEL_TAG}\n\n"
+        f"Wheel-Version: 1.0\nGenerator: LiberRPA ComponentManagement\nRoot-Is-Purelib: true\nTag: {STR_COMPONENT_WHEEL_TAG}\n\n"
     ).encode()
 
 
@@ -243,7 +238,10 @@ def build_component_wheel(
             message=f"Component Project LICENSE file was not found or is invalid: {licensePath}",
         )
 
-    strDistInfoFolder, strWheelFile = _get_wheel_names(manifestObj)
+    strDistInfoFolder, strWheelFile = get_component_wheel_names(
+        manifestObj.packageName,
+        manifestObj.version,
+    )
     pathWheel = buildFolderPath / strWheelFile
 
     try:
@@ -289,25 +287,6 @@ def build_component_wheel(
     )
 
 
-def _validate_archive_path(archivePath: str) -> None:
-    if archivePath == "" or archivePath.endswith("/"):
-        raise ValueError(f"Wheel contains an invalid file path: {archivePath!r}.")
-
-    if "\x00" in archivePath:
-        raise ValueError(f"Wheel path contains a null character: {archivePath!r}.")
-
-    if "\\" in archivePath:
-        raise ValueError(f"Wheel path must use '/' separators: {archivePath!r}.")
-
-    if archivePath.startswith("/") or _REGEX_WINDOWS_DRIVE_PATH.match(archivePath):
-        raise ValueError(f"Wheel path must be relative: {archivePath!r}.")
-
-    listPathPart = archivePath.split("/")
-
-    if any(pathPart in {"", ".", ".."} for pathPart in listPathPart):
-        raise ValueError(f"Wheel contains an unsafe path: {archivePath!r}.")
-
-
 def _read_metadata(value: bytes, fileName: str) -> Message:
     metadataObj = BytesParser(
         policy=policy.compat32,
@@ -320,53 +299,6 @@ def _read_metadata(value: bytes, fileName: str) -> Message:
         raise ValueError(f"Invalid metadata headers in {fileName}: {metadataObj.defects!r}.")
 
     return metadataObj
-
-
-def _validate_record(
-    wheelObj: ZipFile,
-    archivePathSet: set[str],
-    recordPath: str,
-) -> None:
-    try:
-        strRecord = wheelObj.read(recordPath).decode("utf-8", errors="strict")
-    except (KeyError, UnicodeDecodeError) as e:
-        raise ValueError("Wheel RECORD is missing or is not valid UTF-8.") from e
-
-    listRow = list(reader(StringIO(strRecord, newline="")))
-    dictRecordRow: dict[str, tuple[str, str]] = {}
-
-    for row in listRow:
-        if len(row) != 3:
-            raise ValueError("Every Wheel RECORD row must contain exactly three fields.")
-
-        strPath, strHash, strSize = row
-        if strPath in dictRecordRow:
-            raise ValueError(f"Wheel RECORD contains a duplicate path: {strPath!r}.")
-
-        dictRecordRow[strPath] = (strHash, strSize)
-
-    if set(dictRecordRow) != archivePathSet:
-        listMissingPath = sorted(archivePathSet - set(dictRecordRow))
-        listUnknownPath = sorted(set(dictRecordRow) - archivePathSet)
-        raise ValueError(
-            "Wheel RECORD paths do not match the Wheel contents. "
-            f"Missing: {listMissingPath}; unknown: {listUnknownPath}."
-        )
-
-    for strPath in sorted(archivePathSet):
-        strHash, strSize = dictRecordRow[strPath]
-
-        if strPath == recordPath:
-            if strHash != "" or strSize != "":
-                raise ValueError("The Wheel RECORD row for RECORD itself must have empty hash and size fields.")
-            continue
-
-        value = wheelObj.read(strPath)
-        if strHash != calculate_record_hash(value):
-            raise ValueError(f"Wheel RECORD hash does not match: {strPath!r}.")
-
-        if strSize != str(len(value)):
-            raise ValueError(f"Wheel RECORD size does not match: {strPath!r}.")
 
 
 _SET_SNIPPET_CATALOG_KEYS = {
@@ -647,7 +579,10 @@ def validate_component_wheel(
     snippetCatalogDict: DictSnippetCatalogFile,
 ) -> str:
     dictPublishedManifest = _get_manifest_dict(manifestObj)
-    strDistInfoFolder, strExpectedWheelFile = _get_wheel_names(manifestObj)
+    strDistInfoFolder, strExpectedWheelFile = get_component_wheel_names(
+        manifestObj.packageName,
+        manifestObj.version,
+    )
 
     if wheelPath.name != strExpectedWheelFile:
         raise ComponentManagementError(
@@ -669,8 +604,8 @@ def validate_component_wheel(
             raise ValueError("Wheel version does not match component.json.")
         if buildTag:
             raise ValueError("LiberRPA Component Wheels cannot use a build tag.")
-        if tagSet != frozenset({Tag("py313", "none", "any")}):
-            raise ValueError(f"Wheel must use the {_STR_WHEEL_TAG} compatibility tag.")
+        if tagSet != frozenset({TAG_COMPONENT_WHEEL}):
+            raise ValueError(f"Wheel must use the {STR_COMPONENT_WHEEL_TAG} compatibility tag.")
 
         with ZipFile(wheelPath, mode="r") as wheelObj:
             strBadFile = wheelObj.testzip()
@@ -694,7 +629,7 @@ def validate_component_wheel(
             dictCaseInsensitivePath: dict[str, str] = {}
             for infoObj in listInfo:
                 strArchivePath = infoObj.filename
-                _validate_archive_path(strArchivePath)
+                validate_archive_path(strArchivePath)
 
                 if infoObj.compress_type != ZIP_STORED:
                     raise ValueError(f"Wheel file must use ZIP_STORED compression: {strArchivePath!r}.")
@@ -779,8 +714,8 @@ def validate_component_wheel(
                 raise ValueError("Wheel-Version must be 1.0.")
             if wheelMetadataObj.get("Root-Is-Purelib", "").casefold() != "true":
                 raise ValueError("Root-Is-Purelib must be true.")
-            if wheelMetadataObj.get_all("Tag") != [_STR_WHEEL_TAG]:
-                raise ValueError(f"WHEEL must contain exactly one Tag: {_STR_WHEEL_TAG}.")
+            if wheelMetadataObj.get_all("Tag") != [STR_COMPONENT_WHEEL_TAG]:
+                raise ValueError(f"WHEEL must contain exactly one Tag: {STR_COMPONENT_WHEEL_TAG}.")
 
             embeddedManifest = parse_json(wheelObj.read(strManifestPath).decode("utf-8", errors="strict"))
             if embeddedManifest != dictPublishedManifest:
@@ -791,10 +726,10 @@ def validate_component_wheel(
             if dictEmbeddedSnippetCatalog != dictExpectedSnippetCatalog:
                 raise ValueError("Embedded snippets_catalog.json does not match the generated catalog.")
 
-            _validate_record(
-                wheelObj=wheelObj,
+            validate_record(
                 archivePathSet=setArchivePath,
                 recordPath=strRecordPath,
+                readArchiveFile=wheelObj.read,
             )
     except (BadZipFile, KeyError, OSError, UnicodeDecodeError, ValueError) as e:
         raise ComponentManagementError(

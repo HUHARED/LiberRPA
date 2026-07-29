@@ -259,6 +259,13 @@ class DictComponentsLockFile(TypedDict):
     components: dict[str, DictLockedComponent]
 
 
+@dataclass(frozen=True)
+class ComponentsFolderInfo:
+    componentsPath: Path
+    componentCount: int
+    fileCount: int
+
+
 type DirectDependencyChangeType = Literal["added", "removed", "requirementChanged"]
 
 
