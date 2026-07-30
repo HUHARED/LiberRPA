@@ -46,7 +46,7 @@ import pyautogui
 from time import monotonic, sleep
 import threading
 from contextlib import contextmanager
-from collections.abc import Iterator
+from collections.abc import Generator
 from dataclasses import dataclass
 from typing import overload
 
@@ -65,7 +65,7 @@ def holding_modifier_keys(
     pressShift: bool = False,
     pressAlt: bool = False,
     pressWin: bool = False,
-) -> Iterator[None]:
+) -> Generator[None]:
     pressedKeys: list[str] = []
 
     try:
