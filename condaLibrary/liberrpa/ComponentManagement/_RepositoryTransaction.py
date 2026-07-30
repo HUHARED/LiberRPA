@@ -8,18 +8,19 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 from liberrpa.ComponentManagement.Utils._Exception import ComponentManagementError
 from liberrpa.ComponentManagement.Utils._File import read_json
 from liberrpa.ComponentManagement.Utils._Hash import calculate_file_sha256
-from liberrpa.ComponentManagement.Utils._TypedValue import (
-    DictComponentManagementWarning,
-    DictRepositoryComponentVersion,
-    DictRepositoryIndex,
-    DictRepositoryTransaction,
-)
 from liberrpa.ComponentManagement.Utils._Version import normalize_version
 from liberrpa.ComponentManagement.Utils._Validation import (
     get_package_name_error,
     validate_exact_keys,
-    file_invalid,
-    folder_invalid,
+    path_exists,
+    is_file_invalid,
+    is_folder_invalid,
+)
+from liberrpa.ComponentManagement.Types._Warning import DictComponentManagementWarning
+from liberrpa.ComponentManagement.Types._Repository import (
+    DictRepository_ComponentVersion,
+    DictRepository_Index,
+    DictRepository_Transaction_Publish,
 )
 from liberrpa.ComponentManagement._RepositoryIndex import (
     normalize_component_id,
@@ -52,7 +53,7 @@ _SET_TRANSACTION_KEYS = {
 }
 
 
-def _validate_transaction(value: object) -> DictRepositoryTransaction:
+def _validate_transaction(value: object) -> DictRepository_Transaction_Publish:
     if not isinstance(value, dict):
         raise ValueError("Transaction root value must be an object.")
 
@@ -108,7 +109,7 @@ def _validate_transaction(value: object) -> DictRepositoryTransaction:
         raise ValueError("targetRelativePath does not match the Component identity.")
 
     return cast(
-        DictRepositoryTransaction,
+        DictRepository_Transaction_Publish,
         {
             "schemaVersion": 1,
             "operation": "publishComponent",
@@ -145,22 +146,22 @@ def _collect_publish_transactions(
     repositoryPath: Path,
     *,
     errorCode: Literal["repository_recovery_failed", "repository_rebuild_failed"],
-) -> tuple[list[Path], list[tuple[Path, Path, DictRepositoryTransaction]]]:
+) -> tuple[list[Path], list[tuple[Path, Path, DictRepository_Transaction_Publish]]]:
     pathStaging = get_repository_staging_path(repositoryPath)
-    if not pathStaging.exists():
+    if not path_exists(pathStaging):
         return [], []
 
-    if folder_invalid(pathStaging):
+    if is_folder_invalid(pathStaging):
         raise ComponentManagementError(
             code=errorCode,
             message=f"Component Repository staging path is invalid: {pathStaging}",
         )
 
     listCleanupPath: list[Path] = []
-    listTransaction: list[tuple[Path, Path, DictRepositoryTransaction]] = []
+    listTransaction: list[tuple[Path, Path, DictRepository_Transaction_Publish]] = []
 
     for pathTransaction in sorted(pathStaging.glob("publish_*"), key=lambda pathObj: pathObj.name):
-        if folder_invalid(pathTransaction):
+        if is_folder_invalid(pathTransaction):
             raise ComponentManagementError(
                 code=errorCode,
                 message="Component Repository staging contains an invalid publish transaction path.",
@@ -168,7 +169,7 @@ def _collect_publish_transactions(
             )
 
         pathTransactionFile = pathTransaction / "transaction.json"
-        if file_invalid(pathTransactionFile):
+        if is_file_invalid(pathTransactionFile):
             listCleanupPath.append(pathTransaction)
             continue
 
@@ -188,12 +189,12 @@ def _collect_publish_transactions(
 
 def _inspect_publish_transaction_state(
     repositoryPath: Path,
-    indexDict: DictRepositoryIndex,
+    indexDict: DictRepository_Index,
     transactionFilePath: Path,
-    transactionDict: DictRepositoryTransaction,
+    transactionDict: DictRepository_Transaction_Publish,
     *,
     errorCode: Literal["repository_recovery_failed", "repository_rebuild_failed"],
-) -> tuple[Path, DictRepositoryComponentVersion | None]:
+) -> tuple[Path, DictRepository_ComponentVersion | None]:
     pathTargetWheel = repositoryPath.joinpath(*PurePosixPath(transactionDict["targetRelativePath"]).parts)
     dictComponent = indexDict["components"].get(transactionDict["componentId"])
     dictExistingVersion = (
@@ -331,7 +332,7 @@ def copy_wheel_to_staging(sourcePath: Path, targetPath: Path) -> None:
 
 def validate_publish_transactions_for_rebuild(
     repositoryPath: Path,
-    indexDict: DictRepositoryIndex,
+    indexDict: DictRepository_Index,
 ) -> list[Path]:
     listCleanupPath, listTransaction = _collect_publish_transactions(
         repositoryPath,

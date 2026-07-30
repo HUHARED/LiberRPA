@@ -7,22 +7,29 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from liberrpa.ComponentManagement.Utils._Exception import ComponentManagementError
 from liberrpa.ComponentManagement.Utils._File import read_json, serialize_json, write_json_atomic
-from liberrpa.ComponentManagement.Utils._TypedValue import (
-    FlowManifest,
-    ProjectManifest,
-    DictFlowProjectComponentsLockRoot,
-    DictComponentProjectComponentsLockRoot,
-    DictComponentsLockRoot,
-    DictLockedComponent,
-    DictComponentsLockFile,
+from liberrpa.ComponentManagement.Utils._Version import normalize_version, normalize_specifier
+from liberrpa.ComponentManagement.Utils._Validation import (
+    get_package_name_error,
+    validate_exact_keys,
+    path_exists,
+    is_file_invalid,
 )
-from liberrpa.ComponentManagement.Utils._Validation import get_package_name_error, validate_exact_keys, file_invalid
-from liberrpa.ComponentManagement.Utils._Version import normalize_specifier, normalize_version
+from liberrpa.ComponentManagement.Types._Manifest import (
+    Info_ProjectManifest_Flow,
+    Info_ProjectManifest,
+)
+from liberrpa.ComponentManagement.Types._Components import (
+    DictComponentsLock_Root_FlowProject,
+    DictComponentsLock_Root_ComponentProject,
+    DictComponentsLock_Root,
+    DictComponentsLock_Component,
+    DictComponentsLock_File,
+)
 from liberrpa.ComponentManagement._RepositoryIndex import (
+    validate_wheel_file_name,
+    validate_sha256,
     normalize_component_id,
     validate_component_dependency_dict,
-    validate_sha256,
-    validate_wheel_file_name,
 )
 
 from hashlib import sha256
@@ -63,7 +70,7 @@ def _calculate_resolution_input_sha256(value: dict[str, object]) -> str:
     return sha256(bytesInput).hexdigest()
 
 
-def _validate_components_lock_root(value: object) -> DictComponentsLockRoot:
+def _validate_components_lock_root(value: object) -> DictComponentsLock_Root:
     if not isinstance(value, dict):
         raise ValueError("components.lock.json root must be an object.")
 
@@ -149,8 +156,8 @@ def _validate_components_lock_root(value: object) -> DictComponentsLockRoot:
 
 
 def _validate_dependency_graph(
-    rootDict: DictComponentsLockRoot,
-    componentDict: dict[str, DictLockedComponent],
+    rootDict: DictComponentsLock_Root,
+    componentDict: dict[str, DictComponentsLock_Component],
 ) -> None:
     strRootComponentId = rootDict["componentId"] if rootDict["manifestFile"] == "component.json" else None
 
@@ -230,7 +237,7 @@ def _validate_locked_component(
     field: str,
     *,
     componentId: str,
-) -> DictLockedComponent:
+) -> DictComponentsLock_Component:
     if not isinstance(value, dict):
         raise ValueError(f"{field} must be an object.")
 
@@ -293,7 +300,7 @@ def _validate_locked_component(
     }
 
 
-def validate_components_lock(value: object) -> DictComponentsLockFile:
+def validate_components_lock(value: object) -> DictComponentsLock_File:
     if not isinstance(value, dict):
         raise ValueError("components.lock.json root value must be an object.")
 
@@ -309,7 +316,7 @@ def validate_components_lock(value: object) -> DictComponentsLockFile:
     if not isinstance(componentsValue, dict):
         raise ValueError("components.lock.json components must be an object.")
 
-    dictComponent: dict[str, DictLockedComponent] = {}
+    dictComponent: dict[str, DictComponentsLock_Component] = {}
     dictPackageOwner: dict[str, str] = {}
 
     if dictRoot["manifestFile"] == "component.json":
@@ -349,8 +356,8 @@ def validate_components_lock(value: object) -> DictComponentsLockFile:
     }
 
 
-def _build_resolution_input(manifestObj: ProjectManifest) -> dict[str, object]:
-    if isinstance(manifestObj, FlowManifest):
+def _build_resolution_input(manifestObj: Info_ProjectManifest) -> dict[str, object]:
+    if isinstance(manifestObj, Info_ProjectManifest_Flow):
         return {
             "manifestFile": "flow.json",
             "manifestSchemaVersion": manifestObj.schemaVersion,
@@ -368,12 +375,12 @@ def _build_resolution_input(manifestObj: ProjectManifest) -> dict[str, object]:
     }
 
 
-def build_components_lock_root(manifestObj: ProjectManifest) -> DictComponentsLockRoot:
+def build_components_lock_root(manifestObj: Info_ProjectManifest) -> DictComponentsLock_Root:
     dictResolutionInput = _build_resolution_input(manifestObj)
     strResolutionInputSha256 = _calculate_resolution_input_sha256(dictResolutionInput)
 
-    if isinstance(manifestObj, FlowManifest):
-        dictFlowRoot: DictFlowProjectComponentsLockRoot = {
+    if isinstance(manifestObj, Info_ProjectManifest_Flow):
+        dictFlowRoot: DictComponentsLock_Root_FlowProject = {
             "manifestFile": "flow.json",
             "manifestSchemaVersion": manifestObj.schemaVersion,
             "requiresLiberrpa": manifestObj.requiresLiberrpa,
@@ -382,7 +389,7 @@ def build_components_lock_root(manifestObj: ProjectManifest) -> DictComponentsLo
         }
         return dictFlowRoot
 
-    dictComponentRoot: DictComponentProjectComponentsLockRoot = {
+    dictComponentRoot: DictComponentsLock_Root_ComponentProject = {
         "manifestFile": "component.json",
         "manifestSchemaVersion": manifestObj.schemaVersion,
         "componentId": manifestObj.id,
@@ -395,9 +402,9 @@ def build_components_lock_root(manifestObj: ProjectManifest) -> DictComponentsLo
 
 
 def build_components_lock(
-    manifestObj: ProjectManifest,
-    componentDict: dict[str, DictLockedComponent],
-) -> DictComponentsLockFile:
+    manifestObj: Info_ProjectManifest,
+    componentDict: dict[str, DictComponentsLock_Component],
+) -> DictComponentsLock_File:
     return validate_components_lock({
         "schemaVersion": 1,
         "root": build_components_lock_root(manifestObj),
@@ -405,14 +412,14 @@ def build_components_lock(
     })
 
 
-def read_components_lock(lockPath: Path) -> DictComponentsLockFile:
-    if not lockPath.exists():
+def read_components_lock(lockPath: Path) -> DictComponentsLock_File:
+    if not path_exists(lockPath):
         raise ComponentManagementError(
             code="components_lock_missing",
             message=f"Components lock file was not found: {lockPath}",
         )
 
-    if file_invalid(lockPath):
+    if is_file_invalid(lockPath):
         raise ComponentManagementError(
             code="components_lock_invalid",
             message=f"Components lock path is invalid: {lockPath}",
@@ -428,7 +435,7 @@ def read_components_lock(lockPath: Path) -> DictComponentsLockFile:
         ) from e
 
 
-def write_components_lock(lockPath: Path, lockDict: DictComponentsLockFile) -> None:
+def write_components_lock(lockPath: Path, lockDict: DictComponentsLock_File) -> None:
     try:
         dictValidatedLock = validate_components_lock(lockDict)
         write_json_atomic(lockPath, dictValidatedLock)
@@ -446,7 +453,7 @@ def write_components_lock(lockPath: Path, lockDict: DictComponentsLockFile) -> N
 
 
 def is_components_lock_stale(
-    lockDict: DictComponentsLockFile,
-    manifestObj: ProjectManifest,
+    lockDict: DictComponentsLock_File,
+    manifestObj: Info_ProjectManifest,
 ) -> bool:
     return lockDict["root"] != build_components_lock_root(manifestObj)

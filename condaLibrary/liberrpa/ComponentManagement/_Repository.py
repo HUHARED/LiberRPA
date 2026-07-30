@@ -9,20 +9,22 @@ from liberrpa.Common._BasicConfig import get_basic_config_dict
 from liberrpa.ComponentManagement.Utils._Exception import ComponentManagementError
 from liberrpa.ComponentManagement.Utils._File import write_json_atomic
 from liberrpa.ComponentManagement.Utils._Hash import calculate_file_sha256
-from liberrpa.ComponentManagement.Utils._TypedValue import (
-    ComponentManifest,
-    DictComponentManagementWarning,
-    WheelBuildResult,
-    ComponentWheelInfo,
-    DictRepositoryComponentVersion,
-    DictRepositoryIndex,
-    DictRepositoryTransaction,
-    RepositoryPublishResult,
-    RepositoryRebuildResult,
+from liberrpa.ComponentManagement.Utils._Validation import path_exists, is_file_invalid, is_folder_invalid
+from liberrpa.ComponentManagement.Types._Warning import DictComponentManagementWarning
+from liberrpa.ComponentManagement.Types._Manifest import Info_ProjectManifest_Component
+from liberrpa.ComponentManagement.Types._Wheel import (
+    Info_ComponentWheel_BuildResult,
+    Info_ComponentWheel,
 )
-from liberrpa.ComponentManagement.Utils._Validation import path_exists, file_invalid, folder_invalid
-from liberrpa.ComponentManagement._Wheel import inspect_component_wheel
+from liberrpa.ComponentManagement.Types._Repository import (
+    DictRepository_ComponentVersion,
+    DictRepository_Index,
+    DictRepository_Transaction_Publish,
+    Info_Repository_PublishResult,
+    Info_Repository_RebuildResult,
+)
 from liberrpa.ComponentManagement.Lock._RepositoryLock import repository_lock
+from liberrpa.ComponentManagement._Wheel import inspect_component_wheel
 from liberrpa.ComponentManagement._RepositoryIndex import (
     STR_INDEX_FILE_NAME,
     get_repository_components_path,
@@ -98,7 +100,7 @@ def get_repository_path() -> Path:
 
 
 def load_repository_resolution_snapshot() -> tuple[
-    DictRepositoryIndex,
+    DictRepository_Index,
     list[DictComponentManagementWarning],
 ]:
     """Read a consistent Repository index snapshot after recovering interrupted publishes."""
@@ -115,9 +117,9 @@ def load_repository_resolution_snapshot() -> tuple[
 
 
 def _build_version_entry(
-    manifestObj: ComponentManifest,
-    wheelResult: WheelBuildResult,
-) -> DictRepositoryComponentVersion:
+    manifestObj: Info_ProjectManifest_Component,
+    wheelResult: Info_ComponentWheel_BuildResult,
+) -> DictRepository_ComponentVersion:
     return {
         "version": manifestObj.version,
         "displayName": manifestObj.displayName,
@@ -131,9 +133,9 @@ def _build_version_entry(
 
 
 def publish_component_wheel(
-    manifestObj: ComponentManifest,
-    wheelResult: WheelBuildResult,
-) -> RepositoryPublishResult:
+    manifestObj: Info_ProjectManifest_Component,
+    wheelResult: Info_ComponentWheel_BuildResult,
+) -> Info_Repository_PublishResult:
     pathRepository = get_repository_path()
 
     with repository_lock(repositoryPath=pathRepository, operation="publishComponent"):
@@ -177,7 +179,7 @@ def publish_component_wheel(
                 packageName=manifestObj.packageName,
                 wheelFile=dictExistingVersion["wheelFile"],
             )
-            if file_invalid(pathExistingWheel):
+            if is_file_invalid(pathExistingWheel):
                 raise_rebuild_required(
                     "A Component Wheel referenced by repository.json is missing.",
                     {"wheelFile": str(pathExistingWheel)},
@@ -206,7 +208,7 @@ def publish_component_wheel(
                         },
                     )
 
-                return RepositoryPublishResult(
+                return Info_Repository_PublishResult(
                     status="alreadyPublished",
                     warnings=listWarning,
                 )
@@ -246,7 +248,7 @@ def publish_component_wheel(
             wheelFile=wheelResult.wheelFile,
         )
         strTargetRelativePath = pathTargetWheel.relative_to(pathRepository).as_posix()
-        dictTransaction: DictRepositoryTransaction = {
+        dictTransaction: DictRepository_Transaction_Publish = {
             "schemaVersion": 1,
             "operation": "publishComponent",
             "state": "prepared",
@@ -302,15 +304,15 @@ def publish_component_wheel(
         if dictWarning is not None:
             listWarning.append(dictWarning)
 
-        return RepositoryPublishResult(
+        return Info_Repository_PublishResult(
             status="published",
             warnings=listWarning,
         )
 
 
 def _build_version_entry_from_wheel(
-    wheelInfo: ComponentWheelInfo,
-) -> DictRepositoryComponentVersion:
+    wheelInfo: Info_ComponentWheel,
+) -> DictRepository_ComponentVersion:
     manifestObj = wheelInfo.manifest
     return {
         "version": manifestObj.version,
@@ -343,7 +345,7 @@ def _add_rebuild_issue(
     issueList.append(dictIssue)
 
 
-def rebuild_repository_index() -> RepositoryRebuildResult:
+def rebuild_repository_index() -> Info_Repository_RebuildResult:
     pathRepository = get_repository_path()
 
     with repository_lock(repositoryPath=pathRepository, operation="rebuildRepositoryIndex"):
@@ -359,14 +361,14 @@ def rebuild_repository_index() -> RepositoryRebuildResult:
                 message=(f"Failed to initialize the Component Repository structure: {pathRepository}"),
             ) from e
 
-        if folder_invalid(pathComponents):
+        if is_folder_invalid(pathComponents):
             raise ComponentManagementError(
                 code="repository_rebuild_failed",
                 message="The Component Repository components path is invalid.",
                 details={"path": str(pathComponents)},
             )
 
-        dictNewIndex: DictRepositoryIndex = {
+        dictNewIndex: DictRepository_Index = {
             "schemaVersion": 1,
             "components": {},
         }
@@ -375,7 +377,7 @@ def rebuild_repository_index() -> RepositoryRebuildResult:
         dictVersionPath: dict[tuple[str, Version], Path] = {}
 
         for pathComponentFolder in sorted(pathComponents.iterdir(), key=lambda pathObj: pathObj.name):
-            if folder_invalid(pathComponentFolder):
+            if is_folder_invalid(pathComponentFolder):
                 _add_rebuild_issue(
                     listIssue,
                     code="invalid_component_folder",
@@ -388,7 +390,7 @@ def rebuild_repository_index() -> RepositoryRebuildResult:
             boolHasUnexpectedEntry = False
 
             for pathEntry in sorted(pathComponentFolder.iterdir(), key=lambda pathObj: pathObj.name):
-                if file_invalid(pathEntry) or pathEntry.suffix.casefold() != ".whl":
+                if is_file_invalid(pathEntry) or pathEntry.suffix.casefold() != ".whl":
                     boolHasUnexpectedEntry = True
                     _add_rebuild_issue(
                         listIssue,
@@ -492,7 +494,7 @@ def rebuild_repository_index() -> RepositoryRebuildResult:
 
         intVersionCount = sum(len(dictComponent["versions"]) for dictComponent in dictNewIndex["components"].values())
 
-        return RepositoryRebuildResult(
+        return Info_Repository_RebuildResult(
             componentCount=len(dictNewIndex["components"]),
             versionCount=intVersionCount,
             warnings=listWarning,

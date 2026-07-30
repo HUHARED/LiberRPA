@@ -6,22 +6,23 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from liberrpa.ComponentManagement.Utils._Exception import ComponentManagementError
 from liberrpa.ComponentManagement.Utils._File import read_json, write_json_atomic
-from liberrpa.ComponentManagement.Utils._TypedValue import (
-    DictRepositoryComponentVersion,
-    DictRepositoryComponent,
-    DictRepositoryIndex,
-)
-from liberrpa.ComponentManagement.Utils._Version import normalize_specifier, normalize_version
-from liberrpa.ComponentManagement.Utils._Validation import (
-    get_package_name_error,
-    validate_exact_keys,
-    file_invalid,
-    folder_invalid,
-)
 from liberrpa.ComponentManagement.Utils._WheelName import (
     STR_COMPONENT_WHEEL_TAG,
     TAG_COMPONENT_WHEEL,
     get_component_wheel_names,
+)
+from liberrpa.ComponentManagement.Utils._Version import normalize_version, normalize_specifier
+from liberrpa.ComponentManagement.Utils._Validation import (
+    get_package_name_error,
+    validate_exact_keys,
+    path_exists,
+    is_file_invalid,
+    is_folder_invalid,
+)
+from liberrpa.ComponentManagement.Types._Repository import (
+    DictRepository_ComponentVersion,
+    DictRepository_Component,
+    DictRepository_Index,
 )
 
 from pathlib import Path, PurePosixPath
@@ -152,7 +153,7 @@ def validate_repository_version(
     *,
     componentId: str,
     packageName: str,
-) -> DictRepositoryComponentVersion:
+) -> DictRepository_ComponentVersion:
     if not isinstance(value, dict):
         raise ValueError(f"{field} must be an object.")
 
@@ -212,7 +213,7 @@ def validate_repository_version(
     }
 
 
-def _validate_repository_index(value: object) -> DictRepositoryIndex:
+def _validate_repository_index(value: object) -> DictRepository_Index:
     if not isinstance(value, dict):
         raise ValueError("repository.json root value must be an object.")
 
@@ -226,7 +227,7 @@ def _validate_repository_index(value: object) -> DictRepositoryIndex:
     if not isinstance(components, dict):
         raise ValueError("repository.json components must be an object.")
 
-    dictComponent: dict[str, DictRepositoryComponent] = {}
+    dictComponent: dict[str, DictRepository_Component] = {}
 
     for componentId, componentValue in components.items():
         strComponentId = normalize_component_id(componentId, f"components.{componentId}")
@@ -252,7 +253,7 @@ def _validate_repository_index(value: object) -> DictRepositoryIndex:
         if not versions:
             raise ValueError(f"components.{strComponentId}.versions cannot be empty.")
 
-        listVersion: list[DictRepositoryComponentVersion] = []
+        listVersion: list[DictRepository_ComponentVersion] = []
         setVersion: set[Version] = set()
 
         for intIndex, versionValue in enumerate(versions):
@@ -314,7 +315,7 @@ def get_wheel_path(
     )
 
 
-def _get_expected_wheel_path_set(indexDict: DictRepositoryIndex) -> set[str]:
+def _get_expected_wheel_path_set(indexDict: DictRepository_Index) -> set[str]:
     setWheelPath: set[str] = set()
 
     for strComponentId, dictComponent in indexDict["components"].items():
@@ -340,10 +341,10 @@ def raise_rebuild_required(message: str, details: dict[str, object] | None = Non
 
 def _get_actual_wheel_path_set(repositoryPath: Path) -> set[str]:
     pathComponents = get_repository_components_path(repositoryPath)
-    if not pathComponents.exists():
+    if not path_exists(pathComponents):
         return set()
 
-    if folder_invalid(pathComponents):
+    if is_folder_invalid(pathComponents):
         raise_rebuild_required(
             "The Component Repository components path is not a valid folder.",
             {"path": str(pathComponents)},
@@ -352,7 +353,7 @@ def _get_actual_wheel_path_set(repositoryPath: Path) -> set[str]:
     setWheelPath: set[str] = set()
 
     for pathWheel in pathComponents.rglob("*.whl"):
-        if file_invalid(pathWheel):
+        if is_file_invalid(pathWheel):
             raise_rebuild_required(
                 "The Component Repository contains an invalid Wheel path.",
                 {"wheelFile": str(pathWheel)},
@@ -367,15 +368,15 @@ def load_repository_index(
     repositoryPath: Path,
     *,
     checkWheelPaths: bool,
-) -> DictRepositoryIndex:
+) -> DictRepository_Index:
     pathIndexFile = repositoryPath / STR_INDEX_FILE_NAME
 
-    if not pathIndexFile.exists():
-        dictIndex: DictRepositoryIndex = {
+    if not path_exists(pathIndexFile):
+        dictIndex: DictRepository_Index = {
             "schemaVersion": 1,
             "components": {},
         }
-    elif file_invalid(pathIndexFile):
+    elif is_file_invalid(pathIndexFile):
         raise_rebuild_required(
             "Component Repository index is invalid.",
             {"indexFile": str(pathIndexFile)},
@@ -405,14 +406,14 @@ def load_repository_index(
     return dictIndex
 
 
-def write_repository_index(repositoryPath: Path, indexDict: DictRepositoryIndex) -> None:
+def write_repository_index(repositoryPath: Path, indexDict: DictRepository_Index) -> None:
     write_json_atomic(repositoryPath / STR_INDEX_FILE_NAME, indexDict)
 
 
 def find_equivalent_version(
-    componentDict: DictRepositoryComponent,
+    componentDict: DictRepository_Component,
     version: str,
-) -> DictRepositoryComponentVersion | None:
+) -> DictRepository_ComponentVersion | None:
     targetVersion = Version(version)
 
     for dictVersionEntry in componentDict["versions"]:
@@ -423,12 +424,12 @@ def find_equivalent_version(
 
 
 def add_version_to_index(
-    indexDict: DictRepositoryIndex,
+    indexDict: DictRepository_Index,
     componentId: str,
     packageName: str,
-    versionEntry: DictRepositoryComponentVersion,
+    versionEntry: DictRepository_ComponentVersion,
 ) -> None:
-    dictComponent: DictRepositoryComponent | None = indexDict["components"].get(componentId)
+    dictComponent: DictRepository_Component | None = indexDict["components"].get(componentId)
 
     if dictComponent is None:
         dictComponent = {

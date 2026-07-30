@@ -7,16 +7,16 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from liberrpa.ComponentManagement.Utils._Exception import ComponentManagementError
 from liberrpa.ComponentManagement.Utils._Hash import calculate_file_sha256
-from liberrpa.ComponentManagement.Utils._TypedValue import (
-    ProjectManifest,
-    DictComponentsLockFile,
-    ComponentsLockState,
-    ComponentsState,
-    EnvironmentState,
-    RepairState,
-    ProjectDependencyState,
+from liberrpa.ComponentManagement.Utils._Validation import path_exists, is_file_invalid
+from liberrpa.ComponentManagement.Types._Manifest import Info_ProjectManifest
+from liberrpa.ComponentManagement.Types._Components import DictComponentsLock_File
+from liberrpa.ComponentManagement.Types._Dependency import (
+    Str_ProjectDependency_LockState,
+    Str_ProjectDependency_ComponentsState,
+    Str_ProjectDependency_EnvironmentState,
+    Str_ProjectDependency_RepairState,
+    Info_ProjectDependency_State,
 )
-from liberrpa.ComponentManagement.Utils._Validation import path_exists, file_invalid
 from liberrpa.ComponentManagement._Components import (
     STR_COMPONENTS_FOLDER_NAME,
     validate_components_folder,
@@ -37,10 +37,10 @@ from packaging.version import InvalidVersion, Version
 
 
 def _get_environment_state(
-    manifestObj: ProjectManifest,
-    lockDict: DictComponentsLockFile | None,
-    lockState: ComponentsLockState,
-) -> tuple[EnvironmentState, dict[str, object]]:
+    manifestObj: Info_ProjectManifest,
+    lockDict: DictComponentsLock_File | None,
+    lockState: Str_ProjectDependency_LockState,
+) -> tuple[Str_ProjectDependency_EnvironmentState, dict[str, object]]:
     if manifestObj.componentDependencies and lockState != "valid":
         return "unknown", {
             "reason": "A valid components.lock.json is required before all LiberRPA version requirements can be checked."
@@ -81,9 +81,9 @@ def _get_components_state(
     projectPath: Path,
     *,
     dependenciesRequired: bool,
-    lockState: ComponentsLockState,
-    lockDict: DictComponentsLockFile | None,
-) -> tuple[ComponentsState, dict[str, object]]:
+    lockState: Str_ProjectDependency_LockState,
+    lockDict: DictComponentsLock_File | None,
+) -> tuple[Str_ProjectDependency_ComponentsState, dict[str, object]]:
     if not dependenciesRequired:
         return "notRequired", {}
 
@@ -122,10 +122,10 @@ def _get_components_state(
 
 
 def _get_repair_state(
-    lockDict: DictComponentsLockFile | None,
-    lockState: ComponentsLockState,
-    componentsState: ComponentsState,
-) -> tuple[RepairState, dict[str, object]]:
+    lockDict: DictComponentsLock_File | None,
+    lockState: Str_ProjectDependency_LockState,
+    componentsState: Str_ProjectDependency_ComponentsState,
+) -> tuple[Str_ProjectDependency_RepairState, dict[str, object]]:
     if lockState != "valid" or lockDict is None or componentsState in {"notRequired", "valid"}:
         return "notApplicable", {}
 
@@ -146,7 +146,7 @@ def _get_repair_state(
             wheelFile=dictComponent["wheelFile"],
         )
 
-        if file_invalid(pathWheel):
+        if is_file_invalid(pathWheel):
             return "wheelMissing", {
                 "componentId": strComponentId,
                 "wheelFile": str(pathWheel),
@@ -171,7 +171,7 @@ def _get_repair_state(
     return "available", {"repositoryPath": str(pathRepository)}
 
 
-def get_project_dependency_state(projectPath: Path) -> ProjectDependencyState:
+def get_project_dependency_state(projectPath: Path) -> Info_ProjectDependency_State:
     try:
         pathProject = projectPath.expanduser().resolve()
     except (OSError, RuntimeError) as e:
@@ -191,8 +191,8 @@ def get_project_dependency_state(projectPath: Path) -> ProjectDependencyState:
     pathLock = pathProject / STR_COMPONENTS_LOCK_FILE_NAME
     dictDetails: dict[str, object] = {}
 
-    lockState: ComponentsLockState
-    dictComponentsLock: DictComponentsLockFile | None = None
+    lockState: Str_ProjectDependency_LockState
+    dictComponentsLock: DictComponentsLock_File | None = None
 
     if not boolDependenciesRequired:
         lockState = "notRequired"
@@ -243,7 +243,7 @@ def get_project_dependency_state(projectPath: Path) -> ProjectDependencyState:
     if dictRepairDetails:
         dictDetails["repair"] = dictRepairDetails
 
-    return ProjectDependencyState(
+    return Info_ProjectDependency_State(
         projectPath=pathProject,
         projectType=strProjectType,
         manifest=manifestObj,

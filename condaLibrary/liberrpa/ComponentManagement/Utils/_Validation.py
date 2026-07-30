@@ -158,12 +158,15 @@ def validate_exact_keys(
 
 
 def path_exists(path: Path) -> bool:
+    """Return whether a filesystem entry exists, including a broken symbolic link."""
     return path.exists() or path.is_symlink()
 
 
-def file_invalid(path: Path) -> bool:
+def is_file_invalid(path: Path) -> bool:
+    """Return whether the path is not a regular non-symbolic-link file."""
     return not path.is_file() or path.is_symlink()
 
 
-def folder_invalid(path: Path) -> bool:
+def is_folder_invalid(path: Path) -> bool:
+    """Return whether the path is not a regular non-symbolic-link folder."""
     return not path.is_dir() or path.is_symlink()

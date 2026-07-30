@@ -8,14 +8,20 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from liberrpa.ComponentManagement.Utils._Exception import ComponentManagementError
 from liberrpa.ComponentManagement.Utils._File import read_json
-from liberrpa.ComponentManagement.Utils._Version import normalize_specifier, normalize_version
-from liberrpa.ComponentManagement.Utils._Validation import add_issue, get_package_name_error, file_invalid
-from liberrpa.ComponentManagement.Utils._TypedValue import (
-    ProjectType,
-    FlowManifest,
-    ComponentManifest,
-    ProjectManifest,
+from liberrpa.ComponentManagement.Utils._Version import normalize_version, normalize_specifier
+from liberrpa.ComponentManagement.Utils._Validation import (
+    add_issue,
+    get_package_name_error,
+    path_exists,
+    is_file_invalid,
 )
+from liberrpa.ComponentManagement.Types._Manifest import (
+    Str_ProjectTypeValue,
+    Info_ProjectManifest_Flow,
+    Info_ProjectManifest_Component,
+    Info_ProjectManifest,
+)
+
 
 from pathlib import Path
 
@@ -247,7 +253,7 @@ def parse_flow_manifest(
     value: object,
     *,
     sourceName: str = "flow.json",
-) -> FlowManifest:
+) -> Info_ProjectManifest_Flow:
     if not isinstance(value, dict):
         raise ComponentManagementError(
             code="flow_manifest_invalid",
@@ -300,7 +306,7 @@ def parse_flow_manifest(
     assert strDescription is not None
     assert strNormalizedRequiresLiberrpa is not None
 
-    return FlowManifest(
+    return Info_ProjectManifest_Flow(
         schemaVersion=1,
         name=strName,
         version=strNormalizedVersion,
@@ -314,7 +320,7 @@ def parse_component_manifest(
     value: object,
     *,
     sourceName: str = "component.json",
-) -> ComponentManifest:
+) -> Info_ProjectManifest_Component:
     if not isinstance(value, dict):
         raise ComponentManagementError(
             code="component_manifest_invalid",
@@ -372,7 +378,7 @@ def parse_component_manifest(
     assert strDescription is not None
     assert strNormalizedRequiresLiberrpa is not None
 
-    return ComponentManifest(
+    return Info_ProjectManifest_Component(
         schemaVersion=1,
         id=strNormalizedId,
         packageName=strPackageName,
@@ -384,10 +390,10 @@ def parse_component_manifest(
     )
 
 
-def build_project_manifest_dict(manifestObj: ProjectManifest) -> dict[str, object]:
+def build_project_manifest_dict(manifestObj: Info_ProjectManifest) -> dict[str, object]:
     dictDependency = dict(sorted(manifestObj.componentDependencies.items()))
 
-    if isinstance(manifestObj, FlowManifest):
+    if isinstance(manifestObj, Info_ProjectManifest_Flow):
         return {
             "schemaVersion": manifestObj.schemaVersion,
             "name": manifestObj.name,
@@ -409,14 +415,14 @@ def build_project_manifest_dict(manifestObj: ProjectManifest) -> dict[str, objec
     }
 
 
-def read_flow_manifest(manifestPath: Path) -> FlowManifest:
-    if not manifestPath.exists():
+def read_flow_manifest(manifestPath: Path) -> Info_ProjectManifest_Flow:
+    if not path_exists(manifestPath):
         raise ComponentManagementError(
             code="flow_manifest_missing",
             message=f"Flow Project manifest was not found: {manifestPath}",
         )
 
-    if file_invalid(manifestPath):
+    if is_file_invalid(manifestPath):
         raise ComponentManagementError(
             code="flow_manifest_invalid",
             message=f"Flow Project manifest path is invalid: {manifestPath}",
@@ -434,14 +440,14 @@ def read_flow_manifest(manifestPath: Path) -> FlowManifest:
     return parse_flow_manifest(value)
 
 
-def read_component_manifest(manifestPath: Path) -> ComponentManifest:
-    if not manifestPath.exists():
+def read_component_manifest(manifestPath: Path) -> Info_ProjectManifest_Component:
+    if not path_exists(manifestPath):
         raise ComponentManagementError(
             code="component_manifest_missing",
             message=f"Component Project manifest was not found: {manifestPath}",
         )
 
-    if file_invalid(manifestPath):
+    if is_file_invalid(manifestPath):
         raise ComponentManagementError(
             code="component_manifest_invalid",
             message=f"Component Project manifest path is invalid: {manifestPath}",
@@ -459,12 +465,12 @@ def read_component_manifest(manifestPath: Path) -> ComponentManifest:
     return parse_component_manifest(value)
 
 
-def read_project_manifest(projectPath: Path) -> tuple[ProjectType, ProjectManifest]:
+def read_project_manifest(projectPath: Path) -> tuple[Str_ProjectTypeValue, Info_ProjectManifest]:
     pathFlowManifest = projectPath / "flow.json"
     pathComponentManifest = projectPath / "component.json"
 
-    boolHasFlowManifest = pathFlowManifest.exists()
-    boolHasComponentManifest = pathComponentManifest.exists()
+    boolHasFlowManifest = path_exists(pathFlowManifest)
+    boolHasComponentManifest = path_exists(pathComponentManifest)
 
     if boolHasFlowManifest and boolHasComponentManifest:
         raise ComponentManagementError(

@@ -6,17 +6,21 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
 from liberrpa.ComponentManagement.Utils._Exception import ComponentManagementError
-from liberrpa.ComponentManagement.Utils._TypedValue import (
-    ComponentManifest,
-    ProjectManifest,
-    DictRepositoryComponentVersion,
-    DictRepositoryComponent,
-    DictRepositoryIndex,
-    DictLockedComponent,
-    DictComponentsLockFile,
+from liberrpa.ComponentManagement.Types._Manifest import (
+    Info_ProjectManifest_Component,
+    Info_ProjectManifest,
+)
+from liberrpa.ComponentManagement.Types._Repository import (
+    DictRepository_ComponentVersion,
+    DictRepository_Component,
+    DictRepository_Index,
+)
+from liberrpa.ComponentManagement.Types._Components import (
+    DictComponentsLock_Component,
+    DictComponentsLock_File,
 )
 from liberrpa.ComponentManagement._ComponentsLock import build_components_lock
-from liberrpa.ComponentManagement._RepositoryIndex import find_equivalent_version, normalize_component_id
+from liberrpa.ComponentManagement._RepositoryIndex import normalize_component_id, find_equivalent_version
 
 from dataclasses import dataclass
 from packaging.specifiers import SpecifierSet
@@ -32,22 +36,22 @@ class _DependencyRequirement:
 @dataclass(frozen=True)
 class _SelectedComponent:
     packageName: str
-    versionEntry: DictRepositoryComponentVersion
+    versionEntry: DictRepository_ComponentVersion
 
 
 @dataclass(frozen=True)
 class _ResolutionChoice:
     componentId: str
-    repositoryComponent: DictRepositoryComponent
+    repositoryComponent: DictRepository_Component
     requirementList: list[_DependencyRequirement]
-    candidateVersionList: list[DictRepositoryComponentVersion]
+    candidateVersionList: list[DictRepository_ComponentVersion]
 
 
 @dataclass(frozen=True)
 class _ResolutionContext:
-    manifestObj: ProjectManifest
-    repositoryIndex: DictRepositoryIndex
-    existingLock: DictComponentsLockFile | None
+    manifestObj: Info_ProjectManifest
+    repositoryIndex: DictRepository_Index
+    existingLock: DictComponentsLock_File | None
     updateComponentIdSet: set[str]
 
 
@@ -93,12 +97,12 @@ def _requirements_allow_prerelease(requirementList: list[_DependencyRequirement]
 
 
 def _get_candidate_version_list(
-    componentDict: DictRepositoryComponent,
+    componentDict: DictRepository_Component,
     requirementList: list[_DependencyRequirement],
     *,
     lockedVersion: str | None,
     preferLockedVersion: bool,
-) -> list[DictRepositoryComponentVersion]:
+) -> list[DictRepository_ComponentVersion]:
     listMatchingVersion = [
         dictVersionEntry
         for dictVersionEntry in componentDict["versions"]
@@ -154,10 +158,10 @@ def _get_candidate_version_list(
 
 
 def _validate_root_dependency(
-    manifestObj: ProjectManifest,
+    manifestObj: Info_ProjectManifest,
     requirementDict: dict[str, list[_DependencyRequirement]],
 ) -> None:
-    if not isinstance(manifestObj, ComponentManifest) or manifestObj.id not in requirementDict:
+    if not isinstance(manifestObj, Info_ProjectManifest_Component) or manifestObj.id not in requirementDict:
         return
 
     raise _DependencyResolutionFailure(
@@ -235,12 +239,12 @@ def _validate_selected_dependency_cycle(
 
 
 def _get_package_owner_dict(
-    manifestObj: ProjectManifest,
+    manifestObj: Info_ProjectManifest,
     selectedComponentDict: dict[str, _SelectedComponent],
 ) -> dict[str, str]:
     dictPackageOwner: dict[str, str] = {}
 
-    if isinstance(manifestObj, ComponentManifest):
+    if isinstance(manifestObj, Info_ProjectManifest_Component):
         dictPackageOwner[manifestObj.packageName.casefold()] = "root Component"
 
     for strComponentId, selectedComponent in selectedComponentDict.items():
@@ -284,8 +288,8 @@ def _validate_candidate_package_name(
 
 def _build_locked_component(
     packageName: str,
-    versionEntry: DictRepositoryComponentVersion,
-) -> DictLockedComponent:
+    versionEntry: DictRepository_ComponentVersion,
+) -> DictComponentsLock_Component:
     return {
         "manifestSchemaVersion": versionEntry["manifestSchemaVersion"],
         "packageName": packageName,
@@ -299,7 +303,7 @@ def _build_locked_component(
 
 
 def _get_requirement_dict(
-    manifestObj: ProjectManifest,
+    manifestObj: Info_ProjectManifest,
     selectedComponentDict: dict[str, _SelectedComponent],
 ) -> dict[str, list[_DependencyRequirement]]:
     dictRequirement: dict[str, list[_DependencyRequirement]] = {}
@@ -448,12 +452,12 @@ def _resolve_selected_components(
 
 
 def resolve_project_dependencies(
-    manifestObj: ProjectManifest,
-    repositoryIndex: DictRepositoryIndex,
+    manifestObj: Info_ProjectManifest,
+    repositoryIndex: DictRepository_Index,
     *,
-    existingLock: DictComponentsLockFile | None = None,
+    existingLock: DictComponentsLock_File | None = None,
     updateComponentIdSet: set[str] | None = None,
-) -> DictComponentsLockFile:
+) -> DictComponentsLock_File:
     """Resolve the complete exact Component closure for a normalized Project Manifest."""
     try:
         setUpdateComponentId = {

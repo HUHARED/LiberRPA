@@ -5,11 +5,11 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from liberrpa.ComponentManagement.Utils._Exception import ComponentManagementError
-from liberrpa.ComponentManagement.Utils._TypedValue import (
-    ComponentManifest,
-    DictNormalizedSnippet,
-    DictSnippetDiagnostic,
-    DictAstSnippetsFile,
+from liberrpa.ComponentManagement.Types._Warning import DictComponentManagementWarning_SnippetDiagnostic
+from liberrpa.ComponentManagement.Types._Manifest import Info_ProjectManifest_Component
+from liberrpa.ComponentManagement.Types._Snippet import (
+    DictSnippet_Normalized,
+    DictSnippet_AstFile,
 )
 
 from pathlib import Path
@@ -275,8 +275,8 @@ def _build_diagnostic(
     line: int,
     message: str,
     functionName: str | None = None,
-) -> DictSnippetDiagnostic:
-    dictResult: DictSnippetDiagnostic = {
+) -> DictComponentManagementWarning_SnippetDiagnostic:
+    dictResult: DictComponentManagementWarning_SnippetDiagnostic = {
         "code": code,
         "file": modulePath.relative_to(projectPath).as_posix(),
         "line": line,
@@ -305,9 +305,9 @@ def _scan_module(
     projectPath: Path,
     packageName: str,
 ) -> tuple[
-    dict[str, DictNormalizedSnippet],
-    list[DictSnippetDiagnostic],
-    list[DictSnippetDiagnostic],
+    dict[str, DictSnippet_Normalized],
+    list[DictComponentManagementWarning_SnippetDiagnostic],
+    list[DictComponentManagementWarning_SnippetDiagnostic],
 ]:
     try:
         with tokenize.open(modulePath) as fileObj:
@@ -345,9 +345,9 @@ def _scan_module(
         )
 
     strModuleAlias = f"{packageName}_{strModuleName}"
-    dictSnippet: dict[str, DictNormalizedSnippet] = {}
-    listSkipped: list[DictSnippetDiagnostic] = []
-    listWarning: list[DictSnippetDiagnostic] = []
+    dictSnippet: dict[str, DictSnippet_Normalized] = {}
+    listSkipped: list[DictComponentManagementWarning_SnippetDiagnostic] = []
+    listWarning: list[DictComponentManagementWarning_SnippetDiagnostic] = []
 
     if _REGEX_COMPONENT_MODULE_NAME.fullmatch(strModuleName) is None:
         listWarning.append(
@@ -464,11 +464,11 @@ def _scan_module(
 def scan_component_snippets(
     projectPath: Path,
     packagePath: Path,
-    manifestObj: ComponentManifest,
-) -> DictAstSnippetsFile:
-    dictSnippet: dict[str, DictNormalizedSnippet] = {}
-    listSkipped: list[DictSnippetDiagnostic] = []
-    listWarning: list[DictSnippetDiagnostic] = []
+    manifestObj: Info_ProjectManifest_Component,
+) -> DictSnippet_AstFile:
+    dictSnippet: dict[str, DictSnippet_Normalized] = {}
+    listSkipped: list[DictComponentManagementWarning_SnippetDiagnostic] = []
+    listWarning: list[DictComponentManagementWarning_SnippetDiagnostic] = []
 
     listModulePath = sorted(
         (

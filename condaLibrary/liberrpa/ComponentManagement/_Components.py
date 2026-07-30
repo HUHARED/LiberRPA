@@ -8,16 +8,16 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 from liberrpa.ComponentManagement.Utils._Exception import ComponentManagementError
 from liberrpa.ComponentManagement.Utils._File import parse_json
 from liberrpa.ComponentManagement.Utils._Hash import calculate_file_sha256
-from liberrpa.ComponentManagement.Utils._TypedValue import (
-    ComponentManifest,
-    ComponentWheelInfo,
-    DictLockedComponent,
-    DictComponentsLockFile,
-    ComponentsFolderInfo,
-)
 from liberrpa.ComponentManagement.Utils._WheelName import get_component_wheel_names
 from liberrpa.ComponentManagement.Utils._Record import validate_archive_path, validate_record
-from liberrpa.ComponentManagement.Utils._Validation import path_exists, file_invalid, folder_invalid
+from liberrpa.ComponentManagement.Utils._Validation import path_exists, is_file_invalid, is_folder_invalid
+from liberrpa.ComponentManagement.Types._Manifest import Info_ProjectManifest_Component
+from liberrpa.ComponentManagement.Types._Wheel import Info_ComponentWheel
+from liberrpa.ComponentManagement.Types._Components import (
+    DictComponentsLock_Component,
+    DictComponentsLock_File,
+    Info_ProjectComponentsFolder,
+)
 from liberrpa.ComponentManagement._ComponentsLock import validate_components_lock
 from liberrpa.ComponentManagement._Manifest import parse_component_manifest
 from liberrpa.ComponentManagement._RepositoryIndex import get_wheel_path
@@ -56,7 +56,7 @@ class _LockedWheelSource:
     archivePathTuple: tuple[str, ...]
 
 
-def _validate_lock_dict(lockDict: DictComponentsLockFile) -> DictComponentsLockFile:
+def _validate_lock_dict(lockDict: DictComponentsLock_File) -> DictComponentsLock_File:
     try:
         dictValidatedLock = validate_components_lock(lockDict)
     except ValueError as e:
@@ -77,8 +77,8 @@ def _validate_lock_dict(lockDict: DictComponentsLockFile) -> DictComponentsLockF
 
 def _get_manifest_mismatch_dict(
     componentId: str,
-    lockedComponent: DictLockedComponent,
-    manifestObj: ComponentManifest,
+    lockedComponent: DictComponentsLock_Component,
+    manifestObj: Info_ProjectManifest_Component,
 ) -> dict[str, object]:
     dictMismatch: dict[str, object] = {}
 
@@ -114,8 +114,8 @@ def _get_manifest_mismatch_dict(
 
 def _validate_locked_wheel(
     componentId: str,
-    lockedComponent: DictLockedComponent,
-    wheelInfo: ComponentWheelInfo,
+    lockedComponent: DictComponentsLock_Component,
+    wheelInfo: Info_ComponentWheel,
 ) -> None:
     if wheelInfo.wheelFile != lockedComponent["wheelFile"]:
         raise ComponentManagementError(
@@ -203,7 +203,7 @@ def _register_archive_path(
 
 def _prepare_locked_wheel_source_list(
     repositoryPath: Path,
-    lockDict: DictComponentsLockFile,
+    lockDict: DictComponentsLock_File,
 ) -> list[_LockedWheelSource]:
     listLockedWheelSource: list[_LockedWheelSource] = []
     dictPathRegistry: dict[str, tuple[str, str, str]] = {}
@@ -216,7 +216,7 @@ def _prepare_locked_wheel_source_list(
             wheelFile=dictLockedComponent["wheelFile"],
         )
 
-        if file_invalid(pathWheel):
+        if is_file_invalid(pathWheel):
             raise ComponentManagementError(
                 code="component_wheel_missing",
                 message="A Component Wheel required by components.lock.json was not found.",
@@ -388,7 +388,7 @@ def _read_components_file(componentsPath: Path, archivePath: str) -> bytes:
 def _validate_extracted_component(
     componentsPath: Path,
     componentId: str,
-    lockedComponent: DictLockedComponent,
+    lockedComponent: DictComponentsLock_Component,
     actualFilePathSet: set[str],
 ) -> set[str]:
     strPackageName = lockedComponent["packageName"]
@@ -464,18 +464,18 @@ def _validate_extracted_component(
 
 def validate_components_folder(
     componentsPath: Path,
-    lockDict: DictComponentsLockFile,
-) -> ComponentsFolderInfo:
+    lockDict: DictComponentsLock_File,
+) -> Info_ProjectComponentsFolder:
     """Validate _Components against embedded Manifests and Wheel RECORD files."""
     dictValidatedLock = _validate_lock_dict(lockDict)
 
-    if not componentsPath.exists():
+    if not path_exists(componentsPath):
         raise ComponentManagementError(
             code="components_folder_missing",
             message=f"_Components folder was not found: {componentsPath}",
         )
 
-    if folder_invalid(componentsPath):
+    if is_folder_invalid(componentsPath):
         raise ComponentManagementError(
             code="components_folder_damaged",
             message=f"_Components path is invalid: {componentsPath}",
@@ -524,7 +524,7 @@ def validate_components_folder(
             details={"reason": str(e)},
         ) from e
 
-    return ComponentsFolderInfo(
+    return Info_ProjectComponentsFolder(
         componentsPath=componentsPath,
         componentCount=len(dictValidatedLock["components"]),
         fileCount=len(setActualFilePath),
@@ -534,8 +534,8 @@ def validate_components_folder(
 def build_components_folder(
     repositoryPath: Path,
     targetPath: Path,
-    lockDict: DictComponentsLockFile,
-) -> ComponentsFolderInfo:
+    lockDict: DictComponentsLock_File,
+) -> Info_ProjectComponentsFolder:
     """Build a complete _Components folder from exact immutable Repository Wheels."""
     dictValidatedLock = _validate_lock_dict(lockDict)
 
@@ -588,7 +588,7 @@ def build_components_folder(
         if pathTemp.exists() and not pathTemp.is_symlink():
             rmtree(pathTemp, ignore_errors=True)
 
-    return ComponentsFolderInfo(
+    return Info_ProjectComponentsFolder(
         componentsPath=targetPath,
         componentCount=folderInfo.componentCount,
         fileCount=folderInfo.fileCount,

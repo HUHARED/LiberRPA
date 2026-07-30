@@ -7,21 +7,23 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from liberrpa.ComponentManagement.Utils._Exception import ComponentManagementError
 from liberrpa.ComponentManagement.Utils._File import write_json_atomic
-from liberrpa.ComponentManagement.Utils._TypedValue import (
-    DictOperationWarning,
+from liberrpa.ComponentManagement.Utils._Validation import path_exists, is_file_invalid, is_folder_invalid
+from liberrpa.ComponentManagement.Types._Warning import (
+    DictComponentManagementWarning_Operation,
     DictComponentManagementWarning,
-    ComponentManifest,
-    DictAstSnippetsFile,
-    DictPreparationCreatedResult,
-    DictPublishedComponentResult,
-    DictPublishComponentResult,
 )
-from liberrpa.ComponentManagement.Utils._Validation import file_invalid, folder_invalid
-from liberrpa.ComponentManagement._Manifest import read_component_manifest
+from liberrpa.ComponentManagement.Types._Manifest import Info_ProjectManifest_Component
+from liberrpa.ComponentManagement.Types._Snippet import DictSnippet_AstFile
+from liberrpa.ComponentManagement.Types._Protocol import (
+    DictProtocolResult_Publish_PreparationCreated,
+    DictProtocolResult_Publish_Published,
+    DictProtocolResult_Publish,
+)
 from liberrpa.ComponentManagement.Lock._ProjectLock import project_lock
+from liberrpa.ComponentManagement._Manifest import read_component_manifest
 from liberrpa.ComponentManagement._Repository import publish_component_wheel
 from liberrpa.ComponentManagement._SnippetAst import scan_component_snippets
-from liberrpa.ComponentManagement._SnippetConfig import build_snippet_catalog, create_snippet_config
+from liberrpa.ComponentManagement._SnippetConfig import create_snippet_config, build_snippet_catalog
 from liberrpa.ComponentManagement._Wheel import build_component_wheel
 
 from pathlib import Path
@@ -31,11 +33,11 @@ import uuid
 
 def _validate_component_project(
     projectPath: Path,
-) -> tuple[ComponentManifest, Path]:
+) -> tuple[Info_ProjectManifest_Component, Path]:
     pathComponentManifest = projectPath / "component.json"
     pathFlowManifest = projectPath / "flow.json"
 
-    if pathFlowManifest.exists():
+    if path_exists(pathFlowManifest):
         raise ComponentManagementError(
             code="not_component_project",
             message="Publish Component is only available for a Component Project.",
@@ -46,7 +48,7 @@ def _validate_component_project(
     pathSrc = projectPath / "src"
     pathPackage = pathSrc / manifestObj.packageName
 
-    if not pathSrc.is_dir():
+    if is_folder_invalid(pathSrc):
         raise ComponentManagementError(
             code="component_source_invalid",
             message=f"Component source folder was not found: {pathSrc}",
@@ -60,7 +62,7 @@ def _validate_component_project(
             details={"unexpectedEntries": listUnexpectedEntry},
         )
 
-    if folder_invalid(pathPackage):
+    if is_folder_invalid(pathPackage):
         raise ComponentManagementError(
             code="component_source_invalid",
             message=f"Component package folder was not found or is invalid: {pathPackage}",
@@ -68,7 +70,7 @@ def _validate_component_project(
 
     for strRequiredFile in ("__init__.py", "py.typed"):
         pathRequiredFile = pathPackage / strRequiredFile
-        if file_invalid(pathRequiredFile):
+        if is_file_invalid(pathRequiredFile):
             raise ComponentManagementError(
                 code="component_source_invalid",
                 message=f"Required Component package file was not found or is invalid: {pathRequiredFile}",
@@ -77,7 +79,7 @@ def _validate_component_project(
     return manifestObj, pathPackage
 
 
-def _write_ast_snippets(astSnippetsPath: Path, astSnippetsDict: DictAstSnippetsFile) -> None:
+def _write_ast_snippets(astSnippetsPath: Path, astSnippetsDict: DictSnippet_AstFile) -> None:
     try:
         write_json_atomic(path=astSnippetsPath, value=astSnippetsDict)
     except OSError as e:
@@ -91,8 +93,8 @@ def _prepare_build_folder(projectPath: Path) -> tuple[Path, Path]:
     pathBuildRoot = projectPath / ".liberrpa-project-manager" / "build"
 
     try:
-        if pathBuildRoot.exists():
-            if folder_invalid(pathBuildRoot):
+        if path_exists(pathBuildRoot):
+            if is_folder_invalid(pathBuildRoot):
                 raise ComponentManagementError(
                     code="component_build_path_invalid",
                     message=f"Component build path is invalid: {pathBuildRoot}",
@@ -115,9 +117,9 @@ def _prepare_build_folder(projectPath: Path) -> tuple[Path, Path]:
 
 def _cleanup_build_output(
     buildRootPath: Path,
-) -> DictOperationWarning | None:
+) -> DictComponentManagementWarning_Operation | None:
     try:
-        if buildRootPath.exists():
+        if path_exists(buildRootPath):
             rmtree(buildRootPath)
 
         pathManager = buildRootPath.parent
@@ -138,7 +140,7 @@ def _cleanup_build_output(
 def publish_component(
     projectInputPath: str,
 ) -> tuple[
-    DictPublishComponentResult,
+    DictProtocolResult_Publish,
     list[DictComponentManagementWarning],
 ]:
     pathProject = Path(projectInputPath).expanduser().resolve()
@@ -166,7 +168,7 @@ def publish_component(
 
         listWarning: list[DictComponentManagementWarning] = list(dictAstSnippets["warnings"])
         if boolConfigCreated:
-            dictPreparationResult: DictPreparationCreatedResult = {
+            dictPreparationResult: DictProtocolResult_Publish_PreparationCreated = {
                 "status": "preparationCreated",
                 "componentId": manifestObj.id,
                 "packageName": manifestObj.packageName,
@@ -188,7 +190,7 @@ def publish_component(
 
         pathBuildRoot, pathBuildFolder = _prepare_build_folder(pathProject)
 
-        dictCleanupWarning: DictOperationWarning | None = None
+        dictCleanupWarning: DictComponentManagementWarning_Operation | None = None
 
         try:
             wheelResult = build_component_wheel(
@@ -212,7 +214,7 @@ def publish_component(
 
         listWarning.extend(repositoryResult.warnings)
 
-        dictPublishedResult: DictPublishedComponentResult = {
+        dictPublishedResult: DictProtocolResult_Publish_Published = {
             "status": repositoryResult.status,
             "componentId": manifestObj.id,
             "packageName": manifestObj.packageName,

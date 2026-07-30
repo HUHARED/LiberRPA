@@ -8,20 +8,22 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 from liberrpa.ComponentManagement.Utils._Exception import ComponentManagementError
 from liberrpa.ComponentManagement.Utils._File import parse_json, serialize_json
 from liberrpa.ComponentManagement.Utils._Hash import calculate_file_sha256, calculate_record_hash
-from liberrpa.ComponentManagement.Utils._TypedValue import (
-    ComponentManifest,
-    DictSnippetImports,
-    DictNormalizedSnippet,
-    DictSnippetCatalogFile,
-    WheelBuildResult,
-    ComponentWheelInfo,
-)
-from liberrpa.ComponentManagement.Utils._Validation import validate_exact_keys, file_invalid
 from liberrpa.ComponentManagement.Utils._Record import validate_archive_path, validate_record
 from liberrpa.ComponentManagement.Utils._WheelName import (
     STR_COMPONENT_WHEEL_TAG,
     TAG_COMPONENT_WHEEL,
     get_component_wheel_names,
+)
+from liberrpa.ComponentManagement.Utils._Validation import validate_exact_keys, is_file_invalid
+from liberrpa.ComponentManagement.Types._Manifest import Info_ProjectManifest_Component
+from liberrpa.ComponentManagement.Types._Snippet import (
+    DictSnippet_Imports,
+    DictSnippet_Normalized,
+    DictSnippet_CatalogFile,
+)
+from liberrpa.ComponentManagement.Types._Wheel import (
+    Info_ComponentWheel_BuildResult,
+    Info_ComponentWheel,
 )
 from liberrpa.ComponentManagement._Manifest import parse_component_manifest
 
@@ -67,7 +69,7 @@ _SET_FORBIDDEN_FILE_SUFFIX = {
 }
 
 
-def _get_manifest_dict(manifestObj: ComponentManifest) -> dict[str, object]:
+def _get_manifest_dict(manifestObj: Info_ProjectManifest_Component) -> dict[str, object]:
     return {
         "schemaVersion": manifestObj.schemaVersion,
         "id": manifestObj.id,
@@ -147,7 +149,7 @@ def _get_package_archive_entries(
     return dictEntry
 
 
-def _get_manifest_metadata_bytes(manifestObj: ComponentManifest) -> bytes:
+def _get_manifest_metadata_bytes(manifestObj: Info_ProjectManifest_Component) -> bytes:
     strMetadata = (
         # Core Metadata 2.4 is required because License-File was introduced in 2.4.
         "Metadata-Version: 2.4\n"
@@ -228,11 +230,11 @@ def build_component_wheel(
     projectPath: Path,
     packagePath: Path,
     buildFolderPath: Path,
-    manifestObj: ComponentManifest,
-    snippetCatalog: DictSnippetCatalogFile,
-) -> WheelBuildResult:
+    manifestObj: Info_ProjectManifest_Component,
+    snippetCatalog: DictSnippet_CatalogFile,
+) -> Info_ComponentWheel_BuildResult:
     licensePath = projectPath / "LICENSE"
-    if file_invalid(licensePath):
+    if is_file_invalid(licensePath):
         raise ComponentManagementError(
             code="component_source_invalid",
             message=f"Component Project LICENSE file was not found or is invalid: {licensePath}",
@@ -280,7 +282,7 @@ def build_component_wheel(
         snippetCatalogDict=snippetCatalog,
     )
 
-    return WheelBuildResult(
+    return Info_ComponentWheel_BuildResult(
         wheelPath=pathWheel,
         wheelFile=strWheelFile,
         sha256=strSha256,
@@ -342,11 +344,11 @@ def _validate_catalog_imports(
     *,
     packageName: str,
     publicModuleSet: set[str],
-) -> DictSnippetImports:
+) -> DictSnippet_Imports:
     if not isinstance(value, dict):
         raise ValueError(f"{field} must be an object.")
 
-    dictResult: DictSnippetImports = {}
+    dictResult: DictSnippet_Imports = {}
 
     for importSource, importNameValue in value.items():
         if not isinstance(importSource, str) or importSource == "":
@@ -380,8 +382,8 @@ def _validate_catalog_imports(
 
 def _validate_snippet_catalog(
     value: object,
-    manifestObj: ComponentManifest,
-) -> DictSnippetCatalogFile:
+    manifestObj: Info_ProjectManifest_Component,
+) -> DictSnippet_CatalogFile:
     if not isinstance(value, dict):
         raise ValueError("snippets_catalog.json root value must be an object.")
 
@@ -456,7 +458,7 @@ def _validate_snippet_catalog(
     if not isinstance(snippetsValue, dict):
         raise ValueError("snippets_catalog.json snippets must be an object.")
 
-    dictSnippet: dict[str, DictNormalizedSnippet] = {}
+    dictSnippet: dict[str, DictSnippet_Normalized] = {}
     setUsedCategory: set[str] = set()
     dictLabelOwner: dict[tuple[str, str], str] = {}
     dictPrefixOwner: dict[str, str] = {}
@@ -575,8 +577,8 @@ def _validate_snippet_catalog(
 
 def validate_component_wheel(
     wheelPath: Path,
-    manifestObj: ComponentManifest,
-    snippetCatalogDict: DictSnippetCatalogFile,
+    manifestObj: Info_ProjectManifest_Component,
+    snippetCatalogDict: DictSnippet_CatalogFile,
 ) -> str:
     dictPublishedManifest = _get_manifest_dict(manifestObj)
     strDistInfoFolder, strExpectedWheelFile = get_component_wheel_names(
@@ -741,8 +743,8 @@ def validate_component_wheel(
     return calculate_file_sha256(wheelPath)
 
 
-def inspect_component_wheel(wheelPath: Path) -> ComponentWheelInfo:
-    if file_invalid(wheelPath):
+def inspect_component_wheel(wheelPath: Path) -> Info_ComponentWheel:
+    if is_file_invalid(wheelPath):
         raise ComponentManagementError(
             code="wheel_validation_failed",
             message=f"Component Wheel file was not found or is invalid: {wheelPath}",
@@ -787,7 +789,7 @@ def inspect_component_wheel(wheelPath: Path) -> ComponentWheelInfo:
         snippetCatalogDict=dictSnippetCatalog,
     )
 
-    return ComponentWheelInfo(
+    return Info_ComponentWheel(
         manifest=manifestObj,
         snippetCatalog=dictSnippetCatalog,
         wheelFile=wheelPath.name,
