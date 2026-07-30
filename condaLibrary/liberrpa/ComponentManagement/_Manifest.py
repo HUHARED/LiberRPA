@@ -16,7 +16,7 @@ from liberrpa.ComponentManagement.Utils._Validation import (
     is_file_invalid,
 )
 from liberrpa.ComponentManagement.Types._Manifest import (
-    Str_ProjectTypeValue,
+    Str_ProjectType,
     Info_ProjectManifest_Flow,
     Info_ProjectManifest_Component,
     Info_ProjectManifest,
@@ -465,7 +465,7 @@ def read_component_manifest(manifestPath: Path) -> Info_ProjectManifest_Componen
     return parse_component_manifest(value)
 
 
-def read_project_manifest(projectPath: Path) -> tuple[Str_ProjectTypeValue, Info_ProjectManifest]:
+def read_project_manifest(projectPath: Path) -> tuple[Str_ProjectType, Info_ProjectManifest]:
     pathFlowManifest = projectPath / "flow.json"
     pathComponentManifest = projectPath / "component.json"
 

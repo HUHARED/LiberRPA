@@ -6,7 +6,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
 from liberrpa.ComponentManagement.Types._Warning import DictComponentManagementWarning
-from liberrpa.ComponentManagement.Types._Manifest import Str_ProjectTypeValue, Info_ProjectManifest
+from liberrpa.ComponentManagement.Types._Manifest import Str_ProjectType, Info_ProjectManifest
 from liberrpa.ComponentManagement.Types._Components import DictComponentsLock_File, Info_ProjectComponentsFolder
 
 
@@ -107,7 +107,7 @@ type Str_ProjectDependency_RepairState = Literal[
 @dataclass(frozen=True)
 class Info_ProjectDependency_State:
     projectPath: Path
-    projectType: Str_ProjectTypeValue
+    projectType: Str_ProjectType
     manifest: Info_ProjectManifest
     componentsLock: DictComponentsLock_File | None
     lockState: Str_ProjectDependency_LockState

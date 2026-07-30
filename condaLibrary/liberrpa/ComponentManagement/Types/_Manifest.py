@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 
-type Str_ProjectTypeValue = Literal["flow", "component"]
+type Str_ProjectType = Literal["flow", "component"]
 
 
 @dataclass(frozen=True)

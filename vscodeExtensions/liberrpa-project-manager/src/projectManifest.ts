@@ -28,7 +28,7 @@ const SET_COMPONENT_MANIFEST_KEYS = new Set([
   "componentDependencies",
 ]);
 
-interface DictFlowManifestV1 {
+export interface DictFlowManifestV1 {
   schemaVersion: 1;
   name: string;
   version: string;
@@ -37,7 +37,7 @@ interface DictFlowManifestV1 {
   componentDependencies: Record<string, string>;
 }
 
-interface DictComponentManifestV1 {
+export interface DictComponentManifestV1 {
   schemaVersion: 1;
   id: string;
   packageName: string;
@@ -53,9 +53,9 @@ interface DictProjectManifestDefaultInfo {
   defaultDescription: string;
 }
 
-function readFlowManifest(manifestPath: string): DictFlowManifestV1 {
-  const value = readJsonFile(manifestPath);
+export type DictProjectManifestV1 = DictFlowManifestV1 | DictComponentManifestV1;
 
+export function parseFlowManifest(value: unknown, sourceName: string): DictFlowManifestV1 {
   if (
     isRecord(value) &&
     hasExactKeys(value, SET_FLOW_MANIFEST_KEYS) &&
@@ -76,12 +76,13 @@ function readFlowManifest(manifestPath: string): DictFlowManifestV1 {
     };
   }
 
-  throw new Error(`Invalid Flow Project manifest: ${manifestPath}`);
+  throw new Error(`Invalid Flow Project manifest: ${sourceName}`);
 }
 
-function readComponentManifest(manifestPath: string): DictComponentManifestV1 {
-  const value = readJsonFile(manifestPath);
-
+export function parseComponentManifest(
+  value: unknown,
+  sourceName: string,
+): DictComponentManifestV1 {
   if (
     isRecord(value) &&
     hasExactKeys(value, SET_COMPONENT_MANIFEST_KEYS) &&
@@ -106,7 +107,25 @@ function readComponentManifest(manifestPath: string): DictComponentManifestV1 {
     };
   }
 
-  throw new Error(`Invalid Component Project manifest: ${manifestPath}`);
+  throw new Error(`Invalid Component Project manifest: ${sourceName}`);
+}
+
+export function parseProjectManifest(
+  value: unknown,
+  projectType: ProjectType,
+  sourceName: string,
+): DictProjectManifestV1 {
+  return projectType === "flow"
+    ? parseFlowManifest(value, sourceName)
+    : parseComponentManifest(value, sourceName);
+}
+
+function readFlowManifest(manifestPath: string): DictFlowManifestV1 {
+  return parseFlowManifest(readJsonFile(manifestPath), manifestPath);
+}
+
+function readComponentManifest(manifestPath: string): DictComponentManifestV1 {
+  return parseComponentManifest(readJsonFile(manifestPath), manifestPath);
 }
 
 export function getProjectManifestDefaults(

@@ -6,8 +6,9 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
 from liberrpa.ComponentManagement.Types._Warning import DictComponentManagementWarning
-from liberrpa.ComponentManagement.Types._Manifest import Str_ProjectTypeValue
+from liberrpa.ComponentManagement.Types._Manifest import Str_ProjectType
 from liberrpa.ComponentManagement.Types._Components import DictComponentsLock_File
+from liberrpa.ComponentManagement.Types._Repository import DictRepository_ComponentVersion
 from liberrpa.ComponentManagement.Types._Dependency import (
     DictProjectDependency_DirectChange,
     DictProjectDependency_ResolvedChange,
@@ -62,6 +63,11 @@ class DictProtocolRequest_RebuildRepositoryIndex(TypedDict):
     operation: Literal["rebuildRepositoryIndex"]
 
 
+class DictProtocolRequest_GetComponentRepositoryCatalog(TypedDict):
+    schemaVersion: Literal[1]
+    operation: Literal["getComponentRepositoryCatalog"]
+
+
 class DictProtocolRequest_GetProjectDependencyState(TypedDict):
     schemaVersion: Literal[1]
     operation: Literal["getProjectDependencyState"]
@@ -92,6 +98,7 @@ class DictProtocolRequest_RepairProjectComponents(TypedDict):
 type DictProtocolRequest = (
     DictProtocolRequest_PublishComponent
     | DictProtocolRequest_RebuildRepositoryIndex
+    | DictProtocolRequest_GetComponentRepositoryCatalog
     | DictProtocolRequest_GetProjectDependencyState
     | DictProtocolRequest_BuildProjectDependencyPlan
     | DictProtocolRequest_ApplyProjectDependencyPlan
@@ -132,6 +139,20 @@ class DictProtocolResult_RepositoryIndexRebuilt(TypedDict):
     versionCount: int
 
 
+class DictProtocolResult_RepositoryCatalog_Component(TypedDict):
+    componentId: str
+    packageName: str
+    versions: list[DictRepository_ComponentVersion]
+
+
+class DictProtocolResult_RepositoryCatalog(TypedDict):
+    status: Literal["componentRepositoryCatalog"]
+    repositoryPath: str
+    componentCount: int
+    versionCount: int
+    components: list[DictProtocolResult_RepositoryCatalog_Component]
+
+
 class DictProtocolResult_ComponentsFolder(TypedDict):
     componentsPath: str
     componentCount: int
@@ -141,7 +162,7 @@ class DictProtocolResult_ComponentsFolder(TypedDict):
 class DictProtocolResult_ProjectDependencyState(TypedDict):
     status: Literal["projectDependencyState"]
     projectPath: str
-    projectType: Str_ProjectTypeValue
+    projectType: Str_ProjectType
     manifest: dict[str, object]
     componentsLock: DictComponentsLock_File | None
     lockState: Str_ProjectDependency_LockState
@@ -180,6 +201,7 @@ class DictProtocolResult_ProjectComponentsRepaired(TypedDict):
 type DictProtocolResult = (
     DictProtocolResult_Publish
     | DictProtocolResult_RepositoryIndexRebuilt
+    | DictProtocolResult_RepositoryCatalog
     | DictProtocolResult_ProjectDependencyState
     | DictProtocolResult_ProjectDependencyPlan
     | DictProtocolResult_ProjectDependencyPlanApplied
@@ -204,6 +226,13 @@ class DictProtocolSuccess_RepositoryIndexRebuilt(TypedDict):
     schemaVersion: Literal[1]
     ok: Literal[True]
     result: DictProtocolResult_RepositoryIndexRebuilt
+    warnings: list[DictComponentManagementWarning]
+
+
+class DictProtocolSuccess_RepositoryCatalog(TypedDict):
+    schemaVersion: Literal[1]
+    ok: Literal[True]
+    result: DictProtocolResult_RepositoryCatalog
     warnings: list[DictComponentManagementWarning]
 
 
@@ -238,6 +267,7 @@ class DictProtocolSuccess_ProjectComponentsRepaired(TypedDict):
 type DictProtocolSuccess = (
     DictProtocolSuccess_PublishComponent
     | DictProtocolSuccess_RepositoryIndexRebuilt
+    | DictProtocolSuccess_RepositoryCatalog
     | DictProtocolSuccess_ProjectDependencyState
     | DictProtocolSuccess_ProjectDependencyPlan
     | DictProtocolSuccess_ProjectDependencyPlanApplied

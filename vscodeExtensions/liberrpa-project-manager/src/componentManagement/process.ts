@@ -1,59 +1,15 @@
-// FileName: componentManagementProcess.ts
+// FileName: process.ts
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { spawn } from "node:child_process";
 
-import { log } from "./output";
-import { isRecord } from "./typeCheck";
-
-export interface DictComponentManagementWarning {
-  code: string;
-  message: string;
-  details?: Record<string, unknown>;
-
-  file?: string;
-  line?: number;
-  functionName?: string;
-  snippetKey?: string;
-
-  [key: string]: unknown;
-}
-
-interface DictSuccessResponse {
-  schemaVersion: 1;
-  ok: true;
-  result: Record<string, unknown>;
-  warnings: DictComponentManagementWarning[];
-}
-
-interface DictProtocolError {
-  code: string;
-  message: string;
-  details: Record<string, unknown>;
-}
-
-interface DictErrorResponse {
-  schemaVersion: 1;
-  ok: false;
-  error: DictProtocolError;
-}
-
-type DictProtocolResponse = DictSuccessResponse | DictErrorResponse;
-
-interface DictPublishComponentRequest {
-  schemaVersion: 1;
-  operation: "publishComponent";
-  projectPath: string;
-}
-
-interface DictRebuildRepositoryIndexRequest {
-  schemaVersion: 1;
-  operation: "rebuildRepositoryIndex";
-}
-
-type DictComponentManagementRequest =
-  | DictPublishComponentRequest
-  | DictRebuildRepositoryIndexRequest;
+import { log } from "../output";
+import { isRecord } from "../typeCheck";
+import type {
+  DictComponentManagementWarning,
+  DictProtocolRequest,
+  DictProtocolResponse_Raw,
+} from "./protocol";
 
 function parseComponentManagementWarning(value: unknown): DictComponentManagementWarning {
   if (!isRecord(value)) {
@@ -89,7 +45,7 @@ function parseComponentManagementWarning(value: unknown): DictComponentManagemen
   return value as DictComponentManagementWarning;
 }
 
-function parseComponentManagementResponse(output: string): DictProtocolResponse {
+function parseComponentManagementResponse(output: string): DictProtocolResponse_Raw {
   let value: unknown;
 
   try {
@@ -181,12 +137,12 @@ function getPythonEnvironmentInfo(): {
 }
 
 export async function runComponentManagement(
-  requestInfo: DictComponentManagementRequest,
-): Promise<DictProtocolResponse> {
+  requestInfo: DictProtocolRequest,
+): Promise<DictProtocolResponse_Raw> {
   const { pythonExecutablePath, pythonEnvironmentPath, environment } =
     getPythonEnvironmentInfo();
 
-  return await new Promise<DictProtocolResponse>((resolve, reject) => {
+  return await new Promise<DictProtocolResponse_Raw>((resolve, reject) => {
     const pythonProcess = spawn(
       pythonExecutablePath,
       ["-m", "liberrpa.ComponentManagement"],

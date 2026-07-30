@@ -3,114 +3,15 @@ import * as vscode from "vscode";
 
 import { log } from "./output";
 import { getErrorMessage } from "./utils";
-import type { DictComponentManagementWarning } from "./componentManagementProcess";
-import { runComponentManagement } from "./componentManagementProcess";
+import type {
+  DictComponentManagementWarning,
+  DictProtocolResult_Publish,
+} from "./componentManagement/protocol";
+import { runComponentManagement } from "./componentManagement/process";
+import { parsePublishComponentResult } from "./componentManagement/publishResult";
 import { getWorkspaceProjectType, updateProjectTypeContext } from "./projectTypeContext";
 
-interface DictPublishComponentResultBase {
-  componentId: string;
-  packageName: string;
-  astSnippetsFile: string;
-  snippetsJsoncFile: string;
-  generatedCount: number;
-  skippedCount: number;
-  warningCount: number;
-}
-
-interface DictResult_PublishPreparation extends DictPublishComponentResultBase {
-  status: "preparationCreated";
-}
-
-interface DictResult_PublishedComponent extends DictPublishComponentResultBase {
-  status: "published" | "alreadyPublished";
-  version: string;
-  wheelFile: string;
-  sha256: string;
-  excludedCount: number;
-  handWrittenCount: number;
-  finalCount: number;
-}
-
-type DictPublishComponentResult =
-  | DictResult_PublishPreparation
-  | DictResult_PublishedComponent;
-
 let boolPublishBusy = false;
-
-function getRequiredString(value: Record<string, unknown>, key: string): string {
-  const fieldValue = value[key];
-  if (typeof fieldValue !== "string" || fieldValue.length === 0) {
-    throw new Error(`Component Management result field ${key} must be a non-empty string.`);
-  }
-
-  return fieldValue;
-}
-
-function getRequiredNonNegativeInteger(
-  value: Record<string, unknown>,
-  key: string,
-): number {
-  const fieldValue = value[key];
-  if (typeof fieldValue !== "number" || !Number.isInteger(fieldValue) || fieldValue < 0) {
-    throw new Error(
-      `Component Management result field ${key} must be a non-negative integer.`,
-    );
-  }
-
-  return fieldValue;
-}
-
-function getRequiredSha256(value: Record<string, unknown>, key: string): string {
-  const fieldValue = getRequiredString(value, key);
-  if (!/^[0-9a-f]{64}$/.test(fieldValue)) {
-    throw new Error(
-      `Component Management result field ${key} must be a lowercase SHA-256 value.`,
-    );
-  }
-
-  return fieldValue;
-}
-
-function parsePublishComponentResult(
-  result: Record<string, unknown>,
-): DictPublishComponentResult {
-  const status = result.status;
-  if (
-    status !== "preparationCreated" &&
-    status !== "published" &&
-    status !== "alreadyPublished"
-  ) {
-    throw new Error(`Unsupported Publish Component result status: ${String(status)}.`);
-  }
-
-  const dictBaseResult: DictPublishComponentResultBase = {
-    componentId: getRequiredString(result, "componentId"),
-    packageName: getRequiredString(result, "packageName"),
-    astSnippetsFile: getRequiredString(result, "astSnippetsFile"),
-    snippetsJsoncFile: getRequiredString(result, "snippetsJsoncFile"),
-    generatedCount: getRequiredNonNegativeInteger(result, "generatedCount"),
-    skippedCount: getRequiredNonNegativeInteger(result, "skippedCount"),
-    warningCount: getRequiredNonNegativeInteger(result, "warningCount"),
-  };
-
-  if (status === "published" || status === "alreadyPublished") {
-    return {
-      ...dictBaseResult,
-      status,
-      version: getRequiredString(result, "version"),
-      wheelFile: getRequiredString(result, "wheelFile"),
-      sha256: getRequiredSha256(result, "sha256"),
-      excludedCount: getRequiredNonNegativeInteger(result, "excludedCount"),
-      handWrittenCount: getRequiredNonNegativeInteger(result, "handWrittenCount"),
-      finalCount: getRequiredNonNegativeInteger(result, "finalCount"),
-    };
-  }
-
-  return {
-    ...dictBaseResult,
-    status,
-  };
-}
 
 function resolveProjectRelativeFile(
   workspaceFolder: vscode.WorkspaceFolder,
@@ -135,7 +36,7 @@ function resolveProjectRelativeFile(
 
 async function openPreparationFiles(
   workspaceFolder: vscode.WorkspaceFolder,
-  result: DictPublishComponentResult,
+  result: DictProtocolResult_Publish,
 ): Promise<void> {
   const astSnippetsUri = resolveProjectRelativeFile(
     workspaceFolder,

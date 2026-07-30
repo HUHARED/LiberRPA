@@ -5,7 +5,7 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
-from liberrpa.ComponentManagement.Types._Manifest import Str_ProjectTypeValue
+from liberrpa.ComponentManagement.Types._Manifest import Str_ProjectType
 
 from typing import Literal, NotRequired, TypedDict
 
@@ -24,7 +24,7 @@ class DictProjectTransaction_ApplyDependencyPlan(TypedDict):
     schemaVersion: Literal[1]
     operation: Literal["applyDependencyPlan"]
     state: Str_ProjectTransaction_State
-    projectType: Str_ProjectTypeValue
+    projectType: Str_ProjectType
     manifestFile: Literal["flow.json", "component.json"]
     planSha256: str
     source: DictProjectTransaction_Snapshot
@@ -35,7 +35,7 @@ class DictProjectTransaction_RepairComponents(TypedDict):
     schemaVersion: Literal[1]
     operation: Literal["repairProjectComponents"]
     state: Str_ProjectTransaction_State
-    projectType: Str_ProjectTypeValue
+    projectType: Str_ProjectType
     manifestFile: Literal["flow.json", "component.json"]
     source: DictProjectTransaction_Snapshot
     target: DictProjectTransaction_Snapshot

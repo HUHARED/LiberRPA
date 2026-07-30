@@ -2,52 +2,12 @@
 import * as vscode from "vscode";
 
 import { log } from "./output";
-import { isRecord } from "./typeCheck";
 import { getErrorMessage } from "./utils";
-import {
-  runComponentManagement,
-  type DictComponentManagementWarning,
-} from "./componentManagementProcess";
-
-interface DictRepositoryIndexRebuiltResult {
-  status: "repositoryIndexRebuilt";
-  componentCount: number;
-  versionCount: number;
-}
+import type { DictComponentManagementWarning } from "./componentManagement/protocol";
+import { runComponentManagement } from "./componentManagement/process";
+import { parseRepositoryIndexRebuiltResult } from "./componentManagement/repositoryResult";
 
 let boolRebuildRepositoryIndexBusy = false;
-
-function getNonNegativeInteger(value: Record<string, unknown>, field: string): number {
-  const fieldValue = value[field];
-
-  if (typeof fieldValue !== "number" || !Number.isInteger(fieldValue) || fieldValue < 0) {
-    throw new Error(
-      `Component Management result field "${field}" must be a non-negative integer.`,
-    );
-  }
-
-  return fieldValue;
-}
-
-function parseRepositoryIndexRebuiltResult(
-  value: unknown,
-): DictRepositoryIndexRebuiltResult {
-  if (!isRecord(value)) {
-    throw new Error("Component Management returned an invalid Repository rebuild result.");
-  }
-
-  if (value.status !== "repositoryIndexRebuilt") {
-    throw new Error(
-      `Unsupported Repository rebuild result status: ${String(value.status)}.`,
-    );
-  }
-
-  return {
-    status: "repositoryIndexRebuilt",
-    componentCount: getNonNegativeInteger(value, "componentCount"),
-    versionCount: getNonNegativeInteger(value, "versionCount"),
-  };
-}
 
 function getWarningMessage(warning: DictComponentManagementWarning): string {
   return warning.message;

@@ -99,21 +99,42 @@ def get_repository_path() -> Path:
     return pathRepository
 
 
-def load_repository_resolution_snapshot() -> tuple[
+def _load_repository_index_snapshot(
+    operation: str,
+) -> tuple[
+    Path,
     DictRepository_Index,
     list[DictComponentManagementWarning],
 ]:
-    """Read a consistent Repository index snapshot after recovering interrupted publishes."""
     pathRepository = get_repository_path()
 
     with repository_lock(
         repositoryPath=pathRepository,
-        operation="resolveProjectDependencies",
+        operation=operation,
     ):
         listWarning = recover_publish_transactions(pathRepository)
         dictIndex = load_repository_index(pathRepository, checkWheelPaths=True)
 
+    return pathRepository, dictIndex, listWarning
+
+
+def load_repository_resolution_snapshot() -> tuple[
+    DictRepository_Index,
+    list[DictComponentManagementWarning],
+]:
+    """Read a consistent Repository index snapshot for dependency resolution."""
+    _, dictIndex, listWarning = _load_repository_index_snapshot("resolveProjectDependencies")
+
     return dictIndex, listWarning
+
+
+def load_repository_catalog_snapshot() -> tuple[
+    Path,
+    DictRepository_Index,
+    list[DictComponentManagementWarning],
+]:
+    """Read a consistent Repository index snapshot for display and selection."""
+    return _load_repository_index_snapshot("getComponentRepositoryCatalog")
 
 
 def _build_version_entry(

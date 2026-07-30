@@ -13,12 +13,15 @@ from liberrpa.ComponentManagement.Types._Dependency import Info_ProjectDependenc
 from liberrpa.ComponentManagement.Types._Protocol import (
     DictProtocolRequest_PublishComponent,
     DictProtocolRequest_RebuildRepositoryIndex,
+    DictProtocolRequest_GetComponentRepositoryCatalog,
     DictProtocolRequest_GetProjectDependencyState,
     DictProtocolRequest_BuildProjectDependencyPlan,
     DictProtocolRequest_ApplyProjectDependencyPlan,
     DictProtocolRequest_RepairProjectComponents,
     DictProtocolRequest,
     DictProtocolResult_RepositoryIndexRebuilt,
+    DictProtocolResult_RepositoryCatalog_Component,
+    DictProtocolResult_RepositoryCatalog,
     DictProtocolResult_ComponentsFolder,
     DictProtocolResult_ProjectDependencyState,
     DictProtocolResult_ProjectDependencyPlan,
@@ -26,6 +29,7 @@ from liberrpa.ComponentManagement.Types._Protocol import (
     DictProtocolResult_ProjectComponentsRepaired,
     DictProtocolSuccess_PublishComponent,
     DictProtocolSuccess_RepositoryIndexRebuilt,
+    DictProtocolSuccess_RepositoryCatalog,
     DictProtocolSuccess_ProjectDependencyState,
     DictProtocolSuccess_ProjectDependencyPlan,
     DictProtocolSuccess_ProjectDependencyPlanApplied,
@@ -50,7 +54,11 @@ from liberrpa.ComponentManagement._ProjectTransaction import (
     repair_project_components,
 )
 from liberrpa.ComponentManagement._Publish import publish_component
-from liberrpa.ComponentManagement._Repository import load_repository_resolution_snapshot, rebuild_repository_index
+from liberrpa.ComponentManagement._Repository import (
+    load_repository_resolution_snapshot,
+    load_repository_catalog_snapshot,
+    rebuild_repository_index,
+)
 
 
 from pathlib import Path
@@ -59,6 +67,7 @@ from typing import NoReturn, cast
 
 _SET_PUBLISH_REQUEST_KEYS = {"schemaVersion", "operation", "projectPath"}
 _SET_REBUILD_REQUEST_KEYS = {"schemaVersion", "operation"}
+_SET_GET_REPOSITORY_CATALOG_REQUEST_KEYS = {"schemaVersion", "operation"}
 _SET_GET_STATE_REQUEST_KEYS = {"schemaVersion", "operation", "projectPath"}
 _SET_BUILD_PLAN_REQUEST_KEYS = {
     "schemaVersion",
@@ -126,45 +135,54 @@ def _parse_request(requestInfo: str) -> DictProtocolRequest:
         _raise_invalid_request("Only Component Management protocol schemaVersion 1 is supported.")
 
     operation = value.get("operation")
-    if operation == "publishComponent":
-        _validate_request_keys(value, _SET_PUBLISH_REQUEST_KEYS, "Publish Component")
-        _validate_project_path_value(value.get("projectPath"))
+    match operation:
+        case "publishComponent":
+            _validate_request_keys(value, _SET_PUBLISH_REQUEST_KEYS, "Publish Component")
+            _validate_project_path_value(value.get("projectPath"))
+            return cast(DictProtocolRequest_PublishComponent, value)
 
-        return cast(DictProtocolRequest_PublishComponent, value)
+        case "rebuildRepositoryIndex":
+            _validate_request_keys(value, _SET_REBUILD_REQUEST_KEYS, "Rebuild Repository Index")
+            return cast(DictProtocolRequest_RebuildRepositoryIndex, value)
 
-    if operation == "rebuildRepositoryIndex":
-        _validate_request_keys(value, _SET_REBUILD_REQUEST_KEYS, "Rebuild Repository Index")
-        return cast(DictProtocolRequest_RebuildRepositoryIndex, value)
+        case "getComponentRepositoryCatalog":
+            _validate_request_keys(
+                value,
+                _SET_GET_REPOSITORY_CATALOG_REQUEST_KEYS,
+                "Get Component Repository Catalog",
+            )
+            return cast(DictProtocolRequest_GetComponentRepositoryCatalog, value)
 
-    if operation == "getProjectDependencyState":
-        _validate_request_keys(value, _SET_GET_STATE_REQUEST_KEYS, "Get Project Dependency State")
-        _validate_project_path_value(value.get("projectPath"))
-        return cast(DictProtocolRequest_GetProjectDependencyState, value)
+        case "getProjectDependencyState":
+            _validate_request_keys(value, _SET_GET_STATE_REQUEST_KEYS, "Get Project Dependency State")
+            _validate_project_path_value(value.get("projectPath"))
+            return cast(DictProtocolRequest_GetProjectDependencyState, value)
 
-    if operation == "buildProjectDependencyPlan":
-        _validate_request_keys(value, _SET_BUILD_PLAN_REQUEST_KEYS, "Build Project Dependency Plan")
-        _validate_project_path_value(value.get("projectPath"))
-        if not isinstance(value.get("dependencyOperation"), dict):
-            _raise_invalid_request("dependencyOperation must be an object.")
-        return cast(DictProtocolRequest_BuildProjectDependencyPlan, value)
+        case "buildProjectDependencyPlan":
+            _validate_request_keys(value, _SET_BUILD_PLAN_REQUEST_KEYS, "Build Project Dependency Plan")
+            _validate_project_path_value(value.get("projectPath"))
+            if not isinstance(value.get("dependencyOperation"), dict):
+                _raise_invalid_request("dependencyOperation must be an object.")
+            return cast(DictProtocolRequest_BuildProjectDependencyPlan, value)
 
-    if operation == "applyProjectDependencyPlan":
-        _validate_request_keys(value, _SET_APPLY_PLAN_REQUEST_KEYS, "Apply Project Dependency Plan")
-        _validate_project_path_value(value.get("projectPath"))
-        if not isinstance(value.get("dependencyOperation"), dict):
-            _raise_invalid_request("dependencyOperation must be an object.")
-        if not isinstance(value.get("confirmedPlanSha256"), str):
-            _raise_invalid_request("confirmedPlanSha256 must be a string.")
-        return cast(DictProtocolRequest_ApplyProjectDependencyPlan, value)
+        case "applyProjectDependencyPlan":
+            _validate_request_keys(value, _SET_APPLY_PLAN_REQUEST_KEYS, "Apply Project Dependency Plan")
+            _validate_project_path_value(value.get("projectPath"))
+            if not isinstance(value.get("dependencyOperation"), dict):
+                _raise_invalid_request("dependencyOperation must be an object.")
+            if not isinstance(value.get("confirmedPlanSha256"), str):
+                _raise_invalid_request("confirmedPlanSha256 must be a string.")
+            return cast(DictProtocolRequest_ApplyProjectDependencyPlan, value)
 
-    if operation == "repairProjectComponents":
-        _validate_request_keys(value, _SET_REPAIR_REQUEST_KEYS, "Repair Project Components")
-        _validate_project_path_value(value.get("projectPath"))
-        return cast(DictProtocolRequest_RepairProjectComponents, value)
+        case "repairProjectComponents":
+            _validate_request_keys(value, _SET_REPAIR_REQUEST_KEYS, "Repair Project Components")
+            _validate_project_path_value(value.get("projectPath"))
+            return cast(DictProtocolRequest_RepairProjectComponents, value)
 
-    _raise_invalid_request(
-        f"Unsupported Component Management operation: {operation!r}.",
-    )
+        case _:
+            _raise_invalid_request(
+                f"Unsupported Component Management operation: {operation!r}.",
+            )
 
 
 def _resolve_project_path(projectPathValue: str) -> Path:
@@ -255,110 +273,141 @@ def handle_request(requestInfo: str) -> DictProtocolResponse:
     try:
         dictRequest = _parse_request(requestInfo)
 
-        if dictRequest["operation"] == "publishComponent":
-            publishResult, listWarning = publish_component(dictRequest["projectPath"])
+        match dictRequest["operation"]:
+            case "publishComponent":
+                publishResult, listWarning = publish_component(dictRequest["projectPath"])
 
-            responsePublish: DictProtocolSuccess_PublishComponent = {
-                "schemaVersion": 1,
-                "ok": True,
-                "result": publishResult,
-                "warnings": listWarning,
-            }
-            return responsePublish
+                responsePublish: DictProtocolSuccess_PublishComponent = {
+                    "schemaVersion": 1,
+                    "ok": True,
+                    "result": publishResult,
+                    "warnings": listWarning,
+                }
+                return responsePublish
 
-        if dictRequest["operation"] == "rebuildRepositoryIndex":
-            rebuildResult = rebuild_repository_index()
-            dictRebuildResult: DictProtocolResult_RepositoryIndexRebuilt = {
-                "status": "repositoryIndexRebuilt",
-                "componentCount": rebuildResult.componentCount,
-                "versionCount": rebuildResult.versionCount,
-            }
-            responseRebuilt: DictProtocolSuccess_RepositoryIndexRebuilt = {
-                "schemaVersion": 1,
-                "ok": True,
-                "result": dictRebuildResult,
-                "warnings": rebuildResult.warnings,
-            }
-            return responseRebuilt
+            case "rebuildRepositoryIndex":
+                rebuildResult = rebuild_repository_index()
+                dictRebuildResult: DictProtocolResult_RepositoryIndexRebuilt = {
+                    "status": "repositoryIndexRebuilt",
+                    "componentCount": rebuildResult.componentCount,
+                    "versionCount": rebuildResult.versionCount,
+                }
+                responseRebuilt: DictProtocolSuccess_RepositoryIndexRebuilt = {
+                    "schemaVersion": 1,
+                    "ok": True,
+                    "result": dictRebuildResult,
+                    "warnings": rebuildResult.warnings,
+                }
+                return responseRebuilt
 
-        if dictRequest["operation"] == "getProjectDependencyState":
-            pathProject = _resolve_project_path(dictRequest["projectPath"])
-            listWarning = recover_project_transactions(pathProject)
-            stateObj = get_project_dependency_state(pathProject)
-            dictStateResult: DictProtocolResult_ProjectDependencyState = {
-                "status": "projectDependencyState",
-                "projectPath": str(stateObj.projectPath),
-                "projectType": stateObj.projectType,
-                "manifest": build_project_manifest_dict(stateObj.manifest),
-                "componentsLock": stateObj.componentsLock,
-                "lockState": stateObj.lockState,
-                "componentsState": stateObj.componentsState,
-                "environmentState": stateObj.environmentState,
-                "repairState": stateObj.repairState,
-                "details": stateObj.details,
-            }
-            responseState: DictProtocolSuccess_ProjectDependencyState = {
-                "schemaVersion": 1,
-                "ok": True,
-                "result": dictStateResult,
-                "warnings": listWarning,
-            }
-            return responseState
+            case "getComponentRepositoryCatalog":
+                pathRepository, dictRepositoryIndex, listWarning = load_repository_catalog_snapshot()
+                listComponent: list[DictProtocolResult_RepositoryCatalog_Component] = [
+                    {
+                        "componentId": strComponentId,
+                        "packageName": dictComponent["packageName"],
+                        "versions": list(reversed(dictComponent["versions"])),
+                    }
+                    for strComponentId, dictComponent in sorted(
+                        dictRepositoryIndex["components"].items(),
+                        key=lambda item: (item[1]["packageName"].casefold(), item[0]),
+                    )
+                ]
+                dictCatalogResult: DictProtocolResult_RepositoryCatalog = {
+                    "status": "componentRepositoryCatalog",
+                    "repositoryPath": str(pathRepository),
+                    "componentCount": len(listComponent),
+                    "versionCount": sum(
+                        len(dictCatalogComponent["versions"]) for dictCatalogComponent in listComponent
+                    ),
+                    "components": listComponent,
+                }
+                responseCatalog: DictProtocolSuccess_RepositoryCatalog = {
+                    "schemaVersion": 1,
+                    "ok": True,
+                    "result": dictCatalogResult,
+                    "warnings": listWarning,
+                }
+                return responseCatalog
 
-        if dictRequest["operation"] == "buildProjectDependencyPlan":
-            planObj, listWarning = _build_project_dependency_plan_from_request(dictRequest)
-            responsePlan: DictProtocolSuccess_ProjectDependencyPlan = {
-                "schemaVersion": 1,
-                "ok": True,
-                "result": _get_project_dependency_plan_result(planObj),
-                "warnings": listWarning,
-            }
-            return responsePlan
+            case "getProjectDependencyState":
+                pathProject = _resolve_project_path(dictRequest["projectPath"])
+                listWarning = recover_project_transactions(pathProject)
+                stateObj = get_project_dependency_state(pathProject)
+                dictStateResult: DictProtocolResult_ProjectDependencyState = {
+                    "status": "projectDependencyState",
+                    "projectPath": str(stateObj.projectPath),
+                    "projectType": stateObj.projectType,
+                    "manifest": build_project_manifest_dict(stateObj.manifest),
+                    "componentsLock": stateObj.componentsLock,
+                    "lockState": stateObj.lockState,
+                    "componentsState": stateObj.componentsState,
+                    "environmentState": stateObj.environmentState,
+                    "repairState": stateObj.repairState,
+                    "details": stateObj.details,
+                }
+                responseState: DictProtocolSuccess_ProjectDependencyState = {
+                    "schemaVersion": 1,
+                    "ok": True,
+                    "result": dictStateResult,
+                    "warnings": listWarning,
+                }
+                return responseState
 
-        if dictRequest["operation"] == "applyProjectDependencyPlan":
-            operationObj = parse_project_dependency_operation(dictRequest["dependencyOperation"])
-            applyResult = apply_project_dependency_plan(
-                Path(dictRequest["projectPath"]),
-                operationObj,
-                dictRequest["confirmedPlanSha256"],
-            )
-            folderResult = (
-                None
-                if applyResult.componentsFolderInfo is None
-                else _get_components_folder_result(applyResult.componentsFolderInfo)
-            )
-            dictAppliedResult: DictProtocolResult_ProjectDependencyPlanApplied = {
-                "status": "projectDependencyPlanApplied",
-                "planSha256": applyResult.plan.planSha256,
-                "targetManifest": build_project_manifest_dict(applyResult.plan.targetManifest),
-                "targetComponentsLock": applyResult.plan.targetComponentsLock,
-                "directDependencyChanges": applyResult.plan.directDependencyChanges,
-                "resolvedComponentChanges": applyResult.plan.resolvedComponentChanges,
-                "componentsFolder": folderResult,
-            }
-            responseApplied: DictProtocolSuccess_ProjectDependencyPlanApplied = {
-                "schemaVersion": 1,
-                "ok": True,
-                "result": dictAppliedResult,
-                "warnings": applyResult.warnings,
-            }
-            return responseApplied
+            case "buildProjectDependencyPlan":
+                planObj, listWarning = _build_project_dependency_plan_from_request(dictRequest)
+                responsePlan: DictProtocolSuccess_ProjectDependencyPlan = {
+                    "schemaVersion": 1,
+                    "ok": True,
+                    "result": _get_project_dependency_plan_result(planObj),
+                    "warnings": listWarning,
+                }
+                return responsePlan
 
-        # dictRequest["operation"] == "repairProjectComponents"
-        repairResult = repair_project_components(Path(dictRequest["projectPath"]))
-        dictRepairResult: DictProtocolResult_ProjectComponentsRepaired = {
-            "status": "projectComponentsRepaired",
-            "componentsFolder": _get_components_folder_result(
-                repairResult.componentsFolderInfo,
-            ),
-        }
-        responseRepair: DictProtocolSuccess_ProjectComponentsRepaired = {
-            "schemaVersion": 1,
-            "ok": True,
-            "result": dictRepairResult,
-            "warnings": repairResult.warnings,
-        }
-        return responseRepair
+            case "applyProjectDependencyPlan":
+                operationObj = parse_project_dependency_operation(dictRequest["dependencyOperation"])
+                applyResult = apply_project_dependency_plan(
+                    Path(dictRequest["projectPath"]),
+                    operationObj,
+                    dictRequest["confirmedPlanSha256"],
+                )
+                folderResult = (
+                    None
+                    if applyResult.componentsFolderInfo is None
+                    else _get_components_folder_result(applyResult.componentsFolderInfo)
+                )
+                dictAppliedResult: DictProtocolResult_ProjectDependencyPlanApplied = {
+                    "status": "projectDependencyPlanApplied",
+                    "planSha256": applyResult.plan.planSha256,
+                    "targetManifest": build_project_manifest_dict(applyResult.plan.targetManifest),
+                    "targetComponentsLock": applyResult.plan.targetComponentsLock,
+                    "directDependencyChanges": applyResult.plan.directDependencyChanges,
+                    "resolvedComponentChanges": applyResult.plan.resolvedComponentChanges,
+                    "componentsFolder": folderResult,
+                }
+                responseApplied: DictProtocolSuccess_ProjectDependencyPlanApplied = {
+                    "schemaVersion": 1,
+                    "ok": True,
+                    "result": dictAppliedResult,
+                    "warnings": applyResult.warnings,
+                }
+                return responseApplied
+
+            case "repairProjectComponents":
+                repairResult = repair_project_components(Path(dictRequest["projectPath"]))
+                dictRepairResult: DictProtocolResult_ProjectComponentsRepaired = {
+                    "status": "projectComponentsRepaired",
+                    "componentsFolder": _get_components_folder_result(
+                        repairResult.componentsFolderInfo,
+                    ),
+                }
+                responseRepair: DictProtocolSuccess_ProjectComponentsRepaired = {
+                    "schemaVersion": 1,
+                    "ok": True,
+                    "result": dictRepairResult,
+                    "warnings": repairResult.warnings,
+                }
+                return responseRepair
 
     except ComponentManagementError as e:
         return _build_error_response(e)
