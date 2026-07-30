@@ -57,6 +57,12 @@ export interface DictProtocolRequest_RebuildRepositoryIndex {
   operation: "rebuildRepositoryIndex";
 }
 
+export interface DictProtocolRequest_ImportComponentWheels {
+  schemaVersion: 1;
+  operation: "importComponentWheels";
+  wheelPaths: string[];
+}
+
 export interface DictProtocolRequest_GetComponentRepositoryCatalog {
   schemaVersion: 1;
   operation: "getComponentRepositoryCatalog";
@@ -92,6 +98,7 @@ export interface DictProtocolRequest_RepairProjectComponents {
 export type DictProtocolRequest =
   | DictProtocolRequest_PublishComponent
   | DictProtocolRequest_RebuildRepositoryIndex
+  | DictProtocolRequest_ImportComponentWheels
   | DictProtocolRequest_GetComponentRepositoryCatalog
   | DictProtocolRequest_GetProjectDependencyState
   | DictProtocolRequest_BuildProjectDependencyPlan
@@ -130,6 +137,23 @@ export interface DictProtocolResult_RepositoryIndexRebuilt {
   status: "repositoryIndexRebuilt";
   componentCount: number;
   versionCount: number;
+}
+
+export interface DictProtocolResult_ComponentWheelsImported_Component {
+  sourcePath: string;
+  componentId: string;
+  packageName: string;
+  version: string;
+  wheelFile: string;
+  sha256: string;
+  status: "imported" | "alreadyImported";
+}
+
+export interface DictProtocolResult_ComponentWheelsImported {
+  status: "componentWheelsImported";
+  importedCount: number;
+  alreadyImportedCount: number;
+  components: DictProtocolResult_ComponentWheelsImported_Component[];
 }
 
 export interface DictRepository_ComponentVersion {

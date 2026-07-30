@@ -42,6 +42,10 @@ from liberrpa.ComponentManagement._RepositoryTransaction import (
     copy_wheel_to_staging,
     validate_publish_transactions_for_rebuild,
 )
+from liberrpa.ComponentManagement._RepositoryImportTransaction import (
+    recover_import_transactions,
+    validate_import_transactions_for_rebuild,
+)
 
 from pathlib import Path
 from packaging.version import Version
@@ -62,9 +66,14 @@ ComponentRepository/
 │   └── ComponentName2_uuidv4/
 │       └── componentname2-2.3.1-py313-none-any.whl
 └── .staging/
-    └── publish_<Transaction UUID>/
-    ├── transaction.json
-    └── candidate.whl  # Present only before the Wheel is committed.
+    ├── publish_<Transaction UUID>/
+    │   ├── transaction.json
+    │   └── candidate.whl  # Present only before the Wheel is committed.
+    └── import_<Transaction UUID>/
+        ├── transaction.json
+        └── artifacts/
+            ├── 0000.whl
+            └── 0001.whl
 """
 
 
@@ -99,6 +108,13 @@ def get_repository_path() -> Path:
     return pathRepository
 
 
+def recover_repository_transactions(repositoryPath: Path) -> list[DictComponentManagementWarning]:
+    return [
+        *recover_publish_transactions(repositoryPath),
+        *recover_import_transactions(repositoryPath),
+    ]
+
+
 def _load_repository_index_snapshot(
     operation: str,
 ) -> tuple[
@@ -112,7 +128,7 @@ def _load_repository_index_snapshot(
         repositoryPath=pathRepository,
         operation=operation,
     ):
-        listWarning = recover_publish_transactions(pathRepository)
+        listWarning = recover_repository_transactions(pathRepository)
         dictIndex = load_repository_index(pathRepository, checkWheelPaths=True)
 
     return pathRepository, dictIndex, listWarning
@@ -172,7 +188,7 @@ def publish_component_wheel(
                 message=f"Failed to initialize the Component Repository structure: {pathRepository}",
             ) from e
 
-        listWarning = recover_publish_transactions(pathRepository)
+        listWarning = recover_repository_transactions(pathRepository)
         dictIndex = load_repository_index(pathRepository, checkWheelPaths=True)
         dictComponent = dictIndex["components"].get(manifestObj.id)
         dictVersionEntry = _build_version_entry(manifestObj, wheelResult)
@@ -497,6 +513,12 @@ def rebuild_repository_index() -> Info_Repository_RebuildResult:
         listTransactionCleanup = validate_publish_transactions_for_rebuild(
             repositoryPath=pathRepository,
             indexDict=dictNewIndex,
+        )
+        listTransactionCleanup.extend(
+            validate_import_transactions_for_rebuild(
+                repositoryPath=pathRepository,
+                indexDict=dictNewIndex,
+            )
         )
 
         try:

@@ -39,6 +39,11 @@
         "enablement": "liberrpaProjectManager.projectType == flow || liberrpaProjectManager.projectType == component"
       },
       {
+        "command": "LiberRPA.importComponentWheels",
+        "category": "LiberRPA",
+        "title": "Import Component Wheels"
+      },
+      {
         "command": "LiberRPA.rebuildComponentRepositoryIndex",
         "category": "LiberRPA",
         "title": "Rebuild Component Repository Index"

@@ -3,6 +3,7 @@
 import type {
   DictComponentManagementWarning,
   DictProtocolDependencyOperation,
+  DictProtocolResult_ComponentWheelsImported,
   DictProtocolResult_RepositoryCatalog,
   DictProtocolResult_ProjectDependencyState,
   DictProtocolResult_ProjectDependencyPlan,
@@ -19,7 +20,10 @@ import {
   parseProjectDependencyPlanAppliedResult,
   parseProjectComponentsRepairedResult,
 } from "./projectDependencyResult";
-import { parseRepositoryCatalogResult } from "./repositoryResult";
+import {
+  parseComponentWheelsImportedResult,
+  parseRepositoryCatalogResult,
+} from "./repositoryResult";
 
 export interface Info_ComponentManagement_OperationResult<T> {
   result: T;
@@ -62,6 +66,26 @@ export async function getComponentRepositoryCatalog(): Promise<
 
   return {
     result: parseRepositoryCatalogResult(response.result),
+    warnings: response.warnings,
+  };
+}
+
+export async function importComponentWheels(
+  wheelPaths: string[],
+): Promise<
+  Info_ComponentManagement_OperationResult<DictProtocolResult_ComponentWheelsImported>
+> {
+  const response = getSuccessResponse(
+    await runComponentManagement({
+      schemaVersion: 1,
+      operation: "importComponentWheels",
+      wheelPaths,
+    }),
+    "Import Component Wheels",
+  );
+
+  return {
+    result: parseComponentWheelsImportedResult(response.result),
     warnings: response.warnings,
   };
 }

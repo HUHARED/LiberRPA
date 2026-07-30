@@ -5,6 +5,14 @@
       <span class="text-h5">Manage Components</span>
       <v-spacer></v-spacer>
       <v-btn
+        class="mr-2"
+        prepend-icon="mdi-package-down"
+        variant="text"
+        :disabled="projectManagerStore.busy"
+        @click="importWheels">
+        Import Wheels
+      </v-btn>
+      <v-btn
         icon="mdi-refresh"
         variant="text"
         :disabled="projectManagerStore.busy"
@@ -620,6 +628,13 @@ function repair(): void {
 
   projectManagerStore.busy = true;
   postMessage({ command: "repairProjectComponents" });
+}
+
+function importWheels(): void {
+  if (!projectManagerStore.busy) {
+    projectManagerStore.busy = true;
+    postMessage({ command: "importComponentWheels" });
+  }
 }
 
 function refresh(): void {

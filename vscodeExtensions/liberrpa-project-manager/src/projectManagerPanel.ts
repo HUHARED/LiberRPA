@@ -24,6 +24,7 @@ import {
   repairProjectComponents,
 } from "./componentManagement/operations";
 import { getProjectTemplates, selectTargetFolder, createProject } from "./createFolder";
+import { importComponentWheels } from "./importComponentWheels";
 import { getErrorMessage } from "./utils";
 
 function getTheme(theme: vscode.ColorTheme): Theme {
@@ -294,6 +295,22 @@ export class ProjectManagerPanel {
     });
   }
 
+  private async handleImportComponentWheels(): Promise<void> {
+    await this.runBusyOperation(async () => {
+      const boolImported = await importComponentWheels();
+      if (!boolImported) {
+        return;
+      }
+
+      const initialData = await this.getManageComponentsInitialData({
+        type: "info",
+        message:
+          "Component Wheels were imported into ComponentRepository. Select a Component below to add it to the Project.",
+      });
+      await this.postMessage({ command: "loadManageComponents", initialData });
+    });
+  }
+
   private async handleRefreshManageComponents(): Promise<void> {
     await this.runBusyOperation(async () => {
       const initialData = await this.getManageComponentsInitialData();
@@ -434,6 +451,16 @@ export class ProjectManagerPanel {
           }
 
           await this.handleRepairProjectComponents();
+          break;
+        }
+
+        case "importComponentWheels": {
+          if (this.currentOperation !== "manageComponents") {
+            log.warn("Ignored importComponentWheels outside Manage Components.");
+            return;
+          }
+
+          await this.handleImportComponentWheels();
           break;
         }
 

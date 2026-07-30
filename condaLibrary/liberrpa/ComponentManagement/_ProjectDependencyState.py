@@ -7,6 +7,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from liberrpa.ComponentManagement.Utils._Exception import ComponentManagementError
 from liberrpa.ComponentManagement.Utils._Hash import calculate_file_sha256
+from liberrpa.ComponentManagement.Utils._Version import get_installed_liberrpa_version
 from liberrpa.ComponentManagement.Utils._Validation import path_exists, is_file_invalid
 from liberrpa.ComponentManagement.Types._Manifest import Info_ProjectManifest
 from liberrpa.ComponentManagement.Types._Components import DictComponentsLock_File
@@ -30,10 +31,8 @@ from liberrpa.ComponentManagement._Manifest import read_project_manifest
 from liberrpa.ComponentManagement._Repository import get_repository_path
 from liberrpa.ComponentManagement._RepositoryIndex import get_wheel_path
 
-from importlib.metadata import PackageNotFoundError, version as get_package_version
 from pathlib import Path
 from packaging.specifiers import SpecifierSet
-from packaging.version import InvalidVersion, Version
 
 
 def _get_environment_state(
@@ -47,10 +46,11 @@ def _get_environment_state(
         }
 
     try:
-        strInstalledVersion = get_package_version("liberrpa")
-        installedVersionObj = Version(strInstalledVersion)
-    except (PackageNotFoundError, InvalidVersion):
-        return "unknown", {"reason": "The installed liberrpa package version could not be determined."}
+        installedVersionObj = get_installed_liberrpa_version()
+    except ValueError as e:
+        return "unknown", {"reason": str(e)}
+
+    strInstalledVersion = str(installedVersionObj)
 
     listRequirement: list[tuple[str, str]] = [("Project", manifestObj.requiresLiberrpa)]
     if lockDict is not None:

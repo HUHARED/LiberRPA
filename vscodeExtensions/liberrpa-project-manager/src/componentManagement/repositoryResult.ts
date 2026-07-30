@@ -1,14 +1,17 @@
 // FileName: repositoryResult.ts
 
 import {
+  isStringRecord,
   ensureExactRecord,
-  ensureNonNegativeInteger,
+  ensureNonEmptyString,
   ensureString,
   ensureSha256,
-  isStringRecord,
+  ensureNonNegativeInteger,
 } from "../typeCheck";
 import type {
   DictProtocolResult_RepositoryIndexRebuilt,
+  DictProtocolResult_ComponentWheelsImported_Component,
+  DictProtocolResult_ComponentWheelsImported,
   DictRepository_ComponentVersion,
   DictProtocolResult_RepositoryCatalog_Component,
   DictProtocolResult_RepositoryCatalog,
@@ -18,6 +21,21 @@ const SET_REPOSITORY_INDEX_REBUILT_KEYS = new Set([
   "status",
   "componentCount",
   "versionCount",
+]);
+const SET_COMPONENT_WHEELS_IMPORTED_RESULT_KEYS = new Set([
+  "status",
+  "importedCount",
+  "alreadyImportedCount",
+  "components",
+]);
+const SET_COMPONENT_WHEELS_IMPORTED_COMPONENT_KEYS = new Set([
+  "sourcePath",
+  "componentId",
+  "packageName",
+  "version",
+  "wheelFile",
+  "sha256",
+  "status",
 ]);
 const SET_REPOSITORY_CATALOG_RESULT_KEYS = new Set([
   "status",
@@ -66,6 +84,83 @@ export function parseRepositoryIndexRebuiltResult(
       dictValue["versionCount"],
       "Repository index rebuilt result.versionCount",
     ),
+  };
+}
+
+function parseImportedComponent(
+  value: unknown,
+  sourceName: string,
+): DictProtocolResult_ComponentWheelsImported_Component {
+  const dictValue = ensureExactRecord(
+    value,
+    SET_COMPONENT_WHEELS_IMPORTED_COMPONENT_KEYS,
+    sourceName,
+  );
+  const status = dictValue["status"];
+  if (status !== "imported" && status !== "alreadyImported") {
+    throw new Error(`${sourceName}.status is unsupported.`);
+  }
+
+  return {
+    sourcePath: ensureNonEmptyString(dictValue["sourcePath"], `${sourceName}.sourcePath`),
+    componentId: ensureNonEmptyString(
+      dictValue["componentId"],
+      `${sourceName}.componentId`,
+    ),
+    packageName: ensureNonEmptyString(
+      dictValue["packageName"],
+      `${sourceName}.packageName`,
+    ),
+    version: ensureNonEmptyString(dictValue["version"], `${sourceName}.version`),
+    wheelFile: ensureNonEmptyString(dictValue["wheelFile"], `${sourceName}.wheelFile`),
+    sha256: ensureSha256(dictValue["sha256"], `${sourceName}.sha256`),
+    status,
+  };
+}
+
+export function parseComponentWheelsImportedResult(
+  value: unknown,
+): DictProtocolResult_ComponentWheelsImported {
+  const dictValue = ensureExactRecord(
+    value,
+    SET_COMPONENT_WHEELS_IMPORTED_RESULT_KEYS,
+    "Import Component Wheels result",
+  );
+  if (dictValue["status"] !== "componentWheelsImported") {
+    throw new Error("Component Management returned an unsupported Wheel import status.");
+  }
+
+  const arrComponent = dictValue["components"];
+  if (!Array.isArray(arrComponent) || arrComponent.length === 0) {
+    throw new Error("Import Component Wheels result.components must be a non-empty array.");
+  }
+
+  const components = arrComponent.map((item, intIndex) =>
+    parseImportedComponent(item, `components[${String(intIndex)}]`),
+  );
+  const importedCount = ensureNonNegativeInteger(
+    dictValue["importedCount"],
+    "Import Component Wheels result.importedCount",
+  );
+  const alreadyImportedCount = ensureNonNegativeInteger(
+    dictValue["alreadyImportedCount"],
+    "Import Component Wheels result.alreadyImportedCount",
+  );
+
+  if (
+    importedCount !==
+      components.filter((component) => component.status === "imported").length ||
+    alreadyImportedCount !==
+      components.filter((component) => component.status === "alreadyImported").length
+  ) {
+    throw new Error("Import Component Wheels result counts do not match components.");
+  }
+
+  return {
+    status: "componentWheelsImported",
+    importedCount,
+    alreadyImportedCount,
+    components,
   };
 }
 

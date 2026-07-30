@@ -50,6 +50,7 @@ export type DictMessage_WebviewToExtension =
       confirmedPlanSha256: string;
     }
   | { command: "repairProjectComponents" }
+  | { command: "importComponentWheels" }
   | { command: "refreshManageComponents" }
   | { command: "cancel" };
 

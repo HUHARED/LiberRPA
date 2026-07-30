@@ -13,6 +13,7 @@ from liberrpa.ComponentManagement.Types._Dependency import Info_ProjectDependenc
 from liberrpa.ComponentManagement.Types._Protocol import (
     DictProtocolRequest_PublishComponent,
     DictProtocolRequest_RebuildRepositoryIndex,
+    DictProtocolRequest_ImportComponentWheels,
     DictProtocolRequest_GetComponentRepositoryCatalog,
     DictProtocolRequest_GetProjectDependencyState,
     DictProtocolRequest_BuildProjectDependencyPlan,
@@ -20,6 +21,8 @@ from liberrpa.ComponentManagement.Types._Protocol import (
     DictProtocolRequest_RepairProjectComponents,
     DictProtocolRequest,
     DictProtocolResult_RepositoryIndexRebuilt,
+    DictProtocolResult_ComponentWheelsImported_Component,
+    DictProtocolResult_ComponentWheelsImported,
     DictProtocolResult_RepositoryCatalog_Component,
     DictProtocolResult_RepositoryCatalog,
     DictProtocolResult_ComponentsFolder,
@@ -29,6 +32,7 @@ from liberrpa.ComponentManagement.Types._Protocol import (
     DictProtocolResult_ProjectComponentsRepaired,
     DictProtocolSuccess_PublishComponent,
     DictProtocolSuccess_RepositoryIndexRebuilt,
+    DictProtocolSuccess_ComponentWheelsImported,
     DictProtocolSuccess_RepositoryCatalog,
     DictProtocolSuccess_ProjectDependencyState,
     DictProtocolSuccess_ProjectDependencyPlan,
@@ -59,7 +63,7 @@ from liberrpa.ComponentManagement._Repository import (
     load_repository_catalog_snapshot,
     rebuild_repository_index,
 )
-
+from liberrpa.ComponentManagement._RepositoryImport import import_component_wheels
 
 from pathlib import Path
 from typing import NoReturn, cast
@@ -67,6 +71,7 @@ from typing import NoReturn, cast
 
 _SET_PUBLISH_REQUEST_KEYS = {"schemaVersion", "operation", "projectPath"}
 _SET_REBUILD_REQUEST_KEYS = {"schemaVersion", "operation"}
+_SET_IMPORT_WHEELS_REQUEST_KEYS = {"schemaVersion", "operation", "wheelPaths"}
 _SET_GET_REPOSITORY_CATALOG_REQUEST_KEYS = {"schemaVersion", "operation"}
 _SET_GET_STATE_REQUEST_KEYS = {"schemaVersion", "operation", "projectPath"}
 _SET_BUILD_PLAN_REQUEST_KEYS = {
@@ -144,6 +149,15 @@ def _parse_request(requestInfo: str) -> DictProtocolRequest:
         case "rebuildRepositoryIndex":
             _validate_request_keys(value, _SET_REBUILD_REQUEST_KEYS, "Rebuild Repository Index")
             return cast(DictProtocolRequest_RebuildRepositoryIndex, value)
+
+        case "importComponentWheels":
+            _validate_request_keys(value, _SET_IMPORT_WHEELS_REQUEST_KEYS, "Import Component Wheels")
+            wheelPaths = value.get("wheelPaths")
+            if not isinstance(wheelPaths, list) or not wheelPaths:
+                _raise_invalid_request("wheelPaths must be a non-empty array of strings.")
+            if any(not isinstance(wheelPath, str) or wheelPath.strip() == "" for wheelPath in wheelPaths):
+                _raise_invalid_request("wheelPaths must be a non-empty array of strings.")
+            return cast(DictProtocolRequest_ImportComponentWheels, value)
 
         case "getComponentRepositoryCatalog":
             _validate_request_keys(
@@ -299,6 +313,40 @@ def handle_request(requestInfo: str) -> DictProtocolResponse:
                     "warnings": rebuildResult.warnings,
                 }
                 return responseRebuilt
+
+            case "importComponentWheels":
+                importResult = import_component_wheels([
+                    Path(strWheelPath) for strWheelPath in dictRequest["wheelPaths"]
+                ])
+                listImportedComponent: list[DictProtocolResult_ComponentWheelsImported_Component] = [
+                    {
+                        "sourcePath": str(componentResult.sourcePath),
+                        "componentId": componentResult.componentId,
+                        "packageName": componentResult.packageName,
+                        "version": componentResult.version,
+                        "wheelFile": componentResult.wheelFile,
+                        "sha256": componentResult.sha256,
+                        "status": componentResult.status,
+                    }
+                    for componentResult in importResult.components
+                ]
+                dictImportResult: DictProtocolResult_ComponentWheelsImported = {
+                    "status": "componentWheelsImported",
+                    "importedCount": sum(
+                        componentResult["status"] == "imported" for componentResult in listImportedComponent
+                    ),
+                    "alreadyImportedCount": sum(
+                        componentResult["status"] == "alreadyImported" for componentResult in listImportedComponent
+                    ),
+                    "components": listImportedComponent,
+                }
+                responseImported: DictProtocolSuccess_ComponentWheelsImported = {
+                    "schemaVersion": 1,
+                    "ok": True,
+                    "result": dictImportResult,
+                    "warnings": importResult.warnings,
+                }
+                return responseImported
 
             case "getComponentRepositoryCatalog":
                 pathRepository, dictRepositoryIndex, listWarning = load_repository_catalog_snapshot()

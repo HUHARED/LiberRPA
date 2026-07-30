@@ -6,6 +6,7 @@ import { packageProject } from "./packageFolder";
 import { ProjectManagerPanel } from "./projectManagerPanel";
 import { registerProjectTypeContext } from "./projectTypeContext";
 import { publishComponent } from "./publishComponent";
+import { importComponentWheels } from "./importComponentWheels";
 import { rebuildRepositoryIndex } from "./rebuildRepositoryIndex";
 
 export function activate(context: vscode.ExtensionContext): void {
@@ -34,6 +35,13 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand("LiberRPA.manageComponents", () => {
       ProjectManagerPanel.show(context, "manageComponents");
     }),
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "LiberRPA.importComponentWheels",
+      importComponentWheels,
+    ),
   );
 
   context.subscriptions.push(

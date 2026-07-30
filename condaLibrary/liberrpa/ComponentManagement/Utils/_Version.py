@@ -4,6 +4,7 @@ __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
+from importlib.metadata import PackageNotFoundError, version as get_package_version
 from packaging.specifiers import InvalidSpecifier, SpecifierSet
 from packaging.version import InvalidVersion, Version
 
@@ -26,3 +27,12 @@ def normalize_specifier(specifier: str) -> str:
         return str(SpecifierSet(specifier))
     except InvalidSpecifier as e:
         raise ValueError(f"Invalid PEP 440 version specifier: {specifier!r}.") from e
+
+
+def get_installed_liberrpa_version() -> Version:
+    try:
+        return Version(get_package_version("liberrpa"))
+    except PackageNotFoundError as e:
+        raise ValueError("The installed liberrpa package version could not be determined.") from e
+    except InvalidVersion as e:
+        raise ValueError("The installed liberrpa package version is invalid.") from e

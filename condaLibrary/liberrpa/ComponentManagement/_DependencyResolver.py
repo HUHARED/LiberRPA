@@ -6,6 +6,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
 from liberrpa.ComponentManagement.Utils._Exception import ComponentManagementError
+from liberrpa.ComponentManagement.Utils._Version import get_installed_liberrpa_version
 from liberrpa.ComponentManagement.Types._Manifest import (
     Info_ProjectManifest_Component,
     Info_ProjectManifest,
@@ -48,11 +49,18 @@ class _ResolutionChoice:
 
 
 @dataclass(frozen=True)
+class _CandidateVersionResult:
+    candidateVersionList: list[DictRepository_ComponentVersion]
+    incompatibleVersionList: list[DictRepository_ComponentVersion]
+
+
+@dataclass(frozen=True)
 class _ResolutionContext:
     manifestObj: Info_ProjectManifest
     repositoryIndex: DictRepository_Index
     existingLock: DictComponentsLock_File | None
     updateComponentIdSet: set[str]
+    installedLiberrpaVersion: Version
 
 
 class _DependencyResolutionFailure(Exception):
@@ -96,23 +104,73 @@ def _requirements_allow_prerelease(requirementList: list[_DependencyRequirement]
     return any(SpecifierSet(requirementObj.specifier).prereleases is True for requirementObj in requirementList)
 
 
+def _is_existing_locked_artifact(
+    contextObj: _ResolutionContext,
+    componentId: str,
+    packageName: str,
+    versionEntry: DictRepository_ComponentVersion,
+) -> bool:
+    if contextObj.existingLock is None:
+        return False
+
+    dictLockedComponent = contextObj.existingLock["components"].get(componentId)
+    if dictLockedComponent is None:
+        return False
+
+    return dictLockedComponent == _build_locked_component(packageName, versionEntry)
+
+
+def _is_component_version_allowed_by_environment(
+    contextObj: _ResolutionContext,
+    componentId: str,
+    packageName: str,
+    versionEntry: DictRepository_ComponentVersion,
+) -> bool:
+    if SpecifierSet(versionEntry["requiresLiberrpa"]).contains(contextObj.installedLiberrpaVersion):
+        return True
+
+    # Existing incompatible artifacts may be retained by unrelated Add, Change Requirement, or Remove operations.
+    # An explicit Update must select a compatible artifact.
+    return componentId not in contextObj.updateComponentIdSet and _is_existing_locked_artifact(
+        contextObj,
+        componentId,
+        packageName,
+        versionEntry,
+    )
+
+
 def _get_candidate_version_list(
+    contextObj: _ResolutionContext,
+    componentId: str,
     componentDict: DictRepository_Component,
     requirementList: list[_DependencyRequirement],
     *,
     lockedVersion: str | None,
     preferLockedVersion: bool,
-) -> list[DictRepository_ComponentVersion]:
+) -> _CandidateVersionResult:
     listMatchingVersion = [
         dictVersionEntry
         for dictVersionEntry in componentDict["versions"]
         if _version_satisfies_requirements(dictVersionEntry["version"], requirementList)
     ]
+    listAllowedVersion = [
+        dictVersionEntry
+        for dictVersionEntry in listMatchingVersion
+        if _is_component_version_allowed_by_environment(
+            contextObj,
+            componentId,
+            componentDict["packageName"],
+            dictVersionEntry,
+        )
+    ]
+    listIncompatibleVersion = [
+        dictVersionEntry for dictVersionEntry in listMatchingVersion if dictVersionEntry not in listAllowedVersion
+    ]
 
     listStableVersion = sorted(
         (
             dictVersionEntry
-            for dictVersionEntry in listMatchingVersion
+            for dictVersionEntry in listAllowedVersion
             if not Version(dictVersionEntry["version"]).is_prerelease
         ),
         key=lambda dictVersionEntry: Version(dictVersionEntry["version"]),
@@ -124,7 +182,7 @@ def _get_candidate_version_list(
         sorted(
             (
                 dictVersionEntry
-                for dictVersionEntry in listMatchingVersion
+                for dictVersionEntry in listAllowedVersion
                 if Version(dictVersionEntry["version"]).is_prerelease
             ),
             key=lambda dictVersionEntry: Version(dictVersionEntry["version"]),
@@ -137,7 +195,10 @@ def _get_candidate_version_list(
     listCandidate = [*listStableVersion, *listPrereleaseVersion]
 
     if not preferLockedVersion or lockedVersion is None:
-        return listCandidate
+        return _CandidateVersionResult(
+            candidateVersionList=listCandidate,
+            incompatibleVersionList=listIncompatibleVersion,
+        )
 
     # Retaining an already locked prerelease is allowed. Selecting a new prerelease still requires an explicit prerelease specifier.
     dictLockedVersion = find_equivalent_version(componentDict, lockedVersion)
@@ -145,16 +206,28 @@ def _get_candidate_version_list(
         dictLockedVersion["version"],
         requirementList,
     ):
-        return listCandidate
+        return _CandidateVersionResult(
+            candidateVersionList=listCandidate,
+            incompatibleVersionList=listIncompatibleVersion,
+        )
 
-    return [
-        dictLockedVersion,
-        *(
-            dictVersionEntry
-            for dictVersionEntry in listCandidate
-            if Version(dictVersionEntry["version"]) != Version(dictLockedVersion["version"])
-        ),
-    ]
+    if dictLockedVersion not in listAllowedVersion:
+        return _CandidateVersionResult(
+            candidateVersionList=listCandidate,
+            incompatibleVersionList=listIncompatibleVersion,
+        )
+
+    return _CandidateVersionResult(
+        candidateVersionList=[
+            dictLockedVersion,
+            *(
+                dictVersionEntry
+                for dictVersionEntry in listCandidate
+                if Version(dictVersionEntry["version"]) != Version(dictLockedVersion["version"])
+            ),
+        ],
+        incompatibleVersionList=listIncompatibleVersion,
+    )
 
 
 def _validate_root_dependency(
@@ -175,6 +248,7 @@ def _validate_root_dependency(
 
 
 def _validate_selected_versions(
+    contextObj: _ResolutionContext,
     selectedComponentDict: dict[str, _SelectedComponent],
     requirementDict: dict[str, list[_DependencyRequirement]],
 ) -> None:
@@ -188,7 +262,28 @@ def _validate_selected_versions(
             )
 
         if _version_satisfies_requirements(selectedComponent.versionEntry["version"], listRequirement):
-            continue
+            if _is_component_version_allowed_by_environment(
+                contextObj,
+                strComponentId,
+                selectedComponent.packageName,
+                selectedComponent.versionEntry,
+            ):
+                continue
+
+            raise _DependencyResolutionFailure(
+                code="component_liberrpa_incompatible",
+                message=(
+                    f"Component {strComponentId} {selectedComponent.versionEntry['version']} is not compatible "
+                    f"with installed liberrpa {contextObj.installedLiberrpaVersion}."
+                ),
+                details={
+                    "componentId": strComponentId,
+                    "packageName": selectedComponent.packageName,
+                    "version": selectedComponent.versionEntry["version"],
+                    "requiresLiberrpa": selectedComponent.versionEntry["requiresLiberrpa"],
+                    "installedLiberrpaVersion": str(contextObj.installedLiberrpaVersion),
+                },
+            )
 
         raise _DependencyResolutionFailure(
             code="component_version_conflict",
@@ -338,7 +433,7 @@ def _resolve_selected_components(
     manifestObj = contextObj.manifestObj
     dictRequirement = _get_requirement_dict(manifestObj, selectedComponentDict)
     _validate_root_dependency(manifestObj, dictRequirement)
-    _validate_selected_versions(selectedComponentDict, dictRequirement)
+    _validate_selected_versions(contextObj, selectedComponentDict, dictRequirement)
     _validate_selected_dependency_cycle(selectedComponentDict)
     dictPackageOwner = _get_package_owner_dict(manifestObj, selectedComponentDict)
 
@@ -372,14 +467,39 @@ def _resolve_selected_components(
             if contextObj.existingLock is not None and strComponentId in contextObj.existingLock["components"]
             else None
         )
-        listCandidateVersion = _get_candidate_version_list(
+        candidateVersionResult = _get_candidate_version_list(
+            contextObj,
+            strComponentId,
             dictRepositoryComponent,
             dictRequirement[strComponentId],
             lockedVersion=strLockedVersion,
             preferLockedVersion=strComponentId not in contextObj.updateComponentIdSet,
         )
+        listCandidateVersion = candidateVersionResult.candidateVersionList
 
         if not listCandidateVersion:
+            if candidateVersionResult.incompatibleVersionList:
+                raise _DependencyResolutionFailure(
+                    code="component_liberrpa_incompatible",
+                    message=(
+                        f"No published version of Component {strComponentId} satisfies the dependency requirements "
+                        f"and supports installed liberrpa {contextObj.installedLiberrpaVersion}."
+                    ),
+                    details={
+                        "componentId": strComponentId,
+                        "packageName": dictRepositoryComponent["packageName"],
+                        "installedLiberrpaVersion": str(contextObj.installedLiberrpaVersion),
+                        "requirements": _get_requirement_details(dictRequirement[strComponentId]),
+                        "incompatibleVersions": [
+                            {
+                                "version": dictVersionEntry["version"],
+                                "requiresLiberrpa": dictVersionEntry["requiresLiberrpa"],
+                            }
+                            for dictVersionEntry in candidateVersionResult.incompatibleVersionList
+                        ],
+                    },
+                )
+
             raise _DependencyResolutionFailure(
                 code="component_version_unavailable",
                 message=f"No published version of Component {strComponentId} satisfies all dependency requirements.",
@@ -457,6 +577,7 @@ def resolve_project_dependencies(
     *,
     existingLock: DictComponentsLock_File | None = None,
     updateComponentIdSet: set[str] | None = None,
+    installedLiberrpaVersion: Version | None = None,
 ) -> DictComponentsLock_File:
     """Resolve the complete exact Component closure for a normalized Project Manifest."""
     try:
@@ -486,12 +607,23 @@ def resolve_project_dependencies(
                 details={"missingComponentIds": listMissingUpdateComponentId},
             )
 
+    if installedLiberrpaVersion is None:
+        try:
+            installedLiberrpaVersion = get_installed_liberrpa_version()
+        except ValueError as e:
+            raise ComponentManagementError(
+                code="liberrpa_version_unavailable",
+                message="The installed liberrpa version could not be determined for Component dependency resolution.",
+                details={"reason": str(e)},
+            ) from e
+
     try:
         contextObj = _ResolutionContext(
             manifestObj=manifestObj,
             repositoryIndex=repositoryIndex,
             existingLock=existingLock,
             updateComponentIdSet=setUpdateComponentId,
+            installedLiberrpaVersion=installedLiberrpaVersion,
         )
         dictSelectedComponent = _resolve_selected_components(contextObj, {})
     except _DependencyResolutionFailure as e:
