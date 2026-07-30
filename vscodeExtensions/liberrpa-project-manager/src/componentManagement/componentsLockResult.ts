@@ -1,6 +1,12 @@
 // FileName: componentsLockResult.ts
 
-import { ensureExactRecord, ensureString, isRecord, isStringRecord } from "../typeCheck";
+import {
+  isRecord,
+  isStringRecord,
+  ensureExactRecord,
+  ensureString,
+  ensureSha256,
+} from "../typeCheck";
 import type {
   DictComponentsLock_Root,
   DictComponentsLock_Component,
@@ -65,7 +71,7 @@ function parseComponentsLockRoot(
         `${sourceName}.requiresLiberrpa`,
       ),
       componentDependencies: dictValue["componentDependencies"],
-      resolutionInputSha256: ensureString(
+      resolutionInputSha256: ensureSha256(
         dictValue["resolutionInputSha256"],
         `${sourceName}.resolutionInputSha256`,
       ),
@@ -95,7 +101,7 @@ function parseComponentsLockRoot(
         `${sourceName}.requiresLiberrpa`,
       ),
       componentDependencies: dictValue["componentDependencies"],
-      resolutionInputSha256: ensureString(
+      resolutionInputSha256: ensureSha256(
         dictValue["resolutionInputSha256"],
         `${sourceName}.resolutionInputSha256`,
       ),
@@ -127,7 +133,7 @@ function parseComponentsLockComponent(
     displayName: ensureString(dictValue["displayName"], `${sourceName}.displayName`),
     version: ensureString(dictValue["version"], `${sourceName}.version`),
     wheelFile: ensureString(dictValue["wheelFile"], `${sourceName}.wheelFile`),
-    sha256: ensureString(dictValue["sha256"], `${sourceName}.sha256`),
+    sha256: ensureSha256(dictValue["sha256"], `${sourceName}.sha256`),
     requiresLiberrpa: ensureString(
       dictValue["requiresLiberrpa"],
       `${sourceName}.requiresLiberrpa`,

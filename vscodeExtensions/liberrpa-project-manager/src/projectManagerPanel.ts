@@ -3,15 +3,28 @@ import * as vscode from "vscode";
 import * as fs from "node:fs";
 
 import { log } from "./output";
-import { getProjectTemplates, selectTargetFolder, createProject } from "./createFolder";
-import { getErrorMessage } from "./utils";
 import type {
   Theme,
-  DictCreateProjectInput,
-  DictMessage_ExtensionToWebview,
   ProjectManagerOperation,
+  DictCreateProjectInput,
+  DictManageComponentsInitialData,
+  DictMessage_ExtensionToWebview,
 } from "./webviewMessages";
 import { isMessage_WebviewToExtension } from "./webviewMessages";
+import type {
+  DictComponentManagementWarning,
+  DictProtocolDependencyOperation,
+} from "./componentManagement/protocol";
+import {
+  ComponentManagementOperationError,
+  getComponentRepositoryCatalog,
+  getProjectDependencyState,
+  buildProjectDependencyPlan,
+  applyProjectDependencyPlan,
+  repairProjectComponents,
+} from "./componentManagement/operations";
+import { getProjectTemplates, selectTargetFolder, createProject } from "./createFolder";
+import { getErrorMessage } from "./utils";
 
 function getTheme(theme: vscode.ColorTheme): Theme {
   return theme.kind === vscode.ColorThemeKind.Dark ||
@@ -28,6 +41,7 @@ export class ProjectManagerPanel {
   private currentOperation: ProjectManagerOperation;
   private webviewReady = false;
   private busy = false;
+  private operationLoadId = 0;
 
   private getWebviewContent(webview: vscode.Webview): string {
     const indexHtmlUri = vscode.Uri.joinPath(
@@ -76,23 +90,215 @@ export class ProjectManagerPanel {
       return;
     }
 
-    try {
-      switch (this.currentOperation) {
-        case "createProject": {
-          await this.postMessage({
-            command: "loadCreateProject",
-            initialData: {
-              templates: getProjectTemplates(),
-              theme: getTheme(vscode.window.activeColorTheme),
-            },
-          });
-          break;
+    const intLoadId = ++this.operationLoadId;
+
+    switch (this.currentOperation) {
+      case "createProject": {
+        const initialData = {
+          templates: getProjectTemplates(),
+          theme: getTheme(vscode.window.activeColorTheme),
+        };
+        if (
+          intLoadId !== this.operationLoadId ||
+          this.currentOperation !== "createProject"
+        ) {
+          return;
         }
+
+        await this.postMessage({
+          command: "loadCreateProject",
+          initialData,
+        });
+        break;
       }
-    } catch (e: unknown) {
-      log.error(`Failed to load Project Manager operation: ${getErrorMessage(e)}`);
-      await this.sendError(e);
+
+      case "manageComponents": {
+        const initialData = await this.getManageComponentsInitialData();
+        if (
+          intLoadId !== this.operationLoadId ||
+          this.currentOperation !== "manageComponents"
+        ) {
+          return;
+        }
+
+        await this.postMessage({
+          command: "loadManageComponents",
+          initialData,
+        });
+        break;
+      }
     }
+  }
+
+  private async switchOperation(operation: ProjectManagerOperation): Promise<void> {
+    const previousOperation = this.currentOperation;
+    this.currentOperation = operation;
+    this.busy = true;
+
+    try {
+      await this.postMessage({ command: "setBusy", busy: true });
+      await this.loadCurrentOperation();
+    } catch (e: unknown) {
+      this.currentOperation = previousOperation;
+      throw e;
+    } finally {
+      this.busy = false;
+      try {
+        await this.postMessage({ command: "setBusy", busy: false });
+      } catch (e: unknown) {
+        log.warn(`Failed to restore Project Manager busy state: ${getErrorMessage(e)}`);
+      }
+    }
+  }
+
+  private getSingleWorkspaceFolder(): vscode.WorkspaceFolder {
+    const arrWorkspaceFolder = vscode.workspace.workspaceFolders;
+    if (arrWorkspaceFolder === undefined || arrWorkspaceFolder.length !== 1) {
+      throw new Error("Manage Components requires exactly one open workspace folder.");
+    }
+
+    return arrWorkspaceFolder[0];
+  }
+
+  private getWarningMessages(warnings: DictComponentManagementWarning[]): string[] {
+    return warnings.map((warning) => warning.message);
+  }
+
+  private async getManageComponentsInitialData(notification?: {
+    type: "info" | "warning";
+    message: string;
+  }): Promise<DictManageComponentsInitialData> {
+    const workspaceFolder = this.getSingleWorkspaceFolder();
+    const projectStateResult = await getProjectDependencyState(workspaceFolder.uri.fsPath);
+    const repositoryCatalogResult = await getComponentRepositoryCatalog();
+    const arrWarning = [
+      ...projectStateResult.warnings,
+      ...repositoryCatalogResult.warnings,
+    ];
+
+    for (const warning of arrWarning) {
+      log.warn(warning.message);
+    }
+
+    return {
+      theme: getTheme(vscode.window.activeColorTheme),
+      projectState: projectStateResult.result,
+      repositoryCatalog: repositoryCatalogResult.result,
+      warningMessages: this.getWarningMessages(arrWarning),
+      ...(notification === undefined ? {} : { notification }),
+    };
+  }
+
+  private async saveAllProjectFiles(): Promise<void> {
+    const boolSaved = await vscode.workspace.saveAll();
+    if (!boolSaved) {
+      throw new Error("Could not save all files before managing Components.");
+    }
+  }
+
+  private async runBusyOperation(action: () => Promise<void>): Promise<void> {
+    if (this.busy) {
+      return;
+    }
+
+    this.busy = true;
+    try {
+      await this.postMessage({ command: "setBusy", busy: true });
+      await action();
+    } finally {
+      this.busy = false;
+      try {
+        await this.postMessage({ command: "setBusy", busy: false });
+      } catch (e: unknown) {
+        log.warn(`Failed to restore Project Manager busy state: ${getErrorMessage(e)}`);
+      }
+    }
+  }
+
+  private async handleBuildProjectDependencyPlan(
+    dependencyOperation: DictProtocolDependencyOperation,
+  ): Promise<void> {
+    await this.runBusyOperation(async () => {
+      await this.saveAllProjectFiles();
+      const workspaceFolder = this.getSingleWorkspaceFolder();
+      const planResult = await buildProjectDependencyPlan(
+        workspaceFolder.uri.fsPath,
+        dependencyOperation,
+      );
+
+      for (const warning of planResult.warnings) {
+        log.warn(warning.message);
+      }
+
+      await this.postMessage({
+        command: "projectDependencyPlanBuilt",
+        dependencyOperation,
+        plan: planResult.result,
+        warningMessages: this.getWarningMessages(planResult.warnings),
+      });
+    });
+  }
+
+  private async handleApplyProjectDependencyPlan(
+    dependencyOperation: DictProtocolDependencyOperation,
+    confirmedPlanSha256: string,
+  ): Promise<void> {
+    await this.runBusyOperation(async () => {
+      await this.saveAllProjectFiles();
+      const workspaceFolder = this.getSingleWorkspaceFolder();
+      const applyResult = await applyProjectDependencyPlan(
+        workspaceFolder.uri.fsPath,
+        dependencyOperation,
+        confirmedPlanSha256,
+      );
+
+      for (const warning of applyResult.warnings) {
+        log.warn(warning.message);
+      }
+
+      const initialData = await this.getManageComponentsInitialData({
+        type: applyResult.warnings.length === 0 ? "info" : "warning",
+        message:
+          applyResult.warnings.length === 0
+            ? "Component dependency changes were applied successfully."
+            : "Component dependency changes were applied with warnings. See the warnings shown below.",
+      });
+      initialData.warningMessages.unshift(...this.getWarningMessages(applyResult.warnings));
+
+      await this.postMessage({ command: "loadManageComponents", initialData });
+    });
+  }
+
+  private async handleRepairProjectComponents(): Promise<void> {
+    await this.runBusyOperation(async () => {
+      await this.saveAllProjectFiles();
+      const workspaceFolder = this.getSingleWorkspaceFolder();
+      const repairResult = await repairProjectComponents(workspaceFolder.uri.fsPath);
+
+      for (const warning of repairResult.warnings) {
+        log.warn(warning.message);
+      }
+
+      const initialData = await this.getManageComponentsInitialData({
+        type: repairResult.warnings.length === 0 ? "info" : "warning",
+        message:
+          repairResult.warnings.length === 0
+            ? "Project Components were repaired successfully."
+            : "Project Components were repaired with warnings. See the warnings shown below.",
+      });
+      initialData.warningMessages.unshift(
+        ...this.getWarningMessages(repairResult.warnings),
+      );
+
+      await this.postMessage({ command: "loadManageComponents", initialData });
+    });
+  }
+
+  private async handleRefreshManageComponents(): Promise<void> {
+    await this.runBusyOperation(async () => {
+      const initialData = await this.getManageComponentsInitialData();
+      await this.postMessage({ command: "loadManageComponents", initialData });
+    });
   }
 
   private async handleCreateProject(input: DictCreateProjectInput): Promise<void> {
@@ -173,6 +379,11 @@ export class ProjectManagerPanel {
           break;
         }
         case "selectTargetFolder": {
+          if (this.currentOperation !== "createProject") {
+            log.warn("Ignored selectTargetFolder outside Create Project.");
+            return;
+          }
+
           const strTargetFolder = await selectTargetFolder();
           if (strTargetFolder !== undefined) {
             await this.postMessage({
@@ -184,7 +395,55 @@ export class ProjectManagerPanel {
         }
 
         case "confirmCreateProject": {
+          if (this.currentOperation !== "createProject") {
+            log.warn("Ignored confirmCreateProject outside Create Project.");
+            return;
+          }
+
           await this.handleCreateProject(message.input);
+          break;
+        }
+
+        case "buildProjectDependencyPlan": {
+          if (this.currentOperation !== "manageComponents") {
+            log.warn("Ignored buildProjectDependencyPlan outside Manage Components.");
+            return;
+          }
+
+          await this.handleBuildProjectDependencyPlan(message.dependencyOperation);
+          break;
+        }
+
+        case "applyProjectDependencyPlan": {
+          if (this.currentOperation !== "manageComponents") {
+            log.warn("Ignored applyProjectDependencyPlan outside Manage Components.");
+            return;
+          }
+
+          await this.handleApplyProjectDependencyPlan(
+            message.dependencyOperation,
+            message.confirmedPlanSha256,
+          );
+          break;
+        }
+
+        case "repairProjectComponents": {
+          if (this.currentOperation !== "manageComponents") {
+            log.warn("Ignored repairProjectComponents outside Manage Components.");
+            return;
+          }
+
+          await this.handleRepairProjectComponents();
+          break;
+        }
+
+        case "refreshManageComponents": {
+          if (this.currentOperation !== "manageComponents") {
+            log.warn("Ignored refreshManageComponents outside Manage Components.");
+            return;
+          }
+
+          await this.handleRefreshManageComponents();
           break;
         }
 
@@ -243,7 +502,7 @@ export class ProjectManagerPanel {
     );
 
     vscode.window.onDidChangeActiveColorTheme(
-      (theme) => {
+      (theme: vscode.ColorTheme) => {
         if (this.webviewReady) {
           void this.postMessage({
             command: "themeChanged",
@@ -279,8 +538,11 @@ export class ProjectManagerPanel {
           return;
         }
 
-        currentPanel.currentOperation = operation;
-        void currentPanel.loadCurrentOperation();
+        void currentPanel.switchOperation(operation).catch(async (e: unknown) => {
+          const strErrorMessage = getErrorMessage(e);
+          log.error(`Failed to switch Project Manager operation: ${strErrorMessage}`);
+          await currentPanel.sendError(e);
+        });
         return;
       }
 
@@ -293,8 +555,17 @@ export class ProjectManagerPanel {
   }
 
   private async sendError(error: unknown): Promise<void> {
-    const strErrorMessage = getErrorMessage(error);
     try {
+      if (error instanceof ComponentManagementOperationError) {
+        await this.postMessage({
+          command: "componentManagementError",
+          code: error.code,
+          message: error.message,
+        });
+        return;
+      }
+
+      const strErrorMessage = getErrorMessage(error);
       await this.postMessage({
         command: "error",
         message: strErrorMessage,

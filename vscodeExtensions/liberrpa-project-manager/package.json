@@ -33,6 +33,12 @@
         "enablement": "liberrpaProjectManager.projectType == component"
       },
       {
+        "command": "LiberRPA.manageComponents",
+        "category": "LiberRPA",
+        "title": "Manage Components",
+        "enablement": "liberrpaProjectManager.projectType == flow || liberrpaProjectManager.projectType == component"
+      },
+      {
         "command": "LiberRPA.rebuildComponentRepositoryIndex",
         "category": "LiberRPA",
         "title": "Rebuild Component Repository Index"
@@ -43,6 +49,10 @@
         {
           "command": "LiberRPA.publishComponent",
           "when": "liberrpaProjectManager.projectType == component"
+        },
+        {
+          "command": "LiberRPA.manageComponents",
+          "when": "liberrpaProjectManager.projectType == flow || liberrpaProjectManager.projectType == component"
         }
       ]
     }

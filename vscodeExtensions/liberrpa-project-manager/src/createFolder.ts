@@ -5,17 +5,14 @@ import * as path from "node:path";
 import { execFileSync } from "node:child_process";
 
 import { log } from "./output";
+import type { Str_ProjectType } from "./componentManagement/protocol";
 import {
   getProjectFolderNameError,
   getVersionInputError,
   getComponentPackageNameError,
   getDisplayNameError,
 } from "./projectValidation";
-import type {
-  DictCreateProjectInput,
-  DictProjectTemplateInfo,
-  ProjectType,
-} from "./webviewMessages";
+import type { DictCreateProjectInput, DictProjectTemplateInfo } from "./webviewMessages";
 import {
   getProjectManifestDefaults,
   initializeFlowProject,
@@ -81,7 +78,7 @@ function getTemplateFolder(): string {
   return templateFolder;
 }
 
-function getProjectType(templateName: string): ProjectType | undefined {
+function getProjectType(templateName: string): Str_ProjectType | undefined {
   if (templateName.startsWith("FlowProject-")) {
     return "flow";
   }

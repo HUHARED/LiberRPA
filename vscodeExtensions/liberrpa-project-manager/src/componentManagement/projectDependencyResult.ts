@@ -1,12 +1,14 @@
-// FileName: componentManagementDependencyResult.ts
+// FileName: projectDependencyResult.ts
 
 import {
-  ensureExactRecord,
-  ensureNonNegativeInteger,
-  ensureString,
   isRecord,
+  ensureExactRecord,
+  ensureString,
+  ensureSha256,
+  ensureNonNegativeInteger,
 } from "../typeCheck";
 import type {
+  Str_ProjectType,
   Str_ProjectDependency_LockState,
   Str_ProjectDependency_ComponentsState,
   Str_ProjectDependency_EnvironmentState,
@@ -60,7 +62,7 @@ const SET_PROJECT_COMPONENTS_FOLDER_KEYS = new Set([
 ]);
 const SET_PROJECT_COMPONENTS_REPAIRED_KEYS = new Set(["status", "componentsFolder"]);
 
-function parseProjectType(value: unknown, sourceName: string): "flow" | "component" {
+function parseProjectType(value: unknown, sourceName: string): Str_ProjectType {
   if (value !== "flow" && value !== "component") {
     throw new Error(`${sourceName} must be "flow" or "component".`);
   }
@@ -335,7 +337,7 @@ export function parseProjectDependencyPlanResult(
 
   return {
     status: "projectDependencyPlanCreated",
-    planSha256: ensureString(dictValue["planSha256"], "Project dependency plan planSha256"),
+    planSha256: ensureSha256(dictValue["planSha256"], "Project dependency plan planSha256"),
     sourceManifest: parseProjectManifest(
       sourceManifestValue,
       sourceProjectType,
@@ -411,7 +413,7 @@ export function parseProjectDependencyPlanAppliedResult(
 
   return {
     status: "projectDependencyPlanApplied",
-    planSha256: ensureString(
+    planSha256: ensureSha256(
       dictValue["planSha256"],
       "Project dependency apply planSha256",
     ),

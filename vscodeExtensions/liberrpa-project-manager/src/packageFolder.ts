@@ -7,7 +7,7 @@ import { finished } from "node:stream/promises";
 
 import { log } from "./output";
 import { isRecord } from "./typeCheck";
-import { getErrorMessage, printUserCanceled, stringifyJson } from "./utils";
+import { getErrorMessage, stringifyJson, printUserCanceled } from "./utils";
 
 interface LegacyProjectJson extends Record<string, unknown> {
   executorPackage: false;

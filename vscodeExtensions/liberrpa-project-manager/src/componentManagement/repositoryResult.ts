@@ -1,9 +1,10 @@
-// FileName: componentManagementRepositoryResult.ts
+// FileName: repositoryResult.ts
 
 import {
   ensureExactRecord,
   ensureNonNegativeInteger,
   ensureString,
+  ensureSha256,
   isStringRecord,
 } from "../typeCheck";
 import type {
@@ -91,7 +92,7 @@ function parseRepositoryComponentVersion(
     description: ensureString(dictValue["description"], `${sourceName}.description`),
     manifestSchemaVersion: 1,
     wheelFile: ensureString(dictValue["wheelFile"], `${sourceName}.wheelFile`),
-    sha256: ensureString(dictValue["sha256"], `${sourceName}.sha256`),
+    sha256: ensureSha256(dictValue["sha256"], `${sourceName}.sha256`),
     requiresLiberrpa: ensureString(
       dictValue["requiresLiberrpa"],
       `${sourceName}.requiresLiberrpa`,

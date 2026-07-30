@@ -4,7 +4,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { randomUUID } from "node:crypto";
 
-import type { ProjectType } from "./webviewMessages";
+import type { Str_ProjectType } from "./componentManagement/protocol";
 import { isRecord, isStringRecord, hasExactKeys } from "./typeCheck";
 import { readJsonFile, writeJsonFile } from "./utils";
 
@@ -112,7 +112,7 @@ export function parseComponentManifest(
 
 export function parseProjectManifest(
   value: unknown,
-  projectType: ProjectType,
+  projectType: Str_ProjectType,
   sourceName: string,
 ): DictProjectManifestV1 {
   return projectType === "flow"
@@ -130,7 +130,7 @@ function readComponentManifest(manifestPath: string): DictComponentManifestV1 {
 
 export function getProjectManifestDefaults(
   templatePath: string,
-  projectType: ProjectType,
+  projectType: Str_ProjectType,
 ): DictProjectManifestDefaultInfo {
   switch (projectType) {
     case "flow": {

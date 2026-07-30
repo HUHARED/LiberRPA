@@ -31,6 +31,12 @@ export function activate(context: vscode.ExtensionContext): void {
   );
 
   context.subscriptions.push(
+    vscode.commands.registerCommand("LiberRPA.manageComponents", () => {
+      ProjectManagerPanel.show(context, "manageComponents");
+    }),
+  );
+
+  context.subscriptions.push(
     vscode.commands.registerCommand(
       "LiberRPA.rebuildComponentRepositoryIndex",
       rebuildRepositoryIndex,
