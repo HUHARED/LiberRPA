@@ -12,6 +12,19 @@ import {
 } from "./utils";
 import { parseFlowProjectFromText } from "./checkFlowchart";
 
+function getProjectPythonPath(workspaceFolder: vscode.WorkspaceFolder): string {
+  const arrPythonPath = [
+    workspaceFolder.uri.fsPath,
+    path.join(workspaceFolder.uri.fsPath, "_Components"),
+  ];
+
+  if (process.env.PYTHONPATH) {
+    arrPythonPath.push(process.env.PYTHONPATH);
+  }
+
+  return arrPythonPath.join(path.delimiter);
+}
+
 export function activate(context: vscode.ExtensionContext): void {
   // Let vscode manage log's lifecycle.
   context.subscriptions.push(log);
@@ -37,7 +50,7 @@ class FlowchartEditorProvider implements vscode.CustomTextEditorProvider {
         webviewOptions: {
           retainContextWhenHidden: true,
         },
-      }
+      },
     );
     return providerRegistration;
   }
@@ -46,13 +59,13 @@ class FlowchartEditorProvider implements vscode.CustomTextEditorProvider {
   public resolveCustomTextEditor(
     document: vscode.TextDocument,
     webviewPanel: vscode.WebviewPanel,
-    _token: vscode.CancellationToken
+    _token: vscode.CancellationToken,
   ): void {
     // Control the local resources that Webview can load.
     const webviewDistUri = vscode.Uri.joinPath(
       this.context.extensionUri,
       "webview-ui",
-      "dist"
+      "dist",
     );
     webviewPanel.webview.options = {
       enableScripts: true,
@@ -101,7 +114,7 @@ class FlowchartEditorProvider implements vscode.CustomTextEditorProvider {
             throw e;
           }
         });
-      }
+      },
     );
 
     // Undo/redo and edits made outside this webview must also be reflected in the GUI.
@@ -122,7 +135,7 @@ class FlowchartEditorProvider implements vscode.CustomTextEditorProvider {
 
         strExpectedWebviewDocumentText = undefined;
         enqueueTask(() => this.loadWebviewData(document, webviewPanel.webview));
-      }
+      },
     );
 
     webviewPanel.onDidDispose(() => {
@@ -137,7 +150,7 @@ class FlowchartEditorProvider implements vscode.CustomTextEditorProvider {
       this.context.extensionUri,
       "webview-ui",
       "dist",
-      "index.html"
+      "index.html",
     );
 
     let html = fs.readFileSync(uriHtml.fsPath, "utf-8");
@@ -146,7 +159,7 @@ class FlowchartEditorProvider implements vscode.CustomTextEditorProvider {
       this.context.extensionUri,
       "webview-ui",
       "dist",
-      "assets"
+      "assets",
     );
 
     const uriAssetsWebview = webview.asWebviewUri(uriAssets).toString();
@@ -167,7 +180,7 @@ class FlowchartEditorProvider implements vscode.CustomTextEditorProvider {
   // Send the file content to webview.
   private async loadWebviewData(
     document: vscode.TextDocument,
-    webview: vscode.Webview
+    webview: vscode.Webview,
   ): Promise<void> {
     const dictProject = parseFlowProjectFromText(document.getText());
 
@@ -202,7 +215,7 @@ class FlowchartEditorProvider implements vscode.CustomTextEditorProvider {
     document: vscode.TextDocument,
     webview: vscode.Webview,
 
-    message: WebviewToExtensionMessage
+    message: WebviewToExtensionMessage,
   ): Promise<void> {
     // Find the related workspace.
     const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);
@@ -269,11 +282,11 @@ class FlowchartEditorProvider implements vscode.CustomTextEditorProvider {
           const modulesText = [
             ...utilsModules.map(
               (mod) =>
-                `from _Utils.${mod} import *  # noqa: F403 - Import project selector variables.\n`
+                `from _Utils.${mod} import *  # noqa: F403 - Import project selector variables.\n`,
             ),
             ...selectorsModules.map(
               (mod) =>
-                `from _Selectors.${mod} import *  # noqa: F403 - Import project selector variables.\n`
+                `from _Selectors.${mod} import *  # noqa: F403 - Import project selector variables.\n`,
             ),
           ];
 
@@ -308,7 +321,7 @@ if __name__ == "__main__":
 
           throw new Error(
             `Could not open or create file: ${strFileSystemPath}\n${strMessageText}`,
-            { cause: e }
+            { cause: e },
           );
         }
 
@@ -323,14 +336,14 @@ if __name__ == "__main__":
 
         const uriPythonFile = resolveWorkspacePythonFile(
           workspaceFolder,
-          message.data.pyFile
+          message.data.pyFile,
         );
         validatePythonImportSafety(message.data.pyFile);
         const strFileSystemPath = uriPythonFile.fsPath;
 
         if (!fs.existsSync(strFileSystemPath) || !fs.statSync(strFileSystemPath).isFile()) {
           throw new Error(
-            `File does not exist: ${strFileSystemPath}. Create it manually or click the "open" button in the Block node.`
+            `File does not exist: ${strFileSystemPath}. Create it manually or click the "open" button in the Block node.`,
           );
         }
 
@@ -349,7 +362,7 @@ if __name__ == "__main__":
           console: "integratedTerminal",
           cwd: workspaceFolder.uri.fsPath,
           env: {
-            PYTHONPATH: workspaceFolder.uri.fsPath,
+            PYTHONPATH: getProjectPythonPath(workspaceFolder),
           },
         };
 
@@ -359,7 +372,7 @@ if __name__ == "__main__":
 
         if (!started) {
           throw new Error(
-            `Failed to start Python ${message.data.executeMode}: ${strFileSystemPath}`
+            `Failed to start Python ${message.data.executeMode}: ${strFileSystemPath}`,
           );
         }
 
@@ -389,12 +402,12 @@ if __name__ == "__main__":
 
         const strProgramTemp = path.join(
           strLiberRPAEnvPath,
-          "envs/pyenv/Lib/site-packages/liberrpa/FlowControl/Run.py"
+          "envs/pyenv/Lib/site-packages/liberrpa/FlowControl/Run.py",
         );
 
         if (!fs.existsSync(strProgramTemp) || !fs.statSync(strProgramTemp).isFile()) {
           throw new Error(
-            `The Python module 'liberrpa' was not installed correctly. Run.py was not found: ${strProgramTemp}`
+            `The Python module 'liberrpa' was not installed correctly. Run.py was not found: ${strProgramTemp}`,
           );
         }
 
@@ -406,7 +419,7 @@ if __name__ == "__main__":
           console: "integratedTerminal",
           cwd: workspaceFolder.uri.fsPath,
           env: {
-            PYTHONPATH: workspaceFolder.uri.fsPath,
+            PYTHONPATH: getProjectPythonPath(workspaceFolder),
           },
         };
 
@@ -416,7 +429,7 @@ if __name__ == "__main__":
 
         if (!started) {
           throw new Error(
-            `Failed to start Python ${message.data.executeMode}: ${strProgramTemp}`
+            `Failed to start Python ${message.data.executeMode}: ${strProgramTemp}`,
           );
         }
 

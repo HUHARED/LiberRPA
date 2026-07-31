@@ -11,7 +11,8 @@ import liberrpa.UI._UiElement as _UiElement
 from liberrpa.UI._UiAutomation import get_control_secondary_attr, get_top_control
 from liberrpa.UiInterface import highlight
 from liberrpa.UI._Overlay import create_overlay
-from liberrpa.UI._Screenshot import SCREENSHOT_DOCUMENTS_PATH, SCREENSHOT_TEMP_NAME, create_screenshot_manually
+from liberrpa.UI._ScreenshotPath import PATH_SCREENSHOT_DOCUMENTS, STR_SCREENSHOT_TEMP_NAME
+from liberrpa.UI._Screenshot import create_screenshot_manually
 from liberrpa.UI._Image import find_image
 from liberrpa.Mouse import get_mouse_position
 from liberrpa.Dialog import show_notification
@@ -43,7 +44,6 @@ import uiautomation
 import threading
 import time
 from datetime import datetime
-import os
 import shutil
 from pathvalidate import sanitize_filename as _sanitize_filename
 import mss
@@ -313,11 +313,9 @@ def indicate_image(
         strFileNamePrefix = _sanitize_filename(filename=strTemp) or "window"
         strNewFileName = strFileNamePrefix + "_" + datetime.now().strftime("%Y%m%d_%H%M%S") + ".png"
         Log.debug(strNewFileName)
-        os.path.abspath(
-            shutil.move(
-                src=os.path.join(SCREENSHOT_DOCUMENTS_PATH, SCREENSHOT_TEMP_NAME),
-                dst=os.path.join(SCREENSHOT_DOCUMENTS_PATH, strNewFileName),
-            )
+        shutil.move(
+            src=PATH_SCREENSHOT_DOCUMENTS / STR_SCREENSHOT_TEMP_NAME,
+            dst=PATH_SCREENSHOT_DOCUMENTS / strNewFileName,
         )
 
         strGrayscale: Literal["true", "false"] = "true" if grayscale else "false"

@@ -4,7 +4,12 @@ __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
-from liberrpa.Common._Utils import STR_PROJECT_ROOT
+
+from liberrpa.UI._ScreenshotPath import (
+    PATH_SCREENSHOT_DOCUMENTS,
+    STR_FULL_SCREENSHOT,
+    STR_SCREENSHOT_TEMP_NAME,
+)
 
 from PyQt5 import QtWidgets, QtCore, QtGui
 import os
@@ -13,11 +18,6 @@ import inspect
 import subprocess
 from typing import overload, Literal, cast, Any
 
-SCREENSHOT_DOCUMENTS_PATH = os.path.join(os.environ.get("USERPROFILE", "N/A"), R"Documents\LiberRPA\Screenshots")
-os.makedirs(name=SCREENSHOT_DOCUMENTS_PATH, exist_ok=True)
-FULL_SCREENSHOT_PATH = os.path.join(SCREENSHOT_DOCUMENTS_PATH, "LiberRPA_full_screenshot.png")
-SCREENSHOT_PROJECT_PATH = os.path.join(STR_PROJECT_ROOT, "_Screenshots")
-SCREENSHOT_TEMP_NAME = "captured_temp.png"
 
 SELECTED_KEYWORD = "Save completed!"
 
@@ -76,7 +76,7 @@ class ScreenshotCapture(QtWidgets.QWidget):
     def save_cropped_image(self, rect: QtCore.QRect) -> None:
         # Crop the selected region and save it as a PNG
         cropped_pixmap = self.pixmapScreenshot.copy(rect)
-        cropped_pixmap.save(os.path.join(SCREENSHOT_DOCUMENTS_PATH, SCREENSHOT_TEMP_NAME), "PNG")
+        cropped_pixmap.save(os.fspath(PATH_SCREENSHOT_DOCUMENTS / STR_SCREENSHOT_TEMP_NAME), "PNG")
         print(SELECTED_KEYWORD)
         self.close()
 
@@ -97,7 +97,7 @@ def capture_all_screen(needImage: Literal[False] = False) -> tuple[None, int, in
 def capture_all_screen(needImage: bool = False) -> tuple[QtGui.QPixmap | None, int, int]:
     """
     Returns (combinedPixmap, minX, minY)
-    and also writes the full screenshot to FULL_SCREENSHOT_PATH
+    and also writes the full screenshot to STR_FULL_SCREENSHOT
 
     Use needImage to control whether return QtGui.QPixmap because can't pickle it in Queue and the MainPrcess didn't need it.
     """
@@ -151,7 +151,7 @@ def capture_all_screen(needImage: bool = False) -> tuple[QtGui.QPixmap | None, i
             )
 
         # Save the screenshot into the specified folder.
-        if not pixmapCombined.save(FULL_SCREENSHOT_PATH, "PNG"):
+        if not pixmapCombined.save(STR_FULL_SCREENSHOT, "PNG"):
             raise RuntimeError("Failed to save the full screenshot.")
 
         # Also return the top-left corner of the entire virtual desktop to draw it later.

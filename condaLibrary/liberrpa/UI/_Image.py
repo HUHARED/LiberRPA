@@ -6,21 +6,22 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
 from liberrpa.Logging import Log
-from liberrpa.Common._Exception import UiElementNotFoundError, get_exception_info
+from liberrpa.Common._Exception import UiElementNotFoundError, UiSelectorError, get_exception_info
 from liberrpa.UI._UiDict import DictImageAttr
 from liberrpa.Common._TypedValue import StrPath
+from liberrpa.UI._ScreenshotPath import (
+    PATH_SCREENSHOT_DOCUMENTS,
+    STR_FULL_SCREENSHOT,
+    get_managed_screenshot_file_candidates,
+    move_documents_screenshot_to_project,
+)
 from liberrpa.UI._Screenshot import (
-    SCREENSHOT_DOCUMENTS_PATH,
-    FULL_SCREENSHOT_PATH,
-    SCREENSHOT_PROJECT_PATH,
     capture_all_screen,
     create_screenshot_manually,
 )
 
-
 import pyautogui
 import os
-import shutil
 from typing import cast
 
 
@@ -29,38 +30,34 @@ def _get_image_path(
     moveFile: bool = True,
     inScreenshotFolder: bool = True,
 ) -> str:
-    # When other built-in modules invoke the function, "fileName" should be a literally filename, but if UiInterface.get_image_position invokes it, it will give a path and inScreenshotFolder is False.
+    # Built-in SelectorImage calls pass a file name. UiInterface.get_image_position passes an explicit path and inScreenshotFolder is False.
     if not inScreenshotFolder:
-        strFilePath = os.fspath(fileNameOrPath)
-    else:
-        if not os.path.isfile(os.path.join(SCREENSHOT_PROJECT_PATH, fileNameOrPath)):
-            if not os.path.isfile(os.path.join(SCREENSHOT_DOCUMENTS_PATH, fileNameOrPath)):
-                raise FileNotFoundError(
-                    f"Not found the image file '{fileNameOrPath}' in '{SCREENSHOT_PROJECT_PATH}' or '{SCREENSHOT_DOCUMENTS_PATH}'."
-                )
-            else:
-                # If UI Analyzer call it, should not move the file. And a normal RPA project should move the file.
-                if moveFile:
-                    # Move it to SCREENSHOT_PROJECT_PATH
-                    os.makedirs(SCREENSHOT_PROJECT_PATH, exist_ok=True)
-                    strFilePath = os.path.abspath(
-                        shutil.move(
-                            src=os.path.join(SCREENSHOT_DOCUMENTS_PATH, fileNameOrPath),
-                            dst=os.path.join(SCREENSHOT_PROJECT_PATH, fileNameOrPath),
-                        )
-                    )
-                    Log.info(
-                        f"Move '{fileNameOrPath}' from '{SCREENSHOT_DOCUMENTS_PATH}' to '{SCREENSHOT_PROJECT_PATH}'."
-                    )
-                else:
-                    strFilePath = os.path.join(SCREENSHOT_DOCUMENTS_PATH, fileNameOrPath)
-                    Log.info("File in Documents.")
+        return os.fspath(fileNameOrPath)
 
-        else:
-            strFilePath = os.path.join(SCREENSHOT_PROJECT_PATH, fileNameOrPath)
-            Log.verbose("File in project.")
+    listCandidate = get_managed_screenshot_file_candidates(fileNameOrPath)
+    if len(listCandidate) > 1:
+        strCandidate = "\n".join(f"- {pathCandidate}" for pathCandidate in listCandidate)
+        raise UiSelectorError(
+            f"Multiple screenshot files named {os.fspath(fileNameOrPath)!r} were found:\n{strCandidate}"
+        )
 
-    return strFilePath
+    if len(listCandidate) == 1:
+        Log.verbose(f"SelectorImage screenshot found in Project: {listCandidate[0]}")
+        return str(listCandidate[0])
+
+    pathDocuments = PATH_SCREENSHOT_DOCUMENTS / os.fspath(fileNameOrPath)
+    if not pathDocuments.is_file():
+        raise FileNotFoundError(
+            f"SelectorImage screenshot {os.fspath(fileNameOrPath)!r} was not found in the current Project or in {PATH_SCREENSHOT_DOCUMENTS}."
+        )
+
+    if not moveFile:
+        Log.verbose(f"SelectorImage screenshot found in Documents: {pathDocuments}")
+        return str(pathDocuments)
+
+    pathMoved = move_documents_screenshot_to_project(fileNameOrPath)
+    Log.info(f"Moved SelectorImage screenshot from {pathDocuments} to {pathMoved}.")
+    return str(pathMoved)
 
 
 def find_image(
@@ -105,7 +102,7 @@ def find_image(
 
         generator = pyautogui.locateAll(
             needleImage=strFilePath,
-            haystackImage=FULL_SCREENSHOT_PATH,
+            haystackImage=STR_FULL_SCREENSHOT,
             region=region,
             grayscale=grayscale,
             confidence=confidence,
