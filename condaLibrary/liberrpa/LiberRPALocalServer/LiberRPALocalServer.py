@@ -28,6 +28,8 @@ from liberrpa.Common._Initialization import set_log_folder_name
 set_log_folder_name(folderName="_LiberRPALocalServer")
 from liberrpa.Logging import Log
 
+import liberrpa.LiberRPALocalServer._Tray as _Tray
+
 if __name__ == "__main__":
     try:
         print("=== '__main__' block is running ===")
@@ -69,8 +71,6 @@ if __name__ == "__main__":
         # ========================
 
         # Create system tray icon.
-        import liberrpa.LiberRPALocalServer._Tray as _Tray
-
         _Tray.run_tray()
 
         from liberrpa.Common._BasicConfig import get_local_server_port
@@ -79,4 +79,4 @@ if __name__ == "__main__":
     except Exception as e:
         Log.exception_info(e)
     finally:
-        pass
+        _Tray.stop_tray()
