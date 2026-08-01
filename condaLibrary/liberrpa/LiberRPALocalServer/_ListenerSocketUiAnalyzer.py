@@ -80,9 +80,8 @@ def handle_uianalyzer_command(message: str) -> None:
 
         match strCommandName:
             case "indicate_uia":
-                # NOTE: If it is running in LiberRPA Local Server, some element may not useable when getattr(element, "Name"), like MenuItemControl in notepad.exe, I don't know why yet.
                 Log.debug("_UiAnalyzer.indicate_uia")
-                temp, element = _UiAnalyzer.indicate_uia(intIndicateDelay)
+                temp = _UiAnalyzer.indicate_uia(intIndicateDelay)
 
             case "indicate_chrome":
                 temp = _UiAnalyzer.indicate_chrome(intIndicateDelay, dictCommand["usePath"])

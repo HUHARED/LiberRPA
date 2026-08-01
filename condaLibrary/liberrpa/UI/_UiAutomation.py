@@ -158,7 +158,10 @@ def get_control_primary_attr(control: uiautomation.Control) -> DictUiaPrimaryAtt
     return cast(DictUiaPrimaryAttr, dictResult)
 
 
-def get_control_secondary_attr(control: uiautomation.Control) -> DictUiaSecondaryAttr:
+def get_control_secondary_attr(
+    control: uiautomation.Control,
+    rectangle: tuple[int, int, int, int] | None = None,
+) -> DictUiaSecondaryAttr:
     dictTemp: dict[str, str | int] = {}
     for strAttrName in _TUPLE_SECONDARY_ATTR:
         try:
@@ -174,10 +177,26 @@ def get_control_secondary_attr(control: uiautomation.Control) -> DictUiaSecondar
             Log.error(f"Error fetching {strAttrName}: {e}")
 
     # Add coordinate and size.
-    dictTemp["secondary-x"] = control.BoundingRectangle.left
-    dictTemp["secondary-y"] = control.BoundingRectangle.top
-    dictTemp["secondary-width"] = control.BoundingRectangle.width()
-    dictTemp["secondary-height"] = control.BoundingRectangle.height()
+    if rectangle is None:
+        rectangleObj = control.BoundingRectangle
+        rectangle = (
+            rectangleObj.left,
+            rectangleObj.top,
+            rectangleObj.width(),
+            rectangleObj.height(),
+        )
+
+    (
+        intX,
+        intY,
+        intWidth,
+        intHeight,
+    ) = rectangle
+
+    dictTemp["secondary-x"] = intX
+    dictTemp["secondary-y"] = intY
+    dictTemp["secondary-width"] = intWidth
+    dictTemp["secondary-height"] = intHeight
 
     return cast(DictUiaSecondaryAttr, _convert_value_to_str(dictTemp))
 
