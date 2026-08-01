@@ -13,6 +13,7 @@ import sys
 import signal
 import atexit
 import threading
+import time
 from types import FrameType
 
 
@@ -103,6 +104,8 @@ def hook_in_another_thread() -> None:
         # pythoncom.PumpMessages() can not be quit, I don't know why, so use while and pythoncom.PumpWaitingMessages() to capture hook.
         while check_key_not_press():
             pythoncom.PumpWaitingMessages()
+            # Reduce CPU occupation.
+            time.sleep(0.005)
         Log.critical("PumpMessages done.")
     finally:
         unhook(source="hook_in_another_thread")

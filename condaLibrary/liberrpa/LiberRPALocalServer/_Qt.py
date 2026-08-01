@@ -35,6 +35,34 @@ def create_overlay(
     time.sleep(duration / 1000)
 
 
+def update_indicate_overlay(
+    x: int,
+    y: int,
+    width: int,
+    height: int,
+    color: str = "red",
+    label: str = "",
+) -> None:
+    send_command_to_qt(
+        command="update_indicate_overlay",
+        data={
+            "x": x,
+            "y": y,
+            "width": width,
+            "height": height,
+            "color": color,
+            "label": label,
+        },
+    )
+
+
+def close_indicate_overlay() -> None:
+    send_command_to_qt(
+        command="close_indicate_overlay",
+        data={},
+    )
+
+
 class ScreenPrintObj(str):
     pass
 

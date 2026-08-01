@@ -39,6 +39,7 @@ from liberrpa.UI._SelectorValidation import (
 from liberrpa.Common._Exception import UiElementNotFoundError
 from liberrpa.Common._Chrome import get_element_attr_by_coordinates
 import liberrpa.LiberRPALocalServer._Hook as _Hook
+import liberrpa.LiberRPALocalServer._Qt as _Qt
 
 import uiautomation
 import threading
@@ -57,13 +58,65 @@ _HIGHLIGHT_DURATION = 500
 # This timeout is only for user interaction after the indicate delay.
 # It is unrelated to selector search timeouts or Chrome business timeouts.
 _INDICATE_TIMEOUT_SECONDS = 15  # create_screenshot_manually in _Screenshot.py use an argument to manage.
+_INDICATE_REFRESH_INTERVAL_SECONDS = 0.5
+
+type Tuple_IndicateOverlayState = tuple[int, int, int, int, str]
+
+
+def _update_indicate_overlay(
+    previousState: Tuple_IndicateOverlayState | None,
+    *,
+    x: int,
+    y: int,
+    width: int,
+    height: int,
+    label: str = "",
+) -> Tuple_IndicateOverlayState:
+    currentState: Tuple_IndicateOverlayState = (
+        x,
+        y,
+        width,
+        height,
+        label,
+    )
+
+    if currentState != previousState:
+        _Qt.update_indicate_overlay(
+            x=x,
+            y=y,
+            width=width,
+            height=height,
+            color="red",
+            label=label,
+        )
+
+    return currentState
+
+
+def _close_indicate_overlay() -> None:
+    try:
+        _Qt.close_indicate_overlay()
+    except Exception as e:
+        Log.exception_info(e)
+
+
+def _wait_for_next_indicate_refresh(deadline: float) -> None:
+    floatRemainingSeconds = deadline - time.monotonic()
+    if floatRemainingSeconds <= 0:
+        return
+
+    time.sleep(
+        min(
+            _INDICATE_REFRESH_INTERVAL_SECONDS,
+            floatRemainingSeconds,
+        )
+    )
 
 
 @Log.trace()
 def indicate_uia(
     indicateDelaySeconds: int = 1,
 ) -> tuple[DictUiAnalyzerIndicateResult, uiautomation.Control] | tuple[None, None]:
-    global _HIGHLIGHT_DURATION
     threadHook: threading.Thread | None = None
     try:
         _delay(indicateDelaySeconds)
@@ -71,6 +124,7 @@ def indicate_uia(
         threadHook = _start_hook()
         dictCoordinate: DictPosition | None = None
         element: uiautomation.Control | None = None
+        tupleOverlayState: Tuple_IndicateOverlayState | None = None
 
         # Press mouse button left to stop the loop, then return result. Or Press ESC to return None.
         while _Hook.check_key_not_press():
@@ -104,16 +158,16 @@ def indicate_uia(
             if element is None:
                 raise UiElementNotFoundError("No UI element was found at the cursor position.")
 
-            # Highlight it for checking.
-            create_overlay(
-                element.BoundingRectangle.left,
-                element.BoundingRectangle.top,
-                element.BoundingRectangle.width(),
-                element.BoundingRectangle.height(),
-                color="red",
-                duration=_HIGHLIGHT_DURATION,
+            rectangle = element.BoundingRectangle
+            tupleOverlayState = _update_indicate_overlay(
+                tupleOverlayState,
+                x=rectangle.left,
+                y=rectangle.top,
+                width=rectangle.width(),
+                height=rectangle.height(),
                 label=element.ControlTypeName,
             )
+            _wait_for_next_indicate_refresh(deadline)
 
         if _Hook.check_ESC_pressed():
             Log.debug("Pressed ESC, return None.")
@@ -123,13 +177,13 @@ def indicate_uia(
             raise UiElementNotFoundError("No UI element was found at the cursor position.")
 
         # Mouse left pressed.
+        _close_indicate_overlay()
         Log.debug("Pressed mouse left.")
 
         # Get the selector(contains primary attributes) and secondary attributes.
         selector = ensure_selector_uia(_UiElement.get_control_selector(control=element))
 
         dictSecondaryAttr = get_control_secondary_attr(control=element)
-
         preview = _screenshot_to_base64(
             x=int(dictSecondaryAttr["secondary-x"]),
             y=int(dictSecondaryAttr["secondary-y"]),
@@ -148,6 +202,8 @@ def indicate_uia(
         return dictReturn, element
 
     finally:
+        _close_indicate_overlay()
+
         Log.debug("Clean up hook thread.")
         if threadHook is not None and threadHook.is_alive():
             Log.debug("Trying to unhook and join the thread.")
@@ -165,7 +221,6 @@ def indicate_uia(
 def indicate_chrome(
     indicateDelaySeconds: int = 1, usePath: bool = True
 ) -> tuple[DictUiAnalyzerIndicateResult, tuple[list[DictElementTreeItem], list[int], int]] | None:
-    global _HIGHLIGHT_DURATION
     threadHook: threading.Thread | None = None
     try:
         _delay(indicateDelaySeconds)
@@ -174,6 +229,7 @@ def indicate_chrome(
         dictCoordinate: DictPosition | None = None
         dictSecondaryAttr: DictHtmlSecondaryAttr | None = None
         tupleEleTree: tuple[list[DictElementTreeItem], list[int], int] | None = None
+        tupleOverlayState: Tuple_IndicateOverlayState | None = None
 
         # Press mouse button left to stop the loop, then return result. Or Press ESC to return None.
         listAllAttr: list[DictHtmlAttr] = []
@@ -203,15 +259,20 @@ def indicate_chrome(
                     }
 
                     # Highlight the last element in the list.
-                    create_overlay(
-                        int(dictSecondaryAttr["secondary-x"]),
-                        int(dictSecondaryAttr["secondary-y"]),
-                        int(dictSecondaryAttr["secondary-width"]),
-                        int(dictSecondaryAttr["secondary-height"]),
-                        color="red",
-                        duration=_HIGHLIGHT_DURATION,
-                        label=f"<{listAllAttr[-1].get('tagName', '')}> {listAllAttr[-1].get('id', '')} {listAllAttr[-1].get('name', '')}",
+                    strLabel = (
+                        f"<{listAllAttr[-1].get('tagName', '')}> "
+                        f"{listAllAttr[-1].get('id', '')} "
+                        f"{listAllAttr[-1].get('name', '')}"
+                    ).strip()
+                    tupleOverlayState = _update_indicate_overlay(
+                        tupleOverlayState,
+                        x=int(dictSecondaryAttr["secondary-x"]),
+                        y=int(dictSecondaryAttr["secondary-y"]),
+                        width=int(dictSecondaryAttr["secondary-width"]),
+                        height=int(dictSecondaryAttr["secondary-height"]),
+                        label=strLabel,
                     )
+                    _wait_for_next_indicate_refresh(deadline)
 
                 except Exception as e:
                     strError = (
@@ -236,6 +297,7 @@ def indicate_chrome(
         elementWindow = _get_window_element(dictCoordinate=dictCoordinate)
 
         # Mouse left pressed.
+        _close_indicate_overlay()
         Log.debug("Pressed mouse left.")
 
         # Delete all secondary attributes in listAllAttr, assign it to listSpecification
@@ -273,6 +335,8 @@ def indicate_chrome(
         return (dictReturn, tupleEleTree)
 
     finally:
+        _close_indicate_overlay()
+
         Log.debug("Clean up hook thread.")
         if threadHook is not None and threadHook.is_alive():
             Log.debug("Trying to unhook and join the thread.")
@@ -290,7 +354,6 @@ def indicate_chrome(
 def indicate_image(
     indicateDelaySeconds: int = 1, grayscale: bool = True, confidence: float = 0.9
 ) -> DictUiAnalyzerIndicateResult | None:
-    global _HIGHLIGHT_DURATION
     try:
         _delay(indicateDelaySeconds)
 
@@ -377,7 +440,6 @@ def indicate_image(
 
 @Log.trace()
 def indicate_window(indicateDelaySeconds: int = 1) -> DictUiAnalyzerIndicateResult | None:
-    global _HIGHLIGHT_DURATION
     threadHook: threading.Thread | None = None
     try:
         _delay(indicateDelaySeconds)
@@ -385,6 +447,7 @@ def indicate_window(indicateDelaySeconds: int = 1) -> DictUiAnalyzerIndicateResu
         threadHook = _start_hook()
         dictCoordinate: DictPosition | None = None
         element = None
+        tupleOverlayState: Tuple_IndicateOverlayState | None = None
 
         # Press mouse button left to stop the loop, then return result. Or Press ESC to return None.
         while _Hook.check_key_not_press():
@@ -422,14 +485,15 @@ def indicate_window(indicateDelaySeconds: int = 1) -> DictUiAnalyzerIndicateResu
             if element is None:
                 raise UiElementNotFoundError("No UI element was found at the cursor position.")
 
-            create_overlay(
-                element.BoundingRectangle.left,
-                element.BoundingRectangle.top,
-                element.BoundingRectangle.width(),
-                element.BoundingRectangle.height(),
-                color="red",
-                duration=_HIGHLIGHT_DURATION,
+            rectangle = element.BoundingRectangle
+            tupleOverlayState = _update_indicate_overlay(
+                tupleOverlayState,
+                x=rectangle.left,
+                y=rectangle.top,
+                width=rectangle.width(),
+                height=rectangle.height(),
             )
+            _wait_for_next_indicate_refresh(deadline)
 
         if _Hook.check_ESC_pressed():
             Log.debug("Pressed ESC, return None.")
@@ -439,6 +503,7 @@ def indicate_window(indicateDelaySeconds: int = 1) -> DictUiAnalyzerIndicateResu
             raise UiElementNotFoundError("No window element was found at the cursor position.")
 
         # Mouse left pressed.
+        _close_indicate_overlay()
         Log.debug("Pressed mouse left.")
 
         selector: SelectorWindow = ensure_selector_window(_UiElement.get_control_selector(control=element))
@@ -448,6 +513,8 @@ def indicate_window(indicateDelaySeconds: int = 1) -> DictUiAnalyzerIndicateResu
         return dictReturn
 
     finally:
+        _close_indicate_overlay()
+
         Log.debug("Clean up hook thread.")
         if threadHook is not None and threadHook.is_alive():
             Log.debug("Trying to unhook and join the thread.")

@@ -149,44 +149,77 @@ class TransparentOverlay(QWidget):
     ) -> None:
         super().__init__()
 
-        # Check if the specified color is one of the allowed values
-        listColors = ["red", "green", "blue", "yellow", "purple", "pink", "black"]
-        if color not in listColors:
-            raise ValueError(f"color should be one of {listColors}")
-
         self.borderThickness = 4
 
-        # Set up the label text
+        self.labelFont = QFont("Noto Sans Mono", 10)
+
+        # Keep the overlay visible without activating it or intercepting mouse input.
+        # This allows element detection to continue through the overlay on Windows.
+        self.setWindowFlags(
+            Qt.FramelessWindowHint
+            | Qt.WindowStaysOnTopHint
+            | Qt.Tool
+            | Qt.WindowTransparentForInput
+            | Qt.WindowDoesNotAcceptFocus
+        )
+        self.setAttribute(Qt.WA_TranslucentBackground, True)
+        self.setAttribute(Qt.WA_TransparentForMouseEvents, True)
+        self.setAttribute(Qt.WA_ShowWithoutActivating, True)
+
+        self.label = ""
+        self.labelHeight = 0
+        self.rectX = 0
+        self.rectY = 0
+        self.rectWidth = 0
+        self.rectHeight = 0
+        self.borderColor = QColor("red")
+
+        self.update_target(
+            x=x,
+            y=y,
+            width=width,
+            height=height,
+            color=color,
+            label=label,
+        )
+
+    def update_target(
+        self,
+        x: int,
+        y: int,
+        width: int,
+        height: int,
+        color: Literal["red", "green", "blue", "yellow", "purple", "pink", "black"] = "red",
+        label: str = "",
+    ) -> None:
+        listColor = ["red", "green", "blue", "yellow", "purple", "pink", "black"]
+        if color not in listColor:
+            raise ValueError(f"color should be one of {listColor}")
+
         self.label = label
+        self.labelHeight = 20 if label else 0
+        self.borderColor = QColor(color)
 
-        # Determine label width using a QFontMetrics
-        font = QFont("Noto Sans Mono", 10)
-        fontMetrics = QFontMetrics(font)
-        intLabelWidth = fontMetrics.width(label) + 10  # Add padding to the label width
-
+        fontMetrics = QFontMetrics(self.labelFont)
+        # Add padding to the label width
+        intLabelWidth = fontMetrics.horizontalAdvance(label) + 10 if label else 0
         # Ensure the widget is wide enough for the rectangle and the label
         intWidgetWidth = max(width + self.borderThickness * 2, intLabelWidth)
 
-        # Set up the window flags for a frameless window and to keep it on top
-        self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
-        self.setAttribute(Qt.WA_TranslucentBackground)
-
-        # Set widget geometry to fit the label and rectangle
         self.setGeometry(
             x - self.borderThickness,
-            y - self.borderThickness - 20,  # Add space above for the label
+            y - self.borderThickness - self.labelHeight,
             intWidgetWidth,
-            height + self.borderThickness * 2 + 20,  # Include label height
+            height + self.borderThickness * 2 + self.labelHeight,
         )
 
-        # Store rectangle geometry for drawing
         self.rectX = self.borderThickness
-        self.rectY = self.borderThickness + 20  # Adjust for label space
+        self.rectY = self.borderThickness + self.labelHeight
         self.rectWidth = width
-        self.rectWeight = height
+        self.rectHeight = height
 
-        # Set up the border color and thickness
-        self.border_color = QColor(color)
+        # Schedule repainting without recreating the window.
+        self.update()
 
     def paintEvent(self, _event: QPaintEvent) -> None:
         painter = QPainter(self)
@@ -194,31 +227,37 @@ class TransparentOverlay(QWidget):
             painter.setRenderHint(QPainter.Antialiasing)
 
             # Draw the rectangle
-            painter.setPen(QPen(self.border_color, self.borderThickness, Qt.SolidLine))
+            painter.setPen(
+                QPen(
+                    self.borderColor,
+                    self.borderThickness,
+                    Qt.SolidLine,
+                )
+            )
             rect = QRectF(
                 self.rectX - (self.borderThickness // 2),
                 self.rectY - (self.borderThickness // 2),
                 self.rectWidth + self.borderThickness,
-                self.rectWeight + self.borderThickness,
+                self.rectHeight + self.borderThickness,
             )
             painter.drawRect(rect)
 
             # Draw the label
             if self.label:
-                painter.setFont(QFont("Noto Sans Mono", 10))
-                painter.setPen(QPen(self.border_color))
-                label_rect = QRectF(
+                painter.setFont(self.labelFont)
+                painter.setPen(QPen(self.borderColor))
+                labelRect = QRectF(
                     self.borderThickness // 2,
                     self.borderThickness // 2,
                     self.width() - self.borderThickness,  # Use widget's width for label
-                    20,  # Height for the label
+                    self.labelHeight,
                 )
-                painter.drawText(label_rect, Qt.AlignLeft, self.label)
+                painter.drawText(labelRect, Qt.AlignLeft, self.label)
         finally:
             painter.end()
 
 
-dictOverlayCache: dict[str, TransparentOverlay] = {}
+_dictOverlayCache: dict[str, TransparentOverlay] = {}
 
 
 def create_overlay(
@@ -236,7 +275,7 @@ def create_overlay(
 
     # Store the overlay so it isn't garbage collected
     strId = str(uuid.uuid4())
-    dictOverlayCache[strId] = overlay
+    _dictOverlayCache[strId] = overlay
 
     # Use a QTimer so the event loop can continue, and close the overlay later
     close_timer = QTimer(overlay)
@@ -248,9 +287,58 @@ def create_overlay(
 
 
 def _remove_overlay(id: str) -> None:
-    global dictOverlayCache
-    dictOverlayCache[id].close()
-    del dictOverlayCache[id]
+    global _dictOverlayCache
+    _dictOverlayCache[id].close()
+    del _dictOverlayCache[id]
+
+
+_indicateOverlay: TransparentOverlay | None = None
+
+
+def update_indicate_overlay(
+    x: int,
+    y: int,
+    width: int,
+    height: int,
+    color: Literal["red", "green", "blue", "yellow", "purple", "pink", "black"] = "red",
+    label: str = "",
+) -> None:
+    global _indicateOverlay
+
+    if _indicateOverlay is None:
+        _indicateOverlay = TransparentOverlay(
+            x=x,
+            y=y,
+            width=width,
+            height=height,
+            color=color,
+            label=label,
+        )
+        _indicateOverlay.show()
+        return
+
+    _indicateOverlay.update_target(
+        x=x,
+        y=y,
+        width=width,
+        height=height,
+        color=color,
+        label=label,
+    )
+
+    if not _indicateOverlay.isVisible():
+        _indicateOverlay.show()
+
+
+def close_indicate_overlay() -> None:
+    global _indicateOverlay
+
+    overlay = _indicateOverlay
+    _indicateOverlay = None
+
+    if overlay is not None:
+        overlay.close()
+        overlay.deleteLater()
 
 
 def run_qt_worker(queueCommand: Queue, queueReturn: Queue) -> None:
@@ -316,12 +404,28 @@ def run_qt_worker(queueCommand: Queue, queueReturn: Queue) -> None:
                         )
                         queueReturn.put({"requestId": requestId, "result": "OK"})
 
+                    case "update_indicate_overlay":
+                        update_indicate_overlay(
+                            x=data["x"],
+                            y=data["y"],
+                            width=data["width"],
+                            height=data["height"],
+                            color=data["color"],
+                            label=data["label"],
+                        )
+                        queueReturn.put({"requestId": requestId, "result": "OK"})
+
+                    case "close_indicate_overlay":
+                        close_indicate_overlay()
+                        queueReturn.put({"requestId": requestId, "result": "OK"})
+
                     case "show_notification":
                         show_notification(title=data["title"], message=data["message"], duration=data["duration"])
                         queueReturn.put({"requestId": requestId, "result": "OK"})
 
                     case "quit":
                         # Quit the Qt event loop and exit the worker process.
+                        close_indicate_overlay()
                         queueReturn.put({"requestId": requestId, "result": "Quitting"})
                         qtApp.quit()
                         print("Quit QtWorker process.")
