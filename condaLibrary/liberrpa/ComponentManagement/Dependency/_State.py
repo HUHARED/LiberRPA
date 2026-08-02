@@ -1,14 +1,15 @@
-# FileName: _ProjectDependencyState.py
+# FileName: _State.py
 __author__ = "Jiyan Hu"
 __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
-from liberrpa.ComponentManagement.Utils._Exception import ComponentManagementError
-from liberrpa.ComponentManagement.Utils._Hash import calculate_file_sha256
-from liberrpa.ComponentManagement.Utils._Version import get_installed_liberrpa_version
-from liberrpa.ComponentManagement.Utils._Validation import path_exists, is_file_invalid
+from liberrpa.ComponentManagement.Common._Exception import ComponentManagementError
+from liberrpa.ComponentManagement.Common._Hash import calculate_file_sha256
+from liberrpa.ComponentManagement.Common._Project import resolve_project_path
+from liberrpa.ComponentManagement.Common._Version import get_installed_liberrpa_version
+from liberrpa.ComponentManagement.Common._Validation import path_exists, is_file_invalid
 from liberrpa.ComponentManagement.Types._Manifest import Info_ProjectManifest
 from liberrpa.ComponentManagement.Types._Components import DictComponentsLock_File
 from liberrpa.ComponentManagement.Types._Dependency import (
@@ -18,18 +19,18 @@ from liberrpa.ComponentManagement.Types._Dependency import (
     Str_ProjectDependency_RepairState,
     Info_ProjectDependency_State,
 )
-from liberrpa.ComponentManagement._Components import (
+from liberrpa.ComponentManagement.Project._Components import (
     STR_COMPONENTS_FOLDER_NAME,
     validate_components_folder,
 )
-from liberrpa.ComponentManagement._ComponentsLock import (
+from liberrpa.ComponentManagement.Dependency._ComponentsLock import (
     STR_COMPONENTS_LOCK_FILE_NAME,
     read_components_lock,
     is_components_lock_stale,
 )
-from liberrpa.ComponentManagement._Manifest import read_project_manifest
-from liberrpa.ComponentManagement._Repository import get_repository_path
-from liberrpa.ComponentManagement._RepositoryIndex import get_wheel_path
+from liberrpa.ComponentManagement.Manifest._Manifest import read_project_manifest
+from liberrpa.ComponentManagement.Repository._Repository import get_repository_path
+from liberrpa.ComponentManagement.Repository._Index import get_wheel_path
 
 from pathlib import Path
 from packaging.specifiers import SpecifierSet
@@ -172,19 +173,7 @@ def _get_repair_state(
 
 
 def get_project_dependency_state(projectPath: Path) -> Info_ProjectDependency_State:
-    try:
-        pathProject = projectPath.expanduser().resolve()
-    except (OSError, RuntimeError) as e:
-        raise ComponentManagementError(
-            code="project_path_invalid",
-            message=f"Failed to resolve the Project path: {projectPath}",
-        ) from e
-
-    if not pathProject.is_dir():
-        raise ComponentManagementError(
-            code="project_path_invalid",
-            message=f"Project folder was not found: {pathProject}",
-        )
+    pathProject = resolve_project_path(projectPath)
 
     strProjectType, manifestObj = read_project_manifest(pathProject)
     boolDependenciesRequired = bool(manifestObj.componentDependencies)

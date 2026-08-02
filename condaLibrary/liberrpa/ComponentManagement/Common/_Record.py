@@ -5,7 +5,7 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
-from liberrpa.ComponentManagement.Utils._Hash import calculate_record_hash
+from liberrpa.ComponentManagement.Common._Hash import calculate_record_hash
 
 from collections.abc import Callable
 from csv import reader

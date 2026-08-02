@@ -5,12 +5,12 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
-from liberrpa.ComponentManagement.Utils._Exception import ComponentManagementError
-from liberrpa.ComponentManagement.Utils._File import parse_json
-from liberrpa.ComponentManagement.Utils._Hash import calculate_file_sha256
-from liberrpa.ComponentManagement.Utils._WheelName import get_component_wheel_names
-from liberrpa.ComponentManagement.Utils._Record import validate_archive_path, validate_record
-from liberrpa.ComponentManagement.Utils._Validation import path_exists, is_file_invalid, is_folder_invalid
+from liberrpa.ComponentManagement.Common._Exception import ComponentManagementError
+from liberrpa.ComponentManagement.Common._File import parse_json
+from liberrpa.ComponentManagement.Common._Hash import calculate_file_sha256
+from liberrpa.ComponentManagement.Common._WheelName import get_component_wheel_names
+from liberrpa.ComponentManagement.Common._Record import validate_archive_path, validate_record
+from liberrpa.ComponentManagement.Common._Validation import path_exists, is_file_invalid, is_folder_invalid
 from liberrpa.ComponentManagement.Types._Manifest import Info_ProjectManifest_Component
 from liberrpa.ComponentManagement.Types._Wheel import Info_ComponentWheel
 from liberrpa.ComponentManagement.Types._Components import (
@@ -18,10 +18,10 @@ from liberrpa.ComponentManagement.Types._Components import (
     DictComponentsLock_File,
     Info_ProjectComponentsFolder,
 )
-from liberrpa.ComponentManagement._ComponentsLock import validate_components_lock
-from liberrpa.ComponentManagement._Manifest import parse_component_manifest
-from liberrpa.ComponentManagement._RepositoryIndex import get_wheel_path
-from liberrpa.ComponentManagement._Wheel import inspect_component_wheel
+from liberrpa.ComponentManagement.Dependency._ComponentsLock import validate_components_lock
+from liberrpa.ComponentManagement.Manifest._Manifest import parse_component_manifest
+from liberrpa.ComponentManagement.Repository._Index import get_wheel_path
+from liberrpa.ComponentManagement.Wheel._Wheel import inspect_component_wheel
 
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath

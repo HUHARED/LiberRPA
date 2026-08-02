@@ -5,8 +5,8 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
-from liberrpa.ComponentManagement.Utils._Exception import ComponentManagementError
-from liberrpa.ComponentManagement.Utils._File import read_json, serialize_json
+from liberrpa.ComponentManagement.Common._Exception import ComponentManagementError
+from liberrpa.ComponentManagement.Common._File import read_json, serialize_json
 
 from datetime import UTC, datetime
 from pathlib import Path

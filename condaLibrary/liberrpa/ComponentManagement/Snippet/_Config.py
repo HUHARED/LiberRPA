@@ -1,12 +1,12 @@
-# FileName: _SnippetConfig.py
+# FileName: _Config.py
 __author__ = "Jiyan Hu"
 __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
-from liberrpa.ComponentManagement.Utils._Exception import ComponentManagementError
-from liberrpa.ComponentManagement.Utils._File import read_jsonc, write_text_atomic
-from liberrpa.ComponentManagement.Utils._Validation import add_issue, validate_json_object_fields
+from liberrpa.ComponentManagement.Common._Exception import ComponentManagementError
+from liberrpa.ComponentManagement.Common._File import read_jsonc, write_text_atomic
+from liberrpa.ComponentManagement.Common._Validation import add_issue, validate_json_object_fields
 from liberrpa.ComponentManagement.Types._Warning import DictComponentManagementWarning_SnippetConfig
 from liberrpa.ComponentManagement.Types._Manifest import Info_ProjectManifest_Component
 from liberrpa.ComponentManagement.Types._Snippet import (

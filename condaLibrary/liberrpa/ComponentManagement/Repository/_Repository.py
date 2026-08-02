@@ -6,10 +6,10 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
 from liberrpa.Common._BasicConfig import get_basic_config_dict
-from liberrpa.ComponentManagement.Utils._Exception import ComponentManagementError
-from liberrpa.ComponentManagement.Utils._File import write_json_atomic
-from liberrpa.ComponentManagement.Utils._Hash import calculate_file_sha256
-from liberrpa.ComponentManagement.Utils._Validation import path_exists, is_file_invalid, is_folder_invalid
+from liberrpa.ComponentManagement.Common._Exception import ComponentManagementError
+from liberrpa.ComponentManagement.Common._File import write_json_atomic
+from liberrpa.ComponentManagement.Common._Hash import calculate_file_sha256
+from liberrpa.ComponentManagement.Common._Validation import path_exists, is_file_invalid, is_folder_invalid
 from liberrpa.ComponentManagement.Types._Warning import DictComponentManagementWarning
 from liberrpa.ComponentManagement.Types._Manifest import Info_ProjectManifest_Component
 from liberrpa.ComponentManagement.Types._Wheel import (
@@ -24,8 +24,8 @@ from liberrpa.ComponentManagement.Types._Repository import (
     Info_Repository_RebuildResult,
 )
 from liberrpa.ComponentManagement.Lock._RepositoryLock import repository_lock
-from liberrpa.ComponentManagement._Wheel import inspect_component_wheel
-from liberrpa.ComponentManagement._RepositoryIndex import (
+from liberrpa.ComponentManagement.Wheel._Wheel import inspect_component_wheel
+from liberrpa.ComponentManagement.Repository._Index import (
     STR_INDEX_FILE_NAME,
     get_repository_components_path,
     get_wheel_path,
@@ -35,14 +35,14 @@ from liberrpa.ComponentManagement._RepositoryIndex import (
     find_equivalent_version,
     add_version_to_index,
 )
-from liberrpa.ComponentManagement._RepositoryTransaction import (
+from liberrpa.ComponentManagement.Repository._PublishTransaction import (
     remove_transaction_folder,
     get_repository_staging_path,
     recover_publish_transactions,
     copy_wheel_to_staging,
     validate_publish_transactions_for_rebuild,
 )
-from liberrpa.ComponentManagement._RepositoryImportTransaction import (
+from liberrpa.ComponentManagement.Repository._ImportTransaction import (
     recover_import_transactions,
     validate_import_transactions_for_rebuild,
 )
@@ -72,8 +72,10 @@ ComponentRepository/
     └── import_<Transaction UUID>/
         ├── transaction.json
         └── artifacts/
-            ├── 0000.whl
-            └── 0001.whl
+            ├── 0000/
+            │   └── <Original Wheel filename>
+            └── 0001/
+                └── <Original Wheel filename>
 """
 
 

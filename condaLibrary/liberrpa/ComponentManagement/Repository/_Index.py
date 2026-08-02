@@ -1,18 +1,18 @@
-# FileName: _RepositoryIndex.py
+# FileName: _Index.py
 __author__ = "Jiyan Hu"
 __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
-from liberrpa.ComponentManagement.Utils._Exception import ComponentManagementError
-from liberrpa.ComponentManagement.Utils._File import read_json, write_json_atomic
-from liberrpa.ComponentManagement.Utils._WheelName import (
+from liberrpa.ComponentManagement.Common._Exception import ComponentManagementError
+from liberrpa.ComponentManagement.Common._File import read_json, write_json_atomic
+from liberrpa.ComponentManagement.Common._WheelName import (
     STR_COMPONENT_WHEEL_TAG,
     TAG_COMPONENT_WHEEL,
     get_component_wheel_names,
 )
-from liberrpa.ComponentManagement.Utils._Version import normalize_version, normalize_specifier
-from liberrpa.ComponentManagement.Utils._Validation import (
+from liberrpa.ComponentManagement.Common._Version import normalize_version, normalize_specifier
+from liberrpa.ComponentManagement.Common._Validation import (
     get_package_name_error,
     validate_exact_keys,
     path_exists,

@@ -1,19 +1,19 @@
-# FileName: _ProjectTransactionLifecycle.py
+# FileName: _TransactionLifecycle.py
 __author__ = "Jiyan Hu"
 __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
-from liberrpa.ComponentManagement.Utils._Exception import ComponentManagementError
-from liberrpa.ComponentManagement.Utils._Validation import (
+from liberrpa.ComponentManagement.Common._Exception import ComponentManagementError
+from liberrpa.ComponentManagement.Common._Validation import (
     path_exists,
     is_folder_invalid,
 )
 from liberrpa.ComponentManagement.Types._Warning import DictComponentManagementWarning
 from liberrpa.ComponentManagement.Types._Components import Info_ProjectComponentsFolder
 from liberrpa.ComponentManagement.Types._ProjectTransaction import DictProjectTransaction
-from liberrpa.ComponentManagement._ProjectTransactionStorage import (
+from liberrpa.ComponentManagement.Project._TransactionStorage import (
     STR_TARGET_FOLDER_NAME,
     STR_BACKUP_FOLDER_NAME,
     STR_PROJECT_TRANSACTION_PREFIX,
@@ -29,8 +29,8 @@ from liberrpa.ComponentManagement._ProjectTransactionStorage import (
     ensure_target_path_committed,
     cleanup_temporary_transaction_folders,
 )
-from liberrpa.ComponentManagement._Components import STR_COMPONENTS_FOLDER_NAME
-from liberrpa.ComponentManagement._ComponentsLock import STR_COMPONENTS_LOCK_FILE_NAME
+from liberrpa.ComponentManagement.Project._Components import STR_COMPONENTS_FOLDER_NAME
+from liberrpa.ComponentManagement.Dependency._ComponentsLock import STR_COMPONENTS_LOCK_FILE_NAME
 
 from pathlib import Path
 import os

@@ -1,14 +1,14 @@
-# FileName: _DependencyPlan.py
+# FileName: _Plan.py
 __author__ = "Jiyan Hu"
 __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
-from liberrpa.ComponentManagement.Utils._Exception import ComponentManagementError
-from liberrpa.ComponentManagement.Utils._File import serialize_json
-from liberrpa.ComponentManagement.Utils._Version import normalize_specifier
-from liberrpa.ComponentManagement.Utils._Validation import validate_exact_keys
+from liberrpa.ComponentManagement.Common._Exception import ComponentManagementError
+from liberrpa.ComponentManagement.Common._File import serialize_json
+from liberrpa.ComponentManagement.Common._Version import normalize_specifier
+from liberrpa.ComponentManagement.Common._Validation import validate_exact_keys
 from liberrpa.ComponentManagement.Types._Manifest import (
     Info_ProjectManifest_Flow,
     Info_ProjectManifest_Component,
@@ -30,10 +30,10 @@ from liberrpa.ComponentManagement.Types._Dependency import (
     DictProjectDependency_ResolvedChange,
     Info_ProjectDependency_Plan,
 )
-from liberrpa.ComponentManagement._ComponentsLock import validate_components_lock
-from liberrpa.ComponentManagement._DependencyResolver import resolve_project_dependencies
-from liberrpa.ComponentManagement._Manifest import build_project_manifest_dict
-from liberrpa.ComponentManagement._RepositoryIndex import normalize_component_id
+from liberrpa.ComponentManagement.Dependency._ComponentsLock import validate_components_lock
+from liberrpa.ComponentManagement.Dependency._Resolver import resolve_project_dependencies
+from liberrpa.ComponentManagement.Manifest._Manifest import build_project_manifest_dict
+from liberrpa.ComponentManagement.Repository._Index import normalize_component_id
 
 from dataclasses import replace
 from hashlib import sha256

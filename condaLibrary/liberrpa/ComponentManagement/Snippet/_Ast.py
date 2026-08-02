@@ -1,10 +1,10 @@
-# FileName: _SnippetAst.py
+# FileName: _Ast.py
 __author__ = "Jiyan Hu"
 __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
-from liberrpa.ComponentManagement.Utils._Exception import ComponentManagementError
+from liberrpa.ComponentManagement.Common._Exception import ComponentManagementError
 from liberrpa.ComponentManagement.Types._Warning import DictComponentManagementWarning_SnippetDiagnostic
 from liberrpa.ComponentManagement.Types._Manifest import Info_ProjectManifest_Component
 from liberrpa.ComponentManagement.Types._Snippet import (

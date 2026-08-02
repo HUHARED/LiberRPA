@@ -1,11 +1,12 @@
-# FileName: _ProjectTransaction.py
+# FileName: _Transaction.py
 __author__ = "Jiyan Hu"
 __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
-from liberrpa.ComponentManagement.Utils._Exception import ComponentManagementError
+from liberrpa.ComponentManagement.Common._Exception import ComponentManagementError
+from liberrpa.ComponentManagement.Common._Project import resolve_project_path
 from liberrpa.ComponentManagement.Types._Warning import DictComponentManagementWarning
 from liberrpa.ComponentManagement.Types._Manifest import Info_ProjectManifest
 from liberrpa.ComponentManagement.Types._Components import DictComponentsLock_File, Info_ProjectComponentsFolder
@@ -17,47 +18,28 @@ from liberrpa.ComponentManagement.Types._Dependency import (
 )
 from liberrpa.ComponentManagement.Lock._ProjectLock import project_lock
 from liberrpa.ComponentManagement.Lock._RepositoryLock import repository_lock
-from liberrpa.ComponentManagement._ProjectTransactionStorage import (
+from liberrpa.ComponentManagement.Project._TransactionStorage import (
     get_manifest_file,
     remove_transaction_folder,
     prepare_project_transaction,
 )
-from liberrpa.ComponentManagement._ProjectTransactionLifecycle import (
+from liberrpa.ComponentManagement.Project._TransactionLifecycle import (
     commit_project_transaction,
     recover_project_transactions_locked,
 )
-from liberrpa.ComponentManagement._Components import STR_COMPONENTS_FOLDER_NAME, validate_components_folder
-from liberrpa.ComponentManagement._ComponentsLock import (
+from liberrpa.ComponentManagement.Project._Components import STR_COMPONENTS_FOLDER_NAME, validate_components_folder
+from liberrpa.ComponentManagement.Dependency._ComponentsLock import (
     STR_COMPONENTS_LOCK_FILE_NAME,
     read_components_lock,
     is_components_lock_stale,
 )
-from liberrpa.ComponentManagement._DependencyPlan import build_project_dependency_plan
-from liberrpa.ComponentManagement._Manifest import read_project_manifest
-from liberrpa.ComponentManagement._Repository import get_repository_path
-from liberrpa.ComponentManagement._RepositoryIndex import validate_sha256, load_repository_index
-from liberrpa.ComponentManagement._RepositoryTransaction import recover_publish_transactions
+from liberrpa.ComponentManagement.Dependency._Plan import build_project_dependency_plan
+from liberrpa.ComponentManagement.Manifest._Manifest import read_project_manifest
+from liberrpa.ComponentManagement.Repository._Repository import get_repository_path, recover_repository_transactions
+from liberrpa.ComponentManagement.Repository._Index import validate_sha256, load_repository_index
 
 from pathlib import Path
 from typing import Literal
-
-
-def _resolve_project_path(projectPath: Path) -> Path:
-    try:
-        pathProject = projectPath.expanduser().resolve()
-    except (OSError, RuntimeError) as e:
-        raise ComponentManagementError(
-            code="project_path_invalid",
-            message=f"Failed to resolve the Project path: {projectPath}",
-        ) from e
-
-    if not pathProject.is_dir():
-        raise ComponentManagementError(
-            code="project_path_invalid",
-            message=f"Project folder was not found: {pathProject}",
-        )
-
-    return pathProject
 
 
 def _validate_source_project_state(
@@ -97,7 +79,7 @@ def recover_project_transactions(
     projectPath: Path,
 ) -> list[DictComponentManagementWarning]:
     """Recover one interrupted Project dependency transaction under the Project lock."""
-    pathProject = _resolve_project_path(projectPath)
+    pathProject = resolve_project_path(projectPath)
 
     with project_lock(
         projectPath=pathProject,
@@ -144,7 +126,7 @@ def apply_project_dependency_plan(
     confirmedPlanSha256: str,
 ) -> Info_ProjectDependency_ApplyResult:
     """Re-resolve and atomically apply a previously confirmed dependency operation plan."""
-    pathProject = _resolve_project_path(projectPath)
+    pathProject = resolve_project_path(projectPath)
     strConfirmedPlanSha256 = _validate_confirmed_plan_sha256(confirmedPlanSha256)
     pathRepository = get_repository_path()
     listWarning: list[DictComponentManagementWarning] = []
@@ -155,7 +137,7 @@ def apply_project_dependency_plan(
         repositoryPath=pathRepository,
         operation="applyProjectDependencyPlan",
     ):
-        listWarning.extend(recover_publish_transactions(pathRepository))
+        listWarning.extend(recover_repository_transactions(pathRepository))
         dictRepositoryIndex = load_repository_index(
             pathRepository,
             checkWheelPaths=True,
@@ -229,7 +211,7 @@ def repair_project_components(
     projectPath: Path,
 ) -> Info_ProjectDependency_RepairResult:
     """Rebuild _Components from the current valid lock through a Project transaction."""
-    pathProject = _resolve_project_path(projectPath)
+    pathProject = resolve_project_path(projectPath)
     pathRepository = get_repository_path()
     listWarning: list[DictComponentManagementWarning] = []
 
@@ -237,7 +219,7 @@ def repair_project_components(
         repositoryPath=pathRepository,
         operation="repairProjectComponents",
     ):
-        listWarning.extend(recover_publish_transactions(pathRepository))
+        listWarning.extend(recover_repository_transactions(pathRepository))
 
         with project_lock(
             projectPath=pathProject,

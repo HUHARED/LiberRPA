@@ -1,14 +1,14 @@
-# FileName: _ProjectTransactionStorage.py
+# FileName: _TransactionStorage.py
 __author__ = "Jiyan Hu"
 __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
-from liberrpa.ComponentManagement.Utils._Exception import ComponentManagementError
-from liberrpa.ComponentManagement.Utils._File import read_json, write_json_atomic
-from liberrpa.ComponentManagement.Utils._Hash import calculate_file_sha256
-from liberrpa.ComponentManagement.Utils._Validation import (
+from liberrpa.ComponentManagement.Common._Exception import ComponentManagementError
+from liberrpa.ComponentManagement.Common._File import read_json, write_json_atomic
+from liberrpa.ComponentManagement.Common._Hash import calculate_file_sha256
+from liberrpa.ComponentManagement.Common._Validation import (
     validate_exact_keys,
     path_exists,
     is_file_invalid,
@@ -25,21 +25,21 @@ from liberrpa.ComponentManagement.Types._ProjectTransaction import (
     DictProjectTransaction_Snapshot,
     DictProjectTransaction,
 )
-from liberrpa.ComponentManagement._Components import (
+from liberrpa.ComponentManagement.Project._Components import (
     STR_COMPONENTS_FOLDER_NAME,
     validate_components_folder,
     build_components_folder,
 )
-from liberrpa.ComponentManagement._ComponentsLock import (
+from liberrpa.ComponentManagement.Dependency._ComponentsLock import (
     STR_COMPONENTS_LOCK_FILE_NAME,
     read_components_lock,
     write_components_lock,
 )
-from liberrpa.ComponentManagement._Manifest import (
+from liberrpa.ComponentManagement.Manifest._Manifest import (
     build_project_manifest_dict,
     read_project_manifest,
 )
-from liberrpa.ComponentManagement._RepositoryIndex import validate_sha256
+from liberrpa.ComponentManagement.Repository._Index import validate_sha256
 
 from pathlib import Path
 from shutil import copyfileobj, rmtree

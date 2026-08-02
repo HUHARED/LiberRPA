@@ -5,16 +5,16 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
-from liberrpa.ComponentManagement.Utils._Exception import ComponentManagementError
-from liberrpa.ComponentManagement.Utils._File import parse_json, serialize_json
-from liberrpa.ComponentManagement.Utils._Hash import calculate_file_sha256, calculate_record_hash
-from liberrpa.ComponentManagement.Utils._Record import validate_archive_path, validate_record
-from liberrpa.ComponentManagement.Utils._WheelName import (
+from liberrpa.ComponentManagement.Common._Exception import ComponentManagementError
+from liberrpa.ComponentManagement.Common._File import parse_json, serialize_json
+from liberrpa.ComponentManagement.Common._Hash import calculate_file_sha256, calculate_record_hash
+from liberrpa.ComponentManagement.Common._Record import validate_archive_path, validate_record
+from liberrpa.ComponentManagement.Common._WheelName import (
     STR_COMPONENT_WHEEL_TAG,
     TAG_COMPONENT_WHEEL,
     get_component_wheel_names,
 )
-from liberrpa.ComponentManagement.Utils._Validation import validate_exact_keys, is_file_invalid
+from liberrpa.ComponentManagement.Common._Validation import validate_exact_keys, is_file_invalid
 from liberrpa.ComponentManagement.Types._Manifest import Info_ProjectManifest_Component
 from liberrpa.ComponentManagement.Types._Snippet import (
     DictSnippet_Imports,
@@ -25,7 +25,7 @@ from liberrpa.ComponentManagement.Types._Wheel import (
     Info_ComponentWheel_BuildResult,
     Info_ComponentWheel,
 )
-from liberrpa.ComponentManagement._Manifest import parse_component_manifest
+from liberrpa.ComponentManagement.Manifest._Manifest import parse_component_manifest
 
 
 from csv import writer

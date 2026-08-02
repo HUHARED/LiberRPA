@@ -1,14 +1,14 @@
-# FileName: _RepositoryImportTransaction.py
+# FileName: _ImportTransaction.py
 __author__ = "Jiyan Hu"
 __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
-from liberrpa.ComponentManagement.Utils._Exception import ComponentManagementError
-from liberrpa.ComponentManagement.Utils._File import read_json, write_json_atomic
-from liberrpa.ComponentManagement.Utils._Hash import calculate_file_sha256
-from liberrpa.ComponentManagement.Utils._Validation import (
+from liberrpa.ComponentManagement.Common._Exception import ComponentManagementError
+from liberrpa.ComponentManagement.Common._File import read_json, write_json_atomic
+from liberrpa.ComponentManagement.Common._Hash import calculate_file_sha256
+from liberrpa.ComponentManagement.Common._Validation import (
     get_package_name_error,
     validate_exact_keys,
     path_exists,
@@ -22,8 +22,8 @@ from liberrpa.ComponentManagement.Types._Repository import (
     DictRepository_Transaction_ImportArtifact,
     DictRepository_Transaction_Import,
 )
-from liberrpa.ComponentManagement._Wheel import inspect_component_wheel
-from liberrpa.ComponentManagement._RepositoryIndex import (
+from liberrpa.ComponentManagement.Wheel._Wheel import inspect_component_wheel
+from liberrpa.ComponentManagement.Repository._Index import (
     normalize_component_id,
     validate_repository_version,
     get_wheel_relative_path,
@@ -32,7 +32,7 @@ from liberrpa.ComponentManagement._RepositoryIndex import (
     find_equivalent_version,
     add_version_to_index,
 )
-from liberrpa.ComponentManagement._RepositoryTransaction import (
+from liberrpa.ComponentManagement.Repository._PublishTransaction import (
     remove_transaction_folder,
     get_repository_staging_path,
 )

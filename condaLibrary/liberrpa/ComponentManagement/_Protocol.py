@@ -4,10 +4,10 @@ __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
-from liberrpa.ComponentManagement.Utils._Exception import ComponentManagementError
-from liberrpa.ComponentManagement.Utils._File import parse_json
-from liberrpa.ComponentManagement.Utils._Validation import validate_exact_keys
-from liberrpa.ComponentManagement.Types._Warning import DictComponentManagementWarning
+from liberrpa.ComponentManagement.Common._Exception import ComponentManagementError
+from liberrpa.ComponentManagement.Common._File import parse_json
+from liberrpa.ComponentManagement.Common._Project import resolve_project_path
+from liberrpa.ComponentManagement.Common._Validation import validate_exact_keys
 from liberrpa.ComponentManagement.Types._Components import Info_ProjectComponentsFolder
 from liberrpa.ComponentManagement.Types._Dependency import Info_ProjectDependency_Plan
 from liberrpa.ComponentManagement.Types._Protocol import (
@@ -41,29 +41,21 @@ from liberrpa.ComponentManagement.Types._Protocol import (
     DictProtocolResponse_Error,
     DictProtocolResponse,
 )
-from liberrpa.ComponentManagement._ComponentsLock import (
-    STR_COMPONENTS_LOCK_FILE_NAME,
-    read_components_lock,
-    is_components_lock_stale,
-)
-from liberrpa.ComponentManagement._DependencyPlan import (
-    parse_project_dependency_operation,
-    build_project_dependency_plan,
-)
-from liberrpa.ComponentManagement._Manifest import build_project_manifest_dict, read_project_manifest
-from liberrpa.ComponentManagement._ProjectDependencyState import get_project_dependency_state
-from liberrpa.ComponentManagement._ProjectTransaction import (
+from liberrpa.ComponentManagement.Dependency._Plan import parse_project_dependency_operation
+from liberrpa.ComponentManagement.Manifest._Manifest import build_project_manifest_dict
+from liberrpa.ComponentManagement.Dependency._State import get_project_dependency_state
+from liberrpa.ComponentManagement.Dependency._Planning import build_current_project_dependency_plan
+from liberrpa.ComponentManagement.Project._Transaction import (
     recover_project_transactions,
     apply_project_dependency_plan,
     repair_project_components,
 )
-from liberrpa.ComponentManagement._Publish import publish_component
-from liberrpa.ComponentManagement._Repository import (
-    load_repository_resolution_snapshot,
+from liberrpa.ComponentManagement.Publish._Publish import publish_component
+from liberrpa.ComponentManagement.Repository._Repository import (
     load_repository_catalog_snapshot,
     rebuild_repository_index,
 )
-from liberrpa.ComponentManagement._RepositoryImport import import_component_wheels
+from liberrpa.ComponentManagement.Repository._Import import import_component_wheels
 
 from pathlib import Path
 from typing import NoReturn, cast
@@ -199,24 +191,6 @@ def _parse_request(requestInfo: str) -> DictProtocolRequest:
             )
 
 
-def _resolve_project_path(projectPathValue: str) -> Path:
-    try:
-        pathProject = Path(projectPathValue).expanduser().resolve()
-    except (OSError, RuntimeError) as e:
-        raise ComponentManagementError(
-            code="project_path_invalid",
-            message=f"Failed to resolve the Project path: {projectPathValue}",
-        ) from e
-
-    if not pathProject.is_dir():
-        raise ComponentManagementError(
-            code="project_path_invalid",
-            message=f"Project folder was not found: {pathProject}",
-        )
-
-    return pathProject
-
-
 def _get_components_folder_result(
     folderInfo: Info_ProjectComponentsFolder,
 ) -> DictProtocolResult_ComponentsFolder:
@@ -240,35 +214,6 @@ def _get_project_dependency_plan_result(
         "directDependencyChanges": planObj.directDependencyChanges,
         "resolvedComponentChanges": planObj.resolvedComponentChanges,
     }
-
-
-def _build_project_dependency_plan_from_request(
-    requestObj: DictProtocolRequest_BuildProjectDependencyPlan,
-) -> tuple[Info_ProjectDependency_Plan, list[DictComponentManagementWarning]]:
-    pathProject = _resolve_project_path(requestObj["projectPath"])
-    operationObj = parse_project_dependency_operation(requestObj["dependencyOperation"])
-    dictRepositoryIndex, listRepositoryWarning = load_repository_resolution_snapshot()
-    listProjectWarning = recover_project_transactions(pathProject)
-    _, manifestObj = read_project_manifest(pathProject)
-
-    dictCurrentLock = None
-    if manifestObj.componentDependencies:
-        pathLock = pathProject / STR_COMPONENTS_LOCK_FILE_NAME
-        dictCurrentLock = read_components_lock(pathLock)
-        if is_components_lock_stale(dictCurrentLock, manifestObj):
-            raise ComponentManagementError(
-                code="components_lock_stale",
-                message="components.lock.json is stale and must be resolved before planning another change.",
-                details={"lockFile": str(pathLock)},
-            )
-
-    planObj = build_project_dependency_plan(
-        manifestObj,
-        dictRepositoryIndex,
-        operationObj,
-        existingLock=dictCurrentLock,
-    )
-    return planObj, [*listRepositoryWarning, *listProjectWarning]
 
 
 def _build_error_response(errorObj: ComponentManagementError) -> DictProtocolResponse_Error:
@@ -379,7 +324,7 @@ def handle_request(requestInfo: str) -> DictProtocolResponse:
                 return responseCatalog
 
             case "getProjectDependencyState":
-                pathProject = _resolve_project_path(dictRequest["projectPath"])
+                pathProject = resolve_project_path(dictRequest["projectPath"])
                 listWarning = recover_project_transactions(pathProject)
                 stateObj = get_project_dependency_state(pathProject)
                 dictStateResult: DictProtocolResult_ProjectDependencyState = {
@@ -403,7 +348,11 @@ def handle_request(requestInfo: str) -> DictProtocolResponse:
                 return responseState
 
             case "buildProjectDependencyPlan":
-                planObj, listWarning = _build_project_dependency_plan_from_request(dictRequest)
+                operationObj = parse_project_dependency_operation(dictRequest["dependencyOperation"])
+                planObj, listWarning = build_current_project_dependency_plan(
+                    dictRequest["projectPath"],
+                    operationObj,
+                )
                 responsePlan: DictProtocolSuccess_ProjectDependencyPlan = {
                     "schemaVersion": 1,
                     "ok": True,

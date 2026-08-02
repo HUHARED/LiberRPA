@@ -8,19 +8,19 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 from liberrpa.Common._Exception import UiSelectorError
 from liberrpa.Common._TypedValue import StrPath
 from liberrpa.Common._Utils import PATH_PROJECT_ROOT
-from liberrpa.ComponentManagement.Utils._Exception import ComponentManagementError
-from liberrpa.ComponentManagement.Utils._Validation import path_exists
+from liberrpa.ComponentManagement.Common._Exception import ComponentManagementError
+from liberrpa.ComponentManagement.Common._Validation import path_exists
 from liberrpa.ComponentManagement.Types._Manifest import (
     Str_ProjectType,
     Info_ProjectManifest_Component,
     Info_ProjectManifest,
 )
-from liberrpa.ComponentManagement._ComponentsLock import (
+from liberrpa.ComponentManagement.Dependency._ComponentsLock import (
     STR_COMPONENTS_LOCK_FILE_NAME,
     read_components_lock,
     is_components_lock_stale,
 )
-from liberrpa.ComponentManagement._Manifest import read_project_manifest
+from liberrpa.ComponentManagement.Manifest._Manifest import read_project_manifest
 
 from pathlib import Path, PureWindowsPath
 import os

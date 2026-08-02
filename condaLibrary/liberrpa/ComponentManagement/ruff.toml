@@ -2,6 +2,8 @@
 
 extend = "../../ruff.toml"
 
+cache-dir = "../../.ruff_cache"
+
 [lint]
 # Component Management stdout is reserved for its single JSON protocol response.
 extend-select = [

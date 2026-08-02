@@ -5,10 +5,10 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
-from liberrpa.ComponentManagement.Utils._Exception import ComponentManagementError
-from liberrpa.ComponentManagement.Utils._File import read_json, serialize_json, write_json_atomic
-from liberrpa.ComponentManagement.Utils._Version import normalize_version, normalize_specifier
-from liberrpa.ComponentManagement.Utils._Validation import (
+from liberrpa.ComponentManagement.Common._Exception import ComponentManagementError
+from liberrpa.ComponentManagement.Common._File import read_json, serialize_json, write_json_atomic
+from liberrpa.ComponentManagement.Common._Version import normalize_version, normalize_specifier
+from liberrpa.ComponentManagement.Common._Validation import (
     get_package_name_error,
     validate_exact_keys,
     path_exists,
@@ -25,7 +25,7 @@ from liberrpa.ComponentManagement.Types._Components import (
     DictComponentsLock_Component,
     DictComponentsLock_File,
 )
-from liberrpa.ComponentManagement._RepositoryIndex import (
+from liberrpa.ComponentManagement.Repository._Index import (
     validate_wheel_file_name,
     validate_sha256,
     normalize_component_id,

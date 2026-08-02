@@ -1,15 +1,15 @@
-# FileName: _RepositoryImport.py
+# FileName: _Import.py
 __author__ = "Jiyan Hu"
 __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
-from liberrpa.ComponentManagement.Utils._Exception import ComponentManagementError
-from liberrpa.ComponentManagement.Utils._File import write_json_atomic
-from liberrpa.ComponentManagement.Utils._Hash import calculate_file_sha256
-from liberrpa.ComponentManagement.Utils._Version import get_installed_liberrpa_version
-from liberrpa.ComponentManagement.Utils._Validation import (
+from liberrpa.ComponentManagement.Common._Exception import ComponentManagementError
+from liberrpa.ComponentManagement.Common._File import write_json_atomic
+from liberrpa.ComponentManagement.Common._Hash import calculate_file_sha256
+from liberrpa.ComponentManagement.Common._Version import get_installed_liberrpa_version
+from liberrpa.ComponentManagement.Common._Validation import (
     path_exists,
     is_file_invalid,
 )
@@ -24,8 +24,8 @@ from liberrpa.ComponentManagement.Types._Repository import (
     Info_Repository_ImportResult,
 )
 from liberrpa.ComponentManagement.Lock._RepositoryLock import repository_lock
-from liberrpa.ComponentManagement._Wheel import inspect_component_wheel
-from liberrpa.ComponentManagement._RepositoryIndex import (
+from liberrpa.ComponentManagement.Wheel._Wheel import inspect_component_wheel
+from liberrpa.ComponentManagement.Repository._Index import (
     get_repository_components_path,
     get_wheel_path,
     load_repository_index,
@@ -33,12 +33,12 @@ from liberrpa.ComponentManagement._RepositoryIndex import (
     find_equivalent_version,
     add_version_to_index,
 )
-from liberrpa.ComponentManagement._RepositoryTransaction import (
+from liberrpa.ComponentManagement.Repository._PublishTransaction import (
     remove_transaction_folder,
     get_repository_staging_path,
     copy_wheel_to_staging,
 )
-from liberrpa.ComponentManagement._Repository import (
+from liberrpa.ComponentManagement.Repository._Repository import (
     get_repository_path,
     recover_repository_transactions,
 )

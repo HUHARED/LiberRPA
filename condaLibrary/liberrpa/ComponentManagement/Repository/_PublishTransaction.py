@@ -1,15 +1,15 @@
-# FileName: _RepositoryTransaction.py
+# FileName: _PublishTransaction.py
 __author__ = "Jiyan Hu"
 __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
-from liberrpa.ComponentManagement.Utils._Exception import ComponentManagementError
-from liberrpa.ComponentManagement.Utils._File import read_json
-from liberrpa.ComponentManagement.Utils._Hash import calculate_file_sha256
-from liberrpa.ComponentManagement.Utils._Version import normalize_version
-from liberrpa.ComponentManagement.Utils._Validation import (
+from liberrpa.ComponentManagement.Common._Exception import ComponentManagementError
+from liberrpa.ComponentManagement.Common._File import read_json
+from liberrpa.ComponentManagement.Common._Hash import calculate_file_sha256
+from liberrpa.ComponentManagement.Common._Version import normalize_version
+from liberrpa.ComponentManagement.Common._Validation import (
     get_package_name_error,
     validate_exact_keys,
     path_exists,
@@ -22,7 +22,7 @@ from liberrpa.ComponentManagement.Types._Repository import (
     DictRepository_Index,
     DictRepository_Transaction_Publish,
 )
-from liberrpa.ComponentManagement._RepositoryIndex import (
+from liberrpa.ComponentManagement.Repository._Index import (
     normalize_component_id,
     validate_repository_version,
     get_wheel_relative_path,

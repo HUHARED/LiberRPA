@@ -13,7 +13,7 @@
 /snippets/api_manifest.json
 /snippets/snippets_catalog.json
 /snippets/api.md
-MANIFEST.in
+# MANIFEST.in
 # setup.py
 
 *.pyc

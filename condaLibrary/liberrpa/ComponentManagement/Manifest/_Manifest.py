@@ -6,10 +6,10 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 # Handle flow.json and component.json in a Project or Component Wheel.
 
-from liberrpa.ComponentManagement.Utils._Exception import ComponentManagementError
-from liberrpa.ComponentManagement.Utils._File import read_json
-from liberrpa.ComponentManagement.Utils._Version import normalize_version, normalize_specifier
-from liberrpa.ComponentManagement.Utils._Validation import (
+from liberrpa.ComponentManagement.Common._Exception import ComponentManagementError
+from liberrpa.ComponentManagement.Common._File import read_json
+from liberrpa.ComponentManagement.Common._Version import normalize_version, normalize_specifier
+from liberrpa.ComponentManagement.Common._Validation import (
     add_issue,
     get_package_name_error,
     path_exists,

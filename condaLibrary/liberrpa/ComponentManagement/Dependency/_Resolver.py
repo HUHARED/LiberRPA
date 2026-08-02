@@ -1,12 +1,12 @@
-# FileName: _DependencyResolver.py
+# FileName: _Resolver.py
 __author__ = "Jiyan Hu"
 __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
-from liberrpa.ComponentManagement.Utils._Exception import ComponentManagementError
-from liberrpa.ComponentManagement.Utils._Version import get_installed_liberrpa_version
+from liberrpa.ComponentManagement.Common._Exception import ComponentManagementError
+from liberrpa.ComponentManagement.Common._Version import get_installed_liberrpa_version
 from liberrpa.ComponentManagement.Types._Manifest import (
     Info_ProjectManifest_Component,
     Info_ProjectManifest,
@@ -20,8 +20,8 @@ from liberrpa.ComponentManagement.Types._Components import (
     DictComponentsLock_Component,
     DictComponentsLock_File,
 )
-from liberrpa.ComponentManagement._ComponentsLock import build_components_lock
-from liberrpa.ComponentManagement._RepositoryIndex import normalize_component_id, find_equivalent_version
+from liberrpa.ComponentManagement.Dependency._ComponentsLock import build_components_lock
+from liberrpa.ComponentManagement.Repository._Index import normalize_component_id, find_equivalent_version
 
 from dataclasses import dataclass
 from packaging.specifiers import SpecifierSet

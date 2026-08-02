@@ -5,9 +5,10 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
-from liberrpa.ComponentManagement.Utils._Exception import ComponentManagementError
-from liberrpa.ComponentManagement.Utils._File import write_json_atomic
-from liberrpa.ComponentManagement.Utils._Validation import path_exists, is_file_invalid, is_folder_invalid
+from liberrpa.ComponentManagement.Common._Exception import ComponentManagementError
+from liberrpa.ComponentManagement.Common._File import write_json_atomic
+from liberrpa.ComponentManagement.Common._Project import resolve_project_path
+from liberrpa.ComponentManagement.Common._Validation import path_exists, is_file_invalid, is_folder_invalid
 from liberrpa.ComponentManagement.Types._Warning import (
     DictComponentManagementWarning_Operation,
     DictComponentManagementWarning,
@@ -20,11 +21,11 @@ from liberrpa.ComponentManagement.Types._Protocol import (
     DictProtocolResult_Publish,
 )
 from liberrpa.ComponentManagement.Lock._ProjectLock import project_lock
-from liberrpa.ComponentManagement._Manifest import read_component_manifest
-from liberrpa.ComponentManagement._Repository import publish_component_wheel
-from liberrpa.ComponentManagement._SnippetAst import scan_component_snippets
-from liberrpa.ComponentManagement._SnippetConfig import create_snippet_config, build_snippet_catalog
-from liberrpa.ComponentManagement._Wheel import build_component_wheel
+from liberrpa.ComponentManagement.Manifest._Manifest import read_component_manifest
+from liberrpa.ComponentManagement.Repository._Repository import publish_component_wheel
+from liberrpa.ComponentManagement.Snippet._Ast import scan_component_snippets
+from liberrpa.ComponentManagement.Snippet._Config import create_snippet_config, build_snippet_catalog
+from liberrpa.ComponentManagement.Wheel._Wheel import build_component_wheel
 
 from pathlib import Path
 from shutil import rmtree
@@ -143,13 +144,7 @@ def publish_component(
     DictProtocolResult_Publish,
     list[DictComponentManagementWarning],
 ]:
-    pathProject = Path(projectInputPath).expanduser().resolve()
-
-    if not pathProject.is_dir():
-        raise ComponentManagementError(
-            code="project_path_invalid",
-            message=f"Project folder was not found: {pathProject}",
-        )
+    pathProject = resolve_project_path(projectInputPath)
 
     with project_lock(projectPath=pathProject, operation="publishComponent"):
         manifestObj, pathPackage = _validate_component_project(pathProject)
