@@ -8,7 +8,6 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 from liberrpa.Logging import Log
 from pyWinhook import HookManager, MouseEvent, KeyboardEvent
 import pythoncom
-import win32api
 import sys
 import signal
 import atexit
@@ -34,15 +33,17 @@ except Exception as e:
 # The event to check whether mouse left or ESC is pressed.
 eventMouseLeftPressed = threading.Event()
 eventEscPressed = threading.Event()
+eventStopRequested = threading.Event()
 
 
-def check_key_not_press() -> bool:
-    boolNotPressed = not eventMouseLeftPressed.is_set() and not eventEscPressed.is_set()
+def should_continue_hook() -> bool:
+    boolShouldContinue = not (eventMouseLeftPressed.is_set() or eventEscPressed.is_set() or eventStopRequested.is_set())
     if eventMouseLeftPressed.is_set():
         Log.critical("Pressed Mouse Left???")
     if eventEscPressed.is_set():
         Log.critical("Pressed ESC???")
-    return boolNotPressed
+
+    return boolShouldContinue
 
 
 def check_ESC_pressed() -> bool:
@@ -53,6 +54,13 @@ def check_ESC_pressed() -> bool:
 def _reset_event() -> None:
     eventMouseLeftPressed.clear()
     eventEscPressed.clear()
+    eventStopRequested.clear()
+
+
+@Log.trace()
+def request_stop(source: str = "") -> None:
+    Log.debug("request_stop-" + source)
+    eventStopRequested.set()
 
 
 def _on_mouse_left_press(event: MouseEvent) -> bool | None:
@@ -86,35 +94,37 @@ def subscribe_esc() -> None:
 
 
 @Log.trace()
-def unhook(source: str = "") -> None:
+def _unhook(source: str = "") -> None:
     Log.debug("unhook-" + source)
     hm.UnhookMouse()
     hm.UnhookKeyboard()
-    win32api.PostQuitMessage(0)
 
 
 @Log.trace()
 def hook_in_another_thread() -> None:
     _reset_event()
+
     try:
         Log.debug("Hook mouse and keyboard.")
         hm.HookMouse()
         hm.HookKeyboard()
+
         Log.critical("PumpMessages start.")
         # pythoncom.PumpMessages() can not be quit, I don't know why, so use while and pythoncom.PumpWaitingMessages() to capture hook.
-        while check_key_not_press():
+        while should_continue_hook():
             pythoncom.PumpWaitingMessages()
             # Reduce CPU occupation.
-            time.sleep(0.005)
+            time.sleep(0.001)
         Log.critical("PumpMessages done.")
+
     finally:
-        unhook(source="hook_in_another_thread")
+        _unhook(source="hook_in_another_thread")
 
 
 # The quit command from cmd.
 def signal_handler(sig: int, _frame: FrameType | None) -> None:
     Log.critical("Signal received:", sig)
-    unhook(source="signal_handler")
+    _unhook(source="signal_handler")
     normal_exit()
 
 
@@ -122,7 +132,7 @@ signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
 
 # Ensure unhook is called on program exit
-atexit.register(unhook)
+atexit.register(request_stop)
 
 
 if __name__ == "__main__":

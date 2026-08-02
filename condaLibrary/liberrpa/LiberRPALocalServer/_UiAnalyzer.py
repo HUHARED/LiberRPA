@@ -130,7 +130,7 @@ def indicate_uia(
             strControlTypeName: str | None = None
 
             # Press mouse button left to stop the loop, then return result. Or Press ESC to return None.
-            while _Hook.check_key_not_press():
+            while _Hook.should_continue_hook():
                 if _has_timed_out(deadline):
                     _raise_indicate_timeout("indicate_uia")
 
@@ -218,18 +218,10 @@ def indicate_uia(
 
     finally:
         _close_indicate_overlay()
-
-        Log.debug("Clean up hook thread.")
-        if threadHook is not None and threadHook.is_alive():
-            Log.debug("Trying to unhook and join the thread.")
-            _Hook.unhook(source="indicate_uia")
-            threadHook.join(timeout=2)
-            if threadHook.is_alive():
-                Log.error("Thread hook did not terminate in time. Continuing anyway.")
-            else:
-                Log.debug("Successfully joined the hook thread.")
-        else:
-            Log.debug("threadHook has gone.")
+        _stop_hook_thread(
+            threadHook,
+            source="indicate_uia",
+        )
 
 
 @Log.trace()
@@ -249,7 +241,7 @@ def indicate_chrome(
 
             # Press mouse button left to stop the loop, then return result. Or Press ESC to return None.
             listAllAttr: list[DictHtmlAttr] = []
-            while _Hook.check_key_not_press():
+            while _Hook.should_continue_hook():
                 if _has_timed_out(deadline):
                     _raise_indicate_timeout("indicate_chrome")
 
@@ -348,18 +340,10 @@ def indicate_chrome(
 
     finally:
         _close_indicate_overlay()
-
-        Log.debug("Clean up hook thread.")
-        if threadHook is not None and threadHook.is_alive():
-            Log.debug("Trying to unhook and join the thread.")
-            _Hook.unhook(source="indicate_chrome")
-            threadHook.join(timeout=2)
-            if threadHook.is_alive():
-                Log.error("Thread hook did not terminate in time. Continuing anyway.")
-            else:
-                Log.debug("Successfully joined the hook thread.")
-        else:
-            Log.debug("threadHook has gone.")
+        _stop_hook_thread(
+            threadHook,
+            source="indicate_chrome",
+        )
 
 
 @Log.trace()
@@ -462,7 +446,7 @@ def indicate_window(indicateDelaySeconds: int = 1) -> DictUiAnalyzerIndicateResu
             tupleElementRectangle: tuple[int, int, int, int] | None = None
 
             # Press mouse button left to stop the loop, then return result. Or Press ESC to return None.
-            while _Hook.check_key_not_press():
+            while _Hook.should_continue_hook():
                 if _has_timed_out(deadline):
                     _raise_indicate_timeout("indicate_window")
 
@@ -535,18 +519,10 @@ def indicate_window(indicateDelaySeconds: int = 1) -> DictUiAnalyzerIndicateResu
 
     finally:
         _close_indicate_overlay()
-
-        Log.debug("Clean up hook thread.")
-        if threadHook is not None and threadHook.is_alive():
-            Log.debug("Trying to unhook and join the thread.")
-            _Hook.unhook(source="indicate_window")
-            threadHook.join(timeout=2)
-            if threadHook.is_alive():
-                Log.error("Thread hook did not terminate in time. Continuing anyway.")
-            else:
-                Log.debug("Successfully joined the hook thread.")
-        else:
-            Log.debug("threadHook has gone.")
+        _stop_hook_thread(
+            threadHook,
+            source="indicate_window",
+        )
 
 
 @Log.trace()
@@ -613,6 +589,26 @@ def _start_hook() -> threading.Thread:
     threadHook.start()
     time.sleep(0.01)
     return threadHook
+
+
+def _stop_hook_thread(
+    threadHook: threading.Thread | None,
+    source: str,
+) -> None:
+    Log.debug("Clean up hook thread.")
+
+    if threadHook is None or not threadHook.is_alive():
+        Log.debug("threadHook has gone.")
+        return
+
+    Log.debug("Requesting the hook thread to stop.")
+    _Hook.request_stop(source=source)
+    threadHook.join(timeout=2)
+
+    if threadHook.is_alive():
+        Log.error("The hook thread did not terminate in time. Continuing anyway.")
+    else:
+        Log.debug("Successfully joined the hook thread.")
 
 
 def _get_window_element(dictCoordinate: DictPosition) -> uiautomation.Control:
