@@ -16,7 +16,6 @@ class DictRepository_ComponentVersion(TypedDict):
     version: str
     displayName: str
     description: str
-    manifestSchemaVersion: Literal[1]
     wheelFile: str
     sha256: str
     requiresLiberrpa: str

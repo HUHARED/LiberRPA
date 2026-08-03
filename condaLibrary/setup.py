@@ -58,6 +58,7 @@ setup(
     packages=find_packages(include=["liberrpa", "liberrpa.*"]),
     package_data={
         "liberrpa": ["py.typed"],
+        "liberrpa.ComponentManagement.Domain.Snippet.Templates": ["snippets.jsonc.template"],
     },
     include_package_data=True,
     python_requires=">=3.13,<3.14",

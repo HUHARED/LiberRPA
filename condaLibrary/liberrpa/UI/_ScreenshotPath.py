@@ -15,12 +15,12 @@ from liberrpa.ComponentManagement.Types._Manifest import (
     Info_ProjectManifest_Component,
     Info_ProjectManifest,
 )
-from liberrpa.ComponentManagement.Dependency._ComponentsLock import (
+from liberrpa.ComponentManagement.Domain.Dependency._ComponentsLock import (
     STR_COMPONENTS_LOCK_FILE_NAME,
     read_components_lock,
     is_components_lock_stale,
 )
-from liberrpa.ComponentManagement.Manifest._Manifest import read_project_manifest
+from liberrpa.ComponentManagement.Domain.Manifest._Manifest import read_project_manifest
 
 from pathlib import Path, PureWindowsPath
 import os

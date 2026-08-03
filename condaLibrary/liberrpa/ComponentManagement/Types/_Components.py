@@ -12,27 +12,22 @@ from dataclasses import dataclass
 
 class DictComponentsLock_Root_FlowProject(TypedDict):
     manifestFile: Literal["flow.json"]
-    manifestSchemaVersion: Literal[1]
     requiresLiberrpa: str
     componentDependencies: dict[str, str]
-    resolutionInputSha256: str
 
 
 class DictComponentsLock_Root_ComponentProject(TypedDict):
     manifestFile: Literal["component.json"]
-    manifestSchemaVersion: Literal[1]
     componentId: str
     packageName: str
     requiresLiberrpa: str
     componentDependencies: dict[str, str]
-    resolutionInputSha256: str
 
 
 type DictComponentsLock_Root = DictComponentsLock_Root_FlowProject | DictComponentsLock_Root_ComponentProject
 
 
 class DictComponentsLock_Component(TypedDict):
-    manifestSchemaVersion: Literal[1]
     packageName: str
     displayName: str
     version: str

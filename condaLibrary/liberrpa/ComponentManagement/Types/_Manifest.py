@@ -14,10 +14,10 @@ type Str_ProjectType = Literal["flow", "component"]
 
 @dataclass(frozen=True)
 class Info_ProjectManifest_Flow:
-    """flow.json in a Flow Project"""
+    """Validated and normalized flow.json data used inside Component Management."""
 
-    schemaVersion: Literal[1]
     name: str
+
     version: str
     description: str
     requiresLiberrpa: str
@@ -26,12 +26,12 @@ class Info_ProjectManifest_Flow:
 
 @dataclass(frozen=True)
 class Info_ProjectManifest_Component:
-    """component.json in a Component Project"""
+    """Validated and normalized component.json data used inside Component Management."""
 
-    schemaVersion: Literal[1]
     id: str
     packageName: str
     displayName: str
+
     version: str
     description: str
     requiresLiberrpa: str
