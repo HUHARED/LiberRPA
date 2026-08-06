@@ -53,7 +53,7 @@ def handle_request(requestInfo: str) -> DictProtocolResponse:
                 pathRepository, dictRepositoryIndex, listWarning = load_repository_catalog_snapshot()
                 return build_repository_catalog_response(
                     repositoryPath=pathRepository,
-                    repositoryIndex=dictRepositoryIndex,
+                    repositoryIndexDict=dictRepositoryIndex,
                     warningList=listWarning,
                 )
 

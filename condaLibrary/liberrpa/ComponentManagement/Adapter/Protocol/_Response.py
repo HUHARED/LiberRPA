@@ -205,17 +205,18 @@ def build_repository_index_rebuilt_response(
 
 def build_repository_catalog_response(
     repositoryPath: Path,
-    repositoryIndex: DictRepository_Index,
+    repositoryIndexDict: DictRepository_Index,
     warningList: list[DictComponentManagementWarning],
 ) -> DictProtocolSuccess_RepositoryCatalog:
     listComponent: list[DictProtocolResult_RepositoryCatalog_Component] = [
         {
             "componentId": strComponentId,
             "packageName": dictComponent["packageName"],
+            # Repository versions are stored oldest-first, but the Catalog returns newest-first so the UI can present the latest version first.
             "versions": list(reversed(dictComponent["versions"])),
         }
         for strComponentId, dictComponent in sorted(
-            repositoryIndex["components"].items(),
+            repositoryIndexDict["components"].items(),
             key=lambda item: (item[1]["packageName"].casefold(), item[0]),
         )
     ]
