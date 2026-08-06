@@ -5,14 +5,18 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
-from liberrpa.ComponentManagement.Types._Warning import DictComponentManagementWarning_SnippetDiagnostic
+from liberrpa.ComponentManagement.Types._Warning import (
+    DictComponentManagementWarning_SnippetDiagnostic,
+)
 
 
 from typing import Literal, NotRequired, TypedDict
 
 
 type Str_SnippetInsertionMode = Literal["line", "cursor"]
-type DictSnippet_Imports = dict[str, list[str]]  # "SourceName": ["ModuleName1", "ModuleName2", ...]
+type DictSnippet_Imports = dict[
+    str, list[str]
+]  # "SourceName": ["ModuleName1", "ModuleName2", ...]
 
 
 class DictSnippet_Normalized(TypedDict):
@@ -23,8 +27,8 @@ class DictSnippet_Normalized(TypedDict):
     body: list[str]
     description: str
 
-    imports: DictSnippet_Imports
     insertionMode: Str_SnippetInsertionMode
+    imports: DictSnippet_Imports
 
 
 class DictSnippet_AstFile(TypedDict):

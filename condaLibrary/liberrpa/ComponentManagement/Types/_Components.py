@@ -31,7 +31,7 @@ class DictComponentsLock_Component(TypedDict):
     packageName: str
     displayName: str
     version: str
-    wheelFile: str
+    wheelFileName: str
     sha256: str
     requiresLiberrpa: str
     componentDependencies: dict[str, str]

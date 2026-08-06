@@ -9,7 +9,10 @@ from liberrpa.ComponentManagement.Common._Exception import ComponentManagementEr
 from liberrpa.ComponentManagement.Common._Project import resolve_project_path
 from liberrpa.ComponentManagement.Types._Warning import DictComponentManagementWarning
 from liberrpa.ComponentManagement.Types._Manifest import Info_ProjectManifest
-from liberrpa.ComponentManagement.Types._Components import DictComponentsLock_File, Info_ProjectComponentsFolder
+from liberrpa.ComponentManagement.Types._Components import (
+    DictComponentsLock_File,
+    Info_ProjectComponentsFolder,
+)
 from liberrpa.ComponentManagement.Types._Dependency import (
     Info_ProjectDependency_Operation,
     Info_ProjectDependency_Plan,
@@ -31,11 +34,20 @@ from liberrpa.ComponentManagement.Domain.Dependency._ComponentsLock import (
     read_components_lock,
     is_components_lock_stale,
 )
-from liberrpa.ComponentManagement.Domain.Dependency._Plan import build_project_dependency_plan
+from liberrpa.ComponentManagement.Domain.Dependency._Plan import (
+    build_project_dependency_plan,
+)
 from liberrpa.ComponentManagement.Domain.Manifest._Manifest import read_project_manifest
-from liberrpa.ComponentManagement.Domain.Repository._Index import validate_sha256, load_repository_index
-from liberrpa.ComponentManagement.Domain.Repository._RepositoryPath import get_repository_path
-from liberrpa.ComponentManagement.Domain.Repository._Transaction import recover_repository_transactions
+from liberrpa.ComponentManagement.Domain.Repository._Index import (
+    validate_sha256,
+    load_repository_index,
+)
+from liberrpa.ComponentManagement.Domain.Repository._RepositoryPath import (
+    get_repository_path,
+)
+from liberrpa.ComponentManagement.Domain.Repository._Transaction import (
+    recover_repository_transactions,
+)
 
 from pathlib import Path
 
@@ -85,20 +97,14 @@ def apply_project_dependency_plan(
     planObj: Info_ProjectDependency_Plan
     folderInfo: Info_ProjectComponentsFolder | None
 
-    with repository_lock(
-        repositoryPath=pathRepository,
-        operation="applyProjectDependencyPlan",
-    ):
+    with repository_lock(pathRepository, "applyProjectDependencyPlan"):
         listWarning.extend(recover_repository_transactions(pathRepository))
         dictRepositoryIndex = load_repository_index(
             pathRepository,
             checkWheelPaths=True,
         )
 
-        with project_lock(
-            projectPath=pathProject,
-            operation="applyProjectDependencyPlan",
-        ):
+        with project_lock(pathProject, "applyProjectDependencyPlan"):
             listWarning.extend(recover_project_transactions_locked(pathProject))
             strProjectType, manifestObj = read_project_manifest(pathProject)
             dictCurrentLock = _read_current_components_lock(

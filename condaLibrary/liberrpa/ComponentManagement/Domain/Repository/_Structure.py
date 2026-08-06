@@ -6,8 +6,8 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
 from liberrpa.ComponentManagement.Common._Exception import ComponentManagementError
-from liberrpa.ComponentManagement.Domain.Repository._Index import get_repository_components_path
-from liberrpa.ComponentManagement.Domain.Repository._TransactionStorage import get_repository_staging_path
+from liberrpa.ComponentManagement.Domain.Repository._Index import get_repository_components_folder_path
+from liberrpa.ComponentManagement.Domain.Repository._TransactionStorage import get_repository_staging_folder_path
 
 from pathlib import Path
 
@@ -40,16 +40,16 @@ ComponentRepository/
 
 
 def initialize_repository_structure(repositoryPath: Path) -> tuple[Path, Path]:
-    pathComponents = get_repository_components_path(repositoryPath)
-    pathStaging = get_repository_staging_path(repositoryPath)
+    pathComponentsFolder = get_repository_components_folder_path(repositoryPath)
+    pathStagingFolder = get_repository_staging_folder_path(repositoryPath)
 
     try:
-        pathComponents.mkdir(exist_ok=True)
-        pathStaging.mkdir(exist_ok=True)
+        pathComponentsFolder.mkdir(exist_ok=True)
+        pathStagingFolder.mkdir(exist_ok=True)
     except OSError as e:
         raise ComponentManagementError(
             code="repository_unavailable",
             message=f"Failed to initialize the Component Repository structure: {repositoryPath}",
         ) from e
 
-    return pathComponents, pathStaging
+    return pathComponentsFolder, pathStagingFolder

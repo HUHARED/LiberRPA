@@ -16,5 +16,5 @@ TAG_COMPONENT_WHEEL = Tag("py313", "none", "any")
 def get_component_wheel_names(packageName: str, version: str) -> tuple[str, str]:
     strDistributionName = canonicalize_name(packageName).replace("-", "_")
     strDistInfoFolder = f"{strDistributionName}-{version}.dist-info"
-    strWheelFile = f"{strDistributionName}-{version}-{STR_COMPONENT_WHEEL_TAG}.whl"
-    return strDistInfoFolder, strWheelFile
+    strWheelFileName = f"{strDistributionName}-{version}-{STR_COMPONENT_WHEEL_TAG}.whl"
+    return strDistInfoFolder, strWheelFileName

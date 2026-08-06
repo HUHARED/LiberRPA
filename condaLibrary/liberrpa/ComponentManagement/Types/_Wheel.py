@@ -15,7 +15,7 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class Info_ComponentWheel_BuildResult:
     wheelPath: Path
-    wheelFile: str
+    wheelFileName: str
     sha256: str
 
 
@@ -23,5 +23,5 @@ class Info_ComponentWheel_BuildResult:
 class Info_ComponentWheel:
     manifest: Info_ProjectManifest_Component
     snippetCatalog: DictSnippet_CatalogFile
-    wheelFile: str
+    wheelFileName: str
     sha256: str

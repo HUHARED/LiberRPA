@@ -7,7 +7,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from liberrpa.ComponentManagement.Common._Exception import ComponentManagementError
 from liberrpa.ComponentManagement.Common._File import serialize_json
-from liberrpa.ComponentManagement.Common._Version import normalize_specifier
+from liberrpa.ComponentManagement.Common._Version import normalize_pep440_specifier
 from liberrpa.ComponentManagement.Common._Validation import validate_exact_keys
 from liberrpa.ComponentManagement.Types._Manifest import (
     Info_ProjectManifest_Flow,
@@ -30,10 +30,16 @@ from liberrpa.ComponentManagement.Types._Dependency import (
     DictProjectDependency_ResolvedChange,
     Info_ProjectDependency_Plan,
 )
-from liberrpa.ComponentManagement.Domain.Dependency._ComponentsLock import validate_components_lock
-from liberrpa.ComponentManagement.Domain.Dependency._Resolver import resolve_project_dependencies
-from liberrpa.ComponentManagement.Domain.Manifest._Manifest import build_project_manifest_dict
-from liberrpa.ComponentManagement.Domain.Repository._Index import normalize_component_id
+from liberrpa.ComponentManagement.Domain.Dependency._ComponentsLock import (
+    validate_components_lock,
+)
+from liberrpa.ComponentManagement.Domain.Dependency._Resolver import (
+    resolve_project_dependencies,
+)
+from liberrpa.ComponentManagement.Domain.Manifest._Manifest import (
+    build_project_manifest_dict,
+)
+from liberrpa.ComponentManagement.Domain.Repository._Index import validate_component_id
 
 from dataclasses import replace
 from hashlib import sha256
@@ -66,7 +72,7 @@ def _normalize_requirement(value: object, field: str) -> str:
         )
 
     try:
-        return normalize_specifier(value)
+        return normalize_pep440_specifier(value)
     except ValueError as e:
         _raise_invalid_plan_input(
             f"{field} is invalid.",
@@ -79,7 +85,7 @@ def _normalize_requirement(value: object, field: str) -> str:
 
 def _normalize_operation_component_id(value: object, field: str) -> str:
     try:
-        return normalize_component_id(value, field)
+        return validate_component_id(value, field)
     except ValueError as e:
         _raise_invalid_plan_input(
             f"{field} is invalid.",
@@ -173,9 +179,11 @@ def parse_project_dependency_operation(
                 _raise_invalid_plan_input(
                     "Add Component Dependency requires string componentId and requirement fields."
                 )
-            operationObj: Info_ProjectDependency_Operation = Info_ProjectDependency_Operation_Add(
-                componentId=componentId,
-                requirement=requirement,
+            operationObj: Info_ProjectDependency_Operation = (
+                Info_ProjectDependency_Operation_Add(
+                    componentId=componentId,
+                    requirement=requirement,
+                )
             )
 
         elif operationValue == "updateComponents":
@@ -186,12 +194,16 @@ def parse_project_dependency_operation(
             )
             componentIdValue = value.get("componentIds")
             if not isinstance(componentIdValue, list):
-                _raise_invalid_plan_input("Update Components requires componentIds to be an array of strings.")
+                _raise_invalid_plan_input(
+                    "Update Components requires componentIds to be an array of strings."
+                )
 
             listComponentId: list[str] = []
             for componentId in componentIdValue:
                 if not isinstance(componentId, str):
-                    _raise_invalid_plan_input("Update Components requires componentIds to be an array of strings.")
+                    _raise_invalid_plan_input(
+                        "Update Components requires componentIds to be an array of strings."
+                    )
                 listComponentId.append(componentId)
 
             operationObj = Info_ProjectDependency_Operation_Update(
@@ -223,7 +235,9 @@ def parse_project_dependency_operation(
             )
             componentId = value.get("componentId")
             if not isinstance(componentId, str):
-                _raise_invalid_plan_input("Remove Component Dependency requires componentId to be a string.")
+                _raise_invalid_plan_input(
+                    "Remove Component Dependency requires componentId to be a string."
+                )
             operationObj = Info_ProjectDependency_Operation_Remove(
                 componentId=componentId,
             )
@@ -558,7 +572,7 @@ def _calculate_plan_sha256(
         "directDependencyChanges": directDependencyChangeList,
         "resolvedComponentChanges": resolvedComponentChangeList,
     }
-    return sha256(serialize_json(dictHashInput, compact=True).encode("utf-8")).hexdigest()
+    return sha256(serialize_json(dictHashInput, compact=True).encode()).hexdigest()
 
 
 def build_project_dependency_plan(

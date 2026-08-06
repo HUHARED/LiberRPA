@@ -32,16 +32,19 @@ class Info_Publish_Published:
     componentId: str
     packageName: str
     version: str
-    wheelFile: str
-    sha256: str
+
     astSnippetsPath: Path
     snippetsConfigPath: Path
     generatedCount: int
     skippedCount: int
+    warnings: list[DictComponentManagementWarning]
+
     excludedCount: int
     handWrittenCount: int
     finalCount: int
-    warnings: list[DictComponentManagementWarning]
+
+    wheelFileName: str
+    sha256: str
 
 
 type Info_PublishResult = Info_Publish_PreparationCreated | Info_Publish_Published

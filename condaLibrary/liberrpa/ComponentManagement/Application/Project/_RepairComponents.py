@@ -8,7 +8,9 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 from liberrpa.ComponentManagement.Common._Exception import ComponentManagementError
 from liberrpa.ComponentManagement.Common._Project import resolve_project_path
 from liberrpa.ComponentManagement.Types._Warning import DictComponentManagementWarning
-from liberrpa.ComponentManagement.Types._Dependency import Info_ProjectDependency_RepairResult
+from liberrpa.ComponentManagement.Types._Dependency import (
+    Info_ProjectDependency_RepairResult,
+)
 from liberrpa.ComponentManagement.Domain.Lock._ProjectLock import project_lock
 from liberrpa.ComponentManagement.Domain.Lock._RepositoryLock import repository_lock
 from liberrpa.ComponentManagement.Domain.Project._TransactionStorage import (
@@ -30,8 +32,12 @@ from liberrpa.ComponentManagement.Domain.Dependency._ComponentsLock import (
     is_components_lock_stale,
 )
 from liberrpa.ComponentManagement.Domain.Manifest._Manifest import read_project_manifest
-from liberrpa.ComponentManagement.Domain.Repository._RepositoryPath import get_repository_path
-from liberrpa.ComponentManagement.Domain.Repository._Transaction import recover_repository_transactions
+from liberrpa.ComponentManagement.Domain.Repository._RepositoryPath import (
+    get_repository_path,
+)
+from liberrpa.ComponentManagement.Domain.Repository._Transaction import (
+    recover_repository_transactions,
+)
 
 from pathlib import Path
 
@@ -44,16 +50,10 @@ def repair_project_components(
     pathRepository = get_repository_path()
     listWarning: list[DictComponentManagementWarning] = []
 
-    with repository_lock(
-        repositoryPath=pathRepository,
-        operation="repairProjectComponents",
-    ):
+    with repository_lock(pathRepository, "repairProjectComponents"):
         listWarning.extend(recover_repository_transactions(pathRepository))
 
-        with project_lock(
-            projectPath=pathProject,
-            operation="repairProjectComponents",
-        ):
+        with project_lock(pathProject, "repairProjectComponents"):
             listWarning.extend(recover_project_transactions_locked(pathProject))
             strProjectType, manifestObj = read_project_manifest(pathProject)
 
@@ -77,7 +77,10 @@ def repair_project_components(
             try:
                 validate_components_folder(pathComponents, dictLock)
             except ComponentManagementError as e:
-                if e.code not in {"components_folder_missing", "components_folder_damaged"}:
+                if e.code not in {
+                    "components_folder_missing",
+                    "components_folder_damaged",
+                }:
                     raise
             else:
                 raise ComponentManagementError(

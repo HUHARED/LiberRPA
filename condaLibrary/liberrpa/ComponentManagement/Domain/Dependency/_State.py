@@ -29,7 +29,9 @@ from liberrpa.ComponentManagement.Domain.Dependency._ComponentsLock import (
     is_components_lock_stale,
 )
 from liberrpa.ComponentManagement.Domain.Manifest._Manifest import read_project_manifest
-from liberrpa.ComponentManagement.Domain.Repository._RepositoryPath import get_repository_path
+from liberrpa.ComponentManagement.Domain.Repository._RepositoryPath import (
+    get_repository_path,
+)
 from liberrpa.ComponentManagement.Domain.Repository._Index import get_wheel_path
 
 from pathlib import Path
@@ -89,7 +91,9 @@ def _get_components_state(
         return "notRequired", {}
 
     if lockState != "valid" or lockDict is None:
-        return "unverified", {"reason": "A valid components.lock.json is required before _Components can be verified."}
+        return "unverified", {
+            "reason": "A valid components.lock.json is required before _Components can be verified."
+        }
 
     pathComponents = projectPath / STR_COMPONENTS_FOLDER_NAME
     if not pathComponents.exists() and not pathComponents.is_symlink():
@@ -127,7 +131,11 @@ def _get_repair_state(
     lockState: Str_ProjectDependency_LockState,
     componentsState: Str_ProjectDependency_ComponentsState,
 ) -> tuple[Str_ProjectDependency_RepairState, dict[str, object]]:
-    if lockState != "valid" or lockDict is None or componentsState in {"notRequired", "valid"}:
+    if (
+        lockState != "valid"
+        or lockDict is None
+        or componentsState in {"notRequired", "valid"}
+    ):
         return "notApplicable", {}
 
     try:
@@ -144,27 +152,27 @@ def _get_repair_state(
             repositoryPath=pathRepository,
             componentId=strComponentId,
             packageName=dictComponent["packageName"],
-            wheelFile=dictComponent["wheelFile"],
+            wheelFileName=dictComponent["wheelFileName"],
         )
 
         if is_file_invalid(pathWheel):
             return "wheelMissing", {
                 "componentId": strComponentId,
-                "wheelFile": str(pathWheel),
+                "wheelPath": str(pathWheel),
             }
 
         try:
             strActualSha256 = calculate_file_sha256(pathWheel)
         except OSError as e:
             return "repositoryUnavailable", {
-                "wheelFile": str(pathWheel),
+                "wheelPath": str(pathWheel),
                 "reason": str(e),
             }
 
         if strActualSha256 != dictComponent["sha256"]:
             return "wheelHashMismatch", {
                 "componentId": strComponentId,
-                "wheelFile": str(pathWheel),
+                "wheelPath": str(pathWheel),
                 "expectedSha256": dictComponent["sha256"],
                 "actualSha256": strActualSha256,
             }

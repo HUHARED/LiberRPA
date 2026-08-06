@@ -6,7 +6,10 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
 from liberrpa.ComponentManagement.Common._Exception import ComponentManagementError
-from liberrpa.ComponentManagement.Common._Validation import is_file_invalid, is_folder_invalid
+from liberrpa.ComponentManagement.Common._Validation import (
+    is_file_invalid,
+    is_folder_invalid,
+)
 from liberrpa.ComponentManagement.Types._Warning import DictComponentManagementWarning
 from liberrpa.ComponentManagement.Types._Repository import (
     DictRepository_Index,
@@ -19,8 +22,12 @@ from liberrpa.ComponentManagement.Domain.Repository._Index import (
     write_repository_index,
     add_version_to_index,
 )
-from liberrpa.ComponentManagement.Domain.Repository._RepositoryPath import get_repository_path
-from liberrpa.ComponentManagement.Domain.Repository._Structure import initialize_repository_structure
+from liberrpa.ComponentManagement.Domain.Repository._RepositoryPath import (
+    get_repository_path,
+)
+from liberrpa.ComponentManagement.Domain.Repository._Structure import (
+    initialize_repository_structure,
+)
 from liberrpa.ComponentManagement.Domain.Repository._TransactionStorage import (
     remove_repository_transaction_folder,
 )
@@ -30,7 +37,9 @@ from liberrpa.ComponentManagement.Domain.Repository._PublishTransaction import (
 from liberrpa.ComponentManagement.Domain.Repository._ImportTransaction import (
     validate_import_transactions_for_rebuild,
 )
-from liberrpa.ComponentManagement.Domain.Repository._VersionEntry import build_repository_version_entry
+from liberrpa.ComponentManagement.Domain.Repository._VersionEntry import (
+    build_repository_version_entry,
+)
 
 from pathlib import Path
 from packaging.version import Version
@@ -58,7 +67,7 @@ def _add_rebuild_issue(
 def rebuild_repository_index() -> Info_Repository_RebuildResult:
     pathRepository = get_repository_path()
 
-    with repository_lock(repositoryPath=pathRepository, operation="rebuildRepositoryIndex"):
+    with repository_lock(pathRepository, "rebuildRepositoryIndex"):
         pathComponents, _ = initialize_repository_structure(pathRepository)
 
         if is_folder_invalid(pathComponents):
@@ -76,7 +85,9 @@ def rebuild_repository_index() -> Info_Repository_RebuildResult:
         listWarning: list[DictComponentManagementWarning] = []
         dictVersionPath: dict[tuple[str, Version], Path] = {}
 
-        for pathComponentFolder in sorted(pathComponents.iterdir(), key=lambda pathObj: pathObj.name):
+        for pathComponentFolder in sorted(
+            pathComponents.iterdir(), key=lambda pathObj: pathObj.name
+        ):
             if is_folder_invalid(pathComponentFolder):
                 _add_rebuild_issue(
                     listIssue,
@@ -89,7 +100,9 @@ def rebuild_repository_index() -> Info_Repository_RebuildResult:
             listWheelPath: list[Path] = []
             boolHasUnexpectedEntry = False
 
-            for pathEntry in sorted(pathComponentFolder.iterdir(), key=lambda pathObj: pathObj.name):
+            for pathEntry in sorted(
+                pathComponentFolder.iterdir(), key=lambda pathObj: pathObj.name
+            ):
                 if is_file_invalid(pathEntry) or pathEntry.suffix.casefold() != ".whl":
                     boolHasUnexpectedEntry = True
                     _add_rebuild_issue(
@@ -129,7 +142,9 @@ def rebuild_repository_index() -> Info_Repository_RebuildResult:
                         listIssue,
                         code="component_folder_mismatch",
                         path=pathWheel,
-                        message=(f"Wheel is stored in the wrong Component folder. Expected {strExpectedFolderName!r}."),
+                        message=(
+                            f"Wheel is stored in the wrong Component folder. Expected {strExpectedFolderName!r}."
+                        ),
                     )
                     continue
 
@@ -150,7 +165,7 @@ def rebuild_repository_index() -> Info_Repository_RebuildResult:
                 dictVersionPath[tupleVersionKey] = pathWheel
                 dictVersionEntry = build_repository_version_entry(
                     manifestObj=wheelInfo.manifest,
-                    wheelFile=wheelInfo.wheelFile,
+                    wheelFileName=wheelInfo.wheelFileName,
                     sha256=wheelInfo.sha256,
                 )
 
@@ -173,7 +188,9 @@ def rebuild_repository_index() -> Info_Repository_RebuildResult:
         if listIssue:
             raise ComponentManagementError(
                 code="repository_rebuild_failed",
-                message=("Repository index could not be rebuilt because one or more Repository entries are invalid."),
+                message=(
+                    "Repository index could not be rebuilt because one or more Repository entries are invalid."
+                ),
                 details={"issues": listIssue},
             )
 
@@ -202,7 +219,10 @@ def rebuild_repository_index() -> Info_Repository_RebuildResult:
             if dictWarning is not None:
                 listWarning.append(dictWarning)
 
-        intVersionCount = sum(len(dictComponent["versions"]) for dictComponent in dictNewIndex["components"].values())
+        intVersionCount = sum(
+            len(dictComponent["versions"])
+            for dictComponent in dictNewIndex["components"].values()
+        )
 
         return Info_Repository_RebuildResult(
             componentCount=len(dictNewIndex["components"]),

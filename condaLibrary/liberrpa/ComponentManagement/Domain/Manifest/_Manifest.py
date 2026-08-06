@@ -8,7 +8,10 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from liberrpa.ComponentManagement.Common._Exception import ComponentManagementError
 from liberrpa.ComponentManagement.Common._File import read_json
-from liberrpa.ComponentManagement.Common._Version import normalize_version, normalize_specifier
+from liberrpa.ComponentManagement.Common._Version import (
+    normalize_pep440_version,
+    normalize_pep440_specifier,
+)
 from liberrpa.ComponentManagement.Common._Validation import (
     add_issue,
     get_package_name_error,
@@ -29,7 +32,7 @@ from pathlib import Path
 import uuid
 
 
-_SET_FLOW_MANIFEST_KEYS = {
+_SET_MANIFEST_KEYS_FLOW = {
     "schemaVersion",
     "name",
     "version",
@@ -38,7 +41,7 @@ _SET_FLOW_MANIFEST_KEYS = {
     "componentDependencies",
 }
 
-_SET_COMPONENT_MANIFEST_KEYS = {
+_SET_MANIFEST_KEYS_COMPONENT = {
     "schemaVersion",
     "id",
     "packageName",
@@ -50,7 +53,9 @@ _SET_COMPONENT_MANIFEST_KEYS = {
 }
 
 
-def _normalize_uuid(value: str, field: str, issueList: list[dict[str, object]]) -> str | None:
+def _validate_uuid(
+    value: str, field: str, issueList: list[dict[str, object]]
+) -> str | None:
     try:
         uuidObj = uuid.UUID(value)
     except ValueError:
@@ -61,7 +66,15 @@ def _normalize_uuid(value: str, field: str, issueList: list[dict[str, object]]) 
         add_issue(issueList, field, "Value must be a UUID v4.")
         return None
 
-    return str(uuidObj)
+    if value != str(uuidObj):
+        add_issue(
+            issueList,
+            field,
+            "Value must use the canonical lowercase UUID format with hyphens.",
+        )
+        return None
+
+    return value
 
 
 def _validate_manifest_keys(
@@ -120,12 +133,15 @@ def _validate_trimmed_single_line_field(
     return strValue if boolValid else None
 
 
-def _normalize_uuid_field(
-    value: object,
-    field: str,
-    issueList: list[dict[str, object]],
+def _validate_uuid_field(
+    value: object, field: str, issueList: list[dict[str, object]]
 ) -> str | None:
-    strValue = _validate_string_field(value, field, issueList, allowEmpty=False)
+    strValue = _validate_string_field(
+        value,
+        field,
+        issueList,
+        allowEmpty=False,
+    )
     if strValue is None:
         return None
 
@@ -133,7 +149,7 @@ def _normalize_uuid_field(
         add_issue(issueList, field, "Value cannot start or end with whitespace.")
         return None
 
-    return _normalize_uuid(strValue, field, issueList)
+    return _validate_uuid(strValue, field, issueList)
 
 
 def _validate_package_name_field(
@@ -153,7 +169,7 @@ def _validate_package_name_field(
     return strValue
 
 
-def _normalize_version_field(
+def _parse_version_field(
     value: object,
     field: str,
     issueList: list[dict[str, object]],
@@ -167,13 +183,13 @@ def _normalize_version_field(
         return None
 
     try:
-        return normalize_version(strValue)
+        return normalize_pep440_version(strValue)
     except ValueError as e:
         add_issue(issueList, field, str(e))
         return None
 
 
-def _normalize_specifier_field(
+def _parse_version_specifier_field(
     value: object,
     field: str,
     issueList: list[dict[str, object]],
@@ -187,13 +203,13 @@ def _normalize_specifier_field(
         return None
 
     try:
-        return normalize_specifier(strValue)
+        return normalize_pep440_specifier(strValue)
     except ValueError as e:
         add_issue(issueList, field, str(e))
         return None
 
 
-def _normalize_component_dependencies(
+def _parse_component_dependencies(
     value: object,
     issueList: list[dict[str, object]],
     *,
@@ -213,16 +229,20 @@ def _normalize_component_dependencies(
 
     for dependencyId, dependencySpecifierValue in value.items():
         if not isinstance(dependencyId, str):
-            add_issue(issueList, "componentDependencies", "Every Component ID must be a string.")
+            add_issue(
+                issueList, "componentDependencies", "Every Component ID must be a string."
+            )
             continue
 
         strField = f"componentDependencies.{dependencyId}"
-        strNormalizedDependencyId = _normalize_uuid(dependencyId, strField, issueList)
+        strNormalizedDependencyId = _validate_uuid(dependencyId, strField, issueList)
         if strNormalizedDependencyId is None:
             continue
 
         if strNormalizedDependencyId in setNormalizedDependencyId:
-            add_issue(issueList, strField, "The same Component ID is declared more than once.")
+            add_issue(
+                issueList, strField, "The same Component ID is declared more than once."
+            )
             continue
 
         setNormalizedDependencyId.add(strNormalizedDependencyId)
@@ -232,11 +252,13 @@ def _normalize_component_dependencies(
             continue
 
         if dependencySpecifierValue != dependencySpecifierValue.strip():
-            add_issue(issueList, strField, "Version range cannot start or end with whitespace.")
+            add_issue(
+                issueList, strField, "Version range cannot start or end with whitespace."
+            )
             continue
 
         try:
-            strNormalizedSpecifier = normalize_specifier(dependencySpecifierValue)
+            strNormalizedSpecifier = normalize_pep440_specifier(dependencySpecifierValue)
         except ValueError as e:
             add_issue(issueList, strField, str(e))
             continue
@@ -244,7 +266,9 @@ def _normalize_component_dependencies(
         dictNormalizedDependency[strNormalizedDependencyId] = strNormalizedSpecifier
 
     if rootComponentId is not None and rootComponentId in dictNormalizedDependency:
-        add_issue(issueList, "componentDependencies", "A Component cannot depend on itself.")
+        add_issue(
+            issueList, "componentDependencies", "A Component cannot depend on itself."
+        )
 
     return dict(sorted(dictNormalizedDependency.items()))
 
@@ -269,27 +293,29 @@ def parse_flow_manifest(
         )
 
     listIssue: list[dict[str, object]] = []
-    _validate_manifest_keys(value, _SET_FLOW_MANIFEST_KEYS, sourceName, listIssue)
+    _validate_manifest_keys(value, _SET_MANIFEST_KEYS_FLOW, sourceName, listIssue)
 
     schemaVersionValue = value.get("schemaVersion")
     if type(schemaVersionValue) is not int or schemaVersionValue != 1:
         add_issue(listIssue, "schemaVersion", "Only schemaVersion 1 is supported.")
 
     strName = _validate_trimmed_single_line_field(value.get("name"), "name", listIssue)
-    strNormalizedVersion = _normalize_version_field(value.get("version"), "version", listIssue)
+    strNormalizedVersion = _parse_version_field(
+        value.get("version"), "version", listIssue
+    )
     strDescription = _validate_string_field(
         value.get("description"),
         "description",
         listIssue,
         allowEmpty=True,
     )
-    strNormalizedRequiresLiberrpa = _normalize_specifier_field(
+    strNormalizedRequiresLiberrpa = _parse_version_specifier_field(
         value.get("requiresLiberrpa"),
         "requiresLiberrpa",
         listIssue,
     )
 
-    dictNormalizedDependency = _normalize_component_dependencies(
+    dictNormalizedDependency = _parse_component_dependencies(
         value.get("componentDependencies"),
         listIssue,
     )
@@ -335,29 +361,35 @@ def parse_component_manifest(
         )
 
     listIssue: list[dict[str, object]] = []
-    _validate_manifest_keys(value, _SET_COMPONENT_MANIFEST_KEYS, sourceName, listIssue)
+    _validate_manifest_keys(value, _SET_MANIFEST_KEYS_COMPONENT, sourceName, listIssue)
 
     schemaVersionValue = value.get("schemaVersion")
     if type(schemaVersionValue) is not int or schemaVersionValue != 1:
         add_issue(listIssue, "schemaVersion", "Only schemaVersion 1 is supported.")
 
-    strNormalizedId = _normalize_uuid_field(value.get("id"), "id", listIssue)
-    strPackageName = _validate_package_name_field(value.get("packageName"), "packageName", listIssue)
-    strDisplayName = _validate_trimmed_single_line_field(value.get("displayName"), "displayName", listIssue)
-    strNormalizedVersion = _normalize_version_field(value.get("version"), "version", listIssue)
+    strNormalizedId = _validate_uuid_field(value.get("id"), "id", listIssue)
+    strPackageName = _validate_package_name_field(
+        value.get("packageName"), "packageName", listIssue
+    )
+    strDisplayName = _validate_trimmed_single_line_field(
+        value.get("displayName"), "displayName", listIssue
+    )
+    strNormalizedVersion = _parse_version_field(
+        value.get("version"), "version", listIssue
+    )
     strDescription = _validate_string_field(
         value.get("description"),
         "description",
         listIssue,
         allowEmpty=True,
     )
-    strNormalizedRequiresLiberrpa = _normalize_specifier_field(
+    strNormalizedRequiresLiberrpa = _parse_version_specifier_field(
         value.get("requiresLiberrpa"),
         "requiresLiberrpa",
         listIssue,
     )
 
-    dictNormalizedDependency = _normalize_component_dependencies(
+    dictNormalizedDependency = _parse_component_dependencies(
         value.get("componentDependencies"),
         listIssue,
         rootComponentId=strNormalizedId,
@@ -463,7 +495,9 @@ def read_component_manifest(manifestPath: Path) -> Info_ProjectManifest_Componen
     return parse_component_manifest(value)
 
 
-def read_project_manifest(projectPath: Path) -> tuple[Str_ProjectType, Info_ProjectManifest]:
+def read_project_manifest(
+    projectPath: Path,
+) -> tuple[Str_ProjectType, Info_ProjectManifest]:
     pathFlowManifest = projectPath / "flow.json"
     pathComponentManifest = projectPath / "component.json"
 

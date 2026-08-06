@@ -11,20 +11,23 @@ from typing import NotRequired, TypedDict
 class DictComponentManagementWarning_Operation(TypedDict):
     code: str
     message: str
+
     details: NotRequired[dict[str, object]]
 
 
 class DictComponentManagementWarning_SnippetDiagnostic(TypedDict):
     code: str
+    message: str
+
     file: str
     line: int
     functionName: NotRequired[str]
-    message: str
 
 
 class DictComponentManagementWarning_SnippetConfig(TypedDict):
     code: str
     message: str
+
     snippetKey: str
 
 

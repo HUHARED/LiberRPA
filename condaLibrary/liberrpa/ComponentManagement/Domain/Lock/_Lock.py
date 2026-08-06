@@ -32,7 +32,10 @@ def _is_lock_owner_active(value: object) -> bool:
 
     try:
         processObj = psutil.Process(processId)
-        return abs(processObj.create_time() - float(processCreateTime)) <= _FLOAT_PROCESS_CREATE_TIME_TOLERANCE
+        return (
+            abs(processObj.create_time() - float(processCreateTime))
+            <= _FLOAT_PROCESS_CREATE_TIME_TOLERANCE
+        )
     except psutil.NoSuchProcess:
         return False
     except (psutil.AccessDenied, psutil.ZombieProcess):
@@ -92,7 +95,9 @@ def create_lock(
 
             raise ComponentManagementError(
                 code=f"{lockType}_busy",
-                message=(f"Another Component operation is currently modifying the {lockType}."),
+                message=(
+                    f"Another Component operation is currently modifying the {lockType}."
+                ),
                 details={"lockFile": str(lockPath)},
             )
         except OSError as e:

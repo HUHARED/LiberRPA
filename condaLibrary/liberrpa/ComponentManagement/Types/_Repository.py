@@ -12,19 +12,25 @@ from dataclasses import dataclass
 from typing import Literal, TypedDict
 
 
-class DictRepository_ComponentVersion(TypedDict):
+type Str_Repository_Error_Code = Literal[
+    "repository_recovery_failed", "repository_rebuild_failed"
+]
+
+
+class DictRepository_ComponentVersionEntry(TypedDict):
     version: str
     displayName: str
     description: str
-    wheelFile: str
-    sha256: str
     requiresLiberrpa: str
     componentDependencies: dict[str, str]
+
+    wheelFileName: str
+    sha256: str
 
 
 class DictRepository_Component(TypedDict):
     packageName: str
-    versions: list[DictRepository_ComponentVersion]
+    versions: list[DictRepository_ComponentVersionEntry]
 
 
 class DictRepository_Index(TypedDict):
@@ -36,30 +42,37 @@ class DictRepository_Transaction_Publish(TypedDict):
     schemaVersion: Literal[1]
     operation: Literal["publishComponent"]
     state: Literal["prepared", "wheelCommitted"]
+
     componentId: str
     packageName: str
     version: str
-    wheelFile: str
+
+    versionEntry: DictRepository_ComponentVersionEntry
+
+    wheelFileName: str
     sha256: str
     targetRelativePath: str
-    versionEntry: DictRepository_ComponentVersion
 
 
 class DictRepository_Transaction_ImportArtifact(TypedDict):
     artifactRelativePath: str
+
     componentId: str
     packageName: str
+
+    versionEntry: DictRepository_ComponentVersionEntry
+
     version: str
-    wheelFile: str
+    wheelFileName: str
     sha256: str
     targetRelativePath: str
-    versionEntry: DictRepository_ComponentVersion
 
 
 class DictRepository_Transaction_Import(TypedDict):
     schemaVersion: Literal[1]
     operation: Literal["importComponentWheels"]
     state: Literal["prepared", "wheelsCommitted"]
+
     artifacts: list[DictRepository_Transaction_ImportArtifact]
 
 
@@ -75,7 +88,7 @@ class Info_Repository_Import_ComponentResult:
     componentId: str
     packageName: str
     version: str
-    wheelFile: str
+    wheelFileName: str
     sha256: str
     status: Literal["imported", "alreadyImported"]
 

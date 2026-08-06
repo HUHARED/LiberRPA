@@ -7,14 +7,23 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from liberrpa.ComponentManagement.Common._Exception import ComponentManagementError
 from liberrpa.ComponentManagement.Common._File import parse_json, serialize_json
-from liberrpa.ComponentManagement.Common._Hash import calculate_file_sha256, calculate_record_hash
-from liberrpa.ComponentManagement.Common._Record import validate_archive_path, validate_record
+from liberrpa.ComponentManagement.Common._Hash import (
+    calculate_file_sha256,
+    calculate_record_hash,
+)
+from liberrpa.ComponentManagement.Common._Record import (
+    validate_archive_path,
+    validate_record,
+)
 from liberrpa.ComponentManagement.Common._WheelName import (
     STR_COMPONENT_WHEEL_TAG,
     TAG_COMPONENT_WHEEL,
     get_component_wheel_names,
 )
-from liberrpa.ComponentManagement.Common._Validation import validate_exact_keys, is_file_invalid
+from liberrpa.ComponentManagement.Common._Validation import (
+    validate_exact_keys,
+    is_file_invalid,
+)
 from liberrpa.ComponentManagement.Types._Manifest import Info_ProjectManifest_Component
 from liberrpa.ComponentManagement.Types._Snippet import (
     DictSnippet_Imports,
@@ -25,7 +34,10 @@ from liberrpa.ComponentManagement.Types._Wheel import (
     Info_ComponentWheel_BuildResult,
     Info_ComponentWheel,
 )
-from liberrpa.ComponentManagement.Domain.Manifest._Manifest import parse_component_manifest, build_project_manifest_dict
+from liberrpa.ComponentManagement.Domain.Manifest._Manifest import (
+    parse_component_manifest,
+    build_project_manifest_dict,
+)
 
 
 from csv import writer
@@ -48,7 +60,14 @@ import stat
 import uuid
 
 
-_TUPLE_ZIP_TIMESTAMP = (1984, 4, 4, 0, 0, 0)  # A fixed timestamp for keeping zip binary result same.
+_TUPLE_ZIP_TIMESTAMP = (
+    1984,
+    4,
+    4,
+    0,
+    0,
+    0,
+)  # A fixed timestamp for keeping zip binary result same.
 _INT_ZIP_FILE_MODE = (stat.S_IFREG | 0o644) << 16  # Owner can edit, others can read.
 
 _SET_IGNORED_FILE_SUFFIX = {
@@ -77,22 +96,20 @@ def _get_package_archive_entries(
     dictEntry: dict[str, bytes] = {}
     dictCaseInsensitivePath: dict[str, str] = {}
 
-    for pathSource in sorted(packagePath.rglob("*"), key=lambda pathObj: pathObj.as_posix()):
+    for pathSource in sorted(
+        packagePath.rglob("*"), key=lambda pathObj: pathObj.as_posix()
+    ):
         relativePath = pathSource.relative_to(packagePath)
-
         if "__pycache__" in relativePath.parts:
             continue
-
         if pathSource.is_symlink():
             raise ComponentManagementError(
                 code="unsupported_component_file",
                 message=f"Component package cannot contain symbolic links: {pathSource}",
                 details={"file": relativePath.as_posix()},
             )
-
         if pathSource.is_dir():
             continue
-
         if not pathSource.is_file():
             raise ComponentManagementError(
                 code="unsupported_component_file",
@@ -101,10 +118,8 @@ def _get_package_archive_entries(
             )
 
         strSuffix = pathSource.suffix.casefold()
-
         if strSuffix in _SET_IGNORED_FILE_SUFFIX:
             continue
-
         if strSuffix in _SET_FORBIDDEN_FILE_SUFFIX:
             raise ComponentManagementError(
                 code="unsupported_component_file",
@@ -115,14 +130,12 @@ def _get_package_archive_entries(
         strArchivePath = PurePosixPath(packageName, *relativePath.parts).as_posix()
         strCaseInsensitivePath = strArchivePath.casefold()
         strExistingPath = dictCaseInsensitivePath.get(strCaseInsensitivePath)
-
         if strExistingPath is not None:
             raise ComponentManagementError(
                 code="component_source_invalid",
                 message="Component package contains paths that conflict on Windows.",
                 details={"paths": [strExistingPath, strArchivePath]},
             )
-
         dictCaseInsensitivePath[strCaseInsensitivePath] = strArchivePath
 
         try:
@@ -146,7 +159,7 @@ def _get_manifest_metadata_bytes(manifestObj: Info_ProjectManifest_Component) ->
         "License-File: LICENSE\n"
         "\n"
     )
-    return strMetadata.encode("utf-8")
+    return strMetadata.encode()
 
 
 def _get_wheel_metadata_bytes() -> bytes:
@@ -172,7 +185,7 @@ def _get_record_bytes(
         ])
 
     csvWriter.writerow([recordPath, "", ""])
-    return strBuffer.getvalue().encode("utf-8")
+    return strBuffer.getvalue().encode()
 
 
 def _create_zip_info(archivePath: str) -> ZipInfo:
@@ -200,7 +213,9 @@ def _write_wheel_file(
 
             wheelObj.writestr(
                 _create_zip_info(recordPath),
-                _get_record_bytes(archiveEntryDict=archiveEntryDict, recordPath=recordPath),
+                _get_record_bytes(
+                    archiveEntryDict=archiveEntryDict, recordPath=recordPath
+                ),
             )
 
         os.replace(pathTemp, wheelPath)
@@ -227,11 +242,11 @@ def build_component_wheel(
             message=f"Component Project LICENSE file was not found or is invalid: {licensePath}",
         )
 
-    strDistInfoFolder, strWheelFile = get_component_wheel_names(
+    strDistInfoFolder, strWheelFileName = get_component_wheel_names(
         manifestObj.packageName,
         manifestObj.version,
     )
-    pathWheel = buildFolderPath / strWheelFile
+    pathWheel = buildFolderPath / strWheelFileName
 
     try:
         licenseValue = licensePath.read_bytes()
@@ -252,8 +267,12 @@ def build_component_wheel(
         f"{strDistInfoPrefix}METADATA": _get_manifest_metadata_bytes(manifestObj),
         f"{strDistInfoPrefix}WHEEL": _get_wheel_metadata_bytes(),
         f"{strDistInfoPrefix}licenses/LICENSE": licenseValue,
-        f"{strDistInfoPrefix}component.json": serialize_json(dictPublishedManifest).encode("utf-8"),
-        f"{strDistInfoPrefix}snippets_catalog.json": serialize_json(snippetCatalog).encode("utf-8"),
+        f"{strDistInfoPrefix}component.json": serialize_json(
+            dictPublishedManifest
+        ).encode(),
+        f"{strDistInfoPrefix}snippets_catalog.json": serialize_json(
+            snippetCatalog
+        ).encode(),
     })
 
     strRecordPath = f"{strDistInfoPrefix}RECORD"
@@ -263,7 +282,7 @@ def build_component_wheel(
         archiveEntryDict=dictArchiveEntry,
         recordPath=strRecordPath,
     )
-    strSha256 = validate_component_wheel(
+    strSha256 = _validate_component_wheel(
         wheelPath=pathWheel,
         manifestObj=manifestObj,
         snippetCatalogDict=snippetCatalog,
@@ -271,7 +290,7 @@ def build_component_wheel(
 
     return Info_ComponentWheel_BuildResult(
         wheelPath=pathWheel,
-        wheelFile=strWheelFile,
+        wheelFileName=strWheelFileName,
         sha256=strSha256,
     )
 
@@ -285,19 +304,21 @@ def _read_metadata(value: bytes, fileName: str) -> Message:
     )
 
     if metadataObj.defects:
-        raise ValueError(f"Invalid metadata headers in {fileName}: {metadataObj.defects!r}.")
+        raise ValueError(
+            f"Invalid metadata headers in {fileName}: {metadataObj.defects!r}."
+        )
 
     return metadataObj
 
 
-_SET_SNIPPET_CATALOG_KEYS = {
+_SET_KEYS_SNIPPET_CATALOG = {
     "schemaVersion",
     "categoryOrder",
     "importSources",
     "snippets",
 }
-_SET_IMPORT_SOURCE_CONFIG_KEYS = {"order", "aliasMode"}
-_SET_NORMALIZED_SNIPPET_KEYS = {
+_SET_KEYS_IMPORT_SOURCE_CONFIG = {"order", "aliasMode"}
+_SET_KEYS_NORMALIZED_SNIPPET = {
     "category",
     "label",
     "prefix",
@@ -354,10 +375,14 @@ def _validate_catalog_imports(
             )
 
             if strImportName in setImportName:
-                raise ValueError(f"{field}.{importSource} contains duplicate import name {strImportName!r}.")
+                raise ValueError(
+                    f"{field}.{importSource} contains duplicate import name {strImportName!r}."
+                )
 
             if importSource == packageName and strImportName not in publicModuleSet:
-                raise ValueError(f"{field}.{importSource} contains unknown public Module {strImportName!r}.")
+                raise ValueError(
+                    f"{field}.{importSource} contains unknown public Module {strImportName!r}."
+                )
 
             setImportName.add(strImportName)
             listImportName.append(strImportName)
@@ -374,39 +399,41 @@ def _validate_snippet_catalog(
     if not isinstance(value, dict):
         raise ValueError("snippets_catalog.json root value must be an object.")
 
-    validate_exact_keys(value, _SET_SNIPPET_CATALOG_KEYS, "snippets_catalog.json")
+    validate_exact_keys(value, _SET_KEYS_SNIPPET_CATALOG, "snippets_catalog.json")
 
     schemaVersion = value.get("schemaVersion")
     if type(schemaVersion) is not int or schemaVersion != 1:
         raise ValueError("snippets_catalog.json schemaVersion must be 1.")
 
+    # Validate "importSources"
     importSourcesValue = value.get("importSources")
     if not isinstance(importSourcesValue, dict):
         raise ValueError("snippets_catalog.json importSources must be an object.")
-
     if set(importSourcesValue) != {manifestObj.packageName}:
-        raise ValueError("A Component snippets catalog must define exactly its own packageName as the import source.")
+        raise ValueError(
+            "A Component snippets catalog must define exactly its own packageName as the import source."
+        )
 
     sourceConfigValue = importSourcesValue[manifestObj.packageName]
     if not isinstance(sourceConfigValue, dict):
         raise ValueError(f"importSources.{manifestObj.packageName} must be an object.")
-
     validate_exact_keys(
         sourceConfigValue,
-        _SET_IMPORT_SOURCE_CONFIG_KEYS,
+        _SET_KEYS_IMPORT_SOURCE_CONFIG,
         f"importSources.{manifestObj.packageName}",
     )
-
     if sourceConfigValue.get("aliasMode") != "source_module":
-        raise ValueError(f"importSources.{manifestObj.packageName}.aliasMode must be 'source_module'.")
+        raise ValueError(
+            f"importSources.{manifestObj.packageName}.aliasMode must be 'source_module'."
+        )
 
     moduleOrderValue = sourceConfigValue.get("order")
     if not isinstance(moduleOrderValue, list):
-        raise ValueError(f"importSources.{manifestObj.packageName}.order must be an array.")
-
+        raise ValueError(
+            f"importSources.{manifestObj.packageName}.order must be an array."
+        )
     listModuleOrder: list[str] = []
     setModule: set[str] = set()
-
     for intIndex, moduleName in enumerate(moduleOrderValue):
         strModuleName = _validate_identifier(
             moduleName,
@@ -419,36 +446,38 @@ def _validate_snippet_catalog(
         setModule.add(strModuleName)
         listModuleOrder.append(strModuleName)
 
+    # Validate "categoryOrder"
     categoryOrderValue = value.get("categoryOrder")
     if not isinstance(categoryOrderValue, list):
         raise ValueError("snippets_catalog.json categoryOrder must be an array.")
-
     listCategoryOrder: list[str] = []
     setCategory: set[str] = set()
     strCategoryPrefix = f"{manifestObj.packageName}_"
-
     for intIndex, category in enumerate(categoryOrderValue):
         if not isinstance(category, str) or not category.startswith(strCategoryPrefix):
-            raise ValueError(f"categoryOrder[{intIndex}] must use {manifestObj.packageName}_ModuleName.")
-
+            raise ValueError(
+                f"categoryOrder[{intIndex}] must use {manifestObj.packageName}_ModuleName."
+            )
         strModuleName = category[len(strCategoryPrefix) :]
         if strModuleName not in setModule:
-            raise ValueError(f"categoryOrder[{intIndex}] refers to an unknown public Module.")
-
+            raise ValueError(
+                f"categoryOrder[{intIndex}] refers to an unknown public Module."
+            )
         if category in setCategory:
             raise ValueError(f"categoryOrder contains duplicate category {category!r}.")
 
         setCategory.add(category)
         listCategoryOrder.append(category)
 
+    # Validate "snippets"
     snippetsValue = value.get("snippets")
     if not isinstance(snippetsValue, dict):
         raise ValueError("snippets_catalog.json snippets must be an object.")
 
-    dictSnippet: dict[str, DictSnippet_Normalized] = {}
-    setUsedCategory: set[str] = set()
     dictLabelOwner: dict[tuple[str, str], str] = {}
     dictPrefixOwner: dict[str, str] = {}
+    setUsedCategory: set[str] = set()
+    dictSnippet: dict[str, DictSnippet_Normalized] = {}
 
     for snippetKey, snippetValue in snippetsValue.items():
         if not isinstance(snippetKey, str):
@@ -469,7 +498,7 @@ def _validate_snippet_catalog(
 
         validate_exact_keys(
             snippetValue,
-            _SET_NORMALIZED_SNIPPET_KEYS,
+            _SET_KEYS_NORMALIZED_SNIPPET,
             f"snippets.{snippetKey}",
         )
 
@@ -480,40 +509,6 @@ def _validate_snippet_catalog(
             snippetValue.get("label"),
             f"snippets.{snippetKey}.label",
         )
-        strPrefix = _validate_single_line_string(
-            snippetValue.get("prefix"),
-            f"snippets.{snippetKey}.prefix",
-        )
-
-        bodyValue = snippetValue.get("body")
-        if (
-            not isinstance(bodyValue, list)
-            or not bodyValue
-            or not all(isinstance(line, str) for line in bodyValue)
-            or all(line.strip() == "" for line in bodyValue)
-        ):
-            raise ValueError(f"snippets.{snippetKey}.body must be a non-empty array of strings.")
-        listBody = list(bodyValue)
-
-        description = snippetValue.get("description")
-        if not isinstance(description, str) or description.strip() == "":
-            raise ValueError(f"snippets.{snippetKey}.description must be a non-empty string.")
-
-        insertionMode = snippetValue.get("insertionMode")
-        if insertionMode not in {"line", "cursor"}:
-            raise ValueError(f"snippets.{snippetKey}.insertionMode must be 'line' or 'cursor'.")
-
-        dictImports = _validate_catalog_imports(
-            snippetValue.get("imports"),
-            f"snippets.{snippetKey}.imports",
-            packageName=manifestObj.packageName,
-            publicModuleSet=setModule,
-        )
-
-        strModuleName = strCategory[len(strCategoryPrefix) :]
-        if strModuleName not in dictImports.get(manifestObj.packageName, []):
-            raise ValueError(f"snippets.{snippetKey}.imports must include its own public Module {strModuleName!r}.")
-
         tupleLabel = (strCategory, strLabel)
         strExistingLabelOwner = dictLabelOwner.get(tupleLabel)
         if strExistingLabelOwner is not None:
@@ -522,10 +517,52 @@ def _validate_snippet_catalog(
             )
         dictLabelOwner[tupleLabel] = snippetKey
 
+        strPrefix = _validate_single_line_string(
+            snippetValue.get("prefix"),
+            f"snippets.{snippetKey}.prefix",
+        )
         strExistingPrefixOwner = dictPrefixOwner.get(strPrefix)
         if strExistingPrefixOwner is not None:
-            raise ValueError(f"snippets.{snippetKey}.prefix duplicates {strExistingPrefixOwner!r}.")
+            raise ValueError(
+                f"snippets.{snippetKey}.prefix duplicates {strExistingPrefixOwner!r}."
+            )
         dictPrefixOwner[strPrefix] = snippetKey
+
+        bodyValue = snippetValue.get("body")
+        if (
+            not isinstance(bodyValue, list)
+            or not bodyValue
+            or not all(isinstance(line, str) for line in bodyValue)
+            or all(line.strip() == "" for line in bodyValue)
+        ):
+            raise ValueError(
+                f"snippets.{snippetKey}.body must be a non-empty array of strings."
+            )
+        listBody = list(bodyValue)
+
+        description = snippetValue.get("description")
+        if not isinstance(description, str) or description.strip() == "":
+            raise ValueError(
+                f"snippets.{snippetKey}.description must be a non-empty string."
+            )
+
+        insertionMode = snippetValue.get("insertionMode")
+        if insertionMode not in {"line", "cursor"}:
+            raise ValueError(
+                f"snippets.{snippetKey}.insertionMode must be 'line' or 'cursor'."
+            )
+
+        dictImports = _validate_catalog_imports(
+            snippetValue.get("imports"),
+            f"snippets.{snippetKey}.imports",
+            packageName=manifestObj.packageName,
+            publicModuleSet=setModule,
+        )
+        strModuleName = strCategory[len(strCategoryPrefix) :]
+        if strModuleName not in dictImports.get(manifestObj.packageName, []):
+            raise ValueError(
+                f"snippets.{snippetKey}.imports must include its own public Module {strModuleName!r}."
+            )
 
         setUsedCategory.add(strCategory)
         dictSnippet[snippetKey] = {
@@ -534,12 +571,14 @@ def _validate_snippet_catalog(
             "prefix": strPrefix,
             "body": listBody,
             "description": description,
-            "imports": dictImports,
             "insertionMode": insertionMode,
+            "imports": dictImports,
         }
 
     if setCategory != setUsedCategory:
-        raise ValueError("categoryOrder must contain exactly the categories used by the final Snippets.")
+        raise ValueError(
+            "categoryOrder must contain exactly the categories used by the final Snippets."
+        )
 
     listExpectedCategoryOrder = [
         f"{manifestObj.packageName}_{moduleName}"
@@ -547,7 +586,9 @@ def _validate_snippet_catalog(
         if f"{manifestObj.packageName}_{moduleName}" in setUsedCategory
     ]
     if listCategoryOrder != listExpectedCategoryOrder:
-        raise ValueError("categoryOrder must follow the Component import source Module order.")
+        raise ValueError(
+            "categoryOrder must follow the Component import source Module order."
+        )
 
     return {
         "schemaVersion": 1,
@@ -562,31 +603,35 @@ def _validate_snippet_catalog(
     }
 
 
-def validate_component_wheel(
+def _validate_component_wheel(
     wheelPath: Path,
     manifestObj: Info_ProjectManifest_Component,
     snippetCatalogDict: DictSnippet_CatalogFile,
 ) -> str:
     dictPublishedManifest = build_project_manifest_dict(manifestObj)
-    strDistInfoFolder, strExpectedWheelFile = get_component_wheel_names(
+    strDistInfoFolder, strExpectedWheelFileName = get_component_wheel_names(
         manifestObj.packageName,
         manifestObj.version,
     )
 
-    if wheelPath.name != strExpectedWheelFile:
+    if wheelPath.name != strExpectedWheelFileName:
         raise ComponentManagementError(
             code="wheel_validation_failed",
             message="Component Wheel filename does not match its Component metadata.",
             details={
-                "wheelFile": wheelPath.name,
-                "expectedWheelFile": strExpectedWheelFile,
+                "wheelFileName": wheelPath.name,
+                "expectedWheelFileName": strExpectedWheelFileName,
             },
         )
 
     try:
-        dictExpectedSnippetCatalog = _validate_snippet_catalog(snippetCatalogDict, manifestObj)
+        dictExpectedSnippetCatalog = _validate_snippet_catalog(
+            snippetCatalogDict, manifestObj
+        )
 
-        normalizedName, versionObj, buildTag, tagSet = parse_wheel_filename(wheelPath.name)
+        normalizedName, versionObj, buildTag, tagSet = parse_wheel_filename(
+            wheelPath.name
+        )
         if normalizedName != canonicalize_name(manifestObj.packageName):
             raise ValueError("Wheel distribution name does not match packageName.")
         if versionObj != Version(manifestObj.version):
@@ -594,7 +639,9 @@ def validate_component_wheel(
         if buildTag:
             raise ValueError("LiberRPA Component Wheels cannot use a build tag.")
         if tagSet != frozenset({TAG_COMPONENT_WHEEL}):
-            raise ValueError(f"Wheel must use the {STR_COMPONENT_WHEEL_TAG} compatibility tag.")
+            raise ValueError(
+                f"Wheel must use the {STR_COMPONENT_WHEEL_TAG} compatibility tag."
+            )
 
         with ZipFile(wheelPath, mode="r") as wheelObj:
             strBadFile = wheelObj.testzip()
@@ -621,15 +668,26 @@ def validate_component_wheel(
                 validate_archive_path(strArchivePath)
 
                 if infoObj.compress_type != ZIP_STORED:
-                    raise ValueError(f"Wheel file must use ZIP_STORED compression: {strArchivePath!r}.")
+                    raise ValueError(
+                        f"Wheel file must use ZIP_STORED compression: {strArchivePath!r}."
+                    )
                 if infoObj.date_time != _TUPLE_ZIP_TIMESTAMP:
-                    raise ValueError(f"Wheel file has a non-deterministic timestamp: {strArchivePath!r}.")
-                if infoObj.create_system != 3 or infoObj.external_attr != _INT_ZIP_FILE_MODE:
-                    raise ValueError(f"Wheel file has invalid permission metadata: {strArchivePath!r}.")
+                    raise ValueError(
+                        f"Wheel file has a non-deterministic timestamp: {strArchivePath!r}."
+                    )
+                if (
+                    infoObj.create_system != 3
+                    or infoObj.external_attr != _INT_ZIP_FILE_MODE
+                ):
+                    raise ValueError(
+                        f"Wheel file has invalid permission metadata: {strArchivePath!r}."
+                    )
 
                 intFileType = stat.S_IFMT(infoObj.external_attr >> 16)
                 if intFileType == stat.S_IFLNK:
-                    raise ValueError(f"Wheel cannot contain symbolic links: {strArchivePath!r}.")
+                    raise ValueError(
+                        f"Wheel cannot contain symbolic links: {strArchivePath!r}."
+                    )
 
                 strCaseInsensitivePath = strArchivePath.casefold()
                 strExistingPath = dictCaseInsensitivePath.get(strCaseInsensitivePath)
@@ -641,15 +699,23 @@ def validate_component_wheel(
 
                 pathObj = PurePosixPath(strArchivePath)
                 if pathObj.parts[0] not in {manifestObj.packageName, strDistInfoFolder}:
-                    raise ValueError(f"Wheel contains an unexpected top-level path: {strArchivePath!r}.")
+                    raise ValueError(
+                        f"Wheel contains an unexpected top-level path: {strArchivePath!r}."
+                    )
 
                 if pathObj.parts[0] == manifestObj.packageName:
                     if "__pycache__" in pathObj.parts:
-                        raise ValueError(f"Wheel cannot contain __pycache__: {strArchivePath!r}.")
+                        raise ValueError(
+                            f"Wheel cannot contain __pycache__: {strArchivePath!r}."
+                        )
                     if pathObj.suffix.casefold() in _SET_IGNORED_FILE_SUFFIX:
-                        raise ValueError(f"Wheel cannot contain ignored Python cache files: {strArchivePath!r}.")
+                        raise ValueError(
+                            f"Wheel cannot contain ignored Python cache files: {strArchivePath!r}."
+                        )
                     if pathObj.suffix.casefold() in _SET_FORBIDDEN_FILE_SUFFIX:
-                        raise ValueError(f"Wheel contains an unsupported file type: {strArchivePath!r}.")
+                        raise ValueError(
+                            f"Wheel contains an unsupported file type: {strArchivePath!r}."
+                        )
 
             setExpectedDistInfoPath = {
                 strMetadataPath,
@@ -684,36 +750,56 @@ def validate_component_wheel(
                 strRecordPath,
             ]
             if listArchivePath != listExpectedArchivePath:
-                raise ValueError("Wheel files are not stored in the deterministic LiberRPA order.")
+                raise ValueError(
+                    "Wheel files are not stored in the deterministic LiberRPA order."
+                )
 
             metadataObj = _read_metadata(wheelObj.read(strMetadataPath), "METADATA")
             if metadataObj.get("Metadata-Version") != "2.4":
                 raise ValueError("Wheel METADATA must use Metadata-Version 2.4.")
-            if canonicalize_name(metadataObj.get("Name", "")) != canonicalize_name(manifestObj.packageName):
+            if canonicalize_name(metadataObj.get("Name", "")) != canonicalize_name(
+                manifestObj.packageName
+            ):
                 raise ValueError("Wheel METADATA Name does not match packageName.")
             if Version(metadataObj.get("Version", "")) != Version(manifestObj.version):
                 raise ValueError("Wheel METADATA Version does not match component.json.")
             if metadataObj.get_all("Requires-Dist"):
-                raise ValueError("LiberRPA Component Wheels cannot contain Requires-Dist metadata.")
+                raise ValueError(
+                    "LiberRPA Component Wheels cannot contain Requires-Dist metadata."
+                )
             if metadataObj.get_all("License-File") != ["LICENSE"]:
                 raise ValueError("Wheel METADATA must declare LICENSE.")
 
-            wheelMetadataObj = _read_metadata(wheelObj.read(strWheelMetadataPath), "WHEEL")
+            wheelMetadataObj = _read_metadata(
+                wheelObj.read(strWheelMetadataPath), "WHEEL"
+            )
             if wheelMetadataObj.get("Wheel-Version") != "1.0":
                 raise ValueError("Wheel-Version must be 1.0.")
             if wheelMetadataObj.get("Root-Is-Purelib", "").casefold() != "true":
                 raise ValueError("Root-Is-Purelib must be true.")
             if wheelMetadataObj.get_all("Tag") != [STR_COMPONENT_WHEEL_TAG]:
-                raise ValueError(f"WHEEL must contain exactly one Tag: {STR_COMPONENT_WHEEL_TAG}.")
+                raise ValueError(
+                    f"WHEEL must contain exactly one Tag: {STR_COMPONENT_WHEEL_TAG}."
+                )
 
-            embeddedManifest = parse_json(wheelObj.read(strManifestPath).decode("utf-8", errors="strict"))
+            embeddedManifest = parse_json(
+                wheelObj.read(strManifestPath).decode("utf-8", errors="strict")
+            )
             if embeddedManifest != dictPublishedManifest:
-                raise ValueError("Embedded component.json does not match the published Component Manifest.")
+                raise ValueError(
+                    "Embedded component.json does not match the published Component Manifest."
+                )
 
-            embeddedCatalog = parse_json(wheelObj.read(strCatalogPath).decode("utf-8", errors="strict"))
-            dictEmbeddedSnippetCatalog = _validate_snippet_catalog(embeddedCatalog, manifestObj)
+            embeddedCatalog = parse_json(
+                wheelObj.read(strCatalogPath).decode("utf-8", errors="strict")
+            )
+            dictEmbeddedSnippetCatalog = _validate_snippet_catalog(
+                embeddedCatalog, manifestObj
+            )
             if dictEmbeddedSnippetCatalog != dictExpectedSnippetCatalog:
-                raise ValueError("Embedded snippets_catalog.json does not match the generated catalog.")
+                raise ValueError(
+                    "Embedded snippets_catalog.json does not match the generated catalog."
+                )
 
             validate_record(
                 archivePathSet=setArchivePath,
@@ -747,19 +833,25 @@ def inspect_component_wheel(wheelPath: Path) -> Info_ComponentWheel:
             ]
 
             if len(listManifestPath) != 1:
-                raise ValueError("Wheel must contain exactly one component.json directly inside its .dist-info folder.")
+                raise ValueError(
+                    "Wheel must contain exactly one component.json directly inside its .dist-info folder."
+                )
 
             strManifestPath = listManifestPath[0]
             pathDistInfo = PurePosixPath(strManifestPath).parent
             strCatalogPath = (pathDistInfo / "snippets_catalog.json").as_posix()
 
-            embeddedManifest = parse_json(wheelObj.read(strManifestPath).decode("utf-8", errors="strict"))
+            embeddedManifest = parse_json(
+                wheelObj.read(strManifestPath).decode("utf-8", errors="strict")
+            )
             manifestObj = parse_component_manifest(
                 embeddedManifest,
                 sourceName=strManifestPath,
             )
 
-            embeddedCatalog = parse_json(wheelObj.read(strCatalogPath).decode("utf-8", errors="strict"))
+            embeddedCatalog = parse_json(
+                wheelObj.read(strCatalogPath).decode("utf-8", errors="strict")
+            )
             dictSnippetCatalog = _validate_snippet_catalog(embeddedCatalog, manifestObj)
     except ComponentManagementError:
         raise
@@ -770,7 +862,7 @@ def inspect_component_wheel(wheelPath: Path) -> Info_ComponentWheel:
             details={"reason": str(e)},
         ) from e
 
-    strSha256 = validate_component_wheel(
+    strSha256 = _validate_component_wheel(
         wheelPath=wheelPath,
         manifestObj=manifestObj,
         snippetCatalogDict=dictSnippetCatalog,
@@ -779,6 +871,6 @@ def inspect_component_wheel(wheelPath: Path) -> Info_ComponentWheel:
     return Info_ComponentWheel(
         manifest=manifestObj,
         snippetCatalog=dictSnippetCatalog,
-        wheelFile=wheelPath.name,
+        wheelFileName=wheelPath.name,
         sha256=strSha256,
     )

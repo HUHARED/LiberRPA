@@ -46,7 +46,9 @@ from liberrpa.ComponentManagement.Types._Protocol import (
     DictProtocolSuccess_ProjectComponentsRepaired,
     DictProtocolResponse_Error,
 )
-from liberrpa.ComponentManagement.Domain.Manifest._Manifest import build_project_manifest_dict
+from liberrpa.ComponentManagement.Domain.Manifest._Manifest import (
+    build_project_manifest_dict,
+)
 
 from pathlib import Path
 from typing import assert_never
@@ -77,7 +79,9 @@ def _get_project_dependency_plan_result(
     }
 
 
-def build_error_response(errorObj: ComponentManagementError) -> DictProtocolResponse_Error:
+def build_error_response(
+    errorObj: ComponentManagementError,
+) -> DictProtocolResponse_Error:
     return {
         "schemaVersion": 1,
         "ok": False,
@@ -99,8 +103,13 @@ def build_publish_response(
             "status": publishResult.status,
             "componentId": publishResult.componentId,
             "packageName": publishResult.packageName,
-            "astSnippetsFile": publishResult.astSnippetsPath.relative_to(publishResult.projectPath).as_posix(),
-            "snippetsJsoncFile": publishResult.snippetsConfigPath.relative_to(publishResult.projectPath).as_posix(),
+            #
+            "astSnippetsFile": publishResult.astSnippetsPath.relative_to(
+                publishResult.projectPath
+            ).as_posix(),
+            "snippetsJsoncFile": publishResult.snippetsConfigPath.relative_to(
+                publishResult.projectPath
+            ).as_posix(),
             "generatedCount": publishResult.generatedCount,
             "skippedCount": publishResult.skippedCount,
             "warningCount": len(publishResult.warnings),
@@ -111,16 +120,23 @@ def build_publish_response(
             "componentId": publishResult.componentId,
             "packageName": publishResult.packageName,
             "version": publishResult.version,
-            "wheelFile": publishResult.wheelFile,
-            "sha256": publishResult.sha256,
-            "astSnippetsFile": publishResult.astSnippetsPath.relative_to(publishResult.projectPath).as_posix(),
-            "snippetsJsoncFile": publishResult.snippetsConfigPath.relative_to(publishResult.projectPath).as_posix(),
+            #
+            "astSnippetsFile": publishResult.astSnippetsPath.relative_to(
+                publishResult.projectPath
+            ).as_posix(),
+            "snippetsJsoncFile": publishResult.snippetsConfigPath.relative_to(
+                publishResult.projectPath
+            ).as_posix(),
             "generatedCount": publishResult.generatedCount,
             "skippedCount": publishResult.skippedCount,
+            "warningCount": len(publishResult.warnings),
+            #
             "excludedCount": publishResult.excludedCount,
             "handWrittenCount": publishResult.handWrittenCount,
             "finalCount": publishResult.finalCount,
-            "warningCount": len(publishResult.warnings),
+            #
+            "wheelFileName": publishResult.wheelFileName,
+            "sha256": publishResult.sha256,
         }
     else:
         assert_never(publishResult)
@@ -130,6 +146,40 @@ def build_publish_response(
         "ok": True,
         "result": dictResult,
         "warnings": publishResult.warnings,
+    }
+
+
+def build_component_wheels_imported_response(
+    importResult: Info_Repository_ImportResult,
+) -> DictProtocolSuccess_ComponentWheelsImported:
+    listComponent: list[DictProtocolResult_ComponentWheelsImported_Component] = [
+        {
+            "sourcePath": str(componentResult.sourcePath),
+            "componentId": componentResult.componentId,
+            "packageName": componentResult.packageName,
+            "version": componentResult.version,
+            "wheelFileName": componentResult.wheelFileName,
+            "sha256": componentResult.sha256,
+            "status": componentResult.status,
+        }
+        for componentResult in importResult.components
+    ]
+    dictResult: DictProtocolResult_ComponentWheelsImported = {
+        "status": "componentWheelsImported",
+        "importedCount": sum(
+            componentResult["status"] == "imported" for componentResult in listComponent
+        ),
+        "alreadyImportedCount": sum(
+            componentResult["status"] == "alreadyImported"
+            for componentResult in listComponent
+        ),
+        "components": listComponent,
+    }
+    return {
+        "schemaVersion": 1,
+        "ok": True,
+        "result": dictResult,
+        "warnings": importResult.warnings,
     }
 
 
@@ -146,37 +196,6 @@ def build_repository_index_rebuilt_response(
         "ok": True,
         "result": dictResult,
         "warnings": rebuildResult.warnings,
-    }
-
-
-def build_component_wheels_imported_response(
-    importResult: Info_Repository_ImportResult,
-) -> DictProtocolSuccess_ComponentWheelsImported:
-    listComponent: list[DictProtocolResult_ComponentWheelsImported_Component] = [
-        {
-            "sourcePath": str(componentResult.sourcePath),
-            "componentId": componentResult.componentId,
-            "packageName": componentResult.packageName,
-            "version": componentResult.version,
-            "wheelFile": componentResult.wheelFile,
-            "sha256": componentResult.sha256,
-            "status": componentResult.status,
-        }
-        for componentResult in importResult.components
-    ]
-    dictResult: DictProtocolResult_ComponentWheelsImported = {
-        "status": "componentWheelsImported",
-        "importedCount": sum(componentResult["status"] == "imported" for componentResult in listComponent),
-        "alreadyImportedCount": sum(
-            componentResult["status"] == "alreadyImported" for componentResult in listComponent
-        ),
-        "components": listComponent,
-    }
-    return {
-        "schemaVersion": 1,
-        "ok": True,
-        "result": dictResult,
-        "warnings": importResult.warnings,
     }
 
 
@@ -200,7 +219,9 @@ def build_repository_catalog_response(
         "status": "componentRepositoryCatalog",
         "repositoryPath": str(repositoryPath),
         "componentCount": len(listComponent),
-        "versionCount": sum(len(dictComponent["versions"]) for dictComponent in listComponent),
+        "versionCount": sum(
+            len(dictComponent["versions"]) for dictComponent in listComponent
+        ),
         "components": listComponent,
     }
     return {
@@ -277,7 +298,9 @@ def build_project_components_repaired_response(
 ) -> DictProtocolSuccess_ProjectComponentsRepaired:
     dictResult: DictProtocolResult_ProjectComponentsRepaired = {
         "status": "projectComponentsRepaired",
-        "componentsFolder": _get_components_folder_result(repairResult.componentsFolderInfo),
+        "componentsFolder": _get_components_folder_result(
+            repairResult.componentsFolderInfo
+        ),
     }
     return {
         "schemaVersion": 1,

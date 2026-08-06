@@ -11,7 +11,10 @@ from liberrpa.ComponentManagement.Common._WheelName import (
     TAG_COMPONENT_WHEEL,
     get_component_wheel_names,
 )
-from liberrpa.ComponentManagement.Common._Version import normalize_version, normalize_specifier
+from liberrpa.ComponentManagement.Common._Version import (
+    normalize_pep440_version,
+    normalize_pep440_specifier,
+)
 from liberrpa.ComponentManagement.Common._Validation import (
     get_package_name_error,
     validate_exact_keys,
@@ -20,7 +23,7 @@ from liberrpa.ComponentManagement.Common._Validation import (
     is_folder_invalid,
 )
 from liberrpa.ComponentManagement.Types._Repository import (
-    DictRepository_ComponentVersion,
+    DictRepository_ComponentVersionEntry,
     DictRepository_Component,
     DictRepository_Index,
 )
@@ -41,13 +44,13 @@ _STR_COMPONENT_FOLDER_NAME = "components"
 
 _REGEX_SHA256 = re.compile(r"^[0-9a-f]{64}$")
 
-_SET_REPOSITORY_INDEX_KEYS = {"schemaVersion", "components"}
-_SET_REPOSITORY_COMPONENT_KEYS = {"packageName", "versions"}
-_SET_REPOSITORY_VERSION_KEYS = {
+_SET_KEYS_REPOSITORY_INDEX = {"schemaVersion", "components"}
+_SET_KEYS_REPOSITORY_COMPONENT = {"packageName", "versions"}
+_SET_KEYS_REPOSITORY_VERSION = {
     "version",
     "displayName",
     "description",
-    "wheelFile",
+    "wheelFileName",
     "sha256",
     "requiresLiberrpa",
     "componentDependencies",
@@ -73,7 +76,9 @@ def validate_wheel_file_name(
         raise ValueError(f"{field} must be a valid Wheel filename.") from e
 
     if normalizedName != canonicalize_name(packageName):
-        raise ValueError(f"{field} distribution name does not match packageName {packageName!r}.")
+        raise ValueError(
+            f"{field} distribution name does not match packageName {packageName!r}."
+        )
 
     if wheelVersion != Version(version):
         raise ValueError(f"{field} version does not match version {version!r}.")
@@ -87,7 +92,9 @@ def validate_wheel_file_name(
     _, strExpectedFileName = get_component_wheel_names(packageName, version)
 
     if value != strExpectedFileName:
-        raise ValueError(f"{field} must use the normalized filename {strExpectedFileName!r}.")
+        raise ValueError(
+            f"{field} must use the normalized filename {strExpectedFileName!r}."
+        )
 
     return value
 
@@ -99,7 +106,7 @@ def validate_sha256(value: object, field: str) -> str:
     return value
 
 
-def normalize_component_id(value: object, field: str) -> str:
+def validate_component_id(value: object, field: str) -> str:
     if not isinstance(value, str):
         raise ValueError(f"{field} must be a UUID string.")
 
@@ -130,16 +137,18 @@ def validate_component_dependency_dict(
     dictDependency: dict[str, str] = {}
 
     for dependencyId, specifier in value.items():
-        strDependencyId = normalize_component_id(dependencyId, f"{field}.{dependencyId}")
+        strDependencyId = validate_component_id(dependencyId, f"{field}.{dependencyId}")
         if componentId is not None and strDependencyId == componentId:
             raise ValueError(f"{field} cannot contain a self-dependency.")
 
         if not isinstance(specifier, str):
             raise ValueError(f"{field}.{strDependencyId} must be a string.")
 
-        strNormalizedSpecifier = normalize_specifier(specifier)
+        strNormalizedSpecifier = normalize_pep440_specifier(specifier)
         if specifier != strNormalizedSpecifier:
-            raise ValueError(f"{field}.{strDependencyId} must use the normalized version range.")
+            raise ValueError(
+                f"{field}.{strDependencyId} must use the normalized version range."
+            )
 
         dictDependency[strDependencyId] = strNormalizedSpecifier
 
@@ -152,16 +161,16 @@ def validate_repository_version(
     *,
     componentId: str,
     packageName: str,
-) -> DictRepository_ComponentVersion:
+) -> DictRepository_ComponentVersionEntry:
     if not isinstance(value, dict):
         raise ValueError(f"{field} must be an object.")
 
-    validate_exact_keys(value, _SET_REPOSITORY_VERSION_KEYS, field)
+    validate_exact_keys(value, _SET_KEYS_REPOSITORY_VERSION, field)
 
     version = value.get("version")
     if not isinstance(version, str):
         raise ValueError(f"{field}.version must be a string.")
-    strNormalizedVersion = normalize_version(version)
+    strNormalizedVersion = normalize_pep440_version(version)
     if version != strNormalizedVersion:
         raise ValueError(f"{field}.version must use the normalized PEP 440 form.")
 
@@ -175,9 +184,9 @@ def validate_repository_version(
     if not isinstance(description, str):
         raise ValueError(f"{field}.description must be a string.")
 
-    strWheelFile = validate_wheel_file_name(
-        value.get("wheelFile"),
-        f"{field}.wheelFile",
+    strWheelFileName = validate_wheel_file_name(
+        value.get("wheelFileName"),
+        f"{field}.wheelFileName",
         packageName=packageName,
         version=strNormalizedVersion,
     )
@@ -186,9 +195,11 @@ def validate_repository_version(
     requiresLiberrpa = value.get("requiresLiberrpa")
     if not isinstance(requiresLiberrpa, str):
         raise ValueError(f"{field}.requiresLiberrpa must be a string.")
-    strNormalizedRequiresLiberrpa = normalize_specifier(requiresLiberrpa)
+    strNormalizedRequiresLiberrpa = normalize_pep440_specifier(requiresLiberrpa)
     if requiresLiberrpa != strNormalizedRequiresLiberrpa:
-        raise ValueError(f"{field}.requiresLiberrpa must use the normalized version range.")
+        raise ValueError(
+            f"{field}.requiresLiberrpa must use the normalized version range."
+        )
 
     dictDependency = validate_component_dependency_dict(
         value.get("componentDependencies"),
@@ -200,7 +211,7 @@ def validate_repository_version(
         "version": strNormalizedVersion,
         "displayName": displayName,
         "description": description,
-        "wheelFile": strWheelFile,
+        "wheelFileName": strWheelFileName,
         "sha256": strSha256,
         "requiresLiberrpa": strNormalizedRequiresLiberrpa,
         "componentDependencies": dictDependency,
@@ -211,7 +222,7 @@ def _validate_repository_index(value: object) -> DictRepository_Index:
     if not isinstance(value, dict):
         raise ValueError("repository.json root value must be an object.")
 
-    validate_exact_keys(value, _SET_REPOSITORY_INDEX_KEYS, "repository.json")
+    validate_exact_keys(value, _SET_KEYS_REPOSITORY_INDEX, "repository.json")
 
     schemaVersion = value.get("schemaVersion")
     if type(schemaVersion) is not int or schemaVersion != 1:
@@ -224,13 +235,13 @@ def _validate_repository_index(value: object) -> DictRepository_Index:
     dictComponent: dict[str, DictRepository_Component] = {}
 
     for componentId, componentValue in components.items():
-        strComponentId = normalize_component_id(componentId, f"components.{componentId}")
+        strComponentId = validate_component_id(componentId, f"components.{componentId}")
         if not isinstance(componentValue, dict):
             raise ValueError(f"components.{strComponentId} must be an object.")
 
         validate_exact_keys(
             componentValue,
-            _SET_REPOSITORY_COMPONENT_KEYS,
+            _SET_KEYS_REPOSITORY_COMPONENT,
             f"components.{strComponentId}",
         )
 
@@ -239,7 +250,9 @@ def _validate_repository_index(value: object) -> DictRepository_Index:
             raise ValueError(f"components.{strComponentId}.packageName must be a string.")
         strPackageNameError = get_package_name_error(packageName)
         if strPackageNameError is not None:
-            raise ValueError(f"components.{strComponentId}.packageName: {strPackageNameError}")
+            raise ValueError(
+                f"components.{strComponentId}.packageName: {strPackageNameError}"
+            )
 
         versions = componentValue.get("versions")
         if not isinstance(versions, list):
@@ -247,22 +260,24 @@ def _validate_repository_index(value: object) -> DictRepository_Index:
         if not versions:
             raise ValueError(f"components.{strComponentId}.versions cannot be empty.")
 
-        listVersion: list[DictRepository_ComponentVersion] = []
+        listVersion: list[DictRepository_ComponentVersionEntry] = []
         setVersion: set[Version] = set()
 
-        for intIndex, versionValue in enumerate(versions):
-            dictVersion = validate_repository_version(
-                versionValue,
+        for intIndex, versionEntryValue in enumerate(versions):
+            dictVersionEntry = validate_repository_version(
+                versionEntryValue,
                 f"components.{strComponentId}.versions[{intIndex}]",
                 componentId=strComponentId,
                 packageName=packageName,
             )
-            versionObj = Version(dictVersion["version"])
+            versionObj = Version(dictVersionEntry["version"])
             if versionObj in setVersion:
-                raise ValueError(f"components.{strComponentId}.versions contains equivalent PEP 440 versions.")
+                raise ValueError(
+                    f"components.{strComponentId}.versions contains equivalent PEP 440 versions."
+                )
 
             setVersion.add(versionObj)
-            listVersion.append(dictVersion)
+            listVersion.append(dictVersionEntry)
 
         listVersion.sort(key=lambda item: Version(item["version"]))
         dictComponent[strComponentId] = {
@@ -276,19 +291,19 @@ def _validate_repository_index(value: object) -> DictRepository_Index:
     }
 
 
-def get_repository_components_path(repositoryPath: Path) -> Path:
+def get_repository_components_folder_path(repositoryPath: Path) -> Path:
     return repositoryPath / _STR_COMPONENT_FOLDER_NAME
 
 
 def get_wheel_relative_path(
     componentId: str,
     packageName: str,
-    wheelFile: str,
+    wheelFileName: str,
 ) -> str:
     return PurePosixPath(
         _STR_COMPONENT_FOLDER_NAME,
         f"{packageName}_{componentId}",
-        wheelFile,
+        wheelFileName,
     ).as_posix()
 
 
@@ -296,14 +311,14 @@ def get_wheel_path(
     repositoryPath: Path,
     componentId: str,
     packageName: str,
-    wheelFile: str,
+    wheelFileName: str,
 ) -> Path:
     return repositoryPath.joinpath(
         *PurePosixPath(
             get_wheel_relative_path(
                 componentId=componentId,
                 packageName=packageName,
-                wheelFile=wheelFile,
+                wheelFileName=wheelFileName,
             )
         ).parts
     )
@@ -318,14 +333,16 @@ def _get_expected_wheel_path_set(indexDict: DictRepository_Index) -> set[str]:
                 get_wheel_relative_path(
                     componentId=strComponentId,
                     packageName=dictComponent["packageName"],
-                    wheelFile=dictVersion["wheelFile"],
+                    wheelFileName=dictVersion["wheelFileName"],
                 )
             )
 
     return setWheelPath
 
 
-def raise_rebuild_required(message: str, details: dict[str, object] | None = None) -> None:
+def raise_rebuild_required(
+    message: str, details: dict[str, object] | None = None
+) -> None:
     raise ComponentManagementError(
         code="repository_rebuild_required",
         message=message,
@@ -334,23 +351,23 @@ def raise_rebuild_required(message: str, details: dict[str, object] | None = Non
 
 
 def _get_actual_wheel_path_set(repositoryPath: Path) -> set[str]:
-    pathComponents = get_repository_components_path(repositoryPath)
-    if not path_exists(pathComponents):
+    pathComponentsFolder = get_repository_components_folder_path(repositoryPath)
+    if not path_exists(pathComponentsFolder):
         return set()
 
-    if is_folder_invalid(pathComponents):
+    if is_folder_invalid(pathComponentsFolder):
         raise_rebuild_required(
             "The Component Repository components path is not a valid folder.",
-            {"path": str(pathComponents)},
+            {"path": str(pathComponentsFolder)},
         )
 
     setWheelPath: set[str] = set()
 
-    for pathWheel in pathComponents.rglob("*.whl"):
+    for pathWheel in pathComponentsFolder.rglob("*.whl"):
         if is_file_invalid(pathWheel):
             raise_rebuild_required(
                 "The Component Repository contains an invalid Wheel path.",
-                {"wheelFile": str(pathWheel)},
+                {"wheelPath": str(pathWheel)},
             )
 
         setWheelPath.add(pathWheel.relative_to(repositoryPath).as_posix())
@@ -407,7 +424,7 @@ def write_repository_index(repositoryPath: Path, indexDict: DictRepository_Index
 def find_equivalent_version(
     componentDict: DictRepository_Component,
     version: str,
-) -> DictRepository_ComponentVersion | None:
+) -> DictRepository_ComponentVersionEntry | None:
     targetVersion = Version(version)
 
     for dictVersionEntry in componentDict["versions"]:
@@ -421,9 +438,11 @@ def add_version_to_index(
     indexDict: DictRepository_Index,
     componentId: str,
     packageName: str,
-    versionEntry: DictRepository_ComponentVersion,
+    versionEntry: DictRepository_ComponentVersionEntry,
 ) -> None:
-    dictComponent: DictRepository_Component | None = indexDict["components"].get(componentId)
+    dictComponent: DictRepository_Component | None = indexDict["components"].get(
+        componentId
+    )
 
     if dictComponent is None:
         dictComponent = {
@@ -434,7 +453,9 @@ def add_version_to_index(
     elif dictComponent["packageName"] != packageName:
         raise ComponentManagementError(
             code="component_identity_conflict",
-            message=(f"Component ID {componentId} is already bound to packageName {dictComponent['packageName']!r}."),
+            message=(
+                f"Component ID {componentId} is already bound to packageName {dictComponent['packageName']!r}."
+            ),
             details={
                 "componentId": componentId,
                 "existingPackageName": dictComponent["packageName"],
@@ -442,16 +463,20 @@ def add_version_to_index(
             },
         )
 
-    dictExistingVersion = find_equivalent_version(dictComponent, versionEntry["version"])
-    if dictExistingVersion is not None:
-        if dictExistingVersion["sha256"] != versionEntry["sha256"]:
+    dictExistingVersionEntry = find_equivalent_version(
+        dictComponent, versionEntry["version"]
+    )
+    if dictExistingVersionEntry is not None:
+        if dictExistingVersionEntry["sha256"] != versionEntry["sha256"]:
             raise ComponentManagementError(
                 code="immutable_version_conflict",
-                message=(f"Component {packageName} {versionEntry['version']} already exists with different content."),
+                message=(
+                    f"Component {packageName} {versionEntry['version']} already exists with different content."
+                ),
                 details={
                     "componentId": componentId,
                     "version": versionEntry["version"],
-                    "existingSha256": dictExistingVersion["sha256"],
+                    "existingSha256": dictExistingVersionEntry["sha256"],
                     "publishedSha256": versionEntry["sha256"],
                 },
             )

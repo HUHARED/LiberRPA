@@ -7,7 +7,10 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from liberrpa.ComponentManagement.Common._Exception import ComponentManagementError
 from liberrpa.ComponentManagement.Common._File import read_json, write_json_atomic
-from liberrpa.ComponentManagement.Common._Version import normalize_version, normalize_specifier
+from liberrpa.ComponentManagement.Common._Version import (
+    normalize_pep440_version,
+    normalize_pep440_specifier,
+)
 from liberrpa.ComponentManagement.Common._Validation import (
     get_package_name_error,
     validate_exact_keys,
@@ -28,7 +31,7 @@ from liberrpa.ComponentManagement.Types._Components import (
 from liberrpa.ComponentManagement.Domain.Repository._Index import (
     validate_wheel_file_name,
     validate_sha256,
-    normalize_component_id,
+    validate_component_id,
     validate_component_dependency_dict,
 )
 
@@ -54,7 +57,7 @@ _SET_LOCKED_COMPONENT_KEYS = {
     "packageName",
     "displayName",
     "version",
-    "wheelFile",
+    "wheelFileName",
     "sha256",
     "requiresLiberrpa",
     "componentDependencies",
@@ -77,7 +80,9 @@ def _validate_components_lock_root(value: object) -> DictComponentsLock_Root:
     packageName: str | None = None
 
     if manifestFile == "component.json":
-        rootComponentId = normalize_component_id(value.get("componentId"), "root.componentId")
+        rootComponentId = validate_component_id(
+            value.get("componentId"), "root.componentId"
+        )
 
         packageNameValue = value.get("packageName")
         if not isinstance(packageNameValue, str):
@@ -90,7 +95,7 @@ def _validate_components_lock_root(value: object) -> DictComponentsLock_Root:
     requiresLiberrpa = value.get("requiresLiberrpa")
     if not isinstance(requiresLiberrpa, str):
         raise ValueError("root.requiresLiberrpa must be a string.")
-    strNormalizedRequiresLiberrpa = normalize_specifier(requiresLiberrpa)
+    strNormalizedRequiresLiberrpa = normalize_pep440_specifier(requiresLiberrpa)
     if requiresLiberrpa != strNormalizedRequiresLiberrpa:
         raise ValueError("root.requiresLiberrpa must use the normalized version range.")
 
@@ -122,20 +127,28 @@ def _validate_dependency_graph(
     rootDict: DictComponentsLock_Root,
     componentDict: dict[str, DictComponentsLock_Component],
 ) -> None:
-    strRootComponentId = rootDict["componentId"] if rootDict["manifestFile"] == "component.json" else None
+    strRootComponentId = (
+        rootDict["componentId"] if rootDict["manifestFile"] == "component.json" else None
+    )
 
     for strDependencyId, strSpecifier in rootDict["componentDependencies"].items():
         dictDependency = componentDict.get(strDependencyId)
         if dictDependency is None:
-            raise ValueError(f"root.componentDependencies refers to missing Component {strDependencyId!r}.")
+            raise ValueError(
+                f"root.componentDependencies refers to missing Component {strDependencyId!r}."
+            )
 
-        if not SpecifierSet(strSpecifier).contains(Version(dictDependency["version"]), prereleases=True):
+        if not SpecifierSet(strSpecifier).contains(
+            Version(dictDependency["version"]), prereleases=True
+        ):
             raise ValueError(
                 f"Locked Component {strDependencyId} {dictDependency['version']} does not satisfy root requirement {strSpecifier!r}."
             )
 
     for strComponentId, dictComponent in componentDict.items():
-        for strDependencyId, strSpecifier in dictComponent["componentDependencies"].items():
+        for strDependencyId, strSpecifier in dictComponent[
+            "componentDependencies"
+        ].items():
             if strRootComponentId is not None and strDependencyId == strRootComponentId:
                 raise ValueError(
                     f"Locked Component {strComponentId} depends on the root Component and creates a dependency cycle."
@@ -143,9 +156,13 @@ def _validate_dependency_graph(
 
             dictDependency = componentDict.get(strDependencyId)
             if dictDependency is None:
-                raise ValueError(f"Locked Component {strComponentId} refers to missing Component {strDependencyId!r}.")
+                raise ValueError(
+                    f"Locked Component {strComponentId} refers to missing Component {strDependencyId!r}."
+                )
 
-            if not SpecifierSet(strSpecifier).contains(Version(dictDependency["version"]), prereleases=True):
+            if not SpecifierSet(strSpecifier).contains(
+                Version(dictDependency["version"]), prereleases=True
+            ):
                 raise ValueError(
                     f"Locked Component {strDependencyId} {dictDependency['version']} does not satisfy "
                     f"requirement {strSpecifier!r} from Component {strComponentId}."
@@ -162,7 +179,9 @@ def _validate_dependency_graph(
         if componentId in setVisiting:
             intCycleStart = listVisitPath.index(componentId)
             listCycle = [*listVisitPath[intCycleStart:], componentId]
-            raise ValueError(f"components.lock.json contains a dependency cycle: {' -> '.join(listCycle)}.")
+            raise ValueError(
+                f"components.lock.json contains a dependency cycle: {' -> '.join(listCycle)}."
+            )
 
         setVisiting.add(componentId)
         listVisitPath.append(componentId)
@@ -192,7 +211,9 @@ def _validate_dependency_graph(
 
     listUnreachable = sorted(set(componentDict) - setReachable)
     if listUnreachable:
-        raise ValueError(f"components.lock.json contains unreachable Components: {listUnreachable}.")
+        raise ValueError(
+            f"components.lock.json contains unreachable Components: {listUnreachable}."
+        )
 
 
 def _validate_locked_component(
@@ -222,13 +243,13 @@ def _validate_locked_component(
     version = value.get("version")
     if not isinstance(version, str):
         raise ValueError(f"{field}.version must be a string.")
-    strNormalizedVersion = normalize_version(version)
+    strNormalizedVersion = normalize_pep440_version(version)
     if version != strNormalizedVersion:
         raise ValueError(f"{field}.version must use the normalized PEP 440 form.")
 
-    strWheelFile = validate_wheel_file_name(
-        value.get("wheelFile"),
-        f"{field}.wheelFile",
+    strWheelFileName = validate_wheel_file_name(
+        value.get("wheelFileName"),
+        f"{field}.wheelFileName",
         packageName=packageName,
         version=strNormalizedVersion,
     )
@@ -237,9 +258,11 @@ def _validate_locked_component(
     requiresLiberrpa = value.get("requiresLiberrpa")
     if not isinstance(requiresLiberrpa, str):
         raise ValueError(f"{field}.requiresLiberrpa must be a string.")
-    strNormalizedRequiresLiberrpa = normalize_specifier(requiresLiberrpa)
+    strNormalizedRequiresLiberrpa = normalize_pep440_specifier(requiresLiberrpa)
     if requiresLiberrpa != strNormalizedRequiresLiberrpa:
-        raise ValueError(f"{field}.requiresLiberrpa must use the normalized version range.")
+        raise ValueError(
+            f"{field}.requiresLiberrpa must use the normalized version range."
+        )
 
     dictDependency = validate_component_dependency_dict(
         value.get("componentDependencies"),
@@ -251,7 +274,7 @@ def _validate_locked_component(
         "packageName": packageName,
         "displayName": displayName,
         "version": strNormalizedVersion,
-        "wheelFile": strWheelFile,
+        "wheelFileName": strWheelFileName,
         "sha256": strSha256,
         "requiresLiberrpa": strNormalizedRequiresLiberrpa,
         "componentDependencies": dictDependency,
@@ -284,7 +307,7 @@ def validate_components_lock(value: object) -> DictComponentsLock_File:
         strRootComponentId = None
 
     for componentId, componentValue in componentsValue.items():
-        strComponentId = normalize_component_id(componentId, f"components.{componentId}")
+        strComponentId = validate_component_id(componentId, f"components.{componentId}")
         if strRootComponentId is not None and strComponentId == strRootComponentId:
             raise ValueError("components cannot contain the root Component ID.")
 
@@ -314,7 +337,9 @@ def validate_components_lock(value: object) -> DictComponentsLock_File:
     }
 
 
-def _build_components_lock_root(manifestObj: Info_ProjectManifest) -> DictComponentsLock_Root:
+def _build_components_lock_root(
+    manifestObj: Info_ProjectManifest,
+) -> DictComponentsLock_Root:
     dictDependency = dict(sorted(manifestObj.componentDependencies.items()))
 
     if isinstance(manifestObj, Info_ProjectManifest_Flow):

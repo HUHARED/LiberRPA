@@ -9,8 +9,12 @@ from liberrpa.ComponentManagement.Types._Warning import DictComponentManagementW
 from liberrpa.ComponentManagement.Types._Repository import DictRepository_Index
 from liberrpa.ComponentManagement.Domain.Lock._RepositoryLock import repository_lock
 from liberrpa.ComponentManagement.Domain.Repository._Index import load_repository_index
-from liberrpa.ComponentManagement.Domain.Repository._RepositoryPath import get_repository_path
-from liberrpa.ComponentManagement.Domain.Repository._Transaction import recover_repository_transactions
+from liberrpa.ComponentManagement.Domain.Repository._RepositoryPath import (
+    get_repository_path,
+)
+from liberrpa.ComponentManagement.Domain.Repository._Transaction import (
+    recover_repository_transactions,
+)
 
 from pathlib import Path
 
@@ -24,10 +28,7 @@ def _load_repository_index_snapshot(
 ]:
     pathRepository = get_repository_path()
 
-    with repository_lock(
-        repositoryPath=pathRepository,
-        operation=operation,
-    ):
+    with repository_lock(pathRepository, operation):
         listWarning = recover_repository_transactions(pathRepository)
         dictIndex = load_repository_index(pathRepository, checkWheelPaths=True)
 
@@ -39,7 +40,9 @@ def load_repository_resolution_snapshot() -> tuple[
     list[DictComponentManagementWarning],
 ]:
     """Read a consistent Repository index snapshot for dependency resolution."""
-    _, dictIndex, listWarning = _load_repository_index_snapshot("resolveProjectDependencies")
+    _, dictIndex, listWarning = _load_repository_index_snapshot(
+        "resolveProjectDependencies"
+    )
 
     return dictIndex, listWarning
 

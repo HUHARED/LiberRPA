@@ -8,7 +8,11 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 from liberrpa.ComponentManagement.Common._Exception import ComponentManagementError
 from liberrpa.ComponentManagement.Common._File import write_json_atomic
 from liberrpa.ComponentManagement.Common._Project import resolve_project_path
-from liberrpa.ComponentManagement.Common._Validation import path_exists, is_file_invalid, is_folder_invalid
+from liberrpa.ComponentManagement.Common._Validation import (
+    path_exists,
+    is_file_invalid,
+    is_folder_invalid,
+)
 from liberrpa.ComponentManagement.Types._Warning import (
     DictComponentManagementWarning_Operation,
     DictComponentManagementWarning,
@@ -22,9 +26,14 @@ from liberrpa.ComponentManagement.Types._Publish import (
 )
 from liberrpa.ComponentManagement.Domain.Lock._ProjectLock import project_lock
 from liberrpa.ComponentManagement.Domain.Manifest._Manifest import read_component_manifest
-from liberrpa.ComponentManagement.Application.Repository._PublishComponentWheel import publish_component_wheel
+from liberrpa.ComponentManagement.Application.Repository._PublishComponentWheel import (
+    publish_component_wheel,
+)
 from liberrpa.ComponentManagement.Domain.Snippet._Ast import scan_component_snippets
-from liberrpa.ComponentManagement.Domain.Snippet._Config import create_snippet_config, build_snippet_catalog
+from liberrpa.ComponentManagement.Domain.Snippet._Config import (
+    create_snippet_config,
+    build_snippet_catalog,
+)
 from liberrpa.ComponentManagement.Domain.Wheel._Wheel import build_component_wheel
 
 from pathlib import Path
@@ -35,9 +44,7 @@ import uuid
 def _validate_component_project(
     projectPath: Path,
 ) -> tuple[Info_ProjectManifest_Component, Path]:
-    pathComponentManifest = projectPath / "component.json"
     pathFlowManifest = projectPath / "flow.json"
-
     if path_exists(pathFlowManifest):
         raise ComponentManagementError(
             code="not_component_project",
@@ -45,17 +52,18 @@ def _validate_component_project(
             details={"flowManifest": str(pathFlowManifest)},
         )
 
+    pathComponentManifest = projectPath / "component.json"
     manifestObj = read_component_manifest(pathComponentManifest)
-    pathSrc = projectPath / "src"
-    pathPackage = pathSrc / manifestObj.packageName
 
+    pathSrc = projectPath / "src"
     if is_folder_invalid(pathSrc):
         raise ComponentManagementError(
             code="component_source_invalid",
             message=f"Component source folder was not found: {pathSrc}",
         )
-
-    listUnexpectedEntry = sorted(entry.name for entry in pathSrc.iterdir() if entry.name != manifestObj.packageName)
+    listUnexpectedEntry = sorted(
+        entry.name for entry in pathSrc.iterdir() if entry.name != manifestObj.packageName
+    )
     if listUnexpectedEntry:
         raise ComponentManagementError(
             code="component_source_invalid",
@@ -63,6 +71,7 @@ def _validate_component_project(
             details={"unexpectedEntries": listUnexpectedEntry},
         )
 
+    pathPackage = pathSrc / manifestObj.packageName
     if is_folder_invalid(pathPackage):
         raise ComponentManagementError(
             code="component_source_invalid",
@@ -80,7 +89,9 @@ def _validate_component_project(
     return manifestObj, pathPackage
 
 
-def _write_ast_snippets(astSnippetsPath: Path, astSnippetsDict: DictSnippet_AstFile) -> None:
+def _write_ast_snippets(
+    astSnippetsPath: Path, astSnippetsDict: DictSnippet_AstFile
+) -> None:
     try:
         write_json_atomic(path=astSnippetsPath, value=astSnippetsDict)
     except OSError as e:
@@ -143,9 +154,10 @@ def publish_component(
 ) -> Info_PublishResult:
     pathProject = resolve_project_path(projectInputPath)
 
-    with project_lock(projectPath=pathProject, operation="publishComponent"):
+    with project_lock(pathProject, "publishComponent"):
         manifestObj, pathPackage = _validate_component_project(pathProject)
-        dictAstSnippets = scan_component_snippets(
+
+        dictAstSnippet = scan_component_snippets(
             projectPath=pathProject,
             packagePath=pathPackage,
             manifestObj=manifestObj,
@@ -155,10 +167,14 @@ def publish_component(
         pathAstSnippetsFile = pathSnippetsFolder / "ast.snippets.json"
         pathSnippetsJsoncFile = pathSnippetsFolder / "snippets.jsonc"
 
-        _write_ast_snippets(astSnippetsPath=pathAstSnippetsFile, astSnippetsDict=dictAstSnippets)
+        _write_ast_snippets(
+            astSnippetsPath=pathAstSnippetsFile, astSnippetsDict=dictAstSnippet
+        )
         boolConfigCreated = create_snippet_config(configPath=pathSnippetsJsoncFile)
 
-        listWarning: list[DictComponentManagementWarning] = list(dictAstSnippets["warnings"])
+        listWarning: list[DictComponentManagementWarning] = list(
+            dictAstSnippet["warnings"]
+        )
         if boolConfigCreated:
             return Info_Publish_PreparationCreated(
                 status="preparationCreated",
@@ -167,14 +183,16 @@ def publish_component(
                 packageName=manifestObj.packageName,
                 astSnippetsPath=pathAstSnippetsFile,
                 snippetsConfigPath=pathSnippetsJsoncFile,
-                generatedCount=len(dictAstSnippets["snippets"]),
-                skippedCount=len(dictAstSnippets["skipped"]),
+                generatedCount=len(dictAstSnippet["snippets"]),
+                skippedCount=len(dictAstSnippet["skipped"]),
                 warnings=listWarning,
             )
 
+        # snippets.jsonc has been created in the previous "preparation" stage.
+        # Now it needs to be published.
         dictBuildResult = build_snippet_catalog(
             configPath=pathSnippetsJsoncFile,
-            astSnippets=dictAstSnippets,
+            astSnippetDict=dictAstSnippet,
             packagePath=pathPackage,
             manifestObj=manifestObj,
         )
@@ -212,14 +230,17 @@ def publish_component(
             componentId=manifestObj.id,
             packageName=manifestObj.packageName,
             version=manifestObj.version,
-            wheelFile=wheelResult.wheelFile,
-            sha256=wheelResult.sha256,
+            #
             astSnippetsPath=pathAstSnippetsFile,
             snippetsConfigPath=pathSnippetsJsoncFile,
-            generatedCount=len(dictAstSnippets["snippets"]),
-            skippedCount=len(dictAstSnippets["skipped"]),
+            generatedCount=len(dictAstSnippet["snippets"]),
+            skippedCount=len(dictAstSnippet["skipped"]),
+            warnings=listWarning,
+            #
             excludedCount=dictBuildResult.excludedCount,
             handWrittenCount=dictBuildResult.handWrittenCount,
             finalCount=len(dictBuildResult.catalog["snippets"]),
-            warnings=listWarning,
+            #
+            wheelFileName=wheelResult.wheelFileName,
+            sha256=wheelResult.sha256,
         )

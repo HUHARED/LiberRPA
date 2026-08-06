@@ -16,7 +16,7 @@ import shutil
 _STR_STAGING_FOLDER_NAME = ".staging"
 
 
-def get_repository_staging_path(repositoryPath: Path) -> Path:
+def get_repository_staging_folder_path(repositoryPath: Path) -> Path:
     return repositoryPath / _STR_STAGING_FOLDER_NAME
 
 

@@ -17,14 +17,15 @@ from liberrpa.ComponentManagement.Common._Validation import (
 )
 from liberrpa.ComponentManagement.Types._Warning import DictComponentManagementWarning
 from liberrpa.ComponentManagement.Types._Repository import (
-    DictRepository_ComponentVersion,
+    Str_Repository_Error_Code,
+    DictRepository_ComponentVersionEntry,
     DictRepository_Index,
     DictRepository_Transaction_ImportArtifact,
     DictRepository_Transaction_Import,
 )
 from liberrpa.ComponentManagement.Domain.Wheel._Wheel import inspect_component_wheel
 from liberrpa.ComponentManagement.Domain.Repository._Index import (
-    normalize_component_id,
+    validate_component_id,
     validate_repository_version,
     get_wheel_relative_path,
     load_repository_index,
@@ -33,31 +34,33 @@ from liberrpa.ComponentManagement.Domain.Repository._Index import (
     add_version_to_index,
 )
 from liberrpa.ComponentManagement.Domain.Repository._TransactionStorage import (
-    get_repository_staging_path,
+    get_repository_staging_folder_path,
     remove_repository_transaction_folder,
 )
-from liberrpa.ComponentManagement.Domain.Repository._VersionEntry import build_repository_version_entry
+from liberrpa.ComponentManagement.Domain.Repository._VersionEntry import (
+    build_repository_version_entry,
+)
 
 from pathlib import Path, PurePosixPath
 import os
-from typing import Literal, cast
+from typing import cast
 
 
-_SET_TRANSACTION_KEYS = {
+_SET_KEYS_TRANSACTION = {
     "schemaVersion",
     "operation",
     "state",
     "artifacts",
 }
-_SET_ARTIFACT_KEYS = {
+_SET_KEYS_ARTIFACT = {
     "artifactRelativePath",
     "componentId",
     "packageName",
+    "versionEntry",
     "version",
-    "wheelFile",
+    "wheelFileName",
     "sha256",
     "targetRelativePath",
-    "versionEntry",
 }
 
 
@@ -68,7 +71,7 @@ def _validate_artifact(
     if not isinstance(value, dict):
         raise ValueError(f"{field} must be an object.")
 
-    validate_exact_keys(value, _SET_ARTIFACT_KEYS, field)
+    validate_exact_keys(value, _SET_KEYS_ARTIFACT, field)
 
     artifactRelativePath = value.get("artifactRelativePath")
     if not isinstance(artifactRelativePath, str):
@@ -83,9 +86,13 @@ def _validate_artifact(
         or not pathArtifactRelative.parts[1].casefold().endswith(".whl")
         or "\\" in artifactRelativePath
     ):
-        raise ValueError(f"{field}.artifactRelativePath must use '<index>/<Wheel filename>' format.")
+        raise ValueError(
+            f"{field}.artifactRelativePath must use '<index>/<Wheel filename>' format."
+        )
 
-    strComponentId = normalize_component_id(value.get("componentId"), f"{field}.componentId")
+    strComponentId = validate_component_id(
+        value.get("componentId"), f"{field}.componentId"
+    )
 
     packageName = value.get("packageName")
     if not isinstance(packageName, str):
@@ -102,12 +109,14 @@ def _validate_artifact(
     )
 
     version = value.get("version")
-    wheelFile = value.get("wheelFile")
+    wheelFileName = value.get("wheelFileName")
     sha256 = value.get("sha256")
     if version != dictVersionEntry["version"]:
         raise ValueError(f"{field}.version does not match versionEntry.version.")
-    if wheelFile != dictVersionEntry["wheelFile"]:
-        raise ValueError(f"{field}.wheelFile does not match versionEntry.wheelFile.")
+    if wheelFileName != dictVersionEntry["wheelFileName"]:
+        raise ValueError(
+            f"{field}.wheelFileName does not match versionEntry.wheelFileName."
+        )
     if sha256 != dictVersionEntry["sha256"]:
         raise ValueError(f"{field}.sha256 does not match versionEntry.sha256.")
 
@@ -115,10 +124,12 @@ def _validate_artifact(
     strExpectedRelativePath = get_wheel_relative_path(
         componentId=strComponentId,
         packageName=packageName,
-        wheelFile=dictVersionEntry["wheelFile"],
+        wheelFileName=dictVersionEntry["wheelFileName"],
     )
     if targetRelativePath != strExpectedRelativePath:
-        raise ValueError(f"{field}.targetRelativePath does not match the Component Wheel identity.")
+        raise ValueError(
+            f"{field}.targetRelativePath does not match the Component Wheel identity."
+        )
 
     return cast(
         DictRepository_Transaction_ImportArtifact,
@@ -126,11 +137,11 @@ def _validate_artifact(
             "artifactRelativePath": artifactRelativePath,
             "componentId": strComponentId,
             "packageName": packageName,
+            "versionEntry": dictVersionEntry,
             "version": dictVersionEntry["version"],
-            "wheelFile": dictVersionEntry["wheelFile"],
+            "wheelFileName": dictVersionEntry["wheelFileName"],
             "sha256": dictVersionEntry["sha256"],
             "targetRelativePath": strExpectedRelativePath,
-            "versionEntry": dictVersionEntry,
         },
     )
 
@@ -139,10 +150,14 @@ def _validate_transaction(value: object) -> DictRepository_Transaction_Import:
     if not isinstance(value, dict):
         raise ValueError("Transaction root value must be an object.")
 
-    validate_exact_keys(value, _SET_TRANSACTION_KEYS, "transaction.json")
+    validate_exact_keys(value, _SET_KEYS_TRANSACTION, "transaction.json")
 
     schemaVersion = value.get("schemaVersion")
-    if type(schemaVersion) is not int or schemaVersion != 1 or value.get("operation") != "importComponentWheels":
+    if (
+        type(schemaVersion) is not int
+        or schemaVersion != 1
+        or value.get("operation") != "importComponentWheels"
+    ):
         raise ValueError("Unsupported Repository import transaction.")
 
     state = value.get("state")
@@ -151,10 +166,13 @@ def _validate_transaction(value: object) -> DictRepository_Transaction_Import:
 
     artifacts = value.get("artifacts")
     if not isinstance(artifacts, list) or not artifacts:
-        raise ValueError("Repository import transaction artifacts must be a non-empty array.")
+        raise ValueError(
+            "Repository import transaction artifacts must be a non-empty array."
+        )
 
     listArtifact = [
-        _validate_artifact(artifactValue, f"artifacts[{intIndex}]") for intIndex, artifactValue in enumerate(artifacts)
+        _validate_artifact(artifactValue, f"artifacts[{intIndex}]")
+        for intIndex, artifactValue in enumerate(artifacts)
     ]
 
     setArtifactFile: set[str] = set()
@@ -163,9 +181,13 @@ def _validate_transaction(value: object) -> DictRepository_Transaction_Import:
         strArtifactKey = dictArtifact["artifactRelativePath"].casefold()
         strTargetKey = dictArtifact["targetRelativePath"].casefold()
         if strArtifactKey in setArtifactFile:
-            raise ValueError("Repository import transaction contains duplicate artifact filenames.")
+            raise ValueError(
+                "Repository import transaction contains duplicate artifact filenames."
+            )
         if strTargetKey in setTargetPath:
-            raise ValueError("Repository import transaction contains duplicate target Wheel paths.")
+            raise ValueError(
+                "Repository import transaction contains duplicate target Wheel paths."
+            )
         setArtifactFile.add(strArtifactKey)
         setTargetPath.add(strTargetKey)
 
@@ -180,32 +202,34 @@ def _validate_transaction(value: object) -> DictRepository_Transaction_Import:
 def _collect_import_transactions(
     repositoryPath: Path,
     *,
-    errorCode: Literal["repository_recovery_failed", "repository_rebuild_failed"],
+    errorCode: Str_Repository_Error_Code,
 ) -> tuple[list[Path], list[tuple[Path, Path, DictRepository_Transaction_Import]]]:
-    pathStaging = get_repository_staging_path(repositoryPath)
-    if not path_exists(pathStaging):
+    pathStagingFolder = get_repository_staging_folder_path(repositoryPath)
+    if not path_exists(pathStagingFolder):
         return [], []
 
-    if is_folder_invalid(pathStaging):
+    if is_folder_invalid(pathStagingFolder):
         raise ComponentManagementError(
             code=errorCode,
-            message=f"Component Repository staging path is invalid: {pathStaging}",
+            message=f"Component Repository staging path is invalid: {pathStagingFolder}",
         )
 
     listCleanupPath: list[Path] = []
     listTransaction: list[tuple[Path, Path, DictRepository_Transaction_Import]] = []
 
-    for pathTransaction in sorted(pathStaging.glob("import_*"), key=lambda pathObj: pathObj.name):
-        if is_folder_invalid(pathTransaction):
+    for pathTransactionFolder in sorted(
+        pathStagingFolder.glob("import_*"), key=lambda pathObj: pathObj.name
+    ):
+        if is_folder_invalid(pathTransactionFolder):
             raise ComponentManagementError(
                 code=errorCode,
                 message="Component Repository staging contains an invalid import transaction path.",
-                details={"transactionPath": str(pathTransaction)},
+                details={"transactionPath": str(pathTransactionFolder)},
             )
 
-        pathTransactionFile = pathTransaction / "transaction.json"
+        pathTransactionFile = pathTransactionFolder / "transaction.json"
         if is_file_invalid(pathTransactionFile):
-            listCleanupPath.append(pathTransaction)
+            listCleanupPath.append(pathTransactionFolder)
             continue
 
         try:
@@ -217,7 +241,11 @@ def _collect_import_transactions(
                 details={"reason": str(e)},
             ) from e
 
-        listTransaction.append((pathTransaction, pathTransactionFile, dictTransaction))
+        listTransaction.append((
+            pathTransactionFolder,
+            pathTransactionFile,
+            dictTransaction,
+        ))
 
     return listCleanupPath, listTransaction
 
@@ -226,13 +254,13 @@ def _validate_wheel_against_artifact(
     wheelPath: Path,
     artifactDict: DictRepository_Transaction_ImportArtifact,
     *,
-    errorCode: Literal["repository_recovery_failed", "repository_rebuild_failed"],
+    errorCode: Str_Repository_Error_Code,
 ) -> None:
     if is_file_invalid(wheelPath):
         raise ComponentManagementError(
             code=errorCode,
             message="An interrupted Repository import transaction contains an invalid Wheel path.",
-            details={"wheelFile": str(wheelPath)},
+            details={"wheelPath": str(wheelPath)},
         )
 
     try:
@@ -241,7 +269,7 @@ def _validate_wheel_against_artifact(
         raise ComponentManagementError(
             code=errorCode,
             message="Failed to read a Wheel from an interrupted Repository import transaction.",
-            details={"wheelFile": str(wheelPath), "reason": str(e)},
+            details={"wheelPath": str(wheelPath), "reason": str(e)},
         ) from e
 
     if strActualSha256 != artifactDict["sha256"]:
@@ -249,7 +277,7 @@ def _validate_wheel_against_artifact(
             code=errorCode,
             message="A Wheel does not match its interrupted Repository import transaction.",
             details={
-                "wheelFile": str(wheelPath),
+                "wheelPath": str(wheelPath),
                 "expectedSha256": artifactDict["sha256"],
                 "actualSha256": strActualSha256,
             },
@@ -259,41 +287,46 @@ def _validate_wheel_against_artifact(
     manifestObj = wheelInfo.manifest
     dictActualVersionEntry = build_repository_version_entry(
         manifestObj=manifestObj,
-        wheelFile=wheelInfo.wheelFile,
+        wheelFileName=wheelInfo.wheelFileName,
         sha256=wheelInfo.sha256,
     )
     if (
         manifestObj.id != artifactDict["componentId"]
         or manifestObj.packageName != artifactDict["packageName"]
         or manifestObj.version != artifactDict["version"]
-        or wheelInfo.wheelFile != artifactDict["wheelFile"]
+        or wheelInfo.wheelFileName != artifactDict["wheelFileName"]
         or wheelInfo.sha256 != artifactDict["sha256"]
         or dictActualVersionEntry != artifactDict["versionEntry"]
     ):
         raise ComponentManagementError(
             code=errorCode,
             message="A Wheel identity does not match its interrupted Repository import transaction.",
-            details={"wheelFile": str(wheelPath)},
+            details={"wheelPath": str(wheelPath)},
         )
 
 
 def _inspect_import_transaction_state(
     repositoryPath: Path,
     indexDict: DictRepository_Index,
-    transactionPath: Path,
+    transactionFolderPath: Path,
     transactionFilePath: Path,
     transactionDict: DictRepository_Transaction_Import,
     *,
-    errorCode: Literal["repository_recovery_failed", "repository_rebuild_failed"],
+    errorCode: Str_Repository_Error_Code,
 ) -> list[
-    tuple[DictRepository_Transaction_ImportArtifact, Path | None, Path | None, DictRepository_ComponentVersion | None]
+    tuple[
+        DictRepository_Transaction_ImportArtifact,
+        Path | None,
+        Path | None,
+        DictRepository_ComponentVersionEntry | None,
+    ]
 ]:
-    pathArtifacts = transactionPath / "artifacts"
-    if is_folder_invalid(pathArtifacts):
+    pathArtifactsFolder = transactionFolderPath / "artifacts"
+    if is_folder_invalid(pathArtifactsFolder):
         raise ComponentManagementError(
             code=errorCode,
             message="An interrupted Repository import transaction has an invalid artifacts folder.",
-            details={"transactionFile": str(transactionFilePath)},
+            details={"transactionFilePath": str(transactionFilePath)},
         )
 
     listState: list[
@@ -301,13 +334,17 @@ def _inspect_import_transaction_state(
             DictRepository_Transaction_ImportArtifact,
             Path | None,
             Path | None,
-            DictRepository_ComponentVersion | None,
+            DictRepository_ComponentVersionEntry | None,
         ]
     ] = []
 
     for dictArtifact in transactionDict["artifacts"]:
-        pathStaged = pathArtifacts.joinpath(*PurePosixPath(dictArtifact["artifactRelativePath"]).parts)
-        pathTarget = repositoryPath.joinpath(*PurePosixPath(dictArtifact["targetRelativePath"]).parts)
+        pathStaged = pathArtifactsFolder.joinpath(
+            *PurePosixPath(dictArtifact["artifactRelativePath"]).parts
+        )
+        pathTarget = repositoryPath.joinpath(
+            *PurePosixPath(dictArtifact["targetRelativePath"]).parts
+        )
         boolStagedExists = path_exists(pathStaged)
         boolTargetExists = path_exists(pathTarget)
 
@@ -316,9 +353,9 @@ def _inspect_import_transaction_state(
                 code=errorCode,
                 message="An interrupted Repository import transaction has both staged and committed copies of a Wheel.",
                 details={
-                    "transactionFile": str(transactionFilePath),
-                    "stagedWheel": str(pathStaged),
-                    "targetWheel": str(pathTarget),
+                    "transactionFilePath": str(transactionFilePath),
+                    "stagedWheelPath": str(pathStaged),
+                    "targetWheelPath": str(pathTarget),
                 },
             )
 
@@ -327,8 +364,8 @@ def _inspect_import_transaction_state(
                 code=errorCode,
                 message="A Wheel is missing from an interrupted Repository import transaction.",
                 details={
-                    "transactionFile": str(transactionFilePath),
-                    "wheelFile": dictArtifact["wheelFile"],
+                    "transactionFilePath": str(transactionFilePath),
+                    "wheelFileName": dictArtifact["wheelFileName"],
                 },
             )
 
@@ -337,45 +374,53 @@ def _inspect_import_transaction_state(
                 code=errorCode,
                 message="An interrupted Repository import transaction recorded all Wheels as committed, but a target Wheel is missing.",
                 details={
-                    "transactionFile": str(transactionFilePath),
-                    "wheelFile": str(pathTarget),
+                    "transactionFilePath": str(transactionFilePath),
+                    "wheelPath": str(pathTarget),
                 },
             )
 
         if boolStagedExists:
-            _validate_wheel_against_artifact(pathStaged, dictArtifact, errorCode=errorCode)
+            _validate_wheel_against_artifact(
+                pathStaged, dictArtifact, errorCode=errorCode
+            )
         if boolTargetExists:
-            _validate_wheel_against_artifact(pathTarget, dictArtifact, errorCode=errorCode)
+            _validate_wheel_against_artifact(
+                pathTarget, dictArtifact, errorCode=errorCode
+            )
 
         dictComponent = indexDict["components"].get(dictArtifact["componentId"])
-        dictExistingVersion = (
-            None if dictComponent is None else find_equivalent_version(dictComponent, dictArtifact["version"])
+        dictExistingVersionEntry = (
+            None
+            if dictComponent is None
+            else find_equivalent_version(dictComponent, dictArtifact["version"])
         )
-        if dictExistingVersion is not None:
-            if dictExistingVersion != dictArtifact["versionEntry"]:
+        if dictExistingVersionEntry is not None:
+            if dictExistingVersionEntry != dictArtifact["versionEntry"]:
                 raise ComponentManagementError(
                     code=errorCode,
                     message="The Repository index conflicts with an interrupted import transaction.",
-                    details={"transactionFile": str(transactionFilePath)},
+                    details={"transactionFilePath": str(transactionFilePath)},
                 )
             if not boolTargetExists:
                 raise ComponentManagementError(
                     code=errorCode,
                     message="The Repository index references a Wheel that is still only in import staging.",
-                    details={"transactionFile": str(transactionFilePath)},
+                    details={"transactionFilePath": str(transactionFilePath)},
                 )
 
         listState.append((
             dictArtifact,
             pathStaged if boolStagedExists else None,
             pathTarget if boolTargetExists else None,
-            dictExistingVersion,
+            dictExistingVersionEntry,
         ))
 
     return listState
 
 
-def recover_import_transactions(repositoryPath: Path) -> list[DictComponentManagementWarning]:
+def recover_import_transactions(
+    repositoryPath: Path,
+) -> list[DictComponentManagementWarning]:
     listCleanupPath, listTransaction = _collect_import_transactions(
         repositoryPath,
         errorCode="repository_recovery_failed",
@@ -391,11 +436,11 @@ def recover_import_transactions(repositoryPath: Path) -> list[DictComponentManag
 
     dictIndex = load_repository_index(repositoryPath, checkWheelPaths=False)
 
-    for pathTransaction, pathTransactionFile, dictTransaction in listTransaction:
+    for pathTransactionFolder, pathTransactionFile, dictTransaction in listTransaction:
         listState = _inspect_import_transaction_state(
             repositoryPath,
             dictIndex,
-            pathTransaction,
+            pathTransactionFolder,
             pathTransactionFile,
             dictTransaction,
             errorCode="repository_recovery_failed",
@@ -405,15 +450,17 @@ def recover_import_transactions(repositoryPath: Path) -> list[DictComponentManag
             for dictArtifact, pathStaged, pathTarget, _ in listState:
                 if pathTarget is None:
                     assert pathStaged is not None
-                    pathTarget = repositoryPath.joinpath(*PurePosixPath(dictArtifact["targetRelativePath"]).parts)
+                    pathTarget = repositoryPath.joinpath(
+                        *PurePosixPath(dictArtifact["targetRelativePath"]).parts
+                    )
                     pathTarget.parent.mkdir(parents=True, exist_ok=True)
                     os.replace(pathStaged, pathTarget)
 
             dictTransaction["state"] = "wheelsCommitted"
             write_json_atomic(pathTransactionFile, dictTransaction)
 
-            for dictArtifact, _, _, dictExistingVersion in listState:
-                if dictExistingVersion is None:
+            for dictArtifact, _, _, dictExistingVersionEntry in listState:
+                if dictExistingVersionEntry is None:
                     add_version_to_index(
                         indexDict=dictIndex,
                         componentId=dictArtifact["componentId"],
@@ -428,10 +475,10 @@ def recover_import_transactions(repositoryPath: Path) -> list[DictComponentManag
             raise ComponentManagementError(
                 code="repository_recovery_failed",
                 message="Failed to finish an interrupted Component Repository import transaction.",
-                details={"transactionFile": str(pathTransactionFile)},
+                details={"transactionFilePath": str(pathTransactionFile)},
             ) from e
 
-        dictWarning = remove_repository_transaction_folder(pathTransaction)
+        dictWarning = remove_repository_transaction_folder(pathTransactionFolder)
         if dictWarning is not None:
             listWarning.append(dictWarning)
 
@@ -461,7 +508,9 @@ def validate_import_transactions_for_rebuild(
             for dictArtifact, pathStaged, pathTarget, dictExistingVersion in listState:
                 if pathTarget is None:
                     assert pathStaged is not None
-                    pathTarget = repositoryPath.joinpath(*PurePosixPath(dictArtifact["targetRelativePath"]).parts)
+                    pathTarget = repositoryPath.joinpath(
+                        *PurePosixPath(dictArtifact["targetRelativePath"]).parts
+                    )
                     pathTarget.parent.mkdir(parents=True, exist_ok=True)
                     os.replace(pathStaged, pathTarget)
 
@@ -481,7 +530,7 @@ def validate_import_transactions_for_rebuild(
             raise ComponentManagementError(
                 code="repository_rebuild_failed",
                 message="Failed to finish an interrupted Component Repository import transaction during rebuild.",
-                details={"transactionFile": str(pathTransactionFile)},
+                details={"transactionFilePath": str(pathTransactionFile)},
             ) from e
 
         listCleanupPath.append(pathTransaction)

@@ -1,7 +1,7 @@
 # ruff.toml
 
 target-version = "py313"
-line-length = 120
+line-length = 90
 indent-width = 4
 
 # Do not let Ruff automatically modify code.

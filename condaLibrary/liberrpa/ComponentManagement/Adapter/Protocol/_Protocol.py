@@ -11,8 +11,8 @@ from liberrpa.ComponentManagement.Adapter.Protocol._Request import parse_protoco
 from liberrpa.ComponentManagement.Adapter.Protocol._Response import (
     build_error_response,
     build_publish_response,
-    build_repository_index_rebuilt_response,
     build_component_wheels_imported_response,
+    build_repository_index_rebuilt_response,
     build_repository_catalog_response,
     build_project_dependency_state_response,
     build_project_dependency_plan_response,
@@ -40,14 +40,14 @@ def handle_request(requestInfo: str) -> DictProtocolResponse:
             case "publishComponent":
                 return build_publish_response(publish_component(dictRequest["projectPath"]))
 
-            case "rebuildRepositoryIndex":
-                return build_repository_index_rebuilt_response(rebuild_repository_index())
-
             case "importComponentWheels":
                 importResult = import_component_wheels([
                     Path(strWheelPath) for strWheelPath in dictRequest["wheelPaths"]
                 ])
                 return build_component_wheels_imported_response(importResult)
+
+            case "rebuildRepositoryIndex":
+                return build_repository_index_rebuilt_response(rebuild_repository_index())
 
             case "getComponentRepositoryCatalog":
                 pathRepository, dictRepositoryIndex, listWarning = load_repository_catalog_snapshot()

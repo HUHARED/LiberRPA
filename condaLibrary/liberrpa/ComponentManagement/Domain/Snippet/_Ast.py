@@ -5,7 +5,9 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from liberrpa.ComponentManagement.Common._Exception import ComponentManagementError
-from liberrpa.ComponentManagement.Types._Warning import DictComponentManagementWarning_SnippetDiagnostic
+from liberrpa.ComponentManagement.Types._Warning import (
+    DictComponentManagementWarning_SnippetDiagnostic,
+)
 from liberrpa.ComponentManagement.Types._Manifest import Info_ProjectManifest_Component
 from liberrpa.ComponentManagement.Types._Snippet import (
     DictSnippet_Normalized,
@@ -61,14 +63,21 @@ def _escape_snippet_placeholder_text(value: str) -> str:
 
 
 def _is_supported_literal(value: object) -> bool:
-    if value is None or value is Ellipsis or isinstance(value, bool | int | float | complex | str | bytes):
+    if (
+        value is None
+        or value is Ellipsis
+        or isinstance(value, bool | int | float | complex | str | bytes)
+    ):
         return True
 
     if isinstance(value, list | tuple):
         return all(_is_supported_literal(item) for item in value)
 
     if isinstance(value, dict):
-        return all(_is_supported_literal(key) and _is_supported_literal(item) for key, item in value.items())
+        return all(
+            _is_supported_literal(key) and _is_supported_literal(item)
+            for key, item in value.items()
+        )
 
     return False
 
@@ -77,7 +86,9 @@ def _get_default_source(defaultObj: ast.expr) -> str:
     try:
         value = ast.literal_eval(defaultObj)
     except (ValueError, TypeError, SyntaxError, MemoryError, RecursionError) as e:
-        raise ValueError("The parameter default value is not a supported static literal.") from e
+        raise ValueError(
+            "The parameter default value is not a supported static literal."
+        ) from e
 
     if not _is_supported_literal(value):
         raise ValueError("The parameter default value is not a supported static literal.")
@@ -95,19 +106,25 @@ def _get_annotation_name(annotationObj: ast.expr | None) -> str | None:
         return None
 
 
-def _get_literal_choices(annotationObj: ast.expr | None, defaultSource: str | None) -> list[str] | None:
+def _get_literal_choices(
+    annotationObj: ast.expr | None, defaultSource: str | None
+) -> list[str] | None:
     if not isinstance(annotationObj, ast.Subscript):
         return None
 
     valueObj = annotationObj.value
     boolIsLiteral = isinstance(valueObj, ast.Name) and valueObj.id == "Literal"
-    boolIsTypingLiteral = isinstance(valueObj, ast.Attribute) and valueObj.attr == "Literal"
+    boolIsTypingLiteral = (
+        isinstance(valueObj, ast.Attribute) and valueObj.attr == "Literal"
+    )
 
     if not boolIsLiteral and not boolIsTypingLiteral:
         return None
 
     listElement = (
-        list(annotationObj.slice.elts) if isinstance(annotationObj.slice, ast.Tuple) else [annotationObj.slice]
+        list(annotationObj.slice.elts)
+        if isinstance(annotationObj.slice, ast.Tuple)
+        else [annotationObj.slice]
     )
     listChoice: list[str] = []
 
@@ -123,13 +140,20 @@ def _get_literal_choices(annotationObj: ast.expr | None, defaultSource: str | No
         listChoice.append(repr(value))
 
     if defaultSource is not None and defaultSource in listChoice:
-        listChoice = [defaultSource, *(choice for choice in listChoice if choice != defaultSource)]
+        listChoice = [
+            defaultSource,
+            *(choice for choice in listChoice if choice != defaultSource),
+        ]
 
     return listChoice
 
 
-def _get_bool_choices(annotationObj: ast.expr | None, defaultSource: str | None) -> list[str] | None:
-    boolHasBoolAnnotation = isinstance(annotationObj, ast.Name) and annotationObj.id == "bool"
+def _get_bool_choices(
+    annotationObj: ast.expr | None, defaultSource: str | None
+) -> list[str] | None:
+    boolHasBoolAnnotation = (
+        isinstance(annotationObj, ast.Name) and annotationObj.id == "bool"
+    )
     boolHasBoolDefault = defaultSource in {"True", "False"}
 
     if not boolHasBoolAnnotation and not boolHasBoolDefault:
@@ -152,6 +176,7 @@ def _format_parameter(
     positionalOnly: bool,
 ) -> str:
     strDefaultSource = _get_default_source(defaultObj) if defaultObj is not None else None
+
     listChoice = _get_literal_choices(parameterObj.annotation, strDefaultSource)
 
     if listChoice is None:
@@ -253,7 +278,9 @@ def _build_function_body(moduleAlias: str, functionObj: ast.FunctionDef) -> list
         )
         intIndex += 1
 
-    for parameterObj, defaultObj in zip(argumentsObj.kwonlyargs, argumentsObj.kw_defaults, strict=True):
+    for parameterObj, defaultObj in zip(
+        argumentsObj.kwonlyargs, argumentsObj.kw_defaults, strict=True
+    ):
         listCallParameter.append(
             _format_parameter(
                 parameterObj,
@@ -336,11 +363,12 @@ def _scan_module(
             message=f"Public Component Module filename is not a valid Python identifier: {modulePath.name}",
             details={"file": modulePath.relative_to(projectPath).as_posix()},
         )
-
     if keyword.iskeyword(strModuleName):
         raise ComponentManagementError(
             code="component_source_invalid",
-            message=(f"Public Component Module filename cannot use a Python keyword: {modulePath.name}"),
+            message=(
+                f"Public Component Module filename cannot use a Python keyword: {modulePath.name}"
+            ),
             details={"file": modulePath.relative_to(projectPath).as_posix()},
         )
 
@@ -360,19 +388,24 @@ def _scan_module(
                     f"Public Component Module {strModuleName!r} does not use the recommended "
                     "PascalCase naming convention."
                 ),
+                functionName=None,
             )
         )
 
     dictFunctionDefinition: dict[str, list[ast.FunctionDef | ast.AsyncFunctionDef]] = {}
-
     for statementObj in moduleObj.body:
-        if isinstance(statementObj, ast.FunctionDef | ast.AsyncFunctionDef) and not statementObj.name.startswith("_"):
+        if isinstance(
+            statementObj, ast.FunctionDef | ast.AsyncFunctionDef
+        ) and not statementObj.name.startswith("_"):
             dictFunctionDefinition.setdefault(statementObj.name, []).append(statementObj)
 
     listImplementation: list[ast.FunctionDef | ast.AsyncFunctionDef] = []
-
     for strFunctionName, listDefinition in dictFunctionDefinition.items():
-        listNonOverload = [functionObj for functionObj in listDefinition if not _is_overload_function(functionObj)]
+        listNonOverload = [
+            functionObj
+            for functionObj in listDefinition
+            if not _is_overload_function(functionObj)
+        ]
 
         if len(listNonOverload) == 0:
             listSkipped.append(
@@ -381,8 +414,8 @@ def _scan_module(
                     modulePath=modulePath,
                     projectPath=projectPath,
                     line=listDefinition[0].lineno,
-                    functionName=strFunctionName,
                     message="Only overload declarations were found; a concrete function implementation is required.",
+                    functionName=strFunctionName,
                 )
             )
             continue
@@ -394,8 +427,8 @@ def _scan_module(
                     modulePath=modulePath,
                     projectPath=projectPath,
                     line=listNonOverload[1].lineno,
-                    functionName=strFunctionName,
                     message="More than one public implementation with the same function name was found.",
+                    functionName=strFunctionName,
                 )
             )
             continue
@@ -492,8 +525,12 @@ def scan_component_snippets(
         listSkipped.extend(listModuleSkipped)
         listWarning.extend(listModuleWarning)
 
-    listSkipped.sort(key=lambda item: (item["file"], item["line"], item.get("functionName", "")))
-    listWarning.sort(key=lambda item: (item["file"], item["line"], item.get("functionName", "")))
+    listSkipped.sort(
+        key=lambda item: (item["file"], item["line"], item.get("functionName", ""))
+    )
+    listWarning.sort(
+        key=lambda item: (item["file"], item["line"], item.get("functionName", ""))
+    )
 
     return {
         "schemaVersion": 1,

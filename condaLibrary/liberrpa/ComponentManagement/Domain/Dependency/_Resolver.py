@@ -12,7 +12,7 @@ from liberrpa.ComponentManagement.Types._Manifest import (
     Info_ProjectManifest,
 )
 from liberrpa.ComponentManagement.Types._Repository import (
-    DictRepository_ComponentVersion,
+    DictRepository_ComponentVersionEntry,
     DictRepository_Component,
     DictRepository_Index,
 )
@@ -21,7 +21,7 @@ from liberrpa.ComponentManagement.Types._Components import (
     DictComponentsLock_File,
 )
 from liberrpa.ComponentManagement.Domain.Dependency._ComponentsLock import build_components_lock
-from liberrpa.ComponentManagement.Domain.Repository._Index import normalize_component_id, find_equivalent_version
+from liberrpa.ComponentManagement.Domain.Repository._Index import validate_component_id, find_equivalent_version
 
 from dataclasses import dataclass
 from packaging.specifiers import SpecifierSet
@@ -37,7 +37,7 @@ class _DependencyRequirement:
 @dataclass(frozen=True)
 class _SelectedComponent:
     packageName: str
-    versionEntry: DictRepository_ComponentVersion
+    versionEntry: DictRepository_ComponentVersionEntry
 
 
 @dataclass(frozen=True)
@@ -45,13 +45,13 @@ class _ResolutionChoice:
     componentId: str
     repositoryComponent: DictRepository_Component
     requirementList: list[_DependencyRequirement]
-    candidateVersionList: list[DictRepository_ComponentVersion]
+    candidateVersionList: list[DictRepository_ComponentVersionEntry]
 
 
 @dataclass(frozen=True)
 class _CandidateVersionResult:
-    candidateVersionList: list[DictRepository_ComponentVersion]
-    incompatibleVersionList: list[DictRepository_ComponentVersion]
+    candidateVersionList: list[DictRepository_ComponentVersionEntry]
+    incompatibleVersionList: list[DictRepository_ComponentVersionEntry]
 
 
 @dataclass(frozen=True)
@@ -108,7 +108,7 @@ def _is_existing_locked_artifact(
     contextObj: _ResolutionContext,
     componentId: str,
     packageName: str,
-    versionEntry: DictRepository_ComponentVersion,
+    versionEntry: DictRepository_ComponentVersionEntry,
 ) -> bool:
     if contextObj.existingLock is None:
         return False
@@ -124,7 +124,7 @@ def _is_component_version_allowed_by_environment(
     contextObj: _ResolutionContext,
     componentId: str,
     packageName: str,
-    versionEntry: DictRepository_ComponentVersion,
+    versionEntry: DictRepository_ComponentVersionEntry,
 ) -> bool:
     if SpecifierSet(versionEntry["requiresLiberrpa"]).contains(contextObj.installedLiberrpaVersion):
         return True
@@ -383,13 +383,13 @@ def _validate_candidate_package_name(
 
 def _build_locked_component(
     packageName: str,
-    versionEntry: DictRepository_ComponentVersion,
+    versionEntry: DictRepository_ComponentVersionEntry,
 ) -> DictComponentsLock_Component:
     return {
         "packageName": packageName,
         "displayName": versionEntry["displayName"],
         "version": versionEntry["version"],
-        "wheelFile": versionEntry["wheelFile"],
+        "wheelFileName": versionEntry["wheelFileName"],
         "sha256": versionEntry["sha256"],
         "requiresLiberrpa": versionEntry["requiresLiberrpa"],
         "componentDependencies": dict(versionEntry["componentDependencies"]),
@@ -581,7 +581,7 @@ def resolve_project_dependencies(
     """Resolve the complete exact Component closure for a normalized Project Manifest."""
     try:
         setUpdateComponentId = {
-            normalize_component_id(componentId, f"updateComponentIdSet.{componentId}")
+            validate_component_id(componentId, f"updateComponentIdSet.{componentId}")
             for componentId in (updateComponentIdSet or set())
         }
     except ValueError as e:

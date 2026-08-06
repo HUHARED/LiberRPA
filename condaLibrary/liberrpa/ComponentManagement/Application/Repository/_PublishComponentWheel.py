@@ -25,14 +25,22 @@ from liberrpa.ComponentManagement.Domain.Repository._Index import (
     find_equivalent_version,
     add_version_to_index,
 )
-from liberrpa.ComponentManagement.Domain.Repository._RepositoryPath import get_repository_path
-from liberrpa.ComponentManagement.Domain.Repository._Structure import initialize_repository_structure
-from liberrpa.ComponentManagement.Domain.Repository._Transaction import recover_repository_transactions
+from liberrpa.ComponentManagement.Domain.Repository._RepositoryPath import (
+    get_repository_path,
+)
+from liberrpa.ComponentManagement.Domain.Repository._Structure import (
+    initialize_repository_structure,
+)
+from liberrpa.ComponentManagement.Domain.Repository._Transaction import (
+    recover_repository_transactions,
+)
 from liberrpa.ComponentManagement.Domain.Repository._TransactionStorage import (
     copy_wheel_to_staging,
     remove_repository_transaction_folder,
 )
-from liberrpa.ComponentManagement.Domain.Repository._VersionEntry import build_repository_version_entry
+from liberrpa.ComponentManagement.Domain.Repository._VersionEntry import (
+    build_repository_version_entry,
+)
 
 import os
 import uuid
@@ -44,19 +52,23 @@ def publish_component_wheel(
 ) -> Info_Repository_PublishResult:
     pathRepository = get_repository_path()
 
-    with repository_lock(repositoryPath=pathRepository, operation="publishComponent"):
+    with repository_lock(pathRepository, "publishComponent"):
         _, pathStaging = initialize_repository_structure(pathRepository)
 
         listWarning = recover_repository_transactions(pathRepository)
+
         dictIndex = load_repository_index(pathRepository, checkWheelPaths=True)
         dictComponent = dictIndex["components"].get(manifestObj.id)
         dictVersionEntry = build_repository_version_entry(
             manifestObj=manifestObj,
-            wheelFile=wheelResult.wheelFile,
+            wheelFileName=wheelResult.wheelFileName,
             sha256=wheelResult.sha256,
         )
 
-        if dictComponent is not None and dictComponent["packageName"] != manifestObj.packageName:
+        if (
+            dictComponent is not None
+            and dictComponent["packageName"] != manifestObj.packageName
+        ):
             raise ComponentManagementError(
                 code="component_identity_conflict",
                 message=(
@@ -69,41 +81,43 @@ def publish_component_wheel(
                 },
             )
 
-        dictExistingVersion = (
-            None if dictComponent is None else find_equivalent_version(dictComponent, manifestObj.version)
+        dictExistingVersionEntry = (
+            None
+            if dictComponent is None
+            else find_equivalent_version(dictComponent, manifestObj.version)
         )
-        if dictExistingVersion is not None:
+        if dictExistingVersionEntry is not None:
             pathExistingWheel = get_wheel_path(
                 repositoryPath=pathRepository,
                 componentId=manifestObj.id,
                 packageName=manifestObj.packageName,
-                wheelFile=dictExistingVersion["wheelFile"],
+                wheelFileName=dictExistingVersionEntry["wheelFileName"],
             )
             if is_file_invalid(pathExistingWheel):
                 raise_rebuild_required(
                     "A Component Wheel referenced by repository.json is missing.",
-                    {"wheelFile": str(pathExistingWheel)},
+                    {"wheelPath": str(pathExistingWheel)},
                 )
 
             strExistingSha256 = calculate_file_sha256(pathExistingWheel)
-            if strExistingSha256 != dictExistingVersion["sha256"]:
+            if strExistingSha256 != dictExistingVersionEntry["sha256"]:
                 raise_rebuild_required(
                     "A Component Wheel does not match the SHA-256 stored in repository.json.",
                     {
-                        "wheelFile": str(pathExistingWheel),
-                        "expectedSha256": dictExistingVersion["sha256"],
+                        "wheelPath": str(pathExistingWheel),
+                        "expectedSha256": dictExistingVersionEntry["sha256"],
                         "actualSha256": strExistingSha256,
                     },
                 )
 
             if strExistingSha256 == wheelResult.sha256:
-                if dictExistingVersion != dictVersionEntry:
+                if dictExistingVersionEntry != dictVersionEntry:
                     raise_rebuild_required(
                         "The Component version metadata in repository.json does not match the stored Wheel.",
                         {
                             "componentId": manifestObj.id,
                             "version": manifestObj.version,
-                            "existingVersionEntry": dictExistingVersion,
+                            "existingVersionEntry": dictExistingVersionEntry,
                             "expectedVersionEntry": dictVersionEntry,
                         },
                     )
@@ -132,7 +146,7 @@ def publish_component_wheel(
                 code="wheel_sha256_mismatch",
                 message="The built Component Wheel changed before it was published.",
                 details={
-                    "wheelFile": str(wheelResult.wheelPath),
+                    "wheelPath": str(wheelResult.wheelPath),
                     "expectedSha256": wheelResult.sha256,
                     "actualSha256": strBuiltSha256,
                 },
@@ -145,7 +159,7 @@ def publish_component_wheel(
             repositoryPath=pathRepository,
             componentId=manifestObj.id,
             packageName=manifestObj.packageName,
-            wheelFile=wheelResult.wheelFile,
+            wheelFileName=wheelResult.wheelFileName,
         )
         strTargetRelativePath = pathTargetWheel.relative_to(pathRepository).as_posix()
         dictTransaction: DictRepository_Transaction_Publish = {
@@ -155,10 +169,10 @@ def publish_component_wheel(
             "componentId": manifestObj.id,
             "packageName": manifestObj.packageName,
             "version": manifestObj.version,
-            "wheelFile": wheelResult.wheelFile,
+            "versionEntry": dictVersionEntry,
+            "wheelFileName": wheelResult.wheelFileName,
             "sha256": wheelResult.sha256,
             "targetRelativePath": strTargetRelativePath,
-            "versionEntry": dictVersionEntry,
         }
 
         try:
@@ -177,7 +191,7 @@ def publish_component_wheel(
             if path_exists(pathTargetWheel):
                 raise_rebuild_required(
                     "An unindexed Component Wheel already exists at the publish target.",
-                    {"wheelFile": str(pathTargetWheel)},
+                    {"wheelPath": str(pathTargetWheel)},
                 )
 
             os.replace(pathCandidate, pathTargetWheel)
@@ -200,7 +214,9 @@ def publish_component_wheel(
                 details={"repositoryPath": str(pathRepository)},
             ) from e
 
-        dictWarning: DictComponentManagementWarning | None = remove_repository_transaction_folder(pathTransaction)
+        dictWarning: DictComponentManagementWarning | None = (
+            remove_repository_transaction_folder(pathTransaction)
+        )
         if dictWarning is not None:
             listWarning.append(dictWarning)
 

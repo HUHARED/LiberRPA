@@ -10,8 +10,8 @@ from liberrpa.ComponentManagement.Common._File import parse_json
 from liberrpa.ComponentManagement.Common._Validation import validate_exact_keys
 from liberrpa.ComponentManagement.Types._Protocol import (
     DictProtocolRequest_PublishComponent,
-    DictProtocolRequest_RebuildRepositoryIndex,
     DictProtocolRequest_ImportComponentWheels,
+    DictProtocolRequest_RebuildRepositoryIndex,
     DictProtocolRequest_GetComponentRepositoryCatalog,
     DictProtocolRequest_GetProjectDependencyState,
     DictProtocolRequest_BuildProjectDependencyPlan,
@@ -23,25 +23,47 @@ from liberrpa.ComponentManagement.Types._Protocol import (
 from typing import NoReturn, cast
 
 
-_SET_PUBLISH_REQUEST_KEYS = {"schemaVersion", "operation", "projectPath"}
-_SET_REBUILD_REQUEST_KEYS = {"schemaVersion", "operation"}
-_SET_IMPORT_WHEELS_REQUEST_KEYS = {"schemaVersion", "operation", "wheelPaths"}
-_SET_GET_REPOSITORY_CATALOG_REQUEST_KEYS = {"schemaVersion", "operation"}
-_SET_GET_STATE_REQUEST_KEYS = {"schemaVersion", "operation", "projectPath"}
-_SET_BUILD_PLAN_REQUEST_KEYS = {
+_SET_REQUEST_KEYS_PUBLISH_COMPONENT = {
+    "schemaVersion",
+    "operation",
+    "projectPath",
+}
+_SET_REQUEST_KEYS_IMPORT_COMPONENT_WHEELS = {
+    "schemaVersion",
+    "operation",
+    "wheelPaths",
+}
+_SET_REQUEST_KEYS_REBUILD_REPOSITORY_INDEX = {
+    "schemaVersion",
+    "operation",
+}
+_SET_REQUEST_KEYS_GET_COMPONENT_REPOSITORY_CATALOG = {
+    "schemaVersion",
+    "operation",
+}
+_SET_REQUEST_KEYS_GET_PROJECT_DEPENDENCY_STATE = {
+    "schemaVersion",
+    "operation",
+    "projectPath",
+}
+_SET_REQUEST_KEYS_BUILD_PROJECT_DEPENDENCY_PLAN = {
     "schemaVersion",
     "operation",
     "projectPath",
     "dependencyOperation",
 }
-_SET_APPLY_PLAN_REQUEST_KEYS = {
+_SET_REQUEST_KEYS_APPLY_PROJECT_DEPENDENCY_PLAN = {
     "schemaVersion",
     "operation",
     "projectPath",
     "dependencyOperation",
     "confirmedPlanSha256",
 }
-_SET_REPAIR_REQUEST_KEYS = {"schemaVersion", "operation", "projectPath"}
+_SET_REQUEST_KEYS_REPAIR_PROJECT_COMPONENTS = {
+    "schemaVersion",
+    "operation",
+    "projectPath",
+}
 
 
 def _raise_invalid_request(
@@ -69,10 +91,9 @@ def _validate_request_keys(
         )
 
 
-def _validate_project_path_value(value: object) -> str:
+def _validate_project_path_value(value: object) -> None:
     if not isinstance(value, str) or value.strip() == "":
         _raise_invalid_request("projectPath must be a non-empty string.")
-    return value
 
 
 def parse_protocol_request(requestInfo: str) -> DictProtocolRequest:
@@ -91,60 +112,103 @@ def parse_protocol_request(requestInfo: str) -> DictProtocolRequest:
         _raise_invalid_request("Component Management request root must be an object.")
 
     if type(value.get("schemaVersion")) is not int or value.get("schemaVersion") != 1:
-        _raise_invalid_request("Only Component Management protocol schemaVersion 1 is supported.")
+        _raise_invalid_request(
+            "Only Component Management protocol schemaVersion 1 is supported."
+        )
 
     operation = value.get("operation")
     match operation:
         case "publishComponent":
-            _validate_request_keys(value, _SET_PUBLISH_REQUEST_KEYS, "Publish Component")
+            _validate_request_keys(
+                value, _SET_REQUEST_KEYS_PUBLISH_COMPONENT, "Publish Component"
+            )
+
             _validate_project_path_value(value.get("projectPath"))
+
             return cast(DictProtocolRequest_PublishComponent, value)
 
-        case "rebuildRepositoryIndex":
-            _validate_request_keys(value, _SET_REBUILD_REQUEST_KEYS, "Rebuild Repository Index")
-            return cast(DictProtocolRequest_RebuildRepositoryIndex, value)
-
         case "importComponentWheels":
-            _validate_request_keys(value, _SET_IMPORT_WHEELS_REQUEST_KEYS, "Import Component Wheels")
+            _validate_request_keys(
+                value,
+                _SET_REQUEST_KEYS_IMPORT_COMPONENT_WHEELS,
+                "Import Component Wheels",
+            )
+
             wheelPaths = value.get("wheelPaths")
             if not isinstance(wheelPaths, list) or not wheelPaths:
                 _raise_invalid_request("wheelPaths must be a non-empty array of strings.")
-            if any(not isinstance(wheelPath, str) or wheelPath.strip() == "" for wheelPath in wheelPaths):
+            if any(
+                not isinstance(wheelPath, str) or wheelPath.strip() == ""
+                for wheelPath in wheelPaths
+            ):
                 _raise_invalid_request("wheelPaths must be a non-empty array of strings.")
+
             return cast(DictProtocolRequest_ImportComponentWheels, value)
+
+        case "rebuildRepositoryIndex":
+            _validate_request_keys(
+                value,
+                _SET_REQUEST_KEYS_REBUILD_REPOSITORY_INDEX,
+                "Rebuild Repository Index",
+            )
+            return cast(DictProtocolRequest_RebuildRepositoryIndex, value)
 
         case "getComponentRepositoryCatalog":
             _validate_request_keys(
                 value,
-                _SET_GET_REPOSITORY_CATALOG_REQUEST_KEYS,
+                _SET_REQUEST_KEYS_GET_COMPONENT_REPOSITORY_CATALOG,
                 "Get Component Repository Catalog",
             )
             return cast(DictProtocolRequest_GetComponentRepositoryCatalog, value)
 
         case "getProjectDependencyState":
-            _validate_request_keys(value, _SET_GET_STATE_REQUEST_KEYS, "Get Project Dependency State")
+            _validate_request_keys(
+                value,
+                _SET_REQUEST_KEYS_GET_PROJECT_DEPENDENCY_STATE,
+                "Get Project Dependency State",
+            )
+
             _validate_project_path_value(value.get("projectPath"))
+
             return cast(DictProtocolRequest_GetProjectDependencyState, value)
 
         case "buildProjectDependencyPlan":
-            _validate_request_keys(value, _SET_BUILD_PLAN_REQUEST_KEYS, "Build Project Dependency Plan")
+            _validate_request_keys(
+                value,
+                _SET_REQUEST_KEYS_BUILD_PROJECT_DEPENDENCY_PLAN,
+                "Build Project Dependency Plan",
+            )
+
             _validate_project_path_value(value.get("projectPath"))
             if not isinstance(value.get("dependencyOperation"), dict):
                 _raise_invalid_request("dependencyOperation must be an object.")
+
             return cast(DictProtocolRequest_BuildProjectDependencyPlan, value)
 
         case "applyProjectDependencyPlan":
-            _validate_request_keys(value, _SET_APPLY_PLAN_REQUEST_KEYS, "Apply Project Dependency Plan")
+            _validate_request_keys(
+                value,
+                _SET_REQUEST_KEYS_APPLY_PROJECT_DEPENDENCY_PLAN,
+                "Apply Project Dependency Plan",
+            )
+
             _validate_project_path_value(value.get("projectPath"))
             if not isinstance(value.get("dependencyOperation"), dict):
                 _raise_invalid_request("dependencyOperation must be an object.")
             if not isinstance(value.get("confirmedPlanSha256"), str):
                 _raise_invalid_request("confirmedPlanSha256 must be a string.")
+
             return cast(DictProtocolRequest_ApplyProjectDependencyPlan, value)
 
         case "repairProjectComponents":
-            _validate_request_keys(value, _SET_REPAIR_REQUEST_KEYS, "Repair Project Components")
+            _validate_request_keys(
+                value,
+                _SET_REQUEST_KEYS_REPAIR_PROJECT_COMPONENTS,
+                "Repair Project Components",
+            )
+
             _validate_project_path_value(value.get("projectPath"))
+
             return cast(DictProtocolRequest_RepairProjectComponents, value)
 
         case _:

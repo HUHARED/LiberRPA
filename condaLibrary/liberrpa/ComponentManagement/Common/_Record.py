@@ -73,7 +73,9 @@ def validate_record(
 
         if strPath == recordPath:
             if strHash != "" or strSize != "":
-                raise ValueError("The Wheel RECORD row for RECORD itself must have empty hash and size fields.")
+                raise ValueError(
+                    "The Wheel RECORD row for RECORD itself must have empty hash and size fields."
+                )
             continue
 
         value = readArchiveFile(strPath)
