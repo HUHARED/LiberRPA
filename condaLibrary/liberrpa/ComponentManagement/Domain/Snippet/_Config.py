@@ -7,7 +7,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 from liberrpa.ComponentManagement.Common._Exception import ComponentManagementError
 from liberrpa.ComponentManagement.Common._File import read_jsonc, write_text_atomic
 from liberrpa.ComponentManagement.Common._Validation import (
-    add_issue,
+    add_validation_issue,
     validate_json_object_fields,
 )
 from liberrpa.ComponentManagement.Types._Warning import (
@@ -117,11 +117,11 @@ def _validate_single_line_string(
 ) -> str | None:
     """Validate a non-empty single-line Snippet label or prefix."""
     if not isinstance(value, str) or value.strip() == "":
-        add_issue(issueList, field, "Value must be a non-empty string.")
+        add_validation_issue(issueList, field, "Value must be a non-empty string.")
         return None
 
     if "\r" in value or "\n" in value:
-        add_issue(issueList, field, "Value must be a single line.")
+        add_validation_issue(issueList, field, "Value must be a single line.")
         return None
 
     return value
@@ -133,7 +133,7 @@ def _normalize_description(
     issueList: list[dict[str, object]],
 ) -> str | None:
     if not isinstance(value, str) or value.strip() == "":
-        add_issue(issueList, field, "Value must be a non-empty string.")
+        add_validation_issue(issueList, field, "Value must be a non-empty string.")
         return None
 
     return value
@@ -150,7 +150,7 @@ def _validate_insertion_mode(
     if value == "cursor":
         return "cursor"
 
-    add_issue(issueList, field, 'Value must be either "line" or "cursor".')
+    add_validation_issue(issueList, field, 'Value must be either "line" or "cursor".')
     return None
 
 
@@ -165,11 +165,11 @@ def _parse_snippet_body(
     elif isinstance(value, list) and all(isinstance(item, str) for item in value):
         listBodyLine = list(value)
     else:
-        add_issue(issueList, field, "Value must be a string or a list of strings.")
+        add_validation_issue(issueList, field, "Value must be a string or a list of strings.")
         return None
 
     if not listBodyLine or all(line.strip() == "" for line in listBodyLine):
-        add_issue(issueList, field, "Snippet body cannot be empty.")
+        add_validation_issue(issueList, field, "Snippet body cannot be empty.")
         return None
 
     if insertionMode == "line":
@@ -190,7 +190,7 @@ def _parse_imports(
     issueList: list[dict[str, object]],
 ) -> DictSnippet_Imports | None:
     if not isinstance(value, dict):
-        add_issue(
+        add_validation_issue(
             issueList,
             field,
             "Value must be an object containing import source and name-list pairs.",
@@ -203,11 +203,11 @@ def _parse_imports(
         strImportField = f"{field}.{importSource}"
 
         if not isinstance(importSource, str) or importSource == "":
-            add_issue(issueList, field, "Every import source must be a non-empty string.")
+            add_validation_issue(issueList, field, "Every import source must be a non-empty string.")
             continue
 
         if importSource not in availableImportOrderDict:
-            add_issue(
+            add_validation_issue(
                 issueList,
                 strImportField,
                 f"Import source is not available to this Component Snippet: {importSource!r}.",
@@ -215,7 +215,7 @@ def _parse_imports(
             continue
 
         if not isinstance(importNameValue, list) or not importNameValue:
-            add_issue(issueList, strImportField, "Import names must be a non-empty list.")
+            add_validation_issue(issueList, strImportField, "Import names must be a non-empty list.")
             continue
 
         listImportName: list[str] = []
@@ -227,7 +227,7 @@ def _parse_imports(
                 or not importName.isidentifier()
                 or keyword.iskeyword(importName)
             ):
-                add_issue(
+                add_validation_issue(
                     issueList,
                     strImportField,
                     f"Import name must be a valid non-keyword Python identifier: {importName!r}.",
@@ -235,7 +235,7 @@ def _parse_imports(
                 continue
 
             if importName in setImportName:
-                add_issue(
+                add_validation_issue(
                     issueList, strImportField, f"Duplicate import name: {importName!r}."
                 )
                 continue
@@ -250,7 +250,7 @@ def _parse_imports(
         )
 
         if listUnknownImportName:
-            add_issue(
+            add_validation_issue(
                 issueList,
                 strImportField,
                 f"Import names are not available from {importSource!r}: {listUnknownImportName}.",
@@ -269,7 +269,7 @@ def _normalize_override(
     issueList: list[dict[str, object]],
 ) -> DictSnippet_AstOverride | None:
     if not isinstance(value, dict):
-        add_issue(issueList, field, "Value must be an object.")
+        add_validation_issue(issueList, field, "Value must be an object.")
         return None
 
     validate_json_object_fields(
@@ -338,7 +338,7 @@ def _parse_component_snippet_key(
         or "." in strSnippetName
         or not strCategory.startswith(strCategoryPrefix)
     ):
-        add_issue(
+        add_validation_issue(
             issueList,
             field,
             f"Snippet key must use {packageName}_ModuleName.snippet_name.",
@@ -347,13 +347,13 @@ def _parse_component_snippet_key(
 
     strModuleName = strCategory[len(strCategoryPrefix) :]
     if strModuleName == "":
-        add_issue(
+        add_validation_issue(
             issueList, field, "Snippet key must contain a public Component Module name."
         )
         return None
 
     if not strModuleName.isidentifier() or keyword.iskeyword(strModuleName):
-        add_issue(
+        add_validation_issue(
             issueList,
             field,
             f"Module name must be a valid non-keyword Python identifier: {strModuleName!r}.",
@@ -361,13 +361,13 @@ def _parse_component_snippet_key(
         return None
 
     if requireExistingModule and strModuleName not in publicModuleNameSet:
-        add_issue(
+        add_validation_issue(
             issueList, field, f"Public Component Module was not found: {strModuleName!r}."
         )
         return None
 
     if not strSnippetName.isidentifier() or keyword.iskeyword(strSnippetName):
-        add_issue(
+        add_validation_issue(
             issueList,
             field,
             f"Snippet name must be a valid non-keyword Python identifier: {strSnippetName!r}.",
@@ -422,7 +422,7 @@ def _normalize_hand_written_snippet(
     )
 
     if not isinstance(snippetValue, dict):
-        add_issue(issueList, strField, "Value must be an object.")
+        add_validation_issue(issueList, strField, "Value must be an object.")
         return None
 
     validate_json_object_fields(
@@ -464,7 +464,7 @@ def _normalize_hand_written_snippet(
             insertionMode = normalizedInsertionMode
 
     if "body" not in snippetValue:
-        add_issue(issueList, strField, "Missing required field: body.")
+        add_validation_issue(issueList, strField, "Missing required field: body.")
         listBody = None
     else:
         listBody = _parse_snippet_body(
@@ -472,7 +472,7 @@ def _normalize_hand_written_snippet(
         )
 
     if "description" not in snippetValue:
-        add_issue(issueList, strField, "Missing required field: description.")
+        add_validation_issue(issueList, strField, "Missing required field: description.")
         strDescription = None
     else:
         strDescription = _normalize_description(
@@ -611,7 +611,7 @@ def build_snippet_catalog(
 
     schemaVersionValue = value.get("schemaVersion")
     if type(schemaVersionValue) is not int or schemaVersionValue != 1:
-        add_issue(listIssue, "schemaVersion", "Only schemaVersion 1 is supported.")
+        add_validation_issue(listIssue, "schemaVersion", "Only schemaVersion 1 is supported.")
 
     listPublicModuleName = sorted(
         modulePath.stem
@@ -630,7 +630,7 @@ def build_snippet_catalog(
     listExcludedValue = value.get("excludedAstSnippets")
     setExcludedSnippet: set[str] = set()
     if not isinstance(listExcludedValue, list):
-        add_issue(
+        add_validation_issue(
             listIssue, "excludedAstSnippets", "Value must be a list of Snippet keys."
         )
     else:
@@ -638,11 +638,11 @@ def build_snippet_catalog(
             strField = f"excludedAstSnippets[{intIndex}]"
 
             if not isinstance(strSnippetKey, str):
-                add_issue(listIssue, strField, "Snippet key must be a string.")
+                add_validation_issue(listIssue, strField, "Snippet key must be a string.")
                 continue
 
             if strSnippetKey in setExcludedSnippet:
-                add_issue(
+                add_validation_issue(
                     listIssue,
                     strField,
                     f"Duplicate excluded AST Snippet key: {strSnippetKey!r}.",
@@ -667,13 +667,13 @@ def build_snippet_catalog(
     dictOverrideValue = value.get("astSnippetOverrides")
     dictOverride: dict[str, DictSnippet_AstOverride] = {}
     if not isinstance(dictOverrideValue, dict):
-        add_issue(listIssue, "astSnippetOverrides", "Value must be an object.")
+        add_validation_issue(listIssue, "astSnippetOverrides", "Value must be an object.")
     else:
         for strSnippetKey, dictOverrideItem in dictOverrideValue.items():
             strField = f"astSnippetOverrides.{strSnippetKey}"
 
             if not isinstance(strSnippetKey, str):
-                add_issue(
+                add_validation_issue(
                     listIssue,
                     "astSnippetOverrides",
                     "Every Snippet key must be a string.",
@@ -681,7 +681,7 @@ def build_snippet_catalog(
                 continue
 
             if strSnippetKey in setExcludedSnippet:
-                add_issue(
+                add_validation_issue(
                     listIssue,
                     strField,
                     "An excluded AST Snippet cannot also have an override.",
@@ -689,7 +689,7 @@ def build_snippet_catalog(
                 continue
 
             if strSnippetKey not in astSnippetDict["snippets"]:
-                add_issue(
+                add_validation_issue(
                     listIssue, strField, "The AST-generated Snippet does not exist."
                 )
                 continue
@@ -706,15 +706,15 @@ def build_snippet_catalog(
     dictHandWrittenValue = value.get("snippets")
     dictHandWrittenSnippet: dict[str, DictSnippet_Normalized] = {}
     if not isinstance(dictHandWrittenValue, dict):
-        add_issue(listIssue, "snippets", "Value must be an object.")
+        add_validation_issue(listIssue, "snippets", "Value must be an object.")
     else:
         for strSnippetKey, dictSnippetItem in dictHandWrittenValue.items():
             if not isinstance(strSnippetKey, str):
-                add_issue(listIssue, "snippets", "Every Snippet key must be a string.")
+                add_validation_issue(listIssue, "snippets", "Every Snippet key must be a string.")
                 continue
 
             if strSnippetKey in astSnippetDict["snippets"]:
-                add_issue(
+                add_validation_issue(
                     listIssue,
                     f"snippets.{strSnippetKey}",
                     (
@@ -792,7 +792,7 @@ def build_snippet_catalog(
         tupleLabelKey = (dictSnippetItem["category"], dictSnippetItem["label"])
         strExistingLabelOwner = dictLabelOwner.get(tupleLabelKey)
         if strExistingLabelOwner is not None:
-            add_issue(
+            add_validation_issue(
                 listConflictIssue,
                 f"snippets.{strSnippetKey}.label",
                 f"Duplicate label in category {dictSnippetItem['category']!r}; "
@@ -804,7 +804,7 @@ def build_snippet_catalog(
         strPrefix = dictSnippetItem["prefix"]
         strExistingPrefixOwner = dictPrefixOwner.get(strPrefix)
         if strExistingPrefixOwner is not None:
-            add_issue(
+            add_validation_issue(
                 listConflictIssue,
                 f"snippets.{strSnippetKey}.prefix",
                 f"Duplicate Snippet prefix; it is already used by {strExistingPrefixOwner!r}.",

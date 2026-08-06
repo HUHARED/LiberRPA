@@ -11,7 +11,7 @@ import re
 import sys
 
 
-def add_issue(issueList: list[dict[str, object]], field: str, message: str) -> None:
+def add_validation_issue(issueList: list[dict[str, object]], field: str, message: str) -> None:
     issueList.append({"field": field, "message": message})
 
 
@@ -32,7 +32,7 @@ def validate_json_object_fields(
     listUnknownKey.sort()
 
     if listUnknownKey:
-        add_issue(issueList, field, f"Unknown fields: {listUnknownKey}.")
+        add_validation_issue(issueList, field, f"Unknown fields: {listUnknownKey}.")
 
 
 _REGEX_COMPONENT_PACKAGE_NAME = re.compile(r"^[A-Z][A-Za-z0-9]*$")

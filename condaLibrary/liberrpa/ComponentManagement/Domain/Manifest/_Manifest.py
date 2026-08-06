@@ -13,7 +13,7 @@ from liberrpa.ComponentManagement.Common._Version import (
     normalize_pep440_specifier,
 )
 from liberrpa.ComponentManagement.Common._Validation import (
-    add_issue,
+    add_validation_issue,
     get_package_name_error,
     path_exists,
     is_file_invalid,
@@ -59,15 +59,15 @@ def _validate_uuid(
     try:
         uuidObj = uuid.UUID(value)
     except ValueError:
-        add_issue(issueList, field, "Value must be a valid UUID.")
+        add_validation_issue(issueList, field, "Value must be a valid UUID.")
         return None
 
     if uuidObj.version != 4 or uuidObj.variant != uuid.RFC_4122:
-        add_issue(issueList, field, "Value must be a UUID v4.")
+        add_validation_issue(issueList, field, "Value must be a UUID v4.")
         return None
 
     if value != str(uuidObj):
-        add_issue(
+        add_validation_issue(
             issueList,
             field,
             "Value must use the canonical lowercase UUID format with hyphens.",
@@ -88,10 +88,10 @@ def _validate_manifest_keys(
     listUnknownKey = sorted(setKey - expectedKeySet)
 
     if listMissingKey:
-        add_issue(issueList, sourceName, f"Missing fields: {listMissingKey}.")
+        add_validation_issue(issueList, sourceName, f"Missing fields: {listMissingKey}.")
 
     if listUnknownKey:
-        add_issue(issueList, sourceName, f"Unknown fields: {listUnknownKey}.")
+        add_validation_issue(issueList, sourceName, f"Unknown fields: {listUnknownKey}.")
 
 
 def _validate_string_field(
@@ -102,11 +102,11 @@ def _validate_string_field(
     allowEmpty: bool,
 ) -> str | None:
     if not isinstance(value, str):
-        add_issue(issueList, field, "Value must be a string.")
+        add_validation_issue(issueList, field, "Value must be a string.")
         return None
 
     if not allowEmpty and value == "":
-        add_issue(issueList, field, "Value cannot be empty.")
+        add_validation_issue(issueList, field, "Value cannot be empty.")
         return None
 
     return value
@@ -123,11 +123,11 @@ def _validate_trimmed_single_line_field(
 
     boolValid = True
     if strValue != strValue.strip():
-        add_issue(issueList, field, "Value cannot start or end with whitespace.")
+        add_validation_issue(issueList, field, "Value cannot start or end with whitespace.")
         boolValid = False
 
     if "\r" in strValue or "\n" in strValue:
-        add_issue(issueList, field, "Value must be a single line.")
+        add_validation_issue(issueList, field, "Value must be a single line.")
         boolValid = False
 
     return strValue if boolValid else None
@@ -146,7 +146,7 @@ def _validate_uuid_field(
         return None
 
     if strValue != strValue.strip():
-        add_issue(issueList, field, "Value cannot start or end with whitespace.")
+        add_validation_issue(issueList, field, "Value cannot start or end with whitespace.")
         return None
 
     return _validate_uuid(strValue, field, issueList)
@@ -163,7 +163,7 @@ def _validate_package_name_field(
 
     strPackageNameError = get_package_name_error(strValue)
     if strPackageNameError is not None:
-        add_issue(issueList, field, strPackageNameError)
+        add_validation_issue(issueList, field, strPackageNameError)
         return None
 
     return strValue
@@ -179,13 +179,13 @@ def _parse_version_field(
         return None
 
     if strValue != strValue.strip():
-        add_issue(issueList, field, "Value cannot start or end with whitespace.")
+        add_validation_issue(issueList, field, "Value cannot start or end with whitespace.")
         return None
 
     try:
         return normalize_pep440_version(strValue)
     except ValueError as e:
-        add_issue(issueList, field, str(e))
+        add_validation_issue(issueList, field, str(e))
         return None
 
 
@@ -199,13 +199,13 @@ def _parse_version_specifier_field(
         return None
 
     if strValue != strValue.strip():
-        add_issue(issueList, field, "Value cannot start or end with whitespace.")
+        add_validation_issue(issueList, field, "Value cannot start or end with whitespace.")
         return None
 
     try:
         return normalize_pep440_specifier(strValue)
     except ValueError as e:
-        add_issue(issueList, field, str(e))
+        add_validation_issue(issueList, field, str(e))
         return None
 
 
@@ -218,7 +218,7 @@ def _parse_component_dependencies(
     dictNormalizedDependency: dict[str, str] = {}
 
     if not isinstance(value, dict):
-        add_issue(
+        add_validation_issue(
             issueList,
             "componentDependencies",
             "Value must be an object containing Component ID and version range pairs.",
@@ -229,7 +229,7 @@ def _parse_component_dependencies(
 
     for dependencyId, dependencySpecifierValue in value.items():
         if not isinstance(dependencyId, str):
-            add_issue(
+            add_validation_issue(
                 issueList, "componentDependencies", "Every Component ID must be a string."
             )
             continue
@@ -240,7 +240,7 @@ def _parse_component_dependencies(
             continue
 
         if strNormalizedDependencyId in setNormalizedDependencyId:
-            add_issue(
+            add_validation_issue(
                 issueList, strField, "The same Component ID is declared more than once."
             )
             continue
@@ -248,11 +248,11 @@ def _parse_component_dependencies(
         setNormalizedDependencyId.add(strNormalizedDependencyId)
 
         if not isinstance(dependencySpecifierValue, str):
-            add_issue(issueList, strField, "Version range must be a string.")
+            add_validation_issue(issueList, strField, "Version range must be a string.")
             continue
 
         if dependencySpecifierValue != dependencySpecifierValue.strip():
-            add_issue(
+            add_validation_issue(
                 issueList, strField, "Version range cannot start or end with whitespace."
             )
             continue
@@ -260,13 +260,13 @@ def _parse_component_dependencies(
         try:
             strNormalizedSpecifier = normalize_pep440_specifier(dependencySpecifierValue)
         except ValueError as e:
-            add_issue(issueList, strField, str(e))
+            add_validation_issue(issueList, strField, str(e))
             continue
 
         dictNormalizedDependency[strNormalizedDependencyId] = strNormalizedSpecifier
 
     if rootComponentId is not None and rootComponentId in dictNormalizedDependency:
-        add_issue(
+        add_validation_issue(
             issueList, "componentDependencies", "A Component cannot depend on itself."
         )
 
@@ -297,7 +297,7 @@ def parse_flow_manifest(
 
     schemaVersionValue = value.get("schemaVersion")
     if type(schemaVersionValue) is not int or schemaVersionValue != 1:
-        add_issue(listIssue, "schemaVersion", "Only schemaVersion 1 is supported.")
+        add_validation_issue(listIssue, "schemaVersion", "Only schemaVersion 1 is supported.")
 
     strName = _validate_trimmed_single_line_field(value.get("name"), "name", listIssue)
     strNormalizedVersion = _parse_version_field(
@@ -365,7 +365,7 @@ def parse_component_manifest(
 
     schemaVersionValue = value.get("schemaVersion")
     if type(schemaVersionValue) is not int or schemaVersionValue != 1:
-        add_issue(listIssue, "schemaVersion", "Only schemaVersion 1 is supported.")
+        add_validation_issue(listIssue, "schemaVersion", "Only schemaVersion 1 is supported.")
 
     strNormalizedId = _validate_uuid_field(value.get("id"), "id", listIssue)
     strPackageName = _validate_package_name_field(

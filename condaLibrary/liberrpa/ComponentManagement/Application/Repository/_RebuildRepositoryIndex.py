@@ -65,6 +65,28 @@ def _add_rebuild_issue(
 
 
 def rebuild_repository_index() -> Info_Repository_RebuildResult:
+    """
+    Rebuild repository.json from the Component Wheels stored in the Repository.
+
+    When scanning each Component folder, Wheel files and unexpected entries are
+    classified as follows:
+
+    - No Wheel files and no unexpected entries:
+        The folder is truly empty. Add an "empty_component_repository_folder" warning and ignore the folder.
+
+    - No Wheel files but unexpected entries exist:
+        The folder is not empty and must not be reported as an empty Component folder.
+        Handle the unexpected entries according to their own validation rules.
+
+    - Wheel files exist and no unexpected entries exist:
+        Process the Wheel files normally when rebuilding the Repository index.
+
+    - Wheel files and unexpected entries both exist:
+        Do not classify the folder as empty.
+        Process the Wheel files and handle the unexpected entries according to their respective validation rules.
+
+    An unexpected entry is an item that is not accepted as a Component Wheel in the current Component folder, such as an unrelated file, nested folder, or symbolic link.
+    """
     pathRepository = get_repository_path()
 
     with repository_lock(pathRepository, "rebuildRepositoryIndex"):
