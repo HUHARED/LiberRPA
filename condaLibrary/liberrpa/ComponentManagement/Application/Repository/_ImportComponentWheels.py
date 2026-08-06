@@ -115,33 +115,33 @@ def _validate_existing_version(
     versionEntry: DictRepository_ComponentVersionEntry,
     existingVersionEntry: DictRepository_ComponentVersionEntry,
 ) -> None:
-    pathExistingWheel = get_wheel_path(
+    pathExistingWheelFile = get_wheel_path(
         repositoryPath=repositoryPath,
         componentId=componentId,
         packageName=packageName,
         wheelFileName=existingVersionEntry["wheelFileName"],
     )
-    if is_file_invalid(pathExistingWheel):
+    if is_file_invalid(pathExistingWheelFile):
         raise ComponentManagementError(
             code="repository_rebuild_required",
             message="A Component Wheel referenced by repository.json is missing or invalid.",
-            details={"wheelPath": str(pathExistingWheel)},
+            details={"wheelPath": str(pathExistingWheelFile)},
         )
 
-    wheelInfo = inspect_component_wheel(pathExistingWheel)
-    dictActualVersion = build_repository_version_entry(
-        manifestObj=wheelInfo.manifest,
-        wheelFileName=wheelInfo.wheelFileName,
-        sha256=wheelInfo.sha256,
+    wheelInfoObj = inspect_component_wheel(pathExistingWheelFile)
+    dictActualVersionEntry = build_repository_version_entry(
+        manifestObj=wheelInfoObj.manifest,
+        wheelFileName=wheelInfoObj.wheelFileName,
+        sha256=wheelInfoObj.sha256,
     )
-    if dictActualVersion != existingVersionEntry:
+    if dictActualVersionEntry != existingVersionEntry:
         raise ComponentManagementError(
             code="repository_rebuild_required",
             message="A Component Wheel does not match its metadata in repository.json.",
             details={
-                "wheelPath": str(pathExistingWheel),
+                "wheelPath": str(pathExistingWheelFile),
                 "existingVersionEntry": existingVersionEntry,
-                "actualVersionEntry": dictActualVersion,
+                "actualVersionEntry": dictActualVersionEntry,
             },
         )
 
@@ -149,8 +149,7 @@ def _validate_existing_version(
         raise ComponentManagementError(
             code="immutable_version_conflict",
             message=(
-                f"Component {packageName} {versionEntry['version']} already exists in ComponentRepository "
-                "with different content."
+                f"Component {packageName} {versionEntry['version']} already exists in ComponentRepository with different content."
             ),
             details={
                 "componentId": componentId,
@@ -163,43 +162,43 @@ def _validate_existing_version(
 
 def _get_import_warnings(
     wheelInfoList: list[Info_ComponentWheel],
-    plannedIndex: DictRepository_Index,
+    plannedIndexDict: DictRepository_Index,
 ) -> list[DictComponentManagementWarning]:
     listWarning: list[DictComponentManagementWarning] = []
 
     try:
-        installedVersionObj = get_installed_liberrpa_version()
+        installedLiberrpaVersion = get_installed_liberrpa_version()
     except ValueError as e:
-        installedVersionObj = None
+        installedLiberrpaVersion = None
         listWarning.append({
             "code": "liberrpa_version_unavailable",
             "message": "The installed liberrpa version could not be determined while importing Component Wheels.",
             "details": {"reason": str(e)},
         })
 
-    for wheelInfo in wheelInfoList:
-        manifestObj = wheelInfo.manifest
+    for wheelInfoObj in wheelInfoList:
+        manifestObj = wheelInfoObj.manifest
 
-        if installedVersionObj is not None and not SpecifierSet(
+        if installedLiberrpaVersion is not None and not SpecifierSet(
             manifestObj.requiresLiberrpa
-        ).contains(installedVersionObj):
+        ).contains(installedLiberrpaVersion):
             listWarning.append({
                 "code": "component_liberrpa_incompatible",
                 "message": (
-                    f"Imported Component {manifestObj.packageName} {manifestObj.version} requires liberrpa "
-                    f"{manifestObj.requiresLiberrpa}, but installed liberrpa is {installedVersionObj}."
+                    f"Imported Component {manifestObj.packageName} {manifestObj.version} requires liberrpa {manifestObj.requiresLiberrpa}, "
+                    f"but installed liberrpa is {installedLiberrpaVersion}."
                 ),
                 "details": {
                     "componentId": manifestObj.id,
                     "packageName": manifestObj.packageName,
                     "version": manifestObj.version,
                     "requiresLiberrpa": manifestObj.requiresLiberrpa,
-                    "installedLiberrpaVersion": str(installedVersionObj),
+                    "installedLiberrpaVersion": str(installedLiberrpaVersion),
                 },
             })
 
         for strDependencyId, strSpecifier in manifestObj.componentDependencies.items():
-            dictDependency = plannedIndex["components"].get(strDependencyId)
+            dictDependency = plannedIndexDict["components"].get(strDependencyId)
             boolDependencyAvailable = dictDependency is not None and any(
                 SpecifierSet(strSpecifier).contains(
                     Version(dictVersionEntry["version"]),
@@ -213,8 +212,8 @@ def _get_import_warnings(
             listWarning.append({
                 "code": "component_dependency_unavailable",
                 "message": (
-                    f"Imported Component {manifestObj.packageName} {manifestObj.version} depends on "
-                    f"Component {strDependencyId} {strSpecifier}, which is not currently available in ComponentRepository."
+                    f"Imported Component {manifestObj.packageName} {manifestObj.version} depends on Component {strDependencyId} {strSpecifier}, "
+                    "which is not currently available in ComponentRepository."
                 ),
                 "details": {
                     "componentId": manifestObj.id,
@@ -242,9 +241,9 @@ def import_component_wheels(
         dictPlannedIndex = deepcopy(dictIndex)
 
         strTransactionId = str(uuid.uuid4())
-        pathTransaction = pathStagingFolder / f"import_{strTransactionId}"
-        pathArtifacts = pathTransaction / "artifacts"
-        pathTransactionFile = pathTransaction / "transaction.json"
+        pathTransactionFolder = pathStagingFolder / f"import_{strTransactionId}"
+        pathArtifactsFolder = pathTransactionFolder / "artifacts"
+        pathTransactionFile = pathTransactionFolder / "transaction.json"
         boolTransactionRecorded = False
 
         listWheelInfo: list[Info_ComponentWheel] = []
@@ -253,26 +252,26 @@ def import_component_wheels(
         setBatchVersion: set[tuple[str, Version]] = set()
 
         try:
-            pathArtifacts.mkdir(parents=True)
+            pathArtifactsFolder.mkdir(parents=True)
 
             for intIndex, pathSource in enumerate(listSourcePath):
                 strArtifactRelativePath = f"{intIndex:04d}/{pathSource.name}"
-                pathArtifact = pathArtifacts.joinpath(
+                pathArtifactFile = pathArtifactsFolder.joinpath(
                     *PurePosixPath(strArtifactRelativePath).parts
                 )
-                pathArtifact.parent.mkdir()
-                copy_wheel_to_staging(pathSource, pathArtifact)
-                wheelInfo = inspect_component_wheel(pathArtifact)
-                listWheelInfo.append(wheelInfo)
+                pathArtifactFile.parent.mkdir()
+                copy_wheel_to_staging(pathSource, pathArtifactFile)
 
-                manifestObj = wheelInfo.manifest
+                wheelInfoObj = inspect_component_wheel(pathArtifactFile)
+                listWheelInfo.append(wheelInfoObj)
+
+                manifestObj = wheelInfoObj.manifest
                 tupleVersionKey = (manifestObj.id, Version(manifestObj.version))
                 if tupleVersionKey in setBatchVersion:
                     raise ComponentManagementError(
                         code="duplicate_component_version",
                         message=(
-                            "The selected Wheel batch contains more than one Wheel for the same Component ID "
-                            "and PEP 440 equivalent version."
+                            "The selected Wheel batch contains more than one Wheel for the same Component ID and PEP 440 equivalent version."
                         ),
                         details={
                             "componentId": manifestObj.id,
@@ -283,9 +282,9 @@ def import_component_wheels(
                 setBatchVersion.add(tupleVersionKey)
 
                 dictVersionEntry = build_repository_version_entry(
-                    manifestObj=wheelInfo.manifest,
-                    wheelFileName=wheelInfo.wheelFileName,
-                    sha256=wheelInfo.sha256,
+                    manifestObj=wheelInfoObj.manifest,
+                    wheelFileName=wheelInfoObj.wheelFileName,
+                    sha256=wheelInfoObj.sha256,
                 )
                 dictComponent = dictPlannedIndex["components"].get(manifestObj.id)
                 if (
@@ -305,34 +304,38 @@ def import_component_wheels(
                         },
                     )
 
-                dictExistingVersion = (
+                dictExistingVersionEntry = (
                     None
                     if dictComponent is None
                     else find_equivalent_version(dictComponent, manifestObj.version)
                 )
 
-                if dictExistingVersion is not None:
+                if dictExistingVersionEntry is not None:
                     _validate_existing_version(
                         pathRepository,
                         manifestObj.id,
                         manifestObj.packageName,
                         dictVersionEntry,
-                        dictExistingVersion,
+                        dictExistingVersionEntry,
                     )
-                    pathArtifact.unlink()
+                    pathArtifactFile.unlink()
                     listResult.append(
                         Info_Repository_Import_ComponentResult(
                             sourcePath=pathSource,
+                            #
                             componentId=manifestObj.id,
                             packageName=manifestObj.packageName,
                             version=manifestObj.version,
-                            wheelFileName=wheelInfo.wheelFileName,
-                            sha256=wheelInfo.sha256,
+                            #
+                            wheelFileName=wheelInfoObj.wheelFileName,
+                            sha256=wheelInfoObj.sha256,
+                            #
                             status="alreadyImported",
                         )
                     )
                     continue
 
+                # The versionEntry has not been added before.
                 add_version_to_index(
                     indexDict=dictPlannedIndex,
                     componentId=manifestObj.id,
@@ -343,7 +346,7 @@ def import_component_wheels(
                     repositoryPath=pathRepository,
                     componentId=manifestObj.id,
                     packageName=manifestObj.packageName,
-                    wheelFileName=wheelInfo.wheelFileName,
+                    wheelFileName=wheelInfoObj.wheelFileName,
                 )
                 if path_exists(pathTargetWheel):
                     raise ComponentManagementError(
@@ -354,24 +357,30 @@ def import_component_wheels(
 
                 listTransactionArtifact.append({
                     "artifactRelativePath": strArtifactRelativePath,
+                    #
                     "componentId": manifestObj.id,
                     "packageName": manifestObj.packageName,
                     "version": manifestObj.version,
-                    "wheelFileName": wheelInfo.wheelFileName,
-                    "sha256": wheelInfo.sha256,
+                    #
+                    "versionEntry": dictVersionEntry,
+                    #
+                    "wheelFileName": wheelInfoObj.wheelFileName,
+                    "sha256": wheelInfoObj.sha256,
                     "targetRelativePath": pathTargetWheel.relative_to(
                         pathRepository
                     ).as_posix(),
-                    "versionEntry": dictVersionEntry,
                 })
                 listResult.append(
                     Info_Repository_Import_ComponentResult(
                         sourcePath=pathSource,
+                        #
                         componentId=manifestObj.id,
                         packageName=manifestObj.packageName,
                         version=manifestObj.version,
-                        wheelFileName=wheelInfo.wheelFileName,
-                        sha256=wheelInfo.sha256,
+                        #
+                        wheelFileName=wheelInfoObj.wheelFileName,
+                        sha256=wheelInfoObj.sha256,
+                        #
                         status="imported",
                     )
                 )
@@ -379,7 +388,9 @@ def import_component_wheels(
             listWarning.extend(_get_import_warnings(listWheelInfo, dictPlannedIndex))
 
             if not listTransactionArtifact:
-                dictCleanupWarning = remove_repository_transaction_folder(pathTransaction)
+                dictCleanupWarning = remove_repository_transaction_folder(
+                    pathTransactionFolder
+                )
                 if dictCleanupWarning is not None:
                     listWarning.append(dictCleanupWarning)
                 return Info_Repository_ImportResult(
@@ -397,14 +408,14 @@ def import_component_wheels(
             boolTransactionRecorded = True
 
             for dictArtifact in listTransactionArtifact:
-                pathArtifact = pathArtifacts.joinpath(
+                pathArtifactFile = pathArtifactsFolder.joinpath(
                     *PurePosixPath(dictArtifact["artifactRelativePath"]).parts
                 )
-                if calculate_file_sha256(pathArtifact) != dictArtifact["sha256"]:
+                if calculate_file_sha256(pathArtifactFile) != dictArtifact["sha256"]:
                     raise ComponentManagementError(
                         code="wheel_sha256_mismatch",
                         message="A Component Wheel changed while it was prepared for Repository import.",
-                        details={"wheelPath": str(pathArtifact)},
+                        details={"wheelPath": str(pathArtifactFile)},
                     )
 
                 pathTargetWheel = pathRepository.joinpath(
@@ -417,25 +428,26 @@ def import_component_wheels(
                         message="An unindexed Component Wheel appeared at an import target.",
                         details={"wheelPath": str(pathTargetWheel)},
                     )
-                os.replace(pathArtifact, pathTargetWheel)
+
+                os.replace(pathArtifactFile, pathTargetWheel)
 
             dictTransaction["state"] = "wheelsCommitted"
             write_json_atomic(pathTransactionFile, dictTransaction)
             write_repository_index(pathRepository, dictPlannedIndex)
         except ComponentManagementError:
             if not boolTransactionRecorded:
-                remove_repository_transaction_folder(pathTransaction)
+                remove_repository_transaction_folder(pathTransactionFolder)
             raise
         except OSError as e:
             if not boolTransactionRecorded:
-                remove_repository_transaction_folder(pathTransaction)
+                remove_repository_transaction_folder(pathTransactionFolder)
             raise ComponentManagementError(
                 code="io_error",
                 message="Failed to import Component Wheels into ComponentRepository.",
                 details={"repositoryPath": str(pathRepository)},
             ) from e
 
-        dictCleanupWarning = remove_repository_transaction_folder(pathTransaction)
+        dictCleanupWarning = remove_repository_transaction_folder(pathTransactionFolder)
         if dictCleanupWarning is not None:
             listWarning.append(dictCleanupWarning)
 

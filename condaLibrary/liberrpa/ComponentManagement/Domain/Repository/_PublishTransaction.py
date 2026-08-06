@@ -328,8 +328,8 @@ def validate_publish_transactions_for_rebuild(
         errorCode="repository_rebuild_failed",
     )
 
-    for pathTransaction, pathTransactionFile, dictTransaction in listTransaction:
-        pathTargetWheel, dictExistingVersion = _inspect_publish_transaction_state(
+    for pathTransactionFolder, pathTransactionFile, dictTransaction in listTransaction:
+        pathTargetWheel, dictExistingVersionEntry = _inspect_publish_transaction_state(
             repositoryPath,
             indexDict,
             pathTransactionFile,
@@ -339,7 +339,7 @@ def validate_publish_transactions_for_rebuild(
 
         if (
             pathTargetWheel.is_file()
-            and dictExistingVersion != dictTransaction["versionEntry"]
+            and dictExistingVersionEntry != dictTransaction["versionEntry"]
         ):
             raise ComponentManagementError(
                 code="repository_rebuild_failed",
@@ -347,6 +347,6 @@ def validate_publish_transactions_for_rebuild(
                 details={"transactionFilePath": str(pathTransactionFile)},
             )
 
-        listCleanupPath.append(pathTransaction)
+        listCleanupPath.append(pathTransactionFolder)
 
     return listCleanupPath

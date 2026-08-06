@@ -124,35 +124,35 @@ def _get_manifest_mismatch_dict(
 def _validate_locked_wheel(
     componentId: str,
     lockedComponent: DictComponentsLock_Component,
-    wheelInfo: Info_ComponentWheel,
+    wheelInfoObj: Info_ComponentWheel,
 ) -> None:
-    if wheelInfo.wheelFileName != lockedComponent["wheelFileName"]:
+    if wheelInfoObj.wheelFileName != lockedComponent["wheelFileName"]:
         raise ComponentManagementError(
             code="component_wheel_lock_mismatch",
             message="A Component Wheel filename does not match components.lock.json.",
             details={
                 "componentId": componentId,
                 "expectedWheelFile": lockedComponent["wheelFileName"],
-                "actualWheelFile": wheelInfo.wheelFileName,
+                "actualWheelFile": wheelInfoObj.wheelFileName,
             },
         )
 
-    if wheelInfo.sha256 != lockedComponent["sha256"]:
+    if wheelInfoObj.sha256 != lockedComponent["sha256"]:
         raise ComponentManagementError(
             code="component_wheel_hash_mismatch",
             message="A Component Wheel does not match the SHA-256 in components.lock.json.",
             details={
                 "componentId": componentId,
-                "wheelFileName": wheelInfo.wheelFileName,
+                "wheelFileName": wheelInfoObj.wheelFileName,
                 "expectedSha256": lockedComponent["sha256"],
-                "actualSha256": wheelInfo.sha256,
+                "actualSha256": wheelInfoObj.sha256,
             },
         )
 
     dictMismatch = _get_manifest_mismatch_dict(
         componentId,
         lockedComponent,
-        wheelInfo.manifest,
+        wheelInfoObj.manifest,
     )
     if dictMismatch:
         raise ComponentManagementError(
@@ -160,7 +160,7 @@ def _validate_locked_wheel(
             message="A Component Wheel Manifest does not match components.lock.json.",
             details={
                 "componentId": componentId,
-                "wheelFileName": wheelInfo.wheelFileName,
+                "wheelFileName": wheelInfoObj.wheelFileName,
                 "mismatches": dictMismatch,
             },
         )
@@ -239,11 +239,11 @@ def _prepare_locked_wheel_source_list(
                 },
             )
 
-        wheelInfo = inspect_component_wheel(pathWheel)
+        wheelInfoObj = inspect_component_wheel(pathWheel)
         _validate_locked_wheel(
             strComponentId,
             dictLockedComponent,
-            wheelInfo,
+            wheelInfoObj,
         )
 
         try:

@@ -55,8 +55,8 @@ def _add_rebuild_issue(
 ) -> None:
     dictIssue: dict[str, object] = {
         "code": code,
-        "path": str(path),
         "message": message,
+        "path": str(path),
     }
     if details is not None:
         dictIssue["details"] = details
@@ -124,7 +124,7 @@ def rebuild_repository_index() -> Info_Repository_RebuildResult:
 
             for pathWheel in listWheelPath:
                 try:
-                    wheelInfo = inspect_component_wheel(pathWheel)
+                    wheelInfoObj = inspect_component_wheel(pathWheel)
                 except ComponentManagementError as e:
                     _add_rebuild_issue(
                         listIssue,
@@ -135,7 +135,7 @@ def rebuild_repository_index() -> Info_Repository_RebuildResult:
                     )
                     continue
 
-                manifestObj = wheelInfo.manifest
+                manifestObj = wheelInfoObj.manifest
                 strExpectedFolderName = f"{manifestObj.packageName}_{manifestObj.id}"
                 if pathComponentFolder.name != strExpectedFolderName:
                     _add_rebuild_issue(
@@ -163,10 +163,11 @@ def rebuild_repository_index() -> Info_Repository_RebuildResult:
                     continue
 
                 dictVersionPath[tupleVersionKey] = pathWheel
+
                 dictVersionEntry = build_repository_version_entry(
-                    manifestObj=wheelInfo.manifest,
-                    wheelFileName=wheelInfo.wheelFileName,
-                    sha256=wheelInfo.sha256,
+                    manifestObj=wheelInfoObj.manifest,
+                    wheelFileName=wheelInfoObj.wheelFileName,
+                    sha256=wheelInfoObj.sha256,
                 )
 
                 try:

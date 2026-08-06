@@ -152,14 +152,18 @@ def build_publish_response(
 def build_component_wheels_imported_response(
     importResult: Info_Repository_ImportResult,
 ) -> DictProtocolSuccess_ComponentWheelsImported:
+    # Convert Info objects into Dictionarys.
     listComponent: list[DictProtocolResult_ComponentWheelsImported_Component] = [
         {
             "sourcePath": str(componentResult.sourcePath),
+            #
             "componentId": componentResult.componentId,
             "packageName": componentResult.packageName,
             "version": componentResult.version,
+            #
             "wheelFileName": componentResult.wheelFileName,
             "sha256": componentResult.sha256,
+            #
             "status": componentResult.status,
         }
         for componentResult in importResult.components

@@ -283,19 +283,19 @@ def _validate_wheel_against_artifact(
             },
         )
 
-    wheelInfo = inspect_component_wheel(wheelPath)
-    manifestObj = wheelInfo.manifest
+    wheelInfoObj = inspect_component_wheel(wheelPath)
+    manifestObj = wheelInfoObj.manifest
     dictActualVersionEntry = build_repository_version_entry(
         manifestObj=manifestObj,
-        wheelFileName=wheelInfo.wheelFileName,
-        sha256=wheelInfo.sha256,
+        wheelFileName=wheelInfoObj.wheelFileName,
+        sha256=wheelInfoObj.sha256,
     )
     if (
         manifestObj.id != artifactDict["componentId"]
         or manifestObj.packageName != artifactDict["packageName"]
         or manifestObj.version != artifactDict["version"]
-        or wheelInfo.wheelFileName != artifactDict["wheelFileName"]
-        or wheelInfo.sha256 != artifactDict["sha256"]
+        or wheelInfoObj.wheelFileName != artifactDict["wheelFileName"]
+        or wheelInfoObj.sha256 != artifactDict["sha256"]
         or dictActualVersionEntry != artifactDict["versionEntry"]
     ):
         raise ComponentManagementError(
@@ -494,18 +494,23 @@ def validate_import_transactions_for_rebuild(
         errorCode="repository_rebuild_failed",
     )
 
-    for pathTransaction, pathTransactionFile, dictTransaction in listTransaction:
+    for pathTransactionFolder, pathTransactionFile, dictTransaction in listTransaction:
         listState = _inspect_import_transaction_state(
             repositoryPath,
             indexDict,
-            pathTransaction,
+            pathTransactionFolder,
             pathTransactionFile,
             dictTransaction,
             errorCode="repository_rebuild_failed",
         )
 
         try:
-            for dictArtifact, pathStaged, pathTarget, dictExistingVersion in listState:
+            for (
+                dictArtifact,
+                pathStaged,
+                pathTarget,
+                dictExistingVersionEntry,
+            ) in listState:
                 if pathTarget is None:
                     assert pathStaged is not None
                     pathTarget = repositoryPath.joinpath(
@@ -514,7 +519,7 @@ def validate_import_transactions_for_rebuild(
                     pathTarget.parent.mkdir(parents=True, exist_ok=True)
                     os.replace(pathStaged, pathTarget)
 
-                if dictExistingVersion is None:
+                if dictExistingVersionEntry is None:
                     add_version_to_index(
                         indexDict=indexDict,
                         componentId=dictArtifact["componentId"],
@@ -533,6 +538,6 @@ def validate_import_transactions_for_rebuild(
                 details={"transactionFilePath": str(pathTransactionFile)},
             ) from e
 
-        listCleanupPath.append(pathTransaction)
+        listCleanupPath.append(pathTransactionFolder)
 
     return listCleanupPath

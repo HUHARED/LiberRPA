@@ -59,10 +59,10 @@ class DictRepository_Transaction_ImportArtifact(TypedDict):
 
     componentId: str
     packageName: str
+    version: str
 
     versionEntry: DictRepository_ComponentVersionEntry
 
-    version: str
     wheelFileName: str
     sha256: str
     targetRelativePath: str
@@ -85,11 +85,14 @@ class Info_Repository_PublishResult:
 @dataclass(frozen=True)
 class Info_Repository_Import_ComponentResult:
     sourcePath: Path
+
     componentId: str
     packageName: str
     version: str
+
     wheelFileName: str
     sha256: str
+
     status: Literal["imported", "alreadyImported"]
 
 

@@ -155,12 +155,16 @@ type DictProtocolResult_Publish = (
 
 
 class DictProtocolResult_ComponentWheelsImported_Component(TypedDict):
+    # It has the same values with Info_Repository_Import_ComponentResult.
     sourcePath: str
+
     componentId: str
     packageName: str
     version: str
+
     wheelFileName: str
     sha256: str
+
     status: Literal["imported", "alreadyImported"]
 
 
