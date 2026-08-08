@@ -529,34 +529,34 @@ def prepare_project_transaction(
 
 def move_source_to_backup(
     projectPath: Path,
-    backupPath: Path,
+    backupFolderPath: Path,
     snapshotDict: DictProjectTransaction_Snapshot,
 ) -> None:
-    pathProjectComponents = projectPath / STR_COMPONENTS_FOLDER_NAME
-    pathBackupComponents = backupPath / STR_COMPONENTS_FOLDER_NAME
+    pathProjectComponentsFolder = projectPath / STR_COMPONENTS_FOLDER_NAME
+    pathBackupComponentsFolder = backupFolderPath / STR_COMPONENTS_FOLDER_NAME
     if snapshotDict["componentsFolderShouldExist"]:
-        os.replace(pathProjectComponents, pathBackupComponents)
+        os.replace(pathProjectComponentsFolder, pathBackupComponentsFolder)
 
-    pathProjectLock = projectPath / STR_COMPONENTS_LOCK_FILE_NAME
-    pathBackupLock = backupPath / STR_COMPONENTS_LOCK_FILE_NAME
+    pathProjectLockFile = projectPath / STR_COMPONENTS_LOCK_FILE_NAME
+    pathBackupLockFile = backupFolderPath / STR_COMPONENTS_LOCK_FILE_NAME
     if snapshotDict["componentsLockFileShouldExist"]:
-        os.replace(pathProjectLock, pathBackupLock)
+        os.replace(pathProjectLockFile, pathBackupLockFile)
 
 
 def move_target_to_project(
     projectPath: Path,
-    targetPath: Path,
+    targetFolderPath: Path,
     snapshotDict: DictProjectTransaction_Snapshot,
 ) -> None:
     if snapshotDict["componentsFolderShouldExist"]:
         os.replace(
-            targetPath / STR_COMPONENTS_FOLDER_NAME,
+            targetFolderPath / STR_COMPONENTS_FOLDER_NAME,
             projectPath / STR_COMPONENTS_FOLDER_NAME,
         )
 
     if snapshotDict["componentsLockFileShouldExist"]:
         os.replace(
-            targetPath / STR_COMPONENTS_LOCK_FILE_NAME,
+            targetFolderPath / STR_COMPONENTS_LOCK_FILE_NAME,
             projectPath / STR_COMPONENTS_LOCK_FILE_NAME,
         )
 
@@ -586,12 +586,12 @@ def validate_target_project_state(
             },
         )
 
-    pathLock = projectPath / STR_COMPONENTS_LOCK_FILE_NAME
-    pathComponents = projectPath / STR_COMPONENTS_FOLDER_NAME
-    dictTarget = transactionDict["target"]
+    pathLockFile = projectPath / STR_COMPONENTS_LOCK_FILE_NAME
+    pathComponentsFolder = projectPath / STR_COMPONENTS_FOLDER_NAME
+    dictTargetSnapshot = transactionDict["target"]
 
-    if not dictTarget["componentsLockFileShouldExist"]:
-        if path_exists(pathLock) or path_exists(pathComponents):
+    if not dictTargetSnapshot["componentsLockFileShouldExist"]:
+        if path_exists(pathLockFile) or path_exists(pathComponentsFolder):
             raise ComponentManagementError(
                 code="project_transaction_recovery_failed",
                 message="The committed Project should not contain dependency lock artifacts.",
@@ -599,23 +599,23 @@ def validate_target_project_state(
             )
         return None
 
-    strExpectedLockSha256 = dictTarget.get("expectedComponentsLockFileSha256")
+    strExpectedLockSha256 = dictTargetSnapshot.get("expectedComponentsLockFileSha256")
     assert strExpectedLockSha256 is not None
 
-    strLockSha256 = get_regular_file_sha256(pathLock, "components.lock.json")
+    strLockSha256 = get_regular_file_sha256(pathLockFile, "components.lock.json")
     if strLockSha256 != strExpectedLockSha256:
         raise ComponentManagementError(
             code="project_transaction_recovery_failed",
             message="The committed components.lock.json does not match transaction.json.",
             details={
-                "lockFile": str(pathLock),
+                "lockFile": str(pathLockFile),
                 "expectedSha256": strExpectedLockSha256,
                 "actualSha256": strLockSha256,
             },
         )
 
-    dictLock = read_components_lock(pathLock)
-    return validate_components_folder(pathComponents, dictLock)
+    dictLock = read_components_lock(pathLockFile)
+    return validate_components_folder(pathComponentsFolder, dictLock)
 
 
 def restore_source_entry(

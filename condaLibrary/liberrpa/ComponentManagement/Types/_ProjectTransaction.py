@@ -22,7 +22,6 @@ class DictProjectTransaction_Snapshot(TypedDict):
     componentsLockFileShouldExist: bool
     # Whether _Components exists.
     componentsFolderShouldExist: bool
-
     expectedComponentsLockFileSha256: NotRequired[str]
 
 

@@ -46,9 +46,9 @@ def commit_project_transaction(
     transactionFolderPath: Path,
     transactionDict: DictProjectTransaction,
 ) -> Info_ProjectComponentsFolder | None:
-    pathTarget = transactionFolderPath / STR_TARGET_FOLDER_NAME
-    pathBackup = transactionFolderPath / STR_BACKUP_FOLDER_NAME
-    pathManifest = projectPath / transactionDict["manifestFileName"]
+    pathTargetFolder = transactionFolderPath / STR_TARGET_FOLDER_NAME
+    pathBackupFolder = transactionFolderPath / STR_BACKUP_FOLDER_NAME
+    pathManifestFile = projectPath / transactionDict["manifestFileName"]
 
     try:
         write_transaction_state(
@@ -58,17 +58,17 @@ def commit_project_transaction(
         )
         move_source_to_backup(
             projectPath,
-            pathBackup,
+            pathBackupFolder,
             transactionDict["source"],
         )
         move_target_to_project(
             projectPath,
-            pathTarget,
+            pathTargetFolder,
             transactionDict["target"],
         )
         os.replace(
-            pathTarget / transactionDict["manifestFileName"],
-            pathManifest,
+            pathTargetFolder / transactionDict["manifestFileName"],
+            pathManifestFile,
         )
         write_transaction_state(
             transactionFolderPath,

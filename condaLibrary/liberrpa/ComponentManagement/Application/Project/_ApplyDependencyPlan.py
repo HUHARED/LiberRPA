@@ -133,7 +133,7 @@ def apply_project_dependency_plan(
 
             strManifestFileName = get_manifest_file_name(strProjectType)
 
-            pathTransaction, dictTransaction = prepare_project_transaction(
+            pathTransactionFolder, dictTransaction = prepare_project_transaction(
                 pathProject,
                 pathRepository,
                 transactionOperation="applyDependencyPlan",
@@ -147,11 +147,11 @@ def apply_project_dependency_plan(
             )
             folderInfo = commit_project_transaction(
                 pathProject,
-                pathTransaction,
+                pathTransactionFolder,
                 dictTransaction,
             )
 
-            dictWarning = remove_transaction_folder(pathTransaction)
+            dictWarning = remove_transaction_folder(pathTransactionFolder)
             if dictWarning is not None:
                 listWarning.append(dictWarning)
 

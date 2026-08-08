@@ -373,26 +373,26 @@ def build_components_lock(
     })
 
 
-def read_components_lock(lockPath: Path) -> DictComponentsLock_File:
-    if not path_exists(lockPath):
+def read_components_lock(lockFilePath: Path) -> DictComponentsLock_File:
+    if not path_exists(lockFilePath):
         raise ComponentManagementError(
             code="components_lock_missing",
-            message=f"Components lock file was not found: {lockPath}",
+            message=f"Components lock file was not found: {lockFilePath}",
         )
 
-    if is_file_invalid(lockPath):
+    if is_file_invalid(lockFilePath):
         raise ComponentManagementError(
             code="components_lock_invalid",
-            message=f"Components lock path is invalid: {lockPath}",
+            message=f"Components lock path is invalid: {lockFilePath}",
         )
 
     try:
-        return validate_components_lock(read_json(lockPath))
+        return validate_components_lock(read_json(lockFilePath))
     except (OSError, ValueError) as e:
         raise ComponentManagementError(
             code="components_lock_invalid",
             message="Invalid components.lock.json.",
-            details={"lockFile": str(lockPath), "reason": str(e)},
+            details={"lockFile": str(lockFilePath), "reason": str(e)},
         ) from e
 
 
