@@ -64,19 +64,21 @@ def repair_project_components(
                     details={"projectPath": str(pathProject)},
                 )
 
-            pathLock = pathProject / STR_COMPONENTS_LOCK_FILE_NAME
-            dictLock = read_components_lock(pathLock)
+            pathLockFile = pathProject / STR_COMPONENTS_LOCK_FILE_NAME
+            dictLock = read_components_lock(pathLockFile)
             if is_components_lock_stale(dictLock, manifestObj):
                 raise ComponentManagementError(
                     code="components_lock_stale",
                     message="components.lock.json is stale and cannot be used to repair _Components.",
-                    details={"lockFile": str(pathLock)},
+                    details={"lockFile": str(pathLockFile)},
                 )
 
             pathComponentsFolder = pathProject / STR_COMPONENTS_FOLDER_NAME
             try:
                 validate_components_folder(pathComponentsFolder, dictLock)
             except ComponentManagementError as e:
+                # Repair is allowed only when _Components is missing or damaged.
+                # A valid _Components folder needs no repair, while unrelated validation errors must propagate unchanged.
                 if e.code not in {
                     "components_folder_missing",
                     "components_folder_damaged",
