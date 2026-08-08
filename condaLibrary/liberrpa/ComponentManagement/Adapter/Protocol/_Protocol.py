@@ -19,15 +19,33 @@ from liberrpa.ComponentManagement.Adapter.Protocol._Response import (
     build_project_dependency_plan_applied_response,
     build_project_components_repaired_response,
 )
-from liberrpa.ComponentManagement.Application.Publish._PublishComponent import publish_component
-from liberrpa.ComponentManagement.Application.Repository._ImportComponentWheels import import_component_wheels
-from liberrpa.ComponentManagement.Application.Repository._RebuildRepositoryIndex import rebuild_repository_index
-from liberrpa.ComponentManagement.Application.Repository._RepositorySnapshot import load_repository_catalog_snapshot
-from liberrpa.ComponentManagement.Application.Project._DependencyState import get_current_project_dependency_state
-from liberrpa.ComponentManagement.Application.Project._DependencyPlan import build_current_project_dependency_plan
-from liberrpa.ComponentManagement.Application.Project._ApplyDependencyPlan import apply_project_dependency_plan
-from liberrpa.ComponentManagement.Application.Project._RepairComponents import repair_project_components
-from liberrpa.ComponentManagement.Domain.Dependency._Plan import parse_project_dependency_operation
+from liberrpa.ComponentManagement.Application.Publish._PublishComponent import (
+    publish_component,
+)
+from liberrpa.ComponentManagement.Application.Repository._ImportComponentWheels import (
+    import_component_wheels,
+)
+from liberrpa.ComponentManagement.Application.Repository._RebuildRepositoryIndex import (
+    rebuild_repository_index,
+)
+from liberrpa.ComponentManagement.Application.Repository._RepositorySnapshot import (
+    load_repository_catalog_snapshot,
+)
+from liberrpa.ComponentManagement.Application.Project._DependencyState import (
+    get_current_project_dependency_state,
+)
+from liberrpa.ComponentManagement.Application.Project._DependencyPlan import (
+    build_current_project_dependency_plan,
+)
+from liberrpa.ComponentManagement.Application.Project._ApplyDependencyPlan import (
+    apply_project_dependency_plan,
+)
+from liberrpa.ComponentManagement.Application.Project._RepairComponents import (
+    repair_project_components,
+)
+from liberrpa.ComponentManagement.Domain.Dependency._Plan import (
+    parse_project_dependency_operation,
+)
 
 from pathlib import Path
 
@@ -38,7 +56,9 @@ def handle_request(requestInfo: str) -> DictProtocolResponse:
 
         match dictRequest["operation"]:
             case "publishComponent":
-                return build_publish_response(publish_component(dictRequest["projectPath"]))
+                return build_publish_response(
+                    publish_component(dictRequest["projectPath"])
+                )
 
             case "importComponentWheels":
                 importResult = import_component_wheels([
@@ -50,7 +70,9 @@ def handle_request(requestInfo: str) -> DictProtocolResponse:
                 return build_repository_index_rebuilt_response(rebuild_repository_index())
 
             case "getComponentRepositoryCatalog":
-                pathRepository, dictRepositoryIndex, listWarning = load_repository_catalog_snapshot()
+                pathRepository, dictRepositoryIndex, listWarning = (
+                    load_repository_catalog_snapshot()
+                )
                 return build_repository_catalog_response(
                     repositoryPath=pathRepository,
                     repositoryIndexDict=dictRepositoryIndex,
@@ -58,11 +80,15 @@ def handle_request(requestInfo: str) -> DictProtocolResponse:
                 )
 
             case "getProjectDependencyState":
-                stateObj, listWarning = get_current_project_dependency_state(dictRequest["projectPath"])
+                stateObj, listWarning = get_current_project_dependency_state(
+                    dictRequest["projectPath"]
+                )
                 return build_project_dependency_state_response(stateObj, listWarning)
 
             case "buildProjectDependencyPlan":
-                operationObj = parse_project_dependency_operation(dictRequest["dependencyOperation"])
+                operationObj = parse_project_dependency_operation(
+                    dictRequest["dependencyOperation"]
+                )
                 planObj, listWarning = build_current_project_dependency_plan(
                     dictRequest["projectPath"],
                     operationObj,
@@ -70,7 +96,9 @@ def handle_request(requestInfo: str) -> DictProtocolResponse:
                 return build_project_dependency_plan_response(planObj, listWarning)
 
             case "applyProjectDependencyPlan":
-                operationObj = parse_project_dependency_operation(dictRequest["dependencyOperation"])
+                operationObj = parse_project_dependency_operation(
+                    dictRequest["dependencyOperation"]
+                )
                 applyResult = apply_project_dependency_plan(
                     Path(dictRequest["projectPath"]),
                     operationObj,

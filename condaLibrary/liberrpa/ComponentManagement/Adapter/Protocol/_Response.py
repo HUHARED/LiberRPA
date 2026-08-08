@@ -276,7 +276,7 @@ def build_project_dependency_plan_response(
 def build_project_dependency_plan_applied_response(
     applyResult: Info_ProjectDependency_ApplyResult,
 ) -> DictProtocolSuccess_ProjectDependencyPlanApplied:
-    folderResult = (
+    DictFolderResult = (
         None
         if applyResult.componentsFolderInfo is None
         else _get_components_folder_result(applyResult.componentsFolderInfo)
@@ -288,7 +288,7 @@ def build_project_dependency_plan_applied_response(
         "targetComponentsLock": applyResult.plan.targetComponentsLock,
         "directDependencyChanges": applyResult.plan.directDependencyChanges,
         "resolvedComponentChanges": applyResult.plan.resolvedComponentChanges,
-        "componentsFolder": folderResult,
+        "componentsFolder": DictFolderResult,
     }
     return {
         "schemaVersion": 1,

@@ -8,15 +8,22 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 from liberrpa.ComponentManagement.Common._Exception import ComponentManagementError
 from liberrpa.ComponentManagement.Common._Project import resolve_project_path
 from liberrpa.ComponentManagement.Types._Warning import DictComponentManagementWarning
-from liberrpa.ComponentManagement.Types._Dependency import Info_ProjectDependency_Operation, Info_ProjectDependency_Plan
+from liberrpa.ComponentManagement.Types._Dependency import (
+    Info_ProjectDependency_Operation,
+    Info_ProjectDependency_Plan,
+)
 from liberrpa.ComponentManagement.Domain.Dependency._ComponentsLock import (
     STR_COMPONENTS_LOCK_FILE_NAME,
     read_components_lock,
     is_components_lock_stale,
 )
-from liberrpa.ComponentManagement.Domain.Dependency._Plan import build_project_dependency_plan
+from liberrpa.ComponentManagement.Domain.Dependency._Plan import (
+    build_project_dependency_plan,
+)
 from liberrpa.ComponentManagement.Domain.Manifest._Manifest import read_project_manifest
-from liberrpa.ComponentManagement.Application.Project._TransactionRecovery import recover_project_transactions
+from liberrpa.ComponentManagement.Application.Project._TransactionRecovery import (
+    recover_project_transactions,
+)
 from liberrpa.ComponentManagement.Application.Repository._RepositorySnapshot import (
     load_repository_resolution_snapshot,
 )
@@ -36,13 +43,13 @@ def build_current_project_dependency_plan(
 
     dictCurrentLock = None
     if manifestObj.componentDependencies:
-        pathLock = pathProject / STR_COMPONENTS_LOCK_FILE_NAME
-        dictCurrentLock = read_components_lock(pathLock)
+        pathLockFile = pathProject / STR_COMPONENTS_LOCK_FILE_NAME
+        dictCurrentLock = read_components_lock(pathLockFile)
         if is_components_lock_stale(dictCurrentLock, manifestObj):
             raise ComponentManagementError(
                 code="components_lock_stale",
                 message="components.lock.json is stale and must be resolved before planning another change.",
-                details={"lockFile": str(pathLock)},
+                details={"lockFile": str(pathLockFile)},
             )
 
     planObj = build_project_dependency_plan(

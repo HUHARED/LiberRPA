@@ -23,10 +23,8 @@ def get_current_project_dependency_state(
 ) -> tuple[Info_ProjectDependency_State, list[DictComponentManagementWarning]]:
     pathProject = resolve_project_path(projectPath)
 
-    # TODO: analyzer again later.
     listWarning = recover_project_transactions(pathProject)
 
-    # TODO: analyzer later.
     stateObj = get_project_dependency_state(pathProject)
 
     return stateObj, listWarning

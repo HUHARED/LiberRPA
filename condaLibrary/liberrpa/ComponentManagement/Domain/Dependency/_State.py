@@ -58,8 +58,8 @@ def _get_environment_state(
     listRequirement: list[tuple[str, str]] = [("Project", manifestObj.requiresLiberrpa)]
     if lockDict is not None:
         listRequirement.extend(
-            (f"Component {componentId}", component["requiresLiberrpa"])
-            for componentId, component in lockDict["components"].items()
+            (f"Component {strComponentId}", componentDict["requiresLiberrpa"])
+            for strComponentId, componentDict in lockDict["components"].items()
         )
 
     listIncompatibleRequirement = [
@@ -96,7 +96,7 @@ def _get_components_state(
         }
 
     pathComponentsFolder = projectPath / STR_COMPONENTS_FOLDER_NAME
-    if not pathComponentsFolder.exists() and not pathComponentsFolder.is_symlink():
+    if not path_exists(pathComponentsFolder):
         return "missing", {"componentsFolderPath": str(pathComponentsFolder)}
 
     if pathComponentsFolder.is_dir() and not pathComponentsFolder.is_symlink():
@@ -185,7 +185,7 @@ def get_project_dependency_state(projectPath: Path) -> Info_ProjectDependency_St
 
     strProjectType, manifestObj = read_project_manifest(pathProject)
     boolDependenciesRequired = bool(manifestObj.componentDependencies)
-    pathLock = pathProject / STR_COMPONENTS_LOCK_FILE_NAME
+    pathLockFile = pathProject / STR_COMPONENTS_LOCK_FILE_NAME
     dictDetails: dict[str, object] = {}
 
     lockState: Str_ProjectDependency_LockState
@@ -193,14 +193,14 @@ def get_project_dependency_state(projectPath: Path) -> Info_ProjectDependency_St
 
     if not boolDependenciesRequired:
         lockState = "notRequired"
-        if path_exists(pathLock):
-            dictDetails["unusedLockFile"] = str(pathLock)
-    elif not pathLock.exists() and not pathLock.is_symlink():
+        if path_exists(pathLockFile):
+            dictDetails["unusedLockFile"] = str(pathLockFile)
+    elif not not path_exists(pathLockFile):
         lockState = "missing"
-        dictDetails["lockFile"] = str(pathLock)
+        dictDetails["lockFile"] = str(pathLockFile)
     else:
         try:
-            dictComponentsLock = read_components_lock(pathLock)
+            dictComponentsLock = read_components_lock(pathLockFile)
         except ComponentManagementError as e:
             lockState = "invalid"
             dictDetails["lockError"] = {
