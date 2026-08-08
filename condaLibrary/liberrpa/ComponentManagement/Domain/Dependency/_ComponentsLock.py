@@ -42,18 +42,18 @@ from packaging.version import Version
 
 STR_COMPONENTS_LOCK_FILE_NAME = "components.lock.json"
 
-_SET_COMPONENTS_LOCK_KEYS = {"schemaVersion", "root", "components"}
-_SET_FLOW_ROOT_KEYS = {
-    "manifestFile",
+_SET_KEYS_COMPONENTS_LOCK = {"schemaVersion", "root", "components"}
+_SET_KEYS_FLOW_ROOT = {
+    "manifestFileName",
     "requiresLiberrpa",
     "componentDependencies",
 }
-_SET_COMPONENT_ROOT_KEYS = {
-    *_SET_FLOW_ROOT_KEYS,
+_SET_KEYS_COMPONENT_ROOT = {
+    *_SET_KEYS_FLOW_ROOT,
     "componentId",
     "packageName",
 }
-_SET_LOCKED_COMPONENT_KEYS = {
+_SET_KEYS_LOCKED_COMPONENT = {
     "packageName",
     "displayName",
     "version",
@@ -68,18 +68,18 @@ def _validate_components_lock_root(value: object) -> DictComponentsLock_Root:
     if not isinstance(value, dict):
         raise ValueError("components.lock.json root must be an object.")
 
-    manifestFile = value.get("manifestFile")
-    if manifestFile == "flow.json":
-        validate_exact_keys(value, _SET_FLOW_ROOT_KEYS, "root")
-    elif manifestFile == "component.json":
-        validate_exact_keys(value, _SET_COMPONENT_ROOT_KEYS, "root")
+    manifestFileName = value.get("manifestFileName")
+    if manifestFileName == "flow.json":
+        validate_exact_keys(value, _SET_KEYS_FLOW_ROOT, "root")
+    elif manifestFileName == "component.json":
+        validate_exact_keys(value, _SET_KEYS_COMPONENT_ROOT, "root")
     else:
-        raise ValueError("root.manifestFile must be 'flow.json' or 'component.json'.")
+        raise ValueError("root.manifestFileName must be 'flow.json' or 'component.json'.")
 
     rootComponentId: str | None = None
     packageName: str | None = None
 
-    if manifestFile == "component.json":
+    if manifestFileName == "component.json":
         rootComponentId = validate_component_id(
             value.get("componentId"), "root.componentId"
         )
@@ -105,9 +105,9 @@ def _validate_components_lock_root(value: object) -> DictComponentsLock_Root:
         componentId=rootComponentId,
     )
 
-    if manifestFile == "flow.json":
+    if manifestFileName == "flow.json":
         return {
-            "manifestFile": "flow.json",
+            "manifestFileName": "flow.json",
             "requiresLiberrpa": strNormalizedRequiresLiberrpa,
             "componentDependencies": dictDependency,
         }
@@ -115,7 +115,7 @@ def _validate_components_lock_root(value: object) -> DictComponentsLock_Root:
     assert rootComponentId is not None
     assert packageName is not None
     return {
-        "manifestFile": "component.json",
+        "manifestFileName": "component.json",
         "componentId": rootComponentId,
         "packageName": packageName,
         "requiresLiberrpa": strNormalizedRequiresLiberrpa,
@@ -128,44 +128,45 @@ def _validate_dependency_graph(
     componentDict: dict[str, DictComponentsLock_Component],
 ) -> None:
     strRootComponentId = (
-        rootDict["componentId"] if rootDict["manifestFile"] == "component.json" else None
+        rootDict["componentId"]
+        if rootDict["manifestFileName"] == "component.json"
+        else None
     )
 
-    for strDependencyId, strSpecifier in rootDict["componentDependencies"].items():
-        dictDependency = componentDict.get(strDependencyId)
-        if dictDependency is None:
+    for strComponentId, strSpecifier in rootDict["componentDependencies"].items():
+        dictDependencyTemp = componentDict.get(strComponentId)
+        if dictDependencyTemp is None:
             raise ValueError(
-                f"root.componentDependencies refers to missing Component {strDependencyId!r}."
+                f"root.componentDependencies refers to missing Component {strComponentId!r}."
             )
 
         if not SpecifierSet(strSpecifier).contains(
-            Version(dictDependency["version"]), prereleases=True
+            Version(dictDependencyTemp["version"]), prereleases=True
         ):
             raise ValueError(
-                f"Locked Component {strDependencyId} {dictDependency['version']} does not satisfy root requirement {strSpecifier!r}."
+                f"Locked Component {strComponentId} {dictDependencyTemp['version']} does not satisfy root requirement {strSpecifier!r}."
             )
 
     for strComponentId, dictComponent in componentDict.items():
-        for strDependencyId, strSpecifier in dictComponent[
+        for strComponentId, strSpecifier in dictComponent[
             "componentDependencies"
         ].items():
-            if strRootComponentId is not None and strDependencyId == strRootComponentId:
+            if strRootComponentId is not None and strComponentId == strRootComponentId:
                 raise ValueError(
                     f"Locked Component {strComponentId} depends on the root Component and creates a dependency cycle."
                 )
 
-            dictDependency = componentDict.get(strDependencyId)
-            if dictDependency is None:
+            dictDependencyTemp = componentDict.get(strComponentId)
+            if dictDependencyTemp is None:
                 raise ValueError(
-                    f"Locked Component {strComponentId} refers to missing Component {strDependencyId!r}."
+                    f"Locked Component {strComponentId} refers to missing Component {strComponentId!r}."
                 )
 
             if not SpecifierSet(strSpecifier).contains(
-                Version(dictDependency["version"]), prereleases=True
+                Version(dictDependencyTemp["version"]), prereleases=True
             ):
                 raise ValueError(
-                    f"Locked Component {strDependencyId} {dictDependency['version']} does not satisfy "
-                    f"requirement {strSpecifier!r} from Component {strComponentId}."
+                    f"Locked Component {strComponentId} {dictDependencyTemp['version']} does not satisfy requirement {strSpecifier!r} from Component {strComponentId}."
                 )
 
     setVisited: set[str] = set()
@@ -186,8 +187,8 @@ def _validate_dependency_graph(
         setVisiting.add(componentId)
         listVisitPath.append(componentId)
 
-        for dependencyId in componentDict[componentId]["componentDependencies"]:
-            visit_component(dependencyId)
+        for strComponentId in componentDict[componentId]["componentDependencies"]:
+            visit_component(strComponentId)
 
         listVisitPath.pop()
         setVisiting.remove(componentId)
@@ -203,11 +204,11 @@ def _validate_dependency_graph(
             return
 
         setReachable.add(componentId)
-        for dependencyId in componentDict[componentId]["componentDependencies"]:
-            collect_reachable(dependencyId)
+        for strComponentId in componentDict[componentId]["componentDependencies"]:
+            collect_reachable(strComponentId)
 
-    for strDependencyId in rootDict["componentDependencies"]:
-        collect_reachable(strDependencyId)
+    for strComponentId in rootDict["componentDependencies"]:
+        collect_reachable(strComponentId)
 
     listUnreachable = sorted(set(componentDict) - setReachable)
     if listUnreachable:
@@ -225,7 +226,7 @@ def _validate_locked_component(
     if not isinstance(value, dict):
         raise ValueError(f"{field} must be an object.")
 
-    validate_exact_keys(value, _SET_LOCKED_COMPONENT_KEYS, field)
+    validate_exact_keys(value, _SET_KEYS_LOCKED_COMPONENT, field)
 
     packageName = value.get("packageName")
     if not isinstance(packageName, str):
@@ -253,6 +254,7 @@ def _validate_locked_component(
         packageName=packageName,
         version=strNormalizedVersion,
     )
+
     strSha256 = validate_sha256(value.get("sha256"), f"{field}.sha256")
 
     requiresLiberrpa = value.get("requiresLiberrpa")
@@ -285,7 +287,7 @@ def validate_components_lock(value: object) -> DictComponentsLock_File:
     if not isinstance(value, dict):
         raise ValueError("components.lock.json root value must be an object.")
 
-    validate_exact_keys(value, _SET_COMPONENTS_LOCK_KEYS, "components.lock.json")
+    validate_exact_keys(value, _SET_KEYS_COMPONENTS_LOCK, "components.lock.json")
 
     schemaVersion = value.get("schemaVersion")
     if type(schemaVersion) is not int or schemaVersion != 1:
@@ -298,10 +300,10 @@ def validate_components_lock(value: object) -> DictComponentsLock_File:
         raise ValueError("components.lock.json components must be an object.")
 
     dictComponent: dict[str, DictComponentsLock_Component] = {}
-    dictPackageOwner: dict[str, str] = {}
+    dictPackageNameOwner: dict[str, str] = {}
 
-    if dictRoot["manifestFile"] == "component.json":
-        dictPackageOwner[dictRoot["packageName"].casefold()] = "root Component"
+    if dictRoot["manifestFileName"] == "component.json":
+        dictPackageNameOwner[dictRoot["packageName"].casefold()] = "root Component"
         strRootComponentId: str | None = dictRoot["componentId"]
     else:
         strRootComponentId = None
@@ -317,14 +319,14 @@ def validate_components_lock(value: object) -> DictComponentsLock_File:
             componentId=strComponentId,
         )
 
-        strPackageKey = dictLockedComponent["packageName"].casefold()
-        strExistingPackageOwner = dictPackageOwner.get(strPackageKey)
-        if strExistingPackageOwner is not None:
+        strPackageNameKey = dictLockedComponent["packageName"].casefold()
+        strExistingOwner = dictPackageNameOwner.get(strPackageNameKey)
+        if strExistingOwner is not None:
             raise ValueError(
-                f"Package name {dictLockedComponent['packageName']!r} is already used by {strExistingPackageOwner}."
+                f"Package name {dictLockedComponent['packageName']!r} is already used by {strExistingOwner}."
             )
 
-        dictPackageOwner[strPackageKey] = f"Component {strComponentId}"
+        dictPackageNameOwner[strPackageNameKey] = f"Component {strComponentId}"
         dictComponent[strComponentId] = dictLockedComponent
 
     dictComponent = dict(sorted(dictComponent.items()))
@@ -344,14 +346,14 @@ def _build_components_lock_root(
 
     if isinstance(manifestObj, Info_ProjectManifest_Flow):
         dictFlowRoot: DictComponentsLock_Root_FlowProject = {
-            "manifestFile": "flow.json",
+            "manifestFileName": "flow.json",
             "requiresLiberrpa": manifestObj.requiresLiberrpa,
             "componentDependencies": dictDependency,
         }
         return dictFlowRoot
 
     dictComponentRoot: DictComponentsLock_Root_ComponentProject = {
-        "manifestFile": "component.json",
+        "manifestFileName": "component.json",
         "componentId": manifestObj.id,
         "packageName": manifestObj.packageName,
         "requiresLiberrpa": manifestObj.requiresLiberrpa,
@@ -394,20 +396,20 @@ def read_components_lock(lockPath: Path) -> DictComponentsLock_File:
         ) from e
 
 
-def write_components_lock(lockPath: Path, lockDict: DictComponentsLock_File) -> None:
+def write_components_lock(lockFilePath: Path, lockDict: DictComponentsLock_File) -> None:
     try:
         dictValidatedLock = validate_components_lock(lockDict)
-        write_json_atomic(lockPath, dictValidatedLock)
+        write_json_atomic(lockFilePath, dictValidatedLock)
     except ValueError as e:
         raise ComponentManagementError(
             code="components_lock_invalid",
             message="Cannot write an invalid components.lock.json.",
-            details={"lockFile": str(lockPath), "reason": str(e)},
+            details={"lockFile": str(lockFilePath), "reason": str(e)},
         ) from e
     except OSError as e:
         raise ComponentManagementError(
             code="io_error",
-            message=f"Failed to write components.lock.json: {lockPath}",
+            message=f"Failed to write components.lock.json: {lockFilePath}",
         ) from e
 
 

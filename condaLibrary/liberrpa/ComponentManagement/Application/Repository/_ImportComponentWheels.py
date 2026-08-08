@@ -125,7 +125,7 @@ def _validate_existing_version(
         raise ComponentManagementError(
             code="repository_rebuild_required",
             message="A Component Wheel referenced by repository.json is missing or invalid.",
-            details={"wheelPath": str(pathExistingWheelFile)},
+            details={"wheelFilePath": str(pathExistingWheelFile)},
         )
 
     wheelInfoObj = inspect_component_wheel(pathExistingWheelFile)
@@ -139,7 +139,7 @@ def _validate_existing_version(
             code="repository_rebuild_required",
             message="A Component Wheel does not match its metadata in repository.json.",
             details={
-                "wheelPath": str(pathExistingWheelFile),
+                "wheelFilePath": str(pathExistingWheelFile),
                 "existingVersionEntry": existingVersionEntry,
                 "actualVersionEntry": dictActualVersionEntry,
             },
@@ -352,7 +352,7 @@ def import_component_wheels(
                     raise ComponentManagementError(
                         code="repository_rebuild_required",
                         message="An unindexed Component Wheel already exists at an import target.",
-                        details={"wheelPath": str(pathTargetWheel)},
+                        details={"wheelFilePath": str(pathTargetWheel)},
                     )
 
                 listTransactionArtifact.append({
@@ -415,7 +415,7 @@ def import_component_wheels(
                     raise ComponentManagementError(
                         code="wheel_sha256_mismatch",
                         message="A Component Wheel changed while it was prepared for Repository import.",
-                        details={"wheelPath": str(pathArtifactFile)},
+                        details={"wheelFilePath": str(pathArtifactFile)},
                     )
 
                 pathTargetWheel = pathRepository.joinpath(
@@ -426,7 +426,7 @@ def import_component_wheels(
                     raise ComponentManagementError(
                         code="repository_rebuild_required",
                         message="An unindexed Component Wheel appeared at an import target.",
-                        details={"wheelPath": str(pathTargetWheel)},
+                        details={"wheelFilePath": str(pathTargetWheel)},
                     )
 
                 os.replace(pathArtifactFile, pathTargetWheel)

@@ -367,7 +367,7 @@ def _get_actual_wheel_path_set(repositoryPath: Path) -> set[str]:
         if is_file_invalid(pathWheel):
             raise_rebuild_required(
                 "The Component Repository contains an invalid Wheel path.",
-                {"wheelPath": str(pathWheel)},
+                {"wheelFilePath": str(pathWheel)},
             )
 
         setWheelPath.add(pathWheel.relative_to(repositoryPath).as_posix())

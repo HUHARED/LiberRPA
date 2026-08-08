@@ -224,7 +224,7 @@ def _collect_import_transactions(
             raise ComponentManagementError(
                 code=errorCode,
                 message="Component Repository staging contains an invalid import transaction path.",
-                details={"transactionPath": str(pathTransactionFolder)},
+                details={"transactionFolderPath": str(pathTransactionFolder)},
             )
 
         pathTransactionFile = pathTransactionFolder / "transaction.json"
@@ -260,7 +260,7 @@ def _validate_wheel_against_artifact(
         raise ComponentManagementError(
             code=errorCode,
             message="An interrupted Repository import transaction contains an invalid Wheel path.",
-            details={"wheelPath": str(wheelPath)},
+            details={"wheelFilePath": str(wheelPath)},
         )
 
     try:
@@ -269,7 +269,7 @@ def _validate_wheel_against_artifact(
         raise ComponentManagementError(
             code=errorCode,
             message="Failed to read a Wheel from an interrupted Repository import transaction.",
-            details={"wheelPath": str(wheelPath), "reason": str(e)},
+            details={"wheelFilePath": str(wheelPath), "reason": str(e)},
         ) from e
 
     if strActualSha256 != artifactDict["sha256"]:
@@ -277,7 +277,7 @@ def _validate_wheel_against_artifact(
             code=errorCode,
             message="A Wheel does not match its interrupted Repository import transaction.",
             details={
-                "wheelPath": str(wheelPath),
+                "wheelFilePath": str(wheelPath),
                 "expectedSha256": artifactDict["sha256"],
                 "actualSha256": strActualSha256,
             },
@@ -301,7 +301,7 @@ def _validate_wheel_against_artifact(
         raise ComponentManagementError(
             code=errorCode,
             message="A Wheel identity does not match its interrupted Repository import transaction.",
-            details={"wheelPath": str(wheelPath)},
+            details={"wheelFilePath": str(wheelPath)},
         )
 
 
@@ -375,7 +375,7 @@ def _inspect_import_transaction_state(
                 message="An interrupted Repository import transaction recorded all Wheels as committed, but a target Wheel is missing.",
                 details={
                     "transactionFilePath": str(transactionFilePath),
-                    "wheelPath": str(pathTarget),
+                    "wheelFilePath": str(pathTarget),
                 },
             )
 
@@ -421,16 +421,16 @@ def _inspect_import_transaction_state(
 def recover_import_transactions(
     repositoryPath: Path,
 ) -> list[DictComponentManagementWarning]:
-    listCleanupPath, listTransaction = _collect_import_transactions(
+    listTransactionCleanup, listTransaction = _collect_import_transactions(
         repositoryPath,
         errorCode="repository_recovery_failed",
     )
-    if not listCleanupPath and not listTransaction:
+    if not listTransactionCleanup and not listTransaction:
         return []
 
     listWarning: list[DictComponentManagementWarning] = []
-    for pathCleanup in listCleanupPath:
-        dictWarning = remove_repository_transaction_folder(pathCleanup)
+    for pathTransactionFolder in listTransactionCleanup:
+        dictWarning = remove_repository_transaction_folder(pathTransactionFolder)
         if dictWarning is not None:
             listWarning.append(dictWarning)
 

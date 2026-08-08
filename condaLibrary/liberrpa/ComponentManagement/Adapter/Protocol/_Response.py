@@ -58,7 +58,7 @@ def _get_components_folder_result(
     folderInfo: Info_ProjectComponentsFolder,
 ) -> DictProtocolResult_ComponentsFolder:
     return {
-        "componentsPath": str(folderInfo.componentsPath),
+        "componentsFolderPath": str(folderInfo.componentsFolderPath),
         "componentCount": folderInfo.componentCount,
         "fileCount": folderInfo.fileCount,
     }

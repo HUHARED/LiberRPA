@@ -88,18 +88,18 @@ def _validate_lock_dict(lockDict: DictComponentsLock_File) -> DictComponentsLock
 
 def _get_manifest_mismatch_dict(
     componentId: str,
-    lockedComponent: DictComponentsLock_Component,
+    lockedComponentDict: DictComponentsLock_Component,
     manifestObj: Info_ProjectManifest_Component,
 ) -> dict[str, object]:
     dictMismatch: dict[str, object] = {}
 
     dictExpectedValue: dict[str, object] = {
         "id": componentId,
-        "packageName": lockedComponent["packageName"],
-        "displayName": lockedComponent["displayName"],
-        "version": lockedComponent["version"],
-        "requiresLiberrpa": lockedComponent["requiresLiberrpa"],
-        "componentDependencies": lockedComponent["componentDependencies"],
+        "packageName": lockedComponentDict["packageName"],
+        "displayName": lockedComponentDict["displayName"],
+        "version": lockedComponentDict["version"],
+        "requiresLiberrpa": lockedComponentDict["requiresLiberrpa"],
+        "componentDependencies": lockedComponentDict["componentDependencies"],
     }
     dictActualValue: dict[str, object] = {
         "id": manifestObj.id,
@@ -172,28 +172,34 @@ def _register_archive_path(
     componentId: str,
     pathRegistry: dict[str, tuple[str, str, str]],
 ) -> None:
+    """
+    Register one Wheel archive file and its parent folders before extraction.
+
+    The registry prevents case-insensitive path collisions, file/folder conflicts, duplicate files, and multiple Components from claiming the same extracted folder when all locked Wheels are flattened into _Components.
+    """
+
     listPathPart = archivePath.split("/")
 
     for intIndex in range(1, len(listPathPart)):
-        strDirectoryPath = "/".join(listPathPart[:intIndex])
-        strDirectoryKey = strDirectoryPath.casefold()
-        existingEntry = pathRegistry.get(strDirectoryKey)
+        strFolderPath = "/".join(listPathPart[:intIndex])
+        strFolderKey = strFolderPath.casefold()
+        existingEntry = pathRegistry.get(strFolderKey)
 
         if existingEntry is None:
-            pathRegistry[strDirectoryKey] = (strDirectoryPath, "directory", componentId)
+            pathRegistry[strFolderKey] = (strFolderPath, "folder", componentId)
             continue
 
         strExistingPath, strExistingType, strExistingOwner = existingEntry
         if (
-            strExistingPath != strDirectoryPath
-            or strExistingType != "directory"
+            strExistingPath != strFolderPath
+            or strExistingType != "folder"
             or strExistingOwner != componentId
         ):
             raise ComponentManagementError(
                 code="components_path_conflict",
                 message="Component Wheels contain paths that conflict when expanded into _Components.",
                 details={
-                    "paths": [strExistingPath, strDirectoryPath],
+                    "paths": [strExistingPath, strFolderPath],
                     "componentIds": [strExistingOwner, componentId],
                 },
             )
@@ -235,7 +241,7 @@ def _prepare_locked_wheel_source_list(
                 message="A Component Wheel required by components.lock.json was not found.",
                 details={
                     "componentId": strComponentId,
-                    "wheelPath": str(pathWheel),
+                    "wheelFilePath": str(pathWheel),
                 },
             )
 
@@ -253,7 +259,7 @@ def _prepare_locked_wheel_source_list(
                 )
 
             for strArchivePath in tupleArchivePath:
-                validate_archive_path(strArchivePath)
+                validate_archive_path(archivePath=strArchivePath)
                 _register_archive_path(
                     strArchivePath,
                     componentId=strComponentId,
@@ -267,7 +273,7 @@ def _prepare_locked_wheel_source_list(
                 message="A Component Wheel changed after it was validated.",
                 details={
                     "componentId": strComponentId,
-                    "wheelPath": str(pathWheel),
+                    "wheelFilePath": str(pathWheel),
                 },
             ) from e
 
@@ -298,7 +304,7 @@ def _extract_locked_wheel(
                     message="A Component Wheel changed while _Components was being built.",
                     details={
                         "componentId": lockedWheelSource.componentId,
-                        "wheelPath": str(lockedWheelSource.wheelPath),
+                        "wheelFilePath": str(lockedWheelSource.wheelPath),
                     },
                 )
 
@@ -319,7 +325,7 @@ def _extract_locked_wheel(
             message="Failed to expand a Component Wheel into _Components.",
             details={
                 "componentId": lockedWheelSource.componentId,
-                "wheelPath": str(lockedWheelSource.wheelPath),
+                "wheelFilePath": str(lockedWheelSource.wheelPath),
             },
         ) from e
 
@@ -337,18 +343,30 @@ def _extract_locked_wheel(
             message="A Component Wheel changed while _Components was being built.",
             details={
                 "componentId": lockedWheelSource.componentId,
-                "wheelPath": str(lockedWheelSource.wheelPath),
+                "wheelFilePath": str(lockedWheelSource.wheelPath),
                 "expectedSha256": expectedSha256,
                 "actualSha256": strCurrentSha256,
             },
         )
 
 
-def _scan_components_folder(componentsPath: Path) -> tuple[set[str], set[str]]:
+def _scan_components_folder(componentsFolderPath: Path) -> tuple[set[str], set[str]]:
+    """
+    Scan _Components and collect its actual file and folder paths.
+
+    Traverse the folder recursively and return the relative paths of all managed files and folders using POSIX-style separators so they can be compared with Wheel archive and RECORD paths.
+
+    Ignore Python runtime artifacts such as __pycache__ folders and .pyc files.
+    Reject symbolic links, unsupported file-system entries, and case-insensitive path collisions because _Components must remain deterministic and safe to validate on Windows.
+
+    Returns:
+        A tuple containing the set of managed file paths and the set of managed folder paths relative to _Components.
+    """
+
     setFilePath: set[str] = set()
-    setDirectoryPath: set[str] = set()
+    setFolderPath: set[str] = set()
     dictCaseInsensitivePath: dict[str, tuple[str, str]] = {}
-    listPendingFolder: list[tuple[Path, tuple[str, ...]]] = [(componentsPath, ())]
+    listPendingFolder: list[tuple[Path, tuple[str, ...]]] = [(componentsFolderPath, ())]
 
     while listPendingFolder:
         pathFolder, tupleRelativePart = listPendingFolder.pop()
@@ -373,8 +391,8 @@ def _scan_components_folder(componentsPath: Path) -> tuple[set[str], set[str]]:
                 if entryObj.name == "__pycache__":
                     continue
 
-                strPathType = "directory"
-                setDirectoryPath.add(strRelativePath)
+                strPathType = "folder"
+                setFolderPath.add(strRelativePath)
                 listPendingFolder.append((Path(entryObj.path), tupleEntryPart))
             elif entryObj.is_file(follow_symlinks=False):
                 if Path(entryObj.name).suffix.casefold() in _SET_IGNORED_FILE_SUFFIX:
@@ -398,11 +416,11 @@ def _scan_components_folder(componentsPath: Path) -> tuple[set[str], set[str]]:
 
             dictCaseInsensitivePath[strPathKey] = (strRelativePath, strPathType)
 
-    return setFilePath, setDirectoryPath
+    return setFilePath, setFolderPath
 
 
-def _read_components_file(componentsPath: Path, archivePath: str) -> bytes:
-    pathFile = componentsPath.joinpath(*PurePosixPath(archivePath).parts)
+def _read_components_file(componentsFolderPath: Path, archivePath: str) -> bytes:
+    pathFile = componentsFolderPath.joinpath(*PurePosixPath(archivePath).parts)
 
     try:
         return pathFile.read_bytes()
@@ -411,15 +429,15 @@ def _read_components_file(componentsPath: Path, archivePath: str) -> bytes:
 
 
 def _validate_extracted_component(
-    componentsPath: Path,
+    componentsFolderPath: Path,
     componentId: str,
-    lockedComponent: DictComponentsLock_Component,
+    lockedComponentDict: DictComponentsLock_Component,
     actualFilePathSet: set[str],
 ) -> set[str]:
-    strPackageName = lockedComponent["packageName"]
+    strPackageName = lockedComponentDict["packageName"]
     strDistInfoFolder, _ = get_component_wheel_names(
         strPackageName,
-        lockedComponent["version"],
+        lockedComponentDict["version"],
     )
     strRecordPath = f"{strDistInfoFolder}/RECORD"
     strManifestPath = f"{strDistInfoFolder}/component.json"
@@ -461,7 +479,7 @@ def _validate_extracted_component(
 
     try:
         embeddedManifest = parse_json(
-            _read_components_file(componentsPath, strManifestPath).decode(
+            _read_components_file(componentsFolderPath, strManifestPath).decode(
                 "utf-8", errors="strict"
             )
         )
@@ -480,7 +498,7 @@ def _validate_extracted_component(
 
     dictMismatch = _get_manifest_mismatch_dict(
         componentId,
-        lockedComponent,
+        lockedComponentDict,
         manifestObj,
     )
     if dictMismatch:
@@ -492,7 +510,7 @@ def _validate_extracted_component(
         archivePathSet=setComponentFilePath,
         recordPath=strRecordPath,
         readArchiveFile=lambda archivePath: _read_components_file(
-            componentsPath, archivePath
+            componentsFolderPath, archivePath
         ),
     )
 
@@ -500,27 +518,27 @@ def _validate_extracted_component(
 
 
 def validate_components_folder(
-    componentsPath: Path,
+    componentsFolderPath: Path,
     lockDict: DictComponentsLock_File,
 ) -> Info_ProjectComponentsFolder:
     """Validate _Components against embedded Manifests and Wheel RECORD files."""
     dictValidatedLock = _validate_lock_dict(lockDict)
 
-    if not path_exists(componentsPath):
+    if not path_exists(componentsFolderPath):
         raise ComponentManagementError(
             code="components_folder_missing",
-            message=f"_Components folder was not found: {componentsPath}",
+            message=f"_Components folder was not found: {componentsFolderPath}",
         )
 
-    if is_folder_invalid(componentsPath):
+    if is_folder_invalid(componentsFolderPath):
         raise ComponentManagementError(
             code="components_folder_damaged",
-            message=f"_Components path is invalid: {componentsPath}",
+            message=f"_Components path is invalid: {componentsFolderPath}",
         )
 
     try:
-        setActualFilePath, setActualDirectoryPath = _scan_components_folder(
-            componentsPath
+        setActualFilePath, setActualFolderPath = _scan_components_folder(
+            componentsFolderPath
         )
         setOwnedFilePath: set[str] = set()
 
@@ -528,7 +546,7 @@ def validate_components_folder(
             "components"
         ].items():
             setComponentFilePath = _validate_extracted_component(
-                componentsPath,
+                componentsFolderPath,
                 strComponentId,
                 dictLockedComponent,
                 setActualFilePath,
@@ -546,36 +564,32 @@ def validate_components_folder(
                 f"_Components contains unknown files: {listUnknownFilePath}."
             )
 
-        setExpectedDirectoryPath: set[str] = set()
+        setExpectedFolderPath: set[str] = set()
         for strFilePath in setOwnedFilePath:
             listPathPart = strFilePath.split("/")
-            setExpectedDirectoryPath.update(
+            setExpectedFolderPath.update(
                 "/".join(listPathPart[:intIndex])
                 for intIndex in range(1, len(listPathPart))
             )
 
-        listMissingDirectoryPath = sorted(
-            setExpectedDirectoryPath - setActualDirectoryPath
-        )
-        listUnknownDirectoryPath = sorted(
-            setActualDirectoryPath - setExpectedDirectoryPath
-        )
-        if listMissingDirectoryPath or listUnknownDirectoryPath:
+        listMissingFolderPath = sorted(setExpectedFolderPath - setActualFolderPath)
+        listUnknownFolderPath = sorted(setActualFolderPath - setExpectedFolderPath)
+        if listMissingFolderPath or listUnknownFolderPath:
             raise ValueError(
-                "_Components directory structure does not match the locked Wheels. "
-                f"Missing: {listMissingDirectoryPath}; unknown: {listUnknownDirectoryPath}."
+                "_Components folder structure does not match the locked Wheels. "
+                f"Missing: {listMissingFolderPath}; unknown: {listUnknownFolderPath}."
             )
     except ComponentManagementError:
         raise
     except (OSError, ValueError) as e:
         raise ComponentManagementError(
             code="components_folder_damaged",
-            message=f"_Components integrity validation failed: {componentsPath}",
+            message=f"_Components integrity validation failed: {componentsFolderPath}",
             details={"reason": str(e)},
         ) from e
 
     return Info_ProjectComponentsFolder(
-        componentsPath=componentsPath,
+        componentsFolderPath=componentsFolderPath,
         componentCount=len(dictValidatedLock["components"]),
         fileCount=len(setActualFilePath),
     )
@@ -583,7 +597,7 @@ def validate_components_folder(
 
 def build_components_folder(
     repositoryPath: Path,
-    targetPath: Path,
+    targetComponentsFolderPath: Path,
     lockDict: DictComponentsLock_File,
 ) -> Info_ProjectComponentsFolder:
     """Build a complete _Components folder from exact immutable Repository Wheels."""
@@ -595,51 +609,54 @@ def build_components_folder(
             message=f"Component Repository folder was not found: {repositoryPath}",
         )
 
-    if path_exists(targetPath):
+    if path_exists(targetComponentsFolderPath):
         raise ComponentManagementError(
             code="components_target_exists",
-            message=f"_Components build target already exists: {targetPath}",
+            message=f"_Components build target already exists: {targetComponentsFolderPath}",
         )
 
     listLockedWheelSource = _prepare_locked_wheel_source_list(
         repositoryPath,
         dictValidatedLock,
     )
-    pathTemp = targetPath.parent / f".{targetPath.name}.{uuid.uuid4()}.tmp"
+    pathTempFoler = (
+        targetComponentsFolderPath.parent
+        / f".{targetComponentsFolderPath.name}.{uuid.uuid4()}.tmp"
+    )
 
     try:
-        targetPath.parent.mkdir(parents=True, exist_ok=True)
-        pathTemp.mkdir()
+        targetComponentsFolderPath.parent.mkdir(parents=True, exist_ok=True)
+        pathTempFoler.mkdir()
 
         for lockedWheelSource in listLockedWheelSource:
             _extract_locked_wheel(
                 lockedWheelSource,
-                pathTemp,
+                pathTempFoler,
                 dictValidatedLock["components"][lockedWheelSource.componentId]["sha256"],
             )
 
-        folderInfo = validate_components_folder(pathTemp, dictValidatedLock)
+        folderInfo = validate_components_folder(pathTempFoler, dictValidatedLock)
 
-        if path_exists(targetPath):
+        if path_exists(targetComponentsFolderPath):
             raise ComponentManagementError(
                 code="components_target_exists",
-                message=f"_Components build target appeared while it was being built: {targetPath}",
+                message=f"_Components build target appeared while it was being built: {targetComponentsFolderPath}",
             )
 
-        os.replace(pathTemp, targetPath)
+        os.replace(pathTempFoler, targetComponentsFolderPath)
     except ComponentManagementError:
         raise
     except OSError as e:
         raise ComponentManagementError(
             code="components_build_failed",
-            message=f"Failed to build _Components: {targetPath}",
+            message=f"Failed to build _Components: {targetComponentsFolderPath}",
         ) from e
     finally:
-        if pathTemp.exists() and not pathTemp.is_symlink():
-            rmtree(pathTemp, ignore_errors=True)
+        if pathTempFoler.exists() and not pathTempFoler.is_symlink():
+            rmtree(pathTempFoler, ignore_errors=True)
 
     return Info_ProjectComponentsFolder(
-        componentsPath=targetPath,
+        componentsFolderPath=targetComponentsFolderPath,
         componentCount=folderInfo.componentCount,
         fileCount=folderInfo.fileCount,
     )

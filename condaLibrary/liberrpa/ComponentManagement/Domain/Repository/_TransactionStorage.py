@@ -22,28 +22,33 @@ def get_repository_staging_folder_path(repositoryPath: Path) -> Path:
 
 def copy_wheel_to_staging(sourcePath: Path, targetPath: Path) -> None:
     try:
-        with sourcePath.open("rb") as sourceFileObj, targetPath.open("xb") as targetFileObj:
+        with (
+            sourcePath.open("rb") as sourceFileObj,
+            targetPath.open("xb") as targetFileObj,
+        ):
             shutil.copyfileobj(sourceFileObj, targetFileObj, length=1024 * 1024)
             targetFileObj.flush()
             os.fsync(targetFileObj.fileno())
     except OSError as e:
         raise ComponentManagementError(
             code="io_error",
-            message=(f"Failed to copy the Component Wheel into Repository staging: {targetPath}"),
+            message=(
+                f"Failed to copy the Component Wheel into Repository staging: {targetPath}"
+            ),
         ) from e
 
 
 def remove_repository_transaction_folder(
-    transactionPath: Path,
+    transactionFolderPath: Path,
 ) -> DictComponentManagementWarning | None:
     try:
-        shutil.rmtree(transactionPath)
+        shutil.rmtree(transactionFolderPath)
     except OSError as e:
         return {
             "code": "repository_cleanup_pending",
             "message": (
                 "Repository transaction recovery completed, but temporary files could not be removed: "
-                f"{transactionPath}"
+                f"{transactionFolderPath}"
             ),
             "details": {"reason": str(e)},
         }

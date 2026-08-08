@@ -156,7 +156,7 @@ def _collect_publish_transactions(
             raise ComponentManagementError(
                 code=errorCode,
                 message="Component Repository staging contains an invalid publish transaction path.",
-                details={"transactionPath": str(pathTransactionFolder)},
+                details={"transactionFolderPath": str(pathTransactionFolder)},
             )
 
         pathTransactionFile = pathTransactionFolder / "transaction.json"
@@ -208,7 +208,7 @@ def _inspect_publish_transaction_state(
             message="The target path of an interrupted Repository transaction is not a Wheel file.",
             details={
                 "transactionFilePath": str(transactionFilePath),
-                "wheelPath": str(pathTargetWheel),
+                "wheelFilePath": str(pathTargetWheel),
             },
         )
 
@@ -219,7 +219,7 @@ def _inspect_publish_transaction_state(
             raise ComponentManagementError(
                 code=errorCode,
                 message="Failed to read a committed Wheel from an interrupted Repository transaction.",
-                details={"wheelPath": str(pathTargetWheel), "reason": str(e)},
+                details={"wheelFilePath": str(pathTargetWheel), "reason": str(e)},
             ) from e
 
         if strActualSha256 != transactionDict["sha256"]:
@@ -227,7 +227,7 @@ def _inspect_publish_transaction_state(
                 code=errorCode,
                 message="A committed Component Wheel does not match its interrupted transaction.",
                 details={
-                    "wheelPath": str(pathTargetWheel),
+                    "wheelFilePath": str(pathTargetWheel),
                     "expectedSha256": transactionDict["sha256"],
                     "actualSha256": strActualSha256,
                 },
@@ -237,7 +237,7 @@ def _inspect_publish_transaction_state(
             raise ComponentManagementError(
                 code=errorCode,
                 message="The Repository index references a Wheel missing from an interrupted transaction.",
-                details={"wheelPath": str(pathTargetWheel)},
+                details={"wheelFilePath": str(pathTargetWheel)},
             )
 
         if transactionDict["state"] == "wheelCommitted":
@@ -248,7 +248,7 @@ def _inspect_publish_transaction_state(
                 ),
                 details={
                     "transactionFilePath": str(transactionFilePath),
-                    "wheelPath": str(pathTargetWheel),
+                    "wheelFilePath": str(pathTargetWheel),
                 },
             )
 
@@ -258,16 +258,16 @@ def _inspect_publish_transaction_state(
 def recover_publish_transactions(
     repositoryPath: Path,
 ) -> list[DictComponentManagementWarning]:
-    listCleanupPath, listTransaction = _collect_publish_transactions(
+    listTransactionCleanup, listTransaction = _collect_publish_transactions(
         repositoryPath,
         errorCode="repository_recovery_failed",
     )
-    if not listCleanupPath and not listTransaction:
+    if not listTransactionCleanup and not listTransaction:
         return []
 
     listWarning: list[DictComponentManagementWarning] = []
-    for pathCleanup in listCleanupPath:
-        dictWarning = remove_repository_transaction_folder(pathCleanup)
+    for pathTransactionFolder in listTransactionCleanup:
+        dictWarning = remove_repository_transaction_folder(pathTransactionFolder)
         if dictWarning is not None:
             listWarning.append(dictWarning)
 

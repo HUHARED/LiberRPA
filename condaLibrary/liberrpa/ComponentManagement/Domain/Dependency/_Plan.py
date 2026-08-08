@@ -273,13 +273,13 @@ def _normalize_source_components_lock(
 
     dictRoot = dictValidatedLock["root"]
     if isinstance(manifestObj, Info_ProjectManifest_Flow):
-        if dictRoot["manifestFile"] != "flow.json":
+        if dictRoot["manifestFileName"] != "flow.json":
             _raise_invalid_plan_input(
                 "existingLock belongs to a Component Project, not the current Flow Project.",
             )
         return dictValidatedLock
 
-    if dictRoot["manifestFile"] != "component.json":
+    if dictRoot["manifestFileName"] != "component.json":
         _raise_invalid_plan_input(
             "existingLock belongs to a Flow Project, not the current Component Project.",
         )

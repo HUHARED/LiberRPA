@@ -10,6 +10,7 @@ from typing import Literal
 
 
 type Str_ProjectType = Literal["flow", "component"]
+type Str_ManifestFileName = Literal["flow.json", "component.json"]
 
 
 @dataclass(frozen=True)

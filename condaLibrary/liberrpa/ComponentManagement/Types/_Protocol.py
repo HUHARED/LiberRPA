@@ -196,7 +196,7 @@ class DictProtocolResult_RepositoryCatalog(TypedDict):
 
 
 class DictProtocolResult_ComponentsFolder(TypedDict):
-    componentsPath: str
+    componentsFolderPath: str
     componentCount: int
     fileCount: int
 

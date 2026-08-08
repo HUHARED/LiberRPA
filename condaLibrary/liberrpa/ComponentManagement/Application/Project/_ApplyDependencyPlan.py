@@ -21,7 +21,7 @@ from liberrpa.ComponentManagement.Types._Dependency import (
 from liberrpa.ComponentManagement.Domain.Lock._ProjectLock import project_lock
 from liberrpa.ComponentManagement.Domain.Lock._RepositoryLock import repository_lock
 from liberrpa.ComponentManagement.Domain.Project._TransactionStorage import (
-    get_manifest_file,
+    get_manifest_file_name,
     remove_transaction_folder,
     prepare_project_transaction,
 )
@@ -131,18 +131,18 @@ def apply_project_dependency_plan(
                     },
                 )
 
-            strManifestFile = get_manifest_file(strProjectType)
+            strManifestFileName = get_manifest_file_name(strProjectType)
 
             pathTransaction, dictTransaction = prepare_project_transaction(
                 pathProject,
                 pathRepository,
                 transactionOperation="applyDependencyPlan",
                 projectType=strProjectType,
-                manifestFile=strManifestFile,
+                manifestFileName=strManifestFileName,
                 sourceManifestObj=planObj.sourceManifest,
-                sourceComponentsLock=planObj.sourceComponentsLock,
+                sourceComponentsLockDict=planObj.sourceComponentsLock,
                 targetManifestObj=planObj.targetManifest,
-                targetComponentsLock=planObj.targetComponentsLock,
+                targetComponentsLockDict=planObj.targetComponentsLock,
                 planSha256=planObj.planSha256,
             )
             folderInfo = commit_project_transaction(

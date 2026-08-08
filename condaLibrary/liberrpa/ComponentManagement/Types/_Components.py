@@ -11,20 +11,25 @@ from dataclasses import dataclass
 
 
 class DictComponentsLock_Root_FlowProject(TypedDict):
-    manifestFile: Literal["flow.json"]
+    manifestFileName: Literal["flow.json"]
+
     requiresLiberrpa: str
     componentDependencies: dict[str, str]
 
 
 class DictComponentsLock_Root_ComponentProject(TypedDict):
-    manifestFile: Literal["component.json"]
+    manifestFileName: Literal["component.json"]
+
     componentId: str
     packageName: str
+
     requiresLiberrpa: str
     componentDependencies: dict[str, str]
 
 
-type DictComponentsLock_Root = DictComponentsLock_Root_FlowProject | DictComponentsLock_Root_ComponentProject
+type DictComponentsLock_Root = (
+    DictComponentsLock_Root_FlowProject | DictComponentsLock_Root_ComponentProject
+)
 
 
 class DictComponentsLock_Component(TypedDict):
@@ -47,6 +52,6 @@ class DictComponentsLock_File(TypedDict):
 
 @dataclass(frozen=True)
 class Info_ProjectComponentsFolder:
-    componentsPath: Path
+    componentsFolderPath: Path
     componentCount: int
     fileCount: int

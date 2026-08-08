@@ -5,7 +5,10 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
-from liberrpa.ComponentManagement.Types._Manifest import Str_ProjectType
+from liberrpa.ComponentManagement.Types._Manifest import (
+    Str_ProjectType,
+    Str_ManifestFileName,
+)
 
 from typing import Literal, NotRequired, TypedDict
 
@@ -15,9 +18,12 @@ type Str_ProjectTransaction_State = Literal["prepared", "committing", "manifestC
 
 class DictProjectTransaction_Snapshot(TypedDict):
     manifestSha256: str
-    componentsLockExists: bool
-    componentsPathExists: bool
-    componentsLockSha256: NotRequired[str]
+    # Whether components.lock.json exists.
+    componentsLockFileShouldExist: bool
+    # Whether _Components exists.
+    componentsFolderShouldExist: bool
+
+    expectedComponentsLockFileSha256: NotRequired[str]
 
 
 class DictProjectTransaction_ApplyDependencyPlan(TypedDict):
@@ -25,10 +31,12 @@ class DictProjectTransaction_ApplyDependencyPlan(TypedDict):
     operation: Literal["applyDependencyPlan"]
     state: Str_ProjectTransaction_State
     projectType: Str_ProjectType
-    manifestFile: Literal["flow.json", "component.json"]
-    planSha256: str
+    manifestFileName: Str_ManifestFileName
+
     source: DictProjectTransaction_Snapshot
     target: DictProjectTransaction_Snapshot
+
+    planSha256: str
 
 
 class DictProjectTransaction_RepairComponents(TypedDict):
@@ -36,9 +44,12 @@ class DictProjectTransaction_RepairComponents(TypedDict):
     operation: Literal["repairProjectComponents"]
     state: Str_ProjectTransaction_State
     projectType: Str_ProjectType
-    manifestFile: Literal["flow.json", "component.json"]
+    manifestFileName: Str_ManifestFileName
+
     source: DictProjectTransaction_Snapshot
     target: DictProjectTransaction_Snapshot
 
 
-type DictProjectTransaction = DictProjectTransaction_ApplyDependencyPlan | DictProjectTransaction_RepairComponents
+type DictProjectTransaction = (
+    DictProjectTransaction_ApplyDependencyPlan | DictProjectTransaction_RepairComponents
+)

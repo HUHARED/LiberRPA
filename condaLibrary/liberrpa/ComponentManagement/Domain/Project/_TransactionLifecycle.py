@@ -25,12 +25,16 @@ from liberrpa.ComponentManagement.Domain.Project._TransactionStorage import (
     move_source_to_backup,
     move_target_to_project,
     validate_target_project_state,
-    restore_source_path,
-    ensure_target_path_committed,
+    restore_source_entry,
+    ensure_target_entry_committed,
     cleanup_temporary_transaction_folders,
 )
-from liberrpa.ComponentManagement.Domain.Project._Components import STR_COMPONENTS_FOLDER_NAME
-from liberrpa.ComponentManagement.Domain.Dependency._ComponentsLock import STR_COMPONENTS_LOCK_FILE_NAME
+from liberrpa.ComponentManagement.Domain.Project._Components import (
+    STR_COMPONENTS_FOLDER_NAME,
+)
+from liberrpa.ComponentManagement.Domain.Dependency._ComponentsLock import (
+    STR_COMPONENTS_LOCK_FILE_NAME,
+)
 
 from pathlib import Path
 import os
@@ -39,16 +43,16 @@ import uuid
 
 def commit_project_transaction(
     projectPath: Path,
-    transactionPath: Path,
+    transactionFolderPath: Path,
     transactionDict: DictProjectTransaction,
 ) -> Info_ProjectComponentsFolder | None:
-    pathTarget = transactionPath / STR_TARGET_FOLDER_NAME
-    pathBackup = transactionPath / STR_BACKUP_FOLDER_NAME
-    pathManifest = projectPath / transactionDict["manifestFile"]
+    pathTarget = transactionFolderPath / STR_TARGET_FOLDER_NAME
+    pathBackup = transactionFolderPath / STR_BACKUP_FOLDER_NAME
+    pathManifest = projectPath / transactionDict["manifestFileName"]
 
     try:
         write_transaction_state(
-            transactionPath,
+            transactionFolderPath,
             transactionDict,
             "committing",
         )
@@ -63,11 +67,11 @@ def commit_project_transaction(
             transactionDict["target"],
         )
         os.replace(
-            pathTarget / transactionDict["manifestFile"],
+            pathTarget / transactionDict["manifestFileName"],
             pathManifest,
         )
         write_transaction_state(
-            transactionPath,
+            transactionFolderPath,
             transactionDict,
             "manifestCommitted",
         )
@@ -77,7 +81,7 @@ def commit_project_transaction(
         raise ComponentManagementError(
             code="project_transaction_failed",
             message="Failed to commit the Project dependency transaction.",
-            details={"transactionPath": str(transactionPath)},
+            details={"transactionFolderPath": str(transactionFolderPath)},
         ) from e
 
     return validate_target_project_state(projectPath, transactionDict)
@@ -85,36 +89,37 @@ def commit_project_transaction(
 
 def _rollback_project_transaction(
     projectPath: Path,
-    transactionPath: Path,
+    transactionFolderPath: Path,
     transactionDict: DictProjectTransaction,
 ) -> None:
-    pathBackup = transactionPath / STR_BACKUP_FOLDER_NAME
+    pathBackup = transactionFolderPath / STR_BACKUP_FOLDER_NAME
     dictSource = transactionDict["source"]
 
     try:
-        restore_source_path(
+        restore_source_entry(
             projectPath / STR_COMPONENTS_FOLDER_NAME,
             pathBackup / STR_COMPONENTS_FOLDER_NAME,
-            sourceExists=dictSource["componentsPathExists"],
+            sourceShouldExist=dictSource["componentsFolderShouldExist"],
+            expectedSourceSha256=None,
         )
-        restore_source_path(
+        restore_source_entry(
             projectPath / STR_COMPONENTS_LOCK_FILE_NAME,
             pathBackup / STR_COMPONENTS_LOCK_FILE_NAME,
-            sourceExists=dictSource["componentsLockExists"],
-            sourceSha256=dictSource.get("componentsLockSha256"),
+            sourceShouldExist=dictSource["componentsLockFileShouldExist"],
+            expectedSourceSha256=dictSource.get("expectedComponentsLockFileSha256"),
         )
-        restore_source_path(
-            projectPath / transactionDict["manifestFile"],
-            pathBackup / transactionDict["manifestFile"],
-            sourceExists=True,
-            sourceSha256=dictSource["manifestSha256"],
+        restore_source_entry(
+            projectPath / transactionDict["manifestFileName"],
+            pathBackup / transactionDict["manifestFileName"],
+            sourceShouldExist=True,
+            expectedSourceSha256=dictSource["manifestSha256"],
         )
     except (ComponentManagementError, OSError) as e:
         raise ComponentManagementError(
             code="project_transaction_recovery_failed",
             message="Failed to roll back an interrupted Project dependency transaction.",
             details={
-                "transactionPath": str(transactionPath),
+                "transactionFolderPath": str(transactionFolderPath),
                 "reason": str(e),
             },
         ) from e
@@ -122,46 +127,49 @@ def _rollback_project_transaction(
 
 def _finish_committed_project_transaction(
     projectPath: Path,
-    transactionPath: Path,
+    transactionFolderPath: Path,
     transactionDict: DictProjectTransaction,
 ) -> Info_ProjectComponentsFolder | None:
-    pathTarget = transactionPath / STR_TARGET_FOLDER_NAME
+    pathTargetFolder = transactionFolderPath / STR_TARGET_FOLDER_NAME
     dictTarget = transactionDict["target"]
 
     try:
-        ensure_target_path_committed(
+        ensure_target_entry_committed(
             projectPath / STR_COMPONENTS_FOLDER_NAME,
-            pathTarget / STR_COMPONENTS_FOLDER_NAME,
-            targetExists=dictTarget["componentsPathExists"],
+            pathTargetFolder / STR_COMPONENTS_FOLDER_NAME,
+            targetShouldExist=dictTarget["componentsFolderShouldExist"],
         )
-        ensure_target_path_committed(
+        ensure_target_entry_committed(
             projectPath / STR_COMPONENTS_LOCK_FILE_NAME,
-            pathTarget / STR_COMPONENTS_LOCK_FILE_NAME,
-            targetExists=dictTarget["componentsLockExists"],
+            pathTargetFolder / STR_COMPONENTS_LOCK_FILE_NAME,
+            targetShouldExist=dictTarget["componentsLockFileShouldExist"],
         )
-        ensure_target_path_committed(
-            projectPath / transactionDict["manifestFile"],
-            pathTarget / transactionDict["manifestFile"],
-            targetExists=True,
+        ensure_target_entry_committed(
+            projectPath / transactionDict["manifestFileName"],
+            pathTargetFolder / transactionDict["manifestFileName"],
+            targetShouldExist=True,
         )
 
         folderInfo = validate_target_project_state(projectPath, transactionDict)
         if transactionDict["state"] != "manifestCommitted":
             write_transaction_state(
-                transactionPath,
+                transactionFolderPath,
                 transactionDict,
                 "manifestCommitted",
             )
         return folderInfo
     except (ComponentManagementError, OSError) as e:
-        if isinstance(e, ComponentManagementError) and e.code == "project_transaction_recovery_failed":
+        if (
+            isinstance(e, ComponentManagementError)
+            and e.code == "project_transaction_recovery_failed"
+        ):
             raise
 
         raise ComponentManagementError(
             code="project_transaction_recovery_failed",
             message="Failed to finish an interrupted committed Project dependency transaction.",
             details={
-                "transactionPath": str(transactionPath),
+                "transactionFolderPath": str(transactionFolderPath),
                 "reason": str(e),
             },
         ) from e
@@ -169,9 +177,9 @@ def _finish_committed_project_transaction(
 
 def _get_current_manifest_sha256(
     projectPath: Path,
-    manifestFile: str,
+    manifestFileName: str,
 ) -> str | None:
-    pathManifest = projectPath / manifestFile
+    pathManifest = projectPath / manifestFileName
     if not path_exists(pathManifest):
         return None
 
@@ -180,12 +188,12 @@ def _get_current_manifest_sha256(
 
 def _recover_project_transaction(
     projectPath: Path,
-    transactionPath: Path,
+    transactionFolderPath: Path,
     transactionDict: DictProjectTransaction,
 ) -> Info_ProjectComponentsFolder | None:
     strCurrentManifestSha256 = _get_current_manifest_sha256(
         projectPath,
-        transactionDict["manifestFile"],
+        transactionDict["manifestFileName"],
     )
     strSourceManifestSha256 = transactionDict["source"]["manifestSha256"]
     strTargetManifestSha256 = transactionDict["target"]["manifestSha256"]
@@ -195,21 +203,25 @@ def _recover_project_transaction(
             raise ComponentManagementError(
                 code="project_transaction_recovery_failed",
                 message="The Project changed while a prepared dependency transaction was pending.",
-                details={"transactionPath": str(transactionPath)},
+                details={"transactionFolderPath": str(transactionFolderPath)},
             )
         return None
 
     if transactionDict["state"] == "manifestCommitted":
         return _finish_committed_project_transaction(
             projectPath,
-            transactionPath,
+            transactionFolderPath,
             transactionDict,
         )
 
-    if strSourceManifestSha256 != strTargetManifestSha256 and strCurrentManifestSha256 == strTargetManifestSha256:
+    # transactionDict["state"] == "commiting"
+    if (
+        strSourceManifestSha256 != strTargetManifestSha256
+        and strCurrentManifestSha256 == strTargetManifestSha256
+    ):
         return _finish_committed_project_transaction(
             projectPath,
-            transactionPath,
+            transactionFolderPath,
             transactionDict,
         )
 
@@ -218,7 +230,7 @@ def _recover_project_transaction(
             code="project_transaction_recovery_failed",
             message="The Project Manifest does not match either side of the interrupted transaction.",
             details={
-                "transactionPath": str(transactionPath),
+                "transactionFolderPath": str(transactionFolderPath),
                 "actualSha256": strCurrentManifestSha256,
                 "sourceSha256": strSourceManifestSha256,
                 "targetSha256": strTargetManifestSha256,
@@ -227,7 +239,7 @@ def _recover_project_transaction(
 
     _rollback_project_transaction(
         projectPath,
-        transactionPath,
+        transactionFolderPath,
         transactionDict,
     )
     return None
@@ -236,21 +248,24 @@ def _recover_project_transaction(
 def recover_project_transactions_locked(
     projectPath: Path,
 ) -> list[DictComponentManagementWarning]:
-    pathTransactions = get_transactions_path(projectPath)
-    if not path_exists(pathTransactions):
+    pathTransactionFolder = get_transactions_path(projectPath)
+    if not path_exists(pathTransactionFolder):
         return []
 
-    if is_folder_invalid(pathTransactions):
+    if is_folder_invalid(pathTransactionFolder):
         raise ComponentManagementError(
             code="project_transaction_invalid",
             message="The Project transaction path is invalid.",
-            details={"transactionsPath": str(pathTransactions)},
+            details={"transactionsPath": str(pathTransactionFolder)},
         )
 
-    listWarning = cleanup_temporary_transaction_folders(pathTransactions)
+    listWarning = cleanup_temporary_transaction_folders(pathTransactionFolder)
+
     listTransactionPath = [
         pathEntry
-        for pathEntry in sorted(pathTransactions.iterdir(), key=lambda pathObj: pathObj.name)
+        for pathEntry in sorted(
+            pathTransactionFolder.iterdir(), key=lambda pathObj: pathObj.name
+        )
         if pathEntry.name.startswith(STR_PROJECT_TRANSACTION_PREFIX)
     ]
 
@@ -259,51 +274,51 @@ def recover_project_transactions_locked(
             code="project_transaction_invalid",
             message="The Project contains more than one unfinished dependency transaction.",
             details={
-                "transactions": [str(pathTransaction) for pathTransaction in listTransactionPath],
+                "transactions": [
+                    str(pathTransaction) for pathTransaction in listTransactionPath
+                ],
             },
         )
 
     if not listTransactionPath:
         try:
-            if not any(pathTransactions.iterdir()):
-                pathTransactions.rmdir()
+            if not any(pathTransactionFolder.iterdir()):
+                pathTransactionFolder.rmdir()
         except OSError:
             pass
         return listWarning
 
-    pathTransaction = listTransactionPath[0]
-    if is_folder_invalid(pathTransaction):
+    pathTransactionFolder = listTransactionPath[0]
+    if is_folder_invalid(pathTransactionFolder):
         raise ComponentManagementError(
             code="project_transaction_invalid",
             message="The unfinished Project dependency transaction path is invalid.",
-            details={"transactionPath": str(pathTransaction)},
+            details={"transactionFolderPath": str(pathTransactionFolder)},
         )
 
-    strTransactionId = pathTransaction.name.removeprefix(STR_PROJECT_TRANSACTION_PREFIX)
+    strTransactionId = pathTransactionFolder.name.removeprefix(
+        STR_PROJECT_TRANSACTION_PREFIX
+    )
     try:
         transactionUuid = uuid.UUID(strTransactionId)
     except ValueError as e:
         raise ComponentManagementError(
             code="project_transaction_invalid",
             message="The unfinished Project transaction folder name is invalid.",
-            details={"transactionPath": str(pathTransaction)},
+            details={"transactionFolderPath": str(pathTransactionFolder)},
         ) from e
 
     if transactionUuid.version != 4 or transactionUuid.variant != uuid.RFC_4122:
         raise ComponentManagementError(
             code="project_transaction_invalid",
             message="The unfinished Project transaction folder must use a UUID v4.",
-            details={"transactionPath": str(pathTransaction)},
+            details={"transactionFolderPath": str(pathTransactionFolder)},
         )
 
-    dictTransaction = read_project_transaction(pathTransaction)
-    _recover_project_transaction(
-        projectPath,
-        pathTransaction,
-        dictTransaction,
-    )
+    dictTransaction = read_project_transaction(pathTransactionFolder)
+    _recover_project_transaction(projectPath, pathTransactionFolder, dictTransaction)
 
-    dictWarning = remove_transaction_folder(pathTransaction)
+    dictWarning = remove_transaction_folder(pathTransactionFolder)
     if dictWarning is not None:
         listWarning.append(dictWarning)
 

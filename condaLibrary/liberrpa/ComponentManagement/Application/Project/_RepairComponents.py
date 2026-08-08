@@ -14,7 +14,7 @@ from liberrpa.ComponentManagement.Types._Dependency import (
 from liberrpa.ComponentManagement.Domain.Lock._ProjectLock import project_lock
 from liberrpa.ComponentManagement.Domain.Lock._RepositoryLock import repository_lock
 from liberrpa.ComponentManagement.Domain.Project._TransactionStorage import (
-    get_manifest_file,
+    get_manifest_file_name,
     remove_transaction_folder,
     prepare_project_transaction,
 )
@@ -73,9 +73,9 @@ def repair_project_components(
                     details={"lockFile": str(pathLock)},
                 )
 
-            pathComponents = pathProject / STR_COMPONENTS_FOLDER_NAME
+            pathComponentsFolder = pathProject / STR_COMPONENTS_FOLDER_NAME
             try:
-                validate_components_folder(pathComponents, dictLock)
+                validate_components_folder(pathComponentsFolder, dictLock)
             except ComponentManagementError as e:
                 if e.code not in {
                     "components_folder_missing",
@@ -86,29 +86,30 @@ def repair_project_components(
                 raise ComponentManagementError(
                     code="project_components_repair_not_required",
                     message="_Components already matches components.lock.json.",
-                    details={"componentsPath": str(pathComponents)},
+                    details={"componentsFolderPath": str(pathComponentsFolder)},
                 )
 
-            strManifestFile = get_manifest_file(strProjectType)
-            pathTransaction, dictTransaction = prepare_project_transaction(
+            strManifestFileName = get_manifest_file_name(strProjectType)
+            pathTransactionFolder, dictTransaction = prepare_project_transaction(
                 pathProject,
                 pathRepository,
                 transactionOperation="repairProjectComponents",
                 projectType=strProjectType,
-                manifestFile=strManifestFile,
+                manifestFileName=strManifestFileName,
                 sourceManifestObj=manifestObj,
-                sourceComponentsLock=dictLock,
+                sourceComponentsLockDict=dictLock,
                 targetManifestObj=manifestObj,
-                targetComponentsLock=dictLock,
+                targetComponentsLockDict=dictLock,
+                planSha256=None,
             )
             folderInfo = commit_project_transaction(
                 pathProject,
-                pathTransaction,
+                pathTransactionFolder,
                 dictTransaction,
             )
             assert folderInfo is not None
 
-            dictWarning = remove_transaction_folder(pathTransaction)
+            dictWarning = remove_transaction_folder(pathTransactionFolder)
             if dictWarning is not None:
                 listWarning.append(dictWarning)
 

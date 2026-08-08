@@ -15,7 +15,11 @@ from liberrpa.ComponentManagement.Common._Validation import (
     is_folder_invalid,
 )
 from liberrpa.ComponentManagement.Types._Warning import DictComponentManagementWarning
-from liberrpa.ComponentManagement.Types._Manifest import Info_ProjectManifest
+from liberrpa.ComponentManagement.Types._Manifest import (
+    Str_ProjectType,
+    Str_ManifestFileName,
+    Info_ProjectManifest,
+)
 from liberrpa.ComponentManagement.Types._Components import (
     DictComponentsLock_File,
     Info_ProjectComponentsFolder,
@@ -78,21 +82,21 @@ STR_PROJECT_TRANSACTION_PREFIX = "project_"
 _STR_PROJECT_TRANSACTION_TEMP_PREFIX = ".project_"
 _STR_PROJECT_TRANSACTION_TEMP_SUFFIX = ".tmp"
 
-_SET_TRANSACTION_BASE_KEYS = {
+_SET_TRANSACTION_KEYS_BASE = {
     "schemaVersion",
     "operation",
     "state",
     "projectType",
-    "manifestFile",
+    "manifestFileName",
     "source",
     "target",
 }
-_SET_APPLY_TRANSACTION_KEYS = _SET_TRANSACTION_BASE_KEYS | {"planSha256"}
-_SET_REPAIR_TRANSACTION_KEYS = set(_SET_TRANSACTION_BASE_KEYS)
-_SET_SNAPSHOT_BASE_KEYS = {
+_SET_TRANSACTION_KEYS_APPLY = _SET_TRANSACTION_KEYS_BASE | {"planSha256"}
+_SET_TRANSACTION_KEYS_REPAIR = set(_SET_TRANSACTION_KEYS_BASE)
+_SET_KEYS_SNAPSHOT_BASE = {
     "manifestSha256",
-    "componentsLockExists",
-    "componentsPathExists",
+    "componentsLockFileShouldExist",
+    "componentsFolderShouldExist",
 }
 
 
@@ -100,7 +104,9 @@ def get_transactions_path(projectPath: Path) -> Path:
     return projectPath / _STR_INTERNAL_FOLDER_NAME / _STR_TRANSACTIONS_FOLDER_NAME
 
 
-def get_manifest_file(projectType: Literal["flow", "component"]) -> Literal["flow.json", "component.json"]:
+def get_manifest_file_name(
+    projectType: Str_ProjectType,
+) -> Str_ManifestFileName:
     return "flow.json" if projectType == "flow" else "component.json"
 
 
@@ -113,37 +119,38 @@ def _validate_snapshot(
     if not isinstance(value, dict):
         raise ValueError(f"{field} must be an object.")
 
-    boolComponentsLockExists = value.get("componentsLockExists")
-    if type(boolComponentsLockExists) is not bool:
-        raise ValueError(f"{field}.componentsLockExists must be a boolean.")
+    boolComponentsLockFileShouldExist = value.get("componentsLockFileShouldExist")
+    if type(boolComponentsLockFileShouldExist) is not bool:
+        raise ValueError(f"{field}.componentsLockFileShouldExist must be a boolean.")
 
-    setExpectedKey = set(_SET_SNAPSHOT_BASE_KEYS)
-    if boolComponentsLockExists:
-        setExpectedKey.add("componentsLockSha256")
+    setExpectedKey = set(_SET_KEYS_SNAPSHOT_BASE)
+    if boolComponentsLockFileShouldExist:
+        setExpectedKey.add("expectedComponentsLockFileSha256")
     validate_exact_keys(value, setExpectedKey, field)
 
     strManifestSha256 = validate_sha256(
-        value.get("manifestSha256"),
-        f"{field}.manifestSha256",
+        value.get("manifestSha256"), f"{field}.manifestSha256"
     )
 
-    boolComponentsPathExists = value.get("componentsPathExists")
-    if type(boolComponentsPathExists) is not bool:
-        raise ValueError(f"{field}.componentsPathExists must be a boolean.")
+    boolComponentsFolderShouldExist = value.get("componentsFolderShouldExist")
+    if type(boolComponentsFolderShouldExist) is not bool:
+        raise ValueError(f"{field}.componentsFolderShouldExist must be a boolean.")
 
-    if isTarget and boolComponentsLockExists != boolComponentsPathExists:
-        raise ValueError(f"{field}.componentsLockExists and {field}.componentsPathExists must have the same value.")
+    if isTarget and boolComponentsLockFileShouldExist != boolComponentsFolderShouldExist:
+        raise ValueError(
+            f"{field}.componentsLockFileShouldExist and {field}.componentsFolderShouldExist must have the same value."
+        )
 
     dictSnapshot: DictProjectTransaction_Snapshot = {
         "manifestSha256": strManifestSha256,
-        "componentsLockExists": boolComponentsLockExists,
-        "componentsPathExists": boolComponentsPathExists,
+        "componentsLockFileShouldExist": boolComponentsLockFileShouldExist,
+        "componentsFolderShouldExist": boolComponentsFolderShouldExist,
     }
 
-    if boolComponentsLockExists:
-        dictSnapshot["componentsLockSha256"] = validate_sha256(
-            value.get("componentsLockSha256"),
-            f"{field}.componentsLockSha256",
+    if boolComponentsLockFileShouldExist:
+        dictSnapshot["expectedComponentsLockFileSha256"] = validate_sha256(
+            value.get("expectedComponentsLockFileSha256"),
+            f"{field}.expectedComponentsLockFileSha256",
         )
 
     return dictSnapshot
@@ -155,10 +162,10 @@ def _validate_project_transaction(value: object) -> DictProjectTransaction:
 
     operationValue = value.get("operation")
     if operationValue == "applyDependencyPlan":
-        validate_exact_keys(value, _SET_APPLY_TRANSACTION_KEYS, "transaction.json")
+        validate_exact_keys(value, _SET_TRANSACTION_KEYS_APPLY, "transaction.json")
         strPlanSha256 = validate_sha256(value.get("planSha256"), "planSha256")
     elif operationValue == "repairProjectComponents":
-        validate_exact_keys(value, _SET_REPAIR_TRANSACTION_KEYS, "transaction.json")
+        validate_exact_keys(value, _SET_TRANSACTION_KEYS_REPAIR, "transaction.json")
         strPlanSha256 = None
     else:
         raise ValueError("transaction.json contains an unsupported operation.")
@@ -179,17 +186,17 @@ def _validate_project_transaction(value: object) -> DictProjectTransaction:
 
     projectTypeValue = value.get("projectType")
     if projectTypeValue == "flow":
-        strProjectType: Literal["flow", "component"] = "flow"
+        strProjectType: Str_ProjectType = "flow"
     elif projectTypeValue == "component":
         strProjectType = "component"
     else:
         raise ValueError("transaction.json projectType must be 'flow' or 'component'.")
 
-    manifestFileValue = value.get("manifestFile")
-    strExpectedManifestFile = get_manifest_file(strProjectType)
-    if manifestFileValue != strExpectedManifestFile:
-        raise ValueError("transaction.json manifestFile does not match projectType.")
-    strManifestFile: Literal["flow.json", "component.json"] = strExpectedManifestFile
+    manifestFileValue = value.get("manifestFileName")
+    strExpectedManifestFileName = get_manifest_file_name(strProjectType)
+    if manifestFileValue != strExpectedManifestFileName:
+        raise ValueError("transaction.json manifestFileName does not match projectType.")
+    strManifestFileName = strExpectedManifestFileName
 
     dictSource = _validate_snapshot(value.get("source"), "source", isTarget=False)
     dictTarget = _validate_snapshot(value.get("target"), "target", isTarget=True)
@@ -201,10 +208,11 @@ def _validate_project_transaction(value: object) -> DictProjectTransaction:
             "operation": "applyDependencyPlan",
             "state": transactionState,
             "projectType": strProjectType,
-            "manifestFile": strManifestFile,
-            "planSha256": strPlanSha256,
+            "manifestFileName": strManifestFileName,
             "source": dictSource,
             "target": dictTarget,
+            #
+            "planSha256": strPlanSha256,
         }
 
     return {
@@ -212,19 +220,19 @@ def _validate_project_transaction(value: object) -> DictProjectTransaction:
         "operation": "repairProjectComponents",
         "state": transactionState,
         "projectType": strProjectType,
-        "manifestFile": strManifestFile,
+        "manifestFileName": strManifestFileName,
         "source": dictSource,
         "target": dictTarget,
     }
 
 
-def read_project_transaction(transactionPath: Path) -> DictProjectTransaction:
-    pathTransactionFile = transactionPath / _STR_TRANSACTION_FILE_NAME
+def read_project_transaction(transactionFolderPath: Path) -> DictProjectTransaction:
+    pathTransactionFile = transactionFolderPath / _STR_TRANSACTION_FILE_NAME
     if is_file_invalid(pathTransactionFile):
         raise ComponentManagementError(
             code="project_transaction_invalid",
             message="A Project dependency transaction is missing a valid transaction.json.",
-            details={"transactionPath": str(transactionPath)},
+            details={"transactionFolderPath": str(transactionFolderPath)},
         )
 
     try:
@@ -234,14 +242,14 @@ def read_project_transaction(transactionPath: Path) -> DictProjectTransaction:
             code="project_transaction_invalid",
             message="A Project dependency transaction contains invalid metadata.",
             details={
-                "transactionPath": str(transactionPath),
+                "transactionFolderPath": str(transactionFolderPath),
                 "reason": str(e),
             },
         ) from e
 
 
 def write_transaction_state(
-    transactionPath: Path,
+    transactionFolderPath: Path,
     transactionDict: DictProjectTransaction,
     state: Str_ProjectTransaction_State,
 ) -> None:
@@ -249,7 +257,7 @@ def write_transaction_state(
 
     try:
         write_json_atomic(
-            transactionPath / _STR_TRANSACTION_FILE_NAME,
+            transactionFolderPath / _STR_TRANSACTION_FILE_NAME,
             transactionDict,
         )
     except OSError as e:
@@ -257,7 +265,7 @@ def write_transaction_state(
             code="project_transaction_failed",
             message="Failed to update the Project dependency transaction state.",
             details={
-                "transactionPath": str(transactionPath),
+                "transactionFolderPath": str(transactionFolderPath),
                 "state": state,
             },
         ) from e
@@ -279,26 +287,30 @@ def _remove_path(path: Path) -> None:
 
 
 def remove_transaction_folder(
-    transactionPath: Path,
+    transactionFolderPath: Path,
 ) -> DictComponentManagementWarning | None:
     try:
-        if path_exists(transactionPath):
-            if is_folder_invalid(transactionPath):
+        if path_exists(transactionFolderPath):
+            if is_folder_invalid(transactionFolderPath):
                 raise OSError("Transaction path is not a normal folder.")
-            rmtree(transactionPath)
+            rmtree(transactionFolderPath)
     except OSError as e:
         return {
             "code": "project_transaction_cleanup_failed",
             "message": "The completed Project dependency transaction could not be removed.",
             "details": {
-                "transactionPath": str(transactionPath),
+                "transactionFolderPath": str(transactionFolderPath),
                 "reason": str(e),
             },
         }
 
-    pathTransactions = transactionPath.parent
+    pathTransactions = transactionFolderPath.parent
     try:
-        if pathTransactions.is_dir() and not pathTransactions.is_symlink() and not any(pathTransactions.iterdir()):
+        if (
+            pathTransactions.is_dir()
+            and not pathTransactions.is_symlink()
+            and not any(pathTransactions.iterdir())
+        ):
             pathTransactions.rmdir()
     except OSError:
         pass
@@ -306,7 +318,9 @@ def remove_transaction_folder(
     return None
 
 
-def _copy_regular_file(sourcePath: Path, targetPath: Path, field: str) -> None:
+def _copy_project_file_to_transaction(
+    sourcePath: Path, targetPath: Path, field: str
+) -> None:
     try:
         targetPath.parent.mkdir(parents=True, exist_ok=True)
         with sourcePath.open("rb") as sourceFileObj:
@@ -345,27 +359,27 @@ def get_regular_file_sha256(path: Path, field: str) -> str:
 
 def _build_transaction_snapshot(
     manifestPath: Path,
-    lockPath: Path,
-    componentsPath: Path,
+    componentsLockFilePath: Path,
+    componentsFolderPath: Path,
 ) -> DictProjectTransaction_Snapshot:
-    boolLockExists = path_exists(lockPath)
-    boolComponentsPathExists = path_exists(componentsPath)
+    boolComponentsLockFileShouldExist = path_exists(componentsLockFilePath)
+    boolComponentsFolderShouldExist = path_exists(componentsFolderPath)
 
-    if boolLockExists and is_file_invalid(lockPath):
+    if boolComponentsLockFileShouldExist and is_file_invalid(componentsLockFilePath):
         raise ComponentManagementError(
             code="project_transaction_failed",
             message="The current components.lock.json path is invalid.",
-            details={"lockFile": str(lockPath)},
+            details={"componentsLockFilePath": str(componentsLockFilePath)},
         )
 
     dictSnapshot: DictProjectTransaction_Snapshot = {
         "manifestSha256": get_regular_file_sha256(manifestPath, "Project Manifest"),
-        "componentsLockExists": boolLockExists,
-        "componentsPathExists": boolComponentsPathExists,
+        "componentsLockFileShouldExist": boolComponentsLockFileShouldExist,
+        "componentsFolderShouldExist": boolComponentsFolderShouldExist,
     }
-    if boolLockExists:
-        dictSnapshot["componentsLockSha256"] = get_regular_file_sha256(
-            lockPath,
+    if boolComponentsLockFileShouldExist:
+        dictSnapshot["expectedComponentsLockFileSha256"] = get_regular_file_sha256(
+            componentsLockFilePath,
             "components.lock.json",
         )
 
@@ -377,80 +391,90 @@ def prepare_project_transaction(
     repositoryPath: Path,
     *,
     transactionOperation: Literal["applyDependencyPlan", "repairProjectComponents"],
-    projectType: Literal["flow", "component"],
-    manifestFile: Literal["flow.json", "component.json"],
+    projectType: Str_ProjectType,
+    manifestFileName: Str_ManifestFileName,
     sourceManifestObj: Info_ProjectManifest,
-    sourceComponentsLock: DictComponentsLock_File | None,
+    sourceComponentsLockDict: DictComponentsLock_File | None,
     targetManifestObj: Info_ProjectManifest,
-    targetComponentsLock: DictComponentsLock_File | None,
+    targetComponentsLockDict: DictComponentsLock_File | None,
     planSha256: str | None = None,
 ) -> tuple[Path, DictProjectTransaction]:
-    pathManifest = projectPath / manifestFile
-    pathLock = projectPath / STR_COMPONENTS_LOCK_FILE_NAME
-    pathComponents = projectPath / STR_COMPONENTS_FOLDER_NAME
+    pathManifestFile = projectPath / manifestFileName
+    pathComponentsLockFile = projectPath / STR_COMPONENTS_LOCK_FILE_NAME
+    pathComponentsFolder = projectPath / STR_COMPONENTS_FOLDER_NAME
     dictSourceSnapshot = _build_transaction_snapshot(
-        pathManifest,
-        pathLock,
-        pathComponents,
+        pathManifestFile,
+        pathComponentsLockFile,
+        pathComponentsFolder,
     )
 
-    pathTransactions = get_transactions_path(projectPath)
+    pathTransactionsFolder = get_transactions_path(projectPath)
     strTransactionId = str(uuid.uuid4())
-    pathTempTransaction = pathTransactions / (
-        f"{_STR_PROJECT_TRANSACTION_TEMP_PREFIX}{strTransactionId}{_STR_PROJECT_TRANSACTION_TEMP_SUFFIX}"
+    pathTempTransactionFolder = (
+        pathTransactionsFolder
+        / f"{_STR_PROJECT_TRANSACTION_TEMP_PREFIX}{strTransactionId}{_STR_PROJECT_TRANSACTION_TEMP_SUFFIX}"
     )
-    pathTransaction = pathTransactions / f"{STR_PROJECT_TRANSACTION_PREFIX}{strTransactionId}"
-    pathTarget = pathTempTransaction / STR_TARGET_FOLDER_NAME
-    pathBackup = pathTempTransaction / STR_BACKUP_FOLDER_NAME
+
+    pathSpecificTransactionFolder = (
+        pathTransactionsFolder / f"{STR_PROJECT_TRANSACTION_PREFIX}{strTransactionId}"
+    )
+    pathTempTargetFolder = pathTempTransactionFolder / STR_TARGET_FOLDER_NAME
+    pathTempBackupFolder = pathTempTransactionFolder / STR_BACKUP_FOLDER_NAME
 
     try:
-        pathTransactions.mkdir(parents=True, exist_ok=True)
-        pathTempTransaction.mkdir()
-        pathTarget.mkdir()
-        pathBackup.mkdir()
+        pathTransactionsFolder.mkdir(parents=True, exist_ok=True)
+        pathTempTransactionFolder.mkdir()
+        pathTempTargetFolder.mkdir()
+        pathTempBackupFolder.mkdir()
 
-        pathTargetManifest = pathTarget / manifestFile
+        pathTargetManifestFile = pathTempTargetFolder / manifestFileName
         if targetManifestObj == sourceManifestObj:
-            _copy_regular_file(
-                pathManifest,
-                pathTargetManifest,
+            # Preserve the exact source bytes when the target Manifest is unchanged so formatting alone does not create a different transaction target SHA-256.
+            _copy_project_file_to_transaction(
+                pathManifestFile,
+                pathTargetManifestFile,
                 "the current Project Manifest into the transaction target",
             )
         else:
             write_json_atomic(
-                pathTargetManifest,
+                pathTargetManifestFile,
                 build_project_manifest_dict(targetManifestObj),
             )
 
-        pathTargetLock = pathTarget / STR_COMPONENTS_LOCK_FILE_NAME
-        pathTargetComponents = pathTarget / STR_COMPONENTS_FOLDER_NAME
-        if targetComponentsLock is not None:
-            if targetComponentsLock == sourceComponentsLock:
-                _copy_regular_file(
-                    pathLock,
-                    pathTargetLock,
+        pathTargetComponentsLockFile = (
+            pathTempTargetFolder / STR_COMPONENTS_LOCK_FILE_NAME
+        )
+        pathTargetComponentsFolder = pathTempTargetFolder / STR_COMPONENTS_FOLDER_NAME
+        if targetComponentsLockDict is not None:
+            if targetComponentsLockDict == sourceComponentsLockDict:
+                # Preserve the exact source bytes when the target lock is unchanged so formatting alone does not create a different transaction target SHA-256.
+                _copy_project_file_to_transaction(
+                    pathComponentsLockFile,
+                    pathTargetComponentsLockFile,
                     "the current components.lock.json into the transaction target",
                 )
             else:
-                write_components_lock(pathTargetLock, targetComponentsLock)
+                write_components_lock(
+                    pathTargetComponentsLockFile, targetComponentsLockDict
+                )
 
             build_components_folder(
                 repositoryPath=repositoryPath,
-                targetPath=pathTargetComponents,
-                lockDict=targetComponentsLock,
+                targetComponentsFolderPath=pathTargetComponentsFolder,
+                lockDict=targetComponentsLockDict,
             )
 
-        pathBackupManifest = pathBackup / manifestFile
-        _copy_regular_file(
-            pathManifest,
-            pathBackupManifest,
+        pathBackupManifestFile = pathTempBackupFolder / manifestFileName
+        _copy_project_file_to_transaction(
+            pathManifestFile,
+            pathBackupManifestFile,
             "the current Project Manifest into the transaction backup",
         )
 
         dictTargetSnapshot = _build_transaction_snapshot(
-            pathTargetManifest,
-            pathTargetLock,
-            pathTargetComponents,
+            pathTargetManifestFile,
+            pathTargetComponentsLockFile,
+            pathTargetComponentsFolder,
         )
         if transactionOperation == "applyDependencyPlan":
             assert planSha256 is not None
@@ -459,10 +483,12 @@ def prepare_project_transaction(
                 "operation": "applyDependencyPlan",
                 "state": "prepared",
                 "projectType": projectType,
-                "manifestFile": manifestFile,
-                "planSha256": planSha256,
+                "manifestFileName": manifestFileName,
+                #
                 "source": dictSourceSnapshot,
                 "target": dictTargetSnapshot,
+                #
+                "planSha256": planSha256,
             }
         else:
             assert planSha256 is None
@@ -471,33 +497,34 @@ def prepare_project_transaction(
                 "operation": "repairProjectComponents",
                 "state": "prepared",
                 "projectType": projectType,
-                "manifestFile": manifestFile,
+                "manifestFileName": manifestFileName,
+                #
                 "source": dictSourceSnapshot,
                 "target": dictTargetSnapshot,
             }
 
         write_json_atomic(
-            pathTempTransaction / _STR_TRANSACTION_FILE_NAME,
+            pathTempTransactionFolder / _STR_TRANSACTION_FILE_NAME,
             dictTransaction,
         )
 
-        os.replace(pathTempTransaction, pathTransaction)
+        os.replace(pathTempTransactionFolder, pathSpecificTransactionFolder)
     except ComponentManagementError:
         raise
     except OSError as e:
         raise ComponentManagementError(
             code="project_transaction_failed",
             message="Failed to prepare the Project transaction.",
-            details={"transactionPath": str(pathTempTransaction)},
+            details={"transactionFolderPath": str(pathTempTransactionFolder)},
         ) from e
     finally:
-        if path_exists(pathTempTransaction):
+        if path_exists(pathTempTransactionFolder):
             try:
-                _remove_path(pathTempTransaction)
+                _remove_path(pathTempTransactionFolder)
             except OSError:
                 pass
 
-    return pathTransaction, dictTransaction
+    return pathSpecificTransactionFolder, dictTransaction
 
 
 def move_source_to_backup(
@@ -507,12 +534,12 @@ def move_source_to_backup(
 ) -> None:
     pathProjectComponents = projectPath / STR_COMPONENTS_FOLDER_NAME
     pathBackupComponents = backupPath / STR_COMPONENTS_FOLDER_NAME
-    if snapshotDict["componentsPathExists"]:
+    if snapshotDict["componentsFolderShouldExist"]:
         os.replace(pathProjectComponents, pathBackupComponents)
 
     pathProjectLock = projectPath / STR_COMPONENTS_LOCK_FILE_NAME
     pathBackupLock = backupPath / STR_COMPONENTS_LOCK_FILE_NAME
-    if snapshotDict["componentsLockExists"]:
+    if snapshotDict["componentsLockFileShouldExist"]:
         os.replace(pathProjectLock, pathBackupLock)
 
 
@@ -521,13 +548,13 @@ def move_target_to_project(
     targetPath: Path,
     snapshotDict: DictProjectTransaction_Snapshot,
 ) -> None:
-    if snapshotDict["componentsPathExists"]:
+    if snapshotDict["componentsFolderShouldExist"]:
         os.replace(
             targetPath / STR_COMPONENTS_FOLDER_NAME,
             projectPath / STR_COMPONENTS_FOLDER_NAME,
         )
 
-    if snapshotDict["componentsLockExists"]:
+    if snapshotDict["componentsLockFileShouldExist"]:
         os.replace(
             targetPath / STR_COMPONENTS_LOCK_FILE_NAME,
             projectPath / STR_COMPONENTS_LOCK_FILE_NAME,
@@ -546,14 +573,14 @@ def validate_target_project_state(
             details={"projectPath": str(projectPath)},
         )
 
-    pathManifest = projectPath / transactionDict["manifestFile"]
+    pathManifest = projectPath / transactionDict["manifestFileName"]
     strManifestSha256 = get_regular_file_sha256(pathManifest, "Project Manifest")
     if strManifestSha256 != transactionDict["target"]["manifestSha256"]:
         raise ComponentManagementError(
             code="project_transaction_recovery_failed",
             message="The Project Manifest does not match the committed transaction target.",
             details={
-                "manifestFile": str(pathManifest),
+                "manifestPath": str(pathManifest),
                 "expectedSha256": transactionDict["target"]["manifestSha256"],
                 "actualSha256": strManifestSha256,
             },
@@ -563,7 +590,7 @@ def validate_target_project_state(
     pathComponents = projectPath / STR_COMPONENTS_FOLDER_NAME
     dictTarget = transactionDict["target"]
 
-    if not dictTarget["componentsLockExists"]:
+    if not dictTarget["componentsLockFileShouldExist"]:
         if path_exists(pathLock) or path_exists(pathComponents):
             raise ComponentManagementError(
                 code="project_transaction_recovery_failed",
@@ -572,7 +599,7 @@ def validate_target_project_state(
             )
         return None
 
-    strExpectedLockSha256 = dictTarget.get("componentsLockSha256")
+    strExpectedLockSha256 = dictTarget.get("expectedComponentsLockFileSha256")
     assert strExpectedLockSha256 is not None
 
     strLockSha256 = get_regular_file_sha256(pathLock, "components.lock.json")
@@ -591,74 +618,112 @@ def validate_target_project_state(
     return validate_components_folder(pathComponents, dictLock)
 
 
-def restore_source_path(
-    projectPath: Path,
-    backupPath: Path,
+def restore_source_entry(
+    projectEntryPath: Path,
+    transactionBackupEntryPath: Path,
     *,
-    sourceExists: bool,
-    sourceSha256: str | None = None,
+    sourceShouldExist: bool,
+    expectedSourceSha256: str | None = None,
 ) -> None:
-    boolProjectExists = path_exists(projectPath)
-    boolBackupExists = path_exists(backupPath)
+    """
+    Restore one Project entry to the source snapshot during transaction rollback.
 
-    if boolBackupExists:
-        _remove_path(projectPath)
-        os.replace(backupPath, projectPath)
-    elif sourceExists:
-        if not boolProjectExists:
-            raise OSError(f"Source backup is missing for {projectPath}.")
-    else:
-        _remove_path(projectPath)
+    If a backup exists, replace any partially committed target entry with the backed-up source entry.
 
-    if sourceExists and sourceSha256 is not None:
-        strActualSha256 = get_regular_file_sha256(projectPath, projectPath.name)
-        if strActualSha256 != sourceSha256:
+    If no backup exists but the source snapshot requires the entry, the original entry should still be at its Project path because the backup move had not occurred before the interruption.
+
+    If the source snapshot does not require the entry, remove any partially committed target entry from the Project.
+    """
+
+    boolProjectEntryExists = path_exists(projectEntryPath)
+    boolTransactionBackupEntryExists = path_exists(transactionBackupEntryPath)
+
+    if boolTransactionBackupEntryExists:
+        # The commit already moved the source entry into backup. Remove any partially committed target entry and restore the source entry.
+        _remove_path(projectEntryPath)
+        os.replace(transactionBackupEntryPath, projectEntryPath)
+    elif sourceShouldExist:
+        # No backup means the source entry had not yet been moved when the interruption occurred. It must therefore still be in the Project.
+        if not boolProjectEntryExists:
             raise OSError(
-                f"Restored file SHA-256 does not match for {projectPath}: "
-                f"expected {sourceSha256}, actual {strActualSha256}."
+                f"The source entry and its transaction backup are both missing: {projectEntryPath}."
+            )
+    else:
+        # The source snapshot did not contain this entry. Remove anything that was partially committed to the Project.
+        _remove_path(projectEntryPath)
+
+    if sourceShouldExist and expectedSourceSha256 is not None:
+        # File entries with a recorded SHA-256 must exactly match the source snapshot after restoration.
+        strActualSha256 = get_regular_file_sha256(projectEntryPath, projectEntryPath.name)
+        if strActualSha256 != expectedSourceSha256:
+            raise OSError(
+                f"Restored file SHA-256 does not match for {projectEntryPath}: "
+                f"expected {expectedSourceSha256}, actual {strActualSha256}."
             )
 
 
-def ensure_target_path_committed(
-    projectPath: Path,
-    targetPath: Path,
+def ensure_target_entry_committed(
+    projectEntryPath: Path,
+    transactionTargetEntryPath: Path,
     *,
-    targetExists: bool,
+    targetShouldExist: bool,
 ) -> None:
-    boolProjectExists = path_exists(projectPath)
-    boolTargetExists = path_exists(targetPath)
+    """
+    Ensure one Project entry matches the target snapshot during forward recovery.
 
-    if targetExists:
-        if not boolProjectExists:
-            if not boolTargetExists:
-                raise OSError(f"Transaction target is missing for {projectPath}.")
-            os.replace(targetPath, projectPath)
-    else:
-        _remove_path(projectPath)
+    If the target snapshot requires the entry, keep it when it has already been committed to the Project. Otherwise, move the remaining staged target entry from the transaction folder into the Project.
+
+    If the target snapshot does not require the entry, remove any source or partially committed entry left at the Project path.
+    """
+
+    boolProjectEntryExists = path_exists(projectEntryPath)
+    boolTransactionTargetEntryExists = path_exists(transactionTargetEntryPath)
+
+    if targetShouldExist:
+        if not boolProjectEntryExists:
+            # The target entry was already moved into the Project before the interruption. Final state validation will verify its contents.
+            return None
+        if not boolTransactionTargetEntryExists:
+            # Neither location contains the required target entry, so the committed Project state cannot be reconstructed.
+            raise OSError(
+                f"The target entry is missing from both the Project and transaction staging: {projectEntryPath}."
+            )
+        # The target entry is still staged in the transaction folder. Complete the interrupted move into the Project.
+        os.replace(transactionTargetEntryPath, projectEntryPath)
+        return None
+
+    # The target snapshot intentionally omits this entry. Remove any source or partially committed target entry left in the Project.
+    _remove_path(projectEntryPath)
 
 
 def cleanup_temporary_transaction_folders(
-    transactionsPath: Path,
+    transactionFolderPath: Path,
 ) -> list[DictComponentManagementWarning]:
     listWarning: list[DictComponentManagementWarning] = []
 
-    for pathEntry in sorted(transactionsPath.iterdir(), key=lambda pathObj: pathObj.name):
+    for pathEntry_InnerTransactionFolder in sorted(
+        transactionFolderPath.iterdir(), key=lambda pathObj: pathObj.name
+    ):
         if not (
-            pathEntry.name.startswith(_STR_PROJECT_TRANSACTION_TEMP_PREFIX)
-            and pathEntry.name.endswith(_STR_PROJECT_TRANSACTION_TEMP_SUFFIX)
+            pathEntry_InnerTransactionFolder.name.startswith(
+                _STR_PROJECT_TRANSACTION_TEMP_PREFIX
+            )
+            and pathEntry_InnerTransactionFolder.name.endswith(
+                _STR_PROJECT_TRANSACTION_TEMP_SUFFIX
+            )
         ):
             continue
 
         try:
-            if is_folder_invalid(pathEntry):
+            if is_folder_invalid(pathEntry_InnerTransactionFolder):
                 raise OSError("Temporary transaction path is not a normal folder.")
-            rmtree(pathEntry)
+            rmtree(pathEntry_InnerTransactionFolder)
         except OSError as e:
             listWarning.append({
                 "code": "project_transaction_cleanup_failed",
                 "message": "An incomplete Project transaction preparation folder could not be removed.",
                 "details": {
-                    "transactionPath": str(pathEntry),
+                    "transactionFolderPath": str(pathEntry_InnerTransactionFolder),
                     "reason": str(e),
                 },
             })

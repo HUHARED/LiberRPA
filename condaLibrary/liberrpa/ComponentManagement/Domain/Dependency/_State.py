@@ -95,32 +95,32 @@ def _get_components_state(
             "reason": "A valid components.lock.json is required before _Components can be verified."
         }
 
-    pathComponents = projectPath / STR_COMPONENTS_FOLDER_NAME
-    if not pathComponents.exists() and not pathComponents.is_symlink():
-        return "missing", {"componentsPath": str(pathComponents)}
+    pathComponentsFolder = projectPath / STR_COMPONENTS_FOLDER_NAME
+    if not pathComponentsFolder.exists() and not pathComponentsFolder.is_symlink():
+        return "missing", {"componentsFolderPath": str(pathComponentsFolder)}
 
-    if pathComponents.is_dir() and not pathComponents.is_symlink():
+    if pathComponentsFolder.is_dir() and not pathComponentsFolder.is_symlink():
         try:
-            if not any(pathComponents.iterdir()):
-                return "missing", {"componentsPath": str(pathComponents)}
+            if not any(pathComponentsFolder.iterdir()):
+                return "missing", {"componentsFolderPath": str(pathComponentsFolder)}
         except OSError as e:
             return "damaged", {
-                "componentsPath": str(pathComponents),
+                "componentsFolderPath": str(pathComponentsFolder),
                 "reason": str(e),
             }
 
     try:
-        folderInfo = validate_components_folder(pathComponents, lockDict)
+        folderInfo = validate_components_folder(pathComponentsFolder, lockDict)
     except ComponentManagementError as e:
         return "damaged", {
-            "componentsPath": str(pathComponents),
+            "componentsFolderPath": str(pathComponentsFolder),
             "code": e.code,
             "message": e.message,
             "details": e.details or {},
         }
 
     return "valid", {
-        "componentsPath": str(pathComponents),
+        "componentsFolderPath": str(pathComponentsFolder),
         "componentCount": folderInfo.componentCount,
         "fileCount": folderInfo.fileCount,
     }
@@ -158,21 +158,21 @@ def _get_repair_state(
         if is_file_invalid(pathWheel):
             return "wheelMissing", {
                 "componentId": strComponentId,
-                "wheelPath": str(pathWheel),
+                "wheelFilePath": str(pathWheel),
             }
 
         try:
             strActualSha256 = calculate_file_sha256(pathWheel)
         except OSError as e:
             return "repositoryUnavailable", {
-                "wheelPath": str(pathWheel),
+                "wheelFilePath": str(pathWheel),
                 "reason": str(e),
             }
 
         if strActualSha256 != dictComponent["sha256"]:
             return "wheelHashMismatch", {
                 "componentId": strComponentId,
-                "wheelPath": str(pathWheel),
+                "wheelFilePath": str(pathWheel),
                 "expectedSha256": dictComponent["sha256"],
                 "actualSha256": strActualSha256,
             }

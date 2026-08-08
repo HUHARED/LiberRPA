@@ -237,8 +237,8 @@ def rebuild_repository_index() -> Info_Repository_RebuildResult:
                 details={"indexFile": str(pathRepository / STR_INDEX_FILE_NAME)},
             ) from e
 
-        for pathTransaction in listTransactionCleanup:
-            dictWarning = remove_repository_transaction_folder(pathTransaction)
+        for pathTransactionFolder in listTransactionCleanup:
+            dictWarning = remove_repository_transaction_folder(pathTransactionFolder)
             if dictWarning is not None:
                 listWarning.append(dictWarning)
 
