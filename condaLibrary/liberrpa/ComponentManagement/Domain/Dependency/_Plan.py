@@ -60,26 +60,18 @@ def _raise_invalid_plan_input(
 
 def _normalize_requirement(value: object, field: str) -> str:
     if not isinstance(value, str):
-        _raise_invalid_plan_input(
-            f"{field} must be a string.",
-            {"field": field},
-        )
+        _raise_invalid_plan_input(f"{field} must be a string.", {"field": field})
 
     if value != value.strip():
         _raise_invalid_plan_input(
-            f"{field} cannot start or end with whitespace.",
-            {"field": field},
+            f"{field} cannot start or end with whitespace.", {"field": field}
         )
 
     try:
         return normalize_pep440_specifier(value)
     except ValueError as e:
         _raise_invalid_plan_input(
-            f"{field} is invalid.",
-            {
-                "field": field,
-                "reason": str(e),
-            },
+            f"{field} is invalid.", {"field": field, "reason": str(e)}
         )
 
 
@@ -88,11 +80,7 @@ def _normalize_operation_component_id(value: object, field: str) -> str:
         return validate_component_id(value, field)
     except ValueError as e:
         _raise_invalid_plan_input(
-            f"{field} is invalid.",
-            {
-                "field": field,
-                "reason": str(e),
-            },
+            f"{field} is invalid.", {"field": field, "reason": str(e)}
         )
 
 
@@ -102,32 +90,10 @@ def _normalize_dependency_operation(
     if isinstance(operationObj, Info_ProjectDependency_Operation_Add):
         return Info_ProjectDependency_Operation_Add(
             componentId=_normalize_operation_component_id(
-                operationObj.componentId,
-                "operation.componentId",
+                operationObj.componentId, "operation.componentId"
             ),
             requirement=_normalize_requirement(
-                operationObj.requirement,
-                "operation.requirement",
-            ),
-        )
-
-    if isinstance(operationObj, Info_ProjectDependency_Operation_ChangeRequirement):
-        return Info_ProjectDependency_Operation_ChangeRequirement(
-            componentId=_normalize_operation_component_id(
-                operationObj.componentId,
-                "operation.componentId",
-            ),
-            requirement=_normalize_requirement(
-                operationObj.requirement,
-                "operation.requirement",
-            ),
-        )
-
-    if isinstance(operationObj, Info_ProjectDependency_Operation_Remove):
-        return Info_ProjectDependency_Operation_Remove(
-            componentId=_normalize_operation_component_id(
-                operationObj.componentId,
-                "operation.componentId",
+                operationObj.requirement, "operation.requirement"
             ),
         )
 
@@ -137,8 +103,7 @@ def _normalize_dependency_operation(
 
         listNormalizedComponentId = [
             _normalize_operation_component_id(
-                componentId,
-                f"operation.componentIds.{intIndex}",
+                componentId, f"operation.componentIds.{intIndex}"
             )
             for intIndex, componentId in enumerate(operationObj.componentIds)
         ]
@@ -149,6 +114,23 @@ def _normalize_dependency_operation(
 
         return Info_ProjectDependency_Operation_Update(
             componentIds=tuple(sorted(listNormalizedComponentId)),
+        )
+
+    if isinstance(operationObj, Info_ProjectDependency_Operation_ChangeRequirement):
+        return Info_ProjectDependency_Operation_ChangeRequirement(
+            componentId=_normalize_operation_component_id(
+                operationObj.componentId, "operation.componentId"
+            ),
+            requirement=_normalize_requirement(
+                operationObj.requirement, "operation.requirement"
+            ),
+        )
+
+    if isinstance(operationObj, Info_ProjectDependency_Operation_Remove):
+        return Info_ProjectDependency_Operation_Remove(
+            componentId=_normalize_operation_component_id(
+                operationObj.componentId, "operation.componentId"
+            ),
         )
 
     _raise_invalid_plan_input(
@@ -229,9 +211,7 @@ def parse_project_dependency_operation(
 
         elif operationValue == "removeComponentDependency":
             validate_exact_keys(
-                value,
-                {"operation", "componentId"},
-                "dependencyOperation",
+                value, {"operation", "componentId"}, "dependencyOperation"
             )
             componentId = value.get("componentId")
             if not isinstance(componentId, str):
@@ -249,8 +229,7 @@ def parse_project_dependency_operation(
             )
     except ValueError as e:
         _raise_invalid_plan_input(
-            "dependencyOperation contains missing or unknown fields.",
-            {"reason": str(e)},
+            "dependencyOperation contains missing or unknown fields.", {"reason": str(e)}
         )
 
     return _normalize_dependency_operation(operationObj)
@@ -258,30 +237,31 @@ def parse_project_dependency_operation(
 
 def _normalize_source_components_lock(
     manifestObj: Info_ProjectManifest,
-    existingLock: DictComponentsLock_File | None,
+    existingLockDict: DictComponentsLock_File | None,
 ) -> DictComponentsLock_File | None:
-    if existingLock is None:
+    if existingLockDict is None:
         return None
 
     try:
-        dictValidatedLock = validate_components_lock(existingLock)
+        dictValidatedLock = validate_components_lock(existingLockDict)
     except ValueError as e:
         _raise_invalid_plan_input(
-            "existingLock is not a valid components.lock.json.",
-            {"reason": str(e)},
+            "existingLock is not a valid components.lock.json.", {"reason": str(e)}
         )
 
     dictRoot = dictValidatedLock["root"]
+    # Flow Project
     if isinstance(manifestObj, Info_ProjectManifest_Flow):
         if dictRoot["manifestFileName"] != "flow.json":
             _raise_invalid_plan_input(
-                "existingLock belongs to a Component Project, not the current Flow Project.",
+                "existingLock belongs to a Component Project, not the current Flow Project."
             )
         return dictValidatedLock
 
+    # Component Project
     if dictRoot["manifestFileName"] != "component.json":
         _raise_invalid_plan_input(
-            "existingLock belongs to a Flow Project, not the current Component Project.",
+            "existingLock belongs to a Flow Project, not the current Component Project."
         )
 
     if dictRoot["componentId"] != manifestObj.id:
@@ -340,6 +320,9 @@ def _build_target_manifest(
 
         dictTargetDependency[operationObj.componentId] = operationObj.requirement
 
+    elif isinstance(operationObj, Info_ProjectDependency_Operation_Update):
+        pass
+
     elif isinstance(operationObj, Info_ProjectDependency_Operation_ChangeRequirement):
         strExistingRequirement = dictTargetDependency.get(operationObj.componentId)
         if strExistingRequirement is None:
@@ -368,9 +351,6 @@ def _build_target_manifest(
 
         del dictTargetDependency[operationObj.componentId]
 
-    elif isinstance(operationObj, Info_ProjectDependency_Operation_Update):
-        pass
-
     else:
         assert_never(operationObj)
 
@@ -382,15 +362,15 @@ def _build_target_manifest(
 
 def _resolve_target_components_lock(
     targetManifestObj: Info_ProjectManifest,
-    repositoryIndex: DictRepository_Index,
+    repositoryIndexDict: DictRepository_Index,
     operationObj: Info_ProjectDependency_Operation,
-    sourceComponentsLock: DictComponentsLock_File | None,
+    sourceComponentsLockDict: DictComponentsLock_File | None,
 ) -> DictComponentsLock_File | None:
     if isinstance(operationObj, Info_ProjectDependency_Operation_Update):
         return resolve_project_dependencies(
             targetManifestObj,
-            repositoryIndex,
-            existingLock=sourceComponentsLock,
+            repositoryIndexDict,
+            existingLockDict=sourceComponentsLockDict,
             updateComponentIdSet=set(operationObj.componentIds),
         )
 
@@ -399,8 +379,8 @@ def _resolve_target_components_lock(
 
     return resolve_project_dependencies(
         targetManifestObj,
-        repositoryIndex,
-        existingLock=sourceComponentsLock,
+        repositoryIndexDict,
+        existingLockDict=sourceComponentsLockDict,
     )
 
 
@@ -492,8 +472,7 @@ def _get_resolved_component_changes(
             raise ComponentManagementError(
                 code="immutable_version_conflict",
                 message=(
-                    "components.lock.json and the Component Repository contain different content "
-                    "for the same Component version."
+                    "components.lock.json and the Component Repository contain different content for the same Component version."
                 ),
                 details={
                     "componentId": strComponentId,
@@ -553,9 +532,9 @@ def _build_operation_dict(
 def _calculate_plan_sha256(
     operationObj: Info_ProjectDependency_Operation,
     sourceManifestObj: Info_ProjectManifest,
-    sourceComponentsLock: DictComponentsLock_File | None,
+    sourceComponentsLockDict: DictComponentsLock_File | None,
     targetManifestObj: Info_ProjectManifest,
-    targetComponentsLock: DictComponentsLock_File | None,
+    targetComponentsLockDict: DictComponentsLock_File | None,
     directDependencyChangeList: list[DictProjectDependency_DirectChange],
     resolvedComponentChangeList: list[DictProjectDependency_ResolvedChange],
 ) -> str:
@@ -563,11 +542,11 @@ def _calculate_plan_sha256(
         "operation": _build_operation_dict(operationObj),
         "source": {
             "manifest": build_project_manifest_dict(sourceManifestObj),
-            "componentsLock": sourceComponentsLock,
+            "componentsLock": sourceComponentsLockDict,
         },
         "target": {
             "manifest": build_project_manifest_dict(targetManifestObj),
-            "componentsLock": targetComponentsLock,
+            "componentsLock": targetComponentsLockDict,
         },
         "directDependencyChanges": directDependencyChangeList,
         "resolvedComponentChanges": resolvedComponentChangeList,
@@ -577,10 +556,10 @@ def _calculate_plan_sha256(
 
 def build_project_dependency_plan(
     manifestObj: Info_ProjectManifest,
-    repositoryIndex: DictRepository_Index,
+    repositoryIndexDict: DictRepository_Index,
     operationObj: Info_ProjectDependency_Operation,
     *,
-    existingLock: DictComponentsLock_File | None = None,
+    existingLockDict: DictComponentsLock_File | None = None,
 ) -> Info_ProjectDependency_Plan:
     """Build a deterministic dependency plan without modifying the Project or Repository."""
     sourceManifestObj = _replace_manifest_dependencies(
@@ -589,18 +568,19 @@ def build_project_dependency_plan(
     )
     dictSourceComponentsLock = _normalize_source_components_lock(
         sourceManifestObj,
-        existingLock,
+        existingLockDict,
     )
+
     normalizedOperationObj = _normalize_dependency_operation(operationObj)
-    targetManifestObj = _build_target_manifest(
-        sourceManifestObj,
-        normalizedOperationObj,
-    )
-    dictTargetComponentsLock = _resolve_target_components_lock(
-        targetManifestObj,
-        repositoryIndex,
-        normalizedOperationObj,
-        dictSourceComponentsLock,
+    targetManifestObj = _build_target_manifest(sourceManifestObj, normalizedOperationObj)
+
+    dictTargetComponentsLock: DictComponentsLock_File | None = (
+        _resolve_target_components_lock(
+            targetManifestObj,
+            repositoryIndexDict,
+            normalizedOperationObj,
+            dictSourceComponentsLock,
+        )
     )
     listDirectDependencyChange = _get_direct_dependency_changes(
         sourceManifestObj,

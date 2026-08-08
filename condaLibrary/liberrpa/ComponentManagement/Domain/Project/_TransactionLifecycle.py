@@ -92,27 +92,29 @@ def _rollback_project_transaction(
     transactionFolderPath: Path,
     transactionDict: DictProjectTransaction,
 ) -> None:
-    pathBackup = transactionFolderPath / STR_BACKUP_FOLDER_NAME
-    dictSource = transactionDict["source"]
+    pathBackupFolder = transactionFolderPath / STR_BACKUP_FOLDER_NAME
+    dictSourceSnapshot = transactionDict["source"]
 
     try:
         restore_source_entry(
             projectPath / STR_COMPONENTS_FOLDER_NAME,
-            pathBackup / STR_COMPONENTS_FOLDER_NAME,
-            sourceShouldExist=dictSource["componentsFolderShouldExist"],
+            pathBackupFolder / STR_COMPONENTS_FOLDER_NAME,
+            sourceShouldExist=dictSourceSnapshot["componentsFolderShouldExist"],
             expectedSourceSha256=None,
         )
         restore_source_entry(
             projectPath / STR_COMPONENTS_LOCK_FILE_NAME,
-            pathBackup / STR_COMPONENTS_LOCK_FILE_NAME,
-            sourceShouldExist=dictSource["componentsLockFileShouldExist"],
-            expectedSourceSha256=dictSource.get("expectedComponentsLockFileSha256"),
+            pathBackupFolder / STR_COMPONENTS_LOCK_FILE_NAME,
+            sourceShouldExist=dictSourceSnapshot["componentsLockFileShouldExist"],
+            expectedSourceSha256=dictSourceSnapshot.get(
+                "expectedComponentsLockFileSha256"
+            ),
         )
         restore_source_entry(
             projectPath / transactionDict["manifestFileName"],
-            pathBackup / transactionDict["manifestFileName"],
+            pathBackupFolder / transactionDict["manifestFileName"],
             sourceShouldExist=True,
-            expectedSourceSha256=dictSource["manifestSha256"],
+            expectedSourceSha256=dictSourceSnapshot["manifestSha256"],
         )
     except (ComponentManagementError, OSError) as e:
         raise ComponentManagementError(
@@ -179,11 +181,11 @@ def _get_current_manifest_sha256(
     projectPath: Path,
     manifestFileName: str,
 ) -> str | None:
-    pathManifest = projectPath / manifestFileName
-    if not path_exists(pathManifest):
+    pathManifestFile = projectPath / manifestFileName
+    if not path_exists(pathManifestFile):
         return None
 
-    return get_regular_file_sha256(pathManifest, "Project Manifest")
+    return get_regular_file_sha256(pathManifestFile, "Project Manifest")
 
 
 def _recover_project_transaction(
@@ -198,6 +200,9 @@ def _recover_project_transaction(
     strSourceManifestSha256 = transactionDict["source"]["manifestSha256"]
     strTargetManifestSha256 = transactionDict["target"]["manifestSha256"]
 
+    # A prepared transaction has not started modifying the Project yet.
+    # The current Manifest must therefore still match the source snapshot.
+    # If it does, the transaction can be discarded without rollback.
     if transactionDict["state"] == "prepared":
         if strCurrentManifestSha256 != strSourceManifestSha256:
             raise ComponentManagementError(
@@ -207,6 +212,8 @@ def _recover_project_transaction(
             )
         return None
 
+    # The Manifest was committed and the transaction state was persisted successfully.
+    # Finish forward recovery and make the remaining Project entries match the target snapshot.
     if transactionDict["state"] == "manifestCommitted":
         return _finish_committed_project_transaction(
             projectPath,
@@ -215,6 +222,8 @@ def _recover_project_transaction(
         )
 
     # transactionDict["state"] == "commiting"
+    # The target Manifest may have been committed immediately before the process was interrupted, leaving the transaction state at "committing". When the source and target Manifests differ, the target Manifest SHA-256 is sufficient evidence that the transaction crossed its final commit point, so finish forward recovery.
+    # This inference cannot be used for Repair because its source and target Manifests are intentionally identical.
     if (
         strSourceManifestSha256 != strTargetManifestSha256
         and strCurrentManifestSha256 == strTargetManifestSha256
@@ -225,6 +234,7 @@ def _recover_project_transaction(
             transactionDict,
         )
 
+    # No forward-commit evidence was found. At this point the current Manifest may only be missing or still match the source snapshot. Any third Manifest state is ambiguous and must not be overwritten automatically.
     if strCurrentManifestSha256 not in {None, strSourceManifestSha256}:
         raise ComponentManagementError(
             code="project_transaction_recovery_failed",
@@ -237,6 +247,7 @@ def _recover_project_transaction(
             },
         )
 
+    # The final Manifest commit cannot be proven. Roll back conservatively to the source snapshot. A missing Manifest can still be restored from the transaction backup when available.
     _rollback_project_transaction(
         projectPath,
         transactionFolderPath,
@@ -248,55 +259,56 @@ def _recover_project_transaction(
 def recover_project_transactions_locked(
     projectPath: Path,
 ) -> list[DictComponentManagementWarning]:
-    pathTransactionFolder = get_transactions_path(projectPath)
-    if not path_exists(pathTransactionFolder):
+    pathTransactionsFolder = get_transactions_path(projectPath)
+    if not path_exists(pathTransactionsFolder):
         return []
 
-    if is_folder_invalid(pathTransactionFolder):
+    if is_folder_invalid(pathTransactionsFolder):
         raise ComponentManagementError(
             code="project_transaction_invalid",
             message="The Project transaction path is invalid.",
-            details={"transactionsPath": str(pathTransactionFolder)},
+            details={"transactionsPath": str(pathTransactionsFolder)},
         )
 
-    listWarning = cleanup_temporary_transaction_folders(pathTransactionFolder)
+    listWarning = cleanup_temporary_transaction_folders(pathTransactionsFolder)
 
-    listTransactionPath = [
+    listSpecificTransactionPath = [
         pathEntry
         for pathEntry in sorted(
-            pathTransactionFolder.iterdir(), key=lambda pathObj: pathObj.name
+            pathTransactionsFolder.iterdir(), key=lambda pathObj: pathObj.name
         )
         if pathEntry.name.startswith(STR_PROJECT_TRANSACTION_PREFIX)
     ]
 
-    if len(listTransactionPath) > 1:
+    if len(listSpecificTransactionPath) > 1:
         raise ComponentManagementError(
             code="project_transaction_invalid",
             message="The Project contains more than one unfinished dependency transaction.",
             details={
                 "transactions": [
-                    str(pathTransaction) for pathTransaction in listTransactionPath
+                    str(pathTransaction)
+                    for pathTransaction in listSpecificTransactionPath
                 ],
             },
         )
 
-    if not listTransactionPath:
+    if not listSpecificTransactionPath:
         try:
-            if not any(pathTransactionFolder.iterdir()):
-                pathTransactionFolder.rmdir()
+            if not any(pathTransactionsFolder.iterdir()):
+                pathTransactionsFolder.rmdir()
         except OSError:
             pass
         return listWarning
 
-    pathTransactionFolder = listTransactionPath[0]
-    if is_folder_invalid(pathTransactionFolder):
+    pathSpecificTransactionFolder = listSpecificTransactionPath[0]
+    if is_folder_invalid(pathSpecificTransactionFolder):
         raise ComponentManagementError(
             code="project_transaction_invalid",
             message="The unfinished Project dependency transaction path is invalid.",
-            details={"transactionFolderPath": str(pathTransactionFolder)},
+            details={"transactionFolderPath": str(pathSpecificTransactionFolder)},
         )
 
-    strTransactionId = pathTransactionFolder.name.removeprefix(
+    strTransactionId = pathSpecificTransactionFolder.name.removeprefix(
         STR_PROJECT_TRANSACTION_PREFIX
     )
     try:
@@ -305,20 +317,24 @@ def recover_project_transactions_locked(
         raise ComponentManagementError(
             code="project_transaction_invalid",
             message="The unfinished Project transaction folder name is invalid.",
-            details={"transactionFolderPath": str(pathTransactionFolder)},
+            details={"transactionFolderPath": str(pathSpecificTransactionFolder)},
         ) from e
 
     if transactionUuid.version != 4 or transactionUuid.variant != uuid.RFC_4122:
         raise ComponentManagementError(
             code="project_transaction_invalid",
             message="The unfinished Project transaction folder must use a UUID v4.",
-            details={"transactionFolderPath": str(pathTransactionFolder)},
+            details={"transactionFolderPath": str(pathSpecificTransactionFolder)},
         )
 
-    dictTransaction = read_project_transaction(pathTransactionFolder)
-    _recover_project_transaction(projectPath, pathTransactionFolder, dictTransaction)
+    dictTransaction = read_project_transaction(pathSpecificTransactionFolder)
+    _recover_project_transaction(
+        projectPath,
+        pathSpecificTransactionFolder,
+        dictTransaction,
+    )
 
-    dictWarning = remove_transaction_folder(pathTransactionFolder)
+    dictWarning = remove_transaction_folder(pathSpecificTransactionFolder)
     if dictWarning is not None:
         listWarning.append(dictWarning)
 

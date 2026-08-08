@@ -49,6 +49,6 @@ def build_current_project_dependency_plan(
         manifestObj,
         dictRepositoryIndex,
         operationObj,
-        existingLock=dictCurrentLock,
+        existingLockDict=dictCurrentLock,
     )
     return planObj, [*listRepositoryWarning, *listProjectWarning]

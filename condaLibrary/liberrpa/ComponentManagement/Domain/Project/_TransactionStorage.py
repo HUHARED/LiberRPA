@@ -198,8 +198,8 @@ def _validate_project_transaction(value: object) -> DictProjectTransaction:
         raise ValueError("transaction.json manifestFileName does not match projectType.")
     strManifestFileName = strExpectedManifestFileName
 
-    dictSource = _validate_snapshot(value.get("source"), "source", isTarget=False)
-    dictTarget = _validate_snapshot(value.get("target"), "target", isTarget=True)
+    dictSourceSnapshot = _validate_snapshot(value.get("source"), "source", isTarget=False)
+    dictTargetSnapshot = _validate_snapshot(value.get("target"), "target", isTarget=True)
 
     if operationValue == "applyDependencyPlan":
         assert strPlanSha256 is not None
@@ -209,8 +209,9 @@ def _validate_project_transaction(value: object) -> DictProjectTransaction:
             "state": transactionState,
             "projectType": strProjectType,
             "manifestFileName": strManifestFileName,
-            "source": dictSource,
-            "target": dictTarget,
+            #
+            "source": dictSourceSnapshot,
+            "target": dictTargetSnapshot,
             #
             "planSha256": strPlanSha256,
         }
@@ -221,8 +222,9 @@ def _validate_project_transaction(value: object) -> DictProjectTransaction:
         "state": transactionState,
         "projectType": strProjectType,
         "manifestFileName": strManifestFileName,
-        "source": dictSource,
-        "target": dictTarget,
+        #
+        "source": dictSourceSnapshot,
+        "target": dictTargetSnapshot,
     }
 
 
@@ -304,14 +306,14 @@ def remove_transaction_folder(
             },
         }
 
-    pathTransactions = transactionFolderPath.parent
+    pathTransactionsFolder = transactionFolderPath.parent
     try:
         if (
-            pathTransactions.is_dir()
-            and not pathTransactions.is_symlink()
-            and not any(pathTransactions.iterdir())
+            pathTransactionsFolder.is_dir()
+            and not pathTransactionsFolder.is_symlink()
+            and not any(pathTransactionsFolder.iterdir())
         ):
-            pathTransactions.rmdir()
+            pathTransactionsFolder.rmdir()
     except OSError:
         pass
 

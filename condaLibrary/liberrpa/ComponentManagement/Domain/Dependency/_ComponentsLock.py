@@ -347,6 +347,7 @@ def _build_components_lock_root(
     if isinstance(manifestObj, Info_ProjectManifest_Flow):
         dictFlowRoot: DictComponentsLock_Root_FlowProject = {
             "manifestFileName": "flow.json",
+            #
             "requiresLiberrpa": manifestObj.requiresLiberrpa,
             "componentDependencies": dictDependency,
         }
@@ -354,8 +355,10 @@ def _build_components_lock_root(
 
     dictComponentRoot: DictComponentsLock_Root_ComponentProject = {
         "manifestFileName": "component.json",
+        #
         "componentId": manifestObj.id,
         "packageName": manifestObj.packageName,
+        #
         "requiresLiberrpa": manifestObj.requiresLiberrpa,
         "componentDependencies": dictDependency,
     }
