@@ -25,13 +25,10 @@ from liberrpa.ComponentManagement.Types._Components import (
     DictComponentsLock_File,
     Info_ProjectComponentsFolder,
 )
-from liberrpa.ComponentManagement.Domain.Dependency._ComponentsLock import (
-    validate_components_lock,
-)
 from liberrpa.ComponentManagement.Domain.Manifest._Manifest import (
     parse_component_manifest,
 )
-from liberrpa.ComponentManagement.Domain.Repository._Index import get_wheel_path
+from liberrpa.ComponentManagement.Domain.Repository._Index import get_wheel_file_path
 from liberrpa.ComponentManagement.Domain.Wheel._Wheel import inspect_component_wheel
 
 from dataclasses import dataclass
@@ -63,27 +60,8 @@ _SET_IGNORED_FILE_SUFFIX = {".pyc"}
 @dataclass(frozen=True)
 class _LockedWheelSource:
     componentId: str
-    wheelPath: Path
+    wheelFilePath: Path
     archivePathTuple: tuple[str, ...]
-
-
-def _validate_lock_dict(lockDict: DictComponentsLock_File) -> DictComponentsLock_File:
-    try:
-        dictValidatedLock = validate_components_lock(lockDict)
-    except ValueError as e:
-        raise ComponentManagementError(
-            code="components_lock_invalid",
-            message="Cannot use an invalid components.lock.json.",
-            details={"reason": str(e)},
-        ) from e
-
-    if not dictValidatedLock["components"]:
-        raise ComponentManagementError(
-            code="components_not_required",
-            message="_Components is not required when the resolved Component set is empty.",
-        )
-
-    return dictValidatedLock
 
 
 def _get_manifest_mismatch_dict(
@@ -132,8 +110,8 @@ def _validate_locked_wheel(
             message="A Component Wheel filename does not match components.lock.json.",
             details={
                 "componentId": componentId,
-                "expectedWheelFile": lockedComponent["wheelFileName"],
-                "actualWheelFile": wheelInfoObj.wheelFileName,
+                "expectedWheelFileName": lockedComponent["wheelFileName"],
+                "actualWheelFileName": wheelInfoObj.wheelFileName,
             },
         )
 
@@ -170,7 +148,7 @@ def _register_archive_path(
     archivePath: str,
     *,
     componentId: str,
-    pathRegistry: dict[str, tuple[str, str, str]],
+    archivePathRegistry: dict[str, tuple[str, str, str]],
 ) -> None:
     """
     Register one Wheel archive file and its parent folders before extraction.
@@ -183,10 +161,10 @@ def _register_archive_path(
     for intIndex in range(1, len(listPathPart)):
         strFolderPath = "/".join(listPathPart[:intIndex])
         strFolderKey = strFolderPath.casefold()
-        existingEntry = pathRegistry.get(strFolderKey)
+        existingEntry = archivePathRegistry.get(strFolderKey)
 
         if existingEntry is None:
-            pathRegistry[strFolderKey] = (strFolderPath, "folder", componentId)
+            archivePathRegistry[strFolderKey] = (strFolderPath, "folder", componentId)
             continue
 
         strExistingPath, strExistingType, strExistingOwner = existingEntry
@@ -205,7 +183,7 @@ def _register_archive_path(
             )
 
     strFileKey = archivePath.casefold()
-    existingEntry = pathRegistry.get(strFileKey)
+    existingEntry = archivePathRegistry.get(strFileKey)
     if existingEntry is not None:
         strExistingPath, _, strExistingOwner = existingEntry
         raise ComponentManagementError(
@@ -217,7 +195,7 @@ def _register_archive_path(
             },
         )
 
-    pathRegistry[strFileKey] = (archivePath, "file", componentId)
+    archivePathRegistry[strFileKey] = (archivePath, "file", componentId)
 
 
 def _prepare_locked_wheel_source_list(
@@ -225,27 +203,27 @@ def _prepare_locked_wheel_source_list(
     lockDict: DictComponentsLock_File,
 ) -> list[_LockedWheelSource]:
     listLockedWheelSource: list[_LockedWheelSource] = []
-    dictPathRegistry: dict[str, tuple[str, str, str]] = {}
+    dictArchivePathRegistry: dict[str, tuple[str, str, str]] = {}
 
     for strComponentId, dictLockedComponent in lockDict["components"].items():
-        pathWheel = get_wheel_path(
+        pathWheelFile = get_wheel_file_path(
             repositoryPath=repositoryPath,
             componentId=strComponentId,
             packageName=dictLockedComponent["packageName"],
             wheelFileName=dictLockedComponent["wheelFileName"],
         )
 
-        if is_file_invalid(pathWheel):
+        if is_file_invalid(pathWheelFile):
             raise ComponentManagementError(
                 code="component_wheel_missing",
                 message="A Component Wheel required by components.lock.json was not found.",
                 details={
                     "componentId": strComponentId,
-                    "wheelFilePath": str(pathWheel),
+                    "wheelFilePath": str(pathWheelFile),
                 },
             )
 
-        wheelInfoObj = inspect_component_wheel(pathWheel)
+        wheelInfoObj = inspect_component_wheel(pathWheelFile)
         _validate_locked_wheel(
             strComponentId,
             dictLockedComponent,
@@ -253,7 +231,7 @@ def _prepare_locked_wheel_source_list(
         )
 
         try:
-            with ZipFile(pathWheel, mode="r") as wheelObj:
+            with ZipFile(pathWheelFile, mode="r") as wheelObj:
                 tupleArchivePath = tuple(
                     infoObj.filename for infoObj in wheelObj.infolist()
                 )
@@ -263,7 +241,7 @@ def _prepare_locked_wheel_source_list(
                 _register_archive_path(
                     strArchivePath,
                     componentId=strComponentId,
-                    pathRegistry=dictPathRegistry,
+                    archivePathRegistry=dictArchivePathRegistry,
                 )
         except ComponentManagementError:
             raise
@@ -273,14 +251,14 @@ def _prepare_locked_wheel_source_list(
                 message="A Component Wheel changed after it was validated.",
                 details={
                     "componentId": strComponentId,
-                    "wheelFilePath": str(pathWheel),
+                    "wheelFilePath": str(pathWheelFile),
                 },
             ) from e
 
         listLockedWheelSource.append(
             _LockedWheelSource(
                 componentId=strComponentId,
-                wheelPath=pathWheel,
+                wheelFilePath=pathWheelFile,
                 archivePathTuple=tupleArchivePath,
             )
         )
@@ -290,11 +268,11 @@ def _prepare_locked_wheel_source_list(
 
 def _extract_locked_wheel(
     lockedWheelSource: _LockedWheelSource,
-    targetPath: Path,
+    targetComponentsFolderPath: Path,
     expectedSha256: str,
 ) -> None:
     try:
-        with ZipFile(lockedWheelSource.wheelPath, mode="r") as wheelObj:
+        with ZipFile(lockedWheelSource.wheelFilePath, mode="r") as wheelObj:
             tupleCurrentArchivePath = tuple(
                 infoObj.filename for infoObj in wheelObj.infolist()
             )
@@ -304,18 +282,18 @@ def _extract_locked_wheel(
                     message="A Component Wheel changed while _Components was being built.",
                     details={
                         "componentId": lockedWheelSource.componentId,
-                        "wheelFilePath": str(lockedWheelSource.wheelPath),
+                        "wheelFilePath": str(lockedWheelSource.wheelFilePath),
                     },
                 )
 
             for strArchivePath in lockedWheelSource.archivePathTuple:
-                pathArchiveTarget = targetPath.joinpath(
+                pathExtractedFile = targetComponentsFolderPath.joinpath(
                     *PurePosixPath(strArchivePath).parts
                 )
-                pathArchiveTarget.parent.mkdir(parents=True, exist_ok=True)
+                pathExtractedFile.parent.mkdir(parents=True, exist_ok=True)
 
                 with wheelObj.open(strArchivePath, mode="r") as sourceFileObj:
-                    with pathArchiveTarget.open("xb") as targetFileObj:
+                    with pathExtractedFile.open("xb") as targetFileObj:
                         copyfileobj(sourceFileObj, targetFileObj)
     except ComponentManagementError:
         raise
@@ -325,16 +303,16 @@ def _extract_locked_wheel(
             message="Failed to expand a Component Wheel into _Components.",
             details={
                 "componentId": lockedWheelSource.componentId,
-                "wheelFilePath": str(lockedWheelSource.wheelPath),
+                "wheelFilePath": str(lockedWheelSource.wheelFilePath),
             },
         ) from e
 
     try:
-        strCurrentSha256 = calculate_file_sha256(lockedWheelSource.wheelPath)
+        strCurrentSha256 = calculate_file_sha256(lockedWheelSource.wheelFilePath)
     except OSError as e:
         raise ComponentManagementError(
             code="repository_unavailable",
-            message=f"Failed to read Component Wheel: {lockedWheelSource.wheelPath}",
+            message=f"Failed to read Component Wheel: {lockedWheelSource.wheelFilePath}",
         ) from e
 
     if strCurrentSha256 != expectedSha256:
@@ -343,7 +321,7 @@ def _extract_locked_wheel(
             message="A Component Wheel changed while _Components was being built.",
             details={
                 "componentId": lockedWheelSource.componentId,
-                "wheelFilePath": str(lockedWheelSource.wheelPath),
+                "wheelFilePath": str(lockedWheelSource.wheelFilePath),
                 "expectedSha256": expectedSha256,
                 "actualSha256": strCurrentSha256,
             },
@@ -360,7 +338,7 @@ def _scan_components_folder(componentsFolderPath: Path) -> tuple[set[str], set[s
     Reject symbolic links, unsupported file-system entries, and case-insensitive path collisions because _Components must remain deterministic and safe to validate on Windows.
 
     Returns:
-        A tuple containing the set of managed file paths and the set of managed folder paths relative to _Components.
+        A tuple containing the sets of managed file paths and managed folder paths relative to _Components.
     """
 
     setFilePath: set[str] = set()
@@ -420,10 +398,10 @@ def _scan_components_folder(componentsFolderPath: Path) -> tuple[set[str], set[s
 
 
 def _read_components_file(componentsFolderPath: Path, archivePath: str) -> bytes:
-    pathFile = componentsFolderPath.joinpath(*PurePosixPath(archivePath).parts)
+    pathComponentsFile = componentsFolderPath.joinpath(*PurePosixPath(archivePath).parts)
 
     try:
-        return pathFile.read_bytes()
+        return pathComponentsFile.read_bytes()
     except OSError as e:
         raise ValueError(f"Failed to read _Components file {archivePath!r}: {e}.") from e
 
@@ -440,7 +418,7 @@ def _validate_extracted_component(
         lockedComponentDict["version"],
     )
     strRecordPath = f"{strDistInfoFolder}/RECORD"
-    strManifestPath = f"{strDistInfoFolder}/component.json"
+    strManifestFilePath = f"{strDistInfoFolder}/component.json"
 
     setComponentFilePath = {
         strPath
@@ -451,7 +429,7 @@ def _validate_extracted_component(
         f"{strDistInfoFolder}/METADATA",
         f"{strDistInfoFolder}/WHEEL",
         f"{strDistInfoFolder}/licenses/LICENSE",
-        strManifestPath,
+        strManifestFilePath,
         f"{strDistInfoFolder}/snippets_catalog.json",
         strRecordPath,
     }
@@ -479,13 +457,13 @@ def _validate_extracted_component(
 
     try:
         embeddedManifest = parse_json(
-            _read_components_file(componentsFolderPath, strManifestPath).decode(
+            _read_components_file(componentsFolderPath, strManifestFilePath).decode(
                 "utf-8", errors="strict"
             )
         )
         manifestObj = parse_component_manifest(
             embeddedManifest,
-            sourceName=strManifestPath,
+            sourceName=strManifestFilePath,
         )
     except ComponentManagementError as e:
         raise ValueError(
@@ -517,12 +495,24 @@ def _validate_extracted_component(
     return setComponentFilePath
 
 
+def _ensure_components_required(
+    lockDict: DictComponentsLock_File,
+) -> None:
+    if not lockDict["components"]:
+        raise ComponentManagementError(
+            code="components_not_required",
+            message=(
+                "_Components is not required when the resolved Component set is empty."
+            ),
+        )
+
+
 def validate_components_folder(
     componentsFolderPath: Path,
     lockDict: DictComponentsLock_File,
 ) -> Info_ProjectComponentsFolder:
     """Validate _Components against embedded Manifests and Wheel RECORD files."""
-    dictValidatedLock = _validate_lock_dict(lockDict)
+    _ensure_components_required(lockDict)
 
     if not path_exists(componentsFolderPath):
         raise ComponentManagementError(
@@ -542,9 +532,7 @@ def validate_components_folder(
         )
         setOwnedFilePath: set[str] = set()
 
-        for strComponentId, dictLockedComponent in dictValidatedLock[
-            "components"
-        ].items():
+        for strComponentId, dictLockedComponent in lockDict["components"].items():
             setComponentFilePath = _validate_extracted_component(
                 componentsFolderPath,
                 strComponentId,
@@ -590,7 +578,7 @@ def validate_components_folder(
 
     return Info_ProjectComponentsFolder(
         componentsFolderPath=componentsFolderPath,
-        componentCount=len(dictValidatedLock["components"]),
+        componentCount=len(lockDict["components"]),
         fileCount=len(setActualFilePath),
     )
 
@@ -601,12 +589,14 @@ def build_components_folder(
     lockDict: DictComponentsLock_File,
 ) -> Info_ProjectComponentsFolder:
     """Build a complete _Components folder from exact immutable Repository Wheels."""
-    dictValidatedLock = _validate_lock_dict(lockDict)
+    _ensure_components_required(lockDict)
 
-    if not repositoryPath.is_dir():
+    if is_folder_invalid(repositoryPath):
         raise ComponentManagementError(
             code="repository_unavailable",
-            message=f"Component Repository folder was not found: {repositoryPath}",
+            message=(
+                f"Component Repository folder was not found or is invalid: {repositoryPath}"
+            ),
         )
 
     if path_exists(targetComponentsFolderPath):
@@ -617,25 +607,25 @@ def build_components_folder(
 
     listLockedWheelSource = _prepare_locked_wheel_source_list(
         repositoryPath,
-        dictValidatedLock,
+        lockDict,
     )
-    pathTempFoler = (
+    pathTempComponentsFolder = (
         targetComponentsFolderPath.parent
         / f".{targetComponentsFolderPath.name}.{uuid.uuid4()}.tmp"
     )
 
     try:
         targetComponentsFolderPath.parent.mkdir(parents=True, exist_ok=True)
-        pathTempFoler.mkdir()
+        pathTempComponentsFolder.mkdir()
 
         for lockedWheelSource in listLockedWheelSource:
             _extract_locked_wheel(
                 lockedWheelSource,
-                pathTempFoler,
-                dictValidatedLock["components"][lockedWheelSource.componentId]["sha256"],
+                pathTempComponentsFolder,
+                lockDict["components"][lockedWheelSource.componentId]["sha256"],
             )
 
-        folderInfo = validate_components_folder(pathTempFoler, dictValidatedLock)
+        folderInfo = validate_components_folder(pathTempComponentsFolder, lockDict)
 
         if path_exists(targetComponentsFolderPath):
             raise ComponentManagementError(
@@ -643,7 +633,7 @@ def build_components_folder(
                 message=f"_Components build target appeared while it was being built: {targetComponentsFolderPath}",
             )
 
-        os.replace(pathTempFoler, targetComponentsFolderPath)
+        os.replace(pathTempComponentsFolder, targetComponentsFolderPath)
     except ComponentManagementError:
         raise
     except OSError as e:
@@ -652,8 +642,11 @@ def build_components_folder(
             message=f"Failed to build _Components: {targetComponentsFolderPath}",
         ) from e
     finally:
-        if pathTempFoler.exists() and not pathTempFoler.is_symlink():
-            rmtree(pathTempFoler, ignore_errors=True)
+        if (
+            pathTempComponentsFolder.exists()
+            and not pathTempComponentsFolder.is_symlink()
+        ):
+            rmtree(pathTempComponentsFolder, ignore_errors=True)
 
     return Info_ProjectComponentsFolder(
         componentsFolderPath=targetComponentsFolderPath,

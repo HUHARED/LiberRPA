@@ -31,7 +31,7 @@ def validate_archive_path(archivePath: str) -> None:
 
     listPathPart = archivePath.split("/")
 
-    if any(pathPart in {"", ".", ".."} for pathPart in listPathPart):
+    if any(strPathPart in {"", ".", ".."} for strPathPart in listPathPart):
         raise ValueError(f"Wheel contains an unsafe path: {archivePath!r}.")
 
 

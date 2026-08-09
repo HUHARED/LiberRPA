@@ -65,7 +65,7 @@ class DictProtocolRequest_ImportComponentWheels(TypedDict):
     schemaVersion: Literal[1]
     operation: Literal["importComponentWheels"]
 
-    wheelPaths: list[str]
+    wheelFilePaths: list[str]
 
 
 class DictProtocolRequest_RebuildRepositoryIndex(TypedDict):
@@ -156,7 +156,7 @@ type DictProtocolResult_Publish = (
 
 class DictProtocolResult_ComponentWheelsImported_Component(TypedDict):
     # It has the same values with Info_Repository_Import_ComponentResult.
-    sourcePath: str
+    sourceWheelFilePath: str
 
     componentId: str
     packageName: str

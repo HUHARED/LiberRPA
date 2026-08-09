@@ -62,7 +62,8 @@ def handle_request(requestInfo: str) -> DictProtocolResponse:
 
             case "importComponentWheels":
                 importResult = import_component_wheels([
-                    Path(strWheelPath) for strWheelPath in dictRequest["wheelPaths"]
+                    Path(strWheelFilePath)
+                    for strWheelFilePath in dictRequest["wheelFilePaths"]
                 ])
                 return build_component_wheels_imported_response(importResult)
 

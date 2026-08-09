@@ -9,9 +9,12 @@ from pathlib import Path
 import keyword
 import re
 import sys
+import uuid
 
 
-def add_validation_issue(issueList: list[dict[str, object]], field: str, message: str) -> None:
+def add_validation_issue(
+    issueList: list[dict[str, object]], field: str, message: str
+) -> None:
     issueList.append({"field": field, "message": message})
 
 
@@ -140,6 +143,27 @@ def get_package_name_error(packageName: str) -> str | None:
     return None
 
 
+def validate_uuid_v4(value: object, field: str) -> str:
+    """Validate and return a canonical lowercase UUID v4 string."""
+    if not isinstance(value, str):
+        raise ValueError(f"{field} must be a UUID string.")
+
+    try:
+        uuidObj = uuid.UUID(value)
+    except ValueError as e:
+        raise ValueError(f"{field} must be a valid UUID.") from e
+
+    if uuidObj.version != 4 or uuidObj.variant != uuid.RFC_4122:
+        raise ValueError(f"{field} must be a UUID v4.")
+
+    if value != str(uuidObj):
+        raise ValueError(
+            f"{field} must use the canonical lowercase UUID format with hyphens."
+        )
+
+    return value
+
+
 def validate_exact_keys(
     value: dict[object, object],
     expectedKeys: set[str],
@@ -157,16 +181,16 @@ def validate_exact_keys(
         )
 
 
-def path_exists(path: Path) -> bool:
+def path_exists(entryPath: Path) -> bool:
     """Return whether a filesystem entry exists, including a broken symbolic link."""
-    return path.exists() or path.is_symlink()
+    return entryPath.exists() or entryPath.is_symlink()
 
 
-def is_file_invalid(path: Path) -> bool:
+def is_file_invalid(filePath: Path) -> bool:
     """Return whether the path is not a regular non-symbolic-link file."""
-    return not path.is_file() or path.is_symlink()
+    return not filePath.is_file() or filePath.is_symlink()
 
 
-def is_folder_invalid(path: Path) -> bool:
+def is_folder_invalid(folderPath: Path) -> bool:
     """Return whether the path is not a regular non-symbolic-link folder."""
-    return not path.is_dir() or path.is_symlink()
+    return not folderPath.is_dir() or folderPath.is_symlink()

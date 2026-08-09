@@ -18,7 +18,7 @@ from liberrpa.ComponentManagement.Types._Repository import (
 )
 from liberrpa.ComponentManagement.Domain.Lock._RepositoryLock import repository_lock
 from liberrpa.ComponentManagement.Domain.Repository._Index import (
-    get_wheel_path,
+    get_wheel_file_path,
     raise_rebuild_required,
     load_repository_index,
     write_repository_index,
@@ -53,11 +53,11 @@ def publish_component_wheel(
     pathRepository = get_repository_path()
 
     with repository_lock(pathRepository, "publishComponent"):
-        _, pathStaging = initialize_repository_structure(pathRepository)
+        _, pathStagingFolder = initialize_repository_structure(pathRepository)
 
         listWarning = recover_repository_transactions(pathRepository)
 
-        dictIndex = load_repository_index(pathRepository, checkWheelPaths=True)
+        dictIndex = load_repository_index(pathRepository, checkWheelFilePaths=True)
         dictComponent = dictIndex["components"].get(manifestObj.id)
         dictVersionEntry = build_repository_version_entry(
             manifestObj=manifestObj,
@@ -87,24 +87,24 @@ def publish_component_wheel(
             else find_equivalent_version(dictComponent, manifestObj.version)
         )
         if dictExistingVersionEntry is not None:
-            pathExistingWheel = get_wheel_path(
+            pathExistingWheelFile = get_wheel_file_path(
                 repositoryPath=pathRepository,
                 componentId=manifestObj.id,
                 packageName=manifestObj.packageName,
                 wheelFileName=dictExistingVersionEntry["wheelFileName"],
             )
-            if is_file_invalid(pathExistingWheel):
+            if is_file_invalid(pathExistingWheelFile):
                 raise_rebuild_required(
                     "A Component Wheel referenced by repository.json is missing.",
-                    {"wheelFilePath": str(pathExistingWheel)},
+                    {"wheelFilePath": str(pathExistingWheelFile)},
                 )
 
-            strExistingSha256 = calculate_file_sha256(pathExistingWheel)
+            strExistingSha256 = calculate_file_sha256(pathExistingWheelFile)
             if strExistingSha256 != dictExistingVersionEntry["sha256"]:
                 raise_rebuild_required(
                     "A Component Wheel does not match the SHA-256 stored in repository.json.",
                     {
-                        "wheelFilePath": str(pathExistingWheel),
+                        "wheelFilePath": str(pathExistingWheelFile),
                         "expectedSha256": dictExistingVersionEntry["sha256"],
                         "actualSha256": strExistingSha256,
                     },
@@ -140,61 +140,66 @@ def publish_component_wheel(
                 },
             )
 
-        strBuiltSha256 = calculate_file_sha256(wheelResult.wheelPath)
+        strBuiltSha256 = calculate_file_sha256(wheelResult.wheelFilePath)
         if strBuiltSha256 != wheelResult.sha256:
             raise ComponentManagementError(
                 code="wheel_sha256_mismatch",
                 message="The built Component Wheel changed before it was published.",
                 details={
-                    "wheelFilePath": str(wheelResult.wheelPath),
+                    "wheelFilePath": str(wheelResult.wheelFilePath),
                     "expectedSha256": wheelResult.sha256,
                     "actualSha256": strBuiltSha256,
                 },
             )
 
         strTransactionId = str(uuid.uuid4())
-        pathTransactionFolder = pathStaging / f"publish_{strTransactionId}"
-        pathCandidate = pathTransactionFolder / "candidate.whl"
-        pathTargetWheel = get_wheel_path(
+        pathTransactionFolder = pathStagingFolder / f"publish_{strTransactionId}"
+        pathCandidateWheelFile = pathTransactionFolder / "candidate.whl"
+        pathTargetWheelFile = get_wheel_file_path(
             repositoryPath=pathRepository,
             componentId=manifestObj.id,
             packageName=manifestObj.packageName,
             wheelFileName=wheelResult.wheelFileName,
         )
-        strTargetRelativePath = pathTargetWheel.relative_to(pathRepository).as_posix()
+        strTargetRelativePath = pathTargetWheelFile.relative_to(pathRepository).as_posix()
         dictTransaction: DictRepository_Transaction_Publish = {
             "schemaVersion": 1,
             "operation": "publishComponent",
             "state": "prepared",
             "componentId": manifestObj.id,
             "packageName": manifestObj.packageName,
-            "version": manifestObj.version,
             "versionEntry": dictVersionEntry,
-            "wheelFileName": wheelResult.wheelFileName,
-            "sha256": wheelResult.sha256,
             "targetRelativePath": strTargetRelativePath,
         }
 
         try:
             pathTransactionFolder.mkdir(parents=False)
-            copy_wheel_to_staging(wheelResult.wheelPath, pathCandidate)
+            strCopiedSha256 = copy_wheel_to_staging(
+                wheelResult.wheelFilePath,
+                pathCandidateWheelFile,
+            )
 
-            if calculate_file_sha256(pathCandidate) != wheelResult.sha256:
+            if strCopiedSha256 != wheelResult.sha256:
                 raise ComponentManagementError(
                     code="wheel_sha256_mismatch",
                     message="The Component Wheel changed while it was copied into Repository staging.",
+                    details={
+                        "wheelFilePath": str(pathCandidateWheelFile),
+                        "expectedSha256": wheelResult.sha256,
+                        "actualSha256": strCopiedSha256,
+                    },
                 )
 
             write_json_atomic(pathTransactionFolder / "transaction.json", dictTransaction)
-            pathTargetWheel.parent.mkdir(parents=True, exist_ok=True)
+            pathTargetWheelFile.parent.mkdir(parents=True, exist_ok=True)
 
-            if path_exists(pathTargetWheel):
+            if path_exists(pathTargetWheelFile):
                 raise_rebuild_required(
                     "An unindexed Component Wheel already exists at the publish target.",
-                    {"wheelFilePath": str(pathTargetWheel)},
+                    {"wheelFilePath": str(pathTargetWheelFile)},
                 )
 
-            os.replace(pathCandidate, pathTargetWheel)
+            os.replace(pathCandidateWheelFile, pathTargetWheelFile)
             dictTransaction["state"] = "wheelCommitted"
             write_json_atomic(pathTransactionFolder / "transaction.json", dictTransaction)
 

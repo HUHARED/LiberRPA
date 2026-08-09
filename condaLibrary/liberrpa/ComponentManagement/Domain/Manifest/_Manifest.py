@@ -123,7 +123,9 @@ def _validate_trimmed_single_line_field(
 
     boolValid = True
     if strValue != strValue.strip():
-        add_validation_issue(issueList, field, "Value cannot start or end with whitespace.")
+        add_validation_issue(
+            issueList, field, "Value cannot start or end with whitespace."
+        )
         boolValid = False
 
     if "\r" in strValue or "\n" in strValue:
@@ -146,7 +148,9 @@ def _validate_uuid_field(
         return None
 
     if strValue != strValue.strip():
-        add_validation_issue(issueList, field, "Value cannot start or end with whitespace.")
+        add_validation_issue(
+            issueList, field, "Value cannot start or end with whitespace."
+        )
         return None
 
     return _validate_uuid(strValue, field, issueList)
@@ -179,7 +183,9 @@ def _parse_version_field(
         return None
 
     if strValue != strValue.strip():
-        add_validation_issue(issueList, field, "Value cannot start or end with whitespace.")
+        add_validation_issue(
+            issueList, field, "Value cannot start or end with whitespace."
+        )
         return None
 
     try:
@@ -199,7 +205,9 @@ def _parse_version_specifier_field(
         return None
 
     if strValue != strValue.strip():
-        add_validation_issue(issueList, field, "Value cannot start or end with whitespace.")
+        add_validation_issue(
+            issueList, field, "Value cannot start or end with whitespace."
+        )
         return None
 
     try:
@@ -215,7 +223,7 @@ def _parse_component_dependencies(
     *,
     rootComponentId: str | None = None,
 ) -> dict[str, str]:
-    dictNormalizedDependency: dict[str, str] = {}
+    dictParsedDependency: dict[str, str] = {}
 
     if not isinstance(value, dict):
         add_validation_issue(
@@ -223,9 +231,7 @@ def _parse_component_dependencies(
             "componentDependencies",
             "Value must be an object containing Component ID and version range pairs.",
         )
-        return dictNormalizedDependency
-
-    setNormalizedDependencyId: set[str] = set()
+        return dictParsedDependency
 
     for dependencyId, dependencySpecifierValue in value.items():
         if not isinstance(dependencyId, str):
@@ -235,17 +241,9 @@ def _parse_component_dependencies(
             continue
 
         strField = f"componentDependencies.{dependencyId}"
-        strNormalizedDependencyId = _validate_uuid(dependencyId, strField, issueList)
-        if strNormalizedDependencyId is None:
+        strValidatedDependencyId = _validate_uuid(dependencyId, strField, issueList)
+        if strValidatedDependencyId is None:
             continue
-
-        if strNormalizedDependencyId in setNormalizedDependencyId:
-            add_validation_issue(
-                issueList, strField, "The same Component ID is declared more than once."
-            )
-            continue
-
-        setNormalizedDependencyId.add(strNormalizedDependencyId)
 
         if not isinstance(dependencySpecifierValue, str):
             add_validation_issue(issueList, strField, "Version range must be a string.")
@@ -263,14 +261,14 @@ def _parse_component_dependencies(
             add_validation_issue(issueList, strField, str(e))
             continue
 
-        dictNormalizedDependency[strNormalizedDependencyId] = strNormalizedSpecifier
+        dictParsedDependency[strValidatedDependencyId] = strNormalizedSpecifier
 
-    if rootComponentId is not None and rootComponentId in dictNormalizedDependency:
+    if rootComponentId is not None and rootComponentId in dictParsedDependency:
         add_validation_issue(
             issueList, "componentDependencies", "A Component cannot depend on itself."
         )
 
-    return dict(sorted(dictNormalizedDependency.items()))
+    return dict(sorted(dictParsedDependency.items()))
 
 
 def parse_flow_manifest(
@@ -297,7 +295,9 @@ def parse_flow_manifest(
 
     schemaVersionValue = value.get("schemaVersion")
     if type(schemaVersionValue) is not int or schemaVersionValue != 1:
-        add_validation_issue(listIssue, "schemaVersion", "Only schemaVersion 1 is supported.")
+        add_validation_issue(
+            listIssue, "schemaVersion", "Only schemaVersion 1 is supported."
+        )
 
     strName = _validate_trimmed_single_line_field(value.get("name"), "name", listIssue)
     strNormalizedVersion = _parse_version_field(
@@ -315,7 +315,7 @@ def parse_flow_manifest(
         listIssue,
     )
 
-    dictNormalizedDependency = _parse_component_dependencies(
+    dictParsedDependency = _parse_component_dependencies(
         value.get("componentDependencies"),
         listIssue,
     )
@@ -337,7 +337,7 @@ def parse_flow_manifest(
         version=strNormalizedVersion,
         description=strDescription,
         requiresLiberrpa=strNormalizedRequiresLiberrpa,
-        componentDependencies=dictNormalizedDependency,
+        componentDependencies=dictParsedDependency,
     )
 
 
@@ -365,9 +365,11 @@ def parse_component_manifest(
 
     schemaVersionValue = value.get("schemaVersion")
     if type(schemaVersionValue) is not int or schemaVersionValue != 1:
-        add_validation_issue(listIssue, "schemaVersion", "Only schemaVersion 1 is supported.")
+        add_validation_issue(
+            listIssue, "schemaVersion", "Only schemaVersion 1 is supported."
+        )
 
-    strNormalizedId = _validate_uuid_field(value.get("id"), "id", listIssue)
+    strValidatedId = _validate_uuid_field(value.get("id"), "id", listIssue)
     strPackageName = _validate_package_name_field(
         value.get("packageName"), "packageName", listIssue
     )
@@ -389,10 +391,10 @@ def parse_component_manifest(
         listIssue,
     )
 
-    dictNormalizedDependency = _parse_component_dependencies(
+    dictParsedDependency = _parse_component_dependencies(
         value.get("componentDependencies"),
         listIssue,
-        rootComponentId=strNormalizedId,
+        rootComponentId=strValidatedId,
     )
 
     if listIssue:
@@ -402,7 +404,7 @@ def parse_component_manifest(
             details={"issues": listIssue},
         )
 
-    assert strNormalizedId is not None
+    assert strValidatedId is not None
     assert strPackageName is not None
     assert strDisplayName is not None
     assert strNormalizedVersion is not None
@@ -410,13 +412,13 @@ def parse_component_manifest(
     assert strNormalizedRequiresLiberrpa is not None
 
     return Info_ProjectManifest_Component(
-        id=strNormalizedId,
+        id=strValidatedId,
         packageName=strPackageName,
         displayName=strDisplayName,
         version=strNormalizedVersion,
         description=strDescription,
         requiresLiberrpa=strNormalizedRequiresLiberrpa,
-        componentDependencies=dictNormalizedDependency,
+        componentDependencies=dictParsedDependency,
     )
 
 
@@ -445,21 +447,21 @@ def build_project_manifest_dict(manifestObj: Info_ProjectManifest) -> dict[str, 
     }
 
 
-def read_flow_manifest(manifestPath: Path) -> Info_ProjectManifest_Flow:
-    if not path_exists(manifestPath):
+def read_flow_manifest(manifestFilePath: Path) -> Info_ProjectManifest_Flow:
+    if not path_exists(manifestFilePath):
         raise ComponentManagementError(
             code="flow_manifest_missing",
-            message=f"Flow Project manifest was not found: {manifestPath}",
+            message=f"Flow Project manifest was not found: {manifestFilePath}",
         )
 
-    if is_file_invalid(manifestPath):
+    if is_file_invalid(manifestFilePath):
         raise ComponentManagementError(
             code="flow_manifest_invalid",
-            message=f"Flow Project manifest path is invalid: {manifestPath}",
+            message=f"Flow Project manifest path is invalid: {manifestFilePath}",
         )
 
     try:
-        value = read_json(manifestPath)
+        value = read_json(manifestFilePath)
     except (OSError, ValueError) as e:
         raise ComponentManagementError(
             code="flow_manifest_invalid",
@@ -470,21 +472,21 @@ def read_flow_manifest(manifestPath: Path) -> Info_ProjectManifest_Flow:
     return parse_flow_manifest(value)
 
 
-def read_component_manifest(manifestPath: Path) -> Info_ProjectManifest_Component:
-    if not path_exists(manifestPath):
+def read_component_manifest(manifestFilePath: Path) -> Info_ProjectManifest_Component:
+    if not path_exists(manifestFilePath):
         raise ComponentManagementError(
             code="component_manifest_missing",
-            message=f"Component Project manifest was not found: {manifestPath}",
+            message=f"Component Project manifest was not found: {manifestFilePath}",
         )
 
-    if is_file_invalid(manifestPath):
+    if is_file_invalid(manifestFilePath):
         raise ComponentManagementError(
             code="component_manifest_invalid",
-            message=f"Component Project manifest path is invalid: {manifestPath}",
+            message=f"Component Project manifest path is invalid: {manifestFilePath}",
         )
 
     try:
-        value = read_json(manifestPath)
+        value = read_json(manifestFilePath)
     except (OSError, ValueError) as e:
         raise ComponentManagementError(
             code="component_manifest_invalid",
@@ -498,27 +500,27 @@ def read_component_manifest(manifestPath: Path) -> Info_ProjectManifest_Componen
 def read_project_manifest(
     projectPath: Path,
 ) -> tuple[Str_ProjectType, Info_ProjectManifest]:
-    pathFlowManifest = projectPath / "flow.json"
-    pathComponentManifest = projectPath / "component.json"
+    pathFlowManifestFile = projectPath / "flow.json"
+    pathComponentManifestFile = projectPath / "component.json"
 
-    boolHasFlowManifest = path_exists(pathFlowManifest)
-    boolHasComponentManifest = path_exists(pathComponentManifest)
+    boolHasFlowManifest = path_exists(pathFlowManifestFile)
+    boolHasComponentManifest = path_exists(pathComponentManifestFile)
 
     if boolHasFlowManifest and boolHasComponentManifest:
         raise ComponentManagementError(
             code="project_manifest_conflict",
             message="A Project cannot contain both flow.json and component.json.",
             details={
-                "flowManifest": str(pathFlowManifest),
-                "componentManifest": str(pathComponentManifest),
+                "flowManifestFilePath": str(pathFlowManifestFile),
+                "componentManifestFilePath": str(pathComponentManifestFile),
             },
         )
 
     if boolHasFlowManifest:
-        return "flow", read_flow_manifest(pathFlowManifest)
+        return "flow", read_flow_manifest(pathFlowManifestFile)
 
     if boolHasComponentManifest:
-        return "component", read_component_manifest(pathComponentManifest)
+        return "component", read_component_manifest(pathComponentManifestFile)
 
     raise ComponentManagementError(
         code="project_manifest_missing",

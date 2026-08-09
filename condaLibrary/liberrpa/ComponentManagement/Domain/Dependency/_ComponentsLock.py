@@ -148,25 +148,26 @@ def _validate_dependency_graph(
             )
 
     for strComponentId, dictComponent in componentDict.items():
-        for strComponentId, strSpecifier in dictComponent[
+        for strDependencyId, strSpecifier in dictComponent[
             "componentDependencies"
         ].items():
-            if strRootComponentId is not None and strComponentId == strRootComponentId:
+            if strRootComponentId is not None and strDependencyId == strRootComponentId:
                 raise ValueError(
-                    f"Locked Component {strComponentId} depends on the root Component and creates a dependency cycle."
+                    f"Locked Component {strComponentId} depends on the root "
+                    "Component and creates a dependency cycle."
                 )
 
-            dictDependencyTemp = componentDict.get(strComponentId)
-            if dictDependencyTemp is None:
+            dictDependency = componentDict.get(strDependencyId)
+            if dictDependency is None:
                 raise ValueError(
-                    f"Locked Component {strComponentId} refers to missing Component {strComponentId!r}."
+                    f"Locked Component {strComponentId} refers to missing Component {strDependencyId!r}."
                 )
 
             if not SpecifierSet(strSpecifier).contains(
-                Version(dictDependencyTemp["version"]), prereleases=True
+                Version(dictDependency["version"]), prereleases=True
             ):
                 raise ValueError(
-                    f"Locked Component {strComponentId} {dictDependencyTemp['version']} does not satisfy requirement {strSpecifier!r} from Component {strComponentId}."
+                    f"Locked Component {strDependencyId} {dictDependency['version']} does not satisfy requirement {strSpecifier!r} from Component {strComponentId}."
                 )
 
     setVisited: set[str] = set()
@@ -376,43 +377,52 @@ def build_components_lock(
     })
 
 
-def read_components_lock(lockFilePath: Path) -> DictComponentsLock_File:
-    if not path_exists(lockFilePath):
+def read_components_lock(componentsLockFilePath: Path) -> DictComponentsLock_File:
+    if not path_exists(componentsLockFilePath):
         raise ComponentManagementError(
             code="components_lock_missing",
-            message=f"Components lock file was not found: {lockFilePath}",
+            message=f"Components lock file was not found: {componentsLockFilePath}",
         )
 
-    if is_file_invalid(lockFilePath):
+    if is_file_invalid(componentsLockFilePath):
         raise ComponentManagementError(
             code="components_lock_invalid",
-            message=f"Components lock path is invalid: {lockFilePath}",
+            message=f"Components lock path is invalid: {componentsLockFilePath}",
         )
 
     try:
-        return validate_components_lock(read_json(lockFilePath))
+        return validate_components_lock(read_json(componentsLockFilePath))
     except (OSError, ValueError) as e:
         raise ComponentManagementError(
             code="components_lock_invalid",
             message="Invalid components.lock.json.",
-            details={"lockFile": str(lockFilePath), "reason": str(e)},
+            details={
+                "componentsLockFilePath": str(componentsLockFilePath),
+                "reason": str(e),
+            },
         ) from e
 
 
-def write_components_lock(lockFilePath: Path, lockDict: DictComponentsLock_File) -> None:
+def write_components_lock(
+    componentsLockFilePath: Path, lockDict: DictComponentsLock_File
+) -> None:
+    """Validate and atomically write components.lock.json."""
     try:
         dictValidatedLock = validate_components_lock(lockDict)
-        write_json_atomic(lockFilePath, dictValidatedLock)
+        write_json_atomic(componentsLockFilePath, dictValidatedLock)
     except ValueError as e:
         raise ComponentManagementError(
             code="components_lock_invalid",
             message="Cannot write an invalid components.lock.json.",
-            details={"lockFile": str(lockFilePath), "reason": str(e)},
+            details={
+                "componentsLockFilePath": str(componentsLockFilePath),
+                "reason": str(e),
+            },
         ) from e
     except OSError as e:
         raise ComponentManagementError(
             code="io_error",
-            message=f"Failed to write components.lock.json: {lockFilePath}",
+            message=f"Failed to write components.lock.json: {componentsLockFilePath}",
         ) from e
 
 

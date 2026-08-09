@@ -26,9 +26,9 @@ from liberrpa.ComponentManagement.Types._Components import Info_ProjectComponent
 from liberrpa.ComponentManagement.Types._Warning import DictComponentManagementWarning
 from liberrpa.ComponentManagement.Types._Protocol import (
     DictProtocolResult_Publish,
-    DictProtocolResult_RepositoryIndexRebuilt,
     DictProtocolResult_ComponentWheelsImported_Component,
     DictProtocolResult_ComponentWheelsImported,
+    DictProtocolResult_RepositoryIndexRebuilt,
     DictProtocolResult_RepositoryCatalog_Component,
     DictProtocolResult_RepositoryCatalog,
     DictProtocolResult_ComponentsFolder,
@@ -37,8 +37,8 @@ from liberrpa.ComponentManagement.Types._Protocol import (
     DictProtocolResult_ProjectDependencyPlanApplied,
     DictProtocolResult_ProjectComponentsRepaired,
     DictProtocolSuccess_PublishComponent,
-    DictProtocolSuccess_RepositoryIndexRebuilt,
     DictProtocolSuccess_ComponentWheelsImported,
+    DictProtocolSuccess_RepositoryIndexRebuilt,
     DictProtocolSuccess_RepositoryCatalog,
     DictProtocolSuccess_ProjectDependencyState,
     DictProtocolSuccess_ProjectDependencyPlan,
@@ -104,10 +104,10 @@ def build_publish_response(
             "componentId": publishResult.componentId,
             "packageName": publishResult.packageName,
             #
-            "astSnippetsFile": publishResult.astSnippetsPath.relative_to(
+            "astSnippetsFile": publishResult.astSnippetsFilePath.relative_to(
                 publishResult.projectPath
             ).as_posix(),
-            "snippetsJsoncFile": publishResult.snippetsConfigPath.relative_to(
+            "snippetsJsoncFile": publishResult.snippetsConfigFilePath.relative_to(
                 publishResult.projectPath
             ).as_posix(),
             "generatedCount": publishResult.generatedCount,
@@ -121,10 +121,10 @@ def build_publish_response(
             "packageName": publishResult.packageName,
             "version": publishResult.version,
             #
-            "astSnippetsFile": publishResult.astSnippetsPath.relative_to(
+            "astSnippetsFile": publishResult.astSnippetsFilePath.relative_to(
                 publishResult.projectPath
             ).as_posix(),
-            "snippetsJsoncFile": publishResult.snippetsConfigPath.relative_to(
+            "snippetsJsoncFile": publishResult.snippetsConfigFilePath.relative_to(
                 publishResult.projectPath
             ).as_posix(),
             "generatedCount": publishResult.generatedCount,
@@ -152,10 +152,10 @@ def build_publish_response(
 def build_component_wheels_imported_response(
     importResult: Info_Repository_ImportResult,
 ) -> DictProtocolSuccess_ComponentWheelsImported:
-    # Convert Info objects into Dictionarys.
+    # Convert Info objects into dictionaries.
     listComponent: list[DictProtocolResult_ComponentWheelsImported_Component] = [
         {
-            "sourcePath": str(componentResult.sourcePath),
+            "sourceWheelFilePath": str(componentResult.sourceWheelFilePath),
             #
             "componentId": componentResult.componentId,
             "packageName": componentResult.packageName,
@@ -276,7 +276,7 @@ def build_project_dependency_plan_response(
 def build_project_dependency_plan_applied_response(
     applyResult: Info_ProjectDependency_ApplyResult,
 ) -> DictProtocolSuccess_ProjectDependencyPlanApplied:
-    DictFolderResult = (
+    dictFolderResult = (
         None
         if applyResult.componentsFolderInfo is None
         else _get_components_folder_result(applyResult.componentsFolderInfo)
@@ -288,7 +288,7 @@ def build_project_dependency_plan_applied_response(
         "targetComponentsLock": applyResult.plan.targetComponentsLock,
         "directDependencyChanges": applyResult.plan.directDependencyChanges,
         "resolvedComponentChanges": applyResult.plan.resolvedComponentChanges,
-        "componentsFolder": DictFolderResult,
+        "componentsFolder": dictFolderResult,
     }
     return {
         "schemaVersion": 1,

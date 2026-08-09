@@ -49,14 +49,14 @@ def _add_rebuild_issue(
     issueList: list[dict[str, object]],
     *,
     code: str,
-    path: Path,
+    entryPath: Path,
     message: str,
     details: dict[str, object] | None = None,
 ) -> None:
     dictIssue: dict[str, object] = {
         "code": code,
         "message": message,
-        "path": str(path),
+        "entryPath": str(entryPath),
     }
     if details is not None:
         dictIssue["details"] = details
@@ -90,13 +90,13 @@ def rebuild_repository_index() -> Info_Repository_RebuildResult:
     pathRepository = get_repository_path()
 
     with repository_lock(pathRepository, "rebuildRepositoryIndex"):
-        pathComponents, _ = initialize_repository_structure(pathRepository)
+        pathComponentsFolder, _ = initialize_repository_structure(pathRepository)
 
-        if is_folder_invalid(pathComponents):
+        if is_folder_invalid(pathComponentsFolder):
             raise ComponentManagementError(
                 code="repository_rebuild_failed",
                 message="The Component Repository components path is invalid.",
-                details={"path": str(pathComponents)},
+                details={"componentsFolderPath": str(pathComponentsFolder)},
             )
 
         dictNewIndex: DictRepository_Index = {
@@ -105,21 +105,21 @@ def rebuild_repository_index() -> Info_Repository_RebuildResult:
         }
         listIssue: list[dict[str, object]] = []
         listWarning: list[DictComponentManagementWarning] = []
-        dictVersionPath: dict[tuple[str, Version], Path] = {}
+        dictVersionWheelFilePath: dict[tuple[str, Version], Path] = {}
 
         for pathComponentFolder in sorted(
-            pathComponents.iterdir(), key=lambda pathObj: pathObj.name
+            pathComponentsFolder.iterdir(), key=lambda pathObj: pathObj.name
         ):
             if is_folder_invalid(pathComponentFolder):
                 _add_rebuild_issue(
                     listIssue,
                     code="invalid_component_folder",
-                    path=pathComponentFolder,
+                    entryPath=pathComponentFolder,
                     message="Repository components may contain only Component folders.",
                 )
                 continue
 
-            listWheelPath: list[Path] = []
+            listWheelFilePath: list[Path] = []
             boolHasUnexpectedEntry = False
 
             for pathEntry in sorted(
@@ -130,28 +130,28 @@ def rebuild_repository_index() -> Info_Repository_RebuildResult:
                     _add_rebuild_issue(
                         listIssue,
                         code="unexpected_repository_entry",
-                        path=pathEntry,
+                        entryPath=pathEntry,
                         message="A Component Repository folder may contain only Wheel files.",
                     )
                     continue
 
-                listWheelPath.append(pathEntry)
+                listWheelFilePath.append(pathEntry)
 
-            if not listWheelPath and not boolHasUnexpectedEntry:
+            if not listWheelFilePath and not boolHasUnexpectedEntry:
                 listWarning.append({
                     "code": "empty_component_repository_folder",
                     "message": f"Ignored empty Component Repository folder: {pathComponentFolder}",
                 })
                 continue
 
-            for pathWheel in listWheelPath:
+            for pathWheelFile in listWheelFilePath:
                 try:
-                    wheelInfoObj = inspect_component_wheel(pathWheel)
+                    wheelInfoObj = inspect_component_wheel(pathWheelFile)
                 except ComponentManagementError as e:
                     _add_rebuild_issue(
                         listIssue,
                         code=e.code,
-                        path=pathWheel,
+                        entryPath=pathWheelFile,
                         message=e.message,
                         details=e.details,
                     )
@@ -163,7 +163,7 @@ def rebuild_repository_index() -> Info_Repository_RebuildResult:
                     _add_rebuild_issue(
                         listIssue,
                         code="component_folder_mismatch",
-                        path=pathWheel,
+                        entryPath=pathWheelFile,
                         message=(
                             f"Wheel is stored in the wrong Component folder. Expected {strExpectedFolderName!r}."
                         ),
@@ -171,20 +171,20 @@ def rebuild_repository_index() -> Info_Repository_RebuildResult:
                     continue
 
                 tupleVersionKey = (manifestObj.id, Version(manifestObj.version))
-                pathExistingVersion = dictVersionPath.get(tupleVersionKey)
-                if pathExistingVersion is not None:
+                pathExistingWheelFile = dictVersionWheelFilePath.get(tupleVersionKey)
+                if pathExistingWheelFile is not None:
                     _add_rebuild_issue(
                         listIssue,
                         code="duplicate_component_version",
-                        path=pathWheel,
+                        entryPath=pathWheelFile,
                         message=(
                             "Repository contains more than one Wheel for the same Component ID and PEP 440 equivalent version."
                         ),
-                        details={"existingWheel": str(pathExistingVersion)},
+                        details={"existingWheelFilePath": str(pathExistingWheelFile)},
                     )
                     continue
 
-                dictVersionPath[tupleVersionKey] = pathWheel
+                dictVersionWheelFilePath[tupleVersionKey] = pathWheelFile
 
                 dictVersionEntry = build_repository_version_entry(
                     manifestObj=wheelInfoObj.manifest,
@@ -203,7 +203,7 @@ def rebuild_repository_index() -> Info_Repository_RebuildResult:
                     _add_rebuild_issue(
                         listIssue,
                         code=e.code,
-                        path=pathWheel,
+                        entryPath=pathWheelFile,
                         message=e.message,
                         details=e.details,
                     )
@@ -217,11 +217,11 @@ def rebuild_repository_index() -> Info_Repository_RebuildResult:
                 details={"issues": listIssue},
             )
 
-        listTransactionCleanup = validate_publish_transactions_for_rebuild(
+        listCleanupTransactionFolderPath = validate_publish_transactions_for_rebuild(
             repositoryPath=pathRepository,
             indexDict=dictNewIndex,
         )
-        listTransactionCleanup.extend(
+        listCleanupTransactionFolderPath.extend(
             validate_import_transactions_for_rebuild(
                 repositoryPath=pathRepository,
                 indexDict=dictNewIndex,
@@ -234,10 +234,10 @@ def rebuild_repository_index() -> Info_Repository_RebuildResult:
             raise ComponentManagementError(
                 code="repository_rebuild_failed",
                 message="Failed to write the rebuilt Component Repository index.",
-                details={"indexFile": str(pathRepository / STR_INDEX_FILE_NAME)},
+                details={"indexFilePath": str(pathRepository / STR_INDEX_FILE_NAME)},
             ) from e
 
-        for pathTransactionFolder in listTransactionCleanup:
+        for pathTransactionFolder in listCleanupTransactionFolderPath:
             dictWarning = remove_repository_transaction_folder(pathTransactionFolder)
             if dictWarning is not None:
                 listWarning.append(dictWarning)

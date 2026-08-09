@@ -61,13 +61,13 @@ def _read_current_components_lock(
     if not dependenciesRequired:
         return None
 
-    pathLockFile = projectPath / STR_COMPONENTS_LOCK_FILE_NAME
-    dictLock = read_components_lock(pathLockFile)
+    pathComponentsLockFile = projectPath / STR_COMPONENTS_LOCK_FILE_NAME
+    dictLock = read_components_lock(pathComponentsLockFile)
     if is_components_lock_stale(dictLock, manifestObj):
         raise ComponentManagementError(
             code="components_lock_stale",
             message="components.lock.json is stale and must be resolved again.",
-            details={"lockFile": str(pathLockFile)},
+            details={"componentsLockFilePath": str(pathComponentsLockFile)},
         )
 
     return dictLock
@@ -102,7 +102,7 @@ def apply_project_dependency_plan(
 
         dictRepositoryIndex = load_repository_index(
             pathRepository,
-            checkWheelPaths=True,
+            checkWheelFilePaths=True,
         )
 
         with project_lock(pathProject, "applyProjectDependencyPlan"):

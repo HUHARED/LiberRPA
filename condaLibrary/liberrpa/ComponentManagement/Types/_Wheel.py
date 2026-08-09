@@ -14,7 +14,7 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class Info_ComponentWheel_BuildResult:
-    wheelPath: Path
+    wheelFilePath: Path
     wheelFileName: str
     sha256: str
 

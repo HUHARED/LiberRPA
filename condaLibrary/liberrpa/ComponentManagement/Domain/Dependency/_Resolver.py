@@ -628,7 +628,7 @@ def resolve_project_dependencies(
     *,
     existingLockDict: DictComponentsLock_File | None = None,
     updateComponentIdSet: set[str] | None = None,
-    # NOTE: The argument has not been used yet.
+    # Production callers currently omit this argument and let the Resolver read the installed liberrpa version. The optional injection keeps resolution deterministic in tests.
     installedLiberrpaVersion: Version | None = None,
 ) -> DictComponentsLock_File:
     """Resolve the complete exact Component closure for a normalized Project Manifest."""

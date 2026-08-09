@@ -43,13 +43,13 @@ def build_current_project_dependency_plan(
 
     dictCurrentLock = None
     if manifestObj.componentDependencies:
-        pathLockFile = pathProject / STR_COMPONENTS_LOCK_FILE_NAME
-        dictCurrentLock = read_components_lock(pathLockFile)
+        pathComponentsLockFile = pathProject / STR_COMPONENTS_LOCK_FILE_NAME
+        dictCurrentLock = read_components_lock(pathComponentsLockFile)
         if is_components_lock_stale(dictCurrentLock, manifestObj):
             raise ComponentManagementError(
                 code="components_lock_stale",
                 message="components.lock.json is stale and must be resolved before planning another change.",
-                details={"lockFile": str(pathLockFile)},
+                details={"componentsLockFilePath": str(pathComponentsLockFile)},
             )
 
     planObj = build_project_dependency_plan(

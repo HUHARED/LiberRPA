@@ -17,9 +17,9 @@ _STR_LOCK_FILE_NAME = ".repository.lock"
 
 @contextmanager
 def repository_lock(repositoryPath: Path, operation: str) -> Generator[None]:
-    pathLock = repositoryPath / _STR_LOCK_FILE_NAME
+    pathRepositoryLockFile = repositoryPath / _STR_LOCK_FILE_NAME
     strOwnerId = create_lock(
-        lockPath=pathLock,
+        lockFilePath=pathRepositoryLockFile,
         operation=operation,
         lockType="repository",
     )
@@ -27,4 +27,4 @@ def repository_lock(repositoryPath: Path, operation: str) -> Generator[None]:
     try:
         yield
     finally:
-        release_lock(lockPath=pathLock, ownerId=strOwnerId)
+        release_lock(lockFilePath=pathRepositoryLockFile, ownerId=strOwnerId)

@@ -64,13 +64,13 @@ def repair_project_components(
                     details={"projectPath": str(pathProject)},
                 )
 
-            pathLockFile = pathProject / STR_COMPONENTS_LOCK_FILE_NAME
-            dictLock = read_components_lock(pathLockFile)
+            pathComponentsLockFile = pathProject / STR_COMPONENTS_LOCK_FILE_NAME
+            dictLock = read_components_lock(pathComponentsLockFile)
             if is_components_lock_stale(dictLock, manifestObj):
                 raise ComponentManagementError(
                     code="components_lock_stale",
                     message="components.lock.json is stale and cannot be used to repair _Components.",
-                    details={"lockFile": str(pathLockFile)},
+                    details={"componentsLockFilePath": str(pathComponentsLockFile)},
                 )
 
             pathComponentsFolder = pathProject / STR_COMPONENTS_FOLDER_NAME

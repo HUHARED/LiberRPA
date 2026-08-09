@@ -89,45 +89,47 @@ _SET_FORBIDDEN_FILE_SUFFIX = {
 
 
 def _get_package_archive_entries(
-    packagePath: Path,
+    packageFolderPath: Path,
     packageName: str,
 ) -> dict[str, bytes]:
     """Determine which files can be packaged."""
     dictEntry: dict[str, bytes] = {}
     dictCaseInsensitivePath: dict[str, str] = {}
 
-    for pathSource in sorted(
-        packagePath.rglob("*"), key=lambda pathObj: pathObj.as_posix()
+    for pathSourceEntry in sorted(
+        packageFolderPath.rglob("*"), key=lambda pathObj: pathObj.as_posix()
     ):
-        relativePath = pathSource.relative_to(packagePath)
-        if "__pycache__" in relativePath.parts:
+        pathRelativeSourceEntry = pathSourceEntry.relative_to(packageFolderPath)
+        if "__pycache__" in pathRelativeSourceEntry.parts:
             continue
-        if pathSource.is_symlink():
+        if pathSourceEntry.is_symlink():
             raise ComponentManagementError(
                 code="unsupported_component_file",
-                message=f"Component package cannot contain symbolic links: {pathSource}",
-                details={"file": relativePath.as_posix()},
+                message=f"Component package cannot contain symbolic links: {pathSourceEntry}",
+                details={"relativeFilePath": pathRelativeSourceEntry.as_posix()},
             )
-        if pathSource.is_dir():
+        if pathSourceEntry.is_dir():
             continue
-        if not pathSource.is_file():
+        if not pathSourceEntry.is_file():
             raise ComponentManagementError(
                 code="unsupported_component_file",
-                message=f"Unsupported Component package entry: {pathSource}",
-                details={"file": relativePath.as_posix()},
+                message=f"Unsupported Component package entry: {pathSourceEntry}",
+                details={"relativeFilePath": pathRelativeSourceEntry.as_posix()},
             )
 
-        strSuffix = pathSource.suffix.casefold()
+        strSuffix = pathSourceEntry.suffix.casefold()
         if strSuffix in _SET_IGNORED_FILE_SUFFIX:
             continue
         if strSuffix in _SET_FORBIDDEN_FILE_SUFFIX:
             raise ComponentManagementError(
                 code="unsupported_component_file",
-                message=f"Unsupported Component package file type: {pathSource}",
-                details={"file": relativePath.as_posix()},
+                message=f"Unsupported Component package file type: {pathSourceEntry}",
+                details={"relativeFilePath": pathRelativeSourceEntry.as_posix()},
             )
 
-        strArchivePath = PurePosixPath(packageName, *relativePath.parts).as_posix()
+        strArchivePath = PurePosixPath(
+            packageName, *pathRelativeSourceEntry.parts
+        ).as_posix()
         strCaseInsensitivePath = strArchivePath.casefold()
         strExistingPath = dictCaseInsensitivePath.get(strCaseInsensitivePath)
         if strExistingPath is not None:
@@ -139,11 +141,11 @@ def _get_package_archive_entries(
         dictCaseInsensitivePath[strCaseInsensitivePath] = strArchivePath
 
         try:
-            dictEntry[strArchivePath] = pathSource.read_bytes()
+            dictEntry[strArchivePath] = pathSourceEntry.read_bytes()
         except OSError as e:
             raise ComponentManagementError(
                 code="io_error",
-                message=f"Failed to read Component package file: {pathSource}",
+                message=f"Failed to read Component package file: {pathSourceEntry}",
             ) from e
 
     return dictEntry
@@ -197,14 +199,14 @@ def _create_zip_info(archivePath: str) -> ZipInfo:
 
 
 def _write_wheel_file(
-    wheelPath: Path,
+    wheelFilePath: Path,
     archiveEntryDict: dict[str, bytes],
     recordPath: str,
 ) -> None:
-    pathTemp = wheelPath.parent / f".{wheelPath.name}.{uuid.uuid4()}.tmp"
+    pathTempWheelFile = wheelFilePath.parent / f".{wheelFilePath.name}.{uuid.uuid4()}.tmp"
 
     try:
-        with ZipFile(pathTemp, mode="x", compression=ZIP_STORED) as wheelObj:
+        with ZipFile(pathTempWheelFile, mode="x", compression=ZIP_STORED) as wheelObj:
             for strArchivePath in sorted(archiveEntryDict):
                 wheelObj.writestr(
                     _create_zip_info(strArchivePath),
@@ -218,46 +220,46 @@ def _write_wheel_file(
                 ),
             )
 
-        os.replace(pathTemp, wheelPath)
+        os.replace(pathTempWheelFile, wheelFilePath)
     except (OSError, BadZipFile) as e:
         raise ComponentManagementError(
             code="wheel_build_failed",
-            message=f"Failed to build Component Wheel: {wheelPath}",
+            message=f"Failed to build Component Wheel: {wheelFilePath}",
         ) from e
     finally:
-        pathTemp.unlink(missing_ok=True)
+        pathTempWheelFile.unlink(missing_ok=True)
 
 
 def build_component_wheel(
     projectPath: Path,
-    packagePath: Path,
+    packageFolderPath: Path,
     buildFolderPath: Path,
     manifestObj: Info_ProjectManifest_Component,
     snippetCatalog: DictSnippet_CatalogFile,
 ) -> Info_ComponentWheel_BuildResult:
-    licensePath = projectPath / "LICENSE"
-    if is_file_invalid(licensePath):
+    pathLicenseFile = projectPath / "LICENSE"
+    if is_file_invalid(pathLicenseFile):
         raise ComponentManagementError(
             code="component_source_invalid",
-            message=f"Component Project LICENSE file was not found or is invalid: {licensePath}",
+            message=f"Component Project LICENSE file was not found or is invalid: {pathLicenseFile}",
         )
 
     strDistInfoFolder, strWheelFileName = get_component_wheel_names(
         manifestObj.packageName,
         manifestObj.version,
     )
-    pathWheel = buildFolderPath / strWheelFileName
+    pathWheelFile = buildFolderPath / strWheelFileName
 
     try:
-        licenseValue = licensePath.read_bytes()
+        bytesLicenseFile = pathLicenseFile.read_bytes()
     except OSError as e:
         raise ComponentManagementError(
             code="io_error",
-            message=f"Failed to read Component Project LICENSE file: {licensePath}",
+            message=f"Failed to read Component Project LICENSE file: {pathLicenseFile}",
         ) from e
 
     dictArchiveEntry = _get_package_archive_entries(
-        packagePath=packagePath,
+        packageFolderPath=packageFolderPath,
         packageName=manifestObj.packageName,
     )
 
@@ -266,7 +268,7 @@ def build_component_wheel(
     dictArchiveEntry.update({
         f"{strDistInfoPrefix}METADATA": _get_manifest_metadata_bytes(manifestObj),
         f"{strDistInfoPrefix}WHEEL": _get_wheel_metadata_bytes(),
-        f"{strDistInfoPrefix}licenses/LICENSE": licenseValue,
+        f"{strDistInfoPrefix}licenses/LICENSE": bytesLicenseFile,
         f"{strDistInfoPrefix}component.json": serialize_json(
             dictPublishedManifest
         ).encode(),
@@ -278,18 +280,18 @@ def build_component_wheel(
     strRecordPath = f"{strDistInfoPrefix}RECORD"
 
     _write_wheel_file(
-        wheelPath=pathWheel,
+        wheelFilePath=pathWheelFile,
         archiveEntryDict=dictArchiveEntry,
         recordPath=strRecordPath,
     )
     strSha256 = _validate_component_wheel(
-        wheelPath=pathWheel,
+        wheelFilePath=pathWheelFile,
         manifestObj=manifestObj,
         snippetCatalogDict=snippetCatalog,
     )
 
     return Info_ComponentWheel_BuildResult(
-        wheelPath=pathWheel,
+        wheelFilePath=pathWheelFile,
         wheelFileName=strWheelFileName,
         sha256=strSha256,
     )
@@ -604,7 +606,7 @@ def _validate_snippet_catalog(
 
 
 def _validate_component_wheel(
-    wheelPath: Path,
+    wheelFilePath: Path,
     manifestObj: Info_ProjectManifest_Component,
     snippetCatalogDict: DictSnippet_CatalogFile,
 ) -> str:
@@ -614,12 +616,12 @@ def _validate_component_wheel(
         manifestObj.version,
     )
 
-    if wheelPath.name != strExpectedWheelFileName:
+    if wheelFilePath.name != strExpectedWheelFileName:
         raise ComponentManagementError(
             code="wheel_validation_failed",
             message="Component Wheel filename does not match its Component metadata.",
             details={
-                "wheelFileName": wheelPath.name,
+                "wheelFileName": wheelFilePath.name,
                 "expectedWheelFileName": strExpectedWheelFileName,
             },
         )
@@ -630,7 +632,7 @@ def _validate_component_wheel(
         )
 
         normalizedName, versionObj, buildTag, tagSet = parse_wheel_filename(
-            wheelPath.name
+            wheelFilePath.name
         )
         if normalizedName != canonicalize_name(manifestObj.packageName):
             raise ValueError("Wheel distribution name does not match packageName.")
@@ -643,7 +645,7 @@ def _validate_component_wheel(
                 f"Wheel must use the {STR_COMPONENT_WHEEL_TAG} compatibility tag."
             )
 
-        with ZipFile(wheelPath, mode="r") as wheelObj:
+        with ZipFile(wheelFilePath, mode="r") as wheelObj:
             strBadFile = wheelObj.testzip()
             if strBadFile is not None:
                 raise ValueError(f"Wheel ZIP integrity check failed: {strBadFile!r}.")
@@ -651,7 +653,7 @@ def _validate_component_wheel(
             strMetadataPath = f"{strDistInfoFolder}/METADATA"
             strWheelMetadataPath = f"{strDistInfoFolder}/WHEEL"
             strLicensePath = f"{strDistInfoFolder}/licenses/LICENSE"
-            strManifestPath = f"{strDistInfoFolder}/component.json"
+            strManifestFilePath = f"{strDistInfoFolder}/component.json"
             strCatalogPath = f"{strDistInfoFolder}/snippets_catalog.json"
             strRecordPath = f"{strDistInfoFolder}/RECORD"
 
@@ -697,22 +699,25 @@ def _validate_component_wheel(
                     )
                 dictCaseInsensitivePath[strCaseInsensitivePath] = strArchivePath
 
-                pathObj = PurePosixPath(strArchivePath)
-                if pathObj.parts[0] not in {manifestObj.packageName, strDistInfoFolder}:
+                pathArchiveEntry = PurePosixPath(strArchivePath)
+                if pathArchiveEntry.parts[0] not in {
+                    manifestObj.packageName,
+                    strDistInfoFolder,
+                }:
                     raise ValueError(
                         f"Wheel contains an unexpected top-level path: {strArchivePath!r}."
                     )
 
-                if pathObj.parts[0] == manifestObj.packageName:
-                    if "__pycache__" in pathObj.parts:
+                if pathArchiveEntry.parts[0] == manifestObj.packageName:
+                    if "__pycache__" in pathArchiveEntry.parts:
                         raise ValueError(
                             f"Wheel cannot contain __pycache__: {strArchivePath!r}."
                         )
-                    if pathObj.suffix.casefold() in _SET_IGNORED_FILE_SUFFIX:
+                    if pathArchiveEntry.suffix.casefold() in _SET_IGNORED_FILE_SUFFIX:
                         raise ValueError(
                             f"Wheel cannot contain ignored Python cache files: {strArchivePath!r}."
                         )
-                    if pathObj.suffix.casefold() in _SET_FORBIDDEN_FILE_SUFFIX:
+                    if pathArchiveEntry.suffix.casefold() in _SET_FORBIDDEN_FILE_SUFFIX:
                         raise ValueError(
                             f"Wheel contains an unsupported file type: {strArchivePath!r}."
                         )
@@ -721,7 +726,7 @@ def _validate_component_wheel(
                 strMetadataPath,
                 strWheelMetadataPath,
                 strLicensePath,
-                strManifestPath,
+                strManifestFilePath,
                 strCatalogPath,
                 strRecordPath,
             }
@@ -783,7 +788,7 @@ def _validate_component_wheel(
                 )
 
             embeddedManifest = parse_json(
-                wheelObj.read(strManifestPath).decode("utf-8", errors="strict")
+                wheelObj.read(strManifestFilePath).decode("utf-8", errors="strict")
             )
             if embeddedManifest != dictPublishedManifest:
                 raise ValueError(
@@ -809,44 +814,44 @@ def _validate_component_wheel(
     except (BadZipFile, KeyError, OSError, UnicodeDecodeError, ValueError) as e:
         raise ComponentManagementError(
             code="wheel_validation_failed",
-            message=f"Built Component Wheel is invalid: {wheelPath}",
+            message=f"Built Component Wheel is invalid: {wheelFilePath}",
             details={"reason": str(e)},
         ) from e
 
-    return calculate_file_sha256(wheelPath)
+    return calculate_file_sha256(wheelFilePath)
 
 
-def inspect_component_wheel(wheelPath: Path) -> Info_ComponentWheel:
-    if is_file_invalid(wheelPath):
+def inspect_component_wheel(wheelFilePath: Path) -> Info_ComponentWheel:
+    if is_file_invalid(wheelFilePath):
         raise ComponentManagementError(
             code="wheel_validation_failed",
-            message=f"Component Wheel file was not found or is invalid: {wheelPath}",
+            message=f"Component Wheel file was not found or is invalid: {wheelFilePath}",
         )
 
     try:
-        with ZipFile(wheelPath, mode="r") as wheelObj:
-            listManifestPath = [
+        with ZipFile(wheelFilePath, mode="r") as wheelObj:
+            listManifestFilePath = [
                 infoObj.filename
                 for infoObj in wheelObj.infolist()
                 if PurePosixPath(infoObj.filename).name == "component.json"
                 and PurePosixPath(infoObj.filename).parent.name.endswith(".dist-info")
             ]
 
-            if len(listManifestPath) != 1:
+            if len(listManifestFilePath) != 1:
                 raise ValueError(
                     "Wheel must contain exactly one component.json directly inside its .dist-info folder."
                 )
 
-            strManifestPath = listManifestPath[0]
-            pathDistInfo = PurePosixPath(strManifestPath).parent
-            strCatalogPath = (pathDistInfo / "snippets_catalog.json").as_posix()
+            strManifestFilePath = listManifestFilePath[0]
+            pathDistInfoFolder = PurePosixPath(strManifestFilePath).parent
+            strCatalogPath = (pathDistInfoFolder / "snippets_catalog.json").as_posix()
 
             embeddedManifest = parse_json(
-                wheelObj.read(strManifestPath).decode("utf-8", errors="strict")
+                wheelObj.read(strManifestFilePath).decode("utf-8", errors="strict")
             )
             manifestObj = parse_component_manifest(
                 embeddedManifest,
-                sourceName=strManifestPath,
+                sourceName=strManifestFilePath,
             )
 
             embeddedCatalog = parse_json(
@@ -858,12 +863,12 @@ def inspect_component_wheel(wheelPath: Path) -> Info_ComponentWheel:
     except (BadZipFile, KeyError, OSError, UnicodeDecodeError, ValueError) as e:
         raise ComponentManagementError(
             code="wheel_validation_failed",
-            message=f"Component Wheel is invalid: {wheelPath}",
+            message=f"Component Wheel is invalid: {wheelFilePath}",
             details={"reason": str(e)},
         ) from e
 
     strSha256 = _validate_component_wheel(
-        wheelPath=wheelPath,
+        wheelFilePath=wheelFilePath,
         manifestObj=manifestObj,
         snippetCatalogDict=dictSnippetCatalog,
     )
@@ -871,6 +876,6 @@ def inspect_component_wheel(wheelPath: Path) -> Info_ComponentWheel:
     return Info_ComponentWheel(
         manifest=manifestObj,
         snippetCatalog=dictSnippetCatalog,
-        wheelFileName=wheelPath.name,
+        wheelFileName=wheelFilePath.name,
         sha256=strSha256,
     )

@@ -36,11 +36,11 @@ def parse_json(value: str) -> object:
         raise ValueError(f"Invalid JSON: {e}.") from e
 
 
-def read_json(path: Path) -> object:
+def read_json(filePath: Path) -> object:
     try:
-        return parse_json(path.read_text(encoding="utf-8", errors="strict"))
+        return parse_json(filePath.read_text(encoding="utf-8", errors="strict"))
     except ValueError as e:
-        raise ValueError(f"Invalid JSON file {path}: {e}.") from e
+        raise ValueError(f"Invalid JSON file {filePath}: {e}.") from e
 
 
 def _parse_jsonc(value: str) -> object:
@@ -50,11 +50,11 @@ def _parse_jsonc(value: str) -> object:
         raise ValueError(f"Invalid JSONC: {e}.") from e
 
 
-def read_jsonc(path: Path) -> object:
+def read_jsonc(filePath: Path) -> object:
     try:
-        return _parse_jsonc(path.read_text(encoding="utf-8", errors="strict"))
+        return _parse_jsonc(filePath.read_text(encoding="utf-8", errors="strict"))
     except ValueError as e:
-        raise ValueError(f"Invalid JSONC file {path}: {e}.") from e
+        raise ValueError(f"Invalid JSONC file {filePath}: {e}.") from e
 
 
 def serialize_json(value: object, *, compact: bool = False) -> str:
@@ -64,20 +64,20 @@ def serialize_json(value: object, *, compact: bool = False) -> str:
     return json.dumps(value, indent=2, ensure_ascii=False) + "\n"
 
 
-def write_text_atomic(path: Path, text: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    pathTemp = path.parent / f".{path.name}.{uuid.uuid4()}.tmp"
+def write_text_atomic(filePath: Path, text: str) -> None:
+    filePath.parent.mkdir(parents=True, exist_ok=True)
+    pathTempFile = filePath.parent / f".{filePath.name}.{uuid.uuid4()}.tmp"
 
     try:
-        with pathTemp.open("x", encoding="utf-8", newline="\n") as fileObj:
+        with pathTempFile.open("x", encoding="utf-8", newline="\n") as fileObj:
             fileObj.write(text)
             fileObj.flush()
             os.fsync(fileObj.fileno())
 
-        os.replace(pathTemp, path)
+        os.replace(pathTempFile, filePath)
     finally:
-        pathTemp.unlink(missing_ok=True)
+        pathTempFile.unlink(missing_ok=True)
 
 
-def write_json_atomic(path: Path, value: object) -> None:
-    write_text_atomic(path=path, text=serialize_json(value))
+def write_json_atomic(filePath: Path, value: object) -> None:
+    write_text_atomic(filePath=filePath, text=serialize_json(value))

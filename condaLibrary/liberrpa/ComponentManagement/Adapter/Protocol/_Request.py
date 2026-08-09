@@ -31,7 +31,7 @@ _SET_REQUEST_KEYS_PUBLISH_COMPONENT = {
 _SET_REQUEST_KEYS_IMPORT_COMPONENT_WHEELS = {
     "schemaVersion",
     "operation",
-    "wheelPaths",
+    "wheelFilePaths",
 }
 _SET_REQUEST_KEYS_REBUILD_REPOSITORY_INDEX = {
     "schemaVersion",
@@ -134,14 +134,18 @@ def parse_protocol_request(requestInfo: str) -> DictProtocolRequest:
                 "Import Component Wheels",
             )
 
-            wheelPaths = value.get("wheelPaths")
-            if not isinstance(wheelPaths, list) or not wheelPaths:
-                _raise_invalid_request("wheelPaths must be a non-empty array of strings.")
+            wheelFilePaths = value.get("wheelFilePaths")
+            if not isinstance(wheelFilePaths, list) or not wheelFilePaths:
+                _raise_invalid_request(
+                    "wheelFilePaths must be a non-empty array of strings."
+                )
             if any(
-                not isinstance(wheelPath, str) or wheelPath.strip() == ""
-                for wheelPath in wheelPaths
+                not isinstance(wheelFilePath, str) or wheelFilePath.strip() == ""
+                for wheelFilePath in wheelFilePaths
             ):
-                _raise_invalid_request("wheelPaths must be a non-empty array of strings.")
+                _raise_invalid_request(
+                    "wheelFilePaths must be a non-empty array of strings."
+                )
 
             return cast(DictProtocolRequest_ImportComponentWheels, value)
 

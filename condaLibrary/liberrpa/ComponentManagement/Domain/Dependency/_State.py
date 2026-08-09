@@ -7,7 +7,6 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from liberrpa.ComponentManagement.Common._Exception import ComponentManagementError
 from liberrpa.ComponentManagement.Common._Hash import calculate_file_sha256
-from liberrpa.ComponentManagement.Common._Project import resolve_project_path
 from liberrpa.ComponentManagement.Common._Version import get_installed_liberrpa_version
 from liberrpa.ComponentManagement.Common._Validation import path_exists, is_file_invalid
 from liberrpa.ComponentManagement.Types._Manifest import Info_ProjectManifest
@@ -32,7 +31,7 @@ from liberrpa.ComponentManagement.Domain.Manifest._Manifest import read_project_
 from liberrpa.ComponentManagement.Domain.Repository._RepositoryPath import (
     get_repository_path,
 )
-from liberrpa.ComponentManagement.Domain.Repository._Index import get_wheel_path
+from liberrpa.ComponentManagement.Domain.Repository._Index import get_wheel_file_path
 
 from pathlib import Path
 from packaging.specifiers import SpecifierSet
@@ -148,31 +147,31 @@ def _get_repair_state(
         }
 
     for strComponentId, dictComponent in lockDict["components"].items():
-        pathWheel = get_wheel_path(
+        pathWheelFile = get_wheel_file_path(
             repositoryPath=pathRepository,
             componentId=strComponentId,
             packageName=dictComponent["packageName"],
             wheelFileName=dictComponent["wheelFileName"],
         )
 
-        if is_file_invalid(pathWheel):
+        if is_file_invalid(pathWheelFile):
             return "wheelMissing", {
                 "componentId": strComponentId,
-                "wheelFilePath": str(pathWheel),
+                "wheelFilePath": str(pathWheelFile),
             }
 
         try:
-            strActualSha256 = calculate_file_sha256(pathWheel)
+            strActualSha256 = calculate_file_sha256(pathWheelFile)
         except OSError as e:
             return "repositoryUnavailable", {
-                "wheelFilePath": str(pathWheel),
+                "wheelFilePath": str(pathWheelFile),
                 "reason": str(e),
             }
 
         if strActualSha256 != dictComponent["sha256"]:
             return "wheelHashMismatch", {
                 "componentId": strComponentId,
-                "wheelFilePath": str(pathWheel),
+                "wheelFilePath": str(pathWheelFile),
                 "expectedSha256": dictComponent["sha256"],
                 "actualSha256": strActualSha256,
             }
@@ -181,11 +180,9 @@ def _get_repair_state(
 
 
 def get_project_dependency_state(projectPath: Path) -> Info_ProjectDependency_State:
-    pathProject = resolve_project_path(projectPath)
-
-    strProjectType, manifestObj = read_project_manifest(pathProject)
+    strProjectType, manifestObj = read_project_manifest(projectPath)
     boolDependenciesRequired = bool(manifestObj.componentDependencies)
-    pathLockFile = pathProject / STR_COMPONENTS_LOCK_FILE_NAME
+    pathComponentsLockFile = projectPath / STR_COMPONENTS_LOCK_FILE_NAME
     dictDetails: dict[str, object] = {}
 
     lockState: Str_ProjectDependency_LockState
@@ -193,14 +190,14 @@ def get_project_dependency_state(projectPath: Path) -> Info_ProjectDependency_St
 
     if not boolDependenciesRequired:
         lockState = "notRequired"
-        if path_exists(pathLockFile):
-            dictDetails["unusedLockFile"] = str(pathLockFile)
-    elif not not path_exists(pathLockFile):
+        if path_exists(pathComponentsLockFile):
+            dictDetails["unusedComponentsLockFilePath"] = str(pathComponentsLockFile)
+    elif not path_exists(pathComponentsLockFile):
         lockState = "missing"
-        dictDetails["lockFile"] = str(pathLockFile)
+        dictDetails["componentsLockFilePath"] = str(pathComponentsLockFile)
     else:
         try:
-            dictComponentsLock = read_components_lock(pathLockFile)
+            dictComponentsLock = read_components_lock(pathComponentsLockFile)
         except ComponentManagementError as e:
             lockState = "invalid"
             dictDetails["lockError"] = {
@@ -216,7 +213,7 @@ def get_project_dependency_state(projectPath: Path) -> Info_ProjectDependency_St
                 lockState = "valid"
 
     componentsState, dictComponentsDetails = _get_components_state(
-        pathProject,
+        projectPath,
         dependenciesRequired=boolDependenciesRequired,
         lockState=lockState,
         lockDict=dictComponentsLock,
@@ -241,7 +238,7 @@ def get_project_dependency_state(projectPath: Path) -> Info_ProjectDependency_St
         dictDetails["repair"] = dictRepairDetails
 
     return Info_ProjectDependency_State(
-        projectPath=pathProject,
+        projectPath=projectPath,
         projectType=strProjectType,
         manifest=manifestObj,
         componentsLock=dictComponentsLock,

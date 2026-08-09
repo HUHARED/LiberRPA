@@ -17,6 +17,7 @@ from liberrpa.ComponentManagement.Common._Version import (
 )
 from liberrpa.ComponentManagement.Common._Validation import (
     get_package_name_error,
+    validate_uuid_v4,
     validate_exact_keys,
     path_exists,
     is_file_invalid,
@@ -36,7 +37,6 @@ from packaging.utils import (
     parse_wheel_filename,
 )
 import re
-import uuid
 
 
 STR_INDEX_FILE_NAME = "repository.json"
@@ -107,22 +107,7 @@ def validate_sha256(value: object, field: str) -> str:
 
 
 def validate_component_id(value: object, field: str) -> str:
-    if not isinstance(value, str):
-        raise ValueError(f"{field} must be a UUID string.")
-
-    try:
-        uuidObj = uuid.UUID(value)
-    except ValueError as e:
-        raise ValueError(f"{field} must be a valid UUID.") from e
-
-    if uuidObj.version != 4 or uuidObj.variant != uuid.RFC_4122:
-        raise ValueError(f"{field} must be a UUID v4.")
-
-    strNormalizedId = str(uuidObj)
-    if value != strNormalizedId:
-        raise ValueError(f"{field} must use the normalized lowercase UUID form.")
-
-    return strNormalizedId
+    return validate_uuid_v4(value, field)
 
 
 def validate_component_dependency_dict(
@@ -307,7 +292,7 @@ def get_wheel_relative_path(
     ).as_posix()
 
 
-def get_wheel_path(
+def get_wheel_file_path(
     repositoryPath: Path,
     componentId: str,
     packageName: str,
@@ -324,12 +309,12 @@ def get_wheel_path(
     )
 
 
-def _get_expected_wheel_path_set(indexDict: DictRepository_Index) -> set[str]:
-    setWheelPath: set[str] = set()
+def _get_expected_wheel_relative_path_set(indexDict: DictRepository_Index) -> set[str]:
+    setWheelRelativePath: set[str] = set()
 
     for strComponentId, dictComponent in indexDict["components"].items():
         for dictVersion in dictComponent["versions"]:
-            setWheelPath.add(
+            setWheelRelativePath.add(
                 get_wheel_relative_path(
                     componentId=strComponentId,
                     packageName=dictComponent["packageName"],
@@ -337,7 +322,7 @@ def _get_expected_wheel_path_set(indexDict: DictRepository_Index) -> set[str]:
                 )
             )
 
-    return setWheelPath
+    return setWheelRelativePath
 
 
 def raise_rebuild_required(
@@ -350,7 +335,7 @@ def raise_rebuild_required(
     )
 
 
-def _get_actual_wheel_path_set(repositoryPath: Path) -> set[str]:
+def _get_actual_wheel_relative_path_set(repositoryPath: Path) -> set[str]:
     pathComponentsFolder = get_repository_components_folder_path(repositoryPath)
     if not path_exists(pathComponentsFolder):
         return set()
@@ -358,27 +343,27 @@ def _get_actual_wheel_path_set(repositoryPath: Path) -> set[str]:
     if is_folder_invalid(pathComponentsFolder):
         raise_rebuild_required(
             "The Component Repository components path is not a valid folder.",
-            {"path": str(pathComponentsFolder)},
+            {"componentsFolderPath": str(pathComponentsFolder)},
         )
 
-    setWheelPath: set[str] = set()
+    setWheelRelativePath: set[str] = set()
 
-    for pathWheel in pathComponentsFolder.rglob("*.whl"):
-        if is_file_invalid(pathWheel):
+    for pathWheelFile in pathComponentsFolder.rglob("*.whl"):
+        if is_file_invalid(pathWheelFile):
             raise_rebuild_required(
                 "The Component Repository contains an invalid Wheel path.",
-                {"wheelFilePath": str(pathWheel)},
+                {"wheelFilePath": str(pathWheelFile)},
             )
 
-        setWheelPath.add(pathWheel.relative_to(repositoryPath).as_posix())
+        setWheelRelativePath.add(pathWheelFile.relative_to(repositoryPath).as_posix())
 
-    return setWheelPath
+    return setWheelRelativePath
 
 
 def load_repository_index(
     repositoryPath: Path,
     *,
-    checkWheelPaths: bool,
+    checkWheelFilePaths: bool,
 ) -> DictRepository_Index:
     pathIndexFile = repositoryPath / STR_INDEX_FILE_NAME
 
@@ -390,7 +375,7 @@ def load_repository_index(
     elif is_file_invalid(pathIndexFile):
         raise_rebuild_required(
             "Component Repository index is invalid.",
-            {"indexFile": str(pathIndexFile)},
+            {"indexFilePath": str(pathIndexFile)},
         )
     else:
         try:
@@ -398,19 +383,23 @@ def load_repository_index(
         except (OSError, ValueError) as e:
             raise_rebuild_required(
                 "Component Repository index is invalid and must be rebuilt.",
-                {"indexFile": str(pathIndexFile), "reason": str(e)},
+                {"indexFilePath": str(pathIndexFile), "reason": str(e)},
             )
 
-    if checkWheelPaths:
-        setExpectedPath = _get_expected_wheel_path_set(dictIndex)
-        setActualPath = _get_actual_wheel_path_set(repositoryPath)
+    if checkWheelFilePaths:
+        setExpectedWheelRelativePath = _get_expected_wheel_relative_path_set(dictIndex)
+        setActualWheelRelativePath = _get_actual_wheel_relative_path_set(repositoryPath)
 
-        if setExpectedPath != setActualPath:
+        if setExpectedWheelRelativePath != setActualWheelRelativePath:
             raise_rebuild_required(
                 "Component Repository index does not match the stored Wheels.",
                 {
-                    "missingWheels": sorted(setExpectedPath - setActualPath),
-                    "unindexedWheels": sorted(setActualPath - setExpectedPath),
+                    "missingWheels": sorted(
+                        setExpectedWheelRelativePath - setActualWheelRelativePath
+                    ),
+                    "unindexedWheels": sorted(
+                        setActualWheelRelativePath - setExpectedWheelRelativePath
+                    ),
                 },
             )
 

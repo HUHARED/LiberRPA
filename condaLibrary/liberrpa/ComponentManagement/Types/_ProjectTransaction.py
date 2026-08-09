@@ -18,9 +18,9 @@ type Str_ProjectTransaction_State = Literal["prepared", "committing", "manifestC
 
 class DictProjectTransaction_Snapshot(TypedDict):
     manifestSha256: str
-    # Whether components.lock.json exists.
+    # Whether components.lock.json must exist in this snapshot.
     componentsLockFileShouldExist: bool
-    # Whether _Components exists.
+    # Whether _Components must exist in this snapshot.
     componentsFolderShouldExist: bool
     expectedComponentsLockFileSha256: NotRequired[str]
 

@@ -31,7 +31,7 @@ def _load_repository_index_snapshot(
     with repository_lock(pathRepository, operation):
         listWarning = recover_repository_transactions(pathRepository)
 
-        dictIndex = load_repository_index(pathRepository, checkWheelPaths=True)
+        dictIndex = load_repository_index(pathRepository, checkWheelFilePaths=True)
 
     return pathRepository, dictIndex, listWarning
 

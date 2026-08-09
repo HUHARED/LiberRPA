@@ -26,7 +26,7 @@ from liberrpa.ComponentManagement.Types._Repository import (
 from liberrpa.ComponentManagement.Domain.Lock._RepositoryLock import repository_lock
 from liberrpa.ComponentManagement.Domain.Wheel._Wheel import inspect_component_wheel
 from liberrpa.ComponentManagement.Domain.Repository._Index import (
-    get_wheel_path,
+    get_wheel_file_path,
     load_repository_index,
     write_repository_index,
     find_equivalent_version,
@@ -58,54 +58,59 @@ import uuid
 
 
 def _resolve_source_wheel_paths(
-    sourceWheelPathList: list[Path],
+    sourceWheelFilePathList: list[Path],
     repositoryPath: Path,
 ) -> list[Path]:
-    if not sourceWheelPathList:
+    if not sourceWheelFilePathList:
         raise ComponentManagementError(
             code="component_wheel_import_invalid_input",
             message="At least one Component Wheel must be selected for import.",
         )
 
-    listResolvedPath: list[Path] = []
-    setResolvedPath: set[str] = set()
+    listResolvedWheelFilePath: list[Path] = []
+    setResolvedWheelFilePath: set[str] = set()
 
-    for intIndex, pathSource in enumerate(sourceWheelPathList):
+    for intIndex, pathSourceWheelFileInput in enumerate(sourceWheelFilePathList):
         try:
-            pathResolved = pathSource.expanduser().resolve(strict=True)
+            pathResolvedWheelFile = pathSourceWheelFileInput.expanduser().resolve(
+                strict=True
+            )
         except (OSError, RuntimeError) as e:
             raise ComponentManagementError(
                 code="component_wheel_import_invalid_input",
                 message=f"Failed to resolve Component Wheel path at index {intIndex}.",
-                details={"sourcePath": str(pathSource)},
+                details={"sourceWheelFilePath": str(pathSourceWheelFileInput)},
             ) from e
 
-        if is_file_invalid(pathResolved) or pathResolved.suffix.casefold() != ".whl":
+        if (
+            is_file_invalid(pathResolvedWheelFile)
+            or pathResolvedWheelFile.suffix.casefold() != ".whl"
+        ):
             raise ComponentManagementError(
                 code="component_wheel_import_invalid_input",
                 message="Selected Component Wheel path is not a regular .whl file.",
-                details={"sourcePath": str(pathResolved)},
+                details={"sourceWheelFilePath": str(pathResolvedWheelFile)},
             )
 
-        if pathResolved.is_relative_to(repositoryPath):
+        if pathResolvedWheelFile.is_relative_to(repositoryPath):
             raise ComponentManagementError(
                 code="component_wheel_import_invalid_input",
                 message="A Wheel already inside ComponentRepository cannot be imported as an external Wheel.",
-                details={"sourcePath": str(pathResolved)},
+                details={"sourceWheelFilePath": str(pathResolvedWheelFile)},
             )
 
-        strPathKey = str(pathResolved).casefold()
-        if strPathKey in setResolvedPath:
+        strWheelFilePathKey = str(pathResolvedWheelFile).casefold()
+        if strWheelFilePathKey in setResolvedWheelFilePath:
             raise ComponentManagementError(
                 code="component_wheel_import_invalid_input",
                 message="The same Component Wheel path was selected more than once.",
-                details={"sourcePath": str(pathResolved)},
+                details={"sourceWheelFilePath": str(pathResolvedWheelFile)},
             )
 
-        setResolvedPath.add(strPathKey)
-        listResolvedPath.append(pathResolved)
+        setResolvedWheelFilePath.add(strWheelFilePathKey)
+        listResolvedWheelFilePath.append(pathResolvedWheelFile)
 
-    return listResolvedPath
+    return listResolvedWheelFilePath
 
 
 def _validate_existing_version(
@@ -115,7 +120,7 @@ def _validate_existing_version(
     versionEntry: DictRepository_ComponentVersionEntry,
     existingVersionEntry: DictRepository_ComponentVersionEntry,
 ) -> None:
-    pathExistingWheelFile = get_wheel_path(
+    pathExistingWheelFile = get_wheel_file_path(
         repositoryPath=repositoryPath,
         componentId=componentId,
         packageName=packageName,
@@ -228,16 +233,18 @@ def _get_import_warnings(
 
 
 def import_component_wheels(
-    sourceWheelPathList: list[Path],
+    sourceWheelFilePathList: list[Path],
 ) -> Info_Repository_ImportResult:
     pathRepository = get_repository_path()
-    listSourcePath = _resolve_source_wheel_paths(sourceWheelPathList, pathRepository)
+    listSourceWheelFilePath = _resolve_source_wheel_paths(
+        sourceWheelFilePathList, pathRepository
+    )
 
     with repository_lock(pathRepository, "importComponentWheels"):
         _, pathStagingFolder = initialize_repository_structure(pathRepository)
 
         listWarning = recover_repository_transactions(pathRepository)
-        dictIndex = load_repository_index(pathRepository, checkWheelPaths=True)
+        dictIndex = load_repository_index(pathRepository, checkWheelFilePaths=True)
         dictPlannedIndex = deepcopy(dictIndex)
 
         strTransactionId = str(uuid.uuid4())
@@ -254,15 +261,32 @@ def import_component_wheels(
         try:
             pathArtifactsFolder.mkdir(parents=True)
 
-            for intIndex, pathSource in enumerate(listSourcePath):
-                strArtifactRelativePath = f"{intIndex:04d}/{pathSource.name}"
-                pathArtifactFile = pathArtifactsFolder.joinpath(
+            for intIndex, pathSourceWheelFile in enumerate(listSourceWheelFilePath):
+                strArtifactRelativePath = f"{intIndex:04d}/{pathSourceWheelFile.name}"
+                pathArtifactWheelFile = pathArtifactsFolder.joinpath(
                     *PurePosixPath(strArtifactRelativePath).parts
                 )
-                pathArtifactFile.parent.mkdir()
-                copy_wheel_to_staging(pathSource, pathArtifactFile)
+                pathArtifactWheelFile.parent.mkdir()
+                strCopiedSha256 = copy_wheel_to_staging(
+                    pathSourceWheelFile,
+                    pathArtifactWheelFile,
+                )
 
-                wheelInfoObj = inspect_component_wheel(pathArtifactFile)
+                wheelInfoObj = inspect_component_wheel(pathArtifactWheelFile)
+                if wheelInfoObj.sha256 != strCopiedSha256:
+                    raise ComponentManagementError(
+                        code="wheel_sha256_mismatch",
+                        message=(
+                            "The Component Wheel changed after it was copied into "
+                            "Repository staging."
+                        ),
+                        details={
+                            "wheelFilePath": str(pathArtifactWheelFile),
+                            "expectedSha256": strCopiedSha256,
+                            "actualSha256": wheelInfoObj.sha256,
+                        },
+                    )
+
                 listWheelInfo.append(wheelInfoObj)
 
                 manifestObj = wheelInfoObj.manifest
@@ -276,7 +300,7 @@ def import_component_wheels(
                         details={
                             "componentId": manifestObj.id,
                             "version": manifestObj.version,
-                            "sourcePath": str(pathSource),
+                            "sourceWheelFilePath": str(pathSourceWheelFile),
                         },
                     )
                 setBatchVersion.add(tupleVersionKey)
@@ -318,10 +342,10 @@ def import_component_wheels(
                         dictVersionEntry,
                         dictExistingVersionEntry,
                     )
-                    pathArtifactFile.unlink()
+                    pathArtifactWheelFile.unlink()
                     listResult.append(
                         Info_Repository_Import_ComponentResult(
-                            sourcePath=pathSource,
+                            sourceWheelFilePath=pathSourceWheelFile,
                             #
                             componentId=manifestObj.id,
                             packageName=manifestObj.packageName,
@@ -342,17 +366,17 @@ def import_component_wheels(
                     packageName=manifestObj.packageName,
                     versionEntry=dictVersionEntry,
                 )
-                pathTargetWheel = get_wheel_path(
+                pathTargetWheelFile = get_wheel_file_path(
                     repositoryPath=pathRepository,
                     componentId=manifestObj.id,
                     packageName=manifestObj.packageName,
                     wheelFileName=wheelInfoObj.wheelFileName,
                 )
-                if path_exists(pathTargetWheel):
+                if path_exists(pathTargetWheelFile):
                     raise ComponentManagementError(
                         code="repository_rebuild_required",
                         message="An unindexed Component Wheel already exists at an import target.",
-                        details={"wheelFilePath": str(pathTargetWheel)},
+                        details={"wheelFilePath": str(pathTargetWheelFile)},
                     )
 
                 listTransactionArtifact.append({
@@ -360,19 +384,16 @@ def import_component_wheels(
                     #
                     "componentId": manifestObj.id,
                     "packageName": manifestObj.packageName,
-                    "version": manifestObj.version,
                     #
                     "versionEntry": dictVersionEntry,
                     #
-                    "wheelFileName": wheelInfoObj.wheelFileName,
-                    "sha256": wheelInfoObj.sha256,
-                    "targetRelativePath": pathTargetWheel.relative_to(
+                    "targetRelativePath": pathTargetWheelFile.relative_to(
                         pathRepository
                     ).as_posix(),
                 })
                 listResult.append(
                     Info_Repository_Import_ComponentResult(
-                        sourcePath=pathSource,
+                        sourceWheelFilePath=pathSourceWheelFile,
                         #
                         componentId=manifestObj.id,
                         packageName=manifestObj.packageName,
@@ -408,28 +429,34 @@ def import_component_wheels(
             boolTransactionRecorded = True
 
             for dictArtifact in listTransactionArtifact:
-                pathArtifactFile = pathArtifactsFolder.joinpath(
+                pathArtifactWheelFile = pathArtifactsFolder.joinpath(
                     *PurePosixPath(dictArtifact["artifactRelativePath"]).parts
                 )
-                if calculate_file_sha256(pathArtifactFile) != dictArtifact["sha256"]:
+                strActualSha256 = calculate_file_sha256(pathArtifactWheelFile)
+                strExpectedSha256 = dictArtifact["versionEntry"]["sha256"]
+                if strActualSha256 != strExpectedSha256:
                     raise ComponentManagementError(
                         code="wheel_sha256_mismatch",
                         message="A Component Wheel changed while it was prepared for Repository import.",
-                        details={"wheelFilePath": str(pathArtifactFile)},
+                        details={
+                            "wheelFilePath": str(pathArtifactWheelFile),
+                            "expectedSha256": strExpectedSha256,
+                            "actualSha256": strActualSha256,
+                        },
                     )
 
-                pathTargetWheel = pathRepository.joinpath(
+                pathTargetWheelFile = pathRepository.joinpath(
                     *PurePosixPath(dictArtifact["targetRelativePath"]).parts
                 )
-                pathTargetWheel.parent.mkdir(parents=True, exist_ok=True)
-                if path_exists(pathTargetWheel):
+                pathTargetWheelFile.parent.mkdir(parents=True, exist_ok=True)
+                if path_exists(pathTargetWheelFile):
                     raise ComponentManagementError(
                         code="repository_rebuild_required",
                         message="An unindexed Component Wheel appeared at an import target.",
-                        details={"wheelFilePath": str(pathTargetWheel)},
+                        details={"wheelFilePath": str(pathTargetWheelFile)},
                     )
 
-                os.replace(pathArtifactFile, pathTargetWheel)
+                os.replace(pathArtifactWheelFile, pathTargetWheelFile)
 
             dictTransaction["state"] = "wheelsCommitted"
             write_json_atomic(pathTransactionFile, dictTransaction)

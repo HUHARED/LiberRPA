@@ -17,9 +17,9 @@ _STR_LOCK_FILE_NAME = ".liberrpa-project-manager.lock"
 
 @contextmanager
 def project_lock(projectPath: Path, operation: str) -> Generator[None]:
-    pathLock = projectPath / _STR_LOCK_FILE_NAME
+    pathProjectLockFile = projectPath / _STR_LOCK_FILE_NAME
     strOwnerId = create_lock(
-        lockPath=pathLock,
+        lockFilePath=pathProjectLockFile,
         operation=operation,
         lockType="project",
     )
@@ -27,4 +27,4 @@ def project_lock(projectPath: Path, operation: str) -> Generator[None]:
     try:
         yield
     finally:
-        release_lock(lockPath=pathLock, ownerId=strOwnerId)
+        release_lock(lockFilePath=pathProjectLockFile, ownerId=strOwnerId)

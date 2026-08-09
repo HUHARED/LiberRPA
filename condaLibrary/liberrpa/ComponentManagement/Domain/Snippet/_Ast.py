@@ -297,7 +297,7 @@ def _build_function_body(moduleAlias: str, functionObj: ast.FunctionDef) -> list
 
 def _build_diagnostic(
     code: str,
-    modulePath: Path,
+    moduleFilePath: Path,
     projectPath: Path,
     line: int,
     message: str,
@@ -305,7 +305,7 @@ def _build_diagnostic(
 ) -> DictComponentManagementWarning_SnippetDiagnostic:
     dictResult: DictComponentManagementWarning_SnippetDiagnostic = {
         "code": code,
-        "file": modulePath.relative_to(projectPath).as_posix(),
+        "file": moduleFilePath.relative_to(projectPath).as_posix(),
         "line": line,
         "message": message,
     }
@@ -328,7 +328,7 @@ def _is_overload_function(functionObj: ast.FunctionDef | ast.AsyncFunctionDef) -
 
 
 def _scan_module(
-    modulePath: Path,
+    moduleFilePath: Path,
     projectPath: Path,
     packageName: str,
 ) -> tuple[
@@ -337,39 +337,39 @@ def _scan_module(
     list[DictComponentManagementWarning_SnippetDiagnostic],
 ]:
     try:
-        with tokenize.open(modulePath) as fileObj:
+        with tokenize.open(moduleFilePath) as fileObj:
             strSource = fileObj.read()
         moduleObj = ast.parse(
             strSource,
-            filename=str(modulePath),
+            filename=str(moduleFilePath),
             type_comments=True,
         )
     except (OSError, SyntaxError, UnicodeError) as e:
         intLine = getattr(e, "lineno", 1) or 1
         raise ComponentManagementError(
             code="ast_snippet_scan_failed",
-            message=f"Failed to parse Component Module: {modulePath.name}",
+            message=f"Failed to parse Component Module: {moduleFilePath.name}",
             details={
-                "file": modulePath.relative_to(projectPath).as_posix(),
+                "file": moduleFilePath.relative_to(projectPath).as_posix(),
                 "line": intLine,
                 "reason": str(e),
             },
         ) from e
 
-    strModuleName = modulePath.stem
+    strModuleName = moduleFilePath.stem
     if not strModuleName.isidentifier():
         raise ComponentManagementError(
             code="component_source_invalid",
-            message=f"Public Component Module filename is not a valid Python identifier: {modulePath.name}",
-            details={"file": modulePath.relative_to(projectPath).as_posix()},
+            message=f"Public Component Module filename is not a valid Python identifier: {moduleFilePath.name}",
+            details={"file": moduleFilePath.relative_to(projectPath).as_posix()},
         )
     if keyword.iskeyword(strModuleName):
         raise ComponentManagementError(
             code="component_source_invalid",
             message=(
-                f"Public Component Module filename cannot use a Python keyword: {modulePath.name}"
+                f"Public Component Module filename cannot use a Python keyword: {moduleFilePath.name}"
             ),
-            details={"file": modulePath.relative_to(projectPath).as_posix()},
+            details={"file": moduleFilePath.relative_to(projectPath).as_posix()},
         )
 
     strModuleAlias = f"{packageName}_{strModuleName}"
@@ -381,7 +381,7 @@ def _scan_module(
         listWarning.append(
             _build_diagnostic(
                 code="module_name_not_pascal_case",
-                modulePath=modulePath,
+                moduleFilePath=moduleFilePath,
                 projectPath=projectPath,
                 line=1,
                 message=(
@@ -411,7 +411,7 @@ def _scan_module(
             listSkipped.append(
                 _build_diagnostic(
                     code="missing_function_implementation",
-                    modulePath=modulePath,
+                    moduleFilePath=moduleFilePath,
                     projectPath=projectPath,
                     line=listDefinition[0].lineno,
                     message="Only overload declarations were found; a concrete function implementation is required.",
@@ -424,7 +424,7 @@ def _scan_module(
             listSkipped.append(
                 _build_diagnostic(
                     code="duplicate_function_definition",
-                    modulePath=modulePath,
+                    moduleFilePath=moduleFilePath,
                     projectPath=projectPath,
                     line=listNonOverload[1].lineno,
                     message="More than one public implementation with the same function name was found.",
@@ -442,7 +442,7 @@ def _scan_module(
             listSkipped.append(
                 _build_diagnostic(
                     code="unsupported_async_function",
-                    modulePath=modulePath,
+                    moduleFilePath=moduleFilePath,
                     projectPath=projectPath,
                     line=functionObj.lineno,
                     functionName=functionObj.name,
@@ -457,7 +457,7 @@ def _scan_module(
             listSkipped.append(
                 _build_diagnostic(
                     code="unsupported_signature",
-                    modulePath=modulePath,
+                    moduleFilePath=moduleFilePath,
                     projectPath=projectPath,
                     line=functionObj.lineno,
                     functionName=functionObj.name,
@@ -472,7 +472,7 @@ def _scan_module(
             listWarning.append(
                 _build_diagnostic(
                     code="missing_docstring",
-                    modulePath=modulePath,
+                    moduleFilePath=moduleFilePath,
                     projectPath=projectPath,
                     line=functionObj.lineno,
                     functionName=functionObj.name,
@@ -496,28 +496,28 @@ def _scan_module(
 
 def scan_component_snippets(
     projectPath: Path,
-    packagePath: Path,
+    packageFolderPath: Path,
     manifestObj: Info_ProjectManifest_Component,
 ) -> DictSnippet_AstFile:
     dictSnippet: dict[str, DictSnippet_Normalized] = {}
     listSkipped: list[DictComponentManagementWarning_SnippetDiagnostic] = []
     listWarning: list[DictComponentManagementWarning_SnippetDiagnostic] = []
 
-    listModulePath = sorted(
+    listModuleFilePath = sorted(
         (
-            path
-            for path in packagePath.iterdir()
-            if path.is_file()
-            and path.suffix.casefold() == ".py"
-            and path.name != "__init__.py"
-            and not path.name.startswith("_")
+            pathModuleFile
+            for pathModuleFile in packageFolderPath.iterdir()
+            if pathModuleFile.is_file()
+            and pathModuleFile.suffix.casefold() == ".py"
+            and pathModuleFile.name != "__init__.py"
+            and not pathModuleFile.name.startswith("_")
         ),
-        key=lambda path: path.name,
+        key=lambda pathObj: pathObj.name,
     )
 
-    for pathModule in listModulePath:
+    for pathModuleFile in listModuleFilePath:
         dictModuleSnippet, listModuleSkipped, listModuleWarning = _scan_module(
-            modulePath=pathModule,
+            moduleFilePath=pathModuleFile,
             projectPath=projectPath,
             packageName=manifestObj.packageName,
         )

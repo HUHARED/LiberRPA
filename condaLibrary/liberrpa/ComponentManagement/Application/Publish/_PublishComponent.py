@@ -44,25 +44,27 @@ import uuid
 def _validate_component_project(
     projectPath: Path,
 ) -> tuple[Info_ProjectManifest_Component, Path]:
-    pathFlowManifest = projectPath / "flow.json"
-    if path_exists(pathFlowManifest):
+    pathFlowManifestFile = projectPath / "flow.json"
+    if path_exists(pathFlowManifestFile):
         raise ComponentManagementError(
             code="not_component_project",
             message="Publish Component is only available for a Component Project.",
-            details={"flowManifest": str(pathFlowManifest)},
+            details={"flowManifestFilePath": str(pathFlowManifestFile)},
         )
 
-    pathComponentManifest = projectPath / "component.json"
-    manifestObj = read_component_manifest(pathComponentManifest)
+    pathComponentManifestFile = projectPath / "component.json"
+    manifestObj = read_component_manifest(pathComponentManifestFile)
 
-    pathSrc = projectPath / "src"
-    if is_folder_invalid(pathSrc):
+    pathSourceFolder = projectPath / "src"
+    if is_folder_invalid(pathSourceFolder):
         raise ComponentManagementError(
             code="component_source_invalid",
-            message=f"Component source folder was not found: {pathSrc}",
+            message=f"Component source folder was not found: {pathSourceFolder}",
         )
     listUnexpectedEntry = sorted(
-        entry.name for entry in pathSrc.iterdir() if entry.name != manifestObj.packageName
+        entry.name
+        for entry in pathSourceFolder.iterdir()
+        if entry.name != manifestObj.packageName
     )
     if listUnexpectedEntry:
         raise ComponentManagementError(
@@ -71,77 +73,77 @@ def _validate_component_project(
             details={"unexpectedEntries": listUnexpectedEntry},
         )
 
-    pathPackage = pathSrc / manifestObj.packageName
-    if is_folder_invalid(pathPackage):
+    pathPackageFolder = pathSourceFolder / manifestObj.packageName
+    if is_folder_invalid(pathPackageFolder):
         raise ComponentManagementError(
             code="component_source_invalid",
-            message=f"Component package folder was not found or is invalid: {pathPackage}",
+            message=f"Component package folder was not found or is invalid: {pathPackageFolder}",
         )
 
     for strRequiredFile in ("__init__.py", "py.typed"):
-        pathRequiredFile = pathPackage / strRequiredFile
+        pathRequiredFile = pathPackageFolder / strRequiredFile
         if is_file_invalid(pathRequiredFile):
             raise ComponentManagementError(
                 code="component_source_invalid",
                 message=f"Required Component package file was not found or is invalid: {pathRequiredFile}",
             )
 
-    return manifestObj, pathPackage
+    return manifestObj, pathPackageFolder
 
 
 def _write_ast_snippets(
-    astSnippetsPath: Path, astSnippetsDict: DictSnippet_AstFile
+    astSnippetsFilePath: Path, astSnippetsDict: DictSnippet_AstFile
 ) -> None:
     try:
-        write_json_atomic(path=astSnippetsPath, value=astSnippetsDict)
+        write_json_atomic(filePath=astSnippetsFilePath, value=astSnippetsDict)
     except OSError as e:
         raise ComponentManagementError(
             code="io_error",
-            message=f"Failed to write AST Snippet scan result: {astSnippetsPath}",
+            message=f"Failed to write AST Snippet scan result: {astSnippetsFilePath}",
         ) from e
 
 
 def _prepare_build_folder(projectPath: Path) -> tuple[Path, Path]:
-    pathBuildRoot = projectPath / ".liberrpa-project-manager" / "build"
+    pathBuildRootFolder = projectPath / ".liberrpa-project-manager" / "build"
 
     try:
-        if path_exists(pathBuildRoot):
-            if is_folder_invalid(pathBuildRoot):
+        if path_exists(pathBuildRootFolder):
+            if is_folder_invalid(pathBuildRootFolder):
                 raise ComponentManagementError(
                     code="component_build_path_invalid",
-                    message=f"Component build path is invalid: {pathBuildRoot}",
+                    message=f"Component build path is invalid: {pathBuildRootFolder}",
                 )
 
-            rmtree(pathBuildRoot)
+            rmtree(pathBuildRootFolder)
 
-        pathBuildFolder = pathBuildRoot / f"publish_{uuid.uuid4()}"
+        pathBuildFolder = pathBuildRootFolder / f"publish_{uuid.uuid4()}"
         pathBuildFolder.mkdir(parents=True)
     except ComponentManagementError:
         raise
     except OSError as e:
         raise ComponentManagementError(
             code="io_error",
-            message=f"Failed to prepare Component build folder: {pathBuildRoot}",
+            message=f"Failed to prepare Component build folder: {pathBuildRootFolder}",
         ) from e
 
-    return pathBuildRoot, pathBuildFolder
+    return pathBuildRootFolder, pathBuildFolder
 
 
 def _cleanup_build_output(
-    buildRootPath: Path,
+    buildRootFolderPath: Path,
 ) -> DictComponentManagementWarning_Operation | None:
     try:
-        if path_exists(buildRootPath):
-            rmtree(buildRootPath)
+        if path_exists(buildRootFolderPath):
+            rmtree(buildRootFolderPath)
 
-        pathManager = buildRootPath.parent
-        if pathManager.is_dir() and not any(pathManager.iterdir()):
-            pathManager.rmdir()
+        pathManagerFolder = buildRootFolderPath.parent
+        if pathManagerFolder.is_dir() and not any(pathManagerFolder.iterdir()):
+            pathManagerFolder.rmdir()
     except OSError as e:
         return {
             "code": "build_cleanup_pending",
             "message": (
-                f"The Component operation completed, but temporary build files could not be removed: {buildRootPath}"
+                f"The Component operation completed, but temporary build files could not be removed: {buildRootFolderPath}"
             ),
             "details": {"reason": str(e)},
         }
@@ -155,11 +157,11 @@ def publish_component(
     pathProject = resolve_project_path(projectInputPath)
 
     with project_lock(pathProject, "publishComponent"):
-        manifestObj, pathPackage = _validate_component_project(pathProject)
+        manifestObj, pathPackageFolder = _validate_component_project(pathProject)
 
         dictAstSnippet = scan_component_snippets(
             projectPath=pathProject,
-            packagePath=pathPackage,
+            packageFolderPath=pathPackageFolder,
             manifestObj=manifestObj,
         )
 
@@ -168,9 +170,9 @@ def publish_component(
         pathSnippetsJsoncFile = pathSnippetsFolder / "snippets.jsonc"
 
         _write_ast_snippets(
-            astSnippetsPath=pathAstSnippetsFile, astSnippetsDict=dictAstSnippet
+            astSnippetsFilePath=pathAstSnippetsFile, astSnippetsDict=dictAstSnippet
         )
-        boolConfigCreated = create_snippet_config(configPath=pathSnippetsJsoncFile)
+        boolConfigCreated = create_snippet_config(configFilePath=pathSnippetsJsoncFile)
 
         listWarning: list[DictComponentManagementWarning] = list(
             dictAstSnippet["warnings"]
@@ -181,8 +183,8 @@ def publish_component(
                 projectPath=pathProject,
                 componentId=manifestObj.id,
                 packageName=manifestObj.packageName,
-                astSnippetsPath=pathAstSnippetsFile,
-                snippetsConfigPath=pathSnippetsJsoncFile,
+                astSnippetsFilePath=pathAstSnippetsFile,
+                snippetsConfigFilePath=pathSnippetsJsoncFile,
                 generatedCount=len(dictAstSnippet["snippets"]),
                 skippedCount=len(dictAstSnippet["skipped"]),
                 warnings=listWarning,
@@ -191,21 +193,21 @@ def publish_component(
         # snippets.jsonc has been created in the previous "preparation" stage.
         # Now it needs to be published.
         dictBuildResult = build_snippet_catalog(
-            configPath=pathSnippetsJsoncFile,
+            configFilePath=pathSnippetsJsoncFile,
             astSnippetDict=dictAstSnippet,
-            packagePath=pathPackage,
+            packageFolderPath=pathPackageFolder,
             manifestObj=manifestObj,
         )
         listWarning.extend(item for item in dictBuildResult.warnings)
 
-        pathBuildRoot, pathBuildFolder = _prepare_build_folder(pathProject)
+        pathBuildRootFolder, pathBuildFolder = _prepare_build_folder(pathProject)
 
         dictCleanupWarning: DictComponentManagementWarning_Operation | None = None
 
         try:
             wheelResult = build_component_wheel(
                 projectPath=pathProject,
-                packagePath=pathPackage,
+                packageFolderPath=pathPackageFolder,
                 buildFolderPath=pathBuildFolder,
                 manifestObj=manifestObj,
                 snippetCatalog=dictBuildResult.catalog,
@@ -216,7 +218,7 @@ def publish_component(
                 wheelResult=wheelResult,
             )
         finally:
-            dictCleanupWarning = _cleanup_build_output(pathBuildRoot)
+            dictCleanupWarning = _cleanup_build_output(pathBuildRootFolder)
 
         # Reaching here means the Wheel build and Repository publish both succeeded.
         if dictCleanupWarning is not None:
@@ -231,8 +233,8 @@ def publish_component(
             packageName=manifestObj.packageName,
             version=manifestObj.version,
             #
-            astSnippetsPath=pathAstSnippetsFile,
-            snippetsConfigPath=pathSnippetsJsoncFile,
+            astSnippetsFilePath=pathAstSnippetsFile,
+            snippetsConfigFilePath=pathSnippetsJsoncFile,
             generatedCount=len(dictAstSnippet["snippets"]),
             skippedCount=len(dictAstSnippet["skipped"]),
             warnings=listWarning,

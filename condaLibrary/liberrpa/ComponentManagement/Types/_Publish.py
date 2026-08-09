@@ -18,8 +18,8 @@ class Info_Publish_PreparationCreated:
     projectPath: Path
     componentId: str
     packageName: str
-    astSnippetsPath: Path
-    snippetsConfigPath: Path
+    astSnippetsFilePath: Path
+    snippetsConfigFilePath: Path
     generatedCount: int
     skippedCount: int
     warnings: list[DictComponentManagementWarning]
@@ -33,8 +33,8 @@ class Info_Publish_Published:
     packageName: str
     version: str
 
-    astSnippetsPath: Path
-    snippetsConfigPath: Path
+    astSnippetsFilePath: Path
+    snippetsConfigFilePath: Path
     generatedCount: int
     skippedCount: int
     warnings: list[DictComponentManagementWarning]
