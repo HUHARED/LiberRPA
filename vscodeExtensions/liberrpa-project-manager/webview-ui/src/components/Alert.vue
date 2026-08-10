@@ -6,34 +6,33 @@
     :type="projectManagerStore.alertType"
     variant="flat"
     closable
-    @click:close="clearInformation">
+    @click:close="clearAlert">
   </v-alert>
 </template>
 
 <script setup lang="ts">
 import { onUnmounted, watch } from "vue";
 
-import { useProjectManagerStore } from "../store";
+import { useProjectManagerStore } from "../Application/projectManagerStore";
 
 const projectManagerStore = useProjectManagerStore();
-
 let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
-function clearInformation(): void {
+function clearAlert(): void {
   projectManagerStore.clearAlert();
 }
 
 watch(
   [() => projectManagerStore.showAlert, () => projectManagerStore.alertMessage],
-  ([showAlert, _alertMessage]) => {
+  ([boolShowAlert]) => {
     if (timeoutId !== undefined) {
       clearTimeout(timeoutId);
       timeoutId = undefined;
     }
 
-    if (showAlert) {
+    if (boolShowAlert) {
       timeoutId = setTimeout(() => {
-        clearInformation();
+        clearAlert();
         timeoutId = undefined;
       }, 5000);
     }
@@ -46,5 +45,3 @@ onUnmounted(() => {
   }
 });
 </script>
-
-<style scoped></style>

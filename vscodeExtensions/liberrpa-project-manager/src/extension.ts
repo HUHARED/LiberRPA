@@ -1,13 +1,13 @@
 // FileName: extension.ts
+
 import * as vscode from "vscode";
 
-import { log } from "./output";
-import { packageProject } from "./packageFolder";
-import { ProjectManagerPanel } from "./projectManagerPanel";
-import { registerProjectTypeContext } from "./projectTypeContext";
-import { publishComponent } from "./publishComponent";
-import { importComponentWheels } from "./importComponentWheels";
-import { rebuildRepositoryIndex } from "./rebuildRepositoryIndex";
+import { log } from "./Adapter/VsCode/output";
+import { registerProjectTypeContext } from "./Adapter/VsCode/projectTypeContext";
+import { ProjectManagerPanel } from "./Adapter/VsCode/projectManagerPanel";
+import { publishCurrentComponent } from "./Application/Publish/publishComponent";
+import { selectAndImportComponentWheels } from "./Application/Repository/importComponentWheels";
+import { rebuildComponentRepositoryIndex } from "./Application/Repository/rebuildRepositoryIndex";
 
 export function activate(context: vscode.ExtensionContext): void {
   // Let vscode manage log's lifecycle.
@@ -20,34 +20,17 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand("LiberRPA.createProject", () => {
       ProjectManagerPanel.show(context, "createProject");
     }),
-  );
-
-  // TODO: Modify Project Packaging later.
-  context.subscriptions.push(
-    vscode.commands.registerCommand("LiberRPA.packageProject", packageProject),
-  );
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand("LiberRPA.publishComponent", publishComponent),
-  );
-
-  context.subscriptions.push(
+    vscode.commands.registerCommand("LiberRPA.publishComponent", publishCurrentComponent),
     vscode.commands.registerCommand("LiberRPA.manageComponents", () => {
       ProjectManagerPanel.show(context, "manageComponents");
     }),
-  );
-
-  context.subscriptions.push(
     vscode.commands.registerCommand(
       "LiberRPA.importComponentWheels",
-      importComponentWheels,
+      selectAndImportComponentWheels,
     ),
-  );
-
-  context.subscriptions.push(
     vscode.commands.registerCommand(
       "LiberRPA.rebuildComponentRepositoryIndex",
-      rebuildRepositoryIndex,
+      rebuildComponentRepositoryIndex,
     ),
   );
 }

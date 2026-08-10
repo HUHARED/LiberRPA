@@ -118,9 +118,13 @@ export default tseslint.config(
     },
   },
   {
-    files: ["src/store.ts"],
+    files: [
+      "src/Application/projectManagerStore.ts",
+      "src/Application/CreateProject/createProjectStore.ts",
+      "src/Application/ComponentManagement/componentManagementStore.ts",
+    ],
     rules: {
       "@typescript-eslint/no-unnecessary-type-assertion": "off",
     },
-  }
+  },
 );

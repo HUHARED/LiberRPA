@@ -22,11 +22,6 @@
         "title": "Create a New Project"
       },
       {
-        "command": "LiberRPA.packageProject",
-        "category": "LiberRPA",
-        "title": "Package the Project"
-      },
-      {
         "command": "LiberRPA.publishComponent",
         "category": "LiberRPA",
         "title": "Publish Component",
@@ -71,20 +66,20 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run package",
-    "compile": "npm run compile:webview && npm run compile:extension",
+    "compile": "npm run check:synchronized-files && npm run compile:webview && npm run compile:extension",
     "compile:webview": "npm --prefix webview-ui run build",
     "watch": "webpack --watch",
-    "package": "npm run compile:webview && webpack --mode production --devtool hidden-source-map",
+    "package": "npm run check:synchronized-files && npm run compile:webview && webpack --mode production --devtool hidden-source-map",
     "compile-tests": "tsc -p . --outDir out",
     "watch-tests": "tsc -p . -w --outDir out",
     "pretest": "npm run compile-tests && npm run compile && npm run lint",
     "lint": "eslint src && npm --prefix webview-ui run lint",
     "test": "vscode-test",
-    "compile:extension": "webpack"
+    "compile:extension": "webpack",
+    "check:synchronized-files": "node scripts/checkSynchronizedFiles.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@types/archiver": "^8.0.0",
     "@types/mocha": "^10.0.10",
     "@types/node": "^26.1.1",
     "@types/vscode": "^1.121.0",
@@ -97,7 +92,5 @@
     "webpack": "^5.108.4",
     "webpack-cli": "^7.2.1"
   },
-  "dependencies": {
-    "archiver": "^8.0.0"
-  }
+  "dependencies": {}
 }
