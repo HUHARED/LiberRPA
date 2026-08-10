@@ -2,7 +2,7 @@
 // IMPORTANT: Keep the Extension and Webview copies of this file synchronized.
 // Synchronization is verified by scripts/checkSynchronizedFiles.mjs.
 // - src/Domain/ComponentManagement/componentManagementTypes.ts
-// - src/Domain/ComponentManagement/componentManagementTypes.ts
+// - webview-ui/src/Domain/ComponentManagement/componentManagementTypes.ts
 
 import type { Str_ProjectType, DictProjectManifest } from "../Project/projectTypes";
 

@@ -45,7 +45,9 @@ export function getProjectFolderNameError(projectName: string): string | undefin
   }
 
   if (/[<>:"/\\|?*]/.test(projectName)) {
-    return `Project folder name cannot contain Windows reserved characters: ${'<>:"/\\|?*'}`;
+    return (
+      "Project folder name cannot contain Windows reserved characters: " + '<>:"/\\|?*'
+    );
   }
 
   if ([...projectName].some((character) => character.charCodeAt(0) <= 0x1f)) {

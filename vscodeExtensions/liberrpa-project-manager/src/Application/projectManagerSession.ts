@@ -8,12 +8,17 @@ import { ComponentManagementOperationError } from "../Adapter/Python/componentMa
 import type {
   Theme,
   ProjectManagerOperation,
-  DictManageComponentsNotification,
+  Str_PublishComponentFile,
+  DictProjectManagerNotification,
+  DictPublishComponentInitialData,
   DictManageComponentsInitialData,
   DictMessage_WebviewToExtension,
   DictMessage_ExtensionToWebview,
 } from "../Adapter/Webview/projectManagerMessages";
-import type { DictProtocolDependencyOperation } from "../Domain/ComponentManagement/componentManagementTypes";
+import type {
+  DictProtocolDependencyOperation,
+  DictProtocolResult_Publish,
+} from "../Domain/ComponentManagement/componentManagementTypes";
 import {
   logComponentManagementWarnings,
   getComponentManagementWarningMessages,
@@ -29,6 +34,11 @@ import {
   selectTargetFolder,
   createProject,
 } from "./Project/createProject";
+import {
+  loadPublishComponentData,
+  publishComponentProject,
+  openPublishComponentFile,
+} from "./Publish/publishComponent";
 import {
   selectComponentWheelFilePaths,
   importComponentWheelFiles,
@@ -50,6 +60,7 @@ export class ProjectManagerSession {
   private webviewReady = false;
   private busy = false;
   private operationLoadId = 0;
+  private publishResult: DictProtocolResult_Publish | null = null;
 
   public constructor(
     private readonly host: ProjectManagerSessionHost,
@@ -67,19 +78,35 @@ export class ProjectManagerSession {
   private getSingleWorkspaceFolder(): vscode.WorkspaceFolder {
     const arrWorkspaceFolder = vscode.workspace.workspaceFolders;
     if (arrWorkspaceFolder === undefined || arrWorkspaceFolder.length !== 1) {
-      throw new Error("Manage Components requires exactly one open workspace folder.");
+      throw new Error("Project Manager requires exactly one open workspace folder.");
     }
     return arrWorkspaceFolder[0];
   }
 
   private async saveAllProjectFiles(): Promise<void> {
     if (!(await vscode.workspace.saveAll())) {
-      throw new Error("Could not save all files before managing Components.");
+      throw new Error("Could not save all Project files.");
     }
   }
 
+  private async getPublishComponentInitialData(
+    notification?: DictProjectManagerNotification,
+    warningMessages: string[] = [],
+  ): Promise<DictPublishComponentInitialData> {
+    const workspaceFolder = this.getSingleWorkspaceFolder();
+    const data = await loadPublishComponentData(workspaceFolder, this.publishResult);
+
+    return {
+      theme: getTheme(vscode.window.activeColorTheme),
+      ...data,
+      publishResult: this.publishResult,
+      warningMessages,
+      ...(notification === undefined ? {} : { notification }),
+    };
+  }
+
   private async getManageComponentsInitialData(
-    notification?: DictManageComponentsNotification,
+    notification?: DictProjectManagerNotification,
     additionalWarningMessages: string[] = [],
   ): Promise<DictManageComponentsInitialData> {
     const workspaceFolder = this.getSingleWorkspaceFolder();
@@ -104,23 +131,45 @@ export class ProjectManagerSession {
     }
 
     const intLoadId = ++this.operationLoadId;
-    if (this.operation === "createProject") {
-      const initialData = {
-        templates: getProjectTemplates(),
-        theme: getTheme(vscode.window.activeColorTheme),
-      };
-      if (intLoadId !== this.operationLoadId || this.operation !== "createProject") {
+    switch (this.operation) {
+      case "createProject": {
+        const initialData = {
+          templates: getProjectTemplates(),
+          theme: getTheme(vscode.window.activeColorTheme),
+        };
+        if (intLoadId !== this.operationLoadId || this.operation !== "createProject") {
+          return;
+        }
+        await this.host.postMessage({
+          command: "loadCreateProject",
+          initialData,
+        });
         return;
       }
-      await this.host.postMessage({ command: "loadCreateProject", initialData });
-      return;
-    }
 
-    const initialData = await this.getManageComponentsInitialData();
-    if (intLoadId !== this.operationLoadId || this.operation !== "manageComponents") {
-      return;
+      case "publishComponent": {
+        const initialData = await this.getPublishComponentInitialData();
+        if (intLoadId !== this.operationLoadId || this.operation !== "publishComponent") {
+          return;
+        }
+        await this.host.postMessage({
+          command: "loadPublishComponent",
+          initialData,
+        });
+        return;
+      }
+
+      case "manageComponents": {
+        const initialData = await this.getManageComponentsInitialData();
+        if (intLoadId !== this.operationLoadId || this.operation !== "manageComponents") {
+          return;
+        }
+        await this.host.postMessage({
+          command: "loadManageComponents",
+          initialData,
+        });
+      }
     }
-    await this.host.postMessage({ command: "loadManageComponents", initialData });
   }
 
   private async runBusyOperation(action: () => Promise<void>): Promise<void> {
@@ -152,15 +201,78 @@ export class ProjectManagerSession {
     }
 
     const previousOperation = this.operation;
+    const previousPublishResult = this.publishResult;
     this.operation = operation;
+    if (operation === "publishComponent") {
+      this.publishResult = null;
+    }
     try {
       await this.runBusyOperation(async () => {
         await this.loadCurrentOperation();
       });
     } catch (e: unknown) {
       this.operation = previousOperation;
+      this.publishResult = previousPublishResult;
       throw e;
     }
+  }
+
+  private async runPublishComponent(): Promise<void> {
+    await this.runBusyOperation(async () => {
+      await this.saveAllProjectFiles();
+      const workspaceFolder = this.getSingleWorkspaceFolder();
+      const operationResult = await publishComponentProject(workspaceFolder);
+      logComponentManagementWarnings(operationResult.warnings);
+      this.publishResult = operationResult.result;
+
+      if (operationResult.result.status !== "preparationCreated") {
+        log.info(`Published Component Wheel: ${operationResult.result.wheelFileName}`);
+        log.info(`Component Wheel SHA-256: ${operationResult.result.sha256}`);
+      }
+
+      const boolHasWarning = operationResult.warnings.length > 0;
+      let strMessage: string;
+      switch (operationResult.result.status) {
+        case "preparationCreated":
+          strMessage =
+            "Component publish preparation was created. Review the Snippet files before running Publish Component again.";
+          break;
+        case "published":
+          strMessage = "The Component was published successfully.";
+          break;
+        case "alreadyPublished":
+          strMessage =
+            "An identical Component version is already present in the ComponentRepository.";
+      }
+
+      await this.host.postMessage({
+        command: "loadPublishComponent",
+        initialData: await this.getPublishComponentInitialData(
+          {
+            type: boolHasWarning ? "warning" : "info",
+            message: strMessage,
+          },
+          getComponentManagementWarningMessages(operationResult.warnings),
+        ),
+      });
+    });
+  }
+
+  private async refreshPublishComponent(): Promise<void> {
+    await this.runBusyOperation(async () => {
+      this.publishResult = null;
+      await this.host.postMessage({
+        command: "loadPublishComponent",
+        initialData: await this.getPublishComponentInitialData(),
+      });
+    });
+  }
+
+  private async openPublishFile(file: Str_PublishComponentFile): Promise<void> {
+    await this.runBusyOperation(async () => {
+      const workspaceFolder = this.getSingleWorkspaceFolder();
+      await openPublishComponentFile(workspaceFolder, file, this.publishResult);
+    });
   }
 
   private async buildDependencyPlan(
@@ -337,6 +449,24 @@ export class ProjectManagerSession {
       case "confirmCreateProject":
         if (this.operation === "createProject") {
           await this.createNewProject(message.input);
+        }
+        return;
+
+      case "runPublishComponent":
+        if (this.operation === "publishComponent") {
+          await this.runPublishComponent();
+        }
+        return;
+
+      case "refreshPublishComponent":
+        if (this.operation === "publishComponent") {
+          await this.refreshPublishComponent();
+        }
+        return;
+
+      case "openPublishComponentFile":
+        if (this.operation === "publishComponent") {
+          await this.openPublishFile(message.file);
         }
         return;
 

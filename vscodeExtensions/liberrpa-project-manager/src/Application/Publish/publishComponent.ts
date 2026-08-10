@@ -2,27 +2,30 @@
 
 import * as vscode from "vscode";
 
-import { log } from "../../Adapter/VsCode/output";
-import { getErrorMessage } from "../../Common/utils";
 import {
-  ComponentManagementOperationError,
   publishComponent as runPublishComponent,
+  type Info_ComponentManagement_OperationResult,
 } from "../../Adapter/Python/componentManagementClient";
 import {
   getWorkspaceProjectType,
   updateProjectTypeContext,
 } from "../../Adapter/VsCode/projectTypeContext";
+import type { Str_PublishComponentFile } from "../../Adapter/Webview/projectManagerMessages";
 import type { DictProtocolResult_Publish } from "../../Domain/ComponentManagement/componentManagementTypes";
-import { logComponentManagementWarnings } from "../componentManagementOutput";
+import { readComponentManifest } from "../../Domain/Project/projectManifest";
+import type { DictProjectManifest_Component } from "../../Domain/Project/projectTypes";
 
-let boolPublishBusy = false;
+const STR_AST_SNIPPETS_FILE = "_Snippets/ast.snippets.json";
+const STR_SNIPPETS_CONFIG_FILE = "_Snippets/snippets.jsonc";
 
-function getSingleWorkspaceFolder(): vscode.WorkspaceFolder {
-  const arrWorkspaceFolder = vscode.workspace.workspaceFolders;
-  if (arrWorkspaceFolder === undefined || arrWorkspaceFolder.length !== 1) {
-    throw new Error("Publish Component requires exactly one open workspace folder.");
-  }
-  return arrWorkspaceFolder[0];
+interface Info_PublishComponentData {
+  projectPath: string;
+  manifest: DictProjectManifest_Component;
+
+  astSnippetsFile: string;
+  snippetsJsoncFile: string;
+  astSnippetsFileExists: boolean;
+  snippetsJsoncFileExists: boolean;
 }
 
 function resolveProjectRelativeFile(
@@ -46,114 +49,87 @@ function resolveProjectRelativeFile(
   return vscode.Uri.joinPath(workspaceFolder.uri, ...arrPathPart);
 }
 
-async function openPreparationFiles(
-  workspaceFolder: vscode.WorkspaceFolder,
-  result: DictProtocolResult_Publish,
-): Promise<void> {
-  const astSnippetsDocument = await vscode.workspace.openTextDocument(
-    resolveProjectRelativeFile(workspaceFolder, result.astSnippetsFile),
-  );
-  await vscode.window.showTextDocument(astSnippetsDocument, {
-    viewColumn: vscode.ViewColumn.Active,
-    preview: false,
-    preserveFocus: true,
-  });
+async function isRegularFile(fileUri: vscode.Uri): Promise<boolean> {
+  try {
+    const fileStat = await vscode.workspace.fs.stat(fileUri);
+    return (
+      (fileStat.type & vscode.FileType.File) !== 0 &&
+      (fileStat.type & vscode.FileType.SymbolicLink) === 0
+    );
+  } catch {
+    return false;
+  }
+}
 
-  const snippetsConfigDocument = await vscode.workspace.openTextDocument(
-    resolveProjectRelativeFile(workspaceFolder, result.snippetsJsoncFile),
+async function ensureComponentProject(
+  workspaceFolder: vscode.WorkspaceFolder,
+): Promise<void> {
+  if ((await getWorkspaceProjectType(workspaceFolder)) === "component") {
+    return;
+  }
+
+  await updateProjectTypeContext();
+  throw new Error("Publish Component is only available for a Component Project.");
+}
+
+export async function loadPublishComponentData(
+  workspaceFolder: vscode.WorkspaceFolder,
+  publishResult: DictProtocolResult_Publish | null = null,
+): Promise<Info_PublishComponentData> {
+  await ensureComponentProject(workspaceFolder);
+
+  const manifestFileUri = vscode.Uri.joinPath(workspaceFolder.uri, "component.json");
+  const astSnippetsFile = publishResult?.astSnippetsFile ?? STR_AST_SNIPPETS_FILE;
+  const snippetsJsoncFile = publishResult?.snippetsJsoncFile ?? STR_SNIPPETS_CONFIG_FILE;
+  const astSnippetsFileUri = resolveProjectRelativeFile(workspaceFolder, astSnippetsFile);
+  const snippetsJsoncFileUri = resolveProjectRelativeFile(
+    workspaceFolder,
+    snippetsJsoncFile,
   );
-  await vscode.window.showTextDocument(snippetsConfigDocument, {
+
+  const [astSnippetsFileExists, snippetsJsoncFileExists] = await Promise.all([
+    isRegularFile(astSnippetsFileUri),
+    isRegularFile(snippetsJsoncFileUri),
+  ]);
+
+  return {
+    projectPath: workspaceFolder.uri.fsPath,
+    manifest: readComponentManifest(manifestFileUri.fsPath),
+    astSnippetsFile,
+    snippetsJsoncFile,
+    astSnippetsFileExists,
+    snippetsJsoncFileExists,
+  };
+}
+
+export async function publishComponentProject(
+  workspaceFolder: vscode.WorkspaceFolder,
+): Promise<Info_ComponentManagement_OperationResult<DictProtocolResult_Publish>> {
+  await ensureComponentProject(workspaceFolder);
+  return await runPublishComponent(workspaceFolder.uri.fsPath);
+}
+
+export async function openPublishComponentFile(
+  workspaceFolder: vscode.WorkspaceFolder,
+  file: Str_PublishComponentFile,
+  publishResult: DictProtocolResult_Publish | null,
+): Promise<void> {
+  await ensureComponentProject(workspaceFolder);
+
+  const relativePath =
+    file === "astSnippets"
+      ? (publishResult?.astSnippetsFile ?? STR_AST_SNIPPETS_FILE)
+      : (publishResult?.snippetsJsoncFile ?? STR_SNIPPETS_CONFIG_FILE);
+  const fileUri = resolveProjectRelativeFile(workspaceFolder, relativePath);
+
+  if (!(await isRegularFile(fileUri))) {
+    throw new Error(`The Component publish file does not exist: ${relativePath}`);
+  }
+
+  const document = await vscode.workspace.openTextDocument(fileUri);
+  await vscode.window.showTextDocument(document, {
     viewColumn: vscode.ViewColumn.Active,
     preview: false,
     preserveFocus: false,
   });
-}
-
-function getPublishSummary(result: DictProtocolResult_Publish): string {
-  if (result.status === "preparationCreated") {
-    return (
-      "Component publish preparation was created. " +
-      `Generated: ${String(result.generatedCount)}, ` +
-      `skipped: ${String(result.skippedCount)}, ` +
-      `warnings: ${String(result.warningCount)}.`
-    );
-  }
-
-  const strStatus =
-    result.status === "published"
-      ? `Component ${result.packageName} ${result.version} was published.`
-      : `Component ${result.packageName} ${result.version} was already ` +
-        "published with identical content.";
-
-  return (
-    `${strStatus} Generated: ${String(result.generatedCount)}, ` +
-    `excluded: ${String(result.excludedCount)}, ` +
-    `hand-written: ${String(result.handWrittenCount)}, ` +
-    `final: ${String(result.finalCount)}, ` +
-    `skipped: ${String(result.skippedCount)}, ` +
-    `warnings: ${String(result.warningCount)}.`
-  );
-}
-
-export async function publishCurrentComponent(): Promise<void> {
-  if (boolPublishBusy) {
-    void vscode.window.showInformationMessage(
-      "Another Publish Component operation is already running.",
-    );
-    return;
-  }
-
-  boolPublishBusy = true;
-  try {
-    await vscode.window.withProgress(
-      {
-        location: vscode.ProgressLocation.Notification,
-        title: "Publishing Component...",
-        cancellable: false,
-      },
-      async () => {
-        const workspaceFolder = getSingleWorkspaceFolder();
-        if ((await getWorkspaceProjectType(workspaceFolder)) !== "component") {
-          await updateProjectTypeContext();
-          throw new Error("Publish Component is only available for a Component Project.");
-        }
-
-        if (!(await vscode.workspace.saveAll())) {
-          throw new Error("Could not save all files before publishing the Component.");
-        }
-
-        const operationResult = await runPublishComponent(workspaceFolder.uri.fsPath);
-        logComponentManagementWarnings(operationResult.warnings);
-
-        if (operationResult.result.status === "preparationCreated") {
-          await openPreparationFiles(workspaceFolder, operationResult.result);
-        } else {
-          log.info(
-            `Published Component Wheel: ${operationResult.result.wheelFileName}\n` +
-              `Component Wheel SHA-256: ${operationResult.result.sha256}`,
-          );
-        }
-
-        const strSummary = getPublishSummary(operationResult.result);
-        log.info(strSummary);
-        if (operationResult.warnings.length > 0) {
-          void vscode.window.showWarningMessage(
-            `${strSummary} See the Output panel for details.`,
-          );
-        } else {
-          void vscode.window.showInformationMessage(strSummary);
-        }
-      },
-    );
-  } catch (e: unknown) {
-    const strMessage =
-      e instanceof ComponentManagementOperationError ? e.message : getErrorMessage(e);
-    if (e instanceof ComponentManagementOperationError) {
-      log.debug(JSON.stringify(e.details, null, 2));
-    }
-    log.error(`Publish Component failed: ${strMessage}`);
-    void vscode.window.showErrorMessage(`Publish Component failed: ${strMessage}`);
-  } finally {
-    boolPublishBusy = false;
-  }
 }

@@ -1,9 +1,8 @@
 // FileName: projectManagerMessageHandler.ts
 
-import {
-  useComponentManagementStore,
-} from "../../Application/ComponentManagement/componentManagementStore";
+import { useComponentManagementStore } from "../../Application/ComponentManagement/componentManagementStore";
 import { useCreateProjectStore } from "../../Application/CreateProject/createProjectStore";
+import { usePublishComponentStore } from "../../Application/Publish/publishComponentStore";
 import { useProjectManagerStore } from "../../Application/projectManagerStore";
 import {
   type DictMessage_ExtensionToWebview,
@@ -13,12 +12,24 @@ import {
 function applyMessage(message: DictMessage_ExtensionToWebview): void {
   const projectManagerStore = useProjectManagerStore();
   const createProjectStore = useCreateProjectStore();
+  const publishComponentStore = usePublishComponentStore();
   const componentManagementStore = useComponentManagementStore();
 
   switch (message.command) {
     case "loadCreateProject":
       projectManagerStore.load("createProject", message.initialData.theme);
       createProjectStore.load(message.initialData);
+      return;
+
+    case "loadPublishComponent":
+      projectManagerStore.load("publishComponent", message.initialData.theme);
+      publishComponentStore.load(message.initialData);
+      if (message.initialData.notification !== undefined) {
+        projectManagerStore.showMessage(
+          message.initialData.notification.type,
+          message.initialData.notification.message,
+        );
+      }
       return;
 
     case "loadManageComponents":
