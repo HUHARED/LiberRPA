@@ -50,3 +50,18 @@ export interface DictProjectTemplateInfo {
   defaultVersion: string;
   defaultDescription: string;
 }
+
+export interface DictPackageProjectInput {
+  outputFolderPath: string;
+  includeVscodeSettings: boolean;
+  includeGitRepository: boolean;
+}
+
+export interface DictProjectPackageResult {
+  packageFilePath: string;
+  packageFileName: string;
+  fileCount: number;
+  folderCount: number;
+  uncompressedSizeBytes: number;
+  packageSizeBytes: number;
+}

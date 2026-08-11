@@ -12,12 +12,12 @@ from contextlib import contextmanager
 from pathlib import Path
 
 
-_STR_LOCK_FILE_NAME = ".liberrpa-project-manager.lock"
+_STR_PROJECT_OPERATION_LOCK_FILE_NAME = ".liberrpa-project-manager.lock"
 
 
 @contextmanager
 def project_lock(projectPath: Path, operation: str) -> Generator[None]:
-    pathProjectLockFile = projectPath / _STR_LOCK_FILE_NAME
+    pathProjectLockFile = projectPath / _STR_PROJECT_OPERATION_LOCK_FILE_NAME
     strOwnerId = create_lock(
         lockFilePath=pathProjectLockFile,
         operation=operation,

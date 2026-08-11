@@ -12,12 +12,12 @@ from contextlib import contextmanager
 from pathlib import Path
 
 
-_STR_LOCK_FILE_NAME = ".repository.lock"
+_STR_REPOSITORY_OPERATION_LOCK_FILE_NAME = ".repository.lock"
 
 
 @contextmanager
 def repository_lock(repositoryPath: Path, operation: str) -> Generator[None]:
-    pathRepositoryLockFile = repositoryPath / _STR_LOCK_FILE_NAME
+    pathRepositoryLockFile = repositoryPath / _STR_REPOSITORY_OPERATION_LOCK_FILE_NAME
     strOwnerId = create_lock(
         lockFilePath=pathRepositoryLockFile,
         operation=operation,

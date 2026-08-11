@@ -9,6 +9,10 @@
           v-if="
             projectManagerStore.loaded && projectManagerStore.operation === 'createProject'
           " />
+        <PackageProjectView
+          v-else-if="
+            projectManagerStore.loaded && projectManagerStore.operation === 'packageProject'
+          " />
         <PublishComponentView
           v-else-if="
             projectManagerStore.loaded &&
@@ -36,6 +40,7 @@ import { useProjectManagerStore } from "./Application/projectManagerStore";
 import Alert from "./components/Alert.vue";
 import CreateProjectView from "./views/CreateProjectView.vue";
 import ManageComponentsView from "./views/ManageComponentsView.vue";
+import PackageProjectView from "./views/PackageProjectView.vue";
 import PublishComponentView from "./views/PublishComponentView.vue";
 
 const projectManagerStore = useProjectManagerStore();

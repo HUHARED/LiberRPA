@@ -10,6 +10,7 @@ import type {
   ProjectManagerOperation,
   Str_PublishComponentFile,
   DictProjectManagerNotification,
+  DictPackageProjectInitialData,
   DictPublishComponentInitialData,
   DictManageComponentsInitialData,
   DictMessage_WebviewToExtension,
@@ -19,6 +20,10 @@ import type {
   DictProtocolDependencyOperation,
   DictProtocolResult_Publish,
 } from "../Domain/ComponentManagement/componentManagementTypes";
+import type {
+  DictPackageProjectInput,
+  DictProjectPackageResult,
+} from "../Domain/Project/projectTypes";
 import {
   logComponentManagementWarnings,
   getComponentManagementWarningMessages,
@@ -34,6 +39,14 @@ import {
   selectTargetFolder,
   createProject,
 } from "./Project/createProject";
+import {
+  getDefaultPackageProjectInput,
+  loadPackageProjectData,
+  selectPackageOutputFolder,
+  packageFlowProject,
+  openPackageProjectManifest,
+  revealProjectPackage,
+} from "./Project/packageProject";
 import {
   loadPublishComponentData,
   publishComponentProject,
@@ -60,6 +73,8 @@ export class ProjectManagerSession {
   private webviewReady = false;
   private busy = false;
   private operationLoadId = 0;
+  private packageProjectInput: DictPackageProjectInput | null = null;
+  private packageResult: DictProjectPackageResult | null = null;
   private publishResult: DictProtocolResult_Publish | null = null;
 
   public constructor(
@@ -87,6 +102,37 @@ export class ProjectManagerSession {
     if (!(await vscode.workspace.saveAll())) {
       throw new Error("Could not save all Project files.");
     }
+  }
+
+  private async getPackageProjectInitialData(
+    notification?: DictProjectManagerNotification,
+    additionalWarningMessages: string[] = [],
+  ): Promise<DictPackageProjectInitialData> {
+    const workspaceFolder = this.getSingleWorkspaceFolder();
+    const input =
+      this.packageProjectInput ?? getDefaultPackageProjectInput(workspaceFolder);
+    const data = await loadPackageProjectData(workspaceFolder, input);
+    logComponentManagementWarnings(data.warnings);
+    this.packageProjectInput = data.input;
+
+    return {
+      theme: getTheme(vscode.window.activeColorTheme),
+      projectPath: data.projectPath,
+      manifest: data.manifest,
+      projectDependencyState: data.projectDependencyState,
+      input: data.input,
+      packageFileName: data.packageFileName,
+      packageFileExists: data.packageFileExists,
+      blockingReasons: data.blockingReasons,
+      warningMessages: [
+        ...new Set([
+          ...additionalWarningMessages,
+          ...getComponentManagementWarningMessages(data.warnings),
+        ]),
+      ],
+      packageResult: this.packageResult,
+      ...(notification === undefined ? {} : { notification }),
+    };
   }
 
   private async getPublishComponentInitialData(
@@ -147,6 +193,18 @@ export class ProjectManagerSession {
         return;
       }
 
+      case "packageProject": {
+        const initialData = await this.getPackageProjectInitialData();
+        if (intLoadId !== this.operationLoadId || this.operation !== "packageProject") {
+          return;
+        }
+        await this.host.postMessage({
+          command: "loadPackageProject",
+          initialData,
+        });
+        return;
+      }
+
       case "publishComponent": {
         const initialData = await this.getPublishComponentInitialData();
         if (intLoadId !== this.operationLoadId || this.operation !== "publishComponent") {
@@ -201,8 +259,14 @@ export class ProjectManagerSession {
     }
 
     const previousOperation = this.operation;
+    const previousPackageProjectInput = this.packageProjectInput;
+    const previousPackageResult = this.packageResult;
     const previousPublishResult = this.publishResult;
     this.operation = operation;
+    if (operation === "packageProject") {
+      this.packageProjectInput = null;
+      this.packageResult = null;
+    }
     if (operation === "publishComponent") {
       this.publishResult = null;
     }
@@ -212,9 +276,84 @@ export class ProjectManagerSession {
       });
     } catch (e: unknown) {
       this.operation = previousOperation;
+      this.packageProjectInput = previousPackageProjectInput;
+      this.packageResult = previousPackageResult;
       this.publishResult = previousPublishResult;
       throw e;
     }
+  }
+
+  private async selectPackageFolder(input: DictPackageProjectInput): Promise<void> {
+    await this.runBusyOperation(async () => {
+      const strOutputFolderPath = await selectPackageOutputFolder(input.outputFolderPath);
+      if (strOutputFolderPath === undefined) {
+        return;
+      }
+
+      this.packageProjectInput = {
+        ...input,
+        outputFolderPath: strOutputFolderPath,
+      };
+      this.packageResult = null;
+      await this.host.postMessage({
+        command: "loadPackageProject",
+        initialData: await this.getPackageProjectInitialData(),
+      });
+    });
+  }
+
+  private async runPackageProject(input: DictPackageProjectInput): Promise<void> {
+    await this.runBusyOperation(async () => {
+      await this.saveAllProjectFiles();
+      const workspaceFolder = this.getSingleWorkspaceFolder();
+      this.packageProjectInput = input;
+      this.packageResult = null;
+
+      const operationResult = await packageFlowProject(workspaceFolder, input);
+      logComponentManagementWarnings(operationResult.warnings);
+      this.packageResult = operationResult.result;
+      await this.host.postMessage({
+        command: "loadPackageProject",
+        initialData: await this.getPackageProjectInitialData(
+          {
+            type: operationResult.warnings.length > 0 ? "warning" : "info",
+            message:
+              operationResult.warnings.length > 0
+                ? "The Flow Project was packaged with warnings."
+                : "The Flow Project was packaged successfully.",
+          },
+          getComponentManagementWarningMessages(operationResult.warnings),
+        ),
+      });
+    });
+  }
+
+  private async refreshPackageProject(input: DictPackageProjectInput): Promise<void> {
+    await this.runBusyOperation(async () => {
+      await this.saveAllProjectFiles();
+      this.packageProjectInput = input;
+      this.packageResult = null;
+      await this.host.postMessage({
+        command: "loadPackageProject",
+        initialData: await this.getPackageProjectInitialData(),
+      });
+    });
+  }
+
+  private async openPackageManifest(): Promise<void> {
+    await this.runBusyOperation(async () => {
+      await openPackageProjectManifest(this.getSingleWorkspaceFolder());
+    });
+  }
+
+  private async revealPackageResult(): Promise<void> {
+    const packageResult = this.packageResult;
+    if (packageResult === null) {
+      throw new Error("No Project Package is available to reveal.");
+    }
+    await this.runBusyOperation(async () => {
+      await revealProjectPackage(packageResult.packageFilePath);
+    });
   }
 
   private async runPublishComponent(): Promise<void> {
@@ -449,6 +588,42 @@ export class ProjectManagerSession {
       case "confirmCreateProject":
         if (this.operation === "createProject") {
           await this.createNewProject(message.input);
+        }
+        return;
+
+      case "selectPackageOutputFolder":
+        if (this.operation === "packageProject") {
+          await this.selectPackageFolder(message.input);
+        }
+        return;
+
+      case "runPackageProject":
+        if (this.operation === "packageProject") {
+          await this.runPackageProject(message.input);
+        }
+        return;
+
+      case "refreshPackageProject":
+        if (this.operation === "packageProject") {
+          await this.refreshPackageProject(message.input);
+        }
+        return;
+
+      case "openPackageProjectManifest":
+        if (this.operation === "packageProject") {
+          await this.openPackageManifest();
+        }
+        return;
+
+      case "revealProjectPackage":
+        if (this.operation === "packageProject") {
+          await this.revealPackageResult();
+        }
+        return;
+
+      case "openManageComponents":
+        if (this.operation === "packageProject") {
+          await this.switchOperation("manageComponents");
         }
         return;
 

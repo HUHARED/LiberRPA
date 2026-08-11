@@ -19,15 +19,18 @@ import type {
   DictProtocolResult_ProjectDependencyPlan,
 } from "../../Domain/ComponentManagement/componentManagementTypes";
 import type {
+  DictProjectManifest_Flow,
   DictProjectManifest_Component,
   DictCreateProjectInput,
   DictProjectTemplateInfo,
+  DictPackageProjectInput,
+  DictProjectPackageResult,
 } from "../../Domain/Project/projectTypes";
 
 export type Theme = "light" | "dark";
-// TODO: Add packageProject later.
 export type ProjectManagerOperation =
   | "createProject"
+  | "packageProject"
   | "publishComponent"
   | "manageComponents";
 export type Str_PublishComponentFile = "astSnippets" | "snippetsConfig";
@@ -40,6 +43,22 @@ export interface DictProjectManagerNotification {
 export interface DictCreateProjectInitialData {
   templates: DictProjectTemplateInfo[];
   theme: Theme;
+}
+
+export interface DictPackageProjectInitialData {
+  theme: Theme;
+  projectPath: string;
+  manifest: DictProjectManifest_Flow;
+  projectDependencyState: DictProtocolResult_ProjectDependencyState;
+
+  input: DictPackageProjectInput;
+  packageFileName: string | null;
+  packageFileExists: boolean;
+  blockingReasons: string[];
+  warningMessages: string[];
+
+  packageResult: DictProjectPackageResult | null;
+  notification?: DictProjectManagerNotification;
 }
 
 export interface DictPublishComponentInitialData {
@@ -69,6 +88,12 @@ export type DictMessage_WebviewToExtension =
   | { command: "ready" }
   | { command: "selectTargetFolder" }
   | { command: "confirmCreateProject"; input: DictCreateProjectInput }
+  | { command: "selectPackageOutputFolder"; input: DictPackageProjectInput }
+  | { command: "runPackageProject"; input: DictPackageProjectInput }
+  | { command: "refreshPackageProject"; input: DictPackageProjectInput }
+  | { command: "openPackageProjectManifest" }
+  | { command: "revealProjectPackage" }
+  | { command: "openManageComponents" }
   | { command: "runPublishComponent" }
   | { command: "refreshPublishComponent" }
   | {
@@ -95,6 +120,10 @@ export type DictMessage_ExtensionToWebview =
       initialData: DictCreateProjectInitialData;
     }
   | {
+      command: "loadPackageProject";
+      initialData: DictPackageProjectInitialData;
+    }
+  | {
       command: "loadPublishComponent";
       initialData: DictPublishComponentInitialData;
     }
@@ -119,6 +148,14 @@ export type DictMessage_ExtensionToWebview =
   | { command: "error"; message: string }
   | { command: "themeChanged"; theme: Theme };
 
+const SET_FLOW_MANIFEST_KEYS = new Set([
+  "schemaVersion",
+  "name",
+  "version",
+  "description",
+  "requiresLiberrpa",
+  "componentDependencies",
+]);
 const SET_COMPONENT_MANIFEST_KEYS = new Set([
   "schemaVersion",
   "id",
@@ -161,6 +198,19 @@ function isProjectManagerNotification(
     hasExactKeys(value, new Set(["type", "message"])) &&
     (value["type"] === "info" || value["type"] === "warning") &&
     typeof value["message"] === "string"
+  );
+}
+
+function isFlowManifest(value: unknown): value is DictProjectManifest_Flow {
+  return (
+    isRecord(value) &&
+    hasExactKeys(value, SET_FLOW_MANIFEST_KEYS) &&
+    value["schemaVersion"] === 1 &&
+    typeof value["name"] === "string" &&
+    typeof value["version"] === "string" &&
+    typeof value["description"] === "string" &&
+    typeof value["requiresLiberrpa"] === "string" &&
+    isStringRecord(value["componentDependencies"])
   );
 }
 
@@ -241,6 +291,42 @@ function isCreateProjectInput(value: unknown): value is DictCreateProjectInput {
   );
 }
 
+function isPackageProjectInput(value: unknown): value is DictPackageProjectInput {
+  return (
+    isRecord(value) &&
+    hasExactKeys(
+      value,
+      new Set(["outputFolderPath", "includeVscodeSettings", "includeGitRepository"]),
+    ) &&
+    typeof value["outputFolderPath"] === "string" &&
+    typeof value["includeVscodeSettings"] === "boolean" &&
+    typeof value["includeGitRepository"] === "boolean"
+  );
+}
+
+function isProjectPackageResult(value: unknown): value is DictProjectPackageResult {
+  return (
+    isRecord(value) &&
+    hasExactKeys(
+      value,
+      new Set([
+        "packageFilePath",
+        "packageFileName",
+        "fileCount",
+        "folderCount",
+        "uncompressedSizeBytes",
+        "packageSizeBytes",
+      ]),
+    ) &&
+    typeof value["packageFilePath"] === "string" &&
+    typeof value["packageFileName"] === "string" &&
+    isNonNegativeInteger(value["fileCount"]) &&
+    isNonNegativeInteger(value["folderCount"]) &&
+    isNonNegativeInteger(value["uncompressedSizeBytes"]) &&
+    isNonNegativeInteger(value["packageSizeBytes"])
+  );
+}
+
 function isDependencyOperation(value: unknown): value is DictProtocolDependencyOperation {
   if (!isRecord(value)) {
     return false;
@@ -292,6 +378,48 @@ function isCreateProjectInitialData(value: unknown): value is DictCreateProjectI
     Array.isArray(value["templates"]) &&
     value["templates"].every(isProjectTemplateInfo) &&
     isTheme(value["theme"])
+  );
+}
+
+function isPackageProjectInitialData(
+  value: unknown,
+): value is DictPackageProjectInitialData {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  const setRequiredKey = new Set([
+    "theme",
+    "projectPath",
+    "manifest",
+    "projectDependencyState",
+    "input",
+    "packageFileName",
+    "packageFileExists",
+    "blockingReasons",
+    "warningMessages",
+    "packageResult",
+  ]);
+  const setAllowedKey =
+    value["notification"] === undefined
+      ? setRequiredKey
+      : new Set([...setRequiredKey, "notification"]);
+
+  return (
+    hasExactKeys(value, setAllowedKey) &&
+    isTheme(value["theme"]) &&
+    typeof value["projectPath"] === "string" &&
+    isFlowManifest(value["manifest"]) &&
+    isRecord(value["projectDependencyState"]) &&
+    value["projectDependencyState"]["status"] === "projectDependencyState" &&
+    isPackageProjectInput(value["input"]) &&
+    (value["packageFileName"] === null || typeof value["packageFileName"] === "string") &&
+    typeof value["packageFileExists"] === "boolean" &&
+    isStringArray(value["blockingReasons"]) &&
+    isStringArray(value["warningMessages"]) &&
+    (value["packageResult"] === null || isProjectPackageResult(value["packageResult"])) &&
+    (value["notification"] === undefined ||
+      isProjectManagerNotification(value["notification"]))
   );
 }
 
@@ -375,6 +503,9 @@ export function isMessage_WebviewToExtension(
   switch (value["command"]) {
     case "ready":
     case "selectTargetFolder":
+    case "openPackageProjectManifest":
+    case "revealProjectPackage":
+    case "openManageComponents":
     case "runPublishComponent":
     case "refreshPublishComponent":
     case "repairProjectComponents":
@@ -387,6 +518,14 @@ export function isMessage_WebviewToExtension(
       return (
         hasExactKeys(value, new Set(["command", "input"])) &&
         isCreateProjectInput(value["input"])
+      );
+
+    case "selectPackageOutputFolder":
+    case "runPackageProject":
+    case "refreshPackageProject":
+      return (
+        hasExactKeys(value, new Set(["command", "input"])) &&
+        isPackageProjectInput(value["input"])
       );
 
     case "openPublishComponentFile":
@@ -428,6 +567,12 @@ export function isMessage_ExtensionToWebview(
       return (
         hasExactKeys(value, new Set(["command", "initialData"])) &&
         isCreateProjectInitialData(value["initialData"])
+      );
+
+    case "loadPackageProject":
+      return (
+        hasExactKeys(value, new Set(["command", "initialData"])) &&
+        isPackageProjectInitialData(value["initialData"])
       );
 
     case "loadPublishComponent":

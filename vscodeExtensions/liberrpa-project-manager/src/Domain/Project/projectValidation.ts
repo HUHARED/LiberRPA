@@ -9,6 +9,8 @@ import { getRiskyComponentPackageNameReason } from "./riskyComponentPackageNames
 // Keep Component package names consistent with LiberRPA built-in module names.
 export const REGEX_COMPONENT_PACKAGE_NAME = /^[A-Z][A-Za-z0-9]*$/;
 
+const REGEX_INVALID_WINDOWS_FILE_OR_FOLDER_NAME_CHARACTER = /[<>:"/\\|?*]/;
+
 const SET_INVALID_PYTHON_IDENTIFIERS = new Set(["False", "None", "True"]);
 const SET_RESERVED_WINDOWS_NAMES = new Set([
   "CON",
@@ -35,42 +37,48 @@ const SET_RESERVED_WINDOWS_NAMES = new Set([
   "LPT9",
 ]);
 
-export function getProjectFolderNameError(projectName: string): string | undefined {
-  if (projectName.length === 0) {
-    return "Project folder name cannot be empty.";
+export function getWindowsFileOrFolderNameError(
+  name: string,
+  description: string,
+): string | undefined {
+  if (name.length === 0) {
+    return `${description} cannot be empty.`;
   }
 
-  if (projectName !== projectName.trim()) {
-    return "Project folder name cannot start or end with whitespace.";
+  if (name !== name.trim()) {
+    return `${description} cannot start or end with whitespace.`;
   }
 
-  if (/[<>:"/\\|?*]/.test(projectName)) {
-    return (
-      "Project folder name cannot contain Windows reserved characters: " + '<>:"/\\|?*'
-    );
+  if (REGEX_INVALID_WINDOWS_FILE_OR_FOLDER_NAME_CHARACTER.test(name)) {
+    return `${description} cannot contain Windows reserved characters: ` + '<>:"/\\|?*';
   }
 
-  if ([...projectName].some((character) => character.charCodeAt(0) <= 0x1f)) {
-    return "Project folder name cannot contain ASCII control characters.";
+  if ([...name].some((character) => character.charCodeAt(0) <= 0x1f)) {
+    return `${description} cannot contain ASCII control characters.`;
   }
 
-  if (projectName.endsWith(".")) {
-    return "Project folder name cannot end with a period.";
+  if (name.endsWith(".")) {
+    return `${description} cannot end with a period.`;
   }
 
-  const nameBeforeFirstPeriod = projectName.split(".", 1)[0]?.toUpperCase();
+  const strNameBeforeFirstPeriod = name.split(".", 1)[0]?.toUpperCase();
+
   if (
-    nameBeforeFirstPeriod !== undefined &&
-    SET_RESERVED_WINDOWS_NAMES.has(nameBeforeFirstPeriod)
+    strNameBeforeFirstPeriod !== undefined &&
+    SET_RESERVED_WINDOWS_NAMES.has(strNameBeforeFirstPeriod)
   ) {
-    return `Project folder name "${projectName}" is reserved by Windows.`;
+    return `${description} "${name}" is reserved by Windows.`;
   }
 
-  if (projectName.length > 255) {
-    return "Project folder name cannot be longer than 255 characters.";
+  if (name.length > 255) {
+    return `${description} cannot be longer than 255 characters.`;
   }
 
   return undefined;
+}
+
+export function getProjectFolderNameError(projectFolderName: string): string | undefined {
+  return getWindowsFileOrFolderNameError(projectFolderName, "Project folder name");
 }
 
 export function getVersionInputError(version: string): string | undefined {

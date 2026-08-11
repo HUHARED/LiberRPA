@@ -19,6 +19,9 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand("LiberRPA.createProject", () => {
       ProjectManagerPanel.show(context, "createProject");
     }),
+    vscode.commands.registerCommand("LiberRPA.packageProject", () => {
+      ProjectManagerPanel.show(context, "packageProject");
+    }),
     vscode.commands.registerCommand("LiberRPA.publishComponent", () => {
       ProjectManagerPanel.show(context, "publishComponent");
     }),

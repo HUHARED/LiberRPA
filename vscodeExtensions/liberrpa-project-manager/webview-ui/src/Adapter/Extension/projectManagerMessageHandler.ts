@@ -2,6 +2,7 @@
 
 import { useComponentManagementStore } from "../../Application/ComponentManagement/componentManagementStore";
 import { useCreateProjectStore } from "../../Application/CreateProject/createProjectStore";
+import { usePackageProjectStore } from "../../Application/PackageProject/packageProjectStore";
 import { usePublishComponentStore } from "../../Application/Publish/publishComponentStore";
 import { useProjectManagerStore } from "../../Application/projectManagerStore";
 import {
@@ -12,6 +13,7 @@ import {
 function applyMessage(message: DictMessage_ExtensionToWebview): void {
   const projectManagerStore = useProjectManagerStore();
   const createProjectStore = useCreateProjectStore();
+  const packageProjectStore = usePackageProjectStore();
   const publishComponentStore = usePublishComponentStore();
   const componentManagementStore = useComponentManagementStore();
 
@@ -19,6 +21,17 @@ function applyMessage(message: DictMessage_ExtensionToWebview): void {
     case "loadCreateProject":
       projectManagerStore.load("createProject", message.initialData.theme);
       createProjectStore.load(message.initialData);
+      return;
+
+    case "loadPackageProject":
+      projectManagerStore.load("packageProject", message.initialData.theme);
+      packageProjectStore.load(message.initialData);
+      if (message.initialData.notification !== undefined) {
+        projectManagerStore.showMessage(
+          message.initialData.notification.type,
+          message.initialData.notification.message,
+        );
+      }
       return;
 
     case "loadPublishComponent":

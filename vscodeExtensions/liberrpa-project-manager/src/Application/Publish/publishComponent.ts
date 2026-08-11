@@ -3,8 +3,8 @@
 import * as vscode from "vscode";
 
 import {
-  publishComponent as runPublishComponent,
   type Info_ComponentManagement_OperationResult,
+  publishComponent as runPublishComponent,
 } from "../../Adapter/Python/componentManagementClient";
 import {
   getWorkspaceProjectType,

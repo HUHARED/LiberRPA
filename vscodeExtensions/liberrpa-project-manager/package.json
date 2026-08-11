@@ -22,6 +22,12 @@
         "title": "Create a New Project"
       },
       {
+        "command": "LiberRPA.packageProject",
+        "category": "LiberRPA",
+        "title": "Package Project",
+        "enablement": "liberrpaProjectManager.projectType == flow"
+      },
+      {
         "command": "LiberRPA.publishComponent",
         "category": "LiberRPA",
         "title": "Publish Component",
@@ -46,6 +52,10 @@
     ],
     "menus": {
       "commandPalette": [
+        {
+          "command": "LiberRPA.packageProject",
+          "when": "liberrpaProjectManager.projectType == flow"
+        },
         {
           "command": "LiberRPA.publishComponent",
           "when": "liberrpaProjectManager.projectType == component"
@@ -80,6 +90,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@types/archiver": "^8.0.0",
     "@types/mocha": "^10.0.10",
     "@types/node": "^26.1.1",
     "@types/vscode": "^1.121.0",
@@ -92,5 +103,7 @@
     "webpack": "^5.108.4",
     "webpack-cli": "^7.2.1"
   },
-  "dependencies": {}
+  "dependencies": {
+    "archiver": "^8.0.0"
+  }
 }
