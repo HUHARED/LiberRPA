@@ -1,8 +1,12 @@
 // FileName: managedImports.ts
-import { log } from "./output";
-import type { DictImportsInfo, DictImportSourceConfig } from "./interface";
 
 import * as vscode from "vscode";
+
+import { log } from "../../Adapter/VsCode/output";
+import type {
+  DictImportsInfo,
+  DictImportSourceConfig,
+} from "../../Domain/Snippet/snippetTypes";
 
 /*
 Managed import block format:

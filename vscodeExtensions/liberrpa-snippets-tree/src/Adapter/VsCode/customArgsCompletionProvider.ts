@@ -1,13 +1,14 @@
 // FileName: customArgsCompletionProvider.ts
-import { log } from "./output";
-import type { DictImportSourceConfig } from "./interface";
-import { isRecord } from "./typeCheck";
-import { runSyncBoundary } from "./errorHandling";
-import { buildManagedImportTextEdits } from "./managedImports";
-import { planSnippetImportEdits } from "./snippetImportEdits";
 
 import * as fs from "node:fs";
 import * as vscode from "vscode";
+
+import { log } from "./output";
+import type { DictImportSourceConfig } from "../../Domain/Snippet/snippetTypes";
+import { isRecord } from "../../Common/typeCheck";
+import { runSyncBoundary } from "./errorHandling";
+import { buildManagedImportTextEdits } from "../../Application/SnippetInsertion/managedImports";
+import { planSnippetImportEdits } from "../../Application/SnippetInsertion/snippetImportEdits";
 
 type CompletionContext =
   | "afterCustomArgs"
@@ -33,7 +34,7 @@ const DICT_CUSTOM_ARGS_IMPORTS = {
 function buildCustomArgsVariableCompletion(
   document: vscode.TextDocument,
   position: vscode.Position,
-  importSources: Record<string, DictImportSourceConfig>
+  importSources: Record<string, DictImportSourceConfig>,
 ): vscode.CompletionItem | undefined {
   const wordRange = document.getWordRangeAtPosition(position, /[A-Za-z_][A-Za-z0-9_]*/);
 
@@ -62,13 +63,13 @@ function buildCustomArgsVariableCompletion(
 
   const completionItem = new vscode.CompletionItem(
     STR_CUSTOM_ARGS_NAME,
-    vscode.CompletionItemKind.Variable
+    vscode.CompletionItemKind.Variable,
   );
 
   const importEdits = buildManagedImportTextEdits(
     document,
     importSources,
-    DICT_CUSTOM_ARGS_IMPORTS
+    DICT_CUSTOM_ARGS_IMPORTS,
   );
   const importPlan = planSnippetImportEdits(wordRange, importEdits);
 
@@ -81,7 +82,7 @@ function buildCustomArgsVariableCompletion(
   completionItem.additionalTextEdits = importPlan.additionalTextEdits;
   completionItem.detail = "LiberRPA custom project arguments";
   completionItem.documentation = new vscode.MarkdownString(
-    "The custom project arguments defined in `project.flow`."
+    "The custom project arguments defined in `project.flow`.",
   );
 
   return completionItem;
@@ -103,7 +104,7 @@ function getCompletionContext(linePrefix: string): CompletionContext | undefined
     const intStart = linePrefix.length - strSuffix.length;
     const strPreviousCharacter = intStart > 0 ? linePrefix[intStart - 1] : "";
 
-    // CustomArgs is a standalone project variable, not a suffix of another identifier and not an object attribute.
+    // CustomArgs is a standalone Project variable, not an identifier suffix or an object attribute.
     if (/[A-Za-z0-9_.]/.test(strPreviousCharacter)) {
       return undefined;
     }
@@ -121,7 +122,7 @@ function getProjectFlowContent(document: vscode.TextDocument): string | undefine
 
   const projectFlowUri = vscode.Uri.joinPath(workspaceFolder.uri, "project.flow");
   const openDocument = vscode.workspace.textDocuments.find(
-    (item) => item.uri.toString() === projectFlowUri.toString()
+    (item: vscode.TextDocument) => item.uri.toString() === projectFlowUri.toString(),
   );
 
   if (openDocument) {
@@ -201,19 +202,19 @@ export class CustomArgsCompletionItemProvider implements vscode.CompletionItemPr
 
   provideCompletionItems(
     document: vscode.TextDocument,
-    position: vscode.Position
+    position: vscode.Position,
   ): vscode.ProviderResult<vscode.CompletionItem[]> {
     return runSyncBoundary(
       "CustomArgs completion failed",
       () => this.provideCompletionItemsInternal(document, position),
       [],
-      false
+      false,
     );
   }
 
   private provideCompletionItemsInternal(
     document: vscode.TextDocument,
-    position: vscode.Position
+    position: vscode.Position,
   ): vscode.CompletionItem[] {
     const strLinePrefix = document.lineAt(position).text.substring(0, position.character);
 
@@ -242,11 +243,11 @@ export class CustomArgsCompletionItemProvider implements vscode.CompletionItemPr
       try {
         arrArgNames = extractCustomArgNames(content);
       } catch (e) {
-        // Users may be editing project.flow manually in text view instead of in LiberRPA Flowchart.
+        // Users may temporarily edit project.flow manually instead of through LiberRPA Flowchart.
         log.debug(
           `[CustomArgs] project.flow is temporarily unavailable for completion: ${
             e instanceof Error ? e.message : String(e)
-          }`
+          }`,
         );
         return [];
       }
@@ -255,7 +256,7 @@ export class CustomArgsCompletionItemProvider implements vscode.CompletionItemPr
       const importEdits = buildManagedImportTextEdits(
         document,
         this.importSources,
-        DICT_CUSTOM_ARGS_IMPORTS
+        DICT_CUSTOM_ARGS_IMPORTS,
       );
       const importPlan = planSnippetImportEdits(range, importEdits);
 
@@ -268,13 +269,13 @@ export class CustomArgsCompletionItemProvider implements vscode.CompletionItemPr
 
         const completionItem = new vscode.CompletionItem(
           `[${JSON.stringify(strArgName)}]`,
-          vscode.CompletionItemKind.Snippet
+          vscode.CompletionItemKind.Snippet,
         );
 
         completionItem.insertText = importPlan.snippetPrefix + strInsertedText;
         completionItem.range = range;
         completionItem.additionalTextEdits = importPlan.additionalTextEdits;
-        // Keep the same high sorting priority that the old quoted label had, while the visible label remains non-empty for an empty-string key.
+        // Preserve the old quoted label sorting priority while keeping the visible label non-empty for an empty-string key.
         completionItem.sortText = JSON.stringify(strArgName);
         completionItem.detail = "LiberRPA custom project argument";
 
@@ -294,7 +295,7 @@ export class CustomArgsCompletionItemProvider implements vscode.CompletionItemPr
     const variableCompletion = buildCustomArgsVariableCompletion(
       document,
       position,
-      this.importSources
+      this.importSources,
     );
 
     return variableCompletion ? [variableCompletion] : [];

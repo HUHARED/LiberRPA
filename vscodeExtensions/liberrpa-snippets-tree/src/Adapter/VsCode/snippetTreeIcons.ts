@@ -1,8 +1,8 @@
-// FileName: utils.ts
+// FileName: snippetTreeIcons.ts
 
-export const dictIconMapping: { [key: string]: string } = {
+export const DICT_CATEGORY_ICON: Readonly<Record<string, string>> = {
   /*
-    The identifiers of vscode Codicon library in https://code.visualstudio.com/api/references/icons-in-labels
+    The identifiers of the VS Code Codicon library are documented at: https://code.visualstudio.com/api/references/icons-in-labels
     Note that using the identifiers in the second table of the chapter "Icon Listing".
   */
   Favorite: "sparkle",

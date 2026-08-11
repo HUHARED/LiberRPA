@@ -1,4 +1,5 @@
 // FileName: snippetImportEdits.ts
+
 import * as vscode from "vscode";
 
 export interface SnippetImportEditPlan {

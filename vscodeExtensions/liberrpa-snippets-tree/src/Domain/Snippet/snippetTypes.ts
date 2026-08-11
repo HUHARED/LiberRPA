@@ -1,4 +1,4 @@
-// FileName: interface.ts
+// FileName: snippetTypes.ts
 
 export type SnippetInsertionMode = "line" | "cursor";
 
@@ -58,24 +58,36 @@ export interface DictSnippetFavoriteFile {
   snippets: Record<string, DictSnippetDefinition>;
 }
 
-export interface DictSnippetTotalInfo {
+export interface Info_LoadedSnippetCatalog {
+  idPrefix: string;
+  displayPath: string;
+  catalog: DictSnippetCatalogFile;
+}
+
+export interface Info_Snippet {
   id: string;
   title: string;
+
   category: string;
   label: string;
   prefix: string;
   body: string[];
+
   description: string;
   imports: DictImportsInfo;
   insertionMode: SnippetInsertionMode;
 }
 
-export interface DictSnippetRepository {
-  // handleSnippets.ts creates a repository.
-  // Providers use the repository to create snippet items and completion items.
+export interface Info_SnippetRepository {
   categoryOrder: string[];
-  categories: Record<string, DictSnippetTotalInfo[]>;
-  importSources: Record<string, DictImportSourceConfig>;
+  snippetByCategory: Record<string, Info_Snippet[]>;
+  snippetById: Record<string, Info_Snippet>;
+  importSource: Record<string, DictImportSourceConfig>;
+}
+
+export interface Info_SnippetRepositoryBuildResult {
+  repository: Info_SnippetRepository;
+  warnings: string[];
 }
 
 export interface DictSnippetNodeCommandArg {

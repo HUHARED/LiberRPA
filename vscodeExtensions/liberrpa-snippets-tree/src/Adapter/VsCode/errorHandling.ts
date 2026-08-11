@@ -1,7 +1,8 @@
 // FileName: errorHandling.ts
-import { log } from "./output";
 
 import * as vscode from "vscode";
+
+import { log } from "./output";
 
 /**
  * Log an unexpected error and optionally notify the user.
@@ -24,7 +25,7 @@ export function reportError(context: string, error: unknown, notifyUser: boolean
 
   void vscode.window
     .showErrorMessage(`${context}: ${strMessage}`, "Show Logs")
-    .then((action) => {
+    .then((action: string | undefined) => {
       if (action === "Show Logs") {
         log.show(true);
       }
@@ -43,7 +44,7 @@ export function reportWarning(context: string, error: unknown, notifyUser: boole
 
   void vscode.window
     .showWarningMessage(`${context}: ${strMessage}`, "Show Logs")
-    .then((action) => {
+    .then((action: string | undefined) => {
       if (action === "Show Logs") {
         log.show(true);
       }
@@ -56,7 +57,7 @@ export function reportWarning(context: string, error: unknown, notifyUser: boole
 export async function runAsyncBoundary(
   context: string,
   task: () => Promise<void>,
-  notifyUser: boolean
+  notifyUser: boolean,
 ): Promise<void> {
   try {
     await task();
@@ -72,7 +73,7 @@ export function runSyncBoundary<T>(
   context: string,
   task: () => T,
   fallback: T,
-  notifyUser: boolean
+  notifyUser: boolean,
 ): T {
   try {
     return task();

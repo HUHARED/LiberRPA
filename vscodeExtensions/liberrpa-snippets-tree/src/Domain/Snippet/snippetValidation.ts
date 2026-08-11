@@ -1,22 +1,21 @@
-// FileName: typeCheck.ts
+// FileName: snippetValidation.ts
+
+import {
+  isRecord,
+  isStringArray,
+  hasRequiredKeys,
+  hasOnlyAllowedKeys,
+} from "../../Common/typeCheck";
 import type {
-  DictCatalogSnippetDefinition,
-  DictSnippetFavoriteFile,
-  DictImportSourceConfig,
+  SnippetInsertionMode,
   DictImportsInfo,
-  DictSnippetCatalogFile,
+  DictImportSourceConfig,
   DictSnippetDefinition,
-} from "./interface";
-
-type UnknownRecord = Record<string, unknown>;
-
-export function isRecord(value: unknown): value is UnknownRecord {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function isStringArray(value: unknown): value is string[] {
-  return Array.isArray(value) && value.every((item) => typeof item === "string");
-}
+  DictCatalogSnippetDefinition,
+  DictSnippetCatalogFile,
+  DictSnippetFavoriteFile,
+  DictSnippetNodeCommandArg,
+} from "./snippetTypes";
 
 function isNonEmptyStringArray(value: unknown): value is string[] {
   return isStringArray(value) && value.length > 0;
@@ -24,14 +23,6 @@ function isNonEmptyStringArray(value: unknown): value is string[] {
 
 function isSnippetBody(value: unknown): value is string[] | string {
   return typeof value === "string" || isStringArray(value);
-}
-
-function hasRequiredKeys(value: UnknownRecord, requiredKeys: readonly string[]): boolean {
-  return requiredKeys.every((key) => key in value);
-}
-
-function hasOnlyAllowedKeys(value: UnknownRecord, allowedKeys: readonly string[]): boolean {
-  return Object.keys(value).every((key) => allowedKeys.includes(key));
 }
 
 function isPythonIdentifier(value: string): boolean {
@@ -54,12 +45,12 @@ function isImportsBySource(value: unknown): value is DictImportsInfo {
   );
 }
 
-function isSnippetInsertionMode(value: unknown): value is "line" | "cursor" {
+function isSnippetInsertionMode(value: unknown): value is SnippetInsertionMode {
   return value === "line" || value === "cursor";
 }
 
-const ARR_SNIPPET_REQUIRED_KEYS = ["prefix", "body"] as const;
-const ARR_SNIPPET_ALLOWED_KEYS = [
+const ARR_SNIPPET_REQUIRED_KEY = ["prefix", "body"] as const;
+const ARR_SNIPPET_ALLOWED_KEY = [
   "category",
   "label",
   "prefix",
@@ -75,8 +66,8 @@ function isSnippetDefinition(value: unknown): value is DictSnippetDefinition {
   }
 
   if (
-    !hasRequiredKeys(value, ARR_SNIPPET_REQUIRED_KEYS) ||
-    !hasOnlyAllowedKeys(value, ARR_SNIPPET_ALLOWED_KEYS)
+    !hasRequiredKeys(value, ARR_SNIPPET_REQUIRED_KEY) ||
+    !hasOnlyAllowedKeys(value, ARR_SNIPPET_ALLOWED_KEY)
   ) {
     return false;
   }
@@ -114,7 +105,7 @@ function isCatalogSnippetDefinition(value: unknown): value is DictCatalogSnippet
 
   if (
     !hasRequiredKeys(value, requiredKeys) ||
-    !hasOnlyAllowedKeys(value, ARR_SNIPPET_ALLOWED_KEYS)
+    !hasOnlyAllowedKeys(value, ARR_SNIPPET_ALLOWED_KEY)
   ) {
     return false;
   }
@@ -136,8 +127,8 @@ function isCatalogSnippetDefinitions(
   return isRecord(value) && Object.values(value).every(isCatalogSnippetDefinition);
 }
 
-const ARR_IMPORT_SOURCE_CONFIG_REQUIRED_KEYS = ["order"] as const;
-const ARR_IMPORT_SOURCE_CONFIG_ALLOWED_KEYS = ["order", "aliasMode"] as const;
+const ARR_IMPORT_SOURCE_CONFIG_REQUIRED_KEY = ["order"] as const;
+const ARR_IMPORT_SOURCE_CONFIG_ALLOWED_KEY = ["order", "aliasMode"] as const;
 
 function isImportSourceConfig(value: unknown): value is DictImportSourceConfig {
   if (!isRecord(value)) {
@@ -145,11 +136,12 @@ function isImportSourceConfig(value: unknown): value is DictImportSourceConfig {
   }
 
   if (
-    !hasRequiredKeys(value, ARR_IMPORT_SOURCE_CONFIG_REQUIRED_KEYS) ||
-    !hasOnlyAllowedKeys(value, ARR_IMPORT_SOURCE_CONFIG_ALLOWED_KEYS)
+    !hasRequiredKeys(value, ARR_IMPORT_SOURCE_CONFIG_REQUIRED_KEY) ||
+    !hasOnlyAllowedKeys(value, ARR_IMPORT_SOURCE_CONFIG_ALLOWED_KEY)
   ) {
     return false;
   }
+
   return (
     isStringArray(value.order) &&
     value.order.every(isPythonIdentifier) &&
@@ -160,18 +152,19 @@ function isImportSourceConfig(value: unknown): value is DictImportSourceConfig {
 function isImportSources(value: unknown): value is Record<string, DictImportSourceConfig> {
   return (
     isRecord(value) &&
-    Object.entries(value).every(([strSource, dictConfig]) => {
-      if (!isPythonImportSource(strSource) || !isImportSourceConfig(dictConfig)) {
+    Object.entries(value).every(([source, config]) => {
+      if (!isPythonImportSource(source) || !isImportSourceConfig(config)) {
         return false;
       }
 
-      // source_module derives aliases as <source>_<module>, so the source must be one Python identifier rather than a dotted import path.
-      return dictConfig.aliasMode !== "source_module" || isPythonIdentifier(strSource);
+      // source_module derives aliases as <source>_<module>, so its source
+      // must be one Python identifier rather than a dotted import path.
+      return config.aliasMode !== "source_module" || isPythonIdentifier(source);
     })
   );
 }
 
-export function isSnippetCatalog(value: unknown): value is DictSnippetCatalogFile {
+export function isSnippetCatalogFile(value: unknown): value is DictSnippetCatalogFile {
   if (!isRecord(value)) {
     return false;
   }
@@ -188,12 +181,13 @@ export function isSnippetCatalog(value: unknown): value is DictSnippetCatalogFil
     hasOnlyAllowedKeys(value, expectedKeys) &&
     value.schemaVersion === 1 &&
     isStringArray(value.categoryOrder) &&
+    new Set(value.categoryOrder).size === value.categoryOrder.length &&
     isImportSources(value.importSources) &&
     isCatalogSnippetDefinitions(value.snippets)
   );
 }
 
-export function isFavoriteSnippetsFile(value: unknown): value is DictSnippetFavoriteFile {
+export function isFavoriteSnippetFile(value: unknown): value is DictSnippetFavoriteFile {
   if (!isRecord(value)) {
     return false;
   }
@@ -205,5 +199,24 @@ export function isFavoriteSnippetsFile(value: unknown): value is DictSnippetFavo
     hasOnlyAllowedKeys(value, expectedKeys) &&
     value.schemaVersion === 1 &&
     isSnippetDefinitions(value.snippets)
+  );
+}
+
+export function isSnippetNodeCommandArg(
+  value: unknown,
+): value is DictSnippetNodeCommandArg {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  const expectedKeys = ["title", "body", "imports", "insertionMode"] as const;
+
+  return (
+    hasRequiredKeys(value, expectedKeys) &&
+    hasOnlyAllowedKeys(value, expectedKeys) &&
+    typeof value.title === "string" &&
+    isNonEmptyStringArray(value.body) &&
+    isImportsBySource(value.imports) &&
+    isSnippetInsertionMode(value.insertionMode)
   );
 }
