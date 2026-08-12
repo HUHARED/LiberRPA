@@ -11,7 +11,9 @@ export const REGEX_COMPONENT_PACKAGE_NAME = /^[A-Z][A-Za-z0-9]*$/;
 
 const REGEX_INVALID_WINDOWS_FILE_OR_FOLDER_NAME_CHARACTER = /[<>:"/\\|?*]/;
 
-const SET_INVALID_PYTHON_IDENTIFIERS = new Set(["False", "None", "True"]);
+const STR_COMPONENT_ID_FOR_FOLDER_NAME_VALIDATION = "00000000-0000-4000-8000-000000000000";
+
+const SET_RESERVED_PYTHON_NAMES = new Set(["False", "None", "True"]);
 const SET_RESERVED_WINDOWS_NAMES = new Set([
   "CON",
   "PRN",
@@ -94,16 +96,25 @@ export function getVersionInputError(version: string): string | undefined {
 }
 
 export function getComponentPackageNameError(packageName: string): string | undefined {
+  const strWindowsNameError = getWindowsFileOrFolderNameError(packageName, "Package name");
+  if (strWindowsNameError !== undefined) {
+    return strWindowsNameError;
+  }
+
   if (!REGEX_COMPONENT_PACKAGE_NAME.test(packageName)) {
     return "Package name must use PascalCase and contain only ASCII letters and digits, for example: ExcelTools.";
   }
 
-  if (SET_INVALID_PYTHON_IDENTIFIERS.has(packageName)) {
-    return `Package name cannot be the Python keyword "${packageName}".`;
+  if (SET_RESERVED_PYTHON_NAMES.has(packageName)) {
+    return `Package name cannot use the reserved Python name "${packageName}".`;
   }
 
-  if (SET_RESERVED_WINDOWS_NAMES.has(packageName.toUpperCase())) {
-    return `Package name "${packageName}" is reserved by Windows.`;
+  const strRepositoryFolderNameError = getWindowsFileOrFolderNameError(
+    `${packageName}_${STR_COMPONENT_ID_FOR_FOLDER_NAME_VALIDATION}`,
+    "Generated Component Repository folder name",
+  );
+  if (strRepositoryFolderNameError !== undefined) {
+    return strRepositoryFolderNameError;
   }
 
   const strRiskyPackageNameReason = getRiskyComponentPackageNameReason(packageName);
