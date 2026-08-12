@@ -181,16 +181,21 @@ def validate_exact_keys(
         )
 
 
+def is_path_link(entryPath: Path) -> bool:
+    """Return whether the path is a symbolic link or Windows junction."""
+    return entryPath.is_symlink() or entryPath.is_junction()
+
+
 def path_exists(entryPath: Path) -> bool:
-    """Return whether a filesystem entry exists, including a broken symbolic link."""
-    return entryPath.exists() or entryPath.is_symlink()
+    """Return whether a filesystem entry exists, including a broken link."""
+    return entryPath.exists() or is_path_link(entryPath)
 
 
 def is_file_invalid(filePath: Path) -> bool:
-    """Return whether the path is not a regular non-symbolic-link file."""
-    return not filePath.is_file() or filePath.is_symlink()
+    """Return whether the path is not a regular non-link file."""
+    return not filePath.is_file() or is_path_link(filePath)
 
 
 def is_folder_invalid(folderPath: Path) -> bool:
-    """Return whether the path is not a regular non-symbolic-link folder."""
-    return not folderPath.is_dir() or folderPath.is_symlink()
+    """Return whether the path is not a regular non-link folder."""
+    return not folderPath.is_dir() or is_path_link(folderPath)

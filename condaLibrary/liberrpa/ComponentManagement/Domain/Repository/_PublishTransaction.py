@@ -11,6 +11,7 @@ from liberrpa.ComponentManagement.Common._Hash import calculate_file_sha256
 from liberrpa.ComponentManagement.Common._Validation import (
     get_package_name_error,
     validate_exact_keys,
+    is_path_link,
     path_exists,
     is_file_invalid,
     is_folder_invalid,
@@ -219,7 +220,7 @@ def _inspect_publish_transaction_state(
         )
     )
 
-    if pathTargetWheelFile.is_symlink() or (
+    if is_path_link(pathTargetWheelFile) or (
         pathTargetWheelFile.exists() and not pathTargetWheelFile.is_file()
     ):
         raise ComponentManagementError(

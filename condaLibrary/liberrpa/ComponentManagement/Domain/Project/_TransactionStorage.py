@@ -311,7 +311,7 @@ def _remove_path(entryPath: Path) -> None:
         entryPath.unlink()
         return
 
-    if entryPath.is_dir():
+    if entryPath.is_junction() or entryPath.is_dir():
         rmtree(entryPath)
         return
 
@@ -338,10 +338,8 @@ def remove_transaction_folder(
 
     pathTransactionsFolder = transactionFolderPath.parent
     try:
-        if (
-            pathTransactionsFolder.is_dir()
-            and not pathTransactionsFolder.is_symlink()
-            and not any(pathTransactionsFolder.iterdir())
+        if not is_folder_invalid(pathTransactionsFolder) and not any(
+            pathTransactionsFolder.iterdir()
         ):
             pathTransactionsFolder.rmdir()
     except OSError:

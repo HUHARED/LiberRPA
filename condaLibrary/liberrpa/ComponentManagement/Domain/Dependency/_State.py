@@ -8,7 +8,11 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 from liberrpa.ComponentManagement.Common._Exception import ComponentManagementError
 from liberrpa.ComponentManagement.Common._Hash import calculate_file_sha256
 from liberrpa.ComponentManagement.Common._Version import get_installed_liberrpa_version
-from liberrpa.ComponentManagement.Common._Validation import path_exists, is_file_invalid
+from liberrpa.ComponentManagement.Common._Validation import (
+    path_exists,
+    is_file_invalid,
+    is_folder_invalid,
+)
 from liberrpa.ComponentManagement.Types._Manifest import Info_ProjectManifest
 from liberrpa.ComponentManagement.Types._Components import DictComponentsLock_File
 from liberrpa.ComponentManagement.Types._Dependency import (
@@ -98,7 +102,7 @@ def _get_components_state(
     if not path_exists(pathComponentsFolder):
         return "missing", {"componentsFolderPath": str(pathComponentsFolder)}
 
-    if pathComponentsFolder.is_dir() and not pathComponentsFolder.is_symlink():
+    if not is_folder_invalid(pathComponentsFolder):
         try:
             if not any(pathComponentsFolder.iterdir()):
                 return "missing", {"componentsFolderPath": str(pathComponentsFolder)}
