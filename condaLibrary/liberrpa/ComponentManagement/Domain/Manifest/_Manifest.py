@@ -8,6 +8,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from liberrpa.ComponentManagement.Common._Exception import ComponentManagementError
 from liberrpa.ComponentManagement.Common._File import read_json
+from liberrpa.ComponentManagement.Common._WheelName import get_component_wheel_names
 from liberrpa.ComponentManagement.Common._Version import (
     normalize_pep440_version,
     normalize_pep440_specifier,
@@ -379,6 +380,13 @@ def parse_component_manifest(
     strNormalizedVersion = _parse_version_field(
         value.get("version"), "version", listIssue
     )
+
+    if strPackageName is not None and strNormalizedVersion is not None:
+        try:
+            get_component_wheel_names(strPackageName, strNormalizedVersion)
+        except ValueError as e:
+            add_validation_issue(listIssue, "packageName/version", str(e))
+
     strDescription = _validate_string_field(
         value.get("description"),
         "description",

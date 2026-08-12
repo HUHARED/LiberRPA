@@ -19,6 +19,7 @@ from liberrpa.ComponentManagement.Types._Protocol import (
     DictProtocolRequest_RepairProjectComponents,
     DictProtocolRequest,
 )
+from liberrpa.ComponentManagement.Domain.Repository._Index import validate_sha256
 
 from typing import NoReturn, cast
 
@@ -199,8 +200,10 @@ def parse_protocol_request(requestInfo: str) -> DictProtocolRequest:
             _validate_project_path_value(value.get("projectPath"))
             if not isinstance(value.get("dependencyOperation"), dict):
                 _raise_invalid_request("dependencyOperation must be an object.")
-            if not isinstance(value.get("confirmedPlanSha256"), str):
-                _raise_invalid_request("confirmedPlanSha256 must be a string.")
+            try:
+                validate_sha256(value.get("confirmedPlanSha256"), "confirmedPlanSha256")
+            except ValueError as e:
+                _raise_invalid_request(str(e))
 
             return cast(DictProtocolRequest_ApplyProjectDependencyPlan, value)
 

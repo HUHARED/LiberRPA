@@ -38,7 +38,10 @@ def validate_json_object_fields(
         add_validation_issue(issueList, field, f"Unknown fields: {listUnknownKey}.")
 
 
+_REGEX_INVALID_WINDOWS_FILE_OR_FOLDER_NAME_CHARACTER = re.compile(r'[<>:"/\\|?*]')
 _REGEX_COMPONENT_PACKAGE_NAME = re.compile(r"^[A-Z][A-Za-z0-9]*$")
+
+_STR_COMPONENT_ID_FOR_FOLDER_NAME_VALIDATION = "00000000-0000-4000-8000-000000000000"
 
 _SET_RESERVED_WINDOWS_NAMES = {
     "CON",
@@ -110,7 +113,47 @@ _SET_LIBERRPA_THIRD_PARTY_MODULE_NAMES = {
 }
 
 
+def get_windows_file_or_folder_name_error(
+    name: str,
+    description: str,
+) -> str | None:
+    if name == "":
+        return f"{description} cannot be empty."
+
+    if name != name.strip():
+        return f"{description} cannot start or end with whitespace."
+
+    if _REGEX_INVALID_WINDOWS_FILE_OR_FOLDER_NAME_CHARACTER.search(name) is not None:
+        return (
+            f"{description} cannot contain Windows reserved characters: " + '<>:"/\\|?*'
+        )
+
+    if any(ord(character) <= 0x1F for character in name):
+        return f"{description} cannot contain ASCII control characters."
+
+    if name.endswith("."):
+        return f"{description} cannot end with a period."
+
+    strNameBeforeFirstPeriod = name.split(".", 1)[0].upper()
+    if strNameBeforeFirstPeriod in _SET_RESERVED_WINDOWS_NAMES:
+        return f'{description} "{name}" is reserved by Windows.'
+
+    # JavaScript String.length and Windows entry name limits use UTF-16 code units.
+    intUtf16CodeUnitCount = len(name.encode("utf-16-le", errors="surrogatepass")) // 2
+    if intUtf16CodeUnitCount > 255:
+        return f"{description} cannot be longer than 255 characters."
+
+    return None
+
+
 def get_package_name_error(packageName: str) -> str | None:
+    strWindowsNameError = get_windows_file_or_folder_name_error(
+        packageName,
+        "Package name",
+    )
+    if strWindowsNameError is not None:
+        return strWindowsNameError
+
     if _REGEX_COMPONENT_PACKAGE_NAME.fullmatch(packageName) is None:
         return "Package name must use PascalCase and contain only ASCII letters and digits, for example: ExcelTools."
 
@@ -126,13 +169,20 @@ def get_package_name_error(packageName: str) -> str | None:
     if keyword.iskeyword(packageName):
         return f"Package name cannot use the Python keyword {packageName!r}."
 
+    strRepositoryFolderName = (
+        f"{packageName}_{_STR_COMPONENT_ID_FOR_FOLDER_NAME_VALIDATION}"
+    )
+    strRepositoryFolderNameError = get_windows_file_or_folder_name_error(
+        strRepositoryFolderName,
+        "Generated Component Repository folder name",
+    )
+    if strRepositoryFolderNameError is not None:
+        return strRepositoryFolderNameError
+
     strNormalizedName = packageName.casefold()
 
     if strNormalizedName == "liberrpa":
         return 'Package name "liberrpa" is reserved by LiberRPA.'
-
-    if packageName.upper() in _SET_RESERVED_WINDOWS_NAMES:
-        return f"Package name {packageName!r} is reserved by Windows."
 
     if strNormalizedName in _SET_PYTHON_STDLIB_MODULE_NAMES:
         return f"Package name {packageName!r} conflicts with a Python standard library module."

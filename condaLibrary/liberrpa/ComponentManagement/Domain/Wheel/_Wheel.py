@@ -152,6 +152,18 @@ def _get_package_archive_entries(
             strArchivePath = PurePosixPath(
                 packageName, *pathRelativeSourceEntry.parts
             ).as_posix()
+            try:
+                validate_archive_path(strArchivePath)
+            except ValueError as e:
+                raise ComponentManagementError(
+                    code="component_source_invalid",
+                    message="Component package contains a path that is invalid on Windows.",
+                    details={
+                        "relativeFilePath": pathRelativeSourceEntry.as_posix(),
+                        "reason": str(e),
+                    },
+                ) from e
+
             strCaseInsensitivePath = strArchivePath.casefold()
             strExistingPath = dictCaseInsensitivePath.get(strCaseInsensitivePath)
             if strExistingPath is not None:

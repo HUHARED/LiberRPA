@@ -6,6 +6,9 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
 from liberrpa.ComponentManagement.Common._Hash import calculate_record_hash
+from liberrpa.ComponentManagement.Common._Validation import (
+    get_windows_file_or_folder_name_error,
+)
 
 from collections.abc import Callable
 from csv import reader
@@ -33,6 +36,16 @@ def validate_archive_path(archivePath: str) -> None:
 
     if any(strPathPart in {"", ".", ".."} for strPathPart in listPathPart):
         raise ValueError(f"Wheel contains an unsafe path: {archivePath!r}.")
+
+    for strPathPart in listPathPart:
+        strPathPartError = get_windows_file_or_folder_name_error(
+            strPathPart,
+            "Wheel path entry name",
+        )
+        if strPathPartError is not None:
+            raise ValueError(
+                f"{strPathPartError} Path: {archivePath!r}; entry name: {strPathPart!r}."
+            )
 
 
 def validate_record(
