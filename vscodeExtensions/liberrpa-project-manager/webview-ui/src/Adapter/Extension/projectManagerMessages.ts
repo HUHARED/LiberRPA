@@ -86,6 +86,7 @@ export interface DictManageComponentsInitialData {
 
 export type DictMessage_WebviewToExtension =
   | { command: "ready" }
+  | { command: "showLogs" }
   | { command: "selectTargetFolder" }
   | { command: "confirmCreateProject"; input: DictCreateProjectInput }
   | { command: "selectPackageOutputFolder"; input: DictPackageProjectInput }
@@ -502,6 +503,7 @@ export function isMessage_WebviewToExtension(
 
   switch (value["command"]) {
     case "ready":
+    case "showLogs":
     case "selectTargetFolder":
     case "openPackageProjectManifest":
     case "revealProjectPackage":

@@ -2,13 +2,20 @@
 
 import * as vscode from "vscode";
 
-import { log } from "../../Adapter/VsCode/output";
+import {
+  log,
+  showErrorMessageWithLogs,
+  showWarningMessageWithLogs,
+} from "../../Adapter/VsCode/output";
 import { getErrorMessage } from "../../Common/utils";
 import {
   ComponentManagementOperationError,
   rebuildRepositoryIndex as runRebuildRepositoryIndex,
 } from "../../Adapter/Python/componentManagementClient";
-import { logComponentManagementWarnings } from "../componentManagementOutput";
+import {
+  logComponentManagementOperationError,
+  logComponentManagementWarnings,
+} from "../componentManagementOutput";
 
 let boolRebuildBusy = false;
 
@@ -40,7 +47,7 @@ export async function rebuildComponentRepositoryIndex(): Promise<void> {
         log.info(strSummary);
 
         if (operationResult.warnings.length > 0) {
-          void vscode.window.showWarningMessage(
+          void showWarningMessageWithLogs(
             `${strSummary} See the Output panel for details.`,
           );
         } else {
@@ -52,10 +59,11 @@ export async function rebuildComponentRepositoryIndex(): Promise<void> {
     const strMessage =
       e instanceof ComponentManagementOperationError ? e.message : getErrorMessage(e);
     if (e instanceof ComponentManagementOperationError) {
-      log.debug(JSON.stringify(e.details, null, 2));
+      logComponentManagementOperationError(e);
+    } else {
+      log.error(`Rebuild Component Repository Index failed: ${strMessage}`);
     }
-    log.error(`Rebuild Component Repository Index failed: ${strMessage}`);
-    void vscode.window.showErrorMessage(
+    void showErrorMessageWithLogs(
       `Rebuild Component Repository Index failed: ${strMessage}`,
     );
   } finally {

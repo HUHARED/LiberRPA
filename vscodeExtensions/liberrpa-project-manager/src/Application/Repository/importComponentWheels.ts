@@ -3,22 +3,25 @@
 import * as vscode from "vscode";
 
 import {
+  log,
+  showErrorMessageWithLogs,
+  showWarningMessageWithLogs,
+} from "../../Adapter/VsCode/output";
+import {
   type Info_ComponentManagement_OperationResult,
   ComponentManagementOperationError,
   importComponentWheels as runImportComponentWheels,
 } from "../../Adapter/Python/componentManagementClient";
-import { log } from "../../Adapter/VsCode/output";
 import { getErrorMessage } from "../../Common/utils";
-import type {
-  DictProtocolResult_ComponentWheelsImported,
-} from "../../Domain/ComponentManagement/componentManagementTypes";
-import { logComponentManagementWarnings } from "../componentManagementOutput";
+import type { DictProtocolResult_ComponentWheelsImported } from "../../Domain/ComponentManagement/componentManagementTypes";
+import {
+  logComponentManagementOperationError,
+  logComponentManagementWarnings,
+} from "../componentManagementOutput";
 
 let boolImportBusy = false;
 
-export async function selectComponentWheelFilePaths(): Promise<
-  string[] | undefined
-> {
+export async function selectComponentWheelFilePaths(): Promise<string[] | undefined> {
   const arrWheelUri = await vscode.window.showOpenDialog({
     title: "Import Component Wheels into ComponentRepository",
     openLabel: "Import Component Wheels",
@@ -54,9 +57,7 @@ export async function importComponentWheelFiles(
 }
 
 function getImportSummary(
-  operationResult: Info_ComponentManagement_OperationResult<
-    DictProtocolResult_ComponentWheelsImported
-  >,
+  operationResult: Info_ComponentManagement_OperationResult<DictProtocolResult_ComponentWheelsImported>,
 ): string {
   return (
     "Component Wheel import completed. " +
@@ -94,7 +95,7 @@ export async function selectAndImportComponentWheels(): Promise<void> {
         log.info(strSummary);
 
         if (operationResult.warnings.length > 0) {
-          void vscode.window.showWarningMessage(
+          void showWarningMessageWithLogs(
             `${strSummary} See the Output panel for details.`,
           );
         } else {
@@ -105,12 +106,11 @@ export async function selectAndImportComponentWheels(): Promise<void> {
   } catch (e: unknown) {
     const strMessage = getErrorMessage(e);
     if (e instanceof ComponentManagementOperationError) {
-      log.debug(JSON.stringify(e.details, null, 2));
+      logComponentManagementOperationError(e);
+    } else {
+      log.error(`Import Component Wheels failed: ${strMessage}`);
     }
-    log.error(`Import Component Wheels failed: ${strMessage}`);
-    void vscode.window.showErrorMessage(
-      `Import Component Wheels failed: ${strMessage}`,
-    );
+    void showErrorMessageWithLogs(`Import Component Wheels failed: ${strMessage}`);
   } finally {
     boolImportBusy = false;
   }

@@ -2,17 +2,27 @@
 <template>
   <v-alert
     v-if="projectManagerStore.showAlert"
-    :text="projectManagerStore.alertMessage"
     :type="projectManagerStore.alertType"
     variant="flat"
     closable
     @click:close="clearAlert">
+    <div class="d-flex align-center ga-2">
+      <span class="flex-grow-1">{{ projectManagerStore.alertMessage }}</span>
+      <v-btn
+        v-if="projectManagerStore.alertType === 'error'"
+        variant="text"
+        size="small"
+        @click.stop="showLogs">
+        Show Logs
+      </v-btn>
+    </div>
   </v-alert>
 </template>
 
 <script setup lang="ts">
 import { onUnmounted, watch } from "vue";
 
+import { postMessage } from "../Adapter/Extension/vscodeApi";
 import { useProjectManagerStore } from "../Application/projectManagerStore";
 
 const projectManagerStore = useProjectManagerStore();
@@ -22,15 +32,23 @@ function clearAlert(): void {
   projectManagerStore.clearAlert();
 }
 
+function showLogs(): void {
+  postMessage({ command: "showLogs" });
+}
+
 watch(
-  [() => projectManagerStore.showAlert, () => projectManagerStore.alertMessage],
-  ([boolShowAlert]) => {
+  [
+    () => projectManagerStore.showAlert,
+    () => projectManagerStore.alertMessage,
+    () => projectManagerStore.alertType,
+  ],
+  ([boolShowAlert, , alertType]) => {
     if (timeoutId !== undefined) {
       clearTimeout(timeoutId);
       timeoutId = undefined;
     }
 
-    if (boolShowAlert) {
+    if (boolShowAlert && alertType !== "error") {
       timeoutId = setTimeout(() => {
         clearAlert();
         timeoutId = undefined;

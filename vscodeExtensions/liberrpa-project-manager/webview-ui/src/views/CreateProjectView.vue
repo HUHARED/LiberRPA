@@ -183,7 +183,7 @@ const displayNameError = computed(() =>
 
 const canConfirm = computed(
   () =>
-    projectManagerStore.loaded &&
+    projectManagerStore.loadState === "ready" &&
     !projectManagerStore.busy &&
     createProjectStore.templateName.length > 0 &&
     targetFolderError.value === undefined &&

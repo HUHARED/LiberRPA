@@ -3,7 +3,7 @@
 import * as vscode from "vscode";
 import * as fs from "node:fs";
 
-import { log } from "./output";
+import { log, showErrorMessageWithLogs } from "./output";
 import { getErrorMessage } from "../../Common/utils";
 import {
   type ProjectManagerOperation,
@@ -66,10 +66,11 @@ export class ProjectManagerPanel implements ProjectManagerSessionHost {
           try {
             await this.session.sendError(e);
           } catch (sendError: unknown) {
-            log.error(
+            const strMessage =
               "Failed to send error to Project Manager Webview: " +
-                getErrorMessage(sendError),
-            );
+              getErrorMessage(sendError);
+            log.error(strMessage);
+            void showErrorMessageWithLogs(strMessage);
           }
         });
       },
@@ -167,13 +168,16 @@ export class ProjectManagerPanel implements ProjectManagerSessionHost {
         try {
           await currentPanel.session.sendError(e);
         } catch (sendError: unknown) {
-          log.error("Failed to send Project Manager error: " + getErrorMessage(sendError));
+          const strMessage =
+            "Failed to send Project Manager error: " + getErrorMessage(sendError);
+          log.error(strMessage);
+          void showErrorMessageWithLogs(strMessage);
         }
       });
     } catch (e: unknown) {
       const strMessage = `Failed to open Project Manager: ${getErrorMessage(e)}`;
       log.error(strMessage);
-      void vscode.window.showErrorMessage(strMessage);
+      void showErrorMessageWithLogs(strMessage);
     }
   }
 }

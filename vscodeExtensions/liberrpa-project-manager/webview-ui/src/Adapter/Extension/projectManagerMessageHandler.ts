@@ -76,14 +76,11 @@ function applyMessage(message: DictMessage_ExtensionToWebview): void {
       if (message.code === "dependency_plan_changed") {
         componentManagementStore.clearDependencyPlan();
       }
-      if (Object.keys(message.details).length > 0) {
-        console.error("Component Management error details:", message.details);
-      }
-      projectManagerStore.showMessage("error", message.message);
+      projectManagerStore.showError(message.message);
       return;
 
     case "error":
-      projectManagerStore.showMessage("error", message.message);
+      projectManagerStore.showError(message.message);
       return;
 
     case "themeChanged":

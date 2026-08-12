@@ -236,11 +236,12 @@ export async function runComponentManagement(
     pythonProcess.once(
       "close",
       (exitCode: number | null, signal: NodeJS.Signals | null) => {
-        if (strStderr.trim().length > 0) {
-          log.debug(`Component Management stderr:\n${strStderr.trimEnd()}`);
-        }
+        const strStderrOutput = strStderr.trimEnd();
 
         if (processError !== undefined) {
+          if (strStderrOutput.length > 0) {
+            log.error(`Component Management stderr:\n${strStderrOutput}`);
+          }
           reject(
             new Error(`Failed to start Component Management: ${processError.message}`, {
               cause: processError,
@@ -250,15 +251,22 @@ export async function runComponentManagement(
         }
 
         if (exitCode !== 0) {
+          if (strStderrOutput.length > 0) {
+            log.error(`Component Management stderr:\n${strStderrOutput}`);
+          }
           const strExitInfo =
             signal === null ? `exit code ${String(exitCode)}` : `signal ${signal}`;
           reject(
             new Error(
               `Component Management exited unexpectedly with ${strExitInfo}.` +
-                (strStderr.trim().length > 0 ? `\n${strStderr.trim()}` : ""),
+                (strStderrOutput.length > 0 ? `\n${strStderrOutput.trim()}` : ""),
             ),
           );
           return;
+        }
+
+        if (strStderrOutput.length > 0) {
+          log.warn(`Component Management stderr:\n${strStderrOutput}`);
         }
 
         const strProtocolOutput = strStdout.trim();

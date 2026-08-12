@@ -7,22 +7,31 @@
       <v-container class="pa-4 pa-sm-6" style="min-height: 100vh">
         <CreateProjectView
           v-if="
-            projectManagerStore.loaded && projectManagerStore.operation === 'createProject'
+            projectManagerStore.loadState === 'ready' &&
+            projectManagerStore.operation === 'createProject'
           " />
         <PackageProjectView
           v-else-if="
-            projectManagerStore.loaded && projectManagerStore.operation === 'packageProject'
+            projectManagerStore.loadState === 'ready' &&
+            projectManagerStore.operation === 'packageProject'
           " />
         <PublishComponentView
           v-else-if="
-            projectManagerStore.loaded &&
+            projectManagerStore.loadState === 'ready' &&
             projectManagerStore.operation === 'publishComponent'
           " />
         <ManageComponentsView
           v-else-if="
-            projectManagerStore.loaded &&
+            projectManagerStore.loadState === 'ready' &&
             projectManagerStore.operation === 'manageComponents'
           " />
+        <div
+          v-else-if="projectManagerStore.loadState === 'failed'"
+          class="fill-height d-flex flex-column align-center justify-center ga-4 text-center">
+          <v-icon icon="mdi-alert-circle-outline" size="48"></v-icon>
+          <div>Project Manager could not be loaded.</div>
+          <v-btn variant="outlined" @click="showLogs">Show Logs</v-btn>
+        </div>
         <div v-else class="fill-height d-flex align-center justify-center">
           <v-progress-circular indeterminate></v-progress-circular>
         </div>
@@ -44,6 +53,10 @@ import PackageProjectView from "./views/PackageProjectView.vue";
 import PublishComponentView from "./views/PublishComponentView.vue";
 
 const projectManagerStore = useProjectManagerStore();
+
+function showLogs(): void {
+  postMessage({ command: "showLogs" });
+}
 
 onBeforeMount(() => {
   window.addEventListener("message", handleExtensionMessage);

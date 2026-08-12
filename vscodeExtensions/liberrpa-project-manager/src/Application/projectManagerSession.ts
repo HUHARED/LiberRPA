@@ -2,7 +2,12 @@
 
 import * as vscode from "vscode";
 
-import { log } from "../Adapter/VsCode/output";
+import {
+  log,
+  showLogs,
+  showErrorMessageWithLogs,
+  showWarningMessageWithLogs,
+} from "../Adapter/VsCode/output";
 import { getErrorMessage } from "../Common/utils";
 import { ComponentManagementOperationError } from "../Adapter/Python/componentManagementClient";
 import type {
@@ -25,6 +30,7 @@ import type {
   DictProjectPackageResult,
 } from "../Domain/Project/projectTypes";
 import {
+  logComponentManagementOperationError,
   logComponentManagementWarnings,
   getComponentManagementWarningMessages,
 } from "./componentManagementOutput";
@@ -534,7 +540,7 @@ export class ProjectManagerSession {
     await this.runBusyOperation(async () => {
       const result = await createProject(input);
       if (result.warnings.length > 0) {
-        void vscode.window.showWarningMessage(result.warnings.join("\n"));
+        void showWarningMessageWithLogs(result.warnings.join("\n"));
       }
 
       try {
@@ -546,7 +552,7 @@ export class ProjectManagerSession {
       } catch (e: unknown) {
         const strMessage = getErrorMessage(e);
         log.error(`Project was created, but failed to open it: ${strMessage}`);
-        void vscode.window.showErrorMessage(
+        void showErrorMessageWithLogs(
           "The Project was created successfully, but VS Code failed to open it: " +
             strMessage,
         );
@@ -557,6 +563,11 @@ export class ProjectManagerSession {
   }
 
   public async handleMessage(message: DictMessage_WebviewToExtension): Promise<void> {
+    if (message.command === "showLogs") {
+      showLogs();
+      return;
+    }
+
     if (this.busy && message.command !== "ready") {
       log.debug(`Ignored Project Manager Webview message while busy: ${message.command}`);
       return;
@@ -694,10 +705,7 @@ export class ProjectManagerSession {
 
   public async sendError(error: unknown): Promise<void> {
     if (error instanceof ComponentManagementOperationError) {
-      log.error(`${error.operationName} failed [${error.code}]: ${error.message}`);
-      if (Object.keys(error.details).length > 0) {
-        log.debug(`Error details: ${JSON.stringify(error.details)}`);
-      }
+      logComponentManagementOperationError(error);
 
       await this.host.postMessage({
         command: "componentManagementError",
