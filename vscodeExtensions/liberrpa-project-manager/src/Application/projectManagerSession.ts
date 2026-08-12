@@ -370,8 +370,13 @@ export class ProjectManagerSession {
       logComponentManagementWarnings(operationResult.warnings);
       this.publishResult = operationResult.result;
 
-      if (operationResult.result.status !== "preparationCreated") {
+      if (operationResult.result.status === "published") {
         log.info(`Published Component Wheel: ${operationResult.result.wheelFileName}`);
+        log.info(`Component Wheel SHA-256: ${operationResult.result.sha256}`);
+      } else if (operationResult.result.status === "alreadyPublished") {
+        log.info(
+          `Component Wheel is already published: ${operationResult.result.wheelFileName}`,
+        );
         log.info(`Component Wheel SHA-256: ${operationResult.result.sha256}`);
       }
 

@@ -8,6 +8,22 @@ function getFormattedDetails(details: Record<string, unknown>): string {
   return JSON.stringify(details, null, 2);
 }
 
+function getComponentManagementWarningMessage(
+  warning: DictComponentManagementWarning,
+): string {
+  if ("file" in warning) {
+    const strFunctionContext =
+      warning.functionName === undefined ? "" : `, function ${warning.functionName}`;
+    return `${warning.message} [${warning.file}:${String(warning.line)}${strFunctionContext}]`;
+  }
+
+  if ("snippetKey" in warning) {
+    return `${warning.message} [Snippet: ${warning.snippetKey}]`;
+  }
+
+  return warning.message;
+}
+
 export function logComponentManagementOperationError(
   error: ComponentManagementOperationError,
 ): void {
@@ -21,7 +37,7 @@ export function logComponentManagementWarnings(
   warnings: DictComponentManagementWarning[],
 ): void {
   for (const warning of warnings) {
-    log.warn(`[${warning.code}] ${warning.message}`);
+    log.warn(`[${warning.code}] ${getComponentManagementWarningMessage(warning)}`);
     if ("details" in warning && warning.details !== undefined) {
       log.warn(`Warning details:\n${getFormattedDetails(warning.details)}`);
     }
@@ -31,5 +47,5 @@ export function logComponentManagementWarnings(
 export function getComponentManagementWarningMessages(
   warnings: DictComponentManagementWarning[],
 ): string[] {
-  return warnings.map((warning) => warning.message);
+  return warnings.map(getComponentManagementWarningMessage);
 }

@@ -219,6 +219,7 @@ export async function runComponentManagement(
     let strStdout = "";
     let strStderr = "";
     let processError: Error | undefined;
+    let requestWriteError: Error | undefined;
 
     pythonProcess.stdout.setEncoding("utf-8");
     pythonProcess.stderr.setEncoding("utf-8");
@@ -265,42 +266,61 @@ export async function runComponentManagement(
           return;
         }
 
-        if (strStderrOutput.length > 0) {
-          log.warn(`Component Management stderr:\n${strStderrOutput}`);
+        if (requestWriteError !== undefined) {
+          if (strStderrOutput.length > 0) {
+            log.error(`Component Management stderr:\n${strStderrOutput}`);
+          }
+          reject(
+            new Error(
+              `Failed to send the request to Component Management: ${requestWriteError.message}`,
+              { cause: requestWriteError },
+            ),
+          );
+          return;
         }
 
         const strProtocolOutput = strStdout.trim();
         if (strProtocolOutput.length === 0) {
+          if (strStderrOutput.length > 0) {
+            log.error(`Component Management stderr:\n${strStderrOutput}`);
+          }
           reject(new Error("Component Management returned no protocol response."));
           return;
         }
 
+        let response: DictProtocolResponse_Raw;
         try {
-          resolve(parseComponentManagementResponse(strProtocolOutput));
+          response = parseComponentManagementResponse(strProtocolOutput);
         } catch (e: unknown) {
+          if (strStderrOutput.length > 0) {
+            log.error(`Component Management stderr:\n${strStderrOutput}`);
+          }
           reject(e instanceof Error ? e : new Error(String(e)));
+          return;
         }
+
+        if (strStderrOutput.length > 0) {
+          const strMessage = `Component Management stderr:\n${strStderrOutput}`;
+          if (response.ok) {
+            log.warn(strMessage);
+          } else {
+            log.error(strMessage);
+          }
+        }
+
+        resolve(response);
       },
     );
 
     pythonProcess.stdin.once("error", (error: Error) => {
-      pythonProcess.kill();
-      reject(
-        new Error("Failed to send the request to Component Management.", {
-          cause: error,
-        }),
-      );
+      requestWriteError = error;
     });
 
     try {
       pythonProcess.stdin.end(JSON.stringify(requestInfo));
     } catch (e: unknown) {
+      requestWriteError = e instanceof Error ? e : new Error(String(e));
       pythonProcess.kill();
-      reject(
-        new Error("Failed to send the request to Component Management.", {
-          cause: e,
-        }),
-      );
     }
   });
 }
