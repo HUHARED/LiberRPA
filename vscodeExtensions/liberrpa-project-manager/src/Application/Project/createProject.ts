@@ -8,6 +8,10 @@ import { randomUUID } from "node:crypto";
 
 import { log } from "../../Adapter/VsCode/output";
 import {
+  ComponentManagementOperationError,
+  getProjectDependencyState,
+} from "../../Adapter/Python/componentManagementClient";
+import {
   readFlowManifest,
   readComponentManifest,
   writeFlowManifest,
@@ -25,6 +29,10 @@ import {
   getDisplayNameError,
 } from "../../Domain/Project/projectValidation";
 import { getErrorMessage } from "../../Common/utils";
+import {
+  logComponentManagementWarnings,
+  getComponentManagementWarningMessages,
+} from "../componentManagementOutput";
 
 export interface Info_CreateProjectResult {
   projectPath: string;
@@ -228,6 +236,39 @@ function initializeComponentProject(
   });
 }
 
+async function validateAndNormalizeProjectManifest(
+  projectPath: string,
+  projectType: Str_ProjectType,
+): Promise<string[]> {
+  const operationResult = await getProjectDependencyState(projectPath);
+  logComponentManagementWarnings(operationResult.warnings);
+
+  const projectState = operationResult.result;
+  if (projectState.projectType !== projectType) {
+    throw new Error(
+      `Python identified the new Project as "${projectState.projectType}" instead of ` +
+        `"${projectType}".`,
+    );
+  }
+
+  const dictManifest = projectState.manifest;
+  if (projectType === "flow") {
+    if (!("name" in dictManifest)) {
+      throw new Error("Component Management returned an invalid Flow Project manifest.");
+    }
+    writeFlowManifest(path.join(projectPath, "flow.json"), dictManifest);
+  } else {
+    if (!("id" in dictManifest)) {
+      throw new Error(
+        "Component Management returned an invalid Component Project manifest.",
+      );
+    }
+    writeComponentManifest(path.join(projectPath, "component.json"), dictManifest);
+  }
+
+  return getComponentManagementWarningMessages(operationResult.warnings);
+}
+
 function initializeGit(projectPath: string): string | undefined {
   try {
     execFileSync("git", ["init"], {
@@ -295,6 +336,10 @@ export async function createProject(
       initializeComponentProject(strTempProjectPath, input);
     }
 
+    arrWarning.push(
+      ...(await validateAndNormalizeProjectManifest(strTempProjectPath, input.projectType)),
+    );
+
     if (fs.existsSync(path.join(strTempProjectPath, ".gitignore"))) {
       const strWarning = initializeGit(strTempProjectPath);
       if (strWarning !== undefined) {
@@ -309,6 +354,10 @@ export async function createProject(
     fs.renameSync(strTempProjectPath, strProjectPath);
     boolCommitted = true;
   } catch (e: unknown) {
+    if (e instanceof ComponentManagementOperationError) {
+      throw e;
+    }
+
     throw new Error(`Failed to create Project: ${getErrorMessage(e)}`, {
       cause: e,
     });

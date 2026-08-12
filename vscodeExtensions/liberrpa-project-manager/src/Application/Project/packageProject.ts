@@ -23,7 +23,6 @@ import {
   shouldExcludeProjectFolder,
   shouldExcludeProjectFile,
 } from "../../Domain/Project/projectPackage";
-import { readFlowManifest } from "../../Domain/Project/projectManifest";
 import type {
   DictProjectManifest_Flow,
   DictPackageProjectInput,
@@ -210,8 +209,15 @@ export async function loadPackageProjectData(
   await ensureFlowProject(workspaceFolder);
 
   const projectPath = workspaceFolder.uri.fsPath;
-  const manifest = readFlowManifest(path.join(projectPath, "flow.json"));
   const operationResult = await getProjectDependencyState(projectPath);
+  const projectDependencyState = operationResult.result;
+  if (
+    projectDependencyState.projectType !== "flow" ||
+    !("name" in projectDependencyState.manifest)
+  ) {
+    throw new Error("Component Management returned an invalid Flow Project manifest.");
+  }
+  const manifest = projectDependencyState.manifest;
   const packageFileName =
     getProjectPackageFileNameError(manifest) === undefined
       ? getProjectPackageFileName(manifest)
@@ -222,14 +228,14 @@ export async function loadPackageProjectData(
   return {
     projectPath,
     manifest,
-    projectDependencyState: operationResult.result,
+    projectDependencyState,
     input,
     packageFileName,
     packageFileExists: packageFilePath === null ? false : await pathExists(packageFilePath),
     blockingReasons: await getPackageBlockingReasons(
       projectPath,
       manifest,
-      operationResult.result,
+      projectDependencyState,
       input,
     ),
     warnings: operationResult.warnings,
@@ -433,7 +439,7 @@ export async function packageFlowProject(
 
   const arrEntry = await collectProjectPackageEntries(data.projectPath, input);
 
-  // Keep the temporary name independent of the final name so the UUID suffix cannot make an otherwise valid Windows filename exceed the filename limit.
+  // Keep the temporary name independent of the final name so the UUID suffix cannot make an otherwise valid Windows filename exceed the entry name.
   const tempPackageFilePath = path.join(
     input.outputFolderPath,
     `.liberrpa-package-${randomUUID()}.tmp`,
