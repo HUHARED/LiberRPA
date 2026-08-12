@@ -113,6 +113,36 @@ def _resolve_source_wheel_paths(
     return listResolvedWheelFilePath
 
 
+def _inspect_import_wheel(
+    sourceWheelFilePath: Path,
+    stagedWheelFilePath: Path,
+) -> Info_ComponentWheel:
+    try:
+        return inspect_component_wheel(stagedWheelFilePath)
+    except ComponentManagementError as e:
+        strSourceWheelFilePath = str(sourceWheelFilePath)
+        strStagedWheelFilePath = str(stagedWheelFilePath)
+        dictDetails = dict(e.details or {})
+
+        for strKey, detailValue in dictDetails.items():
+            if detailValue == strStagedWheelFilePath:
+                dictDetails[strKey] = strSourceWheelFilePath
+
+        dictDetails["sourceWheelFilePath"] = strSourceWheelFilePath
+        strMessage = e.message.replace(
+            strStagedWheelFilePath,
+            strSourceWheelFilePath,
+        )
+        if strMessage.startswith("Built Component Wheel is invalid:"):
+            strMessage = f"Component Wheel is invalid: {strSourceWheelFilePath}"
+
+        raise ComponentManagementError(
+            code=e.code,
+            message=strMessage,
+            details=dictDetails,
+        ) from e
+
+
 def _validate_existing_version(
     repositoryPath: Path,
     componentId: str,
@@ -272,7 +302,10 @@ def import_component_wheels(
                     pathArtifactWheelFile,
                 )
 
-                wheelInfoObj = inspect_component_wheel(pathArtifactWheelFile)
+                wheelInfoObj = _inspect_import_wheel(
+                    sourceWheelFilePath=pathSourceWheelFile,
+                    stagedWheelFilePath=pathArtifactWheelFile,
+                )
                 if wheelInfoObj.sha256 != strCopiedSha256:
                     raise ComponentManagementError(
                         code="wheel_sha256_mismatch",
