@@ -32,6 +32,33 @@ import liberrpa.FlowControl.End as End
 import importlib
 import json
 from pathlib import Path
+import sys
+
+
+def _configure_project_import_paths() -> None:
+    listProjectImportPath = [
+        str(PATH_PROJECT_ROOT),
+        str(PATH_PROJECT_ROOT / "_Components"),
+    ]
+    listMissingImportPath = [
+        strImportPath
+        for strImportPath in listProjectImportPath
+        if strImportPath not in sys.path
+    ]
+
+    for strImportPath in listProjectImportPath:
+        while strImportPath in sys.path:
+            sys.path.remove(strImportPath)
+
+    sys.path[:0] = listProjectImportPath
+
+    if listMissingImportPath:
+        Log.debug(
+            "Added missing Project import path(s): " + ", ".join(listMissingImportPath)
+        )
+
+
+_configure_project_import_paths()
 
 if __name__ == "__main__" and PROCESS_NAME == "MainProcess" and boolRunByExecutor:
     _register_executor_exit_listener()
@@ -55,7 +82,9 @@ def _get_module_name(pyFile: str) -> str:
     pathPyFile = Path(pyFile)
 
     if pathPyFile.is_absolute() or pathPyFile.anchor:
-        raise ValueError(f"The Block Python file path must be relative to the project folder: {pyFile}")
+        raise ValueError(
+            f"The Block Python file path must be relative to the project folder: {pyFile}"
+        )
 
     if pathPyFile.suffix.lower() != ".py":
         raise ValueError(f"The Block Python file path must end with '.py': {pyFile}")
@@ -65,7 +94,9 @@ def _get_module_name(pyFile: str) -> str:
     try:
         pathRelative = pathResolved.relative_to(PATH_PROJECT_ROOT)
     except ValueError:
-        raise ValueError(f"The Block Python file path must stay within the project folder: {pyFile}")
+        raise ValueError(
+            f"The Block Python file path must stay within the project folder: {pyFile}"
+        )
 
     if not pathResolved.is_file():
         raise FileNotFoundError(f"Block Python file does not exist: {pathResolved}")
@@ -73,7 +104,9 @@ def _get_module_name(pyFile: str) -> str:
     moduleParts = pathRelative.with_suffix("").parts
 
     if not moduleParts or any(not part.isidentifier() for part in moduleParts):
-        raise ValueError(f"The Block Python file path contains an invalid Python module name: {pyFile}")
+        raise ValueError(
+            f"The Block Python file path contains an invalid Python module name: {pyFile}"
+        )
 
     return ".".join(moduleParts)
 
@@ -103,9 +136,17 @@ def _run_by_direction(id: str) -> str | None:
             Log.info(f"Evaluate {dictConditionInfo[id]} -> {boolConditionCheck}")
 
             # Go to "True" or "False" direction(If it has).
-            if boolConditionCheck and dictChooseNext.get(id) and dictChooseNext[id].get("True"):
+            if (
+                boolConditionCheck
+                and dictChooseNext.get(id)
+                and dictChooseNext[id].get("True")
+            ):
                 return dictChooseNext[id]["True"]
-            elif not boolConditionCheck and dictChooseNext.get(id) and dictChooseNext[id].get("False"):
+            elif (
+                not boolConditionCheck
+                and dictChooseNext.get(id)
+                and dictChooseNext[id].get("False")
+            ):
                 return dictChooseNext[id]["False"]
             else:
                 # The Choose node has no direction. return None to stop the loop.
@@ -157,8 +198,12 @@ def _run_substart(id: str) -> None:
 
 def main() -> None:
     # Print basic information.
-    show_notification(title="LiberRPA", message=f"'{PrjArgs.projectName}' begins.", duration=1)
-    Log.info(f"'{PrjArgs.projectName}' begins. Current Working Directory: {PrjArgs.projectPath}")
+    show_notification(
+        title="LiberRPA", message=f"'{PrjArgs.projectName}' begins.", duration=1
+    )
+    Log.info(
+        f"'{PrjArgs.projectName}' begins. Current Working Directory: {PrjArgs.projectPath}"
+    )
 
     # Config running setting.
     # Log.set_level(level=dictFlowFile["logLevel"])
@@ -168,9 +213,15 @@ def main() -> None:
         _start_video_record()
 
     # Print running information.
-    Log.debug(f"Custom Project Arguments: {json.dumps(PrjArgs.customArgs, ensure_ascii=False, indent=4)}")
-    Log.verbose(f"dictNonChooseNext: {json.dumps(dictNonChooseNext, ensure_ascii=False, indent=4)}")
-    Log.verbose(f"dictChooseNext: {json.dumps(dictChooseNext, ensure_ascii=False, indent=4)}")
+    Log.debug(
+        f"Custom Project Arguments: {json.dumps(PrjArgs.customArgs, ensure_ascii=False, indent=4)}"
+    )
+    Log.verbose(
+        f"dictNonChooseNext: {json.dumps(dictNonChooseNext, ensure_ascii=False, indent=4)}"
+    )
+    Log.verbose(
+        f"dictChooseNext: {json.dumps(dictChooseNext, ensure_ascii=False, indent=4)}"
+    )
     Log.verbose(f"dictPyInfo: {json.dumps(dictPyInfo, ensure_ascii=False, indent=4)}")
 
     # Run "SubStart" in other processes.
@@ -183,7 +234,9 @@ def main() -> None:
         if dictNodeType[strNodeId] == "SubStart":
             import liberrpa.Common._Initialization as _Initialization  # noqa: F401  # Import for initialization side effects.
 
-            strProcessName = sanitize_filename(f"SubProcess_{str(intSubStartIndex)}_{dictNodeText[strNodeId]}")
+            strProcessName = sanitize_filename(
+                f"SubProcess_{str(intSubStartIndex)}_{dictNodeText[strNodeId]}"
+            )
 
             subProcessTemp = multiprocessing.Process(
                 target=_run_substart,

@@ -30,26 +30,26 @@ interface ExecutorRunState {
 const dictProcessCache: { [key: string]: ChildProcessWithoutNullStreams } = {};
 const strRunFilePath = path.join(
   strPyEnvPath,
-  "Lib/site-packages/liberrpa/FlowControl/Run.py"
+  "Lib/site-packages/liberrpa/FlowControl/Run.py",
 );
 const strExecutorRunStateFolderPath = path.join(
   strDocumentsFolderPath,
-  "LiberRPA/ExecutorRunState"
+  "LiberRPA/ExecutorRunState",
 );
 
 export async function pythonRun(
   dictDetail: DictColumns_Project_Detail_Run,
-  webContentsObj: Electron.WebContents
+  webContentsObj: Electron.WebContents,
 ): Promise<void> {
   // NOTE: Only "local" source now.
   const strExecutorPackagePath = path.join(
     strExecutorPackageFolderPath,
-    `${dictDetail.name}_${dictDetail.version}`
+    `${dictDetail.name}_${dictDetail.version}`,
   );
 
   if (!fs.existsSync(strExecutorPackagePath)) {
     throw new Error(
-      `${dictDetail.name}-${dictDetail.version} does not exist in ${strExecutorPackageFolderPath}.`
+      `${dictDetail.name}-${dictDetail.version} does not exist in ${strExecutorPackageFolderPath}.`,
     );
   }
 
@@ -93,12 +93,16 @@ export async function pythonRun(
         ]
           .filter(Boolean)
           .join(path.delimiter),
-        PYTHONPATH: [strExecutorPackagePath, process.env.PYTHONPATH ?? ""]
+        PYTHONPATH: [
+          strExecutorPackagePath,
+          path.join(strExecutorPackagePath, "_Components"),
+          process.env.PYTHONPATH ?? "",
+        ]
           .filter(Boolean)
           .join(path.delimiter),
       },
       stdio: ["pipe", "pipe", "pipe"],
-    }
+    },
   );
 
   const dictRunState = await waitForExecutorRunStateAvailable({
@@ -134,7 +138,7 @@ export async function pythonRun(
         // Is the Python program is running.
         if (processPy.exitCode === null && processPy.signalCode === null) {
           loggerMain.info(
-            `Timeout reached. Stopping ${dictDetail.name}-${dictDetail.version}`
+            `Timeout reached. Stopping ${dictDetail.name}-${dictDetail.version}`,
           );
           try {
             processPy.stdin.write("Executor-terminated\n");
@@ -145,7 +149,7 @@ export async function pythonRun(
           }
         }
       },
-      dictDetail.timeout_min * 60 * 1000
+      dictDetail.timeout_min * 60 * 1000,
     );
   }
 
@@ -188,7 +192,7 @@ export async function pythonRun(
 
         case "running":
           loggerMain.error(
-            `Python exited before publishing a final Executor run state: ${strRunId}`
+            `Python exited before publishing a final Executor run state: ${strRunId}`,
           );
           strHistoryStatus = "error";
           break;
@@ -296,7 +300,7 @@ async function waitForExecutorRunStateAvailable({
 
     if (processPy.exitCode !== null || processPy.signalCode !== null) {
       throw new Error(
-        `Python exited before publishing the initial Executor run state: ${expectedRunId}`
+        `Python exited before publishing the initial Executor run state: ${expectedRunId}`,
       );
     }
 
@@ -309,7 +313,7 @@ async function waitForExecutorRunStateAvailable({
 
 export function pythonCancel(
   historyId: number,
-  webContentsObj: Electron.WebContents
+  webContentsObj: Electron.WebContents,
 ): void {
   const processPy = dictProcessCache[String(historyId)];
   if (processPy) {
