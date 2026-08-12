@@ -66,7 +66,8 @@ def serialize_json(value: object, *, compact: bool = False) -> str:
 
 def write_text_atomic(filePath: Path, text: str) -> None:
     filePath.parent.mkdir(parents=True, exist_ok=True)
-    pathTempFile = filePath.parent / f".{filePath.name}.{uuid.uuid4()}.tmp"
+    # Keep the temporary name independent of the final name so the UUID suffix cannot make an otherwise valid Windows filename exceed the filename limit.
+    pathTempFile = filePath.parent / f".liberrpa-write-{uuid.uuid4()}.tmp"
 
     try:
         with pathTempFile.open("x", encoding="utf-8", newline="\n") as fileObj:

@@ -360,9 +360,9 @@ def _scan_components_folder(componentsFolderPath: Path) -> tuple[set[str], set[s
             tupleEntryPart = (*tupleRelativePart, entryObj.name)
             strRelativePath = PurePosixPath(*tupleEntryPart).as_posix()
 
-            if entryObj.is_symlink():
+            if entryObj.is_symlink() or entryObj.is_junction():
                 raise ValueError(
-                    f"_Components cannot contain symbolic links: {strRelativePath!r}."
+                    f"_Components cannot contain symbolic links or junctions: {strRelativePath!r}."
                 )
 
             if entryObj.is_dir(follow_symlinks=False):
@@ -609,9 +609,10 @@ def build_components_folder(
         repositoryPath,
         lockDict,
     )
+
+    # Use a short fixed internal name for the staging folder.
     pathTempComponentsFolder = (
-        targetComponentsFolderPath.parent
-        / f".{targetComponentsFolderPath.name}.{uuid.uuid4()}.tmp"
+        targetComponentsFolderPath.parent / f".liberrpa-components-{uuid.uuid4()}.tmp"
     )
 
     try:
@@ -642,10 +643,9 @@ def build_components_folder(
             message=f"Failed to build _Components: {targetComponentsFolderPath}",
         ) from e
     finally:
-        if (
-            pathTempComponentsFolder.exists()
-            and not pathTempComponentsFolder.is_symlink()
-        ):
+        if pathTempComponentsFolder.is_symlink():
+            pathTempComponentsFolder.unlink(missing_ok=True)
+        elif pathTempComponentsFolder.is_junction() or pathTempComponentsFolder.is_dir():
             rmtree(pathTempComponentsFolder, ignore_errors=True)
 
     return Info_ProjectComponentsFolder(

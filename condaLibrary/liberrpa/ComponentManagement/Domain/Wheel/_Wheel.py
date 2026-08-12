@@ -203,7 +203,8 @@ def _write_wheel_file(
     archiveEntryDict: dict[str, bytes],
     recordPath: str,
 ) -> None:
-    pathTempWheelFile = wheelFilePath.parent / f".{wheelFilePath.name}.{uuid.uuid4()}.tmp"
+    # Keep the temporary name independent of the final name so the UUID suffix cannot make an otherwise valid Windows filename exceed the filename limit.
+    pathTempWheelFile = wheelFilePath.parent / f".liberrpa-wheel-{uuid.uuid4()}.tmp"
 
     try:
         with ZipFile(pathTempWheelFile, mode="x", compression=ZIP_STORED) as wheelObj:
