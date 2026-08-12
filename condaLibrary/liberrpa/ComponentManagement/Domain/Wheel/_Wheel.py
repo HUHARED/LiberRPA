@@ -96,58 +96,81 @@ def _get_package_archive_entries(
     dictEntry: dict[str, bytes] = {}
     dictCaseInsensitivePath: dict[str, str] = {}
 
-    for pathSourceEntry in sorted(
-        packageFolderPath.rglob("*"), key=lambda pathObj: pathObj.as_posix()
-    ):
-        pathRelativeSourceEntry = pathSourceEntry.relative_to(packageFolderPath)
-        if "__pycache__" in pathRelativeSourceEntry.parts:
-            continue
-        if pathSourceEntry.is_symlink():
-            raise ComponentManagementError(
-                code="unsupported_component_file",
-                message=f"Component package cannot contain symbolic links: {pathSourceEntry}",
-                details={"relativeFilePath": pathRelativeSourceEntry.as_posix()},
-            )
-        if pathSourceEntry.is_dir():
-            continue
-        if not pathSourceEntry.is_file():
-            raise ComponentManagementError(
-                code="unsupported_component_file",
-                message=f"Unsupported Component package entry: {pathSourceEntry}",
-                details={"relativeFilePath": pathRelativeSourceEntry.as_posix()},
-            )
-
-        strSuffix = pathSourceEntry.suffix.casefold()
-        if strSuffix in _SET_IGNORED_FILE_SUFFIX:
-            continue
-        if strSuffix in _SET_FORBIDDEN_FILE_SUFFIX:
-            raise ComponentManagementError(
-                code="unsupported_component_file",
-                message=f"Unsupported Component package file type: {pathSourceEntry}",
-                details={"relativeFilePath": pathRelativeSourceEntry.as_posix()},
-            )
-
-        strArchivePath = PurePosixPath(
-            packageName, *pathRelativeSourceEntry.parts
-        ).as_posix()
-        strCaseInsensitivePath = strArchivePath.casefold()
-        strExistingPath = dictCaseInsensitivePath.get(strCaseInsensitivePath)
-        if strExistingPath is not None:
-            raise ComponentManagementError(
-                code="component_source_invalid",
-                message="Component package contains paths that conflict on Windows.",
-                details={"paths": [strExistingPath, strArchivePath]},
-            )
-        dictCaseInsensitivePath[strCaseInsensitivePath] = strArchivePath
-
+    def scan_package_folder(folderPath: Path) -> None:
         try:
-            dictEntry[strArchivePath] = pathSourceEntry.read_bytes()
+            with os.scandir(folderPath) as folderIterator:
+                listSourceEntry = sorted(
+                    folderIterator, key=lambda entryObj: entryObj.name
+                )
         except OSError as e:
             raise ComponentManagementError(
                 code="io_error",
-                message=f"Failed to read Component package file: {pathSourceEntry}",
+                message=f"Failed to scan Component package folder: {folderPath}",
             ) from e
 
+        for entryObj in listSourceEntry:
+            pathSourceEntry = Path(entryObj.path)
+            pathRelativeSourceEntry = pathSourceEntry.relative_to(packageFolderPath)
+
+            try:
+                if entryObj.is_symlink() or entryObj.is_junction():
+                    raise ComponentManagementError(
+                        code="unsupported_component_file",
+                        message=(
+                            f"Component package cannot contain symbolic links or junctions: {pathSourceEntry}"
+                        ),
+                        details={"relativeFilePath": pathRelativeSourceEntry.as_posix()},
+                    )
+
+                if entryObj.is_dir(follow_symlinks=False):
+                    if entryObj.name != "__pycache__":
+                        scan_package_folder(pathSourceEntry)
+                    continue
+
+                if not entryObj.is_file(follow_symlinks=False):
+                    raise ComponentManagementError(
+                        code="unsupported_component_file",
+                        message=f"Unsupported Component package entry: {pathSourceEntry}",
+                        details={"relativeFilePath": pathRelativeSourceEntry.as_posix()},
+                    )
+            except OSError as e:
+                raise ComponentManagementError(
+                    code="io_error",
+                    message=f"Failed to inspect Component package entry: {pathSourceEntry}",
+                ) from e
+
+            strSuffix = pathSourceEntry.suffix.casefold()
+            if strSuffix in _SET_IGNORED_FILE_SUFFIX:
+                continue
+            if strSuffix in _SET_FORBIDDEN_FILE_SUFFIX:
+                raise ComponentManagementError(
+                    code="unsupported_component_file",
+                    message=f"Unsupported Component package file type: {pathSourceEntry}",
+                    details={"relativeFilePath": pathRelativeSourceEntry.as_posix()},
+                )
+
+            strArchivePath = PurePosixPath(
+                packageName, *pathRelativeSourceEntry.parts
+            ).as_posix()
+            strCaseInsensitivePath = strArchivePath.casefold()
+            strExistingPath = dictCaseInsensitivePath.get(strCaseInsensitivePath)
+            if strExistingPath is not None:
+                raise ComponentManagementError(
+                    code="component_source_invalid",
+                    message="Component package contains paths that conflict on Windows.",
+                    details={"paths": [strExistingPath, strArchivePath]},
+                )
+            dictCaseInsensitivePath[strCaseInsensitivePath] = strArchivePath
+
+            try:
+                dictEntry[strArchivePath] = pathSourceEntry.read_bytes()
+            except OSError as e:
+                raise ComponentManagementError(
+                    code="io_error",
+                    message=f"Failed to read Component package file: {pathSourceEntry}",
+                ) from e
+
+    scan_package_folder(packageFolderPath)
     return dictEntry
 
 
@@ -203,7 +226,7 @@ def _write_wheel_file(
     archiveEntryDict: dict[str, bytes],
     recordPath: str,
 ) -> None:
-    # Keep the temporary name independent of the final name so the UUID suffix cannot make an otherwise valid Windows filename exceed the filename limit.
+    # Keep the temporary name independent of the final name so the UUID suffix cannot make an otherwise valid Windows filename exceed the entry name.
     pathTempWheelFile = wheelFilePath.parent / f".liberrpa-wheel-{uuid.uuid4()}.tmp"
 
     try:

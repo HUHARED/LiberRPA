@@ -346,16 +346,49 @@ def _get_actual_wheel_relative_path_set(repositoryPath: Path) -> set[str]:
             {"componentsFolderPath": str(pathComponentsFolder)},
         )
 
+    try:
+        listComponentFolderPath = sorted(
+            pathComponentsFolder.iterdir(), key=lambda pathObj: pathObj.name
+        )
+    except OSError as e:
+        raise_rebuild_required(
+            "Failed to scan the Component Repository components folder.",
+            {
+                "componentsFolderPath": str(pathComponentsFolder),
+                "reason": str(e),
+            },
+        )
+
     setWheelRelativePath: set[str] = set()
 
-    for pathWheelFile in pathComponentsFolder.rglob("*.whl"):
-        if is_file_invalid(pathWheelFile):
+    for pathComponentFolder in listComponentFolderPath:
+        if is_folder_invalid(pathComponentFolder):
             raise_rebuild_required(
-                "The Component Repository contains an invalid Wheel path.",
-                {"wheelFilePath": str(pathWheelFile)},
+                "The Component Repository contains an invalid Component folder.",
+                {"entryPath": str(pathComponentFolder)},
             )
 
-        setWheelRelativePath.add(pathWheelFile.relative_to(repositoryPath).as_posix())
+        try:
+            listEntryPath = sorted(
+                pathComponentFolder.iterdir(), key=lambda pathObj: pathObj.name
+            )
+        except OSError as e:
+            raise_rebuild_required(
+                "Failed to scan a Component Repository folder.",
+                {
+                    "componentFolderPath": str(pathComponentFolder),
+                    "reason": str(e),
+                },
+            )
+
+        for pathEntry in listEntryPath:
+            if is_file_invalid(pathEntry) or pathEntry.suffix.casefold() != ".whl":
+                raise_rebuild_required(
+                    "A Component Repository folder may contain only Wheel files.",
+                    {"entryPath": str(pathEntry)},
+                )
+
+            setWheelRelativePath.add(pathEntry.relative_to(repositoryPath).as_posix())
 
     return setWheelRelativePath
 
