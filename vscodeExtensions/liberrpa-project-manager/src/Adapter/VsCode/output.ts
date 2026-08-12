@@ -9,4 +9,4 @@ export const log = vscode.window.createOutputChannel("liberrpa-project-manager",
 // Show the output channel automatically during development.
 // It can help users learn more information.
 // Remove this before publishing if it becomes too intrusive.
-log.show(true);
+// log.show(true);
