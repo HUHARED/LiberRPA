@@ -1,2 +1,2 @@
 exclude test/*
-recursive-include liberrpa/ComponentManagement/Snippet/Templates *.template
+recursive-include liberrpa/ComponentManagement/Domain/Snippet/Templates *.template
