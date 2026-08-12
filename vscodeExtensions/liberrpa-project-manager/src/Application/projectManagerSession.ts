@@ -164,14 +164,26 @@ export class ProjectManagerSession {
     const workspaceFolder = this.getSingleWorkspaceFolder();
     const data = await loadManageComponentsData(workspaceFolder.uri.fsPath);
     logComponentManagementWarnings(data.warnings);
+    if (data.repositoryCatalogError !== null) {
+      logComponentManagementOperationError(data.repositoryCatalogError);
+    }
 
     return {
       theme: getTheme(vscode.window.activeColorTheme),
       projectState: data.projectState,
       repositoryCatalog: data.repositoryCatalog,
+      repositoryCatalogError:
+        data.repositoryCatalogError === null
+          ? null
+          : {
+              code: data.repositoryCatalogError.code,
+              message: data.repositoryCatalogError.message,
+            },
       warningMessages: [
-        ...additionalWarningMessages,
-        ...getComponentManagementWarningMessages(data.warnings),
+        ...new Set([
+          ...additionalWarningMessages,
+          ...getComponentManagementWarningMessages(data.warnings),
+        ]),
       ],
       ...(notification === undefined ? {} : { notification }),
     };

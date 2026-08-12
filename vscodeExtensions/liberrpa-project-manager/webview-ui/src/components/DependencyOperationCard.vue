@@ -172,7 +172,8 @@ const addComponentItems = computed<DictSelectItem[]>(() =>
     .map((component) => ({
       title: getRepositoryComponentTitle(component),
       value: component.componentId,
-    })),
+    }))
+    .sort((left, right) => left.title.localeCompare(right.title)),
 );
 
 const installedComponentItems = computed<DictSelectItem[]>(() => {

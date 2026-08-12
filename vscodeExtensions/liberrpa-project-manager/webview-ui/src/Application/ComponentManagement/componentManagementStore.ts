@@ -4,6 +4,7 @@ import { defineStore } from "pinia";
 
 import type {
   DictManageComponentsInitialData,
+  DictManageComponentsRepositoryCatalogError,
 } from "../../Adapter/Extension/projectManagerMessages";
 import type {
   DictProtocolDependencyOperation,
@@ -16,6 +17,7 @@ export const useComponentManagementStore = defineStore("componentManagement", {
   state: () => ({
     projectDependencyState: null as DictProtocolResult_ProjectDependencyState | null,
     repositoryCatalog: null as DictProtocolResult_RepositoryCatalog | null,
+    repositoryCatalogError: null as DictManageComponentsRepositoryCatalogError | null,
     warningMessages: [] as string[],
     dependencyOperation: null as DictProtocolDependencyOperation | null,
     dependencyPlan: null as DictProtocolResult_ProjectDependencyPlan | null,
@@ -26,6 +28,7 @@ export const useComponentManagementStore = defineStore("componentManagement", {
     load(initialData: DictManageComponentsInitialData): void {
       this.projectDependencyState = initialData.projectState;
       this.repositoryCatalog = initialData.repositoryCatalog;
+      this.repositoryCatalogError = initialData.repositoryCatalogError;
       this.warningMessages = initialData.warningMessages;
       this.clearDependencyPlan();
     },

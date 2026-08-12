@@ -76,10 +76,16 @@ export interface DictPublishComponentInitialData {
   notification?: DictProjectManagerNotification;
 }
 
+export interface DictManageComponentsRepositoryCatalogError {
+  code: string;
+  message: string;
+}
+
 export interface DictManageComponentsInitialData {
   theme: Theme;
   projectState: DictProtocolResult_ProjectDependencyState;
-  repositoryCatalog: DictProtocolResult_RepositoryCatalog;
+  repositoryCatalog: DictProtocolResult_RepositoryCatalog | null;
+  repositoryCatalogError: DictManageComponentsRepositoryCatalogError | null;
   warningMessages: string[];
   notification?: DictProjectManagerNotification;
 }
@@ -463,6 +469,17 @@ function isPublishComponentInitialData(
   );
 }
 
+function isManageComponentsRepositoryCatalogError(
+  value: unknown,
+): value is DictManageComponentsRepositoryCatalogError {
+  return (
+    isRecord(value) &&
+    hasExactKeys(value, new Set(["code", "message"])) &&
+    typeof value["code"] === "string" &&
+    typeof value["message"] === "string"
+  );
+}
+
 function isManageComponentsInitialData(
   value: unknown,
 ): value is DictManageComponentsInitialData {
@@ -474,6 +491,7 @@ function isManageComponentsInitialData(
     "theme",
     "projectState",
     "repositoryCatalog",
+    "repositoryCatalogError",
     "warningMessages",
   ]);
   const setAllowedKey =
@@ -486,8 +504,11 @@ function isManageComponentsInitialData(
     isTheme(value["theme"]) &&
     isRecord(value["projectState"]) &&
     value["projectState"]["status"] === "projectDependencyState" &&
-    isRecord(value["repositoryCatalog"]) &&
-    value["repositoryCatalog"]["status"] === "componentRepositoryCatalog" &&
+    ((isRecord(value["repositoryCatalog"]) &&
+      value["repositoryCatalog"]["status"] === "componentRepositoryCatalog" &&
+      value["repositoryCatalogError"] === null) ||
+      (value["repositoryCatalog"] === null &&
+        isManageComponentsRepositoryCatalogError(value["repositoryCatalogError"]))) &&
     isStringArray(value["warningMessages"]) &&
     (value["notification"] === undefined ||
       isProjectManagerNotification(value["notification"]))
