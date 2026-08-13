@@ -1,4 +1,8 @@
 // FileName: interface.ts
+// IMPORTANT: Keep the Extension and Webview copies of this file synchronized.
+// Synchronization is verified by scripts/checkSynchronizedFiles.mjs.
+// - src/interface.ts
+// - webview-ui/src/interface.ts
 
 /* Basic JSON */
 
@@ -132,3 +136,16 @@ export interface DictProjectForWebview extends DictProject {
   // theme is added by the extension when sending data to the webview.
   theme: Theme;
 }
+
+/* Extension/Webview messages */
+
+export type WebviewToExtensionMessage =
+  | { command: "ready" }
+  | { command: "update"; data: string }
+  | { command: "open"; path: string }
+  | { command: "execute"; data: { pyFile: string; executeMode: ExecuteMode } }
+  | { command: "executeProject"; data: { executeMode: ExecuteMode } };
+
+export type ExtensionToWebviewMessage =
+  | { command: "load"; data: DictProjectForWebview }
+  | { command: "themeChanged"; theme: Theme };

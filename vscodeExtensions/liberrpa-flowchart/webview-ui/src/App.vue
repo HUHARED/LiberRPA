@@ -59,7 +59,7 @@ import BuiltInPrjArgs from "./components/BuiltinPrjArgs.vue";
 import CustomPrjArgs from "./components/CustomPrjArgs.vue";
 import Alert from "./components/Alert.vue";
 import { useFlowchartStore, useSettingStore, useArgsStore } from "./store";
-import type { DictProject, DictProjectForWebview } from "./interface";
+import type { DictProject, ExtensionToWebviewMessage, Theme } from "./interface";
 import { initDictFinal, notifyWebviewReady } from "./commonFunc";
 
 const flowchartStore = useFlowchartStore();
@@ -72,25 +72,29 @@ onUnmounted(() => {
   window.removeEventListener("message", handleMessage);
 });
 
-type ExtensionToWebviewMessage = {
-  command: "load";
-  data: DictProjectForWebview;
-};
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function isTheme(value: unknown): value is Theme {
+  return value === "light" || value === "dark";
+}
+
 function isExtensionToWebviewMessage(value: unknown): value is ExtensionToWebviewMessage {
-  if (!isRecord(value)) {
+  if (!isRecord(value) || typeof value.command !== "string") {
     return false;
   }
 
-  if (value.command !== "load") {
-    return false;
-  }
+  switch (value.command) {
+    case "load":
+      return isRecord(value.data);
 
-  return isRecord(value.data);
+    case "themeChanged":
+      return isTheme(value.theme);
+
+    default:
+      return false;
+  }
 }
 
 function handleMessage(event: MessageEvent): void {
@@ -133,6 +137,11 @@ function handleMessage(event: MessageEvent): void {
       initDictFinal(dictProject);
 
       boolLoaded.value = true;
+      break;
+    }
+
+    case "themeChanged": {
+      settingStore.theme = message.theme;
       break;
     }
 

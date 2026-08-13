@@ -44,16 +44,18 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run package",
-    "compile": "webpack",
+    "compile": "npm run check:synchronized-files && npm run compile:webview && npm run compile:extension",
+    "compile:extension": "webpack",
     "compile:webview": "npm --prefix webview-ui run build",
     "watch": "webpack --watch",
-    "package": "npm run compile:webview && webpack --mode production --devtool hidden-source-map",
+    "package": "npm run check:synchronized-files && npm run compile:webview && webpack --mode production --devtool hidden-source-map",
     "compile-tests": "tsc -p . --outDir out",
     "watch-tests": "tsc -p . -w --outDir out",
     "pretest": "npm run compile-tests && npm run compile && npm run lint",
-    "lint": "eslint src",
-    "lint:fix": "eslint src --fix",
-    "test": "vscode-test"
+    "lint": "eslint src && npm --prefix webview-ui run lint",
+    "lint:fix": "eslint src --fix && npm --prefix webview-ui run lint:fix",
+    "test": "vscode-test",
+    "check:synchronized-files": "node scripts/checkSynchronizedFiles.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

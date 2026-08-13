@@ -9,7 +9,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from "vue";
+import { ref, onMounted, onUnmounted, watch } from "vue";
 import { LogicFlow } from "@logicflow/core";
 import "@logicflow/core/lib/style/index.css";
 import { useFlowchartStore, useInformationStore, useSettingStore } from "../store";
@@ -22,6 +22,7 @@ import {
 } from "../customEdge";
 import { getCurrentSourceEdges } from "../edgeFunc";
 import { showAlert, updateLocalData, isObjectRecord } from "../commonFunc";
+import { applyLogicFlowTheme } from "../flowchartTheme";
 
 const flowchartStore = useFlowchartStore();
 const informationStore = useInformationStore();
@@ -35,6 +36,15 @@ const TRANSLATION_DISTANCE = 40;
 let lfObj: LogicFlow | null = null; // Current LogicFlow instance for this component.
 
 let resizeObserver: ResizeObserver | null = null;
+
+watch(
+  () => settingStore.theme,
+  (theme) => {
+    if (lfObj) {
+      applyLogicFlowTheme(lfObj, theme);
+    }
+  },
+);
 
 onMounted(() => {
   const container = flowchartContainer.value;
@@ -80,9 +90,6 @@ function createLogicFlowObj(container: HTMLElement): LogicFlow {
       },
     },
     snapGrid: true,
-    background: {
-      backgroundColor: settingStore.theme === "light" ? null : "rgb(18, 18, 18)",
-    },
     adjustEdge: false,
     adjustEdgeStartAndEnd: false,
 
@@ -166,7 +173,7 @@ function createLogicFlowObj(container: HTMLElement): LogicFlow {
 
             if (
               lfGraphData.nodes.some(
-                (node) => node.type === "Start" || node.type === "SubStart"
+                (node) => node.type === "Start" || node.type === "SubStart",
               )
             ) {
               showAlert("Start and SubStart node cannot be copied.");
@@ -221,12 +228,7 @@ function createLogicFlowObj(container: HTMLElement): LogicFlow {
   logicFlow.register(FalseLineEdge);
   logicFlow.register(ExceptionLineEdge);
 
-  logicFlow.setTheme({
-    arrow: {
-      offset: 8,
-      verticalLength: 3,
-    },
-  });
+  applyLogicFlowTheme(logicFlow, settingStore.theme);
 
   logicFlow.on("connection:not-allowed", (data) => {
     if (data.msg) {
@@ -280,7 +282,7 @@ type LogicFlowNodeClickData = {
 
 function getStringProperty(
   properties: Record<string, unknown> | undefined,
-  key: string
+  key: string,
 ): string {
   const value = properties?.[key];
 

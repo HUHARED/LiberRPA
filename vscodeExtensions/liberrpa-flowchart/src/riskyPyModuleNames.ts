@@ -1,6 +1,6 @@
 // FileName: riskyPyModuleNames.ts
-
-// Keep this file synchronized with:
+// IMPORTANT: Keep the Extension and Webview copies of this file synchronized.
+// Synchronization is verified by scripts/checkSynchronizedFiles.mjs.
 // - src/riskyPyModuleNames.ts
 // - webview-ui/src/riskyPyModuleNames.ts
 

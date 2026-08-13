@@ -2,7 +2,12 @@
 import * as vscode from "vscode";
 import * as path from "path";
 import * as fs from "fs";
-import type { DictProjectForWebview, WebviewToExtensionMessage } from "./interface";
+import type {
+  DictProjectForWebview,
+  ExtensionToWebviewMessage,
+  Theme,
+  WebviewToExtensionMessage,
+} from "./interface";
 import { log } from "./output";
 import {
   isWebviewMessage,
@@ -11,6 +16,13 @@ import {
   validateProjectBlockPythonFiles,
 } from "./utils";
 import { parseFlowProjectFromText } from "./checkFlowchart";
+
+function getFlowchartTheme(theme: vscode.ColorTheme): Theme {
+  return theme.kind === vscode.ColorThemeKind.Dark ||
+    theme.kind === vscode.ColorThemeKind.HighContrast
+    ? "dark"
+    : "light";
+}
 
 function getProjectPythonPath(workspaceFolder: vscode.WorkspaceFolder): string {
   const arrPythonPath = [
@@ -74,6 +86,7 @@ class FlowchartEditorProvider implements vscode.CustomTextEditorProvider {
 
     webviewPanel.webview.html = this.getWebviewContent(webviewPanel.webview);
 
+    let boolWebviewReady = false;
     let strExpectedWebviewDocumentText: string | undefined;
     let promiseMessageQueue = Promise.resolve();
 
@@ -98,7 +111,13 @@ class FlowchartEditorProvider implements vscode.CustomTextEditorProvider {
         }
 
         enqueueTask(async () => {
+          const boolIsReady = message.command === "ready";
           const boolIsUpdate = message.command === "update";
+
+          if (boolIsReady) {
+            // The Webview can receive messages as soon as it sends "ready". Mark it ready before loading so theme changes can be queued behind the initial load.
+            boolWebviewReady = true;
+          }
           if (boolIsUpdate) {
             strExpectedWebviewDocumentText = message.data;
           }
@@ -106,6 +125,10 @@ class FlowchartEditorProvider implements vscode.CustomTextEditorProvider {
           try {
             await this.handleWebviewMessage(document, webviewPanel.webview, message);
           } catch (e) {
+            if (boolIsReady) {
+              boolWebviewReady = false;
+            }
+
             // If an update was rejected, restore the GUI from the actual document instead of leaving it showing data that was never applied.
             if (boolIsUpdate) {
               strExpectedWebviewDocumentText = undefined;
@@ -138,9 +161,25 @@ class FlowchartEditorProvider implements vscode.CustomTextEditorProvider {
       },
     );
 
+    const changeColorThemeSubscription = vscode.window.onDidChangeActiveColorTheme(
+      (theme) => {
+        if (!boolWebviewReady) {
+          return;
+        }
+
+        enqueueTask(async () => {
+          if (boolWebviewReady) {
+            await this.postThemeChanged(webviewPanel.webview, theme);
+          }
+        });
+      },
+    );
+
     webviewPanel.onDidDispose(() => {
+      boolWebviewReady = false;
       messageSubscription.dispose();
       changeDocumentsSubscription.dispose();
+      changeColorThemeSubscription.dispose();
     });
   }
 
@@ -184,17 +223,36 @@ class FlowchartEditorProvider implements vscode.CustomTextEditorProvider {
   ): Promise<void> {
     const dictProject = parseFlowProjectFromText(document.getText());
 
-    // Init color theme of flowchart. "Light" for Light and HighContrast.
-    const strTheme: DictProjectForWebview["theme"] =
-      vscode.ColorThemeKind[vscode.window.activeColorTheme.kind] === "Dark"
-        ? "dark"
-        : "light";
-
     const dictData: DictProjectForWebview = {
       ...dictProject,
-      theme: strTheme,
+      theme: getFlowchartTheme(vscode.window.activeColorTheme),
     };
-    await webview.postMessage({ command: "load", data: dictData });
+    const message: ExtensionToWebviewMessage = {
+      command: "load",
+      data: dictData,
+    };
+
+    await webview.postMessage(message);
+  }
+
+  private async postThemeChanged(
+    webview: vscode.Webview,
+    theme: vscode.ColorTheme,
+  ): Promise<void> {
+    const message: ExtensionToWebviewMessage = {
+      command: "themeChanged",
+      theme: getFlowchartTheme(theme),
+    };
+
+    try {
+      const boolPosted = await webview.postMessage(message);
+      if (!boolPosted) {
+        log.warn("Flowchart Webview is not available for theme update.");
+      }
+    } catch (e) {
+      const strMessage = e instanceof Error ? e.message : String(e);
+      log.warn(`Failed to update Flowchart theme: ${strMessage}`);
+    }
   }
 
   // Write out the json to a given document.

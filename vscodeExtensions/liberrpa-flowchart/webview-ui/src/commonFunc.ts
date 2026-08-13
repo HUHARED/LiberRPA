@@ -8,11 +8,12 @@ import type {
   FlowEdge,
   FlowNode,
   LogLevel,
+  WebviewToExtensionMessage,
 } from "./interface";
 import { createTwoFilesPatch } from "diff";
 
 declare function acquireVsCodeApi(): {
-  postMessage(message: unknown): void;
+  postMessage(message: WebviewToExtensionMessage): void;
 };
 
 const vscode = acquireVsCodeApi();
@@ -57,7 +58,7 @@ export function updateLocalData(
   recordVideo: boolean | null,
   stopShortcut: boolean | null,
   highlightUi: boolean | null,
-  customPrjArgs: CustomPrjArg[] | null
+  customPrjArgs: CustomPrjArg[] | null,
 ): void {
   const dictBefore = JSON.parse(JSON.stringify(dictFinal)) as DictProject;
 
@@ -66,11 +67,11 @@ export function updateLocalData(
     const edges = lfObj.graphModel.edges;
 
     dictFinal.nodes = nodes.map((node) =>
-      buildFlowNodeFromLogicFlowNode(node as LogicFlowNodeLike)
+      buildFlowNodeFromLogicFlowNode(node as LogicFlowNodeLike),
     );
 
     dictFinal.edges = edges.map((edge) =>
-      buildFlowEdgeFromLogicFlowEdge(edge as LogicFlowEdgeLike)
+      buildFlowEdgeFromLogicFlowEdge(edge as LogicFlowEdgeLike),
     );
 
     // Update flowchartStore.data, otherwise if FlowchartArea will use the original file data.
@@ -122,7 +123,7 @@ export function updateLocalData(
     "",
     {
       context: 3,
-    }
+    },
   );
 
   const arrLines = patchText.split(/\r?\n/);

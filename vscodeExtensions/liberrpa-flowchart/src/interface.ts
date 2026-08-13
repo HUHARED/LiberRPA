@@ -1,4 +1,18 @@
 // FileName: interface.ts
+// IMPORTANT: Keep the Extension and Webview copies of this file synchronized.
+// Synchronization is verified by scripts/checkSynchronizedFiles.mjs.
+// - src/interface.ts
+// - webview-ui/src/interface.ts
+
+/* Basic JSON */
+
+export type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | JsonValue[]
+  | { [key: string]: JsonValue };
 
 /* Nodes */
 
@@ -51,18 +65,17 @@ export type FlowNode = StartNode | SubStartNode | BlockNode | ChooseNode | EndNo
 
 /* Edges */
 
+export interface DictPosition {
+  x: number;
+  y: number;
+}
+
 interface BaseEdge {
   id: string;
   sourceNodeId: string;
   targetNodeId: string;
-  startPoint: {
-    x: number;
-    y: number;
-  };
-  endPoint: {
-    x: number;
-    y: number;
-  };
+  startPoint: DictPosition;
+  endPoint: DictPosition;
 }
 
 export interface CommonLineEdge extends BaseEdge {
@@ -90,7 +103,8 @@ export type FlowEdge = CommonLineEdge | ExceptionLineEdge | TrueLineEdge | False
 /* Flowchart */
 
 export interface Flowchart {
-  // nodes cannot be empty, but edges can.
+  // Nodes cannot be empty in valid .flow files, but TypeScript cannot express that here.
+  // Runtime validation is handled in the extension layer.
   nodes: FlowNode[];
   edges: FlowEdge[];
 }
@@ -100,37 +114,30 @@ export interface Flowchart {
 export type ExecuteMode = "Run" | "Debug";
 export type LogLevel = "VERBOSE" | "DEBUG" | "INFO" | "WARNING" | "ERROR" | "CRITICAL";
 
-export type JsonValue =
-  | string
-  | number
-  | boolean
-  | null
-  | JsonValue[]
-  | { [key: string]: JsonValue };
-
 export type CustomPrjArg = [name: string, value: JsonValue];
 
-interface BuiltInProjectArguments {
+export interface BuiltInProjectArguments {
   logLevel: LogLevel;
   recordVideo: boolean;
   stopShortcut: boolean;
   highlightUi: boolean;
 }
 
-/* Combine them. */
+/* Combined project types */
 
 export interface DictProject extends Flowchart, BuiltInProjectArguments {
   executeMode: ExecuteMode;
   customPrjArgs: CustomPrjArg[];
 }
 
-type Theme = "light" | "dark";
+export type Theme = "light" | "dark";
+
 export interface DictProjectForWebview extends DictProject {
-  // theme is added when send data to webview.
+  // theme is added by the extension when sending data to the webview.
   theme: Theme;
 }
 
-/* Other */
+/* Extension/Webview messages */
 
 export type WebviewToExtensionMessage =
   | { command: "ready" }
@@ -138,3 +145,7 @@ export type WebviewToExtensionMessage =
   | { command: "open"; path: string }
   | { command: "execute"; data: { pyFile: string; executeMode: ExecuteMode } }
   | { command: "executeProject"; data: { executeMode: ExecuteMode } };
+
+export type ExtensionToWebviewMessage =
+  | { command: "load"; data: DictProjectForWebview }
+  | { command: "themeChanged"; theme: Theme };

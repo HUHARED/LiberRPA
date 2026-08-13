@@ -43,7 +43,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, onMounted, onUnmounted, watch } from "vue";
 import { LogicFlow } from "@logicflow/core";
 import "@logicflow/core/lib/style/index.css";
 import { v4 as uuidV4 } from "uuid";
@@ -56,11 +56,22 @@ import {
 } from "../customNode";
 import { useFlowchartStore, useSettingStore } from "../store";
 import type { Flowchart, FlowNode } from "../interface";
-const settingStore = useSettingStore();
+import { applyLogicFlowTheme } from "../flowchartTheme";
 
+const settingStore = useSettingStore();
 const flowchartStore = useFlowchartStore();
 
 const flowchartContainer = ref<HTMLElement | null>(null);
+let lfObj: LogicFlow | null = null;
+
+watch(
+  () => settingStore.theme,
+  (theme) => {
+    if (lfObj) {
+      applyLogicFlowTheme(lfObj, theme);
+    }
+  },
+);
 
 /* Define nodes' positions and text. */
 const ARR_PANEL_NODE_ITEMS = [
@@ -152,7 +163,7 @@ onMounted(() => {
   const container = flowchartContainer.value;
 
   if (container instanceof HTMLElement) {
-    const lfObj = new LogicFlow({
+    const logicFlow = new LogicFlow({
       container: container,
       width: container.offsetWidth,
       height: container.offsetHeight,
@@ -161,25 +172,28 @@ onMounted(() => {
       stopZoomGraph: true,
       stopMoveGraph: true,
       history: false,
-      background: {
-        backgroundColor: settingStore.theme === "light" ? null : "rgb(18, 18, 18)",
-      },
     });
+    lfObj = logicFlow;
 
-    lfObj.register(SubStartNode);
-    lfObj.register(EndNode);
-    lfObj.register(BlockNode);
-    lfObj.register(ChooseNode);
+    logicFlow.register(SubStartNode);
+    logicFlow.register(EndNode);
+    logicFlow.register(BlockNode);
+    logicFlow.register(ChooseNode);
+    applyLogicFlowTheme(logicFlow, settingStore.theme);
 
     const dictNodeExample: Flowchart = {
       nodes: ARR_PANEL_NODE_ITEMS.map(buildPanelPreviewNode),
       edges: [],
     };
 
-    lfObj.render(dictNodeExample);
+    logicFlow.render(dictNodeExample);
   } else {
     console.error("flowchartContainer is not an HTMLElement:", container);
   }
+});
+
+onUnmounted(() => {
+  lfObj = null;
 });
 
 /* Define the drag logic. */
