@@ -10,16 +10,19 @@ import type { DictBasicConfig, DictExecutorConfig } from "../shared/interface";
 export const strDocumentsFolderPath = app.getPath("documents");
 app.setPath("userData", path.join(strDocumentsFolderPath, "LiberRPA/AppData/executor/"));
 
-export const strLiberRPAEnvPath = process.env.LiberRPA as string;
+export const strLiberRPAEnvPath = process.env.LiberRPA;
 // console.log(`strLiberRPAEnvPath= ${strLiberRPAEnvPath}`);
 
 if (!strLiberRPAEnvPath) {
   throw new Error(
-    "Not found 'LiberRPA' in User Environment Variables, you should add it before using LiberRPA Executor."
+    "Not found 'LiberRPA' in User Environment Variables, you should add it before using LiberRPA Executor.",
   );
 }
 
-export const strPyEnvPath = path.join(strLiberRPAEnvPath, "envs/pyenv");
+export const strDefaultPythonEnvironmentPath = path.join(
+  strLiberRPAEnvPath,
+  "envs/pyenv/default",
+);
 
 function getBasicConfigDict(): DictBasicConfig {
   const strSettingPath = path.join(strLiberRPAEnvPath, "./configFiles/basic.jsonc");
@@ -72,7 +75,7 @@ export function getExecutorConfigDict(): DictExecutorConfig {
       videoSizeGB: 10,
       projectLogFolderPath: path.join(
         strDocumentsFolderPath,
-        "LiberRPA/OutputLog/Executor/"
+        "LiberRPA/OutputLog/Executor/",
       ),
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     };

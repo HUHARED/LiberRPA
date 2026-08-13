@@ -161,8 +161,8 @@ function getPythonEnvironmentInfo(): {
     throw new Error("The LiberRPA User Environment Variable was not found.");
   }
 
-  const strPythonEnvironmentPath = path.join(strLiberRPAPath, "envs", "pyenv");
-  const strPythonExecutablePath = path.join(strPythonEnvironmentPath, "python.exe");
+  const strDefaultPythonEnvironmentPath = path.join(strLiberRPAPath, "envs/pyenv/default");
+  const strPythonExecutablePath = path.join(strDefaultPythonEnvironmentPath, "python.exe");
 
   if (
     !fs.existsSync(strPythonExecutablePath) ||
@@ -178,12 +178,12 @@ function getPythonEnvironmentInfo(): {
     PYTHONUTF8: "1",
     PYTHONIOENCODING: "utf-8",
     PATH: [
-      strPythonEnvironmentPath,
-      path.join(strPythonEnvironmentPath, "Library", "mingw-w64", "bin"),
-      path.join(strPythonEnvironmentPath, "Library", "usr", "bin"),
-      path.join(strPythonEnvironmentPath, "Library", "bin"),
-      path.join(strPythonEnvironmentPath, "Scripts"),
-      path.join(strPythonEnvironmentPath, "bin"),
+      strDefaultPythonEnvironmentPath,
+      path.join(strDefaultPythonEnvironmentPath, "Library", "mingw-w64", "bin"),
+      path.join(strDefaultPythonEnvironmentPath, "Library", "usr", "bin"),
+      path.join(strDefaultPythonEnvironmentPath, "Library", "bin"),
+      path.join(strDefaultPythonEnvironmentPath, "Scripts"),
+      path.join(strDefaultPythonEnvironmentPath, "bin"),
       process.env.PATH ?? "",
     ]
       .filter((item) => item.length > 0)
@@ -192,7 +192,7 @@ function getPythonEnvironmentInfo(): {
 
   return {
     pythonExecutablePath: strPythonExecutablePath,
-    pythonEnvironmentPath: strPythonEnvironmentPath,
+    pythonEnvironmentPath: strDefaultPythonEnvironmentPath,
     environment,
   };
 }

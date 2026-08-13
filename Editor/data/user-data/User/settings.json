@@ -2,10 +2,10 @@
 {
   // Language settings:
   "[python]": {
-    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.defaultFormatter": "charliermarsh.ruff"
   },
   "[snippets]": {
-    "editor.defaultFormatter": "vscode.json-language-features",
+    "editor.defaultFormatter": "vscode.json-language-features"
   },
   "[markdown]": {
     "editor.unicodeHighlight.ambiguousCharacters": false,
@@ -15,42 +15,42 @@
     "editor.quickSuggestions": {
       "comments": "off",
       "strings": "off",
-      "other": "off",
-    },
+      "other": "off"
+    }
   },
   "[json]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode",
     "editor.tabSize": 2,
     "editor.insertSpaces": true,
-    "editor.detectIndentation": false,
+    "editor.detectIndentation": false
   },
   "[jsonc]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
 
   "[vue]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode",
     "editor.tabSize": 2,
     "editor.insertSpaces": true,
-    "editor.detectIndentation": false,
+    "editor.detectIndentation": false
   },
   "[typescript]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode",
     "editor.tabSize": 2,
     "editor.insertSpaces": true,
-    "editor.detectIndentation": false,
+    "editor.detectIndentation": false
   },
   "[javascript]": {
     "editor.tabSize": 2,
-    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
   "[html]": {
     "editor.tabSize": 2,
-    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
   "[css]": {
     "editor.tabSize": 2,
-    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
 
   // Python-specific settings
@@ -58,7 +58,7 @@
   "python.experiments.enabled": false,
   "python.experiments.optOutFrom": ["All"],
   "python.locator": "js",
-  "python.defaultInterpreterPath": "${env:LiberRPA}\\envs\\pyenv\\python.exe",
+  "python.defaultInterpreterPath": "${env:LiberRPA}\\envs\\pyenv\\default\\python.exe",
 
   // Pylance settings
   "python.analysis.typeCheckingMode": "basic",
@@ -88,14 +88,14 @@
     "*.csv": "default",
     "*.md": "cweijan.markdownViewer",
     "*.vue": "default",
-    "{git,gitlens}:/**/*.{md,csv}": "default",
+    "{git,gitlens}:/**/*.{md,csv}": "default"
   },
 
   // Editor settings
   "editor.quickSuggestions": {
     "other": true,
     "comments": true,
-    "strings": true,
+    "strings": true
   },
   "editor.quickSuggestionsDelay": 0,
   "editor.suggest.localityBonus": true,
@@ -117,7 +117,7 @@
   // File settings
   "files.autoGuessEncoding": true,
   "files.associations": {
-    "*.snippets": "snippets",
+    "*.snippets": "snippets"
     // "*.flow": "json"
   },
 
@@ -139,7 +139,7 @@
 
   // Accessibility settings
   "accessibility.signals.lineHasError": {
-    "sound": "off",
+    "sound": "off"
   },
 
   // Extension configurations
@@ -158,6 +158,6 @@
   "prettier.bracketSameLine": true,
   "prettier.useEditorConfig": false,
 
-  "ruff.interpreter": ["${env:LiberRPA}\\envs\\pyenv\\python.exe"],
-  "ruff.nativeServer": "on",
+  "ruff.interpreter": ["${env:LiberRPA}\\envs\\pyenv\\default\\python.exe"],
+  "ruff.nativeServer": "on"
 }

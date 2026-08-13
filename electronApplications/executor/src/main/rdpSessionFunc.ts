@@ -5,7 +5,7 @@ import type { spawn, ChildProcessWithoutNullStreams } from "child_process";
 import path from "path";
 
 import { loggerMain } from "./logger";
-import { dictConfigExecutor, strPyEnvPath } from "./commonFunc";
+import { dictConfigExecutor, strDefaultPythonEnvironmentPath } from "./commonFunc";
 
 function getScriptFolderPath(): string {
   if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
@@ -23,17 +23,17 @@ export async function runSessionListener(): Promise<void> {
   const strScriptPath = path.join(strScriptFolderPath, "ListenSession.py");
 
   const processPySessionListener = spawn(
-    path.join(strPyEnvPath, "python.exe"),
+    path.join(strDefaultPythonEnvironmentPath, "python.exe"),
     [strScriptPath],
     {
       env: {
         PATH: [
-          strPyEnvPath,
-          path.join(strPyEnvPath, "Library", "mingw-w64", "bin"),
-          path.join(strPyEnvPath, "Library", "usr", "bin"),
-          path.join(strPyEnvPath, "Library", "bin"),
-          path.join(strPyEnvPath, "Scripts"),
-          path.join(strPyEnvPath, "bin"),
+          strDefaultPythonEnvironmentPath,
+          path.join(strDefaultPythonEnvironmentPath, "Library", "mingw-w64", "bin"),
+          path.join(strDefaultPythonEnvironmentPath, "Library", "usr", "bin"),
+          path.join(strDefaultPythonEnvironmentPath, "Library", "bin"),
+          path.join(strDefaultPythonEnvironmentPath, "Scripts"),
+          path.join(strDefaultPythonEnvironmentPath, "bin"),
           process.env.PATH,
         ].join(";"),
         PYTHONPATH: [strScriptFolderPath].join(";"),
@@ -101,17 +101,17 @@ async function setSession(): Promise<void> {
   const strScriptPath = path.join(strScriptFolderPath, "SetSession.py");
 
   const processPySetSession = spawn(
-    path.join(strPyEnvPath, "python.exe"),
+    path.join(strDefaultPythonEnvironmentPath, "python.exe"),
     [strScriptPath],
     {
       env: {
         PATH: [
-          strPyEnvPath,
-          path.join(strPyEnvPath, "Library", "mingw-w64", "bin"),
-          path.join(strPyEnvPath, "Library", "usr", "bin"),
-          path.join(strPyEnvPath, "Library", "bin"),
-          path.join(strPyEnvPath, "Scripts"),
-          path.join(strPyEnvPath, "bin"),
+          strDefaultPythonEnvironmentPath,
+          path.join(strDefaultPythonEnvironmentPath, "Library", "mingw-w64", "bin"),
+          path.join(strDefaultPythonEnvironmentPath, "Library", "usr", "bin"),
+          path.join(strDefaultPythonEnvironmentPath, "Library", "bin"),
+          path.join(strDefaultPythonEnvironmentPath, "Scripts"),
+          path.join(strDefaultPythonEnvironmentPath, "bin"),
           process.env.PATH,
         ].join(";"),
         PYTHONPATH: [strScriptFolderPath].join(";"),
@@ -143,17 +143,17 @@ export async function setResolution(width: number, height: number): Promise<void
   const strScriptPath = path.join(strScriptFolderPath, "SetResolution.py");
 
   const processPySetResolution = spawn(
-    path.join(strPyEnvPath, "python.exe"),
+    path.join(strDefaultPythonEnvironmentPath, "python.exe"),
     [strScriptPath, "--width", width.toString(), "--height", height.toString()],
     {
       env: {
         PATH: [
-          strPyEnvPath,
-          path.join(strPyEnvPath, "Library", "mingw-w64", "bin"),
-          path.join(strPyEnvPath, "Library", "usr", "bin"),
-          path.join(strPyEnvPath, "Library", "bin"),
-          path.join(strPyEnvPath, "Scripts"),
-          path.join(strPyEnvPath, "bin"),
+          strDefaultPythonEnvironmentPath,
+          path.join(strDefaultPythonEnvironmentPath, "Library", "mingw-w64", "bin"),
+          path.join(strDefaultPythonEnvironmentPath, "Library", "usr", "bin"),
+          path.join(strDefaultPythonEnvironmentPath, "Library", "bin"),
+          path.join(strDefaultPythonEnvironmentPath, "Scripts"),
+          path.join(strDefaultPythonEnvironmentPath, "bin"),
           process.env.PATH,
         ].join(";"),
         PYTHONPATH: [strScriptFolderPath].join(";"),
@@ -195,15 +195,15 @@ function moveMouse(): void {
 
   const strScriptPath = path.join(strScriptFolderPath, "MoveMouse.py");
 
-  processPyMoveMouse = spawn(path.join(strPyEnvPath, "python.exe"), [strScriptPath], {
+  processPyMoveMouse = spawn(path.join(strDefaultPythonEnvironmentPath, "python.exe"), [strScriptPath], {
     env: {
       PATH: [
-        strPyEnvPath,
-        path.join(strPyEnvPath, "Library", "mingw-w64", "bin"),
-        path.join(strPyEnvPath, "Library", "usr", "bin"),
-        path.join(strPyEnvPath, "Library", "bin"),
-        path.join(strPyEnvPath, "Scripts"),
-        path.join(strPyEnvPath, "bin"),
+        strDefaultPythonEnvironmentPath,
+        path.join(strDefaultPythonEnvironmentPath, "Library", "mingw-w64", "bin"),
+        path.join(strDefaultPythonEnvironmentPath, "Library", "usr", "bin"),
+        path.join(strDefaultPythonEnvironmentPath, "Library", "bin"),
+        path.join(strDefaultPythonEnvironmentPath, "Scripts"),
+        path.join(strDefaultPythonEnvironmentPath, "bin"),
         process.env.PATH,
       ].join(";"),
       PYTHONPATH: [strScriptFolderPath].join(";"),

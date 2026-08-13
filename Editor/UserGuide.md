@@ -17,7 +17,7 @@ You can hover over each setting item in VS Code to see its built-in explanation.
 LiberRPA uses the `LiberRPA` environment variable to locate the bundled Python environment. The Python interpreter setting is expected to use this form:
 
 ```json
-"python.defaultInterpreterPath": "${env:LiberRPA}\\envs\\pyenv\\python.exe"
+"python.defaultInterpreterPath": "${env:LiberRPA}\\envs\\pyenv\\default\\python.exe"
 ```
 
 After running `InitLiberRPA.exe`, restart LiberRPA Editor if the interpreter cannot be found immediately. Windows and VS Code may not see newly updated environment variables until the process is restarted.
@@ -36,7 +36,7 @@ Recommended settings include:
 },
 "ruff.nativeServer": "on",
 "ruff.interpreter": [
-  "${env:LiberRPA}\\envs\\pyenv\\python.exe"
+  "${env:LiberRPA}\\envs\\pyenv\\default\\python.exe"
 ]
 ```
 

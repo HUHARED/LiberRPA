@@ -10,7 +10,7 @@ import moment from "moment";
 import { loggerMain } from "./logger";
 import { strExecutorPackageFolderPath } from "./fileFunc";
 import { dbInsertHistoryDetail, dbUpdateHistoryDetail } from "./database";
-import { strDocumentsFolderPath, strPyEnvPath } from "./commonFunc";
+import { strDocumentsFolderPath, strDefaultPythonEnvironmentPath } from "./commonFunc";
 import type { DictColumns_Project_Detail_Run } from "../shared/interface";
 
 type ExecutorRunStateStatus = "running" | "completed" | "error" | "terminated";
@@ -29,7 +29,7 @@ interface ExecutorRunState {
 
 const dictProcessCache: { [key: string]: ChildProcessWithoutNullStreams } = {};
 const strRunFilePath = path.join(
-  strPyEnvPath,
+  strDefaultPythonEnvironmentPath,
   "Lib/site-packages/liberrpa/FlowControl/Run.py",
 );
 const strExecutorRunStateFolderPath = path.join(
@@ -60,7 +60,7 @@ export async function pythonRun(
   const strRunStatePath = path.join(strExecutorRunStateFolderPath, `${strRunId}.json`);
 
   const processPy = spawn(
-    path.join(strPyEnvPath, "python.exe"),
+    path.join(strDefaultPythonEnvironmentPath, "python.exe"),
     [
       strRunFilePath,
       "--executor_args",
@@ -83,12 +83,12 @@ export async function pythonRun(
         LIBERRPA_EXECUTOR_PACKAGE_NAME: dictDetail.name,
         LIBERRPA_EXECUTOR_PACKAGE_VERSION: dictDetail.version,
         PATH: [
-          strPyEnvPath,
-          path.join(strPyEnvPath, "Library", "mingw-w64", "bin"),
-          path.join(strPyEnvPath, "Library", "usr", "bin"),
-          path.join(strPyEnvPath, "Library", "bin"),
-          path.join(strPyEnvPath, "Scripts"),
-          path.join(strPyEnvPath, "bin"),
+          strDefaultPythonEnvironmentPath,
+          path.join(strDefaultPythonEnvironmentPath, "Library", "mingw-w64", "bin"),
+          path.join(strDefaultPythonEnvironmentPath, "Library", "usr", "bin"),
+          path.join(strDefaultPythonEnvironmentPath, "Library", "bin"),
+          path.join(strDefaultPythonEnvironmentPath, "Scripts"),
+          path.join(strDefaultPythonEnvironmentPath, "bin"),
           process.env.PATH ?? "",
         ]
           .filter(Boolean)

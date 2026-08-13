@@ -402,7 +402,7 @@ if __name__ == "__main__":
 
         const strProgramTemp = path.join(
           strLiberRPAEnvPath,
-          "envs/pyenv/Lib/site-packages/liberrpa/FlowControl/Run.py",
+          "envs/pyenv/default/Lib/site-packages/liberrpa/FlowControl/Run.py",
         );
 
         if (!fs.existsSync(strProgramTemp) || !fs.statSync(strProgramTemp).isFile()) {
