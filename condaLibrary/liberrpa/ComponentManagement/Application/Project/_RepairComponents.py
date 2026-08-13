@@ -5,6 +5,7 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
+from liberrpa.ComponentManagement.Common._DiagnosticLog import DiagnosticLog
 from liberrpa.ComponentManagement.Common._Exception import ComponentManagementError
 from liberrpa.ComponentManagement.Common._Project import resolve_project_path
 from liberrpa.ComponentManagement.Types._Warning import DictComponentManagementWarning
@@ -49,6 +50,10 @@ def repair_project_components(
     pathProject = resolve_project_path(projectPath)
     pathRepository = get_repository_path()
     listWarning: list[DictComponentManagementWarning] = []
+    DiagnosticLog.debug({
+        "projectPath": str(pathProject),
+        "repositoryPath": str(pathRepository),
+    })
 
     with repository_lock(pathRepository, "repairProjectComponents"):
         listWarning.extend(recover_repository_transactions(pathRepository))
@@ -91,6 +96,7 @@ def repair_project_components(
                     details={"componentsFolderPath": str(pathComponentsFolder)},
                 )
 
+            DiagnosticLog.info(f"Repairing Project _Components: {pathComponentsFolder}")
             strManifestFileName = get_manifest_file_name(strProjectType)
             pathTransactionFolder, dictTransaction = prepare_project_transaction(
                 pathProject,
@@ -104,12 +110,23 @@ def repair_project_components(
                 targetComponentsLockDict=dictLock,
                 planSha256=None,
             )
+            DiagnosticLog.info(
+                f"Prepared Project repair transaction: {pathTransactionFolder}"
+            )
             folderInfo = commit_project_transaction(
                 pathProject,
                 pathTransactionFolder,
                 dictTransaction,
             )
             assert folderInfo is not None
+            DiagnosticLog.info(
+                f"Committed Project repair transaction: {pathTransactionFolder}"
+            )
+            DiagnosticLog.debug({
+                "componentsFolderPath": str(folderInfo.componentsFolderPath),
+                "componentCount": folderInfo.componentCount,
+                "fileCount": folderInfo.fileCount,
+            })
 
             dictWarning = remove_transaction_folder(pathTransactionFolder)
             if dictWarning is not None:

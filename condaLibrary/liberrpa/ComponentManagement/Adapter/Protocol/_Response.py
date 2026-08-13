@@ -5,6 +5,7 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
+from liberrpa.ComponentManagement.Common._DiagnosticLog import DiagnosticLog
 from liberrpa.ComponentManagement.Common._Exception import ComponentManagementError
 from liberrpa.ComponentManagement.Types._Publish import (
     Info_Publish_PreparationCreated,
@@ -82,13 +83,18 @@ def _get_project_dependency_plan_result(
 def build_error_response(
     errorObj: ComponentManagementError,
 ) -> DictProtocolResponse_Error:
+    dictDetails = dict(errorObj.details or {})
+    pathDiagnosticLog = DiagnosticLog.logFilePath
+    if pathDiagnosticLog is not None:
+        dictDetails.setdefault("diagnosticLogPath", str(pathDiagnosticLog))
+
     return {
         "schemaVersion": 1,
         "ok": False,
         "error": {
             "code": errorObj.code,
             "message": errorObj.message,
-            "details": errorObj.details or {},
+            "details": dictDetails,
         },
     }
 

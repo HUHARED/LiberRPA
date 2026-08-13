@@ -27,6 +27,7 @@ from liberrpa.Common._RunContext import (
     write_executor_run_state,
 )
 from liberrpa.Common._Exception import get_exception_info
+from liberrpa.Common._LogFormatter import create_human_read_formatter
 
 import os
 import getpass
@@ -85,7 +86,9 @@ P = ParamSpec("P")
 T = TypeVar("T")
 
 
-def _find_caller(stack_info: bool = False, stacklevel: int = 2) -> tuple[str, int, str, str | None]:
+def _find_caller(
+    stack_info: bool = False, stacklevel: int = 2
+) -> tuple[str, int, str, str | None]:
     """
     Find the stack frame of the caller so that we can note the source file name, line number, and function name.
     """
@@ -109,19 +112,6 @@ def _find_caller(stack_info: bool = False, stacklevel: int = 2) -> tuple[str, in
             sio.close()
         rv = (co.co_filename, f.f_lineno, co.co_name, sinfo)
     return rv
-
-
-class ConditionalHumanReadFormatter(logging.Formatter):
-    def __init__(self, normalFmt: str, internalFmt: str, datefmt: str) -> None:
-        super().__init__()
-        self.normalFormatter = logging.Formatter(normalFmt, datefmt=datefmt)
-        self.internalFormatter = logging.Formatter(internalFmt, datefmt=datefmt)
-
-    def format(self, record: logging.LogRecord) -> str:
-        # Not record [%(filename)s][%(lineno)d] in human-read log if the filnename is "Logging.py" and so on, to make the log more concise.
-        if record.filename in _SET_INTERNAL_FILE:
-            return self.internalFormatter.format(record)
-        return self.normalFormatter.format(record)
 
 
 class JsonLineFormatter(logging.Formatter):
@@ -232,22 +222,40 @@ class ColoredConsoleFormatter(logging.Formatter):
         strLevel = record.levelname
 
         listParts: list[str] = [
-            self._wrap_by_bracket_and_generate_color(strTimestamp, self.FIELD_STYLES["timestamp"]),
-            self._wrap_by_bracket_and_generate_color(strLevel, self.LEVEL_STYLES.get(strLevel, "")),
+            self._wrap_by_bracket_and_generate_color(
+                strTimestamp, self.FIELD_STYLES["timestamp"]
+            ),
+            self._wrap_by_bracket_and_generate_color(
+                strLevel, self.LEVEL_STYLES.get(strLevel, "")
+            ),
         ]
 
         if record.processName != "MainProcess":
             listParts.append(
-                self._wrap_by_bracket_and_generate_color(record.processName, self.FIELD_STYLES["processName"])
+                self._wrap_by_bracket_and_generate_color(
+                    record.processName, self.FIELD_STYLES["processName"]
+                )
             )
 
         if record.filename not in _SET_INTERNAL_FILE:
-            listParts.append(self._wrap_by_bracket_and_generate_color(record.filename, self.FIELD_STYLES["fileName"]))
-            listParts.append(self._wrap_by_bracket_and_generate_color(record.lineno, self.FIELD_STYLES["lineNo"]))
+            listParts.append(
+                self._wrap_by_bracket_and_generate_color(
+                    record.filename, self.FIELD_STYLES["fileName"]
+                )
+            )
+            listParts.append(
+                self._wrap_by_bracket_and_generate_color(
+                    record.lineno, self.FIELD_STYLES["lineNo"]
+                )
+            )
 
         for name in self.listCustomLogPart:
             value = getattr(record, name, "")
-            listParts.append(self._wrap_by_bracket_and_generate_color(value, self.FIELD_STYLES["custom"]))
+            listParts.append(
+                self._wrap_by_bracket_and_generate_color(
+                    value, self.FIELD_STYLES["custom"]
+                )
+            )
 
         message = record.getMessage()
         if message.startswith("START:") or message.startswith("END  :"):
@@ -275,7 +283,9 @@ class Logger:
 
         strToolName: BasicConfigToolName
         strLogFolderName = os.getenv("LogFolderName")
-        dictExecutorRunContext = None if strLogFolderName is not None else get_executor_run_context()
+        dictExecutorRunContext = (
+            None if strLogFolderName is not None else get_executor_run_context()
+        )
         datetimeStartedAt = get_or_create_run_started_at()
         strStartedAtFolderName = datetimeStartedAt.strftime("%Y-%m-%d_%H%M%S_%f")
 
@@ -300,15 +310,23 @@ class Logger:
                 dictExecutorConfig = cast(
                     dict[str, str],
                     json5.loads(
-                        Path(os.path.join(get_liberrpa_folder_path(), "./configFiles/Executor.jsonc")).read_text(
-                            encoding="utf-8", errors="strict"
-                        )
+                        Path(
+                            os.path.join(
+                                get_liberrpa_folder_path(), "./configFiles/Executor.jsonc"
+                            )
+                        ).read_text(encoding="utf-8", errors="strict")
                     ),
                 )
 
-                strProjectLogFolderPath = dictExecutorConfig.get("projectLogFolderPath", "")
-                strLogBasePath = strProjectLogFolderPath or self.dictBasicConfig["outputLogPath"]
-                strRunFolderName = f"{strStartedAtFolderName}_{dictExecutorRunContext.runId}"
+                strProjectLogFolderPath = dictExecutorConfig.get(
+                    "projectLogFolderPath", ""
+                )
+                strLogBasePath = (
+                    strProjectLogFolderPath or self.dictBasicConfig["outputLogPath"]
+                )
+                strRunFolderName = (
+                    f"{strStartedAtFolderName}_{dictExecutorRunContext.runId}"
+                )
 
                 self.strLogFolder = sanitize_filepath(
                     os.path.join(
@@ -339,10 +357,18 @@ class Logger:
             write_executor_run_state(status="running", logPath=self.strLogFolder)
 
         # Create loggers.
-        self.colorfulConsoleHandlerObj = logging.StreamHandler(stream=sys.stderr)  # Console handler
-        self.humanLogger = self._create_logger(f"human_read_{PROCESS_NAME}.log", humanReadable=True)
-        self.humanLogger.addHandler(self.colorfulConsoleHandlerObj)  # Add the StreamHandler to human_logger
-        self.machineLogger = self._create_logger(fileName=f"machine_read_{PROCESS_NAME}.jsonl", humanReadable=False)
+        self.colorfulConsoleHandlerObj = logging.StreamHandler(
+            stream=sys.stderr
+        )  # Console handler
+        self.humanLogger = self._create_logger(
+            f"human_read_{PROCESS_NAME}.log", humanReadable=True
+        )
+        self.humanLogger.addHandler(
+            self.colorfulConsoleHandlerObj
+        )  # Add the StreamHandler to human_logger
+        self.machineLogger = self._create_logger(
+            fileName=f"machine_read_{PROCESS_NAME}.jsonl", humanReadable=False
+        )
 
     def _create_logger(self, fileName: str, humanReadable: bool) -> logging.Logger:
         logger = logging.getLogger(fileName)
@@ -360,7 +386,9 @@ class Logger:
         logger.setLevel(logging.DEBUG)
 
         strLogFilePath = os.path.join(self.strLogFolder, fileName)
-        fileHandlerObj = RotatingFileHandler(strLogFilePath, maxBytes=5 * 1024 * 1024, backupCount=5, encoding="utf-8")
+        fileHandlerObj = RotatingFileHandler(
+            strLogFilePath, maxBytes=5 * 1024 * 1024, backupCount=5, encoding="utf-8"
+        )
 
         if humanReadable:
             formatter = self._get_human_formatter()
@@ -374,35 +402,11 @@ class Logger:
         logger.findCaller = _find_caller
         return logger
 
-    def _build_human_format(self, includeSource: bool) -> str:
-        listParts: list[str] = [
-            "%(asctime)s",
-            "%(levelname)s",
-        ]
-
-        # Not show processName in MainProcess to make log more concise.
-        if PROCESS_NAME != "MainProcess":
-            listParts.append("%(processName)s")
-
-        if includeSource:
-            listParts.extend([
-                "%(filename)s",
-                "%(lineno)d",
-            ])
-
-        for key in self.dictCustomLogPart:
-            listParts.append(f"%({key})s")
-
-        return "".join(f"[{part}]" for part in listParts) + " %(message)s"
-
     def _get_human_formatter(self) -> logging.Formatter:
-        fmtNormal = self._build_human_format(includeSource=True)
-        fmtInternal = self._build_human_format(includeSource=False)
-
-        return ConditionalHumanReadFormatter(
-            normalFmt=fmtNormal,
-            internalFmt=fmtInternal,
-            datefmt="%Y-%m-%d %H:%M:%S",
+        return create_human_read_formatter(
+            includeProcessName=PROCESS_NAME != "MainProcess",
+            sourceHiddenFileNameSet=_SET_INTERNAL_FILE,
+            customLogPart=self.dictCustomLogPart,
         )
 
     def _get_console_formatter(self) -> logging.Formatter:
@@ -431,7 +435,9 @@ class Logger:
         self.colorfulConsoleHandlerObj.setFormatter(self._get_console_formatter())
         self.machineLogger.handlers[0].setFormatter(self._get_json_formatter())
 
-        if len(self.humanLogger.handlers) > 1 and isinstance(self.humanLogger.handlers[1], logging.StreamHandler):
+        if len(self.humanLogger.handlers) > 1 and isinstance(
+            self.humanLogger.handlers[1], logging.StreamHandler
+        ):
             self.humanLogger.handlers[1].setFormatter(self._get_console_formatter())
 
     def add_custom_log_part(self, name: str, text: str) -> None:
@@ -496,7 +502,9 @@ class Logger:
 
         return str(message)
 
-    def _build_human_message(self, messages: tuple[Any, ...], sep: str, formatMessage: bool) -> str:
+    def _build_human_message(
+        self, messages: tuple[Any, ...], sep: str, formatMessage: bool
+    ) -> str:
         if not messages:
             return ""
 
@@ -514,13 +522,21 @@ class Logger:
 
         return list(messages)
 
-    def _write_log(self, level: int, messages: tuple[Any, ...], sep: str, formatMessage: bool) -> None:
+    def _write_log(
+        self, level: int, messages: tuple[Any, ...], sep: str, formatMessage: bool
+    ) -> None:
         extra = self._get_custom_log_parts()
-        humanMessage = self._build_human_message(messages=messages, sep=sep, formatMessage=formatMessage)
+        humanMessage = self._build_human_message(
+            messages=messages, sep=sep, formatMessage=formatMessage
+        )
         machineMessage = self._build_machine_message(messages=messages)
 
-        self.humanLogger.log(level, humanMessage, stacklevel=_INT_PUBLIC_LOG_STACKLEVEL, extra=extra)
-        self.machineLogger.log(level, machineMessage, stacklevel=_INT_PUBLIC_LOG_STACKLEVEL, extra=extra)
+        self.humanLogger.log(
+            level, humanMessage, stacklevel=_INT_PUBLIC_LOG_STACKLEVEL, extra=extra
+        )
+        self.machineLogger.log(
+            level, machineMessage, stacklevel=_INT_PUBLIC_LOG_STACKLEVEL, extra=extra
+        )
 
     def verbose(self, *messages: Any, sep: str = " ") -> None:
         """
@@ -530,7 +546,9 @@ class Logger:
             messages: Values to write to the log. Multiple values are converted to strings and joined by sep in the human_read log. In the machine_read log, a single value is stored as-is, and multiple values are stored as a list of original values.
             sep: Separator inserted between multiple values in the human_read log. It does not change values stored in the machine_read log.
         """
-        self._write_log(level=VERBOSE_LEVEL_NUM, messages=messages, sep=sep, formatMessage=False)
+        self._write_log(
+            level=VERBOSE_LEVEL_NUM, messages=messages, sep=sep, formatMessage=False
+        )
 
     def debug(self, *messages: Any, sep: str = " ") -> None:
         """
@@ -540,7 +558,9 @@ class Logger:
             messages: Values to write to the log. Multiple values are converted to strings and joined by sep in the human_read log. In the machine_read log, a single value is stored as-is, and multiple values are stored as a list of original values.
             sep: Separator inserted between multiple values in the human_read log. It does not change values stored in the machine_read log.
         """
-        self._write_log(level=logging.DEBUG, messages=messages, sep=sep, formatMessage=False)
+        self._write_log(
+            level=logging.DEBUG, messages=messages, sep=sep, formatMessage=False
+        )
 
     def info(self, *messages: Any, sep: str = " ") -> None:
         """
@@ -550,7 +570,9 @@ class Logger:
             messages: Values to write to the log. Multiple values are converted to strings and joined by sep in the human_read log. In the machine_read log, a single value is stored as-is, and multiple values are stored as a list of original values.
             sep: Separator inserted between multiple values in the human_read log. It does not change values stored in the machine_read log.
         """
-        self._write_log(level=logging.INFO, messages=messages, sep=sep, formatMessage=False)
+        self._write_log(
+            level=logging.INFO, messages=messages, sep=sep, formatMessage=False
+        )
 
     def warning(self, *messages: Any, sep: str = " ") -> None:
         """
@@ -560,7 +582,9 @@ class Logger:
             messages: Values to write to the log. Multiple values are converted to strings and joined by sep in the human_read log. In the machine_read log, a single value is stored as-is, and multiple values are stored as a list of original values.
             sep: Separator inserted between multiple values in the human_read log. It does not change values stored in the machine_read log.
         """
-        self._write_log(level=logging.WARNING, messages=messages, sep=sep, formatMessage=False)
+        self._write_log(
+            level=logging.WARNING, messages=messages, sep=sep, formatMessage=False
+        )
 
     def error(self, *messages: Any, sep: str = " ") -> None:
         """
@@ -570,7 +594,9 @@ class Logger:
             messages: Values to write to the log. Multiple values are converted to strings and joined by sep in the human_read log. In the machine_read log, a single value is stored as-is, and multiple values are stored as a list of original values.
             sep: Separator inserted between multiple values in the human_read log. It does not change values stored in the machine_read log.
         """
-        self._write_log(level=logging.ERROR, messages=messages, sep=sep, formatMessage=False)
+        self._write_log(
+            level=logging.ERROR, messages=messages, sep=sep, formatMessage=False
+        )
 
     def critical(self, *messages: Any, sep: str = " ") -> None:
         """
@@ -580,7 +606,9 @@ class Logger:
             messages: Values to write to the log. Multiple values are converted to strings and joined by sep in the human_read log. In the machine_read log, a single value is stored as-is, and multiple values are stored as a list of original values.
             sep: Separator inserted between multiple values in the human_read log. It does not change values stored in the machine_read log.
         """
-        self._write_log(level=logging.CRITICAL, messages=messages, sep=sep, formatMessage=False)
+        self._write_log(
+            level=logging.CRITICAL, messages=messages, sep=sep, formatMessage=False
+        )
 
     def verbose_pretty(self, *messages: Any, sep: str = " ") -> None:
         """
@@ -592,7 +620,9 @@ class Logger:
             messages: Values to write to the log.
             sep: Separator inserted between multiple values in the human_read log.
         """
-        self._write_log(level=VERBOSE_LEVEL_NUM, messages=messages, sep=sep, formatMessage=True)
+        self._write_log(
+            level=VERBOSE_LEVEL_NUM, messages=messages, sep=sep, formatMessage=True
+        )
 
     def debug_pretty(self, *messages: Any, sep: str = " ") -> None:
         """
@@ -604,7 +634,9 @@ class Logger:
             messages: Values to write to the log.
             sep: Separator inserted between multiple values in the human_read log.
         """
-        self._write_log(level=logging.DEBUG, messages=messages, sep=sep, formatMessage=True)
+        self._write_log(
+            level=logging.DEBUG, messages=messages, sep=sep, formatMessage=True
+        )
 
     def info_pretty(self, *messages: Any, sep: str = " ") -> None:
         """
@@ -616,7 +648,9 @@ class Logger:
             messages: Values to write to the log.
             sep: Separator inserted between multiple values in the human_read log.
         """
-        self._write_log(level=logging.INFO, messages=messages, sep=sep, formatMessage=True)
+        self._write_log(
+            level=logging.INFO, messages=messages, sep=sep, formatMessage=True
+        )
 
     def warning_pretty(self, *messages: Any, sep: str = " ") -> None:
         """
@@ -628,7 +662,9 @@ class Logger:
             messages: Values to write to the log.
             sep: Separator inserted between multiple values in the human_read log.
         """
-        self._write_log(level=logging.WARNING, messages=messages, sep=sep, formatMessage=True)
+        self._write_log(
+            level=logging.WARNING, messages=messages, sep=sep, formatMessage=True
+        )
 
     def error_pretty(self, *messages: Any, sep: str = " ") -> None:
         """
@@ -640,7 +676,9 @@ class Logger:
             messages: Values to write to the log.
             sep: Separator inserted between multiple values in the human_read log.
         """
-        self._write_log(level=logging.ERROR, messages=messages, sep=sep, formatMessage=True)
+        self._write_log(
+            level=logging.ERROR, messages=messages, sep=sep, formatMessage=True
+        )
 
     def critical_pretty(self, *messages: Any, sep: str = " ") -> None:
         """
@@ -652,9 +690,13 @@ class Logger:
             messages: Values to write to the log.
             sep: Separator inserted between multiple values in the human_read log.
         """
-        self._write_log(level=logging.CRITICAL, messages=messages, sep=sep, formatMessage=True)
+        self._write_log(
+            level=logging.CRITICAL, messages=messages, sep=sep, formatMessage=True
+        )
 
-    def set_level(self, level: LogLevel, loggerType: Literal["both", "human", "machine"] = "both") -> None:
+    def set_level(
+        self, level: LogLevel, loggerType: Literal["both", "human", "machine"] = "both"
+    ) -> None:
         """
         Set the minimum log level for the logger.
 
@@ -663,10 +705,14 @@ class Logger:
             loggerType: Which logger to set the level for. Must be one of ['both', 'human', 'machine'].
         """
         if level not in self.dictLevel:
-            raise ValueError(f"Invalid log level: {level}. Must be one of {list(self.dictLevel.keys())}.")
+            raise ValueError(
+                f"Invalid log level: {level}. Must be one of {list(self.dictLevel.keys())}."
+            )
 
         if loggerType not in ["both", "human", "machine"]:
-            raise ValueError(f"Invalid loggerType: {loggerType}. Must be one of ['both', 'human', 'machine'].")
+            raise ValueError(
+                f"Invalid loggerType: {loggerType}. Must be one of ['both', 'human', 'machine']."
+            )
 
         newLevel = self.dictLevel[level]
 
@@ -702,7 +748,9 @@ class Logger:
                     f'The argument level({level}) should be one of ["VERBOSE", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]'
                 )
 
-    def trace(self, level: LogLevel = "DEBUG") -> Callable[[Callable[P, T]], Callable[P, T]]:
+    def trace(
+        self, level: LogLevel = "DEBUG"
+    ) -> Callable[[Callable[P, T]], Callable[P, T]]:
         """
         Decorate a function to log its start and end at a specified log level.
 
@@ -727,7 +775,9 @@ class Logger:
                 finally:
                     # Log END only if no error occurred
                     if not boolError:
-                        self._trace_call(level=level, prefix="END", funcName=func.__name__)
+                        self._trace_call(
+                            level=level, prefix="END", funcName=func.__name__
+                        )
 
             return wrapper
 
@@ -754,7 +804,9 @@ try:
     else:
         Log.set_level(level="DEBUG", loggerType="both")
 except Exception:
-    Log.debug(f"Failure to use '{PATH_PROJECT_FLOW}' to set log level. It is not a normal LiberRPA project?")
+    Log.debug(
+        f"Failure to use '{PATH_PROJECT_FLOW}' to set log level. It is not a normal LiberRPA project?"
+    )
     Log.set_level(level="DEBUG", loggerType="both")
 
 boolIsAdmin = ctypes.windll.shell32.IsUserAnAdmin() != 0

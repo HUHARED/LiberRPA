@@ -5,6 +5,7 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
+from liberrpa.ComponentManagement.Common._DiagnosticLog import DiagnosticLog
 from liberrpa.ComponentManagement.Domain.Lock._Lock import create_lock, release_lock
 
 from collections.abc import Generator
@@ -18,13 +19,18 @@ _STR_REPOSITORY_OPERATION_LOCK_FILE_NAME = ".repository.lock"
 @contextmanager
 def repository_lock(repositoryPath: Path, operation: str) -> Generator[None]:
     pathRepositoryLockFile = repositoryPath / _STR_REPOSITORY_OPERATION_LOCK_FILE_NAME
+    DiagnosticLog.debug(
+        f"Acquiring Repository lock: {pathRepositoryLockFile} (operation={operation})."
+    )
     strOwnerId = create_lock(
         lockFilePath=pathRepositoryLockFile,
         operation=operation,
         lockType="repository",
     )
+    DiagnosticLog.debug(f"Acquired Repository lock: {pathRepositoryLockFile}")
 
     try:
         yield
     finally:
         release_lock(lockFilePath=pathRepositoryLockFile, ownerId=strOwnerId)
+        DiagnosticLog.debug(f"Released Repository lock: {pathRepositoryLockFile}")

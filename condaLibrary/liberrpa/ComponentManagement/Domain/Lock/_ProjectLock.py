@@ -5,6 +5,7 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
+from liberrpa.ComponentManagement.Common._DiagnosticLog import DiagnosticLog
 from liberrpa.ComponentManagement.Domain.Lock._Lock import create_lock, release_lock
 
 from collections.abc import Generator
@@ -18,13 +19,18 @@ _STR_PROJECT_OPERATION_LOCK_FILE_NAME = ".liberrpa-project-manager.lock"
 @contextmanager
 def project_lock(projectPath: Path, operation: str) -> Generator[None]:
     pathProjectLockFile = projectPath / _STR_PROJECT_OPERATION_LOCK_FILE_NAME
+    DiagnosticLog.debug(
+        f"Acquiring Project lock: {pathProjectLockFile} (operation={operation})."
+    )
     strOwnerId = create_lock(
         lockFilePath=pathProjectLockFile,
         operation=operation,
         lockType="project",
     )
+    DiagnosticLog.debug(f"Acquired Project lock: {pathProjectLockFile}")
 
     try:
         yield
     finally:
         release_lock(lockFilePath=pathProjectLockFile, ownerId=strOwnerId)
+        DiagnosticLog.debug(f"Released Project lock: {pathProjectLockFile}")
