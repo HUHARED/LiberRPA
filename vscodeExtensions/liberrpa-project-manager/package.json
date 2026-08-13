@@ -2,7 +2,7 @@
   "name": "liberrpa-project-manager",
   "displayName": "LiberRPA Project Manager",
   "description": "This extension is part of LiberRPA to manage project.",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "publisher": "LiberRPA",
   "engines": {
     "vscode": "^1.121.0"

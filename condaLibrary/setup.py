@@ -5,25 +5,28 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
-# For pip editable mode.
-from setuptools import setup, find_packages
+from setuptools import find_packages, setup
 
 _LONG_DESCRIPTION = """
 # liberrpa
 
 `liberrpa` is the core Python library of LiberRPA, an open-source RPA toolchain for Windows.
 
-This PyPI package only installs the Python library. It does not install the full LiberRPA runtime, desktop applications, Chrome extension, local server shortcuts, project templates, FFmpeg, Office-related runtime requirements, or the recommended standard Python environment.
+This PyPI package installs only the Python library. It does not install the full LiberRPA runtime, desktop applications, Chrome extension, local server shortcuts, project templates, FFmpeg, Office-related runtime requirements, or the recommended standard Python environment.
 
-For normal users, please install LiberRPA from the official release package and use the bundled or documented standard Python environment.
+For normal use, install LiberRPA from the official release package and use its documented `default` Python environment.
 
-Advanced users may install this package manually, but they are responsible for preparing all required runtime dependencies.
+Advanced users may install `liberrpa` separately, but they are responsible for preparing and maintaining all runtime dependencies required by the LiberRPA modules they use. To ensure that LiberRPA Project editing and execution work as expected, reproduce the dependency set of the official LiberRPA `default` environment according to the project documentation.
+
+Project repository:
+https://github.com/HUHARED/LiberRPA
 """
+
 
 setup(
     name="liberrpa",
-    version="0.2.0",  # Update as appropriate
-    description="The main Python library of LiberRPA.",
+    version="0.3.0",
+    description="The core Python library of LiberRPA.",
     long_description=_LONG_DESCRIPTION,
     long_description_content_type="text/markdown",
     author="Jiyan Hu",
@@ -58,22 +61,13 @@ setup(
     packages=find_packages(include=["liberrpa", "liberrpa.*"]),
     package_data={
         "liberrpa": ["py.typed"],
-        "liberrpa.ComponentManagement.Domain.Snippet.Templates": ["snippets.jsonc.template"],
+        "liberrpa.ComponentManagement.Domain.Snippet.Templates": [
+            "snippets.jsonc.template"
+        ],
     },
     include_package_data=True,
     python_requires=">=3.13,<3.14",
     platforms=["Windows"],
-    install_requires=[
-        # Keep this list intentionally small.
-        #
-        # The complete LiberRPA runtime dependencies are managed by the official
-        # LiberRPA standard environment. Do not use install_requires as a full
-        # replacement for that environment.
-        "uiautomation",
-        # "easyocr",
-        # "pystray",
-        "pyzipper",
-        "PyMuPDF",
-        "mail-parser",
-    ],
+    # Intentionally empty. The PyPI package provides the liberrpa Python library only; the complete runtime dependency set is managed by the official LiberRPA standard Python environment. Users who do not use that environment must install and maintain the required dependencies themselves according to the LiberRPA documentation.
+    install_requires=[],
 )
