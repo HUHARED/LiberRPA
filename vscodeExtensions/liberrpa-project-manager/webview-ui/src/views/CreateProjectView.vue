@@ -39,9 +39,10 @@
         <v-col cols="12" md="6">
           <v-text-field
             v-model="createProjectStore.version"
+            class="version-field"
             label="Version"
             placeholder="1.0.0"
-            hint="Use a Python PEP 440 version. Most users should use MAJOR.MINOR.PATCH."
+            :hint="`Use a Python PEP 440 version.\nFor most users, MAJOR.MINOR.PATCH is sufficient.`"
             persistent-hint
             :error-messages="versionError"
             :disabled="projectManagerStore.busy">
@@ -290,3 +291,9 @@ function cancel(): void {
   }
 }
 </script>
+
+<style scoped>
+.version-field :deep(.v-messages__message) {
+  white-space: pre-line;
+}
+</style>
