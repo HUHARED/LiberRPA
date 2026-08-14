@@ -796,16 +796,23 @@ class Logger:
 # Log is a variable but I hope user treat it as a module, so use UpperCamelCase to match other LiberRPA modules' convention.
 Log = Logger()
 
-try:
-    from liberrpa.FlowControl.ProjectFlowInit import dictFlowFile
+if PATH_PROJECT_FLOW.is_file():
+    # Flow Project
+    try:
+        from liberrpa.FlowControl.ProjectFlowInit import dictFlowFile
 
-    if dictFlowFile["logLevel"]:
-        Log.set_level(level=dictFlowFile["logLevel"], loggerType="both")
-    else:
+        if dictFlowFile["logLevel"]:
+            Log.set_level(level=dictFlowFile["logLevel"], loggerType="both")
+        else:
+            Log.set_level(level="DEBUG", loggerType="both")
+    except Exception as e:
+        Log.warning(
+            f"Could not load the log level from '{PATH_PROJECT_FLOW}': {e}. Using the default log level 'DEBUG'."
+        )
         Log.set_level(level="DEBUG", loggerType="both")
-except Exception:
+else:
     Log.debug(
-        f"Failure to use '{PATH_PROJECT_FLOW}' to set log level. It is not a normal LiberRPA project?"
+        f"No project.flow was found at '{PATH_PROJECT_FLOW}'. Using the default log level 'DEBUG'."
     )
     Log.set_level(level="DEBUG", loggerType="both")
 
