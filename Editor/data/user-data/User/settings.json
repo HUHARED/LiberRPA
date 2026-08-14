@@ -22,10 +22,12 @@
     "editor.defaultFormatter": "esbenp.prettier-vscode",
     "editor.tabSize": 2,
     "editor.insertSpaces": true,
-    "editor.detectIndentation": false
+    "editor.detectIndentation": false,
+    "prettier.trailingComma": "none"
   },
   "[jsonc]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "prettier.trailingComma": "none"
   },
 
   "[vue]": {
@@ -81,7 +83,7 @@
 
   // Workbench settings
   "workbench.colorTheme": "Light Modern",
-  "workbench.iconTheme": null,
+  "workbench.iconTheme": "vscode-great-icons-with-liberrpa",
   "workbench.startupEditor": "newUntitledFile",
   "workbench.editorAssociations": {
     "*.png": "imagePreview.previewEditor",
