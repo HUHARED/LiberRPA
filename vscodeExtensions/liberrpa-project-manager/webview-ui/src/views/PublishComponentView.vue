@@ -130,8 +130,8 @@
         </template>
         <template v-else>
           Running Publish Component will first create the AST scan result and Snippet
-          configuration template. Review the files in the VS Code editor, then run Publish
-          Component again.
+          configuration template.<br />
+          Review the files in the VS Code editor, then run Publish Component again.
         </template>
       </v-alert>
 
