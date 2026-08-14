@@ -1,6 +1,6 @@
 # LiberRPA Flowchart
 
-(If you can't see the images in the document, have a look on [GitHub](https://github.com/HUHARED/LiberRPA/blob/main/vscodeExtensions/liberrpa-flowchart/README.md).)
+If the images are not displayed, [view this README on GitHub](https://github.com/HUHARED/LiberRPA/blob/main/vscodeExtensions/liberrpa-flowchart/README.md).
 
 This extension is a part of LiberRPA to manage the overall flow of an RPA project, including project arguments and settings.
 
