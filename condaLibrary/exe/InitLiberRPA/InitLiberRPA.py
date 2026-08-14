@@ -14,7 +14,9 @@ import winreg
 import secrets
 
 pathCwd = Path.cwd().resolve()
-print(f"The current work folder: {pathCwd}, LiberRPA will be initialized according to the current path.")
+print(
+    f"The current work folder: {pathCwd}, LiberRPA will be initialized according to the current path."
+)
 pathUser = Path.home()
 
 
@@ -31,8 +33,8 @@ def print_step_done(name: str) -> None:
     print(f"##### Step {name} completed #####\n")
 
 
-def create_folder_in_documents() -> None:
-    print_step(name="create_folder_in_documents")
+def create_liberrpa_folder_in_documents() -> None:
+    print_step(name="create_liberrpa_folder_in_documents")
 
     pathObj = pathUser / "Documents" / "LiberRPA"
 
@@ -42,14 +44,16 @@ def create_folder_in_documents() -> None:
     else:
         print("LiberRPA folder in User Documents has existed.")
 
-    print_step_done(name="create_folder_in_documents")
+    print_step_done(name="create_liberrpa_folder_in_documents")
 
 
 def _set_user_environment_variable(name: str, value: str) -> None:
     """Set a persistent user environment variable and update this process immediately."""
     subprocess.run(["setx", name, value], check=True)
     os.environ[name] = value
-    print("[Note] Please restart LiberRPA Editor after initialization so it can read the updated environment variable.")
+    print(
+        "[Note] Please restart LiberRPA Editor after initialization so it can read the updated environment variable."
+    )
 
 
 def set_liberrpa_environment() -> None:
@@ -69,7 +73,9 @@ def set_liberrpa_environment() -> None:
 
         if strUserInput == "y":
             _set_user_environment_variable(name="LiberRPA", value=str(pathCwd))
-            print(f"You pressed '{strUserInput}'. The LiberRPA user environment variable has been set to '{pathCwd}'.")
+            print(
+                f"You pressed '{strUserInput}'. The LiberRPA user environment variable has been set to '{pathCwd}'."
+            )
 
         else:
             print(f"You pressed '{strUserInput}'. Do nothing.")
@@ -88,6 +94,7 @@ def set_liberrpa_environment() -> None:
     set_startup()
     put_shortcuts_to_desktop()
     check_Executor_config()
+    create_component_repository_folder()
 
 
 def create_native_messaging_file() -> None:
@@ -115,7 +122,8 @@ def create_native_messaging_file() -> None:
     # Add json file path into regedit.
     try:
         key = winreg.CreateKey(
-            winreg.HKEY_CURRENT_USER, R"SOFTWARE\Google\Chrome\NativeMessagingHosts\com.liberrpa.chrome.msghost"
+            winreg.HKEY_CURRENT_USER,
+            R"SOFTWARE\Google\Chrome\NativeMessagingHosts\com.liberrpa.chrome.msghost",
         )
         # Set the value
         winreg.SetValueEx(key, None, 0, winreg.REG_SZ, str(pathNmFile))
@@ -144,7 +152,10 @@ def install_font_for_current_user() -> None:
         if pathTarget.is_file():
             print("The font 'Noto Sans Mono' has installed.")
         else:
-            pathFontFile = pathCwd / R"envs\assets\font\Noto_Sans_Mono\NotoSansMono-VariableFont_wdth,wght.ttf"
+            pathFontFile = (
+                pathCwd
+                / R"envs\assets\font\Noto_Sans_Mono\NotoSansMono-VariableFont_wdth,wght.ttf"
+            )
 
             strPath = shutil.copy2(pathFontFile, pathTarget)
             print(f"Installed the font 'Noto Sans Mono' in {strPath}")
@@ -159,7 +170,9 @@ def set_startup() -> None:
 
     for fileName in ["LocalServer-LiberRPA", "Executor-LiberRPA"]:
         pathShortcut = pathCwd / f"envs/assets/shortcut/{fileName}.lnk"
-        pathTarget = pathUser / "AppData/Roaming/Microsoft/Windows/Start Menu/Programs/Startup"
+        pathTarget = (
+            pathUser / "AppData/Roaming/Microsoft/Windows/Start Menu/Programs/Startup"
+        )
         shutil.copy(src=pathShortcut, dst=pathTarget)
         print(f"Add {fileName} into {pathTarget}")
 
@@ -170,7 +183,12 @@ def put_shortcuts_to_desktop() -> None:
 
     print_step(name="put_shortcuts_to_desktop")
 
-    for fileName in ["LocalServer-LiberRPA", "UI_Analyzer-LiberRPA", "Editor-LiberRPA", "Executor-LiberRPA"]:
+    for fileName in [
+        "LocalServer-LiberRPA",
+        "UI_Analyzer-LiberRPA",
+        "Editor-LiberRPA",
+        "Executor-LiberRPA",
+    ]:
         pathShortcut = pathCwd / f"envs/assets/shortcut/{fileName}.lnk"
         pathTarget = pathUser / "Desktop/"
         shutil.copy(src=pathShortcut, dst=pathTarget)
@@ -211,9 +229,23 @@ def create_local_auth() -> None:
     print_step_done(name="create_local_auth")
 
 
+def create_component_repository_folder() -> None:
+    print_step(name="create_component_repository_folder")
+
+    pathComponentRepository = pathUser / R"Documents\LiberRPA\ComponentRepository"
+
+    if pathComponentRepository.is_dir():
+        print("ComponentRepository folder has existed.")
+    else:
+        pathComponentRepository.mkdir(parents=True, exist_ok=False)
+        print(f"Create ComponentRepository folder: '{pathComponentRepository}'")
+
+    print_step_done(name="create_component_repository_folder")
+
+
 if __name__ == "__main__":
     try:
-        create_folder_in_documents()
+        create_liberrpa_folder_in_documents()
         set_liberrpa_environment()
     except Exception as e:
         print(f"[Error] {e}")
