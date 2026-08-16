@@ -155,7 +155,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, toRaw } from "vue";
 
 import { postMessage } from "../Adapter/Extension/vscodeApi";
 import { useComponentManagementStore } from "../Application/ComponentManagement/componentManagementStore";
@@ -255,10 +255,11 @@ function applyPlan(): void {
   }
 
   postMessage({
-    command: "applyProjectDependencyPlan",
-    dependencyOperation,
-    confirmedPlanSha256: plan.planSha256,
-  });
+  command: "applyProjectDependencyPlan",
+  // Pinia exposes stored objects as Vue proxies, which cannot cross the VS Code Webview message boundary. Send the original plain object.
+  dependencyOperation: toRaw(dependencyOperation),
+  confirmedPlanSha256: plan.planSha256,
+});
 }
 
 function repair(): void {
