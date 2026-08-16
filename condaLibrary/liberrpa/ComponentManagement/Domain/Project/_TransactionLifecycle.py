@@ -21,6 +21,7 @@ from liberrpa.ComponentManagement.Domain.Project._TransactionStorage import (
     validate_project_transaction_folder_name,
     read_project_transaction,
     write_transaction_state,
+    remove_empty_project_transaction_container_folders,
     remove_transaction_folder,
     get_regular_file_sha256,
     move_source_to_backup,
@@ -262,6 +263,7 @@ def recover_project_transactions_locked(
 ) -> list[DictComponentManagementWarning]:
     pathTransactionsFolder = get_transactions_folder_path(projectPath)
     if not path_exists(pathTransactionsFolder):
+        remove_empty_project_transaction_container_folders(pathTransactionsFolder)
         return []
 
     if is_folder_invalid(pathTransactionsFolder):
@@ -312,11 +314,7 @@ def recover_project_transactions_locked(
         )
 
     if not listTransactionFolderPath:
-        try:
-            if not any(pathTransactionsFolder.iterdir()):
-                pathTransactionsFolder.rmdir()
-        except OSError:
-            pass
+        remove_empty_project_transaction_container_folders(pathTransactionsFolder)
         return listWarning
 
     pathTransactionFolder = listTransactionFolderPath[0]

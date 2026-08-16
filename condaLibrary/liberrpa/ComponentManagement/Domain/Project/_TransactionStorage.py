@@ -318,6 +318,26 @@ def _remove_path(entryPath: Path) -> None:
     raise OSError(f"Unsupported path type: {entryPath}")
 
 
+def remove_empty_project_transaction_container_folders(
+    transactionsFolderPath: Path,
+) -> None:
+    """Remove the empty transactions folder and its empty internal parent folder."""
+    pathInternalFolder = transactionsFolderPath.parent
+
+    for pathFolder in (transactionsFolderPath, pathInternalFolder):
+        try:
+            if not path_exists(pathFolder):
+                continue
+
+            if is_folder_invalid(pathFolder) or any(pathFolder.iterdir()):
+                return
+
+            pathFolder.rmdir()
+        except OSError:
+            # Empty container folder cleanup is best-effort and does not affect the already committed Project transaction.
+            return
+
+
 def remove_transaction_folder(
     transactionFolderPath: Path,
 ) -> DictComponentManagementWarning | None:
@@ -336,14 +356,7 @@ def remove_transaction_folder(
             },
         }
 
-    pathTransactionsFolder = transactionFolderPath.parent
-    try:
-        if not is_folder_invalid(pathTransactionsFolder) and not any(
-            pathTransactionsFolder.iterdir()
-        ):
-            pathTransactionsFolder.rmdir()
-    except OSError:
-        pass
+    remove_empty_project_transaction_container_folders(transactionFolderPath.parent)
 
     return None
 
