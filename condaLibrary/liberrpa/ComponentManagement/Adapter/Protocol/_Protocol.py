@@ -18,6 +18,7 @@ from liberrpa.ComponentManagement.Adapter.Protocol._Response import (
     build_component_wheels_imported_response,
     build_repository_index_rebuilt_response,
     build_repository_catalog_response,
+    build_project_manifest_defaults_response,
     build_project_dependency_state_response,
     build_project_dependency_plan_response,
     build_project_dependency_plan_applied_response,
@@ -34,6 +35,9 @@ from liberrpa.ComponentManagement.Application.Repository._RebuildRepositoryIndex
 )
 from liberrpa.ComponentManagement.Application.Repository._RepositorySnapshot import (
     load_repository_catalog_snapshot,
+)
+from liberrpa.ComponentManagement.Application.Project._ManifestDefaults import (
+    get_project_manifest_defaults,
 )
 from liberrpa.ComponentManagement.Application.Project._DependencyState import (
     get_current_project_dependency_state,
@@ -79,6 +83,8 @@ def _log_success_response(
         "componentsState",
         "environmentState",
         "repairState",
+        "installedLiberrpaVersion",
+        "requiresLiberrpa",
     ):
         if strKey in dictResult:
             dictResultSummary[strKey] = dictResult[strKey]
@@ -132,6 +138,15 @@ def handle_request(requestInfo: str) -> DictProtocolResponse:
                     repositoryPath=pathRepository,
                     repositoryIndexDict=dictRepositoryIndex,
                     warningList=listWarning,
+                )
+
+            case "getProjectManifestDefaults":
+                strInstalledLiberrpaVersion, strRequiresLiberrpa = (
+                    get_project_manifest_defaults()
+                )
+                dictResponse = build_project_manifest_defaults_response(
+                    installedLiberrpaVersion=strInstalledLiberrpaVersion,
+                    requiresLiberrpa=strRequiresLiberrpa,
                 )
 
             case "getProjectDependencyState":

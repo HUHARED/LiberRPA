@@ -7,6 +7,7 @@ import type {
   DictProtocolResult_ComponentWheelsImported,
   DictProtocolResult_RepositoryIndexRebuilt,
   DictProtocolResult_RepositoryCatalog,
+  DictProtocolResult_ProjectManifestDefaults,
   DictProtocolResult_ProjectDependencyState,
   DictProtocolResult_ProjectDependencyPlan,
   DictProtocolResult_ProjectDependencyPlanApplied,
@@ -33,6 +34,11 @@ export interface DictProtocolRequest_RebuildRepositoryIndex {
 export interface DictProtocolRequest_GetComponentRepositoryCatalog {
   schemaVersion: 1;
   operation: "getComponentRepositoryCatalog";
+}
+
+export interface DictProtocolRequest_GetProjectManifestDefaults {
+  schemaVersion: 1;
+  operation: "getProjectManifestDefaults";
 }
 
 export interface DictProtocolRequest_GetProjectDependencyState {
@@ -67,6 +73,7 @@ export type DictProtocolRequest =
   | DictProtocolRequest_ImportComponentWheels
   | DictProtocolRequest_RebuildRepositoryIndex
   | DictProtocolRequest_GetComponentRepositoryCatalog
+  | DictProtocolRequest_GetProjectManifestDefaults
   | DictProtocolRequest_GetProjectDependencyState
   | DictProtocolRequest_BuildProjectDependencyPlan
   | DictProtocolRequest_ApplyProjectDependencyPlan
@@ -99,6 +106,8 @@ export type DictProtocolSuccess_RepositoryIndexRebuilt =
   DictProtocolSuccess<DictProtocolResult_RepositoryIndexRebuilt>;
 export type DictProtocolSuccess_RepositoryCatalog =
   DictProtocolSuccess<DictProtocolResult_RepositoryCatalog>;
+export type DictProtocolSuccess_ProjectManifestDefaults =
+  DictProtocolSuccess<DictProtocolResult_ProjectManifestDefaults>;
 export type DictProtocolSuccess_ProjectDependencyState =
   DictProtocolSuccess<DictProtocolResult_ProjectDependencyState>;
 export type DictProtocolSuccess_ProjectDependencyPlan =
@@ -113,6 +122,7 @@ export type DictProtocolResult =
   | DictProtocolResult_ComponentWheelsImported
   | DictProtocolResult_RepositoryIndexRebuilt
   | DictProtocolResult_RepositoryCatalog
+  | DictProtocolResult_ProjectManifestDefaults
   | DictProtocolResult_ProjectDependencyState
   | DictProtocolResult_ProjectDependencyPlan
   | DictProtocolResult_ProjectDependencyPlanApplied

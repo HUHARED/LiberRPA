@@ -146,6 +146,12 @@ export interface DictProtocolResult_RepositoryCatalog {
   components: DictProtocolResult_RepositoryCatalog_Component[];
 }
 
+export interface DictProtocolResult_ProjectManifestDefaults {
+  status: "projectManifestDefaults";
+  installedLiberrpaVersion: string;
+  requiresLiberrpa: string;
+}
+
 export interface DictComponentsLock_Root_FlowProject {
   manifestFileName: "flow.json";
 

@@ -7,6 +7,7 @@ import type {
   DictProtocolResult_ComponentWheelsImported,
   DictProtocolResult_RepositoryIndexRebuilt,
   DictProtocolResult_RepositoryCatalog,
+  DictProtocolResult_ProjectManifestDefaults,
   DictProtocolResult_ProjectDependencyState,
   DictProtocolResult_ProjectDependencyPlan,
   DictProtocolResult_ProjectDependencyPlanApplied,
@@ -24,6 +25,7 @@ import {
   parseComponentWheelsImportedResult,
   parseRepositoryCatalogResult,
 } from "./Result/repositoryResult";
+import { parseProjectManifestDefaultsResult } from "./Result/projectManifestResult";
 import {
   parseProjectDependencyStateResult,
   parseProjectDependencyPlanResult,
@@ -55,9 +57,7 @@ async function runOperation<T>(
   operationName: string,
   parseResult: (value: unknown) => T,
 ): Promise<Info_ComponentManagement_OperationResult<T>> {
-  const response: DictProtocolResponse_Raw = await runComponentManagement(
-    requestInfo,
-  );
+  const response: DictProtocolResponse_Raw = await runComponentManagement(requestInfo);
   if (!response.ok) {
     throw new ComponentManagementOperationError(operationName, response.error);
   }
@@ -121,6 +121,19 @@ export async function getComponentRepositoryCatalog(): Promise<
     },
     "Get Component Repository Catalog",
     parseRepositoryCatalogResult,
+  );
+}
+
+export async function getProjectManifestDefaults(): Promise<
+  Info_ComponentManagement_OperationResult<DictProtocolResult_ProjectManifestDefaults>
+> {
+  return await runOperation(
+    {
+      schemaVersion: 1,
+      operation: "getProjectManifestDefaults",
+    },
+    "Get Project Manifest Defaults",
+    parseProjectManifestDefaultsResult,
   );
 }
 

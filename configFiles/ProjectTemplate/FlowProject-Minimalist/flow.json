@@ -3,6 +3,6 @@
   "name": "",
   "version": "1.0.0",
   "description": "",
-  "requiresLiberrpa": ">=0.3,<0.4",
+  "requiresLiberrpa": "",
   "componentDependencies": {}
 }

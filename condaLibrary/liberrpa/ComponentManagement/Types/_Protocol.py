@@ -83,6 +83,11 @@ class DictProtocolRequest_GetComponentRepositoryCatalog(TypedDict):
     operation: Literal["getComponentRepositoryCatalog"]
 
 
+class DictProtocolRequest_GetProjectManifestDefaults(TypedDict):
+    schemaVersion: Literal[1]
+    operation: Literal["getProjectManifestDefaults"]
+
+
 class DictProtocolRequest_GetProjectDependencyState(TypedDict):
     schemaVersion: Literal[1]
     operation: Literal["getProjectDependencyState"]
@@ -119,6 +124,7 @@ type DictProtocolRequest = (
     | DictProtocolRequest_ImportComponentWheels
     | DictProtocolRequest_RebuildRepositoryIndex
     | DictProtocolRequest_GetComponentRepositoryCatalog
+    | DictProtocolRequest_GetProjectManifestDefaults
     | DictProtocolRequest_GetProjectDependencyState
     | DictProtocolRequest_BuildProjectDependencyPlan
     | DictProtocolRequest_ApplyProjectDependencyPlan
@@ -200,6 +206,12 @@ class DictProtocolResult_RepositoryCatalog(TypedDict):
     components: list[DictProtocolResult_RepositoryCatalog_Component]
 
 
+class DictProtocolResult_ProjectManifestDefaults(TypedDict):
+    status: Literal["projectManifestDefaults"]
+    installedLiberrpaVersion: str
+    requiresLiberrpa: str
+
+
 class DictProtocolResult_ComponentsFolder(TypedDict):
     componentsFolderPath: str
     componentCount: int
@@ -250,6 +262,7 @@ type DictProtocolResult = (
     | DictProtocolResult_ComponentWheelsImported
     | DictProtocolResult_RepositoryIndexRebuilt
     | DictProtocolResult_RepositoryCatalog
+    | DictProtocolResult_ProjectManifestDefaults
     | DictProtocolResult_ProjectDependencyState
     | DictProtocolResult_ProjectDependencyPlan
     | DictProtocolResult_ProjectDependencyPlanApplied
@@ -291,6 +304,13 @@ class DictProtocolSuccess_RepositoryCatalog(TypedDict):
     warnings: list[DictComponentManagementWarning]
 
 
+class DictProtocolSuccess_ProjectManifestDefaults(TypedDict):
+    schemaVersion: Literal[1]
+    ok: Literal[True]
+    result: DictProtocolResult_ProjectManifestDefaults
+    warnings: list[DictComponentManagementWarning]
+
+
 class DictProtocolSuccess_ProjectDependencyState(TypedDict):
     schemaVersion: Literal[1]
     ok: Literal[True]
@@ -324,6 +344,7 @@ type DictProtocolSuccess = (
     | DictProtocolSuccess_ComponentWheelsImported
     | DictProtocolSuccess_RepositoryIndexRebuilt
     | DictProtocolSuccess_RepositoryCatalog
+    | DictProtocolSuccess_ProjectManifestDefaults
     | DictProtocolSuccess_ProjectDependencyState
     | DictProtocolSuccess_ProjectDependencyPlan
     | DictProtocolSuccess_ProjectDependencyPlanApplied

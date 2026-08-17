@@ -13,6 +13,7 @@ from liberrpa.ComponentManagement.Types._Protocol import (
     DictProtocolRequest_ImportComponentWheels,
     DictProtocolRequest_RebuildRepositoryIndex,
     DictProtocolRequest_GetComponentRepositoryCatalog,
+    DictProtocolRequest_GetProjectManifestDefaults,
     DictProtocolRequest_GetProjectDependencyState,
     DictProtocolRequest_BuildProjectDependencyPlan,
     DictProtocolRequest_ApplyProjectDependencyPlan,
@@ -39,6 +40,10 @@ _SET_REQUEST_KEYS_REBUILD_REPOSITORY_INDEX = {
     "operation",
 }
 _SET_REQUEST_KEYS_GET_COMPONENT_REPOSITORY_CATALOG = {
+    "schemaVersion",
+    "operation",
+}
+_SET_REQUEST_KEYS_GET_PROJECT_MANIFEST_DEFAULTS = {
     "schemaVersion",
     "operation",
 }
@@ -165,6 +170,15 @@ def parse_protocol_request(requestInfo: str) -> DictProtocolRequest:
                 "Get Component Repository Catalog",
             )
             return cast(DictProtocolRequest_GetComponentRepositoryCatalog, value)
+
+        case "getProjectManifestDefaults":
+            _validate_request_keys(
+                value,
+                _SET_REQUEST_KEYS_GET_PROJECT_MANIFEST_DEFAULTS,
+                "Get Project Manifest Defaults",
+            )
+
+            return cast(DictProtocolRequest_GetProjectManifestDefaults, value)
 
         case "getProjectDependencyState":
             _validate_request_keys(

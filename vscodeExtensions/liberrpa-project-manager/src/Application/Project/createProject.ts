@@ -9,6 +9,7 @@ import { randomUUID } from "node:crypto";
 import { log } from "../../Adapter/VsCode/output";
 import {
   ComponentManagementOperationError,
+  getProjectManifestDefaults,
   getProjectDependencyState,
 } from "../../Adapter/Python/componentManagementClient";
 import {
@@ -202,18 +203,24 @@ async function copyTemplateFolder(
   }
 }
 
-function initializeFlowProject(projectPath: string, input: DictCreateProjectInput): void {
+function initializeFlowProject(
+  projectPath: string,
+  input: DictCreateProjectInput,
+  requiresLiberrpa: string,
+): void {
   const strManifestFilePath = path.join(projectPath, "flow.json");
   const dictManifest = readFlowManifest(strManifestFilePath);
   dictManifest.name = input.projectFolderName;
   dictManifest.version = input.version;
   dictManifest.description = input.description;
+  dictManifest.requiresLiberrpa = requiresLiberrpa;
   writeFlowManifest(strManifestFilePath, dictManifest);
 }
 
 function initializeComponentProject(
   projectPath: string,
   input: DictCreateProjectInput,
+  requiresLiberrpa: string,
 ): void {
   const strManifestFilePath = path.join(projectPath, "component.json");
   const dictManifest = readComponentManifest(strManifestFilePath);
@@ -222,6 +229,7 @@ function initializeComponentProject(
   dictManifest.displayName = input.displayName;
   dictManifest.version = input.version;
   dictManifest.description = input.description;
+  dictManifest.requiresLiberrpa = requiresLiberrpa;
   writeComponentManifest(strManifestFilePath, dictManifest);
 
   const strPackageFolderPath = path.join(projectPath, "src", input.packageName);
@@ -318,10 +326,17 @@ export async function createProject(
     throw new Error(`The target Project folder already exists: ${strProjectPath}`);
   }
 
+  const manifestDefaultsResult = await getProjectManifestDefaults();
+  logComponentManagementWarnings(manifestDefaultsResult.warnings);
+  const strRequiresLiberrpa = manifestDefaultsResult.result.requiresLiberrpa;
+  log.debug(
+    `Create Project uses installed liberrpa ${manifestDefaultsResult.result.installedLiberrpaVersion} with requiresLiberrpa ${strRequiresLiberrpa}.`,
+  );
+
   const strTempProjectPath = fs.mkdtempSync(
     path.join(input.targetFolderPath, ".liberrpa-create-"),
   );
-  const arrWarning: string[] = [];
+  const arrWarning = getComponentManagementWarningMessages(manifestDefaultsResult.warnings);
   let boolCommitted = false;
 
   try {
@@ -331,9 +346,9 @@ export async function createProject(
     );
 
     if (input.projectType === "flow") {
-      initializeFlowProject(strTempProjectPath, input);
+      initializeFlowProject(strTempProjectPath, input, strRequiresLiberrpa);
     } else {
-      initializeComponentProject(strTempProjectPath, input);
+      initializeComponentProject(strTempProjectPath, input, strRequiresLiberrpa);
     }
 
     arrWarning.push(

@@ -32,6 +32,7 @@ from liberrpa.ComponentManagement.Types._Protocol import (
     DictProtocolResult_RepositoryIndexRebuilt,
     DictProtocolResult_RepositoryCatalog_Component,
     DictProtocolResult_RepositoryCatalog,
+    DictProtocolResult_ProjectManifestDefaults,
     DictProtocolResult_ComponentsFolder,
     DictProtocolResult_ProjectDependencyState,
     DictProtocolResult_ProjectDependencyPlan,
@@ -41,6 +42,7 @@ from liberrpa.ComponentManagement.Types._Protocol import (
     DictProtocolSuccess_ComponentWheelsImported,
     DictProtocolSuccess_RepositoryIndexRebuilt,
     DictProtocolSuccess_RepositoryCatalog,
+    DictProtocolSuccess_ProjectManifestDefaults,
     DictProtocolSuccess_ProjectDependencyState,
     DictProtocolSuccess_ProjectDependencyPlan,
     DictProtocolSuccess_ProjectDependencyPlanApplied,
@@ -240,6 +242,23 @@ def build_repository_catalog_response(
         "ok": True,
         "result": dictResult,
         "warnings": warningList,
+    }
+
+
+def build_project_manifest_defaults_response(
+    installedLiberrpaVersion: str,
+    requiresLiberrpa: str,
+) -> DictProtocolSuccess_ProjectManifestDefaults:
+    dictResult: DictProtocolResult_ProjectManifestDefaults = {
+        "status": "projectManifestDefaults",
+        "installedLiberrpaVersion": installedLiberrpaVersion,
+        "requiresLiberrpa": requiresLiberrpa,
+    }
+    return {
+        "schemaVersion": 1,
+        "ok": True,
+        "result": dictResult,
+        "warnings": [],
     }
 
 
