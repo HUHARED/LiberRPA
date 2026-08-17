@@ -835,14 +835,11 @@ def build_snippet_catalog(
 
     dictStableSnippet: dict[str, DictSnippet_Normalized] = {}
     for strCategory in listCategoryOrder:
-        for strSnippetKey in sorted(
-            key
-            for key, dictItem in dictAggregateSnippet.items()
-            if dictItem["category"] == strCategory
-        ):
-            dictStableSnippet[strSnippetKey] = _stabilize_snippet(
-                dictAggregateSnippet[strSnippetKey]
-            )
+        for strSnippetKey, dictSnippetItem in dictAggregateSnippet.items():
+            if dictSnippetItem["category"] != strCategory:
+                continue
+
+            dictStableSnippet[strSnippetKey] = _stabilize_snippet(dictSnippetItem)
 
     dictImportSource: dict[str, DictSnippet_ImportSourceConfig] = {
         manifestObj.packageName: {
