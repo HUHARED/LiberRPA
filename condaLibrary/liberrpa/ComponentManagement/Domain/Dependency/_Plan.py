@@ -22,6 +22,7 @@ from liberrpa.ComponentManagement.Types._Components import (
 from liberrpa.ComponentManagement.Types._Dependency import (
     Info_ProjectDependency_Operation_Add,
     Info_ProjectDependency_Operation_Update,
+    Info_ProjectDependency_Operation_Resolve,
     Info_ProjectDependency_Operation_ChangeRequirement,
     Info_ProjectDependency_Operation_Remove,
     Info_ProjectDependency_Operation,
@@ -113,6 +114,9 @@ def _normalize_dependency_operation(
             componentIds=tuple(sorted(listNormalizedComponentId)),
         )
 
+    if isinstance(operationObj, Info_ProjectDependency_Operation_Resolve):
+        return operationObj
+
     if isinstance(operationObj, Info_ProjectDependency_Operation_ChangeRequirement):
         return Info_ProjectDependency_Operation_ChangeRequirement(
             componentId=_validate_operation_component_id(
@@ -188,6 +192,14 @@ def parse_project_dependency_operation(
             operationObj = Info_ProjectDependency_Operation_Update(
                 componentIds=tuple(listComponentId),
             )
+
+        elif operationValue == "resolveProjectDependencies":
+            validate_exact_keys(
+                value,
+                {"operation"},
+                "dependencyOperation",
+            )
+            operationObj = Info_ProjectDependency_Operation_Resolve()
 
         elif operationValue == "changeComponentRequirement":
             validate_exact_keys(
@@ -312,6 +324,12 @@ def _build_target_manifest(
 
     elif isinstance(operationObj, Info_ProjectDependency_Operation_Update):
         pass
+
+    elif isinstance(operationObj, Info_ProjectDependency_Operation_Resolve):
+        if not dictTargetDependency:
+            _raise_invalid_plan_input(
+                "Resolve Project Dependencies requires at least one direct Component dependency."
+            )
 
     elif isinstance(operationObj, Info_ProjectDependency_Operation_ChangeRequirement):
         strExistingRequirement = dictTargetDependency.get(operationObj.componentId)
@@ -502,6 +520,9 @@ def _build_operation_dict(
             "operation": "updateComponents",
             "componentIds": list(operationObj.componentIds),
         }
+
+    if isinstance(operationObj, Info_ProjectDependency_Operation_Resolve):
+        return {"operation": "resolveProjectDependencies"}
 
     if isinstance(operationObj, Info_ProjectDependency_Operation_ChangeRequirement):
         return {

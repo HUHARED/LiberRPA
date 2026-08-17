@@ -6,8 +6,14 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
 from liberrpa.ComponentManagement.Types._Warning import DictComponentManagementWarning
-from liberrpa.ComponentManagement.Types._Manifest import Str_ProjectType, Info_ProjectManifest
-from liberrpa.ComponentManagement.Types._Components import DictComponentsLock_File, Info_ProjectComponentsFolder
+from liberrpa.ComponentManagement.Types._Manifest import (
+    Str_ProjectType,
+    Info_ProjectManifest,
+)
+from liberrpa.ComponentManagement.Types._Components import (
+    DictComponentsLock_File,
+    Info_ProjectComponentsFolder,
+)
 
 
 from pathlib import Path
@@ -27,6 +33,11 @@ class Info_ProjectDependency_Operation_Update:
 
 
 @dataclass(frozen=True)
+class Info_ProjectDependency_Operation_Resolve:
+    pass
+
+
+@dataclass(frozen=True)
 class Info_ProjectDependency_Operation_ChangeRequirement:
     componentId: str
     requirement: str
@@ -40,12 +51,15 @@ class Info_ProjectDependency_Operation_Remove:
 type Info_ProjectDependency_Operation = (
     Info_ProjectDependency_Operation_Add
     | Info_ProjectDependency_Operation_Update
+    | Info_ProjectDependency_Operation_Resolve
     | Info_ProjectDependency_Operation_ChangeRequirement
     | Info_ProjectDependency_Operation_Remove
 )
 
 
-type Str_ProjectDependency_DirectChange = Literal["added", "removed", "requirementChanged"]
+type Str_ProjectDependency_DirectChange = Literal[
+    "added", "removed", "requirementChanged"
+]
 
 
 class DictProjectDependency_DirectChange(TypedDict):
@@ -55,7 +69,9 @@ class DictProjectDependency_DirectChange(TypedDict):
     targetRequirement: NotRequired[str]
 
 
-type Str_ProjectDependency_ResolvedChange = Literal["added", "removed", "upgraded", "downgraded"]
+type Str_ProjectDependency_ResolvedChange = Literal[
+    "added", "removed", "upgraded", "downgraded"
+]
 
 
 class DictProjectDependency_ResolvedChange(TypedDict):
@@ -92,9 +108,15 @@ class Info_ProjectDependency_RepairResult:
     warnings: list[DictComponentManagementWarning]
 
 
-type Str_ProjectDependency_LockState = Literal["notRequired", "missing", "invalid", "stale", "valid"]
-type Str_ProjectDependency_ComponentsState = Literal["notRequired", "unverified", "missing", "damaged", "valid"]
-type Str_ProjectDependency_EnvironmentState = Literal["unknown", "compatible", "incompatible"]
+type Str_ProjectDependency_LockState = Literal[
+    "notRequired", "missing", "invalid", "stale", "valid"
+]
+type Str_ProjectDependency_ComponentsState = Literal[
+    "notRequired", "unverified", "missing", "damaged", "valid"
+]
+type Str_ProjectDependency_EnvironmentState = Literal[
+    "unknown", "compatible", "incompatible"
+]
 type Str_ProjectDependency_RepairState = Literal[
     "notApplicable",
     "available",

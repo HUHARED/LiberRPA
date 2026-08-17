@@ -9,11 +9,7 @@ from liberrpa.ComponentManagement.Common._DiagnosticLog import DiagnosticLog
 from liberrpa.ComponentManagement.Common._Exception import ComponentManagementError
 from liberrpa.ComponentManagement.Common._Project import resolve_project_path
 from liberrpa.ComponentManagement.Types._Warning import DictComponentManagementWarning
-from liberrpa.ComponentManagement.Types._Manifest import Info_ProjectManifest
-from liberrpa.ComponentManagement.Types._Components import (
-    DictComponentsLock_File,
-    Info_ProjectComponentsFolder,
-)
+from liberrpa.ComponentManagement.Types._Components import Info_ProjectComponentsFolder
 from liberrpa.ComponentManagement.Types._Dependency import (
     Info_ProjectDependency_Operation,
     Info_ProjectDependency_Plan,
@@ -30,13 +26,11 @@ from liberrpa.ComponentManagement.Domain.Project._TransactionLifecycle import (
     commit_project_transaction,
     recover_project_transactions_locked,
 )
-from liberrpa.ComponentManagement.Domain.Dependency._ComponentsLock import (
-    STR_COMPONENTS_LOCK_FILE_NAME,
-    read_components_lock,
-    is_components_lock_stale,
-)
 from liberrpa.ComponentManagement.Domain.Dependency._Plan import (
     build_project_dependency_plan,
+)
+from liberrpa.ComponentManagement.Application.Project._DependencyPlan import (
+    read_current_components_lock_for_operation,
 )
 from liberrpa.ComponentManagement.Domain.Manifest._Manifest import read_project_manifest
 from liberrpa.ComponentManagement.Domain.Repository._Index import (
@@ -51,27 +45,6 @@ from liberrpa.ComponentManagement.Domain.Repository._Transaction import (
 )
 
 from pathlib import Path
-
-
-def _read_current_components_lock(
-    projectPath: Path,
-    manifestObj: Info_ProjectManifest,
-    *,
-    dependenciesRequired: bool,
-) -> DictComponentsLock_File | None:
-    if not dependenciesRequired:
-        return None
-
-    pathComponentsLockFile = projectPath / STR_COMPONENTS_LOCK_FILE_NAME
-    dictLock = read_components_lock(pathComponentsLockFile)
-    if is_components_lock_stale(dictLock, manifestObj):
-        raise ComponentManagementError(
-            code="components_lock_stale",
-            message="components.lock.json is stale and must be resolved again.",
-            details={"componentsLockFilePath": str(pathComponentsLockFile)},
-        )
-
-    return dictLock
 
 
 def _validate_confirmed_plan_sha256(value: object) -> str:
@@ -117,10 +90,8 @@ def apply_project_dependency_plan(
 
             strProjectType, manifestObj = read_project_manifest(pathProject)
 
-            dictCurrentLockFile = _read_current_components_lock(
-                pathProject,
-                manifestObj,
-                dependenciesRequired=bool(manifestObj.componentDependencies),
+            dictCurrentLockFile = read_current_components_lock_for_operation(
+                pathProject, manifestObj, operationObj
             )
 
             planObj = build_project_dependency_plan(

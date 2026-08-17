@@ -35,6 +35,10 @@ class DictProtocolDependencyOperation_Update(TypedDict):
     componentIds: list[str]
 
 
+class DictProtocolDependencyOperation_Resolve(TypedDict):
+    operation: Literal["resolveProjectDependencies"]
+
+
 class DictProtocolDependencyOperation_ChangeRequirement(TypedDict):
     operation: Literal["changeComponentRequirement"]
     componentId: str
@@ -49,6 +53,7 @@ class DictProtocolDependencyOperation_Remove(TypedDict):
 type DictProtocolDependencyOperation = (
     DictProtocolDependencyOperation_Add
     | DictProtocolDependencyOperation_Update
+    | DictProtocolDependencyOperation_Resolve
     | DictProtocolDependencyOperation_ChangeRequirement
     | DictProtocolDependencyOperation_Remove
 )
