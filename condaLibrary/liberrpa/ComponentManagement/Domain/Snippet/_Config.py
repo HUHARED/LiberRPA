@@ -28,14 +28,18 @@ from pathlib import Path
 from copy import deepcopy
 import keyword
 from dataclasses import dataclass
+import re
 
 
 _PATH_TEMPLATE = Path(__file__).resolve().parent / "Templates/snippets.jsonc.template"
 
+_REGEX_PRODUCT_ICON_ID = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+_STR_DEFAULT_CATEGORY_ICON = "library"
 
 _SET_ALLOWED_KEYS_SNIPPET_CONFIG = {
-    # snippets.jsonc.template has the four keys only.
+    # Keep synchronized with snippets.jsonc.template.
     "schemaVersion",
+    "categoryIcons",
     "excludedAstSnippets",
     "astSnippetOverrides",
     "snippets",
@@ -125,6 +129,58 @@ def _validate_single_line_string(
         return None
 
     return value
+
+
+def _parse_category_icons(
+    value: object,
+    publicModuleNameSet: set[str],
+    issueList: list[dict[str, object]],
+) -> dict[str, str]:
+    if not isinstance(value, dict):
+        add_validation_issue(issueList, "categoryIcons", "Value must be an object.")
+        return {}
+
+    dictResult: dict[str, str] = {}
+
+    for moduleName, iconValue in value.items():
+        strField = f"categoryIcons.{moduleName}"
+
+        if (
+            not isinstance(moduleName, str)
+            or not moduleName.isidentifier()
+            or keyword.iskeyword(moduleName)
+        ):
+            add_validation_issue(
+                issueList,
+                "categoryIcons",
+                f"Every key must be a valid non-keyword public Module name: {moduleName!r}.",
+            )
+            continue
+
+        if moduleName not in publicModuleNameSet:
+            add_validation_issue(
+                issueList,
+                strField,
+                f"Public Component Module was not found: {moduleName!r}.",
+            )
+            continue
+
+        if (
+            not isinstance(iconValue, str)
+            or _REGEX_PRODUCT_ICON_ID.fullmatch(iconValue) is None
+        ):
+            add_validation_issue(
+                issueList,
+                strField,
+                (
+                    "Value must be a lower-case VS Code Product Icon ID, such as 'watch' or 'symbol-method'."
+                ),
+            )
+            continue
+
+        dictResult[moduleName] = iconValue
+
+    return dictResult
 
 
 def _validate_description(
@@ -634,6 +690,11 @@ def build_snippet_catalog(
         "liberrpa.Modules": _TUPLE_LIBERRPA_IMPORT_ORDER,
         manifestObj.packageName: tuple(listPublicModuleName),
     }
+    dictConfiguredCategoryIcon = _parse_category_icons(
+        value=value.get("categoryIcons"),
+        publicModuleNameSet=setPublicModuleName,
+        issueList=listIssue,
+    )
 
     listExcludedValue = value.get("excludedAstSnippets")
     setExcludedSnippet: set[str] = set()
@@ -841,6 +902,14 @@ def build_snippet_catalog(
 
             dictStableSnippet[strSnippetKey] = _stabilize_snippet(dictSnippetItem)
 
+    dictCategoryIcon = {
+        strCategory: dictConfiguredCategoryIcon.get(
+            strCategory.removeprefix(f"{manifestObj.packageName}_"),
+            _STR_DEFAULT_CATEGORY_ICON,
+        )
+        for strCategory in listCategoryOrder
+    }
+
     dictImportSource: dict[str, DictSnippet_ImportSourceConfig] = {
         manifestObj.packageName: {
             "order": listPublicModuleName,
@@ -852,6 +921,7 @@ def build_snippet_catalog(
         catalog={
             "schemaVersion": 1,
             "categoryOrder": listCategoryOrder,
+            "categoryIcons": dictCategoryIcon,
             "importSources": dictImportSource,
             "snippets": dictStableSnippet,
         },

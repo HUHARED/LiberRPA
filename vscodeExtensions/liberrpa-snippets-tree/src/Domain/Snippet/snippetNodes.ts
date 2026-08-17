@@ -10,6 +10,7 @@ export class CategoryNode {
   constructor(
     public readonly id: string,
     public readonly label: string,
+    public readonly iconId: string,
     public readonly children: SnippetNode[],
   ) {}
 }

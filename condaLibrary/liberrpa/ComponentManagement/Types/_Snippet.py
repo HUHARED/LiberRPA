@@ -52,6 +52,7 @@ class DictSnippet_CatalogFile(TypedDict):
 
     schemaVersion: Literal[1]
     categoryOrder: list[str]
+    categoryIcons: dict[str, str]
     importSources: dict[str, DictSnippet_ImportSourceConfig]
     snippets: dict[str, DictSnippet_Normalized]
 

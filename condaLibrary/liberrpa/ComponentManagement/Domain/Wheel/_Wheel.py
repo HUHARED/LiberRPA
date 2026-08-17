@@ -56,6 +56,7 @@ from zipfile import (
 )
 import keyword
 import os
+import re
 import stat
 import uuid
 
@@ -238,7 +239,7 @@ def _write_wheel_file(
     archiveEntryDict: dict[str, bytes],
     recordPath: str,
 ) -> None:
-    # Keep the temporary name independent of the final name so the UUID suffix cannot make an otherwise valid Windows filename exceed the entry name.
+    # Keep the temporary name independent of the final name so the UUID suffix cannot make a valid Windows filename exceed the entry name limit.
     pathTempWheelFile = wheelFilePath.parent / f".liberrpa-wheel-{uuid.uuid4()}.tmp"
 
     try:
@@ -352,10 +353,12 @@ def _read_metadata(value: bytes, fileName: str) -> Message:
 _SET_KEYS_SNIPPET_CATALOG = {
     "schemaVersion",
     "categoryOrder",
+    "categoryIcons",
     "importSources",
     "snippets",
 }
 _SET_KEYS_IMPORT_SOURCE_CONFIG = {"order", "aliasMode"}
+_REGEX_PRODUCT_ICON_ID = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 _SET_KEYS_NORMALIZED_SNIPPET = {
     "category",
     "label",
@@ -380,6 +383,15 @@ def _validate_single_line_string(value: object, field: str) -> str:
 
     if "\r" in value or "\n" in value:
         raise ValueError(f"{field} must be a single line.")
+
+    return value
+
+
+def _validate_product_icon_id(value: object, field: str) -> str:
+    if not isinstance(value, str) or _REGEX_PRODUCT_ICON_ID.fullmatch(value) is None:
+        raise ValueError(
+            f"{field} must be a lower-case VS Code Product Icon ID, such as 'watch' or 'symbol-method'."
+        )
 
     return value
 
@@ -507,6 +519,23 @@ def _validate_snippet_catalog(
         setCategory.add(category)
         listCategoryOrder.append(category)
 
+    # Validate "categoryIcons"
+    categoryIconsValue = value.get("categoryIcons")
+    if not isinstance(categoryIconsValue, dict):
+        raise ValueError("snippets_catalog.json categoryIcons must be an object.")
+    if list(categoryIconsValue) != listCategoryOrder:
+        raise ValueError(
+            "categoryIcons must contain exactly the categoryOrder keys in the same order."
+        )
+
+    dictCategoryIcon = {
+        category: _validate_product_icon_id(
+            categoryIconsValue[category],
+            f"categoryIcons.{category}",
+        )
+        for category in listCategoryOrder
+    }
+
     # Validate "snippets"
     snippetsValue = value.get("snippets")
     if not isinstance(snippetsValue, dict):
@@ -631,6 +660,7 @@ def _validate_snippet_catalog(
     return {
         "schemaVersion": 1,
         "categoryOrder": listCategoryOrder,
+        "categoryIcons": dictCategoryIcon,
         "importSources": {
             manifestObj.packageName: {
                 "order": listModuleOrder,

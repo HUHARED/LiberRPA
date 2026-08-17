@@ -15,6 +15,7 @@ from ApiConfig import (
     DictSnippetsItem,
     MANAGED_IMPORT_ORDER,
     MANAGED_IMPORT_SOURCE,
+    SNIPPET_CATEGORY_ICON,
     SNIPPET_CATEGORY_ORDER,
 )
 from SnippetUtils import get_snippets_dir, read_json5, write_json
@@ -64,10 +65,14 @@ def _validate_imports(title: str, item: DictSnippetsItem) -> None:
 
         unknownNames = sorted(set(importNames) - set(MANAGED_IMPORT_ORDER))
         if unknownNames:
-            raise ValueError(f"Snippet {title!r} contains unknown import names: {unknownNames}")
+            raise ValueError(
+                f"Snippet {title!r} contains unknown import names: {unknownNames}"
+            )
 
 
-def _build_catalog_item(category: str, title: str, item: DictSnippetsItem) -> DictCatalogSnippet:
+def _build_catalog_item(
+    category: str, title: str, item: DictSnippetsItem
+) -> DictCatalogSnippet:
     _validate_imports(title=title, item=item)
 
     description = item.get("description")
@@ -100,9 +105,13 @@ def _merge_groups(
 
         for title, item in group.items():
             if title in snippets:
-                raise ValueError(f"Duplicate snippet title: {title!r} in category {category!r}.")
+                raise ValueError(
+                    f"Duplicate snippet title: {title!r} in category {category!r}."
+                )
 
-            snippets[title] = _build_catalog_item(category=category, title=title, item=item)
+            snippets[title] = _build_catalog_item(
+                category=category, title=title, item=item
+            )
 
 
 def main() -> None:
@@ -119,12 +128,32 @@ def main() -> None:
     if not snippets:
         raise ValueError("No snippets were generated.")
 
+    if set(SNIPPET_CATEGORY_ICON) != set(SNIPPET_CATEGORY_ORDER):
+        listMissingCategory = sorted(
+            set(SNIPPET_CATEGORY_ORDER) - set(SNIPPET_CATEGORY_ICON)
+        )
+        listUnknownCategory = sorted(
+            set(SNIPPET_CATEGORY_ICON) - set(SNIPPET_CATEGORY_ORDER)
+        )
+        raise ValueError(
+            "Built-in Snippet category icon configuration does not match categoryOrder. "
+            f"Missing: {listMissingCategory}; unknown: {listUnknownCategory}."
+        )
+
     categoryWithSnippets = {item["category"] for item in snippets.values()}
-    categoryOrder = [category for category in SNIPPET_CATEGORY_ORDER if category in categoryWithSnippets]
+    categoryOrder = [
+        category
+        for category in SNIPPET_CATEGORY_ORDER
+        if category in categoryWithSnippets
+    ]
+    dictCategoryIcon = {
+        category: SNIPPET_CATEGORY_ICON[category] for category in categoryOrder
+    }
 
     catalog: DictSnippetsCatalog = {
         "schemaVersion": 1,
         "categoryOrder": categoryOrder,
+        "categoryIcons": dictCategoryIcon,
         "importSources": {
             MANAGED_IMPORT_SOURCE: {
                 "order": list(MANAGED_IMPORT_ORDER),

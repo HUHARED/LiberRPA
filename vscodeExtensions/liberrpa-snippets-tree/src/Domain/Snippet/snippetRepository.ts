@@ -73,8 +73,10 @@ function addCatalogToRepository(
   snippetById: Record<string, Info_Snippet>,
   importSource: Record<string, DictImportSourceConfig>,
   categoryOrder: string[],
+  categoryIconByCategory: Record<string, string>,
   snippetOwnerMap: Map<string, string>,
   importSourceOwnerMap: Map<string, string>,
+  categoryIconOwnerMap: Map<string, string>,
 ): void {
   for (const [source, config] of Object.entries(loadedCatalog.catalog.importSources)) {
     const existingOwner = importSourceOwnerMap.get(source);
@@ -91,6 +93,21 @@ function addCatalogToRepository(
   for (const category of loadedCatalog.catalog.categoryOrder) {
     if (!categoryOrder.includes(category)) {
       categoryOrder.push(category);
+    }
+
+    const iconId = loadedCatalog.catalog.categoryIcons[category];
+    const existingIconId = categoryIconByCategory[category];
+    const existingOwner = categoryIconOwnerMap.get(category);
+
+    if (existingIconId !== undefined && existingIconId !== iconId) {
+      throw new Error(
+        `Conflicting Product Icon IDs for category "${category}" in ${loadedCatalog.displayPath}; it is already defined by ${existingOwner}.`,
+      );
+    }
+
+    if (existingIconId === undefined) {
+      categoryIconByCategory[category] = iconId;
+      categoryIconOwnerMap.set(category, loadedCatalog.displayPath);
     }
   }
 
@@ -125,6 +142,7 @@ function addCatalogToRepository(
 export function createEmptySnippetRepository(): Info_SnippetRepository {
   return {
     categoryOrder: [],
+    categoryIconByCategory: {},
     snippetByCategory: {},
     snippetById: {},
     importSource: {},
@@ -139,8 +157,10 @@ export function buildSnippetRepository(
   const snippetById: Record<string, Info_Snippet> = {};
   const importSource: Record<string, DictImportSourceConfig> = {};
   const catalogCategoryOrder: string[] = [];
+  const categoryIconByCategory: Record<string, string> = {};
   const snippetOwnerMap = new Map<string, string>();
   const importSourceOwnerMap = new Map<string, string>();
+  const categoryIconOwnerMap = new Map<string, string>();
   const warningList: string[] = [];
 
   for (const loadedCatalog of loadedCatalogList) {
@@ -150,8 +170,10 @@ export function buildSnippetRepository(
       snippetById,
       importSource,
       catalogCategoryOrder,
+      categoryIconByCategory,
       snippetOwnerMap,
       importSourceOwnerMap,
+      categoryIconOwnerMap,
     );
   }
 
@@ -203,6 +225,7 @@ export function buildSnippetRepository(
   return {
     repository: {
       categoryOrder,
+      categoryIconByCategory,
       snippetByCategory,
       snippetById,
       importSource,
@@ -231,6 +254,7 @@ export function replaceSnippetRepository(
     repository.categoryOrder.length,
     ...nextRepository.categoryOrder,
   );
+  replaceRecord(repository.categoryIconByCategory, nextRepository.categoryIconByCategory);
   replaceRecord(repository.snippetByCategory, nextRepository.snippetByCategory);
   replaceRecord(repository.snippetById, nextRepository.snippetById);
   replaceRecord(repository.importSource, nextRepository.importSource);

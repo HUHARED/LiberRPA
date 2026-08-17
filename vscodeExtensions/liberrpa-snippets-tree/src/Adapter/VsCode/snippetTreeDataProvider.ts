@@ -3,7 +3,7 @@
 import * as vscode from "vscode";
 
 import { log } from "./output";
-import { DICT_CATEGORY_ICON } from "./snippetTreeIcons";
+import { getSnippetCategoryIconId } from "./snippetTreeIcons";
 import type { DictSnippetNodeCommandArg } from "../../Domain/Snippet/snippetTypes";
 import type { TreeNode } from "../../Domain/Snippet/snippetNodes";
 import { CategoryNode, SnippetNode } from "../../Domain/Snippet/snippetNodes";
@@ -42,7 +42,15 @@ export class SnippetTreeDataProvider
         (snippet) => new SnippetNode(snippet),
       );
 
-      return new CategoryNode(`category:${categoryName}`, categoryName, snippetNodeList);
+      return new CategoryNode(
+        `category:${categoryName}`,
+        categoryName,
+        getSnippetCategoryIconId(
+          categoryName,
+          repository.categoryIconByCategory[categoryName],
+        ),
+        snippetNodeList,
+      );
     });
 
     this.treeDataChangeEmitter.fire(undefined);
@@ -92,7 +100,7 @@ export class SnippetTreeDataProvider
     );
     treeItem.id = node.id;
     treeItem.tooltip = "Click to expand";
-    treeItem.iconPath = new vscode.ThemeIcon(DICT_CATEGORY_ICON[node.label] ?? "library");
+    treeItem.iconPath = new vscode.ThemeIcon(node.iconId);
     return treeItem;
   }
 

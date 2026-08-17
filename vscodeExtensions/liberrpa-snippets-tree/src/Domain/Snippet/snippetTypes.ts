@@ -45,10 +45,12 @@ export interface DictCatalogSnippetDefinition {
 export interface DictSnippetCatalogFile {
   schemaVersion: 1;
 
-  // For Snippet TreeView
+  // For Snippet TreeView.
   categoryOrder: string[];
+  // Category name mapped to a VS Code Product Icon ID.
+  categoryIcons: Record<string, string>;
 
-  // Source name, module order in the source
+  // Source name, module order in the source.
   importSources: Record<string, DictImportSourceConfig>;
   snippets: Record<string, DictCatalogSnippetDefinition>;
 }
@@ -80,6 +82,7 @@ export interface Info_Snippet {
 
 export interface Info_SnippetRepository {
   categoryOrder: string[];
+  categoryIconByCategory: Record<string, string>;
   snippetByCategory: Record<string, Info_Snippet[]>;
   snippetById: Record<string, Info_Snippet>;
   importSource: Record<string, DictImportSourceConfig>;

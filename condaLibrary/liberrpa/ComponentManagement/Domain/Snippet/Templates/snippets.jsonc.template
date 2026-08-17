@@ -1,76 +1,9 @@
+// FileName: snippets.jsonc.template
+// Component Snippet configuration documentation: https://github.com/HUHARED/LiberRPA/blob/main/vscodeExtensions/liberrpa-project-manager/README.md#configure-component-snippets
 {
   "schemaVersion": 1,
-
-  /* 
-  All public top-level functions in public top-level Modules are published automatically from the latest AST scan.
-
-  Prefer prefixing private Modules and functions with "_". Use this list only
-  when a publicly named function should not be exposed as a Snippet.
-
-  Copy stable keys from ast.snippets.json. A key that no longer exists only produces a warning and can be removed from this list later.
-  */
+  "categoryIcons": {},
   "excludedAstSnippets": [],
-
-  /*
-  Override selected fields of AST-generated Snippets. Fields not written here continue to use the latest AST-generated value.
-
-  Supported fields:
-  - label: The text in LiberRPA Snippet Tree; must be a non-empty single line.
-  - body: A string or a list of strings.
-  - description: Snippet documentation.
-  - insertionMode: "line" or "cursor"; the default AST value is "line".
-  - imports: Additional managed imports, for example:
-      "liberrpa.Modules": ["Log"]
-
-  category, prefix and the main Component Module import are generated automatically and cannot be overridden.
-
-  An override key must still exist in ast.snippets.json. An excluded AST Snippet cannot also have an override.
-  */
-  "astSnippetOverrides": {
-    /*
-    "PackageName_ModuleName.function_name": {
-      "description": "Custom description.",
-      "imports": {
-        "liberrpa.Modules": ["Log"]
-      }
-    }
-    */
-  },
-
-  /*
-  Fully hand-written Component Snippets. They can represent functions, properties, objects or longer code blocks.
-
-  The stable key must use:
-  PackageName_ModuleName.snippet_name
-
-  The PackageName and ModuleName must belong to this Component. The main Component Module import is generated automatically.
-
-  Required fields:
-  - body
-  - description
-
-  Optional fields:
-  - prefix: Defaults to the stable key.
-  - label: Defaults to snippet_name.
-  - insertionMode: "line" or "cursor"; defaults to "line".
-  - imports: Additional managed imports.
-
-  For insertionMode "line", "$0" is added as the final body line when the last line is not already "$0". For insertionMode "cursor", the body is kept as written.
-
-  A hand-written Snippet cannot use the stable key of an AST-generated Snippet. Use astSnippetOverrides to customize an AST-generated Snippet.
-  */
-  "snippets": {
-    /*
-    "PackageName_ModuleName.custom_snippet": {
-      "body": [
-        "PackageName_ModuleName.function_name()"
-      ],
-      "description": "Describe what this Snippet does.",
-      "insertionMode": "line",
-      "imports": {
-        "liberrpa.Modules": ["Log"]
-      }
-    }
-    */
-  }
+  "astSnippetOverrides": {},
+  "snippets": {}
 }

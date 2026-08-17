@@ -33,6 +33,17 @@ function isPythonImportSource(value: string): boolean {
   return value.split(".").every(isPythonIdentifier);
 }
 
+const PRODUCT_ICON_ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+function isCategoryIcons(value: unknown): value is Record<string, string> {
+  return (
+    isRecord(value) &&
+    Object.values(value).every(
+      (iconId) => typeof iconId === "string" && PRODUCT_ICON_ID_PATTERN.test(iconId),
+    )
+  );
+}
+
 function isImportsBySource(value: unknown): value is DictImportsInfo {
   return (
     isRecord(value) &&
@@ -172,18 +183,28 @@ export function isSnippetCatalogFile(value: unknown): value is DictSnippetCatalo
   const expectedKeys = [
     "schemaVersion",
     "categoryOrder",
+    "categoryIcons",
     "importSources",
     "snippets",
   ] as const;
 
+  if (
+    !hasRequiredKeys(value, expectedKeys) ||
+    !hasOnlyAllowedKeys(value, expectedKeys) ||
+    value.schemaVersion !== 1 ||
+    !isStringArray(value.categoryOrder) ||
+    new Set(value.categoryOrder).size !== value.categoryOrder.length ||
+    !isCategoryIcons(value.categoryIcons) ||
+    !isImportSources(value.importSources) ||
+    !isCatalogSnippetDefinitions(value.snippets)
+  ) {
+    return false;
+  }
+
+  const arrIconCategory = Object.keys(value.categoryIcons);
   return (
-    hasRequiredKeys(value, expectedKeys) &&
-    hasOnlyAllowedKeys(value, expectedKeys) &&
-    value.schemaVersion === 1 &&
-    isStringArray(value.categoryOrder) &&
-    new Set(value.categoryOrder).size === value.categoryOrder.length &&
-    isImportSources(value.importSources) &&
-    isCatalogSnippetDefinitions(value.snippets)
+    arrIconCategory.length === value.categoryOrder.length &&
+    value.categoryOrder.every((category, index) => arrIconCategory[index] === category)
   );
 }
 

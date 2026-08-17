@@ -44,6 +44,7 @@ class DictImportSourceConfig(TypedDict):
 class DictSnippetsCatalog(TypedDict):
     schemaVersion: Literal[1]
     categoryOrder: list[str]
+    categoryIcons: dict[str, str]
     importSources: dict[str, DictImportSourceConfig]
     snippets: dict[str, DictCatalogSnippet]
 
@@ -98,6 +99,52 @@ SNIPPET_CATEGORY_ORDER = [
     "Log",
     *PUBLIC_MODULE_ORDER,
 ]
+
+
+# VS Code Product Icon IDs for built-in Snippet categories.
+# The identifiers are documented at:
+# https://code.visualstudio.com/api/references/icons-in-labels#icon-listing
+# Note that using the identifiers in the second table of the chapter "Icon Listing".
+SNIPPET_CATEGORY_ICON: dict[str, str] = {
+    "Project Values": "symbol-variable",
+    #
+    "Basic": "circle-large-outline",
+    "LogicControl": "git-compare",
+    "Log": "pencil",
+    #
+    "Mouse": "inspect",
+    "Keyboard": "keyboard",
+    "Window": "multiple-windows",
+    "UiInterface": "target",
+    #
+    "Browser": "globe",
+    "Excel": "book",
+    "Outlook": "mail-read",
+    "Application": "circuit-board",
+    "Database": "database",
+    #
+    "Data": "file-binary",
+    "Str": "symbol-text",
+    "List": "symbol-array",
+    "Dict": "json",
+    "Regex": "regex",
+    "Math": "symbol-operator",
+    "Time": "calendar",
+    "File": "request-changes",
+    "OCR": "search-fuzzy",
+    #
+    "Web": "cloud",
+    "Mail": "mail",
+    "FTP": "references",
+    #
+    "Clipboard": "clippy",
+    "System": "terminal",
+    "Credential": "key",
+    #
+    "ScreenPrint": "info",
+    "Dialog": "bell",
+    "Trigger": "rocket",
+}
 
 
 # Managed import block configuration for liberrpa-snippets-tree.
