@@ -351,6 +351,8 @@ class FlowchartEditorProvider implements vscode.CustomTextEditorProvider {
           const strNewPython = `# FileName: ${path.basename(strFileSystemPath)}
 # <LiberRPA imports: managed>
 # This block is managed by LiberRPA. Do not edit it manually.
+# ruff: isort: off
+# ruff: isort: on
 # </LiberRPA imports: managed>
 ${modulesText.join("")}
 

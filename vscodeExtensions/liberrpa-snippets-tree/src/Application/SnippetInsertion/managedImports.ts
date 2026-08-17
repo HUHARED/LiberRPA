@@ -13,13 +13,14 @@ Managed import block format:
 
 # <LiberRPA imports: managed>
 # This block is managed by LiberRPA. Do not edit it manually.
+# ruff: isort: off
 from liberrpa.Modules import (
     Mouse,
 )
-
 from ExcelTools import (
     Workbook as ExcelTools_Workbook,
 )
+# ruff: isort: on
 # </LiberRPA imports: managed>
 
 This module has two main jobs:
@@ -39,6 +40,8 @@ This module has two main jobs:
 const STR_MANAGED_IMPORT_START = "# <LiberRPA imports: managed>";
 const STR_MANAGED_IMPORT_NOTICE =
   "# This block is managed by LiberRPA. Do not edit it manually.";
+const STR_MANAGED_IMPORT_ISORT_OFF = "# ruff: isort: off";
+const STR_MANAGED_IMPORT_ISORT_ON = "# ruff: isort: on";
 const STR_MANAGED_IMPORT_END = "# </LiberRPA imports: managed>";
 
 // Python source-file encoding declaration, for example:
@@ -388,82 +391,132 @@ function parseExistingManagedImports(
   // The source currently being read inside:
   // from <currentSource> import (
   let strCurrentSource: string | undefined;
+  let boolSeenIsortOff = false;
+  let boolSeenIsortOn = false;
+  let boolSeenImportGroup = false;
 
   for (let intLine = block.startLine + 1; intLine < block.endLine; intLine += 1) {
     const strText = document.lineAt(intLine).text.trim();
 
-    if (!strCurrentSource) {
-      if (strText === "" || strText === STR_MANAGED_IMPORT_NOTICE) {
+    if (strCurrentSource !== undefined) {
+      // Empty lines inside an import group are harmless and may exist in files created by an older version. The rebuilt block removes them.
+      if (strText === "") {
         continue;
       }
 
-      // Start of one import group.
-      const sourceMatch =
-        /^from\s+([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s+import\s+\($/.exec(
+      // End of the current import group.
+      if (strText === ")") {
+        strCurrentSource = undefined;
+        continue;
+      }
+
+      // Import entry, for example:
+      // Mouse,
+      // Workbook as ExcelTools_Workbook,
+      const importEntryMatch =
+        /^([A-Za-z_][A-Za-z0-9_]*)(?:\s+as\s+([A-Za-z_][A-Za-z0-9_]*))?\s*,\s*$/.exec(
           strText,
         );
 
-      if (sourceMatch) {
-        strCurrentSource = sourceMatch[1];
-        dictResult[strCurrentSource] ??= [];
-        continue;
+      if (!importEntryMatch) {
+        throw new Error(
+          `Invalid import entry in the LiberRPA managed import block on line ${intLine + 1}: ${strText}`,
+        );
       }
 
-      throw new Error(
-        `Unexpected content in the LiberRPA managed import block on line ${intLine + 1}: ${strText}`,
+      const strImportName = importEntryMatch[1];
+      const strActualAlias = importEntryMatch[2];
+      const strExpectedAlias = getExpectedImportAlias(
+        strCurrentSource,
+        strImportName,
+        importSourceDict[strCurrentSource],
       );
+
+      if (strActualAlias !== strExpectedAlias) {
+        const strExpectedText =
+          strExpectedAlias === undefined
+            ? `Import ${strImportName} from ${strCurrentSource} must not use an alias.`
+            : `Expected alias ${strExpectedAlias} for ${strCurrentSource}.${strImportName}.`;
+
+        throw new Error(
+          `${strExpectedText} Invalid entry on line ${intLine + 1}: ${strText}`,
+        );
+      }
+
+      dictResult[strCurrentSource].push(strImportName);
+      continue;
     }
 
-    // Empty lines inside an import group are harmless and may exist in files created by an older version. The rebuilt block removes them.
+    // Blank lines remain accepted for compatibility with blocks created by older versions. The rebuilt block removes them.
     if (strText === "") {
       continue;
     }
 
-    // End of the current import group.
-    if (strText === ")") {
-      strCurrentSource = undefined;
+    if (strText === STR_MANAGED_IMPORT_NOTICE) {
+      if (boolSeenIsortOff || boolSeenImportGroup || boolSeenIsortOn) {
+        throw new Error(
+          `The LiberRPA managed import notice on line ${intLine + 1} must appear before the Ruff isort directive and import groups.`,
+        );
+      }
       continue;
     }
 
-    // Import entry, for example:
-    // Mouse,
-    // Workbook as ExcelTools_Workbook,
-    const importEntryMatch =
-      /^([A-Za-z_][A-Za-z0-9_]*)(?:\s+as\s+([A-Za-z_][A-Za-z0-9_]*))?\s*,\s*$/.exec(
+    if (strText === STR_MANAGED_IMPORT_ISORT_OFF) {
+      if (boolSeenIsortOff || boolSeenImportGroup || boolSeenIsortOn) {
+        throw new Error(
+          `The Ruff isort-off directive on line ${intLine + 1} must appear once before all managed import groups.`,
+        );
+      }
+
+      boolSeenIsortOff = true;
+      continue;
+    }
+
+    if (strText === STR_MANAGED_IMPORT_ISORT_ON) {
+      if (!boolSeenIsortOff || boolSeenIsortOn) {
+        throw new Error(
+          `The Ruff isort-on directive on line ${intLine + 1} must appear once after its matching isort-off directive.`,
+        );
+      }
+
+      boolSeenIsortOn = true;
+      continue;
+    }
+
+    if (boolSeenIsortOn) {
+      throw new Error(
+        `Unexpected content after the Ruff isort-on directive in the LiberRPA managed import block on line ${intLine + 1}: ${strText}`,
+      );
+    }
+
+    // Start of one import group.
+    const sourceMatch =
+      /^from\s+([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s+import\s+\($/.exec(
         strText,
       );
 
-    if (!importEntryMatch) {
-      throw new Error(
-        `Invalid import entry in the LiberRPA managed import block on line ${intLine + 1}: ${strText}`,
-      );
+    if (sourceMatch) {
+      strCurrentSource = sourceMatch[1];
+      dictResult[strCurrentSource] ??= [];
+      boolSeenImportGroup = true;
+      continue;
     }
 
-    const strImportName = importEntryMatch[1];
-    const strActualAlias = importEntryMatch[2];
-    const strExpectedAlias = getExpectedImportAlias(
-      strCurrentSource,
-      strImportName,
-      importSourceDict[strCurrentSource],
+    throw new Error(
+      `Unexpected content in the LiberRPA managed import block on line ${intLine + 1}: ${strText}`,
     );
-
-    if (strActualAlias !== strExpectedAlias) {
-      const strExpectedText =
-        strExpectedAlias === undefined
-          ? `Import ${strImportName} from ${strCurrentSource} must not use an alias.`
-          : `Expected alias ${strExpectedAlias} for ${strCurrentSource}.${strImportName}.`;
-
-      throw new Error(
-        `${strExpectedText} Invalid entry on line ${intLine + 1}: ${strText}`,
-      );
-    }
-
-    dictResult[strCurrentSource].push(strImportName);
   }
 
   if (strCurrentSource !== undefined) {
     throw new Error(
       `The import group for ${strCurrentSource} in the LiberRPA managed block is missing its closing parenthesis.`,
+    );
+  }
+
+  // Blocks created before Ruff directives were introduced remain readable and are normalized the next time LiberRPA rebuilds them. A partial directive pair is treated as malformed rather than silently overwritten.
+  if (boolSeenIsortOff !== boolSeenIsortOn) {
+    throw new Error(
+      "The LiberRPA managed import block must contain both Ruff isort directives or neither of them.",
     );
   }
 
@@ -586,22 +639,19 @@ function buildManagedImportBlock(
   importSources: Record<string, DictImportSourceConfig>,
   strEol: string,
 ): string {
-  const arrLine = [STR_MANAGED_IMPORT_START, STR_MANAGED_IMPORT_NOTICE];
+  const arrLine = [
+    STR_MANAGED_IMPORT_START,
+    STR_MANAGED_IMPORT_NOTICE,
+    STR_MANAGED_IMPORT_ISORT_OFF,
+  ];
   const arrSource = sortImportSources(imports, importSources);
 
-  let boolHasImportGroup = false;
-
-  arrSource.forEach((strSourceName) => {
+  for (const strSourceName of arrSource) {
     const arrImportName = imports[strSourceName];
 
     // Empty groups do not produce Python import statements.
     if (arrImportName.length === 0) {
-      return;
-    }
-
-    // Separate different import sources with one blank line.
-    if (boolHasImportGroup) {
-      arrLine.push("");
+      continue;
     }
 
     arrLine.push(`from ${strSourceName} import (`);
@@ -620,9 +670,9 @@ function buildManagedImportBlock(
     }
 
     arrLine.push(")");
-    boolHasImportGroup = true;
-  });
+  }
 
+  arrLine.push(STR_MANAGED_IMPORT_ISORT_ON);
   arrLine.push(STR_MANAGED_IMPORT_END);
   return arrLine.join(strEol);
 }

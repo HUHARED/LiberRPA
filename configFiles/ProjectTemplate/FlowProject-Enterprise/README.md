@@ -171,6 +171,8 @@ LiberRPA may manage the import block at the top of Python files:
 ```python
 # <LiberRPA imports: managed>
 # This block is managed by LiberRPA. Do not edit it manually.
+# ruff: isort: off
+# ruff: isort: on
 # </LiberRPA imports: managed>
 ```
 
