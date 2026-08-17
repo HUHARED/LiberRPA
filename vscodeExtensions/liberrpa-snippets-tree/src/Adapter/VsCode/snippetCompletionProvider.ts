@@ -45,41 +45,86 @@ function flattenSnippets(repository: Info_SnippetRepository): Info_Snippet[] {
   return arrResult;
 }
 
-/**
- * Return the range of the partially typed snippet prefix.
- *
- * VS Code normally treats only `cli` in `Mouse.cli` as the current word.
- * The explicit range makes completion replace `Mouse.cli` as a whole.
- */
-function getCompletionRange(
-  document: vscode.TextDocument,
-  position: vscode.Position,
-  snippetPrefix: string,
-): vscode.Range | undefined {
-  const linePrefix = document.lineAt(position.line).text.slice(0, position.character);
-  const expectedPrefix = snippetPrefix.toLowerCase();
-  const intMaximumLength = Math.min(linePrefix.length, snippetPrefix.length);
+interface Info_CompletionMatch {
+  range: vscode.Range;
+  filterText: string;
+}
+
+function findCompletionSuffixStart(
+  linePrefix: string,
+  expectedPrefix: string,
+): number | undefined {
+  const strExpectedPrefixLower = expectedPrefix.toLowerCase();
+  const intMaximumLength = Math.min(linePrefix.length, expectedPrefix.length);
 
   for (let intLength = intMaximumLength; intLength > 0; intLength -= 1) {
     const intStart = linePrefix.length - intLength;
-    const typedPrefix = linePrefix.slice(intStart);
+    const strTypedPrefix = linePrefix.slice(intStart);
 
-    if (!expectedPrefix.startsWith(typedPrefix.toLowerCase())) {
+    if (!strExpectedPrefixLower.startsWith(strTypedPrefix.toLowerCase())) {
       continue;
     }
 
-    // Do not treat Mouse.cli inside OtherMouse.cli or obj.Mouse.cli as a standalone LiberRPA prefix.
-    const previousCharacter = intStart > 0 ? linePrefix[intStart - 1] : "";
-    if (/[A-Za-z0-9_.]/.test(previousCharacter)) {
+    // Do not match a suffix inside another identifier or qualified expression.
+    const strPreviousCharacter = intStart > 0 ? linePrefix[intStart - 1] : "";
+    if (/[A-Za-z0-9_.]/.test(strPreviousCharacter)) {
       continue;
     }
 
-    return new vscode.Range(position.with(undefined, intStart), position);
+    return intStart;
+  }
+
+  return undefined;
+}
+
+/**
+ * Match either the complete Snippet prefix or its final dot-separated segment.
+ *
+ * Examples for `Log.debug`:
+ *
+ * - `Log.d` and `Log.debug` match the complete prefix;
+ * - `d`, `deb`, and `debug` match the final segment;
+ * - `obj.debug` and `other_debug` are rejected.
+ *
+ * The explicit range also makes VS Code replace `Mouse.cli` as a whole instead
+ * of treating only `cli` as the current word.
+ */
+function getCompletionMatch(
+  document: vscode.TextDocument,
+  position: vscode.Position,
+  snippetPrefix: string,
+): Info_CompletionMatch | undefined {
+  const strLinePrefix = document.lineAt(position.line).text.slice(0, position.character);
+  const intFullPrefixStart = findCompletionSuffixStart(strLinePrefix, snippetPrefix);
+
+  if (intFullPrefixStart !== undefined) {
+    return {
+      range: new vscode.Range(position.with(undefined, intFullPrefixStart), position),
+      filterText: snippetPrefix,
+    };
+  }
+
+  const strFinalSegment = snippetPrefix.slice(snippetPrefix.lastIndexOf(".") + 1);
+  if (strFinalSegment !== snippetPrefix) {
+    const intFinalSegmentStart = findCompletionSuffixStart(strLinePrefix, strFinalSegment);
+
+    if (intFinalSegmentStart !== undefined) {
+      return {
+        range: new vscode.Range(position.with(undefined, intFinalSegmentStart), position),
+        filterText: strFinalSegment,
+      };
+    }
   }
 
   // At whitespace or an otherwise empty insertion point, show all snippets.
-  if (linePrefix.length === 0 || !/[A-Za-z0-9_.]/.test(linePrefix[linePrefix.length - 1])) {
-    return new vscode.Range(position, position);
+  if (
+    strLinePrefix.length === 0 ||
+    !/[A-Za-z0-9_.]/.test(strLinePrefix[strLinePrefix.length - 1])
+  ) {
+    return {
+      range: new vscode.Range(position, position),
+      filterText: snippetPrefix,
+    };
   }
 
   return undefined;
@@ -91,13 +136,13 @@ function buildCompletionItem(
   snippet: Info_Snippet,
   buildImportEdits: (imports: Info_Snippet["imports"]) => vscode.TextEdit[],
 ): vscode.CompletionItem | undefined {
-  const range = getCompletionRange(document, position, snippet.prefix);
-  if (!range) {
+  const completionMatch = getCompletionMatch(document, position, snippet.prefix);
+  if (!completionMatch) {
     return undefined;
   }
 
   const importEdits = buildImportEdits(snippet.imports);
-  const importPlan = planSnippetImportEdits(range, importEdits);
+  const importPlan = planSnippetImportEdits(completionMatch.range, importEdits);
 
   if (importPlan === undefined) {
     // This can occur only when completion is requested inside the managed import block, which is intentionally not an editable Snippet target.
@@ -118,10 +163,10 @@ function buildCompletionItem(
   completionItem.insertText = new vscode.SnippetString(
     importPlan.snippetPrefix + snippet.body.join("\n"),
   );
-  completionItem.range = range;
+  completionItem.range = completionMatch.range;
+  completionItem.filterText = completionMatch.filterText;
   completionItem.additionalTextEdits = importPlan.additionalTextEdits;
 
-  // item.filterText = `${snippetInfo.prefix} ${snippetInfo.title}`; Use snippets' prefix to search only.
   // item.sortText = `LiberRPA_${snippetInfo.title}`; Use prefixs' match degree to sort
 
   return completionItem;
