@@ -31,12 +31,20 @@
           clearable
           :disabled="busy">
         </v-autocomplete>
+        <v-alert
+          v-if="selectedComponentOnlyHasPrereleaseVersions"
+          type="info"
+          variant="tonal"
+          class="mt-3 mb-1">
+          This Component has only pre-release versions in the local Repository. Enter an
+          explicit pre-release requirement, such as <code>==1.2.0rc1</code>.
+        </v-alert>
         <v-text-field
           v-model="requirement"
           class="mt-3"
           label="Version requirement"
           placeholder=">=1.0.0,<2"
-          hint="Use a Python PEP 440 version specifier."
+          hint="Use a Python PEP 440 version specifier. Pre-release versions must be requested explicitly."
           persistent-hint
           :disabled="busy">
         </v-text-field>
@@ -86,6 +94,8 @@
           class="mt-3"
           label="New version requirement"
           placeholder=">=1.0.0,<2"
+          hint="Use a Python PEP 440 version specifier. Pre-release versions must be requested explicitly."
+          persistent-hint
           :disabled="busy">
         </v-text-field>
       </template>
@@ -156,6 +166,26 @@ const selectedAction = ref<ManageDependencyAction>("add");
 const selectedComponentId = ref<string | null>(null);
 const selectedUpdateComponentIds = ref<string[]>([]);
 const requirement = ref("");
+
+const selectedRepositoryComponent = computed(() =>
+  selectedComponentId.value === null
+    ? undefined
+    : props.repositoryCatalog.components.find(
+        (component) => component.componentId === selectedComponentId.value,
+      ),
+);
+
+const selectedComponentOnlyHasPrereleaseVersions = computed(() => {
+  if (selectedAction.value !== "add") {
+    return false;
+  }
+
+  const arrVersion = selectedRepositoryComponent.value?.versions ?? [];
+  return (
+    arrVersion.length > 0 &&
+    arrVersion.every((versionEntry) => isCanonicalPrereleaseVersion(versionEntry.version))
+  );
+});
 
 const directDependencyIdSet = computed(
   () => new Set(Object.keys(props.projectState.manifest.componentDependencies)),
@@ -233,10 +263,7 @@ watch(selectedComponentId, (componentId) => {
   }
 
   if (selectedAction.value === "add") {
-    const component = props.repositoryCatalog.components.find(
-      (item) => item.componentId === componentId,
-    );
-    const latestSimpleRelease = component?.versions.find((item) =>
+    const latestSimpleRelease = selectedRepositoryComponent.value?.versions.find((item) =>
       /^\d+(?:\.\d+){0,2}$/.test(item.version),
     )?.version;
     requirement.value =
@@ -248,6 +275,11 @@ watch(selectedComponentId, (componentId) => {
       props.projectState.manifest.componentDependencies[componentId] ?? "";
   }
 });
+
+function isCanonicalPrereleaseVersion(version: string): boolean {
+  // Repository versions have already been normalized by Python packaging.
+  return /(?:a|b|rc)\d+/.test(version) || /\.dev\d+/.test(version);
+}
 
 function getRepositoryComponentTitle(
   component: DictProtocolResult_RepositoryCatalog_Component,

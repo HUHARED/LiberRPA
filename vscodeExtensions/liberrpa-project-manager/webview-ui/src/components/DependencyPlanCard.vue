@@ -7,6 +7,12 @@
     <v-divider class="mt-3"></v-divider>
 
     <v-card-text>
+      <v-alert v-if="isResolveOperation" type="info" variant="tonal" class="mb-3">
+        LiberRPA will resolve the current Manifest requirements again, regenerate
+        components.lock.json, and rebuild _Components. Resolved versions may differ from a
+        previous lock file.
+      </v-alert>
+
       <v-alert
         v-for="(warningMessage, intIndex) in warningMessages"
         :key="`plan-warning-${String(intIndex)}`"
@@ -33,7 +39,11 @@
 
       <div class="text-subtitle-2 mb-2">Resolved Component changes</div>
       <div v-if="plan.resolvedComponentChanges.length === 0" class="text-medium-emphasis">
-        No resolved Component version changes were found.
+        {{
+          isResolveOperation
+            ? "No resolved Component version changes are required. The lock file and _Components will still be regenerated."
+            : "No resolved Component version changes were found."
+        }}
       </div>
       <v-list v-else density="compact">
         <v-list-item
@@ -67,10 +77,12 @@ import { computed } from "vue";
 import type {
   DictProjectDependency_DirectChange,
   DictProjectDependency_ResolvedChange,
+  DictProtocolDependencyOperation,
   DictProtocolResult_ProjectDependencyPlan,
 } from "../Domain/ComponentManagement/componentManagementTypes";
 
 const props = defineProps<{
+  dependencyOperation: DictProtocolDependencyOperation;
   plan: DictProtocolResult_ProjectDependencyPlan;
   warningMessages: string[];
   componentPackageNames: Record<string, string>;
@@ -82,10 +94,15 @@ const emit = defineEmits<{
   apply: [];
 }>();
 
+const isResolveOperation = computed(
+  () => props.dependencyOperation.operation === "resolveProjectDependencies",
+);
+
 const canApply = computed(
   () =>
     !props.busy &&
-    (props.plan.directDependencyChanges.length > 0 ||
+    (isResolveOperation.value ||
+      props.plan.directDependencyChanges.length > 0 ||
       props.plan.resolvedComponentChanges.length > 0),
 );
 

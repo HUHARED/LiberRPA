@@ -123,19 +123,24 @@
 
       <template v-if="componentManagementStore.dependencyPlan === null">
         <DependencyOperationCard
-          v-if="repositoryCatalog !== null"
+          v-if="repositoryCatalog !== null && canPlanDependencyOperation"
           :project-state="projectState"
           :repository-catalog="repositoryCatalog"
           :busy="projectManagerStore.busy"
           @preview="previewPlan" />
         <RepairComponentsCard
+          :has-dependencies="hasDependencies"
+          :lock-state="projectState.lockState"
           :repair-state="projectState.repairState"
+          :repository-unavailable="repositoryCatalog === null"
           :busy="projectManagerStore.busy"
-          @repair="repair" />
+          @repair="repair"
+          @resolve="resolveDependencies" />
       </template>
 
       <DependencyPlanCard
-        v-else
+        v-else-if="componentManagementStore.dependencyOperation !== null"
+        :dependency-operation="componentManagementStore.dependencyOperation"
         :plan="componentManagementStore.dependencyPlan"
         :warning-messages="componentManagementStore.dependencyPlanWarningMessages"
         :component-package-names="componentPackageNames"
@@ -208,6 +213,16 @@ const componentPackageNames = computed<Record<string, string>>(() => {
   return dictPackageName;
 });
 
+const hasDependencies = computed(
+  () => Object.keys(projectState.value.manifest.componentDependencies).length > 0,
+);
+
+const canPlanDependencyOperation = computed(
+  () =>
+    projectState.value.lockState === "valid" ||
+    projectState.value.lockState === "notRequired",
+);
+
 const directDependencyRows = computed<DictDirectDependencyRow[]>(() =>
   Object.entries(projectState.value.manifest.componentDependencies)
     .map(([componentId, currentRequirement]) => {
@@ -255,11 +270,24 @@ function applyPlan(): void {
   }
 
   postMessage({
-  command: "applyProjectDependencyPlan",
-  // Pinia exposes stored objects as Vue proxies, which cannot cross the VS Code Webview message boundary. Send the original plain object.
-  dependencyOperation: toRaw(dependencyOperation),
-  confirmedPlanSha256: plan.planSha256,
-});
+    command: "applyProjectDependencyPlan",
+    // Pinia exposes stored objects as Vue proxies, which cannot cross the VS Code Webview message boundary. Send the original plain object.
+    dependencyOperation: toRaw(dependencyOperation),
+    confirmedPlanSha256: plan.planSha256,
+  });
+}
+
+function resolveDependencies(): void {
+  if (
+    projectManagerStore.busy ||
+    repositoryCatalog.value === null ||
+    !hasDependencies.value ||
+    !["missing", "invalid", "stale"].includes(projectState.value.lockState)
+  ) {
+    return;
+  }
+
+  previewPlan({ operation: "resolveProjectDependencies" });
 }
 
 function repair(): void {

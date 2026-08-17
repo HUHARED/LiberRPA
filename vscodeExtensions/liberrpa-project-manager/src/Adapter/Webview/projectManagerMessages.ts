@@ -354,6 +354,9 @@ function isDependencyOperation(value: unknown): value is DictProtocolDependencyO
         isStringArray(value["componentIds"])
       );
 
+    case "resolveProjectDependencies":
+      return hasExactKeys(value, new Set(["operation"]));
+
     case "removeComponentDependency":
       return (
         hasExactKeys(value, new Set(["operation", "componentId"])) &&

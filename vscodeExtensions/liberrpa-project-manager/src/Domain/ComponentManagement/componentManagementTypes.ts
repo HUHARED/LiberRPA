@@ -42,6 +42,10 @@ export interface DictProtocolDependencyOperation_Update {
   componentIds: string[];
 }
 
+export interface DictProtocolDependencyOperation_Resolve {
+  operation: "resolveProjectDependencies";
+}
+
 export interface DictProtocolDependencyOperation_ChangeRequirement {
   operation: "changeComponentRequirement";
   componentId: string;
@@ -56,6 +60,7 @@ export interface DictProtocolDependencyOperation_Remove {
 export type DictProtocolDependencyOperation =
   | DictProtocolDependencyOperation_Add
   | DictProtocolDependencyOperation_Update
+  | DictProtocolDependencyOperation_Resolve
   | DictProtocolDependencyOperation_ChangeRequirement
   | DictProtocolDependencyOperation_Remove;
 
