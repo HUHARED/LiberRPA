@@ -1,18 +1,10 @@
 # FileName: default.py
 """
-Project utility functions.
+Project-specific utility functions.
 
-Add reusable helper functions for this RPA project here.
+Add small reusable helpers that are specific to this RPA project here.
+
+Keep the main business workflow in Flowchart Blocks. Use a Component instead when code should be versioned and reused across multiple LiberRPA Projects.
+
+Small projects can keep helpers in this file. Larger projects should split them into focused modules under the folder "_Utils".
 """
-
-# <LiberRPA imports: managed>
-# This block is managed by LiberRPA. Do not edit it manually.
-# ruff: isort: off
-# ruff: isort: on
-# </LiberRPA imports: managed>
-
-from _Selectors.default import *  # noqa: F403 - Import project selector variables.
-
-
-if __name__ == "__main__":
-    pass

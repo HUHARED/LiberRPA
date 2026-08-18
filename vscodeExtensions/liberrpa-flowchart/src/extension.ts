@@ -308,53 +308,12 @@ class FlowchartEditorProvider implements vscode.CustomTextEditorProvider {
             fs.mkdirSync(strFolderPath, { recursive: true });
           }
 
-          // Follow liberrpa-snippets-tree, add modules in _Utils and _Selectors.
-          function getPythonModules(folderPath: string): string[] {
-            if (!fs.existsSync(folderPath)) {
-              return [];
-            }
-
-            return fs
-              .readdirSync(folderPath)
-              .filter((file) => {
-                if (!file.endsWith(".py")) {
-                  return false;
-                }
-
-                if (file === "__init__.py") {
-                  return false;
-                }
-
-                const moduleName = path.parse(file).name;
-                return /^[A-Za-z_][A-Za-z0-9_]*$/.test(moduleName);
-              })
-              .map((file) => path.parse(file).name)
-              .sort();
-          }
-
-          const utilsPath = path.join(workspaceFolder.uri.fsPath, "_Utils");
-          const selectorsPath = path.join(workspaceFolder.uri.fsPath, "_Selectors");
-
-          const utilsModules = getPythonModules(utilsPath);
-          const selectorsModules = getPythonModules(selectorsPath);
-          const modulesText = [
-            ...utilsModules.map(
-              (mod) =>
-                `from _Utils.${mod} import *  # noqa: F403 - Import project selector variables.\n`,
-            ),
-            ...selectorsModules.map(
-              (mod) =>
-                `from _Selectors.${mod} import *  # noqa: F403 - Import project selector variables.\n`,
-            ),
-          ];
-
           const strNewPython = `# FileName: ${path.basename(strFileSystemPath)}
 # <LiberRPA imports: managed>
 # This block is managed by LiberRPA. Do not edit it manually.
 # ruff: isort: off
 # ruff: isort: on
 # </LiberRPA imports: managed>
-${modulesText.join("")}
 
 def main() -> None:
   raise NotImplementedError()

@@ -69,6 +69,12 @@ __all__ = [
     "DatabaseConnection",
     "PrjArgs",
     "CustomArgs",
+    # Selector types
+    "SelectorWindow",
+    "SelectorUia",
+    "SelectorHtml",
+    "SelectorImage",
+    "Selector",
 ]
 
 _LAZY_MODULE_EXPORTS: dict[str, str] = {
@@ -114,6 +120,12 @@ _LAZY_OBJECT_EXPORTS: dict[str, tuple[str, str]] = {
     "DatabaseConnection": ("liberrpa.Database", "DatabaseConnection"),
     "PrjArgs": ("liberrpa.FlowControl.ProjectFlowInit", "PrjArgs"),
     "CustomArgs": ("liberrpa.FlowControl.ProjectFlowInit", "CustomArgs"),
+    #
+    "SelectorWindow": ("liberrpa.UI._UiDict", "SelectorWindow"),
+    "SelectorUia": ("liberrpa.UI._UiDict", "SelectorUia"),
+    "SelectorHtml": ("liberrpa.UI._UiDict", "SelectorHtml"),
+    "SelectorImage": ("liberrpa.UI._UiDict", "SelectorImage"),
+    "Selector": ("liberrpa.UI._UiDict", "Selector"),
 }
 
 
@@ -192,6 +204,14 @@ if TYPE_CHECKING:
     from liberrpa.Database import DatabaseConnection as DatabaseConnection
     from liberrpa.FlowControl.ProjectFlowInit import PrjArgs as PrjArgs
     from liberrpa.FlowControl.ProjectFlowInit import CustomArgs as CustomArgs
+
+    from liberrpa.UI._UiDict import (
+        SelectorWindow as SelectorWindow,
+        SelectorUia as SelectorUia,
+        SelectorHtml as SelectorHtml,
+        SelectorImage as SelectorImage,
+        Selector as Selector,
+    )
 
 
 """
