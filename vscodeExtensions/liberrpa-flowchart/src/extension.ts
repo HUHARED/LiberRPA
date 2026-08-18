@@ -4,6 +4,7 @@ import * as path from "path";
 import * as fs from "fs";
 import type {
   DictProjectForWebview,
+  ExecuteMode,
   ExtensionToWebviewMessage,
   Theme,
   WebviewToExtensionMessage,
@@ -16,6 +17,10 @@ import {
   validateProjectBlockPythonFiles,
 } from "./utils";
 import { parseFlowProjectFromText } from "./checkFlowchart";
+
+const STR_FLOWCHART_EDITOR_VIEW_TYPE = "liberrpa-flowchart.editor";
+const STR_DEBUG_FLOW_PROJECT_COMMAND = "LiberRPA.debugFlowProject";
+const STR_RUN_FLOW_PROJECT_COMMAND = "LiberRPA.runFlowProject";
 
 function getFlowchartTheme(theme: vscode.ColorTheme): Theme {
   return theme.kind === vscode.ColorThemeKind.Dark ||
@@ -37,13 +42,110 @@ function getProjectPythonPath(workspaceFolder: vscode.WorkspaceFolder): string {
   return arrPythonPath.join(path.delimiter);
 }
 
+function reportError(e: unknown): void {
+  const strMessage = e instanceof Error ? e.message : String(e);
+  log.error(strMessage);
+  void vscode.window.showErrorMessage(strMessage);
+}
+
+async function getActiveFlowProjectDocument(): Promise<vscode.TextDocument> {
+  const activeTab = vscode.window.tabGroups.activeTabGroup.activeTab;
+  const tabInput = activeTab?.input;
+
+  if (
+    !(tabInput instanceof vscode.TabInputCustom) ||
+    tabInput.viewType !== STR_FLOWCHART_EDITOR_VIEW_TYPE ||
+    path.basename(tabInput.uri.fsPath).toLowerCase() !== "project.flow"
+  ) {
+    throw new Error("The active editor is not a LiberRPA project.flow Flowchart.");
+  }
+
+  const strUri = tabInput.uri.toString();
+  const openDocument = vscode.workspace.textDocuments.find(
+    (document) => document.uri.toString() === strUri,
+  );
+
+  return openDocument ?? vscode.workspace.openTextDocument(tabInput.uri);
+}
+
+async function executeFlowProject(
+  document: vscode.TextDocument,
+  executeMode: ExecuteMode,
+): Promise<void> {
+  log.debug(`Execute the Flow Project in ${executeMode} mode.`);
+
+  const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);
+  if (!workspaceFolder) {
+    throw new Error("The Flow Project is not inside an open workspace folder.");
+  }
+
+  validateProjectBlockPythonFiles(workspaceFolder, document);
+
+  // Save files before running.
+  const boolSaved = await vscode.workspace.saveAll();
+  if (!boolSaved) {
+    throw new Error("Could not save all files before running the project.");
+  }
+
+  const config: vscode.DebugConfiguration = {
+    type: "debugpy",
+    request: "launch",
+    name:
+      executeMode === "Debug"
+        ? "LiberRPA: Debug Flow Project"
+        : "LiberRPA: Run Flow Project",
+    module: "liberrpa.FlowControl.Run",
+    console: "integratedTerminal",
+    cwd: workspaceFolder.uri.fsPath,
+    env: {
+      PYTHONPATH: getProjectPythonPath(workspaceFolder),
+    },
+  };
+
+  if (executeMode === "Debug") {
+    config.justMyCode = true;
+    config.rules = [
+      {
+        path: "**/liberrpa/FlowControl/Run.py",
+        include: false,
+      },
+    ];
+  }
+
+  const boolStarted = await vscode.debug.startDebugging(workspaceFolder, config, {
+    noDebug: executeMode === "Run",
+  });
+
+  if (!boolStarted) {
+    throw new Error(`Failed to start the Flow Project in ${executeMode} mode.`);
+  }
+}
+
+function registerFlowProjectCommand(
+  command: string,
+  executeMode: ExecuteMode,
+): vscode.Disposable {
+  return vscode.commands.registerCommand(command, async () => {
+    try {
+      const document = await getActiveFlowProjectDocument();
+      await executeFlowProject(document, executeMode);
+    } catch (e) {
+      reportError(e);
+    }
+  });
+}
+
 export function activate(context: vscode.ExtensionContext): void {
   // Let vscode manage log's lifecycle.
   context.subscriptions.push(log);
 
   log.info('"liberrpa-flowchart" is now active.');
 
-  context.subscriptions.push(FlowchartEditorProvider.register(context));
+  context.subscriptions.push(
+    FlowchartEditorProvider.register(context),
+    registerFlowProjectCommand(STR_DEBUG_FLOW_PROJECT_COMMAND, "Debug"),
+    registerFlowProjectCommand(STR_RUN_FLOW_PROJECT_COMMAND, "Run"),
+  );
 }
 
 export function deactivate(): void {
@@ -56,7 +158,7 @@ class FlowchartEditorProvider implements vscode.CustomTextEditorProvider {
   // Register the custom editor for `.flow` files
   public static register(context: vscode.ExtensionContext): vscode.Disposable {
     const providerRegistration = vscode.window.registerCustomEditorProvider(
-      "liberrpa-flowchart.editor",
+      STR_FLOWCHART_EDITOR_VIEW_TYPE,
       new FlowchartEditorProvider(context),
       {
         webviewOptions: {
@@ -89,12 +191,6 @@ class FlowchartEditorProvider implements vscode.CustomTextEditorProvider {
     let boolWebviewReady = false;
     let strExpectedWebviewDocumentText: string | undefined;
     let promiseMessageQueue = Promise.resolve();
-
-    const reportError = (e: unknown): void => {
-      const messageText = e instanceof Error ? e.message : String(e);
-      log.error(messageText);
-      void vscode.window.showErrorMessage(messageText);
-    };
 
     // Keep messages and document reloads ordered. Catch each task so one failure does not
     // leave the queue rejected and prevent later user actions from being processed.
@@ -399,45 +495,7 @@ if __name__ == "__main__":
       }
 
       case "executeProject": {
-        log.debug(`Execute the project in ${message.data.executeMode} mode.`);
-        if (!workspaceFolder) {
-          throw new Error("No workspace folder is open.");
-        }
-
-        validateProjectBlockPythonFiles(workspaceFolder, document);
-
-        // Save files before running.
-        const boolSaved = await vscode.workspace.saveAll();
-
-        if (!boolSaved) {
-          throw new Error("Could not save all files before running the project.");
-        }
-
-        const config: vscode.DebugConfiguration = {
-          type: "debugpy",
-          request: "launch",
-          name:
-            message.data.executeMode === "Debug"
-              ? "LiberRPA: Debug Flow Project"
-              : "LiberRPA: Run Flow Project",
-          module: "liberrpa.FlowControl.Run",
-          console: "integratedTerminal",
-          cwd: workspaceFolder.uri.fsPath,
-          env: {
-            PYTHONPATH: getProjectPythonPath(workspaceFolder),
-          },
-        };
-
-        const boolStarted = await vscode.debug.startDebugging(workspaceFolder, config, {
-          noDebug: message.data.executeMode === "Run",
-        });
-
-        if (!boolStarted) {
-          throw new Error(
-            `Failed to start the Flow Project in ${message.data.executeMode} mode.`,
-          );
-        }
-
+        await executeFlowProject(document, message.data.executeMode);
         break;
       }
 

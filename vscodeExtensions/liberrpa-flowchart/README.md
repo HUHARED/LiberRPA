@@ -6,7 +6,7 @@ This extension is a part of LiberRPA to manage the overall flow of an RPA projec
 
 > **Note:**
 >
-> The GUI shown here may differ slightly from the newest version.
+> Screenshots and animations in this README are provided for reference. As LiberRPA evolves, the current interface may differ slightly in appearance or wording, but these minor differences do not affect the documented workflow or functionality.
 >
 > For example: Icon has become ![new icon](./md_images/README/LiberRPA_icon_v3_color_32px.png) from ![old icon](./md_images/README/LiberRPA_icon_v1_color_32px.png) .
 
@@ -151,11 +151,27 @@ If a rule is broken, an alert will appear.
 
 ### Execute Mode
 
-Execute the whole project or a Block node in **Debug** or **Run** mode.
+The `Execute Mode` setting controls how the Flow Project is executed when the `Start Node` is clicked:
 
-![1740306998909](md_images/README/1740306998909.png)
+- **Run**: Executes the Block or Flow Project without the Python debugger.
+- **Debug**: Executes with the Python debugger enabled, allowing breakpoints, stepping, variable inspection, and other debugging features.
 
-![1740307008099](md_images/README/1740307008099.png)
+![1787029830140](md_images/README/1787029830140.png)
+
+The setting does not affect the standard execution shortcuts. - When `project.flow` is the active editor, the entire Flow Project can also be executed with the standard VS Code shortcuts:
+
+- **F5**: Debug the Flow Project.
+- **Ctrl+F5**: Run the Flow Project without debugging.
+
+These shortcuts apply only when `project.flow` is active. In Python editors, the normal VS Code/Python shortcut behavior is preserved.
+
+When debugging an entire Flow Project, Block or Component exceptions may be caught by the Flow runtime so that the Flow can continue through an Exception Line.
+
+To pause at the original exception location in this situation, open `Run and Debug → BREAKPOINTS` and enable `User Uncaught Exceptions`.
+
+For normal Flow debugging, `Raised Exceptions` is not recommended because it may also pause on exceptions that are intentionally raised and handled internally.
+
+![1787029369244](md_images/README/1787029369244.png)
 
 ### Log Level
 
@@ -266,3 +282,7 @@ If you need to edit extensive content, it may be more convenient to edit it else
 > If drag or shortcuts still feel unstable, click the flowchart canvas once to refocus it.
 
 * Text in a node and inputbox can't display optimally if it is not very short, due to the nodes and inputboxes all have a limited width.
+* Flow Project debugging may not stop on Block exceptions
+  * When debugging an entire Flow Project, exceptions raised by a Block or Component may be caught by the LiberRPA Flow runtime so that the Flow can continue through an Exception Line. Because the exception is handled by the runtime, VS Code may not pause at the original error location by default.
+  * To pause on these exceptions, open `Run and Debug` **→** `BREAKPOINTS` and enable `User Uncaught Exceptions` for the Python debugger.
+  * `Raised Exceptions` is not recommended for normal Flow debugging because it also pauses on exceptions that are intentionally raised and handled internally by Python, third-party libraries, or LiberRPA.

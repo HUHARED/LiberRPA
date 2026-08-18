@@ -27,6 +27,32 @@
         "priority": "default"
       }
     ],
+    "commands": [
+      {
+        "command": "LiberRPA.debugFlowProject",
+        "category": "LiberRPA",
+        "title": "Debug Flow Project",
+        "enablement": "activeCustomEditorId == 'liberrpa-flowchart.editor' && resourceFilename == project.flow && !inDebugMode"
+      },
+      {
+        "command": "LiberRPA.runFlowProject",
+        "category": "LiberRPA",
+        "title": "Run Flow Project",
+        "enablement": "activeCustomEditorId == 'liberrpa-flowchart.editor' && resourceFilename == project.flow && !inDebugMode"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "LiberRPA.debugFlowProject",
+        "key": "f5",
+        "when": "activeCustomEditorId == 'liberrpa-flowchart.editor' && resourceFilename == project.flow && !inDebugMode"
+      },
+      {
+        "command": "LiberRPA.runFlowProject",
+        "key": "ctrl+f5",
+        "when": "activeCustomEditorId == 'liberrpa-flowchart.editor' && resourceFilename == project.flow && !inDebugMode"
+      }
+    ],
     "iconThemes": [
       {
         "id": "vscode-great-icons-with-liberrpa",
