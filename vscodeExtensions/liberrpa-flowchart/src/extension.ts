@@ -407,34 +407,20 @@ if __name__ == "__main__":
         validateProjectBlockPythonFiles(workspaceFolder, document);
 
         // Save files before running.
-        const saved = await vscode.workspace.saveAll();
+        const boolSaved = await vscode.workspace.saveAll();
 
-        if (!saved) {
+        if (!boolSaved) {
           throw new Error("Could not save all files before running the project.");
-        }
-
-        const strLiberRPAEnvPath = process.env.LiberRPA;
-
-        if (!strLiberRPAEnvPath) {
-          throw new Error("Not found 'LiberRPA' in User Environment Variables.");
-        }
-
-        const strProgramTemp = path.join(
-          strLiberRPAEnvPath,
-          "envs/pyenv/default/Lib/site-packages/liberrpa/FlowControl/Run.py",
-        );
-
-        if (!fs.existsSync(strProgramTemp) || !fs.statSync(strProgramTemp).isFile()) {
-          throw new Error(
-            `The Python module 'liberrpa' was not installed correctly. Run.py was not found: ${strProgramTemp}`,
-          );
         }
 
         const config: vscode.DebugConfiguration = {
           type: "debugpy",
           request: "launch",
-          name: "Python Debugger: project",
-          program: strProgramTemp,
+          name:
+            message.data.executeMode === "Debug"
+              ? "LiberRPA: Debug Flow Project"
+              : "LiberRPA: Run Flow Project",
+          module: "liberrpa.FlowControl.Run",
           console: "integratedTerminal",
           cwd: workspaceFolder.uri.fsPath,
           env: {
@@ -442,13 +428,13 @@ if __name__ == "__main__":
           },
         };
 
-        const started = await vscode.debug.startDebugging(workspaceFolder, config, {
+        const boolStarted = await vscode.debug.startDebugging(workspaceFolder, config, {
           noDebug: message.data.executeMode === "Run",
         });
 
-        if (!started) {
+        if (!boolStarted) {
           throw new Error(
-            `Failed to start Python ${message.data.executeMode}: ${strProgramTemp}`,
+            `Failed to start the Flow Project in ${message.data.executeMode} mode.`,
           );
         }
 
