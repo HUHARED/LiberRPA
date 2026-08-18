@@ -28,9 +28,9 @@
             :prefix="'&quot;'"
             :suffix="'&quot;'"
             :bg-color="generateBgcolor(item[0])"
-            @blur="updateKey(index, arrKeyCache[index])"
-            @keyup.enter="updateKey(index, arrKeyCache[index])"
-            @click:prepend-inner="deleteArgument(index)">
+            @blur="updateKey(item, index, arrKeyCache[index])"
+            @keyup.enter="updateKey(item, index, arrKeyCache[index])"
+            @click:prepend-inner="deleteArgument(item, index)">
             <v-tooltip
               v-if="generateBgcolor(item[0]) !== ''"
               activator="parent"
@@ -52,8 +52,8 @@
             density="comfortable"
             hide-details
             spellcheck="false"
-            @blur="updateValue(index, arrValueCache[index])"
-            @keyup.enter="updateValue(index, arrValueCache[index])">
+            @blur="updateValue(item, index, arrValueCache[index])"
+            @keyup.enter="updateValue(item, index, arrValueCache[index])">
             <v-tooltip activator="parent" location="top">
               <div style="max-width: 560px">
                 <div class="font-weight-medium mb-1">Original value:</div>
@@ -103,10 +103,12 @@ function stringifyKeyForInput(key: string): string {
 
 // Initialize localValues as an array of stringified item values
 const arrKeyCache = ref<string[]>(
-  argsStore.customPrjArgs.map(([key]) => stringifyKeyForInput(key))
+  argsStore.customPrjArgs.map(([key]) => stringifyKeyForInput(key)),
 );
 const arrValueCache = ref<string[]>(
-  argsStore.customPrjArgs.map((item: StoreCustomPrjArg) => JSON.stringify(item[1], null, 0))
+  argsStore.customPrjArgs.map((item: StoreCustomPrjArg) =>
+    JSON.stringify(item[1], null, 0),
+  ),
 );
 
 const syncCustomPrjArgs = (): void => {
@@ -121,7 +123,7 @@ const syncCustomPrjArgs = (): void => {
     null,
     null,
     null,
-    toCustomPrjArgs(argsStore.customPrjArgs)
+    toCustomPrjArgs(argsStore.customPrjArgs),
   );
 };
 
@@ -143,7 +145,16 @@ function generateBgcolor(valueName: string): string {
   return "";
 }
 
-function updateKey(index: number, input: string): void {
+function isCurrentArgument(item: StoreCustomPrjArg, index: number): boolean {
+  return argsStore.customPrjArgs[index] === item;
+}
+
+function updateKey(item: StoreCustomPrjArg, index: number, input: string): void {
+  // Removing a focused row can emit blur after the row has already been removed.
+  if (!isCurrentArgument(item, index)) {
+    return;
+  }
+
   try {
     const parsedKey: unknown = JSON.parse(`"${input}"`);
 
@@ -152,32 +163,36 @@ function updateKey(index: number, input: string): void {
     }
 
     // Avoid triggering Store updates when the key has not changed.
-    if (argsStore.customPrjArgs[index][0] === parsedKey) {
+    if (item[0] === parsedKey) {
       return;
     }
 
-    argsStore.customPrjArgs[index][0] = parsedKey;
+    item[0] = parsedKey;
   } catch (error) {
     showAlert(
       `Invalid custom argument key: ${
         error instanceof Error ? error.message : String(error)
-      }`
+      }`,
     );
 
     // Restore only the invalid key input.
-    arrKeyCache.value[index] = stringifyKeyForInput(argsStore.customPrjArgs[index][0]);
+    arrKeyCache.value[index] = stringifyKeyForInput(item[0]);
   }
 }
 
-function updateValue(index: number, value: string): void {
+function updateValue(item: StoreCustomPrjArg, index: number, value: string): void {
+  if (!isCurrentArgument(item, index)) {
+    return;
+  }
+
   try {
     const parsedValue = JSON.parse(value) as JsonValue;
-    argsStore.customPrjArgs[index][1] = parsedValue;
+    item[1] = parsedValue;
   } catch {
     showAlert(`It can't be deserialized: ${value}`);
     // Reset inputbox.
     arrValueCache.value = argsStore.customPrjArgs.map((item) =>
-      JSON.stringify(item[1], null, 0)
+      JSON.stringify(item[1], null, 0),
     );
   }
 }
@@ -202,7 +217,11 @@ function addNewArgument(): void {
   arrValueCache.value.push('""');
 }
 
-function deleteArgument(index: number): void {
+function deleteArgument(item: StoreCustomPrjArg, index: number): void {
+  if (!isCurrentArgument(item, index)) {
+    return;
+  }
+
   argsStore.customPrjArgs.splice(index, 1);
   arrKeyCache.value.splice(index, 1);
   arrValueCache.value.splice(index, 1);
