@@ -152,21 +152,35 @@ export class SnippetRepositorySession implements vscode.Disposable {
       return;
     }
 
-    const watcher = vscode.workspace.createFileSystemWatcher(
-      new vscode.RelativePattern(
-        workspaceFolder,
-        "_Components/*.dist-info/snippets_catalog.json",
-      ),
-    );
-    const scheduleReload = (): void => {
+    const scheduleReload = (uri: vscode.Uri): void => {
+      log.debug(`[Catalog] Component Project state changed: ${uri.fsPath}`);
       this.scheduleRepositoryReload(0);
     };
 
+    const createReloadWatcher = (strPattern: string): vscode.Disposable => {
+      const watcher = vscode.workspace.createFileSystemWatcher(
+        new vscode.RelativePattern(workspaceFolder, strPattern),
+      );
+
+      return vscode.Disposable.from(
+        watcher,
+        watcher.onDidCreate(scheduleReload),
+        watcher.onDidChange(scheduleReload),
+        watcher.onDidDelete(scheduleReload),
+      );
+    };
+
     this.componentWatcherDisposable = vscode.Disposable.from(
-      watcher,
-      watcher.onDidCreate(scheduleReload),
-      watcher.onDidChange(scheduleReload),
-      watcher.onDidDelete(scheduleReload),
+      // Project Manager replaces the complete _Components folder atomically.
+      // Watching only catalog files can miss a parent-folder rename on Windows.
+      createReloadWatcher("_Components"),
+
+      // Detect direct catalog edits and non-atomic external changes as well.
+      createReloadWatcher("_Components/*.dist-info/snippets_catalog.json"),
+
+      // Add, Update, Change requirement, Remove, and Resolve dependencies commit components.lock.json after the _Components replacement.
+      // This is a stable reload signal even when nested file events are coalesced.
+      createReloadWatcher("components.lock.json"),
     );
   }
 
