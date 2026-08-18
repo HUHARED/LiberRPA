@@ -66,7 +66,7 @@ def serialize_json(value: object, *, compact: bool = False) -> str:
 
 def write_text_atomic(filePath: Path, text: str) -> None:
     filePath.parent.mkdir(parents=True, exist_ok=True)
-    # Keep the temporary name independent of the final name so the UUID suffix cannot make an otherwise valid Windows filename exceed the entry name.
+    # Keep the temporary name independent of the final name so the UUID suffix cannot make a valid Windows filename exceed the entry name limit.
     pathTempFile = filePath.parent / f".liberrpa-write-{uuid.uuid4()}.tmp"
 
     try:
