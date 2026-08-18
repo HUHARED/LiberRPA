@@ -768,8 +768,8 @@ class Logger:
                 try:
                     self._trace_call(level=level, prefix="START", funcName=func.__name__)
                     return func(*args, **kwargs)
-                except Exception as e:
-                    self.exception_info(e)
+                except Exception:
+                    # self.exception_info(e)
                     boolError = True
                     raise
                 finally:
