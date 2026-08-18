@@ -439,7 +439,7 @@ export async function packageFlowProject(
 
   const arrEntry = await collectProjectPackageEntries(data.projectPath, input);
 
-  // Keep the temporary name independent of the final name so the UUID suffix cannot make an otherwise valid Windows filename exceed the entry name.
+  // Keep the temporary name independent of the final name so the UUID suffix cannot make a valid Windows filename exceed the entry name limit.
   const tempPackageFilePath = path.join(
     input.outputFolderPath,
     `.liberrpa-package-${randomUUID()}.tmp`,
