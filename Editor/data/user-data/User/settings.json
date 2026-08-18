@@ -70,6 +70,9 @@
   "python.analysis.autoFormatStrings": true,
   "python.analysis.typeEvaluation.strictListInference": true,
   "python.analysis.typeEvaluation.strictDictionaryInference": true,
+  "python.analysis.userFileIndexingLimit": -1,
+  "python.analysis.nodeExecutable": "auto",
+  "python.analysis.diagnosticMode": "workspace",
 
   // Jupyter Notebook settings
   "jupyter.askForKernelRestart": false,
