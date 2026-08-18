@@ -1,61 +1,7 @@
-// FileName: snippets_favorite.jsonc
+// FileName: snippets_favorite.jsonc.template
+// Favorite Snippet configuration documentation: https://github.com/HUHARED/LiberRPA/blob/main/vscodeExtensions/liberrpa-snippets-tree/README.md#favorite-snippets
+
 {
-  // Favorite snippets appear in the "Favorite" category at the top of
-  // LiberRPA Snippets Tree and are also available through IntelliSense.
-  //
-  // After editing this file, run "Developer: Reload Window" in VS Code
-  // to reload the snippets.
-  //
-  // To favorite or customize a built-in snippet, open the snippet catalog
-  // on GitHub, copy a complete entry from its "snippets" object, and paste
-  // it into the "snippets" object below:
-  //
-  // https://github.com/HUHARED/LiberRPA/blob/main/vscodeExtensions/liberrpa-snippets-tree/assets/snippets_catalog.json
-  //
-  // Keeping the complete entry preserves its import and insertion metadata.
-  // The "category" field is ignored for favorite snippets.
-  //
-  // The top-level key is the snippet title and must be unique in this file.
-  // The "category" field is ignored for favorite snippets.
-  //
-  // Properties:
-  //   prefix:
-  //     Text used to find the snippet in IntelliSense.
-  //
-  //   body:
-  //     Code to insert. It can be a string or an array of lines.
-  //
-  //   description:
-  //     Optional text shown in TreeView and IntelliSense.
-  //
-  //   label:
-  //     Optional text displayed for the snippet in TreeView.
-  //
-  //   insertionMode:
-  //     Optional TreeView click behavior:
-  //       "line"   - Insert as a statement, creating a new line when needed.
-  //       "cursor" - Insert directly at the cursor or replace the selection.
-  //     The default value is "line".
-  //
-  //   imports:
-  //     Optional imports grouped by Python import source.
-  //     They are added to the LiberRPA managed import block automatically.
-  //
-  // VS Code snippet placeholders are supported, for example:
-  //   $1
-  //   ${1:default value}
-  //   $0
-  //
   "schemaVersion": 1,
-  "snippets": {
-    /* "Custom Delay": {
-      "prefix": "custom_delay",
-      "body": ["delay(${1:1000})", "$0"],
-      "description": "Wait for a specified time, in milliseconds.",
-      "insertionMode": "line",
-      "imports": {
-        "liberrpa.Modules": ["delay"],
-      },
-    } */
-  }
+  "snippets": {}
 }
