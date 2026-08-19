@@ -13,6 +13,11 @@ vsc-extension-quickstart.md
 **/*.ts
 **/.vscode-test.*
 
+# Documentation assets are served from GitHub.
+md_images/**
+Example/**
+ExampleDelayComponent.md
+
 # Include only the runtime assets that are actually needed.
 webview-ui/**
 !webview-ui/dist/index.html
