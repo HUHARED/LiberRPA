@@ -4,7 +4,10 @@ import * as fs from "node:fs";
 
 export function getErrorMessage(error: unknown): string {
   if (error instanceof Error) {
-    return error.message;
+    if (error.cause === undefined) {
+      return error.message;
+    }
+    return `${error.message}\nCaused by: ${getErrorMessage(error.cause)}`;
   }
 
   if (typeof error === "string") {

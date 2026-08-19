@@ -398,7 +398,7 @@ async function createPackageArchive(
       archiveFailurePromise,
     ]);
 
-    const tempPackageFileObj = await fs.promises.open(tempPackageFilePath, "r");
+    const tempPackageFileObj = await fs.promises.open(tempPackageFilePath, "r+");
     try {
       await tempPackageFileObj.sync();
     } finally {
