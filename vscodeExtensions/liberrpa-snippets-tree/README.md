@@ -15,6 +15,18 @@ With it, you don't need to memorize the entire [LiberRPA API](https://github.com
 > * Icon has become ![new icon](./md_images/README/LiberRPA_icon_v3_monochrome_plain_32px.png) from ![old icon](./md_images/README/LiberRPA_icon_v2_line_32px.png) .
 > * The current interface and managed import block structure may differ slightly from what is shown.
 
+> **Extension logs:**
+>
+> The LiberRPA VS Code extensions write diagnostic messages to separate log channels in the VS Code Output panel:
+>
+> * `liberrpa-snippets-tree`
+>
+> To view a log channel, open `View > Output` and select the required channel from the channel list. You can also run `Output: Show Output Channels` from the Command Palette.
+>
+> To change the amount of diagnostic detail, run `Developer: Set Log Level...`, select the required channel, and then choose a log level. Use `Debug` or `Trace` when troubleshooting. `Info` is normally sufficient for routine use.
+>
+> This log level controls only diagnostic messages from the VS Code extension. It does not change the Python runtime log level used when executing a Flow Project or an individual Block.
+
 # Usage
 
 ## Insert Snippets
@@ -119,7 +131,7 @@ You can also move LiberRPA Snippets Tree back to Activity Bar.
 Frequently used Snippets can be added to the Favorite Snippet file:
 
 ```text
-C:\Users\<username>\Documents\LiberRPA\snippets_favorite.jsonc
+C:/Users/<UserName>/Documents/LiberRPA/snippets_favorite.jsonc
 ```
 
 If the file does not exist, LiberRPA Snippets Tree creates it from the bundled template when the extension loads.
@@ -318,7 +330,7 @@ If the file contains invalid JSONC or unsupported Snippet fields:
 
 Correct the file and run `Developer: Reload Window` again.
 
-### Complete Example
+### Example
 
 ```jsonc
 {
