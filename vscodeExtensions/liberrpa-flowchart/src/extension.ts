@@ -411,12 +411,13 @@ class FlowchartEditorProvider implements vscode.CustomTextEditorProvider {
 # ruff: isort: on
 # </LiberRPA imports: managed>
 
+
 def main() -> None:
-  raise NotImplementedError()
+    raise NotImplementedError()
 
 
 if __name__ == "__main__":
-  main()
+    main()
 `;
 
           fs.writeFileSync(strFileSystemPath, strNewPython, { encoding: "utf-8" });
