@@ -120,7 +120,7 @@ _LAZY_OBJECT_EXPORTS: dict[str, tuple[str, str]] = {
     "DatabaseConnection": ("liberrpa.Database", "DatabaseConnection"),
     "PrjArgs": ("liberrpa.FlowControl.ProjectFlowInit", "PrjArgs"),
     "CustomArgs": ("liberrpa.FlowControl.ProjectFlowInit", "CustomArgs"),
-    #
+    # Selector types
     "SelectorWindow": ("liberrpa.UI._UiDict", "SelectorWindow"),
     "SelectorUia": ("liberrpa.UI._UiDict", "SelectorUia"),
     "SelectorHtml": ("liberrpa.UI._UiDict", "SelectorHtml"),
@@ -212,14 +212,3 @@ if TYPE_CHECKING:
         SelectorImage as SelectorImage,
         Selector as Selector,
     )
-
-
-"""
-# Consider adding them in the future.
-
-# The selector for users to declare.
-from liberrpa.UI._UiDict import SelectorWindow, SelectorUia, SelectorHtml, SelectorImage
-
-# The LiberRPA errors
-from liberrpa.Common._Exception import UiElementNotFoundError, UiTimeoutError, UiOperationError, ChromeCommandError, MailError
-"""

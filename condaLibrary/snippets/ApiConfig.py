@@ -159,6 +159,12 @@ MANAGED_IMPORT_ORDER = [
     "DatabaseConnection",
     "PrjArgs",
     "CustomArgs",
+    #
+    "SelectorWindow",
+    "SelectorUia",
+    "SelectorHtml",
+    "SelectorImage",
+    "Selector",
 ]
 
 # Some public functions should not be exposed as snippets.

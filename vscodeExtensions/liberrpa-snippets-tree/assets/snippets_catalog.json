@@ -101,7 +101,12 @@
         "Trigger",
         "DatabaseConnection",
         "PrjArgs",
-        "CustomArgs"
+        "CustomArgs",
+        "SelectorWindow",
+        "SelectorUia",
+        "SelectorHtml",
+        "SelectorImage",
+        "Selector"
       ]
     }
   },
