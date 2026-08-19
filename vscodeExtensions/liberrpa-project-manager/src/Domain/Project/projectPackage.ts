@@ -4,13 +4,14 @@ import type { DictProtocolResult_ProjectDependencyState } from "../ComponentMana
 import type { DictProjectManifest_Flow, DictPackageProjectInput } from "./projectTypes";
 import { getWindowsFileOrFolderNameError } from "./projectValidation";
 
-const SET_EXCLUDED_FOLDER_NAME = new Set([
+const SET_ALWAYS_EXCLUDED_FOLDER_NAME = new Set([
   ".liberrpa-project-manager",
   ".mypy_cache",
   ".pytest_cache",
   ".ruff_cache",
   "__pycache__",
 ]);
+const STR_PROJECT_TEST_FOLDER_NAME_LOWERCASE = "_test";
 const STR_PROJECT_OPERATION_LOCK_FILE_NAME = ".liberrpa-project-manager.lock";
 
 export function getProjectPackageFileNameError(
@@ -84,16 +85,23 @@ export function getProjectPackageDependencyBlockingReasons(
 
 export function shouldExcludeProjectFolder(
   folderName: string,
+  isProjectRootEntry: boolean,
   input: DictPackageProjectInput,
 ): boolean {
-  const strFolderName = folderName.toLowerCase();
-  if (SET_EXCLUDED_FOLDER_NAME.has(strFolderName)) {
+  const strFolderNameLowercase = folderName.toLowerCase();
+  if (SET_ALWAYS_EXCLUDED_FOLDER_NAME.has(strFolderNameLowercase)) {
     return true;
   }
-  if (strFolderName === ".vscode") {
+  if (!isProjectRootEntry) {
+    return false;
+  }
+  if (strFolderNameLowercase === ".vscode") {
     return !input.includeVscodeSettings;
   }
-  if (strFolderName === ".git") {
+  if (strFolderNameLowercase === STR_PROJECT_TEST_FOLDER_NAME_LOWERCASE) {
+    return !input.includeProjectTests;
+  }
+  if (strFolderNameLowercase === ".git") {
     return !input.includeGitRepository;
   }
   return false;
@@ -101,19 +109,26 @@ export function shouldExcludeProjectFolder(
 
 export function shouldExcludeProjectFile(
   fileName: string,
+  isProjectRootEntry: boolean,
   input: DictPackageProjectInput,
 ): boolean {
-  const strFileName = fileName.toLowerCase();
-  if (strFileName === ".vscode") {
+  const strFileNameLowercase = fileName.toLowerCase();
+  if (
+    strFileNameLowercase === STR_PROJECT_OPERATION_LOCK_FILE_NAME ||
+    strFileNameLowercase.endsWith(".pyc") ||
+    strFileNameLowercase.endsWith(".pyo") ||
+    strFileNameLowercase.endsWith(".rpa.zip")
+  ) {
+    return true;
+  }
+  if (!isProjectRootEntry) {
+    return false;
+  }
+  if (strFileNameLowercase === ".vscode") {
     return !input.includeVscodeSettings;
   }
-  if (strFileName === ".git") {
+  if (strFileNameLowercase === ".git") {
     return !input.includeGitRepository;
   }
-  return (
-    strFileName === STR_PROJECT_OPERATION_LOCK_FILE_NAME ||
-    strFileName.endsWith(".pyc") ||
-    strFileName.endsWith(".pyo") ||
-    strFileName.endsWith(".rpa.zip")
-  );
+  return false;
 }

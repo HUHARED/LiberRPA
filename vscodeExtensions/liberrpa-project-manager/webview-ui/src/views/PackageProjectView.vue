@@ -110,28 +110,23 @@
       <v-card variant="outlined" class="mb-4">
         <v-card-title class="text-subtitle-1">Package output</v-card-title>
         <v-card-text>
-          <v-row align="center">
-            <v-col cols="12" md="9">
-              <v-text-field
-                v-model="packageProjectStore.outputFolderPath"
-                label="Output folder"
-                variant="outlined"
-                density="comfortable"
-                readonly
-                hide-details>
-              </v-text-field>
-            </v-col>
-            <v-col cols="12" md="3">
+          <v-text-field
+            v-model="packageProjectStore.outputFolderPath"
+            label="Output folder"
+            variant="outlined"
+            density="comfortable"
+            readonly
+            hide-details>
+            <template #append-inner>
               <v-btn
-                block
-                variant="tonal"
-                prepend-icon="mdi-folder-open-outline"
+                variant="text"
+                size="small"
                 :disabled="projectManagerStore.busy"
                 @click="selectOutputFolder">
-                Select Folder
+                Browse
               </v-btn>
-            </v-col>
-          </v-row>
+            </template>
+          </v-text-field>
 
           <v-row>
             <v-col cols="12">
@@ -152,9 +147,22 @@
 
           <v-divider class="my-3"></v-divider>
 
+          <div class="text-subtitle-2 mb-1">Optional package contents</div>
+          <div class="text-body-2 text-medium-emphasis mb-2">
+            Executor does not require these development folders, so they are excluded by
+            default. Include them only when the packaged Project will also be used for
+            development, testing or source-control transfer.
+          </div>
+
           <v-checkbox
             v-model="packageProjectStore.includeVscodeSettings"
             label="Include VS Code settings (.vscode)"
+            density="comfortable"
+            hide-details>
+          </v-checkbox>
+          <v-checkbox
+            v-model="packageProjectStore.includeProjectTests"
+            label="Include test and verification files (_Test)"
             density="comfortable"
             hide-details>
           </v-checkbox>

@@ -106,6 +106,7 @@ export function getDefaultPackageProjectInput(
   return {
     outputFolderPath: path.dirname(workspaceFolder.uri.fsPath),
     includeVscodeSettings: false,
+    includeProjectTests: false,
     includeGitRepository: false,
   };
 }
@@ -316,7 +317,9 @@ async function collectProjectPackageEntries(
       const archivePath = arrEntryRelativePart.join("/");
 
       if (entryStat.isDirectory()) {
-        if (shouldExcludeProjectFolder(entryObj.name, input)) {
+        if (
+          shouldExcludeProjectFolder(entryObj.name, arrRelativePathPart.length === 0, input)
+        ) {
           continue;
         }
         registerArchivePath(archivePath, "folder");
@@ -332,7 +335,9 @@ async function collectProjectPackageEntries(
       }
 
       if (entryStat.isFile()) {
-        if (shouldExcludeProjectFile(entryObj.name, input)) {
+        if (
+          shouldExcludeProjectFile(entryObj.name, arrRelativePathPart.length === 0, input)
+        ) {
           continue;
         }
         registerArchivePath(archivePath, "file");

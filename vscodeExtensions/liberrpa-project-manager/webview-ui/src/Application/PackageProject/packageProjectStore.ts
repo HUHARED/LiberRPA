@@ -18,6 +18,7 @@ export const usePackageProjectStore = defineStore("packageProject", {
 
     outputFolderPath: "",
     includeVscodeSettings: false,
+    includeProjectTests: false,
     includeGitRepository: false,
     packageFileName: null as string | null,
     packageFileExists: false,
@@ -35,6 +36,7 @@ export const usePackageProjectStore = defineStore("packageProject", {
 
       this.outputFolderPath = initialData.input.outputFolderPath;
       this.includeVscodeSettings = initialData.input.includeVscodeSettings;
+      this.includeProjectTests = initialData.input.includeProjectTests;
       this.includeGitRepository = initialData.input.includeGitRepository;
       this.packageFileName = initialData.packageFileName;
       this.packageFileExists = initialData.packageFileExists;
@@ -48,6 +50,7 @@ export const usePackageProjectStore = defineStore("packageProject", {
       return {
         outputFolderPath: this.outputFolderPath,
         includeVscodeSettings: this.includeVscodeSettings,
+        includeProjectTests: this.includeProjectTests,
         includeGitRepository: this.includeGitRepository,
       };
     },

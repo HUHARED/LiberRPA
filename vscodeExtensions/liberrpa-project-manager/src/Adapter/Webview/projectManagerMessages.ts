@@ -303,10 +303,16 @@ function isPackageProjectInput(value: unknown): value is DictPackageProjectInput
     isRecord(value) &&
     hasExactKeys(
       value,
-      new Set(["outputFolderPath", "includeVscodeSettings", "includeGitRepository"]),
+      new Set([
+        "outputFolderPath",
+        "includeVscodeSettings",
+        "includeProjectTests",
+        "includeGitRepository",
+      ]),
     ) &&
     typeof value["outputFolderPath"] === "string" &&
     typeof value["includeVscodeSettings"] === "boolean" &&
+    typeof value["includeProjectTests"] === "boolean" &&
     typeof value["includeGitRepository"] === "boolean"
   );
 }
