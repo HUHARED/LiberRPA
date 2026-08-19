@@ -10,6 +10,18 @@ This extension is a part of LiberRPA to manage the overall flow of an RPA projec
 >
 > For example: Icon has become ![new icon](./md_images/README/LiberRPA_icon_v3_color_32px.png) from ![old icon](./md_images/README/LiberRPA_icon_v1_color_32px.png) .
 
+> **Extension logs:**
+>
+> The LiberRPA VS Code extensions write diagnostic messages to separate log channels in the VS Code Output panel:
+>
+> * `liberrpa-flowchart`
+>
+> To view a log channel, open `View > Output` and select the required channel from the channel list. You can also run `Output: Show Output Channels` from the Command Palette.
+>
+> To change the amount of diagnostic detail, run `Developer: Set Log Level...`, select the required channel, and then choose a log level. Use `Debug` or `Trace` when troubleshooting. `Info` is normally sufficient for routine use.
+>
+> This log level controls only diagnostic messages from the VS Code extension. It does not change the Python runtime log level used when executing a Flow Project or an individual Block.
+
 ![1740302097535](md_images/README/1740302097535.png)
 
 The `project.flow` file (in JSON format) contains:
@@ -175,7 +187,11 @@ For normal Flow debugging, `Raised Exceptions` is not recommended because it may
 
 ### Log Level
 
-LiberRPA sets the log level (using `Log.set_level()`) according to the configuration when a project or Block node starts.
+The Flowchart `Log Level` setting controls the Python runtime log level used when a Flow Project or an individual Block starts.
+
+LiberRPA applies the selected level through `Log.set_level()`.
+
+This setting is separate from the diagnostic log level used by the VS Code extension. Changing one does not change the other.
 
 ![1740307077172](md_images/README/1740307077172.png)
 
