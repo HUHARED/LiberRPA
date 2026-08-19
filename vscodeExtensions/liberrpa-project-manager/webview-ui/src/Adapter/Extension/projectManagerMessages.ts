@@ -305,12 +305,14 @@ function isPackageProjectInput(value: unknown): value is DictPackageProjectInput
       value,
       new Set([
         "outputFolderPath",
+        "versionSummary",
         "includeVscodeSettings",
         "includeProjectTests",
         "includeGitRepository",
       ]),
     ) &&
     typeof value["outputFolderPath"] === "string" &&
+    typeof value["versionSummary"] === "string" &&
     typeof value["includeVscodeSettings"] === "boolean" &&
     typeof value["includeProjectTests"] === "boolean" &&
     typeof value["includeGitRepository"] === "boolean"

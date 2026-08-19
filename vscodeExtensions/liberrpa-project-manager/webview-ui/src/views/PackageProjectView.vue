@@ -1,6 +1,6 @@
 <!-- FileName: PackageProjectView.vue -->
 <template>
-  <v-card class="mx-auto" max-width="1080" elevation="5">
+  <v-card class="mx-auto" max-width="1080">
     <v-card-title class="d-flex align-center px-5 pt-5">
       <v-icon class="me-2">mdi-package-variant-closed</v-icon>
       Package Flow Project
@@ -138,20 +138,34 @@
                 <v-chip
                   v-if="packageProjectStore.packageFileExists"
                   size="small"
-                  color="error">
-                  Already exists
+                  :color="packageCreated ? 'success' : 'error'">
+                  {{ packageCreated ? "Created" : "Already exists" }}
                 </v-chip>
               </div>
             </v-col>
           </v-row>
 
+          <v-text-field
+            v-model="packageProjectStore.versionSummary"
+            class="mt-4"
+            label="Version summary"
+            placeholder="Summarize the changes in this version"
+            hint="Optional. Stored only in the generated Package."
+            persistent-hint
+            variant="outlined"
+            density="comfortable"
+            :error-messages="
+              versionSummaryError === undefined ? [] : [versionSummaryError]
+            ">
+          </v-text-field>
+
           <v-divider class="my-3"></v-divider>
 
           <div class="text-subtitle-2 mb-1">Optional package contents</div>
           <div class="text-body-2 text-medium-emphasis mb-2">
-            Executor does not require these development folders, so they are excluded by
-            default. Include them only when the packaged Project will also be used for
-            development, testing or source-control transfer.
+            Executor does not require these development and source-control entries, so they
+            are excluded by default. Include them only when the packaged Project will also
+            be used for development, testing or source-control transfer.
           </div>
 
           <v-checkbox
@@ -178,14 +192,14 @@
             type="warning"
             variant="tonal"
             class="mt-3">
-            The .git folder may be large and may contain remote URLs, complete history and
+            The .git entry may be large and may contain remote URLs, complete history and
             content that was deleted from the current Project.
           </v-alert>
         </v-card-text>
       </v-card>
 
       <v-alert
-        v-if="packageProjectStore.packageFileExists"
+        v-if="packageProjectStore.packageFileExists && !packageCreated"
         type="error"
         variant="tonal"
         class="mb-4">
@@ -228,7 +242,7 @@
               </div>
             </v-col>
             <v-col cols="6" sm="3">
-              <div class="text-caption">Source size</div>
+              <div class="text-caption">Uncompressed size</div>
               <div class="font-weight-medium">
                 {{ formatBytes(packageProjectStore.packageResult.uncompressedSizeBytes) }}
               </div>
@@ -277,6 +291,7 @@ import { computed } from "vue";
 import { postMessage } from "../Adapter/Extension/vscodeApi";
 import { usePackageProjectStore } from "../Application/PackageProject/packageProjectStore";
 import { useProjectManagerStore } from "../Application/projectManagerStore";
+import { getOptionalSingleLineTextError } from "../Domain/Project/projectValidation";
 
 const projectManagerStore = useProjectManagerStore();
 const packageProjectStore = usePackageProjectStore();
@@ -301,12 +316,17 @@ const directDependencyCount = computed(
 const resolvedComponentCount = computed(
   () => Object.keys(projectDependencyState.value.componentsLock?.components ?? {}).length,
 );
+const packageCreated = computed(() => packageProjectStore.packageResult !== null);
+const versionSummaryError = computed(() =>
+  getOptionalSingleLineTextError(packageProjectStore.versionSummary, "Version summary"),
+);
 const canPackage = computed(
   () =>
     !projectManagerStore.busy &&
     packageProjectStore.outputFolderPath.length > 0 &&
     packageProjectStore.packageFileName !== null &&
     !packageProjectStore.packageFileExists &&
+    versionSummaryError.value === undefined &&
     packageProjectStore.blockingReasons.length === 0,
 );
 

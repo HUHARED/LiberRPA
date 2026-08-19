@@ -17,6 +17,7 @@ export const usePackageProjectStore = defineStore("packageProject", {
     projectDependencyState: null as DictProtocolResult_ProjectDependencyState | null,
 
     outputFolderPath: "",
+    versionSummary: "",
     includeVscodeSettings: false,
     includeProjectTests: false,
     includeGitRepository: false,
@@ -35,6 +36,7 @@ export const usePackageProjectStore = defineStore("packageProject", {
       this.projectDependencyState = initialData.projectDependencyState;
 
       this.outputFolderPath = initialData.input.outputFolderPath;
+      this.versionSummary = initialData.input.versionSummary;
       this.includeVscodeSettings = initialData.input.includeVscodeSettings;
       this.includeProjectTests = initialData.input.includeProjectTests;
       this.includeGitRepository = initialData.input.includeGitRepository;
@@ -49,6 +51,7 @@ export const usePackageProjectStore = defineStore("packageProject", {
     getInput(): DictPackageProjectInput {
       return {
         outputFolderPath: this.outputFolderPath,
+        versionSummary: this.versionSummary,
         includeVscodeSettings: this.includeVscodeSettings,
         includeProjectTests: this.includeProjectTests,
         includeGitRepository: this.includeGitRepository,

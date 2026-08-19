@@ -2,6 +2,7 @@
 
 import type { DictProtocolResult_ProjectDependencyState } from "../ComponentManagement/componentManagementTypes";
 import type { DictProjectManifest_Flow, DictPackageProjectInput } from "./projectTypes";
+import { STR_PROJECT_PACKAGE_MANIFEST_FILE_NAME } from "./projectPackageManifest";
 import { getWindowsFileOrFolderNameError } from "./projectValidation";
 
 const SET_ALWAYS_EXCLUDED_FOLDER_NAME = new Set([
@@ -124,8 +125,8 @@ export function shouldExcludeProjectFile(
   if (!isProjectRootEntry) {
     return false;
   }
-  if (strFileNameLowercase === ".vscode") {
-    return !input.includeVscodeSettings;
+  if (strFileNameLowercase === STR_PROJECT_PACKAGE_MANIFEST_FILE_NAME) {
+    return true;
   }
   if (strFileNameLowercase === ".git") {
     return !input.includeGitRepository;

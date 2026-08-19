@@ -53,6 +53,7 @@ export interface DictProjectTemplateInfo {
 
 export interface DictPackageProjectInput {
   outputFolderPath: string;
+  versionSummary: string;
   includeVscodeSettings: boolean;
   includeProjectTests: boolean;
   includeGitRepository: boolean;

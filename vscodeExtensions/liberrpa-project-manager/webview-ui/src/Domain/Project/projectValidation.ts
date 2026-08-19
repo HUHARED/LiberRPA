@@ -95,6 +95,21 @@ export function getVersionInputError(version: string): string | undefined {
   return undefined;
 }
 
+export function getOptionalSingleLineTextError(
+  value: string,
+  description: string,
+): string | undefined {
+  if (value !== value.trim()) {
+    return `${description} cannot start or end with whitespace.`;
+  }
+
+  if (value.includes("\r") || value.includes("\n")) {
+    return `${description} must be a single line.`;
+  }
+
+  return undefined;
+}
+
 export function getComponentPackageNameError(packageName: string): string | undefined {
   const strWindowsNameError = getWindowsFileOrFolderNameError(packageName, "Package name");
   if (strWindowsNameError !== undefined) {

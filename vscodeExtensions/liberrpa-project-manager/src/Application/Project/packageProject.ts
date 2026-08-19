@@ -12,6 +12,7 @@ import {
   getWorkspaceProjectType,
   updateProjectTypeContext,
 } from "../../Adapter/VsCode/projectTypeContext";
+import { stringifyJson } from "../../Common/utils";
 import type {
   DictComponentManagementWarning,
   DictProtocolResult_ProjectDependencyState,
@@ -23,11 +24,18 @@ import {
   shouldExcludeProjectFolder,
   shouldExcludeProjectFile,
 } from "../../Domain/Project/projectPackage";
+import {
+  buildProjectPackageManifest,
+  STR_PROJECT_PACKAGE_MANIFEST_FILE_NAME,
+} from "../../Domain/Project/projectPackageManifest";
+import { getOptionalSingleLineTextError } from "../../Domain/Project/projectValidation";
 import type {
   DictProjectManifest_Flow,
   DictPackageProjectInput,
   DictProjectPackageResult,
 } from "../../Domain/Project/projectTypes";
+
+const PROJECT_PACKAGE_MANIFEST_ENTRY_DATE = new Date(1984, 4, 4);
 
 interface Info_ProjectPackageEntry {
   type: "file" | "folder";
@@ -105,6 +113,7 @@ export function getDefaultPackageProjectInput(
 ): DictPackageProjectInput {
   return {
     outputFolderPath: path.dirname(workspaceFolder.uri.fsPath),
+    versionSummary: "",
     includeVscodeSettings: false,
     includeProjectTests: false,
     includeGitRepository: false,
@@ -187,6 +196,14 @@ async function getPackageBlockingReasons(
   const strFileNameError = getProjectPackageFileNameError(manifest);
   if (strFileNameError !== undefined) {
     arrReason.unshift(strFileNameError);
+  }
+
+  const strVersionSummaryError = getOptionalSingleLineTextError(
+    input.versionSummary,
+    "Version summary",
+  );
+  if (strVersionSummaryError !== undefined) {
+    arrReason.push(strVersionSummaryError);
   }
 
   const strOutputFolderError = await getOutputFolderError(
@@ -357,6 +374,7 @@ async function collectProjectPackageEntries(
     }
   }
 
+  registerArchivePath(STR_PROJECT_PACKAGE_MANIFEST_FILE_NAME, "file");
   await scanFolder(projectPath, []);
   arrEntry.sort((left, right) => comparePath(left.archivePath, right.archivePath));
   return arrEntry;
@@ -365,6 +383,7 @@ async function collectProjectPackageEntries(
 async function createPackageArchive(
   tempPackageFilePath: string,
   arrEntry: Info_ProjectPackageEntry[],
+  packageManifestContent: string,
 ): Promise<void> {
   const { ZipArchive } = await import(/* webpackMode: "eager" */ "archiver");
   const outputFileObj = fs.createWriteStream(tempPackageFilePath, {
@@ -379,6 +398,10 @@ async function createPackageArchive(
 
   try {
     archiveObj.pipe(outputFileObj);
+    archiveObj.append(packageManifestContent, {
+      name: STR_PROJECT_PACKAGE_MANIFEST_FILE_NAME,
+      date: PROJECT_PACKAGE_MANIFEST_ENTRY_DATE,
+    });
     for (const entryObj of arrEntry) {
       if (entryObj.type === "folder") {
         archiveObj.append(Buffer.alloc(0), {
@@ -443,6 +466,10 @@ export async function packageFlowProject(
   }
 
   const arrEntry = await collectProjectPackageEntries(data.projectPath, input);
+  const packageManifestContent = stringifyJson(
+    buildProjectPackageManifest(input.versionSummary),
+    2,
+  );
 
   // Keep the temporary name independent of the final name so the UUID suffix cannot make a valid Windows filename exceed the entry name limit.
   const tempPackageFilePath = path.join(
@@ -451,7 +478,7 @@ export async function packageFlowProject(
   );
 
   try {
-    await createPackageArchive(tempPackageFilePath, arrEntry);
+    await createPackageArchive(tempPackageFilePath, arrEntry, packageManifestContent);
     if (await pathExists(packageFilePath)) {
       throw new Error(`Package file already exists: ${packageFilePath}`);
     }
@@ -462,12 +489,14 @@ export async function packageFlowProject(
   }
 
   const packageFileStat = await fs.promises.stat(packageFilePath);
-  const intFileCount = arrEntry.filter((entryObj) => entryObj.type === "file").length;
-  const intFolderCount = arrEntry.length - intFileCount;
-  const intUncompressedSize = arrEntry.reduce(
-    (intTotal, entryObj) => intTotal + entryObj.size,
-    0,
-  );
+  const intProjectFileCount = arrEntry.filter(
+    (entryObj) => entryObj.type === "file",
+  ).length;
+  const intFileCount = intProjectFileCount + 1;
+  const intFolderCount = arrEntry.length - intProjectFileCount;
+  const intUncompressedSize =
+    arrEntry.reduce((intTotal, entryObj) => intTotal + entryObj.size, 0) +
+    Buffer.byteLength(packageManifestContent, "utf-8");
   log.info(`Created Project Package: ${packageFilePath}`);
   log.info(
     `Project Package contains ${String(intFileCount)} files and ` +
