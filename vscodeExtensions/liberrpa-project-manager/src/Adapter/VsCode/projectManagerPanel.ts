@@ -19,6 +19,7 @@ export class ProjectManagerPanel implements ProjectManagerSessionHost {
   private static currentPanel: ProjectManagerPanel | undefined;
 
   private readonly panel: vscode.WebviewPanel;
+  private disposed = false;
   private readonly disposables: vscode.Disposable[] = [];
   private readonly session: ProjectManagerSession;
 
@@ -123,16 +124,37 @@ export class ProjectManagerPanel implements ProjectManagerSessionHost {
   }
 
   public async postMessage(message: DictMessage_ExtensionToWebview): Promise<void> {
-    if (!(await this.panel.webview.postMessage(message))) {
-      throw new Error("Project Manager Webview is not available.");
+    if (this.disposed) {
+      return;
+    }
+
+    try {
+      const boolMessagePosted = await this.panel.webview.postMessage(message);
+      if (!boolMessagePosted && !this.disposed) {
+        throw new Error("Project Manager Webview is not available.");
+      }
+    } catch (e: unknown) {
+      if (this.disposed) {
+        log.debug(
+          `Skipped Project Manager Webview message after disposal: ${message.command}.`,
+        );
+        return;
+      }
+      throw e;
     }
   }
 
   public dispose(): void {
+    if (this.disposed) {
+      return;
+    }
+    this.disposed = true;
     this.panel.dispose();
   }
 
   private disposeResources(): void {
+    this.disposed = true;
+
     if (ProjectManagerPanel.currentPanel === this) {
       ProjectManagerPanel.currentPanel = undefined;
     }
