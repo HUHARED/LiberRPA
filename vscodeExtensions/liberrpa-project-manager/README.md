@@ -4,50 +4,80 @@ If the images are not displayed, [view this README on GitHub](https://github.com
 
 **LiberRPA Project Manager** is part of LiberRPA. It helps you create LiberRPA Projects, publish reusable Components, manage Component dependencies, and package Flow Projects for LiberRPA Executor.
 
+> **Note:**
+>
+> Screenshots and animations in this document are provided for reference. As LiberRPA evolves, the current interface may differ slightly in appearance or wording, but these minor differences do not affect the documented workflow or functionality.
+
+> **Extension logs:**
+>
+> This extension writes diagnostic messages to the `liberrpa-project-manager` channel in the VS Code Output panel.
+>
+> Open `View > Output` and select the channel, or run `Output: Show Output Channels` from the Command Palette.
+>
+> For troubleshooting, run `Developer: Set Log Level...`, select `liberrpa-project-manager`, and choose `Debug` or `Trace`. `Info` is normally sufficient for routine use.
+>
+> This setting does not change the Python runtime log level used by a Flow Project or an individual Block.
+
 # Usage
 
 ## Create a Project
 
-1. **Open the Command Palette:**
-   Press `Ctrl+Shift+P`.
-2. **Run the Command:**
-   Run `LiberRPA: Create a New Project`.
+1. Press `Ctrl+Shift+P` and run `LiberRPA: Create a New Project`.
    ![1740223397190](md_images/README/1740223397190.png)
-3. **Select a Destination Folder:**
-   Choose the parent folder in which the new LiberRPA Project folder will be created.
+2. Select the parent folder in which the new Project folder will be created.
    ![1786678368303](md_images/README/1786678368303.png)
-4. **Configure the Project:**
-   Select the Project type and template, then enter the Project folder name, version, and description. For a Component Project, also enter the Component package name and display name.
+3. Select the Project type and template, then enter the required Project information.
    ![1786679449846](md_images/README/1786679449846.png)
-5. **Create the Project:**
-   Review the settings and click `Confirm`. LiberRPA validates the settings and creates the Project from the selected template.
-   If the selected template contains a `.gitignore` file and Git is available, LiberRPA also initializes a Git repository.
-6. **Open the Project:**
-   After the Project is created, it opens in a new VS Code window.
+4. Review the settings and click `Confirm`.
+5. The new Project opens in a separate VS Code window.
    ![1786679866046](md_images/README/1786679866046.png)
+
+If the selected template contains `.gitignore` and Git is available, Project Manager also initializes a Git repository.
 
 ## Customize Templates
 
 Project templates are stored at:
 
-`LiberRPA/configFiles/ProjectTemplate/`
+```text
+LiberRPA/configFiles/ProjectTemplate/
+```
 
-The safest way to create a custom template is to copy an existing default template and modify the copy.
+The safest way to create a custom template is to copy an existing template and modify the copy.
 
-The template folder name must retain the appropriate Project type prefix:
+The template folder name must keep the matching prefix:
 
 * `FlowProject-` for a Flow Project template, for example `FlowProject-MyTemplate`.
 * `ComponentProject-` for a Component Project template, for example `ComponentProject-MyTemplate`.
 
-LiberRPA Project Manager ignores template folders that do not use one of these recognized prefixes.
-
-Keep the required Project files and directory structure for the selected Project type. Other files and folders may be added or modified as needed.
+Keep the required Project files and structure for the selected Project type. Other files and folders may be added as needed.
 
 ![1786679958479](md_images/README/1786679958479.png)
 
+## Component Repository
+
+LiberRPA Project Manager uses a local Component Repository to store Component Wheels published locally or imported from external sources.
+
+The same Repository is shared by LiberRPA Projects that use the current LiberRPA installation. It is not stored inside an individual Flow Project or Component Project.
+
+The default location is:
+
+```text
+C:/Users/<UserName>/Documents/LiberRPA/ComponentRepository/
+```
+
+The path is configured by `componentRepositoryPath` in:
+
+```text
+%LiberRPA%/configFiles/basic.jsonc
+```
+
+Running `InitLiberRPA.exe` creates the default Repository folder. A custom path must be an absolute path to an existing directory.
+
+Use Project Manager commands to publish, import, and rebuild Repository content. Do not manually edit the Repository during normal use.
+
 ## Develop a Component Project
 
-A Component Project contains reusable Python functions that can be published as a Component Wheel and installed into other LiberRPA Projects.
+A Component Project contains reusable Python code that can be published as a Component Wheel and added to other LiberRPA Projects.
 
 ### Project Structure
 
@@ -57,7 +87,7 @@ Component source code must be placed under:
 src/<PackageName>/
 ```
 
-For example, a Component whose `packageName` is `ExampleDelay` uses this structure:
+For example:
 
 ```text
 ExampleDelay/
@@ -70,29 +100,21 @@ ExampleDelay/
 └── ...
 ```
 
-Do not rename the `src` folder.
-
-The Python package folder directly under `src` must match `packageName` in `component.json`. Changing only the folder name or only the Manifest field makes the Component Project invalid.
-
-Keep the generated `__init__.py` and `py.typed` files. Additional Python modules and package resources may be added under the Component package folder.
+The package folder directly under `src` must match `packageName` in `component.json`. Keep the generated `__init__.py` and `py.typed` files.
 
 ### Public Component Functions
 
-LiberRPA generates Component Snippets from public top-level synchronous functions in public modules directly under:
-
-```text
-src/<PackageName>/
-```
-
-For example:
+LiberRPA can generate Component Snippets from public top-level synchronous functions in public modules directly under `src/<PackageName>/`.
 
 ```python
 # FileName: Preset.py
 # <LiberRPA imports: managed>
 # This block is managed by LiberRPA. Do not edit it manually.
+# ruff: isort: off
 from liberrpa.Modules import (
     delay,
 )
+# ruff: isort: on
 # </LiberRPA imports: managed>
 
 
@@ -106,30 +128,20 @@ def delay_seconds(seconds: float) -> None:
     delay(round(seconds * 1000))
 ```
 
-The following are not included in the automatically generated Component Snippet Catalog:
+Automatic Snippets are not generated from private modules or functions, async functions, nested functions, class methods, functions in `__init__.py`, or functions in nested subpackages. These objects may still be used internally by the Component.
 
-* Functions defined in `__init__.py`.
-* Modules whose names start with `_`.
-* Functions whose names start with `_`.
-* Async functions.
-* Nested functions.
-* Class methods.
-* Functions inside nested subpackages.
+### Component Resources
 
-Private modules, helper functions, classes, and nested packages may still be used internally by the Component; they are simply not exposed as automatic Component Snippets.
-
-### Component resources
-
-Do not use `os.getcwd()` to locate files owned by a Component. The process working directory belongs to the running Project, not to an individual Component.
-
-Store Component resources under the Component package and resolve them with `get_component_resource_path()`:
+Store Component-owned resources under the Component package and resolve them with `get_component_resource_path()`:
 
 ```python
 # <LiberRPA imports: managed>
 # This block is managed by LiberRPA. Do not edit it manually.
+# ruff: isort: off
 from liberrpa.Modules import (
     get_component_resource_path,
 )
+# ruff: isort: on
 # </LiberRPA imports: managed>
 
 strConfigPath = get_component_resource_path(
@@ -137,75 +149,33 @@ strConfigPath = get_component_resource_path(
 )
 ```
 
-### Component Metadata
+Do not use `os.getcwd()` to locate Component-owned files. The process working directory belongs to the running Project.
 
-The Component Manifest is stored in:
+### Component Metadata and Versions
 
-```text
-component.json
-```
+The Component Manifest is stored in `component.json`. It defines the Component identity, package name, display name, version, description, supported `liberrpa` range, and direct Component dependencies.
 
-Important fields include:
+Keep `packageName` synchronized with the package folder under `src`. Do not change the Component ID after the Component has been published.
 
-* `id`: The permanent identity of the Component. Do not change it after the Component has been published.
-* `packageName`: The top-level Python package name. It must match the package folder under `src`.
-* `displayName`: The readable Component name shown in LiberRPA Project Manager and Snippets Tree.
-* `version`: A Python PEP 440 version.
-* `description`: A short description of the Component.
-* `requiresLiberrpa`: The supported `liberrpa` version range.
-* `componentDependencies`: The direct Component dependency requirements.
+Versions and version requirements follow Python PEP 440. Increase `version` before publishing changed content. Published Component versions are immutable.
 
-Use LiberRPA Project Manager to add, update, change, or remove Component dependencies instead of manually editing dependency state files.
-
-### Versions
-
-Increment the Component version before publishing changed content.
-
-Common versions include:
-
-```text
-1.0.0
-1.0.1
-1.1.0
-2.0.0
-```
-
-Versions and version requirements follow Python PEP 440.
-
-A published Wheel is immutable. Publishing different content with the same Component ID and version is rejected.
-
-### Before Publishing
-
-Before publishing a Component:
-
-* Keep all required source files under `src/<PackageName>/`.
-* Make sure public modules and functions use the intended names.
-* Add clear type annotations and docstrings to functions that should appear as Snippets.
-* Update the Component version when published content has changed.
-* Save all modified files.
-* Resolve any Component dependency problems reported by Project Manager.
+Before publishing, save the Project, review public names and docstrings, and resolve any dependency problems reported by Project Manager.
 
 ## Publish a Component
 
-When the Component is ready, open the VS Code Command Palette and run `LiberRPA: Publish Component`.
+Open the Command Palette and run `LiberRPA: Publish Component`.
 
 ![1786693971281](md_images/README/1786693971281.png)
 
-LiberRPA uses a two-step process for the first publication so that the generated Snippets can be reviewed and customized before the Component Wheel is created.
+The first publication uses two steps so that generated Snippets can be reviewed before the Wheel is created.
 
 ### First Publish: Prepare Snippets
 
-The command opens the Publish Component page. Review the Project information and source scan summary, then click `Publish Component`.
+Review the Project and source scan summary, then click `Publish Component`.
 
 ![1786694798272](md_images/README/1786694798272.png)
 
-When publishing a Component for the first time, LiberRPA scans the public Python modules and functions under:
-
-```text
-src/<PackageName>/
-```
-
-If `_Snippets/snippets.jsonc` does not exist, LiberRPA creates the Snippet preparation files and stops before building the Wheel:
+If `_Snippets/snippets.jsonc` does not exist, LiberRPA creates:
 
 ```text
 _Snippets/
@@ -213,110 +183,270 @@ _Snippets/
 └── snippets.jsonc
 ```
 
-`ast.snippets.json` contains the Snippets automatically generated from the current Component source code. LiberRPA regenerates this file during publication, so do not edit it manually.
+* `ast.snippets.json` is regenerated from the current source code. Do not edit it manually.
+* `snippets.jsonc` belongs to the Component developer and is preserved during later publications.
 
-`snippets.jsonc` is maintained by the Component developer. It is created only during the first Publish Preparation and is not automatically overwritten afterward.
-
-Use `snippets.jsonc` to:
-
-* exclude automatically generated Snippets;
-* override selected properties of automatically generated Snippets;
-* add hand-written Snippets;
-* add additional imports required by a Snippet.
-
-Review the generated Snippets, edit `snippets.jsonc` if necessary, and save the file.
-
-No Component Wheel is created and the Component Repository is not modified during the preparation step.
+No Wheel is created during this preparation step. Review the generated Snippets and edit `snippets.jsonc` when customization is needed.
 
 ### Publish the Component Wheel
 
-After reviewing the Snippet configuration, run `LiberRPA: Publish Component` again, review the updated summary, and click `Publish Component`.
+Run `LiberRPA: Publish Component` again. Project Manager regenerates and validates the Snippets, builds and validates the Wheel, and publishes it to the configured Component Repository.
 
-LiberRPA then:
+After publication, review the Component version, Snippet summary, warnings, Wheel filename, and SHA-256 shown on the page. Detailed diagnostics are available in the Project Manager Output channel and the Component Management diagnostic log.
 
-1. saves and validates the current Component Project;
-2. regenerates `ast.snippets.json` from the current source code;
-3. validates `snippets.jsonc`;
-4. merges the generated and user-configured Snippets;
-5. builds the Component Wheel;
-6. validates the generated Wheel;
-7. publishes it to the configured Component Repository.
+### Configure Component Snippets
 
-After a successful publication, Project Manager displays the Component version, Snippet counts, warnings, Wheel filename, and SHA-256 hash.
+Use `_Snippets/snippets.jsonc` to:
 
-Review any reported warnings. Additional diagnostic information is available in the LiberRPA Project Manager output and the Component Management diagnostic log.
+* assign icons to Component categories;
+* exclude selected generated Snippets;
+* override selected generated Snippets;
+* add hand-written Snippets;
+* add imports required by those Snippets.
+
+See [Component Snippet Configuration](./ComponentSnippetConfiguration.md) for the complete field reference and validation rules.
+
+See the [Example Delay Component walkthrough](./ExampleDelayComponent.md) for a working publication example.
 
 ### Publish Updated Versions
 
-If the Component source code, resources, Snippets, or other published content changes, update `version` in `component.json` before publishing the new release.
+When published source code, resources, or Snippets change, increase `version` in `component.json` and publish again.
 
-For example:
+`ast.snippets.json` is regenerated during publication, while `snippets.jsonc` is preserved.
 
-```text
-1.0.0 → 1.0.1
+Publishing identical content with the same Component ID and version reports `alreadyPublished`. Publishing different content with the same ID and version is rejected.
+
+## Import Component Wheels
+
+Use `LiberRPA: Import Component Wheels` to copy external LiberRPA Component Wheels into the configured local Component Repository.
+
+Import and Add are separate operations:
+
+* **Import Component Wheels** makes an external Wheel available in the local Repository.
+* **Add** records a Component as a dependency of the current Project.
+
+Importing a Wheel does not modify the current Project.
+
+### Import the Wheels
+
+1. Run `LiberRPA: Manage Components` and click `Import Wheels`.
+   ![1787113555410](md_images/README/1787113555410.png)
+   You can also run `LiberRPA: Import Component Wheels` directly.
+   ![1787113044425](md_images/README/1787113044425.png)
+2. Select one or more Wheel files stored outside the active Component Repository.
+   Example Wheels:
+   * [`exampledelay-1.0.0-py313-none-any.whl`](./Example/exampledelay-1.0.0-py313-none-any.whl)
+   * [`exampledelay-1.0.1-py313-none-any.whl`](./Example/exampledelay-1.0.1-py313-none-any.whl)
+3. Confirm the file selection and review the result.
+
+When Import is started from Manage Components, the Repository Catalog refreshes automatically.
+
+Multiple versions of the same Component can coexist in the Repository. Importing the exact same Wheel again is safe and does not create a duplicate entry. Different content cannot replace an already published Component ID and version.
+
+After importing, use [Add](#add) when the Component should become a dependency of the current Project.
+
+## Rebuild Component Repository Index
+
+Component Wheels are the authoritative Repository artifacts. `repository.json` is a derived index that can be rebuilt from those Wheels.
+
+Run `LiberRPA: Rebuild Component Repository Index` when Project Manager reports that the index is missing, invalid, or inconsistent with the stored Wheels.
+
+1. Open the Command Palette.
+2. Run `LiberRPA: Rebuild Component Repository Index`.
+   ![1787115234692](md_images/README/1787115234692.png)
+3. Review the completion message and any warnings.
+4. Refresh or reopen Manage Components if it is already open.
+
+Rebuild validates the stored Wheels and replaces `repository.json`. It does not import external Wheels, remove valid Wheels, or change any Project dependency files.
+
+## Manage Components in a Project
+
+Project Manager manages Component dependencies for Flow Projects and Component Projects.
+
+The Project Manifest (`flow.json` or `component.json`) stores direct requirements. Project Manager resolves them into exact versions in `components.lock.json` and rebuilds `_Components` from the selected Wheels.
+
+Do not edit `components.lock.json` or `_Components` manually.
+
+### Open Manage Components
+
+1. Press `Ctrl+Shift+P` and run `LiberRPA: Manage Components`.
+   ![1786854288116](md_images/README/1786854288116.png)
+   ![1786879225841](md_images/README/1786879225841.png)
+2. Review the lock, `_Components`, environment, repair, and direct dependency states shown on the page.
+
+The `Import Wheels` button opens the Repository operation described in [Import Component Wheels](#import-component-wheels).
+
+### Preview and Confirm Changes
+
+Add, Update, Change Requirement, and Remove use the same workflow:
+
+1. Select the operation and enter its input.
+2. Click `Preview changes`.
+3. Review direct requirement changes and exact resolved Component changes.
+4. Click `Back` to revise the operation or `Confirm changes` to apply it.
+
+If Repository content changes after preview, Project Manager asks you to preview the plan again.
+
+### Add
+
+Use `Add` to add a new direct Component dependency.
+
+1. Select the Component and review its PEP 440 `Version requirement`.
+2. Click `Preview changes`.
+   ![1786866825326](md_images/README/1786866825326.png)
+3. Review the plan and click `Confirm changes`.
+   ![1786866851256](md_images/README/1786866851256.png)
+
+Project Manager records the direct requirement, resolves a compatible dependency closure, and rebuilds `_Components`.
+
+Pre-release versions are selected only when the requirement explicitly permits a pre-release, for example `==1.2.0rc1`.
+
+### Update
+
+Use `Update` to search for newer versions that still satisfy the current requirements.
+
+1. Select one or more Components.
+2. Click `Preview changes`.
+   ![1786871015949](md_images/README/1786871015949.png)
+3. Review the resolved version changes and click `Confirm changes`.
+   ![1786871154707](md_images/README/1786871154707.png)
+
+`Update` does not change the version requirements stored in the Project Manifest.
+
+### Change Requirement
+
+Use `Change requirement` to edit the allowed PEP 440 range of a direct dependency.
+
+1. Select a direct dependency and enter the new requirement.
+   ![1786873208323](md_images/README/1786873208323.png)
+2. Click `Preview changes`.
+3. Review the requirement and resolved version changes, then click `Confirm changes`.
+   ![1786871340162](md_images/README/1786871340162.png)
+
+Changing a requirement may keep, upgrade, or downgrade the resolved version. If the current version remains valid, use `Update` afterward when you explicitly want a newer permitted version.
+
+### Remove
+
+Use `Remove` to remove a direct Component dependency.
+
+1. Select the dependency.
+   ![1786871432080](md_images/README/1786871432080.png)
+2. Preview the changes.
+3. Review the direct and resolved removals, then click `Confirm changes`.
+   ![1786871448859](md_images/README/1786871448859.png)
+
+Transitive Components that are no longer required are removed automatically. Existing Python imports and calls are not removed; update affected source files yourself.
+
+### Repair `_Components`
+
+Use `Repair _Components` when `components.lock.json` is valid but `_Components` is missing or damaged.
+
+![1786879363824](md_images/README/1786879363824.png)
+
+Repair rebuilds `_Components` from the exact Wheels and SHA-256 values recorded in the lock file. It does not change the Project Manifest, lock file, or resolved versions.
+
+### Resolve Dependencies
+
+Use `Resolve dependencies` when `components.lock.json` is missing, invalid, or stale.
+
+![1786879120795](md_images/README/1786879120795.png)
+
+Project Manager resolves the current Manifest requirements again, creates a new lock file, and rebuilds `_Components`.
+
+![1786879145368](md_images/README/1786879145368.png)
+
+The new resolved versions may differ from an older lock file because resolution uses the current Component Repository.
+
+### Use an Added Component
+
+Import an added Component through its public package:
+
+```python
+from ExampleDelay import (
+    Delay as ExampleDelay_Delay,
+)
 ```
 
-or:
+Do not import through `_Components`:
 
-```text
-1.0.0 → 1.1.0
+```python
+# Do not use this form.
+from _Components.ExampleDelay import Delay
 ```
 
-Each Publish operation regenerates `ast.snippets.json`, while the existing `snippets.jsonc` is preserved.
+`_Components` is generated Project state and may be completely replaced by dependency operations. Do not edit it, copy files into it, or hard-code paths into it.
 
-If the same Component version has already been published with identical content, LiberRPA reports `alreadyPublished` instead of creating a duplicate Wheel. Publishing different content with the same Component ID and version is rejected.
+Use [LiberRPA Snippets Tree](https://github.com/HUHARED/LiberRPA/blob/main/vscodeExtensions/liberrpa-snippets-tree/README.md) to insert Component Snippets and maintain imports. A Snippet is a development convenience; excluding a Snippet does not remove the underlying Python API.
 
-### Complete example
+Access Component resources through the Component's public API. Do not construct paths into `_Components` from the Flow Project.
 
-See the [Example Delay Component walkthrough](./ExampleDelayComponent.md) for a complete publication example that covers generated, skipped, warning, excluded, overridden, and hand-written Snippets.
+#### Complete Example
+
+[`ComponentUsageExample-0.1.0.zip`](./Example/ComponentUsageExample-0.1.0.zip) is a final-state Flow Project that uses `ExampleDelay 1.0.1`.
+
+The example demonstrates generated and hand-written Snippets, Component resources, public APIs without Snippets, and exception handling through a Flowchart Exception Line.
+
+To run it:
+
+1. Extract the archive to a folder.
+2. Open the extracted folder in VS Code.
+3. Select a compatible LiberRPA Python environment.
+4. Open `project.flow`.
+5. [Debug or run the Project](https://github.com/HUHARED/LiberRPA/blob/main/vscodeExtensions/liberrpa-flowchart/README.md#execute-mode).
+
+The archive is a final-state snapshot. It does not replay Add, Update, Change Requirement, or Remove operations.
+
+When debugging the expected Component error, enable `User Uncaught Exceptions`, press `F5` after the debugger pauses, and allow the Flowchart to continue through its Exception Line.
+
+`Repair _Components` requires the exact Wheel recorded in `components.lock.json`. `Resolve dependencies` resolves the current requirement again and may select another compatible version.
 
 ## Package a Flow Project
 
-TODO: update here later. Reference content:
+Use LiberRPA Project Manager to create an `.rpa.zip` deployment Package from the current Flow Project.
 
-```
-Use Project Manager to create an `.rpa.zip` package for installation and execution in LiberRPA Executor.
+(TODO: need to be updated with Executor later) The generated Package contains the Flow Project files required for installation and execution in LiberRPA Executor. The Project contents are stored directly at the archive root.
 
-1. Open a Flow Project in VS Code.
-2. Open the Command Palette and run `LiberRPA: Package Project`.
-3. Review the Project metadata loaded from `flow.json`.
-4. Check the Component dependency state. Packaging is blocked if the lock, `_Components`, or current `liberrpa` environment is incompatible with the Project.
-5. Select the output folder.
-6. Choose whether to include `.vscode` and `.git`. Both are excluded by default.
-7. Review the generated Package filename and click `Package Project`.
-8. After packaging succeeds, review the file and folder counts and archive size, then use `Reveal` to show the Package in File Explorer.
+### Create the Package
 
-Existing `.rpa.zip` files are never overwritten. Change the Project name or version in `flow.json`, or select another output folder, before creating another Package with the same filename.
+1. Open the Flow Project as the only workspace folder.
+2. Run `LiberRPA: Package Project`.
+   ![1787118343892](md_images/README/1787118343892.png)
+   ![1787138345544](md_images/README/1787138345544.png)
+3. Review the Project information and Component dependency state. Resolve any blocking issue shown on the page.
+4. Optionally enter a one-line `Version summary`. It is stored only in the generated Package and does not modify `flow.json`.
+5. Review the output folder. The default is the parent folder of the current Flow Project; click `Browse` to select another existing folder.
+6. Choose whether to include the optional Project-root entries described below.
+7. Review the generated `<name>_<version>.rpa.zip` filename and click `Package Project`.
+8. Review the file count, folder count, uncompressed size, and archive size. Click `Reveal` to show the Package in File Explorer.
 
-The generated `.rpa.zip` file can then be installed in LiberRPA Executor.
+Project Manager validates the Project, dependency state, environment, output folder, and target filename before packaging.
+
+### Optional Package Contents
+
+The following Project-root entries are excluded by default because Executor does not require them:
+
+| Entry | Include it when |
+| --- | --- |
+| `.vscode/` | The packaged Project will also be opened in VS Code and should retain Project-specific editor and run/debug settings. |
+| `_Test/` | Test scripts, sample data, or verification files are required for deployment validation or troubleshooting. |
+| `.git` | An intentional source-control transfer is required. `.git` may contain the complete Repository history and substantially increase the Package size. |
+
+Review `_Test` for credentials, customer data, and environment-specific values before including it.
+
+Including or excluding these entries changes only the generated Package.
+
+### Package Rules
+
+Project Manager excludes caches, compiled Python files, internal operation files, existing `.rpa.zip` files, and any root-level Package metadata from the source Project. Symbolic links inside the Project are not supported.
+
+The output folder must exist, use an absolute path, and be outside the source Project.
+
+Project Manager never overwrites an existing `.rpa.zip`. Change the Project name or version, select another output folder, or move the previous Package when another archive is required.
+
+(TODO: need to be updated with Executor later) After the Package is created, it can be installed and executed through [LiberRPA Executor](../../electronApplications/executor/README.md).
 
 # Requirements
 
 Run `InitLiberRPA.exe` before using LiberRPA Project Manager so that the LiberRPA environment variable, default directories, and Component Repository root are initialized.
 
-Git is optional. It is only required when you want Project Manager to initialize a Git repository for a template that contains a `.gitignore` file.
-
-```
-
-When you completed a project and you want it to run in Executor, you can package it by the following steps to generate a `.rpa.zip` file.
-
-1. **Open Command Palette:**
-   Press `Ctrl+Shift+P` to open the Command Palette.
-2. **Run Command:**
-   Execute the command `LiberRPA: Package the Project`
-   ![1751102105235](md_images/README/1751102105235.png)
-3. **Enter Package Version:**
-   ![1751102183534](md_images/README/1751102183534.png)
-4. **Enter Package Description:
-   ![1751102321713](md_images/README/1751102321713.png)**
-5. **Choose Whether to Contain Git Folder:
-   ![1751102401342](md_images/README/1751102401342.png)**
-6. **Select Destination Folder:**
-   A window will appear asking you to select the folder where the package file will be saved.
-7. **Package Created:**
-   Once you completed the previous steps, your package will appear in the selected folder. It will be a `.rpa.zip` file.
-8. **[Use Executor to Import The Package.](../../electronApplications/executor/README.md)**
-
-# Requirements
-
-If you choose a template that contains a `.gitignore` file, ensure that [Git](https://git-scm.com/) is installed on your computer.
+[Git](https://git-scm.com/) is optional. It is needed only when Project Manager should initialize a Git repository for a template containing `.gitignore`.

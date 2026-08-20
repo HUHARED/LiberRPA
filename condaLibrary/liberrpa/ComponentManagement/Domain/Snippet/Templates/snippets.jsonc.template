@@ -1,5 +1,5 @@
 // FileName: snippets.jsonc.template
-// Component Snippet configuration documentation: https://github.com/HUHARED/LiberRPA/blob/main/vscodeExtensions/liberrpa-project-manager/README.md#configure-component-snippets
+// Component Snippet configuration documentation: https://github.com/HUHARED/LiberRPA/blob/main/vscodeExtensions/liberrpa-project-manager/ComponentSnippetConfiguration.md
 {
   "schemaVersion": 1,
   "categoryIcons": {},

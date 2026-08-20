@@ -15,6 +15,10 @@ Example snapshots:
 - [ExampleDelay-1.0.0.zip](./Example/ExampleDelay-1.0.0.zip): the initial Project before the first Publish Preparation.
 - [ExampleDelay-1.0.1.zip](./Example/ExampleDelay-1.0.1.zip): the Project prepared for the clean `1.0.1` publication.
 
+> **Note:**
+>
+> Screenshots and animations in this document are provided for reference. As LiberRPA evolves, the current interface may differ slightly in appearance or wording, but these minor differences do not affect the documented workflow or functionality.
+
 ## What this example demonstrates
 
 - Source code under `src/ExampleDelay/`.
@@ -70,15 +74,19 @@ Loads `_Config/presets.json` from the Component package and demonstrates the cor
 ```python
 # <LiberRPA imports: managed>
 # This block is managed by LiberRPA. Do not edit it manually.
+# ruff: isort: off
 from liberrpa.Modules import (
     get_component_resource_path,
 )
+# ruff: isort: on
 # </LiberRPA imports: managed>
 
 strConfigPath = get_component_resource_path(
     relativePath="_Config/presets.json",
 )
 ```
+
+
 
 Do not use `os.getcwd()` to find Component resources. The process working directory belongs to the running Project, not to an individual Component.
 
@@ -151,8 +159,11 @@ into:
 _Snippets/snippets.jsonc
 ```
 
+For the complete field reference, see [Component Snippet Configuration](./ComponentSnippetConfiguration.md).
+
 The example configuration demonstrates:
 
+- adding icons for `Preset` and `Experimental`;
 - excluding `ExampleDelay_Delay.sec_20`;
 - overriding an AST-generated description;
 - changing an AST-generated label;
@@ -162,7 +173,7 @@ The example configuration demonstrates:
 
 ## Second Publish: publish version 1.0.0
 
-Run `LiberRPA: Publish Component` again, review the updated summary, and click `Publish Component.
+Run `LiberRPA: Publish Component` again, review the updated summary, and click `Publish Component`.
 
 ![1786704101524](md_images/ExampleDelayComponent/1786704101524.png)
 
