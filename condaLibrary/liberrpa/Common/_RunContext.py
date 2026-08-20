@@ -142,7 +142,7 @@ def write_executor_run_state(status: ExecutorRunStateStatus, logPath: str) -> No
             errors="strict",
         )
         pathTemp.replace(pathRunState)
-        print(pathRunState)
+        # print(pathRunState)
     finally:
         if pathTemp.exists():
             pathTemp.unlink()

@@ -356,16 +356,19 @@ class Logger:
         if PROCESS_NAME == "MainProcess" and dictExecutorRunContext is not None:
             write_executor_run_state(status="running", logPath=self.strLogFolder)
 
-        # Create loggers.
-        self.colorfulConsoleHandlerObj = logging.StreamHandler(
-            stream=sys.stderr
+        # Executor runs keep formal logs in files. Console output is reserved for Editor and built-in tool runs.
+        self.colorfulConsoleHandlerObj = (
+            None
+            if dictExecutorRunContext is not None
+            else logging.StreamHandler(stream=sys.stderr)
         )  # Console handler
         self.humanLogger = self._create_logger(
             f"human_read_{PROCESS_NAME}.log", humanReadable=True
         )
-        self.humanLogger.addHandler(
-            self.colorfulConsoleHandlerObj
-        )  # Add the StreamHandler to human_logger
+        if self.colorfulConsoleHandlerObj is not None:
+            self.humanLogger.addHandler(
+                self.colorfulConsoleHandlerObj
+            )  # Add the StreamHandler to human_logger
         self.machineLogger = self._create_logger(
             fileName=f"machine_read_{PROCESS_NAME}.jsonl", humanReadable=False
         )
@@ -392,7 +395,8 @@ class Logger:
 
         if humanReadable:
             formatter = self._get_human_formatter()
-            self.colorfulConsoleHandlerObj.setFormatter(self._get_console_formatter())
+            if self.colorfulConsoleHandlerObj is not None:
+                self.colorfulConsoleHandlerObj.setFormatter(self._get_console_formatter())
         else:
             formatter = self._get_json_formatter()
 
@@ -432,13 +436,9 @@ class Logger:
         # Refresh format for both loggers
 
         self.humanLogger.handlers[0].setFormatter(self._get_human_formatter())
-        self.colorfulConsoleHandlerObj.setFormatter(self._get_console_formatter())
+        if self.colorfulConsoleHandlerObj is not None:
+            self.colorfulConsoleHandlerObj.setFormatter(self._get_console_formatter())
         self.machineLogger.handlers[0].setFormatter(self._get_json_formatter())
-
-        if len(self.humanLogger.handlers) > 1 and isinstance(
-            self.humanLogger.handlers[1], logging.StreamHandler
-        ):
-            self.humanLogger.handlers[1].setFormatter(self._get_console_formatter())
 
     def add_custom_log_part(self, name: str, text: str) -> None:
         """
