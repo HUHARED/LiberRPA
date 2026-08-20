@@ -1,5 +1,5 @@
 // FileName: snippets_favorite.jsonc.template
-// Favorite Snippet configuration documentation: https://github.com/HUHARED/LiberRPA/blob/main/vscodeExtensions/liberrpa-snippets-tree/README.md#favorite-snippets
+// Favorite Snippet configuration documentation: https://github.com/HUHARED/LiberRPA/blob/main/vscodeExtensions/liberrpa-snippets-tree/FavoriteSnippetConfiguration.md
 
 {
   "schemaVersion": 1,

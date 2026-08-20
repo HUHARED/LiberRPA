@@ -13,5 +13,6 @@ vsc-extension-quickstart.md
 **/*.ts
 **/.vscode-test.*
 
-# Documentation assets are served from GitHub.
+# Secondary documentation and media are served from GitHub.
 md_images/**
+FavoriteSnippetConfiguration.md
