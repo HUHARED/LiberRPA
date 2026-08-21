@@ -12,7 +12,17 @@ You can use it to import a package, then either run it manually or schedule it t
 
 ### Import a Package
 
-On the **Project Local Package** page, Click the `Import` button. A file dialog will open—select a `.rpa.zip` file. The package's data will then appear in Executor, and its code scripts will be stored in: `C:\Users\<username>\Documents\LiberRPA\ExecutorPackage`
+On the **Project Local Package** page, click `Import`, then select an `.rpa.zip` file created by the current LiberRPA Project Manager.
+
+Before installation, Executor validates the Package structure, Flow metadata, installed `liberrpa` compatibility, `components.lock.json`, and `_Components`. The validation uses only the files included in the Package and does not access the local Component Repository.
+
+A Project version that is already installed is never overwritten. Update `flow.json.version` and create a new Package when installing changed Project content.
+
+After a successful import, the Project appears in Executor with its Project description and Package Version Summary. Its files are installed under:
+
+```text
+C:/Users/<UserName>/Documents/LiberRPA/ExecutorPackage
+```
 
 ![1751177937264](md_images/README/1751177937264.png)
 
@@ -40,11 +50,11 @@ If any [Task Schedulers](#task-scheduler) depend on this package, remember to up
 
 ### Create a New Task Scheduler
 
-On the **Task Scheduler** page, Click the `New` button.
+On the **Task Scheduler** page, click the `New` button.
 
 ![1751180206295](md_images/README/1751180206295.png)
 
-![1751180434365](https://file+.vscode-resource.vscode-cdn.net/g%3A/OneDrive/LiberRPA/electronApplications/executor/md_images/README/1751180434365.png)
+![1751180434365](md_images/README/1751180434365.png)
 
 You can configure the task:
 
@@ -57,9 +67,11 @@ You can configure the task:
   * **Datetime Start**, **Datetime End**, **Enable**:
     * Set the time range (`Datetime Start` / `Datetime End`) and `Enable`.
     * The task only runs within this time range and if the `Enable` switch is on.
+    * The time range uses the global Executor `Time zone` configured on the **Setting** page.
   * **Cron**:
     * Define when the task should run using a [cron expression](https://en.wikipedia.org/wiki/Cron).
     * You can enter it manually or generate it using the UI tool.
+    * All Scheduler Cron expressions use the same global Executor `Time zone`.
 * **Select Project**:
   * **Source**: Currently only `local` is supported. `console` will be added after the LiberRPA Console is released.
   * **Name & Version**: Select a package from the **Project Local Package** list.
@@ -77,7 +89,7 @@ Click the buttons in the `Actions` column to `edit` or `delete` tasks.
 
 ![1751182137286](md_images/README/1751182137286.png)
 
-You can also sort the task scheduler list by click the column headers.
+You can also sort the Task Scheduler list by clicking the column headers.
 
 ![1751182188103](md_images/README/1751182188103.png)
 
@@ -87,7 +99,7 @@ The **Task Queue** page shows tasks that are waiting to run.
 
 ![1751182251268](md_images/README/1751182251268.png)
 
-Once a running task ends, Executor checks items in **Task Queue** and run the first task listed.
+Once a running task ends, Executor checks items in **Task Queue** and runs the first task listed.
 
 You can cancel a queued task item using its `cancel` button in `Actions` column.
 
@@ -117,20 +129,26 @@ The **Setting** page allows you to view and configure Executor settings.
 
 Hover your mouse over each item to see its function.
 
+The global `Time zone` controls how Executor displays stored timestamps and how all Scheduler Cron expressions and active periods are interpreted. Changing it recalculates pending Scheduler runs.
+
 # Other Notes
 
 * **If Executor was copied from another computer**:
 
-  * Its previous data will not be contained. If you actually need it, you can copy the file `C:\Users\<username>\Documents\LiberRPA\AppData\ExecutorData.db` from the previous computer to the current one.
+  * Its previous data will not be contained. If you actually need it, you can copy the file `C:/Users/<UserName>/Documents/LiberRPA/AppData/ExecutorData.db` from the previous computer to the current one.
   * Review the **Setting** page and make sure configurations match your needs - especially `Project Log Folder` and `Time zone`.
   * If you delete the file `<LiberRPA root folder/configFiles/Executor.jsonc>`, Executor will restore default settings on next startup.
-* **If you close Executor while tasks are running**:
+* **After an incompatible database update**:
 
-  * The running programs will be forcefully terminated.
-  * Their `End` Time in **Task History** will show as `unknown`.
+  * Executor renames the previous database to `ExecutorData.backup.<timestamp>.db` and creates a new database.
+  * No historical local-time strings are converted automatically because they do not contain reliable time-zone information.
+* **If Executor exits while tasks are running**:
+
+  * On the next startup, unfinished Task History records are marked as `interrupted`.
+  * Their `End` Time is shown as `Unknown` because Executor cannot determine a reliable completion time.
 * **If you don’t want Executor to start with Windows**:
 
-  * Delete the shortcut file at `C:/Users/<username>/AppData/Roaming/Microsoft/Windows/Start Menu/Programs/Startup/`
+  * Delete the shortcut file at `C:/Users/<UserName>/AppData/Roaming/Microsoft/Windows/Start Menu/Programs/Startup/`
   * Or disable it by [Task Managers Startup Tab](https://support.microsoft.com/windows/configure-startup-applications-in-windows-115a420a-0bff-4a6f-90e0-1934c844e473).
 * **You must run Executor and LiberRPA Local Server as administrator when**:
 

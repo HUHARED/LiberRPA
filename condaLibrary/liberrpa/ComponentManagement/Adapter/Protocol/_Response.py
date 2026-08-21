@@ -44,6 +44,7 @@ from liberrpa.ComponentManagement.Types._Protocol import (
     DictProtocolSuccess_RepositoryCatalog,
     DictProtocolSuccess_ProjectManifestDefaults,
     DictProtocolSuccess_ProjectDependencyState,
+    DictProtocolSuccess_PackagedFlowProjectValidated,
     DictProtocolSuccess_ProjectDependencyPlan,
     DictProtocolSuccess_ProjectDependencyPlanApplied,
     DictProtocolSuccess_ProjectComponentsRepaired,
@@ -283,6 +284,17 @@ def build_project_dependency_state_response(
         "ok": True,
         "result": dictResult,
         "warnings": warningList,
+    }
+
+
+def build_packaged_flow_project_validated_response() -> (
+    DictProtocolSuccess_PackagedFlowProjectValidated
+):
+    return {
+        "schemaVersion": 1,
+        "ok": True,
+        "result": {"status": "packagedFlowProjectValidated"},
+        "warnings": [],
     }
 
 

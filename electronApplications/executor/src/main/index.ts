@@ -46,7 +46,6 @@ import {
   dbSelectProjectNames,
   dbSelectProjectVersions,
   dbSelectProjectDetail,
-  dbInsertProjectDetail,
   dbInsertSchedulerDetail,
   dbUpdateProjectDetail,
   dbSelectProjectBindSchedulers,
@@ -60,13 +59,8 @@ import {
   dbSelectProjectNewestVersionDetail,
   dbMarkRunningHistoryInterrupted,
 } from "./database";
-import {
-  fileSelectPackageAndExtractToTempFolder,
-  fileDeleteTempFolder,
-  fileMoveTempFilesToExecutorPackage,
-  fileDeleteExecutorPackage,
-  fileOpenFolder,
-} from "./fileFunc";
+import { fileDeleteExecutorPackage, fileOpenFolder } from "./fileFunc";
+import { importProjectPackage, recoverProjectPackageImports } from "./packageImport";
 import { pythonRun, pythonCancel } from "./pythonFunc";
 import {
   logCleanFolderByTimeout,
@@ -77,6 +71,7 @@ import { runSessionListener, setResolution } from "./rdpSessionFunc";
 import type { DictInvokeResult } from "../shared/interface";
 
 initializeDatabase();
+recoverProjectPackageImports();
 dbMarkRunningHistoryInterrupted();
 
 let mainWindow: BrowserWindow | null = null;
@@ -282,18 +277,8 @@ void app
 
             /* Project Local Package */
 
-            case "invoke:fileSelectPackageAndExtractToTempFolder": {
-              temp = await fileSelectPackageAndExtractToTempFolder();
-              break;
-            }
-
-            case "invoke:fileDeleteTempFolder": {
-              temp = await fileDeleteTempFolder();
-              break;
-            }
-
-            case "invoke:fileMoveTempFilesToExecutorPackage": {
-              temp = await fileMoveTempFilesToExecutorPackage(data.name, data.version);
+            case "invoke:importProjectPackage": {
+              temp = await importProjectPackage();
               break;
             }
 
@@ -314,11 +299,6 @@ void app
 
             case "invoke:dbSelectProjectDetail": {
               temp = dbSelectProjectDetail(data.name, data.version);
-              break;
-            }
-
-            case "invoke:dbInsertProjectDetail": {
-              temp = dbInsertProjectDetail(data);
               break;
             }
 

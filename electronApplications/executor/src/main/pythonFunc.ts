@@ -8,7 +8,7 @@ import path from "path";
 
 import { strDocumentsFolderPath, strDefaultPythonEnvironmentPath } from "./commonFunc";
 import { dbInsertHistoryDetail, dbUpdateHistoryDetail } from "./database";
-import { strExecutorPackageFolderPath } from "./fileFunc";
+import { getExecutorPackageFolderPath } from "./fileFunc";
 import { loggerMain } from "./logger";
 import type { DictColumns_Project_Detail_Run } from "../shared/interface";
 
@@ -54,15 +54,13 @@ export async function pythonRun(
   webContentsObj: Electron.WebContents,
 ): Promise<void> {
   // Only the local source is supported now.
-  const strExecutorPackagePath = path.join(
-    strExecutorPackageFolderPath,
-    `${dictDetail.name}_${dictDetail.version}`,
+  const strExecutorPackagePath = getExecutorPackageFolderPath(
+    dictDetail.name,
+    dictDetail.version,
   );
 
   if (!fs.existsSync(strExecutorPackagePath)) {
-    throw new Error(
-      `${dictDetail.name}-${dictDetail.version} does not exist in ${strExecutorPackageFolderPath}.`,
-    );
+    throw new Error(`Installed Project folder does not exist: ${strExecutorPackagePath}`);
   }
 
   const strRunId = randomUUID();
@@ -169,10 +167,7 @@ export async function pythonRun(
   }
 
   let boolFinalized = false;
-  const finalize = (
-    intExitCode: number | null,
-    strSignal: NodeJS.Signals | null,
-  ): void => {
+  const finalize = (intExitCode: number | null, strSignal: NodeJS.Signals | null): void => {
     if (boolFinalized) {
       return;
     }
@@ -241,7 +236,8 @@ export async function pythonRun(
     if (boolUnexpectedProcessFailure) {
       logPythonDiagnosticOutput({
         runId: strRunId,
-        reason: "The Python process did not finish through the expected run-state lifecycle.",
+        reason:
+          "The Python process did not finish through the expected run-state lifecycle.",
         diagnosticOutput: dictDiagnosticOutput,
       });
     }

@@ -154,16 +154,14 @@ import { ref, watch, onBeforeMount } from "vue";
 import { debounce } from "lodash";
 
 import { loggerRenderer, invokeMain } from "../ipcOfRenderer";
-import { useProjectStore, useInformationStore, useHistoryStore } from "../store";
+import { useProjectStore, useHistoryStore } from "../store";
 import { sanitizeJsonObj } from "../commonFunc";
 import type {
-  DictColumns_Project_Detail_DB,
   DictColumns_Project_Detail_Run,
-  DictColumns_Project_Detail_ToInsert,
+  DictProjectPackageImportResult,
 } from "../../../shared/interface";
 
 const projectStore = useProjectStore();
-const informationStore = useInformationStore();
 const historyStore = useHistoryStore();
 
 const strName = ref("");
@@ -178,39 +176,19 @@ onBeforeMount(async () => {
 async function importProjectPackage(): Promise<void> {
   loggerRenderer.debug("--importProjectPackage--");
 
-  const dataExtract = await invokeMain<DictColumns_Project_Detail_ToInsert | string>(
-    "invoke:fileSelectPackageAndExtractToTempFolder",
+  const result = await invokeMain<DictProjectPackageImportResult>(
+    "invoke:importProjectPackage",
   );
-  if (typeof dataExtract === "string") {
-    await invokeMain<void>("invoke:fileDeleteTempFolder");
-    informationStore.showAlertMessage(dataExtract);
+  if (result.status === "canceled") {
     return;
   }
 
-  const dataCheck = await invokeMain<DictColumns_Project_Detail_DB | undefined>(
-    "invoke:dbSelectProjectDetail",
-    {
-      name: dataExtract.name,
-      version: dataExtract.version,
-    },
-  );
-
-  // console.log("dataCheck", dataCheck);
-
-  if (dataCheck !== undefined) {
-    informationStore.showAlertMessage(
-      `${dataExtract.name}-${dataExtract.version} already exists.`,
-    );
-    await invokeMain<void>("invoke:fileDeleteTempFolder");
-    return;
-  }
-
-  await invokeMain<void>("invoke:fileMoveTempFilesToExecutorPackage", {
-    name: dataExtract.name,
-    version: dataExtract.version,
-  });
-
-  await projectStore.dbInsertProjectDetail(dataExtract);
+  projectStore.arrName = [];
+  await projectStore.dbSelectProjectNames();
+  strName.value = result.name;
+  await projectStore.dbSelectProjectVersions(result.name);
+  strVersion.value = result.version;
+  await projectStore.dbSelectProjectDetail(result.name, result.version);
 }
 
 const debouncedSetButtonDisabled = debounce(() => {

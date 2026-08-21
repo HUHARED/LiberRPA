@@ -183,7 +183,11 @@ def _get_repair_state(
     return "available", {"repositoryPath": str(pathRepository)}
 
 
-def get_project_dependency_state(projectPath: Path) -> Info_ProjectDependency_State:
+def get_project_dependency_state(
+    projectPath: Path,
+    *,
+    includeRepairState: bool = True,
+) -> Info_ProjectDependency_State:
     strProjectType, manifestObj = read_project_manifest(projectPath)
     boolDependenciesRequired = bool(manifestObj.componentDependencies)
     pathComponentsLockFile = projectPath / STR_COMPONENTS_LOCK_FILE_NAME
@@ -233,13 +237,16 @@ def get_project_dependency_state(projectPath: Path) -> Info_ProjectDependency_St
     if dictEnvironmentDetails:
         dictDetails["environment"] = dictEnvironmentDetails
 
-    repairState, dictRepairDetails = _get_repair_state(
-        dictComponentsLock,
-        lockState,
-        componentsState,
-    )
-    if dictRepairDetails:
-        dictDetails["repair"] = dictRepairDetails
+    if includeRepairState:
+        repairState, dictRepairDetails = _get_repair_state(
+            dictComponentsLock,
+            lockState,
+            componentsState,
+        )
+        if dictRepairDetails:
+            dictDetails["repair"] = dictRepairDetails
+    else:
+        repairState = "notApplicable"
 
     return Info_ProjectDependency_State(
         projectPath=projectPath,

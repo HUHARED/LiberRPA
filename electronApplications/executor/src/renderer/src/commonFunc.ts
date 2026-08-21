@@ -1,13 +1,15 @@
 // FileName: commonFunc.ts
-import { ref, computed, WritableComputedRef, Ref } from "vue";
+
+import { ref, computed, type WritableComputedRef, type Ref } from "vue";
 import cronstrue from "cronstrue";
 
 import { invokeMain } from "./ipcOfRenderer";
 import { useInformationStore } from "./store";
-import {
+import type {
   DictColumns_Project_Detail,
   DictColumns_Scheduler_Detail,
   DictColumns_Scheduler_Detail_BeforeInsert,
+  TypeCustomProjectArgs,
 } from "../../shared/interface";
 
 export function generateValueNote(value: any): string {
@@ -22,10 +24,10 @@ export function generateValueNote(value: any): string {
 }
 
 export function updateCusPrjArgsValue(
-  arrCusPrjArgs: string[][],
+  arrCusPrjArgs: TypeCustomProjectArgs,
   arrValueCache: string[],
   index: number,
-  value: string
+  value: string,
 ): void {
   try {
     arrCusPrjArgs[index][1] = JSON.parse(value);
@@ -42,11 +44,11 @@ export function initCusPrjArgsValueCache(
     | DictColumns_Project_Detail
     | DictColumns_Scheduler_Detail
     | DictColumns_Scheduler_Detail_BeforeInsert
-    | undefined
+    | undefined,
 ): Ref<string[]> {
   // Initialize localValues as an array of stringified item values
   return ref(
-    dictDetail?.custom_prj_args.map((item) => JSON.stringify(item[1], null, 0)) || []
+    dictDetail?.custom_prj_args.map((item) => JSON.stringify(item[1], null, 0)) || [],
   );
 }
 
@@ -54,7 +56,7 @@ export function updateCusPrjArgsValueCache(
   dictDetail:
     | DictColumns_Project_Detail
     | DictColumns_Scheduler_Detail
-    | DictColumns_Scheduler_Detail_BeforeInsert
+    | DictColumns_Scheduler_Detail_BeforeInsert,
 ): string[] {
   // console.log("--updateCusPrjArgsValueCache--", JSON.stringify(dictDetail.custom_prj_args));
 
@@ -66,7 +68,7 @@ export function computedTimeoutMin(
     | DictColumns_Project_Detail
     | DictColumns_Scheduler_Detail
     | DictColumns_Scheduler_Detail_BeforeInsert
-    | undefined
+    | undefined,
 ): WritableComputedRef<number, number> {
   return computed<number>({
     get() {

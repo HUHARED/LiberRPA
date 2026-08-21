@@ -14,7 +14,6 @@ import type {
   DictExecutorConfig,
   DictColumns_Project_Detail_DB,
   DictColumns_Project_Detail,
-  DictColumns_Project_Detail_ToInsert,
   DictColumns_Project_Detail_ToUpdate,
   DictColumns_Project_Detail_Run,
   DictColumns_Scheduler_ListItem_DB,
@@ -259,14 +258,6 @@ export const useProjectStore = defineStore("project", {
       };
       // loggerRenderer.debug(JSON.stringify(this.dictDetail, null, 2));
       this.detailCache_edit = JSON.stringify(this.dictDetail_edit);
-    },
-
-    async dbInsertProjectDetail(
-      dictDetail: DictColumns_Project_Detail_ToInsert,
-    ): Promise<void> {
-      await invokeMain<void>("invoke:dbInsertProjectDetail", dictDetail);
-      this.arrName = [];
-      await this.dbSelectProjectNames();
     },
 
     async dbUpdateProjectDetail(): Promise<void> {

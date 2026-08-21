@@ -67,11 +67,13 @@ interface DictColumns_Project_NeedConvert_DB {
   custom_prj_args: string;
 }
 
+export type TypeCustomProjectArgs = [string, unknown][];
+
 interface DictColumns_Project_NeedConvert_TS {
   builtin_record_video: boolean;
   builtin_stop_shortcut: boolean;
   builtin_highlight_ui: boolean;
-  custom_prj_args: string[][];
+  custom_prj_args: TypeCustomProjectArgs;
 }
 
 interface DictColumns_Project_TimeoutAndLog {
@@ -100,10 +102,18 @@ export type DictColumns_Project_Detail = Omit<
 
 export type DictColumns_Project_Detail_ToInsert = Omit<
   DictColumns_Project_Detail_DB,
-  "id" | TypeColumns_ModifyTime | "version_summary"
-> & {
-  version_summary?: string;
-};
+  "id" | TypeColumns_ModifyTime
+>;
+
+export type DictProjectPackageImportResult =
+  | { status: "canceled" }
+  | {
+      status: "projectPackageImported";
+      name: string;
+      version: string;
+      packageFilePath: string;
+      installedFolderPath: string;
+    };
 
 export type DictColumns_Project_Detail_ToUpdate = Omit<
   DictColumns_Project_Detail_DB,

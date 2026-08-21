@@ -95,6 +95,13 @@ class DictProtocolRequest_GetProjectDependencyState(TypedDict):
     projectPath: str
 
 
+class DictProtocolRequest_ValidatePackagedFlowProject(TypedDict):
+    schemaVersion: Literal[1]
+    operation: Literal["validatePackagedFlowProject"]
+
+    projectPath: str
+
+
 class DictProtocolRequest_BuildProjectDependencyPlan(TypedDict):
     schemaVersion: Literal[1]
     operation: Literal["buildProjectDependencyPlan"]
@@ -126,6 +133,7 @@ type DictProtocolRequest = (
     | DictProtocolRequest_GetComponentRepositoryCatalog
     | DictProtocolRequest_GetProjectManifestDefaults
     | DictProtocolRequest_GetProjectDependencyState
+    | DictProtocolRequest_ValidatePackagedFlowProject
     | DictProtocolRequest_BuildProjectDependencyPlan
     | DictProtocolRequest_ApplyProjectDependencyPlan
     | DictProtocolRequest_RepairProjectComponents
@@ -231,6 +239,10 @@ class DictProtocolResult_ProjectDependencyState(TypedDict):
     details: dict[str, object]
 
 
+class DictProtocolResult_PackagedFlowProjectValidated(TypedDict):
+    status: Literal["packagedFlowProjectValidated"]
+
+
 class DictProtocolResult_ProjectDependencyPlan(TypedDict):
     status: Literal["projectDependencyPlanCreated"]
     planSha256: str
@@ -264,6 +276,7 @@ type DictProtocolResult = (
     | DictProtocolResult_RepositoryCatalog
     | DictProtocolResult_ProjectManifestDefaults
     | DictProtocolResult_ProjectDependencyState
+    | DictProtocolResult_PackagedFlowProjectValidated
     | DictProtocolResult_ProjectDependencyPlan
     | DictProtocolResult_ProjectDependencyPlanApplied
     | DictProtocolResult_ProjectComponentsRepaired
@@ -318,6 +331,13 @@ class DictProtocolSuccess_ProjectDependencyState(TypedDict):
     warnings: list[DictComponentManagementWarning]
 
 
+class DictProtocolSuccess_PackagedFlowProjectValidated(TypedDict):
+    schemaVersion: Literal[1]
+    ok: Literal[True]
+    result: DictProtocolResult_PackagedFlowProjectValidated
+    warnings: list[DictComponentManagementWarning]
+
+
 class DictProtocolSuccess_ProjectDependencyPlan(TypedDict):
     schemaVersion: Literal[1]
     ok: Literal[True]
@@ -346,6 +366,7 @@ type DictProtocolSuccess = (
     | DictProtocolSuccess_RepositoryCatalog
     | DictProtocolSuccess_ProjectManifestDefaults
     | DictProtocolSuccess_ProjectDependencyState
+    | DictProtocolSuccess_PackagedFlowProjectValidated
     | DictProtocolSuccess_ProjectDependencyPlan
     | DictProtocolSuccess_ProjectDependencyPlanApplied
     | DictProtocolSuccess_ProjectComponentsRepaired
