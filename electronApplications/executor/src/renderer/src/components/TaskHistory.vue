@@ -3,9 +3,7 @@
   <v-container fluid class="clean-space flex-row-grow-1 fill-height flex-column">
     <v-label class="header-label tab-header">Task History</v-label>
 
-    <!-- Table area -->
-
-    <!-- Bug: The "hover" attribute will only work when the window is in the main screen. -->
+    <!-- Bug: The hover attribute only works when the window is on the primary screen. -->
     <v-data-table-server
       :headers="arrHeader"
       :items="historyStore.arrListItem"
@@ -28,18 +26,26 @@
           size="x-small"></v-chip>
       </template>
 
-      <template #item.run_start="{ value }">
-        <v-chip :text="value" variant="text" size="small" class="clean-space"></v-chip>
+      <template #item.run_started_at_ms="{ value }">
+        <v-chip
+          :text="formatTimestamp(value, settingStore.timezone)"
+          variant="text"
+          size="small"
+          class="clean-space"></v-chip>
       </template>
 
-      <template #item.run_end="{ value }">
-        <v-chip :text="value" variant="text" size="small" class="clean-space"></v-chip>
+      <template #item.run_ended_at_ms="{ value }">
+        <v-chip
+          :text="formatTimestamp(value, settingStore.timezone)"
+          variant="text"
+          size="small"
+          class="clean-space"></v-chip>
       </template>
 
       <template #item.status="{ value }">
         <v-chip
-          :border="`${getColor_Status(value)} thin opacity-25`"
-          :color="getColor_Status(value)"
+          :border="`${getColorStatus(value)} thin opacity-25`"
+          :color="getColorStatus(value)"
           :text="value"
           variant="text"
           size="x-small"></v-chip>
@@ -137,7 +143,14 @@
               density="compact"
               hide-details
               clearable
-              :items="['running', 'completed', 'error', 'cancel', 'timeout']">
+              :items="[
+                'running',
+                'completed',
+                'error',
+                'cancel',
+                'timeout',
+                'interrupted',
+              ]">
             </v-select>
           </td>
         </tr>
@@ -147,19 +160,23 @@
 </template>
 
 <script setup lang="ts">
-import { ref, Ref, watch, computed } from "vue";
+import { computed, ref, watch } from "vue";
+import type { Ref } from "vue";
 import { debounce } from "lodash";
 
 import { invokeMain, loggerRenderer } from "../ipcOfRenderer";
-import { getColor_Source, fileOpenFolder, sanitizeJsonObj } from "../commonFunc";
-import { useHistoryStore, useInformationStore } from "../store";
-import {
-  DictColumns_Project_Detail_Run,
+import { fileOpenFolder, getColor_Source, sanitizeJsonObj } from "../commonFunc";
+import { useHistoryStore, useInformationStore, useSettingStore } from "../store";
+import { formatTimestamp } from "../time";
+import type {
   DictColumns_Project_Detail_DB,
+  DictColumns_Project_Detail_Run,
   Dict_History_Search,
+  TypeTaskHistoryStatus,
 } from "../../../shared/interface";
 
 const historyStore = useHistoryStore();
+const settingStore = useSettingStore();
 
 const itemPerPage: Ref<15 | 50 | 100> = ref(15);
 
@@ -169,38 +186,31 @@ const arrItemsPerPageOptions = [
   { value: 100, title: "100" },
 ];
 
-const dictSearch = computed<Dict_History_Search>({
-  get() {
-    return {
-      scheduler_name: historyStore.filterSchedulerName,
-      project_source: historyStore.filterSource,
-      project_name: historyStore.filterProjectName,
-      project_version: historyStore.filterProjectVersion,
-      status: historyStore.filterStatus,
-    };
-  },
-  set() {
-    // Not work.
-  },
+const dictSearch = computed<Dict_History_Search>(() => {
+  return {
+    scheduler_name: historyStore.filterSchedulerName,
+    project_source: historyStore.filterSource,
+    project_name: historyStore.filterProjectName,
+    project_version: historyStore.filterProjectVersion,
+    status: historyStore.filterStatus,
+  };
 });
 
 const search = ref(JSON.stringify(dictSearch.value));
-
-const debounced_WhenSearchFiltersChanged = debounce(async () => {
+const debouncedUpdateSearch = debounce(() => {
   search.value = JSON.stringify(dictSearch.value);
 }, 300);
 
 watch(
-  () => dictSearch,
+  dictSearch,
   () => {
-    debounced_WhenSearchFiltersChanged();
+    debouncedUpdateSearch();
   },
-  { deep: true }
+  { deep: true },
 );
 
 const arrHeader = [
   { title: "Scheduler Name", value: "scheduler_name", align: "start", sortable: true },
-
   {
     title: "Project",
     align: "center",
@@ -215,78 +225,71 @@ const arrHeader = [
       },
     ],
   },
-
-  { title: "Start", value: "run_start", align: "center", sortable: true },
-  { title: "End", value: "run_end", align: "center", sortable: true },
-
+  { title: "Start", value: "run_started_at_ms", align: "center", sortable: true },
+  { title: "End", value: "run_ended_at_ms", align: "center", sortable: true },
   { title: "Status", value: "status", align: "start", sortable: true },
   { title: "Actions", key: "actions", align: "start", sortable: false },
-] as any; // use "as any" to make :headers in v-data-table not to complain.
+] as any; // Vuetify's nested table-header type is not inferred correctly here.
 
-function getColor_Status(
-  status: "running" | "completed" | "error" | "cancel" | "timeout"
-): string {
+function getColorStatus(status: TypeTaskHistoryStatus): string {
   switch (status) {
     case "running":
       return "success";
     case "error":
       return "error";
-
     case "cancel":
       return "warning";
-
     case "timeout":
       return "orange-darken-4";
-
+    case "interrupted":
+      return "deep-orange";
     default:
       return "grey";
   }
 }
 
 async function cancelProcess(id: number): Promise<void> {
-  loggerRenderer.info("cancelProcess: " + id);
-  await invokeMain("invoke:pythonCancel", id);
+  loggerRenderer.info(`Cancel process: ${id}`);
+  await invokeMain<void>("invoke:pythonCancel", id);
 }
 
 async function runProjectNewestVersion(
-  project_source: "local" | "console",
-  project_name: string
+  projectSource: "local" | "console",
+  projectName: string,
 ): Promise<void> {
-  loggerRenderer.info(`runProjectNewestVersion: ${project_source} ${project_name}`);
+  loggerRenderer.info(`Run newest version: ${projectSource} ${projectName}`);
 
-  if (project_source === "local") {
-    const dictDetail: DictColumns_Project_Detail_DB = await invokeMain(
-      "invoke:dbSelectProjectNewestVersionDetail",
-      project_name
-    );
-
-    if (dictDetail) {
-      const dictTemp: DictColumns_Project_Detail_Run = {
-        scheduler_name: null,
-        // Only "local" now.
-        project_source: "local",
-        id: dictDetail.id,
-        name: dictDetail.name,
-        version: dictDetail.version,
-        timeout_min: dictDetail.timeout_min,
-        builtin_log_level: dictDetail.builtin_log_level,
-        builtin_record_video: dictDetail.builtin_record_video === 1,
-        builtin_stop_shortcut: dictDetail.builtin_stop_shortcut === 1,
-        builtin_highlight_ui: dictDetail.builtin_highlight_ui === 1,
-        custom_prj_args: dictDetail.custom_prj_args
-          ? JSON.parse(dictDetail.custom_prj_args)
-          : [],
-      };
-
-      await invokeMain("invoke:pythonRun", sanitizeJsonObj(dictTemp));
-      await historyStore.refreshHistoryList();
-    } else {
-      const informationStore = useInformationStore();
-      informationStore.showAlertMessage("The project has been deleted.");
-    }
-  } else {
-    // Only local now.
+  if (projectSource !== "local") {
+    return;
   }
+
+  const dictDetail = await invokeMain<DictColumns_Project_Detail_DB | undefined>(
+    "invoke:dbSelectProjectNewestVersionDetail",
+    projectName,
+  );
+  if (dictDetail === undefined) {
+    const informationStore = useInformationStore();
+    informationStore.showAlertMessage("The project has been deleted.");
+    return;
+  }
+
+  const dictRunDetail: DictColumns_Project_Detail_Run = {
+    scheduler_name: null,
+    project_source: "local",
+    id: dictDetail.id,
+    name: dictDetail.name,
+    version: dictDetail.version,
+    timeout_min: dictDetail.timeout_min,
+    builtin_log_level: dictDetail.builtin_log_level,
+    builtin_record_video: dictDetail.builtin_record_video === 1,
+    builtin_stop_shortcut: dictDetail.builtin_stop_shortcut === 1,
+    builtin_highlight_ui: dictDetail.builtin_highlight_ui === 1,
+    custom_prj_args:
+      dictDetail.custom_prj_args === "" ? [] : JSON.parse(dictDetail.custom_prj_args),
+  };
+
+  await invokeMain<void>("invoke:pythonRun", sanitizeJsonObj(dictRunDetail));
+  await historyStore.refreshHistoryList();
 }
 </script>
 

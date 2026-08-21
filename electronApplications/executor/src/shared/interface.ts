@@ -1,3 +1,5 @@
+// FileName: interface.ts
+
 export interface DictBasicConfig {
   outputLogPath: string;
   localServerPort: number;
@@ -23,20 +25,34 @@ export interface DictExecutorConfig {
 
 export interface DictInvokeResult {
   success: boolean;
-  data?: any;
+  data?: unknown;
 }
 
-/* Common type for database. */
+/* Common database types. */
 
-interface DictColumns_Base {
+interface DictColumns_Base_DB {
   id: number;
-  created_at: string;
-  updated_at: string;
+  created_at_ms: number;
+  updated_at_ms: number;
 }
 
-type TypeColumns_ModifyTime = "created_at" | "updated_at";
+type TypeColumns_ModifyTime = "created_at_ms" | "updated_at_ms";
 
-type TypeColumns_LogLevel = "VERBOSE" | "DEBUG" | "INFO" | "WARNING" | "ERROR" | "CRITICAL";
+export type TypeColumns_LogLevel =
+  | "VERBOSE"
+  | "DEBUG"
+  | "INFO"
+  | "WARNING"
+  | "ERROR"
+  | "CRITICAL";
+
+export type TypeTaskHistoryStatus =
+  | "running"
+  | "completed"
+  | "error"
+  | "cancel"
+  | "timeout"
+  | "interrupted";
 
 type TypeColumns_Project_NeedConvert =
   | "builtin_record_video"
@@ -67,12 +83,13 @@ interface DictColumns_Project_TimeoutAndLog {
 
 export interface DictColumns_Project_Detail_DB
   extends
-    DictColumns_Base,
+    DictColumns_Base_DB,
     DictColumns_Project_NeedConvert_DB,
     DictColumns_Project_TimeoutAndLog {
   name: string;
   version: string;
   description: string;
+  version_summary: string;
 }
 
 export type DictColumns_Project_Detail = Omit<
@@ -83,8 +100,10 @@ export type DictColumns_Project_Detail = Omit<
 
 export type DictColumns_Project_Detail_ToInsert = Omit<
   DictColumns_Project_Detail_DB,
-  "id" | TypeColumns_ModifyTime
->;
+  "id" | TypeColumns_ModifyTime | "version_summary"
+> & {
+  version_summary?: string;
+};
 
 export type DictColumns_Project_Detail_ToUpdate = Omit<
   DictColumns_Project_Detail_DB,
@@ -93,7 +112,7 @@ export type DictColumns_Project_Detail_ToUpdate = Omit<
 
 export type DictColumns_Project_Detail_Run = Omit<
   DictColumns_Project_Detail,
-  TypeColumns_ModifyTime | "description"
+  TypeColumns_ModifyTime | "description" | "version_summary"
 > & {
   scheduler_name: string | null;
   project_source: "local" | "console";
@@ -109,9 +128,9 @@ export interface DictColumns_Scheduler_ListItem_DB {
   cron: string;
   enable: 0 | 1;
 
-  // These values will not showed in Task Scheduler list, but queueStore needs them.
-  period_start: string;
-  period_end: string;
+  // These values are not displayed in the Scheduler list, but Queue needs them.
+  period_start_ms: number;
+  period_end_ms: number;
   when_others_running: "cancel" | "wait" | "run";
 }
 
@@ -124,23 +143,21 @@ export type DictColumns_Scheduler_ListItem = Omit<
 
 export interface DictColumns_Scheduler_Detail_DB
   extends
-    DictColumns_Base,
+    DictColumns_Base_DB,
     DictColumns_Scheduler_ListItem_DB,
     DictColumns_Project_NeedConvert_DB,
     DictColumns_Project_TimeoutAndLog {
   project_id: number;
-  when_others_running: "cancel" | "wait" | "run";
-  period_start: string;
-  period_end: string;
 }
 
 export type DictColumns_Scheduler_Detail = Omit<
   DictColumns_Scheduler_Detail_DB,
-  TypeColumns_Project_NeedConvert | "enable"
+  TypeColumns_Project_NeedConvert | "enable" | "period_start_ms" | "period_end_ms"
 > &
-  DictColumns_Base &
   DictColumns_Project_NeedConvert_TS & {
     enable: boolean;
+    period_start: string;
+    period_end: string;
   };
 
 export type DictColumns_Scheduler_Detail_ToUpdate = Omit<
@@ -170,26 +187,32 @@ export interface DictColumns_History_ToInsert {
   project_id: number;
   project_name: string;
   project_version: string;
-  run_start: string;
-  status: "running" | "cancel";
+  run_started_at_ms: number;
+  status: "running";
   log_path: string;
 }
 
-export interface DictColumns_History_ToUpdate {
-  id: number;
-  run_end: string;
-  status: "completed" | "error" | "cancel" | "timeout";
-}
+export type DictColumns_History_ToUpdate =
+  | {
+      id: number;
+      run_ended_at_ms: number;
+      status: "completed" | "error" | "cancel" | "timeout";
+    }
+  | {
+      id: number;
+      run_ended_at_ms: null;
+      status: "interrupted";
+    };
 
 export interface DictColumns_History_ListItem_DB {
   id: number;
-  schduler_name: string | null;
+  scheduler_name: string | null;
   project_source: "local" | "console";
   project_name: string;
   project_version: string;
-  run_start: string;
-  run_end: string | null;
-  status: "running" | "completed" | "error" | "cancel" | "timeout";
+  run_started_at_ms: number;
+  run_ended_at_ms: number | null;
+  status: TypeTaskHistoryStatus;
   log_path: string;
 }
 
@@ -198,7 +221,7 @@ export interface Dict_History_Search {
   project_source: "local" | "console" | null;
   project_name: string;
   project_version: string;
-  status: "running" | "completed" | "error" | "cancel" | "timeout" | null;
+  status: TypeTaskHistoryStatus | null;
 }
 
 export interface Dict_History_Options {
@@ -210,12 +233,12 @@ export interface Dict_History_Options {
       | "project_source"
       | "project_name"
       | "project_version"
-      | "run_start"
-      | "run_end"
+      | "run_started_at_ms"
+      | "run_ended_at_ms"
       | "status";
     order: "asc" | "desc";
   }[];
-  // And a useless value: groupBy.
+  // Vuetify also sends an unused groupBy value.
   search: Dict_History_Search;
 }
 
@@ -235,6 +258,6 @@ export interface Dict_TaskQueue_ListItem {
   project_source: "local" | "console";
   project_name: string;
   project_version: string;
-  estimated_run_time: string;
+  estimated_run_at_ms: number;
   waiting: boolean;
 }

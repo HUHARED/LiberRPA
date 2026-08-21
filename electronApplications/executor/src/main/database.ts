@@ -1,96 +1,238 @@
 // FileName: database.ts
-import path from "path";
-import fs from "fs";
+
 import Database from "better-sqlite3";
+import fs from "fs";
+import path from "path";
+
 import { strDocumentsFolderPath } from "./commonFunc";
 import { loggerMain } from "./logger";
-import {
-  DictColumns_Project_Detail_DB,
-  DictColumns_Project_Detail_ToUpdate,
-  DictColumns_Project_Detail_ToInsert,
-  DictColumns_Scheduler_ListItem_DB,
-  DictColumns_Scheduler_Detail_DB,
-  DictColumns_Scheduler_Detail_ToUpdate,
-  DictColumns_Scheduler_Detail_ToInsert,
-  DictColumns_History_ToInsert,
-  DictColumns_History_ToUpdate,
+import type {
   DictColumns_History_ListItem_DB,
   DictColumns_History_ListItem_Limit_DB,
+  DictColumns_History_ToInsert,
+  DictColumns_History_ToUpdate,
+  DictColumns_Project_Detail_DB,
+  DictColumns_Project_Detail_ToInsert,
+  DictColumns_Project_Detail_ToUpdate,
+  DictColumns_Scheduler_Detail_DB,
+  DictColumns_Scheduler_Detail_ToInsert,
+  DictColumns_Scheduler_Detail_ToUpdate,
+  DictColumns_Scheduler_ListItem_DB,
   Dict_History_Options,
 } from "../shared/interface";
 
-const strDatabaseFileFolderPath = path.join(strDocumentsFolderPath, "LiberRPA/AppData");
-const strDatabaseFilePath = path.join(strDatabaseFileFolderPath, "ExecutorData.db");
-// Ensure the directory structure is created
-fs.mkdirSync(strDatabaseFileFolderPath, { recursive: true });
-const boolDbExists = fs.existsSync(strDatabaseFilePath);
-const db = new Database(strDatabaseFilePath, { verbose: console.log });
+const INT_DATABASE_SCHEMA_VERSION = 1;
+const STR_DATABASE_FOLDER_PATH = path.join(strDocumentsFolderPath, "LiberRPA/AppData");
+const STR_DATABASE_FILE_PATH = path.join(STR_DATABASE_FOLDER_PATH, "ExecutorData.db");
+const STR_INIT_DATABASE_SCRIPT_PATH = path.join(
+  __dirname,
+  "../../resources/InitDatabase.sql",
+);
 
-const strInitDatabaseScriptPath = path.join(__dirname, "../../resources/InitDatabase.sql");
+const MAP_HISTORY_SORT_COLUMN: Record<
+  Dict_History_Options["sortBy"][number]["key"],
+  string
+> = {
+  scheduler_name: "scheduler_name",
+  project_source: "project_source",
+  project_name: "project_name",
+  project_version: "project_version",
+  run_started_at_ms: "run_started_at_ms",
+  run_ended_at_ms: "run_ended_at_ms",
+  status: "status",
+};
 
-export function initializeTables(): void {
-  loggerMain.debug("--initializeTables--");
-  if (boolDbExists) {
-    loggerMain.info("Database exists.");
+let databaseObj: Database.Database | undefined;
+
+export function initializeDatabase(): void {
+  loggerMain.debug("--initializeDatabase--");
+  fs.mkdirSync(STR_DATABASE_FOLDER_PATH, { recursive: true });
+
+  if (!fs.existsSync(STR_DATABASE_FILE_PATH)) {
+    databaseObj = createDatabase();
     return;
   }
 
-  loggerMain.info("Create Database.");
+  const existingDatabaseObj = openDatabase(STR_DATABASE_FILE_PATH);
+  const intSchemaVersion = getDatabaseSchemaVersionOrClose(existingDatabaseObj);
 
-  // Create the tables.
-  const strTemp = fs.readFileSync(strInitDatabaseScriptPath, { encoding: "utf-8" });
-  db.exec(strTemp);
+  if (intSchemaVersion === INT_DATABASE_SCHEMA_VERSION) {
+    databaseObj = existingDatabaseObj;
+    loggerMain.info(`Opened Executor database schema ${intSchemaVersion}.`);
+    return;
+  }
+
+  existingDatabaseObj.close();
+  const strBackupPath = backupDatabaseFiles();
+  loggerMain.warn(
+    `Backed up Executor database schema ${intSchemaVersion} to ${strBackupPath}.`,
+  );
+  databaseObj = createDatabase();
+}
+
+export function closeDatabase(): void {
+  if (databaseObj === undefined) {
+    return;
+  }
+
+  databaseObj.close();
+  databaseObj = undefined;
+}
+
+function openDatabase(strDatabasePath: string): Database.Database {
+  const openedDatabaseObj = new Database(strDatabasePath, {
+    verbose: (strSql: string) => {
+      loggerMain.debug(`[SQLite] ${strSql}`);
+    },
+  });
+  openedDatabaseObj.pragma("foreign_keys = ON");
+  return openedDatabaseObj;
+}
+
+function createDatabase(): Database.Database {
+  loggerMain.info("Create Executor database.");
+  const newDatabaseObj = openDatabase(STR_DATABASE_FILE_PATH);
+
+  try {
+    const strInitScript = fs.readFileSync(STR_INIT_DATABASE_SCRIPT_PATH, {
+      encoding: "utf-8",
+    });
+    newDatabaseObj.exec(strInitScript);
+
+    const intSchemaVersion = getDatabaseSchemaVersion(newDatabaseObj);
+    if (intSchemaVersion !== INT_DATABASE_SCHEMA_VERSION) {
+      throw new Error(
+        `The initialized database schema is ${intSchemaVersion}, expected ${INT_DATABASE_SCHEMA_VERSION}.`,
+      );
+    }
+
+    return newDatabaseObj;
+  } catch (e: unknown) {
+    newDatabaseObj.close();
+    removeDatabaseFiles(STR_DATABASE_FILE_PATH);
+    throw e;
+  }
+}
+
+function getDatabaseSchemaVersionOrClose(targetDatabaseObj: Database.Database): number {
+  try {
+    return getDatabaseSchemaVersion(targetDatabaseObj);
+  } catch (e: unknown) {
+    targetDatabaseObj.close();
+    throw e;
+  }
+}
+
+function getDatabaseSchemaVersion(targetDatabaseObj: Database.Database): number {
+  const value = targetDatabaseObj.pragma("user_version", { simple: true });
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) {
+    throw new Error(`Invalid Executor database schema version: ${String(value)}`);
+  }
+  return value;
+}
+
+function backupDatabaseFiles(): string {
+  const strTimestamp = new Date().toISOString().replace(/[-:.]/g, "");
+  const strBackupPath = path.join(
+    STR_DATABASE_FOLDER_PATH,
+    `ExecutorData.backup.${strTimestamp}.db`,
+  );
+
+  for (const strSuffix of ["", "-wal", "-shm", "-journal"]) {
+    const strSourcePath = STR_DATABASE_FILE_PATH + strSuffix;
+    if (fs.existsSync(strSourcePath)) {
+      fs.renameSync(strSourcePath, strBackupPath + strSuffix);
+    }
+  }
+
+  return strBackupPath;
+}
+
+function removeDatabaseFiles(strDatabasePath: string): void {
+  for (const strSuffix of ["", "-wal", "-shm", "-journal"]) {
+    fs.rmSync(strDatabasePath + strSuffix, { force: true });
+  }
+}
+
+function getDatabase(): Database.Database {
+  if (databaseObj === undefined) {
+    throw new Error("Executor database has not been initialized.");
+  }
+  return databaseObj;
 }
 
 /* Project Local Package */
 
 export function dbSelectProjectNames(): { name: string }[] {
   loggerMain.debug("--dbSelectProjectNames--");
-  return db
-    .prepare("SELECT DISTINCT name FROM project_local ORDER BY updated_at DESC;")
+  return getDatabase()
+    .prepare(
+      `
+      SELECT
+          name
+      FROM
+          project_local
+      GROUP BY
+          name
+      ORDER BY
+          MAX(updated_at_ms) DESC;
+      `,
+    )
     .all() as { name: string }[];
 }
 
 export function dbSelectProjectVersions(name: string): { version: string }[] {
   loggerMain.debug("--dbSelectProjectVersions--");
-  return db
-    .prepare("SELECT version FROM project_local WHERE name = ? ORDER BY updated_at DESC;")
+  return getDatabase()
+    .prepare(
+      `
+      SELECT
+          version
+      FROM
+          project_local
+      WHERE
+          name = ?
+      ORDER BY
+          updated_at_ms DESC;
+      `,
+    )
     .all(name) as { version: string }[];
 }
 
 export function dbSelectProjectBindSchedulers(id: number): { name: string }[] {
   loggerMain.debug("--dbSelectProjectBindSchedulers--");
-  return db
+  return getDatabase()
     .prepare(
       `
-        SELECT
-            name
-        FROM
-            task_scheduler
-        WHERE
-            project_id = ?
-        ORDER BY
-            name ASC;
-      `
+      SELECT
+          name
+      FROM
+          task_scheduler
+      WHERE
+          project_id = ?
+      ORDER BY
+          name ASC;
+      `,
     )
     .all(id) as { name: string }[];
 }
 
 export function dbSelectProjectDetail(
   name: string,
-  version: string
-): DictColumns_Project_Detail_DB {
+  version: string,
+): DictColumns_Project_Detail_DB | undefined {
   loggerMain.debug("--dbSelectProjectDetail--");
-  return db
+  return getDatabase()
     .prepare("SELECT * FROM project_local WHERE name = ? AND version = ?;")
-    .get(name, version) as DictColumns_Project_Detail_DB;
+    .get(name, version) as DictColumns_Project_Detail_DB | undefined;
 }
 
 export function dbInsertProjectDetail(
-  dictDetail: DictColumns_Project_Detail_ToInsert
+  dictDetail: DictColumns_Project_Detail_ToInsert,
 ): Database.RunResult {
   loggerMain.debug("--dbInsertProjectDetail--");
-  return db
+  const intNowMs = Date.now();
+  return getDatabase()
     .prepare(
       `
       INSERT INTO
@@ -98,105 +240,119 @@ export function dbInsertProjectDetail(
               name,
               version,
               description,
+              version_summary,
               timeout_min,
               builtin_log_level,
               builtin_record_video,
               builtin_stop_shortcut,
               builtin_highlight_ui,
-              custom_prj_args
-            )
+              custom_prj_args,
+              created_at_ms,
+              updated_at_ms
+          )
       VALUES
-          (?, ?, ?, ?, ?, ?, ?, ?, ?);
-    `
+          (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+      `,
     )
     .run(
       dictDetail.name,
       dictDetail.version,
       dictDetail.description,
-      dictDetail.timeout_min,
-      dictDetail.builtin_log_level,
-      dictDetail.builtin_record_video,
-      dictDetail.builtin_stop_shortcut,
-      dictDetail.builtin_highlight_ui,
-      dictDetail.custom_prj_args
-    );
-}
-
-export function dbUpdateProjectDetail(
-  dictDetail: DictColumns_Project_Detail_ToUpdate
-): Database.RunResult {
-  loggerMain.debug("--dbUpdateProjectDetail--");
-  return db
-    .prepare(
-      `
-      UPDATE project_local
-      SET name = ?,
-          version = ?,
-          description = ?,
-          timeout_min = ?,
-          builtin_log_level = ?,
-          builtin_record_video = ?,
-          builtin_stop_shortcut = ?,
-          builtin_highlight_ui = ?,
-          custom_prj_args = ?
-      WHERE id = ?;
-      `
-    )
-    .run(
-      dictDetail.name,
-      dictDetail.version,
-      dictDetail.description,
+      dictDetail.version_summary ?? "",
       dictDetail.timeout_min,
       dictDetail.builtin_log_level,
       dictDetail.builtin_record_video,
       dictDetail.builtin_stop_shortcut,
       dictDetail.builtin_highlight_ui,
       dictDetail.custom_prj_args,
-      dictDetail.id
+      intNowMs,
+      intNowMs,
+    );
+}
+
+export function dbUpdateProjectDetail(
+  dictDetail: DictColumns_Project_Detail_ToUpdate,
+): Database.RunResult {
+  loggerMain.debug("--dbUpdateProjectDetail--");
+  return getDatabase()
+    .prepare(
+      `
+      UPDATE project_local
+      SET
+          name = ?,
+          version = ?,
+          description = ?,
+          version_summary = ?,
+          timeout_min = ?,
+          builtin_log_level = ?,
+          builtin_record_video = ?,
+          builtin_stop_shortcut = ?,
+          builtin_highlight_ui = ?,
+          custom_prj_args = ?,
+          updated_at_ms = ?
+      WHERE
+          id = ?;
+      `,
+    )
+    .run(
+      dictDetail.name,
+      dictDetail.version,
+      dictDetail.description,
+      dictDetail.version_summary,
+      dictDetail.timeout_min,
+      dictDetail.builtin_log_level,
+      dictDetail.builtin_record_video,
+      dictDetail.builtin_stop_shortcut,
+      dictDetail.builtin_highlight_ui,
+      dictDetail.custom_prj_args,
+      Date.now(),
+      dictDetail.id,
     );
 }
 
 export function dbDeleteProject(id: number): Database.RunResult {
   loggerMain.debug("--dbDeleteProject--");
-  return db.prepare(`DELETE FROM project_local WHERE id = ?;`).run(id);
+  return getDatabase().prepare("DELETE FROM project_local WHERE id = ?;").run(id);
 }
 
 /* Task Scheduler */
 
 export function dbSelectSchedulerList(): DictColumns_Scheduler_ListItem_DB[] {
   loggerMain.debug("--dbSelectSchedulerList--");
-  return db
+  return getDatabase()
     .prepare(
       `
       SELECT
           ts.name,
           ts.project_source,
           CASE
-              WHEN ts.project_source='local' THEN pl.name
+              WHEN ts.project_source = 'local' THEN pl.name
               ELSE 'console'
           END AS project_name,
           CASE
-              WHEN ts.project_source='local' THEN pl.version
+              WHEN ts.project_source = 'local' THEN pl.version
               ELSE 'console'
           END AS project_version,
           ts.cron,
           ts.enable,
-          ts.period_start,
-          ts.period_end,
+          ts.period_start_ms,
+          ts.period_end_ms,
           ts.when_others_running
       FROM
           task_scheduler ts
           LEFT JOIN project_local pl ON ts.project_id = pl.id
       ORDER BY
-          ts.updated_at DESC;
-      `
+          ts.updated_at_ms DESC;
+      `,
     )
     .all() as DictColumns_Scheduler_ListItem_DB[];
 }
 
-export function dbSelectSchedulerDetail(name: string): DictColumns_Scheduler_Detail_DB {
+export function dbSelectSchedulerDetail(
+  name: string,
+): DictColumns_Scheduler_Detail_DB | undefined {
   loggerMain.debug("--dbSelectSchedulerDetail--");
-  return db
+  return getDatabase()
     .prepare(
       `
       SELECT
@@ -205,17 +361,17 @@ export function dbSelectSchedulerDetail(name: string): DictColumns_Scheduler_Det
           ts.project_source,
           ts.project_id,
           CASE
-              WHEN ts.project_source='local' THEN pl.name
+              WHEN ts.project_source = 'local' THEN pl.name
               ELSE 'console'
           END AS project_name,
           CASE
-              WHEN ts.project_source='local' THEN pl.version
+              WHEN ts.project_source = 'local' THEN pl.version
               ELSE 'console'
           END AS project_version,
           ts.cron,
           ts.when_others_running,
-          ts.period_start,
-          ts.period_end,
+          ts.period_start_ms,
+          ts.period_end_ms,
           ts.enable,
           ts.timeout_min,
           ts.builtin_log_level,
@@ -223,25 +379,24 @@ export function dbSelectSchedulerDetail(name: string): DictColumns_Scheduler_Det
           ts.builtin_stop_shortcut,
           ts.builtin_highlight_ui,
           ts.custom_prj_args,
-          ts.created_at,
-          ts.updated_at
+          ts.created_at_ms,
+          ts.updated_at_ms
       FROM
           task_scheduler ts
-          LEFT JOIN project_local pl ON ts.project_id=pl.id
+          LEFT JOIN project_local pl ON ts.project_id = pl.id
       WHERE
-          ts.name = ?
-      ORDER BY
-          ts.updated_at DESC;
-      `
+          ts.name = ?;
+      `,
     )
-    .get(name) as DictColumns_Scheduler_Detail_DB;
+    .get(name) as DictColumns_Scheduler_Detail_DB | undefined;
 }
 
 export function dbInsertSchedulerDetail(
-  dictDetail: DictColumns_Scheduler_Detail_ToInsert
+  dictDetail: DictColumns_Scheduler_Detail_ToInsert,
 ): Database.RunResult {
   loggerMain.debug("--dbInsertSchedulerDetail--");
-  return db
+  const intNowMs = Date.now();
+  return getDatabase()
     .prepare(
       `
       INSERT INTO
@@ -251,19 +406,21 @@ export function dbInsertSchedulerDetail(
               project_id,
               cron,
               when_others_running,
-              period_start,
-              period_end,
+              period_start_ms,
+              period_end_ms,
               enable,
               timeout_min,
               builtin_log_level,
               builtin_record_video,
               builtin_stop_shortcut,
               builtin_highlight_ui,
-              custom_prj_args
+              custom_prj_args,
+              created_at_ms,
+              updated_at_ms
           )
       VALUES
-          (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
-      `
+          (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+      `,
     )
     .run(
       dictDetail.name,
@@ -271,53 +428,8 @@ export function dbInsertSchedulerDetail(
       dictDetail.project_id,
       dictDetail.cron,
       dictDetail.when_others_running,
-      dictDetail.period_start,
-      dictDetail.period_end,
-      dictDetail.enable,
-      dictDetail.timeout_min,
-      dictDetail.builtin_log_level,
-      dictDetail.builtin_record_video,
-      dictDetail.builtin_stop_shortcut,
-      dictDetail.builtin_highlight_ui,
-      dictDetail.custom_prj_args
-    );
-}
-
-export function dbUpdateSchedulerDetail(
-  dictDetail: DictColumns_Scheduler_Detail_ToUpdate
-): Database.RunResult {
-  loggerMain.debug("--dbUpdateSchedulerDetail--");
-  return db
-    .prepare(
-      `
-      UPDATE task_scheduler
-      SET
-          name=?,
-          project_source=?,
-          project_id=?,
-          cron=?,
-          when_others_running=?,
-          period_start=?,
-          period_end=?,
-          enable=?,
-          timeout_min=?,
-          builtin_log_level=?,
-          builtin_record_video=?,
-          builtin_stop_shortcut=?,
-          builtin_highlight_ui=?,
-          custom_prj_args=?
-      WHERE
-          id = ?
-      `
-    )
-    .run(
-      dictDetail.name,
-      dictDetail.project_source,
-      dictDetail.project_id,
-      dictDetail.cron,
-      dictDetail.when_others_running,
-      dictDetail.period_start,
-      dictDetail.period_end,
+      dictDetail.period_start_ms,
+      dictDetail.period_end_ms,
       dictDetail.enable,
       dictDetail.timeout_min,
       dictDetail.builtin_log_level,
@@ -325,22 +437,72 @@ export function dbUpdateSchedulerDetail(
       dictDetail.builtin_stop_shortcut,
       dictDetail.builtin_highlight_ui,
       dictDetail.custom_prj_args,
-      dictDetail.id
+      intNowMs,
+      intNowMs,
+    );
+}
+
+export function dbUpdateSchedulerDetail(
+  dictDetail: DictColumns_Scheduler_Detail_ToUpdate,
+): Database.RunResult {
+  loggerMain.debug("--dbUpdateSchedulerDetail--");
+  return getDatabase()
+    .prepare(
+      `
+      UPDATE task_scheduler
+      SET
+          name = ?,
+          project_source = ?,
+          project_id = ?,
+          cron = ?,
+          when_others_running = ?,
+          period_start_ms = ?,
+          period_end_ms = ?,
+          enable = ?,
+          timeout_min = ?,
+          builtin_log_level = ?,
+          builtin_record_video = ?,
+          builtin_stop_shortcut = ?,
+          builtin_highlight_ui = ?,
+          custom_prj_args = ?,
+          updated_at_ms = ?
+      WHERE
+          id = ?;
+      `,
+    )
+    .run(
+      dictDetail.name,
+      dictDetail.project_source,
+      dictDetail.project_id,
+      dictDetail.cron,
+      dictDetail.when_others_running,
+      dictDetail.period_start_ms,
+      dictDetail.period_end_ms,
+      dictDetail.enable,
+      dictDetail.timeout_min,
+      dictDetail.builtin_log_level,
+      dictDetail.builtin_record_video,
+      dictDetail.builtin_stop_shortcut,
+      dictDetail.builtin_highlight_ui,
+      dictDetail.custom_prj_args,
+      Date.now(),
+      dictDetail.id,
     );
 }
 
 export function dbDeleteScheduler(id: number): Database.RunResult {
   loggerMain.debug("--dbDeleteScheduler--");
-  return db.prepare(`DELETE FROM task_scheduler WHERE id = ?`).run(id);
+  return getDatabase().prepare("DELETE FROM task_scheduler WHERE id = ?;").run(id);
 }
 
 /* Task History */
 
 export function dbInsertHistoryDetail(
-  dictDetail: DictColumns_History_ToInsert
+  dictDetail: DictColumns_History_ToInsert,
 ): Database.RunResult {
   loggerMain.debug("--dbInsertHistoryDetail--");
-  return db
+  const intNowMs = Date.now();
+  return getDatabase()
     .prepare(
       `
       INSERT INTO
@@ -350,13 +512,15 @@ export function dbInsertHistoryDetail(
               project_id,
               project_name,
               project_version,
-              run_start,
+              run_started_at_ms,
               status,
-              log_path
+              log_path,
+              created_at_ms,
+              updated_at_ms
           )
       VALUES
-          (?, ?, ?, ?, ?, ?, ?, ?);
-      `
+          (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+      `,
     )
     .run(
       dictDetail.scheduler_name,
@@ -364,103 +528,119 @@ export function dbInsertHistoryDetail(
       dictDetail.project_id,
       dictDetail.project_name,
       dictDetail.project_version,
-      dictDetail.run_start,
+      dictDetail.run_started_at_ms,
       dictDetail.status,
-      dictDetail.log_path
+      dictDetail.log_path,
+      intNowMs,
+      intNowMs,
     );
 }
 
 export function dbUpdateHistoryDetail(
-  dictDetail: DictColumns_History_ToUpdate
+  dictDetail: DictColumns_History_ToUpdate,
 ): Database.RunResult {
   loggerMain.debug("--dbUpdateHistoryDetail--");
-  return db
+  return getDatabase()
     .prepare(
       `
       UPDATE task_history
       SET
-          run_end=?,
-          status=?
+          run_ended_at_ms = ?,
+          status = ?,
+          updated_at_ms = ?
       WHERE
-          id=?;
-      `
+          id = ?;
+      `,
     )
-    .run(dictDetail.run_end, dictDetail.status, dictDetail.id);
+    .run(dictDetail.run_ended_at_ms, dictDetail.status, Date.now(), dictDetail.id);
 }
 
-export function dbUpdateHistoryDetail_unknown(): void {
-  // If a Python process exited with Executor, set its values when re-open Executor.
-  loggerMain.debug("--dbUpdateHistoryDetail_unknown--");
-  db.prepare(
-    `
+export function dbMarkRunningHistoryInterrupted(): void {
+  loggerMain.debug("--dbMarkRunningHistoryInterrupted--");
+  const result = getDatabase()
+    .prepare(
+      `
       UPDATE task_history
       SET
-          run_end='unknown',
-          status='cancel'
+          run_ended_at_ms = NULL,
+          status = 'interrupted',
+          updated_at_ms = ?
       WHERE
-          status='running';
-      `
-  ).run();
+          status = 'running';
+      `,
+    )
+    .run(Date.now());
+
+  if (result.changes > 0) {
+    loggerMain.warn(`Marked ${result.changes} unfinished task(s) as interrupted.`);
+  }
 }
 
 export function dbSelectCountHistoryRunning(): boolean {
   loggerMain.debug("--dbSelectCountHistoryRunning--");
-  const row = db
+  const row = getDatabase()
     .prepare("SELECT COUNT(*) AS runningCount FROM task_history WHERE status = 'running';")
     .get() as { runningCount: number };
-  if (row.runningCount > 0) {
-    return true;
-  } else {
-    return false;
-  }
+  return row.runningCount > 0;
 }
 
 export function dbSelectLimitHistoryList(
-  options: Dict_History_Options
+  options: Dict_History_Options,
 ): DictColumns_History_ListItem_Limit_DB {
   loggerMain.debug("--dbSelectLimitHistoryList--");
 
-  const arrWhereClauses: string[] = [];
-  const arrParamsWhere: any[] = [];
-  if (options.search) {
-    if (options.search.scheduler_name && options.search.scheduler_name.trim() !== "") {
-      arrWhereClauses.push("scheduler_name LIKE ?");
-      arrParamsWhere.push(`%${options.search.scheduler_name.trim()}%`);
-    }
-    if (options.search.project_source) {
-      arrWhereClauses.push("project_source = ?");
-      arrParamsWhere.push(options.search.project_source);
-    }
-    if (options.search.project_name && options.search.project_name.trim() !== "") {
-      arrWhereClauses.push("project_name LIKE ?");
-      arrParamsWhere.push(`%${options.search.project_name.trim()}%`);
-    }
-    if (options.search.project_version && options.search.project_version.trim() !== "") {
-      arrWhereClauses.push("project_version LIKE ?");
-      arrParamsWhere.push(`%${options.search.project_version.trim()}%`);
-    }
-    if (options.search.status) {
-      arrWhereClauses.push("status = ?");
-      arrParamsWhere.push(options.search.status);
-    }
+  if (!Number.isSafeInteger(options.page) || options.page < 1) {
+    throw new Error(`Invalid Task History page: ${String(options.page)}`);
+  }
+  if (!Number.isSafeInteger(options.itemsPerPage) || options.itemsPerPage < 1) {
+    throw new Error(`Invalid Task History itemsPerPage: ${String(options.itemsPerPage)}`);
+  }
+  if (!Array.isArray(options.sortBy)) {
+    throw new Error("Task History sortBy must be an array.");
+  }
+
+  const arrWhereClause: string[] = [];
+  const arrWhereParam: string[] = [];
+  if (options.search.scheduler_name.trim() !== "") {
+    arrWhereClause.push("scheduler_name LIKE ?");
+    arrWhereParam.push(`%${options.search.scheduler_name.trim()}%`);
+  }
+  if (options.search.project_source !== null) {
+    arrWhereClause.push("project_source = ?");
+    arrWhereParam.push(options.search.project_source);
+  }
+  if (options.search.project_name.trim() !== "") {
+    arrWhereClause.push("project_name LIKE ?");
+    arrWhereParam.push(`%${options.search.project_name.trim()}%`);
+  }
+  if (options.search.project_version.trim() !== "") {
+    arrWhereClause.push("project_version LIKE ?");
+    arrWhereParam.push(`%${options.search.project_version.trim()}%`);
+  }
+  if (options.search.status !== null) {
+    arrWhereClause.push("status = ?");
+    arrWhereParam.push(options.search.status);
   }
 
   const strWhereClause =
-    arrWhereClauses.length > 0 ? "WHERE " + arrWhereClauses.join(" AND ") : "";
+    arrWhereClause.length === 0 ? "" : `WHERE ${arrWhereClause.join(" AND ")}`;
 
-  let strOrderByClause = "";
-  if (options.sortBy.length === 0) {
-    strOrderByClause = "run_start DESC";
-  } else {
-    strOrderByClause =
-      options.sortBy
-        .map((item) => {
-          return item.key + " " + item.order.toUpperCase();
-        })
-        .join(", ") + ", run_start DESC";
-  }
+  const arrOrderByClause = options.sortBy.map((dictSort) => {
+    if (!Object.hasOwn(MAP_HISTORY_SORT_COLUMN, dictSort.key)) {
+      throw new Error(`Invalid Task History sort key: ${String(dictSort.key)}`);
+    }
+    if (dictSort.order !== "asc" && dictSort.order !== "desc") {
+      throw new Error(`Invalid Task History sort order: ${String(dictSort.order)}`);
+    }
 
-  const rows = db
+    const strColumn = MAP_HISTORY_SORT_COLUMN[dictSort.key];
+    const strOrder = dictSort.order === "asc" ? "ASC" : "DESC";
+    return `${strColumn} ${strOrder}`;
+  });
+  arrOrderByClause.push("run_started_at_ms DESC");
+  const strOrderByClause = arrOrderByClause.join(", ");
+
+  const rows = getDatabase()
     .prepare(
       `
       SELECT
@@ -469,8 +649,8 @@ export function dbSelectLimitHistoryList(
           project_source,
           project_name,
           project_version,
-          run_start,
-          run_end,
+          run_started_at_ms,
+          run_ended_at_ms,
           status,
           log_path
       FROM
@@ -482,44 +662,45 @@ export function dbSelectLimitHistoryList(
           ?
       OFFSET
           ?;
-      `
+      `,
     )
     .all(
-      ...arrParamsWhere,
+      ...arrWhereParam,
       options.itemsPerPage,
-      (options.page - 1) * options.itemsPerPage
+      (options.page - 1) * options.itemsPerPage,
     ) as DictColumns_History_ListItem_DB[];
 
-  const total = db
+  const total = getDatabase()
     .prepare(
       `
       SELECT
-          COUNT(*) as total
+          COUNT(*) AS total
       FROM
           task_history
       ${strWhereClause};
-      `
+      `,
     )
-    .get(...arrParamsWhere) as {
-    total: number;
-  };
+    .get(...arrWhereParam) as { total: number };
+
   return { rows, total: total.total };
 }
 
 export function dbSelectProjectNewestVersionDetail(
-  name: string
-): DictColumns_Project_Detail_DB {
+  name: string,
+): DictColumns_Project_Detail_DB | undefined {
   loggerMain.debug("--dbSelectProjectNewestVersionDetail--");
-  return db
-    .prepare("SELECT * FROM project_local WHERE name=? ORDER BY created_at DESC;")
-    .get(name) as DictColumns_Project_Detail_DB;
+  return getDatabase()
+    .prepare(
+      "SELECT * FROM project_local WHERE name = ? ORDER BY created_at_ms DESC LIMIT 1;",
+    )
+    .get(name) as DictColumns_Project_Detail_DB | undefined;
 }
 
 /* Setting */
 
-export function dbSelect_LogFolder_ByTimeout(timeoutDays: number): string[] {
-  loggerMain.debug("--dbSelect_LogFolder_ByTimeout--");
-  const rows = db
+export function dbSelectLogFolderBefore(intCutoffMs: number): string[] {
+  loggerMain.debug("--dbSelectLogFolderBefore--");
+  const rows = getDatabase()
     .prepare(
       `
       SELECT
@@ -527,30 +708,21 @@ export function dbSelect_LogFolder_ByTimeout(timeoutDays: number): string[] {
       FROM
           task_history
       WHERE
-          status<>'running'
-          AND no_log_folder=FALSE
-          AND (
-              CASE
-                  WHEN run_end<>'unknown' THEN run_end
-                  ELSE run_start
-              END
-          )<datetime ('now', 'localtime', '-'||?||' days')
+          status <> 'running'
+          AND no_log_folder = 0
+          AND COALESCE(run_ended_at_ms, run_started_at_ms) < ?
       ORDER BY
-          CASE
-              WHEN run_end<>'unknown'
-              AND run_end IS NOT NULL THEN run_end
-              ELSE run_start
-          END DESC;
-      `
+          COALESCE(run_ended_at_ms, run_started_at_ms) DESC;
+      `,
     )
-    .all(timeoutDays) as { log_path: string }[];
+    .all(intCutoffMs) as { log_path: string }[];
 
   return rows.map((row) => row.log_path);
 }
 
-export function dbSelect_Video_ByTimeout(timeoutDays: number): string[] {
-  loggerMain.debug("--dbSelect_Video_ByTimeout--");
-  const rows = db
+export function dbSelectVideoBefore(intCutoffMs: number): string[] {
+  loggerMain.debug("--dbSelectVideoBefore--");
+  const rows = getDatabase()
     .prepare(
       `
       SELECT
@@ -558,30 +730,21 @@ export function dbSelect_Video_ByTimeout(timeoutDays: number): string[] {
       FROM
           task_history
       WHERE
-          status<>'running'
-          AND no_log_video=FALSE
-          AND (
-              CASE
-                  WHEN run_end<>'unknown' THEN run_end
-                  ELSE run_start
-              END
-          )<datetime ('now', 'localtime', '-'||?||' days')
+          status <> 'running'
+          AND no_log_video = 0
+          AND COALESCE(run_ended_at_ms, run_started_at_ms) < ?
       ORDER BY
-          CASE
-              WHEN run_end<>'unknown'
-              AND run_end IS NOT NULL THEN run_end
-              ELSE run_start
-          END DESC;
-      `
+          COALESCE(run_ended_at_ms, run_started_at_ms) DESC;
+      `,
     )
-    .all(timeoutDays) as { log_path: string }[];
+    .all(intCutoffMs) as { log_path: string }[];
 
   return rows.map((row) => row.log_path);
 }
 
-export function dbSelect_Video(): string[] {
-  loggerMain.debug("--dbSelect_Video--");
-  const rows = db
+export function dbSelectVideo(): string[] {
+  loggerMain.debug("--dbSelectVideo--");
+  const rows = getDatabase()
     .prepare(
       `
       SELECT
@@ -589,44 +752,46 @@ export function dbSelect_Video(): string[] {
       FROM
           task_history
       WHERE
-          status<>'running'
-          AND no_log_video=FALSE
+          status <> 'running'
+          AND no_log_video = 0
       ORDER BY
-          CASE
-              WHEN run_end<>'unknown'
-              AND run_end IS NOT NULL THEN run_end
-              ELSE run_start
-          END DESC;
-      `
+          COALESCE(run_ended_at_ms, run_started_at_ms) DESC;
+      `,
     )
     .all() as { log_path: string }[];
 
   return rows.map((row) => row.log_path);
 }
 
-export function dbUpdate_NoLogFolderAndVideo(log_path: string): void {
-  loggerMain.debug("--dbUpdate_NoLogFolderAndVideo--");
-  db.prepare(
-    `
+export function dbUpdateNoLogFolderAndVideo(strLogPath: string): void {
+  loggerMain.debug("--dbUpdateNoLogFolderAndVideo--");
+  getDatabase()
+    .prepare(
+      `
       UPDATE task_history
       SET
-          no_log_folder=TRUE,
-          no_log_video=TRUE
+          no_log_folder = 1,
+          no_log_video = 1,
+          updated_at_ms = ?
       WHERE
-          log_path=?;
-      `
-  ).run(log_path);
+          log_path = ?;
+      `,
+    )
+    .run(Date.now(), strLogPath);
 }
 
-export function dbUpdate_NoVideo(log_path: string): void {
-  loggerMain.debug("--dbUpdate_NoVideo--");
-  db.prepare(
-    `
+export function dbUpdateNoVideo(strLogPath: string): void {
+  loggerMain.debug("--dbUpdateNoVideo--");
+  getDatabase()
+    .prepare(
+      `
       UPDATE task_history
       SET
-          no_log_video=TRUE
+          no_log_video = 1,
+          updated_at_ms = ?
       WHERE
-          log_path=?;
-      `
-  ).run(log_path);
+          log_path = ?;
+      `,
+    )
+    .run(Date.now(), strLogPath);
 }

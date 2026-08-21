@@ -52,8 +52,8 @@
 
       <template #item.enable="{ value }">
         <v-chip
-          :border="`${getColor_Enable(value)} thin opacity-25`"
-          :color="getColor_Enable(value)"
+          :border="`${getColorEnable(value)} thin opacity-25`"
+          :color="getColorEnable(value)"
           :text="value"
           variant="text"
           size="x-small"></v-chip>
@@ -104,7 +104,6 @@
 <script setup lang="ts">
 import { onBeforeMount } from "vue";
 import cronstrue from "cronstrue";
-import moment from "moment";
 
 import TaskScheduler_Dialog_Edit from "./TaskScheduler_Dialog_Edit.vue";
 import TaskScheduler_Dialog_New from "./TaskScheduler_Dialog_New.vue";
@@ -113,18 +112,24 @@ import HorizontalDivider from "./utils/HorizontalDivider.vue";
 
 import { loggerRenderer } from "../ipcOfRenderer";
 import { getColor_Source } from "../commonFunc";
-import { useSchedulerStore } from "../store";
+import { useSchedulerStore, useSettingStore } from "../store";
+import { getDefaultSchedulerPeriod } from "../time";
 
 const schedulerStore = useSchedulerStore();
+const settingStore = useSettingStore();
 
-onBeforeMount(async () => {
-  await schedulerStore.dbSelectSchedulerList();
+onBeforeMount(() => {
+  void schedulerStore.dbSelectSchedulerList().catch((e: unknown) => {
+    loggerRenderer.error(
+      `Failed to load Task Schedulers: ${e instanceof Error ? e.message : String(e)}`,
+    );
+  });
 });
 
 function newTaskScheduler(): void {
   loggerRenderer.debug("--newTaskScheduler--");
 
-  // Generate basic data.
+  const dictDefaultPeriod = getDefaultSchedulerPeriod(settingStore.timezone);
   schedulerStore.dictDetail_new = {
     name: "",
     project_source: "local",
@@ -133,8 +138,8 @@ function newTaskScheduler(): void {
     project_version: undefined,
     cron: "0 8 * * *",
     when_others_running: "cancel",
-    period_start: moment(new Date()).format("YYYY-MM-DD [00:00:00]"),
-    period_end: "2084-04-04 00:00:00",
+    period_start: dictDefaultPeriod.strPeriodStartLocal,
+    period_end: dictDefaultPeriod.strPeriodEndLocal,
     enable: true,
     timeout_min: 0,
     builtin_log_level: "DEBUG",
@@ -169,11 +174,10 @@ const arrHeader = [
   { title: "Cron", value: "cron", align: "start", sortable: true },
   { title: "Enable", value: "enable", align: "start", sortable: true },
   { title: "Actions", key: "actions", align: "start", sortable: false },
-] as any; // use "as any" to make :headers in v-data-table not to complain.
+] as any; // Vuetify's nested table-header type is not inferred correctly here.
 
-function getColor_Enable(enable: boolean): string {
-  if (enable) return "success";
-  else return "grey";
+function getColorEnable(enable: boolean): string {
+  return enable ? "success" : "grey";
 }
 
 async function editScheduler(schedulerName: string): Promise<void> {

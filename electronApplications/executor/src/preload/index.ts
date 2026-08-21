@@ -10,8 +10,8 @@ if (process.contextIsolated) {
   try {
     contextBridge.exposeInMainWorld("electron", electronAPI);
     contextBridge.exposeInMainWorld("api", api);
-  } catch (e) {
-    console.error(error);
+  } catch (e: unknown) {
+    console.error(e);
   }
 } else {
   // @ts-ignore (define in dts)

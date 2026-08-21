@@ -293,15 +293,17 @@
         readonly
         spellcheck="false"
         style="max-width: 110px"
-        :value="`Time zone:`">
+        model-value="Time zone:">
         <v-tooltip activator="parent" location="bottom">
           <div>
-            (Not work yet) LiberRPA Console needs it to convert time of Executor.<br />
+            Controls how Executor displays time and interprets all Scheduler Cron
+            expressions and active periods.<br />
+            Changing it recalculates pending Scheduler runs.
           </div>
         </v-tooltip>
       </v-text-field>
 
-      <v-select
+      <v-autocomplete
         v-model="settingStore.timezone"
         variant="underlined"
         class="clean-space"
@@ -309,7 +311,7 @@
         hide-details
         style="max-width: 400px"
         :items="arrTimezone">
-      </v-select>
+      </v-autocomplete>
     </v-container>
   </v-container>
 </template>
@@ -319,16 +321,16 @@ import { VNumberInput } from "vuetify/labs/VNumberInput";
 
 import { watch, computed } from "vue";
 import { debounce } from "lodash";
-import { tz } from "moment-timezone";
 
 import { loggerRenderer, sendMain } from "../ipcOfRenderer";
-import { useSettingStore, useInformationStore } from "../store";
-import { DictExecutorConfig } from "../../../shared/interface";
-
-const arrTimezone = tz.names();
+import { useInformationStore, useQueueStore, useSettingStore } from "../store";
+import { arrTimezone } from "../time";
+import type { DictExecutorConfig } from "../../../shared/interface";
 
 const settingStore = useSettingStore();
 const informationStore = useInformationStore();
+const queueStore = useQueueStore();
+let strTimezoneCache = settingStore.timezone;
 
 const intKeepRdpSessionWidth = computed<number>({
   get() {
@@ -337,7 +339,7 @@ const intKeepRdpSessionWidth = computed<number>({
   set(newValue: number | null) {
     if (newValue === null) {
       informationStore.showAlertMessage(
-        `It's not an integer between 480 and 7680. (${newValue})`
+        `It's not an integer between 480 and 7680. (${newValue})`,
       );
       return;
     }
@@ -355,7 +357,7 @@ const intKeepRdpSessionHeight = computed<number>({
   set(newValue: number | null) {
     if (newValue === null) {
       informationStore.showAlertMessage(
-        `It's not an integer between 480 and 7680. (${newValue})`
+        `It's not an integer between 480 and 7680. (${newValue})`,
       );
       return;
     }
@@ -427,16 +429,20 @@ const strProjectLogFolderPath = computed<string>({
 const debouncedUpdate = debounce(() => {
   loggerRenderer.info(`Modified setting: ${JSON.stringify(settingStore.$state)}`);
   saveConfig();
+
+  if (strTimezoneCache !== settingStore.timezone) {
+    strTimezoneCache = settingStore.timezone;
+    queueStore.resetPendingItem();
+    queueStore.refreshListItem();
+  }
 }, 300);
 
 watch(
   () => settingStore.$state,
   () => {
-    // console.log("!!update");
-
     debouncedUpdate();
   },
-  { deep: true }
+  { deep: true },
 );
 
 function saveConfig(): void {

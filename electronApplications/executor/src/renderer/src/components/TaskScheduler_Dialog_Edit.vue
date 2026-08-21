@@ -10,7 +10,12 @@
           <v-row class="w-100">
             <v-col cols="5" class="pb-0">
               <v-text-field
-                v-model="schedulerStore.dictDetail_edit['created_at']"
+                :model-value="
+                  formatTimestamp(
+                    schedulerStore.dictDetail_edit.created_at_ms,
+                    settingStore.timezone,
+                  )
+                "
                 label="Create Time"
                 class="clean-space"
                 density="compact"
@@ -22,7 +27,12 @@
 
             <v-col cols="5" class="pb-0">
               <v-text-field
-                v-model="schedulerStore.dictDetail_edit['updated_at']"
+                :model-value="
+                  formatTimestamp(
+                    schedulerStore.dictDetail_edit.updated_at_ms,
+                    settingStore.timezone,
+                  )
+                "
                 label="Update Time"
                 class="clean-space"
                 density="compact"
@@ -85,6 +95,9 @@
                 hide-details
                 required
                 spellcheck="false">
+                <v-tooltip activator="parent" location="top">
+                  Interpreted using Executor time zone: {{ settingStore.timezone }}
+                </v-tooltip>
               </v-text-field>
             </v-col>
 
@@ -99,6 +112,9 @@
                 hide-details
                 required
                 spellcheck="false">
+                <v-tooltip activator="parent" location="top">
+                  Interpreted using Executor time zone: {{ settingStore.timezone }}
+                </v-tooltip>
               </v-text-field>
             </v-col>
 
@@ -331,7 +347,7 @@
                           schedulerStore.dictDetail_edit.custom_prj_args,
                           arrValueCache,
                           index,
-                          arrValueCache[index]
+                          arrValueCache[index],
                         )
                       "
                       @keyup.enter="
@@ -339,7 +355,7 @@
                           schedulerStore.dictDetail_edit.custom_prj_args,
                           arrValueCache,
                           index,
-                          arrValueCache[index]
+                          arrValueCache[index],
                         )
                       ">
                       <v-tooltip activator="parent" location="top">
@@ -385,10 +401,14 @@ import { VNumberInput } from "vuetify/labs/VNumberInput";
 
 import { ref, watch } from "vue";
 import { debounce } from "lodash";
-import moment from "moment";
 
 import { loggerRenderer } from "../ipcOfRenderer";
-import { useSchedulerStore, useProjectStore, useInformationStore } from "../store";
+import {
+  useSchedulerStore,
+  useProjectStore,
+  useInformationStore,
+  useSettingStore,
+} from "../store";
 import {
   generateValueNote,
   updateCusPrjArgsValue,
@@ -398,12 +418,12 @@ import {
   checkCron,
 } from "../commonFunc";
 import { arrLogLevel } from "../commonValue";
-
-// console.log("Create TaskScheduler_Dialog_Edit.vue");
+import { formatTimestamp, parseDateTimeLocalToTimestamp } from "../time";
 
 const schedulerStore = useSchedulerStore();
 const projectStore = useProjectStore();
 const informationStore = useInformationStore();
+const settingStore = useSettingStore();
 
 const boolDetailChanged = ref(false);
 
@@ -411,13 +431,11 @@ const intTimeoutMin = computedTimeoutMin(schedulerStore.dictDetail_edit);
 
 const arrValueCache = initCusPrjArgsValueCache(schedulerStore.dictDetail_edit);
 
-const debounced_UpdateValueCahe_SetButtonDisabled = debounce(() => {
+const debouncedUpdateValueCacheAndButtonState = debounce(() => {
   if (!schedulerStore.dictDetail_edit) {
     boolDetailChanged.value = false;
     return;
   }
-
-  // console.log("Update" + JSON.stringify(schedulerStore.dictDetail_edit));
 
   // Update arrValueCache even the user didn't type a name.
   arrValueCache.value = updateCusPrjArgsValueCache(schedulerStore.dictDetail_edit);
@@ -438,80 +456,69 @@ const debounced_UpdateValueCahe_SetButtonDisabled = debounce(() => {
     return;
   }
 
-  // period_end should later than period_start.
+  const intPeriodStartMs = parseDateTimeLocalToTimestamp(
+    schedulerStore.dictDetail_edit.period_start,
+    settingStore.timezone,
+  );
+  const intPeriodEndMs = parseDateTimeLocalToTimestamp(
+    schedulerStore.dictDetail_edit.period_end,
+    settingStore.timezone,
+  );
   if (
-    moment(schedulerStore.dictDetail_edit.period_end, "YYYY-MM-DD HH:mm:ss").isBefore(
-      moment(schedulerStore.dictDetail_edit.period_start, "YYYY-MM-DD HH:mm:ss")
-    )
+    intPeriodStartMs === undefined ||
+    intPeriodEndMs === undefined ||
+    intPeriodEndMs <= intPeriodStartMs
   ) {
     boolDetailChanged.value = false;
     return;
   }
 
   const strDetailCacheNew = JSON.stringify(schedulerStore.dictDetail_edit);
-  if (strDetailCacheNew === schedulerStore.detailCache_edit) {
-    /* console.log(
-      `Set false\n\n${strDetailCacheNew}\n\n${JSON.stringify(schedulerStore.dictDetail)}`
-    ); */
-    boolDetailChanged.value = false;
-  } else {
-    // console.log("Set true");
-    boolDetailChanged.value = true;
-  }
+  boolDetailChanged.value = strDetailCacheNew !== schedulerStore.detailCache_edit;
 }, 300);
 
 watch(
   () => schedulerStore.dictDetail_edit,
   () => {
-    debounced_UpdateValueCahe_SetButtonDisabled();
+    debouncedUpdateValueCacheAndButtonState();
   },
-  { deep: true }
+  { deep: true },
 );
 
-// Update details when project_name modified.
+// Update details when project_name is modified.
 async function whenProjectNameChanged(): Promise<void> {
-  if (schedulerStore.dictDetail_edit) {
-    const project_name = schedulerStore.dictDetail_edit.project_name;
-    loggerRenderer.info("Modified name:" + project_name);
-
-    if (schedulerStore.dictDetail_edit.project_source === "local") {
-      // Utilize projectStore's some actions to get data.
-      await projectStore.dbSelectProjectVersions(project_name);
-
-      // Use the first version as default.
-      schedulerStore.dictDetail_edit.project_version = projectStore.arrVersion[0].title;
-
-      // Update other values
-      await updateProjectDetailInScheduler(
-        project_name,
-        schedulerStore.dictDetail_edit.project_version
-      );
-    } else {
-      // console project.
-    }
+  const dictDetail = schedulerStore.dictDetail_edit;
+  if (dictDetail === undefined || dictDetail.project_source !== "local") {
+    return;
   }
+
+  const strProjectName = dictDetail.project_name;
+  loggerRenderer.info(`Modified Project name: ${strProjectName}`);
+  await projectStore.dbSelectProjectVersions(strProjectName);
+
+  const firstVersion = projectStore.arrVersion[0];
+  if (firstVersion === undefined) {
+    throw new Error(`No version is available for Project: ${strProjectName}`);
+  }
+
+  dictDetail.project_version = firstVersion.title;
+  await updateProjectDetailInScheduler(strProjectName, firstVersion.title);
 }
 
-// Update details when project_version modified.
+// Update details when project_version is modified.
 async function whenProjectVersionChanged(): Promise<void> {
-  if (schedulerStore.dictDetail_edit) {
-    const project_version = schedulerStore.dictDetail_edit.project_version;
-    loggerRenderer.info("Modified version:" + project_version);
-
-    if (schedulerStore.dictDetail_edit.project_source === "local") {
-      await updateProjectDetailInScheduler(
-        schedulerStore.dictDetail_edit.project_name,
-        project_version
-      );
-    } else {
-      //  console project.
-    }
+  const dictDetail = schedulerStore.dictDetail_edit;
+  if (dictDetail === undefined || dictDetail.project_source !== "local") {
+    return;
   }
+
+  loggerRenderer.info(`Modified Project version: ${dictDetail.project_version}`);
+  await updateProjectDetailInScheduler(dictDetail.project_name, dictDetail.project_version);
 }
 
 async function updateProjectDetailInScheduler(
   name: string,
-  version: string
+  version: string,
 ): Promise<void> {
   // Update projectStore.dictDetail
   await projectStore.dbSelectProjectDetail(name, version);

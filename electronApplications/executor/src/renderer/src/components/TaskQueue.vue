@@ -3,11 +3,8 @@
   <v-container fluid class="clean-space flex-row-grow-1 fill-height flex-column">
     <v-label class="header-label tab-header">Task Queue</v-label>
 
-    <!-- Table area -->
-
-    <!-- Bug: The "hover" attribute will only work when the window is in the main screen. -->
+    <!-- Bug: The hover attribute only works when the window is on the primary screen. -->
     <v-data-table
-      v-if="queueStore.arrListItem.length !== 0"
       :headers="arrHeader"
       :items="queueStore.arrListItem"
       class="clean-space flex-column-grow-1"
@@ -25,14 +22,18 @@
           size="x-small"></v-chip>
       </template>
 
-      <template #item.estimated_run_time="{ value }">
-        <v-chip :text="value" variant="text" size="small" class="clean-space"></v-chip>
+      <template #item.estimated_run_at_ms="{ value }">
+        <v-chip
+          :text="formatTimestamp(value, settingStore.timezone)"
+          variant="text"
+          size="small"
+          class="clean-space"></v-chip>
       </template>
 
       <template #item.waiting="{ value }">
         <v-chip
-          :border="`${getColor_Waiting(value)} thin opacity-25`"
-          :color="getColor_Waiting(value)"
+          :border="`${getColorWaiting(value)} thin opacity-25`"
+          :color="getColorWaiting(value)"
           :text="value"
           variant="text"
           size="x-small"></v-chip>
@@ -48,24 +49,12 @@
                 icon="mdi-stop-circle-outline"
                 size="small"
                 :disabled="!item.waiting"
-                @click="removeWaitingItem(item.name, item.estimated_run_time)">
+                @click="removeWaitingItem(item.name, item.estimated_run_at_ms)">
               </v-icon>
             </template>
           </v-tooltip>
         </div>
       </template>
-    </v-data-table>
-
-    <v-data-table
-      v-else
-      :headers="arrHeader"
-      :items="[]"
-      class="clean-space flex-column-grow-1"
-      fixed-header
-      hide-default-footer
-      items-per-page="-1"
-      density="compact"
-      hover>
     </v-data-table>
   </v-container>
 </template>
@@ -74,18 +63,19 @@
 import { onBeforeMount } from "vue";
 
 import { getColor_Source } from "../commonFunc";
-import { useQueueStore } from "../store";
-import { loggerRenderer } from "@renderer/ipcOfRenderer";
+import { loggerRenderer } from "../ipcOfRenderer";
+import { useQueueStore, useSettingStore } from "../store";
+import { formatTimestamp } from "../time";
 
 const queueStore = useQueueStore();
+const settingStore = useSettingStore();
 
-onBeforeMount(async () => {
+onBeforeMount(() => {
   queueStore.refreshListItem();
 });
 
 const arrHeader = [
   { title: "Name", value: "name", align: "start", sortable: false },
-
   {
     title: "Project",
     align: "center",
@@ -100,33 +90,32 @@ const arrHeader = [
       },
     ],
   },
-
   {
     title: "Estimated Run Time",
-    value: "estimated_run_time",
+    value: "estimated_run_at_ms",
     align: "center",
     sortable: false,
   },
   { title: "Waiting", value: "waiting", align: "start", sortable: false },
   { title: "Actions", key: "actions", align: "start", sortable: false },
-] as any; // use "as any" to make :headers in v-data-table not to complain.
+] as any; // Vuetify's nested table-header type is not inferred correctly here.
 
-function getColor_Waiting(waiting: boolean): string {
-  if (waiting) return "warning";
-  else return "grey";
+function getColorWaiting(waiting: boolean): string {
+  return waiting ? "warning" : "grey";
 }
 
-function removeWaitingItem(name: string, estimated_run_time): void {
-  loggerRenderer.info(`Remove the waiting task: ${name}-${estimated_run_time}`);
-  for (let index = 0; index < queueStore.arrWaitingItem.length; index++) {
-    const item = queueStore.arrWaitingItem[index];
-    if (item.name === name && item.estimated_run_time === estimated_run_time) {
-      queueStore.arrWaitingItem.splice(index, 1);
-      loggerRenderer.info("Remove completed.");
-      queueStore.refreshListItem();
-      break;
-    }
+function removeWaitingItem(name: string, intEstimatedRunAtMs: number): void {
+  loggerRenderer.info(`Remove waiting task: ${name}-${intEstimatedRunAtMs}`);
+  const intItemIndex = queueStore.arrWaitingItem.findIndex(
+    (dictItem) =>
+      dictItem.name === name && dictItem.estimated_run_at_ms === intEstimatedRunAtMs,
+  );
+  if (intItemIndex === -1) {
+    return;
   }
+
+  queueStore.arrWaitingItem.splice(intItemIndex, 1);
+  queueStore.refreshListItem();
 }
 </script>
 

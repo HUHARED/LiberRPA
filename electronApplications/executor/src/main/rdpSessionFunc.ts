@@ -1,7 +1,8 @@
 // FileName: rdpSessionFunc.ts
 
 import { is } from "@electron-toolkit/utils";
-import type { spawn, ChildProcessWithoutNullStreams } from "child_process";
+import { spawn } from "child_process";
+import type { ChildProcessWithoutNullStreams } from "child_process";
 import path from "path";
 
 import { loggerMain } from "./logger";
@@ -17,7 +18,7 @@ function getScriptFolderPath(): string {
 
 const strScriptFolderPath = getScriptFolderPath();
 
-export async function runSessionListener(): Promise<void> {
+export function runSessionListener(): void {
   loggerMain.debug("--runSessionListener--");
 
   const strScriptPath = path.join(strScriptFolderPath, "ListenSession.py");
@@ -40,7 +41,7 @@ export async function runSessionListener(): Promise<void> {
         ...process.env,
       },
       stdio: ["pipe", "pipe", "pipe"],
-    }
+    },
   );
 
   let strEventCache: string = "";
@@ -95,7 +96,7 @@ export async function runSessionListener(): Promise<void> {
   return;
 }
 
-async function setSession(): Promise<void> {
+function setSession(): void {
   loggerMain.debug("--setSession--");
 
   const strScriptPath = path.join(strScriptFolderPath, "SetSession.py");
@@ -118,7 +119,7 @@ async function setSession(): Promise<void> {
         ...process.env,
       },
       stdio: ["pipe", "pipe", "pipe"],
-    }
+    },
   );
 
   processPySetSession.stdout.on("data", (data) => {
@@ -137,7 +138,7 @@ async function setSession(): Promise<void> {
   return;
 }
 
-export async function setResolution(width: number, height: number): Promise<void> {
+export function setResolution(width: number, height: number): void {
   loggerMain.debug("--setResolution--");
 
   const strScriptPath = path.join(strScriptFolderPath, "SetResolution.py");
@@ -160,7 +161,7 @@ export async function setResolution(width: number, height: number): Promise<void
         ...process.env,
       },
       stdio: ["pipe", "pipe", "pipe"],
-    }
+    },
   );
 
   processPySetResolution.stdout.on("data", (data) => {
@@ -195,22 +196,26 @@ function moveMouse(): void {
 
   const strScriptPath = path.join(strScriptFolderPath, "MoveMouse.py");
 
-  processPyMoveMouse = spawn(path.join(strDefaultPythonEnvironmentPath, "python.exe"), [strScriptPath], {
-    env: {
-      PATH: [
-        strDefaultPythonEnvironmentPath,
-        path.join(strDefaultPythonEnvironmentPath, "Library", "mingw-w64", "bin"),
-        path.join(strDefaultPythonEnvironmentPath, "Library", "usr", "bin"),
-        path.join(strDefaultPythonEnvironmentPath, "Library", "bin"),
-        path.join(strDefaultPythonEnvironmentPath, "Scripts"),
-        path.join(strDefaultPythonEnvironmentPath, "bin"),
-        process.env.PATH,
-      ].join(";"),
-      PYTHONPATH: [strScriptFolderPath].join(";"),
-      ...process.env,
+  processPyMoveMouse = spawn(
+    path.join(strDefaultPythonEnvironmentPath, "python.exe"),
+    [strScriptPath],
+    {
+      env: {
+        PATH: [
+          strDefaultPythonEnvironmentPath,
+          path.join(strDefaultPythonEnvironmentPath, "Library", "mingw-w64", "bin"),
+          path.join(strDefaultPythonEnvironmentPath, "Library", "usr", "bin"),
+          path.join(strDefaultPythonEnvironmentPath, "Library", "bin"),
+          path.join(strDefaultPythonEnvironmentPath, "Scripts"),
+          path.join(strDefaultPythonEnvironmentPath, "bin"),
+          process.env.PATH,
+        ].join(";"),
+        PYTHONPATH: [strScriptFolderPath].join(";"),
+        ...process.env,
+      },
+      stdio: ["pipe", "pipe", "pipe"],
     },
-    stdio: ["pipe", "pipe", "pipe"],
-  });
+  );
 
   processPyMoveMouse.stdout.on("data", (data) => {
     loggerMain.debug(`[MoveMouse] ${data}`);

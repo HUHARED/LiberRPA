@@ -1,4 +1,5 @@
 // FileName: index.ts
+
 import {
   app,
   shell,
@@ -40,7 +41,8 @@ import {
   selectProjectLogFolder,
 } from "./commonFunc";
 import {
-  initializeTables,
+  initializeDatabase,
+  closeDatabase,
   dbSelectProjectNames,
   dbSelectProjectVersions,
   dbSelectProjectDetail,
@@ -56,7 +58,7 @@ import {
   dbSelectLimitHistoryList,
   dbSelectCountHistoryRunning,
   dbSelectProjectNewestVersionDetail,
-  dbUpdateHistoryDetail_unknown,
+  dbMarkRunningHistoryInterrupted,
 } from "./database";
 import {
   fileSelectPackageAndExtractToTempFolder,
@@ -72,10 +74,10 @@ import {
   logCleanVideoBySize,
 } from "./logCleanFunc";
 import { runSessionListener, setResolution } from "./rdpSessionFunc";
-import { DictInvokeResult, DictExecutorConfig } from "../shared/interface";
+import type { DictInvokeResult } from "../shared/interface";
 
-initializeTables();
-dbUpdateHistoryDetail_unknown();
+initializeDatabase();
+dbMarkRunningHistoryInterrupted();
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
@@ -108,7 +110,7 @@ function createWindow(): void {
     if (dictConfigExecutor["projectLogFolderPath"] === "") {
       dictConfigExecutor["projectLogFolderPath"] = dictConfigBasic["outputLogPath"].replace(
         "\\BuiltInTools",
-        "\\Executor"
+        "\\Executor",
       );
     }
 
@@ -131,7 +133,9 @@ function createWindow(): void {
   webContentsObj.setWindowOpenHandler((details) => {
     loggerMain.info("Open: " + details.url);
     // Open the URL in the user's default browser
-    shell.openExternal(details.url);
+    void shell.openExternal(details.url).catch((e: unknown) => {
+      loggerMain.error(`Failed to open URL ${details.url}: ${String(e)}`);
+    });
     // Deny creating a new window in the app
     return { action: "deny" };
   });
@@ -140,284 +144,303 @@ function createWindow(): void {
   // Load the remote URL for development or the local html file for production.
   if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
     loggerMain.info("development mode");
-    mainWindow.loadURL(process.env["ELECTRON_RENDERER_URL"]);
+    void mainWindow.loadURL(process.env["ELECTRON_RENDERER_URL"]).catch((e: unknown) => {
+      loggerMain.error(`Failed to load the development Renderer: ${String(e)}`);
+    });
   } else {
     loggerMain.info("production mode");
-    mainWindow.loadFile(join(__dirname, "../renderer/index.html"));
+    void mainWindow
+      .loadFile(join(__dirname, "../renderer/index.html"))
+      .catch((e: unknown) => {
+        loggerMain.error(`Failed to load the packaged Renderer: ${String(e)}`);
+      });
   }
 }
 
 // This method will be called when Electron has finished initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-app.whenReady().then(() => {
-  // Set app user model id for windows
-  electronApp.setAppUserModelId("com.liberrpa.executor");
+void app
+  .whenReady()
+  .then(() => {
+    // Set app user model id for windows
+    electronApp.setAppUserModelId("com.liberrpa.executor");
 
-  // build our tray icon
-  const trayIcon = nativeImage.createFromPath(icon);
-  tray = new Tray(trayIcon);
+    // build our tray icon
+    const trayIcon = nativeImage.createFromPath(icon);
+    tray = new Tray(trayIcon);
 
-  const trayMenu = Menu.buildFromTemplate([
-    {
-      label: "Show",
-      click: (): void => {
-        mainWindow?.show();
+    const trayMenu = Menu.buildFromTemplate([
+      {
+        label: "Show",
+        click: (): void => {
+          mainWindow?.show();
+        },
       },
-    },
-    {
-      label: "Exit",
-      click: (): void => {
-        (app as any).isQuitting = true;
-        app.quit();
+      {
+        label: "Exit",
+        click: (): void => {
+          (app as any).isQuitting = true;
+          app.quit();
+        },
       },
-    },
-  ]);
+    ]);
 
-  tray.setContextMenu(trayMenu);
-  tray.setToolTip("LiberRPA Executor");
+    tray.setContextMenu(trayMenu);
+    tray.setToolTip("LiberRPA Executor");
 
-  // clicking the icon toggles the window
-  tray.on("click", (): void => {
-    if (mainWindow) {
-      if (mainWindow.isVisible()) {
-        mainWindow.hide();
-      } else {
-        mainWindow.show();
-      }
-    }
-  });
-
-  const displays = screen.getAllDisplays();
-  if (displays.length === 0) {
-    loggerMain.info("Have no screen.");
-  } else {
-    const mainDisplay = displays.find(
-      (display) => display.bounds.x === 0 && display.bounds.y === 0
-    );
-    if (!mainDisplay) {
-      throw new Error("Not found main screen.");
-    } else {
-      screen.on("display-metrics-changed", () => {
-        const { width, height } = screen.getPrimaryDisplay().size;
-        loggerMain.info(`Display metrics changed. Resolution: ${width}x${height}`);
-        if (
-          dictConfigExecutor.keepRdpSession &&
-          width !== dictConfigExecutor.keepRdpSessionWidth &&
-          height !== dictConfigExecutor.keepRdpSessionHeight
-        ) {
-          loggerMain.info("Need to set resolution.");
-          // NOTE: It not works in Hyper-V Enhenced session.
-          setResolution(
-            dictConfigExecutor.keepRdpSessionWidth,
-            dictConfigExecutor.keepRdpSessionHeight
-          );
+    // clicking the icon toggles the window
+    tray.on("click", (): void => {
+      if (mainWindow) {
+        if (mainWindow.isVisible()) {
+          mainWindow.hide();
+        } else {
+          mainWindow.show();
         }
-      });
-    }
-  }
-
-  // Default open or close DevTools by F12 in development and ignore CommandOrControl + R in production. See https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
-  app.on("browser-window-created", (_event, window) => {
-    optimizer.watchWindowShortcuts(window);
-  });
-
-  ipcMain.on("send-from-renderer-log", (_event, { level, message }) =>
-    loggerMain.log(level, "[Renderer] " + message)
-  );
-
-  ipcMain.on("send-from-renderer", (_event, command: string, data?: any): void => {
-    loggerMain.debug(`[send-from-renderer] (${command}) ${JSON.stringify(data, null, 2)}`);
-    try {
-      switch (command) {
-        /* Setting */
-        case "send:open-project-log-folder-path":
-          openProjectLogFolderPath(data);
-          break;
-
-        case "send:save-executor-config":
-          saveExecutorConfigDict(data);
-          // Update dictConfigExecutor due to other modules need it.
-          for (const [key, value] of Object.entries(data as DictExecutorConfig)) {
-            dictConfigExecutor[key] = value;
-          }
-          break;
-
-        default:
-          loggerMain.error(`An unidentified command in send-from-renderer: ${command}.`);
-          break;
       }
-    } catch (err) {
-      loggerMain.error(`Error running command: ${command}`, err);
-    }
-  });
+    });
 
-  ipcMain.handle(
-    "invoke-from-renderer",
-    async (_event, command: string, data?: any): Promise<DictInvokeResult> => {
+    const displays = screen.getAllDisplays();
+    if (displays.length === 0) {
+      loggerMain.info("Have no screen.");
+    } else {
+      const mainDisplay = displays.find(
+        (display) => display.bounds.x === 0 && display.bounds.y === 0,
+      );
+      if (!mainDisplay) {
+        throw new Error("Not found main screen.");
+      } else {
+        screen.on("display-metrics-changed", () => {
+          const { width, height } = screen.getPrimaryDisplay().size;
+          loggerMain.info(`Display metrics changed. Resolution: ${width}x${height}`);
+          if (
+            dictConfigExecutor.keepRdpSession &&
+            width !== dictConfigExecutor.keepRdpSessionWidth &&
+            height !== dictConfigExecutor.keepRdpSessionHeight
+          ) {
+            loggerMain.info("Need to set resolution.");
+            // NOTE: It not works in Hyper-V Enhenced session.
+            setResolution(
+              dictConfigExecutor.keepRdpSessionWidth,
+              dictConfigExecutor.keepRdpSessionHeight,
+            );
+          }
+        });
+      }
+    }
+
+    // Default open or close DevTools by F12 in development and ignore CommandOrControl + R in production. See https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
+    app.on("browser-window-created", (_event, window) => {
+      optimizer.watchWindowShortcuts(window);
+    });
+
+    ipcMain.on("send-from-renderer-log", (_event, { level, message }) =>
+      loggerMain.log(level, "[Renderer] " + message),
+    );
+
+    ipcMain.on("send-from-renderer", (_event, command: string, data?: any): void => {
       loggerMain.debug(
-        `[invoke-from-renderer] (${command}) ${JSON.stringify(data, null, 2)}`
+        `[send-from-renderer] (${command}) ${JSON.stringify(data, null, 2)}`,
       );
       try {
-        let temp: any;
         switch (command) {
-          /* Multiple modules need. */
-
-          case "invoke:pythonRun": {
-            temp = await pythonRun(data, webContentsObj);
-            break;
-          }
-
-          /* Project Local Package */
-
-          case "invoke:fileSelectPackageAndExtractToTempFolder": {
-            temp = await fileSelectPackageAndExtractToTempFolder();
-            break;
-          }
-
-          case "invoke:fileDeleteTempFolder": {
-            temp = await fileDeleteTempFolder();
-            break;
-          }
-
-          case "invoke:fileMoveTempFilesToExecutorPackage": {
-            temp = await fileMoveTempFilesToExecutorPackage(data.name, data.version);
-            break;
-          }
-
-          case "invoke:fileDeleteExecutorPackage": {
-            temp = await fileDeleteExecutorPackage(data.name, data.version);
-            break;
-          }
-
-          case "invoke:dbSelectProjectNames": {
-            temp = dbSelectProjectNames();
-            break;
-          }
-
-          case "invoke:dbSelectProjectVersions": {
-            temp = dbSelectProjectVersions(data);
-            break;
-          }
-
-          case "invoke:dbSelectProjectDetail": {
-            temp = dbSelectProjectDetail(data.name, data.version);
-            break;
-          }
-
-          case "invoke:dbInsertProjectDetail": {
-            temp = dbInsertProjectDetail(data);
-            break;
-          }
-
-          case "invoke:dbUpdateProjectDetail": {
-            temp = dbUpdateProjectDetail(data);
-            break;
-          }
-
-          case "invoke:dbSelectProjectBindSchedulers": {
-            temp = dbSelectProjectBindSchedulers(data);
-            break;
-          }
-
-          case "invoke:dbDeleteProject": {
-            temp = dbDeleteProject(data);
-            break;
-          }
-
-          /* Task Scheduler */
-
-          case "invoke:dbSelectSchedulerList": {
-            temp = dbSelectSchedulerList();
-            break;
-          }
-
-          case "invoke:dbSelectSchedulerDetail": {
-            temp = dbSelectSchedulerDetail(data);
-            break;
-          }
-
-          case "invoke:dbInsertSchedulerDetail": {
-            temp = dbInsertSchedulerDetail(data);
-            break;
-          }
-
-          case "invoke:dbUpdateSchedulerDetail": {
-            temp = dbUpdateSchedulerDetail(data);
-            break;
-          }
-
-          case "invoke:dbDeleteScheduler": {
-            temp = dbDeleteScheduler(data);
-            break;
-          }
-
-          /* Task History */
-
-          case "invoke:dbSelectLimitHistoryList": {
-            temp = dbSelectLimitHistoryList(data);
-            break;
-          }
-
-          case "invoke:dbSelectCountHistoryRunning": {
-            temp = dbSelectCountHistoryRunning();
-            break;
-          }
-
-          case "invoke:fileOpenFolder": {
-            temp = await fileOpenFolder(data);
-            break;
-          }
-
-          case "invoke:dbSelectProjectNewestVersionDetail": {
-            temp = dbSelectProjectNewestVersionDetail(data);
-            break;
-          }
-
-          case "invoke:pythonCancel": {
-            temp = pythonCancel(data, webContentsObj);
-            break;
-          }
-
           /* Setting */
-
-          case "invoke:select-project-log-folder-path": {
-            temp = await selectProjectLogFolder();
+          case "send:open-project-log-folder-path":
+            openProjectLogFolderPath(data);
             break;
-          }
 
-          case "invoke:logCleanFolderByTimeout": {
-            temp = logCleanFolderByTimeout(data);
-            break;
-          }
-
-          case "invoke:logCleanVideoByTimeout": {
-            temp = logCleanVideoByTimeout(data);
-            break;
-          }
-
-          case "invoke:logCleanVideoBySize": {
-            temp = logCleanVideoBySize(data);
+          case "send:save-executor-config": {
+            const dictSavedConfig = saveExecutorConfigDict(data);
+            // Other Main Process modules read this shared in-memory config.
+            Object.assign(dictConfigExecutor, dictSavedConfig);
             break;
           }
 
           default:
-            throw new Error(`An unidentified command in invoke-from-renderer: ${command}.`);
+            loggerMain.error(`An unidentified command in send-from-renderer: ${command}.`);
+            break;
         }
-
-        return { success: true, data: temp };
-      } catch (e) {
+      } catch (e: unknown) {
         loggerMain.error(`Error running command: ${command}`, e);
-        return { success: false, data: (e as Error).message ? (e as Error).message : e };
       }
-    }
-  );
+    });
 
-  createWindow();
+    ipcMain.handle(
+      "invoke-from-renderer",
+      async (_event, command: string, data?: any): Promise<DictInvokeResult> => {
+        loggerMain.debug(
+          `[invoke-from-renderer] (${command}) ${JSON.stringify(data, null, 2)}`,
+        );
+        try {
+          let temp: any;
+          switch (command) {
+            /* Multiple modules need. */
 
-  app.on("activate", function () {
-    // On macOS it's common to re-create a window in the app when the dock icon is clicked and there are no other windows open.
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+            case "invoke:pythonRun": {
+              temp = await pythonRun(data, webContentsObj);
+              break;
+            }
+
+            /* Project Local Package */
+
+            case "invoke:fileSelectPackageAndExtractToTempFolder": {
+              temp = await fileSelectPackageAndExtractToTempFolder();
+              break;
+            }
+
+            case "invoke:fileDeleteTempFolder": {
+              temp = await fileDeleteTempFolder();
+              break;
+            }
+
+            case "invoke:fileMoveTempFilesToExecutorPackage": {
+              temp = await fileMoveTempFilesToExecutorPackage(data.name, data.version);
+              break;
+            }
+
+            case "invoke:fileDeleteExecutorPackage": {
+              temp = await fileDeleteExecutorPackage(data.name, data.version);
+              break;
+            }
+
+            case "invoke:dbSelectProjectNames": {
+              temp = dbSelectProjectNames();
+              break;
+            }
+
+            case "invoke:dbSelectProjectVersions": {
+              temp = dbSelectProjectVersions(data);
+              break;
+            }
+
+            case "invoke:dbSelectProjectDetail": {
+              temp = dbSelectProjectDetail(data.name, data.version);
+              break;
+            }
+
+            case "invoke:dbInsertProjectDetail": {
+              temp = dbInsertProjectDetail(data);
+              break;
+            }
+
+            case "invoke:dbUpdateProjectDetail": {
+              temp = dbUpdateProjectDetail(data);
+              break;
+            }
+
+            case "invoke:dbSelectProjectBindSchedulers": {
+              temp = dbSelectProjectBindSchedulers(data);
+              break;
+            }
+
+            case "invoke:dbDeleteProject": {
+              temp = dbDeleteProject(data);
+              break;
+            }
+
+            /* Task Scheduler */
+
+            case "invoke:dbSelectSchedulerList": {
+              temp = dbSelectSchedulerList();
+              break;
+            }
+
+            case "invoke:dbSelectSchedulerDetail": {
+              temp = dbSelectSchedulerDetail(data);
+              break;
+            }
+
+            case "invoke:dbInsertSchedulerDetail": {
+              temp = dbInsertSchedulerDetail(data);
+              break;
+            }
+
+            case "invoke:dbUpdateSchedulerDetail": {
+              temp = dbUpdateSchedulerDetail(data);
+              break;
+            }
+
+            case "invoke:dbDeleteScheduler": {
+              temp = dbDeleteScheduler(data);
+              break;
+            }
+
+            /* Task History */
+
+            case "invoke:dbSelectLimitHistoryList": {
+              temp = dbSelectLimitHistoryList(data);
+              break;
+            }
+
+            case "invoke:dbSelectCountHistoryRunning": {
+              temp = dbSelectCountHistoryRunning();
+              break;
+            }
+
+            case "invoke:fileOpenFolder": {
+              temp = await fileOpenFolder(data);
+              break;
+            }
+
+            case "invoke:dbSelectProjectNewestVersionDetail": {
+              temp = dbSelectProjectNewestVersionDetail(data);
+              break;
+            }
+
+            case "invoke:pythonCancel": {
+              temp = pythonCancel(data, webContentsObj);
+              break;
+            }
+
+            /* Setting */
+
+            case "invoke:select-project-log-folder-path": {
+              temp = await selectProjectLogFolder();
+              break;
+            }
+
+            case "invoke:logCleanFolderByTimeout": {
+              temp = logCleanFolderByTimeout(data);
+              break;
+            }
+
+            case "invoke:logCleanVideoByTimeout": {
+              temp = logCleanVideoByTimeout(data);
+              break;
+            }
+
+            case "invoke:logCleanVideoBySize": {
+              temp = logCleanVideoBySize(data);
+              break;
+            }
+
+            default:
+              throw new Error(
+                `An unidentified command in invoke-from-renderer: ${command}.`,
+              );
+          }
+
+          return { success: true, data: temp };
+        } catch (e) {
+          loggerMain.error(`Error running command: ${command}`, e);
+          return { success: false, data: (e as Error).message ? (e as Error).message : e };
+        }
+      },
+    );
+
+    createWindow();
+
+    app.on("activate", function () {
+      // On macOS it's common to re-create a window in the app when the dock icon is clicked and there are no other windows open.
+      if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    });
+  })
+  .catch((e: unknown) => {
+    loggerMain.error(`Failed to initialize Executor: ${String(e)}`);
+    app.quit();
   });
+
+app.on("before-quit", () => {
+  closeDatabase();
 });
 
 // Quit when all windows are closed, except on macOS. There, it's common for applications and their menu bar to stay active until the user quits explicitly with Cmd + Q.
@@ -428,8 +451,8 @@ app.on("window-all-closed", () => {
   }
 });
 
-function openProjectLogFolderPath(path: string): void {
-  shell.openPath(path).catch((error) => {
-    loggerMain.log("error", `Error opening log file: ${path}` + error);
+function openProjectLogFolderPath(strFolderPath: string): void {
+  void shell.openPath(strFolderPath).catch((e: unknown) => {
+    loggerMain.error(`Failed to open log folder ${strFolderPath}: ${String(e)}`);
   });
 }

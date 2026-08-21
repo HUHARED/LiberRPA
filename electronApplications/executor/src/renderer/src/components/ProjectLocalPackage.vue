@@ -156,10 +156,10 @@ import { debounce } from "lodash";
 import { loggerRenderer, invokeMain } from "../ipcOfRenderer";
 import { useProjectStore, useInformationStore, useHistoryStore } from "../store";
 import { sanitizeJsonObj } from "../commonFunc";
-import {
-  DictInvokeResult,
-  DictColumns_Project_Detail_ToInsert,
+import type {
+  DictColumns_Project_Detail_DB,
   DictColumns_Project_Detail_Run,
+  DictColumns_Project_Detail_ToInsert,
 } from "../../../shared/interface";
 
 const projectStore = useProjectStore();
@@ -178,39 +178,42 @@ onBeforeMount(async () => {
 async function importProjectPackage(): Promise<void> {
   loggerRenderer.debug("--importProjectPackage--");
 
-  const dataExtract: DictColumns_Project_Detail_ToInsert | string = await invokeMain(
-    "invoke:fileSelectPackageAndExtractToTempFolder"
+  const dataExtract = await invokeMain<DictColumns_Project_Detail_ToInsert | string>(
+    "invoke:fileSelectPackageAndExtractToTempFolder",
   );
   if (typeof dataExtract === "string") {
-    await invokeMain("invoke:fileDeleteTempFolder");
+    await invokeMain<void>("invoke:fileDeleteTempFolder");
     informationStore.showAlertMessage(dataExtract);
     return;
   }
 
-  const dataCheck: DictInvokeResult = await invokeMain("invoke:dbSelectProjectDetail", {
-    name: dataExtract["name"],
-    version: dataExtract["version"],
-  });
+  const dataCheck = await invokeMain<DictColumns_Project_Detail_DB | undefined>(
+    "invoke:dbSelectProjectDetail",
+    {
+      name: dataExtract.name,
+      version: dataExtract.version,
+    },
+  );
 
   // console.log("dataCheck", dataCheck);
 
   if (dataCheck !== undefined) {
     informationStore.showAlertMessage(
-      `${dataExtract["name"]}-${dataExtract["name"]} already exists.`
+      `${dataExtract.name}-${dataExtract.version} already exists.`,
     );
-    await invokeMain("invoke:fileDeleteTempFolder");
+    await invokeMain<void>("invoke:fileDeleteTempFolder");
     return;
   }
 
-  await invokeMain("invoke:fileMoveTempFilesToExecutorPackage", {
-    name: dataExtract["name"],
-    version: dataExtract["version"],
+  await invokeMain<void>("invoke:fileMoveTempFilesToExecutorPackage", {
+    name: dataExtract.name,
+    version: dataExtract.version,
   });
 
   await projectStore.dbInsertProjectDetail(dataExtract);
 }
 
-const debounced_SetButtonDisabled = debounce(() => {
+const debouncedSetButtonDisabled = debounce(() => {
   // Changed name or version.
   if (!projectStore.dictDetail_edit) {
     boolDetailChanged.value = false;
@@ -234,11 +237,9 @@ const debounced_SetButtonDisabled = debounce(() => {
 watch(
   () => projectStore.dictDetail_edit,
   () => {
-    // console.log("!!update");
-
-    debounced_SetButtonDisabled();
+    debouncedSetButtonDisabled();
   },
-  { deep: true }
+  { deep: true },
 );
 
 async function refreshDetail(): Promise<void> {
@@ -271,7 +272,7 @@ async function dbUpdateProjectDetail(): Promise<void> {
 async function openDeleteDialog(): Promise<void> {
   if (projectStore.dictDetail_edit) {
     loggerRenderer.info(
-      `Open delete dialog for project: ${projectStore.dictDetail_edit.id}-${projectStore.dictDetail_edit.name}-${projectStore.dictDetail_edit.version}`
+      `Open delete dialog for project: ${projectStore.dictDetail_edit.id}-${projectStore.dictDetail_edit.name}-${projectStore.dictDetail_edit.version}`,
     );
     await projectStore.dbSelectProjectBindSchedulers();
     projectStore.showDialog_delete = true;
@@ -296,7 +297,7 @@ async function runProject(): Promise<void> {
       custom_prj_args: projectStore.dictDetail_edit.custom_prj_args,
     };
 
-    await invokeMain("invoke:pythonRun", sanitizeJsonObj(dictTemp));
+    await invokeMain<void>("invoke:pythonRun", sanitizeJsonObj(dictTemp));
     await historyStore.refreshHistoryList();
   }
 }

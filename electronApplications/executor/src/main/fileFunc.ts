@@ -1,4 +1,5 @@
 // FileName: fileFunc.ts
+
 import { dialog } from "electron";
 import { exec } from "child_process";
 import path from "path";
@@ -6,13 +7,13 @@ import fs from "fs";
 import AdmZip from "adm-zip";
 
 import { strDocumentsFolderPath } from "./commonFunc";
-import { DictColumns_Project_Detail_ToInsert } from "../shared/interface";
+import type { DictColumns_Project_Detail_ToInsert } from "../shared/interface";
 
 const strTempFolderPath = path.join(strDocumentsFolderPath, "LiberRPA", "Temp");
 export const strExecutorPackageFolderPath = path.join(
   strDocumentsFolderPath,
   "LiberRPA",
-  "ExecutorPackage"
+  "ExecutorPackage",
 );
 
 function validateZipEntries(zipObj: AdmZip, targetRoot: string): void {
@@ -71,7 +72,7 @@ export async function fileSelectPackageAndExtractToTempFolder(): Promise<
         dictProjectJson["executorPackageDescription"] === undefined
       ) {
         throw new Error(
-          "executorPackageName, executorPackageVersion, executorPackageDescription should be contained in project.json"
+          "executorPackageName, executorPackageVersion, executorPackageDescription should be contained in project.json",
         );
       }
 
@@ -86,6 +87,7 @@ export async function fileSelectPackageAndExtractToTempFolder(): Promise<
         name: dictProjectJson["executorPackageName"] as string,
         version: dictProjectJson["executorPackageVersion"] as string,
         description: dictProjectJson["executorPackageDescription"] as string,
+        version_summary: "",
         timeout_min: 0,
         builtin_log_level: dictProjectFlow["logLevel"] as
           | "VERBOSE"
@@ -114,11 +116,11 @@ export async function fileDeleteTempFolder(): Promise<void> {
 
 export async function fileDeleteExecutorPackage(
   name: string,
-  version: string
+  version: string,
 ): Promise<void> {
   const strExecutorPackagePath = path.join(
     strExecutorPackageFolderPath,
-    `${name}_${version}`
+    `${name}_${version}`,
   );
   // Delete the folder if it exists.
   fs.rmSync(strExecutorPackagePath, { recursive: true, force: true });
@@ -126,7 +128,7 @@ export async function fileDeleteExecutorPackage(
 
 export async function fileMoveTempFilesToExecutorPackage(
   name: string,
-  version: string
+  version: string,
 ): Promise<void> {
   // Create the folder if it's not exist.
   fs.mkdirSync(strExecutorPackageFolderPath, { recursive: true });
@@ -135,7 +137,7 @@ export async function fileMoveTempFilesToExecutorPackage(
 
   const strExecutorPackagePath = path.join(
     strExecutorPackageFolderPath,
-    `${name}_${version}`
+    `${name}_${version}`,
   );
 
   fs.renameSync(strTempFolderPath, strExecutorPackagePath);

@@ -23,31 +23,23 @@ import TaskQueue from "./components/TaskQueue.vue";
 import TaskHistory from "./components/TaskHistory.vue";
 import Setting from "./components/Setting.vue";
 import { loggerRenderer } from "./ipcOfRenderer";
-import {
-  useSettingStore,
-  useInformationStore,
-  useSchedulerStore,
-  useQueueStore,
-} from "./store";
+import { useInformationStore, useQueueStore, useSettingStore } from "./store";
 
 const settingStore = useSettingStore();
 const informationStore = useInformationStore();
-const schedulerStore = useSchedulerStore();
 const queueStore = useQueueStore();
 
-/*
-Run schedulerStore.dbSelectSchedulerList in the root of renderer, to Initialize data for queue. 
-So even users didn't opened Task Scheduler or Task Queue, the task can also be ran.
-*/
-schedulerStore.dbSelectSchedulerList();
-
-/*
-Loop to check if there are tasks to run. 
-*/
-setInterval(async () => {
-  if (queueStore.arrListItem.length !== 0) {
-    await queueStore.checkWhetherRun_PendingItem();
+// Check whether pending Scheduler tasks have reached their run time.
+setInterval(() => {
+  if (queueStore.arrListItem.length === 0) {
+    return;
   }
+
+  void queueStore.checkWhetherRun_PendingItem().catch((e: unknown) => {
+    loggerRenderer.error(
+      `Failed to check pending tasks: ${e instanceof Error ? e.message : String(e)}`,
+    );
+  });
 }, 1000);
 
 const componentCurrent = computed(() => {
@@ -56,13 +48,13 @@ const componentCurrent = computed(() => {
     case "Project Local Package":
       return ProjectLocalPackage;
     case "Task Scheduler":
-      // onBeforeMount in TaskScheduler.vue will Initialize data.
+      // Task Scheduler refreshes its data when opened.
       return TaskScheduler;
     case "Task Queue":
-      // onBeforeMount in TaskQueue.vue will Initialize data.
+      // Task Queue displays the shared scheduling state.
       return TaskQueue;
     case "Task History":
-      // onBeforeMount in TaskHistory.vue will Initialize data.
+      // Task History loads its data through the server table.
       return TaskHistory;
     default:
       return Setting;

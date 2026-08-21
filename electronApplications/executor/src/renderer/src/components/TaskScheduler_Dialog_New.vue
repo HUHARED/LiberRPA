@@ -1,6 +1,6 @@
 <!-- FileName: TaskScheduler_Dialog_New.vue -->
 <template>
-  <v-card v-if="schedulerStore.isEditing === 'new'" title="add a task scheduler">
+  <v-card v-if="schedulerStore.isEditing === 'new'" title="Add a Task Scheduler">
     <template #text>
       <v-container
         v-if="schedulerStore.dictDetail_new"
@@ -44,6 +44,9 @@
                 hide-details
                 required
                 spellcheck="false">
+                <v-tooltip activator="parent" location="top">
+                  Interpreted using Executor time zone: {{ settingStore.timezone }}
+                </v-tooltip>
               </v-text-field>
             </v-col>
 
@@ -58,6 +61,9 @@
                 hide-details
                 required
                 spellcheck="false">
+                <v-tooltip activator="parent" location="top">
+                  Interpreted using Executor time zone: {{ settingStore.timezone }}
+                </v-tooltip>
               </v-text-field>
             </v-col>
 
@@ -294,7 +300,7 @@
                           schedulerStore.dictDetail_new.custom_prj_args,
                           arrValueCache,
                           index,
-                          arrValueCache[index]
+                          arrValueCache[index],
                         )
                       "
                       @keyup.enter="
@@ -302,7 +308,7 @@
                           schedulerStore.dictDetail_new.custom_prj_args,
                           arrValueCache,
                           index,
-                          arrValueCache[index]
+                          arrValueCache[index],
                         )
                       ">
                       <v-tooltip activator="parent" location="top">
@@ -348,10 +354,14 @@ import { VNumberInput } from "vuetify/labs/VNumberInput";
 
 import { ref, watch } from "vue";
 import { debounce } from "lodash";
-import moment from "moment";
 
 import { loggerRenderer } from "../ipcOfRenderer";
-import { useSchedulerStore, useProjectStore, useInformationStore } from "../store";
+import {
+  useSchedulerStore,
+  useProjectStore,
+  useInformationStore,
+  useSettingStore,
+} from "../store";
 import {
   generateValueNote,
   updateCusPrjArgsValue,
@@ -361,20 +371,20 @@ import {
   checkCron,
 } from "../commonFunc";
 import { arrLogLevel } from "../commonValue";
+import { parseDateTimeLocalToTimestamp } from "../time";
 
 const schedulerStore = useSchedulerStore();
 const projectStore = useProjectStore();
 const informationStore = useInformationStore();
+const settingStore = useSettingStore();
 
 const boolDetailChanged = ref(false);
-
-// console.log("Create TaskScheduler_Dialog_New.vue");
 
 const intTimeoutMin = computedTimeoutMin(schedulerStore.dictDetail_new);
 
 const arrValueCache = initCusPrjArgsValueCache(schedulerStore.dictDetail_new);
 
-const debounced_UpdateValueCahe_SetButtonDisabled = debounce(() => {
+const debouncedUpdateValueCacheAndButtonState = debounce(() => {
   // Update arrValueCache even the user didn't type a name.
   if (schedulerStore.dictDetail_new) {
     arrValueCache.value = updateCusPrjArgsValueCache(schedulerStore.dictDetail_new);
@@ -387,85 +397,87 @@ const debounced_UpdateValueCahe_SetButtonDisabled = debounce(() => {
   }
 
   if (
-    !schedulerStore.dictDetail_new ||
-    !schedulerStore.dictDetail_new.name ||
-    !schedulerStore.dictDetail_new.project_id ||
-    !schedulerStore.dictDetail_new.period_start ||
-    !schedulerStore.dictDetail_new.period_end
+    schedulerStore.dictDetail_new === undefined ||
+    schedulerStore.dictDetail_new.name === "" ||
+    schedulerStore.dictDetail_new.project_id === undefined ||
+    schedulerStore.dictDetail_new.period_start === "" ||
+    schedulerStore.dictDetail_new.period_end === ""
   ) {
-    console.log("!schedulerStore.dictDetail");
     boolDetailChanged.value = false;
     return;
   }
 
-  // period_end should later than period_start.
+  const intPeriodStartMs = parseDateTimeLocalToTimestamp(
+    schedulerStore.dictDetail_new.period_start,
+    settingStore.timezone,
+  );
+  const intPeriodEndMs = parseDateTimeLocalToTimestamp(
+    schedulerStore.dictDetail_new.period_end,
+    settingStore.timezone,
+  );
   if (
-    moment(schedulerStore.dictDetail_new.period_end, "YYYY-MM-DD HH:mm:ss").isBefore(
-      moment(schedulerStore.dictDetail_new.period_start, "YYYY-MM-DD HH:mm:ss")
-    )
+    intPeriodStartMs === undefined ||
+    intPeriodEndMs === undefined ||
+    intPeriodEndMs <= intPeriodStartMs
   ) {
     boolDetailChanged.value = false;
     return;
   }
 
-  // console.log("Update" + JSON.stringify(schedulerStore.dictDetail_new));
-
-  // console.log("Set true");
   boolDetailChanged.value = true;
 }, 300);
 
 watch(
   () => schedulerStore.dictDetail_new,
   () => {
-    debounced_UpdateValueCahe_SetButtonDisabled();
+    debouncedUpdateValueCacheAndButtonState();
   },
-  { deep: true }
+  { deep: true },
 );
 
-// Update details when project_name modified.
+// Update details when project_name is modified.
 async function whenProjectNameChanged(): Promise<void> {
-  if (schedulerStore.dictDetail_new) {
-    const project_name = schedulerStore.dictDetail_new.project_name as string;
-    loggerRenderer.info("Modified name:" + project_name);
-
-    if (schedulerStore.dictDetail_new.project_source === "local") {
-      // Utilize projectStore's some actions to get data.
-      await projectStore.dbSelectProjectVersions(project_name);
-
-      // Use the first version as default.
-      schedulerStore.dictDetail_new.project_version = projectStore.arrVersion[0].title;
-
-      // Update other values
-      await updateProjectDetailInScheduler(
-        project_name,
-        schedulerStore.dictDetail_new.project_version
-      );
-    } else {
-      // console project.
-    }
+  const dictDetail = schedulerStore.dictDetail_new;
+  if (
+    dictDetail === undefined ||
+    dictDetail.project_source !== "local" ||
+    dictDetail.project_name === undefined
+  ) {
+    return;
   }
+
+  const strProjectName = dictDetail.project_name;
+  loggerRenderer.info(`Modified Project name: ${strProjectName}`);
+  await projectStore.dbSelectProjectVersions(strProjectName);
+
+  const firstVersion = projectStore.arrVersion[0];
+  if (firstVersion === undefined) {
+    throw new Error(`No version is available for Project: ${strProjectName}`);
+  }
+
+  dictDetail.project_version = firstVersion.title;
+  await updateProjectDetailInScheduler(strProjectName, firstVersion.title);
 }
 
-// Update details when project_version modified.
+// Update details when project_version is modified.
 async function whenProjectVersionChanged(): Promise<void> {
-  if (schedulerStore.dictDetail_new) {
-    const project_version = schedulerStore.dictDetail_new.project_version as string;
-    loggerRenderer.info("Modified version:" + project_version);
-
-    if (schedulerStore.dictDetail_new.project_source === "local") {
-      await updateProjectDetailInScheduler(
-        schedulerStore.dictDetail_new.project_name as string,
-        project_version
-      );
-    } else {
-      //  console project.
-    }
+  const dictDetail = schedulerStore.dictDetail_new;
+  if (
+    dictDetail === undefined ||
+    dictDetail.project_source !== "local" ||
+    dictDetail.project_name === undefined ||
+    dictDetail.project_version === undefined
+  ) {
+    return;
   }
+
+  loggerRenderer.info(`Modified Project version: ${dictDetail.project_version}`);
+  await updateProjectDetailInScheduler(dictDetail.project_name, dictDetail.project_version);
 }
 
 async function updateProjectDetailInScheduler(
   name: string,
-  version: string
+  version: string,
 ): Promise<void> {
   // Update projectStore.dictDetail
   await projectStore.dbSelectProjectDetail(name, version);

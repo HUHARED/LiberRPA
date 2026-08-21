@@ -1,11 +1,16 @@
 // FileName: store.ts
+
 import { defineStore } from "pinia";
 import { CronExpressionParser } from "cron-parser";
-import moment from "moment";
 
 import { loggerRenderer, invokeMain } from "./ipcOfRenderer";
 import { sanitizeJsonObj } from "./commonFunc";
 import {
+  formatTimestampForDateTimeLocal,
+  getSystemTimezone,
+  parseDateTimeLocalToTimestamp,
+} from "./time";
+import type {
   DictExecutorConfig,
   DictColumns_Project_Detail_DB,
   DictColumns_Project_Detail,
@@ -25,9 +30,32 @@ import {
   Dict_History_Options_Component,
   Dict_History_Search,
   Dict_TaskQueue_ListItem,
+  TypeTaskHistoryStatus,
 } from "../../shared/interface";
 
-let datetimeLastDelete: number = new Date().getTime();
+let intLastCleanupAtMs = Date.now();
+
+function getSchedulerPeriodTimestamps({
+  periodStart,
+  periodEnd,
+  timezone,
+}: {
+  periodStart: string;
+  periodEnd: string;
+  timezone: string;
+}): { intPeriodStartMs: number; intPeriodEndMs: number } {
+  const intPeriodStartMs = parseDateTimeLocalToTimestamp(periodStart, timezone);
+  const intPeriodEndMs = parseDateTimeLocalToTimestamp(periodEnd, timezone);
+
+  if (intPeriodStartMs === undefined || intPeriodEndMs === undefined) {
+    throw new Error(`Invalid Scheduler period for time zone '${timezone}'.`);
+  }
+  if (intPeriodEndMs <= intPeriodStartMs) {
+    throw new Error("Scheduler period end must be later than its start.");
+  }
+
+  return { intPeriodStartMs, intPeriodEndMs };
+}
 
 export const useSettingStore = defineStore("setting", {
   state: () => {
@@ -47,31 +75,31 @@ export const useSettingStore = defineStore("setting", {
 
       projectLogFolderPath: "" as string,
 
-      timezone: "" as string,
+      timezone: getSystemTimezone(),
     };
   },
   getters: {},
   actions: {
     initializeSetting(dictConfigExecutor: DictExecutorConfig): void {
-      this.theme = dictConfigExecutor["theme"];
-      this.keepRdpSession = dictConfigExecutor["keepRdpSession"];
-      this.keepRdpSessionWidth = dictConfigExecutor["keepRdpSessionWidth"];
-      this.keepRdpSessionHeight = dictConfigExecutor["keepRdpSessionHeight"];
-      this.logTimeoutEnable = dictConfigExecutor["logTimeoutEnable"];
-      this.logTimeoutDays = dictConfigExecutor["logTimeoutDays"];
-      this.videoTimeoutEnable = dictConfigExecutor["videoTimeoutEnable"];
-      this.videoTimeoutDays = dictConfigExecutor["videoTimeoutDays"];
-      this.videoSizeEnable = dictConfigExecutor["videoSizeEnable"];
-      this.videoSizeGB = dictConfigExecutor["videoSizeGB"];
-      this.projectLogFolderPath = dictConfigExecutor["projectLogFolderPath"];
-      this.timezone = dictConfigExecutor["timezone"];
+      this.theme = dictConfigExecutor.theme;
+      this.keepRdpSession = dictConfigExecutor.keepRdpSession;
+      this.keepRdpSessionWidth = dictConfigExecutor.keepRdpSessionWidth;
+      this.keepRdpSessionHeight = dictConfigExecutor.keepRdpSessionHeight;
+      this.logTimeoutEnable = dictConfigExecutor.logTimeoutEnable;
+      this.logTimeoutDays = dictConfigExecutor.logTimeoutDays;
+      this.videoTimeoutEnable = dictConfigExecutor.videoTimeoutEnable;
+      this.videoTimeoutDays = dictConfigExecutor.videoTimeoutDays;
+      this.videoSizeEnable = dictConfigExecutor.videoSizeEnable;
+      this.videoSizeGB = dictConfigExecutor.videoSizeGB;
+      this.projectLogFolderPath = dictConfigExecutor.projectLogFolderPath;
+      this.timezone = dictConfigExecutor.timezone;
     },
 
     async selectNewProjectLogFolderPath(): Promise<void> {
-      const result: string | null = await invokeMain(
-        "invoke:select-project-log-folder-path"
+      const result = await invokeMain<string | null>(
+        "invoke:select-project-log-folder-path",
       );
-      if (result) {
+      if (result !== null) {
         this.projectLogFolderPath = result;
       }
     },
@@ -80,29 +108,27 @@ export const useSettingStore = defineStore("setting", {
       // Check if there are logs or videos need to be deleted.
 
       if (!this.logTimeoutEnable && !this.videoTimeoutEnable && !this.videoSizeEnable) {
-        loggerRenderer.debug("Not need to delete log and video files.");
+        loggerRenderer.debug("No log or video files need to be deleted.");
         return;
       }
 
-      const intInterval = Math.round(
-        (new Date().getTime() - datetimeLastDelete) / 1000 / 60
-      );
+      const intInterval = Math.round((Date.now() - intLastCleanupAtMs) / 1000 / 60);
       loggerRenderer.debug(`Since last delete: ${intInterval} minutes.`);
 
       if (intInterval < 60) {
         return;
       }
 
-      datetimeLastDelete = new Date().getTime();
+      intLastCleanupAtMs = Date.now();
 
       if (this.logTimeoutEnable) {
-        await invokeMain("invoke:logCleanFolderByTimeout", this.logTimeoutDays);
+        await invokeMain<void>("invoke:logCleanFolderByTimeout", this.logTimeoutDays);
       }
       if (this.videoTimeoutEnable) {
-        await invokeMain("invoke:logCleanVideoByTimeout", this.videoTimeoutDays);
+        await invokeMain<void>("invoke:logCleanVideoByTimeout", this.videoTimeoutDays);
       }
       if (this.videoSizeEnable) {
-        await invokeMain("invoke:logCleanVideoBySize", this.videoSizeGB);
+        await invokeMain<void>("invoke:logCleanVideoBySize", this.videoSizeGB);
       }
     },
   },
@@ -158,7 +184,7 @@ export const useProjectStore = defineStore("project", {
       if (this.arrName.length === 0) {
         this.resetVersionAndDetail();
 
-        const arrRows: { name: string }[] = await invokeMain("invoke:dbSelectProjectNames");
+        const arrRows = await invokeMain<{ name: string }[]>("invoke:dbSelectProjectNames");
         // Use idTemp for Vueify component to sort, get name when click.
         let idTemp = 0;
         this.dictIdToName = {};
@@ -177,9 +203,9 @@ export const useProjectStore = defineStore("project", {
     async dbSelectProjectVersions(name: string): Promise<void> {
       this.resetVersionAndDetail();
 
-      const arrRows: { version: string }[] = await invokeMain(
+      const arrRows = await invokeMain<{ version: string }[]>(
         "invoke:dbSelectProjectVersions",
-        name
+        name,
       );
       // Initialize versions:
       let idTemp = 0;
@@ -208,48 +234,49 @@ export const useProjectStore = defineStore("project", {
 
     async dbSelectProjectDetail(name: string, version: string): Promise<void> {
       this.resetDetail();
-      const dictRow: DictColumns_Project_Detail_DB = await invokeMain(
+      const dictRow = await invokeMain<DictColumns_Project_Detail_DB | undefined>(
         "invoke:dbSelectProjectDetail",
-        {
-          name,
-          version,
-        }
+        { name, version },
       );
+      if (dictRow === undefined) {
+        throw new Error(`Project not found: ${name}-${version}`);
+      }
 
-      // Initialize Details:
       this.dictDetail_edit = {
         id: dictRow.id,
         name: dictRow.name,
         version: dictRow.version,
         description: dictRow.description,
+        version_summary: dictRow.version_summary,
         timeout_min: dictRow.timeout_min,
         builtin_log_level: dictRow.builtin_log_level,
         builtin_record_video: dictRow.builtin_record_video === 1,
         builtin_stop_shortcut: dictRow.builtin_stop_shortcut === 1,
         builtin_highlight_ui: dictRow.builtin_highlight_ui === 1,
         custom_prj_args: dictRow.custom_prj_args ? JSON.parse(dictRow.custom_prj_args) : [],
-        created_at: dictRow.created_at,
-        updated_at: dictRow.updated_at,
+        created_at_ms: dictRow.created_at_ms,
+        updated_at_ms: dictRow.updated_at_ms,
       };
       // loggerRenderer.debug(JSON.stringify(this.dictDetail, null, 2));
       this.detailCache_edit = JSON.stringify(this.dictDetail_edit);
     },
 
     async dbInsertProjectDetail(
-      dictDetail: DictColumns_Project_Detail_ToInsert
+      dictDetail: DictColumns_Project_Detail_ToInsert,
     ): Promise<void> {
-      await invokeMain("invoke:dbInsertProjectDetail", dictDetail);
+      await invokeMain<void>("invoke:dbInsertProjectDetail", dictDetail);
       this.arrName = [];
       await this.dbSelectProjectNames();
     },
 
     async dbUpdateProjectDetail(): Promise<void> {
-      if (this.dictDetail_edit) {
+      if (this.dictDetail_edit !== undefined) {
         const dictTemp: DictColumns_Project_Detail_ToUpdate = {
           id: this.dictDetail_edit.id,
           name: this.dictDetail_edit.name,
           version: this.dictDetail_edit.version,
           description: this.dictDetail_edit.description,
+          version_summary: this.dictDetail_edit.version_summary,
           timeout_min: this.dictDetail_edit.timeout_min,
           builtin_log_level: this.dictDetail_edit.builtin_log_level,
           builtin_record_video: this.dictDetail_edit.builtin_record_video ? 1 : 0,
@@ -257,16 +284,16 @@ export const useProjectStore = defineStore("project", {
           builtin_highlight_ui: this.dictDetail_edit.builtin_highlight_ui ? 1 : 0,
           custom_prj_args: JSON.stringify(this.dictDetail_edit.custom_prj_args),
         };
-        await invokeMain("invoke:dbUpdateProjectDetail", dictTemp);
+        await invokeMain<void>("invoke:dbUpdateProjectDetail", dictTemp);
         // Then the vue file will refresh project detail due to the name, version variables are managed by it.
       }
     },
 
     async dbSelectProjectBindSchedulers(): Promise<void> {
-      if (this.dictDetail_edit) {
-        const arrRows: { name: string }[] = await invokeMain(
+      if (this.dictDetail_edit !== undefined) {
+        const arrRows = await invokeMain<{ name: string }[]>(
           "invoke:dbSelectProjectBindSchedulers",
-          this.dictDetail_edit.id
+          this.dictDetail_edit.id,
         );
         this.arrBindScheduler = arrRows.map((row) => {
           const dictTemp = {
@@ -278,13 +305,13 @@ export const useProjectStore = defineStore("project", {
     },
 
     async dbDeleteProject(): Promise<void> {
-      if (this.dictDetail_edit) {
+      if (this.dictDetail_edit !== undefined) {
         loggerRenderer.info(
-          `Delete project: ${this.dictDetail_edit.id}-${this.dictDetail_edit.name}-${this.dictDetail_edit.version}`
+          `Delete project: ${this.dictDetail_edit.id}-${this.dictDetail_edit.name}-${this.dictDetail_edit.version}`,
         );
-        await invokeMain("invoke:dbDeleteProject", this.dictDetail_edit.id);
+        await invokeMain<void>("invoke:dbDeleteProject", this.dictDetail_edit.id);
 
-        await invokeMain("invoke:fileDeleteExecutorPackage", {
+        await invokeMain<void>("invoke:fileDeleteExecutorPackage", {
           name: this.dictDetail_edit.name,
           version: this.dictDetail_edit.version,
         });
@@ -309,13 +336,12 @@ export const useSchedulerStore = defineStore("scheduler", {
     return {
       arrListItem: [] as DictColumns_Scheduler_ListItem[],
 
-      // edit and new card use a same size dialog.
+      // Edit and New use the same dialog size.
       showDialog_edit_new: false as boolean,
       isEditing: undefined as undefined | "edit" | "new",
       dictDetail_edit: undefined as DictColumns_Scheduler_Detail | undefined,
       detailCache_edit: undefined as string | undefined,
 
-      // delete use another dialog.
       showDialog_delete: false as boolean,
       dictDetail_new: undefined as DictColumns_Scheduler_Detail_BeforeInsert | undefined,
     };
@@ -323,32 +349,29 @@ export const useSchedulerStore = defineStore("scheduler", {
   getters: {},
   actions: {
     async dbSelectSchedulerList(): Promise<void> {
-      // Only run it if it's the first swtich to Task Scheduler tab, or the data indeed needs to refresh.
       if (this.arrListItem.length === 0) {
-        const arrRows: DictColumns_Scheduler_ListItem_DB[] = await invokeMain(
-          "invoke:dbSelectSchedulerList"
+        const arrRow = await invokeMain<DictColumns_Scheduler_ListItem_DB[]>(
+          "invoke:dbSelectSchedulerList",
         );
-        this.arrListItem = arrRows.map((row) => {
-          const dictTemp: DictColumns_Scheduler_ListItem = {
-            name: row.name,
-            project_source: row.project_source,
-            project_name: row.project_name,
-            project_version: row.project_version,
-            cron: row.cron,
-            enable: row.enable === 1,
-            period_start: row.period_start,
-            period_end: row.period_end,
-            when_others_running: row.when_others_running,
+
+        this.arrListItem = arrRow.map((dictRow) => {
+          return {
+            name: dictRow.name,
+            project_source: dictRow.project_source,
+            project_name: dictRow.project_name,
+            project_version: dictRow.project_version,
+            cron: dictRow.cron,
+            enable: dictRow.enable === 1,
+            period_start_ms: dictRow.period_start_ms,
+            period_end_ms: dictRow.period_end_ms,
+            when_others_running: dictRow.when_others_running,
           };
-          return dictTemp;
         });
-        // loggerRenderer.debug(JSON.stringify(this.arrListItem, null, 2));
       }
 
-      /* Update data of queueStore. */
       const queueStore = useQueueStore();
       queueStore.updateStrategyWhenOthersRunning();
-      queueStore.ResetPendingItem();
+      queueStore.resetPendingItem();
       queueStore.refreshListItem();
     },
 
@@ -360,11 +383,15 @@ export const useSchedulerStore = defineStore("scheduler", {
     },
 
     async dbSelectSchedulerDetail(name: string): Promise<void> {
-      const dictRow: DictColumns_Scheduler_Detail_DB = await invokeMain(
+      const dictRow = await invokeMain<DictColumns_Scheduler_Detail_DB | undefined>(
         "invoke:dbSelectSchedulerDetail",
-        name
+        name,
       );
+      if (dictRow === undefined) {
+        throw new Error(`Task Scheduler not found: ${name}`);
+      }
 
+      const settingStore = useSettingStore();
       this.dictDetail_edit = {
         id: dictRow.id,
         name: dictRow.name,
@@ -374,8 +401,14 @@ export const useSchedulerStore = defineStore("scheduler", {
         project_version: dictRow.project_version,
         cron: dictRow.cron,
         when_others_running: dictRow.when_others_running,
-        period_start: dictRow.period_start,
-        period_end: dictRow.period_end,
+        period_start: formatTimestampForDateTimeLocal(
+          dictRow.period_start_ms,
+          settingStore.timezone,
+        ),
+        period_end: formatTimestampForDateTimeLocal(
+          dictRow.period_end_ms,
+          settingStore.timezone,
+        ),
         enable: dictRow.enable === 1,
         timeout_min: dictRow.timeout_min,
         builtin_log_level: dictRow.builtin_log_level,
@@ -383,72 +416,88 @@ export const useSchedulerStore = defineStore("scheduler", {
         builtin_stop_shortcut: dictRow.builtin_stop_shortcut === 1,
         builtin_highlight_ui: dictRow.builtin_highlight_ui === 1,
         custom_prj_args: dictRow.custom_prj_args ? JSON.parse(dictRow.custom_prj_args) : [],
-        created_at: dictRow.created_at,
-        updated_at: dictRow.updated_at,
+        created_at_ms: dictRow.created_at_ms,
+        updated_at_ms: dictRow.updated_at_ms,
       };
-      loggerRenderer.debug(JSON.stringify(this.dictDetail_edit, null, 2));
       this.detailCache_edit = JSON.stringify(this.dictDetail_edit);
     },
 
     async dbInsertSchedulerDetail(): Promise<void> {
-      if (this.dictDetail_new) {
-        const dictTemp: DictColumns_Scheduler_Detail_ToInsert = {
-          name: this.dictDetail_new.name,
-          project_source: this.dictDetail_new.project_source,
-          project_id: this.dictDetail_new.project_id as number,
-          cron: this.dictDetail_new.cron,
-          when_others_running: this.dictDetail_new.when_others_running,
-          period_start: this.dictDetail_new.period_start,
-          period_end: this.dictDetail_new.period_end,
-          enable: this.dictDetail_new.enable ? 1 : 0,
-          timeout_min: this.dictDetail_new.timeout_min,
-          builtin_log_level: this.dictDetail_new.builtin_log_level,
-          builtin_record_video: this.dictDetail_new.builtin_record_video ? 1 : 0,
-          builtin_stop_shortcut: this.dictDetail_new.builtin_stop_shortcut ? 1 : 0,
-          builtin_highlight_ui: this.dictDetail_new.builtin_highlight_ui ? 1 : 0,
-          custom_prj_args: JSON.stringify(this.dictDetail_new.custom_prj_args),
-        };
-        await invokeMain("invoke:dbInsertSchedulerDetail", dictTemp);
-
-        this.refreshSchedulerList();
+      if (
+        this.dictDetail_new === undefined ||
+        this.dictDetail_new.project_id === undefined
+      ) {
+        return;
       }
+
+      const settingStore = useSettingStore();
+      const { intPeriodStartMs, intPeriodEndMs } = getSchedulerPeriodTimestamps({
+        periodStart: this.dictDetail_new.period_start,
+        periodEnd: this.dictDetail_new.period_end,
+        timezone: settingStore.timezone,
+      });
+      const dictTemp: DictColumns_Scheduler_Detail_ToInsert = {
+        name: this.dictDetail_new.name,
+        project_source: this.dictDetail_new.project_source,
+        project_id: this.dictDetail_new.project_id,
+        cron: this.dictDetail_new.cron,
+        when_others_running: this.dictDetail_new.when_others_running,
+        period_start_ms: intPeriodStartMs,
+        period_end_ms: intPeriodEndMs,
+        enable: this.dictDetail_new.enable ? 1 : 0,
+        timeout_min: this.dictDetail_new.timeout_min,
+        builtin_log_level: this.dictDetail_new.builtin_log_level,
+        builtin_record_video: this.dictDetail_new.builtin_record_video ? 1 : 0,
+        builtin_stop_shortcut: this.dictDetail_new.builtin_stop_shortcut ? 1 : 0,
+        builtin_highlight_ui: this.dictDetail_new.builtin_highlight_ui ? 1 : 0,
+        custom_prj_args: JSON.stringify(this.dictDetail_new.custom_prj_args),
+      };
+      await invokeMain<void>("invoke:dbInsertSchedulerDetail", dictTemp);
+      await this.refreshSchedulerList();
     },
 
     async dbUpdateSchedulerDetail(): Promise<void> {
-      if (this.dictDetail_edit) {
-        // Save data into database and then close the dialog.
-        const dictTemp: DictColumns_Scheduler_Detail_ToUpdate = {
-          id: this.dictDetail_edit.id,
-          name: this.dictDetail_edit.name,
-          project_source: this.dictDetail_edit.project_source,
-          project_id: this.dictDetail_edit.project_id,
-          cron: this.dictDetail_edit.cron,
-          when_others_running: this.dictDetail_edit.when_others_running,
-          period_start: this.dictDetail_edit.period_start,
-          period_end: this.dictDetail_edit.period_end,
-          enable: this.dictDetail_edit.enable ? 1 : 0,
-          timeout_min: this.dictDetail_edit.timeout_min,
-          builtin_log_level: this.dictDetail_edit.builtin_log_level,
-          builtin_record_video: this.dictDetail_edit.builtin_record_video ? 1 : 0,
-          builtin_stop_shortcut: this.dictDetail_edit.builtin_stop_shortcut ? 1 : 0,
-          builtin_highlight_ui: this.dictDetail_edit.builtin_highlight_ui ? 1 : 0,
-          custom_prj_args: JSON.stringify(this.dictDetail_edit.custom_prj_args),
-        };
-        await invokeMain("invoke:dbUpdateSchedulerDetail", dictTemp);
-
-        this.refreshSchedulerList();
+      if (this.dictDetail_edit === undefined) {
+        return;
       }
+
+      const settingStore = useSettingStore();
+      const { intPeriodStartMs, intPeriodEndMs } = getSchedulerPeriodTimestamps({
+        periodStart: this.dictDetail_edit.period_start,
+        periodEnd: this.dictDetail_edit.period_end,
+        timezone: settingStore.timezone,
+      });
+      const dictTemp: DictColumns_Scheduler_Detail_ToUpdate = {
+        id: this.dictDetail_edit.id,
+        name: this.dictDetail_edit.name,
+        project_source: this.dictDetail_edit.project_source,
+        project_id: this.dictDetail_edit.project_id,
+        cron: this.dictDetail_edit.cron,
+        when_others_running: this.dictDetail_edit.when_others_running,
+        period_start_ms: intPeriodStartMs,
+        period_end_ms: intPeriodEndMs,
+        enable: this.dictDetail_edit.enable ? 1 : 0,
+        timeout_min: this.dictDetail_edit.timeout_min,
+        builtin_log_level: this.dictDetail_edit.builtin_log_level,
+        builtin_record_video: this.dictDetail_edit.builtin_record_video ? 1 : 0,
+        builtin_stop_shortcut: this.dictDetail_edit.builtin_stop_shortcut ? 1 : 0,
+        builtin_highlight_ui: this.dictDetail_edit.builtin_highlight_ui ? 1 : 0,
+        custom_prj_args: JSON.stringify(this.dictDetail_edit.custom_prj_args),
+      };
+      await invokeMain<void>("invoke:dbUpdateSchedulerDetail", dictTemp);
+      await this.refreshSchedulerList();
     },
 
     async dbDeleteScheduler(): Promise<void> {
-      if (this.dictDetail_edit) {
-        loggerRenderer.info(
-          `Delete task scheduler: ${this.dictDetail_edit.id}-${this.dictDetail_edit.name}`
-        );
-        await invokeMain("invoke:dbDeleteScheduler", this.dictDetail_edit.id);
-
-        this.refreshSchedulerList();
+      if (this.dictDetail_edit === undefined) {
+        return;
       }
+
+      loggerRenderer.info(
+        `Delete task scheduler: ${this.dictDetail_edit.id}-${this.dictDetail_edit.name}`,
+      );
+      await invokeMain<void>("invoke:dbDeleteScheduler", this.dictDetail_edit.id);
+      await this.refreshSchedulerList();
     },
   },
 });
@@ -459,9 +508,7 @@ export const useQueueStore = defineStore("queue", {
       arrListItem: [] as Dict_TaskQueue_ListItem[],
       arrWaitingItem: [] as Dict_TaskQueue_ListItem[],
 
-      dictStrategyWhenOtherRunning: {} as {
-        [key: string]: "cancel" | "wait" | "run";
-      },
+      dictStrategyWhenOtherRunning: {} as Record<string, "cancel" | "wait" | "run">,
       arrPendingItem: [] as Dict_TaskQueue_ListItem[],
 
       isChecking: false as boolean,
@@ -469,60 +516,46 @@ export const useQueueStore = defineStore("queue", {
   },
   getters: {},
   actions: {
-    ResetPendingItem(): void {
-      // Reset arrListItem by schedulerStore.arrListItem data
-      const arrTemp: Dict_TaskQueue_ListItem[] = [];
-      const momentNow = moment(new Date());
+    resetPendingItem(): void {
+      const arrPendingItem: Dict_TaskQueue_ListItem[] = [];
+      const intNowMs = Date.now();
       const schedulerStore = useSchedulerStore();
+      const settingStore = useSettingStore();
 
-      for (let index = 0; index < schedulerStore.arrListItem.length; index++) {
-        const item = schedulerStore.arrListItem[index];
-        if (item.enable === false) {
-          // It's not enabled, doesn't need to run.
+      for (const dictScheduler of schedulerStore.arrListItem) {
+        if (!dictScheduler.enable) {
           continue;
         }
 
         try {
-          // Calculate the next run time. If current date is later than period_start, use the current date.
-          const interval = CronExpressionParser.parse(item.cron, {
-            currentDate: moment(item.period_start, "YYYY-MM-DD HH:mm:ss").isBefore(
-              momentNow
-            )
-              ? momentNow.format("YYYY-MM-DD HH:mm:ss")
-              : item.period_start,
-            endDate: item.period_end,
+          const intCurrentDateMs = Math.max(intNowMs, dictScheduler.period_start_ms - 1);
+          const intervalObj = CronExpressionParser.parse(dictScheduler.cron, {
+            currentDate: new Date(intCurrentDateMs),
+            endDate: new Date(dictScheduler.period_end_ms),
+            tz: settingStore.timezone,
           });
 
-          const strEstimatedRunTime = moment(interval.next().toDate()).format(
-            "YYYY-MM-DD HH:mm:ss"
-          );
-          // console.log(item.name + " - " + strEstimatedRunTime);
-
-          const dictTemp: Dict_TaskQueue_ListItem = {
-            name: item.name,
-            project_source: item.project_source,
-            project_name: item.project_name,
-            project_version: item.project_version,
-            estimated_run_time: strEstimatedRunTime,
+          arrPendingItem.push({
+            name: dictScheduler.name,
+            project_source: dictScheduler.project_source,
+            project_name: dictScheduler.project_name,
+            project_version: dictScheduler.project_version,
+            estimated_run_at_ms: intervalObj.next().toDate().getTime(),
             waiting: false,
-          };
-
-          arrTemp.push(dictTemp);
-        } catch (e) {
-          loggerRenderer.error((e as Error).message);
-          continue;
+          });
+        } catch (e: unknown) {
+          const strMessage = e instanceof Error ? e.message : String(e);
+          loggerRenderer.debug(
+            `No pending run is available for Scheduler '${dictScheduler.name}': ${strMessage}`,
+          );
         }
       }
 
-      /* console.log(JSON.stringify(arrTemp, null, 2));
-      console.log(
-        "Sorted: ",
-        arrTemp.sort((a, b) => a.estimated_run_time.localeCompare(b.estimated_run_time))
-      ); */
-
-      arrTemp.sort((a, b) => a.estimated_run_time.localeCompare(b.estimated_run_time));
-
-      this.arrPendingItem = arrTemp;
+      arrPendingItem.sort(
+        (dictLeft, dictRight) =>
+          dictLeft.estimated_run_at_ms - dictRight.estimated_run_at_ms,
+      );
+      this.arrPendingItem = arrPendingItem;
     },
 
     async checkWhetherRun_PendingItem(): Promise<void> {
@@ -530,93 +563,61 @@ export const useQueueStore = defineStore("queue", {
         return;
       }
 
-      // Set the flag, if the previous check doesn't end in the interval, skip the new check.
-      console.log(`Check Pending Start at ${new Date()}`);
-
       this.isChecking = true;
       let boolNeedsRefresh = false;
 
-      /* The check starts. */
+      try {
+        const intNowMs = Date.now();
+        let boolOthersRunning = await this.checkOthersRunning_BeforeLoop();
 
-      const momentNow = moment(new Date());
-      let boolOthersRunning = await this.checkOthersRunning_BeforeLoop();
+        // Loop from the end so due entries can be removed in place.
+        for (let index = this.arrPendingItem.length - 1; index >= 0; index--) {
+          const dictQueueItem = this.arrPendingItem[index];
+          if (dictQueueItem.estimated_run_at_ms > intNowMs) {
+            continue;
+          }
 
-      // Loop from end, to delete later.
-      for (let index = this.arrPendingItem.length - 1; index >= 0; index--) {
-        const item = this.arrPendingItem[index];
-        if (!moment(item.estimated_run_time, "YYYY-MM-DD HH:mm:ss").isBefore(momentNow)) {
-          // loggerRenderer.debug(`The task [${item.name}] has not reached the run time.`);
-          continue;
-        }
+          const strStrategy =
+            this.dictStrategyWhenOtherRunning[dictQueueItem.name] ?? "cancel";
+          loggerRenderer.info(
+            `Time to run task: ${dictQueueItem.name}, when_others_running: ${strStrategy}`,
+          );
 
-        loggerRenderer.info(
-          `Time to run task: ${item.name}, when_others_running: ${
-            this.dictStrategyWhenOtherRunning[item.name]
-          }`
-        );
+          if (!boolOthersRunning || strStrategy === "run") {
+            loggerRenderer.info(
+              boolOthersRunning
+                ? "Run the task."
+                : "Have no other task running, run the task.",
+            );
+            await this.runTask(dictQueueItem.name);
+            boolOthersRunning = true;
+            this.arrPendingItem.splice(index, 1);
+            boolNeedsRefresh = true;
+            continue;
+          }
 
-        if (!boolOthersRunning) {
-          loggerRenderer.info("Have no other task running, run the task.");
-
-          await this.runTask(item.name);
-          boolOthersRunning = true;
+          if (strStrategy === "wait") {
+            loggerRenderer.info("Move the task into the waiting queue.");
+            dictQueueItem.waiting = true;
+            this.arrWaitingItem.push(dictQueueItem);
+          } else {
+            loggerRenderer.info("Cancel the task because another task is running.");
+          }
 
           this.arrPendingItem.splice(index, 1);
           boolNeedsRefresh = true;
-          continue;
         }
 
-        loggerRenderer.info("Some tasks are running.");
-
-        // Other tasks are running, check "when_others_running"
-        switch (this.dictStrategyWhenOtherRunning[item.name]) {
-          case "run": {
-            loggerRenderer.info("Run the task.");
-
-            await this.runTask(item.name);
-            boolOthersRunning = true;
-
-            this.arrPendingItem.splice(index, 1);
-            boolNeedsRefresh = true;
-            continue;
-          }
-
-          case "wait": {
-            loggerRenderer.info("Move the task into arrWaitingItem.");
-
-            item.waiting = true;
-            this.arrWaitingItem.push(item);
-
-            this.arrPendingItem.splice(index, 1);
-            boolNeedsRefresh = true;
-            continue;
-          }
-
-          default: {
-            // "cancel"
-            loggerRenderer.info("Cancel the task.");
-
-            this.arrPendingItem.splice(index, 1);
-            boolNeedsRefresh = true;
-            continue;
-          }
+        if (boolNeedsRefresh) {
+          this.resetPendingItem();
+          this.refreshListItem();
         }
+      } finally {
+        this.isChecking = false;
       }
-
-      /* The check ends. */
-
-      if (boolNeedsRefresh) {
-        this.ResetPendingItem();
-        this.refreshListItem();
-      }
-
-      // Reset the flag to make the next interval can work.
-      this.isChecking = false;
     },
 
     async checkWhetherRun_WaitingItem(): Promise<void> {
-      // When a task end, check whether has waiting task can be run.
-
       const boolOthersRunning = await this.checkOthersRunning_BeforeLoop();
       if (boolOthersRunning || this.arrWaitingItem.length === 0) {
         return;
@@ -630,51 +631,52 @@ export const useQueueStore = defineStore("queue", {
 
     async checkOthersRunning_BeforeLoop(): Promise<boolean> {
       const historyStore = useHistoryStore();
-
       const boolOthersRunning = await historyStore.dbSelectCountHistoryRunning();
-      console.log(`Other tasks running: ${boolOthersRunning}`);
+      loggerRenderer.debug(`Other tasks running: ${boolOthersRunning}`);
       return boolOthersRunning;
     },
 
     async runTask(name: string): Promise<void> {
-      // Get data from schedulerStore.dictDetail_edit
       const schedulerStore = useSchedulerStore();
       await schedulerStore.dbSelectSchedulerDetail(name);
 
-      if (schedulerStore.dictDetail_edit) {
-        const dictTemp: DictColumns_Project_Detail_Run = {
-          scheduler_name: schedulerStore.dictDetail_edit.name,
-          // Only "local" now.
-          project_source: schedulerStore.dictDetail_edit.project_source,
-          id: schedulerStore.dictDetail_edit.project_id,
-          name: schedulerStore.dictDetail_edit.project_name,
-          version: schedulerStore.dictDetail_edit.project_version,
-          timeout_min: schedulerStore.dictDetail_edit.timeout_min,
-          builtin_log_level: schedulerStore.dictDetail_edit.builtin_log_level,
-          builtin_record_video: schedulerStore.dictDetail_edit.builtin_record_video,
-          builtin_stop_shortcut: schedulerStore.dictDetail_edit.builtin_stop_shortcut,
-          builtin_highlight_ui: schedulerStore.dictDetail_edit.builtin_highlight_ui,
-          custom_prj_args: schedulerStore.dictDetail_edit.custom_prj_args,
-        };
-        await invokeMain("invoke:pythonRun", sanitizeJsonObj(dictTemp));
-        const historyStore = useHistoryStore();
-        await historyStore.refreshHistoryList();
-      } else {
-        loggerRenderer.error("(!!!It should not appear.) Failure to get scheduler detail.");
+      if (schedulerStore.dictDetail_edit === undefined) {
+        throw new Error(`Failed to load Task Scheduler: ${name}`);
       }
+
+      const dictTemp: DictColumns_Project_Detail_Run = {
+        scheduler_name: schedulerStore.dictDetail_edit.name,
+        project_source: schedulerStore.dictDetail_edit.project_source,
+        id: schedulerStore.dictDetail_edit.project_id,
+        name: schedulerStore.dictDetail_edit.project_name,
+        version: schedulerStore.dictDetail_edit.project_version,
+        timeout_min: schedulerStore.dictDetail_edit.timeout_min,
+        builtin_log_level: schedulerStore.dictDetail_edit.builtin_log_level,
+        builtin_record_video: schedulerStore.dictDetail_edit.builtin_record_video,
+        builtin_stop_shortcut: schedulerStore.dictDetail_edit.builtin_stop_shortcut,
+        builtin_highlight_ui: schedulerStore.dictDetail_edit.builtin_highlight_ui,
+        custom_prj_args: schedulerStore.dictDetail_edit.custom_prj_args,
+      };
+      await invokeMain<void>("invoke:pythonRun", sanitizeJsonObj(dictTemp));
+
+      const historyStore = useHistoryStore();
+      await historyStore.refreshHistoryList();
     },
 
     updateStrategyWhenOthersRunning(): void {
       const schedulerStore = useSchedulerStore();
-      this.dictStrategyWhenOtherRunning = schedulerStore.arrListItem.reduce((acc, item) => {
-        acc[item.name] = item.when_others_running;
-        return acc;
-      }, {});
+      const dictStrategy: Record<string, "cancel" | "wait" | "run"> = {};
+
+      for (const dictScheduler of schedulerStore.arrListItem) {
+        dictStrategy[dictScheduler.name] = dictScheduler.when_others_running;
+      }
+
+      this.dictStrategyWhenOtherRunning = dictStrategy;
     },
 
     refreshListItem(): void {
       this.arrListItem = [...this.arrWaitingItem, ...this.arrPendingItem];
-      loggerRenderer.debug("Refrsh Queue List.");
+      loggerRenderer.debug("Refresh Queue List.");
     },
   },
 });
@@ -690,15 +692,14 @@ export const useHistoryStore = defineStore("history", {
       filterSource: null as "local" | "console" | null,
       filterProjectName: "" as string,
       filterProjectVersion: "" as string,
-      filterStatus: null as "running" | "completed" | "error" | "cancel" | "timeout" | null,
+      filterStatus: null as TypeTaskHistoryStatus | null,
     };
   },
   getters: {},
   actions: {
     async dbSelectLimitHistoryList(
-      options: Dict_History_Options_Component | null
+      options: Dict_History_Options_Component | null,
     ): Promise<void> {
-      console.log(options);
       if (options) {
         // Make sure this.dictOptionsCache not use a same object(memory address) with v-data-table-server's options. Otherwise the page button may not work.
 
@@ -719,12 +720,10 @@ export const useHistoryStore = defineStore("history", {
         return;
       }
 
-      console.log(JSON.stringify(this.dictOptionsCache, null, 2));
-
-      const result = (await invokeMain(
+      const result = await invokeMain<DictColumns_History_ListItem_Limit_DB>(
         "invoke:dbSelectLimitHistoryList",
-        sanitizeJsonObj(this.dictOptionsCache)
-      )) as DictColumns_History_ListItem_Limit_DB;
+        sanitizeJsonObj(this.dictOptionsCache),
+      );
       // loggerRenderer.debug(JSON.stringify(result, null, 2));
       this.arrListItem = result.rows;
       this.itemLength = result.total;
@@ -735,7 +734,7 @@ export const useHistoryStore = defineStore("history", {
     },
 
     async dbSelectCountHistoryRunning(): Promise<boolean> {
-      return (await invokeMain("invoke:dbSelectCountHistoryRunning")) as boolean;
+      return await invokeMain<boolean>("invoke:dbSelectCountHistoryRunning");
     },
   },
 });
