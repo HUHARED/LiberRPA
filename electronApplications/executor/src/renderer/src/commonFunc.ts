@@ -12,7 +12,7 @@ import type {
   TypeCustomProjectArgs,
 } from "../../shared/interface";
 
-export function generateValueNote(value: any): string {
+export function generateValueNote(value: unknown): string {
   return (
     "Original value:<br/>" +
     JSON.stringify(value, null, 0) +
@@ -31,7 +31,7 @@ export function updateCusPrjArgsValue(
 ): void {
   try {
     arrCusPrjArgs[index][1] = JSON.parse(value);
-  } catch (e) {
+  } catch {
     const informationStore = useInformationStore();
     informationStore.showAlertMessage(`It can't be deserialized: ${value}`);
     // Reset inputbox.

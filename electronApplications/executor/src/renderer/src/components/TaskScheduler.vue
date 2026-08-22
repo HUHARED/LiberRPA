@@ -103,6 +103,7 @@
 
 <script setup lang="ts">
 import { onBeforeMount } from "vue";
+import type { DataTableHeader } from "vuetify";
 import cronstrue from "cronstrue";
 
 import TaskScheduler_Dialog_Edit from "./TaskScheduler_Dialog_Edit.vue";
@@ -114,6 +115,7 @@ import { loggerRenderer } from "../ipcOfRenderer";
 import { getColor_Source } from "../commonFunc";
 import { useSchedulerStore, useSettingStore } from "../store";
 import { getDefaultSchedulerPeriod } from "../time";
+import type { DictColumns_Scheduler_ListItem } from "../../../shared/interface";
 
 const schedulerStore = useSchedulerStore();
 const settingStore = useSettingStore();
@@ -153,7 +155,7 @@ function newTaskScheduler(): void {
   schedulerStore.isEditing = "new";
 }
 
-const arrHeader = [
+const arrHeader: DataTableHeader<DictColumns_Scheduler_ListItem>[] = [
   { title: "Name", value: "name", align: "start", sortable: true },
 
   {
@@ -174,7 +176,7 @@ const arrHeader = [
   { title: "Cron", value: "cron", align: "start", sortable: true },
   { title: "Enable", value: "enable", align: "start", sortable: true },
   { title: "Actions", key: "actions", align: "start", sortable: false },
-] as any; // Vuetify's nested table-header type is not inferred correctly here.
+];
 
 function getColorEnable(enable: boolean): string {
   return enable ? "success" : "grey";

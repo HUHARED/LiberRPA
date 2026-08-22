@@ -69,7 +69,6 @@
 </template>
 
 <script setup lang="ts">
-import { VNumberInput } from "vuetify/labs/VNumberInput";
 import { useProjectStore } from "../store";
 import { computedTimeoutMin } from "../commonFunc";
 import { arrLogLevel } from "../commonValue";

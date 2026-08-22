@@ -163,12 +163,14 @@
 import { computed, ref, watch } from "vue";
 import type { Ref } from "vue";
 import { debounce } from "lodash";
+import type { DataTableHeader } from "vuetify";
 
 import { invokeMain, loggerRenderer } from "../ipcOfRenderer";
 import { fileOpenFolder, getColor_Source, sanitizeJsonObj } from "../commonFunc";
 import { useHistoryStore, useInformationStore, useSettingStore } from "../store";
 import { formatTimestamp } from "../time";
 import type {
+  DictColumns_History_ListItem_DB,
   DictColumns_Project_Detail_DB,
   DictColumns_Project_Detail_Run,
   Dict_History_Search,
@@ -209,7 +211,7 @@ watch(
   { deep: true },
 );
 
-const arrHeader = [
+const arrHeader: DataTableHeader<DictColumns_History_ListItem_DB>[] = [
   { title: "Scheduler Name", value: "scheduler_name", align: "start", sortable: true },
   {
     title: "Project",
@@ -229,7 +231,7 @@ const arrHeader = [
   { title: "End", value: "run_ended_at_ms", align: "center", sortable: true },
   { title: "Status", value: "status", align: "start", sortable: true },
   { title: "Actions", key: "actions", align: "start", sortable: false },
-] as any; // Vuetify's nested table-header type is not inferred correctly here.
+];
 
 function getColorStatus(status: TypeTaskHistoryStatus): string {
   switch (status) {

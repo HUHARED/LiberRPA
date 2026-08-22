@@ -317,8 +317,6 @@
 </template>
 
 <script setup lang="ts">
-import { VNumberInput } from "vuetify/labs/VNumberInput";
-
 import { watch, computed } from "vue";
 import { debounce } from "lodash";
 

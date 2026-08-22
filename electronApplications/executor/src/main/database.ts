@@ -81,8 +81,8 @@ export function closeDatabase(): void {
 
 function openDatabase(strDatabasePath: string): Database.Database {
   const openedDatabaseObj = new Database(strDatabasePath, {
-    verbose: (strSql: string) => {
-      loggerMain.debug(`[SQLite] ${strSql}`);
+    verbose: (message?: unknown) => {
+      loggerMain.debug(`[SQLite] ${String(message)}`);
     },
   });
   openedDatabaseObj.pragma("foreign_keys = ON");
@@ -312,6 +312,16 @@ export function dbUpdateProjectDetail(
 
 export function dbDeleteProject(id: number): Database.RunResult {
   loggerMain.debug("--dbDeleteProject--");
+
+  const arrBoundScheduler = dbSelectProjectBindSchedulers(id);
+  if (arrBoundScheduler.length !== 0) {
+    throw new Error(
+      `Cannot delete Project ${id} because it is used by Scheduler: ${arrBoundScheduler
+        .map((dictScheduler) => dictScheduler.name)
+        .join(", ")}.`,
+    );
+  }
+
   return getDatabase().prepare("DELETE FROM project_local WHERE id = ?;").run(id);
 }
 

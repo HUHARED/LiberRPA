@@ -397,8 +397,6 @@
 </template>
 
 <script setup lang="ts">
-import { VNumberInput } from "vuetify/labs/VNumberInput";
-
 import { ref, watch } from "vue";
 import { debounce } from "lodash";
 

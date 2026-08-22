@@ -61,11 +61,13 @@
 
 <script setup lang="ts">
 import { onBeforeMount } from "vue";
+import type { DataTableHeader } from "vuetify";
 
 import { getColor_Source } from "../commonFunc";
 import { loggerRenderer } from "../ipcOfRenderer";
 import { useQueueStore, useSettingStore } from "../store";
 import { formatTimestamp } from "../time";
+import type { Dict_TaskQueue_ListItem } from "../../../shared/interface";
 
 const queueStore = useQueueStore();
 const settingStore = useSettingStore();
@@ -74,7 +76,7 @@ onBeforeMount(() => {
   queueStore.refreshListItem();
 });
 
-const arrHeader = [
+const arrHeader: DataTableHeader<Dict_TaskQueue_ListItem>[] = [
   { title: "Name", value: "name", align: "start", sortable: false },
   {
     title: "Project",
@@ -98,7 +100,7 @@ const arrHeader = [
   },
   { title: "Waiting", value: "waiting", align: "start", sortable: false },
   { title: "Actions", key: "actions", align: "start", sortable: false },
-] as any; // Vuetify's nested table-header type is not inferred correctly here.
+];
 
 function getColorWaiting(waiting: boolean): string {
   return waiting ? "warning" : "grey";
