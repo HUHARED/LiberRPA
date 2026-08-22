@@ -75,7 +75,7 @@ watch(
   () => selectorStore.strJsonText,
   () => {
     validateJson();
-  }
+  },
 );
 
 // Update selectorStore.strJsonText when selectorStore.arrEleHierarchy is modified.
@@ -90,7 +90,7 @@ watch(
   () => {
     debounced_Update();
   },
-  { deep: true }
+  { deep: true },
 );
 
 function validateJson(): void {
@@ -121,7 +121,7 @@ async function copyJsonToClipboard(): Promise<void> {
     await navigator.clipboard.writeText(selectorStore.strJsonText);
     loggerRenderer.debug("JSON copied to clipboard:\n" + selectorStore.strJsonText);
   } catch (e) {
-    loggerRenderer.error("Failed to copy: " + String(error));
+    loggerRenderer.error("Failed to copy: " + String(e));
   }
 }
 
@@ -131,7 +131,7 @@ async function pasteFromClipboard(): Promise<void> {
     selectorStore.strJsonText = text;
     loggerRenderer.debug("Pasted content from clipboard:\n" + selectorStore.strJsonText);
   } catch (e) {
-    loggerRenderer.error("Failed to paste: " + String(error));
+    loggerRenderer.error("Failed to paste: " + String(e));
   }
 }
 </script>

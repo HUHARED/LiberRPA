@@ -19,5 +19,3 @@ win:
   artifactName: ${productName}.${ext}
   icon: resources/LiberRPA_icon_v3_color_UiAnalyzer_256.ico
 npmRebuild: false
-electronDownload:
-  mirror: https://npmmirror.com/mirrors/electron/
