@@ -312,11 +312,6 @@ export const useProjectStore = defineStore("project", {
         await this.dbSelectProjectNames();
         this.showDialog_delete = false;
         this.arrBindScheduler = [];
-
-        // Update scheduler list because some bound data show be null.
-        const schedulerStore = useSchedulerStore();
-        schedulerStore.arrListItem = [];
-        await schedulerStore.dbSelectSchedulerList();
       }
     },
   },

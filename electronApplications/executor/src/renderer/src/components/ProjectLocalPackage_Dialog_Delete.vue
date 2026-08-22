@@ -52,7 +52,8 @@
             v-if="projectStore.arrBindScheduler.length !== 0"
             fluid
             class="border-thin flex-column-grow-1 flex-column">
-            Some schedulers need it(remember to modify or delete them later):
+            The following Schedulers use this Project. Modify or delete them before deleting
+            the Project:
             <v-list
               :items="projectStore.arrBindScheduler"
               class="clean-space w-100"
@@ -63,7 +64,7 @@
           </v-container>
 
           <v-container v-else fluid class="border-thin flex-column-grow-1 flex-column">
-            Have no scheduler need it.
+            No Scheduler uses this Project.
           </v-container>
         </v-container>
       </template>
@@ -81,6 +82,7 @@
 
         <v-btn
           prepend-icon="mdi-delete-empty-outline"
+          :disabled="projectStore.arrBindScheduler.length !== 0"
           @click="projectStore.dbDeleteProject()">
           Delete
         </v-btn>

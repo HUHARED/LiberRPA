@@ -77,6 +77,7 @@ dbMarkRunningHistoryInterrupted();
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let webContentsObj: Electron.WebContents;
+let boolAppQuitting = false;
 
 function createWindow(): void {
   loggerMain.debug("--createWindow--");
@@ -118,8 +119,7 @@ function createWindow(): void {
   });
 
   mainWindow.on("close", (event) => {
-    if (!(app as any).isQuitting) {
-      // Otherwise a complaint will appear: Property 'isQuitting' does not exist on type 'App'.ts(2339)
+    if (!boolAppQuitting) {
       event.preventDefault();
       mainWindow?.hide();
     }
@@ -174,7 +174,6 @@ void app
       {
         label: "Exit",
         click: (): void => {
-          (app as any).isQuitting = true;
           app.quit();
         },
       },
@@ -209,8 +208,8 @@ void app
           loggerMain.info(`Display metrics changed. Resolution: ${width}x${height}`);
           if (
             dictConfigExecutor.keepRdpSession &&
-            width !== dictConfigExecutor.keepRdpSessionWidth &&
-            height !== dictConfigExecutor.keepRdpSessionHeight
+            (width !== dictConfigExecutor.keepRdpSessionWidth ||
+              height !== dictConfigExecutor.keepRdpSessionHeight)
           ) {
             loggerMain.info("Need to set resolution.");
             // NOTE: It not works in Hyper-V Enhenced session.
@@ -420,6 +419,7 @@ void app
   });
 
 app.on("before-quit", () => {
+  boolAppQuitting = true;
   closeDatabase();
 });
 
