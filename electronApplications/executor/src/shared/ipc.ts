@@ -156,7 +156,10 @@ export type DictInvokeResult<T> =
 export type DictMainMessage =
   | {
       type: "initializeSetting";
-      data: DictExecutorConfig;
+      data: {
+        config: DictExecutorConfig;
+        defaultProjectLogFolderPath: string;
+      };
     }
   | {
       type: "pythonTaskEnded";

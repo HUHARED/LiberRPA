@@ -266,10 +266,17 @@
           <div>
             Click to select the folder used for run logs.<br />
             Existing logs will not be moved.<br />
-            Check this path after copying Executor to another computer.
+            The default folder follows basic.jsonc on the current computer.
           </div>
         </v-tooltip>
       </v-text-field>
+
+      <v-btn
+        variant="tonal"
+        :disabled="settingStore.projectLogFolderPath === ''"
+        @click="settingStore.useDefaultProjectLogFolderPath()">
+        Use Default
+      </v-btn>
     </v-container>
 
     <!-- Time Zone -->
@@ -408,12 +415,27 @@ const intVideoSizeGB = computed<number>({
 
 const strProjectLogFolderPath = computed<string>({
   get() {
-    return settingStore.projectLogFolderPath;
+    return settingStore.projectLogFolderPath || settingStore.defaultProjectLogFolderPath;
   },
   set(newValue: string) {
     settingStore.projectLogFolderPath = newValue;
   },
 });
+
+const dictConfigExecutor = computed<DictExecutorConfig>(() => ({
+  theme: settingStore.theme,
+  keepRdpSession: settingStore.keepRdpSession,
+  keepRdpSessionWidth: settingStore.keepRdpSessionWidth,
+  keepRdpSessionHeight: settingStore.keepRdpSessionHeight,
+  logTimeoutEnable: settingStore.logTimeoutEnable,
+  logTimeoutDays: settingStore.logTimeoutDays,
+  videoTimeoutEnable: settingStore.videoTimeoutEnable,
+  videoTimeoutDays: settingStore.videoTimeoutDays,
+  videoSizeEnable: settingStore.videoSizeEnable,
+  videoSizeGB: settingStore.videoSizeGB,
+  projectLogFolderPath: settingStore.projectLogFolderPath,
+  timezone: settingStore.timezone,
+}));
 
 function openProjectLogFolder(): void {
   invokeMain("openProjectLogFolder", strProjectLogFolderPath.value).catch((e: unknown) => {
@@ -423,7 +445,7 @@ function openProjectLogFolder(): void {
 
 // Define the debounced update function once
 const debouncedUpdate = debounce(() => {
-  loggerRenderer.info(`Modified setting: ${JSON.stringify(settingStore.$state)}`);
+  loggerRenderer.info(`Modified setting: ${JSON.stringify(dictConfigExecutor.value)}`);
   saveConfig()
     .then(() => {
       if (strTimezoneCache !== settingStore.timezone) {
@@ -437,31 +459,12 @@ const debouncedUpdate = debounce(() => {
     });
 }, 300);
 
-watch(
-  () => settingStore.$state,
-  () => {
-    debouncedUpdate();
-  },
-  { deep: true },
-);
+watch(dictConfigExecutor, () => {
+  debouncedUpdate();
+});
 
 async function saveConfig(): Promise<void> {
-  const dictConfigExecutor: DictExecutorConfig = {
-    theme: settingStore.theme,
-    keepRdpSession: settingStore.keepRdpSession,
-    keepRdpSessionWidth: settingStore.keepRdpSessionWidth,
-    keepRdpSessionHeight: settingStore.keepRdpSessionHeight,
-    logTimeoutEnable: settingStore.logTimeoutEnable,
-    logTimeoutDays: settingStore.logTimeoutDays,
-    videoTimeoutEnable: settingStore.videoTimeoutEnable,
-    videoTimeoutDays: settingStore.videoTimeoutDays,
-    videoSizeEnable: settingStore.videoSizeEnable,
-    videoSizeGB: settingStore.videoSizeGB,
-    projectLogFolderPath: settingStore.projectLogFolderPath,
-    timezone: settingStore.timezone,
-  };
-
-  await invokeMain("saveExecutorConfig", dictConfigExecutor);
+  await invokeMain("saveExecutorConfig", dictConfigExecutor.value);
 }
 </script>
 

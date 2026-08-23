@@ -149,7 +149,7 @@ function validateBasicConfig(value: unknown): DictBasicConfig {
   };
 }
 
-function getBasicConfigDict(): DictBasicConfig {
+function getBasicConfigDict(strToolName: "BuiltInTools" | "Executor"): DictBasicConfig {
   const strSettingPath = path.join(strLiberRPAEnvPath, "configFiles/basic.jsonc");
 
   try {
@@ -159,7 +159,7 @@ function getBasicConfigDict(): DictBasicConfig {
       "${LiberRPA}": strLiberRPAEnvPath.replace(/\\/g, "\\\\"),
       "${UserName}": os.userInfo().username,
       "${HostName}": os.hostname(),
-      "${ToolName}": "BuiltInTools",
+      "${ToolName}": strToolName,
     };
 
     for (const [strKeyword, strReplacement] of Object.entries(dictReplaceKeyword)) {
@@ -168,7 +168,6 @@ function getBasicConfigDict(): DictBasicConfig {
     }
 
     const dictSettings = validateBasicConfig(jsoncParser.parse(strContent));
-    console.log("dictConfigBasic=", JSON.stringify(dictSettings, null, 2));
     return dictSettings;
   } catch (e: unknown) {
     throw new Error(`Error reading or parsing basic.jsonc: ${String(e)}`, {
@@ -203,7 +202,7 @@ function getDefaultExecutorConfig(): DictExecutorConfig {
     videoTimeoutDays: 30,
     videoSizeEnable: false,
     videoSizeGB: 10,
-    projectLogFolderPath: path.join(strDocumentsFolderPath, "LiberRPA/OutputLog/Executor/"),
+    projectLogFolderPath: "",
     timezone: getSystemTimezone(),
   };
 }
@@ -322,6 +321,14 @@ export function getExecutorConfigDict(): DictExecutorConfig {
       encoding: "utf-8",
     });
     const dictSettings = validateExecutorConfig(jsoncParser.parse(strContent));
+
+    if (dictSettings.projectLogFolderPath === strDefaultProjectLogFolderPath) {
+      dictSettings.projectLogFolderPath = "";
+      fs.writeFileSync(STR_EXECUTOR_CONFIG_PATH, JSON.stringify(dictSettings, null, 2), {
+        encoding: "utf-8",
+      });
+    }
+
     console.log("dictConfigExecutor=", JSON.stringify(dictSettings, null, 2));
     return dictSettings;
   } catch (e: unknown) {
@@ -331,8 +338,11 @@ export function getExecutorConfigDict(): DictExecutorConfig {
   }
 }
 
-export const dictConfigBasic = getBasicConfigDict();
+export const dictConfigBasic = getBasicConfigDict("BuiltInTools");
+export const strDefaultProjectLogFolderPath = getBasicConfigDict("Executor").outputLogPath;
 export const dictConfigExecutor = getExecutorConfigDict();
+
+console.log("dictConfigBasic=", JSON.stringify(dictConfigBasic, null, 2));
 
 export function saveExecutorConfigDict(dictSettings: DictExecutorConfig): void {
   try {

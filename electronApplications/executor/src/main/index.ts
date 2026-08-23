@@ -25,7 +25,7 @@ import { electronApp, optimizer, is } from "@electron-toolkit/utils";
 import icon from "../../resources/LiberRPA_icon_v3_color_Executor_256.ico?asset";
 
 import { loggerMain } from "./logger";
-import { dictConfigBasic, dictConfigExecutor } from "./commonFunc";
+import { dictConfigExecutor, strDefaultProjectLogFolderPath } from "./commonFunc";
 import {
   initializeDatabase,
   closeDatabase,
@@ -69,16 +69,12 @@ function createWindow(): void {
     // NOTE: delete it before packaging.
     // webContentsObj.openDevTools();
 
-    if (dictConfigExecutor["projectLogFolderPath"] === "") {
-      dictConfigExecutor["projectLogFolderPath"] = dictConfigBasic["outputLogPath"].replace(
-        "\\BuiltInTools",
-        "\\Executor",
-      );
-    }
-
     sendMainMessage(webContentsObj, {
       type: "initializeSetting",
-      data: dictConfigExecutor,
+      data: {
+        config: dictConfigExecutor,
+        defaultProjectLogFolderPath: strDefaultProjectLogFolderPath,
+      },
     });
     runSessionListener();
   });

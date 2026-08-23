@@ -8,6 +8,7 @@ export interface DictBasicConfig {
   componentRepositoryPath: string;
 }
 
+// Persisted values in Executor.jsonc.
 export interface DictExecutorConfig {
   theme: "light" | "dark";
   keepRdpSession: boolean;
@@ -19,6 +20,7 @@ export interface DictExecutorConfig {
   videoTimeoutDays: number;
   videoSizeEnable: boolean;
   videoSizeGB: number;
+  // An empty string uses basic.jsonc's Executor outputLogPath.
   projectLogFolderPath: string;
   timezone: string;
 }

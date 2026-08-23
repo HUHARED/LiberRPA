@@ -69,13 +69,17 @@ export const useSettingStore = defineStore("setting", {
       videoSizeGB: 10 as number,
 
       projectLogFolderPath: "" as string,
+      defaultProjectLogFolderPath: "" as string,
 
       timezone: getSystemTimezone(),
     };
   },
   getters: {},
   actions: {
-    initializeSetting(dictConfigExecutor: DictExecutorConfig): void {
+    initializeSetting(
+      dictConfigExecutor: DictExecutorConfig,
+      strDefaultProjectLogFolderPath: string,
+    ): void {
       this.theme = dictConfigExecutor.theme;
       this.keepRdpSession = dictConfigExecutor.keepRdpSession;
       this.keepRdpSessionWidth = dictConfigExecutor.keepRdpSessionWidth;
@@ -87,6 +91,7 @@ export const useSettingStore = defineStore("setting", {
       this.videoSizeEnable = dictConfigExecutor.videoSizeEnable;
       this.videoSizeGB = dictConfigExecutor.videoSizeGB;
       this.projectLogFolderPath = dictConfigExecutor.projectLogFolderPath;
+      this.defaultProjectLogFolderPath = strDefaultProjectLogFolderPath;
       this.timezone = dictConfigExecutor.timezone;
     },
 
@@ -95,6 +100,10 @@ export const useSettingStore = defineStore("setting", {
       if (result !== null) {
         this.projectLogFolderPath = result;
       }
+    },
+
+    useDefaultProjectLogFolderPath(): void {
+      this.projectLogFolderPath = "";
     },
 
     async handleDeleteOptions(): Promise<void> {

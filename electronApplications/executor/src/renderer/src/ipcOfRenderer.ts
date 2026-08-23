@@ -55,7 +55,10 @@ window.executor.onMainMessage(async (message) => {
     switch (message.type) {
       case "initializeSetting": {
         const settingStore = useSettingStore();
-        settingStore.initializeSetting(message.data);
+        settingStore.initializeSetting(
+          message.data.config,
+          message.data.defaultProjectLogFolderPath,
+        );
 
         const schedulerStore = useSchedulerStore();
         await schedulerStore.dbSelectSchedulerList();
