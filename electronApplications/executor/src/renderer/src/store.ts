@@ -167,6 +167,9 @@ export const useProjectStore = defineStore("project", {
       arrVersion: [] as { title: string; idTemp: number }[],
       dictIdToVersion: {} as { [idTemp: number]: string },
 
+      // Python environments
+      arrPythonEnvironmentName: [] as string[],
+
       // Detail
       dictDetail_edit: undefined as DictColumns_Project_Detail | undefined,
       detailCache_edit: undefined as string | undefined,
@@ -178,6 +181,12 @@ export const useProjectStore = defineStore("project", {
   },
   getters: {},
   actions: {
+    async loadPythonEnvironmentNames(): Promise<void> {
+      this.arrPythonEnvironmentName = await invokeMain<string[]>(
+        "invoke:getPythonEnvironmentNames",
+      );
+    },
+
     async dbSelectProjectNames(): Promise<void> {
       // Only run it if it's the first swtich to Project Local Package tab, or the data indeed needs to refresh.
       if (this.arrName.length === 0) {
@@ -233,6 +242,7 @@ export const useProjectStore = defineStore("project", {
 
     async dbSelectProjectDetail(name: string, version: string): Promise<void> {
       this.resetDetail();
+      await this.loadPythonEnvironmentNames();
       const dictRow = await invokeMain<DictColumns_Project_Detail_DB | undefined>(
         "invoke:dbSelectProjectDetail",
         { name, version },
@@ -247,6 +257,7 @@ export const useProjectStore = defineStore("project", {
         version: dictRow.version,
         description: dictRow.description,
         version_summary: dictRow.version_summary,
+        python_environment_name: dictRow.python_environment_name,
         timeout_min: dictRow.timeout_min,
         builtin_log_level: dictRow.builtin_log_level,
         builtin_record_video: dictRow.builtin_record_video === 1,
@@ -268,6 +279,7 @@ export const useProjectStore = defineStore("project", {
           version: this.dictDetail_edit.version,
           description: this.dictDetail_edit.description,
           version_summary: this.dictDetail_edit.version_summary,
+          python_environment_name: this.dictDetail_edit.python_environment_name,
           timeout_min: this.dictDetail_edit.timeout_min,
           builtin_log_level: this.dictDetail_edit.builtin_log_level,
           builtin_record_video: this.dictDetail_edit.builtin_record_video ? 1 : 0,
@@ -385,6 +397,7 @@ export const useSchedulerStore = defineStore("scheduler", {
         project_id: dictRow.project_id,
         project_name: dictRow.project_name,
         project_version: dictRow.project_version,
+        python_environment_name: dictRow.python_environment_name,
         cron: dictRow.cron,
         when_others_running: dictRow.when_others_running,
         period_start: formatTimestampForDateTimeLocal(
@@ -636,6 +649,7 @@ export const useQueueStore = defineStore("queue", {
         id: schedulerStore.dictDetail_edit.project_id,
         name: schedulerStore.dictDetail_edit.project_name,
         version: schedulerStore.dictDetail_edit.project_version,
+        python_environment_name: schedulerStore.dictDetail_edit.python_environment_name,
         timeout_min: schedulerStore.dictDetail_edit.timeout_min,
         builtin_log_level: schedulerStore.dictDetail_edit.builtin_log_level,
         builtin_record_video: schedulerStore.dictDetail_edit.builtin_record_video,

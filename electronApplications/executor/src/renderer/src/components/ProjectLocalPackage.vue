@@ -267,6 +267,7 @@ async function runProject(): Promise<void> {
       id: projectStore.dictDetail_edit.id,
       name: projectStore.dictDetail_edit.name,
       version: projectStore.dictDetail_edit.version,
+      python_environment_name: projectStore.dictDetail_edit.python_environment_name,
       timeout_min: projectStore.dictDetail_edit.timeout_min,
       builtin_log_level: projectStore.dictDetail_edit.builtin_log_level,
       builtin_record_video: projectStore.dictDetail_edit.builtin_record_video,

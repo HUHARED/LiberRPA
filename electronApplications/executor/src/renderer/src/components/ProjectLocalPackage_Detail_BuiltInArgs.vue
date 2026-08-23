@@ -1,6 +1,20 @@
 <!-- FileName: ProjectLocalPackage_Detail_BuiltInArgs.vue -->
 <template>
   <v-col v-if="projectStore.dictDetail_edit" cols="6" class="clean-space fill-height pt-3">
+    <v-select
+      v-model="projectStore.dictDetail_edit['python_environment_name']"
+      label="Python Environment"
+      variant="underlined"
+      class="clean-space mb-2"
+      density="compact"
+      hide-details
+      :items="projectStore.arrPythonEnvironmentName">
+      <v-tooltip activator="parent" location="top">
+        The LiberRPA Python environment used to run this Project. Environments are loaded
+        from envs\pyenv.
+      </v-tooltip>
+    </v-select>
+
     <!-- Timeout and Log Level -->
     <v-row class="w-100">
       <v-col cols="7">

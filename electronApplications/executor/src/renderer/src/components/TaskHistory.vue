@@ -135,6 +135,7 @@
           </td>
           <td></td>
           <td></td>
+          <td></td>
           <td>
             <v-select
               v-model="historyStore.filterStatus"
@@ -225,6 +226,12 @@ const arrHeader: DataTableHeader<DictColumns_History_ListItem_DB>[] = [
         align: "start",
         sortable: true,
       },
+      {
+        title: "Environment",
+        value: "python_environment_name",
+        align: "start",
+        sortable: true,
+      },
     ],
   },
   { title: "Started", value: "run_started_at_ms", align: "center", sortable: true },
@@ -298,6 +305,7 @@ async function runProjectNewestVersion(
     id: dictDetail.id,
     name: dictDetail.name,
     version: dictDetail.version,
+    python_environment_name: dictDetail.python_environment_name,
     timeout_min: dictDetail.timeout_min,
     builtin_log_level: dictDetail.builtin_log_level,
     builtin_record_video: dictDetail.builtin_record_video === 1,

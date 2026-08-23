@@ -21,7 +21,7 @@ import type {
   Dict_History_Options,
 } from "../shared/interface";
 
-const INT_DATABASE_SCHEMA_VERSION = 1;
+const INT_DATABASE_SCHEMA_VERSION = 2;
 const STR_DATABASE_FOLDER_PATH = path.join(strDocumentsFolderPath, "LiberRPA/AppData");
 const STR_DATABASE_FILE_PATH = path.join(STR_DATABASE_FOLDER_PATH, "ExecutorData.db");
 const STR_INIT_DATABASE_SCRIPT_PATH = path.join(
@@ -37,6 +37,7 @@ const MAP_HISTORY_SORT_COLUMN: Record<
   project_source: "project_source",
   project_name: "project_name",
   project_version: "project_version",
+  python_environment_name: "python_environment_name",
   run_started_at_ms: "run_started_at_ms",
   run_ended_at_ms: "run_ended_at_ms",
   status: "status",
@@ -241,6 +242,7 @@ export function dbInsertProjectDetail(
               version,
               description,
               version_summary,
+              python_environment_name,
               timeout_min,
               builtin_log_level,
               builtin_record_video,
@@ -251,7 +253,7 @@ export function dbInsertProjectDetail(
               updated_at_ms
           )
       VALUES
-          (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+          (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
       `,
     )
     .run(
@@ -259,6 +261,7 @@ export function dbInsertProjectDetail(
       dictDetail.version,
       dictDetail.description,
       dictDetail.version_summary ?? "",
+      dictDetail.python_environment_name,
       dictDetail.timeout_min,
       dictDetail.builtin_log_level,
       dictDetail.builtin_record_video,
@@ -283,6 +286,7 @@ export function dbUpdateProjectDetail(
           version = ?,
           description = ?,
           version_summary = ?,
+          python_environment_name = ?,
           timeout_min = ?,
           builtin_log_level = ?,
           builtin_record_video = ?,
@@ -299,6 +303,7 @@ export function dbUpdateProjectDetail(
       dictDetail.version,
       dictDetail.description,
       dictDetail.version_summary,
+      dictDetail.python_environment_name,
       dictDetail.timeout_min,
       dictDetail.builtin_log_level,
       dictDetail.builtin_record_video,
@@ -378,6 +383,10 @@ export function dbSelectSchedulerDetail(
               WHEN ts.project_source = 'local' THEN pl.version
               ELSE 'console'
           END AS project_version,
+          CASE
+              WHEN ts.project_source = 'local' THEN pl.python_environment_name
+              ELSE 'default'
+          END AS python_environment_name,
           ts.cron,
           ts.when_others_running,
           ts.period_start_ms,
@@ -522,6 +531,7 @@ export function dbInsertHistoryDetail(
               project_id,
               project_name,
               project_version,
+              python_environment_name,
               run_started_at_ms,
               status,
               log_path,
@@ -529,7 +539,7 @@ export function dbInsertHistoryDetail(
               updated_at_ms
           )
       VALUES
-          (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+          (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
       `,
     )
     .run(
@@ -538,6 +548,7 @@ export function dbInsertHistoryDetail(
       dictDetail.project_id,
       dictDetail.project_name,
       dictDetail.project_version,
+      dictDetail.python_environment_name,
       dictDetail.run_started_at_ms,
       dictDetail.status,
       dictDetail.log_path,
@@ -659,6 +670,7 @@ export function dbSelectLimitHistoryList(
           project_source,
           project_name,
           project_version,
+          python_environment_name,
           run_started_at_ms,
           run_ended_at_ms,
           status,

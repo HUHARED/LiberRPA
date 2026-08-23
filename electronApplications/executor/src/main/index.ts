@@ -37,6 +37,7 @@ import { loggerMain } from "./logger";
 import {
   dictConfigBasic,
   dictConfigExecutor,
+  getPythonEnvironmentNames,
   saveExecutorConfigDict,
   selectProjectLogFolder,
 } from "./commonFunc";
@@ -271,6 +272,11 @@ void app
 
             case "invoke:pythonRun": {
               temp = await pythonRun(data, webContentsObj);
+              break;
+            }
+
+            case "invoke:getPythonEnvironmentNames": {
+              temp = getPythonEnvironmentNames();
               break;
             }
 

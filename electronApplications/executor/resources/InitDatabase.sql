@@ -7,6 +7,7 @@ CREATE TABLE
         version TEXT NOT NULL CHECK (LENGTH(TRIM(version)) > 0),
         description TEXT NOT NULL DEFAULT '',
         version_summary TEXT NOT NULL DEFAULT '',
+        python_environment_name TEXT NOT NULL DEFAULT 'default' CHECK (LENGTH(TRIM(python_environment_name)) > 0),
         timeout_min INTEGER NOT NULL DEFAULT 0 CHECK (timeout_min >= 0),
         builtin_log_level TEXT NOT NULL DEFAULT 'DEBUG' CHECK (
             builtin_log_level IN (
@@ -66,6 +67,7 @@ CREATE TABLE
         project_id INTEGER NOT NULL CHECK (project_id > 0),
         project_name TEXT NOT NULL CHECK (LENGTH(TRIM(project_name)) > 0),
         project_version TEXT NOT NULL CHECK (LENGTH(TRIM(project_version)) > 0),
+        python_environment_name TEXT NOT NULL CHECK (LENGTH(TRIM(python_environment_name)) > 0),
         run_started_at_ms INTEGER NOT NULL CHECK (run_started_at_ms >= 0),
         run_ended_at_ms INTEGER NULL DEFAULT NULL CHECK (
             run_ended_at_ms IS NULL
@@ -102,4 +104,4 @@ CREATE INDEX idx_task_scheduler_project_id ON task_scheduler (project_id);
 
 CREATE INDEX idx_task_history_run_started_at_ms ON task_history (run_started_at_ms DESC);
 
-PRAGMA user_version = 1;
+PRAGMA user_version = 2;

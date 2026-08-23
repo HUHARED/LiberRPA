@@ -6,7 +6,7 @@ import { randomUUID } from "crypto";
 import fs from "fs";
 import path from "path";
 
-import { strDocumentsFolderPath, strDefaultPythonEnvironmentPath } from "./commonFunc";
+import { getPythonEnvironmentPath, strDocumentsFolderPath } from "./commonFunc";
 import { dbInsertHistoryDetail, dbUpdateHistoryDetail } from "./database";
 import { getExecutorPackageFolderPath } from "./fileFunc";
 import { loggerMain } from "./logger";
@@ -63,13 +63,20 @@ export async function pythonRun(
     throw new Error(`Installed Project folder does not exist: ${strExecutorPackagePath}`);
   }
 
+  const strPythonEnvironmentPath = getPythonEnvironmentPath(
+    dictDetail.python_environment_name,
+  );
+  loggerMain.info(
+    `Use Python environment '${dictDetail.python_environment_name}' for ${dictDetail.name}-${dictDetail.version}.`,
+  );
+
   const strRunId = randomUUID();
   const strStartedAt = new Date().toISOString();
   fs.mkdirSync(strExecutorRunStateFolderPath, { recursive: true });
   const strRunStatePath = path.join(strExecutorRunStateFolderPath, `${strRunId}.json`);
 
   const processPy = spawn(
-    path.join(strDefaultPythonEnvironmentPath, "python.exe"),
+    path.join(strPythonEnvironmentPath, "python.exe"),
     [
       "-m",
       "liberrpa.FlowControl.Run",
@@ -92,12 +99,12 @@ export async function pythonRun(
         LIBERRPA_EXECUTOR_PACKAGE_NAME: dictDetail.name,
         LIBERRPA_EXECUTOR_PACKAGE_VERSION: dictDetail.version,
         PATH: [
-          strDefaultPythonEnvironmentPath,
-          path.join(strDefaultPythonEnvironmentPath, "Library", "mingw-w64", "bin"),
-          path.join(strDefaultPythonEnvironmentPath, "Library", "usr", "bin"),
-          path.join(strDefaultPythonEnvironmentPath, "Library", "bin"),
-          path.join(strDefaultPythonEnvironmentPath, "Scripts"),
-          path.join(strDefaultPythonEnvironmentPath, "bin"),
+          strPythonEnvironmentPath,
+          path.join(strPythonEnvironmentPath, "Library", "mingw-w64", "bin"),
+          path.join(strPythonEnvironmentPath, "Library", "usr", "bin"),
+          path.join(strPythonEnvironmentPath, "Library", "bin"),
+          path.join(strPythonEnvironmentPath, "Scripts"),
+          path.join(strPythonEnvironmentPath, "bin"),
           process.env.PATH ?? "",
         ]
           .filter(Boolean)
@@ -333,6 +340,7 @@ async function createTaskHistory({
       project_id: detail.id,
       project_name: detail.name,
       project_version: detail.version,
+      python_environment_name: detail.python_environment_name,
       run_started_at_ms: parseExecutorRunTimestamp(runState.startedAt),
       status: "running",
       log_path: runState.logPath,

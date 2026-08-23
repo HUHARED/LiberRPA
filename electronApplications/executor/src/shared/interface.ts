@@ -81,13 +81,18 @@ interface DictColumns_Project_TimeoutAndLog {
   builtin_log_level: TypeColumns_LogLevel;
 }
 
+interface DictColumns_Project_ExecutionEnvironment {
+  python_environment_name: string;
+}
+
 /* Project Local Package */
 
 export interface DictColumns_Project_Detail_DB
   extends
     DictColumns_Base_DB,
     DictColumns_Project_NeedConvert_DB,
-    DictColumns_Project_TimeoutAndLog {
+    DictColumns_Project_TimeoutAndLog,
+    DictColumns_Project_ExecutionEnvironment {
   name: string;
   version: string;
   description: string;
@@ -156,7 +161,8 @@ export interface DictColumns_Scheduler_Detail_DB
     DictColumns_Base_DB,
     DictColumns_Scheduler_ListItem_DB,
     DictColumns_Project_NeedConvert_DB,
-    DictColumns_Project_TimeoutAndLog {
+    DictColumns_Project_TimeoutAndLog,
+    DictColumns_Project_ExecutionEnvironment {
   project_id: number;
 }
 
@@ -172,17 +178,26 @@ export type DictColumns_Scheduler_Detail = Omit<
 
 export type DictColumns_Scheduler_Detail_ToUpdate = Omit<
   DictColumns_Scheduler_Detail_DB,
-  TypeColumns_ModifyTime | "project_name" | "project_version"
+  TypeColumns_ModifyTime | "project_name" | "project_version" | "python_environment_name"
 >;
 
 export type DictColumns_Scheduler_Detail_ToInsert = Omit<
   DictColumns_Scheduler_Detail_DB,
-  "id" | TypeColumns_ModifyTime | "project_name" | "project_version"
+  | "id"
+  | TypeColumns_ModifyTime
+  | "project_name"
+  | "project_version"
+  | "python_environment_name"
 >;
 
 export type DictColumns_Scheduler_Detail_BeforeInsert = Omit<
   DictColumns_Scheduler_Detail,
-  "id" | TypeColumns_ModifyTime | "project_id" | "project_name" | "project_version"
+  | "id"
+  | TypeColumns_ModifyTime
+  | "project_id"
+  | "project_name"
+  | "project_version"
+  | "python_environment_name"
 > & {
   project_id: number | undefined;
   project_name: string | undefined;
@@ -197,6 +212,7 @@ export interface DictColumns_History_ToInsert {
   project_id: number;
   project_name: string;
   project_version: string;
+  python_environment_name: string;
   run_started_at_ms: number;
   status: "running";
   log_path: string;
@@ -220,6 +236,7 @@ export interface DictColumns_History_ListItem_DB {
   project_source: "local" | "console";
   project_name: string;
   project_version: string;
+  python_environment_name: string;
   run_started_at_ms: number;
   run_ended_at_ms: number | null;
   status: TypeTaskHistoryStatus;
@@ -243,6 +260,7 @@ export interface Dict_History_Options {
       | "project_source"
       | "project_name"
       | "project_version"
+      | "python_environment_name"
       | "run_started_at_ms"
       | "run_ended_at_ms"
       | "status";

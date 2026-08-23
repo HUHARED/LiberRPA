@@ -19,10 +19,77 @@ if (strLiberRPAEnvPathValue === undefined || strLiberRPAEnvPathValue === "") {
 }
 export const strLiberRPAEnvPath = strLiberRPAEnvPathValue;
 
+export const DEFAULT_PYTHON_ENVIRONMENT_NAME = "default";
+export const strPythonEnvironmentRootPath = path.join(strLiberRPAEnvPath, "envs/pyenv");
 export const strDefaultPythonEnvironmentPath = path.join(
-  strLiberRPAEnvPath,
-  "envs/pyenv/default",
+  strPythonEnvironmentRootPath,
+  DEFAULT_PYTHON_ENVIRONMENT_NAME,
 );
+
+export function getPythonEnvironmentNames(): string[] {
+  if (
+    !fs.existsSync(strPythonEnvironmentRootPath) ||
+    !fs.statSync(strPythonEnvironmentRootPath).isDirectory()
+  ) {
+    throw new Error(
+      `Python environment folder does not exist: ${strPythonEnvironmentRootPath}`,
+    );
+  }
+
+  const arrEnvironmentName = fs
+    .readdirSync(strPythonEnvironmentRootPath, { withFileTypes: true })
+    .filter((entryObj) => {
+      if (!entryObj.isDirectory()) {
+        return false;
+      }
+
+      const strPythonPath = path.join(
+        strPythonEnvironmentRootPath,
+        entryObj.name,
+        "python.exe",
+      );
+      return fs.existsSync(strPythonPath) && fs.statSync(strPythonPath).isFile();
+    })
+    .map((entryObj) => entryObj.name);
+
+  if (!arrEnvironmentName.includes(DEFAULT_PYTHON_ENVIRONMENT_NAME)) {
+    throw new Error(
+      `Default Python environment does not exist: ${strDefaultPythonEnvironmentPath}`,
+    );
+  }
+
+  return arrEnvironmentName.sort((strLeft, strRight) => {
+    if (strLeft === DEFAULT_PYTHON_ENVIRONMENT_NAME) {
+      return -1;
+    }
+    if (strRight === DEFAULT_PYTHON_ENVIRONMENT_NAME) {
+      return 1;
+    }
+    return strLeft.localeCompare(strRight);
+  });
+}
+
+export function getPythonEnvironmentPath(strEnvironmentName: string): string {
+  if (
+    strEnvironmentName.trim() === "" ||
+    strEnvironmentName !== strEnvironmentName.trim() ||
+    strEnvironmentName === "." ||
+    strEnvironmentName === ".." ||
+    path.basename(strEnvironmentName) !== strEnvironmentName
+  ) {
+    throw new Error(`Invalid Python environment name: ${strEnvironmentName}`);
+  }
+
+  const strEnvironmentPath = path.join(strPythonEnvironmentRootPath, strEnvironmentName);
+  const strPythonPath = path.join(strEnvironmentPath, "python.exe");
+  if (!fs.existsSync(strPythonPath) || !fs.statSync(strPythonPath).isFile()) {
+    throw new Error(
+      `Python environment '${strEnvironmentName}' does not contain python.exe: ${strEnvironmentPath}`,
+    );
+  }
+
+  return strEnvironmentPath;
+}
 
 const STR_EXECUTOR_CONFIG_PATH = path.join(
   strLiberRPAEnvPath,
@@ -101,10 +168,7 @@ function getDefaultExecutorConfig(): DictExecutorConfig {
     videoTimeoutDays: 30,
     videoSizeEnable: false,
     videoSizeGB: 10,
-    projectLogFolderPath: path.join(
-      strDocumentsFolderPath,
-      "LiberRPA/OutputLog/Executor/",
-    ),
+    projectLogFolderPath: path.join(strDocumentsFolderPath, "LiberRPA/OutputLog/Executor/"),
     timezone: getSystemTimezone(),
   };
 }
@@ -222,11 +286,9 @@ function parseExecutorConfig(value: unknown): DictExecutorConfig {
 export function getExecutorConfigDict(): DictExecutorConfig {
   if (!fs.existsSync(STR_EXECUTOR_CONFIG_PATH)) {
     const dictDefaultConfig = getDefaultExecutorConfig();
-    fs.writeFileSync(
-      STR_EXECUTOR_CONFIG_PATH,
-      JSON.stringify(dictDefaultConfig, null, 2),
-      { encoding: "utf-8" },
-    );
+    fs.writeFileSync(STR_EXECUTOR_CONFIG_PATH, JSON.stringify(dictDefaultConfig, null, 2), {
+      encoding: "utf-8",
+    });
     return dictDefaultConfig;
   }
 
@@ -250,11 +312,9 @@ export const dictConfigExecutor = getExecutorConfigDict();
 export function saveExecutorConfigDict(value: unknown): DictExecutorConfig {
   try {
     const dictSettings = parseExecutorConfig(value);
-    fs.writeFileSync(
-      STR_EXECUTOR_CONFIG_PATH,
-      JSON.stringify(dictSettings, null, 2),
-      { encoding: "utf-8" },
-    );
+    fs.writeFileSync(STR_EXECUTOR_CONFIG_PATH, JSON.stringify(dictSettings, null, 2), {
+      encoding: "utf-8",
+    });
     return dictSettings;
   } catch (e: unknown) {
     throw new Error(`Error validating or writing Executor.jsonc: ${String(e)}`, {

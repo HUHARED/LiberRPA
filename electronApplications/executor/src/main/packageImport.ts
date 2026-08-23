@@ -6,6 +6,7 @@ import fs from "fs";
 import path from "path";
 import AdmZip from "adm-zip";
 
+import { DEFAULT_PYTHON_ENVIRONMENT_NAME } from "./commonFunc";
 import { validatePackagedFlowProject } from "./componentManagementProcess";
 import { dbInsertProjectDetail, dbSelectProjectDetail } from "./database";
 import { getExecutorPackageFolderPath, strExecutorPackageFolderPath } from "./fileFunc";
@@ -442,6 +443,7 @@ function buildProjectDetail(
     version: flowManifest.version,
     description: flowManifest.description,
     version_summary: packageManifest.versionSummary,
+    python_environment_name: DEFAULT_PYTHON_ENVIRONMENT_NAME,
     timeout_min: 0,
     builtin_log_level: runtimeSettings.logLevel,
     builtin_record_video: runtimeSettings.recordVideo ? 1 : 0,
