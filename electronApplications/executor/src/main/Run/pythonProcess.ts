@@ -2,6 +2,7 @@ import type { ChildProcessWithoutNullStreams } from "child_process";
 import { spawn } from "child_process";
 import path from "path";
 
+import { getPythonProcessEnvironment } from "../Config/environment";
 import { loggerMain } from "../Logging/logger";
 import type { DictColumns_Project_Detail_Run } from "../../shared/interface";
 
@@ -92,32 +93,17 @@ export function spawnProjectPythonProcess({
     ],
     {
       cwd: packagePath,
-      env: {
-        ...process.env,
-        LIBERRPA_RUN_STARTED_AT: startedAt,
-        LIBERRPA_EXECUTOR_RUN_ID: runId,
-        LIBERRPA_EXECUTOR_RUN_STATE_PATH: runStatePath,
-        LIBERRPA_EXECUTOR_PACKAGE_NAME: detail.name,
-        LIBERRPA_EXECUTOR_PACKAGE_VERSION: detail.version,
-        PATH: [
-          pythonEnvironmentPath,
-          path.join(pythonEnvironmentPath, "Library", "mingw-w64", "bin"),
-          path.join(pythonEnvironmentPath, "Library", "usr", "bin"),
-          path.join(pythonEnvironmentPath, "Library", "bin"),
-          path.join(pythonEnvironmentPath, "Scripts"),
-          path.join(pythonEnvironmentPath, "bin"),
-          process.env.PATH ?? "",
-        ]
-          .filter(Boolean)
-          .join(path.delimiter),
-        PYTHONPATH: [
-          packagePath,
-          path.join(packagePath, "_Components"),
-          process.env.PYTHONPATH ?? "",
-        ]
-          .filter(Boolean)
-          .join(path.delimiter),
-      },
+      env: getPythonProcessEnvironment({
+        pythonEnvironmentPath,
+        pythonPathEntries: [packagePath, path.join(packagePath, "_Components")],
+        variables: {
+          LIBERRPA_RUN_STARTED_AT: startedAt,
+          LIBERRPA_EXECUTOR_RUN_ID: runId,
+          LIBERRPA_EXECUTOR_RUN_STATE_PATH: runStatePath,
+          LIBERRPA_EXECUTOR_PACKAGE_NAME: detail.name,
+          LIBERRPA_EXECUTOR_PACKAGE_VERSION: detail.version,
+        },
+      }),
       stdio: ["pipe", "pipe", "pipe"],
     },
   );

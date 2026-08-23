@@ -2,7 +2,10 @@ import { spawn } from "child_process";
 import path from "path";
 import fs from "fs";
 
-import { strDefaultPythonEnvironmentPath } from "../Config/environment";
+import {
+  getPythonProcessEnvironment,
+  strDefaultPythonEnvironmentPath,
+} from "../Config/environment";
 import { loggerMain } from "../Logging/logger";
 import { isRecord } from "../Common/validation";
 
@@ -85,22 +88,13 @@ async function runComponentManagement(request: Record<string, unknown>): Promise
       ["-m", "liberrpa.ComponentManagement"],
       {
         cwd: strDefaultPythonEnvironmentPath,
-        env: {
-          ...process.env,
-          PYTHONUTF8: "1",
-          PYTHONIOENCODING: "utf-8",
-          PATH: [
-            strDefaultPythonEnvironmentPath,
-            path.join(strDefaultPythonEnvironmentPath, "Library", "mingw-w64", "bin"),
-            path.join(strDefaultPythonEnvironmentPath, "Library", "usr", "bin"),
-            path.join(strDefaultPythonEnvironmentPath, "Library", "bin"),
-            path.join(strDefaultPythonEnvironmentPath, "Scripts"),
-            path.join(strDefaultPythonEnvironmentPath, "bin"),
-            process.env.PATH ?? "",
-          ]
-            .filter((strItem) => strItem.length > 0)
-            .join(path.delimiter),
-        },
+        env: getPythonProcessEnvironment({
+          pythonEnvironmentPath: strDefaultPythonEnvironmentPath,
+          variables: {
+            PYTHONUTF8: "1",
+            PYTHONIOENCODING: "utf-8",
+          },
+        }),
         shell: false,
         windowsHide: true,
         stdio: ["pipe", "pipe", "pipe"],

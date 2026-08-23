@@ -84,3 +84,74 @@ export function getPythonEnvironmentPath(strEnvironmentName: string): string {
 
   return strEnvironmentPath;
 }
+
+function getInheritedEnvironmentVariable(strName: string): string {
+  const strNameLower = strName.toLowerCase();
+  for (const [strKey, strValue] of Object.entries(process.env)) {
+    if (strKey.toLowerCase() === strNameLower) {
+      return strValue ?? "";
+    }
+  }
+  return "";
+}
+
+function mergeProcessEnvironment(
+  dictOverride: Record<string, string | undefined>,
+): NodeJS.ProcessEnv {
+  const setOverrideKey = new Set(
+    Object.keys(dictOverride).map((strKey) => strKey.toLowerCase()),
+  );
+  const dictEnvironment: NodeJS.ProcessEnv = {};
+
+  for (const [strKey, strValue] of Object.entries(process.env)) {
+    if (!setOverrideKey.has(strKey.toLowerCase()) && strValue !== undefined) {
+      dictEnvironment[strKey] = strValue;
+    }
+  }
+
+  for (const [strKey, strValue] of Object.entries(dictOverride)) {
+    if (strValue !== undefined) {
+      dictEnvironment[strKey] = strValue;
+    }
+  }
+
+  return dictEnvironment;
+}
+
+export function getPythonProcessEnvironment({
+  pythonEnvironmentPath,
+  pythonPathEntries = [],
+  variables = {},
+}: {
+  pythonEnvironmentPath: string;
+  pythonPathEntries?: string[];
+  variables?: Record<string, string | undefined>;
+}): NodeJS.ProcessEnv {
+  const strInheritedPath = getInheritedEnvironmentVariable("PATH");
+  const strInheritedPythonPath = getInheritedEnvironmentVariable("PYTHONPATH");
+
+  const strPath = [
+    pythonEnvironmentPath,
+    path.join(pythonEnvironmentPath, "Library", "mingw-w64", "bin"),
+    path.join(pythonEnvironmentPath, "Library", "usr", "bin"),
+    path.join(pythonEnvironmentPath, "Library", "bin"),
+    path.join(pythonEnvironmentPath, "Scripts"),
+    path.join(pythonEnvironmentPath, "bin"),
+    strInheritedPath,
+  ]
+    .filter((strItem) => strItem.length > 0)
+    .join(path.delimiter);
+
+  const arrPythonPath = [...pythonPathEntries];
+  if (strInheritedPythonPath.length > 0) {
+    arrPythonPath.push(strInheritedPythonPath);
+  }
+
+  return mergeProcessEnvironment({
+    ...variables,
+    PATH: strPath,
+    ...(arrPythonPath.length === 0
+      ? {}
+      : { PYTHONPATH: arrPythonPath.join(path.delimiter) }),
+  });
+}

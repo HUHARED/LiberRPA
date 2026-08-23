@@ -27,7 +27,11 @@ import { dictConfigExecutor, strDefaultProjectLogFolderPath } from "./Config/con
 import { closeDatabase, initializeDatabase } from "./Database/connection";
 import { dbMarkRunningHistoryInterrupted } from "./Database/historyRepository";
 import { recoverProjectPackageImports } from "./Package/packageImportTransaction";
-import { runSessionListener, setResolution } from "./Rdp/rdpSession";
+import {
+  setResolution,
+  startRdpSessionManager,
+  stopRdpSessionManager,
+} from "./Rdp/rdpSession";
 import { registerExecutorIpc } from "./IPC/ipc";
 import { sendMainMessage } from "./IPC/mainMessage";
 import { onRunEnded } from "./Run/lifecycle";
@@ -68,7 +72,9 @@ function createWindow(): void {
     icon: icon,
     webPreferences: {
       preload: join(__dirname, "../preload/index.js"),
-      sandbox: false,
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
     },
   });
 
@@ -90,7 +96,6 @@ function createWindow(): void {
       type: "runQueueChanged",
       data: { items: getRunQueueItems() },
     });
-    runSessionListener();
   });
 
   mainWindow.on("ready-to-show", () => {
@@ -221,6 +226,7 @@ void app
     });
     startRunHousekeeping();
     startSchedulerEngine();
+    startRdpSessionManager();
 
     app.on("activate", function () {
       // On macOS it's common to re-create a window in the app when the dock icon is clicked and there are no other windows open.
@@ -234,6 +240,7 @@ void app
 
 app.on("before-quit", () => {
   boolAppQuitting = true;
+  stopRdpSessionManager();
   stopSchedulerEngine();
   closeDatabase();
 });

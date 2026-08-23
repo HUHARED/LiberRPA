@@ -2,242 +2,256 @@ import { is } from "@electron-toolkit/utils";
 import { spawn } from "child_process";
 import type { ChildProcessWithoutNullStreams } from "child_process";
 import path from "path";
+import { createInterface } from "readline";
 
-import { loggerMain } from "../Logging/logger";
 import { dictConfigExecutor } from "../Config/config";
-import { strDefaultPythonEnvironmentPath } from "../Config/environment";
+import {
+  getPythonProcessEnvironment,
+  strDefaultPythonEnvironmentPath,
+} from "../Config/environment";
+import { loggerMain } from "../Logging/logger";
+
+const STR_MOVE_MOUSE_TERMINATION_MESSAGE = "Executor-terminated";
+const INT_MOVE_MOUSE_CHECK_INTERVAL_MS = 1000;
 
 function getScriptFolderPath(): string {
   if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
     return path.join(__dirname, "../../resources/pyRdpScript");
-  } else {
-    return path.join(process.resourcesPath, "app.asar.unpacked/resources/pyRdpScript");
   }
+  return path.join(process.resourcesPath, "app.asar.unpacked/resources/pyRdpScript");
 }
 
 const strScriptFolderPath = getScriptFolderPath();
 
-export function runSessionListener(): void {
-  loggerMain.debug("--runSessionListener--");
+function isProcessRunning(processPy: ChildProcessWithoutNullStreams): boolean {
+  return processPy.exitCode === null && processPy.signalCode === null;
+}
 
-  const strScriptPath = path.join(strScriptFolderPath, "ListenSession.py");
-
-  const processPySessionListener = spawn(
+function spawnRdpScript(
+  strScriptName: string,
+  arrArgument: string[] = [],
+): ChildProcessWithoutNullStreams {
+  const strScriptPath = path.join(strScriptFolderPath, strScriptName);
+  const processPy = spawn(
     path.join(strDefaultPythonEnvironmentPath, "python.exe"),
-    [strScriptPath],
+    [strScriptPath, ...arrArgument],
     {
-      env: {
-        PATH: [
-          strDefaultPythonEnvironmentPath,
-          path.join(strDefaultPythonEnvironmentPath, "Library", "mingw-w64", "bin"),
-          path.join(strDefaultPythonEnvironmentPath, "Library", "usr", "bin"),
-          path.join(strDefaultPythonEnvironmentPath, "Library", "bin"),
-          path.join(strDefaultPythonEnvironmentPath, "Scripts"),
-          path.join(strDefaultPythonEnvironmentPath, "bin"),
-          process.env.PATH,
-        ].join(";"),
-        PYTHONPATH: [strScriptFolderPath].join(";"),
-        ...process.env,
-      },
+      env: getPythonProcessEnvironment({
+        pythonEnvironmentPath: strDefaultPythonEnvironmentPath,
+        pythonPathEntries: [strScriptFolderPath],
+      }),
+      shell: false,
+      windowsHide: true,
       stdio: ["pipe", "pipe", "pipe"],
     },
   );
 
-  let strEventCache: string = "";
+  processPy.once("error", (e: Error) => {
+    loggerMain.error(`[${strScriptName}] Process error: ${e.message}`);
+  });
+  processPy.stdin.on("error", (e: Error) => {
+    loggerMain.debug(`[${strScriptName}] stdin closed: ${e.message}`);
+  });
 
-  processPySessionListener.stdout.on("data", (data) => {
-    loggerMain.debug(`[ListenSession] ${data}`);
+  return processPy;
+}
 
-    const strTextTemp: string = data.toString().trim();
+function attachLineLogging(
+  processPy: ChildProcessWithoutNullStreams,
+  strLabel: string,
+): void {
+  const stdoutReader = createInterface({ input: processPy.stdout });
+  const stderrReader = createInterface({ input: processPy.stderr });
 
-    if (strTextTemp === "Detected session lock event.") {
+  stdoutReader.on("line", (strLine) => {
+    loggerMain.debug(`[${strLabel}] ${strLine}`);
+  });
+  stderrReader.on("line", (strLine) => {
+    loggerMain.error(`[${strLabel}] ${strLine}`);
+  });
+}
+
+let boolRdpSessionManagerStarted = false;
+let processPySessionListener: ChildProcessWithoutNullStreams | undefined;
+let processPyMoveMouse: ChildProcessWithoutNullStreams | undefined;
+let boolMoveMouseTerminationRequested = false;
+let timerMoveMouseCheck: NodeJS.Timeout | undefined;
+
+function startSessionListener(): void {
+  if (
+    processPySessionListener !== undefined &&
+    isProcessRunning(processPySessionListener)
+  ) {
+    return;
+  }
+
+  loggerMain.debug("--startSessionListener--");
+  const processPy = spawnRdpScript("ListenSession.py");
+  processPySessionListener = processPy;
+
+  let strEventCache = "";
+  const stdoutReader = createInterface({ input: processPy.stdout });
+  const stderrReader = createInterface({ input: processPy.stderr });
+
+  stdoutReader.on("line", (strLine) => {
+    loggerMain.debug(`[ListenSession] ${strLine}`);
+
+    if (strLine === "Detected session lock event.") {
       strEventCache = "session lock";
-    } else if (strTextTemp === "Detected session unlock event.") {
+    } else if (strLine === "Detected session unlock event.") {
       strEventCache = "session unlock";
-    } else if (strTextTemp === "Detected console disconnect event.") {
+    } else if (strLine === "Detected console disconnect event.") {
       strEventCache = "console disconnect";
-    } else if (strTextTemp === "Detected console connect event.") {
+    } else if (strLine === "Detected console connect event.") {
       strEventCache = "console connect";
-    } else if (strTextTemp === "Detected RDP connect event.") {
+    } else if (strLine === "Detected RDP connect event.") {
       strEventCache = "RDP connect";
     }
 
-    // The current event is "RDP disconnect", then check the previous event, if it matches some rules, set session(including set resolution).
-    if (strTextTemp === "Detected RDP disconnect event.") {
-      if (!dictConfigExecutor.keepRdpSession) {
-        loggerMain.debug("Not need to keep RDP session.");
-        return;
-      }
+    if (strLine !== "Detected RDP disconnect event.") {
+      return;
+    }
+    if (!dictConfigExecutor.keepRdpSession) {
+      loggerMain.debug("Not need to keep RDP session.");
+      return;
+    }
+    if (strEventCache === "RDP connect") {
+      loggerMain.debug("It is manual basic session, not need to set session.");
+      return;
+    }
+    if (strEventCache === "console connect") {
+      loggerMain.debug("It is manual enhanced session, not need to set session.");
+      return;
+    }
 
-      if (strEventCache === "RDP connect") {
-        loggerMain.debug("It is manual basic session, not need to set session.");
-        return;
-      }
+    setSession();
+  });
 
-      if (strEventCache === "console connect") {
-        loggerMain.debug("It is manual enhanced session, not need to set session.");
-        return;
-      }
+  stderrReader.on("line", (strLine) => {
+    loggerMain.error(`[ListenSession] ${strLine}`);
+  });
 
-      setSession();
+  processPy.once("close", (intExitCode, strSignal) => {
+    loggerMain.info(
+      `[ListenSession] Exited with code ${String(intExitCode)}, signal ${String(strSignal)}`,
+    );
+    if (processPySessionListener === processPy) {
+      processPySessionListener = undefined;
     }
   });
-
-  processPySessionListener.stderr.on("data", (data) => {
-    loggerMain.error(`[ListenSession] ${data}`);
-  });
-
-  processPySessionListener.on("close", (code) => {
-    loggerMain.info(`[ListenSession] Exited with code ${code}`);
-  });
-
-  // End the function but not stop the listener.
-  return;
 }
 
 function setSession(): void {
   loggerMain.debug("--setSession--");
-
-  const strScriptPath = path.join(strScriptFolderPath, "SetSession.py");
-
-  const processPySetSession = spawn(
-    path.join(strDefaultPythonEnvironmentPath, "python.exe"),
-    [strScriptPath],
-    {
-      env: {
-        PATH: [
-          strDefaultPythonEnvironmentPath,
-          path.join(strDefaultPythonEnvironmentPath, "Library", "mingw-w64", "bin"),
-          path.join(strDefaultPythonEnvironmentPath, "Library", "usr", "bin"),
-          path.join(strDefaultPythonEnvironmentPath, "Library", "bin"),
-          path.join(strDefaultPythonEnvironmentPath, "Scripts"),
-          path.join(strDefaultPythonEnvironmentPath, "bin"),
-          process.env.PATH,
-        ].join(";"),
-        PYTHONPATH: [strScriptFolderPath].join(";"),
-        ...process.env,
-      },
-      stdio: ["pipe", "pipe", "pipe"],
-    },
-  );
-
-  processPySetSession.stdout.on("data", (data) => {
-    loggerMain.debug(`[SetSession] ${data}`);
+  const processPy = spawnRdpScript("SetSession.py");
+  attachLineLogging(processPy, "SetSession");
+  processPy.once("close", (intExitCode, strSignal) => {
+    loggerMain.info(
+      `[SetSession] Exited with code ${String(intExitCode)}, signal ${String(strSignal)}`,
+    );
   });
-
-  processPySetSession.stderr.on("data", (data) => {
-    loggerMain.error(`[SetSession] ${data}`);
-  });
-
-  processPySetSession.on("close", (code) => {
-    loggerMain.info(`[SetSession] Exited with code ${code}`);
-  });
-
-  // End the function but not stop the listener.
-  return;
 }
 
 export function setResolution(width: number, height: number): void {
   loggerMain.debug("--setResolution--");
-
-  const strScriptPath = path.join(strScriptFolderPath, "SetResolution.py");
-
-  const processPySetResolution = spawn(
-    path.join(strDefaultPythonEnvironmentPath, "python.exe"),
-    [strScriptPath, "--width", width.toString(), "--height", height.toString()],
-    {
-      env: {
-        PATH: [
-          strDefaultPythonEnvironmentPath,
-          path.join(strDefaultPythonEnvironmentPath, "Library", "mingw-w64", "bin"),
-          path.join(strDefaultPythonEnvironmentPath, "Library", "usr", "bin"),
-          path.join(strDefaultPythonEnvironmentPath, "Library", "bin"),
-          path.join(strDefaultPythonEnvironmentPath, "Scripts"),
-          path.join(strDefaultPythonEnvironmentPath, "bin"),
-          process.env.PATH,
-        ].join(";"),
-        PYTHONPATH: [strScriptFolderPath].join(";"),
-        ...process.env,
-      },
-      stdio: ["pipe", "pipe", "pipe"],
-    },
-  );
-
-  processPySetResolution.stdout.on("data", (data) => {
-    loggerMain.debug(`[SetResolution] ${data}`);
+  const processPy = spawnRdpScript("SetResolution.py", [
+    "--width",
+    width.toString(),
+    "--height",
+    height.toString(),
+  ]);
+  attachLineLogging(processPy, "SetResolution");
+  processPy.once("close", (intExitCode, strSignal) => {
+    loggerMain.info(
+      `[SetResolution] Exited with code ${String(intExitCode)}, signal ${String(strSignal)}`,
+    );
   });
-
-  processPySetResolution.stderr.on("data", (data) => {
-    loggerMain.error(`[SetResolution] ${data}`);
-  });
-
-  processPySetResolution.on("close", (code) => {
-    loggerMain.info(`[SetResolution] Exited with code ${code}`);
-  });
-
-  // End the function but not stop the listener.
-  return;
 }
 
-/* Manage the mouse move logic. */
-let processPyMoveMouse: ChildProcessWithoutNullStreams | undefined = undefined;
-
-setInterval(() => {
-  if (dictConfigExecutor.keepRdpSession) {
-    if (!processPyMoveMouse) {
-      moveMouse();
-    }
+function startMoveMouse(): void {
+  if (processPyMoveMouse !== undefined && isProcessRunning(processPyMoveMouse)) {
+    return;
   }
-}, 1000);
 
-function moveMouse(): void {
-  loggerMain.debug("--moveMouse--");
+  loggerMain.debug("--startMoveMouse--");
+  const processPy = spawnRdpScript("MoveMouse.py");
+  processPyMoveMouse = processPy;
+  boolMoveMouseTerminationRequested = false;
+  attachLineLogging(processPy, "MoveMouse");
 
-  const strScriptPath = path.join(strScriptFolderPath, "MoveMouse.py");
-
-  processPyMoveMouse = spawn(
-    path.join(strDefaultPythonEnvironmentPath, "python.exe"),
-    [strScriptPath],
-    {
-      env: {
-        PATH: [
-          strDefaultPythonEnvironmentPath,
-          path.join(strDefaultPythonEnvironmentPath, "Library", "mingw-w64", "bin"),
-          path.join(strDefaultPythonEnvironmentPath, "Library", "usr", "bin"),
-          path.join(strDefaultPythonEnvironmentPath, "Library", "bin"),
-          path.join(strDefaultPythonEnvironmentPath, "Scripts"),
-          path.join(strDefaultPythonEnvironmentPath, "bin"),
-          process.env.PATH,
-        ].join(";"),
-        PYTHONPATH: [strScriptFolderPath].join(";"),
-        ...process.env,
-      },
-      stdio: ["pipe", "pipe", "pipe"],
-    },
-  );
-
-  processPyMoveMouse.stdout.on("data", (data) => {
-    loggerMain.debug(`[MoveMouse] ${data}`);
-  });
-
-  processPyMoveMouse.stderr.on("data", (data) => {
-    loggerMain.error(`[MoveMouse] ${data}`);
-  });
-
-  processPyMoveMouse.on("close", (code) => {
-    loggerMain.info(`[MoveMouse] Exited with code ${code}`);
-    processPyMoveMouse = undefined;
-  });
-
-  const intervalInner = setInterval(() => {
-    // Stop the process if didn't need to move mouse.
-    if (!dictConfigExecutor.keepRdpSession && processPyMoveMouse) {
-      processPyMoveMouse.stdin.write("Executor-terminated\n");
-      processPyMoveMouse.stdin.end();
-      clearInterval(intervalInner);
+  processPy.once("close", (intExitCode, strSignal) => {
+    loggerMain.info(
+      `[MoveMouse] Exited with code ${String(intExitCode)}, signal ${String(strSignal)}`,
+    );
+    if (processPyMoveMouse === processPy) {
+      processPyMoveMouse = undefined;
+      boolMoveMouseTerminationRequested = false;
     }
-  }, 1000);
+  });
+}
 
-  // End the function but not stop the listener.
-  return;
+function requestMoveMouseTermination(): void {
+  const processPy = processPyMoveMouse;
+  if (
+    processPy === undefined ||
+    !isProcessRunning(processPy) ||
+    boolMoveMouseTerminationRequested
+  ) {
+    return;
+  }
+
+  boolMoveMouseTerminationRequested = true;
+  processPy.stdin.write(`${STR_MOVE_MOUSE_TERMINATION_MESSAGE}\n`);
+  processPy.stdin.end();
+}
+
+function syncMoveMouseProcess(): void {
+  if (!boolRdpSessionManagerStarted) {
+    return;
+  }
+
+  if (dictConfigExecutor.keepRdpSession) {
+    if (processPyMoveMouse === undefined) {
+      startMoveMouse();
+    }
+    return;
+  }
+
+  requestMoveMouseTermination();
+}
+
+export function startRdpSessionManager(): void {
+  if (boolRdpSessionManagerStarted) {
+    return;
+  }
+
+  loggerMain.debug("--startRdpSessionManager--");
+  boolRdpSessionManagerStarted = true;
+  startSessionListener();
+  syncMoveMouseProcess();
+  timerMoveMouseCheck = setInterval(syncMoveMouseProcess, INT_MOVE_MOUSE_CHECK_INTERVAL_MS);
+}
+
+export function stopRdpSessionManager(): void {
+  if (!boolRdpSessionManagerStarted) {
+    return;
+  }
+
+  loggerMain.debug("--stopRdpSessionManager--");
+  boolRdpSessionManagerStarted = false;
+
+  if (timerMoveMouseCheck !== undefined) {
+    clearInterval(timerMoveMouseCheck);
+    timerMoveMouseCheck = undefined;
+  }
+
+  if (
+    processPySessionListener !== undefined &&
+    isProcessRunning(processPySessionListener)
+  ) {
+    processPySessionListener.kill();
+  }
+  if (processPyMoveMouse !== undefined && isProcessRunning(processPyMoveMouse)) {
+    processPyMoveMouse.kill();
+  }
 }
