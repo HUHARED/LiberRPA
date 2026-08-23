@@ -11,6 +11,7 @@ import { dbInsertHistoryDetail, dbUpdateHistoryDetail } from "./database";
 import { getExecutorPackageFolderPath } from "./fileFunc";
 import { loggerMain } from "./logger";
 import { sendMainMessage } from "./ipcMainMessage";
+import { ensureNonEmptyString, ensureRecord, ensureString } from "./validation";
 import type { DictColumns_Project_Detail_Run } from "../shared/interface";
 
 type ExecutorRunStateStatus = "running" | "completed" | "error" | "terminated";
@@ -566,6 +567,18 @@ function parseExecutorRunTimestamp(strTimestamp: string): number {
   return intTimestampMs;
 }
 
+function ensureExecutorRunStateStatus(value: unknown): ExecutorRunStateStatus {
+  switch (value) {
+    case "running":
+    case "completed":
+    case "error":
+    case "terminated":
+      return value;
+    default:
+      throw new Error("Executor run state contains an unsupported status.");
+  }
+}
+
 function readExecutorRunState({
   filePath,
   expectedRunId,
@@ -579,39 +592,59 @@ function readExecutorRunState({
 }): ExecutorRunState {
   const strContent = fs.readFileSync(filePath, { encoding: "utf-8" });
   const value: unknown = JSON.parse(strContent);
+  const dictState = ensureRecord(value, "Executor run state");
 
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    throw new Error("Executor run state must be a JSON object.");
+  if (dictState.schemaVersion !== 1) {
+    throw new Error(
+      `Invalid Executor run state schema version: ${String(dictState.schemaVersion)}`,
+    );
+  }
+  if (dictState.runId !== expectedRunId) {
+    throw new Error(`Executor run state has an unexpected runId: ${filePath}`);
+  }
+  if (dictState.packageName !== expectedPackageName) {
+    throw new Error(`Executor run state has an unexpected packageName: ${filePath}`);
+  }
+  if (dictState.packageVersion !== expectedPackageVersion) {
+    throw new Error(`Executor run state has an unexpected packageVersion: ${filePath}`);
   }
 
-  const dictState = value as Partial<ExecutorRunState>;
-  const setValidStatus = new Set<ExecutorRunStateStatus>([
-    "running",
-    "completed",
-    "error",
-    "terminated",
-  ]);
+  const strStartedAt = ensureString(dictState.startedAt, "Executor run state.startedAt");
+  if (!isValidExecutorRunTimestamp(strStartedAt)) {
+    throw new Error(`Invalid Executor run state startedAt: ${strStartedAt}`);
+  }
+  const strLogPath = ensureNonEmptyString(dictState.logPath, "Executor run state.logPath");
+  const status = ensureExecutorRunStateStatus(dictState.status);
 
-  if (
-    dictState.schemaVersion !== 1 ||
-    dictState.runId !== expectedRunId ||
-    dictState.packageName !== expectedPackageName ||
-    dictState.packageVersion !== expectedPackageVersion ||
-    typeof dictState.startedAt !== "string" ||
-    !isValidExecutorRunTimestamp(dictState.startedAt) ||
-    typeof dictState.logPath !== "string" ||
-    dictState.logPath.length === 0 ||
-    typeof dictState.status !== "string" ||
-    !setValidStatus.has(dictState.status as ExecutorRunStateStatus) ||
-    (dictState.status === "running" && dictState.endedAt !== undefined) ||
-    (dictState.status !== "running" &&
-      (typeof dictState.endedAt !== "string" ||
-        !isValidExecutorRunTimestamp(dictState.endedAt)))
-  ) {
-    throw new Error(`Invalid Executor run state: ${filePath}`);
+  if (status === "running") {
+    if (dictState.endedAt !== undefined) {
+      throw new Error("A running Executor run state cannot contain endedAt.");
+    }
+    return {
+      schemaVersion: 1,
+      runId: expectedRunId,
+      packageName: expectedPackageName,
+      packageVersion: expectedPackageVersion,
+      startedAt: strStartedAt,
+      logPath: strLogPath,
+      status,
+    };
   }
 
-  return dictState as ExecutorRunState;
+  const strEndedAt = ensureString(dictState.endedAt, "Executor run state.endedAt");
+  if (!isValidExecutorRunTimestamp(strEndedAt)) {
+    throw new Error(`Invalid Executor run state endedAt: ${strEndedAt}`);
+  }
+  return {
+    schemaVersion: 1,
+    runId: expectedRunId,
+    packageName: expectedPackageName,
+    packageVersion: expectedPackageVersion,
+    startedAt: strStartedAt,
+    logPath: strLogPath,
+    status,
+    endedAt: strEndedAt,
+  };
 }
 
 async function waitForExecutorRunStateAvailable({

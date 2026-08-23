@@ -7,6 +7,13 @@ import * as os from "os";
 import path from "path";
 
 import type { DictBasicConfig, DictExecutorConfig } from "../shared/interface";
+import {
+  ensureBoolean,
+  ensureNonEmptyString,
+  ensurePositiveInteger,
+  ensureRecord,
+  ensureString,
+} from "./validation";
 
 export const strDocumentsFolderPath = app.getPath("documents");
 app.setPath("userData", path.join(strDocumentsFolderPath, "LiberRPA/AppData/executor/"));
@@ -95,7 +102,7 @@ const STR_EXECUTOR_CONFIG_PATH = path.join(
   strLiberRPAEnvPath,
   "configFiles/Executor.jsonc",
 );
-const SET_EXECUTOR_CONFIG_KEY = new Set<keyof DictExecutorConfig>([
+const ARR_EXECUTOR_CONFIG_KEY: readonly (keyof DictExecutorConfig)[] = [
   "theme",
   "keepRdpSession",
   "keepRdpSessionWidth",
@@ -108,7 +115,39 @@ const SET_EXECUTOR_CONFIG_KEY = new Set<keyof DictExecutorConfig>([
   "videoSizeGB",
   "projectLogFolderPath",
   "timezone",
-]);
+];
+const SET_EXECUTOR_CONFIG_KEY = new Set<string>(ARR_EXECUTOR_CONFIG_KEY);
+
+function validateBasicConfig(value: unknown): DictBasicConfig {
+  const dictConfig = ensureRecord(value, "Basic config");
+  const intLocalServerPort = ensurePositiveInteger(
+    dictConfig.localServerPort,
+    "Basic config.localServerPort",
+  );
+  if (intLocalServerPort > 65535) {
+    throw new Error("Basic config.localServerPort must be at most 65535.");
+  }
+  if (dictConfig.uiAnalyzerTheme !== "light" && dictConfig.uiAnalyzerTheme !== "dark") {
+    throw new Error("Basic config.uiAnalyzerTheme must be 'light' or 'dark'.");
+  }
+
+  return {
+    outputLogPath: ensureNonEmptyString(
+      dictConfig.outputLogPath,
+      "Basic config.outputLogPath",
+    ),
+    localServerPort: intLocalServerPort,
+    uiAnalyzerTheme: dictConfig.uiAnalyzerTheme,
+    uiAnalyzerMinimizeWindow: ensureBoolean(
+      dictConfig.uiAnalyzerMinimizeWindow,
+      "Basic config.uiAnalyzerMinimizeWindow",
+    ),
+    componentRepositoryPath: ensureNonEmptyString(
+      dictConfig.componentRepositoryPath,
+      "Basic config.componentRepositoryPath",
+    ),
+  };
+}
 
 function getBasicConfigDict(): DictBasicConfig {
   const strSettingPath = path.join(strLiberRPAEnvPath, "configFiles/basic.jsonc");
@@ -128,7 +167,7 @@ function getBasicConfigDict(): DictBasicConfig {
       strContent = strContent.replace(new RegExp(strSafeKeyword, "g"), strReplacement);
     }
 
-    const dictSettings = jsoncParser.parse(strContent) as DictBasicConfig;
+    const dictSettings = validateBasicConfig(jsoncParser.parse(strContent));
     console.log("dictConfigBasic=", JSON.stringify(dictSettings, null, 2));
     return dictSettings;
   } catch (e: unknown) {
@@ -136,10 +175,6 @@ function getBasicConfigDict(): DictBasicConfig {
       cause: e,
     });
   }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function isValidTimezone(strTimezone: string): boolean {
@@ -177,11 +212,7 @@ function getBooleanConfigValue(
   dictConfig: Record<string, unknown>,
   strKey: keyof DictExecutorConfig,
 ): boolean {
-  const value = dictConfig[strKey];
-  if (typeof value !== "boolean") {
-    throw new Error(`Executor config '${strKey}' must be a boolean.`);
-  }
-  return value;
+  return ensureBoolean(dictConfig[strKey], `Executor config '${strKey}'`);
 }
 
 function getIntegerConfigValue({
@@ -212,73 +243,67 @@ function getStringConfigValue(
   dictConfig: Record<string, unknown>,
   strKey: keyof DictExecutorConfig,
 ): string {
-  const value = dictConfig[strKey];
-  if (typeof value !== "string") {
-    throw new Error(`Executor config '${strKey}' must be a string.`);
-  }
-  return value;
+  return ensureString(dictConfig[strKey], `Executor config '${strKey}'`);
 }
 
 export function validateExecutorConfig(value: unknown): DictExecutorConfig {
-  if (!isRecord(value)) {
-    throw new Error("Executor config must be a JSON object.");
-  }
+  const dictConfig = ensureRecord(value, "Executor config");
 
-  for (const strKey of Object.keys(value)) {
-    if (!SET_EXECUTOR_CONFIG_KEY.has(strKey as keyof DictExecutorConfig)) {
+  for (const strKey of Object.keys(dictConfig)) {
+    if (!SET_EXECUTOR_CONFIG_KEY.has(strKey)) {
       throw new Error(`Unknown Executor config key: ${strKey}`);
     }
   }
 
-  for (const strKey of SET_EXECUTOR_CONFIG_KEY) {
-    if (!Object.hasOwn(value, strKey)) {
+  for (const strKey of ARR_EXECUTOR_CONFIG_KEY) {
+    if (!Object.hasOwn(dictConfig, strKey)) {
       throw new Error(`Missing Executor config key: ${strKey}`);
     }
   }
 
-  if (value.theme !== "light" && value.theme !== "dark") {
+  if (dictConfig.theme !== "light" && dictConfig.theme !== "dark") {
     throw new Error("Executor config 'theme' must be 'light' or 'dark'.");
   }
 
-  const strTimezone = getStringConfigValue(value, "timezone");
+  const strTimezone = getStringConfigValue(dictConfig, "timezone");
   if (!isValidTimezone(strTimezone)) {
     throw new Error("Executor config 'timezone' must be a valid IANA time zone.");
   }
 
   return {
-    theme: value.theme,
-    keepRdpSession: getBooleanConfigValue(value, "keepRdpSession"),
+    theme: dictConfig.theme,
+    keepRdpSession: getBooleanConfigValue(dictConfig, "keepRdpSession"),
     keepRdpSessionWidth: getIntegerConfigValue({
-      config: value,
+      config: dictConfig,
       key: "keepRdpSessionWidth",
       min: 480,
       max: 7680,
     }),
     keepRdpSessionHeight: getIntegerConfigValue({
-      config: value,
+      config: dictConfig,
       key: "keepRdpSessionHeight",
       min: 480,
       max: 7680,
     }),
-    logTimeoutEnable: getBooleanConfigValue(value, "logTimeoutEnable"),
+    logTimeoutEnable: getBooleanConfigValue(dictConfig, "logTimeoutEnable"),
     logTimeoutDays: getIntegerConfigValue({
-      config: value,
+      config: dictConfig,
       key: "logTimeoutDays",
       min: 7,
     }),
-    videoTimeoutEnable: getBooleanConfigValue(value, "videoTimeoutEnable"),
+    videoTimeoutEnable: getBooleanConfigValue(dictConfig, "videoTimeoutEnable"),
     videoTimeoutDays: getIntegerConfigValue({
-      config: value,
+      config: dictConfig,
       key: "videoTimeoutDays",
       min: 1,
     }),
-    videoSizeEnable: getBooleanConfigValue(value, "videoSizeEnable"),
+    videoSizeEnable: getBooleanConfigValue(dictConfig, "videoSizeEnable"),
     videoSizeGB: getIntegerConfigValue({
-      config: value,
+      config: dictConfig,
       key: "videoSizeGB",
       min: 1,
     }),
-    projectLogFolderPath: getStringConfigValue(value, "projectLogFolderPath"),
+    projectLogFolderPath: getStringConfigValue(dictConfig, "projectLogFolderPath"),
     timezone: strTimezone,
   };
 }

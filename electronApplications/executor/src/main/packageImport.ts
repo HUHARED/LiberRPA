@@ -11,6 +11,7 @@ import { validatePackagedFlowProject } from "./componentManagementProcess";
 import { dbInsertProjectDetail, dbSelectProjectDetail } from "./database";
 import { getExecutorPackageFolderPath, strExecutorPackageFolderPath } from "./fileFunc";
 import { loggerMain } from "./logger";
+import { ensureLogLevel, isRecord } from "./validation";
 import type {
   DictColumns_Project_Detail_ToInsert,
   DictProjectPackageImportResult,
@@ -76,14 +77,6 @@ const SET_PROJECT_FLOW_KEYS = new Set([
   "highlightUi",
   "customPrjArgs",
 ]);
-const SET_LOG_LEVEL = new Set<TypeColumns_LogLevel>([
-  "VERBOSE",
-  "DEBUG",
-  "INFO",
-  "WARNING",
-  "ERROR",
-  "CRITICAL",
-]);
 const SET_RESERVED_WINDOWS_NAME = new Set([
   "CON",
   "PRN",
@@ -112,10 +105,6 @@ const REGEX_INVALID_WINDOWS_NAME_CHARACTER = /[<>:"/\\|?*]/;
 
 let boolPackageImportRunning = false;
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 function hasExactKeys(
   value: Record<string, unknown>,
   setExpectedKey: Set<string>,
@@ -129,7 +118,7 @@ function hasExactKeys(
 
 function readJsonFile(strFilePath: string): unknown {
   try {
-    return JSON.parse(fs.readFileSync(strFilePath, { encoding: "utf-8" })) as unknown;
+    return JSON.parse(fs.readFileSync(strFilePath, { encoding: "utf-8" }));
   } catch (e: unknown) {
     throw new Error(`Failed to read JSON file: ${strFilePath}`, { cause: e });
   }
@@ -257,12 +246,7 @@ function parseProjectFlowRuntimeSettings(value: unknown): DictProjectFlowRuntime
   if (value.executeMode !== "Run" && value.executeMode !== "Debug") {
     throw new Error("project.flow executeMode must be Run or Debug.");
   }
-  if (
-    typeof value.logLevel !== "string" ||
-    !SET_LOG_LEVEL.has(value.logLevel as TypeColumns_LogLevel)
-  ) {
-    throw new Error("project.flow logLevel is invalid.");
-  }
+  const strLogLevel = ensureLogLevel(value.logLevel, "project.flow logLevel");
   if (
     typeof value.recordVideo !== "boolean" ||
     typeof value.stopShortcut !== "boolean" ||
@@ -274,7 +258,7 @@ function parseProjectFlowRuntimeSettings(value: unknown): DictProjectFlowRuntime
   }
 
   return {
-    logLevel: value.logLevel as TypeColumns_LogLevel,
+    logLevel: strLogLevel,
     recordVideo: value.recordVideo,
     stopShortcut: value.stopShortcut,
     highlightUi: value.highlightUi,

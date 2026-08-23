@@ -6,8 +6,17 @@ import path from "path";
 
 import { strDocumentsFolderPath } from "./commonFunc";
 import { loggerMain } from "./logger";
+import {
+  ensureCountRow,
+  ensureHistoryListRows,
+  ensureLogPathRows,
+  ensureNameRows,
+  ensureProjectDetailRow,
+  ensureSchedulerDetailRow,
+  ensureSchedulerListRows,
+  ensureVersionRows,
+} from "./databaseValidation";
 import type {
-  DictColumns_History_ListItem_DB,
   DictColumns_History_ListItem_Limit_DB,
   DictColumns_History_ToInsert,
   DictColumns_History_ToUpdate,
@@ -166,7 +175,7 @@ function getDatabase(): Database.Database {
 
 export function dbSelectProjectNames(): { name: string }[] {
   loggerMain.debug("--dbSelectProjectNames--");
-  return getDatabase()
+  const rows = getDatabase()
     .prepare(
       `
       SELECT
@@ -179,12 +188,13 @@ export function dbSelectProjectNames(): { name: string }[] {
           MAX(updated_at_ms) DESC;
       `,
     )
-    .all() as { name: string }[];
+    .all();
+  return ensureNameRows(rows, "Project name query result");
 }
 
 export function dbSelectProjectVersions(name: string): { version: string }[] {
   loggerMain.debug("--dbSelectProjectVersions--");
-  return getDatabase()
+  const rows = getDatabase()
     .prepare(
       `
       SELECT
@@ -197,12 +207,13 @@ export function dbSelectProjectVersions(name: string): { version: string }[] {
           updated_at_ms DESC;
       `,
     )
-    .all(name) as { version: string }[];
+    .all(name);
+  return ensureVersionRows(rows, "Project version query result");
 }
 
 export function dbSelectProjectBindSchedulers(id: number): { name: string }[] {
   loggerMain.debug("--dbSelectProjectBindSchedulers--");
-  return getDatabase()
+  const rows = getDatabase()
     .prepare(
       `
       SELECT
@@ -215,7 +226,8 @@ export function dbSelectProjectBindSchedulers(id: number): { name: string }[] {
           name ASC;
       `,
     )
-    .all(id) as { name: string }[];
+    .all(id);
+  return ensureNameRows(rows, "Bound Schedule query result");
 }
 
 export function dbSelectProjectDetail(
@@ -223,9 +235,35 @@ export function dbSelectProjectDetail(
   version: string,
 ): DictColumns_Project_Detail_DB | undefined {
   loggerMain.debug("--dbSelectProjectDetail--");
-  return getDatabase()
-    .prepare("SELECT * FROM project_local WHERE name = ? AND version = ?;")
-    .get(name, version) as DictColumns_Project_Detail_DB | undefined;
+  const row = getDatabase()
+    .prepare(
+      `
+      SELECT
+          id,
+          name,
+          version,
+          description,
+          version_summary,
+          python_environment_name,
+          timeout_min,
+          builtin_log_level,
+          builtin_record_video,
+          builtin_stop_shortcut,
+          builtin_highlight_ui,
+          custom_prj_args,
+          created_at_ms,
+          updated_at_ms
+      FROM
+          project_local
+      WHERE
+          name = ?
+          AND version = ?;
+      `,
+    )
+    .get(name, version);
+  return row === undefined
+    ? undefined
+    : ensureProjectDetailRow(row, "Project detail query result");
 }
 
 export function dbInsertProjectDetail(
@@ -334,7 +372,7 @@ export function dbDeleteProject(id: number): Database.RunResult {
 
 export function dbSelectSchedulerList(): DictColumns_Scheduler_ListItem_DB[] {
   loggerMain.debug("--dbSelectSchedulerList--");
-  return getDatabase()
+  const rows = getDatabase()
     .prepare(
       `
       SELECT
@@ -360,14 +398,15 @@ export function dbSelectSchedulerList(): DictColumns_Scheduler_ListItem_DB[] {
           ts.updated_at_ms DESC;
       `,
     )
-    .all() as DictColumns_Scheduler_ListItem_DB[];
+    .all();
+  return ensureSchedulerListRows(rows, "Schedule list query result");
 }
 
 export function dbSelectSchedulerDetail(
   name: string,
 ): DictColumns_Scheduler_Detail_DB | undefined {
   loggerMain.debug("--dbSelectSchedulerDetail--");
-  return getDatabase()
+  const row = getDatabase()
     .prepare(
       `
       SELECT
@@ -407,7 +446,10 @@ export function dbSelectSchedulerDetail(
           ts.name = ?;
       `,
     )
-    .get(name) as DictColumns_Scheduler_Detail_DB | undefined;
+    .get(name);
+  return row === undefined
+    ? undefined
+    : ensureSchedulerDetailRow(row, "Schedule detail query result");
 }
 
 export function dbInsertSchedulerDetail(
@@ -601,8 +643,8 @@ export function dbSelectCountHistoryRunning(): boolean {
   loggerMain.debug("--dbSelectCountHistoryRunning--");
   const row = getDatabase()
     .prepare("SELECT COUNT(*) AS runningCount FROM task_history WHERE status = 'running';")
-    .get() as { runningCount: number };
-  return row.runningCount > 0;
+    .get();
+  return ensureCountRow(row, "runningCount", "Running History count query result") > 0;
 }
 
 export function dbSelectLimitHistoryList(
@@ -686,11 +728,8 @@ export function dbSelectLimitHistoryList(
           ?;
       `,
     )
-    .all(
-      ...arrWhereParam,
-      options.itemsPerPage,
-      (options.page - 1) * options.itemsPerPage,
-    ) as DictColumns_History_ListItem_DB[];
+    .all(...arrWhereParam, options.itemsPerPage, (options.page - 1) * options.itemsPerPage);
+  const arrRow = ensureHistoryListRows(rows, "Run History query result");
 
   const total = getDatabase()
     .prepare(
@@ -702,20 +741,48 @@ export function dbSelectLimitHistoryList(
       ${strWhereClause};
       `,
     )
-    .get(...arrWhereParam) as { total: number };
+    .get(...arrWhereParam);
+  const intTotal = ensureCountRow(total, "total", "Run History count query result");
 
-  return { rows, total: total.total };
+  return { rows: arrRow, total: intTotal };
 }
 
 export function dbSelectProjectNewestVersionDetail(
   name: string,
 ): DictColumns_Project_Detail_DB | undefined {
   loggerMain.debug("--dbSelectProjectNewestVersionDetail--");
-  return getDatabase()
+  const row = getDatabase()
     .prepare(
-      "SELECT * FROM project_local WHERE name = ? ORDER BY created_at_ms DESC LIMIT 1;",
+      `
+      SELECT
+          id,
+          name,
+          version,
+          description,
+          version_summary,
+          python_environment_name,
+          timeout_min,
+          builtin_log_level,
+          builtin_record_video,
+          builtin_stop_shortcut,
+          builtin_highlight_ui,
+          custom_prj_args,
+          created_at_ms,
+          updated_at_ms
+      FROM
+          project_local
+      WHERE
+          name = ?
+      ORDER BY
+          created_at_ms DESC
+      LIMIT
+          1;
+      `,
     )
-    .get(name) as DictColumns_Project_Detail_DB | undefined;
+    .get(name);
+  return row === undefined
+    ? undefined
+    : ensureProjectDetailRow(row, "Newest Project version query result");
 }
 
 /* Setting */
@@ -737,9 +804,9 @@ export function dbSelectLogFolderBefore(intCutoffMs: number): string[] {
           COALESCE(run_ended_at_ms, run_started_at_ms) DESC;
       `,
     )
-    .all(intCutoffMs) as { log_path: string }[];
+    .all(intCutoffMs);
 
-  return rows.map((row) => row.log_path);
+  return ensureLogPathRows(rows, "Expired log folder query result");
 }
 
 export function dbSelectVideoBefore(intCutoffMs: number): string[] {
@@ -759,9 +826,9 @@ export function dbSelectVideoBefore(intCutoffMs: number): string[] {
           COALESCE(run_ended_at_ms, run_started_at_ms) DESC;
       `,
     )
-    .all(intCutoffMs) as { log_path: string }[];
+    .all(intCutoffMs);
 
-  return rows.map((row) => row.log_path);
+  return ensureLogPathRows(rows, "Expired video query result");
 }
 
 export function dbSelectVideo(): string[] {
@@ -780,9 +847,9 @@ export function dbSelectVideo(): string[] {
           COALESCE(run_ended_at_ms, run_started_at_ms) DESC;
       `,
     )
-    .all() as { log_path: string }[];
+    .all();
 
-  return rows.map((row) => row.log_path);
+  return ensureLogPathRows(rows, "Video query result");
 }
 
 export function dbUpdateNoLogFolderAndVideo(strLogPath: string): void {

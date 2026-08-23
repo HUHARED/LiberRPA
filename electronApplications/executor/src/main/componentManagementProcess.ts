@@ -6,15 +6,12 @@ import fs from "fs";
 
 import { strDefaultPythonEnvironmentPath } from "./commonFunc";
 import { loggerMain } from "./logger";
+import { isRecord } from "./validation";
 
 const SET_SUCCESS_KEYS = new Set(["schemaVersion", "ok", "result", "warnings"]);
 const SET_SUCCESS_RESULT_KEYS = new Set(["status"]);
 const SET_FAILURE_KEYS = new Set(["schemaVersion", "ok", "error"]);
 const SET_ERROR_KEYS = new Set(["code", "message", "details"]);
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 
 function hasExactKeys(value: Record<string, unknown>, expectedKeys: Set<string>): boolean {
   const arrKey = Object.keys(value);
@@ -27,7 +24,7 @@ function hasExactKeys(value: Record<string, unknown>, expectedKeys: Set<string>)
 function validateComponentManagementResponse(strOutput: string): void {
   let value: unknown;
   try {
-    value = JSON.parse(strOutput) as unknown;
+    value = JSON.parse(strOutput);
   } catch (e: unknown) {
     throw new Error("Component Management returned invalid JSON on stdout.", {
       cause: e,

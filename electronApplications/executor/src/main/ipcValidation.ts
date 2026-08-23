@@ -6,128 +6,27 @@ import type {
   DictColumns_Scheduler_Detail_ToInsert,
   DictColumns_Scheduler_Detail_ToUpdate,
   Dict_History_Options,
-  TypeColumns_LogLevel,
-  TypeCustomProjectArgs,
-  TypeTaskHistoryStatus,
 } from "../shared/interface";
 import type { TypeExecutorInvokeCommand, TypeRendererLogLevel } from "../shared/ipc";
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    return false;
-  }
-  const objPrototype = Object.getPrototypeOf(value);
-  return objPrototype === Object.prototype || objPrototype === null;
-}
+import {
+  ensureBinaryInteger,
+  ensureBoolean,
+  ensureCustomProjectArgs,
+  ensureCustomProjectArgsJson,
+  ensureExactRecord,
+  ensureFiniteNumber,
+  ensureHistoryStatus,
+  ensureLogLevel,
+  ensureNonEmptyString,
+  ensureNonNegativeInteger,
+  ensureNullableString,
+  ensurePositiveInteger,
+  ensureProjectSource,
+  ensureString,
+  ensureWhenOthersRunning,
+} from "./validation";
 
-function ensureExactRecord(
-  value: unknown,
-  arrExpectedKey: readonly string[],
-  strSourceName: string,
-): Record<string, unknown> {
-  if (!isRecord(value)) {
-    throw new Error(`${strSourceName} must be an object.`);
-  }
-
-  const setExpectedKey = new Set(arrExpectedKey);
-  const arrKey = Object.keys(value);
-  if (
-    arrKey.length !== setExpectedKey.size ||
-    arrKey.some((strKey) => !setExpectedKey.has(strKey))
-  ) {
-    throw new Error(`${strSourceName} contains missing or unknown fields.`);
-  }
-
-  return value;
-}
-
-function ensureString(value: unknown, strSourceName: string): string {
-  if (typeof value !== "string") {
-    throw new Error(`${strSourceName} must be a string.`);
-  }
-  return value;
-}
-
-function ensureNonEmptyString(value: unknown, strSourceName: string): string {
-  const strValue = ensureString(value, strSourceName);
-  if (strValue.trim() === "") {
-    throw new Error(`${strSourceName} cannot be empty.`);
-  }
-  return strValue;
-}
-
-function ensureBoolean(value: unknown, strSourceName: string): boolean {
-  if (typeof value !== "boolean") {
-    throw new Error(`${strSourceName} must be a Boolean value.`);
-  }
-  return value;
-}
-
-function ensureFiniteNumber(value: unknown, strSourceName: string): number {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    throw new Error(`${strSourceName} must be a finite number.`);
-  }
-  return value;
-}
-
-function ensureNonNegativeInteger(value: unknown, strSourceName: string): number {
-  const intValue = ensureFiniteNumber(value, strSourceName);
-  if (!Number.isSafeInteger(intValue) || intValue < 0) {
-    throw new Error(`${strSourceName} must be a non-negative safe integer.`);
-  }
-  return intValue;
-}
-
-function ensurePositiveInteger(value: unknown, strSourceName: string): number {
-  const intValue = ensureNonNegativeInteger(value, strSourceName);
-  if (intValue === 0) {
-    throw new Error(`${strSourceName} must be greater than 0.`);
-  }
-  return intValue;
-}
-
-function ensureBinaryInteger(value: unknown, strSourceName: string): 0 | 1 {
-  if (value !== 0 && value !== 1) {
-    throw new Error(`${strSourceName} must be 0 or 1.`);
-  }
-  return value;
-}
-
-function ensureNullableString(value: unknown, strSourceName: string): string | null {
-  if (value === null) {
-    return null;
-  }
-  return ensureString(value, strSourceName);
-}
-
-function ensureProjectSource(value: unknown, strSourceName: string): "local" | "console" {
-  if (value === "local" || value === "console") {
-    return value;
-  }
-  throw new Error(`${strSourceName} must be 'local' or 'console'.`);
-}
-function ensureLogLevel(value: unknown, strSourceName: string): TypeColumns_LogLevel {
-  switch (value) {
-    case "VERBOSE":
-    case "DEBUG":
-    case "INFO":
-    case "WARNING":
-    case "ERROR":
-    case "CRITICAL":
-      return value;
-    default:
-      throw new Error(`${strSourceName} contains an unsupported log level.`);
-  }
-}
-function ensureWhenOthersRunning(
-  value: unknown,
-  strSourceName: string,
-): "cancel" | "wait" | "run" {
-  if (value === "cancel" || value === "wait" || value === "run") {
-    return value;
-  }
-  throw new Error(`${strSourceName} must be 'cancel', 'wait', or 'run'.`);
-}
 function ensureHistorySortKey(
   value: unknown,
   strSourceName: string,
@@ -152,90 +51,6 @@ function ensureHistorySortOrder(value: unknown, strSourceName: string): "asc" | 
     return value;
   }
   throw new Error(`${strSourceName} must be 'asc' or 'desc'.`);
-}
-
-function ensureHistoryStatus(value: unknown, strSourceName: string): TypeTaskHistoryStatus {
-  switch (value) {
-    case "running":
-    case "completed":
-    case "error":
-    case "cancel":
-    case "timeout":
-    case "interrupted":
-      return value;
-    default:
-      throw new Error(`${strSourceName} contains an unsupported status.`);
-  }
-}
-
-function ensureJsonValue(
-  value: unknown,
-  strSourceName: string,
-  setAncestor = new Set<object>(),
-): void {
-  if (
-    value === null ||
-    typeof value === "string" ||
-    typeof value === "boolean" ||
-    (typeof value === "number" && Number.isFinite(value))
-  ) {
-    return;
-  }
-
-  if (typeof value !== "object" || value === null) {
-    throw new Error(`${strSourceName} must be JSON-compatible.`);
-  }
-  if (setAncestor.has(value)) {
-    throw new Error(`${strSourceName} cannot contain circular references.`);
-  }
-
-  setAncestor.add(value);
-  try {
-    if (Array.isArray(value)) {
-      value.forEach((item, intIndex) => {
-        ensureJsonValue(item, `${strSourceName}[${intIndex}]`, setAncestor);
-      });
-      return;
-    }
-
-    if (!isRecord(value)) {
-      throw new Error(`${strSourceName} must be JSON-compatible.`);
-    }
-    for (const [strKey, item] of Object.entries(value)) {
-      ensureJsonValue(item, `${strSourceName}.${strKey}`, setAncestor);
-    }
-  } finally {
-    setAncestor.delete(value);
-  }
-}
-
-function ensureCustomProjectArgs(
-  value: unknown,
-  strSourceName: string,
-): TypeCustomProjectArgs {
-  if (!Array.isArray(value)) {
-    throw new Error(`${strSourceName} must be an array.`);
-  }
-
-  return value.map((item, intIndex) => {
-    if (!Array.isArray(item) || item.length !== 2 || typeof item[0] !== "string") {
-      throw new Error(`${strSourceName}[${intIndex}] must be a [string, value] pair.`);
-    }
-    ensureJsonValue(item[1], `${strSourceName}[${intIndex}][1]`);
-    return [item[0], item[1]];
-  });
-}
-
-function ensureCustomProjectArgsJson(value: unknown, strSourceName: string): string {
-  const strValue = ensureString(value, strSourceName);
-  let parsedValue: unknown;
-  try {
-    parsedValue = JSON.parse(strValue);
-  } catch (e: unknown) {
-    throw new Error(`${strSourceName} must contain valid JSON.`, { cause: e });
-  }
-  ensureCustomProjectArgs(parsedValue, strSourceName);
-  return strValue;
 }
 
 export function ensureInvokeCommand(value: unknown): TypeExecutorInvokeCommand {
