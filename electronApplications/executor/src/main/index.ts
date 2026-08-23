@@ -1,15 +1,6 @@
 // FileName: index.ts
 
-import {
-  app,
-  shell,
-  BrowserWindow,
-  ipcMain,
-  screen,
-  Tray,
-  Menu,
-  nativeImage,
-} from "electron";
+import { app, shell, BrowserWindow, screen, Tray, Menu, nativeImage } from "electron";
 
 // Only one Executor instance.
 const boolGotLock = app.requestSingleInstanceLock();
@@ -34,42 +25,16 @@ import { electronApp, optimizer, is } from "@electron-toolkit/utils";
 import icon from "../../resources/LiberRPA_icon_v3_color_Executor_256.ico?asset";
 
 import { loggerMain } from "./logger";
-import {
-  dictConfigBasic,
-  dictConfigExecutor,
-  getPythonEnvironmentNames,
-  saveExecutorConfigDict,
-  selectProjectLogFolder,
-} from "./commonFunc";
+import { dictConfigBasic, dictConfigExecutor } from "./commonFunc";
 import {
   initializeDatabase,
   closeDatabase,
-  dbSelectProjectNames,
-  dbSelectProjectVersions,
-  dbSelectProjectDetail,
-  dbInsertSchedulerDetail,
-  dbUpdateProjectDetail,
-  dbSelectProjectBindSchedulers,
-  dbDeleteProject,
-  dbSelectSchedulerList,
-  dbSelectSchedulerDetail,
-  dbUpdateSchedulerDetail,
-  dbDeleteScheduler,
-  dbSelectLimitHistoryList,
-  dbSelectCountHistoryRunning,
-  dbSelectProjectNewestVersionDetail,
   dbMarkRunningHistoryInterrupted,
 } from "./database";
-import { fileDeleteExecutorPackage, fileOpenFolder } from "./fileFunc";
-import { importProjectPackage, recoverProjectPackageImports } from "./packageImport";
-import { pythonRun, pythonCancel } from "./pythonFunc";
-import {
-  logCleanFolderByTimeout,
-  logCleanVideoByTimeout,
-  logCleanVideoBySize,
-} from "./logCleanFunc";
+import { recoverProjectPackageImports } from "./packageImport";
 import { runSessionListener, setResolution } from "./rdpSessionFunc";
-import type { DictInvokeResult } from "../shared/interface";
+import { registerExecutorIpc } from "./ipc";
+import { sendMainMessage } from "./ipcMainMessage";
 
 initializeDatabase();
 recoverProjectPackageImports();
@@ -111,7 +76,10 @@ function createWindow(): void {
       );
     }
 
-    webContentsObj.send("send-from-main", "init-setting", dictConfigExecutor);
+    sendMainMessage(webContentsObj, {
+      type: "initializeSetting",
+      data: dictConfigExecutor,
+    });
     runSessionListener();
   });
 
@@ -228,189 +196,7 @@ void app
       optimizer.watchWindowShortcuts(window);
     });
 
-    ipcMain.on("send-from-renderer-log", (_event, { level, message }) =>
-      loggerMain.log(level, "[Renderer] " + message),
-    );
-
-    ipcMain.on("send-from-renderer", (_event, command: string, data?: any): void => {
-      loggerMain.debug(
-        `[send-from-renderer] (${command}) ${JSON.stringify(data, null, 2)}`,
-      );
-      try {
-        switch (command) {
-          /* Setting */
-          case "send:open-project-log-folder-path":
-            openProjectLogFolderPath(data);
-            break;
-
-          case "send:save-executor-config": {
-            const dictSavedConfig = saveExecutorConfigDict(data);
-            // Other Main Process modules read this shared in-memory config.
-            Object.assign(dictConfigExecutor, dictSavedConfig);
-            break;
-          }
-
-          default:
-            loggerMain.error(`An unidentified command in send-from-renderer: ${command}.`);
-            break;
-        }
-      } catch (e: unknown) {
-        loggerMain.error(`Error running command: ${command}`, e);
-      }
-    });
-
-    ipcMain.handle(
-      "invoke-from-renderer",
-      async (_event, command: string, data?: any): Promise<DictInvokeResult> => {
-        loggerMain.debug(
-          `[invoke-from-renderer] (${command}) ${JSON.stringify(data, null, 2)}`,
-        );
-        try {
-          let temp: any;
-          switch (command) {
-            /* Multiple modules need. */
-
-            case "invoke:pythonRun": {
-              temp = await pythonRun(data, webContentsObj);
-              break;
-            }
-
-            case "invoke:getPythonEnvironmentNames": {
-              temp = getPythonEnvironmentNames();
-              break;
-            }
-
-            /* Project Local Package */
-
-            case "invoke:importProjectPackage": {
-              temp = await importProjectPackage();
-              break;
-            }
-
-            case "invoke:fileDeleteExecutorPackage": {
-              temp = await fileDeleteExecutorPackage(data.name, data.version);
-              break;
-            }
-
-            case "invoke:dbSelectProjectNames": {
-              temp = dbSelectProjectNames();
-              break;
-            }
-
-            case "invoke:dbSelectProjectVersions": {
-              temp = dbSelectProjectVersions(data);
-              break;
-            }
-
-            case "invoke:dbSelectProjectDetail": {
-              temp = dbSelectProjectDetail(data.name, data.version);
-              break;
-            }
-
-            case "invoke:dbUpdateProjectDetail": {
-              temp = dbUpdateProjectDetail(data);
-              break;
-            }
-
-            case "invoke:dbSelectProjectBindSchedulers": {
-              temp = dbSelectProjectBindSchedulers(data);
-              break;
-            }
-
-            case "invoke:dbDeleteProject": {
-              temp = dbDeleteProject(data);
-              break;
-            }
-
-            /* Task Scheduler */
-
-            case "invoke:dbSelectSchedulerList": {
-              temp = dbSelectSchedulerList();
-              break;
-            }
-
-            case "invoke:dbSelectSchedulerDetail": {
-              temp = dbSelectSchedulerDetail(data);
-              break;
-            }
-
-            case "invoke:dbInsertSchedulerDetail": {
-              temp = dbInsertSchedulerDetail(data);
-              break;
-            }
-
-            case "invoke:dbUpdateSchedulerDetail": {
-              temp = dbUpdateSchedulerDetail(data);
-              break;
-            }
-
-            case "invoke:dbDeleteScheduler": {
-              temp = dbDeleteScheduler(data);
-              break;
-            }
-
-            /* Task History */
-
-            case "invoke:dbSelectLimitHistoryList": {
-              temp = dbSelectLimitHistoryList(data);
-              break;
-            }
-
-            case "invoke:dbSelectCountHistoryRunning": {
-              temp = dbSelectCountHistoryRunning();
-              break;
-            }
-
-            case "invoke:fileOpenFolder": {
-              temp = await fileOpenFolder(data);
-              break;
-            }
-
-            case "invoke:dbSelectProjectNewestVersionDetail": {
-              temp = dbSelectProjectNewestVersionDetail(data);
-              break;
-            }
-
-            case "invoke:pythonCancel": {
-              temp = pythonCancel(data, webContentsObj);
-              break;
-            }
-
-            /* Setting */
-
-            case "invoke:select-project-log-folder-path": {
-              temp = await selectProjectLogFolder();
-              break;
-            }
-
-            case "invoke:logCleanFolderByTimeout": {
-              temp = logCleanFolderByTimeout(data);
-              break;
-            }
-
-            case "invoke:logCleanVideoByTimeout": {
-              temp = logCleanVideoByTimeout(data);
-              break;
-            }
-
-            case "invoke:logCleanVideoBySize": {
-              temp = logCleanVideoBySize(data);
-              break;
-            }
-
-            default:
-              throw new Error(
-                `An unidentified command in invoke-from-renderer: ${command}.`,
-              );
-          }
-
-          return { success: true, data: temp };
-        } catch (e) {
-          loggerMain.error(`Error running command: ${command}`, e);
-          return { success: false, data: (e as Error).message ? (e as Error).message : e };
-        }
-      },
-    );
+    registerExecutorIpc(() => webContentsObj);
 
     createWindow();
 
@@ -436,9 +222,3 @@ app.on("window-all-closed", () => {
     app.quit();
   }
 });
-
-function openProjectLogFolderPath(strFolderPath: string): void {
-  void shell.openPath(strFolderPath).catch((e: unknown) => {
-    loggerMain.error(`Failed to open log folder ${strFolderPath}: ${String(e)}`);
-  });
-}

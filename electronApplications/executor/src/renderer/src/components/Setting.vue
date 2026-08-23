@@ -138,7 +138,8 @@
     <v-container fluid class="pa-2 ma-0 flex-row">
       <v-tooltip activator="parent" location="bottom">
         <div>
-          Delete run log folders older than the configured retention period, including logs and videos.<br />
+          Delete run log folders older than the configured retention period, including logs
+          and videos.<br />
           Minimum: 7 days.<br />
           Checked after a run ends, at most once per hour.
         </div>
@@ -249,11 +250,7 @@
     <v-container fluid class="pa-2 ma-0 flex-row">
       <v-icon class="pa-0 ma-0 mt-2 mr-2" color="grey" icon="mdi-open-in-new"> </v-icon>
 
-      <v-btn
-        variant="tonal"
-        @click="sendMain('send:open-project-log-folder-path', strProjectLogFolderPath)">
-        Open Log Folder
-      </v-btn>
+      <v-btn variant="tonal" @click="openProjectLogFolder()"> Open Log Folder </v-btn>
 
       <v-text-field
         id="project-log-folder-path"
@@ -291,7 +288,8 @@
         model-value="Time Zone:">
         <v-tooltip activator="parent" location="bottom">
           <div>
-            Controls how Executor displays time and interprets Cron expressions and active periods.<br />
+            Controls how Executor displays time and interprets Cron expressions and active
+            periods.<br />
             Changing it recalculates pending runs.
           </div>
         </v-tooltip>
@@ -314,7 +312,7 @@
 import { watch, computed } from "vue";
 import { debounce } from "lodash";
 
-import { loggerRenderer, sendMain } from "../ipcOfRenderer";
+import { invokeMain, loggerRenderer } from "../ipcOfRenderer";
 import { useInformationStore, useQueueStore, useSettingStore } from "../store";
 import { arrTimezone } from "../time";
 import type { DictExecutorConfig } from "../../../shared/interface";
@@ -417,16 +415,26 @@ const strProjectLogFolderPath = computed<string>({
   },
 });
 
+function openProjectLogFolder(): void {
+  invokeMain("openProjectLogFolder", strProjectLogFolderPath.value).catch((e: unknown) => {
+    loggerRenderer.error(`Failed to open Project log folder: ${String(e)}`);
+  });
+}
+
 // Define the debounced update function once
 const debouncedUpdate = debounce(() => {
   loggerRenderer.info(`Modified setting: ${JSON.stringify(settingStore.$state)}`);
-  saveConfig();
-
-  if (strTimezoneCache !== settingStore.timezone) {
-    strTimezoneCache = settingStore.timezone;
-    queueStore.resetPendingItem();
-    queueStore.refreshListItem();
-  }
+  saveConfig()
+    .then(() => {
+      if (strTimezoneCache !== settingStore.timezone) {
+        strTimezoneCache = settingStore.timezone;
+        queueStore.resetPendingItem();
+        queueStore.refreshListItem();
+      }
+    })
+    .catch((e: unknown) => {
+      loggerRenderer.error(`Failed to save Executor settings: ${String(e)}`);
+    });
 }, 300);
 
 watch(
@@ -437,7 +445,7 @@ watch(
   { deep: true },
 );
 
-function saveConfig(): void {
+async function saveConfig(): Promise<void> {
   const dictConfigExecutor: DictExecutorConfig = {
     theme: settingStore.theme,
     keepRdpSession: settingStore.keepRdpSession,
@@ -453,7 +461,7 @@ function saveConfig(): void {
     timezone: settingStore.timezone,
   };
 
-  sendMain("send:save-executor-config", dictConfigExecutor);
+  await invokeMain("saveExecutorConfig", dictConfigExecutor);
 }
 </script>
 

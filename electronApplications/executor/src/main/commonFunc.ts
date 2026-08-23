@@ -219,7 +219,7 @@ function getStringConfigValue(
   return value;
 }
 
-function parseExecutorConfig(value: unknown): DictExecutorConfig {
+export function validateExecutorConfig(value: unknown): DictExecutorConfig {
   if (!isRecord(value)) {
     throw new Error("Executor config must be a JSON object.");
   }
@@ -296,7 +296,7 @@ export function getExecutorConfigDict(): DictExecutorConfig {
     const strContent = fs.readFileSync(STR_EXECUTOR_CONFIG_PATH, {
       encoding: "utf-8",
     });
-    const dictSettings = parseExecutorConfig(jsoncParser.parse(strContent));
+    const dictSettings = validateExecutorConfig(jsoncParser.parse(strContent));
     console.log("dictConfigExecutor=", JSON.stringify(dictSettings, null, 2));
     return dictSettings;
   } catch (e: unknown) {
@@ -309,15 +309,13 @@ export function getExecutorConfigDict(): DictExecutorConfig {
 export const dictConfigBasic = getBasicConfigDict();
 export const dictConfigExecutor = getExecutorConfigDict();
 
-export function saveExecutorConfigDict(value: unknown): DictExecutorConfig {
+export function saveExecutorConfigDict(dictSettings: DictExecutorConfig): void {
   try {
-    const dictSettings = parseExecutorConfig(value);
     fs.writeFileSync(STR_EXECUTOR_CONFIG_PATH, JSON.stringify(dictSettings, null, 2), {
       encoding: "utf-8",
     });
-    return dictSettings;
   } catch (e: unknown) {
-    throw new Error(`Error validating or writing Executor.jsonc: ${String(e)}`, {
+    throw new Error(`Error writing Executor.jsonc: ${String(e)}`, {
       cause: e,
     });
   }

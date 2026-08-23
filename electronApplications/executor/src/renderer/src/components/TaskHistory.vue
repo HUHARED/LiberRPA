@@ -172,7 +172,6 @@ import { useHistoryStore, useInformationStore, useSettingStore } from "../store"
 import { formatTimestamp } from "../time";
 import type {
   DictColumns_History_ListItem_DB,
-  DictColumns_Project_Detail_DB,
   DictColumns_Project_Detail_Run,
   Dict_History_Search,
   TypeTaskHistoryStatus,
@@ -276,7 +275,7 @@ function getColorStatus(status: TypeTaskHistoryStatus): string {
 
 async function cancelProcess(id: number): Promise<void> {
   loggerRenderer.info(`Cancel process: ${id}`);
-  await invokeMain<void>("invoke:pythonCancel", id);
+  await invokeMain("pythonCancel", id);
 }
 
 async function runProjectNewestVersion(
@@ -289,10 +288,7 @@ async function runProjectNewestVersion(
     return;
   }
 
-  const dictDetail = await invokeMain<DictColumns_Project_Detail_DB | undefined>(
-    "invoke:dbSelectProjectNewestVersionDetail",
-    projectName,
-  );
+  const dictDetail = await invokeMain("selectNewestProjectVersionDetail", projectName);
   if (dictDetail === undefined) {
     const informationStore = useInformationStore();
     informationStore.showAlertMessage("The project has been deleted.");
@@ -315,7 +311,7 @@ async function runProjectNewestVersion(
       dictDetail.custom_prj_args === "" ? [] : JSON.parse(dictDetail.custom_prj_args),
   };
 
-  await invokeMain<void>("invoke:pythonRun", sanitizeJsonObj(dictRunDetail));
+  await invokeMain("pythonRun", sanitizeJsonObj(dictRunDetail));
   await historyStore.refreshHistoryList();
 }
 </script>

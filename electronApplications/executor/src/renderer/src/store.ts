@@ -12,19 +12,15 @@ import {
 } from "./time";
 import type {
   DictExecutorConfig,
-  DictColumns_Project_Detail_DB,
   DictColumns_Project_Detail,
   DictColumns_Project_Detail_ToUpdate,
   DictColumns_Project_Detail_Run,
-  DictColumns_Scheduler_ListItem_DB,
   DictColumns_Scheduler_ListItem,
-  DictColumns_Scheduler_Detail_DB,
   DictColumns_Scheduler_Detail,
   DictColumns_Scheduler_Detail_ToUpdate,
   DictColumns_Scheduler_Detail_BeforeInsert,
   DictColumns_Scheduler_Detail_ToInsert,
   DictColumns_History_ListItem_DB,
-  DictColumns_History_ListItem_Limit_DB,
   Dict_History_Options,
   Dict_History_Options_Component,
   Dict_History_Search,
@@ -95,9 +91,7 @@ export const useSettingStore = defineStore("setting", {
     },
 
     async selectNewProjectLogFolderPath(): Promise<void> {
-      const result = await invokeMain<string | null>(
-        "invoke:select-project-log-folder-path",
-      );
+      const result = await invokeMain("selectProjectLogFolder");
       if (result !== null) {
         this.projectLogFolderPath = result;
       }
@@ -121,13 +115,13 @@ export const useSettingStore = defineStore("setting", {
       intLastCleanupAtMs = Date.now();
 
       if (this.logTimeoutEnable) {
-        await invokeMain<void>("invoke:logCleanFolderByTimeout", this.logTimeoutDays);
+        await invokeMain("cleanLogFoldersByTimeout", this.logTimeoutDays);
       }
       if (this.videoTimeoutEnable) {
-        await invokeMain<void>("invoke:logCleanVideoByTimeout", this.videoTimeoutDays);
+        await invokeMain("cleanVideosByTimeout", this.videoTimeoutDays);
       }
       if (this.videoSizeEnable) {
-        await invokeMain<void>("invoke:logCleanVideoBySize", this.videoSizeGB);
+        await invokeMain("cleanVideosBySize", this.videoSizeGB);
       }
     },
   },
@@ -182,9 +176,7 @@ export const useProjectStore = defineStore("project", {
   getters: {},
   actions: {
     async loadPythonEnvironmentNames(): Promise<void> {
-      this.arrPythonEnvironmentName = await invokeMain<string[]>(
-        "invoke:getPythonEnvironmentNames",
-      );
+      this.arrPythonEnvironmentName = await invokeMain("getPythonEnvironmentNames");
     },
 
     async dbSelectProjectNames(): Promise<void> {
@@ -192,7 +184,7 @@ export const useProjectStore = defineStore("project", {
       if (this.arrName.length === 0) {
         this.resetVersionAndDetail();
 
-        const arrRows = await invokeMain<{ name: string }[]>("invoke:dbSelectProjectNames");
+        const arrRows = await invokeMain("selectProjectNames");
         // Use idTemp for Vueify component to sort, get name when click.
         let idTemp = 0;
         this.dictIdToName = {};
@@ -211,10 +203,7 @@ export const useProjectStore = defineStore("project", {
     async dbSelectProjectVersions(name: string): Promise<void> {
       this.resetVersionAndDetail();
 
-      const arrRows = await invokeMain<{ version: string }[]>(
-        "invoke:dbSelectProjectVersions",
-        name,
-      );
+      const arrRows = await invokeMain("selectProjectVersions", name);
       // Initialize versions:
       let idTemp = 0;
       this.dictIdToVersion = {};
@@ -243,10 +232,7 @@ export const useProjectStore = defineStore("project", {
     async dbSelectProjectDetail(name: string, version: string): Promise<void> {
       this.resetDetail();
       await this.loadPythonEnvironmentNames();
-      const dictRow = await invokeMain<DictColumns_Project_Detail_DB | undefined>(
-        "invoke:dbSelectProjectDetail",
-        { name, version },
-      );
+      const dictRow = await invokeMain("selectProjectDetail", { name, version });
       if (dictRow === undefined) {
         throw new Error(`Project not found: ${name}-${version}`);
       }
@@ -287,15 +273,15 @@ export const useProjectStore = defineStore("project", {
           builtin_highlight_ui: this.dictDetail_edit.builtin_highlight_ui ? 1 : 0,
           custom_prj_args: JSON.stringify(this.dictDetail_edit.custom_prj_args),
         };
-        await invokeMain<void>("invoke:dbUpdateProjectDetail", dictTemp);
+        await invokeMain("updateProjectDetail", dictTemp);
         // Then the vue file will refresh project detail due to the name, version variables are managed by it.
       }
     },
 
     async dbSelectProjectBindSchedulers(): Promise<void> {
       if (this.dictDetail_edit !== undefined) {
-        const arrRows = await invokeMain<{ name: string }[]>(
-          "invoke:dbSelectProjectBindSchedulers",
+        const arrRows = await invokeMain(
+          "selectProjectBindSchedulers",
           this.dictDetail_edit.id,
         );
         this.arrBindScheduler = arrRows.map((row) => {
@@ -312,9 +298,9 @@ export const useProjectStore = defineStore("project", {
         loggerRenderer.info(
           `Delete project: ${this.dictDetail_edit.id}-${this.dictDetail_edit.name}-${this.dictDetail_edit.version}`,
         );
-        await invokeMain<void>("invoke:dbDeleteProject", this.dictDetail_edit.id);
+        await invokeMain("deleteProject", this.dictDetail_edit.id);
 
-        await invokeMain<void>("invoke:fileDeleteExecutorPackage", {
+        await invokeMain("deleteExecutorPackage", {
           name: this.dictDetail_edit.name,
           version: this.dictDetail_edit.version,
         });
@@ -348,9 +334,7 @@ export const useSchedulerStore = defineStore("scheduler", {
   actions: {
     async dbSelectSchedulerList(): Promise<void> {
       if (this.arrListItem.length === 0) {
-        const arrRow = await invokeMain<DictColumns_Scheduler_ListItem_DB[]>(
-          "invoke:dbSelectSchedulerList",
-        );
+        const arrRow = await invokeMain("selectSchedulerList");
 
         this.arrListItem = arrRow.map((dictRow) => {
           return {
@@ -381,10 +365,7 @@ export const useSchedulerStore = defineStore("scheduler", {
     },
 
     async dbSelectSchedulerDetail(name: string): Promise<void> {
-      const dictRow = await invokeMain<DictColumns_Scheduler_Detail_DB | undefined>(
-        "invoke:dbSelectSchedulerDetail",
-        name,
-      );
+      const dictRow = await invokeMain("selectSchedulerDetail", name);
       if (dictRow === undefined) {
         throw new Error(`Task Scheduler not found: ${name}`);
       }
@@ -451,7 +432,7 @@ export const useSchedulerStore = defineStore("scheduler", {
         builtin_highlight_ui: this.dictDetail_new.builtin_highlight_ui ? 1 : 0,
         custom_prj_args: JSON.stringify(this.dictDetail_new.custom_prj_args),
       };
-      await invokeMain<void>("invoke:dbInsertSchedulerDetail", dictTemp);
+      await invokeMain("insertSchedulerDetail", dictTemp);
       await this.refreshSchedulerList();
     },
 
@@ -483,7 +464,7 @@ export const useSchedulerStore = defineStore("scheduler", {
         builtin_highlight_ui: this.dictDetail_edit.builtin_highlight_ui ? 1 : 0,
         custom_prj_args: JSON.stringify(this.dictDetail_edit.custom_prj_args),
       };
-      await invokeMain<void>("invoke:dbUpdateSchedulerDetail", dictTemp);
+      await invokeMain("updateSchedulerDetail", dictTemp);
       await this.refreshSchedulerList();
     },
 
@@ -495,7 +476,7 @@ export const useSchedulerStore = defineStore("scheduler", {
       loggerRenderer.info(
         `Delete task scheduler: ${this.dictDetail_edit.id}-${this.dictDetail_edit.name}`,
       );
-      await invokeMain<void>("invoke:dbDeleteScheduler", this.dictDetail_edit.id);
+      await invokeMain("deleteScheduler", this.dictDetail_edit.id);
       await this.refreshSchedulerList();
     },
   },
@@ -657,7 +638,7 @@ export const useQueueStore = defineStore("queue", {
         builtin_highlight_ui: schedulerStore.dictDetail_edit.builtin_highlight_ui,
         custom_prj_args: schedulerStore.dictDetail_edit.custom_prj_args,
       };
-      await invokeMain<void>("invoke:pythonRun", sanitizeJsonObj(dictTemp));
+      await invokeMain("pythonRun", sanitizeJsonObj(dictTemp));
 
       const historyStore = useHistoryStore();
       await historyStore.refreshHistoryList();
@@ -720,8 +701,8 @@ export const useHistoryStore = defineStore("history", {
         return;
       }
 
-      const result = await invokeMain<DictColumns_History_ListItem_Limit_DB>(
-        "invoke:dbSelectLimitHistoryList",
+      const result = await invokeMain(
+        "selectHistoryList",
         sanitizeJsonObj(this.dictOptionsCache),
       );
       // loggerRenderer.debug(JSON.stringify(result, null, 2));
@@ -734,7 +715,7 @@ export const useHistoryStore = defineStore("history", {
     },
 
     async dbSelectCountHistoryRunning(): Promise<boolean> {
-      return await invokeMain<boolean>("invoke:dbSelectCountHistoryRunning");
+      return await invokeMain("hasRunningHistory");
     },
   },
 });

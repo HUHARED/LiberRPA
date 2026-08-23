@@ -1,21 +1,40 @@
 // FileName: index.ts
-import { contextBridge } from "electron";
-import { electronAPI } from "@electron-toolkit/preload";
 
-// Custom APIs for renderer
-const api = {};
+import { contextBridge, ipcRenderer } from "electron";
 
-// Use `contextBridge` APIs to expose Electron APIs to renderer only if context isolation is enabled, otherwise just add to the DOM global.
-if (process.contextIsolated) {
-  try {
-    contextBridge.exposeInMainWorld("electron", electronAPI);
-    contextBridge.exposeInMainWorld("api", api);
-  } catch (e: unknown) {
-    console.error(e);
-  }
-} else {
-  // @ts-ignore (define in dts)
-  window.electron = electronAPI;
-  // @ts-ignore (define in dts)
-  window.api = api;
-}
+import {
+  IPC_CHANNEL_MAIN_MESSAGE,
+  IPC_CHANNEL_RENDERER_INVOKE,
+  IPC_CHANNEL_RENDERER_LOG,
+} from "../shared/ipc";
+import type { DictMainMessage, ExecutorPreloadApi } from "../shared/ipc";
+
+const sendLog: ExecutorPreloadApi["sendLog"] = (level, message) => {
+  ipcRenderer.send(IPC_CHANNEL_RENDERER_LOG, level, message);
+};
+
+const invoke: ExecutorPreloadApi["invoke"] = (command, ...args) => {
+  return ipcRenderer.invoke(IPC_CHANNEL_RENDERER_INVOKE, command, args[0]);
+};
+
+const onMainMessage: ExecutorPreloadApi["onMainMessage"] = (listener) => {
+  const handleMessage = (
+    _event: Electron.IpcRendererEvent,
+    message: DictMainMessage,
+  ): void => {
+    listener(message);
+  };
+
+  ipcRenderer.on(IPC_CHANNEL_MAIN_MESSAGE, handleMessage);
+  return () => {
+    ipcRenderer.removeListener(IPC_CHANNEL_MAIN_MESSAGE, handleMessage);
+  };
+};
+
+const executorApi: ExecutorPreloadApi = {
+  sendLog,
+  invoke,
+  onMainMessage,
+};
+
+contextBridge.exposeInMainWorld("executor", executorApi);

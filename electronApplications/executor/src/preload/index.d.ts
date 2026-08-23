@@ -1,9 +1,9 @@
 // FileName: index.d.ts
-import type { ElectronAPI } from "@electron-toolkit/preload";
+
+import type { ExecutorPreloadApi } from "../shared/ipc";
 
 declare global {
   interface Window {
-    electron: ElectronAPI;
-    api: unknown;
+    executor: ExecutorPreloadApi;
   }
 }

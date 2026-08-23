@@ -120,7 +120,7 @@ export function getColor_Source(source: string): string {
 }
 
 export async function fileOpenFolder(folderPath: string): Promise<void> {
-  await invokeMain("invoke:fileOpenFolder", folderPath);
+  await invokeMain("openFolder", folderPath);
 }
 
 export function sanitizeJsonObj<T>(obj: T): T {

@@ -10,6 +10,7 @@ import { getPythonEnvironmentPath, strDocumentsFolderPath } from "./commonFunc";
 import { dbInsertHistoryDetail, dbUpdateHistoryDetail } from "./database";
 import { getExecutorPackageFolderPath } from "./fileFunc";
 import { loggerMain } from "./logger";
+import { sendMainMessage } from "./ipcMainMessage";
 import type { DictColumns_Project_Detail_Run } from "../shared/interface";
 
 type ExecutorRunStateStatus = "running" | "completed" | "error" | "terminated";
@@ -263,9 +264,7 @@ export async function pythonRun(
       mapProcessCache.delete(intHistoryId);
       removeExecutorRunStateFile(strRunStatePath);
 
-      if (!webContentsObj.isDestroyed()) {
-        webContentsObj.send("send-from-main", "pythonResult:taskEnd");
-      }
+      sendMainMessage(webContentsObj, { type: "pythonTaskEnded" });
     }
   };
 
@@ -678,7 +677,5 @@ export function pythonCancel(
 
   loggerMain.debug(`No running Python process is cached for Task History ${historyId}.`);
 
-  if (!webContentsObj.isDestroyed()) {
-    webContentsObj.send("send-from-main", "pythonResult:taskEnd");
-  }
+  sendMainMessage(webContentsObj, { type: "pythonTaskEnded" });
 }

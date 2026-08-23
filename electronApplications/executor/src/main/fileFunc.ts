@@ -1,6 +1,6 @@
 // FileName: fileFunc.ts
 
-import { exec } from "child_process";
+import { shell } from "electron";
 import fs from "fs";
 import path from "path";
 
@@ -28,9 +28,12 @@ export function fileDeleteExecutorPackage(strName: string, strVersion: string): 
 }
 
 export async function fileOpenFolder(strFolderPath: string): Promise<void> {
-  if (fs.existsSync(strFolderPath) && fs.statSync(strFolderPath).isDirectory()) {
-    exec(`start "" "${strFolderPath}"`);
-    return;
+  if (!fs.existsSync(strFolderPath) || !fs.statSync(strFolderPath).isDirectory()) {
+    throw new Error(`Folder does not exist: ${strFolderPath}`);
   }
-  throw new Error(`Folder does not exist: ${strFolderPath}`);
+
+  const strErrorMessage = await shell.openPath(strFolderPath);
+  if (strErrorMessage !== "") {
+    throw new Error(`Failed to open folder '${strFolderPath}': ${strErrorMessage}`);
+  }
 }

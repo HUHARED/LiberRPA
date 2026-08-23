@@ -156,10 +156,7 @@ import { debounce } from "lodash";
 import { loggerRenderer, invokeMain } from "../ipcOfRenderer";
 import { useProjectStore, useHistoryStore } from "../store";
 import { sanitizeJsonObj } from "../commonFunc";
-import type {
-  DictColumns_Project_Detail_Run,
-  DictProjectPackageImportResult,
-} from "../../../shared/interface";
+import type { DictColumns_Project_Detail_Run } from "../../../shared/interface";
 
 const projectStore = useProjectStore();
 const historyStore = useHistoryStore();
@@ -176,9 +173,7 @@ onBeforeMount(async () => {
 async function importProjectPackage(): Promise<void> {
   loggerRenderer.debug("--importProjectPackage--");
 
-  const result = await invokeMain<DictProjectPackageImportResult>(
-    "invoke:importProjectPackage",
-  );
+  const result = await invokeMain("importProjectPackage");
   if (result.status === "canceled") {
     return;
   }
@@ -276,7 +271,7 @@ async function runProject(): Promise<void> {
       custom_prj_args: projectStore.dictDetail_edit.custom_prj_args,
     };
 
-    await invokeMain<void>("invoke:pythonRun", sanitizeJsonObj(dictTemp));
+    await invokeMain("pythonRun", sanitizeJsonObj(dictTemp));
     await historyStore.refreshHistoryList();
   }
 }

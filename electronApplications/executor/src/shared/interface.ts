@@ -23,11 +23,6 @@ export interface DictExecutorConfig {
   timezone: string;
 }
 
-export interface DictInvokeResult {
-  success: boolean;
-  data?: unknown;
-}
-
 /* Common database types. */
 
 interface DictColumns_Base_DB {
