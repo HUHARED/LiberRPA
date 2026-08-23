@@ -15,7 +15,6 @@ import {
   ensureCustomProjectArgs,
   ensureCustomProjectArgsJson,
   ensureExactRecord,
-  ensureFiniteNumber,
   ensureHistoryStatus,
   ensureLogLevel,
   ensureNonEmptyString,
@@ -73,14 +72,12 @@ export function ensureInvokeCommand(value: unknown): TypeExecutorInvokeCommand {
     case "updateSchedulerDetail":
     case "deleteScheduler":
     case "selectHistoryList":
-    case "hasRunningHistory":
+    case "selectRunQueue":
+    case "cancelWaitingRun":
     case "openFolder":
     case "selectNewestProjectVersionDetail":
     case "pythonCancel":
     case "selectProjectLogFolder":
-    case "cleanLogFoldersByTimeout":
-    case "cleanVideosByTimeout":
-    case "cleanVideosBySize":
       return value;
     default:
       throw new Error(`Unknown Renderer invoke command: ${String(value)}`);
@@ -117,14 +114,6 @@ export function ensurePositiveIntegerData(value: unknown, strCommand: string): n
   return ensurePositiveInteger(value, `${strCommand} data`);
 }
 
-export function ensureNonNegativeNumberData(value: unknown, strCommand: string): number {
-  const floatValue = ensureFiniteNumber(value, `${strCommand} data`);
-  if (floatValue < 0) {
-    throw new Error(`${strCommand} data must be non-negative.`);
-  }
-  return floatValue;
-}
-
 export function ensurePackageRef(value: unknown): { name: string; version: string } {
   const dictValue = ensureExactRecord(value, ["name", "version"], "Package reference");
   return {
@@ -138,6 +127,24 @@ export function ensureProjectRef(value: unknown): { name: string; version: strin
   return {
     name: ensureNonEmptyString(dictValue.name, "Project reference.name"),
     version: ensureNonEmptyString(dictValue.version, "Project reference.version"),
+  };
+}
+
+export function ensureWaitingRunRef(value: unknown): {
+  name: string;
+  estimated_run_at_ms: number;
+} {
+  const dictValue = ensureExactRecord(
+    value,
+    ["name", "estimated_run_at_ms"],
+    "Waiting Run reference",
+  );
+  return {
+    name: ensureNonEmptyString(dictValue.name, "Waiting Run reference.name"),
+    estimated_run_at_ms: ensureNonNegativeInteger(
+      dictValue.estimated_run_at_ms,
+      "Waiting Run reference.estimated_run_at_ms",
+    ),
   };
 }
 

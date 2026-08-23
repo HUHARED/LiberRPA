@@ -12,6 +12,7 @@ import type {
   DictExecutorConfig,
   Dict_History_Options,
   DictProjectPackageImportResult,
+  Dict_TaskQueue_ListItem,
 } from "./interface";
 
 export const IPC_CHANNEL_RENDERER_LOG = "executor:renderer-log";
@@ -100,9 +101,16 @@ export interface DictExecutorInvokeContract {
     request: Dict_History_Options;
     response: DictColumns_History_ListItem_Limit_DB;
   };
-  hasRunningHistory: {
+  selectRunQueue: {
     request: undefined;
-    response: boolean;
+    response: Dict_TaskQueue_ListItem[];
+  };
+  cancelWaitingRun: {
+    request: {
+      name: string;
+      estimated_run_at_ms: number;
+    };
+    response: void;
   };
   openFolder: {
     request: string;
@@ -119,18 +127,6 @@ export interface DictExecutorInvokeContract {
   selectProjectLogFolder: {
     request: undefined;
     response: string | null;
-  };
-  cleanLogFoldersByTimeout: {
-    request: number;
-    response: void;
-  };
-  cleanVideosByTimeout: {
-    request: number;
-    response: void;
-  };
-  cleanVideosBySize: {
-    request: number;
-    response: void;
   };
 }
 
@@ -162,7 +158,13 @@ export type DictMainMessage =
       };
     }
   | {
-      type: "pythonTaskEnded";
+      type: "runEnded";
+    }
+  | {
+      type: "runQueueChanged";
+      data: {
+        items: Dict_TaskQueue_ListItem[];
+      };
     };
 
 export interface ExecutorPreloadApi {

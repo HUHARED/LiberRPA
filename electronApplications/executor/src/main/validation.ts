@@ -222,7 +222,10 @@ export function ensureCustomProjectArgs(
   });
 }
 
-export function ensureCustomProjectArgsJson(value: unknown, strSourceName: string): string {
+export function parseCustomProjectArgsJson(
+  value: unknown,
+  strSourceName: string,
+): TypeCustomProjectArgs {
   const strValue = ensureString(value, strSourceName);
   let parsedValue: unknown;
   try {
@@ -230,6 +233,11 @@ export function ensureCustomProjectArgsJson(value: unknown, strSourceName: strin
   } catch (e: unknown) {
     throw new Error(`${strSourceName} must contain valid JSON.`, { cause: e });
   }
-  ensureCustomProjectArgs(parsedValue, strSourceName);
+  return ensureCustomProjectArgs(parsedValue, strSourceName);
+}
+
+export function ensureCustomProjectArgsJson(value: unknown, strSourceName: string): string {
+  const strValue = ensureString(value, strSourceName);
+  parseCustomProjectArgsJson(strValue, strSourceName);
   return strValue;
 }

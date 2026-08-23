@@ -35,6 +35,15 @@ import { recoverProjectPackageImports } from "./packageImport";
 import { runSessionListener, setResolution } from "./rdpSessionFunc";
 import { registerExecutorIpc } from "./ipc";
 import { sendMainMessage } from "./ipcMainMessage";
+import { onRunEnded } from "./runLifecycle";
+import { startRunHousekeeping } from "./runHousekeeping";
+import {
+  getRunQueueItems,
+  onRunQueueChanged,
+  startSchedulerEngine,
+  stopSchedulerEngine,
+} from "./schedulerEngine";
+import type { DictMainMessage } from "../shared/ipc";
 
 initializeDatabase();
 recoverProjectPackageImports();
@@ -42,8 +51,14 @@ dbMarkRunningHistoryInterrupted();
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
-let webContentsObj: Electron.WebContents;
 let boolAppQuitting = false;
+
+function sendMessageToRenderer(message: DictMainMessage): void {
+  const webContentsObj = mainWindow?.webContents;
+  if (webContentsObj !== undefined) {
+    sendMainMessage(webContentsObj, message);
+  }
+}
 
 function createWindow(): void {
   loggerMain.debug("--createWindow--");
@@ -62,7 +77,7 @@ function createWindow(): void {
     },
   });
 
-  webContentsObj = mainWindow.webContents;
+  const webContentsObj = mainWindow.webContents;
 
   webContentsObj.on("did-finish-load", () => {
     // Open DevTools when the content finishes loading.
@@ -75,6 +90,10 @@ function createWindow(): void {
         config: dictConfigExecutor,
         defaultProjectLogFolderPath: strDefaultProjectLogFolderPath,
       },
+    });
+    sendMainMessage(webContentsObj, {
+      type: "runQueueChanged",
+      data: { items: getRunQueueItems() },
     });
     runSessionListener();
   });
@@ -192,9 +211,21 @@ void app
       optimizer.watchWindowShortcuts(window);
     });
 
-    registerExecutorIpc(() => webContentsObj);
+    registerExecutorIpc();
 
     createWindow();
+
+    onRunEnded(() => {
+      sendMessageToRenderer({ type: "runEnded" });
+    });
+    onRunQueueChanged((arrItem) => {
+      sendMessageToRenderer({
+        type: "runQueueChanged",
+        data: { items: arrItem },
+      });
+    });
+    startRunHousekeeping();
+    startSchedulerEngine();
 
     app.on("activate", function () {
       // On macOS it's common to re-create a window in the app when the dock icon is clicked and there are no other windows open.
@@ -208,6 +239,7 @@ void app
 
 app.on("before-quit", () => {
   boolAppQuitting = true;
+  stopSchedulerEngine();
   closeDatabase();
 });
 

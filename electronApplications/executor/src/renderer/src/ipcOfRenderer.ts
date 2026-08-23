@@ -4,7 +4,6 @@ import {
   useHistoryStore,
   useInformationStore,
   useQueueStore,
-  useSchedulerStore,
   useSettingStore,
 } from "./store";
 import type {
@@ -46,8 +45,6 @@ export async function invokeMain<C extends TypeExecutorInvokeCommand>(
   return result.data;
 }
 
-let boolIsHandleTaskEnd = false;
-
 window.executor.onMainMessage(async (message) => {
   loggerRenderer.debug(`[main-message]\n${JSON.stringify(message, null, 2)}`);
 
@@ -60,30 +57,18 @@ window.executor.onMainMessage(async (message) => {
           message.data.defaultProjectLogFolderPath,
         );
 
-        const schedulerStore = useSchedulerStore();
-        await schedulerStore.dbSelectSchedulerList();
         break;
       }
 
-      case "pythonTaskEnded": {
-        if (boolIsHandleTaskEnd) {
-          loggerRenderer.warn("A Python task-end message is already being handled.");
-          break;
-        }
+      case "runEnded": {
+        const historyStore = useHistoryStore();
+        await historyStore.refreshHistoryList();
+        break;
+      }
 
-        boolIsHandleTaskEnd = true;
-        try {
-          const historyStore = useHistoryStore();
-          await historyStore.refreshHistoryList();
-
-          const queueStore = useQueueStore();
-          await queueStore.checkWhetherRun_WaitingItem();
-
-          const settingStore = useSettingStore();
-          await settingStore.handleDeleteOptions();
-        } finally {
-          boolIsHandleTaskEnd = false;
-        }
+      case "runQueueChanged": {
+        const queueStore = useQueueStore();
+        queueStore.setRunQueue(message.data.items);
         break;
       }
     }

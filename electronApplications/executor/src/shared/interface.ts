@@ -140,7 +140,7 @@ export interface DictColumns_Scheduler_ListItem_DB {
   cron: string;
   enable: 0 | 1;
 
-  // These values are not displayed in the Scheduler list, but Queue needs them.
+  // These values are not displayed in the Scheduler list, but the Scheduler engine needs them.
   period_start_ms: number;
   period_end_ms: number;
   when_others_running: "cancel" | "wait" | "run";

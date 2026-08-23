@@ -73,7 +73,11 @@ const queueStore = useQueueStore();
 const settingStore = useSettingStore();
 
 onBeforeMount(() => {
-  queueStore.refreshListItem();
+  void queueStore.refreshRunQueue().catch((e: unknown) => {
+    loggerRenderer.error(
+      `Failed to load Run Queue: ${e instanceof Error ? e.message : String(e)}`,
+    );
+  });
 });
 
 const arrHeader: DataTableHeader<Dict_TaskQueue_ListItem>[] = [
@@ -106,18 +110,9 @@ function getColorWaiting(waiting: boolean): string {
   return waiting ? "warning" : "grey";
 }
 
-function removeWaitingItem(name: string, intEstimatedRunAtMs: number): void {
-  loggerRenderer.info(`Remove waiting task: ${name}-${intEstimatedRunAtMs}`);
-  const intItemIndex = queueStore.arrWaitingItem.findIndex(
-    (dictItem) =>
-      dictItem.name === name && dictItem.estimated_run_at_ms === intEstimatedRunAtMs,
-  );
-  if (intItemIndex === -1) {
-    return;
-  }
-
-  queueStore.arrWaitingItem.splice(intItemIndex, 1);
-  queueStore.refreshListItem();
+async function removeWaitingItem(name: string, intEstimatedRunAtMs: number): Promise<void> {
+  loggerRenderer.info(`Cancel waiting Run: ${name}-${intEstimatedRunAtMs}`);
+  await queueStore.cancelWaitingRun(name, intEstimatedRunAtMs);
 }
 </script>
 

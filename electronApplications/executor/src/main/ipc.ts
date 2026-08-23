@@ -1,7 +1,7 @@
 // FileName: ipc.ts
 
 import { ipcMain } from "electron";
-import type { IpcMainEvent, IpcMainInvokeEvent, WebContents } from "electron";
+import type { IpcMainEvent, IpcMainInvokeEvent } from "electron";
 
 import {
   dictConfigExecutor,
@@ -15,7 +15,6 @@ import {
   dbDeleteProject,
   dbDeleteScheduler,
   dbInsertSchedulerDetail,
-  dbSelectCountHistoryRunning,
   dbSelectLimitHistoryList,
   dbSelectProjectBindSchedulers,
   dbSelectProjectDetail,
@@ -30,17 +29,16 @@ import {
 import { fileDeleteExecutorPackage, fileOpenFolder } from "./fileFunc";
 import { importProjectPackage } from "./packageImport";
 import { pythonCancel, pythonRun } from "./pythonFunc";
-import {
-  logCleanFolderByTimeout,
-  logCleanVideoBySize,
-  logCleanVideoByTimeout,
-} from "./logCleanFunc";
 import { loggerMain } from "./logger";
+import {
+  cancelWaitingRun,
+  getRunQueueItems,
+  refreshSchedulerEngine,
+} from "./schedulerEngine";
 import {
   ensureHistoryOptions,
   ensureInvokeCommand,
   ensureNoData,
-  ensureNonNegativeNumberData,
   ensurePackageRef,
   ensurePositiveIntegerData,
   ensureProjectRef,
@@ -50,6 +48,7 @@ import {
   ensureSchedulerInsert,
   ensureSchedulerUpdate,
   ensureStringData,
+  ensureWaitingRunRef,
 } from "./ipcValidation";
 import { IPC_CHANNEL_RENDERER_INVOKE, IPC_CHANNEL_RENDERER_LOG } from "../shared/ipc";
 import type {
@@ -106,37 +105,34 @@ const INVOKE_VALIDATOR = {
   deleteScheduler: (rawData: unknown) =>
     ensurePositiveIntegerData(rawData, "deleteScheduler"),
   selectHistoryList: ensureHistoryOptions,
-  hasRunningHistory: (rawData: unknown) => ensureNoData(rawData, "hasRunningHistory"),
+  selectRunQueue: (rawData: unknown) => ensureNoData(rawData, "selectRunQueue"),
+  cancelWaitingRun: ensureWaitingRunRef,
   openFolder: (rawData: unknown) => ensureStringData(rawData, "openFolder"),
   selectNewestProjectVersionDetail: (rawData: unknown) =>
     ensureStringData(rawData, "selectNewestProjectVersionDetail"),
   pythonCancel: (rawData: unknown) => ensurePositiveIntegerData(rawData, "pythonCancel"),
   selectProjectLogFolder: (rawData: unknown) =>
     ensureNoData(rawData, "selectProjectLogFolder"),
-  cleanLogFoldersByTimeout: (rawData: unknown) =>
-    ensureNonNegativeNumberData(rawData, "cleanLogFoldersByTimeout"),
-  cleanVideosByTimeout: (rawData: unknown) =>
-    ensureNonNegativeNumberData(rawData, "cleanVideosByTimeout"),
-  cleanVideosBySize: (rawData: unknown) =>
-    ensureNonNegativeNumberData(rawData, "cleanVideosBySize"),
 } satisfies ExecutorInvokeValidatorMap;
 
-function createInvokeHandlerMap(
-  getWebContents: () => WebContents,
-): ExecutorInvokeHandlerMap {
+function createInvokeHandlerMap(): ExecutorInvokeHandlerMap {
   return {
     async openProjectLogFolder(strFolderPath) {
       await fileOpenFolder(strFolderPath);
     },
 
     saveExecutorConfig(dictConfig) {
+      const boolTimezoneChanged = dictConfig.timezone !== dictConfigExecutor.timezone;
       saveExecutorConfigDict(dictConfig);
       // Other Main Process modules read this shared in-memory config.
       Object.assign(dictConfigExecutor, dictConfig);
+      if (boolTimezoneChanged) {
+        refreshSchedulerEngine();
+      }
     },
 
     async pythonRun(dictDetail) {
-      await pythonRun(dictDetail, getWebContents());
+      await pythonRun(dictDetail);
     },
 
     getPythonEnvironmentNames() {
@@ -186,22 +182,29 @@ function createInvokeHandlerMap(
 
     insertSchedulerDetail(dictDetail) {
       dbInsertSchedulerDetail(dictDetail);
+      refreshSchedulerEngine();
     },
 
     updateSchedulerDetail(dictDetail) {
       dbUpdateSchedulerDetail(dictDetail);
+      refreshSchedulerEngine();
     },
 
     deleteScheduler(intSchedulerId) {
       dbDeleteScheduler(intSchedulerId);
+      refreshSchedulerEngine();
     },
 
     selectHistoryList(options) {
       return dbSelectLimitHistoryList(options);
     },
 
-    hasRunningHistory() {
-      return dbSelectCountHistoryRunning();
+    selectRunQueue() {
+      return getRunQueueItems();
+    },
+
+    cancelWaitingRun(dictRun) {
+      cancelWaitingRun(dictRun.name, dictRun.estimated_run_at_ms);
     },
 
     async openFolder(strFolderPath) {
@@ -213,23 +216,11 @@ function createInvokeHandlerMap(
     },
 
     pythonCancel(intHistoryId) {
-      pythonCancel(intHistoryId, getWebContents());
+      pythonCancel(intHistoryId);
     },
 
     async selectProjectLogFolder() {
       return await selectProjectLogFolder();
-    },
-
-    cleanLogFoldersByTimeout(floatTimeoutDays) {
-      logCleanFolderByTimeout(floatTimeoutDays);
-    },
-
-    cleanVideosByTimeout(floatTimeoutDays) {
-      logCleanVideoByTimeout(floatTimeoutDays);
-    },
-
-    cleanVideosBySize(floatSizeGb) {
-      logCleanVideoBySize(floatSizeGb);
     },
   };
 }
@@ -244,8 +235,8 @@ async function executeInvoke<C extends TypeExecutorInvokeCommand>(
   return await handlerMap[command](data);
 }
 
-export function registerExecutorIpc(getWebContents: () => WebContents): void {
-  const invokeHandlerMap = createInvokeHandlerMap(getWebContents);
+export function registerExecutorIpc(): void {
+  const invokeHandlerMap = createInvokeHandlerMap();
 
   ipcMain.on(
     IPC_CHANNEL_RENDERER_LOG,

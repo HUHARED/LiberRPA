@@ -10,7 +10,7 @@ import { getPythonEnvironmentPath, strDocumentsFolderPath } from "./commonFunc";
 import { dbInsertHistoryDetail, dbUpdateHistoryDetail } from "./database";
 import { getExecutorPackageFolderPath } from "./fileFunc";
 import { loggerMain } from "./logger";
-import { sendMainMessage } from "./ipcMainMessage";
+import { notifyRunEnded } from "./runLifecycle";
 import { ensureNonEmptyString, ensureRecord, ensureString } from "./validation";
 import type { DictColumns_Project_Detail_Run } from "../shared/interface";
 
@@ -51,10 +51,7 @@ const strExecutorRunStateFolderPath = path.join(
   "LiberRPA/ExecutorRunState",
 );
 
-export async function pythonRun(
-  dictDetail: DictColumns_Project_Detail_Run,
-  webContentsObj: Electron.WebContents,
-): Promise<void> {
+export async function pythonRun(dictDetail: DictColumns_Project_Detail_Run): Promise<void> {
   // Only the local source is supported now.
   const strExecutorPackagePath = getExecutorPackageFolderPath(
     dictDetail.name,
@@ -265,7 +262,7 @@ export async function pythonRun(
       mapProcessCache.delete(intHistoryId);
       removeExecutorRunStateFile(strRunStatePath);
 
-      sendMainMessage(webContentsObj, { type: "pythonTaskEnded" });
+      notifyRunEnded();
     }
   };
 
@@ -696,10 +693,7 @@ async function waitForExecutorRunStateAvailable({
   throw new Error(`Timeout waiting for the initial Executor run state: ${expectedRunId}`);
 }
 
-export function pythonCancel(
-  historyId: number,
-  webContentsObj: Electron.WebContents,
-): void {
+export function pythonCancel(historyId: number): void {
   const runningProcess = mapProcessCache.get(historyId);
   if (runningProcess !== undefined) {
     if (!requestPythonTermination(runningProcess.processPy, runningProcess.strRunId)) {
@@ -709,6 +703,4 @@ export function pythonCancel(
   }
 
   loggerMain.debug(`No running Python process is cached for Task History ${historyId}.`);
-
-  sendMainMessage(webContentsObj, { type: "pythonTaskEnded" });
 }

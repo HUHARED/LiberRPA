@@ -320,14 +320,12 @@ import { watch, computed } from "vue";
 import { debounce } from "lodash";
 
 import { invokeMain, loggerRenderer } from "../ipcOfRenderer";
-import { useInformationStore, useQueueStore, useSettingStore } from "../store";
+import { useInformationStore, useSettingStore } from "../store";
 import { arrTimezone } from "../time";
 import type { DictExecutorConfig } from "../../../shared/interface";
 
 const settingStore = useSettingStore();
 const informationStore = useInformationStore();
-const queueStore = useQueueStore();
-let strTimezoneCache = settingStore.timezone;
 
 const intKeepRdpSessionWidth = computed<number>({
   get() {
@@ -446,17 +444,9 @@ function openProjectLogFolder(): void {
 // Define the debounced update function once
 const debouncedUpdate = debounce(() => {
   loggerRenderer.info(`Modified setting: ${JSON.stringify(dictConfigExecutor.value)}`);
-  saveConfig()
-    .then(() => {
-      if (strTimezoneCache !== settingStore.timezone) {
-        strTimezoneCache = settingStore.timezone;
-        queueStore.resetPendingItem();
-        queueStore.refreshListItem();
-      }
-    })
-    .catch((e: unknown) => {
-      loggerRenderer.error(`Failed to save Executor settings: ${String(e)}`);
-    });
+  saveConfig().catch((e: unknown) => {
+    loggerRenderer.error(`Failed to save Executor settings: ${String(e)}`);
+  });
 }, 300);
 
 watch(dictConfigExecutor, () => {

@@ -23,25 +23,10 @@ import TaskQueue from "./components/TaskQueue.vue";
 import TaskHistory from "./components/TaskHistory.vue";
 import Setting from "./components/Setting.vue";
 import { loggerRenderer } from "./ipcOfRenderer";
-import { useInformationStore, useQueueStore, useSettingStore } from "./store";
+import { useInformationStore, useSettingStore } from "./store";
 
 const settingStore = useSettingStore();
 const informationStore = useInformationStore();
-const queueStore = useQueueStore();
-
-// Check whether pending Scheduler tasks have reached their run time.
-setInterval(() => {
-  if (queueStore.arrListItem.length === 0) {
-    return;
-  }
-
-  void queueStore.checkWhetherRun_PendingItem().catch((e: unknown) => {
-    loggerRenderer.error(
-      `Failed to check pending tasks: ${e instanceof Error ? e.message : String(e)}`,
-    );
-  });
-}, 1000);
-
 const componentCurrent = computed(() => {
   loggerRenderer.info(`Switch to tab: ${informationStore.tab}`);
   switch (informationStore.tab) {

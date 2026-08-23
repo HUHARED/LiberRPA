@@ -1,8 +1,6 @@
 // FileName: store.ts
 
 import { defineStore } from "pinia";
-import { CronExpressionParser } from "cron-parser";
-
 import { loggerRenderer, invokeMain } from "./ipcOfRenderer";
 import { sanitizeJsonObj } from "./commonFunc";
 import {
@@ -14,7 +12,6 @@ import type {
   DictExecutorConfig,
   DictColumns_Project_Detail,
   DictColumns_Project_Detail_ToUpdate,
-  DictColumns_Project_Detail_Run,
   DictColumns_Scheduler_ListItem,
   DictColumns_Scheduler_Detail,
   DictColumns_Scheduler_Detail_ToUpdate,
@@ -27,8 +24,6 @@ import type {
   Dict_TaskQueue_ListItem,
   TypeTaskHistoryStatus,
 } from "../../shared/interface";
-
-let intLastCleanupAtMs = Date.now();
 
 function getSchedulerPeriodTimestamps({
   periodStart,
@@ -104,34 +99,6 @@ export const useSettingStore = defineStore("setting", {
 
     useDefaultProjectLogFolderPath(): void {
       this.projectLogFolderPath = "";
-    },
-
-    async handleDeleteOptions(): Promise<void> {
-      // Check if there are logs or videos need to be deleted.
-
-      if (!this.logTimeoutEnable && !this.videoTimeoutEnable && !this.videoSizeEnable) {
-        loggerRenderer.debug("No log or video files need to be deleted.");
-        return;
-      }
-
-      const intInterval = Math.round((Date.now() - intLastCleanupAtMs) / 1000 / 60);
-      loggerRenderer.debug(`Since last delete: ${intInterval} minutes.`);
-
-      if (intInterval < 60) {
-        return;
-      }
-
-      intLastCleanupAtMs = Date.now();
-
-      if (this.logTimeoutEnable) {
-        await invokeMain("cleanLogFoldersByTimeout", this.logTimeoutDays);
-      }
-      if (this.videoTimeoutEnable) {
-        await invokeMain("cleanVideosByTimeout", this.videoTimeoutDays);
-      }
-      if (this.videoSizeEnable) {
-        await invokeMain("cleanVideosBySize", this.videoSizeGB);
-      }
     },
   },
 });
@@ -359,11 +326,6 @@ export const useSchedulerStore = defineStore("scheduler", {
           };
         });
       }
-
-      const queueStore = useQueueStore();
-      queueStore.updateStrategyWhenOthersRunning();
-      queueStore.resetPendingItem();
-      queueStore.refreshListItem();
     },
 
     async refreshSchedulerList(): Promise<void> {
@@ -495,178 +457,24 @@ export const useQueueStore = defineStore("queue", {
   state: () => {
     return {
       arrListItem: [] as Dict_TaskQueue_ListItem[],
-      arrWaitingItem: [] as Dict_TaskQueue_ListItem[],
-
-      dictStrategyWhenOtherRunning: {} as Record<string, "cancel" | "wait" | "run">,
-      arrPendingItem: [] as Dict_TaskQueue_ListItem[],
-
-      isChecking: false as boolean,
     };
   },
   getters: {},
   actions: {
-    resetPendingItem(): void {
-      const arrPendingItem: Dict_TaskQueue_ListItem[] = [];
-      const intNowMs = Date.now();
-      const schedulerStore = useSchedulerStore();
-      const settingStore = useSettingStore();
-
-      for (const dictScheduler of schedulerStore.arrListItem) {
-        if (!dictScheduler.enable) {
-          continue;
-        }
-
-        try {
-          const intCurrentDateMs = Math.max(intNowMs, dictScheduler.period_start_ms - 1);
-          const intervalObj = CronExpressionParser.parse(dictScheduler.cron, {
-            currentDate: new Date(intCurrentDateMs),
-            endDate: new Date(dictScheduler.period_end_ms),
-            tz: settingStore.timezone,
-          });
-
-          arrPendingItem.push({
-            name: dictScheduler.name,
-            project_source: dictScheduler.project_source,
-            project_name: dictScheduler.project_name,
-            project_version: dictScheduler.project_version,
-            estimated_run_at_ms: intervalObj.next().toDate().getTime(),
-            waiting: false,
-          });
-        } catch (e: unknown) {
-          const strMessage = e instanceof Error ? e.message : String(e);
-          loggerRenderer.debug(
-            `No pending run is available for Scheduler '${dictScheduler.name}': ${strMessage}`,
-          );
-        }
-      }
-
-      arrPendingItem.sort(
-        (dictLeft, dictRight) =>
-          dictLeft.estimated_run_at_ms - dictRight.estimated_run_at_ms,
-      );
-      this.arrPendingItem = arrPendingItem;
+    async refreshRunQueue(): Promise<void> {
+      this.arrListItem = await invokeMain("selectRunQueue");
     },
 
-    async checkWhetherRun_PendingItem(): Promise<void> {
-      if (this.isChecking) {
-        return;
-      }
-
-      this.isChecking = true;
-      let boolNeedsRefresh = false;
-
-      try {
-        const intNowMs = Date.now();
-        let boolOthersRunning = await this.checkOthersRunning_BeforeLoop();
-
-        // Loop from the end so due entries can be removed in place.
-        for (let index = this.arrPendingItem.length - 1; index >= 0; index--) {
-          const dictQueueItem = this.arrPendingItem[index];
-          if (dictQueueItem.estimated_run_at_ms > intNowMs) {
-            continue;
-          }
-
-          const strStrategy =
-            this.dictStrategyWhenOtherRunning[dictQueueItem.name] ?? "cancel";
-          loggerRenderer.info(
-            `Time to run task: ${dictQueueItem.name}, when_others_running: ${strStrategy}`,
-          );
-
-          if (!boolOthersRunning || strStrategy === "run") {
-            loggerRenderer.info(
-              boolOthersRunning
-                ? "Run the task."
-                : "Have no other task running, run the task.",
-            );
-            await this.runTask(dictQueueItem.name);
-            boolOthersRunning = true;
-            this.arrPendingItem.splice(index, 1);
-            boolNeedsRefresh = true;
-            continue;
-          }
-
-          if (strStrategy === "wait") {
-            loggerRenderer.info("Move the task into the waiting queue.");
-            dictQueueItem.waiting = true;
-            this.arrWaitingItem.push(dictQueueItem);
-          } else {
-            loggerRenderer.info("Cancel the task because another task is running.");
-          }
-
-          this.arrPendingItem.splice(index, 1);
-          boolNeedsRefresh = true;
-        }
-
-        if (boolNeedsRefresh) {
-          this.resetPendingItem();
-          this.refreshListItem();
-        }
-      } finally {
-        this.isChecking = false;
-      }
+    setRunQueue(arrItem: Dict_TaskQueue_ListItem[]): void {
+      this.arrListItem = arrItem;
     },
 
-    async checkWhetherRun_WaitingItem(): Promise<void> {
-      const boolOthersRunning = await this.checkOthersRunning_BeforeLoop();
-      if (boolOthersRunning || this.arrWaitingItem.length === 0) {
-        return;
-      }
-
-      loggerRenderer.info("Run a waiting task.");
-      await this.runTask(this.arrWaitingItem[0].name);
-      this.arrWaitingItem.splice(0, 1);
-      this.refreshListItem();
-    },
-
-    async checkOthersRunning_BeforeLoop(): Promise<boolean> {
-      const historyStore = useHistoryStore();
-      const boolOthersRunning = await historyStore.dbSelectCountHistoryRunning();
-      loggerRenderer.debug(`Other tasks running: ${boolOthersRunning}`);
-      return boolOthersRunning;
-    },
-
-    async runTask(name: string): Promise<void> {
-      const schedulerStore = useSchedulerStore();
-      await schedulerStore.dbSelectSchedulerDetail(name);
-
-      if (schedulerStore.dictDetail_edit === undefined) {
-        throw new Error(`Failed to load Task Scheduler: ${name}`);
-      }
-
-      const dictTemp: DictColumns_Project_Detail_Run = {
-        scheduler_name: schedulerStore.dictDetail_edit.name,
-        project_source: schedulerStore.dictDetail_edit.project_source,
-        id: schedulerStore.dictDetail_edit.project_id,
-        name: schedulerStore.dictDetail_edit.project_name,
-        version: schedulerStore.dictDetail_edit.project_version,
-        python_environment_name: schedulerStore.dictDetail_edit.python_environment_name,
-        timeout_min: schedulerStore.dictDetail_edit.timeout_min,
-        builtin_log_level: schedulerStore.dictDetail_edit.builtin_log_level,
-        builtin_record_video: schedulerStore.dictDetail_edit.builtin_record_video,
-        builtin_stop_shortcut: schedulerStore.dictDetail_edit.builtin_stop_shortcut,
-        builtin_highlight_ui: schedulerStore.dictDetail_edit.builtin_highlight_ui,
-        custom_prj_args: schedulerStore.dictDetail_edit.custom_prj_args,
-      };
-      await invokeMain("pythonRun", sanitizeJsonObj(dictTemp));
-
-      const historyStore = useHistoryStore();
-      await historyStore.refreshHistoryList();
-    },
-
-    updateStrategyWhenOthersRunning(): void {
-      const schedulerStore = useSchedulerStore();
-      const dictStrategy: Record<string, "cancel" | "wait" | "run"> = {};
-
-      for (const dictScheduler of schedulerStore.arrListItem) {
-        dictStrategy[dictScheduler.name] = dictScheduler.when_others_running;
-      }
-
-      this.dictStrategyWhenOtherRunning = dictStrategy;
-    },
-
-    refreshListItem(): void {
-      this.arrListItem = [...this.arrWaitingItem, ...this.arrPendingItem];
-      loggerRenderer.debug("Refresh Queue List.");
+    async cancelWaitingRun(name: string, intEstimatedRunAtMs: number): Promise<void> {
+      await invokeMain("cancelWaitingRun", {
+        name,
+        estimated_run_at_ms: intEstimatedRunAtMs,
+      });
+      await this.refreshRunQueue();
     },
   },
 });
@@ -721,10 +529,6 @@ export const useHistoryStore = defineStore("history", {
 
     async refreshHistoryList(): Promise<void> {
       await this.dbSelectLimitHistoryList(null);
-    },
-
-    async dbSelectCountHistoryRunning(): Promise<boolean> {
-      return await invokeMain("hasRunningHistory");
     },
   },
 });
