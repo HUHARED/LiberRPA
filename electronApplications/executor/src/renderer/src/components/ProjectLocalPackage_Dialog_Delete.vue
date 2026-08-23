@@ -52,7 +52,8 @@
             v-if="projectStore.arrBindScheduler.length !== 0"
             fluid
             class="border-thin flex-column-grow-1 flex-column">
-            The following schedules use this project. Modify or delete them before deleting the project:
+            The following schedules use this project. Modify or delete them before deleting
+            the project:
             <v-list
               :items="projectStore.arrBindScheduler"
               class="clean-space w-100"
@@ -91,7 +92,7 @@
 </template>
 
 <script setup lang="ts">
-import { useProjectStore } from "../store";
+import { useProjectStore } from "../Store/projectStore";
 
 const projectStore = useProjectStore();
 </script>

@@ -43,7 +43,7 @@
               projectStore.dictDetail_edit.custom_prj_args,
               arrValueCache,
               index,
-              arrValueCache[index]
+              arrValueCache[index],
             )
           "
           @keyup.enter="
@@ -51,7 +51,7 @@
               projectStore.dictDetail_edit.custom_prj_args,
               arrValueCache,
               index,
-              arrValueCache[index]
+              arrValueCache[index],
             )
           ">
           <v-tooltip activator="parent" location="top">
@@ -75,7 +75,7 @@ import {
   initCusPrjArgsValueCache,
   updateCusPrjArgsValueCache,
 } from "../commonFunc";
-import { useProjectStore } from "../store";
+import { useProjectStore } from "../Store/projectStore";
 
 const projectStore = useProjectStore();
 
@@ -93,7 +93,7 @@ watch(
   () => {
     debounced_UpdateValueCahe();
   },
-  { deep: true }
+  { deep: true },
 );
 </script>
 

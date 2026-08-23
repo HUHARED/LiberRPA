@@ -22,23 +22,24 @@ import TaskScheduler from "./components/TaskScheduler.vue";
 import TaskQueue from "./components/TaskQueue.vue";
 import TaskHistory from "./components/TaskHistory.vue";
 import Setting from "./components/Setting.vue";
-import { loggerRenderer } from "./ipcOfRenderer";
-import { useInformationStore, useSettingStore } from "./store";
+import { loggerRenderer } from "./Logging/logger";
+import { useInformationStore } from "./Store/informationStore";
+import { useSettingStore } from "./Store/settingStore";
 
 const settingStore = useSettingStore();
 const informationStore = useInformationStore();
 const componentCurrent = computed(() => {
   loggerRenderer.info(`Switch to tab: ${informationStore.tab}`);
   switch (informationStore.tab) {
-    case "Project Local Package":
+    case "projects":
       return ProjectLocalPackage;
-    case "Task Scheduler":
+    case "schedules":
       // Task Scheduler refreshes its data when opened.
       return TaskScheduler;
-    case "Task Queue":
+    case "runQueue":
       // Task Queue displays the shared scheduling state.
       return TaskQueue;
-    case "Task History":
+    case "runHistory":
       // Task History loads its data through the server table.
       return TaskHistory;
     default:

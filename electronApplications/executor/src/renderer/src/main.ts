@@ -10,6 +10,7 @@ import { createVuetify } from "vuetify";
 import * as components from "vuetify/components";
 import * as directives from "vuetify/directives";
 import { createPinia } from "pinia";
+import { registerMainMessageListener } from "./IPC/mainMessage";
 
 import "@mdi/font/css/materialdesignicons.css";
 
@@ -24,6 +25,7 @@ const vuetify = createVuetify({
 });
 
 app.use(pinia);
+registerMainMessageListener();
 app.use(vuetify);
 app.use(CronVuetifyPlugin);
 app.mount("#app");

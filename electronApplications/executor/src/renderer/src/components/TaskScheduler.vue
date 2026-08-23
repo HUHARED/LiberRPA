@@ -19,9 +19,9 @@
 
     <!-- Bug: The "hover" attribute will only work when the window is in the main screen. -->
     <v-data-table
-      v-if="schedulerStore.arrListItem.length !== 0"
+      v-if="scheduleStore.arrListItem.length !== 0"
       :headers="arrHeader"
-      :items="schedulerStore.arrListItem"
+      :items="scheduleStore.arrListItem"
       class="clean-space flex-column-grow-1"
       fixed-header
       hide-default-footer
@@ -100,12 +100,12 @@
 
     <!-- Dialog: new or edit detail, delete. -->
 
-    <v-dialog v-model="schedulerStore.showDialog_edit_new" width="800px" height="800px">
+    <v-dialog v-model="scheduleStore.showDialog_edit_new" width="800px" height="800px">
       <TaskScheduler_Dialog_Edit />
       <TaskScheduler_Dialog_New />
     </v-dialog>
 
-    <v-dialog v-model="schedulerStore.showDialog_delete" width="400px">
+    <v-dialog v-model="scheduleStore.showDialog_delete" width="400px">
       <TaskScheduler_Dialog_Delete />
     </v-dialog>
   </v-container>
@@ -121,17 +121,18 @@ import TaskScheduler_Dialog_New from "./TaskScheduler_Dialog_New.vue";
 import TaskScheduler_Dialog_Delete from "./TaskScheduler_Dialog_Delete.vue";
 import HorizontalDivider from "./utils/HorizontalDivider.vue";
 
-import { loggerRenderer } from "../ipcOfRenderer";
+import { loggerRenderer } from "../Logging/logger";
 import { getColor_Source } from "../commonFunc";
-import { useSchedulerStore, useSettingStore } from "../store";
+import { useScheduleStore } from "../Store/scheduleStore";
+import { useSettingStore } from "../Store/settingStore";
 import { getDefaultSchedulerPeriod } from "../time";
 import type { DictColumns_Scheduler_ListItem } from "../../../shared/interface";
 
-const schedulerStore = useSchedulerStore();
+const scheduleStore = useScheduleStore();
 const settingStore = useSettingStore();
 
 onBeforeMount(() => {
-  void schedulerStore.dbSelectSchedulerList().catch((e: unknown) => {
+  void scheduleStore.dbSelectSchedulerList().catch((e: unknown) => {
     loggerRenderer.error(
       `Failed to load Task Schedulers: ${e instanceof Error ? e.message : String(e)}`,
     );
@@ -142,7 +143,7 @@ function newTaskScheduler(): void {
   loggerRenderer.debug("--newTaskScheduler--");
 
   const dictDefaultPeriod = getDefaultSchedulerPeriod(settingStore.timezone);
-  schedulerStore.dictDetail_new = {
+  scheduleStore.dictDetail_new = {
     name: "",
     project_source: "local",
     project_id: undefined,
@@ -161,8 +162,8 @@ function newTaskScheduler(): void {
     custom_prj_args: [],
   };
 
-  schedulerStore.showDialog_edit_new = true;
-  schedulerStore.isEditing = "new";
+  scheduleStore.showDialog_edit_new = true;
+  scheduleStore.isEditing = "new";
 }
 
 const arrHeader: DataTableHeader<DictColumns_Scheduler_ListItem>[] = [
@@ -194,15 +195,15 @@ function getColorEnable(enable: boolean): string {
 
 async function editScheduler(schedulerName: string): Promise<void> {
   loggerRenderer.info("Edit scheduler: " + schedulerName);
-  await schedulerStore.dbSelectSchedulerDetail(schedulerName);
-  schedulerStore.showDialog_edit_new = true;
-  schedulerStore.isEditing = "edit";
+  await scheduleStore.dbSelectSchedulerDetail(schedulerName);
+  scheduleStore.showDialog_edit_new = true;
+  scheduleStore.isEditing = "edit";
 }
 
 async function openDeleteDialog(schedulerName: string): Promise<void> {
   loggerRenderer.info("Open delete dialog for scheduler: " + schedulerName);
-  await schedulerStore.dbSelectSchedulerDetail(schedulerName);
-  schedulerStore.showDialog_delete = true;
+  await scheduleStore.dbSelectSchedulerDetail(schedulerName);
+  scheduleStore.showDialog_delete = true;
 }
 </script>
 

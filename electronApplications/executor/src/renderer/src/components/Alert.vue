@@ -14,7 +14,7 @@
 <script setup lang="ts">
 import { watch } from "vue";
 
-import { useInformationStore } from "../store";
+import { useInformationStore } from "../Store/informationStore";
 
 const informationStore = useInformationStore();
 
@@ -34,7 +34,7 @@ watch(
         clearInformation();
       }, 3000);
     }
-  }
+  },
 );
 </script>
 

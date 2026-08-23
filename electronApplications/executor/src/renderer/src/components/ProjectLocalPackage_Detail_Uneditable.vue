@@ -107,7 +107,8 @@
 </template>
 
 <script setup lang="ts">
-import { useProjectStore, useSettingStore } from "../store";
+import { useProjectStore } from "../Store/projectStore";
+import { useSettingStore } from "../Store/settingStore";
 import { formatTimestamp } from "../time";
 
 const projectStore = useProjectStore();

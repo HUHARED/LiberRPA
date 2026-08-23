@@ -153,13 +153,15 @@ import VerticalDivider from "./utils/VerticalDivider.vue";
 import { ref, watch, onBeforeMount } from "vue";
 import { debounce } from "lodash";
 
-import { loggerRenderer, invokeMain } from "../ipcOfRenderer";
-import { useProjectStore, useHistoryStore } from "../store";
+import { invokeMain } from "../IPC/ipc";
+import { loggerRenderer } from "../Logging/logger";
+import { useProjectStore } from "../Store/projectStore";
+import { useRunHistoryStore } from "../Store/runHistoryStore";
 import { sanitizeJsonObj } from "../commonFunc";
 import type { DictColumns_Project_Detail_Run } from "../../../shared/interface";
 
 const projectStore = useProjectStore();
-const historyStore = useHistoryStore();
+const runHistoryStore = useRunHistoryStore();
 
 const strName = ref("");
 const strVersion = ref("");
@@ -272,7 +274,7 @@ async function runProject(): Promise<void> {
     };
 
     await invokeMain("pythonRun", sanitizeJsonObj(dictTemp));
-    await historyStore.refreshHistoryList();
+    await runHistoryStore.refreshHistoryList();
   }
 }
 </script>

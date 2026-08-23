@@ -6,7 +6,7 @@
     <!-- Bug: The hover attribute only works when the window is on the primary screen. -->
     <v-data-table
       :headers="arrHeader"
-      :items="queueStore.arrListItem"
+      :items="runQueueStore.arrListItem"
       class="clean-space flex-column-grow-1"
       fixed-header
       hide-default-footer
@@ -64,16 +64,17 @@ import { onBeforeMount } from "vue";
 import type { DataTableHeader } from "vuetify";
 
 import { getColor_Source } from "../commonFunc";
-import { loggerRenderer } from "../ipcOfRenderer";
-import { useQueueStore, useSettingStore } from "../store";
+import { loggerRenderer } from "../Logging/logger";
+import { useRunQueueStore } from "../Store/runQueueStore";
+import { useSettingStore } from "../Store/settingStore";
 import { formatTimestamp } from "../time";
 import type { Dict_TaskQueue_ListItem } from "../../../shared/interface";
 
-const queueStore = useQueueStore();
+const runQueueStore = useRunQueueStore();
 const settingStore = useSettingStore();
 
 onBeforeMount(() => {
-  void queueStore.refreshRunQueue().catch((e: unknown) => {
+  void runQueueStore.refreshRunQueue().catch((e: unknown) => {
     loggerRenderer.error(
       `Failed to load Run Queue: ${e instanceof Error ? e.message : String(e)}`,
     );
@@ -112,7 +113,7 @@ function getColorWaiting(waiting: boolean): string {
 
 async function removeWaitingItem(name: string, intEstimatedRunAtMs: number): Promise<void> {
   loggerRenderer.info(`Cancel waiting Run: ${name}-${intEstimatedRunAtMs}`);
-  await queueStore.cancelWaitingRun(name, intEstimatedRunAtMs);
+  await runQueueStore.cancelWaitingRun(name, intEstimatedRunAtMs);
 }
 </script>
 

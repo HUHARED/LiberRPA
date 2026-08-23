@@ -6,8 +6,8 @@
     <!-- Bug: The hover attribute only works when the window is on the primary screen. -->
     <v-data-table-server
       :headers="arrHeader"
-      :items="historyStore.arrListItem"
-      :items-length="historyStore.itemLength"
+      :items="runHistoryStore.arrListItem"
+      :items-length="runHistoryStore.itemLength"
       :items-per-page="itemPerPage"
       :items-per-page-options="arrItemsPerPageOptions"
       :search="search"
@@ -16,7 +16,7 @@
       density="compact"
       hover
       multi-sort
-      @update:options="historyStore.dbSelectLimitHistoryList($event)">
+      @update:options="runHistoryStore.dbSelectLimitHistoryList($event)">
       <template #item.project_source="{ value }">
         <v-chip
           :border="`${getColor_Source(value)} thin opacity-25`"
@@ -97,7 +97,7 @@
         <tr>
           <td>
             <v-text-field
-              v-model="historyStore.filterSchedulerName"
+              v-model="runHistoryStore.filterSchedulerName"
               class="pa-0 ma-0 pl-2 pr-2"
               density="compact"
               hide-details
@@ -106,7 +106,7 @@
           </td>
           <td>
             <v-select
-              v-model="historyStore.filterSource"
+              v-model="runHistoryStore.filterSource"
               variant="underlined"
               class="pa-0 ma-0 pl-2 pr-2"
               density="compact"
@@ -117,7 +117,7 @@
           </td>
           <td>
             <v-text-field
-              v-model="historyStore.filterProjectName"
+              v-model="runHistoryStore.filterProjectName"
               class="pa-0 ma-0 pl-2 pr-2"
               density="compact"
               hide-details
@@ -126,7 +126,7 @@
           </td>
           <td>
             <v-text-field
-              v-model="historyStore.filterProjectVersion"
+              v-model="runHistoryStore.filterProjectVersion"
               class="pa-0 ma-0 pl-2 pr-2"
               density="compact"
               hide-details
@@ -138,7 +138,7 @@
           <td></td>
           <td>
             <v-select
-              v-model="historyStore.filterStatus"
+              v-model="runHistoryStore.filterStatus"
               variant="underlined"
               class="pa-0 ma-0 pl-2 pr-2"
               density="compact"
@@ -166,9 +166,12 @@ import type { Ref } from "vue";
 import { debounce } from "lodash";
 import type { DataTableHeader } from "vuetify";
 
-import { invokeMain, loggerRenderer } from "../ipcOfRenderer";
+import { invokeMain } from "../IPC/ipc";
+import { loggerRenderer } from "../Logging/logger";
 import { fileOpenFolder, getColor_Source, sanitizeJsonObj } from "../commonFunc";
-import { useHistoryStore, useInformationStore, useSettingStore } from "../store";
+import { useRunHistoryStore } from "../Store/runHistoryStore";
+import { useInformationStore } from "../Store/informationStore";
+import { useSettingStore } from "../Store/settingStore";
 import { formatTimestamp } from "../time";
 import type {
   DictColumns_History_ListItem_DB,
@@ -177,7 +180,7 @@ import type {
   TypeTaskHistoryStatus,
 } from "../../../shared/interface";
 
-const historyStore = useHistoryStore();
+const runHistoryStore = useRunHistoryStore();
 const settingStore = useSettingStore();
 
 const itemPerPage: Ref<15 | 50 | 100> = ref(15);
@@ -190,11 +193,11 @@ const arrItemsPerPageOptions = [
 
 const dictSearch = computed<Dict_History_Search>(() => {
   return {
-    scheduler_name: historyStore.filterSchedulerName,
-    project_source: historyStore.filterSource,
-    project_name: historyStore.filterProjectName,
-    project_version: historyStore.filterProjectVersion,
-    status: historyStore.filterStatus,
+    scheduler_name: runHistoryStore.filterSchedulerName,
+    project_source: runHistoryStore.filterSource,
+    project_name: runHistoryStore.filterProjectName,
+    project_version: runHistoryStore.filterProjectVersion,
+    status: runHistoryStore.filterStatus,
   };
 });
 
@@ -312,7 +315,7 @@ async function runProjectNewestVersion(
   };
 
   await invokeMain("pythonRun", sanitizeJsonObj(dictRunDetail));
-  await historyStore.refreshHistoryList();
+  await runHistoryStore.refreshHistoryList();
 }
 </script>
 

@@ -83,7 +83,7 @@
 </template>
 
 <script setup lang="ts">
-import { useProjectStore } from "../store";
+import { useProjectStore } from "../Store/projectStore";
 import { computedTimeoutMin } from "../commonFunc";
 import { arrLogLevel } from "../commonValue";
 

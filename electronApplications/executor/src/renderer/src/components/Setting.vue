@@ -319,8 +319,10 @@
 import { watch, computed } from "vue";
 import { debounce } from "lodash";
 
-import { invokeMain, loggerRenderer } from "../ipcOfRenderer";
-import { useInformationStore, useSettingStore } from "../store";
+import { invokeMain } from "../IPC/ipc";
+import { loggerRenderer } from "../Logging/logger";
+import { useInformationStore } from "../Store/informationStore";
+import { useSettingStore } from "../Store/settingStore";
 import { arrTimezone } from "../time";
 import type { DictExecutorConfig } from "../../../shared/interface";
 

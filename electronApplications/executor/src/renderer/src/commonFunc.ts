@@ -3,8 +3,8 @@
 import { ref, computed, type WritableComputedRef, type Ref } from "vue";
 import cronstrue from "cronstrue";
 
-import { invokeMain } from "./ipcOfRenderer";
-import { useInformationStore } from "./store";
+import { invokeMain } from "./IPC/ipc";
+import { useInformationStore } from "./Store/informationStore";
 import type {
   DictColumns_Project_Detail,
   DictColumns_Scheduler_Detail,
