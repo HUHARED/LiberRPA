@@ -1,40 +1,39 @@
-// FileName: ipc.ts
-
 import { ipcMain } from "electron";
 import type { IpcMainEvent, IpcMainInvokeEvent } from "electron";
 
 import {
   dictConfigExecutor,
-  getPythonEnvironmentNames,
-  getPythonEnvironmentPath,
   saveExecutorConfigDict,
   selectProjectLogFolder,
   validateExecutorConfig,
-} from "./commonFunc";
+} from "../Config/config";
+import { getPythonEnvironmentNames, getPythonEnvironmentPath } from "../Config/environment";
 import {
   dbDeleteProject,
-  dbDeleteScheduler,
-  dbInsertSchedulerDetail,
-  dbSelectLimitHistoryList,
   dbSelectProjectBindSchedulers,
   dbSelectProjectDetail,
   dbSelectProjectNames,
   dbSelectProjectNewestVersionDetail,
   dbSelectProjectVersions,
+  dbUpdateProjectDetail,
+} from "../Database/projectRepository";
+import {
+  dbDeleteScheduler,
+  dbInsertSchedulerDetail,
   dbSelectSchedulerDetail,
   dbSelectSchedulerList,
-  dbUpdateProjectDetail,
   dbUpdateSchedulerDetail,
-} from "./database";
-import { fileDeleteExecutorPackage, fileOpenFolder } from "./fileFunc";
-import { importProjectPackage } from "./packageImport";
-import { pythonCancel, pythonRun } from "./pythonFunc";
-import { loggerMain } from "./logger";
+} from "../Database/scheduleRepository";
+import { dbSelectLimitHistoryList } from "../Database/historyRepository";
+import { fileDeleteExecutorPackage, fileOpenFolder } from "../FileSystem/executorFiles";
+import { importProjectPackage } from "../Package/packageImport";
+import { pythonCancel, pythonRun } from "../Run/projectRunner";
+import { loggerMain } from "../Logging/logger";
 import {
   cancelWaitingRun,
   getRunQueueItems,
   refreshSchedulerEngine,
-} from "./schedulerEngine";
+} from "../Scheduler/schedulerEngine";
 import {
   ensureHistoryOptions,
   ensureInvokeCommand,
@@ -49,14 +48,14 @@ import {
   ensureSchedulerUpdate,
   ensureStringData,
   ensureWaitingRunRef,
-} from "./ipcValidation";
-import { IPC_CHANNEL_RENDERER_INVOKE, IPC_CHANNEL_RENDERER_LOG } from "../shared/ipc";
+} from "./validation";
+import { IPC_CHANNEL_RENDERER_INVOKE, IPC_CHANNEL_RENDERER_LOG } from "../../shared/ipc";
 import type {
   DictInvokeResult,
   TypeExecutorInvokeCommand,
   TypeExecutorInvokeRequest,
   TypeExecutorInvokeResponse,
-} from "../shared/ipc";
+} from "../../shared/ipc";
 
 function getErrorMessage(e: unknown): string {
   return e instanceof Error ? e.message : String(e);

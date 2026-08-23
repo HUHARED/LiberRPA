@@ -1,13 +1,11 @@
-// FileName: runHousekeeping.ts
-
-import { dictConfigExecutor } from "./commonFunc";
+import { dictConfigExecutor } from "../Config/config";
 import {
   logCleanFolderByTimeout,
   logCleanVideoBySize,
   logCleanVideoByTimeout,
-} from "./logCleanFunc";
-import { loggerMain } from "./logger";
-import { onRunEnded } from "./runLifecycle";
+} from "./logCleanup";
+import { loggerMain } from "../Logging/logger";
+import { onRunEnded } from "./lifecycle";
 
 const INT_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
 

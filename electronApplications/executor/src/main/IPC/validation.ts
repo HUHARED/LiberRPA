@@ -1,13 +1,11 @@
-// FileName: ipcValidation.ts
-
 import type {
   DictColumns_Project_Detail_Run,
   DictColumns_Project_Detail_ToUpdate,
   DictColumns_Scheduler_Detail_ToInsert,
   DictColumns_Scheduler_Detail_ToUpdate,
   Dict_History_Options,
-} from "../shared/interface";
-import type { TypeExecutorInvokeCommand, TypeRendererLogLevel } from "../shared/ipc";
+} from "../../shared/interface";
+import type { TypeExecutorInvokeCommand, TypeRendererLogLevel } from "../../shared/ipc";
 
 import {
   ensureBinaryInteger,
@@ -24,7 +22,7 @@ import {
   ensureProjectSource,
   ensureString,
   ensureWhenOthersRunning,
-} from "./validation";
+} from "../Common/validation";
 
 function ensureHistorySortKey(
   value: unknown,

@@ -1,6 +1,4 @@
-// FileName: runLifecycle.ts
-
-import { loggerMain } from "./logger";
+import { loggerMain } from "../Logging/logger";
 
 type RunEndedListener = () => void;
 

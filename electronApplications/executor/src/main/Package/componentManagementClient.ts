@@ -1,12 +1,10 @@
-// FileName: componentManagementProcess.ts
-
 import { spawn } from "child_process";
 import path from "path";
 import fs from "fs";
 
-import { strDefaultPythonEnvironmentPath } from "./commonFunc";
-import { loggerMain } from "./logger";
-import { isRecord } from "./validation";
+import { strDefaultPythonEnvironmentPath } from "../Config/environment";
+import { loggerMain } from "../Logging/logger";
+import { isRecord } from "../Common/validation";
 
 const SET_SUCCESS_KEYS = new Set(["schemaVersion", "ok", "result", "warnings"]);
 const SET_SUCCESS_RESULT_KEYS = new Set(["status"]);

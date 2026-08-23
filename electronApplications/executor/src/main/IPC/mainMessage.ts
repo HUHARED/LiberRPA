@@ -1,9 +1,7 @@
-// FileName: ipcMainMessage.ts
-
 import type { WebContents } from "electron";
 
-import { IPC_CHANNEL_MAIN_MESSAGE } from "../shared/ipc";
-import type { DictMainMessage } from "../shared/ipc";
+import { IPC_CHANNEL_MAIN_MESSAGE } from "../../shared/ipc";
+import type { DictMainMessage } from "../../shared/ipc";
 
 export function sendMainMessage(
   webContentsObj: WebContents,

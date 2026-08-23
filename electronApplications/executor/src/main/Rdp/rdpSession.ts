@@ -1,12 +1,11 @@
-// FileName: rdpSessionFunc.ts
-
 import { is } from "@electron-toolkit/utils";
 import { spawn } from "child_process";
 import type { ChildProcessWithoutNullStreams } from "child_process";
 import path from "path";
 
-import { loggerMain } from "./logger";
-import { dictConfigExecutor, strDefaultPythonEnvironmentPath } from "./commonFunc";
+import { loggerMain } from "../Logging/logger";
+import { dictConfigExecutor } from "../Config/config";
+import { strDefaultPythonEnvironmentPath } from "../Config/environment";
 
 function getScriptFolderPath(): string {
   if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {

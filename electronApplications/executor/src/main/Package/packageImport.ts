@@ -1,23 +1,27 @@
-// FileName: packageImport.ts
-
 import { randomUUID } from "crypto";
 import { dialog } from "electron";
 import fs from "fs";
 import path from "path";
 import AdmZip from "adm-zip";
 
-import { DEFAULT_PYTHON_ENVIRONMENT_NAME } from "./commonFunc";
-import { validatePackagedFlowProject } from "./componentManagementProcess";
-import { dbInsertProjectDetail, dbSelectProjectDetail } from "./database";
-import { getExecutorPackageFolderPath, strExecutorPackageFolderPath } from "./fileFunc";
-import { loggerMain } from "./logger";
-import { ensureLogLevel, isRecord } from "./validation";
+import { DEFAULT_PYTHON_ENVIRONMENT_NAME } from "../Config/environment";
+import { validatePackagedFlowProject } from "./componentManagementClient";
+import {
+  dbInsertProjectDetail,
+  dbSelectProjectDetail,
+} from "../Database/projectRepository";
+import {
+  getExecutorPackageFolderPath,
+  strExecutorPackageFolderPath,
+} from "../FileSystem/executorFiles";
+import { loggerMain } from "../Logging/logger";
+import { ensureLogLevel, isRecord } from "../Common/validation";
 import type {
   DictColumns_Project_Detail_ToInsert,
   DictProjectPackageImportResult,
   TypeColumns_LogLevel,
   TypeCustomProjectArgs,
-} from "../shared/interface";
+} from "../../shared/interface";
 
 interface DictFlowManifest {
   schemaVersion: 1;

@@ -1,10 +1,8 @@
-// FileName: validation.ts
-
 import type {
   TypeColumns_LogLevel,
   TypeCustomProjectArgs,
   TypeTaskHistoryStatus,
-} from "../shared/interface";
+} from "../../shared/interface";
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {

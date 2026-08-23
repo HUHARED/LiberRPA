@@ -1,11 +1,9 @@
-// FileName: databaseValidation.ts
-
 import type {
   DictColumns_History_ListItem_DB,
   DictColumns_Project_Detail_DB,
   DictColumns_Scheduler_Detail_DB,
   DictColumns_Scheduler_ListItem_DB,
-} from "../shared/interface";
+} from "../../shared/interface";
 import {
   ensureBinaryInteger,
   ensureCustomProjectArgsJson,
@@ -20,7 +18,7 @@ import {
   ensureProjectSource,
   ensureString,
   ensureWhenOthersRunning,
-} from "./validation";
+} from "../Common/validation";
 
 function ensureRows<T>(
   rows: unknown[],

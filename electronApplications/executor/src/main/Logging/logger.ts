@@ -1,14 +1,13 @@
-// FileName: logger.ts
 import path from "path";
 import { format, transports, createLogger } from "winston";
 import moment from "moment";
 
-import { dictConfigBasic } from "./commonFunc";
+import { dictConfigBasic } from "../Config/config";
 
 const strLogPath = path.join(
   dictConfigBasic["outputLogPath"],
   "_Executor",
-  `${moment().format("YYYY-MM-DD")}.log`
+  `${moment().format("YYYY-MM-DD")}.log`,
 );
 
 const logFormat = format.printf(({ level, message, timestamp }) => {
@@ -20,7 +19,7 @@ export const loggerMain = createLogger({
     format.timestamp({
       format: () => moment().format("YYYY-MM-DD HH:mm:ss.SSS"),
     }),
-    format.errors({ stack: true })
+    format.errors({ stack: true }),
   ),
   transports: [
     new transports.File({
@@ -34,7 +33,7 @@ export const loggerMain = createLogger({
         format.colorize(),
         format.printf((info) => {
           return `${info.message}`;
-        })
+        }),
       ),
     }),
   ],

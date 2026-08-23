@@ -1,5 +1,3 @@
-// FileName: logCleanFunc.ts
-
 import fs from "fs";
 import path from "path";
 
@@ -9,8 +7,8 @@ import {
   dbSelectVideoBefore,
   dbUpdateNoLogFolderAndVideo,
   dbUpdateNoVideo,
-} from "./database";
-import { loggerMain } from "./logger";
+} from "../Database/historyRepository";
+import { loggerMain } from "../Logging/logger";
 
 const INT_MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
 

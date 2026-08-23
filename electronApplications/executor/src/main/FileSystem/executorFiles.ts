@@ -1,10 +1,8 @@
-// FileName: fileFunc.ts
-
 import { shell } from "electron";
 import fs from "fs";
 import path from "path";
 
-import { strDocumentsFolderPath } from "./commonFunc";
+import { strDocumentsFolderPath } from "../Config/environment";
 
 export const strExecutorPackageFolderPath = path.join(
   strDocumentsFolderPath,

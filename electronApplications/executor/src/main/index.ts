@@ -1,5 +1,3 @@
-// FileName: index.ts
-
 import { app, shell, BrowserWindow, screen, Tray, Menu, nativeImage } from "electron";
 
 // Only one Executor instance.
@@ -24,25 +22,22 @@ import { join } from "path";
 import { electronApp, optimizer, is } from "@electron-toolkit/utils";
 import icon from "../../resources/LiberRPA_icon_v3_color_Executor_256.ico?asset";
 
-import { loggerMain } from "./logger";
-import { dictConfigExecutor, strDefaultProjectLogFolderPath } from "./commonFunc";
-import {
-  initializeDatabase,
-  closeDatabase,
-  dbMarkRunningHistoryInterrupted,
-} from "./database";
-import { recoverProjectPackageImports } from "./packageImport";
-import { runSessionListener, setResolution } from "./rdpSessionFunc";
-import { registerExecutorIpc } from "./ipc";
-import { sendMainMessage } from "./ipcMainMessage";
-import { onRunEnded } from "./runLifecycle";
-import { startRunHousekeeping } from "./runHousekeeping";
+import { loggerMain } from "./Logging/logger";
+import { dictConfigExecutor, strDefaultProjectLogFolderPath } from "./Config/config";
+import { closeDatabase, initializeDatabase } from "./Database/connection";
+import { dbMarkRunningHistoryInterrupted } from "./Database/historyRepository";
+import { recoverProjectPackageImports } from "./Package/packageImport";
+import { runSessionListener, setResolution } from "./Rdp/rdpSession";
+import { registerExecutorIpc } from "./IPC/ipc";
+import { sendMainMessage } from "./IPC/mainMessage";
+import { onRunEnded } from "./Run/lifecycle";
+import { startRunHousekeeping } from "./Run/housekeeping";
 import {
   getRunQueueItems,
   onRunQueueChanged,
   startSchedulerEngine,
   stopSchedulerEngine,
-} from "./schedulerEngine";
+} from "./Scheduler/schedulerEngine";
 import type { DictMainMessage } from "../shared/ipc";
 
 initializeDatabase();
