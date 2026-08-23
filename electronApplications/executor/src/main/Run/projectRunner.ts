@@ -1,56 +1,42 @@
 import type { ChildProcessWithoutNullStreams } from "child_process";
-import { spawn } from "child_process";
 import { randomUUID } from "crypto";
 import fs from "fs";
-import path from "path";
 
-import { getPythonEnvironmentPath, strDocumentsFolderPath } from "../Config/environment";
+import { getPythonEnvironmentPath } from "../Config/environment";
 import {
   dbInsertHistoryDetail,
   dbUpdateHistoryDetail,
 } from "../Database/historyRepository";
 import { getExecutorPackageFolderPath } from "../FileSystem/executorFiles";
 import { loggerMain } from "../Logging/logger";
-import { notifyRunEnded } from "./lifecycle";
-import { ensureNonEmptyString, ensureRecord, ensureString } from "../Common/validation";
 import type { DictColumns_Project_Detail_Run } from "../../shared/interface";
+import { notifyRunEnded } from "./lifecycle";
+import {
+  type DictPythonProcessDiagnosticOutput,
+  isPythonProcessRunning,
+  logPythonDiagnosticOutput,
+  requestPythonTermination,
+  spawnProjectPythonProcess,
+  terminatePythonProcessAfterStartupFailure,
+  waitForPythonProcessTermination,
+} from "./pythonProcess";
+import {
+  type ExecutorRunState,
+  createExecutorRunStatePath,
+  parseExecutorRunTimestamp,
+  readExecutorRunState,
+  removeExecutorRunStateFile,
+  waitForExecutorRunStateAvailable,
+} from "./runState";
 
-type ExecutorRunStateStatus = "running" | "completed" | "error" | "terminated";
 type ExecutorHistoryStatus = "cancel" | "completed" | "error" | "timeout";
-
-interface ExecutorRunState {
-  schemaVersion: 1;
-  runId: string;
-  packageName: string;
-  packageVersion: string;
-  startedAt: string;
-  logPath: string;
-  status: ExecutorRunStateStatus;
-  endedAt?: string;
-}
-
-interface DictPythonProcessDiagnosticOutput {
-  strStdoutTail: string;
-  strStderrTail: string;
-}
 
 interface RunningPythonProcess {
   processPy: ChildProcessWithoutNullStreams;
   strRunId: string;
 }
 
-const INT_PROCESS_OUTPUT_TAIL_MAX_LENGTH = 32 * 1024;
-const INT_INITIAL_RUN_STATE_INTERVAL_MS = 250;
-const INT_INITIAL_RUN_STATE_TIMEOUT_MS = 15 * 1000;
-const INT_PROCESS_TERMINATION_WAIT_MS = 3 * 1000;
-const REGEX_ISO_TIMESTAMP_WITH_TIMEZONE =
-  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$/;
-
 const mapProcessCache = new Map<number, RunningPythonProcess>();
-const strExecutorRunStateFolderPath = path.join(
-  strDocumentsFolderPath,
-  "LiberRPA/ExecutorRunState",
-);
 
 export async function pythonRun(dictDetail: DictColumns_Project_Detail_Run): Promise<void> {
   // Only the local source is supported now.
@@ -72,73 +58,24 @@ export async function pythonRun(dictDetail: DictColumns_Project_Detail_Run): Pro
 
   const strRunId = randomUUID();
   const strStartedAt = new Date().toISOString();
-  fs.mkdirSync(strExecutorRunStateFolderPath, { recursive: true });
-  const strRunStatePath = path.join(strExecutorRunStateFolderPath, `${strRunId}.json`);
-
-  const processPy = spawn(
-    path.join(strPythonEnvironmentPath, "python.exe"),
-    [
-      "-m",
-      "liberrpa.FlowControl.Run",
-      "--executor_args",
-      JSON.stringify({
-        logLevel: dictDetail.builtin_log_level,
-        recordVideo: dictDetail.builtin_record_video,
-        stopShortcut: dictDetail.builtin_stop_shortcut,
-        highlightUi: dictDetail.builtin_highlight_ui,
-        customPrjArgs: dictDetail.custom_prj_args,
-      }),
-    ],
-    {
-      cwd: strExecutorPackagePath,
-      env: {
-        ...process.env,
-        LIBERRPA_RUN_STARTED_AT: strStartedAt,
-        LIBERRPA_EXECUTOR_RUN_ID: strRunId,
-        LIBERRPA_EXECUTOR_RUN_STATE_PATH: strRunStatePath,
-        LIBERRPA_EXECUTOR_PACKAGE_NAME: dictDetail.name,
-        LIBERRPA_EXECUTOR_PACKAGE_VERSION: dictDetail.version,
-        PATH: [
-          strPythonEnvironmentPath,
-          path.join(strPythonEnvironmentPath, "Library", "mingw-w64", "bin"),
-          path.join(strPythonEnvironmentPath, "Library", "usr", "bin"),
-          path.join(strPythonEnvironmentPath, "Library", "bin"),
-          path.join(strPythonEnvironmentPath, "Scripts"),
-          path.join(strPythonEnvironmentPath, "bin"),
-          process.env.PATH ?? "",
-        ]
-          .filter(Boolean)
-          .join(path.delimiter),
-        PYTHONPATH: [
-          strExecutorPackagePath,
-          path.join(strExecutorPackagePath, "_Components"),
-          process.env.PYTHONPATH ?? "",
-        ]
-          .filter(Boolean)
-          .join(path.delimiter),
-      },
-      stdio: ["pipe", "pipe", "pipe"],
-    },
-  );
-
-  const dictDiagnosticOutput = attachPythonDiagnosticStreams(processPy);
-  let processError: Error | undefined;
-
-  processPy.on("error", (e: Error) => {
-    processError = e;
-    loggerMain.error(
-      `Python process error for ${dictDetail.name}-${dictDetail.version} (${strRunId}): ${e.message}`,
-    );
+  const strRunStatePath = createExecutorRunStatePath(strRunId);
+  const { processPy, diagnosticOutput, getProcessError } = spawnProjectPythonProcess({
+    detail: dictDetail,
+    packagePath: strExecutorPackagePath,
+    pythonEnvironmentPath: strPythonEnvironmentPath,
+    runId: strRunId,
+    startedAt: strStartedAt,
+    runStatePath: strRunStatePath,
   });
 
   const dictRunState = await getInitialRunState({
     processPy,
-    getProcessError: () => processError,
+    getProcessError,
     runId: strRunId,
     runStatePath: strRunStatePath,
     packageName: dictDetail.name,
     packageVersion: dictDetail.version,
-    diagnosticOutput: dictDiagnosticOutput,
+    diagnosticOutput,
   });
 
   loggerMain.debug(`Executor run state is available: ${strRunId}`);
@@ -149,7 +86,7 @@ export async function pythonRun(dictDetail: DictColumns_Project_Detail_Run): Pro
     runStatePath: strRunStatePath,
     runState: dictRunState,
     detail: dictDetail,
-    diagnosticOutput: dictDiagnosticOutput,
+    diagnosticOutput,
   });
 
   mapProcessCache.set(intHistoryId, { processPy, strRunId });
@@ -191,7 +128,7 @@ export async function pythonRun(dictDetail: DictColumns_Project_Detail_Run): Pro
     }
 
     let strHistoryStatus: ExecutorHistoryStatus = "error";
-    let boolUnexpectedProcessFailure = processError !== undefined;
+    let boolUnexpectedProcessFailure = getProcessError() !== undefined;
     let intRunEndedAtMs = Date.now();
 
     try {
@@ -245,7 +182,7 @@ export async function pythonRun(dictDetail: DictColumns_Project_Detail_Run): Pro
         runId: strRunId,
         reason:
           "The Python process did not finish through the expected run-state lifecycle.",
-        diagnosticOutput: dictDiagnosticOutput,
+        diagnosticOutput,
       });
     }
 
@@ -364,334 +301,12 @@ async function createTaskHistory({
   }
 }
 
-function appendProcessOutputTail(strCurrent: string, strChunk: string): string {
-  const strCombined = strCurrent + strChunk;
-
-  if (strCombined.length <= INT_PROCESS_OUTPUT_TAIL_MAX_LENGTH) {
-    return strCombined;
-  }
-
-  return strCombined.slice(-INT_PROCESS_OUTPUT_TAIL_MAX_LENGTH);
-}
-
-function attachPythonDiagnosticStreams(
-  processPy: ChildProcessWithoutNullStreams,
-): DictPythonProcessDiagnosticOutput {
-  const dictDiagnosticOutput: DictPythonProcessDiagnosticOutput = {
-    strStdoutTail: "",
-    strStderrTail: "",
-  };
-
-  processPy.stdout.setEncoding("utf8");
-  processPy.stderr.setEncoding("utf8");
-
-  processPy.stdout.on("data", (strChunk: string) => {
-    dictDiagnosticOutput.strStdoutTail = appendProcessOutputTail(
-      dictDiagnosticOutput.strStdoutTail,
-      strChunk,
-    );
-  });
-
-  processPy.stderr.on("data", (strChunk: string) => {
-    dictDiagnosticOutput.strStderrTail = appendProcessOutputTail(
-      dictDiagnosticOutput.strStderrTail,
-      strChunk,
-    );
-  });
-
-  processPy.stdin.on("error", (e: Error) => {
-    loggerMain.debug(`Python stdin closed: ${e.message}`);
-  });
-
-  return dictDiagnosticOutput;
-}
-
-function logPythonDiagnosticOutput({
-  runId,
-  reason,
-  diagnosticOutput,
-}: {
-  runId: string;
-  reason: string;
-  diagnosticOutput: DictPythonProcessDiagnosticOutput;
-}): void {
-  const strStdoutTail = diagnosticOutput.strStdoutTail.trim();
-  const strStderrTail = diagnosticOutput.strStderrTail.trim();
-
-  if (strStdoutTail.length === 0 && strStderrTail.length === 0) {
-    return;
-  }
-
-  loggerMain.error(`Python process diagnostic output for run ${runId}: ${reason}`);
-
-  if (strStdoutTail.length > 0) {
-    loggerMain.error(`Python stdout tail:\r\n${strStdoutTail}`);
-  }
-
-  if (strStderrTail.length > 0) {
-    loggerMain.error(`Python stderr tail:\r\n${strStderrTail}`);
-  }
-}
-
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error) {
     return error.message;
   }
 
   return String(error);
-}
-
-function isPythonProcessRunning(processPy: ChildProcessWithoutNullStreams): boolean {
-  return processPy.exitCode === null && processPy.signalCode === null;
-}
-
-function requestPythonTermination(
-  processPy: ChildProcessWithoutNullStreams,
-  strRunId: string,
-): boolean {
-  if (
-    !isPythonProcessRunning(processPy) ||
-    processPy.stdin.destroyed ||
-    !processPy.stdin.writable
-  ) {
-    return false;
-  }
-
-  try {
-    processPy.stdin.end("Executor-terminated\r\n");
-    return true;
-  } catch (e: unknown) {
-    loggerMain.error(
-      `Failed to send shutdown signal to Python process ${strRunId}: ${getErrorMessage(e)}`,
-    );
-    return false;
-  }
-}
-
-async function terminatePythonProcessAfterStartupFailure(
-  processPy: ChildProcessWithoutNullStreams,
-  strRunId: string,
-): Promise<void> {
-  if (!isPythonProcessRunning(processPy)) {
-    return;
-  }
-
-  try {
-    processPy.kill();
-  } catch (e: unknown) {
-    loggerMain.error(
-      `Failed to terminate Python process ${strRunId} after startup failure: ${getErrorMessage(e)}`,
-    );
-    return;
-  }
-
-  await waitForPythonProcessTermination(processPy, strRunId);
-}
-
-async function waitForPythonProcessTermination(
-  processPy: ChildProcessWithoutNullStreams,
-  strRunId: string,
-): Promise<void> {
-  if (await waitForPythonProcessClose(processPy)) {
-    return;
-  }
-
-  loggerMain.error(`Python process ${strRunId} did not terminate within the wait period.`);
-
-  try {
-    processPy.kill();
-  } catch (e: unknown) {
-    loggerMain.error(
-      `Failed to force-terminate Python process ${strRunId}: ${getErrorMessage(e)}`,
-    );
-    return;
-  }
-
-  if (!(await waitForPythonProcessClose(processPy))) {
-    loggerMain.error(`Python process ${strRunId} remained active after force termination.`);
-  }
-}
-
-function waitForPythonProcessClose(
-  processPy: ChildProcessWithoutNullStreams,
-): Promise<boolean> {
-  if (!isPythonProcessRunning(processPy)) {
-    return Promise.resolve(true);
-  }
-
-  return new Promise<boolean>((resolve) => {
-    const handleClose = (): void => {
-      clearTimeout(timeoutId);
-      resolve(true);
-    };
-
-    const timeoutId = setTimeout(() => {
-      processPy.removeListener("close", handleClose);
-      resolve(!isPythonProcessRunning(processPy));
-    }, INT_PROCESS_TERMINATION_WAIT_MS);
-
-    processPy.once("close", handleClose);
-  });
-}
-
-function removeExecutorRunStateFile(strRunStatePath: string): void {
-  try {
-    fs.rmSync(strRunStatePath, { force: true });
-  } catch (e: unknown) {
-    loggerMain.warn(
-      `Failed to remove Executor run-state file ${strRunStatePath}: ${getErrorMessage(e)}`,
-    );
-  }
-}
-
-function isValidExecutorRunTimestamp(value: string): boolean {
-  if (!REGEX_ISO_TIMESTAMP_WITH_TIMEZONE.test(value)) {
-    return false;
-  }
-
-  const intTimestampMs = Date.parse(value);
-  return Number.isSafeInteger(intTimestampMs) && intTimestampMs >= 0;
-}
-
-function parseExecutorRunTimestamp(strTimestamp: string): number {
-  const intTimestampMs = Date.parse(strTimestamp);
-  if (
-    !REGEX_ISO_TIMESTAMP_WITH_TIMEZONE.test(strTimestamp) ||
-    !Number.isSafeInteger(intTimestampMs) ||
-    intTimestampMs < 0
-  ) {
-    throw new Error(`Invalid Executor run timestamp: ${strTimestamp}`);
-  }
-  return intTimestampMs;
-}
-
-function ensureExecutorRunStateStatus(value: unknown): ExecutorRunStateStatus {
-  switch (value) {
-    case "running":
-    case "completed":
-    case "error":
-    case "terminated":
-      return value;
-    default:
-      throw new Error("Executor run state contains an unsupported status.");
-  }
-}
-
-function readExecutorRunState({
-  filePath,
-  expectedRunId,
-  expectedPackageName,
-  expectedPackageVersion,
-}: {
-  filePath: string;
-  expectedRunId: string;
-  expectedPackageName: string;
-  expectedPackageVersion: string;
-}): ExecutorRunState {
-  const strContent = fs.readFileSync(filePath, { encoding: "utf-8" });
-  const value: unknown = JSON.parse(strContent);
-  const dictState = ensureRecord(value, "Executor run state");
-
-  if (dictState.schemaVersion !== 1) {
-    throw new Error(
-      `Invalid Executor run state schema version: ${String(dictState.schemaVersion)}`,
-    );
-  }
-  if (dictState.runId !== expectedRunId) {
-    throw new Error(`Executor run state has an unexpected runId: ${filePath}`);
-  }
-  if (dictState.packageName !== expectedPackageName) {
-    throw new Error(`Executor run state has an unexpected packageName: ${filePath}`);
-  }
-  if (dictState.packageVersion !== expectedPackageVersion) {
-    throw new Error(`Executor run state has an unexpected packageVersion: ${filePath}`);
-  }
-
-  const strStartedAt = ensureString(dictState.startedAt, "Executor run state.startedAt");
-  if (!isValidExecutorRunTimestamp(strStartedAt)) {
-    throw new Error(`Invalid Executor run state startedAt: ${strStartedAt}`);
-  }
-  const strLogPath = ensureNonEmptyString(dictState.logPath, "Executor run state.logPath");
-  const status = ensureExecutorRunStateStatus(dictState.status);
-
-  if (status === "running") {
-    if (dictState.endedAt !== undefined) {
-      throw new Error("A running Executor run state cannot contain endedAt.");
-    }
-    return {
-      schemaVersion: 1,
-      runId: expectedRunId,
-      packageName: expectedPackageName,
-      packageVersion: expectedPackageVersion,
-      startedAt: strStartedAt,
-      logPath: strLogPath,
-      status,
-    };
-  }
-
-  const strEndedAt = ensureString(dictState.endedAt, "Executor run state.endedAt");
-  if (!isValidExecutorRunTimestamp(strEndedAt)) {
-    throw new Error(`Invalid Executor run state endedAt: ${strEndedAt}`);
-  }
-  return {
-    schemaVersion: 1,
-    runId: expectedRunId,
-    packageName: expectedPackageName,
-    packageVersion: expectedPackageVersion,
-    startedAt: strStartedAt,
-    logPath: strLogPath,
-    status,
-    endedAt: strEndedAt,
-  };
-}
-
-async function waitForExecutorRunStateAvailable({
-  filePath,
-  processPy,
-  getProcessError,
-  expectedRunId,
-  expectedPackageName,
-  expectedPackageVersion,
-}: {
-  filePath: string;
-  processPy: ChildProcessWithoutNullStreams;
-  getProcessError: () => Error | undefined;
-  expectedRunId: string;
-  expectedPackageName: string;
-  expectedPackageVersion: string;
-}): Promise<ExecutorRunState> {
-  let intElapsedMs = 0;
-
-  while (intElapsedMs < INT_INITIAL_RUN_STATE_TIMEOUT_MS) {
-    const processError = getProcessError();
-    if (processError !== undefined) {
-      throw new Error(`Python process failed to start: ${processError.message}`, {
-        cause: processError,
-      });
-    }
-
-    if (fs.existsSync(filePath)) {
-      return readExecutorRunState({
-        filePath,
-        expectedRunId,
-        expectedPackageName,
-        expectedPackageVersion,
-      });
-    }
-
-    if (!isPythonProcessRunning(processPy)) {
-      throw new Error(
-        `Python exited before publishing the initial Executor run state: ${expectedRunId}`,
-      );
-    }
-
-    await new Promise<void>((resolve) => {
-      setTimeout(resolve, INT_INITIAL_RUN_STATE_INTERVAL_MS);
-    });
-    intElapsedMs += INT_INITIAL_RUN_STATE_INTERVAL_MS;
-  }
-
-  throw new Error(`Timeout waiting for the initial Executor run state: ${expectedRunId}`);
 }
 
 export function pythonCancel(historyId: number): void {

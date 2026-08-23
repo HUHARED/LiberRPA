@@ -26,7 +26,7 @@ import { loggerMain } from "./Logging/logger";
 import { dictConfigExecutor, strDefaultProjectLogFolderPath } from "./Config/config";
 import { closeDatabase, initializeDatabase } from "./Database/connection";
 import { dbMarkRunningHistoryInterrupted } from "./Database/historyRepository";
-import { recoverProjectPackageImports } from "./Package/packageImport";
+import { recoverProjectPackageImports } from "./Package/packageImportTransaction";
 import { runSessionListener, setResolution } from "./Rdp/rdpSession";
 import { registerExecutorIpc } from "./IPC/ipc";
 import { sendMainMessage } from "./IPC/mainMessage";
