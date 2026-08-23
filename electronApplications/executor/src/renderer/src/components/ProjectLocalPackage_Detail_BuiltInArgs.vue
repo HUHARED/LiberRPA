@@ -7,7 +7,7 @@
         <v-number-input
           v-model="intTimeoutMin"
           control-variant="default"
-          label="Timeout"
+          label="Timeout (min)"
           :min="0"
           :precision="0"
           inset
@@ -15,7 +15,7 @@
           variant="underlined"
           hide-details>
           <v-tooltip activator="parent" location="top">
-            If the timeout is reached(in minutes), stop the project. 0 means no limitation.
+            Stop the run when it exceeds this timeout. 0 means no limit.
           </v-tooltip>
         </v-number-input>
       </v-col>

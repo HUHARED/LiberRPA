@@ -1,7 +1,7 @@
 <!-- FileName: TaskQueue.vue -->
 <template>
   <v-container fluid class="clean-space flex-row-grow-1 fill-height flex-column">
-    <v-label class="header-label tab-header">Task Queue</v-label>
+    <v-label class="header-label tab-header">Run Queue</v-label>
 
     <!-- Bug: The hover attribute only works when the window is on the primary screen. -->
     <v-data-table
@@ -34,14 +34,14 @@
         <v-chip
           :border="`${getColorWaiting(value)} thin opacity-25`"
           :color="getColorWaiting(value)"
-          :text="value"
+          :text="value ? 'Waiting' : 'Pending'"
           variant="text"
           size="x-small"></v-chip>
       </template>
 
       <template #item.actions="{ item }">
         <div class="d-flex ga-2 justify-start">
-          <v-tooltip text="Cancel it." location="bottom">
+          <v-tooltip text="Cancel Waiting Run" location="bottom">
             <template #activator="{ props }">
               <v-icon
                 v-bind="props"
@@ -77,7 +77,7 @@ onBeforeMount(() => {
 });
 
 const arrHeader: DataTableHeader<Dict_TaskQueue_ListItem>[] = [
-  { title: "Name", value: "name", align: "start", sortable: false },
+  { title: "Schedule", value: "name", align: "start", sortable: false },
   {
     title: "Project",
     align: "center",
@@ -93,12 +93,12 @@ const arrHeader: DataTableHeader<Dict_TaskQueue_ListItem>[] = [
     ],
   },
   {
-    title: "Estimated Run Time",
+    title: "Scheduled Time",
     value: "estimated_run_at_ms",
     align: "center",
     sortable: false,
   },
-  { title: "Waiting", value: "waiting", align: "start", sortable: false },
+  { title: "State", value: "waiting", align: "start", sortable: false },
   { title: "Actions", key: "actions", align: "start", sortable: false },
 ];
 

@@ -1,6 +1,6 @@
 <!-- FileName: TaskScheduler_Dialog_Delete.vue -->
 <template>
-  <v-card title="Delete the task scheduler?">
+  <v-card title="Delete Schedule?">
     <template #text>
       <v-container
         v-if="schedulerStore.dictDetail_edit"
@@ -17,7 +17,7 @@
               readonly
               variant="plain">
               <v-tooltip activator="parent" location="top">
-                The task scheduler's ID in database. Managed by Executor.
+                Internal schedule ID managed by Executor.
               </v-tooltip>
             </v-text-field>
           </v-col>
@@ -62,7 +62,7 @@
               readonly
               variant="plain">
               <v-tooltip activator="parent" location="top">
-                The project's ID in database. Managed by Executor.
+                Internal project ID managed by Executor.
               </v-tooltip>
             </v-text-field>
           </v-col>

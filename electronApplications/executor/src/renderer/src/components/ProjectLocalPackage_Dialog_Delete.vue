@@ -1,7 +1,7 @@
 <!-- FileName: ProjectLocalPackage_Dialog_Delete.vue -->
 <template>
   <v-dialog v-model="projectStore.showDialog_delete" width="800px" height="400px">
-    <v-card title="Delete the project?">
+    <v-card title="Delete Project?">
       <template #text>
         <v-container
           v-if="projectStore.dictDetail_edit"
@@ -18,7 +18,7 @@
                 readonly
                 variant="plain">
                 <v-tooltip activator="parent" location="top">
-                  The task scheduler's ID in database. Managed by Executor.
+                  Internal project ID managed by Executor.
                 </v-tooltip>
               </v-text-field>
             </v-col>
@@ -52,8 +52,7 @@
             v-if="projectStore.arrBindScheduler.length !== 0"
             fluid
             class="border-thin flex-column-grow-1 flex-column">
-            The following Schedulers use this Project. Modify or delete them before deleting
-            the Project:
+            The following schedules use this project. Modify or delete them before deleting the project:
             <v-list
               :items="projectStore.arrBindScheduler"
               class="clean-space w-100"
@@ -64,7 +63,7 @@
           </v-container>
 
           <v-container v-else fluid class="border-thin flex-column-grow-1 flex-column">
-            No Scheduler uses this Project.
+            No schedule uses this project.
           </v-container>
         </v-container>
       </template>

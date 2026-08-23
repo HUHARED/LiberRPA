@@ -1,7 +1,7 @@
 <!-- FileName: Setting.vue -->
 <template>
   <v-container fluid class="clean-space flex-row-grow-1 fill-height flex-column">
-    <v-label class="header-label tab-header">Setting</v-label>
+    <v-label class="header-label tab-header">Settings</v-label>
 
     <!-- Use a container to make the v-switch to left -->
     <v-container fluid class="pa-2 ma-0">
@@ -9,7 +9,7 @@
         <template #activator="{ props }">
           <v-switch
             v-model="settingStore.theme"
-            :label="`Theme ：${settingStore.theme}`"
+            :label="`Theme: ${settingStore.theme === 'dark' ? 'Dark' : 'Light'}`"
             true-value="dark"
             false-value="light"
             hide-details
@@ -28,7 +28,7 @@
         <template #activator="{ props }">
           <v-switch
             v-model="settingStore.keepRdpSession"
-            :label="`Keep RDP Session ：${settingStore.keepRdpSession}`"
+            label="Keep RDP Session"
             hide-details
             v-bind="props"
             prepend-icon="mdi-account-lock-open-outline"
@@ -38,12 +38,11 @@
         </template>
 
         <div>
-          Keep GUI active if you use RDP and it was disconnected.<br />
-          Must run Executor as administrator.<br />
-          Executor will shake the mouse if the mouse didn't move during previous 30 seconds
-          to avoid screen lock, but can't prevent other lock behavior.<br />
-          (May not work if the computer has no Virtual Display Driver or multiple users are
-          using it.)
+          Keep the GUI session active after an RDP connection is disconnected.<br />
+          Executor must run as administrator.<br />
+          If the mouse has not moved for 30 seconds, Executor moves it to help prevent the
+          screen from locking. This cannot prevent every type of session lock.<br />
+          (May not work without a Virtual Display Driver or when multiple users are active.)
         </div>
       </v-tooltip>
     </v-container>
@@ -54,8 +53,8 @@
     <v-container fluid class="pa-2 ma-0 flex-row">
       <v-tooltip activator="parent" location="bottom">
         <div>
-          The width when RDP disconnected.<br />
-          Minimum: 480, Maximum: 7680.
+          Session width after RDP is disconnected.<br />
+          Range: 480–7680 px.
         </div>
       </v-tooltip>
 
@@ -73,7 +72,7 @@
         readonly
         spellcheck="false"
         style="max-width: 210px"
-        :value="`Session window width:`">
+        model-value="Session Width">
       </v-text-field>
 
       <v-number-input
@@ -90,15 +89,15 @@
         :disabled="!settingStore.keepRdpSession">
       </v-number-input>
 
-      <span class="pa-0 ma-0 mt-2">px.</span>
+      <span class="pa-0 ma-0 mt-2">px</span>
     </v-container>
 
     <!-- RDP Session Height -->
     <v-container fluid class="pa-2 ma-0 flex-row">
       <v-tooltip activator="parent" location="bottom">
         <div>
-          The height when RDP disconnected.<br />
-          Minimum: 480, Maximum: 7680.
+          Session height after RDP is disconnected.<br />
+          Range: 480–7680 px.
         </div>
       </v-tooltip>
       <v-icon
@@ -115,7 +114,7 @@
         readonly
         spellcheck="false"
         style="max-width: 210px"
-        :value="`Session window height:`">
+        model-value="Session Height">
       </v-text-field>
 
       <v-number-input
@@ -132,17 +131,16 @@
         :disabled="!settingStore.keepRdpSession">
       </v-number-input>
 
-      <span class="pa-0 ma-0 mt-2">px.</span>
+      <span class="pa-0 ma-0 mt-2">px</span>
     </v-container>
 
     <!-- Log timeout -->
     <v-container fluid class="pa-2 ma-0 flex-row">
       <v-tooltip activator="parent" location="bottom">
         <div>
-          The timeout for cleaning project running log folders (include logs and videos).<br />
-          It should be greater than 7.<br />
-          You can enable it or not.<br />
-          (It will be checked after a task end with a minimum interval of one hour.)
+          Delete run log folders older than the configured retention period, including logs and videos.<br />
+          Minimum: 7 days.<br />
+          Checked after a run ends, at most once per hour.
         </div>
       </v-tooltip>
 
@@ -153,7 +151,7 @@
         v-model="settingStore.logTimeoutEnable"
         class="clean-space"
         density="compact"
-        :label="`\u00A0\u00A0Log folders retention time:`"
+        label="Run Log Retention"
         hide-details>
       </v-checkbox>
 
@@ -170,17 +168,16 @@
         :disabled="!settingStore.logTimeoutEnable">
       </v-number-input>
 
-      <span class="pa-0 ma-0 mt-2">days.</span>
+      <span class="pa-0 ma-0 mt-2">days</span>
     </v-container>
 
     <!-- Log video timeout -->
     <v-container fluid class="pa-2 ma-0 flex-row">
       <v-tooltip activator="parent" location="bottom">
         <div>
-          The timeout for cleaning project running videos.<br />
-          It should be greater than 1.<br />
-          You can enable it or not.<br />
-          (It will be checked after a task end with a minimum interval of one hour.)
+          Delete run videos older than the configured retention period.<br />
+          Minimum: 1 day.<br />
+          Checked after a run ends, at most once per hour.
         </div>
       </v-tooltip>
 
@@ -191,7 +188,7 @@
         v-model="settingStore.videoTimeoutEnable"
         class="clean-space"
         density="compact"
-        :label="`\u00A0\u00A0Log videos \u00A0retention time:`"
+        label="Video Retention"
         hide-details>
       </v-checkbox>
 
@@ -208,17 +205,16 @@
         :disabled="!settingStore.videoTimeoutEnable">
       </v-number-input>
 
-      <span class="pa-0 ma-0 mt-2">days.</span>
+      <span class="pa-0 ma-0 mt-2">days</span>
     </v-container>
 
     <!-- Log video maximum size -->
     <v-container fluid class="pa-2 ma-0 flex-row">
       <v-tooltip activator="parent" location="bottom">
         <div>
-          The size threshold for cleaning project running videos.<br />
-          It should be greater than 1.<br />
-          You can enable it or not.<br />
-          (It will be checked after a task end with a minimum interval of one hour.)
+          Delete the oldest run videos when total video storage exceeds this limit.<br />
+          Minimum: 1 GB.<br />
+          Checked after a run ends, at most once per hour.
         </div>
       </v-tooltip>
 
@@ -229,7 +225,7 @@
         v-model="settingStore.videoSizeEnable"
         class="clean-space"
         density="compact"
-        :label="`\u00A0\u00A0Log videos \u00A0retention size:`"
+        label="Video Storage Limit"
         hide-details>
       </v-checkbox>
 
@@ -246,7 +242,7 @@
         :disabled="!settingStore.videoSizeEnable">
       </v-number-input>
 
-      <span class="pa-0 ma-0 mt-2">GB.</span>
+      <span class="pa-0 ma-0 mt-2">GB</span>
     </v-container>
 
     <!-- Project Log Folder -->
@@ -256,7 +252,7 @@
       <v-btn
         variant="tonal"
         @click="sendMain('send:open-project-log-folder-path', strProjectLogFolderPath)">
-        Open Project Log Folder
+        Open Log Folder
       </v-btn>
 
       <v-text-field
@@ -271,10 +267,9 @@
         @click="settingStore.selectNewProjectLogFolderPath()">
         <v-tooltip activator="parent" location="bottom">
           <div>
-            Click to select a folder to save project logs.<br />
-            (Already existing logs will not be moved.)<br />
-            (Check whether the path is what you want if the Executor is copied from another
-            computer.)
+            Click to select the folder used for run logs.<br />
+            Existing logs will not be moved.<br />
+            Check this path after copying Executor to another computer.
           </div>
         </v-tooltip>
       </v-text-field>
@@ -293,12 +288,11 @@
         readonly
         spellcheck="false"
         style="max-width: 110px"
-        model-value="Time zone:">
+        model-value="Time Zone:">
         <v-tooltip activator="parent" location="bottom">
           <div>
-            Controls how Executor displays time and interprets all Scheduler Cron
-            expressions and active periods.<br />
-            Changing it recalculates pending Scheduler runs.
+            Controls how Executor displays time and interprets Cron expressions and active periods.<br />
+            Changing it recalculates pending runs.
           </div>
         </v-tooltip>
       </v-text-field>

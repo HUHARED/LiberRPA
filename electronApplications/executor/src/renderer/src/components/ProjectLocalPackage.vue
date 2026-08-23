@@ -1,14 +1,14 @@
 <!-- FileName: ProjectLocalPackage.vue -->
 <template>
   <v-container fluid class="clean-space flex-row-grow-1 fill-height flex-column">
-    <v-label class="header-label tab-header">Project Local Package</v-label>
+    <v-label class="header-label tab-header">Projects</v-label>
 
     <v-container fluid class="pa-1 ma-0 flex-row" style="height: 45px">
       <v-btn
         variant="tonal"
         prepend-icon="mdi-database-import-outline"
         @click="importProjectPackage()">
-        Import
+        Import Package
       </v-btn>
     </v-container>
 
@@ -63,7 +63,7 @@
         fluid
         class="clean-space fill-height flex-column"
         style="flex: 1; min-width: 0px">
-        <v-label class="header-label column-header"> Detail </v-label>
+        <v-label class="header-label column-header"> Details </v-label>
 
         <!-- The data area. -->
         <v-container
@@ -83,7 +83,7 @@
               <!-- Right half: Custom Project Arguments -->
               <v-col cols="6" class="clean-space flex-column">
                 <v-label class="clean-space" style="font-size: 0.75em">
-                  Custom Project Arguments
+                  Custom Arguments
                 </v-label>
 
                 <ProjectLocalPackage_Detail_CusPrjArgs />
@@ -131,7 +131,7 @@
                 prepend-icon="mdi-play-outline"
                 :disabled="boolDetailChanged"
                 @click="runProject()">
-                Run
+                Run Now
               </v-btn>
             </v-col>
           </v-row>

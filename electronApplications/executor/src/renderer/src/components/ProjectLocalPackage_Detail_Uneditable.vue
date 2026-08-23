@@ -11,7 +11,7 @@
                 settingStore.timezone,
               )
             "
-            label="Create Time"
+            label="Imported At"
             class="clean-space"
             density="compact"
             hide-details
@@ -28,7 +28,7 @@
                 settingStore.timezone,
               )
             "
-            label="Update Time"
+            label="Updated At"
             class="clean-space"
             density="compact"
             hide-details
@@ -75,7 +75,7 @@
             readonly
             variant="plain">
             <v-tooltip activator="parent" location="top">
-              The Project's ID in the Executor database.
+              Internal project ID managed by Executor.
             </v-tooltip>
           </v-text-field>
         </v-col>

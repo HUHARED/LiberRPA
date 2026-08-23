@@ -1,6 +1,6 @@
 <!-- FileName: TaskScheduler_Dialog_Edit.vue -->
 <template>
-  <v-card v-if="schedulerStore.isEditing === 'edit'" title="Edit the task scheduler">
+  <v-card v-if="schedulerStore.isEditing === 'edit'" title="Edit Schedule">
     <template #text>
       <v-container
         v-if="schedulerStore.dictDetail_edit"
@@ -16,7 +16,7 @@
                     settingStore.timezone,
                   )
                 "
-                label="Create Time"
+                label="Created At"
                 class="clean-space"
                 density="compact"
                 hide-details
@@ -33,7 +33,7 @@
                     settingStore.timezone,
                   )
                 "
-                label="Update Time"
+                label="Updated At"
                 class="clean-space"
                 density="compact"
                 hide-details
@@ -52,7 +52,7 @@
                 readonly
                 variant="plain">
                 <v-tooltip activator="parent" location="top">
-                  The task scheduler's ID in database. Managed by Executor.
+                  Internal schedule ID managed by Executor.
                 </v-tooltip>
               </v-text-field>
             </v-col>
@@ -73,12 +73,16 @@
             <v-col cols="5" class="pb-0">
               <v-select
                 v-model="schedulerStore.dictDetail_edit['when_others_running']"
-                label="When other running"
+                label="When Another Run Is Active"
                 variant="underlined"
                 class="clean-space"
                 density="compact"
                 hide-details
-                :items="['cancel', 'wait', 'run']">
+                :items="[
+                  { title: 'Skip This Run', value: 'cancel' },
+                  { title: 'Wait', value: 'wait' },
+                  { title: 'Run Concurrently', value: 'run' },
+                ]">
               </v-select>
             </v-col>
           </v-row>
@@ -87,7 +91,7 @@
             <v-col cols="5">
               <v-text-field
                 v-model="schedulerStore.dictDetail_edit['period_start']"
-                label="Datetime Start"
+                label="Active From"
                 type="datetime-local"
                 step="1"
                 variant="underlined"
@@ -104,7 +108,7 @@
             <v-col cols="5">
               <v-text-field
                 v-model="schedulerStore.dictDetail_edit['period_end']"
-                label="Datetime End"
+                label="Active Until"
                 type="datetime-local"
                 step="1"
                 variant="underlined"
@@ -120,7 +124,7 @@
 
             <v-col cols="2" class="pt-0 pb-1">
               <v-container fluid class="clean-space">
-                <v-label class="clean-space" style="font-size: 0.75em"> Enable </v-label>
+                <v-label class="clean-space" style="font-size: 0.75em"> Enabled </v-label>
 
                 <v-switch
                   v-model="schedulerStore.dictDetail_edit['enable']"
@@ -137,7 +141,7 @@
             <v-col cols="3" class="pt-0">
               <v-text-field
                 v-model="schedulerStore.dictDetail_edit['cron']"
-                label="Cron"
+                label="Cron Expression"
                 class="clean-space"
                 density="compact"
                 hide-details
@@ -161,7 +165,7 @@
 
           <v-divider class="mt-2"></v-divider>
 
-          <v-label class="mt-2 mb-3"> Select Project: </v-label>
+          <v-label class="mt-2 mb-3"> Project </v-label>
 
           <v-row class="w-100">
             <v-col cols="3">
@@ -187,7 +191,7 @@
                 readonly
                 variant="plain">
                 <v-tooltip activator="parent" location="top">
-                  The project's ID in database. Managed by Executor.
+                  Internal project ID managed by Executor.
                 </v-tooltip>
               </v-text-field>
             </v-col>
@@ -223,7 +227,7 @@
         </v-container>
 
         <v-container fluid class="pa-2 ma-0 pt-0 flex-column-grow-1">
-          <v-label> Configure arguments: </v-label>
+          <v-label> Run Options </v-label>
 
           <v-row class="clean-space flex-column-grow-1">
             <!-- Left half -->
@@ -234,7 +238,7 @@
                   <v-number-input
                     v-model="intTimeoutMin"
                     control-variant="default"
-                    label="Timeout"
+                    label="Timeout (min)"
                     :min="0"
                     :precision="0"
                     inset
@@ -242,8 +246,7 @@
                     variant="underlined"
                     hide-details>
                     <v-tooltip activator="parent" location="top">
-                      If the timeout is reached(in minutes), stop the project. 0 means no
-                      limitation.
+                      Stop the run when it exceeds this timeout. 0 means no limit.
                     </v-tooltip>
                   </v-number-input>
                 </v-col>
@@ -304,7 +307,7 @@
             <!-- Right half: Custom Project Arguments -->
             <v-col cols="7" class="clean-space flex-column">
               <v-label class="clean-space" style="font-size: 0.75em">
-                Custom Project Arguments
+                Custom Arguments
               </v-label>
 
               <v-container

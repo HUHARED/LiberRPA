@@ -1,7 +1,7 @@
 <!-- FileName: TaskScheduler.vue -->
 <template>
   <v-container fluid class="clean-space flex-row-grow-1 fill-height flex-column">
-    <v-label class="header-label tab-header">Task Scheduler</v-label>
+    <v-label class="header-label tab-header">Schedules</v-label>
 
     <!-- Header button -->
     <v-container fluid class="pa-1 ma-0 flex-row" style="height: 45px">
@@ -9,7 +9,7 @@
         variant="tonal"
         prepend-icon="mdi-calendar-plus-outline"
         @click="newTaskScheduler()">
-        New
+        New Schedule
       </v-btn>
     </v-container>
 
@@ -54,24 +54,34 @@
         <v-chip
           :border="`${getColorEnable(value)} thin opacity-25`"
           :color="getColorEnable(value)"
-          :text="value"
+          :text="value ? 'Enabled' : 'Disabled'"
           variant="text"
           size="x-small"></v-chip>
       </template>
 
       <template #item.actions="{ item }">
         <div class="d-flex ga-2 justify-start">
-          <v-icon
-            color="medium-emphasis"
-            icon="mdi-pencil"
-            size="small"
-            @click="editScheduler(item.name)"></v-icon>
+          <v-tooltip text="Edit Schedule" location="bottom">
+            <template #activator="{ props }">
+              <v-icon
+                v-bind="props"
+                color="medium-emphasis"
+                icon="mdi-pencil"
+                size="small"
+                @click="editScheduler(item.name)"></v-icon>
+            </template>
+          </v-tooltip>
 
-          <v-icon
-            color="medium-emphasis"
-            icon="mdi-delete"
-            size="small"
-            @click="openDeleteDialog(item.name)"></v-icon>
+          <v-tooltip text="Delete Schedule" location="bottom">
+            <template #activator="{ props }">
+              <v-icon
+                v-bind="props"
+                color="medium-emphasis"
+                icon="mdi-delete"
+                size="small"
+                @click="openDeleteDialog(item.name)"></v-icon>
+            </template>
+          </v-tooltip>
         </div>
       </template>
     </v-data-table>
@@ -173,8 +183,8 @@ const arrHeader: DataTableHeader<DictColumns_Scheduler_ListItem>[] = [
     ],
   },
 
-  { title: "Cron", value: "cron", align: "start", sortable: true },
-  { title: "Enable", value: "enable", align: "start", sortable: true },
+  { title: "Schedule", value: "cron", align: "start", sortable: true },
+  { title: "Enabled", value: "enable", align: "start", sortable: true },
   { title: "Actions", key: "actions", align: "start", sortable: false },
 ];
 

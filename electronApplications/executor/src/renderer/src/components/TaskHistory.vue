@@ -1,7 +1,7 @@
 <!-- FileName: TaskHistory.vue -->
 <template>
   <v-container fluid class="clean-space flex-row-grow-1 fill-height flex-column">
-    <v-label class="header-label tab-header">Task History</v-label>
+    <v-label class="header-label tab-header">Run History</v-label>
 
     <!-- Bug: The hover attribute only works when the window is on the primary screen. -->
     <v-data-table-server
@@ -46,14 +46,14 @@
         <v-chip
           :border="`${getColorStatus(value)} thin opacity-25`"
           :color="getColorStatus(value)"
-          :text="value"
+          :text="getStatusLabel(value)"
           variant="text"
           size="x-small"></v-chip>
       </template>
 
       <template #item.actions="{ item }">
         <div class="d-flex ga-2 justify-start">
-          <v-tooltip text="Open its log folder." location="bottom">
+          <v-tooltip text="Open Log Folder" location="bottom">
             <template #activator="{ props }">
               <v-icon
                 v-bind="props"
@@ -65,7 +65,7 @@
             </template>
           </v-tooltip>
 
-          <v-tooltip text="Cancel it." location="bottom">
+          <v-tooltip text="Cancel Run" location="bottom">
             <template #activator="{ props }">
               <v-icon
                 v-if="item.status === 'running'"
@@ -78,7 +78,7 @@
             </template>
           </v-tooltip>
 
-          <v-tooltip text="Re-run the newest version." location="bottom">
+          <v-tooltip text="Run Latest Version" location="bottom">
             <template #activator="{ props }">
               <v-icon
                 v-if="item.status !== 'running'"
@@ -144,12 +144,12 @@
               hide-details
               clearable
               :items="[
-                'running',
-                'completed',
-                'error',
-                'cancel',
-                'timeout',
-                'interrupted',
+                { title: 'Running', value: 'running' },
+                { title: 'Completed', value: 'completed' },
+                { title: 'Error', value: 'error' },
+                { title: 'Canceled', value: 'cancel' },
+                { title: 'Timed Out', value: 'timeout' },
+                { title: 'Interrupted', value: 'interrupted' },
               ]">
             </v-select>
           </td>
@@ -212,7 +212,7 @@ watch(
 );
 
 const arrHeader: DataTableHeader<DictColumns_History_ListItem_DB>[] = [
-  { title: "Scheduler Name", value: "scheduler_name", align: "start", sortable: true },
+  { title: "Schedule", value: "scheduler_name", align: "start", sortable: true },
   {
     title: "Project",
     align: "center",
@@ -227,11 +227,28 @@ const arrHeader: DataTableHeader<DictColumns_History_ListItem_DB>[] = [
       },
     ],
   },
-  { title: "Start", value: "run_started_at_ms", align: "center", sortable: true },
-  { title: "End", value: "run_ended_at_ms", align: "center", sortable: true },
+  { title: "Started", value: "run_started_at_ms", align: "center", sortable: true },
+  { title: "Ended", value: "run_ended_at_ms", align: "center", sortable: true },
   { title: "Status", value: "status", align: "start", sortable: true },
   { title: "Actions", key: "actions", align: "start", sortable: false },
 ];
+
+function getStatusLabel(status: TypeTaskHistoryStatus): string {
+  switch (status) {
+    case "running":
+      return "Running";
+    case "completed":
+      return "Completed";
+    case "error":
+      return "Error";
+    case "cancel":
+      return "Canceled";
+    case "timeout":
+      return "Timed Out";
+    case "interrupted":
+      return "Interrupted";
+  }
+}
 
 function getColorStatus(status: TypeTaskHistoryStatus): string {
   switch (status) {

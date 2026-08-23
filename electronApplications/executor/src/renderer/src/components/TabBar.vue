@@ -9,23 +9,23 @@
     style="width: 55px">
     <v-tab value="Project Local Package">
       <v-icon size="x-large" icon="mdi-format-list-bulleted-square"> </v-icon>
-      <v-tooltip activator="parent" location="bottom"> Project Local Package </v-tooltip>
+      <v-tooltip activator="parent" location="bottom"> Projects </v-tooltip>
     </v-tab>
     <v-tab value="Task Scheduler">
       <v-icon size="x-large" icon="mdi-timer-outline"> </v-icon>
-      <v-tooltip activator="parent" location="bottom"> Task Scheduler </v-tooltip>
+      <v-tooltip activator="parent" location="bottom"> Schedules </v-tooltip>
     </v-tab>
     <v-tab value="Task Queue">
       <v-icon size="x-large" icon="mdi-queue-first-in-last-out"> </v-icon>
-      <v-tooltip activator="parent" location="bottom"> Task Queue </v-tooltip>
+      <v-tooltip activator="parent" location="bottom"> Run Queue </v-tooltip>
     </v-tab>
     <v-tab value="Task History">
       <v-icon size="x-large" icon="mdi-clipboard-text-clock-outline"> </v-icon>
-      <v-tooltip activator="parent" location="bottom"> Task History </v-tooltip>
+      <v-tooltip activator="parent" location="bottom"> Run History </v-tooltip>
     </v-tab>
     <v-tab value="Setting">
       <v-icon size="x-large" icon="mdi-cog-outline"> </v-icon>
-      <v-tooltip activator="parent" location="bottom"> Setting </v-tooltip>
+      <v-tooltip activator="parent" location="bottom"> Settings </v-tooltip>
     </v-tab>
   </v-tabs>
 </template>
