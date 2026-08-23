@@ -1,4 +1,3 @@
-<!-- FileName: TaskScheduler.vue -->
 <template>
   <v-container fluid class="clean-space flex-row-grow-1 fill-height flex-column">
     <v-label class="header-label tab-header">Schedules</v-label>
@@ -8,7 +7,7 @@
       <v-btn
         variant="tonal"
         prepend-icon="mdi-calendar-plus-outline"
-        @click="newTaskScheduler()">
+        @click="newSchedule()">
         New Schedule
       </v-btn>
     </v-container>
@@ -30,8 +29,8 @@
       hover>
       <template #item.project_source="{ value }">
         <v-chip
-          :border="`${getColor_Source(value)} thin opacity-25`"
-          :color="getColor_Source(value)"
+          :border="`${getProjectSourceColor(value)} thin opacity-25`"
+          :color="getProjectSourceColor(value)"
           :text="value"
           variant="text"
           size="x-small"></v-chip>
@@ -52,8 +51,8 @@
 
       <template #item.enable="{ value }">
         <v-chip
-          :border="`${getColorEnable(value)} thin opacity-25`"
-          :color="getColorEnable(value)"
+          :border="`${getEnabledColor(value)} thin opacity-25`"
+          :color="getEnabledColor(value)"
           :text="value ? 'Enabled' : 'Disabled'"
           variant="text"
           size="x-small"></v-chip>
@@ -68,7 +67,7 @@
                 color="medium-emphasis"
                 icon="mdi-pencil"
                 size="small"
-                @click="editScheduler(item.name)"></v-icon>
+                @click="editSchedule(item.name)"></v-icon>
             </template>
           </v-tooltip>
 
@@ -101,12 +100,12 @@
     <!-- Dialog: new or edit detail, delete. -->
 
     <v-dialog v-model="scheduleStore.showDialog_edit_new" width="800px" height="800px">
-      <TaskScheduler_Dialog_Edit />
-      <TaskScheduler_Dialog_New />
+      <EditScheduleDialog />
+      <NewScheduleDialog />
     </v-dialog>
 
     <v-dialog v-model="scheduleStore.showDialog_delete" width="400px">
-      <TaskScheduler_Dialog_Delete />
+      <DeleteScheduleDialog />
     </v-dialog>
   </v-container>
 </template>
@@ -116,33 +115,33 @@ import { onBeforeMount } from "vue";
 import type { DataTableHeader } from "vuetify";
 import cronstrue from "cronstrue";
 
-import TaskScheduler_Dialog_Edit from "./TaskScheduler_Dialog_Edit.vue";
-import TaskScheduler_Dialog_New from "./TaskScheduler_Dialog_New.vue";
-import TaskScheduler_Dialog_Delete from "./TaskScheduler_Dialog_Delete.vue";
+import EditScheduleDialog from "./EditScheduleDialog.vue";
+import NewScheduleDialog from "./NewScheduleDialog.vue";
+import DeleteScheduleDialog from "./DeleteScheduleDialog.vue";
 import HorizontalDivider from "./utils/HorizontalDivider.vue";
 
 import { loggerRenderer } from "../Logging/logger";
-import { getColor_Source } from "../commonFunc";
+import { getProjectSourceColor } from "../Common/display";
 import { useScheduleStore } from "../Store/scheduleStore";
 import { useSettingStore } from "../Store/settingStore";
-import { getDefaultSchedulerPeriod } from "../time";
+import { getDefaultSchedulePeriod } from "../Common/time";
 import type { DictColumns_Scheduler_ListItem } from "../../../shared/interface";
 
 const scheduleStore = useScheduleStore();
 const settingStore = useSettingStore();
 
 onBeforeMount(() => {
-  void scheduleStore.dbSelectSchedulerList().catch((e: unknown) => {
+  void scheduleStore.loadScheduleList().catch((e: unknown) => {
     loggerRenderer.error(
-      `Failed to load Task Schedulers: ${e instanceof Error ? e.message : String(e)}`,
+      `Failed to load Schedules: ${e instanceof Error ? e.message : String(e)}`,
     );
   });
 });
 
-function newTaskScheduler(): void {
-  loggerRenderer.debug("--newTaskScheduler--");
+function newSchedule(): void {
+  loggerRenderer.debug("--newSchedule--");
 
-  const dictDefaultPeriod = getDefaultSchedulerPeriod(settingStore.timezone);
+  const dictDefaultPeriod = getDefaultSchedulePeriod(settingStore.timezone);
   scheduleStore.dictDetail_new = {
     name: "",
     project_source: "local",
@@ -189,20 +188,20 @@ const arrHeader: DataTableHeader<DictColumns_Scheduler_ListItem>[] = [
   { title: "Actions", key: "actions", align: "start", sortable: false },
 ];
 
-function getColorEnable(enable: boolean): string {
+function getEnabledColor(enable: boolean): string {
   return enable ? "success" : "grey";
 }
 
-async function editScheduler(schedulerName: string): Promise<void> {
-  loggerRenderer.info("Edit scheduler: " + schedulerName);
-  await scheduleStore.dbSelectSchedulerDetail(schedulerName);
+async function editSchedule(scheduleName: string): Promise<void> {
+  loggerRenderer.info("Edit schedule: " + scheduleName);
+  await scheduleStore.loadScheduleDetail(scheduleName);
   scheduleStore.showDialog_edit_new = true;
   scheduleStore.isEditing = "edit";
 }
 
-async function openDeleteDialog(schedulerName: string): Promise<void> {
-  loggerRenderer.info("Open delete dialog for scheduler: " + schedulerName);
-  await scheduleStore.dbSelectSchedulerDetail(schedulerName);
+async function openDeleteDialog(scheduleName: string): Promise<void> {
+  loggerRenderer.info("Open delete dialog for schedule: " + scheduleName);
+  await scheduleStore.loadScheduleDetail(scheduleName);
   scheduleStore.showDialog_delete = true;
 }
 </script>

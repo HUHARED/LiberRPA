@@ -1,4 +1,3 @@
-<!-- FileName: TaskHistory.vue -->
 <template>
   <v-container fluid class="clean-space flex-row-grow-1 fill-height flex-column">
     <v-label class="header-label tab-header">Run History</v-label>
@@ -16,11 +15,11 @@
       density="compact"
       hover
       multi-sort
-      @update:options="runHistoryStore.dbSelectLimitHistoryList($event)">
+      @update:options="runHistoryStore.loadRunHistoryPage($event)">
       <template #item.project_source="{ value }">
         <v-chip
-          :border="`${getColor_Source(value)} thin opacity-25`"
-          :color="getColor_Source(value)"
+          :border="`${getProjectSourceColor(value)} thin opacity-25`"
+          :color="getProjectSourceColor(value)"
           :text="value"
           variant="text"
           size="x-small"></v-chip>
@@ -44,8 +43,8 @@
 
       <template #item.status="{ value }">
         <v-chip
-          :border="`${getColorStatus(value)} thin opacity-25`"
-          :color="getColorStatus(value)"
+          :border="`${getStatusColor(value)} thin opacity-25`"
+          :color="getStatusColor(value)"
           :text="getStatusLabel(value)"
           variant="text"
           size="x-small"></v-chip>
@@ -60,7 +59,7 @@
                 color="medium-emphasis"
                 icon="mdi-file-document-outline"
                 size="small"
-                @click="fileOpenFolder(item.log_path)">
+                @click="openLogFolder(item.log_path)">
               </v-icon>
             </template>
           </v-tooltip>
@@ -97,7 +96,7 @@
         <tr>
           <td>
             <v-text-field
-              v-model="runHistoryStore.filterSchedulerName"
+              v-model="runHistoryStore.filterScheduleName"
               class="pa-0 ma-0 pl-2 pr-2"
               density="compact"
               hide-details
@@ -168,11 +167,12 @@ import type { DataTableHeader } from "vuetify";
 
 import { invokeMain } from "../IPC/ipc";
 import { loggerRenderer } from "../Logging/logger";
-import { fileOpenFolder, getColor_Source, sanitizeJsonObj } from "../commonFunc";
+import { getProjectSourceColor } from "../Common/display";
+import { cloneJsonSerializable } from "../Common/json";
 import { useRunHistoryStore } from "../Store/runHistoryStore";
 import { useInformationStore } from "../Store/informationStore";
 import { useSettingStore } from "../Store/settingStore";
-import { formatTimestamp } from "../time";
+import { formatTimestamp } from "../Common/time";
 import type {
   DictColumns_History_ListItem_DB,
   DictColumns_Project_Detail_Run,
@@ -193,7 +193,7 @@ const arrItemsPerPageOptions = [
 
 const dictSearch = computed<Dict_History_Search>(() => {
   return {
-    scheduler_name: runHistoryStore.filterSchedulerName,
+    scheduler_name: runHistoryStore.filterScheduleName,
     project_source: runHistoryStore.filterSource,
     project_name: runHistoryStore.filterProjectName,
     project_version: runHistoryStore.filterProjectVersion,
@@ -259,7 +259,7 @@ function getStatusLabel(status: TypeTaskHistoryStatus): string {
   }
 }
 
-function getColorStatus(status: TypeTaskHistoryStatus): string {
+function getStatusColor(status: TypeTaskHistoryStatus): string {
   switch (status) {
     case "running":
       return "success";
@@ -273,6 +273,14 @@ function getColorStatus(status: TypeTaskHistoryStatus): string {
       return "deep-orange";
     default:
       return "grey";
+  }
+}
+
+async function openLogFolder(folderPath: string): Promise<void> {
+  try {
+    await invokeMain("openFolder", folderPath);
+  } catch (e) {
+    loggerRenderer.error(`Failed to open Run log folder: ${String(e)}`);
   }
 }
 
@@ -314,8 +322,8 @@ async function runProjectNewestVersion(
       dictDetail.custom_prj_args === "" ? [] : JSON.parse(dictDetail.custom_prj_args),
   };
 
-  await invokeMain("pythonRun", sanitizeJsonObj(dictRunDetail));
-  await runHistoryStore.refreshHistoryList();
+  await invokeMain("pythonRun", cloneJsonSerializable(dictRunDetail));
+  await runHistoryStore.refreshRunHistory();
 }
 </script>
 

@@ -1,4 +1,3 @@
-<!-- FileName: ProjectLocalPackage_Detail_CusPrjArgs.vue -->
 <template>
   <v-container
     v-if="
@@ -39,7 +38,7 @@
           hide-details
           spellcheck="false"
           @blur="
-            updateCusPrjArgsValue(
+            updateCustomProjectArgumentValue(
               projectStore.dictDetail_edit.custom_prj_args,
               arrValueCache,
               index,
@@ -47,7 +46,7 @@
             )
           "
           @keyup.enter="
-            updateCusPrjArgsValue(
+            updateCustomProjectArgumentValue(
               projectStore.dictDetail_edit.custom_prj_args,
               arrValueCache,
               index,
@@ -55,14 +54,14 @@
             )
           ">
           <v-tooltip activator="parent" location="top">
-            <span v-html="generateValueNote(item[1])"></span>
+            <span v-html="getArgumentValueNote(item[1])"></span>
           </v-tooltip>
         </v-text-field>
       </v-col>
     </v-row>
   </v-container>
 
-  <v-container v-else fluid class="clean-space"> No custom project argument. </v-container>
+  <v-container v-else fluid class="clean-space"> No custom arguments. </v-container>
 </template>
 
 <script setup lang="ts">
@@ -70,28 +69,28 @@ import { watch } from "vue";
 import { debounce } from "lodash";
 
 import {
-  generateValueNote,
-  updateCusPrjArgsValue,
-  initCusPrjArgsValueCache,
-  updateCusPrjArgsValueCache,
-} from "../commonFunc";
+  getArgumentValueNote,
+  updateCustomProjectArgumentValue,
+  createCustomProjectArgumentValueCache,
+  getCustomProjectArgumentValueCache,
+} from "../RunOptions/runOptions";
 import { useProjectStore } from "../Store/projectStore";
 
 const projectStore = useProjectStore();
 
-const arrValueCache = initCusPrjArgsValueCache(projectStore.dictDetail_edit);
+const arrValueCache = createCustomProjectArgumentValueCache(projectStore.dictDetail_edit);
 
 // Define the debounced update function once
-const debounced_UpdateValueCahe = debounce(() => {
+const debouncedUpdateValueCache = debounce(() => {
   if (projectStore.dictDetail_edit) {
-    arrValueCache.value = updateCusPrjArgsValueCache(projectStore.dictDetail_edit);
+    arrValueCache.value = getCustomProjectArgumentValueCache(projectStore.dictDetail_edit);
   }
 }, 300);
 
 watch(
   () => projectStore.dictDetail_edit?.custom_prj_args,
   () => {
-    debounced_UpdateValueCahe();
+    debouncedUpdateValueCache();
   },
   { deep: true },
 );

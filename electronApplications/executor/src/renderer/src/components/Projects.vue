@@ -1,4 +1,3 @@
-<!-- FileName: ProjectLocalPackage.vue -->
 <template>
   <v-container fluid class="clean-space flex-row-grow-1 fill-height flex-column">
     <v-label class="header-label tab-header">Projects</v-label>
@@ -70,15 +69,15 @@
           v-if="projectStore.dictDetail_edit"
           fluid
           class="clean-space flex-column flex-column-grow-1">
-          <ProjectLocalPackage_Detail_Uneditable />
+          <ProjectMetadata />
 
           <!-- The data can be modified. -->
           <!-- Due to the labels in v-text-field and other single labels are positioned differently, use pt, mt to align them consistently. -->
           <v-container fluid class="pa-2 ma-0 pt-0 flex-column-grow-1">
             <v-row class="clean-space fill-height">
               <!-- Left half -->
-              <!-- Use v-if to make the intTimeoutMin in ProjectLocalPackage_Detail_BuiltInArgs can be recreated. -->
-              <ProjectLocalPackage_Detail_BuiltInArgs v-if="projectStore.dictDetail_edit" />
+              <!-- Use v-if to make the intTimeoutMin in ProjectRunOptions can be recreated. -->
+              <ProjectRunOptions v-if="projectStore.dictDetail_edit" />
 
               <!-- Right half: Custom Project Arguments -->
               <v-col cols="6" class="clean-space flex-column">
@@ -86,7 +85,7 @@
                   Custom Arguments
                 </v-label>
 
-                <ProjectLocalPackage_Detail_CusPrjArgs />
+                <ProjectCustomArguments />
               </v-col>
             </v-row>
           </v-container>
@@ -104,7 +103,7 @@
                 variant="tonal"
                 prepend-icon="mdi-content-save-outline"
                 :disabled="!boolDetailChanged"
-                @click="dbUpdateProjectDetail()">
+                @click="saveProjectDetail()">
                 Save
               </v-btn>
             </v-col>
@@ -137,17 +136,17 @@
           </v-row>
         </v-container>
 
-        <ProjectLocalPackage_Dialog_Delete />
+        <DeleteProjectDialog />
       </v-container>
     </v-container>
   </v-container>
 </template>
 
 <script setup lang="ts">
-import ProjectLocalPackage_Detail_Uneditable from "./ProjectLocalPackage_Detail_Uneditable.vue";
-import ProjectLocalPackage_Dialog_Delete from "./ProjectLocalPackage_Dialog_Delete.vue";
-import ProjectLocalPackage_Detail_BuiltInArgs from "./ProjectLocalPackage_Detail_BuiltInArgs.vue";
-import ProjectLocalPackage_Detail_CusPrjArgs from "./ProjectLocalPackage_Detail_CusPrjArgs.vue";
+import ProjectMetadata from "./ProjectMetadata.vue";
+import DeleteProjectDialog from "./DeleteProjectDialog.vue";
+import ProjectRunOptions from "./ProjectRunOptions.vue";
+import ProjectCustomArguments from "./ProjectCustomArguments.vue";
 import VerticalDivider from "./utils/VerticalDivider.vue";
 
 import { ref, watch, onBeforeMount } from "vue";
@@ -157,7 +156,7 @@ import { invokeMain } from "../IPC/ipc";
 import { loggerRenderer } from "../Logging/logger";
 import { useProjectStore } from "../Store/projectStore";
 import { useRunHistoryStore } from "../Store/runHistoryStore";
-import { sanitizeJsonObj } from "../commonFunc";
+import { cloneJsonSerializable } from "../Common/json";
 import type { DictColumns_Project_Detail_Run } from "../../../shared/interface";
 
 const projectStore = useProjectStore();
@@ -169,7 +168,7 @@ const boolDetailChanged = ref(false);
 
 onBeforeMount(async () => {
   projectStore.resetVersionAndDetail();
-  await projectStore.dbSelectProjectNames();
+  await projectStore.loadProjectNames();
 });
 
 async function importProjectPackage(): Promise<void> {
@@ -181,11 +180,11 @@ async function importProjectPackage(): Promise<void> {
   }
 
   projectStore.arrName = [];
-  await projectStore.dbSelectProjectNames();
+  await projectStore.loadProjectNames();
   strName.value = result.name;
-  await projectStore.dbSelectProjectVersions(result.name);
+  await projectStore.loadProjectVersions(result.name);
   strVersion.value = result.version;
-  await projectStore.dbSelectProjectDetail(result.name, result.version);
+  await projectStore.loadProjectDetail(result.name, result.version);
 }
 
 const debouncedSetButtonDisabled = debounce(() => {
@@ -220,7 +219,7 @@ watch(
 async function refreshDetail(): Promise<void> {
   // loggerRenderer.debug("--refreshDetail--");
   projectStore.resetDetail();
-  await projectStore.dbSelectProjectDetail(strName.value, strVersion.value);
+  await projectStore.loadProjectDetail(strName.value, strVersion.value);
 }
 
 /* Click triggers */
@@ -228,19 +227,19 @@ async function refreshDetail(): Promise<void> {
 async function clickNewProjectItem(arrId: number[]): Promise<void> {
   // console.log("arrId-name", arrId);
   strName.value = projectStore.dictIdToName[arrId[0]];
-  await projectStore.dbSelectProjectVersions(strName.value);
+  await projectStore.loadProjectVersions(strName.value);
 }
 
 async function clickNewVersionItem(arrId: number[]): Promise<void> {
   // console.log("arrId-version", arrId);
 
   strVersion.value = projectStore.dictIdToVersion[arrId[0]];
-  await projectStore.dbSelectProjectDetail(strName.value, strVersion.value);
+  await projectStore.loadProjectDetail(strName.value, strVersion.value);
 }
 
-async function dbUpdateProjectDetail(): Promise<void> {
-  loggerRenderer.debug("--dbUpdateProjectDetail--");
-  await projectStore.dbUpdateProjectDetail();
+async function saveProjectDetail(): Promise<void> {
+  loggerRenderer.debug("--saveProjectDetail--");
+  await projectStore.saveProjectDetail();
   await refreshDetail();
 }
 
@@ -249,7 +248,7 @@ async function openDeleteDialog(): Promise<void> {
     loggerRenderer.info(
       `Open delete dialog for project: ${projectStore.dictDetail_edit.id}-${projectStore.dictDetail_edit.name}-${projectStore.dictDetail_edit.version}`,
     );
-    await projectStore.dbSelectProjectBindSchedulers();
+    await projectStore.loadBoundSchedules();
     projectStore.showDialog_delete = true;
   }
 }
@@ -273,8 +272,8 @@ async function runProject(): Promise<void> {
       custom_prj_args: projectStore.dictDetail_edit.custom_prj_args,
     };
 
-    await invokeMain("pythonRun", sanitizeJsonObj(dictTemp));
-    await runHistoryStore.refreshHistoryList();
+    await invokeMain("pythonRun", cloneJsonSerializable(dictTemp));
+    await runHistoryStore.refreshRunHistory();
   }
 }
 </script>

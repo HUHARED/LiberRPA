@@ -2,7 +2,10 @@ import { defineStore } from "pinia";
 
 import { invokeMain } from "../IPC/ipc";
 import { loggerRenderer } from "../Logging/logger";
-import { formatTimestampForDateTimeLocal, parseDateTimeLocalToTimestamp } from "../time";
+import {
+  formatTimestampForDateTimeLocal,
+  parseDateTimeLocalToTimestamp,
+} from "../Common/time";
 import { useSettingStore } from "./settingStore";
 import type {
   DictColumns_Scheduler_ListItem,
@@ -12,7 +15,7 @@ import type {
   DictColumns_Scheduler_Detail_ToInsert,
 } from "../../../shared/interface";
 
-function getSchedulerPeriodTimestamps({
+function getSchedulePeriodTimestamps({
   periodStart,
   periodEnd,
   timezone,
@@ -25,10 +28,10 @@ function getSchedulerPeriodTimestamps({
   const intPeriodEndMs = parseDateTimeLocalToTimestamp(periodEnd, timezone);
 
   if (intPeriodStartMs === undefined || intPeriodEndMs === undefined) {
-    throw new Error(`Invalid Scheduler period for time zone '${timezone}'.`);
+    throw new Error(`Invalid Schedule period for time zone '${timezone}'.`);
   }
   if (intPeriodEndMs <= intPeriodStartMs) {
-    throw new Error("Scheduler period end must be later than its start.");
+    throw new Error("Schedule period end must be later than its start.");
   }
 
   return { intPeriodStartMs, intPeriodEndMs };
@@ -50,7 +53,7 @@ export const useScheduleStore = defineStore("schedule", {
     };
   },
   actions: {
-    async dbSelectSchedulerList(): Promise<void> {
+    async loadScheduleList(): Promise<void> {
       if (this.arrListItem.length === 0) {
         const arrRow = await invokeMain("selectSchedulerList");
 
@@ -70,14 +73,14 @@ export const useScheduleStore = defineStore("schedule", {
       }
     },
 
-    async refreshSchedulerList(): Promise<void> {
+    async refreshScheduleList(): Promise<void> {
       this.arrListItem = [];
-      await this.dbSelectSchedulerList();
+      await this.loadScheduleList();
       this.showDialog_edit_new = false;
       this.showDialog_delete = false;
     },
 
-    async dbSelectSchedulerDetail(name: string): Promise<void> {
+    async loadScheduleDetail(name: string): Promise<void> {
       const dictRow = await invokeMain("selectSchedulerDetail", name);
       if (dictRow === undefined) {
         throw new Error(`Schedule not found: ${name}`);
@@ -115,7 +118,7 @@ export const useScheduleStore = defineStore("schedule", {
       this.detailCache_edit = JSON.stringify(this.dictDetail_edit);
     },
 
-    async dbInsertSchedulerDetail(): Promise<void> {
+    async createSchedule(): Promise<void> {
       if (
         this.dictDetail_new === undefined ||
         this.dictDetail_new.project_id === undefined
@@ -124,7 +127,7 @@ export const useScheduleStore = defineStore("schedule", {
       }
 
       const settingStore = useSettingStore();
-      const { intPeriodStartMs, intPeriodEndMs } = getSchedulerPeriodTimestamps({
+      const { intPeriodStartMs, intPeriodEndMs } = getSchedulePeriodTimestamps({
         periodStart: this.dictDetail_new.period_start,
         periodEnd: this.dictDetail_new.period_end,
         timezone: settingStore.timezone,
@@ -146,16 +149,16 @@ export const useScheduleStore = defineStore("schedule", {
         custom_prj_args: JSON.stringify(this.dictDetail_new.custom_prj_args),
       };
       await invokeMain("insertSchedulerDetail", dictTemp);
-      await this.refreshSchedulerList();
+      await this.refreshScheduleList();
     },
 
-    async dbUpdateSchedulerDetail(): Promise<void> {
+    async saveSchedule(): Promise<void> {
       if (this.dictDetail_edit === undefined) {
         return;
       }
 
       const settingStore = useSettingStore();
-      const { intPeriodStartMs, intPeriodEndMs } = getSchedulerPeriodTimestamps({
+      const { intPeriodStartMs, intPeriodEndMs } = getSchedulePeriodTimestamps({
         periodStart: this.dictDetail_edit.period_start,
         periodEnd: this.dictDetail_edit.period_end,
         timezone: settingStore.timezone,
@@ -178,10 +181,10 @@ export const useScheduleStore = defineStore("schedule", {
         custom_prj_args: JSON.stringify(this.dictDetail_edit.custom_prj_args),
       };
       await invokeMain("updateSchedulerDetail", dictTemp);
-      await this.refreshSchedulerList();
+      await this.refreshScheduleList();
     },
 
-    async dbDeleteScheduler(): Promise<void> {
+    async deleteSchedule(): Promise<void> {
       if (this.dictDetail_edit === undefined) {
         return;
       }
@@ -190,7 +193,7 @@ export const useScheduleStore = defineStore("schedule", {
         `Delete schedule: ${this.dictDetail_edit.id}-${this.dictDetail_edit.name}`,
       );
       await invokeMain("deleteScheduler", this.dictDetail_edit.id);
-      await this.refreshSchedulerList();
+      await this.refreshScheduleList();
     },
   },
 });

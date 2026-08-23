@@ -1,4 +1,3 @@
-<!-- FileName: Setting.vue -->
 <template>
   <v-container fluid class="clean-space flex-row-grow-1 fill-height flex-column">
     <v-label class="header-label tab-header">Settings</v-label>
@@ -323,7 +322,7 @@ import { invokeMain } from "../IPC/ipc";
 import { loggerRenderer } from "../Logging/logger";
 import { useInformationStore } from "../Store/informationStore";
 import { useSettingStore } from "../Store/settingStore";
-import { arrTimezone } from "../time";
+import { arrTimezone } from "../Common/time";
 import type { DictExecutorConfig } from "../../../shared/interface";
 
 const settingStore = useSettingStore();

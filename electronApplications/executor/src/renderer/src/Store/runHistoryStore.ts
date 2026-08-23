@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 
-import { sanitizeJsonObj } from "../commonFunc";
+import { cloneJsonSerializable } from "../Common/json";
 import { invokeMain } from "../IPC/ipc";
 import { loggerRenderer } from "../Logging/logger";
 import type {
@@ -18,7 +18,7 @@ export const useRunHistoryStore = defineStore("runHistory", {
       itemLength: 0 as number,
       dictOptionsCache: undefined as Dict_History_Options | undefined,
 
-      filterSchedulerName: "" as string,
+      filterScheduleName: "" as string,
       filterSource: null as "local" | "console" | null,
       filterProjectName: "" as string,
       filterProjectVersion: "" as string,
@@ -26,13 +26,13 @@ export const useRunHistoryStore = defineStore("runHistory", {
     };
   },
   actions: {
-    async dbSelectLimitHistoryList(
+    async loadRunHistoryPage(
       options: Dict_History_Options_Component | null,
     ): Promise<void> {
       if (options) {
         // Make sure this.dictOptionsCache not use a same object(memory address) with v-data-table-server's options. Otherwise the page button may not work.
 
-        const dictTemp: Dict_History_Options_Component = sanitizeJsonObj(options);
+        const dictTemp: Dict_History_Options_Component = cloneJsonSerializable(options);
 
         this.dictOptionsCache = {
           page: dictTemp.page,
@@ -45,21 +45,23 @@ export const useRunHistoryStore = defineStore("runHistory", {
 
       // If dictOptionsCache is not undefined, means user has clicked Task History, can use the dictOptionsCache to upload data. Otherwise didn't need to refresh.
       if (!this.dictOptionsCache) {
-        loggerRenderer.debug("Run History never opened, not updated data.");
+        loggerRenderer.debug(
+          "Run History has not been opened, so its data is not refreshed.",
+        );
         return;
       }
 
       const result = await invokeMain(
         "selectHistoryList",
-        sanitizeJsonObj(this.dictOptionsCache),
+        cloneJsonSerializable(this.dictOptionsCache),
       );
       // loggerRenderer.debug(JSON.stringify(result, null, 2));
       this.arrListItem = result.rows;
       this.itemLength = result.total;
     },
 
-    async refreshHistoryList(): Promise<void> {
-      await this.dbSelectLimitHistoryList(null);
+    async refreshRunHistory(): Promise<void> {
+      await this.loadRunHistoryPage(null);
     },
   },
 });

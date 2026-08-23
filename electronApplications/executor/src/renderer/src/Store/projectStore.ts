@@ -27,7 +27,7 @@ export const useProjectStore = defineStore("project", {
 
       // Delete dialog
       showDialog_delete: false as boolean,
-      arrBindScheduler: [] as { title: string }[],
+      arrBoundSchedule: [] as { title: string }[],
     };
   },
   actions: {
@@ -35,8 +35,8 @@ export const useProjectStore = defineStore("project", {
       this.arrPythonEnvironmentName = await invokeMain("getPythonEnvironmentNames");
     },
 
-    async dbSelectProjectNames(): Promise<void> {
-      // Only run it if it's the first swtich to Project Local Package tab, or the data indeed needs to refresh.
+    async loadProjectNames(): Promise<void> {
+      // Only run it if it's the first swtich to Projects tab, or the data indeed needs to refresh.
       if (this.arrName.length === 0) {
         this.resetVersionAndDetail();
 
@@ -56,7 +56,7 @@ export const useProjectStore = defineStore("project", {
       }
     },
 
-    async dbSelectProjectVersions(name: string): Promise<void> {
+    async loadProjectVersions(name: string): Promise<void> {
       this.resetVersionAndDetail();
 
       const arrRows = await invokeMain("selectProjectVersions", name);
@@ -85,7 +85,7 @@ export const useProjectStore = defineStore("project", {
       this.resetDetail();
     },
 
-    async dbSelectProjectDetail(name: string, version: string): Promise<void> {
+    async loadProjectDetail(name: string, version: string): Promise<void> {
       this.resetDetail();
       await this.loadPythonEnvironmentNames();
       const dictRow = await invokeMain("selectProjectDetail", { name, version });
@@ -113,7 +113,7 @@ export const useProjectStore = defineStore("project", {
       this.detailCache_edit = JSON.stringify(this.dictDetail_edit);
     },
 
-    async dbUpdateProjectDetail(): Promise<void> {
+    async saveProjectDetail(): Promise<void> {
       if (this.dictDetail_edit !== undefined) {
         const dictTemp: DictColumns_Project_Detail_ToUpdate = {
           id: this.dictDetail_edit.id,
@@ -134,13 +134,13 @@ export const useProjectStore = defineStore("project", {
       }
     },
 
-    async dbSelectProjectBindSchedulers(): Promise<void> {
+    async loadBoundSchedules(): Promise<void> {
       if (this.dictDetail_edit !== undefined) {
         const arrRows = await invokeMain(
           "selectProjectBindSchedulers",
           this.dictDetail_edit.id,
         );
-        this.arrBindScheduler = arrRows.map((row) => {
+        this.arrBoundSchedule = arrRows.map((row) => {
           const dictTemp = {
             title: row.name,
           };
@@ -149,7 +149,7 @@ export const useProjectStore = defineStore("project", {
       }
     },
 
-    async dbDeleteProject(): Promise<void> {
+    async deleteProject(): Promise<void> {
       if (this.dictDetail_edit !== undefined) {
         loggerRenderer.info(
           `Delete project: ${this.dictDetail_edit.id}-${this.dictDetail_edit.name}-${this.dictDetail_edit.version}`,
@@ -163,9 +163,9 @@ export const useProjectStore = defineStore("project", {
 
         // Update the list.
         this.arrName = [];
-        await this.dbSelectProjectNames();
+        await this.loadProjectNames();
         this.showDialog_delete = false;
-        this.arrBindScheduler = [];
+        this.arrBoundSchedule = [];
       }
     },
   },

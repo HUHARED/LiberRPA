@@ -1,4 +1,3 @@
-<!-- FileName: ProjectLocalPackage_Detail_BuiltInArgs.vue -->
 <template>
   <v-col v-if="projectStore.dictDetail_edit" cols="6" class="clean-space fill-height pt-3">
     <v-select
@@ -42,7 +41,7 @@
           class="clean-space"
           density="compact"
           hide-details
-          :items="arrLogLevel">
+          :items="ARR_LOG_LEVEL">
         </v-select>
       </v-col>
     </v-row>
@@ -84,12 +83,11 @@
 
 <script setup lang="ts">
 import { useProjectStore } from "../Store/projectStore";
-import { computedTimeoutMin } from "../commonFunc";
-import { arrLogLevel } from "../commonValue";
+import { ARR_LOG_LEVEL, createTimeoutMinModel } from "../RunOptions/runOptions";
 
 const projectStore = useProjectStore();
 
-const intTimeoutMin = computedTimeoutMin(projectStore.dictDetail_edit);
+const intTimeoutMin = createTimeoutMinModel(projectStore.dictDetail_edit);
 </script>
 
 <style scoped></style>

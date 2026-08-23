@@ -21,7 +21,7 @@ export function registerMainMessageListener(): void {
 
         case "runEnded": {
           const runHistoryStore = useRunHistoryStore();
-          await runHistoryStore.refreshHistoryList();
+          await runHistoryStore.refreshRunHistory();
           break;
         }
 

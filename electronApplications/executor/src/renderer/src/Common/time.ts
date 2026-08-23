@@ -1,5 +1,3 @@
-// FileName: time.ts
-
 import moment from "moment-timezone";
 
 const STR_DISPLAY_DATETIME_FORMAT = "YYYY-MM-DD HH:mm:ss";
@@ -90,7 +88,7 @@ export function parseDateTimeLocalToTimestamp(
     : undefined;
 }
 
-export function getDefaultSchedulerPeriod(strTimezone: string): {
+export function getDefaultSchedulePeriod(strTimezone: string): {
   strPeriodStartLocal: string;
   strPeriodEndLocal: string;
 } {

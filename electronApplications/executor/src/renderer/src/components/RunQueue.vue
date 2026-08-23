@@ -1,4 +1,3 @@
-<!-- FileName: TaskQueue.vue -->
 <template>
   <v-container fluid class="clean-space flex-row-grow-1 fill-height flex-column">
     <v-label class="header-label tab-header">Run Queue</v-label>
@@ -15,8 +14,8 @@
       hover>
       <template #item.project_source="{ value }">
         <v-chip
-          :border="`${getColor_Source(value)} thin opacity-25`"
-          :color="getColor_Source(value)"
+          :border="`${getProjectSourceColor(value)} thin opacity-25`"
+          :color="getProjectSourceColor(value)"
           :text="value"
           variant="text"
           size="x-small"></v-chip>
@@ -32,8 +31,8 @@
 
       <template #item.waiting="{ value }">
         <v-chip
-          :border="`${getColorWaiting(value)} thin opacity-25`"
-          :color="getColorWaiting(value)"
+          :border="`${getWaitingColor(value)} thin opacity-25`"
+          :color="getWaitingColor(value)"
           :text="value ? 'Waiting' : 'Pending'"
           variant="text"
           size="x-small"></v-chip>
@@ -63,11 +62,11 @@
 import { onBeforeMount } from "vue";
 import type { DataTableHeader } from "vuetify";
 
-import { getColor_Source } from "../commonFunc";
+import { getProjectSourceColor } from "../Common/display";
 import { loggerRenderer } from "../Logging/logger";
 import { useRunQueueStore } from "../Store/runQueueStore";
 import { useSettingStore } from "../Store/settingStore";
-import { formatTimestamp } from "../time";
+import { formatTimestamp } from "../Common/time";
 import type { Dict_TaskQueue_ListItem } from "../../../shared/interface";
 
 const runQueueStore = useRunQueueStore();
@@ -107,7 +106,7 @@ const arrHeader: DataTableHeader<Dict_TaskQueue_ListItem>[] = [
   { title: "Actions", key: "actions", align: "start", sortable: false },
 ];
 
-function getColorWaiting(waiting: boolean): string {
+function getWaitingColor(waiting: boolean): string {
   return waiting ? "warning" : "grey";
 }
 

@@ -1,4 +1,3 @@
-<!-- FileName: Alert.vue -->
 <template>
   <v-alert
     v-if="informationStore.showAlert"

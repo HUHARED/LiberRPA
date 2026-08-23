@@ -1,4 +1,3 @@
-<!-- FileName: ProjectLocalPackage_Detail_Uneditable.vue -->
 <template>
   <v-container v-if="projectStore.dictDetail_edit" fluid class="clean-space">
     <v-container fluid class="pa-2 ma-0">
@@ -109,7 +108,7 @@
 <script setup lang="ts">
 import { useProjectStore } from "../Store/projectStore";
 import { useSettingStore } from "../Store/settingStore";
-import { formatTimestamp } from "../time";
+import { formatTimestamp } from "../Common/time";
 
 const projectStore = useProjectStore();
 const settingStore = useSettingStore();

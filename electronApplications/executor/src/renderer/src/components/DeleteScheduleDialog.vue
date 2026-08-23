@@ -1,4 +1,3 @@
-<!-- FileName: TaskScheduler_Dialog_Delete.vue -->
 <template>
   <v-card title="Delete Schedule?">
     <template #text>
@@ -108,7 +107,7 @@
 
       <v-btn
         prepend-icon="mdi-delete-empty-outline"
-        @click="scheduleStore.dbDeleteScheduler()">
+        @click="scheduleStore.deleteSchedule()">
         Delete
       </v-btn>
     </v-card-actions>

@@ -1,16 +1,66 @@
-<!-- FileName: TaskScheduler_Dialog_New.vue -->
 <template>
-  <v-card v-if="scheduleStore.isEditing === 'new'" title="New Schedule">
+  <v-card v-if="scheduleStore.isEditing === 'edit'" title="Edit Schedule">
     <template #text>
       <v-container
-        v-if="scheduleStore.dictDetail_new"
+        v-if="scheduleStore.dictDetail_edit"
         fluid
         class="clean-space fill-height flex-column">
         <v-container fluid class="pa-2 ma-0">
           <v-row class="w-100">
-            <v-col cols="5">
+            <v-col cols="5" class="pb-0">
               <v-text-field
-                v-model="scheduleStore.dictDetail_new['name']"
+                :model-value="
+                  formatTimestamp(
+                    scheduleStore.dictDetail_edit.created_at_ms,
+                    settingStore.timezone,
+                  )
+                "
+                label="Created At"
+                class="clean-space"
+                density="compact"
+                hide-details
+                readonly
+                variant="plain">
+              </v-text-field>
+            </v-col>
+
+            <v-col cols="5" class="pb-0">
+              <v-text-field
+                :model-value="
+                  formatTimestamp(
+                    scheduleStore.dictDetail_edit.updated_at_ms,
+                    settingStore.timezone,
+                  )
+                "
+                label="Updated At"
+                class="clean-space"
+                density="compact"
+                hide-details
+                readonly
+                variant="plain">
+              </v-text-field>
+            </v-col>
+
+            <v-col cols="2" class="pb-0">
+              <v-text-field
+                v-model="scheduleStore.dictDetail_edit['id']"
+                label="ID"
+                class="clean-space"
+                density="compact"
+                hide-details
+                readonly
+                variant="plain">
+                <v-tooltip activator="parent" location="top">
+                  Internal schedule ID managed by Executor.
+                </v-tooltip>
+              </v-text-field>
+            </v-col>
+          </v-row>
+
+          <v-row class="w-100">
+            <v-col cols="5" class="pb-0">
+              <v-text-field
+                v-model="scheduleStore.dictDetail_edit['name']"
                 label="Name"
                 class="clean-space"
                 density="compact"
@@ -19,9 +69,9 @@
               </v-text-field>
             </v-col>
 
-            <v-col cols="5">
+            <v-col cols="5" class="pb-0">
               <v-select
-                v-model="scheduleStore.dictDetail_new['when_others_running']"
+                v-model="scheduleStore.dictDetail_edit['when_others_running']"
                 label="When Another Run Is Active"
                 variant="underlined"
                 class="clean-space"
@@ -39,7 +89,7 @@
           <v-row class="w-100">
             <v-col cols="5">
               <v-text-field
-                v-model="scheduleStore.dictDetail_new['period_start']"
+                v-model="scheduleStore.dictDetail_edit['period_start']"
                 label="Active From"
                 type="datetime-local"
                 step="1"
@@ -56,7 +106,7 @@
 
             <v-col cols="5">
               <v-text-field
-                v-model="scheduleStore.dictDetail_new['period_end']"
+                v-model="scheduleStore.dictDetail_edit['period_end']"
                 label="Active Until"
                 type="datetime-local"
                 step="1"
@@ -76,7 +126,7 @@
                 <v-label class="clean-space" style="font-size: 0.75em"> Enabled </v-label>
 
                 <v-switch
-                  v-model="scheduleStore.dictDetail_new['enable']"
+                  v-model="scheduleStore.dictDetail_edit['enable']"
                   hide-details
                   class="clean-space pl-1"
                   density="compact"
@@ -89,7 +139,7 @@
           <v-row class="w-100">
             <v-col cols="3" class="pt-0">
               <v-text-field
-                v-model="scheduleStore.dictDetail_new['cron']"
+                v-model="scheduleStore.dictDetail_edit['cron']"
                 label="Cron Expression"
                 class="clean-space"
                 density="compact"
@@ -105,7 +155,7 @@
             <v-col cols="9" class="clean-space">
               <v-container fluid class="clean-space pt-0 flex-column">
                 <cron-vuetify
-                  v-model="scheduleStore.dictDetail_new['cron']"
+                  v-model="scheduleStore.dictDetail_edit['cron']"
                   class="clean-space mb-2">
                 </cron-vuetify>
               </v-container>
@@ -120,7 +170,7 @@
             <v-col cols="3">
               <!-- Modify to :items="['local', 'console']" when LiberRPA Console created.-->
               <v-select
-                v-model="scheduleStore.dictDetail_new['project_source']"
+                v-model="scheduleStore.dictDetail_edit['project_source']"
                 label="Source"
                 variant="underlined"
                 class="clean-space"
@@ -132,7 +182,7 @@
 
             <v-col cols="2">
               <v-text-field
-                v-model="scheduleStore.dictDetail_new['project_id']"
+                v-model="scheduleStore.dictDetail_edit['project_id']"
                 label="ID"
                 class="clean-space"
                 density="compact"
@@ -148,7 +198,7 @@
             <!-- projectStore.arrName is an array contains "title" attributes, just use it. -->
             <v-col cols="5">
               <v-select
-                v-model="scheduleStore.dictDetail_new['project_name']"
+                v-model="scheduleStore.dictDetail_edit['project_name']"
                 label="Name"
                 variant="underlined"
                 class="clean-space"
@@ -159,20 +209,16 @@
               </v-select>
             </v-col>
 
-            <!-- Update projectStore.arrVersion by the current project_name, if the project_name is not specified, use [] -->
+            <!-- Update projectStore.arrVersion by the current project_name -->
             <v-col cols="2">
               <v-select
-                v-model="scheduleStore.dictDetail_new['project_version']"
+                v-model="scheduleStore.dictDetail_edit['project_version']"
                 label="Version"
                 variant="underlined"
                 class="clean-space"
                 density="compact"
                 hide-details
-                :items="
-                  scheduleStore.dictDetail_new['project_name']
-                    ? projectStore.arrVersion
-                    : []
-                "
+                :items="projectStore.arrVersion"
                 @update:model-value="whenProjectVersionChanged()">
               </v-select>
             </v-col>
@@ -206,13 +252,13 @@
 
                 <v-col cols="6">
                   <v-select
-                    v-model="scheduleStore.dictDetail_new['builtin_log_level']"
+                    v-model="scheduleStore.dictDetail_edit['builtin_log_level']"
                     label="Log Level"
                     variant="underlined"
                     class="clean-space"
                     density="compact"
                     hide-details
-                    :items="arrLogLevel">
+                    :items="ARR_LOG_LEVEL">
                   </v-select>
                 </v-col>
               </v-row>
@@ -224,7 +270,7 @@
                 </v-label>
 
                 <v-switch
-                  v-model="scheduleStore.dictDetail_new['builtin_record_video']"
+                  v-model="scheduleStore.dictDetail_edit['builtin_record_video']"
                   hide-details
                   class="clean-space pl-1"
                   density="compact"
@@ -236,7 +282,7 @@
                 </v-label>
 
                 <v-switch
-                  v-model="scheduleStore.dictDetail_new['builtin_stop_shortcut']"
+                  v-model="scheduleStore.dictDetail_edit['builtin_stop_shortcut']"
                   hide-details
                   class="clean-space pl-1"
                   density="compact"
@@ -248,7 +294,7 @@
                 </v-label>
 
                 <v-switch
-                  v-model="scheduleStore.dictDetail_new['builtin_highlight_ui']"
+                  v-model="scheduleStore.dictDetail_edit['builtin_highlight_ui']"
                   hide-details
                   class="clean-space pl-1"
                   density="compact"
@@ -264,11 +310,11 @@
               </v-label>
 
               <v-container
-                v-if="scheduleStore.dictDetail_new.custom_prj_args.length !== 0"
+                v-if="scheduleStore.dictDetail_edit.custom_prj_args.length !== 0"
                 fluid
                 class="clean-space flex-column-grow-1 flex-column">
                 <v-row
-                  v-for="(item, index) in scheduleStore.dictDetail_new.custom_prj_args"
+                  v-for="(item, index) in scheduleStore.dictDetail_edit.custom_prj_args"
                   :key="index"
                   class="clean-space"
                   style="width: 100%; max-height: 40px">
@@ -299,23 +345,23 @@
                       hide-details
                       spellcheck="false"
                       @blur="
-                        updateCusPrjArgsValue(
-                          scheduleStore.dictDetail_new.custom_prj_args,
+                        updateCustomProjectArgumentValue(
+                          scheduleStore.dictDetail_edit.custom_prj_args,
                           arrValueCache,
                           index,
                           arrValueCache[index],
                         )
                       "
                       @keyup.enter="
-                        updateCusPrjArgsValue(
-                          scheduleStore.dictDetail_new.custom_prj_args,
+                        updateCustomProjectArgumentValue(
+                          scheduleStore.dictDetail_edit.custom_prj_args,
                           arrValueCache,
                           index,
                           arrValueCache[index],
                         )
                       ">
                       <v-tooltip activator="parent" location="top">
-                        <span v-html="generateValueNote(item[1])"></span>
+                        <span v-html="getArgumentValueNote(item[1])"></span>
                       </v-tooltip>
                     </v-text-field>
                   </v-col>
@@ -323,7 +369,7 @@
               </v-container>
 
               <v-container v-else fluid class="clean-space">
-                No custom project argument.
+                No custom arguments.
               </v-container>
             </v-col>
           </v-row>
@@ -345,7 +391,7 @@
       <v-btn
         prepend-icon="mdi-content-save-outline"
         :disabled="!boolDetailChanged"
-        @click="scheduleStore.dbInsertSchedulerDetail()">
+        @click="scheduleStore.saveSchedule()">
         Save
       </v-btn>
     </v-card-actions>
@@ -357,20 +403,20 @@ import { ref, watch } from "vue";
 import { debounce } from "lodash";
 
 import { loggerRenderer } from "../Logging/logger";
+import { validateCron } from "../Schedule/cron";
 import { useInformationStore } from "../Store/informationStore";
 import { useProjectStore } from "../Store/projectStore";
 import { useScheduleStore } from "../Store/scheduleStore";
 import { useSettingStore } from "../Store/settingStore";
 import {
-  generateValueNote,
-  updateCusPrjArgsValue,
-  initCusPrjArgsValueCache,
-  updateCusPrjArgsValueCache,
-  computedTimeoutMin,
-  checkCron,
-} from "../commonFunc";
-import { arrLogLevel } from "../commonValue";
-import { parseDateTimeLocalToTimestamp } from "../time";
+  ARR_LOG_LEVEL,
+  getArgumentValueNote,
+  updateCustomProjectArgumentValue,
+  createCustomProjectArgumentValueCache,
+  getCustomProjectArgumentValueCache,
+  createTimeoutMinModel,
+} from "../RunOptions/runOptions";
+import { formatTimestamp, parseDateTimeLocalToTimestamp } from "../Common/time";
 
 const scheduleStore = useScheduleStore();
 const projectStore = useProjectStore();
@@ -379,39 +425,41 @@ const settingStore = useSettingStore();
 
 const boolDetailChanged = ref(false);
 
-const intTimeoutMin = computedTimeoutMin(scheduleStore.dictDetail_new);
+const intTimeoutMin = createTimeoutMinModel(scheduleStore.dictDetail_edit);
 
-const arrValueCache = initCusPrjArgsValueCache(scheduleStore.dictDetail_new);
+const arrValueCache = createCustomProjectArgumentValueCache(scheduleStore.dictDetail_edit);
 
 const debouncedUpdateValueCacheAndButtonState = debounce(() => {
-  // Update arrValueCache even the user didn't type a name.
-  if (scheduleStore.dictDetail_new) {
-    arrValueCache.value = updateCusPrjArgsValueCache(scheduleStore.dictDetail_new);
-  }
-
-  // Cron must be correct.
-  if (scheduleStore.dictDetail_new && !checkCron(scheduleStore.dictDetail_new.cron)) {
+  if (!scheduleStore.dictDetail_edit) {
     boolDetailChanged.value = false;
     return;
   }
 
+  // Update arrValueCache even the user didn't type a name.
+  arrValueCache.value = getCustomProjectArgumentValueCache(scheduleStore.dictDetail_edit);
+
+  // Cron must be correct.
+  if (!validateCron(scheduleStore.dictDetail_edit.cron)) {
+    boolDetailChanged.value = false;
+    return;
+  }
+
+  // User must type a name, period_start and period_end
   if (
-    scheduleStore.dictDetail_new === undefined ||
-    scheduleStore.dictDetail_new.name === "" ||
-    scheduleStore.dictDetail_new.project_id === undefined ||
-    scheduleStore.dictDetail_new.period_start === "" ||
-    scheduleStore.dictDetail_new.period_end === ""
+    !scheduleStore.dictDetail_edit.name ||
+    !scheduleStore.dictDetail_edit.period_start ||
+    !scheduleStore.dictDetail_edit.period_end
   ) {
     boolDetailChanged.value = false;
     return;
   }
 
   const intPeriodStartMs = parseDateTimeLocalToTimestamp(
-    scheduleStore.dictDetail_new.period_start,
+    scheduleStore.dictDetail_edit.period_start,
     settingStore.timezone,
   );
   const intPeriodEndMs = parseDateTimeLocalToTimestamp(
-    scheduleStore.dictDetail_new.period_end,
+    scheduleStore.dictDetail_edit.period_end,
     settingStore.timezone,
   );
   if (
@@ -423,11 +471,12 @@ const debouncedUpdateValueCacheAndButtonState = debounce(() => {
     return;
   }
 
-  boolDetailChanged.value = true;
+  const strDetailCacheNew = JSON.stringify(scheduleStore.dictDetail_edit);
+  boolDetailChanged.value = strDetailCacheNew !== scheduleStore.detailCache_edit;
 }, 300);
 
 watch(
-  () => scheduleStore.dictDetail_new,
+  () => scheduleStore.dictDetail_edit,
   () => {
     debouncedUpdateValueCacheAndButtonState();
   },
@@ -436,18 +485,14 @@ watch(
 
 // Update details when project_name is modified.
 async function whenProjectNameChanged(): Promise<void> {
-  const dictDetail = scheduleStore.dictDetail_new;
-  if (
-    dictDetail === undefined ||
-    dictDetail.project_source !== "local" ||
-    dictDetail.project_name === undefined
-  ) {
+  const dictDetail = scheduleStore.dictDetail_edit;
+  if (dictDetail === undefined || dictDetail.project_source !== "local") {
     return;
   }
 
   const strProjectName = dictDetail.project_name;
   loggerRenderer.info(`Modified Project name: ${strProjectName}`);
-  await projectStore.dbSelectProjectVersions(strProjectName);
+  await projectStore.loadProjectVersions(strProjectName);
 
   const firstVersion = projectStore.arrVersion[0];
   if (firstVersion === undefined) {
@@ -455,48 +500,42 @@ async function whenProjectNameChanged(): Promise<void> {
   }
 
   dictDetail.project_version = firstVersion.title;
-  await updateProjectDetailInScheduler(strProjectName, firstVersion.title);
+  await applyProjectDetailToSchedule(strProjectName, firstVersion.title);
 }
 
 // Update details when project_version is modified.
 async function whenProjectVersionChanged(): Promise<void> {
-  const dictDetail = scheduleStore.dictDetail_new;
-  if (
-    dictDetail === undefined ||
-    dictDetail.project_source !== "local" ||
-    dictDetail.project_name === undefined ||
-    dictDetail.project_version === undefined
-  ) {
+  const dictDetail = scheduleStore.dictDetail_edit;
+  if (dictDetail === undefined || dictDetail.project_source !== "local") {
     return;
   }
 
   loggerRenderer.info(`Modified Project version: ${dictDetail.project_version}`);
-  await updateProjectDetailInScheduler(dictDetail.project_name, dictDetail.project_version);
+  await applyProjectDetailToSchedule(dictDetail.project_name, dictDetail.project_version);
 }
 
-async function updateProjectDetailInScheduler(
-  name: string,
-  version: string,
-): Promise<void> {
+async function applyProjectDetailToSchedule(name: string, version: string): Promise<void> {
   // Update projectStore.dictDetail
-  await projectStore.dbSelectProjectDetail(name, version);
+  await projectStore.loadProjectDetail(name, version);
 
   // Update other values in projectStore.dictDetail
-  if (scheduleStore.dictDetail_new && projectStore.dictDetail_edit) {
-    scheduleStore.dictDetail_new.project_id = projectStore.dictDetail_edit.id;
-    scheduleStore.dictDetail_new.timeout_min = projectStore.dictDetail_edit.timeout_min;
-    scheduleStore.dictDetail_new.builtin_log_level =
+  if (scheduleStore.dictDetail_edit && projectStore.dictDetail_edit) {
+    scheduleStore.dictDetail_edit.project_id = projectStore.dictDetail_edit.id;
+    scheduleStore.dictDetail_edit.timeout_min = projectStore.dictDetail_edit.timeout_min;
+    scheduleStore.dictDetail_edit.builtin_log_level =
       projectStore.dictDetail_edit.builtin_log_level;
-    scheduleStore.dictDetail_new.builtin_record_video =
+    scheduleStore.dictDetail_edit.builtin_record_video =
       projectStore.dictDetail_edit.builtin_record_video;
-    scheduleStore.dictDetail_new.builtin_stop_shortcut =
+    scheduleStore.dictDetail_edit.builtin_stop_shortcut =
       projectStore.dictDetail_edit.builtin_stop_shortcut;
-    scheduleStore.dictDetail_new.builtin_highlight_ui =
+    scheduleStore.dictDetail_edit.builtin_highlight_ui =
       projectStore.dictDetail_edit.builtin_highlight_ui;
-    scheduleStore.dictDetail_new.custom_prj_args =
+    scheduleStore.dictDetail_edit.custom_prj_args =
       projectStore.dictDetail_edit.custom_prj_args;
 
-    loggerRenderer.debug(JSON.stringify(scheduleStore.dictDetail_new, null, 2));
+    loggerRenderer.debug(JSON.stringify(scheduleStore.dictDetail_edit, null, 2));
+
+    // Not update detailCache, otherwise the Save button state is wrong.
   }
 }
 </script>

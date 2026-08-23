@@ -1,4 +1,3 @@
-<!-- FileName: ProjectLocalPackage_Dialog_Delete.vue -->
 <template>
   <v-dialog v-model="projectStore.showDialog_delete" width="800px" height="400px">
     <v-card title="Delete Project?">
@@ -49,13 +48,13 @@
           </v-row>
 
           <v-container
-            v-if="projectStore.arrBindScheduler.length !== 0"
+            v-if="projectStore.arrBoundSchedule.length !== 0"
             fluid
             class="border-thin flex-column-grow-1 flex-column">
             The following schedules use this project. Modify or delete them before deleting
             the project:
             <v-list
-              :items="projectStore.arrBindScheduler"
+              :items="projectStore.arrBoundSchedule"
               class="clean-space w-100"
               style="width: max-content; flex: 1; min-width: 0px"
               density="compact"
@@ -82,8 +81,8 @@
 
         <v-btn
           prepend-icon="mdi-delete-empty-outline"
-          :disabled="projectStore.arrBindScheduler.length !== 0"
-          @click="projectStore.dbDeleteProject()">
+          :disabled="projectStore.arrBoundSchedule.length !== 0"
+          @click="projectStore.deleteProject()">
           Delete
         </v-btn>
       </v-card-actions>
