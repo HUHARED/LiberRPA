@@ -22,15 +22,6 @@
       items-per-page="-1"
       density="compact"
       hover>
-      <template #item.project_source="{ value }">
-        <v-chip
-          :border="`${getProjectSourceColor(value)} thin opacity-25`"
-          :color="getProjectSourceColor(value)"
-          :text="value"
-          variant="text"
-          size="x-small"></v-chip>
-      </template>
-
       <template #item.cron="{ value }">
         <v-chip
           :text="
@@ -99,7 +90,6 @@ import DeleteScheduleDialog from "./DeleteScheduleDialog.vue";
 import ScheduleDialog from "./ScheduleDialog.vue";
 import HorizontalDivider from "../Common/HorizontalDivider.vue";
 
-import { getProjectSourceColor } from "../../Common/display";
 import { getDefaultSchedulePeriod } from "../../Common/time";
 import { loggerRenderer } from "../../Logging/logger";
 import { useScheduleStore } from "../../Store/scheduleStore";
@@ -127,12 +117,11 @@ function newSchedule(): void {
   const dictDefaultPeriod = getDefaultSchedulePeriod(settingStore.timezone);
   scheduleStore.dictDetail_new = {
     name: "",
-    project_source: "local",
     project_id: undefined,
     project_name: undefined,
     project_version: undefined,
     cron: "0 8 * * *",
-    when_others_running: "cancel",
+    run_conflict_policy: "skip",
     period_start: dictDefaultPeriod.strPeriodStartLocal,
     period_end: dictDefaultPeriod.strPeriodEndLocal,
     enable: true,
@@ -154,7 +143,6 @@ const arrHeader: DataTableHeader<DictScheduleListItem>[] = [
     title: "Project",
     align: "center",
     children: [
-      { title: "Source", value: "project_source", align: "start", sortable: true },
       { title: "Name", value: "project_name", align: "start", sortable: true },
       {
         title: "Version",

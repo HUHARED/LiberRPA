@@ -8,7 +8,7 @@ import threading
 
 def _listen_for_exit() -> None:
     for line in sys.stdin:
-        if line.strip() == "Executor-terminated":
+        if line.strip() == "Executor-stop-move-mouse":
             print("MoveMouse process exits.", flush=True)
 
             # Use os._exit to force exit.
@@ -21,7 +21,6 @@ listener_thread = threading.Thread(target=_listen_for_exit, daemon=True)
 listener_thread.start()
 
 if __name__ == "__main__":
-
     while True:
         try:
             intX, intY = pyautogui.position()

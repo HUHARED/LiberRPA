@@ -17,7 +17,7 @@ export function dbSelectProjectNames(): { name: string }[] {
       SELECT
           name
       FROM
-          project_local
+          project
       GROUP BY
           name
       ORDER BY
@@ -36,7 +36,7 @@ export function dbSelectProjectVersions(name: string): { version: string }[] {
       SELECT
           version
       FROM
-          project_local
+          project
       WHERE
           name = ?
       ORDER BY
@@ -55,7 +55,7 @@ export function dbSelectProjectBoundSchedules(id: number): { name: string }[] {
       SELECT
           name
       FROM
-          task_scheduler
+          schedule
       WHERE
           project_id = ?
       ORDER BY
@@ -90,7 +90,7 @@ export function dbSelectProjectDetail(
           created_at_ms,
           updated_at_ms
       FROM
-          project_local
+          project
       WHERE
           name = ?
           AND version = ?;
@@ -123,7 +123,7 @@ export function dbSelectProjectDetailById(id: number): DictProjectDetail | undef
           created_at_ms,
           updated_at_ms
       FROM
-          project_local
+          project
       WHERE
           id = ?;
       `,
@@ -141,7 +141,7 @@ export function dbInsertProjectDetail(dictDetail: DictProjectCreate): Database.R
     .prepare(
       `
       INSERT INTO
-          project_local (
+          project (
               name,
               version,
               description,
@@ -184,7 +184,7 @@ export function dbUpdateProjectSettings(
   return getDatabase()
     .prepare(
       `
-      UPDATE project_local
+      UPDATE project
       SET
           python_environment_name = ?,
           timeout_min = ?,
@@ -223,7 +223,7 @@ export function dbDeleteProject(id: number): Database.RunResult {
     );
   }
 
-  return getDatabase().prepare("DELETE FROM project_local WHERE id = ?;").run(id);
+  return getDatabase().prepare("DELETE FROM project WHERE id = ?;").run(id);
 }
 
 export function dbSelectProjectMostRecentlyImportedDetail(
@@ -249,7 +249,7 @@ export function dbSelectProjectMostRecentlyImportedDetail(
           created_at_ms,
           updated_at_ms
       FROM
-          project_local
+          project
       WHERE
           name = ?
       ORDER BY

@@ -350,7 +350,6 @@ async function createRunHistory({
   try {
     const intRunHistoryIdValue = dbInsertRunHistory({
       schedule_name: detail.schedule_name,
-      project_source: detail.project_source,
       project_id: detail.id,
       project_name: detail.name,
       project_version: detail.version,

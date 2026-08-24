@@ -12,15 +12,6 @@
       items-per-page="-1"
       density="compact"
       hover>
-      <template #item.project_source="{ value }">
-        <v-chip
-          :border="`${getProjectSourceColor(value)} thin opacity-25`"
-          :color="getProjectSourceColor(value)"
-          :text="value"
-          variant="text"
-          size="x-small"></v-chip>
-      </template>
-
       <template #item.estimated_run_at_ms="{ value }">
         <v-chip
           :text="formatTimestamp(value, settingStore.timezone)"
@@ -62,7 +53,6 @@
 import { onBeforeMount } from "vue";
 import type { DataTableHeader } from "vuetify";
 
-import { getProjectSourceColor } from "../../Common/display";
 import { loggerRenderer } from "../../Logging/logger";
 import { useRunQueueStore } from "../../Store/runQueueStore";
 import { useSettingStore } from "../../Store/settingStore";
@@ -86,7 +76,6 @@ const arrHeader: DataTableHeader<DictRunQueueListItem>[] = [
     title: "Project",
     align: "center",
     children: [
-      { title: "Source", value: "project_source", align: "start", sortable: false },
       { title: "Name", value: "project_name", align: "start", sortable: false },
       {
         title: "Version",

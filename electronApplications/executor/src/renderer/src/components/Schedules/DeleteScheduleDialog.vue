@@ -38,19 +38,6 @@
         </v-container>
 
         <v-row class="w-100">
-          <v-col cols="3">
-            <!-- Modify to :items="['local', 'console']" when LiberRPA Console created.-->
-            <v-text-field
-              v-model="scheduleStore.dictDetail_edit['project_source']"
-              label="Source"
-              variant="plain"
-              class="clean-space"
-              density="compact"
-              hide-details
-              readonly>
-            </v-text-field>
-          </v-col>
-
           <v-col cols="2">
             <v-text-field
               v-model="scheduleStore.dictDetail_edit['project_id']"
@@ -66,7 +53,7 @@
             </v-text-field>
           </v-col>
 
-          <v-col cols="5">
+          <v-col cols="7">
             <v-text-field
               v-model="scheduleStore.dictDetail_edit['project_name']"
               label="Name"
@@ -78,7 +65,7 @@
             </v-text-field>
           </v-col>
 
-          <v-col cols="2">
+          <v-col cols="3">
             <v-text-field
               v-model="scheduleStore.dictDetail_edit['project_version']"
               label="Version"

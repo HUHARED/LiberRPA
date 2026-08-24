@@ -17,7 +17,6 @@ export const useRunHistoryStore = defineStore("runHistory", {
       dictOptionsCache: undefined as DictRunHistoryOptions | undefined,
 
       filterScheduleName: "" as string,
-      filterSource: null as "local" | "console" | null,
       filterProjectName: "" as string,
       filterProjectVersion: "" as string,
       filterStatus: null as TypeRunHistoryStatus | null,

@@ -1,4 +1,5 @@
 import type { TypeRunHistoryStatus } from "../../shared/run";
+import type { TypeRunConflictPolicy } from "../../shared/schedule";
 import type { TypeCustomProjectArgs, TypeLogLevel } from "../../shared/runOptions";
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
@@ -98,16 +99,6 @@ export function ensureNullableNonNegativeInteger(
   return ensureNonNegativeInteger(value, strSourceName);
 }
 
-export function ensureProjectSource(
-  value: unknown,
-  strSourceName: string,
-): "local" | "console" {
-  if (value === "local" || value === "console") {
-    return value;
-  }
-  throw new Error(`${strSourceName} must be 'local' or 'console'.`);
-}
-
 export function ensureLogLevel(value: unknown, strSourceName: string): TypeLogLevel {
   switch (value) {
     case "VERBOSE":
@@ -122,14 +113,14 @@ export function ensureLogLevel(value: unknown, strSourceName: string): TypeLogLe
   }
 }
 
-export function ensureWhenOthersRunning(
+export function ensureRunConflictPolicy(
   value: unknown,
   strSourceName: string,
-): "cancel" | "wait" | "run" {
-  if (value === "cancel" || value === "wait" || value === "run") {
+): TypeRunConflictPolicy {
+  if (value === "skip" || value === "wait" || value === "concurrent") {
     return value;
   }
-  throw new Error(`${strSourceName} must be 'cancel', 'wait', or 'run'.`);
+  throw new Error(`${strSourceName} must be 'skip', 'wait', or 'concurrent'.`);
 }
 
 export function ensureRunHistoryStatus(

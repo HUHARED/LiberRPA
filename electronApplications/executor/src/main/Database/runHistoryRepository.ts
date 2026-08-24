@@ -1,6 +1,5 @@
 import type Database from "better-sqlite3";
 
-import type { TypeProjectSource } from "../../shared/project";
 import type {
   DictRunHistoryOptions,
   DictRunHistoryPage,
@@ -17,7 +16,6 @@ import {
 
 interface DictRunHistoryInsert {
   schedule_name: string | null;
-  project_source: TypeProjectSource;
   project_id: number;
   project_name: string;
   project_version: string;
@@ -43,8 +41,7 @@ const MAP_RUN_HISTORY_SORT_COLUMN: Record<
   DictRunHistoryOptions["sortBy"][number]["key"],
   string
 > = {
-  schedule_name: "scheduler_name",
-  project_source: "project_source",
+  schedule_name: "schedule_name",
   project_name: "project_name",
   project_version: "project_version",
   python_environment_name: "python_environment_name",
@@ -60,9 +57,8 @@ export function dbInsertRunHistory(dictDetail: DictRunHistoryInsert): Database.R
     .prepare(
       `
       INSERT INTO
-          task_history (
-              scheduler_name,
-              project_source,
+          run_history (
+              schedule_name,
               project_id,
               project_name,
               project_version,
@@ -74,12 +70,11 @@ export function dbInsertRunHistory(dictDetail: DictRunHistoryInsert): Database.R
               updated_at_ms
           )
       VALUES
-          (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+          (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
       `,
     )
     .run(
       dictDetail.schedule_name,
-      dictDetail.project_source,
       dictDetail.project_id,
       dictDetail.project_name,
       dictDetail.project_version,
@@ -97,7 +92,7 @@ export function dbUpdateRunHistory(dictDetail: DictRunHistoryUpdate): Database.R
   return getDatabase()
     .prepare(
       `
-      UPDATE task_history
+      UPDATE run_history
       SET
           run_ended_at_ms = ?,
           status = ?,
@@ -114,7 +109,7 @@ export function dbMarkRunningRunsInterrupted(): void {
   const result = getDatabase()
     .prepare(
       `
-      UPDATE task_history
+      UPDATE run_history
       SET
           run_ended_at_ms = NULL,
           status = 'interrupted',
@@ -133,7 +128,7 @@ export function dbMarkRunningRunsInterrupted(): void {
 export function dbHasRunningRun(): boolean {
   loggerMain.debug("--dbHasRunningRun--");
   const row = getDatabase()
-    .prepare("SELECT COUNT(*) AS runningCount FROM task_history WHERE status = 'running';")
+    .prepare("SELECT COUNT(*) AS runningCount FROM run_history WHERE status = 'running';")
     .get();
   return ensureCountRow(row, "runningCount", "Running Run count query result") > 0;
 }
@@ -142,7 +137,7 @@ export function dbHasRunningRunForProject(projectId: number): boolean {
   loggerMain.debug("--dbHasRunningRunForProject--");
   const row = getDatabase()
     .prepare(
-      "SELECT COUNT(*) AS runningCount FROM task_history WHERE status = 'running' AND project_id = ?;",
+      "SELECT COUNT(*) AS runningCount FROM run_history WHERE status = 'running' AND project_id = ?;",
     )
     .get(projectId);
   return (
@@ -158,7 +153,7 @@ export function dbSelectRunHistoryLogPath(id: number): string | undefined {
       SELECT
           log_path
       FROM
-          task_history
+          run_history
       WHERE
           id = ?;
       `,
@@ -183,14 +178,10 @@ export function dbSelectRunHistoryPage(options: DictRunHistoryOptions): DictRunH
   }
 
   const arrWhereClause: string[] = [];
-  const arrWhereParam: (string | TypeProjectSource | TypeRunHistoryStatus)[] = [];
+  const arrWhereParam: (string | TypeRunHistoryStatus)[] = [];
   if (options.search.schedule_name.trim() !== "") {
-    arrWhereClause.push("scheduler_name LIKE ?");
+    arrWhereClause.push("schedule_name LIKE ?");
     arrWhereParam.push(`%${options.search.schedule_name.trim()}%`);
-  }
-  if (options.search.project_source !== null) {
-    arrWhereClause.push("project_source = ?");
-    arrWhereParam.push(options.search.project_source);
   }
   if (options.search.project_name.trim() !== "") {
     arrWhereClause.push("project_name LIKE ?");
@@ -228,8 +219,7 @@ export function dbSelectRunHistoryPage(options: DictRunHistoryOptions): DictRunH
       `
       SELECT
           id,
-          scheduler_name,
-          project_source,
+          schedule_name,
           project_name,
           project_version,
           python_environment_name,
@@ -237,7 +227,7 @@ export function dbSelectRunHistoryPage(options: DictRunHistoryOptions): DictRunH
           run_ended_at_ms,
           status
       FROM
-          task_history
+          run_history
       ${strWhereClause}
       ORDER BY
           ${strOrderByClause}
@@ -256,7 +246,7 @@ export function dbSelectRunHistoryPage(options: DictRunHistoryOptions): DictRunH
       SELECT
           COUNT(*) AS total
       FROM
-          task_history
+          run_history
       ${strWhereClause};
       `,
     )
@@ -274,7 +264,7 @@ export function dbSelectLogFolderBefore(intCutoffMs: number): string[] {
       SELECT
           log_path
       FROM
-          task_history
+          run_history
       WHERE
           status <> 'running'
           AND no_log_folder = 0
@@ -296,7 +286,7 @@ export function dbSelectVideoBefore(intCutoffMs: number): string[] {
       SELECT
           log_path
       FROM
-          task_history
+          run_history
       WHERE
           status <> 'running'
           AND no_log_video = 0
@@ -318,7 +308,7 @@ export function dbSelectVideo(): string[] {
       SELECT
           log_path
       FROM
-          task_history
+          run_history
       WHERE
           status <> 'running'
           AND no_log_video = 0
@@ -336,7 +326,7 @@ export function dbUpdateNoLogFolderAndVideo(strLogPath: string): void {
   getDatabase()
     .prepare(
       `
-      UPDATE task_history
+      UPDATE run_history
       SET
           no_log_folder = 1,
           no_log_video = 1,
@@ -353,7 +343,7 @@ export function dbUpdateNoVideo(strLogPath: string): void {
   getDatabase()
     .prepare(
       `
-      UPDATE task_history
+      UPDATE run_history
       SET
           no_log_video = 1,
           updated_at_ms = ?

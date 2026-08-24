@@ -5,7 +5,7 @@ import path from "path";
 import { strDocumentsFolderPath } from "../Config/environment";
 import { loggerMain } from "../Logging/logger";
 
-const INT_DATABASE_SCHEMA_VERSION = 2;
+const INT_DATABASE_SCHEMA_VERSION = 3;
 const STR_DATABASE_FOLDER_PATH = path.join(strDocumentsFolderPath, "LiberRPA/AppData");
 const STR_DATABASE_FILE_PATH = path.join(STR_DATABASE_FOLDER_PATH, "ExecutorData.db");
 const STR_INIT_DATABASE_SCRIPT_PATH = path.join(

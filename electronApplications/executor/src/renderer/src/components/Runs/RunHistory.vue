@@ -16,15 +16,6 @@
       hover
       multi-sort
       @update:options="handleTableOptionsUpdate($event)">
-      <template #item.project_source="{ value }">
-        <v-chip
-          :border="`${getProjectSourceColor(value)} thin opacity-25`"
-          :color="getProjectSourceColor(value)"
-          :text="value"
-          variant="text"
-          size="x-small"></v-chip>
-      </template>
-
       <template #item.run_started_at_ms="{ value }">
         <v-chip
           :text="formatTimestamp(value, settingStore.timezone)"
@@ -80,17 +71,12 @@
           <v-tooltip text="Run Most Recently Imported Version" location="bottom">
             <template #activator="{ props }">
               <v-icon
-                v-if="item.status !== 'running' && item.project_source === 'local'"
+                v-if="item.status !== 'running'"
                 v-bind="props"
                 color="medium-emphasis"
                 icon="mdi-replay"
                 size="small"
-                @click="
-                  runMostRecentlyImportedProjectVersion(
-                    item.project_source,
-                    item.project_name,
-                  )
-                ">
+                @click="runMostRecentlyImportedProjectVersion(item.project_name)">
               </v-icon>
             </template>
           </v-tooltip>
@@ -107,17 +93,6 @@
               hide-details
               variant="underlined">
             </v-text-field>
-          </td>
-          <td>
-            <v-select
-              v-model="runHistoryStore.filterSource"
-              variant="underlined"
-              class="pa-0 ma-0 pl-2 pr-2"
-              density="compact"
-              hide-details
-              clearable
-              :items="['local', 'console']">
-            </v-select>
           </td>
           <td>
             <v-text-field
@@ -172,7 +147,6 @@ import type { DataTableHeader } from "vuetify";
 
 import { invokeMain } from "../../IPC/ipc";
 import { loggerRenderer } from "../../Logging/logger";
-import { getProjectSourceColor } from "../../Common/display";
 import { cloneJsonSerializable } from "../../Common/json";
 import { useRunHistoryStore } from "../../Store/runHistoryStore";
 import { useSettingStore } from "../../Store/settingStore";
@@ -198,7 +172,6 @@ const arrItemsPerPageOptions = [
 const dictSearch = computed<DictRunHistorySearch>(() => {
   return {
     schedule_name: runHistoryStore.filterScheduleName,
-    project_source: runHistoryStore.filterSource,
     project_name: runHistoryStore.filterProjectName,
     project_version: runHistoryStore.filterProjectVersion,
     status: runHistoryStore.filterStatus,
@@ -243,7 +216,6 @@ const arrHeader: DataTableHeader<DictRunHistoryItem>[] = [
     title: "Project",
     align: "center",
     children: [
-      { title: "Source", value: "project_source", align: "start", sortable: true },
       { title: "Name", value: "project_name", align: "start", sortable: true },
       {
         title: "Version",
@@ -312,17 +284,8 @@ async function cancelProcess(id: number): Promise<void> {
   await invokeMain("pythonCancel", id);
 }
 
-async function runMostRecentlyImportedProjectVersion(
-  projectSource: "local" | "console",
-  projectName: string,
-): Promise<void> {
-  loggerRenderer.info(
-    `Run most recently imported version: ${projectSource} ${projectName}`,
-  );
-
-  if (projectSource !== "local") {
-    return;
-  }
+async function runMostRecentlyImportedProjectVersion(projectName: string): Promise<void> {
+  loggerRenderer.info(`Run most recently imported version: ${projectName}`);
 
   await invokeMain("runMostRecentlyImportedProjectVersion", projectName);
   await runHistoryStore.refreshRunHistory();

@@ -1,7 +1,5 @@
 // FileName: run.ts
 
-import type { TypeProjectSource } from "./project";
-
 export type TypeRunHistoryStatus =
   | "running"
   | "completed"
@@ -13,7 +11,6 @@ export type TypeRunHistoryStatus =
 export interface DictRunHistoryItem {
   id: number;
   schedule_name: string | null;
-  project_source: TypeProjectSource;
   project_name: string;
   project_version: string;
   python_environment_name: string;
@@ -24,7 +21,6 @@ export interface DictRunHistoryItem {
 
 export interface DictRunHistorySearch {
   schedule_name: string;
-  project_source: TypeProjectSource | null;
   project_name: string;
   project_version: string;
   status: TypeRunHistoryStatus | null;
@@ -36,7 +32,6 @@ export interface DictRunHistoryOptions {
   sortBy: {
     key:
       | "schedule_name"
-      | "project_source"
       | "project_name"
       | "project_version"
       | "python_environment_name"
@@ -56,7 +51,6 @@ export interface DictRunHistoryPage {
 
 export interface DictRunQueueListItem {
   schedule_name: string;
-  project_source: TypeProjectSource;
   project_name: string;
   project_version: string;
   estimated_run_at_ms: number;

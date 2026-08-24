@@ -122,10 +122,9 @@ export const useScheduleStore = defineStore("schedule", {
       });
       const dictTemp: DictScheduleCreate = {
         name: this.dictDetail_new.name,
-        project_source: this.dictDetail_new.project_source,
         project_id: this.dictDetail_new.project_id,
         cron: this.dictDetail_new.cron,
-        when_others_running: this.dictDetail_new.when_others_running,
+        run_conflict_policy: this.dictDetail_new.run_conflict_policy,
         period_start_ms: intPeriodStartMs,
         period_end_ms: intPeriodEndMs,
         enable: this.dictDetail_new.enable,
@@ -157,10 +156,9 @@ export const useScheduleStore = defineStore("schedule", {
       const dictTemp: DictScheduleUpdate = {
         id: this.dictDetail_edit.id,
         name: this.dictDetail_edit.name,
-        project_source: this.dictDetail_edit.project_source,
         project_id: this.dictDetail_edit.project_id,
         cron: this.dictDetail_edit.cron,
-        when_others_running: this.dictDetail_edit.when_others_running,
+        run_conflict_policy: this.dictDetail_edit.run_conflict_policy,
         period_start_ms: intPeriodStartMs,
         period_end_ms: intPeriodEndMs,
         enable: this.dictDetail_edit.enable,

@@ -2,8 +2,6 @@
 
 import type { DictPythonEnvironmentSelection, DictRunOptions } from "./runOptions";
 
-export type TypeProjectSource = "local" | "console";
-
 export interface DictProjectDetail extends DictRunOptions, DictPythonEnvironmentSelection {
   id: number;
   name: string;

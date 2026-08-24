@@ -22,23 +22,16 @@ export function dbSelectScheduleList(): DictScheduleListItem[] {
       `
       SELECT
           ts.name,
-          ts.project_source,
-          CASE
-              WHEN ts.project_source = 'local' THEN pl.name
-              ELSE 'console'
-          END AS project_name,
-          CASE
-              WHEN ts.project_source = 'local' THEN pl.version
-              ELSE 'console'
-          END AS project_version,
+          pl.name AS project_name,
+          pl.version AS project_version,
           ts.cron,
           ts.enable,
           ts.period_start_ms,
           ts.period_end_ms,
-          ts.when_others_running
+          ts.run_conflict_policy
       FROM
-          task_scheduler ts
-          LEFT JOIN project_local pl ON ts.project_id = pl.id
+          schedule ts
+          INNER JOIN project pl ON ts.project_id = pl.id
       ORDER BY
           ts.updated_at_ms DESC;
       `,
@@ -55,18 +48,11 @@ export function dbSelectScheduleDetail(name: string): DictScheduleDetail | undef
       SELECT
           ts.id,
           ts.name,
-          ts.project_source,
           ts.project_id,
-          CASE
-              WHEN ts.project_source = 'local' THEN pl.name
-              ELSE 'console'
-          END AS project_name,
-          CASE
-              WHEN ts.project_source = 'local' THEN pl.version
-              ELSE 'console'
-          END AS project_version,
+          pl.name AS project_name,
+          pl.version AS project_version,
           ts.cron,
-          ts.when_others_running,
+          ts.run_conflict_policy,
           ts.period_start_ms,
           ts.period_end_ms,
           ts.enable,
@@ -79,8 +65,8 @@ export function dbSelectScheduleDetail(name: string): DictScheduleDetail | undef
           ts.created_at_ms,
           ts.updated_at_ms
       FROM
-          task_scheduler ts
-          LEFT JOIN project_local pl ON ts.project_id = pl.id
+          schedule ts
+          INNER JOIN project pl ON ts.project_id = pl.id
       WHERE
           ts.name = ?;
       `,
@@ -98,20 +84,10 @@ export function dbSelectScheduleRunDetail(name: string): DictProjectRunDetail | 
       `
       SELECT
           ts.name AS schedule_name,
-          ts.project_source,
           ts.project_id AS id,
-          CASE
-              WHEN ts.project_source = 'local' THEN pl.name
-              ELSE 'console'
-          END AS name,
-          CASE
-              WHEN ts.project_source = 'local' THEN pl.version
-              ELSE 'console'
-          END AS version,
-          CASE
-              WHEN ts.project_source = 'local' THEN pl.python_environment_name
-              ELSE 'default'
-          END AS python_environment_name,
+          pl.name AS name,
+          pl.version AS version,
+          pl.python_environment_name,
           ts.timeout_min,
           ts.builtin_log_level,
           ts.builtin_record_video,
@@ -119,8 +95,8 @@ export function dbSelectScheduleRunDetail(name: string): DictProjectRunDetail | 
           ts.builtin_highlight_ui,
           ts.custom_prj_args
       FROM
-          task_scheduler ts
-          LEFT JOIN project_local pl ON ts.project_id = pl.id
+          schedule ts
+          INNER JOIN project pl ON ts.project_id = pl.id
       WHERE
           ts.name = ?;
       `,
@@ -138,12 +114,11 @@ export function dbInsertSchedule(dictDetail: DictScheduleCreate): Database.RunRe
     .prepare(
       `
       INSERT INTO
-          task_scheduler (
+          schedule (
               name,
-              project_source,
               project_id,
               cron,
-              when_others_running,
+              run_conflict_policy,
               period_start_ms,
               period_end_ms,
               enable,
@@ -157,15 +132,14 @@ export function dbInsertSchedule(dictDetail: DictScheduleCreate): Database.RunRe
               updated_at_ms
           )
       VALUES
-          (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+          (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
       `,
     )
     .run(
       dictDetail.name,
-      dictDetail.project_source,
       dictDetail.project_id,
       dictDetail.cron,
-      dictDetail.when_others_running,
+      dictDetail.run_conflict_policy,
       dictDetail.period_start_ms,
       dictDetail.period_end_ms,
       dictDetail.enable ? 1 : 0,
@@ -185,13 +159,12 @@ export function dbUpdateSchedule(dictDetail: DictScheduleUpdate): Database.RunRe
   return getDatabase()
     .prepare(
       `
-      UPDATE task_scheduler
+      UPDATE schedule
       SET
           name = ?,
-          project_source = ?,
           project_id = ?,
           cron = ?,
-          when_others_running = ?,
+          run_conflict_policy = ?,
           period_start_ms = ?,
           period_end_ms = ?,
           enable = ?,
@@ -208,10 +181,9 @@ export function dbUpdateSchedule(dictDetail: DictScheduleUpdate): Database.RunRe
     )
     .run(
       dictDetail.name,
-      dictDetail.project_source,
       dictDetail.project_id,
       dictDetail.cron,
-      dictDetail.when_others_running,
+      dictDetail.run_conflict_policy,
       dictDetail.period_start_ms,
       dictDetail.period_end_ms,
       dictDetail.enable ? 1 : 0,
@@ -228,5 +200,5 @@ export function dbUpdateSchedule(dictDetail: DictScheduleUpdate): Database.RunRe
 
 export function dbDeleteSchedule(id: number): Database.RunResult {
   loggerMain.debug("--dbDeleteSchedule--");
-  return getDatabase().prepare("DELETE FROM task_scheduler WHERE id = ?;").run(id);
+  return getDatabase().prepare("DELETE FROM schedule WHERE id = ?;").run(id);
 }

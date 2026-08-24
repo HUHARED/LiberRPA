@@ -9,7 +9,6 @@ import type { DictProjectRunDetail } from "./types";
 function createManualRunDetail(dictProject: DictProjectDetail): DictProjectRunDetail {
   return {
     schedule_name: null,
-    project_source: "local",
     id: dictProject.id,
     name: dictProject.name,
     version: dictProject.version,

@@ -17,6 +17,7 @@ interface StartedProjectPythonProcess {
   getProcessError: () => Error | undefined;
 }
 
+const STR_PROJECT_RUN_TERMINATION_MESSAGE = "Executor-terminated";
 const INT_PROCESS_OUTPUT_TAIL_MAX_LENGTH = 32 * 1024;
 const INT_PROCESS_TERMINATION_WAIT_MS = 3 * 1000;
 
@@ -169,7 +170,7 @@ export function requestPythonTermination(
   }
 
   try {
-    processPy.stdin.end("Executor-terminated\r\n");
+    processPy.stdin.end(`${STR_PROJECT_RUN_TERMINATION_MESSAGE}\r\n`);
     return true;
   } catch (e: unknown) {
     loggerMain.error(

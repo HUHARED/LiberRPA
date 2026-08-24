@@ -9,13 +9,13 @@ import { dbHasRunningRun } from "../Database/runHistoryRepository";
 import { loggerMain } from "../Logging/logger";
 import { hasStartingRun, pythonRun } from "../Run/projectRunner";
 import type { DictRunQueueListItem } from "../../shared/run";
-import type { TypeWhenOthersRunning } from "../../shared/schedule";
+import type { TypeRunConflictPolicy } from "../../shared/schedule";
 
 type RunQueueChangedListener = (arrItem: DictRunQueueListItem[]) => void;
 
 interface PendingRun {
   queueItem: DictRunQueueListItem;
-  whenOthersRunning: TypeWhenOthersRunning;
+  runConflictPolicy: TypeRunConflictPolicy;
 }
 
 const INT_SCHEDULER_CHECK_INTERVAL_MS = 1000;
@@ -119,13 +119,12 @@ function resetPendingRuns(): void {
       arrNextPending.push({
         queueItem: {
           schedule_name: dictSchedule.name,
-          project_source: dictSchedule.project_source,
           project_name: dictSchedule.project_name,
           project_version: dictSchedule.project_version,
           estimated_run_at_ms: intervalObj.next().toDate().getTime(),
           waiting: false,
         },
-        whenOthersRunning: dictSchedule.when_others_running,
+        runConflictPolicy: dictSchedule.run_conflict_policy,
       });
     } catch (e: unknown) {
       loggerMain.debug(
@@ -180,12 +179,12 @@ async function processSchedulerTick(): Promise<void> {
     }
 
     for (const dictDueRun of arrDueRun) {
-      const { queueItem, whenOthersRunning } = dictDueRun;
+      const { queueItem, runConflictPolicy } = dictDueRun;
       loggerMain.info(
-        `Schedule '${queueItem.schedule_name}' reached its run time. when_others_running=${whenOthersRunning}`,
+        `Schedule '${queueItem.schedule_name}' reached its run time. run_conflict_policy=${runConflictPolicy}`,
       );
 
-      if (!boolOthersRunning || whenOthersRunning === "run") {
+      if (!boolOthersRunning || runConflictPolicy === "concurrent") {
         try {
           const boolStarted = await runSchedule(queueItem.schedule_name);
           if (boolStarted) {
@@ -201,7 +200,7 @@ async function processSchedulerTick(): Promise<void> {
         continue;
       }
 
-      if (whenOthersRunning === "wait") {
+      if (runConflictPolicy === "wait") {
         loggerMain.info(
           `Move Schedule '${queueItem.schedule_name}' Run into the waiting queue.`,
         );

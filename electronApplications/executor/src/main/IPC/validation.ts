@@ -12,9 +12,8 @@ import {
   ensureNonEmptyString,
   ensureNonNegativeInteger,
   ensurePositiveInteger,
-  ensureProjectSource,
   ensureString,
-  ensureWhenOthersRunning,
+  ensureRunConflictPolicy,
 } from "../Common/validation";
 
 function ensureRunHistorySortKey(
@@ -23,7 +22,6 @@ function ensureRunHistorySortKey(
 ): DictRunHistoryOptions["sortBy"][number]["key"] {
   switch (value) {
     case "schedule_name":
-    case "project_source":
     case "project_name":
     case "project_version":
     case "python_environment_name":
@@ -188,10 +186,9 @@ function ensureScheduleData(
 ): DictScheduleCreate | DictScheduleUpdate {
   const arrExpectedKey = [
     "name",
-    "project_source",
     "project_id",
     "cron",
-    "when_others_running",
+    "run_conflict_policy",
     "period_start_ms",
     "period_end_ms",
     "enable",
@@ -221,15 +218,11 @@ function ensureScheduleData(
 
   const dictBase: DictScheduleCreate = {
     name: ensureNonEmptyString(dictValue.name, "Schedule request.name"),
-    project_source: ensureProjectSource(
-      dictValue.project_source,
-      "Schedule request.project_source",
-    ),
     project_id: ensurePositiveInteger(dictValue.project_id, "Schedule request.project_id"),
     cron: ensureNonEmptyString(dictValue.cron, "Schedule request.cron"),
-    when_others_running: ensureWhenOthersRunning(
-      dictValue.when_others_running,
-      "Schedule request.when_others_running",
+    run_conflict_policy: ensureRunConflictPolicy(
+      dictValue.run_conflict_policy,
+      "Schedule request.run_conflict_policy",
     ),
     period_start_ms: intPeriodStartMs,
     period_end_ms: intPeriodEndMs,
@@ -311,17 +304,9 @@ export function ensureRunHistoryOptions(value: unknown): DictRunHistoryOptions {
 
   const dictSearch = ensureExactRecord(
     dictValue.search,
-    ["schedule_name", "project_source", "project_name", "project_version", "status"],
+    ["schedule_name", "project_name", "project_version", "status"],
     "Run History options.search",
   );
-
-  const strProjectSource =
-    dictSearch.project_source === null
-      ? null
-      : ensureProjectSource(
-          dictSearch.project_source,
-          "Run History options.search.project_source",
-        );
 
   const status =
     dictSearch.status === null
@@ -340,7 +325,6 @@ export function ensureRunHistoryOptions(value: unknown): DictRunHistoryOptions {
         dictSearch.schedule_name,
         "Run History options.search.schedule_name",
       ),
-      project_source: strProjectSource,
       project_name: ensureString(
         dictSearch.project_name,
         "Run History options.search.project_name",

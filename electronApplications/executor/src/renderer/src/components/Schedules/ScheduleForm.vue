@@ -15,13 +15,13 @@
 
         <v-col cols="5">
           <v-select
-            v-model="detail.when_others_running"
+            v-model="detail.run_conflict_policy"
             label="When Another Run Is Active"
             variant="underlined"
             class="clean-space"
             density="compact"
             hide-details
-            :items="ARR_WHEN_OTHERS_RUNNING">
+            :items="ARR_RUN_CONFLICT_POLICY">
           </v-select>
         </v-col>
       </v-row>
@@ -104,19 +104,6 @@
       <v-label class="mt-2 mb-3"> Project </v-label>
 
       <v-row class="w-100">
-        <v-col cols="3">
-          <!-- Modify to :items="['local', 'console']" when LiberRPA Console is created. -->
-          <v-select
-            v-model="detail.project_source"
-            label="Source"
-            variant="underlined"
-            class="clean-space"
-            density="compact"
-            hide-details
-            :items="['local']">
-          </v-select>
-        </v-col>
-
         <v-col cols="2">
           <v-text-field
             v-model="detail.project_id"
@@ -132,7 +119,7 @@
           </v-text-field>
         </v-col>
 
-        <v-col cols="5">
+        <v-col cols="7">
           <v-select
             v-model="detail.project_name"
             label="Name"
@@ -145,7 +132,7 @@
           </v-select>
         </v-col>
 
-        <v-col cols="2">
+        <v-col cols="3">
           <v-select
             v-model="detail.project_version"
             label="Version"
@@ -198,7 +185,7 @@ import { validateCronExpression } from "../../Schedule/cron";
 import { useScheduleStore } from "../../Store/scheduleStore";
 import { useSettingStore } from "../../Store/settingStore";
 import type { TypeScheduleFormDetail } from "../../Schedule/types";
-import type { TypeWhenOthersRunning } from "../../../../shared/schedule";
+import type { TypeRunConflictPolicy } from "../../../../shared/schedule";
 
 const scheduleStore = useScheduleStore();
 const settingStore = useSettingStore();
@@ -222,10 +209,10 @@ const cronValidation = computed(() => {
     : validateCronExpression(currentDetail.cron);
 });
 
-const ARR_WHEN_OTHERS_RUNNING: { title: string; value: TypeWhenOthersRunning }[] = [
-  { title: "Skip This Run", value: "cancel" },
+const ARR_RUN_CONFLICT_POLICY: { title: string; value: TypeRunConflictPolicy }[] = [
+  { title: "Skip This Run", value: "skip" },
   { title: "Wait", value: "wait" },
-  { title: "Run Concurrently", value: "run" },
+  { title: "Run Concurrently", value: "concurrent" },
 ];
 
 async function whenProjectNameChanged(): Promise<void> {
@@ -235,7 +222,7 @@ async function whenProjectNameChanged(): Promise<void> {
   }
 
   const name = currentDetail.project_name;
-  if (currentDetail.project_source !== "local" || name === undefined) {
+  if (name === undefined) {
     return;
   }
 
@@ -272,11 +259,7 @@ async function whenProjectVersionChanged(): Promise<void> {
 
   const name = currentDetail.project_name;
   const version = currentDetail.project_version;
-  if (
-    currentDetail.project_source !== "local" ||
-    name === undefined ||
-    version === undefined
-  ) {
+  if (name === undefined || version === undefined) {
     return;
   }
 

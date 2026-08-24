@@ -11,7 +11,7 @@ import {
 } from "../Config/environment";
 import { loggerMain } from "../Logging/logger";
 
-const STR_MOVE_MOUSE_TERMINATION_MESSAGE = "Executor-terminated";
+const STR_MOVE_MOUSE_TERMINATION_MESSAGE = "Executor-stop-move-mouse";
 const INT_RDP_HELPER_CHECK_INTERVAL_MS = 1000;
 
 function getScriptFolderPath(): string {

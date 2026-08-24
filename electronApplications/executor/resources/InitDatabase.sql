@@ -1,7 +1,7 @@
 PRAGMA foreign_keys = ON;
 
 CREATE TABLE
-    project_local (
+    project (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL CHECK (LENGTH(TRIM(name)) > 0),
         version TEXT NOT NULL CHECK (LENGTH(TRIM(version)) > 0),
@@ -30,13 +30,14 @@ CREATE TABLE
     ) STRICT;
 
 CREATE TABLE
-    task_scheduler (
+    schedule (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL UNIQUE CHECK (LENGTH(TRIM(name)) > 0),
-        project_source TEXT NOT NULL DEFAULT 'local' CHECK (project_source IN ('local', 'console')),
         project_id INTEGER NOT NULL CHECK (project_id > 0),
         cron TEXT NOT NULL CHECK (LENGTH(TRIM(cron)) > 0),
-        when_others_running TEXT NOT NULL DEFAULT 'cancel' CHECK (when_others_running IN ('cancel', 'wait', 'run')),
+        run_conflict_policy TEXT NOT NULL DEFAULT 'skip' CHECK (
+            run_conflict_policy IN ('skip', 'wait', 'concurrent')
+        ),
         period_start_ms INTEGER NOT NULL CHECK (period_start_ms >= 0),
         period_end_ms INTEGER NOT NULL CHECK (period_end_ms > period_start_ms),
         enable INTEGER NOT NULL DEFAULT 1 CHECK (enable IN (0, 1)),
@@ -56,14 +57,14 @@ CREATE TABLE
         builtin_highlight_ui INTEGER NOT NULL DEFAULT 0 CHECK (builtin_highlight_ui IN (0, 1)),
         custom_prj_args TEXT NOT NULL DEFAULT '[]',
         created_at_ms INTEGER NOT NULL CHECK (created_at_ms >= 0),
-        updated_at_ms INTEGER NOT NULL CHECK (updated_at_ms >= 0)
+        updated_at_ms INTEGER NOT NULL CHECK (updated_at_ms >= 0),
+        FOREIGN KEY (project_id) REFERENCES project (id) ON DELETE RESTRICT
     ) STRICT;
 
 CREATE TABLE
-    task_history (
+    run_history (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        scheduler_name TEXT NULL DEFAULT NULL,
-        project_source TEXT NOT NULL DEFAULT 'local' CHECK (project_source IN ('local', 'console')),
+        schedule_name TEXT NULL DEFAULT NULL,
         project_id INTEGER NOT NULL CHECK (project_id > 0),
         project_name TEXT NOT NULL CHECK (LENGTH(TRIM(project_name)) > 0),
         project_version TEXT NOT NULL CHECK (LENGTH(TRIM(project_version)) > 0),
@@ -100,8 +101,8 @@ CREATE TABLE
         )
     ) STRICT;
 
-CREATE INDEX idx_task_scheduler_project_id ON task_scheduler (project_id);
+CREATE INDEX idx_schedule_project_id ON schedule (project_id);
 
-CREATE INDEX idx_task_history_run_started_at_ms ON task_history (run_started_at_ms DESC);
+CREATE INDEX idx_run_history_run_started_at_ms ON run_history (run_started_at_ms DESC);
 
-PRAGMA user_version = 2;
+PRAGMA user_version = 3;

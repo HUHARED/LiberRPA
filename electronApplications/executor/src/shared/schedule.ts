@@ -1,20 +1,18 @@
 // FileName: schedule.ts
 
-import type { TypeProjectSource } from "./project";
 import type { DictRunOptions } from "./runOptions";
 
-export type TypeWhenOthersRunning = "cancel" | "wait" | "run";
+export type TypeRunConflictPolicy = "skip" | "wait" | "concurrent";
 
 export interface DictScheduleListItem {
   name: string;
-  project_source: TypeProjectSource;
   project_name: string;
   project_version: string;
   cron: string;
   enable: boolean;
   period_start_ms: number;
   period_end_ms: number;
-  when_others_running: TypeWhenOthersRunning;
+  run_conflict_policy: TypeRunConflictPolicy;
 }
 
 export interface DictScheduleDetail extends DictScheduleListItem, DictRunOptions {

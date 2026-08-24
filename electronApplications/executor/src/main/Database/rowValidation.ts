@@ -12,10 +12,9 @@ import {
   ensureNullableNonNegativeInteger,
   ensureNullableString,
   ensurePositiveInteger,
-  ensureProjectSource,
   ensureRunHistoryStatus,
   ensureString,
-  ensureWhenOthersRunning,
+  ensureRunConflictPolicy,
 } from "../Common/validation";
 
 function ensureBinaryInteger(value: unknown, strSourceName: string): 0 | 1 {
@@ -146,14 +145,13 @@ function ensureScheduleListItemRow(
     value,
     [
       "name",
-      "project_source",
       "project_name",
       "project_version",
       "cron",
       "enable",
       "period_start_ms",
       "period_end_ms",
-      "when_others_running",
+      "run_conflict_policy",
     ],
     strSourceName,
   );
@@ -171,10 +169,6 @@ function ensureScheduleListItemRow(
 
   return {
     name: ensureNonEmptyString(row.name, `${strSourceName}.name`),
-    project_source: ensureProjectSource(
-      row.project_source,
-      `${strSourceName}.project_source`,
-    ),
     project_name: ensureNonEmptyString(row.project_name, `${strSourceName}.project_name`),
     project_version: ensureNonEmptyString(
       row.project_version,
@@ -184,9 +178,9 @@ function ensureScheduleListItemRow(
     enable: ensureBinaryInteger(row.enable, `${strSourceName}.enable`) === 1,
     period_start_ms: intPeriodStartMs,
     period_end_ms: intPeriodEndMs,
-    when_others_running: ensureWhenOthersRunning(
-      row.when_others_running,
-      `${strSourceName}.when_others_running`,
+    run_conflict_policy: ensureRunConflictPolicy(
+      row.run_conflict_policy,
+      `${strSourceName}.run_conflict_policy`,
     ),
   };
 }
@@ -207,12 +201,11 @@ export function ensureScheduleDetailRow(
     [
       "id",
       "name",
-      "project_source",
       "project_id",
       "project_name",
       "project_version",
       "cron",
-      "when_others_running",
+      "run_conflict_policy",
       "period_start_ms",
       "period_end_ms",
       "enable",
@@ -242,10 +235,6 @@ export function ensureScheduleDetailRow(
   return {
     id: ensurePositiveInteger(row.id, `${strSourceName}.id`),
     name: ensureNonEmptyString(row.name, `${strSourceName}.name`),
-    project_source: ensureProjectSource(
-      row.project_source,
-      `${strSourceName}.project_source`,
-    ),
     project_id: ensurePositiveInteger(row.project_id, `${strSourceName}.project_id`),
     project_name: ensureNonEmptyString(row.project_name, `${strSourceName}.project_name`),
     project_version: ensureNonEmptyString(
@@ -253,9 +242,9 @@ export function ensureScheduleDetailRow(
       `${strSourceName}.project_version`,
     ),
     cron: ensureNonEmptyString(row.cron, `${strSourceName}.cron`),
-    when_others_running: ensureWhenOthersRunning(
-      row.when_others_running,
-      `${strSourceName}.when_others_running`,
+    run_conflict_policy: ensureRunConflictPolicy(
+      row.run_conflict_policy,
+      `${strSourceName}.run_conflict_policy`,
     ),
     period_start_ms: intPeriodStartMs,
     period_end_ms: intPeriodEndMs,
@@ -303,7 +292,6 @@ export function ensureScheduleRunDetailRow(
     value,
     [
       "schedule_name",
-      "project_source",
       "id",
       "name",
       "version",
@@ -322,10 +310,6 @@ export function ensureScheduleRunDetailRow(
     schedule_name: ensureNonEmptyString(
       row.schedule_name,
       `${strSourceName}.schedule_name`,
-    ),
-    project_source: ensureProjectSource(
-      row.project_source,
-      `${strSourceName}.project_source`,
     ),
     id: ensurePositiveInteger(row.id, `${strSourceName}.id`),
     name: ensureNonEmptyString(row.name, `${strSourceName}.name`),
@@ -369,8 +353,7 @@ function ensureRunHistoryListItemRow(
     value,
     [
       "id",
-      "scheduler_name",
-      "project_source",
+      "schedule_name",
       "project_name",
       "project_version",
       "python_environment_name",
@@ -395,12 +378,8 @@ function ensureRunHistoryListItemRow(
   return {
     id: ensurePositiveInteger(row.id, `${strSourceName}.id`),
     schedule_name: ensureNullableString(
-      row.scheduler_name,
-      `${strSourceName}.scheduler_name`,
-    ),
-    project_source: ensureProjectSource(
-      row.project_source,
-      `${strSourceName}.project_source`,
+      row.schedule_name,
+      `${strSourceName}.schedule_name`,
     ),
     project_name: ensureNonEmptyString(row.project_name, `${strSourceName}.project_name`),
     project_version: ensureNonEmptyString(
