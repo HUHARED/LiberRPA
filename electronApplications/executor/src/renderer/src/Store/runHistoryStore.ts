@@ -4,20 +4,15 @@ import { cloneJsonSerializable } from "../Common/json";
 import { invokeMain } from "../IPC/ipc";
 import { loggerRenderer } from "../Logging/logger";
 import type {
-  DictColumns_RunHistory_ListItem_DB,
+  DictRunHistoryItem,
   DictRunHistoryOptions,
-  DictRunHistorySearch,
   TypeRunHistoryStatus,
 } from "../../../shared/run";
-
-interface DictRunHistoryTableOptions extends Omit<DictRunHistoryOptions, "search"> {
-  search: string;
-}
 
 export const useRunHistoryStore = defineStore("runHistory", {
   state: () => {
     return {
-      arrListItem: [] as DictColumns_RunHistory_ListItem_DB[],
+      arrListItem: [] as DictRunHistoryItem[],
       itemLength: 0 as number,
       dictOptionsCache: undefined as DictRunHistoryOptions | undefined,
 
@@ -29,19 +24,10 @@ export const useRunHistoryStore = defineStore("runHistory", {
     };
   },
   actions: {
-    async loadRunHistoryPage(options: DictRunHistoryTableOptions | null): Promise<void> {
+    async loadRunHistoryPage(options: DictRunHistoryOptions | null): Promise<void> {
       if (options) {
-        // Make sure this.dictOptionsCache not use a same object(memory address) with v-data-table-server's options. Otherwise the page button may not work.
-
-        const dictTemp: DictRunHistoryTableOptions = cloneJsonSerializable(options);
-
-        this.dictOptionsCache = {
-          page: dictTemp.page,
-          itemsPerPage: dictTemp.itemsPerPage,
-          sortBy: dictTemp.sortBy,
-          // dictTemp.search is a string, deserialize it.
-          search: JSON.parse(dictTemp.search) as DictRunHistorySearch,
-        };
+        // Keep an independent copy because v-data-table-server reuses its options object.
+        this.dictOptionsCache = cloneJsonSerializable(options);
       }
 
       // If dictOptionsCache is not undefined, means user has opened Run History, can use the dictOptionsCache to upload data. Otherwise it does not need to refresh.
@@ -53,7 +39,7 @@ export const useRunHistoryStore = defineStore("runHistory", {
       }
 
       const result = await invokeMain(
-        "selectRunHistoryPage",
+        "getRunHistoryPage",
         cloneJsonSerializable(this.dictOptionsCache),
       );
       // loggerRenderer.debug(JSON.stringify(result, null, 2));

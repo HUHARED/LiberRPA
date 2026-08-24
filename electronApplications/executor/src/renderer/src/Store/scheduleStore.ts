@@ -6,13 +6,12 @@ import {
   formatTimestampForDateTimeLocal,
   parseDateTimeLocalToTimestamp,
 } from "../Common/time";
+import type { DictNewScheduleFormDetail, DictScheduleFormDetail } from "../Schedule/types";
 import { useSettingStore } from "./settingStore";
 import type {
-  DictColumns_Schedule_Detail,
-  DictColumns_Schedule_Detail_BeforeInsert,
-  DictColumns_Schedule_Detail_ToInsert,
-  DictColumns_Schedule_Detail_ToUpdate,
-  DictColumns_Schedule_ListItem,
+  DictScheduleCreate,
+  DictScheduleListItem,
+  DictScheduleUpdate,
 } from "../../../shared/schedule";
 
 function getSchedulePeriodTimestamps({
@@ -40,36 +39,22 @@ function getSchedulePeriodTimestamps({
 export const useScheduleStore = defineStore("schedule", {
   state: () => {
     return {
-      arrListItem: [] as DictColumns_Schedule_ListItem[],
+      arrListItem: [] as DictScheduleListItem[],
 
       // Edit and New use the same dialog size.
       showDialog_edit_new: false as boolean,
       isEditing: undefined as undefined | "edit" | "new",
-      dictDetail_edit: undefined as DictColumns_Schedule_Detail | undefined,
+      dictDetail_edit: undefined as DictScheduleFormDetail | undefined,
       detailCache_edit: undefined as string | undefined,
 
       showDialog_delete: false as boolean,
-      dictDetail_new: undefined as DictColumns_Schedule_Detail_BeforeInsert | undefined,
+      dictDetail_new: undefined as DictNewScheduleFormDetail | undefined,
     };
   },
   actions: {
     async loadScheduleList(): Promise<void> {
       if (this.arrListItem.length === 0) {
-        const arrRow = await invokeMain("selectScheduleList");
-
-        this.arrListItem = arrRow.map((dictRow) => {
-          return {
-            name: dictRow.name,
-            project_source: dictRow.project_source,
-            project_name: dictRow.project_name,
-            project_version: dictRow.project_version,
-            cron: dictRow.cron,
-            enable: dictRow.enable === 1,
-            period_start_ms: dictRow.period_start_ms,
-            period_end_ms: dictRow.period_end_ms,
-            when_others_running: dictRow.when_others_running,
-          };
-        });
+        this.arrListItem = await invokeMain("getScheduleList");
       }
     },
 
@@ -81,39 +66,20 @@ export const useScheduleStore = defineStore("schedule", {
     },
 
     async loadScheduleDetail(name: string): Promise<void> {
-      const dictRow = await invokeMain("selectScheduleDetail", name);
-      if (dictRow === undefined) {
+      const dictDetail = await invokeMain("getScheduleDetail", name);
+      if (dictDetail === undefined) {
         throw new Error(`Schedule not found: ${name}`);
       }
 
       const settingStore = useSettingStore();
+      const { period_start_ms, period_end_ms, ...dictDetailWithoutPeriod } = dictDetail;
       this.dictDetail_edit = {
-        id: dictRow.id,
-        name: dictRow.name,
-        project_source: dictRow.project_source,
-        project_id: dictRow.project_id,
-        project_name: dictRow.project_name,
-        project_version: dictRow.project_version,
-        python_environment_name: dictRow.python_environment_name,
-        cron: dictRow.cron,
-        when_others_running: dictRow.when_others_running,
+        ...dictDetailWithoutPeriod,
         period_start: formatTimestampForDateTimeLocal(
-          dictRow.period_start_ms,
+          period_start_ms,
           settingStore.timezone,
         ),
-        period_end: formatTimestampForDateTimeLocal(
-          dictRow.period_end_ms,
-          settingStore.timezone,
-        ),
-        enable: dictRow.enable === 1,
-        timeout_min: dictRow.timeout_min,
-        builtin_log_level: dictRow.builtin_log_level,
-        builtin_record_video: dictRow.builtin_record_video === 1,
-        builtin_stop_shortcut: dictRow.builtin_stop_shortcut === 1,
-        builtin_highlight_ui: dictRow.builtin_highlight_ui === 1,
-        custom_prj_args: dictRow.custom_prj_args ? JSON.parse(dictRow.custom_prj_args) : [],
-        created_at_ms: dictRow.created_at_ms,
-        updated_at_ms: dictRow.updated_at_ms,
+        period_end: formatTimestampForDateTimeLocal(period_end_ms, settingStore.timezone),
       };
       this.detailCache_edit = JSON.stringify(this.dictDetail_edit);
     },
@@ -132,7 +98,7 @@ export const useScheduleStore = defineStore("schedule", {
         periodEnd: this.dictDetail_new.period_end,
         timezone: settingStore.timezone,
       });
-      const dictTemp: DictColumns_Schedule_Detail_ToInsert = {
+      const dictTemp: DictScheduleCreate = {
         name: this.dictDetail_new.name,
         project_source: this.dictDetail_new.project_source,
         project_id: this.dictDetail_new.project_id,
@@ -140,15 +106,15 @@ export const useScheduleStore = defineStore("schedule", {
         when_others_running: this.dictDetail_new.when_others_running,
         period_start_ms: intPeriodStartMs,
         period_end_ms: intPeriodEndMs,
-        enable: this.dictDetail_new.enable ? 1 : 0,
+        enable: this.dictDetail_new.enable,
         timeout_min: this.dictDetail_new.timeout_min,
         builtin_log_level: this.dictDetail_new.builtin_log_level,
-        builtin_record_video: this.dictDetail_new.builtin_record_video ? 1 : 0,
-        builtin_stop_shortcut: this.dictDetail_new.builtin_stop_shortcut ? 1 : 0,
-        builtin_highlight_ui: this.dictDetail_new.builtin_highlight_ui ? 1 : 0,
-        custom_prj_args: JSON.stringify(this.dictDetail_new.custom_prj_args),
+        builtin_record_video: this.dictDetail_new.builtin_record_video,
+        builtin_stop_shortcut: this.dictDetail_new.builtin_stop_shortcut,
+        builtin_highlight_ui: this.dictDetail_new.builtin_highlight_ui,
+        custom_prj_args: this.dictDetail_new.custom_prj_args,
       };
-      await invokeMain("insertSchedule", dictTemp);
+      await invokeMain("createSchedule", dictTemp);
       await this.refreshScheduleList();
     },
 
@@ -163,7 +129,7 @@ export const useScheduleStore = defineStore("schedule", {
         periodEnd: this.dictDetail_edit.period_end,
         timezone: settingStore.timezone,
       });
-      const dictTemp: DictColumns_Schedule_Detail_ToUpdate = {
+      const dictTemp: DictScheduleUpdate = {
         id: this.dictDetail_edit.id,
         name: this.dictDetail_edit.name,
         project_source: this.dictDetail_edit.project_source,
@@ -172,15 +138,15 @@ export const useScheduleStore = defineStore("schedule", {
         when_others_running: this.dictDetail_edit.when_others_running,
         period_start_ms: intPeriodStartMs,
         period_end_ms: intPeriodEndMs,
-        enable: this.dictDetail_edit.enable ? 1 : 0,
+        enable: this.dictDetail_edit.enable,
         timeout_min: this.dictDetail_edit.timeout_min,
         builtin_log_level: this.dictDetail_edit.builtin_log_level,
-        builtin_record_video: this.dictDetail_edit.builtin_record_video ? 1 : 0,
-        builtin_stop_shortcut: this.dictDetail_edit.builtin_stop_shortcut ? 1 : 0,
-        builtin_highlight_ui: this.dictDetail_edit.builtin_highlight_ui ? 1 : 0,
-        custom_prj_args: JSON.stringify(this.dictDetail_edit.custom_prj_args),
+        builtin_record_video: this.dictDetail_edit.builtin_record_video,
+        builtin_stop_shortcut: this.dictDetail_edit.builtin_stop_shortcut,
+        builtin_highlight_ui: this.dictDetail_edit.builtin_highlight_ui,
+        custom_prj_args: this.dictDetail_edit.custom_prj_args,
       };
-      await invokeMain("updateSchedule", dictTemp);
+      await invokeMain("saveSchedule", dictTemp);
       await this.refreshScheduleList();
     },
 

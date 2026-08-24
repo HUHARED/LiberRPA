@@ -356,6 +356,7 @@ import { ref, watch } from "vue";
 import { debounce } from "lodash";
 
 import { loggerRenderer } from "../Logging/logger";
+import { cloneJsonSerializable } from "../Common/json";
 import { validateCron } from "../Schedule/cron";
 import { useInformationStore } from "../Store/informationStore";
 import { useProjectStore } from "../Store/projectStore";
@@ -489,8 +490,9 @@ async function applyProjectDetailToSchedule(name: string, version: string): Prom
       projectStore.dictDetail_edit.builtin_stop_shortcut;
     scheduleStore.dictDetail_new.builtin_highlight_ui =
       projectStore.dictDetail_edit.builtin_highlight_ui;
-    scheduleStore.dictDetail_new.custom_prj_args =
-      projectStore.dictDetail_edit.custom_prj_args;
+    scheduleStore.dictDetail_new.custom_prj_args = cloneJsonSerializable(
+      projectStore.dictDetail_edit.custom_prj_args,
+    );
 
     loggerRenderer.debug(JSON.stringify(scheduleStore.dictDetail_new, null, 2));
   }

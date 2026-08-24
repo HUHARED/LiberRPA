@@ -272,7 +272,7 @@ export function saveExecutorConfigDict(dictSettings: DictExecutorConfig): void {
   }
 }
 
-export async function selectProjectLogFolder(): Promise<string | null> {
+export async function chooseProjectLogFolder(): Promise<string | null> {
   const result = await dialog.showOpenDialog({
     properties: ["openDirectory"],
     title: "Select a Folder",

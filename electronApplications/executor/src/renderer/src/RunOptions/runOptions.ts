@@ -2,17 +2,11 @@ import { computed, ref } from "vue";
 import type { Ref, WritableComputedRef } from "vue";
 
 import { useInformationStore } from "../Store/informationStore";
-import type { DictColumns_Project_Detail } from "../../../shared/project";
-import type {
-  TypeColumns_LogLevel,
-  TypeCustomProjectArgs,
-} from "../../../shared/runOptions";
-import type {
-  DictColumns_Schedule_Detail,
-  DictColumns_Schedule_Detail_BeforeInsert,
-} from "../../../shared/schedule";
+import type { DictProjectDetail } from "../../../shared/project";
+import type { TypeCustomProjectArgs, TypeLogLevel } from "../../../shared/runOptions";
+import type { DictNewScheduleFormDetail, DictScheduleFormDetail } from "../Schedule/types";
 
-export const ARR_LOG_LEVEL: TypeColumns_LogLevel[] = [
+export const ARR_LOG_LEVEL: TypeLogLevel[] = [
   "VERBOSE",
   "DEBUG",
   "INFO",
@@ -22,9 +16,9 @@ export const ARR_LOG_LEVEL: TypeColumns_LogLevel[] = [
 ];
 
 type TypeRunOptionsDetail =
-  | DictColumns_Project_Detail
-  | DictColumns_Schedule_Detail
-  | DictColumns_Schedule_Detail_BeforeInsert;
+  | DictProjectDetail
+  | DictScheduleFormDetail
+  | DictNewScheduleFormDetail;
 
 export function getArgumentValueNote(value: unknown): string {
   return (

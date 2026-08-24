@@ -2,22 +2,20 @@ import { CronExpressionParser } from "cron-parser";
 
 import { dictConfigExecutor } from "../Config/config";
 import {
-  dbSelectScheduleDetail,
   dbSelectScheduleList,
+  dbSelectScheduleRunDetail,
 } from "../Database/scheduleRepository";
 import { dbHasRunningRun } from "../Database/runHistoryRepository";
 import { loggerMain } from "../Logging/logger";
 import { pythonRun } from "../Run/projectRunner";
-import { parseCustomProjectArgsJson } from "../Common/validation";
-import type { DictProjectRunDetail, DictRunQueueListItem } from "../../shared/run";
-
-type WhenOthersRunning = "cancel" | "wait" | "run";
+import type { DictRunQueueListItem } from "../../shared/run";
+import type { TypeWhenOthersRunning } from "../../shared/schedule";
 
 type RunQueueChangedListener = (arrItem: DictRunQueueListItem[]) => void;
 
 interface PendingRun {
   queueItem: DictRunQueueListItem;
-  whenOthersRunning: WhenOthersRunning;
+  whenOthersRunning: TypeWhenOthersRunning;
 }
 
 const INT_SCHEDULER_CHECK_INTERVAL_MS = 1000;
@@ -106,7 +104,7 @@ function resetPendingRuns(): void {
   }
 
   for (const dictSchedule of arrSchedule) {
-    if (dictSchedule.enable !== 1) {
+    if (!dictSchedule.enable) {
       continue;
     }
 
@@ -223,29 +221,11 @@ async function processSchedulerTick(): Promise<void> {
 }
 
 async function runSchedule(name: string): Promise<boolean> {
-  const dictDetail = dbSelectScheduleDetail(name);
-  if (dictDetail === undefined) {
+  const dictRun = dbSelectScheduleRunDetail(name);
+  if (dictRun === undefined) {
     loggerMain.warn(`Schedule no longer exists: ${name}`);
     return false;
   }
-
-  const dictRun: DictProjectRunDetail = {
-    schedule_name: dictDetail.name,
-    project_source: dictDetail.project_source,
-    id: dictDetail.project_id,
-    name: dictDetail.project_name,
-    version: dictDetail.project_version,
-    python_environment_name: dictDetail.python_environment_name,
-    timeout_min: dictDetail.timeout_min,
-    builtin_log_level: dictDetail.builtin_log_level,
-    builtin_record_video: dictDetail.builtin_record_video === 1,
-    builtin_stop_shortcut: dictDetail.builtin_stop_shortcut === 1,
-    builtin_highlight_ui: dictDetail.builtin_highlight_ui === 1,
-    custom_prj_args: parseCustomProjectArgsJson(
-      dictDetail.custom_prj_args,
-      `Schedule '${dictDetail.name}' custom_prj_args`,
-    ),
-  };
 
   await pythonRun(dictRun);
   return true;

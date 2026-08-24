@@ -3,8 +3,8 @@ import path from "path";
 
 import { ensureLogLevel, isRecord } from "../Common/validation";
 import { DEFAULT_PYTHON_ENVIRONMENT_NAME } from "../Config/environment";
-import type { DictColumns_Project_Detail_ToInsert } from "../../shared/project";
-import type { TypeColumns_LogLevel, TypeCustomProjectArgs } from "../../shared/runOptions";
+import type { DictProjectCreate } from "../../shared/project";
+import type { TypeCustomProjectArgs, TypeLogLevel } from "../../shared/runOptions";
 
 interface DictFlowManifest {
   schemaVersion: 1;
@@ -21,7 +21,7 @@ interface DictPackageManifest {
 }
 
 interface DictProjectFlowRuntimeSettings {
-  logLevel: TypeColumns_LogLevel;
+  logLevel: TypeLogLevel;
   recordVideo: boolean;
   stopShortcut: boolean;
   highlightUi: boolean;
@@ -31,7 +31,7 @@ interface DictProjectFlowRuntimeSettings {
 export interface DictProjectPackageMetadata {
   name: string;
   version: string;
-  projectDetail: DictColumns_Project_Detail_ToInsert;
+  projectDetail: DictProjectCreate;
 }
 
 const STR_FLOW_MANIFEST_FILE_NAME = "flow.json";
@@ -222,7 +222,7 @@ function buildProjectDetail(
   flowManifest: DictFlowManifest,
   packageManifest: DictPackageManifest,
   runtimeSettings: DictProjectFlowRuntimeSettings,
-): DictColumns_Project_Detail_ToInsert {
+): DictProjectCreate {
   return {
     name: flowManifest.name,
     version: flowManifest.version,
@@ -231,10 +231,10 @@ function buildProjectDetail(
     python_environment_name: DEFAULT_PYTHON_ENVIRONMENT_NAME,
     timeout_min: 0,
     builtin_log_level: runtimeSettings.logLevel,
-    builtin_record_video: runtimeSettings.recordVideo ? 1 : 0,
-    builtin_stop_shortcut: runtimeSettings.stopShortcut ? 1 : 0,
-    builtin_highlight_ui: runtimeSettings.highlightUi ? 1 : 0,
-    custom_prj_args: JSON.stringify(runtimeSettings.customPrjArgs),
+    builtin_record_video: runtimeSettings.recordVideo,
+    builtin_stop_shortcut: runtimeSettings.stopShortcut,
+    builtin_highlight_ui: runtimeSettings.highlightUi,
+    custom_prj_args: runtimeSettings.customPrjArgs,
   };
 }
 

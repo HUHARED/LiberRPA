@@ -1,16 +1,21 @@
 import type Database from "better-sqlite3";
 
+import type { DictProjectRunDetail } from "../../shared/run";
 import type {
-  DictColumns_Schedule_Detail_DB,
-  DictColumns_Schedule_Detail_ToInsert,
-  DictColumns_Schedule_Detail_ToUpdate,
-  DictColumns_Schedule_ListItem_DB,
+  DictScheduleCreate,
+  DictScheduleDetail,
+  DictScheduleListItem,
+  DictScheduleUpdate,
 } from "../../shared/schedule";
 import { loggerMain } from "../Logging/logger";
 import { getDatabase } from "./connection";
-import { ensureScheduleDetailRow, ensureScheduleListRows } from "./rowValidation";
+import {
+  ensureScheduleDetailRow,
+  ensureScheduleListRows,
+  ensureScheduleRunDetailRow,
+} from "./rowValidation";
 
-export function dbSelectScheduleList(): DictColumns_Schedule_ListItem_DB[] {
+export function dbSelectScheduleList(): DictScheduleListItem[] {
   loggerMain.debug("--dbSelectScheduleList--");
   const rows = getDatabase()
     .prepare(
@@ -42,9 +47,7 @@ export function dbSelectScheduleList(): DictColumns_Schedule_ListItem_DB[] {
   return ensureScheduleListRows(rows, "Schedule list query result");
 }
 
-export function dbSelectScheduleDetail(
-  name: string,
-): DictColumns_Schedule_Detail_DB | undefined {
+export function dbSelectScheduleDetail(name: string): DictScheduleDetail | undefined {
   loggerMain.debug("--dbSelectScheduleDetail--");
   const row = getDatabase()
     .prepare(
@@ -62,10 +65,6 @@ export function dbSelectScheduleDetail(
               WHEN ts.project_source = 'local' THEN pl.version
               ELSE 'console'
           END AS project_version,
-          CASE
-              WHEN ts.project_source = 'local' THEN pl.python_environment_name
-              ELSE 'default'
-          END AS python_environment_name,
           ts.cron,
           ts.when_others_running,
           ts.period_start_ms,
@@ -92,9 +91,47 @@ export function dbSelectScheduleDetail(
     : ensureScheduleDetailRow(row, "Schedule detail query result");
 }
 
-export function dbInsertSchedule(
-  dictDetail: DictColumns_Schedule_Detail_ToInsert,
-): Database.RunResult {
+export function dbSelectScheduleRunDetail(name: string): DictProjectRunDetail | undefined {
+  loggerMain.debug("--dbSelectScheduleRunDetail--");
+  const row = getDatabase()
+    .prepare(
+      `
+      SELECT
+          ts.name AS schedule_name,
+          ts.project_source,
+          ts.project_id AS id,
+          CASE
+              WHEN ts.project_source = 'local' THEN pl.name
+              ELSE 'console'
+          END AS name,
+          CASE
+              WHEN ts.project_source = 'local' THEN pl.version
+              ELSE 'console'
+          END AS version,
+          CASE
+              WHEN ts.project_source = 'local' THEN pl.python_environment_name
+              ELSE 'default'
+          END AS python_environment_name,
+          ts.timeout_min,
+          ts.builtin_log_level,
+          ts.builtin_record_video,
+          ts.builtin_stop_shortcut,
+          ts.builtin_highlight_ui,
+          ts.custom_prj_args
+      FROM
+          task_scheduler ts
+          LEFT JOIN project_local pl ON ts.project_id = pl.id
+      WHERE
+          ts.name = ?;
+      `,
+    )
+    .get(name);
+  return row === undefined
+    ? undefined
+    : ensureScheduleRunDetailRow(row, "Schedule Run detail query result");
+}
+
+export function dbInsertSchedule(dictDetail: DictScheduleCreate): Database.RunResult {
   loggerMain.debug("--dbInsertSchedule--");
   const intNowMs = Date.now();
   return getDatabase()
@@ -131,21 +168,19 @@ export function dbInsertSchedule(
       dictDetail.when_others_running,
       dictDetail.period_start_ms,
       dictDetail.period_end_ms,
-      dictDetail.enable,
+      dictDetail.enable ? 1 : 0,
       dictDetail.timeout_min,
       dictDetail.builtin_log_level,
-      dictDetail.builtin_record_video,
-      dictDetail.builtin_stop_shortcut,
-      dictDetail.builtin_highlight_ui,
-      dictDetail.custom_prj_args,
+      dictDetail.builtin_record_video ? 1 : 0,
+      dictDetail.builtin_stop_shortcut ? 1 : 0,
+      dictDetail.builtin_highlight_ui ? 1 : 0,
+      JSON.stringify(dictDetail.custom_prj_args),
       intNowMs,
       intNowMs,
     );
 }
 
-export function dbUpdateSchedule(
-  dictDetail: DictColumns_Schedule_Detail_ToUpdate,
-): Database.RunResult {
+export function dbUpdateSchedule(dictDetail: DictScheduleUpdate): Database.RunResult {
   loggerMain.debug("--dbUpdateSchedule--");
   return getDatabase()
     .prepare(
@@ -179,13 +214,13 @@ export function dbUpdateSchedule(
       dictDetail.when_others_running,
       dictDetail.period_start_ms,
       dictDetail.period_end_ms,
-      dictDetail.enable,
+      dictDetail.enable ? 1 : 0,
       dictDetail.timeout_min,
       dictDetail.builtin_log_level,
-      dictDetail.builtin_record_video,
-      dictDetail.builtin_stop_shortcut,
-      dictDetail.builtin_highlight_ui,
-      dictDetail.custom_prj_args,
+      dictDetail.builtin_record_video ? 1 : 0,
+      dictDetail.builtin_stop_shortcut ? 1 : 0,
+      dictDetail.builtin_highlight_ui ? 1 : 0,
+      JSON.stringify(dictDetail.custom_prj_args),
       Date.now(),
       dictDetail.id,
     );

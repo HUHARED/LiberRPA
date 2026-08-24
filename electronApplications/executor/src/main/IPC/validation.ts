@@ -1,16 +1,11 @@
-import type { DictColumns_Project_Detail_ToUpdate } from "../../shared/project";
+import type { DictProjectUpdate } from "../../shared/project";
 import type { DictProjectRunDetail, DictRunHistoryOptions } from "../../shared/run";
-import type {
-  DictColumns_Schedule_Detail_ToInsert,
-  DictColumns_Schedule_Detail_ToUpdate,
-} from "../../shared/schedule";
+import type { DictScheduleCreate, DictScheduleUpdate } from "../../shared/schedule";
 import type { TypeExecutorInvokeCommand, TypeRendererLogLevel } from "../../shared/ipc";
 
 import {
-  ensureBinaryInteger,
   ensureBoolean,
   ensureCustomProjectArgs,
-  ensureCustomProjectArgsJson,
   ensureExactRecord,
   ensureRunHistoryStatus,
   ensureLogLevel,
@@ -28,7 +23,7 @@ function ensureRunHistorySortKey(
   strSourceName: string,
 ): DictRunHistoryOptions["sortBy"][number]["key"] {
   switch (value) {
-    case "scheduler_name":
+    case "schedule_name":
     case "project_source":
     case "project_name":
     case "project_version":
@@ -57,24 +52,24 @@ export function ensureInvokeCommand(value: unknown): TypeExecutorInvokeCommand {
     case "getPythonEnvironmentNames":
     case "importProjectPackage":
     case "deleteExecutorPackage":
-    case "selectProjectNames":
-    case "selectProjectVersions":
-    case "selectProjectDetail":
-    case "updateProjectDetail":
-    case "selectProjectBoundSchedules":
+    case "getProjectNames":
+    case "getProjectVersions":
+    case "getProjectDetail":
+    case "saveProjectDetail":
+    case "getProjectBoundSchedules":
     case "deleteProject":
-    case "selectScheduleList":
-    case "selectScheduleDetail":
-    case "insertSchedule":
-    case "updateSchedule":
+    case "getScheduleList":
+    case "getScheduleDetail":
+    case "createSchedule":
+    case "saveSchedule":
     case "deleteSchedule":
-    case "selectRunHistoryPage":
-    case "selectRunQueue":
+    case "getRunHistoryPage":
+    case "getRunQueue":
     case "cancelWaitingRun":
     case "openFolder":
-    case "selectNewestProjectVersionDetail":
+    case "getNewestProjectVersionDetail":
     case "pythonCancel":
-    case "selectProjectLogFolder":
+    case "chooseProjectLogFolder":
       return value;
     default:
       throw new Error(`Unknown Renderer invoke command: ${String(value)}`);
@@ -211,7 +206,7 @@ export function ensureProjectRun(value: unknown): DictProjectRunDetail {
   };
 }
 
-export function ensureProjectUpdate(value: unknown): DictColumns_Project_Detail_ToUpdate {
+export function ensureProjectUpdate(value: unknown): DictProjectUpdate {
   const dictValue = ensureExactRecord(
     value,
     [
@@ -252,19 +247,19 @@ export function ensureProjectUpdate(value: unknown): DictColumns_Project_Detail_
       dictValue.builtin_log_level,
       "Project update request.builtin_log_level",
     ),
-    builtin_record_video: ensureBinaryInteger(
+    builtin_record_video: ensureBoolean(
       dictValue.builtin_record_video,
       "Project update request.builtin_record_video",
     ),
-    builtin_stop_shortcut: ensureBinaryInteger(
+    builtin_stop_shortcut: ensureBoolean(
       dictValue.builtin_stop_shortcut,
       "Project update request.builtin_stop_shortcut",
     ),
-    builtin_highlight_ui: ensureBinaryInteger(
+    builtin_highlight_ui: ensureBoolean(
       dictValue.builtin_highlight_ui,
       "Project update request.builtin_highlight_ui",
     ),
-    custom_prj_args: ensureCustomProjectArgsJson(
+    custom_prj_args: ensureCustomProjectArgs(
       dictValue.custom_prj_args,
       "Project update request.custom_prj_args",
     ),
@@ -274,7 +269,7 @@ export function ensureProjectUpdate(value: unknown): DictColumns_Project_Detail_
 function ensureScheduleData(
   value: unknown,
   boolIncludeId: boolean,
-): DictColumns_Schedule_Detail_ToInsert | DictColumns_Schedule_Detail_ToUpdate {
+): DictScheduleCreate | DictScheduleUpdate {
   const arrExpectedKey = [
     "name",
     "project_source",
@@ -308,7 +303,7 @@ function ensureScheduleData(
     throw new Error("Schedule request.period_end_ms must be greater than period_start_ms.");
   }
 
-  const dictBase: DictColumns_Schedule_Detail_ToInsert = {
+  const dictBase: DictScheduleCreate = {
     name: ensureNonEmptyString(dictValue.name, "Schedule request.name"),
     project_source: ensureProjectSource(
       dictValue.project_source,
@@ -322,7 +317,7 @@ function ensureScheduleData(
     ),
     period_start_ms: intPeriodStartMs,
     period_end_ms: intPeriodEndMs,
-    enable: ensureBinaryInteger(dictValue.enable, "Schedule request.enable"),
+    enable: ensureBoolean(dictValue.enable, "Schedule request.enable"),
     timeout_min: ensureNonNegativeInteger(
       dictValue.timeout_min,
       "Schedule request.timeout_min",
@@ -331,19 +326,19 @@ function ensureScheduleData(
       dictValue.builtin_log_level,
       "Schedule request.builtin_log_level",
     ),
-    builtin_record_video: ensureBinaryInteger(
+    builtin_record_video: ensureBoolean(
       dictValue.builtin_record_video,
       "Schedule request.builtin_record_video",
     ),
-    builtin_stop_shortcut: ensureBinaryInteger(
+    builtin_stop_shortcut: ensureBoolean(
       dictValue.builtin_stop_shortcut,
       "Schedule request.builtin_stop_shortcut",
     ),
-    builtin_highlight_ui: ensureBinaryInteger(
+    builtin_highlight_ui: ensureBoolean(
       dictValue.builtin_highlight_ui,
       "Schedule request.builtin_highlight_ui",
     ),
-    custom_prj_args: ensureCustomProjectArgsJson(
+    custom_prj_args: ensureCustomProjectArgs(
       dictValue.custom_prj_args,
       "Schedule request.custom_prj_args",
     ),
@@ -359,11 +354,11 @@ function ensureScheduleData(
   };
 }
 
-export function ensureScheduleInsert(value: unknown): DictColumns_Schedule_Detail_ToInsert {
+export function ensureScheduleCreate(value: unknown): DictScheduleCreate {
   return ensureScheduleData(value, false);
 }
 
-export function ensureScheduleUpdate(value: unknown): DictColumns_Schedule_Detail_ToUpdate {
+export function ensureScheduleUpdate(value: unknown): DictScheduleUpdate {
   const dictValue = ensureScheduleData(value, true);
   if (!("id" in dictValue)) {
     throw new Error("Schedule update request is missing id.");
@@ -400,7 +395,7 @@ export function ensureRunHistoryOptions(value: unknown): DictRunHistoryOptions {
 
   const dictSearch = ensureExactRecord(
     dictValue.search,
-    ["scheduler_name", "project_source", "project_name", "project_version", "status"],
+    ["schedule_name", "project_source", "project_name", "project_version", "status"],
     "Run History options.search",
   );
 
@@ -425,9 +420,9 @@ export function ensureRunHistoryOptions(value: unknown): DictRunHistoryOptions {
     ),
     sortBy: arrSortBy,
     search: {
-      scheduler_name: ensureString(
-        dictSearch.scheduler_name,
-        "Run History options.search.scheduler_name",
+      schedule_name: ensureString(
+        dictSearch.schedule_name,
+        "Run History options.search.schedule_name",
       ),
       project_source: strProjectSource,
       project_name: ensureString(

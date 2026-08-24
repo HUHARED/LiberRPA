@@ -1,9 +1,9 @@
 import type Database from "better-sqlite3";
 
 import type {
-  DictColumns_Project_Detail_DB,
-  DictColumns_Project_Detail_ToInsert,
-  DictColumns_Project_Detail_ToUpdate,
+  DictProjectCreate,
+  DictProjectDetail,
+  DictProjectUpdate,
 } from "../../shared/project";
 import { loggerMain } from "../Logging/logger";
 import { getDatabase } from "./connection";
@@ -69,7 +69,7 @@ export function dbSelectProjectBoundSchedules(id: number): { name: string }[] {
 export function dbSelectProjectDetail(
   name: string,
   version: string,
-): DictColumns_Project_Detail_DB | undefined {
+): DictProjectDetail | undefined {
   loggerMain.debug("--dbSelectProjectDetail--");
   const row = getDatabase()
     .prepare(
@@ -102,9 +102,7 @@ export function dbSelectProjectDetail(
     : ensureProjectDetailRow(row, "Project detail query result");
 }
 
-export function dbInsertProjectDetail(
-  dictDetail: DictColumns_Project_Detail_ToInsert,
-): Database.RunResult {
+export function dbInsertProjectDetail(dictDetail: DictProjectCreate): Database.RunResult {
   loggerMain.debug("--dbInsertProjectDetail--");
   const intNowMs = Date.now();
   return getDatabase()
@@ -138,18 +136,16 @@ export function dbInsertProjectDetail(
       dictDetail.python_environment_name,
       dictDetail.timeout_min,
       dictDetail.builtin_log_level,
-      dictDetail.builtin_record_video,
-      dictDetail.builtin_stop_shortcut,
-      dictDetail.builtin_highlight_ui,
-      dictDetail.custom_prj_args,
+      dictDetail.builtin_record_video ? 1 : 0,
+      dictDetail.builtin_stop_shortcut ? 1 : 0,
+      dictDetail.builtin_highlight_ui ? 1 : 0,
+      JSON.stringify(dictDetail.custom_prj_args),
       intNowMs,
       intNowMs,
     );
 }
 
-export function dbUpdateProjectDetail(
-  dictDetail: DictColumns_Project_Detail_ToUpdate,
-): Database.RunResult {
+export function dbUpdateProjectDetail(dictDetail: DictProjectUpdate): Database.RunResult {
   loggerMain.debug("--dbUpdateProjectDetail--");
   return getDatabase()
     .prepare(
@@ -180,10 +176,10 @@ export function dbUpdateProjectDetail(
       dictDetail.python_environment_name,
       dictDetail.timeout_min,
       dictDetail.builtin_log_level,
-      dictDetail.builtin_record_video,
-      dictDetail.builtin_stop_shortcut,
-      dictDetail.builtin_highlight_ui,
-      dictDetail.custom_prj_args,
+      dictDetail.builtin_record_video ? 1 : 0,
+      dictDetail.builtin_stop_shortcut ? 1 : 0,
+      dictDetail.builtin_highlight_ui ? 1 : 0,
+      JSON.stringify(dictDetail.custom_prj_args),
       Date.now(),
       dictDetail.id,
     );
@@ -206,7 +202,7 @@ export function dbDeleteProject(id: number): Database.RunResult {
 
 export function dbSelectProjectNewestVersionDetail(
   name: string,
-): DictColumns_Project_Detail_DB | undefined {
+): DictProjectDetail | undefined {
   loggerMain.debug("--dbSelectProjectNewestVersionDetail--");
   const row = getDatabase()
     .prepare(

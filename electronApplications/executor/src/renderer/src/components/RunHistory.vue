@@ -15,7 +15,7 @@
       density="compact"
       hover
       multi-sort
-      @update:options="runHistoryStore.loadRunHistoryPage($event)">
+      @update:options="handleTableOptionsUpdate($event)">
       <template #item.project_source="{ value }">
         <v-chip
           :border="`${getProjectSourceColor(value)} thin opacity-25`"
@@ -174,8 +174,9 @@ import { useInformationStore } from "../Store/informationStore";
 import { useSettingStore } from "../Store/settingStore";
 import { formatTimestamp } from "../Common/time";
 import type {
-  DictColumns_RunHistory_ListItem_DB,
+  DictRunHistoryItem,
   DictProjectRunDetail,
+  DictRunHistoryOptions,
   DictRunHistorySearch,
   TypeRunHistoryStatus,
 } from "../../../shared/run";
@@ -193,7 +194,7 @@ const arrItemsPerPageOptions = [
 
 const dictSearch = computed<DictRunHistorySearch>(() => {
   return {
-    scheduler_name: runHistoryStore.filterScheduleName,
+    schedule_name: runHistoryStore.filterScheduleName,
     project_source: runHistoryStore.filterSource,
     project_name: runHistoryStore.filterProjectName,
     project_version: runHistoryStore.filterProjectVersion,
@@ -214,8 +215,23 @@ watch(
   { deep: true },
 );
 
-const arrHeader: DataTableHeader<DictColumns_RunHistory_ListItem_DB>[] = [
-  { title: "Schedule", value: "scheduler_name", align: "start", sortable: true },
+type DictRunHistoryTableOptions = Omit<DictRunHistoryOptions, "search"> & {
+  search: string;
+};
+
+async function handleTableOptionsUpdate(
+  options: DictRunHistoryTableOptions,
+): Promise<void> {
+  await runHistoryStore.loadRunHistoryPage({
+    page: options.page,
+    itemsPerPage: options.itemsPerPage,
+    sortBy: cloneJsonSerializable(options.sortBy),
+    search: cloneJsonSerializable(dictSearch.value),
+  });
+}
+
+const arrHeader: DataTableHeader<DictRunHistoryItem>[] = [
+  { title: "Schedule", value: "schedule_name", align: "start", sortable: true },
   {
     title: "Project",
     align: "center",
@@ -299,7 +315,7 @@ async function runProjectNewestVersion(
     return;
   }
 
-  const dictDetail = await invokeMain("selectNewestProjectVersionDetail", projectName);
+  const dictDetail = await invokeMain("getNewestProjectVersionDetail", projectName);
   if (dictDetail === undefined) {
     const informationStore = useInformationStore();
     informationStore.showAlertMessage("The project has been deleted.");
@@ -315,11 +331,10 @@ async function runProjectNewestVersion(
     python_environment_name: dictDetail.python_environment_name,
     timeout_min: dictDetail.timeout_min,
     builtin_log_level: dictDetail.builtin_log_level,
-    builtin_record_video: dictDetail.builtin_record_video === 1,
-    builtin_stop_shortcut: dictDetail.builtin_stop_shortcut === 1,
-    builtin_highlight_ui: dictDetail.builtin_highlight_ui === 1,
-    custom_prj_args:
-      dictDetail.custom_prj_args === "" ? [] : JSON.parse(dictDetail.custom_prj_args),
+    builtin_record_video: dictDetail.builtin_record_video,
+    builtin_stop_shortcut: dictDetail.builtin_stop_shortcut,
+    builtin_highlight_ui: dictDetail.builtin_highlight_ui,
+    custom_prj_args: dictDetail.custom_prj_args,
   };
 
   await invokeMain("pythonRun", cloneJsonSerializable(dictRunDetail));

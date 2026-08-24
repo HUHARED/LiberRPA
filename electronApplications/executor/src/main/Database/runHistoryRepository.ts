@@ -1,24 +1,48 @@
 import type Database from "better-sqlite3";
 
+import type { TypeProjectSource } from "../../shared/project";
 import type {
-  DictColumns_RunHistory_ToInsert,
-  DictColumns_RunHistory_ToUpdate,
   DictRunHistoryOptions,
   DictRunHistoryPage,
+  TypeRunHistoryStatus,
 } from "../../shared/run";
 import { loggerMain } from "../Logging/logger";
 import { getDatabase } from "./connection";
 import {
   ensureCountRow,
-  ensureRunHistoryListRows,
   ensureLogPathRows,
+  ensureRunHistoryListRows,
 } from "./rowValidation";
+
+interface DictRunHistoryInsert {
+  schedule_name: string | null;
+  project_source: TypeProjectSource;
+  project_id: number;
+  project_name: string;
+  project_version: string;
+  python_environment_name: string;
+  run_started_at_ms: number;
+  status: "running";
+  log_path: string;
+}
+
+type DictRunHistoryUpdate =
+  | {
+      id: number;
+      run_ended_at_ms: number;
+      status: "completed" | "error" | "cancel" | "timeout";
+    }
+  | {
+      id: number;
+      run_ended_at_ms: null;
+      status: "interrupted";
+    };
 
 const MAP_RUN_HISTORY_SORT_COLUMN: Record<
   DictRunHistoryOptions["sortBy"][number]["key"],
   string
 > = {
-  scheduler_name: "scheduler_name",
+  schedule_name: "scheduler_name",
   project_source: "project_source",
   project_name: "project_name",
   project_version: "project_version",
@@ -28,9 +52,7 @@ const MAP_RUN_HISTORY_SORT_COLUMN: Record<
   status: "status",
 };
 
-export function dbInsertRunHistory(
-  dictDetail: DictColumns_RunHistory_ToInsert,
-): Database.RunResult {
+export function dbInsertRunHistory(dictDetail: DictRunHistoryInsert): Database.RunResult {
   loggerMain.debug("--dbInsertRunHistory--");
   const intNowMs = Date.now();
   return getDatabase()
@@ -55,7 +77,7 @@ export function dbInsertRunHistory(
       `,
     )
     .run(
-      dictDetail.scheduler_name,
+      dictDetail.schedule_name,
       dictDetail.project_source,
       dictDetail.project_id,
       dictDetail.project_name,
@@ -69,9 +91,7 @@ export function dbInsertRunHistory(
     );
 }
 
-export function dbUpdateRunHistory(
-  dictDetail: DictColumns_RunHistory_ToUpdate,
-): Database.RunResult {
+export function dbUpdateRunHistory(dictDetail: DictRunHistoryUpdate): Database.RunResult {
   loggerMain.debug("--dbUpdateRunHistory--");
   return getDatabase()
     .prepare(
@@ -131,10 +151,10 @@ export function dbSelectRunHistoryPage(options: DictRunHistoryOptions): DictRunH
   }
 
   const arrWhereClause: string[] = [];
-  const arrWhereParam: string[] = [];
-  if (options.search.scheduler_name.trim() !== "") {
+  const arrWhereParam: (string | TypeProjectSource | TypeRunHistoryStatus)[] = [];
+  if (options.search.schedule_name.trim() !== "") {
     arrWhereClause.push("scheduler_name LIKE ?");
-    arrWhereParam.push(`%${options.search.scheduler_name.trim()}%`);
+    arrWhereParam.push(`%${options.search.schedule_name.trim()}%`);
   }
   if (options.search.project_source !== null) {
     arrWhereClause.push("project_source = ?");

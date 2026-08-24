@@ -125,7 +125,7 @@ import { getProjectSourceColor } from "../Common/display";
 import { useScheduleStore } from "../Store/scheduleStore";
 import { useSettingStore } from "../Store/settingStore";
 import { getDefaultSchedulePeriod } from "../Common/time";
-import type { DictColumns_Schedule_ListItem } from "../../../shared/schedule";
+import type { DictScheduleListItem } from "../../../shared/schedule";
 
 const scheduleStore = useScheduleStore();
 const settingStore = useSettingStore();
@@ -165,7 +165,7 @@ function newSchedule(): void {
   scheduleStore.isEditing = "new";
 }
 
-const arrHeader: DataTableHeader<DictColumns_Schedule_ListItem>[] = [
+const arrHeader: DataTableHeader<DictScheduleListItem>[] = [
   { title: "Name", value: "name", align: "start", sortable: true },
 
   {

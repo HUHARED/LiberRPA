@@ -1,14 +1,10 @@
-import type { DictColumns_Project_Detail_DB } from "../../shared/project";
-import type { DictColumns_RunHistory_ListItem_DB } from "../../shared/run";
-import type {
-  DictColumns_Schedule_Detail_DB,
-  DictColumns_Schedule_ListItem_DB,
-} from "../../shared/schedule";
+import type { DictProjectDetail } from "../../shared/project";
+import type { DictProjectRunDetail, DictRunHistoryItem } from "../../shared/run";
+import type { DictScheduleDetail, DictScheduleListItem } from "../../shared/schedule";
+import type { TypeCustomProjectArgs } from "../../shared/runOptions";
 import {
-  ensureBinaryInteger,
-  ensureCustomProjectArgsJson,
+  ensureCustomProjectArgs,
   ensureExactRecord,
-  ensureRunHistoryStatus,
   ensureLogLevel,
   ensureNonEmptyString,
   ensureNonNegativeInteger,
@@ -16,9 +12,31 @@ import {
   ensureNullableString,
   ensurePositiveInteger,
   ensureProjectSource,
+  ensureRunHistoryStatus,
   ensureString,
   ensureWhenOthersRunning,
 } from "../Common/validation";
+
+function ensureBinaryInteger(value: unknown, strSourceName: string): 0 | 1 {
+  if (value !== 0 && value !== 1) {
+    throw new Error(`${strSourceName} must be 0 or 1.`);
+  }
+  return value;
+}
+
+function parseCustomProjectArgsJson(
+  value: unknown,
+  strSourceName: string,
+): TypeCustomProjectArgs {
+  const strValue = ensureString(value, strSourceName);
+  let parsedValue: unknown;
+  try {
+    parsedValue = JSON.parse(strValue);
+  } catch (e: unknown) {
+    throw new Error(`${strSourceName} must contain valid JSON.`, { cause: e });
+  }
+  return ensureCustomProjectArgs(parsedValue, strSourceName);
+}
 
 function ensureRows<T>(
   rows: unknown[],
@@ -52,7 +70,7 @@ export function ensureVersionRows(
 export function ensureProjectDetailRow(
   value: unknown,
   strSourceName: string,
-): DictColumns_Project_Detail_DB {
+): DictProjectDetail {
   const row = ensureExactRecord(
     value,
     [
@@ -89,19 +107,22 @@ export function ensureProjectDetailRow(
       row.builtin_log_level,
       `${strSourceName}.builtin_log_level`,
     ),
-    builtin_record_video: ensureBinaryInteger(
-      row.builtin_record_video,
-      `${strSourceName}.builtin_record_video`,
-    ),
-    builtin_stop_shortcut: ensureBinaryInteger(
-      row.builtin_stop_shortcut,
-      `${strSourceName}.builtin_stop_shortcut`,
-    ),
-    builtin_highlight_ui: ensureBinaryInteger(
-      row.builtin_highlight_ui,
-      `${strSourceName}.builtin_highlight_ui`,
-    ),
-    custom_prj_args: ensureCustomProjectArgsJson(
+    builtin_record_video:
+      ensureBinaryInteger(
+        row.builtin_record_video,
+        `${strSourceName}.builtin_record_video`,
+      ) === 1,
+    builtin_stop_shortcut:
+      ensureBinaryInteger(
+        row.builtin_stop_shortcut,
+        `${strSourceName}.builtin_stop_shortcut`,
+      ) === 1,
+    builtin_highlight_ui:
+      ensureBinaryInteger(
+        row.builtin_highlight_ui,
+        `${strSourceName}.builtin_highlight_ui`,
+      ) === 1,
+    custom_prj_args: parseCustomProjectArgsJson(
       row.custom_prj_args,
       `${strSourceName}.custom_prj_args`,
     ),
@@ -119,7 +140,7 @@ export function ensureProjectDetailRow(
 function ensureScheduleListItemRow(
   value: unknown,
   strSourceName: string,
-): DictColumns_Schedule_ListItem_DB {
+): DictScheduleListItem {
   const row = ensureExactRecord(
     value,
     [
@@ -159,7 +180,7 @@ function ensureScheduleListItemRow(
       `${strSourceName}.project_version`,
     ),
     cron: ensureNonEmptyString(row.cron, `${strSourceName}.cron`),
-    enable: ensureBinaryInteger(row.enable, `${strSourceName}.enable`),
+    enable: ensureBinaryInteger(row.enable, `${strSourceName}.enable`) === 1,
     period_start_ms: intPeriodStartMs,
     period_end_ms: intPeriodEndMs,
     when_others_running: ensureWhenOthersRunning(
@@ -172,14 +193,14 @@ function ensureScheduleListItemRow(
 export function ensureScheduleListRows(
   rows: unknown[],
   strSourceName: string,
-): DictColumns_Schedule_ListItem_DB[] {
+): DictScheduleListItem[] {
   return ensureRows(rows, ensureScheduleListItemRow, strSourceName);
 }
 
 export function ensureScheduleDetailRow(
   value: unknown,
   strSourceName: string,
-): DictColumns_Schedule_Detail_DB {
+): DictScheduleDetail {
   const row = ensureExactRecord(
     value,
     [
@@ -189,7 +210,6 @@ export function ensureScheduleDetailRow(
       "project_id",
       "project_name",
       "project_version",
-      "python_environment_name",
       "cron",
       "when_others_running",
       "period_start_ms",
@@ -231,10 +251,6 @@ export function ensureScheduleDetailRow(
       row.project_version,
       `${strSourceName}.project_version`,
     ),
-    python_environment_name: ensureNonEmptyString(
-      row.python_environment_name,
-      `${strSourceName}.python_environment_name`,
-    ),
     cron: ensureNonEmptyString(row.cron, `${strSourceName}.cron`),
     when_others_running: ensureWhenOthersRunning(
       row.when_others_running,
@@ -242,25 +258,28 @@ export function ensureScheduleDetailRow(
     ),
     period_start_ms: intPeriodStartMs,
     period_end_ms: intPeriodEndMs,
-    enable: ensureBinaryInteger(row.enable, `${strSourceName}.enable`),
+    enable: ensureBinaryInteger(row.enable, `${strSourceName}.enable`) === 1,
     timeout_min: ensureNonNegativeInteger(row.timeout_min, `${strSourceName}.timeout_min`),
     builtin_log_level: ensureLogLevel(
       row.builtin_log_level,
       `${strSourceName}.builtin_log_level`,
     ),
-    builtin_record_video: ensureBinaryInteger(
-      row.builtin_record_video,
-      `${strSourceName}.builtin_record_video`,
-    ),
-    builtin_stop_shortcut: ensureBinaryInteger(
-      row.builtin_stop_shortcut,
-      `${strSourceName}.builtin_stop_shortcut`,
-    ),
-    builtin_highlight_ui: ensureBinaryInteger(
-      row.builtin_highlight_ui,
-      `${strSourceName}.builtin_highlight_ui`,
-    ),
-    custom_prj_args: ensureCustomProjectArgsJson(
+    builtin_record_video:
+      ensureBinaryInteger(
+        row.builtin_record_video,
+        `${strSourceName}.builtin_record_video`,
+      ) === 1,
+    builtin_stop_shortcut:
+      ensureBinaryInteger(
+        row.builtin_stop_shortcut,
+        `${strSourceName}.builtin_stop_shortcut`,
+      ) === 1,
+    builtin_highlight_ui:
+      ensureBinaryInteger(
+        row.builtin_highlight_ui,
+        `${strSourceName}.builtin_highlight_ui`,
+      ) === 1,
+    custom_prj_args: parseCustomProjectArgsJson(
       row.custom_prj_args,
       `${strSourceName}.custom_prj_args`,
     ),
@@ -275,10 +294,76 @@ export function ensureScheduleDetailRow(
   };
 }
 
+export function ensureScheduleRunDetailRow(
+  value: unknown,
+  strSourceName: string,
+): DictProjectRunDetail {
+  const row = ensureExactRecord(
+    value,
+    [
+      "schedule_name",
+      "project_source",
+      "id",
+      "name",
+      "version",
+      "python_environment_name",
+      "timeout_min",
+      "builtin_log_level",
+      "builtin_record_video",
+      "builtin_stop_shortcut",
+      "builtin_highlight_ui",
+      "custom_prj_args",
+    ],
+    strSourceName,
+  );
+
+  return {
+    schedule_name: ensureNonEmptyString(
+      row.schedule_name,
+      `${strSourceName}.schedule_name`,
+    ),
+    project_source: ensureProjectSource(
+      row.project_source,
+      `${strSourceName}.project_source`,
+    ),
+    id: ensurePositiveInteger(row.id, `${strSourceName}.id`),
+    name: ensureNonEmptyString(row.name, `${strSourceName}.name`),
+    version: ensureNonEmptyString(row.version, `${strSourceName}.version`),
+    python_environment_name: ensureNonEmptyString(
+      row.python_environment_name,
+      `${strSourceName}.python_environment_name`,
+    ),
+    timeout_min: ensureNonNegativeInteger(row.timeout_min, `${strSourceName}.timeout_min`),
+    builtin_log_level: ensureLogLevel(
+      row.builtin_log_level,
+      `${strSourceName}.builtin_log_level`,
+    ),
+    builtin_record_video:
+      ensureBinaryInteger(
+        row.builtin_record_video,
+        `${strSourceName}.builtin_record_video`,
+      ) === 1,
+    builtin_stop_shortcut:
+      ensureBinaryInteger(
+        row.builtin_stop_shortcut,
+        `${strSourceName}.builtin_stop_shortcut`,
+      ) === 1,
+    builtin_highlight_ui:
+      ensureBinaryInteger(
+        row.builtin_highlight_ui,
+        `${strSourceName}.builtin_highlight_ui`,
+      ) === 1,
+    custom_prj_args: parseCustomProjectArgsJson(
+      row.custom_prj_args,
+      `${strSourceName}.custom_prj_args`,
+    ),
+  };
+}
+
 function ensureRunHistoryListItemRow(
   value: unknown,
   strSourceName: string,
-): DictColumns_RunHistory_ListItem_DB {
+): DictRunHistoryItem {
   const row = ensureExactRecord(
     value,
     [
@@ -309,7 +394,7 @@ function ensureRunHistoryListItemRow(
 
   return {
     id: ensurePositiveInteger(row.id, `${strSourceName}.id`),
-    scheduler_name: ensureNullableString(
+    schedule_name: ensureNullableString(
       row.scheduler_name,
       `${strSourceName}.scheduler_name`,
     ),
@@ -339,7 +424,7 @@ function ensureRunHistoryListItemRow(
 export function ensureRunHistoryListRows(
   rows: unknown[],
   strSourceName: string,
-): DictColumns_RunHistory_ListItem_DB[] {
+): DictRunHistoryItem[] {
   return ensureRows(rows, ensureRunHistoryListItemRow, strSourceName);
 }
 

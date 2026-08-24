@@ -2,9 +2,9 @@
 
 import type { DictExecutorConfig } from "./config";
 import type {
-  DictColumns_Project_Detail_DB,
-  DictColumns_Project_Detail_ToUpdate,
+  DictProjectDetail,
   DictProjectPackageImportResult,
+  DictProjectUpdate,
 } from "./project";
 import type {
   DictProjectRunDetail,
@@ -13,10 +13,10 @@ import type {
   DictRunQueueListItem,
 } from "./run";
 import type {
-  DictColumns_Schedule_Detail_DB,
-  DictColumns_Schedule_Detail_ToInsert,
-  DictColumns_Schedule_Detail_ToUpdate,
-  DictColumns_Schedule_ListItem_DB,
+  DictScheduleCreate,
+  DictScheduleDetail,
+  DictScheduleListItem,
+  DictScheduleUpdate,
 } from "./schedule";
 
 export const IPC_CHANNEL_RENDERER_LOG = "executor:renderer-log";
@@ -57,23 +57,23 @@ export interface DictExecutorInvokeContract {
     request: { name: string; version: string };
     response: void;
   };
-  selectProjectNames: {
+  getProjectNames: {
     request: undefined;
     response: { name: string }[];
   };
-  selectProjectVersions: {
+  getProjectVersions: {
     request: string;
     response: { version: string }[];
   };
-  selectProjectDetail: {
+  getProjectDetail: {
     request: { name: string; version: string };
-    response: DictColumns_Project_Detail_DB | undefined;
+    response: DictProjectDetail | undefined;
   };
-  updateProjectDetail: {
-    request: DictColumns_Project_Detail_ToUpdate;
+  saveProjectDetail: {
+    request: DictProjectUpdate;
     response: void;
   };
-  selectProjectBoundSchedules: {
+  getProjectBoundSchedules: {
     request: number;
     response: { name: string }[];
   };
@@ -81,31 +81,31 @@ export interface DictExecutorInvokeContract {
     request: number;
     response: void;
   };
-  selectScheduleList: {
+  getScheduleList: {
     request: undefined;
-    response: DictColumns_Schedule_ListItem_DB[];
+    response: DictScheduleListItem[];
   };
-  selectScheduleDetail: {
+  getScheduleDetail: {
     request: string;
-    response: DictColumns_Schedule_Detail_DB | undefined;
+    response: DictScheduleDetail | undefined;
   };
-  insertSchedule: {
-    request: DictColumns_Schedule_Detail_ToInsert;
+  createSchedule: {
+    request: DictScheduleCreate;
     response: void;
   };
-  updateSchedule: {
-    request: DictColumns_Schedule_Detail_ToUpdate;
+  saveSchedule: {
+    request: DictScheduleUpdate;
     response: void;
   };
   deleteSchedule: {
     request: number;
     response: void;
   };
-  selectRunHistoryPage: {
+  getRunHistoryPage: {
     request: DictRunHistoryOptions;
     response: DictRunHistoryPage;
   };
-  selectRunQueue: {
+  getRunQueue: {
     request: undefined;
     response: DictRunQueueListItem[];
   };
@@ -120,15 +120,15 @@ export interface DictExecutorInvokeContract {
     request: string;
     response: void;
   };
-  selectNewestProjectVersionDetail: {
+  getNewestProjectVersionDetail: {
     request: string;
-    response: DictColumns_Project_Detail_DB | undefined;
+    response: DictProjectDetail | undefined;
   };
   pythonCancel: {
     request: number;
     response: void;
   };
-  selectProjectLogFolder: {
+  chooseProjectLogFolder: {
     request: undefined;
     response: string | null;
   };

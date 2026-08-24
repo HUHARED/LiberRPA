@@ -11,7 +11,7 @@ export const useRunQueueStore = defineStore("runQueue", {
   },
   actions: {
     async refreshRunQueue(): Promise<void> {
-      this.arrListItem = await invokeMain("selectRunQueue");
+      this.arrListItem = await invokeMain("getRunQueue");
     },
 
     setRunQueue(arrItem: DictRunQueueListItem[]): void {

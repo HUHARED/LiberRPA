@@ -1,6 +1,7 @@
 // FileName: run.ts
 
-import type { DictColumns_Project_Detail } from "./project";
+import type { TypeProjectSource } from "./project";
+import type { DictPythonEnvironmentSelection, DictRunOptions } from "./runOptions";
 
 export type TypeRunHistoryStatus =
   | "running"
@@ -10,44 +11,19 @@ export type TypeRunHistoryStatus =
   | "timeout"
   | "interrupted";
 
-export type DictProjectRunDetail = Omit<
-  DictColumns_Project_Detail,
-  "created_at_ms" | "updated_at_ms" | "description" | "version_summary"
-> & {
+export interface DictProjectRunDetail
+  extends DictRunOptions, DictPythonEnvironmentSelection {
   schedule_name: string | null;
-  project_source: "local" | "console";
-};
-
-// The SQLite schema keeps the historical scheduler_name column name.
-// Runtime-only objects use schedule_name instead.
-export interface DictColumns_RunHistory_ToInsert {
-  scheduler_name: string | null;
-  project_source: "local" | "console";
-  project_id: number;
-  project_name: string;
-  project_version: string;
-  python_environment_name: string;
-  run_started_at_ms: number;
-  status: "running";
-  log_path: string;
+  project_source: TypeProjectSource;
+  id: number;
+  name: string;
+  version: string;
 }
 
-export type DictColumns_RunHistory_ToUpdate =
-  | {
-      id: number;
-      run_ended_at_ms: number;
-      status: "completed" | "error" | "cancel" | "timeout";
-    }
-  | {
-      id: number;
-      run_ended_at_ms: null;
-      status: "interrupted";
-    };
-
-export interface DictColumns_RunHistory_ListItem_DB {
+export interface DictRunHistoryItem {
   id: number;
-  scheduler_name: string | null;
-  project_source: "local" | "console";
+  schedule_name: string | null;
+  project_source: TypeProjectSource;
   project_name: string;
   project_version: string;
   python_environment_name: string;
@@ -58,8 +34,8 @@ export interface DictColumns_RunHistory_ListItem_DB {
 }
 
 export interface DictRunHistorySearch {
-  scheduler_name: string;
-  project_source: "local" | "console" | null;
+  schedule_name: string;
+  project_source: TypeProjectSource | null;
   project_name: string;
   project_version: string;
   status: TypeRunHistoryStatus | null;
@@ -70,7 +46,7 @@ export interface DictRunHistoryOptions {
   itemsPerPage: number;
   sortBy: {
     key:
-      | "scheduler_name"
+      | "schedule_name"
       | "project_source"
       | "project_name"
       | "project_version"
@@ -85,13 +61,13 @@ export interface DictRunHistoryOptions {
 }
 
 export interface DictRunHistoryPage {
-  rows: DictColumns_RunHistory_ListItem_DB[];
+  rows: DictRunHistoryItem[];
   total: number;
 }
 
 export interface DictRunQueueListItem {
   schedule_name: string;
-  project_source: "local" | "console";
+  project_source: TypeProjectSource;
   project_name: string;
   project_version: string;
   estimated_run_at_ms: number;

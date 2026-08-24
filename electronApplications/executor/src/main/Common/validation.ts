@@ -1,5 +1,5 @@
 import type { TypeRunHistoryStatus } from "../../shared/run";
-import type { TypeColumns_LogLevel, TypeCustomProjectArgs } from "../../shared/runOptions";
+import type { TypeCustomProjectArgs, TypeLogLevel } from "../../shared/runOptions";
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
@@ -81,13 +81,6 @@ export function ensurePositiveInteger(value: unknown, strSourceName: string): nu
   return intValue;
 }
 
-export function ensureBinaryInteger(value: unknown, strSourceName: string): 0 | 1 {
-  if (value !== 0 && value !== 1) {
-    throw new Error(`${strSourceName} must be 0 or 1.`);
-  }
-  return value;
-}
-
 export function ensureNullableString(value: unknown, strSourceName: string): string | null {
   if (value === null) {
     return null;
@@ -115,10 +108,7 @@ export function ensureProjectSource(
   throw new Error(`${strSourceName} must be 'local' or 'console'.`);
 }
 
-export function ensureLogLevel(
-  value: unknown,
-  strSourceName: string,
-): TypeColumns_LogLevel {
+export function ensureLogLevel(value: unknown, strSourceName: string): TypeLogLevel {
   switch (value) {
     case "VERBOSE":
     case "DEBUG":
@@ -215,24 +205,4 @@ export function ensureCustomProjectArgs(
     ensureJsonValue(item[1], `${strSourceName}[${intIndex}][1]`);
     return [item[0], item[1]];
   });
-}
-
-export function parseCustomProjectArgsJson(
-  value: unknown,
-  strSourceName: string,
-): TypeCustomProjectArgs {
-  const strValue = ensureString(value, strSourceName);
-  let parsedValue: unknown;
-  try {
-    parsedValue = JSON.parse(strValue);
-  } catch (e: unknown) {
-    throw new Error(`${strSourceName} must contain valid JSON.`, { cause: e });
-  }
-  return ensureCustomProjectArgs(parsedValue, strSourceName);
-}
-
-export function ensureCustomProjectArgsJson(value: unknown, strSourceName: string): string {
-  const strValue = ensureString(value, strSourceName);
-  parseCustomProjectArgsJson(strValue, strSourceName);
-  return strValue;
 }

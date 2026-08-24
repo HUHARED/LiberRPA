@@ -47,7 +47,7 @@ export const useSettingStore = defineStore("setting", {
     },
 
     async selectNewProjectLogFolderPath(): Promise<void> {
-      const result = await invokeMain("selectProjectLogFolder");
+      const result = await invokeMain("chooseProjectLogFolder");
       if (result !== null) {
         this.projectLogFolderPath = result;
       }
