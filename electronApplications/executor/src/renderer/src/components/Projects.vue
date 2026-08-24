@@ -157,7 +157,7 @@ import { loggerRenderer } from "../Logging/logger";
 import { useProjectStore } from "../Store/projectStore";
 import { useRunHistoryStore } from "../Store/runHistoryStore";
 import { cloneJsonSerializable } from "../Common/json";
-import type { DictProjectRunDetail } from "../../../shared/interface";
+import type { DictProjectRunDetail } from "../../../shared/run";
 
 const projectStore = useProjectStore();
 const runHistoryStore = useRunHistoryStore();

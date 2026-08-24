@@ -5,7 +5,7 @@ import type {
   DictColumns_RunHistory_ToUpdate,
   DictRunHistoryOptions,
   DictRunHistoryPage,
-} from "../../shared/interface";
+} from "../../shared/run";
 import { loggerMain } from "../Logging/logger";
 import { getDatabase } from "./connection";
 import {

@@ -1,9 +1,9 @@
+import type { DictColumns_Project_Detail_DB } from "../../shared/project";
+import type { DictColumns_RunHistory_ListItem_DB } from "../../shared/run";
 import type {
-  DictColumns_Project_Detail_DB,
-  DictColumns_Schedule_ListItem_DB,
   DictColumns_Schedule_Detail_DB,
-  DictColumns_RunHistory_ListItem_DB,
-} from "../../shared/interface";
+  DictColumns_Schedule_ListItem_DB,
+} from "../../shared/schedule";
 import {
   ensureBinaryInteger,
   ensureCustomProjectArgsJson,

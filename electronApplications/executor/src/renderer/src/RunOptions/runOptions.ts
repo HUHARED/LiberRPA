@@ -2,13 +2,15 @@ import { computed, ref } from "vue";
 import type { Ref, WritableComputedRef } from "vue";
 
 import { useInformationStore } from "../Store/informationStore";
+import type { DictColumns_Project_Detail } from "../../../shared/project";
 import type {
   TypeColumns_LogLevel,
   TypeCustomProjectArgs,
-  DictColumns_Project_Detail,
+} from "../../../shared/runOptions";
+import type {
   DictColumns_Schedule_Detail,
   DictColumns_Schedule_Detail_BeforeInsert,
-} from "../../../shared/interface";
+} from "../../../shared/schedule";
 
 export const ARR_LOG_LEVEL: TypeColumns_LogLevel[] = [
   "VERBOSE",

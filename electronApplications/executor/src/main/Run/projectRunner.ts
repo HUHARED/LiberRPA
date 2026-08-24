@@ -6,7 +6,7 @@ import { getPythonEnvironmentPath } from "../Config/environment";
 import { dbInsertRunHistory, dbUpdateRunHistory } from "../Database/runHistoryRepository";
 import { getExecutorPackageFolderPath } from "../FileSystem/executorFiles";
 import { loggerMain } from "../Logging/logger";
-import type { DictProjectRunDetail } from "../../shared/interface";
+import type { DictProjectRunDetail } from "../../shared/run";
 import { notifyRunEnded } from "./lifecycle";
 import {
   type DictPythonProcessDiagnosticOutput,

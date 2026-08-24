@@ -1,8 +1,5 @@
-import type {
-  TypeColumns_LogLevel,
-  TypeRunHistoryStatus,
-  TypeCustomProjectArgs,
-} from "../../shared/interface";
+import type { TypeRunHistoryStatus } from "../../shared/run";
+import type { TypeColumns_LogLevel, TypeCustomProjectArgs } from "../../shared/runOptions";
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {

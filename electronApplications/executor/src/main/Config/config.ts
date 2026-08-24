@@ -4,7 +4,7 @@ import * as jsoncParser from "jsonc-parser";
 import * as os from "os";
 import path from "path";
 
-import type { DictBasicConfig, DictExecutorConfig } from "../../shared/interface";
+import type { DictBasicConfig, DictExecutorConfig } from "../../shared/config";
 import { strLiberRPAEnvPath } from "./environment";
 import {
   ensureBoolean,

@@ -174,11 +174,11 @@ import { useInformationStore } from "../Store/informationStore";
 import { useSettingStore } from "../Store/settingStore";
 import { formatTimestamp } from "../Common/time";
 import type {
-  TypeRunHistoryStatus,
-  DictProjectRunDetail,
   DictColumns_RunHistory_ListItem_DB,
+  DictProjectRunDetail,
   DictRunHistorySearch,
-} from "../../../shared/interface";
+  TypeRunHistoryStatus,
+} from "../../../shared/run";
 
 const runHistoryStore = useRunHistoryStore();
 const settingStore = useSettingStore();

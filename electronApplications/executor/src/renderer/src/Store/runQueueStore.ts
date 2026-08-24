@@ -1,7 +1,7 @@
 import { defineStore } from "pinia";
 
 import { invokeMain } from "../IPC/ipc";
-import type { DictRunQueueListItem } from "../../../shared/interface";
+import type { DictRunQueueListItem } from "../../../shared/run";
 
 export const useRunQueueStore = defineStore("runQueue", {
   state: () => {

@@ -2,7 +2,7 @@ import { defineStore } from "pinia";
 
 import { invokeMain } from "../IPC/ipc";
 import { getSystemTimezone } from "../Common/time";
-import type { DictExecutorConfig } from "../../../shared/interface";
+import type { DictExecutorConfig } from "../../../shared/config";
 
 export const useSettingStore = defineStore("setting", {
   state: () => {

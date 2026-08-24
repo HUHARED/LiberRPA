@@ -4,11 +4,11 @@ import { cloneJsonSerializable } from "../Common/json";
 import { invokeMain } from "../IPC/ipc";
 import { loggerRenderer } from "../Logging/logger";
 import type {
-  TypeRunHistoryStatus,
   DictColumns_RunHistory_ListItem_DB,
-  DictRunHistorySearch,
   DictRunHistoryOptions,
-} from "../../../shared/interface";
+  DictRunHistorySearch,
+  TypeRunHistoryStatus,
+} from "../../../shared/run";
 
 interface DictRunHistoryTableOptions extends Omit<DictRunHistoryOptions, "search"> {
   search: string;

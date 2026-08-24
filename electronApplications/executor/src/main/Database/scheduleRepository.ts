@@ -1,11 +1,11 @@
 import type Database from "better-sqlite3";
 
 import type {
-  DictColumns_Schedule_ListItem_DB,
   DictColumns_Schedule_Detail_DB,
-  DictColumns_Schedule_Detail_ToUpdate,
   DictColumns_Schedule_Detail_ToInsert,
-} from "../../shared/interface";
+  DictColumns_Schedule_Detail_ToUpdate,
+  DictColumns_Schedule_ListItem_DB,
+} from "../../shared/schedule";
 import { loggerMain } from "../Logging/logger";
 import { getDatabase } from "./connection";
 import { ensureScheduleDetailRow, ensureScheduleListRows } from "./rowValidation";

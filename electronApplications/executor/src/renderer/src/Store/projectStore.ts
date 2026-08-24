@@ -5,7 +5,7 @@ import { loggerRenderer } from "../Logging/logger";
 import type {
   DictColumns_Project_Detail,
   DictColumns_Project_Detail_ToUpdate,
-} from "../../../shared/interface";
+} from "../../../shared/project";
 
 export const useProjectStore = defineStore("project", {
   state: () => {

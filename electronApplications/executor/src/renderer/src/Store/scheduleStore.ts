@@ -8,12 +8,12 @@ import {
 } from "../Common/time";
 import { useSettingStore } from "./settingStore";
 import type {
-  DictColumns_Schedule_ListItem,
   DictColumns_Schedule_Detail,
-  DictColumns_Schedule_Detail_ToUpdate,
-  DictColumns_Schedule_Detail_ToInsert,
   DictColumns_Schedule_Detail_BeforeInsert,
-} from "../../../shared/interface";
+  DictColumns_Schedule_Detail_ToInsert,
+  DictColumns_Schedule_Detail_ToUpdate,
+  DictColumns_Schedule_ListItem,
+} from "../../../shared/schedule";
 
 function getSchedulePeriodTimestamps({
   periodStart,

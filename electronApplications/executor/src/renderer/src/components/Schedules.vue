@@ -125,7 +125,7 @@ import { getProjectSourceColor } from "../Common/display";
 import { useScheduleStore } from "../Store/scheduleStore";
 import { useSettingStore } from "../Store/settingStore";
 import { getDefaultSchedulePeriod } from "../Common/time";
-import type { DictColumns_Schedule_ListItem } from "../../../shared/interface";
+import type { DictColumns_Schedule_ListItem } from "../../../shared/schedule";
 
 const scheduleStore = useScheduleStore();
 const settingStore = useSettingStore();

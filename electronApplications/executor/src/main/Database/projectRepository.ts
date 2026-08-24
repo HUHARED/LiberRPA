@@ -4,7 +4,7 @@ import type {
   DictColumns_Project_Detail_DB,
   DictColumns_Project_Detail_ToInsert,
   DictColumns_Project_Detail_ToUpdate,
-} from "../../shared/interface";
+} from "../../shared/project";
 import { loggerMain } from "../Logging/logger";
 import { getDatabase } from "./connection";
 import { ensureNameRows, ensureProjectDetailRow, ensureVersionRows } from "./rowValidation";

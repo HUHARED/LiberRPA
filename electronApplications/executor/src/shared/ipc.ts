@@ -1,19 +1,23 @@
 // FileName: ipc.ts
 
+import type { DictExecutorConfig } from "./config";
 import type {
-  DictExecutorConfig,
   DictColumns_Project_Detail_DB,
-  DictProjectPackageImportResult,
   DictColumns_Project_Detail_ToUpdate,
+  DictProjectPackageImportResult,
+} from "./project";
+import type {
   DictProjectRunDetail,
-  DictColumns_Schedule_ListItem_DB,
-  DictColumns_Schedule_Detail_DB,
-  DictColumns_Schedule_Detail_ToUpdate,
-  DictColumns_Schedule_Detail_ToInsert,
   DictRunHistoryOptions,
   DictRunHistoryPage,
   DictRunQueueListItem,
-} from "./interface";
+} from "./run";
+import type {
+  DictColumns_Schedule_Detail_DB,
+  DictColumns_Schedule_Detail_ToInsert,
+  DictColumns_Schedule_Detail_ToUpdate,
+  DictColumns_Schedule_ListItem_DB,
+} from "./schedule";
 
 export const IPC_CHANNEL_RENDERER_LOG = "executor:renderer-log";
 export const IPC_CHANNEL_RENDERER_INVOKE = "executor:renderer-invoke";

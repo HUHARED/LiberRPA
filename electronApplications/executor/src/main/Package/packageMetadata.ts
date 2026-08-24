@@ -3,11 +3,8 @@ import path from "path";
 
 import { ensureLogLevel, isRecord } from "../Common/validation";
 import { DEFAULT_PYTHON_ENVIRONMENT_NAME } from "../Config/environment";
-import type {
-  TypeColumns_LogLevel,
-  TypeCustomProjectArgs,
-  DictColumns_Project_Detail_ToInsert,
-} from "../../shared/interface";
+import type { DictColumns_Project_Detail_ToInsert } from "../../shared/project";
+import type { TypeColumns_LogLevel, TypeCustomProjectArgs } from "../../shared/runOptions";
 
 interface DictFlowManifest {
   schemaVersion: 1;

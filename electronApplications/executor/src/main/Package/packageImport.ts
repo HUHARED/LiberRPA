@@ -7,7 +7,7 @@ import {
 } from "../Database/projectRepository";
 import { getExecutorPackageFolderPath } from "../FileSystem/executorFiles";
 import { loggerMain } from "../Logging/logger";
-import type { DictProjectPackageImportResult } from "../../shared/interface";
+import type { DictProjectPackageImportResult } from "../../shared/project";
 import { validatePackagedFlowProject } from "./componentManagementClient";
 import { extractProjectPackageArchive, getTargetFolderName } from "./packageArchive";
 import {

@@ -1,10 +1,9 @@
+import type { DictColumns_Project_Detail_ToUpdate } from "../../shared/project";
+import type { DictProjectRunDetail, DictRunHistoryOptions } from "../../shared/run";
 import type {
-  DictColumns_Project_Detail_ToUpdate,
-  DictProjectRunDetail,
-  DictColumns_Schedule_Detail_ToUpdate,
   DictColumns_Schedule_Detail_ToInsert,
-  DictRunHistoryOptions,
-} from "../../shared/interface";
+  DictColumns_Schedule_Detail_ToUpdate,
+} from "../../shared/schedule";
 import type { TypeExecutorInvokeCommand, TypeRendererLogLevel } from "../../shared/ipc";
 
 import {

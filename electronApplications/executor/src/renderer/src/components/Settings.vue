@@ -323,7 +323,7 @@ import { loggerRenderer } from "../Logging/logger";
 import { useInformationStore } from "../Store/informationStore";
 import { useSettingStore } from "../Store/settingStore";
 import { arrTimezone } from "../Common/time";
-import type { DictExecutorConfig } from "../../../shared/interface";
+import type { DictExecutorConfig } from "../../../shared/config";
 
 const settingStore = useSettingStore();
 const informationStore = useInformationStore();

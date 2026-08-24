@@ -9,7 +9,7 @@ import { dbHasRunningRun } from "../Database/runHistoryRepository";
 import { loggerMain } from "../Logging/logger";
 import { pythonRun } from "../Run/projectRunner";
 import { parseCustomProjectArgsJson } from "../Common/validation";
-import type { DictProjectRunDetail, DictRunQueueListItem } from "../../shared/interface";
+import type { DictProjectRunDetail, DictRunQueueListItem } from "../../shared/run";
 
 type WhenOthersRunning = "cancel" | "wait" | "run";
 
