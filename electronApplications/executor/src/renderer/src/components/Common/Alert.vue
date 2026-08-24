@@ -13,7 +13,7 @@
 <script setup lang="ts">
 import { watch } from "vue";
 
-import { useInformationStore } from "../Store/informationStore";
+import { useInformationStore } from "../../Store/informationStore";
 
 const informationStore = useInformationStore();
 

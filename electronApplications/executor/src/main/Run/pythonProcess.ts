@@ -4,7 +4,7 @@ import path from "path";
 
 import { getPythonProcessEnvironment } from "../Config/environment";
 import { loggerMain } from "../Logging/logger";
-import type { DictProjectRunDetail } from "../../shared/run";
+import type { DictProjectRunDetail } from "./types";
 
 export interface DictPythonProcessDiagnosticOutput {
   strStdoutTail: string;

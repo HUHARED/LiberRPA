@@ -62,12 +62,12 @@
 import { onBeforeMount } from "vue";
 import type { DataTableHeader } from "vuetify";
 
-import { getProjectSourceColor } from "../Common/display";
-import { loggerRenderer } from "../Logging/logger";
-import { useRunQueueStore } from "../Store/runQueueStore";
-import { useSettingStore } from "../Store/settingStore";
-import { formatTimestamp } from "../Common/time";
-import type { DictRunQueueListItem } from "../../../shared/run";
+import { getProjectSourceColor } from "../../Common/display";
+import { loggerRenderer } from "../../Logging/logger";
+import { useRunQueueStore } from "../../Store/runQueueStore";
+import { useSettingStore } from "../../Store/settingStore";
+import { formatTimestamp } from "../../Common/time";
+import type { DictRunQueueListItem } from "../../../../shared/run";
 
 const runQueueStore = useRunQueueStore();
 const settingStore = useSettingStore();

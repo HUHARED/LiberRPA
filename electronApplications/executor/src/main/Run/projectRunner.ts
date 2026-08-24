@@ -2,11 +2,12 @@ import type { ChildProcessWithoutNullStreams } from "child_process";
 import { randomUUID } from "crypto";
 import fs from "fs";
 
+import { getEffectiveProjectLogFolderPath } from "../Config/executorConfig";
 import { getPythonEnvironmentPath } from "../Config/environment";
 import { dbInsertRunHistory, dbUpdateRunHistory } from "../Database/runHistoryRepository";
 import { getExecutorPackageFolderPath } from "../FileSystem/executorFiles";
 import { loggerMain } from "../Logging/logger";
-import type { DictProjectRunDetail } from "../../shared/run";
+import type { DictProjectRunDetail } from "./types";
 import { notifyRunEnded } from "./lifecycle";
 import {
   type DictPythonProcessDiagnosticOutput,
@@ -35,7 +36,45 @@ interface RunningPythonProcess {
 
 const mapProcessCache = new Map<number, RunningPythonProcess>();
 
+const mapStartingRunCountByProject = new Map<number, number>();
+let intStartingRunCount = 0;
+
+function addStartingRun(projectId: number): void {
+  intStartingRunCount += 1;
+  mapStartingRunCountByProject.set(
+    projectId,
+    (mapStartingRunCountByProject.get(projectId) ?? 0) + 1,
+  );
+}
+
+function removeStartingRun(projectId: number): void {
+  intStartingRunCount -= 1;
+  const intProjectCount = mapStartingRunCountByProject.get(projectId);
+  if (intProjectCount === undefined || intProjectCount <= 1) {
+    mapStartingRunCountByProject.delete(projectId);
+  } else {
+    mapStartingRunCountByProject.set(projectId, intProjectCount - 1);
+  }
+}
+
+export function hasStartingRun(): boolean {
+  return intStartingRunCount !== 0;
+}
+
+export function isProjectRunStarting(projectId: number): boolean {
+  return mapStartingRunCountByProject.has(projectId);
+}
+
 export async function pythonRun(dictDetail: DictProjectRunDetail): Promise<void> {
+  addStartingRun(dictDetail.id);
+  try {
+    await startProjectRun(dictDetail);
+  } finally {
+    removeStartingRun(dictDetail.id);
+  }
+}
+
+async function startProjectRun(dictDetail: DictProjectRunDetail): Promise<void> {
   // Only the local source is supported now.
   const strExecutorPackagePath = getExecutorPackageFolderPath(
     dictDetail.name,
@@ -55,6 +94,7 @@ export async function pythonRun(dictDetail: DictProjectRunDetail): Promise<void>
 
   const strRunId = randomUUID();
   const strStartedAt = new Date().toISOString();
+  const strProjectLogRootPath = getEffectiveProjectLogFolderPath();
   const strRunStatePath = createExecutorRunStatePath(strRunId);
   const { processPy, diagnosticOutput, getProcessError } = spawnProjectPythonProcess({
     detail: dictDetail,
@@ -72,6 +112,7 @@ export async function pythonRun(dictDetail: DictProjectRunDetail): Promise<void>
     runStatePath: strRunStatePath,
     packageName: dictDetail.name,
     packageVersion: dictDetail.version,
+    expectedLogRootPath: strProjectLogRootPath,
     diagnosticOutput,
   });
 
@@ -134,6 +175,8 @@ export async function pythonRun(dictDetail: DictProjectRunDetail): Promise<void>
         expectedRunId: strRunId,
         expectedPackageName: dictDetail.name,
         expectedPackageVersion: dictDetail.version,
+        expectedLogRootPath: strProjectLogRootPath,
+        expectedLogPath: dictRunState.logPath,
       });
       if (dictFinalState.endedAt !== undefined) {
         intRunEndedAtMs = parseExecutorRunTimestamp(dictFinalState.endedAt);
@@ -216,6 +259,7 @@ async function getInitialRunState({
   runStatePath,
   packageName,
   packageVersion,
+  expectedLogRootPath,
   diagnosticOutput,
 }: {
   processPy: ChildProcessWithoutNullStreams;
@@ -224,6 +268,7 @@ async function getInitialRunState({
   runStatePath: string;
   packageName: string;
   packageVersion: string;
+  expectedLogRootPath: string;
   diagnosticOutput: DictPythonProcessDiagnosticOutput;
 }): Promise<ExecutorRunState> {
   try {
@@ -234,6 +279,7 @@ async function getInitialRunState({
       expectedRunId: runId,
       expectedPackageName: packageName,
       expectedPackageVersion: packageVersion,
+      expectedLogRootPath,
     });
   } catch (e: unknown) {
     await terminatePythonProcessAfterStartupFailure(processPy, runId);

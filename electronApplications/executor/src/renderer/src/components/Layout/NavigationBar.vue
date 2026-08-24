@@ -30,7 +30,7 @@
 </template>
 
 <script setup lang="ts">
-import { useInformationStore } from "../Store/informationStore";
+import { useInformationStore } from "../../Store/informationStore";
 
 const informationStore = useInformationStore();
 </script>

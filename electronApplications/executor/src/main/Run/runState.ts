@@ -5,6 +5,7 @@ import path from "path";
 import { ensureNonEmptyString, ensureRecord, ensureString } from "../Common/validation";
 import { strDocumentsFolderPath } from "../Config/environment";
 import { loggerMain } from "../Logging/logger";
+import { ensureExpectedRunLogFolderPath, ensureRunLogFolderPath } from "./logPath";
 import { isPythonProcessRunning } from "./pythonProcess";
 
 export type ExecutorRunStateStatus = "running" | "completed" | "error" | "terminated";
@@ -83,11 +84,15 @@ export function readExecutorRunState({
   expectedRunId,
   expectedPackageName,
   expectedPackageVersion,
+  expectedLogRootPath,
+  expectedLogPath,
 }: {
   filePath: string;
   expectedRunId: string;
   expectedPackageName: string;
   expectedPackageVersion: string;
+  expectedLogRootPath: string;
+  expectedLogPath?: string;
 }): ExecutorRunState {
   const strContent = fs.readFileSync(filePath, { encoding: "utf-8" });
   const value: unknown = JSON.parse(strContent);
@@ -112,7 +117,14 @@ export function readExecutorRunState({
   if (!isValidExecutorRunTimestamp(strStartedAt)) {
     throw new Error(`Invalid Executor run state startedAt: ${strStartedAt}`);
   }
-  const strLogPath = ensureNonEmptyString(dictState.logPath, "Executor run state.logPath");
+  const strRawLogPath = ensureNonEmptyString(
+    dictState.logPath,
+    "Executor run state.logPath",
+  );
+  const strLogPath =
+    expectedLogPath === undefined
+      ? ensureRunLogFolderPath(strRawLogPath, expectedLogRootPath)
+      : ensureExpectedRunLogFolderPath(strRawLogPath, expectedLogPath);
   const status = ensureExecutorRunStateStatus(dictState.status);
 
   if (status === "running") {
@@ -153,6 +165,7 @@ export async function waitForExecutorRunStateAvailable({
   expectedRunId,
   expectedPackageName,
   expectedPackageVersion,
+  expectedLogRootPath,
 }: {
   filePath: string;
   processPy: ChildProcessWithoutNullStreams;
@@ -160,6 +173,7 @@ export async function waitForExecutorRunStateAvailable({
   expectedRunId: string;
   expectedPackageName: string;
   expectedPackageVersion: string;
+  expectedLogRootPath: string;
 }): Promise<ExecutorRunState> {
   let intElapsedMs = 0;
 
@@ -177,6 +191,7 @@ export async function waitForExecutorRunStateAvailable({
         expectedRunId,
         expectedPackageName,
         expectedPackageVersion,
+        expectedLogRootPath,
       });
     }
 

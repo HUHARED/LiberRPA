@@ -28,6 +28,7 @@ import { dictConfigExecutor } from "./Config/executorConfig";
 import { closeDatabase, initializeDatabase } from "./Database/connection";
 import { dbMarkRunningRunsInterrupted } from "./Database/runHistoryRepository";
 import { recoverProjectPackageImports } from "./Package/packageImportTransaction";
+import { recoverProjectPackageDeletions } from "./Package/projectInstallation";
 import {
   setResolution,
   startRdpSessionManager,
@@ -47,6 +48,7 @@ import type { DictMainMessage } from "../shared/ipc";
 
 initializeDatabase();
 recoverProjectPackageImports();
+recoverProjectPackageDeletions();
 dbMarkRunningRunsInterrupted();
 
 let mainWindow: BrowserWindow | null = null;
@@ -212,7 +214,7 @@ void app
       optimizer.watchWindowShortcuts(window);
     });
 
-    registerExecutorIpc();
+    registerExecutorIpc(() => mainWindow?.webContents);
 
     createWindow();
 

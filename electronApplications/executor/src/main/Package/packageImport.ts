@@ -86,8 +86,6 @@ async function runProjectPackageImport(): Promise<DictProjectPackageImportResult
       status: "projectPackageImported",
       name: packageMetadata.name,
       version: packageMetadata.version,
-      packageFilePath: strPackageFilePath,
-      installedFolderPath: strTargetPath,
     };
   } catch (e: unknown) {
     if (

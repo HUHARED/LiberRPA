@@ -1,6 +1,6 @@
 import type Database from "better-sqlite3";
 
-import type { DictProjectRunDetail } from "../../shared/run";
+import type { DictProjectRunDetail } from "../Run/types";
 import type {
   DictScheduleCreate,
   DictScheduleDetail,

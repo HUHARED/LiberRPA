@@ -3,7 +3,7 @@ import type Database from "better-sqlite3";
 import type {
   DictProjectCreate,
   DictProjectDetail,
-  DictProjectUpdate,
+  DictProjectSettingsUpdate,
 } from "../../shared/project";
 import { loggerMain } from "../Logging/logger";
 import { getDatabase } from "./connection";
@@ -102,6 +102,38 @@ export function dbSelectProjectDetail(
     : ensureProjectDetailRow(row, "Project detail query result");
 }
 
+export function dbSelectProjectDetailById(id: number): DictProjectDetail | undefined {
+  loggerMain.debug("--dbSelectProjectDetailById--");
+  const row = getDatabase()
+    .prepare(
+      `
+      SELECT
+          id,
+          name,
+          version,
+          description,
+          version_summary,
+          python_environment_name,
+          timeout_min,
+          builtin_log_level,
+          builtin_record_video,
+          builtin_stop_shortcut,
+          builtin_highlight_ui,
+          custom_prj_args,
+          created_at_ms,
+          updated_at_ms
+      FROM
+          project_local
+      WHERE
+          id = ?;
+      `,
+    )
+    .get(id);
+  return row === undefined
+    ? undefined
+    : ensureProjectDetailRow(row, "Project detail by ID query result");
+}
+
 export function dbInsertProjectDetail(dictDetail: DictProjectCreate): Database.RunResult {
   loggerMain.debug("--dbInsertProjectDetail--");
   const intNowMs = Date.now();
@@ -145,17 +177,15 @@ export function dbInsertProjectDetail(dictDetail: DictProjectCreate): Database.R
     );
 }
 
-export function dbUpdateProjectDetail(dictDetail: DictProjectUpdate): Database.RunResult {
-  loggerMain.debug("--dbUpdateProjectDetail--");
+export function dbUpdateProjectSettings(
+  dictDetail: DictProjectSettingsUpdate,
+): Database.RunResult {
+  loggerMain.debug("--dbUpdateProjectSettings--");
   return getDatabase()
     .prepare(
       `
       UPDATE project_local
       SET
-          name = ?,
-          version = ?,
-          description = ?,
-          version_summary = ?,
           python_environment_name = ?,
           timeout_min = ?,
           builtin_log_level = ?,
@@ -169,10 +199,6 @@ export function dbUpdateProjectDetail(dictDetail: DictProjectUpdate): Database.R
       `,
     )
     .run(
-      dictDetail.name,
-      dictDetail.version,
-      dictDetail.description,
-      dictDetail.version_summary,
       dictDetail.python_environment_name,
       dictDetail.timeout_min,
       dictDetail.builtin_log_level,
@@ -200,10 +226,10 @@ export function dbDeleteProject(id: number): Database.RunResult {
   return getDatabase().prepare("DELETE FROM project_local WHERE id = ?;").run(id);
 }
 
-export function dbSelectProjectNewestVersionDetail(
+export function dbSelectProjectMostRecentlyImportedDetail(
   name: string,
 ): DictProjectDetail | undefined {
-  loggerMain.debug("--dbSelectProjectNewestVersionDetail--");
+  loggerMain.debug("--dbSelectProjectMostRecentlyImportedDetail--");
   const row = getDatabase()
     .prepare(
       `
@@ -235,5 +261,5 @@ export function dbSelectProjectNewestVersionDetail(
     .get(name);
   return row === undefined
     ? undefined
-    : ensureProjectDetailRow(row, "Newest Project version query result");
+    : ensureProjectDetailRow(row, "Most recently imported Project version query result");
 }

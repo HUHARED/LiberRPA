@@ -1,5 +1,5 @@
-import type { DictProjectUpdate } from "../../shared/project";
-import type { DictProjectRunDetail, DictRunHistoryOptions } from "../../shared/run";
+import type { DictProjectSettingsUpdate } from "../../shared/project";
+import type { DictRunHistoryOptions } from "../../shared/run";
 import type { DictScheduleCreate, DictScheduleUpdate } from "../../shared/schedule";
 import type { TypeExecutorInvokeCommand, TypeRendererLogLevel } from "../../shared/ipc";
 
@@ -11,7 +11,6 @@ import {
   ensureLogLevel,
   ensureNonEmptyString,
   ensureNonNegativeInteger,
-  ensureNullableString,
   ensurePositiveInteger,
   ensureProjectSource,
   ensureString,
@@ -48,14 +47,13 @@ export function ensureInvokeCommand(value: unknown): TypeExecutorInvokeCommand {
   switch (value) {
     case "openProjectLogFolder":
     case "saveExecutorConfig":
-    case "pythonRun":
+    case "runProject":
     case "getPythonEnvironmentNames":
     case "importProjectPackage":
-    case "deleteExecutorPackage":
     case "getProjectNames":
     case "getProjectVersions":
     case "getProjectDetail":
-    case "saveProjectDetail":
+    case "saveProjectSettings":
     case "getProjectBoundSchedules":
     case "deleteProject":
     case "getScheduleList":
@@ -66,8 +64,8 @@ export function ensureInvokeCommand(value: unknown): TypeExecutorInvokeCommand {
     case "getRunHistoryPage":
     case "getRunQueue":
     case "cancelWaitingRun":
-    case "openFolder":
-    case "getNewestProjectVersionDetail":
+    case "openRunLogFolder":
+    case "runMostRecentlyImportedProjectVersion":
     case "pythonCancel":
     case "chooseProjectLogFolder":
       return value;
@@ -106,14 +104,6 @@ export function ensurePositiveIntegerData(value: unknown, strCommand: string): n
   return ensurePositiveInteger(value, `${strCommand} data`);
 }
 
-export function ensurePackageRef(value: unknown): { name: string; version: string } {
-  const dictValue = ensureExactRecord(value, ["name", "version"], "Package reference");
-  return {
-    name: ensureNonEmptyString(dictValue.name, "Package reference.name"),
-    version: ensureNonEmptyString(dictValue.version, "Package reference.version"),
-  };
-}
-
 export function ensureProjectRef(value: unknown): { name: string; version: string } {
   const dictValue = ensureExactRecord(value, ["name", "version"], "Project reference");
   return {
@@ -143,15 +133,11 @@ export function ensureWaitingRunRef(value: unknown): {
   };
 }
 
-export function ensureProjectRun(value: unknown): DictProjectRunDetail {
+export function ensureProjectSettingsUpdate(value: unknown): DictProjectSettingsUpdate {
   const dictValue = ensureExactRecord(
     value,
     [
-      "schedule_name",
-      "project_source",
       "id",
-      "name",
-      "version",
       "python_environment_name",
       "timeout_min",
       "builtin_log_level",
@@ -160,108 +146,38 @@ export function ensureProjectRun(value: unknown): DictProjectRunDetail {
       "builtin_highlight_ui",
       "custom_prj_args",
     ],
-    "Project run request",
+    "Project settings update request",
   );
 
   return {
-    schedule_name: ensureNullableString(
-      dictValue.schedule_name,
-      "Project run request.schedule_name",
-    ),
-    project_source: ensureProjectSource(
-      dictValue.project_source,
-      "Project run request.project_source",
-    ),
-    id: ensurePositiveInteger(dictValue.id, "Project run request.id"),
-    name: ensureNonEmptyString(dictValue.name, "Project run request.name"),
-    version: ensureNonEmptyString(dictValue.version, "Project run request.version"),
+    id: ensurePositiveInteger(dictValue.id, "Project settings update request.id"),
     python_environment_name: ensureNonEmptyString(
       dictValue.python_environment_name,
-      "Project run request.python_environment_name",
+      "Project settings update request.python_environment_name",
     ),
     timeout_min: ensureNonNegativeInteger(
       dictValue.timeout_min,
-      "Project run request.timeout_min",
+      "Project settings update request.timeout_min",
     ),
     builtin_log_level: ensureLogLevel(
       dictValue.builtin_log_level,
-      "Project run request.builtin_log_level",
+      "Project settings update request.builtin_log_level",
     ),
     builtin_record_video: ensureBoolean(
       dictValue.builtin_record_video,
-      "Project run request.builtin_record_video",
+      "Project settings update request.builtin_record_video",
     ),
     builtin_stop_shortcut: ensureBoolean(
       dictValue.builtin_stop_shortcut,
-      "Project run request.builtin_stop_shortcut",
+      "Project settings update request.builtin_stop_shortcut",
     ),
     builtin_highlight_ui: ensureBoolean(
       dictValue.builtin_highlight_ui,
-      "Project run request.builtin_highlight_ui",
+      "Project settings update request.builtin_highlight_ui",
     ),
     custom_prj_args: ensureCustomProjectArgs(
       dictValue.custom_prj_args,
-      "Project run request.custom_prj_args",
-    ),
-  };
-}
-
-export function ensureProjectUpdate(value: unknown): DictProjectUpdate {
-  const dictValue = ensureExactRecord(
-    value,
-    [
-      "id",
-      "name",
-      "version",
-      "description",
-      "version_summary",
-      "python_environment_name",
-      "timeout_min",
-      "builtin_log_level",
-      "builtin_record_video",
-      "builtin_stop_shortcut",
-      "builtin_highlight_ui",
-      "custom_prj_args",
-    ],
-    "Project update request",
-  );
-
-  return {
-    id: ensurePositiveInteger(dictValue.id, "Project update request.id"),
-    name: ensureNonEmptyString(dictValue.name, "Project update request.name"),
-    version: ensureNonEmptyString(dictValue.version, "Project update request.version"),
-    description: ensureString(dictValue.description, "Project update request.description"),
-    version_summary: ensureString(
-      dictValue.version_summary,
-      "Project update request.version_summary",
-    ),
-    python_environment_name: ensureNonEmptyString(
-      dictValue.python_environment_name,
-      "Project update request.python_environment_name",
-    ),
-    timeout_min: ensureNonNegativeInteger(
-      dictValue.timeout_min,
-      "Project update request.timeout_min",
-    ),
-    builtin_log_level: ensureLogLevel(
-      dictValue.builtin_log_level,
-      "Project update request.builtin_log_level",
-    ),
-    builtin_record_video: ensureBoolean(
-      dictValue.builtin_record_video,
-      "Project update request.builtin_record_video",
-    ),
-    builtin_stop_shortcut: ensureBoolean(
-      dictValue.builtin_stop_shortcut,
-      "Project update request.builtin_stop_shortcut",
-    ),
-    builtin_highlight_ui: ensureBoolean(
-      dictValue.builtin_highlight_ui,
-      "Project update request.builtin_highlight_ui",
-    ),
-    custom_prj_args: ensureCustomProjectArgs(
-      dictValue.custom_prj_args,
-      "Project update request.custom_prj_args",
+      "Project settings update request.custom_prj_args",
     ),
   };
 }

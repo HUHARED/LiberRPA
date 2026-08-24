@@ -6,7 +6,7 @@ import { useSettingStore } from "../Store/settingStore";
 
 export function registerMainMessageListener(): void {
   window.executor.onMainMessage(async (message) => {
-    loggerRenderer.debug(`[main-message]\n${JSON.stringify(message, null, 2)}`);
+    loggerRenderer.debug(`[main-message] ${message.type}`);
 
     try {
       switch (message.type) {

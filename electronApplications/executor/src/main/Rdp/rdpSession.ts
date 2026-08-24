@@ -12,7 +12,7 @@ import {
 import { loggerMain } from "../Logging/logger";
 
 const STR_MOVE_MOUSE_TERMINATION_MESSAGE = "Executor-terminated";
-const INT_MOVE_MOUSE_CHECK_INTERVAL_MS = 1000;
+const INT_RDP_HELPER_CHECK_INTERVAL_MS = 1000;
 
 function getScriptFolderPath(): string {
   if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
@@ -75,7 +75,7 @@ let boolRdpSessionManagerStarted = false;
 let processPySessionListener: ChildProcessWithoutNullStreams | undefined;
 let processPyMoveMouse: ChildProcessWithoutNullStreams | undefined;
 let boolMoveMouseTerminationRequested = false;
-let timerMoveMouseCheck: NodeJS.Timeout | undefined;
+let timerRdpHelperCheck: NodeJS.Timeout | undefined;
 
 function startSessionListener(): void {
   if (
@@ -205,13 +205,20 @@ function requestMoveMouseTermination(): void {
   processPy.stdin.end();
 }
 
-function syncMoveMouseProcess(): void {
+function syncRdpHelperProcesses(): void {
   if (!boolRdpSessionManagerStarted) {
     return;
   }
 
+  if (
+    processPySessionListener === undefined ||
+    !isProcessRunning(processPySessionListener)
+  ) {
+    startSessionListener();
+  }
+
   if (dictConfigExecutor.keepRdpSession) {
-    if (processPyMoveMouse === undefined) {
+    if (processPyMoveMouse === undefined || !isProcessRunning(processPyMoveMouse)) {
       startMoveMouse();
     }
     return;
@@ -227,9 +234,11 @@ export function startRdpSessionManager(): void {
 
   loggerMain.debug("--startRdpSessionManager--");
   boolRdpSessionManagerStarted = true;
-  startSessionListener();
-  syncMoveMouseProcess();
-  timerMoveMouseCheck = setInterval(syncMoveMouseProcess, INT_MOVE_MOUSE_CHECK_INTERVAL_MS);
+  syncRdpHelperProcesses();
+  timerRdpHelperCheck = setInterval(
+    syncRdpHelperProcesses,
+    INT_RDP_HELPER_CHECK_INTERVAL_MS,
+  );
 }
 
 export function stopRdpSessionManager(): void {
@@ -240,9 +249,9 @@ export function stopRdpSessionManager(): void {
   loggerMain.debug("--stopRdpSessionManager--");
   boolRdpSessionManagerStarted = false;
 
-  if (timerMoveMouseCheck !== undefined) {
-    clearInterval(timerMoveMouseCheck);
-    timerMoveMouseCheck = undefined;
+  if (timerRdpHelperCheck !== undefined) {
+    clearInterval(timerRdpHelperCheck);
+    timerRdpHelperCheck = undefined;
   }
 
   if (

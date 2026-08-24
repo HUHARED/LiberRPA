@@ -121,6 +121,13 @@ export function validateExecutorConfig(value: unknown): DictExecutorConfig {
     throw new Error("Executor config 'timezone' must be a valid IANA time zone.");
   }
 
+  const strProjectLogFolderPath = getStringConfigValue(dictConfig, "projectLogFolderPath");
+  if (strProjectLogFolderPath !== "" && !path.isAbsolute(strProjectLogFolderPath)) {
+    throw new Error(
+      "Executor config 'projectLogFolderPath' must be empty or an absolute path.",
+    );
+  }
+
   return {
     theme: dictConfig.theme,
     keepRdpSession: getBooleanConfigValue(dictConfig, "keepRdpSession"),
@@ -154,7 +161,7 @@ export function validateExecutorConfig(value: unknown): DictExecutorConfig {
       key: "videoSizeGB",
       min: 1,
     }),
-    projectLogFolderPath: getStringConfigValue(dictConfig, "projectLogFolderPath"),
+    projectLogFolderPath: strProjectLogFolderPath,
     timezone: strTimezone,
   };
 }
@@ -181,7 +188,6 @@ function getExecutorConfigDict(): DictExecutorConfig {
       });
     }
 
-    console.log("dictConfigExecutor=", JSON.stringify(dictSettings, null, 2));
     return dictSettings;
   } catch (e: unknown) {
     throw new Error(`Error reading or parsing Executor.jsonc: ${String(e)}`, {
@@ -191,6 +197,12 @@ function getExecutorConfigDict(): DictExecutorConfig {
 }
 
 export const dictConfigExecutor = getExecutorConfigDict();
+
+export function getEffectiveProjectLogFolderPath(): string {
+  return dictConfigExecutor.projectLogFolderPath === ""
+    ? strDefaultProjectLogFolderPath
+    : dictConfigExecutor.projectLogFolderPath;
+}
 
 export function saveExecutorConfigDict(dictSettings: DictExecutorConfig): void {
   try {

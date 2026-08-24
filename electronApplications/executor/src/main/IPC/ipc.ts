@@ -1,22 +1,25 @@
 import { ipcMain } from "electron";
-import type { IpcMainEvent, IpcMainInvokeEvent } from "electron";
+import type { IpcMainEvent, IpcMainInvokeEvent, WebContents } from "electron";
 
 import {
-  dictConfigExecutor,
-  saveExecutorConfigDict,
   chooseProjectLogFolder,
+  dictConfigExecutor,
+  getEffectiveProjectLogFolderPath,
+  saveExecutorConfigDict,
   validateExecutorConfig,
 } from "../Config/executorConfig";
 import { getPythonEnvironmentNames, getPythonEnvironmentPath } from "../Config/environment";
 import {
-  dbDeleteProject,
   dbSelectProjectBoundSchedules,
   dbSelectProjectDetail,
   dbSelectProjectNames,
-  dbSelectProjectNewestVersionDetail,
   dbSelectProjectVersions,
-  dbUpdateProjectDetail,
+  dbUpdateProjectSettings,
 } from "../Database/projectRepository";
+import {
+  dbSelectRunHistoryLogPath,
+  dbSelectRunHistoryPage,
+} from "../Database/runHistoryRepository";
 import {
   dbDeleteSchedule,
   dbInsertSchedule,
@@ -24,26 +27,28 @@ import {
   dbSelectScheduleList,
   dbUpdateSchedule,
 } from "../Database/scheduleRepository";
-import { dbSelectRunHistoryPage } from "../Database/runHistoryRepository";
-import { fileDeleteExecutorPackage, fileOpenFolder } from "../FileSystem/executorFiles";
-import { importProjectPackage } from "../Package/packageImport";
-import { pythonCancel, pythonRun } from "../Run/projectRunner";
+import { fileOpenFolder } from "../FileSystem/executorFiles";
 import { loggerMain } from "../Logging/logger";
+import { importProjectPackage } from "../Package/packageImport";
+import { deleteInstalledProject } from "../Package/projectInstallation";
+import {
+  runInstalledProject,
+  runMostRecentlyImportedProjectVersion,
+} from "../Run/manualRun";
+import { pythonCancel } from "../Run/projectRunner";
 import {
   cancelWaitingRun,
   getRunQueueItems,
   refreshSchedulerEngine,
 } from "../Scheduler/schedulerEngine";
 import {
-  ensureRunHistoryOptions,
   ensureInvokeCommand,
   ensureNoData,
-  ensurePackageRef,
   ensurePositiveIntegerData,
   ensureProjectRef,
-  ensureProjectRun,
-  ensureProjectUpdate,
+  ensureProjectSettingsUpdate,
   ensureRendererLogLevel,
+  ensureRunHistoryOptions,
   ensureScheduleCreate,
   ensureScheduleUpdate,
   ensureStringData,
@@ -80,18 +85,16 @@ type ExecutorInvokeHandlerMap = {
 };
 
 const INVOKE_VALIDATOR = {
-  openProjectLogFolder: (rawData: unknown) =>
-    ensureStringData(rawData, "openProjectLogFolder"),
+  openProjectLogFolder: (rawData: unknown) => ensureNoData(rawData, "openProjectLogFolder"),
   saveExecutorConfig: (rawData: unknown) => validateExecutorConfig(rawData),
-  pythonRun: ensureProjectRun,
+  runProject: (rawData: unknown) => ensurePositiveIntegerData(rawData, "runProject"),
   getPythonEnvironmentNames: (rawData: unknown) =>
     ensureNoData(rawData, "getPythonEnvironmentNames"),
   importProjectPackage: (rawData: unknown) => ensureNoData(rawData, "importProjectPackage"),
-  deleteExecutorPackage: ensurePackageRef,
   getProjectNames: (rawData: unknown) => ensureNoData(rawData, "getProjectNames"),
   getProjectVersions: (rawData: unknown) => ensureStringData(rawData, "getProjectVersions"),
   getProjectDetail: ensureProjectRef,
-  saveProjectDetail: ensureProjectUpdate,
+  saveProjectSettings: ensureProjectSettingsUpdate,
   getProjectBoundSchedules: (rawData: unknown) =>
     ensurePositiveIntegerData(rawData, "getProjectBoundSchedules"),
   deleteProject: (rawData: unknown) => ensurePositiveIntegerData(rawData, "deleteProject"),
@@ -104,9 +107,10 @@ const INVOKE_VALIDATOR = {
   getRunHistoryPage: ensureRunHistoryOptions,
   getRunQueue: (rawData: unknown) => ensureNoData(rawData, "getRunQueue"),
   cancelWaitingRun: ensureWaitingRunRef,
-  openFolder: (rawData: unknown) => ensureStringData(rawData, "openFolder"),
-  getNewestProjectVersionDetail: (rawData: unknown) =>
-    ensureStringData(rawData, "getNewestProjectVersionDetail"),
+  openRunLogFolder: (rawData: unknown) =>
+    ensurePositiveIntegerData(rawData, "openRunLogFolder"),
+  runMostRecentlyImportedProjectVersion: (rawData: unknown) =>
+    ensureStringData(rawData, "runMostRecentlyImportedProjectVersion"),
   pythonCancel: (rawData: unknown) => ensurePositiveIntegerData(rawData, "pythonCancel"),
   chooseProjectLogFolder: (rawData: unknown) =>
     ensureNoData(rawData, "chooseProjectLogFolder"),
@@ -114,8 +118,8 @@ const INVOKE_VALIDATOR = {
 
 function createInvokeHandlerMap(): ExecutorInvokeHandlerMap {
   return {
-    async openProjectLogFolder(strFolderPath) {
-      await fileOpenFolder(strFolderPath);
+    async openProjectLogFolder() {
+      await fileOpenFolder(getEffectiveProjectLogFolderPath());
     },
 
     saveExecutorConfig(dictConfig) {
@@ -128,8 +132,8 @@ function createInvokeHandlerMap(): ExecutorInvokeHandlerMap {
       }
     },
 
-    async pythonRun(dictDetail) {
-      await pythonRun(dictDetail);
+    async runProject(intProjectId) {
+      await runInstalledProject(intProjectId);
     },
 
     getPythonEnvironmentNames() {
@@ -138,10 +142,6 @@ function createInvokeHandlerMap(): ExecutorInvokeHandlerMap {
 
     async importProjectPackage() {
       return await importProjectPackage();
-    },
-
-    deleteExecutorPackage(dictPackage) {
-      fileDeleteExecutorPackage(dictPackage.name, dictPackage.version);
     },
 
     getProjectNames() {
@@ -156,9 +156,9 @@ function createInvokeHandlerMap(): ExecutorInvokeHandlerMap {
       return dbSelectProjectDetail(dictProject.name, dictProject.version);
     },
 
-    saveProjectDetail(dictDetail) {
+    saveProjectSettings(dictDetail) {
       getPythonEnvironmentPath(dictDetail.python_environment_name);
-      dbUpdateProjectDetail(dictDetail);
+      dbUpdateProjectSettings(dictDetail);
     },
 
     getProjectBoundSchedules(intProjectId) {
@@ -166,7 +166,7 @@ function createInvokeHandlerMap(): ExecutorInvokeHandlerMap {
     },
 
     deleteProject(intProjectId) {
-      dbDeleteProject(intProjectId);
+      deleteInstalledProject(intProjectId);
     },
 
     getScheduleList() {
@@ -204,12 +204,16 @@ function createInvokeHandlerMap(): ExecutorInvokeHandlerMap {
       cancelWaitingRun(dictRun.schedule_name, dictRun.estimated_run_at_ms);
     },
 
-    async openFolder(strFolderPath) {
-      await fileOpenFolder(strFolderPath);
+    async openRunLogFolder(intRunHistoryId) {
+      const strLogFolderPath = dbSelectRunHistoryLogPath(intRunHistoryId);
+      if (strLogFolderPath === undefined) {
+        throw new Error(`Run History record not found: ${intRunHistoryId}`);
+      }
+      await fileOpenFolder(strLogFolderPath);
     },
 
-    getNewestProjectVersionDetail(strName) {
-      return dbSelectProjectNewestVersionDetail(strName);
+    async runMostRecentlyImportedProjectVersion(strProjectName) {
+      await runMostRecentlyImportedProjectVersion(strProjectName);
     },
 
     pythonCancel(intRunHistoryId) {
@@ -232,12 +236,22 @@ async function executeInvoke<C extends TypeExecutorInvokeCommand>(
   return await handlerMap[command](data);
 }
 
-export function registerExecutorIpc(): void {
+export function registerExecutorIpc(
+  getExpectedWebContents: () => WebContents | undefined,
+): void {
   const invokeHandlerMap = createInvokeHandlerMap();
+
+  const isExpectedSender = (event: IpcMainEvent | IpcMainInvokeEvent): boolean =>
+    event.sender === getExpectedWebContents();
 
   ipcMain.on(
     IPC_CHANNEL_RENDERER_LOG,
-    (_event: IpcMainEvent, rawLevel: unknown, rawMessage: unknown): void => {
+    (event: IpcMainEvent, rawLevel: unknown, rawMessage: unknown): void => {
+      if (!isExpectedSender(event)) {
+        loggerMain.warn("Ignored Renderer log message from an unexpected sender.");
+        return;
+      }
+
       try {
         const level = ensureRendererLogLevel(rawLevel);
         const message = ensureStringData(rawMessage, "Renderer log message");
@@ -251,17 +265,20 @@ export function registerExecutorIpc(): void {
   ipcMain.handle(
     IPC_CHANNEL_RENDERER_INVOKE,
     async (
-      _event: IpcMainInvokeEvent,
+      event: IpcMainInvokeEvent,
       rawCommand: unknown,
       rawData: unknown,
     ): Promise<DictInvokeResult<unknown>> => {
+      if (!isExpectedSender(event)) {
+        loggerMain.warn("Rejected Renderer invoke from an unexpected sender.");
+        return createErrorResult(new Error("Unexpected IPC sender."));
+      }
+
       let strCommandForLog = String(rawCommand);
       try {
         const command = ensureInvokeCommand(rawCommand);
         strCommandForLog = command;
-        loggerMain.debug(
-          `[renderer-invoke] (${command}) ${JSON.stringify(rawData, null, 2)}`,
-        );
+        loggerMain.debug(`[renderer-invoke] ${command}`);
 
         const data = await executeInvoke(
           command,

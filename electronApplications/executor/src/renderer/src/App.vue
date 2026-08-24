@@ -14,13 +14,13 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import Alert from "./components/Alert.vue";
-import NavigationBar from "./components/NavigationBar.vue";
-import Projects from "./components/Projects.vue";
-import Schedules from "./components/Schedules.vue";
-import RunQueue from "./components/RunQueue.vue";
-import RunHistory from "./components/RunHistory.vue";
-import Settings from "./components/Settings.vue";
+import Alert from "./components/Common/Alert.vue";
+import NavigationBar from "./components/Layout/NavigationBar.vue";
+import Projects from "./components/Projects/Projects.vue";
+import Schedules from "./components/Schedules/Schedules.vue";
+import RunQueue from "./components/Runs/RunQueue.vue";
+import RunHistory from "./components/Runs/RunHistory.vue";
+import Settings from "./components/Settings/Settings.vue";
 import { loggerRenderer } from "./Logging/logger";
 import { useInformationStore } from "./Store/informationStore";
 import { useSettingStore } from "./Store/settingStore";

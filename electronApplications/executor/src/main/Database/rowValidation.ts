@@ -1,5 +1,6 @@
 import type { DictProjectDetail } from "../../shared/project";
-import type { DictProjectRunDetail, DictRunHistoryItem } from "../../shared/run";
+import type { DictRunHistoryItem } from "../../shared/run";
+import type { DictProjectRunDetail } from "../Run/types";
 import type { DictScheduleDetail, DictScheduleListItem } from "../../shared/schedule";
 import type { TypeCustomProjectArgs } from "../../shared/runOptions";
 import {
@@ -376,7 +377,6 @@ function ensureRunHistoryListItemRow(
       "run_started_at_ms",
       "run_ended_at_ms",
       "status",
-      "log_path",
     ],
     strSourceName,
   );
@@ -417,7 +417,6 @@ function ensureRunHistoryListItemRow(
     ),
     run_ended_at_ms: intRunEndedAtMs,
     status,
-    log_path: ensureNonEmptyString(row.log_path, `${strSourceName}.log_path`),
   };
 }
 
@@ -437,11 +436,11 @@ export function ensureCountRow(
   return ensureNonNegativeInteger(row[strColumnName], `${strSourceName}.${strColumnName}`);
 }
 
-function ensureLogPathRow(value: unknown, strSourceName: string): { log_path: string } {
+export function ensureLogPathRow(value: unknown, strSourceName: string): string {
   const row = ensureExactRecord(value, ["log_path"], strSourceName);
-  return { log_path: ensureNonEmptyString(row.log_path, `${strSourceName}.log_path`) };
+  return ensureNonEmptyString(row.log_path, `${strSourceName}.log_path`);
 }
 
 export function ensureLogPathRows(rows: unknown[], strSourceName: string): string[] {
-  return ensureRows(rows, ensureLogPathRow, strSourceName).map((row) => row.log_path);
+  return ensureRows(rows, ensureLogPathRow, strSourceName);
 }

@@ -76,8 +76,7 @@
           <v-container fluid class="pa-2 ma-0 pt-0 flex-column-grow-1">
             <v-row class="clean-space fill-height">
               <!-- Left half -->
-              <!-- Use v-if to make the intTimeoutMin in ProjectRunOptions can be recreated. -->
-              <ProjectRunOptions v-if="projectStore.dictDetail_edit" />
+              <ProjectRunSettings v-if="projectStore.dictDetail_edit" />
 
               <!-- Right half: Custom Project Arguments -->
               <v-col cols="6" class="clean-space flex-column">
@@ -85,7 +84,8 @@
                   Custom Arguments
                 </v-label>
 
-                <ProjectCustomArguments />
+                <CustomArgumentsEditor
+                  v-model:custom-args="projectStore.dictDetail_edit.custom_prj_args" />
               </v-col>
             </v-row>
           </v-container>
@@ -103,7 +103,7 @@
                 variant="tonal"
                 prepend-icon="mdi-content-save-outline"
                 :disabled="!boolDetailChanged"
-                @click="saveProjectDetail()">
+                @click="saveProjectSettings()">
                 Save
               </v-btn>
             </v-col>
@@ -143,21 +143,19 @@
 </template>
 
 <script setup lang="ts">
-import ProjectMetadata from "./ProjectMetadata.vue";
 import DeleteProjectDialog from "./DeleteProjectDialog.vue";
-import ProjectRunOptions from "./ProjectRunOptions.vue";
-import ProjectCustomArguments from "./ProjectCustomArguments.vue";
-import VerticalDivider from "./utils/VerticalDivider.vue";
+import ProjectMetadata from "./ProjectMetadata.vue";
+import ProjectRunSettings from "./ProjectRunSettings.vue";
+import CustomArgumentsEditor from "../RunOptions/CustomArgumentsEditor.vue";
+import VerticalDivider from "../Common/VerticalDivider.vue";
 
 import { ref, watch, onBeforeMount } from "vue";
 import { debounce } from "lodash";
 
-import { invokeMain } from "../IPC/ipc";
-import { loggerRenderer } from "../Logging/logger";
-import { useProjectStore } from "../Store/projectStore";
-import { useRunHistoryStore } from "../Store/runHistoryStore";
-import { cloneJsonSerializable } from "../Common/json";
-import type { DictProjectRunDetail } from "../../../shared/run";
+import { invokeMain } from "../../IPC/ipc";
+import { loggerRenderer } from "../../Logging/logger";
+import { useProjectStore } from "../../Store/projectStore";
+import { useRunHistoryStore } from "../../Store/runHistoryStore";
 
 const projectStore = useProjectStore();
 const runHistoryStore = useRunHistoryStore();
@@ -194,16 +192,10 @@ const debouncedSetButtonDisabled = debounce(() => {
     return;
   }
 
-  // console.log("Update" + JSON.stringify(projectStore.dictDetail_edit));
-
   const strDetailCacheNew = JSON.stringify(projectStore.dictDetail_edit);
   if (strDetailCacheNew === projectStore.detailCache_edit) {
-    // console.log("Set false");
-
     boolDetailChanged.value = false;
   } else {
-    // console.log("Set true");
-
     boolDetailChanged.value = true;
   }
 }, 300);
@@ -225,21 +217,18 @@ async function refreshDetail(): Promise<void> {
 /* Click triggers */
 
 async function clickNewProjectItem(arrId: number[]): Promise<void> {
-  // console.log("arrId-name", arrId);
   strName.value = projectStore.dictIdToName[arrId[0]];
   await projectStore.loadProjectVersions(strName.value);
 }
 
 async function clickNewVersionItem(arrId: number[]): Promise<void> {
-  // console.log("arrId-version", arrId);
-
   strVersion.value = projectStore.dictIdToVersion[arrId[0]];
   await projectStore.loadProjectDetail(strName.value, strVersion.value);
 }
 
-async function saveProjectDetail(): Promise<void> {
-  loggerRenderer.debug("--saveProjectDetail--");
-  await projectStore.saveProjectDetail();
+async function saveProjectSettings(): Promise<void> {
+  loggerRenderer.debug("--saveProjectSettings--");
+  await projectStore.saveProjectSettings();
   await refreshDetail();
 }
 
@@ -256,23 +245,7 @@ async function openDeleteDialog(): Promise<void> {
 async function runProject(): Promise<void> {
   loggerRenderer.debug("--runProject--");
   if (projectStore.dictDetail_edit) {
-    const dictTemp: DictProjectRunDetail = {
-      schedule_name: null,
-      // Only "local" now.
-      project_source: "local",
-      id: projectStore.dictDetail_edit.id,
-      name: projectStore.dictDetail_edit.name,
-      version: projectStore.dictDetail_edit.version,
-      python_environment_name: projectStore.dictDetail_edit.python_environment_name,
-      timeout_min: projectStore.dictDetail_edit.timeout_min,
-      builtin_log_level: projectStore.dictDetail_edit.builtin_log_level,
-      builtin_record_video: projectStore.dictDetail_edit.builtin_record_video,
-      builtin_stop_shortcut: projectStore.dictDetail_edit.builtin_stop_shortcut,
-      builtin_highlight_ui: projectStore.dictDetail_edit.builtin_highlight_ui,
-      custom_prj_args: projectStore.dictDetail_edit.custom_prj_args,
-    };
-
-    await invokeMain("pythonRun", cloneJsonSerializable(dictTemp));
+    await invokeMain("runProject", projectStore.dictDetail_edit.id);
     await runHistoryStore.refreshRunHistory();
   }
 }

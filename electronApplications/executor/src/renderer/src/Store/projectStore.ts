@@ -2,7 +2,7 @@ import { defineStore } from "pinia";
 
 import { invokeMain } from "../IPC/ipc";
 import { loggerRenderer } from "../Logging/logger";
-import type { DictProjectDetail, DictProjectUpdate } from "../../../shared/project";
+import type { DictProjectDetail, DictProjectSettingsUpdate } from "../../../shared/project";
 
 export const useProjectStore = defineStore("project", {
   state: () => {
@@ -90,17 +90,13 @@ export const useProjectStore = defineStore("project", {
       this.detailCache_edit = JSON.stringify(this.dictDetail_edit);
     },
 
-    async saveProjectDetail(): Promise<void> {
+    async saveProjectSettings(): Promise<void> {
       if (this.dictDetail_edit === undefined) {
         return;
       }
 
-      const dictTemp: DictProjectUpdate = {
+      const dictTemp: DictProjectSettingsUpdate = {
         id: this.dictDetail_edit.id,
-        name: this.dictDetail_edit.name,
-        version: this.dictDetail_edit.version,
-        description: this.dictDetail_edit.description,
-        version_summary: this.dictDetail_edit.version_summary,
         python_environment_name: this.dictDetail_edit.python_environment_name,
         timeout_min: this.dictDetail_edit.timeout_min,
         builtin_log_level: this.dictDetail_edit.builtin_log_level,
@@ -109,7 +105,7 @@ export const useProjectStore = defineStore("project", {
         builtin_highlight_ui: this.dictDetail_edit.builtin_highlight_ui,
         custom_prj_args: this.dictDetail_edit.custom_prj_args,
       };
-      await invokeMain("saveProjectDetail", dictTemp);
+      await invokeMain("saveProjectSettings", dictTemp);
     },
 
     async loadBoundSchedules(): Promise<void> {
@@ -128,11 +124,6 @@ export const useProjectStore = defineStore("project", {
           `Delete project: ${this.dictDetail_edit.id}-${this.dictDetail_edit.name}-${this.dictDetail_edit.version}`,
         );
         await invokeMain("deleteProject", this.dictDetail_edit.id);
-
-        await invokeMain("deleteExecutorPackage", {
-          name: this.dictDetail_edit.name,
-          version: this.dictDetail_edit.version,
-        });
 
         this.arrName = [];
         await this.loadProjectNames();

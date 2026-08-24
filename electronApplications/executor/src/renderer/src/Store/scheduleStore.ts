@@ -42,8 +42,8 @@ export const useScheduleStore = defineStore("schedule", {
       arrListItem: [] as DictScheduleListItem[],
 
       // Edit and New use the same dialog size.
-      showDialog_edit_new: false as boolean,
-      isEditing: undefined as undefined | "edit" | "new",
+      showDialog_form: false as boolean,
+      formMode: undefined as undefined | "edit" | "new",
       dictDetail_edit: undefined as DictScheduleFormDetail | undefined,
       detailCache_edit: undefined as string | undefined,
 
@@ -61,8 +61,12 @@ export const useScheduleStore = defineStore("schedule", {
     async refreshScheduleList(): Promise<void> {
       this.arrListItem = [];
       await this.loadScheduleList();
-      this.showDialog_edit_new = false;
+      this.showDialog_form = false;
       this.showDialog_delete = false;
+      this.formMode = undefined;
+      this.dictDetail_new = undefined;
+      this.dictDetail_edit = undefined;
+      this.detailCache_edit = undefined;
     },
 
     async loadScheduleDetail(name: string): Promise<void> {

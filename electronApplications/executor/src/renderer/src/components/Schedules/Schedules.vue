@@ -2,7 +2,6 @@
   <v-container fluid class="clean-space flex-row-grow-1 fill-height flex-column">
     <v-label class="header-label tab-header">Schedules</v-label>
 
-    <!-- Header button -->
     <v-container fluid class="pa-1 ma-0 flex-row" style="height: 45px">
       <v-btn
         variant="tonal"
@@ -14,11 +13,7 @@
 
     <HorizontalDivider />
 
-    <!-- Table area -->
-
-    <!-- Bug: The "hover" attribute will only work when the window is in the main screen. -->
     <v-data-table
-      v-if="scheduleStore.arrListItem.length !== 0"
       :headers="arrHeader"
       :items="scheduleStore.arrListItem"
       class="clean-space flex-column-grow-1"
@@ -85,23 +80,8 @@
       </template>
     </v-data-table>
 
-    <v-data-table
-      v-else
-      :headers="arrHeader"
-      :items="[]"
-      class="clean-space flex-column-grow-1"
-      fixed-header
-      hide-default-footer
-      items-per-page="-1"
-      density="compact"
-      hover>
-    </v-data-table>
-
-    <!-- Dialog: new or edit detail, delete. -->
-
-    <v-dialog v-model="scheduleStore.showDialog_edit_new" width="800px" height="800px">
-      <EditScheduleDialog />
-      <NewScheduleDialog />
+    <v-dialog v-model="scheduleStore.showDialog_form" width="800px" height="800px">
+      <ScheduleDialog />
     </v-dialog>
 
     <v-dialog v-model="scheduleStore.showDialog_delete" width="400px">
@@ -115,25 +95,29 @@ import { onBeforeMount } from "vue";
 import type { DataTableHeader } from "vuetify";
 import cronstrue from "cronstrue";
 
-import EditScheduleDialog from "./EditScheduleDialog.vue";
-import NewScheduleDialog from "./NewScheduleDialog.vue";
 import DeleteScheduleDialog from "./DeleteScheduleDialog.vue";
-import HorizontalDivider from "./utils/HorizontalDivider.vue";
+import ScheduleDialog from "./ScheduleDialog.vue";
+import HorizontalDivider from "../Common/HorizontalDivider.vue";
 
-import { loggerRenderer } from "../Logging/logger";
-import { getProjectSourceColor } from "../Common/display";
-import { useScheduleStore } from "../Store/scheduleStore";
-import { useSettingStore } from "../Store/settingStore";
-import { getDefaultSchedulePeriod } from "../Common/time";
-import type { DictScheduleListItem } from "../../../shared/schedule";
+import { getProjectSourceColor } from "../../Common/display";
+import { getDefaultSchedulePeriod } from "../../Common/time";
+import { loggerRenderer } from "../../Logging/logger";
+import { useProjectStore } from "../../Store/projectStore";
+import { useScheduleStore } from "../../Store/scheduleStore";
+import { useSettingStore } from "../../Store/settingStore";
+import type { DictScheduleListItem } from "../../../../shared/schedule";
 
+const projectStore = useProjectStore();
 const scheduleStore = useScheduleStore();
 const settingStore = useSettingStore();
 
 onBeforeMount(() => {
-  void scheduleStore.loadScheduleList().catch((e: unknown) => {
+  void Promise.all([
+    scheduleStore.loadScheduleList(),
+    projectStore.loadProjectNames(),
+  ]).catch((e: unknown) => {
     loggerRenderer.error(
-      `Failed to load Schedules: ${e instanceof Error ? e.message : String(e)}`,
+      `Failed to initialize Schedules: ${e instanceof Error ? e.message : String(e)}`,
     );
   });
 });
@@ -141,6 +125,7 @@ onBeforeMount(() => {
 function newSchedule(): void {
   loggerRenderer.debug("--newSchedule--");
 
+  projectStore.resetVersionAndDetail();
   const dictDefaultPeriod = getDefaultSchedulePeriod(settingStore.timezone);
   scheduleStore.dictDetail_new = {
     name: "",
@@ -161,13 +146,12 @@ function newSchedule(): void {
     custom_prj_args: [],
   };
 
-  scheduleStore.showDialog_edit_new = true;
-  scheduleStore.isEditing = "new";
+  scheduleStore.formMode = "new";
+  scheduleStore.showDialog_form = true;
 }
 
 const arrHeader: DataTableHeader<DictScheduleListItem>[] = [
   { title: "Name", value: "name", align: "start", sortable: true },
-
   {
     title: "Project",
     align: "center",
@@ -182,7 +166,6 @@ const arrHeader: DataTableHeader<DictScheduleListItem>[] = [
       },
     ],
   },
-
   { title: "Schedule", value: "cron", align: "start", sortable: true },
   { title: "Enabled", value: "enable", align: "start", sortable: true },
   { title: "Actions", key: "actions", align: "start", sortable: false },
@@ -193,14 +176,22 @@ function getEnabledColor(enable: boolean): string {
 }
 
 async function editSchedule(scheduleName: string): Promise<void> {
-  loggerRenderer.info("Edit schedule: " + scheduleName);
+  loggerRenderer.info(`Edit schedule: ${scheduleName}`);
   await scheduleStore.loadScheduleDetail(scheduleName);
-  scheduleStore.showDialog_edit_new = true;
-  scheduleStore.isEditing = "edit";
+
+  const detail = scheduleStore.dictDetail_edit;
+  if (detail === undefined) {
+    return;
+  }
+
+  await projectStore.loadProjectNames();
+  await projectStore.loadProjectVersions(detail.project_name);
+  scheduleStore.formMode = "edit";
+  scheduleStore.showDialog_form = true;
 }
 
 async function openDeleteDialog(scheduleName: string): Promise<void> {
-  loggerRenderer.info("Open delete dialog for schedule: " + scheduleName);
+  loggerRenderer.info(`Open delete dialog for schedule: ${scheduleName}`);
   await scheduleStore.loadScheduleDetail(scheduleName);
   scheduleStore.showDialog_delete = true;
 }

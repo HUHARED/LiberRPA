@@ -7,7 +7,7 @@ import {
 } from "../Database/scheduleRepository";
 import { dbHasRunningRun } from "../Database/runHistoryRepository";
 import { loggerMain } from "../Logging/logger";
-import { pythonRun } from "../Run/projectRunner";
+import { hasStartingRun, pythonRun } from "../Run/projectRunner";
 import type { DictRunQueueListItem } from "../../shared/run";
 import type { TypeWhenOthersRunning } from "../../shared/schedule";
 
@@ -150,7 +150,7 @@ async function processSchedulerTick(): Promise<void> {
 
   boolIsChecking = true;
   try {
-    let boolOthersRunning = dbHasRunningRun();
+    let boolOthersRunning = dbHasRunningRun() || hasStartingRun();
 
     if (!boolOthersRunning && arrWaitingItem.length !== 0) {
       const dictWaitingItem = arrWaitingItem.shift();

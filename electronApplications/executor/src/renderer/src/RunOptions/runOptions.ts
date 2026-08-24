@@ -1,10 +1,5 @@
-import { computed, ref } from "vue";
-import type { Ref, WritableComputedRef } from "vue";
-
 import { useInformationStore } from "../Store/informationStore";
-import type { DictProjectDetail } from "../../../shared/project";
 import type { TypeCustomProjectArgs, TypeLogLevel } from "../../../shared/runOptions";
-import type { DictNewScheduleFormDetail, DictScheduleFormDetail } from "../Schedule/types";
 
 export const ARR_LOG_LEVEL: TypeLogLevel[] = [
   "VERBOSE",
@@ -14,11 +9,6 @@ export const ARR_LOG_LEVEL: TypeLogLevel[] = [
   "ERROR",
   "CRITICAL",
 ];
-
-type TypeRunOptionsDetail =
-  | DictProjectDetail
-  | DictScheduleFormDetail
-  | DictNewScheduleFormDetail;
 
 export function getArgumentValueNote(value: unknown): string {
   return (
@@ -44,39 +34,4 @@ export function updateCustomProjectArgumentValue(
     informationStore.showAlertMessage(`It can't be deserialized: ${value}`);
     arrValueCache[index] = JSON.stringify(arrCustomProjectArgument[index][1]);
   }
-}
-
-export function createCustomProjectArgumentValueCache(
-  dictDetail: TypeRunOptionsDetail | undefined,
-): Ref<string[]> {
-  return ref(
-    dictDetail?.custom_prj_args.map((item) => JSON.stringify(item[1], null, 0)) ?? [],
-  );
-}
-
-export function getCustomProjectArgumentValueCache(
-  dictDetail: TypeRunOptionsDetail,
-): string[] {
-  return dictDetail.custom_prj_args.map((item) => JSON.stringify(item[1], null, 0));
-}
-
-export function createTimeoutMinModel(
-  dictDetail: TypeRunOptionsDetail | undefined,
-): WritableComputedRef<number, number> {
-  return computed<number>({
-    get() {
-      return dictDetail?.timeout_min ?? 0;
-    },
-    set(newValue: number | null) {
-      if (newValue === null) {
-        const informationStore = useInformationStore();
-        informationStore.showAlertMessage(`It's not an integer >= 0. (${newValue})`);
-        return;
-      }
-
-      if (newValue >= 0 && dictDetail !== undefined) {
-        dictDetail.timeout_min = newValue;
-      }
-    },
-  });
 }

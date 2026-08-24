@@ -19,7 +19,10 @@ export type DictProjectCreate = Omit<
   "id" | "created_at_ms" | "updated_at_ms"
 >;
 
-export type DictProjectUpdate = Omit<DictProjectDetail, "created_at_ms" | "updated_at_ms">;
+export interface DictProjectSettingsUpdate
+  extends DictRunOptions, DictPythonEnvironmentSelection {
+  id: number;
+}
 
 export type DictProjectPackageImportResult =
   | { status: "canceled" }
@@ -27,6 +30,4 @@ export type DictProjectPackageImportResult =
       status: "projectPackageImported";
       name: string;
       version: string;
-      packageFilePath: string;
-      installedFolderPath: string;
     };

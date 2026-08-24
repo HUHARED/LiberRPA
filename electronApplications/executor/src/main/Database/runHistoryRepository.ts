@@ -10,6 +10,7 @@ import { loggerMain } from "../Logging/logger";
 import { getDatabase } from "./connection";
 import {
   ensureCountRow,
+  ensureLogPathRow,
   ensureLogPathRows,
   ensureRunHistoryListRows,
 } from "./rowValidation";
@@ -137,6 +138,37 @@ export function dbHasRunningRun(): boolean {
   return ensureCountRow(row, "runningCount", "Running Run count query result") > 0;
 }
 
+export function dbHasRunningRunForProject(projectId: number): boolean {
+  loggerMain.debug("--dbHasRunningRunForProject--");
+  const row = getDatabase()
+    .prepare(
+      "SELECT COUNT(*) AS runningCount FROM task_history WHERE status = 'running' AND project_id = ?;",
+    )
+    .get(projectId);
+  return (
+    ensureCountRow(row, "runningCount", "Running Run count for Project query result") > 0
+  );
+}
+
+export function dbSelectRunHistoryLogPath(id: number): string | undefined {
+  loggerMain.debug("--dbSelectRunHistoryLogPath--");
+  const row = getDatabase()
+    .prepare(
+      `
+      SELECT
+          log_path
+      FROM
+          task_history
+      WHERE
+          id = ?;
+      `,
+    )
+    .get(id);
+  return row === undefined
+    ? undefined
+    : ensureLogPathRow(row, "Run History log path query result");
+}
+
 export function dbSelectRunHistoryPage(options: DictRunHistoryOptions): DictRunHistoryPage {
   loggerMain.debug("--dbSelectRunHistoryPage--");
 
@@ -203,8 +235,7 @@ export function dbSelectRunHistoryPage(options: DictRunHistoryOptions): DictRunH
           python_environment_name,
           run_started_at_ms,
           run_ended_at_ms,
-          status,
-          log_path
+          status
       FROM
           task_history
       ${strWhereClause}

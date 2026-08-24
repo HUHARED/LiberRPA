@@ -1,7 +1,6 @@
 // FileName: run.ts
 
 import type { TypeProjectSource } from "./project";
-import type { DictPythonEnvironmentSelection, DictRunOptions } from "./runOptions";
 
 export type TypeRunHistoryStatus =
   | "running"
@@ -10,15 +9,6 @@ export type TypeRunHistoryStatus =
   | "cancel"
   | "timeout"
   | "interrupted";
-
-export interface DictProjectRunDetail
-  extends DictRunOptions, DictPythonEnvironmentSelection {
-  schedule_name: string | null;
-  project_source: TypeProjectSource;
-  id: number;
-  name: string;
-  version: string;
-}
 
 export interface DictRunHistoryItem {
   id: number;
@@ -30,7 +20,6 @@ export interface DictRunHistoryItem {
   run_started_at_ms: number;
   run_ended_at_ms: number | null;
   status: TypeRunHistoryStatus;
-  log_path: string;
 }
 
 export interface DictRunHistorySearch {

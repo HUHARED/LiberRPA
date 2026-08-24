@@ -21,3 +21,5 @@ export type DictNewScheduleFormDetail = Omit<
   project_name: string | undefined;
   project_version: string | undefined;
 };
+
+export type TypeScheduleFormDetail = DictScheduleFormDetail | DictNewScheduleFormDetail;

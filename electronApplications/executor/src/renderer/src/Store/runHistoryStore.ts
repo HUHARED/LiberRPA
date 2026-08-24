@@ -42,7 +42,6 @@ export const useRunHistoryStore = defineStore("runHistory", {
         "getRunHistoryPage",
         cloneJsonSerializable(this.dictOptionsCache),
       );
-      // loggerRenderer.debug(JSON.stringify(result, null, 2));
       this.arrListItem = result.rows;
       this.itemLength = result.total;
     },

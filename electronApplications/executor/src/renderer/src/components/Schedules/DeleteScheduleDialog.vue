@@ -115,7 +115,7 @@
 </template>
 
 <script setup lang="ts">
-import { useScheduleStore } from "../Store/scheduleStore";
+import { useScheduleStore } from "../../Store/scheduleStore";
 
 const scheduleStore = useScheduleStore();
 </script>

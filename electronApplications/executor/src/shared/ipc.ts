@@ -4,10 +4,9 @@ import type { DictExecutorConfig } from "./config";
 import type {
   DictProjectDetail,
   DictProjectPackageImportResult,
-  DictProjectUpdate,
+  DictProjectSettingsUpdate,
 } from "./project";
 import type {
-  DictProjectRunDetail,
   DictRunHistoryOptions,
   DictRunHistoryPage,
   DictRunQueueListItem,
@@ -34,15 +33,15 @@ export type TypeRendererLogLevel =
 
 export interface DictExecutorInvokeContract {
   openProjectLogFolder: {
-    request: string;
+    request: undefined;
     response: void;
   };
   saveExecutorConfig: {
     request: DictExecutorConfig;
     response: void;
   };
-  pythonRun: {
-    request: DictProjectRunDetail;
+  runProject: {
+    request: number;
     response: void;
   };
   getPythonEnvironmentNames: {
@@ -52,10 +51,6 @@ export interface DictExecutorInvokeContract {
   importProjectPackage: {
     request: undefined;
     response: DictProjectPackageImportResult;
-  };
-  deleteExecutorPackage: {
-    request: { name: string; version: string };
-    response: void;
   };
   getProjectNames: {
     request: undefined;
@@ -69,8 +64,8 @@ export interface DictExecutorInvokeContract {
     request: { name: string; version: string };
     response: DictProjectDetail | undefined;
   };
-  saveProjectDetail: {
-    request: DictProjectUpdate;
+  saveProjectSettings: {
+    request: DictProjectSettingsUpdate;
     response: void;
   };
   getProjectBoundSchedules: {
@@ -116,13 +111,13 @@ export interface DictExecutorInvokeContract {
     };
     response: void;
   };
-  openFolder: {
-    request: string;
+  openRunLogFolder: {
+    request: number;
     response: void;
   };
-  getNewestProjectVersionDetail: {
+  runMostRecentlyImportedProjectVersion: {
     request: string;
-    response: DictProjectDetail | undefined;
+    response: void;
   };
   pythonCancel: {
     request: number;

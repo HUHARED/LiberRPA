@@ -59,7 +59,7 @@
                 color="medium-emphasis"
                 icon="mdi-file-document-outline"
                 size="small"
-                @click="openLogFolder(item.log_path)">
+                @click="openLogFolder(item.id)">
               </v-icon>
             </template>
           </v-tooltip>
@@ -77,15 +77,20 @@
             </template>
           </v-tooltip>
 
-          <v-tooltip text="Run Latest Version" location="bottom">
+          <v-tooltip text="Run Most Recently Imported Version" location="bottom">
             <template #activator="{ props }">
               <v-icon
-                v-if="item.status !== 'running'"
+                v-if="item.status !== 'running' && item.project_source === 'local'"
                 v-bind="props"
                 color="medium-emphasis"
                 icon="mdi-replay"
                 size="small"
-                @click="runProjectNewestVersion(item.project_source, item.project_name)">
+                @click="
+                  runMostRecentlyImportedProjectVersion(
+                    item.project_source,
+                    item.project_name,
+                  )
+                ">
               </v-icon>
             </template>
           </v-tooltip>
@@ -165,21 +170,19 @@ import type { Ref } from "vue";
 import { debounce } from "lodash";
 import type { DataTableHeader } from "vuetify";
 
-import { invokeMain } from "../IPC/ipc";
-import { loggerRenderer } from "../Logging/logger";
-import { getProjectSourceColor } from "../Common/display";
-import { cloneJsonSerializable } from "../Common/json";
-import { useRunHistoryStore } from "../Store/runHistoryStore";
-import { useInformationStore } from "../Store/informationStore";
-import { useSettingStore } from "../Store/settingStore";
-import { formatTimestamp } from "../Common/time";
+import { invokeMain } from "../../IPC/ipc";
+import { loggerRenderer } from "../../Logging/logger";
+import { getProjectSourceColor } from "../../Common/display";
+import { cloneJsonSerializable } from "../../Common/json";
+import { useRunHistoryStore } from "../../Store/runHistoryStore";
+import { useSettingStore } from "../../Store/settingStore";
+import { formatTimestamp } from "../../Common/time";
 import type {
   DictRunHistoryItem,
-  DictProjectRunDetail,
   DictRunHistoryOptions,
   DictRunHistorySearch,
   TypeRunHistoryStatus,
-} from "../../../shared/run";
+} from "../../../../shared/run";
 
 const runHistoryStore = useRunHistoryStore();
 const settingStore = useSettingStore();
@@ -292,9 +295,9 @@ function getStatusColor(status: TypeRunHistoryStatus): string {
   }
 }
 
-async function openLogFolder(folderPath: string): Promise<void> {
+async function openLogFolder(runHistoryId: number): Promise<void> {
   try {
-    await invokeMain("openFolder", folderPath);
+    await invokeMain("openRunLogFolder", runHistoryId);
   } catch (e) {
     loggerRenderer.error(`Failed to open Run log folder: ${String(e)}`);
   }
@@ -305,39 +308,19 @@ async function cancelProcess(id: number): Promise<void> {
   await invokeMain("pythonCancel", id);
 }
 
-async function runProjectNewestVersion(
+async function runMostRecentlyImportedProjectVersion(
   projectSource: "local" | "console",
   projectName: string,
 ): Promise<void> {
-  loggerRenderer.info(`Run newest version: ${projectSource} ${projectName}`);
+  loggerRenderer.info(
+    `Run most recently imported version: ${projectSource} ${projectName}`,
+  );
 
   if (projectSource !== "local") {
     return;
   }
 
-  const dictDetail = await invokeMain("getNewestProjectVersionDetail", projectName);
-  if (dictDetail === undefined) {
-    const informationStore = useInformationStore();
-    informationStore.showAlertMessage("The project has been deleted.");
-    return;
-  }
-
-  const dictRunDetail: DictProjectRunDetail = {
-    schedule_name: null,
-    project_source: "local",
-    id: dictDetail.id,
-    name: dictDetail.name,
-    version: dictDetail.version,
-    python_environment_name: dictDetail.python_environment_name,
-    timeout_min: dictDetail.timeout_min,
-    builtin_log_level: dictDetail.builtin_log_level,
-    builtin_record_video: dictDetail.builtin_record_video,
-    builtin_stop_shortcut: dictDetail.builtin_stop_shortcut,
-    builtin_highlight_ui: dictDetail.builtin_highlight_ui,
-    custom_prj_args: dictDetail.custom_prj_args,
-  };
-
-  await invokeMain("pythonRun", cloneJsonSerializable(dictRunDetail));
+  await invokeMain("runMostRecentlyImportedProjectVersion", projectName);
   await runHistoryStore.refreshRunHistory();
 }
 </script>

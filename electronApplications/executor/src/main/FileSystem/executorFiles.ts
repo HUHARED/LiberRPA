@@ -20,11 +20,6 @@ export function getExecutorPackageFolderPath(strName: string, strVersion: string
   return strResolvedFolder;
 }
 
-export function fileDeleteExecutorPackage(strName: string, strVersion: string): void {
-  const strExecutorPackagePath = getExecutorPackageFolderPath(strName, strVersion);
-  fs.rmSync(strExecutorPackagePath, { recursive: true, force: true });
-}
-
 export async function fileOpenFolder(strFolderPath: string): Promise<void> {
   if (!fs.existsSync(strFolderPath) || !fs.statSync(strFolderPath).isDirectory()) {
     throw new Error(`Folder does not exist: ${strFolderPath}`);
