@@ -1,6 +1,6 @@
 import { CronExpressionParser } from "cron-parser";
 
-import { dictConfigExecutor } from "../Config/config";
+import { dictConfigExecutor } from "../Config/executorConfig";
 import {
   dbSelectScheduleList,
   dbSelectScheduleRunDetail,

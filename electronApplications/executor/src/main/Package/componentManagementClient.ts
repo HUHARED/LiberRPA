@@ -1,77 +1,25 @@
 import { spawn } from "child_process";
-import path from "path";
 import fs from "fs";
+import path from "path";
 
 import {
   getPythonProcessEnvironment,
   strDefaultPythonEnvironmentPath,
 } from "../Config/environment";
 import { loggerMain } from "../Logging/logger";
-import { isRecord } from "../Common/validation";
-
-const SET_SUCCESS_KEYS = new Set(["schemaVersion", "ok", "result", "warnings"]);
-const SET_SUCCESS_RESULT_KEYS = new Set(["status"]);
-const SET_FAILURE_KEYS = new Set(["schemaVersion", "ok", "error"]);
-const SET_ERROR_KEYS = new Set(["code", "message", "details"]);
-
-function hasExactKeys(value: Record<string, unknown>, expectedKeys: Set<string>): boolean {
-  const arrKey = Object.keys(value);
-  return (
-    arrKey.length === expectedKeys.size &&
-    arrKey.every((strKey) => expectedKeys.has(strKey))
-  );
-}
-
-function validateComponentManagementResponse(strOutput: string): void {
-  let value: unknown;
-  try {
-    value = JSON.parse(strOutput);
-  } catch (e: unknown) {
-    throw new Error("Component Management returned invalid JSON on stdout.", {
-      cause: e,
-    });
-  }
-
-  if (!isRecord(value) || value.schemaVersion !== 1 || typeof value.ok !== "boolean") {
-    throw new Error("Component Management returned an invalid protocol response.");
-  }
-
-  if (value.ok) {
-    if (
-      !hasExactKeys(value, SET_SUCCESS_KEYS) ||
-      !isRecord(value.result) ||
-      !hasExactKeys(value.result, SET_SUCCESS_RESULT_KEYS) ||
-      value.result.status !== "packagedFlowProjectValidated" ||
-      !Array.isArray(value.warnings)
-    ) {
-      throw new Error("Component Management returned an invalid success response.");
-    }
-    return;
-  }
-
-  if (
-    !hasExactKeys(value, SET_FAILURE_KEYS) ||
-    !isRecord(value.error) ||
-    !hasExactKeys(value.error, SET_ERROR_KEYS) ||
-    typeof value.error.code !== "string" ||
-    typeof value.error.message !== "string" ||
-    !isRecord(value.error.details)
-  ) {
-    throw new Error("Component Management returned an invalid error response.");
-  }
-
-  const strDetails = JSON.stringify(value.error.details, null, 2);
-  throw new Error(
-    `[${value.error.code}] ${value.error.message}` +
-      (strDetails === "{}" ? "" : `\n${strDetails}`),
-  );
-}
+import {
+  createValidatePackagedFlowProjectRequest,
+  validatePackagedFlowProjectResponse,
+} from "./componentManagementProtocol";
+import type { DictValidatePackagedFlowProjectRequest } from "./componentManagementProtocol";
 
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-async function runComponentManagement(request: Record<string, unknown>): Promise<void> {
+async function runComponentManagement(
+  request: DictValidatePackagedFlowProjectRequest,
+): Promise<void> {
   const strPythonExecutablePath = path.join(strDefaultPythonEnvironmentPath, "python.exe");
   if (
     !fs.existsSync(strPythonExecutablePath) ||
@@ -159,7 +107,7 @@ async function runComponentManagement(request: Record<string, unknown>): Promise
         }
 
         try {
-          validateComponentManagementResponse(strStdout.trim());
+          validatePackagedFlowProjectResponse(strStdout.trim());
           resolve();
         } catch (e: unknown) {
           reject(new Error(getErrorMessage(e), { cause: e }));
@@ -172,9 +120,5 @@ async function runComponentManagement(request: Record<string, unknown>): Promise
 }
 
 export async function validatePackagedFlowProject(strProjectPath: string): Promise<void> {
-  await runComponentManagement({
-    schemaVersion: 1,
-    operation: "validatePackagedFlowProject",
-    projectPath: strProjectPath,
-  });
+  await runComponentManagement(createValidatePackagedFlowProjectRequest(strProjectPath));
 }

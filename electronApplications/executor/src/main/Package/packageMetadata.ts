@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 
-import { ensureLogLevel, isRecord } from "../Common/validation";
+import { ensureExactRecord, ensureLogLevel, ensureRecord } from "../Common/validation";
 import { DEFAULT_PYTHON_ENVIRONMENT_NAME } from "../Config/environment";
 import type { DictProjectCreate } from "../../shared/project";
 import type { TypeCustomProjectArgs, TypeLogLevel } from "../../shared/runOptions";
@@ -38,37 +38,6 @@ const STR_FLOW_MANIFEST_FILE_NAME = "flow.json";
 const STR_PACKAGE_MANIFEST_FILE_NAME = ".liberrpa-package.json";
 const STR_PROJECT_FLOW_FILE_NAME = "project.flow";
 const STR_LEGACY_PROJECT_FILE_NAME = "project.json";
-const SET_FLOW_MANIFEST_KEYS = new Set([
-  "schemaVersion",
-  "name",
-  "version",
-  "description",
-  "requiresLiberrpa",
-  "componentDependencies",
-]);
-const SET_PACKAGE_MANIFEST_KEYS = new Set(["schemaVersion", "versionSummary"]);
-const SET_PROJECT_FLOW_KEYS = new Set([
-  "nodes",
-  "edges",
-  "executeMode",
-  "logLevel",
-  "recordVideo",
-  "stopShortcut",
-  "highlightUi",
-  "customPrjArgs",
-]);
-
-function hasExactKeys(
-  value: Record<string, unknown>,
-  setExpectedKey: Set<string>,
-): boolean {
-  const arrKey = Object.keys(value);
-  return (
-    arrKey.length === setExpectedKey.size &&
-    arrKey.every((strKey) => setExpectedKey.has(strKey))
-  );
-}
-
 function readJsonFile(strFilePath: string): unknown {
   try {
     return JSON.parse(fs.readFileSync(strFilePath, { encoding: "utf-8" }));
@@ -99,19 +68,28 @@ function validateTrimmedSingleLine(
 }
 
 function parseFlowManifest(value: unknown): DictFlowManifest {
-  if (!isRecord(value) || !hasExactKeys(value, SET_FLOW_MANIFEST_KEYS)) {
-    throw new Error("flow.json contains missing or unknown fields.");
-  }
-  if (value.schemaVersion !== 1) {
+  const dictManifest = ensureExactRecord(
+    value,
+    [
+      "schemaVersion",
+      "name",
+      "version",
+      "description",
+      "requiresLiberrpa",
+      "componentDependencies",
+    ],
+    "flow.json",
+  );
+  if (dictManifest.schemaVersion !== 1) {
     throw new Error("Only flow.json schemaVersion 1 is supported.");
   }
-  if (!isRecord(value.componentDependencies)) {
-    throw new Error("flow.json componentDependencies must be an object.");
-  }
+
+  const dictRawDependency = ensureRecord(
+    dictManifest.componentDependencies,
+    "flow.json componentDependencies",
+  );
   const dictDependency: Record<string, string> = {};
-  for (const [strComponentId, dependencyValue] of Object.entries(
-    value.componentDependencies,
-  )) {
+  for (const [strComponentId, dependencyValue] of Object.entries(dictRawDependency)) {
     if (typeof dependencyValue !== "string") {
       throw new Error(
         `flow.json componentDependencies.${strComponentId} must be a string.`,
@@ -120,17 +98,17 @@ function parseFlowManifest(value: unknown): DictFlowManifest {
     dictDependency[strComponentId] = dependencyValue;
   }
 
-  if (typeof value.description !== "string") {
+  if (typeof dictManifest.description !== "string") {
     throw new Error("flow.json description must be a string.");
   }
 
   return {
     schemaVersion: 1,
-    name: validateTrimmedSingleLine(value.name, "flow.json name", false),
-    version: validateTrimmedSingleLine(value.version, "flow.json version", false),
-    description: value.description,
+    name: validateTrimmedSingleLine(dictManifest.name, "flow.json name", false),
+    version: validateTrimmedSingleLine(dictManifest.version, "flow.json version", false),
+    description: dictManifest.description,
     requiresLiberrpa: validateTrimmedSingleLine(
-      value.requiresLiberrpa,
+      dictManifest.requiresLiberrpa,
       "flow.json requiresLiberrpa",
       false,
     ),
@@ -139,16 +117,18 @@ function parseFlowManifest(value: unknown): DictFlowManifest {
 }
 
 function parsePackageManifest(value: unknown): DictPackageManifest {
-  if (!isRecord(value) || !hasExactKeys(value, SET_PACKAGE_MANIFEST_KEYS)) {
-    throw new Error(".liberrpa-package.json contains missing or unknown fields.");
-  }
-  if (value.schemaVersion !== 1) {
+  const dictManifest = ensureExactRecord(
+    value,
+    ["schemaVersion", "versionSummary"],
+    ".liberrpa-package.json",
+  );
+  if (dictManifest.schemaVersion !== 1) {
     throw new Error("Only Package manifest schemaVersion 1 is supported.");
   }
   return {
     schemaVersion: 1,
     versionSummary: validateTrimmedSingleLine(
-      value.versionSummary,
+      dictManifest.versionSummary,
       ".liberrpa-package.json versionSummary",
       true,
     ),
@@ -181,20 +161,31 @@ function parseCustomProjectArguments(value: unknown): TypeCustomProjectArgs {
 }
 
 function parseProjectFlowRuntimeSettings(value: unknown): DictProjectFlowRuntimeSettings {
-  if (!isRecord(value) || !hasExactKeys(value, SET_PROJECT_FLOW_KEYS)) {
-    throw new Error("project.flow contains missing or unknown root fields.");
-  }
-  if (!Array.isArray(value.nodes) || !Array.isArray(value.edges)) {
+  const dictFlow = ensureExactRecord(
+    value,
+    [
+      "nodes",
+      "edges",
+      "executeMode",
+      "logLevel",
+      "recordVideo",
+      "stopShortcut",
+      "highlightUi",
+      "customPrjArgs",
+    ],
+    "project.flow",
+  );
+  if (!Array.isArray(dictFlow.nodes) || !Array.isArray(dictFlow.edges)) {
     throw new Error("project.flow nodes and edges must be arrays.");
   }
-  if (value.executeMode !== "Run" && value.executeMode !== "Debug") {
+  if (dictFlow.executeMode !== "Run" && dictFlow.executeMode !== "Debug") {
     throw new Error("project.flow executeMode must be Run or Debug.");
   }
-  const strLogLevel = ensureLogLevel(value.logLevel, "project.flow logLevel");
+  const strLogLevel = ensureLogLevel(dictFlow.logLevel, "project.flow logLevel");
   if (
-    typeof value.recordVideo !== "boolean" ||
-    typeof value.stopShortcut !== "boolean" ||
-    typeof value.highlightUi !== "boolean"
+    typeof dictFlow.recordVideo !== "boolean" ||
+    typeof dictFlow.stopShortcut !== "boolean" ||
+    typeof dictFlow.highlightUi !== "boolean"
   ) {
     throw new Error(
       "project.flow recordVideo, stopShortcut and highlightUi must be Boolean values.",
@@ -203,10 +194,10 @@ function parseProjectFlowRuntimeSettings(value: unknown): DictProjectFlowRuntime
 
   return {
     logLevel: strLogLevel,
-    recordVideo: value.recordVideo,
-    stopShortcut: value.stopShortcut,
-    highlightUi: value.highlightUi,
-    customPrjArgs: parseCustomProjectArguments(value.customPrjArgs),
+    recordVideo: dictFlow.recordVideo,
+    stopShortcut: dictFlow.stopShortcut,
+    highlightUi: dictFlow.highlightUi,
+    customPrjArgs: parseCustomProjectArguments(dictFlow.customPrjArgs),
   };
 }
 

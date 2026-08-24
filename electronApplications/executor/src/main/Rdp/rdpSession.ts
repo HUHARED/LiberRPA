@@ -4,7 +4,7 @@ import type { ChildProcessWithoutNullStreams } from "child_process";
 import path from "path";
 import { createInterface } from "readline";
 
-import { dictConfigExecutor } from "../Config/config";
+import { dictConfigExecutor } from "../Config/executorConfig";
 import {
   getPythonProcessEnvironment,
   strDefaultPythonEnvironmentPath,

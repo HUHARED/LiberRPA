@@ -23,7 +23,8 @@ import { electronApp, optimizer, is } from "@electron-toolkit/utils";
 import icon from "../../resources/LiberRPA_icon_v3_color_Executor_256.ico?asset";
 
 import { loggerMain } from "./Logging/logger";
-import { dictConfigExecutor, strDefaultProjectLogFolderPath } from "./Config/config";
+import { strDefaultProjectLogFolderPath } from "./Config/basicConfig";
+import { dictConfigExecutor } from "./Config/executorConfig";
 import { closeDatabase, initializeDatabase } from "./Database/connection";
 import { dbMarkRunningRunsInterrupted } from "./Database/runHistoryRepository";
 import { recoverProjectPackageImports } from "./Package/packageImportTransaction";

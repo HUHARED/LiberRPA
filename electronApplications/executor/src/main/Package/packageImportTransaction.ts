@@ -2,7 +2,7 @@ import { randomUUID } from "crypto";
 import fs from "fs";
 import path from "path";
 
-import { isRecord } from "../Common/validation";
+import { ensureExactRecord, ensureString } from "../Common/validation";
 import { dbSelectProjectDetail } from "../Database/projectRepository";
 import { strExecutorPackageFolderPath } from "../FileSystem/executorFiles";
 import { loggerMain } from "../Logging/logger";
@@ -42,50 +42,39 @@ function writeJsonFileAtomic(strFilePath: string, value: unknown): void {
   fs.renameSync(strTempPath, strFilePath);
 }
 
-function hasExactKeys(
-  value: Record<string, unknown>,
-  setExpectedKey: Set<string>,
-): boolean {
-  const arrKey = Object.keys(value);
-  return (
-    arrKey.length === setExpectedKey.size &&
-    arrKey.every((strKey) => setExpectedKey.has(strKey))
-  );
-}
-
 function parseTransaction(strTransactionPath: string): DictPackageImportTransaction {
-  const value = readJsonFile(strTransactionPath);
-  const setKey = new Set([
-    "schemaVersion",
-    "state",
-    "projectName",
-    "projectVersion",
-    "targetFolderName",
-  ]);
-  if (
-    !isRecord(value) ||
-    !hasExactKeys(value, setKey) ||
-    value.schemaVersion !== 1 ||
-    value.state !== "prepared" ||
-    typeof value.projectName !== "string" ||
-    typeof value.projectVersion !== "string" ||
-    typeof value.targetFolderName !== "string"
-  ) {
+  const dictTransaction = ensureExactRecord(
+    readJsonFile(strTransactionPath),
+    ["schemaVersion", "state", "projectName", "projectVersion", "targetFolderName"],
+    "Package import transaction",
+  );
+  if (dictTransaction.schemaVersion !== 1 || dictTransaction.state !== "prepared") {
     throw new Error(`Invalid Package import transaction: ${strTransactionPath}`);
   }
-  if (
-    getTargetFolderName(value.projectName, value.projectVersion) !== value.targetFolderName
-  ) {
+
+  const strProjectName = ensureString(
+    dictTransaction.projectName,
+    "Package import transaction.projectName",
+  );
+  const strProjectVersion = ensureString(
+    dictTransaction.projectVersion,
+    "Package import transaction.projectVersion",
+  );
+  const strTargetFolderName = ensureString(
+    dictTransaction.targetFolderName,
+    "Package import transaction.targetFolderName",
+  );
+  if (getTargetFolderName(strProjectName, strProjectVersion) !== strTargetFolderName) {
     throw new Error(
       `Package import transaction target is inconsistent: ${strTransactionPath}`,
     );
   }
   return {
     schemaVersion: 1,
-    state: value.state,
-    projectName: value.projectName,
-    projectVersion: value.projectVersion,
-    targetFolderName: value.targetFolderName,
+    state: "prepared",
+    projectName: strProjectName,
+    projectVersion: strProjectVersion,
+    targetFolderName: strTargetFolderName,
   };
 }
 

@@ -6,7 +6,7 @@ import {
   saveExecutorConfigDict,
   chooseProjectLogFolder,
   validateExecutorConfig,
-} from "../Config/config";
+} from "../Config/executorConfig";
 import { getPythonEnvironmentNames, getPythonEnvironmentPath } from "../Config/environment";
 import {
   dbDeleteProject,

@@ -1,18 +1,12 @@
 import { dialog } from "electron";
 import fs from "fs";
-import * as jsoncParser from "jsonc-parser";
-import * as os from "os";
 import path from "path";
 
-import type { DictBasicConfig, DictExecutorConfig } from "../../shared/config";
+import type { DictExecutorConfig } from "../../shared/config";
+import { ensureBoolean, ensureRecord, ensureString } from "../Common/validation";
+import { strDefaultProjectLogFolderPath } from "./basicConfig";
 import { strLiberRPAEnvPath } from "./environment";
-import {
-  ensureBoolean,
-  ensureNonEmptyString,
-  ensurePositiveInteger,
-  ensureRecord,
-  ensureString,
-} from "../Common/validation";
+import { parseJsonc } from "./jsonc";
 
 const STR_EXECUTOR_CONFIG_PATH = path.join(
   strLiberRPAEnvPath,
@@ -33,64 +27,6 @@ const ARR_EXECUTOR_CONFIG_KEY: readonly (keyof DictExecutorConfig)[] = [
   "timezone",
 ];
 const SET_EXECUTOR_CONFIG_KEY = new Set<string>(ARR_EXECUTOR_CONFIG_KEY);
-
-function validateBasicConfig(value: unknown): DictBasicConfig {
-  const dictConfig = ensureRecord(value, "Basic config");
-  const intLocalServerPort = ensurePositiveInteger(
-    dictConfig.localServerPort,
-    "Basic config.localServerPort",
-  );
-  if (intLocalServerPort > 65535) {
-    throw new Error("Basic config.localServerPort must be at most 65535.");
-  }
-  if (dictConfig.uiAnalyzerTheme !== "light" && dictConfig.uiAnalyzerTheme !== "dark") {
-    throw new Error("Basic config.uiAnalyzerTheme must be 'light' or 'dark'.");
-  }
-
-  return {
-    outputLogPath: ensureNonEmptyString(
-      dictConfig.outputLogPath,
-      "Basic config.outputLogPath",
-    ),
-    localServerPort: intLocalServerPort,
-    uiAnalyzerTheme: dictConfig.uiAnalyzerTheme,
-    uiAnalyzerMinimizeWindow: ensureBoolean(
-      dictConfig.uiAnalyzerMinimizeWindow,
-      "Basic config.uiAnalyzerMinimizeWindow",
-    ),
-    componentRepositoryPath: ensureNonEmptyString(
-      dictConfig.componentRepositoryPath,
-      "Basic config.componentRepositoryPath",
-    ),
-  };
-}
-
-function getBasicConfigDict(strToolName: "BuiltInTools" | "Executor"): DictBasicConfig {
-  const strSettingPath = path.join(strLiberRPAEnvPath, "configFiles/basic.jsonc");
-
-  try {
-    let strContent = fs.readFileSync(strSettingPath, { encoding: "utf-8" });
-
-    const dictReplaceKeyword: Record<string, string> = {
-      "${LiberRPA}": strLiberRPAEnvPath.replace(/\\/g, "\\\\"),
-      "${UserName}": os.userInfo().username,
-      "${HostName}": os.hostname(),
-      "${ToolName}": strToolName,
-    };
-
-    for (const [strKeyword, strReplacement] of Object.entries(dictReplaceKeyword)) {
-      const strSafeKeyword = strKeyword.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&");
-      strContent = strContent.replace(new RegExp(strSafeKeyword, "g"), strReplacement);
-    }
-
-    const dictSettings = validateBasicConfig(jsoncParser.parse(strContent));
-    return dictSettings;
-  } catch (e: unknown) {
-    throw new Error(`Error reading or parsing basic.jsonc: ${String(e)}`, {
-      cause: e,
-    });
-  }
-}
 
 function isValidTimezone(strTimezone: string): boolean {
   try {
@@ -223,7 +159,7 @@ export function validateExecutorConfig(value: unknown): DictExecutorConfig {
   };
 }
 
-export function getExecutorConfigDict(): DictExecutorConfig {
+function getExecutorConfigDict(): DictExecutorConfig {
   if (!fs.existsSync(STR_EXECUTOR_CONFIG_PATH)) {
     const dictDefaultConfig = getDefaultExecutorConfig();
     fs.writeFileSync(STR_EXECUTOR_CONFIG_PATH, JSON.stringify(dictDefaultConfig, null, 2), {
@@ -236,7 +172,7 @@ export function getExecutorConfigDict(): DictExecutorConfig {
     const strContent = fs.readFileSync(STR_EXECUTOR_CONFIG_PATH, {
       encoding: "utf-8",
     });
-    const dictSettings = validateExecutorConfig(jsoncParser.parse(strContent));
+    const dictSettings = validateExecutorConfig(parseJsonc(strContent, "Executor.jsonc"));
 
     if (dictSettings.projectLogFolderPath === strDefaultProjectLogFolderPath) {
       dictSettings.projectLogFolderPath = "";
@@ -254,11 +190,7 @@ export function getExecutorConfigDict(): DictExecutorConfig {
   }
 }
 
-export const dictConfigBasic = getBasicConfigDict("BuiltInTools");
-export const strDefaultProjectLogFolderPath = getBasicConfigDict("Executor").outputLogPath;
 export const dictConfigExecutor = getExecutorConfigDict();
-
-console.log("dictConfigBasic=", JSON.stringify(dictConfigBasic, null, 2));
 
 export function saveExecutorConfigDict(dictSettings: DictExecutorConfig): void {
   try {

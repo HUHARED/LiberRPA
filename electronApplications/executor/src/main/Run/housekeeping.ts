@@ -1,4 +1,4 @@
-import { dictConfigExecutor } from "../Config/config";
+import { dictConfigExecutor } from "../Config/executorConfig";
 import {
   logCleanFolderByTimeout,
   logCleanVideoBySize,

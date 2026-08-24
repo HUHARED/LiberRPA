@@ -1,13 +1,5 @@
 // FileName: config.ts
 
-export interface DictBasicConfig {
-  outputLogPath: string;
-  localServerPort: number;
-  uiAnalyzerTheme: "light" | "dark";
-  uiAnalyzerMinimizeWindow: boolean;
-  componentRepositoryPath: string;
-}
-
 // Persisted values in Executor.jsonc.
 export interface DictExecutorConfig {
   theme: "light" | "dark";

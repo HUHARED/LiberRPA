@@ -2,10 +2,10 @@ import path from "path";
 import { format, transports, createLogger } from "winston";
 import moment from "moment";
 
-import { dictConfigBasic } from "../Config/config";
+import { strBuiltInToolsLogFolderPath } from "../Config/basicConfig";
 
 const strLogPath = path.join(
-  dictConfigBasic["outputLogPath"],
+  strBuiltInToolsLogFolderPath,
   "_Executor",
   `${moment().format("YYYY-MM-DD")}.log`,
 );
