@@ -47,8 +47,8 @@ export function dbSelectProjectVersions(name: string): { version: string }[] {
   return ensureVersionRows(rows, "Project version query result");
 }
 
-export function dbSelectProjectBindSchedulers(id: number): { name: string }[] {
-  loggerMain.debug("--dbSelectProjectBindSchedulers--");
+export function dbSelectProjectBoundSchedules(id: number): { name: string }[] {
+  loggerMain.debug("--dbSelectProjectBoundSchedules--");
   const rows = getDatabase()
     .prepare(
       `
@@ -192,11 +192,11 @@ export function dbUpdateProjectDetail(
 export function dbDeleteProject(id: number): Database.RunResult {
   loggerMain.debug("--dbDeleteProject--");
 
-  const arrBoundScheduler = dbSelectProjectBindSchedulers(id);
-  if (arrBoundScheduler.length !== 0) {
+  const arrBoundSchedule = dbSelectProjectBoundSchedules(id);
+  if (arrBoundSchedule.length !== 0) {
     throw new Error(
-      `Cannot delete Project ${id} because it is used by Scheduler: ${arrBoundScheduler
-        .map((dictScheduler) => dictScheduler.name)
+      `Cannot delete Project ${id} because it is used by Schedule: ${arrBoundSchedule
+        .map((dictSchedule) => dictSchedule.name)
         .join(", ")}.`,
     );
   }

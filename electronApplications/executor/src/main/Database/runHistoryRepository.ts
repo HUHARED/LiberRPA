@@ -1,17 +1,21 @@
 import type Database from "better-sqlite3";
 
 import type {
-  DictColumns_History_ListItem_Limit_DB,
-  DictColumns_History_ToInsert,
-  DictColumns_History_ToUpdate,
-  Dict_History_Options,
+  DictColumns_RunHistory_ToInsert,
+  DictColumns_RunHistory_ToUpdate,
+  DictRunHistoryOptions,
+  DictRunHistoryPage,
 } from "../../shared/interface";
 import { loggerMain } from "../Logging/logger";
 import { getDatabase } from "./connection";
-import { ensureCountRow, ensureHistoryListRows, ensureLogPathRows } from "./rowValidation";
+import {
+  ensureCountRow,
+  ensureRunHistoryListRows,
+  ensureLogPathRows,
+} from "./rowValidation";
 
-const MAP_HISTORY_SORT_COLUMN: Record<
-  Dict_History_Options["sortBy"][number]["key"],
+const MAP_RUN_HISTORY_SORT_COLUMN: Record<
+  DictRunHistoryOptions["sortBy"][number]["key"],
   string
 > = {
   scheduler_name: "scheduler_name",
@@ -24,10 +28,10 @@ const MAP_HISTORY_SORT_COLUMN: Record<
   status: "status",
 };
 
-export function dbInsertHistoryDetail(
-  dictDetail: DictColumns_History_ToInsert,
+export function dbInsertRunHistory(
+  dictDetail: DictColumns_RunHistory_ToInsert,
 ): Database.RunResult {
-  loggerMain.debug("--dbInsertHistoryDetail--");
+  loggerMain.debug("--dbInsertRunHistory--");
   const intNowMs = Date.now();
   return getDatabase()
     .prepare(
@@ -65,10 +69,10 @@ export function dbInsertHistoryDetail(
     );
 }
 
-export function dbUpdateHistoryDetail(
-  dictDetail: DictColumns_History_ToUpdate,
+export function dbUpdateRunHistory(
+  dictDetail: DictColumns_RunHistory_ToUpdate,
 ): Database.RunResult {
-  loggerMain.debug("--dbUpdateHistoryDetail--");
+  loggerMain.debug("--dbUpdateRunHistory--");
   return getDatabase()
     .prepare(
       `
@@ -84,8 +88,8 @@ export function dbUpdateHistoryDetail(
     .run(dictDetail.run_ended_at_ms, dictDetail.status, Date.now(), dictDetail.id);
 }
 
-export function dbMarkRunningHistoryInterrupted(): void {
-  loggerMain.debug("--dbMarkRunningHistoryInterrupted--");
+export function dbMarkRunningRunsInterrupted(): void {
+  loggerMain.debug("--dbMarkRunningRunsInterrupted--");
   const result = getDatabase()
     .prepare(
       `
@@ -101,31 +105,29 @@ export function dbMarkRunningHistoryInterrupted(): void {
     .run(Date.now());
 
   if (result.changes > 0) {
-    loggerMain.warn(`Marked ${result.changes} unfinished task(s) as interrupted.`);
+    loggerMain.warn(`Marked ${result.changes} unfinished Run(s) as interrupted.`);
   }
 }
 
-export function dbSelectCountHistoryRunning(): boolean {
-  loggerMain.debug("--dbSelectCountHistoryRunning--");
+export function dbHasRunningRun(): boolean {
+  loggerMain.debug("--dbHasRunningRun--");
   const row = getDatabase()
     .prepare("SELECT COUNT(*) AS runningCount FROM task_history WHERE status = 'running';")
     .get();
-  return ensureCountRow(row, "runningCount", "Running History count query result") > 0;
+  return ensureCountRow(row, "runningCount", "Running Run count query result") > 0;
 }
 
-export function dbSelectLimitHistoryList(
-  options: Dict_History_Options,
-): DictColumns_History_ListItem_Limit_DB {
-  loggerMain.debug("--dbSelectLimitHistoryList--");
+export function dbSelectRunHistoryPage(options: DictRunHistoryOptions): DictRunHistoryPage {
+  loggerMain.debug("--dbSelectRunHistoryPage--");
 
   if (!Number.isSafeInteger(options.page) || options.page < 1) {
-    throw new Error(`Invalid Task History page: ${String(options.page)}`);
+    throw new Error(`Invalid Run History page: ${String(options.page)}`);
   }
   if (!Number.isSafeInteger(options.itemsPerPage) || options.itemsPerPage < 1) {
-    throw new Error(`Invalid Task History itemsPerPage: ${String(options.itemsPerPage)}`);
+    throw new Error(`Invalid Run History itemsPerPage: ${String(options.itemsPerPage)}`);
   }
   if (!Array.isArray(options.sortBy)) {
-    throw new Error("Task History sortBy must be an array.");
+    throw new Error("Run History sortBy must be an array.");
   }
 
   const arrWhereClause: string[] = [];
@@ -155,14 +157,14 @@ export function dbSelectLimitHistoryList(
     arrWhereClause.length === 0 ? "" : `WHERE ${arrWhereClause.join(" AND ")}`;
 
   const arrOrderByClause = options.sortBy.map((dictSort) => {
-    if (!Object.hasOwn(MAP_HISTORY_SORT_COLUMN, dictSort.key)) {
-      throw new Error(`Invalid Task History sort key: ${String(dictSort.key)}`);
+    if (!Object.hasOwn(MAP_RUN_HISTORY_SORT_COLUMN, dictSort.key)) {
+      throw new Error(`Invalid Run History sort key: ${String(dictSort.key)}`);
     }
     if (dictSort.order !== "asc" && dictSort.order !== "desc") {
-      throw new Error(`Invalid Task History sort order: ${String(dictSort.order)}`);
+      throw new Error(`Invalid Run History sort order: ${String(dictSort.order)}`);
     }
 
-    const strColumn = MAP_HISTORY_SORT_COLUMN[dictSort.key];
+    const strColumn = MAP_RUN_HISTORY_SORT_COLUMN[dictSort.key];
     const strOrder = dictSort.order === "asc" ? "ASC" : "DESC";
     return `${strColumn} ${strOrder}`;
   });
@@ -195,7 +197,7 @@ export function dbSelectLimitHistoryList(
       `,
     )
     .all(...arrWhereParam, options.itemsPerPage, (options.page - 1) * options.itemsPerPage);
-  const arrRow = ensureHistoryListRows(rows, "Run History query result");
+  const arrRow = ensureRunHistoryListRows(rows, "Run History query result");
 
   const total = getDatabase()
     .prepare(

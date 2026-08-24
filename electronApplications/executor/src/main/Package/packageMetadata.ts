@@ -4,9 +4,9 @@ import path from "path";
 import { ensureLogLevel, isRecord } from "../Common/validation";
 import { DEFAULT_PYTHON_ENVIRONMENT_NAME } from "../Config/environment";
 import type {
-  DictColumns_Project_Detail_ToInsert,
   TypeColumns_LogLevel,
   TypeCustomProjectArgs,
+  DictColumns_Project_Detail_ToInsert,
 } from "../../shared/interface";
 
 interface DictFlowManifest {

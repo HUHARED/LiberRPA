@@ -1,12 +1,12 @@
 import { defineStore } from "pinia";
 
 import { invokeMain } from "../IPC/ipc";
-import type { Dict_TaskQueue_ListItem } from "../../../shared/interface";
+import type { DictRunQueueListItem } from "../../../shared/interface";
 
 export const useRunQueueStore = defineStore("runQueue", {
   state: () => {
     return {
-      arrListItem: [] as Dict_TaskQueue_ListItem[],
+      arrListItem: [] as DictRunQueueListItem[],
     };
   },
   actions: {
@@ -14,13 +14,16 @@ export const useRunQueueStore = defineStore("runQueue", {
       this.arrListItem = await invokeMain("selectRunQueue");
     },
 
-    setRunQueue(arrItem: Dict_TaskQueue_ListItem[]): void {
+    setRunQueue(arrItem: DictRunQueueListItem[]): void {
       this.arrListItem = arrItem;
     },
 
-    async cancelWaitingRun(name: string, intEstimatedRunAtMs: number): Promise<void> {
+    async cancelWaitingRun(
+      scheduleName: string,
+      intEstimatedRunAtMs: number,
+    ): Promise<void> {
       await invokeMain("cancelWaitingRun", {
-        name,
+        schedule_name: scheduleName,
         estimated_run_at_ms: intEstimatedRunAtMs,
       });
       await this.refreshRunQueue();

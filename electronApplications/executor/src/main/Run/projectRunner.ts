@@ -3,13 +3,10 @@ import { randomUUID } from "crypto";
 import fs from "fs";
 
 import { getPythonEnvironmentPath } from "../Config/environment";
-import {
-  dbInsertHistoryDetail,
-  dbUpdateHistoryDetail,
-} from "../Database/historyRepository";
+import { dbInsertRunHistory, dbUpdateRunHistory } from "../Database/runHistoryRepository";
 import { getExecutorPackageFolderPath } from "../FileSystem/executorFiles";
 import { loggerMain } from "../Logging/logger";
-import type { DictColumns_Project_Detail_Run } from "../../shared/interface";
+import type { DictProjectRunDetail } from "../../shared/interface";
 import { notifyRunEnded } from "./lifecycle";
 import {
   type DictPythonProcessDiagnosticOutput,
@@ -29,7 +26,7 @@ import {
   waitForExecutorRunStateAvailable,
 } from "./runState";
 
-type ExecutorHistoryStatus = "cancel" | "completed" | "error" | "timeout";
+type RunHistoryTerminalStatus = "cancel" | "completed" | "error" | "timeout";
 
 interface RunningPythonProcess {
   processPy: ChildProcessWithoutNullStreams;
@@ -38,7 +35,7 @@ interface RunningPythonProcess {
 
 const mapProcessCache = new Map<number, RunningPythonProcess>();
 
-export async function pythonRun(dictDetail: DictColumns_Project_Detail_Run): Promise<void> {
+export async function pythonRun(dictDetail: DictProjectRunDetail): Promise<void> {
   // Only the local source is supported now.
   const strExecutorPackagePath = getExecutorPackageFolderPath(
     dictDetail.name,
@@ -80,7 +77,7 @@ export async function pythonRun(dictDetail: DictColumns_Project_Detail_Run): Pro
 
   loggerMain.debug(`Executor run state is available: ${strRunId}`);
 
-  const intHistoryId = await createTaskHistory({
+  const intRunHistoryId = await createRunHistory({
     processPy,
     runId: strRunId,
     runStatePath: strRunStatePath,
@@ -89,7 +86,7 @@ export async function pythonRun(dictDetail: DictColumns_Project_Detail_Run): Pro
     diagnosticOutput,
   });
 
-  mapProcessCache.set(intHistoryId, { processPy, strRunId });
+  mapProcessCache.set(intRunHistoryId, { processPy, strRunId });
 
   let boolTimeout = false;
   let timeoutId: NodeJS.Timeout | undefined;
@@ -127,7 +124,7 @@ export async function pythonRun(dictDetail: DictColumns_Project_Detail_Run): Pro
       clearTimeout(timeoutId);
     }
 
-    let strHistoryStatus: ExecutorHistoryStatus = "error";
+    let strRunHistoryStatus: RunHistoryTerminalStatus = "error";
     let boolUnexpectedProcessFailure = getProcessError() !== undefined;
     let intRunEndedAtMs = Date.now();
 
@@ -144,22 +141,22 @@ export async function pythonRun(dictDetail: DictColumns_Project_Detail_Run): Pro
 
       switch (dictFinalState.status) {
         case "completed":
-          strHistoryStatus = "completed";
+          strRunHistoryStatus = "completed";
           break;
 
         case "error":
-          strHistoryStatus = "error";
+          strRunHistoryStatus = "error";
           break;
 
         case "terminated":
-          strHistoryStatus = boolTimeout ? "timeout" : "cancel";
+          strRunHistoryStatus = boolTimeout ? "timeout" : "cancel";
           break;
 
         case "running":
           loggerMain.error(
             `Python exited before publishing a final Executor run state: ${strRunId}`,
           );
-          strHistoryStatus = "error";
+          strRunHistoryStatus = "error";
           boolUnexpectedProcessFailure = true;
           break;
       }
@@ -187,17 +184,17 @@ export async function pythonRun(dictDetail: DictColumns_Project_Detail_Run): Pro
     }
 
     try {
-      dbUpdateHistoryDetail({
-        id: intHistoryId,
+      dbUpdateRunHistory({
+        id: intRunHistoryId,
         run_ended_at_ms: intRunEndedAtMs,
-        status: strHistoryStatus,
+        status: strRunHistoryStatus,
       });
     } catch (e: unknown) {
       loggerMain.error(
-        `Failed to update Task History ${intHistoryId}: ${getErrorMessage(e)}`,
+        `Failed to update Run History ${intRunHistoryId}: ${getErrorMessage(e)}`,
       );
     } finally {
-      mapProcessCache.delete(intHistoryId);
+      mapProcessCache.delete(intRunHistoryId);
       removeExecutorRunStateFile(strRunStatePath);
 
       notifyRunEnded();
@@ -253,7 +250,7 @@ async function getInitialRunState({
   }
 }
 
-async function createTaskHistory({
+async function createRunHistory({
   processPy,
   runId,
   runStatePath,
@@ -265,12 +262,12 @@ async function createTaskHistory({
   runId: string;
   runStatePath: string;
   runState: ExecutorRunState;
-  detail: DictColumns_Project_Detail_Run;
+  detail: DictProjectRunDetail;
   diagnosticOutput: DictPythonProcessDiagnosticOutput;
 }): Promise<number> {
   try {
-    const intHistoryIdValue = dbInsertHistoryDetail({
-      scheduler_name: detail.scheduler_name,
+    const intRunHistoryIdValue = dbInsertRunHistory({
+      scheduler_name: detail.schedule_name,
       project_source: detail.project_source,
       project_id: detail.id,
       project_name: detail.name,
@@ -281,21 +278,21 @@ async function createTaskHistory({
       log_path: runState.logPath,
     }).lastInsertRowid;
 
-    const intHistoryId = Number(intHistoryIdValue);
-    if (!Number.isSafeInteger(intHistoryId)) {
-      throw new Error(`Invalid Task History ID: ${String(intHistoryIdValue)}`);
+    const intRunHistoryId = Number(intRunHistoryIdValue);
+    if (!Number.isSafeInteger(intRunHistoryId)) {
+      throw new Error(`Invalid Run History ID: ${String(intRunHistoryIdValue)}`);
     }
-    return intHistoryId;
+    return intRunHistoryId;
   } catch (e: unknown) {
     requestPythonTermination(processPy, runId);
     await waitForPythonProcessTermination(processPy, runId);
     logPythonDiagnosticOutput({
       runId,
-      reason: `Failed to create Task History: ${getErrorMessage(e)}`,
+      reason: `Failed to create Run History: ${getErrorMessage(e)}`,
       diagnosticOutput,
     });
     removeExecutorRunStateFile(runStatePath);
-    throw new Error(`Failed to create Task History: ${getErrorMessage(e)}`, {
+    throw new Error(`Failed to create Run History: ${getErrorMessage(e)}`, {
       cause: e,
     });
   }
@@ -309,14 +306,16 @@ function getErrorMessage(error: unknown): string {
   return String(error);
 }
 
-export function pythonCancel(historyId: number): void {
-  const runningProcess = mapProcessCache.get(historyId);
+export function pythonCancel(runHistoryId: number): void {
+  const runningProcess = mapProcessCache.get(runHistoryId);
   if (runningProcess !== undefined) {
     if (!requestPythonTermination(runningProcess.processPy, runningProcess.strRunId)) {
-      loggerMain.debug(`Python process for Task History ${historyId} is already closing.`);
+      loggerMain.debug(
+        `Python process for Run History ${runHistoryId} is already closing.`,
+      );
     }
     return;
   }
 
-  loggerMain.debug(`No running Python process is cached for Task History ${historyId}.`);
+  loggerMain.debug(`No running Python process is cached for Run History ${runHistoryId}.`);
 }

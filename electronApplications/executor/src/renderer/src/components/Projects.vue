@@ -157,7 +157,7 @@ import { loggerRenderer } from "../Logging/logger";
 import { useProjectStore } from "../Store/projectStore";
 import { useRunHistoryStore } from "../Store/runHistoryStore";
 import { cloneJsonSerializable } from "../Common/json";
-import type { DictColumns_Project_Detail_Run } from "../../../shared/interface";
+import type { DictProjectRunDetail } from "../../../shared/interface";
 
 const projectStore = useProjectStore();
 const runHistoryStore = useRunHistoryStore();
@@ -256,8 +256,8 @@ async function openDeleteDialog(): Promise<void> {
 async function runProject(): Promise<void> {
   loggerRenderer.debug("--runProject--");
   if (projectStore.dictDetail_edit) {
-    const dictTemp: DictColumns_Project_Detail_Run = {
-      scheduler_name: null,
+    const dictTemp: DictProjectRunDetail = {
+      schedule_name: null,
       // Only "local" now.
       project_source: "local",
       id: projectStore.dictDetail_edit.id,

@@ -174,10 +174,10 @@ import { useInformationStore } from "../Store/informationStore";
 import { useSettingStore } from "../Store/settingStore";
 import { formatTimestamp } from "../Common/time";
 import type {
-  DictColumns_History_ListItem_DB,
-  DictColumns_Project_Detail_Run,
-  Dict_History_Search,
-  TypeTaskHistoryStatus,
+  TypeRunHistoryStatus,
+  DictProjectRunDetail,
+  DictColumns_RunHistory_ListItem_DB,
+  DictRunHistorySearch,
 } from "../../../shared/interface";
 
 const runHistoryStore = useRunHistoryStore();
@@ -191,7 +191,7 @@ const arrItemsPerPageOptions = [
   { value: 100, title: "100" },
 ];
 
-const dictSearch = computed<Dict_History_Search>(() => {
+const dictSearch = computed<DictRunHistorySearch>(() => {
   return {
     scheduler_name: runHistoryStore.filterScheduleName,
     project_source: runHistoryStore.filterSource,
@@ -214,7 +214,7 @@ watch(
   { deep: true },
 );
 
-const arrHeader: DataTableHeader<DictColumns_History_ListItem_DB>[] = [
+const arrHeader: DataTableHeader<DictColumns_RunHistory_ListItem_DB>[] = [
   { title: "Schedule", value: "scheduler_name", align: "start", sortable: true },
   {
     title: "Project",
@@ -242,7 +242,7 @@ const arrHeader: DataTableHeader<DictColumns_History_ListItem_DB>[] = [
   { title: "Actions", key: "actions", align: "start", sortable: false },
 ];
 
-function getStatusLabel(status: TypeTaskHistoryStatus): string {
+function getStatusLabel(status: TypeRunHistoryStatus): string {
   switch (status) {
     case "running":
       return "Running";
@@ -259,7 +259,7 @@ function getStatusLabel(status: TypeTaskHistoryStatus): string {
   }
 }
 
-function getStatusColor(status: TypeTaskHistoryStatus): string {
+function getStatusColor(status: TypeRunHistoryStatus): string {
   switch (status) {
     case "running":
       return "success";
@@ -306,8 +306,8 @@ async function runProjectNewestVersion(
     return;
   }
 
-  const dictRunDetail: DictColumns_Project_Detail_Run = {
-    scheduler_name: null,
+  const dictRunDetail: DictProjectRunDetail = {
+    schedule_name: null,
     project_source: "local",
     id: dictDetail.id,
     name: dictDetail.name,

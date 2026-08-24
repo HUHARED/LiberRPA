@@ -1,17 +1,17 @@
 import type Database from "better-sqlite3";
 
 import type {
-  DictColumns_Scheduler_Detail_DB,
-  DictColumns_Scheduler_Detail_ToInsert,
-  DictColumns_Scheduler_Detail_ToUpdate,
-  DictColumns_Scheduler_ListItem_DB,
+  DictColumns_Schedule_ListItem_DB,
+  DictColumns_Schedule_Detail_DB,
+  DictColumns_Schedule_Detail_ToUpdate,
+  DictColumns_Schedule_Detail_ToInsert,
 } from "../../shared/interface";
 import { loggerMain } from "../Logging/logger";
 import { getDatabase } from "./connection";
-import { ensureSchedulerDetailRow, ensureSchedulerListRows } from "./rowValidation";
+import { ensureScheduleDetailRow, ensureScheduleListRows } from "./rowValidation";
 
-export function dbSelectSchedulerList(): DictColumns_Scheduler_ListItem_DB[] {
-  loggerMain.debug("--dbSelectSchedulerList--");
+export function dbSelectScheduleList(): DictColumns_Schedule_ListItem_DB[] {
+  loggerMain.debug("--dbSelectScheduleList--");
   const rows = getDatabase()
     .prepare(
       `
@@ -39,13 +39,13 @@ export function dbSelectSchedulerList(): DictColumns_Scheduler_ListItem_DB[] {
       `,
     )
     .all();
-  return ensureSchedulerListRows(rows, "Schedule list query result");
+  return ensureScheduleListRows(rows, "Schedule list query result");
 }
 
-export function dbSelectSchedulerDetail(
+export function dbSelectScheduleDetail(
   name: string,
-): DictColumns_Scheduler_Detail_DB | undefined {
-  loggerMain.debug("--dbSelectSchedulerDetail--");
+): DictColumns_Schedule_Detail_DB | undefined {
+  loggerMain.debug("--dbSelectScheduleDetail--");
   const row = getDatabase()
     .prepare(
       `
@@ -89,13 +89,13 @@ export function dbSelectSchedulerDetail(
     .get(name);
   return row === undefined
     ? undefined
-    : ensureSchedulerDetailRow(row, "Schedule detail query result");
+    : ensureScheduleDetailRow(row, "Schedule detail query result");
 }
 
-export function dbInsertSchedulerDetail(
-  dictDetail: DictColumns_Scheduler_Detail_ToInsert,
+export function dbInsertSchedule(
+  dictDetail: DictColumns_Schedule_Detail_ToInsert,
 ): Database.RunResult {
-  loggerMain.debug("--dbInsertSchedulerDetail--");
+  loggerMain.debug("--dbInsertSchedule--");
   const intNowMs = Date.now();
   return getDatabase()
     .prepare(
@@ -143,10 +143,10 @@ export function dbInsertSchedulerDetail(
     );
 }
 
-export function dbUpdateSchedulerDetail(
-  dictDetail: DictColumns_Scheduler_Detail_ToUpdate,
+export function dbUpdateSchedule(
+  dictDetail: DictColumns_Schedule_Detail_ToUpdate,
 ): Database.RunResult {
-  loggerMain.debug("--dbUpdateSchedulerDetail--");
+  loggerMain.debug("--dbUpdateSchedule--");
   return getDatabase()
     .prepare(
       `
@@ -191,7 +191,7 @@ export function dbUpdateSchedulerDetail(
     );
 }
 
-export function dbDeleteScheduler(id: number): Database.RunResult {
-  loggerMain.debug("--dbDeleteScheduler--");
+export function dbDeleteSchedule(id: number): Database.RunResult {
+  loggerMain.debug("--dbDeleteSchedule--");
   return getDatabase().prepare("DELETE FROM task_scheduler WHERE id = ?;").run(id);
 }

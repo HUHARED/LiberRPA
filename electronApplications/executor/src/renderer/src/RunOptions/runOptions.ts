@@ -3,11 +3,11 @@ import type { Ref, WritableComputedRef } from "vue";
 
 import { useInformationStore } from "../Store/informationStore";
 import type {
-  DictColumns_Project_Detail,
-  DictColumns_Scheduler_Detail,
-  DictColumns_Scheduler_Detail_BeforeInsert,
   TypeColumns_LogLevel,
   TypeCustomProjectArgs,
+  DictColumns_Project_Detail,
+  DictColumns_Schedule_Detail,
+  DictColumns_Schedule_Detail_BeforeInsert,
 } from "../../../shared/interface";
 
 export const ARR_LOG_LEVEL: TypeColumns_LogLevel[] = [
@@ -21,8 +21,8 @@ export const ARR_LOG_LEVEL: TypeColumns_LogLevel[] = [
 
 type TypeRunOptionsDetail =
   | DictColumns_Project_Detail
-  | DictColumns_Scheduler_Detail
-  | DictColumns_Scheduler_Detail_BeforeInsert;
+  | DictColumns_Schedule_Detail
+  | DictColumns_Schedule_Detail_BeforeInsert;
 
 export function getArgumentValueNote(value: unknown): string {
   return (

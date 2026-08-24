@@ -25,7 +25,7 @@ import icon from "../../resources/LiberRPA_icon_v3_color_Executor_256.ico?asset"
 import { loggerMain } from "./Logging/logger";
 import { dictConfigExecutor, strDefaultProjectLogFolderPath } from "./Config/config";
 import { closeDatabase, initializeDatabase } from "./Database/connection";
-import { dbMarkRunningHistoryInterrupted } from "./Database/historyRepository";
+import { dbMarkRunningRunsInterrupted } from "./Database/runHistoryRepository";
 import { recoverProjectPackageImports } from "./Package/packageImportTransaction";
 import {
   setResolution,
@@ -46,7 +46,7 @@ import type { DictMainMessage } from "../shared/ipc";
 
 initializeDatabase();
 recoverProjectPackageImports();
-dbMarkRunningHistoryInterrupted();
+dbMarkRunningRunsInterrupted();
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;

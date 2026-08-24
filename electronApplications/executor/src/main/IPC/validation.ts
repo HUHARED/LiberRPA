@@ -1,9 +1,9 @@
 import type {
-  DictColumns_Project_Detail_Run,
   DictColumns_Project_Detail_ToUpdate,
-  DictColumns_Scheduler_Detail_ToInsert,
-  DictColumns_Scheduler_Detail_ToUpdate,
-  Dict_History_Options,
+  DictProjectRunDetail,
+  DictColumns_Schedule_Detail_ToUpdate,
+  DictColumns_Schedule_Detail_ToInsert,
+  DictRunHistoryOptions,
 } from "../../shared/interface";
 import type { TypeExecutorInvokeCommand, TypeRendererLogLevel } from "../../shared/ipc";
 
@@ -13,7 +13,7 @@ import {
   ensureCustomProjectArgs,
   ensureCustomProjectArgsJson,
   ensureExactRecord,
-  ensureHistoryStatus,
+  ensureRunHistoryStatus,
   ensureLogLevel,
   ensureNonEmptyString,
   ensureNonNegativeInteger,
@@ -24,10 +24,10 @@ import {
   ensureWhenOthersRunning,
 } from "../Common/validation";
 
-function ensureHistorySortKey(
+function ensureRunHistorySortKey(
   value: unknown,
   strSourceName: string,
-): Dict_History_Options["sortBy"][number]["key"] {
+): DictRunHistoryOptions["sortBy"][number]["key"] {
   switch (value) {
     case "scheduler_name":
     case "project_source":
@@ -43,7 +43,7 @@ function ensureHistorySortKey(
   }
 }
 
-function ensureHistorySortOrder(value: unknown, strSourceName: string): "asc" | "desc" {
+function ensureRunHistorySortOrder(value: unknown, strSourceName: string): "asc" | "desc" {
   if (value === "asc" || value === "desc") {
     return value;
   }
@@ -62,14 +62,14 @@ export function ensureInvokeCommand(value: unknown): TypeExecutorInvokeCommand {
     case "selectProjectVersions":
     case "selectProjectDetail":
     case "updateProjectDetail":
-    case "selectProjectBindSchedulers":
+    case "selectProjectBoundSchedules":
     case "deleteProject":
-    case "selectSchedulerList":
-    case "selectSchedulerDetail":
-    case "insertSchedulerDetail":
-    case "updateSchedulerDetail":
-    case "deleteScheduler":
-    case "selectHistoryList":
+    case "selectScheduleList":
+    case "selectScheduleDetail":
+    case "insertSchedule":
+    case "updateSchedule":
+    case "deleteSchedule":
+    case "selectRunHistoryPage":
     case "selectRunQueue":
     case "cancelWaitingRun":
     case "openFolder":
@@ -129,16 +129,19 @@ export function ensureProjectRef(value: unknown): { name: string; version: strin
 }
 
 export function ensureWaitingRunRef(value: unknown): {
-  name: string;
+  schedule_name: string;
   estimated_run_at_ms: number;
 } {
   const dictValue = ensureExactRecord(
     value,
-    ["name", "estimated_run_at_ms"],
+    ["schedule_name", "estimated_run_at_ms"],
     "Waiting Run reference",
   );
   return {
-    name: ensureNonEmptyString(dictValue.name, "Waiting Run reference.name"),
+    schedule_name: ensureNonEmptyString(
+      dictValue.schedule_name,
+      "Waiting Run reference.schedule_name",
+    ),
     estimated_run_at_ms: ensureNonNegativeInteger(
       dictValue.estimated_run_at_ms,
       "Waiting Run reference.estimated_run_at_ms",
@@ -146,11 +149,11 @@ export function ensureWaitingRunRef(value: unknown): {
   };
 }
 
-export function ensureProjectRun(value: unknown): DictColumns_Project_Detail_Run {
+export function ensureProjectRun(value: unknown): DictProjectRunDetail {
   const dictValue = ensureExactRecord(
     value,
     [
-      "scheduler_name",
+      "schedule_name",
       "project_source",
       "id",
       "name",
@@ -167,9 +170,9 @@ export function ensureProjectRun(value: unknown): DictColumns_Project_Detail_Run
   );
 
   return {
-    scheduler_name: ensureNullableString(
-      dictValue.scheduler_name,
-      "Project run request.scheduler_name",
+    schedule_name: ensureNullableString(
+      dictValue.schedule_name,
+      "Project run request.schedule_name",
     ),
     project_source: ensureProjectSource(
       dictValue.project_source,
@@ -269,10 +272,10 @@ export function ensureProjectUpdate(value: unknown): DictColumns_Project_Detail_
   };
 }
 
-function ensureSchedulerData(
+function ensureScheduleData(
   value: unknown,
   boolIncludeId: boolean,
-): DictColumns_Scheduler_Detail_ToInsert | DictColumns_Scheduler_Detail_ToUpdate {
+): DictColumns_Schedule_Detail_ToInsert | DictColumns_Schedule_Detail_ToUpdate {
   const arrExpectedKey = [
     "name",
     "project_source",
@@ -306,7 +309,7 @@ function ensureSchedulerData(
     throw new Error("Schedule request.period_end_ms must be greater than period_start_ms.");
   }
 
-  const dictBase: DictColumns_Scheduler_Detail_ToInsert = {
+  const dictBase: DictColumns_Schedule_Detail_ToInsert = {
     name: ensureNonEmptyString(dictValue.name, "Schedule request.name"),
     project_source: ensureProjectSource(
       dictValue.project_source,
@@ -357,23 +360,19 @@ function ensureSchedulerData(
   };
 }
 
-export function ensureSchedulerInsert(
-  value: unknown,
-): DictColumns_Scheduler_Detail_ToInsert {
-  return ensureSchedulerData(value, false);
+export function ensureScheduleInsert(value: unknown): DictColumns_Schedule_Detail_ToInsert {
+  return ensureScheduleData(value, false);
 }
 
-export function ensureSchedulerUpdate(
-  value: unknown,
-): DictColumns_Scheduler_Detail_ToUpdate {
-  const dictValue = ensureSchedulerData(value, true);
+export function ensureScheduleUpdate(value: unknown): DictColumns_Schedule_Detail_ToUpdate {
+  const dictValue = ensureScheduleData(value, true);
   if (!("id" in dictValue)) {
     throw new Error("Schedule update request is missing id.");
   }
   return dictValue;
 }
 
-export function ensureHistoryOptions(value: unknown): Dict_History_Options {
+export function ensureRunHistoryOptions(value: unknown): DictRunHistoryOptions {
   const dictValue = ensureExactRecord(
     value,
     ["page", "itemsPerPage", "sortBy", "search"],
@@ -389,11 +388,11 @@ export function ensureHistoryOptions(value: unknown): Dict_History_Options {
       ["key", "order"],
       `Run History options.sortBy[${intIndex}]`,
     );
-    const strKey = ensureHistorySortKey(
+    const strKey = ensureRunHistorySortKey(
       dictSort.key,
       `Run History options.sortBy[${intIndex}].key`,
     );
-    const strOrder = ensureHistorySortOrder(
+    const strOrder = ensureRunHistorySortOrder(
       dictSort.order,
       `Run History options.sortBy[${intIndex}].order`,
     );
@@ -417,7 +416,7 @@ export function ensureHistoryOptions(value: unknown): Dict_History_Options {
   const status =
     dictSearch.status === null
       ? null
-      : ensureHistoryStatus(dictSearch.status, "Run History options.search.status");
+      : ensureRunHistoryStatus(dictSearch.status, "Run History options.search.status");
 
   return {
     page: ensurePositiveInteger(dictValue.page, "Run History options.page"),

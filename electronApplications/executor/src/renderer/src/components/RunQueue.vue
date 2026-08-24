@@ -48,7 +48,7 @@
                 icon="mdi-stop-circle-outline"
                 size="small"
                 :disabled="!item.waiting"
-                @click="removeWaitingItem(item.name, item.estimated_run_at_ms)">
+                @click="removeWaitingItem(item.schedule_name, item.estimated_run_at_ms)">
               </v-icon>
             </template>
           </v-tooltip>
@@ -67,7 +67,7 @@ import { loggerRenderer } from "../Logging/logger";
 import { useRunQueueStore } from "../Store/runQueueStore";
 import { useSettingStore } from "../Store/settingStore";
 import { formatTimestamp } from "../Common/time";
-import type { Dict_TaskQueue_ListItem } from "../../../shared/interface";
+import type { DictRunQueueListItem } from "../../../shared/interface";
 
 const runQueueStore = useRunQueueStore();
 const settingStore = useSettingStore();
@@ -80,8 +80,8 @@ onBeforeMount(() => {
   });
 });
 
-const arrHeader: DataTableHeader<Dict_TaskQueue_ListItem>[] = [
-  { title: "Schedule", value: "name", align: "start", sortable: false },
+const arrHeader: DataTableHeader<DictRunQueueListItem>[] = [
+  { title: "Schedule", value: "schedule_name", align: "start", sortable: false },
   {
     title: "Project",
     align: "center",
@@ -110,9 +110,12 @@ function getWaitingColor(waiting: boolean): string {
   return waiting ? "warning" : "grey";
 }
 
-async function removeWaitingItem(name: string, intEstimatedRunAtMs: number): Promise<void> {
-  loggerRenderer.info(`Cancel waiting Run: ${name}-${intEstimatedRunAtMs}`);
-  await runQueueStore.cancelWaitingRun(name, intEstimatedRunAtMs);
+async function removeWaitingItem(
+  scheduleName: string,
+  intEstimatedRunAtMs: number,
+): Promise<void> {
+  loggerRenderer.info(`Cancel waiting Run: ${scheduleName}-${intEstimatedRunAtMs}`);
+  await runQueueStore.cancelWaitingRun(scheduleName, intEstimatedRunAtMs);
 }
 </script>
 

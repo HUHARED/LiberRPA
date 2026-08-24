@@ -10,7 +10,7 @@ import {
 import { getPythonEnvironmentNames, getPythonEnvironmentPath } from "../Config/environment";
 import {
   dbDeleteProject,
-  dbSelectProjectBindSchedulers,
+  dbSelectProjectBoundSchedules,
   dbSelectProjectDetail,
   dbSelectProjectNames,
   dbSelectProjectNewestVersionDetail,
@@ -18,13 +18,13 @@ import {
   dbUpdateProjectDetail,
 } from "../Database/projectRepository";
 import {
-  dbDeleteScheduler,
-  dbInsertSchedulerDetail,
-  dbSelectSchedulerDetail,
-  dbSelectSchedulerList,
-  dbUpdateSchedulerDetail,
+  dbDeleteSchedule,
+  dbInsertSchedule,
+  dbSelectScheduleDetail,
+  dbSelectScheduleList,
+  dbUpdateSchedule,
 } from "../Database/scheduleRepository";
-import { dbSelectLimitHistoryList } from "../Database/historyRepository";
+import { dbSelectRunHistoryPage } from "../Database/runHistoryRepository";
 import { fileDeleteExecutorPackage, fileOpenFolder } from "../FileSystem/executorFiles";
 import { importProjectPackage } from "../Package/packageImport";
 import { pythonCancel, pythonRun } from "../Run/projectRunner";
@@ -35,7 +35,7 @@ import {
   refreshSchedulerEngine,
 } from "../Scheduler/schedulerEngine";
 import {
-  ensureHistoryOptions,
+  ensureRunHistoryOptions,
   ensureInvokeCommand,
   ensureNoData,
   ensurePackageRef,
@@ -44,8 +44,8 @@ import {
   ensureProjectRun,
   ensureProjectUpdate,
   ensureRendererLogLevel,
-  ensureSchedulerInsert,
-  ensureSchedulerUpdate,
+  ensureScheduleInsert,
+  ensureScheduleUpdate,
   ensureStringData,
   ensureWaitingRunRef,
 } from "./validation";
@@ -93,17 +93,17 @@ const INVOKE_VALIDATOR = {
     ensureStringData(rawData, "selectProjectVersions"),
   selectProjectDetail: ensureProjectRef,
   updateProjectDetail: ensureProjectUpdate,
-  selectProjectBindSchedulers: (rawData: unknown) =>
-    ensurePositiveIntegerData(rawData, "selectProjectBindSchedulers"),
+  selectProjectBoundSchedules: (rawData: unknown) =>
+    ensurePositiveIntegerData(rawData, "selectProjectBoundSchedules"),
   deleteProject: (rawData: unknown) => ensurePositiveIntegerData(rawData, "deleteProject"),
-  selectSchedulerList: (rawData: unknown) => ensureNoData(rawData, "selectSchedulerList"),
-  selectSchedulerDetail: (rawData: unknown) =>
-    ensureStringData(rawData, "selectSchedulerDetail"),
-  insertSchedulerDetail: ensureSchedulerInsert,
-  updateSchedulerDetail: ensureSchedulerUpdate,
-  deleteScheduler: (rawData: unknown) =>
-    ensurePositiveIntegerData(rawData, "deleteScheduler"),
-  selectHistoryList: ensureHistoryOptions,
+  selectScheduleList: (rawData: unknown) => ensureNoData(rawData, "selectScheduleList"),
+  selectScheduleDetail: (rawData: unknown) =>
+    ensureStringData(rawData, "selectScheduleDetail"),
+  insertSchedule: ensureScheduleInsert,
+  updateSchedule: ensureScheduleUpdate,
+  deleteSchedule: (rawData: unknown) =>
+    ensurePositiveIntegerData(rawData, "deleteSchedule"),
+  selectRunHistoryPage: ensureRunHistoryOptions,
   selectRunQueue: (rawData: unknown) => ensureNoData(rawData, "selectRunQueue"),
   cancelWaitingRun: ensureWaitingRunRef,
   openFolder: (rawData: unknown) => ensureStringData(rawData, "openFolder"),
@@ -163,39 +163,39 @@ function createInvokeHandlerMap(): ExecutorInvokeHandlerMap {
       dbUpdateProjectDetail(dictDetail);
     },
 
-    selectProjectBindSchedulers(intProjectId) {
-      return dbSelectProjectBindSchedulers(intProjectId);
+    selectProjectBoundSchedules(intProjectId) {
+      return dbSelectProjectBoundSchedules(intProjectId);
     },
 
     deleteProject(intProjectId) {
       dbDeleteProject(intProjectId);
     },
 
-    selectSchedulerList() {
-      return dbSelectSchedulerList();
+    selectScheduleList() {
+      return dbSelectScheduleList();
     },
 
-    selectSchedulerDetail(strName) {
-      return dbSelectSchedulerDetail(strName);
+    selectScheduleDetail(strName) {
+      return dbSelectScheduleDetail(strName);
     },
 
-    insertSchedulerDetail(dictDetail) {
-      dbInsertSchedulerDetail(dictDetail);
+    insertSchedule(dictDetail) {
+      dbInsertSchedule(dictDetail);
       refreshSchedulerEngine();
     },
 
-    updateSchedulerDetail(dictDetail) {
-      dbUpdateSchedulerDetail(dictDetail);
+    updateSchedule(dictDetail) {
+      dbUpdateSchedule(dictDetail);
       refreshSchedulerEngine();
     },
 
-    deleteScheduler(intSchedulerId) {
-      dbDeleteScheduler(intSchedulerId);
+    deleteSchedule(intScheduleId) {
+      dbDeleteSchedule(intScheduleId);
       refreshSchedulerEngine();
     },
 
-    selectHistoryList(options) {
-      return dbSelectLimitHistoryList(options);
+    selectRunHistoryPage(options) {
+      return dbSelectRunHistoryPage(options);
     },
 
     selectRunQueue() {
@@ -203,7 +203,7 @@ function createInvokeHandlerMap(): ExecutorInvokeHandlerMap {
     },
 
     cancelWaitingRun(dictRun) {
-      cancelWaitingRun(dictRun.name, dictRun.estimated_run_at_ms);
+      cancelWaitingRun(dictRun.schedule_name, dictRun.estimated_run_at_ms);
     },
 
     async openFolder(strFolderPath) {
@@ -214,8 +214,8 @@ function createInvokeHandlerMap(): ExecutorInvokeHandlerMap {
       return dbSelectProjectNewestVersionDetail(strName);
     },
 
-    pythonCancel(intHistoryId) {
-      pythonCancel(intHistoryId);
+    pythonCancel(intRunHistoryId) {
+      pythonCancel(intRunHistoryId);
     },
 
     async selectProjectLogFolder() {

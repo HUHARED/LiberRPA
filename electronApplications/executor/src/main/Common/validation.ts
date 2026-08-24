@@ -1,7 +1,7 @@
 import type {
   TypeColumns_LogLevel,
+  TypeRunHistoryStatus,
   TypeCustomProjectArgs,
-  TypeTaskHistoryStatus,
 } from "../../shared/interface";
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
@@ -145,10 +145,10 @@ export function ensureWhenOthersRunning(
   throw new Error(`${strSourceName} must be 'cancel', 'wait', or 'run'.`);
 }
 
-export function ensureHistoryStatus(
+export function ensureRunHistoryStatus(
   value: unknown,
   strSourceName: string,
-): TypeTaskHistoryStatus {
+): TypeRunHistoryStatus {
   switch (value) {
     case "running":
     case "completed":

@@ -1,14 +1,14 @@
 import type {
-  DictColumns_History_ListItem_DB,
   DictColumns_Project_Detail_DB,
-  DictColumns_Scheduler_Detail_DB,
-  DictColumns_Scheduler_ListItem_DB,
+  DictColumns_Schedule_ListItem_DB,
+  DictColumns_Schedule_Detail_DB,
+  DictColumns_RunHistory_ListItem_DB,
 } from "../../shared/interface";
 import {
   ensureBinaryInteger,
   ensureCustomProjectArgsJson,
   ensureExactRecord,
-  ensureHistoryStatus,
+  ensureRunHistoryStatus,
   ensureLogLevel,
   ensureNonEmptyString,
   ensureNonNegativeInteger,
@@ -116,10 +116,10 @@ export function ensureProjectDetailRow(
   };
 }
 
-function ensureSchedulerListItemRow(
+function ensureScheduleListItemRow(
   value: unknown,
   strSourceName: string,
-): DictColumns_Scheduler_ListItem_DB {
+): DictColumns_Schedule_ListItem_DB {
   const row = ensureExactRecord(
     value,
     [
@@ -169,17 +169,17 @@ function ensureSchedulerListItemRow(
   };
 }
 
-export function ensureSchedulerListRows(
+export function ensureScheduleListRows(
   rows: unknown[],
   strSourceName: string,
-): DictColumns_Scheduler_ListItem_DB[] {
-  return ensureRows(rows, ensureSchedulerListItemRow, strSourceName);
+): DictColumns_Schedule_ListItem_DB[] {
+  return ensureRows(rows, ensureScheduleListItemRow, strSourceName);
 }
 
-export function ensureSchedulerDetailRow(
+export function ensureScheduleDetailRow(
   value: unknown,
   strSourceName: string,
-): DictColumns_Scheduler_Detail_DB {
+): DictColumns_Schedule_Detail_DB {
   const row = ensureExactRecord(
     value,
     [
@@ -275,10 +275,10 @@ export function ensureSchedulerDetailRow(
   };
 }
 
-function ensureHistoryListItemRow(
+function ensureRunHistoryListItemRow(
   value: unknown,
   strSourceName: string,
-): DictColumns_History_ListItem_DB {
+): DictColumns_RunHistory_ListItem_DB {
   const row = ensureExactRecord(
     value,
     [
@@ -295,7 +295,7 @@ function ensureHistoryListItemRow(
     ],
     strSourceName,
   );
-  const status = ensureHistoryStatus(row.status, `${strSourceName}.status`);
+  const status = ensureRunHistoryStatus(row.status, `${strSourceName}.status`);
   const intRunEndedAtMs = ensureNullableNonNegativeInteger(
     row.run_ended_at_ms,
     `${strSourceName}.run_ended_at_ms`,
@@ -336,11 +336,11 @@ function ensureHistoryListItemRow(
   };
 }
 
-export function ensureHistoryListRows(
+export function ensureRunHistoryListRows(
   rows: unknown[],
   strSourceName: string,
-): DictColumns_History_ListItem_DB[] {
-  return ensureRows(rows, ensureHistoryListItemRow, strSourceName);
+): DictColumns_RunHistory_ListItem_DB[] {
+  return ensureRows(rows, ensureRunHistoryListItemRow, strSourceName);
 }
 
 export function ensureCountRow(

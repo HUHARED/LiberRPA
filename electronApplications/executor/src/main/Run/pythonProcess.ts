@@ -4,7 +4,7 @@ import path from "path";
 
 import { getPythonProcessEnvironment } from "../Config/environment";
 import { loggerMain } from "../Logging/logger";
-import type { DictColumns_Project_Detail_Run } from "../../shared/interface";
+import type { DictProjectRunDetail } from "../../shared/interface";
 
 export interface DictPythonProcessDiagnosticOutput {
   strStdoutTail: string;
@@ -70,7 +70,7 @@ export function spawnProjectPythonProcess({
   startedAt,
   runStatePath,
 }: {
-  detail: DictColumns_Project_Detail_Run;
+  detail: DictProjectRunDetail;
   packagePath: string;
   pythonEnvironmentPath: string;
   runId: string;

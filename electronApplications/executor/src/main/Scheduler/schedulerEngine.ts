@@ -2,31 +2,28 @@ import { CronExpressionParser } from "cron-parser";
 
 import { dictConfigExecutor } from "../Config/config";
 import {
-  dbSelectSchedulerDetail,
-  dbSelectSchedulerList,
+  dbSelectScheduleDetail,
+  dbSelectScheduleList,
 } from "../Database/scheduleRepository";
-import { dbSelectCountHistoryRunning } from "../Database/historyRepository";
+import { dbHasRunningRun } from "../Database/runHistoryRepository";
 import { loggerMain } from "../Logging/logger";
 import { pythonRun } from "../Run/projectRunner";
 import { parseCustomProjectArgsJson } from "../Common/validation";
-import type {
-  DictColumns_Project_Detail_Run,
-  Dict_TaskQueue_ListItem,
-} from "../../shared/interface";
+import type { DictProjectRunDetail, DictRunQueueListItem } from "../../shared/interface";
 
 type WhenOthersRunning = "cancel" | "wait" | "run";
 
-type RunQueueChangedListener = (arrItem: Dict_TaskQueue_ListItem[]) => void;
+type RunQueueChangedListener = (arrItem: DictRunQueueListItem[]) => void;
 
 interface PendingRun {
-  queueItem: Dict_TaskQueue_ListItem;
+  queueItem: DictRunQueueListItem;
   whenOthersRunning: WhenOthersRunning;
 }
 
 const INT_SCHEDULER_CHECK_INTERVAL_MS = 1000;
 
 const arrPendingRun: PendingRun[] = [];
-const arrWaitingItem: Dict_TaskQueue_ListItem[] = [];
+const arrWaitingItem: DictRunQueueListItem[] = [];
 const setRunQueueChangedListener = new Set<RunQueueChangedListener>();
 
 let intervalId: NodeJS.Timeout | undefined;
@@ -40,7 +37,7 @@ export function startSchedulerEngine(): void {
   loggerMain.info("Start Scheduler engine.");
   refreshSchedulerEngine();
   intervalId = setInterval(() => {
-    void checkSchedulerQueue().catch((e: unknown) => {
+    void processSchedulerTick().catch((e: unknown) => {
       loggerMain.error(
         `Scheduler engine check failed: ${e instanceof Error ? e.message : String(e)}`,
       );
@@ -63,24 +60,25 @@ export function refreshSchedulerEngine(): void {
   publishRunQueueChanged();
 }
 
-export function getRunQueueItems(): Dict_TaskQueue_ListItem[] {
+export function getRunQueueItems(): DictRunQueueListItem[] {
   return [
     ...arrWaitingItem.map((dictItem) => ({ ...dictItem })),
     ...arrPendingRun.map(({ queueItem }) => ({ ...queueItem })),
   ];
 }
 
-export function cancelWaitingRun(name: string, intEstimatedRunAtMs: number): void {
+export function cancelWaitingRun(scheduleName: string, intEstimatedRunAtMs: number): void {
   const intIndex = arrWaitingItem.findIndex(
     (dictItem) =>
-      dictItem.name === name && dictItem.estimated_run_at_ms === intEstimatedRunAtMs,
+      dictItem.schedule_name === scheduleName &&
+      dictItem.estimated_run_at_ms === intEstimatedRunAtMs,
   );
   if (intIndex === -1) {
-    loggerMain.debug(`Waiting Run not found: ${name}-${intEstimatedRunAtMs}`);
+    loggerMain.debug(`Waiting Run not found: ${scheduleName}-${intEstimatedRunAtMs}`);
     return;
   }
 
-  loggerMain.info(`Cancel waiting Run: ${name}-${intEstimatedRunAtMs}`);
+  loggerMain.info(`Cancel waiting Run: ${scheduleName}-${intEstimatedRunAtMs}`);
   arrWaitingItem.splice(intIndex, 1);
   publishRunQueueChanged();
 }
@@ -94,46 +92,46 @@ export function onRunQueueChanged(listener: RunQueueChangedListener): () => void
 
 function resetPendingRuns(): void {
   const intNowMs = Date.now();
-  const arrScheduler = dbSelectSchedulerList();
+  const arrSchedule = dbSelectScheduleList();
   const arrNextPending: PendingRun[] = [];
-  const setSchedulerName = new Set(arrScheduler.map((dictScheduler) => dictScheduler.name));
+  const setScheduleName = new Set(arrSchedule.map((dictSchedule) => dictSchedule.name));
 
   for (let intIndex = arrWaitingItem.length - 1; intIndex >= 0; intIndex--) {
-    if (!setSchedulerName.has(arrWaitingItem[intIndex].name)) {
+    if (!setScheduleName.has(arrWaitingItem[intIndex].schedule_name)) {
       loggerMain.info(
-        `Remove waiting Run because its Schedule no longer exists: ${arrWaitingItem[intIndex].name}`,
+        `Remove waiting Run because its Schedule no longer exists: ${arrWaitingItem[intIndex].schedule_name}`,
       );
       arrWaitingItem.splice(intIndex, 1);
     }
   }
 
-  for (const dictScheduler of arrScheduler) {
-    if (dictScheduler.enable !== 1) {
+  for (const dictSchedule of arrSchedule) {
+    if (dictSchedule.enable !== 1) {
       continue;
     }
 
     try {
-      const intCurrentDateMs = Math.max(intNowMs, dictScheduler.period_start_ms - 1);
-      const intervalObj = CronExpressionParser.parse(dictScheduler.cron, {
+      const intCurrentDateMs = Math.max(intNowMs, dictSchedule.period_start_ms - 1);
+      const intervalObj = CronExpressionParser.parse(dictSchedule.cron, {
         currentDate: new Date(intCurrentDateMs),
-        endDate: new Date(dictScheduler.period_end_ms),
+        endDate: new Date(dictSchedule.period_end_ms),
         tz: dictConfigExecutor.timezone,
       });
 
       arrNextPending.push({
         queueItem: {
-          name: dictScheduler.name,
-          project_source: dictScheduler.project_source,
-          project_name: dictScheduler.project_name,
-          project_version: dictScheduler.project_version,
+          schedule_name: dictSchedule.name,
+          project_source: dictSchedule.project_source,
+          project_name: dictSchedule.project_name,
+          project_version: dictSchedule.project_version,
           estimated_run_at_ms: intervalObj.next().toDate().getTime(),
           waiting: false,
         },
-        whenOthersRunning: dictScheduler.when_others_running,
+        whenOthersRunning: dictSchedule.when_others_running,
       });
     } catch (e: unknown) {
       loggerMain.debug(
-        `No pending Run is available for Schedule '${dictScheduler.name}': ${
+        `No pending Run is available for Schedule '${dictSchedule.name}': ${
           e instanceof Error ? e.message : String(e)
         }`,
       );
@@ -147,27 +145,27 @@ function resetPendingRuns(): void {
   arrPendingRun.splice(0, arrPendingRun.length, ...arrNextPending);
 }
 
-async function checkSchedulerQueue(): Promise<void> {
+async function processSchedulerTick(): Promise<void> {
   if (boolIsChecking) {
     return;
   }
 
   boolIsChecking = true;
   try {
-    let boolOthersRunning = dbSelectCountHistoryRunning();
+    let boolOthersRunning = dbHasRunningRun();
 
     if (!boolOthersRunning && arrWaitingItem.length !== 0) {
       const dictWaitingItem = arrWaitingItem.shift();
       if (dictWaitingItem !== undefined) {
         publishRunQueueChanged();
         try {
-          const boolStarted = await runSchedule(dictWaitingItem.name);
+          const boolStarted = await runSchedule(dictWaitingItem.schedule_name);
           if (boolStarted) {
-            boolOthersRunning = dbSelectCountHistoryRunning();
+            boolOthersRunning = dbHasRunningRun();
           }
         } catch (e: unknown) {
           loggerMain.error(
-            `Failed to start waiting Run for Schedule '${dictWaitingItem.name}': ${
+            `Failed to start waiting Run for Schedule '${dictWaitingItem.schedule_name}': ${
               e instanceof Error ? e.message : String(e)
             }`,
           );
@@ -186,18 +184,18 @@ async function checkSchedulerQueue(): Promise<void> {
     for (const dictDueRun of arrDueRun) {
       const { queueItem, whenOthersRunning } = dictDueRun;
       loggerMain.info(
-        `Schedule '${queueItem.name}' reached its run time. when_others_running=${whenOthersRunning}`,
+        `Schedule '${queueItem.schedule_name}' reached its run time. when_others_running=${whenOthersRunning}`,
       );
 
       if (!boolOthersRunning || whenOthersRunning === "run") {
         try {
-          const boolStarted = await runSchedule(queueItem.name);
+          const boolStarted = await runSchedule(queueItem.schedule_name);
           if (boolStarted) {
-            boolOthersRunning = dbSelectCountHistoryRunning();
+            boolOthersRunning = dbHasRunningRun();
           }
         } catch (e: unknown) {
           loggerMain.error(
-            `Failed to start scheduled Run for '${queueItem.name}': ${
+            `Failed to start scheduled Run for '${queueItem.schedule_name}': ${
               e instanceof Error ? e.message : String(e)
             }`,
           );
@@ -206,11 +204,13 @@ async function checkSchedulerQueue(): Promise<void> {
       }
 
       if (whenOthersRunning === "wait") {
-        loggerMain.info(`Move Schedule '${queueItem.name}' Run into the waiting queue.`);
+        loggerMain.info(
+          `Move Schedule '${queueItem.schedule_name}' Run into the waiting queue.`,
+        );
         arrWaitingItem.push({ ...queueItem, waiting: true });
       } else {
         loggerMain.info(
-          `Skip Schedule '${queueItem.name}' Run because another Run is active.`,
+          `Skip Schedule '${queueItem.schedule_name}' Run because another Run is active.`,
         );
       }
     }
@@ -223,14 +223,14 @@ async function checkSchedulerQueue(): Promise<void> {
 }
 
 async function runSchedule(name: string): Promise<boolean> {
-  const dictDetail = dbSelectSchedulerDetail(name);
+  const dictDetail = dbSelectScheduleDetail(name);
   if (dictDetail === undefined) {
     loggerMain.warn(`Schedule no longer exists: ${name}`);
     return false;
   }
 
-  const dictRun: DictColumns_Project_Detail_Run = {
-    scheduler_name: dictDetail.name,
+  const dictRun: DictProjectRunDetail = {
+    schedule_name: dictDetail.name,
     project_source: dictDetail.project_source,
     id: dictDetail.project_id,
     name: dictDetail.project_name,

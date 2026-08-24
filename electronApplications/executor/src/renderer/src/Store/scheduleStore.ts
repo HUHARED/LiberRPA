@@ -8,11 +8,11 @@ import {
 } from "../Common/time";
 import { useSettingStore } from "./settingStore";
 import type {
-  DictColumns_Scheduler_ListItem,
-  DictColumns_Scheduler_Detail,
-  DictColumns_Scheduler_Detail_ToUpdate,
-  DictColumns_Scheduler_Detail_BeforeInsert,
-  DictColumns_Scheduler_Detail_ToInsert,
+  DictColumns_Schedule_ListItem,
+  DictColumns_Schedule_Detail,
+  DictColumns_Schedule_Detail_ToUpdate,
+  DictColumns_Schedule_Detail_ToInsert,
+  DictColumns_Schedule_Detail_BeforeInsert,
 } from "../../../shared/interface";
 
 function getSchedulePeriodTimestamps({
@@ -40,22 +40,22 @@ function getSchedulePeriodTimestamps({
 export const useScheduleStore = defineStore("schedule", {
   state: () => {
     return {
-      arrListItem: [] as DictColumns_Scheduler_ListItem[],
+      arrListItem: [] as DictColumns_Schedule_ListItem[],
 
       // Edit and New use the same dialog size.
       showDialog_edit_new: false as boolean,
       isEditing: undefined as undefined | "edit" | "new",
-      dictDetail_edit: undefined as DictColumns_Scheduler_Detail | undefined,
+      dictDetail_edit: undefined as DictColumns_Schedule_Detail | undefined,
       detailCache_edit: undefined as string | undefined,
 
       showDialog_delete: false as boolean,
-      dictDetail_new: undefined as DictColumns_Scheduler_Detail_BeforeInsert | undefined,
+      dictDetail_new: undefined as DictColumns_Schedule_Detail_BeforeInsert | undefined,
     };
   },
   actions: {
     async loadScheduleList(): Promise<void> {
       if (this.arrListItem.length === 0) {
-        const arrRow = await invokeMain("selectSchedulerList");
+        const arrRow = await invokeMain("selectScheduleList");
 
         this.arrListItem = arrRow.map((dictRow) => {
           return {
@@ -81,7 +81,7 @@ export const useScheduleStore = defineStore("schedule", {
     },
 
     async loadScheduleDetail(name: string): Promise<void> {
-      const dictRow = await invokeMain("selectSchedulerDetail", name);
+      const dictRow = await invokeMain("selectScheduleDetail", name);
       if (dictRow === undefined) {
         throw new Error(`Schedule not found: ${name}`);
       }
@@ -132,7 +132,7 @@ export const useScheduleStore = defineStore("schedule", {
         periodEnd: this.dictDetail_new.period_end,
         timezone: settingStore.timezone,
       });
-      const dictTemp: DictColumns_Scheduler_Detail_ToInsert = {
+      const dictTemp: DictColumns_Schedule_Detail_ToInsert = {
         name: this.dictDetail_new.name,
         project_source: this.dictDetail_new.project_source,
         project_id: this.dictDetail_new.project_id,
@@ -148,7 +148,7 @@ export const useScheduleStore = defineStore("schedule", {
         builtin_highlight_ui: this.dictDetail_new.builtin_highlight_ui ? 1 : 0,
         custom_prj_args: JSON.stringify(this.dictDetail_new.custom_prj_args),
       };
-      await invokeMain("insertSchedulerDetail", dictTemp);
+      await invokeMain("insertSchedule", dictTemp);
       await this.refreshScheduleList();
     },
 
@@ -163,7 +163,7 @@ export const useScheduleStore = defineStore("schedule", {
         periodEnd: this.dictDetail_edit.period_end,
         timezone: settingStore.timezone,
       });
-      const dictTemp: DictColumns_Scheduler_Detail_ToUpdate = {
+      const dictTemp: DictColumns_Schedule_Detail_ToUpdate = {
         id: this.dictDetail_edit.id,
         name: this.dictDetail_edit.name,
         project_source: this.dictDetail_edit.project_source,
@@ -180,7 +180,7 @@ export const useScheduleStore = defineStore("schedule", {
         builtin_highlight_ui: this.dictDetail_edit.builtin_highlight_ui ? 1 : 0,
         custom_prj_args: JSON.stringify(this.dictDetail_edit.custom_prj_args),
       };
-      await invokeMain("updateSchedulerDetail", dictTemp);
+      await invokeMain("updateSchedule", dictTemp);
       await this.refreshScheduleList();
     },
 
@@ -192,7 +192,7 @@ export const useScheduleStore = defineStore("schedule", {
       loggerRenderer.info(
         `Delete schedule: ${this.dictDetail_edit.id}-${this.dictDetail_edit.name}`,
       );
-      await invokeMain("deleteScheduler", this.dictDetail_edit.id);
+      await invokeMain("deleteSchedule", this.dictDetail_edit.id);
       await this.refreshScheduleList();
     },
   },

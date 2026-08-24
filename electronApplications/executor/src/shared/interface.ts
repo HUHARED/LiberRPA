@@ -43,7 +43,7 @@ export type TypeColumns_LogLevel =
   | "ERROR"
   | "CRITICAL";
 
-export type TypeTaskHistoryStatus =
+export type TypeRunHistoryStatus =
   | "running"
   | "completed"
   | "error"
@@ -82,7 +82,7 @@ interface DictColumns_Project_ExecutionEnvironment {
   python_environment_name: string;
 }
 
-/* Project Local Package */
+/* Project */
 
 export interface DictColumns_Project_Detail_DB
   extends
@@ -122,17 +122,17 @@ export type DictColumns_Project_Detail_ToUpdate = Omit<
   TypeColumns_ModifyTime
 >;
 
-export type DictColumns_Project_Detail_Run = Omit<
+export type DictProjectRunDetail = Omit<
   DictColumns_Project_Detail,
   TypeColumns_ModifyTime | "description" | "version_summary"
 > & {
-  scheduler_name: string | null;
+  schedule_name: string | null;
   project_source: "local" | "console";
 };
 
-/* Task Scheduler */
+/* Schedule */
 
-export interface DictColumns_Scheduler_ListItem_DB {
+export interface DictColumns_Schedule_ListItem_DB {
   name: string;
   project_source: "local" | "console";
   project_name: string;
@@ -140,31 +140,31 @@ export interface DictColumns_Scheduler_ListItem_DB {
   cron: string;
   enable: 0 | 1;
 
-  // These values are not displayed in the Scheduler list, but the Scheduler engine needs them.
+  // These values are not displayed in the Schedule list, but the Scheduler engine needs them.
   period_start_ms: number;
   period_end_ms: number;
   when_others_running: "cancel" | "wait" | "run";
 }
 
-export type DictColumns_Scheduler_ListItem = Omit<
-  DictColumns_Scheduler_ListItem_DB,
+export type DictColumns_Schedule_ListItem = Omit<
+  DictColumns_Schedule_ListItem_DB,
   "enable"
 > & {
   enable: boolean;
 };
 
-export interface DictColumns_Scheduler_Detail_DB
+export interface DictColumns_Schedule_Detail_DB
   extends
     DictColumns_Base_DB,
-    DictColumns_Scheduler_ListItem_DB,
+    DictColumns_Schedule_ListItem_DB,
     DictColumns_Project_NeedConvert_DB,
     DictColumns_Project_TimeoutAndLog,
     DictColumns_Project_ExecutionEnvironment {
   project_id: number;
 }
 
-export type DictColumns_Scheduler_Detail = Omit<
-  DictColumns_Scheduler_Detail_DB,
+export type DictColumns_Schedule_Detail = Omit<
+  DictColumns_Schedule_Detail_DB,
   TypeColumns_Project_NeedConvert | "enable" | "period_start_ms" | "period_end_ms"
 > &
   DictColumns_Project_NeedConvert_TS & {
@@ -173,13 +173,13 @@ export type DictColumns_Scheduler_Detail = Omit<
     period_end: string;
   };
 
-export type DictColumns_Scheduler_Detail_ToUpdate = Omit<
-  DictColumns_Scheduler_Detail_DB,
+export type DictColumns_Schedule_Detail_ToUpdate = Omit<
+  DictColumns_Schedule_Detail_DB,
   TypeColumns_ModifyTime | "project_name" | "project_version" | "python_environment_name"
 >;
 
-export type DictColumns_Scheduler_Detail_ToInsert = Omit<
-  DictColumns_Scheduler_Detail_DB,
+export type DictColumns_Schedule_Detail_ToInsert = Omit<
+  DictColumns_Schedule_Detail_DB,
   | "id"
   | TypeColumns_ModifyTime
   | "project_name"
@@ -187,8 +187,8 @@ export type DictColumns_Scheduler_Detail_ToInsert = Omit<
   | "python_environment_name"
 >;
 
-export type DictColumns_Scheduler_Detail_BeforeInsert = Omit<
-  DictColumns_Scheduler_Detail,
+export type DictColumns_Schedule_Detail_BeforeInsert = Omit<
+  DictColumns_Schedule_Detail,
   | "id"
   | TypeColumns_ModifyTime
   | "project_id"
@@ -201,9 +201,11 @@ export type DictColumns_Scheduler_Detail_BeforeInsert = Omit<
   project_version: string | undefined;
 };
 
-/* Task History */
+/* Run History */
 
-export interface DictColumns_History_ToInsert {
+// The SQLite schema keeps the historical scheduler_name column name.
+// Runtime-only objects use schedule_name instead.
+export interface DictColumns_RunHistory_ToInsert {
   scheduler_name: string | null;
   project_source: "local" | "console";
   project_id: number;
@@ -215,7 +217,7 @@ export interface DictColumns_History_ToInsert {
   log_path: string;
 }
 
-export type DictColumns_History_ToUpdate =
+export type DictColumns_RunHistory_ToUpdate =
   | {
       id: number;
       run_ended_at_ms: number;
@@ -227,7 +229,7 @@ export type DictColumns_History_ToUpdate =
       status: "interrupted";
     };
 
-export interface DictColumns_History_ListItem_DB {
+export interface DictColumns_RunHistory_ListItem_DB {
   id: number;
   scheduler_name: string | null;
   project_source: "local" | "console";
@@ -236,19 +238,19 @@ export interface DictColumns_History_ListItem_DB {
   python_environment_name: string;
   run_started_at_ms: number;
   run_ended_at_ms: number | null;
-  status: TypeTaskHistoryStatus;
+  status: TypeRunHistoryStatus;
   log_path: string;
 }
 
-export interface Dict_History_Search {
+export interface DictRunHistorySearch {
   scheduler_name: string;
   project_source: "local" | "console" | null;
   project_name: string;
   project_version: string;
-  status: TypeTaskHistoryStatus | null;
+  status: TypeRunHistoryStatus | null;
 }
 
-export interface Dict_History_Options {
+export interface DictRunHistoryOptions {
   page: number;
   itemsPerPage: number;
   sortBy: {
@@ -264,22 +266,18 @@ export interface Dict_History_Options {
     order: "asc" | "desc";
   }[];
   // Vuetify also sends an unused groupBy value.
-  search: Dict_History_Search;
+  search: DictRunHistorySearch;
 }
 
-export type Dict_History_Options_Component = Omit<Dict_History_Options, "search"> & {
-  search: string;
-};
-
-export interface DictColumns_History_ListItem_Limit_DB {
-  rows: DictColumns_History_ListItem_DB[];
+export interface DictRunHistoryPage {
+  rows: DictColumns_RunHistory_ListItem_DB[];
   total: number;
 }
 
-/* Task Queue */
+/* Run Queue */
 
-export interface Dict_TaskQueue_ListItem {
-  name: string;
+export interface DictRunQueueListItem {
+  schedule_name: string;
   project_source: "local" | "console";
   project_name: string;
   project_version: string;

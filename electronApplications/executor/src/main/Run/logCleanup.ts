@@ -7,7 +7,7 @@ import {
   dbSelectVideoBefore,
   dbUpdateNoLogFolderAndVideo,
   dbUpdateNoVideo,
-} from "../Database/historyRepository";
+} from "../Database/runHistoryRepository";
 import { loggerMain } from "../Logging/logger";
 
 const INT_MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;

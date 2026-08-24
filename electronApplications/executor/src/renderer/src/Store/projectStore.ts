@@ -137,7 +137,7 @@ export const useProjectStore = defineStore("project", {
     async loadBoundSchedules(): Promise<void> {
       if (this.dictDetail_edit !== undefined) {
         const arrRows = await invokeMain(
-          "selectProjectBindSchedulers",
+          "selectProjectBoundSchedules",
           this.dictDetail_edit.id,
         );
         this.arrBoundSchedule = arrRows.map((row) => {
