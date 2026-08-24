@@ -198,11 +198,24 @@ export function ensureCustomProjectArgs(
     throw new Error(`${strSourceName} must be an array.`);
   }
 
+  const setArgumentName = new Set<string>();
   return value.map((item, intIndex) => {
-    if (!Array.isArray(item) || item.length !== 2 || typeof item[0] !== "string") {
+    if (!Array.isArray(item) || item.length !== 2) {
       throw new Error(`${strSourceName}[${intIndex}] must be a [string, value] pair.`);
     }
+
+    const strName = ensureNonEmptyString(item[0], `${strSourceName}[${intIndex}][0]`);
+    if (strName !== strName.trim() || strName.includes("\r") || strName.includes("\n")) {
+      throw new Error(
+        `${strSourceName}[${intIndex}][0] must be a trimmed single-line string.`,
+      );
+    }
+    if (setArgumentName.has(strName)) {
+      throw new Error(`${strSourceName} contains a duplicate argument name: ${strName}`);
+    }
+    setArgumentName.add(strName);
+
     ensureJsonValue(item[1], `${strSourceName}[${intIndex}][1]`);
-    return [item[0], item[1]];
+    return [strName, item[1]];
   });
 }

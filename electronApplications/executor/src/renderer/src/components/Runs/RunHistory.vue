@@ -165,7 +165,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
 import type { Ref } from "vue";
 import { debounce } from "lodash";
 import type { DataTableHeader } from "vuetify";
@@ -217,6 +217,10 @@ watch(
   },
   { deep: true },
 );
+
+onBeforeUnmount(() => {
+  debouncedUpdateSearch.cancel();
+});
 
 type DictRunHistoryTableOptions = Omit<DictRunHistoryOptions, "search"> & {
   search: string;

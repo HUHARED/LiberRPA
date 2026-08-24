@@ -2,8 +2,9 @@ import type { DictScheduleDetail } from "../../../shared/schedule";
 
 export type DictScheduleFormDetail = Omit<
   DictScheduleDetail,
-  "period_start_ms" | "period_end_ms"
+  "period_start_ms" | "period_end_ms" | "project_id"
 > & {
+  project_id: number | undefined;
   period_start: string;
   period_end: string;
 };

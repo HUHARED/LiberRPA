@@ -1,20 +1,29 @@
 import cronstrue from "cronstrue";
 
-import { useInformationStore } from "../Store/informationStore";
+export type CronValidationResult =
+  | {
+      valid: true;
+      description: string;
+    }
+  | {
+      valid: false;
+      error: string;
+    };
 
-export function validateCron(cron: string): boolean {
-  const informationStore = useInformationStore();
-
+export function validateCronExpression(cron: string): CronValidationResult {
   try {
-    informationStore.information = cronstrue.toString(cron, {
-      use24HourTimeFormat: true,
-      throwExceptionOnParseError: true,
-      verbose: true,
-    });
-    informationStore.showAlert = false;
-    return true;
-  } catch (e) {
-    informationStore.showAlertMessage(`Cron error: ${String(e)}`);
-    return false;
+    return {
+      valid: true,
+      description: cronstrue.toString(cron, {
+        use24HourTimeFormat: true,
+        throwExceptionOnParseError: true,
+        verbose: true,
+      }),
+    };
+  } catch (e: unknown) {
+    return {
+      valid: false,
+      error: `Cron error: ${e instanceof Error ? e.message : String(e)}`,
+    };
   }
 }

@@ -102,19 +102,17 @@ import HorizontalDivider from "../Common/HorizontalDivider.vue";
 import { getProjectSourceColor } from "../../Common/display";
 import { getDefaultSchedulePeriod } from "../../Common/time";
 import { loggerRenderer } from "../../Logging/logger";
-import { useProjectStore } from "../../Store/projectStore";
 import { useScheduleStore } from "../../Store/scheduleStore";
 import { useSettingStore } from "../../Store/settingStore";
 import type { DictScheduleListItem } from "../../../../shared/schedule";
 
-const projectStore = useProjectStore();
 const scheduleStore = useScheduleStore();
 const settingStore = useSettingStore();
 
 onBeforeMount(() => {
   void Promise.all([
     scheduleStore.loadScheduleList(),
-    projectStore.loadProjectNames(),
+    scheduleStore.loadProjectNames(),
   ]).catch((e: unknown) => {
     loggerRenderer.error(
       `Failed to initialize Schedules: ${e instanceof Error ? e.message : String(e)}`,
@@ -125,7 +123,7 @@ onBeforeMount(() => {
 function newSchedule(): void {
   loggerRenderer.debug("--newSchedule--");
 
-  projectStore.resetVersionAndDetail();
+  scheduleStore.resetProjectVersions();
   const dictDefaultPeriod = getDefaultSchedulePeriod(settingStore.timezone);
   scheduleStore.dictDetail_new = {
     name: "",
@@ -184,8 +182,10 @@ async function editSchedule(scheduleName: string): Promise<void> {
     return;
   }
 
-  await projectStore.loadProjectNames();
-  await projectStore.loadProjectVersions(detail.project_name);
+  await scheduleStore.loadProjectNames();
+  scheduleStore.setProjectVersions(
+    await scheduleStore.fetchProjectVersions(detail.project_name),
+  );
   scheduleStore.formMode = "edit";
   scheduleStore.showDialog_form = true;
 }

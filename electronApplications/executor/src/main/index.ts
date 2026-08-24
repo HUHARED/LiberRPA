@@ -38,6 +38,7 @@ import { registerExecutorIpc } from "./IPC/ipc";
 import { sendMainMessage } from "./IPC/mainMessage";
 import { onRunEnded } from "./Run/lifecycle";
 import { startRunHousekeeping } from "./Run/housekeeping";
+import { shutdownProjectRuns } from "./Run/projectRunner";
 import {
   getRunQueueItems,
   onRunQueueChanged,
@@ -54,6 +55,8 @@ dbMarkRunningRunsInterrupted();
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let boolAppQuitting = false;
+let boolShutdownStarted = false;
+let boolShutdownComplete = false;
 
 function sendMessageToRenderer(message: DictMainMessage): void {
   const webContentsObj = mainWindow?.webContents;
@@ -241,11 +244,31 @@ void app
     app.quit();
   });
 
-app.on("before-quit", () => {
+app.on("before-quit", (event) => {
   boolAppQuitting = true;
-  stopRdpSessionManager();
+
+  if (boolShutdownComplete) {
+    return;
+  }
+
+  event.preventDefault();
+  if (boolShutdownStarted) {
+    return;
+  }
+
+  boolShutdownStarted = true;
   stopSchedulerEngine();
-  closeDatabase();
+  stopRdpSessionManager();
+
+  void shutdownProjectRuns()
+    .catch((e: unknown) => {
+      loggerMain.error(`Failed to stop active Project Runs: ${String(e)}`);
+    })
+    .finally(() => {
+      closeDatabase();
+      boolShutdownComplete = true;
+      app.quit();
+    });
 });
 
 // Quit when all windows are closed, except on macOS. There, it's common for applications and their menu bar to stay active until the user quits explicitly with Cmd + Q.

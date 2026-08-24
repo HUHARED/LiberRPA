@@ -35,9 +35,11 @@ interface RunningPythonProcess {
 }
 
 const mapProcessCache = new Map<number, RunningPythonProcess>();
+const mapActiveProcessByRunId = new Map<string, ChildProcessWithoutNullStreams>();
 
 const mapStartingRunCountByProject = new Map<number, number>();
 let intStartingRunCount = 0;
+let boolProjectRunShutdownStarted = false;
 
 function addStartingRun(projectId: number): void {
   intStartingRunCount += 1;
@@ -57,6 +59,35 @@ function removeStartingRun(projectId: number): void {
   }
 }
 
+function trackActiveProjectProcess(
+  processPy: ChildProcessWithoutNullStreams,
+  strRunId: string,
+): void {
+  mapActiveProcessByRunId.set(strRunId, processPy);
+  processPy.once("close", () => {
+    if (mapActiveProcessByRunId.get(strRunId) === processPy) {
+      mapActiveProcessByRunId.delete(strRunId);
+    }
+  });
+}
+
+export async function shutdownProjectRuns(): Promise<void> {
+  boolProjectRunShutdownStarted = true;
+
+  const arrProcess = [...mapActiveProcessByRunId.entries()];
+  if (arrProcess.length === 0) {
+    return;
+  }
+
+  loggerMain.info(`Stop ${arrProcess.length} active Project Run(s) before Executor exits.`);
+  await Promise.all(
+    arrProcess.map(async ([strRunId, processPy]) => {
+      requestPythonTermination(processPy, strRunId);
+      await waitForPythonProcessTermination(processPy, strRunId);
+    }),
+  );
+}
+
 export function hasStartingRun(): boolean {
   return intStartingRunCount !== 0;
 }
@@ -66,6 +97,10 @@ export function isProjectRunStarting(projectId: number): boolean {
 }
 
 export async function pythonRun(dictDetail: DictProjectRunDetail): Promise<void> {
+  if (boolProjectRunShutdownStarted) {
+    throw new Error("Executor is shutting down and cannot start a new Project Run.");
+  }
+
   addStartingRun(dictDetail.id);
   try {
     await startProjectRun(dictDetail);
@@ -104,6 +139,7 @@ async function startProjectRun(dictDetail: DictProjectRunDetail): Promise<void> 
     startedAt: strStartedAt,
     runStatePath: strRunStatePath,
   });
+  trackActiveProjectProcess(processPy, strRunId);
 
   const dictRunState = await getInitialRunState({
     processPy,

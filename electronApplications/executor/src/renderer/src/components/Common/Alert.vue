@@ -11,30 +11,45 @@
 </template>
 
 <script setup lang="ts">
-import { watch } from "vue";
+import { onBeforeUnmount, watch } from "vue";
 
 import { useInformationStore } from "../../Store/informationStore";
 
 const informationStore = useInformationStore();
 
-function clearInformation(): void {
-  if (informationStore.showAlert) {
-    informationStore.showAlert = false;
-    informationStore.information = "...";
+let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+function clearAutoCloseTimer(): void {
+  if (timeoutId !== undefined) {
+    clearTimeout(timeoutId);
+    timeoutId = undefined;
   }
 }
 
-// Close the alert after 3 seconds.
+function clearInformation(): void {
+  clearAutoCloseTimer();
+  informationStore.showAlert = false;
+  informationStore.information = "...";
+}
+
 watch(
-  () => informationStore.showAlert,
-  (newValue) => {
-    if (newValue === true) {
-      setTimeout(() => {
-        clearInformation();
-      }, 3000);
+  () => informationStore.alertRevision,
+  () => {
+    if (!informationStore.showAlert) {
+      return;
     }
+
+    clearAutoCloseTimer();
+    timeoutId = setTimeout(() => {
+      clearInformation();
+    }, 3000);
   },
+  { immediate: true },
 );
+
+onBeforeUnmount(() => {
+  clearAutoCloseTimer();
+});
 </script>
 
 <style scoped></style>

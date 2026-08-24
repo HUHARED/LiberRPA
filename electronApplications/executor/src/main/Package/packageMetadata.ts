@@ -1,7 +1,12 @@
 import fs from "fs";
 import path from "path";
 
-import { ensureExactRecord, ensureLogLevel, ensureRecord } from "../Common/validation";
+import {
+  ensureCustomProjectArgs,
+  ensureExactRecord,
+  ensureLogLevel,
+  ensureRecord,
+} from "../Common/validation";
 import { DEFAULT_PYTHON_ENVIRONMENT_NAME } from "../Config/environment";
 import type { DictProjectCreate } from "../../shared/project";
 import type { TypeCustomProjectArgs, TypeLogLevel } from "../../shared/runOptions";
@@ -136,28 +141,7 @@ function parsePackageManifest(value: unknown): DictPackageManifest {
 }
 
 function parseCustomProjectArguments(value: unknown): TypeCustomProjectArgs {
-  if (!Array.isArray(value)) {
-    throw new Error("project.flow customPrjArgs must be an array.");
-  }
-
-  const setKey = new Set<string>();
-  return value.map((item, intIndex) => {
-    if (!Array.isArray(item) || item.length !== 2) {
-      throw new Error(
-        `project.flow customPrjArgs[${String(intIndex)}] must contain a key and value.`,
-      );
-    }
-    const strKey = validateTrimmedSingleLine(
-      item[0],
-      `project.flow customPrjArgs[${String(intIndex)}][0]`,
-      false,
-    );
-    if (setKey.has(strKey)) {
-      throw new Error(`Duplicate Custom Project Argument key: ${strKey}`);
-    }
-    setKey.add(strKey);
-    return [strKey, item[1]];
-  });
+  return ensureCustomProjectArgs(value, "project.flow customPrjArgs");
 }
 
 function parseProjectFlowRuntimeSettings(value: unknown): DictProjectFlowRuntimeSettings {

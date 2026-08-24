@@ -40,6 +40,8 @@ export const useScheduleStore = defineStore("schedule", {
   state: () => {
     return {
       arrListItem: [] as DictScheduleListItem[],
+      arrProjectName: [] as string[],
+      arrProjectVersion: [] as string[],
 
       // Edit and New use the same dialog size.
       showDialog_form: false as boolean,
@@ -52,6 +54,22 @@ export const useScheduleStore = defineStore("schedule", {
     };
   },
   actions: {
+    async loadProjectNames(): Promise<void> {
+      this.arrProjectName = (await invokeMain("getProjectNames")).map((row) => row.name);
+    },
+
+    async fetchProjectVersions(name: string): Promise<string[]> {
+      return (await invokeMain("getProjectVersions", name)).map((row) => row.version);
+    },
+
+    setProjectVersions(arrVersion: string[]): void {
+      this.arrProjectVersion = arrVersion;
+    },
+
+    resetProjectVersions(): void {
+      this.arrProjectVersion = [];
+    },
+
     async loadScheduleList(): Promise<void> {
       if (this.arrListItem.length === 0) {
         this.arrListItem = await invokeMain("getScheduleList");
@@ -123,7 +141,10 @@ export const useScheduleStore = defineStore("schedule", {
     },
 
     async saveSchedule(): Promise<void> {
-      if (this.dictDetail_edit === undefined) {
+      if (
+        this.dictDetail_edit === undefined ||
+        this.dictDetail_edit.project_id === undefined
+      ) {
         return;
       }
 

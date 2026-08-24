@@ -149,7 +149,7 @@ import ProjectRunSettings from "./ProjectRunSettings.vue";
 import CustomArgumentsEditor from "../RunOptions/CustomArgumentsEditor.vue";
 import VerticalDivider from "../Common/VerticalDivider.vue";
 
-import { ref, watch, onBeforeMount } from "vue";
+import { onBeforeMount, onBeforeUnmount, ref, watch } from "vue";
 import { debounce } from "lodash";
 
 import { invokeMain } from "../../IPC/ipc";
@@ -207,6 +207,10 @@ watch(
   },
   { deep: true },
 );
+
+onBeforeUnmount(() => {
+  debouncedSetButtonDisabled.cancel();
+});
 
 async function refreshDetail(): Promise<void> {
   // loggerRenderer.debug("--refreshDetail--");

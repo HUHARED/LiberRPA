@@ -14,6 +14,7 @@ export const useInformationStore = defineStore("information", {
     return {
       information: "..." as string,
       showAlert: false,
+      alertRevision: 0,
       tab: "projects" as TypeExecutorTab,
     };
   },
@@ -22,6 +23,7 @@ export const useInformationStore = defineStore("information", {
       loggerRenderer.error(message);
       this.information = message;
       this.showAlert = true;
+      this.alertRevision += 1;
     },
   },
 });

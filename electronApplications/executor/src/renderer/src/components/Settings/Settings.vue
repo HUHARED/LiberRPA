@@ -52,7 +52,7 @@ watch(dictConfigExecutor, () => {
 });
 
 onBeforeUnmount(() => {
-  debouncedSaveConfig.cancel();
+  debouncedSaveConfig.flush();
 });
 </script>
 

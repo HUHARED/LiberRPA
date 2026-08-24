@@ -78,7 +78,6 @@
             </v-text-field>
           </v-col>
 
-          <!-- Update projectStore.arrVersion by the current project_name -->
           <v-col cols="2">
             <v-text-field
               v-model="scheduleStore.dictDetail_edit['project_version']"

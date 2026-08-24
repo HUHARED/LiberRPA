@@ -85,9 +85,9 @@
             density="compact"
             hide-details
             variant="underlined"
-            :bg-color="informationStore.showAlert ? 'warning' : undefined">
+            :bg-color="cronValidation.valid ? undefined : 'warning'">
             <v-tooltip activator="parent" location="top">
-              {{ informationStore.information }}
+              {{ cronValidation.valid ? cronValidation.description : cronValidation.error }}
             </v-tooltip>
           </v-text-field>
         </v-col>
@@ -140,7 +140,7 @@
             class="clean-space"
             density="compact"
             hide-details
-            :items="projectStore.arrName"
+            :items="scheduleStore.arrProjectName"
             @update:model-value="whenProjectNameChanged()">
           </v-select>
         </v-col>
@@ -153,7 +153,7 @@
             class="clean-space"
             density="compact"
             hide-details
-            :items="detail.project_name ? projectStore.arrVersion : []"
+            :items="detail.project_name ? scheduleStore.arrProjectVersion : []"
             @update:model-value="whenProjectVersionChanged()">
           </v-select>
         </v-col>
@@ -192,18 +192,18 @@ import BuiltInRunOptions from "../RunOptions/BuiltInRunOptions.vue";
 import CustomArgumentsEditor from "../RunOptions/CustomArgumentsEditor.vue";
 
 import { cloneJsonSerializable } from "../../Common/json";
+import { invokeMain } from "../../IPC/ipc";
 import { loggerRenderer } from "../../Logging/logger";
-import { useInformationStore } from "../../Store/informationStore";
-import { useProjectStore } from "../../Store/projectStore";
+import { validateCronExpression } from "../../Schedule/cron";
 import { useScheduleStore } from "../../Store/scheduleStore";
 import { useSettingStore } from "../../Store/settingStore";
 import type { TypeScheduleFormDetail } from "../../Schedule/types";
 import type { TypeWhenOthersRunning } from "../../../../shared/schedule";
 
-const projectStore = useProjectStore();
 const scheduleStore = useScheduleStore();
-const informationStore = useInformationStore();
 const settingStore = useSettingStore();
+
+let intProjectSelectionRevision = 0;
 
 const detail = computed<TypeScheduleFormDetail | undefined>(() => {
   if (scheduleStore.formMode === "new") {
@@ -213,6 +213,13 @@ const detail = computed<TypeScheduleFormDetail | undefined>(() => {
     return scheduleStore.dictDetail_edit;
   }
   return undefined;
+});
+
+const cronValidation = computed(() => {
+  const currentDetail = detail.value;
+  return currentDetail === undefined
+    ? { valid: false as const, error: "Cron expression is unavailable." }
+    : validateCronExpression(currentDetail.cron);
 });
 
 const ARR_WHEN_OTHERS_RUNNING: { title: string; value: TypeWhenOthersRunning }[] = [
@@ -232,16 +239,29 @@ async function whenProjectNameChanged(): Promise<void> {
     return;
   }
 
-  loggerRenderer.info(`Modified Project name: ${name}`);
-  await projectStore.loadProjectVersions(name);
+  const intRevision = ++intProjectSelectionRevision;
+  currentDetail.project_id = undefined;
+  currentDetail.project_version = undefined;
+  scheduleStore.resetProjectVersions();
 
-  const firstVersion = projectStore.arrVersion[0];
+  loggerRenderer.info(`Modified Project name: ${name}`);
+  const arrVersion = await scheduleStore.fetchProjectVersions(name);
+  if (
+    intRevision !== intProjectSelectionRevision ||
+    detail.value !== currentDetail ||
+    currentDetail.project_name !== name
+  ) {
+    return;
+  }
+
+  scheduleStore.setProjectVersions(arrVersion);
+  const firstVersion = arrVersion[0];
   if (firstVersion === undefined) {
     throw new Error(`No version is available for Project: ${name}`);
   }
 
-  currentDetail.project_version = firstVersion.title;
-  await applyProjectDetailToSchedule(currentDetail, name, firstVersion.title);
+  currentDetail.project_version = firstVersion;
+  await applyProjectDetailToSchedule(currentDetail, name, firstVersion, intRevision);
 }
 
 async function whenProjectVersionChanged(): Promise<void> {
@@ -260,20 +280,29 @@ async function whenProjectVersionChanged(): Promise<void> {
     return;
   }
 
+  const intRevision = ++intProjectSelectionRevision;
+  currentDetail.project_id = undefined;
   loggerRenderer.info(`Modified Project version: ${version}`);
-  await applyProjectDetailToSchedule(currentDetail, name, version);
+  await applyProjectDetailToSchedule(currentDetail, name, version, intRevision);
 }
 
 async function applyProjectDetailToSchedule(
   currentDetail: TypeScheduleFormDetail,
   name: string,
   version: string,
+  intRevision: number,
 ): Promise<void> {
-  await projectStore.loadProjectDetail(name, version);
-
-  const projectDetail = projectStore.dictDetail_edit;
-  if (projectDetail === undefined) {
+  const projectDetail = await invokeMain("getProjectDetail", { name, version });
+  if (
+    intRevision !== intProjectSelectionRevision ||
+    detail.value !== currentDetail ||
+    currentDetail.project_name !== name ||
+    currentDetail.project_version !== version
+  ) {
     return;
+  }
+  if (projectDetail === undefined) {
+    throw new Error(`Project not found: ${name}-${version}`);
   }
 
   currentDetail.project_id = projectDetail.id;

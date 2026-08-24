@@ -90,7 +90,7 @@ import { debounce } from "lodash";
 import ScheduleForm from "./ScheduleForm.vue";
 
 import { formatTimestamp, parseDateTimeLocalToTimestamp } from "../../Common/time";
-import { validateCron } from "../../Schedule/cron";
+import { validateCronExpression } from "../../Schedule/cron";
 import type { TypeScheduleFormDetail } from "../../Schedule/types";
 import { useScheduleStore } from "../../Store/scheduleStore";
 import { useSettingStore } from "../../Store/settingStore";
@@ -116,7 +116,7 @@ const dialogTitle = computed(() =>
 
 const debouncedUpdateSaveState = debounce(() => {
   const detail = currentDetail.value;
-  if (detail === undefined || !validateCron(detail.cron)) {
+  if (detail === undefined || !validateCronExpression(detail.cron).valid) {
     boolCanSave.value = false;
     return;
   }
