@@ -2,13 +2,13 @@
   <v-card title="Delete Schedule?">
     <template #text>
       <v-container
-        v-if="scheduleStore.dictDetail_edit"
+        v-if="scheduleStore.dictDetailEdit"
         fluid
         class="clean-space pa-2 ma-0 fill-height flex-column">
         <v-row class="w-100">
           <v-col cols="2">
             <v-text-field
-              v-model="scheduleStore.dictDetail_edit['id']"
+              :model-value="scheduleStore.dictDetailEdit.id"
               label="ID"
               class="clean-space"
               density="compact"
@@ -22,7 +22,7 @@
           </v-col>
           <v-col cols="10">
             <v-text-field
-              v-model="scheduleStore.dictDetail_edit['name']"
+              :model-value="scheduleStore.dictDetailEdit.name"
               label="Name"
               class="clean-space"
               density="compact"
@@ -40,7 +40,7 @@
         <v-row class="w-100">
           <v-col cols="2">
             <v-text-field
-              v-model="scheduleStore.dictDetail_edit['project_id']"
+              :model-value="scheduleStore.dictDetailEdit.project_id"
               label="ID"
               class="clean-space"
               density="compact"
@@ -55,7 +55,7 @@
 
           <v-col cols="7">
             <v-text-field
-              v-model="scheduleStore.dictDetail_edit['project_name']"
+              :model-value="scheduleStore.dictDetailEdit.project_name"
               label="Name"
               variant="plain"
               class="clean-space"
@@ -67,7 +67,7 @@
 
           <v-col cols="3">
             <v-text-field
-              v-model="scheduleStore.dictDetail_edit['project_version']"
+              :model-value="scheduleStore.dictDetailEdit.project_version"
               label="Version"
               variant="plain"
               class="clean-space"
@@ -85,7 +85,7 @@
     <v-card-actions class="bg-surface-light">
       <v-btn
         prepend-icon="mdi-delete-off-outline"
-        @click="scheduleStore.showDialog_delete = false">
+        @click="scheduleStore.showDeleteDialog = false">
         Cancel
       </v-btn>
 

@@ -13,6 +13,7 @@ import { loggerMain } from "../Logging/logger";
 
 const STR_MOVE_MOUSE_TERMINATION_MESSAGE = "Executor-stop-move-mouse";
 const INT_RDP_HELPER_CHECK_INTERVAL_MS = 1000;
+const setRdpProcess = new Set<ChildProcessWithoutNullStreams>();
 
 function getScriptFolderPath(): string {
   if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
@@ -46,6 +47,10 @@ function spawnRdpScript(
     },
   );
 
+  setRdpProcess.add(processPy);
+  processPy.once("close", () => {
+    setRdpProcess.delete(processPy);
+  });
   processPy.once("error", (e: Error) => {
     loggerMain.error(`[${strScriptName}] Process error: ${e.message}`);
   });
@@ -112,7 +117,7 @@ function startSessionListener(): void {
       return;
     }
     if (!dictConfigExecutor.keepRdpSession) {
-      loggerMain.debug("Not need to keep RDP session.");
+      loggerMain.debug("RDP session preservation is disabled.");
       return;
     }
     if (strEventCache === "RDP connect") {
@@ -242,7 +247,11 @@ export function startRdpSessionManager(): void {
 }
 
 export function stopRdpSessionManager(): void {
-  if (!boolRdpSessionManagerStarted) {
+  if (
+    !boolRdpSessionManagerStarted &&
+    timerRdpHelperCheck === undefined &&
+    setRdpProcess.size === 0
+  ) {
     return;
   }
 
@@ -254,13 +263,9 @@ export function stopRdpSessionManager(): void {
     timerRdpHelperCheck = undefined;
   }
 
-  if (
-    processPySessionListener !== undefined &&
-    isProcessRunning(processPySessionListener)
-  ) {
-    processPySessionListener.kill();
-  }
-  if (processPyMoveMouse !== undefined && isProcessRunning(processPyMoveMouse)) {
-    processPyMoveMouse.kill();
+  for (const processPy of setRdpProcess) {
+    if (isProcessRunning(processPy)) {
+      processPy.kill();
+    }
   }
 }

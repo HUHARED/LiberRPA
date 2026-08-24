@@ -23,7 +23,7 @@ try:
     consoleId = ctypes.windll.kernel32.WTSGetActiveConsoleSessionId()
     print(f"Console ID: {consoleId}", flush=True)
     if sessionId == consoleId:
-        print("Not need to run tscon command.", flush=True)
+        print("No need to run tscon command.", flush=True)
     else:
         subprocess.run(f"tscon {sessionId} /dest:console", shell=True, check=True)
 

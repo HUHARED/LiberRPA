@@ -8,6 +8,7 @@ import {
 import { dbHasRunningRun } from "../Database/runHistoryRepository";
 import { loggerMain } from "../Logging/logger";
 import { hasStartingRun, pythonRun } from "../Run/projectRunner";
+import type { DictProjectRunDetail } from "../Run/types";
 import type { DictRunQueueListItem } from "../../shared/run";
 import type { TypeRunConflictPolicy } from "../../shared/schedule";
 
@@ -18,10 +19,15 @@ interface PendingRun {
   runConflictPolicy: TypeRunConflictPolicy;
 }
 
+interface WaitingRun {
+  queueItem: DictRunQueueListItem;
+  runDetail: DictProjectRunDetail;
+}
+
 const INT_SCHEDULER_CHECK_INTERVAL_MS = 1000;
 
 const arrPendingRun: PendingRun[] = [];
-const arrWaitingItem: DictRunQueueListItem[] = [];
+const arrWaitingRun: WaitingRun[] = [];
 const setRunQueueChangedListener = new Set<RunQueueChangedListener>();
 
 let intervalId: NodeJS.Timeout | undefined;
@@ -60,16 +66,20 @@ export function refreshSchedulerEngine(): void {
 
 export function getRunQueueItems(): DictRunQueueListItem[] {
   return [
-    ...arrWaitingItem.map((dictItem) => ({ ...dictItem })),
+    ...arrWaitingRun.map(({ queueItem }) => ({ ...queueItem })),
     ...arrPendingRun.map(({ queueItem }) => ({ ...queueItem })),
   ];
 }
 
+export function hasWaitingRunForProject(projectId: number): boolean {
+  return arrWaitingRun.some(({ runDetail }) => runDetail.id === projectId);
+}
+
 export function cancelWaitingRun(scheduleName: string, intEstimatedRunAtMs: number): void {
-  const intIndex = arrWaitingItem.findIndex(
-    (dictItem) =>
-      dictItem.schedule_name === scheduleName &&
-      dictItem.estimated_run_at_ms === intEstimatedRunAtMs,
+  const intIndex = arrWaitingRun.findIndex(
+    ({ queueItem }) =>
+      queueItem.schedule_name === scheduleName &&
+      queueItem.estimated_run_at_ms === intEstimatedRunAtMs,
   );
   if (intIndex === -1) {
     loggerMain.debug(`Waiting Run not found: ${scheduleName}-${intEstimatedRunAtMs}`);
@@ -77,7 +87,7 @@ export function cancelWaitingRun(scheduleName: string, intEstimatedRunAtMs: numb
   }
 
   loggerMain.info(`Cancel waiting Run: ${scheduleName}-${intEstimatedRunAtMs}`);
-  arrWaitingItem.splice(intIndex, 1);
+  arrWaitingRun.splice(intIndex, 1);
   publishRunQueueChanged();
 }
 
@@ -94,12 +104,12 @@ function resetPendingRuns(): void {
   const arrNextPending: PendingRun[] = [];
   const setScheduleName = new Set(arrSchedule.map((dictSchedule) => dictSchedule.name));
 
-  for (let intIndex = arrWaitingItem.length - 1; intIndex >= 0; intIndex--) {
-    if (!setScheduleName.has(arrWaitingItem[intIndex].schedule_name)) {
+  for (let intIndex = arrWaitingRun.length - 1; intIndex >= 0; intIndex--) {
+    if (!setScheduleName.has(arrWaitingRun[intIndex].queueItem.schedule_name)) {
       loggerMain.info(
-        `Remove waiting Run because its Schedule no longer exists: ${arrWaitingItem[intIndex].schedule_name}`,
+        `Remove waiting Run because its Schedule no longer exists: ${arrWaitingRun[intIndex].queueItem.schedule_name}`,
       );
-      arrWaitingItem.splice(intIndex, 1);
+      arrWaitingRun.splice(intIndex, 1);
     }
   }
 
@@ -151,18 +161,16 @@ async function processSchedulerTick(): Promise<void> {
   try {
     let boolOthersRunning = dbHasRunningRun() || hasStartingRun();
 
-    if (!boolOthersRunning && arrWaitingItem.length !== 0) {
-      const dictWaitingItem = arrWaitingItem.shift();
-      if (dictWaitingItem !== undefined) {
+    if (!boolOthersRunning && arrWaitingRun.length !== 0) {
+      const waitingRun = arrWaitingRun.shift();
+      if (waitingRun !== undefined) {
         publishRunQueueChanged();
         try {
-          const boolStarted = await runSchedule(dictWaitingItem.schedule_name);
-          if (boolStarted) {
-            boolOthersRunning = dbHasRunningRun();
-          }
+          await pythonRun(waitingRun.runDetail);
+          boolOthersRunning = dbHasRunningRun();
         } catch (e: unknown) {
           loggerMain.error(
-            `Failed to start waiting Run for Schedule '${dictWaitingItem.schedule_name}': ${
+            `Failed to start waiting Run for Schedule '${waitingRun.queueItem.schedule_name}': ${
               e instanceof Error ? e.message : String(e)
             }`,
           );
@@ -184,12 +192,16 @@ async function processSchedulerTick(): Promise<void> {
         `Schedule '${queueItem.schedule_name}' reached its run time. run_conflict_policy=${runConflictPolicy}`,
       );
 
+      const dictRunDetail = dbSelectScheduleRunDetail(queueItem.schedule_name);
+      if (dictRunDetail === undefined) {
+        loggerMain.warn(`Schedule no longer exists: ${queueItem.schedule_name}`);
+        continue;
+      }
+
       if (!boolOthersRunning || runConflictPolicy === "concurrent") {
         try {
-          const boolStarted = await runSchedule(queueItem.schedule_name);
-          if (boolStarted) {
-            boolOthersRunning = dbHasRunningRun();
-          }
+          await pythonRun(dictRunDetail);
+          boolOthersRunning = dbHasRunningRun();
         } catch (e: unknown) {
           loggerMain.error(
             `Failed to start scheduled Run for '${queueItem.schedule_name}': ${
@@ -204,7 +216,10 @@ async function processSchedulerTick(): Promise<void> {
         loggerMain.info(
           `Move Schedule '${queueItem.schedule_name}' Run into the waiting queue.`,
         );
-        arrWaitingItem.push({ ...queueItem, waiting: true });
+        arrWaitingRun.push({
+          queueItem: { ...queueItem, waiting: true },
+          runDetail: dictRunDetail,
+        });
       } else {
         loggerMain.info(
           `Skip Schedule '${queueItem.schedule_name}' Run because another Run is active.`,
@@ -217,17 +232,6 @@ async function processSchedulerTick(): Promise<void> {
   } finally {
     boolIsChecking = false;
   }
-}
-
-async function runSchedule(name: string): Promise<boolean> {
-  const dictRun = dbSelectScheduleRunDetail(name);
-  if (dictRun === undefined) {
-    loggerMain.warn(`Schedule no longer exists: ${name}`);
-    return false;
-  }
-
-  await pythonRun(dictRun);
-  return true;
 }
 
 function publishRunQueueChanged(): void {

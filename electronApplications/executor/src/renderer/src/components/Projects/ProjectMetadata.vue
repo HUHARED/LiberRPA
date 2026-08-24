@@ -1,12 +1,12 @@
 <template>
-  <v-container v-if="projectStore.dictDetail_edit" fluid class="clean-space">
+  <v-container v-if="projectStore.dictDetailEdit" fluid class="clean-space">
     <v-container fluid class="pa-2 ma-0">
       <v-row class="w-100">
         <v-col cols="6">
           <v-text-field
             :model-value="
               formatTimestamp(
-                projectStore.dictDetail_edit.created_at_ms,
+                projectStore.dictDetailEdit.created_at_ms,
                 settingStore.timezone,
               )
             "
@@ -23,7 +23,7 @@
           <v-text-field
             :model-value="
               formatTimestamp(
-                projectStore.dictDetail_edit.updated_at_ms,
+                projectStore.dictDetailEdit.updated_at_ms,
                 settingStore.timezone,
               )
             "
@@ -42,7 +42,7 @@
       <v-row class="w-100">
         <v-col cols="7">
           <v-text-field
-            v-model="projectStore.dictDetail_edit.name"
+            :model-value="projectStore.dictDetailEdit.name"
             label="Name"
             class="clean-space"
             density="compact"
@@ -54,7 +54,7 @@
 
         <v-col cols="3">
           <v-text-field
-            v-model="projectStore.dictDetail_edit.version"
+            :model-value="projectStore.dictDetailEdit.version"
             label="Version"
             class="clean-space"
             density="compact"
@@ -66,7 +66,7 @@
 
         <v-col cols="2">
           <v-text-field
-            v-model="projectStore.dictDetail_edit.id"
+            :model-value="projectStore.dictDetailEdit.id"
             label="ID"
             class="clean-space"
             density="compact"
@@ -83,7 +83,7 @@
 
     <v-container fluid class="pa-2 ma-0">
       <v-text-field
-        v-model="projectStore.dictDetail_edit.description"
+        :model-value="projectStore.dictDetailEdit.description"
         label="Description"
         class="clean-space"
         density="compact"
@@ -93,7 +93,7 @@
       </v-text-field>
 
       <v-text-field
-        v-model="projectStore.dictDetail_edit.version_summary"
+        :model-value="projectStore.dictDetailEdit.version_summary"
         label="Version Summary"
         class="clean-space"
         density="compact"

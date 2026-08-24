@@ -28,7 +28,6 @@ if __name__ == "__main__":
             time.sleep(30)
             intXNew, intYNew = pyautogui.position()
             if intXNew == intX and intYNew == intY:
-                # print("Move.", flush=True)
                 pyautogui.moveTo(x=intX + 1, y=intY - 1, duration=0)
                 pyautogui.moveTo(x=intX + 1, y=intY + 1, duration=0)
                 pyautogui.moveTo(x=intX - 1, y=intY + 1, duration=0)

@@ -23,14 +23,14 @@
         <v-list
           v-if="projectStore.arrName.length !== 0"
           :items="projectStore.arrName"
-          item-value="idTemp"
+          item-value="value"
           class="clean-space w-100"
           style="width: max-content; flex: 1; min-width: 0px"
           activatable
           mandatory
           density="compact"
           variant="flat"
-          @update:activated="clickNewProjectItem($event as number[])">
+          @update:activated="clickNewProjectItem($event as string[])">
         </v-list>
       </v-container>
 
@@ -46,14 +46,14 @@
         <v-list
           v-if="projectStore.arrVersion.length !== 0"
           :items="projectStore.arrVersion"
-          item-value="idTemp"
+          item-value="value"
           class="clean-space w-100 flex-column-grow-1"
           style="width: max-content"
           activatable
           mandatory
           density="compact"
           variant="flat"
-          @update:activated="clickNewVersionItem($event as number[])"></v-list>
+          @update:activated="clickNewVersionItem($event as string[])"></v-list>
       </v-container>
 
       <VerticalDivider />
@@ -66,7 +66,7 @@
 
         <!-- The data area. -->
         <v-container
-          v-if="projectStore.dictDetail_edit"
+          v-if="projectStore.dictDetailEdit"
           fluid
           class="clean-space flex-column flex-column-grow-1">
           <ProjectMetadata />
@@ -76,7 +76,7 @@
           <v-container fluid class="pa-2 ma-0 pt-0 flex-column-grow-1">
             <v-row class="clean-space fill-height">
               <!-- Left half -->
-              <ProjectRunSettings v-if="projectStore.dictDetail_edit" />
+              <ProjectRunSettings v-if="projectStore.dictDetailEdit" />
 
               <!-- Right half: Custom Project Arguments -->
               <v-col cols="6" class="clean-space flex-column">
@@ -85,7 +85,7 @@
                 </v-label>
 
                 <CustomArgumentsEditor
-                  v-model:custom-args="projectStore.dictDetail_edit.custom_prj_args" />
+                  v-model:custom-args="projectStore.dictDetailEdit.custom_prj_args" />
               </v-col>
             </v-row>
           </v-container>
@@ -93,7 +93,7 @@
 
         <!-- The button area. -->
         <v-container
-          v-if="projectStore.dictDetail_edit"
+          v-if="projectStore.dictDetailEdit"
           fluid
           class="pa-1 ma-0"
           style="height: 45px">
@@ -187,13 +187,13 @@ async function importProjectPackage(): Promise<void> {
 
 const debouncedSetButtonDisabled = debounce(() => {
   // Changed name or version.
-  if (!projectStore.dictDetail_edit) {
+  if (!projectStore.dictDetailEdit) {
     boolDetailChanged.value = false;
     return;
   }
 
-  const strDetailCacheNew = JSON.stringify(projectStore.dictDetail_edit);
-  if (strDetailCacheNew === projectStore.detailCache_edit) {
+  const strDetailCacheNew = JSON.stringify(projectStore.dictDetailEdit);
+  if (strDetailCacheNew === projectStore.strDetailCacheEdit) {
     boolDetailChanged.value = false;
   } else {
     boolDetailChanged.value = true;
@@ -201,7 +201,7 @@ const debouncedSetButtonDisabled = debounce(() => {
 }, 300);
 
 watch(
-  () => projectStore.dictDetail_edit,
+  () => projectStore.dictDetailEdit,
   () => {
     debouncedSetButtonDisabled();
   },
@@ -213,21 +213,30 @@ onBeforeUnmount(() => {
 });
 
 async function refreshDetail(): Promise<void> {
-  // loggerRenderer.debug("--refreshDetail--");
   projectStore.resetDetail();
   await projectStore.loadProjectDetail(strName.value, strVersion.value);
 }
 
 /* Click triggers */
 
-async function clickNewProjectItem(arrId: number[]): Promise<void> {
-  strName.value = projectStore.dictIdToName[arrId[0]];
-  await projectStore.loadProjectVersions(strName.value);
+async function clickNewProjectItem(arrName: string[]): Promise<void> {
+  const strSelectedName = arrName[0];
+  if (strSelectedName === undefined) {
+    return;
+  }
+
+  strName.value = strSelectedName;
+  await projectStore.loadProjectVersions(strSelectedName);
 }
 
-async function clickNewVersionItem(arrId: number[]): Promise<void> {
-  strVersion.value = projectStore.dictIdToVersion[arrId[0]];
-  await projectStore.loadProjectDetail(strName.value, strVersion.value);
+async function clickNewVersionItem(arrVersion: string[]): Promise<void> {
+  const strSelectedVersion = arrVersion[0];
+  if (strSelectedVersion === undefined) {
+    return;
+  }
+
+  strVersion.value = strSelectedVersion;
+  await projectStore.loadProjectDetail(strName.value, strSelectedVersion);
 }
 
 async function saveProjectSettings(): Promise<void> {
@@ -237,19 +246,19 @@ async function saveProjectSettings(): Promise<void> {
 }
 
 async function openDeleteDialog(): Promise<void> {
-  if (projectStore.dictDetail_edit) {
+  if (projectStore.dictDetailEdit) {
     loggerRenderer.info(
-      `Open delete dialog for project: ${projectStore.dictDetail_edit.id}-${projectStore.dictDetail_edit.name}-${projectStore.dictDetail_edit.version}`,
+      `Open delete dialog for project: ${projectStore.dictDetailEdit.id}-${projectStore.dictDetailEdit.name}-${projectStore.dictDetailEdit.version}`,
     );
     await projectStore.loadBoundSchedules();
-    projectStore.showDialog_delete = true;
+    projectStore.showDeleteDialog = true;
   }
 }
 
 async function runProject(): Promise<void> {
   loggerRenderer.debug("--runProject--");
-  if (projectStore.dictDetail_edit) {
-    await invokeMain("runProject", projectStore.dictDetail_edit.id);
+  if (projectStore.dictDetailEdit) {
+    await invokeMain("runProject", projectStore.dictDetailEdit.id);
     await runHistoryStore.refreshRunHistory();
   }
 }

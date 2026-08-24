@@ -23,7 +23,6 @@ WTS_CONSOLE_DISCONNECT = 0x2
 def WndProc(hWnd, msg, wParam, lParam) -> int:
     if msg == WM_WTSSESSION_CHANGE:
         # wParam provides the session change event code.
-        # print("Received WM_WTSSESSION_CHANGE, event code:", wParam)
         if wParam == WTS_REMOTE_DISCONNECT:
             print("Detected RDP disconnect event.", flush=True)
         elif wParam == WTS_REMOTE_CONNECT:
@@ -53,13 +52,17 @@ def register_session_notification() -> int:
 
     # Create a hidden window (message-only window)
     # Using HWND_MESSAGE as parent creates a message-only window.
-    hWnd = win32gui.CreateWindow(atom, className, 0, 0, 0, 0, 0, win32con.HWND_MESSAGE, 0, hInstance, None)
+    hWnd = win32gui.CreateWindow(
+        atom, className, 0, 0, 0, 0, 0, win32con.HWND_MESSAGE, 0, hInstance, None
+    )
     if not hWnd:
         raise Exception("Failed to create hidden window")
 
     # Register for session notifications.
     wtsapi32 = ctypes.windll.wtsapi32
-    if not wtsapi32.WTSRegisterSessionNotification(hWnd, win32ts.NOTIFY_FOR_ALL_SESSIONS):
+    if not wtsapi32.WTSRegisterSessionNotification(
+        hWnd, win32ts.NOTIFY_FOR_ALL_SESSIONS
+    ):
         raise Exception("Failed to register for session notifications")
 
     print("Session notifications registered. hWnd =", hWnd, flush=True)

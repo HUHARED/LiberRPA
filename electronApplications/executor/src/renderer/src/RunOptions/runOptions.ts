@@ -11,14 +11,17 @@ export const ARR_LOG_LEVEL: TypeLogLevel[] = [
 ];
 
 export function getArgumentValueNote(value: unknown): string {
-  return (
-    "Original value:<br/>" +
-    JSON.stringify(value, null, 0) +
-    "<br/>(The value must be deserializable.<br/>Press Enter or leave the input box to update.)" +
-    (typeof value === "object" && value !== null && !Array.isArray(value)
-      ? "<br/>(It is a dictionary, so the keys may be reordered.)"
-      : "")
-  );
+  const strValue = JSON.stringify(value, null, 0) ?? "undefined";
+  const arrLine = [
+    "Original value:",
+    strValue,
+    "The value must be valid JSON.",
+    "Press Enter or leave the input box to update.",
+  ];
+  if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+    arrLine.push("Object keys may be reordered.");
+  }
+  return arrLine.join("\n");
 }
 
 export function updateCustomProjectArgumentValue(

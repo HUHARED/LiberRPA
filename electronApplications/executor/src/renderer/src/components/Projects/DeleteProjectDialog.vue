@@ -1,15 +1,15 @@
 <template>
-  <v-dialog v-model="projectStore.showDialog_delete" width="800px" height="400px">
+  <v-dialog v-model="projectStore.showDeleteDialog" width="800px" height="400px">
     <v-card title="Delete Project?">
       <template #text>
         <v-container
-          v-if="projectStore.dictDetail_edit"
+          v-if="projectStore.dictDetailEdit"
           fluid
           class="clean-space pa-2 ma-0 fill-height flex-column">
           <v-row class="w-100" style="max-height: 60px">
             <v-col cols="2">
               <v-text-field
-                v-model="projectStore.dictDetail_edit['id']"
+                :model-value="projectStore.dictDetailEdit.id"
                 label="ID"
                 class="clean-space"
                 density="compact"
@@ -24,7 +24,7 @@
 
             <v-col cols="8">
               <v-text-field
-                v-model="projectStore.dictDetail_edit['name']"
+                :model-value="projectStore.dictDetailEdit.name"
                 label="Name"
                 class="clean-space"
                 density="compact"
@@ -36,7 +36,7 @@
 
             <v-col cols="2">
               <v-text-field
-                v-model="projectStore.dictDetail_edit['version']"
+                :model-value="projectStore.dictDetailEdit.version"
                 label="Version"
                 variant="plain"
                 class="clean-space"
@@ -63,7 +63,8 @@
           </v-container>
 
           <v-container v-else fluid class="border-thin flex-column-grow-1 flex-column">
-            No schedule uses this project.
+            No Schedule uses this Project. A Project with a starting, running, or waiting
+            Run still cannot be deleted.
           </v-container>
         </v-container>
       </template>
@@ -73,7 +74,7 @@
       <v-card-actions class="bg-surface-light">
         <v-btn
           prepend-icon="mdi-delete-off-outline"
-          @click="projectStore.showDialog_delete = false">
+          @click="projectStore.showDeleteDialog = false">
           Cancel
         </v-btn>
 

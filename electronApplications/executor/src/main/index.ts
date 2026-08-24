@@ -73,7 +73,6 @@ function createWindow(): void {
     minWidth: 1280,
     minHeight: 800,
     show: false,
-    // autoHideMenuBar: false,
     autoHideMenuBar: true,
     icon: icon,
     webPreferences: {
@@ -87,10 +86,6 @@ function createWindow(): void {
   const webContentsObj = mainWindow.webContents;
 
   webContentsObj.on("did-finish-load", () => {
-    // Open DevTools when the content finishes loading.
-    // NOTE: delete it before packaging.
-    // webContentsObj.openDevTools();
-
     sendMainMessage(webContentsObj, {
       type: "initializeSetting",
       data: {
@@ -185,7 +180,7 @@ void app
 
     const displays = screen.getAllDisplays();
     if (displays.length === 0) {
-      loggerMain.info("Have no screen.");
+      loggerMain.info("No display is available.");
     } else {
       const mainDisplay = displays.find(
         (display) => display.bounds.x === 0 && display.bounds.y === 0,

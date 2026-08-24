@@ -3,7 +3,7 @@
     <template #text>
       <v-container fluid class="clean-space fill-height flex-column">
         <v-container
-          v-if="scheduleStore.formMode === 'edit' && scheduleStore.dictDetail_edit"
+          v-if="scheduleStore.formMode === 'edit' && scheduleStore.dictDetailEdit"
           fluid
           class="pa-2 ma-0 pb-0">
           <v-row class="w-100">
@@ -11,7 +11,7 @@
               <v-text-field
                 :model-value="
                   formatTimestamp(
-                    scheduleStore.dictDetail_edit.created_at_ms,
+                    scheduleStore.dictDetailEdit.created_at_ms,
                     settingStore.timezone,
                   )
                 "
@@ -28,7 +28,7 @@
               <v-text-field
                 :model-value="
                   formatTimestamp(
-                    scheduleStore.dictDetail_edit.updated_at_ms,
+                    scheduleStore.dictDetailEdit.updated_at_ms,
                     settingStore.timezone,
                   )
                 "
@@ -43,7 +43,7 @@
 
             <v-col cols="2" class="pb-0">
               <v-text-field
-                v-model="scheduleStore.dictDetail_edit.id"
+                :model-value="scheduleStore.dictDetailEdit.id"
                 label="ID"
                 class="clean-space"
                 density="compact"
@@ -67,7 +67,7 @@
     <v-card-actions class="bg-surface-light">
       <v-btn
         prepend-icon="mdi-content-save-off-outline"
-        @click="scheduleStore.showDialog_form = false">
+        @click="scheduleStore.showFormDialog = false">
         Cancel
       </v-btn>
 
@@ -102,10 +102,10 @@ const boolCanSave = ref(false);
 
 const currentDetail = computed<TypeScheduleFormDetail | undefined>(() => {
   if (scheduleStore.formMode === "new") {
-    return scheduleStore.dictDetail_new;
+    return scheduleStore.dictDetailNew;
   }
   if (scheduleStore.formMode === "edit") {
-    return scheduleStore.dictDetail_edit;
+    return scheduleStore.dictDetailEdit;
   }
   return undefined;
 });
@@ -149,7 +149,7 @@ const debouncedUpdateSaveState = debounce(() => {
   }
 
   if (scheduleStore.formMode === "edit") {
-    boolCanSave.value = JSON.stringify(detail) !== scheduleStore.detailCache_edit;
+    boolCanSave.value = JSON.stringify(detail) !== scheduleStore.strDetailCacheEdit;
     return;
   }
 

@@ -5,7 +5,7 @@
     class="clean-space flex-column-grow-1 flex-column">
     <v-row
       v-for="(item, index) in customArgs"
-      :key="index"
+      :key="item[0]"
       class="clean-space"
       style="width: 100%; max-height: 40px">
       <v-col cols="6" class="pa-0 ma-0">
@@ -34,7 +34,7 @@
           @blur="updateValue(index)"
           @keyup.enter="updateValue(index)">
           <v-tooltip activator="parent" location="top">
-            <span v-html="getArgumentValueNote(item[1])"></span>
+            <span class="argument-value-note">{{ getArgumentValueNote(item[1]) }}</span>
           </v-tooltip>
         </v-text-field>
       </v-col>
@@ -87,5 +87,9 @@ watch(
 <style scoped>
 :deep(input) {
   text-overflow: ellipsis;
+}
+
+.argument-value-note {
+  white-space: pre-line;
 }
 </style>

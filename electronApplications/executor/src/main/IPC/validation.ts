@@ -1,7 +1,13 @@
 import type { DictProjectSettingsUpdate } from "../../shared/project";
 import type { DictRunHistoryOptions } from "../../shared/run";
-import type { DictScheduleCreate, DictScheduleUpdate } from "../../shared/schedule";
-import type { TypeExecutorInvokeCommand, TypeRendererLogLevel } from "../../shared/ipc";
+import type {
+  DictScheduleCreate,
+  DictScheduleUpdate,
+} from "../../shared/schedule";
+import type {
+  TypeExecutorInvokeCommand,
+  TypeRendererLogLevel,
+} from "../../shared/ipc";
 
 import {
   ensureBoolean,
@@ -13,6 +19,7 @@ import {
   ensureNonNegativeInteger,
   ensurePositiveInteger,
   ensureString,
+  ensureTrimmedSingleLineString,
   ensureRunConflictPolicy,
 } from "../Common/validation";
 
@@ -110,10 +117,10 @@ export function ensureProjectRef(value: unknown): { name: string; version: strin
   };
 }
 
-export function ensureWaitingRunRef(value: unknown): {
-  schedule_name: string;
-  estimated_run_at_ms: number;
-} {
+
+export function ensureWaitingRunRef(
+  value: unknown,
+): { schedule_name: string; estimated_run_at_ms: number } {
   const dictValue = ensureExactRecord(
     value,
     ["schedule_name", "estimated_run_at_ms"],
@@ -217,7 +224,7 @@ function ensureScheduleData(
   }
 
   const dictBase: DictScheduleCreate = {
-    name: ensureNonEmptyString(dictValue.name, "Schedule request.name"),
+    name: ensureTrimmedSingleLineString(dictValue.name, "Schedule request.name"),
     project_id: ensurePositiveInteger(dictValue.project_id, "Schedule request.project_id"),
     cron: ensureNonEmptyString(dictValue.cron, "Schedule request.cron"),
     run_conflict_policy: ensureRunConflictPolicy(
@@ -307,6 +314,7 @@ export function ensureRunHistoryOptions(value: unknown): DictRunHistoryOptions {
     ["schedule_name", "project_name", "project_version", "status"],
     "Run History options.search",
   );
+
 
   const status =
     dictSearch.status === null

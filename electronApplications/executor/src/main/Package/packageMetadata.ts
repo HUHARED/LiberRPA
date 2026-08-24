@@ -2,10 +2,13 @@ import fs from "fs";
 import path from "path";
 
 import {
+  ensureBoolean,
   ensureCustomProjectArgs,
   ensureExactRecord,
   ensureLogLevel,
   ensureRecord,
+  ensureString,
+  ensureTrimmedSingleLineString,
 } from "../Common/validation";
 import { DEFAULT_PYTHON_ENVIRONMENT_NAME } from "../Config/environment";
 import type { DictProjectCreate } from "../../shared/project";
@@ -43,33 +46,13 @@ const STR_FLOW_MANIFEST_FILE_NAME = "flow.json";
 const STR_PACKAGE_MANIFEST_FILE_NAME = ".liberrpa-package.json";
 const STR_PROJECT_FLOW_FILE_NAME = "project.flow";
 const STR_LEGACY_PROJECT_FILE_NAME = "project.json";
+
 function readJsonFile(strFilePath: string): unknown {
   try {
     return JSON.parse(fs.readFileSync(strFilePath, { encoding: "utf-8" }));
   } catch (e: unknown) {
     throw new Error(`Failed to read JSON file: ${strFilePath}`, { cause: e });
   }
-}
-
-function validateTrimmedSingleLine(
-  value: unknown,
-  strFieldName: string,
-  boolAllowEmpty: boolean,
-): string {
-  if (typeof value !== "string") {
-    throw new Error(`${strFieldName} must be a string.`);
-  }
-  if ((!boolAllowEmpty && value.length === 0) || value !== value.trim()) {
-    throw new Error(
-      boolAllowEmpty
-        ? `${strFieldName} cannot start or end with whitespace.`
-        : `${strFieldName} must be a non-empty trimmed string.`,
-    );
-  }
-  if (value.includes("\r") || value.includes("\n")) {
-    throw new Error(`${strFieldName} must be a single line.`);
-  }
-  return value;
 }
 
 function parseFlowManifest(value: unknown): DictFlowManifest {
@@ -103,19 +86,14 @@ function parseFlowManifest(value: unknown): DictFlowManifest {
     dictDependency[strComponentId] = dependencyValue;
   }
 
-  if (typeof dictManifest.description !== "string") {
-    throw new Error("flow.json description must be a string.");
-  }
-
   return {
     schemaVersion: 1,
-    name: validateTrimmedSingleLine(dictManifest.name, "flow.json name", false),
-    version: validateTrimmedSingleLine(dictManifest.version, "flow.json version", false),
-    description: dictManifest.description,
-    requiresLiberrpa: validateTrimmedSingleLine(
+    name: ensureTrimmedSingleLineString(dictManifest.name, "flow.json name"),
+    version: ensureTrimmedSingleLineString(dictManifest.version, "flow.json version"),
+    description: ensureString(dictManifest.description, "flow.json description"),
+    requiresLiberrpa: ensureTrimmedSingleLineString(
       dictManifest.requiresLiberrpa,
       "flow.json requiresLiberrpa",
-      false,
     ),
     componentDependencies: dictDependency,
   };
@@ -132,7 +110,7 @@ function parsePackageManifest(value: unknown): DictPackageManifest {
   }
   return {
     schemaVersion: 1,
-    versionSummary: validateTrimmedSingleLine(
+    versionSummary: ensureTrimmedSingleLineString(
       dictManifest.versionSummary,
       ".liberrpa-package.json versionSummary",
       true,
@@ -166,21 +144,11 @@ function parseProjectFlowRuntimeSettings(value: unknown): DictProjectFlowRuntime
     throw new Error("project.flow executeMode must be Run or Debug.");
   }
   const strLogLevel = ensureLogLevel(dictFlow.logLevel, "project.flow logLevel");
-  if (
-    typeof dictFlow.recordVideo !== "boolean" ||
-    typeof dictFlow.stopShortcut !== "boolean" ||
-    typeof dictFlow.highlightUi !== "boolean"
-  ) {
-    throw new Error(
-      "project.flow recordVideo, stopShortcut and highlightUi must be Boolean values.",
-    );
-  }
-
   return {
     logLevel: strLogLevel,
-    recordVideo: dictFlow.recordVideo,
-    stopShortcut: dictFlow.stopShortcut,
-    highlightUi: dictFlow.highlightUi,
+    recordVideo: ensureBoolean(dictFlow.recordVideo, "project.flow recordVideo"),
+    stopShortcut: ensureBoolean(dictFlow.stopShortcut, "project.flow stopShortcut"),
+    highlightUi: ensureBoolean(dictFlow.highlightUi, "project.flow highlightUi"),
     customPrjArgs: parseCustomProjectArguments(dictFlow.customPrjArgs),
   };
 }

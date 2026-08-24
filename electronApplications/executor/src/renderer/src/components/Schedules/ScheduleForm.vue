@@ -194,10 +194,10 @@ let intProjectSelectionRevision = 0;
 
 const detail = computed<TypeScheduleFormDetail | undefined>(() => {
   if (scheduleStore.formMode === "new") {
-    return scheduleStore.dictDetail_new;
+    return scheduleStore.dictDetailNew;
   }
   if (scheduleStore.formMode === "edit") {
-    return scheduleStore.dictDetail_edit;
+    return scheduleStore.dictDetailEdit;
   }
   return undefined;
 });

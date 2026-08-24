@@ -52,6 +52,24 @@ export function ensureNonEmptyString(value: unknown, strSourceName: string): str
   return strValue;
 }
 
+export function ensureTrimmedSingleLineString(
+  value: unknown,
+  strSourceName: string,
+  boolAllowEmpty = false,
+): string {
+  const strValue = ensureString(value, strSourceName);
+  if (!boolAllowEmpty && strValue.length === 0) {
+    throw new Error(`${strSourceName} cannot be empty.`);
+  }
+  if (strValue !== strValue.trim()) {
+    throw new Error(`${strSourceName} cannot start or end with whitespace.`);
+  }
+  if (strValue.includes("\r") || strValue.includes("\n")) {
+    throw new Error(`${strSourceName} must be a single line.`);
+  }
+  return strValue;
+}
+
 export function ensureBoolean(value: unknown, strSourceName: string): boolean {
   if (typeof value !== "boolean") {
     throw new Error(`${strSourceName} must be a Boolean value.`);
@@ -195,12 +213,10 @@ export function ensureCustomProjectArgs(
       throw new Error(`${strSourceName}[${intIndex}] must be a [string, value] pair.`);
     }
 
-    const strName = ensureNonEmptyString(item[0], `${strSourceName}[${intIndex}][0]`);
-    if (strName !== strName.trim() || strName.includes("\r") || strName.includes("\n")) {
-      throw new Error(
-        `${strSourceName}[${intIndex}][0] must be a trimmed single-line string.`,
-      );
-    }
+    const strName = ensureTrimmedSingleLineString(
+      item[0],
+      `${strSourceName}[${intIndex}][0]`,
+    );
     if (setArgumentName.has(strName)) {
       throw new Error(`${strSourceName} contains a duplicate argument name: ${strName}`);
     }

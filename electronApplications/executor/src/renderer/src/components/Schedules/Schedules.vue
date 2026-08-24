@@ -71,11 +71,11 @@
       </template>
     </v-data-table>
 
-    <v-dialog v-model="scheduleStore.showDialog_form" width="800px" height="800px">
+    <v-dialog v-model="scheduleStore.showFormDialog" width="800px" height="800px">
       <ScheduleDialog />
     </v-dialog>
 
-    <v-dialog v-model="scheduleStore.showDialog_delete" width="400px">
+    <v-dialog v-model="scheduleStore.showDeleteDialog" width="400px">
       <DeleteScheduleDialog />
     </v-dialog>
   </v-container>
@@ -115,7 +115,7 @@ function newSchedule(): void {
 
   scheduleStore.resetProjectVersions();
   const dictDefaultPeriod = getDefaultSchedulePeriod(settingStore.timezone);
-  scheduleStore.dictDetail_new = {
+  scheduleStore.dictDetailNew = {
     name: "",
     project_id: undefined,
     project_name: undefined,
@@ -134,7 +134,7 @@ function newSchedule(): void {
   };
 
   scheduleStore.formMode = "new";
-  scheduleStore.showDialog_form = true;
+  scheduleStore.showFormDialog = true;
 }
 
 const arrHeader: DataTableHeader<DictScheduleListItem>[] = [
@@ -165,7 +165,7 @@ async function editSchedule(scheduleName: string): Promise<void> {
   loggerRenderer.info(`Edit schedule: ${scheduleName}`);
   await scheduleStore.loadScheduleDetail(scheduleName);
 
-  const detail = scheduleStore.dictDetail_edit;
+  const detail = scheduleStore.dictDetailEdit;
   if (detail === undefined) {
     return;
   }
@@ -175,13 +175,13 @@ async function editSchedule(scheduleName: string): Promise<void> {
     await scheduleStore.fetchProjectVersions(detail.project_name),
   );
   scheduleStore.formMode = "edit";
-  scheduleStore.showDialog_form = true;
+  scheduleStore.showFormDialog = true;
 }
 
 async function openDeleteDialog(scheduleName: string): Promise<void> {
   loggerRenderer.info(`Open delete dialog for schedule: ${scheduleName}`);
   await scheduleStore.loadScheduleDetail(scheduleName);
-  scheduleStore.showDialog_delete = true;
+  scheduleStore.showDeleteDialog = true;
 }
 </script>
 

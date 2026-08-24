@@ -8,22 +8,20 @@ export const useProjectStore = defineStore("project", {
   state: () => {
     return {
       // Name list
-      arrName: [] as { title: string; idTemp: number }[],
-      dictIdToName: {} as { [idTemp: number]: string },
+      arrName: [] as { title: string; value: string }[],
 
       // Version list
-      arrVersion: [] as { title: string; idTemp: number }[],
-      dictIdToVersion: {} as { [idTemp: number]: string },
+      arrVersion: [] as { title: string; value: string }[],
 
       // Python environments
       arrPythonEnvironmentName: [] as string[],
 
       // Detail
-      dictDetail_edit: undefined as DictProjectDetail | undefined,
-      detailCache_edit: undefined as string | undefined,
+      dictDetailEdit: undefined as DictProjectDetail | undefined,
+      strDetailCacheEdit: undefined as string | undefined,
 
       // Delete dialog
-      showDialog_delete: false as boolean,
+      showDeleteDialog: false as boolean,
       arrBoundSchedule: [] as { title: string }[],
     };
   },
@@ -37,17 +35,10 @@ export const useProjectStore = defineStore("project", {
         this.resetVersionAndDetail();
 
         const arrRows = await invokeMain("getProjectNames");
-        let idTemp = 0;
-        this.dictIdToName = {};
-        this.arrName = arrRows.map((row) => {
-          const dictTemp = {
-            title: row.name,
-            idTemp,
-          };
-          this.dictIdToName[idTemp] = row.name;
-          idTemp += 1;
-          return dictTemp;
-        });
+        this.arrName = arrRows.map((row) => ({
+          title: row.name,
+          value: row.name,
+        }));
       }
     },
 
@@ -55,22 +46,15 @@ export const useProjectStore = defineStore("project", {
       this.resetVersionAndDetail();
 
       const arrRows = await invokeMain("getProjectVersions", name);
-      let idTemp = 0;
-      this.dictIdToVersion = {};
-      this.arrVersion = arrRows.map((row) => {
-        const dictTemp = {
-          title: row.version,
-          idTemp,
-        };
-        this.dictIdToVersion[idTemp] = row.version;
-        idTemp += 1;
-        return dictTemp;
-      });
+      this.arrVersion = arrRows.map((row) => ({
+        title: row.version,
+        value: row.version,
+      }));
     },
 
     resetDetail(): void {
-      this.detailCache_edit = undefined;
-      this.dictDetail_edit = undefined;
+      this.strDetailCacheEdit = undefined;
+      this.dictDetailEdit = undefined;
     },
 
     resetVersionAndDetail(): void {
@@ -86,48 +70,48 @@ export const useProjectStore = defineStore("project", {
         throw new Error(`Project not found: ${name}-${version}`);
       }
 
-      this.dictDetail_edit = dictDetail;
-      this.detailCache_edit = JSON.stringify(this.dictDetail_edit);
+      this.dictDetailEdit = dictDetail;
+      this.strDetailCacheEdit = JSON.stringify(this.dictDetailEdit);
     },
 
     async saveProjectSettings(): Promise<void> {
-      if (this.dictDetail_edit === undefined) {
+      if (this.dictDetailEdit === undefined) {
         return;
       }
 
       const dictTemp: DictProjectSettingsUpdate = {
-        id: this.dictDetail_edit.id,
-        python_environment_name: this.dictDetail_edit.python_environment_name,
-        timeout_min: this.dictDetail_edit.timeout_min,
-        builtin_log_level: this.dictDetail_edit.builtin_log_level,
-        builtin_record_video: this.dictDetail_edit.builtin_record_video,
-        builtin_stop_shortcut: this.dictDetail_edit.builtin_stop_shortcut,
-        builtin_highlight_ui: this.dictDetail_edit.builtin_highlight_ui,
-        custom_prj_args: this.dictDetail_edit.custom_prj_args,
+        id: this.dictDetailEdit.id,
+        python_environment_name: this.dictDetailEdit.python_environment_name,
+        timeout_min: this.dictDetailEdit.timeout_min,
+        builtin_log_level: this.dictDetailEdit.builtin_log_level,
+        builtin_record_video: this.dictDetailEdit.builtin_record_video,
+        builtin_stop_shortcut: this.dictDetailEdit.builtin_stop_shortcut,
+        builtin_highlight_ui: this.dictDetailEdit.builtin_highlight_ui,
+        custom_prj_args: this.dictDetailEdit.custom_prj_args,
       };
       await invokeMain("saveProjectSettings", dictTemp);
     },
 
     async loadBoundSchedules(): Promise<void> {
-      if (this.dictDetail_edit !== undefined) {
+      if (this.dictDetailEdit !== undefined) {
         const arrRows = await invokeMain(
           "getProjectBoundSchedules",
-          this.dictDetail_edit.id,
+          this.dictDetailEdit.id,
         );
         this.arrBoundSchedule = arrRows.map((row) => ({ title: row.name }));
       }
     },
 
     async deleteProject(): Promise<void> {
-      if (this.dictDetail_edit !== undefined) {
+      if (this.dictDetailEdit !== undefined) {
         loggerRenderer.info(
-          `Delete project: ${this.dictDetail_edit.id}-${this.dictDetail_edit.name}-${this.dictDetail_edit.version}`,
+          `Delete project: ${this.dictDetailEdit.id}-${this.dictDetailEdit.name}-${this.dictDetailEdit.version}`,
         );
-        await invokeMain("deleteProject", this.dictDetail_edit.id);
+        await invokeMain("deleteProject", this.dictDetailEdit.id);
 
         this.arrName = [];
         await this.loadProjectNames();
-        this.showDialog_delete = false;
+        this.showDeleteDialog = false;
         this.arrBoundSchedule = [];
       }
     },

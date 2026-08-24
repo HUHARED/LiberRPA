@@ -54,7 +54,10 @@ def set_display_resolution(width, height) -> None:
 
     # Get the current settings.
     # The first argument is "None" means the main screen.
-    if user32.EnumDisplaySettingsW(None, ENUM_CURRENT_SETTINGS, ctypes.byref(devmode)) == 0:
+    if (
+        user32.EnumDisplaySettingsW(None, ENUM_CURRENT_SETTINGS, ctypes.byref(devmode))
+        == 0
+    ):
         raise Exception("Failed to get current display settings")
 
     # Change the resolution values.
