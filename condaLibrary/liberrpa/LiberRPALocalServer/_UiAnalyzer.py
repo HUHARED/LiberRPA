@@ -11,7 +11,10 @@ import liberrpa.UI._UiElement as _UiElement
 from liberrpa.UI._UiAutomation import get_control_secondary_attr, get_top_control
 from liberrpa.UiInterface import highlight
 from liberrpa.UI._Overlay import create_overlay
-from liberrpa.UI._ScreenshotPath import PATH_SCREENSHOT_DOCUMENTS, STR_SCREENSHOT_TEMP_NAME
+from liberrpa.UI._ScreenshotPath import (
+    PATH_SCREENSHOT_DOCUMENTS,
+    STR_SCREENSHOT_TEMP_NAME,
+)
 from liberrpa.UI._Screenshot import create_screenshot_manually
 from liberrpa.UI._Image import find_image
 from liberrpa.Mouse import get_mouse_position
@@ -57,7 +60,9 @@ _HIGHLIGHT_DURATION = 500
 
 # This timeout is only for user interaction after the indicate delay.
 # It is unrelated to selector search timeouts or Chrome business timeouts.
-_INDICATE_TIMEOUT_SECONDS = 15  # create_screenshot_manually in _Screenshot.py use an argument to manage.
+_INDICATE_TIMEOUT_SECONDS = (
+    15  # create_screenshot_manually in _Screenshot.py use an argument to manage.
+)
 _INDICATE_REFRESH_INTERVAL_SECONDS = 0.5
 
 type Tuple_IndicateOverlayState = tuple[int, int, int, int, str]
@@ -137,7 +142,9 @@ def indicate_uia(
                 try:
                     dictCoordinate = get_mouse_position()
                     Log.debug("Position: " + str(dictCoordinate))
-                    element = uiautomation.ControlFromPoint(x=dictCoordinate["x"], y=dictCoordinate["y"])
+                    element = uiautomation.ControlFromPoint(
+                        x=dictCoordinate["x"], y=dictCoordinate["y"]
+                    )
 
                     # Avoid logging the Control object because __str__() queries multiple COM properties.
                     # Log.debug("Get element: " + str(element))
@@ -165,11 +172,22 @@ def indicate_uia(
                         + str(e)
                     )
                     Log.error(strError)
-                    show_notification(title="UI Analyzer Error", message=strError, duration=5, wait=False)
+                    show_notification(
+                        title="UI Analyzer Error",
+                        message=strError,
+                        duration=5,
+                        wait=False,
+                    )
                     raise
 
-                if element is None or tupleElementRectangle is None or strControlTypeName is None:
-                    raise UiElementNotFoundError("No UI element was captured before the indication stopped.")
+                if (
+                    element is None
+                    or tupleElementRectangle is None
+                    or strControlTypeName is None
+                ):
+                    raise UiElementNotFoundError(
+                        "No UI element was captured before the indication stopped."
+                    )
 
                 tupleOverlayState = _update_indicate_overlay(
                     tupleOverlayState,
@@ -186,14 +204,18 @@ def indicate_uia(
                 return None
 
             if element is None or tupleElementRectangle is None:
-                raise UiElementNotFoundError("No UI element was captured before the indication stopped.")
+                raise UiElementNotFoundError(
+                    "No UI element was captured before the indication stopped."
+                )
 
             # Mouse left pressed.
             _close_indicate_overlay()
             Log.debug("Pressed mouse left.")
 
             # Get the selector(contains primary attributes) and secondary attributes.
-            selector = ensure_selector_uia(_UiElement.get_control_selector(control=element))
+            selector = ensure_selector_uia(
+                _UiElement.get_control_selector(control=element)
+            )
             dictSecondaryAttr = get_control_secondary_attr(
                 control=element,
                 rectangle=tupleElementRectangle,
@@ -227,7 +249,10 @@ def indicate_uia(
 @Log.trace()
 def indicate_chrome(
     indicateDelaySeconds: int = 1, usePath: bool = True
-) -> tuple[DictUiAnalyzerIndicateResult, tuple[list[DictElementTreeItem], list[int], int]] | None:
+) -> (
+    tuple[DictUiAnalyzerIndicateResult, tuple[list[DictElementTreeItem], list[int], int]]
+    | None
+):
     threadHook: threading.Thread | None = None
     try:
         with uiautomation.UIAutomationInitializerInThread():
@@ -281,7 +306,12 @@ def indicate_chrome(
                         + str(e)
                     )
                     Log.error(strError)
-                    show_notification(title="UI Analyzer Error", message=strError, duration=5, wait=False)
+                    show_notification(
+                        title="UI Analyzer Error",
+                        message=strError,
+                        duration=5,
+                        wait=False,
+                    )
                     raise
 
             if _Hook.check_ESC_pressed():
@@ -294,7 +324,9 @@ def indicate_chrome(
                 or (tupleEleTree is None)
                 or len(listAllAttr) == 0
             ):
-                Log.warning("No Chrome element was captured before the indication hook stopped.")
+                Log.warning(
+                    "No Chrome element was captured before the indication hook stopped."
+                )
                 return None
 
             # Mouse left pressed.
@@ -316,7 +348,9 @@ def indicate_chrome(
             elementWindow = _get_window_element(dictCoordinate=dictCoordinate)
 
             selector: SelectorHtml = ensure_selector_html({
-                "window": ensure_selector_window(_UiElement.get_control_selector(control=elementWindow))["window"],
+                "window": ensure_selector_window(
+                    _UiElement.get_control_selector(control=elementWindow)
+                )["window"],
                 "category": "html",
                 "specification": listSpecification,
             })
@@ -354,8 +388,7 @@ def indicate_image(
     with uiautomation.UIAutomationInitializerInThread():
         _delay(indicateDelaySeconds)
 
-        temp = create_screenshot_manually(timeoutSeconds=15)
-        if not temp:
+        if not create_screenshot_manually(timeoutSeconds=15):
             Log.debug("Quit indicating.")
             return None
 
@@ -371,7 +404,9 @@ def indicate_image(
         # Remove non-ASCII characters because pyautogui may raise an error.
         strTemp = "".join(char for char in strTemp if char.isascii())
         strFileNamePrefix = _sanitize_filename(filename=strTemp) or "window"
-        strNewFileName = strFileNamePrefix + "_" + datetime.now().strftime("%Y%m%d_%H%M%S") + ".png"
+        strNewFileName = (
+            strFileNamePrefix + "_" + datetime.now().strftime("%Y%m%d_%H%M%S") + ".png"
+        )
         Log.debug(strNewFileName)
         shutil.move(
             src=PATH_SCREENSHOT_DOCUMENTS / STR_SCREENSHOT_TEMP_NAME,
@@ -380,7 +415,9 @@ def indicate_image(
 
         strGrayscale: Literal["true", "false"] = "true" if grayscale else "false"
         selector: SelectorImage = ensure_selector_image({
-            "window": ensure_selector_window(_UiElement.get_control_selector(control=elementWindow))["window"],
+            "window": ensure_selector_window(
+                _UiElement.get_control_selector(control=elementWindow)
+            )["window"],
             "category": "image",
             "specification": [
                 {
@@ -455,16 +492,22 @@ def indicate_window(indicateDelaySeconds: int = 1) -> DictUiAnalyzerIndicateResu
                     # Find the element under the cursor
                     # print("Get element.")
 
-                    control = uiautomation.ControlFromPoint(x=dictCoordinate["x"], y=dictCoordinate["y"])
+                    control = uiautomation.ControlFromPoint(
+                        x=dictCoordinate["x"], y=dictCoordinate["y"]
+                    )
 
                     if control is None:
-                        raise UiElementNotFoundError("Failed to get top-level control from point.")
+                        raise UiElementNotFoundError(
+                            "Failed to get top-level control from point."
+                        )
 
                     # Store the current lookup in candidate variables first.
                     # Commit them only after both the element and its rectangle are retrieved successfully, so a failed refresh cannot corrupt the last valid result.
                     elementCandidate = control.GetTopLevelControl()
                     if elementCandidate is None:
-                        raise UiElementNotFoundError("Failed to get the top-level window control.")
+                        raise UiElementNotFoundError(
+                            "Failed to get the top-level window control."
+                        )
 
                     rectangle = elementCandidate.BoundingRectangle
                     tupleCandidateRectangle = (
@@ -477,10 +520,16 @@ def indicate_window(indicateDelaySeconds: int = 1) -> DictUiAnalyzerIndicateResu
                 except Exception as e:
                     strError = (
                         f"Error to get window at {dictCoordinate}. "
-                        "LiberRPA Local Server may not have permission to access the window. " + str(e)
+                        "LiberRPA Local Server may not have permission to access the window. "
+                        + str(e)
                     )
                     Log.error(strError)
-                    show_notification(title="UI Analyzer Error", message=strError, duration=2, wait=False)
+                    show_notification(
+                        title="UI Analyzer Error",
+                        message=strError,
+                        duration=2,
+                        wait=False,
+                    )
                     _wait_for_next_indicate_refresh(deadline)
                     continue
 
@@ -501,19 +550,26 @@ def indicate_window(indicateDelaySeconds: int = 1) -> DictUiAnalyzerIndicateResu
                 return None
 
             if element is None or tupleElementRectangle is None:
-                raise UiElementNotFoundError("No window element was captured before the indication stopped.")
+                raise UiElementNotFoundError(
+                    "No window element was captured before the indication stopped."
+                )
 
             # Mouse left pressed.
             _close_indicate_overlay()
             Log.debug("Pressed mouse left.")
 
-            selector: SelectorWindow = ensure_selector_window(_UiElement.get_control_selector(control=element))
+            selector: SelectorWindow = ensure_selector_window(
+                _UiElement.get_control_selector(control=element)
+            )
             dictSecondaryAttr = get_control_secondary_attr(
                 control=element,
                 rectangle=tupleElementRectangle,
             )
 
-        dictReturn: DictUiAnalyzerIndicateResult = {"selector": selector, "attributes": dictSecondaryAttr}
+        dictReturn: DictUiAnalyzerIndicateResult = {
+            "selector": selector,
+            "attributes": dictSecondaryAttr,
+        }
         Log.debug(dictReturn)
         return dictReturn
 
@@ -547,7 +603,9 @@ def validate(selector: Selector, timeout: int) -> dict[str, bool]:
 
             selectorTemp: SelectorImage = ensure_selector_image(selector)
 
-            _, dictTarget = timeout_kill_thread(timeout=timeout)(_get_image_element)(selectorTemp)
+            _, dictTarget = timeout_kill_thread(timeout=timeout)(_get_image_element)(
+                selectorTemp
+            )
             create_overlay(
                 x=int(dictTarget["secondary-x"]),
                 y=int(dictTarget["secondary-y"]),
@@ -574,7 +632,9 @@ def _has_timed_out(deadline: float) -> bool:
 
 
 def _raise_indicate_timeout(indicateName: str) -> None:
-    raise TimeoutError(f"{indicateName} timed out after {_INDICATE_TIMEOUT_SECONDS} seconds.")
+    raise TimeoutError(
+        f"{indicateName} timed out after {_INDICATE_TIMEOUT_SECONDS} seconds."
+    )
 
 
 def _delay(indicateDelaySeconds: int) -> None:
@@ -625,7 +685,9 @@ def _get_window_element(dictCoordinate: DictPosition) -> uiautomation.Control:
 
     # print("elementWindow=", elementWindow)
     if elementWindow is None:
-        raise UiElementNotFoundError("No window element was found at the cursor position.")
+        raise UiElementNotFoundError(
+            "No window element was found at the cursor position."
+        )
 
     # Highlight window.
     rectangle = elementWindow.BoundingRectangle
@@ -657,7 +719,9 @@ def _screenshot_to_base64(x: int, y: int, width: int, height: int) -> str:
         if height > intMaxHeight:
             scaleFactor = intMaxHeight / height  # Calculate scale factor
             intNewWidth = int(width * scaleFactor)
-            imageTemp = imageTemp.resize((intNewWidth, intMaxHeight), Image.Resampling.LANCZOS)  # Resize proportionally
+            imageTemp = imageTemp.resize(
+                (intNewWidth, intMaxHeight), Image.Resampling.LANCZOS
+            )  # Resize proportionally
 
         # Create an in-memory bytes buffer
         imageByte = io.BytesIO()
@@ -706,7 +770,9 @@ def _get_image_element(
 
     # The list's length has limited by Index, but it may not find enough image(0 or less than Index+1), so check it.
     if len(listDictImageAttr) < int(imageSelector.get("Index", "0")) + 1:
-        raise UiElementNotFoundError(f"Not Found image element. selector's specification: {imageSelector}")
+        raise UiElementNotFoundError(
+            f"Not Found image element. selector's specification: {imageSelector}"
+        )
     # length = Index+1, return the last one.
     return (None, listDictImageAttr[-1])
 

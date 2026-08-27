@@ -14,7 +14,6 @@ from liberrpa.UI._ScreenshotPath import (
 from PyQt5 import QtWidgets, QtCore, QtGui
 import os
 import sys
-import inspect
 import subprocess
 from typing import overload, Literal, cast, Any
 
@@ -46,7 +45,9 @@ class ScreenshotCapture(QtWidgets.QWidget):
         # Make sure to call move before calling showFullScreen() to properly place the window
         self.move(self.intMinX, self.intMinY)
         # Set the window flags to make the window borderless
-        self.setWindowFlags(QtCore.Qt.FramelessWindowHint | QtCore.Qt.WindowStaysOnTopHint)
+        self.setWindowFlags(
+            QtCore.Qt.FramelessWindowHint | QtCore.Qt.WindowStaysOnTopHint
+        )
         # Show it.
         self.show()
 
@@ -64,7 +65,9 @@ class ScreenshotCapture(QtWidgets.QWidget):
     def mouseMoveEvent(self, event: QtGui.QMouseEvent) -> None:
         # Update the rectangle size
         if self.origin is not None:
-            self.rubberBand.setGeometry(QtCore.QRect(self.origin, event.pos()).normalized())
+            self.rubberBand.setGeometry(
+                QtCore.QRect(self.origin, event.pos()).normalized()
+            )
 
     def mouseReleaseEvent(self, event: QtGui.QMouseEvent) -> None:
         if event.button() == QtCore.Qt.LeftButton:
@@ -76,7 +79,9 @@ class ScreenshotCapture(QtWidgets.QWidget):
     def save_cropped_image(self, rect: QtCore.QRect) -> None:
         # Crop the selected region and save it as a PNG
         cropped_pixmap = self.pixmapScreenshot.copy(rect)
-        cropped_pixmap.save(os.fspath(PATH_SCREENSHOT_DOCUMENTS / STR_SCREENSHOT_TEMP_NAME), "PNG")
+        cropped_pixmap.save(
+            os.fspath(PATH_SCREENSHOT_DOCUMENTS / STR_SCREENSHOT_TEMP_NAME), "PNG"
+        )
         print(SELECTED_KEYWORD)
         self.close()
 
@@ -115,7 +120,9 @@ def capture_all_screen(needImage: bool = False) -> tuple[QtGui.QPixmap | None, i
     intMinX = min(screen.geometry().x() for screen in screens)
     intMinY = min(screen.geometry().y() for screen in screens)
     intMaxX = max(screen.geometry().x() + screen.geometry().width() for screen in screens)
-    intMaxY = max(screen.geometry().y() + screen.geometry().height() for screen in screens)
+    intMaxY = max(
+        screen.geometry().y() + screen.geometry().height() for screen in screens
+    )
 
     # Calculate total width and height of the virtual desktop
     intTotalWidth = intMaxX - intMinX
@@ -180,15 +187,16 @@ def _create_screenshot_manually() -> None:
     print("create_screenshot_manually done.")
 
 
-def create_screenshot_manually(timeoutSeconds: int = _INDICATE_TIMEOUT_SECONDS) -> bool | None:
+def create_screenshot_manually(
+    timeoutSeconds: int = _INDICATE_TIMEOUT_SECONDS,
+) -> bool:
     # Because QT can't work finely with Flask, use subprocess to run the file in a isolate environment.
-    strFilePath = inspect.stack()[0].filename
 
     if getattr(sys, "frozen", False):
-        # In LiberRPALocalServer.exe.
+        # In LiberRPALocalServer.exe. - discared in LiberRPA 0.3.0
         listCmd = [sys.executable, "--screenshot"]
     else:
-        listCmd = [sys.executable, strFilePath]
+        listCmd = [sys.executable, "-m", "liberrpa.UI._Screenshot"]
 
     try:
         result = subprocess.run(
@@ -200,18 +208,21 @@ def create_screenshot_manually(timeoutSeconds: int = _INDICATE_TIMEOUT_SECONDS) 
             errors="replace",
             timeout=timeoutSeconds,
         )
-    except subprocess.TimeoutExpired:
-        raise TimeoutError(f"indicate_image timed out after {timeoutSeconds} seconds.")
-    print("-" * 40)
-    print(result.stdout)
-    print(result.stderr)
-    print("-" * 40)
+    except subprocess.TimeoutExpired as e:
+        raise TimeoutError(
+            f"indicate_image timed out after {timeoutSeconds} seconds."
+        ) from e
 
-    if result.stdout.find(SELECTED_KEYWORD) != -1:
-        return True
-    return None
+    if result.returncode != 0:
+        strStderr = result.stderr.strip()
+        raise RuntimeError(
+            "The screenshot capture subprocess failed."
+            + (f"\n{strStderr}" if strStderr else "")
+        )
+
+    return SELECTED_KEYWORD in result.stdout
 
 
 if __name__ == "__main__":
-    # NOTE: Not modify here for unittesting, because it will be invoke as a file in subprocess.run
+    # NOTE: Not modify here for unittesting, because it will be invoke as a module in subprocess.run
     _create_screenshot_manually()
