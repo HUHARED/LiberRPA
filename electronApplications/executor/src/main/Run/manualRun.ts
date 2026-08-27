@@ -1,19 +1,25 @@
-import type { DictProjectDetail } from "../../shared/project";
+// FileName: manualRun.ts
+
+import type { Dict_ProjectDetail } from "../../shared/project";
 import {
   dbSelectProjectDetailById,
   dbSelectProjectMostRecentlyImportedDetail,
 } from "../Database/projectRepository";
 import { pythonRun } from "./projectRunner";
-import type { DictProjectRunDetail } from "./types";
+import type { Dict_ProjectRun_Detail } from "./types";
 
-function createManualRunDetail(dictProject: DictProjectDetail): DictProjectRunDetail {
+function createManualRunDetail(dictProject: Dict_ProjectDetail): Dict_ProjectRun_Detail {
   return {
     schedule_name: null,
+
     id: dictProject.id,
     name: dictProject.name,
     version: dictProject.version,
+
     python_environment_name: dictProject.python_environment_name,
+
     timeout_min: dictProject.timeout_min,
+
     builtin_log_level: dictProject.builtin_log_level,
     builtin_record_video: dictProject.builtin_record_video,
     builtin_stop_shortcut: dictProject.builtin_stop_shortcut,

@@ -1,7 +1,7 @@
 // FileName: config.ts
 
 // Persisted values in Executor.jsonc.
-export interface DictExecutorConfig {
+export interface Dict_ExecutorConfig {
   theme: "light" | "dark";
   keepRdpSession: boolean;
   keepRdpSessionWidth: number;

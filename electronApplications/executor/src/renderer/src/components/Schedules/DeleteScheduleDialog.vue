@@ -1,3 +1,4 @@
+<!-- FileName: DeleteScheduleDialog.vue -->
 <template>
   <v-card title="Delete Schedule?">
     <template #text>

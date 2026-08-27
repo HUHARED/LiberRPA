@@ -1,6 +1,8 @@
+// FileName: cron.ts
+
 import cronstrue from "cronstrue";
 
-export type CronValidationResult =
+export type Dict_Result_CronValidation =
   | {
       valid: true;
       description: string;
@@ -10,7 +12,7 @@ export type CronValidationResult =
       error: string;
     };
 
-export function validateCronExpression(cron: string): CronValidationResult {
+export function validateCronExpression(cron: string): Dict_Result_CronValidation {
   try {
     return {
       valid: true,

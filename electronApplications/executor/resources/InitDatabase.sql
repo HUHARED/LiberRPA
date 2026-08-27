@@ -1,3 +1,4 @@
+-- FileName: InitDatabase.sql
 PRAGMA foreign_keys = ON;
 
 CREATE TABLE
@@ -105,4 +106,4 @@ CREATE INDEX idx_schedule_project_id ON schedule (project_id);
 
 CREATE INDEX idx_run_history_run_started_at_ms ON run_history (run_started_at_ms DESC);
 
-PRAGMA user_version = 3;
+PRAGMA user_version = 1;

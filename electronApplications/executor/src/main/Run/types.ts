@@ -1,10 +1,12 @@
+// FileName: types.ts
+
 import type {
-  DictPythonEnvironmentSelection,
-  DictRunOptions,
+  Dict_PythonEnvironmentSelection,
+  Dict_RunOptions,
 } from "../../shared/runOptions";
 
-export interface DictProjectRunDetail
-  extends DictRunOptions, DictPythonEnvironmentSelection {
+export interface Dict_ProjectRun_Detail
+  extends Dict_RunOptions, Dict_PythonEnvironmentSelection {
   schedule_name: string | null;
   id: number;
   name: string;

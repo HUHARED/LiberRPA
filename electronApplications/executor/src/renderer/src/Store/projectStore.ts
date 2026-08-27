@@ -1,23 +1,22 @@
+// FileName: projectStore.ts
+
 import { defineStore } from "pinia";
 
 import { invokeMain } from "../IPC/ipc";
 import { loggerRenderer } from "../Logging/logger";
-import type { DictProjectDetail, DictProjectSettingsUpdate } from "../../../shared/project";
+import type {
+  Dict_ProjectDetail,
+  Dict_ProjectSettingsUpdate,
+} from "../../../shared/project";
 
 export const useProjectStore = defineStore("project", {
   state: () => {
     return {
-      // Name list
       arrName: [] as { title: string; value: string }[],
-
-      // Version list
       arrVersion: [] as { title: string; value: string }[],
-
-      // Python environments
       arrPythonEnvironmentName: [] as string[],
 
-      // Detail
-      dictDetailEdit: undefined as DictProjectDetail | undefined,
+      dictDetailEdit: undefined as Dict_ProjectDetail | undefined,
       strDetailCacheEdit: undefined as string | undefined,
 
       // Delete dialog
@@ -79,7 +78,7 @@ export const useProjectStore = defineStore("project", {
         return;
       }
 
-      const dictTemp: DictProjectSettingsUpdate = {
+      const dictTemp: Dict_ProjectSettingsUpdate = {
         id: this.dictDetailEdit.id,
         python_environment_name: this.dictDetailEdit.python_environment_name,
         timeout_min: this.dictDetailEdit.timeout_min,

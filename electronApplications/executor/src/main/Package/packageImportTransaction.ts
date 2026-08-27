@@ -1,3 +1,5 @@
+// FileName: packageImportTransaction.ts
+
 import { randomUUID } from "crypto";
 import fs from "fs";
 import path from "path";
@@ -8,7 +10,7 @@ import { strExecutorPackageFolderPath } from "../FileSystem/executorFiles";
 import { loggerMain } from "../Logging/logger";
 import { getTargetFolderName } from "./packageArchive";
 
-interface DictPackageImportTransaction {
+interface Dict_PackageImport_Transaction {
   schemaVersion: 1;
   state: "prepared";
   projectName: string;
@@ -16,7 +18,7 @@ interface DictPackageImportTransaction {
   targetFolderName: string;
 }
 
-interface DictPackageImportStagingPaths {
+interface Dict_PackageImport_StagingPaths {
   transactionFolderPath: string;
   stagedProjectPath: string;
 }
@@ -25,31 +27,31 @@ const STR_STAGING_FOLDER_NAME = ".staging";
 const STR_TRANSACTION_FILE_NAME = "transaction.json";
 const STR_STAGED_PROJECT_FOLDER_NAME = "project";
 
-function readJsonFile(strFilePath: string): unknown {
+function readJsonFile(filePath: string): unknown {
   try {
-    return JSON.parse(fs.readFileSync(strFilePath, { encoding: "utf-8" }));
+    return JSON.parse(fs.readFileSync(filePath, { encoding: "utf-8" }));
   } catch (e: unknown) {
-    throw new Error(`Failed to read JSON file: ${strFilePath}`, { cause: e });
+    throw new Error(`Failed to read JSON file: ${filePath}`, { cause: e });
   }
 }
 
-function writeJsonFileAtomic(strFilePath: string, value: unknown): void {
-  const strTempPath = `${strFilePath}.tmp`;
+function writeJsonFileAtomic(filePath: string, value: unknown): void {
+  const strTempPath = `${filePath}.tmp`;
   fs.rmSync(strTempPath, { force: true });
   fs.writeFileSync(strTempPath, `${JSON.stringify(value, null, 2)}\n`, {
     encoding: "utf-8",
   });
-  fs.renameSync(strTempPath, strFilePath);
+  fs.renameSync(strTempPath, filePath);
 }
 
-function parseTransaction(strTransactionPath: string): DictPackageImportTransaction {
+function parseTransaction(transactionPath: string): Dict_PackageImport_Transaction {
   const dictTransaction = ensureExactRecord(
-    readJsonFile(strTransactionPath),
+    readJsonFile(transactionPath),
     ["schemaVersion", "state", "projectName", "projectVersion", "targetFolderName"],
     "Package import transaction",
   );
   if (dictTransaction.schemaVersion !== 1 || dictTransaction.state !== "prepared") {
-    throw new Error(`Invalid Package import transaction: ${strTransactionPath}`);
+    throw new Error(`Invalid Package import transaction: ${transactionPath}`);
   }
 
   const strProjectName = ensureString(
@@ -66,7 +68,7 @@ function parseTransaction(strTransactionPath: string): DictPackageImportTransact
   );
   if (getTargetFolderName(strProjectName, strProjectVersion) !== strTargetFolderName) {
     throw new Error(
-      `Package import transaction target is inconsistent: ${strTransactionPath}`,
+      `Package import transaction target is inconsistent: ${transactionPath}`,
     );
   }
   return {
@@ -82,24 +84,23 @@ function removeFolder(strFolderPath: string): void {
   fs.rmSync(strFolderPath, { recursive: true, force: true });
 }
 
-export function tryRemovePackageImportFolder(
-  strFolderPath: string,
-  strContext: string,
-): void {
+export function tryRemovePackageImportFolder(folderPath: string, context: string): void {
   try {
-    removeFolder(strFolderPath);
+    removeFolder(folderPath);
   } catch (e: unknown) {
-    loggerMain.warn(`${strContext}: ${e instanceof Error ? e.message : String(e)}`);
+    loggerMain.warn(`${context}: ${e instanceof Error ? e.message : String(e)}`);
   }
 }
 
-export function createProjectPackageImportStaging(): DictPackageImportStagingPaths {
+export function createProjectPackageImportStaging(): Dict_PackageImport_StagingPaths {
   fs.mkdirSync(strExecutorPackageFolderPath, { recursive: true });
+
   const strTransactionFolderPath = path.join(
     strExecutorPackageFolderPath,
     STR_STAGING_FOLDER_NAME,
     randomUUID(),
   );
+
   const strStagedProjectPath = path.join(
     strTransactionFolderPath,
     STR_STAGED_PROJECT_FOLDER_NAME,
@@ -127,7 +128,7 @@ export function writeProjectPackageImportTransaction({
     throw new Error("Package import transaction target is inconsistent.");
   }
 
-  const transaction: DictPackageImportTransaction = {
+  const transactionDict: Dict_PackageImport_Transaction = {
     schemaVersion: 1,
     state: "prepared",
     projectName,
@@ -136,7 +137,7 @@ export function writeProjectPackageImportTransaction({
   };
   writeJsonFileAtomic(
     path.join(transactionFolderPath, STR_TRANSACTION_FILE_NAME),
-    transaction,
+    transactionDict,
   );
 }
 
@@ -172,19 +173,19 @@ export function recoverProjectPackageImports(): void {
     }
 
     try {
-      const transaction = parseTransaction(strTransactionPath);
+      const transactionDict = parseTransaction(strTransactionPath);
       const strTargetPath = path.join(
         strExecutorPackageFolderPath,
-        transaction.targetFolderName,
+        transactionDict.targetFolderName,
       );
       const projectRecord = dbSelectProjectDetail(
-        transaction.projectName,
-        transaction.projectVersion,
+        transactionDict.projectName,
+        transactionDict.projectVersion,
       );
 
       if (fs.existsSync(strTargetPath) && projectRecord === undefined) {
         loggerMain.warn(
-          `Roll back an incomplete Package import: ${transaction.projectName}-${transaction.projectVersion}`,
+          `Roll back an incomplete Package import: ${transactionDict.projectName}-${transactionDict.projectVersion}`,
         );
         tryRemovePackageImportFolder(
           strTargetPath,
@@ -193,7 +194,7 @@ export function recoverProjectPackageImports(): void {
       } else if (!fs.existsSync(strTargetPath) && projectRecord !== undefined) {
         loggerMain.error(
           "Installed Package folder is missing for database record: " +
-            `${transaction.projectName}-${transaction.projectVersion}`,
+            `${transactionDict.projectName}-${transactionDict.projectVersion}`,
         );
       }
     } catch (e: unknown) {

@@ -1,3 +1,5 @@
+// FileName: connection.ts
+
 import Database from "better-sqlite3";
 import fs from "fs";
 import path from "path";
@@ -5,7 +7,7 @@ import path from "path";
 import { strDocumentsFolderPath } from "../Config/environment";
 import { loggerMain } from "../Logging/logger";
 
-const INT_DATABASE_SCHEMA_VERSION = 3;
+const INT_DATABASE_SCHEMA_VERSION = 1;
 const STR_DATABASE_FOLDER_PATH = path.join(strDocumentsFolderPath, "LiberRPA/AppData");
 const STR_DATABASE_FILE_PATH = path.join(STR_DATABASE_FOLDER_PATH, "ExecutorData.db");
 const STR_INIT_DATABASE_SCRIPT_PATH = path.join(
@@ -50,8 +52,8 @@ export function closeDatabase(): void {
   databaseObj = undefined;
 }
 
-function openDatabase(strDatabasePath: string): Database.Database {
-  const openedDatabaseObj = new Database(strDatabasePath, {
+function openDatabase(databasePath: string): Database.Database {
+  const openedDatabaseObj = new Database(databasePath, {
     verbose: (message?: unknown) => {
       loggerMain.debug(`[SQLite] ${String(message)}`);
     },
@@ -119,9 +121,9 @@ function backupDatabaseFiles(): string {
   return strBackupPath;
 }
 
-function removeDatabaseFiles(strDatabasePath: string): void {
+function removeDatabaseFiles(databasePath: string): void {
   for (const strSuffix of ["", "-wal", "-shm", "-journal"]) {
-    fs.rmSync(strDatabasePath + strSuffix, { force: true });
+    fs.rmSync(databasePath + strSuffix, { force: true });
   }
 }
 

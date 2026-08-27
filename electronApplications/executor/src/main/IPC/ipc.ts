@@ -1,3 +1,5 @@
+// FileName: ipc.ts
+
 import { ipcMain } from "electron";
 import type { IpcMainEvent, IpcMainInvokeEvent, WebContents } from "electron";
 
@@ -56,32 +58,32 @@ import {
 } from "./validation";
 import { IPC_CHANNEL_RENDERER_INVOKE, IPC_CHANNEL_RENDERER_LOG } from "../../shared/ipc";
 import type {
-  DictInvokeResult,
-  TypeExecutorInvokeCommand,
-  TypeExecutorInvokeRequest,
-  TypeExecutorInvokeResponse,
+  Dict_Result_Invoke,
+  Str_ExecutorInvokeCommand,
+  Type_ExecutorInvoke_Request,
+  Type_ExecutorInvoke_Response,
 } from "../../shared/ipc";
 
 function getErrorMessage(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
 }
 
-function createSuccessResult<T>(data: T): DictInvokeResult<T> {
+function createSuccessResult<T>(data: T): Dict_Result_Invoke<T> {
   return { success: true, data };
 }
 
-function createErrorResult(e: unknown): DictInvokeResult<never> {
+function createErrorResult(e: unknown): Dict_Result_Invoke<never> {
   return { success: false, error: getErrorMessage(e) };
 }
 
-type ExecutorInvokeValidatorMap = {
-  [C in TypeExecutorInvokeCommand]: (rawData: unknown) => TypeExecutorInvokeRequest<C>;
+type Map_ExecutorInvoke_Validator = {
+  [C in Str_ExecutorInvokeCommand]: (rawData: unknown) => Type_ExecutorInvoke_Request<C>;
 };
 
-type ExecutorInvokeHandlerMap = {
-  [C in TypeExecutorInvokeCommand]: (
-    data: TypeExecutorInvokeRequest<C>,
-  ) => TypeExecutorInvokeResponse<C> | Promise<TypeExecutorInvokeResponse<C>>;
+type Map_ExecutorInvoke_Handler = {
+  [C in Str_ExecutorInvokeCommand]: (
+    data: Type_ExecutorInvoke_Request<C>,
+  ) => Type_ExecutorInvoke_Response<C> | Promise<Type_ExecutorInvoke_Response<C>>;
 };
 
 const INVOKE_VALIDATOR = {
@@ -114,9 +116,9 @@ const INVOKE_VALIDATOR = {
   pythonCancel: (rawData: unknown) => ensurePositiveIntegerData(rawData, "pythonCancel"),
   chooseProjectLogFolder: (rawData: unknown) =>
     ensureNoData(rawData, "chooseProjectLogFolder"),
-} satisfies ExecutorInvokeValidatorMap;
+} satisfies Map_ExecutorInvoke_Validator;
 
-function createInvokeHandlerMap(): ExecutorInvokeHandlerMap {
+function createInvokeHandlerMap(): Map_ExecutorInvoke_Handler {
   return {
     async openProjectLogFolder() {
       await fileOpenFolder(getEffectiveProjectLogFolderPath());
@@ -148,76 +150,76 @@ function createInvokeHandlerMap(): ExecutorInvokeHandlerMap {
       return dbSelectProjectNames();
     },
 
-    getProjectVersions(strName) {
-      return dbSelectProjectVersions(strName);
+    getProjectVersions(name) {
+      return dbSelectProjectVersions(name);
     },
 
-    getProjectDetail(dictProject) {
-      return dbSelectProjectDetail(dictProject.name, dictProject.version);
+    getProjectDetail(projectDict) {
+      return dbSelectProjectDetail(projectDict.name, projectDict.version);
     },
 
-    saveProjectSettings(dictDetail) {
-      getPythonEnvironmentPath(dictDetail.python_environment_name);
-      dbUpdateProjectSettings(dictDetail);
+    saveProjectSettings(detailDict) {
+      getPythonEnvironmentPath(detailDict.python_environment_name);
+      dbUpdateProjectSettings(detailDict);
     },
 
-    getProjectBoundSchedules(intProjectId) {
-      return dbSelectProjectBoundSchedules(intProjectId);
+    getProjectBoundSchedules(projectId) {
+      return dbSelectProjectBoundSchedules(projectId);
     },
 
-    deleteProject(intProjectId) {
-      deleteInstalledProject(intProjectId);
+    deleteProject(projectId) {
+      deleteInstalledProject(projectId);
     },
 
     getScheduleList() {
       return dbSelectScheduleList();
     },
 
-    getScheduleDetail(strName) {
-      return dbSelectScheduleDetail(strName);
+    getScheduleDetail(name) {
+      return dbSelectScheduleDetail(name);
     },
 
-    createSchedule(dictDetail) {
-      dbInsertSchedule(dictDetail);
+    createSchedule(detailDict) {
+      dbInsertSchedule(detailDict);
       refreshSchedulerEngine();
     },
 
-    saveSchedule(dictDetail) {
-      dbUpdateSchedule(dictDetail);
+    saveSchedule(detailDict) {
+      dbUpdateSchedule(detailDict);
       refreshSchedulerEngine();
     },
 
-    deleteSchedule(intScheduleId) {
-      dbDeleteSchedule(intScheduleId);
+    deleteSchedule(scheduleId) {
+      dbDeleteSchedule(scheduleId);
       refreshSchedulerEngine();
     },
 
-    getRunHistoryPage(options) {
-      return dbSelectRunHistoryPage(options);
+    getRunHistoryPage(optionsDict) {
+      return dbSelectRunHistoryPage(optionsDict);
     },
 
     getRunQueue() {
       return getRunQueueItems();
     },
 
-    cancelWaitingRun(dictRun) {
-      cancelWaitingRun(dictRun.schedule_name, dictRun.estimated_run_at_ms);
+    cancelWaitingRun(runDict) {
+      cancelWaitingRun(runDict.schedule_name, runDict.estimated_run_at_ms);
     },
 
-    async openRunLogFolder(intRunHistoryId) {
-      const strLogFolderPath = dbSelectRunHistoryLogPath(intRunHistoryId);
+    async openRunLogFolder(runHistoryId) {
+      const strLogFolderPath = dbSelectRunHistoryLogPath(runHistoryId);
       if (strLogFolderPath === undefined) {
-        throw new Error(`Run History record not found: ${intRunHistoryId}`);
+        throw new Error(`Run History record not found: ${runHistoryId}`);
       }
       await fileOpenFolder(strLogFolderPath);
     },
 
-    async runMostRecentlyImportedProjectVersion(strProjectName) {
-      await runMostRecentlyImportedProjectVersion(strProjectName);
+    async runMostRecentlyImportedProjectVersion(projectName) {
+      await runMostRecentlyImportedProjectVersion(projectName);
     },
 
-    pythonCancel(intRunHistoryId) {
-      pythonCancel(intRunHistoryId);
+    pythonCancel(runHistoryId) {
+      pythonCancel(runHistoryId);
     },
 
     async chooseProjectLogFolder() {
@@ -226,12 +228,12 @@ function createInvokeHandlerMap(): ExecutorInvokeHandlerMap {
   };
 }
 
-async function executeInvoke<C extends TypeExecutorInvokeCommand>(
+async function executeInvoke<C extends Str_ExecutorInvokeCommand>(
   command: C,
   rawData: unknown,
-  validatorMap: ExecutorInvokeValidatorMap,
-  handlerMap: ExecutorInvokeHandlerMap,
-): Promise<TypeExecutorInvokeResponse<C>> {
+  validatorMap: Map_ExecutorInvoke_Validator,
+  handlerMap: Map_ExecutorInvoke_Handler,
+): Promise<Type_ExecutorInvoke_Response<C>> {
   const data = validatorMap[command](rawData);
   return await handlerMap[command](data);
 }
@@ -268,7 +270,7 @@ export function registerExecutorIpc(
       event: IpcMainInvokeEvent,
       rawCommand: unknown,
       rawData: unknown,
-    ): Promise<DictInvokeResult<unknown>> => {
+    ): Promise<Dict_Result_Invoke<unknown>> => {
       if (!isExpectedSender(event)) {
         loggerMain.warn("Rejected Renderer invoke from an unexpected sender.");
         return createErrorResult(new Error("Unexpected IPC sender."));

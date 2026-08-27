@@ -1,3 +1,4 @@
+<!-- FileName: Settings.vue -->
 <template>
   <v-container fluid class="clean-space flex-row-grow-1 fill-height flex-column">
     <v-label class="header-label tab-header">Settings</v-label>
@@ -14,18 +15,18 @@ import { computed, onBeforeUnmount, watch } from "vue";
 import { debounce } from "lodash";
 
 import AppearanceSettings from "./AppearanceSettings.vue";
-import LogAndTimeSettings from "./LogAndTimeSettings.vue";
 import RdpSettings from "./RdpSettings.vue";
 import RetentionSettings from "./RetentionSettings.vue";
+import LogAndTimeSettings from "./LogAndTimeSettings.vue";
 
 import { invokeMain } from "../../IPC/ipc";
 import { loggerRenderer } from "../../Logging/logger";
 import { useSettingStore } from "../../Store/settingStore";
-import type { DictExecutorConfig } from "../../../../shared/config";
+import type { Dict_ExecutorConfig } from "../../../../shared/config";
 
 const settingStore = useSettingStore();
 
-const dictConfigExecutor = computed<DictExecutorConfig>(() => ({
+const dictConfigExecutor = computed<Dict_ExecutorConfig>(() => ({
   theme: settingStore.theme,
   keepRdpSession: settingStore.keepRdpSession,
   keepRdpSessionWidth: settingStore.keepRdpSessionWidth,

@@ -1,3 +1,5 @@
+// FileName: logCleanup.ts
+
 import fs from "fs";
 import path from "path";
 
@@ -12,8 +14,8 @@ import { loggerMain } from "../Logging/logger";
 
 const INT_MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
 
-export function logCleanFolderByTimeout(intTimeoutDays: number): void {
-  const intCutoffMs = Date.now() - intTimeoutDays * INT_MILLISECONDS_PER_DAY;
+export function logCleanFolderByTimeout(timeoutDays: number): void {
+  const intCutoffMs = Date.now() - timeoutDays * INT_MILLISECONDS_PER_DAY;
   const arrLogFolderPath = dbSelectLogFolderBefore(intCutoffMs);
 
   for (const strLogFolderPath of arrLogFolderPath) {
@@ -32,8 +34,8 @@ export function logCleanFolderByTimeout(intTimeoutDays: number): void {
   }
 }
 
-export function logCleanVideoByTimeout(intTimeoutDays: number): void {
-  const intCutoffMs = Date.now() - intTimeoutDays * INT_MILLISECONDS_PER_DAY;
+export function logCleanVideoByTimeout(timeoutDays: number): void {
+  const intCutoffMs = Date.now() - timeoutDays * INT_MILLISECONDS_PER_DAY;
   const arrLogFolderPath = dbSelectVideoBefore(intCutoffMs);
 
   for (const strLogFolderPath of arrLogFolderPath) {
@@ -67,7 +69,7 @@ export function logCleanVideoByTimeout(intTimeoutDays: number): void {
   }
 }
 
-export function logCleanVideoBySize(intSizeGb: number): void {
+export function logCleanVideoBySize(sizeGb: number): void {
   let floatSizeGbTotal = 0;
   const arrLogFolderPath = dbSelectVideo();
 
@@ -83,7 +85,7 @@ export function logCleanVideoBySize(intSizeGb: number): void {
         fs.statSync(strVideoFilePath).isFile()
       ) {
         const floatVideoSizeGb = fs.statSync(strVideoFilePath).size / 1024 ** 3;
-        if (floatSizeGbTotal + floatVideoSizeGb <= intSizeGb) {
+        if (floatSizeGbTotal + floatVideoSizeGb <= sizeGb) {
           floatSizeGbTotal += floatVideoSizeGb;
           loggerMain.debug(`Video size total: ${floatSizeGbTotal} GB`);
           continue;

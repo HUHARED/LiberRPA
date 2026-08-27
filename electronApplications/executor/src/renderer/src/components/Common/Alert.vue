@@ -1,7 +1,8 @@
+<!-- FileName: Alert.vue -->
 <template>
   <v-alert
     v-if="informationStore.showAlert"
-    style="position: fixed; width: 100%; opacity: 0.9; z-index: 9999"
+    style="position: fixed; width: 100%; opacity: 0.9; z-index: 999"
     :text="informationStore.information"
     variant="flat"
     type="warning"
@@ -29,7 +30,7 @@ function clearAutoCloseTimer(): void {
 function clearInformation(): void {
   clearAutoCloseTimer();
   informationStore.showAlert = false;
-  informationStore.information = "...";
+  informationStore.information = "";
 }
 
 watch(

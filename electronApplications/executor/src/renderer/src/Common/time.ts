@@ -1,3 +1,5 @@
+// FileName: time.ts
+
 import moment from "moment-timezone";
 
 const STR_DISPLAY_DATETIME_FORMAT = "YYYY-MM-DD HH:mm:ss";
@@ -5,17 +7,17 @@ const STR_DATETIME_LOCAL_FORMAT_MINUTE = "YYYY-MM-DDTHH:mm";
 const STR_DATETIME_LOCAL_FORMAT_SECOND = "YYYY-MM-DDTHH:mm:ss";
 const STR_DEFAULT_PERIOD_END_LOCAL = "2084-04-04T00:00:00";
 
-function isSupportedIntlTimezone(strTimezone: string): boolean {
+function isSupportedIntlTimezone(timezone: string): boolean {
   try {
-    new Intl.DateTimeFormat("en-US", { timeZone: strTimezone }).format();
+    new Intl.DateTimeFormat("en-US", { timeZone: timezone }).format();
     return true;
   } catch {
     return false;
   }
 }
 
-export function isValidTimezone(strTimezone: string): boolean {
-  return moment.tz.zone(strTimezone) !== null && isSupportedIntlTimezone(strTimezone);
+export function isValidTimezone(timezone: string): boolean {
+  return moment.tz.zone(timezone) !== null && isSupportedIntlTimezone(timezone);
 }
 
 export const arrTimezone = moment.tz.names().filter(isValidTimezone);
@@ -25,60 +27,49 @@ export function getSystemTimezone(): string {
   return isValidTimezone(strTimezone) ? strTimezone : "UTC";
 }
 
-export function formatTimestamp(
-  intTimestampMs: number | null,
-  strTimezone: string,
-): string {
-  if (intTimestampMs === null) {
+export function formatTimestamp(timestampMs: number | null, timezone: string): string {
+  if (timestampMs === null) {
     return "Unknown";
   }
 
-  if (
-    !Number.isSafeInteger(intTimestampMs) ||
-    intTimestampMs < 0 ||
-    !isValidTimezone(strTimezone)
-  ) {
+  if (!Number.isSafeInteger(timestampMs) || timestampMs < 0 || !isValidTimezone(timezone)) {
     return "Invalid time";
   }
 
-  return moment.tz(intTimestampMs, strTimezone).format(STR_DISPLAY_DATETIME_FORMAT);
+  return moment.tz(timestampMs, timezone).format(STR_DISPLAY_DATETIME_FORMAT);
 }
 
 export function formatTimestampForDateTimeLocal(
-  intTimestampMs: number,
-  strTimezone: string,
+  timestampMs: number,
+  timezone: string,
 ): string {
-  if (
-    !Number.isSafeInteger(intTimestampMs) ||
-    intTimestampMs < 0 ||
-    !isValidTimezone(strTimezone)
-  ) {
+  if (!Number.isSafeInteger(timestampMs) || timestampMs < 0 || !isValidTimezone(timezone)) {
     return "";
   }
 
-  return moment.tz(intTimestampMs, strTimezone).format(STR_DATETIME_LOCAL_FORMAT_SECOND);
+  return moment.tz(timestampMs, timezone).format(STR_DATETIME_LOCAL_FORMAT_SECOND);
 }
 
 export function parseDateTimeLocalToTimestamp(
-  strDateTimeLocal: string,
-  strTimezone: string,
+  dateTimeLocal: string,
+  timezone: string,
 ): number | undefined {
-  if (!isValidTimezone(strTimezone)) {
+  if (!isValidTimezone(timezone)) {
     return undefined;
   }
 
   const strFormat =
-    strDateTimeLocal.length === STR_DATETIME_LOCAL_FORMAT_MINUTE.length
+    dateTimeLocal.length === STR_DATETIME_LOCAL_FORMAT_MINUTE.length
       ? STR_DATETIME_LOCAL_FORMAT_MINUTE
-      : strDateTimeLocal.length === STR_DATETIME_LOCAL_FORMAT_SECOND.length
+      : dateTimeLocal.length === STR_DATETIME_LOCAL_FORMAT_SECOND.length
         ? STR_DATETIME_LOCAL_FORMAT_SECOND
         : undefined;
   if (strFormat === undefined) {
     return undefined;
   }
 
-  const momentObj = moment.tz(strDateTimeLocal, strFormat, true, strTimezone);
-  if (!momentObj.isValid() || momentObj.format(strFormat) !== strDateTimeLocal) {
+  const momentObj = moment.tz(dateTimeLocal, strFormat, true, timezone);
+  if (!momentObj.isValid() || momentObj.format(strFormat) !== dateTimeLocal) {
     return undefined;
   }
 
@@ -88,19 +79,19 @@ export function parseDateTimeLocalToTimestamp(
     : undefined;
 }
 
-export function getDefaultSchedulePeriod(strTimezone: string): {
-  strPeriodStartLocal: string;
-  strPeriodEndLocal: string;
+export function getDefaultSchedulePeriod(timezone: string): {
+  periodStartLocal: string;
+  periodEndLocal: string;
 } {
-  if (!isValidTimezone(strTimezone)) {
-    throw new Error(`Invalid Executor time zone: ${strTimezone}`);
+  if (!isValidTimezone(timezone)) {
+    throw new Error(`Invalid Executor time zone: ${timezone}`);
   }
 
   return {
-    strPeriodStartLocal: moment
-      .tz(strTimezone)
+    periodStartLocal: moment
+      .tz(timezone)
       .startOf("day")
       .format(STR_DATETIME_LOCAL_FORMAT_SECOND),
-    strPeriodEndLocal: STR_DEFAULT_PERIOD_END_LOCAL,
+    periodEndLocal: STR_DEFAULT_PERIOD_END_LOCAL,
   };
 }

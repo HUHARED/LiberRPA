@@ -1,3 +1,5 @@
+// FileName: componentManagementClient.ts
+
 import { spawn } from "child_process";
 import fs from "fs";
 import path from "path";
@@ -11,14 +13,14 @@ import {
   createValidatePackagedFlowProjectRequest,
   validatePackagedFlowProjectResponse,
 } from "./componentManagementProtocol";
-import type { DictValidatePackagedFlowProjectRequest } from "./componentManagementProtocol";
+import type { Dict_Request_ValidatePackagedFlowProject } from "./componentManagementProtocol";
 
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
 async function runComponentManagement(
-  request: DictValidatePackagedFlowProjectRequest,
+  request: Dict_Request_ValidatePackagedFlowProject,
 ): Promise<void> {
   const strPythonExecutablePath = path.join(strDefaultPythonEnvironmentPath, "python.exe");
   if (
@@ -119,6 +121,6 @@ async function runComponentManagement(
   });
 }
 
-export async function validatePackagedFlowProject(strProjectPath: string): Promise<void> {
-  await runComponentManagement(createValidatePackagedFlowProjectRequest(strProjectPath));
+export async function validatePackagedFlowProject(projectPath: string): Promise<void> {
+  await runComponentManagement(createValidatePackagedFlowProjectRequest(projectPath));
 }

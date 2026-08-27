@@ -1,3 +1,5 @@
+// FileName: rdpSession.ts
+
 import { is } from "@electron-toolkit/utils";
 import { spawn } from "child_process";
 import type { ChildProcessWithoutNullStreams } from "child_process";
@@ -29,13 +31,13 @@ function isProcessRunning(processPy: ChildProcessWithoutNullStreams): boolean {
 }
 
 function spawnRdpScript(
-  strScriptName: string,
-  arrArgument: string[] = [],
+  scriptName: string,
+  argumentArr: string[] = [],
 ): ChildProcessWithoutNullStreams {
-  const strScriptPath = path.join(strScriptFolderPath, strScriptName);
+  const strScriptPath = path.join(strScriptFolderPath, scriptName);
   const processPy = spawn(
     path.join(strDefaultPythonEnvironmentPath, "python.exe"),
-    [strScriptPath, ...arrArgument],
+    [strScriptPath, ...argumentArr],
     {
       env: getPythonProcessEnvironment({
         pythonEnvironmentPath: strDefaultPythonEnvironmentPath,
@@ -52,10 +54,10 @@ function spawnRdpScript(
     setRdpProcess.delete(processPy);
   });
   processPy.once("error", (e: Error) => {
-    loggerMain.error(`[${strScriptName}] Process error: ${e.message}`);
+    loggerMain.error(`[${scriptName}] Process error: ${e.message}`);
   });
   processPy.stdin.on("error", (e: Error) => {
-    loggerMain.debug(`[${strScriptName}] stdin closed: ${e.message}`);
+    loggerMain.debug(`[${scriptName}] stdin closed: ${e.message}`);
   });
 
   return processPy;
@@ -63,16 +65,16 @@ function spawnRdpScript(
 
 function attachLineLogging(
   processPy: ChildProcessWithoutNullStreams,
-  strLabel: string,
+  label: string,
 ): void {
   const stdoutReader = createInterface({ input: processPy.stdout });
   const stderrReader = createInterface({ input: processPy.stderr });
 
   stdoutReader.on("line", (strLine) => {
-    loggerMain.debug(`[${strLabel}] ${strLine}`);
+    loggerMain.debug(`[${label}] ${strLine}`);
   });
   stderrReader.on("line", (strLine) => {
-    loggerMain.error(`[${strLabel}] ${strLine}`);
+    loggerMain.error(`[${label}] ${strLine}`);
   });
 }
 

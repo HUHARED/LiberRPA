@@ -1,3 +1,5 @@
+// FileName: runState.ts
+
 import type { ChildProcessWithoutNullStreams } from "child_process";
 import fs from "fs";
 import path from "path";
@@ -8,7 +10,7 @@ import { loggerMain } from "../Logging/logger";
 import { ensureExpectedRunLogFolderPath, ensureRunLogFolderPath } from "./logPath";
 import { isPythonProcessRunning } from "./pythonProcess";
 
-export type ExecutorRunStateStatus = "running" | "completed" | "error" | "terminated";
+export type Str_ExecutorRunState_Status = "running" | "completed" | "error" | "terminated";
 
 export interface ExecutorRunState {
   schemaVersion: 1;
@@ -17,7 +19,7 @@ export interface ExecutorRunState {
   packageVersion: string;
   startedAt: string;
   logPath: string;
-  status: ExecutorRunStateStatus;
+  status: Str_ExecutorRunState_Status;
   endedAt?: string;
 }
 
@@ -31,17 +33,17 @@ const strExecutorRunStateFolderPath = path.join(
   "LiberRPA/ExecutorRunState",
 );
 
-export function createExecutorRunStatePath(strRunId: string): string {
+export function createExecutorRunStatePath(runId: string): string {
   fs.mkdirSync(strExecutorRunStateFolderPath, { recursive: true });
-  return path.join(strExecutorRunStateFolderPath, `${strRunId}.json`);
+  return path.join(strExecutorRunStateFolderPath, `${runId}.json`);
 }
 
-export function removeExecutorRunStateFile(strRunStatePath: string): void {
+export function removeExecutorRunStateFile(runStatePath: string): void {
   try {
-    fs.rmSync(strRunStatePath, { force: true });
+    fs.rmSync(runStatePath, { force: true });
   } catch (e: unknown) {
     loggerMain.warn(
-      `Failed to remove Executor run-state file ${strRunStatePath}: ${getErrorMessage(e)}`,
+      `Failed to remove Executor run-state file ${runStatePath}: ${getErrorMessage(e)}`,
     );
   }
 }
@@ -55,19 +57,19 @@ function isValidExecutorRunTimestamp(value: string): boolean {
   return Number.isSafeInteger(intTimestampMs) && intTimestampMs >= 0;
 }
 
-export function parseExecutorRunTimestamp(strTimestamp: string): number {
-  const intTimestampMs = Date.parse(strTimestamp);
+export function parseExecutorRunTimestamp(timestamp: string): number {
+  const intTimestampMs = Date.parse(timestamp);
   if (
-    !REGEX_ISO_TIMESTAMP_WITH_TIMEZONE.test(strTimestamp) ||
+    !REGEX_ISO_TIMESTAMP_WITH_TIMEZONE.test(timestamp) ||
     !Number.isSafeInteger(intTimestampMs) ||
     intTimestampMs < 0
   ) {
-    throw new Error(`Invalid Executor run timestamp: ${strTimestamp}`);
+    throw new Error(`Invalid Executor run timestamp: ${timestamp}`);
   }
   return intTimestampMs;
 }
 
-function ensureExecutorRunStateStatus(value: unknown): ExecutorRunStateStatus {
+function ensureExecutorRunStateStatus(value: unknown): Str_ExecutorRunState_Status {
   switch (value) {
     case "running":
     case "completed":

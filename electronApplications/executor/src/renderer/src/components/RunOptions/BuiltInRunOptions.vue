@@ -1,3 +1,4 @@
+<!-- FileName: BuiltInRunOptions.vue -->
 <template>
   <v-row class="w-100">
     <v-col :cols="props.timeoutCols">
@@ -68,7 +69,7 @@ import { computed } from "vue";
 
 import { ARR_LOG_LEVEL } from "../../RunOptions/runOptions";
 import { useInformationStore } from "../../Store/informationStore";
-import type { TypeLogLevel } from "../../../../shared/runOptions";
+import type { Str_LogLevel } from "../../../../shared/runOptions";
 
 const props = withDefaults(
   defineProps<{
@@ -82,7 +83,7 @@ const props = withDefaults(
 );
 
 const timeoutMin = defineModel<number>("timeoutMin", { required: true });
-const logLevel = defineModel<TypeLogLevel>("logLevel", { required: true });
+const logLevel = defineModel<Str_LogLevel>("logLevel", { required: true });
 const recordVideo = defineModel<boolean>("recordVideo", { required: true });
 const stopShortcut = defineModel<boolean>("stopShortcut", { required: true });
 const highlightUi = defineModel<boolean>("highlightUi", { required: true });

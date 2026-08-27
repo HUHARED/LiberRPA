@@ -1,3 +1,5 @@
+// FileName: main.ts
+
 import "./assets/main.css";
 
 import { createApp } from "vue";

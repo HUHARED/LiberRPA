@@ -1,3 +1,4 @@
+<!-- FileName: LogAndTimeSettings.vue -->
 <template>
   <v-container fluid class="pa-2 ma-0 flex-row">
     <v-icon class="pa-0 ma-0 mt-2 mr-2" color="grey" icon="mdi-open-in-new"> </v-icon>

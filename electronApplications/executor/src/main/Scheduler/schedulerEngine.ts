@@ -1,3 +1,5 @@
+// FileName: schedulerEngine.ts
+
 import { CronExpressionParser } from "cron-parser";
 
 import { dictConfigExecutor } from "../Config/executorConfig";
@@ -8,27 +10,27 @@ import {
 import { dbHasRunningRun } from "../Database/runHistoryRepository";
 import { loggerMain } from "../Logging/logger";
 import { hasStartingRun, pythonRun } from "../Run/projectRunner";
-import type { DictProjectRunDetail } from "../Run/types";
-import type { DictRunQueueListItem } from "../../shared/run";
-import type { TypeRunConflictPolicy } from "../../shared/schedule";
+import type { Dict_ProjectRun_Detail } from "../Run/types";
+import type { Dict_ListItem_RunQueue } from "../../shared/run";
+import type { Str_RunConflictPolicy } from "../../shared/schedule";
 
-type RunQueueChangedListener = (arrItem: DictRunQueueListItem[]) => void;
+type Listener_RunQueueChanged = (arrItem: Dict_ListItem_RunQueue[]) => void;
 
 interface PendingRun {
-  queueItem: DictRunQueueListItem;
-  runConflictPolicy: TypeRunConflictPolicy;
+  queueItem: Dict_ListItem_RunQueue;
+  runConflictPolicy: Str_RunConflictPolicy;
 }
 
 interface WaitingRun {
-  queueItem: DictRunQueueListItem;
-  runDetail: DictProjectRunDetail;
+  queueItem: Dict_ListItem_RunQueue;
+  runDetail: Dict_ProjectRun_Detail;
 }
 
 const INT_SCHEDULER_CHECK_INTERVAL_MS = 1000;
 
 const arrPendingRun: PendingRun[] = [];
 const arrWaitingRun: WaitingRun[] = [];
-const setRunQueueChangedListener = new Set<RunQueueChangedListener>();
+const setListener_RunQueueChanged = new Set<Listener_RunQueueChanged>();
 
 let intervalId: NodeJS.Timeout | undefined;
 let boolIsChecking = false;
@@ -64,7 +66,7 @@ export function refreshSchedulerEngine(): void {
   publishRunQueueChanged();
 }
 
-export function getRunQueueItems(): DictRunQueueListItem[] {
+export function getRunQueueItems(): Dict_ListItem_RunQueue[] {
   return [
     ...arrWaitingRun.map(({ queueItem }) => ({ ...queueItem })),
     ...arrPendingRun.map(({ queueItem }) => ({ ...queueItem })),
@@ -75,26 +77,26 @@ export function hasWaitingRunForProject(projectId: number): boolean {
   return arrWaitingRun.some(({ runDetail }) => runDetail.id === projectId);
 }
 
-export function cancelWaitingRun(scheduleName: string, intEstimatedRunAtMs: number): void {
+export function cancelWaitingRun(scheduleName: string, estimatedRunAtMs: number): void {
   const intIndex = arrWaitingRun.findIndex(
     ({ queueItem }) =>
       queueItem.schedule_name === scheduleName &&
-      queueItem.estimated_run_at_ms === intEstimatedRunAtMs,
+      queueItem.estimated_run_at_ms === estimatedRunAtMs,
   );
   if (intIndex === -1) {
-    loggerMain.debug(`Waiting Run not found: ${scheduleName}-${intEstimatedRunAtMs}`);
+    loggerMain.debug(`Waiting Run not found: ${scheduleName}-${estimatedRunAtMs}`);
     return;
   }
 
-  loggerMain.info(`Cancel waiting Run: ${scheduleName}-${intEstimatedRunAtMs}`);
+  loggerMain.info(`Cancel waiting Run: ${scheduleName}-${estimatedRunAtMs}`);
   arrWaitingRun.splice(intIndex, 1);
   publishRunQueueChanged();
 }
 
-export function onRunQueueChanged(listener: RunQueueChangedListener): () => void {
-  setRunQueueChangedListener.add(listener);
+export function onRunQueueChanged(listener: Listener_RunQueueChanged): () => void {
+  setListener_RunQueueChanged.add(listener);
   return () => {
-    setRunQueueChangedListener.delete(listener);
+    setListener_RunQueueChanged.delete(listener);
   };
 }
 
@@ -236,7 +238,7 @@ async function processSchedulerTick(): Promise<void> {
 
 function publishRunQueueChanged(): void {
   const arrItem = getRunQueueItems();
-  for (const listener of setRunQueueChangedListener) {
+  for (const listener of setListener_RunQueueChanged) {
     try {
       listener(arrItem);
     } catch (e: unknown) {

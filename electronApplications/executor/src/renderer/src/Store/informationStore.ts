@@ -1,8 +1,10 @@
+// FileName: informationStore.ts
+
 import { defineStore } from "pinia";
 
 import { loggerRenderer } from "../Logging/logger";
 
-export type TypeExecutorTab =
+export type Str_ExecutorTab =
   | "projects"
   | "schedules"
   | "runQueue"
@@ -12,10 +14,10 @@ export type TypeExecutorTab =
 export const useInformationStore = defineStore("information", {
   state: () => {
     return {
-      information: "..." as string,
+      information: "" as string,
       showAlert: false,
       alertRevision: 0,
-      tab: "projects" as TypeExecutorTab,
+      tab: "projects" as Str_ExecutorTab,
     };
   },
   actions: {

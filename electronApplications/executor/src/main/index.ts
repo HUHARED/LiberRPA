@@ -1,3 +1,5 @@
+// FileName: index.ts
+
 import { app, shell, BrowserWindow, screen, Tray, Menu, nativeImage } from "electron";
 
 // Only one Executor instance.
@@ -45,7 +47,7 @@ import {
   startSchedulerEngine,
   stopSchedulerEngine,
 } from "./Scheduler/schedulerEngine";
-import type { DictMainMessage } from "../shared/ipc";
+import type { Dict_Message_Main } from "../shared/ipc";
 
 initializeDatabase();
 recoverProjectPackageImports();
@@ -58,7 +60,7 @@ let boolAppQuitting = false;
 let boolShutdownStarted = false;
 let boolShutdownComplete = false;
 
-function sendMessageToRenderer(message: DictMainMessage): void {
+function sendMessageToRenderer(message: Dict_Message_Main): void {
   const webContentsObj = mainWindow?.webContents;
   if (webContentsObj !== undefined) {
     sendMainMessage(webContentsObj, message);
@@ -77,8 +79,8 @@ function createWindow(): void {
     icon: icon,
     webPreferences: {
       preload: join(__dirname, "../preload/index.js"),
-      contextIsolation: true,
       nodeIntegration: false,
+      contextIsolation: true,
       sandbox: true,
     },
   });
@@ -89,7 +91,7 @@ function createWindow(): void {
     sendMainMessage(webContentsObj, {
       type: "initializeSetting",
       data: {
-        config: dictConfigExecutor,
+        configDict: dictConfigExecutor,
         defaultProjectLogFolderPath: strDefaultProjectLogFolderPath,
       },
     });
@@ -145,7 +147,6 @@ void app
     // Set app user model id for windows
     electronApp.setAppUserModelId("com.liberrpa.executor");
 
-    // build our tray icon
     const trayIcon = nativeImage.createFromPath(icon);
     tray = new Tray(trayIcon);
 

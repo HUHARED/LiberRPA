@@ -1,12 +1,14 @@
+// FileName: runQueueStore.ts
+
 import { defineStore } from "pinia";
 
 import { invokeMain } from "../IPC/ipc";
-import type { DictRunQueueListItem } from "../../../shared/run";
+import type { Dict_ListItem_RunQueue } from "../../../shared/run";
 
 export const useRunQueueStore = defineStore("runQueue", {
   state: () => {
     return {
-      arrListItem: [] as DictRunQueueListItem[],
+      arrListItem: [] as Dict_ListItem_RunQueue[],
     };
   },
   actions: {
@@ -14,7 +16,7 @@ export const useRunQueueStore = defineStore("runQueue", {
       this.arrListItem = await invokeMain("getRunQueue");
     },
 
-    setRunQueue(arrItem: DictRunQueueListItem[]): void {
+    setRunQueue(arrItem: Dict_ListItem_RunQueue[]): void {
       this.arrListItem = arrItem;
     },
 

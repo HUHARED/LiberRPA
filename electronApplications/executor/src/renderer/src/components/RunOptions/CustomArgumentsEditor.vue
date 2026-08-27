@@ -1,3 +1,4 @@
+<!-- FileName: CustomArgumentsEditor.vue -->
 <template>
   <v-container
     v-if="customArgs.length !== 0"
@@ -51,9 +52,9 @@ import {
   getArgumentValueNote,
   updateCustomProjectArgumentValue,
 } from "../../RunOptions/runOptions";
-import type { TypeCustomProjectArgs } from "../../../../shared/runOptions";
+import type { Arr_CustomProjectArgs } from "../../../../shared/runOptions";
 
-const customArgs = defineModel<TypeCustomProjectArgs>("customArgs", { required: true });
+const customArgs = defineModel<Arr_CustomProjectArgs>("customArgs", { required: true });
 
 const arrValueCache = ref<string[]>([]);
 

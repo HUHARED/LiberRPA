@@ -1,19 +1,21 @@
+// FileName: pythonProcess.ts
+
 import type { ChildProcessWithoutNullStreams } from "child_process";
 import { spawn } from "child_process";
 import path from "path";
 
 import { getPythonProcessEnvironment } from "../Config/environment";
 import { loggerMain } from "../Logging/logger";
-import type { DictProjectRunDetail } from "./types";
+import type { Dict_ProjectRun_Detail } from "./types";
 
-export interface DictPythonProcessDiagnosticOutput {
+export interface Dict_PythonProcess_DiagnosticOutput {
   strStdoutTail: string;
   strStderrTail: string;
 }
 
 interface StartedProjectPythonProcess {
   processPy: ChildProcessWithoutNullStreams;
-  diagnosticOutput: DictPythonProcessDiagnosticOutput;
+  diagnosticOutput: Dict_PythonProcess_DiagnosticOutput;
   getProcessError: () => Error | undefined;
 }
 
@@ -33,8 +35,8 @@ function appendProcessOutputTail(strCurrent: string, strChunk: string): string {
 
 function attachPythonDiagnosticStreams(
   processPy: ChildProcessWithoutNullStreams,
-): DictPythonProcessDiagnosticOutput {
-  const dictDiagnosticOutput: DictPythonProcessDiagnosticOutput = {
+): Dict_PythonProcess_DiagnosticOutput {
+  const dictDiagnosticOutput: Dict_PythonProcess_DiagnosticOutput = {
     strStdoutTail: "",
     strStderrTail: "",
   };
@@ -71,7 +73,7 @@ export function spawnProjectPythonProcess({
   startedAt,
   runStatePath,
 }: {
-  detail: DictProjectRunDetail;
+  detail: Dict_ProjectRun_Detail;
   packagePath: string;
   pythonEnvironmentPath: string;
   runId: string;
@@ -133,7 +135,7 @@ export function logPythonDiagnosticOutput({
 }: {
   runId: string;
   reason: string;
-  diagnosticOutput: DictPythonProcessDiagnosticOutput;
+  diagnosticOutput: Dict_PythonProcess_DiagnosticOutput;
 }): void {
   const strStdoutTail = diagnosticOutput.strStdoutTail.trim();
   const strStderrTail = diagnosticOutput.strStderrTail.trim();
@@ -159,7 +161,7 @@ export function isPythonProcessRunning(processPy: ChildProcessWithoutNullStreams
 
 export function requestPythonTermination(
   processPy: ChildProcessWithoutNullStreams,
-  strRunId: string,
+  runId: string,
 ): boolean {
   if (
     !isPythonProcessRunning(processPy) ||
@@ -174,7 +176,7 @@ export function requestPythonTermination(
     return true;
   } catch (e: unknown) {
     loggerMain.error(
-      `Failed to send shutdown signal to Python process ${strRunId}: ${getErrorMessage(e)}`,
+      `Failed to send shutdown signal to Python process ${runId}: ${getErrorMessage(e)}`,
     );
     return false;
   }
@@ -182,7 +184,7 @@ export function requestPythonTermination(
 
 export async function terminatePythonProcessAfterStartupFailure(
   processPy: ChildProcessWithoutNullStreams,
-  strRunId: string,
+  runId: string,
 ): Promise<void> {
   if (!isPythonProcessRunning(processPy)) {
     return;
@@ -192,35 +194,35 @@ export async function terminatePythonProcessAfterStartupFailure(
     processPy.kill();
   } catch (e: unknown) {
     loggerMain.error(
-      `Failed to terminate Python process ${strRunId} after startup failure: ${getErrorMessage(e)}`,
+      `Failed to terminate Python process ${runId} after startup failure: ${getErrorMessage(e)}`,
     );
     return;
   }
 
-  await waitForPythonProcessTermination(processPy, strRunId);
+  await waitForPythonProcessTermination(processPy, runId);
 }
 
 export async function waitForPythonProcessTermination(
   processPy: ChildProcessWithoutNullStreams,
-  strRunId: string,
+  runId: string,
 ): Promise<void> {
   if (await waitForPythonProcessClose(processPy)) {
     return;
   }
 
-  loggerMain.error(`Python process ${strRunId} did not terminate within the wait period.`);
+  loggerMain.error(`Python process ${runId} did not terminate within the wait period.`);
 
   try {
     processPy.kill();
   } catch (e: unknown) {
     loggerMain.error(
-      `Failed to force-terminate Python process ${strRunId}: ${getErrorMessage(e)}`,
+      `Failed to force-terminate Python process ${runId}: ${getErrorMessage(e)}`,
     );
     return;
   }
 
   if (!(await waitForPythonProcessClose(processPy))) {
-    loggerMain.error(`Python process ${strRunId} remained active after force termination.`);
+    loggerMain.error(`Python process ${runId} remained active after force termination.`);
   }
 }
 

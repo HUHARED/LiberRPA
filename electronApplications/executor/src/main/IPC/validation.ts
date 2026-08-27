@@ -1,13 +1,9 @@
-import type { DictProjectSettingsUpdate } from "../../shared/project";
-import type { DictRunHistoryOptions } from "../../shared/run";
-import type {
-  DictScheduleCreate,
-  DictScheduleUpdate,
-} from "../../shared/schedule";
-import type {
-  TypeExecutorInvokeCommand,
-  TypeRendererLogLevel,
-} from "../../shared/ipc";
+// FileName: validation.ts
+
+import type { Dict_ProjectSettingsUpdate } from "../../shared/project";
+import type { Dict_RunHistory_Options } from "../../shared/run";
+import type { Dict_ScheduleCreate, Dict_ScheduleUpdate } from "../../shared/schedule";
+import type { Str_ExecutorInvokeCommand, Str_RendererLogLevel } from "../../shared/ipc";
 
 import {
   ensureBoolean,
@@ -26,7 +22,7 @@ import {
 function ensureRunHistorySortKey(
   value: unknown,
   strSourceName: string,
-): DictRunHistoryOptions["sortBy"][number]["key"] {
+): Dict_RunHistory_Options["sortBy"][number]["key"] {
   switch (value) {
     case "schedule_name":
     case "project_name":
@@ -48,7 +44,7 @@ function ensureRunHistorySortOrder(value: unknown, strSourceName: string): "asc"
   throw new Error(`${strSourceName} must be 'asc' or 'desc'.`);
 }
 
-export function ensureInvokeCommand(value: unknown): TypeExecutorInvokeCommand {
+export function ensureInvokeCommand(value: unknown): Str_ExecutorInvokeCommand {
   switch (value) {
     case "openProjectLogFolder":
     case "saveExecutorConfig":
@@ -79,7 +75,7 @@ export function ensureInvokeCommand(value: unknown): TypeExecutorInvokeCommand {
   }
 }
 
-export function ensureRendererLogLevel(value: unknown): TypeRendererLogLevel {
+export function ensureRendererLogLevel(value: unknown): Str_RendererLogLevel {
   switch (value) {
     case "error":
     case "warn":
@@ -94,19 +90,19 @@ export function ensureRendererLogLevel(value: unknown): TypeRendererLogLevel {
   }
 }
 
-export function ensureNoData(value: unknown, strCommand: string): undefined {
+export function ensureNoData(value: unknown, command: string): undefined {
   if (value !== undefined) {
-    throw new Error(`${strCommand} does not accept request data.`);
+    throw new Error(`${command} does not accept request data.`);
   }
   return undefined;
 }
 
-export function ensureStringData(value: unknown, strCommand: string): string {
-  return ensureString(value, `${strCommand} data`);
+export function ensureStringData(value: unknown, command: string): string {
+  return ensureString(value, `${command} data`);
 }
 
-export function ensurePositiveIntegerData(value: unknown, strCommand: string): number {
-  return ensurePositiveInteger(value, `${strCommand} data`);
+export function ensurePositiveIntegerData(value: unknown, command: string): number {
+  return ensurePositiveInteger(value, `${command} data`);
 }
 
 export function ensureProjectRef(value: unknown): { name: string; version: string } {
@@ -117,10 +113,10 @@ export function ensureProjectRef(value: unknown): { name: string; version: strin
   };
 }
 
-
-export function ensureWaitingRunRef(
-  value: unknown,
-): { schedule_name: string; estimated_run_at_ms: number } {
+export function ensureWaitingRunRef(value: unknown): {
+  schedule_name: string;
+  estimated_run_at_ms: number;
+} {
   const dictValue = ensureExactRecord(
     value,
     ["schedule_name", "estimated_run_at_ms"],
@@ -138,7 +134,7 @@ export function ensureWaitingRunRef(
   };
 }
 
-export function ensureProjectSettingsUpdate(value: unknown): DictProjectSettingsUpdate {
+export function ensureProjectSettingsUpdate(value: unknown): Dict_ProjectSettingsUpdate {
   const dictValue = ensureExactRecord(
     value,
     [
@@ -190,7 +186,7 @@ export function ensureProjectSettingsUpdate(value: unknown): DictProjectSettings
 function ensureScheduleData(
   value: unknown,
   boolIncludeId: boolean,
-): DictScheduleCreate | DictScheduleUpdate {
+): Dict_ScheduleCreate | Dict_ScheduleUpdate {
   const arrExpectedKey = [
     "name",
     "project_id",
@@ -223,7 +219,7 @@ function ensureScheduleData(
     throw new Error("Schedule request.period_end_ms must be greater than period_start_ms.");
   }
 
-  const dictBase: DictScheduleCreate = {
+  const dictBase: Dict_ScheduleCreate = {
     name: ensureTrimmedSingleLineString(dictValue.name, "Schedule request.name"),
     project_id: ensurePositiveInteger(dictValue.project_id, "Schedule request.project_id"),
     cron: ensureNonEmptyString(dictValue.cron, "Schedule request.cron"),
@@ -270,11 +266,11 @@ function ensureScheduleData(
   };
 }
 
-export function ensureScheduleCreate(value: unknown): DictScheduleCreate {
+export function ensureScheduleCreate(value: unknown): Dict_ScheduleCreate {
   return ensureScheduleData(value, false);
 }
 
-export function ensureScheduleUpdate(value: unknown): DictScheduleUpdate {
+export function ensureScheduleUpdate(value: unknown): Dict_ScheduleUpdate {
   const dictValue = ensureScheduleData(value, true);
   if (!("id" in dictValue)) {
     throw new Error("Schedule update request is missing id.");
@@ -282,7 +278,7 @@ export function ensureScheduleUpdate(value: unknown): DictScheduleUpdate {
   return dictValue;
 }
 
-export function ensureRunHistoryOptions(value: unknown): DictRunHistoryOptions {
+export function ensureRunHistoryOptions(value: unknown): Dict_RunHistory_Options {
   const dictValue = ensureExactRecord(
     value,
     ["page", "itemsPerPage", "sortBy", "search"],
@@ -314,7 +310,6 @@ export function ensureRunHistoryOptions(value: unknown): DictRunHistoryOptions {
     ["schedule_name", "project_name", "project_version", "status"],
     "Run History options.search",
   );
-
 
   const status =
     dictSearch.status === null

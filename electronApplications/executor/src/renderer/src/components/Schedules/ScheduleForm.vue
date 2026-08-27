@@ -1,3 +1,4 @@
+<!-- FileName: ScheduleForm.vue -->
 <template>
   <template v-if="detail">
     <v-container fluid class="pa-2 ma-0">
@@ -184,15 +185,15 @@ import { loggerRenderer } from "../../Logging/logger";
 import { validateCronExpression } from "../../Schedule/cron";
 import { useScheduleStore } from "../../Store/scheduleStore";
 import { useSettingStore } from "../../Store/settingStore";
-import type { TypeScheduleFormDetail } from "../../Schedule/types";
-import type { TypeRunConflictPolicy } from "../../../../shared/schedule";
+import type { Dict_Detail_ScheduleForm } from "../../Schedule/types";
+import type { Str_RunConflictPolicy } from "../../../../shared/schedule";
 
 const scheduleStore = useScheduleStore();
 const settingStore = useSettingStore();
 
 let intProjectSelectionRevision = 0;
 
-const detail = computed<TypeScheduleFormDetail | undefined>(() => {
+const detail = computed<Dict_Detail_ScheduleForm | undefined>(() => {
   if (scheduleStore.formMode === "new") {
     return scheduleStore.dictDetailNew;
   }
@@ -209,7 +210,7 @@ const cronValidation = computed(() => {
     : validateCronExpression(currentDetail.cron);
 });
 
-const ARR_RUN_CONFLICT_POLICY: { title: string; value: TypeRunConflictPolicy }[] = [
+const ARR_RUN_CONFLICT_POLICY: { title: string; value: Str_RunConflictPolicy }[] = [
   { title: "Skip This Run", value: "skip" },
   { title: "Wait", value: "wait" },
   { title: "Run Concurrently", value: "concurrent" },
@@ -270,7 +271,7 @@ async function whenProjectVersionChanged(): Promise<void> {
 }
 
 async function applyProjectDetailToSchedule(
-  currentDetail: TypeScheduleFormDetail,
+  currentDetail: Dict_Detail_ScheduleForm,
   name: string,
   version: string,
   intRevision: number,

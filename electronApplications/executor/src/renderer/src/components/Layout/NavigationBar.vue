@@ -1,3 +1,4 @@
+<!-- FileName: NavigationBar.vue -->
 <template>
   <v-tabs
     v-model="informationStore.tab"

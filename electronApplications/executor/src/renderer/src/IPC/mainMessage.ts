@@ -1,3 +1,5 @@
+// FileName: mainMessage.ts
+
 import { loggerRenderer } from "../Logging/logger";
 import { useRunHistoryStore } from "../Store/runHistoryStore";
 import { useRunQueueStore } from "../Store/runQueueStore";
@@ -13,7 +15,7 @@ export function registerMainMessageListener(): void {
         case "initializeSetting": {
           const settingStore = useSettingStore();
           settingStore.initializeSetting(
-            message.data.config,
+            message.data.configDict,
             message.data.defaultProjectLogFolderPath,
           );
           break;

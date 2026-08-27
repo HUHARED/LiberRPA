@@ -1,3 +1,5 @@
+// FileName: projectInstallation.ts
+
 import { randomUUID } from "crypto";
 import fs from "fs";
 import path from "path";
@@ -22,7 +24,7 @@ import { isProjectRunStarting } from "../Run/projectRunner";
 import { hasWaitingRunForProject } from "../Scheduler/schedulerEngine";
 import { getTargetFolderName } from "./packageArchive";
 
-interface DictProjectPackageDeleteTransaction {
+interface Dict_Transaction_ProjectPackageDelete {
   schemaVersion: 1;
   projectId: number;
   projectName: string;
@@ -38,23 +40,23 @@ function getDeleteStagingRootPath(): string {
   return path.join(strExecutorPackageFolderPath, STR_DELETE_STAGING_FOLDER_NAME);
 }
 
-function writeJsonFileAtomic(strFilePath: string, value: unknown): void {
-  const strTempPath = `${strFilePath}.tmp`;
+function writeJsonFileAtomic(filePath: string, value: unknown): void {
+  const strTempPath = `${filePath}.tmp`;
   fs.rmSync(strTempPath, { force: true });
   fs.writeFileSync(strTempPath, `${JSON.stringify(value, null, 2)}\n`, {
     encoding: "utf-8",
   });
-  fs.renameSync(strTempPath, strFilePath);
+  fs.renameSync(strTempPath, filePath);
 }
 
 function parseDeleteTransaction(
-  strTransactionPath: string,
-): DictProjectPackageDeleteTransaction {
+  transactionPath: string,
+): Dict_Transaction_ProjectPackageDelete {
   let value: unknown;
   try {
-    value = JSON.parse(fs.readFileSync(strTransactionPath, { encoding: "utf-8" }));
+    value = JSON.parse(fs.readFileSync(transactionPath, { encoding: "utf-8" }));
   } catch (e: unknown) {
-    throw new Error(`Failed to read Project deletion transaction: ${strTransactionPath}`, {
+    throw new Error(`Failed to read Project deletion transaction: ${transactionPath}`, {
       cause: e,
     });
   }
@@ -65,7 +67,7 @@ function parseDeleteTransaction(
     "Project deletion transaction",
   );
   if (dictTransaction.schemaVersion !== 1) {
-    throw new Error(`Unsupported Project deletion transaction: ${strTransactionPath}`);
+    throw new Error(`Unsupported Project deletion transaction: ${transactionPath}`);
   }
 
   const intProjectId = ensurePositiveInteger(
@@ -87,7 +89,7 @@ function parseDeleteTransaction(
 
   if (getTargetFolderName(strProjectName, strProjectVersion) !== strTargetFolderName) {
     throw new Error(
-      `Project deletion transaction target is inconsistent: ${strTransactionPath}`,
+      `Project deletion transaction target is inconsistent: ${transactionPath}`,
     );
   }
 
@@ -147,7 +149,7 @@ export function deleteInstalledProject(projectId: number): void {
   );
   fs.mkdirSync(strTransactionFolderPath, { recursive: true });
 
-  const transaction: DictProjectPackageDeleteTransaction = {
+  const transactionDict: Dict_Transaction_ProjectPackageDelete = {
     schemaVersion: 1,
     projectId,
     projectName: dictProject.name,
@@ -156,7 +158,7 @@ export function deleteInstalledProject(projectId: number): void {
   };
   writeJsonFileAtomic(
     path.join(strTransactionFolderPath, STR_TRANSACTION_FILE_NAME),
-    transaction,
+    transactionDict,
   );
 
   fs.renameSync(strTargetPath, strStagedProjectPath);
@@ -227,11 +229,11 @@ export function recoverProjectPackageDeletions(): void {
 
     let boolRecovered = false;
     try {
-      const transaction = parseDeleteTransaction(strTransactionPath);
-      const dictProject = dbSelectProjectDetailById(transaction.projectId);
+      const dictTransaction = parseDeleteTransaction(strTransactionPath);
+      const dictProject = dbSelectProjectDetailById(dictTransaction.projectId);
       const strTargetPath = getExecutorPackageFolderPath(
-        transaction.projectName,
-        transaction.projectVersion,
+        dictTransaction.projectName,
+        dictTransaction.projectVersion,
       );
       const strStagedProjectPath = path.join(
         strTransactionFolderPath,
@@ -240,26 +242,25 @@ export function recoverProjectPackageDeletions(): void {
 
       if (dictProject === undefined) {
         // Database deletion completed. The staged copy belongs to the deleted installation.
-        // Do not touch targetPath here because the same Project version may have been
-        // imported again after the original deletion completed.
+        // Do not touch targetPath here because the same Project version may have been imported again after the original deletion completed.
         boolRecovered = true;
       } else if (
-        dictProject.name !== transaction.projectName ||
-        dictProject.version !== transaction.projectVersion
+        dictProject.name !== dictTransaction.projectName ||
+        dictProject.version !== dictTransaction.projectVersion
       ) {
         loggerMain.error(
-          `Project deletion transaction no longer matches database record ${transaction.projectId}.`,
+          `Project deletion transaction no longer matches database record ${dictTransaction.projectId}.`,
         );
       } else if (!fs.existsSync(strTargetPath) && fs.existsSync(strStagedProjectPath)) {
         loggerMain.warn(
-          `Restore an incomplete Project deletion: ${transaction.projectName}-${transaction.projectVersion}`,
+          `Restore an incomplete Project deletion: ${dictTransaction.projectName}-${dictTransaction.projectVersion}`,
         );
         fs.renameSync(strStagedProjectPath, strTargetPath);
         boolRecovered = true;
       } else if (fs.existsSync(strTargetPath) && fs.existsSync(strStagedProjectPath)) {
         loggerMain.warn(
           "Remove duplicate staged Project from deletion recovery: " +
-            `${transaction.projectName}-${transaction.projectVersion}`,
+            `${dictTransaction.projectName}-${dictTransaction.projectVersion}`,
         );
         boolRecovered = removeFolderBestEffort(
           strStagedProjectPath,
@@ -271,7 +272,7 @@ export function recoverProjectPackageDeletions(): void {
       } else {
         loggerMain.error(
           "Project folder is missing while recovering deletion: " +
-            `${transaction.projectName}-${transaction.projectVersion}`,
+            `${dictTransaction.projectName}-${dictTransaction.projectVersion}`,
         );
       }
     } catch (e: unknown) {

@@ -1,8 +1,10 @@
+// FileName: executorConfig.ts
+
 import { dialog } from "electron";
 import fs from "fs";
 import path from "path";
 
-import type { DictExecutorConfig } from "../../shared/config";
+import type { Dict_ExecutorConfig } from "../../shared/config";
 import { ensureBoolean, ensureRecord, ensureString } from "../Common/validation";
 import { strDefaultProjectLogFolderPath } from "./basicConfig";
 import { strLiberRPAEnvPath } from "./environment";
@@ -12,7 +14,7 @@ const STR_EXECUTOR_CONFIG_PATH = path.join(
   strLiberRPAEnvPath,
   "configFiles/Executor.jsonc",
 );
-const ARR_EXECUTOR_CONFIG_KEY: readonly (keyof DictExecutorConfig)[] = [
+const ARR_EXECUTOR_CONFIG_KEY: readonly (keyof Dict_ExecutorConfig)[] = [
   "theme",
   "keepRdpSession",
   "keepRdpSessionWidth",
@@ -28,9 +30,9 @@ const ARR_EXECUTOR_CONFIG_KEY: readonly (keyof DictExecutorConfig)[] = [
 ];
 const SET_EXECUTOR_CONFIG_KEY = new Set<string>(ARR_EXECUTOR_CONFIG_KEY);
 
-function isValidTimezone(strTimezone: string): boolean {
+function isValidTimezone(timezone: string): boolean {
   try {
-    new Intl.DateTimeFormat("en-US", { timeZone: strTimezone }).format();
+    new Intl.DateTimeFormat("en-US", { timeZone: timezone }).format();
     return true;
   } catch {
     return false;
@@ -42,7 +44,7 @@ function getSystemTimezone(): string {
   return strTimezone !== "" && isValidTimezone(strTimezone) ? strTimezone : "UTC";
 }
 
-function getDefaultExecutorConfig(): DictExecutorConfig {
+function getDefaultExecutorConfig(): Dict_ExecutorConfig {
   return {
     theme: "light",
     keepRdpSession: false,
@@ -61,7 +63,7 @@ function getDefaultExecutorConfig(): DictExecutorConfig {
 
 function getBooleanConfigValue(
   dictConfig: Record<string, unknown>,
-  strKey: keyof DictExecutorConfig,
+  strKey: keyof Dict_ExecutorConfig,
 ): boolean {
   return ensureBoolean(dictConfig[strKey], `Executor config '${strKey}'`);
 }
@@ -73,7 +75,7 @@ function getIntegerConfigValue({
   max,
 }: {
   config: Record<string, unknown>;
-  key: keyof DictExecutorConfig;
+  key: keyof Dict_ExecutorConfig;
   min: number;
   max?: number;
 }): number {
@@ -92,12 +94,12 @@ function getIntegerConfigValue({
 
 function getStringConfigValue(
   dictConfig: Record<string, unknown>,
-  strKey: keyof DictExecutorConfig,
+  strKey: keyof Dict_ExecutorConfig,
 ): string {
   return ensureString(dictConfig[strKey], `Executor config '${strKey}'`);
 }
 
-export function validateExecutorConfig(value: unknown): DictExecutorConfig {
+export function validateExecutorConfig(value: unknown): Dict_ExecutorConfig {
   const dictConfig = ensureRecord(value, "Executor config");
 
   for (const strKey of Object.keys(dictConfig)) {
@@ -166,7 +168,7 @@ export function validateExecutorConfig(value: unknown): DictExecutorConfig {
   };
 }
 
-function getExecutorConfigDict(): DictExecutorConfig {
+function getExecutorConfigDict(): Dict_ExecutorConfig {
   if (!fs.existsSync(STR_EXECUTOR_CONFIG_PATH)) {
     const dictDefaultConfig = getDefaultExecutorConfig();
     fs.writeFileSync(STR_EXECUTOR_CONFIG_PATH, JSON.stringify(dictDefaultConfig, null, 2), {
@@ -204,7 +206,7 @@ export function getEffectiveProjectLogFolderPath(): string {
     : dictConfigExecutor.projectLogFolderPath;
 }
 
-export function saveExecutorConfigDict(dictSettings: DictExecutorConfig): void {
+export function saveExecutorConfigDict(dictSettings: Dict_ExecutorConfig): void {
   try {
     fs.writeFileSync(STR_EXECUTOR_CONFIG_PATH, JSON.stringify(dictSettings, null, 2), {
       encoding: "utf-8",

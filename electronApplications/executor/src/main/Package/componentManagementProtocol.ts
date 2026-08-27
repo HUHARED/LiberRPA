@@ -1,25 +1,27 @@
+// FileName: componentManagementProtocol.ts
+
 import { ensureExactRecord, ensureRecord, ensureString } from "../Common/validation";
 
-export interface DictValidatePackagedFlowProjectRequest {
+export interface Dict_Request_ValidatePackagedFlowProject {
   schemaVersion: 1;
   operation: "validatePackagedFlowProject";
   projectPath: string;
 }
 
 export function createValidatePackagedFlowProjectRequest(
-  strProjectPath: string,
-): DictValidatePackagedFlowProjectRequest {
+  projectPath: string,
+): Dict_Request_ValidatePackagedFlowProject {
   return {
     schemaVersion: 1,
     operation: "validatePackagedFlowProject",
-    projectPath: strProjectPath,
+    projectPath: projectPath,
   };
 }
 
-function parseProtocolJson(strOutput: string): Record<string, unknown> {
+function parseProtocolJson(output: string): Record<string, unknown> {
   let value: unknown;
   try {
-    value = JSON.parse(strOutput);
+    value = JSON.parse(output);
   } catch (e: unknown) {
     throw new Error("Component Management returned invalid JSON on stdout.", {
       cause: e,
@@ -28,8 +30,8 @@ function parseProtocolJson(strOutput: string): Record<string, unknown> {
   return ensureRecord(value, "Component Management response");
 }
 
-export function validatePackagedFlowProjectResponse(strOutput: string): void {
-  const dictResponse = parseProtocolJson(strOutput);
+export function validatePackagedFlowProjectResponse(output: string): void {
+  const dictResponse = parseProtocolJson(output);
   if (dictResponse.schemaVersion !== 1 || typeof dictResponse.ok !== "boolean") {
     throw new Error("Component Management returned an invalid protocol response.");
   }

@@ -1,15 +1,17 @@
+// FileName: ipc.ts
+
 import { useInformationStore } from "../Store/informationStore";
 import type {
-  TypeExecutorInvokeCommand,
-  TypeExecutorInvokeRequest,
-  TypeExecutorInvokeResponse,
+  Str_ExecutorInvokeCommand,
+  Type_ExecutorInvoke_Request,
+  Type_ExecutorInvoke_Response,
   TypeIpcArgs,
 } from "../../../shared/ipc";
 
-export async function invokeMain<C extends TypeExecutorInvokeCommand>(
+export async function invokeMain<C extends Str_ExecutorInvokeCommand>(
   command: C,
-  ...args: TypeIpcArgs<TypeExecutorInvokeRequest<C>>
-): Promise<TypeExecutorInvokeResponse<C>> {
+  ...args: TypeIpcArgs<Type_ExecutorInvoke_Request<C>>
+): Promise<Type_ExecutorInvoke_Response<C>> {
   const result = await window.executor.invoke(command, ...args);
 
   if (result.success === false) {

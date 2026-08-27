@@ -1,6 +1,8 @@
-import type { TypeRunHistoryStatus } from "../../shared/run";
-import type { TypeRunConflictPolicy } from "../../shared/schedule";
-import type { TypeCustomProjectArgs, TypeLogLevel } from "../../shared/runOptions";
+// FileName: validation.ts
+
+import type { Str_RunHistory_Status } from "../../shared/run";
+import type { Str_RunConflictPolicy } from "../../shared/schedule";
+import type { Arr_CustomProjectArgs, Str_LogLevel } from "../../shared/runOptions";
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
@@ -22,102 +24,102 @@ export function ensureRecord(
 
 export function ensureExactRecord(
   value: unknown,
-  arrExpectedKey: readonly string[],
-  strSourceName: string,
+  expectedKeyArr: readonly string[],
+  sourceName: string,
 ): Record<string, unknown> {
-  const dictValue = ensureRecord(value, strSourceName);
-  const setExpectedKey = new Set(arrExpectedKey);
+  const dictValue = ensureRecord(value, sourceName);
+  const setExpectedKey = new Set(expectedKeyArr);
   const arrKey = Object.keys(dictValue);
   if (
     arrKey.length !== setExpectedKey.size ||
     arrKey.some((strKey) => !setExpectedKey.has(strKey))
   ) {
-    throw new Error(`${strSourceName} contains missing or unknown fields.`);
+    throw new Error(`${sourceName} contains missing or unknown fields.`);
   }
   return dictValue;
 }
 
-export function ensureString(value: unknown, strSourceName: string): string {
+export function ensureString(value: unknown, sourceName: string): string {
   if (typeof value !== "string") {
-    throw new Error(`${strSourceName} must be a string.`);
+    throw new Error(`${sourceName} must be a string.`);
   }
   return value;
 }
 
-export function ensureNonEmptyString(value: unknown, strSourceName: string): string {
-  const strValue = ensureString(value, strSourceName);
+export function ensureNonEmptyString(value: unknown, sourceName: string): string {
+  const strValue = ensureString(value, sourceName);
   if (strValue.trim() === "") {
-    throw new Error(`${strSourceName} cannot be empty.`);
+    throw new Error(`${sourceName} cannot be empty.`);
   }
   return strValue;
 }
 
 export function ensureTrimmedSingleLineString(
   value: unknown,
-  strSourceName: string,
+  sourceName: string,
   boolAllowEmpty = false,
 ): string {
-  const strValue = ensureString(value, strSourceName);
+  const strValue = ensureString(value, sourceName);
   if (!boolAllowEmpty && strValue.length === 0) {
-    throw new Error(`${strSourceName} cannot be empty.`);
+    throw new Error(`${sourceName} cannot be empty.`);
   }
   if (strValue !== strValue.trim()) {
-    throw new Error(`${strSourceName} cannot start or end with whitespace.`);
+    throw new Error(`${sourceName} cannot start or end with whitespace.`);
   }
   if (strValue.includes("\r") || strValue.includes("\n")) {
-    throw new Error(`${strSourceName} must be a single line.`);
+    throw new Error(`${sourceName} must be a single line.`);
   }
   return strValue;
 }
 
-export function ensureBoolean(value: unknown, strSourceName: string): boolean {
+export function ensureBoolean(value: unknown, sourceName: string): boolean {
   if (typeof value !== "boolean") {
-    throw new Error(`${strSourceName} must be a Boolean value.`);
+    throw new Error(`${sourceName} must be a Boolean value.`);
   }
   return value;
 }
 
-export function ensureFiniteNumber(value: unknown, strSourceName: string): number {
+export function ensureFiniteNumber(value: unknown, sourceName: string): number {
   if (typeof value !== "number" || !Number.isFinite(value)) {
-    throw new Error(`${strSourceName} must be a finite number.`);
+    throw new Error(`${sourceName} must be a finite number.`);
   }
   return value;
 }
 
-export function ensureNonNegativeInteger(value: unknown, strSourceName: string): number {
-  const intValue = ensureFiniteNumber(value, strSourceName);
+export function ensureNonNegativeInteger(value: unknown, sourceName: string): number {
+  const intValue = ensureFiniteNumber(value, sourceName);
   if (!Number.isSafeInteger(intValue) || intValue < 0) {
-    throw new Error(`${strSourceName} must be a non-negative safe integer.`);
+    throw new Error(`${sourceName} must be a non-negative safe integer.`);
   }
   return intValue;
 }
 
-export function ensurePositiveInteger(value: unknown, strSourceName: string): number {
-  const intValue = ensureNonNegativeInteger(value, strSourceName);
+export function ensurePositiveInteger(value: unknown, sourceName: string): number {
+  const intValue = ensureNonNegativeInteger(value, sourceName);
   if (intValue === 0) {
-    throw new Error(`${strSourceName} must be greater than 0.`);
+    throw new Error(`${sourceName} must be greater than 0.`);
   }
   return intValue;
 }
 
-export function ensureNullableString(value: unknown, strSourceName: string): string | null {
+export function ensureNullableString(value: unknown, sourceName: string): string | null {
   if (value === null) {
     return null;
   }
-  return ensureString(value, strSourceName);
+  return ensureString(value, sourceName);
 }
 
 export function ensureNullableNonNegativeInteger(
   value: unknown,
-  strSourceName: string,
+  sourceName: string,
 ): number | null {
   if (value === null) {
     return null;
   }
-  return ensureNonNegativeInteger(value, strSourceName);
+  return ensureNonNegativeInteger(value, sourceName);
 }
 
-export function ensureLogLevel(value: unknown, strSourceName: string): TypeLogLevel {
+export function ensureLogLevel(value: unknown, sourceName: string): Str_LogLevel {
   switch (value) {
     case "VERBOSE":
     case "DEBUG":
@@ -127,24 +129,24 @@ export function ensureLogLevel(value: unknown, strSourceName: string): TypeLogLe
     case "CRITICAL":
       return value;
     default:
-      throw new Error(`${strSourceName} contains an unsupported log level.`);
+      throw new Error(`${sourceName} contains an unsupported log level.`);
   }
 }
 
 export function ensureRunConflictPolicy(
   value: unknown,
-  strSourceName: string,
-): TypeRunConflictPolicy {
+  sourceName: string,
+): Str_RunConflictPolicy {
   if (value === "skip" || value === "wait" || value === "concurrent") {
     return value;
   }
-  throw new Error(`${strSourceName} must be 'skip', 'wait', or 'concurrent'.`);
+  throw new Error(`${sourceName} must be 'skip', 'wait', or 'concurrent'.`);
 }
 
 export function ensureRunHistoryStatus(
   value: unknown,
-  strSourceName: string,
-): TypeRunHistoryStatus {
+  sourceName: string,
+): Str_RunHistory_Status {
   switch (value) {
     case "running":
     case "completed":
@@ -154,14 +156,14 @@ export function ensureRunHistoryStatus(
     case "interrupted":
       return value;
     default:
-      throw new Error(`${strSourceName} contains an unsupported status.`);
+      throw new Error(`${sourceName} contains an unsupported status.`);
   }
 }
 
 export function ensureJsonValue(
   value: unknown,
-  strSourceName: string,
-  setAncestor = new Set<object>(),
+  sourceName: string,
+  ancestorSet = new Set<object>(),
 ): void {
   if (
     value === null ||
@@ -173,56 +175,56 @@ export function ensureJsonValue(
   }
 
   if (typeof value !== "object" || value === null) {
-    throw new Error(`${strSourceName} must be JSON-compatible.`);
+    throw new Error(`${sourceName} must be JSON-compatible.`);
   }
-  if (setAncestor.has(value)) {
-    throw new Error(`${strSourceName} cannot contain circular references.`);
+  if (ancestorSet.has(value)) {
+    throw new Error(`${sourceName} cannot contain circular references.`);
   }
 
-  setAncestor.add(value);
+  ancestorSet.add(value);
   try {
     if (Array.isArray(value)) {
       value.forEach((item, intIndex) => {
-        ensureJsonValue(item, `${strSourceName}[${intIndex}]`, setAncestor);
+        ensureJsonValue(item, `${sourceName}[${intIndex}]`, ancestorSet);
       });
       return;
     }
 
     if (!isRecord(value)) {
-      throw new Error(`${strSourceName} must be JSON-compatible.`);
+      throw new Error(`${sourceName} must be JSON-compatible.`);
     }
     for (const [strKey, item] of Object.entries(value)) {
-      ensureJsonValue(item, `${strSourceName}.${strKey}`, setAncestor);
+      ensureJsonValue(item, `${sourceName}.${strKey}`, ancestorSet);
     }
   } finally {
-    setAncestor.delete(value);
+    ancestorSet.delete(value);
   }
 }
 
 export function ensureCustomProjectArgs(
   value: unknown,
-  strSourceName: string,
-): TypeCustomProjectArgs {
+  sourceName: string,
+): Arr_CustomProjectArgs {
   if (!Array.isArray(value)) {
-    throw new Error(`${strSourceName} must be an array.`);
+    throw new Error(`${sourceName} must be an array.`);
   }
 
   const setArgumentName = new Set<string>();
   return value.map((item, intIndex) => {
     if (!Array.isArray(item) || item.length !== 2) {
-      throw new Error(`${strSourceName}[${intIndex}] must be a [string, value] pair.`);
+      throw new Error(`${sourceName}[${intIndex}] must be a [string, value] pair.`);
     }
 
     const strName = ensureTrimmedSingleLineString(
       item[0],
-      `${strSourceName}[${intIndex}][0]`,
+      `${sourceName}[${intIndex}][0]`,
     );
     if (setArgumentName.has(strName)) {
-      throw new Error(`${strSourceName} contains a duplicate argument name: ${strName}`);
+      throw new Error(`${sourceName} contains a duplicate argument name: ${strName}`);
     }
     setArgumentName.add(strName);
 
-    ensureJsonValue(item[1], `${strSourceName}[${intIndex}][1]`);
+    ensureJsonValue(item[1], `${sourceName}[${intIndex}][1]`);
     return [strName, item[1]];
   });
 }

@@ -1,10 +1,12 @@
+// FileName: lifecycle.ts
+
 import { loggerMain } from "../Logging/logger";
 
-type RunEndedListener = () => void;
+type Listener_RunEnded = () => void;
 
-const setRunEndedListener = new Set<RunEndedListener>();
+const setRunEndedListener = new Set<Listener_RunEnded>();
 
-export function onRunEnded(listener: RunEndedListener): () => void {
+export function onRunEnded(listener: Listener_RunEnded): () => void {
   setRunEndedListener.add(listener);
   return () => {
     setRunEndedListener.delete(listener);

@@ -1,11 +1,13 @@
+// FileName: scheduleRepository.ts
+
 import type Database from "better-sqlite3";
 
-import type { DictProjectRunDetail } from "../Run/types";
+import type { Dict_ProjectRun_Detail } from "../Run/types";
 import type {
-  DictScheduleCreate,
-  DictScheduleDetail,
-  DictScheduleListItem,
-  DictScheduleUpdate,
+  Dict_ScheduleCreate,
+  Dict_Detail_Schedule,
+  Dict_ListItem_Schedule,
+  Dict_ScheduleUpdate,
 } from "../../shared/schedule";
 import { loggerMain } from "../Logging/logger";
 import { getDatabase } from "./connection";
@@ -15,7 +17,7 @@ import {
   ensureScheduleRunDetailRow,
 } from "./rowValidation";
 
-export function dbSelectScheduleList(): DictScheduleListItem[] {
+export function dbSelectScheduleList(): Dict_ListItem_Schedule[] {
   loggerMain.debug("--dbSelectScheduleList--");
   const rows = getDatabase()
     .prepare(
@@ -40,7 +42,7 @@ export function dbSelectScheduleList(): DictScheduleListItem[] {
   return ensureScheduleListRows(rows, "Schedule list query result");
 }
 
-export function dbSelectScheduleDetail(name: string): DictScheduleDetail | undefined {
+export function dbSelectScheduleDetail(name: string): Dict_Detail_Schedule | undefined {
   loggerMain.debug("--dbSelectScheduleDetail--");
   const row = getDatabase()
     .prepare(
@@ -77,7 +79,7 @@ export function dbSelectScheduleDetail(name: string): DictScheduleDetail | undef
     : ensureScheduleDetailRow(row, "Schedule detail query result");
 }
 
-export function dbSelectScheduleRunDetail(name: string): DictProjectRunDetail | undefined {
+export function dbSelectScheduleRunDetail(name: string): Dict_ProjectRun_Detail | undefined {
   loggerMain.debug("--dbSelectScheduleRunDetail--");
   const row = getDatabase()
     .prepare(
@@ -107,7 +109,7 @@ export function dbSelectScheduleRunDetail(name: string): DictProjectRunDetail | 
     : ensureScheduleRunDetailRow(row, "Schedule Run detail query result");
 }
 
-export function dbInsertSchedule(dictDetail: DictScheduleCreate): Database.RunResult {
+export function dbInsertSchedule(detailDict: Dict_ScheduleCreate): Database.RunResult {
   loggerMain.debug("--dbInsertSchedule--");
   const intNowMs = Date.now();
   return getDatabase()
@@ -136,25 +138,25 @@ export function dbInsertSchedule(dictDetail: DictScheduleCreate): Database.RunRe
       `,
     )
     .run(
-      dictDetail.name,
-      dictDetail.project_id,
-      dictDetail.cron,
-      dictDetail.run_conflict_policy,
-      dictDetail.period_start_ms,
-      dictDetail.period_end_ms,
-      dictDetail.enable ? 1 : 0,
-      dictDetail.timeout_min,
-      dictDetail.builtin_log_level,
-      dictDetail.builtin_record_video ? 1 : 0,
-      dictDetail.builtin_stop_shortcut ? 1 : 0,
-      dictDetail.builtin_highlight_ui ? 1 : 0,
-      JSON.stringify(dictDetail.custom_prj_args),
+      detailDict.name,
+      detailDict.project_id,
+      detailDict.cron,
+      detailDict.run_conflict_policy,
+      detailDict.period_start_ms,
+      detailDict.period_end_ms,
+      detailDict.enable ? 1 : 0,
+      detailDict.timeout_min,
+      detailDict.builtin_log_level,
+      detailDict.builtin_record_video ? 1 : 0,
+      detailDict.builtin_stop_shortcut ? 1 : 0,
+      detailDict.builtin_highlight_ui ? 1 : 0,
+      JSON.stringify(detailDict.custom_prj_args),
       intNowMs,
       intNowMs,
     );
 }
 
-export function dbUpdateSchedule(dictDetail: DictScheduleUpdate): Database.RunResult {
+export function dbUpdateSchedule(detailDict: Dict_ScheduleUpdate): Database.RunResult {
   loggerMain.debug("--dbUpdateSchedule--");
   return getDatabase()
     .prepare(
@@ -180,21 +182,21 @@ export function dbUpdateSchedule(dictDetail: DictScheduleUpdate): Database.RunRe
       `,
     )
     .run(
-      dictDetail.name,
-      dictDetail.project_id,
-      dictDetail.cron,
-      dictDetail.run_conflict_policy,
-      dictDetail.period_start_ms,
-      dictDetail.period_end_ms,
-      dictDetail.enable ? 1 : 0,
-      dictDetail.timeout_min,
-      dictDetail.builtin_log_level,
-      dictDetail.builtin_record_video ? 1 : 0,
-      dictDetail.builtin_stop_shortcut ? 1 : 0,
-      dictDetail.builtin_highlight_ui ? 1 : 0,
-      JSON.stringify(dictDetail.custom_prj_args),
+      detailDict.name,
+      detailDict.project_id,
+      detailDict.cron,
+      detailDict.run_conflict_policy,
+      detailDict.period_start_ms,
+      detailDict.period_end_ms,
+      detailDict.enable ? 1 : 0,
+      detailDict.timeout_min,
+      detailDict.builtin_log_level,
+      detailDict.builtin_record_video ? 1 : 0,
+      detailDict.builtin_stop_shortcut ? 1 : 0,
+      detailDict.builtin_highlight_ui ? 1 : 0,
+      JSON.stringify(detailDict.custom_prj_args),
       Date.now(),
-      dictDetail.id,
+      detailDict.id,
     );
 }
 

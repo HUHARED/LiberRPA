@@ -1,3 +1,5 @@
+// FileName: projectRunner.ts
+
 import type { ChildProcessWithoutNullStreams } from "child_process";
 import { randomUUID } from "crypto";
 import fs from "fs";
@@ -7,10 +9,10 @@ import { getPythonEnvironmentPath } from "../Config/environment";
 import { dbInsertRunHistory, dbUpdateRunHistory } from "../Database/runHistoryRepository";
 import { getExecutorPackageFolderPath } from "../FileSystem/executorFiles";
 import { loggerMain } from "../Logging/logger";
-import type { DictProjectRunDetail } from "./types";
+import type { Dict_ProjectRun_Detail } from "./types";
 import { notifyRunEnded } from "./lifecycle";
 import {
-  type DictPythonProcessDiagnosticOutput,
+  type Dict_PythonProcess_DiagnosticOutput,
   isPythonProcessRunning,
   logPythonDiagnosticOutput,
   requestPythonTermination,
@@ -27,7 +29,7 @@ import {
   waitForExecutorRunStateAvailable,
 } from "./runState";
 
-type RunHistoryTerminalStatus = "cancel" | "completed" | "error" | "timeout";
+type Str_RunHistoryTerminalStatus = "cancel" | "completed" | "error" | "timeout";
 
 interface RunningPythonProcess {
   processPy: ChildProcessWithoutNullStreams;
@@ -61,12 +63,12 @@ function removeStartingRun(projectId: number): void {
 
 function trackActiveProjectProcess(
   processPy: ChildProcessWithoutNullStreams,
-  strRunId: string,
+  runId: string,
 ): void {
-  mapActiveProcessByRunId.set(strRunId, processPy);
+  mapActiveProcessByRunId.set(runId, processPy);
   processPy.once("close", () => {
-    if (mapActiveProcessByRunId.get(strRunId) === processPy) {
-      mapActiveProcessByRunId.delete(strRunId);
+    if (mapActiveProcessByRunId.get(runId) === processPy) {
+      mapActiveProcessByRunId.delete(runId);
     }
   });
 }
@@ -96,24 +98,24 @@ export function isProjectRunStarting(projectId: number): boolean {
   return mapStartingRunCountByProject.has(projectId);
 }
 
-export async function pythonRun(dictDetail: DictProjectRunDetail): Promise<void> {
+export async function pythonRun(detailDict: Dict_ProjectRun_Detail): Promise<void> {
   if (boolProjectRunShutdownStarted) {
     throw new Error("Executor is shutting down and cannot start a new Project Run.");
   }
 
-  addStartingRun(dictDetail.id);
+  addStartingRun(detailDict.id);
   try {
-    await startProjectRun(dictDetail);
+    await startProjectRun(detailDict);
   } finally {
-    removeStartingRun(dictDetail.id);
+    removeStartingRun(detailDict.id);
   }
 }
 
-async function startProjectRun(dictDetail: DictProjectRunDetail): Promise<void> {
+async function startProjectRun(detailDict: Dict_ProjectRun_Detail): Promise<void> {
   // Only the local source is supported now.
   const strExecutorPackagePath = getExecutorPackageFolderPath(
-    dictDetail.name,
-    dictDetail.version,
+    detailDict.name,
+    detailDict.version,
   );
 
   if (!fs.existsSync(strExecutorPackagePath)) {
@@ -121,10 +123,10 @@ async function startProjectRun(dictDetail: DictProjectRunDetail): Promise<void> 
   }
 
   const strPythonEnvironmentPath = getPythonEnvironmentPath(
-    dictDetail.python_environment_name,
+    detailDict.python_environment_name,
   );
   loggerMain.info(
-    `Use Python environment '${dictDetail.python_environment_name}' for ${dictDetail.name}-${dictDetail.version}.`,
+    `Use Python environment '${detailDict.python_environment_name}' for ${detailDict.name}-${detailDict.version}.`,
   );
 
   const strRunId = randomUUID();
@@ -132,7 +134,7 @@ async function startProjectRun(dictDetail: DictProjectRunDetail): Promise<void> 
   const strProjectLogRootPath = getEffectiveProjectLogFolderPath();
   const strRunStatePath = createExecutorRunStatePath(strRunId);
   const { processPy, diagnosticOutput, getProcessError } = spawnProjectPythonProcess({
-    detail: dictDetail,
+    detail: detailDict,
     packagePath: strExecutorPackagePath,
     pythonEnvironmentPath: strPythonEnvironmentPath,
     runId: strRunId,
@@ -146,8 +148,8 @@ async function startProjectRun(dictDetail: DictProjectRunDetail): Promise<void> 
     getProcessError,
     runId: strRunId,
     runStatePath: strRunStatePath,
-    packageName: dictDetail.name,
-    packageVersion: dictDetail.version,
+    packageName: detailDict.name,
+    packageVersion: detailDict.version,
     expectedLogRootPath: strProjectLogRootPath,
     diagnosticOutput,
   });
@@ -159,7 +161,7 @@ async function startProjectRun(dictDetail: DictProjectRunDetail): Promise<void> 
     runId: strRunId,
     runStatePath: strRunStatePath,
     runState: dictRunState,
-    detail: dictDetail,
+    detail: detailDict,
     diagnosticOutput,
   });
 
@@ -167,8 +169,8 @@ async function startProjectRun(dictDetail: DictProjectRunDetail): Promise<void> 
 
   let boolTimeout = false;
   let timeoutId: NodeJS.Timeout | undefined;
-  if (dictDetail.timeout_min !== 0) {
-    loggerMain.info(`Set timeout: ${dictDetail.timeout_min}`);
+  if (detailDict.timeout_min !== 0) {
+    loggerMain.info(`Set timeout: ${detailDict.timeout_min}`);
     timeoutId = setTimeout(
       () => {
         if (!isPythonProcessRunning(processPy)) {
@@ -176,11 +178,11 @@ async function startProjectRun(dictDetail: DictProjectRunDetail): Promise<void> 
         }
 
         loggerMain.info(
-          `Timeout reached. Stopping ${dictDetail.name}-${dictDetail.version}`,
+          `Timeout reached. Stopping ${detailDict.name}-${detailDict.version}`,
         );
         boolTimeout = requestPythonTermination(processPy, strRunId);
       },
-      dictDetail.timeout_min * 60 * 1000,
+      detailDict.timeout_min * 60 * 1000,
     );
   }
 
@@ -192,7 +194,7 @@ async function startProjectRun(dictDetail: DictProjectRunDetail): Promise<void> 
     boolFinalized = true;
 
     loggerMain.info(
-      `${dictDetail.name}-${dictDetail.version} exited with code ${String(intExitCode)}${
+      `${detailDict.name}-${detailDict.version} exited with code ${String(intExitCode)}${
         strSignal === null ? "" : ` and signal ${strSignal}`
       }`,
     );
@@ -201,7 +203,7 @@ async function startProjectRun(dictDetail: DictProjectRunDetail): Promise<void> 
       clearTimeout(timeoutId);
     }
 
-    let strRunHistoryStatus: RunHistoryTerminalStatus = "error";
+    let strRunHistoryStatus: Str_RunHistoryTerminalStatus = "error";
     let boolUnexpectedProcessFailure = getProcessError() !== undefined;
     let intRunEndedAtMs = Date.now();
 
@@ -209,8 +211,8 @@ async function startProjectRun(dictDetail: DictProjectRunDetail): Promise<void> 
       const dictFinalState = readExecutorRunState({
         filePath: strRunStatePath,
         expectedRunId: strRunId,
-        expectedPackageName: dictDetail.name,
-        expectedPackageVersion: dictDetail.version,
+        expectedPackageName: detailDict.name,
+        expectedPackageVersion: detailDict.version,
         expectedLogRootPath: strProjectLogRootPath,
         expectedLogPath: dictRunState.logPath,
       });
@@ -305,7 +307,7 @@ async function getInitialRunState({
   packageName: string;
   packageVersion: string;
   expectedLogRootPath: string;
-  diagnosticOutput: DictPythonProcessDiagnosticOutput;
+  diagnosticOutput: Dict_PythonProcess_DiagnosticOutput;
 }): Promise<ExecutorRunState> {
   try {
     return await waitForExecutorRunStateAvailable({
@@ -344,8 +346,8 @@ async function createRunHistory({
   runId: string;
   runStatePath: string;
   runState: ExecutorRunState;
-  detail: DictProjectRunDetail;
-  diagnosticOutput: DictPythonProcessDiagnosticOutput;
+  detail: Dict_ProjectRun_Detail;
+  diagnosticOutput: Dict_PythonProcess_DiagnosticOutput;
 }): Promise<number> {
   try {
     const intRunHistoryIdValue = dbInsertRunHistory({

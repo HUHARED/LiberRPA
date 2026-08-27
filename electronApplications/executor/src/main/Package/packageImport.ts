@@ -1,3 +1,5 @@
+// FileName: packageImport.ts
+
 import { dialog } from "electron";
 import fs from "fs";
 
@@ -7,7 +9,7 @@ import {
 } from "../Database/projectRepository";
 import { getExecutorPackageFolderPath } from "../FileSystem/executorFiles";
 import { loggerMain } from "../Logging/logger";
-import type { DictProjectPackageImportResult } from "../../shared/project";
+import type { Dict_ProjectPackage_ImportResult } from "../../shared/project";
 import { validatePackagedFlowProject } from "./componentManagementClient";
 import { extractProjectPackageArchive, getTargetFolderName } from "./packageArchive";
 import {
@@ -19,7 +21,7 @@ import { readProjectPackageMetadata } from "./packageMetadata";
 
 let boolPackageImportRunning = false;
 
-async function runProjectPackageImport(): Promise<DictProjectPackageImportResult> {
+async function runProjectPackageImport(): Promise<Dict_ProjectPackage_ImportResult> {
   const dialogResult = await dialog.showOpenDialog({
     properties: ["openFile"],
     title: "Select a Flow Project Package",
@@ -106,7 +108,7 @@ async function runProjectPackageImport(): Promise<DictProjectPackageImportResult
   }
 }
 
-export async function importProjectPackage(): Promise<DictProjectPackageImportResult> {
+export async function importProjectPackage(): Promise<Dict_ProjectPackage_ImportResult> {
   if (boolPackageImportRunning) {
     throw new Error("Another Project Package import is already running.");
   }

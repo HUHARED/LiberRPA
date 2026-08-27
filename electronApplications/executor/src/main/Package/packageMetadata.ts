@@ -1,3 +1,5 @@
+// FileName: packageMetadata.ts
+
 import fs from "fs";
 import path from "path";
 
@@ -10,9 +12,9 @@ import {
   ensureString,
   ensureTrimmedSingleLineString,
 } from "../Common/validation";
-import { DEFAULT_PYTHON_ENVIRONMENT_NAME } from "../Config/environment";
-import type { DictProjectCreate } from "../../shared/project";
-import type { TypeCustomProjectArgs, TypeLogLevel } from "../../shared/runOptions";
+import { STR_DEFAULT_PYTHON_ENVIRONMENT_NAME } from "../Config/environment";
+import type { Dict_ProjectCreate } from "../../shared/project";
+import type { Arr_CustomProjectArgs, Str_LogLevel } from "../../shared/runOptions";
 
 interface DictFlowManifest {
   schemaVersion: 1;
@@ -28,24 +30,23 @@ interface DictPackageManifest {
   versionSummary: string;
 }
 
-interface DictProjectFlowRuntimeSettings {
-  logLevel: TypeLogLevel;
+interface DictProjectFlow_RuntimeSettings {
+  logLevel: Str_LogLevel;
   recordVideo: boolean;
   stopShortcut: boolean;
   highlightUi: boolean;
-  customPrjArgs: TypeCustomProjectArgs;
+  customPrjArgs: Arr_CustomProjectArgs;
 }
 
-export interface DictProjectPackageMetadata {
+export interface Dict_ProjectPackage_Metadata {
   name: string;
   version: string;
-  projectDetail: DictProjectCreate;
+  projectDetail: Dict_ProjectCreate;
 }
 
 const STR_FLOW_MANIFEST_FILE_NAME = "flow.json";
 const STR_PACKAGE_MANIFEST_FILE_NAME = ".liberrpa-package.json";
 const STR_PROJECT_FLOW_FILE_NAME = "project.flow";
-const STR_LEGACY_PROJECT_FILE_NAME = "project.json";
 
 function readJsonFile(strFilePath: string): unknown {
   try {
@@ -118,11 +119,11 @@ function parsePackageManifest(value: unknown): DictPackageManifest {
   };
 }
 
-function parseCustomProjectArguments(value: unknown): TypeCustomProjectArgs {
+function parseCustomProjectArguments(value: unknown): Arr_CustomProjectArgs {
   return ensureCustomProjectArgs(value, "project.flow customPrjArgs");
 }
 
-function parseProjectFlowRuntimeSettings(value: unknown): DictProjectFlowRuntimeSettings {
+function parseProjectFlowRuntimeSettings(value: unknown): DictProjectFlow_RuntimeSettings {
   const dictFlow = ensureExactRecord(
     value,
     [
@@ -153,10 +154,10 @@ function parseProjectFlowRuntimeSettings(value: unknown): DictProjectFlowRuntime
   };
 }
 
-function readRequiredRootJson(strProjectPath: string, strFileName: string): unknown {
-  const strFilePath = path.join(strProjectPath, strFileName);
+function readRequiredRootJson(projectPath: string, fileName: string): unknown {
+  const strFilePath = path.join(projectPath, fileName);
   if (!fs.existsSync(strFilePath) || !fs.statSync(strFilePath).isFile()) {
-    throw new Error(`The Package does not contain ${strFileName} at its root.`);
+    throw new Error(`The Package does not contain ${fileName} at its root.`);
   }
   return readJsonFile(strFilePath);
 }
@@ -164,14 +165,14 @@ function readRequiredRootJson(strProjectPath: string, strFileName: string): unkn
 function buildProjectDetail(
   flowManifest: DictFlowManifest,
   packageManifest: DictPackageManifest,
-  runtimeSettings: DictProjectFlowRuntimeSettings,
-): DictProjectCreate {
+  runtimeSettings: DictProjectFlow_RuntimeSettings,
+): Dict_ProjectCreate {
   return {
     name: flowManifest.name,
     version: flowManifest.version,
     description: flowManifest.description,
     version_summary: packageManifest.versionSummary,
-    python_environment_name: DEFAULT_PYTHON_ENVIRONMENT_NAME,
+    python_environment_name: STR_DEFAULT_PYTHON_ENVIRONMENT_NAME,
     timeout_min: 0,
     builtin_log_level: runtimeSettings.logLevel,
     builtin_record_video: runtimeSettings.recordVideo,
@@ -182,23 +183,16 @@ function buildProjectDetail(
 }
 
 export function readProjectPackageMetadata(
-  strProjectPath: string,
-): DictProjectPackageMetadata {
-  const strLegacyProjectPath = path.join(strProjectPath, STR_LEGACY_PROJECT_FILE_NAME);
-  if (fs.existsSync(strLegacyProjectPath)) {
-    throw new Error(
-      "This is a legacy project.json Package. Create a new Package with the current Project Manager.",
-    );
-  }
-
+  projectPath: string,
+): Dict_ProjectPackage_Metadata {
   const flowManifest = parseFlowManifest(
-    readRequiredRootJson(strProjectPath, STR_FLOW_MANIFEST_FILE_NAME),
+    readRequiredRootJson(projectPath, STR_FLOW_MANIFEST_FILE_NAME),
   );
   const packageManifest = parsePackageManifest(
-    readRequiredRootJson(strProjectPath, STR_PACKAGE_MANIFEST_FILE_NAME),
+    readRequiredRootJson(projectPath, STR_PACKAGE_MANIFEST_FILE_NAME),
   );
   const runtimeSettings = parseProjectFlowRuntimeSettings(
-    readRequiredRootJson(strProjectPath, STR_PROJECT_FLOW_FILE_NAME),
+    readRequiredRootJson(projectPath, STR_PROJECT_FLOW_FILE_NAME),
   );
 
   return {

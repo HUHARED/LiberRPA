@@ -1,3 +1,5 @@
+// FileName: packageArchive.ts
+
 import fs from "fs";
 import path from "path";
 import AdmZip from "adm-zip";
@@ -30,31 +32,31 @@ const SET_RESERVED_WINDOWS_NAME = new Set([
 ]);
 const REGEX_INVALID_WINDOWS_NAME_CHARACTER = /[<>:"/\\|?*]/;
 
-function getWindowsFolderNameError(strName: string): string | undefined {
-  if (strName.length === 0 || strName !== strName.trim()) {
+function getWindowsFolderNameError(name: string): string | undefined {
+  if (name.length === 0 || name !== name.trim()) {
     return "Folder name cannot be empty or start/end with whitespace.";
   }
-  if (REGEX_INVALID_WINDOWS_NAME_CHARACTER.test(strName)) {
+  if (REGEX_INVALID_WINDOWS_NAME_CHARACTER.test(name)) {
     return "Folder name contains Windows reserved characters.";
   }
-  if ([...strName].some((strCharacter) => strCharacter.charCodeAt(0) <= 0x1f)) {
+  if ([...name].some((strCharacter) => strCharacter.charCodeAt(0) <= 0x1f)) {
     return "Folder name contains ASCII control characters.";
   }
-  if (strName.endsWith(".")) {
+  if (name.endsWith(".")) {
     return "Folder name cannot end with a period.";
   }
-  const strBaseName = strName.split(".", 1)[0]?.toUpperCase();
+  const strBaseName = name.split(".", 1)[0]?.toUpperCase();
   if (strBaseName !== undefined && SET_RESERVED_WINDOWS_NAME.has(strBaseName)) {
-    return `Folder name '${strName}' is reserved by Windows.`;
+    return `Folder name '${name}' is reserved by Windows.`;
   }
-  if (strName.length > 255) {
+  if (name.length > 255) {
     return "Folder name cannot be longer than 255 characters.";
   }
   return undefined;
 }
 
-export function getTargetFolderName(strName: string, strVersion: string): string {
-  const strFolderName = `${strName}_${strVersion}`;
+export function getTargetFolderName(name: string, version: string): string {
+  const strFolderName = `${name}_${version}`;
   const strError = getWindowsFolderNameError(strFolderName);
   if (strError !== undefined) {
     throw new Error(`Cannot create the Executor Package folder: ${strError}`);
@@ -62,13 +64,13 @@ export function getTargetFolderName(strName: string, strVersion: string): string
   return strFolderName;
 }
 
-function getNormalizedZipEntryName(strEntryName: string): string {
-  if (strEntryName.includes("\0")) {
-    throw new Error(`ZIP entry contains a null character: ${strEntryName}`);
+function getNormalizedZipEntryName(entryName: string): string {
+  if (entryName.includes("\0")) {
+    throw new Error(`ZIP entry contains a null character: ${entryName}`);
   }
-  const strForwardSlashName = strEntryName.replace(/\\/g, "/");
+  const strForwardSlashName = entryName.replace(/\\/g, "/");
   if (strForwardSlashName.startsWith("/") || /^[A-Za-z]:/.test(strForwardSlashName)) {
-    throw new Error(`ZIP entry uses an absolute path: ${strEntryName}`);
+    throw new Error(`ZIP entry uses an absolute path: ${entryName}`);
   }
 
   const arrPart = strForwardSlashName.split("/");
@@ -79,7 +81,7 @@ function getNormalizedZipEntryName(strEntryName: string): string {
     arrPart.length === 0 ||
     arrPart.some((strPart) => strPart === "" || strPart === "." || strPart === "..")
   ) {
-    throw new Error(`ZIP entry uses an invalid path: ${strEntryName}`);
+    throw new Error(`ZIP entry uses an invalid path: ${entryName}`);
   }
   for (const strPart of arrPart) {
     const strError = getWindowsFolderNameError(strPart);
@@ -151,8 +153,8 @@ function validateZipEntries(zipObj: AdmZip): void {
   }
 }
 
-function validateExtractedTree(strRootPath: string): void {
-  const arrPendingPath = [strRootPath];
+function validateExtractedTree(rootPath: string): void {
+  const arrPendingPath = [rootPath];
   while (arrPendingPath.length > 0) {
     const strCurrentPath = arrPendingPath.pop();
     if (strCurrentPath === undefined) {
@@ -174,11 +176,11 @@ function validateExtractedTree(strRootPath: string): void {
 }
 
 export function extractProjectPackageArchive(
-  strPackageFilePath: string,
-  strStagedProjectPath: string,
+  packageFilePath: string,
+  stagedProjectPath: string,
 ): void {
-  const zipObj = new AdmZip(strPackageFilePath);
+  const zipObj = new AdmZip(packageFilePath);
   validateZipEntries(zipObj);
-  zipObj.extractAllTo(strStagedProjectPath, false);
-  validateExtractedTree(strStagedProjectPath);
+  zipObj.extractAllTo(stagedProjectPath, false);
+  validateExtractedTree(stagedProjectPath);
 }

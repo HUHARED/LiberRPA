@@ -1,3 +1,4 @@
+<!-- FileName: RunHistory.vue -->
 <template>
   <v-container fluid class="clean-space flex-row-grow-1 fill-height flex-column">
     <v-label class="header-label tab-header">Run History</v-label>
@@ -152,10 +153,10 @@ import { useRunHistoryStore } from "../../Store/runHistoryStore";
 import { useSettingStore } from "../../Store/settingStore";
 import { formatTimestamp } from "../../Common/time";
 import type {
-  DictRunHistoryItem,
-  DictRunHistoryOptions,
-  DictRunHistorySearch,
-  TypeRunHistoryStatus,
+  Dict_RunHistory_Item,
+  Dict_RunHistory_Options,
+  Dict_RunHistory_Search,
+  Str_RunHistory_Status,
 } from "../../../../shared/run";
 
 const runHistoryStore = useRunHistoryStore();
@@ -169,7 +170,7 @@ const arrItemsPerPageOptions = [
   { value: 100, title: "100" },
 ];
 
-const dictSearch = computed<DictRunHistorySearch>(() => {
+const dictSearch = computed<Dict_RunHistory_Search>(() => {
   return {
     schedule_name: runHistoryStore.filterScheduleName,
     project_name: runHistoryStore.filterProjectName,
@@ -195,22 +196,22 @@ onBeforeUnmount(() => {
   debouncedUpdateSearch.cancel();
 });
 
-type DictRunHistoryTableOptions = Omit<DictRunHistoryOptions, "search"> & {
+type Dict_RunHistory_Options_Table = Omit<Dict_RunHistory_Options, "search"> & {
   search: string;
 };
 
 async function handleTableOptionsUpdate(
-  options: DictRunHistoryTableOptions,
+  optionsDict: Dict_RunHistory_Options_Table,
 ): Promise<void> {
   await runHistoryStore.loadRunHistoryPage({
-    page: options.page,
-    itemsPerPage: options.itemsPerPage,
-    sortBy: cloneJsonSerializable(options.sortBy),
+    page: optionsDict.page,
+    itemsPerPage: optionsDict.itemsPerPage,
+    sortBy: cloneJsonSerializable(optionsDict.sortBy),
     search: cloneJsonSerializable(dictSearch.value),
   });
 }
 
-const arrHeader: DataTableHeader<DictRunHistoryItem>[] = [
+const arrHeader: DataTableHeader<Dict_RunHistory_Item>[] = [
   { title: "Schedule", value: "schedule_name", align: "start", sortable: true },
   {
     title: "Project",
@@ -237,7 +238,7 @@ const arrHeader: DataTableHeader<DictRunHistoryItem>[] = [
   { title: "Actions", key: "actions", align: "start", sortable: false },
 ];
 
-function getStatusLabel(status: TypeRunHistoryStatus): string {
+function getStatusLabel(status: Str_RunHistory_Status): string {
   switch (status) {
     case "running":
       return "Running";
@@ -254,7 +255,7 @@ function getStatusLabel(status: TypeRunHistoryStatus): string {
   }
 }
 
-function getStatusColor(status: TypeRunHistoryStatus): string {
+function getStatusColor(status: Str_RunHistory_Status): string {
   switch (status) {
     case "running":
       return "success";

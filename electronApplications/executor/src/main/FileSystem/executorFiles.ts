@@ -1,3 +1,5 @@
+// FileName: executorFiles.ts
+
 import { shell } from "electron";
 import fs from "fs";
 import path from "path";
@@ -10,8 +12,8 @@ export const strExecutorPackageFolderPath = path.join(
   "ExecutorPackage",
 );
 
-export function getExecutorPackageFolderPath(strName: string, strVersion: string): string {
-  const strFolderPath = path.join(strExecutorPackageFolderPath, `${strName}_${strVersion}`);
+export function getExecutorPackageFolderPath(name: string, version: string): string {
+  const strFolderPath = path.join(strExecutorPackageFolderPath, `${name}_${version}`);
   const strResolvedRoot = path.resolve(strExecutorPackageFolderPath);
   const strResolvedFolder = path.resolve(strFolderPath);
   if (!strResolvedFolder.startsWith(`${strResolvedRoot}${path.sep}`)) {

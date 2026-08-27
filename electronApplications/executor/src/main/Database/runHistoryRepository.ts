@@ -1,9 +1,11 @@
+// FileName: runHistoryRepository.ts
+
 import type Database from "better-sqlite3";
 
 import type {
-  DictRunHistoryOptions,
-  DictRunHistoryPage,
-  TypeRunHistoryStatus,
+  Dict_RunHistory_Options,
+  Dict_RunHistory_Page,
+  Str_RunHistory_Status,
 } from "../../shared/run";
 import { loggerMain } from "../Logging/logger";
 import { getDatabase } from "./connection";
@@ -14,7 +16,7 @@ import {
   ensureRunHistoryListRows,
 } from "./rowValidation";
 
-interface DictRunHistoryInsert {
+interface Dict_RunHistory_Insert {
   schedule_name: string | null;
   project_id: number;
   project_name: string;
@@ -25,7 +27,7 @@ interface DictRunHistoryInsert {
   log_path: string;
 }
 
-type DictRunHistoryUpdate =
+type Dict_RunHistory_Update =
   | {
       id: number;
       run_ended_at_ms: number;
@@ -38,7 +40,7 @@ type DictRunHistoryUpdate =
     };
 
 const MAP_RUN_HISTORY_SORT_COLUMN: Record<
-  DictRunHistoryOptions["sortBy"][number]["key"],
+  Dict_RunHistory_Options["sortBy"][number]["key"],
   string
 > = {
   schedule_name: "schedule_name",
@@ -50,7 +52,7 @@ const MAP_RUN_HISTORY_SORT_COLUMN: Record<
   status: "status",
 };
 
-export function dbInsertRunHistory(dictDetail: DictRunHistoryInsert): Database.RunResult {
+export function dbInsertRunHistory(detailDict: Dict_RunHistory_Insert): Database.RunResult {
   loggerMain.debug("--dbInsertRunHistory--");
   const intNowMs = Date.now();
   return getDatabase()
@@ -74,20 +76,20 @@ export function dbInsertRunHistory(dictDetail: DictRunHistoryInsert): Database.R
       `,
     )
     .run(
-      dictDetail.schedule_name,
-      dictDetail.project_id,
-      dictDetail.project_name,
-      dictDetail.project_version,
-      dictDetail.python_environment_name,
-      dictDetail.run_started_at_ms,
-      dictDetail.status,
-      dictDetail.log_path,
+      detailDict.schedule_name,
+      detailDict.project_id,
+      detailDict.project_name,
+      detailDict.project_version,
+      detailDict.python_environment_name,
+      detailDict.run_started_at_ms,
+      detailDict.status,
+      detailDict.log_path,
       intNowMs,
       intNowMs,
     );
 }
 
-export function dbUpdateRunHistory(dictDetail: DictRunHistoryUpdate): Database.RunResult {
+export function dbUpdateRunHistory(detailDict: Dict_RunHistory_Update): Database.RunResult {
   loggerMain.debug("--dbUpdateRunHistory--");
   return getDatabase()
     .prepare(
@@ -101,7 +103,7 @@ export function dbUpdateRunHistory(dictDetail: DictRunHistoryUpdate): Database.R
           id = ?;
       `,
     )
-    .run(dictDetail.run_ended_at_ms, dictDetail.status, Date.now(), dictDetail.id);
+    .run(detailDict.run_ended_at_ms, detailDict.status, Date.now(), detailDict.id);
 }
 
 export function dbMarkRunningRunsInterrupted(): void {
@@ -164,7 +166,9 @@ export function dbSelectRunHistoryLogPath(id: number): string | undefined {
     : ensureLogPathRow(row, "Run History log path query result");
 }
 
-export function dbSelectRunHistoryPage(options: DictRunHistoryOptions): DictRunHistoryPage {
+export function dbSelectRunHistoryPage(
+  options: Dict_RunHistory_Options,
+): Dict_RunHistory_Page {
   loggerMain.debug("--dbSelectRunHistoryPage--");
 
   if (!Number.isSafeInteger(options.page) || options.page < 1) {
@@ -178,7 +182,7 @@ export function dbSelectRunHistoryPage(options: DictRunHistoryOptions): DictRunH
   }
 
   const arrWhereClause: string[] = [];
-  const arrWhereParam: (string | TypeRunHistoryStatus)[] = [];
+  const arrWhereParam: (string | Str_RunHistory_Status)[] = [];
   if (options.search.schedule_name.trim() !== "") {
     arrWhereClause.push("schedule_name LIKE ?");
     arrWhereParam.push(`%${options.search.schedule_name.trim()}%`);
@@ -256,7 +260,7 @@ export function dbSelectRunHistoryPage(options: DictRunHistoryOptions): DictRunH
   return { rows: arrRow, total: intTotal };
 }
 
-export function dbSelectLogFolderBefore(intCutoffMs: number): string[] {
+export function dbSelectLogFolderBefore(cutoffMs: number): string[] {
   loggerMain.debug("--dbSelectLogFolderBefore--");
   const rows = getDatabase()
     .prepare(
@@ -273,12 +277,12 @@ export function dbSelectLogFolderBefore(intCutoffMs: number): string[] {
           COALESCE(run_ended_at_ms, run_started_at_ms) DESC;
       `,
     )
-    .all(intCutoffMs);
+    .all(cutoffMs);
 
   return ensureLogPathRows(rows, "Expired log folder query result");
 }
 
-export function dbSelectVideoBefore(intCutoffMs: number): string[] {
+export function dbSelectVideoBefore(cutoffMs: number): string[] {
   loggerMain.debug("--dbSelectVideoBefore--");
   const rows = getDatabase()
     .prepare(
@@ -295,7 +299,7 @@ export function dbSelectVideoBefore(intCutoffMs: number): string[] {
           COALESCE(run_ended_at_ms, run_started_at_ms) DESC;
       `,
     )
-    .all(intCutoffMs);
+    .all(cutoffMs);
 
   return ensureLogPathRows(rows, "Expired video query result");
 }
@@ -321,7 +325,7 @@ export function dbSelectVideo(): string[] {
   return ensureLogPathRows(rows, "Video query result");
 }
 
-export function dbUpdateNoLogFolderAndVideo(strLogPath: string): void {
+export function dbUpdateNoLogFolderAndVideo(logPath: string): void {
   loggerMain.debug("--dbUpdateNoLogFolderAndVideo--");
   getDatabase()
     .prepare(
@@ -335,10 +339,10 @@ export function dbUpdateNoLogFolderAndVideo(strLogPath: string): void {
           log_path = ?;
       `,
     )
-    .run(Date.now(), strLogPath);
+    .run(Date.now(), logPath);
 }
 
-export function dbUpdateNoVideo(strLogPath: string): void {
+export function dbUpdateNoVideo(logPath: string): void {
   loggerMain.debug("--dbUpdateNoVideo--");
   getDatabase()
     .prepare(
@@ -351,5 +355,5 @@ export function dbUpdateNoVideo(strLogPath: string): void {
           log_path = ?;
       `,
     )
-    .run(Date.now(), strLogPath);
+    .run(Date.now(), logPath);
 }

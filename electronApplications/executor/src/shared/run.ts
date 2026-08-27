@@ -1,6 +1,6 @@
 // FileName: run.ts
 
-export type TypeRunHistoryStatus =
+export type Str_RunHistory_Status =
   | "running"
   | "completed"
   | "error"
@@ -8,7 +8,7 @@ export type TypeRunHistoryStatus =
   | "timeout"
   | "interrupted";
 
-export interface DictRunHistoryItem {
+export interface Dict_RunHistory_Item {
   id: number;
   schedule_name: string | null;
   project_name: string;
@@ -16,17 +16,17 @@ export interface DictRunHistoryItem {
   python_environment_name: string;
   run_started_at_ms: number;
   run_ended_at_ms: number | null;
-  status: TypeRunHistoryStatus;
+  status: Str_RunHistory_Status;
 }
 
-export interface DictRunHistorySearch {
+export interface Dict_RunHistory_Search {
   schedule_name: string;
   project_name: string;
   project_version: string;
-  status: TypeRunHistoryStatus | null;
+  status: Str_RunHistory_Status | null;
 }
 
-export interface DictRunHistoryOptions {
+export interface Dict_RunHistory_Options {
   page: number;
   itemsPerPage: number;
   sortBy: {
@@ -41,15 +41,15 @@ export interface DictRunHistoryOptions {
     order: "asc" | "desc";
   }[];
   // Vuetify also sends an unused groupBy value.
-  search: DictRunHistorySearch;
+  search: Dict_RunHistory_Search;
 }
 
-export interface DictRunHistoryPage {
-  rows: DictRunHistoryItem[];
+export interface Dict_RunHistory_Page {
+  rows: Dict_RunHistory_Item[];
   total: number;
 }
 
-export interface DictRunQueueListItem {
+export interface Dict_ListItem_RunQueue {
   schedule_name: string;
   project_name: string;
   project_version: string;

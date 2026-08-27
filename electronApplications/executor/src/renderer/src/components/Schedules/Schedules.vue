@@ -1,3 +1,4 @@
+<!-- FileName: Schedules.vue -->
 <template>
   <v-container fluid class="clean-space flex-row-grow-1 fill-height flex-column">
     <v-label class="header-label tab-header">Schedules</v-label>
@@ -94,7 +95,7 @@ import { getDefaultSchedulePeriod } from "../../Common/time";
 import { loggerRenderer } from "../../Logging/logger";
 import { useScheduleStore } from "../../Store/scheduleStore";
 import { useSettingStore } from "../../Store/settingStore";
-import type { DictScheduleListItem } from "../../../../shared/schedule";
+import type { Dict_ListItem_Schedule } from "../../../../shared/schedule";
 
 const scheduleStore = useScheduleStore();
 const settingStore = useSettingStore();
@@ -122,8 +123,8 @@ function newSchedule(): void {
     project_version: undefined,
     cron: "0 8 * * *",
     run_conflict_policy: "skip",
-    period_start: dictDefaultPeriod.strPeriodStartLocal,
-    period_end: dictDefaultPeriod.strPeriodEndLocal,
+    period_start: dictDefaultPeriod.periodStartLocal,
+    period_end: dictDefaultPeriod.periodEndLocal,
     enable: true,
     timeout_min: 0,
     builtin_log_level: "DEBUG",
@@ -137,7 +138,7 @@ function newSchedule(): void {
   scheduleStore.showFormDialog = true;
 }
 
-const arrHeader: DataTableHeader<DictScheduleListItem>[] = [
+const arrHeader: DataTableHeader<Dict_ListItem_Schedule>[] = [
   { title: "Name", value: "name", align: "start", sortable: true },
   {
     title: "Project",

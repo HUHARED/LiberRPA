@@ -1,7 +1,9 @@
-import { useInformationStore } from "../Store/informationStore";
-import type { TypeCustomProjectArgs, TypeLogLevel } from "../../../shared/runOptions";
+// FileName: runOptions.ts
 
-export const ARR_LOG_LEVEL: TypeLogLevel[] = [
+import { useInformationStore } from "../Store/informationStore";
+import type { Arr_CustomProjectArgs, Str_LogLevel } from "../../../shared/runOptions";
+
+export const ARR_LOG_LEVEL: Str_LogLevel[] = [
   "VERBOSE",
   "DEBUG",
   "INFO",
@@ -25,16 +27,16 @@ export function getArgumentValueNote(value: unknown): string {
 }
 
 export function updateCustomProjectArgumentValue(
-  arrCustomProjectArgument: TypeCustomProjectArgs,
-  arrValueCache: string[],
+  customProjectArgumentArr: Arr_CustomProjectArgs,
+  valueCacheArr: string[],
   index: number,
   value: string,
 ): void {
   try {
-    arrCustomProjectArgument[index][1] = JSON.parse(value);
+    customProjectArgumentArr[index][1] = JSON.parse(value);
   } catch {
     const informationStore = useInformationStore();
     informationStore.showAlertMessage(`It can't be deserialized: ${value}`);
-    arrValueCache[index] = JSON.stringify(arrCustomProjectArgument[index][1]);
+    valueCacheArr[index] = JSON.stringify(customProjectArgumentArr[index][1]);
   }
 }

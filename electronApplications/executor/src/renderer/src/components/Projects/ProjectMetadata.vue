@@ -1,3 +1,4 @@
+<!-- FileName: ProjectMetadata.vue -->
 <template>
   <v-container v-if="projectStore.dictDetailEdit" fluid class="clean-space">
     <v-container fluid class="pa-2 ma-0">

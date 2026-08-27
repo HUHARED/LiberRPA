@@ -1,9 +1,11 @@
+// FileName: projectRepository.ts
+
 import type Database from "better-sqlite3";
 
 import type {
-  DictProjectCreate,
-  DictProjectDetail,
-  DictProjectSettingsUpdate,
+  Dict_ProjectCreate,
+  Dict_ProjectDetail,
+  Dict_ProjectSettingsUpdate,
 } from "../../shared/project";
 import { loggerMain } from "../Logging/logger";
 import { getDatabase } from "./connection";
@@ -69,7 +71,7 @@ export function dbSelectProjectBoundSchedules(id: number): { name: string }[] {
 export function dbSelectProjectDetail(
   name: string,
   version: string,
-): DictProjectDetail | undefined {
+): Dict_ProjectDetail | undefined {
   loggerMain.debug("--dbSelectProjectDetail--");
   const row = getDatabase()
     .prepare(
@@ -102,7 +104,7 @@ export function dbSelectProjectDetail(
     : ensureProjectDetailRow(row, "Project detail query result");
 }
 
-export function dbSelectProjectDetailById(id: number): DictProjectDetail | undefined {
+export function dbSelectProjectDetailById(id: number): Dict_ProjectDetail | undefined {
   loggerMain.debug("--dbSelectProjectDetailById--");
   const row = getDatabase()
     .prepare(
@@ -134,7 +136,7 @@ export function dbSelectProjectDetailById(id: number): DictProjectDetail | undef
     : ensureProjectDetailRow(row, "Project detail by ID query result");
 }
 
-export function dbInsertProjectDetail(dictDetail: DictProjectCreate): Database.RunResult {
+export function dbInsertProjectDetail(dictDetail: Dict_ProjectCreate): Database.RunResult {
   loggerMain.debug("--dbInsertProjectDetail--");
   const intNowMs = Date.now();
   return getDatabase()
@@ -178,7 +180,7 @@ export function dbInsertProjectDetail(dictDetail: DictProjectCreate): Database.R
 }
 
 export function dbUpdateProjectSettings(
-  dictDetail: DictProjectSettingsUpdate,
+  dictDetail: Dict_ProjectSettingsUpdate,
 ): Database.RunResult {
   loggerMain.debug("--dbUpdateProjectSettings--");
   return getDatabase()
@@ -228,7 +230,7 @@ export function dbDeleteProject(id: number): Database.RunResult {
 
 export function dbSelectProjectMostRecentlyImportedDetail(
   name: string,
-): DictProjectDetail | undefined {
+): Dict_ProjectDetail | undefined {
   loggerMain.debug("--dbSelectProjectMostRecentlyImportedDetail--");
   const row = getDatabase()
     .prepare(

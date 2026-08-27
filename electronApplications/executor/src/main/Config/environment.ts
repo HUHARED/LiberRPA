@@ -1,3 +1,5 @@
+// FileName: environment.ts
+
 import { app } from "electron";
 import fs from "fs";
 import path from "path";
@@ -13,11 +15,11 @@ if (strLiberRPAEnvPathValue === undefined || strLiberRPAEnvPathValue === "") {
 }
 export const strLiberRPAEnvPath = strLiberRPAEnvPathValue;
 
-export const DEFAULT_PYTHON_ENVIRONMENT_NAME = "default";
-export const strPythonEnvironmentRootPath = path.join(strLiberRPAEnvPath, "envs/pyenv");
+export const STR_DEFAULT_PYTHON_ENVIRONMENT_NAME = "default";
+const strPythonEnvironmentRootPath = path.join(strLiberRPAEnvPath, "envs/pyenv");
 export const strDefaultPythonEnvironmentPath = path.join(
   strPythonEnvironmentRootPath,
-  DEFAULT_PYTHON_ENVIRONMENT_NAME,
+  STR_DEFAULT_PYTHON_ENVIRONMENT_NAME,
 );
 
 export function getPythonEnvironmentNames(): string[] {
@@ -46,17 +48,17 @@ export function getPythonEnvironmentNames(): string[] {
     })
     .map((entryObj) => entryObj.name);
 
-  if (!arrEnvironmentName.includes(DEFAULT_PYTHON_ENVIRONMENT_NAME)) {
+  if (!arrEnvironmentName.includes(STR_DEFAULT_PYTHON_ENVIRONMENT_NAME)) {
     throw new Error(
       `Default Python environment does not exist: ${strDefaultPythonEnvironmentPath}`,
     );
   }
 
   return arrEnvironmentName.sort((strLeft, strRight) => {
-    if (strLeft === DEFAULT_PYTHON_ENVIRONMENT_NAME) {
+    if (strLeft === STR_DEFAULT_PYTHON_ENVIRONMENT_NAME) {
       return -1;
     }
-    if (strRight === DEFAULT_PYTHON_ENVIRONMENT_NAME) {
+    if (strRight === STR_DEFAULT_PYTHON_ENVIRONMENT_NAME) {
       return 1;
     }
     return strLeft.localeCompare(strRight);
@@ -85,8 +87,8 @@ export function getPythonEnvironmentPath(strEnvironmentName: string): string {
   return strEnvironmentPath;
 }
 
-function getInheritedEnvironmentVariable(strName: string): string {
-  const strNameLower = strName.toLowerCase();
+function getInheritedEnvironmentVariable(name: string): string {
+  const strNameLower = name.toLowerCase();
   for (const [strKey, strValue] of Object.entries(process.env)) {
     if (strKey.toLowerCase() === strNameLower) {
       return strValue ?? "";
@@ -96,10 +98,10 @@ function getInheritedEnvironmentVariable(strName: string): string {
 }
 
 function mergeProcessEnvironment(
-  dictOverride: Record<string, string | undefined>,
+  overrideDict: Record<string, string | undefined>,
 ): NodeJS.ProcessEnv {
   const setOverrideKey = new Set(
-    Object.keys(dictOverride).map((strKey) => strKey.toLowerCase()),
+    Object.keys(overrideDict).map((strKey) => strKey.toLowerCase()),
   );
   const dictEnvironment: NodeJS.ProcessEnv = {};
 
@@ -109,7 +111,7 @@ function mergeProcessEnvironment(
     }
   }
 
-  for (const [strKey, strValue] of Object.entries(dictOverride)) {
+  for (const [strKey, strValue] of Object.entries(overrideDict)) {
     if (strValue !== undefined) {
       dictEnvironment[strKey] = strValue;
     }

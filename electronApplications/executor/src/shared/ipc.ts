@@ -1,28 +1,28 @@
 // FileName: ipc.ts
 
-import type { DictExecutorConfig } from "./config";
+import type { Dict_ExecutorConfig } from "./config";
 import type {
-  DictProjectDetail,
-  DictProjectPackageImportResult,
-  DictProjectSettingsUpdate,
+  Dict_ProjectDetail,
+  Dict_ProjectPackage_ImportResult,
+  Dict_ProjectSettingsUpdate,
 } from "./project";
 import type {
-  DictRunHistoryOptions,
-  DictRunHistoryPage,
-  DictRunQueueListItem,
+  Dict_RunHistory_Options,
+  Dict_RunHistory_Page,
+  Dict_ListItem_RunQueue,
 } from "./run";
 import type {
-  DictScheduleCreate,
-  DictScheduleDetail,
-  DictScheduleListItem,
-  DictScheduleUpdate,
+  Dict_ScheduleCreate,
+  Dict_Detail_Schedule,
+  Dict_ListItem_Schedule,
+  Dict_ScheduleUpdate,
 } from "./schedule";
 
 export const IPC_CHANNEL_RENDERER_LOG = "executor:renderer-log";
 export const IPC_CHANNEL_RENDERER_INVOKE = "executor:renderer-invoke";
 export const IPC_CHANNEL_MAIN_MESSAGE = "executor:main-message";
 
-export type TypeRendererLogLevel =
+export type Str_RendererLogLevel =
   | "error"
   | "warn"
   | "info"
@@ -31,13 +31,13 @@ export type TypeRendererLogLevel =
   | "debug"
   | "silly";
 
-export interface DictExecutorInvokeContract {
+export interface Dict_ExecutorInvoke_Contract {
   openProjectLogFolder: {
     request: undefined;
     response: void;
   };
   saveExecutorConfig: {
-    request: DictExecutorConfig;
+    request: Dict_ExecutorConfig;
     response: void;
   };
   runProject: {
@@ -50,7 +50,7 @@ export interface DictExecutorInvokeContract {
   };
   importProjectPackage: {
     request: undefined;
-    response: DictProjectPackageImportResult;
+    response: Dict_ProjectPackage_ImportResult;
   };
   getProjectNames: {
     request: undefined;
@@ -62,10 +62,10 @@ export interface DictExecutorInvokeContract {
   };
   getProjectDetail: {
     request: { name: string; version: string };
-    response: DictProjectDetail | undefined;
+    response: Dict_ProjectDetail | undefined;
   };
   saveProjectSettings: {
-    request: DictProjectSettingsUpdate;
+    request: Dict_ProjectSettingsUpdate;
     response: void;
   };
   getProjectBoundSchedules: {
@@ -78,18 +78,18 @@ export interface DictExecutorInvokeContract {
   };
   getScheduleList: {
     request: undefined;
-    response: DictScheduleListItem[];
+    response: Dict_ListItem_Schedule[];
   };
   getScheduleDetail: {
     request: string;
-    response: DictScheduleDetail | undefined;
+    response: Dict_Detail_Schedule | undefined;
   };
   createSchedule: {
-    request: DictScheduleCreate;
+    request: Dict_ScheduleCreate;
     response: void;
   };
   saveSchedule: {
-    request: DictScheduleUpdate;
+    request: Dict_ScheduleUpdate;
     response: void;
   };
   deleteSchedule: {
@@ -97,12 +97,12 @@ export interface DictExecutorInvokeContract {
     response: void;
   };
   getRunHistoryPage: {
-    request: DictRunHistoryOptions;
-    response: DictRunHistoryPage;
+    request: Dict_RunHistory_Options;
+    response: Dict_RunHistory_Page;
   };
   getRunQueue: {
     request: undefined;
-    response: DictRunQueueListItem[];
+    response: Dict_ListItem_RunQueue[];
   };
   cancelWaitingRun: {
     request: {
@@ -129,16 +129,16 @@ export interface DictExecutorInvokeContract {
   };
 }
 
-export type TypeExecutorInvokeCommand = keyof DictExecutorInvokeContract;
+export type Str_ExecutorInvokeCommand = keyof Dict_ExecutorInvoke_Contract;
 
-export type TypeExecutorInvokeRequest<C extends TypeExecutorInvokeCommand> =
-  DictExecutorInvokeContract[C]["request"];
-export type TypeExecutorInvokeResponse<C extends TypeExecutorInvokeCommand> =
-  DictExecutorInvokeContract[C]["response"];
+export type Type_ExecutorInvoke_Request<C extends Str_ExecutorInvokeCommand> =
+  Dict_ExecutorInvoke_Contract[C]["request"];
+export type Type_ExecutorInvoke_Response<C extends Str_ExecutorInvokeCommand> =
+  Dict_ExecutorInvoke_Contract[C]["response"];
 
 export type TypeIpcArgs<T> = [T] extends [undefined] ? [] : [data: T];
 
-export type DictInvokeResult<T> =
+export type Dict_Result_Invoke<T> =
   | {
       success: true;
       data: T;
@@ -148,11 +148,11 @@ export type DictInvokeResult<T> =
       error: string;
     };
 
-export type DictMainMessage =
+export type Dict_Message_Main =
   | {
       type: "initializeSetting";
       data: {
-        config: DictExecutorConfig;
+        configDict: Dict_ExecutorConfig;
         defaultProjectLogFolderPath: string;
       };
     }
@@ -162,17 +162,17 @@ export type DictMainMessage =
   | {
       type: "runQueueChanged";
       data: {
-        items: DictRunQueueListItem[];
+        items: Dict_ListItem_RunQueue[];
       };
     };
 
 export interface ExecutorPreloadApi {
-  sendLog(level: TypeRendererLogLevel, message: string): void;
+  sendLog(level: Str_RendererLogLevel, message: string): void;
 
-  invoke<C extends TypeExecutorInvokeCommand>(
+  invoke<C extends Str_ExecutorInvokeCommand>(
     command: C,
-    ...args: TypeIpcArgs<TypeExecutorInvokeRequest<C>>
-  ): Promise<DictInvokeResult<TypeExecutorInvokeResponse<C>>>;
+    ...args: TypeIpcArgs<Type_ExecutorInvoke_Request<C>>
+  ): Promise<Dict_Result_Invoke<Type_ExecutorInvoke_Response<C>>>;
 
-  onMainMessage(listener: (message: DictMainMessage) => void): () => void;
+  onMainMessage(listener: (message: Dict_Message_Main) => void): () => void;
 }

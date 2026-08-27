@@ -1,3 +1,4 @@
+<!-- FileName: RunQueue.vue -->
 <template>
   <v-container fluid class="clean-space flex-row-grow-1 fill-height flex-column">
     <v-label class="header-label tab-header">Run Queue</v-label>
@@ -57,7 +58,7 @@ import { loggerRenderer } from "../../Logging/logger";
 import { useRunQueueStore } from "../../Store/runQueueStore";
 import { useSettingStore } from "../../Store/settingStore";
 import { formatTimestamp } from "../../Common/time";
-import type { DictRunQueueListItem } from "../../../../shared/run";
+import type { Dict_ListItem_RunQueue } from "../../../../shared/run";
 
 const runQueueStore = useRunQueueStore();
 const settingStore = useSettingStore();
@@ -70,7 +71,7 @@ onBeforeMount(() => {
   });
 });
 
-const arrHeader: DataTableHeader<DictRunQueueListItem>[] = [
+const arrHeader: DataTableHeader<Dict_ListItem_RunQueue>[] = [
   { title: "Schedule", value: "schedule_name", align: "start", sortable: false },
   {
     title: "Project",
@@ -101,10 +102,10 @@ function getWaitingColor(waiting: boolean): string {
 
 async function removeWaitingItem(
   scheduleName: string,
-  intEstimatedRunAtMs: number,
+  estimatedRunAtMs: number,
 ): Promise<void> {
-  loggerRenderer.info(`Cancel waiting Run: ${scheduleName}-${intEstimatedRunAtMs}`);
-  await runQueueStore.cancelWaitingRun(scheduleName, intEstimatedRunAtMs);
+  loggerRenderer.info(`Cancel waiting Run: ${scheduleName}-${estimatedRunAtMs}`);
+  await runQueueStore.cancelWaitingRun(scheduleName, estimatedRunAtMs);
 }
 </script>
 

@@ -1,3 +1,4 @@
+<!-- FileName: ScheduleDialog.vue -->
 <template>
   <v-card v-if="currentDetail" :title="dialogTitle">
     <template #text>
@@ -91,7 +92,7 @@ import ScheduleForm from "./ScheduleForm.vue";
 
 import { formatTimestamp, parseDateTimeLocalToTimestamp } from "../../Common/time";
 import { validateCronExpression } from "../../Schedule/cron";
-import type { TypeScheduleFormDetail } from "../../Schedule/types";
+import type { Dict_Detail_ScheduleForm } from "../../Schedule/types";
 import { useScheduleStore } from "../../Store/scheduleStore";
 import { useSettingStore } from "../../Store/settingStore";
 
@@ -100,7 +101,7 @@ const settingStore = useSettingStore();
 
 const boolCanSave = ref(false);
 
-const currentDetail = computed<TypeScheduleFormDetail | undefined>(() => {
+const currentDetail = computed<Dict_Detail_ScheduleForm | undefined>(() => {
   if (scheduleStore.formMode === "new") {
     return scheduleStore.dictDetailNew;
   }

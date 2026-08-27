@@ -1,3 +1,5 @@
+// FileName: scheduleStore.ts
+
 import { defineStore } from "pinia";
 
 import { invokeMain } from "../IPC/ipc";
@@ -6,12 +8,12 @@ import {
   formatTimestampForDateTimeLocal,
   parseDateTimeLocalToTimestamp,
 } from "../Common/time";
-import type { DictNewScheduleFormDetail, DictScheduleFormDetail } from "../Schedule/types";
+import type { Dict_Detail_NewScheduleForm, Dict_Detail_ScheduleForm_All } from "../Schedule/types";
 import { useSettingStore } from "./settingStore";
 import type {
-  DictScheduleCreate,
-  DictScheduleListItem,
-  DictScheduleUpdate,
+  Dict_ScheduleCreate,
+  Dict_ListItem_Schedule,
+  Dict_ScheduleUpdate,
 } from "../../../shared/schedule";
 
 function getSchedulePeriodTimestamps({
@@ -39,18 +41,18 @@ function getSchedulePeriodTimestamps({
 export const useScheduleStore = defineStore("schedule", {
   state: () => {
     return {
-      arrListItem: [] as DictScheduleListItem[],
+      arrListItem: [] as Dict_ListItem_Schedule[],
       arrProjectName: [] as string[],
       arrProjectVersion: [] as string[],
 
       // Edit and New use the same dialog size.
       showFormDialog: false as boolean,
       formMode: undefined as undefined | "edit" | "new",
-      dictDetailEdit: undefined as DictScheduleFormDetail | undefined,
+      dictDetailEdit: undefined as Dict_Detail_ScheduleForm_All | undefined,
       strDetailCacheEdit: undefined as string | undefined,
 
       showDeleteDialog: false as boolean,
-      dictDetailNew: undefined as DictNewScheduleFormDetail | undefined,
+      dictDetailNew: undefined as Dict_Detail_NewScheduleForm | undefined,
     };
   },
   actions: {
@@ -58,8 +60,10 @@ export const useScheduleStore = defineStore("schedule", {
       this.arrProjectName = (await invokeMain("getProjectNames")).map((row) => row.name);
     },
 
-    async fetchProjectVersions(name: string): Promise<string[]> {
-      return (await invokeMain("getProjectVersions", name)).map((row) => row.version);
+    async fetchProjectVersions(projectName: string): Promise<string[]> {
+      return (await invokeMain("getProjectVersions", projectName)).map(
+        (row) => row.version,
+      );
     },
 
     setProjectVersions(arrVersion: string[]): void {
@@ -87,10 +91,10 @@ export const useScheduleStore = defineStore("schedule", {
       this.strDetailCacheEdit = undefined;
     },
 
-    async loadScheduleDetail(name: string): Promise<void> {
-      const dictDetail = await invokeMain("getScheduleDetail", name);
+    async loadScheduleDetail(scheduleName: string): Promise<void> {
+      const dictDetail = await invokeMain("getScheduleDetail", scheduleName);
       if (dictDetail === undefined) {
-        throw new Error(`Schedule not found: ${name}`);
+        throw new Error(`Schedule not found: ${scheduleName}`);
       }
 
       const settingStore = useSettingStore();
@@ -117,7 +121,7 @@ export const useScheduleStore = defineStore("schedule", {
         periodEnd: this.dictDetailNew.period_end,
         timezone: settingStore.timezone,
       });
-      const dictTemp: DictScheduleCreate = {
+      const dictTemp: Dict_ScheduleCreate = {
         name: this.dictDetailNew.name,
         project_id: this.dictDetailNew.project_id,
         cron: this.dictDetailNew.cron,
@@ -150,7 +154,7 @@ export const useScheduleStore = defineStore("schedule", {
         periodEnd: this.dictDetailEdit.period_end,
         timezone: settingStore.timezone,
       });
-      const dictTemp: DictScheduleUpdate = {
+      const dictTemp: Dict_ScheduleUpdate = {
         id: this.dictDetailEdit.id,
         name: this.dictDetailEdit.name,
         project_id: this.dictDetailEdit.project_id,

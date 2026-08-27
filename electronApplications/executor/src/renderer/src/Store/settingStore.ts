@@ -1,8 +1,10 @@
+// FileName: settingStore.ts
+
 import { defineStore } from "pinia";
 
 import { invokeMain } from "../IPC/ipc";
 import { getSystemTimezone } from "../Common/time";
-import type { DictExecutorConfig } from "../../../shared/config";
+import type { Dict_ExecutorConfig } from "../../../shared/config";
 
 export const useSettingStore = defineStore("setting", {
   state: () => {
@@ -28,22 +30,22 @@ export const useSettingStore = defineStore("setting", {
   },
   actions: {
     initializeSetting(
-      dictConfigExecutor: DictExecutorConfig,
-      strDefaultProjectLogFolderPath: string,
+      configExecutorDict: Dict_ExecutorConfig,
+      defaultProjectLogFolderPath: string,
     ): void {
-      this.theme = dictConfigExecutor.theme;
-      this.keepRdpSession = dictConfigExecutor.keepRdpSession;
-      this.keepRdpSessionWidth = dictConfigExecutor.keepRdpSessionWidth;
-      this.keepRdpSessionHeight = dictConfigExecutor.keepRdpSessionHeight;
-      this.logTimeoutEnable = dictConfigExecutor.logTimeoutEnable;
-      this.logTimeoutDays = dictConfigExecutor.logTimeoutDays;
-      this.videoTimeoutEnable = dictConfigExecutor.videoTimeoutEnable;
-      this.videoTimeoutDays = dictConfigExecutor.videoTimeoutDays;
-      this.videoSizeEnable = dictConfigExecutor.videoSizeEnable;
-      this.videoSizeGB = dictConfigExecutor.videoSizeGB;
-      this.projectLogFolderPath = dictConfigExecutor.projectLogFolderPath;
-      this.defaultProjectLogFolderPath = strDefaultProjectLogFolderPath;
-      this.timezone = dictConfigExecutor.timezone;
+      this.theme = configExecutorDict.theme;
+      this.keepRdpSession = configExecutorDict.keepRdpSession;
+      this.keepRdpSessionWidth = configExecutorDict.keepRdpSessionWidth;
+      this.keepRdpSessionHeight = configExecutorDict.keepRdpSessionHeight;
+      this.logTimeoutEnable = configExecutorDict.logTimeoutEnable;
+      this.logTimeoutDays = configExecutorDict.logTimeoutDays;
+      this.videoTimeoutEnable = configExecutorDict.videoTimeoutEnable;
+      this.videoTimeoutDays = configExecutorDict.videoTimeoutDays;
+      this.videoSizeEnable = configExecutorDict.videoSizeEnable;
+      this.videoSizeGB = configExecutorDict.videoSizeGB;
+      this.projectLogFolderPath = configExecutorDict.projectLogFolderPath;
+      this.defaultProjectLogFolderPath = defaultProjectLogFolderPath;
+      this.timezone = configExecutorDict.timezone;
     },
 
     async selectNewProjectLogFolderPath(): Promise<void> {

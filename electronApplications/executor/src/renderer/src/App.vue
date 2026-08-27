@@ -1,3 +1,4 @@
+<!-- FileName: App.vue -->
 <template>
   <v-app class="clean-space fill-height" :theme="settingStore.theme">
     <!-- The Alert area, doesn't join in layout -->
