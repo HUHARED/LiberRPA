@@ -4,7 +4,12 @@ import type { ChildProcessWithoutNullStreams } from "child_process";
 import fs from "fs";
 import path from "path";
 
-import { ensureNonEmptyString, ensureRecord, ensureString } from "../Common/validation";
+import {
+  ensureExactRecord,
+  ensureNonEmptyString,
+  ensureRecord,
+  ensureString,
+} from "../Common/validation";
 import { strDocumentsFolderPath } from "../Config/environment";
 import { loggerMain } from "../Logging/logger";
 import { ensureExpectedRunLogFolderPath, ensureRunLogFolderPath } from "./logPath";
@@ -27,6 +32,16 @@ const INT_INITIAL_RUN_STATE_INTERVAL_MS = 250;
 const INT_INITIAL_RUN_STATE_TIMEOUT_MS = 15 * 1000;
 const REGEX_ISO_TIMESTAMP_WITH_TIMEZONE =
   /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$/;
+const ARR_RUNNING_RUN_STATE_KEY = [
+  "schemaVersion",
+  "runId",
+  "packageName",
+  "packageVersion",
+  "startedAt",
+  "logPath",
+  "status",
+] as const;
+const ARR_FINAL_RUN_STATE_KEY = [...ARR_RUNNING_RUN_STATE_KEY, "endedAt"] as const;
 
 const strExecutorRunStateFolderPath = path.join(
   strDocumentsFolderPath,
@@ -46,15 +61,6 @@ export function removeExecutorRunStateFile(runStatePath: string): void {
       `Failed to remove Executor run-state file ${runStatePath}: ${getErrorMessage(e)}`,
     );
   }
-}
-
-function isValidExecutorRunTimestamp(value: string): boolean {
-  if (!REGEX_ISO_TIMESTAMP_WITH_TIMEZONE.test(value)) {
-    return false;
-  }
-
-  const intTimestampMs = Date.parse(value);
-  return Number.isSafeInteger(intTimestampMs) && intTimestampMs >= 0;
 }
 
 export function parseExecutorRunTimestamp(timestamp: string): number {
@@ -86,6 +92,7 @@ export function readExecutorRunState({
   expectedRunId,
   expectedPackageName,
   expectedPackageVersion,
+  expectedStartedAt,
   expectedLogRootPath,
   expectedLogPath,
 }: {
@@ -93,12 +100,19 @@ export function readExecutorRunState({
   expectedRunId: string;
   expectedPackageName: string;
   expectedPackageVersion: string;
+  expectedStartedAt: string;
   expectedLogRootPath: string;
   expectedLogPath?: string;
 }): ExecutorRunState {
   const strContent = fs.readFileSync(filePath, { encoding: "utf-8" });
   const value: unknown = JSON.parse(strContent);
-  const dictState = ensureRecord(value, "Executor run state");
+  const dictRawState = ensureRecord(value, "Executor run state");
+  const status = ensureExecutorRunStateStatus(dictRawState.status);
+  const dictState = ensureExactRecord(
+    value,
+    status === "running" ? ARR_RUNNING_RUN_STATE_KEY : ARR_FINAL_RUN_STATE_KEY,
+    "Executor run state",
+  );
 
   if (dictState.schemaVersion !== 1) {
     throw new Error(
@@ -116,9 +130,12 @@ export function readExecutorRunState({
   }
 
   const strStartedAt = ensureString(dictState.startedAt, "Executor run state.startedAt");
-  if (!isValidExecutorRunTimestamp(strStartedAt)) {
-    throw new Error(`Invalid Executor run state startedAt: ${strStartedAt}`);
+  const intStartedAtMs = parseExecutorRunTimestamp(strStartedAt);
+  const intExpectedStartedAtMs = parseExecutorRunTimestamp(expectedStartedAt);
+  if (intStartedAtMs !== intExpectedStartedAtMs) {
+    throw new Error(`Executor run state has an unexpected startedAt: ${filePath}`);
   }
+
   const strRawLogPath = ensureNonEmptyString(
     dictState.logPath,
     "Executor run state.logPath",
@@ -127,12 +144,8 @@ export function readExecutorRunState({
     expectedLogPath === undefined
       ? ensureRunLogFolderPath(strRawLogPath, expectedLogRootPath)
       : ensureExpectedRunLogFolderPath(strRawLogPath, expectedLogPath);
-  const status = ensureExecutorRunStateStatus(dictState.status);
 
   if (status === "running") {
-    if (dictState.endedAt !== undefined) {
-      throw new Error("A running Executor run state cannot contain endedAt.");
-    }
     return {
       schemaVersion: 1,
       runId: expectedRunId,
@@ -145,9 +158,11 @@ export function readExecutorRunState({
   }
 
   const strEndedAt = ensureString(dictState.endedAt, "Executor run state.endedAt");
-  if (!isValidExecutorRunTimestamp(strEndedAt)) {
-    throw new Error(`Invalid Executor run state endedAt: ${strEndedAt}`);
+  const intEndedAtMs = parseExecutorRunTimestamp(strEndedAt);
+  if (intEndedAtMs < intStartedAtMs) {
+    throw new Error("Executor run state.endedAt cannot be earlier than startedAt.");
   }
+
   return {
     schemaVersion: 1,
     runId: expectedRunId,
@@ -167,6 +182,7 @@ export async function waitForExecutorRunStateAvailable({
   expectedRunId,
   expectedPackageName,
   expectedPackageVersion,
+  expectedStartedAt,
   expectedLogRootPath,
 }: {
   filePath: string;
@@ -175,6 +191,7 @@ export async function waitForExecutorRunStateAvailable({
   expectedRunId: string;
   expectedPackageName: string;
   expectedPackageVersion: string;
+  expectedStartedAt: string;
   expectedLogRootPath: string;
 }): Promise<ExecutorRunState> {
   let intElapsedMs = 0;
@@ -193,6 +210,7 @@ export async function waitForExecutorRunStateAvailable({
         expectedRunId,
         expectedPackageName,
         expectedPackageVersion,
+        expectedStartedAt,
         expectedLogRootPath,
       });
     }

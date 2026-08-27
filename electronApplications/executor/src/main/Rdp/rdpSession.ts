@@ -15,6 +15,7 @@ import { loggerMain } from "../Logging/logger";
 
 const STR_MOVE_MOUSE_TERMINATION_MESSAGE = "Executor-stop-move-mouse";
 const INT_RDP_HELPER_CHECK_INTERVAL_MS = 1000;
+const INT_RDP_HELPER_TERMINATION_WAIT_MS = 3 * 1000;
 const setRdpProcess = new Set<ChildProcessWithoutNullStreams>();
 
 function getScriptFolderPath(): string {
@@ -63,10 +64,7 @@ function spawnRdpScript(
   return processPy;
 }
 
-function attachLineLogging(
-  processPy: ChildProcessWithoutNullStreams,
-  label: string,
-): void {
+function attachLineLogging(processPy: ChildProcessWithoutNullStreams, label: string): void {
   const stdoutReader = createInterface({ input: processPy.stdout });
   const stderrReader = createInterface({ input: processPy.stderr });
 
@@ -197,19 +195,82 @@ function startMoveMouse(): void {
   });
 }
 
-function requestMoveMouseTermination(): void {
+function requestMoveMouseTermination(): boolean {
   const processPy = processPyMoveMouse;
   if (
     processPy === undefined ||
     !isProcessRunning(processPy) ||
-    boolMoveMouseTerminationRequested
+    boolMoveMouseTerminationRequested ||
+    processPy.stdin.destroyed ||
+    !processPy.stdin.writable
   ) {
+    return false;
+  }
+
+  try {
+    processPy.stdin.end(`${STR_MOVE_MOUSE_TERMINATION_MESSAGE}\n`);
+    boolMoveMouseTerminationRequested = true;
+    return true;
+  } catch (e: unknown) {
+    loggerMain.error(
+      `Failed to request MoveMouse termination: ${
+        e instanceof Error ? e.message : String(e)
+      }`,
+    );
+    return false;
+  }
+}
+
+function waitForRdpProcessClose(
+  processPy: ChildProcessWithoutNullStreams,
+): Promise<boolean> {
+  if (!isProcessRunning(processPy)) {
+    return Promise.resolve(true);
+  }
+
+  return new Promise<boolean>((resolve) => {
+    const handleClose = (): void => {
+      clearTimeout(timeoutId);
+      resolve(true);
+    };
+
+    const timeoutId = setTimeout(() => {
+      processPy.removeListener("close", handleClose);
+      resolve(!isProcessRunning(processPy));
+    }, INT_RDP_HELPER_TERMINATION_WAIT_MS);
+
+    processPy.once("close", handleClose);
+  });
+}
+
+async function stopRdpProcess(
+  processPy: ChildProcessWithoutNullStreams,
+  boolGracefulTerminationRequested: boolean,
+): Promise<void> {
+  if (!isProcessRunning(processPy)) {
     return;
   }
 
-  boolMoveMouseTerminationRequested = true;
-  processPy.stdin.write(`${STR_MOVE_MOUSE_TERMINATION_MESSAGE}\n`);
-  processPy.stdin.end();
+  if (boolGracefulTerminationRequested && (await waitForRdpProcessClose(processPy))) {
+    return;
+  }
+
+  try {
+    processPy.kill();
+  } catch (e: unknown) {
+    loggerMain.error(
+      `Failed to terminate RDP helper process ${String(processPy.pid)}: ${
+        e instanceof Error ? e.message : String(e)
+      }`,
+    );
+    return;
+  }
+
+  if (!(await waitForRdpProcessClose(processPy))) {
+    loggerMain.error(
+      `RDP helper process ${String(processPy.pid)} remained active after termination.`,
+    );
+  }
 }
 
 function syncRdpHelperProcesses(): void {
@@ -248,7 +309,7 @@ export function startRdpSessionManager(): void {
   );
 }
 
-export function stopRdpSessionManager(): void {
+export async function stopRdpSessionManager(): Promise<void> {
   if (
     !boolRdpSessionManagerStarted &&
     timerRdpHelperCheck === undefined &&
@@ -265,9 +326,16 @@ export function stopRdpSessionManager(): void {
     timerRdpHelperCheck = undefined;
   }
 
-  for (const processPy of setRdpProcess) {
-    if (isProcessRunning(processPy)) {
-      processPy.kill();
-    }
-  }
+  const processMoveMouse = processPyMoveMouse;
+  const boolMoveMouseTerminationRequestedNow = requestMoveMouseTermination();
+  const arrProcess = [...setRdpProcess];
+
+  await Promise.all(
+    arrProcess.map((processPy) =>
+      stopRdpProcess(
+        processPy,
+        processPy === processMoveMouse && boolMoveMouseTerminationRequestedNow,
+      ),
+    ),
+  );
 }

@@ -146,6 +146,7 @@ function ensureScheduleListItemRow(
   const row = ensureExactRecord(
     value,
     [
+      "id",
       "name",
       "project_name",
       "project_version",
@@ -170,6 +171,7 @@ function ensureScheduleListItemRow(
   }
 
   return {
+    id: ensurePositiveInteger(row.id, `${sourceName}.id`),
     name: ensureNonEmptyString(row.name, `${sourceName}.name`),
     project_name: ensureNonEmptyString(row.project_name, `${sourceName}.project_name`),
     project_version: ensureNonEmptyString(

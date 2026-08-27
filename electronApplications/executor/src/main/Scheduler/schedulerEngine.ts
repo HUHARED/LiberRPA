@@ -17,11 +17,13 @@ import type { Str_RunConflictPolicy } from "../../shared/schedule";
 type Listener_RunQueueChanged = (arrItem: Dict_ListItem_RunQueue[]) => void;
 
 interface PendingRun {
+  scheduleId: number;
   queueItem: Dict_ListItem_RunQueue;
   runConflictPolicy: Str_RunConflictPolicy;
 }
 
 interface WaitingRun {
+  scheduleId: number;
   queueItem: Dict_ListItem_RunQueue;
   runDetail: Dict_ProjectRun_Detail;
 }
@@ -104,10 +106,10 @@ function resetPendingRuns(): void {
   const intNowMs = Date.now();
   const arrSchedule = dbSelectScheduleList();
   const arrNextPending: PendingRun[] = [];
-  const setScheduleName = new Set(arrSchedule.map((dictSchedule) => dictSchedule.name));
+  const setScheduleId = new Set(arrSchedule.map((dictSchedule) => dictSchedule.id));
 
   for (let intIndex = arrWaitingRun.length - 1; intIndex >= 0; intIndex--) {
-    if (!setScheduleName.has(arrWaitingRun[intIndex].queueItem.schedule_name)) {
+    if (!setScheduleId.has(arrWaitingRun[intIndex].scheduleId)) {
       loggerMain.info(
         `Remove waiting Run because its Schedule no longer exists: ${arrWaitingRun[intIndex].queueItem.schedule_name}`,
       );
@@ -129,6 +131,7 @@ function resetPendingRuns(): void {
       });
 
       arrNextPending.push({
+        scheduleId: dictSchedule.id,
         queueItem: {
           schedule_name: dictSchedule.name,
           project_name: dictSchedule.project_name,
@@ -189,24 +192,27 @@ async function processSchedulerTick(): Promise<void> {
     }
 
     for (const dictDueRun of arrDueRun) {
-      const { queueItem, runConflictPolicy } = dictDueRun;
+      const { scheduleId, queueItem, runConflictPolicy } = dictDueRun;
       loggerMain.info(
         `Schedule '${queueItem.schedule_name}' reached its run time. run_conflict_policy=${runConflictPolicy}`,
       );
 
-      const dictRunDetail = dbSelectScheduleRunDetail(queueItem.schedule_name);
+      const dictRunDetail = dbSelectScheduleRunDetail(scheduleId);
       if (dictRunDetail === undefined) {
-        loggerMain.warn(`Schedule no longer exists: ${queueItem.schedule_name}`);
+        loggerMain.warn(
+          `Schedule no longer exists: ${queueItem.schedule_name} (ID ${scheduleId})`,
+        );
         continue;
       }
 
+      const strScheduleName = dictRunDetail.schedule_name ?? queueItem.schedule_name;
       if (!boolOthersRunning || runConflictPolicy === "concurrent") {
         try {
           await pythonRun(dictRunDetail);
           boolOthersRunning = dbHasRunningRun();
         } catch (e: unknown) {
           loggerMain.error(
-            `Failed to start scheduled Run for '${queueItem.schedule_name}': ${
+            `Failed to start scheduled Run for '${strScheduleName}': ${
               e instanceof Error ? e.message : String(e)
             }`,
           );
@@ -215,16 +221,21 @@ async function processSchedulerTick(): Promise<void> {
       }
 
       if (runConflictPolicy === "wait") {
-        loggerMain.info(
-          `Move Schedule '${queueItem.schedule_name}' Run into the waiting queue.`,
-        );
+        loggerMain.info(`Move Schedule '${strScheduleName}' Run into the waiting queue.`);
         arrWaitingRun.push({
-          queueItem: { ...queueItem, waiting: true },
+          scheduleId,
+          queueItem: {
+            schedule_name: strScheduleName,
+            project_name: dictRunDetail.name,
+            project_version: dictRunDetail.version,
+            estimated_run_at_ms: queueItem.estimated_run_at_ms,
+            waiting: true,
+          },
           runDetail: dictRunDetail,
         });
       } else {
         loggerMain.info(
-          `Skip Schedule '${queueItem.schedule_name}' Run because another Run is active.`,
+          `Skip Schedule '${strScheduleName}' Run because another Run is active.`,
         );
       }
     }

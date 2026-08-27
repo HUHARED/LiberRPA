@@ -5,6 +5,7 @@ import type { Dict_RunOptions } from "./runOptions";
 export type Str_RunConflictPolicy = "skip" | "wait" | "concurrent";
 
 export interface Dict_ListItem_Schedule {
+  id: number;
   name: string;
   project_name: string;
   project_version: string;
@@ -16,7 +17,6 @@ export interface Dict_ListItem_Schedule {
 }
 
 export interface Dict_Detail_Schedule extends Dict_ListItem_Schedule, Dict_RunOptions {
-  id: number;
   project_id: number;
   created_at_ms: number;
   updated_at_ms: number;

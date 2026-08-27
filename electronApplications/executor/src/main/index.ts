@@ -240,6 +240,29 @@ void app
     app.quit();
   });
 
+async function shutdownExecutor(): Promise<void> {
+  try {
+    await stopRdpSessionManager();
+  } catch (e: unknown) {
+    loggerMain.error(`Failed to stop RDP helper processes: ${String(e)}`);
+  }
+
+  try {
+    await shutdownProjectRuns();
+  } catch (e: unknown) {
+    loggerMain.error(`Failed to stop active Project Runs: ${String(e)}`);
+  }
+
+  try {
+    closeDatabase();
+  } catch (e: unknown) {
+    loggerMain.error(`Failed to close Executor database: ${String(e)}`);
+  } finally {
+    boolShutdownComplete = true;
+    app.quit();
+  }
+}
+
 app.on("before-quit", (event) => {
   boolAppQuitting = true;
 
@@ -254,17 +277,7 @@ app.on("before-quit", (event) => {
 
   boolShutdownStarted = true;
   stopSchedulerEngine();
-  stopRdpSessionManager();
-
-  void shutdownProjectRuns()
-    .catch((e: unknown) => {
-      loggerMain.error(`Failed to stop active Project Runs: ${String(e)}`);
-    })
-    .finally(() => {
-      closeDatabase();
-      boolShutdownComplete = true;
-      app.quit();
-    });
+  void shutdownExecutor();
 });
 
 // Quit when all windows are closed, except on macOS. There, it's common for applications and their menu bar to stay active until the user quits explicitly with Cmd + Q.

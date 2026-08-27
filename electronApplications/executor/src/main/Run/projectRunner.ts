@@ -150,6 +150,7 @@ async function startProjectRun(detailDict: Dict_ProjectRun_Detail): Promise<void
     runStatePath: strRunStatePath,
     packageName: detailDict.name,
     packageVersion: detailDict.version,
+    expectedStartedAt: strStartedAt,
     expectedLogRootPath: strProjectLogRootPath,
     diagnosticOutput,
   });
@@ -213,9 +214,13 @@ async function startProjectRun(detailDict: Dict_ProjectRun_Detail): Promise<void
         expectedRunId: strRunId,
         expectedPackageName: detailDict.name,
         expectedPackageVersion: detailDict.version,
+        expectedStartedAt: strStartedAt,
         expectedLogRootPath: strProjectLogRootPath,
         expectedLogPath: dictRunState.logPath,
       });
+      if (dictFinalState.startedAt !== dictRunState.startedAt) {
+        throw new Error(`Final Executor run state changed startedAt for Run ${strRunId}.`);
+      }
       if (dictFinalState.endedAt !== undefined) {
         intRunEndedAtMs = parseExecutorRunTimestamp(dictFinalState.endedAt);
       }
@@ -297,6 +302,7 @@ async function getInitialRunState({
   runStatePath,
   packageName,
   packageVersion,
+  expectedStartedAt,
   expectedLogRootPath,
   diagnosticOutput,
 }: {
@@ -306,6 +312,7 @@ async function getInitialRunState({
   runStatePath: string;
   packageName: string;
   packageVersion: string;
+  expectedStartedAt: string;
   expectedLogRootPath: string;
   diagnosticOutput: Dict_PythonProcess_DiagnosticOutput;
 }): Promise<ExecutorRunState> {
@@ -317,6 +324,7 @@ async function getInitialRunState({
       expectedRunId: runId,
       expectedPackageName: packageName,
       expectedPackageVersion: packageVersion,
+      expectedStartedAt,
       expectedLogRootPath,
     });
   } catch (e: unknown) {

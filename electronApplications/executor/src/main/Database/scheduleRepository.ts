@@ -23,6 +23,7 @@ export function dbSelectScheduleList(): Dict_ListItem_Schedule[] {
     .prepare(
       `
       SELECT
+          ts.id,
           ts.name,
           pl.name AS project_name,
           pl.version AS project_version,
@@ -79,7 +80,9 @@ export function dbSelectScheduleDetail(name: string): Dict_Detail_Schedule | und
     : ensureScheduleDetailRow(row, "Schedule detail query result");
 }
 
-export function dbSelectScheduleRunDetail(name: string): Dict_ProjectRun_Detail | undefined {
+export function dbSelectScheduleRunDetail(
+  scheduleId: number,
+): Dict_ProjectRun_Detail | undefined {
   loggerMain.debug("--dbSelectScheduleRunDetail--");
   const row = getDatabase()
     .prepare(
@@ -100,10 +103,10 @@ export function dbSelectScheduleRunDetail(name: string): Dict_ProjectRun_Detail 
           schedule ts
           INNER JOIN project pl ON ts.project_id = pl.id
       WHERE
-          ts.name = ?;
+          ts.id = ?;
       `,
     )
-    .get(name);
+    .get(scheduleId);
   return row === undefined
     ? undefined
     : ensureScheduleRunDetailRow(row, "Schedule Run detail query result");
