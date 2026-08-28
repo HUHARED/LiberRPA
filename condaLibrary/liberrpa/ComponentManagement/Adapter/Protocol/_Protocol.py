@@ -20,7 +20,6 @@ from liberrpa.ComponentManagement.Adapter.Protocol._Response import (
     build_repository_catalog_response,
     build_project_manifest_defaults_response,
     build_project_dependency_state_response,
-    build_packaged_flow_project_validated_response,
     build_project_dependency_plan_response,
     build_project_dependency_plan_applied_response,
     build_project_components_repaired_response,
@@ -42,9 +41,6 @@ from liberrpa.ComponentManagement.Application.Project._ManifestDefaults import (
 )
 from liberrpa.ComponentManagement.Application.Project._DependencyState import (
     get_current_project_dependency_state,
-)
-from liberrpa.ComponentManagement.Application.Project._PackagedFlowProject import (
-    validate_packaged_flow_project,
 )
 from liberrpa.ComponentManagement.Application.Project._DependencyPlan import (
     build_current_project_dependency_plan,
@@ -160,10 +156,6 @@ def handle_request(requestInfo: str) -> DictProtocolResponse:
                 dictResponse = build_project_dependency_state_response(
                     stateObj, listWarning
                 )
-
-            case "validatePackagedFlowProject":
-                validate_packaged_flow_project(dictRequest["projectPath"])
-                dictResponse = build_packaged_flow_project_validated_response()
 
             case "buildProjectDependencyPlan":
                 operationObj = parse_project_dependency_operation(

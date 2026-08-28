@@ -6,6 +6,7 @@ import path from "path";
 
 import type { Dict_ExecutorConfig } from "../../shared/config";
 import { getErrorMessage } from "../../shared/error";
+import { getSystemIntlTimezone, isSupportedIntlTimezone } from "../../shared/timezone";
 import { writeJsonFileAtomic } from "../Common/jsonFile";
 import { ensureBoolean, ensureRecord, ensureString } from "../Common/validation";
 import { strDefaultProjectLogFolderPath } from "./basicConfig";
@@ -32,20 +33,6 @@ const ARR_EXECUTOR_CONFIG_KEY: readonly (keyof Dict_ExecutorConfig)[] = [
 ];
 const SET_EXECUTOR_CONFIG_KEY = new Set<string>(ARR_EXECUTOR_CONFIG_KEY);
 
-function isValidTimezone(timezone: string): boolean {
-  try {
-    new Intl.DateTimeFormat("en-US", { timeZone: timezone }).format();
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function getSystemTimezone(): string {
-  const strTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  return strTimezone !== "" && isValidTimezone(strTimezone) ? strTimezone : "UTC";
-}
-
 function getDefaultExecutorConfig(): Dict_ExecutorConfig {
   return {
     theme: "light",
@@ -59,7 +46,7 @@ function getDefaultExecutorConfig(): Dict_ExecutorConfig {
     videoSizeEnable: false,
     videoSizeGB: 10,
     projectLogFolderPath: "",
-    timezone: getSystemTimezone(),
+    timezone: getSystemIntlTimezone(),
   };
 }
 
@@ -121,7 +108,7 @@ export function validateExecutorConfig(value: unknown): Dict_ExecutorConfig {
   }
 
   const strTimezone = getStringConfigValue(dictConfig, "timezone");
-  if (!isValidTimezone(strTimezone)) {
+  if (!isSupportedIntlTimezone(strTimezone)) {
     throw new Error("Executor config 'timezone' must be a valid IANA time zone.");
   }
 

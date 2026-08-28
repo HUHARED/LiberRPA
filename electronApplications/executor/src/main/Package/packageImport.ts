@@ -10,7 +10,6 @@ import {
 import { getExecutorPackageFolderPath } from "../FileSystem/executorFiles";
 import { loggerMain } from "../Logging/logger";
 import type { Dict_ProjectPackage_ImportResult } from "../../shared/project";
-import { validatePackagedFlowProject } from "./componentManagementClient";
 import { extractProjectPackageArchive } from "./packageArchive";
 import {
   createProjectPackageImportStaging,
@@ -43,8 +42,6 @@ async function runProjectPackageImport(): Promise<Dict_ProjectPackage_ImportResu
   try {
     extractProjectPackageArchive(strPackageFilePath, stagedProjectPath);
     const packageMetadata = readProjectPackageMetadata(stagedProjectPath);
-
-    await validatePackagedFlowProject(stagedProjectPath);
 
     if (
       dbSelectProjectDetail(packageMetadata.name, packageMetadata.version) !== undefined

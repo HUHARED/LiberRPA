@@ -15,7 +15,6 @@ from liberrpa.ComponentManagement.Types._Protocol import (
     DictProtocolRequest_GetComponentRepositoryCatalog,
     DictProtocolRequest_GetProjectManifestDefaults,
     DictProtocolRequest_GetProjectDependencyState,
-    DictProtocolRequest_ValidatePackagedFlowProject,
     DictProtocolRequest_BuildProjectDependencyPlan,
     DictProtocolRequest_ApplyProjectDependencyPlan,
     DictProtocolRequest_RepairProjectComponents,
@@ -49,11 +48,6 @@ _SET_REQUEST_KEYS_GET_PROJECT_MANIFEST_DEFAULTS = {
     "operation",
 }
 _SET_REQUEST_KEYS_GET_PROJECT_DEPENDENCY_STATE = {
-    "schemaVersion",
-    "operation",
-    "projectPath",
-}
-_SET_REQUEST_KEYS_VALIDATE_PACKAGED_FLOW_PROJECT = {
     "schemaVersion",
     "operation",
     "projectPath",
@@ -196,17 +190,6 @@ def parse_protocol_request(requestInfo: str) -> DictProtocolRequest:
             _validate_project_path_value(value.get("projectPath"))
 
             return cast(DictProtocolRequest_GetProjectDependencyState, value)
-
-        case "validatePackagedFlowProject":
-            _validate_request_keys(
-                value,
-                _SET_REQUEST_KEYS_VALIDATE_PACKAGED_FLOW_PROJECT,
-                "Validate Packaged Flow Project",
-            )
-
-            _validate_project_path_value(value.get("projectPath"))
-
-            return cast(DictProtocolRequest_ValidatePackagedFlowProject, value)
 
         case "buildProjectDependencyPlan":
             _validate_request_keys(

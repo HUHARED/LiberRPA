@@ -2,19 +2,12 @@
 
 import moment from "moment-timezone";
 
+import { getSystemIntlTimezone, isSupportedIntlTimezone } from "../../../shared/timezone";
+
 const STR_DISPLAY_DATETIME_FORMAT = "YYYY-MM-DD HH:mm:ss";
 const STR_DATETIME_LOCAL_FORMAT_MINUTE = "YYYY-MM-DDTHH:mm";
 const STR_DATETIME_LOCAL_FORMAT_SECOND = "YYYY-MM-DDTHH:mm:ss";
 const STR_DEFAULT_PERIOD_END_LOCAL = "2084-04-04T00:00:00";
-
-function isSupportedIntlTimezone(timezone: string): boolean {
-  try {
-    new Intl.DateTimeFormat("en-US", { timeZone: timezone }).format();
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 export function isValidTimezone(timezone: string): boolean {
   return moment.tz.zone(timezone) !== null && isSupportedIntlTimezone(timezone);
@@ -23,7 +16,7 @@ export function isValidTimezone(timezone: string): boolean {
 export const arrTimezone = moment.tz.names().filter(isValidTimezone);
 
 export function getSystemTimezone(): string {
-  const strTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const strTimezone = getSystemIntlTimezone();
   return isValidTimezone(strTimezone) ? strTimezone : "UTC";
 }
 

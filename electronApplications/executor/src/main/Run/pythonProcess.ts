@@ -5,6 +5,7 @@ import { spawn } from "child_process";
 import path from "path";
 
 import { getErrorMessage } from "../../shared/error";
+import { isProcessRunning } from "../Common/process";
 import { buildPythonProcessEnvironment } from "../Config/environment";
 import { loggerMain } from "../Logging/logger";
 import type { Dict_ProjectRun_Detail } from "./types";
@@ -156,16 +157,12 @@ export function logPythonDiagnosticOutput({
   }
 }
 
-export function isPythonProcessRunning(processPy: ChildProcessWithoutNullStreams): boolean {
-  return processPy.exitCode === null && processPy.signalCode === null;
-}
-
 export function requestPythonTermination(
   processPy: ChildProcessWithoutNullStreams,
   runId: string,
 ): boolean {
   if (
-    !isPythonProcessRunning(processPy) ||
+    !isProcessRunning(processPy) ||
     processPy.stdin.destroyed ||
     !processPy.stdin.writable
   ) {
@@ -187,7 +184,7 @@ export async function terminatePythonProcessAfterStartupFailure(
   processPy: ChildProcessWithoutNullStreams,
   runId: string,
 ): Promise<void> {
-  if (!isPythonProcessRunning(processPy)) {
+  if (!isProcessRunning(processPy)) {
     return;
   }
 
@@ -230,7 +227,7 @@ export async function waitForPythonProcessTermination(
 function waitForPythonProcessClose(
   processPy: ChildProcessWithoutNullStreams,
 ): Promise<boolean> {
-  if (!isPythonProcessRunning(processPy)) {
+  if (!isProcessRunning(processPy)) {
     return Promise.resolve(true);
   }
 
@@ -242,7 +239,7 @@ function waitForPythonProcessClose(
 
     const timeoutId = setTimeout(() => {
       processPy.removeListener("close", handleClose);
-      resolve(!isPythonProcessRunning(processPy));
+      resolve(!isProcessRunning(processPy));
     }, INT_PROCESS_TERMINATION_WAIT_MS);
 
     processPy.once("close", handleClose);

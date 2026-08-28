@@ -5,6 +5,7 @@ import { randomUUID } from "crypto";
 import fs from "fs";
 
 import { getErrorMessage } from "../../shared/error";
+import { isProcessRunning } from "../Common/process";
 import { getEffectiveProjectLogFolderPath } from "../Config/executorConfig";
 import { getPythonEnvironmentPath } from "../Config/environment";
 import { dbInsertRunHistory, dbUpdateRunHistory } from "../Database/runHistoryRepository";
@@ -14,7 +15,6 @@ import type { Dict_ProjectRun_Detail } from "./types";
 import { notifyRunEnded } from "./lifecycle";
 import {
   type Dict_PythonProcess_DiagnosticOutput,
-  isPythonProcessRunning,
   logPythonDiagnosticOutput,
   requestPythonTermination,
   spawnProjectPythonProcess,
@@ -179,7 +179,7 @@ async function startProjectRun(detailDict: Dict_ProjectRun_Detail): Promise<void
     loggerMain.info(`Set timeout: ${detailDict.timeout_min}`);
     timeoutId = setTimeout(
       () => {
-        if (!isPythonProcessRunning(processPy)) {
+        if (!isProcessRunning(processPy)) {
           return;
         }
 

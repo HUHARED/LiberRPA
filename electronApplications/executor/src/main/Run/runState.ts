@@ -5,6 +5,7 @@ import fs from "fs";
 import path from "path";
 
 import { getErrorMessage } from "../../shared/error";
+import { isProcessRunning } from "../Common/process";
 import {
   ensureExactRecord,
   ensureNonEmptyString,
@@ -14,7 +15,6 @@ import {
 import { strDocumentsFolderPath } from "../Config/environment";
 import { loggerMain } from "../Logging/logger";
 import { ensureExpectedRunLogFolderPath, ensureRunLogFolderPath } from "./logPath";
-import { isPythonProcessRunning } from "./pythonProcess";
 
 export type Str_ExecutorRunState_Status = "running" | "completed" | "error" | "terminated";
 
@@ -216,7 +216,7 @@ export async function waitForExecutorRunStateAvailable({
       });
     }
 
-    if (!isPythonProcessRunning(processPy)) {
+    if (!isProcessRunning(processPy)) {
       throw new Error(
         `Python exited before publishing the initial Executor run state: ${expectedRunId}`,
       );

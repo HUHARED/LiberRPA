@@ -7,6 +7,7 @@ import path from "path";
 import { createInterface } from "readline";
 
 import { getErrorMessage } from "../../shared/error";
+import { isProcessRunning } from "../Common/process";
 import { dictConfigExecutor } from "../Config/executorConfig";
 import {
   buildPythonProcessEnvironment,
@@ -27,10 +28,6 @@ function getScriptFolderPath(): string {
 }
 
 const strScriptFolderPath = getScriptFolderPath();
-
-function isProcessRunning(processPy: ChildProcessWithoutNullStreams): boolean {
-  return processPy.exitCode === null && processPy.signalCode === null;
-}
 
 function spawnRdpScript(
   scriptName: string,
