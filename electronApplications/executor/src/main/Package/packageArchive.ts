@@ -4,8 +4,11 @@ import fs from "fs";
 import path from "path";
 import AdmZip from "adm-zip";
 
-const INT_MAX_ZIP_ENTRY_COUNT = 100_000;
-const INT_MAX_UNCOMPRESSED_SIZE_BYTES = 16 * 1024 ** 3;
+// Large datasets and other heavyweight resources should remain outside the Flow Package.
+const INT_MAX_PACKAGE_ARCHIVE_SIZE_BYTES = 512 * 1024 ** 2;
+const INT_MAX_ZIP_ENTRY_COUNT = 20_000;
+const INT_MAX_ZIP_ENTRY_SIZE_BYTES = 512 * 1024 ** 2;
+const INT_MAX_UNCOMPRESSED_SIZE_BYTES = 2 * 1024 ** 3;
 const SET_RESERVED_WINDOWS_NAME = new Set([
   "CON",
   "PRN",
@@ -140,9 +143,12 @@ function validateZipEntries(zipObj: AdmZip): void {
     if (!Number.isSafeInteger(entryObj.header.size) || entryObj.header.size < 0) {
       throw new Error(`ZIP entry has an invalid size: ${strNormalizedName}`);
     }
+    if (entryObj.header.size > INT_MAX_ZIP_ENTRY_SIZE_BYTES) {
+      throw new Error(`ZIP entry is larger than 512 MiB: ${strNormalizedName}`);
+    }
     intUncompressedSizeBytes += entryObj.header.size;
     if (intUncompressedSizeBytes > INT_MAX_UNCOMPRESSED_SIZE_BYTES) {
-      throw new Error("ZIP uncompressed content is larger than 16 GiB.");
+      throw new Error("ZIP uncompressed content is larger than 2 GiB.");
     }
 
     const intUnixMode = (entryObj.header.attr >>> 16) & 0xffff;
@@ -155,12 +161,20 @@ function validateZipEntries(zipObj: AdmZip): void {
 
 function validateExtractedTree(rootPath: string): void {
   const arrPendingPath = [rootPath];
+  let intEntryCount = 0;
+  let intUncompressedSizeBytes = 0;
+
   while (arrPendingPath.length > 0) {
     const strCurrentPath = arrPendingPath.pop();
     if (strCurrentPath === undefined) {
       continue;
     }
     for (const entryObj of fs.readdirSync(strCurrentPath, { withFileTypes: true })) {
+      intEntryCount += 1;
+      if (intEntryCount > INT_MAX_ZIP_ENTRY_COUNT) {
+        throw new Error("Extracted Package contains more than 20,000 entries.");
+      }
+
       const strEntryPath = path.join(strCurrentPath, entryObj.name);
       const statObj = fs.lstatSync(strEntryPath);
       if (statObj.isSymbolicLink()) {
@@ -168,8 +182,21 @@ function validateExtractedTree(rootPath: string): void {
       }
       if (statObj.isDirectory()) {
         arrPendingPath.push(strEntryPath);
-      } else if (!statObj.isFile()) {
+        continue;
+      }
+      if (!statObj.isFile()) {
         throw new Error(`Extracted Package contains a special entry: ${strEntryPath}`);
+      }
+      if (!Number.isSafeInteger(statObj.size) || statObj.size < 0) {
+        throw new Error(`Extracted Package file has an invalid size: ${strEntryPath}`);
+      }
+      if (statObj.size > INT_MAX_ZIP_ENTRY_SIZE_BYTES) {
+        throw new Error(`Extracted Package file is larger than 512 MiB: ${strEntryPath}`);
+      }
+
+      intUncompressedSizeBytes += statObj.size;
+      if (intUncompressedSizeBytes > INT_MAX_UNCOMPRESSED_SIZE_BYTES) {
+        throw new Error("Extracted Package content is larger than 2 GiB.");
       }
     }
   }
@@ -179,6 +206,17 @@ export function extractProjectPackageArchive(
   packageFilePath: string,
   stagedProjectPath: string,
 ): void {
+  const statObj = fs.statSync(packageFilePath);
+  if (!statObj.isFile()) {
+    throw new Error(`Project Package is not a file: ${packageFilePath}`);
+  }
+  if (!Number.isSafeInteger(statObj.size) || statObj.size < 0) {
+    throw new Error(`Project Package has an invalid file size: ${packageFilePath}`);
+  }
+  if (statObj.size > INT_MAX_PACKAGE_ARCHIVE_SIZE_BYTES) {
+    throw new Error("Project Package archive is larger than 512 MiB.");
+  }
+
   const zipObj = new AdmZip(packageFilePath);
   validateZipEntries(zipObj);
   zipObj.extractAllTo(stagedProjectPath, false);

@@ -105,22 +105,7 @@
       <v-label class="mt-2 mb-3"> Project </v-label>
 
       <v-row class="w-100">
-        <v-col cols="2">
-          <v-text-field
-            v-model="detail.project_id"
-            label="ID"
-            class="clean-space"
-            density="compact"
-            hide-details
-            readonly
-            variant="plain">
-            <v-tooltip activator="parent" location="top">
-              Internal project ID managed by Executor.
-            </v-tooltip>
-          </v-text-field>
-        </v-col>
-
-        <v-col cols="7">
+        <v-col cols="8">
           <v-select
             v-model="detail.project_name"
             label="Name"
@@ -133,7 +118,7 @@
           </v-select>
         </v-col>
 
-        <v-col cols="3">
+        <v-col cols="4">
           <v-select
             v-model="detail.project_version"
             label="Version"

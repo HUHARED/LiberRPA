@@ -1,7 +1,5 @@
 // FileName: scheduleRepository.ts
 
-import type Database from "better-sqlite3";
-
 import type { Dict_ProjectRun_Detail } from "../Run/types";
 import type {
   Dict_ScheduleCreate,
@@ -15,6 +13,7 @@ import {
   ensureScheduleDetailRow,
   ensureScheduleListRows,
   ensureScheduleRunDetailRow,
+  ensureSingleRowAffected,
 } from "./rowValidation";
 
 export function dbSelectScheduleList(): Dict_ListItem_Schedule[] {
@@ -112,10 +111,10 @@ export function dbSelectScheduleRunDetail(
     : ensureScheduleRunDetailRow(row, "Schedule Run detail query result");
 }
 
-export function dbInsertSchedule(detailDict: Dict_ScheduleCreate): Database.RunResult {
+export function dbInsertSchedule(detailDict: Dict_ScheduleCreate): void {
   loggerMain.debug("--dbInsertSchedule--");
   const intNowMs = Date.now();
-  return getDatabase()
+  const result = getDatabase()
     .prepare(
       `
       INSERT INTO
@@ -157,11 +156,12 @@ export function dbInsertSchedule(detailDict: Dict_ScheduleCreate): Database.RunR
       intNowMs,
       intNowMs,
     );
+  ensureSingleRowAffected(result, `Insert Schedule '${detailDict.name}'`);
 }
 
-export function dbUpdateSchedule(detailDict: Dict_ScheduleUpdate): Database.RunResult {
+export function dbUpdateSchedule(detailDict: Dict_ScheduleUpdate): void {
   loggerMain.debug("--dbUpdateSchedule--");
-  return getDatabase()
+  const result = getDatabase()
     .prepare(
       `
       UPDATE schedule
@@ -201,9 +201,11 @@ export function dbUpdateSchedule(detailDict: Dict_ScheduleUpdate): Database.RunR
       Date.now(),
       detailDict.id,
     );
+  ensureSingleRowAffected(result, `Update Schedule ID ${detailDict.id}`);
 }
 
-export function dbDeleteSchedule(id: number): Database.RunResult {
+export function dbDeleteSchedule(id: number): void {
   loggerMain.debug("--dbDeleteSchedule--");
-  return getDatabase().prepare("DELETE FROM schedule WHERE id = ?;").run(id);
+  const result = getDatabase().prepare("DELETE FROM schedule WHERE id = ?;").run(id);
+  ensureSingleRowAffected(result, `Delete Schedule ID ${id}`);
 }

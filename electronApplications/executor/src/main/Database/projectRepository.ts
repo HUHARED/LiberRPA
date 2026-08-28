@@ -1,7 +1,5 @@
 // FileName: projectRepository.ts
 
-import type Database from "better-sqlite3";
-
 import type {
   Dict_ProjectCreate,
   Dict_ProjectDetail,
@@ -9,7 +7,12 @@ import type {
 } from "../../shared/project";
 import { loggerMain } from "../Logging/logger";
 import { getDatabase } from "./connection";
-import { ensureNameRows, ensureProjectDetailRow, ensureVersionRows } from "./rowValidation";
+import {
+  ensureNameRows,
+  ensureProjectDetailRow,
+  ensureSingleRowAffected,
+  ensureVersionRows,
+} from "./rowValidation";
 
 export function dbSelectProjectNames(): { name: string }[] {
   loggerMain.debug("--dbSelectProjectNames--");
@@ -136,10 +139,10 @@ export function dbSelectProjectDetailById(id: number): Dict_ProjectDetail | unde
     : ensureProjectDetailRow(row, "Project detail by ID query result");
 }
 
-export function dbInsertProjectDetail(dictDetail: Dict_ProjectCreate): Database.RunResult {
+export function dbInsertProjectDetail(dictDetail: Dict_ProjectCreate): void {
   loggerMain.debug("--dbInsertProjectDetail--");
   const intNowMs = Date.now();
-  return getDatabase()
+  const result = getDatabase()
     .prepare(
       `
       INSERT INTO
@@ -177,13 +180,15 @@ export function dbInsertProjectDetail(dictDetail: Dict_ProjectCreate): Database.
       intNowMs,
       intNowMs,
     );
+  ensureSingleRowAffected(
+    result,
+    `Insert Project ${dictDetail.name}-${dictDetail.version}`,
+  );
 }
 
-export function dbUpdateProjectSettings(
-  dictDetail: Dict_ProjectSettingsUpdate,
-): Database.RunResult {
+export function dbUpdateProjectSettings(dictDetail: Dict_ProjectSettingsUpdate): void {
   loggerMain.debug("--dbUpdateProjectSettings--");
-  return getDatabase()
+  const result = getDatabase()
     .prepare(
       `
       UPDATE project
@@ -211,9 +216,10 @@ export function dbUpdateProjectSettings(
       Date.now(),
       dictDetail.id,
     );
+  ensureSingleRowAffected(result, `Update Project settings for ID ${dictDetail.id}`);
 }
 
-export function dbDeleteProject(id: number): Database.RunResult {
+export function dbDeleteProject(id: number): void {
   loggerMain.debug("--dbDeleteProject--");
 
   const arrBoundSchedule = dbSelectProjectBoundSchedules(id);
@@ -225,7 +231,8 @@ export function dbDeleteProject(id: number): Database.RunResult {
     );
   }
 
-  return getDatabase().prepare("DELETE FROM project WHERE id = ?;").run(id);
+  const result = getDatabase().prepare("DELETE FROM project WHERE id = ?;").run(id);
+  ensureSingleRowAffected(result, `Delete Project ID ${id}`);
 }
 
 export function dbSelectProjectMostRecentlyImportedDetail(

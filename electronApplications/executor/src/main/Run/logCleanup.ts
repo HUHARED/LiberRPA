@@ -3,6 +3,7 @@
 import fs from "fs";
 import path from "path";
 
+import { getErrorMessage } from "../../shared/error";
 import type { Dict_RunHistory_LogLocation } from "../Database/rowValidation";
 import {
   dbSelectLogFolderBefore,
@@ -73,7 +74,9 @@ export function logCleanFolderByTimeout(timeoutDays: number): void {
 
       dbUpdateNoLogFolderAndVideo(logLocation.id);
     } catch (e: unknown) {
-      loggerMain.error(e);
+      loggerMain.error(
+        `Failed to clean Run log folder ${logLocation.log_path}: ${getErrorMessage(e)}`,
+      );
     }
   }
 }
@@ -95,7 +98,9 @@ export function logCleanVideoByTimeout(timeoutDays: number): void {
 
       dbUpdateNoVideo(logLocation.id);
     } catch (e: unknown) {
-      loggerMain.error(e);
+      loggerMain.error(
+        `Failed to clean expired Run video in ${logLocation.log_path}: ${getErrorMessage(e)}`,
+      );
     }
   }
 }
@@ -135,7 +140,10 @@ export function logCleanVideoBySize(sizeGb: number): void {
       loggerMain.info(`Deleted video and subtitle in folder: ${strLogFolderPath}`);
       dbUpdateNoVideo(logLocation.id);
     } catch (e: unknown) {
-      loggerMain.error(e);
+      loggerMain.error(
+        "Failed to enforce the Run video size limit for " +
+          `${logLocation.log_path}: ${getErrorMessage(e)}`,
+      );
     }
   }
 }

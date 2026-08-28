@@ -122,11 +122,15 @@ function startSessionListener(): void {
       return;
     }
     if (strEventCache === "RDP connect") {
-      loggerMain.debug("It is manual basic session, not need to set session.");
+      loggerMain.debug(
+        "A manually connected basic session does not require Session switching.",
+      );
       return;
     }
     if (strEventCache === "console connect") {
-      loggerMain.debug("It is manual enhanced session, not need to set session.");
+      loggerMain.debug(
+        "A manually connected enhanced session does not require Session switching.",
+      );
       return;
     }
 

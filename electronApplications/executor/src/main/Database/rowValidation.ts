@@ -1,5 +1,7 @@
 // FileName: rowValidation.ts
 
+import type Database from "better-sqlite3";
+
 import type { Dict_ProjectDetail } from "../../shared/project";
 import type { Dict_RunHistory_Item } from "../../shared/run";
 import type { Dict_ProjectRun_Detail } from "../Run/types";
@@ -18,6 +20,17 @@ import {
   ensureString,
   ensureRunConflictPolicy,
 } from "../Common/validation";
+
+export function ensureSingleRowAffected(
+  result: Database.RunResult,
+  operationName: string,
+): void {
+  if (result.changes !== 1) {
+    throw new Error(
+      `${operationName} must affect exactly one database row, but affected ${String(result.changes)}.`,
+    );
+  }
+}
 
 export interface Dict_RunHistory_LogLocation {
   id: number;

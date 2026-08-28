@@ -15,6 +15,7 @@ import {
   ensureRunHistoryLogLocationRow,
   ensureRunHistoryLogLocationRows,
   ensureRunHistoryListRows,
+  ensureSingleRowAffected,
 } from "./rowValidation";
 
 interface Dict_RunHistory_Insert {
@@ -50,7 +51,7 @@ const MAP_RUN_HISTORY_SORT_COLUMN: Record<
 export function dbInsertRunHistory(detailDict: Dict_RunHistory_Insert): Database.RunResult {
   loggerMain.debug("--dbInsertRunHistory--");
   const intNowMs = Date.now();
-  return getDatabase()
+  const result = getDatabase()
     .prepare(
       `
       INSERT INTO
@@ -82,11 +83,13 @@ export function dbInsertRunHistory(detailDict: Dict_RunHistory_Insert): Database
       intNowMs,
       intNowMs,
     );
+  ensureSingleRowAffected(result, "Insert Run History");
+  return result;
 }
 
-export function dbUpdateRunHistory(detailDict: Dict_RunHistory_Update): Database.RunResult {
+export function dbUpdateRunHistory(detailDict: Dict_RunHistory_Update): void {
   loggerMain.debug("--dbUpdateRunHistory--");
-  return getDatabase()
+  const result = getDatabase()
     .prepare(
       `
       UPDATE run_history
@@ -99,6 +102,7 @@ export function dbUpdateRunHistory(detailDict: Dict_RunHistory_Update): Database
       `,
     )
     .run(detailDict.run_ended_at_ms, detailDict.status, Date.now(), detailDict.id);
+  ensureSingleRowAffected(result, `Finalize Run History ID ${detailDict.id}`);
 }
 
 export function dbMarkRunningRunsInterrupted(): void {

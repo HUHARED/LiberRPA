@@ -5,7 +5,7 @@ import { app, shell, BrowserWindow, screen, Tray, Menu, nativeImage } from "elec
 // Only one Executor instance.
 const boolGotLock = app.requestSingleInstanceLock();
 if (!boolGotLock) {
-  console.log("Another Executor has been running.");
+  console.log("Another Executor instance is already running.");
 
   app.quit();
   process.exit(0);
@@ -114,16 +114,27 @@ function createWindow(): void {
   });
 
   webContentsObj.setWindowOpenHandler((details) => {
-    loggerMain.info("Open: " + details.url);
-    // Open the URL in the user's default browser
-    void shell.openExternal(details.url).catch((e: unknown) => {
-      loggerMain.error(`Failed to open URL ${details.url}: ${getErrorMessage(e)}`);
+    let urlObj: URL;
+    try {
+      urlObj = new URL(details.url);
+    } catch (e: unknown) {
+      loggerMain.warn(`Reject invalid external URL: ${getErrorMessage(e)}`);
+      return { action: "deny" };
+    }
+
+    if (urlObj.protocol !== "https:" && urlObj.protocol !== "http:") {
+      loggerMain.warn(`Reject unsupported external URL scheme: ${urlObj.protocol}`);
+      return { action: "deny" };
+    }
+
+    loggerMain.info(`Open external URL: ${urlObj.href}`);
+    void shell.openExternal(urlObj.href).catch((e: unknown) => {
+      loggerMain.error(`Failed to open URL ${urlObj.href}: ${getErrorMessage(e)}`);
     });
-    // Deny creating a new window in the app
     return { action: "deny" };
   });
 
-  // HMR for renderer base on electron-vite cli.
+  // Support Renderer HMR through electron-vite.
   // Load the remote URL for development or the local html file for production.
   if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
     loggerMain.info("development mode");
@@ -140,12 +151,10 @@ function createWindow(): void {
   }
 }
 
-// This method will be called when Electron has finished initialization and is ready to create browser windows.
-// Some APIs can only be used after this event occurs.
 void app
   .whenReady()
   .then(() => {
-    // Set app user model id for windows
+    // Set the Windows application user model ID.
     electronApp.setAppUserModelId("com.liberrpa.executor");
 
     // Create the tray icon.
@@ -181,33 +190,25 @@ void app
       }
     });
 
-    const displays = screen.getAllDisplays();
-    if (displays.length === 0) {
+    if (screen.getAllDisplays().length === 0) {
       loggerMain.info("No display is available.");
     } else {
-      const mainDisplay = displays.find(
-        (display) => display.bounds.x === 0 && display.bounds.y === 0,
-      );
-      if (!mainDisplay) {
-        throw new Error("Not found main screen.");
-      } else {
-        screen.on("display-metrics-changed", () => {
-          const { width, height } = screen.getPrimaryDisplay().size;
-          loggerMain.info(`Display metrics changed. Resolution: ${width}x${height}`);
-          if (
-            dictConfigExecutor.keepRdpSession &&
-            (width !== dictConfigExecutor.keepRdpSessionWidth ||
-              height !== dictConfigExecutor.keepRdpSessionHeight)
-          ) {
-            loggerMain.info("Need to set resolution.");
-            // NOTE: It not works in Hyper-V Enhenced session.
-            setResolution(
-              dictConfigExecutor.keepRdpSessionWidth,
-              dictConfigExecutor.keepRdpSessionHeight,
-            );
-          }
-        });
-      }
+      screen.on("display-metrics-changed", () => {
+        const { width, height } = screen.getPrimaryDisplay().size;
+        loggerMain.info(`Primary display metrics changed. Resolution: ${width}x${height}`);
+        if (
+          dictConfigExecutor.keepRdpSession &&
+          (width !== dictConfigExecutor.keepRdpSessionWidth ||
+            height !== dictConfigExecutor.keepRdpSessionHeight)
+        ) {
+          loggerMain.info("Set the primary display resolution.");
+          // This does not work in Hyper-V Enhanced Session mode.
+          setResolution(
+            dictConfigExecutor.keepRdpSessionWidth,
+            dictConfigExecutor.keepRdpSessionHeight,
+          );
+        }
+      });
     }
 
     // Configure standard development and production window shortcuts.
@@ -231,11 +232,6 @@ void app
     startRunHousekeeping();
     startSchedulerEngine();
     startRdpSessionManager();
-
-    app.on("activate", function () {
-      // On macOS, re-create a window when the Dock icon is clicked and no window exists.
-      if (BrowserWindow.getAllWindows().length === 0) createWindow();
-    });
   })
   .catch((e: unknown) => {
     loggerMain.error(`Failed to initialize Executor: ${getErrorMessage(e)}`);
@@ -289,10 +285,7 @@ app.on("before-quit", (event) => {
   void shutdownExecutor();
 });
 
-// Quit when all windows are closed, except on macOS.
 app.on("window-all-closed", () => {
   loggerMain.info("Executor window closed.");
-  if (process.platform !== "darwin") {
-    app.quit();
-  }
+  app.quit();
 });

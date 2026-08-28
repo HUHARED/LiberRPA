@@ -8,7 +8,7 @@
           fluid
           class="pa-2 ma-0 pb-0">
           <v-row class="w-100">
-            <v-col cols="5" class="pb-0">
+            <v-col cols="6" class="pb-0">
               <v-text-field
                 :model-value="
                   formatTimestamp(
@@ -25,7 +25,7 @@
               </v-text-field>
             </v-col>
 
-            <v-col cols="5" class="pb-0">
+            <v-col cols="6" class="pb-0">
               <v-text-field
                 :model-value="
                   formatTimestamp(
@@ -39,21 +39,6 @@
                 hide-details
                 readonly
                 variant="plain">
-              </v-text-field>
-            </v-col>
-
-            <v-col cols="2" class="pb-0">
-              <v-text-field
-                :model-value="scheduleStore.dictDetailEdit.id"
-                label="ID"
-                class="clean-space"
-                density="compact"
-                hide-details
-                readonly
-                variant="plain">
-                <v-tooltip activator="parent" location="top">
-                  Internal schedule ID managed by Executor.
-                </v-tooltip>
               </v-text-field>
             </v-col>
           </v-row>

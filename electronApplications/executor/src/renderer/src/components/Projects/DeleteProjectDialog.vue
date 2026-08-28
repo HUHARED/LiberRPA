@@ -8,22 +8,7 @@
           fluid
           class="clean-space pa-2 ma-0 fill-height flex-column">
           <v-row class="w-100" style="max-height: 60px">
-            <v-col cols="2">
-              <v-text-field
-                :model-value="projectStore.dictDetailEdit.id"
-                label="ID"
-                class="clean-space"
-                density="compact"
-                hide-details
-                readonly
-                variant="plain">
-                <v-tooltip activator="parent" location="top">
-                  Internal project ID managed by Executor.
-                </v-tooltip>
-              </v-text-field>
-            </v-col>
-
-            <v-col cols="8">
+            <v-col cols="9">
               <v-text-field
                 :model-value="projectStore.dictDetailEdit.name"
                 label="Name"
@@ -35,7 +20,7 @@
               </v-text-field>
             </v-col>
 
-            <v-col cols="2">
+            <v-col cols="3">
               <v-text-field
                 :model-value="projectStore.dictDetailEdit.version"
                 label="Version"

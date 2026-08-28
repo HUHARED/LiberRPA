@@ -7,21 +7,7 @@
         fluid
         class="clean-space pa-2 ma-0 fill-height flex-column">
         <v-row class="w-100">
-          <v-col cols="2">
-            <v-text-field
-              :model-value="scheduleStore.dictDetailEdit.id"
-              label="ID"
-              class="clean-space"
-              density="compact"
-              hide-details
-              readonly
-              variant="plain">
-              <v-tooltip activator="parent" location="top">
-                Internal schedule ID managed by Executor.
-              </v-tooltip>
-            </v-text-field>
-          </v-col>
-          <v-col cols="10">
+          <v-col cols="12">
             <v-text-field
               :model-value="scheduleStore.dictDetailEdit.name"
               label="Name"
@@ -39,22 +25,7 @@
         </v-container>
 
         <v-row class="w-100">
-          <v-col cols="2">
-            <v-text-field
-              :model-value="scheduleStore.dictDetailEdit.project_id"
-              label="ID"
-              class="clean-space"
-              density="compact"
-              hide-details
-              readonly
-              variant="plain">
-              <v-tooltip activator="parent" location="top">
-                Internal project ID managed by Executor.
-              </v-tooltip>
-            </v-text-field>
-          </v-col>
-
-          <v-col cols="7">
+          <v-col cols="8">
             <v-text-field
               :model-value="scheduleStore.dictDetailEdit.project_name"
               label="Name"
@@ -66,7 +37,7 @@
             </v-text-field>
           </v-col>
 
-          <v-col cols="3">
+          <v-col cols="4">
             <v-text-field
               :model-value="scheduleStore.dictDetailEdit.project_version"
               label="Version"
