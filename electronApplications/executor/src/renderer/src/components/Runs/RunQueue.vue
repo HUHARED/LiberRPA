@@ -59,6 +59,7 @@ import { loggerRenderer } from "../../Logging/logger";
 import { useRunQueueStore } from "../../Store/runQueueStore";
 import { useSettingStore } from "../../Store/settingStore";
 import { formatTimestamp } from "../../Common/time";
+import { getErrorMessage } from "../../../../shared/error";
 import type { Dict_ListItem_RunQueue } from "../../../../shared/run";
 
 const runQueueStore = useRunQueueStore();
@@ -66,9 +67,7 @@ const settingStore = useSettingStore();
 
 onBeforeMount(() => {
   void runQueueStore.refreshRunQueue().catch((e: unknown) => {
-    loggerRenderer.error(
-      `Failed to load Run Queue: ${e instanceof Error ? e.message : String(e)}`,
-    );
+    loggerRenderer.error(`Failed to load Run Queue: ${getErrorMessage(e)}`);
   });
 });
 

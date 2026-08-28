@@ -4,6 +4,7 @@ import { randomUUID } from "crypto";
 import fs from "fs";
 import path from "path";
 
+import { getErrorMessage } from "../../shared/error";
 import { readJsonFile, writeJsonFileAtomic } from "../Common/jsonFile";
 import { ensureExactRecord, ensureNonEmptyString } from "../Common/validation";
 import { dbSelectProjectDetail } from "../Database/projectRepository";
@@ -73,7 +74,7 @@ export function removePackageImportFolderBestEffort(
     fs.rmSync(folderPath, { recursive: true, force: true });
     return true;
   } catch (e: unknown) {
-    loggerMain.warn(`${context}: ${e instanceof Error ? e.message : String(e)}`);
+    loggerMain.warn(`${context}: ${getErrorMessage(e)}`);
     return false;
   }
 }
@@ -184,7 +185,7 @@ export function recoverProjectPackageImports(): void {
       }
     } catch (e: unknown) {
       loggerMain.error(
-        `Failed to inspect Package import transaction ${strTransactionFolderPath}: ${String(e)}`,
+        `Failed to inspect Package import transaction ${strTransactionFolderPath}: ${getErrorMessage(e)}`,
       );
     }
 

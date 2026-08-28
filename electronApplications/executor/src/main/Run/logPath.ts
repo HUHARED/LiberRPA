@@ -24,35 +24,15 @@ export function ensureRunLogFolderPath(logFolderPath: string, logRootPath: strin
   return strResolvedLogFolderPath;
 }
 
-export function ensureExistingRunLogFolderPath(
-  logFolderPath: string,
-  logRootPath: string,
-): string {
-  const strResolvedRootPath = path.resolve(logRootPath);
-  const strResolvedLogFolderPath = ensureRunLogFolderPath(
-    logFolderPath,
-    strResolvedRootPath,
-  );
-
-  const rootStat = fs.statSync(strResolvedRootPath);
-  if (!rootStat.isDirectory()) {
-    throw new Error(`Project log root is not a directory: ${strResolvedRootPath}`);
+export function ensureExistingRunLogFolderPath(logFolderPath: string): string {
+  const strResolvedLogFolderPath = path.resolve(logFolderPath);
+  if (strResolvedLogFolderPath === path.parse(strResolvedLogFolderPath).root) {
+    throw new Error(`Executor run log folder cannot be a drive root: ${logFolderPath}`);
   }
 
-  const logFolderStat = fs.lstatSync(strResolvedLogFolderPath);
-  if (logFolderStat.isSymbolicLink() || !logFolderStat.isDirectory()) {
-    throw new Error(
-      `Executor run log folder is not a regular directory: ${strResolvedLogFolderPath}`,
-    );
+  if (!fs.statSync(strResolvedLogFolderPath).isDirectory()) {
+    throw new Error(`Executor run log folder is not a directory: ${logFolderPath}`);
   }
-
-  const strRealRootPath = fs.realpathSync.native(strResolvedRootPath);
-  const strRealLogFolderPath = fs.realpathSync.native(strResolvedLogFolderPath);
-  ensureChildPath(
-    strRealLogFolderPath,
-    strRealRootPath,
-    "Resolved Executor run log folder",
-  );
 
   return strResolvedLogFolderPath;
 }

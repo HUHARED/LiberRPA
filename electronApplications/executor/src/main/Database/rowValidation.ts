@@ -22,7 +22,6 @@ import {
 export interface Dict_RunHistory_LogLocation {
   id: number;
   log_path: string;
-  log_root_path: string;
 }
 
 function ensureBinaryInteger(value: unknown, sourceName: string): 0 | 1 {
@@ -423,11 +422,10 @@ export function ensureRunHistoryLogLocationRow(
   value: unknown,
   sourceName: string,
 ): Dict_RunHistory_LogLocation {
-  const row = ensureExactRecord(value, ["id", "log_path", "log_root_path"], sourceName);
+  const row = ensureExactRecord(value, ["id", "log_path"], sourceName);
   return {
     id: ensurePositiveInteger(row.id, `${sourceName}.id`),
     log_path: ensureNonEmptyString(row.log_path, `${sourceName}.log_path`),
-    log_root_path: ensureNonEmptyString(row.log_root_path, `${sourceName}.log_root_path`),
   };
 }
 

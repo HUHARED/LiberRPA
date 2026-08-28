@@ -4,6 +4,7 @@ import { randomUUID } from "crypto";
 import fs from "fs";
 import path from "path";
 
+import { getErrorMessage } from "../../shared/error";
 import { readJsonFile, writeJsonFileAtomic } from "../Common/jsonFile";
 import {
   ensureExactRecord,
@@ -90,7 +91,7 @@ function removeFolderBestEffort(strFolderPath: string, strContext: string): bool
     fs.rmSync(strFolderPath, { recursive: true, force: true });
     return true;
   } catch (e: unknown) {
-    loggerMain.warn(`${strContext}: ${e instanceof Error ? e.message : String(e)}`);
+    loggerMain.warn(`${strContext}: ${getErrorMessage(e)}`);
     return false;
   }
 }
@@ -156,9 +157,9 @@ export function deleteInstalledProject(projectId: number): void {
       boolRestored = fs.existsSync(strTargetPath);
     } catch (restoreError: unknown) {
       loggerMain.error(
-        `Failed to restore Project folder after database deletion failure: ${
-          restoreError instanceof Error ? restoreError.message : String(restoreError)
-        }`,
+        `Failed to restore Project folder after database deletion failure: ${getErrorMessage(
+          restoreError,
+        )}`,
       );
     }
 
@@ -260,7 +261,7 @@ export function recoverProjectPackageDeletions(): void {
       }
     } catch (e: unknown) {
       loggerMain.error(
-        `Failed to recover Project deletion transaction ${strTransactionFolderPath}: ${String(e)}`,
+        `Failed to recover Project deletion transaction ${strTransactionFolderPath}: ${getErrorMessage(e)}`,
       );
     }
 

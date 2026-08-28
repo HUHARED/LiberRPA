@@ -18,31 +18,30 @@ const INT_MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
 const STR_VIDEO_FILE_NAME = "video_record.mkv";
 const STR_SUBTITLE_FILE_NAME = "video_record.srt";
 
-function getRegularFilePath(folderPath: string, fileName: string): string | undefined {
+function getExistingLogFilePath(folderPath: string, fileName: string): string | undefined {
   const strFilePath = path.join(folderPath, fileName);
   if (!fs.existsSync(strFilePath)) {
     return undefined;
   }
 
-  const fileStat = fs.lstatSync(strFilePath);
-  if (fileStat.isSymbolicLink() || !fileStat.isFile()) {
-    throw new Error(`Expected a regular log file: ${strFilePath}`);
+  if (!fs.statSync(strFilePath).isFile()) {
+    throw new Error(`Expected a log file: ${strFilePath}`);
   }
   return strFilePath;
 }
 
-function getValidatedLogFolderPath(
+function getExistingRunLogFolderPath(
   logLocation: Dict_RunHistory_LogLocation,
 ): string | undefined {
   if (!fs.existsSync(logLocation.log_path)) {
     return undefined;
   }
-  return ensureExistingRunLogFolderPath(logLocation.log_path, logLocation.log_root_path);
+  return ensureExistingRunLogFolderPath(logLocation.log_path);
 }
 
 function deleteVideoFiles(logFolderPath: string): boolean {
-  const strVideoFilePath = getRegularFilePath(logFolderPath, STR_VIDEO_FILE_NAME);
-  const strSubtitleFilePath = getRegularFilePath(logFolderPath, STR_SUBTITLE_FILE_NAME);
+  const strVideoFilePath = getExistingLogFilePath(logFolderPath, STR_VIDEO_FILE_NAME);
+  const strSubtitleFilePath = getExistingLogFilePath(logFolderPath, STR_SUBTITLE_FILE_NAME);
 
   if (strVideoFilePath === undefined) {
     if (strSubtitleFilePath !== undefined) {
@@ -64,7 +63,7 @@ export function logCleanFolderByTimeout(timeoutDays: number): void {
 
   for (const logLocation of arrLogLocation) {
     try {
-      const strLogFolderPath = getValidatedLogFolderPath(logLocation);
+      const strLogFolderPath = getExistingRunLogFolderPath(logLocation);
       if (strLogFolderPath === undefined) {
         loggerMain.debug(`No log folder: ${logLocation.log_path}`);
       } else {
@@ -85,7 +84,7 @@ export function logCleanVideoByTimeout(timeoutDays: number): void {
 
   for (const logLocation of arrLogLocation) {
     try {
-      const strLogFolderPath = getValidatedLogFolderPath(logLocation);
+      const strLogFolderPath = getExistingRunLogFolderPath(logLocation);
       if (strLogFolderPath === undefined) {
         loggerMain.debug(`No log folder for video: ${logLocation.log_path}`);
       } else if (deleteVideoFiles(strLogFolderPath)) {
@@ -107,14 +106,17 @@ export function logCleanVideoBySize(sizeGb: number): void {
 
   for (const logLocation of arrLogLocation) {
     try {
-      const strLogFolderPath = getValidatedLogFolderPath(logLocation);
+      const strLogFolderPath = getExistingRunLogFolderPath(logLocation);
       if (strLogFolderPath === undefined) {
         loggerMain.debug(`No log folder for video: ${logLocation.log_path}`);
         dbUpdateNoVideo(logLocation.id);
         continue;
       }
 
-      const strVideoFilePath = getRegularFilePath(strLogFolderPath, STR_VIDEO_FILE_NAME);
+      const strVideoFilePath = getExistingLogFilePath(
+        strLogFolderPath,
+        STR_VIDEO_FILE_NAME,
+      );
       if (strVideoFilePath === undefined) {
         deleteVideoFiles(strLogFolderPath);
         loggerMain.debug(`No video: ${strLogFolderPath}`);

@@ -6,9 +6,10 @@ import type { ChildProcessWithoutNullStreams } from "child_process";
 import path from "path";
 import { createInterface } from "readline";
 
+import { getErrorMessage } from "../../shared/error";
 import { dictConfigExecutor } from "../Config/executorConfig";
 import {
-  getPythonProcessEnvironment,
+  buildPythonProcessEnvironment,
   strDefaultPythonEnvironmentPath,
 } from "../Config/environment";
 import { loggerMain } from "../Logging/logger";
@@ -40,7 +41,7 @@ function spawnRdpScript(
     path.join(strDefaultPythonEnvironmentPath, "python.exe"),
     [strScriptPath, ...argumentArr],
     {
-      env: getPythonProcessEnvironment({
+      env: buildPythonProcessEnvironment({
         pythonEnvironmentPath: strDefaultPythonEnvironmentPath,
         pythonPathEntries: [strScriptFolderPath],
       }),
@@ -212,11 +213,7 @@ function requestMoveMouseTermination(): boolean {
     boolMoveMouseTerminationRequested = true;
     return true;
   } catch (e: unknown) {
-    loggerMain.error(
-      `Failed to request MoveMouse termination: ${
-        e instanceof Error ? e.message : String(e)
-      }`,
-    );
+    loggerMain.error(`Failed to request MoveMouse termination: ${getErrorMessage(e)}`);
     return false;
   }
 }
@@ -259,9 +256,9 @@ async function stopRdpProcess(
     processPy.kill();
   } catch (e: unknown) {
     loggerMain.error(
-      `Failed to terminate RDP helper process ${String(processPy.pid)}: ${
-        e instanceof Error ? e.message : String(e)
-      }`,
+      `Failed to terminate RDP helper process ${String(processPy.pid)}: ${getErrorMessage(
+        e,
+      )}`,
     );
     return;
   }

@@ -4,6 +4,7 @@ import type { ChildProcessWithoutNullStreams } from "child_process";
 import fs from "fs";
 import path from "path";
 
+import { getErrorMessage } from "../../shared/error";
 import {
   ensureExactRecord,
   ensureNonEmptyString,
@@ -228,12 +229,4 @@ export async function waitForExecutorRunStateAvailable({
   }
 
   throw new Error(`Timeout waiting for the initial Executor run state: ${expectedRunId}`);
-}
-
-function getErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  return String(error);
 }

@@ -4,8 +4,9 @@ import { spawn } from "child_process";
 import fs from "fs";
 import path from "path";
 
+import { getErrorMessage } from "../../shared/error";
 import {
-  getPythonProcessEnvironment,
+  buildPythonProcessEnvironment,
   strDefaultPythonEnvironmentPath,
 } from "../Config/environment";
 import { loggerMain } from "../Logging/logger";
@@ -14,10 +15,6 @@ import {
   validatePackagedFlowProjectResponse,
 } from "./componentManagementProtocol";
 import type { Dict_Request_ValidatePackagedFlowProject } from "./componentManagementProtocol";
-
-function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
 
 async function runComponentManagement(
   request: Dict_Request_ValidatePackagedFlowProject,
@@ -38,9 +35,9 @@ async function runComponentManagement(
       ["-m", "liberrpa.ComponentManagement"],
       {
         cwd: strDefaultPythonEnvironmentPath,
-        env: getPythonProcessEnvironment({
+        env: buildPythonProcessEnvironment({
           pythonEnvironmentPath: strDefaultPythonEnvironmentPath,
-          variables: {
+          additionalVariables: {
             PYTHONUTF8: "1",
             PYTHONIOENCODING: "utf-8",
           },

@@ -4,7 +4,8 @@ import type { ChildProcessWithoutNullStreams } from "child_process";
 import { spawn } from "child_process";
 import path from "path";
 
-import { getPythonProcessEnvironment } from "../Config/environment";
+import { getErrorMessage } from "../../shared/error";
+import { buildPythonProcessEnvironment } from "../Config/environment";
 import { loggerMain } from "../Logging/logger";
 import type { Dict_ProjectRun_Detail } from "./types";
 
@@ -96,10 +97,10 @@ export function spawnProjectPythonProcess({
     ],
     {
       cwd: packagePath,
-      env: getPythonProcessEnvironment({
+      env: buildPythonProcessEnvironment({
         pythonEnvironmentPath,
         pythonPathEntries: [packagePath, path.join(packagePath, "_Components")],
-        variables: {
+        additionalVariables: {
           LIBERRPA_RUN_STARTED_AT: startedAt,
           LIBERRPA_EXECUTOR_RUN_ID: runId,
           LIBERRPA_EXECUTOR_RUN_STATE_PATH: runStatePath,
@@ -246,12 +247,4 @@ function waitForPythonProcessClose(
 
     processPy.once("close", handleClose);
   });
-}
-
-function getErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  return String(error);
 }

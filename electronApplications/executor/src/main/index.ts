@@ -24,6 +24,7 @@ import { join } from "path";
 import { electronApp, optimizer, is } from "@electron-toolkit/utils";
 import icon from "../../resources/LiberRPA_icon_v3_color_Executor_256.ico?asset";
 
+import { getErrorMessage } from "../shared/error";
 import { loggerMain } from "./Logging/logger";
 import { strDefaultProjectLogFolderPath } from "./Config/basicConfig";
 import { dictConfigExecutor } from "./Config/executorConfig";
@@ -116,7 +117,7 @@ function createWindow(): void {
     loggerMain.info("Open: " + details.url);
     // Open the URL in the user's default browser
     void shell.openExternal(details.url).catch((e: unknown) => {
-      loggerMain.error(`Failed to open URL ${details.url}: ${String(e)}`);
+      loggerMain.error(`Failed to open URL ${details.url}: ${getErrorMessage(e)}`);
     });
     // Deny creating a new window in the app
     return { action: "deny" };
@@ -127,14 +128,14 @@ function createWindow(): void {
   if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
     loggerMain.info("development mode");
     void mainWindow.loadURL(process.env["ELECTRON_RENDERER_URL"]).catch((e: unknown) => {
-      loggerMain.error(`Failed to load the development Renderer: ${String(e)}`);
+      loggerMain.error(`Failed to load the development Renderer: ${getErrorMessage(e)}`);
     });
   } else {
     loggerMain.info("production mode");
     void mainWindow
       .loadFile(join(__dirname, "../renderer/index.html"))
       .catch((e: unknown) => {
-        loggerMain.error(`Failed to load the packaged Renderer: ${String(e)}`);
+        loggerMain.error(`Failed to load the packaged Renderer: ${getErrorMessage(e)}`);
       });
   }
 }
@@ -237,7 +238,7 @@ void app
     });
   })
   .catch((e: unknown) => {
-    loggerMain.error(`Failed to initialize Executor: ${String(e)}`);
+    loggerMain.error(`Failed to initialize Executor: ${getErrorMessage(e)}`);
     app.quit();
   });
 
@@ -245,25 +246,25 @@ async function shutdownExecutor(): Promise<void> {
   try {
     await stopSchedulerEngine();
   } catch (e: unknown) {
-    loggerMain.error(`Failed to stop Scheduler engine: ${String(e)}`);
+    loggerMain.error(`Failed to stop Scheduler engine: ${getErrorMessage(e)}`);
   }
 
   try {
     await stopRdpSessionManager();
   } catch (e: unknown) {
-    loggerMain.error(`Failed to stop RDP helper processes: ${String(e)}`);
+    loggerMain.error(`Failed to stop RDP helper processes: ${getErrorMessage(e)}`);
   }
 
   try {
     await shutdownProjectRuns();
   } catch (e: unknown) {
-    loggerMain.error(`Failed to stop active Project Runs: ${String(e)}`);
+    loggerMain.error(`Failed to stop active Project Runs: ${getErrorMessage(e)}`);
   }
 
   try {
     closeDatabase();
   } catch (e: unknown) {
-    loggerMain.error(`Failed to close Executor database: ${String(e)}`);
+    loggerMain.error(`Failed to close Executor database: ${getErrorMessage(e)}`);
   } finally {
     boolShutdownComplete = true;
     app.quit();

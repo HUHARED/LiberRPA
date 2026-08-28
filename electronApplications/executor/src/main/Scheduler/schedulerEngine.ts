@@ -1,9 +1,9 @@
 // FileName: schedulerEngine.ts
 
 import { randomUUID } from "crypto";
-
 import { CronExpressionParser } from "cron-parser";
 
+import { getErrorMessage } from "../../shared/error";
 import { dictConfigExecutor } from "../Config/executorConfig";
 import { dbHasRunningRun } from "../Database/runHistoryRepository";
 import {
@@ -46,9 +46,7 @@ function requestSchedulerTick(): void {
   }
 
   const promiseCurrentTick = processSchedulerTick().catch((e: unknown) => {
-    loggerMain.error(
-      `Scheduler engine check failed: ${e instanceof Error ? e.message : String(e)}`,
-    );
+    loggerMain.error(`Scheduler engine check failed: ${getErrorMessage(e)}`);
   });
   promiseSchedulerTick = promiseCurrentTick;
   void promiseCurrentTick.finally(() => {
@@ -170,9 +168,9 @@ function resetPendingRuns(): void {
       });
     } catch (e: unknown) {
       loggerMain.debug(
-        `No pending Run is available for Schedule '${dictSchedule.name}': ${
-          e instanceof Error ? e.message : String(e)
-        }`,
+        `No pending Run is available for Schedule '${dictSchedule.name}': ${getErrorMessage(
+          e,
+        )}`,
       );
     }
   }
@@ -196,9 +194,9 @@ async function processSchedulerTick(): Promise<void> {
         boolOthersRunning = dbHasRunningRun();
       } catch (e: unknown) {
         loggerMain.error(
-          `Failed to start waiting Run for Schedule '${waitingRun.queueItem.schedule_name}': ${
-            e instanceof Error ? e.message : String(e)
-          }`,
+          `Failed to start waiting Run for Schedule '${waitingRun.queueItem.schedule_name}': ${getErrorMessage(
+            e,
+          )}`,
         );
       }
     }
@@ -241,9 +239,7 @@ async function processSchedulerTick(): Promise<void> {
         boolOthersRunning = dbHasRunningRun();
       } catch (e: unknown) {
         loggerMain.error(
-          `Failed to start scheduled Run for '${strScheduleName}': ${
-            e instanceof Error ? e.message : String(e)
-          }`,
+          `Failed to start scheduled Run for '${strScheduleName}': ${getErrorMessage(e)}`,
         );
       }
       continue;
@@ -280,9 +276,7 @@ function publishRunQueueChanged(): void {
     try {
       listener(arrItem);
     } catch (e: unknown) {
-      loggerMain.error(
-        `Run Queue listener failed: ${e instanceof Error ? e.message : String(e)}`,
-      );
+      loggerMain.error(`Run Queue listener failed: ${getErrorMessage(e)}`);
     }
   }
 }

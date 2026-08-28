@@ -4,6 +4,7 @@ import type { ChildProcessWithoutNullStreams } from "child_process";
 import { randomUUID } from "crypto";
 import fs from "fs";
 
+import { getErrorMessage } from "../../shared/error";
 import { getEffectiveProjectLogFolderPath } from "../Config/executorConfig";
 import { getPythonEnvironmentPath } from "../Config/environment";
 import { dbInsertRunHistory, dbUpdateRunHistory } from "../Database/runHistoryRepository";
@@ -166,7 +167,6 @@ async function startProjectRun(detailDict: Dict_ProjectRun_Detail): Promise<void
     runId: strRunId,
     runStatePath: strRunStatePath,
     runState: dictRunState,
-    logRootPath: strProjectLogRootPath,
     detail: detailDict,
     diagnosticOutput,
   });
@@ -352,7 +352,6 @@ async function createRunHistory({
   runId,
   runStatePath,
   runState,
-  logRootPath,
   detail,
   diagnosticOutput,
 }: {
@@ -360,7 +359,6 @@ async function createRunHistory({
   runId: string;
   runStatePath: string;
   runState: ExecutorRunState;
-  logRootPath: string;
   detail: Dict_ProjectRun_Detail;
   diagnosticOutput: Dict_PythonProcess_DiagnosticOutput;
 }): Promise<number> {
@@ -374,7 +372,6 @@ async function createRunHistory({
       run_started_at_ms: parseExecutorRunTimestamp(runState.startedAt),
       status: "running",
       log_path: runState.logPath,
-      log_root_path: logRootPath,
     }).lastInsertRowid;
 
     const intRunHistoryId = Number(intRunHistoryIdValue);
@@ -395,14 +392,6 @@ async function createRunHistory({
       cause: e,
     });
   }
-}
-
-function getErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  return String(error);
 }
 
 export function pythonCancel(runHistoryId: number): void {

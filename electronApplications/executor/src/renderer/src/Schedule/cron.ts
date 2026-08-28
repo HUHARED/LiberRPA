@@ -2,6 +2,8 @@
 
 import cronstrue from "cronstrue";
 
+import { getErrorMessage } from "../../../shared/error";
+
 export type Dict_Result_CronValidation =
   | {
       valid: true;
@@ -25,7 +27,7 @@ export function validateCronExpression(cron: string): Dict_Result_CronValidation
   } catch (e: unknown) {
     return {
       valid: false,
-      error: `Cron error: ${e instanceof Error ? e.message : String(e)}`,
+      error: `Cron error: ${getErrorMessage(e)}`,
     };
   }
 }

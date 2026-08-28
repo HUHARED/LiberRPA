@@ -26,7 +26,6 @@ interface Dict_RunHistory_Insert {
   run_started_at_ms: number;
   status: "running";
   log_path: string;
-  log_root_path: string;
 }
 
 interface Dict_RunHistory_Update {
@@ -64,12 +63,11 @@ export function dbInsertRunHistory(detailDict: Dict_RunHistory_Insert): Database
               run_started_at_ms,
               status,
               log_path,
-              log_root_path,
               created_at_ms,
               updated_at_ms
           )
       VALUES
-          (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+          (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
       `,
     )
     .run(
@@ -81,7 +79,6 @@ export function dbInsertRunHistory(detailDict: Dict_RunHistory_Insert): Database
       detailDict.run_started_at_ms,
       detailDict.status,
       detailDict.log_path,
-      detailDict.log_root_path,
       intNowMs,
       intNowMs,
     );
@@ -154,8 +151,7 @@ export function dbSelectRunHistoryLogLocation(
       `
       SELECT
           id,
-          log_path,
-          log_root_path
+          log_path
       FROM
           run_history
       WHERE
@@ -269,8 +265,7 @@ export function dbSelectLogFolderBefore(cutoffMs: number): Dict_RunHistory_LogLo
       `
       SELECT
           id,
-          log_path,
-          log_root_path
+          log_path
       FROM
           run_history
       WHERE
@@ -293,8 +288,7 @@ export function dbSelectVideoBefore(cutoffMs: number): Dict_RunHistory_LogLocati
       `
       SELECT
           id,
-          log_path,
-          log_root_path
+          log_path
       FROM
           run_history
       WHERE
@@ -317,8 +311,7 @@ export function dbSelectVideo(): Dict_RunHistory_LogLocation[] {
       `
       SELECT
           id,
-          log_path,
-          log_root_path
+          log_path
       FROM
           run_history
       WHERE

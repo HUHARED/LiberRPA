@@ -1,5 +1,6 @@
 // FileName: lifecycle.ts
 
+import { getErrorMessage } from "../../shared/error";
 import { loggerMain } from "../Logging/logger";
 
 type Listener_RunEnded = () => void;
@@ -18,9 +19,7 @@ export function notifyRunEnded(): void {
     try {
       listener();
     } catch (e: unknown) {
-      loggerMain.error(
-        `Run-ended listener failed: ${e instanceof Error ? e.message : String(e)}`,
-      );
+      loggerMain.error(`Run-ended listener failed: ${getErrorMessage(e)}`);
     }
   }
 }

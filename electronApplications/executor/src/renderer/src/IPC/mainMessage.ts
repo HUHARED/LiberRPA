@@ -1,5 +1,6 @@
 // FileName: mainMessage.ts
 
+import { getErrorMessage } from "../../../shared/error";
 import { loggerRenderer } from "../Logging/logger";
 import { useRunHistoryStore } from "../Store/runHistoryStore";
 import { useRunQueueStore } from "../Store/runQueueStore";
@@ -34,9 +35,8 @@ export function registerMainMessageListener(): void {
         }
       }
     } catch (e: unknown) {
-      const strMessage = e instanceof Error ? e.message : String(e);
       const informationStore = useInformationStore();
-      informationStore.showAlertMessage(strMessage);
+      informationStore.showAlertMessage(getErrorMessage(e));
     }
   });
 }

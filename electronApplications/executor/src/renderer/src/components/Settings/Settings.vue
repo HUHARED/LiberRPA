@@ -23,6 +23,7 @@ import { invokeMain } from "../../IPC/ipc";
 import { loggerRenderer } from "../../Logging/logger";
 import { useSettingStore } from "../../Store/settingStore";
 import type { Dict_ExecutorConfig } from "../../../../shared/config";
+import { getErrorMessage } from "../../../../shared/error";
 
 const settingStore = useSettingStore();
 
@@ -44,7 +45,7 @@ const dictConfigExecutor = computed<Dict_ExecutorConfig>(() => ({
 const debouncedSaveConfig = debounce(() => {
   loggerRenderer.info("Modified Executor settings.");
   invokeMain("saveExecutorConfig", dictConfigExecutor.value).catch((e: unknown) => {
-    loggerRenderer.error(`Failed to save Executor settings: ${String(e)}`);
+    loggerRenderer.error(`Failed to save Executor settings: ${getErrorMessage(e)}`);
   });
 }, 300);
 

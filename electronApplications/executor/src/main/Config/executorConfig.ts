@@ -5,6 +5,7 @@ import fs from "fs";
 import path from "path";
 
 import type { Dict_ExecutorConfig } from "../../shared/config";
+import { getErrorMessage } from "../../shared/error";
 import { writeJsonFileAtomic } from "../Common/jsonFile";
 import { ensureBoolean, ensureRecord, ensureString } from "../Common/validation";
 import { strDefaultProjectLogFolderPath } from "./basicConfig";
@@ -189,7 +190,7 @@ function getExecutorConfigDict(): Dict_ExecutorConfig {
 
     return dictSettings;
   } catch (e: unknown) {
-    throw new Error(`Error reading or parsing Executor.jsonc: ${String(e)}`, {
+    throw new Error(`Error reading or parsing Executor.jsonc: ${getErrorMessage(e)}`, {
       cause: e,
     });
   }
@@ -207,7 +208,7 @@ export function saveExecutorConfigDict(dictSettings: Dict_ExecutorConfig): void 
   try {
     writeJsonFileAtomic(STR_EXECUTOR_CONFIG_PATH, dictSettings);
   } catch (e: unknown) {
-    throw new Error(`Error writing Executor.jsonc: ${String(e)}`, {
+    throw new Error(`Error writing Executor.jsonc: ${getErrorMessage(e)}`, {
       cause: e,
     });
   }

@@ -3,6 +3,7 @@
 import fs from "fs";
 import path from "path";
 
+import { readJsonFile } from "../Common/jsonFile";
 import {
   ensureBoolean,
   ensureCustomProjectArgs,
@@ -47,14 +48,6 @@ export interface Dict_ProjectPackage_Metadata {
 const STR_FLOW_MANIFEST_FILE_NAME = "flow.json";
 const STR_PACKAGE_MANIFEST_FILE_NAME = ".liberrpa-package.json";
 const STR_PROJECT_FLOW_FILE_NAME = "project.flow";
-
-function readJsonFile(strFilePath: string): unknown {
-  try {
-    return JSON.parse(fs.readFileSync(strFilePath, { encoding: "utf-8" }));
-  } catch (e: unknown) {
-    throw new Error(`Failed to read JSON file: ${strFilePath}`, { cause: e });
-  }
-}
 
 function parseFlowManifest(value: unknown): DictFlowManifest {
   const dictManifest = ensureExactRecord(
@@ -159,7 +152,7 @@ function readRequiredRootJson(projectPath: string, fileName: string): unknown {
   if (!fs.existsSync(strFilePath) || !fs.statSync(strFilePath).isFile()) {
     throw new Error(`The Package does not contain ${fileName} at its root.`);
   }
-  return readJsonFile(strFilePath);
+  return readJsonFile(strFilePath, fileName);
 }
 
 function buildProjectDetail(

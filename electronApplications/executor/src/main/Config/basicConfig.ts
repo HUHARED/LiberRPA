@@ -4,6 +4,7 @@ import fs from "fs";
 import * as os from "os";
 import path from "path";
 
+import { getErrorMessage } from "../../shared/error";
 import { ensureNonEmptyString, ensureRecord } from "../Common/validation";
 import { strLiberRPAEnvPath } from "./environment";
 import { parseJsonc } from "./jsonc";
@@ -29,7 +30,7 @@ function getBasicConfigOutputLogPath(strToolName: "BuiltInTools" | "Executor"): 
     const dictConfig = ensureRecord(parseJsonc(strContent, "basic.jsonc"), "Basic config");
     return ensureNonEmptyString(dictConfig.outputLogPath, "Basic config.outputLogPath");
   } catch (e: unknown) {
-    throw new Error(`Error reading or parsing basic.jsonc: ${String(e)}`, {
+    throw new Error(`Error reading or parsing basic.jsonc: ${getErrorMessage(e)}`, {
       cause: e,
     });
   }

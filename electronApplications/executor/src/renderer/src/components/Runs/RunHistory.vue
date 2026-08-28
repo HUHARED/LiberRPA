@@ -152,6 +152,7 @@ import { cloneJsonSerializable } from "../../Common/json";
 import { useRunHistoryStore } from "../../Store/runHistoryStore";
 import { useSettingStore } from "../../Store/settingStore";
 import { formatTimestamp } from "../../Common/time";
+import { getErrorMessage } from "../../../../shared/error";
 import type {
   Dict_RunHistory_Item,
   Dict_RunHistory_Options,
@@ -275,8 +276,8 @@ function getStatusColor(status: Str_RunHistory_Status): string {
 async function openLogFolder(runHistoryId: number): Promise<void> {
   try {
     await invokeMain("openRunLogFolder", runHistoryId);
-  } catch (e) {
-    loggerRenderer.error(`Failed to open Run log folder: ${String(e)}`);
+  } catch (e: unknown) {
+    loggerRenderer.error(`Failed to open Run log folder: ${getErrorMessage(e)}`);
   }
 }
 

@@ -1,5 +1,6 @@
 // FileName: housekeeping.ts
 
+import { getErrorMessage } from "../../shared/error";
 import { dictConfigExecutor } from "../Config/executorConfig";
 import { loggerMain } from "../Logging/logger";
 import {
@@ -33,9 +34,7 @@ function runHousekeeping(): void {
       logCleanVideoBySize(dictConfigExecutor.videoSizeGB);
     }
   } catch (e: unknown) {
-    loggerMain.error(
-      `Run housekeeping failed: ${e instanceof Error ? e.message : String(e)}`,
-    );
+    loggerMain.error(`Run housekeeping failed: ${getErrorMessage(e)}`);
   }
 }
 

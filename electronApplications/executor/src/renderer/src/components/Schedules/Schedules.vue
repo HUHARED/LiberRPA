@@ -95,6 +95,7 @@ import { getDefaultSchedulePeriod } from "../../Common/time";
 import { loggerRenderer } from "../../Logging/logger";
 import { useScheduleStore } from "../../Store/scheduleStore";
 import { useSettingStore } from "../../Store/settingStore";
+import { getErrorMessage } from "../../../../shared/error";
 import type { Dict_ListItem_Schedule } from "../../../../shared/schedule";
 
 const scheduleStore = useScheduleStore();
@@ -105,9 +106,7 @@ onBeforeMount(() => {
     scheduleStore.loadScheduleList(),
     scheduleStore.loadProjectNames(),
   ]).catch((e: unknown) => {
-    loggerRenderer.error(
-      `Failed to initialize Schedules: ${e instanceof Error ? e.message : String(e)}`,
-    );
+    loggerRenderer.error(`Failed to initialize Schedules: ${getErrorMessage(e)}`);
   });
 });
 

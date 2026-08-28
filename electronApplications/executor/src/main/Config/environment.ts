@@ -87,14 +87,15 @@ export function getPythonEnvironmentPath(strEnvironmentName: string): string {
   return strEnvironmentPath;
 }
 
-function getInheritedEnvironmentVariable(name: string): string {
+// Windows environment variable names are case-insensitive, while process.env preserves the original key casing.
+function getProcessEnvironmentVariable(name: string): string | undefined {
   const strNameLower = name.toLowerCase();
   for (const [strKey, strValue] of Object.entries(process.env)) {
     if (strKey.toLowerCase() === strNameLower) {
-      return strValue ?? "";
+      return strValue;
     }
   }
-  return "";
+  return undefined;
 }
 
 function mergeProcessEnvironment(
@@ -120,40 +121,39 @@ function mergeProcessEnvironment(
   return dictEnvironment;
 }
 
-export function getPythonProcessEnvironment({
-  pythonEnvironmentPath,
-  pythonPathEntries = [],
-  variables = {},
-}: {
-  pythonEnvironmentPath: string;
-  pythonPathEntries?: string[];
-  variables?: Record<string, string | undefined>;
-}): NodeJS.ProcessEnv {
-  const strInheritedPath = getInheritedEnvironmentVariable("PATH");
-  const strInheritedPythonPath = getInheritedEnvironmentVariable("PYTHONPATH");
-
-  const strPath = [
+function getPythonEnvironmentPathEntries(pythonEnvironmentPath: string): string[] {
+  return [
     pythonEnvironmentPath,
     path.join(pythonEnvironmentPath, "Library", "mingw-w64", "bin"),
     path.join(pythonEnvironmentPath, "Library", "usr", "bin"),
     path.join(pythonEnvironmentPath, "Library", "bin"),
     path.join(pythonEnvironmentPath, "Scripts"),
     path.join(pythonEnvironmentPath, "bin"),
-    strInheritedPath,
-  ]
-    .filter((strItem) => strItem.length > 0)
-    .join(path.delimiter);
+  ];
+}
 
-  const arrPythonPath = [...pythonPathEntries];
-  if (strInheritedPythonPath.length > 0) {
-    arrPythonPath.push(strInheritedPythonPath);
+export function buildPythonProcessEnvironment({
+  pythonEnvironmentPath,
+  pythonPathEntries = [],
+  additionalVariables = {},
+}: {
+  pythonEnvironmentPath: string;
+  pythonPathEntries?: string[];
+  additionalVariables?: Record<string, string | undefined>;
+}): NodeJS.ProcessEnv {
+  // Put the selected environment before the inherited PATH so its DLLs and tools win.
+  const arrPathEntry = getPythonEnvironmentPathEntries(pythonEnvironmentPath);
+  const strParentPath = getProcessEnvironmentVariable("PATH");
+  if (strParentPath !== undefined && strParentPath.length > 0) {
+    arrPathEntry.push(strParentPath);
   }
 
+  // Do not inherit PYTHONHOME or PYTHONPATH because they can redirect the selected environment or shadow modules from the installed Project Package.
   return mergeProcessEnvironment({
-    ...variables,
-    PATH: strPath,
-    ...(arrPythonPath.length === 0
-      ? {}
-      : { PYTHONPATH: arrPythonPath.join(path.delimiter) }),
+    ...additionalVariables,
+    PATH: arrPathEntry.join(path.delimiter),
+    PYTHONHOME: undefined,
+    PYTHONPATH:
+      pythonPathEntries.length === 0 ? undefined : pythonPathEntries.join(path.delimiter),
   });
 }

@@ -86,7 +86,6 @@ CREATE TABLE
             )
         ),
         log_path TEXT NOT NULL CHECK (LENGTH(TRIM(log_path)) > 0),
-        log_root_path TEXT NOT NULL CHECK (LENGTH(TRIM(log_root_path)) > 0),
         no_log_folder INTEGER NOT NULL DEFAULT 0 CHECK (no_log_folder IN (0, 1)),
         no_log_video INTEGER NOT NULL DEFAULT 0 CHECK (no_log_video IN (0, 1)),
         created_at_ms INTEGER NOT NULL CHECK (created_at_ms >= 0),

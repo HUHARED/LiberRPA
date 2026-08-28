@@ -72,6 +72,7 @@ import { arrTimezone } from "../../Common/time";
 import { invokeMain } from "../../IPC/ipc";
 import { loggerRenderer } from "../../Logging/logger";
 import { useSettingStore } from "../../Store/settingStore";
+import { getErrorMessage } from "../../../../shared/error";
 
 const settingStore = useSettingStore();
 
@@ -86,7 +87,7 @@ const strProjectLogFolderPath = computed<string>({
 
 function openProjectLogFolder(): void {
   invokeMain("openProjectLogFolder").catch((e: unknown) => {
-    loggerRenderer.error(`Failed to open Project log folder: ${String(e)}`);
+    loggerRenderer.error(`Failed to open Project log folder: ${getErrorMessage(e)}`);
   });
 }
 </script>

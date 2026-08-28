@@ -3,6 +3,7 @@
 import { ipcMain } from "electron";
 import type { IpcMainEvent, IpcMainInvokeEvent, WebContents } from "electron";
 
+import { getErrorMessage } from "../../shared/error";
 import {
   chooseProjectLogFolder,
   dictConfigExecutor,
@@ -64,10 +65,6 @@ import type {
   Type_ExecutorInvoke_Request,
   Type_ExecutorInvoke_Response,
 } from "../../shared/ipc";
-
-function getErrorMessage(e: unknown): string {
-  return e instanceof Error ? e.message : String(e);
-}
 
 function createSuccessResult<T>(data: T): Dict_Result_Invoke<T> {
   return { success: true, data };
@@ -212,9 +209,7 @@ function createInvokeHandlerMap(): Map_ExecutorInvoke_Handler {
       if (logLocation === undefined) {
         throw new Error(`Run History record not found: ${runHistoryId}`);
       }
-      await fileOpenFolder(
-        ensureExistingRunLogFolderPath(logLocation.log_path, logLocation.log_root_path),
-      );
+      await fileOpenFolder(ensureExistingRunLogFolderPath(logLocation.log_path));
     },
 
     async runMostRecentlyImportedProjectVersion(projectName) {
