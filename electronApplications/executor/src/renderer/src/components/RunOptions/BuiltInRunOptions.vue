@@ -7,6 +7,7 @@
         control-variant="default"
         label="Timeout (min)"
         :min="0"
+        :max="INT_MAX_RUN_TIMEOUT_MIN"
         :precision="0"
         inset
         density="compact"
@@ -69,6 +70,7 @@ import { computed } from "vue";
 
 import { ARR_LOG_LEVEL } from "../../RunOptions/runOptions";
 import { useInformationStore } from "../../Store/informationStore";
+import { INT_MAX_RUN_TIMEOUT_MIN } from "../../../../shared/runOptions";
 import type { Str_LogLevel } from "../../../../shared/runOptions";
 
 const props = withDefaults(
@@ -95,8 +97,15 @@ const intTimeoutMin = computed<number>({
     return timeoutMin.value;
   },
   set(newValue: number | null) {
-    if (newValue === null || newValue < 0) {
-      informationStore.showAlertMessage(`It's not an integer >= 0. (${newValue})`);
+    if (
+      newValue === null ||
+      !Number.isSafeInteger(newValue) ||
+      newValue < 0 ||
+      newValue > INT_MAX_RUN_TIMEOUT_MIN
+    ) {
+      informationStore.showAlertMessage(
+        `Timeout must be an integer from 0 to ${String(INT_MAX_RUN_TIMEOUT_MIN)}. (${String(newValue)})`,
+      );
       return;
     }
 

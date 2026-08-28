@@ -289,7 +289,9 @@ export function registerExecutorIpc(
         );
         return createSuccessResult(data);
       } catch (e: unknown) {
-        loggerMain.error(`Error running IPC command: ${strCommandForLog}`, e);
+        loggerMain.error(
+          `Error running IPC command ${strCommandForLog}: ${getErrorMessage(e)}`,
+        );
         return createErrorResult(e);
       }
     },

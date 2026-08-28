@@ -9,14 +9,20 @@ export const useRunQueueStore = defineStore("runQueue", {
   state: () => {
     return {
       arrListItem: [] as Dict_ListItem_RunQueue[],
+      intLoadRevision: 0 as number,
     };
   },
   actions: {
     async refreshRunQueue(): Promise<void> {
-      this.arrListItem = await invokeMain("getRunQueue");
+      const intRevision = ++this.intLoadRevision;
+      const arrItem = await invokeMain("getRunQueue");
+      if (intRevision === this.intLoadRevision) {
+        this.arrListItem = arrItem;
+      }
     },
 
     setRunQueue(arrItem: Dict_ListItem_RunQueue[]): void {
+      this.intLoadRevision += 1;
       this.arrListItem = arrItem;
     },
 

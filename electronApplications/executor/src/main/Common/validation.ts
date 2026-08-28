@@ -2,6 +2,7 @@
 
 import type { Str_RunHistory_Status } from "../../shared/run";
 import type { Str_RunConflictPolicy } from "../../shared/schedule";
+import { INT_MAX_RUN_TIMEOUT_MIN } from "../../shared/runOptions";
 import type { Arr_CustomProjectArgs, Str_LogLevel } from "../../shared/runOptions";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -98,6 +99,16 @@ export function ensurePositiveInteger(value: unknown, sourceName: string): numbe
   const intValue = ensureNonNegativeInteger(value, sourceName);
   if (intValue === 0) {
     throw new Error(`${sourceName} must be greater than 0.`);
+  }
+  return intValue;
+}
+
+export function ensureRunTimeoutMinutes(value: unknown, sourceName: string): number {
+  const intValue = ensureNonNegativeInteger(value, sourceName);
+  if (intValue > INT_MAX_RUN_TIMEOUT_MIN) {
+    throw new Error(
+      `${sourceName} cannot exceed ${String(INT_MAX_RUN_TIMEOUT_MIN)} minutes.`,
+    );
   }
   return intValue;
 }

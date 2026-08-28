@@ -50,11 +50,6 @@ import {
 } from "./Scheduler/schedulerEngine";
 import type { Dict_Message_Main } from "../shared/ipc";
 
-initializeDatabase();
-recoverProjectPackageInstallations();
-recoverProjectPackageDeletions();
-dbMarkRunningRunsInterrupted();
-
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let boolAppQuitting = false;
@@ -154,6 +149,11 @@ function createWindow(): void {
 void app
   .whenReady()
   .then(() => {
+    initializeDatabase();
+    recoverProjectPackageInstallations();
+    recoverProjectPackageDeletions();
+    dbMarkRunningRunsInterrupted();
+
     // Set the Windows application user model ID.
     electronApp.setAppUserModelId("com.liberrpa.executor");
 

@@ -8,17 +8,18 @@ import type { Dict_ProjectRun_Detail } from "../Run/types";
 import type { Dict_Detail_Schedule, Dict_ListItem_Schedule } from "../../shared/schedule";
 import type { Arr_CustomProjectArgs } from "../../shared/runOptions";
 import {
-  ensureCustomProjectArgs,
   ensureExactRecord,
-  ensureLogLevel,
+  ensureString,
   ensureNonEmptyString,
   ensureNonNegativeInteger,
-  ensureNullableNonNegativeInteger,
-  ensureNullableString,
   ensurePositiveInteger,
-  ensureRunHistoryStatus,
-  ensureString,
+  ensureRunTimeoutMinutes,
+  ensureNullableString,
+  ensureNullableNonNegativeInteger,
+  ensureLogLevel,
   ensureRunConflictPolicy,
+  ensureRunHistoryStatus,
+  ensureCustomProjectArgs,
 } from "../Common/validation";
 
 export function ensureSingleRowAffected(
@@ -122,7 +123,7 @@ export function ensureProjectDetailRow(
       row.python_environment_name,
       `${sourceName}.python_environment_name`,
     ),
-    timeout_min: ensureNonNegativeInteger(row.timeout_min, `${sourceName}.timeout_min`),
+    timeout_min: ensureRunTimeoutMinutes(row.timeout_min, `${sourceName}.timeout_min`),
     builtin_log_level: ensureLogLevel(
       row.builtin_log_level,
       `${sourceName}.builtin_log_level`,
@@ -271,7 +272,7 @@ export function ensureScheduleDetailRow(
     period_start_ms: intPeriodStartMs,
     period_end_ms: intPeriodEndMs,
     enable: ensureBinaryInteger(row.enable, `${sourceName}.enable`) === 1,
-    timeout_min: ensureNonNegativeInteger(row.timeout_min, `${sourceName}.timeout_min`),
+    timeout_min: ensureRunTimeoutMinutes(row.timeout_min, `${sourceName}.timeout_min`),
     builtin_log_level: ensureLogLevel(
       row.builtin_log_level,
       `${sourceName}.builtin_log_level`,
@@ -337,7 +338,7 @@ export function ensureScheduleRunDetailRow(
       row.python_environment_name,
       `${sourceName}.python_environment_name`,
     ),
-    timeout_min: ensureNonNegativeInteger(row.timeout_min, `${sourceName}.timeout_min`),
+    timeout_min: ensureRunTimeoutMinutes(row.timeout_min, `${sourceName}.timeout_min`),
     builtin_log_level: ensureLogLevel(
       row.builtin_log_level,
       `${sourceName}.builtin_log_level`,

@@ -11,7 +11,6 @@ import { getPythonEnvironmentPath } from "../Config/environment";
 import { dbInsertRunHistory, dbUpdateRunHistory } from "../Database/runHistoryRepository";
 import { getExecutorPackageFolderPath } from "../FileSystem/executorFiles";
 import { loggerMain } from "../Logging/logger";
-import type { Dict_ProjectRun_Detail } from "./types";
 import { notifyRunEnded } from "./lifecycle";
 import {
   type Dict_PythonProcess_DiagnosticOutput,
@@ -29,18 +28,24 @@ import {
   removeExecutorRunStateFile,
   waitForExecutorRunStateAvailable,
 } from "./runState";
+import type { Dict_ProjectRun_Detail } from "./types";
 
+type Str_ProjectRunTerminationReason = "cancel" | "shutdown" | "timeout";
 type Str_RunHistoryTerminalStatus = "cancel" | "completed" | "error" | "timeout";
 
-interface RunningPythonProcess {
+interface ActiveProjectRun {
   processPy: ChildProcessWithoutNullStreams;
   strRunId: string;
+  terminationReason?: Str_ProjectRunTerminationReason;
+  terminationPromise?: Promise<void>;
+  boolForceTerminationRequired: boolean;
 }
 
-const mapProcessCache = new Map<number, RunningPythonProcess>();
-const mapActiveProcessByRunId = new Map<string, ChildProcessWithoutNullStreams>();
+const mapActiveRunByHistoryId = new Map<number, ActiveProjectRun>();
+const mapActiveRunByRunId = new Map<string, ActiveProjectRun>();
 
 const mapStartingRunCountByProject = new Map<number, number>();
+const setStartingRunPromise = new Set<Promise<void>>();
 let intStartingRunCount = 0;
 let boolProjectRunShutdownStarted = false;
 
@@ -62,16 +67,54 @@ function removeStartingRun(projectId: number): void {
   }
 }
 
-function trackActiveProjectProcess(
-  processPy: ChildProcessWithoutNullStreams,
-  runId: string,
-): void {
-  mapActiveProcessByRunId.set(runId, processPy);
-  processPy.once("close", () => {
-    if (mapActiveProcessByRunId.get(runId) === processPy) {
-      mapActiveProcessByRunId.delete(runId);
+function trackActiveProjectRun(activeRun: ActiveProjectRun): void {
+  mapActiveRunByRunId.set(activeRun.strRunId, activeRun);
+  activeRun.processPy.once("close", () => {
+    if (mapActiveRunByRunId.get(activeRun.strRunId) === activeRun) {
+      mapActiveRunByRunId.delete(activeRun.strRunId);
     }
   });
+}
+
+function requestProjectRunTermination(
+  activeRun: ActiveProjectRun,
+  reason: Str_ProjectRunTerminationReason,
+): Promise<void> {
+  if (activeRun.terminationPromise !== undefined) {
+    return activeRun.terminationPromise;
+  }
+  if (!isProcessRunning(activeRun.processPy)) {
+    return Promise.resolve();
+  }
+
+  activeRun.terminationReason = reason;
+  if (!requestPythonTermination(activeRun.processPy, activeRun.strRunId)) {
+    loggerMain.debug(
+      `Python process ${activeRun.strRunId} cannot receive the termination message.`,
+    );
+  }
+
+  const promiseTermination = waitForPythonProcessTermination(
+    activeRun.processPy,
+    activeRun.strRunId,
+    () => {
+      activeRun.boolForceTerminationRequired = true;
+    },
+  );
+  activeRun.terminationPromise = promiseTermination;
+  return promiseTermination;
+}
+
+function getRequestedRunHistoryStatus(
+  terminationReason: Str_ProjectRunTerminationReason | undefined,
+): "cancel" | "timeout" | undefined {
+  if (terminationReason === "timeout") {
+    return "timeout";
+  }
+  if (terminationReason !== undefined) {
+    return "cancel";
+  }
+  return undefined;
 }
 
 export function beginProjectRunShutdown(): void {
@@ -81,18 +124,23 @@ export function beginProjectRunShutdown(): void {
 export async function shutdownProjectRuns(): Promise<void> {
   beginProjectRunShutdown();
 
-  const arrProcess = [...mapActiveProcessByRunId.entries()];
-  if (arrProcess.length === 0) {
-    return;
+  const arrActiveRun = [...mapActiveRunByRunId.values()];
+  if (arrActiveRun.length !== 0) {
+    loggerMain.info(
+      `Stop ${String(arrActiveRun.length)} active Project Run(s) before Executor exits.`,
+    );
+    await Promise.all(
+      arrActiveRun.map((activeRun) => requestProjectRunTermination(activeRun, "shutdown")),
+    );
   }
 
-  loggerMain.info(`Stop ${arrProcess.length} active Project Run(s) before Executor exits.`);
-  await Promise.all(
-    arrProcess.map(async ([strRunId, processPy]) => {
-      requestPythonTermination(processPy, strRunId);
-      await waitForPythonProcessTermination(processPy, strRunId);
-    }),
-  );
+  const arrStartingRunPromise = [...setStartingRunPromise];
+  if (arrStartingRunPromise.length !== 0) {
+    loggerMain.info(
+      `Wait for ${String(arrStartingRunPromise.length)} starting Project Run(s) before Executor exits.`,
+    );
+    await Promise.allSettled(arrStartingRunPromise);
+  }
 }
 
 export function hasStartingRun(): boolean {
@@ -109,15 +157,17 @@ export async function pythonRun(detailDict: Dict_ProjectRun_Detail): Promise<voi
   }
 
   addStartingRun(detailDict.id);
+  const promiseStartingRun = startProjectRun(detailDict);
+  setStartingRunPromise.add(promiseStartingRun);
   try {
-    await startProjectRun(detailDict);
+    await promiseStartingRun;
   } finally {
+    setStartingRunPromise.delete(promiseStartingRun);
     removeStartingRun(detailDict.id);
   }
 }
 
 async function startProjectRun(detailDict: Dict_ProjectRun_Detail): Promise<void> {
-  // Only the local source is supported now.
   const strExecutorPackagePath = getExecutorPackageFolderPath(
     detailDict.name,
     detailDict.version,
@@ -146,7 +196,12 @@ async function startProjectRun(detailDict: Dict_ProjectRun_Detail): Promise<void
     startedAt: strStartedAt,
     runStatePath: strRunStatePath,
   });
-  trackActiveProjectProcess(processPy, strRunId);
+  const activeRun: ActiveProjectRun = {
+    processPy,
+    strRunId,
+    boolForceTerminationRequired: false,
+  };
+  trackActiveProjectRun(activeRun);
 
   const dictRunState = await getInitialRunState({
     processPy,
@@ -171,22 +226,19 @@ async function startProjectRun(detailDict: Dict_ProjectRun_Detail): Promise<void
     diagnosticOutput,
   });
 
-  mapProcessCache.set(intRunHistoryId, { processPy, strRunId });
+  mapActiveRunByHistoryId.set(intRunHistoryId, activeRun);
 
-  let boolTimeout = false;
   let timeoutId: NodeJS.Timeout | undefined;
   if (detailDict.timeout_min !== 0) {
-    loggerMain.info(`Set timeout: ${detailDict.timeout_min}`);
+    loggerMain.info(`Set timeout: ${String(detailDict.timeout_min)} minute(s).`);
     timeoutId = setTimeout(
       () => {
         if (!isProcessRunning(processPy)) {
           return;
         }
 
-        loggerMain.info(
-          `Timeout reached. Stopping ${detailDict.name}-${detailDict.version}`,
-        );
-        boolTimeout = requestPythonTermination(processPy, strRunId);
+        loggerMain.info(`Timeout reached. Stop ${detailDict.name}-${detailDict.version}.`);
+        void requestProjectRunTermination(activeRun, "timeout");
       },
       detailDict.timeout_min * 60 * 1000,
     );
@@ -209,8 +261,10 @@ async function startProjectRun(detailDict: Dict_ProjectRun_Detail): Promise<void
       clearTimeout(timeoutId);
     }
 
-    let strRunHistoryStatus: Str_RunHistoryTerminalStatus = "error";
-    let boolUnexpectedProcessFailure = getProcessError() !== undefined;
+    const strRequestedStatus = getRequestedRunHistoryStatus(activeRun.terminationReason);
+    let strRunHistoryStatus: Str_RunHistoryTerminalStatus = strRequestedStatus ?? "error";
+    let boolUnexpectedProcessFailure =
+      getProcessError() !== undefined || activeRun.boolForceTerminationRequired;
     let intRunEndedAtMs = Date.now();
 
     try {
@@ -240,21 +294,27 @@ async function startProjectRun(detailDict: Dict_ProjectRun_Detail): Promise<void
           break;
 
         case "terminated":
-          strRunHistoryStatus = boolTimeout ? "timeout" : "cancel";
+          strRunHistoryStatus = strRequestedStatus ?? "cancel";
           break;
 
         case "running":
           loggerMain.error(
             `Python exited before publishing a final Executor run state: ${strRunId}`,
           );
-          strRunHistoryStatus = "error";
+          strRunHistoryStatus = strRequestedStatus ?? "error";
           boolUnexpectedProcessFailure = true;
           break;
       }
 
+      const boolUnexpectedExit =
+        (intExitCode !== null && intExitCode !== 0) || strSignal !== null;
       if (
-        dictFinalState.status !== "terminated" &&
-        ((intExitCode !== null && intExitCode !== 0) || strSignal !== null)
+        boolUnexpectedExit &&
+        !(
+          dictFinalState.status === "terminated" &&
+          activeRun.terminationReason !== undefined &&
+          !activeRun.boolForceTerminationRequired
+        )
       ) {
         boolUnexpectedProcessFailure = true;
       }
@@ -262,6 +322,7 @@ async function startProjectRun(detailDict: Dict_ProjectRun_Detail): Promise<void
       loggerMain.error(
         `Failed to read final Executor run state ${strRunId}: ${getErrorMessage(e)}`,
       );
+      strRunHistoryStatus = strRequestedStatus ?? "error";
       boolUnexpectedProcessFailure = true;
     }
 
@@ -282,12 +343,11 @@ async function startProjectRun(detailDict: Dict_ProjectRun_Detail): Promise<void
       });
     } catch (e: unknown) {
       loggerMain.error(
-        `Failed to update Run History ${intRunHistoryId}: ${getErrorMessage(e)}`,
+        `Failed to update Run History ${String(intRunHistoryId)}: ${getErrorMessage(e)}`,
       );
     } finally {
-      mapProcessCache.delete(intRunHistoryId);
+      mapActiveRunByHistoryId.delete(intRunHistoryId);
       removeExecutorRunStateFile(strRunStatePath);
-
       notifyRunEnded();
     }
   };
@@ -375,7 +435,7 @@ async function createRunHistory({
     }).lastInsertRowid;
 
     const intRunHistoryId = Number(intRunHistoryIdValue);
-    if (!Number.isSafeInteger(intRunHistoryId)) {
+    if (!Number.isSafeInteger(intRunHistoryId) || intRunHistoryId <= 0) {
       throw new Error(`Invalid Run History ID: ${String(intRunHistoryIdValue)}`);
     }
     return intRunHistoryId;
@@ -395,15 +455,21 @@ async function createRunHistory({
 }
 
 export function pythonCancel(runHistoryId: number): void {
-  const runningProcess = mapProcessCache.get(runHistoryId);
-  if (runningProcess !== undefined) {
-    if (!requestPythonTermination(runningProcess.processPy, runningProcess.strRunId)) {
-      loggerMain.debug(
-        `Python process for Run History ${runHistoryId} is already closing.`,
-      );
-    }
+  const activeRun = mapActiveRunByHistoryId.get(runHistoryId);
+  if (activeRun === undefined) {
+    loggerMain.debug(
+      `No running Python process is cached for Run History ${String(runHistoryId)}.`,
+    );
     return;
   }
 
-  loggerMain.debug(`No running Python process is cached for Run History ${runHistoryId}.`);
+  if (!isProcessRunning(activeRun.processPy)) {
+    loggerMain.debug(
+      `Python process for Run History ${String(runHistoryId)} is already closing.`,
+    );
+    return;
+  }
+
+  loggerMain.info(`Cancel Run History ${String(runHistoryId)}.`);
+  void requestProjectRunTermination(activeRun, "cancel");
 }

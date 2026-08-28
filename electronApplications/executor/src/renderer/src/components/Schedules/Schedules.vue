@@ -113,6 +113,7 @@ onBeforeMount(() => {
 function newSchedule(): void {
   loggerRenderer.debug("--newSchedule--");
 
+  scheduleStore.invalidateScheduleDetailSelection();
   scheduleStore.resetProjectVersions();
   const dictDefaultPeriod = getDefaultSchedulePeriod(settingStore.timezone);
   scheduleStore.dictDetailNew = {
@@ -163,25 +164,32 @@ function getEnabledColor(enable: boolean): string {
 
 async function editSchedule(scheduleName: string): Promise<void> {
   loggerRenderer.info(`Edit schedule: ${scheduleName}`);
-  await scheduleStore.loadScheduleDetail(scheduleName);
-
-  const detail = scheduleStore.dictDetailEdit;
+  const detail = await scheduleStore.loadScheduleDetail(scheduleName);
   if (detail === undefined) {
     return;
   }
 
   await scheduleStore.loadProjectNames();
-  scheduleStore.setProjectVersions(
-    await scheduleStore.fetchProjectVersions(detail.project_name),
-  );
+  if (scheduleStore.dictDetailEdit !== detail) {
+    return;
+  }
+
+  const arrVersion = await scheduleStore.fetchProjectVersions(detail.project_name);
+  if (scheduleStore.dictDetailEdit !== detail) {
+    return;
+  }
+
+  scheduleStore.setProjectVersions(arrVersion);
   scheduleStore.formMode = "edit";
   scheduleStore.showFormDialog = true;
 }
 
 async function openDeleteDialog(scheduleName: string): Promise<void> {
   loggerRenderer.info(`Open delete dialog for schedule: ${scheduleName}`);
-  await scheduleStore.loadScheduleDetail(scheduleName);
-  scheduleStore.showDeleteDialog = true;
+  const detail = await scheduleStore.loadScheduleDetail(scheduleName);
+  if (detail !== undefined && scheduleStore.dictDetailEdit === detail) {
+    scheduleStore.showDeleteDialog = true;
+  }
 }
 </script>
 

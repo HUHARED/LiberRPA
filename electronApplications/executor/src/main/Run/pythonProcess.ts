@@ -203,12 +203,14 @@ export async function terminatePythonProcessAfterStartupFailure(
 export async function waitForPythonProcessTermination(
   processPy: ChildProcessWithoutNullStreams,
   runId: string,
+  onForceTerminationRequired?: () => void,
 ): Promise<void> {
   if (await waitForPythonProcessClose(processPy)) {
     return;
   }
 
   loggerMain.error(`Python process ${runId} did not terminate within the wait period.`);
+  onForceTerminationRequired?.();
 
   try {
     processPy.kill();

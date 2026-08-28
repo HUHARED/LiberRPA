@@ -8,7 +8,10 @@ import {
   formatTimestampForDateTimeLocal,
   parseDateTimeLocalToTimestamp,
 } from "../Common/time";
-import type { Dict_Detail_NewScheduleForm, Dict_Detail_ScheduleForm_All } from "../Schedule/types";
+import type {
+  Dict_Detail_NewScheduleForm,
+  Dict_Detail_ScheduleForm_All,
+} from "../Schedule/types";
 import { useSettingStore } from "./settingStore";
 import type {
   Dict_ScheduleCreate,
@@ -50,6 +53,7 @@ export const useScheduleStore = defineStore("schedule", {
       formMode: undefined as undefined | "edit" | "new",
       dictDetailEdit: undefined as Dict_Detail_ScheduleForm_All | undefined,
       strDetailCacheEdit: undefined as string | undefined,
+      intDetailLoadRevision: 0 as number,
 
       showDeleteDialog: false as boolean,
       dictDetailNew: undefined as Dict_Detail_NewScheduleForm | undefined,
@@ -74,6 +78,12 @@ export const useScheduleStore = defineStore("schedule", {
       this.arrProjectVersion = [];
     },
 
+    invalidateScheduleDetailSelection(): void {
+      this.intDetailLoadRevision += 1;
+      this.dictDetailEdit = undefined;
+      this.strDetailCacheEdit = undefined;
+    },
+
     async loadScheduleList(): Promise<void> {
       if (this.arrListItem.length === 0) {
         this.arrListItem = await invokeMain("getScheduleList");
@@ -81,25 +91,30 @@ export const useScheduleStore = defineStore("schedule", {
     },
 
     async refreshScheduleList(): Promise<void> {
+      this.invalidateScheduleDetailSelection();
       this.arrListItem = [];
       await this.loadScheduleList();
       this.showFormDialog = false;
       this.showDeleteDialog = false;
       this.formMode = undefined;
       this.dictDetailNew = undefined;
-      this.dictDetailEdit = undefined;
-      this.strDetailCacheEdit = undefined;
     },
 
-    async loadScheduleDetail(scheduleName: string): Promise<void> {
+    async loadScheduleDetail(
+      scheduleName: string,
+    ): Promise<Dict_Detail_ScheduleForm_All | undefined> {
+      const intRevision = ++this.intDetailLoadRevision;
       const dictDetail = await invokeMain("getScheduleDetail", scheduleName);
+      if (intRevision !== this.intDetailLoadRevision) {
+        return undefined;
+      }
       if (dictDetail === undefined) {
         throw new Error(`Schedule not found: ${scheduleName}`);
       }
 
       const settingStore = useSettingStore();
       const { period_start_ms, period_end_ms, ...dictDetailWithoutPeriod } = dictDetail;
-      this.dictDetailEdit = {
+      const dictDetailEdit: Dict_Detail_ScheduleForm_All = {
         ...dictDetailWithoutPeriod,
         period_start: formatTimestampForDateTimeLocal(
           period_start_ms,
@@ -107,7 +122,9 @@ export const useScheduleStore = defineStore("schedule", {
         ),
         period_end: formatTimestampForDateTimeLocal(period_end_ms, settingStore.timezone),
       };
-      this.strDetailCacheEdit = JSON.stringify(this.dictDetailEdit);
+      this.dictDetailEdit = dictDetailEdit;
+      this.strDetailCacheEdit = JSON.stringify(dictDetailEdit);
+      return dictDetailEdit;
     },
 
     async createSchedule(): Promise<void> {

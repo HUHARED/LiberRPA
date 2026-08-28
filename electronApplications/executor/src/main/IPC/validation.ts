@@ -4,19 +4,19 @@ import type { Dict_ProjectSettingsUpdate } from "../../shared/project";
 import type { Dict_RunHistory_Options } from "../../shared/run";
 import type { Dict_ScheduleCreate, Dict_ScheduleUpdate } from "../../shared/schedule";
 import type { Str_ExecutorInvokeCommand, Str_RendererLogLevel } from "../../shared/ipc";
-
 import {
-  ensureBoolean,
-  ensureCustomProjectArgs,
   ensureExactRecord,
-  ensureRunHistoryStatus,
-  ensureLogLevel,
+  ensureString,
   ensureNonEmptyString,
+  ensureTrimmedSingleLineString,
+  ensureBoolean,
   ensureNonNegativeInteger,
   ensurePositiveInteger,
-  ensureString,
-  ensureTrimmedSingleLineString,
+  ensureRunTimeoutMinutes,
+  ensureLogLevel,
   ensureRunConflictPolicy,
+  ensureRunHistoryStatus,
+  ensureCustomProjectArgs,
 } from "../Common/validation";
 
 function ensureRunHistorySortKey(
@@ -139,7 +139,7 @@ export function ensureProjectSettingsUpdate(value: unknown): Dict_ProjectSetting
       dictValue.python_environment_name,
       "Project settings update request.python_environment_name",
     ),
-    timeout_min: ensureNonNegativeInteger(
+    timeout_min: ensureRunTimeoutMinutes(
       dictValue.timeout_min,
       "Project settings update request.timeout_min",
     ),
@@ -213,7 +213,7 @@ function ensureScheduleData(
     period_start_ms: intPeriodStartMs,
     period_end_ms: intPeriodEndMs,
     enable: ensureBoolean(dictValue.enable, "Schedule request.enable"),
-    timeout_min: ensureNonNegativeInteger(
+    timeout_min: ensureRunTimeoutMinutes(
       dictValue.timeout_min,
       "Schedule request.timeout_min",
     ),

@@ -17,6 +17,7 @@ export const useRunHistoryStore = defineStore("runHistory", {
       arrListItem: [] as Dict_RunHistory_Item[],
       itemLength: 0 as number,
       dictOptionsCache: undefined as Dict_RunHistory_Options | undefined,
+      intLoadRevision: 0 as number,
 
       filterScheduleName: "" as string,
       filterProjectName: "" as string,
@@ -39,12 +40,24 @@ export const useRunHistoryStore = defineStore("runHistory", {
         return;
       }
 
-      const result = await invokeMain(
-        "getRunHistoryPage",
-        cloneJsonSerializable(this.dictOptionsCache),
-      );
-      this.arrListItem = result.rows;
-      this.itemLength = result.total;
+      const intRevision = ++this.intLoadRevision;
+      try {
+        const result = await invokeMain(
+          "getRunHistoryPage",
+          cloneJsonSerializable(this.dictOptionsCache),
+        );
+        if (intRevision !== this.intLoadRevision) {
+          return;
+        }
+
+        this.arrListItem = result.rows;
+        this.itemLength = result.total;
+      } catch (e: unknown) {
+        if (intRevision !== this.intLoadRevision) {
+          return;
+        }
+        throw e;
+      }
     },
 
     async refreshRunHistory(): Promise<void> {
