@@ -5,13 +5,19 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
+import ctypes
+from dataclasses import dataclass
+import json
 import os
 from pathlib import Path
+import secrets
 import shutil
 import subprocess
-import json
+import sys
+from typing import Any
 import winreg
-import secrets
+from win32com.client import Dispatch
+
 
 pathCwd = Path.cwd().resolve()
 print(
@@ -19,18 +25,232 @@ print(
 )
 pathUser = Path.home()
 
+_STEP_NAMES = (
+    "create_liberrpa_folder_in_documents",
+    "set_liberrpa_environment",
+    "create_native_messaging_file",
+    "create_local_auth",
+    "install_font_for_current_user",
+    "set_startup",
+    "put_shortcuts_to_desktop",
+    "check_Executor_config",
+    "create_component_repository_folder",
+)
+_STEP_NAME_WIDTH = max(len(name) for name in _STEP_NAMES)
+
+_ANSI_RESET = "\033[0m"
+_ANSI_DIM = "\033[2m"
+_ANSI_BOLD_CYAN = "\033[1;36m"
+_ANSI_BOLD_GREEN = "\033[1;32m"
+
+
+def _enable_ansi_color() -> bool:
+    """Enable ANSI colors for the current console when supported."""
+    if not sys.stdout.isatty():
+        return False
+
+    if os.name != "nt":
+        return True
+
+    try:
+        kernel32 = ctypes.windll.kernel32
+        kernel32.GetStdHandle.argtypes = [ctypes.c_ulong]
+        kernel32.GetStdHandle.restype = ctypes.c_void_p
+        kernel32.GetConsoleMode.argtypes = [
+            ctypes.c_void_p,
+            ctypes.POINTER(ctypes.c_uint32),
+        ]
+        kernel32.SetConsoleMode.argtypes = [ctypes.c_void_p, ctypes.c_uint32]
+
+        stdOutputHandle = kernel32.GetStdHandle(-11)  # STD_OUTPUT_HANDLE
+        invalidHandle = ctypes.c_void_p(-1).value
+        if stdOutputHandle in (None, invalidHandle):
+            return False
+
+        currentMode = ctypes.c_uint32()
+        if not kernel32.GetConsoleMode(stdOutputHandle, ctypes.byref(currentMode)):
+            return False
+
+        enableVirtualTerminalProcessing = 0x0004
+        return bool(
+            kernel32.SetConsoleMode(
+                stdOutputHandle,
+                currentMode.value | enableVirtualTerminalProcessing,
+            )
+        )
+    except Exception:
+        return False
+
+
+_COLOR_ENABLED = _enable_ansi_color()
+
+
+def _color_text(text: str, style: str) -> str:
+    if not _COLOR_ENABLED:
+        return text
+    return f"{style}{text}{_ANSI_RESET}"
+
 
 intCount = 0
+_dictStepNumberByName: dict[str, int] = {}
+
+
+def _format_step_line(stepNumber: int, name: str, status: str) -> str:
+    strPrefix = f"[STEP {stepNumber:02d}]"
+    strName = f"{name:<{_STEP_NAME_WIDTH}}"
+    strStatus = f"[{status:<5}]"
+
+    strStatusStyle = _ANSI_BOLD_GREEN if status == "DONE" else _ANSI_BOLD_CYAN
+    return " ".join([
+        _color_text(strPrefix, _ANSI_DIM),
+        _color_text(strName, strStatusStyle),
+        _color_text(strStatus, strStatusStyle),
+    ])
 
 
 def print_step(name: str) -> None:
     global intCount
+
     intCount += 1
-    print(f"##### Step {intCount}: {name} #####")
+    _dictStepNumberByName[name] = intCount
+
+    print()
+    print(_format_step_line(stepNumber=intCount, name=name, status="START"))
 
 
 def print_step_done(name: str) -> None:
-    print(f"##### Step {name} completed #####\n")
+    intStepNumber = _dictStepNumberByName.pop(name, None)
+    if intStepNumber is None:
+        raise RuntimeError(f"Cannot finish an unknown initialization step: {name}")
+
+    print(_format_step_line(stepNumber=intStepNumber, name=name, status="DONE"))
+    print()
+
+
+@dataclass(frozen=True)
+class ShortcutSpec:
+    fileName: str
+    targetPath: Path
+    workingDirectory: Path
+    arguments: str = ""
+    iconLocation: str = ""
+    description: str = ""
+    required: bool = True
+
+
+def _get_shortcut_specs() -> dict[str, ShortcutSpec]:
+    pathLocalServerIcon = (
+        pathCwd / "envs" / "assets" / "icon" / "LiberRPA_icon_v3_color_LocalServer.ico"
+    )
+
+    return {
+        "Editor-LiberRPA": ShortcutSpec(
+            fileName="Editor-LiberRPA",
+            targetPath=pathCwd / "Editor" / "Code.exe",
+            workingDirectory=pathCwd / "Editor",
+            description="Open LiberRPA Editor.",
+        ),
+        "Executor-LiberRPA": ShortcutSpec(
+            fileName="Executor-LiberRPA",
+            targetPath=pathCwd / "Executor" / "Executor.exe",
+            workingDirectory=pathCwd / "Executor",
+            description="Open LiberRPA Executor.",
+            # Executor may be absent from a temporary pre-Executor RC build.
+            required=False,
+        ),
+        "LocalServer-LiberRPA": ShortcutSpec(
+            fileName="LocalServer-LiberRPA",
+            targetPath=pathCwd / "envs" / "pyenv" / "default" / "pythonw.exe",
+            workingDirectory=pathCwd / "exeFiles" / "LiberRPALocalServer",
+            arguments="-m liberrpa.LiberRPALocalServer.LiberRPALocalServer",
+            iconLocation=f"{pathLocalServerIcon},0",
+            description="Start LiberRPA Local Server.",
+        ),
+        "UI_Analyzer-LiberRPA": ShortcutSpec(
+            fileName="UI_Analyzer-LiberRPA",
+            targetPath=pathCwd / "exeFiles" / "ui-analyzer" / "UI Analyzer.exe",
+            workingDirectory=pathCwd / "exeFiles" / "ui-analyzer",
+            description="Open LiberRPA UI Analyzer.",
+        ),
+    }
+
+
+def _get_special_folder(wshShell: Any, name: str) -> Path:
+    pathFolder = Path(str(wshShell.SpecialFolders(name))).resolve()
+    if not pathFolder.is_dir():
+        raise FileNotFoundError(f"Windows special folder does not exist: {pathFolder}")
+    return pathFolder
+
+
+def _get_icon_file_path(iconLocation: str) -> Path | None:
+    if not iconLocation:
+        return None
+
+    strIconPath = iconLocation.rsplit(",", maxsplit=1)[0].strip()
+    if not strIconPath:
+        return None
+
+    return Path(strIconPath)
+
+
+def _create_shortcut(
+    wshShell: Any,
+    shortcutFolder: Path,
+    shortcutSpec: ShortcutSpec,
+) -> None:
+    pathShortcut = shortcutFolder / f"{shortcutSpec.fileName}.lnk"
+
+    if not shortcutSpec.targetPath.is_file():
+        pathShortcut.unlink(missing_ok=True)
+        strMessage = (
+            f"Cannot create '{shortcutSpec.fileName}' because its target does not exist: "
+            f"'{shortcutSpec.targetPath}'"
+        )
+        if shortcutSpec.required:
+            raise FileNotFoundError(strMessage)
+
+        print(f"[Warning] {strMessage}. Skip this shortcut.")
+        return
+
+    if not shortcutSpec.workingDirectory.is_dir():
+        raise FileNotFoundError(
+            f"Cannot create '{shortcutSpec.fileName}' because its working directory "
+            f"does not exist: '{shortcutSpec.workingDirectory}'"
+        )
+
+    pathIcon = _get_icon_file_path(shortcutSpec.iconLocation)
+    if pathIcon is not None and not pathIcon.is_file():
+        raise FileNotFoundError(
+            f"Cannot create '{shortcutSpec.fileName}' because its icon does not "
+            f"exist: '{pathIcon}'"
+        )
+
+    shortcutFolder.mkdir(parents=True, exist_ok=True)
+    pathShortcut.unlink(missing_ok=True)
+
+    shortcutObj = wshShell.CreateShortcut(str(pathShortcut))
+    shortcutObj.TargetPath = str(shortcutSpec.targetPath)
+    shortcutObj.Arguments = shortcutSpec.arguments
+    shortcutObj.WorkingDirectory = str(shortcutSpec.workingDirectory)
+    shortcutObj.Description = shortcutSpec.description
+    shortcutObj.WindowStyle = 1
+
+    if shortcutSpec.iconLocation:
+        shortcutObj.IconLocation = shortcutSpec.iconLocation
+
+    shortcutObj.Save()
+
+    # WScript.Shell may not report invalid shortcut parameters when saving.
+    # Re-open the shortcut and verify the target written on this computer.
+    shortcutCheckObj = wshShell.CreateShortcut(str(pathShortcut))
+    pathCreatedTarget = Path(str(shortcutCheckObj.TargetPath)).resolve()
+    if pathCreatedTarget != shortcutSpec.targetPath.resolve():
+        raise RuntimeError(
+            f"Shortcut target verification failed for '{pathShortcut}'. "
+            f"Expected '{shortcutSpec.targetPath}', got '{pathCreatedTarget}'."
+        )
+
+    print(f"Create shortcut: '{pathShortcut}' -> '{shortcutSpec.targetPath}'")
 
 
 def create_liberrpa_folder_in_documents() -> None:
@@ -168,31 +388,38 @@ def install_font_for_current_user() -> None:
 def set_startup() -> None:
     print_step(name="set_startup")
 
-    for fileName in ["LocalServer-LiberRPA", "Executor-LiberRPA"]:
-        pathShortcut = pathCwd / f"envs/assets/shortcut/{fileName}.lnk"
-        pathTarget = (
-            pathUser / "AppData/Roaming/Microsoft/Windows/Start Menu/Programs/Startup"
+    wshShell = Dispatch("WScript.Shell")
+    pathStartup = _get_special_folder(wshShell=wshShell, name="Startup")
+    dictShortcutSpec = _get_shortcut_specs()
+
+    for strShortcutName in ["LocalServer-LiberRPA", "Executor-LiberRPA"]:
+        _create_shortcut(
+            wshShell=wshShell,
+            shortcutFolder=pathStartup,
+            shortcutSpec=dictShortcutSpec[strShortcutName],
         )
-        shutil.copy(src=pathShortcut, dst=pathTarget)
-        print(f"Add {fileName} into {pathTarget}")
 
     print_step_done(name="set_startup")
 
 
 def put_shortcuts_to_desktop() -> None:
-
     print_step(name="put_shortcuts_to_desktop")
 
-    for fileName in [
+    wshShell = Dispatch("WScript.Shell")
+    pathDesktop = _get_special_folder(wshShell=wshShell, name="Desktop")
+    dictShortcutSpec = _get_shortcut_specs()
+
+    for strShortcutName in [
         "LocalServer-LiberRPA",
         "UI_Analyzer-LiberRPA",
         "Editor-LiberRPA",
         "Executor-LiberRPA",
     ]:
-        pathShortcut = pathCwd / f"envs/assets/shortcut/{fileName}.lnk"
-        pathTarget = pathUser / "Desktop/"
-        shutil.copy(src=pathShortcut, dst=pathTarget)
-        print(f"Add {fileName} into {pathTarget}")
+        _create_shortcut(
+            wshShell=wshShell,
+            shortcutFolder=pathDesktop,
+            shortcutSpec=dictShortcutSpec[strShortcutName],
+        )
 
     print_step_done(name="put_shortcuts_to_desktop")
 
