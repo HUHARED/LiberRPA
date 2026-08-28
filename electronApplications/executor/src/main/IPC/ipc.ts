@@ -32,11 +32,11 @@ import {
 } from "../Database/scheduleRepository";
 import { fileOpenFolder } from "../FileSystem/executorFiles";
 import { loggerMain } from "../Logging/logger";
-import { importProjectPackage } from "../Package/packageImport";
-import { deleteInstalledProject } from "../Package/projectInstallation";
+import { installProjectPackage } from "../Package/packageInstallation";
+import { deleteInstalledProject } from "../Package/projectDeletion";
 import {
   runInstalledProject,
-  runMostRecentlyImportedProjectVersion,
+  runMostRecentlyInstalledProjectVersion,
 } from "../Run/manualRun";
 import { ensureExistingRunLogFolderPath } from "../Run/logPath";
 import { pythonCancel } from "../Run/projectRunner";
@@ -90,7 +90,8 @@ const INVOKE_VALIDATOR = {
   runProject: (rawData: unknown) => ensurePositiveIntegerData(rawData, "runProject"),
   getPythonEnvironmentNames: (rawData: unknown) =>
     ensureNoData(rawData, "getPythonEnvironmentNames"),
-  importProjectPackage: (rawData: unknown) => ensureNoData(rawData, "importProjectPackage"),
+  installProjectPackage: (rawData: unknown) =>
+    ensureNoData(rawData, "installProjectPackage"),
   getProjectNames: (rawData: unknown) => ensureNoData(rawData, "getProjectNames"),
   getProjectVersions: (rawData: unknown) => ensureStringData(rawData, "getProjectVersions"),
   getProjectDetail: ensureProjectRef,
@@ -109,8 +110,8 @@ const INVOKE_VALIDATOR = {
   cancelWaitingRun: ensureWaitingRunId,
   openRunLogFolder: (rawData: unknown) =>
     ensurePositiveIntegerData(rawData, "openRunLogFolder"),
-  runMostRecentlyImportedProjectVersion: (rawData: unknown) =>
-    ensureStringData(rawData, "runMostRecentlyImportedProjectVersion"),
+  runMostRecentlyInstalledProjectVersion: (rawData: unknown) =>
+    ensureStringData(rawData, "runMostRecentlyInstalledProjectVersion"),
   pythonCancel: (rawData: unknown) => ensurePositiveIntegerData(rawData, "pythonCancel"),
   chooseProjectLogFolder: (rawData: unknown) =>
     ensureNoData(rawData, "chooseProjectLogFolder"),
@@ -140,8 +141,8 @@ function createInvokeHandlerMap(): Map_ExecutorInvoke_Handler {
       return getPythonEnvironmentNames();
     },
 
-    async importProjectPackage() {
-      return await importProjectPackage();
+    async installProjectPackage() {
+      return await installProjectPackage();
     },
 
     getProjectNames() {
@@ -212,8 +213,8 @@ function createInvokeHandlerMap(): Map_ExecutorInvoke_Handler {
       await fileOpenFolder(ensureExistingRunLogFolderPath(logLocation.log_path));
     },
 
-    async runMostRecentlyImportedProjectVersion(projectName) {
-      await runMostRecentlyImportedProjectVersion(projectName);
+    async runMostRecentlyInstalledProjectVersion(projectName) {
+      await runMostRecentlyInstalledProjectVersion(projectName);
     },
 
     pythonCancel(runHistoryId) {

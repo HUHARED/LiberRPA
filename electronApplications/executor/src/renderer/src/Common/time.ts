@@ -9,7 +9,7 @@ const STR_DATETIME_LOCAL_FORMAT_MINUTE = "YYYY-MM-DDTHH:mm";
 const STR_DATETIME_LOCAL_FORMAT_SECOND = "YYYY-MM-DDTHH:mm:ss";
 const STR_DEFAULT_PERIOD_END_LOCAL = "2084-04-04T00:00:00";
 
-export function isValidTimezone(timezone: string): boolean {
+function isValidTimezone(timezone: string): boolean {
   return moment.tz.zone(timezone) !== null && isSupportedIntlTimezone(timezone);
 }
 

@@ -1,4 +1,4 @@
-// FileName: packageImport.ts
+// FileName: packageInstallation.ts
 
 import { dialog } from "electron";
 import fs from "fs";
@@ -9,18 +9,18 @@ import {
 } from "../Database/projectRepository";
 import { getExecutorPackageFolderPath } from "../FileSystem/executorFiles";
 import { loggerMain } from "../Logging/logger";
-import type { Dict_ProjectPackage_ImportResult } from "../../shared/project";
+import type { Dict_ProjectPackage_InstallResult } from "../../shared/project";
 import { extractProjectPackageArchive } from "./packageArchive";
 import {
-  createProjectPackageImportStaging,
-  removePackageImportFolderBestEffort,
-  writeProjectPackageImportTransaction,
-} from "./packageImportTransaction";
+  createProjectPackageInstallationStaging,
+  removePackageInstallationFolderBestEffort,
+  writeProjectPackageInstallationTransaction,
+} from "./packageInstallationTransaction";
 import { readProjectPackageMetadata } from "./packageMetadata";
 
-let boolPackageImportRunning = false;
+let boolPackageInstallationRunning = false;
 
-async function runProjectPackageImport(): Promise<Dict_ProjectPackage_ImportResult> {
+async function runProjectPackageInstallation(): Promise<Dict_ProjectPackage_InstallResult> {
   const dialogResult = await dialog.showOpenDialog({
     properties: ["openFile"],
     title: "Select a Flow Project Package",
@@ -34,7 +34,8 @@ async function runProjectPackageImport(): Promise<Dict_ProjectPackage_ImportResu
   }
 
   const strPackageFilePath = dialogResult.filePaths[0];
-  const { transactionFolderPath, stagedProjectPath } = createProjectPackageImportStaging();
+  const { transactionFolderPath, stagedProjectPath } =
+    createProjectPackageInstallationStaging();
 
   let strTargetPath: string | undefined;
   let boolTransactionWritten = false;
@@ -59,7 +60,7 @@ async function runProjectPackageImport(): Promise<Dict_ProjectPackage_ImportResu
       throw new Error(`The target Package folder already exists: ${strTargetPath}`);
     }
 
-    writeProjectPackageImportTransaction({
+    writeProjectPackageInstallationTransaction({
       transactionFolderPath,
       projectName: packageMetadata.name,
       projectVersion: packageMetadata.version,
@@ -71,15 +72,15 @@ async function runProjectPackageImport(): Promise<Dict_ProjectPackage_ImportResu
     dbInsertProjectDetail(packageMetadata.projectDetail);
     boolDatabaseCommitted = true;
 
-    removePackageImportFolderBestEffort(
+    removePackageInstallationFolderBestEffort(
       transactionFolderPath,
-      "Failed to clean the completed Package import transaction",
+      "Failed to clean the completed Package installation transaction",
     );
     loggerMain.info(
-      `Imported Flow Project Package: ${packageMetadata.name}-${packageMetadata.version}`,
+      `Installed Flow Project Package: ${packageMetadata.name}-${packageMetadata.version}`,
     );
     return {
-      status: "projectPackageImported",
+      status: "projectPackageInstalled",
       name: packageMetadata.name,
       version: packageMetadata.version,
     };
@@ -90,7 +91,7 @@ async function runProjectPackageImport(): Promise<Dict_ProjectPackage_ImportResu
       if (strTargetPath === undefined || !fs.existsSync(strTargetPath)) {
         boolRollbackComplete = true;
       } else {
-        boolRollbackComplete = removePackageImportFolderBestEffort(
+        boolRollbackComplete = removePackageInstallationFolderBestEffort(
           strTargetPath,
           "Failed to roll back the installed Package folder",
         );
@@ -98,28 +99,28 @@ async function runProjectPackageImport(): Promise<Dict_ProjectPackage_ImportResu
     }
 
     if (boolRollbackComplete) {
-      removePackageImportFolderBestEffort(
+      removePackageInstallationFolderBestEffort(
         transactionFolderPath,
-        "Failed to clean the failed Package import transaction",
+        "Failed to clean the failed Package installation transaction",
       );
     } else {
       loggerMain.error(
-        `Keep unresolved Package import transaction: ${transactionFolderPath}`,
+        `Keep unresolved Package installation transaction: ${transactionFolderPath}`,
       );
     }
     throw e;
   }
 }
 
-export async function importProjectPackage(): Promise<Dict_ProjectPackage_ImportResult> {
-  if (boolPackageImportRunning) {
-    throw new Error("Another Project Package import is already running.");
+export async function installProjectPackage(): Promise<Dict_ProjectPackage_InstallResult> {
+  if (boolPackageInstallationRunning) {
+    throw new Error("Another Project Package installation is already running.");
   }
 
-  boolPackageImportRunning = true;
+  boolPackageInstallationRunning = true;
   try {
-    return await runProjectPackageImport();
+    return await runProjectPackageInstallation();
   } finally {
-    boolPackageImportRunning = false;
+    boolPackageInstallationRunning = false;
   }
 }

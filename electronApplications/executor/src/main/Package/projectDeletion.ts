@@ -1,4 +1,4 @@
-// FileName: projectInstallation.ts
+// FileName: projectDeletion.ts
 
 import { randomUUID } from "crypto";
 import fs from "fs";
@@ -157,9 +157,7 @@ export function deleteInstalledProject(projectId: number): void {
       boolRestored = fs.existsSync(strTargetPath);
     } catch (restoreError: unknown) {
       loggerMain.error(
-        `Failed to restore Project folder after database deletion failure: ${getErrorMessage(
-          restoreError,
-        )}`,
+        `Failed to restore Project folder after database deletion failure: ${getErrorMessage(restoreError)}`,
       );
     }
 
@@ -226,7 +224,7 @@ export function recoverProjectPackageDeletions(): void {
 
       if (dictProject === undefined) {
         // Database deletion completed. The staged copy belongs to the deleted installation.
-        // Do not touch targetPath because the same Project version may have been imported again after the original deletion completed.
+        // Do not touch targetPath because the same Project version may have been installed again after the original deletion completed.
         boolRecovered = true;
       } else if (
         dictProject.name !== dictTransaction.projectName ||

@@ -39,7 +39,7 @@ interface DictProjectFlow_RuntimeSettings {
   customPrjArgs: Arr_CustomProjectArgs;
 }
 
-export interface Dict_ProjectPackage_Metadata {
+interface Dict_ProjectPackage_Metadata {
   name: string;
   version: string;
   projectDetail: Dict_ProjectCreate;

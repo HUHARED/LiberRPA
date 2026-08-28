@@ -235,10 +235,10 @@ export function dbDeleteProject(id: number): void {
   ensureSingleRowAffected(result, `Delete Project ID ${id}`);
 }
 
-export function dbSelectProjectMostRecentlyImportedDetail(
+export function dbSelectProjectMostRecentlyInstalledDetail(
   name: string,
 ): Dict_ProjectDetail | undefined {
-  loggerMain.debug("--dbSelectProjectMostRecentlyImportedDetail--");
+  loggerMain.debug("--dbSelectProjectMostRecentlyInstalledDetail--");
   const row = getDatabase()
     .prepare(
       `
@@ -270,5 +270,5 @@ export function dbSelectProjectMostRecentlyImportedDetail(
     .get(name);
   return row === undefined
     ? undefined
-    : ensureProjectDetailRow(row, "Most recently imported Project version query result");
+    : ensureProjectDetailRow(row, "Most recently installed Project version query result");
 }

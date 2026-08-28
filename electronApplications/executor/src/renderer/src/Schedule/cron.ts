@@ -4,7 +4,7 @@ import cronstrue from "cronstrue";
 
 import { getErrorMessage } from "../../../shared/error";
 
-export type Dict_Result_CronValidation =
+type Dict_Result_CronValidation =
   | {
       valid: true;
       description: string;

@@ -69,7 +69,7 @@
             </template>
           </v-tooltip>
 
-          <v-tooltip text="Run Most Recently Imported Version" location="bottom">
+          <v-tooltip text="Run Most Recently Installed Version" location="bottom">
             <template #activator="{ props }">
               <v-icon
                 v-if="item.status !== 'running'"
@@ -77,7 +77,7 @@
                 color="medium-emphasis"
                 icon="mdi-replay"
                 size="small"
-                @click="runMostRecentlyImportedProjectVersion(item.project_name)">
+                @click="runMostRecentlyInstalledProjectVersion(item.project_name)">
               </v-icon>
             </template>
           </v-tooltip>
@@ -286,10 +286,10 @@ async function cancelProcess(id: number): Promise<void> {
   await invokeMain("pythonCancel", id);
 }
 
-async function runMostRecentlyImportedProjectVersion(projectName: string): Promise<void> {
-  loggerRenderer.info(`Run most recently imported version: ${projectName}`);
+async function runMostRecentlyInstalledProjectVersion(projectName: string): Promise<void> {
+  loggerRenderer.info(`Run most recently installed version: ${projectName}`);
 
-  await invokeMain("runMostRecentlyImportedProjectVersion", projectName);
+  await invokeMain("runMostRecentlyInstalledProjectVersion", projectName);
   await runHistoryStore.refreshRunHistory();
 }
 </script>

@@ -3,7 +3,7 @@
 import type { Dict_ProjectDetail } from "../../shared/project";
 import {
   dbSelectProjectDetailById,
-  dbSelectProjectMostRecentlyImportedDetail,
+  dbSelectProjectMostRecentlyInstalledDetail,
 } from "../Database/projectRepository";
 import { pythonRun } from "./projectRunner";
 import type { Dict_ProjectRun_Detail } from "./types";
@@ -37,10 +37,10 @@ export async function runInstalledProject(projectId: number): Promise<void> {
   await pythonRun(createManualRunDetail(dictProject));
 }
 
-export async function runMostRecentlyImportedProjectVersion(
+export async function runMostRecentlyInstalledProjectVersion(
   projectName: string,
 ): Promise<void> {
-  const dictProject = dbSelectProjectMostRecentlyImportedDetail(projectName);
+  const dictProject = dbSelectProjectMostRecentlyInstalledDetail(projectName);
   if (dictProject === undefined) {
     throw new Error(`No installed Project version found: ${projectName}`);
   }

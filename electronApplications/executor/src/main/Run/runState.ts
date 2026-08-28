@@ -16,7 +16,7 @@ import { strDocumentsFolderPath } from "../Config/environment";
 import { loggerMain } from "../Logging/logger";
 import { ensureExpectedRunLogFolderPath, ensureRunLogFolderPath } from "./logPath";
 
-export type Str_ExecutorRunState_Status = "running" | "completed" | "error" | "terminated";
+type Str_ExecutorRunState_Status = "running" | "completed" | "error" | "terminated";
 
 export interface ExecutorRunState {
   schemaVersion: 1;

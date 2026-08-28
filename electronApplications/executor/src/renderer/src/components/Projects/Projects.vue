@@ -6,9 +6,9 @@
     <v-container fluid class="pa-1 ma-0 flex-row" style="height: 45px">
       <v-btn
         variant="tonal"
-        prepend-icon="mdi-database-import-outline"
-        @click="importProjectPackage()">
-        Import Package
+        prepend-icon="mdi-package-variant-plus"
+        @click="installProjectPackage()">
+        Install Package
       </v-btn>
     </v-container>
 
@@ -170,10 +170,10 @@ onBeforeMount(async () => {
   await projectStore.loadProjectNames();
 });
 
-async function importProjectPackage(): Promise<void> {
-  loggerRenderer.debug("--importProjectPackage--");
+async function installProjectPackage(): Promise<void> {
+  loggerRenderer.debug("--installProjectPackage--");
 
-  const result = await invokeMain("importProjectPackage");
+  const result = await invokeMain("installProjectPackage");
   if (result.status === "canceled") {
     return;
   }

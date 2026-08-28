@@ -31,7 +31,7 @@ export const useRunHistoryStore = defineStore("runHistory", {
         this.dictOptionsCache = cloneJsonSerializable(optionsDict);
       }
 
-      // If dictOptionsCache is not undefined, means user has opened Run History, can use the dictOptionsCache to upload data. Otherwise it does not need to refresh.
+      // Refresh only after Run History has been opened and table options are available.
       if (!this.dictOptionsCache) {
         loggerRenderer.debug(
           "Run History has not been opened, so its data is not refreshed.",

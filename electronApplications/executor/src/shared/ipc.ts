@@ -3,7 +3,7 @@
 import type { Dict_ExecutorConfig } from "./config";
 import type {
   Dict_ProjectDetail,
-  Dict_ProjectPackage_ImportResult,
+  Dict_ProjectPackage_InstallResult,
   Dict_ProjectSettingsUpdate,
 } from "./project";
 import type {
@@ -31,7 +31,7 @@ export type Str_RendererLogLevel =
   | "debug"
   | "silly";
 
-export interface Dict_ExecutorInvoke_Contract {
+interface Dict_ExecutorInvoke_Contract {
   openProjectLogFolder: {
     request: undefined;
     response: void;
@@ -48,9 +48,9 @@ export interface Dict_ExecutorInvoke_Contract {
     request: undefined;
     response: string[];
   };
-  importProjectPackage: {
+  installProjectPackage: {
     request: undefined;
-    response: Dict_ProjectPackage_ImportResult;
+    response: Dict_ProjectPackage_InstallResult;
   };
   getProjectNames: {
     request: undefined;
@@ -112,7 +112,7 @@ export interface Dict_ExecutorInvoke_Contract {
     request: number;
     response: void;
   };
-  runMostRecentlyImportedProjectVersion: {
+  runMostRecentlyInstalledProjectVersion: {
     request: string;
     response: void;
   };

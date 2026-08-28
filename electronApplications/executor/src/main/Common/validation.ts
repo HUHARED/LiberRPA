@@ -4,7 +4,7 @@ import type { Str_RunHistory_Status } from "../../shared/run";
 import type { Str_RunConflictPolicy } from "../../shared/schedule";
 import type { Arr_CustomProjectArgs, Str_LogLevel } from "../../shared/runOptions";
 
-export function isRecord(value: unknown): value is Record<string, unknown> {
+function isRecord(value: unknown): value is Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     return false;
   }
@@ -79,7 +79,7 @@ export function ensureBoolean(value: unknown, sourceName: string): boolean {
   return value;
 }
 
-export function ensureFiniteNumber(value: unknown, sourceName: string): number {
+function ensureFiniteNumber(value: unknown, sourceName: string): number {
   if (typeof value !== "number" || !Number.isFinite(value)) {
     throw new Error(`${sourceName} must be a finite number.`);
   }
@@ -160,7 +160,7 @@ export function ensureRunHistoryStatus(
   }
 }
 
-export function ensureJsonValue(
+function ensureJsonValue(
   value: unknown,
   sourceName: string,
   ancestorSet = new Set<object>(),
@@ -215,10 +215,7 @@ export function ensureCustomProjectArgs(
       throw new Error(`${sourceName}[${intIndex}] must be a [string, value] pair.`);
     }
 
-    const strName = ensureTrimmedSingleLineString(
-      item[0],
-      `${sourceName}[${intIndex}][0]`,
-    );
+    const strName = ensureTrimmedSingleLineString(item[0], `${sourceName}[${intIndex}][0]`);
     if (setArgumentName.has(strName)) {
       throw new Error(`${sourceName} contains a duplicate argument name: ${strName}`);
     }

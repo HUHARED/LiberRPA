@@ -24,10 +24,10 @@ export interface Dict_ProjectSettingsUpdate
   id: number;
 }
 
-export type Dict_ProjectPackage_ImportResult =
+export type Dict_ProjectPackage_InstallResult =
   | { status: "canceled" }
   | {
-      status: "projectPackageImported";
+      status: "projectPackageInstalled";
       name: string;
       version: string;
     };

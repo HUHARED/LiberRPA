@@ -15,10 +15,19 @@ import {
 } from "../Config/environment";
 import { loggerMain } from "../Logging/logger";
 
+interface Dict_PendingResolution {
+  width: number;
+  height: number;
+}
+
+const STR_LISTEN_SESSION_TERMINATION_MESSAGE = "Executor-stop-listen-session";
 const STR_MOVE_MOUSE_TERMINATION_MESSAGE = "Executor-stop-move-mouse";
 const INT_RDP_HELPER_CHECK_INTERVAL_MS = 1000;
+const INT_RDP_HELPER_RESTART_DELAY_MS = 5 * 1000;
 const INT_RDP_HELPER_TERMINATION_WAIT_MS = 3 * 1000;
+
 const setRdpProcess = new Set<ChildProcessWithoutNullStreams>();
+const setGracefulTerminationRequested = new Set<ChildProcessWithoutNullStreams>();
 
 function getScriptFolderPath(): string {
   if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
@@ -51,6 +60,7 @@ function spawnRdpScript(
   setRdpProcess.add(processPy);
   processPy.once("close", () => {
     setRdpProcess.delete(processPy);
+    setGracefulTerminationRequested.delete(processPy);
   });
   processPy.once("error", (e: Error) => {
     loggerMain.error(`[${scriptName}] Process error: ${e.message}`);
@@ -76,14 +86,18 @@ function attachLineLogging(processPy: ChildProcessWithoutNullStreams, label: str
 
 let boolRdpSessionManagerStarted = false;
 let processPySessionListener: ChildProcessWithoutNullStreams | undefined;
+let intSessionListenerRestartAfterMs = 0;
 let processPyMoveMouse: ChildProcessWithoutNullStreams | undefined;
-let boolMoveMouseTerminationRequested = false;
+let intMoveMouseRestartAfterMs = 0;
+let processPySetSession: ChildProcessWithoutNullStreams | undefined;
+let processPySetResolution: ChildProcessWithoutNullStreams | undefined;
+let dictPendingResolution: Dict_PendingResolution | undefined;
 let timerRdpHelperCheck: NodeJS.Timeout | undefined;
 
 function startSessionListener(): void {
   if (
-    processPySessionListener !== undefined &&
-    isProcessRunning(processPySessionListener)
+    processPySessionListener !== undefined ||
+    Date.now() < intSessionListenerRestartAfterMs
   ) {
     return;
   }
@@ -142,24 +156,41 @@ function startSessionListener(): void {
     loggerMain.info(
       `[ListenSession] Exited with code ${String(intExitCode)}, signal ${String(strSignal)}`,
     );
-    if (processPySessionListener === processPy) {
-      processPySessionListener = undefined;
+    if (processPySessionListener !== processPy) {
+      return;
+    }
+
+    processPySessionListener = undefined;
+    if (boolRdpSessionManagerStarted) {
+      intSessionListenerRestartAfterMs = Date.now() + INT_RDP_HELPER_RESTART_DELAY_MS;
     }
   });
 }
 
 function setSession(): void {
+  if (!boolRdpSessionManagerStarted) {
+    return;
+  }
+  if (processPySetSession !== undefined) {
+    loggerMain.debug("SetSession is already running; ignore the duplicate request.");
+    return;
+  }
+
   loggerMain.debug("--setSession--");
   const processPy = spawnRdpScript("SetSession.py");
+  processPySetSession = processPy;
   attachLineLogging(processPy, "SetSession");
   processPy.once("close", (intExitCode, strSignal) => {
     loggerMain.info(
       `[SetSession] Exited with code ${String(intExitCode)}, signal ${String(strSignal)}`,
     );
+    if (processPySetSession === processPy) {
+      processPySetSession = undefined;
+    }
   });
 }
 
-export function setResolution(width: number, height: number): void {
+function startSetResolution(width: number, height: number): void {
   loggerMain.debug("--setResolution--");
   const processPy = spawnRdpScript("SetResolution.py", [
     "--width",
@@ -167,54 +198,93 @@ export function setResolution(width: number, height: number): void {
     "--height",
     height.toString(),
   ]);
+  processPySetResolution = processPy;
   attachLineLogging(processPy, "SetResolution");
   processPy.once("close", (intExitCode, strSignal) => {
     loggerMain.info(
       `[SetResolution] Exited with code ${String(intExitCode)}, signal ${String(strSignal)}`,
     );
+    if (processPySetResolution !== processPy) {
+      return;
+    }
+
+    processPySetResolution = undefined;
+    const dictNextResolution = dictPendingResolution;
+    dictPendingResolution = undefined;
+    if (
+      dictNextResolution !== undefined &&
+      boolRdpSessionManagerStarted &&
+      dictConfigExecutor.keepRdpSession
+    ) {
+      startSetResolution(dictNextResolution.width, dictNextResolution.height);
+    }
   });
 }
 
+export function setResolution(width: number, height: number): void {
+  loggerMain.debug("--setResolution--");
+  if (!boolRdpSessionManagerStarted) {
+    return;
+  }
+  if (processPySetResolution !== undefined) {
+    dictPendingResolution = { width, height };
+    loggerMain.debug(
+      `SetResolution is already running; keep the latest request ${width}x${height}.`,
+    );
+    return;
+  }
+
+  startSetResolution(width, height);
+}
+
 function startMoveMouse(): void {
-  if (processPyMoveMouse !== undefined && isProcessRunning(processPyMoveMouse)) {
+  if (processPyMoveMouse !== undefined || Date.now() < intMoveMouseRestartAfterMs) {
     return;
   }
 
   loggerMain.debug("--startMoveMouse--");
   const processPy = spawnRdpScript("MoveMouse.py");
   processPyMoveMouse = processPy;
-  boolMoveMouseTerminationRequested = false;
+
   attachLineLogging(processPy, "MoveMouse");
 
   processPy.once("close", (intExitCode, strSignal) => {
     loggerMain.info(
       `[MoveMouse] Exited with code ${String(intExitCode)}, signal ${String(strSignal)}`,
     );
-    if (processPyMoveMouse === processPy) {
-      processPyMoveMouse = undefined;
-      boolMoveMouseTerminationRequested = false;
+    if (processPyMoveMouse !== processPy) {
+      return;
+    }
+
+    processPyMoveMouse = undefined;
+    if (boolRdpSessionManagerStarted && dictConfigExecutor.keepRdpSession) {
+      intMoveMouseRestartAfterMs = Date.now() + INT_RDP_HELPER_RESTART_DELAY_MS;
     }
   });
 }
 
-function requestMoveMouseTermination(): boolean {
-  const processPy = processPyMoveMouse;
+function requestRdpProcessTermination(
+  processPy: ChildProcessWithoutNullStreams | undefined,
+  terminationMessage: string,
+  label: string,
+): boolean {
   if (
     processPy === undefined ||
     !isProcessRunning(processPy) ||
-    boolMoveMouseTerminationRequested ||
-    processPy.stdin.destroyed ||
-    !processPy.stdin.writable
+    setGracefulTerminationRequested.has(processPy)
   ) {
+    return processPy !== undefined && setGracefulTerminationRequested.has(processPy);
+  }
+  if (processPy.stdin.destroyed || !processPy.stdin.writable) {
     return false;
   }
 
   try {
-    processPy.stdin.end(`${STR_MOVE_MOUSE_TERMINATION_MESSAGE}\n`);
-    boolMoveMouseTerminationRequested = true;
+    processPy.stdin.end(`${terminationMessage}\n`);
+    setGracefulTerminationRequested.add(processPy);
     return true;
   } catch (e: unknown) {
-    loggerMain.error(`Failed to request MoveMouse termination: ${getErrorMessage(e)}`);
+    loggerMain.error(`Failed to request ${label} termination: ${getErrorMessage(e)}`);
     return false;
   }
 }
@@ -276,21 +346,23 @@ function syncRdpHelperProcesses(): void {
     return;
   }
 
-  if (
-    processPySessionListener === undefined ||
-    !isProcessRunning(processPySessionListener)
-  ) {
+  if (processPySessionListener === undefined) {
     startSessionListener();
   }
 
   if (dictConfigExecutor.keepRdpSession) {
-    if (processPyMoveMouse === undefined || !isProcessRunning(processPyMoveMouse)) {
+    if (processPyMoveMouse === undefined) {
       startMoveMouse();
     }
     return;
   }
 
-  requestMoveMouseTermination();
+  intMoveMouseRestartAfterMs = 0;
+  requestRdpProcessTermination(
+    processPyMoveMouse,
+    STR_MOVE_MOUSE_TERMINATION_MESSAGE,
+    "MoveMouse",
+  );
 }
 
 export function startRdpSessionManager(): void {
@@ -300,6 +372,8 @@ export function startRdpSessionManager(): void {
 
   loggerMain.debug("--startRdpSessionManager--");
   boolRdpSessionManagerStarted = true;
+  intSessionListenerRestartAfterMs = 0;
+  intMoveMouseRestartAfterMs = 0;
   syncRdpHelperProcesses();
   timerRdpHelperCheck = setInterval(
     syncRdpHelperProcesses,
@@ -318,21 +392,28 @@ export async function stopRdpSessionManager(): Promise<void> {
 
   loggerMain.debug("--stopRdpSessionManager--");
   boolRdpSessionManagerStarted = false;
+  dictPendingResolution = undefined;
 
   if (timerRdpHelperCheck !== undefined) {
     clearInterval(timerRdpHelperCheck);
     timerRdpHelperCheck = undefined;
   }
 
-  const processMoveMouse = processPyMoveMouse;
-  const boolMoveMouseTerminationRequestedNow = requestMoveMouseTermination();
-  const boolWaitForMoveMouse =
-    boolMoveMouseTerminationRequestedNow || boolMoveMouseTerminationRequested;
+  requestRdpProcessTermination(
+    processPySessionListener,
+    STR_LISTEN_SESSION_TERMINATION_MESSAGE,
+    "ListenSession",
+  );
+  requestRdpProcessTermination(
+    processPyMoveMouse,
+    STR_MOVE_MOUSE_TERMINATION_MESSAGE,
+    "MoveMouse",
+  );
   const arrProcess = [...setRdpProcess];
 
   await Promise.all(
     arrProcess.map((processPy) =>
-      stopRdpProcess(processPy, processPy === processMoveMouse && boolWaitForMoveMouse),
+      stopRdpProcess(processPy, setGracefulTerminationRequested.has(processPy)),
     ),
   );
 }

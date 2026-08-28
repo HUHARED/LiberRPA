@@ -30,8 +30,8 @@ import { strDefaultProjectLogFolderPath } from "./Config/basicConfig";
 import { dictConfigExecutor } from "./Config/executorConfig";
 import { closeDatabase, initializeDatabase } from "./Database/connection";
 import { dbMarkRunningRunsInterrupted } from "./Database/runHistoryRepository";
-import { recoverProjectPackageImports } from "./Package/packageImportTransaction";
-import { recoverProjectPackageDeletions } from "./Package/projectInstallation";
+import { recoverProjectPackageInstallations } from "./Package/packageInstallationTransaction";
+import { recoverProjectPackageDeletions } from "./Package/projectDeletion";
 import {
   setResolution,
   startRdpSessionManager,
@@ -51,7 +51,7 @@ import {
 import type { Dict_Message_Main } from "../shared/ipc";
 
 initializeDatabase();
-recoverProjectPackageImports();
+recoverProjectPackageInstallations();
 recoverProjectPackageDeletions();
 dbMarkRunningRunsInterrupted();
 

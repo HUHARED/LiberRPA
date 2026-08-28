@@ -4,12 +4,7 @@ import { defineStore } from "pinia";
 
 import { loggerRenderer } from "../Logging/logger";
 
-export type Str_ExecutorTab =
-  | "projects"
-  | "schedules"
-  | "runQueue"
-  | "runHistory"
-  | "settings";
+type Str_ExecutorTab = "projects" | "schedules" | "runQueue" | "runHistory" | "settings";
 
 export const useInformationStore = defineStore("information", {
   state: () => {

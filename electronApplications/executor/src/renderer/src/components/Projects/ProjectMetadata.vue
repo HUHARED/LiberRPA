@@ -11,7 +11,7 @@
                 settingStore.timezone,
               )
             "
-            label="Imported At"
+            label="Installed At"
             class="clean-space"
             density="compact"
             hide-details

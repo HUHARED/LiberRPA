@@ -50,7 +50,7 @@ export function ensureInvokeCommand(value: unknown): Str_ExecutorInvokeCommand {
     case "saveExecutorConfig":
     case "runProject":
     case "getPythonEnvironmentNames":
-    case "importProjectPackage":
+    case "installProjectPackage":
     case "getProjectNames":
     case "getProjectVersions":
     case "getProjectDetail":
@@ -66,7 +66,7 @@ export function ensureInvokeCommand(value: unknown): Str_ExecutorInvokeCommand {
     case "getRunQueue":
     case "cancelWaitingRun":
     case "openRunLogFolder":
-    case "runMostRecentlyImportedProjectVersion":
+    case "runMostRecentlyInstalledProjectVersion":
     case "pythonCancel":
     case "chooseProjectLogFolder":
       return value;

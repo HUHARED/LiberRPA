@@ -1,4 +1,4 @@
-// FileName: packageImportTransaction.ts
+// FileName: packageInstallationTransaction.ts
 
 import { randomUUID } from "crypto";
 import fs from "fs";
@@ -12,7 +12,7 @@ import { strExecutorPackageFolderPath } from "../FileSystem/executorFiles";
 import { loggerMain } from "../Logging/logger";
 import { getTargetFolderName } from "./packageArchive";
 
-interface Dict_PackageImport_Transaction {
+interface Dict_PackageInstallation_Transaction {
   schemaVersion: 1;
   state: "prepared";
   projectName: string;
@@ -20,7 +20,7 @@ interface Dict_PackageImport_Transaction {
   targetFolderName: string;
 }
 
-interface Dict_PackageImport_StagingPaths {
+interface Dict_PackageInstallation_StagingPaths {
   transactionFolderPath: string;
   stagedProjectPath: string;
 }
@@ -29,31 +29,31 @@ const STR_STAGING_FOLDER_NAME = ".staging";
 const STR_TRANSACTION_FILE_NAME = "transaction.json";
 const STR_STAGED_PROJECT_FOLDER_NAME = "project";
 
-function parseTransaction(transactionPath: string): Dict_PackageImport_Transaction {
+function parseTransaction(transactionPath: string): Dict_PackageInstallation_Transaction {
   const dictTransaction = ensureExactRecord(
-    readJsonFile(transactionPath, "Package import transaction"),
+    readJsonFile(transactionPath, "Package installation transaction"),
     ["schemaVersion", "state", "projectName", "projectVersion", "targetFolderName"],
-    "Package import transaction",
+    "Package installation transaction",
   );
   if (dictTransaction.schemaVersion !== 1 || dictTransaction.state !== "prepared") {
-    throw new Error(`Invalid Package import transaction: ${transactionPath}`);
+    throw new Error(`Invalid Package installation transaction: ${transactionPath}`);
   }
 
   const strProjectName = ensureNonEmptyString(
     dictTransaction.projectName,
-    "Package import transaction.projectName",
+    "Package installation transaction.projectName",
   );
   const strProjectVersion = ensureNonEmptyString(
     dictTransaction.projectVersion,
-    "Package import transaction.projectVersion",
+    "Package installation transaction.projectVersion",
   );
   const strTargetFolderName = ensureNonEmptyString(
     dictTransaction.targetFolderName,
-    "Package import transaction.targetFolderName",
+    "Package installation transaction.targetFolderName",
   );
   if (getTargetFolderName(strProjectName, strProjectVersion) !== strTargetFolderName) {
     throw new Error(
-      `Package import transaction target is inconsistent: ${transactionPath}`,
+      `Package installation transaction target is inconsistent: ${transactionPath}`,
     );
   }
 
@@ -66,7 +66,7 @@ function parseTransaction(transactionPath: string): Dict_PackageImport_Transacti
   };
 }
 
-export function removePackageImportFolderBestEffort(
+export function removePackageInstallationFolderBestEffort(
   folderPath: string,
   context: string,
 ): boolean {
@@ -79,7 +79,7 @@ export function removePackageImportFolderBestEffort(
   }
 }
 
-export function createProjectPackageImportStaging(): Dict_PackageImport_StagingPaths {
+export function createProjectPackageInstallationStaging(): Dict_PackageInstallation_StagingPaths {
   fs.mkdirSync(strExecutorPackageFolderPath, { recursive: true });
 
   const strTransactionFolderPath = path.join(
@@ -87,7 +87,6 @@ export function createProjectPackageImportStaging(): Dict_PackageImport_StagingP
     STR_STAGING_FOLDER_NAME,
     randomUUID(),
   );
-
   const strStagedProjectPath = path.join(
     strTransactionFolderPath,
     STR_STAGED_PROJECT_FOLDER_NAME,
@@ -100,7 +99,7 @@ export function createProjectPackageImportStaging(): Dict_PackageImport_StagingP
   };
 }
 
-export function writeProjectPackageImportTransaction({
+export function writeProjectPackageInstallationTransaction({
   transactionFolderPath,
   projectName,
   projectVersion,
@@ -109,7 +108,7 @@ export function writeProjectPackageImportTransaction({
   projectName: string;
   projectVersion: string;
 }): void {
-  const dictTransaction: Dict_PackageImport_Transaction = {
+  const dictTransaction: Dict_PackageInstallation_Transaction = {
     schemaVersion: 1,
     state: "prepared",
     projectName,
@@ -122,7 +121,7 @@ export function writeProjectPackageImportTransaction({
   );
 }
 
-export function recoverProjectPackageImports(): void {
+export function recoverProjectPackageInstallations(): void {
   const strStagingRootPath = path.join(
     strExecutorPackageFolderPath,
     STR_STAGING_FOLDER_NAME,
@@ -134,9 +133,9 @@ export function recoverProjectPackageImports(): void {
   for (const entryObj of fs.readdirSync(strStagingRootPath, { withFileTypes: true })) {
     const strTransactionFolderPath = path.join(strStagingRootPath, entryObj.name);
     if (!entryObj.isDirectory()) {
-      removePackageImportFolderBestEffort(
+      removePackageInstallationFolderBestEffort(
         strTransactionFolderPath,
-        "Failed to remove an invalid Package import staging entry",
+        "Failed to remove an invalid Package installation staging entry",
       );
       continue;
     }
@@ -146,7 +145,7 @@ export function recoverProjectPackageImports(): void {
       STR_TRANSACTION_FILE_NAME,
     );
     if (!fs.existsSync(strTransactionPath)) {
-      removePackageImportFolderBestEffort(
+      removePackageInstallationFolderBestEffort(
         strTransactionFolderPath,
         "Failed to remove a Package staging folder without a transaction",
       );
@@ -168,11 +167,12 @@ export function recoverProjectPackageImports(): void {
 
       if (boolTargetExists && projectRecord === undefined) {
         loggerMain.warn(
-          `Roll back an incomplete Package import: ${dictTransaction.projectName}-${dictTransaction.projectVersion}`,
+          "Roll back an incomplete Package installation: " +
+            `${dictTransaction.projectName}-${dictTransaction.projectVersion}`,
         );
-        boolRecovered = removePackageImportFolderBestEffort(
+        boolRecovered = removePackageInstallationFolderBestEffort(
           strTargetPath,
-          "Failed to roll back an incomplete Package import",
+          "Failed to roll back an incomplete Package installation",
         );
       } else if (!boolTargetExists && projectRecord !== undefined) {
         loggerMain.error(
@@ -185,18 +185,18 @@ export function recoverProjectPackageImports(): void {
       }
     } catch (e: unknown) {
       loggerMain.error(
-        `Failed to inspect Package import transaction ${strTransactionFolderPath}: ${getErrorMessage(e)}`,
+        `Failed to inspect Package installation transaction ${strTransactionFolderPath}: ${getErrorMessage(e)}`,
       );
     }
 
     if (boolRecovered) {
-      removePackageImportFolderBestEffort(
+      removePackageInstallationFolderBestEffort(
         strTransactionFolderPath,
-        "Failed to clean a recovered Package import transaction",
+        "Failed to clean a recovered Package installation transaction",
       );
     } else {
       loggerMain.error(
-        `Keep unresolved Package import transaction: ${strTransactionFolderPath}`,
+        `Keep unresolved Package installation transaction: ${strTransactionFolderPath}`,
       );
     }
   }
