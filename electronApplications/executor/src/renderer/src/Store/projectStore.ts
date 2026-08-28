@@ -15,6 +15,7 @@ export const useProjectStore = defineStore("project", {
       arrName: [] as { title: string; value: string }[],
       arrVersion: [] as { title: string; value: string }[],
       arrPythonEnvironmentName: [] as string[],
+      intSelectionRevision: 0,
 
       dictDetailEdit: undefined as Dict_ProjectDetail | undefined,
       strDetailCacheEdit: undefined as string | undefined,
@@ -42,9 +43,16 @@ export const useProjectStore = defineStore("project", {
     },
 
     async loadProjectVersions(name: string): Promise<void> {
-      this.resetVersionAndDetail();
+      const intRevision = ++this.intSelectionRevision;
+      this.arrVersion = [];
+      this.strDetailCacheEdit = undefined;
+      this.dictDetailEdit = undefined;
 
       const arrRows = await invokeMain("getProjectVersions", name);
+      if (intRevision !== this.intSelectionRevision) {
+        return;
+      }
+
       this.arrVersion = arrRows.map((row) => ({
         title: row.version,
         value: row.version,
@@ -52,25 +60,39 @@ export const useProjectStore = defineStore("project", {
     },
 
     resetDetail(): void {
+      this.intSelectionRevision += 1;
       this.strDetailCacheEdit = undefined;
       this.dictDetailEdit = undefined;
     },
 
     resetVersionAndDetail(): void {
+      this.intSelectionRevision += 1;
       this.arrVersion = [];
-      this.resetDetail();
+      this.strDetailCacheEdit = undefined;
+      this.dictDetailEdit = undefined;
     },
 
     async loadProjectDetail(name: string, version: string): Promise<void> {
-      this.resetDetail();
+      const intRevision = ++this.intSelectionRevision;
+      this.strDetailCacheEdit = undefined;
+      this.dictDetailEdit = undefined;
+
       await this.loadPythonEnvironmentNames();
+      if (intRevision !== this.intSelectionRevision) {
+        return;
+      }
+
       const dictDetail = await invokeMain("getProjectDetail", { name, version });
+      if (intRevision !== this.intSelectionRevision) {
+        return;
+      }
+
       if (dictDetail === undefined) {
         throw new Error(`Project not found: ${name}-${version}`);
       }
 
       this.dictDetailEdit = dictDetail;
-      this.strDetailCacheEdit = JSON.stringify(this.dictDetailEdit);
+      this.strDetailCacheEdit = JSON.stringify(dictDetail);
     },
 
     async saveProjectSettings(): Promise<void> {
@@ -92,13 +114,16 @@ export const useProjectStore = defineStore("project", {
     },
 
     async loadBoundSchedules(): Promise<void> {
-      if (this.dictDetailEdit !== undefined) {
-        const arrRows = await invokeMain(
-          "getProjectBoundSchedules",
-          this.dictDetailEdit.id,
-        );
-        this.arrBoundSchedule = arrRows.map((row) => ({ title: row.name }));
+      const currentDetail = this.dictDetailEdit;
+      if (currentDetail === undefined) {
+        return;
       }
+
+      const arrRows = await invokeMain("getProjectBoundSchedules", currentDetail.id);
+      if (this.dictDetailEdit !== currentDetail) {
+        return;
+      }
+      this.arrBoundSchedule = arrRows.map((row) => ({ title: row.name }));
     },
 
     async deleteProject(): Promise<void> {

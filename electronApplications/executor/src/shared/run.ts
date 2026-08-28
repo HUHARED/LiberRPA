@@ -50,6 +50,7 @@ export interface Dict_RunHistory_Page {
 }
 
 export interface Dict_ListItem_RunQueue {
+  queue_id: string;
   schedule_name: string;
   project_name: string;
   project_version: string;

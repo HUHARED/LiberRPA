@@ -113,25 +113,8 @@ export function ensureProjectRef(value: unknown): { name: string; version: strin
   };
 }
 
-export function ensureWaitingRunRef(value: unknown): {
-  schedule_name: string;
-  estimated_run_at_ms: number;
-} {
-  const dictValue = ensureExactRecord(
-    value,
-    ["schedule_name", "estimated_run_at_ms"],
-    "Waiting Run reference",
-  );
-  return {
-    schedule_name: ensureNonEmptyString(
-      dictValue.schedule_name,
-      "Waiting Run reference.schedule_name",
-    ),
-    estimated_run_at_ms: ensureNonNegativeInteger(
-      dictValue.estimated_run_at_ms,
-      "Waiting Run reference.estimated_run_at_ms",
-    ),
-  };
+export function ensureWaitingRunId(value: unknown): string {
+  return ensureNonEmptyString(value, "Waiting Run ID");
 }
 
 export function ensureProjectSettingsUpdate(value: unknown): Dict_ProjectSettingsUpdate {

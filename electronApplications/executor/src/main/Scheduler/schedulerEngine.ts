@@ -1,13 +1,15 @@
 // FileName: schedulerEngine.ts
 
+import { randomUUID } from "crypto";
+
 import { CronExpressionParser } from "cron-parser";
 
 import { dictConfigExecutor } from "../Config/executorConfig";
+import { dbHasRunningRun } from "../Database/runHistoryRepository";
 import {
   dbSelectScheduleList,
   dbSelectScheduleRunDetail,
 } from "../Database/scheduleRepository";
-import { dbHasRunningRun } from "../Database/runHistoryRepository";
 import { loggerMain } from "../Logging/logger";
 import { hasStartingRun, pythonRun } from "../Run/projectRunner";
 import type { Dict_ProjectRun_Detail } from "../Run/types";
@@ -34,32 +36,54 @@ const arrPendingRun: PendingRun[] = [];
 const arrWaitingRun: WaitingRun[] = [];
 const setListener_RunQueueChanged = new Set<Listener_RunQueueChanged>();
 
-let intervalId: NodeJS.Timeout | undefined;
-let boolIsChecking = false;
+let timerSchedulerCheck: NodeJS.Timeout | undefined;
+let promiseSchedulerTick: Promise<void> | undefined;
+let boolSchedulerStarted = false;
+
+function requestSchedulerTick(): void {
+  if (!boolSchedulerStarted || promiseSchedulerTick !== undefined) {
+    return;
+  }
+
+  const promiseCurrentTick = processSchedulerTick().catch((e: unknown) => {
+    loggerMain.error(
+      `Scheduler engine check failed: ${e instanceof Error ? e.message : String(e)}`,
+    );
+  });
+  promiseSchedulerTick = promiseCurrentTick;
+  void promiseCurrentTick.finally(() => {
+    if (promiseSchedulerTick === promiseCurrentTick) {
+      promiseSchedulerTick = undefined;
+    }
+  });
+}
 
 export function startSchedulerEngine(): void {
-  if (intervalId !== undefined) {
+  if (boolSchedulerStarted) {
     return;
   }
 
   loggerMain.info("Start Scheduler engine.");
+  boolSchedulerStarted = true;
   refreshSchedulerEngine();
-  intervalId = setInterval(() => {
-    void processSchedulerTick().catch((e: unknown) => {
-      loggerMain.error(
-        `Scheduler engine check failed: ${e instanceof Error ? e.message : String(e)}`,
-      );
-    });
-  }, INT_SCHEDULER_CHECK_INTERVAL_MS);
+  timerSchedulerCheck = setInterval(requestSchedulerTick, INT_SCHEDULER_CHECK_INTERVAL_MS);
 }
 
-export function stopSchedulerEngine(): void {
-  if (intervalId === undefined) {
+export async function stopSchedulerEngine(): Promise<void> {
+  if (!boolSchedulerStarted && promiseSchedulerTick === undefined) {
     return;
   }
 
-  clearInterval(intervalId);
-  intervalId = undefined;
+  boolSchedulerStarted = false;
+  if (timerSchedulerCheck !== undefined) {
+    clearInterval(timerSchedulerCheck);
+    timerSchedulerCheck = undefined;
+  }
+
+  const promiseCurrentTick = promiseSchedulerTick;
+  if (promiseCurrentTick !== undefined) {
+    await promiseCurrentTick;
+  }
   loggerMain.info("Stop Scheduler engine.");
 }
 
@@ -79,18 +103,19 @@ export function hasWaitingRunForProject(projectId: number): boolean {
   return arrWaitingRun.some(({ runDetail }) => runDetail.id === projectId);
 }
 
-export function cancelWaitingRun(scheduleName: string, estimatedRunAtMs: number): void {
+export function cancelWaitingRun(queueId: string): void {
   const intIndex = arrWaitingRun.findIndex(
-    ({ queueItem }) =>
-      queueItem.schedule_name === scheduleName &&
-      queueItem.estimated_run_at_ms === estimatedRunAtMs,
+    ({ queueItem }) => queueItem.queue_id === queueId,
   );
   if (intIndex === -1) {
-    loggerMain.debug(`Waiting Run not found: ${scheduleName}-${estimatedRunAtMs}`);
+    loggerMain.debug(`Waiting Run not found: ${queueId}`);
     return;
   }
 
-  loggerMain.info(`Cancel waiting Run: ${scheduleName}-${estimatedRunAtMs}`);
+  const waitingRun = arrWaitingRun[intIndex];
+  loggerMain.info(
+    `Cancel waiting Run: ${waitingRun.queueItem.schedule_name}-${waitingRun.queueItem.estimated_run_at_ms}`,
+  );
   arrWaitingRun.splice(intIndex, 1);
   publishRunQueueChanged();
 }
@@ -129,14 +154,16 @@ function resetPendingRuns(): void {
         endDate: new Date(dictSchedule.period_end_ms),
         tz: dictConfigExecutor.timezone,
       });
+      const intEstimatedRunAtMs = intervalObj.next().toDate().getTime();
 
       arrNextPending.push({
         scheduleId: dictSchedule.id,
         queueItem: {
+          queue_id: `pending-${dictSchedule.id}-${intEstimatedRunAtMs}`,
           schedule_name: dictSchedule.name,
           project_name: dictSchedule.project_name,
           project_version: dictSchedule.project_version,
-          estimated_run_at_ms: intervalObj.next().toDate().getTime(),
+          estimated_run_at_ms: intEstimatedRunAtMs,
           waiting: false,
         },
         runConflictPolicy: dictSchedule.run_conflict_policy,
@@ -158,93 +185,93 @@ function resetPendingRuns(): void {
 }
 
 async function processSchedulerTick(): Promise<void> {
-  if (boolIsChecking) {
+  let boolOthersRunning = dbHasRunningRun() || hasStartingRun();
+
+  if (!boolOthersRunning && arrWaitingRun.length !== 0) {
+    const waitingRun = arrWaitingRun.shift();
+    if (waitingRun !== undefined) {
+      publishRunQueueChanged();
+      try {
+        await pythonRun(waitingRun.runDetail);
+        boolOthersRunning = dbHasRunningRun();
+      } catch (e: unknown) {
+        loggerMain.error(
+          `Failed to start waiting Run for Schedule '${waitingRun.queueItem.schedule_name}': ${
+            e instanceof Error ? e.message : String(e)
+          }`,
+        );
+      }
+    }
+  }
+
+  if (!boolSchedulerStarted) {
     return;
   }
 
-  boolIsChecking = true;
-  try {
-    let boolOthersRunning = dbHasRunningRun() || hasStartingRun();
+  const intNowMs = Date.now();
+  const arrDueRun = arrPendingRun.filter(
+    ({ queueItem }) => queueItem.estimated_run_at_ms <= intNowMs,
+  );
+  if (arrDueRun.length === 0) {
+    return;
+  }
 
-    if (!boolOthersRunning && arrWaitingRun.length !== 0) {
-      const waitingRun = arrWaitingRun.shift();
-      if (waitingRun !== undefined) {
-        publishRunQueueChanged();
-        try {
-          await pythonRun(waitingRun.runDetail);
-          boolOthersRunning = dbHasRunningRun();
-        } catch (e: unknown) {
-          loggerMain.error(
-            `Failed to start waiting Run for Schedule '${waitingRun.queueItem.schedule_name}': ${
-              e instanceof Error ? e.message : String(e)
-            }`,
-          );
-        }
-      }
-    }
-
-    const intNowMs = Date.now();
-    const arrDueRun = arrPendingRun.filter(
-      ({ queueItem }) => queueItem.estimated_run_at_ms <= intNowMs,
-    );
-    if (arrDueRun.length === 0) {
+  for (const dictDueRun of arrDueRun) {
+    if (!boolSchedulerStarted) {
       return;
     }
 
-    for (const dictDueRun of arrDueRun) {
-      const { scheduleId, queueItem, runConflictPolicy } = dictDueRun;
-      loggerMain.info(
-        `Schedule '${queueItem.schedule_name}' reached its run time. run_conflict_policy=${runConflictPolicy}`,
+    const { scheduleId, queueItem, runConflictPolicy } = dictDueRun;
+    loggerMain.info(
+      `Schedule '${queueItem.schedule_name}' reached its run time. run_conflict_policy=${runConflictPolicy}`,
+    );
+
+    const dictRunDetail = dbSelectScheduleRunDetail(scheduleId);
+    if (dictRunDetail === undefined) {
+      loggerMain.warn(
+        `Schedule no longer exists: ${queueItem.schedule_name} (ID ${scheduleId})`,
       );
-
-      const dictRunDetail = dbSelectScheduleRunDetail(scheduleId);
-      if (dictRunDetail === undefined) {
-        loggerMain.warn(
-          `Schedule no longer exists: ${queueItem.schedule_name} (ID ${scheduleId})`,
-        );
-        continue;
-      }
-
-      const strScheduleName = dictRunDetail.schedule_name ?? queueItem.schedule_name;
-      if (!boolOthersRunning || runConflictPolicy === "concurrent") {
-        try {
-          await pythonRun(dictRunDetail);
-          boolOthersRunning = dbHasRunningRun();
-        } catch (e: unknown) {
-          loggerMain.error(
-            `Failed to start scheduled Run for '${strScheduleName}': ${
-              e instanceof Error ? e.message : String(e)
-            }`,
-          );
-        }
-        continue;
-      }
-
-      if (runConflictPolicy === "wait") {
-        loggerMain.info(`Move Schedule '${strScheduleName}' Run into the waiting queue.`);
-        arrWaitingRun.push({
-          scheduleId,
-          queueItem: {
-            schedule_name: strScheduleName,
-            project_name: dictRunDetail.name,
-            project_version: dictRunDetail.version,
-            estimated_run_at_ms: queueItem.estimated_run_at_ms,
-            waiting: true,
-          },
-          runDetail: dictRunDetail,
-        });
-      } else {
-        loggerMain.info(
-          `Skip Schedule '${strScheduleName}' Run because another Run is active.`,
-        );
-      }
+      continue;
     }
 
-    resetPendingRuns();
-    publishRunQueueChanged();
-  } finally {
-    boolIsChecking = false;
+    const strScheduleName = dictRunDetail.schedule_name ?? queueItem.schedule_name;
+    if (!boolOthersRunning || runConflictPolicy === "concurrent") {
+      try {
+        await pythonRun(dictRunDetail);
+        boolOthersRunning = dbHasRunningRun();
+      } catch (e: unknown) {
+        loggerMain.error(
+          `Failed to start scheduled Run for '${strScheduleName}': ${
+            e instanceof Error ? e.message : String(e)
+          }`,
+        );
+      }
+      continue;
+    }
+
+    if (runConflictPolicy === "wait") {
+      loggerMain.info(`Move Schedule '${strScheduleName}' Run into the waiting queue.`);
+      arrWaitingRun.push({
+        scheduleId,
+        queueItem: {
+          queue_id: randomUUID(),
+          schedule_name: strScheduleName,
+          project_name: dictRunDetail.name,
+          project_version: dictRunDetail.version,
+          estimated_run_at_ms: queueItem.estimated_run_at_ms,
+          waiting: true,
+        },
+        runDetail: dictRunDetail,
+      });
+    } else {
+      loggerMain.info(
+        `Skip Schedule '${strScheduleName}' Run because another Run is active.`,
+      );
+    }
   }
+
+  resetPendingRuns();
+  publishRunQueueChanged();
 }
 
 function publishRunQueueChanged(): void {

@@ -1,29 +1,18 @@
 // FileName: housekeeping.ts
 
 import { dictConfigExecutor } from "../Config/executorConfig";
+import { loggerMain } from "../Logging/logger";
 import {
   logCleanFolderByTimeout,
   logCleanVideoBySize,
   logCleanVideoByTimeout,
 } from "./logCleanup";
-import { loggerMain } from "../Logging/logger";
-import { onRunEnded } from "./lifecycle";
 
 const INT_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
 
-let intLastCleanupAtMs = Date.now();
-let boolStarted = false;
+let timerCleanup: NodeJS.Timeout | undefined;
 
-export function startRunHousekeeping(): void {
-  if (boolStarted) {
-    return;
-  }
-
-  boolStarted = true;
-  onRunEnded(handleRunEndedHousekeeping);
-}
-
-function handleRunEndedHousekeeping(): void {
+function runHousekeeping(): void {
   if (
     !dictConfigExecutor.logTimeoutEnable &&
     !dictConfigExecutor.videoTimeoutEnable &&
@@ -33,20 +22,37 @@ function handleRunEndedHousekeeping(): void {
     return;
   }
 
-  const intNowMs = Date.now();
-  if (intNowMs - intLastCleanupAtMs < INT_CLEANUP_INTERVAL_MS) {
+  try {
+    if (dictConfigExecutor.logTimeoutEnable) {
+      logCleanFolderByTimeout(dictConfigExecutor.logTimeoutDays);
+    }
+    if (dictConfigExecutor.videoTimeoutEnable) {
+      logCleanVideoByTimeout(dictConfigExecutor.videoTimeoutDays);
+    }
+    if (dictConfigExecutor.videoSizeEnable) {
+      logCleanVideoBySize(dictConfigExecutor.videoSizeGB);
+    }
+  } catch (e: unknown) {
+    loggerMain.error(
+      `Run housekeeping failed: ${e instanceof Error ? e.message : String(e)}`,
+    );
+  }
+}
+
+export function startRunHousekeeping(): void {
+  if (timerCleanup !== undefined) {
     return;
   }
 
-  intLastCleanupAtMs = intNowMs;
+  runHousekeeping();
+  timerCleanup = setInterval(runHousekeeping, INT_CLEANUP_INTERVAL_MS);
+}
 
-  if (dictConfigExecutor.logTimeoutEnable) {
-    logCleanFolderByTimeout(dictConfigExecutor.logTimeoutDays);
+export function stopRunHousekeeping(): void {
+  if (timerCleanup === undefined) {
+    return;
   }
-  if (dictConfigExecutor.videoTimeoutEnable) {
-    logCleanVideoByTimeout(dictConfigExecutor.videoTimeoutDays);
-  }
-  if (dictConfigExecutor.videoSizeEnable) {
-    logCleanVideoBySize(dictConfigExecutor.videoSizeGB);
-  }
+
+  clearInterval(timerCleanup);
+  timerCleanup = undefined;
 }

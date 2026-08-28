@@ -39,8 +39,8 @@ import {
 import { registerExecutorIpc } from "./IPC/ipc";
 import { sendMainMessage } from "./IPC/mainMessage";
 import { onRunEnded } from "./Run/lifecycle";
-import { startRunHousekeeping } from "./Run/housekeeping";
-import { shutdownProjectRuns } from "./Run/projectRunner";
+import { startRunHousekeeping, stopRunHousekeeping } from "./Run/housekeeping";
+import { beginProjectRunShutdown, shutdownProjectRuns } from "./Run/projectRunner";
 import {
   getRunQueueItems,
   onRunQueueChanged,
@@ -147,6 +147,7 @@ void app
     // Set app user model id for windows
     electronApp.setAppUserModelId("com.liberrpa.executor");
 
+    // Create the tray icon.
     const trayIcon = nativeImage.createFromPath(icon);
     tray = new Tray(trayIcon);
 
@@ -168,7 +169,7 @@ void app
     tray.setContextMenu(trayMenu);
     tray.setToolTip("LiberRPA Executor");
 
-    // clicking the icon toggles the window
+    // Toggle the window when the tray icon is clicked.
     tray.on("click", (): void => {
       if (mainWindow) {
         if (mainWindow.isVisible()) {
@@ -208,7 +209,7 @@ void app
       }
     }
 
-    // Default open or close DevTools by F12 in development and ignore CommandOrControl + R in production. See https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
+    // Configure standard development and production window shortcuts.
     app.on("browser-window-created", (_event, window) => {
       optimizer.watchWindowShortcuts(window);
     });
@@ -231,7 +232,7 @@ void app
     startRdpSessionManager();
 
     app.on("activate", function () {
-      // On macOS it's common to re-create a window in the app when the dock icon is clicked and there are no other windows open.
+      // On macOS, re-create a window when the Dock icon is clicked and no window exists.
       if (BrowserWindow.getAllWindows().length === 0) createWindow();
     });
   })
@@ -241,6 +242,12 @@ void app
   });
 
 async function shutdownExecutor(): Promise<void> {
+  try {
+    await stopSchedulerEngine();
+  } catch (e: unknown) {
+    loggerMain.error(`Failed to stop Scheduler engine: ${String(e)}`);
+  }
+
   try {
     await stopRdpSessionManager();
   } catch (e: unknown) {
@@ -276,11 +283,12 @@ app.on("before-quit", (event) => {
   }
 
   boolShutdownStarted = true;
-  stopSchedulerEngine();
+  beginProjectRunShutdown();
+  stopRunHousekeeping();
   void shutdownExecutor();
 });
 
-// Quit when all windows are closed, except on macOS. There, it's common for applications and their menu bar to stay active until the user quits explicitly with Cmd + Q.
+// Quit when all windows are closed, except on macOS.
 app.on("window-all-closed", () => {
   loggerMain.info("Executor window closed.");
   if (process.platform !== "darwin") {

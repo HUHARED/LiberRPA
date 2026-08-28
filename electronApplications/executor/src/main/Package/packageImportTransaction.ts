@@ -4,7 +4,8 @@ import { randomUUID } from "crypto";
 import fs from "fs";
 import path from "path";
 
-import { ensureExactRecord, ensureString } from "../Common/validation";
+import { readJsonFile, writeJsonFileAtomic } from "../Common/jsonFile";
+import { ensureExactRecord, ensureNonEmptyString } from "../Common/validation";
 import { dbSelectProjectDetail } from "../Database/projectRepository";
 import { strExecutorPackageFolderPath } from "../FileSystem/executorFiles";
 import { loggerMain } from "../Logging/logger";
@@ -27,26 +28,9 @@ const STR_STAGING_FOLDER_NAME = ".staging";
 const STR_TRANSACTION_FILE_NAME = "transaction.json";
 const STR_STAGED_PROJECT_FOLDER_NAME = "project";
 
-function readJsonFile(filePath: string): unknown {
-  try {
-    return JSON.parse(fs.readFileSync(filePath, { encoding: "utf-8" }));
-  } catch (e: unknown) {
-    throw new Error(`Failed to read JSON file: ${filePath}`, { cause: e });
-  }
-}
-
-function writeJsonFileAtomic(filePath: string, value: unknown): void {
-  const strTempPath = `${filePath}.tmp`;
-  fs.rmSync(strTempPath, { force: true });
-  fs.writeFileSync(strTempPath, `${JSON.stringify(value, null, 2)}\n`, {
-    encoding: "utf-8",
-  });
-  fs.renameSync(strTempPath, filePath);
-}
-
 function parseTransaction(transactionPath: string): Dict_PackageImport_Transaction {
   const dictTransaction = ensureExactRecord(
-    readJsonFile(transactionPath),
+    readJsonFile(transactionPath, "Package import transaction"),
     ["schemaVersion", "state", "projectName", "projectVersion", "targetFolderName"],
     "Package import transaction",
   );
@@ -54,15 +38,15 @@ function parseTransaction(transactionPath: string): Dict_PackageImport_Transacti
     throw new Error(`Invalid Package import transaction: ${transactionPath}`);
   }
 
-  const strProjectName = ensureString(
+  const strProjectName = ensureNonEmptyString(
     dictTransaction.projectName,
     "Package import transaction.projectName",
   );
-  const strProjectVersion = ensureString(
+  const strProjectVersion = ensureNonEmptyString(
     dictTransaction.projectVersion,
     "Package import transaction.projectVersion",
   );
-  const strTargetFolderName = ensureString(
+  const strTargetFolderName = ensureNonEmptyString(
     dictTransaction.targetFolderName,
     "Package import transaction.targetFolderName",
   );
@@ -71,6 +55,7 @@ function parseTransaction(transactionPath: string): Dict_PackageImport_Transacti
       `Package import transaction target is inconsistent: ${transactionPath}`,
     );
   }
+
   return {
     schemaVersion: 1,
     state: "prepared",
@@ -80,15 +65,16 @@ function parseTransaction(transactionPath: string): Dict_PackageImport_Transacti
   };
 }
 
-function removeFolder(strFolderPath: string): void {
-  fs.rmSync(strFolderPath, { recursive: true, force: true });
-}
-
-export function tryRemovePackageImportFolder(folderPath: string, context: string): void {
+export function removePackageImportFolderBestEffort(
+  folderPath: string,
+  context: string,
+): boolean {
   try {
-    removeFolder(folderPath);
+    fs.rmSync(folderPath, { recursive: true, force: true });
+    return true;
   } catch (e: unknown) {
     loggerMain.warn(`${context}: ${e instanceof Error ? e.message : String(e)}`);
+    return false;
   }
 }
 
@@ -117,27 +103,21 @@ export function writeProjectPackageImportTransaction({
   transactionFolderPath,
   projectName,
   projectVersion,
-  targetFolderName,
 }: {
   transactionFolderPath: string;
   projectName: string;
   projectVersion: string;
-  targetFolderName: string;
 }): void {
-  if (getTargetFolderName(projectName, projectVersion) !== targetFolderName) {
-    throw new Error("Package import transaction target is inconsistent.");
-  }
-
-  const transactionDict: Dict_PackageImport_Transaction = {
+  const dictTransaction: Dict_PackageImport_Transaction = {
     schemaVersion: 1,
     state: "prepared",
     projectName,
     projectVersion,
-    targetFolderName,
+    targetFolderName: getTargetFolderName(projectName, projectVersion),
   };
   writeJsonFileAtomic(
     path.join(transactionFolderPath, STR_TRANSACTION_FILE_NAME),
-    transactionDict,
+    dictTransaction,
   );
 }
 
@@ -153,7 +133,7 @@ export function recoverProjectPackageImports(): void {
   for (const entryObj of fs.readdirSync(strStagingRootPath, { withFileTypes: true })) {
     const strTransactionFolderPath = path.join(strStagingRootPath, entryObj.name);
     if (!entryObj.isDirectory()) {
-      tryRemovePackageImportFolder(
+      removePackageImportFolderBestEffort(
         strTransactionFolderPath,
         "Failed to remove an invalid Package import staging entry",
       );
@@ -165,46 +145,57 @@ export function recoverProjectPackageImports(): void {
       STR_TRANSACTION_FILE_NAME,
     );
     if (!fs.existsSync(strTransactionPath)) {
-      tryRemovePackageImportFolder(
+      removePackageImportFolderBestEffort(
         strTransactionFolderPath,
         "Failed to remove a Package staging folder without a transaction",
       );
       continue;
     }
 
+    let boolRecovered = false;
     try {
-      const transactionDict = parseTransaction(strTransactionPath);
+      const dictTransaction = parseTransaction(strTransactionPath);
       const strTargetPath = path.join(
         strExecutorPackageFolderPath,
-        transactionDict.targetFolderName,
+        dictTransaction.targetFolderName,
       );
+      const boolTargetExists = fs.existsSync(strTargetPath);
       const projectRecord = dbSelectProjectDetail(
-        transactionDict.projectName,
-        transactionDict.projectVersion,
+        dictTransaction.projectName,
+        dictTransaction.projectVersion,
       );
 
-      if (fs.existsSync(strTargetPath) && projectRecord === undefined) {
+      if (boolTargetExists && projectRecord === undefined) {
         loggerMain.warn(
-          `Roll back an incomplete Package import: ${transactionDict.projectName}-${transactionDict.projectVersion}`,
+          `Roll back an incomplete Package import: ${dictTransaction.projectName}-${dictTransaction.projectVersion}`,
         );
-        tryRemovePackageImportFolder(
+        boolRecovered = removePackageImportFolderBestEffort(
           strTargetPath,
           "Failed to roll back an incomplete Package import",
         );
-      } else if (!fs.existsSync(strTargetPath) && projectRecord !== undefined) {
+      } else if (!boolTargetExists && projectRecord !== undefined) {
         loggerMain.error(
           "Installed Package folder is missing for database record: " +
-            `${transactionDict.projectName}-${transactionDict.projectVersion}`,
+            `${dictTransaction.projectName}-${dictTransaction.projectVersion}`,
         );
+      } else {
+        // Both resources exist or neither exists, so the transaction is already consistent.
+        boolRecovered = true;
       }
     } catch (e: unknown) {
       loggerMain.error(
         `Failed to inspect Package import transaction ${strTransactionFolderPath}: ${String(e)}`,
       );
-    } finally {
-      tryRemovePackageImportFolder(
+    }
+
+    if (boolRecovered) {
+      removePackageImportFolderBestEffort(
         strTransactionFolderPath,
         "Failed to clean a recovered Package import transaction",
+      );
+    } else {
+      loggerMain.error(
+        `Keep unresolved Package import transaction: ${strTransactionFolderPath}`,
       );
     }
   }

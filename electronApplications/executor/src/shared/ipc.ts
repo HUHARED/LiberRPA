@@ -105,10 +105,7 @@ export interface Dict_ExecutorInvoke_Contract {
     response: Dict_ListItem_RunQueue[];
   };
   cancelWaitingRun: {
-    request: {
-      schedule_name: string;
-      estimated_run_at_ms: number;
-    };
+    request: string;
     response: void;
   };
   openRunLogFolder: {

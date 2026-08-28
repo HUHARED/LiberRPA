@@ -19,6 +19,12 @@ import {
   ensureRunConflictPolicy,
 } from "../Common/validation";
 
+export interface Dict_RunHistory_LogLocation {
+  id: number;
+  log_path: string;
+  log_root_path: string;
+}
+
 function ensureBinaryInteger(value: unknown, sourceName: string): 0 | 1 {
   if (value !== 0 && value !== 1) {
     throw new Error(`${sourceName} must be 0 or 1.`);
@@ -413,11 +419,21 @@ export function ensureCountRow(
   return ensureNonNegativeInteger(row[strColumnName], `${sourceName}.${strColumnName}`);
 }
 
-export function ensureLogPathRow(value: unknown, sourceName: string): string {
-  const row = ensureExactRecord(value, ["log_path"], sourceName);
-  return ensureNonEmptyString(row.log_path, `${sourceName}.log_path`);
+export function ensureRunHistoryLogLocationRow(
+  value: unknown,
+  sourceName: string,
+): Dict_RunHistory_LogLocation {
+  const row = ensureExactRecord(value, ["id", "log_path", "log_root_path"], sourceName);
+  return {
+    id: ensurePositiveInteger(row.id, `${sourceName}.id`),
+    log_path: ensureNonEmptyString(row.log_path, `${sourceName}.log_path`),
+    log_root_path: ensureNonEmptyString(row.log_root_path, `${sourceName}.log_root_path`),
+  };
 }
 
-export function ensureLogPathRows(rows: unknown[], sourceName: string): string[] {
-  return ensureRows(rows, ensureLogPathRow, sourceName);
+export function ensureRunHistoryLogLocationRows(
+  rows: unknown[],
+  sourceName: string,
+): Dict_RunHistory_LogLocation[] {
+  return ensureRows(rows, ensureRunHistoryLogLocationRow, sourceName);
 }

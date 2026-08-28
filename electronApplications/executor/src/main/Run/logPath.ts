@@ -1,12 +1,10 @@
 // FileName: logPath.ts
 
+import fs from "fs";
 import path from "path";
 
-export function ensureRunLogFolderPath(logFolderPath: string, logRootPath: string): string {
-  const strResolvedRootPath = path.resolve(logRootPath);
-  const strResolvedLogFolderPath = path.resolve(logFolderPath);
-  const strRelativePath = path.relative(strResolvedRootPath, strResolvedLogFolderPath);
-
+function ensureChildPath(childPath: string, parentPath: string, sourceName: string): void {
+  const strRelativePath = path.relative(parentPath, childPath);
   if (
     strRelativePath === "" ||
     strRelativePath === ".." ||
@@ -14,9 +12,47 @@ export function ensureRunLogFolderPath(logFolderPath: string, logRootPath: strin
     path.isAbsolute(strRelativePath)
   ) {
     throw new Error(
-      `Executor run log folder must be a child of the configured Project log folder: ${logFolderPath}`,
+      `${sourceName} must be a child of the Project log folder: ${childPath}`,
     );
   }
+}
+
+export function ensureRunLogFolderPath(logFolderPath: string, logRootPath: string): string {
+  const strResolvedRootPath = path.resolve(logRootPath);
+  const strResolvedLogFolderPath = path.resolve(logFolderPath);
+  ensureChildPath(strResolvedLogFolderPath, strResolvedRootPath, "Executor run log folder");
+  return strResolvedLogFolderPath;
+}
+
+export function ensureExistingRunLogFolderPath(
+  logFolderPath: string,
+  logRootPath: string,
+): string {
+  const strResolvedRootPath = path.resolve(logRootPath);
+  const strResolvedLogFolderPath = ensureRunLogFolderPath(
+    logFolderPath,
+    strResolvedRootPath,
+  );
+
+  const rootStat = fs.statSync(strResolvedRootPath);
+  if (!rootStat.isDirectory()) {
+    throw new Error(`Project log root is not a directory: ${strResolvedRootPath}`);
+  }
+
+  const logFolderStat = fs.lstatSync(strResolvedLogFolderPath);
+  if (logFolderStat.isSymbolicLink() || !logFolderStat.isDirectory()) {
+    throw new Error(
+      `Executor run log folder is not a regular directory: ${strResolvedLogFolderPath}`,
+    );
+  }
+
+  const strRealRootPath = fs.realpathSync.native(strResolvedRootPath);
+  const strRealLogFolderPath = fs.realpathSync.native(strResolvedLogFolderPath);
+  ensureChildPath(
+    strRealLogFolderPath,
+    strRealRootPath,
+    "Resolved Executor run log folder",
+  );
 
   return strResolvedLogFolderPath;
 }

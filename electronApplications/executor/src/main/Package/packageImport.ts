@@ -11,10 +11,10 @@ import { getExecutorPackageFolderPath } from "../FileSystem/executorFiles";
 import { loggerMain } from "../Logging/logger";
 import type { Dict_ProjectPackage_ImportResult } from "../../shared/project";
 import { validatePackagedFlowProject } from "./componentManagementClient";
-import { extractProjectPackageArchive, getTargetFolderName } from "./packageArchive";
+import { extractProjectPackageArchive } from "./packageArchive";
 import {
   createProjectPackageImportStaging,
-  tryRemovePackageImportFolder,
+  removePackageImportFolderBestEffort,
   writeProjectPackageImportTransaction,
 } from "./packageImportTransaction";
 import { readProjectPackageMetadata } from "./packageMetadata";
@@ -38,6 +38,7 @@ async function runProjectPackageImport(): Promise<Dict_ProjectPackage_ImportResu
   const { transactionFolderPath, stagedProjectPath } = createProjectPackageImportStaging();
 
   let strTargetPath: string | undefined;
+  let boolTransactionWritten = false;
   let boolDatabaseCommitted = false;
   try {
     extractProjectPackageArchive(strPackageFilePath, stagedProjectPath);
@@ -53,10 +54,6 @@ async function runProjectPackageImport(): Promise<Dict_ProjectPackage_ImportResu
       );
     }
 
-    const strTargetFolderName = getTargetFolderName(
-      packageMetadata.name,
-      packageMetadata.version,
-    );
     strTargetPath = getExecutorPackageFolderPath(
       packageMetadata.name,
       packageMetadata.version,
@@ -69,15 +66,15 @@ async function runProjectPackageImport(): Promise<Dict_ProjectPackage_ImportResu
       transactionFolderPath,
       projectName: packageMetadata.name,
       projectVersion: packageMetadata.version,
-      targetFolderName: strTargetFolderName,
     });
+    boolTransactionWritten = true;
 
     fs.renameSync(stagedProjectPath, strTargetPath);
 
     dbInsertProjectDetail(packageMetadata.projectDetail);
     boolDatabaseCommitted = true;
 
-    tryRemovePackageImportFolder(
+    removePackageImportFolderBestEffort(
       transactionFolderPath,
       "Failed to clean the completed Package import transaction",
     );
@@ -90,20 +87,29 @@ async function runProjectPackageImport(): Promise<Dict_ProjectPackage_ImportResu
       version: packageMetadata.version,
     };
   } catch (e: unknown) {
-    if (
-      strTargetPath !== undefined &&
-      fs.existsSync(strTargetPath) &&
-      !boolDatabaseCommitted
-    ) {
-      tryRemovePackageImportFolder(
-        strTargetPath,
-        "Failed to roll back the installed Package folder",
+    let boolRollbackComplete = !boolTransactionWritten;
+
+    if (boolTransactionWritten && !boolDatabaseCommitted) {
+      if (strTargetPath === undefined || !fs.existsSync(strTargetPath)) {
+        boolRollbackComplete = true;
+      } else {
+        boolRollbackComplete = removePackageImportFolderBestEffort(
+          strTargetPath,
+          "Failed to roll back the installed Package folder",
+        );
+      }
+    }
+
+    if (boolRollbackComplete) {
+      removePackageImportFolderBestEffort(
+        transactionFolderPath,
+        "Failed to clean the failed Package import transaction",
+      );
+    } else {
+      loggerMain.error(
+        `Keep unresolved Package import transaction: ${transactionFolderPath}`,
       );
     }
-    tryRemovePackageImportFolder(
-      transactionFolderPath,
-      "Failed to clean the failed Package import transaction",
-    );
     throw e;
   }
 }

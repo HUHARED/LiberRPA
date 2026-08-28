@@ -23,20 +23,20 @@ export function dbSelectScheduleList(): Dict_ListItem_Schedule[] {
     .prepare(
       `
       SELECT
-          ts.id,
-          ts.name,
-          pl.name AS project_name,
-          pl.version AS project_version,
-          ts.cron,
-          ts.enable,
-          ts.period_start_ms,
-          ts.period_end_ms,
-          ts.run_conflict_policy
+          s.id,
+          s.name,
+          p.name AS project_name,
+          p.version AS project_version,
+          s.cron,
+          s.enable,
+          s.period_start_ms,
+          s.period_end_ms,
+          s.run_conflict_policy
       FROM
-          schedule ts
-          INNER JOIN project pl ON ts.project_id = pl.id
+          schedule s
+          INNER JOIN project p ON s.project_id = p.id
       ORDER BY
-          ts.updated_at_ms DESC;
+          s.updated_at_ms DESC;
       `,
     )
     .all();
@@ -49,29 +49,29 @@ export function dbSelectScheduleDetail(name: string): Dict_Detail_Schedule | und
     .prepare(
       `
       SELECT
-          ts.id,
-          ts.name,
-          ts.project_id,
-          pl.name AS project_name,
-          pl.version AS project_version,
-          ts.cron,
-          ts.run_conflict_policy,
-          ts.period_start_ms,
-          ts.period_end_ms,
-          ts.enable,
-          ts.timeout_min,
-          ts.builtin_log_level,
-          ts.builtin_record_video,
-          ts.builtin_stop_shortcut,
-          ts.builtin_highlight_ui,
-          ts.custom_prj_args,
-          ts.created_at_ms,
-          ts.updated_at_ms
+          s.id,
+          s.name,
+          s.project_id,
+          p.name AS project_name,
+          p.version AS project_version,
+          s.cron,
+          s.run_conflict_policy,
+          s.period_start_ms,
+          s.period_end_ms,
+          s.enable,
+          s.timeout_min,
+          s.builtin_log_level,
+          s.builtin_record_video,
+          s.builtin_stop_shortcut,
+          s.builtin_highlight_ui,
+          s.custom_prj_args,
+          s.created_at_ms,
+          s.updated_at_ms
       FROM
-          schedule ts
-          INNER JOIN project pl ON ts.project_id = pl.id
+          schedule s
+          INNER JOIN project p ON s.project_id = p.id
       WHERE
-          ts.name = ?;
+          s.name = ?;
       `,
     )
     .get(name);
@@ -88,22 +88,22 @@ export function dbSelectScheduleRunDetail(
     .prepare(
       `
       SELECT
-          ts.name AS schedule_name,
-          ts.project_id AS id,
-          pl.name AS name,
-          pl.version AS version,
-          pl.python_environment_name,
-          ts.timeout_min,
-          ts.builtin_log_level,
-          ts.builtin_record_video,
-          ts.builtin_stop_shortcut,
-          ts.builtin_highlight_ui,
-          ts.custom_prj_args
+          s.name AS schedule_name,
+          s.project_id AS id,
+          p.name AS name,
+          p.version AS version,
+          p.python_environment_name,
+          s.timeout_min,
+          s.builtin_log_level,
+          s.builtin_record_video,
+          s.builtin_stop_shortcut,
+          s.builtin_highlight_ui,
+          s.custom_prj_args
       FROM
-          schedule ts
-          INNER JOIN project pl ON ts.project_id = pl.id
+          schedule s
+          INNER JOIN project p ON s.project_id = p.id
       WHERE
-          ts.id = ?;
+          s.id = ?;
       `,
     )
     .get(scheduleId);

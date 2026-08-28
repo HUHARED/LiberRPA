@@ -73,8 +73,12 @@ function trackActiveProjectProcess(
   });
 }
 
-export async function shutdownProjectRuns(): Promise<void> {
+export function beginProjectRunShutdown(): void {
   boolProjectRunShutdownStarted = true;
+}
+
+export async function shutdownProjectRuns(): Promise<void> {
+  beginProjectRunShutdown();
 
   const arrProcess = [...mapActiveProcessByRunId.entries()];
   if (arrProcess.length === 0) {
@@ -162,6 +166,7 @@ async function startProjectRun(detailDict: Dict_ProjectRun_Detail): Promise<void
     runId: strRunId,
     runStatePath: strRunStatePath,
     runState: dictRunState,
+    logRootPath: strProjectLogRootPath,
     detail: detailDict,
     diagnosticOutput,
   });
@@ -347,6 +352,7 @@ async function createRunHistory({
   runId,
   runStatePath,
   runState,
+  logRootPath,
   detail,
   diagnosticOutput,
 }: {
@@ -354,6 +360,7 @@ async function createRunHistory({
   runId: string;
   runStatePath: string;
   runState: ExecutorRunState;
+  logRootPath: string;
   detail: Dict_ProjectRun_Detail;
   diagnosticOutput: Dict_PythonProcess_DiagnosticOutput;
 }): Promise<number> {
@@ -367,6 +374,7 @@ async function createRunHistory({
       run_started_at_ms: parseExecutorRunTimestamp(runState.startedAt),
       status: "running",
       log_path: runState.logPath,
+      log_root_path: logRootPath,
     }).lastInsertRowid;
 
     const intRunHistoryId = Number(intRunHistoryIdValue);

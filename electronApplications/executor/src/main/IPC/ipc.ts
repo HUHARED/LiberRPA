@@ -19,7 +19,7 @@ import {
   dbUpdateProjectSettings,
 } from "../Database/projectRepository";
 import {
-  dbSelectRunHistoryLogPath,
+  dbSelectRunHistoryLogLocation,
   dbSelectRunHistoryPage,
 } from "../Database/runHistoryRepository";
 import {
@@ -37,6 +37,7 @@ import {
   runInstalledProject,
   runMostRecentlyImportedProjectVersion,
 } from "../Run/manualRun";
+import { ensureExistingRunLogFolderPath } from "../Run/logPath";
 import { pythonCancel } from "../Run/projectRunner";
 import {
   cancelWaitingRun,
@@ -54,7 +55,7 @@ import {
   ensureScheduleCreate,
   ensureScheduleUpdate,
   ensureStringData,
-  ensureWaitingRunRef,
+  ensureWaitingRunId,
 } from "./validation";
 import { IPC_CHANNEL_RENDERER_INVOKE, IPC_CHANNEL_RENDERER_LOG } from "../../shared/ipc";
 import type {
@@ -108,7 +109,7 @@ const INVOKE_VALIDATOR = {
     ensurePositiveIntegerData(rawData, "deleteSchedule"),
   getRunHistoryPage: ensureRunHistoryOptions,
   getRunQueue: (rawData: unknown) => ensureNoData(rawData, "getRunQueue"),
-  cancelWaitingRun: ensureWaitingRunRef,
+  cancelWaitingRun: ensureWaitingRunId,
   openRunLogFolder: (rawData: unknown) =>
     ensurePositiveIntegerData(rawData, "openRunLogFolder"),
   runMostRecentlyImportedProjectVersion: (rawData: unknown) =>
@@ -202,16 +203,18 @@ function createInvokeHandlerMap(): Map_ExecutorInvoke_Handler {
       return getRunQueueItems();
     },
 
-    cancelWaitingRun(runDict) {
-      cancelWaitingRun(runDict.schedule_name, runDict.estimated_run_at_ms);
+    cancelWaitingRun(queueId) {
+      cancelWaitingRun(queueId);
     },
 
     async openRunLogFolder(runHistoryId) {
-      const strLogFolderPath = dbSelectRunHistoryLogPath(runHistoryId);
-      if (strLogFolderPath === undefined) {
+      const logLocation = dbSelectRunHistoryLogLocation(runHistoryId);
+      if (logLocation === undefined) {
         throw new Error(`Run History record not found: ${runHistoryId}`);
       }
-      await fileOpenFolder(strLogFolderPath);
+      await fileOpenFolder(
+        ensureExistingRunLogFolderPath(logLocation.log_path, logLocation.log_root_path),
+      );
     },
 
     async runMostRecentlyImportedProjectVersion(projectName) {

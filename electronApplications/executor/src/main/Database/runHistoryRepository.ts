@@ -10,9 +10,10 @@ import type {
 import { loggerMain } from "../Logging/logger";
 import { getDatabase } from "./connection";
 import {
+  type Dict_RunHistory_LogLocation,
   ensureCountRow,
-  ensureLogPathRow,
-  ensureLogPathRows,
+  ensureRunHistoryLogLocationRow,
+  ensureRunHistoryLogLocationRows,
   ensureRunHistoryListRows,
 } from "./rowValidation";
 
@@ -25,19 +26,14 @@ interface Dict_RunHistory_Insert {
   run_started_at_ms: number;
   status: "running";
   log_path: string;
+  log_root_path: string;
 }
 
-type Dict_RunHistory_Update =
-  | {
-      id: number;
-      run_ended_at_ms: number;
-      status: "completed" | "error" | "cancel" | "timeout";
-    }
-  | {
-      id: number;
-      run_ended_at_ms: null;
-      status: "interrupted";
-    };
+interface Dict_RunHistory_Update {
+  id: number;
+  run_ended_at_ms: number;
+  status: "completed" | "error" | "cancel" | "timeout";
+}
 
 const MAP_RUN_HISTORY_SORT_COLUMN: Record<
   Dict_RunHistory_Options["sortBy"][number]["key"],
@@ -68,11 +64,12 @@ export function dbInsertRunHistory(detailDict: Dict_RunHistory_Insert): Database
               run_started_at_ms,
               status,
               log_path,
+              log_root_path,
               created_at_ms,
               updated_at_ms
           )
       VALUES
-          (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+          (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
       `,
     )
     .run(
@@ -84,6 +81,7 @@ export function dbInsertRunHistory(detailDict: Dict_RunHistory_Insert): Database
       detailDict.run_started_at_ms,
       detailDict.status,
       detailDict.log_path,
+      detailDict.log_root_path,
       intNowMs,
       intNowMs,
     );
@@ -147,13 +145,17 @@ export function dbHasRunningRunForProject(projectId: number): boolean {
   );
 }
 
-export function dbSelectRunHistoryLogPath(id: number): string | undefined {
-  loggerMain.debug("--dbSelectRunHistoryLogPath--");
+export function dbSelectRunHistoryLogLocation(
+  id: number,
+): Dict_RunHistory_LogLocation | undefined {
+  loggerMain.debug("--dbSelectRunHistoryLogLocation--");
   const row = getDatabase()
     .prepare(
       `
       SELECT
-          log_path
+          id,
+          log_path,
+          log_root_path
       FROM
           run_history
       WHERE
@@ -163,7 +165,7 @@ export function dbSelectRunHistoryLogPath(id: number): string | undefined {
     .get(id);
   return row === undefined
     ? undefined
-    : ensureLogPathRow(row, "Run History log path query result");
+    : ensureRunHistoryLogLocationRow(row, "Run History log location query result");
 }
 
 export function dbSelectRunHistoryPage(
@@ -260,13 +262,15 @@ export function dbSelectRunHistoryPage(
   return { rows: arrRow, total: intTotal };
 }
 
-export function dbSelectLogFolderBefore(cutoffMs: number): string[] {
+export function dbSelectLogFolderBefore(cutoffMs: number): Dict_RunHistory_LogLocation[] {
   loggerMain.debug("--dbSelectLogFolderBefore--");
   const rows = getDatabase()
     .prepare(
       `
       SELECT
-          log_path
+          id,
+          log_path,
+          log_root_path
       FROM
           run_history
       WHERE
@@ -279,16 +283,18 @@ export function dbSelectLogFolderBefore(cutoffMs: number): string[] {
     )
     .all(cutoffMs);
 
-  return ensureLogPathRows(rows, "Expired log folder query result");
+  return ensureRunHistoryLogLocationRows(rows, "Expired log folder query result");
 }
 
-export function dbSelectVideoBefore(cutoffMs: number): string[] {
+export function dbSelectVideoBefore(cutoffMs: number): Dict_RunHistory_LogLocation[] {
   loggerMain.debug("--dbSelectVideoBefore--");
   const rows = getDatabase()
     .prepare(
       `
       SELECT
-          log_path
+          id,
+          log_path,
+          log_root_path
       FROM
           run_history
       WHERE
@@ -301,16 +307,18 @@ export function dbSelectVideoBefore(cutoffMs: number): string[] {
     )
     .all(cutoffMs);
 
-  return ensureLogPathRows(rows, "Expired video query result");
+  return ensureRunHistoryLogLocationRows(rows, "Expired video query result");
 }
 
-export function dbSelectVideo(): string[] {
+export function dbSelectVideo(): Dict_RunHistory_LogLocation[] {
   loggerMain.debug("--dbSelectVideo--");
   const rows = getDatabase()
     .prepare(
       `
       SELECT
-          log_path
+          id,
+          log_path,
+          log_root_path
       FROM
           run_history
       WHERE
@@ -322,10 +330,10 @@ export function dbSelectVideo(): string[] {
     )
     .all();
 
-  return ensureLogPathRows(rows, "Video query result");
+  return ensureRunHistoryLogLocationRows(rows, "Video query result");
 }
 
-export function dbUpdateNoLogFolderAndVideo(logPath: string): void {
+export function dbUpdateNoLogFolderAndVideo(runHistoryId: number): void {
   loggerMain.debug("--dbUpdateNoLogFolderAndVideo--");
   getDatabase()
     .prepare(
@@ -336,13 +344,13 @@ export function dbUpdateNoLogFolderAndVideo(logPath: string): void {
           no_log_video = 1,
           updated_at_ms = ?
       WHERE
-          log_path = ?;
+          id = ?;
       `,
     )
-    .run(Date.now(), logPath);
+    .run(Date.now(), runHistoryId);
 }
 
-export function dbUpdateNoVideo(logPath: string): void {
+export function dbUpdateNoVideo(runHistoryId: number): void {
   loggerMain.debug("--dbUpdateNoVideo--");
   getDatabase()
     .prepare(
@@ -352,8 +360,8 @@ export function dbUpdateNoVideo(logPath: string): void {
           no_log_video = 1,
           updated_at_ms = ?
       WHERE
-          log_path = ?;
+          id = ?;
       `,
     )
-    .run(Date.now(), logPath);
+    .run(Date.now(), runHistoryId);
 }

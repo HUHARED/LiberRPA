@@ -4,6 +4,7 @@ import { randomUUID } from "crypto";
 import fs from "fs";
 import path from "path";
 
+import { readJsonFile, writeJsonFileAtomic } from "../Common/jsonFile";
 import {
   ensureExactRecord,
   ensureNonEmptyString,
@@ -40,29 +41,11 @@ function getDeleteStagingRootPath(): string {
   return path.join(strExecutorPackageFolderPath, STR_DELETE_STAGING_FOLDER_NAME);
 }
 
-function writeJsonFileAtomic(filePath: string, value: unknown): void {
-  const strTempPath = `${filePath}.tmp`;
-  fs.rmSync(strTempPath, { force: true });
-  fs.writeFileSync(strTempPath, `${JSON.stringify(value, null, 2)}\n`, {
-    encoding: "utf-8",
-  });
-  fs.renameSync(strTempPath, filePath);
-}
-
 function parseDeleteTransaction(
   transactionPath: string,
 ): Dict_Transaction_ProjectPackageDelete {
-  let value: unknown;
-  try {
-    value = JSON.parse(fs.readFileSync(transactionPath, { encoding: "utf-8" }));
-  } catch (e: unknown) {
-    throw new Error(`Failed to read Project deletion transaction: ${transactionPath}`, {
-      cause: e,
-    });
-  }
-
   const dictTransaction = ensureExactRecord(
-    value,
+    readJsonFile(transactionPath, "Project deletion transaction"),
     ["schemaVersion", "projectId", "projectName", "projectVersion", "targetFolderName"],
     "Project deletion transaction",
   );
@@ -149,7 +132,7 @@ export function deleteInstalledProject(projectId: number): void {
   );
   fs.mkdirSync(strTransactionFolderPath, { recursive: true });
 
-  const transactionDict: Dict_Transaction_ProjectPackageDelete = {
+  const dictTransaction: Dict_Transaction_ProjectPackageDelete = {
     schemaVersion: 1,
     projectId,
     projectName: dictProject.name,
@@ -158,7 +141,7 @@ export function deleteInstalledProject(projectId: number): void {
   };
   writeJsonFileAtomic(
     path.join(strTransactionFolderPath, STR_TRANSACTION_FILE_NAME),
-    transactionDict,
+    dictTransaction,
   );
 
   fs.renameSync(strTargetPath, strStagedProjectPath);
@@ -242,7 +225,7 @@ export function recoverProjectPackageDeletions(): void {
 
       if (dictProject === undefined) {
         // Database deletion completed. The staged copy belongs to the deleted installation.
-        // Do not touch targetPath here because the same Project version may have been imported again after the original deletion completed.
+        // Do not touch targetPath because the same Project version may have been imported again after the original deletion completed.
         boolRecovered = true;
       } else if (
         dictProject.name !== dictTransaction.projectName ||

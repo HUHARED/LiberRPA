@@ -3,9 +3,10 @@
 import argparse
 import ctypes
 from ctypes import wintypes
+import sys
 
 
-# Define some needed types and structures.
+# Define the Windows display settings structure used by ChangeDisplaySettingsW.
 class DEVMODE(ctypes.Structure):
     _fields_ = [
         ("dmDeviceName", wintypes.WCHAR * 32),
@@ -45,7 +46,7 @@ class DEVMODE(ctypes.Structure):
     ]
 
 
-def set_display_resolution(width, height) -> None:
+def set_display_resolution(width: int, height: int) -> None:
     user32 = ctypes.windll.user32
     ENUM_CURRENT_SETTINGS = -1
 
@@ -58,7 +59,7 @@ def set_display_resolution(width, height) -> None:
         user32.EnumDisplaySettingsW(None, ENUM_CURRENT_SETTINGS, ctypes.byref(devmode))
         == 0
     ):
-        raise Exception("Failed to get current display settings")
+        raise RuntimeError("Failed to get current display settings.")
 
     # Change the resolution values.
     devmode.dmPelsWidth = width
@@ -70,23 +71,30 @@ def set_display_resolution(width, height) -> None:
 
     result = user32.ChangeDisplaySettingsW(ctypes.byref(devmode), 0)
     if result != 0:
-        raise Exception(f"Failed to change display settings: error code {result}")
-    else:
-        print(f"Display resolution set to {width} x {height}", flush=True)
+        raise RuntimeError(f"Failed to change display settings: error code {result}")
+
+    print(f"Display resolution set to {width} x {height}", flush=True)
 
 
-try:
+def main() -> None:
     boolIsAdmin = ctypes.windll.shell32.IsUserAnAdmin() != 0
     print(f"Running as Admin: {boolIsAdmin}", flush=True)
     if not boolIsAdmin:
-        raise Exception("Executor is not ran as administrator.")
+        raise RuntimeError("Executor is not running as administrator.")
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--width", required=True, type=int)
     parser.add_argument("--height", required=True, type=int)
-    args, unknown = parser.parse_known_args()
+    args = parser.parse_args()
+    if args.width <= 0 or args.height <= 0:
+        raise ValueError("Display width and height must be positive integers.")
 
-    if args.width and args.height:
-        set_display_resolution(args.width, args.height)
-except Exception as e:
-    print(e, flush=True)
+    set_display_resolution(args.width, args.height)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception as e:
+        print(e, file=sys.stderr, flush=True)
+        sys.exit(1)

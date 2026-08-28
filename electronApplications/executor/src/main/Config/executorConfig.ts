@@ -5,6 +5,7 @@ import fs from "fs";
 import path from "path";
 
 import type { Dict_ExecutorConfig } from "../../shared/config";
+import { writeJsonFileAtomic } from "../Common/jsonFile";
 import { ensureBoolean, ensureRecord, ensureString } from "../Common/validation";
 import { strDefaultProjectLogFolderPath } from "./basicConfig";
 import { strLiberRPAEnvPath } from "./environment";
@@ -171,9 +172,7 @@ export function validateExecutorConfig(value: unknown): Dict_ExecutorConfig {
 function getExecutorConfigDict(): Dict_ExecutorConfig {
   if (!fs.existsSync(STR_EXECUTOR_CONFIG_PATH)) {
     const dictDefaultConfig = getDefaultExecutorConfig();
-    fs.writeFileSync(STR_EXECUTOR_CONFIG_PATH, JSON.stringify(dictDefaultConfig, null, 2), {
-      encoding: "utf-8",
-    });
+    writeJsonFileAtomic(STR_EXECUTOR_CONFIG_PATH, dictDefaultConfig);
     return dictDefaultConfig;
   }
 
@@ -185,9 +184,7 @@ function getExecutorConfigDict(): Dict_ExecutorConfig {
 
     if (dictSettings.projectLogFolderPath === strDefaultProjectLogFolderPath) {
       dictSettings.projectLogFolderPath = "";
-      fs.writeFileSync(STR_EXECUTOR_CONFIG_PATH, JSON.stringify(dictSettings, null, 2), {
-        encoding: "utf-8",
-      });
+      writeJsonFileAtomic(STR_EXECUTOR_CONFIG_PATH, dictSettings);
     }
 
     return dictSettings;
@@ -208,9 +205,7 @@ export function getEffectiveProjectLogFolderPath(): string {
 
 export function saveExecutorConfigDict(dictSettings: Dict_ExecutorConfig): void {
   try {
-    fs.writeFileSync(STR_EXECUTOR_CONFIG_PATH, JSON.stringify(dictSettings, null, 2), {
-      encoding: "utf-8",
-    });
+    writeJsonFileAtomic(STR_EXECUTOR_CONFIG_PATH, dictSettings);
   } catch (e: unknown) {
     throw new Error(`Error writing Executor.jsonc: ${String(e)}`, {
       cause: e,

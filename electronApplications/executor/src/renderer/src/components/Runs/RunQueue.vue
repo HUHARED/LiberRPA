@@ -7,6 +7,7 @@
     <v-data-table
       :headers="arrHeader"
       :items="runQueueStore.arrListItem"
+      item-value="queue_id"
       class="clean-space flex-column-grow-1"
       fixed-header
       hide-default-footer
@@ -40,7 +41,7 @@
                 icon="mdi-stop-circle-outline"
                 size="small"
                 :disabled="!item.waiting"
-                @click="removeWaitingItem(item.schedule_name, item.estimated_run_at_ms)">
+                @click="removeWaitingItem(item)">
               </v-icon>
             </template>
           </v-tooltip>
@@ -100,12 +101,11 @@ function getWaitingColor(waiting: boolean): string {
   return waiting ? "warning" : "grey";
 }
 
-async function removeWaitingItem(
-  scheduleName: string,
-  estimatedRunAtMs: number,
-): Promise<void> {
-  loggerRenderer.info(`Cancel waiting Run: ${scheduleName}-${estimatedRunAtMs}`);
-  await runQueueStore.cancelWaitingRun(scheduleName, estimatedRunAtMs);
+async function removeWaitingItem(item: Dict_ListItem_RunQueue): Promise<void> {
+  loggerRenderer.info(
+    `Cancel waiting Run: ${item.schedule_name}-${item.estimated_run_at_ms}`,
+  );
+  await runQueueStore.cancelWaitingRun(item.queue_id);
 }
 </script>
 

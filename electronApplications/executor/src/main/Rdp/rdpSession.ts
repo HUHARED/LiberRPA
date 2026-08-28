@@ -230,11 +230,11 @@ function waitForRdpProcessClose(
 
   return new Promise<boolean>((resolve) => {
     const handleClose = (): void => {
-      clearTimeout(timeoutId);
+      clearTimeout(timerTimeout);
       resolve(true);
     };
 
-    const timeoutId = setTimeout(() => {
+    const timerTimeout = setTimeout(() => {
       processPy.removeListener("close", handleClose);
       resolve(!isProcessRunning(processPy));
     }, INT_RDP_HELPER_TERMINATION_WAIT_MS);
@@ -245,13 +245,13 @@ function waitForRdpProcessClose(
 
 async function stopRdpProcess(
   processPy: ChildProcessWithoutNullStreams,
-  boolGracefulTerminationRequested: boolean,
+  boolWaitForGracefulTermination: boolean,
 ): Promise<void> {
   if (!isProcessRunning(processPy)) {
     return;
   }
 
-  if (boolGracefulTerminationRequested && (await waitForRdpProcessClose(processPy))) {
+  if (boolWaitForGracefulTermination && (await waitForRdpProcessClose(processPy))) {
     return;
   }
 
@@ -328,14 +328,13 @@ export async function stopRdpSessionManager(): Promise<void> {
 
   const processMoveMouse = processPyMoveMouse;
   const boolMoveMouseTerminationRequestedNow = requestMoveMouseTermination();
+  const boolWaitForMoveMouse =
+    boolMoveMouseTerminationRequestedNow || boolMoveMouseTerminationRequested;
   const arrProcess = [...setRdpProcess];
 
   await Promise.all(
     arrProcess.map((processPy) =>
-      stopRdpProcess(
-        processPy,
-        processPy === processMoveMouse && boolMoveMouseTerminationRequestedNow,
-      ),
+      stopRdpProcess(processPy, processPy === processMoveMouse && boolWaitForMoveMouse),
     ),
   );
 }
