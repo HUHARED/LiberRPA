@@ -158,7 +158,7 @@ const arrHeader: DataTableHeader<Dict_ListItem_Schedule>[] = [
 ];
 
 function getEnabledColor(enable: boolean): string {
-  return enable ? "success" : "grey";
+  return enable ? "success" : "inactive";
 }
 
 async function editSchedule(scheduleName: string): Promise<void> {

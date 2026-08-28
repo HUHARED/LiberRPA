@@ -6,11 +6,14 @@
         Delete run log folders older than the configured retention period, including logs
         and videos.<br />
         Minimum: 7 days.<br />
-        Checked after a run ends, at most once per hour.
+        Checked when Executor starts and every hour while it is running.
       </div>
     </v-tooltip>
 
-    <v-icon class="pa-0 ma-0 mt-2 mr-2" color="grey" icon="mdi-delete-clock-outline">
+    <v-icon
+      class="pa-0 ma-0 mt-2 mr-2"
+      color="medium-emphasis"
+      icon="mdi-delete-clock-outline">
     </v-icon>
 
     <v-checkbox
@@ -42,11 +45,15 @@
       <div>
         Delete run videos older than the configured retention period.<br />
         Minimum: 1 day.<br />
-        Checked after a run ends, at most once per hour.
+        Checked when Executor starts and every hour while it is running.
       </div>
     </v-tooltip>
 
-    <v-icon class="pa-0 ma-0 mt-2 mr-2" color="grey" icon="mdi-video-off-outline"> </v-icon>
+    <v-icon
+      class="pa-0 ma-0 mt-2 mr-2"
+      color="medium-emphasis"
+      icon="mdi-video-off-outline">
+    </v-icon>
 
     <v-checkbox
       v-model="settingStore.videoTimeoutEnable"
@@ -77,11 +84,14 @@
       <div>
         Delete the oldest run videos when total video storage exceeds this limit.<br />
         Minimum: 1 GB.<br />
-        Checked after a run ends, at most once per hour.
+        Checked when Executor starts and every hour while it is running.
       </div>
     </v-tooltip>
 
-    <v-icon class="pa-0 ma-0 mt-2 mr-2" color="grey" icon="mdi-video-minus-outline">
+    <v-icon
+      class="pa-0 ma-0 mt-2 mr-2"
+      color="medium-emphasis"
+      icon="mdi-video-minus-outline">
     </v-icon>
 
     <v-checkbox

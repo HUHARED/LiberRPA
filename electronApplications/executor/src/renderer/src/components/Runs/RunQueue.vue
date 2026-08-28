@@ -97,7 +97,7 @@ const arrHeader: DataTableHeader<Dict_ListItem_RunQueue>[] = [
 ];
 
 function getWaitingColor(waiting: boolean): string {
-  return waiting ? "warning" : "grey";
+  return waiting ? "warning" : "inactive";
 }
 
 async function removeWaitingItem(item: Dict_ListItem_RunQueue): Promise<void> {

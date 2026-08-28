@@ -2,7 +2,8 @@
 <template>
   <v-tabs
     v-model="informationStore.tab"
-    bg-color="#205781"
+    bg-color="navigation"
+    color="on-navigation"
     density="compact"
     direction="vertical"
     class="clean-space fill-height"

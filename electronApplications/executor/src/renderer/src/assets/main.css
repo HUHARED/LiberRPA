@@ -54,14 +54,13 @@ body {
 }
 
 .tab-header {
-  /* background-color: #4f959d; */
   width: 100%;
 
-  border-bottom: 4px solid #4f959d;
+  border-bottom: 4px solid rgb(var(--v-theme-tab-header-border));
 }
 
 .column-header {
   width: 100%;
-  border-top: 1px solid #98d2c0;
-  border-bottom: 1px solid #98d2c0;
+  border-top: 1px solid rgb(var(--v-theme-column-header-border));
+  border-bottom: 1px solid rgb(var(--v-theme-column-header-border));
 }

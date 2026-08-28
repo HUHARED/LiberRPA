@@ -32,7 +32,10 @@
       </div>
     </v-tooltip>
 
-    <v-icon class="pa-0 ma-0 mt-2 ml-12 mr-2" color="grey" icon="mdi-arrow-split-vertical">
+    <v-icon
+      class="pa-0 ma-0 mt-2 ml-12 mr-2"
+      color="medium-emphasis"
+      icon="mdi-arrow-split-vertical">
     </v-icon>
 
     <v-text-field
@@ -73,7 +76,7 @@
 
     <v-icon
       class="pa-0 ma-0 mt-2 ml-12 mr-2"
-      color="grey"
+      color="medium-emphasis"
       icon="mdi-arrow-split-horizontal">
     </v-icon>
 

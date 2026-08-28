@@ -1,7 +1,8 @@
 <!-- FileName: LogAndTimeSettings.vue -->
 <template>
   <v-container fluid class="pa-2 ma-0 flex-row">
-    <v-icon class="pa-0 ma-0 mt-2 mr-2" color="grey" icon="mdi-open-in-new"> </v-icon>
+    <v-icon class="pa-0 ma-0 mt-2 mr-2" color="medium-emphasis" icon="mdi-open-in-new">
+    </v-icon>
 
     <v-btn variant="tonal" @click="openProjectLogFolder()"> Open Log Folder </v-btn>
 
@@ -33,7 +34,11 @@
   </v-container>
 
   <v-container fluid class="pa-2 ma-0 flex-row">
-    <v-icon class="pa-0 ma-0 mt-2 mr-2" color="grey" icon="mdi-map-clock-outline"> </v-icon>
+    <v-icon
+      class="pa-0 ma-0 mt-2 mr-2"
+      color="medium-emphasis"
+      icon="mdi-map-clock-outline">
+    </v-icon>
 
     <v-text-field
       class="clean-space ml-1"

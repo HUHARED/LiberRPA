@@ -265,11 +265,11 @@ function getStatusColor(status: Str_RunHistory_Status): string {
     case "cancel":
       return "warning";
     case "timeout":
-      return "orange-darken-4";
+      return "run-timeout";
     case "interrupted":
-      return "deep-orange";
+      return "run-interrupted";
     default:
-      return "grey";
+      return "inactive";
   }
 }
 
