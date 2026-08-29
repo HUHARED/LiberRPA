@@ -173,7 +173,13 @@ function buildCompletionItem(
   completionItem.detail = `LiberRPA: ${snippet.title}`;
 
   // Text under headline.
-  completionItem.documentation = new vscode.MarkdownString(snippet.description);
+  const documentation = new vscode.MarkdownString();
+  documentation.appendCodeblock(snippet.body.join("\n"), "python");
+  if (snippet.description.length > 0) {
+    documentation.appendMarkdown("\n\n");
+    documentation.appendMarkdown(snippet.description);
+  }
+  completionItem.documentation = documentation;
 
   completionItem.insertText = new vscode.SnippetString(
     importPlan.snippetPrefix + snippet.body.join("\n"),
