@@ -1,19 +1,23 @@
 <!-- FileName: ProjectRunSettings.vue -->
 <template>
   <v-col v-if="projectStore.dictDetailEdit" cols="6" class="clean-space fill-height pt-3">
-    <v-select
-      v-model="projectStore.dictDetailEdit.python_environment_name"
-      label="Python Environment"
-      variant="underlined"
-      class="clean-space mb-2"
-      density="compact"
-      hide-details
-      :items="projectStore.arrPythonEnvironmentName">
-      <v-tooltip activator="parent" location="top">
-        The LiberRPA Python environment used to run this Project. Environments are loaded
-        from envs\pyenv.
-      </v-tooltip>
-    </v-select>
+    <v-row class="w-100">
+      <v-col cols="12">
+        <v-select
+          v-model="projectStore.dictDetailEdit.python_environment_name"
+          label="Python Environment"
+          variant="underlined"
+          class="clean-space mb-2"
+          density="compact"
+          hide-details
+          :items="projectStore.arrPythonEnvironmentName">
+          <v-tooltip activator="parent" location="top">
+            The LiberRPA Python environment used to run this Project. Environments are
+            loaded from envs\pyenv.
+          </v-tooltip>
+        </v-select>
+      </v-col>
+    </v-row>
 
     <BuiltInRunOptions
       v-model:timeout-min="projectStore.dictDetailEdit.timeout_min"
