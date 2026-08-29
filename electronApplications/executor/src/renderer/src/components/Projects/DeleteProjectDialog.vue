@@ -69,7 +69,7 @@
         <v-btn
           prepend-icon="mdi-delete-empty-outline"
           :disabled="projectStore.arrBoundSchedule.length !== 0"
-          @click="projectStore.deleteProject()">
+          @click="deleteProject()">
           Delete
         </v-btn>
       </v-card-actions>
@@ -80,7 +80,13 @@
 <script setup lang="ts">
 import { useProjectStore } from "../../Store/projectStore";
 
+const emit = defineEmits<{ deleted: [] }>();
 const projectStore = useProjectStore();
+
+async function deleteProject(): Promise<void> {
+  await projectStore.deleteProject();
+  emit("deleted");
+}
 </script>
 
 <style scoped></style>

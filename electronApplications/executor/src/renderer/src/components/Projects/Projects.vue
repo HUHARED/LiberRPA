@@ -139,7 +139,7 @@
           </v-row>
         </v-container>
 
-        <DeleteProjectDialog />
+        <DeleteProjectDialog @deleted="resetProjectSelection" />
       </v-container>
     </v-container>
   </v-container>
@@ -174,6 +174,14 @@ onBeforeMount(async () => {
   await projectStore.loadProjectNames();
 });
 
+function resetProjectSelection(): void {
+  strName.value = "";
+  strVersion.value = "";
+  arrSelectedName.value = [];
+  arrSelectedVersion.value = [];
+  boolDetailChanged.value = false;
+}
+
 async function installProjectPackage(): Promise<void> {
   loggerRenderer.debug("--installProjectPackage--");
 
@@ -184,9 +192,11 @@ async function installProjectPackage(): Promise<void> {
 
   projectStore.arrName = [];
   await projectStore.loadProjectNames();
+
   strName.value = result.name;
   arrSelectedName.value = [result.name];
   await projectStore.loadProjectVersions(result.name);
+
   strVersion.value = result.version;
   arrSelectedVersion.value = [result.version];
 
