@@ -16,9 +16,14 @@
           density="comfortable"
           hide-details
           readonly
-          spellcheck="false">
+          spellcheck="false"
+          :bg-color="isDuplicateKey(item[0]) ? 'warning' : ''">
           <v-tooltip activator="parent" location="top">
-            {{ item[0] }}
+            <template v-if="isDuplicateKey(item[0])">
+              Duplicate keys exist. At runtime, the last value with the same key takes
+              effect.
+            </template>
+            <template v-else>{{ item[0] }}</template>
           </v-tooltip>
         </v-text-field>
       </v-col>
@@ -60,6 +65,10 @@ const arrValueCache = ref<string[]>([]);
 
 function refreshValueCache(): void {
   arrValueCache.value = customArgs.value.map((item) => JSON.stringify(item[1], null, 0));
+}
+
+function isDuplicateKey(key: string): boolean {
+  return customArgs.value.filter(([argumentKey]) => argumentKey === key).length >= 2;
 }
 
 function updateValue(index: number): void {
