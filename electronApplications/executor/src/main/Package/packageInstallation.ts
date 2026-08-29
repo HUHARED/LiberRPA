@@ -2,6 +2,7 @@
 
 import { dialog } from "electron";
 import fs from "fs";
+import path from "path";
 
 import {
   dbInsertProjectDetail,
@@ -19,9 +20,11 @@ import {
 import { readProjectPackageMetadata } from "./packageMetadata";
 
 let boolPackageInstallationRunning = false;
+let strLastPackageFolderPath: string | undefined;
 
 async function runProjectPackageInstallation(): Promise<Dict_ProjectPackage_InstallResult> {
   const dialogResult = await dialog.showOpenDialog({
+    defaultPath: strLastPackageFolderPath,
     properties: ["openFile"],
     title: "Select a Flow Project Package",
     filters: [{ name: "LiberRPA Flow Project Package", extensions: ["rpa.zip"] }],
@@ -34,6 +37,7 @@ async function runProjectPackageInstallation(): Promise<Dict_ProjectPackage_Inst
   }
 
   const strPackageFilePath = dialogResult.filePaths[0];
+  strLastPackageFolderPath = path.dirname(strPackageFilePath);
   const { transactionFolderPath, stagedProjectPath } =
     createProjectPackageInstallationStaging();
 
