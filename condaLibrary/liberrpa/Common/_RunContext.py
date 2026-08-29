@@ -15,7 +15,7 @@ from functools import cache
 from typing import Literal, NotRequired, TypedDict, cast
 
 
-type ExecutorRunStateStatus = Literal["running", "completed", "error", "terminated"]
+type Str_ExecutorRunStateStatus = Literal["running", "completed", "error", "terminated"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -34,7 +34,7 @@ class DictExecutorRunState(TypedDict):
     packageVersion: str
     startedAt: str
     logPath: str
-    status: ExecutorRunStateStatus
+    status: Str_ExecutorRunStateStatus
     endedAt: NotRequired[str]
 
 
@@ -83,7 +83,9 @@ def get_executor_run_context() -> ExecutorRunContext | None:
 
     listMissing = [name for name, value in dictValues.items() if value is None]
     if listMissing:
-        raise RuntimeError(f"Incomplete Executor run context. Missing environment variable(s): {listMissing}")
+        raise RuntimeError(
+            f"Incomplete Executor run context. Missing environment variable(s): {listMissing}"
+        )
 
     strRunId = cast(str, dictValues[_ENV_EXECUTOR_RUN_ID])
     strRunStatePath = cast(str, dictValues[_ENV_EXECUTOR_RUN_STATE_PATH])
@@ -103,7 +105,9 @@ def get_executor_run_context() -> ExecutorRunContext | None:
 
     pathRunState = Path(strRunStatePath)
     if not pathRunState.is_absolute():
-        raise ValueError(f"{_ENV_EXECUTOR_RUN_STATE_PATH} must be an absolute path: {strRunStatePath!r}")
+        raise ValueError(
+            f"{_ENV_EXECUTOR_RUN_STATE_PATH} must be an absolute path: {strRunStatePath!r}"
+        )
 
     return ExecutorRunContext(
         runId=strRunId,
@@ -114,11 +118,11 @@ def get_executor_run_context() -> ExecutorRunContext | None:
     )
 
 
-def write_executor_run_state(status: ExecutorRunStateStatus, logPath: str) -> None:
-    contextObj = get_executor_run_context()
-    if contextObj is None:
-        return
-
+def _build_executor_run_state(
+    contextObj: ExecutorRunContext,
+    status: Str_ExecutorRunStateStatus,
+    logPath: str,
+) -> DictExecutorRunState:
     dictState: DictExecutorRunState = {
         "schemaVersion": 1,
         "runId": contextObj.runId,
@@ -130,7 +134,38 @@ def write_executor_run_state(status: ExecutorRunStateStatus, logPath: str) -> No
     }
 
     if status != "running":
-        dictState["endedAt"] = datetime.now().astimezone().isoformat(timespec="microseconds")
+        dictState["endedAt"] = (
+            datetime.now().astimezone().isoformat(timespec="microseconds")
+        )
+
+    return dictState
+
+
+def build_executor_run_state(
+    status: Str_ExecutorRunStateStatus,
+    logPath: str,
+) -> DictExecutorRunState | None:
+    contextObj = get_executor_run_context()
+    if contextObj is None:
+        return None
+
+    return _build_executor_run_state(
+        contextObj=contextObj,
+        status=status,
+        logPath=logPath,
+    )
+
+
+def write_executor_run_state(status: Str_ExecutorRunStateStatus, logPath: str) -> None:
+    contextObj = get_executor_run_context()
+    if contextObj is None:
+        return
+
+    dictState = _build_executor_run_state(
+        contextObj=contextObj,
+        status=status,
+        logPath=logPath,
+    )
 
     pathRunState = contextObj.runStatePath
     pathTemp = pathRunState.with_name(f".{pathRunState.name}.{os.getpid()}.tmp")

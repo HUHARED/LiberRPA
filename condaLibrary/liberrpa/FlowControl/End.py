@@ -18,8 +18,7 @@ from typing import Literal
 
 type FlowExecutionResult = Literal["completed", "error", "terminated"]
 
-# The final execution result of the current Flow. Executor maps "terminated" to
-# "cancel" or "timeout" according to the action that requested termination.
+# The final execution result of the current Flow. Executor maps "terminated" to "cancel" or "timeout" according to the action that requested termination.
 executionResult: FlowExecutionResult = "completed"
 
 
@@ -41,10 +40,6 @@ def cleanup() -> None:
         case "terminated":
             strInfo += "You pressed Ctrl+F12 or Executor stopped it."
 
-    Log.info(strInfo)
-
-    write_executor_run_state(status=executionResult, logPath=Log.strLogFolder)
-
     show_notification(title="LiberRPA", message=strInfo, duration=2, wait=False)
 
     Log.info(f"Elapsed time: {timedelta(seconds=int(PrjArgs.elapsedTime))}")
@@ -53,7 +48,10 @@ def cleanup() -> None:
     Summarize unsafe timeout fallback events at process end.
     These counters are read from the module instead of imported by value, because integers are immutable and `from module import counter` would not track later rebinding in _TerminableThread.
     """
-    if _TerminableThread.intUnsafeThreadTerminationCount > 0 or _TerminableThread.intUnstoppableThreadCount > 0:
+    if (
+        _TerminableThread.intUnsafeThreadTerminationCount > 0
+        or _TerminableThread.intUnstoppableThreadCount > 0
+    ):
         strTemp = ""
 
         if _TerminableThread.intUnsafeThreadTerminationCount > 0:
@@ -74,6 +72,10 @@ def cleanup() -> None:
             strTemp + "This means a UI or third-party call did not return in time. "
             "Please report this case with logs if it happens repeatedly."
         )
+
+    # Publish the terminal state only after the normal cleanup work finishes.
+    write_executor_run_state(status=executionResult, logPath=Log.strLogFolder)
+    Log.info(strInfo)
 
 
 def main() -> None:

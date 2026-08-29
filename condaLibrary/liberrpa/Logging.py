@@ -258,7 +258,7 @@ class ColoredConsoleFormatter(logging.Formatter):
             )
 
         message = record.getMessage()
-        if message.startswith("START:") or message.startswith("END  :"):
+        if message.startswith(("CALL  :", "RETURN:", "FLOW  :", "EVAL  :")):
             message = self._highlight_trace(message)
         else:
             message = self._highlight_message_tokens(message)
@@ -287,11 +287,13 @@ class Logger:
             None if strLogFolderName is not None else get_executor_run_context()
         )
         datetimeStartedAt = get_or_create_run_started_at()
-        strStartedAtFolderName = datetimeStartedAt.strftime("%Y-%m-%d_%H%M%S_%f")
+        strStartedAtFolderName = datetimeStartedAt.strftime("%Y-%m-%d_%H%M%S")
 
         if strLogFolderName is not None:
             strToolName = "BuiltInTools"
             self.strProjectName = strLogFolderName
+            # Built-in tools may run repeatedly within the same second and do not have an Executor run ID.
+            strStartedAtFolderName = datetimeStartedAt.strftime("%Y-%m-%d_%H%M%S_%f")
             print("Set log folder name:", strLogFolderName)
 
         elif dictExecutorRunContext is not None:
@@ -324,9 +326,8 @@ class Logger:
                 strLogBasePath = (
                     strProjectLogFolderPath or self.dictBasicConfig["outputLogPath"]
                 )
-                strRunFolderName = (
-                    f"{strStartedAtFolderName}_{dictExecutorRunContext.runId}"
-                )
+                strShortRunId = dictExecutorRunContext.runId.split("-", maxsplit=1)[0]
+                strRunFolderName = f"{strStartedAtFolderName}_{strShortRunId}"
 
                 self.strLogFolder = sanitize_filepath(
                     os.path.join(
@@ -726,10 +727,10 @@ class Logger:
     def _trace_call(
         self,
         level: LogLevel = "DEBUG",
-        prefix: Literal["START", "END"] = "START",
+        prefix: Literal["CALL", "RETURN"] = "CALL",
         funcName: str = "",
     ) -> None:
-        message = f"{prefix:<5}: {funcName}"
+        message = f"{prefix:<6}: {funcName}"
         match level:
             case "VERBOSE":
                 self.verbose(message)
@@ -752,7 +753,7 @@ class Logger:
         self, level: LogLevel = "DEBUG"
     ) -> Callable[[Callable[P, T]], Callable[P, T]]:
         """
-        Decorate a function to log its start and end at a specified log level.
+        Decorate a function to log its call and successful return at a specified log level.
 
         Parameters:
             level: The level to record log. Must be one of ['VERBOSE', 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'].
@@ -766,17 +767,17 @@ class Logger:
             def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
                 boolError = False
                 try:
-                    self._trace_call(level=level, prefix="START", funcName=func.__name__)
+                    self._trace_call(level=level, prefix="CALL", funcName=func.__name__)
                     return func(*args, **kwargs)
                 except Exception:
                     # self.exception_info(e)
                     boolError = True
                     raise
                 finally:
-                    # Log END only if no error occurred
+                    # Log RETURN only if the function completed without raising an exception.
                     if not boolError:
                         self._trace_call(
-                            level=level, prefix="END", funcName=func.__name__
+                            level=level, prefix="RETURN", funcName=func.__name__
                         )
 
             return wrapper
@@ -817,7 +818,7 @@ else:
     Log.set_level(level="DEBUG", loggerType="both")
 
 boolIsAdmin = ctypes.windll.shell32.IsUserAnAdmin() != 0
-Log.info(f"Running as Admin: {boolIsAdmin}")
+Log.debug(f"Running as Admin: {boolIsAdmin}")
 
 
 if __name__ == "__main__":

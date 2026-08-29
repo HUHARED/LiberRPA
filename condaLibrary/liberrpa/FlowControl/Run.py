@@ -9,6 +9,7 @@ import multiprocessing
 
 
 from liberrpa.Logging import Log
+from liberrpa.Common._RunContext import build_executor_run_state
 from liberrpa.Common._Utils import PATH_PROJECT_ROOT, PROCESS_NAME
 from liberrpa.Trigger import _register_force_exit, _register_executor_exit_listener
 from liberrpa.Basic import _start_video_record
@@ -111,10 +112,12 @@ def _get_module_name(pyFile: str) -> str:
     return ".".join(moduleParts)
 
 
+def _log_flow_transition(fromId: str, toId: str) -> None:
+    Log.debug(f"{'FLOW':<6}: '{dictNodeText[fromId]}' -> '{dictNodeText[toId]}'")
+
+
 def _run_by_direction(id: str) -> str | None:
     try:
-        Log.info(f"Ready to enter '{dictNodeText[id]}'")
-
         if dictPyInfo.get(id):
             # It is NonChoose.
 
@@ -133,7 +136,7 @@ def _run_by_direction(id: str) -> str | None:
         else:
             # It it a Choose node.
             boolConditionCheck = eval(dictConditionInfo[id], globals())
-            Log.info(f"Evaluate {dictConditionInfo[id]} -> {boolConditionCheck}")
+            Log.info(f"{'EVAL':<6}: {dictConditionInfo[id]} -> {boolConditionCheck}")
 
             # Go to "True" or "False" direction(If it has).
             if (
@@ -176,9 +179,6 @@ def _run_by_direction(id: str) -> str | None:
             # The node has no "Error" direction. return None to stop the loop.
             return None
 
-    finally:
-        Log.info(f"Leave from '{dictNodeText[id]}'")
-
 
 def _run_substart(id: str) -> None:
     # In Windows, the subprocess will re-import all, not forking anything from MainProcess.
@@ -188,6 +188,7 @@ def _run_substart(id: str) -> None:
     while True:
         idTemp = _run_by_direction(id=id)
         if idTemp:
+            _log_flow_transition(fromId=id, toId=idTemp)
             id = idTemp
         else:
             break
@@ -216,6 +217,17 @@ def main() -> None:
     Log.debug(
         f"Custom Project Arguments: {json.dumps(PrjArgs.customArgs, ensure_ascii=False, indent=4)}"
     )
+
+    dictExecutorRunState = build_executor_run_state(
+        status="running",
+        logPath=Log.strLogFolder,
+    )
+    if dictExecutorRunState is not None:
+        Log.debug(
+            "Executor Run State: "
+            + json.dumps(dictExecutorRunState, ensure_ascii=False, indent=4)
+        )
+
     Log.verbose(
         f"dictNonChooseNext: {json.dumps(dictNonChooseNext, ensure_ascii=False, indent=4)}"
     )
@@ -254,6 +266,7 @@ def main() -> None:
     while True:
         idTemp = _run_by_direction(id=id)
         if idTemp:
+            _log_flow_transition(fromId=id, toId=idTemp)
             id = idTemp
         else:
             break
