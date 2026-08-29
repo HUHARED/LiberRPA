@@ -77,14 +77,38 @@ function findCompletionSuffixStart(
   return undefined;
 }
 
+function getCompletionMatchPrefix(snippetPrefix: string): string[] {
+  const arrResult = [snippetPrefix];
+  const strFinalSegment = snippetPrefix.slice(snippetPrefix.lastIndexOf(".") + 1);
+
+  if (strFinalSegment !== snippetPrefix) {
+    arrResult.push(strFinalSegment);
+  }
+
+  for (
+    let intUnderscoreIndex = strFinalSegment.indexOf("_");
+    intUnderscoreIndex !== -1;
+    intUnderscoreIndex = strFinalSegment.indexOf("_", intUnderscoreIndex + 1)
+  ) {
+    const strSuffix = strFinalSegment.slice(intUnderscoreIndex + 1);
+    if (strSuffix.length > 0 && !arrResult.includes(strSuffix)) {
+      arrResult.push(strSuffix);
+    }
+  }
+
+  return arrResult;
+}
+
 /**
- * Match either the complete Snippet prefix or its final dot-separated segment.
+ * Match the complete Snippet prefix, its final dot-separated segment, or a
+ * suffix that starts after a snake_case boundary.
  *
- * Examples for `Log.debug`:
+ * Examples:
  *
- * - `Log.d` and `Log.debug` match the complete prefix;
- * - `d`, `deb`, and `debug` match the final segment;
- * - `obj.debug` and `other_debug` are rejected.
+ * - `Log.d`, `d`, `deb`, and `debug` match `Log.debug`;
+ * - `Str.c`, `case_`, `to_`, `to_upper`, and `upper` match
+ *   `Str.case_to_upper`;
+ * - `obj.to_upper` and `other_to_upper` are rejected.
  *
  * The explicit range also makes VS Code replace `Mouse.cli` as a whole instead
  * of treating only `cli` as the current word.
@@ -95,23 +119,14 @@ function getCompletionMatch(
   snippetPrefix: string,
 ): Info_CompletionMatch | undefined {
   const strLinePrefix = document.lineAt(position.line).text.slice(0, position.character);
-  const intFullPrefixStart = findCompletionSuffixStart(strLinePrefix, snippetPrefix);
 
-  if (intFullPrefixStart !== undefined) {
-    return {
-      range: new vscode.Range(position.with(undefined, intFullPrefixStart), position),
-      filterText: snippetPrefix,
-    };
-  }
+  for (const strMatchPrefix of getCompletionMatchPrefix(snippetPrefix)) {
+    const intMatchStart = findCompletionSuffixStart(strLinePrefix, strMatchPrefix);
 
-  const strFinalSegment = snippetPrefix.slice(snippetPrefix.lastIndexOf(".") + 1);
-  if (strFinalSegment !== snippetPrefix) {
-    const intFinalSegmentStart = findCompletionSuffixStart(strLinePrefix, strFinalSegment);
-
-    if (intFinalSegmentStart !== undefined) {
+    if (intMatchStart !== undefined) {
       return {
-        range: new vscode.Range(position.with(undefined, intFinalSegmentStart), position),
-        filterText: strFinalSegment,
+        range: new vscode.Range(position.with(undefined, intMatchStart), position),
+        filterText: strMatchPrefix,
       };
     }
   }
