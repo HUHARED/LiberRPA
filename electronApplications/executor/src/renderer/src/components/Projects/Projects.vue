@@ -23,6 +23,7 @@
         <!-- mandatory: After the first click, an item will always remain activated and cannot be deactivated -->
         <v-list
           v-if="projectStore.arrName.length !== 0"
+          v-model:activated="arrSelectedName"
           :items="projectStore.arrName"
           item-value="value"
           class="clean-space w-100"
@@ -46,6 +47,7 @@
         <!-- Add a v-if to remove the previous status of the list. -->
         <v-list
           v-if="projectStore.arrVersion.length !== 0"
+          v-model:activated="arrSelectedVersion"
           :items="projectStore.arrVersion"
           item-value="value"
           class="clean-space w-100 flex-column-grow-1"
@@ -163,6 +165,8 @@ const runHistoryStore = useRunHistoryStore();
 
 const strName = ref("");
 const strVersion = ref("");
+const arrSelectedName = ref<string[]>([]);
+const arrSelectedVersion = ref<string[]>([]);
 const boolDetailChanged = ref(false);
 
 onBeforeMount(async () => {
@@ -181,8 +185,11 @@ async function installProjectPackage(): Promise<void> {
   projectStore.arrName = [];
   await projectStore.loadProjectNames();
   strName.value = result.name;
+  arrSelectedName.value = [result.name];
   await projectStore.loadProjectVersions(result.name);
   strVersion.value = result.version;
+  arrSelectedVersion.value = [result.version];
+
   await projectStore.loadProjectDetail(result.name, result.version);
 }
 
@@ -227,6 +234,8 @@ async function clickNewProjectItem(arrName: string[]): Promise<void> {
   }
 
   strName.value = strSelectedName;
+  strVersion.value = "";
+  arrSelectedVersion.value = [];
   await projectStore.loadProjectVersions(strSelectedName);
 }
 
