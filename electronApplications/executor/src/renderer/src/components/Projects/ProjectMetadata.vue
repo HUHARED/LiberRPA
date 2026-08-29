@@ -71,7 +71,7 @@
       <v-text-field
         :model-value="projectStore.dictDetailEdit.description"
         label="Description"
-        class="clean-space description-field"
+        class="clean-space mb-2"
         density="compact"
         hide-details
         readonly
@@ -100,8 +100,4 @@ const projectStore = useProjectStore();
 const settingStore = useSettingStore();
 </script>
 
-<style scoped>
-.description-field {
-  margin-bottom: 8px !important;
-}
-</style>
+<style scoped></style>

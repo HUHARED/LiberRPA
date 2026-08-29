@@ -6,7 +6,7 @@
         <v-container
           v-if="scheduleStore.formMode === 'edit' && scheduleStore.dictDetailEdit"
           fluid
-          class="pa-2 ma-0 pb-0">
+          class="pa-2 ma-0 pt-0">
           <v-row class="w-100">
             <v-col cols="6" class="pb-0">
               <v-text-field
