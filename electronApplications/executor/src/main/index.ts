@@ -57,6 +57,10 @@ let boolShutdownStarted = false;
 let boolShutdownComplete = false;
 
 function sendMessageToRenderer(message: Dict_Message_Main): void {
+  if (boolAppQuitting) {
+    return;
+  }
+
   const webContentsObj = mainWindow?.webContents;
   if (webContentsObj !== undefined) {
     sendMainMessage(webContentsObj, message);

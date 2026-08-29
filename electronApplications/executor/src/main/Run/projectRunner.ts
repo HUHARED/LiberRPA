@@ -265,7 +265,8 @@ async function startProjectRun(detailDict: Dict_ProjectRun_Detail): Promise<void
     let strRunHistoryStatus: Str_RunHistoryTerminalStatus = strRequestedStatus ?? "error";
     let boolUnexpectedProcessFailure =
       getProcessError() !== undefined || activeRun.boolForceTerminationRequired;
-    let intRunEndedAtMs = Date.now();
+    const intProcessExitedAtMs = Date.now();
+    let intRunEndedAtMs = intProcessExitedAtMs;
 
     try {
       const dictFinalState = readExecutorRunState({
@@ -308,15 +309,22 @@ async function startProjectRun(detailDict: Dict_ProjectRun_Detail): Promise<void
 
       const boolUnexpectedExit =
         (intExitCode !== null && intExitCode !== 0) || strSignal !== null;
-      if (
-        boolUnexpectedExit &&
-        !(
-          dictFinalState.status === "terminated" &&
-          activeRun.terminationReason !== undefined &&
-          !activeRun.boolForceTerminationRequired
-        )
-      ) {
+      if (boolUnexpectedExit) {
         boolUnexpectedProcessFailure = true;
+        intRunEndedAtMs = intProcessExitedAtMs;
+
+        if (strRequestedStatus !== undefined) {
+          strRunHistoryStatus = strRequestedStatus;
+        } else {
+          if (dictFinalState.status !== "error") {
+            loggerMain.error(
+              `Python process ${strRunId} exited unexpectedly with code ${String(intExitCode)}` +
+                `${strSignal === null ? "" : ` and signal ${strSignal}`}; ` +
+                `override final Run State '${dictFinalState.status}' with Run History status 'error'.`,
+            );
+          }
+          strRunHistoryStatus = "error";
+        }
       }
     } catch (e: unknown) {
       loggerMain.error(
