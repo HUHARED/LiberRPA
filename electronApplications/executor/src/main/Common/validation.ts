@@ -220,18 +220,12 @@ export function ensureCustomProjectArgs(
     throw new Error(`${sourceName} must be an array.`);
   }
 
-  const setArgumentName = new Set<string>();
   return value.map((item, intIndex) => {
     if (!Array.isArray(item) || item.length !== 2) {
       throw new Error(`${sourceName}[${intIndex}] must be a [string, value] pair.`);
     }
 
-    const strName = ensureTrimmedSingleLineString(item[0], `${sourceName}[${intIndex}][0]`);
-    if (setArgumentName.has(strName)) {
-      throw new Error(`${sourceName} contains a duplicate argument name: ${strName}`);
-    }
-    setArgumentName.add(strName);
-
+    const strName = ensureString(item[0], `${sourceName}[${intIndex}][0]`);
     ensureJsonValue(item[1], `${sourceName}[${intIndex}][1]`);
     return [strName, item[1]];
   });

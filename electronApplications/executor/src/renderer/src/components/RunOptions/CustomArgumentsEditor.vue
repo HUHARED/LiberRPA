@@ -6,7 +6,7 @@
     class="clean-space flex-column-grow-1 flex-column">
     <v-row
       v-for="(item, index) in customArgs"
-      :key="item[0]"
+      :key="index"
       class="clean-space"
       style="width: 100%; max-height: 40px">
       <v-col cols="6" class="pa-0 ma-0">
