@@ -42,10 +42,7 @@ export const useRunHistoryStore = defineStore("runHistory", {
 
       const intRevision = ++this.intLoadRevision;
       try {
-        const result = await invokeMain(
-          "getRunHistoryPage",
-          cloneJsonSerializable(this.dictOptionsCache),
-        );
+        const result = await invokeMain("getRunHistoryPage", this.dictOptionsCache);
         if (intRevision !== this.intLoadRevision) {
           return;
         }

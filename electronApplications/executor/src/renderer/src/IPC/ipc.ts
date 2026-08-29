@@ -1,5 +1,6 @@
 // FileName: ipc.ts
 
+import { cloneJsonSerializable } from "../Common/json";
 import { useInformationStore } from "../Store/informationStore";
 import type {
   Str_ExecutorInvokeCommand,
@@ -12,7 +13,10 @@ export async function invokeMain<C extends Str_ExecutorInvokeCommand>(
   command: C,
   ...args: TypeIpcArgs<Type_ExecutorInvoke_Request<C>>
 ): Promise<Type_ExecutorInvoke_Response<C>> {
-  const result = await window.executor.invoke(command, ...args);
+  const arrSerializableArg = args.map((arg: Type_ExecutorInvoke_Request<C>) =>
+    cloneJsonSerializable(arg),
+  ) as TypeIpcArgs<Type_ExecutorInvoke_Request<C>>;
+  const result = await window.executor.invoke(command, ...arrSerializableArg);
 
   if (result.success === false) {
     const informationStore = useInformationStore();
