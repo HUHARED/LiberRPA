@@ -44,7 +44,7 @@
 
       <template #item.actions="{ item }">
         <div class="d-flex ga-2 justify-start">
-          <v-tooltip text="Open Log Folder" location="bottom">
+          <v-tooltip text="Open Log Folder" location="bottom" :open-on-focus="false">
             <template #activator="{ props }">
               <v-icon
                 v-bind="props"
@@ -56,10 +56,13 @@
             </template>
           </v-tooltip>
 
-          <v-tooltip text="Cancel Run" location="bottom">
+          <v-tooltip
+            v-if="item.status === 'running'"
+            text="Cancel Run"
+            location="bottom"
+            :open-on-focus="false">
             <template #activator="{ props }">
               <v-icon
-                v-if="item.status === 'running'"
                 v-bind="props"
                 color="medium-emphasis"
                 icon="mdi-stop-circle-outline"
@@ -69,10 +72,13 @@
             </template>
           </v-tooltip>
 
-          <v-tooltip text="Run Most Recently Installed Version" location="bottom">
+          <v-tooltip
+            v-else
+            text="Run Most Recently Installed Version"
+            location="bottom"
+            :open-on-focus="false">
             <template #activator="{ props }">
               <v-icon
-                v-if="item.status !== 'running'"
                 v-bind="props"
                 color="medium-emphasis"
                 icon="mdi-replay"

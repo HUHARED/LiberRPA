@@ -33,7 +33,7 @@
 
       <template #item.actions="{ item }">
         <div class="d-flex ga-2 justify-start">
-          <v-tooltip text="Cancel Waiting Run" location="bottom">
+          <v-tooltip text="Cancel Waiting Run" location="bottom" :open-on-focus="false">
             <template #activator="{ props }">
               <v-icon
                 v-bind="props"
