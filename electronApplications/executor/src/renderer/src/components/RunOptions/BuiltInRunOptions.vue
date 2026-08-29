@@ -14,7 +14,7 @@
         variant="underlined"
         hide-details>
         <v-tooltip activator="parent" location="top">
-          Stop the run when it exceeds this timeout. 0 means no limit.
+          Stop the run when it exceeds this timeout. 0 means no limit. Maximum: 35,791 minutes.
         </v-tooltip>
       </v-number-input>
     </v-col>
