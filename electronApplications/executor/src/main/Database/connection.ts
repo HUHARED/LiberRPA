@@ -15,6 +15,8 @@ const STR_INIT_DATABASE_SCRIPT_PATH = path.join(
   "../../resources/InitDatabase.sql",
 );
 
+const BOOL_LOG_DATABASE_QUERY = process.env["LIBERRPA_EXECUTOR_LOG_DATABASE_QUERY"] === "1";
+
 let databaseObj: Database.Database | undefined;
 
 export function initializeDatabase(): void {
@@ -54,10 +56,13 @@ export function closeDatabase(): void {
 
 function openDatabase(databasePath: string): Database.Database {
   const openedDatabaseObj = new Database(databasePath, {
-    verbose: (message?: unknown) => {
-      loggerMain.debug(`[SQLite] ${String(message)}`);
-    },
+    verbose: BOOL_LOG_DATABASE_QUERY
+      ? (message?: unknown) => {
+          loggerMain.debug(`[SQLite] ${String(message)}`);
+        }
+      : undefined,
   });
+
   openedDatabaseObj.pragma("foreign_keys = ON");
   return openedDatabaseObj;
 }

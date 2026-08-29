@@ -127,7 +127,7 @@ export function dbMarkRunningRunsInterrupted(): void {
 }
 
 export function dbHasRunningRun(): boolean {
-  loggerMain.debug("--dbHasRunningRun--");
+  // loggerMain.debug("--dbHasRunningRun--"); It's too frequent.
   const row = getDatabase()
     .prepare("SELECT COUNT(*) AS runningCount FROM run_history WHERE status = 'running';")
     .get();
