@@ -47,7 +47,7 @@
 
       <template #item.actions="{ item }">
         <div class="d-flex ga-2 justify-start">
-          <v-tooltip text="Edit Schedule" location="bottom">
+          <v-tooltip text="Edit Schedule" location="bottom" :open-on-focus="false">
             <template #activator="{ props }">
               <v-icon
                 v-bind="props"
@@ -58,7 +58,7 @@
             </template>
           </v-tooltip>
 
-          <v-tooltip text="Delete Schedule" location="bottom">
+          <v-tooltip text="Delete Schedule" location="bottom" :open-on-focus="false">
             <template #activator="{ props }">
               <v-icon
                 v-bind="props"
@@ -169,13 +169,15 @@ async function editSchedule(scheduleName: string): Promise<void> {
     return;
   }
 
+  const intRevision = scheduleStore.intDetailLoadRevision;
+
   await scheduleStore.loadProjectNames();
-  if (scheduleStore.dictDetailEdit !== detail) {
+  if (intRevision !== scheduleStore.intDetailLoadRevision) {
     return;
   }
 
   const arrVersion = await scheduleStore.fetchProjectVersions(detail.project_name);
-  if (scheduleStore.dictDetailEdit !== detail) {
+  if (intRevision !== scheduleStore.intDetailLoadRevision) {
     return;
   }
 
@@ -186,10 +188,13 @@ async function editSchedule(scheduleName: string): Promise<void> {
 
 async function openDeleteDialog(scheduleName: string): Promise<void> {
   loggerRenderer.info(`Open delete dialog for schedule: ${scheduleName}`);
+
   const detail = await scheduleStore.loadScheduleDetail(scheduleName);
-  if (detail !== undefined && scheduleStore.dictDetailEdit === detail) {
-    scheduleStore.showDeleteDialog = true;
+  if (detail === undefined) {
+    return;
   }
+
+  scheduleStore.showDeleteDialog = true;
 }
 </script>
 
