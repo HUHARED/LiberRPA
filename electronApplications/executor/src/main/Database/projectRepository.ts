@@ -26,7 +26,8 @@ export function dbSelectProjectNames(): { name: string }[] {
       GROUP BY
           name
       ORDER BY
-          MAX(updated_at_ms) DESC;
+          MAX(created_at_ms) DESC,
+          name COLLATE NOCASE ASC;
       `,
     )
     .all();
@@ -45,7 +46,8 @@ export function dbSelectProjectVersions(name: string): { version: string }[] {
       WHERE
           name = ?
       ORDER BY
-          updated_at_ms DESC;
+          created_at_ms DESC,
+          version COLLATE NOCASE ASC;
       `,
     )
     .all(name);
