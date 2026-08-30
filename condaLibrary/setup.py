@@ -34,7 +34,7 @@ setup(
     url="https://github.com/HUHARED/LiberRPA",
     project_urls={
         "Source": "https://github.com/HUHARED/LiberRPA",
-        "Documentation": "https://github.com/HUHARED/LiberRPA",
+        "Documentation": "https://github.com/HUHARED/LiberRPA/blob/main/docs/Reference.md",
         "Issue Tracker": "https://github.com/HUHARED/LiberRPA/issues",
     },
     license="AGPL-3.0-or-later",
