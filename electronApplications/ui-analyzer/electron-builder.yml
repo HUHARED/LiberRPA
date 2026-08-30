@@ -1,21 +1,29 @@
 # FileName: electron-builder.yml
 appId: com.liberrpa.ui-analyzer
 productName: UI Analyzer
+
 directories:
   buildResources: build
+  output: dist
+
+asar: true
+
+electronLanguages:
+  - en-US
+
 files:
-  - "!**/.vscode/*"
-  - "!src/*"
-  - "!electron.vite.config.{js,ts,mjs,cjs}"
-  - "!{.eslintignore,.eslintrc.cjs,dev-app-update.yml,CHANGELOG.md,README.md}"
-  - "!{.env,.env.*,.npmrc,pnpm-lock.yaml}"
-  - "!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}"
-  - "!md_images/*"
-# asarUnpack:
-#   - resources/**
+  - out/**
+  - resources/**
+  - package.json
+  - LICENSE
+  - "!**/*.map"
+
+electronFuses:
+  enableEmbeddedAsarIntegrityValidation: true
+  onlyLoadAppFromAsar: true
+
 win:
-  target:
-    - portable
-  artifactName: ${productName}.${ext}
   icon: resources/LiberRPA_icon_v3_color_UiAnalyzer_256.ico
+
+# UI Analyzer currently has no native production Node module.
 npmRebuild: false
