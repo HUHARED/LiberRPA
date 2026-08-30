@@ -6,21 +6,19 @@ This extension is a part of LiberRPA to manage the overall flow of an RPA projec
 
 > **Note:**
 >
-> Screenshots and animations in this README are provided for reference. As LiberRPA evolves, the current interface may differ slightly in appearance or wording, but these minor differences do not affect the documented workflow or functionality.
+> Screenshots and animations in this document are provided for reference. As LiberRPA evolves, the current interface may differ slightly in appearance or wording, but these minor differences do not affect the documented workflow or functionality.
 >
 > For example: Icon has become ![new icon](./md_images/README/LiberRPA_icon_v3_color_32px.png) from ![old icon](./md_images/README/LiberRPA_icon_v1_color_32px.png) .
 
 > **Extension logs:**
 >
-> The LiberRPA VS Code extensions write diagnostic messages to separate log channels in the VS Code Output panel:
+> This extension writes diagnostic messages to the `liberrpa-flowchart` channel in the VS Code Output panel.
 >
-> * `liberrpa-flowchart`
+> Open `View > Output` and select the channel, or run `Output: Show Output Channels` from the Command Palette.
 >
-> To view a log channel, open `View > Output` and select the required channel from the channel list. You can also run `Output: Show Output Channels` from the Command Palette.
+> For troubleshooting, run `Developer: Set Log Level...`, select `liberrpa-flowchart`, and choose `Debug` or `Trace`. `Info` is normally sufficient for routine use.
 >
-> To change the amount of diagnostic detail, run `Developer: Set Log Level...`, select the required channel, and then choose a log level. Use `Debug` or `Trace` when troubleshooting. `Info` is normally sufficient for routine use.
->
-> This log level controls only diagnostic messages from the VS Code extension. It does not change the Python runtime log level used when executing a Flow Project or an individual Block.
+> This setting does not change the Python runtime log level used by a Flow Project or an individual Block.
 
 ![1740302097535](md_images/README/1740302097535.png)
 
@@ -35,9 +33,9 @@ LiberRPA Flowchart is implemented as a [VS Code custom editor](https://code.visu
 
 ![1740311326677](md_images/README/1740311326677.png)
 
-# Usage
+## Usage
 
-## Set File Icon(optional)
+### Set File Icon(optional)
 
 1. Press `Ctrl+Shift+P` to open the Command Palette.
 2. Execute the command `Preferences: File Icon Theme`
@@ -47,7 +45,7 @@ This ensures that `.flow` files can display the correct icon.
 
 > Note: This is purely a UI enhancement, the project will work correctly even if you skip this step.
 
-## Manage Nodes and Lines
+### Manage Nodes and Lines
 
 When you click or hover a node, four anchors appear.
 
@@ -57,14 +55,14 @@ Ensure that the connection follows the [Link Rules](#link-rules).
 
 ![1740310630113](md_images/README/1740310630113.png)![1740310650278](md_images/README/1740310650278.png)![1740310668391](md_images/README/1740310668391.png)![1740310693259](md_images/README/1740310693259.png)![1740310706782](md_images/README/1740310706782.png)
 
-### Start Node
+#### Start Node
 
 * **Purpose:**
   The unique Start node initiates the entire project. It can't be deleted.
 * **Execution:**
   Click the `⊳` icon within the Start node to execute the whole project in a  **Python MainProcess** .
 
-### SubStart Node
+#### SubStart Node
 
 * **Create:**
   Drag a SubStart node from **Node Panel** into the middle area. This creates a new **subprocess** when the project executes.
@@ -74,7 +72,7 @@ Ensure that the connection follows the [Link Rules](#link-rules).
   Click the SubStart node to open **Node Info** panel where you can modify its description.
   ![1740303373902](md_images/README/1740303373902.png)
 
-### Block Node
+#### Block Node
 
 * **Create:**
   Drag a Block node from **Node Panel** into the middle area, then update its description and set the corresponding Python file path.
@@ -109,7 +107,7 @@ Ensure that the connection follows the [Link Rules](#link-rules).
   * If neither lines is connected, an End node is executed automatically.
     ![1740304582323](md_images/README/1740304582323.png)
 
-### Choose Node
+#### Choose Node
 
 * **Create:**
   Drag to create a Choose node and modify its description and condition. The condition will be evaluated using [eval()](https://docs.python.org/3/library/functions.html#eval).
@@ -124,7 +122,7 @@ Ensure that the connection follows the [Link Rules](#link-rules).
   * If neither lines is connected, an End node is executed automatically.
     ![1740306549704](md_images/README/1740306549704.png)
 
-### End Node
+#### End Node
 
 * **Purpose:**
   Connecting any node to an End node will terminate the process when executing the whole project.
@@ -133,7 +131,7 @@ Ensure that the connection follows the [Link Rules](#link-rules).
   * For a  **MainProcess** , the entire program exits.
   * If a node has no connected next node, LiberRPA will automatically execute an End node.
 
-### Link Rules
+#### Link Rules
 
 LiberRPA will check the rules when you attempt to create a new line.
 
@@ -148,7 +146,7 @@ If a rule is broken, an alert will appear.
 * A Block node can have up to 2 outgoing lines(Common-line and Exception-line).
 * A Choose node can  have up to 2 outgoing lines(True-line and False-line).
 
-## Shortcuts for Node
+#### Shortcuts for Node
 
 | Shortcut      | Action                   |
 | ------------- | ------------------------ |
@@ -159,9 +157,11 @@ If a rule is broken, an alert will appear.
 | `Backspace` | Delete the selected node |
 | `Delete`    | Delete the selected node |
 
-## Setting
+### Setting
 
-### Execute Mode
+The Flowchart stores these values in `project.flow`. Project Manager includes them in the Package as initial defaults. Executor can then save local Run Settings for each installed Project version and separate Run Options/Custom Arguments for each Schedule without changing the packaged source Project.
+
+#### Execute Mode
 
 The `Execute Mode` setting controls how the Flow Project is executed when the `Start Node` is clicked:
 
@@ -170,7 +170,7 @@ The `Execute Mode` setting controls how the Flow Project is executed when the `S
 
 ![1787029830140](md_images/README/1787029830140.png)
 
-The setting does not affect the standard execution shortcuts. - When `project.flow` is the active editor, the entire Flow Project can also be executed with the standard VS Code shortcuts:
+The setting does not affect the standard execution shortcuts. When `project.flow` is the active editor, the entire Flow Project can also be executed with the standard VS Code shortcuts:
 
 - **F5**: Debug the Flow Project.
 - **Ctrl+F5**: Run the Flow Project without debugging.
@@ -185,7 +185,7 @@ For normal Flow debugging, `Raised Exceptions` is not recommended because it may
 
 ![1787029369244](md_images/README/1787029369244.png)
 
-### Log Level
+#### Log Level
 
 The Flowchart `Log Level` setting controls the Python runtime log level used when a Flow Project or an individual Block starts.
 
@@ -195,35 +195,35 @@ This setting is separate from the diagnostic log level used by the VS Code exten
 
 ![1740307077172](md_images/README/1740307077172.png)
 
-### Record Video
+#### Record Video
 
-You can enable it to save an execution video(`video_record.mkv`) in the corresponding log folder.
+Enable this option to save `video_record.mkv` in the corresponding Run log folder.
 
-The functionality relies on **[LiberRPA Local Server](https://github.com/HUHARED/LiberRPA?tab=readme-ov-file#liberrpa-local-server)**.
+Recording is provided by [LiberRPA Local Server](../../docs/LocalServer.md#execution-recording).
 
 ![1740307313698](md_images/README/1740307313698.png)
 
-LiberRPA Local Server will also create a subtitle(`video_record.srt`) file for the video, generated automatically from  `human_read_MainProcess.log`.
+When the required Project log is available, Local Server also generates `video_record.srt` from `human_read_MainProcess.log`.
 
 ![1740307426364](md_images/README/1740307426364.png)
 
-For log folder path configuration, see [Configuration](https://github.com/HUHARED/LiberRPA?tab=readme-ov-file#configuration).
+The Editor log root is configured through `configFiles/basic.jsonc`; Executor can use its default or select another Project Log Folder.
 
-### Stop Shortcut
+#### Stop Shortcut
 
-If enable, when the whole project is running (not applicable for a single Block node), you can press `Ctrl+F12` to stop it forcibly.
+When enabled for a complete Flow Project, press `Ctrl+F12` to terminate the running Flow. This option does not apply to execution of a single Block.
 
 ![1740308423164](md_images/README/1740308423164.png)
 
-### Highlight UI
+#### Highlight UI
 
-If enable, LiberRPA will briefly highlight the target elements before manipulating them.
+When enabled, LiberRPA briefly highlights supported target elements before manipulating them.
 
 It applies to most functions within the modules `Mouse`, `Keyboard`, `Window`, and `UiInterface`.
 
 ![1740308644288](md_images/README/1740308644288.png)
 
-## Custom Project Arguments
+### Custom Project Arguments
 
 You can define project arguments in **Custom Project Arguments** area.
 
@@ -235,7 +235,7 @@ Press Enter or leave the input field to apply a key or value change. Pressing
 `Ctrl+S` while the input is still focused saves only the last applied value; it
 does not apply the text currently being edited.
 
-### Key
+#### Key
 
 The key is stored as a string. It does not need to be a valid Python identifier.
 
@@ -245,11 +245,13 @@ Empty-string keys are allowed.
 
 Duplicate keys are also allowed while editing. The Flowchart highlights duplicate keys as a warning. At runtime, the last value with the same key takes effect.
 
-### Value
+![1787996355979](md_images/README/1787996355979.png)
+
+#### Value
 
 The value must be JSON-deserializable. Supported values include strings, numbers, booleans, `null`, arrays, and objects.
 
-### Using Custom Arguments in Python
+#### Using Custom Arguments in Python
 
 Custom argument completions are provided by  **LiberRPA Snippets Tree** .
 
@@ -278,7 +280,7 @@ customer_name = CustomArgs["customerName"]
 
 ![1740309294818](md_images/README/1740309294818.png)
 
-## Resize
+### Resize
 
 Adjust the width of the right panels by dragging the divider.
 
@@ -288,7 +290,7 @@ If you need to edit extensive content, it may be more convenient to edit it else
 
 ![resize](md_images/README/resize.gif)
 
-# Known Issues
+## Known Issues
 
 * Drag a node from Node Panel may occasionally fail.
 * Shortcuts for node may unresponsive.
@@ -298,6 +300,7 @@ If you need to edit extensive content, it may be more convenient to edit it else
 > If drag or shortcuts still feel unstable, click the flowchart canvas once to refocus it.
 
 * Text in a node and inputbox can't display optimally if it is not very short, due to the nodes and inputboxes all have a limited width.
+* Orthogonal (polyline) connections may not always be routed as cleanly as expected, and overlapping connection lines can reduce readability. This routing will be considered for future improvement. For now, prefer straight connections where practical. If a Flow becomes difficult to read, reposition the nodes and try different connection anchors on the top, right, bottom, or left sides until the layout is acceptable.
 * Flow Project debugging may not stop on Block exceptions
   * When debugging an entire Flow Project, exceptions raised by a Block or Component may be caught by the LiberRPA Flow runtime so that the Flow can continue through an Exception Line. Because the exception is handled by the runtime, VS Code may not pause at the original error location by default.
   * To pause on these exceptions, open `Run and Debug` **→** `BREAKPOINTS` and enable `User Uncaught Exceptions` for the Python debugger.

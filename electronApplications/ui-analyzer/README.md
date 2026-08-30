@@ -1,186 +1,340 @@
 # UI Analyzer
 
-UI Analyzer is an Electron-based client designed to quickly select UI elements and build the corresponding selectors required for RPA operations.
+UI Analyzer is the selector-inspection and selector-authoring tool used by LiberRPA.
 
-It requires **LiberRPA Local Server**.
+It is a separate Electron application that works with **LiberRPA Local Server** to indicate, inspect, edit, and validate automation targets.
 
-For HTML element indication, **LiberRPA Chrome extension** must also be installed and connected.
+UI Analyzer supports four selector categories:
 
-> If LiberRPA Local Server is not connected, the window title will change to "UI Analyzer - No Local Server". You can check the connection status using the icon in the top-right corner:
+| Selector           | Best suited for                                                                 |
+| ------------------ | ------------------------------------------------------------------------------- |
+| `SelectorUia`    | Windows applications that expose Microsoft UI Automation information            |
+| `SelectorHtml`   | Supported elements in normal Chrome web pages                                   |
+| `SelectorImage`  | Screen regions where semantic UIA/HTML information is unavailable or unsuitable |
+| `SelectorWindow` | Application-window matching without a more specific child element               |
+
+For HTML indication and validation, the **LiberRPA Chrome Extension** must also be installed, connected, and able to access the target page.
+
+For browser runtime behavior and limitations, see the [Chrome Extension documentation](../../browserExtensions/liberrpa-chrome-extension/README.md).
+
+For the local communication layer used by UI Analyzer, see [LiberRPA Local Server](../../docs/LocalServer.md).
+
+> **Note:**
 >
-> <img src="./md_images/README/SocketConnected.svg" width="32" height="32" alt="SocketConnected">
-> Connected
-> <img src="./md_images/README/SocketDisconnected.svg" width="32" height="32" alt="SocketDisconnected">
-> Not Connected
+> Screenshots and animations in this document are provided for reference. As LiberRPA evolves, the current interface may differ slightly in appearance or wording, but these minor differences do not affect the documented workflow or functionality.
 
-> **Note:** The GUI shown here may differ slightly from the newest version.
+## Contents
 
-# Change Log
+- [Connection Status](#connection-status)
+- [Choosing a Selector Type](#choosing-a-selector-type)
+- [Indicating Elements](#indicating-elements)
+- [Editing Selectors](#editing-selectors)
+- [Validating Selectors](#validating-selectors)
+- [Element Tree](#element-tree)
+- [Other Interface Controls](#other-interface-controls)
+- [Selector Reference](#selector-reference)
+- [Change Log](#change-log)
 
-Since LiberRPA has components across different platforms, all changes will be recorded in [the unified document](https://github.com/HUHARED/LiberRPA/blob/main/docs/CHANGELOG.md).
+---
 
-# Indicate UIA Element
+## Connection Status
 
-Indicate an element that supports [UI Automation](https://learn.microsoft.com/en-us/dotnet/framework/ui-automation/ui-automation-overview) and generate a [SelectorUia](#selectoruia).
+UI Analyzer requires LiberRPA Local Server.
 
-Simply single-click `MouseLeft` to select the target element.
+If the Local Server is not connected, the window title changes to:
 
-Press `ESC` to cancel the indicating operation.
+```text
+UI Analyzer - No Local Server
+```
 
-> It works for many situations, but for HTML elements, [Indicate HTML Element](#indicate-html-element) may be better.
+The icon in the top-right corner also shows the current connection state:
 
-![IndicateUIA](md_images/README/IndicateUIA.gif)
+<img src="./md_images/README/SocketConnected.svg" width="32" height="32" alt="Connected">
 
-Adjust **Indicate delay** to allow time for you to bring the target window into view and hover the cursor over the target element.
+**Connected**
 
-> `Indicate delay` only delays the start of indication. It is not the same as `match timeout`(It is explained in [Validate Element](#validate-element)).
+<img src="./md_images/README/SocketDisconnected.svg" width="32" height="32" alt="Not connected">
 
-> It is especially important for [Indicate HTML Element](#indicate-html-element) because Chrome extension can only identify elements in the last focus webpage.
+**Not connected**
 
-After the indicate delay finishes, UI Analyzer waits for a limited time (15 seconds) for the user action. If no target is selected, the operation times out automatically.
+If the connection is lost after `InitLiberRPA.exe` has been run again, restart UI Analyzer and LiberRPA Local Server so that both use the current local authentication information.
+
+---
+
+## Choosing a Selector Type
+
+Prefer the most semantic selector that reliably identifies the target.
+
+A practical order is:
+
+1. **HTML** for supported elements in normal Chrome web pages.
+2. **UIA** for Windows applications and browser chrome that expose useful UI Automation information.
+3. **Image** when semantic selectors are unavailable or unreliable.
+4. **Window** when only the application window itself needs to be identified.
+
+This is not a strict hierarchy. The best selector is the one that remains understandable and stable for the target application.
+
+### HTML vs UIA in Chrome
+
+A Chrome page can expose some information through Windows UI Automation, but HTML indication is usually preferable for normal web-page elements because it works with DOM structure and attributes.
+
+Use UIA when the target is part of the browser UI itself or when HTML automation is not appropriate.
+
+---
+
+## Indicating Elements
+
+UI Analyzer creates selectors by indicating a target and then showing the captured hierarchy and attributes for review.
+
+### Indicate delay
+
+**Indicate delay** waits before the indication operation starts.
+
+Use it when you need time to:
+
+- bring the target application into view;
+- switch to another window;
+- focus the correct Chrome window and tab.
+
+It is particularly useful for HTML indication because the Chrome Extension operates on the active supported tab in the last-focused normal Chrome window.
+
+`Indicate delay` is not the same as **Match timeout**, which controls selector matching during validation.
 
 ![1740149355230](md_images/README/1740149355230.png)
 
-If you want, enable **Minimize** option to make UI Analyzer minimize itself before each indicating operation. It will restore after an indicating operation completes, is cancelled, or times out.
+### Minimize UI Analyzer during indication
+
+Enable **Minimize** if UI Analyzer would otherwise cover the target.
+
+UI Analyzer restores itself when the indication:
+
+- completes;
+- is canceled;
+- times out.
 
 ![1740149627121](md_images/README/1740149627121.png)
 
-# Indicate HTML Element
+### Indicate UIA Element
 
-Indicate an element in a regular web page.
+Use **UIA** indication for an element that exposes Microsoft UI Automation information.
 
-If the element is not in viewport, LiberRPA will attempt to scroll it into view.
+Single-click the target with the left mouse button.
+
+Press:
+
+```text
+Esc
+```
+
+to cancel.
+
+After indication starts, UI Analyzer waits for the selection for a limited time. If no target is selected, the operation times out automatically.
+
+![IndicateUIA](md_images/README/IndicateUIA.gif)
+
+The resulting selector is a [`SelectorUia`](#selectoruia).
+
+### Indicate HTML Element
+
+Use **HTML** indication for supported elements in a normal Chrome web page.
+
+Requirements:
+
+- LiberRPA Local Server is running;
+- Chrome is running;
+- LiberRPA Chrome Extension is installed and connected;
+- the target page is a supported page that the extension can access.
 
 ![IndicateHtml](md_images/README/IndicateHtml.gif)
 
-HTML elements can use index attributes or path([CSS selector](https://developer.mozilla.org/docs/Web/CSS/CSS_selectors) with the [:nth-child()](https://developer.mozilla.org/docs/Web/CSS/:nth-child)) attributes when normal attributes are not enough.
+During indication, LiberRPA works with the active supported tab in the last-focused normal Chrome window.
 
-Index attributes include `documentIndex` and `childIndex`. Index values start from `0`, but `0` is usually omitted because the first match is selected by default.
+If the target element is outside the viewport, the browser integration can scroll it into view as part of the element operation.
 
-> However, you can still explicitly use `"documentIndex": "0"` or `"childIndex": "0"` when it makes selector generation logic easier, such as when looping through elements in a list.
+When normal HTML attributes are not enough to distinguish the target reliably, UI Analyzer can also use index attributes or generated path information.
+
+The two HTML index attributes are:
+
+- **`documentIndex`** — the target element's zero-based position among all elements in the document that match the same selected attributes.
+- **`childIndex`** — the target element's zero-based position among matching descendant elements under the parent search area. It is not limited to direct children.
+
+Index values start from `0`. The first match normally does not need an explicit index, so index fields are most useful for the second or later matching element.
 
 ![1740147909983](md_images/README/1740147909983.png)
 
-**documentIndex:** The target element's position among all elements on the page having the same primary attributes.
+Generated path information uses CSS-selector-style structure with `:nth-child()` where needed. It is another fallback when normal attributes are not sufficient.
 
-**childIndex:** The target element's zero-based position among matching descendant elements under its parent search area. It is not limited to direct children.
+For the complete matching rules, including regex support, index behavior, and path fields, see [`SelectorHtml`](#selectorhtml).
 
-# Indicate Image Element
+The resulting selector is a [`SelectorHtml`](#selectorhtml).
 
-Indicate an element by image—useful when both UIA and HTML selectors fail.
+For iframe, Shadow DOM, restricted-page, `file://`, and other Chrome-specific limitations, see the [Chrome Extension documentation](../../browserExtensions/liberrpa-chrome-extension/README.md#current-limitations).
 
-To select an image, drag and drop it while holding `Ctrl` and clicking the left mouse button.
+### Indicate Image Element
+
+Use **Image** indication when UIA and HTML selectors are unavailable or unsuitable.
+
+Once the screen is paused, indicated by a green border around the screen, drag with the left mouse button to select the target region.
 
 ![IndicateImage](md_images/README/IndicateImage.gif)
 
-You can configure the default confidence level for image matching and choose whether to use grayscale matching.
+You can configure:
+
+- the default image-matching confidence;
+- whether grayscale matching is used.
 
 ![1740148367585](md_images/README/1740148367585.png)
 
 ![1740148434216](md_images/README/1740148434216.png)
 
-# Indicate Window Element
+The resulting selector is a [`SelectorImage`](#selectorimage).
 
-Indicate a window element.
+Image-based automation is inherently more sensitive than semantic selectors to display scaling, resolution, rendering, and visual changes in the target application.
 
-> All selectors, including UIA, HTML, and Image selectors, must have a `window` section. UI Analyzer adds it automatically.
+### Indicate Window Element
 
-LiberRPA will try to locate the "window" then search the "specification" section.
+Use **Window** indication when the automation needs to identify an application window without selecting a more specific child element.
 
 ![IndicateWindow](md_images/README/IndicateWindow.gif)
 
-# Modify Selector
+The resulting selector is a [`SelectorWindow`](#selectorwindow).
 
-Adjust a selector by clicking a layer in **Element Hierarchy**.
+UIA, HTML, and Image selectors also contain a `window` section. UI Analyzer adds this window context automatically before the more specific target information.
 
-Then, check or uncheck attributes in **Attribute Editor**.
+---
 
-Use regular expressions (regex) to make the selector more suitable when the attribute value may vary.
+## Editing Selectors
 
-**JSON Selector** will update automatically.
+After indication, use **Element Hierarchy** and **Attribute Editor** to decide which information should remain in the selector.
+
+Select a hierarchy layer, then check or uncheck attributes.
+
+The **JSON Selector** updates automatically.
 
 ![-omit-regex](md_images/README/-omit-regex.gif)
 
-Alternatively, you can directly edit them in **JSON Selector** — Note that it will not update **Attribute Editor**.
+### Prefer stable attributes
+
+A selector should normally use the smallest set of attributes that identifies the intended element reliably.
+
+Prefer values that represent stable application semantics.
+
+For values that change predictably, use a `-regex` field where supported rather than hard-coding a volatile value.
+
+### Edit JSON directly
+
+You can also edit **JSON Selector** directly.
 
 ![1740148560108](md_images/README/1740148560108.png)
 
-It accepts:
+Direct JSON editing accepts:
 
-- Standard JSON generated by UI Analyzer.
+- standard JSON generated by UI Analyzer;
 - JSON-like text with trailing commas, such as selectors copied from Black-formatted Python code.
 
-It does not support:
+It does not accept Python syntax such as:
 
-- Python literals such as single-quoted strings.
-- `True`, `False`, or `None`.
+- single-quoted strings;
+- `True`, `False`, or `None`;
 - `#` comments.
 
-# Validate Element
+> Direct JSON edits do not update the Attribute Editor representation.
 
-Test whether the element can be located by the current data in **JSON Selector**.
+Use **Validate** after manual edits.
+
+---
+
+## Validating Selectors
+
+Use **Validate** to test whether the current JSON Selector can locate the intended target.
 
 ![Validate](md_images/README/Validate.gif)
 
-Set **Match timeout** to specify how long the validation should attempt to find a match.
+### Match timeout
 
-> `Match timeout` only affects validation and selector matching. It does not change `indicate delay`.
+**Match timeout** controls how long selector validation attempts to find a match.
 
 ![1740149519175](md_images/README/1740149519175.png)
 
-# Element Tree
+It does not change **Indicate delay**.
 
-You can utilize the element tree structure to view and locate all elements within a window.
+When a selector becomes unreliable after an application or page changes, validation is the quickest way to determine whether the problem is:
+
+- the target window;
+- a hierarchy layer;
+- one selected attribute;
+- an index/path fallback;
+- the target application/browser state.
+
+---
+
+## Element Tree
+
+The **Element Tree** provides a broader view of elements available under the selected window or target context.
+
+Use it when you need to understand the surrounding UI hierarchy rather than indicating only one element.
 
 ![CheckElementTree](md_images/README/CheckElementTree.gif)
 
-# Resize
+---
 
-Adjust the width of the left and right panels by dragging the dividers.
+## Other Interface Controls
 
-The overall window size of UI Analyzer can also be modified.
+### Secondary Attribute List
 
-![Resize](md_images/README/Resize.gif)
+The **Secondary Attribute List** displays information collected for inspection or debugging that is not currently used as selector matching data.
 
-# Reset
+![1740149234947](md_images/README/1740149234947.png)
 
-Reset the current selector data to the default states.
+For HTML selectors, screen-position/size values such as `secondary-x`, `secondary-y`, `secondary-width`, and `secondary-height` are examples of secondary information.
 
-![Reset](md_images/README/Reset.gif)
+### Status
 
-# Check Status
-
-View UI Analyzer's status in **Status** area.
-
-> **Note:** This area was previously called **Log**, and the button "Open log file" has been removed.
+The **Status** area reports the current UI Analyzer operation state.
 
 ![1740149086118](md_images/README/1740149086118.png)
 
-# Secondary Attribute List
+This area was previously named **Log**.
 
-It displays attributes that are not used in selectors.
-![1740149234947](md_images/README/1740149234947.png)
+### Reset
 
-# Theme
+Use **Reset** to clear the current selector data and return the UI to its default selector state.
 
-Customize the **Theme** settings to suit your preferences.
+![Reset](md_images/README/Reset.gif)
+
+### Resize
+
+The left and right panels can be resized by dragging their dividers.
+
+The main UI Analyzer window can also be resized.
+
+![Resize](md_images/README/Resize.gif)
+
+### Theme
+
+Use **Theme** to select the UI Analyzer appearance.
 
 ![1740149942519](md_images/README/1740149942519.png)
 
-# Selector
+---
 
-> **Note:** The definitions in this section are simplified pseudo-schema.
-> They are intended to explain field meanings, not to provide complete runnable JSON, Python `TypedDict`, or TypeScript type definitions.
+## Selector Reference
+
+The selector definitions below are the canonical selector reference for UI Analyzer.
+
+> **Important:** These definitions are simplified pseudo-schemas intended to explain field meanings and structure.
+>
+> They are not complete runnable JSON, Python `TypedDict`, or TypeScript declarations.
 >
 > Notations such as `NotRequired[str]` are descriptive only.
-> Do not copy the pseudo-schema directly as executable code.
-> Use UI Analyzer to create, edit and validate real selectors.
+>
+> Use UI Analyzer to create, edit, and validate real selectors rather than copying the pseudo-schema as executable code.
 
-## SelectorUia
+### SelectorUia
 
-It will search the "window" value first, then sequentially search through each layer in the "specification."
+LiberRPA first locates the target window, then searches each layer in `specification` in order.
 
-pseudo-schema:
+**Pseudo-schema:**
 
 ```text
 {
@@ -231,7 +385,7 @@ pseudo-schema:
 }
 ```
 
-Example:
+**Example:**
 
 ```json
 {
@@ -257,7 +411,7 @@ Example:
 }
 ```
 
-## SelectorHtml
+### SelectorHtml
 
 A `SelectorHtml` contains a `window` section and a `specification` list.
 
@@ -281,7 +435,7 @@ Each HTML layer can use three kinds of locating information:
 * Index attributes
 * Path attributes
 
-### Basic attributes
+#### Basic attributes
 
 Basic attributes describe the element itself.
 
@@ -338,7 +492,7 @@ tableColumnIndex
 tableColumnName
 ```
 
-### Regex attributes
+#### Regex attributes
 
 Most attributes can also be written as a `-regex` field.
 
@@ -385,7 +539,7 @@ pattern string:
 }
 ```
 
-### Index attributes
+#### Index attributes
 
 Index attributes are used when the basic attributes are not enough to uniquely locate an element.
 
@@ -401,7 +555,7 @@ A `childIndex` value of `"0"` is treated as unnecessary and ignored during match
 
 > Index values start from `0`. However, `0` is usually omitted because the first matched element is already selected by default. Index fields are most useful when the target is the second, third, or later matching element.
 
-Example:
+**Example:**
 
 ```json
 {
@@ -423,13 +577,13 @@ Index fields also support regex:
 
 Index attributes are calculated from the same attributes that remain in the current selector layer. If you remove an attribute from the selector, the index may need to be recalculated using a broader candidate set.
 
-### Path attributes
+#### Path attributes
 
 When `usePath` is enabled, a `path` field will be generated for each HTML selector layer.
 
 Path attributes use a generated CSS path based on tag names and `:nth-child()`.
 
-Example:
+**Example:**
 
 ```json
 {
@@ -455,7 +609,7 @@ Do not combine `path` / `path-regex` with `childIndex` / `documentIndex` in the 
 
 In most cases, users should prefer stable attributes such as `id`, `name`, `aria-label`, text attributes, or index-based locating. Path-based locating is mainly a fallback when normal attributes are not reliable enough.
 
-### Secondary attributes
+#### Secondary attributes
 
 Some generated attributes are secondary information and are not used as selector fields:
 
@@ -468,7 +622,7 @@ secondary-height
 
 These values describe the element's screen position and size. They are useful for display, preview, debugging, or UI Analyzer panels, but they are not part of the HTML selector matching logic.
 
-### Recommended selector editing workflow
+#### Recommended selector editing workflow
 
 When editing an HTML selector manually:
 
@@ -487,7 +641,7 @@ When editing an HTML selector manually:
 
 ---
 
-pseudo-schema:
+**Pseudo-schema:**
 
 ```text
 {
@@ -575,7 +729,7 @@ pseudo-schema:
 }
 ```
 
-Example:
+**Example:**
 
 ```json
 {
@@ -597,11 +751,11 @@ Example:
 }
 ```
 
-## SelectorImage
+### SelectorImage
 
-It will search the "window" value first, then search **the only one layer** in "specification".
+LiberRPA first locates the target window, then searches the single image layer in `specification`.
 
-pseudo-schema:
+**Pseudo-schema:**
 
 ```text
 {
@@ -639,7 +793,7 @@ pseudo-schema:
 }
 ```
 
-Example:
+**Example:**
 
 ```json
 {
@@ -661,11 +815,11 @@ Example:
 }
 ```
 
-## SelectorWindow
+### SelectorWindow
 
-It will search the "window" value, **have no other sections**.
+A `SelectorWindow` contains only the `window` section and does not have a `specification` section.
 
-pseudo-schema:
+**Pseudo-schema:**
 
 ```text
 {
@@ -694,7 +848,7 @@ pseudo-schema:
 }
 ```
 
-Example:
+**Example:**
 
 ```json
 {
@@ -707,3 +861,11 @@ Example:
   }
 }
 ```
+
+---
+
+## Change Log
+
+LiberRPA components are versioned and documented together.
+
+See the unified [Change Log](../../docs/CHANGELOG.md).

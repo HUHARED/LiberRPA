@@ -18,9 +18,9 @@ If the images are not displayed, [view this README on GitHub](https://github.com
 >
 > This setting does not change the Python runtime log level used by a Flow Project or an individual Block.
 
-# Usage
+## Usage
 
-## Create a Project
+### Create a Project
 
 1. Press `Ctrl+Shift+P` and run `LiberRPA: Create a New Project`.
    ![1740223397190](md_images/README/1740223397190.png)
@@ -34,7 +34,7 @@ If the images are not displayed, [view this README on GitHub](https://github.com
 
 If the selected template contains `.gitignore` and Git is available, Project Manager also initializes a Git repository.
 
-## Customize Templates
+### Customize Templates
 
 Project templates are stored at:
 
@@ -53,7 +53,7 @@ Keep the required Project files and structure for the selected Project type. Oth
 
 ![1786679958479](md_images/README/1786679958479.png)
 
-## Component Repository
+### Component Repository
 
 LiberRPA Project Manager uses a local Component Repository to store Component Wheels published locally or imported from external sources.
 
@@ -75,11 +75,11 @@ Running `InitLiberRPA.exe` creates the default Repository folder. A custom path 
 
 Use Project Manager commands to publish, import, and rebuild Repository content. Do not manually edit the Repository during normal use.
 
-## Develop a Component Project
+### Develop a Component Project
 
 A Component Project contains reusable Python code that can be published as a Component Wheel and added to other LiberRPA Projects.
 
-### Project Structure
+#### Project Structure
 
 Component source code must be placed under:
 
@@ -102,7 +102,7 @@ ExampleDelay/
 
 The package folder directly under `src` must match `packageName` in `component.json`. Keep the generated `__init__.py` and `py.typed` files.
 
-### Public Component Functions
+#### Public Component Functions
 
 LiberRPA can generate Component Snippets from public top-level synchronous functions in public modules directly under `src/<PackageName>/`.
 
@@ -130,7 +130,7 @@ def delay_seconds(seconds: float) -> None:
 
 Automatic Snippets are not generated from private modules or functions, async functions, nested functions, class methods, functions in `__init__.py`, or functions in nested subpackages. These objects may still be used internally by the Component.
 
-### Component Resources
+#### Component Resources
 
 Store Component-owned resources under the Component package and resolve them with `get_component_resource_path()`:
 
@@ -151,7 +151,7 @@ strConfigPath = get_component_resource_path(
 
 Do not use `os.getcwd()` to locate Component-owned files. The process working directory belongs to the running Project.
 
-### Component Metadata and Versions
+#### Component Metadata and Versions
 
 The Component Manifest is stored in `component.json`. It defines the Component identity, package name, display name, version, description, supported `liberrpa` range, and direct Component dependencies.
 
@@ -161,7 +161,7 @@ Versions and version requirements follow Python PEP 440. Increase `version` befo
 
 Before publishing, save the Project, review public names and docstrings, and resolve any dependency problems reported by Project Manager.
 
-## Publish a Component
+### Publish a Component
 
 Open the Command Palette and run `LiberRPA: Publish Component`.
 
@@ -169,7 +169,7 @@ Open the Command Palette and run `LiberRPA: Publish Component`.
 
 The first publication uses two steps so that generated Snippets can be reviewed before the Wheel is created.
 
-### First Publish: Prepare Snippets
+#### First Publish: Prepare Snippets
 
 Review the Project and source scan summary, then click `Publish Component`.
 
@@ -188,13 +188,13 @@ _Snippets/
 
 No Wheel is created during this preparation step. Review the generated Snippets and edit `snippets.jsonc` when customization is needed.
 
-### Publish the Component Wheel
+#### Publish the Component Wheel
 
 Run `LiberRPA: Publish Component` again. Project Manager regenerates and validates the Snippets, builds and validates the Wheel, and publishes it to the configured Component Repository.
 
 After publication, review the Component version, Snippet summary, warnings, Wheel filename, and SHA-256 shown on the page. Detailed diagnostics are available in the Project Manager Output channel and the Component Management diagnostic log.
 
-### Configure Component Snippets
+#### Configure Component Snippets
 
 Use `_Snippets/snippets.jsonc` to:
 
@@ -208,7 +208,7 @@ See [Component Snippet Configuration](./ComponentSnippetConfiguration.md) for th
 
 See the [Example Delay Component walkthrough](./ExampleDelayComponent.md) for a working publication example.
 
-### Publish Updated Versions
+#### Publish Updated Versions
 
 When published source code, resources, or Snippets change, increase `version` in `component.json` and publish again.
 
@@ -216,7 +216,7 @@ When published source code, resources, or Snippets change, increase `version` in
 
 Publishing identical content with the same Component ID and version reports `alreadyPublished`. Publishing different content with the same ID and version is rejected.
 
-## Import Component Wheels
+### Import Component Wheels
 
 Use `LiberRPA: Import Component Wheels` to copy external LiberRPA Component Wheels into the configured local Component Repository.
 
@@ -227,7 +227,7 @@ Import and Add are separate operations:
 
 Importing a Wheel does not modify the current Project.
 
-### Import the Wheels
+#### Import the Wheels
 
 1. Run `LiberRPA: Manage Components` and click `Import Wheels`.
    ![1787113555410](md_images/README/1787113555410.png)
@@ -245,7 +245,7 @@ Multiple versions of the same Component can coexist in the Repository. Importing
 
 After importing, use [Add](#add) when the Component should become a dependency of the current Project.
 
-## Rebuild Component Repository Index
+### Rebuild Component Repository Index
 
 Component Wheels are the authoritative Repository artifacts. `repository.json` is a derived index that can be rebuilt from those Wheels.
 
@@ -259,7 +259,7 @@ Run `LiberRPA: Rebuild Component Repository Index` when Project Manager reports 
 
 Rebuild validates the stored Wheels and replaces `repository.json`. It does not import external Wheels, remove valid Wheels, or change any Project dependency files.
 
-## Manage Components in a Project
+### Manage Components in a Project
 
 Project Manager manages Component dependencies for Flow Projects and Component Projects.
 
@@ -267,7 +267,7 @@ The Project Manifest (`flow.json` or `component.json`) stores direct requirement
 
 Do not edit `components.lock.json` or `_Components` manually.
 
-### Open Manage Components
+#### Open Manage Components
 
 1. Press `Ctrl+Shift+P` and run `LiberRPA: Manage Components`.
    ![1786854288116](md_images/README/1786854288116.png)
@@ -276,7 +276,7 @@ Do not edit `components.lock.json` or `_Components` manually.
 
 The `Import Wheels` button opens the Repository operation described in [Import Component Wheels](#import-component-wheels).
 
-### Preview and Confirm Changes
+#### Preview and Confirm Changes
 
 Add, Update, Change Requirement, and Remove use the same workflow:
 
@@ -287,7 +287,7 @@ Add, Update, Change Requirement, and Remove use the same workflow:
 
 If Repository content changes after preview, Project Manager asks you to preview the plan again.
 
-### Add
+#### Add
 
 Use `Add` to add a new direct Component dependency.
 
@@ -301,7 +301,7 @@ Project Manager records the direct requirement, resolves a compatible dependency
 
 Pre-release versions are selected only when the requirement explicitly permits a pre-release, for example `==1.2.0rc1`.
 
-### Update
+#### Update
 
 Use `Update` to search for newer versions that still satisfy the current requirements.
 
@@ -313,7 +313,7 @@ Use `Update` to search for newer versions that still satisfy the current require
 
 `Update` does not change the version requirements stored in the Project Manifest.
 
-### Change Requirement
+#### Change Requirement
 
 Use `Change requirement` to edit the allowed PEP 440 range of a direct dependency.
 
@@ -325,7 +325,7 @@ Use `Change requirement` to edit the allowed PEP 440 range of a direct dependenc
 
 Changing a requirement may keep, upgrade, or downgrade the resolved version. If the current version remains valid, use `Update` afterward when you explicitly want a newer permitted version.
 
-### Remove
+#### Remove
 
 Use `Remove` to remove a direct Component dependency.
 
@@ -337,7 +337,7 @@ Use `Remove` to remove a direct Component dependency.
 
 Transitive Components that are no longer required are removed automatically. Existing Python imports and calls are not removed; update affected source files yourself.
 
-### Repair `_Components`
+#### Repair `_Components`
 
 Use `Repair _Components` when `components.lock.json` is valid but `_Components` is missing or damaged.
 
@@ -345,7 +345,7 @@ Use `Repair _Components` when `components.lock.json` is valid but `_Components` 
 
 Repair rebuilds `_Components` from the exact Wheels and SHA-256 values recorded in the lock file. It does not change the Project Manifest, lock file, or resolved versions.
 
-### Resolve Dependencies
+#### Resolve Dependencies
 
 Use `Resolve dependencies` when `components.lock.json` is missing, invalid, or stale.
 
@@ -357,7 +357,7 @@ Project Manager resolves the current Manifest requirements again, creates a new 
 
 The new resolved versions may differ from an older lock file because resolution uses the current Component Repository.
 
-### Use an Added Component
+#### Use an Added Component
 
 Import an added Component through its public package:
 
@@ -370,7 +370,7 @@ from ExampleDelay import (
 Do not import through `_Components`:
 
 ```python
-# Do not use this form.
+## Do not use this form.
 from _Components.ExampleDelay import Delay
 ```
 
@@ -380,7 +380,7 @@ Use [LiberRPA Snippets Tree](https://github.com/HUHARED/LiberRPA/blob/main/vscod
 
 Access Component resources through the Component's public API. Do not construct paths into `_Components` from the Flow Project.
 
-#### Complete Example
+##### Complete Example
 
 [`ComponentUsageExample-0.1.0.zip`](./Example/ComponentUsageExample-0.1.0.zip) is a final-state Flow Project that uses `ExampleDelay 1.0.1`.
 
@@ -400,13 +400,13 @@ When debugging the expected Component error, enable `User Uncaught Exceptions`, 
 
 `Repair _Components` requires the exact Wheel recorded in `components.lock.json`. `Resolve dependencies` resolves the current requirement again and may select another compatible version.
 
-## Package a Flow Project
+### Package a Flow Project
 
 Use LiberRPA Project Manager to create an `.rpa.zip` deployment Package from the current Flow Project.
 
-(TODO: need to be updated with Executor later) The generated Package contains the Flow Project files required for installation and execution in LiberRPA Executor. The Project contents are stored directly at the archive root.
+The generated Package contains the Flow Project files required for installation and execution in LiberRPA Executor. The Project contents are stored directly at the archive root.
 
-### Create the Package
+#### Create the Package
 
 1. Open the Flow Project as the only workspace folder.
 2. Run `LiberRPA: Package Project`.
@@ -421,7 +421,9 @@ Use LiberRPA Project Manager to create an `.rpa.zip` deployment Package from the
 
 Project Manager validates the Project, dependency state, environment, output folder, and target filename before packaging.
 
-### Optional Package Contents
+Treat the generated Package as an immutable deployment artifact. Executor installs Packages by Project name and version and does not overwrite an existing name/version pair. After changing the Project, increase `flow.json.version` and create another Package.
+
+#### Optional Package Contents
 
 The following Project-root entries are excluded by default because Executor does not require them:
 
@@ -433,9 +435,9 @@ The following Project-root entries are excluded by default because Executor does
 
 Review `_Test` for credentials, customer data, and environment-specific values before including it.
 
-Including or excluding these entries changes only the generated Package.
+Including or excluding these entries changes only the generated Package. Before adding large models, videos, datasets, or other heavyweight resources, review the [Executor Package Limits](../../electronApplications/executor/README.md#package-limits).
 
-### Package Rules
+#### Package Rules
 
 Project Manager excludes caches, compiled Python files, internal operation files, existing `.rpa.zip` files, and any root-level Package metadata from the source Project. Symbolic links inside the Project are not supported.
 
@@ -443,9 +445,9 @@ The output folder must exist, use an absolute path, and be outside the source Pr
 
 Project Manager never overwrites an existing `.rpa.zip`. Change the Project name or version, select another output folder, or move the previous Package when another archive is required.
 
-(TODO: need to be updated with Executor later) After the Package is created, it can be installed and executed through [LiberRPA Executor](../../electronApplications/executor/README.md).
+After the Package is created, it can be installed and executed through [LiberRPA Executor](../../electronApplications/executor/README.md).
 
-# Requirements
+## Requirements
 
 Run `InitLiberRPA.exe` before using LiberRPA Project Manager so that the LiberRPA environment variable, default directories, and Component Repository root are initialized.
 

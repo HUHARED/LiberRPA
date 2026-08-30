@@ -24,13 +24,13 @@ You do not need to memorize the complete [LiberRPA API](https://github.com/HUHAR
 >
 > This setting does not change the Python runtime log level used by a Flow Project or an individual Block.
 
-# Usage
+## Usage
 
-## Insert Snippets
+### Insert Snippets
 
 LiberRPA Snippets can be inserted into Python files by clicking, dragging, or using IntelliSense. All three methods update the Managed Import block when imports are required.
 
-### Click a Tree Node
+#### Click a Tree Node
 
 Click a Snippet in **LiberRPA Snippets Tree**.
 
@@ -38,19 +38,21 @@ Statement Snippets are inserted on the current empty line or on a new line with 
 
 ![clickToAdd](md_images/README/clickToAdd.gif)
 
-### Drag and Drop
+#### Drag and Drop
 
 Drag a Snippet from the Tree to the required editor position.
 
 ![dragToAdd](md_images/README/dragToAdd.gif)
 
-### IntelliSense
+#### IntelliSense
 
-Type a Snippet prefix or API name in a Python file and select the LiberRPA completion.
+Type a Snippet prefix or a meaningful part of the final API name in a Python file and select the LiberRPA completion. Matching is case-insensitive and also works from `snake_case` word boundaries. For example, `deb` matches `Log.debug`, and `to_upper` matches `Str.case_to_upper`.
+
+The completion details show the Snippet body and description before insertion.
 
 ![typeToAdd](md_images/README/typeToAdd.gif)
 
-## Managed Imports
+### Managed Imports
 
 LiberRPA maintains a Managed Import block in Python files:
 
@@ -72,7 +74,7 @@ Do not manually edit content inside the Managed Import block. Imports outside th
 
 When a file does not yet contain the block, LiberRPA inserts it after the module header, module docstring, and any `__future__` imports.
 
-## Project Values
+### Project Values
 
 The **Project Values** Category contains expression Snippets supplied by the current RPA Project, for example:
 
@@ -90,7 +92,7 @@ CustomArgs["customerName"]
 
 Selecting a Project Value or CustomArgs completion also adds its required import.
 
-## Use the Secondary Sidebar
+### Use the Secondary Sidebar
 
 To keep VS Code Explorer and LiberRPA Snippets Tree visible at the same time, move the Snippets Tree view to the [Secondary Sidebar](https://code.visualstudio.com/api/ux-guidelines/sidebars#secondary-sidebar).
 
@@ -106,7 +108,7 @@ Move it back to the Activity Bar when needed:
 
 ![MoveBack](md_images/README/MoveBack.gif)
 
-## Favorite Snippets
+### Favorite Snippets
 
 Frequently used Snippets can be added to:
 
@@ -126,7 +128,7 @@ After saving the file, run `Developer: Reload Window` to reload Favorite Snippet
 
 See [Favorite Snippet Configuration](./FavoriteSnippetConfiguration.md) for the complete file structure, field definitions, imports, insertion modes, and examples.
 
-# Known Issues
+## Known Issues
 
-* The TreeView does not provide a search box. Use IntelliSense to search by prefix or API name, or refer to the [LiberRPA API](https://github.com/HUHARED/LiberRPA/tree/main/condaLibrary#api).
+* The TreeView does not provide a search box. Use IntelliSense to search by prefix or a meaningful part of the API name, or refer to the [LiberRPA API](https://github.com/HUHARED/LiberRPA/tree/main/condaLibrary#api).
 * After an invalid extra character closes the IntelliSense list, deleting only that character may not restore the previous suggestions, and `Ctrl+Space` may still return no LiberRPA Snippets. Press `Ctrl+Backspace` to remove the current prefix and type it again, or insert the Snippet through the Tree or drag-and-drop. This affects only IntelliSense suggestions, not Snippet insertion, Managed Imports, or Python execution.
