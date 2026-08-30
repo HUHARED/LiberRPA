@@ -61,6 +61,7 @@
   "python.experiments.optOutFrom": ["All"],
   "python.locator": "js",
   "python.defaultInterpreterPath": "${env:LiberRPA}\\envs\\pyenv\\default\\python.exe",
+  "python.useEnvironmentsExtension": false,
 
   // Pylance settings
   "python.analysis.typeCheckingMode": "basic",
@@ -152,6 +153,7 @@
   "vscode-office.editorTheme": "Auto",
   "vscode-office.pasterImgPath": "md_images/${fileName}/${now}.png",
   "vscode-office.previewCodeHighlight.style": "github",
+  "vscode-office.previewCode": false,
 
   "indentRainbow.errorColor": "rgba(128,32,32,0.05)",
   "indentRainbow.excludedLanguages": ["markdown", "plaintext"],
