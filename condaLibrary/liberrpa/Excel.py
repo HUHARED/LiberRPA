@@ -1505,7 +1505,6 @@ if __name__ == "__main__":
     excelObj1 = bind_excel_file(fileName="1.xlsx")
     # excelObj2 = bind_excel_file(fileName="2.xlsx")
     # excelObj3 = bind_excel_file(fileName="3.xlsx")
-    # excelObj2 = open_excel_file(path=R"C:\Users\huhar\Desktop\ExcelTest\3.xlsx")
 
     print(excelObj1)
     # print(excelObj2)
