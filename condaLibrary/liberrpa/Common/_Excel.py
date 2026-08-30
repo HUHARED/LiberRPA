@@ -419,7 +419,7 @@ def _save(excelObj: ExcelObj) -> None:
         if not bool(bookApi.Saved):
             raise ExcelError(
                 "Excel returned from Save(), but the workbook still contains unsaved changes. "
-                "A save event may have cancelled the save or modified the workbook afterward."
+                "A save event may have canceled the save or modified the workbook afterward."
             )
 
 
@@ -487,7 +487,7 @@ def _save_as(
         ):
             raise ExcelError(
                 "Excel returned from SaveAs, but the workbook identity did not change. "
-                "A BeforeSave event may have cancelled the operation."
+                "A BeforeSave event may have canceled the operation."
             )
 
         # A BeforeSave event can cancel SaveAs without necessarily raising a COM exception.

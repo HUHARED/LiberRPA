@@ -454,7 +454,7 @@ def close(excelObj: ExcelObj, save: bool = True) -> None:
                 if _get_workbook_key(book.fullname) == workbookKey:
                     raise ExcelError(
                         "Excel returned from Close(), but the workbook is still open. "
-                        "A Workbook.BeforeClose event may have cancelled the close."
+                        "A Workbook.BeforeClose event may have canceled the close."
                     )
 
             boolBookClosed = True

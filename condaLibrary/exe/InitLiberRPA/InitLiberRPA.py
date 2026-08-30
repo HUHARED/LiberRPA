@@ -167,7 +167,7 @@ _EDITOR_EXTENSION_SPECS = (
     EditorExtensionSpec(extensionId="albert.tabout"),
     EditorExtensionSpec(extensionId="hyesun.py-paste-indent"),
     EditorExtensionSpec(extensionId="ryu1kn.partial-diff"),
-    # Office Viewer 3.5.4 is intentionally fixed because later releases may introduce substantial UI and behaviour changes.
+    # Office Viewer 3.5.4 is intentionally fixed because later releases may introduce substantial UI and behavior changes.
     EditorExtensionSpec(extensionId="cweijan.vscode-office", version="3.5.4"),
     EditorExtensionSpec(extensionId="liberrpa.liberrpa-flowchart"),
     EditorExtensionSpec(extensionId="liberrpa.liberrpa-project-manager"),
