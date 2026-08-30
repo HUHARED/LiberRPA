@@ -2,7 +2,7 @@
 <template>
   <v-alert
     v-if="informationStore.showAlert"
-    style="position: fixed; width: 100%; opacity: 0.9; z-index: 9999"
+    style="position: fixed; width: 100%; opacity: 0.9; z-index: 999"
     :text="informationStore.information"
     variant="flat"
     type="warning"
