@@ -1,9 +1,9 @@
 __pycache__/
 *.py[cod]
 .ruff_cache/
-build/
-dist/
 _Components/
 .liberrpa-project-manager/
 .liberrpa-project-manager.lock
 _Snippets/ast.snippets.json
+build/
+dist/

@@ -16,6 +16,6 @@
   "logLevel": "DEBUG",
   "recordVideo": false,
   "stopShortcut": true,
-  "highlightUi": true,
+  "highlightUi": false,
   "customPrjArgs": []
 }

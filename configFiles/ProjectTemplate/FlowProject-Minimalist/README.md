@@ -1,73 +1,43 @@
-# Project Template
+# <Project Name>
 
-## Introduction
+## Overview
 
-This is a project template based on [LiberRPA](https://github.com/HUHARED/LiberRPA). It is designed to help developers quickly initialize projects while adhering to open-source principles.
+Describe what this automation does, why it exists, and who uses it.
 
-You are free to modify this `README.md` file to suit the needs of your project.
+Replace `<Project Name>` with the actual Project name.
 
-This project template is licensed under the GNU Affero General Public License, either version 3 of the License or, at your option, any later version (`AGPL-3.0-or-later`).
+## Operation
 
-Anyone who copies, modifies, or incorporates material covered by this license must comply with the applicable terms of the GNU Affero General Public License.
+Describe the minimum information required to run the Project, such as:
 
-## Version
+- how it is started;
+- required inputs or Project arguments;
+- expected outputs;
+- any operator action required before or after execution;
+- how to confirm that execution completed successfully.
 
-The Flow Project version is stored in `flow.json`.
+Delete items that do not apply.
 
-Versions must follow Python PEP 440. Most projects should use the familiar `MAJOR.MINOR.PATCH` format:
+## Requirements
 
-```text
-1.0.0
-1.0.1
-1.1.0
-2.0.0
-```
+Document any external applications, services, accounts, permissions, files, or other environment requirements.
 
-As a general guideline:
+Delete this section if the Project has no additional requirements.
 
-* Increase `PATCH` for compatible fixes.
-* Increase `MINOR` for compatible new features.
-* Increase `MAJOR` for incompatible changes.
+## Configuration
 
-LiberRPA validates and compares versions according to Python version rules rather than file creation or import time.
+Describe Project-specific configuration or setup that another developer or operator needs to know.
 
-LiberRPA does not automatically change the project version.
-Set an appropriate new version before distributing a changed release.
-Existing package files are not replaced without explicit confirmation.
+Do not store plaintext passwords, tokens, or other sensitive credentials in this README when a more appropriate credential store is available.
+
+Delete this section if no additional configuration is required.
+
+## Maintenance
+
+Record only the information that is likely to matter when this Project needs to be changed or repaired later, such as known limitations, fragile dependencies, or important implementation notes.
+
+Delete this section if no additional maintenance notes are required.
 
 ## License
 
-This project template is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License as published by the Free Software Foundation, either version 3 of the License or, at your option, any later version.
-
-See the [LICENSE file](./LICENSE) for the complete GNU Affero General Public License version 3 text.
-
-`SPDX-License-Identifier: AGPL-3.0-or-later`
-
-Unless otherwise agreed or required by applicable law, contributors retain copyright in their respective contributions.
-
-### `LICENSE` File
-
-* Contains the complete, unmodified GNU Affero General Public License version 3 text.
-* Keep a copy of this license text with copies of the covered project that you convey.
-* Do not modify the license text.
-* The project is licensed under AGPL version 3 or, at your option, any later version, as stated in this README and any applicable source-file license notices.
-
-## Developer Obligations
-
-The obligations that apply depend on how the covered work is modified, conveyed, or made available for remote interaction through a computer network.
-
-When conveying the covered work or operating a modified version that supports remote interaction through a computer network, developers must comply with the applicable terms of the GNU Affero General Public License. In particular:
-
-1. When conveying copies of the covered work, provide recipients with a complete, unmodified copy of the GNU Affero General Public License.
-2. Preserve applicable copyright, license, attribution, and warranty notices.
-3. When conveying a modified source version, clearly identify the modifications and provide relevant modification dates as required by the license.
-4. When conveying the covered work in object-code form, provide its Corresponding Source in one of the ways permitted by the license.
-5. If a modified version supports remote interaction through a computer network, prominently offer all users interacting with it remotely an opportunity to receive the Corresponding Source by providing access from a network server at no charge, as required by section 13 of the license.
-
-These requirements apply to works covered by the GNU Affero General Public License. Separate and independent works that are merely distributed alongside the covered work may use different licensing terms where permitted by the license and applicable law.
-
-## Attribution
-
-This project template is based on [LiberRPA](https://github.com/HUHARED/LiberRPA).
-
-Existing copyright, license, and attribution notices included with LiberRPA or this template must be preserved where required. This acknowledgment does not replace or modify the terms of the [LICENSE file](./LICENSE).
+See [LICENSE](./LICENSE).

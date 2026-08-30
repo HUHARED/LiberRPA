@@ -1,232 +1,217 @@
-# Project Template
+# `<Project Name>`
 
-## Introduction
+## Overview
 
-This is a project template based on [LiberRPA](https://github.com/HUHARED/LiberRPA). It is designed to help developers quickly initialize projects while adhering to open-source principles.
+Describe the business purpose of this automation and the process it is responsible for.
 
-When creating a new RPA project from a template containing a `./.gitignore` file, the `liberrpa-project-manager` VS Code extension uses the locally installed Git executable to initialize the target folder as a Git repository.
+Include enough context that a developer who did not build the Project can understand why it exists.
 
-You are free to modify this `README.md` file to suit the needs of your project.
+Suggested information:
 
-This project template is licensed under the GNU Affero General Public License, either version 3 of the License or, at your option, any later version (`AGPL-3.0-or-later`).
+- business process and scope;
+- intended users or business team;
+- technical owner or support team;
+- systems involved;
+- important assumptions or exclusions.
 
-Anyone who copies, modifies, or incorporates material covered by this license must comply with the applicable terms of the GNU Affero General Public License.
+Replace `<Project Name>` with the actual Project name.
 
-## Folder usage guide
+## Process
 
-### Project structure
+Describe the production workflow at a business level.
+
+Focus on the major stages, decisions, and external systems rather than duplicating Python implementation details already visible in the source code.
+
+If useful, include a short process diagram or numbered workflow.
+
+## Operation
+
+Document how this Project is operated in production.
+
+Include information such as:
+
+- how execution is started or scheduled;
+- required Project arguments;
+- input files, folders, queues, or records;
+- expected outputs;
+- normal completion conditions;
+- operator actions before or after execution.
+
+If an Executor schedule is part of the production design, document the expected schedule here rather than relying only on the current machine configuration.
+
+## Requirements
+
+Document external requirements that must be available for the Project to work, such as:
+
+- target applications and supported versions;
+- browsers or drivers;
+- accounts, roles, and permissions;
+- network access and service endpoints;
+- shared folders and file locations;
+- databases, email systems, or APIs;
+- other environment prerequisites.
+
+Do not include passwords, tokens, or other secret values.
+
+## Configuration
+
+Document Project-specific configuration and explain which values may differ between environments.
+
+This may include:
+
+- configuration files;
+- business rules and mapping tables;
+- local or shared paths;
+- service addresses;
+- non-secret environment-specific values;
+- where required credentials are expected to be stored.
+
+Avoid storing plaintext credentials in the Project source when a more appropriate credential store is available.
+
+## Failure & Recovery
+
+Document how production failures should be handled.
+
+Include the information a maintainer or operator needs to answer questions such as:
+
+- Is it safe to rerun the entire Project after a failure?
+- Can a partially completed transaction be repeated?
+- Which outputs or external records must be checked before retrying?
+- Which failures require manual intervention?
+- How should an interrupted process be resumed or recovered?
+- When should the issue be escalated instead of retried?
+
+Document business-state recovery, not only technical exception handling.
+
+## Deployment
+
+Document how this Project is delivered to its runtime environment.
+
+Record information such as:
+
+- target Executor or machine requirements;
+- required Component Repository or dependency preparation;
+- environment-specific configuration that must be applied after deployment;
+- any external files or resources that must accompany the Project.
+
+Use:
+
+```text
+LiberRPA: Package Project
+```
+
+to create the distributable `.rpa.zip` Package for LiberRPA Executor.
+
+See the [LiberRPA Project Manager documentation](https://github.com/HUHARED/LiberRPA/blob/main/vscodeExtensions/liberrpa-project-manager/README.md#package-a-flow-project) for the current packaging workflow.
+
+## Testing & Verification
+
+Describe how changes to the Project should be verified before production deployment.
+
+Include relevant items such as:
+
+- representative test cases;
+- test data or test accounts;
+- expected outputs;
+- regression checks;
+- external systems that must be verified;
+- manual checks required after deployment.
+
+Keep test-only scripts, sample data, and diagnostic code under `_Test/` where practical.
+
+## Maintenance
+
+Record information that future maintainers are likely to need, including:
+
+- known limitations;
+- selectors or applications that change frequently;
+- external dependencies that have caused previous incidents;
+- important implementation decisions;
+- upgrade considerations;
+- operational workarounds that are still required.
+
+Update this section when production experience reveals information that would help the next maintainer.
+
+## Project Structure
+
+This template provides the following structure:
 
 ```text
 Project Root
-├── .vscode
-│   └── launch.json
-├── _Config
-├── _Screenshots
-├── _Selectors
+├── .vscode/
+├── _Config/
+├── _Screenshots/
+├── _Selectors/
 │   └── default.py
-├── _Test
-├── _Utils
+├── _Test/
+├── _Utils/
 │   └── default.py
 ├── .gitignore
 ├── flow.json
 ├── LICENSE
 ├── project.flow
-└── README.md
+├── README.md
+└── ruff.toml
 ```
 
-When the project first adds a Component dependency, LiberRPA Project Manager creates and manages:
-
-```text
-_Components/
-components.lock.json
-```
-
-Do not create, copy, replace, or delete these managed Component files manually.
-
-### `.vscode/launch.json`
-
-* Used by end-user RPA projects.
-* Provides the default run/debug configuration.
-* Normally, you do not need to edit it.
-
-### `_Selectors/`
-
-* Stores LiberRPA selectors.
-* Supported selector types include:
-  * `SelectorWindow`
-  * `SelectorUia`
-  * `SelectorHtml`
-  * `SelectorImage`
-* Selectors are usually generated by UI Analyzer.
-* You can adjust them manually when needed.
-* It is recommended to avoid scattering large selector dictionaries in business logic files, but if it is more convenient for your use case, doing so is also acceptable.
-
-### `_Utils/`
-
-* Stores project-specific helper code.
-* Suitable for:
-  * helper functions
-  * small wrappers
-  * data conversion utilities
-  * repeated project logic
-* Keep main RPA flow files focused and readable.
+LiberRPA may create additional managed state when Component dependencies are used, including `_Components/`, `components.lock.json`, and `.liberrpa-project-manager/`.
 
 ### `_Config/`
 
-* Stores project configuration files.
-* Suitable for:
-  * mapping tables
-  * business settings
-  * environment-specific options
-* It is recommended not to store passwords, tokens, or private credentials here.
-* If a customer chooses to do so for convenience, make sure the risk is understood.
+Stores Project-owned configuration such as mapping tables, business settings, and environment options.
+
+### `_Selectors/`
+
+Stores reusable selectors belonging to this Project.
+
+Small Projects can keep selectors in `default.py`. Larger Projects should split them into focused Modules according to the target application, system, or business area.
 
 ### `_Screenshots/`
 
-* Managed by LiberRPA.
-* Stores image files used by image selectors.
-* `SelectorImage` uses `FileName` to point to files in this folder.
-* Do not rename or move these files manually unless you also update the related selectors.
+Stores Project-owned images used by image-based automation and related Project resources.
 
 ### `_Test/`
 
-* Stores small test scripts.
-* Suitable for:
-  * selector testing
-  * helper function testing
-  * sample data
-  * manual verification code
-* Code in this folder should not be treated as production RPA flow logic.
+Stores Project-specific tests, sample data, diagnostic scripts, and manual verification code.
+
+### `_Utils/`
+
+Stores reusable helper functions that are specific to this Project.
+
+Use a reusable Component instead when logic should be versioned and shared across multiple LiberRPA Projects.
 
 ### `flow.json`
 
-* Stores the stable Flow Project manifest.
-* Contains the project name, version, description, required `liberrpa` version range, and directly declared Component dependencies.
-* Managed primarily by LiberRPA Project Manager.
-* Do not store runtime state or Flowchart data in this file.
-* Manual editing is possible, but invalid values may prevent the project from being opened, packaged, or restored correctly.
+Stores Flow Project metadata and direct Component dependency requirements.
+
+Use LiberRPA Project Manager for normal Project and dependency-management operations.
 
 ### `project.flow`
 
-* Managed by LiberRPA Flowchart.
-* Stores flowchart and project metadata.
-* Edit it through LiberRPA Flowchart instead of manually editing it.
-* Only edit it manually if you clearly understand its structure.
+Stores the high-level Flowchart structure and Flow execution settings.
 
-### Managed Component files
+Use LiberRPA Flowchart to edit it.
 
-After the project adds its first Component dependency, LiberRPA Project Manager creates:
+### `components.lock.json`
 
-```text
-_Components/
-components.lock.json
-```
+Created when Component dependencies are resolved.
 
-* `components.lock.json` records the exact resolved Component versions and integrity information.
-* `_Components/` contains the Component packages restored from the lock file and local Component Repository.
-* Both are managed by LiberRPA Project Manager.
-* Do not manually copy, overwrite, rename, or delete their contents.
-* If `_Components/` is missing or damaged while the lock file remains valid, use the Component repair function instead of editing it manually.
-* When the project has no Component dependencies, these files normally do not exist.
+Commit this file when present so that the exact resolved Component versions and integrity information are preserved. Do not edit it manually.
 
-### `.gitignore`
+### `_Components/`
 
-* Keeps runtime files out of version control.
-* Also excludes cache files and temporary outputs.
+Generated from resolved Component dependencies.
 
-### `LICENSE`
+Do not edit or commit this directory during normal development.
 
-* Contains the complete, unmodified GNU Affero General Public License version 3 text.
-* Keep a copy of this license text with copies of the covered project that you convey.
-* Do not modify the license text.
-* The project is licensed under AGPL version 3 or, at your option, any later version, as stated in this README and any applicable source-file license notices.
+## Version Control
 
-### `README.md`
+Commit the Project source together with `project.flow`, `flow.json`, and `components.lock.json` when present.
 
-* Project notes and usage guide.
-* Update it with project-specific information, such as:
-  * business purpose
-  * operation notes
-  * deployment notes
-  * maintenance instructions
+The template `.gitignore` excludes generated or local state such as `_Components/`, `.liberrpa-project-manager/`, Python caches, Ruff cache, and build output.
 
-## Python code checking and formatting
-
-This project uses Ruff for Python linting and formatting.
-
-Ruff helps detect common mistakes such as syntax errors, unused variables,
-unsafe patterns, and strings that look like missing f-strings.
-
-Recommended usage in LiberRPA Editor:
-
-- Problems panel: view Ruff diagnostics.
-- Format Document: format the current Python file with Ruff.
-- Quick Fix: apply safe fixes suggested by Ruff.
-
-Formatting and fixes are not applied automatically on save by default.
-You can review and apply fixes manually.
-
-LiberRPA may manage the import block at the top of Python files:
-
-```python
-# <LiberRPA imports: managed>
-# This block is managed by LiberRPA. Do not edit it manually.
-# ruff: isort: off
-# ruff: isort: on
-# </LiberRPA imports: managed>
-```
-
-## Version
-
-The Flow Project version is stored in `flow.json`.
-
-Versions must follow Python PEP 440. Most projects should use the familiar `MAJOR.MINOR.PATCH` format:
-
-```text
-1.0.0
-1.0.1
-1.1.0
-2.0.0
-```
-
-As a general guideline:
-
-* Increase `PATCH` for compatible fixes.
-* Increase `MINOR` for compatible new features.
-* Increase `MAJOR` for incompatible changes.
-
-LiberRPA validates and compares versions according to Python version rules rather than file creation or import time.
-
-LiberRPA does not automatically change the project version.
-Set an appropriate new version before distributing a changed release.
-Existing package files are not replaced without explicit confirmation.
+Keep implementation changes reviewable as ordinary Python source wherever practical.
 
 ## License
 
-This project template is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License as published by the Free Software Foundation, either version 3 of the License or, at your option, any later version.
-
-See the [LICENSE file](./LICENSE) for the complete GNU Affero General Public License version 3 text.
-
-`SPDX-License-Identifier: AGPL-3.0-or-later`
-
-Unless otherwise agreed or required by applicable law, contributors retain copyright in their respective contributions.
-
-## Developer Obligations
-
-The obligations that apply depend on how the covered work is modified, conveyed, or made available for remote interaction through a computer network.
-
-When conveying the covered work or operating a modified version that supports remote interaction through a computer network, developers must comply with the applicable terms of the GNU Affero General Public License. In particular:
-
-1. When conveying copies of the covered work, provide recipients with a complete, unmodified copy of the GNU Affero General Public License.
-2. Preserve applicable copyright, license, attribution, and warranty notices.
-3. When conveying a modified source version, clearly identify the modifications and provide relevant modification dates as required by the license.
-4. When conveying the covered work in object-code form, provide its Corresponding Source in one of the ways permitted by the license.
-5. If a modified version supports remote interaction through a computer network, prominently offer all users interacting with it remotely an opportunity to receive the Corresponding Source by providing access from a network server at no charge, as required by section 13 of the license.
-
-These requirements apply to works covered by the GNU Affero General Public License. Separate and independent works that are merely distributed alongside the covered work may use different licensing terms where permitted by the license and applicable law.
-
-## Attribution
-
-This project template is based on [LiberRPA](https://github.com/HUHARED/LiberRPA).
-
-Existing copyright, license, and attribution notices included with LiberRPA or this template must be preserved where required. This acknowledgment does not replace or modify the terms of the [LICENSE file](./LICENSE).
+See [LICENSE](./LICENSE).
