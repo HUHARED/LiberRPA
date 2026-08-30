@@ -2,7 +2,7 @@
 import { app, dialog, BrowserWindow, ipcMain, nativeImage } from "electron";
 
 function showFatalError(error: unknown): void {
-  const message = error instanceof Error ? error.stack ?? error.message : String(error);
+  const message = error instanceof Error ? (error.stack ?? error.message) : String(error);
 
   dialog.showErrorBox("UI Analyzer failed to start", message);
 }
@@ -65,7 +65,7 @@ function createWindow(): void {
     mainWindow.show();
   });
 
-  // HMR for renderer base on electron-vite cli.
+  // Support Renderer HMR through electron-vite.
   // Load the remote URL for development or the local html file for production.
   if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
     loggerMain.info("development mode");
@@ -85,7 +85,7 @@ function createWindow(): void {
 }
 
 function isExpectedSender(
-  event: Electron.IpcMainInvokeEvent | Electron.IpcMainEvent
+  event: Electron.IpcMainInvokeEvent | Electron.IpcMainEvent,
 ): boolean {
   return event.sender === webContentsObj;
 }
@@ -128,7 +128,7 @@ async function bootstrap(): Promise<void> {
 
   electronApp.setAppUserModelId("com.liberrpa.ui-analyzer");
 
-  // Default open or close DevTools by F12 in development and ignore CommandOrControl + R in production.
+  // Enable F12 DevTools in development and block CommandOrControl+R in production.
   app.on("browser-window-created", (_event, window) => {
     optimizer.watchWindowShortcuts(window);
   });
@@ -153,7 +153,7 @@ async function bootstrap(): Promise<void> {
       }
 
       loggerMain.debug(
-        `[invoke-from-renderer] (${command}) ${JSON.stringify(data, null, 2)}`
+        `[invoke-from-renderer] (${command}) ${JSON.stringify(data, null, 2)}`,
       );
 
       try {
@@ -181,7 +181,7 @@ async function bootstrap(): Promise<void> {
               mainWindowObj.setTitle("UI Analyzer - No Local Server");
               mainWindowObj.setOverlayIcon(
                 nativeImage.createFromPath(noLinkIcon),
-                "No Local Server"
+                "No Local Server",
               );
             }
             return { success: true };
@@ -196,14 +196,10 @@ async function bootstrap(): Promise<void> {
         loggerMain.error(`Error running command: ${command}`, e);
         return { success: false, data: e instanceof Error ? e.message : String(e) };
       }
-    }
+    },
   );
 
   createWindow();
-
-  app.on("activate", function () {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
-  });
 }
 void bootstrap().catch((error: unknown) => {
   loggerMain.error("Failed to bootstrap UI Analyzer.", error);
