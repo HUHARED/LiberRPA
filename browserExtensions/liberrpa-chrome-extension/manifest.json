@@ -3,7 +3,7 @@
   "name": "LiberRPA Chrome Extension",
   "description": "The Chrome extension to interact with LiberRPA Local Server.",
   "author": "mailwork.hu@gmail.com",
-  "version": "0.1.1",
+  "version": "0.3.0",
   "minimum_chrome_version": "116",
   "permissions": [
     "tabs",
