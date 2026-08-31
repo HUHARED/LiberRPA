@@ -17,9 +17,13 @@ from typing import Literal, Any
 _timeStart = time.monotonic()
 
 if not PATH_PROJECT_FLOW.is_file():
-    raise FileNotFoundError(f"Not found the file '{PATH_PROJECT_FLOW}' to initialize the program.")
+    raise FileNotFoundError(
+        f"Not found the file '{PATH_PROJECT_FLOW}' to initialize the program."
+    )
 
-dictFlowFile: DictProject_Original = json.loads(PATH_PROJECT_FLOW.read_text(encoding="utf-8"))
+dictFlowFile: DictProject_Original = json.loads(
+    PATH_PROJECT_FLOW.read_text(encoding="utf-8")
+)
 
 _SET_EXECUTOR_ARG_KEYS = {
     "logLevel",
@@ -46,7 +50,7 @@ if boolRunByExecutor:
         raise ValueError(f"Unknown Executor argument(s): {sorted(setUnknownKeys)}")
 
     dictFlowFile.update(dictArgs)
-    Log.info(f"Updated arguments from Executor: {dictArgs}")
+    Log.debug(f"Updated arguments from Executor: {dictArgs}")
 else:
     Log.debug("No built-in and custom project argument from Executor.")
 
@@ -109,42 +113,72 @@ def _generate_next_dict() -> tuple[
                 if dictNonChooseNext.get(edge["sourceNodeId"]):
                     # Have assign a Normal or Error direction, add a new item.
                     if edge["type"] == "CommonLine":
-                        dictNonChooseNext[edge["sourceNodeId"]]["Normal"] = edge["targetNodeId"]
+                        dictNonChooseNext[edge["sourceNodeId"]]["Normal"] = edge[
+                            "targetNodeId"
+                        ]
                     else:
                         # ExceptionLine
-                        dictNonChooseNext[edge["sourceNodeId"]]["Error"] = edge["targetNodeId"]
+                        dictNonChooseNext[edge["sourceNodeId"]]["Error"] = edge[
+                            "targetNodeId"
+                        ]
                 else:
                     # Assign the direction dictionary.
                     if edge["type"] == "CommonLine":
-                        dictNonChooseNext[edge["sourceNodeId"]] = {"Normal": edge["targetNodeId"]}
+                        dictNonChooseNext[edge["sourceNodeId"]] = {
+                            "Normal": edge["targetNodeId"]
+                        }
                     else:
                         # ExceptionLine
-                        dictNonChooseNext[edge["sourceNodeId"]] = {"Error": edge["targetNodeId"]}
+                        dictNonChooseNext[edge["sourceNodeId"]] = {
+                            "Error": edge["targetNodeId"]
+                        }
 
             case "Choose":
                 if dictChooseNext.get(edge["sourceNodeId"]):
                     # Have assign a True or False direction, add a new item.
                     if edge["type"] == "TrueLine":
-                        dictChooseNext[edge["sourceNodeId"]]["True"] = edge["targetNodeId"]
+                        dictChooseNext[edge["sourceNodeId"]]["True"] = edge[
+                            "targetNodeId"
+                        ]
                     else:
                         # FalseLine
-                        dictChooseNext[edge["sourceNodeId"]]["False"] = edge["targetNodeId"]
+                        dictChooseNext[edge["sourceNodeId"]]["False"] = edge[
+                            "targetNodeId"
+                        ]
                 else:
                     # Assign the direction dictionary.
                     if edge["type"] == "TrueLine":
-                        dictChooseNext[edge["sourceNodeId"]] = {"True": edge["targetNodeId"]}
+                        dictChooseNext[edge["sourceNodeId"]] = {
+                            "True": edge["targetNodeId"]
+                        }
                     else:
                         # FalseLine
-                        dictChooseNext[edge["sourceNodeId"]] = {"False": edge["targetNodeId"]}
+                        dictChooseNext[edge["sourceNodeId"]] = {
+                            "False": edge["targetNodeId"]
+                        }
 
             case _:
                 # End node doesn't have a next direction.
                 raise ValueError(f"Unknown source node type: {strSourceNodeType!r}")
 
-    return dictNonChooseNext, dictChooseNext, dictPyInfo, dictConditionInfo, dictNodeType, dictNodeText
+    return (
+        dictNonChooseNext,
+        dictChooseNext,
+        dictPyInfo,
+        dictConditionInfo,
+        dictNodeType,
+        dictNodeText,
+    )
 
 
-dictNonChooseNext, dictChooseNext, dictPyInfo, dictConditionInfo, dictNodeType, dictNodeText = _generate_next_dict()
+(
+    dictNonChooseNext,
+    dictChooseNext,
+    dictPyInfo,
+    dictConditionInfo,
+    dictNodeType,
+    dictNodeText,
+) = _generate_next_dict()
 
 
 class ProjectArguments:
