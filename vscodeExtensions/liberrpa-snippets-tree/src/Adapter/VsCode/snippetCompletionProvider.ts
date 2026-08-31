@@ -48,6 +48,7 @@ function flattenSnippets(repository: Info_SnippetRepository): Info_Snippet[] {
 interface Info_CompletionMatch {
   range: vscode.Range;
   filterText: string;
+  isLooseMatch: boolean;
 }
 
 function findCompletionSuffixStart(
@@ -127,19 +128,9 @@ function getCompletionMatch(
       return {
         range: new vscode.Range(position.with(undefined, intMatchStart), position),
         filterText: strMatchPrefix,
+        isLooseMatch: strMatchPrefix !== snippetPrefix,
       };
     }
-  }
-
-  // At whitespace or an otherwise empty insertion point, show all snippets.
-  if (
-    strLinePrefix.length === 0 ||
-    !/[A-Za-z0-9_.]/.test(strLinePrefix[strLinePrefix.length - 1])
-  ) {
-    return {
-      range: new vscode.Range(position, position),
-      filterText: snippetPrefix,
-    };
   }
 
   return undefined;
@@ -188,7 +179,10 @@ function buildCompletionItem(
   completionItem.filterText = completionMatch.filterText;
   completionItem.additionalTextEdits = importPlan.additionalTextEdits;
 
-  // item.sortText = `LiberRPA_${snippetInfo.title}`; Use prefixs' match degree to sort
+  // Loose matches supplement Python language-service completions instead of competing with them at the same sort position.
+  if (completionMatch.isLooseMatch) {
+    completionItem.sortText = `z_LiberRPA_${snippet.prefix}`;
+  }
 
   return completionItem;
 }
@@ -208,17 +202,17 @@ export class SnippetCompletionItemProvider implements vscode.CompletionItemProvi
   provideCompletionItems(
     document: vscode.TextDocument,
     position: vscode.Position,
-  ): vscode.ProviderResult<vscode.CompletionItem[]> {
+  ): vscode.ProviderResult<vscode.CompletionList> {
     return runSyncBoundary(
       "LiberRPA snippet completion failed",
-      () => {
+      (): vscode.CompletionList | undefined => {
         const buildImportEdits = createManagedImportTextEditBuilder(
           document,
           this.repository.importSource,
         );
         const mapImportEdit = new Map<string, vscode.TextEdit[]>();
 
-        return this.arrSnippet.flatMap((snippet) => {
+        const arrCompletionItem = this.arrSnippet.flatMap((snippet) => {
           const importsFingerprint = JSON.stringify(snippet.imports);
           const getImportEdits = (): vscode.TextEdit[] => {
             const cachedEdits = mapImportEdit.get(importsFingerprint);
@@ -239,8 +233,14 @@ export class SnippetCompletionItemProvider implements vscode.CompletionItemProvi
           );
           return completionItem === undefined ? [] : [completionItem];
         });
+
+        if (arrCompletionItem.length === 0) {
+          return undefined;
+        }
+
+        return new vscode.CompletionList(arrCompletionItem, true);
       },
-      [],
+      undefined,
       false,
     );
   }

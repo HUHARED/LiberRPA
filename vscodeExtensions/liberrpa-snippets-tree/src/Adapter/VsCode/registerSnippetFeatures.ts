@@ -63,6 +63,7 @@ export function registerSnippetFeatures(
     vscode.languages.registerCompletionItemProvider(
       { language: "python", scheme: "file" },
       completionItemProvider,
+      ".",
     ),
     vscode.languages.registerCompletionItemProvider(
       { language: "python", scheme: "file" },
