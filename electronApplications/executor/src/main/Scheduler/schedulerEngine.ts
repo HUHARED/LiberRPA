@@ -39,6 +39,7 @@ const setListener_RunQueueChanged = new Set<Listener_RunQueueChanged>();
 let timerSchedulerCheck: NodeJS.Timeout | undefined;
 let promiseSchedulerTick: Promise<void> | undefined;
 let boolSchedulerStarted = false;
+let intPendingRunRevision = 0;
 
 function requestSchedulerTick(): void {
   if (!boolSchedulerStarted || promiseSchedulerTick !== undefined) {
@@ -126,6 +127,8 @@ export function onRunQueueChanged(listener: Listener_RunQueueChanged): () => voi
 }
 
 function resetPendingRuns(): void {
+  // Invalidate due candidates held by a Tick that is waiting for Python startup.
+  intPendingRunRevision += 1;
   const intNowMs = Date.now();
   const arrSchedule = dbSelectScheduleList();
   const arrNextPending: PendingRun[] = [];
@@ -207,6 +210,7 @@ async function processSchedulerTick(): Promise<void> {
   }
 
   const intNowMs = Date.now();
+  const intRevision = intPendingRunRevision;
   const arrDueRun = arrPendingRun.filter(
     ({ queueItem }) => queueItem.estimated_run_at_ms <= intNowMs,
   );
@@ -215,7 +219,7 @@ async function processSchedulerTick(): Promise<void> {
   }
 
   for (const dictDueRun of arrDueRun) {
-    if (!boolSchedulerStarted) {
+    if (!boolSchedulerStarted || intRevision !== intPendingRunRevision) {
       return;
     }
 
@@ -264,6 +268,11 @@ async function processSchedulerTick(): Promise<void> {
         `Skip Schedule '${strScheduleName}' Run because another Run is active.`,
       );
     }
+  }
+
+  // The final startup await may also overlap a refresh or shutdown.
+  if (!boolSchedulerStarted || intRevision !== intPendingRunRevision) {
+    return;
   }
 
   resetPendingRuns();

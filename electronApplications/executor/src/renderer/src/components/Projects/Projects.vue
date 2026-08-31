@@ -266,12 +266,15 @@ async function saveProjectSettings(): Promise<void> {
 }
 
 async function openDeleteDialog(): Promise<void> {
-  if (projectStore.dictDetailEdit) {
+  const currentDetail = projectStore.dictDetailEdit;
+  if (currentDetail !== undefined) {
     loggerRenderer.info(
-      `Open delete dialog for project: ${projectStore.dictDetailEdit.id}-${projectStore.dictDetailEdit.name}-${projectStore.dictDetailEdit.version}`,
+      `Open delete dialog for project: ${currentDetail.id}-${currentDetail.name}-${currentDetail.version}`,
     );
     await projectStore.loadBoundSchedules();
-    projectStore.showDeleteDialog = true;
+    if (projectStore.dictDetailEdit === currentDetail) {
+      projectStore.showDeleteDialog = true;
+    }
   }
 }
 

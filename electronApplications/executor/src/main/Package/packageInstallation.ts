@@ -22,7 +22,9 @@ import { readProjectPackageMetadata } from "./packageMetadata";
 let boolPackageInstallationRunning = false;
 let strLastPackageFolderPath: string | undefined;
 
-async function runProjectPackageInstallation(): Promise<Dict_ProjectPackage_InstallResult> {
+async function runProjectPackageInstallation(
+  ensureExecutorRunning: () => void,
+): Promise<Dict_ProjectPackage_InstallResult> {
   const dialogResult = await dialog.showOpenDialog({
     defaultPath: strLastPackageFolderPath,
     properties: ["openFile"],
@@ -32,6 +34,9 @@ async function runProjectPackageInstallation(): Promise<Dict_ProjectPackage_Inst
   if (dialogResult.canceled) {
     return { status: "canceled" };
   }
+
+  // Shutdown may have started while the native file dialog was open.
+  ensureExecutorRunning();
   if (dialogResult.filePaths.length !== 1) {
     throw new Error("Exactly one Flow Project Package must be selected.");
   }
@@ -116,14 +121,16 @@ async function runProjectPackageInstallation(): Promise<Dict_ProjectPackage_Inst
   }
 }
 
-export async function installProjectPackage(): Promise<Dict_ProjectPackage_InstallResult> {
+export async function installProjectPackage(
+  ensureExecutorRunning: () => void,
+): Promise<Dict_ProjectPackage_InstallResult> {
   if (boolPackageInstallationRunning) {
     throw new Error("Another Project Package installation is already running.");
   }
 
   boolPackageInstallationRunning = true;
   try {
-    return await runProjectPackageInstallation();
+    return await runProjectPackageInstallation(ensureExecutorRunning);
   } finally {
     boolPackageInstallationRunning = false;
   }

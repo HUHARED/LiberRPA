@@ -117,7 +117,9 @@ const INVOKE_VALIDATOR = {
     ensureNoData(rawData, "chooseProjectLogFolder"),
 } satisfies Map_ExecutorInvoke_Validator;
 
-function createInvokeHandlerMap(): Map_ExecutorInvoke_Handler {
+function createInvokeHandlerMap(
+  ensureExecutorRunning: () => void,
+): Map_ExecutorInvoke_Handler {
   return {
     async openProjectLogFolder() {
       await fileOpenFolder(getEffectiveProjectLogFolderPath());
@@ -142,7 +144,7 @@ function createInvokeHandlerMap(): Map_ExecutorInvoke_Handler {
     },
 
     async installProjectPackage() {
-      return await installProjectPackage();
+      return await installProjectPackage(ensureExecutorRunning);
     },
 
     getProjectNames() {
@@ -239,8 +241,14 @@ async function executeInvoke<C extends Str_ExecutorInvokeCommand>(
 
 export function registerExecutorIpc(
   getExpectedWebContents: () => WebContents | undefined,
+  isExecutorShuttingDown: () => boolean,
 ): void {
-  const invokeHandlerMap = createInvokeHandlerMap();
+  const ensureExecutorRunning = (): void => {
+    if (isExecutorShuttingDown()) {
+      throw new Error("Executor is shutting down and cannot accept new operations.");
+    }
+  };
+  const invokeHandlerMap = createInvokeHandlerMap(ensureExecutorRunning);
 
   const isExpectedSender = (event: IpcMainEvent | IpcMainInvokeEvent): boolean =>
     event.sender === getExpectedWebContents();
@@ -277,6 +285,7 @@ export function registerExecutorIpc(
 
       let strCommandForLog = String(rawCommand);
       try {
+        ensureExecutorRunning();
         const command = ensureInvokeCommand(rawCommand);
         strCommandForLog = command;
         loggerMain.debug(`[renderer-invoke] ${command}`);

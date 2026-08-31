@@ -442,10 +442,3 @@ export function ensureRunHistoryLogLocationRow(
     log_path: ensureNonEmptyString(row.log_path, `${sourceName}.log_path`),
   };
 }
-
-export function ensureRunHistoryLogLocationRows(
-  rows: unknown[],
-  sourceName: string,
-): Dict_RunHistory_LogLocation[] {
-  return ensureRows(rows, ensureRunHistoryLogLocationRow, sourceName);
-}

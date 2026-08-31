@@ -88,6 +88,10 @@ function createWindow(): void {
   const webContentsObj = mainWindow.webContents;
 
   webContentsObj.on("did-finish-load", () => {
+    if (boolAppQuitting) {
+      return;
+    }
+
     sendMainMessage(webContentsObj, {
       type: "initializeSetting",
       data: {
@@ -220,7 +224,10 @@ void app
       optimizer.watchWindowShortcuts(window);
     });
 
-    registerExecutorIpc(() => mainWindow?.webContents);
+    registerExecutorIpc(
+      () => mainWindow?.webContents,
+      () => boolAppQuitting,
+    );
 
     createWindow();
 

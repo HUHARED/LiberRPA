@@ -2,6 +2,7 @@
 
 import type Database from "better-sqlite3";
 
+import { getErrorMessage } from "../../shared/error";
 import type {
   Dict_RunHistory_Options,
   Dict_RunHistory_Page,
@@ -13,7 +14,6 @@ import {
   type Dict_RunHistory_LogLocation,
   ensureCountRow,
   ensureRunHistoryLogLocationRow,
-  ensureRunHistoryLogLocationRows,
   ensureRunHistoryListRows,
   ensureSingleRowAffected,
 } from "./rowValidation";
@@ -262,6 +262,23 @@ export function dbSelectRunHistoryPage(
   return { rows: arrRow, total: intTotal };
 }
 
+function parseRetentionLogLocations(
+  rows: unknown[],
+  sourceName: string,
+): Dict_RunHistory_LogLocation[] {
+  const arrLogLocation: Dict_RunHistory_LogLocation[] = [];
+  for (const [intIndex, row] of rows.entries()) {
+    try {
+      arrLogLocation.push(
+        ensureRunHistoryLogLocationRow(row, `${sourceName}[${intIndex}]`),
+      );
+    } catch (e: unknown) {
+      loggerMain.warn(`Skip invalid Retention log location: ${getErrorMessage(e)}`);
+    }
+  }
+  return arrLogLocation;
+}
+
 export function dbSelectLogFolderBefore(cutoffMs: number): Dict_RunHistory_LogLocation[] {
   loggerMain.debug("--dbSelectLogFolderBefore--");
   const rows = getDatabase()
@@ -282,7 +299,7 @@ export function dbSelectLogFolderBefore(cutoffMs: number): Dict_RunHistory_LogLo
     )
     .all(cutoffMs);
 
-  return ensureRunHistoryLogLocationRows(rows, "Expired log folder query result");
+  return parseRetentionLogLocations(rows, "Expired log folder query result");
 }
 
 export function dbSelectVideoBefore(cutoffMs: number): Dict_RunHistory_LogLocation[] {
@@ -305,7 +322,7 @@ export function dbSelectVideoBefore(cutoffMs: number): Dict_RunHistory_LogLocati
     )
     .all(cutoffMs);
 
-  return ensureRunHistoryLogLocationRows(rows, "Expired video query result");
+  return parseRetentionLogLocations(rows, "Expired video query result");
 }
 
 export function dbSelectVideo(): Dict_RunHistory_LogLocation[] {
@@ -327,7 +344,7 @@ export function dbSelectVideo(): Dict_RunHistory_LogLocation[] {
     )
     .all();
 
-  return ensureRunHistoryLogLocationRows(rows, "Video query result");
+  return parseRetentionLogLocations(rows, "Video query result");
 }
 
 export function dbUpdateNoLogFolderAndVideo(runHistoryId: number): void {
