@@ -46,7 +46,21 @@ Drag a Snippet from the Tree to the required editor position.
 
 #### IntelliSense
 
-Type a Snippet prefix or identifying text in a Python file and select the LiberRPA completion. IntelliSense supports abbreviated matching, so, for example, `deb` can match `Log.debug`, `to_upper` can match `Str.case_to_upper`, and `exop` can match `Excel.open_excel_file`.
+Type a Snippet prefix or a meaningful part of its API name in a Python file, then select the LiberRPA completion.
+
+LiberRPA Snippet completions supplement normal Python IntelliSense, so local variables, functions, types, and other Python completions remain available.
+
+| Search | Example completion |
+| --- | --- |
+| `deb` | `Log.debug` |
+| `ini` | `File.ini_get_all_sections` |
+| `upper` or `to_upper` | `Str.case_to_upper` |
+| `exop` | `Excel.open_excel_file` |
+| `Excel.op` | `Excel.open_excel_file` |
+
+You can search by the beginning of an API name, a meaningful word within the name, or a short abbreviation built from consecutive parts of the API name. Adding the module name, such as `Excel.op`, limits the search to that LiberRPA module.
+
+LiberRPA only adds Snippet suggestions when the current text is relevant to a known Snippet. Unrelated Python identifiers continue to use normal Python IntelliSense.
 
 The completion details show the Snippet body and description before insertion.
 
@@ -139,4 +153,4 @@ See [Favorite Snippet Configuration](./FavoriteSnippetConfiguration.md) for the 
 ## Known Issues
 
 * The TreeView does not provide a search box. Use IntelliSense to search by prefix or a meaningful part of the API name, or refer to the [LiberRPA API](https://github.com/HUHARED/LiberRPA/tree/main/condaLibrary#api).
-* After an invalid extra character closes the IntelliSense list, deleting only that character may not restore the previous suggestions, and `Ctrl+Space` may still return no LiberRPA Snippets. Press `Ctrl+Backspace` to remove the current prefix and type it again, or insert the Snippet through the Tree or drag-and-drop. This affects only IntelliSense suggestions, not Snippet insertion, Managed Imports, or Python execution.
+* After deleting an invalid extra character while IntelliSense is open, VS Code may not immediately request the expected suggestions again. Press `Ctrl+Space` to refresh the suggestions. If they still do not reappear, retype the current search text or insert the Snippet through the Tree or drag-and-drop. The Tree and drag-and-drop workflows are unaffected.
