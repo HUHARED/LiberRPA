@@ -27,33 +27,106 @@ def _load_or_generate_api_manifest() -> list[DictApiItem]:
     return generate_api_manifest()
 
 
-def _get_return_placeholder(returnAnnotation: str | None, item: DictApiItem) -> str:
+_NONE_RETURN_ANNOTATION = {
+    "None",
+    "NoneType",
+    "<class 'NoneType'>",
+}
 
-    # As a safety net.
-    if returnAnnotation is None:
-        raise ValueError("returnAnnotation should not be None when hasReturnValue is True.")
+_CONTAINER_RETURN_PLACEHOLDER = {
+    "list": "listResult",
+    "dict": "dictResult",
+    "tuple": "tupleResult",
+    "set": "setResult",
+}
 
-    overloadReturnAnnotations = {
-        overload["returnAnnotation"]
-        for overload in item.get("overloads", [])
-        if overload["returnAnnotation"] is not None
-    }
-    if len(overloadReturnAnnotations) > 1:
-        return "result"
+
+def _split_top_level_union(annotation: str) -> list[str]:
+    listPart: list[str] = []
+    intDepth = 0
+    intStart = 0
+
+    for intIndex, strChar in enumerate(annotation):
+        if strChar in "[({":
+            intDepth += 1
+            continue
+
+        if strChar in "])}":
+            intDepth -= 1
+            continue
+
+        if strChar == "|" and intDepth == 0:
+            listPart.append(annotation[intStart:intIndex].strip())
+            intStart = intIndex + 1
+
+    if not listPart:
+        return [annotation.strip()]
+
+    listPart.append(annotation[intStart:].strip())
+    return listPart
+
+
+def _get_annotation_return_placeholder(returnAnnotation: str) -> str:
+    returnAnnotation = returnAnnotation.strip()
 
     placeholder = RETURN_PLACEHOLDER_BY_ANNOTATION.get(returnAnnotation)
     if placeholder is not None:
         return placeholder
 
-    annotationLower = returnAnnotation.lower()
-    if annotationLower.startswith("list[") or "list[" in annotationLower:
-        return "listResult"
-    if annotationLower.startswith("dict[") or "dict[" in annotationLower:
-        return "dictResult"
-    if annotationLower.startswith("tuple[") or "tuple[" in annotationLower:
-        return "tupleResult"
-    if "literal" in annotationLower:
+    listUnionPart = _split_top_level_union(returnAnnotation)
+
+    if len(listUnionPart) > 1:
+        listNonNonePart = [
+            part for part in listUnionPart if part not in _NONE_RETURN_ANNOTATION
+        ]
+
+        setPlaceholder = {
+            _get_annotation_return_placeholder(part) for part in listNonNonePart
+        }
+
+        if len(setPlaceholder) == 1:
+            return next(iter(setPlaceholder))
+
+        return "result"
+
+    annotationLower = returnAnnotation.lower().removeprefix("typing.")
+
+    for strTypeName, strPlaceholder in _CONTAINER_RETURN_PLACEHOLDER.items():
+        if annotationLower == strTypeName or annotationLower.startswith(
+            f"{strTypeName}["
+        ):
+            return strPlaceholder
+
+    if annotationLower.startswith("literal["):
         return "strResult"
+
+    return "result"
+
+
+def _get_return_placeholder(returnAnnotation: str | None, item: DictApiItem) -> str:
+
+    # As a safety net.
+    if returnAnnotation is None:
+        raise ValueError(
+            "returnAnnotation should not be None when hasReturnValue is True."
+        )
+
+    listOverloadReturnAnnotation = [
+        overload["returnAnnotation"]
+        for overload in item.get("overloads", [])
+        if overload["returnAnnotation"] is not None
+    ]
+
+    if not listOverloadReturnAnnotation:
+        return _get_annotation_return_placeholder(returnAnnotation)
+
+    setPlaceholder = {
+        _get_annotation_return_placeholder(annotation)
+        for annotation in listOverloadReturnAnnotation
+    }
+
+    if len(setPlaceholder) == 1:
+        return next(iter(setPlaceholder))
 
     return "result"
 
@@ -92,7 +165,8 @@ def _build_body(item: DictApiItem) -> str:
         index += 1
 
     parameters = [
-        _format_parameter_placeholder(parameter, idx + index) for idx, parameter in enumerate(item["parameters"])
+        _format_parameter_placeholder(parameter, idx + index)
+        for idx, parameter in enumerate(item["parameters"])
     ]
     paramsText = ", ".join(parameters)
     return f"{returnPart}{item['module']}.{item['name']}({paramsText})"
@@ -107,7 +181,9 @@ def _build_generated_snippet(item: DictApiItem) -> DictSnippetsItem:
     }
 
 
-def _generate_snippets(apiManifest: list[DictApiItem]) -> dict[str, dict[str, DictSnippetsItem]]:
+def _generate_snippets(
+    apiManifest: list[DictApiItem],
+) -> dict[str, dict[str, DictSnippetsItem]]:
     """Generate snippet groups in PUBLIC_MODULE_ORDER."""
     manifestByModule: dict[str, list[DictApiItem]] = {}
     for item in apiManifest:
