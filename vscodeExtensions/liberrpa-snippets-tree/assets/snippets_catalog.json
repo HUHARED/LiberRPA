@@ -720,7 +720,7 @@
         "@Log.trace(level=${1|'DEBUG','VERBOSE','INFO','WARNING','ERROR','CRITICAL'|})",
         "$0"
       ],
-      "description": "Decorate a function to log its start and end at a specified log level.\n\nParameters:\n    level: The level to record log. Must be one of ['VERBOSE', 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'].\n\nReturns:\n    Callable[[Callable[P, T]], Callable[P, T]]: A decorator that wraps the target function.",
+      "description": "Decorate a function to log its call and successful return at a specified log level.\n\nParameters:\n    level: The level to record log. Must be one of ['VERBOSE', 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'].\n\nReturns:\n    Callable[[Callable[P, T]], Callable[P, T]]: A decorator that wraps the target function.",
       "insertionMode": "line",
       "imports": {
         "liberrpa.Modules": [
@@ -1645,7 +1645,7 @@
       "label": "open_excel_file",
       "prefix": "Excel.open_excel_file",
       "body": [
-        "${1:result} = Excel.open_excel_file(path=$2, visible=${3|True,False|}, password=${4:''}, writePassword=${5:''}, createIfMissing=${6|True,False|}, readOnly=${7|False,True|}, updateLinks=${8|False,True|})",
+        "${1:excelObj} = Excel.open_excel_file(path=$2, visible=${3|True,False|}, password=${4:''}, writePassword=${5:''}, createIfMissing=${6|True,False|}, readOnly=${7|False,True|}, updateLinks=${8|False,True|})",
         "$0"
       ],
       "description": "Open an Excel workbook, or create it if it does not exist.\n\nIf the workbook is already open in the selected Excel instance, use bind_excel_file() instead.\n\nSupported workbook file types are .xlsx, .xls, .xlsm, and .xlsb.\nCSV files should be handled by CSV-specific functions instead of Excel workbook functions.\n\nLiberRPA restricts Excel automation to one Python thread and reuses one shared Excel application instance for all managed workbooks. If exactly one Excel instance is running, it is reused. If multiple instances are running and no shared instance has been selected yet, call bind_excel_file() first to select the intended instance. Because visible is an application-level setting, every workbook opened through this module must use the same visible value.\n\nDo not manually close the workbook or save it under another path while its ExcelObj is managed by LiberRPA. Use close() and save_as() so the shared application state and managed workbook registry remain synchronized.\n\nParameters:\n    path: The path to the Excel workbook. Accepts str or PathLike[str].\n    visible: The visibility of the shared Excel application instance. It must match the value used by earlier workbook objects.\n    password: The password for opening the workbook, if required. password is also used as a new workbook's opening password.\n    writePassword: The password for write access, if required. writePassword applies only when opening an existing write-reserved workbook.\n    createIfMissing: If True, creates a new workbook if the file does not exist.\n    readOnly: If True, opens the workbook in read-only mode. For a newly created workbook, readOnly must be False.\n    updateLinks: If True, updates links to external workbooks while opening the file. If False, keeps the workbook's cached link values and avoids Excel's update-links prompt.\n\nReturns:\n    ExcelObj: An object representing the opened workbook.",
@@ -1661,7 +1661,7 @@
       "label": "bind_excel_file",
       "prefix": "Excel.bind_excel_file",
       "body": [
-        "${1:result} = Excel.bind_excel_file(fileName=$2)",
+        "${1:excelObj} = Excel.bind_excel_file(fileName=$2)",
         "$0"
       ],
       "description": "Bind to an already open Excel workbook by file name.\n\nSupported workbook file types are .xlsx, .xls, .xlsm, and .xlsb.\nCSV files should be handled by CSV-specific functions instead of Excel workbook functions.\n\nThe first successful open or bind operation determines the shared Excel application instance. Later bind operations search only that same instance, so all ExcelObj objects remain compatible with each other. If no shared instance has been selected yet, all running Excel instances are searched. If the same file name exists in multiple instances, binding is\nrejected as ambiguous.\n\nDo not manually close the workbook or save it under another path while its ExcelObj is managed by LiberRPA. Use close() and save_as() so the shared application state and managed workbook registry remain synchronized.\n\nParameters:\n    fileName: The file name of an already open Excel workbook, such as \"Report.xlsx\".\n\nReturns:\n    ExcelObj: An object representing the bound workbook.",

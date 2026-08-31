@@ -214,7 +214,7 @@ PARAMETER_PLACEHOLDER_NAMES = {
 # Exact return annotation strings that should use stable variable names.
 RETURN_PLACEHOLDER_BY_ANNOTATION = {
     "<class 'liberrpa.Browser.BrowserObj'>": "browserObj",
-    "<class 'liberrpa.Excel.ExcelObj'>": "excelObj",
+    "<class 'liberrpa.Common._Excel.ExcelObj'>": "excelObj",
     "<class 'liberrpa.ScreenPrint.ScreenPrintObj'>": "screenPrintObj",
     "<class 'imapclient.imapclient.IMAPClient'>": "imapObj",
     "<class 'str'>": "strResult",
