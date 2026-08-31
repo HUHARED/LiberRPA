@@ -45,104 +45,98 @@ function flattenSnippets(repository: Info_SnippetRepository): Info_Snippet[] {
   return arrResult;
 }
 
+interface Info_CompletionContext {
+  range: vscode.Range;
+  qualifier?: string;
+}
+
 interface Info_CompletionMatch {
   range: vscode.Range;
   filterText: string;
   isLooseMatch: boolean;
 }
 
-function findCompletionSuffixStart(
-  linePrefix: string,
-  expectedPrefix: string,
-): number | undefined {
-  const strExpectedPrefixLower = expectedPrefix.toLowerCase();
-  const intMaximumLength = Math.min(linePrefix.length, expectedPrefix.length);
-
-  for (let intLength = intMaximumLength; intLength > 0; intLength -= 1) {
-    const intStart = linePrefix.length - intLength;
-    const strTypedPrefix = linePrefix.slice(intStart);
-
-    if (!strExpectedPrefixLower.startsWith(strTypedPrefix.toLowerCase())) {
-      continue;
-    }
-
-    // Do not match a suffix inside another identifier or qualified expression.
-    const strPreviousCharacter = intStart > 0 ? linePrefix[intStart - 1] : "";
-    if (/[A-Za-z0-9_.]/.test(strPreviousCharacter)) {
-      continue;
-    }
-
-    return intStart;
-  }
-
-  return undefined;
-}
-
-function getCompletionMatchPrefix(snippetPrefix: string): string[] {
-  const arrResult = [snippetPrefix];
-  const strFinalSegment = snippetPrefix.slice(snippetPrefix.lastIndexOf(".") + 1);
-
-  if (strFinalSegment !== snippetPrefix) {
-    arrResult.push(strFinalSegment);
-  }
-
-  for (
-    let intUnderscoreIndex = strFinalSegment.indexOf("_");
-    intUnderscoreIndex !== -1;
-    intUnderscoreIndex = strFinalSegment.indexOf("_", intUnderscoreIndex + 1)
-  ) {
-    const strSuffix = strFinalSegment.slice(intUnderscoreIndex + 1);
-    if (strSuffix.length > 0 && !arrResult.includes(strSuffix)) {
-      arrResult.push(strSuffix);
-    }
-  }
-
-  return arrResult;
-}
-
 /**
- * Match the complete Snippet prefix, its final dot-separated segment, or a
- * suffix that starts after a snake_case boundary.
+ * Determine only the text range that a Snippet completion may replace.
+ *
+ * Candidate filtering is intentionally left to VS Code so its normal fuzzy
+ * matching can combine LiberRPA Snippets with Python language-service results.
  *
  * Examples:
  *
- * - `Log.d`, `d`, `deb`, and `debug` match `Log.debug`;
- * - `Str.c`, `case_`, `to_`, `to_upper`, and `upper` match
- *   `Str.case_to_upper`;
- * - `obj.to_upper` and `other_to_upper` are rejected.
- *
- * The explicit range also makes VS Code replace `Mouse.cli` as a whole instead
- * of treating only `cli` as the current word.
+ * - `exop` is treated as an unqualified identifier and may fuzzy-match
+ *   `Excel.open_excel_file`;
+ * - `Excel.op` is treated as a qualified LiberRPA prefix;
+ * - `obj.op` is rejected later unless `obj` is the first segment of the
+ *   Snippet prefix.
  */
-function getCompletionMatch(
+function getCompletionContext(
   document: vscode.TextDocument,
   position: vscode.Position,
-  snippetPrefix: string,
-): Info_CompletionMatch | undefined {
+): Info_CompletionContext | undefined {
   const strLinePrefix = document.lineAt(position.line).text.slice(0, position.character);
 
-  for (const strMatchPrefix of getCompletionMatchPrefix(snippetPrefix)) {
-    const intMatchStart = findCompletionSuffixStart(strLinePrefix, strMatchPrefix);
-
-    if (intMatchStart !== undefined) {
-      return {
-        range: new vscode.Range(position.with(undefined, intMatchStart), position),
-        filterText: strMatchPrefix,
-        isLooseMatch: strMatchPrefix !== snippetPrefix,
-      };
-    }
+  const qualifiedMatch = /([A-Za-z_][A-Za-z0-9_]*)\.([A-Za-z_][A-Za-z0-9_]*)?$/.exec(
+    strLinePrefix,
+  );
+  if (qualifiedMatch !== null) {
+    const strTypedExpression = qualifiedMatch[0];
+    return {
+      range: new vscode.Range(
+        position.with(undefined, position.character - strTypedExpression.length),
+        position,
+      ),
+      qualifier: qualifiedMatch[1],
+    };
   }
 
-  return undefined;
+  const identifierMatch = /[A-Za-z_][A-Za-z0-9_]*$/.exec(strLinePrefix);
+  if (identifierMatch === null) {
+    return undefined;
+  }
+
+  return {
+    range: new vscode.Range(
+      position.with(undefined, position.character - identifierMatch[0].length),
+      position,
+    ),
+  };
+}
+
+function getSnippetQualifier(snippetPrefix: string): string | undefined {
+  const intDotIndex = snippetPrefix.indexOf(".");
+  return intDotIndex === -1 ? undefined : snippetPrefix.slice(0, intDotIndex);
+}
+
+function getCompletionMatch(
+  completionContext: Info_CompletionContext,
+  snippetPrefix: string,
+): Info_CompletionMatch | undefined {
+  if (completionContext.qualifier !== undefined) {
+    if (getSnippetQualifier(snippetPrefix) !== completionContext.qualifier) {
+      return undefined;
+    }
+
+    return {
+      range: completionContext.range,
+      filterText: snippetPrefix,
+      isLooseMatch: false,
+    };
+  }
+
+  return {
+    range: completionContext.range,
+    filterText: snippetPrefix,
+    isLooseMatch: true,
+  };
 }
 
 function buildCompletionItem(
-  document: vscode.TextDocument,
-  position: vscode.Position,
+  completionContext: Info_CompletionContext,
   snippet: Info_Snippet,
   buildImportEdits: (imports: Info_Snippet["imports"]) => vscode.TextEdit[],
 ): vscode.CompletionItem | undefined {
-  const completionMatch = getCompletionMatch(document, position, snippet.prefix);
+  const completionMatch = getCompletionMatch(completionContext, snippet.prefix);
   if (!completionMatch) {
     return undefined;
   }
@@ -179,7 +173,7 @@ function buildCompletionItem(
   completionItem.filterText = completionMatch.filterText;
   completionItem.additionalTextEdits = importPlan.additionalTextEdits;
 
-  // Loose matches supplement Python language-service completions instead of competing with them at the same sort position.
+  // Unqualified fuzzy matches supplement Python language-service completions instead of competing with them at the same sort position.
   if (completionMatch.isLooseMatch) {
     completionItem.sortText = `z_LiberRPA_${snippet.prefix}`;
   }
@@ -202,10 +196,15 @@ export class SnippetCompletionItemProvider implements vscode.CompletionItemProvi
   provideCompletionItems(
     document: vscode.TextDocument,
     position: vscode.Position,
-  ): vscode.ProviderResult<vscode.CompletionList> {
+  ): vscode.ProviderResult<vscode.CompletionItem[]> {
     return runSyncBoundary(
       "LiberRPA snippet completion failed",
-      (): vscode.CompletionList | undefined => {
+      (): vscode.CompletionItem[] | undefined => {
+        const completionContext = getCompletionContext(document, position);
+        if (completionContext === undefined) {
+          return undefined;
+        }
+
         const buildImportEdits = createManagedImportTextEditBuilder(
           document,
           this.repository.importSource,
@@ -226,8 +225,7 @@ export class SnippetCompletionItemProvider implements vscode.CompletionItemProvi
           };
 
           const completionItem = buildCompletionItem(
-            document,
-            position,
+            completionContext,
             snippet,
             getImportEdits,
           );
@@ -238,7 +236,7 @@ export class SnippetCompletionItemProvider implements vscode.CompletionItemProvi
           return undefined;
         }
 
-        return new vscode.CompletionList(arrCompletionItem, true);
+        return arrCompletionItem;
       },
       undefined,
       false,

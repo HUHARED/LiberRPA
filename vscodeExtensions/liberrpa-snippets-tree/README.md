@@ -46,11 +46,19 @@ Drag a Snippet from the Tree to the required editor position.
 
 #### IntelliSense
 
-Type a Snippet prefix or a meaningful part of the final API name in a Python file and select the LiberRPA completion. Matching is case-insensitive and also works from `snake_case` word boundaries. For example, `deb` matches `Log.debug`, and `to_upper` matches `Str.case_to_upper`.
+Type a Snippet prefix or identifying text in a Python file and select the LiberRPA completion. IntelliSense supports abbreviated matching, so, for example, `deb` can match `Log.debug`, `to_upper` can match `Str.case_to_upper`, and `exop` can match `Excel.open_excel_file`.
 
 The completion details show the Snippet body and description before insertion.
 
 ![typeToAdd](md_images/README/typeToAdd.gif)
+
+#### Snippet Placeholders
+
+After insertion, press `Tab` to move through editable Snippet fields.
+
+Some parameters provide a predefined list of valid values. To enter a variable or another expression instead, press `Esc` twice: the first press closes the choice list, and the second exits the active Snippet placeholder mode so normal Python IntelliSense can resume.
+
+After exiting the placeholder mode, `Tab` no longer moves through the remaining Snippet fields.
 
 ### Managed Imports
 
