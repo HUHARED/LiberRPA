@@ -38,6 +38,7 @@ setup(
         "Issue Tracker": "https://github.com/HUHARED/LiberRPA/issues",
     },
     license="AGPL-3.0-or-later",
+    license_files=["LICENSE"],
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Environment :: Win32 (MS Windows)",
