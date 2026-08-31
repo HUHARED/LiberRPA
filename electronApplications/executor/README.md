@@ -358,6 +358,12 @@ The subtitle file is generated from the human-readable Project log when the requ
 
 Use **Run History > Open Log Folder** to inspect a specific Run, or **Settings > Open Log Folder** to open the Project Log Folder root.
 
+> **Logging and sensitive information:**
+>
+> Project logs intentionally include information useful for troubleshooting. `DEBUG` and `VERBOSE` logging can include function calls, Flow transitions, and initial Custom Argument values. The current Python startup also records arguments received from Executor at `INFO` during initialization, before the final Project Log Level is applied.
+>
+> A less verbose Log Level is not a guarantee that sensitive values will be omitted. Balance diagnostic detail against confidentiality requirements, restrict access to logs and recordings, and inspect them before sharing. Stricter requirements may require customizing the relevant logging statements. See [Flowchart Log Level](../../vscodeExtensions/liberrpa-flowchart/README.md#log-level).
+
 ### Executor Diagnostic Log
 
 Executor writes its own diagnostic log below the Built-in Tools output path resolved from `configFiles/basic.jsonc`:

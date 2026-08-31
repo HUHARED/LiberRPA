@@ -284,7 +284,7 @@ Store exception in Project arguments
 Follow Exception Line
 ```
 
-If no Exception Line exists, the current Flow ends with an error result.
+If no Exception Line exists, the current process stops its Flow path. An unhandled error in MainProcess produces an error result for the Project. A SubStart error remains local to that auxiliary process, as described below.
 
 This allows normal Python exception handling to be used inside the Block while the Flowchart can still provide process-level recovery paths.
 
@@ -329,9 +329,15 @@ Flow Project
 
 Because these are separate processes, normal Python in-memory objects are not automatically synchronized between them.
 
+SubStart processes are **auxiliary processes**, not parallel tasks whose results are automatically combined with the MainProcess result. An uncaught Block exception is recorded in the affected subprocess's logs. The subprocess follows its Exception Line when one exists; otherwise, it stops without automatically failing MainProcess or changing the Executor Run result.
+
+SubStart processes are created as daemon processes. During normal Project exit, unfinished SubStart processes are terminated rather than allowed to keep the Project open until their Flow paths finish. A SubStart reaching its own End only ends that subprocess.
+
+Do not rely on a SubStart reaching its End node or completing a `finally` block when MainProcess ends. Work that must complete successfully before the Project can be considered successful belongs in the main Flow rather than a SubStart.
+
 ### End and cleanup
 
-When execution finishes, LiberRPA performs Flow cleanup and records one of the Python runtime results:
+Only MainProcess performs Project-level Flow cleanup and publishes the final Executor Run State. A SubStart finishing does not complete the Project or publish a terminal Executor Run State. When the main Flow finishes, LiberRPA records one of the Python runtime results:
 
 | Runtime result | Meaning |
 | --- | --- |

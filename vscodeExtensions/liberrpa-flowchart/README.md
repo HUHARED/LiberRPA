@@ -67,10 +67,14 @@ Ensure that the connection follows the [Link Rules](#link-rules).
 * **Create:**
   Drag a SubStart node from **Node Panel** into the middle area. This creates a new **subprocess** when the project executes.
 * **Error Handling:**
-  If a subprocess encounters an uncaught exception, it will exit without affecting the MainProcess.
+  An uncaught Block exception is recorded in that subprocess's logs. If the Block has an Exception-line, the subprocess follows it; otherwise, that subprocess stops. Its failure does not automatically fail MainProcess or change the Executor Run result.
 * **Configuration:**
   Click the SubStart node to open **Node Info** panel where you can modify its description.
   ![1740303373902](md_images/README/1740303373902.png)
+
+A SubStart is an **auxiliary daemon process** with its own memory. Changes to `CustomArgs` and other ordinary Python objects are not automatically synchronized with MainProcess.
+
+During normal Project exit, unfinished SubStart processes are terminated instead of being allowed to hold the Project open until their work finishes. Do not rely on a SubStart reaching its End node or completing a `finally` block after the main Flow ends. Place work that must succeed before the Project can be considered successful in the main Flow.
 
 #### Block Node
 
@@ -129,6 +133,7 @@ Ensure that the connection follows the [Link Rules](#link-rules).
 * **Behavior:**
 
   * For a  **MainProcess** , the entire program exits.
+  * For a **SubStart process**, only that auxiliary process exits; MainProcess continues.
   * If a node has no connected next node, LiberRPA will automatically execute an End node.
 
 #### Link Rules
@@ -192,6 +197,14 @@ The Flowchart `Log Level` setting controls the Python runtime log level used whe
 LiberRPA applies the selected level through `Log.set_level()`.
 
 This setting is separate from the diagnostic log level used by the VS Code extension. Changing one does not change the other.
+
+> **Logging and sensitive information:**
+>
+> Detailed runtime logging, especially at `DEBUG` or `VERBOSE`, can include function calls, Flow transitions, and initial Custom Argument values. This information is intentionally available for troubleshooting.
+>
+> Logging is not a secret-redaction mechanism. The current Executor startup also records its applied arguments at `INFO` during initialization, before the final runtime log level is applied. Selecting a less verbose level therefore does not guarantee that argument values are absent from the logs.
+>
+> Choose a log level that balances troubleshooting needs and confidentiality requirements. Restrict access to logs and recordings, and inspect their contents before sharing them. For stricter requirements, customize the relevant logging statements rather than relying on the log level alone.
 
 ![1740307077172](md_images/README/1740307077172.png)
 
