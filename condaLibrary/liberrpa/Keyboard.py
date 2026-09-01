@@ -36,7 +36,9 @@ _LIST_INPUT_KEYS: list[str] = list(InputKey.__args__)
 def _check_keyboard_type_mode(typeMode: str) -> None:
     listValue = ["click", "key_down", "key_up"]
     if typeMode not in listValue:
-        raise ValueError(f"The argument typeMode({typeMode}) should be one of {listValue}")
+        raise ValueError(
+            f"The argument typeMode({typeMode}) should be one of {listValue}"
+        )
 
 
 def _check_key(key: str) -> None:
@@ -47,7 +49,9 @@ def _check_key(key: str) -> None:
 
 def _simulate_write(text: str, interval: int = 0) -> None:
     # Define all characters that pyautogui can type based on a typical keyboard layout.
-    strTypableCharacters = string.ascii_letters + string.digits + string.punctuation + " \t\n"
+    strTypableCharacters = (
+        string.ascii_letters + string.digits + string.punctuation + " \t\n"
+    )
 
     # Replace "\r\n" to "\n" for standardizing.
     text = text.replace("\r\n", "\n")
@@ -117,7 +121,9 @@ def _write_text(
                         try:
                             _keyboard.type(char)
                         except Exception as e:
-                            raise UiOperationError(f"Error when type '{char}', error: {e}")
+                            raise UiOperationError(
+                                f"Error when type '{char}', error: {e}"
+                            )
             finally:
                 # Change CapsLock back.
                 if boolCapslockChanged:
@@ -135,7 +141,6 @@ def _write_text(
 def write_text(
     text: str,
     executionMode: ExecutionMode = "api",
-    timeout: int = 10000,
     preDelay: int = 300,
     postDelay: int = 200,
 ) -> None:
@@ -145,13 +150,11 @@ def write_text(
     Parameters:
         text: The text to be written.
         executionMode: Execution mode, either "simulate" or "api". "simulate" may be affected by IME(Input Method Editor) or CapsLock, while "api" can input more characters more reliably.
-        timeout: Maximum time allowed for normal completion, in milliseconds. Values below 3000 are treated as 3000. The actual elapsed time may be longer if LiberRPA enters its hard-timeout fallback before raising a timeout-related exception.
         preDelay: Time to wait before performing the action, in milliseconds.
         postDelay: Time to wait after performing the action, in milliseconds.
     """
-    timeout = _UiElement.check_set_timeout(timeout=timeout)
 
-    return timeout_kill_thread(timeout=timeout)(_write_text)(
+    return _write_text(
         text,
         executionMode,
         preDelay,
@@ -203,9 +206,15 @@ def _write_text_into_element(
     if selector.get("category") == "image":
         raise UiOperationError("Not support writing text into an image element.")
 
-    if selector.get("category") == "html" and executionMode == "simulate" and validateText:
+    if (
+        selector.get("category") == "html"
+        and executionMode == "simulate"
+        and validateText
+    ):
         # Even html element can get text, but its logic here is too complex and takes more time.
-        raise UiOperationError("Not support validating text to an html element by simulate mode.")
+        raise UiOperationError(
+            "Not support validating text to an html element by simulate mode."
+        )
 
     if selector.get("category") == "html" and executionMode == "api":
         _UiElement.activate_element_window(selector=selector)
@@ -247,12 +256,16 @@ def _write_text_into_element(
             strTargetText = text if clearBeforeWrite else strOldText + text
 
             if not pattern.SetValue(strTargetText):
-                raise UiOperationError(f"Failed to set text by ValuePattern. selector: {selector}")
+                raise UiOperationError(
+                    f"Failed to set text by ValuePattern. selector: {selector}"
+                )
 
             if validateText:
                 strWrittenText = "" if pattern.Value is None else str(pattern.Value)
 
-                if _normalize_written_text(strWrittenText) != _normalize_written_text(strTargetText):
+                if _normalize_written_text(strWrittenText) != _normalize_written_text(
+                    strTargetText
+                ):
                     raise ValueError(
                         f"The written text ({json.dumps(strWrittenText, ensure_ascii=False)}) is not equal to the expected text ({json.dumps(strTargetText, ensure_ascii=False)})."
                     )
@@ -265,7 +278,9 @@ def _write_text_into_element(
             def _write_by_simulation() -> None:
                 # If use simulate type, must click it before writing.
                 dictCoordinates = _get_5_coordinates(dictAttr=dictTarget)
-                pyautogui.moveTo(x=dictCoordinates["center"][0], y=dictCoordinates["center"][1])
+                pyautogui.moveTo(
+                    x=dictCoordinates["center"][0], y=dictCoordinates["center"][1]
+                )
                 pyautogui.click()
 
                 if clearBeforeWrite:
@@ -299,9 +314,13 @@ def _write_text_into_element(
 
                 strWrittenText = _get_uia_control_text(control=uiTarget)
                 if strWrittenText is None:
-                    raise ValueError(f"The element does not support getting text for validation. selector: {selector}")
+                    raise ValueError(
+                        f"The element does not support getting text for validation. selector: {selector}"
+                    )
 
-                if _normalize_written_text(strWrittenText) != _normalize_written_text(strExpectedText):
+                if _normalize_written_text(strWrittenText) != _normalize_written_text(
+                    strExpectedText
+                ):
                     raise ValueError(
                         f"The written text ({json.dumps(strWrittenText, ensure_ascii=False)}) "
                         f"is not equal to the expected text "
@@ -396,7 +415,9 @@ def _type_key_in_element(
 
     else:
         # uia
-        uiTarget, _ = _UiElement.get_element_with_pre_delay(selector=selector, preDelay=preDelay)
+        uiTarget, _ = _UiElement.get_element_with_pre_delay(
+            selector=selector, preDelay=preDelay
+        )
         if uiTarget is not None:
             # Use pyautogui, must focus it first.
             uiTarget.SetFocus()
@@ -508,7 +529,9 @@ def type_key(
         case "key_up":
             pyautogui.keyUp(key)
         case _:
-            raise ValueError(f"The argument typeMode({typeMode}) should be one of {['click', 'key_down', 'key_up']}")
+            raise ValueError(
+                f"The argument typeMode({typeMode}) should be one of {['click', 'key_down', 'key_up']}"
+            )
 
     delay(postDelay)
     return None
@@ -529,7 +552,9 @@ if __name__ == "__main__":
             "ClassName": "Notepad",
         },
         "category": "uia",
-        "specification": [{"ControlTypeName": "EditControl", "Name": "Text Editor", "ClassName": "Edit"}],
+        "specification": [
+            {"ControlTypeName": "EditControl", "Name": "Text Editor", "ClassName": "Edit"}
+        ],
     }
 
     text = "1234567890こんにちは世界-=,./!@#$%^&*()ÄäÖöÜü中文字符✔\nEnter\r\nNewLine\tTab\nÄäÖöÜü\n中文字符✔🤷😊Emoji：こんにちは世界"
@@ -537,7 +562,9 @@ if __name__ == "__main__":
     # text = "123123abclkjaf1024uag123123\t44\r\n44"
     # text = "\nHello, how are\n you today?\n"
     # text = "\nHello. How are\n you today?" * 100
-    write_text(text=text, executionMode="api", timeout=3000, preDelay=2000, postDelay=200)
+    # write_text(text=text, executionMode="api", preDelay=2000, postDelay=200)
+
+    write_text(text=text, executionMode="simulate", preDelay=2000, postDelay=200)
     """ write_text_into_element(
         selector=SlctNotepad2,
         text=text,
