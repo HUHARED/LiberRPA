@@ -43,6 +43,7 @@ dependencies:
   - keyboard
   - pyqt
   - python-engineio[version='>=4.13.4,<5']
+  - libblas[build=*_openblas]
   - pip:
       - easyocr
       - pyzipper

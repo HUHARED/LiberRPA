@@ -159,7 +159,7 @@ flowchart LR
 
 ### Editor
 
-LiberRPA Editor is based on portable VS Code. During initialization, LiberRPA attempts to install the selected Editor extensions from the Visual Studio Marketplace. Once installed, the extensions are stored inside the portable Editor data directory and normal Python development features such as IntelliSense, source navigation, breakpoints, variable inspection, refactoring, and Git integration can be used offline.
+LiberRPA Editor uses the official Windows ZIP distribution of Microsoft Visual Studio Code in portable mode. The VS Code binary is not redistributed in the LiberRPA release archive. During initialization, `InitLiberRPA.exe` prepares the tested VS Code version directly from Microsoft when needed, then attempts to install the selected Editor extensions from the Visual Studio Marketplace. The portable Editor configuration and installed extensions are stored under `Editor/data`, so a prepared Editor can be used offline and moved with the LiberRPA directory.
 
 Its LiberRPA-specific tools include:
 
@@ -223,7 +223,7 @@ For the internal architecture, see [Architecture](./docs/Architecture.md).
 
 ## Getting Started
 
-LiberRPA 0.3.0 targets Windows and includes its standard Python 3.13 environment in the official release package.
+LiberRPA 0.3.0 targets Windows and includes its standard Python 3.13 environment in the official release package. Microsoft Visual Studio Code itself is prepared during initialization rather than redistributed in the release archive.
 
 1. Download the latest release from SourceForge:
    **[Download LiberRPA](TODO_SOURCEFORGE_DOWNLOAD_URL)**
@@ -231,7 +231,8 @@ LiberRPA 0.3.0 targets Windows and includes its standard Python 3.13 environment
    ```text
    InitLiberRPA.exe
    ```
-3. Open:
+   Keep the computer online for the initial Editor setup.
+3. After initialization, open:
    ```text
    Editor/Code.exe
    ```
@@ -382,11 +383,15 @@ The complete dependency list and reproducible environment information are docume
 
 The `liberrpa` package metadata should not be interpreted as the complete dependency manifest of the full LiberRPA distribution.
 
-### Other dependencies
+### Third-party software
 
-LiberRPA also relies on open-source projects from the VS Code, Electron, Chromium, Node.js, Python, conda-forge, PyPI, and related ecosystems.
+Third-party software included with or obtained by LiberRPA remains subject to its own license terms. LiberRPA's AGPL license applies to LiberRPA itself and does not replace the licenses of upstream components.
 
-Their dependency declarations are maintained with the corresponding components.
+LiberRPA Editor uses the official Microsoft Visual Studio Code Windows ZIP distribution. The VS Code binary is downloaded directly from Microsoft during initialization rather than redistributed in the LiberRPA release archive, and remains subject to Microsoft's license terms.
+
+LiberRPA's Excel integration uses the BSD-3-Clause licensed open-source functionality of `xlwings`. The installed `xlwings` distribution may also contain separately licensed `xlwings.pro` files. LiberRPA does not use those PRO features; use of them is governed by the xlwings PRO license terms included with the package.
+
+LiberRPA also relies on third-party projects from the Electron, Chromium, Node.js, Python, conda-forge, PyPI, and related ecosystems. Dependency declarations and license materials are maintained with the corresponding components or upstream packages where applicable.
 
 LiberRPA does not independently guarantee the security, compatibility, or continued availability of every upstream dependency. Dependencies are reviewed and updated as the project evolves.
 

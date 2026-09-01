@@ -37,6 +37,14 @@ For example:
 LiberRPA-0.3.0-win-x64.7z
 ```
 
+The release page also publishes the SHA256 hash of the archive. To verify a downloaded file from Command Prompt:
+
+```bat
+certutil -hashfile LiberRPA-0.3.0-win-x64.7z SHA256
+```
+
+Compare the reported value with the hash published for the same release. SHA256 verifies that the archive matches the published file; it is not a Windows publisher signature, so unsigned executables may still be shown as coming from an unknown publisher.
+
 Extract the archive to a local directory where your Windows account has normal read and write access.
 
 For example:
@@ -46,6 +54,8 @@ D:\Tools\LiberRPA-0.3.0\
 ```
 
 LiberRPA is designed to operate from its extracted directory and does not need to be installed under `Program Files`.
+
+The release archive does not redistribute the Microsoft Visual Studio Code binary. It contains the LiberRPA Editor configuration, while `InitLiberRPA.exe` downloads the tested Windows x64 VS Code ZIP directly from Microsoft when the Editor is first prepared. An internet connection is therefore required for a clean first-time Editor setup.
 
 The extracted directory is referred to in the documentation as the  **LiberRPA root directory** .
 
@@ -75,19 +85,42 @@ Initialization currently performs the following operations:
    ```text
    LiberRPA=<current LiberRPA root directory>
    ```
-3. Creates the Chrome Native Messaging configuration used by the LiberRPA Chrome Extension.
-4. Registers the Native Messaging host for the current Windows user.
-5. Creates fresh authentication tokens for local WebSocket communication between LiberRPA components.
-6. Installs the bundled Noto Sans Mono font for the current user if the corresponding font file is not already present.
-7. Checks the selected VS Code extensions and attempts to install missing ones through the bundled VS Code CLI and the Visual Studio Marketplace.
-8. Creates LiberRPA Local Server and Executor shortcuts in the Windows Startup folder.
-9. Creates Editor, Executor, UI Analyzer, and Local Server shortcuts on the desktop.
-10. Checks whether an existing Executor configuration is present.
-11. Creates the default local Component Repository if it does not already exist.
+3. Checks whether the LiberRPA Editor has been prepared. When VS Code is missing, downloads the tested Windows x64 VS Code ZIP directly from Microsoft and prepares it under `Editor/`.
+4. Creates the Chrome Native Messaging configuration used by the LiberRPA Chrome Extension.
+5. Registers the Native Messaging host for the current Windows user.
+6. Creates fresh authentication tokens for local WebSocket communication between LiberRPA components.
+7. Installs the bundled Noto Sans Mono font for the current user if the corresponding font file is not already present.
+8. Checks the selected VS Code extensions and attempts to install missing ones through the Editor's VS Code CLI and the Visual Studio Marketplace.
+9. Creates LiberRPA Local Server and Executor shortcuts in the Windows Startup folder.
+10. Creates Editor, Executor, UI Analyzer, and Local Server shortcuts on the desktop.
+11. Checks whether an existing Executor configuration is present.
+12. Creates the default local Component Repository if it does not already exist.
+
+### Editor setup
+
+LiberRPA Editor uses Microsoft Visual Studio Code in portable mode. The Microsoft VS Code program files are not included in the LiberRPA release archive.
+
+For LiberRPA 0.3.0, a clean Editor setup downloads **VS Code 1.121.0 for Windows x64** directly from Microsoft. Before downloading, the initializer shows the version, download source, Microsoft license, and privacy statement, and asks for confirmation.
+
+The initializer checks the ZIP against the SHA256 returned by Microsoft's download service, verifies the expected version and build, and checks the downloaded `Code.exe` publisher signature through Windows before installing the program files under `Editor/`. It does not continue with an unverified download.
+
+LiberRPA's portable settings, keybindings, and installed extensions remain under `Editor/data`. They are not overwritten by Editor setup. A recognized existing Editor is reused without downloading or automatically upgrading or downgrading it. A different version produces a warning because LiberRPA's tested version remains 1.121.0.
+
+If downloading or verification fails, Editor preparation stops before the later initialization steps. Normal initialization may already have created the user data directory and updated the `LiberRPA` user environment variable at that point. Check the reported error and run `InitLiberRPA.exe` again. Extension installation has a different policy: once the Editor is available, a Marketplace failure does not block the remaining initialization.
+
+If an incomplete Editor installation is found, the initializer does not merge another VS Code copy into it. Close the Editor, keep `Editor/data`, move the other items from `Editor/` into a backup directory, and rerun the initializer.
+
+To prepare only the Editor without changing the Windows user environment variable, local authentication tokens, or shortcuts, run this from the LiberRPA root directory in Command Prompt:
+
+```cmd
+InitLiberRPA.exe --editor-only
+```
+
+This option prepares the VS Code program files only; run normal initialization afterward to configure LiberRPA and install the selected extensions.
 
 ### Editor extension setup
 
-Third-party VS Code extensions are not bundled with the LiberRPA release archive. When `InitLiberRPA.exe` runs, it checks the selected extensions already present in the portable Editor and attempts to install any missing ones from the Visual Studio Marketplace.
+Third-party VS Code extensions are not bundled with the LiberRPA release archive. After VS Code is available, `InitLiberRPA.exe` checks the selected extensions already present in the portable Editor and attempts to install any missing ones from the Visual Studio Marketplace.
 
 The initial download can be relatively large. With the current Windows x64 extension set, a clean setup may download **more than 300 MB** in total after extension dependencies are included. This is an approximate current figure rather than a fixed package size: the actual amount can change as extension versions and dependencies change.
 
@@ -228,8 +261,8 @@ However, some preparation should be completed while internet access is still ava
 On an online Windows computer:
 
 1. Extract the complete LiberRPA release archive.
-2. Run `InitLiberRPA.exe` and allow it to complete the initial Editor extension setup. Depending on network conditions, downloading the selected extensions and their dependencies may take several minutes or longer.
-3. Open the bundled Editor once and verify that the required extensions are available.
+2. Run `InitLiberRPA.exe` and allow it to prepare VS Code and complete the initial Editor extension setup. Depending on network conditions, downloading VS Code, the selected extensions, and their dependencies may take several minutes or longer.
+3. Open LiberRPA Editor once and verify that VS Code starts and the required extensions are available.
 4. Install the LiberRPA Chrome Extension if browser automation will be required.
 5. Close the Editor and other LiberRPA applications.
 6. Copy the complete LiberRPA root directory to the target computer.
@@ -292,7 +325,7 @@ Until LiberRPA provides a dedicated updater, the safest approach is to keep rele
 5. Migrate only settings or data you intentionally want to preserve.
 6. Run `InitLiberRPA.exe` from the new release directory.
 7. Confirm replacement of the existing `LiberRPA` environment variable.
-8. Keep the computer online while initialization installs any selected Editor extensions that are missing from the new release's portable Editor data.
+8. Keep the computer online while initialization prepares the Editor and installs any selected extensions that are missing from the new release's portable Editor data.
 9. Verify Executor and Component Repository settings before deleting the previous release.
 
 Avoid blindly copying an old Python environment or application files over a newer release.
@@ -307,7 +340,7 @@ Understanding them is useful for backup, migration, troubleshooting, and clean r
 
 ### LiberRPA root directory
 
-Contains the main LiberRPA applications, development environment, configuration files, and portable Editor data, including extensions installed during initialization.
+Contains the main LiberRPA applications, development environment, configuration files, and portable Editor data. After initialization, it also contains the Microsoft VS Code files downloaded directly from Microsoft and any Editor extensions installed during setup.
 
 Example:
 
@@ -649,6 +682,6 @@ Only elevate LiberRPA applications when the target automation scenario requires 
 
 ### Offline Editor is missing extensions
 
-The bundled VS Code Editor must be opened on an online computer at least once so that its required extensions can finish installing.
+An Editor intended for offline use must first be prepared on an online computer. Run `InitLiberRPA.exe` while online so that VS Code and the selected extensions can be downloaded, then open the Editor once and verify that the required extensions are available.
 
-If this preparation was skipped, reconnect the prepared installation to the internet, open the Editor, allow extension installation to complete, close it, and then copy the prepared directory to the offline computer again.
+If this preparation was skipped, reconnect the installation to the internet, run `InitLiberRPA.exe` again, verify the Editor, and then copy the prepared LiberRPA root directory to the offline computer again.

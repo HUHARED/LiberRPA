@@ -1,6 +1,10 @@
 # LiberRPA Editor
 
-LiberRPA Editor is a preconfigured portable VS Code environment for LiberRPA development. Selected extensions are installed into the portable Editor data directory by `InitLiberRPA.exe` when they are missing.
+LiberRPA Editor is a preconfigured portable VS Code environment for LiberRPA development. It uses the official Windows ZIP distribution of Microsoft Visual Studio Code, but the Microsoft VS Code binary is not redistributed in the LiberRPA release archive. On a clean installation, `InitLiberRPA.exe` downloads the tested VS Code version directly from Microsoft and prepares it under `Editor/`.
+
+LiberRPA's portable settings, keybindings, and installed extensions are kept under `Editor/data`. Selected extensions are installed there by `InitLiberRPA.exe` when they are missing.
+
+LiberRPA 0.3.0 uses VS Code 1.121.0 for clean Editor setup. An existing recognized Editor is kept rather than automatically replaced. For download verification, retry instructions, and offline preparation, see [Installation](./Installation.md#editor-setup).
 
 It combines the normal VS Code and Python development experience with:
 
@@ -10,7 +14,7 @@ It combines the normal VS Code and Python development experience with:
 - LiberRPA-oriented editor settings;
 - custom keybindings.
 
-The bundled Editor is the recommended environment for the simplest LiberRPA setup.
+LiberRPA Editor is the recommended environment for the simplest LiberRPA setup.
 
 For creating and running your first Flow Project, see [Getting Started](./GettingStarted.md).
 
@@ -289,7 +293,7 @@ If you prefer the standard VS Code behavior, edit the keybindings through the no
 
 ## Using Your Own VS Code
 
-The bundled LiberRPA Editor is provided for convenience and to give users a known development environment.
+LiberRPA Editor is provided for convenience and to give users a known development environment.
 
 LiberRPA does not require application logic to be written in a proprietary IDE.
 
@@ -304,14 +308,14 @@ At minimum, a comparable setup needs to account for:
 - Python development support;
 - any settings or keybindings the user wants to reproduce.
 
-The bundled Editor remains the recommended configuration when:
+LiberRPA Editor remains the recommended configuration when:
 
 - setting up LiberRPA for the first time;
 - reproducing a documented workflow;
 - troubleshooting Editor-specific behavior;
 - verifying whether a problem also occurs with the standard LiberRPA configuration.
 
-Using a custom VS Code configuration may produce behavior different from the bundled Editor depending on installed extensions and user settings.
+Using a custom VS Code configuration may produce behavior different from LiberRPA Editor depending on installed extensions and user settings.
 
 ---
 

@@ -5,6 +5,7 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
+import argparse
 import ctypes
 from dataclasses import dataclass
 import json
@@ -19,6 +20,7 @@ import time
 from typing import Any
 import winreg
 from win32com.client import Dispatch
+from _Editor import prepare_editor as _prepare_editor_files
 
 
 pathCwd = Path.cwd().resolve()
@@ -30,6 +32,7 @@ pathUser = Path.home()
 _STEP_NAMES = (
     "create_liberrpa_folder_in_documents",
     "set_liberrpa_environment",
+    "prepare_editor",
     "create_native_messaging_file",
     "create_local_auth",
     "install_font_for_current_user",
@@ -288,6 +291,12 @@ def _create_shortcut(
         )
 
     print(f"Create shortcut: '{pathShortcut}' -> '{shortcutSpec.targetPath}'")
+
+
+def prepare_editor() -> None:
+    print_step(name="prepare_editor")
+    _prepare_editor_files(rootPath=pathCwd)
+    print_step_done(name="prepare_editor")
 
 
 def _get_editor_code_command_path() -> Path:
@@ -631,7 +640,9 @@ def set_liberrpa_environment() -> None:
 
     print_step_done(name="set_liberrpa_environment")
 
-    # Do other settings.
+    # Editor preparation must finish before configuring services or using its CLI.
+    prepare_editor()
+
     create_native_messaging_file()
     create_local_auth()
     install_font_for_current_user()
@@ -796,11 +807,29 @@ def create_component_repository_folder() -> None:
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Initialize LiberRPA for the current Windows user."
+    )
+    parser.add_argument(
+        "--editor-only",
+        action="store_true",
+        help="Prepare Editor in the current directory without changing user settings, tokens, or shortcuts.",
+    )
+    args = parser.parse_args()
     try:
-        create_liberrpa_folder_in_documents()
-        set_liberrpa_environment()
+        if args.editor_only:
+            prepare_editor()
+        else:
+            create_liberrpa_folder_in_documents()
+            set_liberrpa_environment()
+    except KeyboardInterrupt:
+        print("\n[Cancelled] Initialization was interrupted.")
+        raise SystemExit(130) from None
     except Exception as e:
         print(f"[Error] {e}")
         raise SystemExit(1) from e
     finally:
-        input("Press any key to exit...")
+        try:
+            input("Press Enter to exit...")
+        except (EOFError, KeyboardInterrupt):
+            pass

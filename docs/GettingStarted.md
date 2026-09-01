@@ -1,5 +1,3 @@
-<!-- TODO: Add final screenshots/resources before release. -->
-
 # Getting Started
 
 This guide covers the shortest path from opening LiberRPA Editor to running and debugging your first Flow Project.

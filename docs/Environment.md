@@ -2,7 +2,7 @@
 
 LiberRPA 0.3.0 uses a standard **Python 3.13** environment for Project development and execution.
 
-Normal users do not need to build this environment manually. The official LiberRPA release package includes a prepared environment and configures the bundled Editor to use it automatically.
+Normal users do not need to build this environment manually. The official LiberRPA release package includes a prepared environment, and LiberRPA Editor is configured to use it automatically.
 
 This document is mainly intended for:
 
@@ -32,7 +32,7 @@ The standard LiberRPA Python interpreter is located at:
 <LiberRPA root>\envs\pyenv\default\python.exe
 ```
 
-The bundled Editor is configured to use:
+LiberRPA Editor is configured to use:
 
 ```text
 ${env:LiberRPA}\envs\pyenv\default\python.exe
@@ -127,7 +127,7 @@ This directory contains installed runtime files and is not a substitute for the 
 
 To rebuild the standard environment, a compatible Conda distribution is required.
 
-From the LiberRPA repository root, create the environment at the path expected by the bundled Editor:
+From the LiberRPA repository root, create the environment at the path expected by LiberRPA Editor:
 
 ```bat
 conda env create ^
@@ -241,6 +241,18 @@ This is intentional. Users who install `liberrpa` separately are responsible for
 
 For normal LiberRPA development and execution, the complete official LiberRPA distribution is recommended.
 
+### BLAS implementation
+
+The standard Windows environment explicitly selects the OpenBLAS implementation through the conda-forge `libblas` variant:
+
+```text
+libblas[build=*_openblas]
+```
+
+BLAS provides the optimized linear-algebra backend used by numerical packages such as NumPy and SciPy. Selecting the implementation explicitly keeps the LiberRPA environment independent of the platform-default BLAS choice while allowing Conda to resolve the matching `libcblas`, `liblapack`, and OpenBLAS packages.
+
+LiberRPA code does not call OpenBLAS directly; numerical packages continue to use the normal BLAS/LAPACK interfaces.
+
 ---
 
 ## Adding or Updating Dependencies
@@ -298,7 +310,7 @@ After changing dependencies, do not rely only on an already modified development
 Create a clean environment from `environment.yml` and verify that:
 
 * `liberrpa` imports correctly;
-* the bundled Editor can use the interpreter;
+* LiberRPA Editor can use the interpreter;
 * LiberRPA Local Server starts;
 * UI Analyzer integration works;
 * browser integration works where applicable;
@@ -380,7 +392,7 @@ envs\pyenv\default\python.exe -c "import liberrpa; print('liberrpa import OK')"
 
 ### Editor interpreter
 
-Open the bundled LiberRPA Editor and verify that the selected interpreter resolves to:
+Open LiberRPA Editor and verify that the selected interpreter resolves to:
 
 ```text
 <LiberRPA root>\envs\pyenv\default\python.exe

@@ -69,9 +69,9 @@ The Flowchart is not the primary programming language of the automation. It desc
 
 ## Editor
 
-LiberRPA Editor is based on the portable version of VS Code.
+LiberRPA Editor uses the official Windows ZIP distribution of Microsoft Visual Studio Code in portable mode. The Microsoft VS Code binary is not redistributed with the LiberRPA release. When the Editor has not yet been prepared, `InitLiberRPA.exe` downloads the tested VS Code version directly from Microsoft and places it under `Editor/`. The download is verified and extracted in a temporary directory before the program files are moved into place; `Editor/data` is preserved. Existing recognized installations are reused, and an incomplete installation is not overwritten automatically.
 
-Selected Editor extensions are not bundled with the LiberRPA release. During initialization, `InitLiberRPA.exe` uses the bundled VS Code CLI to install missing extensions from the Visual Studio Marketplace. VS Code stores installed extensions and their dependencies under `Editor/data`, so they remain part of the portable Editor after installation.
+Selected Editor extensions are also not bundled with the LiberRPA release. After VS Code is available, `InitLiberRPA.exe` uses the Editor's VS Code CLI to install missing extensions from the Visual Studio Marketplace. VS Code stores installed extensions and their dependencies under `Editor/data`, so they remain part of the portable Editor after installation.
 
 It combines ordinary Python development with LiberRPA-specific extensions and tools.
 
@@ -98,7 +98,7 @@ LiberRPA Editor
     └── separate Electron application
 ```
 
-The standard Python interpreter used by the bundled Editor is located at:
+The standard Python interpreter used by LiberRPA Editor is located at:
 
 ```text
 <LiberRPA root>\envs\pyenv\default\python.exe
@@ -688,9 +688,15 @@ LiberRPA user environment variable
         ▼
 Local configuration
 
+Missing VS Code installation
+        │
+        ├── downloaded directly from Microsoft
+        ▼
+Editor/ → portable VS Code
+
 Missing Editor extensions
         │
-        ├── installed through bundled VS Code CLI
+        ├── installed through the Editor's VS Code CLI
         ▼
 Visual Studio Marketplace → Editor/data/extensions
 
