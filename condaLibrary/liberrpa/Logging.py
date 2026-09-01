@@ -46,7 +46,7 @@ from functools import wraps
 import ctypes
 from pathvalidate import sanitize_filepath
 from collections.abc import Callable
-from typing import Any, Literal, cast, ParamSpec, TypeVar
+from typing import Any, Literal, cast, TypeVar
 
 VERBOSE_LEVEL_NUM = 5
 logging.addLevelName(VERBOSE_LEVEL_NUM, "VERBOSE")
@@ -82,8 +82,7 @@ _SET_INTERNAL_FILE = {
     "Trigger.py",
 }
 
-P = ParamSpec("P")
-T = TypeVar("T")
+F = TypeVar("F", bound=Callable[..., Any])
 
 
 def _find_caller(
@@ -749,9 +748,7 @@ class Logger:
                     f'The argument level({level}) should be one of ["VERBOSE", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]'
                 )
 
-    def trace(
-        self, level: LogLevel = "DEBUG"
-    ) -> Callable[[Callable[P, T]], Callable[P, T]]:
+    def trace(self, level: LogLevel = "DEBUG") -> Callable[[F], F]:
         """
         Decorate a function to log its call and successful return at a specified log level.
 
@@ -759,12 +756,12 @@ class Logger:
             level: The level to record log. Must be one of ['VERBOSE', 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'].
 
         Returns:
-            Callable[[Callable[P, T]], Callable[P, T]]: A decorator that wraps the target function.
+            Callable[[F], F]: A decorator that preserves the target function's type.
         """
 
-        def decorator(func: Callable[P, T]) -> Callable[P, T]:
+        def decorator(func: F) -> F:
             @wraps(func)
-            def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+            def wrapper(*args: Any, **kwargs: Any) -> Any:
                 boolError = False
                 try:
                     self._trace_call(level=level, prefix="CALL", funcName=func.__name__)
@@ -780,7 +777,7 @@ class Logger:
                             level=level, prefix="RETURN", funcName=func.__name__
                         )
 
-            return wrapper
+            return cast(F, wrapper)
 
         return decorator
 
