@@ -30,31 +30,53 @@ except Exception as e:
     raise SystemExit(1) from e
 
 
-# The event to check whether mouse left or ESC is pressed.
+# The events used by the indication loop and the hook thread.
 eventMouseLeftPressed = threading.Event()
+eventMouseLeftReleased = threading.Event()
 eventEscPressed = threading.Event()
 eventStopRequested = threading.Event()
 
+_lockMouseLeftPosition = threading.Lock()
+_tupleMouseLeftPosition: tuple[int, int] | None = None
+
 
 def should_continue_hook() -> bool:
-    boolShouldContinue = not (eventMouseLeftPressed.is_set() or eventEscPressed.is_set() or eventStopRequested.is_set())
-    if eventMouseLeftPressed.is_set():
-        Log.critical("Pressed Mouse Left???")
-    if eventEscPressed.is_set():
-        Log.critical("Pressed ESC???")
-
-    return boolShouldContinue
+    return not (
+        eventMouseLeftPressed.is_set()
+        or eventEscPressed.is_set()
+        or eventStopRequested.is_set()
+    )
 
 
 def check_ESC_pressed() -> bool:
     return eventEscPressed.is_set()
 
 
+def get_mouse_left_position() -> tuple[int, int] | None:
+    with _lockMouseLeftPosition:
+        return _tupleMouseLeftPosition
+
+
+def wait_mouse_left_released(timeout: float) -> bool:
+    return eventMouseLeftReleased.wait(timeout=timeout)
+
+
+def _should_keep_hooking() -> bool:
+    # A selection event stops the indication loop, but the hook must remain active until post-selection processing finishes so the complete click is suppressed.
+    return not eventStopRequested.is_set()
+
+
 @Log.trace()
 def _reset_event() -> None:
+    global _tupleMouseLeftPosition
+
     eventMouseLeftPressed.clear()
+    eventMouseLeftReleased.clear()
     eventEscPressed.clear()
     eventStopRequested.clear()
+
+    with _lockMouseLeftPosition:
+        _tupleMouseLeftPosition = None
 
 
 @Log.trace()
@@ -63,29 +85,49 @@ def request_stop(source: str = "") -> None:
     eventStopRequested.set()
 
 
-def _on_mouse_left_press(event: MouseEvent) -> bool | None:
-    if event.MessageName == "mouse left down":
-        Log.critical("mouse left down")
+def _on_mouse_left_press(event: MouseEvent) -> bool:
+    global _tupleMouseLeftPosition
+
+    # Keep the first mouse-down position for the current indication.
+    # Additional clicks remain blocked until the caller finishes processing the selection.
+    if not eventMouseLeftPressed.is_set():
+        Log.debug("Mouse left down.")
+        with _lockMouseLeftPosition:
+            _tupleMouseLeftPosition = event.Position
+
+        eventMouseLeftReleased.clear()
         eventMouseLeftPressed.set()
 
-        # Block the mouse left button down event
-        return False
-    return None
+    # Block the mouse button down event.
+    return False
+
+
+def _on_mouse_left_release(_event: MouseEvent) -> bool:
+    if not eventMouseLeftPressed.is_set():
+        return True
+
+    Log.debug("Mouse left up.")
+    eventMouseLeftReleased.set()
+
+    # Block the matching mouse button up event as well.
+    return False
 
 
 @Log.trace()
 def subscribe_mouse_left() -> None:
     hm.SubscribeMouseLeftDown(_on_mouse_left_press)
+    hm.SubscribeMouseLeftUp(_on_mouse_left_release)
 
 
-def _on_esc_press(event: KeyboardEvent) -> bool | None:
+def _on_esc_press(event: KeyboardEvent) -> bool:
     if event.KeyID == 0x1B:  # ESC key
-        Log.critical("Press ESC.")
+        Log.debug("Press ESC.")
         eventEscPressed.set()
 
-        # Block the ESC key event
+        # Block the ESC key event.
         return False
-    return None
+
+    return True
 
 
 @Log.trace()
@@ -109,13 +151,13 @@ def hook_in_another_thread() -> None:
         hm.HookMouse()
         hm.HookKeyboard()
 
-        Log.critical("PumpMessages start.")
-        # pythoncom.PumpMessages() can not be quit, I don't know why, so use while and pythoncom.PumpWaitingMessages() to capture hook.
-        while should_continue_hook():
+        Log.debug("PumpMessages start.")
+        # Keep the hook alive until the caller explicitly requests cleanup.
+        while _should_keep_hooking():
             pythoncom.PumpWaitingMessages()
             # Reduce CPU occupation.
             time.sleep(0.001)
-        Log.critical("PumpMessages done.")
+        Log.debug("PumpMessages done.")
 
     finally:
         _unhook(source="hook_in_another_thread")

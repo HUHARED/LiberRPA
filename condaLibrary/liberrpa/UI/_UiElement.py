@@ -7,8 +7,6 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from liberrpa.Logging import Log
 from liberrpa.UI._UiAutomation import (
-    DICT_CONTROL_TYPE_NUM,
-    DictUiaBuiltinSearchKwargs,
     get_top_control,
     get_control_attr,
     get_control_primary_attr,
@@ -93,7 +91,9 @@ def check_execution_type(executionMode: ExecutionMode) -> None:
     """Invoke by GUI manipulation functions to check mode."""
     listValue = ["simulate", "api"]
     if executionMode not in listValue:
-        raise ValueError(f"The argument executionMode({executionMode}) should be one of {listValue}")
+        raise ValueError(
+            f"The argument executionMode({executionMode}) should be one of {listValue}"
+        )
 
 
 def check_set_timeout(timeout: int) -> int:
@@ -117,6 +117,7 @@ def check_set_timeout(timeout: int) -> int:
 class _UiaSelectorLayerDraft:
     control: uiautomation.Control
     attributes: dict[str, str]
+    rectangle: tuple[int, int, int, int] | None = None
     depthFromParent: int = 1
     index: int | None = None
 
@@ -127,7 +128,9 @@ def _copy_control_primary_attr(control: uiautomation.Control) -> dict[str, str]:
     dictResult: dict[str, str] = {}
     for strKey, value in get_control_primary_attr(control=control).items():
         if not isinstance(value, str):
-            raise UiOperationError(f"Unexpected non-string UIA primary attribute {strKey!r}: {value!r}.")
+            raise UiOperationError(
+                f"Unexpected non-string UIA primary attribute {strKey!r}: {value!r}."
+            )
         dictResult[strKey] = value
 
     return dictResult
@@ -138,80 +141,161 @@ def _control_matches_attributes(
     dictExpected: dict[str, str],
 ) -> bool:
     dictActual = _copy_control_primary_attr(control=control)
-    return all(dictActual.get(strKey) == strValue for strKey, strValue in dictExpected.items())
+    return all(
+        dictActual.get(strKey) == strValue for strKey, strValue in dictExpected.items()
+    )
+
+
+def _try_get_control_rectangle(
+    control: uiautomation.Control,
+) -> tuple[int, int, int, int] | None:
+    try:
+        rectangle = control.BoundingRectangle
+    except Exception:
+        return None
+
+    return (
+        rectangle.left,
+        rectangle.top,
+        rectangle.width(),
+        rectangle.height(),
+    )
+
+
+def _rectangles_are_close(
+    rectangleLeft: tuple[int, int, int, int],
+    rectangleRight: tuple[int, int, int, int],
+    tolerance: int = 1,
+) -> bool:
+    return all(
+        abs(intLeft - intRight) <= tolerance
+        for intLeft, intRight in zip(rectangleLeft, rectangleRight, strict=True)
+    )
 
 
 def _get_layer_index(
     controlParent: uiautomation.Control,
     layer: _UiaSelectorLayerDraft,
-) -> int | None:
-    """Return the target's zero-based index among controls matching the final layer."""
+) -> tuple[int | None, uiautomation.Control]:
+    """Return the target index and matching control from the current UIA tree."""
 
-    intControlType = DICT_CONTROL_TYPE_NUM.get(layer.attributes["ControlTypeName"])
-    if intControlType is None:
-        raise UiOperationError(
-            f"Unsupported ControlTypeName while building selector: {layer.attributes['ControlTypeName']!r}."
-        )
-
-    intFoundIndex = 1
     intMatchedIndex = 0
+    listRectangleFallback: list[tuple[int, uiautomation.Control]] = []
 
-    while True:
-        dictSearchKwargs: DictUiaBuiltinSearchKwargs = {
-            "searchDepth": layer.depthFromParent,
-            "foundIndex": intFoundIndex,
-            "ControlType": intControlType,
-        }
+    try:
+        for controlFound, _intDepth in uiautomation.WalkControl(
+            control=controlParent,
+            maxDepth=layer.depthFromParent,
+        ):
+            try:
+                # Keep the same traversal order and maximum-depth semantics used by uiautomation.Control().
+                if controlFound.ControlTypeName != layer.attributes["ControlTypeName"]:
+                    continue
+                if (
+                    "Name" in layer.attributes
+                    and controlFound.Name != layer.attributes["Name"]
+                ):
+                    continue
+                if (
+                    "ClassName" in layer.attributes
+                    and controlFound.ClassName != layer.attributes["ClassName"]
+                ):
+                    continue
+                if not _control_matches_attributes(
+                    control=controlFound,
+                    dictExpected=layer.attributes,
+                ):
+                    continue
+            except Exception:
+                # A control that becomes unavailable during enumeration cannot be used to build this layer.
+                continue
 
-        if "Name" in layer.attributes:
-            dictSearchKwargs["Name"] = layer.attributes["Name"]
-        if "ClassName" in layer.attributes:
-            dictSearchKwargs["ClassName"] = layer.attributes["ClassName"]
+            try:
+                boolSameControl = uiautomation.ControlsAreSame(
+                    controlFound, layer.control
+                )
+            except Exception:
+                boolSameControl = False
 
-        try:
-            controlFound = controlParent.Control(**dictSearchKwargs)
-            # Force uiautomation to finish resolving the lazy Control object.
-            _ = str(controlFound)
-        except Exception as e:
-            raise UiElementNotFoundError(
-                "The target UI element disappeared while selector index information was being built."
-            ) from e
-
-        if _control_matches_attributes(control=controlFound, dictExpected=layer.attributes):
-            if uiautomation.ControlsAreSame(controlFound, layer.control):
+            if boolSameControl:
                 # Index 0 is the default and is omitted to keep the selector concise.
-                return intMatchedIndex if intMatchedIndex > 0 else None
+                return (
+                    intMatchedIndex if intMatchedIndex > 0 else None,
+                    controlFound,
+                )
+
+            tupleFoundRectangle = _try_get_control_rectangle(control=controlFound)
+            if (
+                layer.rectangle is not None
+                and tupleFoundRectangle is not None
+                and _rectangles_are_close(
+                    rectangleLeft=tupleFoundRectangle,
+                    rectangleRight=layer.rectangle,
+                )
+            ):
+                listRectangleFallback.append((intMatchedIndex, controlFound))
 
             intMatchedIndex += 1
 
-        intFoundIndex += 1
+    except Exception as e:
+        raise UiElementNotFoundError(
+            "Failed to traverse the current UIA tree while selector index information was being built."
+        ) from e
+
+    if len(listRectangleFallback) == 1:
+        intFallbackIndex, controlFallback = listRectangleFallback[0]
+        Log.debug({
+            "message": "Use UIA rectangle fallback while building selector.",
+            "attributes": layer.attributes,
+            "rectangle": layer.rectangle,
+            "index": intFallbackIndex,
+        })
+        return (
+            intFallbackIndex if intFallbackIndex > 0 else None,
+            controlFallback,
+        )
+
+    if len(listRectangleFallback) > 1:
+        raise UiElementNotFoundError(
+            f"The selected UI element matched multiple controls at the same rectangle while selector index information was being built. attributes={layer.attributes!r}, rectangle={layer.rectangle!r}."
+        )
+
+    raise UiElementNotFoundError(
+        f"The selected UI element could not be identified in the current UIA tree while selector index information was being built. attributes={layer.attributes!r}, rectangle={layer.rectangle!r}."
+    )
 
 
 def _get_control_path(control: uiautomation.Control) -> list[uiautomation.Control]:
-    """Return the controls from the top-level window through control."""
+    """Return the controls from the desktop's direct child through control."""
 
-    controlTop = control.GetTopLevelControl()
-    if controlTop is None:
-        raise UiElementNotFoundError("Failed to get the target element's top-level control.")
-
+    controlRoot = uiautomation.GetRootControl()
     listPath = [control]
     controlCurrent = control
 
-    while not uiautomation.ControlsAreSame(controlCurrent, controlTop):
+    while True:
         controlParent = controlCurrent.GetParentControl()
         if controlParent is None:
             raise UiElementNotFoundError(
-                "Failed to reach the target element's top-level control while building its selector."
+                "Failed to reach the desktop root while building the target UI element's selector."
             )
+
+        if uiautomation.ControlsAreSame(controlParent, controlRoot):
+            return listPath
 
         listPath.insert(0, controlParent)
         controlCurrent = controlParent
 
-    return listPath
+
+def get_control_window(control: uiautomation.Control) -> uiautomation.Control:
+    """Return the desktop-root child that contains control."""
+
+    return _get_control_path(control=control)[0]
 
 
 def get_control_selector(
     control: uiautomation.Control,
+    *,
+    targetRectangle: tuple[int, int, int, int] | None = None,
 ) -> SelectorWindow | SelectorUia:
     """Build a selector for the exact control, including an unnamed target."""
 
@@ -233,23 +317,34 @@ def get_control_selector(
                 dictAttributes.pop("FrameworkId", None)
                 dictAttributes.pop("ProcessName", None)
 
-            intDepthFromParent = 1 if boolIsWindowLayer else intPathIndex - intPreviousIncludedPathIndex
+            intDepthFromParent = (
+                1 if boolIsWindowLayer else intPathIndex - intPreviousIncludedPathIndex
+            )
+            tupleRectangle = (
+                targetRectangle
+                if boolIsTarget and targetRectangle is not None
+                else _try_get_control_rectangle(control=controlCurrent)
+            )
             listLayers.append(
                 _UiaSelectorLayerDraft(
                     control=controlCurrent,
                     attributes=dictAttributes,
+                    rectangle=tupleRectangle,
                     depthFromParent=intDepthFromParent,
                 )
             )
             intPreviousIncludedPathIndex = intPathIndex
 
         if not listLayers:
-            raise UiOperationError("No selector layer could be built for the target control.")
+            raise UiOperationError(
+                "No selector layer could be built for the target control."
+            )
 
         controlParent = uiautomation.GetRootControl()
         for layer in listLayers:
-            layer.index = _get_layer_index(controlParent=controlParent, layer=layer)
-            controlParent = layer.control
+            layer.index, controlParent = _get_layer_index(
+                controlParent=controlParent, layer=layer
+            )
 
         listSelectorLayers: list[dict[str, str]] = []
         for intLayerIndex, layer in enumerate(listLayers):
@@ -278,7 +373,9 @@ def get_control_selector(
 
 
 @overload
-def get_element(selector: SelectorWindow | SelectorUia) -> tuple[uiautomation.Control, DictUiaAttr]: ...
+def get_element(
+    selector: SelectorWindow | SelectorUia,
+) -> tuple[uiautomation.Control, DictUiaAttr]: ...
 
 
 @overload
@@ -291,7 +388,11 @@ def get_element(selector: SelectorImage) -> tuple[None, DictImageAttr]: ...
 
 def get_element(
     selector: Selector,
-) -> tuple[uiautomation.Control, DictUiaAttr] | tuple[None, DictHtmlAttr] | tuple[None, DictImageAttr]:
+) -> (
+    tuple[uiautomation.Control, DictUiaAttr]
+    | tuple[None, DictHtmlAttr]
+    | tuple[None, DictImageAttr]
+):
     """Get a control or html and its attributes dictionary by selector, so the following code can use them."""
 
     validate_selector(selector=selector)
@@ -309,14 +410,17 @@ def get_element(
             return (controlTop, get_control_attr(control=controlTop))
 
         if selector.get("specification") is None:
-            raise ValueError(f"Could not find 'specification' value in the selector: {selector}")
+            raise ValueError(
+                f"Could not find 'specification' value in the selector: {selector}"
+            )
 
         # An uia or html element
 
         match selector.get("category"):
             case "uia":
                 controlTemp = get_child_control_by_selector(
-                    selectorUiaPart=ensure_selector_uia(selector)["specification"], controlTop=controlTop
+                    selectorUiaPart=ensure_selector_uia(selector)["specification"],
+                    controlTop=controlTop,
                 )
                 if _CommonValue.boolHighlightUi:
                     create_overlay(
@@ -340,7 +444,9 @@ def get_element(
                 if _CommonValue.boolHighlightUi:
                     tagName = dictAttr.get("tagName")
                     if not isinstance(tagName, str) or not tagName:
-                        raise UiElementNotFoundError(f"HTML element has no valid tagName. attr: {dictAttr}")
+                        raise UiElementNotFoundError(
+                            f"HTML element has no valid tagName. attr: {dictAttr}"
+                        )
 
                     create_overlay(
                         int(dictAttr["secondary-x"]),
@@ -380,7 +486,9 @@ def get_element(
                 )
                 # The list's length has limited by Index, but it may not find enough image(0 or less than Index+1), so check it.
                 if len(listDictImageAttr) < int(imageSelector.get("Index", "0")) + 1:
-                    raise UiElementNotFoundError(f"Not Found image element. selector's specification: {imageSelector}")
+                    raise UiElementNotFoundError(
+                        f"Not Found image element. selector's specification: {imageSelector}"
+                    )
                 # length = Index+1, return the last one.
 
                 if _CommonValue.boolHighlightUi:
@@ -396,7 +504,9 @@ def get_element(
                 return (None, listDictImageAttr[-1])
 
             case _:
-                raise ValueError(f"Could not find right 'category'(uia/html/image) value in the selector: {selector}")
+                raise ValueError(
+                    f"Could not find right 'category'(uia/html/image) value in the selector: {selector}"
+                )
 
 
 @overload
@@ -423,7 +533,11 @@ def get_element_with_pre_delay(
 def get_element_with_pre_delay(
     selector: Selector,
     preDelay: int = 300,
-) -> tuple[uiautomation.Control, DictUiaAttr] | tuple[None, DictHtmlAttr] | tuple[None, DictImageAttr]:
+) -> (
+    tuple[uiautomation.Control, DictUiaAttr]
+    | tuple[None, DictHtmlAttr]
+    | tuple[None, DictImageAttr]
+):
     """Calculate the time-consuming of get element, if it's more than preDelay, didn't need to delay."""
 
     timeStart = monotonic()
