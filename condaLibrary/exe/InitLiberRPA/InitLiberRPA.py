@@ -202,7 +202,9 @@ def create_native_messaging_file(rootPath: Path, userPath: Path) -> None:
         "type": "stdio",
         "allowed_origins": [
             "chrome-extension://cffobgimbemkfgjmcedebofkfcamnajb/",  # Web Store version
-            "chrome-extension://elnnnehambeohefmcdeiajpodhcdgigb/",  # Developing
+            # Developing
+            "chrome-extension://elnnnehambeohefmcdeiajpodhcdgigb/",
+            "chrome-extension://cfpkjecgmfmincccpnbheeeojdkooohj/",
         ],
     }
     pathNmFile.write_text(json.dumps(dictNM, indent=4), encoding="utf-8")

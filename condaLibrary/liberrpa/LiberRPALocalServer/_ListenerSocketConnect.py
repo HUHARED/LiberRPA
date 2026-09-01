@@ -28,9 +28,10 @@ SET_ALLOWED_UI_ANALYZER_ORIGINS = {
     "file://",
 }
 SET_ALLOWED_CHROME_EXTENSION_ORIGINS = {
-    # Without the final "/"
+    # NOTE: Without the final "/"
     "chrome-extension://cffobgimbemkfgjmcedebofkfcamnajb",
     "chrome-extension://elnnnehambeohefmcdeiajpodhcdgigb",
+    "chrome-extension://cfpkjecgmfmincccpnbheeeojdkooohj",
 }
 
 

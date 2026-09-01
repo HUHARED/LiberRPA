@@ -27,6 +27,7 @@ sioServer = SocketIO(
         "file://",
         "chrome-extension://cffobgimbemkfgjmcedebofkfcamnajb",
         "chrome-extension://elnnnehambeohefmcdeiajpodhcdgigb",
+        "chrome-extension://cfpkjecgmfmincccpnbheeeojdkooohj",
     ],
     async_mode="threading",
 )
@@ -51,7 +52,10 @@ def _check_port_in_use(port: int) -> bool:
 def _check_if_liberrpa_server_has_run(port: int) -> bool:
     try:
         response = requests.get(f"http://127.0.0.1:{port}/verify", timeout=2)
-        if response.status_code == 200 and response.text == "LiberRPA Local Server Verification":
+        if (
+            response.status_code == 200
+            and response.text == "LiberRPA Local Server Verification"
+        ):
             return True
     except requests.exceptions.RequestException:
         return False
@@ -75,7 +79,9 @@ def create_flask_server(port: int) -> None:
         if _check_if_liberrpa_server_has_run(port=port):
             strMessage = "There is already a LiberRPA Local Server running."
             Log.debug(strMessage)
-            show_notification(title="LiberRPA Local Server", message=strMessage, duration=3, wait=True)
+            show_notification(
+                title="LiberRPA Local Server", message=strMessage, duration=3, wait=True
+            )
             boolHasRunServer = True
         else:
             show_message_box(
@@ -99,5 +105,11 @@ def create_flask_server(port: int) -> None:
             )
 
         except Exception as e:
-            show_message_box(title="Failed to start LiberRPA Local Server", type="error", message=str(get_exception_info(e)))
-            raise Exception(f"Failed to start Flask server on port {port}: {str(get_exception_info(e))}")
+            show_message_box(
+                title="Failed to start LiberRPA Local Server",
+                type="error",
+                message=str(get_exception_info(e)),
+            )
+            raise Exception(
+                f"Failed to start Flask server on port {port}: {str(get_exception_info(e))}"
+            )
