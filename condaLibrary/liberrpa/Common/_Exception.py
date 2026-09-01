@@ -13,35 +13,47 @@ from typing import TypedDict
 class UiElementNotFoundError(Exception):
     """Custom exception for UI not found"""
 
-    def __init__(self, message: str = "Not found the target element.", *args: object) -> None:
+    def __init__(
+        self, message: str = "Not found the target element.", *args: object
+    ) -> None:
         super().__init__(message, *args)
 
 
 class UiTimeoutError(Exception):
     """Custom exception for UI operation timeout"""
 
-    def __init__(self, message: str = "Timeout for UI operation exceeded.", *args: object) -> None:
+    def __init__(
+        self, message: str = "Timeout for UI operation exceeded.", *args: object
+    ) -> None:
         super().__init__(message, *args)
 
 
 class UiWaitTimeoutError(UiTimeoutError):
     """Base exception for UI wait timeout."""
 
-    def __init__(self, message: str = "Timeout for UI wait operation exceeded.", *args: object) -> None:
+    def __init__(
+        self, message: str = "Timeout for UI wait operation exceeded.", *args: object
+    ) -> None:
         super().__init__(message, *args)
 
 
 class UiElementAppearTimeoutError(UiWaitTimeoutError):
     """Timeout while waiting for a UI element to appear."""
 
-    def __init__(self, message: str = "Timeout exceeded for UI element to appear.", *args: object) -> None:
+    def __init__(
+        self, message: str = "Timeout exceeded for UI element to appear.", *args: object
+    ) -> None:
         super().__init__(message, *args)
 
 
 class UiElementDisappearTimeoutError(UiWaitTimeoutError):
     """Timeout while waiting for a UI element to disappear."""
 
-    def __init__(self, message: str = "Timeout exceeded for UI element to disappear.", *args: object) -> None:
+    def __init__(
+        self,
+        message: str = "Timeout exceeded for UI element to disappear.",
+        *args: object,
+    ) -> None:
         super().__init__(message, *args)
 
 
@@ -79,36 +91,53 @@ class UiSelectorError(ValueError):
 class UiOperationError(Exception):
     """Custom exception for unsupported or failed UI operations."""
 
-    def __init__(self, message: str = "Failed to perform the UI operation.", *args: object) -> None:
+    def __init__(
+        self, message: str = "Failed to perform the UI operation.", *args: object
+    ) -> None:
         super().__init__(message, *args)
 
 
 class ChromeCommandError(Exception):
     """Custom exception for Chrome manipulation."""
 
-    def __init__(self, message: str = "Error when manipulating Chrome.", *args: object) -> None:
+    def __init__(
+        self, message: str = "Error when manipulating Chrome.", *args: object
+    ) -> None:
         super().__init__(message, *args)
 
 
 class ChromeElementNotFoundError(ChromeCommandError):
     """Chrome command succeeded, but the target HTML element was not found."""
 
-    def __init__(self, message: str = "Not found the target element in Chrome.", *args: object) -> None:
+    def __init__(
+        self, message: str = "Not found the target element in Chrome.", *args: object
+    ) -> None:
         super().__init__(message, *args)
 
 
 class MailError(Exception):
     """Custom exception for Mail manipulation."""
 
-    def __init__(self, message: str = "Error when manipulating Mail.", *args: object) -> None:
+    def __init__(
+        self, message: str = "Error when manipulating Mail.", *args: object
+    ) -> None:
         super().__init__(message, *args)
 
 
 class QtError(Exception):
     """Custom exception for QtWorker."""
 
-    def __init__(self, message: str = "Error when manipulating QT object.", *args: object) -> None:
+    def __init__(
+        self, message: str = "Error when manipulating QT object.", *args: object
+    ) -> None:
         super().__init__(message, *args)
+
+
+class DictExceptionFrame(TypedDict):
+    fileName: str
+    lineNumber: int | None
+    functionName: str
+    code: str
 
 
 class DictExceptionInfo(TypedDict):
@@ -117,13 +146,27 @@ class DictExceptionInfo(TypedDict):
     fileName: str
     lineNumber: int | None
     process: str
+    traceback: list[DictExceptionFrame]
 
 
 def get_exception_info(ex: Exception) -> DictExceptionInfo:
     excTraceback = ex.__traceback__
 
+    listTraceback: list[DictExceptionFrame] = []
+
     if excTraceback is not None:
-        lastFrame = traceback.extract_tb(excTraceback)[-1]
+        listFrame = traceback.extract_tb(excTraceback)
+
+        for frame in listFrame:
+            dictFrame: DictExceptionFrame = {
+                "fileName": frame.filename,
+                "lineNumber": frame.lineno,
+                "functionName": frame.name,
+                "code": frame.line or "",
+            }
+            listTraceback.append(dictFrame)
+
+        lastFrame = listFrame[-1]
         fileName = lastFrame.filename
         lineNumber = lastFrame.lineno
     else:
@@ -136,4 +179,5 @@ def get_exception_info(ex: Exception) -> DictExceptionInfo:
         "fileName": fileName,
         "lineNumber": lineNumber,
         "process": PROCESS_NAME,
+        "traceback": listTraceback,
     }

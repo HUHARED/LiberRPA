@@ -783,12 +783,14 @@ class Logger:
 
     def exception_info(self, exObj: Exception) -> None:
         """
-        Record the Exception object's 'type', 'message', 'fileName' and 'lineNumber' in a dict format and "ERROR" log level, only if the current log level allows it.
+        Record structured exception information at the ERROR log level.
+
+        The recorded information includes the exception type, message, final error location, process name, and traceback frames from the outermost call to the frame where the exception was raised.
 
         Parameters:
             exObj: The Exception object to record.
         """
-        self.error_pretty(get_exception_info(exObj))
+        self.error_pretty(get_exception_info(ex=exObj))
 
 
 # Log is a variable but I hope user treat it as a module, so use UpperCamelCase to match other LiberRPA modules' convention.
