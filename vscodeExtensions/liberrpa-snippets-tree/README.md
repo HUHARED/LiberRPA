@@ -50,13 +50,13 @@ Type a Snippet prefix or a meaningful part of its API name in a Python file, the
 
 LiberRPA Snippet completions supplement normal Python IntelliSense, so local variables, functions, types, and other Python completions remain available.
 
-| Search | Example completion |
-| --- | --- |
-| `deb` | `Log.debug` |
-| `ini` | `File.ini_get_all_sections` |
-| `upper` or `to_upper` | `Str.case_to_upper` |
-| `exop` | `Excel.open_excel_file` |
-| `Excel.op` | `Excel.open_excel_file` |
+| Search                    | Example completion            |
+| ------------------------- | ----------------------------- |
+| `deb`                   | `Log.debug`                 |
+| `ini`                   | `File.ini_get_all_sections` |
+| `upper` or `to_upper` | `Str.case_to_upper`         |
+| `exop`                  | `Excel.open_excel_file`     |
+| `Excel.op`              | `Excel.open_excel_file`     |
 
 You can search by the beginning of an API name, a meaningful word within the name, or a short abbreviation built from consecutive parts of the API name. Adding the module name, such as `Excel.op`, limits the search to that LiberRPA module.
 
@@ -86,6 +86,7 @@ from liberrpa.Modules import (
     Mouse,
     PrjArgs,
 )
+
 # ruff: isort: on
 # </LiberRPA imports: managed>
 ```

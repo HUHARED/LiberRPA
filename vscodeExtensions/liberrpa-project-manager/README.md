@@ -114,6 +114,7 @@ LiberRPA can generate Component Snippets from public top-level synchronous funct
 from liberrpa.Modules import (
     delay,
 )
+
 # ruff: isort: on
 # </LiberRPA imports: managed>
 
@@ -141,6 +142,7 @@ Store Component-owned resources under the Component package and resolve them wit
 from liberrpa.Modules import (
     get_component_resource_path,
 )
+
 # ruff: isort: on
 # </LiberRPA imports: managed>
 
@@ -427,11 +429,11 @@ Treat the generated Package as an immutable deployment artifact. Executor instal
 
 The following Project-root entries are excluded by default because Executor does not require them:
 
-| Entry | Include it when |
-| --- | --- |
-| `.vscode/` | The packaged Project will also be opened in VS Code and should retain Project-specific editor and run/debug settings. |
-| `_Test/` | Test scripts, sample data, or verification files are required for deployment validation or troubleshooting. |
-| `.git` | An intentional source-control transfer is required. `.git` may contain the complete Repository history and substantially increase the Package size. |
+| Entry        | Include it when                                                                                                                                      |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.vscode/` | The packaged Project will also be opened in VS Code and should retain Project-specific editor and run/debug settings.                                |
+| `_Test/`   | Test scripts, sample data, or verification files are required for deployment validation or troubleshooting.                                          |
+| `.git`     | An intentional source-control transfer is required.`.git` may contain the complete Repository history and substantially increase the Package size. |
 
 Review `_Test` for credentials, customer data, and environment-specific values before including it.
 

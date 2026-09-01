@@ -20,6 +20,7 @@ from liberrpa.Modules import (
 from ExcelTools import (
     Workbook as ExcelTools_Workbook,
 )
+
 # ruff: isort: on
 # </LiberRPA imports: managed>
 
@@ -447,7 +448,7 @@ function parseExistingManagedImports(
       continue;
     }
 
-    // Blank lines remain accepted for compatibility with blocks created by older versions. The rebuilt block removes them.
+    // Blank lines remain accepted for compatibility with blocks created by older versions. The rebuilt block normalizes their placement.
     if (strText === "") {
       continue;
     }
@@ -672,6 +673,8 @@ function buildManagedImportBlock(
     arrLine.push(")");
   }
 
+  // Match Ruff's formatting so managed-import updates do not create a formatting-only diff.
+  arrLine.push("");
   arrLine.push(STR_MANAGED_IMPORT_ISORT_ON);
   arrLine.push(STR_MANAGED_IMPORT_END);
   return arrLine.join(strEol);
