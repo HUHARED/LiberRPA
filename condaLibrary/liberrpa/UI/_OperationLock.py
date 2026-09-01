@@ -7,7 +7,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from liberrpa.Common._Exception import UiUnstoppableThreadError
 
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from functools import wraps
 import threading
@@ -56,7 +56,7 @@ def _raise_if_ui_operation_unsafe() -> None:
 
 
 @contextmanager
-def ui_operation_context() -> Iterator[None]:
+def ui_operation_context() -> Generator[None]:
     """Serialize UI operations in the current Python process."""
 
     # Fail quickly, to avoid waiting for the lock even though it is unsafe.

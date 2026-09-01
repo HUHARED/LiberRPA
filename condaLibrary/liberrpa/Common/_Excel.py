@@ -16,14 +16,16 @@ import pywintypes
 import re
 from datetime import datetime
 from contextlib import contextmanager
-from collections.abc import Iterator
+from collections.abc import Generator
 import threading
 import os
 from typing import Literal, cast
 
 
 if not hasattr(_xwWindows, "N_COM_ATTEMPTS") or not hasattr(_xwWindows, "ExcelBusyError"):
-    raise RuntimeError("The installed xlwings version is incompatible with LiberRPA's Excel integration.")
+    raise RuntimeError(
+        "The installed xlwings version is incompatible with LiberRPA's Excel integration."
+    )
 
 # xlwings uses 0 for indefinite retries. Raise after the first failed COM attempt instead.
 _xwWindows.N_COM_ATTEMPTS = 1
@@ -162,7 +164,9 @@ def _register_shared_app_state(appState: _ExcelAppState) -> None:
     global _sharedAppState
 
     if _sharedAppState is not None and _sharedAppState is not appState:
-        raise ExcelError("A different shared Excel application state is already registered.")
+        raise ExcelError(
+            "A different shared Excel application state is already registered."
+        )
 
     _sharedAppState = appState
 
@@ -275,7 +279,9 @@ class ExcelObj:
     def _ensure_open(self) -> None:
         # Intentionally check only LiberRPA's lifecycle flag here. Probing a live COM property on every call would add overhead and could not reliably distinguish an externally closed workbook from a temporarily busy Excel.
         if self._boolClosed:
-            raise ExcelError(f"The Excel object for {self.path!r} has already been closed.")
+            raise ExcelError(
+                f"The Excel object for {self.path!r} has already been closed."
+            )
 
     def __str__(self) -> str:
         self._ensure_open()
@@ -372,7 +378,7 @@ def _unregister_managed_excel_obj(excelObj: ExcelObj) -> None:
 
 
 @contextmanager
-def _temporary_display_alerts(excelObj: ExcelObj, value: bool) -> Iterator[None]:
+def _temporary_display_alerts(excelObj: ExcelObj, value: bool) -> Generator[None]:
     """Temporarily set DisplayAlerts without masking the operation result."""
 
     appState = excelObj._appState
@@ -390,7 +396,9 @@ def _temporary_display_alerts(excelObj: ExcelObj, value: bool) -> Iterator[None]
         except Exception as restoreError:
             if boolOperationFailed:
                 # Keep propagating the original Excel operation exception.
-                Log.error(f"Failed to restore Excel.DisplayAlerts after an operation error: {restoreError}")
+                Log.error(
+                    f"Failed to restore Excel.DisplayAlerts after an operation error: {restoreError}"
+                )
             else:
                 # The irreversible Excel operation has already completed.
                 # A UI-state cleanup error must not encourage the caller to retry a completed save or deletion.
@@ -459,7 +467,9 @@ def _save_as(
         strOldRawFullName: str | None = str(bookApi.FullName)
     except Exception as metadataError:
         strOldRawFullName = None
-        Log.warning(f"The workbook's identity could not be read before SaveAs: {metadataError}")
+        Log.warning(
+            f"The workbook's identity could not be read before SaveAs: {metadataError}"
+        )
 
     with _temporary_display_alerts(excelObj=excelObj, value=False):
         bookApi.SaveAs(
@@ -470,7 +480,9 @@ def _save_as(
 
         # The target did not exist before this operation. If it still does not exist, SaveAs was not completed.
         if not Path(strPath).is_file():
-            raise ExcelError(f"Excel returned from SaveAs, but the requested target file was not created: {strPath!r}.")
+            raise ExcelError(
+                f"Excel returned from SaveAs, but the requested target file was not created: {strPath!r}."
+            )
 
         try:
             strNewRawFullName: str | None = str(bookApi.FullName)
@@ -538,7 +550,9 @@ def _quit_excel_app_best_effort(
             try:
                 appState.api.DisplayAlerts = boolDisplayAlerts
             except Exception as restoreError:
-                Log.error(f"Failed to restore Excel.DisplayAlerts after quit failed: {restoreError}")
+                Log.error(
+                    f"Failed to restore Excel.DisplayAlerts after quit failed: {restoreError}"
+                )
 
         Log.error(f"{failureContext}: {quitError}")
 
@@ -550,7 +564,7 @@ def _quit_excel_app_best_effort(
 
 
 @contextmanager
-def _excel_operation(excelObj: ExcelObj) -> Iterator[None]:
+def _excel_operation(excelObj: ExcelObj) -> Generator[None]:
     """
     Protect one complete Excel automation operation.
 
@@ -564,7 +578,9 @@ def _excel_operation(excelObj: ExcelObj) -> Iterator[None]:
     appState = excelObj._appState
 
     if threading.current_thread() is not appState.ownerThread:
-        raise ExcelError("ExcelObj must be used on the same COM thread on which it was opened or bound.")
+        raise ExcelError(
+            "ExcelObj must be used on the same COM thread on which it was opened or bound."
+        )
 
     boolOutermostOperation = appState.operationDepth == 0
     appState.operationDepth += 1
@@ -591,7 +607,9 @@ def _excel_operation(excelObj: ExcelObj) -> Iterator[None]:
                 raise ExcelBusyError(_STR_EXCEL_BUSY_ERROR_MESSAGE) from e
             except pywintypes.com_error as e:
                 # Excel commonly returns 0x800A03EC specifically when the Interactive property cannot be changed during cell editing.
-                if _is_excel_busy_error(e) or _INT_EXCEL_E_APPLICATION_DEFINED in _get_com_error_codes(e):
+                if _is_excel_busy_error(
+                    e
+                ) or _INT_EXCEL_E_APPLICATION_DEFINED in _get_com_error_codes(e):
                     raise ExcelBusyError(_STR_EXCEL_BUSY_ERROR_MESSAGE) from e
                 raise
 
@@ -626,7 +644,9 @@ def _excel_operation(excelObj: ExcelObj) -> Iterator[None]:
 
             except Exception as restoreError:
                 if boolOperationFailed:
-                    Log.error(f"Failed to restore Excel.Interactive after an operation error: {restoreError}")
+                    Log.error(
+                        f"Failed to restore Excel.Interactive after an operation error: {restoreError}"
+                    )
                 else:
                     raise ExcelError(
                         "The Excel operation completed, but keyboard and mouse input could not be restored."
@@ -655,7 +675,9 @@ def _check_and_standardize_sheet(excelObj: ExcelObj, sheet: ExcelSheet) -> str:
         for existingName in listSheetName:
             if existingName.casefold() == strSheetCasefold:
                 return existingName
-        raise ExcelError(f"The sheet ({sheet}) does not exist. The current sheets: {listSheetName}")
+        raise ExcelError(
+            f"The sheet ({sheet}) does not exist. The current sheets: {listSheetName}"
+        )
 
     if sheet < 0:
         raise ExcelError(f"The sheet index ({sheet}) must be greater than or equal to 0.")
@@ -666,7 +688,7 @@ def _check_and_standardize_sheet(excelObj: ExcelObj, sheet: ExcelSheet) -> str:
         )
 
     strSheet = excelObj._book.sheets[sheet].name
-    Log.debug("sheet standardized=" + strSheet)
+    Log.verbose("sheet standardized=" + strSheet)
     return strSheet
 
 
@@ -678,7 +700,9 @@ def _check_sheet_name_compliance(sheetName: str) -> None:
         raise ValueError("Sheet name must not be empty.")
 
     if len(sheetName) > 31:
-        raise ValueError(f"Sheet name must not be longer than 31 characters. Current length: {len(sheetName)}.")
+        raise ValueError(
+            f"Sheet name must not be longer than 31 characters. Current length: {len(sheetName)}."
+        )
 
     setInvalidChars = set(sheetName) & _SET_INVALID_SHEET_NAME_CHARS
     if setInvalidChars:
@@ -708,7 +732,9 @@ def _check_sheet_name_available(
             continue
 
         if existingName.casefold() == sheetName.casefold():
-            raise ValueError(f"The sheet name {sheetName!r} is already in use. Current sheets: {listCurrentSheetName}")
+            raise ValueError(
+                f"The sheet name {sheetName!r} is already in use. Current sheets: {listCurrentSheetName}"
+            )
 
 
 def _get_excel_grid_limits(excelObj: ExcelObj | None = None) -> tuple[int, int]:
@@ -730,7 +756,9 @@ def _validate_excel_column_number(
 
     intMaxColumn, _ = _get_excel_grid_limits(excelObj=excelObj)
     if not 1 <= column <= intMaxColumn:
-        raise ValueError(f"Excel column number must be between 1 and {intMaxColumn}. Current value: {column}.")
+        raise ValueError(
+            f"Excel column number must be between 1 and {intMaxColumn}. Current value: {column}."
+        )
 
     return column
 
@@ -745,7 +773,9 @@ def _validate_excel_row_number(
 
     _, intMaxRow = _get_excel_grid_limits(excelObj=excelObj)
     if not 1 <= row <= intMaxRow:
-        raise ValueError(f"Excel row number must be between 1 and {intMaxRow}. Current value: {row}.")
+        raise ValueError(
+            f"Excel row number must be between 1 and {intMaxRow}. Current value: {row}."
+        )
 
     return row
 
@@ -804,7 +834,7 @@ def _check_and_standardize_cell(
     else:
         raise ValueError("The argument 'cell' must be a string or list[int].")
 
-    Log.debug(f"cell standardized={strCell}")
+    Log.verbose(f"cell standardized={strCell}")
     return strCell
 
 
@@ -849,7 +879,7 @@ def _check_and_standardize_column(
     else:
         raise ValueError("The argument 'column' must be an int or string.")
 
-    Log.debug(f"column standardized={strColumn}")
+    Log.verbose(f"column standardized={strColumn}")
     return strColumn
 
 
@@ -897,7 +927,9 @@ def _find_last_value_or_formula_cell(
     return max(listFoundCell, key=lambda cell: (cell[1], cell[0]))
 
 
-def _get_last_row(excelObj: ExcelObj, sheet: ExcelSheet, col: str | int | None = None) -> int:
+def _get_last_row(
+    excelObj: ExcelObj, sheet: ExcelSheet, col: str | int | None = None
+) -> int:
     with _excel_operation(excelObj=excelObj):
         sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
 
@@ -917,7 +949,9 @@ def _get_last_row(excelObj: ExcelObj, sheet: ExcelSheet, col: str | int | None =
             return sheetObj.range(f"{col}{intMaxRow}").end("up").row
 
 
-def _get_last_column(excelObj: ExcelObj, sheet: ExcelSheet, row: int | None = None) -> tuple[str, int]:
+def _get_last_column(
+    excelObj: ExcelObj, sheet: ExcelSheet, row: int | None = None
+) -> tuple[str, int]:
     if row is not None:
         row = _validate_excel_row_number(row, excelObj=excelObj)
 
@@ -934,7 +968,9 @@ def _get_last_column(excelObj: ExcelObj, sheet: ExcelSheet, row: int | None = No
             intCol = lastCell[1] if lastCell is not None else 1
         else:
             intMaxColumn, _ = _get_excel_grid_limits(excelObj=excelObj)
-            strLastColumn = _convert_col_num_to_str(colNum=intMaxColumn, excelObj=excelObj)
+            strLastColumn = _convert_col_num_to_str(
+                colNum=intMaxColumn, excelObj=excelObj
+            )
             intCol = sheetObj.range(f"{strLastColumn}{row}").end("left").column
 
         strCol = _convert_col_num_to_str(colNum=intCol, excelObj=excelObj)
@@ -942,7 +978,9 @@ def _get_last_column(excelObj: ExcelObj, sheet: ExcelSheet, row: int | None = No
         return strCol, intCol
 
 
-def _get_endCell_if_not_provided(excelObj: ExcelObj, sheet: ExcelSheet, endCell: ExcelCell | None) -> str:
+def _get_endCell_if_not_provided(
+    excelObj: ExcelObj, sheet: ExcelSheet, endCell: ExcelCell | None
+) -> str:
     # Determine the end cell if not provided
     if endCell is not None:
         endCell = _check_and_standardize_cell(cell=endCell, excelObj=excelObj)
@@ -951,7 +989,7 @@ def _get_endCell_if_not_provided(excelObj: ExcelObj, sheet: ExcelSheet, endCell:
         endCell = _get_last_column(excelObj=excelObj, sheet=sheet, row=None)[0] + str(
             _get_last_row(excelObj=excelObj, sheet=sheet, col=None)
         )
-        Log.debug(f"The argument endCell is None, get the last cell({endCell}).")
+        Log.verbose(f"The argument endCell is None, get the last cell({endCell}).")
 
     return endCell
 
@@ -971,7 +1009,9 @@ def _validate_range_order(
     )
 
     if startCol > endCol or startRow > endRow:
-        raise ValueError(f"startCell {startCell!r} must not be below or to the right of endCell {endCell!r}.")
+        raise ValueError(
+            f"startCell {startCell!r} must not be below or to the right of endCell {endCell!r}."
+        )
 
 
 def _read_range(
@@ -984,7 +1024,9 @@ def _read_range(
 ) -> list[list[str]] | list[list[ExcelCellValue]]:
     sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
     startCell = _check_and_standardize_cell(cell=startCell, excelObj=excelObj)
-    endCell = _get_endCell_if_not_provided(excelObj=excelObj, sheet=sheet, endCell=endCell)
+    endCell = _get_endCell_if_not_provided(
+        excelObj=excelObj, sheet=sheet, endCell=endCell
+    )
 
     _validate_range_order(excelObj=excelObj, startCell=startCell, endCell=endCell)
 
@@ -1015,7 +1057,7 @@ def _read_range(
 
 
 @contextmanager
-def _preserve_screen_updating(excelObj: ExcelObj) -> Iterator[None]:
+def _preserve_screen_updating(excelObj: ExcelObj) -> Generator[None]:
     """
     Temporarily disable ScreenUpdating without masking an operation error.
     """
@@ -1036,7 +1078,9 @@ def _preserve_screen_updating(excelObj: ExcelObj) -> Iterator[None]:
         except Exception as restoreError:
             if boolOperationFailed:
                 # Keep propagating the original write exception.
-                Log.error(f"Failed to restore Excel.ScreenUpdating after an operation error: {restoreError}")
+                Log.error(
+                    f"Failed to restore Excel.ScreenUpdating after an operation error: {restoreError}"
+                )
             else:
                 # The write has already succeeded. Do not make the caller
                 # retry a completed write because of a UI-state cleanup error.

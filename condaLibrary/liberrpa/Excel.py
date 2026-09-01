@@ -130,7 +130,9 @@ def open_excel_file(
         raise ExcelError("readOnly=True cannot be used when creating a new workbook.")
 
     if not boolFileExists and writePassword:
-        raise ExcelError("writePassword is only used when opening an existing write-reserved workbook.")
+        raise ExcelError(
+            "writePassword is only used when opening an existing write-reserved workbook."
+        )
 
     workbookKey = _get_workbook_key(strPath)
     appState, boolNewState = _get_or_create_shared_app_state(visible=visible)
@@ -214,7 +216,9 @@ def open_excel_file(
             try:
                 excelObj._book.close()
             except Exception as cleanupError:
-                Log.error(f"Failed to close the workbook after opening it failed: {cleanupError}")
+                Log.error(
+                    f"Failed to close the workbook after opening it failed: {cleanupError}"
+                )
 
         if boolNewState:
             _unregister_shared_app_state(appState)
@@ -467,7 +471,9 @@ def close(excelObj: ExcelObj, save: bool = True) -> None:
             if appState.excelObjCount == 0:
                 # Quit the Excel instance only if LiberRPA created it and no workbook remains open.
                 try:
-                    boolShouldQuit = appState.ownsApp and int(appState.api.Workbooks.Count) == 0
+                    boolShouldQuit = (
+                        appState.ownsApp and int(appState.api.Workbooks.Count) == 0
+                    )
 
                 except Exception as cleanupError:
                     Log.error(
@@ -511,7 +517,9 @@ def activate_window(excelObj: ExcelObj) -> None:
 
 
 @Log.trace()
-def get_last_row(excelObj: ExcelObj, sheet: ExcelSheet, col: str | int | None = None) -> int:
+def get_last_row(
+    excelObj: ExcelObj, sheet: ExcelSheet, col: str | int | None = None
+) -> int:
     """
     Get the last row number of a given sheet.
 
@@ -529,7 +537,9 @@ def get_last_row(excelObj: ExcelObj, sheet: ExcelSheet, col: str | int | None = 
 
 
 @Log.trace()
-def get_last_column(excelObj: ExcelObj, sheet: ExcelSheet, row: int | None = None) -> tuple[str, int]:
+def get_last_column(
+    excelObj: ExcelObj, sheet: ExcelSheet, row: int | None = None
+) -> tuple[str, int]:
     """
     Get the last column (number or name) of a given sheet.
 
@@ -617,7 +627,7 @@ def read_cell(
         sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
         cell = _check_and_standardize_cell(cell=cell, excelObj=excelObj)
 
-        Log.debug("Reading cell=" + cell)
+        Log.verbose("Reading cell=" + cell)
         if returnDisplayed:
             return excelObj._book.sheets[sheet].range(cell).api.Text
         else:
@@ -666,14 +676,20 @@ def read_row(
         startCell = _check_and_standardize_cell(cell=startCell, excelObj=excelObj)
 
         # Extract row and column information from the starting cell
-        _, intColStart, intRowStart = _extract_row_column_from_cell(cell=startCell, excelObj=excelObj)
+        _, intColStart, intRowStart = _extract_row_column_from_cell(
+            cell=startCell, excelObj=excelObj
+        )
 
         # Get the last column in the specified row
-        strColStop, intColStop = get_last_column(excelObj=excelObj, sheet=sheet, row=intRowStart)
+        strColStop, intColStop = get_last_column(
+            excelObj=excelObj, sheet=sheet, row=intRowStart
+        )
 
         # Check if the starting cell is beyond the last cell containing a value or formula in the row
         if intColStart > intColStop:
-            Log.warning(f"The startCell({startCell}) is more right than the last cell in the row. Return empty list.")
+            Log.warning(
+                f"The startCell({startCell}) is more right than the last cell in the row. Return empty list."
+            )
             return []
 
         strRange = f"{startCell}:{strColStop}{intRowStart}"
@@ -733,14 +749,18 @@ def read_column(
         startCell = _check_and_standardize_cell(cell=startCell, excelObj=excelObj)
 
         # Extract row and column information from the starting cell
-        strColStart, _, intRowStart = _extract_row_column_from_cell(cell=startCell, excelObj=excelObj)
+        strColStart, _, intRowStart = _extract_row_column_from_cell(
+            cell=startCell, excelObj=excelObj
+        )
 
         # Get the last row in the specified column
         intRowStop = get_last_row(excelObj=excelObj, sheet=sheet, col=strColStart)
 
         # Check if the starting cell is below the last cell containing a value or formula in the column
         if intRowStart > intRowStop:
-            Log.warning(f"The startCell({startCell}) is more down than the last cell in the column. Return empty list.")
+            Log.warning(
+                f"The startCell({startCell}) is more down than the last cell in the column. Return empty list."
+            )
             return []
 
         strRange = f"{startCell}:{strColStart}{intRowStop}"
@@ -848,7 +868,9 @@ def read_range_df(
         if addTitle:
             # Constructing an Index makes the supported pandas columns type explicit and avoids an invariant list union in Pylance.
             columnIndex = pandas.Index(listRange[0])
-            dfRange = pandas.DataFrame(data=listRange[1:], index=None, columns=columnIndex)
+            dfRange = pandas.DataFrame(
+                data=listRange[1:], index=None, columns=columnIndex
+            )
         else:
             dfRange = pandas.DataFrame(data=listRange, index=None, columns=None)
 
@@ -877,7 +899,7 @@ def write_cell(
         sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
         cell = _check_and_standardize_cell(cell=cell, excelObj=excelObj)
 
-        Log.debug(f"Writing cell: {cell}")
+        Log.verbose(f"Writing cell: {cell}")
         excelObj._book.sheets[sheet].range(cell).value = data
 
         if save:
@@ -910,8 +932,12 @@ def write_row(
         startCell = _check_and_standardize_cell(cell=startCell, excelObj=excelObj)
 
         # For debugging purposes, print the range.
-        _, intColStart, intRowStart = _extract_row_column_from_cell(cell=startCell, excelObj=excelObj)
-        intColEnd = _validate_excel_column_number(intColStart + len(data) - 1, excelObj=excelObj)
+        _, intColStart, intRowStart = _extract_row_column_from_cell(
+            cell=startCell, excelObj=excelObj
+        )
+        intColEnd = _validate_excel_column_number(
+            intColStart + len(data) - 1, excelObj=excelObj
+        )
         strColEnd = convert_col_num_to_str(colNum=intColEnd)
         endCell = strColEnd + str(intRowStart)
         strRange = f"{startCell}:{endCell}"
@@ -950,14 +976,20 @@ def write_column(
         startCell = _check_and_standardize_cell(cell=startCell, excelObj=excelObj)
 
         # For debugging purposes, print the range.
-        strColStart, _, intRowStart = _extract_row_column_from_cell(cell=startCell, excelObj=excelObj)
-        intRowEnd = _validate_excel_row_number(intRowStart + len(data) - 1, excelObj=excelObj)
+        strColStart, _, intRowStart = _extract_row_column_from_cell(
+            cell=startCell, excelObj=excelObj
+        )
+        intRowEnd = _validate_excel_row_number(
+            intRowStart + len(data) - 1, excelObj=excelObj
+        )
         endCell = strColStart + str(intRowEnd)
         strRange = f"{startCell}:{endCell}"
         Log.debug(f"Writing range: {strRange}")
 
         with _preserve_screen_updating(excelObj=excelObj):
-            excelObj._book.sheets[sheet].range(startCell).options(transpose=True).value = data
+            excelObj._book.sheets[sheet].range(startCell).options(
+                transpose=True
+            ).value = data
 
         if save:
             _save(excelObj=excelObj)
@@ -998,14 +1030,22 @@ def write_range(
         startCell = _check_and_standardize_cell(cell=startCell, excelObj=excelObj)
 
         # For debugging purposes, print the range.
-        _, intColStart, intRowStart = _extract_row_column_from_cell(cell=startCell, excelObj=excelObj)
+        _, intColStart, intRowStart = _extract_row_column_from_cell(
+            cell=startCell, excelObj=excelObj
+        )
         if isinstance(data, pandas.DataFrame):
             intColEnd = intColStart + len(data.columns) - 1
-            intRowEnd = intRowStart + len(data) if writeTitleRow else intRowStart + len(data) - 1
+            intRowEnd = (
+                intRowStart + len(data) if writeTitleRow else intRowStart + len(data) - 1
+            )
 
         else:
             intColEnd = intColStart + len(data[0]) - 1
-            intRowEnd = intRowStart + len(data) - 1 if writeTitleRow else intRowStart + len(data) - 2
+            intRowEnd = (
+                intRowStart + len(data) - 1
+                if writeTitleRow
+                else intRowStart + len(data) - 2
+            )
 
         intColEnd = _validate_excel_column_number(intColEnd, excelObj=excelObj)
         intRowEnd = _validate_excel_row_number(intRowEnd, excelObj=excelObj)
@@ -1017,7 +1057,9 @@ def write_range(
 
         with _preserve_screen_updating(excelObj=excelObj):
             if isinstance(data, pandas.DataFrame):
-                excelObj._book.sheets[sheet].range(startCell).options(index=False, header=writeTitleRow).value = data
+                excelObj._book.sheets[sheet].range(startCell).options(
+                    index=False, header=writeTitleRow
+                ).value = data
             else:
                 if writeTitleRow:
                     excelObj._book.sheets[sheet].range(startCell).value = data
@@ -1054,14 +1096,18 @@ def insert_row(
         startCell = _check_and_standardize_cell(cell=startCell, excelObj=excelObj)
 
         # Validate the complete write range before inserting anything.
-        _, intColStart, intRowStart = _extract_row_column_from_cell(cell=startCell, excelObj=excelObj)
+        _, intColStart, intRowStart = _extract_row_column_from_cell(
+            cell=startCell, excelObj=excelObj
+        )
         _validate_excel_column_number(intColStart + len(data) - 1, excelObj=excelObj)
 
         excelObj._book.sheets[sheet].range(f"{intRowStart}:{intRowStart}").insert(
             shift="down", copy_origin="format_from_left_or_above"
         )
 
-        write_row(excelObj=excelObj, sheet=sheet, startCell=startCell, data=data, save=save)
+        write_row(
+            excelObj=excelObj, sheet=sheet, startCell=startCell, data=data, save=save
+        )
 
 
 @Log.trace()
@@ -1089,7 +1135,9 @@ def insert_column(
         sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
         startCell = _check_and_standardize_cell(cell=startCell, excelObj=excelObj)
 
-        strColStart, _, intRowStart = _extract_row_column_from_cell(cell=startCell, excelObj=excelObj)
+        strColStart, _, intRowStart = _extract_row_column_from_cell(
+            cell=startCell, excelObj=excelObj
+        )
 
         # Validate the complete write range before inserting anything.
         _validate_excel_row_number(intRowStart + len(data) - 1, excelObj=excelObj)
@@ -1098,11 +1146,15 @@ def insert_column(
             shift="right", copy_origin="format_from_left_or_above"
         )
 
-        write_column(excelObj=excelObj, sheet=sheet, startCell=startCell, data=data, save=save)
+        write_column(
+            excelObj=excelObj, sheet=sheet, startCell=startCell, data=data, save=save
+        )
 
 
 @Log.trace()
-def delete_row(excelObj: ExcelObj, sheet: ExcelSheet, cell: ExcelCell, save: bool = False) -> None:
+def delete_row(
+    excelObj: ExcelObj, sheet: ExcelSheet, cell: ExcelCell, save: bool = False
+) -> None:
     """
     Delete the entire row that contains the specified cell.
 
@@ -1118,16 +1170,20 @@ def delete_row(excelObj: ExcelObj, sheet: ExcelSheet, cell: ExcelCell, save: boo
 
         _, _, intRowStart = _extract_row_column_from_cell(cell=cell, excelObj=excelObj)
 
-        Log.debug(f"Deleting row: {intRowStart}")
+        Log.verbose(f"Deleting row: {intRowStart}")
 
-        excelObj._book.sheets[sheet].range(f"{intRowStart}:{intRowStart}").delete(shift="up")
+        excelObj._book.sheets[sheet].range(f"{intRowStart}:{intRowStart}").delete(
+            shift="up"
+        )
 
         if save:
             _save(excelObj=excelObj)
 
 
 @Log.trace()
-def delete_column(excelObj: ExcelObj, sheet: ExcelSheet, cell: ExcelCell, save: bool = False) -> None:
+def delete_column(
+    excelObj: ExcelObj, sheet: ExcelSheet, cell: ExcelCell, save: bool = False
+) -> None:
     """
     Delete the entire column that contains the specified cell.
 
@@ -1143,16 +1199,20 @@ def delete_column(excelObj: ExcelObj, sheet: ExcelSheet, cell: ExcelCell, save: 
 
         strColStart, _, _ = _extract_row_column_from_cell(cell=cell, excelObj=excelObj)
 
-        Log.debug(f"Deleting column: {strColStart}")
+        Log.verbose(f"Deleting column: {strColStart}")
 
-        excelObj._book.sheets[sheet].range(f"{strColStart}:{strColStart}").delete(shift="left")
+        excelObj._book.sheets[sheet].range(f"{strColStart}:{strColStart}").delete(
+            shift="left"
+        )
 
         if save:
             _save(excelObj=excelObj)
 
 
 @Log.trace()
-def select_range(excelObj: ExcelObj, sheet: ExcelSheet, startCell: ExcelCell, endCell: ExcelCell | None) -> None:
+def select_range(
+    excelObj: ExcelObj, sheet: ExcelSheet, startCell: ExcelCell, endCell: ExcelCell | None
+) -> None:
     """
     Select the specific range.
 
@@ -1165,7 +1225,9 @@ def select_range(excelObj: ExcelObj, sheet: ExcelSheet, startCell: ExcelCell, en
     with _excel_operation(excelObj=excelObj):
         sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
         startCell = _check_and_standardize_cell(cell=startCell, excelObj=excelObj)
-        endCell = _get_endCell_if_not_provided(excelObj=excelObj, sheet=sheet, endCell=endCell)
+        endCell = _get_endCell_if_not_provided(
+            excelObj=excelObj, sheet=sheet, endCell=endCell
+        )
 
         _validate_range_order(excelObj=excelObj, startCell=startCell, endCell=endCell)
 
@@ -1262,7 +1324,9 @@ def clear_range(
         _validate_range_order(excelObj=excelObj, startCell=startCell, endCell=endCell)
 
         strRange = f"{startCell}:{endCell}"
-        Log.debug(f"Clearing range: {strRange}, clearContents: {clearContent}, clearFormats: {clearFormat}")
+        Log.debug(
+            f"Clearing range: {strRange}, clearContents: {clearContent}, clearFormats: {clearFormat}"
+        )
         range: xw.Range = sheetObj.range(strRange)
 
         if clearContent and clearFormat:
@@ -1288,7 +1352,7 @@ def activate_sheet(excelObj: ExcelObj, sheet: ExcelSheet) -> None:
     """
     with _excel_operation(excelObj=excelObj):
         sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
-        Log.debug(f"Activating sheet: {sheet}")
+        # Log.verbose(f"Activating sheet: {sheet}")
         excelObj._book.sheets[sheet].activate()
 
 
@@ -1323,17 +1387,23 @@ def add_sheet(
         anchorSheetObj = excelObj._book.sheets[anchorSheet]
 
         if direction == "before":
-            excelObj._book.sheets.add(name=newSheetName, before=anchorSheetObj, after=None)
+            excelObj._book.sheets.add(
+                name=newSheetName, before=anchorSheetObj, after=None
+            )
         else:
             # after
-            excelObj._book.sheets.add(name=newSheetName, before=None, after=anchorSheetObj)
+            excelObj._book.sheets.add(
+                name=newSheetName, before=None, after=anchorSheetObj
+            )
 
         if save:
             _save(excelObj=excelObj)
 
 
 @Log.trace()
-def rename_sheet(excelObj: ExcelObj, sheet: ExcelSheet, newSheetName: str, save: bool = False) -> None:
+def rename_sheet(
+    excelObj: ExcelObj, sheet: ExcelSheet, newSheetName: str, save: bool = False
+) -> None:
     """
     Rename a sheet.
 
@@ -1347,8 +1417,10 @@ def rename_sheet(excelObj: ExcelObj, sheet: ExcelSheet, newSheetName: str, save:
 
     with _excel_operation(excelObj=excelObj):
         sheet = _check_and_standardize_sheet(excelObj=excelObj, sheet=sheet)
-        _check_sheet_name_available(excelObj=excelObj, sheetName=newSheetName, currentSheetName=sheet)
-        Log.debug(f"Renaming sheet: {sheet} -> {newSheetName}")
+        _check_sheet_name_available(
+            excelObj=excelObj, sheetName=newSheetName, currentSheetName=sheet
+        )
+        Log.verbose(f"Renaming sheet: {sheet} -> {newSheetName}")
         excelObj._book.sheets[sheet].name = newSheetName
 
         if save:
@@ -1388,13 +1460,17 @@ def copy_sheet(
     dstExcelObj._ensure_open()
 
     if srcExcelObj._appState is not dstExcelObj._appState:
-        raise ExcelError("The source and destination workbooks do not share the same Excel application instance.")
+        raise ExcelError(
+            "The source and destination workbooks do not share the same Excel application instance."
+        )
 
     with _excel_operation(excelObj=srcExcelObj):
         _check_sheet_name_available(excelObj=dstExcelObj, sheetName=newSheetName)
 
         srcSheet = _check_and_standardize_sheet(excelObj=srcExcelObj, sheet=srcSheet)
-        dstAnchorSheet = _check_and_standardize_sheet(excelObj=dstExcelObj, sheet=dstAnchorSheet)
+        dstAnchorSheet = _check_and_standardize_sheet(
+            excelObj=dstExcelObj, sheet=dstAnchorSheet
+        )
 
         Log.debug(
             f"Copying sheet from {srcExcelObj}-{srcSheet} to {dstExcelObj}-{dstAnchorSheet}'s {direction}, new sheet name is {newSheetName}"
@@ -1433,7 +1509,7 @@ def delete_sheet(excelObj: ExcelObj, sheet: ExcelSheet, save: bool = False) -> N
         if len(excelObj._book.sheets) <= 1:
             raise ExcelError("Excel requires at least one worksheet in a workbook.")
 
-        Log.debug(f"Deleting sheet: {sheet}")
+        Log.verbose(f"Deleting sheet: {sheet}")
 
         # Call Excel's COM Delete() through the xlwings API wrapper so LiberRPA alone controls DisplayAlerts restoration.
         sheetApi = excelObj._book.sheets[sheet].api
@@ -1475,7 +1551,9 @@ def get_sheet_list(excelObj: ExcelObj) -> list[str]:
 
 
 @Log.trace()
-def run_macro(excelObj: ExcelObj, macroName: str, arguments: list[Any] | None = None) -> Any:
+def run_macro(
+    excelObj: ExcelObj, macroName: str, arguments: list[Any] | None = None
+) -> Any:
     """
     Run an Excel macro.
 
@@ -1497,7 +1575,9 @@ def run_macro(excelObj: ExcelObj, macroName: str, arguments: list[Any] | None = 
         raise
 
     except Exception as e:
-        raise ExcelError(f"Failed to run macro '{macroName}': {e} Please check the macroName and Excel config.") from e
+        raise ExcelError(
+            f"Failed to run macro '{macroName}': {e} Please check the macroName and Excel config."
+        ) from e
 
 
 if __name__ == "__main__":

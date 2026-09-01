@@ -386,10 +386,3 @@ if __name__ == "__main__":
             mag_ratio=4,
         )
     )
-    print(
-        get_text_with_position(
-            modelName="english_default",
-            image="./test.png",
-            mag_ratio=4,
-        )
-    )
