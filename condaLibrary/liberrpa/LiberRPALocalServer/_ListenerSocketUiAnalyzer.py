@@ -50,7 +50,6 @@ def handle_uianalyzer_command(message: str) -> None:
     dictCommand: dict[str, Any] = {}
     strCommandName: str | None = None
     temp: Any = None
-    element = None
     tupleEleTree = None
 
     try:
@@ -64,16 +63,29 @@ def handle_uianalyzer_command(message: str) -> None:
         strCommandName = strCommandNameTemp
 
         # Check some arguments to avoid incompatible argument and too long delays in case. (e.g. Local Server's version doesn't equal to UI Analyzer's version)
-        if strCommandName in ["indicate_uia", "indicate_chrome", "indicate_image", "indicate_window"]:
+        if strCommandName in [
+            "indicate_uia",
+            "indicate_chrome",
+            "indicate_image",
+            "indicate_window",
+        ]:
             intIndicateDelay = dictCommand["intIndicateDelaySeconds"]
-            if type(intIndicateDelay) is not int or intIndicateDelay < 1 or intIndicateDelay > 10:
+            if (
+                type(intIndicateDelay) is not int
+                or intIndicateDelay < 1
+                or intIndicateDelay > 10
+            ):
                 raise ValueError(
                     f"Invalid UI Analyzer indicate delay: {intIndicateDelay!r}. Expected an integer from 1 to 10."
                 )
 
         if strCommandName == "validate":
             intMatchTimeout = dictCommand["intMatchTimeoutSeconds"]
-            if type(intMatchTimeout) is not int or intMatchTimeout < 3 or intMatchTimeout > 60:
+            if (
+                type(intMatchTimeout) is not int
+                or intMatchTimeout < 3
+                or intMatchTimeout > 60
+            ):
                 raise ValueError(
                     f"Invalid UI Analyzer match timeout: {intMatchTimeout!r}. Expected an integer from 3 to 60."
                 )
@@ -84,7 +96,9 @@ def handle_uianalyzer_command(message: str) -> None:
                 temp = _UiAnalyzer.indicate_uia(intIndicateDelay)
 
             case "indicate_chrome":
-                temp = _UiAnalyzer.indicate_chrome(intIndicateDelay, dictCommand["usePath"])
+                temp = _UiAnalyzer.indicate_chrome(
+                    intIndicateDelay, dictCommand["usePath"]
+                )
                 if temp is not None:
                     tupleEleTree = temp[1]
                     temp = temp[0]
@@ -100,7 +114,9 @@ def handle_uianalyzer_command(message: str) -> None:
                 temp = _UiAnalyzer.indicate_window(intIndicateDelay)
 
             case "validate":
-                temp = _UiAnalyzer.validate(dictCommand["strSelectorJson"], intMatchTimeout)
+                temp = _UiAnalyzer.validate(
+                    dictCommand["strSelectorJson"], intMatchTimeout
+                )
 
             case _:
                 raise ValueError(f"Unknown command: {strCommandName}")
@@ -133,9 +149,12 @@ def handle_uianalyzer_command(message: str) -> None:
         )
 
         # Generate Element Tree.
-        if strCommandName == "indicate_uia" and element:
+        if strCommandName == "indicate_uia" and isinstance(temp, dict):
+            Log.debug("Get UIA Element Tree.")
             try:
-                tupleTemp = _ElementTree.generate_control_tree(elementFinal=element)
+                tupleTemp = _ElementTree.generate_control_tree_by_selector(
+                    selector=temp["selector"]
+                )
             except Exception as e:
                 Log.exception_info(e)
                 show_notification(
@@ -151,12 +170,15 @@ def handle_uianalyzer_command(message: str) -> None:
                     to=clientSid,
                 )
 
-        if strCommandName == "indicate_chrome" and tupleEleTree:
+        elif strCommandName == "indicate_chrome" and tupleEleTree:
+            Log.debug("Get HTML Element Tree.")
             emit(
                 "message_flask_to_uianalyzer",
                 "Element_Tree:" + json.dumps(tupleEleTree),
                 to=clientSid,
             )
+        else:
+            Log.debug("No Element Tree needed.")
     except Exception as e:
         Log.error(get_exception_info(e))
     finally:

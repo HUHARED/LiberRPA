@@ -5,7 +5,14 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import liberrpa.UI._UiElement as _UiElement
-from liberrpa.UI._UiDict import DictElementTreeItem, DictElementTreeUiaAttr
+from liberrpa.UI._UiAutomation import get_child_control_by_selector, get_top_control
+from liberrpa.UI._UiDict import (
+    DictElementTreeItem,
+    DictElementTreeUiaAttr,
+    SelectorUia,
+    SelectorWindow,
+)
+from liberrpa.UI._SelectorValidation import ensure_selector_uia, validate_selector
 from liberrpa.Common._Exception import UiOperationError, UiElementNotFoundError
 
 
@@ -64,9 +71,44 @@ def _get_control_tree_attr(control: uiautomation.Control) -> DictElementTreeUiaA
     return dictTreeAttr
 
 
-def generate_control_tree(elementFinal: uiautomation.Control) -> tuple[list[DictElementTreeItem], list[int], int]:
+def generate_control_tree_by_selector(
+    selector: SelectorWindow | SelectorUia,
+) -> tuple[list[DictElementTreeItem], list[int], int]:
+    """Resolve a UIA selector in a fresh COM context and generate its Element Tree."""
+
+    validate_selector(selector=selector)
+
+    with uiautomation.UIAutomationInitializerInThread():
+        controlTop = get_top_control(selectorWindowPart=selector["window"])
+
+        if selector.get("category") is None:
+            elementFinal = controlTop
+        else:
+            selectorUia = ensure_selector_uia(selector)
+            elementFinal = get_child_control_by_selector(
+                selectorUiaPart=selectorUia["specification"],
+                controlTop=controlTop,
+            )
+
+        return generate_control_tree(
+            elementFinal=elementFinal,
+            controlTop=controlTop,
+        )
+
+
+def generate_control_tree(
+    elementFinal: uiautomation.Control,
+    *,
+    controlTop: uiautomation.Control | None = None,
+) -> tuple[list[DictElementTreeItem], list[int], int]:
     """Generates the Element Tree structure, expanded nodes list, and activated element ID."""
-    global listParentChain, listExpandedId, intActivatedId, controlTarget, idObj, timeStart
+    global \
+        listParentChain, \
+        listExpandedId, \
+        intActivatedId, \
+        controlTarget, \
+        idObj, \
+        timeStart
 
     # Initialize global variables.
     listParentChain = []
@@ -77,11 +119,9 @@ def generate_control_tree(elementFinal: uiautomation.Control) -> tuple[list[Dict
 
     listFinalTree: list[DictElementTreeItem] = []
 
-    # Log.debug(f"target info = {elementFinal}")
-    controlTop = elementFinal.GetTopLevelControl()
+    # Use the desktop-root child that matches selector window semantics.
     if controlTop is None:
-        raise UiElementNotFoundError("Failed to get top-level control.")
-    # Log.debug(f"Top control: {controlTop}")
+        controlTop = _UiElement.get_control_window(control=elementFinal)
 
     controlTarget = elementFinal
 
@@ -112,10 +152,14 @@ def generate_control_tree(elementFinal: uiautomation.Control) -> tuple[list[Dict
 
         dictTemp: DictElementTreeItem = {
             "id": intId,
-            "title": dictAttrCurrent["ControlTypeName"].removesuffix("Control") + "-" + dictAttrCurrent.get("Name", ""),
+            "title": dictAttrCurrent["ControlTypeName"].removesuffix("Control")
+            + "-"
+            + dictAttrCurrent.get("Name", ""),
             "attributes": dictAttrCurrent,
         }
-        listChildrenTemp = _get_children_spec_recursive(controlAnchor=ele, layerSign=str(idx))
+        listChildrenTemp = _get_children_spec_recursive(
+            controlAnchor=ele, layerSign=str(idx)
+        )
         if len(listChildrenTemp) != 0:
             dictTemp["children"] = listChildrenTemp
 
@@ -128,11 +172,19 @@ def _get_children_spec_recursive(
     controlAnchor: uiautomation.Control,
     layerSign: str,
 ) -> list[DictElementTreeItem]:
-    global listParentChain, listExpandedId, intActivatedId, controlTarget, idObj, timeStart
+    global \
+        listParentChain, \
+        listExpandedId, \
+        intActivatedId, \
+        controlTarget, \
+        idObj, \
+        timeStart
 
     if (time.monotonic() - timeStart) >= 10:
         # Some uia window may have too many elements, give up.
-        raise UiOperationError("Cannot get all elements in 10 seconds, so give up to generate Element Tree.")
+        raise UiOperationError(
+            "Cannot get all elements in 10 seconds, so give up to generate Element Tree."
+        )
 
     listFinalRecursive: list[DictElementTreeItem] = []
     for idx, ele in enumerate(controlAnchor.GetChildren(), start=0):
@@ -151,10 +203,14 @@ def _get_children_spec_recursive(
         dictAttrCurrent = _get_control_tree_attr(control=ele)
         dictTemp: DictElementTreeItem = {
             "id": intId,
-            "title": dictAttrCurrent["ControlTypeName"].removesuffix("Control") + "-" + dictAttrCurrent.get("Name", ""),
+            "title": dictAttrCurrent["ControlTypeName"].removesuffix("Control")
+            + "-"
+            + dictAttrCurrent.get("Name", ""),
             "attributes": dictAttrCurrent,
         }
-        listChildrenTemp = _get_children_spec_recursive(controlAnchor=ele, layerSign=layerSignNew)
+        listChildrenTemp = _get_children_spec_recursive(
+            controlAnchor=ele, layerSign=layerSignNew
+        )
         if len(listChildrenTemp) != 0:
             dictTemp["children"] = listChildrenTemp
 
