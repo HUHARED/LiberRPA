@@ -392,7 +392,9 @@ export class ProjectManagerSession {
         log.info(`Component Wheel SHA-256: ${operationResult.result.sha256}`);
       }
 
-      const boolHasWarning = operationResult.warnings.length > 0;
+      const boolShowWarningNotification =
+        operationResult.warnings.length > 0 ||
+        operationResult.result.status === "alreadyPublished";
       let strMessage: string;
       switch (operationResult.result.status) {
         case "preparationCreated":
@@ -411,7 +413,7 @@ export class ProjectManagerSession {
         command: "loadPublishComponent",
         initialData: await this.getPublishComponentInitialData(
           {
-            type: boolHasWarning ? "warning" : "info",
+            type: boolShowWarningNotification ? "warning" : "info",
             message: strMessage,
           },
           getComponentManagementWarningMessages(operationResult.warnings),

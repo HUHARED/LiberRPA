@@ -2,6 +2,7 @@
 <template>
   <v-alert
     v-if="projectManagerStore.showAlert"
+    :key="projectManagerStore.alertRevision"
     :type="projectManagerStore.alertType"
     variant="flat"
     closable
@@ -41,6 +42,7 @@ watch(
     () => projectManagerStore.showAlert,
     () => projectManagerStore.alertMessage,
     () => projectManagerStore.alertType,
+    () => projectManagerStore.alertRevision,
   ],
   ([boolShowAlert, , alertType]) => {
     if (timeoutId !== undefined) {

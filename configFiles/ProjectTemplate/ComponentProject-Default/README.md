@@ -127,7 +127,9 @@ _Snippets/
 
 `snippets.jsonc` is maintained by the Component developer and can customize generated Snippets, add hand-written Snippets, provide category icons, or exclude selected generated entries.
 
-A public API remains usable even when no Snippet is provided for it.
+A public API remains usable even when no Snippet is provided for it. However, the final Component Snippet Catalog must contain at least one generated or hand-written Snippet before the Wheel can be published.
+
+A hand-written Snippet must belong to an existing public top-level Component Module. The owning Module does not need to contain an AST-supported public function.
 
 See [Component Snippet Configuration](https://github.com/HUHARED/LiberRPA/blob/main/vscodeExtensions/liberrpa-project-manager/ComponentSnippetConfiguration.md) for the complete configuration format.
 

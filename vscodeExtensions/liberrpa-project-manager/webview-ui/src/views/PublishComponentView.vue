@@ -164,7 +164,7 @@
 
       <template v-else>
         <v-alert
-          :type="publishResult.status === 'published' ? 'success' : 'info'"
+          :type="publishResult.status === 'published' ? 'success' : 'warning'"
           variant="tonal"
           class="mb-4">
           <template v-if="publishResult.status === 'published'">

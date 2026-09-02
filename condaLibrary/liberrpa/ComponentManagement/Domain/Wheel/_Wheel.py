@@ -540,6 +540,10 @@ def _validate_snippet_catalog(
     snippetsValue = value.get("snippets")
     if not isinstance(snippetsValue, dict):
         raise ValueError("snippets_catalog.json snippets must be an object.")
+    if not snippetsValue:
+        raise ValueError(
+            "snippets_catalog.json snippets must contain at least one Snippet."
+        )
 
     dictLabelOwner: dict[tuple[str, str], str] = {}
     dictPrefixOwner: dict[str, str] = {}

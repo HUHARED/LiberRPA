@@ -18,6 +18,7 @@ export const useProjectManagerStore = defineStore("projectManager", {
     operation: null as ProjectManagerOperation | null,
 
     showAlert: false,
+    alertRevision: 0,
     alertType: "info" as AlertType,
     alertMessage: "",
   }),
@@ -31,6 +32,7 @@ export const useProjectManagerStore = defineStore("projectManager", {
     },
 
     showMessage(type: AlertType, message: string): void {
+      this.alertRevision += 1;
       this.alertType = type;
       this.alertMessage = message;
       this.showAlert = true;

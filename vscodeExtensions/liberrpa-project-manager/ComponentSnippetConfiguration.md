@@ -124,7 +124,9 @@ For example:
 ExampleDelay_Delay.run_quick_demo
 ```
 
-The package and Module names must belong to the current Component.
+The package and Module names must belong to the current Component. `ModuleName` must identify an existing public top-level `.py` file under `src/<PackageName>/`. A package-level form such as `PackageName.snippet_name` is not supported.
+
+The owning Module does not need to contain an AST-supported public function when the hand-written Snippet represents a sequence or expression. It still defines the Snippet Category and mandatory Component Module import.
 
 Required fields:
 
@@ -201,6 +203,8 @@ Within each Component Category:
 ## Validation
 
 Publication is rejected when `snippets.jsonc` contains invalid configuration, including unsupported fields, invalid stable keys, unknown public Modules, invalid overrides, duplicate prefixes, duplicate labels in one Category, invalid insertion modes, or unavailable import names.
+
+The final Catalog must contain at least one Snippet. A Component may expose additional public APIs without Snippets, but publication is rejected when every AST-generated Snippet is excluded and no hand-written Snippet remains.
 
 Project Manager displays the error and available details. Correct the file, save it, and publish again.
 

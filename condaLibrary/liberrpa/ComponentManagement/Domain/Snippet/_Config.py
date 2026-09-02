@@ -494,10 +494,7 @@ def _parse_hand_written_snippet(
         issueList,
     )
 
-    if tupleKeyPart is None:
-        return None
-
-    strCategory, strModuleName, strSnippetName = tupleKeyPart
+    strSnippetName = tupleKeyPart[2] if tupleKeyPart is not None else ""
 
     strPrefix = snippetKey
     if "prefix" in snippetValue:
@@ -553,9 +550,10 @@ def _parse_hand_written_snippet(
             dictAdditionalImport = dictParsedImports
 
     # Ensure all errors have been added, then return.
-    if listBody is None or strDescription is None:
+    if tupleKeyPart is None or listBody is None or strDescription is None:
         return None
 
+    strCategory, strModuleName, _ = tupleKeyPart
     dictMandatoryImport: DictSnippet_Imports = {packageName: [strModuleName]}
 
     return {
@@ -854,6 +852,23 @@ def build_snippet_catalog(
         dictAggregateSnippet[strSnippetKey] = dictSnippet
 
     dictAggregateSnippet.update(dictHandWrittenSnippet)
+
+    if not dictAggregateSnippet:
+        raise ComponentManagementError(
+            code="snippet_catalog_empty",
+            message="Component publication requires at least one final Snippet.",
+            details={
+                "generatedCount": len(astSnippetDict["snippets"]),
+                "excludedCount": len(
+                    setExcludedSnippet & set(astSnippetDict["snippets"])
+                ),
+                "handWrittenCount": len(dictHandWrittenSnippet),
+                "skippedCount": len(astSnippetDict["skipped"]),
+                "requiredAction": (
+                    f"Keep at least one AST-generated Snippet, or add a hand-written Snippet whose key uses {manifestObj.packageName}_ModuleName.snippet_name and refers to an existing public Component Module."
+                ),
+            },
+        )
 
     dictLabelOwner: dict[tuple[str, str], str] = {}
     dictPrefixOwner: dict[str, str] = {}

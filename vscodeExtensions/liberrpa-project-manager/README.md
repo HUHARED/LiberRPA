@@ -190,6 +190,8 @@ _Snippets/
 
 No Wheel is created during this preparation step. Review the generated Snippets and edit `snippets.jsonc` when customization is needed.
 
+The final Snippet Catalog must contain at least one Snippet. When no supported public function produces an AST-generated Snippet, add a hand-written Snippet associated with an existing public Component Module before publishing the Wheel.
+
 #### Publish the Component Wheel
 
 Run `LiberRPA: Publish Component` again. Project Manager regenerates and validates the Snippets, builds and validates the Wheel, and publishes it to the configured Component Repository.
@@ -381,6 +383,8 @@ from _Components.ExampleDelay import Delay
 Use [LiberRPA Snippets Tree](https://github.com/HUHARED/LiberRPA/blob/main/vscodeExtensions/liberrpa-snippets-tree/README.md) to insert Component Snippets and maintain imports. A Snippet is a development convenience; excluding a Snippet does not remove the underlying Python API.
 
 Access Component resources through the Component's public API. Do not construct paths into `_Components` from the Flow Project.
+
+> If Pylance temporarily reports a newly added Component as unresolved, run `Python: Restart Language Server` from the Command Palette. This refreshes Pylance's import analysis and does not affect the Project's Component state.
 
 ##### Complete Example
 
