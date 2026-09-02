@@ -24,6 +24,18 @@ def _get_specifier_sort_group(specifierObj: Specifier) -> int:
     return 1
 
 
+def _normalize_pep440_specifier_item(specifierObj: Specifier) -> str:
+    strVersion = specifierObj.version
+    boolWildcardVersion = strVersion.endswith(".*")
+    strVersionToNormalize = strVersion[:-2] if boolWildcardVersion else strVersion
+    strNormalizedVersion = normalize_pep440_version(strVersionToNormalize)
+
+    if boolWildcardVersion:
+        strNormalizedVersion += ".*"
+
+    return f"{specifierObj.operator}{strNormalizedVersion}"
+
+
 def normalize_pep440_specifier(specifier: str) -> str:
     if specifier == "":
         raise ValueError("Version specifier cannot be empty.")
@@ -45,17 +57,21 @@ def normalize_pep440_specifier(specifier: str) -> str:
     if not listSpecifierObj:
         raise ValueError("Version specifier cannot be empty.")
 
-    listUniqueSpecifierObj: list[Specifier] = []
-    setCanonicalSpecifier: set[str] = set()
+    listUniqueSpecifier: list[tuple[Specifier, str]] = []
+    setNormalizedSpecifier: set[str] = set()
     for specifierObj in listSpecifierObj:
-        strCanonicalSpecifier = str(specifierObj)
-        if strCanonicalSpecifier in setCanonicalSpecifier:
+        strNormalizedSpecifier = _normalize_pep440_specifier_item(specifierObj)
+        if strNormalizedSpecifier in setNormalizedSpecifier:
             continue
-        setCanonicalSpecifier.add(strCanonicalSpecifier)
-        listUniqueSpecifierObj.append(specifierObj)
+        setNormalizedSpecifier.add(strNormalizedSpecifier)
+        listUniqueSpecifier.append((specifierObj, strNormalizedSpecifier))
 
-    listUniqueSpecifierObj.sort(key=_get_specifier_sort_group)
-    return ",".join(str(specifierObj) for specifierObj in listUniqueSpecifierObj)
+    listUniqueSpecifier.sort(
+        key=lambda tupleSpecifier: _get_specifier_sort_group(tupleSpecifier[0])
+    )
+    return ",".join(
+        strNormalizedSpecifier for _, strNormalizedSpecifier in listUniqueSpecifier
+    )
 
 
 def get_default_requires_liberrpa(versionObj: Version) -> str:
