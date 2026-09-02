@@ -9,20 +9,119 @@ from liberrpa.Logging import Log
 from liberrpa.Common._WebSocket import send_command
 from liberrpa.Common._Exception import ChromeCommandError
 from liberrpa.UI._OperationLock import lock_ui_operation
-from liberrpa.Common._TypedValue import DictCookiesOfChrome, ChromeDownloadItem, JsonValue, StrPath
+from liberrpa.Common._TypedValue import (
+    DictCookiesOfChrome,
+    ChromeDownloadItem,
+    JsonValue,
+    StrPath,
+)
 from liberrpa.Common._Chrome import get_download_list as _get_download_list
 
 from pathlib import Path
 import time
 import psutil
 import os
+import shutil
+import winreg
 from urllib.parse import urlparse
 from dataclasses import dataclass
 from typing import Literal, overload
 
-# Chrome Enterprise has the same path.
-_CHROME_PATH_X86 = R"C:/Program Files (x86)/Google/Chrome/Application/chrome.exe"
-_CHROME_PATH_X64 = R"C:/Program Files/Google/Chrome/Application/chrome.exe"
+
+_CHROME_APP_PATHS_REGISTRY_KEY = (
+    R"Software\Microsoft\Windows\CurrentVersion\App Paths\chrome.exe"
+)
+_CHROME_RELATIVE_PATH = Path("Google") / "Chrome" / "Application" / "chrome.exe"
+
+
+def _get_existing_file_path(path: StrPath | None) -> str | None:
+    """Return the resolved path if *path* points to an existing file."""
+    if path is None:
+        return None
+
+    pathString = (
+        os.path.expandvars(os.path.expanduser(os.fspath(path))).strip().strip('"')
+    )
+    if not pathString:
+        return None
+
+    filePath = Path(pathString)
+    try:
+        if filePath.is_file():
+            return str(filePath.resolve())
+    except OSError:
+        pass
+
+    return None
+
+
+def _get_chrome_from_app_paths() -> str | None:
+    """Locate Chrome through Windows' App Paths registration."""
+    # Chrome may be registered per-user or system-wide.
+    # Explicitly check both 32-bit and 64-bit registry views so this also works when Python's bitness differs from Windows/Chrome's bitness.
+    for root in (winreg.HKEY_CURRENT_USER, winreg.HKEY_LOCAL_MACHINE):
+        for view in (winreg.KEY_WOW64_64KEY, winreg.KEY_WOW64_32KEY):
+            try:
+                with winreg.OpenKey(
+                    root,
+                    _CHROME_APP_PATHS_REGISTRY_KEY,
+                    0,
+                    winreg.KEY_READ | view,
+                ) as key:
+                    value, _ = winreg.QueryValueEx(key, "")
+            except OSError:
+                continue
+
+            if isinstance(value, str):
+                chromePath = _get_existing_file_path(value)
+                if chromePath:
+                    return chromePath
+
+    return None
+
+
+def _get_chrome_from_default_paths() -> str | None:
+    """Locate Chrome in the standard per-user and system-wide directories."""
+    candidates: list[Path] = []
+
+    for envName in ("LOCALAPPDATA", "PROGRAMW6432", "PROGRAMFILES", "PROGRAMFILES(X86)"):
+        basePath = os.environ.get(envName)
+        if basePath:
+            candidates.append(Path(basePath) / _CHROME_RELATIVE_PATH)
+
+    checkedPaths: set[str] = set()
+    for candidate in candidates:
+        normalizedPath = os.path.normcase(os.fspath(candidate))
+        if normalizedPath in checkedPaths:
+            continue
+        checkedPaths.add(normalizedPath)
+
+        chromePath = _get_existing_file_path(candidate)
+        if chromePath:
+            return chromePath
+
+    return None
+
+
+def _find_chrome_path() -> str | None:
+    """
+    Locate Google Chrome without relying on an already running Chrome process.
+
+    The lookup order is Windows App Paths, standard installation directories, and finally PATH. Keeping discovery independent of process state makes cold-start behavior deterministic.
+    """
+    chromePath = _get_chrome_from_app_paths()
+    if chromePath:
+        return chromePath
+
+    chromePath = _get_chrome_from_default_paths()
+    if chromePath:
+        return chromePath
+
+    chromePath = shutil.which("chrome.exe")
+    if chromePath:
+        return _get_existing_file_path(chromePath)
+
+    return None
 
 
 @dataclass
@@ -60,7 +159,7 @@ def open_browser(
     Parameters:
         browserType: The type of browser to manipulate (currently only "chrome" is supported).
         url: The URL to open in the browser.
-        path: The filesystem path to the browser exe. If not provided, it attempts to locate the browser in common directories.
+        path: The filesystem path to the browser exe. If not provided, Chrome is located automatically using Windows application registration, standard install directories, and PATH.
         params: Additional command-line parameters to pass when launching the browser.
 
             You can pass a string for simple cases, such as "--start-maximized".
@@ -81,20 +180,22 @@ def open_browser(
         case "chrome":
             browserObj.browserType = "chrome"
 
-            if not path:
-                if Path(_CHROME_PATH_X64).is_file():
-                    browserObj.path = _CHROME_PATH_X64
-                elif Path(_CHROME_PATH_X86).is_file():
-                    browserObj.path = _CHROME_PATH_X86
-                else:
-                    raise FileNotFoundError(
-                        f"Could not find Chrome executable at '{_CHROME_PATH_X64}' or '{_CHROME_PATH_X86}'. If Chrome is not installed in the default location, you can open it using Application.run_application() and then bind it using Browser.bind_browser()."
-                    )
-            else:
-                if Path(path).is_file():
-                    browserObj.path = os.fspath(path)
+            if path is not None:
+                chromePath = _get_existing_file_path(path)
+                if chromePath:
+                    browserObj.path = chromePath
                 else:
                     raise FileNotFoundError(f"Could not find a file at '{path}'.")
+            else:
+                chromePath = _find_chrome_path()
+                if chromePath:
+                    browserObj.path = chromePath
+                else:
+                    raise FileNotFoundError(
+                        "Could not locate Google Chrome automatically. "
+                        "If Chrome is installed in a non-standard location, specify its executable path using the 'path' parameter. "
+                        "You can also open it using Application.run_application() and then bind it using Browser.bind_browser()."
+                    )
 
             dictCommand = {
                 "commandName": "open_browser",
@@ -108,7 +209,9 @@ def open_browser(
             dictCommand = {"commandName": "get_chrome_socket_id"}
             timeStart = time.monotonic()
             while True:
-                strSocketId = send_command(eventName="application_command", command=dictCommand)
+                strSocketId = send_command(
+                    eventName="application_command", command=dictCommand
+                )
                 if not strSocketId:
                     if (time.monotonic() - timeStart) * 1000 <= timeout:
                         time.sleep(0.5)
@@ -148,7 +251,10 @@ def bind_browser(browserType: Literal["chrome"] = "chrome") -> BrowserObj:
             for process in psutil.process_iter(["name", "exe"]):
                 try:
                     # Check if the process name is 'chrome.exe'
-                    if process.name().lower() == "chrome.exe" and process.status() == psutil.STATUS_RUNNING:
+                    if (
+                        process.name().lower() == "chrome.exe"
+                        and process.status() == psutil.STATUS_RUNNING
+                    ):
                         # Return the executable path if found
                         temp = process.info["exe"]
                         break
@@ -161,7 +267,9 @@ def bind_browser(browserType: Literal["chrome"] = "chrome") -> BrowserObj:
                 browserObj.path = temp
 
             dictCommand = {"commandName": "get_chrome_socket_id"}
-            strSocketId = send_command(eventName="application_command", command=dictCommand)
+            strSocketId = send_command(
+                eventName="application_command", command=dictCommand
+            )
             if not strSocketId:
                 raise ChromeCommandError(
                     "Can't access LiberRPA Chrome extension, if Chrome is running, you should install LiberRPA Chrome extension and turn it on."
@@ -215,7 +323,9 @@ def go_backward(browserObj: BrowserObj) -> None:
 
     match browserObj.browserType:
         case "chrome":
-            send_command(eventName="chrome_command", command={"commandName": "goBackward"})
+            send_command(
+                eventName="chrome_command", command={"commandName": "goBackward"}
+            )
 
         case _:
             raise ValueError(
@@ -279,7 +389,10 @@ def wait_load_completed(browserObj: BrowserObj, timeout: int = 30000) -> None:
 
     match browserObj.browserType:
         case "chrome":
-            send_command(eventName="chrome_command", command={"commandName": "waitForLoad", "timeout": timeout})
+            send_command(
+                eventName="chrome_command",
+                command={"commandName": "waitForLoad", "timeout": timeout},
+            )
 
         case _:
             raise ValueError(
@@ -296,7 +409,9 @@ def _check_url(url: str) -> None:
 
 @Log.trace()
 @lock_ui_operation
-def navigate(browserObj: BrowserObj, url: str, waitForLoad: bool = False, timeout: int = 30000) -> None:
+def navigate(
+    browserObj: BrowserObj, url: str, waitForLoad: bool = False, timeout: int = 30000
+) -> None:
     """
     Navigate the active tab to a specified url.
     The url should starts with a protocol, such as http:// or https://
@@ -331,7 +446,9 @@ def navigate(browserObj: BrowserObj, url: str, waitForLoad: bool = False, timeou
 
 @Log.trace()
 @lock_ui_operation
-def open_new_tab(browserObj: BrowserObj, url: str, waitForLoad: bool = False, timeout: int = 30000) -> None:
+def open_new_tab(
+    browserObj: BrowserObj, url: str, waitForLoad: bool = False, timeout: int = 30000
+) -> None:
     """
     Create a new tab to open a specified url.
     The url should starts with a protocol, such as http:// or https://
@@ -366,7 +483,9 @@ def open_new_tab(browserObj: BrowserObj, url: str, waitForLoad: bool = False, ti
 
 @Log.trace()
 @lock_ui_operation
-def open_new_window(browserObj: BrowserObj, url: str, waitForLoad: bool = False, timeout: int = 30000) -> None:
+def open_new_window(
+    browserObj: BrowserObj, url: str, waitForLoad: bool = False, timeout: int = 30000
+) -> None:
     """
     Create a new browser window to open a specified url.
     The url should starts with a protocol, such as http:// or https://
@@ -450,7 +569,9 @@ def close_current_tab(browserObj: BrowserObj) -> None:
 
 @Log.trace()
 @lock_ui_operation
-def get_download_list(browserObj: BrowserObj, limit: int = 5, timeout: int = 10000) -> list[ChromeDownloadItem]:
+def get_download_list(
+    browserObj: BrowserObj, limit: int = 5, timeout: int = 10000
+) -> list[ChromeDownloadItem]:
     """
     Get recent download items from the browser.
 
@@ -804,7 +925,11 @@ def execute_js_code(
         case "chrome":
             return send_command(
                 eventName="chrome_command",
-                command={"commandName": "executeJsCode", "jsCode": jsCode, "returnImmediately": returnImmediately},
+                command={
+                    "commandName": "executeJsCode",
+                    "jsCode": jsCode,
+                    "returnImmediately": returnImmediately,
+                },
             )
 
         case _:
