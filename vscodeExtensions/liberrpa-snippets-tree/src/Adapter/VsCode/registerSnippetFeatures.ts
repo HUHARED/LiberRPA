@@ -34,7 +34,7 @@ export function registerSnippetFeatures(
           "Failed to insert LiberRPA snippet",
           async (): Promise<void> => {
             if (!isSnippetNodeCommandArg(value)) {
-              throw new Error("Invalid Snippet Tree command argument.");
+              throw new Error("Invalid snippet tree command argument.");
             }
 
             const editor = vscode.window.activeTextEditor;

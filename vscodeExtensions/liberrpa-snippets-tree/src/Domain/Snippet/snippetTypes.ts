@@ -45,7 +45,7 @@ export interface DictCatalogSnippetDefinition {
 export interface DictSnippetCatalogFile {
   schemaVersion: 1;
 
-  // For Snippet TreeView.
+  // Used to order categories in the Snippets Tree view.
   categoryOrder: string[];
   // Category name mapped to a VS Code Product Icon ID.
   categoryIcons: Record<string, string>;
