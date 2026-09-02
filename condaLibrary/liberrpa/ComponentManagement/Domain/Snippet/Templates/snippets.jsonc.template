@@ -1,4 +1,4 @@
-// FileName: snippets.jsonc.template
+// FileName: snippets.jsonc
 // Component Snippet configuration documentation: https://github.com/HUHARED/LiberRPA/blob/main/vscodeExtensions/liberrpa-project-manager/ComponentSnippetConfiguration.md
 {
   "schemaVersion": 1,
