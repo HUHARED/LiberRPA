@@ -142,6 +142,7 @@ export interface DictProjectForWebview extends DictProject {
 export type WebviewToExtensionMessage =
   | { command: "ready" }
   | { command: "update"; data: string }
+  | { command: "save" }
   | { command: "open"; path: string }
   | { command: "execute"; data: { pyFile: string; executeMode: ExecuteMode } }
   | { command: "executeProject"; data: { executeMode: ExecuteMode } };

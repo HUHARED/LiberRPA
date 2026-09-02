@@ -245,8 +245,8 @@ You can define project arguments in **Custom Project Arguments** area.
 Each argument consists of a string key and a JSON-deserializable value.
 
 Press Enter or leave the input field to apply a key or value change. Pressing
-`Ctrl+S` while the input is still focused saves only the last applied value; it
-does not apply the text currently being edited.
+`Ctrl+S` while a Custom Project Arguments input is focused first applies the
+current key or value, and then saves `project.flow`.
 
 #### Key
 

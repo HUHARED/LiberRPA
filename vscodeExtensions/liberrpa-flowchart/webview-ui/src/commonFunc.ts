@@ -22,6 +22,10 @@ export function notifyWebviewReady(): void {
   vscode.postMessage({ command: "ready" });
 }
 
+export function requestDocumentSave(): void {
+  vscode.postMessage({ command: "save" });
+}
+
 export function showAlert(message: string): void {
   const informationStore = useInformationStore();
   informationStore.information = message;

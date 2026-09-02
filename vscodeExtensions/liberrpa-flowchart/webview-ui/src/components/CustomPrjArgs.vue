@@ -29,6 +29,7 @@
             :suffix="'&quot;'"
             :bg-color="generateBgcolor(item[0])"
             @blur="updateKey(item, index, arrKeyCache[index])"
+            @keydown="handleKeyInputKeydown($event, item, index, arrKeyCache[index])"
             @keyup.enter="updateKey(item, index, arrKeyCache[index])"
             @click:prepend-inner="deleteArgument(item, index)">
             <v-tooltip
@@ -53,6 +54,7 @@
             hide-details
             spellcheck="false"
             @blur="updateValue(item, index, arrValueCache[index])"
+            @keydown="handleValueInputKeydown($event, item, index, arrValueCache[index])"
             @keyup.enter="updateValue(item, index, arrValueCache[index])">
             <v-tooltip activator="parent" location="top">
               <div style="max-width: 560px">
@@ -66,6 +68,7 @@
 
                 <div>The value must be JSON-deserializable.</div>
                 <div>Press Enter or leave the input box to update.</div>
+                <div>Press Ctrl+S to apply this value and save project.flow.</div>
 
                 <div v-if="isPlainObject(item[1])" class="mt-1 font-italic">
                   It is an object. Object key order should not be relied on, and
@@ -89,10 +92,10 @@
 </template>
 
 <script setup lang="ts">
-import { watch, ref } from "vue";
+import { nextTick, ref, watch } from "vue";
 import { useArgsStore } from "../store";
 import type { StoreCustomPrjArg } from "../store";
-import { showAlert, updateLocalData } from "../commonFunc";
+import { requestDocumentSave, showAlert, updateLocalData } from "../commonFunc";
 import type { JsonValue, CustomPrjArg } from "../interface";
 
 const argsStore = useArgsStore();
@@ -147,6 +150,56 @@ function generateBgcolor(valueName: string): string {
 
 function isCurrentArgument(item: StoreCustomPrjArg, index: number): boolean {
   return argsStore.customPrjArgs[index] === item;
+}
+
+function isSaveShortcut(event: KeyboardEvent): boolean {
+  return (
+    (event.ctrlKey || event.metaKey) &&
+    !event.altKey &&
+    !event.shiftKey &&
+    event.key.toLowerCase() === "s"
+  );
+}
+
+function commitArgumentAndRequestSave(
+  event: KeyboardEvent,
+  commitArgument: () => void,
+): void {
+  if (!isSaveShortcut(event)) {
+    return;
+  }
+
+  event.preventDefault();
+  event.stopPropagation();
+
+  commitArgument();
+
+  // Store changes are sent by the deep watcher. Wait until that watcher has run so the extension message queue always receives "update" before "save".
+  void nextTick(() => {
+    requestDocumentSave();
+  });
+}
+
+function handleKeyInputKeydown(
+  event: KeyboardEvent,
+  item: StoreCustomPrjArg,
+  index: number,
+  input: string,
+): void {
+  commitArgumentAndRequestSave(event, () => {
+    updateKey(item, index, input);
+  });
+}
+
+function handleValueInputKeydown(
+  event: KeyboardEvent,
+  item: StoreCustomPrjArg,
+  index: number,
+  value: string,
+): void {
+  commitArgumentAndRequestSave(event, () => {
+    updateValue(item, index, value);
+  });
 }
 
 function updateKey(item: StoreCustomPrjArg, index: number, input: string): void {

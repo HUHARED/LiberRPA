@@ -40,7 +40,7 @@ export function isWebviewMessage(value: unknown): value is WebviewToExtensionMes
 
   const msg = value as Record<string, unknown>;
 
-  if (msg.command === "ready") {
+  if (msg.command === "ready" || msg.command === "save") {
     return true;
   }
 

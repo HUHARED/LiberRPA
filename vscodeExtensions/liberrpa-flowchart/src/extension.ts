@@ -386,6 +386,14 @@ class FlowchartEditorProvider implements vscode.CustomTextEditorProvider {
         break;
       }
 
+      case "save": {
+        const boolSaved = await document.save();
+        if (!boolSaved) {
+          throw new Error("Failed to save .flow document.");
+        }
+        break;
+      }
+
       case "open": {
         log.debug(`Open ${message.path}`);
 
