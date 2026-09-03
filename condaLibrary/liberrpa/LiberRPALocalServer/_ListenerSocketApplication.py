@@ -26,10 +26,11 @@ def handle_application_command(dictCommand: dict[str, Any]) -> DictSocketResult:
 
     try:
         match dictCommand.get("commandName"):
-
             case "run_application":
                 temp = _Application.run_application(
-                    filePath=dictCommand["filePath"], windowState=dictCommand["windowState"]
+                    filePath=dictCommand["filePath"],
+                    workingDirectory=dictCommand["workingDirectory"],
+                    windowState=dictCommand["windowState"],
                 )
 
             case "open_url":
@@ -37,7 +38,9 @@ def handle_application_command(dictCommand: dict[str, Any]) -> DictSocketResult:
 
             case "open_browser":
                 temp = _Application.open_browser(
-                    url=dictCommand["url"], path=dictCommand["path"], params=dictCommand["params"]
+                    url=dictCommand["url"],
+                    path=dictCommand["path"],
+                    params=dictCommand["params"],
                 )
 
             case "get_chrome_socket_id":

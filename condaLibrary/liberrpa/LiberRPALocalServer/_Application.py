@@ -17,7 +17,11 @@ from pathlib import Path
 from typing import Literal
 
 
-def run_application(filePath: StrPath, windowState: Literal["default", "maximize", "minimize"] = "default") -> int:
+def run_application(
+    filePath: StrPath,
+    workingDirectory: StrPath,
+    windowState: Literal["default", "maximize", "minimize"] = "default",
+) -> int:
     match windowState:
         case "maximize":
             showState = win32con.SW_SHOWMAXIMIZED
@@ -31,7 +35,12 @@ def run_application(filePath: StrPath, windowState: Literal["default", "maximize
     startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
     startupinfo.wShowWindow = showState
 
-    process = subprocess.Popen([filePath], startupinfo=startupinfo, creationflags=subprocess.DETACHED_PROCESS)
+    process = subprocess.Popen(
+        [filePath],
+        cwd=workingDirectory,
+        startupinfo=startupinfo,
+        creationflags=subprocess.DETACHED_PROCESS,
+    )
 
     return process.pid
 
@@ -71,7 +80,10 @@ def open_browser(
     Log.debug(f"Start browser: {commandLine}")
 
     # Use LiberRPA Local Server to start the browser so the browser process is not tied to the RPA script process.
-    subprocess.Popen(commandLine, creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP)
+    subprocess.Popen(
+        commandLine,
+        creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP,
+    )
 
     return None
 

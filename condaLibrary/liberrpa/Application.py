@@ -10,17 +10,22 @@ from liberrpa.Common._WebSocket import send_command
 from liberrpa.Common._TypedValue import StrPath
 
 import psutil
-import os
+from pathlib import Path
 from typing import Literal
 
 
 @Log.trace()
-def run_application(filePath: StrPath, windowState: Literal["default", "maximize", "minimize"] = "default") -> int:
+def run_application(
+    filePath: StrPath,
+    workingDirectory: StrPath = "./",
+    windowState: Literal["default", "maximize", "minimize"] = "default",
+) -> int:
     """
     Run an application with a specified window state.
 
     Parameters:
         filePath: The path of the application to run. Accepts str or PathLike[str].
+        workingDirectory: The working directory of the application. Accepts str or PathLike[str].
         windowState: 'default', 'maximize', 'minimize'
 
     Returns:
@@ -31,7 +36,8 @@ def run_application(filePath: StrPath, windowState: Literal["default", "maximize
 
     dictCommand = {
         "commandName": "run_application",
-        "filePath": os.fspath(filePath),
+        "filePath": str(Path(filePath).resolve()),
+        "workingDirectory": str(Path(workingDirectory).resolve()),
         "windowState": windowState,
     }
 
@@ -68,7 +74,10 @@ def check_process_running(nameOrPid: str | int) -> bool:
     """
     for process in psutil.process_iter(["pid", "name"]):
         try:
-            if process.pid == nameOrPid or process.name().lower() == str(nameOrPid).lower():
+            if (
+                process.pid == nameOrPid
+                or process.name().lower() == str(nameOrPid).lower()
+            ):
                 if process.status() == psutil.STATUS_RUNNING:
                     return True
         except (psutil.NoSuchProcess, psutil.AccessDenied):
@@ -87,14 +96,18 @@ def stop_process(nameOrPid: str | int) -> None:
         nameOrPid: the process name or PID.
     """
     for process in psutil.process_iter(["pid", "name"]):
-        if process.pid == nameOrPid or (isinstance(nameOrPid, str) and process.name().lower() == nameOrPid.lower()):
+        if process.pid == nameOrPid or (
+            isinstance(nameOrPid, str) and process.name().lower() == nameOrPid.lower()
+        ):
             process.kill()
 
 
 if __name__ == "__main__":
     # print(check_process_running(nameOrPid="notepad.exe"))
-    open_url(url=R"http://www.google.com")
-    # pid = run_application(filePath=R"C:\Windows\System32\notepad.exe", windowState="minimize")
+    # open_url(url=R"http://www.google.com")
+    pid = run_application(
+        filePath=R"C:\Windows\System32\notepad.exe", windowState="default"
+    )
     # print("pid" + str(pid))
     # stop_process(nameOrPid=6608)
     # print(check_process_running(nameOrPid="notepad.exe"))
