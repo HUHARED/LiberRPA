@@ -203,7 +203,7 @@ class ProjectArguments:
 
         for item in dictFlowFile["customPrjArgs"]:
             if item[0] in self.customArgs:
-                Log.critical(f"The key '{item[0]}' exists, update.")
+                Log.warning(f"The key '{item[0]}' exists, update.")
             self.customArgs[item[0]] = item[1]
 
     @property
