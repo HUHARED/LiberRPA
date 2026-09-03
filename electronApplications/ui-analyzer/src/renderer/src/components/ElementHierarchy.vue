@@ -12,14 +12,16 @@
 
     <v-list
       v-else
+      v-model:selected="arrSelectedLayerIndex"
       class="clean-space flex-column-grow-1"
       lines="one"
       density="compact"
+      mandatory
       slim>
       <v-list-item
         v-for="(dictAttr, index) in selectorStore.arrEleHierarchy"
         :key="index"
-        :value="dictAttr"
+        :value="index"
         color="primary"
         rounded="shaped">
         <!-- Add the checkbox for each layer. When check or uncheck a layer, emit an event. -->
@@ -35,7 +37,7 @@
         </template>
 
         <!-- Show the value's JSON string of each layer. -->
-        <v-list-item-title @click="selectorStore.refreshArrtibuteEditor(index)">
+        <v-list-item-title>
           {{ JSON.stringify(dictAttr) }}
         </v-list-item-title>
       </v-list-item>
@@ -44,7 +46,7 @@
 </template>
 
 <script setup lang="ts">
-import { watch } from "vue";
+import { computed, watch } from "vue";
 
 import { loggerRenderer } from "../ipcOfRenderer";
 import { useSelectorStore, useInformationStore, useSettingStore } from "../store";
@@ -52,6 +54,16 @@ import { useSelectorStore, useInformationStore, useSettingStore } from "../store
 const selectorStore = useSelectorStore();
 const informationStore = useInformationStore();
 const settingStore = useSettingStore();
+
+const arrSelectedLayerIndex = computed({
+  get: (): number[] => {
+    return selectorStore.intClickedLayer >= 0 ? [selectorStore.intClickedLayer] : [];
+  },
+  set: (arrLayerIndex: number[]): void => {
+    if (arrLayerIndex.length === 0) return;
+    selectorStore.refreshArrtibuteEditor(arrLayerIndex[0]);
+  },
+});
 
 watch(
   () => informationStore.information,
@@ -73,7 +85,7 @@ watch(
       // Reset validateState
       informationStore.validateState = undefined;
     }
-  }
+  },
 );
 </script>
 
