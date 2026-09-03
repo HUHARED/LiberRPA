@@ -3,7 +3,7 @@ console.log("This is content.js");
 // console.log(new Date());
 
 import type { DictResultOriginal } from "../background/interface";
-import type{ DictCommandContent  } from "./interface";
+import type { DictCommandContent } from "./interface";
 
 import { getElementAttrByCoordinates, getElementAttrBySelector } from "./commonFunc";
 
@@ -48,11 +48,11 @@ chrome.runtime.onMessage.addListener(
                   dictCommand.pressShift,
                   dictCommand.pressAlt,
                   dictCommand.pressWin,
-                  dictCommand.preDelay
+                  dictCommand.preDelay,
                 ),
-              dictCommand.timeout
+              dictCommand.timeout,
             ),
-            sendResponse
+            sendResponse,
           );
 
           break;
@@ -66,11 +66,11 @@ chrome.runtime.onMessage.addListener(
                   dictCommand.text,
                   dictCommand.clearBeforeWrite,
                   dictCommand.validateText,
-                  dictCommand.preDelay
+                  dictCommand.preDelay,
                 ),
-              dictCommand.timeout
+              dictCommand.timeout,
             ),
-            sendResponse
+            sendResponse,
           );
 
           break;
@@ -79,9 +79,9 @@ chrome.runtime.onMessage.addListener(
           handleAsyncResult(
             withTimeout(
               () => focusElement(dictCommand.htmlSelector, dictCommand.preDelay),
-              dictCommand.timeout
+              dictCommand.timeout,
             ),
-            sendResponse
+            sendResponse,
           );
           break;
 
@@ -92,25 +92,21 @@ chrome.runtime.onMessage.addListener(
                 getParentElementAttr(
                   dictCommand.htmlSelector,
                   dictCommand.upwardLevel,
-                  dictCommand.preDelay
+                  dictCommand.preDelay,
                 ),
-              dictCommand.timeout
+              dictCommand.timeout,
             ),
-            sendResponse
+            sendResponse,
           );
           break;
 
         case "getChildrenElementAttr":
           handleAsyncResult(
             withTimeout(
-              () =>
-                getChildrenElementAttr(
-                  dictCommand.htmlSelector,
-                  dictCommand.preDelay
-                ),
-              dictCommand.timeout
+              () => getChildrenElementAttr(dictCommand.htmlSelector, dictCommand.preDelay),
+              dictCommand.timeout,
             ),
-            sendResponse
+            sendResponse,
           );
           break;
 
@@ -121,11 +117,11 @@ chrome.runtime.onMessage.addListener(
                 setCheckState(
                   dictCommand.htmlSelector,
                   dictCommand.checkAction,
-                  dictCommand.preDelay
+                  dictCommand.preDelay,
                 ),
-              dictCommand.timeout
+              dictCommand.timeout,
             ),
-            sendResponse
+            sendResponse,
           );
           break;
 
@@ -136,11 +132,11 @@ chrome.runtime.onMessage.addListener(
                 getSelection(
                   dictCommand.htmlSelector,
                   dictCommand.selectionType,
-                  dictCommand.preDelay
+                  dictCommand.preDelay,
                 ),
-              dictCommand.timeout
+              dictCommand.timeout,
             ),
-            sendResponse
+            sendResponse,
           );
           break;
 
@@ -153,11 +149,11 @@ chrome.runtime.onMessage.addListener(
                   dictCommand.text,
                   dictCommand.value,
                   dictCommand.index,
-                  dictCommand.preDelay
+                  dictCommand.preDelay,
                 ),
-              dictCommand.timeout
+              dictCommand.timeout,
             ),
-            sendResponse
+            sendResponse,
           );
           break;
 
@@ -167,7 +163,7 @@ chrome.runtime.onMessage.addListener(
         case "getElementAttrByCoordinates":
           sendSuccess(
             getElementAttrByCoordinates(dictCommand.x, dictCommand.y, dictCommand.usePath),
-            sendResponse
+            sendResponse,
           );
           return false;
 
@@ -194,7 +190,7 @@ chrome.runtime.onMessage.addListener(
         case "executeJsCode":
           sendSuccess(
             executeJsCode(dictCommand.jsCode, dictCommand.returnImmediately),
-            sendResponse
+            sendResponse,
           );
           return false;
 
@@ -212,7 +208,7 @@ chrome.runtime.onMessage.addListener(
     }
 
     return true; // Return true to keep the response channel open due to it may have some async manipulation didn't resolve.
-  }
+  },
 );
 
 function handleAsyncResult<T>(promise: Promise<T>, sendResponse: SendResponse): void {
@@ -228,7 +224,7 @@ function handleAsyncResult<T>(promise: Promise<T>, sendResponse: SendResponse): 
 function sendSuccess(value: unknown, sendResponse: SendResponse): void {
   const result: DictResultOriginal = {
     boolSuccess: true,
-    data: value,
+    data: value === undefined ? null : value,
   };
   sendResponse(result);
   console.log("result", result);
