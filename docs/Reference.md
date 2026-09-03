@@ -18,6 +18,7 @@ Use your browser or editor search when you already know the API or Snippet name.
 ## Contents
 
 - [Project Values](#project-values)
+- [Types](#types)
 - [Basic](#basic)
 - [LogicControl](#logiccontrol)
 - [Log](#log)
@@ -62,6 +63,28 @@ Get the current flow error object, or None if no error is being handled.
 ### PrjArgs.projectPath
 
 Get the absolute path of the current RPA project.
+
+## Types
+
+### SelectorWindow
+
+Type annotation for a LiberRPA window selector.
+
+### SelectorUia
+
+Type annotation for a LiberRPA UI Automation selector.
+
+### SelectorHtml
+
+Type annotation for a LiberRPA HTML selector.
+
+### SelectorImage
+
+Type annotation for a LiberRPA image selector.
+
+### Selector
+
+Type annotation for any supported LiberRPA selector.
 
 ## Basic
 
@@ -303,7 +326,9 @@ sep: Separator inserted between multiple values in the human_read log.
 
 ### exception_info
 
-Record the Exception object's 'type', 'message', 'fileName' and 'lineNumber' in a dict format and "ERROR" log level, only if the current log level allows it.
+Record structured exception information at the ERROR log level.
+
+The recorded information includes the exception type, message, final error location, process name, and traceback frames from the outermost call to the frame where the exception was raised.
 
 Parameters:
 
@@ -364,7 +389,7 @@ level: The level to record log. Must be one of ['VERBOSE', 'DEBUG', 'INFO', 'WAR
 Returns:
 
 ```text
-Callable[[Callable[P, T]], Callable[P, T]]: A decorator that wraps the target function.
+Callable[[F], F]: A decorator that preserves the target function's type.
 ```
 
 ## Mouse
@@ -480,7 +505,6 @@ Parameters:
 ```text
 text: The text to be written.
 executionMode: Execution mode, either "simulate" or "api". "simulate" may be affected by IME(Input Method Editor) or CapsLock, while "api" can input more characters more reliably.
-timeout: Maximum time allowed for normal completion, in milliseconds. Values below 3000 are treated as 3000. The actual elapsed time may be longer if LiberRPA enters its hard-timeout fallback before raising a timeout-related exception.
 preDelay: Time to wait before performing the action, in milliseconds.
 postDelay: Time to wait after performing the action, in milliseconds.
 ```
@@ -1028,7 +1052,7 @@ Parameters:
 ```text
 browserType: The type of browser to manipulate (currently only "chrome" is supported).
 url: The URL to open in the browser.
-path: The filesystem path to the browser exe. If not provided, it attempts to locate the browser in common directories.
+path: The filesystem path to the browser exe. If not provided, Chrome is located automatically using Windows application registration, standard install directories, and PATH.
 params: Additional command-line parameters to pass when launching the browser.
 
     You can pass a string for simple cases, such as "--start-maximized".
@@ -2134,6 +2158,7 @@ Parameters:
 
 ```text
 filePath: The path of the application to run. Accepts str or PathLike[str].
+workingDirectory: The working directory of the application. Accepts str or PathLike[str].
 windowState: 'default', 'maximize', 'minimize'
 ```
 

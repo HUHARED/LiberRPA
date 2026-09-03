@@ -94,6 +94,7 @@ PUBLIC_MODULE_ORDER = [
 # Category order in the snippets tree. Favorite is added by the extension at runtime.
 SNIPPET_CATEGORY_ORDER = [
     "Project Values",
+    "Types",
     "Basic",
     "LogicControl",
     "Log",
@@ -107,6 +108,7 @@ SNIPPET_CATEGORY_ORDER = [
 # Note that using the identifiers in the second table of the chapter "Icon Listing".
 SNIPPET_CATEGORY_ICON: dict[str, str] = {
     "Project Values": "symbol-variable",
+    "Types": "symbol-class",
     #
     "Basic": "circle-large-outline",
     "LogicControl": "git-compare",

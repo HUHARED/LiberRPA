@@ -2,6 +2,7 @@
   "schemaVersion": 1,
   "categoryOrder": [
     "Project Values",
+    "Types",
     "Basic",
     "LogicControl",
     "Log",
@@ -35,6 +36,7 @@
   ],
   "categoryIcons": {
     "Project Values": "symbol-variable",
+    "Types": "symbol-class",
     "Basic": "circle-large-outline",
     "LogicControl": "git-compare",
     "Log": "pencil",
@@ -153,6 +155,81 @@
       "imports": {
         "liberrpa.Modules": [
           "PrjArgs"
+        ]
+      }
+    },
+    "Types.SelectorWindow": {
+      "category": "Types",
+      "label": "SelectorWindow",
+      "prefix": "SelectorWindow",
+      "body": [
+        "SelectorWindow"
+      ],
+      "description": "Type annotation for a LiberRPA window selector.",
+      "insertionMode": "cursor",
+      "imports": {
+        "liberrpa.Modules": [
+          "SelectorWindow"
+        ]
+      }
+    },
+    "Types.SelectorUia": {
+      "category": "Types",
+      "label": "SelectorUia",
+      "prefix": "SelectorUia",
+      "body": [
+        "SelectorUia"
+      ],
+      "description": "Type annotation for a LiberRPA UI Automation selector.",
+      "insertionMode": "cursor",
+      "imports": {
+        "liberrpa.Modules": [
+          "SelectorUia"
+        ]
+      }
+    },
+    "Types.SelectorHtml": {
+      "category": "Types",
+      "label": "SelectorHtml",
+      "prefix": "SelectorHtml",
+      "body": [
+        "SelectorHtml"
+      ],
+      "description": "Type annotation for a LiberRPA HTML selector.",
+      "insertionMode": "cursor",
+      "imports": {
+        "liberrpa.Modules": [
+          "SelectorHtml"
+        ]
+      }
+    },
+    "Types.SelectorImage": {
+      "category": "Types",
+      "label": "SelectorImage",
+      "prefix": "SelectorImage",
+      "body": [
+        "SelectorImage"
+      ],
+      "description": "Type annotation for a LiberRPA image selector.",
+      "insertionMode": "cursor",
+      "imports": {
+        "liberrpa.Modules": [
+          "SelectorImage"
+        ]
+      }
+    },
+    "Types.Selector": {
+      "category": "Types",
+      "label": "Selector",
+      "prefix": "Selector",
+      "body": [
+        "Selector"
+      ],
+      "description": "Type annotation for any supported LiberRPA selector.",
+      "insertionMode": "cursor",
+      "imports": {
+        "liberrpa.Modules": [
+          "Selector"
         ]
       }
     },
@@ -656,7 +733,7 @@
         "Log.exception_info(exObj=$1)",
         "$0"
       ],
-      "description": "Record the Exception object's 'type', 'message', 'fileName' and 'lineNumber' in a dict format and \"ERROR\" log level, only if the current log level allows it.\n\nParameters:\n    exObj: The Exception object to record.",
+      "description": "Record structured exception information at the ERROR log level.\n\nThe recorded information includes the exception type, message, final error location, process name, and traceback frames from the outermost call to the frame where the exception was raised.\n\nParameters:\n    exObj: The Exception object to record.",
       "insertionMode": "line",
       "imports": {
         "liberrpa.Modules": [
@@ -720,7 +797,7 @@
         "@Log.trace(level=${1|'DEBUG','VERBOSE','INFO','WARNING','ERROR','CRITICAL'|})",
         "$0"
       ],
-      "description": "Decorate a function to log its call and successful return at a specified log level.\n\nParameters:\n    level: The level to record log. Must be one of ['VERBOSE', 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'].\n\nReturns:\n    Callable[[Callable[P, T]], Callable[P, T]]: A decorator that wraps the target function.",
+      "description": "Decorate a function to log its call and successful return at a specified log level.\n\nParameters:\n    level: The level to record log. Must be one of ['VERBOSE', 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'].\n\nReturns:\n    Callable[[F], F]: A decorator that preserves the target function's type.",
       "insertionMode": "line",
       "imports": {
         "liberrpa.Modules": [
@@ -829,10 +906,10 @@
       "label": "write_text",
       "prefix": "Keyboard.write_text",
       "body": [
-        "Keyboard.write_text(text=$1, executionMode=${2|'api','simulate'|}, timeout=${3:10000}, preDelay=${4:300}, postDelay=${5:200})",
+        "Keyboard.write_text(text=$1, executionMode=${2|'api','simulate'|}, preDelay=${3:300}, postDelay=${4:200})",
         "$0"
       ],
-      "description": "Write text in the current element focused.\n\nParameters:\n    text: The text to be written.\n    executionMode: Execution mode, either \"simulate\" or \"api\". \"simulate\" may be affected by IME(Input Method Editor) or CapsLock, while \"api\" can input more characters more reliably.\n    timeout: Maximum time allowed for normal completion, in milliseconds. Values below 3000 are treated as 3000. The actual elapsed time may be longer if LiberRPA enters its hard-timeout fallback before raising a timeout-related exception.\n    preDelay: Time to wait before performing the action, in milliseconds.\n    postDelay: Time to wait after performing the action, in milliseconds.",
+      "description": "Write text in the current element focused.\n\nParameters:\n    text: The text to be written.\n    executionMode: Execution mode, either \"simulate\" or \"api\". \"simulate\" may be affected by IME(Input Method Editor) or CapsLock, while \"api\" can input more characters more reliably.\n    preDelay: Time to wait before performing the action, in milliseconds.\n    postDelay: Time to wait after performing the action, in milliseconds.",
       "insertionMode": "line",
       "imports": {
         "liberrpa.Modules": [
@@ -1296,7 +1373,7 @@
         "${1:browserObj} = Browser.open_browser(browserType=${2|'chrome'|}, url=${3:'about:blank'}, path=${4:None}, params=${5:''}, timeout=${6:30000})",
         "$0"
       ],
-      "description": "Open a browser to access the url.\n\nIf the browser is running, it will open a new tab.\n\nParameters:\n    browserType: The type of browser to manipulate (currently only \"chrome\" is supported).\n    url: The URL to open in the browser.\n    path: The filesystem path to the browser exe. If not provided, it attempts to locate the browser in common directories.\n    params: Additional command-line parameters to pass when launching the browser.\n\n        You can pass a string for simple cases, such as \"--start-maximized\".\n        If a parameter value contains spaces, passing a list[str] is recommended,\n        for example [\"--user-data-dir=C:/Temp/Chrome Profile\"].\n\n        For Chrome, you can check all params in [List of Chromium Command Line Switches](https://peter.sh/experiments/chromium-command-line-switches/)\n    timeout: Maximum time to wait until the browser's extension can communicate with LiberRPA Local Server, in milliseconds.\n\nReturns:\n    BrowserObj: A handle indicating browser type and Chrome extension availability. Browser operations target the currently active common web page tab in the last focused browser window.",
+      "description": "Open a browser to access the url.\n\nIf the browser is running, it will open a new tab.\n\nParameters:\n    browserType: The type of browser to manipulate (currently only \"chrome\" is supported).\n    url: The URL to open in the browser.\n    path: The filesystem path to the browser exe. If not provided, Chrome is located automatically using Windows application registration, standard install directories, and PATH.\n    params: Additional command-line parameters to pass when launching the browser.\n\n        You can pass a string for simple cases, such as \"--start-maximized\".\n        If a parameter value contains spaces, passing a list[str] is recommended,\n        for example [\"--user-data-dir=C:/Temp/Chrome Profile\"].\n\n        For Chrome, you can check all params in [List of Chromium Command Line Switches](https://peter.sh/experiments/chromium-command-line-switches/)\n    timeout: Maximum time to wait until the browser's extension can communicate with LiberRPA Local Server, in milliseconds.\n\nReturns:\n    BrowserObj: A handle indicating browser type and Chrome extension availability. Browser operations target the currently active common web page tab in the last focused browser window.",
       "insertionMode": "line",
       "imports": {
         "liberrpa.Modules": [
@@ -2317,10 +2394,10 @@
       "label": "run_application",
       "prefix": "Application.run_application",
       "body": [
-        "${1:intResult} = Application.run_application(filePath=$2, windowState=${3|'default','maximize','minimize'|})",
+        "${1:intResult} = Application.run_application(filePath=$2, workingDirectory=${3:'./'}, windowState=${4|'default','maximize','minimize'|})",
         "$0"
       ],
-      "description": "Run an application with a specified window state.\n\nParameters:\n    filePath: The path of the application to run. Accepts str or PathLike[str].\n    windowState: 'default', 'maximize', 'minimize'\n\nReturns:\n    int: The application's PID.",
+      "description": "Run an application with a specified window state.\n\nParameters:\n    filePath: The path of the application to run. Accepts str or PathLike[str].\n    workingDirectory: The working directory of the application. Accepts str or PathLike[str].\n    windowState: 'default', 'maximize', 'minimize'\n\nReturns:\n    int: The application's PID.",
       "insertionMode": "line",
       "imports": {
         "liberrpa.Modules": [
