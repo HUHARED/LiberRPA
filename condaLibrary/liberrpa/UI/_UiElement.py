@@ -53,6 +53,7 @@ from typing import overload
 uiautomation.SEARCH_INTERVAL = 1.0
 uiautomation.OPERATION_WAIT_TIME = 0
 uiautomation.SetGlobalSearchTimeout(10)
+uiautomation.Logger.SetLogFile("")
 Log.verbose(f"Initialize uiautomation in thread: {threading.current_thread().name}")
 
 
