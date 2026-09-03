@@ -78,6 +78,7 @@ _SET_INTERNAL_FILE = {
     "End.py",
     "ProjectFlowInit.py",
     "_UiElement.py",
+    "_UiAutomation.py",
     "_WebSocket.py",
     "Trigger.py",
 }
