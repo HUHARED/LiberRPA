@@ -4,26 +4,43 @@ import type { LogicFlow } from "@logicflow/core";
 import { CurvedEdge as CurvedEdgeView, CurvedEdgeModel } from "@logicflow/extension";
 
 import type { DictPosition } from "./interface";
+import { optimizeEndpointBendSymmetry } from "./orthogonalEdgeRoute";
 
-class CommonLineModel extends CurvedEdgeModel {
+const EDGE_CORNER_RADIUS = 10;
+const EDGE_TEXT_PATH_DISTANCE = 40;
+
+class FlowchartLineModel extends CurvedEdgeModel {
   initEdgeData(data: LogicFlow.EdgeConfig): void {
     super.initEdgeData(data);
     this.text.editable = false;
-    this.radius = 10;
+    this.radius = EDGE_CORNER_RADIUS;
+
+    // pointsList from a saved Flow is normalized before sourceNodeId and targetNodeId are initialized. Re-run the post-processing once the connected nodes are ready.
+    this.pointsList = this.orthogonalizePath(this.pointsList);
+    this.points = this.getPath(this.pointsList);
+    this.resetTextPosition();
   }
 
-  getEdgeStyle(): {
-    [x: string]: unknown;
-    fill?: string | undefined;
-    stroke?: string | undefined;
-    strokeWidth?: number | undefined;
-    radius?: number | undefined;
-    rx?: number | undefined;
-    ry?: number | undefined;
-    width?: number | undefined;
-    height?: number | undefined;
-    path?: string | undefined;
-  } {
+  orthogonalizePath(arrPoints: LogicFlow.Point[]): LogicFlow.Point[] {
+    const arrOrthogonalPoints = super.orthogonalizePath(arrPoints);
+    const sourceNode = this.sourceNode;
+    const targetNode = this.targetNode;
+    if (!sourceNode || !targetNode) {
+      return arrOrthogonalPoints;
+    }
+
+    const arrNodeBounds = this.graphModel.nodes.map((node) => node.getBounds());
+
+    return optimizeEndpointBendSymmetry(
+      arrOrthogonalPoints,
+      EDGE_CORNER_RADIUS,
+      arrNodeBounds,
+    );
+  }
+}
+
+class CommonLineModel extends FlowchartLineModel {
+  getEdgeStyle(): LogicFlow.EdgeTheme {
     const style = super.getEdgeStyle();
     style.stroke = "gray";
     return style;
@@ -38,26 +55,13 @@ export const CommonLineEdge = {
   view: CommonLineView,
 };
 
-class TrueLineModel extends CurvedEdgeModel {
+class TrueLineModel extends FlowchartLineModel {
   initEdgeData(data: LogicFlow.EdgeConfig): void {
     super.initEdgeData(data);
-    this.text.editable = false;
-    this.radius = 10;
     this.text.value = "True";
   }
 
-  getEdgeStyle(): {
-    [x: string]: unknown;
-    fill?: string | undefined;
-    stroke?: string | undefined;
-    strokeWidth?: number | undefined;
-    radius?: number | undefined;
-    rx?: number | undefined;
-    ry?: number | undefined;
-    width?: number | undefined;
-    height?: number | undefined;
-    path?: string | undefined;
-  } {
+  getEdgeStyle(): LogicFlow.EdgeTheme {
     const style = super.getEdgeStyle();
     style.stroke = "Gold";
     return style;
@@ -90,26 +94,13 @@ export const TrueLineEdge = {
   view: TrueLineView,
 };
 
-class FalseLineModel extends CurvedEdgeModel {
+class FalseLineModel extends FlowchartLineModel {
   initEdgeData(data: LogicFlow.EdgeConfig): void {
     super.initEdgeData(data);
-    this.text.editable = false;
-    this.radius = 10;
     this.text.value = "False";
   }
 
-  getEdgeStyle(): {
-    [x: string]: unknown;
-    fill?: string | undefined;
-    stroke?: string | undefined;
-    strokeWidth?: number | undefined;
-    radius?: number | undefined;
-    rx?: number | undefined;
-    ry?: number | undefined;
-    width?: number | undefined;
-    height?: number | undefined;
-    path?: string | undefined;
-  } {
+  getEdgeStyle(): LogicFlow.EdgeTheme {
     const style = super.getEdgeStyle();
     style.stroke = "Chocolate";
     return style;
@@ -142,26 +133,13 @@ export const FalseLineEdge = {
   view: FalseLineView,
 };
 
-class ExceptionLineModel extends CurvedEdgeModel {
+class ExceptionLineModel extends FlowchartLineModel {
   initEdgeData(data: LogicFlow.EdgeConfig): void {
     super.initEdgeData(data);
-    this.text.editable = false;
-    this.radius = 10;
     this.text.value = "Exception";
   }
 
-  getEdgeStyle(): {
-    [x: string]: unknown;
-    fill?: string | undefined;
-    stroke?: string | undefined;
-    strokeWidth?: number | undefined;
-    radius?: number | undefined;
-    rx?: number | undefined;
-    ry?: number | undefined;
-    width?: number | undefined;
-    height?: number | undefined;
-    path?: string | undefined;
-  } {
+  getEdgeStyle(): LogicFlow.EdgeTheme {
     const style = super.getEdgeStyle();
     style.stroke = "#E57373";
     return style;
@@ -196,27 +174,49 @@ export const ExceptionLineEdge = {
 
 function calculateTextPosition(
   position: DictPosition,
-  arrCurrentPosition: string[]
+  arrCurrentPosition: string[],
 ): { x: number; y: number } {
-  if (arrCurrentPosition.length <= 1) {
+  const arrPolylinePoints = parsePolylinePoints(arrCurrentPosition);
+  if (arrPolylinePoints.length <= 1) {
     return position;
   }
 
-  const [strX1, strY1] = arrCurrentPosition[0].split(",");
-  const [strX2, strY2] = arrCurrentPosition[1].split(",");
-  const intX1 = Number(strX1);
-  const intY1 = Number(strY1);
-  const intX2 = Number(strX2);
-  const intY2 = Number(strY2);
-  if (intX1 === intX2) {
-    // Vertical direction
-    position.y = intY2 < intY1 ? intY1 - 40 : intY1 + 40;
-    position.x = intX1;
-  } else {
-    // y1 === y2, Horizontal direction
-    position.x = intX2 < intX1 ? intX1 - 40 : intX1 + 40;
-    position.y = intY1;
+  let remainingDistance = EDGE_TEXT_PATH_DISTANCE;
+  for (let index = 0; index < arrPolylinePoints.length - 1; index += 1) {
+    const startPoint = arrPolylinePoints[index];
+    const endPoint = arrPolylinePoints[index + 1];
+    const segmentLength =
+      Math.abs(endPoint.x - startPoint.x) + Math.abs(endPoint.y - startPoint.y);
+    if (segmentLength === 0) {
+      continue;
+    }
+
+    if (remainingDistance <= segmentLength) {
+      const positionRatio = remainingDistance / segmentLength;
+      return {
+        x: startPoint.x + (endPoint.x - startPoint.x) * positionRatio,
+        y: startPoint.y + (endPoint.y - startPoint.y) * positionRatio,
+      };
+    }
+
+    remainingDistance -= segmentLength;
   }
 
   return position;
+}
+
+function parsePolylinePoints(arrCurrentPosition: string[]): DictPosition[] {
+  const arrPolylinePoints: DictPosition[] = [];
+
+  for (const strPosition of arrCurrentPosition) {
+    const [strX, strY] = strPosition.split(",");
+    const x = Number(strX);
+    const y = Number(strY);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) {
+      return [];
+    }
+    arrPolylinePoints.push({ x, y });
+  }
+
+  return arrPolylinePoints;
 }
