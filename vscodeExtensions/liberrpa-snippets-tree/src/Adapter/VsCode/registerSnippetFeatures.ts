@@ -6,6 +6,7 @@ import { runAsyncBoundary } from "./errorHandling";
 import { CustomArgsCompletionItemProvider } from "./customArgsCompletionProvider";
 import { SnippetCompletionItemProvider } from "./snippetCompletionProvider";
 import { SnippetDropEditProvider } from "./snippetDropEditProvider";
+import { registerSnippetTabNavigation } from "./snippetTabNavigation";
 import { STR_SNIPPET_DRAG_MIME, SnippetTreeDataProvider } from "./snippetTreeDataProvider";
 import { insertSnippetFromTreeNode } from "../../Application/SnippetInsertion/insertSnippet";
 import { isSnippetNodeCommandArg } from "../../Domain/Snippet/snippetValidation";
@@ -19,6 +20,8 @@ export function registerSnippetFeatures(
   const completionItemProvider = new SnippetCompletionItemProvider(repository);
 
   context.subscriptions.push(
+    registerSnippetTabNavigation(),
+
     /* TreeView-related */
     treeDataProvider,
     vscode.window.createTreeView("LiberRPA.snippetsTreeView", {

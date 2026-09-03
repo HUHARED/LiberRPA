@@ -68,11 +68,23 @@ The completion details show the Snippet body and description before insertion.
 
 #### Snippet Placeholders
 
-After insertion, press `Tab` to move through editable Snippet fields.
+After insertion, use `Tab` and `Shift+Tab` to move between editable Snippet fields.
+
+While editing a Python Snippet field, `Tab` first moves past a closing bracket or quote automatically added while editing that field. Repeated presses can move through nested closing characters. When there is no closing character to move past, `Tab` advances to the next field.
+
+For example, `|` represents the cursor below:
+
+```python
+listRow[0|]
+```
+
+The first `Tab` moves past `]`; the next `Tab` continues to the next Snippet field.
+
+`Shift+Tab` moves to the previous field. Outside active Snippet fields, `Tab` keeps the normal LiberRPA Editor behavior.
 
 Some parameters provide a predefined list of valid values. To enter a variable or another expression instead, press `Esc` twice: the first press closes the choice list, and the second exits the active Snippet placeholder mode so normal Python IntelliSense can resume.
 
-After exiting the placeholder mode, `Tab` no longer moves through the remaining Snippet fields.
+After exiting placeholder mode, `Tab` no longer moves through the remaining Snippet fields.
 
 ### Managed Imports
 

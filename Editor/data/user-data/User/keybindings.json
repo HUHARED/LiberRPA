@@ -89,11 +89,10 @@
     "command": "-workbench.action.toggleSidebarVisibility"
   },
 
-  // Make TabOut compatible with snippets.
+  // Keep TabOut outside Snippet mode.
   {
     "key": "tab",
-    "command": "-tabout",
-    "when": "editorTextFocus && !editorHasSelection && !editorHasMultipleSelections && !suggestWidgetVisible && !inlineSuggestionVisible && !inlineEditIsVisible"
+    "command": "-tabout"
   },
   {
     "key": "tab",
@@ -102,8 +101,7 @@
   },
   {
     "key": "shift+tab",
-    "command": "-tabout-reverse",
-    "when": "config.tabout.enableReverseShiftTab && editorTextFocus && !editorHasSelection && !editorHasMultipleSelections && !suggestWidgetVisible && !inlineSuggestionVisible && !inlineEditIsVisible"
+    "command": "-tabout-reverse"
   },
   {
     "key": "shift+tab",

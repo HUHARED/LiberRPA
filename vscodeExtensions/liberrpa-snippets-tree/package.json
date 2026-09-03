@@ -33,7 +33,30 @@
           "icon": "./assets/LiberRPA_icon_v3_monochrome_24.svg"
         }
       ]
-    }
+    },
+    "commands": [
+      {
+        "command": "LiberRPA.snippetsTree.navigateSnippetTab",
+        "title": "Navigate Python Snippet Field",
+        "category": "LiberRPA",
+        "enablement": "editorTextFocus && editorLangId == python && inSnippetMode && hasNextTabstop && !editorReadonly && !editorTabMovesFocus && !inSnippetChoice && !editorHasSelection && !editorHasMultipleSelections && !suggestWidgetVisible && !inlineSuggestionVisible && !inlineEditIsVisible"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "LiberRPA.snippetsTree.navigateSnippetTab",
+          "when": "false"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "key": "tab",
+        "command": "LiberRPA.snippetsTree.navigateSnippetTab",
+        "when": "editorTextFocus && editorLangId == python && inSnippetMode && hasNextTabstop && !editorReadonly && !editorTabMovesFocus && !inSnippetChoice && !editorHasSelection && !editorHasMultipleSelections && !suggestWidgetVisible && !inlineSuggestionVisible && !inlineEditIsVisible"
+      }
+    ]
   },
   "icon": "./assets/LiberRPA_icon_v3_color_SnippetsTree_128.png",
   "license": "SEE LICENSE IN LICENSE",
