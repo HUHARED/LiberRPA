@@ -11,13 +11,13 @@ import json
 import os
 from pathlib import Path
 import secrets
-import shutil
 import subprocess
 import sys
 import winreg
 
 from _Editor import prepare_editor as _prepare_editor_files
 from _EditorExtensions import install_editor_extensions as _install_editor_extensions
+from _Font import install_font_for_current_user as _install_font_for_current_user
 from _Shortcut import create_desktop_shortcuts, create_startup_shortcuts
 
 
@@ -245,26 +245,7 @@ def create_local_auth(userPath: Path) -> None:
 def install_font_for_current_user(rootPath: Path, userPath: Path) -> None:
     print_step(name="install_font_for_current_user")
 
-    pathLocalAppData = userPath / "AppData" / "Local"
-
-    if pathLocalAppData.is_dir():
-        pathUserFontsFolder = pathLocalAppData / "Microsoft" / "Windows" / "Fonts"
-        pathUserFontsFolder.mkdir(parents=True, exist_ok=True)
-
-        pathTarget = pathUserFontsFolder / "NotoSansMono-VariableFont_wdth,wght.ttf"
-
-        if pathTarget.is_file():
-            print("The font 'Noto Sans Mono' has installed.")
-        else:
-            pathFontFile = (
-                rootPath
-                / R"envs\assets\font\Noto_Sans_Mono\NotoSansMono-VariableFont_wdth,wght.ttf"
-            )
-
-            strPath = shutil.copy2(pathFontFile, pathTarget)
-            print(f"Installed the font 'Noto Sans Mono' in {strPath}")
-    else:
-        print(f"[Error] Not found LOCALAPPDATA: {pathLocalAppData}")
+    _install_font_for_current_user(rootPath=rootPath, userPath=userPath)
 
     print_step_done(name="install_font_for_current_user")
 
@@ -338,10 +319,16 @@ def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Initialize LiberRPA for the current Windows user."
     )
-    parser.add_argument(
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument(
         "--editor-only",
         action="store_true",
         help="Prepare Editor in the current directory without changing user settings, tokens, or shortcuts.",
+    )
+    group.add_argument(
+        "--font-only",
+        action="store_true",
+        help="Install or repair the LiberRPA Noto Sans Mono font for the current Windows user only.",
     )
     return parser.parse_args()
 
@@ -357,6 +344,8 @@ def main() -> None:
     try:
         if args.editor_only:
             prepare_editor(rootPath=rootPath)
+        elif args.font_only:
+            install_font_for_current_user(rootPath=rootPath, userPath=userPath)
         else:
             initialize_liberrpa(rootPath=rootPath, userPath=userPath)
     except KeyboardInterrupt:
