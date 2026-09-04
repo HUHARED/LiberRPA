@@ -48,6 +48,16 @@ export function isWebviewMessage(value: unknown): value is WebviewToExtensionMes
     return typeof msg.data === "string";
   }
 
+  if (msg.command === "workspaceSearch") {
+    const data = msg.data as Record<string, unknown> | undefined;
+
+    return (
+      !!data &&
+      (data.mode === "find" || data.mode === "replace") &&
+      (data.query === undefined || typeof data.query === "string")
+    );
+  }
+
   if (msg.command === "open") {
     return typeof msg.path === "string";
   }

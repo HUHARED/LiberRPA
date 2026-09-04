@@ -9,6 +9,7 @@ import type {
   FlowNode,
   LogLevel,
   WebviewToExtensionMessage,
+  WorkspaceSearchMode,
 } from "./interface";
 import { createTwoFilesPatch } from "diff";
 
@@ -24,6 +25,10 @@ export function notifyWebviewReady(): void {
 
 export function requestDocumentSave(): void {
   vscode.postMessage({ command: "save" });
+}
+
+export function requestWorkspaceSearch(mode: WorkspaceSearchMode, query?: string): void {
+  vscode.postMessage({ command: "workspaceSearch", data: { mode, query } });
 }
 
 export function showAlert(message: string): void {

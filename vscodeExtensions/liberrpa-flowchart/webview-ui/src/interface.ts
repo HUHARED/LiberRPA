@@ -131,6 +131,7 @@ export interface DictProject extends Flowchart, BuiltInProjectArguments {
 }
 
 export type Theme = "light" | "dark";
+export type WorkspaceSearchMode = "find" | "replace";
 
 export interface DictProjectForWebview extends DictProject {
   // theme is added by the extension when sending data to the webview.
@@ -143,6 +144,10 @@ export type WebviewToExtensionMessage =
   | { command: "ready" }
   | { command: "update"; data: string }
   | { command: "save" }
+  | {
+      command: "workspaceSearch";
+      data: { mode: WorkspaceSearchMode; query?: string };
+    }
   | { command: "open"; path: string }
   | { command: "execute"; data: { pyFile: string; executeMode: ExecuteMode } }
   | { command: "executeProject"; data: { executeMode: ExecuteMode } };

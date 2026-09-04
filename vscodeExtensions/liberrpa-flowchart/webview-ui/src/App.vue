@@ -60,7 +60,7 @@ import CustomPrjArgs from "./components/CustomPrjArgs.vue";
 import Alert from "./components/Alert.vue";
 import { useFlowchartStore, useSettingStore, useArgsStore } from "./store";
 import type { DictProject, ExtensionToWebviewMessage, Theme } from "./interface";
-import { initDictFinal, notifyWebviewReady } from "./commonFunc";
+import { initDictFinal, notifyWebviewReady, requestWorkspaceSearch } from "./commonFunc";
 
 const flowchartStore = useFlowchartStore();
 const settingStore = useSettingStore();
@@ -204,8 +204,54 @@ function stopResizing(): void {
   window.removeEventListener("mouseup", stopResizing);
 }
 
-// Handle keydown events and prevent VS Code from intercepting
+function getSelectedText(): string | undefined {
+  const activeElement = document.activeElement;
+
+  if (
+    activeElement instanceof HTMLInputElement ||
+    activeElement instanceof HTMLTextAreaElement
+  ) {
+    const intSelectionStart = activeElement.selectionStart;
+    const intSelectionEnd = activeElement.selectionEnd;
+
+    if (
+      intSelectionStart !== null &&
+      intSelectionEnd !== null &&
+      intSelectionStart !== intSelectionEnd
+    ) {
+      return activeElement.value.slice(intSelectionStart, intSelectionEnd);
+    }
+
+    return undefined;
+  }
+
+  const strSelectedText = window.getSelection()?.toString();
+  return strSelectedText ? strSelectedText : undefined;
+}
+
+function handleWorkspaceSearchShortcut(event: KeyboardEvent): boolean {
+  if (!(event.ctrlKey || event.metaKey) || !event.shiftKey || event.altKey) {
+    return false;
+  }
+
+  const strKey = event.key.toLowerCase();
+  if (strKey !== "f" && strKey !== "h") {
+    return false;
+  }
+
+  event.preventDefault();
+  event.stopPropagation();
+
+  requestWorkspaceSearch(strKey === "f" ? "find" : "replace", getSelectedText());
+  return true;
+}
+
+// Handle keydown events and prevent VS Code from intercepting Webview shortcuts.
 function handleKeydown(event: KeyboardEvent): void {
+  if (handleWorkspaceSearchShortcut(event)) {
+    return;
+  }
+
   // Check if Ctrl + Z or Ctrl + Y is pressed
   if ((event.ctrlKey || event.metaKey) && (event.key === "z" || event.key === "y")) {
     // Prevent the event from bubbling up to VS Code

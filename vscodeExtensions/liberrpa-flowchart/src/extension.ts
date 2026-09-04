@@ -394,6 +394,34 @@ class FlowchartEditorProvider implements vscode.CustomTextEditorProvider {
         break;
       }
 
+      case "workspaceSearch": {
+        if (message.data.query === undefined) {
+          const strCommand =
+            message.data.mode === "find"
+              ? "workbench.action.findInFiles"
+              : "workbench.action.replaceInFiles";
+
+          await vscode.commands.executeCommand(strCommand);
+          break;
+        }
+
+        const searchArgs: {
+          query: string;
+          replace?: string;
+          triggerSearch: true;
+        } = {
+          query: message.data.query,
+          triggerSearch: true,
+        };
+
+        if (message.data.mode === "replace") {
+          searchArgs.replace = "";
+        }
+
+        await vscode.commands.executeCommand("workbench.action.findInFiles", searchArgs);
+        break;
+      }
+
       case "open": {
         log.debug(`Open ${message.path}`);
 
