@@ -30,6 +30,7 @@ sioServer = SocketIO(
         "chrome-extension://cfpkjecgmfmincccpnbheeeojdkooohj",
     ],
     async_mode="threading",
+    ping_timeout=3600,
 )
 boolHasRunServer = False
 
