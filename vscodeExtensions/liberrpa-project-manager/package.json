@@ -50,6 +50,12 @@
         "title": "Rebuild Component Repository Index"
       }
     ],
+    "jsonValidation": [
+      {
+        "fileMatch": "**/_Snippets/snippets.jsonc",
+        "url": "./assets/componentSnippets.schema.json"
+      }
+    ],
     "menus": {
       "commandPalette": [
         {

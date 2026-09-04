@@ -1,0 +1,869 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$comment": "The productIconId enum is a snapshot of the Codicon identifiers listed in the VS Code Product Icon Reference on September 2, 2026. Keep the snapshot date and documentation synchronized when updating it.",
+  "$id": "https://raw.githubusercontent.com/HUHARED/LiberRPA/main/vscodeExtensions/liberrpa-project-manager/assets/componentSnippets.schema.json",
+  "title": "LiberRPA Component Snippet Configuration",
+  "description": "Configuration merged with AST-generated Snippets when publishing a LiberRPA Component.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "categoryIcons",
+    "excludedAstSnippets",
+    "astSnippetOverrides",
+    "snippets"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1,
+      "markdownDescription": "Component Snippet configuration schema version. The current and only supported value is `1`."
+    },
+    "categoryIcons": {
+      "type": "object",
+      "markdownDescription": "Maps public Component Module names to VS Code Product Icon IDs. Modules omitted here use `library`. Value completion includes a bundled snapshot of the Codicon identifiers documented for VS Code extensions.",
+      "propertyNames": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[^.\\s]+$"
+      },
+      "additionalProperties": {
+        "$ref": "#/definitions/productIconId"
+      },
+      "defaultSnippets": [
+        {
+          "label": "Assign a category icon",
+          "body": {
+            "${1:ModuleName}": "${2:library}"
+          }
+        }
+      ]
+    },
+    "excludedAstSnippets": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/definitions/snippetKey"
+      },
+      "markdownDescription": "AST-generated Snippet keys to omit from the final catalog. Copy stable keys from `_Snippets/ast.snippets.json`."
+    },
+    "astSnippetOverrides": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "#/definitions/snippetKey"
+      },
+      "additionalProperties": {
+        "$ref": "#/definitions/astSnippetOverride"
+      },
+      "markdownDescription": "Changes to existing AST-generated Snippets. Keys must exist in the latest `_Snippets/ast.snippets.json`.",
+      "defaultSnippets": [
+        {
+          "label": "Override an AST-generated Snippet",
+          "body": {
+            "${1:PackageName_ModuleName.function_name}": {
+              "description": "${2:Describe the customized Snippet.}"
+            }
+          }
+        }
+      ]
+    },
+    "snippets": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "#/definitions/snippetKey"
+      },
+      "additionalProperties": {
+        "$ref": "#/definitions/handWrittenSnippet"
+      },
+      "markdownDescription": "Additional hand-written Component Snippets. Stable keys use `PackageName_ModuleName.snippet_name`.",
+      "defaultSnippets": [
+        {
+          "label": "Add a hand-written Component Snippet",
+          "body": {
+            "${1:PackageName_ModuleName.snippet_name}": {
+              "body": ["${2:Component_Module.function_name()}"],
+              "description": "${3:Describe this Snippet.}",
+              "insertionMode": "${4|line,cursor|}",
+              "imports": {}
+            }
+          }
+        }
+      ]
+    }
+  },
+  "defaultSnippets": [
+    {
+      "label": "LiberRPA Component Snippet configuration",
+      "description": "Create the complete configuration structure.",
+      "body": {
+        "schemaVersion": 1,
+        "categoryIcons": {},
+        "excludedAstSnippets": [],
+        "astSnippetOverrides": {},
+        "snippets": {}
+      }
+    }
+  ],
+  "definitions": {
+    "productIconId": {
+      "markdownDescription": "Lower-case VS Code Product Icon ID. Completion includes the Codicon identifiers listed in the VS Code Product Icon Reference snapshot dated September 2, 2026. Newer syntactically valid IDs remain accepted even when they are not yet in this snapshot.",
+      "default": "library",
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": [
+            "account",
+            "activate-breakpoints",
+            "add",
+            "alert",
+            "archive",
+            "array",
+            "arrow-both",
+            "arrow-circle-down",
+            "arrow-circle-left",
+            "arrow-circle-right",
+            "arrow-circle-up",
+            "arrow-down",
+            "arrow-left",
+            "arrow-right",
+            "arrow-small-down",
+            "arrow-small-left",
+            "arrow-small-right",
+            "arrow-small-up",
+            "arrow-swap",
+            "arrow-up",
+            "azure-devops",
+            "azure",
+            "beaker-stop",
+            "beaker",
+            "bell",
+            "bell-dot",
+            "bell-slash",
+            "bell-slash-dot",
+            "bold",
+            "book",
+            "bookmark",
+            "bracket-dot",
+            "bracket-error",
+            "bracket",
+            "briefcase",
+            "broadcast",
+            "browser",
+            "bug",
+            "calendar",
+            "call-incoming",
+            "call-outgoing",
+            "case-sensitive",
+            "check",
+            "check-all",
+            "checklist",
+            "chevron-down",
+            "chevron-left",
+            "chevron-right",
+            "chevron-up",
+            "chip",
+            "chrome-close",
+            "chrome-maximize",
+            "chrome-minimize",
+            "chrome-restore",
+            "circle-filled",
+            "circle-large-filled",
+            "circle-large-outline",
+            "circle-outline",
+            "circle-slash",
+            "circuit-board",
+            "clear-all",
+            "clippy",
+            "clock",
+            "clone",
+            "close",
+            "close-all",
+            "close-dirty",
+            "cloud",
+            "cloud-download",
+            "cloud-upload",
+            "code",
+            "coffee",
+            "collapse-all",
+            "color-mode",
+            "combine",
+            "comment",
+            "comment-add",
+            "comment-discussion",
+            "comment-draft",
+            "comment-unresolved",
+            "compare-changes",
+            "compass-active",
+            "compass-dot",
+            "compass",
+            "console",
+            "copilot",
+            "copy",
+            "credit-card",
+            "dash",
+            "dashboard",
+            "database",
+            "debug-all",
+            "debug",
+            "debug-alt",
+            "debug-alt-small",
+            "debug-breakpoint",
+            "debug-breakpoint-conditional",
+            "debug-breakpoint-conditional-disabled",
+            "debug-breakpoint-conditional-unverified",
+            "debug-breakpoint-data",
+            "debug-breakpoint-data-disabled",
+            "debug-breakpoint-data-unverified",
+            "debug-breakpoint-disabled",
+            "debug-breakpoint-function",
+            "debug-breakpoint-function-disabled",
+            "debug-breakpoint-function-unverified",
+            "debug-breakpoint-log",
+            "debug-breakpoint-log-disabled",
+            "debug-breakpoint-log-unverified",
+            "debug-breakpoint-unsupported",
+            "debug-breakpoint-unverified",
+            "debug-console",
+            "debug-continue-small",
+            "debug-continue",
+            "debug-coverage",
+            "debug-disconnect",
+            "debug-hint",
+            "debug-line-by-line",
+            "debug-pause",
+            "debug-rerun",
+            "debug-restart",
+            "debug-restart-frame",
+            "debug-reverse-continue",
+            "debug-stackframe",
+            "debug-stackframe-active",
+            "debug-stackframe-dot",
+            "debug-stackframe-focused",
+            "debug-start",
+            "debug-step-back",
+            "debug-step-into",
+            "debug-step-out",
+            "debug-step-over",
+            "debug-stop",
+            "desktop-download",
+            "device-camera",
+            "device-camera-video",
+            "device-desktop",
+            "device-mobile",
+            "diff",
+            "diff-added",
+            "diff-ignored",
+            "diff-modified",
+            "diff-removed",
+            "diff-renamed",
+            "discard",
+            "edit",
+            "editor-layout",
+            "ellipsis",
+            "empty-window",
+            "error-small",
+            "error",
+            "exclude",
+            "expand-all",
+            "export",
+            "extensions",
+            "eye",
+            "eye-closed",
+            "eye-unwatch",
+            "eye-watch",
+            "feedback",
+            "file",
+            "file-add",
+            "file-binary",
+            "file-code",
+            "file-directory",
+            "file-directory-create",
+            "file-media",
+            "file-pdf",
+            "file-submodule",
+            "file-symlink-directory",
+            "file-symlink-file",
+            "file-text",
+            "file-zip",
+            "files",
+            "filter-filled",
+            "filter",
+            "flame",
+            "fold",
+            "fold-down",
+            "fold-up",
+            "folder",
+            "folder-active",
+            "folder-library",
+            "folder-opened",
+            "game",
+            "gather",
+            "gear",
+            "gift",
+            "gist",
+            "gist-fork",
+            "gist-new",
+            "gist-private",
+            "gist-secret",
+            "git-branch",
+            "git-branch-create",
+            "git-branch-delete",
+            "git-commit",
+            "git-compare",
+            "git-fetch",
+            "git-fork-private",
+            "git-merge",
+            "git-pull-request",
+            "git-pull-request-abandoned",
+            "git-pull-request-closed",
+            "git-pull-request-create",
+            "git-pull-request-draft",
+            "git-pull-request-new-changes",
+            "git-pull-request-go-to-changes",
+            "github",
+            "github-action",
+            "github-alt",
+            "github-inverted",
+            "globe",
+            "go-to-file",
+            "grabber",
+            "graph",
+            "graph-left",
+            "graph-line",
+            "graph-scatter",
+            "gripper",
+            "group-by-ref-type",
+            "heart",
+            "history",
+            "home",
+            "horizontal-rule",
+            "hubot",
+            "inbox",
+            "indent",
+            "info",
+            "insert",
+            "inspect",
+            "issue-closed",
+            "issue-draft",
+            "issue-opened",
+            "issue-reopened",
+            "issues",
+            "italic",
+            "jersey",
+            "json",
+            "kebab-horizontal",
+            "kebab-vertical",
+            "key",
+            "keyboard",
+            "law",
+            "layers-active",
+            "layers-dot",
+            "layers",
+            "layout-activitybar-left",
+            "layout-activitybar-right",
+            "layout-centered",
+            "layout-menubar",
+            "layout-panel-center",
+            "layout-panel-justify",
+            "layout-panel-left",
+            "layout-panel-right",
+            "layout-panel",
+            "layout-sidebar-left",
+            "layout-sidebar-right",
+            "layout-statusbar",
+            "layout",
+            "library",
+            "light-bulb",
+            "lightbulb",
+            "lightbulb-autofix",
+            "link",
+            "link-external",
+            "list-filter",
+            "list-flat",
+            "list-ordered",
+            "list-selection",
+            "list-tree",
+            "list-unordered",
+            "live-share",
+            "loading",
+            "location",
+            "lock-small",
+            "lock",
+            "log-in",
+            "log-out",
+            "logo-github",
+            "magnet",
+            "mail",
+            "mail-read",
+            "mail-reply",
+            "mark-github",
+            "markdown",
+            "megaphone",
+            "mention",
+            "menu",
+            "merge",
+            "mic",
+            "mic-filled",
+            "microscope",
+            "milestone",
+            "mirror",
+            "mirror-private",
+            "mirror-public",
+            "more",
+            "mortar-board",
+            "move",
+            "multiple-windows",
+            "music",
+            "mute",
+            "new-file",
+            "new-folder",
+            "newline",
+            "no-newline",
+            "note",
+            "notebook",
+            "notebook-template",
+            "octoface",
+            "open-preview",
+            "organization",
+            "organization-filled",
+            "organization-outline",
+            "output",
+            "package",
+            "paintcan",
+            "pass",
+            "pass-filled",
+            "pencil",
+            "person",
+            "person-add",
+            "person-filled",
+            "person-follow",
+            "person-outline",
+            "pie-chart",
+            "piano",
+            "pin",
+            "pinned",
+            "pinned-dirty",
+            "play",
+            "play-circle",
+            "plug",
+            "plus",
+            "preserve-case",
+            "preview",
+            "primitive-dot",
+            "primitive-square",
+            "project",
+            "pulse",
+            "question",
+            "quote",
+            "radio-tower",
+            "reactions",
+            "record",
+            "record-keys",
+            "record-small",
+            "redo",
+            "references",
+            "refresh",
+            "regex",
+            "remote",
+            "remote-explorer",
+            "remove",
+            "remove-close",
+            "repl",
+            "replace",
+            "replace-all",
+            "reply",
+            "repo",
+            "repo-clone",
+            "repo-create",
+            "repo-delete",
+            "repo-force-push",
+            "repo-forked",
+            "repo-pull",
+            "repo-push",
+            "repo-sync",
+            "report",
+            "request-changes",
+            "rocket",
+            "root-folder",
+            "root-folder-opened",
+            "rss",
+            "ruby",
+            "run",
+            "run-all",
+            "run-above",
+            "run-below",
+            "run-errors",
+            "save",
+            "save-all",
+            "save-as",
+            "screen-full",
+            "screen-normal",
+            "search",
+            "search-save",
+            "search-stop",
+            "search-fuzzy",
+            "selection",
+            "send",
+            "server",
+            "server-environment",
+            "server-process",
+            "settings",
+            "settings-gear",
+            "shield",
+            "sign-in",
+            "sign-out",
+            "smiley",
+            "snake",
+            "sparkle",
+            "sort-precedence",
+            "source-control",
+            "split-horizontal",
+            "split-vertical",
+            "squirrel",
+            "star",
+            "star-add",
+            "star-delete",
+            "star-empty",
+            "star-full",
+            "star-half",
+            "stop",
+            "stop-circle",
+            "symbol-array",
+            "symbol-boolean",
+            "symbol-class",
+            "symbol-color",
+            "symbol-constant",
+            "symbol-constructor",
+            "symbol-enum",
+            "symbol-enum-member",
+            "symbol-event",
+            "symbol-field",
+            "symbol-file",
+            "symbol-folder",
+            "symbol-function",
+            "symbol-interface",
+            "symbol-key",
+            "symbol-keyword",
+            "symbol-method",
+            "symbol-misc",
+            "symbol-module",
+            "symbol-namespace",
+            "symbol-null",
+            "symbol-number",
+            "symbol-numeric",
+            "symbol-object",
+            "symbol-operator",
+            "symbol-package",
+            "symbol-parameter",
+            "symbol-property",
+            "symbol-reference",
+            "symbol-ruler",
+            "symbol-snippet",
+            "symbol-string",
+            "symbol-struct",
+            "symbol-structure",
+            "symbol-text",
+            "symbol-type-parameter",
+            "symbol-unit",
+            "symbol-value",
+            "symbol-variable",
+            "sync",
+            "sync-ignored",
+            "tag-add",
+            "tag-remove",
+            "tag",
+            "target",
+            "tasklist",
+            "telescope",
+            "terminal-bash",
+            "terminal-cmd",
+            "terminal-debian",
+            "terminal-linux",
+            "terminal-powershell",
+            "terminal-tmux",
+            "terminal-ubuntu",
+            "terminal",
+            "text-size",
+            "three-bars",
+            "thumbsdown",
+            "thumbsdown-filled",
+            "thumbsup",
+            "thumbsup-filled",
+            "tools",
+            "trash",
+            "trashcan",
+            "triangle-down",
+            "triangle-left",
+            "triangle-right",
+            "triangle-up",
+            "twitter",
+            "type-hierarchy",
+            "type-hierarchy-sub",
+            "type-hierarchy-super",
+            "unfold",
+            "ungroup-by-ref-type",
+            "unlock",
+            "unmute",
+            "unverified",
+            "variable",
+            "verified-filled",
+            "verified",
+            "versions",
+            "vm",
+            "vm-active",
+            "vm-connect",
+            "vm-outline",
+            "vm-running",
+            "vr",
+            "warning",
+            "watch",
+            "whitespace",
+            "whole-word",
+            "window",
+            "word-wrap",
+            "workspace-trusted",
+            "workspace-unknown",
+            "workspace-untrusted",
+            "wrench",
+            "wrench-subaction",
+            "x",
+            "zap",
+            "zoom-in",
+            "zoom-out"
+          ]
+        },
+        {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+        }
+      ]
+    },
+    "snippetKey": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Za-z0-9]*_[^.\\s]+\\.[^.\\s]+$",
+      "markdownDescription": "Stable Component Snippet key in the form `PackageName_ModuleName.snippet_name`. The Project Manager also checks the current package name, Python identifiers, and public Module existence."
+    },
+    "snippetBody": {
+      "markdownDescription": "Snippet body. A string represents one line; an array represents multiple lines. VS Code Snippet placeholders such as `${1:value}`, `${1|one,two|}`, and `$0` are supported. For `line` insertion, Project Manager appends `$0` when needed.",
+      "oneOf": [
+        {
+          "type": "string",
+          "pattern": "\\S"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          },
+          "contains": {
+            "type": "string",
+            "pattern": "\\S"
+          }
+        }
+      ],
+      "defaultSnippets": [
+        {
+          "label": "Single-line body",
+          "body": "${1:Component_Module.function_name()}"
+        },
+        {
+          "label": "Multi-line body",
+          "body": [
+            "${1:strResult} = Component_Module.function_name()",
+            "${2:Log.info(strResult)}"
+          ]
+        }
+      ]
+    },
+    "insertionMode": {
+      "type": "string",
+      "enum": ["line", "cursor"],
+      "markdownEnumDescriptions": [
+        "Insert one or more statements at the current line. Project Manager appends a final `$0` tab stop when needed.",
+        "Insert at the current cursor position or replace the current selection. No final `$0` is added automatically."
+      ],
+      "default": "line",
+      "markdownDescription": "Controls how LiberRPA Snippets Tree inserts the Snippet."
+    },
+    "liberrpaImportList": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "Log",
+          "delay",
+          "get_component_resource_path",
+          "Mouse",
+          "Keyboard",
+          "Window",
+          "UiInterface",
+          "Browser",
+          "Excel",
+          "Outlook",
+          "Application",
+          "Database",
+          "Data",
+          "Str",
+          "List",
+          "Dict",
+          "Regex",
+          "Math",
+          "Time",
+          "File",
+          "OCR",
+          "Web",
+          "Mail",
+          "FTP",
+          "Clipboard",
+          "System",
+          "Credential",
+          "ScreenPrint",
+          "Dialog",
+          "Trigger",
+          "DatabaseConnection",
+          "PrjArgs",
+          "CustomArgs",
+          "SelectorWindow",
+          "SelectorUia",
+          "SelectorHtml",
+          "SelectorImage",
+          "Selector"
+        ]
+      },
+      "markdownDescription": "Additional names imported from `liberrpa.Modules`. Completion includes all names available to Component Snippets in their managed-import order."
+    },
+    "genericImportList": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[^.\\s]+$"
+      },
+      "markdownDescription": "Names imported from this source. For the current Component package, use public top-level Module names."
+    },
+    "imports": {
+      "type": "object",
+      "markdownDescription": "Additional managed imports required by this Snippet. The owning public Component Module is added automatically and does not need to be listed. Static completion is provided for `liberrpa.Modules`.",
+      "properties": {
+        "liberrpa.Modules": {
+          "$ref": "#/definitions/liberrpaImportList"
+        }
+      },
+      "propertyNames": {
+        "anyOf": [
+          {
+            "const": "liberrpa.Modules"
+          },
+          {
+            "type": "string",
+            "pattern": "^[A-Z][A-Za-z0-9]*$"
+          }
+        ]
+      },
+      "additionalProperties": {
+        "$ref": "#/definitions/genericImportList"
+      },
+      "defaultSnippets": [
+        {
+          "label": "Import from liberrpa.Modules",
+          "body": {
+            "liberrpa.Modules": [
+              "${1|Log,delay,get_component_resource_path,Mouse,Keyboard,Window,UiInterface,Browser,Excel,Outlook,Application,Database,Data,Str,List,Dict,Regex,Math,Time,File,OCR,Web,Mail,FTP,Clipboard,System,Credential,ScreenPrint,Dialog,Trigger,DatabaseConnection,PrjArgs,CustomArgs|}"
+            ]
+          }
+        }
+      ]
+    },
+    "astSnippetOverride": {
+      "type": "object",
+      "additionalProperties": false,
+      "markdownDescription": "Optional changes to an AST-generated Snippet. Its stable key, prefix, category, and mandatory owning-Module import remain controlled by Project Manager.",
+      "properties": {
+        "label": {
+          "type": "string",
+          "pattern": "^(?=[^\\r\\n]*\\S)[^\\r\\n]*$",
+          "markdownDescription": "Replacement label shown inside the Snippet category."
+        },
+        "body": {
+          "$ref": "#/definitions/snippetBody"
+        },
+        "description": {
+          "type": "string",
+          "pattern": "\\S",
+          "markdownDescription": "Replacement description shown in completion details and hover information."
+        },
+        "insertionMode": {
+          "$ref": "#/definitions/insertionMode"
+        },
+        "imports": {
+          "$ref": "#/definitions/imports"
+        }
+      },
+      "defaultSnippets": [
+        {
+          "label": "Override description",
+          "body": {
+            "description": "${1:Describe the customized Snippet.}"
+          }
+        },
+        {
+          "label": "Override selected fields",
+          "body": {
+            "label": "${1:label}",
+            "body": ["${2:Component_Module.function_name()}"],
+            "description": "${3:Describe the customized Snippet.}",
+            "insertionMode": "${4|line,cursor|}",
+            "imports": {}
+          }
+        }
+      ]
+    },
+    "handWrittenSnippet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["body", "description"],
+      "markdownDescription": "A hand-written Component Snippet. Its stable key determines the category and owning public Component Module import.",
+      "properties": {
+        "prefix": {
+          "type": "string",
+          "pattern": "^(?=[^\\r\\n]*\\S)[^\\r\\n]*$",
+          "markdownDescription": "Text used to match this Snippet in IntelliSense. Defaults to the stable Snippet key."
+        },
+        "label": {
+          "type": "string",
+          "pattern": "^(?=[^\\r\\n]*\\S)[^\\r\\n]*$",
+          "markdownDescription": "Label shown inside the category. Defaults to the `snippet_name` part of the stable key."
+        },
+        "body": {
+          "$ref": "#/definitions/snippetBody"
+        },
+        "description": {
+          "type": "string",
+          "pattern": "\\S",
+          "markdownDescription": "Required user-facing description shown in completion details and hover information."
+        },
+        "insertionMode": {
+          "$ref": "#/definitions/insertionMode"
+        },
+        "imports": {
+          "$ref": "#/definitions/imports"
+        }
+      },
+      "defaultSnippets": [
+        {
+          "label": "New hand-written Component Snippet",
+          "body": {
+            "body": ["${1:Component_Module.function_name()}"],
+            "description": "${2:Describe this Snippet.}",
+            "insertionMode": "${3|line,cursor|}",
+            "imports": {}
+          }
+        }
+      ]
+    }
+  }
+}

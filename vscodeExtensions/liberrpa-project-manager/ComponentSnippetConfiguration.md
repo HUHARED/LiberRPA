@@ -32,6 +32,19 @@ Keep all top-level fields, even when their values are empty:
 
 After editing and saving `snippets.jsonc`, run `LiberRPA: Publish Component` again to validate the configuration and rebuild the final Snippet Catalog.
 
+## Editor Assistance
+
+LiberRPA Project Manager automatically associates `_Snippets/snippets.jsonc` with its bundled JSON Schema. The file does not need a `$schema` field.
+
+The standard VS Code JSONC editor provides:
+
+* field and value descriptions on hover;
+* field, object-template, and enum completion through IntelliSense (`Ctrl+Space`);
+* immediate structural validation for required fields, unsupported fields, value types, insertion modes, Snippet bodies, and import lists;
+* static completion for `liberrpa.Modules` import names and the bundled VS Code Product Icon snapshot.
+
+Editor assistance catches many structural mistakes early. The Python Component Management publication validation remains authoritative because it validates the complete current Project, AST-generated Snippet keys, public Modules, imports, cross-field conflicts, and the final merged Snippet Catalog.
+
 ## Category Icons
 
 Use `categoryIcons` to replace the default `library` icon for selected public Component Module categories:
@@ -45,7 +58,9 @@ Use `categoryIcons` to replace the default `library` icon for selected public Co
 
 Each key is a public top-level Component Module name. Each value must be a lower-case VS Code Product Icon identifier.
 
-Choose an identifier from the second table under [Icon Listing](https://code.visualstudio.com/api/references/icons-in-labels#icon-listing). The second table contains the general Codicon identifiers intended for extensions.
+Place the cursor at an icon value and use IntelliSense (`Ctrl+Space`) to select from the Product Icon IDs bundled with Project Manager.
+
+The bundled list is a snapshot of the 518 Codicon identifiers listed in the VS Code [Product Icon Reference](https://code.visualstudio.com/api/references/icons-in-labels#icon-listing) dated September 2, 2026. VS Code may add or retire identifiers independently, so the bundled suggestions can differ from the latest documentation. A newer lower-case identifier that follows the required syntax remains valid even when it is not yet included in Project Manager's completion list.
 
 Examples:
 

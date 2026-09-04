@@ -102,7 +102,12 @@ _TUPLE_LIBERRPA_IMPORT_ORDER = (
     #
     "DatabaseConnection",
     "PrjArgs",
-    "CustomArgs",
+    "CustomArgs",  #
+    "SelectorWindow",
+    "SelectorUia",
+    "SelectorHtml",
+    "SelectorImage",
+    "Selector",
 )
 
 

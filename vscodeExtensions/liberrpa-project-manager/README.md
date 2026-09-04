@@ -208,6 +208,8 @@ Use `_Snippets/snippets.jsonc` to:
 * add hand-written Snippets;
 * add imports required by those Snippets.
 
+Project Manager provides JSON Schema validation, field and enum completion, `liberrpa.Modules` import-name completion, and Product Icon completion while editing this file.
+
 See [Component Snippet Configuration](./ComponentSnippetConfiguration.md) for the complete field reference and validation rules.
 
 See the [Example Delay Component walkthrough](./ExampleDelayComponent.md) for a working publication example.
