@@ -56,6 +56,12 @@
         "command": "LiberRPA.snippetsTree.navigateSnippetTab",
         "when": "editorTextFocus && editorLangId == python && inSnippetMode && hasNextTabstop && !editorReadonly && !editorTabMovesFocus && !inSnippetChoice && !editorHasSelection && !editorHasMultipleSelections && !suggestWidgetVisible && !inlineSuggestionVisible && !inlineEditIsVisible"
       }
+    ],
+    "jsonValidation": [
+      {
+        "fileMatch": "**/snippets_favorite.jsonc",
+        "url": "./assets/favoriteSnippets.schema.json"
+      }
     ]
   },
   "icon": "./assets/LiberRPA_icon_v3_color_SnippetsTree_128.png",

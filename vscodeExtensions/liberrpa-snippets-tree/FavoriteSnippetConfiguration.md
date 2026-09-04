@@ -16,6 +16,12 @@ If it does not exist, LiberRPA Snippets Tree creates it from the bundled templat
 
 The parent `Documents/LiberRPA` folder must already exist. Run `InitLiberRPA.exe` to initialize or update the required LiberRPA folders.
 
+## Editor Assistance
+
+LiberRPA Snippets Tree automatically associates `snippets_favorite.jsonc` with its bundled JSON Schema. The file does not need a `$schema` field.
+
+VS Code provides field descriptions on hover, field and object-template completion, `insertionMode` value completion, static completion for built-in `liberrpa.Modules` names, and immediate structural validation. The extension's runtime validation remains authoritative when Favorite Snippets are loaded.
+
 ## File Structure
 
 ```jsonc

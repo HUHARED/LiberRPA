@@ -1,0 +1,222 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$comment": "The liberrpa.Modules enum is a static snapshot of the built-in import order used by LiberRPA 0.3.0.",
+  "$id": "https://raw.githubusercontent.com/HUHARED/LiberRPA/main/vscodeExtensions/liberrpa-snippets-tree/assets/favoriteSnippets.schema.json",
+  "title": "LiberRPA Favorite Snippet Configuration",
+  "description": "User-maintained Favorite Snippets loaded by LiberRPA Snippets Tree.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "snippets"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1,
+      "markdownDescription": "Favorite Snippet configuration schema version. The current and only supported value is `1`."
+    },
+    "snippets": {
+      "type": "object",
+      "markdownDescription": "Favorite Snippets keyed by their unique titles. Each title is used as the Tree label when `label` is omitted.",
+      "additionalProperties": {
+        "$ref": "#/definitions/favoriteSnippet"
+      },
+      "defaultSnippets": [
+        {
+          "label": "Add a Favorite Snippet",
+          "description": "Create a Favorite Snippet with the commonly used fields.",
+          "body": {
+            "${1:Favorite title}": {
+              "prefix": "${2:favorite.prefix}",
+              "body": "${3:code}",
+              "description": "${4:Describe this Snippet.}",
+              "insertionMode": "${5|line,cursor|}",
+              "imports": {}
+            }
+          }
+        }
+      ]
+    }
+  },
+  "defaultSnippets": [
+    {
+      "label": "LiberRPA Favorite Snippet configuration",
+      "description": "Create the complete Favorite Snippet configuration structure.",
+      "body": {
+        "schemaVersion": 1,
+        "snippets": {}
+      }
+    }
+  ],
+  "definitions": {
+    "snippetBody": {
+      "markdownDescription": "Snippet body. Use a string for one line or an array of strings for multiple lines. VS Code Snippet placeholders such as `$1`, `${1:value}`, `${1|one,two|}`, and `$0` are supported.",
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "insertionMode": {
+      "type": "string",
+      "enum": [
+        "line",
+        "cursor"
+      ],
+      "markdownEnumDescriptions": [
+        "Insert one or more statements using the current line indentation.",
+        "Insert at the current cursor position or replace the current selection."
+      ],
+      "default": "line",
+      "markdownDescription": "Controls how LiberRPA Snippets Tree inserts the Favorite Snippet."
+    },
+    "liberrpaImportName": {
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": [
+            "Log",
+            "delay",
+            "get_component_resource_path",
+            "Mouse",
+            "Keyboard",
+            "Window",
+            "UiInterface",
+            "Browser",
+            "Excel",
+            "Outlook",
+            "Application",
+            "Database",
+            "Data",
+            "Str",
+            "List",
+            "Dict",
+            "Regex",
+            "Math",
+            "Time",
+            "File",
+            "OCR",
+            "Web",
+            "Mail",
+            "FTP",
+            "Clipboard",
+            "System",
+            "Credential",
+            "ScreenPrint",
+            "Dialog",
+            "Trigger",
+            "DatabaseConnection",
+            "PrjArgs",
+            "CustomArgs",
+            "SelectorWindow",
+            "SelectorUia",
+            "SelectorHtml",
+            "SelectorImage",
+            "Selector"
+          ]
+        },
+        {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+        }
+      ],
+      "markdownDescription": "Name imported from `liberrpa.Modules`. IntelliSense includes the built-in LiberRPA 0.3.0 names; other syntactically valid identifiers remain accepted."
+    },
+    "liberrpaImportList": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/liberrpaImportName"
+      },
+      "markdownDescription": "Names imported from `liberrpa.Modules`."
+    },
+    "genericImportList": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+      },
+      "markdownDescription": "Original Python names imported from this source. Do not include alias syntax."
+    },
+    "imports": {
+      "type": "object",
+      "markdownDescription": "Managed imports required by this Favorite Snippet. Object keys are Python import sources and values are lists of original import names.",
+      "properties": {
+        "liberrpa.Modules": {
+          "$ref": "#/definitions/liberrpaImportList"
+        }
+      },
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)*$"
+      },
+      "additionalProperties": {
+        "$ref": "#/definitions/genericImportList"
+      },
+      "defaultSnippets": [
+        {
+          "label": "Import from liberrpa.Modules",
+          "body": {
+            "liberrpa.Modules": [
+              "${1|Log,delay,get_component_resource_path,Mouse,Keyboard,Window,UiInterface,Browser,Excel,Outlook,Application,Database,Data,Str,List,Dict,Regex,Math,Time,File,OCR,Web,Mail,FTP,Clipboard,System,Credential,ScreenPrint,Dialog,Trigger,DatabaseConnection,PrjArgs,CustomArgs,SelectorWindow,SelectorUia,SelectorHtml,SelectorImage,Selector|}"
+            ]
+          }
+        }
+      ]
+    },
+    "favoriteSnippet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "prefix",
+        "body"
+      ],
+      "markdownDescription": "A Favorite Snippet displayed in the `Favorite` Category and available through IntelliSense.",
+      "properties": {
+        "category": {
+          "type": "string",
+          "markdownDescription": "Accepted when copying a Catalog entry, but ignored for Favorite Snippets. Every Favorite is placed in the `Favorite` Category."
+        },
+        "label": {
+          "type": "string",
+          "markdownDescription": "Text displayed in LiberRPA Snippets Tree. Defaults to the Favorite title."
+        },
+        "prefix": {
+          "type": "string",
+          "markdownDescription": "Text used to find this Favorite through IntelliSense."
+        },
+        "body": {
+          "$ref": "#/definitions/snippetBody"
+        },
+        "description": {
+          "type": "string",
+          "markdownDescription": "Description shown in the Tree and IntelliSense. A fallback description is used when omitted."
+        },
+        "imports": {
+          "$ref": "#/definitions/imports"
+        },
+        "insertionMode": {
+          "$ref": "#/definitions/insertionMode"
+        }
+      },
+      "defaultSnippets": [
+        {
+          "label": "Favorite Snippet",
+          "description": "Define a Favorite Snippet with the commonly used fields.",
+          "body": {
+            "prefix": "${1:favorite.prefix}",
+            "body": "${2:code}",
+            "description": "${3:Describe this Snippet.}",
+            "insertionMode": "${4|line,cursor|}",
+            "imports": {}
+          }
+        }
+      ]
+    }
+  }
+}
