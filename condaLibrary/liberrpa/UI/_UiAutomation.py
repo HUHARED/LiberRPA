@@ -21,6 +21,8 @@ from liberrpa.UI._UiDict import (
 
 import uiautomation
 import psutil
+import win32gui
+import win32process
 import json
 import re
 from copy import deepcopy
@@ -83,6 +85,9 @@ _TUPLE_PRIMARY_ATTR = (
 )
 
 
+_WIN32_TOP_CONTROL_TYPES = {"WindowControl", "PaneControl"}
+
+
 _TUPLE_SECONDARY_ATTR = (
     "ControlType",
     "AutomationId",
@@ -112,7 +117,9 @@ def _convert_value_to_str(dictToConvert: dict[str, str | int]) -> dict[str, str]
     for strKeyName in dictToConvert.keys():
         if not isinstance(dictToConvert[strKeyName], str):
             # convert non-str value to str.
-            dictReturn[strKeyName] = json.dumps(dictToConvert[strKeyName])  # Use json for show escape characters.
+            dictReturn[strKeyName] = json.dumps(
+                dictToConvert[strKeyName]
+            )  # Use json for show escape characters.
         else:
             dictReturn[strKeyName] = str(dictToConvert[strKeyName])
 
@@ -202,93 +209,216 @@ def get_control_secondary_attr(
 
 
 def get_control_attr(control: uiautomation.Control) -> DictUiaAttr:
-    return {**get_control_primary_attr(control=control), **get_control_secondary_attr(control=control)}
+    return {
+        **get_control_primary_attr(control=control),
+        **get_control_secondary_attr(control=control),
+    }
+
+
+def _primary_attr_matches_selector(
+    dictPrimaryAttr: DictUiaPrimaryAttr,
+    selectorWindowPart: DictSpecWindow,
+) -> bool:
+    for strKeyName, valueExpected in selectorWindowPart.items():
+        # Values from dynamically iterated TypedDict items are exposed as object
+        # by type checkers, although selector validation guarantees strings.
+        if not isinstance(valueExpected, str):
+            return False
+
+        if not strKeyName.endswith("-regex"):
+            if dictPrimaryAttr.get(strKeyName) != valueExpected:
+                return False
+            continue
+
+        strOriginalKeyName = strKeyName.removesuffix("-regex")
+        valueActual = dictPrimaryAttr.get(strOriginalKeyName)
+        if not isinstance(valueActual, str):
+            return False
+
+        if re.fullmatch(pattern=valueExpected, string=valueActual) is None:
+            return False
+
+    return True
+
+
+def _process_name_matches_selector(
+    intProcessId: int,
+    selectorWindowPart: DictSpecWindow,
+) -> bool:
+    strProcessNameExpected = selectorWindowPart.get("ProcessName")
+    strProcessNameRegex = selectorWindowPart.get("ProcessName-regex")
+
+    try:
+        strProcessName = psutil.Process(intProcessId).name()
+    except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+        return False
+
+    if strProcessNameExpected is not None:
+        return strProcessName == strProcessNameExpected
+
+    return (
+        strProcessNameRegex is not None
+        and re.fullmatch(pattern=strProcessNameRegex, string=strProcessName) is not None
+    )
+
+
+def _get_desktop_child_control(
+    control: uiautomation.Control,
+    controlRoot: uiautomation.Control,
+) -> uiautomation.Control | None:
+    """Return the UIA desktop-root child that contains a control."""
+
+    controlCurrent = control
+
+    # A native top-level HWND can still be nested below another control in the UIA tree, as happens with some popup windows.
+    # Walk the UIA parent chain instead of relying on GetTopLevelControl(), which uses Win32 ownership.
+    for _ in range(64):
+        controlParent = controlCurrent.GetParentControl()
+        if controlParent is None:
+            return None
+
+        if uiautomation.ControlsAreSame(controlRoot, controlParent):
+            return controlCurrent
+
+        controlCurrent = controlParent
+
+    return None
+
+
+def _get_top_control_by_win32(selectorWindowPart: DictSpecWindow) -> uiautomation.Control:
+    """Find a common top-level UIA window without traversing Desktop siblings."""
+
+    listWindowHandles: list[int] = []
+
+    def enum_window_callback(intHandle: int, _: object) -> bool:
+        listWindowHandles.append(intHandle)
+        return True
+
+    win32gui.EnumWindows(enum_window_callback, None)
+    controlRoot = uiautomation.GetRootControl()
+
+    for intHandle in listWindowHandles:
+        try:
+            if not win32gui.IsWindowVisible(intHandle):
+                continue
+
+            _, intProcessId = win32process.GetWindowThreadProcessId(intHandle)
+        except Exception:
+            # The window may disappear while EnumWindows results are being processed.
+            continue
+
+        if not _process_name_matches_selector(
+            intProcessId=intProcessId,
+            selectorWindowPart=selectorWindowPart,
+        ):
+            continue
+
+        try:
+            controlFromHandle = uiautomation.ControlFromHandle(intHandle)
+            if controlFromHandle is None:
+                continue
+
+            controlCandidate = _get_desktop_child_control(
+                control=controlFromHandle,
+                controlRoot=controlRoot,
+            )
+            if controlCandidate is None:
+                continue
+
+            dictPrimaryAttr = get_control_primary_attr(control=controlCandidate)
+        except Exception:
+            # The window or its UIA provider may become unavailable during enumeration.
+            continue
+
+        if _primary_attr_matches_selector(
+            dictPrimaryAttr=dictPrimaryAttr,
+            selectorWindowPart=selectorWindowPart,
+        ):
+            return controlCandidate
+
+    raise UiElementNotFoundError(
+        f"Not found window by the selector: {selectorWindowPart}"
+    )
+
+
+def _can_use_win32_top_control_search(
+    selectorWindowPart: DictSpecWindow,
+) -> bool:
+    # Index order belongs to the Desktop UIA tree and must keep using the original traversal path.
+    # ProcessName is required so that Win32 handles can be filtered before any UIA calls are made.
+    return (
+        "Index" not in selectorWindowPart
+        and "Index-regex" not in selectorWindowPart
+        and (
+            "ProcessName" in selectorWindowPart
+            or "ProcessName-regex" in selectorWindowPart
+        )
+        and selectorWindowPart.get("ControlTypeName") in _WIN32_TOP_CONTROL_TYPES
+    )
 
 
 def get_top_control(selectorWindowPart: DictSpecWindow) -> uiautomation.Control:
+    # Use Win32 enumeration for ordinary application windows.
+    # When the target does not exist yet, EnumWindows returns quickly instead of blocking on Desktop UIA sibling traversal.
+    if _can_use_win32_top_control_search(selectorWindowPart=selectorWindowPart):
+        return _get_top_control_by_win32(selectorWindowPart=selectorWindowPart)
 
     # Create a copy to pop later, so it will not affect the original selector.
     selectorWindowPart = deepcopy(selectorWindowPart)
 
     # Start the search from the root control.
     controlRoot = uiautomation.GetRootControl()
-    # print("controlRoot", controlRoot)
     controlTarget: uiautomation.Control | None = None
 
     # May have multiple top controls that have same attributes. So save Index to a variable to check it later.
-
     strTemp = selectorWindowPart.pop("Index", None)
     intIndex = int(strTemp) if strTemp else None
     strIndexRegex = selectorWindowPart.pop("Index-regex", None)
 
     intFoundMatchedCount = 0
-
     controlChild = controlRoot.GetFirstChildControl()
-    # print("controlChild", controlChild)
 
     while controlChild:
-        dictPrimaryAttrTemp: DictUiaPrimaryAttr = get_control_primary_attr(control=controlChild)
-        boolAttrSame = True
-
-        # Check all attributes in selector. (index popped)
-        for strKeyName in selectorWindowPart:
-            if not strKeyName.endswith("-regex"):
-                # if the attribute is not exists or not equal with selector, stop the inner loop.
-                if (dictPrimaryAttrTemp.get(strKeyName) is None) or (
-                    dictPrimaryAttrTemp[strKeyName] != selectorWindowPart[strKeyName]
-                ):
-                    boolAttrSame = False
-                    break
-            else:
-                # the regex not match.
-                strOriginalKeyName = strKeyName.removesuffix("-regex")
-                if (dictPrimaryAttrTemp.get(strOriginalKeyName) is None) or (
-                    not re.fullmatch(
-                        pattern=selectorWindowPart[strKeyName],
-                        string=dictPrimaryAttrTemp[strOriginalKeyName],
-                    )
-                ):
-                    boolAttrSame = False
-                    break
+        dictPrimaryAttrTemp = get_control_primary_attr(control=controlChild)
+        boolAttrSame = _primary_attr_matches_selector(
+            dictPrimaryAttr=dictPrimaryAttrTemp,
+            selectorWindowPart=selectorWindowPart,
+        )
 
         if not boolAttrSame:
-            # If the attributes are not all same, check the next.
             controlChild = controlChild.GetNextSiblingControl()
             continue
-        else:
-            # If the index matches with selector's Index or Index-regex, stop the outer loop, otherwise continue to check the next.
 
-            if intIndex is None and strIndexRegex is None:
-                # # The selector has no Index or Index-regex, not need to compare.
+        # If the index matches with selector's Index or Index-regex, stop the outer loop;
+        # otherwise continue to check the next matching control.
+        if intIndex is None and strIndexRegex is None:
+            controlTarget = controlChild
+            break
+
+        if intIndex is None and strIndexRegex is not None:
+            if re.fullmatch(pattern=strIndexRegex, string=str(intFoundMatchedCount)):
                 controlTarget = controlChild
                 break
 
-            elif intIndex is None and strIndexRegex is not None:
-                # Just have Index-regex
-                if re.fullmatch(pattern=strIndexRegex, string=str(intFoundMatchedCount)):
-                    controlTarget = controlChild
-                    break
-                else:
-                    # Not matched, increase the count, check the next.
-                    intFoundMatchedCount += 1
-                    controlChild = controlChild.GetNextSiblingControl()
-                    continue
-            # Just have Index
-            elif intIndex is not None and strIndexRegex is None:
-                if intIndex == intFoundMatchedCount:
-                    controlTarget = controlChild
-                    break
-                else:
-                    # Not matched, increase the count, check the next.
-                    intFoundMatchedCount += 1
-                    controlChild = controlChild.GetNextSiblingControl()
-                    continue
-            else:
-                # Have Index and Index-regex, it is wrong.
-                raise ValueError("Index and Index-regex should not appear in selector together.")
+            intFoundMatchedCount += 1
+            controlChild = controlChild.GetNextSiblingControl()
+            continue
+
+        if intIndex is not None and strIndexRegex is None:
+            if intIndex == intFoundMatchedCount:
+                controlTarget = controlChild
+                break
+
+            intFoundMatchedCount += 1
+            controlChild = controlChild.GetNextSiblingControl()
+            continue
+
+        raise ValueError("Index and Index-regex should not appear in selector together.")
 
     if controlTarget is None:
-        raise UiElementNotFoundError(f"Not found window by the selector: {selectorWindowPart}")
+        raise UiElementNotFoundError(
+            f"Not found window by the selector: {selectorWindowPart}"
+        )
 
     return controlTarget
 
@@ -386,9 +516,13 @@ def get_child_control_by_selector(
                 controlFound = None
 
             if controlFound is None:
-                raise UiElementNotFoundError(f"Not found an uia element by the selector: {selectorUiaPart}")
+                raise UiElementNotFoundError(
+                    f"Not found an uia element by the selector: {selectorUiaPart}"
+                )
 
-            dictPrimaryAttrTemp: DictUiaPrimaryAttr = get_control_primary_attr(control=controlFound)
+            dictPrimaryAttrTemp: DictUiaPrimaryAttr = get_control_primary_attr(
+                control=controlFound
+            )
             boolAttrSame = True
 
             # Check all attributes in dictCurrentLayer. (index and depth popped)
@@ -421,7 +555,9 @@ def get_child_control_by_selector(
                     break
                 elif intIndex is None and strIndexRegex is not None:
                     # Just have Index-regex
-                    if re.fullmatch(pattern=strIndexRegex, string=str(intFoundMatchedCount)):
+                    if re.fullmatch(
+                        pattern=strIndexRegex, string=str(intFoundMatchedCount)
+                    ):
                         controlAnchor = controlFound
                         break
                     else:
@@ -440,7 +576,9 @@ def get_child_control_by_selector(
                         continue
                 else:
                     # Have Index and Index-regex, it is wrong.
-                    raise ValueError("Index and Index-regex should not appear in selector together.")
+                    raise ValueError(
+                        "Index and Index-regex should not appear in selector together."
+                    )
 
     return controlAnchor
 
