@@ -16,6 +16,7 @@ from flask_socketio import emit
 import json
 import uuid
 from dataclasses import dataclass
+from time import monotonic
 from threading import Event, Lock
 from typing import Any
 
@@ -24,6 +25,7 @@ from typing import Any
 # It should be slightly longer than the Chrome-side timeout, so Chrome can return its own timeout result first.
 _DEFAULT_CHROME_COMMAND_TIMEOUT_MS = 15000
 _CHROME_RESPONSE_GRACE_MS = 3000
+_CLOSE_CURRENT_TAB_POLL_INTERVAL_SECONDS = 0.1
 
 _SERVER_WAIT_ID_KEY = "ServerWaitId"
 
@@ -62,7 +64,9 @@ def handle_chrome_command(dictCommand: dict[str, Any]) -> DictSocketResult:
     strId = str(uuid.uuid4())
 
     # If the Chrome extension is working, send command to it and wait for the result.
-    result: DictSocketResult = _wait_for_response_by_id(commandId=strId, dictCommand=dictCommand)
+    result: DictSocketResult = _wait_for_response_by_id(
+        commandId=strId, dictCommand=dictCommand
+    )
 
     return result
 
@@ -76,17 +80,24 @@ def _get_chrome_response_timeout_ms(dictCommand: dict[str, Any]) -> int:
     return _DEFAULT_CHROME_COMMAND_TIMEOUT_MS + _CHROME_RESPONSE_GRACE_MS
 
 
-def _wait_for_response_by_id(commandId: str, dictCommand: dict[str, Any]) -> DictSocketResult:
+def _wait_for_response_by_id(
+    commandId: str, dictCommand: dict[str, Any]
+) -> DictSocketResult:
 
     # If dictCommand can't be serialized, return an error result directly.
     try:
         if _SERVER_WAIT_ID_KEY in dictCommand.keys():
-            raise KeyError("Unexpected internal state: 'ServerWaitId' is a built-in key in Local Server.")
+            raise KeyError(
+                "Unexpected internal state: 'ServerWaitId' is a built-in key in Local Server."
+            )
 
         strTemp = json.dumps({_SERVER_WAIT_ID_KEY: commandId, **dictCommand})
     except Exception as e:
         Log.exception_info(e)
-        return {"boolSuccess": False, "data": f"Error when serializing the Chrome command: {dictCommand}"}
+        return {
+            "boolSuccess": False,
+            "data": f"Error when serializing the Chrome command: {dictCommand}",
+        }
 
     chromeSid = dictClients.get("Chrome")
     if chromeSid is None:
@@ -106,15 +117,42 @@ def _wait_for_response_by_id(commandId: str, dictCommand: dict[str, Any]) -> Dic
     try:
         emit("message_flask_to_chrome", strTemp, to=chromeSid)
 
-        # Wait until handle_result_from_chrome() sets the event, or until the communication fallback timeout expires.
-        if not pendingCommand.event.wait(timeout=timeoutWithGraceMs / 1000):
-            return {
-                "boolSuccess": False,
-                "data": (
-                    "Chrome command response timed out "
-                    f"after {timeoutWithGraceMs} milliseconds: {dictCommand.get('commandName')}"
-                ),
-            }
+        # Closing the last Chrome tab can also close the browser before the extension has time to return its normal command acknowledgement.
+        if dictCommand.get("commandName") == "closeCurrentTab":
+            floatDeadline = monotonic() + timeoutWithGraceMs / 1000
+
+            while True:
+                floatRemaining = floatDeadline - monotonic()
+                if floatRemaining <= 0:
+                    return {
+                        "boolSuccess": False,
+                        "data": (
+                            f"Chrome command response timed out after {timeoutWithGraceMs} milliseconds: {dictCommand.get('commandName')}"
+                        ),
+                    }
+
+                if pendingCommand.event.wait(
+                    timeout=min(_CLOSE_CURRENT_TAB_POLL_INTERVAL_SECONDS, floatRemaining)
+                ):
+                    break
+
+                if dictClients.get("Chrome") is None:
+                    Log.debug(
+                        "The Chrome extension disconnected while closing the current tab. "
+                        "Treat the command as successful."
+                    )
+                    return {"boolSuccess": True, "data": None}
+
+        else:
+            # Wait until handle_result_from_chrome() sets the event, or until the communication fallback timeout expires.
+            if not pendingCommand.event.wait(timeout=timeoutWithGraceMs / 1000):
+                return {
+                    "boolSuccess": False,
+                    "data": (
+                        "Chrome command response timed out "
+                        f"after {timeoutWithGraceMs} milliseconds: {dictCommand.get('commandName')}"
+                    ),
+                }
 
         if pendingCommand.result is None:
             return {
@@ -155,7 +193,9 @@ def handle_result_from_chrome(message: str) -> None:
         return
 
     if not isinstance(rawResult, dict):
-        Log.warning(f"Ignore an invalid Chrome result. Expected dict, got {type(rawResult).__name__}.")
+        Log.warning(
+            f"Ignore an invalid Chrome result. Expected dict, got {type(rawResult).__name__}."
+        )
         return
 
     strId = rawResult.pop(_SERVER_WAIT_ID_KEY, None)
