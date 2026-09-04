@@ -20,14 +20,17 @@ from screeninfo import get_monitors
 
 def _find_ffmpeg() -> str:
     if getattr(sys, "frozen", False):
-        # When it packaged by pyinstaller, ffmpeg.exe may can't be found, so handle it.
-        return str(Path(sys.executable).parent / "_internal/ffmpeg.exe")
+        pathFfmpeg = Path(sys.executable).parent / "_internal" / "ffmpeg.exe"
     else:
-        return "ffmpeg"
+        pathFfmpeg = Path(sys.prefix) / "Library" / "bin" / "ffmpeg.exe"
+
+    if not pathFfmpeg.is_file():
+        raise FileNotFoundError(f"FFmpeg executable was not found: {pathFfmpeg}")
+
+    return str(pathFfmpeg)
 
 
 _strFfmpegPath = _find_ffmpeg()
-Log.info(f"_strFfmpegPath={_strFfmpegPath}")
 
 
 def record_screen(pid: int, folderName: str) -> None:
@@ -61,7 +64,9 @@ def record_screen(pid: int, folderName: str) -> None:
             "faster",  # Use a faster preset for reducing CPU usage, compress its size later.
             "-crf",
             "28",  # Set the default quality, compress later.
-            str(Path(folderName).joinpath("video_record.mkv")),  # Save the output as a single MKV file
+            str(
+                Path(folderName).joinpath("video_record.mkv")
+            ),  # Save the output as a single MKV file
         ]
 
         processRecord = subprocess.Popen(
@@ -95,7 +100,9 @@ def record_screen(pid: int, folderName: str) -> None:
                     Log.warning("Terminate ffmpeg.")
                     processRecord.terminate()
             except OSError as e:
-                Log.warning(f"Failed to send quit command to ffmpeg: {e}. Terminating it.")
+                Log.warning(
+                    f"Failed to send quit command to ffmpeg: {e}. Terminating it."
+                )
                 processRecord.terminate()
 
             try:
@@ -141,7 +148,9 @@ def _create_log_subtitle(folderName: str) -> None:
             if strLine.endswith(SIGN_START_RECORD_VIDEO):
                 # print("Found sign.")
                 boolFoundSign = True
-                timeBase: datetime = datetime.strptime(strLine[0:21], "[%Y-%m-%d %H:%M:%S]")
+                timeBase: datetime = datetime.strptime(
+                    strLine[0:21], "[%Y-%m-%d %H:%M:%S]"
+                )
                 continue
         else:
             # Have found sign, add log to dictionary
@@ -173,9 +182,13 @@ def _create_log_subtitle(folderName: str) -> None:
             timeOffset = (timeLog - timeBase).total_seconds()
 
             # Start time in HH:MM:SS,000 format
-            timeStart = (datetime(1, 1, 1) + timedelta(seconds=timeOffset)).strftime("%H:%M:%S,000")
+            timeStart = (datetime(1, 1, 1) + timedelta(seconds=timeOffset)).strftime(
+                "%H:%M:%S,000"
+            )
             # Show each log for 1 second
-            timeEnd = (datetime(1, 1, 1) + timedelta(seconds=timeOffset + 1)).strftime("%H:%M:%S,000")
+            timeEnd = (datetime(1, 1, 1) + timedelta(seconds=timeOffset + 1)).strftime(
+                "%H:%M:%S,000"
+            )
 
             # Write SRT entry
             fileObj.write(f"{intIndex}\n")
