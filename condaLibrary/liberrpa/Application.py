@@ -23,13 +23,16 @@ def run_application(
     """
     Run an application with a specified window state.
 
+    For GUI applications, the function briefly waits for the launched application to expose a usable GUI process.
+    If a launcher creates the actual GUI process, the PID of that GUI process may be returned.
+
     Parameters:
         filePath: The path of the application to run. Accepts str or PathLike[str].
         workingDirectory: The working directory of the application. Accepts str or PathLike[str].
         windowState: 'default', 'maximize', 'minimize'
 
     Returns:
-        int: The application's PID.
+        int: The PID of the launched application process used for RPA operations.
     """
 
     # NOTE: Use LiberRPA Local Server to run the application. If use subprocess or os module to run the application in the current Python process, it will kill the new application when the Python process exits(when the application process is the first process instance).
@@ -41,7 +44,11 @@ def run_application(
         "windowState": windowState,
     }
 
-    pid: int = send_command(eventName="application_command", command=dictCommand)
+    pid: int = send_command(
+        eventName="application_command",
+        command=dictCommand,
+        timeout=12000,
+    )
 
     return pid
 
