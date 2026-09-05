@@ -162,7 +162,7 @@ Index values start from `0`. The first match normally does not need an explicit 
 
 ![1740147909983](md_images/README/1740147909983.png)
 
-Generated path information uses CSS-selector-style structure with `:nth-child()` where needed. It is another fallback when normal attributes are not sufficient.
+Generated path information uses CSS-selector-style structure with `:nth-of-type()` where needed. It is another fallback when normal attributes are not sufficient.
 
 For the complete matching rules, including regex support, index behavior, and path fields, see [`SelectorHtml`](#selectorhtml).
 
@@ -581,13 +581,13 @@ Index attributes are calculated from the same attributes that remain in the curr
 
 When `usePath` is enabled, a `path` field will be generated for each HTML selector layer.
 
-Path attributes use a generated CSS path based on tag names and `:nth-child()`.
+Path attributes use a generated CSS path based on tag names and `:nth-of-type()`.
 
 **Example:**
 
 ```json
 {
-  "path": "html>body>div:nth-child(2)>button"
+  "path": "html>body>div:nth-of-type(2)>button"
 }
 ```
 
@@ -603,9 +603,7 @@ Do not combine `path` / `path-regex` with `childIndex` / `documentIndex` in the 
 
 > LiberRPA Chrome Extension passes this `path` string directly to `elementParent.querySelector(path)`. Therefore, the value must be a valid CSS selector string that can be understood by the browser.
 >
-> The generated path is an implementation detail of LiberRPA. It is a CSS-selector-like path made of tag names joined by `>`. When there are multiple sibling elements with the same tag name, the generator may append `:nth-child(...)` to make the path more specific.
-
-> Note: In the current implementation, the generated `:nth-child(...)` value is created from the element's order among siblings with the same tag name, while CSS `:nth-child(...)` itself counts the element's position among all sibling elements. Because of this, a generated path may be less reliable on DOM structures where different tag names are mixed under the same parent.
+> The generated path is an implementation detail of LiberRPA. It is a CSS-selector-like path made of tag names joined by `>`. When there are multiple sibling elements with the same tag name, the generator may append `:nth-of-type(...)`, whose position is counted among siblings with that tag name.
 
 In most cases, users should prefer stable attributes such as `id`, `name`, `aria-label`, text attributes, or index-based locating. Path-based locating is mainly a fallback when normal attributes are not reliable enough.
 

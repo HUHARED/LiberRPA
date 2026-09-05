@@ -165,8 +165,9 @@ export function getPath(element: HTMLElement): string {
   let tagName = currentElement.tagName.toLowerCase();
   while (currentElement.parentElement && tagName !== "html") {
     const siblingIndex = getSiblingIndex(currentElement);
-    // If the index is 0 or 1, didn't need ':nth-child'. nth-child starts from 1, so if siblingIndex > 1, declare it, otherwise it's unnecessary. Mean that the current element doesn't have siblings with same tagName, or its siblings is behind it.
-    path.unshift(`${tagName}${siblingIndex > 1 ? ":nth-child(" + siblingIndex + ")" : ""}`);
+    // The index is calculated among siblings with the same tag name, so use :nth-of-type().
+    // The first matching sibling does not need an explicit pseudo-class because querySelector() returns it first.
+    path.unshift(`${tagName}${siblingIndex > 1 ? `:nth-of-type(${siblingIndex})` : ""}`);
     currentElement = currentElement.parentElement;
     tagName = currentElement.tagName.toLowerCase();
   }
@@ -180,7 +181,7 @@ function getSiblingIndex(element: HTMLElement): number {
     // 1, check whether it has same tag siblings.
     const hasSameTagSiblings =
       Array.from(element.parentNode.children).filter(
-        (child) => child.tagName === element.tagName
+        (child) => child.tagName === element.tagName,
       ).length > 1;
 
     if (!hasSameTagSiblings) {
@@ -189,7 +190,7 @@ function getSiblingIndex(element: HTMLElement): number {
     }
   }
 
-  // 2, if it has, calculate the index. nth-child starts from 1.
+  // 2. If it has, calculate the one-based index used by :nth-of-type().
   let index = 1;
   let currentElement = element.previousElementSibling;
   while (currentElement) {
@@ -204,7 +205,7 @@ function getSiblingIndex(element: HTMLElement): number {
 
 function getIndexForTheLayer(
   originalElement: HTMLElement,
-  dictAttr: DictAttrForIndex
+  dictAttr: DictAttrForIndex,
 ): DictLayerIndexAttr {
   const dictIndexAttr: DictLayerIndexAttr = {};
 
@@ -234,7 +235,7 @@ function getIndexForTheLayer(
 
     if (dictIndexAttr.childIndex === undefined) {
       throw new Error(
-        "When childElementsFinal.length > 1, didn't find the original element in childElementsFinal."
+        "When childElementsFinal.length > 1, didn't find the original element in childElementsFinal.",
       );
     }
   }
@@ -242,7 +243,7 @@ function getIndexForTheLayer(
   // Simular with childElementsFinal
   if (documentElementsFinal.length === 0) {
     throw new Error(
-      "Didn't find any elements match the attributes in documentElementsFinal"
+      "Didn't find any elements match the attributes in documentElementsFinal",
     );
   }
   if (documentElementsFinal.length > 1) {
@@ -254,7 +255,7 @@ function getIndexForTheLayer(
     }
     if (dictIndexAttr.documentIndex === undefined) {
       throw new Error(
-        "documentElementsFinal.length > 1, didn't find the original element in documentElementsFinal."
+        "documentElementsFinal.length > 1, didn't find the original element in documentElementsFinal.",
       );
     }
   }
@@ -267,7 +268,7 @@ function getIndexForTheLayer(
 
 export function addIndexForTheLayer<T extends DictOriginalAttr | DictLayerHtml>(
   originalElement: HTMLElement,
-  dictAttr: T
+  dictAttr: T,
 ): T & DictLayerIndexAttr {
   /* Called by each layer, locate elements using the layer's attributes.
   Compare them with the originalElement, if more than one element is found, add the attribute childIndex and documentIndex for the layer. */
@@ -287,7 +288,7 @@ function getDocumentElements(dictAttrOrSlct: DictAttrForIndex): HTMLElement[] {
   // console.log("documentElementsTemp", documentElementsTemp);
 
   const documentElementsFinal = Array.from(documentElementsTemp).filter((ele) =>
-    filterNonQuerySelectorFromAttrDict(ele, dictAttrOrSlct)
+    filterNonQuerySelectorFromAttrDict(ele, dictAttrOrSlct),
   );
 
   return documentElementsFinal;
@@ -295,7 +296,7 @@ function getDocumentElements(dictAttrOrSlct: DictAttrForIndex): HTMLElement[] {
 
 function getChildElements(
   parentElement: HTMLElement,
-  dictAttrOrSlct: DictAttrForIndex
+  dictAttrOrSlct: DictAttrForIndex,
 ): HTMLElement[] {
   // console.log("--getChildElements--");
 
@@ -307,7 +308,7 @@ function getChildElements(
   // console.log("childElementsTemp", childElementsTemp);
 
   const childElementsFinal = Array.from(childElementsTemp).filter((ele) =>
-    filterNonQuerySelectorFromAttrDict(ele, dictAttrOrSlct)
+    filterNonQuerySelectorFromAttrDict(ele, dictAttrOrSlct),
   );
 
   return childElementsFinal;
@@ -384,7 +385,7 @@ export function createQuerySelectorFromAttrDict(dictAttrOrSlct: DictAttrForIndex
 
 function filterNonQuerySelectorFromAttrDict(
   element: HTMLElement,
-  dictAttrOrSlct: DictAttrForIndex
+  dictAttrOrSlct: DictAttrForIndex,
 ): boolean {
   // console.log("--filterNonQuerySelectorFromAttrDict--");
 

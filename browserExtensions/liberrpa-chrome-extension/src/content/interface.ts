@@ -81,7 +81,7 @@ export interface DictLayerIndexAttr {
   documentIndex?: string; // Indicate the order of the current element among all elements in the document with the same attribute.
 }
 interface DictLayerPathAttr {
-  path?: string; // nth-child() selector.
+  path?: string; // nth-of-type() selector.
 }
 
 export interface DictFinalAttr
@@ -185,7 +185,7 @@ export interface DictFinalSpec extends DictLayerIndexAttr, DictLayerPathAttr {
 export interface DictElementTreeItem {
   id: number;
   title: string;
-  spec: DictFinalSpec;
+  attributes: DictFinalSpec;
   children?: DictElementTreeItem[];
 }
 

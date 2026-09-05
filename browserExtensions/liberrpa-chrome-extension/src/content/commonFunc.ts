@@ -18,7 +18,7 @@ import { getElementTree } from "./elementFunc";
 export function getElementAttrByCoordinates(
   x: number,
   y: number,
-  usePath: boolean
+  usePath: boolean,
 ): [DictFinalAttr[], [DictElementTreeItem[], number[], number] | null] {
   console.log("--getElementAttrByCoordinates--");
 
@@ -26,7 +26,7 @@ export function getElementAttrByCoordinates(
 
   if (!tempElement) {
     throw new Error(
-      `Didn't found element in the coordinates (${x}, ${y}), maybe it's not the last focused tab, or its scaling is not 100%?`
+      `Didn't found element in the coordinates (${x}, ${y}), maybe it's not the last focused tab, or its scaling is not 100%?`,
     );
   }
 
@@ -35,7 +35,7 @@ export function getElementAttrByCoordinates(
 
 export function getElementAttr(
   targetElement: HTMLElement,
-  usePath: boolean
+  usePath: boolean,
 ): DictFinalAttr[] {
   console.log("--getElementAttr--");
 
@@ -88,11 +88,13 @@ export function findElementBySelector(arrSelector: DictLayerHtml[]): HTMLElement
     console.log(`Previous elementFound: `, elementFound);
     console.log(`selector layer ${i}`);
 
-    const selector = arrSelector[i];
+    // Matching may remove helper fields such as path or a zero index.
+    // Work on a copy so validating a selector never changes the selector supplied by the caller.
+    const selector = structuredClone(arrSelector[i]);
     console.log(selector);
     deleteZeroIndex(selector);
 
-    // selector will be modified, so create a backup to for debugging.
+    // selector will be modified, so create a backup for debugging.
     const selectorBackup = structuredClone(selector);
 
     if (selector.path) {
@@ -119,23 +121,26 @@ export function findElementBySelector(arrSelector: DictLayerHtml[]): HTMLElement
     // Get the list by attributes which support querySelectorAll.
     const arrElementTemp: NodeListOf<HTMLElement> = findElementByQuerySelectorAttr(
       selector,
-      elementFound
+      elementFound,
     );
     console.log(`arrElementTemp=`, arrElementTemp);
 
+    const strPathRegex = selector["path-regex"];
+    const rePath =
+      typeof strPathRegex === "string" ? new RegExp(`^${strPathRegex}$`, "u") : undefined;
+    const selectorWithoutPathRegex = structuredClone(selector);
+    delete selectorWithoutPathRegex["path-regex"];
+
     let boolFoundedInArray = false;
     for (const element of arrElementTemp) {
-      if (selector["path-regex"]) {
+      if (rePath) {
         // The branch of "path-regex".
         console.log("Check path-regex.");
 
-        if (
-          new RegExp(`^${selector["path-regex"]}$`, "u").test(getPath(element)) === true
-        ) {
-          // "path-regex" is useless now.
+        if (rePath.test(getPath(element))) {
           delete selector["path-regex"];
 
-          const boolSame = compareBasicAttr(element, selector);
+          const boolSame = compareBasicAttr(element, selectorWithoutPathRegex);
           if (boolSame) {
             elementFound = element;
             boolFoundedInArray = true;
@@ -194,7 +199,7 @@ export function findElementBySelector(arrSelector: DictLayerHtml[]): HTMLElement
 function checkWhetherContinue<T>(
   checkValue: T | boolean | null,
   layer: number,
-  selector: DictLayerHtml
+  selector: DictLayerHtml,
 ): asserts checkValue is T {
   // If it's falsy, throw an error to stop the process.
   console.log("--checkFindResult--");
@@ -204,8 +209,8 @@ function checkWhetherContinue<T>(
       `Not found the target element by the selector (layer ${layer}) :${JSON.stringify(
         selector,
         null,
-        2
-      )}`
+        2,
+      )}`,
     );
   }
 }

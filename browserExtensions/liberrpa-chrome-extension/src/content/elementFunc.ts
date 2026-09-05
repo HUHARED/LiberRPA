@@ -258,7 +258,7 @@ export function getElementTree(
             tempDictFinalSpec.tagName +
             (tempDictFinalSpec.id ? "-" + tempDictFinalSpec.id : "") +
             (tempDictFinalSpec.name ? "-" + tempDictFinalSpec.name : ""),
-          spec: tempDictFinalSpec,
+          attributes: tempDictFinalSpec,
           children: getChildrenSpecRecursive(element, usePath),
         };
 
@@ -281,7 +281,7 @@ export function getElementTree(
       {
         id: getNextElementId(),
         title: rootElement.tagName.toLowerCase(),
-        spec: rootDictFinalSpec,
+        attributes: rootDictFinalSpec,
         children: getChildrenSpecRecursive(rootElement, usePath),
       },
     ];
