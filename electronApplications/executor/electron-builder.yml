@@ -19,7 +19,7 @@ files:
   - "!**/*.map"
 
 asarUnpack:
-  - resources/**
+  - resources/pyRdpScript/**
   - node_modules/better-sqlite3/**
 
 electronFuses:
@@ -28,3 +28,5 @@ electronFuses:
 
 win:
   icon: resources/LiberRPA_icon_v3_color_Executor_256.ico
+
+npmRebuild: false
