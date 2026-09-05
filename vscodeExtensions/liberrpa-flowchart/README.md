@@ -222,6 +222,8 @@ When the required Project log is available, Local Server also generates `video_r
 
 The Editor log root is configured through `configFiles/basic.jsonc`; Executor can use its default or select another Project Log Folder.
 
+When video recording is enabled, Local Server may spend additional time compressing the recording after the Flow itself has finished. This step can use significant CPU, especially for longer recordings or on lower-performance systems.
+
 #### Stop Shortcut
 
 When enabled for a complete Flow Project, press `Ctrl+F12` to terminate the running Flow. This option does not apply to execution of a single Block.

@@ -101,6 +101,8 @@ Browser Automation  │
 
 The Flow uses all five node types supported by the Flowchart: `Start`, `SubStart`, `Block`, `Choose`, and `End`. It also demonstrates Normal, True, False, and Exception Lines.
 
+Video recording is enabled by default. After the Flow finishes, LiberRPA Local Server take additional time to compress the recording. This step can use significant CPU, especially for longer recordings or on lower-performance systems.
+
 ## Flowchart and Python Blocks
 
 The Flowchart stores the high-level route: major stages, branching, a subprocess, and exception handling. Each Block points to a normal Python file whose `main()` function implements the detailed work.

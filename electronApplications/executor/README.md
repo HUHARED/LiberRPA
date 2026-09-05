@@ -467,6 +467,6 @@ Running `InitLiberRPA.exe` again recreates the standard Executor Startup shortcu
 
 * The visual Cron editor is designed for common 5-field expressions. Some advanced expressions supported by `cron-parser` may not be representable or accepted consistently by the current Schedule form validation. Prefer standard 5-field or optional-seconds 6-field expressions unless an advanced expression has been verified in the current build.
 * On the **Run Queue** page, row hover highlighting may not display correctly when the Executor window is on a non-primary monitor. Queue data and actions are not affected.
-* When using a Hyper-V virtual machine in Enhanced Session mode, **Record Video** may not work correctly:
+* When using a Hyper-V virtual machine in Enhanced Session mode, **Record Video** has some limitations:
   * the mouse cursor may not be recorded, especially when the Session is maintained by Executor;
-  * recording may stop if the Session is closed manually or replaced by another Session.
+  * if the display resolution changes during recording, the video keeps the resolution captured at the start. Areas outside the current display may be recorded as black, while newly added display areas are not recorded.
