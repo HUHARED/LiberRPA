@@ -10,7 +10,7 @@ By the end, you will have:
 - debugged Python code with VS Code;
 - inserted a LiberRPA Snippet.
 
-For installation, offline preparation, portability, and uninstallation, see [Installation, Portability & Uninstallation](./Installation.md).
+For installation, offline preparation, portability, and uninstallation, see [Installation, Portability &amp; Uninstallation](./Installation.md).
 
 ## Before You Start
 
@@ -353,6 +353,6 @@ See:
 
 ### Continue with the Feature Tour
 
-The LiberRPA Feature Tour provides a broader runnable example covering representative desktop, browser, data, Component, packaging, and Executor workflows.
+The LiberRPA Feature Tour is a downloadable source Flow Project covering Excel and CSV data, Windows UI Automation, local browser automation, OCR, reusable Components, logging, Custom Project Arguments, and exception recovery.
 
-See `examples/FeatureTour/README.md` when the Feature Tour is included in the release.
+See [LiberRPA Feature Tour](../examples/FeatureTour/FeatureTour.md) to download and run the example.

@@ -8,7 +8,7 @@
 
 > **Production automation is software. Build it like software.**
 
-LiberRPA combines the specialised tooling of an RPA platform with familiar software-engineering practices. It provides visual process orchestration, UI inspection, automation APIs, reusable Components, debugging, packaging, logging, scheduling, and execution while keeping detailed automation logic in Python.
+LiberRPA combines the specialized tooling of an RPA platform with familiar software-engineering practices. It provides visual process orchestration, UI inspection, automation APIs, reusable Components, debugging, packaging, logging, scheduling, and execution while keeping detailed automation logic in Python.
 
 **[Download](TODO_SOURCEFORGE_DOWNLOAD_URL) · [Getting Started](#getting-started) · [Documentation](#documentation) · [Community](#community--support)**
 
@@ -36,7 +36,7 @@ LiberRPA combines the specialised tooling of an RPA platform with familiar softw
 
 RPA developers usually start from one of two directions.
 
-Commercial RPA platforms provide useful specialised tooling, but often introduce product-specific workflow models, configuration layers, development environments, and licensing constraints.
+Commercial RPA platforms provide useful specialized tooling, but often introduce product-specific workflow models, configuration layers, development environments, and licensing constraints.
 
 Using individual automation libraries preserves normal programming freedom and can be ideal for small scripts. As requirements grow, however, developers often accumulate independently designed libraries for desktop UI automation, browsers, Excel, OCR, email, databases, and other tasks — each with its own APIs, abstractions, dependencies, and usage patterns.
 
@@ -58,7 +58,7 @@ LiberRPA brings commonly needed RPA capabilities into one environment instead of
 
 Its development tools, automation APIs, selector model, Components, project packaging, logging, and execution workflow are designed to work together with relatively consistent conventions.
 
-When LiberRPA's built-in APIs are not enough, the project is still Python. Developers can use compatible Python libraries or implement specialised logic directly.
+When LiberRPA's built-in APIs are not enough, the project is still Python. Developers can use compatible Python libraries or implement specialized logic directly.
 
 ### Version control should show your logic, not your editor.
 
@@ -114,9 +114,9 @@ LiberRPA is designed to help such teams:
 * package projects for deployment into client environments;
 * reduce RPA platform licensing costs.
 
-### Organisations using automation
+### Organizations using automation
 
-For organisations operating automation, LiberRPA provides:
+For organizations operating automation, LiberRPA provides:
 
 * transparent project source code;
 * locally controlled execution;
@@ -315,6 +315,7 @@ New functionality should solve a clear engineering or automation problem rather 
 ### Start here
 
 * [Getting Started](./docs/GettingStarted.md)
+* [Feature Tour](./examples/FeatureTour/FeatureTour.md)
 * [Installation, Portability & Uninstallation](./docs/Installation.md)
 * [Python Environment](./docs/Environment.md)
 
