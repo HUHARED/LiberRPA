@@ -14,6 +14,7 @@ import liberrpa.FlowControl.End as End
 from pynput.mouse import Button, Listener as MouseListener
 import keyboard
 import threading
+import time
 import os
 import sys
 from typing import Any, Literal, overload, cast
@@ -206,11 +207,16 @@ def mouse_trigger[T](
     def on_mouse_event(_x: int, _y: int, mouseButton: Button, pressed: bool) -> None:
         nonlocal result, triggerError
 
-        Log.debug(f"Mouse Event: {mouseButton.name} - {'press' if pressed else 'release'}")
+        Log.debug(
+            f"Mouse Event: {mouseButton.name} - {'press' if pressed else 'release'}"
+        )
 
         if not (
             (mouseButton.name == button)
-            and ((timing == "on_press" and pressed) or (timing == "on_release" and not pressed))
+            and (
+                (timing == "on_press" and pressed)
+                or (timing == "on_release" and not pressed)
+            )
         ):
             return
 
@@ -282,7 +288,9 @@ def mouse_trigger[T](
         raise triggerError
 
     if result is resultMissing:
-        raise RuntimeError("The mouse trigger stopped before the callback returned a result.")
+        raise RuntimeError(
+            "The mouse trigger stopped before the callback returned a result."
+        )
 
     return cast(T, result)
 
@@ -409,7 +417,10 @@ def keyboard_trigger[T](
 
         if not (
             (strKeyName == key)
-            and ((timing == "on_press" and boolPressed) or (timing == "on_release" and not boolPressed))
+            and (
+                (timing == "on_press" and boolPressed)
+                or (timing == "on_release" and not boolPressed)
+            )
         ):
             return
 
@@ -472,7 +483,9 @@ def keyboard_trigger[T](
         raise triggerError
 
     if result is resultMissing:
-        raise RuntimeError("The keyboard trigger stopped before the callback returned a result.")
+        raise RuntimeError(
+            "The keyboard trigger stopped before the callback returned a result."
+        )
 
     return cast(T, result)
 
@@ -499,14 +512,50 @@ def _register_force_exit() -> None:
         Log.error(f"Failed to register Ctrl+F12 hotkey: {e}")
 
 
-def _listen_for_exit() -> None:
-    for line in sys.stdin:
-        if line.strip() == "Executor-terminated":
-            Log.critical("Terminated by Executor.")
-            End.executionResult = "terminated"
-            End.cleanup()
-            Log.verbose("_handle_sigterm - os._exit")
-            os._exit(0)
+_FLOAT_EXECUTOR_EXIT_POLL_SECONDS = 0.05
+_INT_EXECUTOR_EXIT_READ_BYTES = 4096
+
+
+def _listen_for_exit(stdinFd: int) -> None:
+    # Use only raw, non-blocking reads on Executor's private command pipe.
+    # A pending blocking stdin read can hang a new Windows Python interpreter:
+    # https://github.com/python/cpython/issues/78961
+    bytesPending = b""
+    while True:
+        try:
+            bytesChunk = os.read(stdinFd, _INT_EXECUTOR_EXIT_READ_BYTES)
+        except BlockingIOError:
+            time.sleep(_FLOAT_EXECUTOR_EXIT_POLL_SECONDS)
+            continue
+        except OSError as e:
+            Log.error(f"Failed to read the Executor termination pipe: {e}")
+            return
+
+        # A pipe read need not contain a complete line. Accept CRLF, LF, or CR.
+        bytesPending += bytesChunk.replace(b"\r", b"\n")
+        listLine = bytesPending.split(b"\n")
+        bytesPending = listLine.pop()
+        if not bytesChunk:
+            # Preserve the previous text-stream behavior for a final unterminated line.
+            listLine.append(bytesPending)
+            bytesPending = b""
+
+        for bytesLine in listLine:
+            if bytesLine.strip() == b"Executor-terminated":
+                Log.critical("Terminated by Executor.")
+                End.executionResult = "terminated"
+                End.cleanup()
+                Log.verbose("_handle_sigterm - os._exit")
+                os._exit(0)
+                return
+
+        if not bytesChunk:
+            return
+        if len(bytesPending) > _INT_EXECUTOR_EXIT_READ_BYTES:
+            Log.error(
+                "Executor termination pipe received an oversized unterminated command."
+            )
+            return
 
 
 # Start the stdin listener thread.
@@ -523,12 +572,19 @@ def _register_executor_exit_listener() -> None:
         if _listenerThread is not None:
             return
 
-        _listenerThread = threading.Thread(
+        intStdinFd = sys.stdin.fileno()
+        # Python 3.12+ supports non-blocking Windows pipes.
+        # Configure this before starting the reader, and fail visibly instead of falling back to a blocking read.
+        os.set_blocking(intStdinFd, False)
+        threadListener = threading.Thread(
             target=_listen_for_exit,
+            args=(intStdinFd,),
             name="LiberRPAExecutorExitListener",
             daemon=True,
         )
-        _listenerThread.start()
+        threadListener.start()
+        _listenerThread = threadListener
+        Log.debug("Executor stdin listener started in non-blocking mode.")
 
 
 if __name__ == "__main__":
