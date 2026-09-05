@@ -8,7 +8,8 @@
           prepend-icon="mdi-monitor"
           density="compact"
           variant="tonal"
-          @click="void indicateUia()">
+          :disabled="operationStore.isBusy"
+          @click="indicateUia()">
           uia
           <v-tooltip activator="parent" location="bottom">
             Indicate a UIA element on the screen.
@@ -21,7 +22,8 @@
           prepend-icon="mdi-web"
           density="compact"
           variant="tonal"
-          @click="void indicateChrome()">
+          :disabled="operationStore.isBusy"
+          @click="indicateChrome()">
           html
           <v-tooltip activator="parent" location="bottom">
             <div>
@@ -38,6 +40,7 @@
           prepend-icon="mdi-image-search-outline"
           density="compact"
           variant="tonal"
+          :disabled="operationStore.isBusy"
           @click="indicateImage()">
           image
           <v-tooltip activator="parent" location="bottom">
@@ -51,7 +54,8 @@
           prepend-icon="mdi-window-restore"
           density="compact"
           variant="tonal"
-          @click="void indicateWindow()">
+          :disabled="operationStore.isBusy"
+          @click="indicateWindow()">
           window
           <v-tooltip activator="parent" location="bottom">
             <div>
@@ -68,7 +72,8 @@
           density="compact"
           :color="informationStore.updateValidateColor()"
           variant="tonal"
-          @click="void validateSelector()">
+          :disabled="operationStore.isBusy"
+          @click="validateSelector()">
           Validate
           <v-tooltip activator="parent" location="bottom">
             Validate the current JSON Selector by locating the target element.
@@ -81,6 +86,7 @@
           prepend-icon="mdi-refresh"
           density="compact"
           variant="tonal"
+          :disabled="operationStore.isBusy"
           @click="resetUI()">
           Reset
           <v-tooltip activator="parent" location="bottom">
@@ -93,53 +99,52 @@
 </template>
 
 <script setup lang="ts">
-import { sendCmdToFlask } from "../ipcOfRenderer";
+import { startUiAnalyzerOperation } from "../ipcOfRenderer";
 import { parseSelectorJsonText } from "../attrHandleFunc";
-import { useSelectorStore, useSettingStore, useInformationStore } from "../store";
+import {
+  useInformationStore,
+  useOperationStore,
+  useSelectorStore,
+  useSettingStore,
+} from "../store";
 
 const selectorStore = useSelectorStore();
 const settingStore = useSettingStore();
 const informationStore = useInformationStore();
+const operationStore = useOperationStore();
 
 async function indicateUia(): Promise<void> {
-  await settingStore.toggleWindow();
-  sendCmdToFlask({
-    commandName: "indicate_uia",
+  await startUiAnalyzerOperation("indicate_uia", {
     intIndicateDelaySeconds: settingStore.intIndicateDelaySeconds,
   });
-  selectorStore.setDescription("Indicating UIA element.");
 }
 
 async function indicateChrome(): Promise<void> {
-  await settingStore.toggleWindow();
-  sendCmdToFlask({
-    commandName: "indicate_chrome",
+  await startUiAnalyzerOperation("indicate_chrome", {
     intIndicateDelaySeconds: settingStore.intIndicateDelaySeconds,
     usePath: settingStore.indexOrPath === "path",
   });
-  selectorStore.setDescription("Indicating Chrome element.");
 }
 
-function indicateImage(): void {
-  // settingStore.toggleWindow(); Not minimize the UI Analyzer window, because the QT window will also be minimized.
-  settingStore.boolIndicateImage = true;
-
-  sendCmdToFlask({
-    commandName: "indicate_image",
-    intIndicateDelaySeconds: settingStore.intIndicateDelaySeconds,
-    grayscale: settingStore.grayscale,
-    confidence: settingStore.confidence,
-  });
-  selectorStore.setDescription("Indicating image element.");
+async function indicateImage(): Promise<void> {
+  await startUiAnalyzerOperation(
+    "indicate_image",
+    {
+      intIndicateDelaySeconds: settingStore.intIndicateDelaySeconds,
+      grayscale: settingStore.grayscale,
+      confidence: settingStore.confidence,
+    },
+    {
+      // The Qt screenshot window would also be minimized.
+      minimizeWindow: false,
+    },
+  );
 }
 
 async function indicateWindow(): Promise<void> {
-  await settingStore.toggleWindow();
-  sendCmdToFlask({
-    commandName: "indicate_window",
+  await startUiAnalyzerOperation("indicate_window", {
     intIndicateDelaySeconds: settingStore.intIndicateDelaySeconds,
   });
-  selectorStore.setDescription("Indicating window element.");
 }
 
 async function validateSelector(): Promise<void> {
@@ -153,18 +158,21 @@ async function validateSelector(): Promise<void> {
     return;
   }
 
-  informationStore.startSelectorValidation(strSelectorText);
-  await settingStore.toggleWindow();
-
-  sendCmdToFlask({
-    commandName: "validate",
-    intMatchTimeoutSeconds: settingStore.intMatchTimeoutSeconds,
-    strSelectorJson: dictParseResult.data,
-  });
-  selectorStore.setDescription("Validating element.");
+  await startUiAnalyzerOperation(
+    "validate",
+    {
+      intMatchTimeoutSeconds: settingStore.intMatchTimeoutSeconds,
+      selector: dictParseResult.data,
+    },
+    {
+      validateSelectorText: strSelectorText,
+    },
+  );
 }
 
 function resetUI(): void {
+  if (operationStore.isBusy) return;
+
   // Clean Element Hierarchy, Json Selector, Attribute Editor.
   selectorStore.$reset();
   informationStore.$reset();

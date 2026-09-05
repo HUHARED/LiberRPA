@@ -4,7 +4,7 @@
     <v-label class="area-header"> Status </v-label>
 
     <v-text-field
-      v-model="selectorStore.processDescription"
+      :model-value="operationStore.processDescription"
       class="pa-1 ma-0"
       density="compact"
       variant="plain"
@@ -12,12 +12,8 @@
       readonly>
       <template #prepend-inner>
         <v-icon
-          :color="selectorStore.processDescription === 'Idle' ? 'success' : 'info'"
-          :icon="
-            selectorStore.processDescription === 'Idle'
-              ? 'mdi-check-circle-outline'
-              : 'mdi-dots-circle'
-          "
+          :color="operationStore.isBusy ? 'info' : 'success'"
+          :icon="operationStore.isBusy ? 'mdi-dots-circle' : 'mdi-check-circle-outline'"
           class="clean-space" />
       </template>
     </v-text-field>
@@ -38,10 +34,10 @@
 </template>
 
 <script setup lang="ts">
-import { useSelectorStore, useInformationStore } from "../store";
+import { useInformationStore, useOperationStore } from "../store";
 
-const selectorStore = useSelectorStore();
 const informationStore = useInformationStore();
+const operationStore = useOperationStore();
 </script>
 
 <style scoped></style>

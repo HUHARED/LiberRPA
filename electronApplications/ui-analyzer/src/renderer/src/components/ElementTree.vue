@@ -52,7 +52,7 @@
 </template>
 
 <script setup lang="ts">
-import { loggerRenderer } from "../ipcOfRenderer";
+import { loggerRenderer } from "../logger";
 import { useSelectorStore, useInformationStore } from "../store";
 
 const selectorStore = useSelectorStore();

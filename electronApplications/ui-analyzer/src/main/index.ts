@@ -158,11 +158,15 @@ async function bootstrap(): Promise<void> {
 
       try {
         switch (command) {
-          case "cmd-toggle-window":
+          case "cmd-minimize-window":
+            if (!mainWindowObj.isMinimized()) {
+              mainWindowObj.minimize();
+            }
+            return { success: true };
+
+          case "cmd-restore-window":
             if (mainWindowObj.isMinimized()) {
               mainWindowObj.restore();
-            } else {
-              mainWindowObj.minimize();
             }
             return { success: true };
 

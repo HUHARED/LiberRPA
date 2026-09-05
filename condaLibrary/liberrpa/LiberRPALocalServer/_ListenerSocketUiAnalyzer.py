@@ -7,180 +7,332 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 print("=== import _ListenerSocketUiAnalyzer ===")
 from liberrpa.Logging import Log
-from liberrpa.Common._TypedValue import DictSocketResult
 from liberrpa.Common._Exception import get_exception_info
-from liberrpa.Dialog import show_notification
+from liberrpa.UI._SelectorValidation import ensure_selector
 
 import liberrpa.LiberRPALocalServer._UiAnalyzer as _UiAnalyzer
 import liberrpa.LiberRPALocalServer._ElementTree as _ElementTree
 from liberrpa.LiberRPALocalServer._ServerInit import sioServer, get_client_id
 from liberrpa.LiberRPALocalServer._Tray import change_tray_icon
 
-
-from flask_socketio import emit
 import json
+import math
 import threading
 from copy import deepcopy
-from typing import Any
+from typing import Any, Literal, cast
+
+
+UiAnalyzerOperationName = Literal[
+    "indicate_uia",
+    "indicate_chrome",
+    "indicate_image",
+    "indicate_window",
+    "validate",
+]
+UiAnalyzerResultMessageType = Literal["operationResult", "elementTreeResult"]
+
+_SET_OPERATION_NAME: set[str] = {
+    "indicate_uia",
+    "indicate_chrome",
+    "indicate_image",
+    "indicate_window",
+    "validate",
+}
 
 # Make sure only one UI Analyzer command is handled at a time.
 _lockHandleUiAnalyzer = threading.Lock()
+
+
+def _load_command(message: str) -> dict[str, Any]:
+    if not isinstance(message, str):
+        raise ValueError("UI Analyzer command must be a JSON string.")
+
+    dictCommand = json.loads(message)
+    if not isinstance(dictCommand, dict):
+        raise ValueError("UI Analyzer command must be a JSON object.")
+
+    return dictCommand
+
+
+def _get_operation_id(dictCommand: dict[str, Any]) -> int:
+    intOperationId = dictCommand.get("operationId")
+    if type(intOperationId) is not int or intOperationId <= 0:
+        raise ValueError(f"Invalid UI Analyzer operationId: {intOperationId!r}.")
+
+    return intOperationId
+
+
+def _get_operation_name(dictCommand: dict[str, Any]) -> UiAnalyzerOperationName:
+    strOperationName = dictCommand.get("commandName")
+    if (
+        not isinstance(strOperationName, str)
+        or strOperationName not in _SET_OPERATION_NAME
+    ):
+        raise ValueError(f"Invalid UI Analyzer commandName: {strOperationName!r}.")
+
+    return cast(UiAnalyzerOperationName, strOperationName)
+
+
+def _get_indicate_delay(dictCommand: dict[str, Any]) -> int:
+    intIndicateDelay = dictCommand.get("intIndicateDelaySeconds")
+    if type(intIndicateDelay) is not int or not 1 <= intIndicateDelay <= 10:
+        raise ValueError(
+            f"Invalid UI Analyzer indicate delay: {intIndicateDelay!r}. Expected an integer from 1 to 10."
+        )
+
+    return intIndicateDelay
+
+
+def _get_match_timeout(dictCommand: dict[str, Any]) -> int:
+    intMatchTimeout = dictCommand.get("intMatchTimeoutSeconds")
+    if type(intMatchTimeout) is not int or not 3 <= intMatchTimeout <= 60:
+        raise ValueError(
+            f"Invalid UI Analyzer match timeout: {intMatchTimeout!r}. Expected an integer from 3 to 60."
+        )
+
+    return intMatchTimeout
+
+
+def _get_bool_argument(dictCommand: dict[str, Any], strArgumentName: str) -> bool:
+    boolValue = dictCommand.get(strArgumentName)
+    if type(boolValue) is not bool:
+        raise ValueError(
+            f"Invalid UI Analyzer {strArgumentName}: {boolValue!r}. Expected a boolean."
+        )
+
+    return boolValue
+
+
+def _get_confidence(dictCommand: dict[str, Any]) -> float:
+    confidence = dictCommand.get("confidence")
+
+    if isinstance(confidence, bool) or not isinstance(confidence, (int, float)):
+        raise ValueError(
+            f"Invalid UI Analyzer confidence: {confidence!r}. Expected a number from 0.1 to 0.999."
+        )
+
+    floatConfidence = float(confidence)
+    if not math.isfinite(floatConfidence) or not 0.1 <= floatConfidence <= 0.999:
+        raise ValueError(
+            f"Invalid UI Analyzer confidence: {confidence!r}. Expected a number from 0.1 to 0.999."
+        )
+
+    return floatConfidence
+
+
+def _emit_result(
+    *,
+    clientSid: str,
+    intOperationId: int,
+    messageType: UiAnalyzerResultMessageType,
+    boolSuccess: bool,
+    resultData: Any,
+) -> None:
+    dictMessage = {
+        "operationId": intOperationId,
+        "messageType": messageType,
+        "boolSuccess": boolSuccess,
+        "data": resultData,
+    }
+    sioServer.emit(
+        "message_flask_to_uianalyzer",
+        json.dumps(dictMessage),
+        to=clientSid,
+    )
+
+
+def _emit_completed(*, clientSid: str, intOperationId: int) -> None:
+    sioServer.emit(
+        "message_flask_to_uianalyzer",
+        json.dumps({
+            "operationId": intOperationId,
+            "messageType": "operationCompleted",
+        }),
+        to=clientSid,
+    )
+
+
+def _log_operation_result(*, boolSuccess: bool, resultData: Any) -> None:
+    dictResult = {"boolSuccess": boolSuccess, "data": resultData}
+
+    if not boolSuccess:
+        Log.error(dictResult)
+        return None
+
+    # Preview images are too large to write to the diagnostic log.
+    if isinstance(resultData, dict) and resultData.get("preview") is not None:
+        dictResultTemp = deepcopy(dictResult)
+        dictDataTemp = dictResultTemp.get("data")
+        if isinstance(dictDataTemp, dict):
+            dictDataTemp.pop("preview", None)
+        Log.debug(dictResultTemp)
+    else:
+        Log.info(dictResult)
+
+
+def _send_rejected_operation(
+    *,
+    clientSid: str,
+    intOperationId: int,
+    strMessage: str,
+) -> None:
+    _emit_result(
+        clientSid=clientSid,
+        intOperationId=intOperationId,
+        messageType="operationResult",
+        boolSuccess=False,
+        resultData=strMessage,
+    )
+    _emit_completed(clientSid=clientSid, intOperationId=intOperationId)
 
 
 @Log.trace()
 @sioServer.on("uianalyzer_command")
 def handle_uianalyzer_command(message: str) -> None:
     clientSid = get_client_id()
-    Log.info(f"Received UI Analyzer command: {message}, SID: {clientSid}")
+    intOperationId: int | None = None
+
+    try:
+        dictCommand = _load_command(message)
+        intOperationId = _get_operation_id(dictCommand)
+        strOperationName = _get_operation_name(dictCommand)
+    except Exception as e:
+        strError = "Error: " + str(get_exception_info(e))
+        Log.error(strError)
+        if intOperationId is not None:
+            _send_rejected_operation(
+                clientSid=clientSid,
+                intOperationId=intOperationId,
+                strMessage=strError,
+            )
+        return None
+
+    Log.info(
+        f"Received UI Analyzer operation: operationId={intOperationId}, "
+        f"commandName={strOperationName}, SID={clientSid}"
+    )
 
     if not _lockHandleUiAnalyzer.acquire(blocking=False):
-        result: DictSocketResult = {
-            "boolSuccess": False,
-            "data": "Error: Another UI Analyzer command is running",
-        }
-        Log.debug("Another UI Analyzer command is running.")
-        emit(
-            "message_flask_to_uianalyzer",
-            json.dumps(result),
-            to=clientSid,
+        strError = "Error: Another UI Analyzer command is running."
+        Log.debug(strError)
+        _send_rejected_operation(
+            clientSid=clientSid,
+            intOperationId=intOperationId,
+            strMessage=strError,
         )
         return None
 
-    result: DictSocketResult = {"boolSuccess": False, "data": None}
-    dictCommand: dict[str, Any] = {}
-    strCommandName: str | None = None
-    temp: Any = None
-    tupleEleTree = None
+    resultData: Any = None
+    tupleEleTree: Any = None
+    boolOperationSuccess = False
 
     try:
         change_tray_icon(component="LiberRPALocalServer_Indicating")
 
-        dictCommand = json.loads(message)
-        strCommandNameTemp = dictCommand.get("commandName")
-        if not isinstance(strCommandNameTemp, str):
-            raise ValueError(f"Invalid commandName: {strCommandNameTemp!r}")
-
-        strCommandName = strCommandNameTemp
-
-        # Check some arguments to avoid incompatible argument and too long delays in case. (e.g. Local Server's version doesn't equal to UI Analyzer's version)
-        if strCommandName in [
-            "indicate_uia",
-            "indicate_chrome",
-            "indicate_image",
-            "indicate_window",
-        ]:
-            intIndicateDelay = dictCommand["intIndicateDelaySeconds"]
-            if (
-                type(intIndicateDelay) is not int
-                or intIndicateDelay < 1
-                or intIndicateDelay > 10
-            ):
-                raise ValueError(
-                    f"Invalid UI Analyzer indicate delay: {intIndicateDelay!r}. Expected an integer from 1 to 10."
-                )
-
-        if strCommandName == "validate":
-            intMatchTimeout = dictCommand["intMatchTimeoutSeconds"]
-            if (
-                type(intMatchTimeout) is not int
-                or intMatchTimeout < 3
-                or intMatchTimeout > 60
-            ):
-                raise ValueError(
-                    f"Invalid UI Analyzer match timeout: {intMatchTimeout!r}. Expected an integer from 3 to 60."
-                )
-
-        match strCommandName:
+        match strOperationName:
             case "indicate_uia":
                 Log.debug("_UiAnalyzer.indicate_uia")
-                temp = _UiAnalyzer.indicate_uia(intIndicateDelay)
+                resultData = _UiAnalyzer.indicate_uia(_get_indicate_delay(dictCommand))
 
             case "indicate_chrome":
-                temp = _UiAnalyzer.indicate_chrome(
-                    intIndicateDelay, dictCommand["usePath"]
+                tupleChromeResult = _UiAnalyzer.indicate_chrome(
+                    _get_indicate_delay(dictCommand),
+                    _get_bool_argument(dictCommand, "usePath"),
                 )
-                if temp is not None:
-                    tupleEleTree = temp[1]
-                    temp = temp[0]
+                if tupleChromeResult is not None:
+                    resultData, tupleEleTree = tupleChromeResult
 
             case "indicate_image":
-                temp = _UiAnalyzer.indicate_image(
-                    indicateDelaySeconds=intIndicateDelay,
-                    grayscale=dictCommand["grayscale"],
-                    confidence=dictCommand["confidence"],
+                resultData = _UiAnalyzer.indicate_image(
+                    indicateDelaySeconds=_get_indicate_delay(dictCommand),
+                    grayscale=_get_bool_argument(dictCommand, "grayscale"),
+                    confidence=_get_confidence(dictCommand),
                 )
 
             case "indicate_window":
-                temp = _UiAnalyzer.indicate_window(intIndicateDelay)
+                resultData = _UiAnalyzer.indicate_window(_get_indicate_delay(dictCommand))
 
             case "validate":
-                temp = _UiAnalyzer.validate(
-                    dictCommand["strSelectorJson"], intMatchTimeout
+                resultData = _UiAnalyzer.validate(
+                    ensure_selector(dictCommand.get("selector")),
+                    _get_match_timeout(dictCommand),
                 )
 
-            case _:
-                raise ValueError(f"Unknown command: {strCommandName}")
+        boolOperationSuccess = True
 
     except Exception as e:
-        result: DictSocketResult = {
-            "boolSuccess": False,
-            "data": "Error: " + str(get_exception_info(e)),
-        }
-    else:
-        result: DictSocketResult = {"boolSuccess": True, "data": temp}
+        resultData = "Error: " + str(get_exception_info(e))
 
     try:
-        # preview is so long, not print it.
-        if isinstance(result["data"], dict) and result["data"].get("preview") is not None:
-            resultTemp = deepcopy(result)
-
-            resultDataTemp = resultTemp.get("data")
-            if isinstance(resultDataTemp, dict):
-                resultDataTemp.pop("preview", None)
-
-            Log.debug(resultTemp)
-        else:
-            Log.info(result)
-
-        emit(
-            "message_flask_to_uianalyzer",
-            json.dumps(result),
-            to=clientSid,
+        _log_operation_result(boolSuccess=boolOperationSuccess, resultData=resultData)
+        _emit_result(
+            clientSid=clientSid,
+            intOperationId=intOperationId,
+            messageType="operationResult",
+            boolSuccess=boolOperationSuccess,
+            resultData=resultData,
         )
 
         # Generate Element Tree.
-        if strCommandName == "indicate_uia" and isinstance(temp, dict):
-            Log.debug("Get UIA Element Tree.")
-            try:
-                tupleTemp = _ElementTree.generate_control_tree_by_selector(
-                    selector=temp["selector"]
-                )
-            except Exception as e:
-                Log.exception_info(e)
-                show_notification(
-                    title="LiberRPA Local Server",
-                    message="Error to indicate uia\n" + str(e),
-                    duration=5,
-                    wait=False,
-                )
-            else:
-                emit(
-                    "message_flask_to_uianalyzer",
-                    "Element_Tree:" + json.dumps(tupleTemp),
-                    to=clientSid,
-                )
+        if boolOperationSuccess and isinstance(resultData, dict):
+            if strOperationName == "indicate_uia":
+                Log.debug("Get UIA Element Tree.")
+                try:
+                    tupleEleTreeUia = _ElementTree.generate_control_tree_by_selector(
+                        selector=resultData["selector"]
+                    )
+                except Exception as e:
+                    strTreeError = "Error: Failed to generate UIA Element Tree. " + str(
+                        get_exception_info(e)
+                    )
+                    Log.error(strTreeError)
+                    _emit_result(
+                        clientSid=clientSid,
+                        intOperationId=intOperationId,
+                        messageType="elementTreeResult",
+                        boolSuccess=False,
+                        resultData=strTreeError,
+                    )
+                else:
+                    _emit_result(
+                        clientSid=clientSid,
+                        intOperationId=intOperationId,
+                        messageType="elementTreeResult",
+                        boolSuccess=True,
+                        resultData=tupleEleTreeUia,
+                    )
 
-        elif strCommandName == "indicate_chrome" and tupleEleTree:
-            Log.debug("Get HTML Element Tree.")
-            emit(
-                "message_flask_to_uianalyzer",
-                "Element_Tree:" + json.dumps(tupleEleTree),
-                to=clientSid,
-            )
-        else:
-            Log.debug("No Element Tree needed.")
+            elif strOperationName == "indicate_chrome":
+                Log.debug("Get HTML Element Tree.")
+                if tupleEleTree is None:
+                    strTreeError = "Error: Failed to generate HTML Element Tree."
+                    Log.error(strTreeError)
+                    _emit_result(
+                        clientSid=clientSid,
+                        intOperationId=intOperationId,
+                        messageType="elementTreeResult",
+                        boolSuccess=False,
+                        resultData=strTreeError,
+                    )
+                else:
+                    _emit_result(
+                        clientSid=clientSid,
+                        intOperationId=intOperationId,
+                        messageType="elementTreeResult",
+                        boolSuccess=True,
+                        resultData=tupleEleTree,
+                    )
     except Exception as e:
         Log.error(get_exception_info(e))
     finally:
+        try:
+            change_tray_icon(component="LiberRPALocalServer")
+        except Exception as e:
+            Log.error(get_exception_info(e))
+
         _lockHandleUiAnalyzer.release()
-        change_tray_icon(component="LiberRPALocalServer")
+
+        try:
+            _emit_completed(clientSid=clientSid, intOperationId=intOperationId)
+        except Exception as e:
+            Log.error(get_exception_info(e))

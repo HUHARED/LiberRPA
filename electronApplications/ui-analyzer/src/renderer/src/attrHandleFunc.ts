@@ -23,17 +23,10 @@ export function removeSuffix(originalText: string, suffix: string): string {
   return originalText;
 }
 
-export function removePrefix(originalText: string, prefix: string): string {
-  if (originalText.startsWith(prefix)) {
-    return originalText.slice(prefix.length);
-  }
-  return originalText;
-}
-
 export function modifyKeyName(
   dictToModify: { [key: string]: unknown },
   originalKeyName: string,
-  newKeyName: string
+  newKeyName: string,
 ): void {
   // Modify the key's name and keep its order.
   for (const keyName of Object.keys(dictToModify)) {

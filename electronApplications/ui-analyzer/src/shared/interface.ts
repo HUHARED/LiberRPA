@@ -18,7 +18,11 @@ export type DictInvokeResult =
       data: string;
     };
 
-export type MainInvokeCommand = "cmd-toggle-window" | "cmd-toggle-socket-status";
+export type MainInvokeCommand =
+  | "cmd-minimize-window"
+  | "cmd-restore-window"
+  | "cmd-toggle-socket-status";
+
 export type RendererLogLevel =
   | "error"
   | "warn"
@@ -37,10 +41,12 @@ export interface SelectorNonWindow extends SelectorWindow {
   specification: { [key: string]: string }[];
 }
 
+export type Selector = SelectorWindow | SelectorNonWindow;
+
 export interface DictForUiAnalyzer {
-  selector: SelectorWindow | SelectorNonWindow;
+  selector: Selector;
   attributes: { [key: string]: string };
-  preview: string;
+  preview?: string;
 }
 
 export interface DictEleTreeItem {
@@ -49,3 +55,32 @@ export interface DictEleTreeItem {
   attributes: { [key: string]: string };
   children?: DictEleTreeItem[];
 }
+
+export type ElementTreeResult = [DictEleTreeItem[], number[], number];
+
+export type UiAnalyzerOperationName =
+  | "indicate_uia"
+  | "indicate_chrome"
+  | "indicate_image"
+  | "indicate_window"
+  | "validate";
+
+export type UiAnalyzerOperationPhase = "idle" | "running" | "buildingElementTree";
+
+export type UiAnalyzerServerMessage =
+  | {
+      operationId: number;
+      messageType: "operationResult";
+      boolSuccess: boolean;
+      data: unknown;
+    }
+  | {
+      operationId: number;
+      messageType: "elementTreeResult";
+      boolSuccess: boolean;
+      data: unknown;
+    }
+  | {
+      operationId: number;
+      messageType: "operationCompleted";
+    };

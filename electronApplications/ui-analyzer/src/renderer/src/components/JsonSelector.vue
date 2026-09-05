@@ -61,7 +61,7 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 
-import { loggerRenderer } from "../ipcOfRenderer";
+import { loggerRenderer } from "../logger";
 import { parseSelectorJsonText } from "../attrHandleFunc";
 import { useInformationStore, useSelectorStore } from "../store";
 

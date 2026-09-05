@@ -1,7 +1,7 @@
 // FileName: store.ts
 import { defineStore } from "pinia";
 
-import { loggerRenderer, invokeMain, connectToServer } from "./ipcOfRenderer";
+import { loggerRenderer } from "./logger";
 import {
   STR_SUFFIX_OMIT,
   STR_SUFFIX_REGEX,
@@ -14,6 +14,9 @@ import type {
   SelectorNonWindow,
   DictForUiAnalyzer,
   DictEleTreeItem,
+  ElementTreeResult,
+  UiAnalyzerOperationName,
+  UiAnalyzerOperationPhase,
 } from "../../shared/interface";
 
 export const useSelectorStore = defineStore("selector", {
@@ -26,7 +29,6 @@ export const useSelectorStore = defineStore("selector", {
       arrCheckedLayers: [] as Record<string, string>[],
       intClickedLayer: -1 as number,
       strJsonText: "" as string,
-      processDescription: "Idle" as string,
       arrEleTree: [] as DictEleTreeItem[],
       arrEleTreeOpened: [] as number[],
       intEleTreeActivated: 0 as number,
@@ -35,41 +37,31 @@ export const useSelectorStore = defineStore("selector", {
   },
   getters: {},
   actions: {
-    setDescription(description: string): void {
-      loggerRenderer.debug(`-start-${description}-`);
-      this.processDescription = description;
-    },
-
-    idle(): void {
-      loggerRenderer.debug(`-end-`);
-      this.processDescription = "Idle";
-    },
-
-    afterIndicate(): void {
-      this.setDescription("afterIndicate");
-
-      // Clean Element Tree
+    clearElementTree(): void {
       this.arrEleTree = [];
       this.arrEleTreeOpened = [];
       this.intEleTreeActivated = 0;
       this.dictEleTreeSelector = {};
+    },
+
+    applyIndicateResult(dictResult: DictForUiAnalyzer): void {
+      this.clearElementTree();
 
       // Update dictFromPython.
       const informationStore = useInformationStore();
       informationStore.resetSelectorValidation();
-      this.dictFromPython = JSON.parse(informationStore.information);
-      console.log(this.dictFromPython);
+      this.dictFromPython = structuredClone(dictResult);
 
       this.updateByDictFromPython();
 
-      // Show preview image.
-      if (this.dictFromPython["preview"]) {
-        informationStore.previewImage = this.dictFromPython["preview"];
-      } else {
-        informationStore.previewImage = "";
-      }
+      informationStore.previewImage = this.dictFromPython.preview ?? "";
+    },
 
-      this.idle();
+    applyElementTreeResult(tupleResult: ElementTreeResult): void {
+      this.arrEleTree = structuredClone(tupleResult[0]);
+      this.arrEleTreeOpened = [...tupleResult[1]];
+      this.intEleTreeActivated = tupleResult[2];
+      this.updateEleTreeSelector();
     },
 
     updateByDictFromPython(): void {
@@ -146,8 +138,6 @@ export const useSelectorStore = defineStore("selector", {
     },
 
     updateCheckedLayerAndJsonText(): void {
-      // this.setDescription("updateCheckedLayerAndJsonText");
-
       // Loop all elements in arrEleHierarchy(by index, arrEleHierarchy and arrLayerCheckState should have same length), if it's checked, add it to arrCheckedLayers
       const arrTemp: { [key: string]: string }[] = [];
 
@@ -191,13 +181,9 @@ export const useSelectorStore = defineStore("selector", {
 
       this.strJsonText = JSON.stringify(dictSelector, null, 2);
       loggerRenderer.debug("Update JSON Selector.");
-
-      // this.idle();
     },
 
     updateEleTreeSelector(): void {
-      this.setDescription("updateEleTreeSelector");
-
       const addSelectorRecursive = (
         id: number,
         attributes: { [key: string]: string },
@@ -223,13 +209,9 @@ export const useSelectorStore = defineStore("selector", {
       });
 
       // console.log(JSON.stringify(this.dictEleTreeSelector));
-
-      this.idle();
     },
 
     handleLayerCheck(index: number, event: boolean): void {
-      this.setDescription("handleLayerCheck");
-
       // If check or uncheck a layer, update arrCheckedLayers, and generate Json Selector. But the layer 0 and 1 (window and category) should alway be checked.
       loggerRenderer.debug(`Check or uncheck layer: ${index} ${event}`);
       if (index !== 0 && index !== 1) {
@@ -242,18 +224,12 @@ export const useSelectorStore = defineStore("selector", {
           "The layers of 'window' and 'category' must always be checked.",
         );
       }
-
-      this.idle();
     },
 
     refreshArrtibuteEditor(index: number): void {
-      this.setDescription("refreshArrtibuteEditor");
-
       // Update intClickedLayer to make the changement be watched, then refresh automatically.
       loggerRenderer.debug("Click on a selector layer, index: " + index);
       this.intClickedLayer = index;
-
-      this.idle();
     },
 
     updateAttributeValue(keyName: string, strValue: string): void {
@@ -266,7 +242,6 @@ export const useSelectorStore = defineStore("selector", {
 
     omitAttr(event: boolean, keyName: string): void {
       // Add "-omit" for unchecked attributes. Remove "-omit" for checked attributes.
-      this.setDescription("omitAttr");
       const arrMustCheckedKey = [
         "category",
         "ControlTypeName",
@@ -279,7 +254,6 @@ export const useSelectorStore = defineStore("selector", {
         informationStore.showAlertMessage(
           "These attributes must be checked: " + JSON.stringify(arrMustCheckedKey),
         );
-        this.idle();
         return;
       }
 
@@ -307,20 +281,16 @@ export const useSelectorStore = defineStore("selector", {
       }
 
       this.updateCheckedLayerAndJsonText();
-      this.idle();
     },
 
     regexAttr(_event: MouseEvent, keyName: string): void {
       // Add or remove"-regex"
-      this.setDescription("regexAttr");
-
       // Not change a omitted attribute. Otherwise the attribute will be lost(disappear).
       if (keyName.endsWith(STR_SUFFIX_OMIT)) {
         const informationStore = useInformationStore();
         informationStore.showAlertMessage(
           "Check the attribute before changing its Regex mode.",
         );
-        this.idle();
         return;
       }
 
@@ -331,7 +301,6 @@ export const useSelectorStore = defineStore("selector", {
         informationStore.showAlertMessage(
           "These attributes can't use Regex: " + JSON.stringify(arrCannotRegex),
         );
-        this.idle();
         return;
       }
 
@@ -349,7 +318,6 @@ export const useSelectorStore = defineStore("selector", {
       ) {
         const informationStore = useInformationStore();
         informationStore.showAlertMessage("Image attributes can't use Regex.");
-        this.idle();
         return;
       }
 
@@ -371,7 +339,6 @@ export const useSelectorStore = defineStore("selector", {
       // Delete original keyName.
 
       this.updateCheckedLayerAndJsonText();
-      this.idle();
     },
   },
 });
@@ -393,7 +360,6 @@ export const useSettingStore = defineStore("setting", {
       socketState: false as boolean,
       leftColumnWidth: 250 as number,
       rightColumnWidth: 250 as number,
-      boolIndicateImage: false as boolean,
     };
   },
   getters: {},
@@ -405,23 +371,91 @@ export const useSettingStore = defineStore("setting", {
       this.strToken = tupleConfig[1];
       this.theme = dictConfigBasic.uiAnalyzerTheme;
       this.minimizeWindow = dictConfigBasic.uiAnalyzerMinimizeWindow;
+    },
+  },
+});
 
-      connectToServer(this.intLocalServerPort, this.strToken);
+const DICT_OPERATION_DESCRIPTION: Record<UiAnalyzerOperationName, string> = {
+  indicate_uia: "Indicating UIA element.",
+  indicate_chrome: "Indicating Chrome element.",
+  indicate_image: "Indicating image element.",
+  indicate_window: "Indicating window element.",
+  validate: "Validating element.",
+};
+
+export const useOperationStore = defineStore("operation", {
+  state: () => {
+    return {
+      intNextOperationId: 1 as number,
+      intActiveOperationId: undefined as number | undefined,
+      operationName: undefined as UiAnalyzerOperationName | undefined,
+      operationPhase: "idle" as UiAnalyzerOperationPhase,
+      boolWindowRestoreRequired: false as boolean,
+    };
+  },
+  getters: {
+    isBusy(state): boolean {
+      return state.intActiveOperationId !== undefined;
     },
 
-    async toggleWindow(): Promise<void> {
-      if (this.minimizeWindow) {
-        if (this.boolIndicateImage) {
-          // Not minimize the UI Analyzer window, because the QT window will also be minimized.
-          // Reset the flag value.
-          this.boolIndicateImage = false;
-          return;
-        }
-        loggerRenderer.debug("Toggle Ui Analyzer Window.");
-        await invokeMain("cmd-toggle-window");
-      } else {
-        loggerRenderer.debug("Don't need to toggle Ui Analyzer Window.");
+    processDescription(state): string {
+      if (state.operationPhase === "idle" || state.operationName === undefined) {
+        return "Idle";
       }
+
+      if (state.operationPhase === "buildingElementTree") {
+        return "Building Element Tree.";
+      }
+
+      return DICT_OPERATION_DESCRIPTION[state.operationName];
+    },
+  },
+  actions: {
+    beginOperation(operationName: UiAnalyzerOperationName): number {
+      if (this.intActiveOperationId !== undefined) {
+        throw new Error("Another UI Analyzer operation is already running.");
+      }
+
+      const intOperationId = this.intNextOperationId;
+      this.intNextOperationId += 1;
+      this.intActiveOperationId = intOperationId;
+      this.operationName = operationName;
+      this.operationPhase = "running";
+      this.boolWindowRestoreRequired = false;
+
+      loggerRenderer.debug(
+        `Start UI Analyzer operation ${intOperationId}: ${operationName}`,
+      );
+      return intOperationId;
+    },
+
+    isCurrentOperation(intOperationId: number): boolean {
+      return this.intActiveOperationId === intOperationId;
+    },
+
+    markWindowRestoreRequired(intOperationId: number): void {
+      if (!this.isCurrentOperation(intOperationId)) return;
+      this.boolWindowRestoreRequired = true;
+    },
+
+    markWindowRestored(intOperationId: number): void {
+      if (!this.isCurrentOperation(intOperationId)) return;
+      this.boolWindowRestoreRequired = false;
+    },
+
+    markBuildingElementTree(intOperationId: number): void {
+      if (!this.isCurrentOperation(intOperationId)) return;
+      this.operationPhase = "buildingElementTree";
+    },
+
+    finishOperation(intOperationId: number): void {
+      if (!this.isCurrentOperation(intOperationId)) return;
+
+      loggerRenderer.debug(`Finish UI Analyzer operation ${intOperationId}.`);
+      this.intActiveOperationId = undefined;
+      this.operationName = undefined;
+      this.operationPhase = "idle";
+      this.boolWindowRestoreRequired = false;
     },
   },
 });
@@ -481,7 +515,6 @@ export const useInformationStore = defineStore("information", {
 
     showAlertMessage(message: string): void {
       loggerRenderer.error(message);
-      this.information = message;
       this.strAlertMessage = message;
       this.showAlert = true;
       this.intAlertRevision += 1;

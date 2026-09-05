@@ -4,12 +4,13 @@ import type {
   DictBasicConfig,
   DictInvokeResult,
   MainInvokeCommand,
-  RendererLogLevel
+  RendererLogLevel,
 } from "../shared/interface";
 
 const SET_ALLOWED_INVOKE_COMMANDS = new Set<MainInvokeCommand>([
-  "cmd-toggle-window",
-  "cmd-toggle-socket-status"
+  "cmd-minimize-window",
+  "cmd-restore-window",
+  "cmd-toggle-socket-status",
 ]);
 
 const SET_ALLOWED_LOG_LEVELS = new Set<RendererLogLevel>([
@@ -19,7 +20,7 @@ const SET_ALLOWED_LOG_LEVELS = new Set<RendererLogLevel>([
   "http",
   "verbose",
   "debug",
-  "silly"
+  "silly",
 ]);
 
 function isDictInvokeResult(value: unknown): value is DictInvokeResult {
@@ -67,7 +68,7 @@ const uiAnalyzerApi = {
     if (!SET_ALLOWED_LOG_LEVELS.has(level)) {
       ipcRenderer.send("send-from-renderer-log", {
         level: "info",
-        message: `Blocked unknown log level: ${level}`
+        message: `Blocked unknown log level: ${level}`,
       });
       return;
     }
@@ -79,7 +80,7 @@ const uiAnalyzerApi = {
     if (!SET_ALLOWED_INVOKE_COMMANDS.has(command)) {
       return {
         success: false,
-        data: `Blocked IPC command: ${command}`
+        data: `Blocked IPC command: ${command}`,
       };
     }
 
@@ -88,7 +89,7 @@ const uiAnalyzerApi = {
     if (!isDictInvokeResult(result)) {
       return {
         success: false,
-        data: "Invalid IPC response from main process."
+        data: "Invalid IPC response from main process.",
       };
     }
 
@@ -99,7 +100,7 @@ const uiAnalyzerApi = {
     const listener = (
       _event: Electron.IpcRendererEvent,
       command: string,
-      data?: unknown
+      data?: unknown,
     ): void => {
       if (command !== "init-setting") {
         return;
@@ -117,7 +118,7 @@ const uiAnalyzerApi = {
     return () => {
       ipcRenderer.off("send-from-main", listener);
     };
-  }
+  },
 };
 
 contextBridge.exposeInMainWorld("uiAnalyzer", uiAnalyzerApi);

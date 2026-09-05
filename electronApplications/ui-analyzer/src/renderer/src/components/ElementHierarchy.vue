@@ -46,14 +46,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch } from "vue";
+import { computed } from "vue";
 
-import { loggerRenderer } from "../ipcOfRenderer";
-import { useSelectorStore, useInformationStore, useSettingStore } from "../store";
+import { useSelectorStore } from "../store";
 
 const selectorStore = useSelectorStore();
-const informationStore = useInformationStore();
-const settingStore = useSettingStore();
 
 const arrSelectedLayerIndex = computed({
   get: (): number[] => {
@@ -64,41 +61,6 @@ const arrSelectedLayerIndex = computed({
     selectorStore.refreshArrtibuteEditor(arrLayerIndex[0]);
   },
 });
-
-watch(
-  () => informationStore.information,
-  () => {
-    // If it is selector JSON.
-    if (informationStore.information.startsWith('{"selector"')) {
-      selectorStore.afterIndicate();
-      void settingStore.toggleWindow();
-    } else if (informationStore.information.startsWith('{"validate"')) {
-      try {
-        const dictValidateResult = JSON.parse(informationStore.information) as {
-          validate?: unknown;
-        };
-        if (typeof dictValidateResult.validate !== "boolean") {
-          throw new Error("Invalid validation result from Local Server.");
-        }
-
-        loggerRenderer.debug("boolResult=" + dictValidateResult.validate);
-        informationStore.applySelectorValidationResult(
-          dictValidateResult.validate,
-          selectorStore.strJsonText,
-        );
-      } catch (e) {
-        informationStore.resetSelectorValidation();
-        informationStore.showAlertMessage(
-          e instanceof Error ? e.message : "Failed to parse validation result.",
-        );
-      }
-
-      void settingStore.toggleWindow();
-    } else {
-      loggerRenderer.debug("It's not a known expected result.");
-    }
-  },
-);
 </script>
 
 <style scoped></style>

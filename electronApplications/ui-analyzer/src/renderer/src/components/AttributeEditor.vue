@@ -69,7 +69,7 @@ import { watch } from "vue";
 
 import { STR_SUFFIX_OMIT, STR_SUFFIX_REGEX, removeSuffix } from "../attrHandleFunc";
 import { useSelectorStore, useInformationStore } from "../store";
-import { loggerRenderer } from "@renderer/ipcOfRenderer";
+import { loggerRenderer } from "@renderer/logger";
 
 const selectorStore = useSelectorStore();
 const informationStore = useInformationStore();
