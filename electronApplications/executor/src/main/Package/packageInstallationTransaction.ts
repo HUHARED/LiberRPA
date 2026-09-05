@@ -166,14 +166,27 @@ export function recoverProjectPackageInstallations(): void {
       );
 
       if (boolTargetExists && projectRecord === undefined) {
-        loggerMain.warn(
-          "Roll back an incomplete Package installation: " +
-            `${dictTransaction.projectName}-${dictTransaction.projectVersion}`,
+        const strStagedProjectPath = path.join(
+          strTransactionFolderPath,
+          STR_STAGED_PROJECT_FOLDER_NAME,
         );
-        boolRecovered = removePackageInstallationFolderBestEffort(
-          strTargetPath,
-          "Failed to roll back an incomplete Package installation",
-        );
+        if (fs.existsSync(strStagedProjectPath)) {
+          // The atomic directory rename did not complete. Do not delete another target.
+          loggerMain.warn(
+            "Discard an incomplete Package installation with its staged project still present; " +
+              `leave the existing target unchanged: ${strTargetPath}`,
+          );
+          boolRecovered = true;
+        } else {
+          loggerMain.warn(
+            "Roll back an incomplete Package installation: " +
+              `${dictTransaction.projectName}-${dictTransaction.projectVersion}`,
+          );
+          boolRecovered = removePackageInstallationFolderBestEffort(
+            strTargetPath,
+            "Failed to roll back an incomplete Package installation",
+          );
+        }
       } else if (!boolTargetExists && projectRecord !== undefined) {
         loggerMain.error(
           "Installed Package folder is missing for database record: " +

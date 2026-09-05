@@ -3,7 +3,9 @@
 import { dialog } from "electron";
 import fs from "fs";
 import path from "path";
+import { setTimeout as delay } from "timers/promises";
 
+import { getErrorMessage } from "../../shared/error";
 import {
   dbInsertProjectDetail,
   dbSelectProjectDetail,
@@ -18,6 +20,12 @@ import {
   writeProjectPackageInstallationTransaction,
 } from "./packageInstallationTransaction";
 import { readProjectPackageMetadata } from "./packageMetadata";
+
+// Bound retries for potentially temporary Windows access/sharing failures (4 seconds total).
+const ARR_PACKAGE_RENAME_RETRY_DELAY_MS: readonly number[] = [
+  100, 200, 400, 800, 1000, 1500,
+];
+const SET_PACKAGE_RENAME_RETRY_ERROR_CODE = new Set(["EPERM", "EBUSY", "EACCES"]);
 
 let boolPackageInstallationRunning = false;
 let strLastPackageFolderPath: string | undefined;
@@ -48,6 +56,7 @@ async function runProjectPackageInstallation(
 
   let strTargetPath: string | undefined;
   let boolTransactionWritten = false;
+  let boolTargetRenamed = false;
   let boolDatabaseCommitted = false;
   try {
     extractProjectPackageArchive(strPackageFilePath, stagedProjectPath);
@@ -76,10 +85,59 @@ async function runProjectPackageInstallation(
     });
     boolTransactionWritten = true;
 
-    fs.renameSync(stagedProjectPath, strTargetPath);
+    let intRenameRetryCount = 0;
+    while (true) {
+      try {
+        fs.renameSync(stagedProjectPath, strTargetPath);
+        boolTargetRenamed = true;
+        break;
+      } catch (e: unknown) {
+        const strErrorCode =
+          typeof e === "object" && e !== null && "code" in e && typeof e.code === "string"
+            ? e.code
+            : undefined;
+        if (
+          process.platform !== "win32" ||
+          strErrorCode === undefined ||
+          !SET_PACKAGE_RENAME_RETRY_ERROR_CODE.has(strErrorCode)
+        ) {
+          throw e;
+        }
 
+        const intRetryDelayMs = ARR_PACKAGE_RENAME_RETRY_DELAY_MS[intRenameRetryCount];
+        if (intRetryDelayMs === undefined) {
+          throw new Error(
+            `Could not move the staged Project Package after ${intRenameRetryCount + 1} attempts. ` +
+              "The folder may still be in use or access may be denied. " +
+              getErrorMessage(e),
+            { cause: e },
+          );
+        }
+
+        intRenameRetryCount += 1;
+        loggerMain.warn(
+          `Package folder rename failed with ${strErrorCode}; ` +
+            `retry ${intRenameRetryCount}/${ARR_PACKAGE_RENAME_RETRY_DELAY_MS.length} ` +
+            `in ${intRetryDelayMs} ms: ${stagedProjectPath} -> ${strTargetPath}`,
+        );
+        // Wait without blocking Main. No target folder has been committed at this point.
+        await delay(intRetryDelayMs);
+        ensureExecutorRunning();
+        if (fs.existsSync(strTargetPath)) {
+          throw new Error(`The target Package folder already exists: ${strTargetPath}`);
+        }
+      }
+    }
+
+    // Keep the successful rename and database commit in the same synchronous turn.
     dbInsertProjectDetail(packageMetadata.projectDetail);
     boolDatabaseCommitted = true;
+
+    if (intRenameRetryCount > 0) {
+      loggerMain.info(
+        `Package folder rename succeeded (retries: ${intRenameRetryCount}): ${strTargetPath}`,
+      );
+    }
 
     removePackageInstallationFolderBestEffort(
       transactionFolderPath,
@@ -97,7 +155,12 @@ async function runProjectPackageInstallation(
     let boolRollbackComplete = !boolTransactionWritten;
 
     if (boolTransactionWritten && !boolDatabaseCommitted) {
-      if (strTargetPath === undefined || !fs.existsSync(strTargetPath)) {
+      // A target that appeared while waiting was not created by this installation.
+      if (
+        !boolTargetRenamed ||
+        strTargetPath === undefined ||
+        !fs.existsSync(strTargetPath)
+      ) {
         boolRollbackComplete = true;
       } else {
         boolRollbackComplete = removePackageInstallationFolderBestEffort(
