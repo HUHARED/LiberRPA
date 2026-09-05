@@ -179,7 +179,18 @@ def handle_result_from_chrome(message: str) -> None:
     # Receive and update result from Chrome.
 
     clientSid = get_client_id()
-    Log.info(f"Received result from Chrome extension: {message}, SID: {clientSid}")
+
+    if not isinstance(message, str):
+        Log.warning(
+            "Ignore an invalid Chrome result payload. "
+            f"Expected str, got {type(message).__name__}."
+        )
+        return None
+
+    intPayloadLength = len(message)
+    Log.debug(
+        f"Received Chrome result payload. SID={clientSid}, serializedLength={intPayloadLength}"
+    )
 
     if clientSid != dictClients.get("Chrome"):
         Log.error("Ignore Chrome result from an unexpected client.")
@@ -207,7 +218,13 @@ def handle_result_from_chrome(message: str) -> None:
         dictResult = ensure_socket_result(rawResult, source="Chrome extension")
     except ValueError as e:
         Log.warning(str(e))
-        return
+        return None
+
+    Log.debug(
+        "Validated Chrome result. "
+        f"commandId={strId}, boolSuccess={dictResult['boolSuccess']}, "
+        f"dataType={type(dictResult['data']).__name__}, serializedLength={intPayloadLength}"
+    )
 
     with _pendingChromeCommandLock:
         pendingCommand = _dictPendingChromeCommands.get(strId)

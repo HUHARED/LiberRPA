@@ -6,8 +6,8 @@
     <v-card v-if="selectorStore.arrEleTree.length === 0" class="ma-1 h-60 pa-3">
       <div>
         Indicate or validate a UIA or HTML element to show its element tree.<br />
-        If the element tree is too large to process within 10 seconds, LiberRPA will stop
-        building it.
+        If the Element Tree exceeds its processing limits, LiberRPA will stop building it
+        while keeping the selected Selector.
       </div>
     </v-card>
 

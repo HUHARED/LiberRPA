@@ -9,6 +9,8 @@ print("=== import _ListenerSocketUiAnalyzer ===")
 from liberrpa.Logging import Log
 from liberrpa.Common._Exception import get_exception_info
 from liberrpa.UI._SelectorValidation import ensure_selector
+from liberrpa.UI._UiDict import DictPosition
+from liberrpa.Common._Chrome import get_element_tree_by_coordinates
 
 import liberrpa.LiberRPALocalServer._UiAnalyzer as _UiAnalyzer
 import liberrpa.LiberRPALocalServer._ElementTree as _ElementTree
@@ -223,7 +225,8 @@ def handle_uianalyzer_command(message: str) -> None:
         return None
 
     resultData: Any = None
-    tupleEleTree: Any = None
+    dictChromeCoordinate: DictPosition | None = None
+    boolChromeUsePath: bool | None = None
     boolOperationSuccess = False
 
     try:
@@ -235,12 +238,13 @@ def handle_uianalyzer_command(message: str) -> None:
                 resultData = _UiAnalyzer.indicate_uia(_get_indicate_delay(dictCommand))
 
             case "indicate_chrome":
+                boolChromeUsePath = _get_bool_argument(dictCommand, "usePath")
                 tupleChromeResult = _UiAnalyzer.indicate_chrome(
                     _get_indicate_delay(dictCommand),
-                    _get_bool_argument(dictCommand, "usePath"),
+                    boolChromeUsePath,
                 )
                 if tupleChromeResult is not None:
-                    resultData, tupleEleTree = tupleChromeResult
+                    resultData, dictChromeCoordinate = tupleChromeResult
 
             case "indicate_image":
                 resultData = _UiAnalyzer.indicate_image(
@@ -304,8 +308,8 @@ def handle_uianalyzer_command(message: str) -> None:
 
             elif strOperationName == "indicate_chrome":
                 Log.debug("Get HTML Element Tree.")
-                if tupleEleTree is None:
-                    strTreeError = "Error: Failed to generate HTML Element Tree."
+                if dictChromeCoordinate is None or boolChromeUsePath is None:
+                    strTreeError = "Error: Missing the selected HTML element position."
                     Log.error(strTreeError)
                     _emit_result(
                         clientSid=clientSid,
@@ -315,13 +319,33 @@ def handle_uianalyzer_command(message: str) -> None:
                         resultData=strTreeError,
                     )
                 else:
-                    _emit_result(
-                        clientSid=clientSid,
-                        intOperationId=intOperationId,
-                        messageType="elementTreeResult",
-                        boolSuccess=True,
-                        resultData=tupleEleTree,
-                    )
+                    try:
+                        tupleEleTree = get_element_tree_by_coordinates(
+                            x=dictChromeCoordinate["x"],
+                            y=dictChromeCoordinate["y"],
+                            usePath=boolChromeUsePath,
+                        )
+                    except Exception as e:
+                        strTreeError = (
+                            "Error: Failed to generate HTML Element Tree. "
+                            + str(get_exception_info(e))
+                        )
+                        Log.error(strTreeError)
+                        _emit_result(
+                            clientSid=clientSid,
+                            intOperationId=intOperationId,
+                            messageType="elementTreeResult",
+                            boolSuccess=False,
+                            resultData=strTreeError,
+                        )
+                    else:
+                        _emit_result(
+                            clientSid=clientSid,
+                            intOperationId=intOperationId,
+                            messageType="elementTreeResult",
+                            boolSuccess=True,
+                            resultData=tupleEleTree,
+                        )
     except Exception as e:
         Log.error(get_exception_info(e))
     finally:

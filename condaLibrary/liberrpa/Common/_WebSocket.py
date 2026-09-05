@@ -66,6 +66,53 @@ def _normalize_timeout(timeout: object | None) -> int:
     return timeout
 
 
+def _log_received_result(
+    *,
+    eventName: str,
+    command: dict[str, Any],
+    result: DictSocketResult,
+) -> None:
+    if eventName != "chrome_command":
+        Log.verbose(f"Data received from server: {result}")
+        return None
+
+    strCommandName = command.get("commandName")
+    if strCommandName == "getElementAttrByCoordinates":
+        data = result["data"]
+        intLayerCount = len(data) if isinstance(data, list) else None
+        Log.verbose({
+            "message": "Chrome coordinate attributes received.",
+            "boolSuccess": result["boolSuccess"],
+            "layerCount": intLayerCount,
+        })
+        return None
+
+    if strCommandName == "getElementTreeByCoordinates":
+        data = result["data"]
+        intRootCount: int | None = None
+        intExpandedCount: int | None = None
+        intActivatedId: int | None = None
+        if isinstance(data, list) and len(data) == 3:
+            listTree, listExpandedId, activatedId = data
+            if isinstance(listTree, list):
+                intRootCount = len(listTree)
+            if isinstance(listExpandedId, list):
+                intExpandedCount = len(listExpandedId)
+            if type(activatedId) is int:
+                intActivatedId = activatedId
+
+        Log.verbose({
+            "message": "Chrome Element Tree received.",
+            "boolSuccess": result["boolSuccess"],
+            "rootCount": intRootCount,
+            "expandedCount": intExpandedCount,
+            "activatedId": intActivatedId,
+        })
+        return None
+
+    Log.verbose(f"Data received from server: {result}")
+
+
 def send_command(
     eventName: str, command: dict[str, Any], timeout: int | None = None
 ) -> Any:
@@ -84,7 +131,7 @@ def send_command(
 
         try:
             result = ensure_socket_result(data, source="LiberRPA Local Server")
-            Log.verbose(f"Data received from server: {result}")
+            _log_received_result(eventName=eventName, command=command, result=result)
 
             if result["data"] == SIGN_START_RECORD_VIDEO:
                 Log.info(result["data"])

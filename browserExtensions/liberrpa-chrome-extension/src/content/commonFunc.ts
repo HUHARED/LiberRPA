@@ -2,8 +2,8 @@
 import type {
   DictFinalAttr,
   DictLayerHtml,
-  DictElementTreeItem,
   DictOriginalAttr,
+  ElementTreeResult,
 } from "./interface";
 import { getBasicAttr, getFinalAttr, getPath } from "./elementAttrFunc";
 import {
@@ -19,18 +19,32 @@ export function getElementAttrByCoordinates(
   x: number,
   y: number,
   usePath: boolean,
-): [DictFinalAttr[], [DictElementTreeItem[], number[], number] | null] {
+): DictFinalAttr[] {
   console.log("--getElementAttrByCoordinates--");
 
-  const tempElement = getElementByCoordinates(x, y);
+  return getElementAttr(getElementByCoordinatesOrThrow(x, y), usePath);
+}
 
-  if (!tempElement) {
+export function getElementTreeByCoordinates(
+  x: number,
+  y: number,
+  usePath: boolean,
+): ElementTreeResult {
+  console.log("--getElementTreeByCoordinates--");
+
+  return getElementTree(getElementByCoordinatesOrThrow(x, y), usePath);
+}
+
+function getElementByCoordinatesOrThrow(x: number, y: number): HTMLElement {
+  const elementTarget = getElementByCoordinates(x, y);
+
+  if (!elementTarget) {
     throw new Error(
       `Didn't found element in the coordinates (${x}, ${y}), maybe it's not the last focused tab, or its scaling is not 100%?`,
     );
   }
 
-  return [getElementAttr(tempElement, usePath), getElementTree(tempElement, usePath)];
+  return elementTarget;
 }
 
 export function getElementAttr(
@@ -138,8 +152,6 @@ export function findElementBySelector(arrSelector: DictLayerHtml[]): HTMLElement
         console.log("Check path-regex.");
 
         if (rePath.test(getPath(element))) {
-          delete selector["path-regex"];
-
           const boolSame = compareBasicAttr(element, selectorWithoutPathRegex);
           if (boolSame) {
             elementFound = element;

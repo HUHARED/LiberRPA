@@ -272,7 +272,11 @@ When a selector becomes unreliable after an application or page changes, validat
 
 The **Element Tree** provides a broader view of elements available under the selected window or target context.
 
-Use it when you need to understand the surrounding UI hierarchy rather than indicating only one element.
+For HTML indication, LiberRPA returns the selected element first and then builds the DOM Element Tree once. It does not rebuild the complete tree while the pointer is moving.
+
+HTML Element Tree generation stops after 10 seconds, 5,000 elements, or 256 hierarchy levels. The selected Selector remains available if tree generation fails.
+
+Use the Element Tree when you need to understand the surrounding UI hierarchy rather than indicating only one element.
 
 ![CheckElementTree](md_images/README/CheckElementTree.gif)
 

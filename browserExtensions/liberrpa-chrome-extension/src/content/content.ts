@@ -5,7 +5,11 @@ console.log("This is content.js");
 import type { DictResultOriginal } from "../background/interface";
 import type { DictCommandContent } from "./interface";
 
-import { getElementAttrByCoordinates, getElementAttrBySelector } from "./commonFunc";
+import {
+  getElementAttrByCoordinates,
+  getElementAttrBySelector,
+  getElementTreeByCoordinates,
+} from "./commonFunc";
 
 import { withTimeout } from "./timeFunc";
 import { clickMouseEvent } from "./mouseFunc";
@@ -167,6 +171,13 @@ chrome.runtime.onMessage.addListener(
           );
           return false;
 
+        case "getElementTreeByCoordinates":
+          sendSuccess(
+            getElementTreeByCoordinates(dictCommand.x, dictCommand.y, dictCommand.usePath),
+            sendResponse,
+          );
+          return false;
+
         case "getElementAttrBySelector":
           sendSuccess(getElementAttrBySelector(dictCommand.htmlSelector), sendResponse);
           return false;
@@ -227,16 +238,19 @@ function sendSuccess(value: unknown, sendResponse: SendResponse): void {
     data: value === undefined ? null : value,
   };
   sendResponse(result);
-  console.log("result", result);
+  console.log("Command completed successfully.");
 }
 
 function sendError(error: unknown, sendResponse: SendResponse): void {
+  const strError = error instanceof Error ? error.message : String(error);
+
   const result: DictResultOriginal = {
     boolSuccess: false,
-    data: `${error instanceof Error ? error.message : String(error)}`,
+    data: strError,
   };
+
   sendResponse(result);
-  console.log("result", result);
+  console.error(`Command failed: ${strError}`);
 }
 
 function assertNever(value: never): never {

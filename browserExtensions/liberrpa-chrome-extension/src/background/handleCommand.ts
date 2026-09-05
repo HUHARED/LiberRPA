@@ -55,12 +55,19 @@ export async function handleCommand(
   try {
     const result: DictResultOriginal = await handleCommandCore(dictCommandWithoutId);
 
-    // If the JSON stringify is fault, it must cause by the 'data' value.
+    // Verify that the result can be transferred without logging the complete payload.
     try {
-      const strTemp = JSON.stringify(result, null, 2);
-      console.log(`result = ${strTemp}`);
+      const strSerializedResult = JSON.stringify(result);
+      if (strSerializedResult === undefined) {
+        throw new Error("Chrome command result could not be serialized.");
+      }
+
+      console.log(
+        `Command result: commandName=${dictCommand.commandName}, ` +
+          `boolSuccess=${result.boolSuccess}, serializedLength=${strSerializedResult.length}`,
+      );
     } catch (e) {
-      console.error(`Failed to stringify the result, convert data into string.`);
+      console.error("Failed to stringify the result; convert data into string.");
       result.data = String(result.data);
     }
 

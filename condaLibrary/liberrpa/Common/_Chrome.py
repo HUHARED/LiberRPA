@@ -22,24 +22,94 @@ from liberrpa.UI._Overlay import create_overlay
 from typing import Any, Literal, cast
 
 
+# Chrome should finish its 10-second bounded tree build before this Local Server fallback.
+_HTML_ELEMENT_TREE_SERVER_TIMEOUT_MS = 12000
+# The Python client must wait longer than the Local Server fallback, which adds its own response grace.
+_HTML_ELEMENT_TREE_CLIENT_TIMEOUT_MS = 16000
+
+type HtmlElementTreeResult = tuple[list[DictElementTreeItem], list[int], int]
+
+
+def _ensure_html_attr_list(value: object) -> list[DictHtmlAttr]:
+    if not isinstance(value, list) or not all(isinstance(item, dict) for item in value):
+        raise ValueError("Chrome returned an invalid HTML attribute list.")
+
+    return cast(list[DictHtmlAttr], value)
+
+
+def _ensure_html_element_tree_result(value: object) -> HtmlElementTreeResult:
+    if not isinstance(value, list) or len(value) != 3:
+        raise ValueError("Chrome returned an invalid HTML Element Tree result.")
+
+    listTree, listExpandedId, intActivatedId = value
+    if not isinstance(listTree, list) or not all(
+        isinstance(item, dict) for item in listTree
+    ):
+        raise ValueError("Chrome returned an invalid HTML Element Tree item list.")
+    if not isinstance(listExpandedId, list) or not all(
+        type(item) is int for item in listExpandedId
+    ):
+        raise ValueError("Chrome returned an invalid HTML Element Tree expanded ID list.")
+    if type(intActivatedId) is not int:
+        raise ValueError("Chrome returned an invalid HTML Element Tree activated ID.")
+
+    return (
+        cast(list[DictElementTreeItem], listTree),
+        cast(list[int], listExpandedId),
+        intActivatedId,
+    )
+
+
 def get_download_list(limit: int = 5, timeout: int = 10000) -> list[ChromeDownloadItem]:
-    dictCommand: dict[str, Any] = {"commandName": "getDownloadList", "timeout": timeout, "limit": limit}
-    result: list[ChromeDownloadItem] = send_command(eventName="chrome_command", command=dictCommand, timeout=timeout)
+    dictCommand: dict[str, Any] = {
+        "commandName": "getDownloadList",
+        "timeout": timeout,
+        "limit": limit,
+    }
+    result: list[ChromeDownloadItem] = send_command(
+        eventName="chrome_command", command=dictCommand, timeout=timeout
+    )
     return result
 
 
 def get_element_attr_by_coordinates(
     x: int, y: int, usePath: bool = True
-) -> tuple[list[DictHtmlAttr], tuple[list[DictElementTreeItem], list[int], int]]:
-    dictCommand: dict[str, Any] = {"commandName": "getElementAttrByCoordinates", "x": x, "y": y, "usePath": usePath}
-    result: tuple[list[DictHtmlAttr], tuple[list[DictElementTreeItem], list[int], int]] = send_command(
-        eventName="chrome_command", command=dictCommand
+) -> list[DictHtmlAttr]:
+    dictCommand: dict[str, Any] = {
+        "commandName": "getElementAttrByCoordinates",
+        "x": x,
+        "y": y,
+        "usePath": usePath,
+    }
+    result: object = send_command(eventName="chrome_command", command=dictCommand)
+    return _ensure_html_attr_list(result)
+
+
+def get_element_tree_by_coordinates(
+    x: int,
+    y: int,
+    usePath: bool = True,
+) -> HtmlElementTreeResult:
+    dictCommand: dict[str, Any] = {
+        "commandName": "getElementTreeByCoordinates",
+        "x": x,
+        "y": y,
+        "usePath": usePath,
+        "timeout": _HTML_ELEMENT_TREE_SERVER_TIMEOUT_MS,
+    }
+    result: object = send_command(
+        eventName="chrome_command",
+        command=dictCommand,
+        timeout=_HTML_ELEMENT_TREE_CLIENT_TIMEOUT_MS,
     )
-    return result
+    return _ensure_html_element_tree_result(result)
 
 
 def get_element_attr_by_selector(htmlSelector: list[DictSpecHtml]) -> DictHtmlAttr:
-    dictCommand: dict[str, Any] = {"commandName": "getElementAttrBySelector", "htmlSelector": htmlSelector}
+    dictCommand: dict[str, Any] = {
+        "commandName": "getElementAttrBySelector",
+        "htmlSelector": htmlSelector,
+    }
     result: DictHtmlAttr = send_command(eventName="chrome_command", command=dictCommand)
     return result
 
@@ -118,11 +188,15 @@ def get_parent_element_attr(
         "preDelay": preDelay,
         "timeout": timeout,
     }
-    dictParentAttr: DictHtmlAttr = send_command(eventName="chrome_command", command=dictCommand, timeout=timeout)
+    dictParentAttr: DictHtmlAttr = send_command(
+        eventName="chrome_command", command=dictCommand, timeout=timeout
+    )
     if _CommonValue.boolHighlightUi:
         strTagName = dictParentAttr.get("tagName")
         if not isinstance(strTagName, str) or not strTagName:
-            raise ValueError(f"HTML attribute dictionary has no valid tagName: {dictParentAttr}")
+            raise ValueError(
+                f"HTML attribute dictionary has no valid tagName: {dictParentAttr}"
+            )
 
         create_overlay(
             int(dictParentAttr["secondary-x"]),
@@ -163,7 +237,9 @@ def get_children_element_attr(
         if _CommonValue.boolHighlightUi:
             strTagName = dictAttr.get("tagName")
             if not isinstance(strTagName, str) or not strTagName:
-                raise ValueError(f"HTML attribute dictionary has no valid tagName: {dictAttr}")
+                raise ValueError(
+                    f"HTML attribute dictionary has no valid tagName: {dictAttr}"
+                )
 
             create_overlay(
                 int(dictAttr["secondary-x"]),
@@ -214,7 +290,9 @@ def get_selection(
         "preDelay": preDelay,
         "timeout": timeout,
     }
-    result: str | int = send_command(eventName="chrome_command", command=dictCommand, timeout=timeout)
+    result: str | int = send_command(
+        eventName="chrome_command", command=dictCommand, timeout=timeout
+    )
     return result
 
 
@@ -239,65 +317,4 @@ def set_selection(
 
 
 if __name__ == "__main__":
-    # dictCommand: dict[str, Any] = {"commandName": "getDownloadList", "timeout": 10000, "limit": 5}
-    # dictCommand: dict[str, Any] = {"commandName": "test", "x": 400, "y": 600, "usePath": True}
-    # listSelector = [
-    #     {
-    #         "tagName": "a",
-    #         "href": "./assets/rpaStockMarket/index.html",
-    #         "directText": "RPA Stock Market",
-    #         "isLeaf": "true",
-    #         "path-regex": "html>body>app-root>div>nav>div>ul>li:nth-child.*>a",
-    #     },
-    # ]
-    # dictCommand: dict[str, Any] = {
-    #     "commandName": "clickElement",
-    #     "htmlSelector": listSelector,
-    #     "button": "left",
-    #     "clickMode": "single_click",
-    #     "executionMode": "simulate",
-    #     "pressCtrl": False,
-    #     "pressShift": False,
-    #     "pressAlt": False,
-    #     "pressWin": False,
-    #     "timeout": 10000,
-    # }
-    # dictCommand: dict[str, Any] = {"commandName": "getElementAttrByCoordinates", "x": 900, "y": 155, "usePath": True}
-
-    # result = _send_chrome_command(dictCommand)
-    # print(result)
-
-    # if result is not None:
-    #     for dictTemp in result:
-    #         create_overlay(x=int(dictTemp["secondary-x"]), y=int(dictTemp["secondary-y"]), width=int(dictTemp["secondary-width"]), height=int(dictTemp["secondary-height"]), color="red", duration=200)
-
-    # print(get_download_list(limit=5))
-
-    temp = get_element_attr_by_coordinates(x=900, y=155, usePath=False)
-    with open("./project.json", mode="w") as fileObj:
-        fileObj.write(str(temp[1]))
-
-    """ htmlSelector: list[DictSpecHtml] = [
-        {
-            "tagName": "a",
-            "href": "./assets/rpaStockMarket/index.html",
-            "isHidden": "false",
-            "isDisplayedNone": "false",
-            "innerText": "RPA Stock Market",
-            "directText": "RPA Stock Market",
-            "isLeaf": "true",
-        }
-    ] """
-    # print(get_element_attr_by_selector(htmlSelector=htmlSelector))
-    # print(get_parent_element_attr(htmlSelector=htmlSelector))
-
-    """ htmlSelector: list[DictSpecHtml] = [
-        {
-            "tagName": "textarea",
-            "name": "q",
-            "aria-label-regex": "搜.|search",
-            "isLeaf": "true",
-        }
-    ]
-
-    focus_element(htmlSelector) """
+    pass

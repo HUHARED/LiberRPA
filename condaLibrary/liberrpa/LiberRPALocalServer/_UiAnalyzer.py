@@ -30,7 +30,6 @@ from liberrpa.UI._UiDict import (
     SelectorImage,
     Selector,
     DictPosition,
-    DictElementTreeItem,
 )
 from liberrpa.UI._SelectorValidation import (
     ensure_selector_window,
@@ -260,10 +259,7 @@ def indicate_uia(
 @Log.trace()
 def indicate_chrome(
     indicateDelaySeconds: int = 1, usePath: bool = True
-) -> (
-    tuple[DictUiAnalyzerIndicateResult, tuple[list[DictElementTreeItem], list[int], int]]
-    | None
-):
+) -> tuple[DictUiAnalyzerIndicateResult, DictPosition] | None:
     threadHook: threading.Thread | None = None
     try:
         with uiautomation.UIAutomationInitializerInThread():
@@ -272,7 +268,6 @@ def indicate_chrome(
             threadHook = _start_hook()
             dictCoordinate: DictPosition | None = None
             dictSecondaryAttr: DictHtmlSecondaryAttr | None = None
-            tupleEleTree: tuple[list[DictElementTreeItem], list[int], int] | None = None
             tupleOverlayState: Tuple_IndicateOverlayState | None = None
 
             # Press mouse button left to stop the loop, then return result. Or Press ESC to return None.
@@ -285,7 +280,7 @@ def indicate_chrome(
                     dictCoordinate = get_mouse_position()
                     # Call Chrome
                     # listAllAttr: list[DictHtmlAttr],
-                    listAllAttr, tupleEleTree = get_element_attr_by_coordinates(
+                    listAllAttr = get_element_attr_by_coordinates(
                         x=dictCoordinate["x"], y=dictCoordinate["y"], usePath=usePath
                     )
                     dictSecondaryAttr = {
@@ -336,7 +331,7 @@ def indicate_chrome(
 
             # Resolve the Chrome element again at the exact mouse-down position after the complete click has been suppressed.
             _close_indicate_overlay()
-            listAllAttr, tupleEleTree = get_element_attr_by_coordinates(
+            listAllAttr = get_element_attr_by_coordinates(
                 x=dictCoordinate["x"],
                 y=dictCoordinate["y"],
                 usePath=usePath,
@@ -400,7 +395,7 @@ def indicate_chrome(
         # Log.debug(dictReturn)
         # preview is so long, not print it.
         Log.debug({"selector": selector, "attributes": dictSecondaryAttr})
-        return (dictReturn, tupleEleTree)
+        return (dictReturn, dictCoordinate)
 
     finally:
         _close_indicate_overlay()
