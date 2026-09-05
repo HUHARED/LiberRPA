@@ -39,9 +39,13 @@ def _close_window(
     postDelay: int = 200,
 ) -> None:
     selectorWindow = _extract_window_element(selector=selector)
-    uiTarget, _ = _UiElement.get_element_with_pre_delay(selector=selectorWindow, preDelay=preDelay)
+    uiTarget, _ = _UiElement.get_element_with_pre_delay(
+        selector=selectorWindow, preDelay=preDelay
+    )
 
-    if isinstance(uiTarget, uiautomation.WindowControl) or isinstance(uiTarget, uiautomation.PaneControl):
+    if isinstance(uiTarget, uiautomation.WindowControl) or isinstance(
+        uiTarget, uiautomation.PaneControl
+    ):
         pattern = cast(
             uiautomation.WindowPattern | None,
             uiTarget.GetPattern(uiautomation.PatternId.WindowPattern),
@@ -127,7 +131,9 @@ def get_active_window() -> SelectorWindow:
     if hwnd:
         control = uiautomation.ControlFromHandle(hwnd)
         if control is None:
-            raise UiElementNotFoundError(f"Failed to get control from window handle: {hwnd}")
+            raise UiElementNotFoundError(
+                f"Failed to get control from window handle: {hwnd}"
+            )
 
         return ensure_selector_window(_UiElement.get_control_selector(control=control))
     else:
@@ -153,32 +159,35 @@ def _set_window_state(
     postDelay: int = 200,
 ) -> None:
     selectorWindow = _extract_window_element(selector=selector)
-    uiTarget, _ = _UiElement.get_element_with_pre_delay(selector=selectorWindow, preDelay=preDelay)
-
-    if isinstance(uiTarget, uiautomation.WindowControl) or isinstance(uiTarget, uiautomation.PaneControl):
-        pattern = cast(
-            uiautomation.WindowPattern | None,
-            uiTarget.GetPattern(uiautomation.PatternId.WindowPattern),
-        )
-        if pattern is not None:
-            match state:
-                case "normal":
-                    pattern.SetWindowVisualState(state=0)
-                case "maximize":
-                    pattern.SetWindowVisualState(state=1)
-                case "minimize":
-                    pattern.SetWindowVisualState(state=2)
-                case _:
-                    raise ValueError(
-                        f"The argument state({state}) should be one of {['normal', 'maximize', 'minimize']}"
-                    )
-
-            delay(postDelay)
-            return None
-
-    raise UiOperationError(
-        f"The element does not support setting window state or LiberRPA does not have permission. selector: {selector}"
+    uiTarget, _ = _UiElement.get_element_with_pre_delay(
+        selector=selectorWindow, preDelay=preDelay
     )
+
+    if not isinstance(uiTarget, uiautomation.WindowControl | uiautomation.PaneControl):
+        raise UiOperationError(
+            f"The element does not support setting window state. selector: {selector}"
+        )
+
+    intHandle = uiTarget.NativeWindowHandle
+    if not intHandle or not win32gui.IsWindow(intHandle):
+        raise UiOperationError(
+            f"Failed to get a valid native window handle. selector: {selector}"
+        )
+
+    match state:
+        case "normal":
+            intShowCommand = uiautomation.SW.Restore
+        case "maximize":
+            intShowCommand = uiautomation.SW.Maximize
+        case "minimize":
+            intShowCommand = uiautomation.SW.Minimize
+        case _:
+            raise ValueError(
+                f"The argument state({state}) should be one of {['normal', 'maximize', 'minimize']}"
+            )
+
+    uiautomation.ShowWindow(handle=intHandle, cmdShow=intShowCommand)
+    delay(postDelay)
 
 
 @Log.trace()
@@ -217,7 +226,9 @@ def _get_window_position_and_size(
 ) -> DictPositionAndSize:
 
     selectorWindow = _extract_window_element(selector=selector)
-    _, dictTarget = _UiElement.get_element_with_pre_delay(selector=selectorWindow, preDelay=preDelay)
+    _, dictTarget = _UiElement.get_element_with_pre_delay(
+        selector=selectorWindow, preDelay=preDelay
+    )
 
     dictReturn: DictPositionAndSize = {
         "x": int(dictTarget["secondary-x"]),
@@ -268,7 +279,9 @@ def _set_window_position(
 ) -> None:
 
     selectorWindow = _extract_window_element(selector=selector)
-    controlWindow, dictTarget = _UiElement.get_element_with_pre_delay(selector=selectorWindow, preDelay=preDelay)
+    controlWindow, dictTarget = _UiElement.get_element_with_pre_delay(
+        selector=selectorWindow, preDelay=preDelay
+    )
 
     uiautomation.MoveWindow(
         handle=controlWindow.NativeWindowHandle,
@@ -323,7 +336,9 @@ def _set_window_size(
 ) -> None:
 
     selectorWindow = _extract_window_element(selector=selector)
-    controlWindow, dictTarget = _UiElement.get_element_with_pre_delay(selector=selectorWindow, preDelay=preDelay)
+    controlWindow, dictTarget = _UiElement.get_element_with_pre_delay(
+        selector=selectorWindow, preDelay=preDelay
+    )
 
     uiautomation.MoveWindow(
         handle=controlWindow.NativeWindowHandle,
@@ -377,7 +392,9 @@ def _get_window_pid(
 ) -> int:
 
     selectorWindow = _extract_window_element(selector=selector)
-    controlWindow, _ = _UiElement.get_element_with_pre_delay(selector=selectorWindow, preDelay=preDelay)
+    controlWindow, _ = _UiElement.get_element_with_pre_delay(
+        selector=selectorWindow, preDelay=preDelay
+    )
 
     delay(postDelay)
 
@@ -421,7 +438,9 @@ def _get_window_file_path(
 ) -> str:
 
     selectorWindow = _extract_window_element(selector=selector)
-    controlWindow, _ = _UiElement.get_element_with_pre_delay(selector=selectorWindow, preDelay=preDelay)
+    controlWindow, _ = _UiElement.get_element_with_pre_delay(
+        selector=selectorWindow, preDelay=preDelay
+    )
 
     delay(postDelay)
 
@@ -477,7 +496,13 @@ if __name__ == "__main__":
                     "ClassName": "Notepad",
                 },
                 "category": "uia",
-                "specification": [{"ControlTypeName": "EditControl", "Name": "Text Editor", "ClassName": "Edit"}],
+                "specification": [
+                    {
+                        "ControlTypeName": "EditControl",
+                        "Name": "Text Editor",
+                        "ClassName": "Edit",
+                    }
+                ],
             }
         )
     )
