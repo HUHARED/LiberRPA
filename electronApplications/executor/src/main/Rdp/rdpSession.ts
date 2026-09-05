@@ -25,6 +25,7 @@ const STR_MOVE_MOUSE_TERMINATION_MESSAGE = "Executor-stop-move-mouse";
 const INT_RDP_HELPER_CHECK_INTERVAL_MS = 1000;
 const INT_RDP_HELPER_RESTART_DELAY_MS = 5 * 1000;
 const INT_RDP_HELPER_TERMINATION_WAIT_MS = 3 * 1000;
+const INT_RESOLUTION_RESTORE_DELAY_MS = 1000;
 
 const setRdpProcess = new Set<ChildProcessWithoutNullStreams>();
 const setGracefulTerminationRequested = new Set<ChildProcessWithoutNullStreams>();
@@ -91,7 +92,9 @@ let processPyMoveMouse: ChildProcessWithoutNullStreams | undefined;
 let intMoveMouseRestartAfterMs = 0;
 let processPySetSession: ChildProcessWithoutNullStreams | undefined;
 let processPySetResolution: ChildProcessWithoutNullStreams | undefined;
+let dictRunningResolution: Dict_PendingResolution | undefined;
 let dictPendingResolution: Dict_PendingResolution | undefined;
+let timerResolutionRestore: NodeJS.Timeout | undefined;
 let timerRdpHelperCheck: NodeJS.Timeout | undefined;
 
 function startSessionListener(): void {
@@ -167,6 +170,26 @@ function startSessionListener(): void {
   });
 }
 
+function scheduleResolutionRestore(): void {
+  if (timerResolutionRestore !== undefined) {
+    clearTimeout(timerResolutionRestore);
+  }
+
+  timerResolutionRestore = setTimeout(() => {
+    timerResolutionRestore = undefined;
+    if (!boolRdpSessionManagerStarted || !dictConfigExecutor.keepRdpSession) {
+      return;
+    }
+
+    const width = dictConfigExecutor.keepRdpSessionWidth;
+    const height = dictConfigExecutor.keepRdpSessionHeight;
+    loggerMain.info(
+      `Restore the primary display resolution after RDP Session preservation: ${width}x${height}.`,
+    );
+    setResolution(width, height);
+  }, INT_RESOLUTION_RESTORE_DELAY_MS);
+}
+
 function setSession(): void {
   if (!boolRdpSessionManagerStarted) {
     return;
@@ -187,11 +210,19 @@ function setSession(): void {
     if (processPySetSession === processPy) {
       processPySetSession = undefined;
     }
+    if (
+      intExitCode === 0 &&
+      boolRdpSessionManagerStarted &&
+      dictConfigExecutor.keepRdpSession
+    ) {
+      // Let the Console display settle before applying the configured one-shot resolution.
+      scheduleResolutionRestore();
+    }
   });
 }
 
 function startSetResolution(width: number, height: number): void {
-  loggerMain.debug("--setResolution--");
+  loggerMain.debug("--startSetResolution--");
   const processPy = spawnRdpScript("SetResolution.py", [
     "--width",
     width.toString(),
@@ -199,6 +230,7 @@ function startSetResolution(width: number, height: number): void {
     height.toString(),
   ]);
   processPySetResolution = processPy;
+  dictRunningResolution = { width, height };
   attachLineLogging(processPy, "SetResolution");
   processPy.once("close", (intExitCode, strSignal) => {
     loggerMain.info(
@@ -209,6 +241,7 @@ function startSetResolution(width: number, height: number): void {
     }
 
     processPySetResolution = undefined;
+    dictRunningResolution = undefined;
     const dictNextResolution = dictPendingResolution;
     dictPendingResolution = undefined;
     if (
@@ -227,6 +260,14 @@ export function setResolution(width: number, height: number): void {
     return;
   }
   if (processPySetResolution !== undefined) {
+    if (dictRunningResolution?.width === width && dictRunningResolution.height === height) {
+      dictPendingResolution = undefined;
+      loggerMain.debug(
+        `SetResolution is already running for ${width}x${height}; ignore the duplicate request.`,
+      );
+      return;
+    }
+
     dictPendingResolution = { width, height };
     loggerMain.debug(
       `SetResolution is already running; keep the latest request ${width}x${height}.`,
@@ -392,7 +433,13 @@ export async function stopRdpSessionManager(): Promise<void> {
 
   loggerMain.debug("--stopRdpSessionManager--");
   boolRdpSessionManagerStarted = false;
+  dictRunningResolution = undefined;
   dictPendingResolution = undefined;
+
+  if (timerResolutionRestore !== undefined) {
+    clearTimeout(timerResolutionRestore);
+    timerResolutionRestore = undefined;
+  }
 
   if (timerRdpHelperCheck !== undefined) {
     clearInterval(timerRdpHelperCheck);

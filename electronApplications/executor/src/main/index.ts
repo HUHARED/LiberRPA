@@ -32,11 +32,7 @@ import { closeDatabase, initializeDatabase } from "./Database/connection";
 import { dbMarkRunningRunsInterrupted } from "./Database/runHistoryRepository";
 import { recoverProjectPackageInstallations } from "./Package/packageInstallationTransaction";
 import { recoverProjectPackageDeletions } from "./Package/projectDeletion";
-import {
-  setResolution,
-  startRdpSessionManager,
-  stopRdpSessionManager,
-} from "./Rdp/rdpSession";
+import { startRdpSessionManager, stopRdpSessionManager } from "./Rdp/rdpSession";
 import { registerExecutorIpc } from "./IPC/ipc";
 import { sendMainMessage } from "./IPC/mainMessage";
 import { onRunEnded } from "./Run/lifecycle";
@@ -204,18 +200,6 @@ void app
       screen.on("display-metrics-changed", () => {
         const { width, height } = screen.getPrimaryDisplay().size;
         loggerMain.info(`Primary display metrics changed. Resolution: ${width}x${height}`);
-        if (
-          dictConfigExecutor.keepRdpSession &&
-          (width !== dictConfigExecutor.keepRdpSessionWidth ||
-            height !== dictConfigExecutor.keepRdpSessionHeight)
-        ) {
-          loggerMain.info("Set the primary display resolution.");
-          // This does not work in Hyper-V Enhanced Session mode.
-          setResolution(
-            dictConfigExecutor.keepRdpSessionWidth,
-            dictConfigExecutor.keepRdpSessionHeight,
-          );
-        }
       });
     }
 
@@ -226,7 +210,7 @@ void app
 
     registerExecutorIpc(
       () => mainWindow?.webContents,
-      () => boolAppQuitting,
+      () => boolShutdownStarted,
     );
 
     createWindow();

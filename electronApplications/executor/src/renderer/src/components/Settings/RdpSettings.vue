@@ -28,6 +28,7 @@
     <v-tooltip activator="parent" location="bottom">
       <div>
         Session width after RDP is disconnected.<br />
+        The requested resolution must be supported by the Console display driver.<br />
         Range: 480–7680 px.
       </div>
     </v-tooltip>
@@ -70,6 +71,7 @@
     <v-tooltip activator="parent" location="bottom">
       <div>
         Session height after RDP is disconnected.<br />
+        The requested resolution must be supported by the Console display driver.<br />
         Range: 480–7680 px.
       </div>
     </v-tooltip>

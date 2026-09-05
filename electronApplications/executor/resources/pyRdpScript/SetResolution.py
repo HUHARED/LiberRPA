@@ -61,6 +61,10 @@ def set_display_resolution(width: int, height: int) -> None:
     ):
         raise RuntimeError("Failed to get current display settings.")
 
+    if devmode.dmPelsWidth == width and devmode.dmPelsHeight == height:
+        print(f"Display resolution is already {width} x {height}.", flush=True)
+        return
+
     # Change the resolution values.
     devmode.dmPelsWidth = width
     devmode.dmPelsHeight = height
@@ -71,7 +75,43 @@ def set_display_resolution(width: int, height: int) -> None:
 
     result = user32.ChangeDisplaySettingsW(ctypes.byref(devmode), 0)
     if result != 0:
-        raise RuntimeError(f"Failed to change display settings: error code {result}")
+        dictResultDescription = {
+            1: (
+                "DISP_CHANGE_RESTART",
+                "the computer must be restarted for the mode to take effect",
+            ),
+            -1: (
+                "DISP_CHANGE_FAILED",
+                "the display driver failed the requested graphics mode",
+            ),
+            -2: (
+                "DISP_CHANGE_BADMODE",
+                "the graphics mode is not supported by the current display driver",
+            ),
+            -3: (
+                "DISP_CHANGE_NOTUPDATED",
+                "the display settings could not be written",
+            ),
+            -4: (
+                "DISP_CHANGE_BADFLAGS",
+                "an invalid set of display flags was supplied",
+            ),
+            -5: (
+                "DISP_CHANGE_BADPARAM",
+                "an invalid display parameter was supplied",
+            ),
+            -6: (
+                "DISP_CHANGE_BADDUALVIEW",
+                "the requested mode is not supported in the current DualView configuration",
+            ),
+        }
+        strResultName, strResultDescription = dictResultDescription.get(
+            result, ("UNKNOWN", "Windows returned an unknown display settings result")
+        )
+        raise RuntimeError(
+            f"Failed to set display resolution to {width}x{height}: "
+            f"{strResultName} ({result}), {strResultDescription}."
+        )
 
     print(f"Display resolution set to {width} x {height}", flush=True)
 
