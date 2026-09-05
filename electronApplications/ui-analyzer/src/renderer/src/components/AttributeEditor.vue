@@ -15,7 +15,7 @@
 
       <v-row
         v-for="(strAttrName, index) in Object.keys(
-          selectorStore.arrEleHierarchy[selectorStore.intClickedLayer]
+          selectorStore.arrEleHierarchy[selectorStore.intClickedLayer],
         )"
         v-else
         :key="index"
@@ -34,7 +34,7 @@
           <v-text-field
             :model-value="
               cutQuotesForTextfield(
-                selectorStore.arrEleHierarchy[selectorStore.intClickedLayer][strAttrName]
+                selectorStore.arrEleHierarchy[selectorStore.intClickedLayer][strAttrName],
               )
             "
             color="secondary"
@@ -48,11 +48,7 @@
             hide-details
             spellcheck="false"
             @click:prepend-inner="selectorStore.regexAttr($event, strAttrName)"
-            @update:model-value="
-              selectorStore.arrEleHierarchy[selectorStore.intClickedLayer][strAttrName] =
-                generateEleForArr($event) ??
-                selectorStore.arrEleHierarchy[selectorStore.intClickedLayer][strAttrName]
-            ">
+            @update:model-value="updateAttributeValue(strAttrName, $event)">
             <template #prepend>
               <v-list-item-action end>
                 <v-checkbox-btn
@@ -83,9 +79,9 @@ watch(
   () => {
     console.log(
       `Click layer: ${selectorStore.intClickedLayer}`,
-      selectorStore.arrEleHierarchy[selectorStore.intClickedLayer]
+      selectorStore.arrEleHierarchy[selectorStore.intClickedLayer],
     );
-  }
+  },
 );
 
 function cutQuotesForTextfield(text: string): string {
@@ -95,6 +91,13 @@ function cutQuotesForTextfield(text: string): string {
   // console.log("cutQuotesForTextfield(stringify and replace)", strText);
 
   return text;
+}
+
+function updateAttributeValue(keyName: string, text: string): void {
+  const strValue = generateEleForArr(text);
+  if (strValue !== undefined) {
+    selectorStore.updateAttributeValue(keyName, strValue);
+  }
 }
 
 function generateEleForArr(text: string): string | undefined {

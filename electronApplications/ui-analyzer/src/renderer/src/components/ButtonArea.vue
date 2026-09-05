@@ -143,13 +143,17 @@ async function indicateWindow(): Promise<void> {
 }
 
 async function validateSelector(): Promise<void> {
-  const dictParseResult = parseSelectorJsonText(selectorStore.strJsonText);
+  informationStore.resetSelectorValidation();
+
+  const strSelectorText = selectorStore.strJsonText;
+  const dictParseResult = parseSelectorJsonText(strSelectorText);
 
   if (!dictParseResult.success) {
     informationStore.showAlertMessage(dictParseResult.errorMessage);
     return;
   }
 
+  informationStore.startSelectorValidation(strSelectorText);
   await settingStore.toggleWindow();
 
   sendCmdToFlask({

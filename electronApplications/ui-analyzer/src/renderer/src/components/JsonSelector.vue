@@ -60,13 +60,13 @@
 
 <script setup lang="ts">
 import { ref, watch } from "vue";
-import { debounce } from "lodash";
 
 import { loggerRenderer } from "../ipcOfRenderer";
 import { parseSelectorJsonText } from "../attrHandleFunc";
-import { useSelectorStore } from "../store";
+import { useInformationStore, useSelectorStore } from "../store";
 
 const selectorStore = useSelectorStore();
+const informationStore = useInformationStore();
 
 const strInfoText = ref("Have no JSON Selector.");
 const booleanJsonParse = ref(true);
@@ -74,23 +74,10 @@ const booleanJsonParse = ref(true);
 watch(
   () => selectorStore.strJsonText,
   () => {
+    informationStore.resetSelectorValidation();
     validateJson();
   },
-);
-
-// Update selectorStore.strJsonText when selectorStore.arrEleHierarchy is modified.
-const debounced_Update = debounce(() => {
-  if (selectorStore.arrEleHierarchy.length !== 0) {
-    selectorStore.updateCheckedLayerAndJsonText();
-  }
-}, 300);
-
-watch(
-  () => selectorStore.arrEleHierarchy,
-  () => {
-    debounced_Update();
-  },
-  { deep: true },
+  { flush: "sync" },
 );
 
 function validateJson(): void {

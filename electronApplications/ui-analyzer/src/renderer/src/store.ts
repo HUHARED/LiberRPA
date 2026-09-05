@@ -56,6 +56,7 @@ export const useSelectorStore = defineStore("selector", {
 
       // Update dictFromPython.
       const informationStore = useInformationStore();
+      informationStore.resetSelectorValidation();
       this.dictFromPython = JSON.parse(informationStore.information);
       console.log(this.dictFromPython);
 
@@ -83,34 +84,40 @@ export const useSelectorStore = defineStore("selector", {
       });
 
       this.arrEleHierarchy = [];
-      // Add window part.
-      this.arrEleHierarchy.push(this.dictFromPython["selector"]["window"]);
+      const dictSelector = this.dictFromPython["selector"];
+
+      // Keep the editable hierarchy independent from the received selector data.
+      this.arrEleHierarchy.push({ ...dictSelector["window"] });
 
       // Add category and specification parts if it's a SelectorNonWindow object.
-      if ("category" in this.dictFromPython["selector"]) {
+      if ("category" in dictSelector) {
         this.arrEleHierarchy.push({
-          category: this.dictFromPython["selector"]["category"],
+          category: dictSelector["category"],
         });
-        this.dictFromPython["selector"]["specification"].forEach((dictTemp) => {
-          // Uncheck some attributes of HTML element, they are useless in most situations.
-          for (const keyName of Object.keys(dictTemp)) {
-            if (
-              [
-                "disabled",
-                "isHidden",
-                "isDisplayedNone",
-                "isLeaf",
-                "innerText",
-                "parentId",
-                "parentClass",
-                "parentName",
-              ].includes(keyName)
-            ) {
-              modifyKeyName(dictTemp, keyName, keyName + STR_SUFFIX_OMIT);
+        dictSelector["specification"].forEach((dictAttributes) => {
+          const dictEditableAttributes = { ...dictAttributes };
+
+          if (dictSelector["category"] === "html") {
+            // Uncheck HTML attributes that are usually unsuitable for locating elements.
+            for (const keyName of Object.keys(dictEditableAttributes)) {
+              if (
+                [
+                  "disabled",
+                  "isHidden",
+                  "isDisplayedNone",
+                  "isLeaf",
+                  "innerText",
+                  "parentId",
+                  "parentClass",
+                  "parentName",
+                ].includes(keyName)
+              ) {
+                modifyKeyName(dictEditableAttributes, keyName, keyName + STR_SUFFIX_OMIT);
+              }
             }
           }
 
-          this.arrEleHierarchy.push(dictTemp);
+          this.arrEleHierarchy.push(dictEditableAttributes);
         });
       }
 
@@ -135,6 +142,7 @@ export const useSelectorStore = defineStore("selector", {
       }
       // Default select the final layer for Attribute Editor.
       this.intClickedLayer = this.arrLayerCheckState.length - 1;
+      this.updateCheckedLayerAndJsonText();
     },
 
     updateCheckedLayerAndJsonText(): void {
@@ -182,28 +190,34 @@ export const useSelectorStore = defineStore("selector", {
       }
 
       this.strJsonText = JSON.stringify(dictSelector, null, 2);
-      loggerRenderer.debug("Update Json Selector: " + this.strJsonText);
+      loggerRenderer.debug("Update JSON Selector.");
 
       // this.idle();
     },
 
     updateEleTreeSelector(): void {
       this.setDescription("updateEleTreeSelector");
+
       const addSelectorRecursive = (
         id: number,
         attributes: { [key: string]: string },
         parentSelector: { [key: string]: string }[],
-        children?: DictEleTreeItem[]
+        children?: DictEleTreeItem[],
       ): void => {
-        const arrTemp = [...parentSelector, attributes];
-        this.dictEleTreeSelector[id] = arrTemp;
+        const arrSelector = [
+          ...parentSelector.map((dictAttributes) => ({ ...dictAttributes })),
+          { ...attributes },
+        ];
+        this.dictEleTreeSelector[id] = arrSelector;
+
         if (children) {
           children.forEach((child) => {
-            addSelectorRecursive(child.id, child.attributes, arrTemp, child.children);
+            addSelectorRecursive(child.id, child.attributes, arrSelector, child.children);
           });
         }
       };
 
+      this.dictEleTreeSelector = {};
       this.arrEleTree.forEach((nodeTop) => {
         addSelectorRecursive(nodeTop.id, nodeTop.attributes, [], nodeTop.children);
       });
@@ -224,9 +238,9 @@ export const useSelectorStore = defineStore("selector", {
         this.refreshArrtibuteEditor(index);
       } else {
         const informationStore = useInformationStore();
-        informationStore.information =
-          "The layer of 'window' and 'category' should alway be checked.";
-        informationStore.showAlert = true;
+        informationStore.showAlertMessage(
+          "The layers of 'window' and 'category' must always be checked.",
+        );
       }
 
       this.idle();
@@ -242,6 +256,14 @@ export const useSelectorStore = defineStore("selector", {
       this.idle();
     },
 
+    updateAttributeValue(keyName: string, strValue: string): void {
+      const dictCurrentLayer = this.arrEleHierarchy[this.intClickedLayer];
+      if (!dictCurrentLayer || !(keyName in dictCurrentLayer)) return;
+
+      dictCurrentLayer[keyName] = strValue;
+      this.updateCheckedLayerAndJsonText();
+    },
+
     omitAttr(event: boolean, keyName: string): void {
       // Add "-omit" for unchecked attributes. Remove "-omit" for checked attributes.
       this.setDescription("omitAttr");
@@ -254,9 +276,9 @@ export const useSelectorStore = defineStore("selector", {
       ];
       if (arrMustCheckedKey.some((ele) => keyName.startsWith(ele))) {
         const informationStore = useInformationStore();
-        informationStore.information =
-          "These attributes must be checked:" + JSON.stringify(arrMustCheckedKey);
-        informationStore.showAlert = true;
+        informationStore.showAlertMessage(
+          "These attributes must be checked: " + JSON.stringify(arrMustCheckedKey),
+        );
         this.idle();
         return;
       }
@@ -274,16 +296,17 @@ export const useSelectorStore = defineStore("selector", {
         modifyKeyName(
           this.arrEleHierarchy[this.intClickedLayer],
           keyName,
-          removeSuffix(keyName, STR_SUFFIX_OMIT)
+          removeSuffix(keyName, STR_SUFFIX_OMIT),
         );
       } else {
         modifyKeyName(
           this.arrEleHierarchy[this.intClickedLayer],
           keyName,
-          keyName + STR_SUFFIX_OMIT
+          keyName + STR_SUFFIX_OMIT,
         );
       }
 
+      this.updateCheckedLayerAndJsonText();
       this.idle();
     },
 
@@ -294,9 +317,9 @@ export const useSelectorStore = defineStore("selector", {
       // Not change a omitted attribute. Otherwise the attribute will be lost(disappear).
       if (keyName.endsWith(STR_SUFFIX_OMIT)) {
         const informationStore = useInformationStore();
-        informationStore.information =
-          "Make the attribute checked, then try to modify regex again.";
-        informationStore.showAlert = true;
+        informationStore.showAlertMessage(
+          "Check the attribute before changing its Regex mode.",
+        );
         this.idle();
         return;
       }
@@ -305,22 +328,27 @@ export const useSelectorStore = defineStore("selector", {
       const arrCannotRegex = ["category", "ControlTypeName", "Depth"];
       if (arrCannotRegex.some((ele) => keyName === ele)) {
         const informationStore = useInformationStore();
-        informationStore.information =
-          "These attributes can't use regex:" + JSON.stringify(arrCannotRegex);
-        informationStore.showAlert = true;
+        informationStore.showAlertMessage(
+          "These attributes can't use Regex: " + JSON.stringify(arrCannotRegex),
+        );
         this.idle();
         return;
       }
 
-      // Image's attributes not supports regex. (But its window could)
+      // Image attributes do not support Regex, but the Window layer still can.
+      const dictSelector = this.dictFromPython["selector"];
+      const strAttributeName = removeSuffix(keyName, STR_SUFFIX_REGEX);
+      const boolImageSpecification =
+        "category" in dictSelector &&
+        dictSelector["category"] === "image" &&
+        this.intClickedLayer >= 2;
       if (
-        this.arrEleHierarchy[1]["category"] === "image" &&
-        (keyName === "FileName" || keyName === "Grayscale" || keyName === "Confidence")
+        boolImageSpecification &&
+        ["FileName", "Grayscale", "Confidence"].includes(strAttributeName)
         // Image's Index will not appear in here.
       ) {
         const informationStore = useInformationStore();
-        informationStore.information = "Image attributes can't use regex.";
-        informationStore.showAlert = true;
+        informationStore.showAlertMessage("Image attributes can't use Regex.");
         this.idle();
         return;
       }
@@ -330,18 +358,19 @@ export const useSelectorStore = defineStore("selector", {
         modifyKeyName(
           this.arrEleHierarchy[this.intClickedLayer],
           keyName,
-          removeSuffix(keyName, STR_SUFFIX_REGEX)
+          removeSuffix(keyName, STR_SUFFIX_REGEX),
         );
       } else {
         // The string attribute.
         modifyKeyName(
           this.arrEleHierarchy[this.intClickedLayer],
           keyName,
-          keyName + STR_SUFFIX_REGEX
+          keyName + STR_SUFFIX_REGEX,
         );
       }
       // Delete original keyName.
 
+      this.updateCheckedLayerAndJsonText();
       this.idle();
     },
   },
@@ -402,7 +431,10 @@ export const useInformationStore = defineStore("information", {
     return {
       information: "..." as string,
       validateState: undefined as undefined | boolean,
+      strPendingValidateSelectorText: undefined as string | undefined,
       showAlert: false as boolean,
+      strAlertMessage: "" as string,
+      intAlertRevision: 0 as number,
       previewImage: "" as string,
     };
   },
@@ -418,10 +450,46 @@ export const useInformationStore = defineStore("information", {
       }
     },
 
+    startSelectorValidation(strSelectorText: string): void {
+      this.validateState = undefined;
+      this.strPendingValidateSelectorText = strSelectorText;
+    },
+
+    resetSelectorValidation(): void {
+      this.validateState = undefined;
+      this.strPendingValidateSelectorText = undefined;
+    },
+
+    applySelectorValidationResult(
+      boolResult: boolean,
+      strCurrentSelectorText: string,
+    ): void {
+      const strPendingSelectorText = this.strPendingValidateSelectorText;
+      this.strPendingValidateSelectorText = undefined;
+
+      if (
+        strPendingSelectorText === undefined ||
+        strPendingSelectorText !== strCurrentSelectorText
+      ) {
+        loggerRenderer.debug("Ignore a validation result for an outdated Selector.");
+        this.validateState = undefined;
+        return;
+      }
+
+      this.validateState = boolResult;
+    },
+
     showAlertMessage(message: string): void {
       loggerRenderer.error(message);
       this.information = message;
+      this.strAlertMessage = message;
       this.showAlert = true;
+      this.intAlertRevision += 1;
+    },
+
+    closeAlert(): void {
+      this.showAlert = false;
+      this.strAlertMessage = "";
     },
   },
 });

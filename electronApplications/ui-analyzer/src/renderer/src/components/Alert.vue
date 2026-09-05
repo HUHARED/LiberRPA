@@ -3,39 +3,49 @@
   <v-alert
     v-if="informationStore.showAlert"
     style="position: fixed; width: 100%; opacity: 0.9; z-index: 999"
-    :text="informationStore.information"
+    :text="informationStore.strAlertMessage"
     variant="flat"
     type="warning"
     closable
-    @click:close="clearInformation">
+    @click:close="closeAlert">
   </v-alert>
 </template>
 
 <script setup lang="ts">
-import { watch } from "vue";
+import { onBeforeUnmount, watch } from "vue";
 
 import { useInformationStore } from "../store";
 
 const informationStore = useInformationStore();
+let timeoutCloseAlert: ReturnType<typeof setTimeout> | undefined;
 
-function clearInformation(): void {
-  if (informationStore.showAlert) {
-    informationStore.showAlert = false;
-    informationStore.information = "...";
+function clearCloseAlertTimer(): void {
+  if (timeoutCloseAlert !== undefined) {
+    clearTimeout(timeoutCloseAlert);
+    timeoutCloseAlert = undefined;
   }
 }
 
-// Close the alert after 3 seconds.
+function closeAlert(): void {
+  clearCloseAlertTimer();
+  informationStore.closeAlert();
+}
+
+// Restart the close timer for every Alert, including consecutive Alerts.
 watch(
-  () => informationStore.showAlert,
-  (newValue) => {
-    if (newValue === true) {
-      setTimeout(() => {
-        clearInformation();
-      }, 3000);
-    }
-  }
+  () => informationStore.intAlertRevision,
+  () => {
+    clearCloseAlertTimer();
+    if (!informationStore.showAlert) return;
+
+    timeoutCloseAlert = setTimeout(() => {
+      timeoutCloseAlert = undefined;
+      informationStore.closeAlert();
+    }, 3000);
+  },
 );
+
+onBeforeUnmount(clearCloseAlertTimer);
 </script>
 
 <style scoped></style>

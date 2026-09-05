@@ -71,19 +71,31 @@ watch(
     // If it is selector JSON.
     if (informationStore.information.startsWith('{"selector"')) {
       selectorStore.afterIndicate();
-      // Reset validateState
-      informationStore.validateState = undefined;
       void settingStore.toggleWindow();
     } else if (informationStore.information.startsWith('{"validate"')) {
-      // If it is a validation result.
-      const boolResult = JSON.parse(informationStore.information)["validate"] as boolean;
-      loggerRenderer.debug("boolResult=" + boolResult);
-      informationStore.validateState = boolResult;
+      try {
+        const dictValidateResult = JSON.parse(informationStore.information) as {
+          validate?: unknown;
+        };
+        if (typeof dictValidateResult.validate !== "boolean") {
+          throw new Error("Invalid validation result from Local Server.");
+        }
+
+        loggerRenderer.debug("boolResult=" + dictValidateResult.validate);
+        informationStore.applySelectorValidationResult(
+          dictValidateResult.validate,
+          selectorStore.strJsonText,
+        );
+      } catch (e) {
+        informationStore.resetSelectorValidation();
+        informationStore.showAlertMessage(
+          e instanceof Error ? e.message : "Failed to parse validation result.",
+        );
+      }
+
       void settingStore.toggleWindow();
     } else {
       loggerRenderer.debug("It's not a known expected result.");
-      // Reset validateState
-      informationStore.validateState = undefined;
     }
   },
 );
