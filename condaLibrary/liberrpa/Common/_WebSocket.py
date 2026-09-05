@@ -8,7 +8,11 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 from liberrpa.Logging import Log
 from liberrpa.Common._BasicConfig import get_local_server_port, get_token
 from liberrpa.Common._ProtocolValidation import ensure_socket_result
-from liberrpa.Common._Exception import ChromeCommandError, ChromeElementNotFoundError, QtError
+from liberrpa.Common._Exception import (
+    ChromeCommandError,
+    ChromeElementNotFoundError,
+    QtError,
+)
 from liberrpa.Common._TypedValue import DictSocketResult
 import liberrpa.UI._CommonValue as _CommonValue
 
@@ -62,10 +66,14 @@ def _normalize_timeout(timeout: object | None) -> int:
     return timeout
 
 
-def send_command(eventName: str, command: dict[str, Any], timeout: int | None = None) -> Any:
+def send_command(
+    eventName: str, command: dict[str, Any], timeout: int | None = None
+) -> Any:
     # Some commands include "timeout" in the command dictionary instead of passing it as a separate argument.
     # If timeout is passed explicitly, the explicit argument takes priority.
-    timeoutFinal = _normalize_timeout(timeout if timeout is not None else command.get("timeout"))
+    timeoutFinal = _normalize_timeout(
+        timeout if timeout is not None else command.get("timeout")
+    )
 
     eventResponse = threading.Event()
     dictResponseData: dict[str, DictSocketResult] = {}
@@ -79,7 +87,7 @@ def send_command(eventName: str, command: dict[str, Any], timeout: int | None = 
             Log.verbose(f"Data received from server: {result}")
 
             if result["data"] == SIGN_START_RECORD_VIDEO:
-                Log.critical(result["data"])
+                Log.info(result["data"])
 
             dictResponseData["result"] = result
 
@@ -111,7 +119,9 @@ def send_command(eventName: str, command: dict[str, Any], timeout: int | None = 
             # such as the Chrome extension through LiberRPA Local Server.
             _sioClient.emit(event=eventName, data=command, callback=response_handler)
     except ConnectionError as e:
-        raise ConnectionError(f"Failed to connect to LiberRPA Local Server: {e}. Is the server running?") from e
+        raise ConnectionError(
+            f"Failed to connect to LiberRPA Local Server: {e}. Is the server running?"
+        ) from e
 
     timeoutWithGrace = (timeoutFinal + 1000) / 1000
 
@@ -136,7 +146,9 @@ def send_command(eventName: str, command: dict[str, Any], timeout: int | None = 
 
         # More specific error type.
         if eventName == "chrome_command":
-            if isinstance(strData, str) and strData.startswith("Not found the target element"):
+            if isinstance(strData, str) and strData.startswith(
+                "Not found the target element"
+            ):
                 raise ChromeElementNotFoundError(strData)
             raise ChromeCommandError(strData)
 
