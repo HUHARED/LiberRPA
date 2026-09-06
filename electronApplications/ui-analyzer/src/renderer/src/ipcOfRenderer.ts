@@ -1,4 +1,5 @@
 // FileName: ipcOfRenderer.ts
+
 import io from "socket.io-client";
 
 import { loggerRenderer } from "./logger";
@@ -49,7 +50,7 @@ export async function invokeMain(
 window.uiAnalyzer.onInitSetting((data) => {
   loggerRenderer.debug(
     `[send-from-main]\ncommand=init-setting\ndata=${JSON.stringify(
-      [data[0], "[redacted]"],
+      { ...data, token: "[redacted]" },
       null,
       2,
     )}`,
@@ -57,7 +58,7 @@ window.uiAnalyzer.onInitSetting((data) => {
 
   const settingStore = useSettingStore();
   settingStore.initializeSetting(data);
-  connectToServer(data[0].localServerPort, data[1]);
+  connectToServer(data.localServerPort, data.token);
 });
 
 /* Create socket. */

@@ -1,11 +1,10 @@
 // FileName: interface.ts
 
-export interface DictBasicConfig {
-  outputLogPath: string;
+export interface UiAnalyzerInitialization {
   localServerPort: number;
-  uiAnalyzerTheme: "light" | "dark";
-  uiAnalyzerMinimizeWindow: boolean;
-  componentRepositoryPath: string;
+  theme: "light" | "dark";
+  minimizeWindow: boolean;
+  token: string;
 }
 
 export type DictInvokeResult =

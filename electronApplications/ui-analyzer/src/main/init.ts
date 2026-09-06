@@ -1,48 +1,63 @@
 // FileName: init.ts
+
+import fs from "fs/promises";
 import path from "path";
-import fs from "fs";
+import type { Logger } from "winston";
 
-import { loggerMain } from "./logger";
-import { strDocumentsFolderPath } from "./config";
+import { getErrorMessage } from "../shared/error";
 
-export function deleteTimeoutScreenshot(): void {
-  // Delete files from 7 days ago in "user/Documents/LiberRPA/Screenshots"
+const INT_SCREENSHOT_RETENTION_MS = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
 
-  const strScreenshotPath = path.join(strDocumentsFolderPath, "LiberRPA/Screenshots");
-  const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
+function isFileNotFoundError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === "ENOENT"
+  );
+}
 
-  if (!fs.existsSync(strScreenshotPath)) {
-    loggerMain.error(`The folder ${strScreenshotPath} does not exist.`);
-    return;
-  }
+export async function deleteExpiredScreenshots(
+  strDocumentsFolderPath: string,
+  loggerMain: Logger,
+): Promise<void> {
+  const strScreenshotFolderPath = path.join(
+    strDocumentsFolderPath,
+    "LiberRPA",
+    "Screenshots",
+  );
+  const intExpiredBeforeMs = Date.now() - INT_SCREENSHOT_RETENTION_MS;
 
-  let arrFiles: string[];
-
+  let arrFileName: string[];
   try {
-    arrFiles = fs.readdirSync(strScreenshotPath);
-  } catch (e) {
-    loggerMain.error(`Failed to read the Screenshots folder: ${e}`);
+    arrFileName = await fs.readdir(strScreenshotFolderPath);
+  } catch (e: unknown) {
+    if (isFileNotFoundError(e)) {
+      loggerMain.debug(`Screenshots folder does not exist: ${strScreenshotFolderPath}`);
+      return;
+    }
+
+    loggerMain.error(
+      `Failed to read the Screenshots folder ${strScreenshotFolderPath}: ${getErrorMessage(e)}`,
+    );
     return;
   }
 
-  for (const file of arrFiles) {
-    const strFilePath = path.join(strScreenshotPath, file);
+  for (const strFileName of arrFileName) {
+    const strFilePath = path.join(strScreenshotFolderPath, strFileName);
 
     try {
-      const stats = fs.statSync(strFilePath);
-
-      if (!stats.isFile()) {
+      const fileStat = await fs.stat(strFilePath);
+      if (!fileStat.isFile() || fileStat.mtimeMs >= intExpiredBeforeMs) {
         continue;
       }
 
-      if (stats.mtime.getTime() >= sevenDaysAgo) {
-        continue;
-      }
-
-      fs.unlinkSync(strFilePath);
-      loggerMain.info(`Deleted file: ${strFilePath}`);
-    } catch (e) {
-      loggerMain.error(`Failed to process screenshot file ${strFilePath}: ${e}`);
+      await fs.unlink(strFilePath);
+      loggerMain.info(`Deleted expired screenshot: ${strFilePath}`);
+    } catch (e: unknown) {
+      loggerMain.error(
+        `Failed to process screenshot file ${strFilePath}: ${getErrorMessage(e)}`,
+      );
     }
   }
 }

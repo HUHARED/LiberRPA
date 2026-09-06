@@ -1,15 +1,16 @@
 // FileName: index.d.ts
+
 import type {
-  DictBasicConfig,
   DictInvokeResult,
   MainInvokeCommand,
   RendererLogLevel,
+  UiAnalyzerInitialization,
 } from "../shared/interface";
 
 export interface UiAnalyzerApi {
   logToMain(level: RendererLogLevel, message: string): void;
   invokeMain(command: MainInvokeCommand, data?: unknown): Promise<DictInvokeResult>;
-  onInitSetting(callback: (data: [DictBasicConfig, string]) => void): () => void;
+  onInitSetting(callback: (data: UiAnalyzerInitialization) => void): () => void;
 }
 
 declare global {

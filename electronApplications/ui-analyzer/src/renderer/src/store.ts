@@ -1,4 +1,5 @@
 // FileName: store.ts
+
 import { defineStore } from "pinia";
 
 import { loggerRenderer } from "./logger";
@@ -9,7 +10,7 @@ import {
   modifyKeyName,
 } from "./attrHandleFunc";
 import type {
-  DictBasicConfig,
+  UiAnalyzerInitialization,
   SelectorWindow,
   SelectorNonWindow,
   DictForUiAnalyzer,
@@ -364,13 +365,11 @@ export const useSettingStore = defineStore("setting", {
   },
   getters: {},
   actions: {
-    initializeSetting(tupleConfig: [DictBasicConfig, string]): void {
-      const dictConfigBasic = tupleConfig[0];
-
-      this.intLocalServerPort = dictConfigBasic.localServerPort;
-      this.strToken = tupleConfig[1];
-      this.theme = dictConfigBasic.uiAnalyzerTheme;
-      this.minimizeWindow = dictConfigBasic.uiAnalyzerMinimizeWindow;
+    initializeSetting(initialization: UiAnalyzerInitialization): void {
+      this.intLocalServerPort = initialization.localServerPort;
+      this.strToken = initialization.token;
+      this.theme = initialization.theme;
+      this.minimizeWindow = initialization.minimizeWindow;
     },
   },
 });

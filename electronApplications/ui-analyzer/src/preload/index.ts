@@ -1,10 +1,11 @@
 // FileName: index.ts
+
 import { contextBridge, ipcRenderer } from "electron";
 import type {
-  DictBasicConfig,
   DictInvokeResult,
   MainInvokeCommand,
   RendererLogLevel,
+  UiAnalyzerInitialization,
 } from "../shared/interface";
 
 const SET_ALLOWED_INVOKE_COMMANDS = new Set<MainInvokeCommand>([
@@ -23,6 +24,13 @@ const SET_ALLOWED_LOG_LEVELS = new Set<RendererLogLevel>([
   "silly",
 ]);
 
+const SET_INITIALIZATION_KEYS = new Set([
+  "localServerPort",
+  "theme",
+  "minimizeWindow",
+  "token",
+]);
+
 function isDictInvokeResult(value: unknown): value is DictInvokeResult {
   if (typeof value !== "object" || value === null) {
     return false;
@@ -37,30 +45,26 @@ function isDictInvokeResult(value: unknown): value is DictInvokeResult {
   return dictValue.success === false && typeof dictValue.data === "string";
 }
 
-function isDictBasicConfig(value: unknown): value is DictBasicConfig {
-  if (typeof value !== "object" || value === null) {
+function isUiAnalyzerInitialization(value: unknown): value is UiAnalyzerInitialization {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
     return false;
   }
 
   const dictValue = value as Record<string, unknown>;
+  const arrKey = Object.keys(dictValue);
 
   return (
-    typeof dictValue.outputLogPath === "string" &&
+    arrKey.length === SET_INITIALIZATION_KEYS.size &&
+    arrKey.every((strKey) => SET_INITIALIZATION_KEYS.has(strKey)) &&
     typeof dictValue.localServerPort === "number" &&
-    (dictValue.uiAnalyzerTheme === "light" || dictValue.uiAnalyzerTheme === "dark") &&
-    typeof dictValue.uiAnalyzerMinimizeWindow === "boolean" &&
-    typeof dictValue.componentRepositoryPath === "string"
+    Number.isSafeInteger(dictValue.localServerPort) &&
+    dictValue.localServerPort >= 1 &&
+    dictValue.localServerPort <= 65_535 &&
+    (dictValue.theme === "light" || dictValue.theme === "dark") &&
+    typeof dictValue.minimizeWindow === "boolean" &&
+    typeof dictValue.token === "string" &&
+    dictValue.token.trim() !== ""
   );
-}
-
-function isInitSettingData(data: unknown): data is [DictBasicConfig, string] {
-  if (!Array.isArray(data) || data.length !== 2) {
-    return false;
-  }
-
-  const [dictBasicConfig, token] = data;
-
-  return isDictBasicConfig(dictBasicConfig) && typeof token === "string";
 }
 
 const uiAnalyzerApi = {
@@ -96,7 +100,7 @@ const uiAnalyzerApi = {
     return result;
   },
 
-  onInitSetting(callback: (data: [DictBasicConfig, string]) => void): () => void {
+  onInitSetting(callback: (data: UiAnalyzerInitialization) => void): () => void {
     const listener = (
       _event: Electron.IpcRendererEvent,
       command: string,
@@ -106,7 +110,11 @@ const uiAnalyzerApi = {
         return;
       }
 
-      if (!isInitSettingData(data)) {
+      if (!isUiAnalyzerInitialization(data)) {
+        ipcRenderer.send("send-from-renderer-log", {
+          level: "error",
+          message: "Blocked invalid UI Analyzer initialization payload.",
+        });
         return;
       }
 
