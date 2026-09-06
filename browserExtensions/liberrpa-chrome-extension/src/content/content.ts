@@ -1,4 +1,5 @@
 // FileName: content.ts
+
 console.log("This is content.js");
 // console.log(new Date());
 
@@ -9,6 +10,7 @@ import {
   getElementAttrByCoordinates,
   getElementAttrBySelector,
   getElementTreeByCoordinates,
+  getElementSelectorByCoordinates,
 } from "./commonFunc";
 
 import { withTimeout } from "./timeFunc";
@@ -174,6 +176,17 @@ chrome.runtime.onMessage.addListener(
         case "getElementTreeByCoordinates":
           sendSuccess(
             getElementTreeByCoordinates(dictCommand.x, dictCommand.y, dictCommand.usePath),
+            sendResponse,
+          );
+          return false;
+
+        case "getElementSelectorByCoordinates":
+          sendSuccess(
+            getElementSelectorByCoordinates(
+              dictCommand.x,
+              dictCommand.y,
+              dictCommand.usePath,
+            ),
             sendResponse,
           );
           return false;

@@ -20,6 +20,38 @@ import type {
   UiAnalyzerOperationPhase,
 } from "../../shared/interface";
 
+const INT_MAX_RECOMMENDED_HTML_TEXT_LENGTH = 80;
+
+const SET_DEFAULT_OMITTED_HTML_ATTRIBUTE_NAME = new Set([
+  "value",
+  "checked",
+  "disabled",
+  "isHidden",
+  "isDisplayedNone",
+  "isLeaf",
+  "innerText",
+  "parentId",
+  "parentClass",
+  "parentName",
+]);
+
+function shouldOmitHtmlAttributeByDefault(strKeyName: string, strValue: string): boolean {
+  if (SET_DEFAULT_OMITTED_HTML_ATTRIBUTE_NAME.has(strKeyName)) {
+    return true;
+  }
+
+  if (strKeyName === "directText" || strKeyName === "tableColumnName") {
+    return (
+      strValue.length === 0 ||
+      strValue.length > INT_MAX_RECOMMENDED_HTML_TEXT_LENGTH ||
+      strValue.trim() !== strValue ||
+      /[\r\n]/u.test(strValue)
+    );
+  }
+
+  return false;
+}
+
 export const useSelectorStore = defineStore("selector", {
   state: () => {
     return {
@@ -87,25 +119,48 @@ export const useSelectorStore = defineStore("selector", {
         this.arrEleHierarchy.push({
           category: dictSelector["category"],
         });
-        dictSelector["specification"].forEach((dictAttributes) => {
+        const intFinalSpecificationIndex = dictSelector["specification"].length - 1;
+        dictSelector["specification"].forEach((dictAttributes, intSpecificationIndex) => {
           const dictEditableAttributes = { ...dictAttributes };
 
           if (dictSelector["category"] === "html") {
-            // Uncheck HTML attributes that are usually unsuitable for locating elements.
-            for (const keyName of Object.keys(dictEditableAttributes)) {
-              if (
-                [
-                  "disabled",
-                  "isHidden",
-                  "isDisplayedNone",
-                  "isLeaf",
-                  "innerText",
-                  "parentId",
-                  "parentClass",
-                  "parentName",
-                ].includes(keyName)
-              ) {
-                modifyKeyName(dictEditableAttributes, keyName, keyName + STR_SUFFIX_OMIT);
+            const dictRecommendedAttributes =
+              intSpecificationIndex === intFinalSpecificationIndex
+                ? this.dictFromPython.recommendedSpecification?.[0]
+                : undefined;
+
+            if (dictRecommendedAttributes !== undefined) {
+              // Keep every captured attribute visible, but select only the recommendation generated against the live DOM.
+              for (const [strKey, strValue] of Object.entries(dictRecommendedAttributes)) {
+                dictEditableAttributes[strKey] = strValue;
+              }
+
+              for (const keyName of Object.keys(dictEditableAttributes)) {
+                if (!(keyName in dictRecommendedAttributes)) {
+                  modifyKeyName(dictEditableAttributes, keyName, keyName + STR_SUFFIX_OMIT);
+                }
+              }
+            } else {
+              // Fallback for data without recommendation metadata, including Element Tree selections.
+              // Preserve an existing index's attribute basis because the renderer cannot recalculate it.
+              const boolUsesIndex =
+                "childIndex" in dictEditableAttributes ||
+                "documentIndex" in dictEditableAttributes ||
+                "childIndex-regex" in dictEditableAttributes ||
+                "documentIndex-regex" in dictEditableAttributes;
+
+              if (!boolUsesIndex) {
+                for (const [strKeyName, strValue] of Object.entries(
+                  dictEditableAttributes,
+                )) {
+                  if (shouldOmitHtmlAttributeByDefault(strKeyName, strValue)) {
+                    modifyKeyName(
+                      dictEditableAttributes,
+                      strKeyName,
+                      strKeyName + STR_SUFFIX_OMIT,
+                    );
+                  }
+                }
               }
             }
           }

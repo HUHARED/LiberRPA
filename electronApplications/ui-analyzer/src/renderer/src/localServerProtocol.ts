@@ -20,8 +20,20 @@ function isStringRecord(value: unknown): value is Record<string, string> {
   return Object.values(value).every((itemValue) => typeof itemValue === "string");
 }
 
+function isNonEmptyStringRecord(value: unknown): value is Record<string, string> {
+  return isStringRecord(value) && Object.keys(value).length > 0;
+}
+
 function isNonNegativeSafeInteger(value: unknown): value is number {
   return Number.isSafeInteger(value) && (value as number) >= 0;
+}
+
+function isNonNegativeSafeIntegerText(value: string): boolean {
+  if (!/^(?:0|[1-9]\d*)$/u.test(value)) {
+    return false;
+  }
+
+  return Number.isSafeInteger(Number(value));
 }
 
 function isSelector(value: unknown): value is Selector {
@@ -53,7 +65,43 @@ export function isDictForUiAnalyzer(value: unknown): value is DictForUiAnalyzer 
     return false;
   }
 
-  return value.preview === undefined || typeof value.preview === "string";
+  if (value.preview !== undefined && typeof value.preview !== "string") {
+    return false;
+  }
+
+  if (value.recommendedSpecification === undefined) {
+    return true;
+  }
+
+  const recommendedSpecification = value.recommendedSpecification;
+  if (
+    !("category" in value.selector) ||
+    value.selector.category !== "html" ||
+    !Array.isArray(recommendedSpecification) ||
+    recommendedSpecification.length !== 1 ||
+    !recommendedSpecification.every(isNonEmptyStringRecord)
+  ) {
+    return false;
+  }
+
+  const dictAllTargetAttributes = value.selector.specification.at(-1);
+  const dictRecommendedAttributes = recommendedSpecification[0];
+  if (dictAllTargetAttributes === undefined || dictRecommendedAttributes === undefined) {
+    return false;
+  }
+
+  if (dictRecommendedAttributes.tagName !== dictAllTargetAttributes.tagName) {
+    return false;
+  }
+
+  const setCalculatedAttribute = new Set(["childIndex", "documentIndex"]);
+  return Object.entries(dictRecommendedAttributes).every(([strKey, strValue]) => {
+    if (setCalculatedAttribute.has(strKey)) {
+      return isNonNegativeSafeIntegerText(strValue);
+    }
+
+    return dictAllTargetAttributes[strKey] === strValue;
+  });
 }
 
 function collectElementTreeIds(

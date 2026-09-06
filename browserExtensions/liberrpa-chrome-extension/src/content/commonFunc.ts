@@ -1,9 +1,11 @@
 // FileName: commonFunc.ts
+
 import type {
   DictFinalAttr,
   DictLayerHtml,
   DictOriginalAttr,
   ElementTreeResult,
+  DictHtmlSelectorRecommendationResult,
 } from "./interface";
 import { getBasicAttr, getFinalAttr, getPath } from "./elementAttrFunc";
 import {
@@ -14,6 +16,7 @@ import {
 } from "./elementMatchFunc";
 import { convertScreenPositionToViewport } from "./positionCalculation";
 import { getElementTree } from "./elementFunc";
+import { getRecommendedHtmlTargetSpecification } from "./selectorRecommendation";
 
 export function getElementAttrByCoordinates(
   x: number,
@@ -33,6 +36,32 @@ export function getElementTreeByCoordinates(
   console.log("--getElementTreeByCoordinates--");
 
   return getElementTree(getElementByCoordinatesOrThrow(x, y), usePath);
+}
+
+export function getElementSelectorByCoordinates(
+  x: number,
+  y: number,
+  usePath: boolean,
+): DictHtmlSelectorRecommendationResult {
+  console.log("--getElementSelectorByCoordinates--");
+
+  const elementTarget = getElementByCoordinatesOrThrow(x, y);
+  const allLayerAttributes = getElementAttr(elementTarget, usePath);
+  const dictAllTargetAttributes = allLayerAttributes[allLayerAttributes.length - 1];
+  if (dictAllTargetAttributes === undefined) {
+    throw new Error("The HTML selector attribute hierarchy is empty.");
+  }
+
+  return {
+    allLayerAttributes,
+    recommendedSpecification: [
+      getRecommendedHtmlTargetSpecification(
+        elementTarget,
+        dictAllTargetAttributes,
+        usePath,
+      ),
+    ],
+  };
 }
 
 function getElementByCoordinatesOrThrow(x: number, y: number): HTMLElement {

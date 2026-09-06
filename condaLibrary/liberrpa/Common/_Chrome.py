@@ -14,6 +14,7 @@ from liberrpa.UI._UiDict import (
     DictHtmlAttr,
     DictSpecHtml,
     DictElementTreeItem,
+    DictHtmlSelectorRecommendationResult,
 )
 from liberrpa.Common._WebSocket import send_command
 import liberrpa.UI._CommonValue as _CommonValue
@@ -35,6 +36,44 @@ def _ensure_html_attr_list(value: object) -> list[DictHtmlAttr]:
         raise ValueError("Chrome returned an invalid HTML attribute list.")
 
     return cast(list[DictHtmlAttr], value)
+
+
+def _ensure_html_specification_list(value: object) -> list[DictSpecHtml]:
+    if (
+        not isinstance(value, list)
+        or len(value) != 1
+        or not all(
+            isinstance(item, dict)
+            and len(item) > 0
+            and all(
+                isinstance(key, str) and isinstance(itemValue, str)
+                for key, itemValue in item.items()
+            )
+            for item in value
+        )
+    ):
+        raise ValueError("Chrome returned an invalid recommended HTML specification.")
+
+    return cast(list[DictSpecHtml], value)
+
+
+def _ensure_html_selector_recommendation_result(
+    value: object,
+) -> DictHtmlSelectorRecommendationResult:
+    if not isinstance(value, dict) or set(value) != {
+        "allLayerAttributes",
+        "recommendedSpecification",
+    }:
+        raise ValueError(
+            "Chrome returned an invalid HTML selector recommendation result."
+        )
+
+    return {
+        "allLayerAttributes": _ensure_html_attr_list(value["allLayerAttributes"]),
+        "recommendedSpecification": _ensure_html_specification_list(
+            value["recommendedSpecification"]
+        ),
+    }
 
 
 def _ensure_html_element_tree_result(value: object) -> HtmlElementTreeResult:
@@ -83,6 +122,21 @@ def get_element_attr_by_coordinates(
     }
     result: object = send_command(eventName="chrome_command", command=dictCommand)
     return _ensure_html_attr_list(result)
+
+
+def get_element_selector_by_coordinates(
+    x: int,
+    y: int,
+    usePath: bool = True,
+) -> DictHtmlSelectorRecommendationResult:
+    dictCommand: dict[str, Any] = {
+        "commandName": "getElementSelectorByCoordinates",
+        "x": x,
+        "y": y,
+        "usePath": usePath,
+    }
+    result: object = send_command(eventName="chrome_command", command=dictCommand)
+    return _ensure_html_selector_recommendation_result(result)
 
 
 def get_element_tree_by_coordinates(

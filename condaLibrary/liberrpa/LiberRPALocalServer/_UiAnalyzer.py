@@ -43,7 +43,10 @@ from liberrpa.Common._Exception import (
     UiElementNotFoundError,
     UiTimeoutError,
 )
-from liberrpa.Common._Chrome import get_element_attr_by_coordinates
+from liberrpa.Common._Chrome import (
+    get_element_attr_by_coordinates,
+    get_element_selector_by_coordinates,
+)
 import liberrpa.LiberRPALocalServer._Hook as _Hook
 import liberrpa.LiberRPALocalServer._Qt as _Qt
 
@@ -346,12 +349,17 @@ def indicate_chrome(
             )
 
             # Resolve the Chrome element again at the exact mouse-down position after the complete click has been suppressed.
+            # Recommendation analysis runs only for this final target, never during hover refreshes.
             _close_indicate_overlay()
-            listAllAttr = get_element_attr_by_coordinates(
+            dictSelectorRecommendation = get_element_selector_by_coordinates(
                 x=dictCoordinate["x"],
                 y=dictCoordinate["y"],
                 usePath=usePath,
             )
+            listAllAttr = dictSelectorRecommendation["allLayerAttributes"]
+            listRecommendedSpecification = dictSelectorRecommendation[
+                "recommendedSpecification"
+            ]
             if len(listAllAttr) == 0:
                 raise UiElementNotFoundError(
                     f"No Chrome element was found at {dictCoordinate}."
@@ -388,12 +396,18 @@ def indicate_chrome(
             # After click, get the window element once.
             elementWindow = _get_window_element(dictCoordinate=dictCoordinate)
 
+            dictWindowSelector = ensure_selector_window(
+                _UiElement.get_control_selector(control=elementWindow)
+            )["window"]
             selector: SelectorHtml = ensure_selector_html({
-                "window": ensure_selector_window(
-                    _UiElement.get_control_selector(control=elementWindow)
-                )["window"],
+                "window": dictWindowSelector,
                 "category": "html",
                 "specification": listSpecification,
+            })
+            selectorRecommended: SelectorHtml = ensure_selector_html({
+                "window": dictWindowSelector,
+                "category": "html",
+                "specification": listRecommendedSpecification,
             })
 
         preview = _screenshot_to_base64(
@@ -407,10 +421,15 @@ def indicate_chrome(
             "selector": selector,
             "attributes": dictSecondaryAttr,
             "preview": preview,
+            "recommendedSpecification": selectorRecommended["specification"],
         }
         # Log.debug(dictReturn)
         # preview is so long, not print it.
-        Log.debug({"selector": selector, "attributes": dictSecondaryAttr})
+        Log.debug({
+            "selector": selector,
+            "recommendedSpecification": selectorRecommended["specification"],
+            "attributes": dictSecondaryAttr,
+        })
         return (dictReturn, dictCoordinate)
 
     finally:

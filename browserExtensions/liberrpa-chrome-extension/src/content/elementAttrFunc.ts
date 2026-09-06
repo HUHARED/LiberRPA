@@ -214,7 +214,7 @@ function getIndexForTheLayer(
     return dictIndexAttr;
   }
 
-  const documentElementsFinal = getDocumentElements(dictAttr);
+  const documentElementsFinal = getDocumentElementsMatchingAttributes(dictAttr);
   // console.log("documentElementsFinal", documentElementsFinal);
   const childElementsFinal = getChildElements(originalElement.parentElement, dictAttr);
   // console.log("childElementsFinal", childElementsFinal);
@@ -278,8 +278,11 @@ export function addIndexForTheLayer<T extends DictOriginalAttr | DictLayerHtml>(
   return { ...dictAttr, ...getIndexForTheLayer(originalElement, dictAttr) };
 }
 
-function getDocumentElements(dictAttrOrSlct: DictAttrForIndex): HTMLElement[] {
-  // console.log("--getDocumentElements--");
+export function getDocumentElementsMatchingAttributes(
+  dictAttrOrSlct: DictAttrForIndex,
+): HTMLElement[] {
+  // console.log("--getDocumentElementsMatchingAttributes--");
+
   // Get the CSS Selector, it's same for the search of childIndex and documentIndex.
   const strQuerySelector = createQuerySelectorFromAttrDict(dictAttrOrSlct);
 

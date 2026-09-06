@@ -168,6 +168,23 @@ For the complete matching rules, including regex support, index behavior, and pa
 
 The resulting selector is a [`SelectorHtml`](#selectorhtml).
 
+For attribute-and-index HTML indication, the Chrome Extension also prepares a concise default recommendation against the live DOM. It keeps `tagName`, may keep `type`, and considers readable identity attributes in this order:
+
+```text
+id
+name
+aria-label
+aria-labelledby
+alt
+directText
+tableColumnName
+className
+```
+
+When the original target does not need an index, the recommendation uses at most three identity attributes and performs at most two uniqueness checks. When the original target already contains an index, it conservatively keeps every suitable identity attribute and recalculates `childIndex` / `documentIndex` from the attributes that remain. Long, multiline, obviously generated, or state-like values are not selected by default. `directText` and `tableColumnName` are considered only when they are single-line values no longer than 80 characters. Path mode defaults to `tagName` plus the generated `path`.
+
+All captured target attributes remain visible in **Attribute Editor**; attributes outside the recommendation are simply unchecked, so the user can restore or edit them.
+
 For iframe, Shadow DOM, restricted-page, `file://`, and other Chrome-specific limitations, see the [Chrome Extension documentation](../../browserExtensions/liberrpa-chrome-extension/README.md#current-limitations).
 
 ### Indicate Image Element

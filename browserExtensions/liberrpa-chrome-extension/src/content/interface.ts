@@ -191,6 +191,11 @@ export interface DictElementTreeItem {
 
 export type ElementTreeResult = [DictElementTreeItem[], number[], number];
 
+export interface DictHtmlSelectorRecommendationResult {
+  allLayerAttributes: DictFinalAttr[];
+  recommendedSpecification: DictLayerHtml[];
+}
+
 export type MouseButton = "left" | "right" | "middle";
 export type ClickMode = "single_click" | "double_click" | "down" | "up";
 
@@ -264,6 +269,13 @@ interface DictCommandGetElementTreeByCoordinates {
   timeout: number;
 }
 
+interface DictCommandGetElementSelectorByCoordinates {
+  commandName: "getElementSelectorByCoordinates";
+  x: number;
+  y: number;
+  usePath: boolean;
+}
+
 interface DictCommandGetElementAttrBySelector {
   commandName: "getElementAttrBySelector";
   htmlSelector: DictLayerHtml[];
@@ -304,6 +316,7 @@ export type DictCommandContent =
   | DictCommandSetSelection
   | DictCommandGetElementAttrByCoordinates
   | DictCommandGetElementTreeByCoordinates
+  | DictCommandGetElementSelectorByCoordinates
   | DictCommandGetElementAttrBySelector
   | DictCommandGetSourceCode
   | DictCommandGetAllText

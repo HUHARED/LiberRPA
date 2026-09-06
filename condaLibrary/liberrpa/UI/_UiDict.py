@@ -128,6 +128,11 @@ class DictHtmlAttr(DictSpecHtmlOriginal, DictHtmlSecondaryAttr):
     pass
 
 
+class DictHtmlSelectorRecommendationResult(TypedDict):
+    allLayerAttributes: list[DictHtmlAttr]
+    recommendedSpecification: list[DictSpecHtml]
+
+
 # UIA
 DictUiaSecondaryAttr = TypedDict(
     # All item in _TUPLE_SECONDARY_ATTR, and x, y, width, height.
@@ -307,6 +312,7 @@ class DictUiAnalyzerIndicateResult(TypedDict):
     selector: Selector
     attributes: DictUiaSecondaryAttr | DictHtmlSecondaryAttr | DictImageAttr
     preview: NotRequired[str]
+    recommendedSpecification: NotRequired[list[DictSpecHtml]]
 
 
 if __name__ == "__main__":
