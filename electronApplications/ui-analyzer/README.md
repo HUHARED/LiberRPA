@@ -134,6 +134,10 @@ After indication starts, UI Analyzer waits for the selection for a limited time.
 
 The resulting selector is a [`SelectorUia`](#selectoruia).
 
+For each existing UIA hierarchy layer, LiberRPA prepares a concise default attribute recommendation. It always keeps `ControlTypeName` and an existing `Depth`, then considers readable identity attributes in this order: `Name`, `ClassName`, `AriaRole`, `AccessKey`, and `AcceleratorKey`. It starts with one identity attribute and adds at most three when more distinction is needed. If multiple controls still match, it recalculates `Index` from the recommended attributes. `HelpText`, `AriaProperties`, long values, and multiline values are not selected by default.
+
+The existing UIA hierarchy is preserved. All captured attributes remain visible in **Attribute Editor**; attributes outside the recommendation are simply unchecked and can still be restored or edited. `AutomationId` remains a secondary inspection attribute and is not used for generated selectors.
+
 ### Indicate HTML Element
 
 Use **HTML** indication for supported elements in a normal Chrome web page.
@@ -215,6 +219,10 @@ Use **Window** indication when the automation needs to identify an application w
 ![IndicateWindow](md_images/README/IndicateWindow.gif)
 
 The resulting selector is a [`SelectorWindow`](#selectorwindow).
+
+For every indicated selector, LiberRPA also prepares a concise default recommendation for the `window` section. It always keeps `ControlTypeName`, normally keeps `ProcessName`, and then considers readable `ClassName` and `Name` values in that order when the simpler combination is not sufficient. If multiple top-level controls still match, it recalculates `Index` from the recommended attributes. Window names or class names that are empty, multiline, or longer than 120 characters are not selected by default.
+
+All captured window attributes remain visible in **Attribute Editor**; attributes outside the recommendation are simply unchecked and can still be restored or edited.
 
 UIA, HTML, and Image selectors also contain a `window` section. UI Analyzer adds this window context automatically before the more specific target information.
 

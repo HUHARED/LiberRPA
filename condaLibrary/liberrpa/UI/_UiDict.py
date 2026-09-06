@@ -312,7 +312,8 @@ class DictUiAnalyzerIndicateResult(TypedDict):
     selector: Selector
     attributes: DictUiaSecondaryAttr | DictHtmlSecondaryAttr | DictImageAttr
     preview: NotRequired[str]
-    recommendedSpecification: NotRequired[list[DictSpecHtml]]
+    recommendedWindow: NotRequired[DictSpecWindow]
+    recommendedSpecification: NotRequired[list[DictSpecUia] | list[DictSpecHtml]]
 
 
 if __name__ == "__main__":

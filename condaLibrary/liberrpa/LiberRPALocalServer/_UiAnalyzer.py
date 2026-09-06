@@ -41,6 +41,7 @@ from liberrpa.UI._SelectorValidation import (
 from liberrpa.Common._Exception import (
     ChromeElementNotFoundError,
     UiElementNotFoundError,
+    UiOperationError,
     UiTimeoutError,
 )
 from liberrpa.Common._Chrome import (
@@ -71,6 +72,18 @@ _INDICATE_TIMEOUT_SECONDS = (
     15  # create_screenshot_manually in _Screenshot.py use an argument to manage.
 )
 _INDICATE_REFRESH_INTERVAL_SECONDS = 0.5
+
+# The fallback only examines the native desktop host under the cursor, never all applications.
+_INT_DESKTOP_HIT_TEST_MAX_DEPTH = 16
+_INT_DESKTOP_HIT_TEST_MAX_CONTROLS = 1024
+_SET_DESKTOP_HOST_CLASS_NAME = frozenset({"Progman", "WorkerW"})
+_SET_DESKTOP_CONTROL_CLASS_NAME = frozenset({
+    "Progman",
+    "WorkerW",
+    "SHELLDLL_DefView",
+    "SysListView32",
+})
+
 
 type Tuple_IndicateOverlayState = tuple[int, int, int, int, str]
 
@@ -184,9 +197,7 @@ def indicate_uia(
                 try:
                     dictCoordinate = get_mouse_position()
                     Log.debug("Position: " + str(dictCoordinate))
-                    element = uiautomation.ControlFromPoint(
-                        x=dictCoordinate["x"], y=dictCoordinate["y"]
-                    )
+                    element = _get_indicate_control_from_point(dictCoordinate)
 
                     # Avoid logging the Control object because __str__() queries multiple COM properties.
                     # Log.debug("Get element: " + str(element))
@@ -268,13 +279,26 @@ def indicate_uia(
                 "position": dictCoordinate,
                 "controlType": strControlTypeName,
                 "rectangle": tupleElementRectangle,
+                "targetIdentity": _get_hit_test_identity(element),
             })
 
             # Get the selector(contains primary attributes) and secondary attributes.
-            selector = ensure_selector_uia(
-                _UiElement.get_control_selector(
-                    control=element, targetRectangle=tupleElementRectangle
+            selectorBuilt, listRecommendedSpecification = (
+                _UiElement.get_control_selector_with_recommendation(
+                    control=element,
+                    targetRectangle=tupleElementRectangle,
                 )
+            )
+            selector = ensure_selector_uia(selectorBuilt)
+            if listRecommendedSpecification is None:
+                raise UiOperationError(
+                    "A UIA indication did not produce a UIA selector recommendation."
+                )
+
+            controlWindow = _UiElement.get_control_window(control=element)
+            dictRecommendedWindow = _UiElement.get_recommended_window_selector_part(
+                control=controlWindow,
+                dictAllWindowAttributes=selector["window"],
             )
             dictSecondaryAttr = get_control_secondary_attr(
                 control=element,
@@ -294,10 +318,17 @@ def indicate_uia(
             "selector": selector,
             "attributes": dictSecondaryAttr,
             "preview": preview,
+            "recommendedWindow": dictRecommendedWindow,
+            "recommendedSpecification": listRecommendedSpecification,
         }
         # Log.debug(dictReturn)
         # preview is so long, not print it.
-        Log.debug({"selector": selector, "attributes": dictSecondaryAttr})
+        Log.debug({
+            "selector": selector,
+            "recommendedWindow": dictRecommendedWindow,
+            "recommendedSpecification": listRecommendedSpecification,
+            "attributes": dictSecondaryAttr,
+        })
         return dictReturn
 
     finally:
@@ -447,6 +478,10 @@ def indicate_chrome(
             dictWindowSelector = ensure_selector_window(
                 _UiElement.get_control_selector(control=elementWindow)
             )["window"]
+            dictRecommendedWindow = _UiElement.get_recommended_window_selector_part(
+                control=elementWindow,
+                dictAllWindowAttributes=dictWindowSelector,
+            )
             selector: SelectorHtml = ensure_selector_html({
                 "window": dictWindowSelector,
                 "category": "html",
@@ -471,12 +506,14 @@ def indicate_chrome(
             "selector": selector,
             "attributes": dictSecondaryAttr,
             "preview": preview,
+            "recommendedWindow": dictRecommendedWindow,
             "recommendedSpecification": selectorRecommended["specification"],
         }
         # Log.debug(dictReturn)
         # preview is so long, not print it.
         Log.debug({
             "selector": selector,
+            "recommendedWindow": dictRecommendedWindow,
             "recommendedSpecification": selectorRecommended["specification"],
             "attributes": dictSecondaryAttr,
         })
@@ -538,10 +575,15 @@ def indicate_image(
         )
 
         strGrayscale: Literal["true", "false"] = "true" if grayscale else "false"
+        dictWindowSelector = ensure_selector_window(
+            _UiElement.get_control_selector(control=elementWindow)
+        )["window"]
+        dictRecommendedWindow = _UiElement.get_recommended_window_selector_part(
+            control=elementWindow,
+            dictAllWindowAttributes=dictWindowSelector,
+        )
         selector: SelectorImage = ensure_selector_image({
-            "window": ensure_selector_window(
-                _UiElement.get_control_selector(control=elementWindow)
-            )["window"],
+            "window": dictWindowSelector,
             "category": "image",
             "specification": [
                 {
@@ -589,10 +631,15 @@ def indicate_image(
         "selector": selector,
         "attributes": dictSecondaryAttr,
         "preview": preview,
+        "recommendedWindow": dictRecommendedWindow,
     }
     # Log.debug(dictReturn)
     # preview is so long, not print it.
-    Log.debug({"selector": selector, "attributes": dictSecondaryAttr})
+    Log.debug({
+        "selector": selector,
+        "recommendedWindow": dictRecommendedWindow,
+        "attributes": dictSecondaryAttr,
+    })
     return dictReturn
 
 
@@ -626,9 +673,7 @@ def indicate_window(
                     # Find the element under the cursor
                     # print("Get element.")
 
-                    control = uiautomation.ControlFromPoint(
-                        x=dictCoordinate["x"], y=dictCoordinate["y"]
-                    )
+                    control = _get_indicate_control_from_point(dictCoordinate)
 
                     if control is None:
                         raise UiElementNotFoundError(
@@ -711,6 +756,11 @@ def indicate_window(
                     targetRectangle=tupleElementRectangle,
                 )
             )
+            dictRecommendedWindow = _UiElement.get_recommended_window_selector_part(
+                control=element,
+                dictAllWindowAttributes=selector["window"],
+                targetRectangle=tupleElementRectangle,
+            )
             dictSecondaryAttr = get_control_secondary_attr(
                 control=element,
                 rectangle=tupleElementRectangle,
@@ -720,6 +770,7 @@ def indicate_window(
         dictReturn: DictUiAnalyzerIndicateResult = {
             "selector": selector,
             "attributes": dictSecondaryAttr,
+            "recommendedWindow": dictRecommendedWindow,
         }
         Log.debug(dictReturn)
         return dictReturn
@@ -819,6 +870,131 @@ def _get_mouse_selection_position(
     }
 
 
+def _get_hit_test_identity(control: uiautomation.Control | None) -> dict[str, object]:
+    """Read a few diagnostic properties without calling Control.__str__()."""
+    if control is None:
+        return {"missing": True}
+
+    dictIdentity: dict[str, object] = {}
+    for strPropertyName in (
+        "ControlTypeName",
+        "ClassName",
+        "Name",
+        "ProcessId",
+        "NativeWindowHandle",
+    ):
+        try:
+            value = getattr(control, strPropertyName)
+            dictIdentity[strPropertyName] = (
+                value[:160] if isinstance(value, str) else value
+            )
+        except Exception as e:
+            dictIdentity[strPropertyName] = f"<unavailable: {type(e).__name__}>"
+    return dictIdentity
+
+
+def _is_desktop_host_control(
+    control: uiautomation.Control,
+    controlRoot: uiautomation.Control,
+) -> bool:
+    if control.ClassName not in _SET_DESKTOP_CONTROL_CLASS_NAME:
+        return False
+
+    controlCurrent: uiautomation.Control | None = control
+    for _intDepth in range(_INT_DESKTOP_HIT_TEST_MAX_DEPTH):
+        if controlCurrent is None or uiautomation.ControlsAreSame(
+            controlCurrent, controlRoot
+        ):
+            return False
+        if controlCurrent.ClassName in _SET_DESKTOP_HOST_CLASS_NAME:
+            return True
+        controlCurrent = controlCurrent.GetParentControl()
+    return False
+
+
+def _get_desktop_descendant_at_position(
+    controlHost: uiautomation.Control,
+    dictCoordinate: DictPosition,
+) -> uiautomation.Control:
+    """Refine a native desktop host to a unique visible descendant under the cursor."""
+    intX, intY = dictCoordinate["x"], dictCoordinate["y"]
+    controlCurrent = controlHost
+    intVisitedControlCount = 0
+
+    for _intDepth in range(_INT_DESKTOP_HIT_TEST_MAX_DEPTH):
+        listMatchingChild: list[uiautomation.Control] = []
+        for controlChild in controlCurrent.GetChildren():
+            intVisitedControlCount += 1
+            if intVisitedControlCount > _INT_DESKTOP_HIT_TEST_MAX_CONTROLS:
+                raise UiElementNotFoundError(
+                    "Desktop UIA hit testing exceeded its control limit."
+                )
+
+            try:
+                rectangle = controlChild.BoundingRectangle
+                boolContainsPoint = (
+                    rectangle.left <= intX < rectangle.right
+                    and rectangle.top <= intY < rectangle.bottom
+                )
+                if boolContainsPoint and not controlChild.IsOffscreen:
+                    listMatchingChild.append(controlChild)
+            except Exception:
+                # A shell item may disappear between enumeration and property retrieval.
+                continue
+
+        if not listMatchingChild:
+            return controlCurrent
+        if len(listMatchingChild) != 1:
+            raise UiElementNotFoundError(
+                "Desktop UIA hit testing found overlapping child controls; "
+                "refusing to choose an arbitrary target."
+            )
+        controlCurrent = listMatchingChild[0]
+
+    raise UiElementNotFoundError("Desktop UIA hit testing exceeded its depth limit.")
+
+
+def _get_indicate_control_from_point(
+    dictCoordinate: DictPosition,
+) -> uiautomation.Control | None:
+    control = uiautomation.ControlFromPoint(x=dictCoordinate["x"], y=dictCoordinate["y"])
+    if control is None:
+        return None
+
+    controlRoot = uiautomation.GetRootControl()
+    if not uiautomation.ControlsAreSame(control, controlRoot):
+        return control
+
+    # UIA's point provider returned the desktop root, not the item under the pointer.
+    # Try the native HWND route, but only refine a verified desktop shell subtree.
+    controlNative = uiautomation.ControlFromPoint2(
+        x=dictCoordinate["x"],
+        y=dictCoordinate["y"],
+    )
+    dictDiagnostic = {
+        "message": "UIA point hit returned the desktop root.",
+        "position": dictCoordinate,
+        "uiaHit": _get_hit_test_identity(control),
+        "nativeHit": _get_hit_test_identity(controlNative),
+    }
+    Log.debug(dictDiagnostic)
+
+    if controlNative is None or not _is_desktop_host_control(controlNative, controlRoot):
+        raise UiElementNotFoundError(
+            "UIA hit testing returned the desktop root instead of a selectable element, "
+            "and the native hit did not identify a desktop shell host. "
+            f"nativeHit={dictDiagnostic['nativeHit']!r}."
+        )
+
+    controlRecovered = _get_desktop_descendant_at_position(controlNative, dictCoordinate)
+    Log.debug({
+        "message": "Resolved the desktop UIA target through its native host.",
+        "position": dictCoordinate,
+        "target": _get_hit_test_identity(controlRecovered),
+    })
+    return controlRecovered
+
+
 def _get_uia_element_at_position(
     *,
     dictCoordinate: DictPosition,
@@ -828,10 +1004,7 @@ def _get_uia_element_at_position(
 
     for intAttempt in range(retryCount):
         try:
-            control = uiautomation.ControlFromPoint(
-                x=dictCoordinate["x"],
-                y=dictCoordinate["y"],
-            )
+            control = _get_indicate_control_from_point(dictCoordinate)
             if control is None:
                 raise UiElementNotFoundError(
                     f"No UI element was found at {dictCoordinate}."
@@ -860,10 +1033,7 @@ def _get_window_element_at_position(
     *,
     dictCoordinate: DictPosition,
 ) -> tuple[uiautomation.Control, tuple[int, int, int, int]]:
-    control = uiautomation.ControlFromPoint(
-        x=dictCoordinate["x"],
-        y=dictCoordinate["y"],
-    )
+    control = _get_indicate_control_from_point(dictCoordinate)
     if control is None:
         raise UiElementNotFoundError(f"No UI element was found at {dictCoordinate}.")
 

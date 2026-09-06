@@ -52,6 +52,21 @@ function shouldOmitHtmlAttributeByDefault(strKeyName: string, strValue: string):
   return false;
 }
 
+function applyAttributeRecommendation(
+  dictEditableAttributes: Record<string, string>,
+  dictRecommendedAttributes: Record<string, string>,
+): void {
+  for (const [strKey, strValue] of Object.entries(dictRecommendedAttributes)) {
+    dictEditableAttributes[strKey] = strValue;
+  }
+
+  for (const strKeyName of Object.keys(dictEditableAttributes)) {
+    if (!(strKeyName in dictRecommendedAttributes)) {
+      modifyKeyName(dictEditableAttributes, strKeyName, strKeyName + STR_SUFFIX_OMIT);
+    }
+  }
+}
+
 export const useSelectorStore = defineStore("selector", {
   state: () => {
     return {
@@ -112,7 +127,14 @@ export const useSelectorStore = defineStore("selector", {
       const dictSelector = this.dictFromPython["selector"];
 
       // Keep the editable hierarchy independent from the received selector data.
-      this.arrEleHierarchy.push({ ...dictSelector["window"] });
+      const dictEditableWindow = { ...dictSelector["window"] };
+      if (this.dictFromPython.recommendedWindow !== undefined) {
+        applyAttributeRecommendation(
+          dictEditableWindow,
+          this.dictFromPython.recommendedWindow,
+        );
+      }
+      this.arrEleHierarchy.push(dictEditableWindow);
 
       // Add category and specification parts if it's a SelectorNonWindow object.
       if ("category" in dictSelector) {
@@ -123,7 +145,17 @@ export const useSelectorStore = defineStore("selector", {
         dictSelector["specification"].forEach((dictAttributes, intSpecificationIndex) => {
           const dictEditableAttributes = { ...dictAttributes };
 
-          if (dictSelector["category"] === "html") {
+          if (dictSelector["category"] === "uia") {
+            const dictRecommendedAttributes =
+              this.dictFromPython.recommendedSpecification?.[intSpecificationIndex];
+            if (dictRecommendedAttributes !== undefined) {
+              // Preserve every UIA layer and attribute, but select only the recommendation generated against the live UI tree.
+              applyAttributeRecommendation(
+                dictEditableAttributes,
+                dictRecommendedAttributes,
+              );
+            }
+          } else if (dictSelector["category"] === "html") {
             const dictRecommendedAttributes =
               intSpecificationIndex === intFinalSpecificationIndex
                 ? this.dictFromPython.recommendedSpecification?.[0]
@@ -131,15 +163,10 @@ export const useSelectorStore = defineStore("selector", {
 
             if (dictRecommendedAttributes !== undefined) {
               // Keep every captured attribute visible, but select only the recommendation generated against the live DOM.
-              for (const [strKey, strValue] of Object.entries(dictRecommendedAttributes)) {
-                dictEditableAttributes[strKey] = strValue;
-              }
-
-              for (const keyName of Object.keys(dictEditableAttributes)) {
-                if (!(keyName in dictRecommendedAttributes)) {
-                  modifyKeyName(dictEditableAttributes, keyName, keyName + STR_SUFFIX_OMIT);
-                }
-              }
+              applyAttributeRecommendation(
+                dictEditableAttributes,
+                dictRecommendedAttributes,
+              );
             } else {
               // Fallback for data without recommendation metadata, including Element Tree selections.
               // Preserve an existing index's attribute basis because the renderer cannot recalculate it.

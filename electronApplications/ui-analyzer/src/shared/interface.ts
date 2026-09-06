@@ -46,6 +46,7 @@ export interface DictForUiAnalyzer {
   selector: Selector;
   attributes: { [key: string]: string };
   preview?: string;
+  recommendedWindow?: { [key: string]: string };
   recommendedSpecification?: { [key: string]: string }[];
 }
 

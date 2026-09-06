@@ -18,6 +18,8 @@ from liberrpa.Common._Exception import UiElementNotFoundError, UiOperationError
 from liberrpa.Common._TypedValue import ExecutionMode
 from liberrpa.UI._UiDict import (
     DictSpecImage,
+    DictSpecUia,
+    DictSpecWindow,
     DictUiaAttr,
     DictHtmlAttr,
     DictImageAttr,
@@ -46,7 +48,7 @@ import threading
 from contextlib import contextmanager
 from collections.abc import Generator
 from dataclasses import dataclass
-from typing import overload
+from typing import TypeGuard, cast, overload
 
 
 # Set the global variable of uiautomation.
@@ -55,6 +57,18 @@ uiautomation.OPERATION_WAIT_TIME = 0
 uiautomation.SetGlobalSearchTimeout(10)
 uiautomation.Logger.SetLogFile("")
 Log.verbose(f"Initialize uiautomation in thread: {threading.current_thread().name}")
+
+
+_INT_MAX_RECOMMENDED_WINDOW_ATTRIBUTE_LENGTH = 120
+_INT_MAX_RECOMMENDED_UIA_ATTRIBUTE_LENGTH = 120
+_INT_MAX_RECOMMENDED_UIA_IDENTITY_ATTRIBUTE_COUNT = 3
+_TUPLE_RECOMMENDED_UIA_ATTRIBUTE_PRIORITY = (
+    "Name",
+    "ClassName",
+    "AriaRole",
+    "AccessKey",
+    "AcceleratorKey",
+)
 
 
 @contextmanager
@@ -147,6 +161,27 @@ def _control_matches_attributes(
     )
 
 
+def _control_matches_selector_layer(
+    control: uiautomation.Control,
+    layer: _UiaSelectorLayerDraft,
+) -> bool:
+    # Check the fields used most often before collecting the complete primary attribute set.
+    if control.ControlTypeName != layer.attributes["ControlTypeName"]:
+        return False
+    if "Name" in layer.attributes and control.Name != layer.attributes["Name"]:
+        return False
+    if (
+        "ClassName" in layer.attributes
+        and control.ClassName != layer.attributes["ClassName"]
+    ):
+        return False
+
+    return _control_matches_attributes(
+        control=control,
+        dictExpected=layer.attributes,
+    )
+
+
 def _try_get_control_rectangle(
     control: uiautomation.Control,
 ) -> tuple[int, int, int, int] | None:
@@ -190,21 +225,9 @@ def _get_layer_index(
         ):
             try:
                 # Keep the same traversal order and maximum-depth semantics used by uiautomation.Control().
-                if controlFound.ControlTypeName != layer.attributes["ControlTypeName"]:
-                    continue
-                if (
-                    "Name" in layer.attributes
-                    and controlFound.Name != layer.attributes["Name"]
-                ):
-                    continue
-                if (
-                    "ClassName" in layer.attributes
-                    and controlFound.ClassName != layer.attributes["ClassName"]
-                ):
-                    continue
-                if not _control_matches_attributes(
+                if not _control_matches_selector_layer(
                     control=controlFound,
-                    dictExpected=layer.attributes,
+                    layer=layer,
                 ):
                     continue
             except Exception:
@@ -266,10 +289,363 @@ def _get_layer_index(
     )
 
 
+def _count_layer_matches(
+    controlParent: uiautomation.Control,
+    layer: _UiaSelectorLayerDraft,
+) -> int:
+    intMatchCount = 0
+
+    try:
+        for controlFound, _intDepth in uiautomation.WalkControl(
+            control=controlParent,
+            maxDepth=layer.depthFromParent,
+        ):
+            try:
+                if _control_matches_selector_layer(
+                    control=controlFound,
+                    layer=layer,
+                ):
+                    intMatchCount += 1
+            except Exception:
+                continue
+
+    except Exception as e:
+        raise UiElementNotFoundError(
+            "Failed to traverse the current UIA tree while a window selector recommendation was being built."
+        ) from e
+
+    return intMatchCount
+
+
+def _get_window_match_summary(
+    controlRoot: uiautomation.Control,
+    layer: _UiaSelectorLayerDraft,
+) -> tuple[int, int]:
+    intTargetIndex, _controlTarget = _get_layer_index(
+        controlParent=controlRoot,
+        layer=layer,
+    )
+    intMatchCount = _count_layer_matches(
+        controlParent=controlRoot,
+        layer=layer,
+    )
+    if intMatchCount < 1:
+        raise UiElementNotFoundError(
+            "No matching top-level control remained while a window selector recommendation was being built."
+        )
+
+    return (0 if intTargetIndex is None else intTargetIndex, intMatchCount)
+
+
+def _is_readable_window_attribute(value: object) -> TypeGuard[str]:
+    return (
+        isinstance(value, str)
+        and len(value) > 0
+        and len(value) <= _INT_MAX_RECOMMENDED_WINDOW_ATTRIBUTE_LENGTH
+        and value.strip() == value
+        and "\r" not in value
+        and "\n" not in value
+    )
+
+
+def get_recommended_window_selector_part(
+    control: uiautomation.Control,
+    dictAllWindowAttributes: DictSpecWindow,
+    *,
+    targetRectangle: tuple[int, int, int, int] | None = None,
+) -> DictSpecWindow:
+    """Build a concise window selector part that still identifies the selected control."""
+
+    try:
+        dictRecommended: dict[str, str] = {
+            "ControlTypeName": dictAllWindowAttributes["ControlTypeName"],
+        }
+
+        strProcessName = dictAllWindowAttributes.get("ProcessName")
+        if _is_readable_window_attribute(strProcessName):
+            dictRecommended["ProcessName"] = strProcessName
+
+        tupleRectangle = (
+            targetRectangle
+            if targetRectangle is not None
+            else _try_get_control_rectangle(control=control)
+        )
+        controlRoot = uiautomation.GetRootControl()
+        boolOriginalUsesIndex = (
+            "Index" in dictAllWindowAttributes or "Index-regex" in dictAllWindowAttributes
+        )
+        if not boolOriginalUsesIndex:
+            intTargetIndex, intMatchCount = _get_window_match_summary(
+                controlRoot=controlRoot,
+                layer=_UiaSelectorLayerDraft(
+                    control=control,
+                    attributes=dictRecommended,
+                    rectangle=tupleRectangle,
+                ),
+            )
+            if intMatchCount == 1:
+                return ensure_selector_window({"window": dictRecommended})["window"]
+
+            for strAttributeName in ("ClassName", "Name"):
+                strValue = dictAllWindowAttributes.get(strAttributeName)
+                if not _is_readable_window_attribute(strValue):
+                    continue
+
+                dictRecommended[strAttributeName] = strValue
+                intTargetIndex, intMatchCount = _get_window_match_summary(
+                    controlRoot=controlRoot,
+                    layer=_UiaSelectorLayerDraft(
+                        control=control,
+                        attributes=dictRecommended,
+                        rectangle=tupleRectangle,
+                    ),
+                )
+                if intMatchCount == 1:
+                    return ensure_selector_window({"window": dictRecommended})["window"]
+        else:
+            for strAttributeName in ("ClassName", "Name"):
+                strValue = dictAllWindowAttributes.get(strAttributeName)
+                if _is_readable_window_attribute(strValue):
+                    dictRecommended[strAttributeName] = strValue
+
+            intTargetIndex, intMatchCount = _get_window_match_summary(
+                controlRoot=controlRoot,
+                layer=_UiaSelectorLayerDraft(
+                    control=control,
+                    attributes=dictRecommended,
+                    rectangle=tupleRectangle,
+                ),
+            )
+
+        if intMatchCount > 1:
+            # Keep Index 0 explicit when the selected window is only the first of multiple matches.
+            dictRecommended["Index"] = str(intTargetIndex)
+
+        return ensure_selector_window({"window": dictRecommended})["window"]
+
+    except Exception as e:
+        Log.warning(
+            "Failed to generate a concise window selector recommendation; "
+            f"use the complete window attributes. Error: {e}"
+        )
+        return ensure_selector_window({
+            "window": dict(dictAllWindowAttributes),
+        })["window"]
+
+
+def _is_readable_uia_attribute(value: object) -> TypeGuard[str]:
+    return (
+        isinstance(value, str)
+        and len(value) > 0
+        and len(value) <= _INT_MAX_RECOMMENDED_UIA_ATTRIBUTE_LENGTH
+        and value.strip() == value
+        and "\r" not in value
+        and "\n" not in value
+    )
+
+
+def _get_uia_recommendation_match_summary(
+    controlParent: uiautomation.Control,
+    layer: _UiaSelectorLayerDraft,
+) -> tuple[int, int, uiautomation.Control]:
+    """Return the target match index, match count, and matched target control."""
+
+    intMatchCount = 0
+    intTargetIndex: int | None = None
+    controlTarget: uiautomation.Control | None = None
+    listRectangleFallback: list[tuple[int, uiautomation.Control]] = []
+
+    try:
+        for controlFound, _intDepth in uiautomation.WalkControl(
+            control=controlParent,
+            maxDepth=layer.depthFromParent,
+        ):
+            try:
+                if not _control_matches_selector_layer(
+                    control=controlFound,
+                    layer=layer,
+                ):
+                    continue
+            except Exception:
+                continue
+
+            intCurrentIndex = intMatchCount
+            intMatchCount += 1
+
+            try:
+                boolSameControl = uiautomation.ControlsAreSame(
+                    controlFound,
+                    layer.control,
+                )
+            except Exception:
+                boolSameControl = False
+
+            if boolSameControl and controlTarget is None:
+                intTargetIndex = intCurrentIndex
+                controlTarget = controlFound
+                continue
+
+            tupleFoundRectangle = _try_get_control_rectangle(control=controlFound)
+            if (
+                layer.rectangle is not None
+                and tupleFoundRectangle is not None
+                and _rectangles_are_close(
+                    rectangleLeft=tupleFoundRectangle,
+                    rectangleRight=layer.rectangle,
+                )
+            ):
+                listRectangleFallback.append((intCurrentIndex, controlFound))
+
+    except Exception as e:
+        raise UiElementNotFoundError(
+            "Failed to traverse the current UIA tree while a selector recommendation was being built."
+        ) from e
+
+    if controlTarget is not None and intTargetIndex is not None:
+        return intTargetIndex, intMatchCount, controlTarget
+
+    if len(listRectangleFallback) == 1:
+        intTargetIndex, controlTarget = listRectangleFallback[0]
+        Log.debug({
+            "message": "Use UIA rectangle fallback while building a selector recommendation.",
+            "attributes": layer.attributes,
+            "rectangle": layer.rectangle,
+            "index": intTargetIndex,
+        })
+        return intTargetIndex, intMatchCount, controlTarget
+
+    if len(listRectangleFallback) > 1:
+        raise UiElementNotFoundError(
+            "The selected UI element matched multiple controls at the same rectangle while a selector recommendation was being built. "
+            f"attributes={layer.attributes!r}, rectangle={layer.rectangle!r}."
+        )
+
+    raise UiElementNotFoundError(
+        "The selected UI element could not be identified in the current UIA tree while a selector recommendation was being built. "
+        f"attributes={layer.attributes!r}, rectangle={layer.rectangle!r}."
+    )
+
+
+def _get_recommended_uia_specification(
+    listLayers: list[_UiaSelectorLayerDraft],
+    selector: SelectorUia,
+) -> list[DictSpecUia]:
+    """Build concise UIA layer attributes while preserving the existing hierarchy."""
+
+    try:
+        listAllSpecification = selector["specification"]
+        if len(listLayers) != len(listAllSpecification) + 1:
+            raise UiOperationError(
+                "The UIA selector layers do not match the selected control path."
+            )
+
+        listRecommendedSpecification: list[DictSpecUia] = []
+        controlParent = listLayers[0].control
+
+        for layer, dictAllLayerAttributes in zip(
+            listLayers[1:],
+            listAllSpecification,
+            strict=True,
+        ):
+            dictRecommendedAttributes: dict[str, str] = {
+                "ControlTypeName": dictAllLayerAttributes["ControlTypeName"],
+            }
+            boolOriginalUsesIndex = (
+                "Index" in dictAllLayerAttributes
+                or "Index-regex" in dictAllLayerAttributes
+            )
+
+            if boolOriginalUsesIndex:
+                for strAttributeName in _TUPLE_RECOMMENDED_UIA_ATTRIBUTE_PRIORITY:
+                    strValue = dictAllLayerAttributes.get(strAttributeName)
+                    if _is_readable_uia_attribute(strValue):
+                        dictRecommendedAttributes[strAttributeName] = strValue
+            else:
+                for strAttributeName in _TUPLE_RECOMMENDED_UIA_ATTRIBUTE_PRIORITY:
+                    strValue = dictAllLayerAttributes.get(strAttributeName)
+                    if not _is_readable_uia_attribute(strValue):
+                        continue
+
+                    dictRecommendedAttributes[strAttributeName] = strValue
+                    break
+
+            layerRecommended = _UiaSelectorLayerDraft(
+                control=layer.control,
+                attributes=dictRecommendedAttributes,
+                rectangle=layer.rectangle,
+                depthFromParent=layer.depthFromParent,
+            )
+            intTargetIndex, intMatchCount, controlTarget = (
+                _get_uia_recommendation_match_summary(
+                    controlParent=controlParent,
+                    layer=layerRecommended,
+                )
+            )
+
+            if not boolOriginalUsesIndex and intMatchCount > 1:
+                intIdentityAttributeCount = len(dictRecommendedAttributes) - 1
+                boolAddedAttribute = False
+
+                for strAttributeName in _TUPLE_RECOMMENDED_UIA_ATTRIBUTE_PRIORITY:
+                    if strAttributeName in dictRecommendedAttributes:
+                        continue
+                    if (
+                        intIdentityAttributeCount
+                        >= _INT_MAX_RECOMMENDED_UIA_IDENTITY_ATTRIBUTE_COUNT
+                    ):
+                        break
+
+                    strValue = dictAllLayerAttributes.get(strAttributeName)
+                    if not _is_readable_uia_attribute(strValue):
+                        continue
+
+                    dictRecommendedAttributes[strAttributeName] = strValue
+                    intIdentityAttributeCount += 1
+                    boolAddedAttribute = True
+
+                if boolAddedAttribute:
+                    intTargetIndex, intMatchCount, controlTarget = (
+                        _get_uia_recommendation_match_summary(
+                            controlParent=controlParent,
+                            layer=layerRecommended,
+                        )
+                    )
+
+            dictRecommendedLayer = dictRecommendedAttributes.copy()
+            if layer.depthFromParent > 1:
+                dictRecommendedLayer["Depth"] = str(layer.depthFromParent)
+            if intMatchCount > 1:
+                # Keep Index 0 explicit when the target is only the first of multiple matches.
+                dictRecommendedLayer["Index"] = str(intTargetIndex)
+
+            listRecommendedSpecification.append(cast(DictSpecUia, dictRecommendedLayer))
+            controlParent = controlTarget
+
+        return ensure_selector_uia({
+            "window": selector["window"],
+            "category": "uia",
+            "specification": listRecommendedSpecification,
+        })["specification"]
+
+    except Exception as e:
+        Log.warning(
+            "Failed to generate concise UIA selector recommendations; "
+            f"use the complete UIA specification. Error: {e}"
+        )
+        return [
+            cast(DictSpecUia, dict(dictLayer)) for dictLayer in selector["specification"]
+        ]
+
+
 def _get_control_path(control: uiautomation.Control) -> list[uiautomation.Control]:
     """Return the controls from the desktop's direct child through control."""
 
     controlRoot = uiautomation.GetRootControl()
+    if uiautomation.ControlsAreSame(control, controlRoot):
+        raise UiElementNotFoundError(
+            "The selected control is the desktop root, not a desktop icon or application element. "
+            "Resolve the actual target before building its selector."
+        )
     listPath = [control]
     controlCurrent = control
 
@@ -293,11 +669,11 @@ def get_control_window(control: uiautomation.Control) -> uiautomation.Control:
     return _get_control_path(control=control)[0]
 
 
-def get_control_selector(
+def _build_control_selector(
     control: uiautomation.Control,
     *,
     targetRectangle: tuple[int, int, int, int] | None = None,
-) -> SelectorWindow | SelectorUia:
+) -> tuple[SelectorWindow | SelectorUia, list[_UiaSelectorLayerDraft]]:
     """Build a selector for the exact control, including an unnamed target."""
 
     try:
@@ -359,18 +735,60 @@ def get_control_selector(
             listSelectorLayers.append(dictLayer)
 
         if len(listSelectorLayers) == 1:
-            return ensure_selector_window({"window": listSelectorLayers[0]})
+            return (
+                ensure_selector_window({"window": listSelectorLayers[0]}),
+                listLayers,
+            )
 
-        return ensure_selector_uia({
-            "window": listSelectorLayers[0],
-            "category": "uia",
-            "specification": listSelectorLayers[1:],
-        })
+        return (
+            ensure_selector_uia({
+                "window": listSelectorLayers[0],
+                "category": "uia",
+                "specification": listSelectorLayers[1:],
+            }),
+            listLayers,
+        )
 
     except (UiElementNotFoundError, UiOperationError):
         raise
     except Exception as e:
         raise UiOperationError("Unexpected error while building the UI selector.") from e
+
+
+def get_control_selector(
+    control: uiautomation.Control,
+    *,
+    targetRectangle: tuple[int, int, int, int] | None = None,
+) -> SelectorWindow | SelectorUia:
+    selector, _listLayers = _build_control_selector(
+        control=control,
+        targetRectangle=targetRectangle,
+    )
+    return selector
+
+
+def get_control_selector_with_recommendation(
+    control: uiautomation.Control,
+    *,
+    targetRectangle: tuple[int, int, int, int] | None = None,
+) -> tuple[SelectorWindow | SelectorUia, list[DictSpecUia] | None]:
+    """Build the complete selector and a concise UIA specification recommendation."""
+
+    selector, listLayers = _build_control_selector(
+        control=control,
+        targetRectangle=targetRectangle,
+    )
+    if "category" not in selector:
+        return selector, None
+
+    selectorUia = ensure_selector_uia(selector)
+    return (
+        selectorUia,
+        _get_recommended_uia_specification(
+            listLayers=listLayers,
+            selector=selectorUia,
+        ),
+    )
 
 
 @overload
