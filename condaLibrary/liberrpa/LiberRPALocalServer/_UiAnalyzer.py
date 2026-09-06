@@ -772,12 +772,7 @@ def _delay(indicateDelaySeconds: int) -> None:
 
 
 def _start_hook() -> threading.Thread:
-    _Hook.subscribe_mouse_left()
-    _Hook.subscribe_esc()
-    threadHook = threading.Thread(target=_Hook.hook_in_another_thread, daemon=True)
-    threadHook.start()
-    time.sleep(0.01)
-    return threadHook
+    return _Hook.start_hook()
 
 
 def _stop_hook_thread(
@@ -786,18 +781,14 @@ def _stop_hook_thread(
 ) -> None:
     Log.debug("Clean up hook thread.")
 
-    if threadHook is None or not threadHook.is_alive():
-        Log.debug("threadHook has gone.")
+    if threadHook is None:
         return
 
-    Log.debug("Requesting the hook thread to stop.")
-    _Hook.request_stop(source=source)
-    threadHook.join(timeout=2)
-
-    if threadHook.is_alive():
-        Log.error("The hook thread did not terminate in time. Continuing anyway.")
-    else:
-        Log.debug("Successfully joined the hook thread.")
+    _Hook.stop_hook(
+        threadHook,
+        source=source,
+        timeoutSeconds=2,
+    )
 
 
 def _get_window_element(dictCoordinate: DictPosition) -> uiautomation.Control:

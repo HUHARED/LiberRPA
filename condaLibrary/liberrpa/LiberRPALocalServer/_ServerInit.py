@@ -15,7 +15,7 @@ from flask import Flask, request
 from flask_socketio import SocketIO
 import socket
 import requests
-from threading import Lock
+from threading import Event, Lock
 from typing import Literal
 
 
@@ -33,9 +33,10 @@ sioServer = SocketIO(
         "chrome-extension://cfpkjecgmfmincccpnbheeeojdkooohj",
     ],
     async_mode="threading",
+    # Debuggers can pause a Python client for a long time. Keep the connection alive so Local Server does not incorrectly clean that client's ScreenPrint objects while execution is suspended.
     ping_timeout=3600,
 )
-boolHasRunServer = False
+
 
 # Track the active Chrome extension connection used for subsequent Chrome commands.
 dictClients: dict[str, str] = {}
@@ -45,18 +46,18 @@ ClientType = Literal["python", "chrome", "uiAnalyzer"]
 # Socket.IO handlers run in different threads. Keep authenticated client identities behind a small locked API.
 _lockClientTypeBySid = Lock()
 _dictClientTypeBySid: dict[str, ClientType] = {}
+_eventServerShutdown = Event()
 
 
 @_flaskApp.route("/verify")
 def verify() -> str:
-    # Test weather the Flask server is running.
+    # Test whether the Flask server is running.
     return "LiberRPA Local Server Verification"
 
 
-# Create or use existing Flask server.
 def _check_port_in_use(port: int) -> bool:
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        return s.connect_ex(("127.0.0.1", port)) == 0
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as socketObj:
+        return socketObj.connect_ex(("127.0.0.1", port)) == 0
 
 
 def _check_if_liberrpa_server_has_run(port: int) -> bool:
@@ -71,6 +72,14 @@ def _check_if_liberrpa_server_has_run(port: int) -> bool:
         return False
 
     return False
+
+
+def begin_server_shutdown() -> None:
+    _eventServerShutdown.set()
+
+
+def is_server_shutting_down() -> bool:
+    return _eventServerShutdown.is_set()
 
 
 def get_client_id() -> str:
@@ -101,6 +110,9 @@ def remove_client_type(*, clientSid: str) -> ClientType | None:
 def ensure_client_type(
     *, expectedClientType: ClientType, clientSid: str | None = None
 ) -> None:
+    if is_server_shutting_down():
+        raise PermissionError("LiberRPA Local Server is shutting down.")
+
     clientSid = get_client_id() if clientSid is None else clientSid
 
     with _lockClientTypeBySid:
@@ -116,44 +128,53 @@ def ensure_client_type(
         )
 
 
+def should_start_flask_server(port: int) -> bool:
+    """Return whether this process should start a new LiberRPA Local Server."""
+    if not _check_port_in_use(port=port):
+        return True
+
+    if _check_if_liberrpa_server_has_run(port=port):
+        strMessage = "There is already a LiberRPA Local Server running."
+        Log.debug(strMessage)
+        show_notification(
+            title="LiberRPA Local Server",
+            message=strMessage,
+            duration=3,
+            wait=True,
+        )
+        return False
+
+    show_message_box(
+        title="Failed to start LiberRPA Local Server",
+        type="error",
+        message=(
+            f"Server port ({port}) for browser interaction is occupied. "
+            "Close the application using this port or configure LiberRPA to use another port."
+        ),
+    )
+    raise RuntimeError(f"Port {port} is already in use by another application.")
+
+
 def create_flask_server(port: int) -> None:
-    """Create a new or use a existing Flask server."""
-    global boolHasRunServer
-    if _check_port_in_use(port=port):
-        if _check_if_liberrpa_server_has_run(port=port):
-            strMessage = "There is already a LiberRPA Local Server running."
-            Log.debug(strMessage)
-            show_notification(
-                title="LiberRPA Local Server", message=strMessage, duration=3, wait=True
-            )
-            boolHasRunServer = True
-        else:
-            show_message_box(
-                title="Failed to start LiberRPA Local Server",
-                type="error",
-                message=f"Server port({port}) for browser interaction is occupied, maybe you should modify the LiberRPA config file to use another port or closing the program which is using port {port}",
-            )
+    """Run the configured Flask-SocketIO server until the process exits."""
+    try:
+        sioServer.run(
+            _flaskApp,
+            debug=False,
+            host="127.0.0.1",
+            port=port,
+            use_reloader=False,
+            log_output=True,
+            allow_unsafe_werkzeug=True,
+        )
 
-            raise Exception(f"Port {port} is already in use by another application.")
-    else:
-        try:
-            """show_notification(title="LiberRPA Local Server", message="Launch ...", duration=3, wait=False)"""
-            sioServer.run(
-                _flaskApp,
-                debug=False,
-                host="127.0.0.1",
-                port=port,
-                use_reloader=False,
-                log_output=True,
-                allow_unsafe_werkzeug=True,
-            )
-
-        except Exception as e:
-            show_message_box(
-                title="Failed to start LiberRPA Local Server",
-                type="error",
-                message=str(get_exception_info(e)),
-            )
-            raise Exception(
-                f"Failed to start Flask server on port {port}: {str(get_exception_info(e))}"
-            )
+    except Exception as e:
+        strError = str(get_exception_info(e))
+        show_message_box(
+            title="Failed to start LiberRPA Local Server",
+            type="error",
+            message=strError,
+        )
+        raise RuntimeError(
+            f"Failed to start Flask server on port {port}: {strError}"
+        ) from e

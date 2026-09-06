@@ -40,6 +40,13 @@ _lockMouseLeftPosition = threading.Lock()
 _tupleMouseLeftPosition: tuple[int, int] | None = None
 
 
+# HookManager and the indication events are process-wide resources.
+# If a hook thread cannot stop or fails while installing/uninstalling hooks, reject later indications instead of resetting shared events underneath that thread.
+_lockHookLifecycle = threading.Lock()
+_threadHookActive: threading.Thread | None = None
+_strHookUnsafeReason: str | None = None
+
+
 def should_continue_hook() -> bool:
     return not (
         eventMouseLeftPressed.is_set()
@@ -142,10 +149,30 @@ def _unhook(source: str = "") -> None:
     hm.UnhookKeyboard()
 
 
+def _mark_hook_unsafe(strReason: str) -> None:
+    global _strHookUnsafeReason
+
+    with _lockHookLifecycle:
+        if _strHookUnsafeReason is None:
+            _strHookUnsafeReason = strReason
+        strReasonCurrent = _strHookUnsafeReason
+
+    Log.critical(
+        "UI Analyzer hook subsystem entered an unsafe state. "
+        f"Restart LiberRPA Local Server before starting another indication. Reason: {strReasonCurrent}"
+    )
+
+
+def _get_hook_unsafe_error_message(strReason: str) -> str:
+    return (
+        "UI Analyzer hook subsystem is in an unsafe state. "
+        "Restart LiberRPA Local Server before starting another indication. "
+        f"Reason: {strReason}"
+    )
+
+
 @Log.trace()
 def hook_in_another_thread() -> None:
-    _reset_event()
-
     try:
         Log.debug("Hook mouse and keyboard.")
         hm.HookMouse()
@@ -158,33 +185,147 @@ def hook_in_another_thread() -> None:
             # Reduce CPU occupation.
             time.sleep(0.001)
         Log.debug("PumpMessages done.")
-
+    except Exception as e:
+        _mark_hook_unsafe(f"Hook thread failed: {type(e).__name__}: {e}")
+        Log.exception_info(e)
     finally:
-        _unhook(source="hook_in_another_thread")
+        try:
+            _unhook(source="hook_in_another_thread")
+        except Exception as e:
+            _mark_hook_unsafe(f"Failed to uninstall hooks: {type(e).__name__}: {e}")
+            Log.exception_info(e)
+
+
+def start_hook() -> threading.Thread:
+    """Start the process-wide UI Analyzer hook thread."""
+    global _threadHookActive
+
+    with _lockHookLifecycle:
+        if _strHookUnsafeReason is not None:
+            raise RuntimeError(_get_hook_unsafe_error_message(_strHookUnsafeReason))
+
+        if _threadHookActive is not None:
+            if _threadHookActive.is_alive():
+                raise RuntimeError("A UI Analyzer hook thread is already running.")
+            _threadHookActive = None
+
+        _reset_event()
+        subscribe_mouse_left()
+        subscribe_esc()
+
+        threadHook = threading.Thread(
+            target=hook_in_another_thread,
+            name="UiAnalyzerHook",
+            daemon=True,
+        )
+        _threadHookActive = threadHook
+        try:
+            threadHook.start()
+        except Exception:
+            _threadHookActive = None
+            raise
+
+    # Give the hook thread a brief opportunity to install hooks and report an immediate failure.
+    time.sleep(0.01)
+    if not threadHook.is_alive():
+        with _lockHookLifecycle:
+            strUnsafeReason = _strHookUnsafeReason
+
+        if strUnsafeReason is None:
+            strUnsafeReason = "The hook thread ended immediately after it started."
+            _mark_hook_unsafe(strUnsafeReason)
+
+        raise RuntimeError(_get_hook_unsafe_error_message(strUnsafeReason))
+
+    return threadHook
+
+
+def stop_hook(
+    threadHook: threading.Thread | None,
+    *,
+    source: str,
+    timeoutSeconds: float = 2,
+    raiseOnUnsafe: bool = True,
+) -> bool:
+    """Stop one hook thread and return whether the hook subsystem remains safe."""
+    global _threadHookActive
+
+    if threadHook is not None and threadHook.is_alive():
+        request_stop(source=source)
+        threadHook.join(timeout=timeoutSeconds)
+
+    if threadHook is not None and threadHook.is_alive():
+        _mark_hook_unsafe(
+            f"Hook thread {threadHook.name!r} did not stop within {timeoutSeconds} seconds."
+        )
+
+    with _lockHookLifecycle:
+        if (
+            threadHook is not None
+            and _threadHookActive is threadHook
+            and not threadHook.is_alive()
+        ):
+            _threadHookActive = None
+        strUnsafeReason = _strHookUnsafeReason
+
+    if strUnsafeReason is not None and raiseOnUnsafe:
+        raise RuntimeError(_get_hook_unsafe_error_message(strUnsafeReason))
+
+    return strUnsafeReason is None and (threadHook is None or not threadHook.is_alive())
+
+
+def stop_active_hook(
+    *,
+    source: str,
+    timeoutSeconds: float = 2,
+    raiseOnUnsafe: bool = True,
+) -> bool:
+    """Stop the current hook thread, if any."""
+    with _lockHookLifecycle:
+        threadHook = _threadHookActive
+        strUnsafeReason = _strHookUnsafeReason
+
+    if threadHook is None:
+        if strUnsafeReason is not None and raiseOnUnsafe:
+            raise RuntimeError(_get_hook_unsafe_error_message(strUnsafeReason))
+        return strUnsafeReason is None
+
+    return stop_hook(
+        threadHook,
+        source=source,
+        timeoutSeconds=timeoutSeconds,
+        raiseOnUnsafe=raiseOnUnsafe,
+    )
 
 
 # The quit command from cmd.
 def signal_handler(sig: int, _frame: FrameType | None) -> None:
     Log.critical("Signal received:", sig)
-    _unhook(source="signal_handler")
+    stop_active_hook(
+        source="signal_handler",
+        timeoutSeconds=2,
+        raiseOnUnsafe=False,
+    )
     normal_exit()
+
+
+def _stop_hook_at_exit() -> None:
+    try:
+        stop_active_hook(
+            source="atexit",
+            timeoutSeconds=2,
+            raiseOnUnsafe=False,
+        )
+    except Exception as e:
+        Log.exception_info(e)
 
 
 signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
-
-# Ensure unhook is called on program exit
-atexit.register(request_stop)
+atexit.register(_stop_hook_at_exit)
 
 
 if __name__ == "__main__":
-    import time
-
-    hm.HookMouse()
-    hm.HookKeyboard()
-    timeStart = time.monotonic()
-    while True:
-        if time.monotonic() - timeStart <= 10:
-            pythoncom.PumpWaitingMessages()
-        else:
-            break
+    threadHook = start_hook()
+    time.sleep(10)
+    stop_hook(threadHook, source="__main__")

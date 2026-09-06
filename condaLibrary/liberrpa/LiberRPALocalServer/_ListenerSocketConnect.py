@@ -12,6 +12,7 @@ from liberrpa.LiberRPALocalServer._Qt import dictClientAreaCache, close_area
 from liberrpa.LiberRPALocalServer._ServerInit import (
     ClientType,
     get_client_id,
+    is_server_shutting_down,
     register_client_type,
     remove_client_type,
     sioServer,
@@ -78,6 +79,9 @@ def validate_origin(clientType: ClientType) -> None:
 
 @sioServer.on("connect")
 def handle_connect(auth: object) -> None:
+    if is_server_shutting_down():
+        raise SocketConnectionRefusedError("server is shutting down")
+
     if not isinstance(auth, dict):
         raise SocketConnectionRefusedError("invalid authentication data")
 
