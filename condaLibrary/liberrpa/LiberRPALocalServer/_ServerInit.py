@@ -15,6 +15,9 @@ from flask import Flask, request
 from flask_socketio import SocketIO
 import socket
 import requests
+from threading import Lock
+from typing import Literal
+
 
 _flaskApp = Flask(__name__)
 _INT_PORT = get_local_server_port()
@@ -34,8 +37,14 @@ sioServer = SocketIO(
 )
 boolHasRunServer = False
 
-# Dictionary to track connected clients, only "Chrome" now.
+# Track the active Chrome extension connection used for subsequent Chrome commands.
 dictClients: dict[str, str] = {}
+
+ClientType = Literal["python", "chrome", "uiAnalyzer"]
+
+# Socket.IO handlers run in different threads. Keep authenticated client identities behind a small locked API.
+_lockClientTypeBySid = Lock()
+_dictClientTypeBySid: dict[str, ClientType] = {}
 
 
 @_flaskApp.route("/verify")
@@ -71,6 +80,40 @@ def get_client_id() -> str:
         raise RuntimeError("Failed to get Socket.IO client sid from request.")
 
     return sid
+
+
+def register_client_type(*, clientSid: str, clientType: ClientType) -> None:
+    with _lockClientTypeBySid:
+        existingClientType = _dictClientTypeBySid.get(clientSid)
+        if existingClientType is not None and existingClientType != clientType:
+            raise RuntimeError(
+                f"Socket.IO client {clientSid!r} is already registered as {existingClientType!r}."
+            )
+
+        _dictClientTypeBySid[clientSid] = clientType
+
+
+def remove_client_type(*, clientSid: str) -> ClientType | None:
+    with _lockClientTypeBySid:
+        return _dictClientTypeBySid.pop(clientSid, None)
+
+
+def ensure_client_type(
+    *, expectedClientType: ClientType, clientSid: str | None = None
+) -> None:
+    clientSid = get_client_id() if clientSid is None else clientSid
+
+    with _lockClientTypeBySid:
+        actualClientType = _dictClientTypeBySid.get(clientSid)
+
+    if actualClientType is None:
+        raise PermissionError(f"Socket.IO client {clientSid!r} is not authenticated.")
+
+    if actualClientType != expectedClientType:
+        raise PermissionError(
+            f"Socket.IO event requires client type {expectedClientType!r}, "
+            f"but client {clientSid!r} is registered as {actualClientType!r}."
+        )
 
 
 def create_flask_server(port: int) -> None:

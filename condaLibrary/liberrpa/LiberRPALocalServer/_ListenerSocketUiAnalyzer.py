@@ -14,7 +14,11 @@ from liberrpa.Common._Chrome import get_element_tree_by_coordinates
 
 import liberrpa.LiberRPALocalServer._UiAnalyzer as _UiAnalyzer
 import liberrpa.LiberRPALocalServer._ElementTree as _ElementTree
-from liberrpa.LiberRPALocalServer._ServerInit import sioServer, get_client_id
+from liberrpa.LiberRPALocalServer._ServerInit import (
+    ensure_client_type,
+    get_client_id,
+    sioServer,
+)
 from liberrpa.LiberRPALocalServer._Tray import change_tray_icon
 
 import json
@@ -40,12 +44,40 @@ _SET_OPERATION_NAME: set[str] = {
     "indicate_window",
     "validate",
 }
+_INT_MAX_SAFE_INTEGER = 9_007_199_254_740_991
+_DICT_EXPECTED_COMMAND_KEYS: dict[UiAnalyzerOperationName, frozenset[str]] = {
+    "indicate_uia": frozenset({"operationId", "commandName", "intIndicateDelaySeconds"}),
+    "indicate_chrome": frozenset({
+        "operationId",
+        "commandName",
+        "intIndicateDelaySeconds",
+        "usePath",
+    }),
+    "indicate_image": frozenset({
+        "operationId",
+        "commandName",
+        "intIndicateDelaySeconds",
+        "grayscale",
+        "confidence",
+    }),
+    "indicate_window": frozenset({
+        "operationId",
+        "commandName",
+        "intIndicateDelaySeconds",
+    }),
+    "validate": frozenset({
+        "operationId",
+        "commandName",
+        "intMatchTimeoutSeconds",
+        "selector",
+    }),
+}
 
 # Make sure only one UI Analyzer command is handled at a time.
 _lockHandleUiAnalyzer = threading.Lock()
 
 
-def _load_command(message: str) -> dict[str, Any]:
+def _load_command(message: object) -> dict[str, Any]:
     if not isinstance(message, str):
         raise ValueError("UI Analyzer command must be a JSON string.")
 
@@ -53,13 +85,23 @@ def _load_command(message: str) -> dict[str, Any]:
     if not isinstance(dictCommand, dict):
         raise ValueError("UI Analyzer command must be a JSON object.")
 
+    if not all(isinstance(key, str) for key in dictCommand):
+        raise ValueError("UI Analyzer command keys must be strings.")
+
     return dictCommand
 
 
 def _get_operation_id(dictCommand: dict[str, Any]) -> int:
     intOperationId = dictCommand.get("operationId")
-    if type(intOperationId) is not int or intOperationId <= 0:
-        raise ValueError(f"Invalid UI Analyzer operationId: {intOperationId!r}.")
+    if (
+        type(intOperationId) is not int
+        or intOperationId <= 0
+        or intOperationId > _INT_MAX_SAFE_INTEGER
+    ):
+        raise ValueError(
+            f"Invalid UI Analyzer operationId: {intOperationId!r}. "
+            "Expected a positive JavaScript safe integer."
+        )
 
     return intOperationId
 
@@ -73,6 +115,30 @@ def _get_operation_name(dictCommand: dict[str, Any]) -> UiAnalyzerOperationName:
         raise ValueError(f"Invalid UI Analyzer commandName: {strOperationName!r}.")
 
     return cast(UiAnalyzerOperationName, strOperationName)
+
+
+def _validate_command_keys(
+    dictCommand: dict[str, Any],
+    strOperationName: UiAnalyzerOperationName,
+) -> None:
+    setExpectedKeys = _DICT_EXPECTED_COMMAND_KEYS[strOperationName]
+    setActualKeys = set(dictCommand)
+    listMissingKeys = sorted(setExpectedKeys - setActualKeys)
+    listUnexpectedKeys = sorted(setActualKeys - setExpectedKeys)
+
+    if not listMissingKeys and not listUnexpectedKeys:
+        return None
+
+    listDetail: list[str] = []
+    if listMissingKeys:
+        listDetail.append(f"missing keys: {listMissingKeys}")
+    if listUnexpectedKeys:
+        listDetail.append(f"unexpected keys: {listUnexpectedKeys}")
+
+    raise ValueError(
+        f"Invalid fields for UI Analyzer command {strOperationName!r}: "
+        + "; ".join(listDetail)
+    )
 
 
 def _get_indicate_delay(dictCommand: dict[str, Any]) -> int:
@@ -120,6 +186,30 @@ def _get_confidence(dictCommand: dict[str, Any]) -> float:
         )
 
     return floatConfidence
+
+
+def _validate_command_arguments(
+    dictCommand: dict[str, Any],
+    strOperationName: UiAnalyzerOperationName,
+) -> None:
+    _validate_command_keys(dictCommand=dictCommand, strOperationName=strOperationName)
+
+    match strOperationName:
+        case "indicate_uia" | "indicate_window":
+            _get_indicate_delay(dictCommand)
+
+        case "indicate_chrome":
+            _get_indicate_delay(dictCommand)
+            _get_bool_argument(dictCommand, "usePath")
+
+        case "indicate_image":
+            _get_indicate_delay(dictCommand)
+            _get_bool_argument(dictCommand, "grayscale")
+            _get_confidence(dictCommand)
+
+        case "validate":
+            _get_match_timeout(dictCommand)
+            ensure_selector(dictCommand.get("selector"))
 
 
 def _emit_result(
@@ -190,14 +280,24 @@ def _send_rejected_operation(
 
 @Log.trace()
 @sioServer.on("uianalyzer_command")
-def handle_uianalyzer_command(message: str) -> None:
+def handle_uianalyzer_command(message: object) -> None:
     clientSid = get_client_id()
     intOperationId: int | None = None
+
+    try:
+        ensure_client_type(expectedClientType="uiAnalyzer", clientSid=clientSid)
+    except PermissionError as e:
+        Log.warning(str(e))
+        return None
 
     try:
         dictCommand = _load_command(message)
         intOperationId = _get_operation_id(dictCommand)
         strOperationName = _get_operation_name(dictCommand)
+        _validate_command_arguments(
+            dictCommand=dictCommand,
+            strOperationName=strOperationName,
+        )
     except Exception as e:
         strError = "Error: " + str(get_exception_info(e))
         Log.error(strError)

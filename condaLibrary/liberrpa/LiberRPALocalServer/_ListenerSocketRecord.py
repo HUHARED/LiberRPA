@@ -11,7 +11,11 @@ from liberrpa.Common._TypedValue import DictSocketResult
 from liberrpa.Common._Exception import get_exception_info
 
 import liberrpa.LiberRPALocalServer._Record as _Record
-from liberrpa.LiberRPALocalServer._ServerInit import sioServer, get_client_id
+from liberrpa.LiberRPALocalServer._ServerInit import (
+    ensure_client_type,
+    get_client_id,
+    sioServer,
+)
 
 
 import threading
@@ -21,16 +25,19 @@ from typing import Any
 @Log.trace()
 @sioServer.on("record_command")
 def handle_record_command(dictCommand: dict[str, Any]) -> DictSocketResult:
-    Log.info(f"Received Record command: {dictCommand}, SID: {get_client_id()}")
-
+    clientSid = get_client_id()
     result: DictSocketResult = {"boolSuccess": True, "data": None}
 
     try:
+        ensure_client_type(expectedClientType="python", clientSid=clientSid)
+        Log.info(f"Received Record command: {dictCommand}, SID: {clientSid}")
+
         match dictCommand.get("commandName"):
             case "video":
                 # Use threading to avoid blocking the Python.
                 threadingRecording = threading.Thread(
-                    target=_start_recording, args=(dictCommand["pid"], dictCommand["folderName"])
+                    target=_start_recording,
+                    args=(dictCommand["pid"], dictCommand["folderName"]),
                 )
                 threadingRecording.start()
                 return {"boolSuccess": True, "data": "$SIGN-START_RECORD_VIDEO"}

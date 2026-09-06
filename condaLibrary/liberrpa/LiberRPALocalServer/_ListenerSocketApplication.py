@@ -10,7 +10,12 @@ from liberrpa.Logging import Log
 from liberrpa.Common._TypedValue import DictSocketResult
 from liberrpa.Common._Exception import get_exception_info
 
-from liberrpa.LiberRPALocalServer._ServerInit import sioServer, dictClients, get_client_id
+from liberrpa.LiberRPALocalServer._ServerInit import (
+    dictClients,
+    ensure_client_type,
+    get_client_id,
+    sioServer,
+)
 import liberrpa.LiberRPALocalServer._Application as _Application
 
 from typing import Any
@@ -19,12 +24,14 @@ from typing import Any
 @Log.trace()
 @sioServer.on("application_command")
 def handle_application_command(dictCommand: dict[str, Any]) -> DictSocketResult:
-    Log.info(f"Received Application command: {dictCommand}, SID: {get_client_id()}")
-
+    clientSid = get_client_id()
     result: DictSocketResult = {"boolSuccess": True, "data": None}
     temp: Any = None
 
     try:
+        ensure_client_type(expectedClientType="python", clientSid=clientSid)
+        Log.info(f"Received Application command: {dictCommand}, SID: {clientSid}")
+
         match dictCommand.get("commandName"):
             case "run_application":
                 temp = _Application.run_application(

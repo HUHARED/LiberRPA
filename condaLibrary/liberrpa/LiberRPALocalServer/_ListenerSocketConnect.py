@@ -9,16 +9,20 @@ print("=== import _ListenerSocketConnect ===")
 from liberrpa.Logging import Log
 
 from liberrpa.LiberRPALocalServer._Qt import dictClientAreaCache, close_area
-from liberrpa.LiberRPALocalServer._ServerInit import sioServer, get_client_id
+from liberrpa.LiberRPALocalServer._ServerInit import (
+    ClientType,
+    get_client_id,
+    register_client_type,
+    remove_client_type,
+    sioServer,
+)
 from liberrpa.Common._BasicConfig import get_local_server_port, get_token
 
 import hmac
 from urllib.parse import urlparse
 from flask import request
 from socketio.exceptions import ConnectionRefusedError as SocketConnectionRefusedError
-from typing import Literal, cast
-
-ClientType = Literal["python", "chrome", "uiAnalyzer"]
+from typing import cast
 
 
 SET_ALLOWED_CLIENT_TYPES: set[str] = {"python", "chrome", "uiAnalyzer"}
@@ -73,32 +77,40 @@ def validate_origin(clientType: ClientType) -> None:
 
 
 @sioServer.on("connect")
-def handle_connect(auth: dict[str, str] | None) -> None:
-    auth = auth or {}
+def handle_connect(auth: object) -> None:
+    if not isinstance(auth, dict):
+        raise SocketConnectionRefusedError("invalid authentication data")
 
-    clientType = auth.get("clientType")
+    clientTypeValue = auth.get("clientType")
     token = auth.get("token")
 
-    if clientType not in SET_ALLOWED_CLIENT_TYPES:
+    if (
+        not isinstance(clientTypeValue, str)
+        or clientTypeValue not in SET_ALLOWED_CLIENT_TYPES
+    ):
         raise SocketConnectionRefusedError("unknown client type")
 
-    clientType = cast(ClientType, clientType)
+    if not isinstance(token, str):
+        raise SocketConnectionRefusedError("unauthorized")
 
+    clientType = cast(ClientType, clientTypeValue)
     validate_origin(clientType)
 
     tokenExpected = get_token(clientType)
-
-    if not hmac.compare_digest(str(token or ""), tokenExpected):
+    if not hmac.compare_digest(token, tokenExpected):
         raise SocketConnectionRefusedError("unauthorized")
 
-    Log.info(f"Client connected: sid={get_client_id()}, clientType={clientType}")
+    clientSid = get_client_id()
+    register_client_type(clientSid=clientSid, clientType=clientType)
+    Log.info(f"Client connected: sid={clientSid}, clientType={clientType}")
 
 
 @sioServer.on("disconnect")
 def handle_disconnect() -> None:
     clientSid = get_client_id()
+    clientType = remove_client_type(clientSid=clientSid)
 
-    Log.info("Client disconnected: " + clientSid)
+    Log.info(f"Client disconnected: sid={clientSid}, clientType={clientType!r}")
 
     # Import locally to avoid coupling listener registration order during module initialization.
     from liberrpa.LiberRPALocalServer._ListenerSocketChrome import (

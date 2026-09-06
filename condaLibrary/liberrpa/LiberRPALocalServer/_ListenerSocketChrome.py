@@ -9,7 +9,12 @@ print("=== import _ListenerSocketChrome ===")
 from liberrpa.Logging import Log
 from liberrpa.Common._ProtocolValidation import ensure_socket_result
 from liberrpa.Common._TypedValue import DictSocketResult
-from liberrpa.LiberRPALocalServer._ServerInit import sioServer, dictClients, get_client_id
+from liberrpa.LiberRPALocalServer._ServerInit import (
+    dictClients,
+    ensure_client_type,
+    get_client_id,
+    sioServer,
+)
 
 
 from flask_socketio import emit
@@ -45,9 +50,8 @@ _dictPendingChromeCommands: dict[str, _PendingChromeCommand] = {}
 def _get_chrome_disconnect_result(
     pendingCommand: _PendingChromeCommand,
 ) -> DictSocketResult:
-    # Closing the last tab may end the browser before it sends its acknowledgement.
-    # Preserve the existing closeCurrentTab policy: infer success from its target connection closing.
-    # This is not proof that the tab closed; a crash or transport failure can look the same.
+    # Some Chrome environments, especially portable installations, may terminate the extension connection immediately after closing the last tab, before the normal closeCurrentTab acknowledgement is returned.
+    # Treat that target connection disconnect as successful only for closeCurrentTab.
     if pendingCommand.commandName == "closeCurrentTab":
         return {"boolSuccess": True, "data": None}
 
@@ -97,9 +101,23 @@ def disconnect_chrome_client(clientSid: str) -> bool:
 
 @Log.trace()
 @sioServer.on("chrome_extension_connect")
-def handle_chrome_extension_connect(message: str) -> None:
+def handle_chrome_extension_connect(message: object) -> None:
     # Save the Chrome extension's sid for sending commands to it later. Called by Chrome extension.
     clientSid = get_client_id()
+
+    try:
+        ensure_client_type(expectedClientType="chrome", clientSid=clientSid)
+    except PermissionError as e:
+        Log.warning(str(e))
+        return None
+
+    if not isinstance(message, str):
+        Log.warning(
+            "Ignore an invalid Chrome connection message. "
+            f"Expected str, got {type(message).__name__}."
+        )
+        return None
+
     Log.info(f"Chrome connection established. {message}, SID: {clientSid}")
 
     with _pendingChromeCommandLock:
@@ -120,8 +138,14 @@ def handle_chrome_extension_connect(message: str) -> None:
 @sioServer.on("chrome_command")
 def handle_chrome_command(dictCommand: dict[str, Any]) -> DictSocketResult:
     # The entrance for all Chrome functions to execution, call by Chrome.py.
+    clientSid = get_client_id()
 
-    Log.info(f"Received Chrome command: {dictCommand}, SID: {get_client_id()}")
+    try:
+        ensure_client_type(expectedClientType="python", clientSid=clientSid)
+    except PermissionError as e:
+        return {"boolSuccess": False, "data": "Error: " + str(e)}
+
+    Log.info(f"Received Chrome command: {dictCommand}, SID: {clientSid}")
 
     strId = str(uuid.uuid4())
 
@@ -222,10 +246,16 @@ def _wait_for_response_by_id(
 
 @Log.trace()
 @sioServer.on("result_chrome_to_flask")
-def handle_result_from_chrome(message: str) -> None:
+def handle_result_from_chrome(message: object) -> None:
     # Receive and update result from Chrome.
 
     clientSid = get_client_id()
+
+    try:
+        ensure_client_type(expectedClientType="chrome", clientSid=clientSid)
+    except PermissionError as e:
+        Log.warning(str(e))
+        return None
 
     if not isinstance(message, str):
         Log.warning(

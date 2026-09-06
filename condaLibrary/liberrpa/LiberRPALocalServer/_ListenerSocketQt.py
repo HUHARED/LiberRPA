@@ -11,7 +11,11 @@ from liberrpa.Common._TypedValue import DictSocketResult
 from liberrpa.Common._Exception import get_exception_info
 
 import liberrpa.LiberRPALocalServer._Qt as _Qt
-from liberrpa.LiberRPALocalServer._ServerInit import sioServer, get_client_id
+from liberrpa.LiberRPALocalServer._ServerInit import (
+    ensure_client_type,
+    get_client_id,
+    sioServer,
+)
 
 
 from typing import Any
@@ -20,12 +24,14 @@ from typing import Any
 @Log.trace()
 @sioServer.on("qt_command")
 def handle_qt_command(dictCommand: dict[str, Any]) -> DictSocketResult:
-    Log.info(f"Received QT command: {dictCommand}, SID: {get_client_id()}")
-
+    clientSid = get_client_id()
     result: DictSocketResult = {"boolSuccess": True, "data": None}
     temp: Any = None
 
     try:
+        ensure_client_type(expectedClientType="python", clientSid=clientSid)
+        Log.info(f"Received QT command: {dictCommand}, SID: {clientSid}")
+
         match dictCommand.get("commandName"):
             case "show_notification":
                 temp = _Qt.show_notification(
@@ -74,7 +80,9 @@ def handle_qt_command(dictCommand: dict[str, Any]) -> DictSocketResult:
 
             case "close_area":
                 temp = _Qt.close_area(screenPrintObj=dictCommand["screenPrintObj"])
-                _Qt.dictClientAreaCache[get_client_id()].remove(dictCommand["screenPrintObj"])
+                _Qt.dictClientAreaCache[get_client_id()].remove(
+                    dictCommand["screenPrintObj"]
+                )
                 Log.info(f"dictClientAreaCache={_Qt.dictClientAreaCache}")
 
             case _:
