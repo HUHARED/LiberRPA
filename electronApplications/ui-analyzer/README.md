@@ -587,7 +587,7 @@ Index attributes are calculated from the same attributes that remain in the curr
 
 When `usePath` is enabled, a `path` field will be generated for each HTML selector layer.
 
-Path attributes use a generated CSS path based on tag names and `:nth-of-type()`.
+Generated paths are absolute CSS paths that start from `html` and use tag names plus `:nth-of-type()` where needed.
 
 **Example:**
 
@@ -607,9 +607,11 @@ There is also a regex version:
 
 Do not combine `path` / `path-regex` with `childIndex` / `documentIndex` in the same layer. They are different fallback strategies. A layer should normally use either path-based locating or index-based locating, not both.
 
-> LiberRPA Chrome Extension passes this `path` string directly to `elementParent.querySelector(path)`. Therefore, the value must be a valid CSS selector string that can be understood by the browser.
+> A generated path that starts from `html` is resolved from the current document. In a multi-layer Selector, each resolved element must still be a descendant of the element matched by the previous layer. This preserves the normal layer-by-layer hierarchy while allowing every generated layer to keep its absolute path.
 >
-> The generated path is an implementation detail of LiberRPA. It is a CSS-selector-like path made of tag names joined by `>`. When there are multiple sibling elements with the same tag name, the generator may append `:nth-of-type(...)`, whose position is counted among siblings with that tag name.
+> A manually written relative path that does not start from `html` is resolved under the previously matched element. Every path must be a valid CSS selector string that can be understood by the browser.
+>
+> The generated path is an implementation detail of LiberRPA. It is made of tag names joined by `>`. When there are multiple sibling elements with the same tag name, the generator may append `:nth-of-type(...)`, whose position is counted among siblings with that tag name.
 
 In most cases, users should prefer stable attributes such as `id`, `name`, `aria-label`, text attributes, or index-based locating. Path-based locating is mainly a fallback when normal attributes are not reliable enough.
 

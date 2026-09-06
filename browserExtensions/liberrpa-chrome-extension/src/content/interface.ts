@@ -81,7 +81,7 @@ export interface DictLayerIndexAttr {
   documentIndex?: string; // Indicate the order of the current element among all elements in the document with the same attribute.
 }
 interface DictLayerPathAttr {
-  path?: string; // nth-of-type() selector.
+  path?: string; // Generated absolute CSS path, using :nth-of-type() where needed.
 }
 
 export interface DictFinalAttr

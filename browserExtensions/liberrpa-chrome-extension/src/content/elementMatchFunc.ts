@@ -9,20 +9,42 @@ import {
 
 export function findElementByPath(
   elementParent: HTMLElement | Document,
-  path: string
+  path: string,
 ): HTMLElement | null {
   console.log("--findElementByPath--");
 
-  const element: HTMLElement | null = elementParent.querySelector(path);
+  if (!isAbsoluteHtmlPath(path)) {
+    const elementRelative: HTMLElement | null = elementParent.querySelector(path);
+    console.log(elementRelative);
+    return elementRelative;
+  }
 
-  console.log(element);
+  // Generated paths start at html, so resolve them from the current document.
+  // For a multi-layer selector, the resolved element must still be below the previous layer.
+  const documentCurrent =
+    elementParent instanceof Document ? elementParent : elementParent.ownerDocument;
+  const elementAbsolute: HTMLElement | null = documentCurrent.querySelector(path);
 
-  return element;
+  if (
+    elementAbsolute === null ||
+    (elementParent instanceof HTMLElement &&
+      (elementAbsolute === elementParent || !elementParent.contains(elementAbsolute)))
+  ) {
+    console.log(null);
+    return null;
+  }
+
+  console.log(elementAbsolute);
+  return elementAbsolute;
+}
+
+function isAbsoluteHtmlPath(path: string): boolean {
+  return /^html(?:\s*>\s*|$)/iu.test(path.trim());
 }
 
 export function compareBasicAttr(
   elementCurrent: HTMLElement,
-  dictSelector: DictLayerHtml
+  dictSelector: DictLayerHtml,
 ): boolean {
   console.log("--compareBasicAttr--");
   const dictAttrCurrEle: DictOriginalAttr = getBasicAttr(elementCurrent);
@@ -34,7 +56,7 @@ export function compareBasicAttr(
 
 export function compareBasicAndIndexAttr(
   elementCurrent: HTMLElement,
-  dictSelector: DictLayerHtml
+  dictSelector: DictLayerHtml,
 ): boolean {
   console.log("--compareBasicAndIndexAttr--");
 
@@ -75,7 +97,7 @@ export function compareBasicAndIndexAttr(
 
 function compareAttrWithSelector(
   dictSelector: DictLayerHtml,
-  dictAttrCurrEle: DictAttrForIndex
+  dictAttrCurrEle: DictAttrForIndex,
 ): boolean {
   console.log("--compareAttrWithSelector--");
 
@@ -114,7 +136,7 @@ function compareAttrWithSelector(
           "in current element is",
           valueToCheck_Regex,
           "it does not match: ",
-          valueSelector
+          valueSelector,
         );
         return false;
       }
@@ -139,7 +161,7 @@ function compareAttrWithSelector(
 
 export function findElementByQuerySelectorAttr(
   dictSelector: DictLayerHtml,
-  elementParent: HTMLElement | Document
+  elementParent: HTMLElement | Document,
 ): NodeListOf<HTMLElement> {
   console.log("--findElementByQuerySelectorAttr--");
 
