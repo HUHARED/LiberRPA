@@ -20,6 +20,10 @@ function isStringRecord(value: unknown): value is Record<string, string> {
   return Object.values(value).every((itemValue) => typeof itemValue === "string");
 }
 
+function isNonNegativeSafeInteger(value: unknown): value is number {
+  return Number.isSafeInteger(value) && (value as number) >= 0;
+}
+
 function isSelector(value: unknown): value is Selector {
   if (!isRecord(value) || !isStringRecord(value.window)) {
     return false;
@@ -52,19 +56,26 @@ export function isDictForUiAnalyzer(value: unknown): value is DictForUiAnalyzer 
   return value.preview === undefined || typeof value.preview === "string";
 }
 
-function isDictEleTreeItem(value: unknown): value is DictEleTreeItem {
+function collectElementTreeIds(
+  value: unknown,
+  setElementId: Set<number>,
+): value is DictEleTreeItem {
   if (
     !isRecord(value) ||
-    !Number.isSafeInteger(value.id) ||
+    !isNonNegativeSafeInteger(value.id) ||
+    setElementId.has(value.id) ||
     typeof value.title !== "string" ||
     !isStringRecord(value.attributes)
   ) {
     return false;
   }
 
+  setElementId.add(value.id);
+
   return (
     value.children === undefined ||
-    (Array.isArray(value.children) && value.children.every(isDictEleTreeItem))
+    (Array.isArray(value.children) &&
+      value.children.every((childValue) => collectElementTreeIds(childValue, setElementId)))
   );
 }
 
@@ -74,13 +85,28 @@ export function isElementTreeResult(value: unknown): value is ElementTreeResult 
   }
 
   const [arrTree, arrOpenedId, intActivatedId] = value;
+  if (!Array.isArray(arrTree) || arrTree.length === 0) {
+    return false;
+  }
+
+  const setElementId = new Set<number>();
+  if (!arrTree.every((itemValue) => collectElementTreeIds(itemValue, setElementId))) {
+    return false;
+  }
+
+  if (
+    !Array.isArray(arrOpenedId) ||
+    !arrOpenedId.every(
+      (itemValue) => isNonNegativeSafeInteger(itemValue) && setElementId.has(itemValue),
+    )
+  ) {
+    return false;
+  }
 
   return (
-    Array.isArray(arrTree) &&
-    arrTree.every(isDictEleTreeItem) &&
-    Array.isArray(arrOpenedId) &&
-    arrOpenedId.every((itemValue) => Number.isSafeInteger(itemValue)) &&
-    Number.isSafeInteger(intActivatedId)
+    new Set(arrOpenedId).size === arrOpenedId.length &&
+    isNonNegativeSafeInteger(intActivatedId) &&
+    setElementId.has(intActivatedId)
   );
 }
 

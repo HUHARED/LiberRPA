@@ -13,6 +13,8 @@
 
     <v-container v-else class="clean-space flex-column-grow-1">
       <v-treeview
+        v-model:activated="selectorStore.arrEleTreeActivated"
+        v-model:opened="selectorStore.arrEleTreeOpened"
         :items="selectorStore.arrEleTree"
         class="clean-space"
         style="width: max-content"
@@ -24,14 +26,11 @@
         :lines="false"
         variant="flat"
         item-value="id"
-        :activated="selectorStore.intEleTreeActivated"
-        :opened="selectorStore.arrEleTreeOpened">
+        active-strategy="single-independent">
         <template #title="{ item }">
-          <span
-            class="clean-space text-no-wrap"
-            @click="handleNodeClick($event, item.id)"
-            >{{ item.title }}</span
-          >
+          <span class="clean-space text-no-wrap" @click.stop="handleNodeClick(item.id)">{{
+            item.title
+          }}</span>
 
           <v-tooltip activator="parent" location="bottom">
             <div>
@@ -58,7 +57,7 @@ import { useSelectorStore, useInformationStore } from "../store";
 const selectorStore = useSelectorStore();
 const informationStore = useInformationStore();
 
-function handleNodeClick(_: MouseEvent, id: number): void {
+function handleNodeClick(id: number): void {
   loggerRenderer.debug("Click Element Tree node " + id);
 
   const arrElementTreeSelector = selectorStore.dictEleTreeSelector[id];
@@ -75,6 +74,7 @@ function handleNodeClick(_: MouseEvent, id: number): void {
     return;
   }
 
+  selectorStore.arrEleTreeActivated = [id];
   informationStore.$reset();
 
   selectorStore.dictFromPython = {

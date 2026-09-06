@@ -32,7 +32,7 @@ export const useSelectorStore = defineStore("selector", {
       strJsonText: "" as string,
       arrEleTree: [] as DictEleTreeItem[],
       arrEleTreeOpened: [] as number[],
-      intEleTreeActivated: 0 as number,
+      arrEleTreeActivated: [] as number[],
       dictEleTreeSelector: {} as Record<number, Record<string, string>[]>,
     };
   },
@@ -41,7 +41,7 @@ export const useSelectorStore = defineStore("selector", {
     clearElementTree(): void {
       this.arrEleTree = [];
       this.arrEleTreeOpened = [];
-      this.intEleTreeActivated = 0;
+      this.arrEleTreeActivated = [];
       this.dictEleTreeSelector = {};
     },
 
@@ -61,7 +61,7 @@ export const useSelectorStore = defineStore("selector", {
     applyElementTreeResult(tupleResult: ElementTreeResult): void {
       this.arrEleTree = structuredClone(tupleResult[0]);
       this.arrEleTreeOpened = [...tupleResult[1]];
-      this.intEleTreeActivated = tupleResult[2];
+      this.arrEleTreeActivated = [tupleResult[2]];
       this.updateEleTreeSelector();
     },
 

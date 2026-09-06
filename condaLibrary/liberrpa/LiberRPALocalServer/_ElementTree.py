@@ -13,7 +13,7 @@ from liberrpa.UI._UiDict import (
     SelectorWindow,
 )
 from liberrpa.UI._SelectorValidation import ensure_selector_uia, validate_selector
-from liberrpa.Common._Exception import UiOperationError, UiElementNotFoundError
+from liberrpa.Common._Exception import UiOperationError
 
 
 import uiautomation
@@ -40,7 +40,7 @@ class IdGenerator:
 idObj = IdGenerator()
 listParentChain: list[uiautomation.Control] = []
 listExpandedId: list[int] = []
-intActivatedId = 0
+intActivatedId: int | None = None
 controlTarget: uiautomation.Control
 timeStart = time.monotonic()
 
@@ -113,7 +113,7 @@ def generate_control_tree(
     # Initialize global variables.
     listParentChain = []
     listExpandedId = []
-    intActivatedId = 0
+    intActivatedId = None
     idObj.reset()
     timeStart = time.monotonic()
 
@@ -164,6 +164,11 @@ def generate_control_tree(
             dictTemp["children"] = listChildrenTemp
 
         listFinalTree.append(dictTemp)
+
+    if intActivatedId is None:
+        raise UiOperationError(
+            "The target UIA element was not found in the generated Element Tree."
+        )
 
     return (listFinalTree, listExpandedId, intActivatedId)
 
