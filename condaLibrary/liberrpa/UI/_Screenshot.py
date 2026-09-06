@@ -15,12 +15,16 @@ from PyQt5 import QtWidgets, QtCore, QtGui
 import os
 import sys
 import subprocess
+from threading import Event
+from time import monotonic
 from typing import overload, Literal, cast, Any
 
 
 SELECTED_KEYWORD = "Save completed!"
 
 _INDICATE_TIMEOUT_SECONDS = 15
+_SUBPROCESS_POLL_INTERVAL_SECONDS = 0.1
+_SUBPROCESS_STOP_TIMEOUT_SECONDS = 2
 
 
 class ScreenshotCapture(QtWidgets.QWidget):
@@ -187,42 +191,74 @@ def _create_screenshot_manually() -> None:
     print("create_screenshot_manually done.")
 
 
+def _stop_screenshot_subprocess(
+    process: subprocess.Popen[str],
+) -> tuple[str, str]:
+    if process.poll() is None:
+        process.terminate()
+
+    try:
+        return process.communicate(timeout=_SUBPROCESS_STOP_TIMEOUT_SECONDS)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        return process.communicate()
+
+
 def create_screenshot_manually(
     timeoutSeconds: int = _INDICATE_TIMEOUT_SECONDS,
+    eventCancelRequested: Event | None = None,
 ) -> bool:
-    # Because QT can't work finely with Flask, use subprocess to run the file in a isolate environment.
+    # Because Qt cannot work reliably with Flask, run the capture window in an isolated subprocess.
+    if eventCancelRequested is not None and eventCancelRequested.is_set():
+        return False
 
     if getattr(sys, "frozen", False):
-        # In LiberRPALocalServer.exe. - discared in LiberRPA 0.3.0
+        # In LiberRPALocalServer.exe. - discarded in LiberRPA 0.3.0.
         listCmd = [sys.executable, "--screenshot"]
     else:
         listCmd = [sys.executable, "-m", "liberrpa.UI._Screenshot"]
 
-    try:
-        result = subprocess.run(
-            listCmd,
-            shell=False,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=timeoutSeconds,
-        )
-    except subprocess.TimeoutExpired as e:
-        raise TimeoutError(
-            f"indicate_image timed out after {timeoutSeconds} seconds."
-        ) from e
+    process = subprocess.Popen(
+        listCmd,
+        shell=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
+    floatDeadline = monotonic() + timeoutSeconds
 
-    if result.returncode != 0:
-        strStderr = result.stderr.strip()
+    while True:
+        if eventCancelRequested is not None and eventCancelRequested.is_set():
+            _stop_screenshot_subprocess(process)
+            return False
+
+        floatRemainingSeconds = floatDeadline - monotonic()
+        if floatRemainingSeconds <= 0:
+            _stop_screenshot_subprocess(process)
+            raise TimeoutError(
+                f"indicate_image timed out after {timeoutSeconds} seconds."
+            )
+
+        try:
+            strStdout, strStderr = process.communicate(
+                timeout=min(_SUBPROCESS_POLL_INTERVAL_SECONDS, floatRemainingSeconds)
+            )
+            break
+        except subprocess.TimeoutExpired:
+            continue
+
+    if process.returncode != 0:
+        strStderr = strStderr.strip()
         raise RuntimeError(
             "The screenshot capture subprocess failed."
             + (f"\n{strStderr}" if strStderr else "")
         )
 
-    return SELECTED_KEYWORD in result.stdout
+    return SELECTED_KEYWORD in strStdout
 
 
 if __name__ == "__main__":
-    # NOTE: Not modify here for unittesting, because it will be invoke as a module in subprocess.run
+    # NOTE: Keep this entry point because the capture window is launched as a separate module process.
     _create_screenshot_manually()

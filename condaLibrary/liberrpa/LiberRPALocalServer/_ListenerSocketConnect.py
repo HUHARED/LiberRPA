@@ -117,6 +117,13 @@ def handle_disconnect() -> None:
     Log.info(f"Client disconnected: sid={clientSid}, clientType={clientType!r}")
 
     # Import locally to avoid coupling listener registration order during module initialization.
+    if clientType == "uiAnalyzer":
+        from liberrpa.LiberRPALocalServer._ListenerSocketUiAnalyzer import (
+            cancel_ui_analyzer_client_operation,
+        )
+
+        cancel_ui_analyzer_client_operation(clientSid=clientSid)
+
     from liberrpa.LiberRPALocalServer._ListenerSocketChrome import (
         disconnect_chrome_client,
     )

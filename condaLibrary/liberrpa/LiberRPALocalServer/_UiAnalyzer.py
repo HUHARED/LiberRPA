@@ -75,6 +75,19 @@ _INDICATE_REFRESH_INTERVAL_SECONDS = 0.5
 type Tuple_IndicateOverlayState = tuple[int, int, int, int, str]
 
 
+class UiAnalyzerOperationCanceledError(RuntimeError):
+    """Raised when the UI Analyzer client owning an operation disconnects."""
+
+
+def _raise_if_operation_canceled(
+    eventCancelRequested: threading.Event | None,
+) -> None:
+    if eventCancelRequested is not None and eventCancelRequested.is_set():
+        raise UiAnalyzerOperationCanceledError(
+            "The UI Analyzer operation was canceled because its client disconnected."
+        )
+
+
 def _is_validation_no_match_error(e: Exception) -> bool:
     """Return whether validation completed normally but no target matched before the timeout."""
     if isinstance(e, (UiElementNotFoundError, ChromeElementNotFoundError)):
@@ -123,29 +136,40 @@ def _close_indicate_overlay() -> None:
         Log.exception_info(e)
 
 
-def _wait_for_next_indicate_refresh(deadline: float) -> None:
+def _wait_for_next_indicate_refresh(
+    deadline: float,
+    eventCancelRequested: threading.Event | None,
+) -> None:
+    _raise_if_operation_canceled(eventCancelRequested)
     floatRemainingSeconds = deadline - time.monotonic()
     if floatRemainingSeconds <= 0:
         return
 
-    time.sleep(
-        min(
-            _INDICATE_REFRESH_INTERVAL_SECONDS,
-            floatRemainingSeconds,
-        )
+    floatWaitSeconds = min(
+        _INDICATE_REFRESH_INTERVAL_SECONDS,
+        floatRemainingSeconds,
     )
+    if eventCancelRequested is None:
+        time.sleep(floatWaitSeconds)
+    elif eventCancelRequested.wait(timeout=floatWaitSeconds):
+        _raise_if_operation_canceled(eventCancelRequested)
 
 
 @Log.trace()
 def indicate_uia(
     indicateDelaySeconds: int = 1,
+    *,
+    eventCancelRequested: threading.Event | None = None,
 ) -> DictUiAnalyzerIndicateResult | None:
     threadHook: threading.Thread | None = None
     try:
         with uiautomation.UIAutomationInitializerInThread():
-            _delay(indicateDelaySeconds)
+            _delay(
+                indicateDelaySeconds,
+                eventCancelRequested=eventCancelRequested,
+            )
             deadline = _create_deadline()
-            threadHook = _start_hook()
+            threadHook = _start_hook(eventCancelRequested=eventCancelRequested)
             dictCoordinate: DictPosition | None = None
             element: uiautomation.Control | None = None
             tupleOverlayState: Tuple_IndicateOverlayState | None = None
@@ -215,7 +239,12 @@ def indicate_uia(
                     height=tupleElementRectangle[3],
                     label=strControlTypeName,
                 )
-                _wait_for_next_indicate_refresh(deadline)
+                _wait_for_next_indicate_refresh(
+                    deadline,
+                    eventCancelRequested,
+                )
+
+            _raise_if_operation_canceled(eventCancelRequested)
 
             if _Hook.check_ESC_pressed():
                 Log.debug("Pressed ESC, return None.")
@@ -224,6 +253,7 @@ def indicate_uia(
             dictCoordinate = _get_mouse_selection_position(
                 deadline=deadline,
                 indicateName="indicate_uia",
+                eventCancelRequested=eventCancelRequested,
             )
 
             # Resolve the element again at the exact mouse-down position after the complete click has been suppressed.
@@ -232,6 +262,7 @@ def indicate_uia(
             element, tupleElementRectangle, strControlTypeName = (
                 _get_uia_element_at_position(dictCoordinate=dictCoordinate)
             )
+            _raise_if_operation_canceled(eventCancelRequested)
             Log.debug({
                 "message": "Pressed mouse left.",
                 "position": dictCoordinate,
@@ -249,6 +280,7 @@ def indicate_uia(
                 control=element,
                 rectangle=tupleElementRectangle,
             )
+            _raise_if_operation_canceled(eventCancelRequested)
 
         preview = _screenshot_to_base64(
             x=int(dictSecondaryAttr["secondary-x"]),
@@ -256,6 +288,7 @@ def indicate_uia(
             width=int(dictSecondaryAttr["secondary-width"]),
             height=int(dictSecondaryAttr["secondary-height"]),
         )
+        _raise_if_operation_canceled(eventCancelRequested)
 
         dictReturn: DictUiAnalyzerIndicateResult = {
             "selector": selector,
@@ -277,14 +310,20 @@ def indicate_uia(
 
 @Log.trace()
 def indicate_chrome(
-    indicateDelaySeconds: int = 1, usePath: bool = True
+    indicateDelaySeconds: int = 1,
+    usePath: bool = True,
+    *,
+    eventCancelRequested: threading.Event | None = None,
 ) -> tuple[DictUiAnalyzerIndicateResult, DictPosition] | None:
     threadHook: threading.Thread | None = None
     try:
         with uiautomation.UIAutomationInitializerInThread():
-            _delay(indicateDelaySeconds)
+            _delay(
+                indicateDelaySeconds,
+                eventCancelRequested=eventCancelRequested,
+            )
             deadline = _create_deadline()
-            threadHook = _start_hook()
+            threadHook = _start_hook(eventCancelRequested=eventCancelRequested)
             dictCoordinate: DictPosition | None = None
             dictSecondaryAttr: DictHtmlSecondaryAttr | None = None
             tupleOverlayState: Tuple_IndicateOverlayState | None = None
@@ -323,8 +362,13 @@ def indicate_chrome(
                         height=int(dictSecondaryAttr["secondary-height"]),
                         label=strLabel,
                     )
-                    _wait_for_next_indicate_refresh(deadline)
+                    _wait_for_next_indicate_refresh(
+                        deadline,
+                        eventCancelRequested,
+                    )
 
+                except UiAnalyzerOperationCanceledError:
+                    raise
                 except Exception as e:
                     strError = (
                         f"Error to get UI element at {dictCoordinate}. If the error persists, you may need to restart LiberRPA Local Server, restart Chrome, or try to indicate an image.\n"
@@ -339,6 +383,8 @@ def indicate_chrome(
                     )
                     raise
 
+            _raise_if_operation_canceled(eventCancelRequested)
+
             if _Hook.check_ESC_pressed():
                 Log.debug("Pressed ESC, return None.")
                 return None
@@ -346,6 +392,7 @@ def indicate_chrome(
             dictCoordinate = _get_mouse_selection_position(
                 deadline=deadline,
                 indicateName="indicate_chrome",
+                eventCancelRequested=eventCancelRequested,
             )
 
             # Resolve the Chrome element again at the exact mouse-down position after the complete click has been suppressed.
@@ -356,6 +403,7 @@ def indicate_chrome(
                 y=dictCoordinate["y"],
                 usePath=usePath,
             )
+            _raise_if_operation_canceled(eventCancelRequested)
             listAllAttr = dictSelectorRecommendation["allLayerAttributes"]
             listRecommendedSpecification = dictSelectorRecommendation[
                 "recommendedSpecification"
@@ -409,6 +457,7 @@ def indicate_chrome(
                 "category": "html",
                 "specification": listRecommendedSpecification,
             })
+            _raise_if_operation_canceled(eventCancelRequested)
 
         preview = _screenshot_to_base64(
             x=int(dictSecondaryAttr["secondary-x"]),
@@ -416,6 +465,7 @@ def indicate_chrome(
             width=int(dictSecondaryAttr["secondary-width"]),
             height=int(dictSecondaryAttr["secondary-height"]),
         )
+        _raise_if_operation_canceled(eventCancelRequested)
 
         dictReturn: DictUiAnalyzerIndicateResult = {
             "selector": selector,
@@ -442,17 +492,30 @@ def indicate_chrome(
 
 @Log.trace()
 def indicate_image(
-    indicateDelaySeconds: int = 1, grayscale: bool = True, confidence: float = 0.9
+    indicateDelaySeconds: int = 1,
+    grayscale: bool = True,
+    confidence: float = 0.9,
+    *,
+    eventCancelRequested: threading.Event | None = None,
 ) -> DictUiAnalyzerIndicateResult | None:
 
     with uiautomation.UIAutomationInitializerInThread():
-        _delay(indicateDelaySeconds)
+        _delay(
+            indicateDelaySeconds,
+            eventCancelRequested=eventCancelRequested,
+        )
 
-        if not create_screenshot_manually(timeoutSeconds=15):
+        if not create_screenshot_manually(
+            timeoutSeconds=15,
+            eventCancelRequested=eventCancelRequested,
+        ):
+            _raise_if_operation_canceled(eventCancelRequested)
             Log.debug("Quit indicating.")
             return None
 
-        # After Screenshot, get window selector to generate  image selector
+        _raise_if_operation_canceled(eventCancelRequested)
+
+        # After Screenshot, get window selector to generate image selector.
         dictCoordinate = get_mouse_position()
         # time.sleep(0.1)
         elementWindow = _get_window_element(dictCoordinate=dictCoordinate)
@@ -468,6 +531,7 @@ def indicate_image(
             strFileNamePrefix + "_" + datetime.now().strftime("%Y%m%d_%H%M%S") + ".png"
         )
         Log.debug(strNewFileName)
+        _raise_if_operation_canceled(eventCancelRequested)
         shutil.move(
             src=PATH_SCREENSHOT_DOCUMENTS / STR_SCREENSHOT_TEMP_NAME,
             dst=PATH_SCREENSHOT_DOCUMENTS / strNewFileName,
@@ -488,6 +552,7 @@ def indicate_image(
             ],
         })
 
+    _raise_if_operation_canceled(eventCancelRequested)
     listDictImageAttr = find_image(
         fileNameOrPath=strNewFileName,
         region=None,
@@ -502,6 +567,7 @@ def indicate_image(
             f"Can't validate the image '{strNewFileName}' after your selection, grayscale={grayscale}, confidence={confidence}"
         )
     dictSecondaryAttr: DictImageAttr = listDictImageAttr[0]
+    _raise_if_operation_canceled(eventCancelRequested)
 
     preview = _screenshot_to_base64(
         x=int(dictSecondaryAttr["secondary-x"]),
@@ -510,6 +576,7 @@ def indicate_image(
         height=int(dictSecondaryAttr["secondary-height"]),
     )
 
+    _raise_if_operation_canceled(eventCancelRequested)
     create_overlay(
         x=int(dictSecondaryAttr["secondary-x"]),
         y=int(dictSecondaryAttr["secondary-y"]),
@@ -530,13 +597,20 @@ def indicate_image(
 
 
 @Log.trace()
-def indicate_window(indicateDelaySeconds: int = 1) -> DictUiAnalyzerIndicateResult | None:
+def indicate_window(
+    indicateDelaySeconds: int = 1,
+    *,
+    eventCancelRequested: threading.Event | None = None,
+) -> DictUiAnalyzerIndicateResult | None:
     threadHook: threading.Thread | None = None
     try:
         with uiautomation.UIAutomationInitializerInThread():
-            _delay(indicateDelaySeconds)
+            _delay(
+                indicateDelaySeconds,
+                eventCancelRequested=eventCancelRequested,
+            )
             deadline = _create_deadline()
-            threadHook = _start_hook()
+            threadHook = _start_hook(eventCancelRequested=eventCancelRequested)
             dictCoordinate: DictPosition | None = None
             element: uiautomation.Control | None = None
             tupleOverlayState: Tuple_IndicateOverlayState | None = None
@@ -586,7 +660,10 @@ def indicate_window(indicateDelaySeconds: int = 1) -> DictUiAnalyzerIndicateResu
                         duration=2,
                         wait=False,
                     )
-                    _wait_for_next_indicate_refresh(deadline)
+                    _wait_for_next_indicate_refresh(
+                        deadline,
+                        eventCancelRequested,
+                    )
                     continue
 
                 element = elementCandidate
@@ -599,7 +676,12 @@ def indicate_window(indicateDelaySeconds: int = 1) -> DictUiAnalyzerIndicateResu
                     width=tupleElementRectangle[2],
                     height=tupleElementRectangle[3],
                 )
-                _wait_for_next_indicate_refresh(deadline)
+                _wait_for_next_indicate_refresh(
+                    deadline,
+                    eventCancelRequested,
+                )
+
+            _raise_if_operation_canceled(eventCancelRequested)
 
             if _Hook.check_ESC_pressed():
                 Log.debug("Pressed ESC, return None.")
@@ -608,6 +690,7 @@ def indicate_window(indicateDelaySeconds: int = 1) -> DictUiAnalyzerIndicateResu
             dictCoordinate = _get_mouse_selection_position(
                 deadline=deadline,
                 indicateName="indicate_window",
+                eventCancelRequested=eventCancelRequested,
             )
 
             # Resolve the window again at the exact mouse-down position after the complete click has been suppressed.
@@ -615,6 +698,7 @@ def indicate_window(indicateDelaySeconds: int = 1) -> DictUiAnalyzerIndicateResu
             element, tupleElementRectangle = _get_window_element_at_position(
                 dictCoordinate=dictCoordinate
             )
+            _raise_if_operation_canceled(eventCancelRequested)
             Log.debug({
                 "message": "Pressed mouse left.",
                 "position": dictCoordinate,
@@ -631,6 +715,7 @@ def indicate_window(indicateDelaySeconds: int = 1) -> DictUiAnalyzerIndicateResu
                 control=element,
                 rectangle=tupleElementRectangle,
             )
+            _raise_if_operation_canceled(eventCancelRequested)
 
         dictReturn: DictUiAnalyzerIndicateResult = {
             "selector": selector,
@@ -648,9 +733,16 @@ def indicate_window(indicateDelaySeconds: int = 1) -> DictUiAnalyzerIndicateResu
 
 
 @Log.trace()
-def validate(selector: Selector, timeout: int) -> dict[str, bool]:
+def validate(
+    selector: Selector,
+    timeout: int,
+    *,
+    eventCancelRequested: threading.Event | None = None,
+) -> dict[str, bool]:
     try:
+        _raise_if_operation_canceled(eventCancelRequested)
         validate_selector(selector=selector)
+        _raise_if_operation_canceled(eventCancelRequested)
 
         if selector.get("category") != "image":
             highlight(
@@ -661,6 +753,7 @@ def validate(selector: Selector, timeout: int) -> dict[str, bool]:
                 preDelay=0,
                 postDelay=0,
             )
+            _raise_if_operation_canceled(eventCancelRequested)
         else:
             """If use highlight() directly, image file will be moved to LiberRPALocalServer/screenshot. So create a function similar with _UiElement.get_element but not move file."""
             from liberrpa.UI._TerminableThread import timeout_kill_thread
@@ -672,6 +765,7 @@ def validate(selector: Selector, timeout: int) -> dict[str, bool]:
             _, dictTarget = timeout_kill_thread(timeout=timeout)(_get_image_element)(
                 selectorTemp
             )
+            _raise_if_operation_canceled(eventCancelRequested)
             create_overlay(
                 x=int(dictTarget["secondary-x"]),
                 y=int(dictTarget["secondary-y"]),
@@ -680,6 +774,10 @@ def validate(selector: Selector, timeout: int) -> dict[str, bool]:
                 color="red",
                 duration=2000,
             )
+            _raise_if_operation_canceled(eventCancelRequested)
+
+    except UiAnalyzerOperationCanceledError:
+        raise
     except Exception as e:
         if _is_validation_no_match_error(e):
             Log.debug(f"Selector validation did not find a matching target: {e}")
@@ -696,17 +794,25 @@ def _get_mouse_selection_position(
     *,
     deadline: float,
     indicateName: str,
+    eventCancelRequested: threading.Event | None,
 ) -> DictPosition:
+    _raise_if_operation_canceled(eventCancelRequested)
     tupleMousePosition = _Hook.get_mouse_left_position()
     if tupleMousePosition is None:
         raise UiElementNotFoundError("The mouse selection position was not captured.")
 
-    floatRemainingSeconds = deadline - time.monotonic()
-    if floatRemainingSeconds <= 0 or not _Hook.wait_mouse_left_released(
-        timeout=floatRemainingSeconds
-    ):
-        _raise_indicate_timeout(f"{indicateName} mouse release")
+    while True:
+        _raise_if_operation_canceled(eventCancelRequested)
+        floatRemainingSeconds = deadline - time.monotonic()
+        if floatRemainingSeconds <= 0:
+            _raise_indicate_timeout(f"{indicateName} mouse release")
 
+        if _Hook.wait_mouse_left_released(
+            timeout=min(_INDICATE_REFRESH_INTERVAL_SECONDS, floatRemainingSeconds)
+        ):
+            break
+
+    _raise_if_operation_canceled(eventCancelRequested)
     return {
         "x": tupleMousePosition[0],
         "y": tupleMousePosition[1],
@@ -785,13 +891,39 @@ def _raise_indicate_timeout(indicateName: str) -> None:
     )
 
 
-def _delay(indicateDelaySeconds: int) -> None:
-    if indicateDelaySeconds > 0:
+def _delay(
+    indicateDelaySeconds: int,
+    *,
+    eventCancelRequested: threading.Event | None,
+) -> None:
+    _raise_if_operation_canceled(eventCancelRequested)
+    if indicateDelaySeconds <= 0:
+        return
+
+    if eventCancelRequested is None:
         delay(indicateDelaySeconds * 1000)
+        return
+
+    if eventCancelRequested.wait(timeout=indicateDelaySeconds):
+        _raise_if_operation_canceled(eventCancelRequested)
 
 
-def _start_hook() -> threading.Thread:
-    return _Hook.start_hook()
+def _start_hook(
+    *,
+    eventCancelRequested: threading.Event | None,
+) -> threading.Thread:
+    _raise_if_operation_canceled(eventCancelRequested)
+    threadHook = _Hook.start_hook()
+
+    if eventCancelRequested is not None and eventCancelRequested.is_set():
+        _Hook.stop_hook(
+            threadHook,
+            source="operation_canceled_during_hook_start",
+            timeoutSeconds=2,
+        )
+        _raise_if_operation_canceled(eventCancelRequested)
+
+    return threadHook
 
 
 def _stop_hook_thread(

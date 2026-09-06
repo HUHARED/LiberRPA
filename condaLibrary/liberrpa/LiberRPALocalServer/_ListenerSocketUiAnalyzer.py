@@ -14,6 +14,7 @@ from liberrpa.Common._Chrome import get_element_tree_by_coordinates
 
 import liberrpa.LiberRPALocalServer._UiAnalyzer as _UiAnalyzer
 import liberrpa.LiberRPALocalServer._ElementTree as _ElementTree
+import liberrpa.LiberRPALocalServer._Hook as _Hook
 from liberrpa.LiberRPALocalServer._ServerInit import (
     ensure_client_type,
     get_client_id,
@@ -25,6 +26,7 @@ import json
 import math
 import threading
 from copy import deepcopy
+from dataclasses import dataclass
 from typing import Any, Literal, cast
 
 
@@ -45,6 +47,7 @@ _SET_OPERATION_NAME: set[str] = {
     "validate",
 }
 _INT_MAX_SAFE_INTEGER = 9_007_199_254_740_991
+
 _DICT_EXPECTED_COMMAND_KEYS: dict[UiAnalyzerOperationName, frozenset[str]] = {
     "indicate_uia": frozenset({"operationId", "commandName", "intIndicateDelaySeconds"}),
     "indicate_chrome": frozenset({
@@ -73,8 +76,82 @@ _DICT_EXPECTED_COMMAND_KEYS: dict[UiAnalyzerOperationName, frozenset[str]] = {
     }),
 }
 
-# Make sure only one UI Analyzer command is handled at a time.
+
+@dataclass(slots=True)
+class _ActiveUiAnalyzerOperation:
+    clientSid: str
+    intOperationId: int
+    strOperationName: UiAnalyzerOperationName
+    eventCancelRequested: threading.Event
+
+
+# UI Analyzer operations are process-wide because indication uses shared hooks and overlays.
 _lockHandleUiAnalyzer = threading.Lock()
+_lockActiveUiAnalyzerOperation = threading.Lock()
+_activeUiAnalyzerOperation: _ActiveUiAnalyzerOperation | None = None
+
+
+def _register_active_operation(
+    *,
+    clientSid: str,
+    intOperationId: int,
+    strOperationName: UiAnalyzerOperationName,
+) -> _ActiveUiAnalyzerOperation:
+    global _activeUiAnalyzerOperation
+
+    operation = _ActiveUiAnalyzerOperation(
+        clientSid=clientSid,
+        intOperationId=intOperationId,
+        strOperationName=strOperationName,
+        eventCancelRequested=threading.Event(),
+    )
+
+    with _lockActiveUiAnalyzerOperation:
+        if _activeUiAnalyzerOperation is not None:
+            raise RuntimeError("A UI Analyzer operation is already registered.")
+        _activeUiAnalyzerOperation = operation
+
+    return operation
+
+
+def _clear_active_operation(operation: _ActiveUiAnalyzerOperation) -> None:
+    global _activeUiAnalyzerOperation
+
+    with _lockActiveUiAnalyzerOperation:
+        if _activeUiAnalyzerOperation is operation:
+            _activeUiAnalyzerOperation = None
+
+
+def _raise_if_operation_canceled(operation: _ActiveUiAnalyzerOperation) -> None:
+    if operation.eventCancelRequested.is_set():
+        raise _UiAnalyzer.UiAnalyzerOperationCanceledError(
+            "The UI Analyzer operation was canceled because its client disconnected."
+        )
+
+
+def cancel_ui_analyzer_client_operation(*, clientSid: str) -> bool:
+    """Cancel the active operation only when it belongs to the disconnected client."""
+    with _lockActiveUiAnalyzerOperation:
+        operation = _activeUiAnalyzerOperation
+        if operation is None or operation.clientSid != clientSid:
+            return False
+
+        if not operation.eventCancelRequested.is_set():
+            operation.eventCancelRequested.set()
+            # Requesting Hook stop is safe for non-hook operations too.
+            # The next hook start resets this process-wide event.
+            _Hook.request_stop(
+                source=f"ui_analyzer_disconnect_operation_{operation.intOperationId}"
+            )
+
+        intOperationId = operation.intOperationId
+        strOperationName = operation.strOperationName
+
+    Log.info(
+        "Cancel UI Analyzer operation after its client disconnected. "
+        f"operationId={intOperationId}, commandName={strOperationName}, SID={clientSid}"
+    )
+    return True
 
 
 def _load_command(message: object) -> dict[str, Any]:
@@ -324,139 +401,195 @@ def handle_uianalyzer_command(message: object) -> None:
         )
         return None
 
-    resultData: Any = None
-    dictChromeCoordinate: DictPosition | None = None
-    boolChromeUsePath: bool | None = None
-    boolOperationSuccess = False
-
+    operation: _ActiveUiAnalyzerOperation | None = None
     try:
-        change_tray_icon(component="LiberRPALocalServer_Indicating")
-
-        match strOperationName:
-            case "indicate_uia":
-                Log.debug("_UiAnalyzer.indicate_uia")
-                resultData = _UiAnalyzer.indicate_uia(_get_indicate_delay(dictCommand))
-
-            case "indicate_chrome":
-                boolChromeUsePath = _get_bool_argument(dictCommand, "usePath")
-                tupleChromeResult = _UiAnalyzer.indicate_chrome(
-                    _get_indicate_delay(dictCommand),
-                    boolChromeUsePath,
-                )
-                if tupleChromeResult is not None:
-                    resultData, dictChromeCoordinate = tupleChromeResult
-
-            case "indicate_image":
-                resultData = _UiAnalyzer.indicate_image(
-                    indicateDelaySeconds=_get_indicate_delay(dictCommand),
-                    grayscale=_get_bool_argument(dictCommand, "grayscale"),
-                    confidence=_get_confidence(dictCommand),
-                )
-
-            case "indicate_window":
-                resultData = _UiAnalyzer.indicate_window(_get_indicate_delay(dictCommand))
-
-            case "validate":
-                resultData = _UiAnalyzer.validate(
-                    ensure_selector(dictCommand.get("selector")),
-                    _get_match_timeout(dictCommand),
-                )
-
-        boolOperationSuccess = True
-
-    except Exception as e:
-        resultData = "Error: " + str(get_exception_info(e))
-
-    try:
-        _log_operation_result(boolSuccess=boolOperationSuccess, resultData=resultData)
-        _emit_result(
+        operation = _register_active_operation(
             clientSid=clientSid,
             intOperationId=intOperationId,
-            messageType="operationResult",
-            boolSuccess=boolOperationSuccess,
-            resultData=resultData,
+            strOperationName=strOperationName,
         )
-
-        # Generate Element Tree.
-        if boolOperationSuccess and isinstance(resultData, dict):
-            if strOperationName == "indicate_uia":
-                Log.debug("Get UIA Element Tree.")
-                try:
-                    tupleEleTreeUia = _ElementTree.generate_control_tree_by_selector(
-                        selector=resultData["selector"]
-                    )
-                except Exception as e:
-                    strTreeError = "Error: Failed to generate UIA Element Tree. " + str(
-                        get_exception_info(e)
-                    )
-                    Log.error(strTreeError)
-                    _emit_result(
-                        clientSid=clientSid,
-                        intOperationId=intOperationId,
-                        messageType="elementTreeResult",
-                        boolSuccess=False,
-                        resultData=strTreeError,
-                    )
-                else:
-                    _emit_result(
-                        clientSid=clientSid,
-                        intOperationId=intOperationId,
-                        messageType="elementTreeResult",
-                        boolSuccess=True,
-                        resultData=tupleEleTreeUia,
-                    )
-
-            elif strOperationName == "indicate_chrome":
-                Log.debug("Get HTML Element Tree.")
-                if dictChromeCoordinate is None or boolChromeUsePath is None:
-                    strTreeError = "Error: Missing the selected HTML element position."
-                    Log.error(strTreeError)
-                    _emit_result(
-                        clientSid=clientSid,
-                        intOperationId=intOperationId,
-                        messageType="elementTreeResult",
-                        boolSuccess=False,
-                        resultData=strTreeError,
-                    )
-                else:
-                    try:
-                        tupleEleTree = get_element_tree_by_coordinates(
-                            x=dictChromeCoordinate["x"],
-                            y=dictChromeCoordinate["y"],
-                            usePath=boolChromeUsePath,
-                        )
-                    except Exception as e:
-                        strTreeError = (
-                            "Error: Failed to generate HTML Element Tree. "
-                            + str(get_exception_info(e))
-                        )
-                        Log.error(strTreeError)
-                        _emit_result(
-                            clientSid=clientSid,
-                            intOperationId=intOperationId,
-                            messageType="elementTreeResult",
-                            boolSuccess=False,
-                            resultData=strTreeError,
-                        )
-                    else:
-                        _emit_result(
-                            clientSid=clientSid,
-                            intOperationId=intOperationId,
-                            messageType="elementTreeResult",
-                            boolSuccess=True,
-                            resultData=tupleEleTree,
-                        )
+        # Register first, then recheck identity. A disconnect between these steps can now find and cancel this operation.
+        ensure_client_type(expectedClientType="uiAnalyzer", clientSid=clientSid)
     except Exception as e:
-        Log.error(get_exception_info(e))
+        if operation is not None:
+            _clear_active_operation(operation)
+        _lockHandleUiAnalyzer.release()
+        Log.debug(
+            "Do not start a UI Analyzer operation after its client became unavailable. "
+            f"operationId={intOperationId}, SID={clientSid}, reason={e}"
+        )
+        return None
+
+    assert operation is not None
+
+    try:
+        resultData: Any = None
+        dictChromeCoordinate: DictPosition | None = None
+        boolChromeUsePath: bool | None = None
+        boolOperationSuccess = False
+        boolOperationCanceled = False
+
+        try:
+            change_tray_icon(component="LiberRPALocalServer_Indicating")
+
+            match strOperationName:
+                case "indicate_uia":
+                    Log.debug("_UiAnalyzer.indicate_uia")
+                    resultData = _UiAnalyzer.indicate_uia(
+                        _get_indicate_delay(dictCommand),
+                        eventCancelRequested=operation.eventCancelRequested,
+                    )
+
+                case "indicate_chrome":
+                    boolChromeUsePath = _get_bool_argument(dictCommand, "usePath")
+                    tupleChromeResult = _UiAnalyzer.indicate_chrome(
+                        _get_indicate_delay(dictCommand),
+                        boolChromeUsePath,
+                        eventCancelRequested=operation.eventCancelRequested,
+                    )
+                    if tupleChromeResult is not None:
+                        resultData, dictChromeCoordinate = tupleChromeResult
+
+                case "indicate_image":
+                    resultData = _UiAnalyzer.indicate_image(
+                        indicateDelaySeconds=_get_indicate_delay(dictCommand),
+                        grayscale=_get_bool_argument(dictCommand, "grayscale"),
+                        confidence=_get_confidence(dictCommand),
+                        eventCancelRequested=operation.eventCancelRequested,
+                    )
+
+                case "indicate_window":
+                    resultData = _UiAnalyzer.indicate_window(
+                        _get_indicate_delay(dictCommand),
+                        eventCancelRequested=operation.eventCancelRequested,
+                    )
+
+                case "validate":
+                    resultData = _UiAnalyzer.validate(
+                        ensure_selector(dictCommand.get("selector")),
+                        _get_match_timeout(dictCommand),
+                        eventCancelRequested=operation.eventCancelRequested,
+                    )
+
+            _raise_if_operation_canceled(operation)
+            boolOperationSuccess = True
+        except _UiAnalyzer.UiAnalyzerOperationCanceledError:
+            boolOperationCanceled = True
+        except Exception as e:
+            resultData = "Error: " + str(get_exception_info(e))
+
+        if not boolOperationCanceled:
+            try:
+                _raise_if_operation_canceled(operation)
+                _log_operation_result(
+                    boolSuccess=boolOperationSuccess, resultData=resultData
+                )
+                _emit_result(
+                    clientSid=clientSid,
+                    intOperationId=intOperationId,
+                    messageType="operationResult",
+                    boolSuccess=boolOperationSuccess,
+                    resultData=resultData,
+                )
+
+                _raise_if_operation_canceled(operation)
+                if boolOperationSuccess and isinstance(resultData, dict):
+                    if strOperationName == "indicate_uia":
+                        Log.debug("Get UIA Element Tree.")
+                        try:
+                            tupleEleTreeUia = (
+                                _ElementTree.generate_control_tree_by_selector(
+                                    selector=resultData["selector"]
+                                )
+                            )
+                        except Exception as e:
+                            _raise_if_operation_canceled(operation)
+                            strTreeError = (
+                                "Error: Failed to generate UIA Element Tree. "
+                                + str(get_exception_info(e))
+                            )
+                            Log.error(strTreeError)
+                            _emit_result(
+                                clientSid=clientSid,
+                                intOperationId=intOperationId,
+                                messageType="elementTreeResult",
+                                boolSuccess=False,
+                                resultData=strTreeError,
+                            )
+                        else:
+                            _raise_if_operation_canceled(operation)
+                            _emit_result(
+                                clientSid=clientSid,
+                                intOperationId=intOperationId,
+                                messageType="elementTreeResult",
+                                boolSuccess=True,
+                                resultData=tupleEleTreeUia,
+                            )
+
+                    elif strOperationName == "indicate_chrome":
+                        Log.debug("Get HTML Element Tree.")
+                        if dictChromeCoordinate is None or boolChromeUsePath is None:
+                            strTreeError = (
+                                "Error: Missing the selected HTML element position."
+                            )
+                            Log.error(strTreeError)
+                            _emit_result(
+                                clientSid=clientSid,
+                                intOperationId=intOperationId,
+                                messageType="elementTreeResult",
+                                boolSuccess=False,
+                                resultData=strTreeError,
+                            )
+                        else:
+                            try:
+                                tupleEleTree = get_element_tree_by_coordinates(
+                                    x=dictChromeCoordinate["x"],
+                                    y=dictChromeCoordinate["y"],
+                                    usePath=boolChromeUsePath,
+                                )
+                            except Exception as e:
+                                _raise_if_operation_canceled(operation)
+                                strTreeError = (
+                                    "Error: Failed to generate HTML Element Tree. "
+                                    + str(get_exception_info(e))
+                                )
+                                Log.error(strTreeError)
+                                _emit_result(
+                                    clientSid=clientSid,
+                                    intOperationId=intOperationId,
+                                    messageType="elementTreeResult",
+                                    boolSuccess=False,
+                                    resultData=strTreeError,
+                                )
+                            else:
+                                _raise_if_operation_canceled(operation)
+                                _emit_result(
+                                    clientSid=clientSid,
+                                    intOperationId=intOperationId,
+                                    messageType="elementTreeResult",
+                                    boolSuccess=True,
+                                    resultData=tupleEleTree,
+                                )
+            except _UiAnalyzer.UiAnalyzerOperationCanceledError:
+                boolOperationCanceled = True
+            except Exception as e:
+                Log.error(get_exception_info(e))
     finally:
         try:
             change_tray_icon(component="LiberRPALocalServer")
         except Exception as e:
             Log.error(get_exception_info(e))
 
+        _clear_active_operation(operation)
         _lockHandleUiAnalyzer.release()
 
-        try:
-            _emit_completed(clientSid=clientSid, intOperationId=intOperationId)
-        except Exception as e:
-            Log.error(get_exception_info(e))
+        if boolOperationCanceled or operation.eventCancelRequested.is_set():
+            Log.debug(
+                "Finished canceled UI Analyzer operation without sending more responses. "
+                f"operationId={intOperationId}, commandName={strOperationName}, SID={clientSid}"
+            )
+        else:
+            try:
+                _emit_completed(clientSid=clientSid, intOperationId=intOperationId)
+            except Exception as e:
+                Log.error(get_exception_info(e))
