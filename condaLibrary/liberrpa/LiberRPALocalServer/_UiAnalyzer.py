@@ -38,7 +38,11 @@ from liberrpa.UI._SelectorValidation import (
     ensure_selector_image,
     validate_selector,
 )
-from liberrpa.Common._Exception import UiElementNotFoundError
+from liberrpa.Common._Exception import (
+    ChromeElementNotFoundError,
+    UiElementNotFoundError,
+    UiTimeoutError,
+)
 from liberrpa.Common._Chrome import get_element_attr_by_coordinates
 import liberrpa.LiberRPALocalServer._Hook as _Hook
 import liberrpa.LiberRPALocalServer._Qt as _Qt
@@ -55,6 +59,7 @@ import base64
 from PIL import Image
 from typing import Literal
 
+
 _HIGHLIGHT_DURATION = 500
 
 # This timeout is only for user interaction after the indicate delay.
@@ -65,6 +70,17 @@ _INDICATE_TIMEOUT_SECONDS = (
 _INDICATE_REFRESH_INTERVAL_SECONDS = 0.5
 
 type Tuple_IndicateOverlayState = tuple[int, int, int, int, str]
+
+
+def _is_validation_no_match_error(e: Exception) -> bool:
+    """Return whether validation completed normally but no target matched before the timeout."""
+    if isinstance(e, (UiElementNotFoundError, ChromeElementNotFoundError)):
+        return True
+
+    return type(e) is UiTimeoutError and isinstance(
+        e.__cause__,
+        (UiElementNotFoundError, ChromeElementNotFoundError),
+    )
 
 
 def _update_indicate_overlay(
@@ -646,9 +662,12 @@ def validate(selector: Selector, timeout: int) -> dict[str, bool]:
                 duration=2000,
             )
     except Exception as e:
-        # Timeout or didn't find target element.
+        if _is_validation_no_match_error(e):
+            Log.debug(f"Selector validation did not find a matching target: {e}")
+            return {"validate": False}
+
         Log.exception_info(e)
-        return {"validate": False}
+        raise
     else:
         # Highlight success.
         return {"validate": True}

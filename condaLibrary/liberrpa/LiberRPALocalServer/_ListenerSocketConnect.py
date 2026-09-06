@@ -9,7 +9,7 @@ print("=== import _ListenerSocketConnect ===")
 from liberrpa.Logging import Log
 
 from liberrpa.LiberRPALocalServer._Qt import dictClientAreaCache, close_area
-from liberrpa.LiberRPALocalServer._ServerInit import sioServer, dictClients, get_client_id
+from liberrpa.LiberRPALocalServer._ServerInit import sioServer, get_client_id
 from liberrpa.Common._BasicConfig import get_local_server_port, get_token
 
 import hmac
@@ -99,9 +99,14 @@ def handle_disconnect() -> None:
     clientSid = get_client_id()
 
     Log.info("Client disconnected: " + clientSid)
-    if clientSid == dictClients.get("Chrome"):
-        del dictClients["Chrome"]
-        Log.info(f"Remove {clientSid} from clients dictionary.")
+
+    # Import locally to avoid coupling listener registration order during module initialization.
+    from liberrpa.LiberRPALocalServer._ListenerSocketChrome import (
+        disconnect_chrome_client,
+    )
+
+    if disconnect_chrome_client(clientSid=clientSid):
+        Log.info(f"Remove active Chrome client {clientSid} from clients dictionary.")
 
     if dictClientAreaCache.get(clientSid):
         Log.info(

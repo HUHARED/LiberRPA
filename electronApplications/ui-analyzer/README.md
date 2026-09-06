@@ -258,6 +258,8 @@ Use **Validate** to test whether the current JSON Selector can locate the intend
 
 It does not change **Indicate delay**.
 
+A red validation result means the Selector is valid, but no matching target was found before the Match timeout. Invalid Selector data, unavailable browser integration, and other operation failures are shown as errors instead of being reported as an ordinary non-match.
+
 When a selector becomes unreliable after an application or page changes, validation is the quickest way to determine whether the problem is:
 
 - the target window;

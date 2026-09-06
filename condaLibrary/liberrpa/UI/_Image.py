@@ -6,7 +6,10 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
 from liberrpa.Logging import Log
-from liberrpa.Common._Exception import UiElementNotFoundError, UiSelectorError, get_exception_info
+from liberrpa.Common._Exception import (
+    UiOperationError,
+    UiSelectorError,
+)
 from liberrpa.UI._UiDict import DictImageAttr
 from liberrpa.Common._TypedValue import StrPath
 from liberrpa.UI._ScreenshotPath import (
@@ -71,7 +74,9 @@ def find_image(
 ) -> list[DictImageAttr]:
 
     strFilePath = _get_image_path(
-        fileNameOrPath=fileNameOrPath, moveFile=moveFile, inScreenshotFolder=inScreenshotFolder
+        fileNameOrPath=fileNameOrPath,
+        moveFile=moveFile,
+        inScreenshotFolder=inScreenshotFolder,
     )
 
     try:
@@ -94,7 +99,9 @@ def find_image(
                 listRegion[1] = 0
                 boolNegativeCoordinate = True
             if boolNegativeCoordinate:
-                Log.verbose(f"The Window's top-left is not in the screen, search region={listRegion}")
+                Log.verbose(
+                    f"The Window's top-left is not in the screen, search region={listRegion}"
+                )
 
             region = cast(tuple[int, int, int, int], tuple(listRegion))
 
@@ -118,8 +125,15 @@ def find_image(
             for box in generator
         ]
         Log.debug(f"Found {len(listMatches)} matched images.")
+
+    except pyautogui.ImageNotFoundException:
+        # PyAutoGUI may represent an ordinary no-match either as an empty generator or this exception.
+        return []
+
     except Exception as e:
-        raise UiElementNotFoundError(str(get_exception_info(e))) from e
+        raise UiOperationError(
+            "Failed to search for the image on the current screenshot."
+        ) from e
 
     return listMatches
 

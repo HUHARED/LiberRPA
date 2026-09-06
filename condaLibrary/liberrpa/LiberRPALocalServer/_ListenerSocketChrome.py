@@ -16,7 +16,6 @@ from flask_socketio import emit
 import json
 import uuid
 from dataclasses import dataclass
-from time import monotonic
 from threading import Event, Lock
 from typing import Any
 
@@ -25,7 +24,6 @@ from typing import Any
 # It should be slightly longer than the Chrome-side timeout, so Chrome can return its own timeout result first.
 _DEFAULT_CHROME_COMMAND_TIMEOUT_MS = 15000
 _CHROME_RESPONSE_GRACE_MS = 3000
-_CLOSE_CURRENT_TAB_POLL_INTERVAL_SECONDS = 0.1
 
 _SERVER_WAIT_ID_KEY = "ServerWaitId"
 
@@ -33,24 +31,88 @@ _SERVER_WAIT_ID_KEY = "ServerWaitId"
 @dataclass(slots=True)
 class _PendingChromeCommand:
     event: Event
+    chromeSid: str
+    commandName: str
     result: DictSocketResult | None = None
 
 
 # Pending Chrome commands are shared by Socket.IO handler threads.
-# Use a lock to avoid races between sending commands, receiving responses, and cleaning up timed-out commands.
+# Use a lock to coordinate command registration, responses, disconnect cleanup, and connection replacement.
 _pendingChromeCommandLock = Lock()
 _dictPendingChromeCommands: dict[str, _PendingChromeCommand] = {}
 
 
+def _get_chrome_disconnect_result(
+    pendingCommand: _PendingChromeCommand,
+) -> DictSocketResult:
+    # Closing the last tab may end the browser before it sends its acknowledgement.
+    # Preserve the existing closeCurrentTab policy: infer success from its target connection closing.
+    # This is not proof that the tab closed; a crash or transport failure can look the same.
+    if pendingCommand.commandName == "closeCurrentTab":
+        return {"boolSuccess": True, "data": None}
+
+    return {
+        "boolSuccess": False,
+        "data": (
+            "Chrome extension disconnected before completing command: "
+            f"{pendingCommand.commandName}."
+        ),
+    }
+
+
+def disconnect_chrome_client(clientSid: str) -> bool:
+    """Remove a disconnected Chrome client and settle commands sent to that connection."""
+    listPendingCommand: list[tuple[str, _PendingChromeCommand]] = []
+
+    with _pendingChromeCommandLock:
+        boolWasActiveClient = dictClients.get("Chrome") == clientSid
+        if boolWasActiveClient:
+            dictClients.pop("Chrome", None)
+
+        for commandId, pendingCommand in list(_dictPendingChromeCommands.items()):
+            if pendingCommand.chromeSid != clientSid or pendingCommand.event.is_set():
+                continue
+
+            _dictPendingChromeCommands.pop(commandId, None)
+            pendingCommand.result = _get_chrome_disconnect_result(pendingCommand)
+            # Publish the terminal result and wake its waiter before diagnostic logging.
+            pendingCommand.event.set()
+            listPendingCommand.append((commandId, pendingCommand))
+
+    for commandId, pendingCommand in listPendingCommand:
+        if pendingCommand.commandName == "closeCurrentTab":
+            Log.debug(
+                "The target Chrome connection disconnected while closing the current tab. "
+                "Treat the command as successful. "
+                f"commandId={commandId}, SID={clientSid}"
+            )
+        else:
+            Log.warning(
+                "Fail a pending Chrome command because its target connection disconnected. "
+                f"commandId={commandId}, commandName={pendingCommand.commandName}, SID={clientSid}"
+            )
+
+    return boolWasActiveClient
+
+
 @Log.trace()
 @sioServer.on("chrome_extension_connect")
-def handle_chrome_extension_connect(message: dict[str, str]) -> None:
+def handle_chrome_extension_connect(message: str) -> None:
     # Save the Chrome extension's sid for sending commands to it later. Called by Chrome extension.
     clientSid = get_client_id()
     Log.info(f"Chrome connection established. {message}, SID: {clientSid}")
 
-    # Save the Chrome extension sid into dictionary.
-    dictClients["Chrome"] = clientSid
+    with _pendingChromeCommandLock:
+        previousChromeSid = dictClients.get("Chrome")
+        dictClients["Chrome"] = clientSid
+
+    if previousChromeSid is not None and previousChromeSid != clientSid:
+        Log.info(
+            "Use the new Chrome connection for subsequent commands. "
+            "Commands already sent remain bound to their original connection. "
+            f"previousSID={previousChromeSid}, currentSID={clientSid}"
+        )
+
     Log.info(f"The Chrome clients: {dictClients}")
 
 
@@ -99,60 +161,41 @@ def _wait_for_response_by_id(
             "data": f"Error when serializing the Chrome command: {dictCommand}",
         }
 
-    chromeSid = dictClients.get("Chrome")
-    if chromeSid is None:
-        return {
-            "boolSuccess": False,
-            "data": "Can't access Chrome extension, you should install it and turn it on, and make sure Chrome is running.",
-        }
-
+    commandNameValue = dictCommand.get("commandName")
+    commandName = commandNameValue if isinstance(commandNameValue, str) else "<unknown>"
     timeoutWithGraceMs = _get_chrome_response_timeout_ms(dictCommand=dictCommand)
 
-    pendingCommand = _PendingChromeCommand(event=Event())
-
-    # Register before emit(), because Chrome may return very quickly.
+    # Read the active Chrome SID and register the command under the same lock used by disconnect cleanup.
+    # This prevents a command from being registered for a connection that was removed between those steps.
     with _pendingChromeCommandLock:
+        chromeSid = dictClients.get("Chrome")
+        if chromeSid is None:
+            return {
+                "boolSuccess": False,
+                "data": "Can't access Chrome extension, you should install it and turn it on, and make sure Chrome is running.",
+            }
+
+        pendingCommand = _PendingChromeCommand(
+            event=Event(),
+            chromeSid=chromeSid,
+            commandName=commandName,
+        )
+
+        # Register before emit(), because Chrome may return very quickly.
         _dictPendingChromeCommands[commandId] = pendingCommand
 
     try:
         emit("message_flask_to_chrome", strTemp, to=chromeSid)
 
-        # Closing the last Chrome tab can also close the browser before the extension has time to return its normal command acknowledgement.
-        if dictCommand.get("commandName") == "closeCurrentTab":
-            floatDeadline = monotonic() + timeoutWithGraceMs / 1000
-
-            while True:
-                floatRemaining = floatDeadline - monotonic()
-                if floatRemaining <= 0:
-                    return {
-                        "boolSuccess": False,
-                        "data": (
-                            f"Chrome command response timed out after {timeoutWithGraceMs} milliseconds: {dictCommand.get('commandName')}"
-                        ),
-                    }
-
-                if pendingCommand.event.wait(
-                    timeout=min(_CLOSE_CURRENT_TAB_POLL_INTERVAL_SECONDS, floatRemaining)
-                ):
-                    break
-
-                if dictClients.get("Chrome") is None:
-                    Log.debug(
-                        "The Chrome extension disconnected while closing the current tab. "
-                        "Treat the command as successful."
-                    )
-                    return {"boolSuccess": True, "data": None}
-
-        else:
-            # Wait until handle_result_from_chrome() sets the event, or until the communication fallback timeout expires.
-            if not pendingCommand.event.wait(timeout=timeoutWithGraceMs / 1000):
-                return {
-                    "boolSuccess": False,
-                    "data": (
-                        "Chrome command response timed out "
-                        f"after {timeoutWithGraceMs} milliseconds: {dictCommand.get('commandName')}"
-                    ),
-                }
+        # Responses and disconnect handling both publish a result and signal the same event.
+        if not pendingCommand.event.wait(timeout=timeoutWithGraceMs / 1000):
+            return {
+                "boolSuccess": False,
+                "data": (
+                    "Chrome command response timed out "
+                    f"after {timeoutWithGraceMs} milliseconds: {pendingCommand.commandName}"
+                ),
+            }
 
         if pendingCommand.result is None:
             return {
@@ -162,13 +205,17 @@ def _wait_for_response_by_id(
 
         return pendingCommand.result
     except Exception as e:
+        # Connection teardown or a fast response may already have settled this command.
+        if pendingCommand.event.is_set() and pendingCommand.result is not None:
+            return pendingCommand.result
+
         Log.exception_info(e)
         return {
             "boolSuccess": False,
-            "data": f"Error when sending Chrome command: {dictCommand.get('commandName')}",
+            "data": f"Error when sending Chrome command: {pendingCommand.commandName}",
         }
     finally:
-        # Remove both completed and timed-out commands.
+        # Disconnect cleanup may already have removed this command.
         with _pendingChromeCommandLock:
             _dictPendingChromeCommands.pop(commandId, None)
 
@@ -191,10 +238,6 @@ def handle_result_from_chrome(message: str) -> None:
     Log.debug(
         f"Received Chrome result payload. SID={clientSid}, serializedLength={intPayloadLength}"
     )
-
-    if clientSid != dictClients.get("Chrome"):
-        Log.error("Ignore Chrome result from an unexpected client.")
-        return
 
     # The result from Chrome must have been serialized correctly, so just deserialize it.
     try:
@@ -230,9 +273,20 @@ def handle_result_from_chrome(message: str) -> None:
         pendingCommand = _dictPendingChromeCommands.get(strId)
 
         if pendingCommand is None:
-            # In case Chrome data arrives after Python has treated it as timed out.
+            # In case Chrome data arrives after Python has treated it as timed out or disconnected.
             Log.warning(f"Ignore a late or unknown Chrome result. commandId={strId}")
             return
+
+        if clientSid != pendingCommand.chromeSid:
+            Log.error(
+                "Ignore Chrome result from a connection that did not receive the command. "
+                f"commandId={strId}, expectedSID={pendingCommand.chromeSid}, actualSID={clientSid}"
+            )
+            return None
+
+        if pendingCommand.event.is_set():
+            Log.warning(f"Ignore a duplicate Chrome result. commandId={strId}")
+            return None
 
         Log.debug("Update Chrome command result.")
         pendingCommand.result = dictResult
