@@ -55,6 +55,11 @@ export async function deleteExpiredScreenshots(
       await fs.unlink(strFilePath);
       loggerMain.info(`Deleted expired screenshot: ${strFilePath}`);
     } catch (e: unknown) {
+      if (isFileNotFoundError(e)) {
+        loggerMain.debug(`Screenshot file was already removed: ${strFilePath}`);
+        continue;
+      }
+
       loggerMain.error(
         `Failed to process screenshot file ${strFilePath}: ${getErrorMessage(e)}`,
       );

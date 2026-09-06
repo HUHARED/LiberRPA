@@ -1,6 +1,8 @@
 // FileName: application.ts
 
+import fs from "fs";
 import { app, BrowserWindow, ipcMain, nativeImage } from "electron";
+import moment from "moment";
 import { join } from "path";
 import { electronApp, optimizer, is } from "@electron-toolkit/utils";
 import type { Logger } from "winston";
@@ -34,6 +36,36 @@ const SET_ALLOWED_LOG_LEVELS = new Set<RendererLogLevel>([
   "debug",
   "silly",
 ]);
+
+function getUiAnalyzerInstanceId(): string {
+  return `${moment().format("YYYY-MM-DD_HHmmss_SSS")}_${String(process.pid)}`;
+}
+
+function configureInstancePaths(
+  strDocumentsFolderPath: string,
+  strInstanceId: string,
+): string {
+  const strUserDataFolderPath = join(
+    strDocumentsFolderPath,
+    "LiberRPA",
+    "AppData",
+    "ui-analyzer",
+  );
+  const strSessionDataFolderPath = join(
+    app.getPath("temp"),
+    "LiberRPA",
+    "ui-analyzer",
+    "SessionData",
+    strInstanceId,
+  );
+
+  fs.mkdirSync(strUserDataFolderPath, { recursive: true });
+  fs.mkdirSync(strSessionDataFolderPath, { recursive: true });
+  app.setPath("userData", strUserDataFolderPath);
+  app.setPath("sessionData", strSessionDataFolderPath);
+
+  return strSessionDataFolderPath;
+}
 
 function isExpectedSender(
   event: Electron.IpcMainInvokeEvent | Electron.IpcMainEvent,
@@ -201,18 +233,22 @@ async function createWindow(
 }
 
 export async function bootstrapUiAnalyzer(): Promise<void> {
-  const strDocumentsFolderPath = app.getPath("documents");
-  app.setPath(
-    "userData",
-    join(strDocumentsFolderPath, "LiberRPA", "AppData", "ui-analyzer"),
-  );
-
   let loggerMain: Logger | undefined;
 
   try {
+    const strDocumentsFolderPath = app.getPath("documents");
+    const strInstanceId = getUiAnalyzerInstanceId();
+    const strSessionDataFolderPath = configureInstancePaths(
+      strDocumentsFolderPath,
+      strInstanceId,
+    );
+
     const dictConfig = loadUiAnalyzerMainConfig(strDocumentsFolderPath);
-    loggerMain = createMainLogger(dictConfig.outputLogPath);
-    loggerMain.info("Start UI Analyzer.");
+    loggerMain = createMainLogger(dictConfig.outputLogPath, strInstanceId);
+    loggerMain.info(
+      `Start UI Analyzer. instanceId=${strInstanceId}, PID=${String(process.pid)}`,
+    );
+    loggerMain.debug(`Session data path: ${strSessionDataFolderPath}`);
 
     await app.whenReady();
     electronApp.setAppUserModelId("com.liberrpa.ui-analyzer");

@@ -5,11 +5,14 @@ import path from "path";
 import moment from "moment";
 import { createLogger, format, transports, type Logger } from "winston";
 
-export function createMainLogger(strOutputLogFolderPath: string): Logger {
+export function createMainLogger(
+  strOutputLogFolderPath: string,
+  strInstanceId: string,
+): Logger {
   const strLogPath = path.join(
     strOutputLogFolderPath,
     "_UiAnalyzer",
-    `${moment().format("YYYY-MM-DD")}.log`,
+    `${strInstanceId}.log`,
   );
   fs.mkdirSync(path.dirname(strLogPath), { recursive: true });
 
