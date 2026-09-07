@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "LiberRPA Chrome Extension",
-  "description": "The Chrome extension to interact with LiberRPA Local Server.",
+  "description": "Connects Chrome to LiberRPA Local Server for browser automation on supported web pages.",
   "author": "mailwork.hu@gmail.com",
   "version": "0.3.0",
   "minimum_chrome_version": "116",
