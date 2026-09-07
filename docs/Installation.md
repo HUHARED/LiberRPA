@@ -21,9 +21,11 @@ For creating and running your first automation Project, see [Getting Started](./
 
 ## Download and Extract
 
-Download the latest LiberRPA release from SourceForge:
+Download the current supported LiberRPA Windows release from SourceForge:
 
-**TODO：[Download LiberRPA](TODO_SOURCEFORGE_DOWNLOAD_URL)**
+**[Download LiberRPA 0.3.0](https://sourceforge.net/projects/liberrpa/files/LiberRPA-0.3.0-win-x64.7z/download)**
+
+SourceForge hosts only the current supported binary release. Older binary packages are not retained there; source history remains available on GitHub.
 
 Release archives use the following naming convention:
 
@@ -37,27 +39,42 @@ For example:
 LiberRPA-0.3.0-win-x64.7z
 ```
 
-The release page also publishes the SHA256 hash of the archive. To verify a downloaded file from Command Prompt:
+SourceForge displays the SHA-256 hash directly on the release download page.
+
+To verify a downloaded archive from Command Prompt:
 
 ```bat
 certutil -hashfile LiberRPA-0.3.0-win-x64.7z SHA256
 ```
 
-Compare the reported value with the hash published for the same release. SHA256 verifies that the archive matches the published file; it is not a Windows publisher signature, so unsigned executables may still be shown as coming from an unknown publisher.
+Compare the reported value with the SHA-256 published for the same file. SHA-256 verifies that the archive matches the published file; it is not a Windows publisher signature, so unsigned executables may still be shown as coming from an unknown publisher.
 
 Extract the archive to a local directory where your Windows account has normal read and write access.
 
 For example:
 
 ```text
-D:\Tools\LiberRPA-0.3.0\
+D:\Tools\LiberRPA_0.3.0\
 ```
 
 LiberRPA is designed to operate from its extracted directory and does not need to be installed under `Program Files`.
 
+### Disk Space
+
+For the LiberRPA 0.3.0 Windows x64 release, observed sizes during release testing were approximately:
+
+- **860 MB** for `LiberRPA-0.3.0-win-x64.7z`;
+- **4.40 GB** after extracting the release archive;
+- **5.43 GB** after `InitLiberRPA.exe` completed the initial setup;
+- **5.52 GB** after the first Python Project run.
+
+Actual disk usage can vary with Editor extension versions, Python caches, logs, recordings, Projects, and other generated data.
+
+Allow at least **7 GB of free disk space** for the initial installation, with additional space for Projects, logs, and recordings.
+
 The release archive does not redistribute the Microsoft Visual Studio Code binary. It contains the LiberRPA Editor configuration, while `InitLiberRPA.exe` downloads the tested Windows x64 VS Code ZIP directly from Microsoft when the Editor is first prepared. An internet connection is therefore required for a clean first-time Editor setup.
 
-The extracted directory is referred to in the documentation as the  **LiberRPA root directory** .
+The extracted directory is referred to in the documentation as the **LiberRPA root directory**.
 
 ---
 
@@ -351,7 +368,7 @@ Contains the main LiberRPA applications, development environment, configuration 
 Example:
 
 ```text
-D:\Tools\LiberRPA-0.3.0\
+D:\Tools\LiberRPA_0.3.0\
 ```
 
 Deleting the root directory removes the corresponding release files, but does not remove all user-level LiberRPA integration or data.
@@ -589,7 +606,7 @@ If another LiberRPA release should remain active, initialize that release instea
 Delete the release directory, for example:
 
 ```text
-D:\Tools\LiberRPA-0.3.0\
+D:\Tools\LiberRPA_0.3.0\
 ```
 
 ### 6. Decide whether to keep user data

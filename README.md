@@ -10,7 +10,7 @@
 
 LiberRPA combines the specialized tooling of an RPA platform with familiar software-engineering practices. It provides visual process orchestration, UI inspection, automation APIs, reusable Components, debugging, packaging, logging, scheduling, and execution while keeping detailed automation logic in Python.
 
-**[Download](TODO_SOURCEFORGE_DOWNLOAD_URL) · [Getting Started](#getting-started) · [Documentation](#documentation) · [Community](#community--support)**
+**[Download](https://sourceforge.net/projects/liberrpa/files/LiberRPA-0.3.0-win-x64.7z/download) · [Getting Started](#getting-started) · [Documentation](#documentation) · [Community](#community--support)**
 
 > **Current release: 0.3.0**
 >
@@ -225,8 +225,8 @@ For the internal architecture, see [Architecture](./docs/Architecture.md).
 
 LiberRPA 0.3.0 targets Windows and includes its standard Python 3.13 environment in the official release package. Microsoft Visual Studio Code itself is prepared during initialization rather than redistributed in the release archive.
 
-1. Download the latest release from SourceForge:
-   **[Download LiberRPA](TODO_SOURCEFORGE_DOWNLOAD_URL)**
+1. Download the current supported Windows release from SourceForge:
+   **[Download LiberRPA 0.3.0](https://sourceforge.net/projects/liberrpa/files/LiberRPA-0.3.0-win-x64.7z/download)**
 2. Extract the archive and run:
    ```text
    InitLiberRPA.exe
@@ -241,6 +241,8 @@ LiberRPA 0.3.0 targets Windows and includes its standard Python 3.13 environment
    LiberRPA: Create a New Project
    ```
    and create a **Minimalist Flow Project**.
+
+SourceForge hosts only the current supported binary release. Older binary packages are not retained there; source history remains available in this Git repository.
 
 For the complete first-Project walkthrough, including running and debugging a Flow, see [Getting Started](./docs/GettingStarted.md).
 

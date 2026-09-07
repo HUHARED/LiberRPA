@@ -6,6 +6,8 @@ This project adheres to [Semantic Versioning](https://semver.org/) (SemVer) and 
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-07
+
 ### Added
 
 - **Component Management**
