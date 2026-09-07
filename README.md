@@ -354,7 +354,7 @@ If another RPA product or automation library handles a particular workflow, sele
 * [**GitHub Issues**](https://github.com/HUHARED/LiberRPA/issues) — reproducible bugs and concrete feature requests
 * [**GitHub Discussions**](https://github.com/HUHARED/LiberRPA/discussions) — technical questions, design discussions, and longer-form ideas
 * [**Reddit**](https://www.reddit.com/r/LiberRPA/) — releases, use cases, community discussion, and broader RPA topics
-* [**Telegram**](https://t.me/+U6oCH5Vs6CcxOTg9) — lightweight and real-time community communication
+* [**Telegram**](https://t.me/liberrpa) — lightweight and real-time community communication
 * **Email** — direct or private contact at `mailwork.hu@gmail.com`
 
 Feedback from people building real automation is one of the most useful inputs for LiberRPA's development.
