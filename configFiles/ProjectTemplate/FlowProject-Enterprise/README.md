@@ -90,7 +90,7 @@ Document how this Project is delivered to its runtime environment.
 Record information such as:
 
 - target Executor or machine requirements;
-- required Component Repository or dependency preparation;
+- Component dependencies that must be resolved before packaging;
 - environment-specific configuration that must be applied after deployment;
 - any external files or resources that must accompany the Project.
 
@@ -208,7 +208,7 @@ Do not edit or commit this directory during normal development.
 
 Commit the Project source together with `project.flow`, `flow.json`, and `components.lock.json` when present.
 
-The template `.gitignore` excludes generated or local state such as `_Components/`, `.liberrpa-project-manager/`, Python caches, Ruff cache, and build output.
+The template `.gitignore` excludes generated or local state such as `_Components/`, `.liberrpa-project-manager/`, Python caches, and Ruff cache.
 
 Keep implementation changes reviewable as ordinary Python source wherever practical.
 

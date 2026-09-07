@@ -18,6 +18,22 @@ If the images are not displayed, [view this README on GitHub](https://github.com
 >
 > This setting does not change the Python runtime log level used by a Flow Project or an individual Block.
 
+## Contents
+
+- [Usage](#usage)
+- [Create a Project](#create-a-project)
+- [Customize Templates](#customize-templates)
+- [Component Repository](#component-repository)
+- [Develop a Component Project](#develop-a-component-project)
+- [Publish a Component](#publish-a-component)
+- [Import Component Wheels](#import-component-wheels)
+- [Rebuild Component Repository Index](#rebuild-component-repository-index)
+- [Manage Components in a Project](#manage-components-in-a-project)
+- [Package a Flow Project](#package-a-flow-project)
+- [Requirements](#requirements)
+
+---
+
 ## Usage
 
 ### Create a Project
@@ -376,7 +392,7 @@ from ExampleDelay import (
 Do not import through `_Components`:
 
 ```python
-## Do not use this form.
+# Do not use this form.
 from _Components.ExampleDelay import Delay
 ```
 

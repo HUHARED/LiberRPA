@@ -12,9 +12,9 @@ LiberRPA combines the specialized tooling of an RPA platform with familiar softw
 
 **[Download](TODO_SOURCEFORGE_DOWNLOAD_URL) · [Getting Started](#getting-started) · [Documentation](#documentation) · [Community](#community--support)**
 
-> **Current release: 0.3.0 — Alpha**
+> **Current release: 0.3.0**
 >
-> LiberRPA is under active development and has not yet been validated across a large external production user base.
+> **Project maturity: Alpha.** LiberRPA is under active development and has not yet been validated across a large external production user base.
 
 ## Contents
 
@@ -159,14 +159,16 @@ flowchart LR
 
 ### Editor
 
-LiberRPA Editor uses the official Windows ZIP distribution of Microsoft Visual Studio Code in portable mode. The VS Code binary is not redistributed in the LiberRPA release archive. During initialization, `InitLiberRPA.exe` prepares the tested VS Code version directly from Microsoft when needed, then attempts to install the selected Editor extensions from the Visual Studio Marketplace. The portable Editor configuration and installed extensions are stored under `Editor/data`, so a prepared Editor can be used offline and moved with the LiberRPA directory.
+LiberRPA Editor is a portable VS Code-based development environment that combines ordinary Python development with LiberRPA-specific tooling. `InitLiberRPA.exe` prepares the tested VS Code version and selected extensions when needed; the prepared Editor can then be moved with the LiberRPA directory and used offline.
 
 Its LiberRPA-specific tools include:
 
 * [Flowchart](./vscodeExtensions/liberrpa-flowchart/README.md) — high-level process orchestration;
-* [Project Manager](./vscodeExtensions/liberrpa-project-manager/README.md) — project creation, Components, dependencies, and packaging;
+* [Project Manager](./vscodeExtensions/liberrpa-project-manager/README.md) — Project creation, Git initialization, Components, dependencies, and packaging;
 * [Snippets Tree](./vscodeExtensions/liberrpa-snippets-tree/README.md) — discover and insert automation APIs;
 * [UI Analyzer](./electronApplications/ui-analyzer/README.md) — create and validate UI selectors.
+
+For VS Code preparation, selected extensions, Workspace Trust, Git behavior, and customization, see [LiberRPA Editor](./docs/Editor.md).
 
 ### Flow Projects and Components
 
@@ -176,19 +178,17 @@ Reusable logic can be developed as Components and shared between Projects. The C
 
 ### Executor
 
-[LiberRPA Executor](./electronApplications/executor/README.md) installs `.rpa.zip` Packages produced by Project Manager.
+[LiberRPA Executor](./electronApplications/executor/README.md) installs versioned `.rpa.zip` Packages produced by Project Manager.
 
-It currently supports:
+It supports:
 
-* Package validation and versioned installation;
-* per-version Run Settings and Custom Arguments;
-* manual execution;
-* Cron-based Schedules;
-* Skip, Wait, and Concurrent conflict policies;
-* Pending and Waiting Run Queue states;
+* validated, versioned Package installation;
+* manual and Cron-based scheduled execution;
+* Run Queue conflict policies;
 * Run History, cancellation, and timeouts;
-* local log and recording access;
-* retention settings and an optional RDP Session helper.
+* local log and recording access.
+
+Detailed Run Settings, Scheduler behavior, queue states, retention, and RDP Session support are documented in the [Executor guide](./electronApplications/executor/README.md).
 
 ### Supporting services
 
@@ -196,7 +196,7 @@ LiberRPA also includes:
 
 * a Python 3.13 automation environment;
 * [LiberRPA Chrome Extension](./browserExtensions/liberrpa-chrome-extension/README.md) for DOM-aware browser automation;
-* LiberRPA Local Server for local communication between tools and integrations.
+* [LiberRPA Local Server](./docs/LocalServer.md) for local communication between tools and integrations.
 
 For the internal architecture, see [Architecture](./docs/Architecture.md).
 
@@ -240,11 +240,9 @@ LiberRPA 0.3.0 targets Windows and includes its standard Python 3.13 environment
    ```text
    LiberRPA: Create a New Project
    ```
-
    and create a **Minimalist Flow Project**.
 
 For the complete first-Project walkthrough, including running and debugging a Flow, see [Getting Started](./docs/GettingStarted.md).
-
 
 For initial Editor extension setup, portable/offline use, moving LiberRPA, system changes, and uninstallation, see [Installation, Portability & Uninstallation](./docs/Installation.md).
 
@@ -351,16 +349,11 @@ Technical feedback therefore has a short path to the person designing and implem
 
 If another RPA product or automation library handles a particular workflow, selector, API, or execution scenario better, concrete examples are especially useful. They can be analyzed directly against LiberRPA's implementation and may influence future releases.
 
-* **GitHub Issues** — reproducible bugs and concrete feature requests
-  https://github.com/HUHARED/LiberRPA/issues
-* **GitHub Discussions** — technical questions, design discussions, and longer-form ideas
-  https://github.com/HUHARED/LiberRPA/discussions
-* **Reddit** — releases, use cases, community discussion, and broader RPA topics
-  TODO_REDDIT_URL
-* **Telegram** — lightweight and real-time community communication
-  https://t.me/+U6oCH5Vs6CcxOTg9
-* **Email** — direct or private contact
-  `mailwork.hu@gmail.com`
+* [**GitHub Issues**](https://github.com/HUHARED/LiberRPA/issues) — reproducible bugs and concrete feature requests
+* [**GitHub Discussions**](https://github.com/HUHARED/LiberRPA/discussions) — technical questions, design discussions, and longer-form ideas
+* [**Reddit**](https://www.reddit.com/r/LiberRPA/) — releases, use cases, community discussion, and broader RPA topics
+* [**Telegram**](https://t.me/+U6oCH5Vs6CcxOTg9) — lightweight and real-time community communication
+* **Email** — direct or private contact at `mailwork.hu@gmail.com`
 
 Feedback from people building real automation is one of the most useful inputs for LiberRPA's development.
 

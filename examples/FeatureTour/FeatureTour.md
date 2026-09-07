@@ -4,11 +4,32 @@
 
 FeatureTour is a downloadable, editable Flow Project that demonstrates representative LiberRPA development in one local workflow. It combines Excel configuration, CSV processing, Windows UI Automation, Chrome automation, OCR, Components, Custom Project Arguments, logging, and Flow-level exception recovery.
 
-The tour normally completes in a few minutes. With `interactive=false`, the automation itself can finish much faster; the guided run takes longer depending on how much time you spend reading the dialogs and inspecting each stage.
+The tour normally completes in a few minutes. When `interactive=false`, it skips guided dialog pauses and usually completes faster. A guided run takes longer depending on how much time you spend reading the dialogs and inspecting each stage.
 
 [Download FeatureTour.zip](https://sourceforge.net/projects/liberrpa/files/examples/FeatureTour.zip/download)
 
 `FeatureTour.zip` contains the source Flow Project. Extract it and open it in LiberRPA Editor; it is not an Executor `.rpa.zip` deployment Package.
+
+## Contents
+
+- [Requirements](#requirements)
+- [Run the Tour](#run-the-tour)
+- [Workflow](#workflow)
+- [Flowchart and Python Blocks](#flowchart-and-python-blocks)
+- [Configuration and Data](#configuration-and-data)
+- [Desktop UI Automation](#desktop-ui-automation)
+- [Browser Automation](#browser-automation)
+- [OCR](#ocr)
+- [Components and Managed Dependencies](#components-and-managed-dependencies)
+- [Custom Project Arguments](#custom-project-arguments)
+- [Exception Recovery](#exception-recovery)
+- [SubStart and Process Coordination](#substart-and-process-coordination)
+- [Ordinary Python Development](#ordinary-python-development)
+- [Logs, ScreenPrint, and Summary](#logs-screenprint-and-summary)
+- [Files to Inspect](#files-to-inspect)
+- [Scope](#scope)
+
+---
 
 ## Requirements
 
@@ -35,7 +56,7 @@ The example uses a local web page and local files. It does not depend on a publi
 4. In the Flowchart settings, set `interactive` to `true` for the guided dialogs, or keep it `false` for an uninterrupted run.
 5. Press `Ctrl+F5` to run the complete Flow, or `F5` to debug it.
 
-The extracted Project already contains its resolved `_Components` folder and `components.lock.json`.
+The extracted Project already contains its resolved `_Components` folder and `components.lock.json`. The downloadable example includes the materialized dependencies for reproducibility; normal source repositories should commit `components.lock.json` but not `_Components/`.
 
 ![1788576052164](md_images/FeatureTour/1788576052164.png)
 
@@ -45,7 +66,7 @@ The extracted Project already contains its resolved `_Components` folder and `co
                          Web Server (SubStart)
                                   │
                                   ▼
-                         Start local server
+                         Start FeatureTour HTTP server
                                   │
                                   ▼
                         Create readiness file
@@ -101,13 +122,11 @@ Browser Automation  │
 
 The Flow uses all five node types supported by the Flowchart: `Start`, `SubStart`, `Block`, `Choose`, and `End`. It also demonstrates Normal, True, False, and Exception Lines.
 
-Video recording is enabled by default. After the Flow finishes, LiberRPA Local Server take additional time to compress the recording. This step can use significant CPU, especially for longer recordings or on lower-performance systems.
+Video recording is enabled by default. After the Flow finishes, LiberRPA Local Server takes additional time to compress the recording. This step can use significant CPU, especially for longer recordings or on lower-performance systems.
 
 ## Flowchart and Python Blocks
 
-The Flowchart stores the high-level route: major stages, branching, a subprocess, and exception handling. Each Block points to a normal Python file whose `main()` function implements the detailed work.
-
-This follows the same division described in the main LiberRPA README: **the flowchart is a map, not the programming language**.
+The Flowchart records major stages, branching, a subprocess, and exception handling, while each Block keeps its detailed implementation in an ordinary Python file whose `main()` function performs the work.
 
 The Project also shows [Managed Imports](../../vscodeExtensions/liberrpa-snippets-tree/README.md#managed-imports) at the top of each Block. Snippets Tree can insert LiberRPA or Component code and maintain the corresponding imports, while the resulting file remains ordinary Python source.
 
@@ -137,7 +156,7 @@ The rule result affects later automation:
 
 ## Desktop UI Automation
 
-FeatureTour launches `Resources/FeatureTourDesktop.exe`, waits for its window, and enters the selected record.
+FeatureTour launches the project-provided local test application `Resources/FeatureTourDesktop.exe`, waits for its window, and enters the selected record.
 
 The form demonstrates several interaction methods that are commonly combined in desktop RPA:
 
@@ -188,7 +207,7 @@ The OCR Block demonstrates:
 
 LiberRPA runs EasyOCR locally on the CPU. The first OCR call may take several seconds while the model initializes.
 
-OCR is inherently less reliable than structured DOM or UI Automation selectors. The same image, model, and parameters should normally produce consistent results, but the live screenshots used by FeatureTour can differ with display scaling, font rendering, browser layout, system theme, and other environment settings.
+OCR is inherently less reliable than structured DOM or UI Automation selectors. Bundled reference images improve reproducibility, but OCR output can still vary with library or runtime versions, hardware, rendering conditions, display scaling, browser layout, and system theme.
 
 For that reason, FeatureTour performs only a simple OCR result check and records the outcome in `summary.json` instead of treating every recognition mismatch as a fatal Project error.
 
@@ -216,7 +235,7 @@ _Components/
 → materialized Python packages used by the Project
 ```
 
-Component management is an example of **Integrated RPA tooling. Ordinary Python.** It provides version constraints, locking, integrity checks, transitive resolution, and materialization, while the calling code still uses normal Python imports.
+Component Management adds version constraints, locking, integrity checks, transitive resolution, and materialization while preserving normal Python imports in the calling code.
 
 ## Custom Project Arguments
 

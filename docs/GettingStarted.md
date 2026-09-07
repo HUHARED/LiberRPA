@@ -10,7 +10,7 @@ By the end, you will have:
 - debugged Python code with VS Code;
 - inserted a LiberRPA Snippet.
 
-For installation, offline preparation, portability, and uninstallation, see [Installation, Portability &amp; Uninstallation](./Installation.md).
+For installation, offline preparation, portability, and uninstallation, see [Installation, Portability & Uninstallation](./Installation.md).
 
 ## Before You Start
 

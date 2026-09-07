@@ -17,6 +17,7 @@ This document is mainly intended for:
 * [Why LiberRPA Provides a Standard Environment](#why-liberrpa-provides-a-standard-environment)
 * [Environment Files](#environment-files)
 * [Rebuild the Environment](#rebuild-the-environment)
+* [Dependency Management Policy](#dependency-management-policy)
 * [Install liberrpa](#install-liberrpa)
 * [Adding or Updating Dependencies](#adding-or-updating-dependencies)
 * [Release Environment Snapshot](#release-environment-snapshot)
@@ -157,49 +158,7 @@ The `name` stored in `environment.yml` is primarily descriptive. The runtime pat
 
 ---
 
-## Install liberrpa
-
-The environment specification defines third-party dependencies.
-
-The `liberrpa` package itself is developed in:
-
-```text
-condaLibrary\
-```
-
-and should match the LiberRPA release being built.
-
-### Development installation
-
-For repository development, install the local source in editable mode:
-
-```bat
-envs\pyenv\default\python.exe -m pip install -e condaLibrary --no-deps --config-settings editable_mode=compat
-```
-
-This allows changes under `condaLibrary/liberrpa/` to be used without rebuilding the package after every edit.
-
-### Release installation
-
-For an official release, build the corresponding `liberrpa` package and install the resulting Wheel into the prepared standard environment.
-
-For example:
-
-```bat
-envs\pyenv\default\python.exe -m pip install condaLibrary\dist\liberrpa-0.3.0-py3-none-any.whl
-```
-
-The installed `liberrpa` version should match the LiberRPA release.
-
-Verify it with:
-
-```bat
-envs\pyenv\default\python.exe -c "import importlib.metadata; print(importlib.metadata.version('liberrpa'))"
-```
-
----
-
-### Dependency management policy
+## Dependency Management Policy
 
 LiberRPA uses a **Conda-first** dependency strategy for its standard Python environment.
 
@@ -252,6 +211,48 @@ libblas[build=*_openblas]
 BLAS provides the optimized linear-algebra backend used by numerical packages such as NumPy and SciPy. Selecting the implementation explicitly keeps the LiberRPA environment independent of the platform-default BLAS choice while allowing Conda to resolve the matching `libcblas`, `liblapack`, and OpenBLAS packages.
 
 LiberRPA code does not call OpenBLAS directly; numerical packages continue to use the normal BLAS/LAPACK interfaces.
+
+---
+
+## Install liberrpa
+
+The environment specification defines third-party dependencies.
+
+The `liberrpa` package itself is developed in:
+
+```text
+condaLibrary\
+```
+
+and should match the LiberRPA release being built.
+
+### Development installation
+
+For repository development, install the local source in editable mode:
+
+```bat
+envs\pyenv\default\python.exe -m pip install -e condaLibrary --no-deps --config-settings editable_mode=compat
+```
+
+This allows changes under `condaLibrary/liberrpa/` to be used without rebuilding the package after every edit.
+
+### Release installation
+
+For an official release, build the corresponding `liberrpa` package and install the resulting Wheel into the prepared standard environment.
+
+For example:
+
+```bat
+envs\pyenv\default\python.exe -m pip install --no-deps condaLibrary\dist\liberrpa-0.3.0-py3-none-any.whl
+```
+
+The installed `liberrpa` version should match the LiberRPA release.
+
+Verify it with:
+
+```bat
+envs\pyenv\default\python.exe -c "import importlib.metadata; print(importlib.metadata.version('liberrpa'))"
+```
 
 ---
 

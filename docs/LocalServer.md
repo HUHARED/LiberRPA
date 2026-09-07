@@ -512,7 +512,7 @@ If another application uses the same port, either close that application or sele
 
 If the port already belongs to another LiberRPA Local Server, starting a second instance is unnecessary.
 
-### Components stop connecting after reinitialization
+### LiberRPA clients stop connecting after reinitialization
 
 `InitLiberRPA.exe` refreshes the local authentication tokens.
 

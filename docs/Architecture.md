@@ -69,13 +69,9 @@ The Flowchart is not the primary programming language of the automation. It desc
 
 ## Editor
 
-LiberRPA Editor uses the official Windows ZIP distribution of Microsoft Visual Studio Code in portable mode. The Microsoft VS Code binary is not redistributed with the LiberRPA release. When the Editor has not yet been prepared, `InitLiberRPA.exe` downloads the tested VS Code version directly from Microsoft and places it under `Editor/`. The download is verified and extracted in a temporary directory before the program files are moved into place; `Editor/data` is preserved. Existing recognized installations are reused, and an incomplete installation is not overwritten automatically.
+LiberRPA Editor is a portable VS Code-based development environment prepared for LiberRPA Projects. Its program files, portable configuration, keybindings, and installed extensions are kept under `Editor/` and `Editor/data/`.
 
-Selected Editor extensions are also not bundled with the LiberRPA release. After VS Code is available, `InitLiberRPA.exe` uses the Editor's VS Code CLI to install missing extensions from the Visual Studio Marketplace. VS Code stores installed extensions and their dependencies under `Editor/data`, so they remain part of the portable Editor after installation.
-
-It combines ordinary Python development with LiberRPA-specific extensions and tools.
-
-Major development components include:
+The main development components are:
 
 ```text
 LiberRPA Editor
@@ -85,26 +81,28 @@ LiberRPA Editor
 │   ├── IntelliSense
 │   ├── debugging
 │   ├── navigation
-│   ├── formatting / linting
-│   └── Git integration
+│   └── formatting / linting
 │
 ├── LiberRPA Flowchart
-│
 ├── LiberRPA Project Manager
-│
 ├── LiberRPA Snippets Tree
-│
 └── UI Analyzer
     └── separate Electron application
 ```
 
-The standard Python interpreter used by LiberRPA Editor is located at:
+Project Manager can initialize a new Project as a Git repository when Git is installed and the selected template contains `.gitignore`. The bundled Editor disables VS Code's built-in Git interface by default, but command-line Git and external clients remain available; users can enable the VS Code interface in Editor settings.
+
+The standard Python interpreter is:
 
 ```text
 <LiberRPA root>\envs\pyenv\default\python.exe
 ```
 
-See [Python Environment](./Environment.md) for environment details.
+For VS Code preparation, extensions, Workspace Trust, Git behavior, and customization, see [LiberRPA Editor](./Editor.md).
+
+For download verification, offline preparation, moving the installation, and system integration, see [Installation, Portability & Uninstallation](./Installation.md).
+
+For the standard Python environment, see [Python Environment](./Environment.md).
 
 ### Flowchart extension
 
@@ -152,7 +150,7 @@ It contains information including:
 - Flowchart nodes;
 - Flowchart edges;
 - built-in Project arguments;
-- custom Project arguments;
+- Custom Project Arguments;
 - Flow execution settings.
 
 The Flowchart supports the following node types:
@@ -469,15 +467,15 @@ flowchart LR
     D["Chrome Extension"]
     E["Web Page DOM"]
 
-    A --> B
-    A --> C
+    A <--> B
+    B --> C
     B <--> D
     D --> E
 ```
 
-UI Analyzer requires LiberRPA Local Server.
+UIA, image, and window indication are coordinated through LiberRPA Local Server. HTML indication additionally requires the Chrome Extension to be installed, connected, and able to access the target page.
 
-HTML indication also requires the Chrome Extension to be installed and connected.
+For selector creation and validation, see [UI Analyzer](../electronApplications/ui-analyzer/README.md).
 
 ---
 
@@ -552,32 +550,7 @@ For validation, inclusion/exclusion rules, filename rules, and the packaging wor
 
 LiberRPA Executor is the local operational layer for packaged Flow Projects.
 
-Its responsibilities include:
-
-```text
-Package installation and versioned storage
-Per-version Run Settings
-Manual execution
-Cron-based Schedules
-Skip / Wait / Concurrent conflict policies
-Pending and Waiting Run Queue states
-Run History
-Cancellation and timeout handling
-Log and recording access
-Retention and RDP Session helpers
-```
-
-### Package installation and deployment boundary
-
-Executor installs `.rpa.zip` Packages created by Project Manager. It validates archive safety and required Package metadata before extracting the Project into:
-
-```text
-%USERPROFILE%\Documents\LiberRPA\ExecutorPackage\<ProjectName>_<Version>\
-```
-
-Different Project versions can coexist. An installed name/version pair is never silently overwritten.
-
-Component dependency resolution belongs to Project Manager. The Package already contains the materialized `_Components` selected during development, and Executor uses them directly at runtime. Executor does not access the Component Repository, resolve or repair dependencies, or rebuild packaged Component state.
+Project Manager resolves Component dependencies and creates an immutable `.rpa.zip` Package. Executor validates and installs that Package by Project name and version, then uses the packaged Project and materialized `_Components` directly at runtime.
 
 ```text
 Development machine
@@ -585,7 +558,7 @@ Component Repository
       │
       │ resolve dependencies
       ▼
-Flow Project + _Components + lock
+Flow Project + components.lock.json + _Components
       │
       │ package
       ▼
@@ -594,137 +567,63 @@ Flow Project + _Components + lock
       ───────── deployment boundary ─────────
       │
       ▼
-Executor installation
+Executor
 ```
 
-### Project and Schedule settings
+Executor does not access the development Component Repository, resolve dependencies, repair `_Components`, or modify the packaged source Project.
 
-Each installed Project version stores local settings for:
+The local execution layer provides:
+
+- manual and Cron-based scheduled Runs;
+- per-version Run Settings and Custom Arguments;
+- Run Queue conflict policies;
+- Run History;
+- cancellation and timeout handling;
+- access to Project logs and recordings.
+
+The Python Flow runtime reports:
 
 ```text
-Python Environment
-Timeout
-Log Level
-Record Video
-Stop Shortcut
-Highlight UI
-Custom Arguments
+running
+completed
+error
+terminated
 ```
 
-The Package provides the initial Run Options and Custom Arguments from `project.flow`. Executor can save different local values without modifying the installed Project source.
+Executor presents those results through its own lifecycle states:
 
-When a Schedule is created, its Run Options and Custom Arguments are copied from the selected Project version and then belong to that Schedule. The Python Environment is not copied into the Schedule; scheduled Runs use the environment currently selected for the installed Project version.
-
-### Scheduling and Run Queue
-
-Executor starts Runs manually or from Cron-based Schedules. The main-process Scheduler uses `cron-parser` as the execution parser. Standard 5-field expressions are supported, and the parser also accepts an optional seconds field. Cron calculations use the global Executor IANA Time Zone and the Schedule's Active From / Active Until bounds.
-
-The renderer's visual Cron editor is a convenience layer for common 5-field expressions; it is not the definition of Scheduler execution semantics. Human-readable Cron descriptions are also presentation-only.
-
-For each enabled Schedule, Executor calculates only the nearest future trigger and represents it as one **Pending** item. The Scheduler then checks due work at approximately one-second intervals. After a Pending trigger is handled, Executor calculates the next one. This avoids materializing an unbounded list of future Runs and means scheduling is approximately second-level rather than millisecond-level.
-
-When a Schedule triggers while another Run is starting or running, its conflict policy can:
-
-| Policy | Result |
+| Executor state | Meaning |
 | --- | --- |
-| `skip` | Ignore this trigger. |
-| `wait` | Capture a Waiting Run and start it when no other Run is active. |
-| `concurrent` | Start immediately alongside existing Runs. |
+| **Running** | The Run is active. |
+| **Completed** | Python reported successful completion and exited normally. |
+| **Error** | Python reported an error or exited unexpectedly. |
+| **Canceled** | Executor terminated the Run in response to cancellation. |
+| **Timed Out** | Executor terminated the Run after its timeout expired. |
+| **Interrupted** | Executor started with a stale Run still recorded as running from a previous session. |
 
-The Run Queue distinguishes:
+Executor keeps installed Packages, Project metadata, Schedules, Run History, active-run coordination, and settings in separate local stores according to their responsibilities.
 
-- **Pending**: the next calculated future trigger for an enabled Schedule;
-- **Waiting**: a trigger that already occurred and captured a Run under the `wait` policy.
-
-Pending items are recalculated when Executor starts or relevant Schedule/Time Zone settings change. Waiting Runs exist only in memory, are not restored after Executor exits, and missed Schedule triggers are not replayed.
-
-### Run lifecycle and local state
-
-Executor records manual and scheduled Runs in Run History and tracks these user-facing states:
-
-```text
-Running
-Completed
-Error
-Canceled
-Timed Out
-Interrupted
-```
-
-Operational data is divided by responsibility:
-
-| Data | Location or lifetime |
-| --- | --- |
-| Installed Package files | `%USERPROFILE%\Documents\LiberRPA\ExecutorPackage\` |
-| Project metadata, Schedules, and Run History | `ExecutorData.db` in the user LiberRPA data directory |
-| Active Run coordination | temporary files under `ExecutorRunState/` |
-| Waiting Runs | in memory while Executor is running |
-| Project logs and recordings | the configured Project Log Folder |
-| Executor settings | `%LiberRPA%\configFiles\Executor.jsonc` |
-
-Closing the window hides Executor in the Windows notification area. The tray process continues Schedule processing, active Runs, queue handling, and retention checks until the user selects `Exit`.
-
-For the complete workflow, status meanings, Package limits, settings, logs, data migration, and known issues, see [LiberRPA Executor](../electronApplications/executor/README.md).
+For the complete Package limits, Run Settings, Scheduler and Run Queue behavior, status handling, logs, retention, data paths, and known issues, see [LiberRPA Executor](../electronApplications/executor/README.md).
 
 ---
 
 ## Initialization and Local Integration
 
-LiberRPA is primarily portable, but several machine- and user-specific integrations must be configured after copying or moving the root directory.
+LiberRPA is primarily portable, but a copied or moved installation still requires machine- and user-specific integration.
 
-This is the responsibility of:
+`InitLiberRPA.exe` configures:
 
-```text
-InitLiberRPA.exe
-```
+- the active `LiberRPA` user environment variable;
+- local authentication information;
+- Chrome Native Messaging;
+- the tested portable Editor and selected extensions when needed;
+- Startup and desktop shortcuts;
+- the default Component Repository;
+- the bundled current-user font.
 
-Initialization currently configures areas including:
+Re-run initialization after moving or copying the LiberRPA root so that local paths, authentication, and integrations point to the active installation.
 
-```text
-LiberRPA user environment variable
-        │
-        ├── points to active LiberRPA root
-        │
-        ▼
-Local configuration
-
-Missing VS Code installation
-        │
-        ├── downloaded directly from Microsoft
-        ▼
-Editor/ → portable VS Code
-
-Missing Editor extensions
-        │
-        ├── installed through the Editor's VS Code CLI
-        ▼
-Visual Studio Marketplace → Editor/data/extensions
-
-Chrome Native Messaging
-        │
-        ▼
-Chrome Extension integration
-
-WebSocketAuth.json
-        │
-        ▼
-Local component authentication
-
-Windows Startup shortcuts
-        │
-        ├── Local Server
-        └── Executor
-
-Desktop shortcuts
-
-Default Component Repository
-
-User font
-```
-
-This is why a copied LiberRPA directory should be initialized again on the target computer.
-
-See [Installation, Portability & Uninstallation](./Installation.md) for the complete procedure.
+See [Installation, Portability & Uninstallation](./Installation.md) for the complete procedure and cleanup locations.
 
 ---
 

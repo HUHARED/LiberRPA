@@ -118,11 +118,17 @@ InitLiberRPA.exe --editor-only
 
 This option prepares the VS Code program files only; run normal initialization afterward to configure LiberRPA and install the selected extensions.
 
+To install or repair only the bundled user font without performing the other initialization steps, run:
+
+```cmd
+InitLiberRPA.exe --font-only
+```
+
 ### Editor extension setup
 
 Third-party VS Code extensions are not bundled with the LiberRPA release archive. After VS Code is available, `InitLiberRPA.exe` checks the selected extensions already present in the portable Editor and attempts to install any missing ones from the Visual Studio Marketplace.
 
-The initial download can be relatively large. With the current Windows x64 extension set, a clean setup may download **more than 300 MB** in total after extension dependencies are included. This is an approximate current figure rather than a fixed package size: the actual amount can change as extension versions and dependencies change.
+The initial download can be relatively large. With the LiberRPA 0.3.0 tested Windows x64 extension set, a clean setup may download **more than 300 MB** in total after extension dependencies are included. This is an approximate figure rather than a fixed package size: the actual amount can change as Marketplace extension versions and dependencies change.
 
 Download time therefore depends strongly on the connection to the Visual Studio Marketplace and its content-delivery infrastructure, as well as local network, proxy, firewall, certificate, and regional conditions. On a slow connection, initial extension setup may take several minutes or longer. `InitLiberRPA.exe` displays the current extension and elapsed installation time while waiting.
 
@@ -438,17 +444,27 @@ HKEY_CURRENT_USER\SOFTWARE\Google\Chrome\NativeMessagingHosts\com.liberrpa.chrom
 
 ### User font
 
-If the bundled Noto Sans Mono font file is not already present, initialization copies it to:
+Initialization installs or repairs the bundled Noto Sans Mono font for the current Windows user.
+
+The font file is stored at:
 
 ```text
-%LOCALAPPDATA%\Microsoft\Windows\Fonts\
+%LOCALAPPDATA%\Microsoft\Windows\Fonts\NotoSansMono-VariableFont_wdth,wght.ttf
 ```
 
-The current bundled filename is:
+The corresponding current-user font registration is stored under:
 
 ```text
-NotoSansMono-VariableFont_wdth,wght.ttf
+HKEY_CURRENT_USER\Software\Microsoft\Windows NT\CurrentVersion\Fonts
 ```
+
+with the value name:
+
+```text
+Noto Sans Mono (TrueType)
+```
+
+Initialization also attempts to make the font available to the current Windows session and notifies running applications that the font set has changed.
 
 ### Files created by dependencies
 
@@ -494,7 +510,7 @@ The default Component Repository is:
 
 A local directory is recommended for the Component Repository.
 
-A shared network directory should only be used when it provides reliable file locking and atomic file operations. Cloud-synchronised directories such as OneDrive are not recommended as multi-user Component Repositories.
+A shared network directory should only be used when it provides reliable file locking and atomic file operations. Cloud-synchronized directories such as OneDrive are not recommended as multi-user Component Repositories.
 
 For Python runtime dependencies and environment construction, see:
 
@@ -602,21 +618,29 @@ If LiberRPA browser automation is no longer required, remove the LiberRPA Chrome
 
 ### 8. Optional font cleanup
 
-LiberRPA may have copied:
+LiberRPA may have installed the current-user font file:
 
 ```text
 %LOCALAPPDATA%\Microsoft\Windows\Fonts\NotoSansMono-VariableFont_wdth,wght.ttf
 ```
 
-during initialization.
+and the corresponding registry value:
 
-Remove it only if you are certain that:
+```text
+Key:
+HKEY_CURRENT_USER\Software\Microsoft\Windows NT\CurrentVersion\Fonts
 
-* it was installed by LiberRPA;
-* it did not exist before LiberRPA was initialized;
+Value:
+Noto Sans Mono (TrueType)
+```
+
+Remove them only if you are certain that:
+
+* they were created by LiberRPA;
+* the font was not already installed before LiberRPA was initialized;
 * no other application or user workflow depends on it.
 
-Leaving the font installed is harmless.
+Leaving the font file and registration in place is harmless.
 
 ---
 

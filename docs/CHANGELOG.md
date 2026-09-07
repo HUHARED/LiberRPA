@@ -17,6 +17,12 @@ This project adheres to [Semantic Versioning](https://semver.org/) (SemVer) and 
   - Add Project Manager workflows for adding, updating, changing, removing, repairing, and resolving Components.
   - Add Component publishing, Wheel importing, and Repository index rebuilding.
   - Add generated snippets for reusable Component APIs.
+- **Python Library**
+  - Add choice placeholders for `Literal` and `bool` parameters in generated snippets. ([432434d](https://github.com/HUHARED/LiberRPA/commit/432434d68d8be2574e30772fbbb3b4dc6af6445a))
+- **LiberRPA Local Server**
+  - Add post-recording video compression. ([a0ba7a5](https://github.com/HUHARED/LiberRPA/commit/a0ba7a50b4867f8cf0575fb15d6e3d3849e6f483))
+- **Initialization**
+  - Generate portable shortcuts during initialization. ([897a180](https://github.com/HUHARED/LiberRPA/commit/897a180cf9075131b98eef0b891d8961529ab35f))
 - **LiberRPA Snippets Tree**
   - Add managed import handling for inserted snippets. ([389b567](https://github.com/HUHARED/LiberRPA/commit/389b5673d68af8510273037eadf6240447135ebb))
 - **UI status feedback**
@@ -27,34 +33,25 @@ This project adheres to [Semantic Versioning](https://semver.org/) (SemVer) and 
 ### Changed
 
 - **Python Library**
-
   - Improve logging output, including terminal highlighting, JSONL formatting, hidden stack-level details, and multi-message logging. ([0dbce77](https://github.com/HUHARED/LiberRPA/commit/0dbce77f4e37a0cd553eb2a03607acb132946b62), [2ab6d09](https://github.com/HUHARED/LiberRPA/commit/2ab6d09a6e87f7d0d04f3079416cbc8ae8ce2949))
-  - Add choice placeholders for `Literal` and `bool` parameters in generated snippets. ([432434d](https://github.com/HUHARED/LiberRPA/commit/432434d68d8be2574e30772fbbb3b4dc6af6445a))
   - Improve update-check timing. ([f7acb3c](https://github.com/HUHARED/LiberRPA/commit/f7acb3c7ae7737d4f6b08645eebae9aff4cc2031))
-  - System: Replace Windows product ID with computer info. ([489b914](https://github.com/HUHARED/LiberRPA/commit/489b91410647dad3db16b507cbea42987b553fc8))
+  - Replace the Windows product ID with computer information for system identification. ([489b914](https://github.com/HUHARED/LiberRPA/commit/489b91410647dad3db16b507cbea42987b553fc8))
   - Standardize overlay labels on Noto Sans Mono. ([79c4063](https://github.com/HUHARED/LiberRPA/commit/79c4063129b96c29f8620cf869112ddbe1c24b69))
   - Support unnamed UIA elements and restore selector overload narrowing. ([571224a](https://github.com/HUHARED/LiberRPA/commit/571224a2f4242c05b57c2f14c22642a6f1febad1))
 - **LiberRPA Local Server**
-
   - Change the standard startup model from a separate PyInstaller-generated executable to the LiberRPA Python environment, launched through a shortcut. ([bebedce](https://github.com/HUHARED/LiberRPA/commit/bebedce4a96b8900cb95e3c363c4559ac02c7fb4), [fe9e832](https://github.com/HUHARED/LiberRPA/commit/fe9e832b5186c6d6c0d493fe40d76b619d63b001))
   - Improve error text. ([ab4905e](https://github.com/HUHARED/LiberRPA/commit/ab4905e612235d2a4ed1d8d751c0decd016d14a7))
   - Send result to UI Analyzer immediately rather than waiting for the notification to complete while indicating. ([1ff90ca](https://github.com/HUHARED/LiberRPA/commit/1ff90ca492a4cf6369e3b0eeead9cc392fdb37a1))
-  - Add post-recording video compression. ([a0ba7a5](https://github.com/HUHARED/LiberRPA/commit/a0ba7a50b4867f8cf0575fb15d6e3d3849e6f483))
 - **Editor and VS Code extensions**
-
   - Replace Black with Ruff in the bundled Editor environment. ([354e497](https://github.com/HUHARED/LiberRPA/commit/354e497d92fb1aae1713498f6804b17a987a09f7))
   - Require VS Code 1.121 for snippet choice navigation and refresh related extension dependencies. ([d887263](https://github.com/HUHARED/LiberRPA/commit/d887263e2cb9fb79ecd0cd18155b713d198d79f6))
   - Update Pylance configuration. ([7f62e07](https://github.com/HUHARED/LiberRPA/commit/7f62e07b8e300c719b2c1da8741ed88a3bc28b29))
   - Install missing Editor extensions through the bundled VS Code CLI during initialization. ([65d386a](https://github.com/HUHARED/LiberRPA/commit/65d386aa8eae67890ea1215217e68945a9e538a9))
 - **LiberRPA Flowchart**
-
   - Validate risky Python module names before opening or executing blocks; change built-in folders' names in Enterprise template. ([607cbf5](https://github.com/HUHARED/LiberRPA/commit/607cbf5e37a9f329a611741f1658914b14cfed5c))
 - **LiberRPA Project Manager**
-
-  - Rename Flow Project template names.([9f7a9af](https://github.com/HUHARED/LiberRPA/commit/9f7a9af7187eb253805f4920492169603a220d14))
-- LiberRPA Snippets Tree
+  - Rename the Flow Project templates. ([9f7a9af](https://github.com/HUHARED/LiberRPA/commit/9f7a9af7187eb253805f4920492169603a220d14))
 - **LiberRPA Snippets Tree**
-
   - Make snippet insertion and imports atomic. ([39d2448](https://github.com/HUHARED/LiberRPA/commit/39d244807b761e147c3a92ccb0bc0c96191a6eb9))
 
 ### Fixed
@@ -69,7 +66,6 @@ This project adheres to [Semantic Versioning](https://semver.org/) (SemVer) and 
   - Fix Browser launch-parameter handling so quoted parameters are preserved. ([9411e75](https://github.com/HUHARED/LiberRPA/commit/9411e759936457ecbdafcc017624edc93bff2b85))
   - Improve Trigger lifecycle handling so input triggers remain active until a matching event. ([a877c74](https://github.com/HUHARED/LiberRPA/commit/a877c74f56561089c8468688b43c5541e44da3a7))
   - Harden File, Mail, and Outlook operations and correct Outlook importance handling. ([c1af14d](https://github.com/HUHARED/LiberRPA/commit/c1af14d605806311dffc68d3c5bc3d61c2605722))
-  - Generate portable shortcuts during initialization. ([897a180](https://github.com/HUHARED/LiberRPA/commit/897a180cf9075131b98eef0b891d8961529ab35f))
 - **LiberRPA Local Server**
   - Reduce idle-spinning overhead and fix a race risk for very fast command completion. ([0c65bfe](https://github.com/HUHARED/LiberRPA/commit/0c65bfe9315c528aee9cf332cbff963cb8e1b937))
   - Prevent a Chrome indication error from blocking later UI Analyzer commands. ([15b0638](https://github.com/HUHARED/LiberRPA/commit/15b0638501be904c035c42646085ccfc08b603df))
@@ -90,9 +86,8 @@ This project adheres to [Semantic Versioning](https://semver.org/) (SemVer) and 
 
 ### Security
 
-* **LiberRPA Local Server**
-  * Add WebSocket connection authentication. ([b407533](https://github.com/HUHARED/LiberRPA/commit/b40753368a030c72fc48851e154b0321ba16d11c))
-
+- **LiberRPA Local Server**
+  - Add WebSocket connection authentication. ([b407533](https://github.com/HUHARED/LiberRPA/commit/b40753368a030c72fc48851e154b0321ba16d11c))
 - **LiberRPA Chrome Extension, UI Analyzer, Executor, and Flowchart**
   - Update affected dependencies to address security vulnerabilities. ([6ff7570](https://github.com/HUHARED/LiberRPA/commit/6ff7570dc654c6d321c3fe21a4e9f0732af670dd), [a01b5d3](https://github.com/HUHARED/LiberRPA/commit/a01b5d3cb07d145e01ae1973d46f787e52afc287), [aeb64ab](https://github.com/HUHARED/LiberRPA/commit/aeb64abbf6323a4c70b0e63375a193502b5a3d12), [5c08b83](https://github.com/HUHARED/LiberRPA/commit/5c08b83a61ffbf8d81c57ad2b408617021e1e400), [1656cbf](https://github.com/HUHARED/LiberRPA/commit/1656cbfaff9c236c8b9b5e2031a4ab2c41fb25a9))
 - **UI Analyzer and Flowchart**

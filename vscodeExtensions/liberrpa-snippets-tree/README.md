@@ -4,7 +4,7 @@ If the images are not displayed, [view this README on GitHub](https://github.com
 
 **LiberRPA Snippets Tree** displays built-in, Favorite, and Component Snippets and inserts them into Python files together with their required imports.
 
-You do not need to memorize the complete [LiberRPA API](https://github.com/HUHARED/LiberRPA/tree/main/condaLibrary#api).
+You do not need to memorize the complete [LiberRPA Code Reference](../../docs/Reference.md).
 
 > **Note:**
 >
@@ -165,5 +165,5 @@ See [Favorite Snippet Configuration](./FavoriteSnippetConfiguration.md) for the 
 
 ## Known Issues
 
-* The TreeView does not provide a search box. Use IntelliSense to search by prefix or a meaningful part of the API name, or refer to the [LiberRPA API](https://github.com/HUHARED/LiberRPA/tree/main/condaLibrary#api).
+* The TreeView does not provide a search box. Use IntelliSense to search by prefix or a meaningful part of the API name, or refer to the [LiberRPA Code Reference](../../docs/Reference.md).
 * After deleting an invalid extra character while IntelliSense is open, VS Code may not immediately request the expected suggestions again. Press `Ctrl+Space` to refresh the suggestions. If they still do not reappear, retype the current search text or insert the Snippet through the Tree or drag-and-drop. The Tree and drag-and-drop workflows are unaffected.

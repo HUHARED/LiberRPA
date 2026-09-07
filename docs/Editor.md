@@ -24,6 +24,8 @@ For creating and running your first Flow Project, see [Getting Started](./Gettin
 - [LiberRPA Extensions](#liberrpa-extensions)
 - [Selected Development Extensions](#selected-development-extensions)
 - [Editor Settings](#editor-settings)
+- [Workspace Trust and Project Safety](#workspace-trust-and-project-safety)
+- [Git Integration](#git-integration)
 - [Python Formatting and Linting](#python-formatting-and-linting)
 - [Snippets and Suggestions](#snippets-and-suggestions)
 - [Keybindings](#keybindings)
@@ -128,7 +130,7 @@ Supporting extensions required by the Jupyter extension are installed automatica
 
 Provides viewing support for Office documents and additional Markdown editing functionality.
 
-LiberRPA pins Office Viewer to a tested version because newer releases may introduce substantial UI and behavior changes. Automatic updates are therefore disabled.
+LiberRPA pins Office Viewer to version 3.5.4 because later releases may introduce substantial UI and behavior changes. This extension is excluded from automatic updates, and `InitLiberRPA.exe` restores the tested version when needed.
 
 ### Partial Diff
 
@@ -188,6 +190,52 @@ You can inspect their built-in descriptions directly through the VS Code Setting
 The bundled configuration is intended to provide useful defaults rather than prevent customization.
 
 You may change Editor settings according to your own development preferences.
+
+---
+
+## Workspace Trust and Project Safety
+
+LiberRPA Editor disables VS Code Workspace Trust by default:
+
+```json
+"security.workspace.trust.enabled": false
+```
+
+This avoids repeated trust prompts when creating, opening, copying, or testing Flow Projects and Component Projects.
+
+A LiberRPA Project can contain executable Python code, Project launch configuration, reusable Components, and other files that participate in development or execution. Open Projects and Components only when you trust their source and have reviewed them appropriately.
+
+Users who prefer VS Code's Restricted Mode protection can enable Workspace Trust in the Editor settings:
+
+```json
+"security.workspace.trust.enabled": true
+```
+
+This is a local Editor preference and does not change the Project format.
+
+---
+
+## Git Integration
+
+When Git is installed and the selected Project template contains `.gitignore`, LiberRPA Project Manager initializes a Git repository for a newly created Project.
+
+The bundled Editor disables VS Code's built-in Git user interface by default:
+
+```json
+"git.enabled": false
+```
+
+This removes Source Control decorations and status indicators from the standard LiberRPA Editor layout. It does not prevent:
+
+- Project Manager from initializing a repository through the installed Git executable;
+- command-line Git from working;
+- GitHub Desktop or another external Git client from managing the Project.
+
+To use VS Code's built-in Source Control interface, enable:
+
+```json
+"git.enabled": true
+```
 
 ---
 
