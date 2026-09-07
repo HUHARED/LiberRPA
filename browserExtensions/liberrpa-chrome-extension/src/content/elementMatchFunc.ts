@@ -80,7 +80,7 @@ export function compareBasicAndIndexAttr(
     if (
       typeof valueSelectorRegex === "string" &&
       typeof valueCurrent === "string" &&
-      new RegExp(`^${valueSelectorRegex}$`, "u").test(valueCurrent)
+      new RegExp(`^(?:${valueSelectorRegex})$`, "u").test(valueCurrent)
     ) {
       console.log(`Delete '${keyName}' for adding index(It's use regex).`);
       delete dictAttrForIndex[keyName];
@@ -128,7 +128,7 @@ function compareAttrWithSelector(
       }
 
       // The value must match the whole regex expression.
-      const re = new RegExp(`^${valueSelector}$`, "u");
+      const re = new RegExp(`^(?:${valueSelector})$`, "u");
       if (re.test(valueToCheck_Regex) === false) {
         // The attribute doesn't match the selector.
         console.log(

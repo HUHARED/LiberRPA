@@ -59,6 +59,12 @@ The icon in the top-right corner also shows the current connection state:
 
 If the connection is lost after `InitLiberRPA.exe` has been run again, restart UI Analyzer and LiberRPA Local Server so that both use the current local authentication information.
 
+When updating LiberRPA, update the Python library, UI Analyzer, and Chrome Extension together.
+
+Multiple UI Analyzer instances can be opened to compare selectors, but only one instance can run an indication or validation operation at a time. Wait for the active operation to finish before starting another.
+
+Once Local Server detects that an instance has disconnected, it cancels that instance's active operation. Work already in progress may need to return before another instance can start.
+
 ---
 
 ## Choosing a Selector Type
@@ -104,13 +110,9 @@ It is particularly useful for HTML indication because the Chrome Extension opera
 
 ### Minimize UI Analyzer during indication
 
-Enable **Minimize** if UI Analyzer would otherwise cover the target.
+Enable **Minimize** if UI Analyzer would otherwise cover the target during UIA, HTML, or Window indication, or during validation. UI Analyzer restores itself when the operation finishes, is canceled, or times out.
 
-UI Analyzer restores itself when the indication:
-
-- completes;
-- is canceled;
-- times out.
+**Image** indication does not minimize UI Analyzer. Move the window away from the region you want to capture before starting.
 
 ![1740149627121](md_images/README/1740149627121.png)
 
@@ -134,9 +136,7 @@ After indication starts, UI Analyzer waits for the selection for a limited time.
 
 The resulting selector is a [`SelectorUia`](#selectoruia).
 
-For each existing UIA hierarchy layer, LiberRPA prepares a concise default attribute recommendation. It always keeps `ControlTypeName` and an existing `Depth`, then considers readable identity attributes in this order: `Name`, `ClassName`, `AriaRole`, `AccessKey`, and `AcceleratorKey`. It starts with one identity attribute and adds at most three when more distinction is needed. If multiple controls still match, it recalculates `Index` from the recommended attributes. `HelpText`, `AriaProperties`, long values, and multiline values are not selected by default.
-
-The existing UIA hierarchy is preserved. All captured attributes remain visible in **Attribute Editor**; attributes outside the recommendation are simply unchecked and can still be restored or edited. `AutomationId` remains a secondary inspection attribute and is not used for generated selectors.
+UI Analyzer preserves the captured UIA hierarchy and its `Depth` values while selecting a smaller set of attributes by default. `AutomationId` is available as a secondary inspection attribute, not as a generated selector field.
 
 ### Indicate HTML Element
 
@@ -155,39 +155,13 @@ During indication, LiberRPA works with the active supported tab in the last-focu
 
 If the target element is outside the viewport, the browser integration can scroll it into view as part of the element operation.
 
-When normal HTML attributes are not enough to distinguish the target reliably, UI Analyzer can also use index attributes or generated path information.
-
-The two HTML index attributes are:
-
-- **`documentIndex`** — the target element's zero-based position among all elements in the document that match the same selected attributes.
-- **`childIndex`** — the target element's zero-based position among matching descendant elements under the parent search area. It is not limited to direct children.
-
-Index values start from `0`. The first match normally does not need an explicit index, so index fields are most useful for the second or later matching element.
+Choose **Index** to use attributes with positional indexes when needed, or **Path** to use a generated CSS path. The default HTML selector uses the final target layer; ancestor layers remain available in Element Hierarchy.
 
 ![1740147909983](md_images/README/1740147909983.png)
 
-Generated path information uses CSS-selector-style structure with `:nth-of-type()` where needed. It is another fallback when normal attributes are not sufficient.
+In Index mode, UI Analyzer selects a smaller set of target attributes and includes indexes when needed. In Path mode, it selects `tagName` and `path` by default. Review the result and validate it before using it in an automation.
 
-For the complete matching rules, including regex support, index behavior, and path fields, see [`SelectorHtml`](#selectorhtml).
-
-The resulting selector is a [`SelectorHtml`](#selectorhtml).
-
-For attribute-and-index HTML indication, the Chrome Extension also prepares a concise default recommendation against the live DOM. It keeps `tagName`, may keep `type`, and considers readable identity attributes in this order:
-
-```text
-id
-name
-aria-label
-aria-labelledby
-alt
-directText
-tableColumnName
-className
-```
-
-When the original target does not need an index, the recommendation uses at most three identity attributes and performs at most two uniqueness checks. When the original target already contains an index, it conservatively keeps every suitable identity attribute and recalculates `childIndex` / `documentIndex` from the attributes that remain. Long, multiline, obviously generated, or state-like values are not selected by default. `directText` and `tableColumnName` are considered only when they are single-line values no longer than 80 characters. Path mode defaults to `tagName` plus the generated `path`.
-
-All captured target attributes remain visible in **Attribute Editor**; attributes outside the recommendation are simply unchecked, so the user can restore or edit them.
+The resulting selector is a [`SelectorHtml`](#selectorhtml). See that reference for regex, index, and path matching rules.
 
 For iframe, Shadow DOM, restricted-page, `file://`, and other Chrome-specific limitations, see the [Chrome Extension documentation](../../browserExtensions/liberrpa-chrome-extension/README.md#current-limitations).
 
@@ -210,6 +184,8 @@ You can configure:
 
 The resulting selector is a [`SelectorImage`](#selectorimage).
 
+The selector stores the PNG filename rather than the image data. When the image is first used by a Python Project, LiberRPA automatically moves the corresponding captured image into the Project's screenshot resources.
+
 Image-based automation is inherently more sensitive than semantic selectors to display scaling, resolution, rendering, and visual changes in the target application.
 
 ### Indicate Window Element
@@ -220,11 +196,7 @@ Use **Window** indication when the automation needs to identify an application w
 
 The resulting selector is a [`SelectorWindow`](#selectorwindow).
 
-For every indicated selector, LiberRPA also prepares a concise default recommendation for the `window` section. It always keeps `ControlTypeName`, normally keeps `ProcessName`, and then considers readable `ClassName` and `Name` values in that order when the simpler combination is not sufficient. If multiple top-level controls still match, it recalculates `Index` from the recommended attributes. Window names or class names that are empty, multiline, or longer than 120 characters are not selected by default.
-
-All captured window attributes remain visible in **Attribute Editor**; attributes outside the recommendation are simply unchecked and can still be restored or edited.
-
-UIA, HTML, and Image selectors also contain a `window` section. UI Analyzer adds this window context automatically before the more specific target information.
+Every selector includes a `window` section. UI Analyzer selects a smaller set of window attributes by default; if several windows still match, the result can include an `Index`.
 
 ---
 
@@ -232,9 +204,11 @@ UIA, HTML, and Image selectors also contain a `window` section. UI Analyzer adds
 
 After indication, use **Element Hierarchy** and **Attribute Editor** to decide which information should remain in the selector.
 
-Select a hierarchy layer, then check or uncheck attributes.
+UI Analyzer recommends default attribute selections for Window, UIA, and HTML targets. All captured attributes remain available for editing; attributes outside the recommendation are unchecked, not hidden. The recommendation reflects the current target and does not guarantee that a selector will remain stable after the application changes.
 
-The **JSON Selector** updates automatically.
+Select a hierarchy layer to display its attributes. Changing an attribute or checking or unchecking an attribute or layer regenerates **JSON Selector**.
+
+Indexes depend on the matching attributes and candidate order. After changing attributes on a layer that uses an Index, validate the result and check that it still selects the intended target.
 
 ![-omit-regex](md_images/README/-omit-regex.gif)
 
@@ -287,13 +261,7 @@ If you edit the Selector while validation is running, the returned result is not
 
 A red validation result means the Selector is valid, but no matching target was found before the Match timeout. Invalid Selector data, unavailable browser integration, and other operation failures are shown as errors instead of being reported as an ordinary non-match.
 
-When a selector becomes unreliable after an application or page changes, validation is the quickest way to determine whether the problem is:
-
-- the target window;
-- a hierarchy layer;
-- one selected attribute;
-- an index/path fallback;
-- the target application/browser state.
+Check the highlighted target, not only the validation result: a selector with an outdated Index can match a different element. If matching becomes unreliable, review the window, hierarchy, selected attributes, and index or path values.
 
 ---
 
@@ -301,11 +269,9 @@ When a selector becomes unreliable after an application or page changes, validat
 
 The **Element Tree** provides a broader view of elements available under the selected window or target context.
 
-For HTML indication, LiberRPA returns the selected element first and then builds the DOM Element Tree once. It does not rebuild the complete tree while the pointer is moving.
+Use the Element Tree to inspect the surrounding hierarchy or select a nearby element without indicating it again. Clicking a tree node replaces the target layers in Element Hierarchy while retaining the current window section.
 
-HTML Element Tree generation stops after 10 seconds, 5,000 elements, or 256 hierarchy levels. The selected Selector remains available if tree generation fails.
-
-Use the Element Tree when you need to understand the surrounding UI hierarchy rather than indicating only one element.
+The Selector may be available before the Element Tree has finished loading. If tree generation fails, the captured Selector remains available for editing and validation.
 
 ![CheckElementTree](md_images/README/CheckElementTree.gif)
 
@@ -326,8 +292,6 @@ For HTML selectors, screen-position/size values such as `secondary-x`, `secondar
 The **Status** area reports the current UI Analyzer operation state.
 
 ![1740149086118](md_images/README/1740149086118.png)
-
-This area was previously named **Log**.
 
 ### Reset
 
@@ -366,6 +330,8 @@ The selector definitions below are the canonical selector reference for UI Analy
 ### SelectorUia
 
 LiberRPA first locates the target window, then searches each layer in `specification` in order.
+
+`Depth` specifies how many UIA levels to search below the previous matched control; when omitted, the search uses one level. `Index` is the zero-based position among matching controls in that search area. Preserve the generated `Depth` when editing attributes, and validate any changed Index.
 
 **Pseudo-schema:**
 
@@ -448,7 +414,7 @@ LiberRPA first locates the target window, then searches each layer in `specifica
 
 A `SelectorHtml` contains a `window` section and a `specification` list.
 
-The `window` section is used to locate the browser window first. After that, the Chrome extension searches the active web page using the `specification ` layers one by one.
+The `window` section is used to locate the browser window first. After that, the Chrome extension searches the active web page using the `specification` layers one by one.
 
 Each item in `specification` represents one HTML layer. The search starts from `document`, then each matched layer becomes the search root for the next layer.
 
@@ -489,41 +455,9 @@ Examples:
 }
 ```
 
-Some attributes can be used directly in `querySelectorAll()` as a fast pre-filter.
+Basic attributes include identity and text values such as `id`, `name`, `className`, `aria-label`, and `directText`, as well as state and table attributes. See the pseudo-schema below for the supported fields.
 
-For example:
-
-```text
-tagName
-id
-className
-type
-name
-aria-label
-aria-labelledby
-checked
-disabled
-```
-
-Other attributes are checked after the pre-filter step, for example:
-
-```text
-value
-href
-src
-alt
-isHidden
-isDisplayedNone
-innerText
-directText
-parentId
-parentClass
-parentName
-isLeaf
-tableRowIndex
-tableColumnIndex
-tableColumnName
-```
+State values such as `value`, `checked`, and `disabled` may change during automation. Use them only when that state is part of what you intend to match.
 
 #### Regex attributes
 
@@ -538,21 +472,7 @@ For example:
 }
 ```
 
-The regex value is used as a JavaScript regular expression string.
-
-The Chrome extension matches the whole value internally, so this:
-
-```json
-{
-  "directText-regex": "Submit"
-}
-```
-
-behaves like:
-
-```text
-^Submit$
-```
+HTML regex fields use JavaScript regular-expression syntax and match the whole attribute value. For example, `Submit|Save` matches `Submit` or `Save`, not `Submit draft` or `AutoSave`.
 
 To match partial text, use `.*` explicitly:
 
@@ -562,15 +482,7 @@ To match partial text, use `.*` explicitly:
 }
 ```
 
-Do not write JavaScript regex slashes such as `/Submit/`. Use only the regex
-
-pattern string:
-
-```json
-{
-  "directText-regex": "Submit"
-}
-```
+Enter only the pattern string, without JavaScript regex slashes such as `/Submit/`.
 
 #### Index attributes
 
@@ -582,7 +494,7 @@ There are two index fields: `childIndex`, `documentIndex`
 
 `childIndex` is the target element's zero-based position among matching descendant elements under the target element's parent search area.
 
-> `childIndex` is calculated by searching within the parent element's DOM subtree using `parentElement.querySelectorAll(...)`, then applying additional attribute filtering. Therefore, it is not limited to direct children.
+It is not limited to direct children.
 
 A `childIndex` value of `"0"` is treated as unnecessary and ignored during matching.
 
@@ -608,7 +520,7 @@ Index fields also support regex:
 }
 ```
 
-Index attributes are calculated from the same attributes that remain in the current selector layer. If you remove an attribute from the selector, the index may need to be recalculated using a broader candidate set.
+An index depends on the other matching attributes. Changing those attributes or the page structure can change which element occupies that index; validate the intended target after editing.
 
 #### Path attributes
 
@@ -634,11 +546,7 @@ There is also a regex version:
 
 Do not combine `path` / `path-regex` with `childIndex` / `documentIndex` in the same layer. They are different fallback strategies. A layer should normally use either path-based locating or index-based locating, not both.
 
-> A generated path that starts from `html` is resolved from the current document. In a multi-layer Selector, each resolved element must still be a descendant of the element matched by the previous layer. This preserves the normal layer-by-layer hierarchy while allowing every generated layer to keep its absolute path.
->
-> A manually written relative path that does not start from `html` is resolved under the previously matched element. Every path must be a valid CSS selector string that can be understood by the browser.
->
-> The generated path is an implementation detail of LiberRPA. It is made of tag names joined by `>`. When there are multiple sibling elements with the same tag name, the generator may append `:nth-of-type(...)`, whose position is counted among siblings with that tag name.
+A generated path beginning with `html` is resolved from the document. In a multi-layer selector, its result must still be a descendant of the previous matched element. A relative path is resolved under the previous matched element. Every `path` value must be a valid CSS selector.
 
 In most cases, users should prefer stable attributes such as `id`, `name`, `aria-label`, text attributes, or index-based locating. Path-based locating is mainly a fallback when normal attributes are not reliable enough.
 
@@ -657,20 +565,7 @@ These values describe the element's screen position and size. They are useful fo
 
 #### Recommended selector editing workflow
 
-When editing an HTML selector manually:
-
-1. Prefer stable semantic attributes first:
-   1. `tagName`
-   2. `id`
-   3. `name`
-   4. `aria-label`
-   5. `directText`
-   6. `type`
-   7. `href`
-2. Use `-regex` when the value changes slightly.
-3. Use `childIndex` or `documentIndex` only when multiple elements still match.
-4. Use `path` only when attributes and indexes are not reliable enough.
-5. Avoid using too many text attributes if the page content changes frequently.
+Start with stable identity attributes and use `-regex` for predictable changes. Add an index or path only when the simpler selector is insufficient, then validate the highlighted target. See [Editing Selectors](#editing-selectors) for the relationship between Attribute Editor and direct JSON edits.
 
 ---
 

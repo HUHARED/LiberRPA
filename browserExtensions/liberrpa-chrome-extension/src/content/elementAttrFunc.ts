@@ -475,7 +475,7 @@ function filterNonQuerySelectorFromAttrDict(
 
       if (
         typeof valueCurrent !== "string" ||
-        !new RegExp(`^${valueToCompare}$`, "u").test(valueCurrent)
+        !new RegExp(`^(?:${valueToCompare})$`, "u").test(valueCurrent)
       ) {
         return false;
       }

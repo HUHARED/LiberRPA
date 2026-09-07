@@ -170,7 +170,9 @@ export function findElementBySelector(arrSelector: DictLayerHtml[]): HTMLElement
 
     const strPathRegex = selector["path-regex"];
     const rePath =
-      typeof strPathRegex === "string" ? new RegExp(`^${strPathRegex}$`, "u") : undefined;
+      typeof strPathRegex === "string"
+        ? new RegExp(`^(?:${strPathRegex})$`, "u")
+        : undefined;
     const selectorWithoutPathRegex = structuredClone(selector);
     delete selectorWithoutPathRegex["path-regex"];
 
