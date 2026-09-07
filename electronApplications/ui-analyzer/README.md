@@ -263,7 +263,7 @@ It does not accept Python syntax such as:
 - `True`, `False`, or `None`;
 - `#` comments.
 
-> Direct JSON edits do not update the Attribute Editor representation.
+> Direct JSON edits do not update the Attribute Editor representation. Changing an attribute or checking/unchecking a layer afterwards regenerates JSON from Element Hierarchy and replaces the direct JSON edits. Selecting another hierarchy layer only changes which layer is shown in Attribute Editor; it does not regenerate JSON.
 
 Use **Validate** after manual edits.
 
@@ -282,6 +282,8 @@ Use **Validate** to test whether the current JSON Selector can locate the intend
 ![1740149519175](md_images/README/1740149519175.png)
 
 It does not change **Indicate delay**.
+
+If you edit the Selector while validation is running, the returned result is not applied to the edited Selector. Validate the current Selector again.
 
 A red validation result means the Selector is valid, but no matching target was found before the Match timeout. Invalid Selector data, unavailable browser integration, and other operation failures are shown as errors instead of being reported as an ordinary non-match.
 

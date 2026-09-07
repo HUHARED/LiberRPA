@@ -55,7 +55,6 @@ import uiautomation
 import threading
 import time
 from datetime import datetime
-import shutil
 from pathvalidate import sanitize_filename as _sanitize_filename
 import mss
 import io
@@ -72,6 +71,9 @@ _INDICATE_TIMEOUT_SECONDS = (
     15  # create_screenshot_manually in _Screenshot.py use an argument to manage.
 )
 _INDICATE_REFRESH_INTERVAL_SECONDS = 0.5
+
+# Keep the generated Windows filename component within the common 255-character limit.
+_INT_IMAGE_FILE_NAME_MAX_LENGTH = 255
 
 # The fallback only examines the native desktop host under the cursor, never all applications.
 _INT_DESKTOP_HIT_TEST_MAX_DEPTH = 16
@@ -527,6 +529,24 @@ def indicate_chrome(
         )
 
 
+def _create_image_file_name(windowName: str) -> str:
+    strSuffix = "_" + datetime.now().strftime("%Y%m%d_%H%M%S") + ".png"
+    intPrefixLimit = _INT_IMAGE_FILE_NAME_MAX_LENGTH - len(strSuffix)
+
+    strTitle = (windowName or "window").replace(" - Google Chrome", "")
+    # Preserve the existing ASCII-only filename policy used for image matching.
+    strAsciiTitle = "".join(char for char in strTitle if char.isascii())
+    strPrefix = _sanitize_filename(
+        filename=strAsciiTitle,
+        platform="Windows",
+        max_len=intPrefixLimit,
+        fs_encoding="ascii",
+    )
+    # Reserved-name replacement may add characters after the sanitizer's truncation.
+    strPrefix = strPrefix[:intPrefixLimit].strip(" .") or "window"
+    return strPrefix + strSuffix
+
+
 @Log.trace()
 def indicate_image(
     indicateDelaySeconds: int = 1,
@@ -558,20 +578,12 @@ def indicate_image(
         elementWindow = _get_window_element(dictCoordinate=dictCoordinate)
         Log.verbose("Retrieved the top-level window for the image selector.")
 
-        # Rename the screenshot: window's name + datetime + .png
-        # Remove some common part in it to make the name concise.
-        strTemp = (elementWindow.Name or "window").replace(" - Google Chrome", "")
-        # Remove non-ASCII characters because pyautogui may raise an error.
-        strTemp = "".join(char for char in strTemp if char.isascii())
-        strFileNamePrefix = _sanitize_filename(filename=strTemp) or "window"
-        strNewFileName = (
-            strFileNamePrefix + "_" + datetime.now().strftime("%Y%m%d_%H%M%S") + ".png"
-        )
+        strNewFileName = _create_image_file_name(windowName=elementWindow.Name)
         Log.debug(strNewFileName)
         _raise_if_operation_canceled(eventCancelRequested)
-        shutil.move(
-            src=PATH_SCREENSHOT_DOCUMENTS / STR_SCREENSHOT_TEMP_NAME,
-            dst=PATH_SCREENSHOT_DOCUMENTS / strNewFileName,
+        # Both files are in the same folder. On Windows, rename refuses to replace an existing file and never treats an existing destination directory as a container.
+        (PATH_SCREENSHOT_DOCUMENTS / STR_SCREENSHOT_TEMP_NAME).rename(
+            PATH_SCREENSHOT_DOCUMENTS / strNewFileName
         )
 
         strGrayscale: Literal["true", "false"] = "true" if grayscale else "false"

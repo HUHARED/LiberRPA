@@ -61,7 +61,6 @@ window.uiAnalyzer.onInitSetting((data) => {
   connectToServer(data.localServerPort, data.token);
 });
 
-/* Create socket. */
 let socket: ReturnType<typeof io> | null = null;
 let promiseMessageHandling: Promise<void> = Promise.resolve();
 
@@ -145,13 +144,18 @@ async function handleOperationResult(
       throw new Error("Local Server returned an invalid validation result.");
     }
 
-    informationStore.applySelectorValidationResult(
+    const boolResultApplied = informationStore.applySelectorValidationResult(
       message.data.validate,
       selectorStore.strJsonText,
     );
-    informationStore.information = message.data.validate
-      ? "The Selector matched the target element."
-      : "The Selector did not match a target element.";
+    if (boolResultApplied) {
+      informationStore.information = message.data.validate
+        ? "The Selector matched the target element."
+        : "The Selector did not match a target element.";
+    } else {
+      informationStore.information =
+        "The Selector changed during validation. Validate the current Selector again.";
+    }
     await restoreOperationWindow(message.operationId);
     return;
   }

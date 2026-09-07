@@ -95,7 +95,6 @@ export const useSelectorStore = defineStore("selector", {
     applyIndicateResult(dictResult: DictForUiAnalyzer): void {
       this.clearElementTree();
 
-      // Update dictFromPython.
       const informationStore = useInformationStore();
       informationStore.resetSelectorValidation();
       this.dictFromPython = structuredClone(dictResult);
@@ -578,7 +577,7 @@ export const useInformationStore = defineStore("information", {
     applySelectorValidationResult(
       boolResult: boolean,
       strCurrentSelectorText: string,
-    ): void {
+    ): boolean {
       const strPendingSelectorText = this.strPendingValidateSelectorText;
       this.strPendingValidateSelectorText = undefined;
 
@@ -588,10 +587,11 @@ export const useInformationStore = defineStore("information", {
       ) {
         loggerRenderer.debug("Ignore a validation result for an outdated Selector.");
         this.validateState = undefined;
-        return;
+        return false;
       }
 
       this.validateState = boolResult;
+      return true;
     },
 
     showAlertMessage(message: string): void {
