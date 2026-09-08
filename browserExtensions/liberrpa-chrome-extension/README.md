@@ -274,7 +274,6 @@ Use it only with code and pages you trust.
 The extension requires browser permissions used for RPA functionality, including:
 
 - `tabs`;
-- `activeTab`;
 - `scripting`;
 - `cookies`;
 - `downloads`;

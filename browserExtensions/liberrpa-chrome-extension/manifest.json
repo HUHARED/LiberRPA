@@ -5,15 +5,8 @@
   "author": "mailwork.hu@gmail.com",
   "version": "0.3.0",
   "minimum_chrome_version": "116",
-  "permissions": [
-    "tabs",
-    "activeTab",
-    "scripting",
-    "cookies",
-    "downloads",
-    "nativeMessaging"
-  ],
-  "host_permissions": ["*://*/*"],
+  "permissions": ["tabs", "scripting", "cookies", "downloads", "nativeMessaging"],
+  "host_permissions": ["*://*/*", "file:///*"],
   "icons": {
     "16": "assets/LiberRPA_icon_v3_color_16px.png",
     "32": "assets/LiberRPA_icon_v3_color_32px.png",
