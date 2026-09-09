@@ -62,9 +62,11 @@ You can search by the beginning of an API name, a meaningful word within the nam
 
 LiberRPA only adds Snippet suggestions when the current text is relevant to a known Snippet. Unrelated Python identifiers continue to use normal Python IntelliSense.
 
-The completion details show the Snippet body and description before insertion.
+The completion details show the code that will be inserted and its description.
 
 ![typeToAdd](md_images/README/typeToAdd.gif)
+
+When a return-value Snippet is inserted through IntelliSense or drag-and-drop, using it at the beginning of a line keeps the result assignment. Inside existing code, such as an `if` condition or function argument, only the function call is inserted. Clicking the Tree node keeps the full Snippet.
 
 #### Snippet Placeholders
 

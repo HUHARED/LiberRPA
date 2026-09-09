@@ -6,6 +6,10 @@ import { log } from "./output";
 import { runSyncBoundary } from "./errorHandling";
 import { createManagedImportTextEditBuilder } from "../../Application/SnippetInsertion/managedImports";
 import { planSnippetImportEdits } from "../../Application/SnippetInsertion/snippetImportEdits";
+import {
+  getSnippetTextForInsertion,
+  hasNonWhitespaceTextBefore,
+} from "../../Application/SnippetInsertion/snippetInsertionText";
 import { matchesSnippetCompletion } from "../../Domain/Snippet/snippetCompletionMatching";
 import type {
   Info_Snippet,
@@ -50,6 +54,7 @@ interface SnippetCompletionContext {
   range: vscode.Range;
   searchText: string;
   qualifier?: string;
+  inlineContext: boolean;
 }
 
 const REG_COMPLETION_EXPRESSION =
@@ -97,6 +102,9 @@ function getCompletionContext(
     ),
     searchText: strSearchText,
     qualifier: intDotIndex === -1 ? undefined : strExpression.slice(0, intDotIndex),
+    // The search expression is replaced, so it does not make a line-start
+    // completion look like an inline expression context.
+    inlineContext: hasNonWhitespaceTextBefore(strLine, intStartCharacter),
   };
 }
 
@@ -120,9 +128,11 @@ function buildCompletionItem(
   // Shown as secondary information in the IntelliSense details.
   completionItem.detail = `LiberRPA: ${snippet.title}`;
 
+  const snippetText = getSnippetTextForInsertion(snippet, completionContext.inlineContext);
+
   // Text under headline.
   const documentation = new vscode.MarkdownString();
-  documentation.appendCodeblock(snippet.body.join("\n"), "python");
+  documentation.appendCodeblock(snippetText.previewText, "python");
   if (snippet.description.length > 0) {
     documentation.appendMarkdown("\n\n");
     documentation.appendMarkdown(snippet.description);
@@ -130,7 +140,7 @@ function buildCompletionItem(
   completionItem.documentation = documentation;
 
   completionItem.insertText = new vscode.SnippetString(
-    importPlan.snippetPrefix + snippet.body.join("\n"),
+    importPlan.snippetPrefix + snippetText.insertionText,
   );
   completionItem.range = completionContext.range;
   completionItem.filterText = snippet.prefix;

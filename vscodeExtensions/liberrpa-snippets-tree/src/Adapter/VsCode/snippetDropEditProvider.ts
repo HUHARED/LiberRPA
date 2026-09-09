@@ -5,6 +5,10 @@ import { log } from "./output";
 import { STR_SNIPPET_DRAG_MIME } from "./snippetTreeDataProvider";
 import { buildManagedImportTextEdits } from "../../Application/SnippetInsertion/managedImports";
 import {
+  getSnippetTextForInsertion,
+  hasNonWhitespaceTextBefore,
+} from "../../Application/SnippetInsertion/snippetInsertionText";
+import {
   planSnippetImportEdits,
   buildAdditionalWorkspaceEdit,
 } from "../../Application/SnippetInsertion/snippetImportEdits";
@@ -42,6 +46,10 @@ export class SnippetDropEditProvider implements vscode.DocumentDropEditProvider 
       }
 
       const primaryRange = new vscode.Range(position, position);
+      const snippetText = getSnippetTextForInsertion(
+        draggedSnippet,
+        hasNonWhitespaceTextBefore(document.lineAt(position.line).text, position.character),
+      );
       const importEdits = buildManagedImportTextEdits(
         document,
         this.repository.importSource,
@@ -54,7 +62,7 @@ export class SnippetDropEditProvider implements vscode.DocumentDropEditProvider 
       }
 
       const dropEdit = new vscode.DocumentDropEdit(
-        new vscode.SnippetString(importPlan.snippetPrefix + draggedSnippet.body.join("\n")),
+        new vscode.SnippetString(importPlan.snippetPrefix + snippetText.insertionText),
       );
       dropEdit.title = `Insert LiberRPA snippet: ${draggedSnippet.title}`;
       dropEdit.additionalEdit = buildAdditionalWorkspaceEdit(
