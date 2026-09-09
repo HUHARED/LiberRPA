@@ -77,11 +77,11 @@
   },
 
   // Enable Python Paste And Indent for Python (Ctrl+V)
-  {
+  /* {
     "key": "ctrl+v",
     "command": "pyPasteIndent.pasteIndent",
     "when": "editorLangId == 'python'"
-  },
+  }, */
 
   // For Office Viewer(Markdown Editor), unbind Ctrl+B from toggling the sidebar
   {
