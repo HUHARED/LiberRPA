@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="./docs/LiberRPA_icon_v3_color.png" alt="LiberRPA" width="150">
+  <img src="./docs/LiberRPA_logo_animation.svg" alt="LiberRPA" width="150">
 </div>
 
 # LiberRPA
