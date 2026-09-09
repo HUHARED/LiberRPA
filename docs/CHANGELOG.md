@@ -10,6 +10,8 @@ This project adheres to [Semantic Versioning](https://semver.org/) (SemVer) and 
 
 - **LiberRPA Snippets Tree**
   - Support expression-style snippet insertion. ([723dab5](https://github.com/HUHARED/LiberRPA/commit/723dab50eda0a30c78c04f32d0fe8e0544ffeecf))
+  - Add nested CustomArgs key completion. ([7262271](https://github.com/HUHARED/LiberRPA/commit/72622711dc84650d5750c16a57a5b79e2fd2ae63))
+  - Add managed import updates for Python paste. ([68d6f2d](https://github.com/HUHARED/LiberRPA/commit/68d6f2d8fa4b47efe5ebfd560d021981b6c6b33a))
 
 ## [0.3.0] - 2026-09-07
 
