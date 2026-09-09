@@ -6,12 +6,29 @@ This project adheres to [Semantic Versioning](https://semver.org/) (SemVer) and 
 
 ## [Unreleased]
 
+> **Component pre-release:** LiberRPA Snippets Tree `0.3.1` was published as an optional VS Code Marketplace pre-release on 2026-09-09. It is compatible with LiberRPA `0.3.0`.
+
 ### Added
 
 - **LiberRPA Snippets Tree**
   - Support expression-style snippet insertion. ([723dab5](https://github.com/HUHARED/LiberRPA/commit/723dab50eda0a30c78c04f32d0fe8e0544ffeecf))
   - Add nested CustomArgs key completion. ([7262271](https://github.com/HUHARED/LiberRPA/commit/72622711dc84650d5750c16a57a5b79e2fd2ae63))
   - Add managed import updates for Python paste. ([68d6f2d](https://github.com/HUHARED/LiberRPA/commit/68d6f2d8fa4b47efe5ebfd560d021981b6c6b33a))
+
+### Upgrade Notes
+
+- **LiberRPA Snippets Tree `0.3.1` pre-release**
+  - Users upgrading from the LiberRPA `0.3.0` Editor configuration should remove or comment out the following binding in `Editor\data\user-data\User\keybindings.json`:
+    ```jsonc
+    // Enable Python Paste And Indent for Python (Ctrl+V)
+    {
+      "key": "ctrl+v",
+      "command": "pyPasteIndent.pasteIndent",
+      "when": "editorLangId == 'python'"
+    },
+    ```
+  - Restart LiberRPA Editor after changing the keybinding.
+  - The old binding intercepts `Ctrl+V` before the Snippets Tree Python paste integration can handle it.
 
 ## [0.3.0] - 2026-09-07
 
