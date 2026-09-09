@@ -3,6 +3,7 @@
 import * as vscode from "vscode";
 
 import { runAsyncBoundary } from "./errorHandling";
+import { CustomArgsKeyIndex } from "./customArgsKeyIndex";
 import { CustomArgsCompletionItemProvider } from "./customArgsCompletionProvider";
 import { SnippetCompletionItemProvider } from "./snippetCompletionProvider";
 import { SnippetDropEditProvider } from "./snippetDropEditProvider";
@@ -18,9 +19,13 @@ export function registerSnippetFeatures(
 ): () => void {
   const treeDataProvider = new SnippetTreeDataProvider(repository);
   const completionItemProvider = new SnippetCompletionItemProvider(repository);
+  const customArgsKeyIndex = new CustomArgsKeyIndex(
+    context.asAbsolutePath("assets/analyzeCustomArgs.py"),
+  );
 
   context.subscriptions.push(
     registerSnippetTabNavigation(),
+    customArgsKeyIndex,
 
     /* TreeView-related */
     treeDataProvider,
@@ -70,7 +75,7 @@ export function registerSnippetFeatures(
     ),
     vscode.languages.registerCompletionItemProvider(
       { language: "python", scheme: "file" },
-      new CustomArgsCompletionItemProvider(repository.importSource),
+      new CustomArgsCompletionItemProvider(repository.importSource, customArgsKeyIndex),
       "[",
       '"',
       "'",

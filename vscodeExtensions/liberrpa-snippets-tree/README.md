@@ -121,11 +121,23 @@ PrjArgs.errorObj
 PrjArgs.projectPath
 ```
 
-Dynamic `CustomArgs` keys are provided through IntelliSense and are read from the current `project.flow`, including unsaved editor changes:
+First-level `CustomArgs` keys are provided through IntelliSense and are read from the current `project.flow`, including unsaved editor changes:
 
 ```python
 CustomArgs["customerName"]
 ```
+
+Nested keys are suggested from complete, explicit `CustomArgs` assignments in the Project's Python files, including definitions in other modules and unsaved changes:
+
+```python
+CustomArgs["configDict"] = {
+    "General": {"PrimaryRequestId": "BB-PLUSGOOD-0001"},
+}
+```
+
+When editing `CustomArgs["configDict"][""]`, IntelliSense suggests `General`; inside `CustomArgs["configDict"]["General"][""]`, it suggests `PrimaryRequestId`. Type part of a key to narrow the list, or press `Ctrl+Space` to request suggestions.
+
+Only explicitly written keys are used; structures returned by functions or built through aliases are not inferred. If a file temporarily contains a syntax error, its last successfully read keys remain available until the file can be parsed again. Suggestions describe keys found in the source, not a guarantee that they exist at runtime.
 
 Selecting a Project Value or CustomArgs completion also adds its required import.
 

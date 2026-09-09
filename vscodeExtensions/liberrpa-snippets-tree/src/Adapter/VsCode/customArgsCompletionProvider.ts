@@ -6,15 +6,16 @@ import * as vscode from "vscode";
 import { log } from "./output";
 import type { DictImportSourceConfig } from "../../Domain/Snippet/snippetTypes";
 import { isRecord } from "../../Common/typeCheck";
-import { runSyncBoundary } from "./errorHandling";
+import { reportError } from "./errorHandling";
+import type { CustomArgsKeyIndex } from "./customArgsKeyIndex";
+import {
+  getCustomArgsCompletionContext,
+  isPythonCodeAtOffset,
+  type CustomArgsContextKind,
+} from "../../Domain/CustomArgs/customArgsCompletionContext";
 import { buildManagedImportTextEdits } from "../../Application/SnippetInsertion/managedImports";
 import { planSnippetImportEdits } from "../../Application/SnippetInsertion/snippetImportEdits";
 
-type CompletionContext =
-  | "afterCustomArgs"
-  | "afterBracket"
-  | "insideDoubleQuote"
-  | "insideSingleQuote";
 const STR_CUSTOM_ARGS_NAME = "CustomArgs";
 const DICT_CUSTOM_ARGS_IMPORTS = {
   "liberrpa.Modules": [STR_CUSTOM_ARGS_NAME],
@@ -42,6 +43,10 @@ function buildCustomArgsVariableCompletion(
     return undefined;
   }
 
+  if (!isPythonCodeAtOffset(document.getText(), document.offsetAt(wordRange.start))) {
+    return undefined;
+  }
+
   const strTypedText = document.getText(wordRange);
 
   if (
@@ -53,11 +58,10 @@ function buildCustomArgsVariableCompletion(
 
   // Do not suggest the project-level CustomArgs variable as an object member:
   // someObjectName.Custom...
-  const intCharacterBeforeWord = wordRange.start.character - 1;
-  if (
-    intCharacterBeforeWord >= 0 &&
-    document.lineAt(wordRange.start.line).text.charAt(intCharacterBeforeWord) === "."
-  ) {
+  const strBeforeWord = document
+    .lineAt(wordRange.start.line)
+    .text.slice(0, wordRange.start.character);
+  if (strBeforeWord.trimEnd().endsWith(".")) {
     return undefined;
   }
 
@@ -86,32 +90,6 @@ function buildCustomArgsVariableCompletion(
   );
 
   return completionItem;
-}
-
-function getCompletionContext(linePrefix: string): CompletionContext | undefined {
-  const arrContexts: ReadonlyArray<[string, CompletionContext]> = [
-    ['CustomArgs["', "insideDoubleQuote"],
-    ["CustomArgs['", "insideSingleQuote"],
-    ["CustomArgs[", "afterBracket"],
-    ["CustomArgs", "afterCustomArgs"],
-  ];
-
-  for (const [strSuffix, context] of arrContexts) {
-    if (!linePrefix.endsWith(strSuffix)) {
-      continue;
-    }
-
-    const intStart = linePrefix.length - strSuffix.length;
-    const strPreviousCharacter = intStart > 0 ? linePrefix[intStart - 1] : "";
-
-    // CustomArgs is a standalone Project variable, not an identifier suffix or an object attribute.
-    if (/[A-Za-z0-9_.]/.test(strPreviousCharacter)) {
-      return undefined;
-    }
-
-    return context;
-  }
-  return undefined;
 }
 
 function getProjectFlowContent(document: vscode.TextDocument): string | undefined {
@@ -170,7 +148,7 @@ function escapeQuotedContent(value: string, quoteCharacter: '"' | "'"): string {
   return quoteCharacter === "'" ? strJsonContent.replace(/'/g, "\\'") : strJsonContent;
 }
 
-function buildInsertedText(context: CompletionContext, argName: string): string {
+function buildInsertedText(context: CustomArgsContextKind, argName: string): string {
   switch (context) {
     case "afterCustomArgs":
       // Insert a complete dictionary lookup:
@@ -198,106 +176,116 @@ function buildInsertedText(context: CompletionContext, argName: string): string 
 }
 
 export class CustomArgsCompletionItemProvider implements vscode.CompletionItemProvider {
-  constructor(private readonly importSources: Record<string, DictImportSourceConfig>) {}
+  constructor(
+    private readonly importSources: Record<string, DictImportSourceConfig>,
+    private readonly keyIndex: CustomArgsKeyIndex,
+  ) {}
 
-  provideCompletionItems(
+  async provideCompletionItems(
     document: vscode.TextDocument,
     position: vscode.Position,
-  ): vscode.ProviderResult<vscode.CompletionItem[]> {
-    return runSyncBoundary(
-      "CustomArgs completion failed",
-      () => this.provideCompletionItemsInternal(document, position),
-      [],
-      false,
-    );
+    token: vscode.CancellationToken,
+  ): Promise<vscode.CompletionItem[] | undefined> {
+    try {
+      return await this.provideCompletionItemsInternal(document, position, token);
+    } catch (e) {
+      reportError("CustomArgs completion failed", e, false);
+      return undefined;
+    }
   }
 
-  private provideCompletionItemsInternal(
+  private async provideCompletionItemsInternal(
     document: vscode.TextDocument,
     position: vscode.Position,
-  ): vscode.CompletionItem[] {
-    const strLinePrefix = document.lineAt(position).text.substring(0, position.character);
-
-    const context = getCompletionContext(strLinePrefix);
-
-    /*
-     * Context 1: the user has already typed CustomArgs.
-     *
-     * Examples:
-     *   CustomArgs
-     *   CustomArgs[
-     *   CustomArgs["
-     *   CustomArgs['
-     *
-     * In this context, provide the keys defined in project.flow.
-     */
-    if (context) {
-      const content = getProjectFlowContent(document);
-
-      if (content === undefined) {
-        return [];
-      }
-
-      let arrArgNames: string[];
-
-      try {
-        arrArgNames = extractCustomArgNames(content);
-      } catch (e) {
-        // Users may temporarily edit project.flow manually instead of through LiberRPA Flowchart.
-        log.debug(
-          `[CustomArgs] project.flow is temporarily unavailable for completion: ${
-            e instanceof Error ? e.message : String(e)
-          }`,
-        );
-        return [];
-      }
-
-      const range = new vscode.Range(position, position);
-      const importEdits = buildManagedImportTextEdits(
+    token: vscode.CancellationToken,
+  ): Promise<vscode.CompletionItem[] | undefined> {
+    if (token.isCancellationRequested || document.isClosed) {
+      return undefined;
+    }
+    const intDocumentVersion = document.version;
+    const context = getCustomArgsCompletionContext(
+      document.getText(),
+      document.offsetAt(position),
+    );
+    if (!context) {
+      const variableCompletion = buildCustomArgsVariableCompletion(
         document,
+        position,
         this.importSources,
-        DICT_CUSTOM_ARGS_IMPORTS,
       );
-      const importPlan = planSnippetImportEdits(range, importEdits);
-
-      if (!importPlan) {
-        return [];
-      }
-
-      return arrArgNames.map((strArgName) => {
-        const strInsertedText = buildInsertedText(context, strArgName);
-
-        const completionItem = new vscode.CompletionItem(
-          `[${JSON.stringify(strArgName)}]`,
-          vscode.CompletionItemKind.Snippet,
-        );
-
-        completionItem.insertText = importPlan.snippetPrefix + strInsertedText;
-        completionItem.range = range;
-        completionItem.additionalTextEdits = importPlan.additionalTextEdits;
-        // Preserve the old quoted label sorting priority while keeping the visible label non-empty for an empty-string key.
-        completionItem.sortText = JSON.stringify(strArgName);
-        completionItem.detail = "LiberRPA custom project argument";
-
-        return completionItem;
-      });
+      return variableCompletion ? [variableCompletion] : undefined;
     }
 
-    /*
-     * Context 2: the user is typing the CustomArgs variable itself.
-     *
-     * Examples:
-     *   Cus
-     *   Custom
-     *
-     * Provide CustomArgs even if it has never appeared in the current file.
-     */
-    const variableCompletion = buildCustomArgsVariableCompletion(
-      document,
-      position,
-      this.importSources,
-    );
+    const content = getProjectFlowContent(document);
+    const folder = vscode.workspace.getWorkspaceFolder(document.uri);
+    if (content === undefined || !folder) {
+      return undefined;
+    }
 
-    return variableCompletion ? [variableCompletion] : [];
+    let arrArgName: string[];
+    try {
+      arrArgName = extractCustomArgNames(content);
+    } catch (e) {
+      log.debug(
+        `[CustomArgs] project.flow is temporarily unavailable for completion: ${
+          e instanceof Error ? e.message : String(e)
+        }`,
+      );
+      return undefined;
+    }
+
+    if (context.keyPath.length > 0) {
+      // Source observations may describe only arguments declared by this Project.
+      if (!arrArgName.includes(context.keyPath[0])) {
+        return undefined;
+      }
+      arrArgName = await this.keyIndex.getChildKeys(folder, context.keyPath);
+    }
+    if (
+      token.isCancellationRequested ||
+      document.isClosed ||
+      document.version !== intDocumentVersion ||
+      arrArgName.length === 0
+    ) {
+      return undefined;
+    }
+
+    const range = new vscode.Range(
+      document.positionAt(context.startOffset),
+      document.positionAt(context.endOffset),
+    );
+    const importEdits = buildManagedImportTextEdits(
+      document,
+      this.importSources,
+      DICT_CUSTOM_ARGS_IMPORTS,
+    );
+    const importPlan = planSnippetImportEdits(range, importEdits);
+    if (!importPlan) {
+      return undefined;
+    }
+
+    return arrArgName.map((strArgName) => {
+      const strInsertedText = buildInsertedText(context.kind, strArgName);
+      const completionItem = new vscode.CompletionItem(
+        `[${JSON.stringify(strArgName)}]`,
+        vscode.CompletionItemKind.Snippet,
+      );
+      completionItem.insertText = importPlan.snippetPrefix + strInsertedText;
+      completionItem.range = range;
+      completionItem.additionalTextEdits = importPlan.additionalTextEdits;
+      completionItem.filterText = strInsertedText;
+      completionItem.sortText = JSON.stringify(strArgName);
+      completionItem.detail =
+        context.keyPath.length === 0
+          ? "LiberRPA custom project argument"
+          : "LiberRPA source-defined CustomArgs key";
+      if (context.keyPath.length > 0) {
+        completionItem.documentation = new vscode.MarkdownString(
+          "A key found in an explicit CustomArgs assignment in this Project. " +
+            "This suggestion does not guarantee that the key exists at runtime.",
+        );
+      }
+      return completionItem;
+    });
   }
 }
