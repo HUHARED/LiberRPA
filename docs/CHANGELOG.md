@@ -6,6 +6,11 @@ This project adheres to [Semantic Versioning](https://semver.org/) (SemVer) and 
 
 ## [Unreleased]
 
+### Added
+
+- **LiberRPA Snippets Tree**
+  - Support expression-style snippet insertion. ([723dab5](https://github.com/HUHARED/LiberRPA/commit/723dab50eda0a30c78c04f32d0fe8e0544ffeecf))
+
 ## [0.3.0] - 2026-09-07
 
 ### Added
