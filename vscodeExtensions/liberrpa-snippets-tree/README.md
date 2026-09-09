@@ -111,6 +111,8 @@ Do not manually edit content inside the Managed Import block. Imports outside th
 
 When a file does not yet contain the block, LiberRPA inserts it after the module header, module docstring, and any `__future__` imports.
 
+When Python code is pasted through the LiberRPA Editor paste shortcut, LiberRPA also detects referenced built-in APIs and direct Component modules and adds their Managed Imports. If the Python file is temporarily invalid, the paste still succeeds and the import update is skipped.
+
 ### Project Values
 
 The **Project Values** Category contains expression Snippets supplied by the current RPA Project, for example:

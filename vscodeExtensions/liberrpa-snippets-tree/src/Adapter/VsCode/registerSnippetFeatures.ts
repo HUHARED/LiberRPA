@@ -7,6 +7,7 @@ import { CustomArgsKeyIndex } from "./customArgsKeyIndex";
 import { CustomArgsCompletionItemProvider } from "./customArgsCompletionProvider";
 import { SnippetCompletionItemProvider } from "./snippetCompletionProvider";
 import { SnippetDropEditProvider } from "./snippetDropEditProvider";
+import { registerManagedImportPaste } from "./managedImportPaste";
 import { registerSnippetTabNavigation } from "./snippetTabNavigation";
 import { STR_SNIPPET_DRAG_MIME, SnippetTreeDataProvider } from "./snippetTreeDataProvider";
 import { insertSnippetFromTreeNode } from "../../Application/SnippetInsertion/insertSnippet";
@@ -25,6 +26,10 @@ export function registerSnippetFeatures(
 
   context.subscriptions.push(
     registerSnippetTabNavigation(),
+    registerManagedImportPaste(
+      repository,
+      context.asAbsolutePath("assets/analyzeManagedImportNames.py"),
+    ),
     customArgsKeyIndex,
 
     /* TreeView-related */
@@ -67,6 +72,7 @@ export function registerSnippetFeatures(
       }),
       { dropMimeTypes: [STR_SNIPPET_DRAG_MIME] },
     ),
+
     /* Completion-related */
     vscode.languages.registerCompletionItemProvider(
       { language: "python", scheme: "file" },

@@ -40,6 +40,12 @@
         "title": "Navigate Python Snippet Field",
         "category": "LiberRPA",
         "enablement": "editorTextFocus && editorLangId == python && inSnippetMode && hasNextTabstop && !editorReadonly && !editorTabMovesFocus && !inSnippetChoice && !editorHasSelection && !editorHasMultipleSelections && !suggestWidgetVisible && !inlineSuggestionVisible && !inlineEditIsVisible"
+      },
+      {
+        "command": "LiberRPA.snippetsTree.pastePythonWithManagedImports",
+        "title": "Paste Python and Update Managed Imports",
+        "category": "LiberRPA",
+        "enablement": "editorTextFocus && editorLangId == python && !editorReadonly"
       }
     ],
     "menus": {
@@ -55,6 +61,11 @@
         "key": "tab",
         "command": "LiberRPA.snippetsTree.navigateSnippetTab",
         "when": "editorTextFocus && editorLangId == python && inSnippetMode && hasNextTabstop && !editorReadonly && !editorTabMovesFocus && !inSnippetChoice && !editorHasSelection && !editorHasMultipleSelections && !suggestWidgetVisible && !inlineSuggestionVisible && !inlineEditIsVisible"
+      },
+      {
+        "key": "ctrl+v",
+        "command": "LiberRPA.snippetsTree.pastePythonWithManagedImports",
+        "when": "editorTextFocus && editorLangId == python && !editorReadonly"
       }
     ],
     "jsonValidation": [
