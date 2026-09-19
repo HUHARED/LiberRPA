@@ -63,6 +63,13 @@ class Department(models.Model):
     # Django creates these attributes from the relationship fields below.
     organization_id: uuid.UUID
     parent_id: uuid.UUID | None
+    parent: "models.ForeignKey[Department | None]" = models.ForeignKey(
+        "self",
+        on_delete=models.PROTECT,
+        related_name="children",
+        null=True,
+        blank=True,
+    )
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     organization = models.ForeignKey(
