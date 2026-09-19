@@ -29,7 +29,10 @@ ROOT_URLCONF = "console_project.urls"
 ASGI_APPLICATION = "console_project.asgi.application"
 
 # Define the Console account before creating any database tables.
-INSTALLED_APPS = ["accounts.apps.AccountsConfig"]
+INSTALLED_APPS = [
+    "accounts.apps.AccountsConfig",
+    "organizations.apps.OrganizationsConfig",
+]
 AUTH_USER_MODEL = "accounts.User"
 # New-password entry points also enforce length in validate_new_password().
 AUTH_PASSWORD_VALIDATORS = [
