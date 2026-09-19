@@ -14,8 +14,9 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.views.decorators.debug import sensitive_variables
 
-from accounts.models import User
+from accounts.models import User, UserManager
 from console_project.config import LimitsConfig
+from operations.policies import require_organization_creation_allowed
 
 from .models import (
     Department,
@@ -349,10 +350,11 @@ def create_organization_records(
 ) -> OrganizationCreationResult:
     """Create the records for an organization registration already authorized by the caller.
 
-    The registration entry point must verify and lock the email proof, check current creation policy, and consume the proof in the same outer transaction.
+    The registration entry point must verify and lock the email proof, then consume it in the same outer transaction.
     verifiedEmail must come from that proof, never from an independently editable form field.
     This internal creation step does not verify email ownership or open a login session.
     """
+    require_organization_creation_allowed()
     # UserManager supports internal accounts without passwords, but registration requires one.
     if password is None:
         raise ValidationError({"password": "A password is required."})
@@ -366,7 +368,8 @@ def create_organization_records(
         if username and not username.isspace()
         else f"User {uuid.uuid4().hex[:8]}"
     )
-    user = User.objects.create_user(verifiedEmail, password, username=displayName)
+    userManager = cast(UserManager, User.objects)
+    user = userManager.create_user(verifiedEmail, password, username=displayName)
     organization.save(force_insert=True)
     membership = Membership(user=user, organization=organization, is_org_admin=True)
     membership.save(force_insert=True)
