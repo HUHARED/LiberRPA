@@ -28,11 +28,17 @@ class DatabaseConfig(_BaseConfig):
     passwordFile: NonEmptyText
 
 
+class LimitsConfig(_BaseConfig):
+    maxDepartmentsPerOrganization: int = Field(default=20, ge=0)
+    maxDepartmentDepth: int = Field(default=5, ge=1)
+
+
 class ConsoleConfig(_BaseConfig):
     debug: bool = False
     allowedHosts: list[NonEmptyText] = Field(min_length=1)
     secretKeyFile: NonEmptyText
     database: DatabaseConfig
+    limits: LimitsConfig = Field(default_factory=LimitsConfig)
 
 
 def load_config(pathConfig: Path) -> ConsoleConfig:

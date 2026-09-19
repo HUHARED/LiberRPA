@@ -27,6 +27,7 @@ DEBUG = _CONFIG.debug
 ALLOWED_HOSTS = _CONFIG.allowedHosts
 ROOT_URLCONF = "console_project.urls"
 ASGI_APPLICATION = "console_project.asgi.application"
+CONSOLE_LIMITS = _CONFIG.limits
 
 # Define the Console account before creating any database tables.
 INSTALLED_APPS = [
