@@ -5,6 +5,7 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import uuid
+from collections.abc import Mapping
 from typing import cast
 
 from django.conf import settings
@@ -13,7 +14,13 @@ from django.db import transaction
 
 from console_project.config import LimitsConfig
 
-from .models import Department, Membership, Organization
+from .models import (
+    Department,
+    DepartmentMembership,
+    DepartmentRole,
+    Membership,
+    Organization,
+)
 
 
 def _lock_organization_for_admin(
@@ -21,8 +28,8 @@ def _lock_organization_for_admin(
 ) -> Organization:
     """Resolve and lock the current administrator context inside the caller's transaction."""
     try:
-        # All department writes lock the organization first.
-        # This serializes quota and hierarchy changes per organization, including future deletions.
+        # All department and membership writes lock the organization first.
+        # This serializes quota, hierarchy, and administrator changes, including future deletions.
         organization = Organization.objects.select_for_update().get(pk=organizationId)
         # Lock the current membership and account so revocation cannot pass this write.
         Membership.objects.select_related("user").select_for_update(
@@ -123,8 +130,8 @@ def create_department(
 ) -> Department:
     """Create a department using the account ID supplied by the authentication layer.
 
-    Callers must authenticate the session and enforce its channel restrictions before
-    calling this service. Operator-scoped API Keys cannot use this operation.
+    Callers must authenticate the session and enforce its channel restrictions first.
+    Operator-scoped API Keys cannot use this operation.
     """
     organization = _lock_organization_for_admin(actorId, organizationId)
     parent = _get_parent_department(organization, parentId)
@@ -179,7 +186,8 @@ def update_department(
     _validate_department_values(department)
 
     # Editing does not consume a new slot.
-    # Only a move changes subtree placement, so lowering deployment limits does not block name or Notes edits.
+    # Only a move changes subtree placement.
+    # Lowering deployment limits therefore does not block name or Notes edits.
     if parentId != oldParentId:
         limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
         _validate_department_depth(
@@ -193,3 +201,117 @@ def update_department(
     # Update the same row and leave all identity-based relationships intact.
     department.save(update_fields=["name", "parent", "notes"])
     return department
+
+
+def _prepare_department_memberships(
+    membership: Membership, departmentRoles: Mapping[uuid.UUID, DepartmentRole]
+) -> list[DepartmentMembership]:
+    """Resolve departments in one query and validate the requested explicit roles."""
+    departments = Department.objects.filter(
+        organization_id=membership.organization_id, deleted_at__isnull=True
+    ).in_bulk(departmentRoles)
+    if len(departments) != len(departmentRoles):
+        raise ValidationError({
+            "department_roles": ValidationError(
+                "Select available departments in this organization.",
+                code="invalid_department",
+            )
+        })
+
+    assignments: list[DepartmentMembership] = []
+    for departmentId, role in departmentRoles.items():
+        assignment = DepartmentMembership(
+            membership=membership, department=departments[departmentId], role=role
+        )
+        # Reuse the resolved references and the model's role and organization rules.
+        # Mapping keys prevent duplicate departments; the database enforces stored constraints.
+        assignment.full_clean(
+            exclude=["membership", "department"],
+            validate_unique=False,
+            validate_constraints=False,
+        )
+        assignments.append(assignment)
+    return assignments
+
+
+def _save_department_memberships(
+    membership: Membership, assignments: list[DepartmentMembership]
+) -> None:
+    """Save validated assignments while preserving the IDs of retained relationships."""
+    existingAssignments = {
+        assignment.department_id: assignment
+        for assignment in DepartmentMembership.objects.filter(membership=membership)
+    }
+    newAssignments: list[DepartmentMembership] = []
+    changedAssignments: list[DepartmentMembership] = []
+    for assignment in assignments:
+        existing = existingAssignments.pop(assignment.department_id, None)
+        if existing is None:
+            newAssignments.append(assignment)
+        elif existing.role != assignment.role:
+            existing.role = assignment.role
+            changedAssignments.append(existing)
+
+    # Relationships left in the mapping were explicitly removed from the submitted form.
+    if existingAssignments:
+        DepartmentMembership.objects.filter(
+            membership=membership, department_id__in=existingAssignments
+        ).delete()
+    DepartmentMembership.objects.bulk_update(changedAssignments, ["role"])
+    DepartmentMembership.objects.bulk_create(newAssignments)
+
+
+@transaction.atomic
+def update_membership(
+    *,
+    actorId: uuid.UUID,
+    organizationId: uuid.UUID,
+    userId: uuid.UUID,
+    isOrgAdmin: bool,
+    departmentRoles: Mapping[uuid.UUID, DepartmentRole],
+    notes: str,
+) -> Membership:
+    """Save the complete member edit form using the same session contract as create_department().
+
+    userId identifies the member being edited; actorId identifies the acting administrator.
+    departmentRoles contains the complete explicit role mapping, including roles hidden by OrgAdmin.
+    An empty mapping explicitly removes every department role.
+    A missing or foreign membership raises Membership.DoesNotExist.
+    """
+    organization = _lock_organization_for_admin(actorId, organizationId)
+    membership = (
+        Membership.objects
+        .select_related("user")
+        .select_for_update(of=("self", "user"))
+        .get(user_id=userId, organization=organization)
+    )
+    wasOrgAdmin = membership.is_org_admin
+    membership.is_org_admin = isOrgAdmin
+    membership.notes = notes
+    membership.full_clean(
+        exclude=["user", "organization"],
+        validate_unique=False,
+        validate_constraints=False,
+    )
+
+    # The organization lock makes competing demotions observe the preceding commit.
+    # Only active accounts count; being signed in or online is not required.
+    if (
+        wasOrgAdmin
+        and not membership.is_org_admin
+        and not Membership.objects
+        .filter(organization=organization, is_org_admin=True, user__is_active=True)
+        .exclude(pk=membership.pk)
+        .exists()
+    ):
+        raise ValidationError({
+            "is_org_admin": ValidationError(
+                "The organization must retain at least one active administrator.",
+                code="last_org_admin",
+            )
+        })
+
+    assignments = _prepare_department_memberships(membership, departmentRoles)
+    membership.save(update_fields=["is_org_admin", "notes"])
+    _save_department_memberships(membership, assignments)
+    return membership

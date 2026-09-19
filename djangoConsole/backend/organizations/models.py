@@ -50,7 +50,9 @@ class Membership(models.Model):
         related_name="memberships",
     )
     is_org_admin = models.BooleanField(default=False)
-    notes = models.TextField(blank=True, default="")
+    notes = models.TextField(
+        blank=True, default="", validators=[MaxLengthValidator(2000)]
+    )
     joined_at = models.DateTimeField(default=timezone.now, editable=False)
 
     def __str__(self) -> str:
