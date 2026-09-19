@@ -5,13 +5,39 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal, Self
 
 import json5
 from django.core.exceptions import ImproperlyConfigured
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, ValidationError
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.validators import validate_email
+from pydantic import (
+    AfterValidator,
+    BaseModel,
+    ConfigDict,
+    Field,
+    HttpUrl,
+    StringConstraints,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
 
 type NonEmptyText = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
+type SingleLineText = Annotated[
+    NonEmptyText, StringConstraints(pattern=r"^[^\x00-\x1f\x7f]+$")
+]
+
+
+def _validate_email_address(address: str) -> str:
+    try:
+        validate_email(address)
+    except DjangoValidationError:
+        raise ValueError("Enter a valid email address without a display name.") from None
+    return address
+
+
+type EmailAddress = Annotated[NonEmptyText, AfterValidator(_validate_email_address)]
 
 
 class _BaseConfig(BaseModel):
@@ -33,12 +59,63 @@ class LimitsConfig(_BaseConfig):
     maxDepartmentDepth: int = Field(default=5, ge=1)
 
 
+class SmtpConfig(_BaseConfig):
+    host: SingleLineText
+    port: int = Field(ge=1, le=65535)
+    security: Literal["ssl", "starttls"]
+    user: SingleLineText
+    passwordFile: NonEmptyText
+    fromEmail: EmailAddress
+    fromName: SingleLineText = "LiberRPA Console"
+    timeoutSeconds: int = Field(default=10, ge=1)
+
+
 class ConsoleConfig(_BaseConfig):
     debug: bool = False
     allowedHosts: list[NonEmptyText] = Field(min_length=1)
     secretKeyFile: NonEmptyText
     database: DatabaseConfig
     limits: LimitsConfig = Field(default_factory=LimitsConfig)
+    # These may be absent during backend development; configure all three before sending mail.
+    consoleUrl: HttpUrl | None = None
+    supportEmail: EmailAddress | None = None
+    smtp: SmtpConfig | None = None
+
+    @field_validator("consoleUrl")
+    @classmethod
+    def validate_console_url(cls, consoleUrl: HttpUrl | None) -> HttpUrl | None:
+        if consoleUrl is None:
+            return None
+        if (
+            consoleUrl.username is not None
+            or consoleUrl.password is not None
+            or consoleUrl.query is not None
+            or consoleUrl.fragment is not None
+            or consoleUrl.path not in (None, "/")
+        ):
+            raise ValueError(
+                "Console URL must be a site root without credentials, a query, or a fragment."
+            )
+        if consoleUrl.scheme != "https" and consoleUrl.host not in (
+            "localhost",
+            "127.0.0.1",
+            "[::1]",
+        ):
+            raise ValueError(
+                "Console URL must use HTTPS, except on the local loopback host."
+            )
+        return consoleUrl
+
+    @model_validator(mode="after")
+    def validate_email_configuration(self) -> Self:
+        configured = (
+            self.consoleUrl is not None,
+            self.supportEmail is not None,
+            self.smtp is not None,
+        )
+        if any(configured) and not all(configured):
+            raise ValueError("Configure consoleUrl, supportEmail, and smtp together.")
+        return self
 
 
 def load_config(pathConfig: Path) -> ConsoleConfig:

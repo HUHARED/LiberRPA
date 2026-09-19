@@ -5,6 +5,7 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import os
+from email.headerregistry import Address
 from pathlib import Path
 
 from django.core.exceptions import ImproperlyConfigured
@@ -28,6 +29,31 @@ ALLOWED_HOSTS = _CONFIG.allowedHosts
 ROOT_URLCONF = "console_project.urls"
 ASGI_APPLICATION = "console_project.asgi.application"
 CONSOLE_LIMITS = _CONFIG.limits
+CONSOLE_URL = str(_CONFIG.consoleUrl).rstrip("/") if _CONFIG.consoleUrl else None
+CONSOLE_SUPPORT_EMAIL = _CONFIG.supportEmail
+
+# An empty MAILERS configuration prevents fallback to an unintended local SMTP server.
+MAILERS = {}
+if _CONFIG.smtp is not None:
+    DEFAULT_FROM_EMAIL = str(
+        Address(display_name=_CONFIG.smtp.fromName, addr_spec=_CONFIG.smtp.fromEmail)
+    )
+    MAILERS = {
+        "default": {
+            "BACKEND": "django.core.mail.backends.smtp.EmailBackend",
+            "OPTIONS": {
+                "host": _CONFIG.smtp.host,
+                "port": _CONFIG.smtp.port,
+                "username": _CONFIG.smtp.user,
+                "password": read_secret_file(
+                    _PATH_CONFIG.parent / _CONFIG.smtp.passwordFile
+                ),
+                "use_ssl": _CONFIG.smtp.security == "ssl",
+                "use_tls": _CONFIG.smtp.security == "starttls",
+                "timeout": _CONFIG.smtp.timeoutSeconds,
+            },
+        }
+    }
 
 # Define the Console account before creating any database tables.
 INSTALLED_APPS = [
