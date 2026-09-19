@@ -1,0 +1,18 @@
+// FileName: Console.jsonc
+{
+    // Local development only. Copy to .local/Console.jsonc.
+    // Changes take effect after restarting the application.
+    "debug": false,
+    "allowedHosts": ["localhost", "127.0.0.1", "[::1]"],
+
+    // Relative secret paths are resolved against this configuration file.
+    // Store UTF-8 text in these files; never put the secret values here.
+    "secretKeyFile": "secrets/django-secret-key.txt",
+    "database": {
+        "host": "127.0.0.1",
+        "port": 5432,
+        "name": "liberrpa_console",
+        "user": "liberrpa_console",
+        "passwordFile": "secrets/database-password.txt"
+    }
+}
