@@ -60,6 +60,7 @@ INSTALLED_APPS = [
     "accounts.apps.AccountsConfig",
     "organizations.apps.OrganizationsConfig",
     "operations.apps.OperationsConfig",
+    "notifications.apps.NotificationsConfig",
 ]
 AUTH_USER_MODEL = "accounts.User"
 # New-password entry points also enforce length in validate_new_password().

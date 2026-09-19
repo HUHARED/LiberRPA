@@ -10,11 +10,13 @@ import secrets
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
-from django.core.exceptions import ValidationError
+from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 from django.views.decorators.debug import sensitive_variables
 
+from notifications.models import EmailDelivery, EmailStatus, EmailType
 from operations.policies import require_organization_creation_allowed
 from organizations.services import OrganizationCreationResult, create_organization_records
 
@@ -60,6 +62,49 @@ def _get_registration_token(token: str, *, forUpdate: bool) -> RegistrationToken
     # Check time after any lock wait, using the row already loaded for this operation.
     _require_unexpired(registration)
     return registration
+
+
+@sensitive_variables()
+@transaction.atomic
+def request_registration_email(email: str) -> None:
+    """Queue a registration request without generating a token or contacting SMTP.
+
+    The HTTP adapter must apply source-based request limits and give a generic response.
+    The worker issues the token only when preparing the first delivery attempt.
+    """
+    if settings.CONSOLE_URL is None:
+        raise ImproperlyConfigured(
+            "Configure consoleUrl, supportEmail, and smtp in Console.jsonc before requesting email."
+        )
+    delivery = EmailDelivery(
+        email_type=EmailType.ORGANIZATION_REGISTRATION,
+        recipient=UserManager.normalize_email(email),
+    )
+    delivery.full_clean(validate_unique=False, validate_constraints=False)
+
+    # The policy row serializes registration requests; recipient lookups do not take row locks.
+    # A worker may already hold a delivery or token lock before checking the same policy.
+    require_organization_creation_allowed()
+    if User.objects.filter(email=delivery.recipient).exists():
+        return
+
+    previous = (
+        EmailDelivery.objects
+        .filter(email_type=delivery.email_type, recipient=delivery.recipient)
+        .order_by("-created_at", "-id")
+        .first()
+    )
+    requestedAt = timezone.now()
+    if previous is not None:
+        if previous.status in (EmailStatus.PENDING, EmailStatus.SENDING):
+            return
+        cooldownStart = previous.attempted_at or previous.created_at
+        if requestedAt < cooldownStart + _RESEND_INTERVAL:
+            return
+
+    # Start the request age after any policy lock wait; previous outcomes remain history.
+    delivery.created_at = requestedAt
+    delivery.save(force_insert=True)
 
 
 @sensitive_variables()
