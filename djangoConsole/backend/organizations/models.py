@@ -63,13 +63,6 @@ class Department(models.Model):
     # Django creates these attributes from the relationship fields below.
     organization_id: uuid.UUID
     parent_id: uuid.UUID | None
-    parent: "models.ForeignKey[Department | None]" = models.ForeignKey(
-        "self",
-        on_delete=models.PROTECT,
-        related_name="children",
-        null=True,
-        blank=True,
-    )
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     organization = models.ForeignKey(
@@ -77,7 +70,7 @@ class Department(models.Model):
         on_delete=models.PROTECT,
         related_name="departments",
     )
-    parent = models.ForeignKey(
+    parent: "models.ForeignKey[Department | None]" = models.ForeignKey(
         "self",
         on_delete=models.PROTECT,
         related_name="children",
@@ -141,3 +134,78 @@ class Department(models.Model):
 
     def __str__(self) -> str:
         return self.name
+
+
+class DepartmentRole(models.TextChoices):
+    """The two roles that can be explicitly assigned within a department."""
+
+    DEVELOPER = "developer", "Developer"
+    OPERATOR = "operator", "Operator"
+
+
+class DepartmentMembership(models.Model):
+    """An explicit department role for a current organization member."""
+
+    # Django creates these attributes from the relationship fields below.
+    membership_id: uuid.UUID
+    department_id: uuid.UUID
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    # Removing an organization membership also removes its explicit department roles.
+    membership: "models.ForeignKey[Membership]" = models.ForeignKey(
+        Membership,
+        on_delete=models.CASCADE,
+        related_name="department_memberships",
+    )
+    department: "models.ForeignKey[Department]" = models.ForeignKey(
+        Department,
+        on_delete=models.PROTECT,
+        related_name="memberships",
+    )
+    # OrgAdmin stays on Membership and does not require a role in each department.
+    role = models.CharField(max_length=9, choices=DepartmentRole.choices)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["membership", "department"],
+                name="department_membership_unique",
+                violation_error_code="duplicate_department_membership",
+                violation_error_message="This member already has a role in this department.",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(role__in=DepartmentRole.values),
+                name="department_membership_role_valid",
+                violation_error_code="invalid_department_role",
+                violation_error_message="Select Developer or Operator.",
+            ),
+        ]
+
+    def clean(self) -> None:
+        """Require an active department in the member's current organization."""
+        super().clean()
+        try:
+            membership = self.membership
+            department = self.department
+        except (Membership.DoesNotExist, Department.DoesNotExist):
+            # full_clean() reports missing references during field validation.
+            return
+        if membership.organization_id != department.organization_id:
+            raise ValidationError({
+                "department": ValidationError(
+                    "The department must belong to the member's organization.",
+                    code="department_organization_mismatch",
+                )
+            })
+        if department.deleted_at is not None:
+            raise ValidationError({
+                "department": ValidationError(
+                    "The department has been deleted.",
+                    code="invalid_department",
+                )
+            })
+
+    def __str__(self) -> str:
+        return (
+            f"Member {self.membership_id} in department {self.department_id}: {self.role}"
+        )
