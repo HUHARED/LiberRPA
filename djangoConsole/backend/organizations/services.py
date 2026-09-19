@@ -9,7 +9,7 @@ from collections.abc import Mapping
 from typing import cast
 
 from django.conf import settings
-from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.exceptions import ValidationError
 from django.db import transaction
 
 from console_project.config import LimitsConfig
@@ -21,28 +21,22 @@ from .models import (
     Membership,
     Organization,
 )
+from .permissions import (
+    AccessChannel,
+    require_organization_admin,
+    resolve_organization_access,
+)
 
 
 def _lock_organization_for_admin(
-    actorId: uuid.UUID, organizationId: uuid.UUID
+    actorId: uuid.UUID, organizationId: uuid.UUID, channel: AccessChannel
 ) -> Organization:
     """Resolve and lock the current administrator context inside the caller's transaction."""
-    try:
-        # All department and membership writes lock the organization first.
-        # This serializes quota, hierarchy, and administrator changes, including future deletions.
-        organization = Organization.objects.select_for_update().get(pk=organizationId)
-        # Lock the current membership and account so revocation cannot pass this write.
-        Membership.objects.select_related("user").select_for_update(
-            of=("self", "user")
-        ).get(
-            user_id=actorId,
-            organization=organization,
-            is_org_admin=True,
-            user__is_active=True,
-        )
-    except (Organization.DoesNotExist, Membership.DoesNotExist):
-        raise PermissionDenied("Organization administrator access is required.") from None
-    return organization
+    access = resolve_organization_access(
+        actorId=actorId, organizationId=organizationId, channel=channel, forUpdate=True
+    )
+    require_organization_admin(access)
+    return access.organization
 
 
 def _get_parent_department(
@@ -124,16 +118,17 @@ def create_department(
     *,
     actorId: uuid.UUID,
     organizationId: uuid.UUID,
+    channel: AccessChannel,
     name: str,
     parentId: uuid.UUID | None = None,
     notes: str = "",
 ) -> Department:
-    """Create a department using the account ID supplied by the authentication layer.
+    """Create a department using the account and channel supplied by authentication.
 
-    Callers must authenticate the session and enforce its channel restrictions first.
+    actorId and channel come from verified credentials, never from the request body.
     Operator-scoped API Keys cannot use this operation.
     """
-    organization = _lock_organization_for_admin(actorId, organizationId)
+    organization = _lock_organization_for_admin(actorId, organizationId, channel)
     parent = _get_parent_department(organization, parentId)
     department = Department(
         organization=organization, parent=parent, name=name, notes=notes
@@ -164,6 +159,7 @@ def update_department(
     *,
     actorId: uuid.UUID,
     organizationId: uuid.UUID,
+    channel: AccessChannel,
     departmentId: uuid.UUID,
     name: str,
     parentId: uuid.UUID | None,
@@ -174,7 +170,7 @@ def update_department(
     All editable values are required; parentId=None explicitly selects the root level.
     A missing, deleted, or foreign department raises Department.DoesNotExist.
     """
-    organization = _lock_organization_for_admin(actorId, organizationId)
+    organization = _lock_organization_for_admin(actorId, organizationId, channel)
     department = Department.objects.get(
         pk=departmentId, organization=organization, deleted_at__isnull=True
     )
@@ -266,6 +262,7 @@ def update_membership(
     *,
     actorId: uuid.UUID,
     organizationId: uuid.UUID,
+    channel: AccessChannel,
     userId: uuid.UUID,
     isOrgAdmin: bool,
     departmentRoles: Mapping[uuid.UUID, DepartmentRole],
@@ -278,7 +275,7 @@ def update_membership(
     An empty mapping explicitly removes every department role.
     A missing or foreign membership raises Membership.DoesNotExist.
     """
-    organization = _lock_organization_for_admin(actorId, organizationId)
+    organization = _lock_organization_for_admin(actorId, organizationId, channel)
     membership = (
         Membership.objects
         .select_related("user")

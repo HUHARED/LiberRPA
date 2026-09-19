@@ -1,0 +1,118 @@
+# FileName: permissions.py
+__author__ = "Jiyan Hu"
+__email__ = "mailwork.hu@gmail.com"
+__license__ = "GNU Affero General Public License v3.0 or later"
+__copyright__ = f"Copyright (C) 2025 {__author__}"
+
+import uuid
+from dataclasses import dataclass
+from enum import StrEnum
+from typing import cast
+
+from django.core.exceptions import PermissionDenied
+from django.db.models import QuerySet
+
+from .models import Department, DepartmentRole, Membership, Organization
+
+
+class AccessChannel(StrEnum):
+    """Credential categories that affect the available role permissions."""
+
+    SESSION = "session"
+    API_KEY = "api_key"
+
+
+@dataclass(frozen=True)
+class OrganizationAccess:
+    """Resolved facts for one operation, never a cache across requests or commits."""
+
+    actor_id: uuid.UUID
+    organization: Organization
+    is_org_admin: bool
+    channel: AccessChannel
+
+
+_ROLES_FOR_REQUIREMENT = {
+    DepartmentRole.OPERATOR: (DepartmentRole.OPERATOR, DepartmentRole.DEVELOPER),
+    DepartmentRole.DEVELOPER: (DepartmentRole.DEVELOPER,),
+}
+
+
+def resolve_organization_access(
+    *,
+    actorId: uuid.UUID,
+    organizationId: uuid.UUID,
+    channel: AccessChannel,
+    forUpdate: bool = False,
+) -> OrganizationAccess:
+    """Resolve current account and membership facts after credential authentication.
+
+    actorId and channel come from verified credentials, never from the request body.
+    forUpdate requires the caller's transaction and locks the organization before its member.
+    Resolve again at a new operation or write boundary instead of reusing an old result.
+    """
+    if channel not in (AccessChannel.SESSION, AccessChannel.API_KEY):
+        raise PermissionDenied("Unsupported access channel.")
+
+    memberships = Membership.objects.filter(
+        user_id=actorId, organization_id=organizationId, user__is_active=True
+    )
+    try:
+        if forUpdate:
+            # All department and membership writes take the organization lock first.
+            organization = Organization.objects.select_for_update().get(pk=organizationId)
+            # Keep the current membership and account stable through the write.
+            membership = (
+                memberships
+                .select_related("user")
+                .select_for_update(of=("self", "user"))
+                .get()
+            )
+        else:
+            membership = memberships.select_related("organization").get()
+            organization = cast(Organization, membership.organization)
+    except (Organization.DoesNotExist, Membership.DoesNotExist):
+        raise PermissionDenied("Organization access is required.") from None
+
+    return OrganizationAccess(
+        actor_id=membership.user_id,
+        organization=organization,
+        is_org_admin=membership.is_org_admin,
+        channel=channel,
+    )
+
+
+def require_organization_admin(access: OrganizationAccess) -> None:
+    """Require an administrator using a session credential."""
+    if access.channel != AccessChannel.SESSION or not access.is_org_admin:
+        raise PermissionDenied("Organization administrator access is required.")
+
+
+def get_authorized_departments(
+    access: OrganizationAccess, *, requiredRole: DepartmentRole
+) -> QuerySet[Department]:
+    """Return active departments that satisfy a server-selected role requirement.
+
+    Reuse this queryset for filtering and object lookup within the current operation.
+    A get() outside this scope raises Department.DoesNotExist.
+    """
+    allowedRoles = _ROLES_FOR_REQUIREMENT.get(requiredRole)
+    if allowedRoles is None:
+        raise PermissionDenied("Unsupported department role requirement.")
+    if (
+        access.channel == AccessChannel.API_KEY
+        and requiredRole != DepartmentRole.OPERATOR
+    ):
+        raise PermissionDenied("API keys can only perform Operator actions.")
+
+    departments = Department.objects.filter(
+        organization=access.organization, deleted_at__isnull=True
+    )
+    if access.is_org_admin:
+        return departments
+
+    # Match the actual department only; parent and sibling roles do not grant access.
+    return departments.filter(
+        memberships__membership_id=access.actor_id,
+        memberships__role__in=allowedRoles,
+    )
