@@ -69,3 +69,29 @@ class User(AbstractBaseUser):
 
     def __str__(self) -> str:
         return f"{self.username} ({self.email})"
+
+
+class RegistrationToken(models.Model):
+    """One current email token for creating a new organization; consumed tokens are deleted."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    email = models.EmailField(unique=True)
+    token_hash = models.CharField(max_length=64, unique=True, editable=False)
+    issued_at = models.DateTimeField(editable=False)
+    expires_at = models.DateTimeField(db_index=True, editable=False)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(email=Lower(Trim("email"))) & ~models.Q(email=""),
+                name="registration_token_email_canonical",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(expires_at__gt=models.F("issued_at")),
+                name="registration_token_expiry_after_issue",
+                violation_error_message="A registration token must expire after it was issued.",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"Organization registration for {self.email}"
