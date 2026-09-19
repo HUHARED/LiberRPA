@@ -12,6 +12,8 @@ from typing import cast
 from django.core.exceptions import PermissionDenied
 from django.db.models import QuerySet
 
+from accounts.models import User
+
 from .models import Department, DepartmentRole, Membership, Organization
 
 
@@ -48,6 +50,36 @@ def require_organization_business_available(organization: Organization) -> None:
         raise PermissionDenied("Organization business operations are unavailable.")
 
 
+def _resolve_organization_member(
+    *,
+    actorId: uuid.UUID,
+    organizationId: uuid.UUID,
+    forUpdate: bool,
+) -> tuple[Organization, Membership]:
+    """Load current identity facts; the caller applies the operation's service-state rule."""
+    memberships = Membership.objects.filter(
+        user_id=actorId, organization_id=organizationId, user__is_active=True
+    )
+    try:
+        if forUpdate:
+            # Organization state changes and business writes take this lock first.
+            organization = Organization.objects.select_for_update().get(pk=organizationId)
+            # Keep the current membership and account stable through the write.
+            membership = (
+                memberships
+                .select_related("user")
+                .select_for_update(of=("self", "user"))
+                .get()
+            )
+        else:
+            membership = memberships.select_related("organization").get()
+            organization = cast(Organization, membership.organization)
+    except (Organization.DoesNotExist, Membership.DoesNotExist):
+        raise PermissionDenied("Organization access is required.") from None
+
+    return organization, membership
+
+
 def resolve_organization_access(
     *,
     actorId: uuid.UUID,
@@ -65,26 +97,9 @@ def resolve_organization_access(
     if channel not in (AccessChannel.SESSION, AccessChannel.API_KEY):
         raise PermissionDenied("Unsupported access channel.")
 
-    memberships = Membership.objects.filter(
-        user_id=actorId, organization_id=organizationId, user__is_active=True
+    organization, membership = _resolve_organization_member(
+        actorId=actorId, organizationId=organizationId, forUpdate=forUpdate
     )
-    try:
-        if forUpdate:
-            # All department and membership writes take the organization lock first.
-            organization = Organization.objects.select_for_update().get(pk=organizationId)
-            # Keep the current membership and account stable through the write.
-            membership = (
-                memberships
-                .select_related("user")
-                .select_for_update(of=("self", "user"))
-                .get()
-            )
-        else:
-            membership = memberships.select_related("organization").get()
-            organization = cast(Organization, membership.organization)
-    except (Organization.DoesNotExist, Membership.DoesNotExist):
-        raise PermissionDenied("Organization access is required.") from None
-
     # Verify membership first so an outsider cannot discover the organization's state.
     require_organization_business_available(organization)
     return OrganizationAccess(
@@ -95,10 +110,29 @@ def resolve_organization_access(
     )
 
 
+def _require_organization_admin(isOrgAdmin: bool, channel: AccessChannel) -> None:
+    if channel != AccessChannel.SESSION or not isOrgAdmin:
+        raise PermissionDenied("Organization administrator access is required.")
+
+
 def require_organization_admin(access: OrganizationAccess) -> None:
     """Require an administrator using a session credential."""
-    if access.channel != AccessChannel.SESSION or not access.is_org_admin:
-        raise PermissionDenied("Organization administrator access is required.")
+    _require_organization_admin(access.is_org_admin, access.channel)
+
+
+def lock_organization_for_deletion(
+    *, actorId: uuid.UUID, organizationId: uuid.UUID, channel: AccessChannel
+) -> tuple[Organization, User]:
+    """Authorize deletion lifecycle operations without granting ordinary business access.
+
+    The caller's transaction must contain the state transition and any password check.
+    actorId and channel must come from verified credentials.
+    """
+    organization, membership = _resolve_organization_member(
+        actorId=actorId, organizationId=organizationId, forUpdate=True
+    )
+    _require_organization_admin(membership.is_org_admin, channel)
+    return organization, cast(User, membership.user)
 
 
 def get_authorized_departments(
