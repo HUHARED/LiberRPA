@@ -28,9 +28,9 @@ ALLOWED_HOSTS = _CONFIG.allowedHosts
 ROOT_URLCONF = "console_project.urls"
 ASGI_APPLICATION = "console_project.asgi.application"
 
-# Add authentication with the UUID/email User model before the first migrations.
-# This avoids migrating Django's default username/integer-ID user table.
-INSTALLED_APPS = []
+# Define the Console account before creating any database tables.
+INSTALLED_APPS = ["accounts.apps.AccountsConfig"]
+AUTH_USER_MODEL = "accounts.User"
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.middleware.common.CommonMiddleware",
