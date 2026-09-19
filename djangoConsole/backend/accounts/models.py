@@ -11,6 +11,8 @@ from django.db import models
 from django.db.models.functions import Lower, Trim
 from django.utils import timezone
 
+from .passwords import validate_new_password
+
 
 class UserManager(BaseUserManager["User"]):
     @classmethod
@@ -29,14 +31,13 @@ class UserManager(BaseUserManager["User"]):
         self, email: str, password: str | None = None, *, username: str
     ) -> "User":
         """Create an account record; callers handle verified registration and membership."""
-        if password == "":
-            raise ValueError("The password must not be empty.")
-
         user = self.model(email=self.normalize_email(email), username=username.strip())
         # Validate fields once. The database enforces uniqueness at the actual write.
         user.full_clean(
             exclude=["password"], validate_unique=False, validate_constraints=False
         )
+        if password is not None:
+            validate_new_password(password, user)
         # None deliberately creates an unusable password, following Django's API.
         user.set_password(password)
         user.save(using=self._db)

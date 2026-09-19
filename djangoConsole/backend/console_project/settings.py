@@ -31,6 +31,14 @@ ASGI_APPLICATION = "console_project.asgi.application"
 # Define the Console account before creating any database tables.
 INSTALLED_APPS = ["accounts.apps.AccountsConfig"]
 AUTH_USER_MODEL = "accounts.User"
+# New-password entry points also enforce length in validate_new_password().
+AUTH_PASSWORD_VALIDATORS = [
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
+        "OPTIONS": {"user_attributes": ["email", "username"]},
+    },
+]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.middleware.common.CommonMiddleware",
