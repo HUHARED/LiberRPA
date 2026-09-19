@@ -24,7 +24,7 @@ class AccessChannel(StrEnum):
 
 @dataclass(frozen=True)
 class OrganizationAccess:
-    """Resolved facts for one operation, never a cache across requests or commits."""
+    """Business access for one operation, never a cache across requests or commits."""
 
     actor_id: uuid.UUID
     organization: Organization
@@ -38,6 +38,16 @@ _ROLES_FOR_REQUIREMENT = {
 }
 
 
+def require_organization_business_available(organization: Organization) -> None:
+    """Check the organization already loaded for the current operation without querying again."""
+    # Deletion freezes business when requested, not when cleanup becomes due.
+    if (
+        organization.suspended_at is not None
+        or organization.deletion_requested_at is not None
+    ):
+        raise PermissionDenied("Organization business operations are unavailable.")
+
+
 def resolve_organization_access(
     *,
     actorId: uuid.UUID,
@@ -45,9 +55,10 @@ def resolve_organization_access(
     channel: AccessChannel,
     forUpdate: bool = False,
 ) -> OrganizationAccess:
-    """Resolve current account and membership facts after credential authentication.
+    """Resolve current organization business access after credential authentication.
 
     actorId and channel come from verified credentials, never from the request body.
+    Restricted status viewing and deletion cancellation need separate authorization.
     forUpdate requires the caller's transaction and locks the organization before its member.
     Resolve again at a new operation or write boundary instead of reusing an old result.
     """
@@ -74,6 +85,8 @@ def resolve_organization_access(
     except (Organization.DoesNotExist, Membership.DoesNotExist):
         raise PermissionDenied("Organization access is required.") from None
 
+    # Verify membership first so an outsider cannot discover the organization's state.
+    require_organization_business_available(organization)
     return OrganizationAccess(
         actor_id=membership.user_id,
         organization=organization,

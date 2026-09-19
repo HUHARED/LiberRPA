@@ -18,12 +18,50 @@ from .validators import validate_path_segment
 
 
 class Organization(models.Model):
-    """Organization identity; names may repeat across organizations."""
+    """Organization identity and service state; names may repeat across organizations."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=200)
     notes = models.TextField(blank=True, default="")
     created_at = models.DateTimeField(default=timezone.now, editable=False)
+
+    # Service suspension is independent of the deletion lifecycle.
+    suspended_at = models.DateTimeField(null=True, blank=True, editable=False)
+    deletion_requested_at = models.DateTimeField(null=True, blank=True, editable=False)
+    # The due time permits cleanup but does not mean cleanup has actually started.
+    deletion_due_at = models.DateTimeField(null=True, blank=True, editable=False)
+    deletion_started_at = models.DateTimeField(null=True, blank=True, editable=False)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(
+                        deletion_requested_at__isnull=True, deletion_due_at__isnull=True
+                    )
+                    | models.Q(
+                        deletion_requested_at__isnull=False,
+                        deletion_due_at__isnull=False,
+                        deletion_due_at__gte=models.F("deletion_requested_at"),
+                    )
+                ),
+                name="organization_deletion_schedule_valid",
+                violation_error_code="invalid_deletion_schedule",
+                violation_error_message="A deletion request requires a cleanup due time at or after the request time.",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(deletion_started_at__isnull=True)
+                    | models.Q(
+                        deletion_due_at__isnull=False,
+                        deletion_started_at__gte=models.F("deletion_due_at"),
+                    )
+                ),
+                name="organization_deletion_start_valid",
+                violation_error_code="invalid_deletion_start",
+                violation_error_message="Deletion cleanup can only start when its scheduled due time has been reached.",
+            ),
+        ]
 
     def __str__(self) -> str:
         return self.name
