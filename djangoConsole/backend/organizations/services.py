@@ -6,12 +6,15 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import uuid
 from collections.abc import Mapping
+from dataclasses import dataclass
 from typing import cast
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.views.decorators.debug import sensitive_variables
 
+from accounts.models import User
 from console_project.config import LimitsConfig
 
 from .models import (
@@ -26,6 +29,16 @@ from .permissions import (
     require_organization_admin,
     resolve_organization_access,
 )
+
+
+@dataclass(frozen=True)
+class OrganizationCreationResult:
+    """Records created together for an authorized organization registration."""
+
+    user: User
+    organization: Organization
+    membership: Membership
+    general_department: Department
 
 
 def _lock_organization_for_admin(
@@ -113,22 +126,14 @@ def _validate_department_depth(
         })
 
 
-@transaction.atomic
-def create_department(
+def _create_department(
+    organization: Organization,
     *,
-    actorId: uuid.UUID,
-    organizationId: uuid.UUID,
-    channel: AccessChannel,
     name: str,
     parentId: uuid.UUID | None = None,
     notes: str = "",
 ) -> Department:
-    """Create a department using the account and channel supplied by authentication.
-
-    actorId and channel come from verified credentials, never from the request body.
-    Operator-scoped API Keys cannot use this operation.
-    """
-    organization = _lock_organization_for_admin(actorId, organizationId, channel)
+    """Create within the caller's transaction using a newly inserted or already locked organization."""
     parent = _get_parent_department(organization, parentId)
     department = Department(
         organization=organization, parent=parent, name=name, notes=notes
@@ -152,6 +157,25 @@ def create_department(
     department.validate_constraints()
     department.save(force_insert=True)
     return department
+
+
+@transaction.atomic
+def create_department(
+    *,
+    actorId: uuid.UUID,
+    organizationId: uuid.UUID,
+    channel: AccessChannel,
+    name: str,
+    parentId: uuid.UUID | None = None,
+    notes: str = "",
+) -> Department:
+    """Create a department using the account and channel supplied by authentication.
+
+    actorId and channel come from verified credentials, never from the request body.
+    Operator-scoped API Keys cannot use this operation.
+    """
+    organization = _lock_organization_for_admin(actorId, organizationId, channel)
+    return _create_department(organization, name=name, parentId=parentId, notes=notes)
 
 
 @transaction.atomic
@@ -312,3 +336,51 @@ def update_membership(
     membership.save(update_fields=["is_org_admin", "notes"])
     _save_department_memberships(membership, assignments)
     return membership
+
+
+@sensitive_variables()
+@transaction.atomic
+def create_organization_records(
+    *,
+    verifiedEmail: str,
+    password: str,
+    organizationName: str,
+    username: str = "",
+) -> OrganizationCreationResult:
+    """Create the records for an organization registration already authorized by the caller.
+
+    The registration entry point must verify and lock the email proof, check current creation policy, and consume the proof in the same outer transaction.
+    verifiedEmail must come from that proof, never from an independently editable form field.
+    This internal creation step does not verify email ownership or open a login session.
+    """
+    # UserManager supports internal accounts without passwords, but registration requires one.
+    if password is None:
+        raise ValidationError({"password": "A password is required."})
+
+    organization = Organization(name=organizationName.strip())
+    organization.full_clean(validate_unique=False, validate_constraints=False)
+
+    # Display names are not unique, so a generated name needs no availability query.
+    displayName = (
+        username
+        if username and not username.isspace()
+        else f"User {uuid.uuid4().hex[:8]}"
+    )
+    user = User.objects.create_user(verifiedEmail, password, username=displayName)
+    organization.save(force_insert=True)
+    membership = Membership(user=user, organization=organization, is_org_admin=True)
+    membership.save(force_insert=True)
+
+    # The new organization is private to this transaction until it commits.
+    # General follows the same validation and quota rules as any other department.
+    department = _create_department(
+        organization,
+        name="General",
+        notes="Created automatically during organization setup.",
+    )
+    return OrganizationCreationResult(
+        user=user,
+        organization=organization,
+        membership=membership,
+        general_department=department,
+    )
