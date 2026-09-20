@@ -375,7 +375,13 @@ def create_organization_records(
         else f"User {uuid.uuid4().hex[:8]}"
     )
     userManager = cast(UserManager, User.objects)
-    user = userManager.create_user(verifiedEmail, password, username=displayName)
+    # Copy the initial time zone once; later profile edits remain independent.
+    user = userManager.create_user(
+        verifiedEmail,
+        password,
+        username=displayName,
+        timeZone=organization.default_time_zone,
+    )
     organization.save(force_insert=True)
     membership = Membership(user=user, organization=organization, is_org_admin=True)
     membership.save(force_insert=True)

@@ -19,7 +19,8 @@ from django.views.decorators.debug import sensitive_variables
 from django.views.decorators.http import require_GET, require_POST
 from pydantic import SecretStr
 
-from organizations.access import AccountAccessInfo, get_account_access_info
+from organizations.access import get_account_access_info
+from organizations.http import build_account_access_payload
 
 from .http import (
     AccountRequest,
@@ -52,32 +53,6 @@ def _build_service_unavailable_response() -> JsonResponse:
     return build_error_response(
         "service_unavailable", "The service is temporarily unavailable.", statusCode=503
     )
-
-
-def _build_access_response(accountAccessInfo: AccountAccessInfo) -> JsonResponse:
-    """Map internal attributes to the stable HTTP response field names."""
-    organizationInfo = accountAccessInfo.organization
-    return JsonResponse({
-        "organization": {
-            "id": organizationInfo.id,
-            "name": organizationInfo.name,
-            "suspended_at": organizationInfo.suspendedAt,
-            "deletion_requested_at": organizationInfo.deletionRequestedAt,
-            "deletion_due_at": organizationInfo.deletionDueAt,
-            "deletion_started_at": organizationInfo.deletionStartedAt,
-        },
-        "is_org_admin": accountAccessInfo.isOrgAdmin,
-        "business_available": accountAccessInfo.businessAvailable,
-        "departments": [
-            {
-                "id": departmentAccessInfo.id,
-                "name": departmentAccessInfo.name,
-                "path": departmentAccessInfo.path,
-                "role": departmentAccessInfo.role,
-            }
-            for departmentAccessInfo in accountAccessInfo.departments
-        ],
-    })
 
 
 @never_cache
@@ -152,7 +127,7 @@ def get_current_access(request: HttpRequest) -> JsonResponse:
         # The caller cannot select another account, organization, or credential channel.
         user = cast(User, request.user)
         accountAccessInfo = get_account_access_info(actorId=user.id)
-        return _build_access_response(accountAccessInfo)
+        return JsonResponse(build_account_access_payload(accountAccessInfo))
     except PermissionDenied:
         return build_error_response(
             "organization_access_required",

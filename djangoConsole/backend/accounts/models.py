@@ -7,9 +7,12 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 import uuid
 
 from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
+from django.core.validators import ProhibitNullCharactersValidator
 from django.db import models
 from django.db.models.functions import Lower, Trim
 from django.utils import timezone
+
+from console_project.validators import validate_time_zone
 
 from .passwords import validate_new_password
 
@@ -28,10 +31,19 @@ class UserManager(BaseUserManager["User"]):
         return await self.aget(email=self.normalize_email(username))
 
     def create_user(
-        self, email: str, password: str | None = None, *, username: str
+        self,
+        email: str,
+        password: str | None = None,
+        *,
+        username: str,
+        timeZone: str = "UTC",
     ) -> "User":
         """Create an account record; callers handle verified registration and membership."""
-        user = self.model(email=self.normalize_email(email), username=username.strip())
+        user = self.model(
+            email=self.normalize_email(email),
+            username=username.strip(),
+            time_zone=timeZone,
+        )
         # Validate fields once. The database enforces uniqueness at the actual write.
         user.full_clean(
             exclude=["password"], validate_unique=False, validate_constraints=False
@@ -49,7 +61,12 @@ class User(AbstractBaseUser):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     email = models.EmailField(unique=True)
-    username = models.CharField(max_length=150)
+    username = models.CharField(
+        max_length=150, validators=[ProhibitNullCharactersValidator()]
+    )
+    time_zone = models.CharField(
+        max_length=100, default="UTC", validators=[validate_time_zone]
+    )
     # Reserved for platform suspension, not an ordinary member-management switch.
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(default=timezone.now, editable=False)
