@@ -95,3 +95,12 @@ class RegistrationToken(models.Model):
 
     def __str__(self) -> str:
         return f"Organization registration for {self.email}"
+
+
+class RegistrationRequestLimit(models.Model):
+    """A short-lived request counter shared by all HTTP processes for one source."""
+
+    # A keyed digest identifies the source without storing its IP address.
+    source_hash = models.CharField(max_length=64, primary_key=True)
+    request_count = models.PositiveIntegerField(default=0)
+    expires_at = models.DateTimeField(db_index=True)

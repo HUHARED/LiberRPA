@@ -51,6 +51,12 @@
     // Maximum accumulated recipient units for bursts.
     "emailBurstRecipients": 100,
     // Seconds needed to restore one recipient unit.
-    "emailRefillSeconds": 30
+    "emailRefillSeconds": 30,
+
+    // Registration email API requests per source IP in a fixed window.
+    // A value of 0 blocks requests; the recipient's resend cooldown still applies.
+    "registrationEmailRequestsPerSource": 10,
+    // The window starts with the source's first request and lasts at most one day.
+    "registrationEmailRequestWindowSeconds": 600
   }
 }

@@ -60,6 +60,8 @@ class LimitsConfig(_BaseConfig):
     maxEmailRecipientsPer24Hours: int = Field(default=2500, ge=0)
     emailBurstRecipients: int = Field(default=100, ge=1)
     emailRefillSeconds: int = Field(default=30, ge=1)
+    registrationEmailRequestsPerSource: int = Field(default=10, ge=0, le=2147483647)
+    registrationEmailRequestWindowSeconds: int = Field(default=600, ge=1, le=86400)
 
 
 class SmtpConfig(_BaseConfig):
