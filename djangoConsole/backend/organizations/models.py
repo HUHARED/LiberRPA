@@ -9,7 +9,7 @@ from typing import cast
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.core.validators import MaxLengthValidator
+from django.core.validators import MaxLengthValidator, ProhibitNullCharactersValidator
 from django.db import models
 from django.db.models.functions import Lower
 from django.utils import timezone
@@ -23,11 +23,17 @@ class Organization(models.Model):
     """Organization identity and service state; names may repeat across organizations."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    name = models.CharField(max_length=200)
+    name = models.CharField(
+        max_length=200, validators=[ProhibitNullCharactersValidator()]
+    )
     default_time_zone = models.CharField(
         max_length=100, default="UTC", validators=[validate_time_zone]
     )
-    notes = models.TextField(blank=True, default="")
+    notes = models.TextField(
+        blank=True,
+        default="",
+        validators=[MaxLengthValidator(2000), ProhibitNullCharactersValidator()],
+    )
     created_at = models.DateTimeField(default=timezone.now, editable=False)
 
     # Service suspension is independent of the deletion lifecycle.

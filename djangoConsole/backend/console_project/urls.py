@@ -19,6 +19,7 @@ from accounts.views import (
     get_csrf_token,
     queue_registration_email,
 )
+from organizations.views import get_or_update_organization_settings
 
 from .health import check_database, check_liveness
 
@@ -31,6 +32,11 @@ urlpatterns = [
     path("api/auth/access/", get_current_access, name="auth-access"),
     path("api/auth/profile/", get_or_update_profile, name="auth-profile"),
     path("api/auth/logout/", sign_out, name="auth-logout"),
+    path(
+        "api/organization/settings/",
+        get_or_update_organization_settings,
+        name="organization-settings",
+    ),
     path(
         "api/auth/registration/email/",
         queue_registration_email,

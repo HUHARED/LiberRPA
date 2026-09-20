@@ -53,6 +53,47 @@ def _lock_organization_for_admin(
     return access.organization
 
 
+def get_organization_settings(
+    *, actorId: uuid.UUID, organizationId: uuid.UUID, channel: AccessChannel
+) -> Organization:
+    """Read General settings using the current organization administrator permission."""
+    access = resolve_organization_access(
+        actorId=actorId, organizationId=organizationId, channel=channel
+    )
+    require_organization_admin(access)
+    return access.organization
+
+
+@transaction.atomic
+def update_organization_settings(
+    *,
+    actorId: uuid.UUID,
+    organizationId: uuid.UUID,
+    channel: AccessChannel,
+    name: str,
+    defaultTimeZone: str,
+    notes: str,
+) -> Organization:
+    """Save the complete General form without changing members or service state."""
+    organization = _lock_organization_for_admin(actorId, organizationId, channel)
+    organization.name = name.strip()
+    organization.default_time_zone = defaultTimeZone
+    organization.notes = notes
+    listExcludedFieldName = [
+        modelField.name
+        for modelField in organization._meta.fields
+        if modelField.name not in ("name", "default_time_zone", "notes")
+    ]
+    organization.full_clean(
+        exclude=listExcludedFieldName,
+        validate_unique=False,
+        validate_constraints=False,
+    )
+    # Members keep their independent time zones; only future defaults use this setting.
+    organization.save(update_fields=["name", "default_time_zone", "notes"])
+    return organization
+
+
 def _get_parent_department(
     organization: Organization, parentId: uuid.UUID | None
 ) -> Department | None:
