@@ -38,17 +38,19 @@
   //     "timeoutSeconds": 10
   // },
 
-  // Optional deployment defaults. Deleted departments do not count.
-  // A count of 0 blocks new departments; top-level departments have depth 1.
+  // Optional deployment limits. Omitted values use defaults.
   "limits": {
+    // Deleted departments do not count. A value of 0 blocks new departments.
     "maxDepartmentsPerOrganization": 20,
+    // Top-level departments have depth 1.
     "maxDepartmentDepth": 5,
 
     // All SMTP attempts count toward this rolling budget, including failed attempts.
     // A budget of 0 prevents new attempts.
     "maxEmailRecipientsPer24Hours": 2500,
-    // Allow a burst of 100 recipients and restore one unit every 30 seconds.
+    // Maximum accumulated recipient units for bursts.
     "emailBurstRecipients": 100,
+    // Seconds needed to restore one recipient unit.
     "emailRefillSeconds": 30
   }
 }

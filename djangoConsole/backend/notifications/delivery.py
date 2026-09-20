@@ -21,6 +21,7 @@ from accounts.registration import issue_registration_token
 from console_project.config import LimitsConfig
 
 from .models import EmailDelivery, EmailDispatchState, EmailStatus, EmailType
+from .smtp import send_smtp_once
 
 _BUDGET_WINDOW = timedelta(hours=24)
 
@@ -32,6 +33,15 @@ class EmailPreparationResult:
     delivery_id: uuid.UUID
     status: EmailStatus
     message: EmailMessage | None = field(default=None, repr=False)
+    retry_at: datetime | None = None
+
+
+@dataclass(frozen=True)
+class EmailDeliveryResult:
+    """Worker progress without the prepared message or its registration token."""
+
+    delivery_id: uuid.UUID
+    status: EmailStatus
     retry_at: datetime | None = None
 
 
@@ -130,3 +140,36 @@ def prepare_registration_email(deliveryId: uuid.UUID) -> EmailPreparationResult:
     return EmailPreparationResult(
         delivery_id=delivery.id, status=EmailStatus.SENDING, message=message
     )
+
+
+@sensitive_variables()
+def deliver_registration_email(deliveryId: uuid.UUID) -> EmailDeliveryResult:
+    """Prepare, attempt SMTP once, and record the outcome without holding network-time locks.
+
+    Call outside any surrounding transaction; preparation enforces its own commit boundary.
+    A repeated call for a Sending or finished record does not send the message again.
+    If result persistence fails, leave Sending for worker recovery; never repeat SMTP.
+    """
+    preparation = prepare_registration_email(deliveryId)
+    if preparation.message is None:
+        return EmailDeliveryResult(
+            delivery_id=preparation.delivery_id,
+            status=preparation.status,
+            retry_at=preparation.retry_at,
+        )
+
+    # Preparation committed before network I/O; no database locks span the SMTP session.
+    smtpResult = send_smtp_once(preparation.message)
+    changedRows = EmailDelivery.objects.filter(
+        pk=deliveryId, status=EmailStatus.SENDING
+    ).update(
+        status=smtpResult.status,
+        finished_at=timezone.now(),
+        reason_code=smtpResult.reason_code,
+    )
+    if changedRows != 1:
+        raise RuntimeError(
+            "The email attempt result could not be recorded; do not resend it."
+        )
+
+    return EmailDeliveryResult(delivery_id=deliveryId, status=smtpResult.status)
