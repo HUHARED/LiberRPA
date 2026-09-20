@@ -9,21 +9,21 @@ import unicodedata
 from django.core.exceptions import ValidationError
 
 
-def validate_path_segment(value: str) -> None:
+def validate_path_segment(segmentName: str) -> None:
     """Validate one logical path name without modifying the supplied text."""
-    if not value:
+    if not segmentName:
         raise ValidationError("The name must not be empty.", code="invalid_path_segment")
-    if value != value.strip():
+    if segmentName != segmentName.strip():
         raise ValidationError(
             "The name must not start or end with whitespace.",
             code="invalid_path_segment",
         )
     # This also rejects the standalone '.' and '..' path segments.
-    if value.endswith("."):
+    if segmentName.endswith("."):
         raise ValidationError(
             "The name must not end with a period.", code="invalid_path_segment"
         )
-    if any(char in "/\\" or unicodedata.category(char) == "Cc" for char in value):
+    if any(char in "/\\" or unicodedata.category(char) == "Cc" for char in segmentName):
         raise ValidationError(
             "The name must not contain path separators or control characters.",
             code="invalid_path_segment",

@@ -39,7 +39,7 @@ class OrganizationCreationResult:
     user: User
     organization: Organization
     membership: Membership
-    general_department: Department
+    generalDepartment: Department
 
 
 def _lock_organization_for_admin(
@@ -82,31 +82,31 @@ def _validate_department_values(department: Department) -> None:
     )
 
 
-def _get_subtree_height(department: Department) -> int:
+def _get_department_subtree_height(department: Department) -> int:
     """Count active levels, including this department, without loading unrelated branches."""
-    height = 0
-    levelIds = [department.pk]
-    while levelIds:
-        height += 1
-        levelIds = list(
+    subtreeHeight = 0
+    listLevelDepartmentId = [department.pk]
+    while listLevelDepartmentId:
+        subtreeHeight += 1
+        listLevelDepartmentId = list(
             Department.objects.filter(
                 organization_id=department.organization_id,
-                parent_id__in=levelIds,
+                parent_id__in=listLevelDepartmentId,
                 deleted_at__isnull=True,
             ).values_list("id", flat=True)
         )
-    return height
+    return subtreeHeight
 
 
 def _validate_department_depth(
-    parent: Department | None,
+    parentDepartment: Department | None,
     maxDepth: int,
     *,
     departmentId: uuid.UUID | None = None,
     subtreeHeight: int = 1,
 ) -> None:
     deepestDepth = subtreeHeight
-    currentParent = parent
+    currentParent = parentDepartment
     while currentParent is not None:
         if currentParent.pk == departmentId:
             raise ValidationError({
@@ -135,9 +135,9 @@ def _create_department(
     notes: str = "",
 ) -> Department:
     """Create within the caller's transaction using a newly inserted or already locked organization."""
-    parent = _get_parent_department(organization, parentId)
+    parentDepartment = _get_parent_department(organization, parentId)
     department = Department(
-        organization=organization, parent=parent, name=name, notes=notes
+        organization=organization, parent=parentDepartment, name=name, notes=notes
     )
     _validate_department_values(department)
 
@@ -153,7 +153,7 @@ def _create_department(
             code="department_count_limit",
             params={"limit": limits.maxDepartmentsPerOrganization},
         )
-    _validate_department_depth(parent, limits.maxDepartmentDepth)
+    _validate_department_depth(parentDepartment, limits.maxDepartmentDepth)
 
     department.validate_constraints()
     department.save(force_insert=True)
@@ -199,10 +199,10 @@ def update_department(
     department = Department.objects.get(
         pk=departmentId, organization=organization, deleted_at__isnull=True
     )
-    parent = _get_parent_department(organization, parentId)
+    parentDepartment = _get_parent_department(organization, parentId)
     oldParentId = department.parent_id
     department.name = name
-    department.parent = parent
+    department.parent = parentDepartment
     department.notes = notes
     _validate_department_values(department)
 
@@ -212,10 +212,10 @@ def update_department(
     if parentId != oldParentId:
         limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
         _validate_department_depth(
-            parent,
+            parentDepartment,
             limits.maxDepartmentDepth,
             departmentId=departmentId,
-            subtreeHeight=_get_subtree_height(department),
+            subtreeHeight=_get_department_subtree_height(department),
         )
 
     department.validate_constraints()
@@ -228,10 +228,10 @@ def _prepare_department_memberships(
     membership: Membership, departmentRoles: Mapping[uuid.UUID, DepartmentRole]
 ) -> list[DepartmentMembership]:
     """Resolve departments in one query and validate the requested explicit roles."""
-    departments = Department.objects.filter(
+    dictDepartmentById = Department.objects.filter(
         organization_id=membership.organization_id, deleted_at__isnull=True
     ).in_bulk(departmentRoles)
-    if len(departments) != len(departmentRoles):
+    if len(dictDepartmentById) != len(departmentRoles):
         raise ValidationError({
             "department_roles": ValidationError(
                 "Select available departments in this organization.",
@@ -239,47 +239,51 @@ def _prepare_department_memberships(
             )
         })
 
-    assignments: list[DepartmentMembership] = []
+    listDepartmentMembership: list[DepartmentMembership] = []
     for departmentId, role in departmentRoles.items():
-        assignment = DepartmentMembership(
-            membership=membership, department=departments[departmentId], role=role
+        departmentMembership = DepartmentMembership(
+            membership=membership, department=dictDepartmentById[departmentId], role=role
         )
         # Reuse the resolved references and the model's role and organization rules.
         # Mapping keys prevent duplicate departments; the database enforces stored constraints.
-        assignment.full_clean(
+        departmentMembership.full_clean(
             exclude=["membership", "department"],
             validate_unique=False,
             validate_constraints=False,
         )
-        assignments.append(assignment)
-    return assignments
+        listDepartmentMembership.append(departmentMembership)
+    return listDepartmentMembership
 
 
 def _save_department_memberships(
-    membership: Membership, assignments: list[DepartmentMembership]
+    membership: Membership, departmentMemberships: list[DepartmentMembership]
 ) -> None:
     """Save validated assignments while preserving the IDs of retained relationships."""
-    existingAssignments = {
-        assignment.department_id: assignment
-        for assignment in DepartmentMembership.objects.filter(membership=membership)
+    dictExistingMembershipByDepartmentId = {
+        departmentMembership.department_id: departmentMembership
+        for departmentMembership in DepartmentMembership.objects.filter(
+            membership=membership
+        )
     }
-    newAssignments: list[DepartmentMembership] = []
-    changedAssignments: list[DepartmentMembership] = []
-    for assignment in assignments:
-        existing = existingAssignments.pop(assignment.department_id, None)
-        if existing is None:
-            newAssignments.append(assignment)
-        elif existing.role != assignment.role:
-            existing.role = assignment.role
-            changedAssignments.append(existing)
+    listNewDepartmentMembership: list[DepartmentMembership] = []
+    listChangedDepartmentMembership: list[DepartmentMembership] = []
+    for departmentMembership in departmentMemberships:
+        existingDepartmentMembership = dictExistingMembershipByDepartmentId.pop(
+            departmentMembership.department_id, None
+        )
+        if existingDepartmentMembership is None:
+            listNewDepartmentMembership.append(departmentMembership)
+        elif existingDepartmentMembership.role != departmentMembership.role:
+            existingDepartmentMembership.role = departmentMembership.role
+            listChangedDepartmentMembership.append(existingDepartmentMembership)
 
     # Relationships left in the mapping were explicitly removed from the submitted form.
-    if existingAssignments:
+    if dictExistingMembershipByDepartmentId:
         DepartmentMembership.objects.filter(
-            membership=membership, department_id__in=existingAssignments
+            membership=membership, department_id__in=dictExistingMembershipByDepartmentId
         ).delete()
-    DepartmentMembership.objects.bulk_update(changedAssignments, ["role"])
-    DepartmentMembership.objects.bulk_create(newAssignments)
+    DepartmentMembership.objects.bulk_update(listChangedDepartmentMembership, ["role"])
+    DepartmentMembership.objects.bulk_create(listNewDepartmentMembership)
 
 
 @transaction.atomic
@@ -333,9 +337,11 @@ def update_membership(
             )
         })
 
-    assignments = _prepare_department_memberships(membership, departmentRoles)
+    listDepartmentMembership = _prepare_department_memberships(
+        membership, departmentRoles
+    )
     membership.save(update_fields=["is_org_admin", "notes"])
-    _save_department_memberships(membership, assignments)
+    _save_department_memberships(membership, listDepartmentMembership)
     return membership
 
 
@@ -376,7 +382,7 @@ def create_organization_records(
 
     # The new organization is private to this transaction until it commits.
     # General follows the same validation and quota rules as any other department.
-    department = _create_department(
+    generalDepartment = _create_department(
         organization,
         name="General",
         notes="Created automatically during organization setup.",
@@ -385,5 +391,5 @@ def create_organization_records(
         user=user,
         organization=organization,
         membership=membership,
-        general_department=department,
+        generalDepartment=generalDepartment,
     )

@@ -16,7 +16,7 @@ from accounts.views import (
     check_registration_link,
     complete_registration,
     get_csrf_token,
-    send_registration_email,
+    queue_registration_email,
 )
 
 from .health import check_database, check_liveness
@@ -31,7 +31,7 @@ urlpatterns = [
     path("api/auth/logout/", sign_out, name="auth-logout"),
     path(
         "api/auth/registration/email/",
-        send_registration_email,
+        queue_registration_email,
         name="registration-email",
     ),
     path(

@@ -119,29 +119,29 @@ class ConsoleConfig(_BaseConfig):
 
     @model_validator(mode="after")
     def validate_email_configuration(self) -> Self:
-        configured = (
+        emailConfigurationFlags = (
             self.consoleUrl is not None,
             self.supportEmail is not None,
             self.smtp is not None,
         )
-        if any(configured) and not all(configured):
+        if any(emailConfigurationFlags) and not all(emailConfigurationFlags):
             raise ValueError("Configure consoleUrl, supportEmail, and smtp together.")
         return self
 
 
-def load_config(pathConfig: Path) -> ConsoleConfig:
+def read_config(configPath: Path) -> ConsoleConfig:
     try:
-        strConfig = pathConfig.read_text(encoding="utf-8-sig")
+        strConfig = configPath.read_text(encoding="utf-8-sig")
     except (OSError, UnicodeError) as e:
         raise ImproperlyConfigured(
-            f"Cannot read Console configuration: {pathConfig}"
+            f"Cannot read Console configuration: {configPath}"
         ) from e
 
     try:
         dictConfig = json5.loads(strConfig, allow_duplicate_keys=False)
     except ValueError:
         raise ImproperlyConfigured(
-            f"Invalid JSONC or duplicate configuration keys: {pathConfig}"
+            f"Invalid JSONC or duplicate configuration keys: {configPath}"
         ) from None
 
     try:
@@ -150,13 +150,13 @@ def load_config(pathConfig: Path) -> ConsoleConfig:
         raise ImproperlyConfigured(f"Invalid Console configuration: {e}") from None
 
 
-def read_secret_file(pathSecret: Path) -> str:
+def read_secret_file(secretPath: Path) -> str:
     try:
         # Remove text-file line endings without changing spaces in a password.
-        secretValue = pathSecret.read_text(encoding="utf-8-sig").rstrip("\r\n")
+        secretValue = secretPath.read_text(encoding="utf-8-sig").rstrip("\r\n")
     except (OSError, UnicodeError) as e:
-        raise ImproperlyConfigured(f"Cannot read secret file: {pathSecret}") from e
+        raise ImproperlyConfigured(f"Cannot read secret file: {secretPath}") from e
 
     if not secretValue.strip():
-        raise ImproperlyConfigured(f"Secret file is empty: {pathSecret}")
+        raise ImproperlyConfigured(f"Secret file is empty: {secretPath}")
     return secretValue

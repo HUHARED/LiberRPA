@@ -25,16 +25,16 @@ class AccessChannel(StrEnum):
 
 
 @dataclass(frozen=True)
-class OrganizationAccess:
+class OrganizationAccessContext:
     """Business access for one operation, never a cache across requests or commits."""
 
-    actor_id: uuid.UUID
+    actorId: uuid.UUID
     organization: Organization
-    is_org_admin: bool
+    isOrgAdmin: bool
     channel: AccessChannel
 
 
-_ROLES_FOR_REQUIREMENT = {
+_DICT_ALLOWED_ROLE_BY_REQUIREMENT = {
     DepartmentRole.OPERATOR: (DepartmentRole.OPERATOR, DepartmentRole.DEVELOPER),
     DepartmentRole.DEVELOPER: (DepartmentRole.DEVELOPER,),
 }
@@ -77,20 +77,22 @@ def _resolve_organization_member(
     forUpdate: bool,
 ) -> tuple[Organization, Membership]:
     """Load current identity facts; the caller applies the operation's service-state rule."""
-    memberships = _get_active_memberships(actorId).filter(organization_id=organizationId)
+    membershipQuery = _get_active_memberships(actorId).filter(
+        organization_id=organizationId
+    )
     try:
         if forUpdate:
             # Organization state changes and business writes take this lock first.
             organization = Organization.objects.select_for_update().get(pk=organizationId)
             # Keep the current membership and account stable through the write.
             membership = (
-                memberships
+                membershipQuery
                 .select_related("user")
                 .select_for_update(of=("self", "user"))
                 .get()
             )
         else:
-            membership = memberships.select_related("organization").get()
+            membership = membershipQuery.select_related("organization").get()
             organization = cast(Organization, membership.organization)
     except (Organization.DoesNotExist, Membership.DoesNotExist):
         raise PermissionDenied("Organization access is required.") from None
@@ -104,7 +106,7 @@ def resolve_organization_access(
     organizationId: uuid.UUID,
     channel: AccessChannel,
     forUpdate: bool = False,
-) -> OrganizationAccess:
+) -> OrganizationAccessContext:
     """Resolve current organization business access after credential authentication.
 
     actorId and channel come from verified credentials, never from the request body.
@@ -120,10 +122,10 @@ def resolve_organization_access(
     )
     # Verify membership first so an outsider cannot discover the organization's state.
     require_organization_business_available(organization)
-    return OrganizationAccess(
-        actor_id=membership.user_id,
+    return OrganizationAccessContext(
+        actorId=membership.user_id,
         organization=organization,
-        is_org_admin=membership.is_org_admin,
+        isOrgAdmin=membership.is_org_admin,
         channel=channel,
     )
 
@@ -133,9 +135,9 @@ def _require_organization_admin(isOrgAdmin: bool, channel: AccessChannel) -> Non
         raise PermissionDenied("Organization administrator access is required.")
 
 
-def require_organization_admin(access: OrganizationAccess) -> None:
+def require_organization_admin(access: OrganizationAccessContext) -> None:
     """Require an administrator using a session credential."""
-    _require_organization_admin(access.is_org_admin, access.channel)
+    _require_organization_admin(access.isOrgAdmin, access.channel)
 
 
 def lock_organization_for_deletion(
@@ -154,14 +156,14 @@ def lock_organization_for_deletion(
 
 
 def get_authorized_departments(
-    access: OrganizationAccess, *, requiredRole: DepartmentRole
+    access: OrganizationAccessContext, *, requiredRole: DepartmentRole
 ) -> QuerySet[Department]:
     """Return active departments that satisfy a server-selected role requirement.
 
     Reuse this queryset for filtering and object lookup within the current operation.
     A get() outside this scope raises Department.DoesNotExist.
     """
-    allowedRoles = _ROLES_FOR_REQUIREMENT.get(requiredRole)
+    allowedRoles = _DICT_ALLOWED_ROLE_BY_REQUIREMENT.get(requiredRole)
     if allowedRoles is None:
         raise PermissionDenied("Unsupported department role requirement.")
     if (
@@ -170,14 +172,14 @@ def get_authorized_departments(
     ):
         raise PermissionDenied("API keys can only perform Operator actions.")
 
-    departments = Department.objects.filter(
+    departmentQuery = Department.objects.filter(
         organization=access.organization, deleted_at__isnull=True
     )
-    if access.is_org_admin:
-        return departments
+    if access.isOrgAdmin:
+        return departmentQuery
 
     # Match the actual department only; parent and sibling roles do not grant access.
-    return departments.filter(
-        memberships__membership_id=access.actor_id,
+    return departmentQuery.filter(
+        memberships__membership_id=access.actorId,
         memberships__role__in=allowedRoles,
     )

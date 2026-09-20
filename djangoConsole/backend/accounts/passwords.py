@@ -8,24 +8,24 @@ from django.contrib.auth.base_user import AbstractBaseUser
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 
-_MIN_PASSWORD_LENGTH = 15
-_MAX_PASSWORD_LENGTH = 128
+_INT_MIN_PASSWORD_LENGTH = 15
+_INT_MAX_PASSWORD_LENGTH = 128
 
 
 def validate_new_password(password: str, user: AbstractBaseUser) -> None:
     """Validate a proposed new password without changing its text or saving the user."""
     passwordLength = len(password)
-    if passwordLength < _MIN_PASSWORD_LENGTH:
+    if passwordLength < _INT_MIN_PASSWORD_LENGTH:
         raise ValidationError(
             "The password must contain at least %(min_length)d characters.",
             code="password_too_short",
-            params={"min_length": _MIN_PASSWORD_LENGTH},
+            params={"min_length": _INT_MIN_PASSWORD_LENGTH},
         )
-    if passwordLength > _MAX_PASSWORD_LENGTH:
+    if passwordLength > _INT_MAX_PASSWORD_LENGTH:
         raise ValidationError(
             "The password must contain at most %(max_length)d characters.",
             code="password_too_long",
-            params={"max_length": _MAX_PASSWORD_LENGTH},
+            params={"max_length": _INT_MAX_PASSWORD_LENGTH},
         )
     if password.isspace():
         raise ValidationError(

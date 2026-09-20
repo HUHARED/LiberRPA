@@ -20,26 +20,28 @@ from console_project.config import LimitsConfig
 
 from .models import AuthenticationRequestLimit
 
-_PRUNE_BATCH_SIZE = 100
+_INT_PRUNE_BATCH_SIZE = 100
 
 
 @transaction.atomic
-def _prune_expired_limits() -> None:
+def _prune_expired_request_limits() -> None:
     # Cleanup locks are released before taking the current counter's lock.
     # Skip active transactions and keep the work bounded for each request.
-    expiredHashes = list(
+    listExpiredSourceHash = list(
         AuthenticationRequestLimit.objects
         .select_for_update(skip_locked=True)
         .filter(expires_at__lte=timezone.now())
         .order_by("expires_at", "source_hash")
-        .values_list("source_hash", flat=True)[:_PRUNE_BATCH_SIZE]
+        .values_list("source_hash", flat=True)[:_INT_PRUNE_BATCH_SIZE]
     )
-    if expiredHashes:
-        AuthenticationRequestLimit.objects.filter(source_hash__in=expiredHashes).delete()
+    if listExpiredSourceHash:
+        AuthenticationRequestLimit.objects.filter(
+            source_hash__in=listExpiredSourceHash
+        ).delete()
 
 
 @sensitive_variables()
-def _get_source_hash(clientAddress: str, *, scope: str) -> str:
+def _hash_client_address(clientAddress: str, *, scope: str) -> str:
     try:
         sourceAddress = ip_address(clientAddress)
     except ValueError:
@@ -52,29 +54,31 @@ def _get_source_hash(clientAddress: str, *, scope: str) -> str:
 
 
 def _reserve_request(sourceHash: str, *, maxRequests: int, windowSeconds: int) -> int:
-    window = timedelta(seconds=windowSeconds)
+    requestWindow = timedelta(seconds=windowSeconds)
     # Commit each counter before business work; failures do not refund attempts.
     with transaction.atomic(durable=True):
-        counter, _created = (
+        requestLimit, _created = (
             AuthenticationRequestLimit.objects.select_for_update().get_or_create(
                 source_hash=sourceHash,
-                defaults={"expires_at": timezone.now() + window},
+                defaults={"expires_at": timezone.now() + requestWindow},
             )
         )
         # Recheck time after any wait for another request using the same counter.
         currentTime = timezone.now()
-        expired = counter.expires_at <= currentTime
-        if expired:
-            counter.request_count = 0
-            counter.expires_at = currentTime + window
+        windowExpired = requestLimit.expires_at <= currentTime
+        if windowExpired:
+            requestLimit.request_count = 0
+            requestLimit.expires_at = currentTime + requestWindow
 
-        if counter.request_count >= maxRequests:
-            if expired:
-                counter.save(update_fields=["request_count", "expires_at"])
-            return max(1, math.ceil((counter.expires_at - currentTime).total_seconds()))
+        if requestLimit.request_count >= maxRequests:
+            if windowExpired:
+                requestLimit.save(update_fields=["request_count", "expires_at"])
+            return max(
+                1, math.ceil((requestLimit.expires_at - currentTime).total_seconds())
+            )
 
-        counter.request_count += 1
-        counter.save(update_fields=["request_count", "expires_at"])
+        requestLimit.request_count += 1
+        requestLimit.save(update_fields=["request_count", "expires_at"])
     return 0
 
 
@@ -85,11 +89,11 @@ def reserve_registration_email_request(clientAddress: str) -> int:
     The caller supplies the server's client address, never an untrusted HTTP header.
     The counter commits before the email service runs, including for suppressed requests.
     """
-    sourceHash = _get_source_hash(
+    sourceHash = _hash_client_address(
         clientAddress, scope="accounts.registration_email.source"
     )
     limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
-    _prune_expired_limits()
+    _prune_expired_request_limits()
     return _reserve_request(
         sourceHash,
         maxRequests=limits.registrationEmailRequestsPerSource,
@@ -100,18 +104,18 @@ def reserve_registration_email_request(clientAddress: str) -> int:
 @sensitive_variables()
 def reserve_registration_token_request(clientAddress: str, *, token: str) -> int:
     """Limit link reads and registration submissions by both source IP and email proof."""
-    sourceHash = _get_source_hash(
+    sourceHash = _hash_client_address(
         clientAddress, scope="accounts.registration_token.source"
     )
     limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
-    _prune_expired_limits()
-    retryAfter = _reserve_request(
+    _prune_expired_request_limits()
+    retryAfterSeconds = _reserve_request(
         sourceHash,
         maxRequests=limits.registrationTokenRequestsPerSource,
         windowSeconds=limits.registrationTokenRequestWindowSeconds,
     )
-    if retryAfter:
-        return retryAfter
+    if retryAfterSeconds:
+        return retryAfterSeconds
 
     # A source already over its limit cannot create more token counters.
     tokenHash = salted_hmac(
@@ -131,16 +135,16 @@ def reserve_login_request(clientAddress: str, *, normalizedEmail: str) -> int:
     The caller supplies the canonical email and the HTTP server's actual client address.
     Limits are independent from registration and are not reset by successful login.
     """
-    sourceHash = _get_source_hash(clientAddress, scope="accounts.login.source")
+    sourceHash = _hash_client_address(clientAddress, scope="accounts.login.source")
     limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
-    _prune_expired_limits()
-    retryAfter = _reserve_request(
+    _prune_expired_request_limits()
+    retryAfterSeconds = _reserve_request(
         sourceHash,
         maxRequests=limits.loginRequestsPerSource,
         windowSeconds=limits.loginRequestWindowSeconds,
     )
-    if retryAfter:
-        return retryAfter
+    if retryAfterSeconds:
+        return retryAfterSeconds
 
     accountHash = salted_hmac(
         "accounts.login.account", normalizedEmail, algorithm="sha256"

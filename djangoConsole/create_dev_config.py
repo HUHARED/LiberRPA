@@ -11,8 +11,8 @@ from pathlib import Path
 from shutil import copyfile
 
 
-def _write_secret(pathSecret: Path, secretValue: str) -> None:
-    fileDescriptor = os.open(pathSecret, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+def _write_secret_file(secretPath: Path, secretValue: str) -> None:
+    fileDescriptor = os.open(secretPath, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     with os.fdopen(fileDescriptor, "w", encoding="utf-8") as secretFile:
         secretFile.write(secretValue)
 
@@ -30,8 +30,8 @@ def main() -> None:
     pathLocal.mkdir(mode=0o700)
     pathSecrets = pathLocal / "secrets"
     pathSecrets.mkdir(mode=0o700)
-    _write_secret(pathSecrets / "django-secret-key.txt", secrets.token_urlsafe(64))
-    _write_secret(pathSecrets / "database-password.txt", databasePassword)
+    _write_secret_file(pathSecrets / "django-secret-key.txt", secrets.token_urlsafe(64))
+    _write_secret_file(pathSecrets / "database-password.txt", databasePassword)
     copyfile(pathConsole / "Console.example.jsonc", pathLocal / "Console.jsonc")
     print(f"Created local development configuration: {pathLocal / 'Console.jsonc'}")
 

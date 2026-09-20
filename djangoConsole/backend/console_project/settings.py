@@ -10,47 +10,52 @@ from pathlib import Path
 
 from django.core.exceptions import ImproperlyConfigured
 
-from .config import load_config, read_secret_file
+from .config import read_config, read_secret_file
 
 _PATH_CONSOLE = Path(__file__).resolve().parents[2]
 _PATH_CONFIG = Path(
     os.environ.get("LIBERRPA_CONSOLE_CONFIG", _PATH_CONSOLE / ".local/Console.jsonc")
 ).resolve()
-_CONFIG = load_config(_PATH_CONFIG)
+_CONSOLE_CONFIG = read_config(_PATH_CONFIG)
 
-SECRET_KEY = read_secret_file(_PATH_CONFIG.parent / _CONFIG.secretKeyFile)
+SECRET_KEY = read_secret_file(_PATH_CONFIG.parent / _CONSOLE_CONFIG.secretKeyFile)
 if len(SECRET_KEY) < 50:
     raise ImproperlyConfigured(
         "The Django secret key must contain at least 50 characters."
     )
 
-DEBUG = _CONFIG.debug
-ALLOWED_HOSTS = _CONFIG.allowedHosts
+DEBUG = _CONSOLE_CONFIG.debug
+ALLOWED_HOSTS = _CONSOLE_CONFIG.allowedHosts
 ROOT_URLCONF = "console_project.urls"
 ASGI_APPLICATION = "console_project.asgi.application"
-CONSOLE_LIMITS = _CONFIG.limits
-CONSOLE_URL = str(_CONFIG.consoleUrl).rstrip("/") if _CONFIG.consoleUrl else None
-CONSOLE_SUPPORT_EMAIL = _CONFIG.supportEmail
+CONSOLE_LIMITS = _CONSOLE_CONFIG.limits
+CONSOLE_URL = (
+    str(_CONSOLE_CONFIG.consoleUrl).rstrip("/") if _CONSOLE_CONFIG.consoleUrl else None
+)
+CONSOLE_SUPPORT_EMAIL = _CONSOLE_CONFIG.supportEmail
 
 # An empty MAILERS configuration prevents fallback to an unintended local SMTP server.
 MAILERS = {}
-if _CONFIG.smtp is not None:
+if _CONSOLE_CONFIG.smtp is not None:
     DEFAULT_FROM_EMAIL = str(
-        Address(display_name=_CONFIG.smtp.fromName, addr_spec=_CONFIG.smtp.fromEmail)
+        Address(
+            display_name=_CONSOLE_CONFIG.smtp.fromName,
+            addr_spec=_CONSOLE_CONFIG.smtp.fromEmail,
+        )
     )
     MAILERS = {
         "default": {
             "BACKEND": "django.core.mail.backends.smtp.EmailBackend",
             "OPTIONS": {
-                "host": _CONFIG.smtp.host,
-                "port": _CONFIG.smtp.port,
-                "username": _CONFIG.smtp.user,
+                "host": _CONSOLE_CONFIG.smtp.host,
+                "port": _CONSOLE_CONFIG.smtp.port,
+                "username": _CONSOLE_CONFIG.smtp.user,
                 "password": read_secret_file(
-                    _PATH_CONFIG.parent / _CONFIG.smtp.passwordFile
+                    _PATH_CONFIG.parent / _CONSOLE_CONFIG.smtp.passwordFile
                 ),
-                "use_ssl": _CONFIG.smtp.security == "ssl",
-                "use_tls": _CONFIG.smtp.security == "starttls",
-                "timeout": _CONFIG.smtp.timeoutSeconds,
+                "use_ssl": _CONSOLE_CONFIG.smtp.security == "ssl",
+                "use_tls": _CONSOLE_CONFIG.smtp.security == "starttls",
+                "timeout": _CONSOLE_CONFIG.smtp.timeoutSeconds,
             },
         }
     }
@@ -98,11 +103,13 @@ MIDDLEWARE = [
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": _CONFIG.database.name,
-        "USER": _CONFIG.database.user,
-        "PASSWORD": read_secret_file(_PATH_CONFIG.parent / _CONFIG.database.passwordFile),
-        "HOST": _CONFIG.database.host,
-        "PORT": _CONFIG.database.port,
+        "NAME": _CONSOLE_CONFIG.database.name,
+        "USER": _CONSOLE_CONFIG.database.user,
+        "PASSWORD": read_secret_file(
+            _PATH_CONFIG.parent / _CONSOLE_CONFIG.database.passwordFile
+        ),
+        "HOST": _CONSOLE_CONFIG.database.host,
+        "PORT": _CONSOLE_CONFIG.database.port,
         # ASGI requests should not keep Django's persistent database connections open.
         "CONN_MAX_AGE": 0,
         "OPTIONS": {"connect_timeout": 3},

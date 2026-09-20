@@ -4,6 +4,7 @@ __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
+
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
@@ -12,7 +13,7 @@ from django.core.exceptions import ImproperlyConfigured
 from django.db import OperationalError
 from django.test import SimpleTestCase, override_settings
 
-from console_project.config import load_config, read_secret_file
+from console_project.config import read_config, read_secret_file
 
 _PATH_EXAMPLE = Path(__file__).resolve().parents[1] / "Console.example.jsonc"
 
@@ -32,7 +33,7 @@ class ConfigTests(SimpleTestCase):
             ),
             encoding="utf-8-sig",
         )
-        config = load_config(self.pathConfig)
+        config = read_config(self.pathConfig)
         self.assertEqual(config.database.port, 5432)
         self.assertFalse(config.debug)
 
@@ -52,11 +53,11 @@ class ConfigTests(SimpleTestCase):
             with self.subTest(config=strConfig):
                 self.pathConfig.write_text(strConfig, encoding="utf-8")
                 with self.assertRaises(ImproperlyConfigured):
-                    load_config(self.pathConfig)
+                    read_config(self.pathConfig)
 
     def test_missing_config_does_not_create_a_replacement(self) -> None:
         with self.assertRaises(ImproperlyConfigured):
-            load_config(self.pathConfig)
+            read_config(self.pathConfig)
         self.assertFalse(self.pathConfig.exists())
 
     def test_missing_or_empty_secret_is_rejected(self) -> None:

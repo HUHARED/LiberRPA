@@ -1,4 +1,8 @@
 {
-    "python-envs.defaultEnvManager": "ms-python.python:conda",
-    "python-envs.defaultPackageManager": "ms-python.python:conda"
+  "python-envs.defaultEnvManager": "ms-python.python:conda",
+  "python-envs.defaultPackageManager": "ms-python.python:conda",
+
+  "python.analysis.languageServerMode": "full",
+  "python.analysis.userFileIndexingLimit": -1,
+  "python.analysis.extraPaths": ["./backend"]
 }

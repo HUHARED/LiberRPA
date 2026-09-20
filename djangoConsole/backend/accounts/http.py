@@ -10,7 +10,7 @@ from django.http import HttpRequest, JsonResponse
 from django.views.decorators.debug import sensitive_variables
 from pydantic import BaseModel, ConfigDict
 
-_MAX_ACCOUNT_BODY_BYTES = 4096
+_INT_MAX_ACCOUNT_BODY_BYTES = 4096
 
 
 class AccountRequest(BaseModel):
@@ -21,52 +21,57 @@ class AccountRequest(BaseModel):
     )
 
 
-def _unique_json_object(pairs: list[tuple[str, object]]) -> dict[str, object]:
-    result: dict[str, object] = {}
-    for name, value in pairs:
-        if name in result:
+def _parse_json_object(fieldPairs: list[tuple[str, object]]) -> dict[str, object]:
+    dictJsonField: dict[str, object] = {}
+    for fieldName, fieldValue in fieldPairs:
+        if fieldName in dictJsonField:
             raise ValueError("Duplicate JSON fields are not allowed.")
         # Reject escaped lone surrogates before strings reach hashing or the database.
-        name.encode("utf-8")
-        if isinstance(value, str):
-            value.encode("utf-8")
-        result[name] = value
-    return result
+        fieldName.encode("utf-8")
+        if isinstance(fieldValue, str):
+            fieldValue.encode("utf-8")
+        dictJsonField[fieldName] = fieldValue
+    return dictJsonField
 
 
-def error_response(code: str, message: str, *, statusCode: int) -> JsonResponse:
-    return JsonResponse({"error": {"code": code, "message": message}}, status=statusCode)
+def build_error_response(
+    errorCode: str, errorMessage: str, *, statusCode: int
+) -> JsonResponse:
+    return JsonResponse(
+        {"error": {"code": errorCode, "message": errorMessage}}, status=statusCode
+    )
 
 
 @sensitive_variables()
-def read_json_request[Payload: BaseModel](
-    request: HttpRequest, schema: type[Payload]
+def parse_json_request[Payload: BaseModel](
+    request: HttpRequest, requestSchema: type[Payload]
 ) -> Payload | JsonResponse:
+    """Parse and validate an untrusted HTTP body into the requested schema."""
     if request.content_type != "application/json":
-        return error_response(
+        return build_error_response(
             "unsupported_media_type", "Send application/json.", statusCode=415
         )
 
-    body = request.read(_MAX_ACCOUNT_BODY_BYTES + 1)
-    if len(body) > _MAX_ACCOUNT_BODY_BYTES:
-        return error_response(
+    requestBody = request.read(_INT_MAX_ACCOUNT_BODY_BYTES + 1)
+    if len(requestBody) > _INT_MAX_ACCOUNT_BODY_BYTES:
+        return build_error_response(
             "request_too_large", "The request body is too large.", statusCode=413
         )
     try:
-        return schema.model_validate(
-            json.loads(body.decode("utf-8"), object_pairs_hook=_unique_json_object)
+        return requestSchema.model_validate(
+            json.loads(requestBody.decode("utf-8"), object_pairs_hook=_parse_json_object)
         )
     except (ValueError, RecursionError):
-        return error_response(
+        return build_error_response(
             "invalid_request",
             "Send a JSON object with the required fields, correct types, and no unknown fields.",
             statusCode=400,
         )
 
 
-def rate_limited_response(retryAfter: int) -> JsonResponse:
-    response = error_response(
+def build_rate_limited_response(retryAfterSeconds: int) -> JsonResponse:
+    response = build_error_response(
         "rate_limited", "Too many requests. Try again later.", statusCode=429
     )
-    response["Retry-After"] = str(retryAfter)
+    response["Retry-After"] = str(retryAfterSeconds)
     return response

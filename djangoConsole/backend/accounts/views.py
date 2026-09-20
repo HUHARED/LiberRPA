@@ -17,9 +17,9 @@ from pydantic import SecretStr
 
 from .http import (
     AccountRequest,
-    error_response,
-    rate_limited_response,
-    read_json_request,
+    build_error_response,
+    build_rate_limited_response,
+    parse_json_request,
 )
 from .rate_limits import (
     reserve_registration_email_request,
@@ -46,30 +46,38 @@ class RegistrationCompletionRequest(RegistrationTokenRequest):
     username: str = ""
 
 
-def _registration_validation_response(error: DjangoValidationError) -> JsonResponse:
-    if hasattr(error, "error_dict"):
+def _build_registration_validation_response(
+    validationError: DjangoValidationError,
+) -> JsonResponse:
+    if hasattr(validationError, "error_dict"):
         # The organization model calls this field "name"; the HTTP form is explicit.
-        fields = {
-            "organization_name" if name == "name" else name: messages
-            for name, messages in error.message_dict.items()
+        dictFieldError = {
+            "organization_name" if fieldName == "name" else fieldName: listErrorMessage
+            for fieldName, listErrorMessage in validationError.message_dict.items()
         }
         return JsonResponse(
             {
                 "error": {
                     "code": "invalid_registration",
                     "message": "Some registration fields are invalid.",
-                    "fields": fields,
+                    "fields": dictFieldError,
                 }
             },
             status=400,
         )
 
-    code = error.error_list[0].code or "invalid_registration"
-    details: dict[str, object] = {"code": code, "message": " ".join(error.messages)}
-    if all(item.code and item.code.startswith("password_") for item in error.error_list):
-        details["fields"] = {"password": error.messages}
-    statusCode = 409 if code == "email_already_registered" else 400
-    return JsonResponse({"error": details}, status=statusCode)
+    errorCode = validationError.error_list[0].code or "invalid_registration"
+    dictErrorDetail: dict[str, object] = {
+        "code": errorCode,
+        "message": " ".join(validationError.messages),
+    }
+    if all(
+        fieldError.code and fieldError.code.startswith("password_")
+        for fieldError in validationError.error_list
+    ):
+        dictErrorDetail["fields"] = {"password": validationError.messages}
+    statusCode = 409 if errorCode == "email_already_registered" else 400
+    return JsonResponse({"error": dictErrorDetail}, status=statusCode)
 
 
 @never_cache
@@ -82,31 +90,31 @@ def get_csrf_token(request: HttpRequest) -> JsonResponse:
 @never_cache
 @require_POST
 @sensitive_variables()
-def send_registration_email(request: HttpRequest) -> JsonResponse:
+def queue_registration_email(request: HttpRequest) -> JsonResponse:
     """Accept a CSRF-protected request without exposing account or delivery state."""
-    payload = read_json_request(request, RegistrationEmailRequest)
-    if isinstance(payload, JsonResponse):
-        return payload
+    registrationRequest = parse_json_request(request, RegistrationEmailRequest)
+    if isinstance(registrationRequest, JsonResponse):
+        return registrationRequest
     try:
         # Uvicorn must disable proxy headers until a trusted proxy is configured.
-        retryAfter = reserve_registration_email_request(
+        retryAfterSeconds = reserve_registration_email_request(
             request.META.get("REMOTE_ADDR", "")
         )
-        if retryAfter:
-            return rate_limited_response(retryAfter)
-        request_registration_email(payload.email)
+        if retryAfterSeconds:
+            return build_rate_limited_response(retryAfterSeconds)
+        request_registration_email(registrationRequest.email)
     except DjangoValidationError:
-        return error_response(
+        return build_error_response(
             "invalid_email", "Enter a valid email address.", statusCode=400
         )
     except PermissionDenied:
-        return error_response(
+        return build_error_response(
             "organization_creation_disabled",
             "Organization creation is currently unavailable.",
             statusCode=403,
         )
     except (ImproperlyConfigured, DatabaseError):
-        return error_response(
+        return build_error_response(
             "service_unavailable",
             "The service is temporarily unavailable.",
             statusCode=503,
@@ -124,21 +132,21 @@ def send_registration_email(request: HttpRequest) -> JsonResponse:
 @sensitive_variables()
 def check_registration_link(request: HttpRequest) -> JsonResponse:
     """Return the verified address without consuming the token or creating records."""
-    payload = read_json_request(request, RegistrationTokenRequest)
-    if isinstance(payload, JsonResponse):
-        return payload
+    registrationRequest = parse_json_request(request, RegistrationTokenRequest)
+    if isinstance(registrationRequest, JsonResponse):
+        return registrationRequest
     try:
-        token = payload.token.get_secret_value()
-        retryAfter = reserve_registration_token_request(
+        token = registrationRequest.token.get_secret_value()
+        retryAfterSeconds = reserve_registration_token_request(
             request.META.get("REMOTE_ADDR", ""), token=token
         )
-        if retryAfter:
-            return rate_limited_response(retryAfter)
+        if retryAfterSeconds:
+            return build_rate_limited_response(retryAfterSeconds)
         return JsonResponse({"email": get_registration_email(token)})
     except DjangoValidationError as e:
-        return _registration_validation_response(e)
+        return _build_registration_validation_response(e)
     except (ImproperlyConfigured, DatabaseError):
-        return error_response(
+        return build_error_response(
             "service_unavailable",
             "The service is temporarily unavailable.",
             statusCode=503,
@@ -150,32 +158,32 @@ def check_registration_link(request: HttpRequest) -> JsonResponse:
 @sensitive_variables()
 def complete_registration(request: HttpRequest) -> JsonResponse:
     """Atomically create the account and organization using the token's fixed email."""
-    payload = read_json_request(request, RegistrationCompletionRequest)
-    if isinstance(payload, JsonResponse):
-        return payload
+    registrationRequest = parse_json_request(request, RegistrationCompletionRequest)
+    if isinstance(registrationRequest, JsonResponse):
+        return registrationRequest
     try:
-        token = payload.token.get_secret_value()
-        retryAfter = reserve_registration_token_request(
+        token = registrationRequest.token.get_secret_value()
+        retryAfterSeconds = reserve_registration_token_request(
             request.META.get("REMOTE_ADDR", ""), token=token
         )
-        if retryAfter:
-            return rate_limited_response(retryAfter)
+        if retryAfterSeconds:
+            return build_rate_limited_response(retryAfterSeconds)
         complete_organization_registration(
             token=token,
-            password=payload.password.get_secret_value(),
-            organizationName=payload.organization_name,
-            username=payload.username,
+            password=registrationRequest.password.get_secret_value(),
+            organizationName=registrationRequest.organization_name,
+            username=registrationRequest.username,
         )
     except DjangoValidationError as e:
-        return _registration_validation_response(e)
+        return _build_registration_validation_response(e)
     except PermissionDenied:
-        return error_response(
+        return build_error_response(
             "organization_creation_disabled",
             "Organization creation is currently unavailable.",
             statusCode=403,
         )
     except (ImproperlyConfigured, DatabaseError):
-        return error_response(
+        return build_error_response(
             "service_unavailable",
             "The service is temporarily unavailable.",
             statusCode=503,

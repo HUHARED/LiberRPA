@@ -161,15 +161,15 @@ class Department(models.Model):
 
         try:
             # A non-null parent_id resolves to a Department or raises DoesNotExist.
-            parent = cast(Department, self.parent)
+            parentDepartment = cast(Department, self.parent)
         except Department.DoesNotExist:
             # full_clean() reports a missing reference during field validation.
             return
-        if parent.organization_id != self.organization_id:
+        if parentDepartment.organization_id != self.organization_id:
             raise ValidationError({
                 "parent": "The parent department must belong to the same organization."
             })
-        if self.deleted_at is None and parent.deleted_at is not None:
+        if self.deleted_at is None and parentDepartment.deleted_at is not None:
             raise ValidationError({"parent": "The parent department has been deleted."})
 
     def __str__(self) -> str:

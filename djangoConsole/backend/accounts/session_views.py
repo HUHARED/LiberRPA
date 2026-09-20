@@ -4,7 +4,6 @@ __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
-from dataclasses import asdict
 from datetime import timedelta
 from typing import cast
 
@@ -20,9 +19,14 @@ from django.views.decorators.debug import sensitive_variables
 from django.views.decorators.http import require_GET, require_POST
 from pydantic import SecretStr
 
-from organizations.access import get_account_access_info
+from organizations.access import AccountAccessInfo, get_account_access_info
 
-from .http import AccountRequest, error_response, rate_limited_response, read_json_request
+from .http import (
+    AccountRequest,
+    build_error_response,
+    build_rate_limited_response,
+    parse_json_request,
+)
 from .models import User, UserManager
 from .rate_limits import reserve_login_request
 
@@ -35,7 +39,7 @@ class LoginRequest(AccountRequest):
     remember_me: bool = False
 
 
-def _session_response(request: HttpRequest, user: User) -> JsonResponse:
+def _build_session_response(request: HttpRequest, user: User) -> JsonResponse:
     # Return current identity only; business operations resolve their own current permissions.
     return JsonResponse({
         "user": {"id": user.id, "email": user.email, "username": user.username},
@@ -44,10 +48,36 @@ def _session_response(request: HttpRequest, user: User) -> JsonResponse:
     })
 
 
-def _service_unavailable_response() -> JsonResponse:
-    return error_response(
+def _build_service_unavailable_response() -> JsonResponse:
+    return build_error_response(
         "service_unavailable", "The service is temporarily unavailable.", statusCode=503
     )
+
+
+def _build_access_response(accountAccessInfo: AccountAccessInfo) -> JsonResponse:
+    """Map internal attributes to the stable HTTP response field names."""
+    organizationInfo = accountAccessInfo.organization
+    return JsonResponse({
+        "organization": {
+            "id": organizationInfo.id,
+            "name": organizationInfo.name,
+            "suspended_at": organizationInfo.suspendedAt,
+            "deletion_requested_at": organizationInfo.deletionRequestedAt,
+            "deletion_due_at": organizationInfo.deletionDueAt,
+            "deletion_started_at": organizationInfo.deletionStartedAt,
+        },
+        "is_org_admin": accountAccessInfo.isOrgAdmin,
+        "business_available": accountAccessInfo.businessAvailable,
+        "departments": [
+            {
+                "id": departmentAccessInfo.id,
+                "name": departmentAccessInfo.name,
+                "path": departmentAccessInfo.path,
+                "role": departmentAccessInfo.role,
+            }
+            for departmentAccessInfo in accountAccessInfo.departments
+        ],
+    })
 
 
 @never_cache
@@ -55,16 +85,16 @@ def _service_unavailable_response() -> JsonResponse:
 @sensitive_variables()
 def sign_in(request: HttpRequest) -> JsonResponse:
     """Authenticate by email and establish a web session with a fixed expiry."""
-    payload = read_json_request(request, LoginRequest)
-    if isinstance(payload, JsonResponse):
-        return payload
+    loginRequest = parse_json_request(request, LoginRequest)
+    if isinstance(loginRequest, JsonResponse):
+        return loginRequest
     try:
-        normalizedEmail = UserManager.normalize_email(payload.email)
-        retryAfter = reserve_login_request(
+        normalizedEmail = UserManager.normalize_email(loginRequest.email)
+        retryAfterSeconds = reserve_login_request(
             request.META.get("REMOTE_ADDR", ""), normalizedEmail=normalizedEmail
         )
-        if retryAfter:
-            return rate_limited_response(retryAfter)
+        if retryAfterSeconds:
+            return build_rate_limited_response(retryAfterSeconds)
 
         # Django verifies passwords, rejects inactive users, and mitigates timing differences.
         user = cast(
@@ -72,28 +102,28 @@ def sign_in(request: HttpRequest) -> JsonResponse:
             authenticate(
                 request,
                 email=normalizedEmail,
-                password=payload.password.get_secret_value(),
+                password=loginRequest.password.get_secret_value(),
             ),
         )
         if user is None:
-            return error_response(
+            return build_error_response(
                 "invalid_credentials",
                 "The email or password is incorrect.",
                 statusCode=401,
             )
 
         login(request, user)
-        lifetime = (
+        sessionLifetime = (
             _REMEMBERED_SESSION_LIFETIME
-            if payload.remember_me
+            if loginRequest.remember_me
             else timedelta(seconds=settings.SESSION_COOKIE_AGE)
         )
         # An absolute datetime prevents later session writes from extending this login.
-        request.session.set_expiry(timezone.now() + lifetime)
+        request.session.set_expiry(timezone.now() + sessionLifetime)
         # login() rotates the CSRF secret; return a token matching the new cookie.
-        return _session_response(request, user)
+        return _build_session_response(request, user)
     except (ImproperlyConfigured, DatabaseError):
-        return _service_unavailable_response()
+        return _build_service_unavailable_response()
 
 
 @never_cache
@@ -102,12 +132,12 @@ def get_current_session(request: HttpRequest) -> JsonResponse:
     """Resolve the session and current account through Django's authentication middleware."""
     try:
         if not request.user.is_authenticated:
-            return error_response(
+            return build_error_response(
                 "authentication_required", "Sign in to continue.", statusCode=401
             )
-        return _session_response(request, cast(User, request.user))
+        return _build_session_response(request, cast(User, request.user))
     except (ImproperlyConfigured, DatabaseError):
-        return _service_unavailable_response()
+        return _build_service_unavailable_response()
 
 
 @never_cache
@@ -116,21 +146,21 @@ def get_current_access(request: HttpRequest) -> JsonResponse:
     """Return organization and department display data for the authenticated session."""
     try:
         if not request.user.is_authenticated:
-            return error_response(
+            return build_error_response(
                 "authentication_required", "Sign in to continue.", statusCode=401
             )
         # The caller cannot select another account, organization, or credential channel.
         user = cast(User, request.user)
-        accessInfo = get_account_access_info(actorId=user.id)
-        return JsonResponse(asdict(accessInfo))
+        accountAccessInfo = get_account_access_info(actorId=user.id)
+        return _build_access_response(accountAccessInfo)
     except PermissionDenied:
-        return error_response(
+        return build_error_response(
             "organization_access_required",
             "Organization access is required.",
             statusCode=403,
         )
     except (ImproperlyConfigured, DatabaseError):
-        return _service_unavailable_response()
+        return _build_service_unavailable_response()
 
 
 @never_cache
@@ -140,5 +170,5 @@ def sign_out(request: HttpRequest) -> JsonResponse:
     try:
         logout(request)
     except (ImproperlyConfigured, DatabaseError):
-        return _service_unavailable_response()
+        return _build_service_unavailable_response()
     return JsonResponse({"message": "Signed out."})

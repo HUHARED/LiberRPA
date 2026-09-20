@@ -17,13 +17,13 @@ from django.db import DatabaseError
 from django.utils import timezone
 
 from notifications.worker import (
-    EmailWorkerAlreadyRunning,
-    email_worker_session,
+    EmailWorkerAlreadyRunningError,
+    hold_email_worker_session,
     process_next_registration_email,
     recover_interrupted_email_deliveries,
 )
 
-_IDLE_POLL_SECONDS = 2
+_INT_IDLE_POLL_SECONDS = 2
 
 
 @contextmanager
@@ -33,16 +33,16 @@ def _stop_on_signals(stopEvent: Event) -> Generator[None]:
     def request_stop(_signalNumber: int, _frame: FrameType | None) -> None:
         stopEvent.set()
 
-    signals = (signal.SIGINT, signal.SIGTERM)
-    previousHandlers = {
-        signalNumber: signal.getsignal(signalNumber) for signalNumber in signals
+    stopSignals = (signal.SIGINT, signal.SIGTERM)
+    dictPreviousSignalHandler = {
+        signalNumber: signal.getsignal(signalNumber) for signalNumber in stopSignals
     }
     try:
-        for signalNumber in signals:
+        for signalNumber in stopSignals:
             signal.signal(signalNumber, request_stop)
         yield
     finally:
-        for signalNumber, previousHandler in previousHandlers.items():
+        for signalNumber, previousHandler in dictPreviousSignalHandler.items():
             if previousHandler is not None:
                 signal.signal(signalNumber, previousHandler)
 
@@ -64,36 +64,38 @@ class Command(BaseCommand):
                 "Configure consoleUrl, supportEmail, and smtp in Console.jsonc before starting the email worker."
             )
 
-        once = bool(options["once"])
+        runOnce = bool(options["once"])
         stopEvent = Event()
         try:
-            with _stop_on_signals(stopEvent), email_worker_session():
-                recoveredCount = recover_interrupted_email_deliveries()
+            with _stop_on_signals(stopEvent), hold_email_worker_session():
+                recoveredDeliveryCount = recover_interrupted_email_deliveries()
                 self.stdout.write(
-                    f"Email worker started. Interrupted attempts marked Unknown: {recoveredCount}."
+                    f"Email worker started. Interrupted attempts marked Unknown: {recoveredDeliveryCount}."
                 )
                 while not stopEvent.is_set():
-                    result = process_next_registration_email()
-                    if result is None:
-                        if once:
+                    deliveryResult = process_next_registration_email()
+                    if deliveryResult is None:
+                        if runOnce:
                             self.stdout.write("No pending registration email.")
-                        waitSeconds = _IDLE_POLL_SECONDS
-                    elif result.retry_at is not None:
+                        waitSeconds = _INT_IDLE_POLL_SECONDS
+                    elif deliveryResult.retryAt is not None:
                         self.stdout.write(
-                            f"Email {result.delivery_id}: pending until {result.retry_at.isoformat()}."
+                            f"Email {deliveryResult.deliveryId}: pending until {deliveryResult.retryAt.isoformat()}."
                         )
                         waitSeconds = max(
-                            0, (result.retry_at - timezone.now()).total_seconds()
+                            0, (deliveryResult.retryAt - timezone.now()).total_seconds()
                         )
                     else:
                         # Log only the record ID and status, never the recipient, body, or SMTP reply.
-                        self.stdout.write(f"Email {result.delivery_id}: {result.status}.")
+                        self.stdout.write(
+                            f"Email {deliveryResult.deliveryId}: {deliveryResult.status}."
+                        )
                         waitSeconds = 0
 
-                    if once:
+                    if runOnce:
                         break
                     stopEvent.wait(waitSeconds)
-        except (EmailWorkerAlreadyRunning, ImproperlyConfigured) as e:
+        except (EmailWorkerAlreadyRunningError, ImproperlyConfigured) as e:
             raise CommandError(str(e)) from None
         except DatabaseError:
             # Stop instead of reconnecting without the session lock.

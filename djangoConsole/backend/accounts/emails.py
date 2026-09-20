@@ -13,11 +13,11 @@ from django.core.exceptions import ImproperlyConfigured
 from django.core.mail import EmailMessage
 from django.views.decorators.debug import sensitive_variables
 
-from .registration import RegistrationTokenDelivery
+from .registration import RegistrationTokenDeliveryInfo
 
 
 @sensitive_variables()
-def build_registration_email(delivery: RegistrationTokenDelivery) -> EmailMessage:
+def build_registration_email(deliveryInfo: RegistrationTokenDeliveryInfo) -> EmailMessage:
     """Build a private message from an issued token without sending it or accessing the database.
 
     The delivery process owns current eligibility, budgets, one SMTP attempt, and result recording.
@@ -32,14 +32,16 @@ def build_registration_email(delivery: RegistrationTokenDelivery) -> EmailMessag
     # Use the configured origin; an incoming request must not choose the email link's host.
     # The browser keeps the fragment out of the initial page request and HTTP access logs.
     verificationUrl = (
-        f"{consoleUrl}/create-organization/#{urlencode({'token': delivery.token})}"
+        f"{consoleUrl}/create-organization/#{urlencode({'token': deliveryInfo.token})}"
     )
-    expiresAt = delivery.expires_at.astimezone(UTC).strftime("%Y-%m-%d %H:%M:%S UTC")
-    body = (
+    expiresAtText = deliveryInfo.expiresAt.astimezone(UTC).strftime(
+        "%Y-%m-%d %H:%M:%S UTC"
+    )
+    emailBody = (
         "Verify your email to create a LiberRPA Console organization.\n\n"
         "Open this link to complete registration:\n"
         f"{verificationUrl}\n\n"
-        f"This link expires at {expiresAt}.\n"
+        f"This link expires at {expiresAtText}.\n"
         "Opening the link does not create an account or use up the link.\n"
         "After successful registration, the link cannot be used again.\n"
         "If a new link is issued, this link stops working.\n\n"
@@ -48,7 +50,7 @@ def build_registration_email(delivery: RegistrationTokenDelivery) -> EmailMessag
     )
     return EmailMessage(
         subject="Verify your email for LiberRPA Console",
-        body=body,
-        to=[delivery.email],
+        body=emailBody,
+        to=[deliveryInfo.email],
         reply_to=[cast(str, settings.CONSOLE_SUPPORT_EMAIL)],
     )

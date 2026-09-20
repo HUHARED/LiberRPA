@@ -12,7 +12,7 @@ from typing import cast
 from .models import Department, DepartmentRole, Organization
 from .permissions import (
     AccessChannel,
-    OrganizationAccess,
+    OrganizationAccessContext,
     get_authorized_departments,
     get_current_membership,
     is_organization_business_available,
@@ -23,10 +23,10 @@ from .permissions import (
 class OrganizationInfo:
     id: uuid.UUID
     name: str
-    suspended_at: datetime | None
-    deletion_requested_at: datetime | None
-    deletion_due_at: datetime | None
-    deletion_started_at: datetime | None
+    suspendedAt: datetime | None
+    deletionRequestedAt: datetime | None
+    deletionDueAt: datetime | None
+    deletionStartedAt: datetime | None
 
 
 @dataclass(frozen=True)
@@ -43,59 +43,71 @@ class AccountAccessInfo:
     """Display data for this request; subsequent operations resolve their current permissions."""
 
     organization: OrganizationInfo
-    is_org_admin: bool
-    business_available: bool
+    isOrgAdmin: bool
+    businessAvailable: bool
     departments: tuple[DepartmentAccessInfo, ...]
 
 
 def _get_department_path(
     department: Department, departmentsById: dict[uuid.UUID, Department]
 ) -> str:
-    names = [department.name]
+    listDepartmentName = [department.name]
     parentId = department.parent_id
     # Department write services already enforce a valid tree within one organization.
     while parentId is not None:
-        parent = departmentsById[parentId]
-        names.append(parent.name)
-        parentId = parent.parent_id
-    return "/".join(reversed(names))
+        parentDepartment = departmentsById[parentId]
+        listDepartmentName.append(parentDepartment.name)
+        parentId = parentDepartment.parent_id
+    return "/".join(reversed(listDepartmentName))
 
 
-def _get_department_access(
-    access: OrganizationAccess,
+def _get_department_access_info(
+    access: OrganizationAccessContext,
 ) -> tuple[DepartmentAccessInfo, ...]:
-    departments = get_authorized_departments(access, requiredRole=DepartmentRole.OPERATOR)
-    rolesByDepartment: dict[uuid.UUID, DepartmentRole | None]
-    if access.is_org_admin:
-        rolesByDepartment = dict.fromkeys(departments.values_list("id", flat=True))
+    departmentQuery = get_authorized_departments(
+        access, requiredRole=DepartmentRole.OPERATOR
+    )
+    dictRoleByDepartmentId: dict[uuid.UUID, DepartmentRole | None]
+    if access.isOrgAdmin:
+        dictRoleByDepartmentId = dict.fromkeys(
+            departmentQuery.values_list("id", flat=True)
+        )
     else:
         # Reuse the membership join already scoped by get_authorized_departments().
-        rolesByDepartment = {
+        dictRoleByDepartmentId = {
             departmentId: DepartmentRole(role)
-            for departmentId, role in departments.values_list("id", "memberships__role")
+            for departmentId, role in departmentQuery.values_list(
+                "id", "memberships__role"
+            )
         }
-    if not rolesByDepartment:
+    if not dictRoleByDepartmentId:
         return ()
 
     # Load only path components; ancestor names do not grant access to ancestor departments.
-    departmentsById = {
+    dictDepartmentById = {
         department.pk: department
         for department in Department.objects.filter(
             organization=access.organization, deleted_at__isnull=True
         ).only("id", "name", "parent")
     }
-    result = [
+    listDepartmentAccessInfo = [
         DepartmentAccessInfo(
             id=department.pk,
             name=department.name,
-            path=_get_department_path(department, departmentsById),
-            role=rolesByDepartment[department.pk],
+            path=_get_department_path(department, dictDepartmentById),
+            role=dictRoleByDepartmentId[department.pk],
         )
-        for department in departmentsById.values()
-        if department.pk in rolesByDepartment
+        for department in dictDepartmentById.values()
+        if department.pk in dictRoleByDepartmentId
     ]
     return tuple(
-        sorted(result, key=lambda department: (department.path.casefold(), department.id))
+        sorted(
+            listDepartmentAccessInfo,
+            key=lambda departmentAccessInfo: (
+                departmentAccessInfo.path.casefold(),
+                departmentAccessInfo.id,
+            ),
+        )
     )
 
 
@@ -108,26 +120,26 @@ def get_account_access_info(*, actorId: uuid.UUID) -> AccountAccessInfo:
     membership = get_current_membership(actorId=actorId)
     organization = cast(Organization, membership.organization)
     businessAvailable = is_organization_business_available(organization)
-    departmentAccess: tuple[DepartmentAccessInfo, ...] = ()
+    departmentAccessEntries: tuple[DepartmentAccessInfo, ...] = ()
     if businessAvailable:
-        access = OrganizationAccess(
-            actor_id=membership.user_id,
+        access = OrganizationAccessContext(
+            actorId=membership.user_id,
             organization=organization,
-            is_org_admin=membership.is_org_admin,
+            isOrgAdmin=membership.is_org_admin,
             channel=AccessChannel.SESSION,
         )
-        departmentAccess = _get_department_access(access)
+        departmentAccessEntries = _get_department_access_info(access)
 
     return AccountAccessInfo(
         organization=OrganizationInfo(
             id=organization.pk,
             name=organization.name,
-            suspended_at=organization.suspended_at,
-            deletion_requested_at=organization.deletion_requested_at,
-            deletion_due_at=organization.deletion_due_at,
-            deletion_started_at=organization.deletion_started_at,
+            suspendedAt=organization.suspended_at,
+            deletionRequestedAt=organization.deletion_requested_at,
+            deletionDueAt=organization.deletion_due_at,
+            deletionStartedAt=organization.deletion_started_at,
         ),
-        is_org_admin=membership.is_org_admin,
-        business_available=businessAvailable,
-        departments=departmentAccess,
+        isOrgAdmin=membership.is_org_admin,
+        businessAvailable=businessAvailable,
+        departments=departmentAccessEntries,
     )

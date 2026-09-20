@@ -15,16 +15,16 @@ from .delivery import EmailDeliveryResult, deliver_registration_email
 from .models import EmailDelivery, EmailStatus, EmailType
 
 # Two PostgreSQL advisory-lock keys: the "LRPA" namespace and its email worker.
-_LOCK_NAMESPACE = int.from_bytes(b"LRPA", "big")
-_EMAIL_WORKER_LOCK = 1
+_INT_LOCK_NAMESPACE = int.from_bytes(b"LRPA", "big")
+_INT_EMAIL_WORKER_LOCK = 1
 
 
-class EmailWorkerAlreadyRunning(Exception):
+class EmailWorkerAlreadyRunningError(Exception):
     """Another process owns this database's email worker session."""
 
 
 @contextmanager
-def email_worker_session() -> Generator[None]:
+def hold_email_worker_session() -> Generator[None]:
     """Keep the standalone worker's database session exclusive until it exits.
 
     This session lock survives commits without holding a database transaction open.
@@ -40,11 +40,11 @@ def email_worker_session() -> Generator[None]:
         with connection.cursor() as cursor:
             cursor.execute(
                 "SELECT pg_try_advisory_lock(%s, %s)",
-                [_LOCK_NAMESPACE, _EMAIL_WORKER_LOCK],
+                [_INT_LOCK_NAMESPACE, _INT_EMAIL_WORKER_LOCK],
             )
-            acquired = cursor.fetchone()[0]
-        if not acquired:
-            raise EmailWorkerAlreadyRunning(
+            lockAcquired = cursor.fetchone()[0]
+        if not lockAcquired:
+            raise EmailWorkerAlreadyRunningError(
                 "Another email worker is already running for this database."
             )
         yield

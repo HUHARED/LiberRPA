@@ -22,46 +22,46 @@ from organizations.services import OrganizationCreationResult, create_organizati
 
 from .models import RegistrationToken, User, UserManager
 
-_TOKEN_LIFETIME = timedelta(hours=1)
-_RESEND_INTERVAL = timedelta(minutes=5)
-_TOKEN_PATTERN = re.compile(r"[A-Za-z0-9_-]{43}")
+_REGISTRATION_TOKEN_LIFETIME = timedelta(hours=1)
+_REGISTRATION_RESEND_INTERVAL = timedelta(minutes=5)
+_REGISTRATION_TOKEN_PATTERN = re.compile(r"[A-Za-z0-9_-]{43}")
 
 
 @dataclass(frozen=True)
-class RegistrationTokenDelivery:
+class RegistrationTokenDeliveryInfo:
     """Private mail-delivery data, never a response to the anonymous requesting client."""
 
     email: str
     token: str = field(repr=False)
-    expires_at: datetime
+    expiresAt: datetime
 
 
-def _invalid_registration_token() -> ValidationError:
+def _build_invalid_registration_token_error() -> ValidationError:
     return ValidationError(
         "The registration link is invalid or expired.", code="invalid_registration_token"
     )
 
 
-def _require_unexpired(registration: RegistrationToken) -> None:
-    if registration.expires_at <= timezone.now():
-        raise _invalid_registration_token()
+def _require_registration_token_unexpired(registrationToken: RegistrationToken) -> None:
+    if registrationToken.expires_at <= timezone.now():
+        raise _build_invalid_registration_token_error()
 
 
 @sensitive_variables()
 def _get_registration_token(token: str, *, forUpdate: bool) -> RegistrationToken:
-    if _TOKEN_PATTERN.fullmatch(token) is None:
-        raise _invalid_registration_token()
+    if _REGISTRATION_TOKEN_PATTERN.fullmatch(token) is None:
+        raise _build_invalid_registration_token_error()
     tokenHash = hashlib.sha256(token.encode("ascii")).hexdigest()
-    registrations = RegistrationToken.objects.all()
+    registrationTokenQuery = RegistrationToken.objects.all()
     if forUpdate:
-        registrations = registrations.select_for_update()
+        registrationTokenQuery = registrationTokenQuery.select_for_update()
     try:
-        registration = registrations.get(token_hash=tokenHash)
+        registrationToken = registrationTokenQuery.get(token_hash=tokenHash)
     except RegistrationToken.DoesNotExist:
-        raise _invalid_registration_token() from None
+        raise _build_invalid_registration_token_error() from None
     # Check time after any lock wait, using the row already loaded for this operation.
-    _require_unexpired(registration)
-    return registration
+    _require_registration_token_unexpired(registrationToken)
+    return registrationToken
 
 
 @sensitive_variables()
@@ -88,18 +88,18 @@ def request_registration_email(email: str) -> None:
     if User.objects.filter(email=delivery.recipient).exists():
         return
 
-    previous = (
+    previousDelivery = (
         EmailDelivery.objects
         .filter(email_type=delivery.email_type, recipient=delivery.recipient)
         .order_by("-created_at", "-id")
         .first()
     )
     requestedAt = timezone.now()
-    if previous is not None:
-        if previous.status in (EmailStatus.PENDING, EmailStatus.SENDING):
+    if previousDelivery is not None:
+        if previousDelivery.status in (EmailStatus.PENDING, EmailStatus.SENDING):
             return
-        cooldownStart = previous.attempted_at or previous.created_at
-        if requestedAt < cooldownStart + _RESEND_INTERVAL:
+        cooldownStart = previousDelivery.attempted_at or previousDelivery.created_at
+        if requestedAt < cooldownStart + _REGISTRATION_RESEND_INTERVAL:
             return
 
     # Start the request age after any policy lock wait; previous outcomes remain history.
@@ -109,7 +109,7 @@ def request_registration_email(email: str) -> None:
 
 @sensitive_variables()
 @transaction.atomic
-def issue_registration_token(email: str) -> RegistrationTokenDelivery | None:
+def issue_registration_token(email: str) -> RegistrationTokenDeliveryInfo | None:
     """Prepare a new token for delivery to the supplied email address.
 
     None suppresses delivery for an existing account or during the resend interval.
@@ -118,39 +118,46 @@ def issue_registration_token(email: str) -> RegistrationTokenDelivery | None:
     """
     token = secrets.token_urlsafe(32)
     issuedAt = timezone.now()
-    candidate = RegistrationToken(
+    candidateToken = RegistrationToken(
         email=UserManager.normalize_email(email),
         token_hash=hashlib.sha256(token.encode("ascii")).hexdigest(),
         issued_at=issuedAt,
-        expires_at=issuedAt + _TOKEN_LIFETIME,
+        expires_at=issuedAt + _REGISTRATION_TOKEN_LIFETIME,
     )
-    candidate.full_clean(validate_unique=False, validate_constraints=False)
+    candidateToken.full_clean(validate_unique=False, validate_constraints=False)
 
     # Issuance and completion both lock the email token before the instance policy.
-    registration, created = RegistrationToken.objects.select_for_update().get_or_create(
-        email=candidate.email,
-        defaults={
-            "token_hash": candidate.token_hash,
-            "issued_at": candidate.issued_at,
-            "expires_at": candidate.expires_at,
-        },
+    registrationToken, tokenCreated = (
+        RegistrationToken.objects.select_for_update().get_or_create(
+            email=candidateToken.email,
+            defaults={
+                "token_hash": candidateToken.token_hash,
+                "issued_at": candidateToken.issued_at,
+                "expires_at": candidateToken.expires_at,
+            },
+        )
     )
     require_organization_creation_allowed()
-    if User.objects.filter(email=registration.email).exists():
-        registration.delete()
+    if User.objects.filter(email=registrationToken.email).exists():
+        registrationToken.delete()
         return None
 
     issuedAt = timezone.now()
-    if not created and issuedAt < registration.issued_at + _RESEND_INTERVAL:
+    if (
+        not tokenCreated
+        and issuedAt < registrationToken.issued_at + _REGISTRATION_RESEND_INTERVAL
+    ):
         return None
 
     # Start the lifetime after lock waits; replacing the digest invalidates the old link.
-    registration.token_hash = candidate.token_hash
-    registration.issued_at = issuedAt
-    registration.expires_at = issuedAt + _TOKEN_LIFETIME
-    registration.save(update_fields=["token_hash", "issued_at", "expires_at"])
-    return RegistrationTokenDelivery(
-        email=registration.email, token=token, expires_at=registration.expires_at
+    registrationToken.token_hash = candidateToken.token_hash
+    registrationToken.issued_at = issuedAt
+    registrationToken.expires_at = issuedAt + _REGISTRATION_TOKEN_LIFETIME
+    registrationToken.save(update_fields=["token_hash", "issued_at", "expires_at"])
+    return RegistrationTokenDeliveryInfo(
+        email=registrationToken.email,
+        token=token,
+        expiresAt=registrationToken.expires_at,
     )
 
 
@@ -170,10 +177,10 @@ def complete_organization_registration(
     The email comes only from the locked token record, never from the submitted form.
     Creation checks the current instance policy; success does not open a login session.
     """
-    registration = _get_registration_token(token, forUpdate=True)
+    registrationToken = _get_registration_token(token, forUpdate=True)
     try:
-        result = create_organization_records(
-            verifiedEmail=registration.email,
+        creationResult = create_organization_records(
+            verifiedEmail=registrationToken.email,
             password=password,
             organizationName=organizationName,
             username=username,
@@ -181,7 +188,7 @@ def complete_organization_registration(
     except IntegrityError:
         # The creation service has rolled back its savepoint, so this lookup is safe.
         # An invitation or another registration may have claimed the email meanwhile.
-        if User.objects.filter(email=registration.email).exists():
+        if User.objects.filter(email=registrationToken.email).exists():
             raise ValidationError(
                 "This email address is already registered.",
                 code="email_already_registered",
@@ -189,6 +196,6 @@ def complete_organization_registration(
         raise
 
     # A policy lock wait or password hashing may have crossed the expiry boundary.
-    _require_unexpired(registration)
-    registration.delete()
-    return result
+    _require_registration_token_unexpired(registrationToken)
+    registrationToken.delete()
+    return creationResult

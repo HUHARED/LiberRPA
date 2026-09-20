@@ -25,42 +25,42 @@ class SmtpResult:
     """A bounded outcome without SMTP replies, message content, or credentials."""
 
     status: EmailStatus
-    reason_code: str = ""
+    reasonCode: str = ""
 
 
 @sensitive_variables()
-def _send_on_open_connection(
-    mailer: BaseEmailBackend, message: EmailMessage
+def _send_email_on_open_connection(
+    mailer: BaseEmailBackend, emailMessage: EmailMessage
 ) -> SmtpResult:
     try:
-        sentCount = mailer.send_messages([message])
+        sentMessageCount = mailer.send_messages([emailMessage])
     except (SMTPResponseException, SMTPRecipientsRefused):
-        return SmtpResult(status=EmailStatus.FAILED, reason_code="smtp_rejected")
+        return SmtpResult(status=EmailStatus.FAILED, reasonCode="smtp_rejected")
     except SMTPNotSupportedError:
-        return SmtpResult(status=EmailStatus.FAILED, reason_code="smtp_not_supported")
+        return SmtpResult(status=EmailStatus.FAILED, reasonCode="smtp_not_supported")
     except ValueError:
         # Django prepares headers and message bytes before passing them to SMTP.
-        return SmtpResult(status=EmailStatus.FAILED, reason_code="email_message_invalid")
+        return SmtpResult(status=EmailStatus.FAILED, reasonCode="email_message_invalid")
     except OSError:
         # SMTP exceptions also inherit OSError; a lost reply can hide successful acceptance.
-        return SmtpResult(status=EmailStatus.UNKNOWN, reason_code="smtp_result_unknown")
+        return SmtpResult(status=EmailStatus.UNKNOWN, reasonCode="smtp_result_unknown")
 
-    if sentCount == 1:
+    if sentMessageCount == 1:
         return SmtpResult(status=EmailStatus.ACCEPTED)
-    if sentCount == 0:
-        return SmtpResult(status=EmailStatus.FAILED, reason_code="smtp_not_accepted")
-    return SmtpResult(status=EmailStatus.UNKNOWN, reason_code="smtp_result_unknown")
+    if sentMessageCount == 0:
+        return SmtpResult(status=EmailStatus.FAILED, reasonCode="smtp_not_accepted")
+    return SmtpResult(status=EmailStatus.UNKNOWN, reasonCode="smtp_result_unknown")
 
 
 @sensitive_variables()
-def send_smtp_once(message: EmailMessage) -> SmtpResult:
+def send_smtp_once(emailMessage: EmailMessage) -> SmtpResult:
     """Attempt one prepared recipient using the configured SMTP mailer, without retrying.
 
     The caller must commit the recipient reservation before calling this function.
     The message comes from a trusted builder; SMTP performs its own encoding and validation.
     Accepted means SMTP accepted the message, not that it reached the recipient's inbox.
     """
-    if len(message.recipients()) != 1:
+    if len(emailMessage.recipients()) != 1:
         raise ValueError("An SMTP attempt must contain exactly one budgeted recipient.")
 
     # Django creates a fresh connection for this access; do not share it between attempts.
@@ -71,23 +71,23 @@ def send_smtp_once(message: EmailMessage) -> SmtpResult:
             mailer.open()
         except SMTPAuthenticationError:
             return SmtpResult(
-                status=EmailStatus.FAILED, reason_code="smtp_authentication_failed"
+                status=EmailStatus.FAILED, reasonCode="smtp_authentication_failed"
             )
         except SMTPNotSupportedError:
-            return SmtpResult(status=EmailStatus.FAILED, reason_code="smtp_not_supported")
+            return SmtpResult(status=EmailStatus.FAILED, reasonCode="smtp_not_supported")
         except ssl.SSLError:
-            return SmtpResult(status=EmailStatus.FAILED, reason_code="smtp_tls_failed")
+            return SmtpResult(status=EmailStatus.FAILED, reasonCode="smtp_tls_failed")
         except ValueError:
             return SmtpResult(
-                status=EmailStatus.FAILED, reason_code="smtp_configuration_invalid"
+                status=EmailStatus.FAILED, reasonCode="smtp_configuration_invalid"
             )
         except OSError:
             # No message has been submitted during connection, TLS negotiation, or login.
             return SmtpResult(
-                status=EmailStatus.FAILED, reason_code="smtp_connection_failed"
+                status=EmailStatus.FAILED, reasonCode="smtp_connection_failed"
             )
 
-        return _send_on_open_connection(mailer, message)
+        return _send_email_on_open_connection(mailer, emailMessage)
     finally:
         try:
             mailer.close()
