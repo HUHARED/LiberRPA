@@ -64,6 +64,13 @@
     "registrationTokenRequestsPerSource": 30,
     "registrationTokenRequestsPerToken": 10,
     // Each counter's fixed window starts with its first request and lasts at most one day.
-    "registrationTokenRequestWindowSeconds": 600
+    "registrationTokenRequestWindowSeconds": 600,
+
+    // All login attempts count, including successful attempts and unknown accounts.
+    // Both the source IP and normalized email must have remaining requests; 0 blocks login.
+    "loginRequestsPerSource": 30,
+    "loginRequestsPerAccount": 10,
+    // Fixed windows recover automatically; login failures do not disable an account.
+    "loginRequestWindowSeconds": 600
   }
 }

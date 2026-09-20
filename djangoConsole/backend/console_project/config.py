@@ -65,6 +65,9 @@ class LimitsConfig(_BaseConfig):
     registrationTokenRequestsPerSource: int = Field(default=30, ge=0, le=2147483647)
     registrationTokenRequestsPerToken: int = Field(default=10, ge=0, le=2147483647)
     registrationTokenRequestWindowSeconds: int = Field(default=600, ge=1, le=86400)
+    loginRequestsPerSource: int = Field(default=30, ge=0, le=2147483647)
+    loginRequestsPerAccount: int = Field(default=10, ge=0, le=2147483647)
+    loginRequestWindowSeconds: int = Field(default=600, ge=1, le=86400)
 
 
 class SmtpConfig(_BaseConfig):

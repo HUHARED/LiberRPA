@@ -18,7 +18,7 @@ from django.views.decorators.debug import sensitive_variables
 
 from console_project.config import LimitsConfig
 
-from .models import RegistrationRequestLimit
+from .models import AuthenticationRequestLimit
 
 _PRUNE_BATCH_SIZE = 100
 
@@ -28,14 +28,14 @@ def _prune_expired_limits() -> None:
     # Cleanup locks are released before taking the current counter's lock.
     # Skip active transactions and keep the work bounded for each request.
     expiredHashes = list(
-        RegistrationRequestLimit.objects
+        AuthenticationRequestLimit.objects
         .select_for_update(skip_locked=True)
         .filter(expires_at__lte=timezone.now())
         .order_by("expires_at", "source_hash")
         .values_list("source_hash", flat=True)[:_PRUNE_BATCH_SIZE]
     )
     if expiredHashes:
-        RegistrationRequestLimit.objects.filter(source_hash__in=expiredHashes).delete()
+        AuthenticationRequestLimit.objects.filter(source_hash__in=expiredHashes).delete()
 
 
 @sensitive_variables()
@@ -56,7 +56,7 @@ def _reserve_request(sourceHash: str, *, maxRequests: int, windowSeconds: int) -
     # Commit each counter before business work; failures do not refund attempts.
     with transaction.atomic(durable=True):
         counter, _created = (
-            RegistrationRequestLimit.objects.select_for_update().get_or_create(
+            AuthenticationRequestLimit.objects.select_for_update().get_or_create(
                 source_hash=sourceHash,
                 defaults={"expires_at": timezone.now() + window},
             )
@@ -121,4 +121,32 @@ def reserve_registration_token_request(clientAddress: str, *, token: str) -> int
         tokenHash,
         maxRequests=limits.registrationTokenRequestsPerToken,
         windowSeconds=limits.registrationTokenRequestWindowSeconds,
+    )
+
+
+@sensitive_variables()
+def reserve_login_request(clientAddress: str, *, normalizedEmail: str) -> int:
+    """Count login attempts before password hashing, including unknown accounts.
+
+    The caller supplies the canonical email and the HTTP server's actual client address.
+    Limits are independent from registration and are not reset by successful login.
+    """
+    sourceHash = _get_source_hash(clientAddress, scope="accounts.login.source")
+    limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
+    _prune_expired_limits()
+    retryAfter = _reserve_request(
+        sourceHash,
+        maxRequests=limits.loginRequestsPerSource,
+        windowSeconds=limits.loginRequestWindowSeconds,
+    )
+    if retryAfter:
+        return retryAfter
+
+    accountHash = salted_hmac(
+        "accounts.login.account", normalizedEmail, algorithm="sha256"
+    ).hexdigest()
+    return _reserve_request(
+        accountHash,
+        maxRequests=limits.loginRequestsPerAccount,
+        windowSeconds=limits.loginRequestWindowSeconds,
     )

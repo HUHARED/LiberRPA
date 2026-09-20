@@ -57,12 +57,27 @@ if _CONFIG.smtp is not None:
 
 # Define the Console account before creating any database tables.
 INSTALLED_APPS = [
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
     "accounts.apps.AccountsConfig",
     "organizations.apps.OrganizationsConfig",
     "operations.apps.OperationsConfig",
     "notifications.apps.NotificationsConfig",
 ]
 AUTH_USER_MODEL = "accounts.User"
+# Authenticate identity with Django; Console business permissions remain in organizations.permissions.
+AUTHENTICATION_BACKENDS = ["django.contrib.auth.backends.ModelBackend"]
+
+# Web sessions have an absolute expiry chosen at login, never a sliding expiry.
+SESSION_ENGINE = "django.contrib.sessions.backends.db"
+SESSION_COOKIE_AGE = 12 * 60 * 60
+SESSION_SAVE_EVERY_REQUEST = False
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
+# Cookie transport follows the configured browser-facing URL, including local HTTP development.
+SESSION_COOKIE_SECURE = CONSOLE_URL is not None and CONSOLE_URL.startswith("https://")
+CSRF_COOKIE_SECURE = SESSION_COOKIE_SECURE
 # New-password entry points also enforce length in validate_new_password().
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
@@ -73,8 +88,10 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 

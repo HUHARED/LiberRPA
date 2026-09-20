@@ -97,10 +97,10 @@ class RegistrationToken(models.Model):
         return f"Organization registration for {self.email}"
 
 
-class RegistrationRequestLimit(models.Model):
-    """A short-lived request counter shared by all HTTP processes for one source or token."""
+class AuthenticationRequestLimit(models.Model):
+    """A shared request counter for one IP address, registration token, or login email."""
 
-    # Namespaced keyed digests identify counters without storing IP addresses or tokens.
+    # Namespaced keyed digests identify counters without storing IP addresses, tokens, or emails.
     source_hash = models.CharField(max_length=64, primary_key=True)
     request_count = models.PositiveIntegerField(default=0)
     expires_at = models.DateTimeField(db_index=True)
