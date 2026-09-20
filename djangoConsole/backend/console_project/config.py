@@ -57,6 +57,9 @@ class DatabaseConfig(_BaseConfig):
 class LimitsConfig(_BaseConfig):
     maxDepartmentsPerOrganization: int = Field(default=20, ge=0)
     maxDepartmentDepth: int = Field(default=5, ge=1)
+    maxEmailRecipientsPer24Hours: int = Field(default=2500, ge=0)
+    emailBurstRecipients: int = Field(default=100, ge=1)
+    emailRefillSeconds: int = Field(default=30, ge=1)
 
 
 class SmtpConfig(_BaseConfig):

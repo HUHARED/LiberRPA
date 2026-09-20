@@ -24,6 +24,21 @@ class EmailStatus(models.TextChoices):
     UNKNOWN = "unknown", "Unknown"
 
 
+class EmailDispatchState(models.Model):
+    """Shared SMTP rate allowance; the row lock also serializes budget reservations."""
+
+    id = models.PositiveSmallIntegerField(primary_key=True, default=1, editable=False)
+    available_units = models.PositiveIntegerField(default=0)
+    refilled_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(id=1), name="email_dispatch_state_singleton"
+            )
+        ]
+
+
 class EmailDelivery(models.Model):
     """One delivery request and its outcome, without message bodies or usable tokens."""
 
@@ -44,6 +59,7 @@ class EmailDelivery(models.Model):
             models.Index(
                 fields=["status", "created_at"], name="email_delivery_pending_idx"
             ),
+            models.Index(fields=["attempted_at"], name="email_delivery_attempt_idx"),
             models.Index(
                 fields=["email_type", "recipient", "-created_at"],
                 name="email_delivery_recipient_idx",
