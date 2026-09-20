@@ -40,14 +40,34 @@ _ROLES_FOR_REQUIREMENT = {
 }
 
 
+def is_organization_business_available(organization: Organization) -> bool:
+    """Evaluate the already loaded organization for both status display and business guards."""
+    # Deletion freezes business when requested, not when cleanup becomes due.
+    return (
+        organization.suspended_at is None and organization.deletion_requested_at is None
+    )
+
+
 def require_organization_business_available(organization: Organization) -> None:
     """Check the organization already loaded for the current operation without querying again."""
-    # Deletion freezes business when requested, not when cleanup becomes due.
-    if (
-        organization.suspended_at is not None
-        or organization.deletion_requested_at is not None
-    ):
+    if not is_organization_business_available(organization):
         raise PermissionDenied("Organization business operations are unavailable.")
+
+
+def _get_active_memberships(actorId: uuid.UUID) -> QuerySet[Membership]:
+    return Membership.objects.filter(user_id=actorId, user__is_active=True)
+
+
+def get_current_membership(*, actorId: uuid.UUID) -> Membership:
+    """Resolve current membership for identity and restricted organization status views.
+
+    actorId comes from verified credentials; organization identity is resolved by the server.
+    Business operations must still apply their service-state and action permission rules.
+    """
+    try:
+        return _get_active_memberships(actorId).select_related("organization").get()
+    except Membership.DoesNotExist:
+        raise PermissionDenied("Organization access is required.") from None
 
 
 def _resolve_organization_member(
@@ -57,9 +77,7 @@ def _resolve_organization_member(
     forUpdate: bool,
 ) -> tuple[Organization, Membership]:
     """Load current identity facts; the caller applies the operation's service-state rule."""
-    memberships = Membership.objects.filter(
-        user_id=actorId, organization_id=organizationId, user__is_active=True
-    )
+    memberships = _get_active_memberships(actorId).filter(organization_id=organizationId)
     try:
         if forUpdate:
             # Organization state changes and business writes take this lock first.

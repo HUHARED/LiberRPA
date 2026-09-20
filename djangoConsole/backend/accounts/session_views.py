@@ -4,12 +4,13 @@ __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
+from dataclasses import asdict
 from datetime import timedelta
 from typing import cast
 
 from django.conf import settings
 from django.contrib.auth import authenticate, login, logout
-from django.core.exceptions import ImproperlyConfigured
+from django.core.exceptions import ImproperlyConfigured, PermissionDenied
 from django.db import DatabaseError
 from django.http import HttpRequest, JsonResponse
 from django.middleware.csrf import get_token
@@ -18,6 +19,8 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_variables
 from django.views.decorators.http import require_GET, require_POST
 from pydantic import SecretStr
+
+from organizations.access import get_account_access_info
 
 from .http import AccountRequest, error_response, rate_limited_response, read_json_request
 from .models import User, UserManager
@@ -103,6 +106,29 @@ def get_current_session(request: HttpRequest) -> JsonResponse:
                 "authentication_required", "Sign in to continue.", statusCode=401
             )
         return _session_response(request, cast(User, request.user))
+    except (ImproperlyConfigured, DatabaseError):
+        return _service_unavailable_response()
+
+
+@never_cache
+@require_GET
+def get_current_access(request: HttpRequest) -> JsonResponse:
+    """Return organization and department display data for the authenticated session."""
+    try:
+        if not request.user.is_authenticated:
+            return error_response(
+                "authentication_required", "Sign in to continue.", statusCode=401
+            )
+        # The caller cannot select another account, organization, or credential channel.
+        user = cast(User, request.user)
+        accessInfo = get_account_access_info(actorId=user.id)
+        return JsonResponse(asdict(accessInfo))
+    except PermissionDenied:
+        return error_response(
+            "organization_access_required",
+            "Organization access is required.",
+            statusCode=403,
+        )
     except (ImproperlyConfigured, DatabaseError):
         return _service_unavailable_response()
 
