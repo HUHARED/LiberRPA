@@ -98,9 +98,9 @@ class RegistrationToken(models.Model):
 
 
 class RegistrationRequestLimit(models.Model):
-    """A short-lived request counter shared by all HTTP processes for one source."""
+    """A short-lived request counter shared by all HTTP processes for one source or token."""
 
-    # A keyed digest identifies the source without storing its IP address.
+    # Namespaced keyed digests identify counters without storing IP addresses or tokens.
     source_hash = models.CharField(max_length=64, primary_key=True)
     request_count = models.PositiveIntegerField(default=0)
     expires_at = models.DateTimeField(db_index=True)

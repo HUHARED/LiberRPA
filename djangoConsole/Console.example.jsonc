@@ -57,6 +57,13 @@
     // A value of 0 blocks requests; the recipient's resend cooldown still applies.
     "registrationEmailRequestsPerSource": 10,
     // The window starts with the source's first request and lasts at most one day.
-    "registrationEmailRequestWindowSeconds": 600
+    "registrationEmailRequestWindowSeconds": 600,
+
+    // Reading a registration link and submitting registration share these limits.
+    // Both the source IP and the token must have remaining requests; 0 blocks requests.
+    "registrationTokenRequestsPerSource": 30,
+    "registrationTokenRequestsPerToken": 10,
+    // Each counter's fixed window starts with its first request and lasts at most one day.
+    "registrationTokenRequestWindowSeconds": 600
   }
 }

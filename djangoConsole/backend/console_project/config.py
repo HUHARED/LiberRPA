@@ -62,6 +62,9 @@ class LimitsConfig(_BaseConfig):
     emailRefillSeconds: int = Field(default=30, ge=1)
     registrationEmailRequestsPerSource: int = Field(default=10, ge=0, le=2147483647)
     registrationEmailRequestWindowSeconds: int = Field(default=600, ge=1, le=86400)
+    registrationTokenRequestsPerSource: int = Field(default=30, ge=0, le=2147483647)
+    registrationTokenRequestsPerToken: int = Field(default=10, ge=0, le=2147483647)
+    registrationTokenRequestWindowSeconds: int = Field(default=600, ge=1, le=86400)
 
 
 class SmtpConfig(_BaseConfig):

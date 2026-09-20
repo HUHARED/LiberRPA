@@ -6,7 +6,12 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from django.urls import path
 
-from accounts.views import get_csrf_token, send_registration_email
+from accounts.views import (
+    check_registration_link,
+    complete_registration,
+    get_csrf_token,
+    send_registration_email,
+)
 
 from .health import check_database, check_liveness
 
@@ -18,5 +23,15 @@ urlpatterns = [
         "api/auth/registration/email/",
         send_registration_email,
         name="registration-email",
+    ),
+    path(
+        "api/auth/registration/check/",
+        check_registration_link,
+        name="registration-check",
+    ),
+    path(
+        "api/auth/registration/complete/",
+        complete_registration,
+        name="registration-complete",
     ),
 ]
