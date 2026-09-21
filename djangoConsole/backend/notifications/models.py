@@ -14,6 +14,7 @@ from django.utils import timezone
 class EmailType(models.TextChoices):
     MEMBER_INVITATION = "member_invitation", "Member invitation"
     ORGANIZATION_REGISTRATION = "organization_registration", "Organization registration"
+    PASSWORD_RESET = "password_reset", "Password reset"
 
 
 class EmailStatus(models.TextChoices):
@@ -89,7 +90,10 @@ class EmailDelivery(models.Model):
                         invitation_request_id__isnull=False,
                     )
                     | models.Q(
-                        email_type=EmailType.ORGANIZATION_REGISTRATION,
+                        email_type__in=[
+                            EmailType.ORGANIZATION_REGISTRATION,
+                            EmailType.PASSWORD_RESET,
+                        ],
                         invitation__isnull=True,
                         invitation_request_id__isnull=True,
                     )
@@ -112,6 +116,14 @@ class EmailDelivery(models.Model):
                     status__in=[EmailStatus.PENDING, EmailStatus.SENDING],
                 ),
                 name="one_active_registration_email",
+            ),
+            models.UniqueConstraint(
+                fields=["email_type", "recipient"],
+                condition=models.Q(
+                    email_type=EmailType.PASSWORD_RESET,
+                    status__in=[EmailStatus.PENDING, EmailStatus.SENDING],
+                ),
+                name="one_active_password_reset_email",
             ),
             models.CheckConstraint(
                 condition=(

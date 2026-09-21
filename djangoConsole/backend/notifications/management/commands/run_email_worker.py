@@ -72,7 +72,7 @@ def _stop_on_signals(stopEvent: Event) -> Generator[None]:
 
 
 class Command(BaseCommand):
-    help = "Process queued registration and invitation emails without retrying attempted deliveries."
+    help = "Process queued registration, invitation, and password reset emails without retrying attempted deliveries."
     requires_migrations_checks = True
 
     def add_arguments(self, parser: CommandParser) -> None:

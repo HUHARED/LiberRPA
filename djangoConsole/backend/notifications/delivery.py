@@ -17,6 +17,8 @@ from django.utils import timezone
 from django.views.decorators.debug import sensitive_variables
 
 from accounts.emails import build_registration_email
+from accounts.password_reset_emails import build_password_reset_email
+from accounts.password_resets import issue_password_reset_token
 from accounts.registration import issue_registration_token
 from console_project.config import LimitsConfig
 from organizations.invitation_emails import build_invitation_email
@@ -41,7 +43,7 @@ class EmailPreparationResult:
 
 @dataclass(frozen=True)
 class EmailDeliveryResult:
-    """Worker progress without the prepared message or its registration token."""
+    """Worker progress without the prepared message or its secret token."""
 
     deliveryId: uuid.UUID
     status: EmailStatus
@@ -99,7 +101,7 @@ def prepare_email(deliveryId: uuid.UUID) -> EmailPreparationResult:
 
     # All mail types must take this shared lock before reserving SMTP capacity.
     # NOTE: Lock delivery and dispatch before the purpose-specific proof locks.
-    # Registration takes token then policy; invitations take organization then invitation.
+    # Registration takes token then policy; invitations and recovery take organization first.
     limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
     dispatchState, _ = EmailDispatchState.objects.select_for_update().get_or_create(
         pk=1,
@@ -131,7 +133,7 @@ def prepare_email(deliveryId: uuid.UUID) -> EmailPreparationResult:
         if registrationTokenDeliveryInfo is None:
             return _mark_email_not_sent(delivery, reasonCode="registration_not_eligible")
         emailMessage = build_registration_email(registrationTokenDeliveryInfo)
-    else:
+    elif delivery.email_type == EmailType.MEMBER_INVITATION:
         try:
             invitationDeliveryInfo = issue_invitation_token(delivery)
         except PermissionDenied:
@@ -143,6 +145,15 @@ def prepare_email(deliveryId: uuid.UUID) -> EmailPreparationResult:
         if invitationDeliveryInfo is None:
             return _mark_email_not_sent(delivery, reasonCode="invitation_superseded")
         emailMessage = build_invitation_email(invitationDeliveryInfo)
+    elif delivery.email_type == EmailType.PASSWORD_RESET:
+        resetDeliveryInfo = issue_password_reset_token(delivery)
+        if resetDeliveryInfo is None:
+            return _mark_email_not_sent(
+                delivery, reasonCode="password_reset_not_eligible"
+            )
+        emailMessage = build_password_reset_email(resetDeliveryInfo)
+    else:
+        raise ValueError("Unsupported email type.")
     attemptedAt = timezone.now()
     # The dispatch lock prevents other reservations while token or policy locks are awaited.
     # Budget usage cannot grow here; refresh only the rate allowance and attempt timestamp.

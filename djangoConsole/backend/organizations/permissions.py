@@ -155,6 +155,21 @@ def lock_organization_for_deletion(
     return organization, cast(User, membership.user)
 
 
+def lock_account_for_password_reset(*, userId: uuid.UUID) -> User:
+    """Lock the current account for recovery without granting organization business access.
+
+    The caller must verify the email proof before changing the password in this transaction.
+    Recovery keeps login available for deletion cancellation; it never lifts a suspension.
+    """
+    currentMembership = get_current_membership(actorId=userId)
+    _, membership = _resolve_organization_member(
+        actorId=userId,
+        organizationId=currentMembership.organization_id,
+        forUpdate=True,
+    )
+    return cast(User, membership.user)
+
+
 def get_authorized_departments(
     access: OrganizationAccessContext, *, requiredRole: DepartmentRole
 ) -> QuerySet[Department]:

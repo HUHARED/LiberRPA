@@ -79,6 +79,12 @@ class LimitsConfig(_BaseConfig):
     sessionRevocationRequestsPerSource: int = Field(default=30, ge=0, le=2147483647)
     sessionRevocationRequestsPerAccount: int = Field(default=10, ge=0, le=2147483647)
     sessionRevocationRequestWindowSeconds: int = Field(default=600, ge=1, le=86400)
+    passwordResetResendSeconds: int = Field(default=300, ge=300, le=86400)
+    passwordResetEmailRequestsPerSource: int = Field(default=10, ge=0, le=2147483647)
+    passwordResetEmailRequestWindowSeconds: int = Field(default=600, ge=1, le=86400)
+    passwordResetTokenRequestsPerSource: int = Field(default=30, ge=0, le=2147483647)
+    passwordResetTokenRequestsPerToken: int = Field(default=10, ge=0, le=2147483647)
+    passwordResetTokenRequestWindowSeconds: int = Field(default=600, ge=1, le=86400)
 
 
 class SmtpConfig(_BaseConfig):

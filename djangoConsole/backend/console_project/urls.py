@@ -6,6 +6,11 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from django.urls import path
 
+from accounts.password_reset_views import (
+    check_password_reset_link,
+    queue_password_reset_email,
+    reset_account_password,
+)
 from accounts.password_views import change_account_password
 from accounts.profile_views import get_or_update_profile
 from accounts.session_views import (
@@ -52,6 +57,21 @@ urlpatterns = [
         "api/auth/password/change/",
         change_account_password,
         name="auth-password-change",
+    ),
+    path(
+        "api/auth/password/reset/email/",
+        queue_password_reset_email,
+        name="password-reset-email",
+    ),
+    path(
+        "api/auth/password/reset/check/",
+        check_password_reset_link,
+        name="password-reset-check",
+    ),
+    path(
+        "api/auth/password/reset/complete/",
+        reset_account_password,
+        name="password-reset-complete",
     ),
     path("api/auth/logout/", sign_out, name="auth-logout"),
     path(

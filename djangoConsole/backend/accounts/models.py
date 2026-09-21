@@ -131,6 +131,50 @@ class RegistrationToken(models.Model):
         return f"Organization registration for {self.email}"
 
 
+class PasswordResetRequest(models.Model):
+    """One current reset request per account; only the worker issues its secret token."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user_id: uuid.UUID
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="+")
+    delivery_id: uuid.UUID
+    delivery = models.OneToOneField(
+        "notifications.EmailDelivery", on_delete=models.CASCADE, related_name="+"
+    )
+    # Bind queued mail and issued proofs to the account's current email and password.
+    credential_hash = models.CharField(max_length=64, editable=False)
+    token_hash = models.CharField(
+        max_length=64, unique=True, null=True, blank=True, editable=False
+    )
+    issued_at = models.DateTimeField(null=True, blank=True, editable=False)
+    expires_at = models.DateTimeField(
+        null=True, blank=True, db_index=True, editable=False
+    )
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(
+                        token_hash__isnull=True,
+                        issued_at__isnull=True,
+                        expires_at__isnull=True,
+                    )
+                    | (
+                        models.Q(
+                            token_hash__isnull=False,
+                            issued_at__isnull=False,
+                            expires_at__isnull=False,
+                            expires_at__gt=models.F("issued_at"),
+                        )
+                        & ~models.Q(token_hash="")
+                    )
+                ),
+                name="password_reset_proof_state_valid",
+            ),
+        ]
+
+
 class AuthenticationRequestLimit(models.Model):
     """A shared request counter for one IP address, registration token, or login email."""
 

@@ -212,6 +212,46 @@ def reserve_session_revocation_request(clientAddress: str, *, actorId: str) -> i
 
 
 @sensitive_variables()
+def reserve_password_reset_email_request(clientAddress: str) -> int:
+    """Count all recovery-email requests, including unknown and suppressed addresses."""
+    sourceHash = _hash_client_address(
+        clientAddress, scope="accounts.password_reset_email.source"
+    )
+    limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
+    _prune_expired_request_limits()
+    return _reserve_request(
+        sourceHash,
+        maxRequests=limits.passwordResetEmailRequestsPerSource,
+        windowSeconds=limits.passwordResetEmailRequestWindowSeconds,
+    )
+
+
+@sensitive_variables()
+def reserve_password_reset_token_request(clientAddress: str, *, token: str) -> int:
+    """Share source and proof limits across reset-link checks and final submissions."""
+    sourceHash = _hash_client_address(
+        clientAddress, scope="accounts.password_reset_token.source"
+    )
+    limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
+    _prune_expired_request_limits()
+    retryAfterSeconds = _reserve_request(
+        sourceHash,
+        maxRequests=limits.passwordResetTokenRequestsPerSource,
+        windowSeconds=limits.passwordResetTokenRequestWindowSeconds,
+    )
+    if retryAfterSeconds:
+        return retryAfterSeconds
+    tokenHash = salted_hmac(
+        "accounts.password_reset_token.proof", token, algorithm="sha256"
+    ).hexdigest()
+    return _reserve_request(
+        tokenHash,
+        maxRequests=limits.passwordResetTokenRequestsPerToken,
+        windowSeconds=limits.passwordResetTokenRequestWindowSeconds,
+    )
+
+
+@sensitive_variables()
 def reserve_invitation_email_request(clientAddress: str, *, actorId: str) -> int:
     """Limit administrator invitation requests independently from public registration."""
     sourceHash = _hash_client_address(

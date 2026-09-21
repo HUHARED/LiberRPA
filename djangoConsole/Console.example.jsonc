@@ -100,6 +100,16 @@
     "sessionRevocationRequestsPerSource": 30,
     "sessionRevocationRequestsPerAccount": 10,
     // Each counter's fixed window starts with its first request and lasts at most one day.
-    "sessionRevocationRequestWindowSeconds": 600
+    "sessionRevocationRequestWindowSeconds": 600,
+
+    // Password recovery uses separate source-IP limits and a per-recipient resend interval.
+    // Suppressed requests receive the same public response; resend must wait at least 5 minutes.
+    "passwordResetResendSeconds": 300,
+    "passwordResetEmailRequestsPerSource": 10,
+    "passwordResetEmailRequestWindowSeconds": 600,
+    // Link checks and reset submissions share these limits; 0 blocks requests.
+    "passwordResetTokenRequestsPerSource": 30,
+    "passwordResetTokenRequestsPerToken": 10,
+    "passwordResetTokenRequestWindowSeconds": 600
   }
 }
