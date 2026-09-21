@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from typing import cast
 
 from django.conf import settings
-from django.core.exceptions import ImproperlyConfigured, PermissionDenied
+from django.core.exceptions import ImproperlyConfigured, PermissionDenied, ValidationError
 from django.core.mail import EmailMessage
 from django.db import transaction
 from django.utils import timezone
@@ -19,6 +19,9 @@ from django.views.decorators.debug import sensitive_variables
 from accounts.emails import build_registration_email
 from accounts.registration import issue_registration_token
 from console_project.config import LimitsConfig
+from organizations.invitation_emails import build_invitation_email
+from organizations.invitations import InvitationConflictError, issue_invitation_token
+from organizations.models import MemberInvitation
 
 from .models import EmailDelivery, EmailDispatchState, EmailStatus, EmailType
 from .smtp import send_smtp_once
@@ -74,8 +77,8 @@ def _mark_email_not_sent(
 
 @sensitive_variables()
 @transaction.atomic(durable=True)
-def prepare_registration_email(deliveryId: uuid.UUID) -> EmailPreparationResult:
-    """Commit one registration email reservation and its token before an SMTP attempt.
+def prepare_email(deliveryId: uuid.UUID) -> EmailPreparationResult:
+    """Commit one email reservation and its token before an SMTP attempt.
 
     Call this from the delivery worker outside any surrounding transaction.
     A message grants one immediate attempt; retryAt schedules only an unattempted request.
@@ -87,15 +90,16 @@ def prepare_registration_email(deliveryId: uuid.UUID) -> EmailPreparationResult:
         )
 
     delivery = EmailDelivery.objects.select_for_update().get(pk=deliveryId)
-    if delivery.email_type != EmailType.ORGANIZATION_REGISTRATION:
-        raise ValueError("This request is not a registration email.")
+    if delivery.email_type not in EmailType.values:
+        raise ValueError("Unsupported email type.")
     if delivery.status != EmailStatus.PENDING:
         return EmailPreparationResult(
             deliveryId=delivery.id, status=EmailStatus(delivery.status)
         )
 
     # All mail types must take this shared lock before reserving SMTP capacity.
-    # Lock order is delivery, dispatch state, registration token, then instance policy.
+    # NOTE: Lock delivery and dispatch before the purpose-specific proof locks.
+    # Registration takes token then policy; invitations take organization then invitation.
     limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
     dispatchState, _ = EmailDispatchState.objects.select_for_update().get_or_create(
         pk=1,
@@ -117,16 +121,28 @@ def prepare_registration_email(deliveryId: uuid.UUID) -> EmailPreparationResult:
             retryAt=retryAt,
         )
 
-    # Issuance rechecks the current account, resend interval, and creation policy.
-    # Its savepoint rolls back token changes if the policy rejects registration.
-    try:
-        registrationTokenDeliveryInfo = issue_registration_token(delivery.recipient)
-    except PermissionDenied:
-        return _mark_email_not_sent(delivery, reasonCode="organization_creation_disabled")
-    if registrationTokenDeliveryInfo is None:
-        return _mark_email_not_sent(delivery, reasonCode="registration_not_eligible")
-
-    emailMessage = build_registration_email(registrationTokenDeliveryInfo)
+    if delivery.email_type == EmailType.ORGANIZATION_REGISTRATION:
+        try:
+            registrationTokenDeliveryInfo = issue_registration_token(delivery.recipient)
+        except PermissionDenied:
+            return _mark_email_not_sent(
+                delivery, reasonCode="organization_creation_disabled"
+            )
+        if registrationTokenDeliveryInfo is None:
+            return _mark_email_not_sent(delivery, reasonCode="registration_not_eligible")
+        emailMessage = build_registration_email(registrationTokenDeliveryInfo)
+    else:
+        try:
+            invitationDeliveryInfo = issue_invitation_token(delivery)
+        except PermissionDenied:
+            return _mark_email_not_sent(delivery, reasonCode="organization_unavailable")
+        except InvitationConflictError as e:
+            return _mark_email_not_sent(delivery, reasonCode=e.errorCode)
+        except (ValidationError, MemberInvitation.DoesNotExist):
+            return _mark_email_not_sent(delivery, reasonCode="invitation_not_eligible")
+        if invitationDeliveryInfo is None:
+            return _mark_email_not_sent(delivery, reasonCode="invitation_superseded")
+        emailMessage = build_invitation_email(invitationDeliveryInfo)
     attemptedAt = timezone.now()
     # The dispatch lock prevents other reservations while token or policy locks are awaited.
     # Budget usage cannot grow here; refresh only the rate allowance and attempt timestamp.
@@ -145,14 +161,14 @@ def prepare_registration_email(deliveryId: uuid.UUID) -> EmailPreparationResult:
 
 
 @sensitive_variables()
-def deliver_registration_email(deliveryId: uuid.UUID) -> EmailDeliveryResult:
+def deliver_email(deliveryId: uuid.UUID) -> EmailDeliveryResult:
     """Prepare, attempt SMTP once, and record the outcome without holding network-time locks.
 
     Call outside any surrounding transaction; preparation enforces its own commit boundary.
     A repeated call for a Sending or finished record does not send the message again.
     If result persistence fails, leave Sending for worker recovery; never repeat SMTP.
     """
-    preparationResult = prepare_registration_email(deliveryId)
+    preparationResult = prepare_email(deliveryId)
     if preparationResult.message is None:
         return EmailDeliveryResult(
             deliveryId=preparationResult.deliveryId,

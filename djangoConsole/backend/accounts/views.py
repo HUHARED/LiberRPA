@@ -4,7 +4,6 @@ __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
-
 from django.core.exceptions import ImproperlyConfigured, PermissionDenied
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import DatabaseError

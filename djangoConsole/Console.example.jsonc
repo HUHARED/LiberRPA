@@ -40,6 +40,11 @@
 
   // Optional deployment limits. Omitted values use defaults.
   "limits": {
+    // Existing members and unexpired pending invitations count toward this limit.
+    // Administrators and inactive members also count.
+    // A value of 0 blocks invitations; lowering the limit does not remove existing members.
+    "maxMembersPerOrganization": 50,
+
     // Deleted departments do not count. A value of 0 blocks new departments.
     "maxDepartmentsPerOrganization": 20,
     // Top-level departments have depth 1.
@@ -59,7 +64,17 @@
     // The window starts with the source's first request and lasts at most one day.
     "registrationEmailRequestWindowSeconds": 600,
 
-    // Reading a registration link and submitting registration share these limits.
+    // Invitation requests for the same address in one organization must wait this long.
+    // Set this interval between 300 and 86400 seconds.
+    "invitationResendSeconds": 300,
+    // Requests to create or resend invitations share these limits.
+    // Both the source IP and requesting administrator must have allowance; 0 blocks requests.
+    "invitationEmailRequestsPerSource": 30,
+    "invitationEmailRequestsPerAccount": 10,
+    // Each counter's fixed window starts with its first request and lasts at most one day.
+    "invitationEmailRequestWindowSeconds": 600,
+
+    // Reading registration or invitation links and submitting either form share these limits.
     // Both the source IP and the token must have remaining requests; 0 blocks requests.
     "registrationTokenRequestsPerSource": 30,
     "registrationTokenRequestsPerToken": 10,

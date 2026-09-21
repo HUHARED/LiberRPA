@@ -24,20 +24,51 @@ from organizations.department_views import (
     get_or_update_department,
     list_or_create_departments,
 )
+from organizations.invitation_views import (
+    check_invitation_link,
+    complete_invited_registration,
+    get_invitation_details,
+    list_or_create_invitations,
+    resend_or_revoke_invitation,
+)
 from organizations.member_views import get_or_update_member, list_members
 from organizations.views import get_or_update_organization_settings
 
 from .health import check_database, check_liveness
 
 urlpatterns = [
+    # Check application and database health.
     path("api/health/live/", check_liveness, name="health-live"),
     path("api/health/database/", check_database, name="health-database"),
+    # Authenticate accounts and manage sessions, profiles, and registration.
     path("api/auth/csrf/", get_csrf_token, name="auth-csrf"),
     path("api/auth/login/", sign_in, name="auth-login"),
     path("api/auth/session/", get_current_session, name="auth-session"),
     path("api/auth/access/", get_current_access, name="auth-access"),
     path("api/auth/profile/", get_or_update_profile, name="auth-profile"),
     path("api/auth/logout/", sign_out, name="auth-logout"),
+    path(
+        "api/auth/registration/email/",
+        queue_registration_email,
+        name="registration-email",
+    ),
+    path(
+        "api/auth/registration/check/",
+        check_registration_link,
+        name="registration-check",
+    ),
+    path(
+        "api/auth/registration/complete/",
+        complete_registration,
+        name="registration-complete",
+    ),
+    path("api/auth/invitation/check/", check_invitation_link, name="invitation-check"),
+    path(
+        "api/auth/invitation/complete/",
+        complete_invited_registration,
+        name="invitation-complete",
+    ),
+    # Manage organization settings, departments, members, and invitations.
     path(
         "api/organization/settings/",
         get_or_update_organization_settings,
@@ -65,18 +96,25 @@ urlpatterns = [
         name="organization-member",
     ),
     path(
-        "api/auth/registration/email/",
-        queue_registration_email,
-        name="registration-email",
+        "api/organization/invitations/",
+        list_or_create_invitations,
+        name="organization-invitations",
     ),
     path(
-        "api/auth/registration/check/",
-        check_registration_link,
-        name="registration-check",
+        "api/organization/invitations/<uuid:invitationId>/",
+        get_invitation_details,
+        name="organization-invitation",
     ),
     path(
-        "api/auth/registration/complete/",
-        complete_registration,
-        name="registration-complete",
+        "api/organization/invitations/<uuid:invitationId>/resend/",
+        resend_or_revoke_invitation,
+        {"resend": True},
+        name="organization-invitation-resend",
+    ),
+    path(
+        "api/organization/invitations/<uuid:invitationId>/revoke/",
+        resend_or_revoke_invitation,
+        {"resend": False},
+        name="organization-invitation-revoke",
     ),
 ]

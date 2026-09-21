@@ -12,9 +12,14 @@ from smtplib import (
     SMTPRecipientsRefused,
     SMTPResponseException,
 )
+from typing import cast
 
-from django.core.mail import EmailMessage, mailers
+from django.conf import settings
+from django.core import mail
+from django.core.exceptions import ImproperlyConfigured
+from django.core.mail import EmailMessage
 from django.core.mail.backends.base import BaseEmailBackend
+from django.utils.module_loading import import_string
 from django.views.decorators.debug import sensitive_variables
 
 from .models import EmailStatus
@@ -63,8 +68,18 @@ def send_smtp_once(emailMessage: EmailMessage) -> SmtpResult:
     if len(emailMessage.recipients()) != 1:
         raise ValueError("An SMTP attempt must contain exactly one budgeted recipient.")
 
-    # Django creates a fresh connection for this access; do not share it between attempts.
-    mailer = mailers["default"]
+    # Build a fresh connection for each attempt; do not share it between attempts.
+    dictMailer = settings.MAILERS.get("default")
+    if dictMailer is None:
+        raise ImproperlyConfigured("Configure the default Console email backend.")
+    mailerFactory = getattr(mail, "mailers", None)
+    if mailerFactory is not None:
+        # NOTE: Django 6.1 needs the factory's alias to use MAILERS instead of legacy settings.
+        mailer = cast(BaseEmailBackend, mailerFactory["default"])
+    else:
+        # Older Django versions need an explicit backend and must not default to localhost SMTP.
+        mailerClass = cast(type[BaseEmailBackend], import_string(dictMailer["BACKEND"]))
+        mailer = mailerClass(**dictMailer.get("OPTIONS", {}))
     try:
         try:
             # Open explicitly so send_messages() cannot hide its result behind a close error.

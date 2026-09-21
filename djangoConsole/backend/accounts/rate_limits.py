@@ -154,3 +154,28 @@ def reserve_login_request(clientAddress: str, *, normalizedEmail: str) -> int:
         maxRequests=limits.loginRequestsPerAccount,
         windowSeconds=limits.loginRequestWindowSeconds,
     )
+
+
+@sensitive_variables()
+def reserve_invitation_email_request(clientAddress: str, *, actorId: str) -> int:
+    """Limit administrator invitation requests independently from public registration."""
+    sourceHash = _hash_client_address(
+        clientAddress, scope="accounts.invitation_email.source"
+    )
+    limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
+    _prune_expired_request_limits()
+    retryAfterSeconds = _reserve_request(
+        sourceHash,
+        maxRequests=limits.invitationEmailRequestsPerSource,
+        windowSeconds=limits.invitationEmailRequestWindowSeconds,
+    )
+    if retryAfterSeconds:
+        return retryAfterSeconds
+    accountHash = salted_hmac(
+        "accounts.invitation_email.actor", actorId, algorithm="sha256"
+    ).hexdigest()
+    return _reserve_request(
+        accountHash,
+        maxRequests=limits.invitationEmailRequestsPerAccount,
+        windowSeconds=limits.invitationEmailRequestWindowSeconds,
+    )

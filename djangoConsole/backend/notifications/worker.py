@@ -11,8 +11,8 @@ from django.core.exceptions import ImproperlyConfigured
 from django.db import connection
 from django.utils import timezone
 
-from .delivery import EmailDeliveryResult, deliver_registration_email
-from .models import EmailDelivery, EmailStatus, EmailType
+from .delivery import EmailDeliveryResult, deliver_email
+from .models import EmailDelivery, EmailStatus
 
 # Two PostgreSQL advisory-lock keys: the "LRPA" namespace and its email worker.
 _INT_LOCK_NAMESPACE = int.from_bytes(b"LRPA", "big")
@@ -66,12 +66,11 @@ def recover_interrupted_email_deliveries() -> int:
     )
 
 
-def process_next_registration_email() -> EmailDeliveryResult | None:
+def process_next_email() -> EmailDeliveryResult | None:
     """Process the oldest pending request while the caller owns the worker session."""
     deliveryId = (
         EmailDelivery.objects
         .filter(
-            email_type=EmailType.ORGANIZATION_REGISTRATION,
             status=EmailStatus.PENDING,
         )
         .order_by("created_at", "id")
@@ -81,4 +80,4 @@ def process_next_registration_email() -> EmailDeliveryResult | None:
     if deliveryId is None:
         return None
     # The delivery service owns current eligibility, budgets, rate limits, and SMTP.
-    return deliver_registration_email(deliveryId)
+    return deliver_email(deliveryId)

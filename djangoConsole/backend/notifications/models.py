@@ -12,6 +12,7 @@ from django.utils import timezone
 
 
 class EmailType(models.TextChoices):
+    MEMBER_INVITATION = "member_invitation", "Member invitation"
     ORGANIZATION_REGISTRATION = "organization_registration", "Organization registration"
 
 
@@ -45,6 +46,15 @@ class EmailDelivery(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     email_type = models.CharField(max_length=32, choices=EmailType.choices)
     recipient = models.EmailField()
+    invitation_id: uuid.UUID | None
+    invitation = models.ForeignKey(
+        "organizations.MemberInvitation",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="email_deliveries",
+    )
+    invitation_request_id = models.UUIDField(null=True, blank=True, editable=False)
     status = models.CharField(
         max_length=16, choices=EmailStatus.choices, default=EmailStatus.PENDING
     )
@@ -66,6 +76,26 @@ class EmailDelivery(models.Model):
             ),
         ]
         constraints = [
+            models.UniqueConstraint(
+                fields=["invitation", "invitation_request_id"],
+                condition=models.Q(email_type=EmailType.MEMBER_INVITATION),
+                name="one_email_per_invitation_request",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(
+                        email_type=EmailType.MEMBER_INVITATION,
+                        invitation__isnull=False,
+                        invitation_request_id__isnull=False,
+                    )
+                    | models.Q(
+                        email_type=EmailType.ORGANIZATION_REGISTRATION,
+                        invitation__isnull=True,
+                        invitation_request_id__isnull=True,
+                    )
+                ),
+                name="email_delivery_reference_valid",
+            ),
             models.CheckConstraint(
                 condition=models.Q(email_type__in=EmailType.values),
                 name="email_delivery_type_valid",

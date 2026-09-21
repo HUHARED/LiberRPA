@@ -7,7 +7,9 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 import signal
 from collections.abc import Generator
 from contextlib import contextmanager
+from pathlib import Path
 from threading import Event
+from traceback import walk_tb
 from types import FrameType
 
 from django.conf import settings
@@ -19,11 +21,33 @@ from django.utils import timezone
 from notifications.worker import (
     EmailWorkerAlreadyRunningError,
     hold_email_worker_session,
-    process_next_registration_email,
+    process_next_email,
     recover_interrupted_email_deliveries,
 )
 
 _INT_IDLE_POLL_SECONDS = 2
+
+
+def _build_worker_failure_details(error: Exception) -> str:
+    """Describe code locations and missing attributes without including runtime values."""
+    listDetail = [f"Exception type: {type(error).__name__}."]
+    if isinstance(error, AttributeError):
+        attributeName = error.name
+        if attributeName is not None and attributeName.isidentifier():
+            listDetail.append(f"Missing attribute: {attributeName}.")
+        if error.obj is not None:
+            listDetail.append(f"Object type: {type(error.obj).__name__}.")
+
+    # NOTE: Omit exception text, source lines, arguments, and local variable values.
+    # These can contain SMTP credentials, message bodies, or usable registration tokens.
+    if error.__traceback__ is not None:
+        listDetail.append("Call locations (outermost to innermost):")
+        for tracebackFrame, lineNumber in walk_tb(error.__traceback__):
+            code = tracebackFrame.f_code
+            listDetail.append(
+                f"  {Path(code.co_filename).name}:{lineNumber} in {code.co_name}"
+            )
+    return "\n".join(listDetail)
 
 
 @contextmanager
@@ -48,7 +72,7 @@ def _stop_on_signals(stopEvent: Event) -> Generator[None]:
 
 
 class Command(BaseCommand):
-    help = "Process queued registration emails without retrying attempted deliveries."
+    help = "Process queued registration and invitation emails without retrying attempted deliveries."
     requires_migrations_checks = True
 
     def add_arguments(self, parser: CommandParser) -> None:
@@ -73,10 +97,10 @@ class Command(BaseCommand):
                     f"Email worker started. Interrupted attempts marked Unknown: {recoveredDeliveryCount}."
                 )
                 while not stopEvent.is_set():
-                    deliveryResult = process_next_registration_email()
+                    deliveryResult = process_next_email()
                     if deliveryResult is None:
                         if runOnce:
-                            self.stdout.write("No pending registration email.")
+                            self.stdout.write("No pending email.")
                         waitSeconds = _INT_IDLE_POLL_SECONDS
                     elif deliveryResult.retryAt is not None:
                         self.stdout.write(
@@ -104,6 +128,7 @@ class Command(BaseCommand):
             ) from None
         except Exception as e:
             # The next start will close any interrupted Sending record without resending it.
+            self.stderr.write(_build_worker_failure_details(e))
             raise CommandError(
                 f"The email worker stopped after {type(e).__name__}. No SMTP attempt was retried."
             ) from None

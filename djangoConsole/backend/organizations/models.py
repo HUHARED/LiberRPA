@@ -11,7 +11,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxLengthValidator, ProhibitNullCharactersValidator
 from django.db import models
-from django.db.models.functions import Lower
+from django.db.models.functions import Lower, Trim
 from django.utils import timezone
 
 from console_project.validators import validate_time_zone
@@ -264,3 +264,80 @@ class DepartmentMembership(models.Model):
         return (
             f"Member {self.membership_id} in department {self.department_id}: {self.role}"
         )
+
+
+class MemberInvitation(models.Model):
+    """An immutable proposed membership with a replaceable, private registration proof."""
+
+    organization_id: uuid.UUID
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        Organization, on_delete=models.PROTECT, related_name="invitations"
+    )
+    email = models.EmailField()
+    is_org_admin = models.BooleanField(default=False)
+    notes = models.TextField(
+        blank=True,
+        default="",
+        validators=[MaxLengthValidator(2000), ProhibitNullCharactersValidator()],
+    )
+    created_at = models.DateTimeField(default=timezone.now, editable=False)
+    requested_at = models.DateTimeField(editable=False)
+    expires_at = models.DateTimeField(editable=False)
+    # NOTE: Each resend changes the request ID before a worker can issue its new token.
+    request_id = models.UUIDField(default=uuid.uuid4, editable=False)
+    token_hash = models.CharField(max_length=64, unique=True, null=True, editable=False)
+    accepted_at = models.DateTimeField(null=True, blank=True, editable=False)
+    revoked_at = models.DateTimeField(null=True, blank=True, editable=False)
+
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=["organization", "email", "-requested_at"],
+                name="invitation_recipient_idx",
+            ),
+            models.Index(
+                fields=["organization", "expires_at"], name="invitation_reservation_idx"
+            ),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(email=Lower(Trim("email"))) & ~models.Q(email=""),
+                name="invitation_email_canonical",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(expires_at__gt=models.F("requested_at")),
+                name="invitation_expiry_after_request",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(accepted_at__isnull=True)
+                | models.Q(revoked_at__isnull=True),
+                name="invitation_single_outcome",
+            ),
+        ]
+
+
+class InvitationDepartmentRole(models.Model):
+    """A proposed role; it grants no access until the invitation is accepted."""
+
+    invitation_id: uuid.UUID
+    department_id: uuid.UUID
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    invitation = models.ForeignKey(
+        MemberInvitation, on_delete=models.CASCADE, related_name="department_roles"
+    )
+    department = models.ForeignKey(Department, on_delete=models.PROTECT)
+    role = models.CharField(max_length=9, choices=DepartmentRole.choices)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["invitation", "department"], name="invitation_department_unique"
+            ),
+            models.CheckConstraint(
+                condition=models.Q(role__in=DepartmentRole.values),
+                name="invitation_role_valid",
+            ),
+        ]

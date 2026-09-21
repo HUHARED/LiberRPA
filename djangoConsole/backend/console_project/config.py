@@ -55,6 +55,11 @@ class DatabaseConfig(_BaseConfig):
 
 
 class LimitsConfig(_BaseConfig):
+    maxMembersPerOrganization: int = Field(default=50, ge=0)
+    invitationResendSeconds: int = Field(default=300, ge=300, le=86400)
+    invitationEmailRequestsPerSource: int = Field(default=30, ge=0, le=2147483647)
+    invitationEmailRequestsPerAccount: int = Field(default=10, ge=0, le=2147483647)
+    invitationEmailRequestWindowSeconds: int = Field(default=600, ge=1, le=86400)
     maxDepartmentsPerOrganization: int = Field(default=20, ge=0)
     maxDepartmentDepth: int = Field(default=5, ge=1)
     maxEmailRecipientsPer24Hours: int = Field(default=2500, ge=0)
