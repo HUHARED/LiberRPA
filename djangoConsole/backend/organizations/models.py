@@ -100,7 +100,9 @@ class Membership(models.Model):
     )
     is_org_admin = models.BooleanField(default=False)
     notes = models.TextField(
-        blank=True, default="", validators=[MaxLengthValidator(2000)]
+        blank=True,
+        default="",
+        validators=[MaxLengthValidator(2000), ProhibitNullCharactersValidator()],
     )
     joined_at = models.DateTimeField(default=timezone.now, editable=False)
 

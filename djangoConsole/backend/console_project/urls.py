@@ -24,6 +24,7 @@ from organizations.department_views import (
     get_or_update_department,
     list_or_create_departments,
 )
+from organizations.member_views import get_or_update_member, list_members
 from organizations.views import get_or_update_organization_settings
 
 from .health import check_database, check_liveness
@@ -56,6 +57,12 @@ urlpatterns = [
         "api/organization/departments/<uuid:departmentId>/deletion/",
         get_or_delete_department,
         name="organization-department-deletion",
+    ),
+    path("api/organization/members/", list_members, name="organization-members"),
+    path(
+        "api/organization/members/<uuid:userId>/",
+        get_or_update_member,
+        name="organization-member",
     ),
     path(
         "api/auth/registration/email/",
