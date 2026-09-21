@@ -13,6 +13,7 @@ from accounts.session_views import (
     get_current_session,
     sign_in,
     sign_out,
+    sign_out_other_sessions,
 )
 from accounts.views import (
     check_registration_link,
@@ -53,6 +54,11 @@ urlpatterns = [
         name="auth-password-change",
     ),
     path("api/auth/logout/", sign_out, name="auth-logout"),
+    path(
+        "api/auth/sessions/logout-others/",
+        sign_out_other_sessions,
+        name="auth-logout-others",
+    ),
     path(
         "api/auth/registration/email/",
         queue_registration_email,

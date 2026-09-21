@@ -93,6 +93,13 @@
     "passwordChangeRequestsPerSource": 30,
     "passwordChangeRequestsPerAccount": 10,
     // Each counter's fixed window starts with its first request and lasts at most one day.
-    "passwordChangeRequestWindowSeconds": 600
+    "passwordChangeRequestWindowSeconds": 600,
+
+    // Signing out other sessions has separate limits, including failed password checks.
+    // Both the source IP and authenticated account must have allowance; 0 blocks requests.
+    "sessionRevocationRequestsPerSource": 30,
+    "sessionRevocationRequestsPerAccount": 10,
+    // Each counter's fixed window starts with its first request and lasts at most one day.
+    "sessionRevocationRequestWindowSeconds": 600
   }
 }

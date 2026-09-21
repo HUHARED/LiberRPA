@@ -11,6 +11,7 @@ from django.core.validators import ProhibitNullCharactersValidator
 from django.db import models
 from django.db.models.functions import Lower, Trim
 from django.utils import timezone
+from django.utils.crypto import salted_hmac
 
 from console_project.validators import validate_time_zone
 
@@ -69,6 +70,7 @@ class User(AbstractBaseUser):
     )
     # Reserved for platform suspension, not an ordinary member-management switch.
     is_active = models.BooleanField(default=True)
+    session_version = models.PositiveBigIntegerField(default=0, editable=False)
     created_at = models.DateTimeField(default=timezone.now, editable=False)
 
     objects = UserManager()
@@ -86,6 +88,21 @@ class User(AbstractBaseUser):
 
     def __str__(self) -> str:
         return f"{self.username} ({self.email})"
+
+    def _get_session_auth_hash(self, secret: str | None = None) -> str:
+        """Include the revocation version in Django's normal and fallback session hashes."""
+        # NOTE: Version zero preserves existing sessions when this field is first added.
+        keySalt = "django.contrib.auth.models.AbstractBaseUser.get_session_auth_hash"
+        authValue = self.password
+        if self.session_version != 0:
+            keySalt = "accounts.User.get_session_auth_hash"
+            authValue = f"{self.password}:{self.session_version}"
+        return salted_hmac(
+            keySalt,
+            authValue,
+            secret=secret,
+            algorithm="sha256",
+        ).hexdigest()
 
 
 class RegistrationToken(models.Model):

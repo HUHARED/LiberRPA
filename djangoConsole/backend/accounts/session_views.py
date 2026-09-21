@@ -8,19 +8,21 @@ from datetime import timedelta
 from typing import cast
 
 from django.conf import settings
-from django.contrib.auth import authenticate, login, logout
-from django.core.exceptions import ImproperlyConfigured, PermissionDenied
-from django.db import DatabaseError
+from django.contrib.auth import HASH_SESSION_KEY, authenticate, login, logout
+from django.contrib.sessions.backends.base import UpdateError
+from django.core.exceptions import ImproperlyConfigured, PermissionDenied, ValidationError
+from django.db import DatabaseError, transaction
 from django.http import HttpRequest, JsonResponse
 from django.middleware.csrf import get_token
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
-from django.views.decorators.debug import sensitive_variables
+from django.views.decorators.debug import sensitive_post_parameters, sensitive_variables
 from django.views.decorators.http import require_GET, require_POST
 from pydantic import SecretStr
 
 from organizations.access import get_account_access_info
 from organizations.http import build_account_access_payload
+from organizations.permissions import AccessChannel
 
 from .http import (
     AccountRequest,
@@ -29,7 +31,8 @@ from .http import (
     parse_json_request,
 )
 from .models import User, UserManager
-from .rate_limits import reserve_login_request
+from .rate_limits import reserve_login_request, reserve_session_revocation_request
+from .session_revocation import SessionInvalidatedError, revoke_other_sessions
 
 _REMEMBERED_SESSION_LIFETIME = timedelta(days=14)
 
@@ -38,6 +41,10 @@ class LoginRequest(AccountRequest):
     email: str
     password: SecretStr
     remember_me: bool = False
+
+
+class SessionRevocationRequest(AccountRequest):
+    current_password: SecretStr
 
 
 def _build_session_response(request: HttpRequest, user: User) -> JsonResponse:
@@ -147,3 +154,79 @@ def sign_out(request: HttpRequest) -> JsonResponse:
     except (ImproperlyConfigured, DatabaseError):
         return _build_service_unavailable_response()
     return JsonResponse({"message": "Signed out."})
+
+
+@never_cache
+@require_POST
+@sensitive_post_parameters()
+@sensitive_variables()
+def sign_out_other_sessions(request: HttpRequest) -> JsonResponse:
+    """Revoke other web sessions while keeping this session and its original expiry."""
+    try:
+        if not request.user.is_authenticated:
+            return build_error_response(
+                "authentication_required", "Sign in to continue.", statusCode=401
+            )
+        user = cast(User, request.user)
+        revocationRequest = parse_json_request(request, SessionRevocationRequest)
+        if isinstance(revocationRequest, JsonResponse):
+            return revocationRequest
+
+        retryAfterSeconds = reserve_session_revocation_request(
+            request.META.get("REMOTE_ADDR", ""), actorId=str(user.id)
+        )
+        if retryAfterSeconds:
+            return build_rate_limited_response(retryAfterSeconds)
+
+        sessionAuthHash = cast(str, request.session.get(HASH_SESSION_KEY, ""))
+        sessionWasModified = request.session.modified
+        try:
+            with transaction.atomic():
+                user = revoke_other_sessions(
+                    actorId=user.id,
+                    channel=AccessChannel.SESSION,
+                    currentPassword=revocationRequest.current_password.get_secret_value(),
+                    sessionAuthHash=sessionAuthHash,
+                )
+                if request.session.get_expiry_date() <= timezone.now():
+                    raise SessionInvalidatedError("The current session has expired.")
+                request.session[HASH_SESSION_KEY] = user.get_session_auth_hash()
+                # Persist the kept session before committing the account's revocation version.
+                request.session.save()
+        except Exception:
+            # Database rollback does not restore Django's in-memory session dictionary.
+            request.session[HASH_SESSION_KEY] = sessionAuthHash
+            request.session.modified = sessionWasModified
+            raise
+
+        # Avoid a second write unless Django rotated the key while checking a fallback signing secret.
+        request.session.modified = request.session.session_key != request.COOKIES.get(
+            settings.SESSION_COOKIE_NAME
+        )
+        request.user = user
+        return JsonResponse({"message": "Other sessions signed out."})
+    except SessionInvalidatedError:
+        return build_error_response(
+            "authentication_required",
+            "The current session is no longer valid. Sign in again.",
+            statusCode=401,
+        )
+    except ValidationError as e:
+        return JsonResponse(
+            {
+                "error": {
+                    "code": "invalid_session_revocation",
+                    "message": "The current password is incorrect.",
+                    "fields": e.message_dict,
+                }
+            },
+            status=400,
+        )
+    except PermissionDenied:
+        return build_error_response(
+            "session_revocation_unavailable",
+            "This session operation is unavailable.",
+            statusCode=403,
+        )
+    except (ImproperlyConfigured, DatabaseError, UpdateError):
+        return _build_service_unavailable_response()

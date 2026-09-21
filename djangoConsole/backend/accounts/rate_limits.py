@@ -186,6 +186,32 @@ def reserve_password_change_request(clientAddress: str, *, actorId: str) -> int:
 
 
 @sensitive_variables()
+def reserve_session_revocation_request(clientAddress: str, *, actorId: str) -> int:
+    """Limit requests to sign out other sessions independently from login and password changes."""
+    sourceHash = _hash_client_address(
+        clientAddress, scope="accounts.session_revocation.source"
+    )
+    limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
+    _prune_expired_request_limits()
+    retryAfterSeconds = _reserve_request(
+        sourceHash,
+        maxRequests=limits.sessionRevocationRequestsPerSource,
+        windowSeconds=limits.sessionRevocationRequestWindowSeconds,
+    )
+    if retryAfterSeconds:
+        return retryAfterSeconds
+
+    accountHash = salted_hmac(
+        "accounts.session_revocation.actor", actorId, algorithm="sha256"
+    ).hexdigest()
+    return _reserve_request(
+        accountHash,
+        maxRequests=limits.sessionRevocationRequestsPerAccount,
+        windowSeconds=limits.sessionRevocationRequestWindowSeconds,
+    )
+
+
+@sensitive_variables()
 def reserve_invitation_email_request(clientAddress: str, *, actorId: str) -> int:
     """Limit administrator invitation requests independently from public registration."""
     sourceHash = _hash_client_address(
