@@ -19,6 +19,10 @@ from accounts.views import (
     get_csrf_token,
     queue_registration_email,
 )
+from organizations.department_views import (
+    get_or_update_department,
+    list_or_create_departments,
+)
 from organizations.views import get_or_update_organization_settings
 
 from .health import check_database, check_liveness
@@ -36,6 +40,16 @@ urlpatterns = [
         "api/organization/settings/",
         get_or_update_organization_settings,
         name="organization-settings",
+    ),
+    path(
+        "api/organization/departments/",
+        list_or_create_departments,
+        name="organization-departments",
+    ),
+    path(
+        "api/organization/departments/<uuid:departmentId>/",
+        get_or_update_department,
+        name="organization-department",
     ),
     path(
         "api/auth/registration/email/",

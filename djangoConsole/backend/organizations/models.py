@@ -130,7 +130,9 @@ class Department(models.Model):
     )
     name = models.CharField(max_length=128, validators=[validate_path_segment])
     notes = models.TextField(
-        blank=True, default="", validators=[MaxLengthValidator(2000)]
+        blank=True,
+        default="",
+        validators=[MaxLengthValidator(2000), ProhibitNullCharactersValidator()],
     )
     created_at = models.DateTimeField(default=timezone.now, editable=False)
     deleted_at = models.DateTimeField(null=True, blank=True, editable=False)

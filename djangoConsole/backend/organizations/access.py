@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import cast
 
+from .department_queries import get_department_path
 from .models import Department, DepartmentRole, Organization
 from .permissions import (
     AccessChannel,
@@ -48,19 +49,6 @@ class AccountAccessInfo:
     departments: tuple[DepartmentAccessInfo, ...]
 
 
-def _get_department_path(
-    department: Department, departmentsById: dict[uuid.UUID, Department]
-) -> str:
-    listDepartmentName = [department.name]
-    parentId = department.parent_id
-    # Department write services already enforce a valid tree within one organization.
-    while parentId is not None:
-        parentDepartment = departmentsById[parentId]
-        listDepartmentName.append(parentDepartment.name)
-        parentId = parentDepartment.parent_id
-    return "/".join(reversed(listDepartmentName))
-
-
 def _get_department_access_info(
     access: OrganizationAccessContext,
 ) -> tuple[DepartmentAccessInfo, ...]:
@@ -94,7 +82,7 @@ def _get_department_access_info(
         DepartmentAccessInfo(
             id=department.pk,
             name=department.name,
-            path=_get_department_path(department, dictDepartmentById),
+            path=get_department_path(department, dictDepartmentById),
             role=dictRoleByDepartmentId[department.pk],
         )
         for department in dictDepartmentById.values()
