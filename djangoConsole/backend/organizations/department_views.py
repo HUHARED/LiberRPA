@@ -18,6 +18,12 @@ from pydantic import Field
 from accounts.models import User
 from console_project.http import JsonRequest, build_error_response, parse_json_request
 
+from .department_deletion import (
+    DepartmentDeletionBlockedError,
+    DepartmentDeletionInfo,
+    delete_department,
+    get_department_deletion_info,
+)
 from .department_queries import (
     DepartmentInfo,
     get_department_details,
@@ -42,6 +48,10 @@ class DepartmentUpdateRequest(JsonRequest):
 class DepartmentCreationRequest(DepartmentUpdateRequest):
     parent_id: ParentDepartmentId = None
     notes: str = ""
+
+
+class DepartmentDeletionRequest(JsonRequest):
+    """The URL selects the department; the server resolves all deletion conditions."""
 
 
 def _build_department_payload(departmentInfo: DepartmentInfo) -> dict[str, object]:
@@ -117,7 +127,7 @@ def _build_department_validation_response(
 @never_cache
 @require_http_methods(["GET", "POST"])
 def list_or_create_departments(request: HttpRequest) -> JsonResponse:
-    """Read the organization department tree or create one department as an administrator."""
+    """Read the department tree or create a department with administrator permission."""
     try:
         if not request.user.is_authenticated:
             return build_error_response(
@@ -224,6 +234,92 @@ def get_or_update_department(
         })
     except ValidationError as e:
         return _build_department_validation_response(e)
+    except Department.DoesNotExist:
+        return build_error_response(
+            "department_not_found", "Department not found or unavailable.", statusCode=404
+        )
+    except PermissionDenied:
+        return build_error_response(
+            "department_access_required",
+            "Department administration is unavailable.",
+            statusCode=403,
+        )
+    except (ImproperlyConfigured, DatabaseError):
+        return build_error_response(
+            "service_unavailable",
+            "The service is temporarily unavailable.",
+            statusCode=503,
+        )
+
+
+def _build_department_deletion_payload(
+    deletionInfo: DepartmentDeletionInfo,
+) -> dict[str, object]:
+    return {
+        "department": {
+            "id": deletionInfo.departmentId,
+            "name": deletionInfo.departmentName,
+        },
+        "can_delete": deletionInfo.canDelete,
+        "blockers": [
+            {"code": blocker.code, "count": blocker.count}
+            for blocker in deletionInfo.blockers
+        ],
+    }
+
+
+@never_cache
+@require_http_methods(["GET", "POST"])
+def get_or_delete_department(
+    request: HttpRequest, departmentId: uuid.UUID
+) -> JsonResponse:
+    """Preview current deletion blockers or submit a fresh deletion attempt."""
+    try:
+        if not request.user.is_authenticated:
+            return build_error_response(
+                "authentication_required", "Sign in to continue.", statusCode=401
+            )
+        user = cast(User, request.user)
+        membership = get_current_membership(actorId=user.id)
+        if request.method == "POST":
+            deletionRequest = parse_json_request(request, DepartmentDeletionRequest)
+            if isinstance(deletionRequest, JsonResponse):
+                return deletionRequest
+            department = delete_department(
+                actorId=user.id,
+                organizationId=membership.organization_id,
+                channel=AccessChannel.SESSION,
+                departmentId=departmentId,
+            )
+            return JsonResponse({
+                "department": {
+                    "id": department.id,
+                    "name": department.name,
+                    "deleted_at": department.deleted_at,
+                }
+            })
+
+        deletionInfo = get_department_deletion_info(
+            actorId=user.id,
+            organizationId=membership.organization_id,
+            channel=AccessChannel.SESSION,
+            departmentId=departmentId,
+        )
+        return JsonResponse(_build_department_deletion_payload(deletionInfo))
+    except DepartmentDeletionBlockedError as e:
+        return JsonResponse(
+            {
+                **_build_department_deletion_payload(e.deletionInfo),
+                "error": {
+                    "code": "department_deletion_blocked",
+                    "message": (
+                        "Remove the remaining dependencies "
+                        "before deleting this department."
+                    ),
+                },
+            },
+            status=409,
+        )
     except Department.DoesNotExist:
         return build_error_response(
             "department_not_found", "Department not found or unavailable.", statusCode=404

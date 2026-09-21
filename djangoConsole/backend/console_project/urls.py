@@ -20,6 +20,7 @@ from accounts.views import (
     queue_registration_email,
 )
 from organizations.department_views import (
+    get_or_delete_department,
     get_or_update_department,
     list_or_create_departments,
 )
@@ -50,6 +51,11 @@ urlpatterns = [
         "api/organization/departments/<uuid:departmentId>/",
         get_or_update_department,
         name="organization-department",
+    ),
+    path(
+        "api/organization/departments/<uuid:departmentId>/deletion/",
+        get_or_delete_department,
+        name="organization-department-deletion",
     ),
     path(
         "api/auth/registration/email/",
