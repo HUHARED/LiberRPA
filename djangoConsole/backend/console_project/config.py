@@ -73,6 +73,9 @@ class LimitsConfig(_BaseConfig):
     loginRequestsPerSource: int = Field(default=30, ge=0, le=2147483647)
     loginRequestsPerAccount: int = Field(default=10, ge=0, le=2147483647)
     loginRequestWindowSeconds: int = Field(default=600, ge=1, le=86400)
+    passwordChangeRequestsPerSource: int = Field(default=30, ge=0, le=2147483647)
+    passwordChangeRequestsPerAccount: int = Field(default=10, ge=0, le=2147483647)
+    passwordChangeRequestWindowSeconds: int = Field(default=600, ge=1, le=86400)
 
 
 class SmtpConfig(_BaseConfig):

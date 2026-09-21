@@ -86,6 +86,13 @@
     "loginRequestsPerSource": 30,
     "loginRequestsPerAccount": 10,
     // Fixed windows recover automatically; login failures do not disable an account.
-    "loginRequestWindowSeconds": 600
+    "loginRequestWindowSeconds": 600,
+
+    // Password-change attempts have separate limits from login, including failed submissions.
+    // Both the source IP and authenticated account must have allowance; 0 blocks changes.
+    "passwordChangeRequestsPerSource": 30,
+    "passwordChangeRequestsPerAccount": 10,
+    // Each counter's fixed window starts with its first request and lasts at most one day.
+    "passwordChangeRequestWindowSeconds": 600
   }
 }

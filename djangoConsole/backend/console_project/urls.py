@@ -6,6 +6,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from django.urls import path
 
+from accounts.password_views import change_account_password
 from accounts.profile_views import get_or_update_profile
 from accounts.session_views import (
     get_current_access,
@@ -46,6 +47,11 @@ urlpatterns = [
     path("api/auth/session/", get_current_session, name="auth-session"),
     path("api/auth/access/", get_current_access, name="auth-access"),
     path("api/auth/profile/", get_or_update_profile, name="auth-profile"),
+    path(
+        "api/auth/password/change/",
+        change_account_password,
+        name="auth-password-change",
+    ),
     path("api/auth/logout/", sign_out, name="auth-logout"),
     path(
         "api/auth/registration/email/",

@@ -157,6 +157,35 @@ def reserve_login_request(clientAddress: str, *, normalizedEmail: str) -> int:
 
 
 @sensitive_variables()
+def reserve_password_change_request(clientAddress: str, *, actorId: str) -> int:
+    """Limit signed-in password changes by source IP and the authenticated account ID.
+
+    Counters commit before credential checks and remain independent of login requests.
+    """
+    sourceHash = _hash_client_address(
+        clientAddress, scope="accounts.password_change.source"
+    )
+    limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
+    _prune_expired_request_limits()
+    retryAfterSeconds = _reserve_request(
+        sourceHash,
+        maxRequests=limits.passwordChangeRequestsPerSource,
+        windowSeconds=limits.passwordChangeRequestWindowSeconds,
+    )
+    if retryAfterSeconds:
+        return retryAfterSeconds
+
+    accountHash = salted_hmac(
+        "accounts.password_change.actor", actorId, algorithm="sha256"
+    ).hexdigest()
+    return _reserve_request(
+        accountHash,
+        maxRequests=limits.passwordChangeRequestsPerAccount,
+        windowSeconds=limits.passwordChangeRequestWindowSeconds,
+    )
+
+
+@sensitive_variables()
 def reserve_invitation_email_request(clientAddress: str, *, actorId: str) -> int:
     """Limit administrator invitation requests independently from public registration."""
     sourceHash = _hash_client_address(
