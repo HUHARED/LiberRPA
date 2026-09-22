@@ -96,8 +96,8 @@ def reserve_registration_email_request(clientAddress: str) -> int:
     _prune_expired_request_limits()
     return _reserve_request(
         sourceHash,
-        maxRequests=limits.registrationEmailRequestsPerSource,
-        windowSeconds=limits.registrationEmailRequestWindowSeconds,
+        maxRequests=limits.publicEmailRequestsPerSource,
+        windowSeconds=limits.emailRequestWindowSeconds,
     )
 
 
@@ -111,8 +111,8 @@ def reserve_registration_token_request(clientAddress: str, *, token: str) -> int
     _prune_expired_request_limits()
     retryAfterSeconds = _reserve_request(
         sourceHash,
-        maxRequests=limits.registrationTokenRequestsPerSource,
-        windowSeconds=limits.registrationTokenRequestWindowSeconds,
+        maxRequests=limits.emailTokenRequestsPerSource,
+        windowSeconds=limits.emailTokenRequestWindowSeconds,
     )
     if retryAfterSeconds:
         return retryAfterSeconds
@@ -123,8 +123,8 @@ def reserve_registration_token_request(clientAddress: str, *, token: str) -> int
     ).hexdigest()
     return _reserve_request(
         tokenHash,
-        maxRequests=limits.registrationTokenRequestsPerToken,
-        windowSeconds=limits.registrationTokenRequestWindowSeconds,
+        maxRequests=limits.emailTokenRequestsPerToken,
+        windowSeconds=limits.emailTokenRequestWindowSeconds,
     )
 
 
@@ -221,8 +221,8 @@ def reserve_password_reset_email_request(clientAddress: str) -> int:
     _prune_expired_request_limits()
     return _reserve_request(
         sourceHash,
-        maxRequests=limits.passwordResetEmailRequestsPerSource,
-        windowSeconds=limits.passwordResetEmailRequestWindowSeconds,
+        maxRequests=limits.publicEmailRequestsPerSource,
+        windowSeconds=limits.emailRequestWindowSeconds,
     )
 
 
@@ -236,8 +236,8 @@ def reserve_password_reset_token_request(clientAddress: str, *, token: str) -> i
     _prune_expired_request_limits()
     retryAfterSeconds = _reserve_request(
         sourceHash,
-        maxRequests=limits.passwordResetTokenRequestsPerSource,
-        windowSeconds=limits.passwordResetTokenRequestWindowSeconds,
+        maxRequests=limits.emailTokenRequestsPerSource,
+        windowSeconds=limits.emailTokenRequestWindowSeconds,
     )
     if retryAfterSeconds:
         return retryAfterSeconds
@@ -246,8 +246,8 @@ def reserve_password_reset_token_request(clientAddress: str, *, token: str) -> i
     ).hexdigest()
     return _reserve_request(
         tokenHash,
-        maxRequests=limits.passwordResetTokenRequestsPerToken,
-        windowSeconds=limits.passwordResetTokenRequestWindowSeconds,
+        maxRequests=limits.emailTokenRequestsPerToken,
+        windowSeconds=limits.emailTokenRequestWindowSeconds,
     )
 
 
@@ -261,8 +261,8 @@ def reserve_email_change_email_request(clientAddress: str, *, actorId: str) -> i
     _prune_expired_request_limits()
     retryAfterSeconds = _reserve_request(
         sourceHash,
-        maxRequests=limits.emailChangeEmailRequestsPerSource,
-        windowSeconds=limits.emailChangeEmailRequestWindowSeconds,
+        maxRequests=limits.authenticatedEmailRequestsPerSource,
+        windowSeconds=limits.emailRequestWindowSeconds,
     )
     if retryAfterSeconds:
         return retryAfterSeconds
@@ -271,8 +271,8 @@ def reserve_email_change_email_request(clientAddress: str, *, actorId: str) -> i
     ).hexdigest()
     return _reserve_request(
         accountHash,
-        maxRequests=limits.emailChangeEmailRequestsPerAccount,
-        windowSeconds=limits.emailChangeEmailRequestWindowSeconds,
+        maxRequests=limits.authenticatedEmailRequestsPerAccount,
+        windowSeconds=limits.emailRequestWindowSeconds,
     )
 
 
@@ -286,8 +286,8 @@ def reserve_email_change_token_request(clientAddress: str, *, token: str) -> int
     _prune_expired_request_limits()
     retryAfterSeconds = _reserve_request(
         sourceHash,
-        maxRequests=limits.emailChangeTokenRequestsPerSource,
-        windowSeconds=limits.emailChangeTokenRequestWindowSeconds,
+        maxRequests=limits.emailTokenRequestsPerSource,
+        windowSeconds=limits.emailTokenRequestWindowSeconds,
     )
     if retryAfterSeconds:
         return retryAfterSeconds
@@ -296,8 +296,8 @@ def reserve_email_change_token_request(clientAddress: str, *, token: str) -> int
     ).hexdigest()
     return _reserve_request(
         tokenHash,
-        maxRequests=limits.emailChangeTokenRequestsPerToken,
-        windowSeconds=limits.emailChangeTokenRequestWindowSeconds,
+        maxRequests=limits.emailTokenRequestsPerToken,
+        windowSeconds=limits.emailTokenRequestWindowSeconds,
     )
 
 
@@ -311,8 +311,8 @@ def reserve_invitation_email_request(clientAddress: str, *, actorId: str) -> int
     _prune_expired_request_limits()
     retryAfterSeconds = _reserve_request(
         sourceHash,
-        maxRequests=limits.invitationEmailRequestsPerSource,
-        windowSeconds=limits.invitationEmailRequestWindowSeconds,
+        maxRequests=limits.authenticatedEmailRequestsPerSource,
+        windowSeconds=limits.emailRequestWindowSeconds,
     )
     if retryAfterSeconds:
         return retryAfterSeconds
@@ -321,6 +321,6 @@ def reserve_invitation_email_request(clientAddress: str, *, actorId: str) -> int
     ).hexdigest()
     return _reserve_request(
         accountHash,
-        maxRequests=limits.invitationEmailRequestsPerAccount,
-        windowSeconds=limits.invitationEmailRequestWindowSeconds,
+        maxRequests=limits.authenticatedEmailRequestsPerAccount,
+        windowSeconds=limits.emailRequestWindowSeconds,
     )

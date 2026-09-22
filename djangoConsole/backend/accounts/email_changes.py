@@ -189,7 +189,7 @@ def request_email_change(
     limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
     if previousRequest is not None:
         cooldownStart = previousRequest.issued_at or previousRequest.delivery.created_at
-        retryAt = cooldownStart + timedelta(seconds=limits.emailChangeResendSeconds)
+        retryAt = cooldownStart + timedelta(seconds=limits.emailResendSeconds)
         if requestedAt < retryAt:
             raise EmailChangeCooldownError(
                 max(1, math.ceil((retryAt - requestedAt).total_seconds()))

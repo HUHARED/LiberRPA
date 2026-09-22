@@ -157,7 +157,7 @@ def _require_recipient_cooldown(organizationId: uuid.UUID, email: str) -> None:
         return
     limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
     retryAt = previousInvitation.requested_at + timedelta(
-        seconds=limits.invitationResendSeconds
+        seconds=limits.emailResendSeconds
     )
     retrySeconds = math.ceil((retryAt - timezone.now()).total_seconds())
     if retrySeconds > 0:

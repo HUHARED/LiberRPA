@@ -40,6 +40,7 @@
 
   // Optional deployment limits. Omitted values use defaults.
   "limits": {
+    // Organization capacity.
     // Existing members and unexpired pending invitations count toward this limit.
     // Administrators and inactive members also count.
     // A value of 0 blocks invitations; lowering the limit does not remove existing members.
@@ -50,6 +51,7 @@
     // Top-level departments have depth 1.
     "maxDepartmentDepth": 5,
 
+    // SMTP delivery budget and rate.
     // All SMTP attempts count toward this rolling budget, including failed attempts.
     // A budget of 0 prevents new attempts.
     "maxEmailRecipientsPer24Hours": 2500,
@@ -58,29 +60,26 @@
     // Seconds needed to restore one recipient unit.
     "emailRefillSeconds": 30,
 
-    // Registration email API requests per source IP in a fixed window.
-    // A value of 0 blocks requests; the recipient's resend cooldown still applies.
-    "registrationEmailRequestsPerSource": 10,
-    // The window starts with the source's first request and lasts at most one day.
-    "registrationEmailRequestWindowSeconds": 600,
-
-    // Invitation requests for the same address in one organization must wait this long.
+    // Account email requests use shared settings and separate counters for each flow.
+    // Resend cooldown: per address for registration/recovery, per organization and address for invitations, and per account for email changes.
     // Set this interval between 300 and 86400 seconds.
-    "invitationResendSeconds": 300,
-    // Requests to create or resend invitations share these limits.
-    // Both the source IP and requesting administrator must have allowance; 0 blocks requests.
-    "invitationEmailRequestsPerSource": 30,
-    "invitationEmailRequestsPerAccount": 10,
-    // Each counter's fixed window starts with its first request and lasts at most one day.
-    "invitationEmailRequestWindowSeconds": 600,
+    "emailResendSeconds": 300,
+    // Public registration and password-recovery email requests, including suppressed requests.
+    "publicEmailRequestsPerSource": 10,
+    // Invitation and email-change requests require allowance for both the IP and initiating account.
+    "authenticatedEmailRequestsPerSource": 30,
+    "authenticatedEmailRequestsPerAccount": 10,
+    // A value of 0 for any request allowance blocks requests; fixed windows start with the first attempt.
+    "emailRequestWindowSeconds": 600,
 
-    // Reading registration or invitation links and submitting either form share these limits.
-    // Both the source IP and the token must have remaining requests; 0 blocks requests.
-    "registrationTokenRequestsPerSource": 30,
-    "registrationTokenRequestsPerToken": 10,
-    // Each counter's fixed window starts with its first request and lasts at most one day.
-    "registrationTokenRequestWindowSeconds": 600,
+    // Email-link checks and submissions use shared settings and count per flow.
+    // Registration/invitation share one flow; password reset and email change each have their own.
+    // Both the source IP and token must have allowance; 0 blocks requests.
+    "emailTokenRequestsPerSource": 30,
+    "emailTokenRequestsPerToken": 10,
+    "emailTokenRequestWindowSeconds": 600,
 
+    // Login attempts.
     // All login attempts count, including successful attempts and unknown accounts.
     // Both the source IP and normalized email must have remaining requests; 0 blocks login.
     "loginRequestsPerSource": 30,
@@ -100,27 +99,6 @@
     "sessionRevocationRequestsPerSource": 30,
     "sessionRevocationRequestsPerAccount": 10,
     // Each counter's fixed window starts with its first request and lasts at most one day.
-    "sessionRevocationRequestWindowSeconds": 600,
-
-    // Password recovery uses separate source-IP limits and a per-recipient resend interval.
-    // Suppressed requests receive the same public response; resend must wait at least 5 minutes.
-    "passwordResetResendSeconds": 300,
-    "passwordResetEmailRequestsPerSource": 10,
-    "passwordResetEmailRequestWindowSeconds": 600,
-    // Link checks and reset submissions share these limits; 0 blocks requests.
-    "passwordResetTokenRequestsPerSource": 30,
-    "passwordResetTokenRequestsPerToken": 10,
-    "passwordResetTokenRequestWindowSeconds": 600,
-
-    // Email-change requests require the current password and have independent limits.
-    // Resend cooldown applies to the same account even when the target address changes.
-    "emailChangeResendSeconds": 300,
-    "emailChangeEmailRequestsPerSource": 30,
-    "emailChangeEmailRequestsPerAccount": 10,
-    "emailChangeEmailRequestWindowSeconds": 600,
-    // Link checks and confirmation share these limits; 0 blocks requests.
-    "emailChangeTokenRequestsPerSource": 30,
-    "emailChangeTokenRequestsPerToken": 10,
-    "emailChangeTokenRequestWindowSeconds": 600
+    "sessionRevocationRequestWindowSeconds": 600
   }
 }

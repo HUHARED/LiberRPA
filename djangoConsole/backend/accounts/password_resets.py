@@ -147,9 +147,7 @@ def request_password_reset_email(email: str) -> None:
         if previousDelivery.status in (EmailStatus.PENDING, EmailStatus.SENDING):
             return
         cooldownStart = previousDelivery.attempted_at or previousDelivery.created_at
-        if requestedAt < cooldownStart + timedelta(
-            seconds=limits.passwordResetResendSeconds
-        ):
+        if requestedAt < cooldownStart + timedelta(seconds=limits.emailResendSeconds):
             return
 
     # Never lock or update an earlier delivery while holding the account lock.

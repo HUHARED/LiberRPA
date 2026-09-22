@@ -9,6 +9,7 @@ import re
 import secrets
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from typing import cast
 
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured, ValidationError
@@ -16,6 +17,7 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 from django.views.decorators.debug import sensitive_variables
 
+from console_project.config import LimitsConfig
 from notifications.models import EmailDelivery, EmailStatus, EmailType
 from operations.policies import require_organization_creation_allowed
 from organizations.services import OrganizationCreationResult, create_organization_records
@@ -23,7 +25,6 @@ from organizations.services import OrganizationCreationResult, create_organizati
 from .models import RegistrationToken, User, UserManager
 
 _REGISTRATION_TOKEN_LIFETIME = timedelta(hours=1)
-_REGISTRATION_RESEND_INTERVAL = timedelta(minutes=5)
 _REGISTRATION_TOKEN_PATTERN = re.compile(r"[A-Za-z0-9_-]{43}")
 
 
@@ -95,11 +96,12 @@ def request_registration_email(email: str) -> None:
         .first()
     )
     requestedAt = timezone.now()
+    limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
     if previousDelivery is not None:
         if previousDelivery.status in (EmailStatus.PENDING, EmailStatus.SENDING):
             return
         cooldownStart = previousDelivery.attempted_at or previousDelivery.created_at
-        if requestedAt < cooldownStart + _REGISTRATION_RESEND_INTERVAL:
+        if requestedAt < cooldownStart + timedelta(seconds=limits.emailResendSeconds):
             return
 
     # Start the request age after any policy lock wait; previous outcomes remain history.
@@ -143,9 +145,9 @@ def issue_registration_token(email: str) -> RegistrationTokenDeliveryInfo | None
         return None
 
     issuedAt = timezone.now()
-    if (
-        not tokenCreated
-        and issuedAt < registrationToken.issued_at + _REGISTRATION_RESEND_INTERVAL
+    limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
+    if not tokenCreated and issuedAt < registrationToken.issued_at + timedelta(
+        seconds=limits.emailResendSeconds
     ):
         return None
 

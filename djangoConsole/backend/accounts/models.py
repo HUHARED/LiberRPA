@@ -91,12 +91,8 @@ class User(AbstractBaseUser):
 
     def _get_session_auth_hash(self, secret: str | None = None) -> str:
         """Include the revocation version in Django's normal and fallback session hashes."""
-        # NOTE: Version zero preserves existing sessions when this field is first added.
-        keySalt = "django.contrib.auth.models.AbstractBaseUser.get_session_auth_hash"
-        authValue = self.password
-        if self.session_version != 0:
-            keySalt = "accounts.User.get_session_auth_hash"
-            authValue = f"{self.password}:{self.session_version}"
+        keySalt = "accounts.User.get_session_auth_hash"
+        authValue = f"{self.password}:{self.session_version}"
         return salted_hmac(
             keySalt,
             authValue,
