@@ -94,7 +94,7 @@ def cancel_organization_deletion(
     """Allow any current active administrator to cancel before cleanup actually starts.
 
     No password is required, and an independent service suspension remains in place.
-    A future cleanup worker must take the same organization lock before marking its start.
+    The cleanup worker takes the same organization lock before committing its start.
     """
     organization, actor = lock_organization_for_deletion(
         actorId=actorId, organizationId=organizationId, channel=channel

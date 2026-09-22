@@ -27,10 +27,17 @@ from accounts.password_resets import issue_password_reset_token
 from accounts.registration import issue_registration_token
 from console_project.config import LimitsConfig
 from organizations.invitation_emails import build_invitation_email
+from organizations.deletion_emails import build_organization_deletion_notice
 from organizations.invitations import InvitationConflictError, issue_invitation_token
 from organizations.models import MemberInvitation
 
-from .models import EmailDelivery, EmailDispatchState, EmailStatus, EmailType
+from .models import (
+    EmailDelivery,
+    EmailDispatchState,
+    EmailStatus,
+    EmailType,
+    OrganizationDeletionNotice,
+)
 from .smtp import send_smtp_once
 
 _EMAIL_BUDGET_WINDOW = timedelta(hours=24)
@@ -164,6 +171,11 @@ def prepare_email(deliveryId: uuid.UUID) -> EmailPreparationResult:
         emailMessage = build_email_change_verification(changeDeliveryInfo)
     elif delivery.email_type == EmailType.EMAIL_CHANGE_NOTICE:
         emailMessage = build_email_change_notice(delivery)
+    elif delivery.email_type == EmailType.ORGANIZATION_DELETION_NOTICE:
+        try:
+            emailMessage = build_organization_deletion_notice(delivery)
+        except OrganizationDeletionNotice.DoesNotExist:
+            return _mark_email_not_sent(delivery, reasonCode="deletion_notice_missing")
     else:
         raise ValueError("Unsupported email type.")
     attemptedAt = timezone.now()

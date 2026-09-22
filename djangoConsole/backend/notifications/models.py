@@ -17,6 +17,10 @@ class EmailType(models.TextChoices):
     PASSWORD_RESET = "password_reset", "Password reset"
     EMAIL_CHANGE_VERIFICATION = "email_change_verification", "Email change verification"
     EMAIL_CHANGE_NOTICE = "email_change_notice", "Email change notice"
+    ORGANIZATION_DELETION_NOTICE = (
+        "organization_deletion_notice",
+        "Organization deletion notice",
+    )
 
 
 class EmailStatus(models.TextChoices):
@@ -86,10 +90,16 @@ class EmailDelivery(models.Model):
             ),
             models.CheckConstraint(
                 condition=(
-                    models.Q(
-                        email_type=EmailType.MEMBER_INVITATION,
-                        invitation__isnull=False,
-                        invitation_request_id__isnull=False,
+                    (
+                        models.Q(
+                            email_type=EmailType.MEMBER_INVITATION,
+                            invitation_request_id__isnull=False,
+                        )
+                        & (
+                            # Cleanup detaches historical deliveries only after suppressing pending mail.
+                            models.Q(invitation__isnull=False)
+                            | ~models.Q(status=EmailStatus.PENDING)
+                        )
                     )
                     | models.Q(
                         email_type__in=[
@@ -97,6 +107,7 @@ class EmailDelivery(models.Model):
                             EmailType.PASSWORD_RESET,
                             EmailType.EMAIL_CHANGE_VERIFICATION,
                             EmailType.EMAIL_CHANGE_NOTICE,
+                            EmailType.ORGANIZATION_DELETION_NOTICE,
                         ],
                         invitation__isnull=True,
                         invitation_request_id__isnull=True,
@@ -188,3 +199,14 @@ class EmailDelivery(models.Model):
 
     def __str__(self) -> str:
         return f"{self.email_type}: {self.recipient} ({self.status})"
+
+
+class OrganizationDeletionNotice(models.Model):
+    """Minimal historical context for one completion email, independent of deleted records."""
+
+    delivery_id: uuid.UUID
+    delivery = models.OneToOneField(
+        EmailDelivery, on_delete=models.CASCADE, primary_key=True, related_name="+"
+    )
+    organization_id = models.UUIDField(editable=False)
+    organization_name = models.CharField(max_length=200, editable=False)

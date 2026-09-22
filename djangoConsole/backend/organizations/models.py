@@ -44,6 +44,13 @@ class Organization(models.Model):
     deletion_started_at = models.DateTimeField(null=True, blank=True, editable=False)
 
     class Meta:
+        indexes = [
+            models.Index(
+                fields=["deletion_due_at", "id"],
+                condition=models.Q(deletion_requested_at__isnull=False),
+                name="organization_deletion_due_idx",
+            ),
+        ]
         constraints = [
             models.CheckConstraint(
                 condition=(
