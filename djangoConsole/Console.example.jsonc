@@ -99,6 +99,12 @@
     "sessionRevocationRequestsPerSource": 30,
     "sessionRevocationRequestsPerAccount": 10,
     // Each counter's fixed window starts with its first request and lasts at most one day.
-    "sessionRevocationRequestWindowSeconds": 600
+    "sessionRevocationRequestWindowSeconds": 600,
+
+    // Account deletion attempts require allowance for both the source IP and acting account.
+    // All deletion targets share the actor's allowance, including failed password checks; 0 blocks submissions.
+    "accountDeletionRequestsPerSource": 30,
+    "accountDeletionRequestsPerAccount": 10,
+    "accountDeletionRequestWindowSeconds": 600
   }
 }

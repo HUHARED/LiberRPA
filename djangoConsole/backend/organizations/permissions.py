@@ -170,6 +170,22 @@ def lock_account_for_password_reset(*, userId: uuid.UUID) -> User:
     return cast(User, membership.user)
 
 
+def has_other_active_organization_admin(
+    *, organizationId: uuid.UUID, userId: uuid.UUID
+) -> bool:
+    """Check the administrator rule shared by demotion and account deletion.
+
+    Writes must hold the organization lock before checking and changing membership.
+    An active administrator counts even without a current login or department role.
+    """
+    return (
+        Membership.objects
+        .filter(organization_id=organizationId, is_org_admin=True, user__is_active=True)
+        .exclude(user_id=userId)
+        .exists()
+    )
+
+
 def get_authorized_departments(
     access: OrganizationAccessContext, *, requiredRole: DepartmentRole
 ) -> QuerySet[Department]:

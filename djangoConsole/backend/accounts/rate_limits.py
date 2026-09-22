@@ -212,6 +212,31 @@ def reserve_session_revocation_request(clientAddress: str, *, actorId: str) -> i
 
 
 @sensitive_variables()
+def reserve_account_deletion_request(clientAddress: str, *, actorId: str) -> int:
+    """Limit deletion attempts by the source IP and acting account, across all targets."""
+    sourceHash = _hash_client_address(
+        clientAddress, scope="accounts.account_deletion.source"
+    )
+    limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
+    _prune_expired_request_limits()
+    retryAfterSeconds = _reserve_request(
+        sourceHash,
+        maxRequests=limits.accountDeletionRequestsPerSource,
+        windowSeconds=limits.accountDeletionRequestWindowSeconds,
+    )
+    if retryAfterSeconds:
+        return retryAfterSeconds
+    accountHash = salted_hmac(
+        "accounts.account_deletion.actor", actorId, algorithm="sha256"
+    ).hexdigest()
+    return _reserve_request(
+        accountHash,
+        maxRequests=limits.accountDeletionRequestsPerAccount,
+        windowSeconds=limits.accountDeletionRequestWindowSeconds,
+    )
+
+
+@sensitive_variables()
 def reserve_password_reset_email_request(clientAddress: str) -> int:
     """Count all recovery-email requests, including unknown and suppressed addresses."""
     sourceHash = _hash_client_address(

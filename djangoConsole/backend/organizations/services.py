@@ -27,6 +27,7 @@ from .models import (
 )
 from .permissions import (
     AccessChannel,
+    has_other_active_organization_admin,
     require_organization_admin,
     resolve_organization_access,
 )
@@ -366,10 +367,9 @@ def update_membership(
     if (
         wasOrgAdmin
         and not membership.is_org_admin
-        and not Membership.objects
-        .filter(organization=organization, is_org_admin=True, user__is_active=True)
-        .exclude(pk=membership.pk)
-        .exists()
+        and not has_other_active_organization_admin(
+            organizationId=organization.id, userId=membership.user_id
+        )
     ):
         raise ValidationError({
             "is_org_admin": ValidationError(

@@ -6,6 +6,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from django.urls import path
 
+from accounts.account_deletion_views import get_or_delete_account
 from accounts.email_change_views import (
     check_email_change_link,
     confirm_account_email_change,
@@ -58,6 +59,11 @@ urlpatterns = [
     path("api/auth/session/", get_current_session, name="auth-session"),
     path("api/auth/access/", get_current_access, name="auth-access"),
     path("api/auth/profile/", get_or_update_profile, name="auth-profile"),
+    path(
+        "api/auth/account/deletion/",
+        get_or_delete_account,
+        name="auth-account-deletion",
+    ),
     path(
         "api/auth/email/change/email/",
         queue_email_change_verification,
@@ -146,6 +152,11 @@ urlpatterns = [
         "api/organization/members/<uuid:userId>/",
         get_or_update_member,
         name="organization-member",
+    ),
+    path(
+        "api/organization/members/<uuid:userId>/deletion/",
+        get_or_delete_account,
+        name="organization-member-deletion",
     ),
     path(
         "api/organization/invitations/",
