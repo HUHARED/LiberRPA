@@ -196,8 +196,15 @@ function handleElementTreeResult(
   const informationStore = useInformationStore();
   if (!message.boolSuccess) {
     const strErrorMessage = message.data as string;
+    const strElementType = operationStore.operationName === "indicate_uia" ? "UIA" : "HTML";
+
+    // Keep the complete diagnostic in Status and the log, not in the floating Alert.
     informationStore.information = strErrorMessage;
-    informationStore.showAlertMessage(strErrorMessage);
+    loggerRenderer.error(strErrorMessage);
+    informationStore.showAlertMessage(
+      `Failed to generate the ${strElementType} Element Tree. ` +
+        "The Selector is still available. See Status for details.",
+    );
     return;
   }
 

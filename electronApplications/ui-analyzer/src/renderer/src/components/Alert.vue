@@ -3,11 +3,11 @@
   <v-alert
     v-if="informationStore.showAlert"
     style="position: fixed; width: 100%; opacity: 0.9; z-index: 999"
-    :text="informationStore.strAlertMessage"
     variant="flat"
     type="warning"
     closable
     @click:close="closeAlert">
+    <div class="alert-message">{{ informationStore.strAlertMessage }}</div>
   </v-alert>
 </template>
 
@@ -48,4 +48,15 @@ watch(
 onBeforeUnmount(clearCloseAlertTimer);
 </script>
 
-<style scoped></style>
+<style scoped>
+:deep(.v-alert__content) {
+  min-width: 0;
+}
+
+.alert-message {
+  max-height: min(160px, 25vh);
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+</style>
