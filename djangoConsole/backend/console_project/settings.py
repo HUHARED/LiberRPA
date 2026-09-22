@@ -67,6 +67,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "accounts.apps.AccountsConfig",
     "organizations.apps.OrganizationsConfig",
+    "executors.apps.ExecutorsConfig",
     "operations.apps.OperationsConfig",
     "notifications.apps.NotificationsConfig",
 ]

@@ -51,6 +51,10 @@
     // Top-level departments have depth 1.
     "maxDepartmentDepth": 5,
 
+    // Current Executor records count, including paused and unassociated records.
+    // A value of 0 blocks creation; lowering the limit preserves existing records.
+    "maxExecutorsPerOrganization": 20,
+
     // API key capacity and inactive metadata retention per account.
     // Expired and revoked keys do not consume active capacity; 0 blocks new keys.
     "maxActiveApiKeysPerAccount": 10,

@@ -38,6 +38,12 @@ from accounts.views import (
     get_csrf_token,
     queue_registration_email,
 )
+from executors.views import (
+    change_executor_dispatch,
+    delete_executor_record,
+    get_or_update_executor,
+    list_or_create_executors,
+)
 from organizations.department_views import (
     get_or_delete_department,
     get_or_update_department,
@@ -222,5 +228,18 @@ urlpatterns = [
         resend_or_revoke_invitation,
         {"resend": False},
         name="organization-invitation-revoke",
+    ),
+    # Manage logical Executors through current department permissions and web sessions.
+    path("api/executors/", list_or_create_executors, name="executors"),
+    path("api/executors/<uuid:executorId>/", get_or_update_executor, name="executor"),
+    path(
+        "api/executors/<uuid:executorId>/dispatch/",
+        change_executor_dispatch,
+        name="executor-dispatch",
+    ),
+    path(
+        "api/executors/<uuid:executorId>/deletion/",
+        delete_executor_record,
+        name="executor-deletion",
     ),
 ]

@@ -59,6 +59,7 @@ class LimitsConfig(_BaseConfig):
     maxMembersPerOrganization: int = Field(default=50, ge=0)
     maxDepartmentsPerOrganization: int = Field(default=20, ge=0)
     maxDepartmentDepth: int = Field(default=5, ge=1)
+    maxExecutorsPerOrganization: int = Field(default=20, ge=0)
 
     # API key capacity and inactive metadata retention per account.
     maxActiveApiKeysPerAccount: int = Field(default=10, ge=0)

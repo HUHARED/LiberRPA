@@ -11,6 +11,8 @@ from typing import Literal
 from django.db import transaction
 from django.utils import timezone
 
+from executors.models import Executor
+
 from .models import Department, DepartmentMembership
 from .permissions import (
     AccessChannel,
@@ -21,7 +23,7 @@ from .permissions import (
 
 @dataclass(frozen=True)
 class DepartmentDeletionBlocker:
-    code: Literal["child_departments", "department_memberships"]
+    code: Literal["child_departments", "department_memberships", "executors"]
     count: int
 
 
@@ -77,7 +79,13 @@ def _get_department_deletion_info(department: Department) -> DepartmentDeletionI
             DepartmentDeletionBlocker("department_memberships", membershipCount)
         )
 
-    # Add current business resources and unfinished Jobs here when their models exist.
+    executorCount = Executor.objects.filter(
+        department=department, deleted_at__isnull=True
+    ).count()
+    if executorCount:
+        listBlocker.append(DepartmentDeletionBlocker("executors", executorCount))
+
+    # Add other current business resources and unfinished Jobs here when their models exist.
     # Their writes must use the same organization lock; retained history must not block.
     return DepartmentDeletionInfo(
         departmentId=department.id,
