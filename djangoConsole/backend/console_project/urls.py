@@ -38,11 +38,14 @@ from accounts.views import (
     get_csrf_token,
     queue_registration_email,
 )
+from executors.client_sessions import ExecutorClientAction
+from executors.client_views import executor_client_request, sign_in_executor
 from executors.views import (
     change_executor_dispatch,
     delete_executor_record,
     get_or_update_executor,
     list_or_create_executors,
+    unassociate_executor_record,
 )
 from organizations.department_views import (
     get_or_delete_department,
@@ -241,5 +244,42 @@ urlpatterns = [
         "api/executors/<uuid:executorId>/deletion/",
         delete_executor_record,
         name="executor-deletion",
+    ),
+    path(
+        "api/executors/<uuid:executorId>/unassociate/",
+        unassociate_executor_record,
+        name="executor-unassociate",
+    ),
+    # Native clients use their own account sessions, separate from cookies and API keys.
+    path("api/clients/executor/login/", sign_in_executor, name="executor-client-login"),
+    path(
+        "api/clients/executor/choices/",
+        executor_client_request,
+        {"action": ExecutorClientAction.CHOICES},
+        name="executor-client-choices",
+    ),
+    path(
+        "api/clients/executor/associate/",
+        executor_client_request,
+        {"action": ExecutorClientAction.ASSOCIATE},
+        name="executor-client-associate",
+    ),
+    path(
+        "api/clients/executor/session/",
+        executor_client_request,
+        {"action": ExecutorClientAction.SESSION},
+        name="executor-client-session",
+    ),
+    path(
+        "api/clients/executor/heartbeat/",
+        executor_client_request,
+        {"action": ExecutorClientAction.HEARTBEAT},
+        name="executor-client-heartbeat",
+    ),
+    path(
+        "api/clients/executor/logout/",
+        executor_client_request,
+        {"action": ExecutorClientAction.LOGOUT},
+        name="executor-client-logout",
     ),
 ]

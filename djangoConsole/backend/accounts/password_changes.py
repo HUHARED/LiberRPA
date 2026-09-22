@@ -10,6 +10,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.views.decorators.debug import sensitive_variables
 
+from executors.session_state import revoke_user_executor_sessions
 from organizations.permissions import (
     AccessChannel,
     get_current_membership,
@@ -63,5 +64,6 @@ def change_password(
     # NOTE: Django rejects old web sessions when their stored authentication hash no longer matches.
     user.save(update_fields=["password"])
     revoke_active_api_keys(userId=user.id)
+    revoke_user_executor_sessions(user.id)
     # NOTE: Email-change proofs are bound to the old password hash and are now invalid.
-    # TODO: Revoke client credentials when client authentication is implemented.
+    # TODO: Revoke Editor credentials when Editor authentication is implemented.

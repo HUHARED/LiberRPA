@@ -26,7 +26,7 @@ from organizations.permissions import (
     resolve_organization_access,
 )
 
-from .models import Executor
+from .models import Executor, ExecutorSession
 
 
 @sensitive_variables()
@@ -56,9 +56,11 @@ def _lock_executor_access(
 def _require_executor_management(
     access: OrganizationAccessContext, departmentId: uuid.UUID
 ) -> None:
-    if not get_authorized_departments(
-        access, requiredRole=DepartmentRole.DEVELOPER
-    ).filter(pk=departmentId).exists():
+    if (
+        not get_authorized_departments(access, requiredRole=DepartmentRole.DEVELOPER)
+        .filter(pk=departmentId)
+        .exists()
+    ):
         raise PermissionDenied("Developer access is required to manage executors.")
 
 
@@ -102,9 +104,12 @@ def create_executor(
     executor.full_clean()
     limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
     # Paused and unassociated records consume capacity; deleted identities do not.
-    if Executor.objects.filter(
-        department__organization=access.organization, deleted_at__isnull=True
-    ).count() >= limits.maxExecutorsPerOrganization:
+    if (
+        Executor.objects.filter(
+            department__organization=access.organization, deleted_at__isnull=True
+        ).count()
+        >= limits.maxExecutorsPerOrganization
+    ):
         raise ValidationError(
             "This organization has reached its limit of %(limit)s executors.",
             code="executor_count_limit",
@@ -178,8 +183,38 @@ def delete_executor(
         actorId, organizationId, channel, sessionAuthHash, sessionExpiresAt
     )
     executor = _get_executor_for_management(access, executorId)
-    # TODO: Check Schedule/group/current-work references and revoke associations when those models are added.
+    # TODO: Check Schedule/group/current-work references when those models are added.
     # Reference creation must share this organization lock; retained history must not block deletion.
+    ExecutorSession.objects.filter(executor=executor).delete()
     executor.deleted_at = timezone.now()
     executor.save(update_fields=["deleted_at"])
+    return executor
+
+
+@sensitive_variables()
+@transaction.atomic
+def unassociate_executor(
+    *,
+    actorId: uuid.UUID,
+    organizationId: uuid.UUID,
+    channel: AccessChannel,
+    executorId: uuid.UUID,
+    expectedSessionId: uuid.UUID,
+    sessionAuthHash: str,
+    sessionExpiresAt: datetime,
+) -> Executor:
+    """Revoke the selected association without letting a delayed retry remove a replacement."""
+    access = _lock_executor_access(
+        actorId, organizationId, channel, sessionAuthHash, sessionExpiresAt
+    )
+    executor = _get_executor_for_management(access, executorId)
+    session = ExecutorSession.objects.filter(executor=executor).first()
+    if session is not None:
+        if session.id != expectedSessionId:
+            raise ValidationError(
+                "The Executor association has changed. Refresh before trying again.",
+                code="executor_association_changed",
+            )
+        session.delete()
+    # TODO: Reconcile associated unfinished work without claiming that remote processes stopped.
     return executor

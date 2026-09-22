@@ -6,6 +6,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import uuid
 
+from django.conf import settings
 from django.core.validators import (
     MaxLengthValidator,
     ProhibitNullCharactersValidator,
@@ -62,3 +63,75 @@ class Executor(models.Model):
 
     def __str__(self) -> str:
         return self.name
+
+
+class ExecutorSession(models.Model):
+    """One account login, limited to selection until it owns one logical Executor."""
+
+    user_id: uuid.UUID
+    organization_id: uuid.UUID
+    executor_id: uuid.UUID | None
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="executor_sessions",
+    )
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.PROTECT,
+        related_name="executor_sessions",
+    )
+    executor = models.OneToOneField(
+        Executor,
+        on_delete=models.CASCADE,
+        related_name="client_session",
+        null=True,
+        blank=True,
+    )
+    token_hash = models.CharField(max_length=64, unique=True, editable=False)
+    auth_hash = models.CharField(max_length=64, editable=False)
+    computer = models.CharField(
+        max_length=128,
+        validators=[
+            RegexValidator(
+                r"^[^\x00-\x1f\x7f-\x9f]+$", "Use a single-line computer name."
+            )
+        ],
+    )
+    client_version = models.CharField(
+        max_length=64,
+        validators=[
+            RegexValidator(
+                r"^[^\x00-\x1f\x7f-\x9f]+$", "Use a single-line client version."
+            )
+        ],
+    )
+    created_at = models.DateTimeField(default=timezone.now, editable=False)
+    associated_at = models.DateTimeField(null=True, blank=True, editable=False)
+    last_seen_at = models.DateTimeField(null=True, blank=True, editable=False)
+    expires_at = models.DateTimeField(db_index=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(expires_at__gt=models.F("created_at")),
+                name="executor_session_expiry_valid",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(
+                        executor__isnull=True,
+                        associated_at__isnull=True,
+                        last_seen_at__isnull=True,
+                    )
+                    | models.Q(
+                        executor__isnull=False,
+                        associated_at__isnull=False,
+                        last_seen_at__isnull=False,
+                    )
+                ),
+                name="executor_session_state_valid",
+            ),
+        ]

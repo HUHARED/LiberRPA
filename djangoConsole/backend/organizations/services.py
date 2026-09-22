@@ -16,6 +16,7 @@ from django.views.decorators.debug import sensitive_variables
 
 from accounts.models import User, UserManager
 from console_project.config import LimitsConfig
+from executors.session_state import revoke_unqualified_executor_sessions
 from operations.policies import require_organization_creation_allowed
 
 from .models import (
@@ -383,6 +384,7 @@ def update_membership(
     )
     membership.save(update_fields=["is_org_admin", "notes"])
     _save_department_memberships(membership, listDepartmentMembership)
+    revoke_unqualified_executor_sessions(membership.user_id, organization.id)
     return membership
 
 

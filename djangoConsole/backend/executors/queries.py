@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from django.core.paginator import Paginator
 from django.db.models import QuerySet
 from django.db.models.functions import Lower
+from django.utils import timezone
 
 from organizations.department_queries import get_department_path
 from organizations.models import Department, DepartmentRole
@@ -21,7 +22,8 @@ from organizations.permissions import (
     resolve_organization_access,
 )
 
-from .models import Executor
+from .models import Executor, ExecutorSession
+from .session_state import get_current_executor_sessions
 
 _INT_EXECUTORS_PER_PAGE = 50
 
@@ -31,6 +33,7 @@ class ExecutorInfo:
     executor: Executor
     departmentPath: str
     canManage: bool
+    session: ExecutorSession | None
 
 
 @dataclass(frozen=True)
@@ -71,6 +74,9 @@ def _get_executor_info_list(
         if access.channel == AccessChannel.SESSION
         else set()
     )
+    dictSessionByExecutorId = get_current_executor_sessions(
+        access.organization.id, currentTime=timezone.now()
+    )
     return tuple(
         ExecutorInfo(
             executor=executor,
@@ -78,6 +84,7 @@ def _get_executor_info_list(
                 dictDepartmentById[executor.department_id], dictDepartmentById
             ),
             canManage=executor.department_id in setManagedDepartmentId,
+            session=dictSessionByExecutorId.get(executor.id),
         )
         for executor in executors
         # A department deleted between these reads no longer has a current display entry.
@@ -94,12 +101,18 @@ def get_executor_list(
     departmentIds: tuple[uuid.UUID, ...] = (),
     name: str = "",
     dispatchStates: tuple[bool, ...] = (),
+    availableOnly: bool = False,
 ) -> ExecutorPageInfo:
     """Filter within current visible departments; request filters never expand that scope."""
     access = resolve_organization_access(
         actorId=actorId, organizationId=organizationId, channel=channel
     )
     executorQuery = _get_executor_query(access)
+    if availableOnly:
+        occupiedIds = get_current_executor_sessions(
+            access.organization.id, currentTime=timezone.now()
+        )
+        executorQuery = executorQuery.exclude(pk__in=occupiedIds)
     if departmentIds:
         executorQuery = executorQuery.filter(department_id__in=departmentIds)
     if name:

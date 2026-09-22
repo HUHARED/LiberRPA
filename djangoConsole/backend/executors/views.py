@@ -5,14 +5,16 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Annotated, TypedDict, cast
 
+from django.conf import settings
 from django.contrib.auth import HASH_SESSION_KEY
 from django.core.exceptions import ImproperlyConfigured, PermissionDenied, ValidationError
 from django.core.paginator import InvalidPage
 from django.db import DatabaseError
 from django.http import HttpRequest, JsonResponse
+from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_variables
 from django.views.decorators.http import require_http_methods, require_POST
@@ -20,6 +22,7 @@ from pydantic import Field
 
 from accounts.models import User
 from accounts.session_revocation import SessionInvalidatedError
+from console_project.config import LimitsConfig
 from console_project.http import JsonRequest, build_error_response, parse_json_request
 from organizations.models import Department, Membership
 from organizations.permissions import AccessChannel, get_current_membership
@@ -30,6 +33,7 @@ from .services import (
     create_executor,
     delete_executor,
     set_executor_dispatch,
+    unassociate_executor,
     update_executor,
 )
 
@@ -62,6 +66,10 @@ class ExecutorDispatchRequest(JsonRequest):
 
 class ExecutorDeletionRequest(JsonRequest):
     """The URL supplies the ID; the server checks current authorization and dependencies."""
+
+
+class ExecutorUnassociateRequest(JsonRequest):
+    session_id: Annotated[uuid.UUID, Field(strict=False)]
 
 
 class ExecutorWriteContext(TypedDict):
@@ -113,6 +121,16 @@ def _build_executor_payload(executor: Executor) -> dict[str, object]:
 
 
 def _build_executor_info_payload(executorInfo: ExecutorInfo) -> dict[str, object]:
+    session = executorInfo.session
+    associationStatus = "unassociated"
+    if session is not None:
+        limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
+        offlineAt = timezone.now() - timedelta(seconds=limits.executorOfflineSeconds)
+        associationStatus = (
+            "online"
+            if session.last_seen_at is not None and session.last_seen_at > offlineAt
+            else "offline"
+        )
     return {
         **_build_executor_payload(executorInfo.executor),
         "department": {
@@ -121,6 +139,18 @@ def _build_executor_info_payload(executorInfo: ExecutorInfo) -> dict[str, object
             "path": executorInfo.departmentPath,
         },
         "can_manage": executorInfo.canManage,
+        "association_status": associationStatus,
+        "session_id": None if session is None else session.id,
+        "account": None
+        if session is None
+        else {
+            "id": session.user_id,
+            "email": session.user.email,
+            "username": session.user.username,
+        },
+        "computer": None if session is None else session.computer,
+        "version": None if session is None else session.client_version,
+        "last_seen_at": None if session is None else session.last_seen_at,
     }
 
 
@@ -132,7 +162,9 @@ def _build_executor_error_response(e: Exception) -> JsonResponse:
             )
         case PermissionDenied():
             return build_error_response(
-                "executor_access_required", "Executor access is unavailable.", statusCode=403
+                "executor_access_required",
+                "Executor access is unavailable.",
+                statusCode=403,
             )
         case Executor.DoesNotExist() | Department.DoesNotExist():
             return build_error_response(
@@ -145,10 +177,9 @@ def _build_executor_error_response(e: Exception) -> JsonResponse:
                 "invalid_page", "The requested page is unavailable.", statusCode=400
             )
         case ValidationError():
-            if getattr(e, "code", None) == "executor_count_limit":
-                return build_error_response(
-                    "executor_count_limit", e.messages[0], statusCode=409
-                )
+            errorCode = getattr(e, "code", None)
+            if errorCode in ("executor_count_limit", "executor_association_changed"):
+                return build_error_response(errorCode, e.messages[0], statusCode=409)
             hasDuplicateName = any(
                 fieldError.code == "duplicate_executor_name"
                 for listFieldError in getattr(e, "error_dict", {}).values()
@@ -158,17 +189,21 @@ def _build_executor_error_response(e: Exception) -> JsonResponse:
                 {
                     "error": {
                         "code": "duplicate_executor_name"
-                        if hasDuplicateName else "invalid_executor",
+                        if hasDuplicateName
+                        else "invalid_executor",
                         "message": "Some executor fields are invalid.",
                         "fields": e.message_dict
-                        if hasattr(e, "error_dict") else {"__all__": e.messages},
+                        if hasattr(e, "error_dict")
+                        else {"__all__": e.messages},
                     }
                 },
                 status=409 if hasDuplicateName else 400,
             )
         case _:
             return build_error_response(
-                "service_unavailable", "The service is temporarily unavailable.", statusCode=503
+                "service_unavailable",
+                "The service is temporarily unavailable.",
+                statusCode=503,
             )
 
 
@@ -216,7 +251,9 @@ def list_or_create_executors(request: HttpRequest) -> JsonResponse:
             return membership
         if request.method == "POST":
             executorRequest = parse_json_request(
-                request, ExecutorCreationRequest, maxBodyBytes=_INT_MAX_EXECUTOR_BODY_BYTES
+                request,
+                ExecutorCreationRequest,
+                maxBodyBytes=_INT_MAX_EXECUTOR_BODY_BYTES,
             )
             if isinstance(executorRequest, JsonResponse):
                 return executorRequest
@@ -226,7 +263,9 @@ def list_or_create_executors(request: HttpRequest) -> JsonResponse:
                 name=executorRequest.name,
                 notes=executorRequest.notes,
             )
-            return JsonResponse({"executor": _build_executor_payload(executor)}, status=201)
+            return JsonResponse(
+                {"executor": _build_executor_payload(executor)}, status=201
+            )
 
         parameters = _get_list_parameters(request)
         if isinstance(parameters, JsonResponse):
@@ -316,6 +355,29 @@ def delete_executor_record(request: HttpRequest, executorId: uuid.UUID) -> JsonR
             return deletionRequest
         executor = delete_executor(
             **_get_write_context(request, membership), executorId=executorId
+        )
+        return JsonResponse({"executor": _build_executor_payload(executor)})
+    except _HANDLED_ERRORS as e:
+        return _build_executor_error_response(e)
+
+
+@never_cache
+@require_POST
+@sensitive_variables()
+def unassociate_executor_record(
+    request: HttpRequest, executorId: uuid.UUID
+) -> JsonResponse:
+    try:
+        membership = _get_request_membership(request)
+        if isinstance(membership, JsonResponse):
+            return membership
+        unassociateRequest = parse_json_request(request, ExecutorUnassociateRequest)
+        if isinstance(unassociateRequest, JsonResponse):
+            return unassociateRequest
+        executor = unassociate_executor(
+            **_get_write_context(request, membership),
+            executorId=executorId,
+            expectedSessionId=unassociateRequest.session_id,
         )
         return JsonResponse({"executor": _build_executor_payload(executor)})
     except _HANDLED_ERRORS as e:

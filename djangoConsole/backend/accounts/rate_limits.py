@@ -173,6 +173,19 @@ def reserve_api_key_authentication_request(clientAddress: str) -> int:
 
 
 @sensitive_variables()
+def reserve_executor_client_request(clientAddress: str) -> int:
+    """Bound native-client authentication separately from public API and login traffic."""
+    sourceHash = _hash_client_address(clientAddress, scope="executors.client.source")
+    limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
+    _prune_expired_request_limits()
+    return _reserve_request(
+        sourceHash,
+        maxRequests=limits.executorRequestsPerSource,
+        windowSeconds=limits.executorRequestWindowSeconds,
+    )
+
+
+@sensitive_variables()
 def reserve_api_key_creation_request(clientAddress: str, *, actorId: str) -> int:
     """Limit credential creation separately; revoking a key never consumes this allowance."""
     sourceHash = _hash_client_address(

@@ -22,6 +22,7 @@ class AccessChannel(StrEnum):
 
     SESSION = "session"
     API_KEY = "api_key"
+    EXECUTOR = "executor"
 
 
 @dataclass(frozen=True)
@@ -114,7 +115,11 @@ def resolve_organization_access(
     forUpdate requires the caller's transaction and locks the organization before its member.
     Resolve again at a new operation or write boundary instead of reusing an old result.
     """
-    if channel not in (AccessChannel.SESSION, AccessChannel.API_KEY):
+    if channel not in (
+        AccessChannel.SESSION,
+        AccessChannel.API_KEY,
+        AccessChannel.EXECUTOR,
+    ):
         raise PermissionDenied("Unsupported access channel.")
 
     organization, membership = _resolve_organization_member(

@@ -12,6 +12,7 @@ from django.db import transaction
 from django.utils.crypto import constant_time_compare
 from django.views.decorators.debug import sensitive_variables
 
+from executors.session_state import revoke_user_executor_sessions
 from organizations.permissions import (
     AccessChannel,
     get_current_membership,
@@ -65,6 +66,7 @@ def revoke_other_sessions(
 
     user.session_version += 1
     user.save(update_fields=["session_version"])
+    revoke_user_executor_sessions(user.id)
     # NOTE: Independent API keys and email-change proofs must not depend on this version.
-    # TODO: Revoke Editor/Executor credentials and associations when client authentication is implemented.
+    # TODO: Revoke Editor credentials when Editor authentication is implemented.
     return user
