@@ -60,24 +60,10 @@
     // Seconds needed to restore one recipient unit.
     "emailRefillSeconds": 30,
 
-    // Account email requests use shared settings and separate counters for each flow.
+    // Resend cooldown shared by account email flows.
     // Resend cooldown: per address for registration/recovery, per organization and address for invitations, and per account for email changes.
     // Set this interval between 300 and 86400 seconds.
     "emailResendSeconds": 300,
-    // Public registration and password-recovery email requests, including suppressed requests.
-    "publicEmailRequestsPerSource": 10,
-    // Invitation and email-change requests require allowance for both the IP and initiating account.
-    "authenticatedEmailRequestsPerSource": 30,
-    "authenticatedEmailRequestsPerAccount": 10,
-    // A value of 0 for any request allowance blocks requests; fixed windows start with the first attempt.
-    "emailRequestWindowSeconds": 600,
-
-    // Email-link checks and submissions use shared settings and count per flow.
-    // Registration/invitation share one flow; password reset and email change each have their own.
-    // Both the source IP and token must have allowance; 0 blocks requests.
-    "emailTokenRequestsPerSource": 30,
-    "emailTokenRequestsPerToken": 10,
-    "emailTokenRequestWindowSeconds": 600,
 
     // Login attempts.
     // All login attempts count, including successful attempts and unknown accounts.
@@ -87,31 +73,26 @@
     // Fixed windows recover automatically; login failures do not disable an account.
     "loginRequestWindowSeconds": 600,
 
-    // Password-change attempts have separate limits from login, including failed submissions.
-    // Both the source IP and authenticated account must have allowance; 0 blocks changes.
-    "passwordChangeRequestsPerSource": 30,
-    "passwordChangeRequestsPerAccount": 10,
+    // Public registration and password-recovery email requests count separately, including suppressed requests.
+    // A value of 0 blocks both flows; fixed windows start with the first attempt.
+    "publicEmailRequestsPerSource": 10,
+    "publicEmailRequestWindowSeconds": 600,
+
+    // Sensitive actions share settings; each flow keeps separate counters.
+    // Applies to invitations, email/password changes, signing out other sessions, account deletion, and organization deletion scheduling.
+    // Both the source IP and acting account must have allowance; failed password checks also count.
+    // Account deletion targets share the actor's allowance within that flow; 0 blocks all listed actions.
     // Each counter's fixed window starts with its first request and lasts at most one day.
-    "passwordChangeRequestWindowSeconds": 600,
+    // Status checks and cancellation of organization deletion do not consume this allowance.
+    "sensitiveActionRequestsPerSource": 30,
+    "sensitiveActionRequestsPerAccount": 10,
+    "sensitiveActionRequestWindowSeconds": 600,
 
-    // Signing out other sessions has separate limits, including failed password checks.
-    // Both the source IP and authenticated account must have allowance; 0 blocks requests.
-    "sessionRevocationRequestsPerSource": 30,
-    "sessionRevocationRequestsPerAccount": 10,
-    // Each counter's fixed window starts with its first request and lasts at most one day.
-    "sessionRevocationRequestWindowSeconds": 600,
-
-    // Account deletion attempts require allowance for both the source IP and acting account.
-    // All deletion targets share the actor's allowance, including failed password checks; 0 blocks submissions.
-    "accountDeletionRequestsPerSource": 30,
-    "accountDeletionRequestsPerAccount": 10,
-    "accountDeletionRequestWindowSeconds": 600,
-
-    // Organization deletion scheduling has separate counters, including failed password checks.
-    // Both the source IP and acting account must have allowance; 0 blocks scheduling.
-    // Status checks and cancellation do not consume this allowance.
-    "organizationDeletionRequestsPerSource": 30,
-    "organizationDeletionRequestsPerAccount": 10,
-    "organizationDeletionRequestWindowSeconds": 600
+    // Email-link checks and submissions use shared settings and count per flow.
+    // Registration/invitation share one flow; password reset and email change each have their own.
+    // Both the source IP and token must have allowance; 0 blocks requests.
+    "emailTokenRequestsPerSource": 30,
+    "emailTokenRequestsPerToken": 10,
+    "emailTokenRequestWindowSeconds": 600
   }
 }

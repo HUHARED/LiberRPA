@@ -97,7 +97,7 @@ def reserve_registration_email_request(clientAddress: str) -> int:
     return _reserve_request(
         sourceHash,
         maxRequests=limits.publicEmailRequestsPerSource,
-        windowSeconds=limits.emailRequestWindowSeconds,
+        windowSeconds=limits.publicEmailRequestWindowSeconds,
     )
 
 
@@ -169,8 +169,8 @@ def reserve_password_change_request(clientAddress: str, *, actorId: str) -> int:
     _prune_expired_request_limits()
     retryAfterSeconds = _reserve_request(
         sourceHash,
-        maxRequests=limits.passwordChangeRequestsPerSource,
-        windowSeconds=limits.passwordChangeRequestWindowSeconds,
+        maxRequests=limits.sensitiveActionRequestsPerSource,
+        windowSeconds=limits.sensitiveActionRequestWindowSeconds,
     )
     if retryAfterSeconds:
         return retryAfterSeconds
@@ -180,8 +180,8 @@ def reserve_password_change_request(clientAddress: str, *, actorId: str) -> int:
     ).hexdigest()
     return _reserve_request(
         accountHash,
-        maxRequests=limits.passwordChangeRequestsPerAccount,
-        windowSeconds=limits.passwordChangeRequestWindowSeconds,
+        maxRequests=limits.sensitiveActionRequestsPerAccount,
+        windowSeconds=limits.sensitiveActionRequestWindowSeconds,
     )
 
 
@@ -195,8 +195,8 @@ def reserve_session_revocation_request(clientAddress: str, *, actorId: str) -> i
     _prune_expired_request_limits()
     retryAfterSeconds = _reserve_request(
         sourceHash,
-        maxRequests=limits.sessionRevocationRequestsPerSource,
-        windowSeconds=limits.sessionRevocationRequestWindowSeconds,
+        maxRequests=limits.sensitiveActionRequestsPerSource,
+        windowSeconds=limits.sensitiveActionRequestWindowSeconds,
     )
     if retryAfterSeconds:
         return retryAfterSeconds
@@ -206,8 +206,8 @@ def reserve_session_revocation_request(clientAddress: str, *, actorId: str) -> i
     ).hexdigest()
     return _reserve_request(
         accountHash,
-        maxRequests=limits.sessionRevocationRequestsPerAccount,
-        windowSeconds=limits.sessionRevocationRequestWindowSeconds,
+        maxRequests=limits.sensitiveActionRequestsPerAccount,
+        windowSeconds=limits.sensitiveActionRequestWindowSeconds,
     )
 
 
@@ -221,8 +221,8 @@ def reserve_account_deletion_request(clientAddress: str, *, actorId: str) -> int
     _prune_expired_request_limits()
     retryAfterSeconds = _reserve_request(
         sourceHash,
-        maxRequests=limits.accountDeletionRequestsPerSource,
-        windowSeconds=limits.accountDeletionRequestWindowSeconds,
+        maxRequests=limits.sensitiveActionRequestsPerSource,
+        windowSeconds=limits.sensitiveActionRequestWindowSeconds,
     )
     if retryAfterSeconds:
         return retryAfterSeconds
@@ -231,8 +231,8 @@ def reserve_account_deletion_request(clientAddress: str, *, actorId: str) -> int
     ).hexdigest()
     return _reserve_request(
         accountHash,
-        maxRequests=limits.accountDeletionRequestsPerAccount,
-        windowSeconds=limits.accountDeletionRequestWindowSeconds,
+        maxRequests=limits.sensitiveActionRequestsPerAccount,
+        windowSeconds=limits.sensitiveActionRequestWindowSeconds,
     )
 
 
@@ -246,8 +246,8 @@ def reserve_organization_deletion_request(clientAddress: str, *, actorId: str) -
     _prune_expired_request_limits()
     retryAfterSeconds = _reserve_request(
         sourceHash,
-        maxRequests=limits.organizationDeletionRequestsPerSource,
-        windowSeconds=limits.organizationDeletionRequestWindowSeconds,
+        maxRequests=limits.sensitiveActionRequestsPerSource,
+        windowSeconds=limits.sensitiveActionRequestWindowSeconds,
     )
     if retryAfterSeconds:
         return retryAfterSeconds
@@ -256,8 +256,8 @@ def reserve_organization_deletion_request(clientAddress: str, *, actorId: str) -
     ).hexdigest()
     return _reserve_request(
         accountHash,
-        maxRequests=limits.organizationDeletionRequestsPerAccount,
-        windowSeconds=limits.organizationDeletionRequestWindowSeconds,
+        maxRequests=limits.sensitiveActionRequestsPerAccount,
+        windowSeconds=limits.sensitiveActionRequestWindowSeconds,
     )
 
 
@@ -272,7 +272,7 @@ def reserve_password_reset_email_request(clientAddress: str) -> int:
     return _reserve_request(
         sourceHash,
         maxRequests=limits.publicEmailRequestsPerSource,
-        windowSeconds=limits.emailRequestWindowSeconds,
+        windowSeconds=limits.publicEmailRequestWindowSeconds,
     )
 
 
@@ -311,8 +311,8 @@ def reserve_email_change_email_request(clientAddress: str, *, actorId: str) -> i
     _prune_expired_request_limits()
     retryAfterSeconds = _reserve_request(
         sourceHash,
-        maxRequests=limits.authenticatedEmailRequestsPerSource,
-        windowSeconds=limits.emailRequestWindowSeconds,
+        maxRequests=limits.sensitiveActionRequestsPerSource,
+        windowSeconds=limits.sensitiveActionRequestWindowSeconds,
     )
     if retryAfterSeconds:
         return retryAfterSeconds
@@ -321,8 +321,8 @@ def reserve_email_change_email_request(clientAddress: str, *, actorId: str) -> i
     ).hexdigest()
     return _reserve_request(
         accountHash,
-        maxRequests=limits.authenticatedEmailRequestsPerAccount,
-        windowSeconds=limits.emailRequestWindowSeconds,
+        maxRequests=limits.sensitiveActionRequestsPerAccount,
+        windowSeconds=limits.sensitiveActionRequestWindowSeconds,
     )
 
 
@@ -361,8 +361,8 @@ def reserve_invitation_email_request(clientAddress: str, *, actorId: str) -> int
     _prune_expired_request_limits()
     retryAfterSeconds = _reserve_request(
         sourceHash,
-        maxRequests=limits.authenticatedEmailRequestsPerSource,
-        windowSeconds=limits.emailRequestWindowSeconds,
+        maxRequests=limits.sensitiveActionRequestsPerSource,
+        windowSeconds=limits.sensitiveActionRequestWindowSeconds,
     )
     if retryAfterSeconds:
         return retryAfterSeconds
@@ -371,6 +371,6 @@ def reserve_invitation_email_request(clientAddress: str, *, actorId: str) -> int
     ).hexdigest()
     return _reserve_request(
         accountHash,
-        maxRequests=limits.authenticatedEmailRequestsPerAccount,
-        windowSeconds=limits.emailRequestWindowSeconds,
+        maxRequests=limits.sensitiveActionRequestsPerAccount,
+        windowSeconds=limits.sensitiveActionRequestWindowSeconds,
     )

@@ -65,42 +65,27 @@ class LimitsConfig(_BaseConfig):
     emailBurstRecipients: int = Field(default=100, ge=1)
     emailRefillSeconds: int = Field(default=30, ge=1)
 
-    # Account email requests share settings while each flow keeps its own counters.
+    # Resend cooldown shared by account email flows.
     emailResendSeconds: int = Field(default=300, ge=300, le=86400)
-    publicEmailRequestsPerSource: int = Field(default=10, ge=0, le=2147483647)
-    authenticatedEmailRequestsPerSource: int = Field(default=30, ge=0, le=2147483647)
-    authenticatedEmailRequestsPerAccount: int = Field(default=10, ge=0, le=2147483647)
-    emailRequestWindowSeconds: int = Field(default=600, ge=1, le=86400)
-
-    # Email-link checks and submissions share these settings and count per flow.
-    emailTokenRequestsPerSource: int = Field(default=30, ge=0, le=2147483647)
-    emailTokenRequestsPerToken: int = Field(default=10, ge=0, le=2147483647)
-    emailTokenRequestWindowSeconds: int = Field(default=600, ge=1, le=86400)
 
     # Login attempts.
     loginRequestsPerSource: int = Field(default=30, ge=0, le=2147483647)
     loginRequestsPerAccount: int = Field(default=10, ge=0, le=2147483647)
     loginRequestWindowSeconds: int = Field(default=600, ge=1, le=86400)
 
-    # Password changes.
-    passwordChangeRequestsPerSource: int = Field(default=30, ge=0, le=2147483647)
-    passwordChangeRequestsPerAccount: int = Field(default=10, ge=0, le=2147483647)
-    passwordChangeRequestWindowSeconds: int = Field(default=600, ge=1, le=86400)
+    # Public registration and recovery email requests count separately.
+    publicEmailRequestsPerSource: int = Field(default=10, ge=0, le=2147483647)
+    publicEmailRequestWindowSeconds: int = Field(default=600, ge=1, le=86400)
 
-    # Signing out other sessions.
-    sessionRevocationRequestsPerSource: int = Field(default=30, ge=0, le=2147483647)
-    sessionRevocationRequestsPerAccount: int = Field(default=10, ge=0, le=2147483647)
-    sessionRevocationRequestWindowSeconds: int = Field(default=600, ge=1, le=86400)
+    # Invitations, email/password changes, session revocation, and account/organization deletion count per flow.
+    sensitiveActionRequestsPerSource: int = Field(default=30, ge=0, le=2147483647)
+    sensitiveActionRequestsPerAccount: int = Field(default=10, ge=0, le=2147483647)
+    sensitiveActionRequestWindowSeconds: int = Field(default=600, ge=1, le=86400)
 
-    # Account deletion by the account owner or an organization administrator.
-    accountDeletionRequestsPerSource: int = Field(default=30, ge=0, le=2147483647)
-    accountDeletionRequestsPerAccount: int = Field(default=10, ge=0, le=2147483647)
-    accountDeletionRequestWindowSeconds: int = Field(default=600, ge=1, le=86400)
-
-    # Organization deletion scheduling; cancellation does not require a password.
-    organizationDeletionRequestsPerSource: int = Field(default=30, ge=0, le=2147483647)
-    organizationDeletionRequestsPerAccount: int = Field(default=10, ge=0, le=2147483647)
-    organizationDeletionRequestWindowSeconds: int = Field(default=600, ge=1, le=86400)
+    # Email-link checks and submissions share these settings and count per flow.
+    emailTokenRequestsPerSource: int = Field(default=30, ge=0, le=2147483647)
+    emailTokenRequestsPerToken: int = Field(default=10, ge=0, le=2147483647)
+    emailTokenRequestWindowSeconds: int = Field(default=600, ge=1, le=86400)
 
 
 class SmtpConfig(_BaseConfig):
