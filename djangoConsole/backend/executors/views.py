@@ -5,30 +5,31 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import uuid
-from datetime import datetime, timedelta
-from typing import Annotated, TypedDict, cast
+from typing import Annotated, TypedDict
 
-from django.conf import settings
-from django.contrib.auth import HASH_SESSION_KEY
 from django.core.exceptions import ImproperlyConfigured, PermissionDenied, ValidationError
 from django.core.paginator import InvalidPage
 from django.db import DatabaseError
 from django.http import HttpRequest, JsonResponse
-from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_variables
 from django.views.decorators.http import require_http_methods, require_POST
 from pydantic import Field
 
-from accounts.models import User
 from accounts.session_revocation import SessionInvalidatedError
-from console_project.config import LimitsConfig
 from console_project.http import JsonRequest, build_error_response, parse_json_request
-from organizations.models import Department, Membership
-from organizations.permissions import AccessChannel, get_current_membership
+from organizations.models import Department
+from organizations.permissions import AccessChannel
 
+from .group_queries import get_executor_group_references
+from .http import (
+    build_executor_info_payload,
+    build_executor_payload,
+    get_executor_request_membership,
+    get_executor_write_context,
+)
 from .models import Executor
-from .queries import ExecutorInfo, get_executor_details, get_executor_list
+from .queries import get_executor_details, get_executor_list
 from .services import (
     create_executor,
     delete_executor,
@@ -72,86 +73,11 @@ class ExecutorUnassociateRequest(JsonRequest):
     session_id: Annotated[uuid.UUID, Field(strict=False)]
 
 
-class ExecutorWriteContext(TypedDict):
-    actorId: uuid.UUID
-    organizationId: uuid.UUID
-    channel: AccessChannel
-    sessionAuthHash: str
-    sessionExpiresAt: datetime
-
-
 class ExecutorListParameters(TypedDict):
     pageNumber: int
     departmentIds: tuple[uuid.UUID, ...]
     name: str
     dispatchStates: tuple[bool, ...]
-
-
-def _get_request_membership(request: HttpRequest) -> Membership | JsonResponse:
-    if not request.user.is_authenticated:
-        return build_error_response(
-            "authentication_required", "Sign in to continue.", statusCode=401
-        )
-    return get_current_membership(actorId=cast(User, request.user).id)
-
-
-@sensitive_variables()
-def _get_write_context(
-    request: HttpRequest, membership: Membership
-) -> ExecutorWriteContext:
-    return {
-        "actorId": membership.user_id,
-        "organizationId": membership.organization_id,
-        "channel": AccessChannel.SESSION,
-        "sessionAuthHash": request.session.get(HASH_SESSION_KEY, ""),
-        "sessionExpiresAt": request.session.get_expiry_date(),
-    }
-
-
-def _build_executor_payload(executor: Executor) -> dict[str, object]:
-    return {
-        "id": executor.id,
-        "name": executor.name,
-        "department_id": executor.department_id,
-        "notes": executor.notes,
-        "dispatch_enabled": executor.dispatch_enabled,
-        "created_at": executor.created_at,
-        "deleted_at": executor.deleted_at,
-    }
-
-
-def _build_executor_info_payload(executorInfo: ExecutorInfo) -> dict[str, object]:
-    session = executorInfo.session
-    associationStatus = "unassociated"
-    if session is not None:
-        limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
-        offlineAt = timezone.now() - timedelta(seconds=limits.executorOfflineSeconds)
-        associationStatus = (
-            "online"
-            if session.last_seen_at is not None and session.last_seen_at > offlineAt
-            else "offline"
-        )
-    return {
-        **_build_executor_payload(executorInfo.executor),
-        "department": {
-            "id": executorInfo.executor.department_id,
-            "name": executorInfo.executor.department.name,
-            "path": executorInfo.departmentPath,
-        },
-        "can_manage": executorInfo.canManage,
-        "association_status": associationStatus,
-        "session_id": None if session is None else session.id,
-        "account": None
-        if session is None
-        else {
-            "id": session.user_id,
-            "email": session.user.email,
-            "username": session.user.username,
-        },
-        "computer": None if session is None else session.computer,
-        "version": None if session is None else session.client_version,
-        "last_seen_at": None if session is None else session.last_seen_at,
-    }
 
 
 def _build_executor_error_response(e: Exception) -> JsonResponse:
@@ -178,7 +104,11 @@ def _build_executor_error_response(e: Exception) -> JsonResponse:
             )
         case ValidationError():
             errorCode = getattr(e, "code", None)
-            if errorCode in ("executor_count_limit", "executor_association_changed"):
+            if errorCode in (
+                "executor_count_limit",
+                "executor_association_changed",
+                "executor_group_reference",
+            ):
                 return build_error_response(errorCode, e.messages[0], statusCode=409)
             hasDuplicateName = any(
                 fieldError.code == "duplicate_executor_name"
@@ -246,7 +176,7 @@ def _get_list_parameters(request: HttpRequest) -> ExecutorListParameters | JsonR
 @sensitive_variables()
 def list_or_create_executors(request: HttpRequest) -> JsonResponse:
     try:
-        membership = _get_request_membership(request)
+        membership = get_executor_request_membership(request)
         if isinstance(membership, JsonResponse):
             return membership
         if request.method == "POST":
@@ -258,13 +188,13 @@ def list_or_create_executors(request: HttpRequest) -> JsonResponse:
             if isinstance(executorRequest, JsonResponse):
                 return executorRequest
             executor = create_executor(
-                **_get_write_context(request, membership),
+                **get_executor_write_context(request, membership),
                 departmentId=executorRequest.department_id,
                 name=executorRequest.name,
                 notes=executorRequest.notes,
             )
             return JsonResponse(
-                {"executor": _build_executor_payload(executor)}, status=201
+                {"executor": build_executor_payload(executor)}, status=201
             )
 
         parameters = _get_list_parameters(request)
@@ -278,7 +208,7 @@ def list_or_create_executors(request: HttpRequest) -> JsonResponse:
         )
         return JsonResponse({
             "executors": [
-                _build_executor_info_payload(entry) for entry in executorPage.executors
+                build_executor_info_payload(entry) for entry in executorPage.executors
             ],
             "page": executorPage.page,
             "page_size": executorPage.pageSize,
@@ -294,7 +224,7 @@ def list_or_create_executors(request: HttpRequest) -> JsonResponse:
 @sensitive_variables()
 def get_or_update_executor(request: HttpRequest, executorId: uuid.UUID) -> JsonResponse:
     try:
-        membership = _get_request_membership(request)
+        membership = get_executor_request_membership(request)
         if isinstance(membership, JsonResponse):
             return membership
         if request.method == "POST":
@@ -304,19 +234,27 @@ def get_or_update_executor(request: HttpRequest, executorId: uuid.UUID) -> JsonR
             if isinstance(executorRequest, JsonResponse):
                 return executorRequest
             executor = update_executor(
-                **_get_write_context(request, membership),
+                **get_executor_write_context(request, membership),
                 executorId=executorId,
                 name=executorRequest.name,
                 notes=executorRequest.notes,
             )
-            return JsonResponse({"executor": _build_executor_payload(executor)})
+            return JsonResponse({"executor": build_executor_payload(executor)})
         details = get_executor_details(
             actorId=membership.user_id,
             organizationId=membership.organization_id,
             channel=AccessChannel.SESSION,
             executorId=executorId,
         )
-        return JsonResponse({"executor": _build_executor_info_payload(details)})
+        return JsonResponse({
+            "executor": {
+                **build_executor_info_payload(details),
+                "executor_groups": [
+                    {"id": group.id, "name": group.name}
+                    for group in get_executor_group_references(details.executor)
+                ],
+            }
+        })
     except _HANDLED_ERRORS as e:
         return _build_executor_error_response(e)
 
@@ -326,18 +264,18 @@ def get_or_update_executor(request: HttpRequest, executorId: uuid.UUID) -> JsonR
 @sensitive_variables()
 def change_executor_dispatch(request: HttpRequest, executorId: uuid.UUID) -> JsonResponse:
     try:
-        membership = _get_request_membership(request)
+        membership = get_executor_request_membership(request)
         if isinstance(membership, JsonResponse):
             return membership
         dispatchRequest = parse_json_request(request, ExecutorDispatchRequest)
         if isinstance(dispatchRequest, JsonResponse):
             return dispatchRequest
         executor = set_executor_dispatch(
-            **_get_write_context(request, membership),
+            **get_executor_write_context(request, membership),
             executorId=executorId,
             dispatchEnabled=dispatchRequest.dispatch_enabled,
         )
-        return JsonResponse({"executor": _build_executor_payload(executor)})
+        return JsonResponse({"executor": build_executor_payload(executor)})
     except _HANDLED_ERRORS as e:
         return _build_executor_error_response(e)
 
@@ -347,16 +285,16 @@ def change_executor_dispatch(request: HttpRequest, executorId: uuid.UUID) -> Jso
 @sensitive_variables()
 def delete_executor_record(request: HttpRequest, executorId: uuid.UUID) -> JsonResponse:
     try:
-        membership = _get_request_membership(request)
+        membership = get_executor_request_membership(request)
         if isinstance(membership, JsonResponse):
             return membership
         deletionRequest = parse_json_request(request, ExecutorDeletionRequest)
         if isinstance(deletionRequest, JsonResponse):
             return deletionRequest
         executor = delete_executor(
-            **_get_write_context(request, membership), executorId=executorId
+            **get_executor_write_context(request, membership), executorId=executorId
         )
-        return JsonResponse({"executor": _build_executor_payload(executor)})
+        return JsonResponse({"executor": build_executor_payload(executor)})
     except _HANDLED_ERRORS as e:
         return _build_executor_error_response(e)
 
@@ -368,17 +306,17 @@ def unassociate_executor_record(
     request: HttpRequest, executorId: uuid.UUID
 ) -> JsonResponse:
     try:
-        membership = _get_request_membership(request)
+        membership = get_executor_request_membership(request)
         if isinstance(membership, JsonResponse):
             return membership
         unassociateRequest = parse_json_request(request, ExecutorUnassociateRequest)
         if isinstance(unassociateRequest, JsonResponse):
             return unassociateRequest
         executor = unassociate_executor(
-            **_get_write_context(request, membership),
+            **get_executor_write_context(request, membership),
             executorId=executorId,
             expectedSessionId=unassociateRequest.session_id,
         )
-        return JsonResponse({"executor": _build_executor_payload(executor)})
+        return JsonResponse({"executor": build_executor_payload(executor)})
     except _HANDLED_ERRORS as e:
         return _build_executor_error_response(e)

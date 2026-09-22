@@ -55,6 +55,10 @@
     // A value of 0 blocks creation; lowering the limit preserves existing records.
     "maxExecutorsPerOrganization": 20,
 
+    // Current Executor groups count, including empty groups; deleted groups do not count.
+    // A value of 0 blocks creation; lowering the limit preserves existing groups and members.
+    "maxExecutorGroupsPerOrganization": 50,
+
     // API key capacity and inactive metadata retention per account.
     // Expired and revoked keys do not consume active capacity; 0 blocks new keys.
     "maxActiveApiKeysPerAccount": 10,

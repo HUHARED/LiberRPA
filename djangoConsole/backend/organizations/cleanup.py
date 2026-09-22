@@ -13,7 +13,7 @@ from django.utils import timezone
 from django.views.decorators.debug import sensitive_variables
 
 from accounts.models import User
-from executors.models import Executor, ExecutorSession
+from executors.models import Executor, ExecutorGroup, ExecutorSession
 from notifications.models import (
     EmailDelivery,
     EmailStatus,
@@ -121,6 +121,8 @@ def complete_organization_deletion(
     MemberInvitation.objects.filter(organization_id=organizationId).delete()
     # Remove pending logins and associations before deleting their logical records.
     ExecutorSession.objects.filter(organization_id=organizationId).delete()
+    # Group deletion cascades memberships before their protected Executor references are removed.
+    ExecutorGroup.objects.filter(department__organization_id=organizationId).delete()
     # Delete current and historical Executor identities before their protected departments.
     Executor.objects.filter(department__organization_id=organizationId).delete()
     # Account deletion cascades memberships, department roles, API keys, and private recovery/change proofs.

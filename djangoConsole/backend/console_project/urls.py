@@ -40,6 +40,11 @@ from accounts.views import (
 )
 from executors.client_sessions import ExecutorClientAction
 from executors.client_views import executor_client_request, sign_in_executor
+from executors.group_views import (
+    delete_executor_group_record,
+    get_or_update_executor_group,
+    list_or_create_executor_groups,
+)
 from executors.views import (
     change_executor_dispatch,
     delete_executor_record,
@@ -249,6 +254,18 @@ urlpatterns = [
         "api/executors/<uuid:executorId>/unassociate/",
         unassociate_executor_record,
         name="executor-unassociate",
+    ),
+    # Groups retain logical members independently of client associations and online state.
+    path("api/executor-groups/", list_or_create_executor_groups, name="executor-groups"),
+    path(
+        "api/executor-groups/<uuid:groupId>/",
+        get_or_update_executor_group,
+        name="executor-group",
+    ),
+    path(
+        "api/executor-groups/<uuid:groupId>/deletion/",
+        delete_executor_group_record,
+        name="executor-group-deletion",
     ),
     # Native clients use their own account sessions, separate from cookies and API keys.
     path("api/clients/executor/login/", sign_in_executor, name="executor-client-login"),

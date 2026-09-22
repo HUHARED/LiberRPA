@@ -7,6 +7,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 import uuid
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.core.validators import (
     MaxLengthValidator,
     ProhibitNullCharactersValidator,
@@ -135,3 +136,91 @@ class ExecutorSession(models.Model):
                 name="executor_session_state_valid",
             ),
         ]
+
+
+class ExecutorGroup(models.Model):
+    """A fixed-department target whose current members are logical Executor records."""
+
+    department_id: uuid.UUID
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    department = models.ForeignKey(
+        "organizations.Department",
+        on_delete=models.PROTECT,
+        related_name="executor_groups",
+    )
+    name = models.CharField(
+        max_length=128,
+        validators=[
+            RegexValidator(
+                regex=r"^[^\x00-\x1f\x7f-\x9f]+$",
+                message="The name must not contain control characters.",
+            )
+        ],
+    )
+    notes = models.TextField(
+        blank=True,
+        default="",
+        validators=[MaxLengthValidator(2000), ProhibitNullCharactersValidator()],
+    )
+    created_at = models.DateTimeField(default=timezone.now, editable=False)
+    deleted_at = models.DateTimeField(null=True, blank=True, editable=False)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                "department",
+                Lower("name"),
+                condition=models.Q(deleted_at__isnull=True),
+                name="executor_group_name_unique",
+                violation_error_code="duplicate_executor_group_name",
+                violation_error_message="An Executor group with this name already exists in this department.",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(name=Trim("name")) & ~models.Q(name=""),
+                name="executor_group_name_valid",
+                violation_error_message="The group name must not be blank or have surrounding spaces.",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class ExecutorGroupMember(models.Model):
+    """A current group membership, independent of client credentials and online state."""
+
+    group_id: uuid.UUID
+    executor_id: uuid.UUID
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    group = models.ForeignKey(
+        ExecutorGroup, on_delete=models.CASCADE, related_name="memberships"
+    )
+    executor = models.ForeignKey(
+        Executor, on_delete=models.PROTECT, related_name="group_memberships"
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["group", "executor"], name="executor_group_member_unique"
+            ),
+        ]
+
+    def clean(self) -> None:
+        """Check a single membership; batch writes validate once under the organization lock."""
+        super().clean()
+        try:
+            group = self.group
+            executor = self.executor
+        except (ExecutorGroup.DoesNotExist, Executor.DoesNotExist):
+            return
+        if group.department_id != executor.department_id:
+            raise ValidationError({
+                "executor": "Group members must belong to the group's department."
+            })
+        if group.deleted_at is not None or executor.deleted_at is not None:
+            raise ValidationError(
+                "Deleted groups and Executors cannot have current memberships."
+            )

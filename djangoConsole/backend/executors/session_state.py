@@ -5,15 +5,17 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import uuid
-from datetime import datetime
-from typing import cast
+from datetime import datetime, timedelta
+from typing import Literal, cast
 
+from django.conf import settings
 from django.db.models import QuerySet
 from django.utils import timezone
 from django.utils.crypto import constant_time_compare
 from django.views.decorators.debug import sensitive_variables
 
 from accounts.models import User
+from console_project.config import LimitsConfig
 from organizations.models import DepartmentRole, Membership, Organization
 from organizations.permissions import (
     AccessChannel,
@@ -22,6 +24,21 @@ from organizations.permissions import (
 )
 
 from .models import Executor, ExecutorSession
+
+
+def get_executor_association_status(
+    session: ExecutorSession | None, *, currentTime: datetime
+) -> Literal["unassociated", "online", "offline"]:
+    """Describe a session already checked for validity without changing its expiry."""
+    if session is None:
+        return "unassociated"
+    limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
+    offlineAt = currentTime - timedelta(seconds=limits.executorOfflineSeconds)
+    return (
+        "online"
+        if session.last_seen_at is not None and session.last_seen_at > offlineAt
+        else "offline"
+    )
 
 
 def get_executor_sessions(organizationId: uuid.UUID) -> QuerySet[ExecutorSession]:

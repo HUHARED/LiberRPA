@@ -54,7 +54,7 @@ def _get_executor_query(access: OrganizationAccessContext) -> QuerySet[Executor]
     ).select_related("department")
 
 
-def _get_executor_info_list(
+def get_executor_info_list(
     executors: Sequence[Executor], access: OrganizationAccessContext
 ) -> tuple[ExecutorInfo, ...]:
     if not executors:
@@ -123,7 +123,7 @@ def get_executor_list(
     paginator = Paginator(executorQuery, _INT_EXECUTORS_PER_PAGE)
     executorPage = paginator.page(pageNumber)
     return ExecutorPageInfo(
-        executors=_get_executor_info_list(list(executorPage.object_list), access),
+        executors=get_executor_info_list(list(executorPage.object_list), access),
         page=executorPage.number,
         pageSize=_INT_EXECUTORS_PER_PAGE,
         totalCount=paginator.count,
@@ -142,7 +142,7 @@ def get_executor_details(
         actorId=actorId, organizationId=organizationId, channel=channel
     )
     executor = _get_executor_query(access).get(pk=executorId)
-    details = _get_executor_info_list([executor], access)
+    details = get_executor_info_list([executor], access)
     if not details:
         raise Executor.DoesNotExist
     return details[0]

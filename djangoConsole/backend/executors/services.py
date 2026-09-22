@@ -9,59 +9,21 @@ from datetime import datetime
 from typing import cast
 
 from django.conf import settings
-from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
-from django.utils.crypto import constant_time_compare
 from django.views.decorators.debug import sensitive_variables
 
-from accounts.models import User
-from accounts.session_revocation import SessionInvalidatedError
 from console_project.config import LimitsConfig
 from organizations.models import DepartmentRole
 from organizations.permissions import (
     AccessChannel,
     OrganizationAccessContext,
     get_authorized_departments,
-    resolve_organization_access,
 )
 
-from .models import Executor, ExecutorSession
-
-
-@sensitive_variables()
-def _lock_executor_access(
-    actorId: uuid.UUID,
-    organizationId: uuid.UUID,
-    channel: AccessChannel,
-    sessionAuthHash: str,
-    sessionExpiresAt: datetime,
-) -> OrganizationAccessContext:
-    if channel != AccessChannel.SESSION:
-        raise PermissionDenied("A signed-in account is required to manage executors.")
-    access = resolve_organization_access(
-        actorId=actorId, organizationId=organizationId, channel=channel, forUpdate=True
-    )
-    # Resolve again after the organization/account locks; a waiting write cannot reuse a revoked session.
-    actor = User.objects.get(pk=actorId)
-    if (
-        sessionExpiresAt <= timezone.now()
-        or not sessionAuthHash
-        or not constant_time_compare(sessionAuthHash, actor.get_session_auth_hash())
-    ):
-        raise SessionInvalidatedError("The current session is no longer valid.")
-    return access
-
-
-def _require_executor_management(
-    access: OrganizationAccessContext, departmentId: uuid.UUID
-) -> None:
-    if (
-        not get_authorized_departments(access, requiredRole=DepartmentRole.DEVELOPER)
-        .filter(pk=departmentId)
-        .exists()
-    ):
-        raise PermissionDenied("Developer access is required to manage executors.")
+from .access import lock_executor_write_access, require_executor_management
+from .models import Executor, ExecutorGroupMember, ExecutorSession
 
 
 def _get_executor_for_management(
@@ -75,7 +37,7 @@ def _get_executor_for_management(
             access, requiredRole=DepartmentRole.OPERATOR
         ),
     )
-    _require_executor_management(access, executor.department_id)
+    require_executor_management(access, executor.department_id)
     return executor
 
 
@@ -93,13 +55,13 @@ def create_executor(
     sessionExpiresAt: datetime,
 ) -> Executor:
     """Create a logical record without assigning an account or creating a machine credential."""
-    access = _lock_executor_access(
+    access = lock_executor_write_access(
         actorId, organizationId, channel, sessionAuthHash, sessionExpiresAt
     )
     department = get_authorized_departments(
         access, requiredRole=DepartmentRole.OPERATOR
     ).get(pk=departmentId)
-    _require_executor_management(access, department.id)
+    require_executor_management(access, department.id)
     executor = Executor(department=department, name=name.strip(), notes=notes)
     executor.full_clean()
     limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
@@ -133,7 +95,7 @@ def update_executor(
     sessionExpiresAt: datetime,
 ) -> Executor:
     """Save Name and Notes; department, identity, and dispatch state stay server-controlled."""
-    access = _lock_executor_access(
+    access = lock_executor_write_access(
         actorId, organizationId, channel, sessionAuthHash, sessionExpiresAt
     )
     executor = _get_executor_for_management(access, executorId)
@@ -157,7 +119,7 @@ def set_executor_dispatch(
     sessionExpiresAt: datetime,
 ) -> Executor:
     """Set the persistent dispatch switch explicitly; repeating a request never toggles it."""
-    access = _lock_executor_access(
+    access = lock_executor_write_access(
         actorId, organizationId, channel, sessionAuthHash, sessionExpiresAt
     )
     executor = _get_executor_for_management(access, executorId)
@@ -179,11 +141,18 @@ def delete_executor(
     sessionExpiresAt: datetime,
 ) -> Executor:
     """Remove a current record while retaining its identity for future historical references."""
-    access = _lock_executor_access(
+    access = lock_executor_write_access(
         actorId, organizationId, channel, sessionAuthHash, sessionExpiresAt
     )
     executor = _get_executor_for_management(access, executorId)
-    # TODO: Check Schedule/group/current-work references when those models are added.
+    if ExecutorGroupMember.objects.filter(
+        executor=executor, group__deleted_at__isnull=True
+    ).exists():
+        raise ValidationError(
+            "Remove this Executor from its groups before deleting it.",
+            code="executor_group_reference",
+        )
+    # TODO: Check Schedule/current-work references when those models are added.
     # Reference creation must share this organization lock; retained history must not block deletion.
     ExecutorSession.objects.filter(executor=executor).delete()
     executor.deleted_at = timezone.now()
@@ -204,7 +173,7 @@ def unassociate_executor(
     sessionExpiresAt: datetime,
 ) -> Executor:
     """Revoke the selected association without letting a delayed retry remove a replacement."""
-    access = _lock_executor_access(
+    access = lock_executor_write_access(
         actorId, organizationId, channel, sessionAuthHash, sessionExpiresAt
     )
     executor = _get_executor_for_management(access, executorId)
