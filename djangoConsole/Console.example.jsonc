@@ -105,6 +105,13 @@
     // All deletion targets share the actor's allowance, including failed password checks; 0 blocks submissions.
     "accountDeletionRequestsPerSource": 30,
     "accountDeletionRequestsPerAccount": 10,
-    "accountDeletionRequestWindowSeconds": 600
+    "accountDeletionRequestWindowSeconds": 600,
+
+    // Organization deletion scheduling has separate counters, including failed password checks.
+    // Both the source IP and acting account must have allowance; 0 blocks scheduling.
+    // Status checks and cancellation do not consume this allowance.
+    "organizationDeletionRequestsPerSource": 30,
+    "organizationDeletionRequestsPerAccount": 10,
+    "organizationDeletionRequestWindowSeconds": 600
   }
 }

@@ -7,10 +7,15 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 import uuid
 from datetime import timedelta
 
+from django.contrib.auth.hashers import check_password
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
+from django.utils.crypto import constant_time_compare
 from django.views.decorators.debug import sensitive_variables
+
+from accounts.models import User
+from accounts.session_revocation import SessionInvalidatedError
 
 from .models import Organization
 from .permissions import (
@@ -23,6 +28,15 @@ _ORGANIZATION_DELETION_DELAY = timedelta(days=7)
 
 
 @sensitive_variables()
+def _require_current_session(actor: User, sessionAuthHash: str) -> None:
+    """Check the initiating session against the account locked for this transition."""
+    if not sessionAuthHash or not constant_time_compare(
+        sessionAuthHash, actor.get_session_auth_hash()
+    ):
+        raise SessionInvalidatedError("The current session is no longer valid.")
+
+
+@sensitive_variables()
 @transaction.atomic
 def schedule_organization_deletion(
     *,
@@ -30,15 +44,17 @@ def schedule_organization_deletion(
     organizationId: uuid.UUID,
     channel: AccessChannel,
     currentPassword: str,
+    sessionAuthHash: str,
 ) -> Organization:
     """Freeze an available organization after verifying the current administrator's password.
 
-    actorId and channel come from verified credentials, never from the request body.
+    actorId, channel, and sessionAuthHash come from verified server-side authentication.
     This operation schedules cleanup without deleting accounts or organization resources.
     """
     organization, actor = lock_organization_for_deletion(
         actorId=actorId, organizationId=organizationId, channel=channel
     )
+    _require_current_session(actor, sessionAuthHash)
     if organization.deletion_started_at is not None:
         raise ValidationError(
             "Organization deletion is already in progress.", code="deletion_in_progress"
@@ -50,8 +66,8 @@ def schedule_organization_deletion(
         )
     require_organization_business_available(organization)
 
-    # Reuse the account locked during authorization, including its current password hash.
-    if not actor.check_password(currentPassword):
+    # Verify without a hash-upgrade setter so existing sessions remain available for cancellation.
+    if not check_password(currentPassword, actor.password):
         raise ValidationError({
             "current_password": ValidationError(
                 "The current password is incorrect.", code="incorrect_password"
@@ -66,18 +82,24 @@ def schedule_organization_deletion(
     return organization
 
 
+@sensitive_variables()
 @transaction.atomic
 def cancel_organization_deletion(
-    *, actorId: uuid.UUID, organizationId: uuid.UUID, channel: AccessChannel
+    *,
+    actorId: uuid.UUID,
+    organizationId: uuid.UUID,
+    channel: AccessChannel,
+    sessionAuthHash: str,
 ) -> Organization:
     """Allow any current active administrator to cancel before cleanup actually starts.
 
     No password is required, and an independent service suspension remains in place.
     A future cleanup worker must take the same organization lock before marking its start.
     """
-    organization, _ = lock_organization_for_deletion(
+    organization, actor = lock_organization_for_deletion(
         actorId=actorId, organizationId=organizationId, channel=channel
     )
+    _require_current_session(actor, sessionAuthHash)
     if organization.deletion_started_at is not None:
         raise ValidationError(
             "Organization deletion can no longer be canceled.",

@@ -97,6 +97,11 @@ class LimitsConfig(_BaseConfig):
     accountDeletionRequestsPerAccount: int = Field(default=10, ge=0, le=2147483647)
     accountDeletionRequestWindowSeconds: int = Field(default=600, ge=1, le=86400)
 
+    # Organization deletion scheduling; cancellation does not require a password.
+    organizationDeletionRequestsPerSource: int = Field(default=30, ge=0, le=2147483647)
+    organizationDeletionRequestsPerAccount: int = Field(default=10, ge=0, le=2147483647)
+    organizationDeletionRequestWindowSeconds: int = Field(default=600, ge=1, le=86400)
+
 
 class SmtpConfig(_BaseConfig):
     host: SingleLineText

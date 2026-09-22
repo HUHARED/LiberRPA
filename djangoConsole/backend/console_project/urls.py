@@ -44,6 +44,10 @@ from organizations.invitation_views import (
     list_or_create_invitations,
     resend_or_revoke_invitation,
 )
+from organizations.lifecycle_views import (
+    cancel_scheduled_organization_deletion,
+    get_or_schedule_organization_deletion,
+)
 from organizations.member_views import get_or_update_member, list_members
 from organizations.views import get_or_update_organization_settings
 
@@ -126,11 +130,21 @@ urlpatterns = [
         complete_invited_registration,
         name="invitation-complete",
     ),
-    # Manage organization settings, departments, members, and invitations.
+    # Manage organization settings, deletion, departments, members, and invitations.
     path(
         "api/organization/settings/",
         get_or_update_organization_settings,
         name="organization-settings",
+    ),
+    path(
+        "api/organization/deletion/",
+        get_or_schedule_organization_deletion,
+        name="organization-deletion",
+    ),
+    path(
+        "api/organization/deletion/cancel/",
+        cancel_scheduled_organization_deletion,
+        name="organization-deletion-cancel",
     ),
     path(
         "api/organization/departments/",

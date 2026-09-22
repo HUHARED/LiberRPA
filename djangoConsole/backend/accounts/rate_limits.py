@@ -237,6 +237,31 @@ def reserve_account_deletion_request(clientAddress: str, *, actorId: str) -> int
 
 
 @sensitive_variables()
+def reserve_organization_deletion_request(clientAddress: str, *, actorId: str) -> int:
+    """Limit password checks for scheduling organization deletion; cancellation stays available."""
+    sourceHash = _hash_client_address(
+        clientAddress, scope="organizations.deletion.source"
+    )
+    limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
+    _prune_expired_request_limits()
+    retryAfterSeconds = _reserve_request(
+        sourceHash,
+        maxRequests=limits.organizationDeletionRequestsPerSource,
+        windowSeconds=limits.organizationDeletionRequestWindowSeconds,
+    )
+    if retryAfterSeconds:
+        return retryAfterSeconds
+    accountHash = salted_hmac(
+        "organizations.deletion.actor", actorId, algorithm="sha256"
+    ).hexdigest()
+    return _reserve_request(
+        accountHash,
+        maxRequests=limits.organizationDeletionRequestsPerAccount,
+        windowSeconds=limits.organizationDeletionRequestWindowSeconds,
+    )
+
+
+@sensitive_variables()
 def reserve_password_reset_email_request(clientAddress: str) -> int:
     """Count all recovery-email requests, including unknown and suppressed addresses."""
     sourceHash = _hash_client_address(
