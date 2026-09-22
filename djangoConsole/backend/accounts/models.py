@@ -7,7 +7,11 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 import uuid
 
 from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
-from django.core.validators import ProhibitNullCharactersValidator
+from django.core.validators import (
+    MaxLengthValidator,
+    ProhibitNullCharactersValidator,
+    RegexValidator,
+)
 from django.db import models
 from django.db.models.functions import Lower, Trim
 from django.utils import timezone
@@ -99,6 +103,48 @@ class User(AbstractBaseUser):
             secret=secret,
             algorithm="sha256",
         ).hexdigest()
+
+
+class ApiKeyStatus(models.TextChoices):
+    ACTIVE = "active", "Active"
+    EXPIRED = "expired", "Expired"
+    REVOKED = "revoked", "Revoked"
+
+
+class ApiKey(models.Model):
+    """Independent account credential; permissions are resolved from current membership."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user_id: uuid.UUID
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="api_keys")
+    name = models.CharField(
+        max_length=100,
+        validators=[RegexValidator(r"^[^\x00-\x1f\x7f]+$", "Enter a single-line name.")],
+    )
+    token_hash = models.CharField(max_length=64, unique=True, editable=False)
+    notes = models.TextField(
+        blank=True,
+        default="",
+        validators=[MaxLengthValidator(2000), ProhibitNullCharactersValidator()],
+    )
+    created_at = models.DateTimeField(default=timezone.now, editable=False)
+    expires_at = models.DateTimeField(db_index=True)
+    last_used_at = models.DateTimeField(null=True, blank=True, editable=False)
+    revoked_at = models.DateTimeField(null=True, blank=True, editable=False)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["user", "expires_at"], name="api_key_user_expiry_idx"),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(expires_at__gt=models.F("created_at")),
+                name="api_key_expiry_after_creation",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return self.name
 
 
 class RegistrationToken(models.Model):

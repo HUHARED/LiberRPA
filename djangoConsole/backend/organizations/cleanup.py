@@ -118,7 +118,7 @@ def complete_organization_deletion(
     )
     deliveries.update(invitation=None)
     MemberInvitation.objects.filter(organization_id=organizationId).delete()
-    # Account deletion cascades memberships, department roles, and private recovery/change proofs.
+    # Account deletion cascades memberships, department roles, API keys, and private recovery/change proofs.
     User.objects.filter(pk__in=[userId for userId, _email in listAccount]).delete()
     _delete_organization_departments(organizationId)
     # TODO: Add cleanup for future resource models and stored files; queue completion notices only after every cleanup stage succeeds.

@@ -16,6 +16,7 @@ from organizations.permissions import (
     resolve_organization_access,
 )
 
+from .api_keys import revoke_active_api_keys
 from .models import User
 from .passwords import validate_new_password
 
@@ -61,5 +62,6 @@ def change_password(
     user.set_password(newPassword)
     # NOTE: Django rejects old web sessions when their stored authentication hash no longer matches.
     user.save(update_fields=["password"])
+    revoke_active_api_keys(userId=user.id)
     # NOTE: Email-change proofs are bound to the old password hash and are now invalid.
-    # TODO: Revoke client credentials and active API keys when those models are added.
+    # TODO: Revoke client credentials when client authentication is implemented.

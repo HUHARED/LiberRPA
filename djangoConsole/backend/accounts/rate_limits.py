@@ -157,6 +157,31 @@ def reserve_login_request(clientAddress: str, *, normalizedEmail: str) -> int:
 
 
 @sensitive_variables()
+def reserve_api_key_creation_request(clientAddress: str, *, actorId: str) -> int:
+    """Limit credential creation separately; revoking a key never consumes this allowance."""
+    sourceHash = _hash_client_address(
+        clientAddress, scope="accounts.api_key_creation.source"
+    )
+    limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
+    _prune_expired_request_limits()
+    retryAfterSeconds = _reserve_request(
+        sourceHash,
+        maxRequests=limits.sensitiveActionRequestsPerSource,
+        windowSeconds=limits.sensitiveActionRequestWindowSeconds,
+    )
+    if retryAfterSeconds:
+        return retryAfterSeconds
+    accountHash = salted_hmac(
+        "accounts.api_key_creation.actor", actorId, algorithm="sha256"
+    ).hexdigest()
+    return _reserve_request(
+        accountHash,
+        maxRequests=limits.sensitiveActionRequestsPerAccount,
+        windowSeconds=limits.sensitiveActionRequestWindowSeconds,
+    )
+
+
+@sensitive_variables()
 def reserve_password_change_request(clientAddress: str, *, actorId: str) -> int:
     """Limit signed-in password changes by source IP and the authenticated account ID.
 

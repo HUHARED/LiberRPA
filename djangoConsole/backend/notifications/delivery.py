@@ -135,49 +135,62 @@ def prepare_email(deliveryId: uuid.UUID) -> EmailPreparationResult:
             retryAt=retryAt,
         )
 
-    if delivery.email_type == EmailType.ORGANIZATION_REGISTRATION:
-        try:
-            registrationTokenDeliveryInfo = issue_registration_token(delivery.recipient)
-        except PermissionDenied:
-            return _mark_email_not_sent(
-                delivery, reasonCode="organization_creation_disabled"
-            )
-        if registrationTokenDeliveryInfo is None:
-            return _mark_email_not_sent(delivery, reasonCode="registration_not_eligible")
-        emailMessage = build_registration_email(registrationTokenDeliveryInfo)
-    elif delivery.email_type == EmailType.MEMBER_INVITATION:
-        try:
-            invitationDeliveryInfo = issue_invitation_token(delivery)
-        except PermissionDenied:
-            return _mark_email_not_sent(delivery, reasonCode="organization_unavailable")
-        except InvitationConflictError as e:
-            return _mark_email_not_sent(delivery, reasonCode=e.errorCode)
-        except (ValidationError, MemberInvitation.DoesNotExist):
-            return _mark_email_not_sent(delivery, reasonCode="invitation_not_eligible")
-        if invitationDeliveryInfo is None:
-            return _mark_email_not_sent(delivery, reasonCode="invitation_superseded")
-        emailMessage = build_invitation_email(invitationDeliveryInfo)
-    elif delivery.email_type == EmailType.PASSWORD_RESET:
-        resetDeliveryInfo = issue_password_reset_token(delivery)
-        if resetDeliveryInfo is None:
-            return _mark_email_not_sent(
-                delivery, reasonCode="password_reset_not_eligible"
-            )
-        emailMessage = build_password_reset_email(resetDeliveryInfo)
-    elif delivery.email_type == EmailType.EMAIL_CHANGE_VERIFICATION:
-        changeDeliveryInfo = issue_email_change_token(delivery)
-        if changeDeliveryInfo is None:
-            return _mark_email_not_sent(delivery, reasonCode="email_change_not_eligible")
-        emailMessage = build_email_change_verification(changeDeliveryInfo)
-    elif delivery.email_type == EmailType.EMAIL_CHANGE_NOTICE:
-        emailMessage = build_email_change_notice(delivery)
-    elif delivery.email_type == EmailType.ORGANIZATION_DELETION_NOTICE:
-        try:
-            emailMessage = build_organization_deletion_notice(delivery)
-        except OrganizationDeletionNotice.DoesNotExist:
-            return _mark_email_not_sent(delivery, reasonCode="deletion_notice_missing")
-    else:
-        raise ValueError("Unsupported email type.")
+    match delivery.email_type:
+        case EmailType.ORGANIZATION_REGISTRATION:
+            try:
+                registrationTokenDeliveryInfo = issue_registration_token(
+                    delivery.recipient
+                )
+            except PermissionDenied:
+                return _mark_email_not_sent(
+                    delivery, reasonCode="organization_creation_disabled"
+                )
+            if registrationTokenDeliveryInfo is None:
+                return _mark_email_not_sent(
+                    delivery, reasonCode="registration_not_eligible"
+                )
+            emailMessage = build_registration_email(registrationTokenDeliveryInfo)
+        case EmailType.MEMBER_INVITATION:
+            try:
+                invitationDeliveryInfo = issue_invitation_token(delivery)
+            except PermissionDenied:
+                return _mark_email_not_sent(
+                    delivery, reasonCode="organization_unavailable"
+                )
+            except InvitationConflictError as e:
+                return _mark_email_not_sent(delivery, reasonCode=e.errorCode)
+            except (ValidationError, MemberInvitation.DoesNotExist):
+                return _mark_email_not_sent(
+                    delivery, reasonCode="invitation_not_eligible"
+                )
+            if invitationDeliveryInfo is None:
+                return _mark_email_not_sent(delivery, reasonCode="invitation_superseded")
+            emailMessage = build_invitation_email(invitationDeliveryInfo)
+        case EmailType.PASSWORD_RESET:
+            resetDeliveryInfo = issue_password_reset_token(delivery)
+            if resetDeliveryInfo is None:
+                return _mark_email_not_sent(
+                    delivery, reasonCode="password_reset_not_eligible"
+                )
+            emailMessage = build_password_reset_email(resetDeliveryInfo)
+        case EmailType.EMAIL_CHANGE_VERIFICATION:
+            changeDeliveryInfo = issue_email_change_token(delivery)
+            if changeDeliveryInfo is None:
+                return _mark_email_not_sent(
+                    delivery, reasonCode="email_change_not_eligible"
+                )
+            emailMessage = build_email_change_verification(changeDeliveryInfo)
+        case EmailType.EMAIL_CHANGE_NOTICE:
+            emailMessage = build_email_change_notice(delivery)
+        case EmailType.ORGANIZATION_DELETION_NOTICE:
+            try:
+                emailMessage = build_organization_deletion_notice(delivery)
+            except OrganizationDeletionNotice.DoesNotExist:
+                return _mark_email_not_sent(
+                    delivery, reasonCode="deletion_notice_missing"
+                )
+        case _:
+            raise ValueError("Unsupported email type.")
     attemptedAt = timezone.now()
     # The dispatch lock prevents other reservations while token or policy locks are awaited.
     # Budget usage cannot grow here; refresh only the rate allowance and attempt timestamp.

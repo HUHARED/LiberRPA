@@ -133,8 +133,8 @@ def delete_account(
             code="last_org_admin",
         )
 
-    # Cascade membership, explicit department roles, and private email proofs; retain organization resources and delivery history.
+    # Cascade membership, explicit department roles, API keys, and private email proofs; retain organization resources and delivery history.
     target = cast(User, membership.user)
     target.delete()
     # Django rejects old web sessions because their User ID no longer resolves.
-    # TODO: Revoke client credentials and API keys and clear client associations when their models are added.
+    # TODO: Revoke client credentials and clear client associations when their models are added.

@@ -51,6 +51,14 @@
     // Top-level departments have depth 1.
     "maxDepartmentDepth": 5,
 
+    // API key capacity and inactive metadata retention per account.
+    // Expired and revoked keys do not consume active capacity; 0 blocks new keys.
+    "maxActiveApiKeysPerAccount": 10,
+    // Retain inactive records within both limits; editing Notes never extends retention.
+    // A value of 0 disables inactive metadata retention.
+    "inactiveApiKeyRetentionDays": 30,
+    "maxInactiveApiKeysPerAccount": 100,
+
     // SMTP delivery budget and rate.
     // All SMTP attempts count toward this rolling budget, including failed attempts.
     // A budget of 0 prevents new attempts.
@@ -79,11 +87,12 @@
     "publicEmailRequestWindowSeconds": 600,
 
     // Sensitive actions share settings; each flow keeps separate counters.
-    // Applies to invitations, email/password changes, signing out other sessions, account deletion, and organization deletion scheduling.
+    // Applies to invitations, email/password changes, signing out other sessions, API key creation, account deletion, and organization deletion scheduling.
     // Both the source IP and acting account must have allowance; failed password checks also count.
     // Account deletion targets share the actor's allowance within that flow; 0 blocks all listed actions.
     // Each counter's fixed window starts with its first request and lasts at most one day.
     // Status checks and cancellation of organization deletion do not consume this allowance.
+    // API key revocation and Notes editing do not consume this allowance.
     "sensitiveActionRequestsPerSource": 30,
     "sensitiveActionRequestsPerAccount": 10,
     "sensitiveActionRequestWindowSeconds": 600,

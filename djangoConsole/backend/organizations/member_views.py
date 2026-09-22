@@ -228,7 +228,7 @@ def get_or_update_member(request: HttpRequest, userId: uuid.UUID) -> JsonRespons
             channel=AccessChannel.SESSION,
             userId=userId,
         )
-        # TODO: Add member API key metadata when API key management is implemented.
+        # API key metadata is loaded separately through the member's api-keys endpoint.
         return JsonResponse({"member": _build_member_payload(memberInfo)})
     except ValidationError as e:
         return _build_membership_validation_response(e)

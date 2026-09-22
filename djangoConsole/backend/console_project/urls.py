@@ -7,6 +7,11 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 from django.urls import path
 
 from accounts.account_deletion_views import get_or_delete_account
+from accounts.api_key_views import (
+    edit_api_key_notes,
+    list_or_create_api_keys,
+    revoke_account_api_key,
+)
 from accounts.email_change_views import (
     check_email_change_link,
     confirm_account_email_change,
@@ -63,6 +68,17 @@ urlpatterns = [
     path("api/auth/session/", get_current_session, name="auth-session"),
     path("api/auth/access/", get_current_access, name="auth-access"),
     path("api/auth/profile/", get_or_update_profile, name="auth-profile"),
+    path("api/auth/api-keys/", list_or_create_api_keys, name="auth-api-keys"),
+    path(
+        "api/auth/api-keys/<uuid:apiKeyId>/",
+        edit_api_key_notes,
+        name="auth-api-key-notes",
+    ),
+    path(
+        "api/auth/api-keys/<uuid:apiKeyId>/revoke/",
+        revoke_account_api_key,
+        name="auth-api-key-revoke",
+    ),
     path(
         "api/auth/account/deletion/",
         get_or_delete_account,
@@ -171,6 +187,16 @@ urlpatterns = [
         "api/organization/members/<uuid:userId>/deletion/",
         get_or_delete_account,
         name="organization-member-deletion",
+    ),
+    path(
+        "api/organization/members/<uuid:userId>/api-keys/",
+        list_or_create_api_keys,
+        name="organization-member-api-keys",
+    ),
+    path(
+        "api/organization/members/<uuid:userId>/api-keys/<uuid:apiKeyId>/revoke/",
+        revoke_account_api_key,
+        name="organization-member-api-key-revoke",
     ),
     path(
         "api/organization/invitations/",

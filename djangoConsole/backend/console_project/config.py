@@ -60,6 +60,11 @@ class LimitsConfig(_BaseConfig):
     maxDepartmentsPerOrganization: int = Field(default=20, ge=0)
     maxDepartmentDepth: int = Field(default=5, ge=1)
 
+    # API key capacity and inactive metadata retention per account.
+    maxActiveApiKeysPerAccount: int = Field(default=10, ge=0)
+    inactiveApiKeyRetentionDays: int = Field(default=30, ge=0, le=3650)
+    maxInactiveApiKeysPerAccount: int = Field(default=100, ge=0)
+
     # SMTP delivery budget and rate.
     maxEmailRecipientsPer24Hours: int = Field(default=2500, ge=0)
     emailBurstRecipients: int = Field(default=100, ge=1)
@@ -77,7 +82,7 @@ class LimitsConfig(_BaseConfig):
     publicEmailRequestsPerSource: int = Field(default=10, ge=0, le=2147483647)
     publicEmailRequestWindowSeconds: int = Field(default=600, ge=1, le=86400)
 
-    # Invitations, email/password changes, session revocation, and account/organization deletion count per flow.
+    # Invitations, account security actions, API key creation, and organization deletion count per flow.
     sensitiveActionRequestsPerSource: int = Field(default=30, ge=0, le=2147483647)
     sensitiveActionRequestsPerAccount: int = Field(default=10, ge=0, le=2147483647)
     sensitiveActionRequestWindowSeconds: int = Field(default=600, ge=1, le=86400)

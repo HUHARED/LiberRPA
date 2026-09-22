@@ -25,6 +25,7 @@ from organizations.permissions import (
     lock_account_for_password_reset,
 )
 
+from .api_keys import revoke_active_api_keys
 from .models import PasswordResetRequest, User, UserManager
 from .passwords import validate_new_password
 
@@ -252,7 +253,8 @@ def complete_password_reset(*, token: str, newPassword: str) -> User:
     # Password hashing or a lock wait may have crossed the link's expiry boundary.
     _require_reset_token_unexpired(resetRequest)
     user.save(update_fields=["password"])
+    revoke_active_api_keys(userId=user.id)
     resetRequest.delete()
     # NOTE: Email-change proofs are bound to the old password hash and are now invalid.
-    # TODO: Revoke client credentials and active API keys when those models are added.
+    # TODO: Revoke client credentials when client authentication is implemented.
     return user
