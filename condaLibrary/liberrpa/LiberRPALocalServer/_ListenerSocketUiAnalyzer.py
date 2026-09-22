@@ -525,6 +525,8 @@ def handle_uianalyzer_command(message: object) -> None:
                                 boolSuccess=True,
                                 resultData=tupleEleTreeUia,
                             )
+                        finally:
+                            Log.debug("Get UIA Element Tree Done.")
 
                     elif strOperationName == "indicate_chrome":
                         Log.debug("Get HTML Element Tree.")
@@ -570,6 +572,8 @@ def handle_uianalyzer_command(message: object) -> None:
                                     boolSuccess=True,
                                     resultData=tupleEleTree,
                                 )
+                            finally:
+                                Log.debug("Get UIA Element Tree Done.")
             except _UiAnalyzer.UiAnalyzerOperationCanceledError:
                 boolOperationCanceled = True
             except Exception as e:
