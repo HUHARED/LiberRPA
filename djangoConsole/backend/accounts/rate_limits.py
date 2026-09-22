@@ -157,6 +157,22 @@ def reserve_login_request(clientAddress: str, *, normalizedEmail: str) -> int:
 
 
 @sensitive_variables()
+def reserve_api_key_authentication_request(clientAddress: str) -> int:
+    """Bound Bearer authentication work by source, shared across keys and failed attempts."""
+    sourceHash = _hash_client_address(
+        clientAddress, scope="accounts.api_key_authentication.source"
+    )
+    limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
+    _prune_expired_request_limits()
+    # TODO: Business endpoints must also share organization budgets with web and client requests.
+    return _reserve_request(
+        sourceHash,
+        maxRequests=limits.apiKeyRequestsPerSource,
+        windowSeconds=limits.apiKeyRequestWindowSeconds,
+    )
+
+
+@sensitive_variables()
 def reserve_api_key_creation_request(clientAddress: str, *, actorId: str) -> int:
     """Limit credential creation separately; revoking a key never consumes this allowance."""
     sourceHash = _hash_client_address(

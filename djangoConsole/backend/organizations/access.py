@@ -35,7 +35,7 @@ class DepartmentAccessInfo:
     id: uuid.UUID
     name: str
     path: str
-    # OrgAdmin access is organization-wide, so its department role is None.
+    # A web OrgAdmin has no department role; an API key always has the Operator role.
     role: DepartmentRole | None
 
 
@@ -49,14 +49,19 @@ class AccountAccessInfo:
     departments: tuple[DepartmentAccessInfo, ...]
 
 
-def _get_department_access_info(
+def get_department_access_info(
     access: OrganizationAccessContext,
 ) -> tuple[DepartmentAccessInfo, ...]:
+    """Describe current department scope with the credential's effective roles."""
     departmentQuery = get_authorized_departments(
         access, requiredRole=DepartmentRole.OPERATOR
     )
     dictRoleByDepartmentId: dict[uuid.UUID, DepartmentRole | None]
-    if access.isOrgAdmin:
+    if access.channel == AccessChannel.API_KEY:
+        dictRoleByDepartmentId = dict.fromkeys(
+            departmentQuery.values_list("id", flat=True), DepartmentRole.OPERATOR
+        )
+    elif access.isOrgAdmin:
         dictRoleByDepartmentId = dict.fromkeys(
             departmentQuery.values_list("id", flat=True)
         )
@@ -116,7 +121,7 @@ def get_account_access_info(*, actorId: uuid.UUID) -> AccountAccessInfo:
             isOrgAdmin=membership.is_org_admin,
             channel=AccessChannel.SESSION,
         )
-        departmentAccessEntries = _get_department_access_info(access)
+        departmentAccessEntries = get_department_access_info(access)
 
     return AccountAccessInfo(
         organization=OrganizationInfo(

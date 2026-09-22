@@ -24,6 +24,7 @@ from accounts.password_reset_views import (
 )
 from accounts.password_views import change_account_password
 from accounts.profile_views import get_or_update_profile
+from accounts.public_api_views import get_api_key_access
 from accounts.session_views import (
     get_current_access,
     get_current_session,
@@ -62,6 +63,8 @@ urlpatterns = [
     # Check application and database health.
     path("api/health/live/", check_liveness, name="health-live"),
     path("api/health/database/", check_database, name="health-database"),
+    # Public integration endpoints use API keys and never establish a web session.
+    path("api/v1/access/", get_api_key_access, name="api-v1-access"),
     # Authenticate accounts and manage sessions, profiles, and registration.
     path("api/auth/csrf/", get_csrf_token, name="auth-csrf"),
     path("api/auth/login/", sign_in, name="auth-login"),

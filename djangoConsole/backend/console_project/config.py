@@ -78,6 +78,10 @@ class LimitsConfig(_BaseConfig):
     loginRequestsPerAccount: int = Field(default=10, ge=0, le=2147483647)
     loginRequestWindowSeconds: int = Field(default=600, ge=1, le=86400)
 
+    # Bearer authentication, independent of interactive login and credential creation.
+    apiKeyRequestsPerSource: int = Field(default=2400, ge=0, le=2147483647)
+    apiKeyRequestWindowSeconds: int = Field(default=60, ge=1, le=86400)
+
     # Public registration and recovery email requests count separately.
     publicEmailRequestsPerSource: int = Field(default=10, ge=0, le=2147483647)
     publicEmailRequestWindowSeconds: int = Field(default=600, ge=1, le=86400)

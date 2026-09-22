@@ -81,6 +81,12 @@
     // Fixed windows recover automatically; login failures do not disable an account.
     "loginRequestWindowSeconds": 600,
 
+    // Bearer authentication attempts share one source-IP allowance across all keys.
+    // Successful, malformed, and unknown credentials count; 0 blocks Bearer requests.
+    // This source guard is separate from organization business budgets and interactive login.
+    "apiKeyRequestsPerSource": 2400,
+    "apiKeyRequestWindowSeconds": 60,
+
     // Public registration and password-recovery email requests count separately, including suppressed requests.
     // A value of 0 blocks both flows; fixed windows start with the first attempt.
     "publicEmailRequestsPerSource": 10,
