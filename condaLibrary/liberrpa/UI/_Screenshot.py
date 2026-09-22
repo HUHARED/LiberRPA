@@ -15,7 +15,7 @@ from PyQt5 import QtWidgets, QtCore, QtGui
 import os
 import sys
 import subprocess
-from threading import Event
+from threading import Event, Lock
 from time import monotonic
 from typing import overload, Literal, cast, Any
 
@@ -25,6 +25,49 @@ SELECTED_KEYWORD = "Save completed!"
 _INDICATE_TIMEOUT_SECONDS = 15
 _SUBPROCESS_POLL_INTERVAL_SECONDS = 0.1
 _SUBPROCESS_STOP_TIMEOUT_SECONDS = 2
+
+_QT_NON_MAIN_THREAD_WARNING = "QApplication was not created in the main() thread."
+_qtAppCreateLock = Lock()
+
+
+def _get_qt_app() -> QtWidgets.QApplication:
+    qtApp = cast(
+        QtWidgets.QApplication | None,
+        QtWidgets.QApplication.instance(),
+    )
+    if qtApp is not None:
+        return qtApp
+
+    with _qtAppCreateLock:
+        # Check again after acquiring the lock because another thread may have created QApplication while this thread was waiting.
+        qtApp = cast(
+            QtWidgets.QApplication | None,
+            QtWidgets.QApplication.instance(),
+        )
+        if qtApp is not None:
+            return qtApp
+
+        previousHandler = None
+
+        def qt_message_handler(
+            messageType: QtCore.QtMsgType,
+            context: QtCore.QMessageLogContext,
+            message: str,
+        ) -> None:
+            if message.endswith(_QT_NON_MAIN_THREAD_WARNING):
+                return
+
+            if previousHandler is not None:
+                previousHandler(messageType, context, message)
+            else:
+                print(message, file=sys.stderr)
+
+        previousHandler = QtCore.qInstallMessageHandler(qt_message_handler)
+
+        try:
+            return QtWidgets.QApplication([])
+        finally:
+            QtCore.qInstallMessageHandler(previousHandler)
 
 
 class ScreenshotCapture(QtWidgets.QWidget):
@@ -112,9 +155,7 @@ def capture_all_screen(needImage: bool = False) -> tuple[QtGui.QPixmap | None, i
     """
 
     # Create qtApp in the current process.
-    qtApp = QtWidgets.QApplication.instance()
-    if not qtApp:
-        qtApp = QtWidgets.QApplication([])
+    _ = _get_qt_app()
 
     screens: list[QtGui.QScreen] = QtWidgets.QApplication.screens()
     if not screens:
@@ -176,9 +217,7 @@ def capture_all_screen(needImage: bool = False) -> tuple[QtGui.QPixmap | None, i
 
 def _create_screenshot_manually() -> None:
     print("create_screenshot_manually start.")
-    qtApp = QtWidgets.QApplication.instance()
-    if not qtApp:
-        qtApp = QtWidgets.QApplication([])
+    qtApp = _get_qt_app()
 
     # Create the screenshot capture window
     captureWindow = ScreenshotCapture()
