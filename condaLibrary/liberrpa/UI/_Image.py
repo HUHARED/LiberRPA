@@ -24,6 +24,7 @@ from liberrpa.UI._Screenshot import (
 )
 
 import pyautogui
+import pyscreeze
 import os
 from typing import cast
 
@@ -126,13 +127,15 @@ def find_image(
         ]
         Log.debug(f"Found {len(listMatches)} matched images.")
 
-    except pyautogui.ImageNotFoundException:
-        # PyAutoGUI may represent an ordinary no-match either as an empty generator or this exception.
+    except (pyautogui.ImageNotFoundException, pyscreeze.ImageNotFoundException):
+        # locateAll() returns a generator.
+        # PyScreeze can raise its own no-match exception during iteration, outside PyAutoGUI's exception wrapper.
+        # Keep ordinary no-match results consistent with an empty generator.
         return []
 
     except Exception as e:
         raise UiOperationError(
-            "Failed to search for the image on the current screenshot."
+            f"Failed to search for the image on the current screenshot., fileNameOrPath: '{fileNameOrPath}'"
         ) from e
 
     return listMatches
