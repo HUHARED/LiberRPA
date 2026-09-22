@@ -255,5 +255,6 @@ def complete_password_reset(*, token: str, newPassword: str) -> User:
     _require_reset_token_unexpired(resetRequest)
     user.save(update_fields=["password"])
     resetRequest.delete()
-    # TODO: Revoke client credentials, active API keys, and pending email changes when those models are added.
+    # NOTE: Email-change proofs are bound to the old password hash and are now invalid.
+    # TODO: Revoke client credentials and active API keys when those models are added.
     return user

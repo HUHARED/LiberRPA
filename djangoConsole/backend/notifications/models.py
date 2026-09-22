@@ -15,6 +15,8 @@ class EmailType(models.TextChoices):
     MEMBER_INVITATION = "member_invitation", "Member invitation"
     ORGANIZATION_REGISTRATION = "organization_registration", "Organization registration"
     PASSWORD_RESET = "password_reset", "Password reset"
+    EMAIL_CHANGE_VERIFICATION = "email_change_verification", "Email change verification"
+    EMAIL_CHANGE_NOTICE = "email_change_notice", "Email change notice"
 
 
 class EmailStatus(models.TextChoices):
@@ -93,6 +95,8 @@ class EmailDelivery(models.Model):
                         email_type__in=[
                             EmailType.ORGANIZATION_REGISTRATION,
                             EmailType.PASSWORD_RESET,
+                            EmailType.EMAIL_CHANGE_VERIFICATION,
+                            EmailType.EMAIL_CHANGE_NOTICE,
                         ],
                         invitation__isnull=True,
                         invitation_request_id__isnull=True,

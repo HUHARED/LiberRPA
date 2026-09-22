@@ -252,6 +252,56 @@ def reserve_password_reset_token_request(clientAddress: str, *, token: str) -> i
 
 
 @sensitive_variables()
+def reserve_email_change_email_request(clientAddress: str, *, actorId: str) -> int:
+    """Limit authenticated email-change attempts, including failed password checks."""
+    sourceHash = _hash_client_address(
+        clientAddress, scope="accounts.email_change_email.source"
+    )
+    limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
+    _prune_expired_request_limits()
+    retryAfterSeconds = _reserve_request(
+        sourceHash,
+        maxRequests=limits.emailChangeEmailRequestsPerSource,
+        windowSeconds=limits.emailChangeEmailRequestWindowSeconds,
+    )
+    if retryAfterSeconds:
+        return retryAfterSeconds
+    accountHash = salted_hmac(
+        "accounts.email_change_email.actor", actorId, algorithm="sha256"
+    ).hexdigest()
+    return _reserve_request(
+        accountHash,
+        maxRequests=limits.emailChangeEmailRequestsPerAccount,
+        windowSeconds=limits.emailChangeEmailRequestWindowSeconds,
+    )
+
+
+@sensitive_variables()
+def reserve_email_change_token_request(clientAddress: str, *, token: str) -> int:
+    """Share source and proof limits across email-change checks and confirmations."""
+    sourceHash = _hash_client_address(
+        clientAddress, scope="accounts.email_change_token.source"
+    )
+    limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
+    _prune_expired_request_limits()
+    retryAfterSeconds = _reserve_request(
+        sourceHash,
+        maxRequests=limits.emailChangeTokenRequestsPerSource,
+        windowSeconds=limits.emailChangeTokenRequestWindowSeconds,
+    )
+    if retryAfterSeconds:
+        return retryAfterSeconds
+    tokenHash = salted_hmac(
+        "accounts.email_change_token.proof", token, algorithm="sha256"
+    ).hexdigest()
+    return _reserve_request(
+        tokenHash,
+        maxRequests=limits.emailChangeTokenRequestsPerToken,
+        windowSeconds=limits.emailChangeTokenRequestWindowSeconds,
+    )
+
+
+@sensitive_variables()
 def reserve_invitation_email_request(clientAddress: str, *, actorId: str) -> int:
     """Limit administrator invitation requests independently from public registration."""
     sourceHash = _hash_client_address(

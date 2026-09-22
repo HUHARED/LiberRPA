@@ -6,6 +6,11 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from django.urls import path
 
+from accounts.email_change_views import (
+    check_email_change_link,
+    confirm_account_email_change,
+    queue_email_change_verification,
+)
 from accounts.password_reset_views import (
     check_password_reset_link,
     queue_password_reset_email,
@@ -53,6 +58,21 @@ urlpatterns = [
     path("api/auth/session/", get_current_session, name="auth-session"),
     path("api/auth/access/", get_current_access, name="auth-access"),
     path("api/auth/profile/", get_or_update_profile, name="auth-profile"),
+    path(
+        "api/auth/email/change/email/",
+        queue_email_change_verification,
+        name="email-change-email",
+    ),
+    path(
+        "api/auth/email/change/check/",
+        check_email_change_link,
+        name="email-change-check",
+    ),
+    path(
+        "api/auth/email/change/confirm/",
+        confirm_account_email_change,
+        name="email-change-confirm",
+    ),
     path(
         "api/auth/password/change/",
         change_account_password,

@@ -16,6 +16,11 @@ from django.db import transaction
 from django.utils import timezone
 from django.views.decorators.debug import sensitive_variables
 
+from accounts.email_change_emails import (
+    build_email_change_notice,
+    build_email_change_verification,
+)
+from accounts.email_changes import issue_email_change_token
 from accounts.emails import build_registration_email
 from accounts.password_reset_emails import build_password_reset_email
 from accounts.password_resets import issue_password_reset_token
@@ -101,7 +106,7 @@ def prepare_email(deliveryId: uuid.UUID) -> EmailPreparationResult:
 
     # All mail types must take this shared lock before reserving SMTP capacity.
     # NOTE: Lock delivery and dispatch before the purpose-specific proof locks.
-    # Registration takes token then policy; invitations and recovery take organization first.
+    # Registration takes token then policy; invitations, recovery, and email changes take organization first.
     limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
     dispatchState, _ = EmailDispatchState.objects.select_for_update().get_or_create(
         pk=1,
@@ -152,6 +157,13 @@ def prepare_email(deliveryId: uuid.UUID) -> EmailPreparationResult:
                 delivery, reasonCode="password_reset_not_eligible"
             )
         emailMessage = build_password_reset_email(resetDeliveryInfo)
+    elif delivery.email_type == EmailType.EMAIL_CHANGE_VERIFICATION:
+        changeDeliveryInfo = issue_email_change_token(delivery)
+        if changeDeliveryInfo is None:
+            return _mark_email_not_sent(delivery, reasonCode="email_change_not_eligible")
+        emailMessage = build_email_change_verification(changeDeliveryInfo)
+    elif delivery.email_type == EmailType.EMAIL_CHANGE_NOTICE:
+        emailMessage = build_email_change_notice(delivery)
     else:
         raise ValueError("Unsupported email type.")
     attemptedAt = timezone.now()

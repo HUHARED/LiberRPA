@@ -175,6 +175,61 @@ class PasswordResetRequest(models.Model):
         ]
 
 
+class EmailChangeRequest(models.Model):
+    """The latest email-change authorization and resend history for one account."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user_id: uuid.UUID
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="+")
+    delivery_id: uuid.UUID
+    delivery = models.OneToOneField(
+        "notifications.EmailDelivery", on_delete=models.CASCADE, related_name="+"
+    )
+    new_email = models.EmailField()
+    credential_hash = models.CharField(max_length=64, editable=False)
+    token_hash = models.CharField(
+        max_length=64, unique=True, null=True, blank=True, editable=False
+    )
+    issued_at = models.DateTimeField(null=True, blank=True, editable=False)
+    expires_at = models.DateTimeField(
+        null=True, blank=True, db_index=True, editable=False
+    )
+    confirmed_at = models.DateTimeField(null=True, blank=True, editable=False)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(new_email=Lower(Trim("new_email")))
+                & ~models.Q(new_email=""),
+                name="email_change_address_canonical",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(
+                        token_hash__isnull=True,
+                        issued_at__isnull=True,
+                        expires_at__isnull=True,
+                        confirmed_at__isnull=True,
+                    )
+                    | (
+                        models.Q(
+                            token_hash__isnull=False,
+                            issued_at__isnull=False,
+                            expires_at__isnull=False,
+                            expires_at__gt=models.F("issued_at"),
+                        )
+                        & ~models.Q(token_hash="")
+                        & (
+                            models.Q(confirmed_at__isnull=True)
+                            | models.Q(confirmed_at__gte=models.F("issued_at"))
+                        )
+                    )
+                ),
+                name="email_change_proof_state_valid",
+            ),
+        ]
+
+
 class AuthenticationRequestLimit(models.Model):
     """A shared request counter for one IP address, registration token, or login email."""
 

@@ -110,6 +110,17 @@
     // Link checks and reset submissions share these limits; 0 blocks requests.
     "passwordResetTokenRequestsPerSource": 30,
     "passwordResetTokenRequestsPerToken": 10,
-    "passwordResetTokenRequestWindowSeconds": 600
+    "passwordResetTokenRequestWindowSeconds": 600,
+
+    // Email-change requests require the current password and have independent limits.
+    // Resend cooldown applies to the same account even when the target address changes.
+    "emailChangeResendSeconds": 300,
+    "emailChangeEmailRequestsPerSource": 30,
+    "emailChangeEmailRequestsPerAccount": 10,
+    "emailChangeEmailRequestWindowSeconds": 600,
+    // Link checks and confirmation share these limits; 0 blocks requests.
+    "emailChangeTokenRequestsPerSource": 30,
+    "emailChangeTokenRequestsPerToken": 10,
+    "emailChangeTokenRequestWindowSeconds": 600
   }
 }

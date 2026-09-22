@@ -61,4 +61,5 @@ def change_password(
     user.set_password(newPassword)
     # NOTE: Django rejects old web sessions when their stored authentication hash no longer matches.
     user.save(update_fields=["password"])
-    # TODO: Revoke client credentials, active API keys, and pending email changes when those models are added.
+    # NOTE: Email-change proofs are bound to the old password hash and are now invalid.
+    # TODO: Revoke client credentials and active API keys when those models are added.
