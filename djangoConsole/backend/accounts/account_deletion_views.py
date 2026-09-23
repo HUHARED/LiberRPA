@@ -29,6 +29,7 @@ from .account_deletion import (
 from .http import (
     AccountRequest,
     build_error_response,
+    build_service_unavailable_response,
     build_rate_limited_response,
     parse_json_request,
 )
@@ -57,15 +58,11 @@ def _build_account_deletion_payload(
 
 def _build_deletion_validation_response(validationError: ValidationError) -> JsonResponse:
     if hasattr(validationError, "error_dict"):
-        return JsonResponse(
-            {
-                "error": {
-                    "code": "invalid_account_deletion",
-                    "message": "The current password is incorrect.",
-                    "fields": validationError.message_dict,
-                }
-            },
-            status=400,
+        return build_error_response(
+            "invalid_account_deletion",
+            "The current password is incorrect.",
+            statusCode=400,
+            fields=validationError.message_dict,
         )
     errorCode = validationError.error_list[0].code or "invalid_account_deletion"
     return build_error_response(
@@ -157,8 +154,4 @@ def get_or_delete_account(
             statusCode=403,
         )
     except (ImproperlyConfigured, DatabaseError):
-        return build_error_response(
-            "service_unavailable",
-            "The service is temporarily unavailable.",
-            statusCode=503,
-        )
+        return build_service_unavailable_response()

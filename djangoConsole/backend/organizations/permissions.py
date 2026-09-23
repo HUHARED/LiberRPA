@@ -145,6 +145,17 @@ def require_organization_admin(access: OrganizationAccessContext) -> None:
     _require_organization_admin(access.isOrgAdmin, access.channel)
 
 
+def lock_organization_for_admin(
+    actorId: uuid.UUID, organizationId: uuid.UUID, channel: AccessChannel
+) -> Organization:
+    """Resolve and lock the current administrator context inside the caller's transaction."""
+    access = resolve_organization_access(
+        actorId=actorId, organizationId=organizationId, channel=channel, forUpdate=True
+    )
+    require_organization_admin(access)
+    return access.organization
+
+
 def lock_organization_for_deletion(
     *, actorId: uuid.UUID, organizationId: uuid.UUID, channel: AccessChannel
 ) -> tuple[Organization, User]:

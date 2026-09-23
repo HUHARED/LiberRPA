@@ -26,8 +26,10 @@ from accounts.rate_limits import (
 from console_project.http import (
     JsonRequest,
     build_error_response,
+    build_service_unavailable_response,
     build_rate_limited_response,
     parse_json_request,
+    parse_page_number,
 )
 from notifications.models import EmailDelivery
 
@@ -41,7 +43,7 @@ from .invitations import (
     resend_member_invitation,
     revoke_member_invitation,
 )
-from .member_views import MembershipUpdateRequest
+from .http import MembershipUpdateRequest
 from .models import InvitationDepartmentRole, MemberInvitation
 from .permissions import (
     AccessChannel,
@@ -80,15 +82,11 @@ def _handle_invitation_errors[**Params](
             return build_error_response(e.errorCode, str(e), statusCode=409)
         except ValidationError as e:
             if hasattr(e, "error_dict"):
-                return JsonResponse(
-                    {
-                        "error": {
-                            "code": "invalid_invitation",
-                            "message": "Some invitation fields are invalid.",
-                            "fields": e.message_dict,
-                        }
-                    },
-                    status=400,
+                return build_error_response(
+                    "invalid_invitation",
+                    "Some invitation fields are invalid.",
+                    statusCode=400,
+                    fields=e.message_dict,
                 )
             errorCode = e.error_list[0].code or "invalid_invitation"
             return build_error_response(errorCode, " ".join(e.messages), statusCode=400)
@@ -105,11 +103,7 @@ def _handle_invitation_errors[**Params](
                 statusCode=403,
             )
         except (ImproperlyConfigured, DatabaseError):
-            return build_error_response(
-                "service_unavailable",
-                "The service is temporarily unavailable.",
-                statusCode=503,
-            )
+            return build_service_unavailable_response()
 
     return wrapped
 
@@ -228,15 +222,9 @@ def list_or_create_invitations(request: HttpRequest) -> JsonResponse:
             notes=invitationRequest.notes,
         )
         return _build_invitation_response(invitation, statusCode=201)
-    listPageValue = request.GET.getlist("page")
-    pageValue = listPageValue[0] if listPageValue else "1"
-    if (
-        len(listPageValue) > 1
-        or not pageValue.isascii()
-        or not pageValue.isdecimal()
-        or len(pageValue) > 9
-        or int(pageValue) < 1
-    ):
+    try:
+        pageNumber = parse_page_number(request.GET)
+    except ValueError:
         return build_error_response(
             "invalid_page", "Send one positive integer page number.", statusCode=400
         )
@@ -247,7 +235,7 @@ def list_or_create_invitations(request: HttpRequest) -> JsonResponse:
         revoked_at__isnull=True,
     ).order_by("-created_at", "-id")
     paginator = Paginator(invitationQuery, _INT_INVITATIONS_PER_PAGE)
-    invitationPage = paginator.page(int(pageValue))
+    invitationPage = paginator.page(pageNumber)
     return JsonResponse({
         "invitations": _build_invitation_payloads(list(invitationPage.object_list)),
         "pagination": {

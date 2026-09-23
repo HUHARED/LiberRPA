@@ -11,7 +11,11 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_variables
 from django.views.decorators.http import require_GET
 
-from console_project.http import build_error_response, build_rate_limited_response
+from console_project.http import (
+    build_error_response,
+    build_service_unavailable_response,
+    build_rate_limited_response,
+)
 from organizations.access import get_department_access_info
 from organizations.models import DepartmentRole
 
@@ -79,8 +83,4 @@ def get_api_key_access(request: HttpRequest) -> JsonResponse:
             statusCode=403,
         )
     except (ImproperlyConfigured, DatabaseError):
-        return build_error_response(
-            "service_unavailable",
-            "The service is temporarily unavailable.",
-            statusCode=503,
-        )
+        return build_service_unavailable_response()

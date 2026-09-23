@@ -33,6 +33,7 @@ from .api_keys import (
 from .http import (
     AccountRequest,
     build_error_response,
+    build_service_unavailable_response,
     build_rate_limited_response,
     parse_json_request,
 )
@@ -86,21 +87,15 @@ def _build_api_key_error_response(e: Exception) -> JsonResponse:
         errorCode = getattr(e, "code", None)
         if errorCode in ("api_key_limit", "api_key_not_active"):
             return build_error_response(errorCode, e.messages[0], statusCode=409)
-        return JsonResponse(
-            {
-                "error": {
-                    "code": "invalid_api_key",
-                    "message": "Some API key fields are invalid.",
-                    "fields": e.message_dict
-                    if hasattr(e, "error_dict")
-                    else {"__all__": e.messages},
-                }
-            },
-            status=400,
+        return build_error_response(
+            "invalid_api_key",
+            "Some API key fields are invalid.",
+            statusCode=400,
+            fields=e.message_dict
+            if hasattr(e, "error_dict")
+            else {"__all__": e.messages},
         )
-    return build_error_response(
-        "service_unavailable", "The service is temporarily unavailable.", statusCode=503
-    )
+    return build_service_unavailable_response()
 
 
 @never_cache

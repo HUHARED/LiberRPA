@@ -13,7 +13,12 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods
 
 from accounts.models import User
-from console_project.http import JsonRequest, build_error_response, parse_json_request
+from console_project.http import (
+    JsonRequest,
+    build_error_response,
+    build_service_unavailable_response,
+    parse_json_request,
+)
 
 from .models import Organization
 from .permissions import AccessChannel, get_current_membership
@@ -75,15 +80,11 @@ def get_or_update_organization_settings(request: HttpRequest) -> JsonResponse:
             )
         return _build_organization_settings_response(organization)
     except ValidationError as e:
-        return JsonResponse(
-            {
-                "error": {
-                    "code": "invalid_organization_settings",
-                    "message": "Some organization settings are invalid.",
-                    "fields": e.message_dict,
-                }
-            },
-            status=400,
+        return build_error_response(
+            "invalid_organization_settings",
+            "Some organization settings are invalid.",
+            statusCode=400,
+            fields=e.message_dict,
         )
     except PermissionDenied:
         return build_error_response(
@@ -92,8 +93,4 @@ def get_or_update_organization_settings(request: HttpRequest) -> JsonResponse:
             statusCode=403,
         )
     except (ImproperlyConfigured, DatabaseError):
-        return build_error_response(
-            "service_unavailable",
-            "The service is temporarily unavailable.",
-            statusCode=503,
-        )
+        return build_service_unavailable_response()

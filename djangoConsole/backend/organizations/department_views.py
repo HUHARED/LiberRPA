@@ -15,7 +15,12 @@ from django.views.decorators.http import require_http_methods
 from pydantic import Field
 
 from accounts.models import User
-from console_project.http import JsonRequest, build_error_response, parse_json_request
+from console_project.http import (
+    JsonRequest,
+    build_error_response,
+    build_service_unavailable_response,
+    parse_json_request,
+)
 
 from .department_deletion import (
     DepartmentDeletionBlockedError,
@@ -30,7 +35,7 @@ from .department_queries import (
 )
 from .models import Department
 from .permissions import AccessChannel, get_current_membership
-from .services import create_department, update_department
+from .department_services import create_department, update_department
 
 _INT_MAX_DEPARTMENT_BODY_BYTES = 32 * 1024
 
@@ -100,19 +105,11 @@ def _build_department_validation_response(
                 dictFieldMessage.setdefault(responseFieldName, []).extend(
                     fieldError.messages
                 )
-        return JsonResponse(
-            {
-                "error": {
-                    "code": (
-                        "duplicate_department_name"
-                        if hasDuplicateName
-                        else "invalid_department"
-                    ),
-                    "message": "Some department fields are invalid.",
-                    "fields": dictFieldMessage,
-                }
-            },
-            status=409 if hasDuplicateName else 400,
+        return build_error_response(
+            "duplicate_department_name" if hasDuplicateName else "invalid_department",
+            "Some department fields are invalid.",
+            statusCode=409 if hasDuplicateName else 400,
+            fields=dictFieldMessage,
         )
 
     errorCode = validationError.error_list[0].code or "invalid_department"
@@ -172,11 +169,7 @@ def list_or_create_departments(request: HttpRequest) -> JsonResponse:
             statusCode=403,
         )
     except (ImproperlyConfigured, DatabaseError):
-        return build_error_response(
-            "service_unavailable",
-            "The service is temporarily unavailable.",
-            statusCode=503,
-        )
+        return build_service_unavailable_response()
 
 
 @never_cache
@@ -244,11 +237,7 @@ def get_or_update_department(
             statusCode=403,
         )
     except (ImproperlyConfigured, DatabaseError):
-        return build_error_response(
-            "service_unavailable",
-            "The service is temporarily unavailable.",
-            statusCode=503,
-        )
+        return build_service_unavailable_response()
 
 
 def _build_department_deletion_payload(
@@ -330,8 +319,4 @@ def get_or_delete_department(
             statusCode=403,
         )
     except (ImproperlyConfigured, DatabaseError):
-        return build_error_response(
-            "service_unavailable",
-            "The service is temporarily unavailable.",
-            statusCode=503,
-        )
+        return build_service_unavailable_response()

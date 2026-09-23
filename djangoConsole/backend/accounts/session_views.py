@@ -27,6 +27,7 @@ from organizations.permissions import AccessChannel
 from .http import (
     AccountRequest,
     build_error_response,
+    build_service_unavailable_response,
     build_rate_limited_response,
     parse_json_request,
 )
@@ -54,12 +55,6 @@ def _build_session_response(request: HttpRequest, user: User) -> JsonResponse:
         "expires_at": request.session.get_expiry_date(),
         "csrf_token": get_token(request),
     })
-
-
-def _build_service_unavailable_response() -> JsonResponse:
-    return build_error_response(
-        "service_unavailable", "The service is temporarily unavailable.", statusCode=503
-    )
 
 
 @never_cache
@@ -105,7 +100,7 @@ def sign_in(request: HttpRequest) -> JsonResponse:
         # login() rotates the CSRF secret; return a token matching the new cookie.
         return _build_session_response(request, user)
     except (ImproperlyConfigured, DatabaseError):
-        return _build_service_unavailable_response()
+        return build_service_unavailable_response()
 
 
 @never_cache
@@ -119,7 +114,7 @@ def get_current_session(request: HttpRequest) -> JsonResponse:
             )
         return _build_session_response(request, cast(User, request.user))
     except (ImproperlyConfigured, DatabaseError):
-        return _build_service_unavailable_response()
+        return build_service_unavailable_response()
 
 
 @never_cache
@@ -142,7 +137,7 @@ def get_current_access(request: HttpRequest) -> JsonResponse:
             statusCode=403,
         )
     except (ImproperlyConfigured, DatabaseError):
-        return _build_service_unavailable_response()
+        return build_service_unavailable_response()
 
 
 @never_cache
@@ -152,7 +147,7 @@ def sign_out(request: HttpRequest) -> JsonResponse:
     try:
         logout(request)
     except (ImproperlyConfigured, DatabaseError):
-        return _build_service_unavailable_response()
+        return build_service_unavailable_response()
     return JsonResponse({"message": "Signed out."})
 
 
@@ -212,15 +207,11 @@ def sign_out_other_sessions(request: HttpRequest) -> JsonResponse:
             statusCode=401,
         )
     except ValidationError as e:
-        return JsonResponse(
-            {
-                "error": {
-                    "code": "invalid_session_revocation",
-                    "message": "The current password is incorrect.",
-                    "fields": e.message_dict,
-                }
-            },
-            status=400,
+        return build_error_response(
+            "invalid_session_revocation",
+            "The current password is incorrect.",
+            statusCode=400,
+            fields=e.message_dict,
         )
     except PermissionDenied:
         return build_error_response(
@@ -229,4 +220,4 @@ def sign_out_other_sessions(request: HttpRequest) -> JsonResponse:
             statusCode=403,
         )
     except (ImproperlyConfigured, DatabaseError, UpdateError):
-        return _build_service_unavailable_response()
+        return build_service_unavailable_response()

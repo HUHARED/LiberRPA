@@ -27,6 +27,7 @@ from .email_changes import (
 from .http import (
     AccountRequest,
     build_error_response,
+    build_service_unavailable_response,
     build_rate_limited_response,
     parse_json_request,
 )
@@ -51,27 +52,17 @@ def _build_email_change_validation_response(
     validationError: ValidationError,
 ) -> JsonResponse:
     if hasattr(validationError, "error_dict"):
-        return JsonResponse(
-            {
-                "error": {
-                    "code": "invalid_email_change",
-                    "message": "Some email change fields are invalid.",
-                    "fields": validationError.message_dict,
-                }
-            },
-            status=400,
+        return build_error_response(
+            "invalid_email_change",
+            "Some email change fields are invalid.",
+            statusCode=400,
+            fields=validationError.message_dict,
         )
     errorCode = validationError.error_list[0].code or "invalid_email_change"
     return build_error_response(
         errorCode,
         " ".join(validationError.messages),
         statusCode=409 if errorCode == "email_already_registered" else 400,
-    )
-
-
-def _build_service_unavailable_response() -> JsonResponse:
-    return build_error_response(
-        "service_unavailable", "The service is temporarily unavailable.", statusCode=503
     )
 
 
@@ -124,7 +115,7 @@ def queue_email_change_verification(request: HttpRequest) -> JsonResponse:
             statusCode=403,
         )
     except (ImproperlyConfigured, DatabaseError):
-        return _build_service_unavailable_response()
+        return build_service_unavailable_response()
 
 
 @never_cache
@@ -150,7 +141,7 @@ def check_email_change_link(request: HttpRequest) -> JsonResponse:
     except ValidationError as e:
         return _build_email_change_validation_response(e)
     except (ImproperlyConfigured, DatabaseError):
-        return _build_service_unavailable_response()
+        return build_service_unavailable_response()
 
 
 @never_cache
@@ -173,4 +164,4 @@ def confirm_account_email_change(request: HttpRequest) -> JsonResponse:
     except ValidationError as e:
         return _build_email_change_validation_response(e)
     except (ImproperlyConfigured, DatabaseError):
-        return _build_service_unavailable_response()
+        return build_service_unavailable_response()

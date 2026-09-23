@@ -16,6 +16,7 @@ from pydantic import SecretStr
 from .http import (
     AccountRequest,
     build_error_response,
+    build_service_unavailable_response,
     build_rate_limited_response,
     parse_json_request,
 )
@@ -45,26 +46,16 @@ class PasswordResetCompletionRequest(PasswordResetTokenRequest):
 
 def _build_reset_validation_response(validationError: ValidationError) -> JsonResponse:
     if hasattr(validationError, "error_dict"):
-        return JsonResponse(
-            {
-                "error": {
-                    "code": "invalid_password_reset",
-                    "message": "Some password fields are invalid.",
-                    "fields": validationError.message_dict,
-                }
-            },
-            status=400,
+        return build_error_response(
+            "invalid_password_reset",
+            "Some password fields are invalid.",
+            statusCode=400,
+            fields=validationError.message_dict,
         )
     return build_error_response(
         "invalid_password_reset_token",
         "The password reset link is invalid or expired.",
         statusCode=400,
-    )
-
-
-def _build_service_unavailable_response() -> JsonResponse:
-    return build_error_response(
-        "service_unavailable", "The service is temporarily unavailable.", statusCode=503
     )
 
 
@@ -88,7 +79,7 @@ def queue_password_reset_email(request: HttpRequest) -> JsonResponse:
             "invalid_email", "Enter a valid email address.", statusCode=400
         )
     except (ImproperlyConfigured, DatabaseError):
-        return _build_service_unavailable_response()
+        return build_service_unavailable_response()
     return JsonResponse(
         {"message": "If this address is eligible, a password reset email will be sent."},
         status=202,
@@ -115,7 +106,7 @@ def check_password_reset_link(request: HttpRequest) -> JsonResponse:
     except ValidationError as e:
         return _build_reset_validation_response(e)
     except (ImproperlyConfigured, DatabaseError):
-        return _build_service_unavailable_response()
+        return build_service_unavailable_response()
 
 
 @never_cache
@@ -149,4 +140,4 @@ def reset_account_password(request: HttpRequest) -> JsonResponse:
     except ValidationError as e:
         return _build_reset_validation_response(e)
     except (ImproperlyConfigured, DatabaseError):
-        return _build_service_unavailable_response()
+        return build_service_unavailable_response()

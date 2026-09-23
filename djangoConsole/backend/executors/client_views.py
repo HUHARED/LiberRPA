@@ -23,6 +23,7 @@ from accounts.rate_limits import reserve_executor_client_request, reserve_login_
 from console_project.http import (
     JsonRequest,
     build_error_response,
+    build_service_unavailable_response,
     build_rate_limited_response,
     parse_json_request,
 )
@@ -101,24 +102,16 @@ def _build_client_error_response(e: Exception) -> JsonResponse:
                 "executor_selection_required",
             ):
                 return build_error_response(errorCode, e.messages[0], statusCode=409)
-            return JsonResponse(
-                {
-                    "error": {
-                        "code": "invalid_executor_client",
-                        "message": "Some Executor client fields are invalid.",
-                        "fields": e.message_dict
-                        if hasattr(e, "error_dict")
-                        else {"__all__": e.messages},
-                    }
-                },
-                status=400,
+            return build_error_response(
+                "invalid_executor_client",
+                "Some Executor client fields are invalid.",
+                statusCode=400,
+                fields=e.message_dict
+                if hasattr(e, "error_dict")
+                else {"__all__": e.messages},
             )
         case _:
-            return build_error_response(
-                "service_unavailable",
-                "The service is temporarily unavailable.",
-                statusCode=503,
-            )
+            return build_service_unavailable_response()
 
 
 def _build_client_session_payload(

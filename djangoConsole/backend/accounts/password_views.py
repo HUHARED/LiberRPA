@@ -20,6 +20,7 @@ from organizations.permissions import AccessChannel
 from .http import (
     AccountRequest,
     build_error_response,
+    build_service_unavailable_response,
     build_rate_limited_response,
     parse_json_request,
 )
@@ -70,15 +71,11 @@ def change_account_password(request: HttpRequest) -> JsonResponse:
             logout(request)
         return JsonResponse({"message": "Password changed. Sign in again."})
     except ValidationError as e:
-        return JsonResponse(
-            {
-                "error": {
-                    "code": "invalid_password_change",
-                    "message": "Some password fields are invalid.",
-                    "fields": e.message_dict,
-                }
-            },
-            status=400,
+        return build_error_response(
+            "invalid_password_change",
+            "Some password fields are invalid.",
+            statusCode=400,
+            fields=e.message_dict,
         )
     except PermissionDenied:
         return build_error_response(
@@ -87,8 +84,4 @@ def change_account_password(request: HttpRequest) -> JsonResponse:
             statusCode=403,
         )
     except (ImproperlyConfigured, DatabaseError):
-        return build_error_response(
-            "service_unavailable",
-            "The service is temporarily unavailable.",
-            statusCode=503,
-        )
+        return build_service_unavailable_response()

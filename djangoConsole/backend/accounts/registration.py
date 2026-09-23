@@ -20,7 +20,7 @@ from django.views.decorators.debug import sensitive_variables
 from console_project.config import LimitsConfig
 from notifications.models import EmailDelivery, EmailStatus, EmailType
 from operations.policies import require_organization_creation_allowed
-from organizations.services import OrganizationCreationResult, create_organization_records
+from organizations.creation import OrganizationCreationResult, create_organization_records
 
 from .models import RegistrationToken, User, UserManager
 

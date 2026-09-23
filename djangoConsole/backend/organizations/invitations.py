@@ -36,9 +36,8 @@ from .models import (
 )
 from .permissions import (
     AccessChannel,
-    require_organization_admin,
+    lock_organization_for_admin,
     require_organization_business_available,
-    resolve_organization_access,
 )
 
 _INVITATION_LIFETIME = timedelta(hours=12)
@@ -131,16 +130,6 @@ def _get_invitation_roles(
     }
 
 
-def _lock_invitation_admin(
-    actorId: uuid.UUID, organizationId: uuid.UUID, channel: AccessChannel
-) -> Organization:
-    access = resolve_organization_access(
-        actorId=actorId, organizationId=organizationId, channel=channel, forUpdate=True
-    )
-    require_organization_admin(access)
-    return access.organization
-
-
 def _require_email_configuration() -> None:
     if settings.CONSOLE_URL is None:
         raise ImproperlyConfigured("Configure Console email before inviting members.")
@@ -186,7 +175,7 @@ def create_member_invitation(
     departmentRoles: Mapping[uuid.UUID, DepartmentRole],
     notes: str,
 ) -> MemberInvitation:
-    organization = _lock_invitation_admin(actorId, organizationId, channel)
+    organization = lock_organization_for_admin(actorId, organizationId, channel)
     _require_email_configuration()
     requestedAt = timezone.now()
     invitation = MemberInvitation(
@@ -228,7 +217,7 @@ def resend_member_invitation(
     channel: AccessChannel,
     invitationId: uuid.UUID,
 ) -> MemberInvitation:
-    organization = _lock_invitation_admin(actorId, organizationId, channel)
+    organization = lock_organization_for_admin(actorId, organizationId, channel)
     invitation = MemberInvitation.objects.select_for_update().get(
         pk=invitationId, organization=organization
     )
@@ -270,7 +259,7 @@ def revoke_member_invitation(
     channel: AccessChannel,
     invitationId: uuid.UUID,
 ) -> MemberInvitation:
-    organization = _lock_invitation_admin(actorId, organizationId, channel)
+    organization = lock_organization_for_admin(actorId, organizationId, channel)
     invitation = MemberInvitation.objects.select_for_update().get(
         pk=invitationId, organization=organization
     )

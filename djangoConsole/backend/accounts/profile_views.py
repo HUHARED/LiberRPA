@@ -16,7 +16,12 @@ from organizations.access import get_account_access_info
 from organizations.http import build_account_access_payload
 from organizations.permissions import AccessChannel
 
-from .http import AccountRequest, build_error_response, parse_json_request
+from .http import (
+    AccountRequest,
+    build_error_response,
+    build_service_unavailable_response,
+    parse_json_request,
+)
 from .models import User
 from .profile import update_profile
 
@@ -64,15 +69,11 @@ def get_or_update_profile(request: HttpRequest) -> JsonResponse:
             **build_account_access_payload(accountAccessInfo),
         })
     except ValidationError as e:
-        return JsonResponse(
-            {
-                "error": {
-                    "code": "invalid_profile",
-                    "message": "Some profile fields are invalid.",
-                    "fields": e.message_dict,
-                }
-            },
-            status=400,
+        return build_error_response(
+            "invalid_profile",
+            "Some profile fields are invalid.",
+            statusCode=400,
+            fields=e.message_dict,
         )
     except PermissionDenied:
         return build_error_response(
@@ -81,8 +82,4 @@ def get_or_update_profile(request: HttpRequest) -> JsonResponse:
             statusCode=403,
         )
     except (ImproperlyConfigured, DatabaseError):
-        return build_error_response(
-            "service_unavailable",
-            "The service is temporarily unavailable.",
-            statusCode=503,
-        )
+        return build_service_unavailable_response()

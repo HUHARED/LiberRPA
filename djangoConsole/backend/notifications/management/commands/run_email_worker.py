@@ -4,19 +4,17 @@ __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
-import signal
-from collections.abc import Generator
-from contextlib import contextmanager
 from pathlib import Path
 from threading import Event
 from traceback import walk_tb
-from types import FrameType
 
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.core.management.base import BaseCommand, CommandError, CommandParser
 from django.db import DatabaseError
 from django.utils import timezone
+
+from console_project.workers import stop_on_signals
 
 from notifications.worker import (
     EmailWorkerAlreadyRunningError,
@@ -50,27 +48,6 @@ def _build_worker_failure_details(error: Exception) -> str:
     return "\n".join(listDetail)
 
 
-@contextmanager
-def _stop_on_signals(stopEvent: Event) -> Generator[None]:
-    """Finish an active SMTP attempt before stopping; wake an idle worker immediately."""
-
-    def request_stop(_signalNumber: int, _frame: FrameType | None) -> None:
-        stopEvent.set()
-
-    stopSignals = (signal.SIGINT, signal.SIGTERM)
-    dictPreviousSignalHandler = {
-        signalNumber: signal.getsignal(signalNumber) for signalNumber in stopSignals
-    }
-    try:
-        for signalNumber in stopSignals:
-            signal.signal(signalNumber, request_stop)
-        yield
-    finally:
-        for signalNumber, previousHandler in dictPreviousSignalHandler.items():
-            if previousHandler is not None:
-                signal.signal(signalNumber, previousHandler)
-
-
 class Command(BaseCommand):
     help = "Process queued account emails without retrying attempted deliveries."
     requires_migrations_checks = True
@@ -91,7 +68,7 @@ class Command(BaseCommand):
         runOnce = bool(options["once"])
         stopEvent = Event()
         try:
-            with _stop_on_signals(stopEvent), hold_email_worker_session():
+            with stop_on_signals(stopEvent), hold_email_worker_session():
                 recoveredDeliveryCount = recover_interrupted_email_deliveries()
                 self.stdout.write(
                     f"Email worker started. Interrupted attempts marked Unknown: {recoveredDeliveryCount}."

@@ -6,7 +6,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import json
 
-from django.http import HttpRequest, JsonResponse
+from django.http import HttpRequest, JsonResponse, QueryDict
 from django.views.decorators.debug import sensitive_variables
 from pydantic import BaseModel, ConfigDict
 
@@ -35,11 +35,39 @@ def _parse_json_object(fieldPairs: list[tuple[str, object]]) -> dict[str, object
 
 
 def build_error_response(
-    errorCode: str, errorMessage: str, *, statusCode: int
+    errorCode: str,
+    errorMessage: str,
+    *,
+    statusCode: int,
+    fields: dict[str, list[str]] | None = None,
 ) -> JsonResponse:
-    return JsonResponse(
-        {"error": {"code": errorCode, "message": errorMessage}}, status=statusCode
+    errorDetail: dict[str, object] = {"code": errorCode, "message": errorMessage}
+    if fields is not None:
+        errorDetail["fields"] = fields
+    return JsonResponse({"error": errorDetail}, status=statusCode)
+
+
+def build_service_unavailable_response() -> JsonResponse:
+    return build_error_response(
+        "service_unavailable", "The service is temporarily unavailable.", statusCode=503
     )
+
+
+def parse_page_number(query: QueryDict) -> int:
+    """Parse a single positive page number; the view keeps its own error code and message."""
+    pageValues = query.getlist("page")
+    if not pageValues:
+        return 1
+    pageValue = pageValues[0]
+    if (
+        len(pageValues) != 1
+        or not pageValue.isascii()
+        or not pageValue.isdecimal()
+        or len(pageValue) > 9
+        or int(pageValue) < 1
+    ):
+        raise ValueError("Send one positive integer page number.")
+    return int(pageValue)
 
 
 @sensitive_variables()

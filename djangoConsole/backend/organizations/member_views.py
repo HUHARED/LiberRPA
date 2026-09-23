@@ -6,7 +6,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import uuid
 from collections.abc import Mapping
-from typing import Annotated, cast
+from typing import cast
 
 from django.core.exceptions import ImproperlyConfigured, PermissionDenied, ValidationError
 from django.core.paginator import InvalidPage
@@ -14,41 +14,22 @@ from django.db import DatabaseError
 from django.http import HttpRequest, JsonResponse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_http_methods
-from pydantic import Field, field_validator
 
 from accounts.models import User
-from console_project.http import JsonRequest, build_error_response, parse_json_request
+from console_project.http import (
+    build_error_response,
+    build_service_unavailable_response,
+    parse_json_request,
+    parse_page_number,
+)
 
+from .http import MembershipUpdateRequest
 from .member_queries import MemberInfo, get_member_details, get_member_list
 from .models import DepartmentRole, Membership
 from .permissions import AccessChannel, get_current_membership
-from .services import update_membership
+from .member_services import update_membership
 
 _INT_MAX_MEMBERSHIP_BODY_BYTES = 64 * 1024
-
-
-class DepartmentRoleRequest(JsonRequest):
-    # JSON encodes UUIDs and role values as text; the other fields remain strict.
-    department_id: Annotated[uuid.UUID, Field(strict=False)]
-    role: Annotated[DepartmentRole, Field(strict=False)]
-
-
-class MembershipUpdateRequest(JsonRequest):
-    is_org_admin: bool
-    # NOTE: Submit the full explicit role list even while OrgAdmin hides it in the form.
-    department_roles: list[DepartmentRoleRequest]
-    notes: str
-
-    @field_validator("department_roles")
-    @classmethod
-    def validate_department_roles(
-        cls, departmentRoles: list[DepartmentRoleRequest]
-    ) -> list[DepartmentRoleRequest]:
-        if len({roleRequest.department_id for roleRequest in departmentRoles}) != len(
-            departmentRoles
-        ):
-            raise ValueError("Assign at most one role to each department.")
-        return departmentRoles
 
 
 def _build_member_payload(memberInfo: MemberInfo) -> dict[str, object]:
@@ -105,38 +86,23 @@ def _build_membership_validation_response(
     else:
         dictFieldMessage = {"__all__": validationError.messages}
         isLastAdmin = False
-    return JsonResponse(
-        {
-            "error": {
-                "code": "last_org_admin" if isLastAdmin else "invalid_membership",
-                "message": (
-                    "The organization must retain at least one active administrator."
-                    if isLastAdmin
-                    else "Some membership fields are invalid."
-                ),
-                "fields": dictFieldMessage,
-            }
-        },
-        status=409 if isLastAdmin else 400,
+    return build_error_response(
+        "last_org_admin" if isLastAdmin else "invalid_membership",
+        "The organization must retain at least one active administrator."
+        if isLastAdmin
+        else "Some membership fields are invalid.",
+        statusCode=409 if isLastAdmin else 400,
+        fields=dictFieldMessage,
     )
 
 
 def _get_page_number(request: HttpRequest) -> int | JsonResponse:
-    listPageValue = request.GET.getlist("page")
-    if not listPageValue:
-        return 1
-    pageValue = listPageValue[0]
-    if (
-        len(listPageValue) != 1
-        or not pageValue.isascii()
-        or not pageValue.isdecimal()
-        or len(pageValue) > 9
-        or int(pageValue) < 1
-    ):
+    try:
+        return parse_page_number(request.GET)
+    except ValueError:
         return build_error_response(
             "invalid_page", "Send one positive integer page number.", statusCode=400
         )
-    return int(pageValue)
 
 
 @never_cache
@@ -181,11 +147,7 @@ def list_members(request: HttpRequest) -> JsonResponse:
             statusCode=403,
         )
     except (ImproperlyConfigured, DatabaseError):
-        return build_error_response(
-            "service_unavailable",
-            "The service is temporarily unavailable.",
-            statusCode=503,
-        )
+        return build_service_unavailable_response()
 
 
 @never_cache
@@ -243,8 +205,4 @@ def get_or_update_member(request: HttpRequest, userId: uuid.UUID) -> JsonRespons
             statusCode=403,
         )
     except (ImproperlyConfigured, DatabaseError):
-        return build_error_response(
-            "service_unavailable",
-            "The service is temporarily unavailable.",
-            statusCode=503,
-        )
+        return build_service_unavailable_response()

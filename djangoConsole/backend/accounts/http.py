@@ -9,6 +9,7 @@ from console_project.http import (
     JsonRequest as AccountRequest,
     build_error_response,
     build_rate_limited_response,
+    build_service_unavailable_response,
     parse_json_request,
 )
 
@@ -16,5 +17,6 @@ __all__ = [
     "AccountRequest",
     "build_error_response",
     "build_rate_limited_response",
+    "build_service_unavailable_response",
     "parse_json_request",
 ]

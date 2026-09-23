@@ -83,19 +83,85 @@ def _reserve_request(sourceHash: str, *, maxRequests: int, windowSeconds: int) -
 
 
 @sensitive_variables()
+def _reserve_source_request(
+    clientAddress: str, *, scope: str, maxRequests: int, windowSeconds: int
+) -> int:
+    sourceHash = _hash_client_address(clientAddress, scope=f"{scope}.source")
+    _prune_expired_request_limits()
+    return _reserve_request(
+        sourceHash, maxRequests=maxRequests, windowSeconds=windowSeconds
+    )
+
+
+@sensitive_variables()
+def _reserve_source_and_subject_requests(
+    clientAddress: str,
+    *,
+    scope: str,
+    subject: str,
+    subjectKind: str,
+    maxSourceRequests: int,
+    maxSubjectRequests: int,
+    windowSeconds: int,
+) -> int:
+    retryAfterSeconds = _reserve_source_request(
+        clientAddress,
+        scope=scope,
+        maxRequests=maxSourceRequests,
+        windowSeconds=windowSeconds,
+    )
+    if retryAfterSeconds:
+        return retryAfterSeconds
+    # A blocked source cannot allocate additional account or proof counters.
+    subjectHash = salted_hmac(
+        f"{scope}.{subjectKind}", subject, algorithm="sha256"
+    ).hexdigest()
+    return _reserve_request(
+        subjectHash, maxRequests=maxSubjectRequests, windowSeconds=windowSeconds
+    )
+
+
+@sensitive_variables()
+def _reserve_sensitive_action_request(
+    clientAddress: str, *, actorId: str, scope: str
+) -> int:
+    limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
+    return _reserve_source_and_subject_requests(
+        clientAddress,
+        scope=scope,
+        subject=actorId,
+        subjectKind="actor",
+        maxSourceRequests=limits.sensitiveActionRequestsPerSource,
+        maxSubjectRequests=limits.sensitiveActionRequestsPerAccount,
+        windowSeconds=limits.sensitiveActionRequestWindowSeconds,
+    )
+
+
+@sensitive_variables()
+def _reserve_email_token_request(clientAddress: str, *, token: str, scope: str) -> int:
+    limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
+    return _reserve_source_and_subject_requests(
+        clientAddress,
+        scope=scope,
+        subject=token,
+        subjectKind="proof",
+        maxSourceRequests=limits.emailTokenRequestsPerSource,
+        maxSubjectRequests=limits.emailTokenRequestsPerToken,
+        windowSeconds=limits.emailTokenRequestWindowSeconds,
+    )
+
+
+@sensitive_variables()
 def reserve_registration_email_request(clientAddress: str) -> int:
     """Count an HTTP request, returning zero when allowed or a Retry-After in seconds.
 
     The caller supplies the server's client address, never an untrusted HTTP header.
     The counter commits before the email service runs, including for suppressed requests.
     """
-    sourceHash = _hash_client_address(
-        clientAddress, scope="accounts.registration_email.source"
-    )
     limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
-    _prune_expired_request_limits()
-    return _reserve_request(
-        sourceHash,
+    return _reserve_source_request(
+        clientAddress,
+        scope="accounts.registration_email",
         maxRequests=limits.publicEmailRequestsPerSource,
         windowSeconds=limits.publicEmailRequestWindowSeconds,
     )
@@ -104,27 +170,8 @@ def reserve_registration_email_request(clientAddress: str) -> int:
 @sensitive_variables()
 def reserve_registration_token_request(clientAddress: str, *, token: str) -> int:
     """Limit link reads and registration submissions by both source IP and email proof."""
-    sourceHash = _hash_client_address(
-        clientAddress, scope="accounts.registration_token.source"
-    )
-    limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
-    _prune_expired_request_limits()
-    retryAfterSeconds = _reserve_request(
-        sourceHash,
-        maxRequests=limits.emailTokenRequestsPerSource,
-        windowSeconds=limits.emailTokenRequestWindowSeconds,
-    )
-    if retryAfterSeconds:
-        return retryAfterSeconds
-
-    # A source already over its limit cannot create more token counters.
-    tokenHash = salted_hmac(
-        "accounts.registration_token.proof", token, algorithm="sha256"
-    ).hexdigest()
-    return _reserve_request(
-        tokenHash,
-        maxRequests=limits.emailTokenRequestsPerToken,
-        windowSeconds=limits.emailTokenRequestWindowSeconds,
+    return _reserve_email_token_request(
+        clientAddress, token=token, scope="accounts.registration_token"
     )
 
 
@@ -135,23 +182,14 @@ def reserve_login_request(clientAddress: str, *, normalizedEmail: str) -> int:
     The caller supplies the canonical email and the HTTP server's actual client address.
     Limits are independent from registration and are not reset by successful login.
     """
-    sourceHash = _hash_client_address(clientAddress, scope="accounts.login.source")
     limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
-    _prune_expired_request_limits()
-    retryAfterSeconds = _reserve_request(
-        sourceHash,
-        maxRequests=limits.loginRequestsPerSource,
-        windowSeconds=limits.loginRequestWindowSeconds,
-    )
-    if retryAfterSeconds:
-        return retryAfterSeconds
-
-    accountHash = salted_hmac(
-        "accounts.login.account", normalizedEmail, algorithm="sha256"
-    ).hexdigest()
-    return _reserve_request(
-        accountHash,
-        maxRequests=limits.loginRequestsPerAccount,
+    return _reserve_source_and_subject_requests(
+        clientAddress,
+        scope="accounts.login",
+        subject=normalizedEmail,
+        subjectKind="account",
+        maxSourceRequests=limits.loginRequestsPerSource,
+        maxSubjectRequests=limits.loginRequestsPerAccount,
         windowSeconds=limits.loginRequestWindowSeconds,
     )
 
@@ -159,14 +197,11 @@ def reserve_login_request(clientAddress: str, *, normalizedEmail: str) -> int:
 @sensitive_variables()
 def reserve_api_key_authentication_request(clientAddress: str) -> int:
     """Bound Bearer authentication work by source, shared across keys and failed attempts."""
-    sourceHash = _hash_client_address(
-        clientAddress, scope="accounts.api_key_authentication.source"
-    )
     limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
-    _prune_expired_request_limits()
     # TODO: Business endpoints must also share organization budgets with web and client requests.
-    return _reserve_request(
-        sourceHash,
+    return _reserve_source_request(
+        clientAddress,
+        scope="accounts.api_key_authentication",
         maxRequests=limits.apiKeyRequestsPerSource,
         windowSeconds=limits.apiKeyRequestWindowSeconds,
     )
@@ -175,11 +210,10 @@ def reserve_api_key_authentication_request(clientAddress: str) -> int:
 @sensitive_variables()
 def reserve_executor_client_request(clientAddress: str) -> int:
     """Bound native-client authentication separately from public API and login traffic."""
-    sourceHash = _hash_client_address(clientAddress, scope="executors.client.source")
     limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
-    _prune_expired_request_limits()
-    return _reserve_request(
-        sourceHash,
+    return _reserve_source_request(
+        clientAddress,
+        scope="executors.client",
         maxRequests=limits.executorRequestsPerSource,
         windowSeconds=limits.executorRequestWindowSeconds,
     )
@@ -188,25 +222,8 @@ def reserve_executor_client_request(clientAddress: str) -> int:
 @sensitive_variables()
 def reserve_api_key_creation_request(clientAddress: str, *, actorId: str) -> int:
     """Limit credential creation separately; revoking a key never consumes this allowance."""
-    sourceHash = _hash_client_address(
-        clientAddress, scope="accounts.api_key_creation.source"
-    )
-    limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
-    _prune_expired_request_limits()
-    retryAfterSeconds = _reserve_request(
-        sourceHash,
-        maxRequests=limits.sensitiveActionRequestsPerSource,
-        windowSeconds=limits.sensitiveActionRequestWindowSeconds,
-    )
-    if retryAfterSeconds:
-        return retryAfterSeconds
-    accountHash = salted_hmac(
-        "accounts.api_key_creation.actor", actorId, algorithm="sha256"
-    ).hexdigest()
-    return _reserve_request(
-        accountHash,
-        maxRequests=limits.sensitiveActionRequestsPerAccount,
-        windowSeconds=limits.sensitiveActionRequestWindowSeconds,
+    return _reserve_sensitive_action_request(
+        clientAddress, actorId=actorId, scope="accounts.api_key_creation"
     )
 
 
@@ -216,115 +233,42 @@ def reserve_password_change_request(clientAddress: str, *, actorId: str) -> int:
 
     Counters commit before credential checks and remain independent of login requests.
     """
-    sourceHash = _hash_client_address(
-        clientAddress, scope="accounts.password_change.source"
-    )
-    limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
-    _prune_expired_request_limits()
-    retryAfterSeconds = _reserve_request(
-        sourceHash,
-        maxRequests=limits.sensitiveActionRequestsPerSource,
-        windowSeconds=limits.sensitiveActionRequestWindowSeconds,
-    )
-    if retryAfterSeconds:
-        return retryAfterSeconds
-
-    accountHash = salted_hmac(
-        "accounts.password_change.actor", actorId, algorithm="sha256"
-    ).hexdigest()
-    return _reserve_request(
-        accountHash,
-        maxRequests=limits.sensitiveActionRequestsPerAccount,
-        windowSeconds=limits.sensitiveActionRequestWindowSeconds,
+    return _reserve_sensitive_action_request(
+        clientAddress, actorId=actorId, scope="accounts.password_change"
     )
 
 
 @sensitive_variables()
 def reserve_session_revocation_request(clientAddress: str, *, actorId: str) -> int:
     """Limit requests to sign out other sessions independently from login and password changes."""
-    sourceHash = _hash_client_address(
-        clientAddress, scope="accounts.session_revocation.source"
-    )
-    limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
-    _prune_expired_request_limits()
-    retryAfterSeconds = _reserve_request(
-        sourceHash,
-        maxRequests=limits.sensitiveActionRequestsPerSource,
-        windowSeconds=limits.sensitiveActionRequestWindowSeconds,
-    )
-    if retryAfterSeconds:
-        return retryAfterSeconds
-
-    accountHash = salted_hmac(
-        "accounts.session_revocation.actor", actorId, algorithm="sha256"
-    ).hexdigest()
-    return _reserve_request(
-        accountHash,
-        maxRequests=limits.sensitiveActionRequestsPerAccount,
-        windowSeconds=limits.sensitiveActionRequestWindowSeconds,
+    return _reserve_sensitive_action_request(
+        clientAddress, actorId=actorId, scope="accounts.session_revocation"
     )
 
 
 @sensitive_variables()
 def reserve_account_deletion_request(clientAddress: str, *, actorId: str) -> int:
     """Limit deletion attempts by the source IP and acting account, across all targets."""
-    sourceHash = _hash_client_address(
-        clientAddress, scope="accounts.account_deletion.source"
-    )
-    limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
-    _prune_expired_request_limits()
-    retryAfterSeconds = _reserve_request(
-        sourceHash,
-        maxRequests=limits.sensitiveActionRequestsPerSource,
-        windowSeconds=limits.sensitiveActionRequestWindowSeconds,
-    )
-    if retryAfterSeconds:
-        return retryAfterSeconds
-    accountHash = salted_hmac(
-        "accounts.account_deletion.actor", actorId, algorithm="sha256"
-    ).hexdigest()
-    return _reserve_request(
-        accountHash,
-        maxRequests=limits.sensitiveActionRequestsPerAccount,
-        windowSeconds=limits.sensitiveActionRequestWindowSeconds,
+    return _reserve_sensitive_action_request(
+        clientAddress, actorId=actorId, scope="accounts.account_deletion"
     )
 
 
 @sensitive_variables()
 def reserve_organization_deletion_request(clientAddress: str, *, actorId: str) -> int:
     """Limit password checks for scheduling organization deletion; cancellation stays available."""
-    sourceHash = _hash_client_address(
-        clientAddress, scope="organizations.deletion.source"
-    )
-    limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
-    _prune_expired_request_limits()
-    retryAfterSeconds = _reserve_request(
-        sourceHash,
-        maxRequests=limits.sensitiveActionRequestsPerSource,
-        windowSeconds=limits.sensitiveActionRequestWindowSeconds,
-    )
-    if retryAfterSeconds:
-        return retryAfterSeconds
-    accountHash = salted_hmac(
-        "organizations.deletion.actor", actorId, algorithm="sha256"
-    ).hexdigest()
-    return _reserve_request(
-        accountHash,
-        maxRequests=limits.sensitiveActionRequestsPerAccount,
-        windowSeconds=limits.sensitiveActionRequestWindowSeconds,
+    return _reserve_sensitive_action_request(
+        clientAddress, actorId=actorId, scope="organizations.deletion"
     )
 
 
 @sensitive_variables()
 def reserve_password_reset_email_request(clientAddress: str) -> int:
     """Count all recovery-email requests, including unknown and suppressed addresses."""
-    sourceHash = _hash_client_address(
-        clientAddress, scope="accounts.password_reset_email.source"
-    )
     limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
-    _prune_expired_request_limits()
-    return _reserve_request(
-        sourceHash,
+    return _reserve_source_request(
+        clientAddress,
+        scope="accounts.password_reset_email",
         maxRequests=limits.publicEmailRequestsPerSource,
         windowSeconds=limits.publicEmailRequestWindowSeconds,
     )
@@ -333,98 +277,30 @@ def reserve_password_reset_email_request(clientAddress: str) -> int:
 @sensitive_variables()
 def reserve_password_reset_token_request(clientAddress: str, *, token: str) -> int:
     """Share source and proof limits across reset-link checks and final submissions."""
-    sourceHash = _hash_client_address(
-        clientAddress, scope="accounts.password_reset_token.source"
-    )
-    limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
-    _prune_expired_request_limits()
-    retryAfterSeconds = _reserve_request(
-        sourceHash,
-        maxRequests=limits.emailTokenRequestsPerSource,
-        windowSeconds=limits.emailTokenRequestWindowSeconds,
-    )
-    if retryAfterSeconds:
-        return retryAfterSeconds
-    tokenHash = salted_hmac(
-        "accounts.password_reset_token.proof", token, algorithm="sha256"
-    ).hexdigest()
-    return _reserve_request(
-        tokenHash,
-        maxRequests=limits.emailTokenRequestsPerToken,
-        windowSeconds=limits.emailTokenRequestWindowSeconds,
+    return _reserve_email_token_request(
+        clientAddress, token=token, scope="accounts.password_reset_token"
     )
 
 
 @sensitive_variables()
 def reserve_email_change_email_request(clientAddress: str, *, actorId: str) -> int:
     """Limit authenticated email-change attempts, including failed password checks."""
-    sourceHash = _hash_client_address(
-        clientAddress, scope="accounts.email_change_email.source"
-    )
-    limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
-    _prune_expired_request_limits()
-    retryAfterSeconds = _reserve_request(
-        sourceHash,
-        maxRequests=limits.sensitiveActionRequestsPerSource,
-        windowSeconds=limits.sensitiveActionRequestWindowSeconds,
-    )
-    if retryAfterSeconds:
-        return retryAfterSeconds
-    accountHash = salted_hmac(
-        "accounts.email_change_email.actor", actorId, algorithm="sha256"
-    ).hexdigest()
-    return _reserve_request(
-        accountHash,
-        maxRequests=limits.sensitiveActionRequestsPerAccount,
-        windowSeconds=limits.sensitiveActionRequestWindowSeconds,
+    return _reserve_sensitive_action_request(
+        clientAddress, actorId=actorId, scope="accounts.email_change_email"
     )
 
 
 @sensitive_variables()
 def reserve_email_change_token_request(clientAddress: str, *, token: str) -> int:
     """Share source and proof limits across email-change checks and confirmations."""
-    sourceHash = _hash_client_address(
-        clientAddress, scope="accounts.email_change_token.source"
-    )
-    limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
-    _prune_expired_request_limits()
-    retryAfterSeconds = _reserve_request(
-        sourceHash,
-        maxRequests=limits.emailTokenRequestsPerSource,
-        windowSeconds=limits.emailTokenRequestWindowSeconds,
-    )
-    if retryAfterSeconds:
-        return retryAfterSeconds
-    tokenHash = salted_hmac(
-        "accounts.email_change_token.proof", token, algorithm="sha256"
-    ).hexdigest()
-    return _reserve_request(
-        tokenHash,
-        maxRequests=limits.emailTokenRequestsPerToken,
-        windowSeconds=limits.emailTokenRequestWindowSeconds,
+    return _reserve_email_token_request(
+        clientAddress, token=token, scope="accounts.email_change_token"
     )
 
 
 @sensitive_variables()
 def reserve_invitation_email_request(clientAddress: str, *, actorId: str) -> int:
     """Limit administrator invitation requests independently from public registration."""
-    sourceHash = _hash_client_address(
-        clientAddress, scope="accounts.invitation_email.source"
-    )
-    limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
-    _prune_expired_request_limits()
-    retryAfterSeconds = _reserve_request(
-        sourceHash,
-        maxRequests=limits.sensitiveActionRequestsPerSource,
-        windowSeconds=limits.sensitiveActionRequestWindowSeconds,
-    )
-    if retryAfterSeconds:
-        return retryAfterSeconds
-    accountHash = salted_hmac(
-        "accounts.invitation_email.actor", actorId, algorithm="sha256"
-    ).hexdigest()
-    return _reserve_request(
-        accountHash,
-        maxRequests=limits.sensitiveActionRequestsPerAccount,
-        windowSeconds=limits.sensitiveActionRequestWindowSeconds,
+    return _reserve_sensitive_action_request(
+        clientAddress, actorId=actorId, scope="accounts.invitation_email"
     )

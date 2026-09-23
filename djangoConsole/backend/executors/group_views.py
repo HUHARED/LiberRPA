@@ -5,7 +5,7 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import uuid
-from typing import Annotated, TypedDict
+from typing import Annotated
 
 from django.core.exceptions import ImproperlyConfigured, PermissionDenied, ValidationError
 from django.core.paginator import InvalidPage
@@ -17,7 +17,16 @@ from django.views.decorators.http import require_http_methods, require_POST
 from pydantic import Field
 
 from accounts.session_revocation import SessionInvalidatedError
-from console_project.http import JsonRequest, build_error_response, parse_json_request
+from console_project.http import (
+    JsonRequest,
+    build_error_response,
+    build_service_unavailable_response,
+    parse_json_request,
+)
+from organizations.http import (
+    DepartmentResourceListParameters,
+    parse_department_resource_filters,
+)
 from organizations.models import Department
 from organizations.permissions import AccessChannel
 
@@ -68,12 +77,6 @@ class ExecutorGroupCreationRequest(ExecutorGroupUpdateRequest):
 
 class ExecutorGroupDeletionRequest(JsonRequest):
     """The URL supplies the group identity; request data cannot bypass reference checks."""
-
-
-class ExecutorGroupListParameters(TypedDict):
-    pageNumber: int
-    departmentIds: tuple[uuid.UUID, ...]
-    name: str
 
 
 def _build_group_payload(group: ExecutorGroup) -> dict[str, object]:
@@ -153,54 +156,26 @@ def _build_group_error_response(e: Exception) -> JsonResponse:
                 for fieldErrors in getattr(e, "error_dict", {}).values()
                 for fieldError in fieldErrors
             )
-            return JsonResponse(
-                {
-                    "error": {
-                        "code": "duplicate_executor_group_name"
-                        if hasDuplicateName
-                        else "invalid_executor_group",
-                        "message": "Some Executor group fields are invalid.",
-                        "fields": e.message_dict
-                        if hasattr(e, "error_dict")
-                        else {"__all__": e.messages},
-                    }
-                },
-                status=409 if hasDuplicateName else 400,
+            return build_error_response(
+                "duplicate_executor_group_name"
+                if hasDuplicateName
+                else "invalid_executor_group",
+                "Some Executor group fields are invalid.",
+                statusCode=409 if hasDuplicateName else 400,
+                fields=e.message_dict
+                if hasattr(e, "error_dict")
+                else {"__all__": e.messages},
             )
         case _:
-            return build_error_response(
-                "service_unavailable",
-                "The service is temporarily unavailable.",
-                statusCode=503,
-            )
+            return build_service_unavailable_response()
 
 
 def _get_list_parameters(
     request: HttpRequest,
-) -> ExecutorGroupListParameters | JsonResponse:
+) -> DepartmentResourceListParameters | JsonResponse:
     try:
-        if set(request.GET) - {"page", "department_id", "name"}:
-            raise ValueError
-        if len(request.GET.getlist("page")) > 1 or len(request.GET.getlist("name")) > 1:
-            raise ValueError
-        pageValue = request.GET.get("page", "1")
-        if (
-            not pageValue.isascii()
-            or not pageValue.isdecimal()
-            or len(pageValue) > 9
-            or int(pageValue) < 1
-        ):
-            raise ValueError
-        name = request.GET.get("name", "").strip()
-        departmentValues = request.GET.getlist("department_id")
-        if len(name) > 128 or len(departmentValues) > 100:
-            raise ValueError
-        return {
-            "pageNumber": int(pageValue),
-            "departmentIds": tuple(uuid.UUID(value) for value in departmentValues),
-            "name": name,
-        }
-    except (ValueError, KeyError):
+        return parse_department_resource_filters(request.GET)
+    except ValueError:
         return build_error_response(
             "invalid_filter",
             "Use one positive page, one name, and department UUIDs.",

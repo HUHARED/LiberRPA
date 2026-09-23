@@ -17,6 +17,7 @@ from pydantic import SecretStr
 from .http import (
     AccountRequest,
     build_error_response,
+    build_service_unavailable_response,
     build_rate_limited_response,
     parse_json_request,
 )
@@ -54,29 +55,27 @@ def _build_registration_validation_response(
             "organization_name" if fieldName == "name" else fieldName: listErrorMessage
             for fieldName, listErrorMessage in validationError.message_dict.items()
         }
-        return JsonResponse(
-            {
-                "error": {
-                    "code": "invalid_registration",
-                    "message": "Some registration fields are invalid.",
-                    "fields": dictFieldError,
-                }
-            },
-            status=400,
+        return build_error_response(
+            "invalid_registration",
+            "Some registration fields are invalid.",
+            statusCode=400,
+            fields=dictFieldError,
         )
 
     errorCode = validationError.error_list[0].code or "invalid_registration"
-    dictErrorDetail: dict[str, object] = {
-        "code": errorCode,
-        "message": " ".join(validationError.messages),
-    }
+    passwordFields: dict[str, list[str]] | None = None
     if all(
         fieldError.code and fieldError.code.startswith("password_")
         for fieldError in validationError.error_list
     ):
-        dictErrorDetail["fields"] = {"password": validationError.messages}
+        passwordFields = {"password": validationError.messages}
     statusCode = 409 if errorCode == "email_already_registered" else 400
-    return JsonResponse({"error": dictErrorDetail}, status=statusCode)
+    return build_error_response(
+        errorCode,
+        " ".join(validationError.messages),
+        statusCode=statusCode,
+        fields=passwordFields,
+    )
 
 
 @never_cache
@@ -113,11 +112,7 @@ def queue_registration_email(request: HttpRequest) -> JsonResponse:
             statusCode=403,
         )
     except (ImproperlyConfigured, DatabaseError):
-        return build_error_response(
-            "service_unavailable",
-            "The service is temporarily unavailable.",
-            statusCode=503,
-        )
+        return build_service_unavailable_response()
 
     # Existing accounts, recipient cooldowns, and newly queued mail share this response.
     return JsonResponse(
@@ -145,11 +140,7 @@ def check_registration_link(request: HttpRequest) -> JsonResponse:
     except DjangoValidationError as e:
         return _build_registration_validation_response(e)
     except (ImproperlyConfigured, DatabaseError):
-        return build_error_response(
-            "service_unavailable",
-            "The service is temporarily unavailable.",
-            statusCode=503,
-        )
+        return build_service_unavailable_response()
 
 
 @never_cache
@@ -182,11 +173,7 @@ def complete_registration(request: HttpRequest) -> JsonResponse:
             statusCode=403,
         )
     except (ImproperlyConfigured, DatabaseError):
-        return build_error_response(
-            "service_unavailable",
-            "The service is temporarily unavailable.",
-            statusCode=503,
-        )
+        return build_service_unavailable_response()
     return JsonResponse(
         {"message": "Organization created. Sign in to continue."}, status=201
     )

@@ -1,0 +1,197 @@
+# FileName: department_services.py
+__author__ = "Jiyan Hu"
+__email__ = "mailwork.hu@gmail.com"
+__license__ = "GNU Affero General Public License v3.0 or later"
+__copyright__ = f"Copyright (C) 2025 {__author__}"
+
+import uuid
+from typing import cast
+
+from django.conf import settings
+from django.core.exceptions import ValidationError
+from django.db import transaction
+
+from console_project.config import LimitsConfig
+
+from .models import Department, Organization
+from .permissions import AccessChannel, lock_organization_for_admin
+
+
+def _get_parent_department(
+    organization: Organization, parentId: uuid.UUID | None
+) -> Department | None:
+    if parentId is None:
+        return None
+    try:
+        return Department.objects.get(
+            pk=parentId, organization=organization, deleted_at__isnull=True
+        )
+    except Department.DoesNotExist:
+        raise ValidationError({
+            "parent": ValidationError(
+                "Select an available parent department in this organization.",
+                code="invalid_parent",
+            )
+        }) from None
+
+
+def _validate_department_values(department: Department) -> None:
+    # The foreign keys were resolved by the caller.
+    # Reuse those objects instead of querying their existence again.
+    # Constraints are checked separately before saving.
+    department.full_clean(
+        exclude=["organization", "parent"],
+        validate_unique=False,
+        validate_constraints=False,
+    )
+
+
+def _get_department_subtree_height(department: Department) -> int:
+    """Count active levels, including this department, without loading unrelated branches."""
+    subtreeHeight = 0
+    listLevelDepartmentId = [department.pk]
+    while listLevelDepartmentId:
+        subtreeHeight += 1
+        listLevelDepartmentId = list(
+            Department.objects.filter(
+                organization_id=department.organization_id,
+                parent_id__in=listLevelDepartmentId,
+                deleted_at__isnull=True,
+            ).values_list("id", flat=True)
+        )
+    return subtreeHeight
+
+
+def _validate_department_depth(
+    parentDepartment: Department | None,
+    maxDepth: int,
+    *,
+    departmentId: uuid.UUID | None = None,
+    subtreeHeight: int = 1,
+) -> None:
+    deepestDepth = subtreeHeight
+    currentParent = parentDepartment
+    while currentParent is not None:
+        if currentParent.pk == departmentId:
+            raise ValidationError({
+                "parent": ValidationError(
+                    "A department cannot be moved below itself or its descendants.",
+                    code="department_cycle",
+                )
+            })
+        deepestDepth += 1
+        currentParent = cast(Department | None, currentParent.parent)
+    if deepestDepth > maxDepth:
+        raise ValidationError({
+            "parent": ValidationError(
+                "Departments cannot exceed %(limit)s levels.",
+                code="department_depth_limit",
+                params={"limit": maxDepth},
+            )
+        })
+
+
+def _create_department(
+    organization: Organization,
+    *,
+    name: str,
+    parentId: uuid.UUID | None = None,
+    notes: str = "",
+) -> Department:
+    """Create within the caller's transaction using a newly inserted or already locked organization."""
+    parentDepartment = _get_parent_department(organization, parentId)
+    department = Department(
+        organization=organization, parent=parentDepartment, name=name, notes=notes
+    )
+    _validate_department_values(department)
+
+    limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
+    if (
+        Department.objects.filter(
+            organization=organization, deleted_at__isnull=True
+        ).count()
+        >= limits.maxDepartmentsPerOrganization
+    ):
+        raise ValidationError(
+            "This organization has reached its limit of %(limit)s departments.",
+            code="department_count_limit",
+            params={"limit": limits.maxDepartmentsPerOrganization},
+        )
+    _validate_department_depth(parentDepartment, limits.maxDepartmentDepth)
+
+    department.validate_constraints()
+    department.save(force_insert=True)
+    return department
+
+
+@transaction.atomic
+def create_department(
+    *,
+    actorId: uuid.UUID,
+    organizationId: uuid.UUID,
+    channel: AccessChannel,
+    name: str,
+    parentId: uuid.UUID | None = None,
+    notes: str = "",
+) -> Department:
+    """Create a department using the account and channel supplied by authentication.
+
+    actorId and channel come from verified credentials, never from the request body.
+    Operator-scoped API Keys cannot use this operation.
+    """
+    organization = lock_organization_for_admin(actorId, organizationId, channel)
+    return _create_department(organization, name=name, parentId=parentId, notes=notes)
+
+
+@transaction.atomic
+def update_department(
+    *,
+    actorId: uuid.UUID,
+    organizationId: uuid.UUID,
+    channel: AccessChannel,
+    departmentId: uuid.UUID,
+    name: str,
+    parentId: uuid.UUID | None,
+    notes: str,
+) -> Department:
+    """Save the complete edit form using the same session contract as create_department().
+
+    All editable values are required; parentId=None explicitly selects the root level.
+    A missing, deleted, or foreign department raises Department.DoesNotExist.
+    """
+    organization = lock_organization_for_admin(actorId, organizationId, channel)
+    department = Department.objects.get(
+        pk=departmentId, organization=organization, deleted_at__isnull=True
+    )
+    parentDepartment = _get_parent_department(organization, parentId)
+    oldParentId = department.parent_id
+    department.name = name
+    department.parent = parentDepartment
+    department.notes = notes
+    _validate_department_values(department)
+
+    # Editing does not consume a new slot.
+    # Only a move changes subtree placement.
+    # Lowering deployment limits therefore does not block name or Notes edits.
+    if parentId != oldParentId:
+        limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
+        _validate_department_depth(
+            parentDepartment,
+            limits.maxDepartmentDepth,
+            departmentId=departmentId,
+            subtreeHeight=_get_department_subtree_height(department),
+        )
+
+    department.validate_constraints()
+    # Update the same row and leave all identity-based relationships intact.
+    department.save(update_fields=["name", "parent", "notes"])
+    return department
+
+
+def create_general_department(organization: Organization) -> Department:
+    """Create the default department inside the new organization's registration transaction."""
+    return _create_department(
+        organization,
+        name="General",
+        notes="Created automatically during organization setup.",
+    )
