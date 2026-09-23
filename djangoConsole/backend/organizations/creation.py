@@ -53,7 +53,7 @@ def create_organization_records(
     organization.full_clean(validate_unique=False, validate_constraints=False)
 
     # Display names are not unique, so a generated name needs no availability query.
-    displayName = (
+    strDisplayName = (
         username
         if username and not username.isspace()
         else f"User {uuid.uuid4().hex[:8]}"
@@ -63,7 +63,7 @@ def create_organization_records(
     user = userManager.create_user(
         verifiedEmail,
         password,
-        username=displayName,
+        username=strDisplayName,
         timeZone=organization.default_time_zone,
     )
     organization.save(force_insert=True)

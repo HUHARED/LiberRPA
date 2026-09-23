@@ -51,11 +51,11 @@ def change_account_password(request: HttpRequest) -> JsonResponse:
         if isinstance(passwordRequest, JsonResponse):
             return passwordRequest
 
-        retryAfterSeconds = reserve_password_change_request(
+        intRetryAfterSeconds = reserve_password_change_request(
             request.META.get("REMOTE_ADDR", ""), actorId=str(user.id)
         )
-        if retryAfterSeconds:
-            return build_rate_limited_response(retryAfterSeconds)
+        if intRetryAfterSeconds:
+            return build_rate_limited_response(intRetryAfterSeconds)
 
         if passwordRequest.new_password != passwordRequest.confirm_password:
             raise ValidationError({"confirm_password": "The new passwords do not match."})

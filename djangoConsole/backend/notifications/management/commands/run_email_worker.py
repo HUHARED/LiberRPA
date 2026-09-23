@@ -30,9 +30,9 @@ def _build_worker_failure_details(error: Exception) -> str:
     """Describe code locations and missing attributes without including runtime values."""
     listDetail = [f"Exception type: {type(error).__name__}."]
     if isinstance(error, AttributeError):
-        attributeName = error.name
-        if attributeName is not None and attributeName.isidentifier():
-            listDetail.append(f"Missing attribute: {attributeName}.")
+        strAttributeName = error.name
+        if strAttributeName is not None and strAttributeName.isidentifier():
+            listDetail.append(f"Missing attribute: {strAttributeName}.")
         if error.obj is not None:
             listDetail.append(f"Object type: {type(error.obj).__name__}.")
 
@@ -40,10 +40,10 @@ def _build_worker_failure_details(error: Exception) -> str:
     # These can contain SMTP credentials, message bodies, or usable registration tokens.
     if error.__traceback__ is not None:
         listDetail.append("Call locations (outermost to innermost):")
-        for tracebackFrame, lineNumber in walk_tb(error.__traceback__):
-            code = tracebackFrame.f_code
+        for tracebackFrame, intLineNumber in walk_tb(error.__traceback__):
+            codeObj = tracebackFrame.f_code
             listDetail.append(
-                f"  {Path(code.co_filename).name}:{lineNumber} in {code.co_name}"
+                f"  {Path(codeObj.co_filename).name}:{intLineNumber} in {codeObj.co_name}"
             )
     return "\n".join(listDetail)
 
@@ -65,25 +65,25 @@ class Command(BaseCommand):
                 "Configure consoleUrl, supportEmail, and smtp in Console.jsonc before starting the email worker."
             )
 
-        runOnce = bool(options["once"])
+        boolRunOnce = bool(options["once"])
         stopEvent = Event()
         try:
             with stop_on_signals(stopEvent), hold_email_worker_session():
-                recoveredDeliveryCount = recover_interrupted_email_deliveries()
+                intRecoveredDeliveryCount = recover_interrupted_email_deliveries()
                 self.stdout.write(
-                    f"Email worker started. Interrupted attempts marked Unknown: {recoveredDeliveryCount}."
+                    f"Email worker started. Interrupted attempts marked Unknown: {intRecoveredDeliveryCount}."
                 )
                 while not stopEvent.is_set():
                     deliveryResult = process_next_email()
                     if deliveryResult is None:
-                        if runOnce:
+                        if boolRunOnce:
                             self.stdout.write("No pending email.")
-                        waitSeconds = _INT_IDLE_POLL_SECONDS
+                        floatWaitSeconds = _INT_IDLE_POLL_SECONDS
                     elif deliveryResult.retryAt is not None:
                         self.stdout.write(
                             f"Email {deliveryResult.deliveryId}: pending until {deliveryResult.retryAt.isoformat()}."
                         )
-                        waitSeconds = max(
+                        floatWaitSeconds = max(
                             0, (deliveryResult.retryAt - timezone.now()).total_seconds()
                         )
                     else:
@@ -91,11 +91,11 @@ class Command(BaseCommand):
                         self.stdout.write(
                             f"Email {deliveryResult.deliveryId}: {deliveryResult.status}."
                         )
-                        waitSeconds = 0
+                        floatWaitSeconds = 0
 
-                    if runOnce:
+                    if boolRunOnce:
                         break
-                    stopEvent.wait(waitSeconds)
+                    stopEvent.wait(floatWaitSeconds)
         except (EmailWorkerAlreadyRunningError, ImproperlyConfigured) as e:
             raise CommandError(str(e)) from None
         except DatabaseError:

@@ -57,7 +57,7 @@ def _reserve_request(sourceHash: str, *, maxRequests: int, windowSeconds: int) -
     requestWindow = timedelta(seconds=windowSeconds)
     # Commit each counter before business work; failures do not refund attempts.
     with transaction.atomic(durable=True):
-        requestLimit, _created = (
+        requestLimit, _ = (
             AuthenticationRequestLimit.objects.select_for_update().get_or_create(
                 source_hash=sourceHash,
                 defaults={"expires_at": timezone.now() + requestWindow},
@@ -65,13 +65,13 @@ def _reserve_request(sourceHash: str, *, maxRequests: int, windowSeconds: int) -
         )
         # Recheck time after any wait for another request using the same counter.
         currentTime = timezone.now()
-        windowExpired = requestLimit.expires_at <= currentTime
-        if windowExpired:
+        boolWindowExpired = requestLimit.expires_at <= currentTime
+        if boolWindowExpired:
             requestLimit.request_count = 0
             requestLimit.expires_at = currentTime + requestWindow
 
         if requestLimit.request_count >= maxRequests:
-            if windowExpired:
+            if boolWindowExpired:
                 requestLimit.save(update_fields=["request_count", "expires_at"])
             return max(
                 1, math.ceil((requestLimit.expires_at - currentTime).total_seconds())
@@ -86,10 +86,10 @@ def _reserve_request(sourceHash: str, *, maxRequests: int, windowSeconds: int) -
 def _reserve_source_request(
     clientAddress: str, *, scope: str, maxRequests: int, windowSeconds: int
 ) -> int:
-    sourceHash = _hash_client_address(clientAddress, scope=f"{scope}.source")
+    strSourceHash = _hash_client_address(clientAddress, scope=f"{scope}.source")
     _prune_expired_request_limits()
     return _reserve_request(
-        sourceHash, maxRequests=maxRequests, windowSeconds=windowSeconds
+        strSourceHash, maxRequests=maxRequests, windowSeconds=windowSeconds
     )
 
 
@@ -104,20 +104,20 @@ def _reserve_source_and_subject_requests(
     maxSubjectRequests: int,
     windowSeconds: int,
 ) -> int:
-    retryAfterSeconds = _reserve_source_request(
+    intRetryAfterSeconds = _reserve_source_request(
         clientAddress,
         scope=scope,
         maxRequests=maxSourceRequests,
         windowSeconds=windowSeconds,
     )
-    if retryAfterSeconds:
-        return retryAfterSeconds
+    if intRetryAfterSeconds:
+        return intRetryAfterSeconds
     # A blocked source cannot allocate additional account or proof counters.
-    subjectHash = salted_hmac(
+    strSubjectHash = salted_hmac(
         f"{scope}.{subjectKind}", subject, algorithm="sha256"
     ).hexdigest()
     return _reserve_request(
-        subjectHash, maxRequests=maxSubjectRequests, windowSeconds=windowSeconds
+        strSubjectHash, maxRequests=maxSubjectRequests, windowSeconds=windowSeconds
     )
 
 

@@ -88,8 +88,10 @@ def _handle_invitation_errors[**Params](
                     statusCode=400,
                     fields=e.message_dict,
                 )
-            errorCode = e.error_list[0].code or "invalid_invitation"
-            return build_error_response(errorCode, " ".join(e.messages), statusCode=400)
+            strErrorCode = e.error_list[0].code or "invalid_invitation"
+            return build_error_response(
+                strErrorCode, " ".join(e.messages), statusCode=400
+            )
         except (MemberInvitation.DoesNotExist, InvalidPage):
             return build_error_response(
                 "invitation_not_found",
@@ -204,11 +206,11 @@ def list_or_create_invitations(request: HttpRequest) -> JsonResponse:
         )
         if isinstance(invitationRequest, JsonResponse):
             return invitationRequest
-        retryAfterSeconds = reserve_invitation_email_request(
+        intRetryAfterSeconds = reserve_invitation_email_request(
             request.META.get("REMOTE_ADDR", ""), actorId=str(user.id)
         )
-        if retryAfterSeconds:
-            return build_rate_limited_response(retryAfterSeconds)
+        if intRetryAfterSeconds:
+            return build_rate_limited_response(intRetryAfterSeconds)
         invitation = create_member_invitation(
             actorId=user.id,
             organizationId=organizationId,
@@ -223,7 +225,7 @@ def list_or_create_invitations(request: HttpRequest) -> JsonResponse:
         )
         return _build_invitation_response(invitation, statusCode=201)
     try:
-        pageNumber = parse_page_number(request.GET)
+        intPageNumber = parse_page_number(request.GET)
     except ValueError:
         return build_error_response(
             "invalid_page", "Send one positive integer page number.", statusCode=400
@@ -235,7 +237,7 @@ def list_or_create_invitations(request: HttpRequest) -> JsonResponse:
         revoked_at__isnull=True,
     ).order_by("-created_at", "-id")
     paginator = Paginator(invitationQuery, _INT_INVITATIONS_PER_PAGE)
-    invitationPage = paginator.page(pageNumber)
+    invitationPage = paginator.page(intPageNumber)
     return JsonResponse({
         "invitations": _build_invitation_payloads(list(invitationPage.object_list)),
         "pagination": {
@@ -275,11 +277,11 @@ def resend_or_revoke_invitation(
     if isinstance(emptyRequest, JsonResponse):
         return emptyRequest
     if resend:
-        retryAfterSeconds = reserve_invitation_email_request(
+        intRetryAfterSeconds = reserve_invitation_email_request(
             request.META.get("REMOTE_ADDR", ""), actorId=str(user.id)
         )
-        if retryAfterSeconds:
-            return build_rate_limited_response(retryAfterSeconds)
+        if intRetryAfterSeconds:
+            return build_rate_limited_response(intRetryAfterSeconds)
     operation = resend_member_invitation if resend else revoke_member_invitation
     invitation = operation(
         actorId=user.id,
@@ -298,15 +300,15 @@ def check_invitation_link(request: HttpRequest) -> JsonResponse:
     invitationRequest = parse_json_request(request, InvitationTokenRequest)
     if isinstance(invitationRequest, JsonResponse):
         return invitationRequest
-    token = invitationRequest.token.get_secret_value()
+    strToken = invitationRequest.token.get_secret_value()
     # Both public registration paths share the source and proof request budgets.
-    retryAfterSeconds = reserve_registration_token_request(
-        request.META.get("REMOTE_ADDR", ""), token=token
+    intRetryAfterSeconds = reserve_registration_token_request(
+        request.META.get("REMOTE_ADDR", ""), token=strToken
     )
-    if retryAfterSeconds:
-        return build_rate_limited_response(retryAfterSeconds)
-    email, organizationName = get_invitation_registration_info(token)
-    return JsonResponse({"email": email, "organization_name": organizationName})
+    if intRetryAfterSeconds:
+        return build_rate_limited_response(intRetryAfterSeconds)
+    strEmail, strOrganizationName = get_invitation_registration_info(strToken)
+    return JsonResponse({"email": strEmail, "organization_name": strOrganizationName})
 
 
 @never_cache
@@ -317,14 +319,14 @@ def complete_invited_registration(request: HttpRequest) -> JsonResponse:
     invitationRequest = parse_json_request(request, InvitationCompletionRequest)
     if isinstance(invitationRequest, JsonResponse):
         return invitationRequest
-    token = invitationRequest.token.get_secret_value()
-    retryAfterSeconds = reserve_registration_token_request(
-        request.META.get("REMOTE_ADDR", ""), token=token
+    strToken = invitationRequest.token.get_secret_value()
+    intRetryAfterSeconds = reserve_registration_token_request(
+        request.META.get("REMOTE_ADDR", ""), token=strToken
     )
-    if retryAfterSeconds:
-        return build_rate_limited_response(retryAfterSeconds)
+    if intRetryAfterSeconds:
+        return build_rate_limited_response(intRetryAfterSeconds)
     complete_invitation_registration(
-        token=token,
+        token=strToken,
         password=invitationRequest.password.get_secret_value(),
         username=invitationRequest.username,
     )

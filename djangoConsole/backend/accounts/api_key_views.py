@@ -84,9 +84,9 @@ def _build_api_key_error_response(e: Exception) -> JsonResponse:
             "api_key_not_found", "The member or API key is unavailable.", statusCode=404
         )
     if isinstance(e, ValidationError):
-        errorCode = getattr(e, "code", None)
-        if errorCode in ("api_key_limit", "api_key_not_active"):
-            return build_error_response(errorCode, e.messages[0], statusCode=409)
+        strErrorCode = getattr(e, "code", None)
+        if strErrorCode in ("api_key_limit", "api_key_not_active"):
+            return build_error_response(strErrorCode, e.messages[0], statusCode=409)
         return build_error_response(
             "invalid_api_key",
             "Some API key fields are invalid.",
@@ -125,11 +125,11 @@ def list_or_create_api_keys(
             )
             if isinstance(keyRequest, JsonResponse):
                 return keyRequest
-            retryAfterSeconds = reserve_api_key_creation_request(
+            intRetryAfterSeconds = reserve_api_key_creation_request(
                 request.META.get("REMOTE_ADDR", ""), actorId=str(user.id)
             )
-            if retryAfterSeconds:
-                return build_rate_limited_response(retryAfterSeconds)
+            if intRetryAfterSeconds:
+                return build_rate_limited_response(intRetryAfterSeconds)
             try:
                 expiresAt = parse_datetime(keyRequest.expires_at)
             except ValueError:
@@ -156,8 +156,8 @@ def list_or_create_api_keys(
             )
 
         try:
-            statuses = tuple(
-                ApiKeyStatus(value) for value in request.GET.getlist("status")
+            tupleApiKeyStatus = tuple(
+                ApiKeyStatus(strStatus) for strStatus in request.GET.getlist("status")
             )
             if set(request.GET) - {"status"}:
                 raise ValueError
@@ -165,16 +165,16 @@ def list_or_create_api_keys(
             raise ValidationError({
                 "status": "Use active, expired, or revoked status values."
             }) from None
-        apiKeys = get_api_key_list(
+        tupleApiKey = get_api_key_list(
             actorId=user.id,
             channel=AccessChannel.SESSION,
             userId=user.id if userId is None else userId,
-            statuses=statuses,
+            statuses=tupleApiKeyStatus,
             asAdministrator=userId is not None,
         )
         limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
         return JsonResponse({
-            "api_keys": [_build_api_key_payload(apiKey) for apiKey in apiKeys],
+            "api_keys": [_build_api_key_payload(apiKey) for apiKey in tupleApiKey],
             "default_expires_at": timezone.now() + timedelta(days=365),
             "limits": {
                 "active_keys": limits.maxActiveApiKeysPerAccount,

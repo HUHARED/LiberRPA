@@ -66,19 +66,19 @@ def sign_in(request: HttpRequest) -> JsonResponse:
     if isinstance(loginRequest, JsonResponse):
         return loginRequest
     try:
-        normalizedEmail = UserManager.normalize_email(loginRequest.email)
-        retryAfterSeconds = reserve_login_request(
-            request.META.get("REMOTE_ADDR", ""), normalizedEmail=normalizedEmail
+        strNormalizedEmail = UserManager.normalize_email(loginRequest.email)
+        intRetryAfterSeconds = reserve_login_request(
+            request.META.get("REMOTE_ADDR", ""), normalizedEmail=strNormalizedEmail
         )
-        if retryAfterSeconds:
-            return build_rate_limited_response(retryAfterSeconds)
+        if intRetryAfterSeconds:
+            return build_rate_limited_response(intRetryAfterSeconds)
 
         # Django verifies passwords, rejects inactive users, and mitigates timing differences.
         user = cast(
             User | None,
             authenticate(
                 request,
-                email=normalizedEmail,
+                email=strNormalizedEmail,
                 password=loginRequest.password.get_secret_value(),
             ),
         )
@@ -167,21 +167,21 @@ def sign_out_other_sessions(request: HttpRequest) -> JsonResponse:
         if isinstance(revocationRequest, JsonResponse):
             return revocationRequest
 
-        retryAfterSeconds = reserve_session_revocation_request(
+        intRetryAfterSeconds = reserve_session_revocation_request(
             request.META.get("REMOTE_ADDR", ""), actorId=str(user.id)
         )
-        if retryAfterSeconds:
-            return build_rate_limited_response(retryAfterSeconds)
+        if intRetryAfterSeconds:
+            return build_rate_limited_response(intRetryAfterSeconds)
 
-        sessionAuthHash = cast(str, request.session.get(HASH_SESSION_KEY, ""))
-        sessionWasModified = request.session.modified
+        strSessionAuthHash = cast(str, request.session.get(HASH_SESSION_KEY, ""))
+        boolSessionWasModified = request.session.modified
         try:
             with transaction.atomic():
                 user = revoke_other_sessions(
                     actorId=user.id,
                     channel=AccessChannel.SESSION,
                     currentPassword=revocationRequest.current_password.get_secret_value(),
-                    sessionAuthHash=sessionAuthHash,
+                    sessionAuthHash=strSessionAuthHash,
                 )
                 if request.session.get_expiry_date() <= timezone.now():
                     raise SessionInvalidatedError("The current session has expired.")
@@ -190,8 +190,8 @@ def sign_out_other_sessions(request: HttpRequest) -> JsonResponse:
                 request.session.save()
         except Exception:
             # Database rollback does not restore Django's in-memory session dictionary.
-            request.session[HASH_SESSION_KEY] = sessionAuthHash
-            request.session.modified = sessionWasModified
+            request.session[HASH_SESSION_KEY] = strSessionAuthHash
+            request.session.modified = boolSessionWasModified
             raise
 
         # Avoid a second write unless Django rotated the key while checking a fallback signing secret.

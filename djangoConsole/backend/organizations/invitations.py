@@ -91,8 +91,8 @@ def _require_member_capacity(
     if invitationId is not None:
         pendingQuery = pendingQuery.exclude(pk=invitationId)
     # NOTE: Inactive members still count. Acceptance replaces its own reservation.
-    usedCount = Membership.objects.filter(organization_id=organizationId).count()
-    if usedCount + pendingQuery.count() >= limits.maxMembersPerOrganization:
+    intUsedCount = Membership.objects.filter(organization_id=organizationId).count()
+    if intUsedCount + pendingQuery.count() >= limits.maxMembersPerOrganization:
         raise InvitationConflictError(
             "member_limit_reached", "The member limit has been reached."
         )
@@ -108,10 +108,10 @@ def _require_unregistered_email(email: str) -> None:
 def _validate_department_roles(
     organizationId: uuid.UUID, departmentRoles: Mapping[uuid.UUID, DepartmentRole]
 ) -> None:
-    departmentCount = Department.objects.filter(
+    intDepartmentCount = Department.objects.filter(
         pk__in=departmentRoles, organization_id=organizationId, deleted_at__isnull=True
     ).count()
-    if departmentCount != len(departmentRoles) or any(
+    if intDepartmentCount != len(departmentRoles) or any(
         role not in DepartmentRole.values for role in departmentRoles.values()
     ):
         raise ValidationError({
@@ -148,9 +148,9 @@ def _require_recipient_cooldown(organizationId: uuid.UUID, email: str) -> None:
     retryAt = previousInvitation.requested_at + timedelta(
         seconds=limits.emailResendSeconds
     )
-    retrySeconds = math.ceil((retryAt - timezone.now()).total_seconds())
-    if retrySeconds > 0:
-        raise InvitationCooldownError(retrySeconds)
+    intRetrySeconds = math.ceil((retryAt - timezone.now()).total_seconds())
+    if intRetrySeconds > 0:
+        raise InvitationCooldownError(intRetrySeconds)
 
 
 def _queue_invitation_email(invitation: MemberInvitation) -> None:
@@ -308,13 +308,13 @@ def issue_invitation_token(delivery: EmailDelivery) -> InvitationDeliveryInfo | 
     ):
         return None
     _require_invitation_eligible(invitation, organization)
-    token = secrets.token_urlsafe(32)
-    invitation.token_hash = hashlib.sha256(token.encode("ascii")).hexdigest()
+    strToken = secrets.token_urlsafe(32)
+    invitation.token_hash = hashlib.sha256(strToken.encode("ascii")).hexdigest()
     invitation.save(update_fields=["token_hash"])
     return InvitationDeliveryInfo(
         email=invitation.email,
         organizationName=organization.name,
-        token=token,
+        token=strToken,
         expiresAt=invitation.expires_at,
     )
 
@@ -325,15 +325,15 @@ def _get_invitation_by_token(token: str) -> tuple[MemberInvitation, Organization
         raise ValidationError(
             "The invitation link is invalid or expired.", code="invalid_invitation_token"
         )
-    tokenHash = hashlib.sha256(token.encode("ascii")).hexdigest()
+    strTokenHash = hashlib.sha256(token.encode("ascii")).hexdigest()
     try:
         # NOTE: The first read discovers the lock key only. Recheck the digest after locking.
         organizationId = MemberInvitation.objects.values_list(
             "organization_id", flat=True
-        ).get(token_hash=tokenHash)
+        ).get(token_hash=strTokenHash)
         organization = Organization.objects.select_for_update().get(pk=organizationId)
         invitation = MemberInvitation.objects.select_for_update().get(
-            token_hash=tokenHash, organization=organization
+            token_hash=strTokenHash, organization=organization
         )
     except (MemberInvitation.DoesNotExist, Organization.DoesNotExist):
         raise ValidationError(
@@ -359,7 +359,7 @@ def complete_invitation_registration(
     invitation, organization = _get_invitation_by_token(token)
     if password is None:
         raise ValidationError({"password": "A password is required."})
-    displayName = (
+    strDisplayName = (
         username
         if username and not username.isspace()
         else f"User {uuid.uuid4().hex[:8]}"
@@ -370,7 +370,7 @@ def complete_invitation_registration(
             user = cast(UserManager, User.objects).create_user(
                 invitation.email,
                 password,
-                username=displayName,
+                username=strDisplayName,
                 timeZone=organization.default_time_zone,
             )
     except IntegrityError:

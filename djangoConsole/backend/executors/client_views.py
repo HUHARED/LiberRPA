@@ -96,12 +96,12 @@ def _build_client_error_response(e: Exception) -> JsonResponse:
                 "invalid_page", "The requested page is unavailable.", statusCode=400
             )
         case ValidationError():
-            errorCode = getattr(e, "code", None)
-            if errorCode in (
+            strErrorCode = getattr(e, "code", None)
+            if strErrorCode in (
                 "executor_already_associated",
                 "executor_selection_required",
             ):
-                return build_error_response(errorCode, e.messages[0], statusCode=409)
+                return build_error_response(strErrorCode, e.messages[0], statusCode=409)
             return build_error_response(
                 "invalid_executor_client",
                 "Some Executor client fields are invalid.",
@@ -118,7 +118,7 @@ def _build_client_session_payload(
     session: ExecutorSession, access: OrganizationAccessContext
 ) -> dict[str, object]:
     user = cast(User, session.user)
-    departments = get_department_access_info(access)
+    tupleDepartmentAccessInfo = get_department_access_info(access)
     executor = cast(Executor | None, session.executor)
     return {
         "session": {
@@ -136,7 +136,7 @@ def _build_client_session_payload(
                 "path": department.path,
                 "role": department.role,
             }
-            for department in departments
+            for department in tupleDepartmentAccessInfo
         ],
         "executor": None
         if executor is None
@@ -163,17 +163,17 @@ def sign_in_executor(request: HttpRequest) -> JsonResponse:
     if isinstance(loginRequest, JsonResponse):
         return loginRequest
     try:
-        normalizedEmail = UserManager.normalize_email(loginRequest.email)
-        retryAfterSeconds = reserve_login_request(
-            request.META.get("REMOTE_ADDR", ""), normalizedEmail=normalizedEmail
+        strNormalizedEmail = UserManager.normalize_email(loginRequest.email)
+        intRetryAfterSeconds = reserve_login_request(
+            request.META.get("REMOTE_ADDR", ""), normalizedEmail=strNormalizedEmail
         )
-        if retryAfterSeconds:
-            return build_rate_limited_response(retryAfterSeconds)
+        if intRetryAfterSeconds:
+            return build_rate_limited_response(intRetryAfterSeconds)
         user = cast(
             User | None,
             authenticate(
                 request,
-                email=normalizedEmail,
+                email=strNormalizedEmail,
                 password=loginRequest.password.get_secret_value(),
             ),
         )
@@ -204,40 +204,40 @@ def executor_client_request(
     request: HttpRequest, action: ExecutorClientAction
 ) -> JsonResponse:
     """Adapt a server-selected route action; request data cannot choose another operation."""
-    allowedMethod = _DICT_CLIENT_METHOD[action]
-    if request.method != allowedMethod:
+    strAllowedMethod = _DICT_CLIENT_METHOD[action]
+    if request.method != strAllowedMethod:
         response = build_error_response(
             "method_not_allowed",
-            f"Use {allowedMethod} for this operation.",
+            f"Use {strAllowedMethod} for this operation.",
             statusCode=405,
         )
-        response["Allow"] = allowedMethod
+        response["Allow"] = strAllowedMethod
         return response
     try:
         if action != ExecutorClientAction.LOGOUT:
-            retryAfterSeconds = reserve_executor_client_request(
+            intRetryAfterSeconds = reserve_executor_client_request(
                 request.META.get("REMOTE_ADDR", "")
             )
-            if retryAfterSeconds:
-                return build_rate_limited_response(retryAfterSeconds)
-        pageNumber = 1
+            if intRetryAfterSeconds:
+                return build_rate_limited_response(intRetryAfterSeconds)
+        intPageNumber = 1
         if request.GET:
-            pageValues = request.GET.getlist("page")
+            listPageValue = request.GET.getlist("page")
             if (
                 action != ExecutorClientAction.CHOICES
                 or set(request.GET) != {"page"}
-                or len(pageValues) != 1
-                or not pageValues[0].isascii()
-                or not pageValues[0].isdecimal()
-                or len(pageValues[0]) > 9
-                or int(pageValues[0]) < 1
+                or len(listPageValue) != 1
+                or not listPageValue[0].isascii()
+                or not listPageValue[0].isdecimal()
+                or len(listPageValue[0]) > 9
+                or int(listPageValue[0]) < 1
             ):
                 return build_error_response(
                     "invalid_request",
                     "Only choices accepts one positive page number.",
                     statusCode=400,
                 )
-            pageNumber = int(pageValues[0])
+            intPageNumber = int(listPageValue[0])
         executorId = None
         if action == ExecutorClientAction.ASSOCIATE:
             associationRequest = parse_json_request(request, ExecutorAssociationRequest)
@@ -252,14 +252,14 @@ def executor_client_request(
             authorizationHeader=request.headers.get("Authorization", ""),
             action=action,
             executorId=executorId,
-            pageNumber=pageNumber,
+            pageNumber=intPageNumber,
         )
         if result is None:
             return JsonResponse({"message": "Signed out."})
-        payload = _build_client_session_payload(result.session, result.access)
+        dictSessionPayload = _build_client_session_payload(result.session, result.access)
         if result.choices is not None:
             page = result.choices
-            payload.update({
+            dictSessionPayload.update({
                 "executors": [
                     {
                         "id": entry.executor.id,
@@ -278,6 +278,6 @@ def executor_client_request(
                 "total_count": page.totalCount,
                 "total_pages": page.totalPages,
             })
-        return JsonResponse(payload)
+        return JsonResponse(dictSessionPayload)
     except _HANDLED_CLIENT_ERRORS as e:
         return _build_client_error_response(e)

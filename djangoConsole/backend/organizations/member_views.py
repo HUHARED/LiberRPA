@@ -78,20 +78,20 @@ def _build_membership_validation_response(
 ) -> JsonResponse:
     if hasattr(validationError, "error_dict"):
         dictFieldMessage = validationError.message_dict
-        isLastAdmin = any(
+        boolLastAdmin = any(
             fieldError.code == "last_org_admin"
             for listFieldError in validationError.error_dict.values()
             for fieldError in listFieldError
         )
     else:
         dictFieldMessage = {"__all__": validationError.messages}
-        isLastAdmin = False
+        boolLastAdmin = False
     return build_error_response(
-        "last_org_admin" if isLastAdmin else "invalid_membership",
+        "last_org_admin" if boolLastAdmin else "invalid_membership",
         "The organization must retain at least one active administrator."
-        if isLastAdmin
+        if boolLastAdmin
         else "Some membership fields are invalid.",
-        statusCode=409 if isLastAdmin else 400,
+        statusCode=409 if boolLastAdmin else 400,
         fields=dictFieldMessage,
     )
 
@@ -116,14 +116,14 @@ def list_members(request: HttpRequest) -> JsonResponse:
             )
         user = cast(User, request.user)
         membership = get_current_membership(actorId=user.id)
-        pageNumber = _get_page_number(request)
-        if isinstance(pageNumber, JsonResponse):
-            return pageNumber
+        intPageNumber = _get_page_number(request)
+        if isinstance(intPageNumber, JsonResponse):
+            return intPageNumber
         memberPage = get_member_list(
             actorId=user.id,
             organizationId=membership.organization_id,
             channel=AccessChannel.SESSION,
-            pageNumber=pageNumber,
+            pageNumber=intPageNumber,
         )
         return JsonResponse({
             "members": [

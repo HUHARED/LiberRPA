@@ -35,7 +35,7 @@ class Command(BaseCommand):
         )
 
     def handle(self, *_args: object, **options: object) -> None:
-        runOnce = bool(options["once"])
+        boolRunOnce = bool(options["once"])
         stopEvent = Event()
         try:
             with stop_on_signals(stopEvent), hold_organization_deletion_worker_session():
@@ -43,9 +43,9 @@ class Command(BaseCommand):
                 while not stopEvent.is_set():
                     deletionResult = process_next_organization_deletion()
                     if deletionResult is None:
-                        if runOnce:
+                        if boolRunOnce:
                             self.stdout.write("No due organization deletion.")
-                        waitSeconds = _INT_IDLE_POLL_SECONDS
+                        intWaitSeconds = _INT_IDLE_POLL_SECONDS
                     else:
                         # Log identifiers and counts only, never member addresses or organization notes.
                         self.stdout.write(
@@ -53,10 +53,10 @@ class Command(BaseCommand):
                             f"accounts: {deletionResult.deletedAccountCount}; "
                             f"completion emails queued: {deletionResult.queuedEmailCount}."
                         )
-                        waitSeconds = 0
-                    if runOnce:
+                        intWaitSeconds = 0
+                    if boolRunOnce:
                         break
-                    stopEvent.wait(waitSeconds)
+                    stopEvent.wait(intWaitSeconds)
         except (OrganizationDeletionWorkerAlreadyRunningError, ImproperlyConfigured) as e:
             raise CommandError(str(e)) from None
         except DatabaseError:

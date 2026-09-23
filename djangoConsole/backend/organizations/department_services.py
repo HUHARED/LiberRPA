@@ -48,10 +48,10 @@ def _validate_department_values(department: Department) -> None:
 
 def _get_department_subtree_height(department: Department) -> int:
     """Count active levels, including this department, without loading unrelated branches."""
-    subtreeHeight = 0
+    intSubtreeHeight = 0
     listLevelDepartmentId = [department.pk]
     while listLevelDepartmentId:
-        subtreeHeight += 1
+        intSubtreeHeight += 1
         listLevelDepartmentId = list(
             Department.objects.filter(
                 organization_id=department.organization_id,
@@ -59,7 +59,7 @@ def _get_department_subtree_height(department: Department) -> int:
                 deleted_at__isnull=True,
             ).values_list("id", flat=True)
         )
-    return subtreeHeight
+    return intSubtreeHeight
 
 
 def _validate_department_depth(
@@ -69,7 +69,7 @@ def _validate_department_depth(
     departmentId: uuid.UUID | None = None,
     subtreeHeight: int = 1,
 ) -> None:
-    deepestDepth = subtreeHeight
+    intDeepestDepth = subtreeHeight
     currentParent = parentDepartment
     while currentParent is not None:
         if currentParent.pk == departmentId:
@@ -79,9 +79,9 @@ def _validate_department_depth(
                     code="department_cycle",
                 )
             })
-        deepestDepth += 1
+        intDeepestDepth += 1
         currentParent = cast(Department | None, currentParent.parent)
-    if deepestDepth > maxDepth:
+    if intDeepestDepth > maxDepth:
         raise ValidationError({
             "parent": ValidationError(
                 "Departments cannot exceed %(limit)s levels.",

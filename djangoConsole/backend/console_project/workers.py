@@ -18,12 +18,12 @@ def stop_on_signals(stopEvent: Event) -> Generator[None]:
     def request_stop(_signalNumber: int, _frame: FrameType | None) -> None:
         stopEvent.set()
 
-    stopSignals = (signal.SIGINT, signal.SIGTERM)
+    tupleSignal = (signal.SIGINT, signal.SIGTERM)
     dictPreviousSignalHandler = {
-        signalNumber: signal.getsignal(signalNumber) for signalNumber in stopSignals
+        signalNumber: signal.getsignal(signalNumber) for signalNumber in tupleSignal
     }
     try:
-        for signalNumber in stopSignals:
+        for signalNumber in tupleSignal:
             signal.signal(signalNumber, request_stop)
         yield
     finally:

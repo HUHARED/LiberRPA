@@ -52,12 +52,12 @@ def _require_registration_token_unexpired(registrationToken: RegistrationToken) 
 def _get_registration_token(token: str, *, forUpdate: bool) -> RegistrationToken:
     if _REGISTRATION_TOKEN_PATTERN.fullmatch(token) is None:
         raise _build_invalid_registration_token_error()
-    tokenHash = hashlib.sha256(token.encode("ascii")).hexdigest()
+    strTokenHash = hashlib.sha256(token.encode("ascii")).hexdigest()
     registrationTokenQuery = RegistrationToken.objects.all()
     if forUpdate:
         registrationTokenQuery = registrationTokenQuery.select_for_update()
     try:
-        registrationToken = registrationTokenQuery.get(token_hash=tokenHash)
+        registrationToken = registrationTokenQuery.get(token_hash=strTokenHash)
     except RegistrationToken.DoesNotExist:
         raise _build_invalid_registration_token_error() from None
     # Check time after any lock wait, using the row already loaded for this operation.
@@ -118,18 +118,18 @@ def issue_registration_token(email: str) -> RegistrationTokenDeliveryInfo | None
     The public response must not distinguish these cases or include the returned secret.
     The caller handles request limits and mail delivery after the transaction commits.
     """
-    token = secrets.token_urlsafe(32)
+    strToken = secrets.token_urlsafe(32)
     issuedAt = timezone.now()
     candidateToken = RegistrationToken(
         email=UserManager.normalize_email(email),
-        token_hash=hashlib.sha256(token.encode("ascii")).hexdigest(),
+        token_hash=hashlib.sha256(strToken.encode("ascii")).hexdigest(),
         issued_at=issuedAt,
         expires_at=issuedAt + _REGISTRATION_TOKEN_LIFETIME,
     )
     candidateToken.full_clean(validate_unique=False, validate_constraints=False)
 
     # Issuance and completion both lock the email token before the instance policy.
-    registrationToken, tokenCreated = (
+    registrationToken, boolTokenCreated = (
         RegistrationToken.objects.select_for_update().get_or_create(
             email=candidateToken.email,
             defaults={
@@ -146,7 +146,7 @@ def issue_registration_token(email: str) -> RegistrationTokenDeliveryInfo | None
 
     issuedAt = timezone.now()
     limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
-    if not tokenCreated and issuedAt < registrationToken.issued_at + timedelta(
+    if not boolTokenCreated and issuedAt < registrationToken.issued_at + timedelta(
         seconds=limits.emailResendSeconds
     ):
         return None
@@ -158,7 +158,7 @@ def issue_registration_token(email: str) -> RegistrationTokenDeliveryInfo | None
     registrationToken.save(update_fields=["token_hash", "issued_at", "expires_at"])
     return RegistrationTokenDeliveryInfo(
         email=registrationToken.email,
-        token=token,
+        token=strToken,
         expiresAt=registrationToken.expires_at,
     )
 

@@ -90,33 +90,35 @@ def _build_department_validation_response(
 ) -> JsonResponse:
     if hasattr(validationError, "error_dict"):
         dictFieldMessage: dict[str, list[str]] = {}
-        hasDuplicateName = False
-        for fieldName, listFieldError in validationError.error_dict.items():
+        boolDuplicateNameFound = False
+        for strFieldName, listFieldError in validationError.error_dict.items():
             for fieldError in listFieldError:
-                isDuplicateName = fieldError.code == "duplicate_department_name"
-                hasDuplicateName = hasDuplicateName or isDuplicateName
-                responseFieldName = (
+                boolDuplicateName = fieldError.code == "duplicate_department_name"
+                boolDuplicateNameFound = boolDuplicateNameFound or boolDuplicateName
+                strResponseFieldName = (
                     "name"
-                    if isDuplicateName
+                    if boolDuplicateName
                     else "parent_id"
-                    if fieldName == "parent"
-                    else fieldName
+                    if strFieldName == "parent"
+                    else strFieldName
                 )
-                dictFieldMessage.setdefault(responseFieldName, []).extend(
+                dictFieldMessage.setdefault(strResponseFieldName, []).extend(
                     fieldError.messages
                 )
         return build_error_response(
-            "duplicate_department_name" if hasDuplicateName else "invalid_department",
+            "duplicate_department_name"
+            if boolDuplicateNameFound
+            else "invalid_department",
             "Some department fields are invalid.",
-            statusCode=409 if hasDuplicateName else 400,
+            statusCode=409 if boolDuplicateNameFound else 400,
             fields=dictFieldMessage,
         )
 
-    errorCode = validationError.error_list[0].code or "invalid_department"
+    strErrorCode = validationError.error_list[0].code or "invalid_department"
     return build_error_response(
-        errorCode,
+        strErrorCode,
         " ".join(validationError.messages),
-        statusCode=409 if errorCode == "department_count_limit" else 400,
+        statusCode=409 if strErrorCode == "department_count_limit" else 400,
     )
 
 

@@ -43,7 +43,7 @@ class OrganizationDeletionRequest(JsonRequest):
 def _build_organization_deletion_response(
     organization: Organization, *, isOrgAdmin: bool
 ) -> JsonResponse:
-    businessAvailable = is_organization_business_available(organization)
+    boolBusinessAvailable = is_organization_business_available(organization)
     return JsonResponse({
         "organization": {
             "id": organization.id,
@@ -54,8 +54,8 @@ def _build_organization_deletion_response(
             "deletion_started_at": organization.deletion_started_at,
         },
         "is_org_admin": isOrgAdmin,
-        "business_available": businessAvailable,
-        "can_schedule_deletion": isOrgAdmin and businessAvailable,
+        "business_available": boolBusinessAvailable,
+        "can_schedule_deletion": isOrgAdmin and boolBusinessAvailable,
         "can_cancel_deletion": (
             isOrgAdmin
             and organization.deletion_requested_at is not None
@@ -72,16 +72,16 @@ def _build_deletion_validation_response(validationError: ValidationError) -> Jso
             statusCode=400,
             fields=validationError.message_dict,
         )
-    errorCode = validationError.error_list[0].code or "invalid_organization_deletion"
-    isConflict = errorCode in {
+    strErrorCode = validationError.error_list[0].code or "invalid_organization_deletion"
+    boolConflict = strErrorCode in {
         "deletion_already_scheduled",
         "deletion_not_scheduled",
         "deletion_in_progress",
     }
     return build_error_response(
-        errorCode,
+        strErrorCode,
         " ".join(validationError.messages),
-        statusCode=409 if isConflict else 400,
+        statusCode=409 if boolConflict else 400,
     )
 
 
@@ -113,20 +113,20 @@ def _handle_organization_deletion(
             deletionRequest = parse_json_request(request, OrganizationDeletionRequest)
             if isinstance(deletionRequest, JsonResponse):
                 return deletionRequest
-            retryAfterSeconds = reserve_organization_deletion_request(
+            intRetryAfterSeconds = reserve_organization_deletion_request(
                 request.META.get("REMOTE_ADDR", ""), actorId=str(user.id)
             )
-            if retryAfterSeconds:
-                return build_rate_limited_response(retryAfterSeconds)
+            if intRetryAfterSeconds:
+                return build_rate_limited_response(intRetryAfterSeconds)
 
-        sessionAuthHash = cast(str, request.session.get(HASH_SESSION_KEY, ""))
+        strSessionAuthHash = cast(str, request.session.get(HASH_SESSION_KEY, ""))
         with transaction.atomic():
             if deletionRequest is None:
                 organization = cancel_organization_deletion(
                     actorId=user.id,
                     organizationId=membership.organization_id,
                     channel=AccessChannel.SESSION,
-                    sessionAuthHash=sessionAuthHash,
+                    sessionAuthHash=strSessionAuthHash,
                 )
             else:
                 organization = schedule_organization_deletion(
@@ -134,7 +134,7 @@ def _handle_organization_deletion(
                     organizationId=membership.organization_id,
                     channel=AccessChannel.SESSION,
                     currentPassword=deletionRequest.current_password.get_secret_value(),
-                    sessionAuthHash=sessionAuthHash,
+                    sessionAuthHash=strSessionAuthHash,
                 )
             if request.session.get_expiry_date() <= timezone.now():
                 raise SessionInvalidatedError("The current session has expired.")

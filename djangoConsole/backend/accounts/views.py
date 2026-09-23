@@ -52,8 +52,10 @@ def _build_registration_validation_response(
     if hasattr(validationError, "error_dict"):
         # The organization model calls this field "name"; the HTTP form is explicit.
         dictFieldError = {
-            "organization_name" if fieldName == "name" else fieldName: listErrorMessage
-            for fieldName, listErrorMessage in validationError.message_dict.items()
+            "organization_name"
+            if strFieldName == "name"
+            else strFieldName: listErrorMessage
+            for strFieldName, listErrorMessage in validationError.message_dict.items()
         }
         return build_error_response(
             "invalid_registration",
@@ -62,19 +64,19 @@ def _build_registration_validation_response(
             fields=dictFieldError,
         )
 
-    errorCode = validationError.error_list[0].code or "invalid_registration"
-    passwordFields: dict[str, list[str]] | None = None
+    strErrorCode = validationError.error_list[0].code or "invalid_registration"
+    dictPasswordField: dict[str, list[str]] | None = None
     if all(
         fieldError.code and fieldError.code.startswith("password_")
         for fieldError in validationError.error_list
     ):
-        passwordFields = {"password": validationError.messages}
-    statusCode = 409 if errorCode == "email_already_registered" else 400
+        dictPasswordField = {"password": validationError.messages}
+    intStatusCode = 409 if strErrorCode == "email_already_registered" else 400
     return build_error_response(
-        errorCode,
+        strErrorCode,
         " ".join(validationError.messages),
-        statusCode=statusCode,
-        fields=passwordFields,
+        statusCode=intStatusCode,
+        fields=dictPasswordField,
     )
 
 
@@ -95,11 +97,11 @@ def queue_registration_email(request: HttpRequest) -> JsonResponse:
         return registrationRequest
     try:
         # Uvicorn must disable proxy headers until a trusted proxy is configured.
-        retryAfterSeconds = reserve_registration_email_request(
+        intRetryAfterSeconds = reserve_registration_email_request(
             request.META.get("REMOTE_ADDR", "")
         )
-        if retryAfterSeconds:
-            return build_rate_limited_response(retryAfterSeconds)
+        if intRetryAfterSeconds:
+            return build_rate_limited_response(intRetryAfterSeconds)
         request_registration_email(registrationRequest.email)
     except DjangoValidationError:
         return build_error_response(
@@ -130,13 +132,13 @@ def check_registration_link(request: HttpRequest) -> JsonResponse:
     if isinstance(registrationRequest, JsonResponse):
         return registrationRequest
     try:
-        token = registrationRequest.token.get_secret_value()
-        retryAfterSeconds = reserve_registration_token_request(
-            request.META.get("REMOTE_ADDR", ""), token=token
+        strToken = registrationRequest.token.get_secret_value()
+        intRetryAfterSeconds = reserve_registration_token_request(
+            request.META.get("REMOTE_ADDR", ""), token=strToken
         )
-        if retryAfterSeconds:
-            return build_rate_limited_response(retryAfterSeconds)
-        return JsonResponse({"email": get_registration_email(token)})
+        if intRetryAfterSeconds:
+            return build_rate_limited_response(intRetryAfterSeconds)
+        return JsonResponse({"email": get_registration_email(strToken)})
     except DjangoValidationError as e:
         return _build_registration_validation_response(e)
     except (ImproperlyConfigured, DatabaseError):
@@ -152,14 +154,14 @@ def complete_registration(request: HttpRequest) -> JsonResponse:
     if isinstance(registrationRequest, JsonResponse):
         return registrationRequest
     try:
-        token = registrationRequest.token.get_secret_value()
-        retryAfterSeconds = reserve_registration_token_request(
-            request.META.get("REMOTE_ADDR", ""), token=token
+        strToken = registrationRequest.token.get_secret_value()
+        intRetryAfterSeconds = reserve_registration_token_request(
+            request.META.get("REMOTE_ADDR", ""), token=strToken
         )
-        if retryAfterSeconds:
-            return build_rate_limited_response(retryAfterSeconds)
+        if intRetryAfterSeconds:
+            return build_rate_limited_response(intRetryAfterSeconds)
         complete_organization_registration(
-            token=token,
+            token=strToken,
             password=registrationRequest.password.get_secret_value(),
             organizationName=registrationRequest.organization_name,
             username=registrationRequest.username,

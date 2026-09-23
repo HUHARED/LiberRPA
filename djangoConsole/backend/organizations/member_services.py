@@ -107,7 +107,7 @@ def update_membership(
         .select_for_update(of=("self", "user"))
         .get(user_id=userId, organization=organization)
     )
-    wasOrgAdmin = membership.is_org_admin
+    boolOrgAdminBefore = membership.is_org_admin
     membership.is_org_admin = isOrgAdmin
     membership.notes = notes
     membership.full_clean(
@@ -119,7 +119,7 @@ def update_membership(
     # The organization lock makes competing demotions observe the preceding commit.
     # Only active accounts count; being signed in or online is not required.
     if (
-        wasOrgAdmin
+        boolOrgAdminBefore
         and not membership.is_org_admin
         and not has_other_active_organization_admin(
             organizationId=organization.id, userId=membership.user_id

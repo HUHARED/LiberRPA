@@ -29,11 +29,11 @@ from .rate_limits import reserve_api_key_authentication_request
 def get_api_key_access(request: HttpRequest) -> JsonResponse:
     """Return current Operator access using only the Authorization header, without a session."""
     try:
-        retryAfterSeconds = reserve_api_key_authentication_request(
+        intRetryAfterSeconds = reserve_api_key_authentication_request(
             request.META.get("REMOTE_ADDR", "")
         )
-        if retryAfterSeconds:
-            return build_rate_limited_response(retryAfterSeconds)
+        if intRetryAfterSeconds:
+            return build_rate_limited_response(intRetryAfterSeconds)
         if request.GET:
             return build_error_response(
                 "invalid_request",
@@ -43,7 +43,7 @@ def get_api_key_access(request: HttpRequest) -> JsonResponse:
 
         authentication = authenticate_api_key(request.headers.get("Authorization", ""))
         access = authentication.access
-        departments = get_department_access_info(access)
+        tupleDepartmentAccessInfo = get_department_access_info(access)
         return JsonResponse({
             "api_key": {
                 "id": authentication.apiKeyId,
@@ -62,7 +62,7 @@ def get_api_key_access(request: HttpRequest) -> JsonResponse:
                     "path": department.path,
                     "role": department.role,
                 }
-                for department in departments
+                for department in tupleDepartmentAccessInfo
             ],
         })
     except InvalidApiKeyError:
@@ -71,10 +71,10 @@ def get_api_key_access(request: HttpRequest) -> JsonResponse:
             "A valid API key is required.",
             statusCode=401,
         )
-        challenge = 'Bearer realm="LiberRPA Console"'
+        strChallenge = 'Bearer realm="LiberRPA Console"'
         if request.headers.get("Authorization"):
-            challenge += ', error="invalid_token"'
-        response["WWW-Authenticate"] = challenge
+            strChallenge += ', error="invalid_token"'
+        response["WWW-Authenticate"] = strChallenge
         return response
     except PermissionDenied:
         return build_error_response(

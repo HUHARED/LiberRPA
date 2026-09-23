@@ -68,11 +68,11 @@ def queue_password_reset_email(request: HttpRequest) -> JsonResponse:
     if isinstance(resetRequest, JsonResponse):
         return resetRequest
     try:
-        retryAfterSeconds = reserve_password_reset_email_request(
+        intRetryAfterSeconds = reserve_password_reset_email_request(
             request.META.get("REMOTE_ADDR", "")
         )
-        if retryAfterSeconds:
-            return build_rate_limited_response(retryAfterSeconds)
+        if intRetryAfterSeconds:
+            return build_rate_limited_response(intRetryAfterSeconds)
         request_password_reset_email(resetRequest.email)
     except ValidationError:
         return build_error_response(
@@ -95,13 +95,13 @@ def check_password_reset_link(request: HttpRequest) -> JsonResponse:
     if isinstance(resetRequest, JsonResponse):
         return resetRequest
     try:
-        token = resetRequest.token.get_secret_value()
-        retryAfterSeconds = reserve_password_reset_token_request(
-            request.META.get("REMOTE_ADDR", ""), token=token
+        strToken = resetRequest.token.get_secret_value()
+        intRetryAfterSeconds = reserve_password_reset_token_request(
+            request.META.get("REMOTE_ADDR", ""), token=strToken
         )
-        if retryAfterSeconds:
-            return build_rate_limited_response(retryAfterSeconds)
-        linkInfo = get_password_reset_info(token)
+        if intRetryAfterSeconds:
+            return build_rate_limited_response(intRetryAfterSeconds)
+        linkInfo = get_password_reset_info(strToken)
         return JsonResponse({"email": linkInfo.email, "expires_at": linkInfo.expiresAt})
     except ValidationError as e:
         return _build_reset_validation_response(e)
@@ -119,19 +119,19 @@ def reset_account_password(request: HttpRequest) -> JsonResponse:
     if isinstance(resetRequest, JsonResponse):
         return resetRequest
     try:
-        token = resetRequest.token.get_secret_value()
-        retryAfterSeconds = reserve_password_reset_token_request(
-            request.META.get("REMOTE_ADDR", ""), token=token
+        strToken = resetRequest.token.get_secret_value()
+        intRetryAfterSeconds = reserve_password_reset_token_request(
+            request.META.get("REMOTE_ADDR", ""), token=strToken
         )
-        if retryAfterSeconds:
-            return build_rate_limited_response(retryAfterSeconds)
+        if intRetryAfterSeconds:
+            return build_rate_limited_response(intRetryAfterSeconds)
         if resetRequest.new_password != resetRequest.confirm_password:
             raise ValidationError({"confirm_password": "The new passwords do not match."})
 
         currentUserId = request.user.pk if request.user.is_authenticated else None
         with transaction.atomic():
             user = complete_password_reset(
-                token=token, newPassword=resetRequest.new_password.get_secret_value()
+                token=strToken, newPassword=resetRequest.new_password.get_secret_value()
             )
             # A browser signed in to a different account must not select or lose that account.
             if currentUserId == user.id:

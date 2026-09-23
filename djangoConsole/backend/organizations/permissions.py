@@ -210,8 +210,8 @@ def get_authorized_departments(
     Reuse this queryset for filtering and object lookup within the current operation.
     A get() outside this scope raises Department.DoesNotExist.
     """
-    allowedRoles = _DICT_ALLOWED_ROLE_BY_REQUIREMENT.get(requiredRole)
-    if allowedRoles is None:
+    tupleAllowedRole = _DICT_ALLOWED_ROLE_BY_REQUIREMENT.get(requiredRole)
+    if tupleAllowedRole is None:
         raise PermissionDenied("Unsupported department role requirement.")
     if (
         access.channel == AccessChannel.API_KEY
@@ -228,5 +228,5 @@ def get_authorized_departments(
     # Match the actual department only; parent and sibling roles do not grant access.
     return departmentQuery.filter(
         memberships__membership_id=access.actorId,
-        memberships__role__in=allowedRoles,
+        memberships__role__in=tupleAllowedRole,
     )

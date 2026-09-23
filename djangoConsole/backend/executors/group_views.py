@@ -151,17 +151,17 @@ def _build_group_error_response(e: Exception) -> JsonResponse:
                 return build_error_response(
                     "executor_group_count_limit", e.messages[0], statusCode=409
                 )
-            hasDuplicateName = any(
+            boolDuplicateNameFound = any(
                 fieldError.code == "duplicate_executor_group_name"
-                for fieldErrors in getattr(e, "error_dict", {}).values()
-                for fieldError in fieldErrors
+                for listFieldError in getattr(e, "error_dict", {}).values()
+                for fieldError in listFieldError
             )
             return build_error_response(
                 "duplicate_executor_group_name"
-                if hasDuplicateName
+                if boolDuplicateNameFound
                 else "invalid_executor_group",
                 "Some Executor group fields are invalid.",
-                statusCode=409 if hasDuplicateName else 400,
+                statusCode=409 if boolDuplicateNameFound else 400,
                 fields=e.message_dict
                 if hasattr(e, "error_dict")
                 else {"__all__": e.messages},
@@ -207,14 +207,14 @@ def list_or_create_executor_groups(request: HttpRequest) -> JsonResponse:
                 executorIds=tuple(groupRequest.executor_ids),
             )
             return JsonResponse(_build_group_write_payload(result), status=201)
-        parameters = _get_list_parameters(request)
-        if isinstance(parameters, JsonResponse):
-            return parameters
+        dictListParameter = _get_list_parameters(request)
+        if isinstance(dictListParameter, JsonResponse):
+            return dictListParameter
         page = get_executor_group_list(
             actorId=membership.user_id,
             organizationId=membership.organization_id,
             channel=AccessChannel.SESSION,
-            **parameters,
+            **dictListParameter,
         )
         return JsonResponse({
             "executor_groups": [_build_group_info_payload(info) for info in page.groups],

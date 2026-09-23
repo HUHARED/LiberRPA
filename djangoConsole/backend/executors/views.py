@@ -109,22 +109,24 @@ def _build_executor_error_response(e: Exception) -> JsonResponse:
                 "invalid_page", "The requested page is unavailable.", statusCode=400
             )
         case ValidationError():
-            errorCode = getattr(e, "code", None)
-            if errorCode in (
+            strErrorCode = getattr(e, "code", None)
+            if strErrorCode in (
                 "executor_count_limit",
                 "executor_association_changed",
                 "executor_group_reference",
             ):
-                return build_error_response(errorCode, e.messages[0], statusCode=409)
-            hasDuplicateName = any(
+                return build_error_response(strErrorCode, e.messages[0], statusCode=409)
+            boolDuplicateNameFound = any(
                 fieldError.code == "duplicate_executor_name"
                 for listFieldError in getattr(e, "error_dict", {}).values()
                 for fieldError in listFieldError
             )
             return build_error_response(
-                "duplicate_executor_name" if hasDuplicateName else "invalid_executor",
+                "duplicate_executor_name"
+                if boolDuplicateNameFound
+                else "invalid_executor",
                 "Some executor fields are invalid.",
-                statusCode=409 if hasDuplicateName else 400,
+                statusCode=409 if boolDuplicateNameFound else 400,
                 fields=e.message_dict
                 if hasattr(e, "error_dict")
                 else {"__all__": e.messages},
@@ -135,16 +137,19 @@ def _build_executor_error_response(e: Exception) -> JsonResponse:
 
 def _get_list_parameters(request: HttpRequest) -> ExecutorListParameters | JsonResponse:
     try:
-        parameters = parse_department_resource_filters(
+        dictListParameter = parse_department_resource_filters(
             request.GET, extraFields=frozenset({"dispatch_enabled"})
         )
-        dispatchValues = request.GET.getlist("dispatch_enabled")
-        if len(dispatchValues) > 2:
+        listDispatchValue = request.GET.getlist("dispatch_enabled")
+        if len(listDispatchValue) > 2:
             raise ValueError
         dictDispatchValue = {"true": True, "false": False}
         return {
-            **parameters,
-            "dispatchStates": tuple(dictDispatchValue[value] for value in dispatchValues),
+            **dictListParameter,
+            "dispatchStates": tuple(
+                dictDispatchValue[strDispatchValue]
+                for strDispatchValue in listDispatchValue
+            ),
         }
     except (ValueError, KeyError):
         return build_error_response(
@@ -180,14 +185,14 @@ def list_or_create_executors(request: HttpRequest) -> JsonResponse:
                 {"executor": build_executor_payload(executor)}, status=201
             )
 
-        parameters = _get_list_parameters(request)
-        if isinstance(parameters, JsonResponse):
-            return parameters
+        dictListParameter = _get_list_parameters(request)
+        if isinstance(dictListParameter, JsonResponse):
+            return dictListParameter
         executorPage = get_executor_list(
             actorId=membership.user_id,
             organizationId=membership.organization_id,
             channel=AccessChannel.SESSION,
-            **parameters,
+            **dictListParameter,
         )
         return JsonResponse({
             "executors": [

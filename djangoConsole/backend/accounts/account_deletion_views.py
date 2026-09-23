@@ -64,11 +64,11 @@ def _build_deletion_validation_response(validationError: ValidationError) -> Jso
             statusCode=400,
             fields=validationError.message_dict,
         )
-    errorCode = validationError.error_list[0].code or "invalid_account_deletion"
+    strErrorCode = validationError.error_list[0].code or "invalid_account_deletion"
     return build_error_response(
-        errorCode,
+        strErrorCode,
         " ".join(validationError.messages),
-        statusCode=409 if errorCode == "last_org_admin" else 400,
+        statusCode=409 if strErrorCode == "last_org_admin" else 400,
     )
 
 
@@ -86,7 +86,7 @@ def get_or_delete_account(
                 "authentication_required", "Sign in to continue.", statusCode=401
             )
         user = cast(User, request.user)
-        isOwnAccount = userId is None
+        boolOwnAccount = userId is None
         if userId == user.id:
             return build_error_response(
                 "use_profile_deletion",
@@ -103,14 +103,14 @@ def get_or_delete_account(
         deletionRequest = parse_json_request(request, AccountDeletionRequest)
         if isinstance(deletionRequest, JsonResponse):
             return deletionRequest
-        retryAfterSeconds = reserve_account_deletion_request(
+        intRetryAfterSeconds = reserve_account_deletion_request(
             request.META.get("REMOTE_ADDR", ""), actorId=str(user.id)
         )
-        if retryAfterSeconds:
-            return build_rate_limited_response(retryAfterSeconds)
+        if intRetryAfterSeconds:
+            return build_rate_limited_response(intRetryAfterSeconds)
 
-        sessionAuthHash = cast(str, request.session.get(HASH_SESSION_KEY, ""))
-        previousSession = deepcopy(request.session) if isOwnAccount else None
+        strSessionAuthHash = cast(str, request.session.get(HASH_SESSION_KEY, ""))
+        previousSession = deepcopy(request.session) if boolOwnAccount else None
         try:
             with transaction.atomic():
                 delete_account(
@@ -118,11 +118,11 @@ def get_or_delete_account(
                     channel=AccessChannel.SESSION,
                     userId=targetId,
                     currentPassword=deletionRequest.current_password.get_secret_value(),
-                    sessionAuthHash=sessionAuthHash,
+                    sessionAuthHash=strSessionAuthHash,
                 )
                 if request.session.get_expiry_date() <= timezone.now():
                     raise SessionInvalidatedError("The current session has expired.")
-                if isOwnAccount:
+                if boolOwnAccount:
                     logout(request)
         except Exception:
             # Rollback restores stored sessions; also restore the browser request after logout cleared it in memory.
@@ -132,7 +132,7 @@ def get_or_delete_account(
             raise
         return JsonResponse({
             "message": "Account deleted. Sign in again."
-            if isOwnAccount
+            if boolOwnAccount
             else "Account deleted."
         })
     except SessionInvalidatedError:

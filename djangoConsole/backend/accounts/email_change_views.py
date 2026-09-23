@@ -58,11 +58,11 @@ def _build_email_change_validation_response(
             statusCode=400,
             fields=validationError.message_dict,
         )
-    errorCode = validationError.error_list[0].code or "invalid_email_change"
+    strErrorCode = validationError.error_list[0].code or "invalid_email_change"
     return build_error_response(
-        errorCode,
+        strErrorCode,
         " ".join(validationError.messages),
-        statusCode=409 if errorCode == "email_already_registered" else 400,
+        statusCode=409 if strErrorCode == "email_already_registered" else 400,
     )
 
 
@@ -81,11 +81,11 @@ def queue_email_change_verification(request: HttpRequest) -> JsonResponse:
         changeRequest = parse_json_request(request, EmailChangeEmailRequest)
         if isinstance(changeRequest, JsonResponse):
             return changeRequest
-        retryAfterSeconds = reserve_email_change_email_request(
+        intRetryAfterSeconds = reserve_email_change_email_request(
             request.META.get("REMOTE_ADDR", ""), actorId=str(user.id)
         )
-        if retryAfterSeconds:
-            return build_rate_limited_response(retryAfterSeconds)
+        if intRetryAfterSeconds:
+            return build_rate_limited_response(intRetryAfterSeconds)
 
         with transaction.atomic():
             request_email_change(
@@ -127,13 +127,13 @@ def check_email_change_link(request: HttpRequest) -> JsonResponse:
     if isinstance(changeRequest, JsonResponse):
         return changeRequest
     try:
-        token = changeRequest.token.get_secret_value()
-        retryAfterSeconds = reserve_email_change_token_request(
-            request.META.get("REMOTE_ADDR", ""), token=token
+        strToken = changeRequest.token.get_secret_value()
+        intRetryAfterSeconds = reserve_email_change_token_request(
+            request.META.get("REMOTE_ADDR", ""), token=strToken
         )
-        if retryAfterSeconds:
-            return build_rate_limited_response(retryAfterSeconds)
-        linkInfo = get_email_change_info(token)
+        if intRetryAfterSeconds:
+            return build_rate_limited_response(intRetryAfterSeconds)
+        linkInfo = get_email_change_info(strToken)
         return JsonResponse({
             "new_email": linkInfo.newEmail,
             "expires_at": linkInfo.expiresAt,
@@ -153,13 +153,13 @@ def confirm_account_email_change(request: HttpRequest) -> JsonResponse:
     if isinstance(changeRequest, JsonResponse):
         return changeRequest
     try:
-        token = changeRequest.token.get_secret_value()
-        retryAfterSeconds = reserve_email_change_token_request(
-            request.META.get("REMOTE_ADDR", ""), token=token
+        strToken = changeRequest.token.get_secret_value()
+        intRetryAfterSeconds = reserve_email_change_token_request(
+            request.META.get("REMOTE_ADDR", ""), token=strToken
         )
-        if retryAfterSeconds:
-            return build_rate_limited_response(retryAfterSeconds)
-        confirm_email_change(token)
+        if intRetryAfterSeconds:
+            return build_rate_limited_response(intRetryAfterSeconds)
+        confirm_email_change(strToken)
         return JsonResponse({"message": "Email changed."})
     except ValidationError as e:
         return _build_email_change_validation_response(e)

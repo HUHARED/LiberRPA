@@ -23,14 +23,14 @@ class JsonRequest(BaseModel):
 
 def _parse_json_object(fieldPairs: list[tuple[str, object]]) -> dict[str, object]:
     dictJsonField: dict[str, object] = {}
-    for fieldName, fieldValue in fieldPairs:
-        if fieldName in dictJsonField:
+    for strFieldName, fieldValue in fieldPairs:
+        if strFieldName in dictJsonField:
             raise ValueError("Duplicate JSON fields are not allowed.")
         # Reject escaped lone surrogates before strings reach hashing or the database.
-        fieldName.encode("utf-8")
+        strFieldName.encode("utf-8")
         if isinstance(fieldValue, str):
             fieldValue.encode("utf-8")
-        dictJsonField[fieldName] = fieldValue
+        dictJsonField[strFieldName] = fieldValue
     return dictJsonField
 
 
@@ -41,10 +41,10 @@ def build_error_response(
     statusCode: int,
     fields: dict[str, list[str]] | None = None,
 ) -> JsonResponse:
-    errorDetail: dict[str, object] = {"code": errorCode, "message": errorMessage}
+    dictErrorDetail: dict[str, object] = {"code": errorCode, "message": errorMessage}
     if fields is not None:
-        errorDetail["fields"] = fields
-    return JsonResponse({"error": errorDetail}, status=statusCode)
+        dictErrorDetail["fields"] = fields
+    return JsonResponse({"error": dictErrorDetail}, status=statusCode)
 
 
 def build_service_unavailable_response() -> JsonResponse:
@@ -55,19 +55,19 @@ def build_service_unavailable_response() -> JsonResponse:
 
 def parse_page_number(query: QueryDict) -> int:
     """Parse a single positive page number; the view keeps its own error code and message."""
-    pageValues = query.getlist("page")
-    if not pageValues:
+    listPageValue = query.getlist("page")
+    if not listPageValue:
         return 1
-    pageValue = pageValues[0]
+    strPageValue = listPageValue[0]
     if (
-        len(pageValues) != 1
-        or not pageValue.isascii()
-        or not pageValue.isdecimal()
-        or len(pageValue) > 9
-        or int(pageValue) < 1
+        len(listPageValue) != 1
+        or not strPageValue.isascii()
+        or not strPageValue.isdecimal()
+        or len(strPageValue) > 9
+        or int(strPageValue) < 1
     ):
         raise ValueError("Send one positive integer page number.")
-    return int(pageValue)
+    return int(strPageValue)
 
 
 @sensitive_variables()

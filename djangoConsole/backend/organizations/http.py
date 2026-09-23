@@ -54,14 +54,16 @@ def parse_department_resource_filters(
         raise ValueError("Unknown list filters.")
     if len(query.getlist("name")) > 1:
         raise ValueError("Send one name filter.")
-    name = query.get("name", "").strip()
-    departmentValues = query.getlist("department_id")
-    if len(name) > 128 or len(departmentValues) > 100:
+    strName = query.get("name", "").strip()
+    listDepartmentValue = query.getlist("department_id")
+    if len(strName) > 128 or len(listDepartmentValue) > 100:
         raise ValueError("Too many filter values or an overlong name.")
     return {
         "pageNumber": parse_page_number(query),
-        "departmentIds": tuple(uuid.UUID(value) for value in departmentValues),
-        "name": name,
+        "departmentIds": tuple(
+            uuid.UUID(strDepartmentValue) for strDepartmentValue in listDepartmentValue
+        ),
+        "name": strName,
     }
 
 
