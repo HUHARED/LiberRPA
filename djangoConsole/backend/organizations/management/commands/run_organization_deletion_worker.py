@@ -4,6 +4,7 @@ __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
+import logging
 from threading import Event
 
 from django.core.exceptions import ImproperlyConfigured
@@ -18,6 +19,7 @@ from organizations.deletion_worker import (
     process_next_organization_deletion,
 )
 
+_LOGGER = logging.getLogger("console.organization_deletion_worker")
 _INT_IDLE_POLL_SECONDS = 2
 
 
@@ -39,16 +41,16 @@ class Command(BaseCommand):
         stopEvent = Event()
         try:
             with stop_on_signals(stopEvent), hold_organization_deletion_worker_session():
-                self.stdout.write("Organization deletion worker started.")
+                _LOGGER.info("Organization deletion worker started.")
                 while not stopEvent.is_set():
                     deletionResult = process_next_organization_deletion()
                     if deletionResult is None:
                         if boolRunOnce:
-                            self.stdout.write("No due organization deletion.")
+                            _LOGGER.info("No due organization deletion.")
                         intWaitSeconds = _INT_IDLE_POLL_SECONDS
                     else:
                         # Log identifiers and counts only, never member addresses or organization notes.
-                        self.stdout.write(
+                        _LOGGER.info(
                             f"Organization {deletionResult.organizationId}: deleted; "
                             f"accounts: {deletionResult.deletedAccountCount}; "
                             f"completion emails queued: {deletionResult.queuedEmailCount}."
@@ -60,13 +62,19 @@ class Command(BaseCommand):
         except (OrganizationDeletionWorkerAlreadyRunningError, ImproperlyConfigured) as e:
             raise CommandError(str(e)) from None
         except DatabaseError:
+            _LOGGER.exception(
+                "Organization deletion worker stopped after a database error."
+            )
             raise CommandError(
                 "The organization deletion worker stopped after a database error. "
                 "Restore database access before restarting; started deletions remain frozen and can be resumed."
             ) from None
         except Exception as e:
+            _LOGGER.exception(
+                "Organization deletion worker stopped after an unexpected error."
+            )
             raise CommandError(
                 f"The organization deletion worker stopped after {type(e).__name__}. "
                 "Resolve the failure before restarting; started deletions remain frozen and can be resumed."
             ) from None
-        self.stdout.write("Organization deletion worker stopped.")
+        _LOGGER.info("Organization deletion worker stopped.")

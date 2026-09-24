@@ -12,6 +12,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from executors.models import Executor, ExecutorGroup
+from operations.audit import record_audit
 
 from .models import Department, DepartmentMembership
 from .permissions import (
@@ -138,4 +139,11 @@ def delete_department(
 
     department.deleted_at = timezone.now()
     department.save(update_fields=["deleted_at"])
+    record_audit(
+        "department.delete",
+        actorId=actorId,
+        organization=department.organization,
+        target=department,
+        channel=channel,
+    )
     return department

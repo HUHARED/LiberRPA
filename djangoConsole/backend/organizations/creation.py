@@ -13,6 +13,7 @@ from django.db import transaction
 from django.views.decorators.debug import sensitive_variables
 
 from accounts.models import User, UserManager
+from operations.audit import record_audit
 from operations.policies import require_organization_creation_allowed
 
 from .department_services import create_general_department
@@ -73,6 +74,13 @@ def create_organization_records(
     # The new organization is private to this transaction until it commits.
     # General follows the same validation and quota rules as any other department.
     generalDepartment = create_general_department(organization)
+    record_audit(
+        "organization.create",
+        actorId=user.id,
+        organization=organization,
+        target=organization,
+        before={},
+    )
     return OrganizationCreationResult(
         user=user,
         organization=organization,

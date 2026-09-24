@@ -8,6 +8,8 @@ import uuid
 
 from django.db import transaction
 
+from operations.audit import get_audit_snapshot, record_audit
+
 from .creation import OrganizationCreationResult, create_organization_records
 from .department_services import create_department, update_department
 from .member_services import update_membership
@@ -54,6 +56,7 @@ def update_organization_settings(
 ) -> Organization:
     """Save the complete General form without changing members or service state."""
     organization = lock_organization_for_admin(actorId, organizationId, channel)
+    dictAuditBefore = get_audit_snapshot(organization)
     organization.name = name.strip()
     organization.default_time_zone = defaultTimeZone
     organization.notes = notes
@@ -69,4 +72,12 @@ def update_organization_settings(
     )
     # Members keep their independent time zones; only future defaults use this setting.
     organization.save(update_fields=["name", "default_time_zone", "notes"])
+    record_audit(
+        "organization.update",
+        actorId=actorId,
+        organization=organization,
+        target=organization,
+        channel=channel,
+        before=dictAuditBefore,
+    )
     return organization

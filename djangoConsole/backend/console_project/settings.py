@@ -11,6 +11,7 @@ from pathlib import Path
 from django.core.exceptions import ImproperlyConfigured
 
 from .config import read_config, read_secret_file
+from .logging import build_logging_config
 
 _PATH_CONSOLE = Path(__file__).resolve().parents[2]
 _PATH_CONFIG = Path(
@@ -29,6 +30,8 @@ ALLOWED_HOSTS = _CONSOLE_CONFIG.allowedHosts
 ROOT_URLCONF = "console_project.urls"
 ASGI_APPLICATION = "console_project.asgi.application"
 CONSOLE_LIMITS = _CONSOLE_CONFIG.limits
+CONSOLE_LOG_REQUESTS = _CONSOLE_CONFIG.logging.requests
+LOGGING = build_logging_config(_CONSOLE_CONFIG.logging.level)
 CONSOLE_URL = (
     str(_CONSOLE_CONFIG.consoleUrl).rstrip("/") if _CONSOLE_CONFIG.consoleUrl else None
 )
@@ -84,6 +87,7 @@ SESSION_COOKIE_SAMESITE = "Lax"
 # Cookie transport follows the configured browser-facing URL, including local HTTP development.
 SESSION_COOKIE_SECURE = CONSOLE_URL is not None and CONSOLE_URL.startswith("https://")
 CSRF_COOKIE_SECURE = SESSION_COOKIE_SECURE
+CSRF_FAILURE_VIEW = "console_project.http.csrf_failure"
 # New-password entry points also enforce length in validate_new_password().
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
@@ -93,6 +97,7 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 MIDDLEWARE = [
+    "console_project.middleware.request_logging",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",

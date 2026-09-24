@@ -13,6 +13,7 @@ from pydantic import Field, field_validator
 from console_project.http import JsonRequest, parse_page_number
 
 from .access import AccountAccessInfo
+from .contracts import AccountAccessResponse
 from .models import DepartmentRole
 
 
@@ -72,7 +73,7 @@ def build_account_access_payload(
 ) -> dict[str, object]:
     """Map internal access attributes to the shared HTTP response fields."""
     organizationInfo = accountAccessInfo.organization
-    return {
+    dictAccessPayload = {
         "organization": {
             "id": organizationInfo.id,
             "name": organizationInfo.name,
@@ -93,3 +94,6 @@ def build_account_access_payload(
             for departmentAccessInfo in accountAccessInfo.departments
         ],
     }
+    return AccountAccessResponse.model_validate(dictAccessPayload).model_dump(
+        mode="python"
+    )

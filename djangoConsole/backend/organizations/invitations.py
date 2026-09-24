@@ -24,6 +24,7 @@ from django.views.decorators.debug import sensitive_variables
 from accounts.models import User, UserManager
 from console_project.config import LimitsConfig
 from notifications.models import EmailDelivery, EmailType
+from operations.audit import get_audit_snapshot, record_audit
 
 from .models import (
     Department,
@@ -206,6 +207,14 @@ def create_member_invitation(
         for departmentId, role in departmentRoles.items()
     ])
     _queue_invitation_email(invitation)
+    record_audit(
+        "invitation.create",
+        actorId=actorId,
+        organization=organization,
+        target=invitation,
+        channel=channel,
+        before={},
+    )
     return invitation
 
 
@@ -240,6 +249,7 @@ def resend_member_invitation(
         )
     _require_recipient_cooldown(organization.id, invitation.email)
     _require_member_capacity(organization.id, invitationId=invitation.id)
+    dictAuditBefore = get_audit_snapshot(invitation)
     invitation.requested_at = timezone.now()
     invitation.expires_at = invitation.requested_at + _INVITATION_LIFETIME
     invitation.request_id = uuid.uuid4()
@@ -248,6 +258,14 @@ def resend_member_invitation(
         update_fields=["requested_at", "expires_at", "request_id", "token_hash"]
     )
     _queue_invitation_email(invitation)
+    record_audit(
+        "invitation.resend",
+        actorId=actorId,
+        organization=organization,
+        target=invitation,
+        channel=channel,
+        before=dictAuditBefore,
+    )
     return invitation
 
 
@@ -271,6 +289,13 @@ def revoke_member_invitation(
         invitation.revoked_at = timezone.now()
         invitation.token_hash = None
         invitation.save(update_fields=["revoked_at", "token_hash"])
+        record_audit(
+            "invitation.revoke",
+            actorId=actorId,
+            organization=organization,
+            target=invitation,
+            channel=channel,
+        )
     return invitation
 
 
@@ -391,3 +416,6 @@ def complete_invitation_registration(
     invitation.accepted_at = timezone.now()
     invitation.token_hash = None
     invitation.save(update_fields=["accepted_at", "token_hash"])
+    record_audit(
+        "invitation.accept", actorId=user.id, organization=organization, target=invitation
+    )

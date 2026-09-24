@@ -9,6 +9,8 @@ import uuid
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
 
+from operations.audit import get_audit_snapshot, record_audit
+
 from organizations.permissions import (
     AccessChannel,
     get_current_membership,
@@ -40,6 +42,7 @@ def update_profile(
     )
     # The authorization service already locked this account after its organization.
     user = User.objects.get(pk=actorId)
+    dictAuditBefore = get_audit_snapshot(user)
     user.username = User.normalize_username(username.strip())
     user.time_zone = timeZone
     listExcludedFieldName = [
@@ -54,4 +57,11 @@ def update_profile(
     )
     # A profile save must never overwrite passwords, login timestamps, or account state.
     user.save(update_fields=["username", "time_zone"])
+    record_audit(
+        "account.update_profile",
+        actorId=actorId,
+        target=user,
+        channel=channel,
+        before=dictAuditBefore,
+    )
     return user

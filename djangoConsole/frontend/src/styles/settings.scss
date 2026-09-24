@@ -1,0 +1,12 @@
+// FileName: settings.scss
+
+@use "vuetify/settings" with (
+  $body-font-family: (
+    "Noto Sans Mono",
+    "Cascadia Mono",
+    Consolas,
+    "Liberation Mono",
+    "Microsoft YaHei",
+    monospace,
+  )
+);

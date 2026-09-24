@@ -20,6 +20,7 @@ from django.views.decorators.debug import sensitive_variables
 
 from console_project.config import LimitsConfig
 from executors.session_state import revoke_user_executor_sessions
+from operations.audit import record_audit
 from notifications.models import EmailDelivery, EmailStatus, EmailType
 from organizations.permissions import (
     get_current_membership,
@@ -256,6 +257,7 @@ def complete_password_reset(*, token: str, newPassword: str) -> User:
     user.save(update_fields=["password"])
     revoke_active_api_keys(userId=user.id)
     revoke_user_executor_sessions(user.id)
+    record_audit("account.reset_password", actorId=user.id, target=user)
     resetRequest.delete()
     # NOTE: Email-change proofs are bound to the old password hash and are now invalid.
     # TODO: Revoke Editor credentials when Editor authentication is implemented.

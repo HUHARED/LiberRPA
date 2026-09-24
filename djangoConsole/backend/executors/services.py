@@ -15,6 +15,7 @@ from django.utils import timezone
 from django.views.decorators.debug import sensitive_variables
 
 from console_project.config import LimitsConfig
+from operations.audit import get_audit_snapshot, record_audit
 from organizations.models import DepartmentRole
 from organizations.permissions import (
     AccessChannel,
@@ -78,6 +79,14 @@ def create_executor(
             params={"limit": limits.maxExecutorsPerOrganization},
         )
     executor.save(force_insert=True)
+    record_audit(
+        "executor.create",
+        actorId=actorId,
+        organization=access.organization,
+        target=executor,
+        channel=channel,
+        before={},
+    )
     return executor
 
 
@@ -99,10 +108,19 @@ def update_executor(
         actorId, organizationId, channel, sessionAuthHash, sessionExpiresAt
     )
     executor = _get_executor_for_management(access, executorId)
+    dictAuditBefore = get_audit_snapshot(executor)
     executor.name = name.strip()
     executor.notes = notes
     executor.full_clean()
     executor.save(update_fields=["name", "notes"])
+    record_audit(
+        "executor.update",
+        actorId=actorId,
+        organization=access.organization,
+        target=executor,
+        channel=channel,
+        before=dictAuditBefore,
+    )
     return executor
 
 
@@ -123,8 +141,17 @@ def set_executor_dispatch(
         actorId, organizationId, channel, sessionAuthHash, sessionExpiresAt
     )
     executor = _get_executor_for_management(access, executorId)
+    dictAuditBefore = get_audit_snapshot(executor)
     executor.dispatch_enabled = dispatchEnabled
     executor.save(update_fields=["dispatch_enabled"])
+    record_audit(
+        "executor.set_dispatch",
+        actorId=actorId,
+        organization=access.organization,
+        target=executor,
+        channel=channel,
+        before=dictAuditBefore,
+    )
     # TODO: New central permits must check this switch; pausing must not stop active Runs or clear Waiting Jobs.
     return executor
 
@@ -157,6 +184,13 @@ def delete_executor(
     ExecutorSession.objects.filter(executor=executor).delete()
     executor.deleted_at = timezone.now()
     executor.save(update_fields=["deleted_at"])
+    record_audit(
+        "executor.delete",
+        actorId=actorId,
+        organization=access.organization,
+        target=executor,
+        channel=channel,
+    )
     return executor
 
 
@@ -184,6 +218,13 @@ def unassociate_executor(
                 "The Executor association has changed. Refresh before trying again.",
                 code="executor_association_changed",
             )
+        record_audit(
+            "executor.unassociate",
+            actorId=actorId,
+            organization=access.organization,
+            target=executor,
+            channel=channel,
+        )
         session.delete()
     # TODO: Reconcile associated unfinished work without claiming that remote processes stopped.
     return executor

@@ -5,20 +5,17 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import json
+import logging
 
 from django.http import HttpRequest, JsonResponse, QueryDict
+from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_variables
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
 
+from .contracts import JsonRequest as JsonRequest
+
+_LOGGER = logging.getLogger("console.http")
 _INT_MAX_JSON_BODY_BYTES = 4096
-
-
-class JsonRequest(BaseModel):
-    """Validate HTTP envelopes; application services own business validation."""
-
-    model_config = ConfigDict(
-        strict=True, extra="forbid", frozen=True, hide_input_in_errors=True
-    )
 
 
 def _parse_json_object(fieldPairs: list[tuple[str, object]]) -> dict[str, object]:
@@ -48,8 +45,20 @@ def build_error_response(
 
 
 def build_service_unavailable_response() -> JsonResponse:
+    _LOGGER.exception("Service temporarily unavailable.")
     return build_error_response(
         "service_unavailable", "The service is temporarily unavailable.", statusCode=503
+    )
+
+
+@never_cache
+def csrf_failure(request: HttpRequest, reason: str = "") -> JsonResponse:  # noqa: ARG001
+    """Give browser clients a stable error without exposing internal rejection details."""
+    # Django requires this signature; neither request data nor its reason is disclosed.
+    return build_error_response(
+        "csrf_failed",
+        "Your request could not be verified. Please submit the form again.",
+        statusCode=403,
     )
 
 

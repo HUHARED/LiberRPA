@@ -14,6 +14,7 @@ from django.views.decorators.debug import sensitive_variables
 from django.views.decorators.http import require_GET, require_POST
 from pydantic import SecretStr
 
+from .contracts import CsrfResponse
 from .http import (
     AccountRequest,
     build_error_response,
@@ -84,7 +85,9 @@ def _build_registration_validation_response(
 @require_GET
 def get_csrf_token(request: HttpRequest) -> JsonResponse:
     """Issue a masked token and its matching cookie for subsequent browser requests."""
-    return JsonResponse({"csrf_token": get_token(request)})
+    return JsonResponse(
+        CsrfResponse(csrf_token=get_token(request)).model_dump(mode="python")
+    )
 
 
 @never_cache

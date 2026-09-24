@@ -12,6 +12,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 
 from console_project.config import LimitsConfig
+from operations.audit import get_audit_snapshot, record_audit
 
 from .models import Department, Organization
 from .permissions import AccessChannel, lock_organization_for_admin
@@ -140,7 +141,18 @@ def create_department(
     Operator-scoped API Keys cannot use this operation.
     """
     organization = lock_organization_for_admin(actorId, organizationId, channel)
-    return _create_department(organization, name=name, parentId=parentId, notes=notes)
+    department = _create_department(
+        organization, name=name, parentId=parentId, notes=notes
+    )
+    record_audit(
+        "department.create",
+        actorId=actorId,
+        organization=organization,
+        target=department,
+        channel=channel,
+        before={},
+    )
+    return department
 
 
 @transaction.atomic
@@ -165,6 +177,7 @@ def update_department(
     )
     parentDepartment = _get_parent_department(organization, parentId)
     oldParentId = department.parent_id
+    dictAuditBefore = get_audit_snapshot(department)
     department.name = name
     department.parent = parentDepartment
     department.notes = notes
@@ -185,6 +198,14 @@ def update_department(
     department.validate_constraints()
     # Update the same row and leave all identity-based relationships intact.
     department.save(update_fields=["name", "parent", "notes"])
+    record_audit(
+        "department.update",
+        actorId=actorId,
+        organization=organization,
+        target=department,
+        channel=channel,
+        before=dictAuditBefore,
+    )
     return department
 
 

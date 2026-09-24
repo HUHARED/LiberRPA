@@ -1,0 +1,17 @@
+/* FileName: styles.css */
+
+.v-btn {
+  text-transform: none;
+}
+
+.skip-link {
+  position: fixed;
+  top: 0;
+  left: 16px;
+  z-index: 3000;
+  transform: translateY(-100%);
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}

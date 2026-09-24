@@ -16,6 +16,7 @@ from django.views.decorators.debug import sensitive_variables
 
 from accounts.models import User
 from accounts.session_revocation import SessionInvalidatedError
+from operations.audit import get_audit_snapshot, record_audit
 
 from .models import Organization
 from .permissions import (
@@ -76,9 +77,18 @@ def schedule_organization_deletion(
 
     # Start the waiting period after authorization and password verification succeed.
     requestedAt = timezone.now()
+    dictAuditBefore = get_audit_snapshot(organization)
     organization.deletion_requested_at = requestedAt
     organization.deletion_due_at = requestedAt + _ORGANIZATION_DELETION_DELAY
     organization.save(update_fields=["deletion_requested_at", "deletion_due_at"])
+    record_audit(
+        "organization.schedule_deletion",
+        actorId=actorId,
+        organization=organization,
+        target=organization,
+        channel=channel,
+        before=dictAuditBefore,
+    )
     return organization
 
 
@@ -111,7 +121,16 @@ def cancel_organization_deletion(
         )
 
     # The due time does not close the cancellation window; the actual cleanup start does.
+    dictAuditBefore = get_audit_snapshot(organization)
     organization.deletion_requested_at = None
     organization.deletion_due_at = None
     organization.save(update_fields=["deletion_requested_at", "deletion_due_at"])
+    record_audit(
+        "organization.cancel_deletion",
+        actorId=actorId,
+        organization=organization,
+        target=organization,
+        channel=channel,
+        before=dictAuditBefore,
+    )
     return organization

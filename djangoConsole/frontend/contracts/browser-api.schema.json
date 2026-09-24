@@ -1,0 +1,281 @@
+{
+  "$defs": {
+    "AccountAccessResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "business_available": {
+          "title": "Business Available",
+          "type": "boolean"
+        },
+        "departments": {
+          "items": {
+            "$ref": "#/$defs/DepartmentAccessResponse"
+          },
+          "title": "Departments",
+          "type": "array"
+        },
+        "is_org_admin": {
+          "title": "Is Org Admin",
+          "type": "boolean"
+        },
+        "organization": {
+          "$ref": "#/$defs/OrganizationAccessResponse"
+        }
+      },
+      "required": [
+        "organization",
+        "is_org_admin",
+        "business_available",
+        "departments"
+      ],
+      "title": "AccountAccessResponse",
+      "type": "object"
+    },
+    "CsrfResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "csrf_token": {
+          "minLength": 1,
+          "title": "Csrf Token",
+          "type": "string"
+        }
+      },
+      "required": [
+        "csrf_token"
+      ],
+      "title": "CsrfResponse",
+      "type": "object"
+    },
+    "DepartmentAccessResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "role": {
+          "anyOf": [
+            {
+              "enum": [
+                "developer",
+                "operator"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Role"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "path",
+        "role"
+      ],
+      "title": "DepartmentAccessResponse",
+      "type": "object"
+    },
+    "LoginRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "email": {
+          "title": "Email",
+          "type": "string"
+        },
+        "password": {
+          "format": "password",
+          "title": "Password",
+          "type": "string",
+          "writeOnly": true
+        },
+        "remember_me": {
+          "default": false,
+          "title": "Remember Me",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "email",
+        "password"
+      ],
+      "title": "LoginRequest",
+      "type": "object"
+    },
+    "MessageResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "message": {
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "message"
+      ],
+      "title": "MessageResponse",
+      "type": "object"
+    },
+    "OrganizationAccessResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "deletion_due_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Deletion Due At"
+        },
+        "deletion_requested_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Deletion Requested At"
+        },
+        "deletion_started_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Deletion Started At"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "suspended_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Suspended At"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "suspended_at",
+        "deletion_requested_at",
+        "deletion_due_at",
+        "deletion_started_at"
+      ],
+      "title": "OrganizationAccessResponse",
+      "type": "object"
+    },
+    "SessionResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "csrf_token": {
+          "minLength": 1,
+          "title": "Csrf Token",
+          "type": "string"
+        },
+        "expires_at": {
+          "format": "date-time",
+          "title": "Expires At",
+          "type": "string"
+        },
+        "user": {
+          "$ref": "#/$defs/UserResponse"
+        }
+      },
+      "required": [
+        "user",
+        "expires_at",
+        "csrf_token"
+      ],
+      "title": "SessionResponse",
+      "type": "object"
+    },
+    "UserResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "email": {
+          "title": "Email",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "username": {
+          "title": "Username",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "email",
+        "username"
+      ],
+      "title": "UserResponse",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "AccountAccessResponse": {
+      "$ref": "#/$defs/AccountAccessResponse"
+    },
+    "CsrfResponse": {
+      "$ref": "#/$defs/CsrfResponse"
+    },
+    "LoginRequest": {
+      "$ref": "#/$defs/LoginRequest"
+    },
+    "MessageResponse": {
+      "$ref": "#/$defs/MessageResponse"
+    },
+    "SessionResponse": {
+      "$ref": "#/$defs/SessionResponse"
+    }
+  },
+  "required": [
+    "LoginRequest",
+    "CsrfResponse",
+    "SessionResponse",
+    "AccountAccessResponse",
+    "MessageResponse"
+  ],
+  "title": "BrowserApiContracts",
+  "type": "object"
+}

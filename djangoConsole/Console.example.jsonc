@@ -5,6 +5,13 @@
   "debug": false,
   "allowedHosts": ["localhost", "127.0.0.1", "[::1]"],
 
+  // UTC diagnostics go to the process terminal; deployment captures and rotates the stream.
+  // Request summaries use route names and generated X-Request-ID values, never raw URLs.
+  "logging": {
+    "level": "INFO",
+    "requests": true
+  },
+
   // Relative secret paths are resolved against this configuration file.
   // Store UTF-8 text in these files; never put the secret values here.
   "secretKeyFile": "secrets/django-secret-key.txt",
@@ -40,6 +47,12 @@
 
   // Optional deployment limits. Omitted values use defaults.
   "limits": {
+    // Run "python backend/manage.py prune_audit_records" regularly in deployment.
+    // Both age and count apply; organization deletion also removes its tenant audit.
+    "auditRetentionDays": 180,
+    "maxAuditRecordsPerOrganization": 100000,
+    "maxPlatformAuditRecords": 100000,
+
     // Organization capacity.
     // Existing members and unexpired pending invitations count toward this limit.
     // Administrators and inactive members also count.

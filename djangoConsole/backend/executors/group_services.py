@@ -16,6 +16,7 @@ from django.utils import timezone
 from django.views.decorators.debug import sensitive_variables
 
 from console_project.config import LimitsConfig
+from operations.audit import get_audit_snapshot, record_audit
 from organizations.models import DepartmentRole
 from organizations.permissions import (
     AccessChannel,
@@ -114,6 +115,14 @@ def create_executor_group(
         )
     group.save(force_insert=True)
     _save_group_members(group, executorIds)
+    record_audit(
+        "executor_group.create",
+        actorId=actorId,
+        organization=access.organization,
+        target=group,
+        channel=channel,
+        before={},
+    )
     return ExecutorGroupWriteResult(group, executorIds)
 
 
@@ -136,12 +145,21 @@ def update_executor_group(
         actorId, organizationId, channel, sessionAuthHash, sessionExpiresAt
     )
     group = _get_group_for_management(access, groupId)
+    dictAuditBefore = get_audit_snapshot(group)
     group.name = name.strip()
     group.notes = notes
     group.full_clean()
     _validate_group_members(group, executorIds)
     group.save(update_fields=["name", "notes"])
     _save_group_members(group, executorIds)
+    record_audit(
+        "executor_group.update",
+        actorId=actorId,
+        organization=access.organization,
+        target=group,
+        channel=channel,
+        before=dictAuditBefore,
+    )
     return ExecutorGroupWriteResult(group, executorIds)
 
 
@@ -166,4 +184,11 @@ def delete_executor_group(
     ExecutorGroupMember.objects.filter(group=group).delete()
     group.deleted_at = timezone.now()
     group.save(update_fields=["deleted_at"])
+    record_audit(
+        "executor_group.delete",
+        actorId=actorId,
+        organization=access.organization,
+        target=group,
+        channel=channel,
+    )
     return group

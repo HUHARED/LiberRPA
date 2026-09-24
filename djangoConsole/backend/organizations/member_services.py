@@ -11,6 +11,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 
 from executors.session_state import revoke_unqualified_executor_sessions
+from operations.audit import get_audit_snapshot, record_audit
 
 from .models import Department, DepartmentMembership, DepartmentRole, Membership
 from .permissions import (
@@ -108,6 +109,7 @@ def update_membership(
         .get(user_id=userId, organization=organization)
     )
     boolOrgAdminBefore = membership.is_org_admin
+    dictAuditBefore = get_audit_snapshot(membership)
     membership.is_org_admin = isOrgAdmin
     membership.notes = notes
     membership.full_clean(
@@ -138,4 +140,12 @@ def update_membership(
     membership.save(update_fields=["is_org_admin", "notes"])
     _save_department_memberships(membership, listDepartmentMembership)
     revoke_unqualified_executor_sessions(membership.user_id, organization.id)
+    record_audit(
+        "membership.update",
+        actorId=actorId,
+        organization=organization,
+        target=membership,
+        channel=channel,
+        before=dictAuditBefore,
+    )
     return membership

@@ -14,6 +14,8 @@ from django.db import transaction
 from django.utils.crypto import constant_time_compare
 from django.views.decorators.debug import sensitive_variables
 
+from operations.audit import record_audit
+
 from organizations.models import Membership
 from organizations.permissions import (
     AccessChannel,
@@ -135,6 +137,13 @@ def delete_account(
 
     # Cascade membership, department roles, API keys, Executor sessions/associations, and private email proofs; retain organization resources and delivery history.
     target = cast(User, membership.user)
+    record_audit(
+        "account.delete",
+        actorId=actorId,
+        organization=membership.organization,
+        target=target,
+        channel=channel,
+    )
     target.delete()
     # Django rejects old web sessions because their User ID no longer resolves.
     # TODO: Revoke Editor credentials when Editor authentication is implemented.

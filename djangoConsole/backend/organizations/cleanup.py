@@ -13,6 +13,8 @@ from django.utils import timezone
 from django.views.decorators.debug import sensitive_variables
 
 from accounts.models import User
+from operations.audit import record_audit
+from operations.models import AuditScope, AuditRecord
 from executors.models import Executor, ExecutorGroup, ExecutorSession
 from notifications.models import (
     EmailDelivery,
@@ -55,6 +57,13 @@ def start_next_organization_deletion() -> uuid.UUID | None:
             return None
         organization.deletion_started_at = startedAt
         organization.save(update_fields=["deletion_started_at"])
+        record_audit(
+            "organization.start_deletion",
+            actorId=None,
+            organization=organization,
+            target=organization,
+            scope=AuditScope.PLATFORM,
+        )
     # A previous cleanup may have rolled back or stopped after committing this marker.
     return organization.id
 
@@ -129,6 +138,16 @@ def complete_organization_deletion(
     User.objects.filter(pk__in=[userId for userId, _email in listAccount]).delete()
     _delete_organization_departments(organizationId)
     # TODO: Add cleanup for future resource models and stored files; queue completion notices only after every cleanup stage succeeds.
+    AuditRecord.objects.filter(
+        scope=AuditScope.ORGANIZATION, organization_id=organizationId
+    ).delete()
+    record_audit(
+        "organization.complete_deletion",
+        actorId=None,
+        organization=organization,
+        target=organization,
+        scope=AuditScope.PLATFORM,
+    )
     organization.delete()
 
     completedAt = timezone.now()

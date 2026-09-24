@@ -20,6 +20,8 @@ from django.utils.crypto import constant_time_compare
 from django.views.decorators.debug import sensitive_variables
 
 from accounts.models import User
+from operations.audit import record_audit
+from operations.models import AuditChannel
 from organizations.models import DepartmentRole, Organization
 from organizations.permissions import (
     AccessChannel,
@@ -99,6 +101,13 @@ def begin_executor_login(
         )
         session.full_clean()
         session.save(force_insert=True)
+        record_audit(
+            "executor_session.login",
+            actorId=userId,
+            organization=access.organization,
+            target=session,
+            channel=AuditChannel.EXECUTOR,
+        )
     return ExecutorLoginResult(session=session, access=access, token=token)
 
 
@@ -141,6 +150,9 @@ def _perform_executor_action(
     executorId: uuid.UUID | None,
     pageNumber: int,
 ) -> ExecutorClientResult:
+    boolNewAssociation = (
+        action == ExecutorClientAction.ASSOCIATE and session.executor_id is None
+    )
     match action:
         case ExecutorClientAction.CHOICES:
             if session.executor_id is not None:
@@ -191,6 +203,14 @@ def _perform_executor_action(
             raise ValueError("Unsupported Executor client action.")
 
     _touch_executor_session(session)
+    if boolNewAssociation:
+        record_audit(
+            "executor.associate",
+            actorId=session.user_id,
+            organization=access.organization,
+            target=session.executor,
+            channel=AuditChannel.EXECUTOR,
+        )
     return ExecutorClientResult(session=session, access=access)
 
 
@@ -213,9 +233,23 @@ def handle_executor_client_request(
     with transaction.atomic(durable=True):
         if action == ExecutorClientAction.LOGOUT:
             # Ending only this credential remains available during an organization freeze.
-            Organization.objects.select_for_update().filter(
-                pk=identity.organization_id
-            ).first()
+            organization = (
+                Organization.objects
+                .select_for_update()
+                .filter(pk=identity.organization_id)
+                .first()
+            )
+            session = ExecutorSession.objects.filter(pk=identity.id).first()
+            if organization is None or session is None:
+                raise InvalidExecutorSessionError("A valid Executor session is required.")
+            record_audit(
+                "executor_session.logout",
+                actorId=session.user_id,
+                organization=organization,
+                target=session,
+                channel=AuditChannel.EXECUTOR,
+                before={},
+            )
             # TODO: The native client must block logout during any actual Run; add central-work checks with the Run model.
             deletedCount, _ = ExecutorSession.objects.filter(pk=identity.id).delete()
             if not deletedCount:

@@ -62,6 +62,11 @@ class LimitsConfig(_BaseConfig):
     maxExecutorsPerOrganization: int = Field(default=20, ge=0)
     maxExecutorGroupsPerOrganization: int = Field(default=50, ge=0)
 
+    # Audit cleanup is independent of business object and API key retention.
+    auditRetentionDays: int = Field(default=180, ge=1, le=180)
+    maxAuditRecordsPerOrganization: int = Field(default=100000, ge=1)
+    maxPlatformAuditRecords: int = Field(default=100000, ge=1)
+
     # API key capacity and inactive metadata retention per account.
     maxActiveApiKeysPerAccount: int = Field(default=10, ge=0)
     inactiveApiKeyRetentionDays: int = Field(default=30, ge=0, le=3650)
@@ -115,12 +120,18 @@ class SmtpConfig(_BaseConfig):
     timeoutSeconds: int = Field(default=10, ge=1)
 
 
+class LoggingConfig(_BaseConfig):
+    level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
+    requests: bool = True
+
+
 class ConsoleConfig(_BaseConfig):
     debug: bool = False
     allowedHosts: list[NonEmptyText] = Field(min_length=1)
     secretKeyFile: NonEmptyText
     database: DatabaseConfig
     limits: LimitsConfig = Field(default_factory=LimitsConfig)
+    logging: LoggingConfig = Field(default_factory=LoggingConfig)
     # These may be absent during backend development; configure all three before sending mail.
     consoleUrl: HttpUrl | None = None
     supportEmail: EmailAddress | None = None

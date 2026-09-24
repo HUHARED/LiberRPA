@@ -9,6 +9,7 @@ from typing import cast
 
 from django.conf import settings
 from django.contrib.auth import HASH_SESSION_KEY, authenticate, login, logout
+from django.contrib.auth.models import AnonymousUser
 from django.contrib.sessions.backends.base import UpdateError
 from django.core.exceptions import ImproperlyConfigured, PermissionDenied, ValidationError
 from django.db import DatabaseError, transaction
@@ -20,10 +21,14 @@ from django.views.decorators.debug import sensitive_post_parameters, sensitive_v
 from django.views.decorators.http import require_GET, require_POST
 from pydantic import SecretStr
 
+from console_project.contracts import MessageResponse
+from operations.audit import get_audit_organization, record_audit
+from organizations.models import Organization
 from organizations.access import get_account_access_info
 from organizations.http import build_account_access_payload
 from organizations.permissions import AccessChannel
 
+from .contracts import LoginRequest, UserResponse, SessionResponse
 from .http import (
     AccountRequest,
     build_error_response,
@@ -38,23 +43,19 @@ from .session_revocation import SessionInvalidatedError, revoke_other_sessions
 _REMEMBERED_SESSION_LIFETIME = timedelta(days=14)
 
 
-class LoginRequest(AccountRequest):
-    email: str
-    password: SecretStr
-    remember_me: bool = False
-
-
 class SessionRevocationRequest(AccountRequest):
     current_password: SecretStr
 
 
 def _build_session_response(request: HttpRequest, user: User) -> JsonResponse:
     # Return current identity only; business operations resolve their own current permissions.
-    return JsonResponse({
-        "user": {"id": user.id, "email": user.email, "username": user.username},
-        "expires_at": request.session.get_expiry_date(),
-        "csrf_token": get_token(request),
-    })
+    sessionResponse = SessionResponse(
+        user=UserResponse(id=user.id, email=user.email, username=user.username),
+        expires_at=request.session.get_expiry_date(),
+        csrf_token=get_token(request),
+    )
+    # Keep Django's existing UUID and datetime encoding, including its timestamp precision.
+    return JsonResponse(sessionResponse.model_dump(mode="python"))
 
 
 @never_cache
@@ -89,17 +90,29 @@ def sign_in(request: HttpRequest) -> JsonResponse:
                 statusCode=401,
             )
 
-        login(request, user)
-        sessionLifetime = (
-            _REMEMBERED_SESSION_LIFETIME
-            if loginRequest.remember_me
-            else timedelta(seconds=settings.SESSION_COOKIE_AGE)
-        )
-        # An absolute datetime prevents later session writes from extending this login.
-        request.session.set_expiry(timezone.now() + sessionLifetime)
+        with transaction.atomic():
+            organization = get_audit_organization(user.id)
+            if organization is not None:
+                # Keep the same organization-before-account lock order as security writes.
+                Organization.objects.select_for_update().get(pk=organization.pk)
+            login(request, user)
+            sessionLifetime = (
+                _REMEMBERED_SESSION_LIFETIME
+                if loginRequest.remember_me
+                else timedelta(seconds=settings.SESSION_COOKIE_AGE)
+            )
+            # Save the authorized session and audit together before reporting success.
+            request.session.set_expiry(timezone.now() + sessionLifetime)
+            request.session.save()
+            record_audit(
+                "account.login", actorId=user.id, organization=organization, target=user
+            )
         # login() rotates the CSRF secret; return a token matching the new cookie.
         return _build_session_response(request, user)
     except (ImproperlyConfigured, DatabaseError):
+        # Do not let SessionMiddleware persist an in-memory login whose transaction failed.
+        request.session = type(request.session)()
+        request.user = AnonymousUser()
         return build_service_unavailable_response()
 
 
@@ -145,10 +158,14 @@ def get_current_access(request: HttpRequest) -> JsonResponse:
 def sign_out(request: HttpRequest) -> JsonResponse:
     """Revoke this browser session, including any tabs sharing its cookie."""
     try:
-        logout(request)
+        with transaction.atomic():
+            if request.user.is_authenticated:
+                user = cast(User, request.user)
+                record_audit("account.logout", actorId=user.id, target=user)
+            logout(request)
     except (ImproperlyConfigured, DatabaseError):
         return build_service_unavailable_response()
-    return JsonResponse({"message": "Signed out."})
+    return JsonResponse(MessageResponse(message="Signed out.").model_dump(mode="python"))
 
 
 @never_cache

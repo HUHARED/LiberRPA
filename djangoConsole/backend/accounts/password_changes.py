@@ -11,6 +11,7 @@ from django.db import transaction
 from django.views.decorators.debug import sensitive_variables
 
 from executors.session_state import revoke_user_executor_sessions
+from operations.audit import record_audit
 from organizations.permissions import (
     AccessChannel,
     get_current_membership,
@@ -65,5 +66,6 @@ def change_password(
     user.save(update_fields=["password"])
     revoke_active_api_keys(userId=user.id)
     revoke_user_executor_sessions(user.id)
+    record_audit("account.change_password", actorId=actorId, target=user, channel=channel)
     # NOTE: Email-change proofs are bound to the old password hash and are now invalid.
     # TODO: Revoke Editor credentials when Editor authentication is implemented.

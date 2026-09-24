@@ -24,6 +24,7 @@ from django.utils.crypto import constant_time_compare, salted_hmac
 from django.views.decorators.debug import sensitive_variables
 
 from console_project.config import LimitsConfig
+from operations.audit import get_audit_snapshot, record_audit
 from notifications.models import EmailDelivery, EmailType
 from organizations.permissions import (
     AccessChannel,
@@ -212,6 +213,9 @@ def request_email_change(
             "confirmed_at": None,
         },
     )
+    record_audit(
+        "account.request_email_change", actorId=actorId, target=user, channel=channel
+    )
 
 
 @sensitive_variables()
@@ -295,6 +299,7 @@ def confirm_email_change(token: str) -> None:
         raise _build_email_unavailable_error()
 
     oldEmail = user.email
+    dictAuditBefore = get_audit_snapshot(user)
     user.email = changeRequest.new_email
     try:
         # The savepoint keeps the outer transaction usable after a uniqueness race.
@@ -316,6 +321,9 @@ def confirm_email_change(token: str) -> None:
         raise _build_invalid_email_change_error()
     changeRequest.confirmed_at = confirmedAt
     changeRequest.save(update_fields=["confirmed_at"])
+    record_audit(
+        "account.change_email", actorId=user.id, target=user, before=dictAuditBefore
+    )
     # Keep the consumed request as the per-account resend cursor, including across address changes.
     EmailDelivery.objects.create(
         email_type=EmailType.EMAIL_CHANGE_NOTICE,
