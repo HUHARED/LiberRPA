@@ -9,7 +9,7 @@ import { ApiError, getApiError } from "../api/errors";
 
 import type { AccountAccessResponse, SessionResponse } from "../api/generated/browserApi";
 
-export type SessionStatus = "unknown" | "authenticated" | "anonymous" | "unavailable";
+export type SessionStatus = "unknown" | "authenticated" | "anonymous";
 type SessionNotice = "expired" | "signed_out" | null;
 
 function announceSessionChange(): void {
@@ -23,6 +23,7 @@ export const useSessionStore = defineStore("session", () => {
   const strStatus = ref<SessionStatus>("unknown");
   const strNotice = ref<SessionNotice>(null);
   const apiError = shallowRef<ApiError | null>(null);
+  const boolUnavailable = ref(false);
   const boolBusy = ref(false);
   const boolAuthenticated = computed(() => strStatus.value === "authenticated");
   let intRevision = 0;
@@ -34,13 +35,18 @@ export const useSessionStore = defineStore("session", () => {
     sessionInfo.value = null;
     accessInfo.value = null;
     apiError.value = null;
+    boolUnavailable.value = false;
     strStatus.value = "anonymous";
     strNotice.value = notice;
     setCsrfToken(null);
   }
 
   function applySession(currentSession: SessionResponse): void {
-    if (sessionInfo.value?.user.id !== currentSession.user.id) accessInfo.value = null;
+    if (sessionInfo.value?.user.id !== currentSession.user.id) {
+      // A different account must not inherit the previous account's mounted pages.
+      if (strStatus.value === "authenticated") strStatus.value = "unknown";
+      accessInfo.value = null;
+    }
     sessionInfo.value = {
       user: currentSession.user,
       expires_at: currentSession.expires_at,
@@ -60,6 +66,7 @@ export const useSessionStore = defineStore("session", () => {
         if (intCurrentRevision !== intRevision) return;
         accessInfo.value = currentAccess;
         apiError.value = null;
+        boolUnavailable.value = false;
         strStatus.value = "authenticated";
         strNotice.value = null;
       } catch (e) {
@@ -76,11 +83,12 @@ export const useSessionStore = defineStore("session", () => {
         ) {
           accessInfo.value = null;
           apiError.value = requestError;
+          boolUnavailable.value = false;
           strStatus.value = "authenticated";
         } else {
-          // Transport failures retain the known identity while blocking unverified workspace actions.
+          // Availability is separate from the last confirmed authentication state.
           apiError.value = requestError;
-          strStatus.value = "unavailable";
+          boolUnavailable.value = true;
         }
       }
     })().finally(() => {
@@ -137,6 +145,8 @@ export const useSessionStore = defineStore("session", () => {
     refreshTask = null;
     sessionInfo.value = null;
     accessInfo.value = null;
+    apiError.value = null;
+    boolUnavailable.value = false;
     setCsrfToken(null);
     strStatus.value = "unknown";
     await refreshSession();
@@ -148,6 +158,7 @@ export const useSessionStore = defineStore("session", () => {
     status: strStatus,
     notice: strNotice,
     issue: apiError,
+    unavailable: boolUnavailable,
     busy: boolBusy,
     authenticated: boolAuthenticated,
     clearSession,

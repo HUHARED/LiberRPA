@@ -148,10 +148,10 @@ async function submitSignIn(event: SubmitEventPromise): Promise<void> {
       strPassword.value,
       boolRememberMe.value,
     );
-    if (sessionStore.authenticated || sessionStore.status === "unavailable") {
+    if (sessionStore.authenticated) {
       strPassword.value = "";
       await router.replace(getSafeReturnPath(route.query.returnTo));
-    } else if (sessionStore.status === "anonymous") {
+    } else if (!sessionStore.unavailable && sessionStore.status === "anonymous") {
       requestError.value = new ApiError(
         "The session could not be kept. Allow cookies for this site and try again.",
       );

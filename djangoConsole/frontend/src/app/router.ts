@@ -56,10 +56,11 @@ export function createAppRouter(
     scrollBehavior: () => ({ top: 0 }),
   });
 
-  router.beforeEach(async (to) => {
+  router.beforeEach(async (to, from) => {
     const sessionStore = useSessionStore(pinia);
     await sessionStore.initializeSession();
-    if (sessionStore.status === "unavailable") return true;
+    // Keep an open page mounted until the session can be checked again.
+    if (sessionStore.unavailable) return from.matched.length === 0;
     if (sessionStore.status === "anonymous" && !to.meta.public) {
       return getSignInLocation(to.fullPath);
     }

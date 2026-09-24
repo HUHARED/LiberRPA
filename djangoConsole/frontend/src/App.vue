@@ -1,16 +1,38 @@
 <!-- FileName: App.vue -->
 <template>
   <v-app>
-    <ConnectionState v-if="sessionStore.status === 'unknown'" loading />
-    <ConnectionState
-      v-else-if="sessionStore.status === 'unavailable'"
-      :message="sessionStore.issue?.message"
-      :retrying="boolRetrying"
-      @retry="retryConnection" />
-    <ConsoleLayout v-else-if="sessionStore.authenticated && !route.meta.public">
-      <RouterView />
-    </ConsoleLayout>
-    <RouterView v-else />
+    <AuthLayout v-if="sessionStore.status === 'unknown'">
+      <ConnectionState
+        :loading="!sessionStore.unavailable"
+        :message="sessionStore.issue?.message"
+        :retrying="boolRetrying"
+        @retry="retryConnection" />
+    </AuthLayout>
+    <div
+      v-else-if="sessionStore.authenticated || route.meta.public"
+      :key="sessionStore.authenticated ? sessionStore.session?.user.id : 'anonymous'"
+      :inert="sessionStore.unavailable"
+      class="d-flex flex-column flex-grow-1">
+      <ConsoleLayout v-if="sessionStore.authenticated && !route.meta.public">
+        <RouterView />
+      </ConsoleLayout>
+      <RouterView v-else />
+    </div>
+    <v-dialog
+      :model-value="sessionStore.unavailable && sessionStore.status !== 'unknown'"
+      persistent
+      no-click-animation
+      max-width="480"
+      aria-label="Unable to connect">
+      <v-card>
+        <v-card-text class="pa-6">
+          <ConnectionState
+            :message="sessionStore.issue?.message"
+            :retrying="boolRetrying"
+            @retry="retryConnection" />
+        </v-card-text>
+      </v-card>
+    </v-dialog>
     <v-footer
       app
       border="t"
@@ -34,6 +56,7 @@ import { useSessionLifecycle } from "./composables/useSessionLifecycle";
 import { getSafeReturnPath, getSignInLocation } from "./app/navigation";
 
 import ConnectionState from "./components/ConnectionState.vue";
+import AuthLayout from "./layouts/AuthLayout.vue";
 import ConsoleLayout from "./layouts/ConsoleLayout.vue";
 
 const sessionStore = useSessionStore();
@@ -47,22 +70,31 @@ useSessionLifecycle();
 
 watch(() => preferencesStore.theme, theme.change, { immediate: true });
 
-watch([() => sessionStore.status, () => sessionStore.access, () => route.fullPath], () => {
-  if (sessionStore.status === "anonymous" && route.matched.length && !route.meta.public) {
-    void router.replace(getSignInLocation(route.fullPath));
-  } else if (sessionStore.authenticated) {
-    if (route.name === "sign-in")
-      void router.replace(getSafeReturnPath(route.query.returnTo));
-    else if (route.meta.requiresBusiness && !sessionStore.access?.business_available) {
-      void router.replace({ name: "organization-status" });
-    } else if (
-      route.name === "organization-status" &&
-      sessionStore.access?.business_available
-    ) {
-      void router.replace({ name: "overview" });
+watch(
+  [
+    () => sessionStore.status,
+    () => sessionStore.access,
+    () => sessionStore.unavailable,
+    () => route.fullPath,
+  ],
+  () => {
+    if (sessionStore.unavailable) return;
+    if (sessionStore.status === "anonymous" && route.matched.length && !route.meta.public) {
+      void router.replace(getSignInLocation(route.fullPath));
+    } else if (sessionStore.authenticated) {
+      if (route.name === "sign-in")
+        void router.replace(getSafeReturnPath(route.query.returnTo));
+      else if (route.meta.requiresBusiness && !sessionStore.access?.business_available) {
+        void router.replace({ name: "organization-status" });
+      } else if (
+        route.name === "organization-status" &&
+        sessionStore.access?.business_available
+      ) {
+        void router.replace({ name: "overview" });
+      }
     }
-  }
-});
+  },
+);
 
 async function retryConnection(): Promise<void> {
   boolRetrying.value = true;
