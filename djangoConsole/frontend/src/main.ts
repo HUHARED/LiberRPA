@@ -8,7 +8,7 @@ import { createAppRouter } from "@/app/router";
 import { vuetify } from "@/app/vuetify";
 import { setSessionInvalidatedHandler } from "@/api/client";
 
-import { useSessionStore } from "@/stores/session";
+import { useSessionStore } from "@/stores/sessionStore";
 
 import "@/styles.css";
 

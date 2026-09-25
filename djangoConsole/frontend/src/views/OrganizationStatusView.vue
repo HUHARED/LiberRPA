@@ -38,7 +38,7 @@
 <script setup lang="ts">
 import { computed, ref, shallowRef } from "vue";
 
-import { useSessionStore } from "../stores/session";
+import { useSessionStore } from "../stores/sessionStore";
 
 import { type ApiError, getApiError } from "../api/errors";
 import { formatDateTime } from "../app/navigation";

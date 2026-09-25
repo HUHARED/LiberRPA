@@ -54,7 +54,7 @@
 </template>
 
 <script setup lang="ts">
-import { useSessionStore } from "../stores/session";
+import { useSessionStore } from "../stores/sessionStore";
 
 const sessionStore = useSessionStore();
 </script>

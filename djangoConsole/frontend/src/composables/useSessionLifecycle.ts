@@ -2,7 +2,7 @@
 
 import { onBeforeUnmount, onMounted } from "vue";
 
-import { useSessionStore } from "../stores/session";
+import { useSessionStore } from "../stores/sessionStore";
 
 const INT_SESSION_POLL_MS = 60000;
 const INT_FOCUS_THROTTLE_MS = 5000;

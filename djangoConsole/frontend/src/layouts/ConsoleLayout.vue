@@ -125,8 +125,8 @@ import { useDisplay } from "vuetify";
 
 import BrandMark from "../components/BrandMark.vue";
 
-import { useSessionStore } from "../stores/session";
-import { usePreferencesStore } from "../stores/preferences";
+import { useSessionStore } from "../stores/sessionStore";
+import { usePreferencesStore } from "../stores/preferencesStore";
 
 import { type ApiError, getApiError } from "../api/errors";
 import { getDisplayName, getAvatarInitial } from "../app/navigation";

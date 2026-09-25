@@ -55,7 +55,7 @@
 <script setup lang="ts">
 import DepartmentAccess from "../components/DepartmentAccess.vue";
 
-import { useSessionStore } from "../stores/session";
+import { useSessionStore } from "../stores/sessionStore";
 
 const sessionStore = useSessionStore();
 </script>

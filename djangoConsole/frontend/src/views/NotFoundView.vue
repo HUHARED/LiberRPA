@@ -20,7 +20,7 @@
 <script setup lang="ts">
 import AuthLayout from "../layouts/AuthLayout.vue";
 
-import { useSessionStore } from "../stores/session";
+import { useSessionStore } from "../stores/sessionStore";
 
 const sessionStore = useSessionStore();
 </script>

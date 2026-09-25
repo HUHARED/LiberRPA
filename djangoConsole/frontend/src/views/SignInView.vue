@@ -103,7 +103,7 @@ import type { SubmitEventPromise } from "vuetify";
 
 import AuthLayout from "../layouts/AuthLayout.vue";
 
-import { useSessionStore } from "../stores/session";
+import { useSessionStore } from "../stores/sessionStore";
 
 import { getSafeReturnPath } from "../app/navigation";
 import { ApiError, getApiError } from "../api/errors";

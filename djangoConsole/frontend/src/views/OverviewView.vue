@@ -98,7 +98,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 
-import { useSessionStore } from "../stores/session";
+import { useSessionStore } from "../stores/sessionStore";
 
 import DepartmentAccess from "../components/DepartmentAccess.vue";
 

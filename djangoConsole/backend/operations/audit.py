@@ -25,6 +25,9 @@ from organizations.models import (
 
 from .models import AuditScope, AuditChannel, AuditResult, AuditRecord
 
+_INT_MAX_OBJECT_NAME_LENGTH = cast(
+    models.CharField, AuditRecord._meta.get_field("object_name")
+).max_length
 _INT_MAX_DETAIL_BYTES = 4096
 # Each model explicitly opts safe metadata into history. Never serialize a complete model.
 _DICT_SNAPSHOT_FIELD = {
@@ -190,7 +193,7 @@ def record_audit(
         action=action,
         object_type=target._meta.model_name,
         object_id=str(target.pk),
-        object_name=strObjectName[:420],
+        object_name=strObjectName[:_INT_MAX_OBJECT_NAME_LENGTH],
         department_id=target.pk
         if target._meta.label_lower == "organizations.department"
         else getattr(target, "department_id", None),

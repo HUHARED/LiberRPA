@@ -4,7 +4,7 @@ import { createRouter, createWebHistory } from "vue-router";
 import type { Router, RouterHistory } from "vue-router";
 import type { Pinia } from "pinia";
 
-import { useSessionStore } from "../stores/session";
+import { useSessionStore } from "../stores/sessionStore";
 
 import { getSafeReturnPath, getSignInLocation } from "./navigation";
 

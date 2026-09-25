@@ -49,8 +49,8 @@ import { ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useTheme } from "vuetify";
 
-import { useSessionStore } from "./stores/session";
-import { usePreferencesStore } from "./stores/preferences";
+import { useSessionStore } from "./stores/sessionStore";
+import { usePreferencesStore } from "./stores/preferencesStore";
 import { useSessionLifecycle } from "./composables/useSessionLifecycle";
 
 import { getSafeReturnPath, getSignInLocation } from "./app/navigation";
