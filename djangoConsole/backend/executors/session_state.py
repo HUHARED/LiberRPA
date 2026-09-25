@@ -9,19 +9,15 @@ from datetime import datetime, timedelta
 from typing import Literal, cast
 
 from django.conf import settings
-from django.db.models import QuerySet
+from django.db.models import Exists, OuterRef, QuerySet
 from django.utils import timezone
 from django.utils.crypto import constant_time_compare
 from django.views.decorators.debug import sensitive_variables
 
 from accounts.models import User
 from console_project.config import LimitsConfig
-from organizations.models import DepartmentRole, Membership, Organization
-from organizations.permissions import (
-    AccessChannel,
-    OrganizationAccessContext,
-    get_authorized_departments,
-)
+from organizations.models import DepartmentRole, Membership
+from organizations.permissions import get_department_access_query
 
 from .models import Executor, ExecutorSession
 
@@ -42,10 +38,22 @@ def get_executor_association_status(
 
 
 def get_executor_sessions(organizationId: uuid.UUID) -> QuerySet[ExecutorSession]:
+    """Load account facts and department authorization together for the current operation."""
+    departmentQuery = get_department_access_query(
+        actorId=OuterRef("user_id"),
+        organizationId=organizationId,
+        isOrgAdmin=OuterRef("user__membership__is_org_admin"),
+        requiredRole=DepartmentRole.OPERATOR,
+    )
     return (
         ExecutorSession.objects
         .filter(organization_id=organizationId)
-        .select_related("user__membership", "organization", "executor__department")
+        .annotate(
+            can_use_department=Exists(
+                departmentQuery.filter(pk=OuterRef("executor__department_id"))
+            )
+        )
+        .select_related("user__membership", "executor")
         .defer("token_hash")
     )
 
@@ -54,8 +62,9 @@ def get_executor_sessions(organizationId: uuid.UUID) -> QuerySet[ExecutorSession
 def is_executor_session_current(
     session: ExecutorSession, *, currentTime: datetime
 ) -> bool:
-    """Check credential and resource eligibility without renewing it or treating Offline as expiry.
+    """Validate a session loaded by get_executor_sessions() for the current operation.
 
+    Offline never means expired, and this check does not renew the session.
     Organization freezes are checked by every business entry point; they never renew a session.
     """
     user = cast(User, session.user)
@@ -73,17 +82,7 @@ def is_executor_session_current(
     executor = cast(Executor, session.executor)
     if executor.deleted_at is not None:
         return False
-    access = OrganizationAccessContext(
-        actorId=session.user_id,
-        organization=cast(Organization, session.organization),
-        isOrgAdmin=membership.is_org_admin,
-        channel=AccessChannel.EXECUTOR,
-    )
-    return (
-        get_authorized_departments(access, requiredRole=DepartmentRole.OPERATOR)
-        .filter(pk=executor.department_id)
-        .exists()
-    )
+    return session.can_use_department
 
 
 def get_current_executor_sessions(

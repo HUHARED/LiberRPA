@@ -73,6 +73,9 @@ class ExecutorSession(models.Model):
     organization_id: uuid.UUID
     executor_id: uuid.UUID | None
 
+    # NOTE: get_executor_sessions() adds this permission result when reading the model.
+    can_use_department: bool
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,

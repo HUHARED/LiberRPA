@@ -10,7 +10,8 @@ from enum import StrEnum
 from typing import cast
 
 from django.core.exceptions import PermissionDenied
-from django.db.models import QuerySet
+from django.db.models import OuterRef, Q, QuerySet
+from django.db.models.lookups import Exact
 
 from accounts.models import User
 
@@ -202,6 +203,33 @@ def has_other_active_organization_admin(
     )
 
 
+def get_department_access_query(
+    *,
+    actorId: uuid.UUID | OuterRef,
+    organizationId: uuid.UUID,
+    isOrgAdmin: bool | OuterRef,
+    requiredRole: DepartmentRole,
+) -> QuerySet[Department]:
+    """Share department rules between verified access contexts and correlated session queries."""
+    tupleAllowedRole = _DICT_ALLOWED_ROLE_BY_REQUIREMENT.get(requiredRole)
+    if tupleAllowedRole is None:
+        raise PermissionDenied("Unsupported department role requirement.")
+    departmentQuery = Department.objects.filter(
+        organization_id=organizationId, deleted_at__isnull=True
+    )
+    if isOrgAdmin is True:
+        return departmentQuery
+
+    # Match the actual department only; parent and sibling roles do not grant access.
+    roleCondition = Q(
+        memberships__membership_id=actorId,
+        memberships__role__in=tupleAllowedRole,
+    )
+    if isinstance(isOrgAdmin, OuterRef):
+        roleCondition |= Q(Exact(isOrgAdmin, True))
+    return departmentQuery.filter(roleCondition)
+
+
 def get_authorized_departments(
     access: OrganizationAccessContext, *, requiredRole: DepartmentRole
 ) -> QuerySet[Department]:
@@ -210,23 +238,15 @@ def get_authorized_departments(
     Reuse this queryset for filtering and object lookup within the current operation.
     A get() outside this scope raises Department.DoesNotExist.
     """
-    tupleAllowedRole = _DICT_ALLOWED_ROLE_BY_REQUIREMENT.get(requiredRole)
-    if tupleAllowedRole is None:
-        raise PermissionDenied("Unsupported department role requirement.")
+    departmentQuery = get_department_access_query(
+        actorId=access.actorId,
+        organizationId=access.organization.id,
+        isOrgAdmin=access.isOrgAdmin,
+        requiredRole=requiredRole,
+    )
     if (
         access.channel == AccessChannel.API_KEY
         and requiredRole != DepartmentRole.OPERATOR
     ):
         raise PermissionDenied("API keys can only perform Operator actions.")
-
-    departmentQuery = Department.objects.filter(
-        organization=access.organization, deleted_at__isnull=True
-    )
-    if access.isOrgAdmin:
-        return departmentQuery
-
-    # Match the actual department only; parent and sibling roles do not grant access.
-    return departmentQuery.filter(
-        memberships__membership_id=access.actorId,
-        memberships__role__in=tupleAllowedRole,
-    )
+    return departmentQuery
