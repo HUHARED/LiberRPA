@@ -45,6 +45,15 @@ class ExecutorPageInfo:
     totalPages: int
 
 
+@dataclass(frozen=True)
+class ExecutorReadContext:
+    """Department and session facts loaded once for the current read operation."""
+
+    departmentsById: dict[uuid.UUID, Department]
+    managedDepartmentIds: set[uuid.UUID]
+    sessionsByExecutorId: dict[uuid.UUID, ExecutorSession]
+
+
 def _get_executor_query(access: OrganizationAccessContext) -> QuerySet[Executor]:
     return Executor.objects.filter(
         department__in=get_authorized_departments(
@@ -54,11 +63,11 @@ def _get_executor_query(access: OrganizationAccessContext) -> QuerySet[Executor]
     ).select_related("department")
 
 
-def get_executor_info_list(
-    executors: Sequence[Executor], access: OrganizationAccessContext
-) -> tuple[ExecutorInfo, ...]:
-    if not executors:
-        return ()
+def get_executor_read_context(
+    access: OrganizationAccessContext,
+    *,
+    sessionsByExecutorId: dict[uuid.UUID, ExecutorSession] | None = None,
+) -> ExecutorReadContext:
     dictDepartmentById = (
         Department.objects
         .filter(organization=access.organization, deleted_at__isnull=True)
@@ -74,21 +83,33 @@ def get_executor_info_list(
         if access.channel == AccessChannel.SESSION
         else set()
     )
-    dictSessionByExecutorId = get_current_executor_sessions(
-        access.organization.id, currentTime=timezone.now()
+    if sessionsByExecutorId is None:
+        sessionsByExecutorId = get_current_executor_sessions(
+            access.organization.id, currentTime=timezone.now()
+        )
+    return ExecutorReadContext(
+        departmentsById=dictDepartmentById,
+        managedDepartmentIds=setManagedDepartmentId,
+        sessionsByExecutorId=sessionsByExecutorId,
     )
+
+
+def build_executor_info_list(
+    executors: Sequence[Executor], context: ExecutorReadContext
+) -> tuple[ExecutorInfo, ...]:
+    """Build display entries from authorized records and already loaded read facts."""
     return tuple(
         ExecutorInfo(
             executor=executor,
             departmentPath=get_department_path(
-                dictDepartmentById[executor.department_id], dictDepartmentById
+                context.departmentsById[executor.department_id], context.departmentsById
             ),
-            canManage=executor.department_id in setManagedDepartmentId,
-            session=dictSessionByExecutorId.get(executor.id),
+            canManage=executor.department_id in context.managedDepartmentIds,
+            session=context.sessionsByExecutorId.get(executor.id),
         )
         for executor in executors
         # A department deleted between these reads no longer has a current display entry.
-        if executor.department_id in dictDepartmentById
+        if executor.department_id in context.departmentsById
     )
 
 
@@ -108,11 +129,12 @@ def get_executor_list(
         actorId=actorId, organizationId=organizationId, channel=channel
     )
     executorQuery = _get_executor_query(access)
+    dictSessionByExecutorId = None
     if availableOnly:
-        occupiedIds = get_current_executor_sessions(
+        dictSessionByExecutorId = get_current_executor_sessions(
             access.organization.id, currentTime=timezone.now()
         )
-        executorQuery = executorQuery.exclude(pk__in=occupiedIds)
+        executorQuery = executorQuery.exclude(pk__in=dictSessionByExecutorId)
     if departmentIds:
         executorQuery = executorQuery.filter(department_id__in=departmentIds)
     if name:
@@ -122,8 +144,15 @@ def get_executor_list(
     executorQuery = executorQuery.order_by(Lower("name"), "id")
     paginator = Paginator(executorQuery, _INT_EXECUTORS_PER_PAGE)
     executorPage = paginator.page(pageNumber)
+    executors = list(executorPage.object_list)
+    executorInfo: tuple[ExecutorInfo, ...] = ()
+    if executors:
+        context = get_executor_read_context(
+            access, sessionsByExecutorId=dictSessionByExecutorId
+        )
+        executorInfo = build_executor_info_list(executors, context)
     return ExecutorPageInfo(
-        executors=get_executor_info_list(list(executorPage.object_list), access),
+        executors=executorInfo,
         page=executorPage.number,
         pageSize=_INT_EXECUTORS_PER_PAGE,
         totalCount=paginator.count,
@@ -142,7 +171,7 @@ def get_executor_details(
         actorId=actorId, organizationId=organizationId, channel=channel
     )
     executor = _get_executor_query(access).get(pk=executorId)
-    details = get_executor_info_list([executor], access)
+    details = build_executor_info_list([executor], get_executor_read_context(access))
     if not details:
         raise Executor.DoesNotExist
     return details[0]
