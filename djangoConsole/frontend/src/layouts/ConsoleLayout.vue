@@ -15,15 +15,13 @@
     <v-list tag="nav" nav density="compact" aria-label="Workspace navigation">
       <v-list-subheader>Workspace</v-list-subheader>
       <v-list-item
-        v-for="navigationItem in ARR_NAVIGATION"
+        v-for="navigationItem in arrNavigation"
         :key="navigationItem.title"
         :title="navigationItem.title"
         :prepend-icon="navigationItem.icon"
         :to="'path' in navigationItem ? navigationItem.path : undefined"
         :active="
-          'path' in navigationItem &&
-          navigationItem.path === '/executors' &&
-          route.path.startsWith('/executors/')
+          'path' in navigationItem && route.path.startsWith(`${navigationItem.path}/`)
             ? true
             : undefined
         "
@@ -148,7 +146,12 @@ const ARR_NAVIGATION = [
   { title: "Assets", icon: "mdi-archive-outline" },
   { title: "Data Queues", icon: "mdi-database-outline" },
   { title: "Shared Files", icon: "mdi-folder-outline" },
-  { title: "Organization Settings", icon: "mdi-cog-outline" },
+  {
+    title: "Organization Settings",
+    icon: "mdi-cog-outline",
+    path: "/organization-settings",
+    requiresOrgAdmin: true,
+  },
 ] as const;
 const ARR_THEME_OPTION = [
   { title: "Use system theme", value: "system" },
@@ -157,6 +160,12 @@ const ARR_THEME_OPTION = [
 ] as const;
 
 const sessionStore = useSessionStore();
+const arrNavigation = computed(() =>
+  ARR_NAVIGATION.filter(
+    (navigationItem) =>
+      !("requiresOrgAdmin" in navigationItem) || sessionStore.access?.is_org_admin,
+  ),
+);
 const preferencesStore = usePreferencesStore();
 const route = useRoute();
 const display = useDisplay();

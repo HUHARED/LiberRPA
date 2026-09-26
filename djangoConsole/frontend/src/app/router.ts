@@ -57,6 +57,25 @@ export function createAppRouter(
         meta: { title: "Executor Details", requiresBusiness: true },
       },
       {
+        path: "/organization-settings",
+        name: "organization-settings",
+        component: () => import("../views/OrganizationSettingsView.vue"),
+        redirect: { name: "departments" },
+        meta: {
+          title: "Organization Settings",
+          requiresBusiness: true,
+          requiresOrgAdmin: true,
+        },
+        children: [
+          {
+            path: "departments",
+            name: "departments",
+            component: () => import("../views/DepartmentsView.vue"),
+            meta: { title: "Departments" },
+          },
+        ],
+      },
+      {
         path: "/my-profile",
         name: "my-profile",
         component: () => import("../views/ProfileView.vue"),
@@ -104,6 +123,8 @@ export function createAppRouter(
       if (to.name === "sign-in") return getSafeReturnPath(to.query.returnTo);
       if (to.meta.requiresBusiness && !sessionStore.access?.business_available)
         return { name: "organization-status" };
+      if (to.meta.requiresOrgAdmin && !sessionStore.access?.is_org_admin)
+        return { name: "overview" };
       if (to.name === "organization-status" && sessionStore.access?.business_available)
         return { name: "overview" };
     }

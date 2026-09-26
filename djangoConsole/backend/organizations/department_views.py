@@ -5,23 +5,28 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import uuid
-from typing import Annotated, cast
+from typing import cast
 
 from django.core.exceptions import ImproperlyConfigured, PermissionDenied, ValidationError
 from django.db import DatabaseError
 from django.http import HttpRequest, JsonResponse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods
-from pydantic import Field
 
 from accounts.models import User
 from console_project.http import (
-    JsonRequest,
     build_error_response,
     build_service_unavailable_response,
     parse_json_request,
 )
 
+from .contracts import (
+    DepartmentUpdateRequest,
+    DepartmentCreationRequest,
+    DepartmentDeletionRequest,
+    DepartmentWriteResponse,
+    DepartmentListResponse,
+)
 from .department_deletion import (
     DepartmentDeletionBlockedError,
     DepartmentDeletionInfo,
@@ -39,24 +44,6 @@ from .department_services import create_department, update_department
 
 _INT_MAX_DEPARTMENT_BODY_BYTES = 32 * 1024
 
-# JSON represents a UUID as text; other fields keep the shared strict type validation.
-type ParentDepartmentId = Annotated[uuid.UUID, Field(strict=False)] | None
-
-
-class DepartmentUpdateRequest(JsonRequest):
-    name: str
-    parent_id: ParentDepartmentId
-    notes: str
-
-
-class DepartmentCreationRequest(DepartmentUpdateRequest):
-    parent_id: ParentDepartmentId = None
-    notes: str = ""
-
-
-class DepartmentDeletionRequest(JsonRequest):
-    """The URL selects the department; the server resolves all deletion conditions."""
-
 
 def _build_department_payload(departmentInfo: DepartmentInfo) -> dict[str, object]:
     return {
@@ -73,14 +60,14 @@ def _build_saved_department_response(
 ) -> JsonResponse:
     # Return the saved fields without additional queries after the write commits.
     return JsonResponse(
-        {
+        DepartmentWriteResponse.model_validate({
             "department": {
                 "id": department.id,
                 "name": department.name,
                 "parent_id": department.parent_id,
                 "notes": department.notes,
             }
-        },
+        }).model_dump(mode="python"),
         status=statusCode,
     )
 
@@ -156,12 +143,17 @@ def list_or_create_departments(request: HttpRequest) -> JsonResponse:
             organizationId=membership.organization_id,
             channel=AccessChannel.SESSION,
         )
-        return JsonResponse({
+        dictListPayload = {
             "departments": [
                 _build_department_payload(departmentInfo)
                 for departmentInfo in listDepartmentInfo
             ]
-        })
+        }
+        return JsonResponse(
+            DepartmentListResponse.model_validate(dictListPayload).model_dump(
+                mode="python"
+            )
+        )
     except ValidationError as e:
         return _build_department_validation_response(e)
     except PermissionDenied:

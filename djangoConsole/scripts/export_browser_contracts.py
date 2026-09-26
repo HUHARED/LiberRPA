@@ -34,13 +34,21 @@ from executors.contracts import (
     ExecutorGroupDeletionResponse,
     ExecutorGroupWriteResponse,
 )
-from organizations.contracts import AccountAccessResponse
+from organizations.contracts import (
+    AccountAccessResponse,
+    DepartmentCreationRequest,
+    DepartmentWriteResponse,
+    DepartmentListResponse,
+)
 
 _TUPLE_CONTRACT_MODEL: tuple[tuple[type[BaseModel], JsonSchemaMode], ...] = (
     (LoginRequest, "validation"),
     (CsrfResponse, "serialization"),
     (SessionResponse, "serialization"),
     (AccountAccessResponse, "serialization"),
+    (DepartmentCreationRequest, "validation"),
+    (DepartmentWriteResponse, "serialization"),
+    (DepartmentListResponse, "serialization"),
     (MessageResponse, "serialization"),
     (ExecutorListResponse, "serialization"),
     (ExecutorDetailsResponse, "serialization"),

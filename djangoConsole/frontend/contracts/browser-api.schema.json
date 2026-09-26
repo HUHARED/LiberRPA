@@ -72,6 +72,132 @@
       "title": "DepartmentAccessResponse",
       "type": "object"
     },
+    "DepartmentCreationRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "notes": {
+          "default": "",
+          "title": "Notes",
+          "type": "string"
+        },
+        "parent_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Parent Id"
+        }
+      },
+      "required": ["name"],
+      "title": "DepartmentCreationRequest",
+      "type": "object"
+    },
+    "DepartmentListEntryResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "notes": {
+          "title": "Notes",
+          "type": "string"
+        },
+        "parent_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Parent Id"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        }
+      },
+      "required": ["id", "name", "parent_id", "notes", "path"],
+      "title": "DepartmentListEntryResponse",
+      "type": "object"
+    },
+    "DepartmentListResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "departments": {
+          "items": {
+            "$ref": "#/$defs/DepartmentListEntryResponse"
+          },
+          "title": "Departments",
+          "type": "array"
+        }
+      },
+      "required": ["departments"],
+      "title": "DepartmentListResponse",
+      "type": "object"
+    },
+    "DepartmentRecordResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "notes": {
+          "title": "Notes",
+          "type": "string"
+        },
+        "parent_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Parent Id"
+        }
+      },
+      "required": ["id", "name", "parent_id", "notes"],
+      "title": "DepartmentRecordResponse",
+      "type": "object"
+    },
+    "DepartmentWriteResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "department": {
+          "$ref": "#/$defs/DepartmentRecordResponse"
+        }
+      },
+      "required": ["department"],
+      "title": "DepartmentWriteResponse",
+      "type": "object"
+    },
     "ExecutorCreationRequest": {
       "additionalProperties": false,
       "properties": {
@@ -1159,6 +1285,15 @@
     "CsrfResponse": {
       "$ref": "#/$defs/CsrfResponse"
     },
+    "DepartmentCreationRequest": {
+      "$ref": "#/$defs/DepartmentCreationRequest"
+    },
+    "DepartmentListResponse": {
+      "$ref": "#/$defs/DepartmentListResponse"
+    },
+    "DepartmentWriteResponse": {
+      "$ref": "#/$defs/DepartmentWriteResponse"
+    },
     "ExecutorCreationRequest": {
       "$ref": "#/$defs/ExecutorCreationRequest"
     },
@@ -1219,6 +1354,9 @@
     "CsrfResponse",
     "SessionResponse",
     "AccountAccessResponse",
+    "DepartmentCreationRequest",
+    "DepartmentWriteResponse",
+    "DepartmentListResponse",
     "MessageResponse",
     "ExecutorListResponse",
     "ExecutorDetailsResponse",

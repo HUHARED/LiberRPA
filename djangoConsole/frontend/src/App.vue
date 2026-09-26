@@ -86,6 +86,8 @@ watch(
         void router.replace(getSafeReturnPath(route.query.returnTo));
       else if (route.meta.requiresBusiness && !sessionStore.access?.business_available) {
         void router.replace({ name: "organization-status" });
+      } else if (route.meta.requiresOrgAdmin && !sessionStore.access?.is_org_admin) {
+        void router.replace({ name: "overview" });
       } else if (
         route.name === "organization-status" &&
         sessionStore.access?.business_available
