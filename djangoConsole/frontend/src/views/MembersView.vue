@@ -1,21 +1,7 @@
 <!-- FileName: MembersView.vue -->
 <template>
-  <v-row align="center" class="mb-4">
-    <v-col>
-      <h2 class="text-h5 mb-2">Members</h2>
-      <p class="text-body-2 text-medium-emphasis">Accounts in this organization.</p>
-    </v-col>
-    <v-col cols="auto">
-      <v-btn
-        variant="tonal"
-        prepend-icon="mdi-refresh"
-        :loading="boolLoading"
-        :disabled="boolActionBlocked"
-        @click="loadMembers()">
-        Refresh
-      </v-btn>
-    </v-col>
-  </v-row>
+  <h2 class="text-h5 mb-2">Members</h2>
+  <p class="text-body-2 text-medium-emphasis mb-6">Accounts in this organization.</p>
   <v-alert
     v-if="strSuccessMessage"
     type="success"
@@ -27,8 +13,17 @@
   <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
     {{ requestError.message }}
     <p v-if="memberPage" class="mt-2">
-      Previously loaded members are shown. Refresh to try again.
+      Previously loaded members are shown and may be out of date.
     </p>
+    <template #append>
+      <v-btn
+        variant="tonal"
+        size="small"
+        :disabled="boolActionBlocked"
+        @click="loadMembers()">
+        Retry
+      </v-btn>
+    </template>
   </v-alert>
   <p v-if="strUpdatedAt" class="text-body-2 text-medium-emphasis mb-3">
     Updated at {{ formatDateTime(strUpdatedAt, strTimeZone) }}

@@ -18,14 +18,6 @@
         @click="openNewDepartment()">
         New Department
       </v-btn>
-      <v-btn
-        variant="tonal"
-        prepend-icon="mdi-refresh"
-        :loading="boolLoading"
-        :disabled="boolActionBlocked"
-        @click="loadDepartments">
-        Refresh
-      </v-btn>
     </v-col>
   </v-row>
   <v-alert
@@ -39,8 +31,17 @@
   <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
     {{ requestError.message }}
     <p v-if="arrDepartmentInfo" class="mt-2">
-      Previously loaded departments are shown. Refresh to try again.
+      Previously loaded departments are shown and may be out of date.
     </p>
+    <template #append>
+      <v-btn
+        variant="tonal"
+        size="small"
+        :disabled="boolActionBlocked"
+        @click="loadDepartments">
+        Retry
+      </v-btn>
+    </template>
   </v-alert>
   <div
     class="d-flex flex-wrap justify-space-between ga-2 mb-3 text-body-2 text-medium-emphasis">

@@ -15,24 +15,15 @@
         :disabled="boolDialogOpen || !boolCanManage"
         @update:model-value="changeStatusFilter" />
     </v-col>
-    <v-spacer />
-    <v-col cols="auto" class="d-flex flex-wrap ga-2">
+    <v-spacer v-if="!member" />
+    <v-col v-if="!member" cols="auto">
       <v-btn
-        v-if="!member"
         color="primary"
         variant="tonal"
         prepend-icon="mdi-plus"
         :disabled="boolActionBlocked || keyList === null"
         @click="openCreation"
         >New API Key</v-btn
-      >
-      <v-btn
-        variant="tonal"
-        prepend-icon="mdi-refresh"
-        :loading="boolLoading"
-        :disabled="boolActionBlocked"
-        @click="loadApiKeys"
-        >Refresh</v-btn
       >
     </v-col>
   </v-row>
@@ -47,8 +38,17 @@
   <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
     {{ requestError.message }}
     <p v-if="keyList" class="mt-2">
-      Previously loaded keys are shown. Refresh to try again.
+      Previously loaded keys are shown and may be out of date.
     </p>
+    <template #append>
+      <v-btn
+        variant="tonal"
+        size="small"
+        :disabled="boolActionBlocked"
+        @click="loadApiKeys">
+        Retry
+      </v-btn>
+    </template>
   </v-alert>
   <p v-if="keyList" class="text-body-2 text-medium-emphasis mb-3">
     Active key limit: {{ keyList.limits.active_keys }} per account.

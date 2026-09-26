@@ -114,12 +114,6 @@
                 @click="resetMemberFilter">
                 Reset
               </v-btn>
-              <v-btn
-                variant="text"
-                :disabled="boolSaving || boolLoadingMembers"
-                @click="loadMembers()">
-                Refresh
-              </v-btn>
             </div>
             <v-alert
               v-if="memberError"
@@ -129,8 +123,17 @@
               role="alert">
               {{ memberError.message }}
               <p v-if="memberPage" class="mt-2">
-                Previously loaded choices are shown. Refresh to try again.
+                Previously loaded choices are shown and may be out of date.
               </p>
+              <template #append>
+                <v-btn
+                  variant="tonal"
+                  size="small"
+                  :disabled="boolSaving || boolLoadingMembers"
+                  @click="loadMembers()">
+                  Retry
+                </v-btn>
+              </template>
             </v-alert>
             <div class="d-flex flex-wrap align-center justify-space-between ga-2 mb-3">
               <span aria-live="polite">Selected: {{ arrExecutorId.length }}</span>

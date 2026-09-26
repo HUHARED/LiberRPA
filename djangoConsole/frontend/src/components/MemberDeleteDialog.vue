@@ -26,7 +26,7 @@
         <v-alert v-if="deleteError" type="error" variant="tonal" class="mb-4" role="alert">
           Deletion was not confirmed. {{ deleteError.message }}
           <p v-if="!deletionInfo" class="mt-2">
-            Refresh to check the current account before trying again.
+            Check the current account before trying again.
           </p>
           <p v-if="intRetrySeconds" class="mt-2">
             Try again in {{ intRetrySeconds }} seconds.
@@ -79,10 +79,15 @@
         <v-spacer />
         <v-btn variant="text" :disabled="boolDeleting" @click="closeDialog">Cancel</v-btn>
         <v-btn
+          v-if="
+            requestError ||
+            (deleteError && !deletionInfo) ||
+            (deletionInfo && !deletionInfo.can_delete)
+          "
           variant="tonal"
           :disabled="boolLoading || boolDeleting || !boolCanDelete"
           @click="loadPreview"
-          >Refresh</v-btn
+          >{{ requestError ? "Retry" : "Check Again" }}</v-btn
         >
         <v-btn
           type="submit"

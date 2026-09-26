@@ -25,15 +25,6 @@
         My Profile
       </v-btn>
       <v-btn
-        v-if="!boolDeleted"
-        variant="tonal"
-        prepend-icon="mdi-refresh"
-        :loading="boolLoading"
-        :disabled="boolActionBlocked"
-        @click="loadMemberDetails">
-        Refresh
-      </v-btn>
-      <v-btn
         v-if="memberInfo && boolCanManage"
         variant="tonal"
         prepend-icon="mdi-pencil-outline"
@@ -71,8 +62,17 @@
         : requestError.message
     }}
     <p v-if="memberInfo" class="mt-2">
-      Previously loaded details are shown. Refresh to try again.
+      Previously loaded details are shown and may be out of date.
     </p>
+    <template #append>
+      <v-btn
+        variant="tonal"
+        size="small"
+        :disabled="boolActionBlocked"
+        @click="loadMemberDetails">
+        Retry
+      </v-btn>
+    </template>
   </v-alert>
   <v-progress-linear
     v-if="boolLoading"

@@ -1,22 +1,9 @@
 <!-- FileName: OverviewView.vue -->
 <template>
-  <v-row align="center" class="mb-4">
-    <v-col>
-      <h1 class="text-h5 mb-2">Overview</h1>
-      <p class="text-body-2 text-medium-emphasis">
-        Your account and organization at a glance.
-      </p>
-    </v-col>
-    <v-col cols="auto">
-      <v-btn
-        variant="tonal"
-        prepend-icon="mdi-refresh"
-        :loading="boolRefreshing"
-        @click="refreshOverview">
-        Refresh
-      </v-btn>
-    </v-col>
-  </v-row>
+  <h1 class="text-h5 mb-2">Overview</h1>
+  <p class="text-body-2 text-medium-emphasis mb-6">
+    Your account and organization at a glance.
+  </p>
   <v-card variant="tonal" color="primary" class="mb-4">
     <v-card-text>
       <h2 class="text-h6 mb-2">
@@ -96,8 +83,6 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
-
 import { useSessionStore } from "../stores/sessionStore";
 
 import DepartmentAccess from "../components/DepartmentAccess.vue";
@@ -105,15 +90,6 @@ import DepartmentAccess from "../components/DepartmentAccess.vue";
 import { getDisplayName } from "../app/navigation";
 
 const sessionStore = useSessionStore();
-const boolRefreshing = ref(false);
-async function refreshOverview(): Promise<void> {
-  boolRefreshing.value = true;
-  try {
-    await sessionStore.refreshSession();
-  } finally {
-    boolRefreshing.value = false;
-  }
-}
 </script>
 
 <style scoped></style>

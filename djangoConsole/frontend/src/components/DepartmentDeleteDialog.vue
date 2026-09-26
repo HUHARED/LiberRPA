@@ -21,7 +21,7 @@
         </v-alert>
         <v-alert v-if="deleteError" type="error" variant="tonal" class="mb-4" role="alert">
           Deletion was not confirmed. {{ deleteError.message }}
-          <p class="mt-2">Refresh to check the current department before trying again.</p>
+          <p class="mt-2">Check the current department before trying again.</p>
         </v-alert>
         <v-progress-linear
           v-if="boolLoading"
@@ -70,8 +70,8 @@
             </tbody>
           </v-table>
           <p v-if="deletionInfo.blockers.length" class="text-body-2 mb-4">
-            View opens a new tab. After removing dependencies, return here and select
-            Refresh. Pausing or unassociating an Executor does not remove it.
+            View opens a new tab. After removing dependencies, return here and select Check
+            Again. Pausing or unassociating an Executor does not remove it.
           </p>
         </template>
         <p class="text-body-2 mb-3">
@@ -88,12 +88,13 @@
         <v-spacer />
         <v-btn variant="text" :disabled="boolDeleting" @click="closeDialog">Cancel</v-btn>
         <v-btn
+          v-if="requestError || deleteError || (deletionInfo && !deletionInfo.can_delete)"
           variant="tonal"
           prepend-icon="mdi-refresh"
           :loading="boolLoading"
           :disabled="boolBusy || !boolCanManage"
           @click="loadDeletionPreview">
-          Refresh
+          {{ requestError ? "Retry" : "Check Again" }}
         </v-btn>
         <v-btn
           color="error"

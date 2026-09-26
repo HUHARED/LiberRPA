@@ -16,14 +16,6 @@
         @click="openInvitationForm"
         >Invite Member</v-btn
       >
-      <v-btn
-        variant="tonal"
-        prepend-icon="mdi-refresh"
-        :loading="boolLoading"
-        :disabled="boolActionBlocked"
-        @click="loadInvitations()"
-        >Refresh</v-btn
-      >
     </v-col>
   </v-row>
   <v-alert
@@ -34,12 +26,21 @@
     role="status"
     >{{ strSuccessMessage }}</v-alert
   >
-  <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert"
-    >{{ requestError.message }}
+  <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
+    {{ requestError.message }}
     <p v-if="invitationPage" class="mt-2">
-      Previously loaded invitations are shown. Refresh to try again.
-    </p></v-alert
-  >
+      Previously loaded invitations are shown and may be out of date.
+    </p>
+    <template #append>
+      <v-btn
+        variant="tonal"
+        size="small"
+        :disabled="boolActionBlocked"
+        @click="loadInvitations()">
+        Retry
+      </v-btn>
+    </template>
+  </v-alert>
   <p v-if="strUpdatedAt" class="text-body-2 text-medium-emphasis mb-3">
     Updated at {{ formatDateTime(strUpdatedAt, strTimeZone) }}
   </p>

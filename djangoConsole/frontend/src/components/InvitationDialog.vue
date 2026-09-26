@@ -129,10 +129,11 @@
           action === "view" ? "Close" : "Cancel"
         }}</v-btn>
         <v-btn
+          v-if="requestError || actionError"
           variant="tonal"
           :disabled="boolLoading || boolSaving || !boolCanManage"
           @click="loadInvitation"
-          >Refresh</v-btn
+          >{{ requestError ? "Retry" : "Check Status" }}</v-btn
         >
         <v-btn
           v-if="action !== 'view'"

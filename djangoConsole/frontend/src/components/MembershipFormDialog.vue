@@ -172,7 +172,7 @@
           variant="tonal"
           :disabled="boolLoading || !boolCanManage"
           @click="loadForm"
-          >Refresh</v-btn
+          >Retry</v-btn
         >
         <v-btn
           type="submit"
