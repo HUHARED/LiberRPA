@@ -50,7 +50,7 @@
       </v-btn>
     </template>
   </v-alert>
-  <p v-if="keyList" class="text-body-2 text-medium-emphasis mb-3">
+  <p v-if="keyList" class="mb-3">
     Active key limit: {{ keyList.limits.active_keys }} per account.
     <template
       v-if="keyList.limits.inactive_retention_days && keyList.limits.inactive_records">
@@ -77,7 +77,7 @@
       disable-sort
       loading-text="Loading API keys…">
       <template #item.name="{ item }">
-        <span class="key-text">{{ item.name }}</span>
+        <span class="table-text">{{ item.name }}</span>
       </template>
       <template #item.status="{ item }">
         <span class="text-capitalize">{{ getApiKeyStatus(item, intCurrentTimeMs) }}</span>
@@ -89,7 +89,7 @@
         formatDateTime(item.last_used_at, strTimeZone)
       }}</template>
       <template #item.notes="{ item }">
-        <p class="key-text key-notes">{{ item.notes || "—" }}</p>
+        <p class="table-text text-pre-wrap">{{ item.notes || "—" }}</p>
       </template>
       <template #item.actions="{ item }">
         <v-btn
@@ -299,13 +299,4 @@ onBeforeUnmount(() => {
 });
 </script>
 
-<style scoped>
-.key-text {
-  max-width: 360px;
-  overflow-wrap: anywhere;
-}
-
-.key-notes {
-  white-space: pre-wrap;
-}
-</style>
+<style scoped></style>

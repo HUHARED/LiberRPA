@@ -45,7 +45,7 @@
             class="mb-4"
             >The organization must retain at least one active administrator.</v-alert
           >
-          <p class="text-body-2 mb-4">
+          <p class="mb-4">
             This permanently deletes the account, its department roles, API Keys and client
             associations. Organization resources and history remain. Creating an account
             with the same email later will not restore this account.

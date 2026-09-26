@@ -4,6 +4,49 @@
   text-transform: none;
 }
 
+.detail-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: 20px;
+}
+
+.detail-fields dt {
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+
+.detail-fields .full-width-field {
+  grid-column: 1 / -1;
+}
+
+.detail-fields,
+.text-anywhere,
+.table-text,
+.table-text-narrow {
+  overflow-wrap: anywhere;
+}
+
+.table-text {
+  max-width: 360px;
+}
+
+.table-text-narrow {
+  max-width: 280px;
+}
+
+.notes-summary {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  white-space: pre-line;
+}
+
+.list-unstyled {
+  list-style: none;
+}
+
 .skip-link {
   position: fixed;
   top: 0;

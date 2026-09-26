@@ -2,7 +2,7 @@
 <template>
   <AuthLayout>
     <h1 class="text-h5 mb-2">Sign in to Console</h1>
-    <p class="text-body-2 text-medium-emphasis mb-6">
+    <p class="text-medium-emphasis mb-6">
       Enter your account details to open your workspace.
     </p>
     <v-alert
@@ -98,7 +98,7 @@
       </v-btn>
     </v-form>
     <v-divider class="my-4" />
-    <p class="text-body-2 text-medium-emphasis">
+    <p class="text-medium-emphasis">
       Use the email address associated with your organization.
     </p>
   </AuthLayout>

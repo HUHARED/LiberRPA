@@ -82,7 +82,7 @@
             :disabled="boolSaving"
             @update:model-value="saveError = null" />
           <h2 class="text-subtitle-1 mb-2">Executors</h2>
-          <p class="text-body-2 text-medium-emphasis mb-4">
+          <p class="mb-4">
             Groups may be empty. Unassociated, offline, and paused Executors can be members.
           </p>
           <v-alert v-if="!strDepartmentId" type="info" variant="tonal">
@@ -173,10 +173,10 @@
               hide-default-footer
               @update:model-value="saveError = null">
               <template #item.name="{ item }">
-                <div class="member-text">{{ item.name }}</div>
+                <div class="table-text-narrow">{{ item.name }}</div>
               </template>
               <template #item.account="{ item }">
-                <div class="member-text">
+                <div class="table-text-narrow">
                   {{
                     item.account
                       ? item.account.username
@@ -203,7 +203,7 @@
             <div
               v-if="memberPage"
               class="d-flex flex-wrap align-center justify-space-between ga-2 mt-3">
-              <span class="text-body-2 text-medium-emphasis">
+              <span class="text-medium-emphasis">
                 {{ memberPage.total_count }} Executors · Page {{ memberPage.page }} of
                 {{ memberPage.total_pages }}
               </span>
@@ -217,7 +217,7 @@
                 aria-label="Candidate Executor pages"
                 @update:model-value="loadMembers" />
             </div>
-            <p class="text-body-2 text-medium-emphasis mt-3">
+            <p class="mt-3">
               Select all applies to this page. Selections are kept when filtering or
               changing pages.
             </p>
@@ -420,9 +420,4 @@ onBeforeUnmount(() => {
 });
 </script>
 
-<style scoped>
-.member-text {
-  max-width: 280px;
-  overflow-wrap: anywhere;
-}
-</style>
+<style scoped></style>

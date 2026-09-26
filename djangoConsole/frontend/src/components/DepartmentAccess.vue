@@ -13,7 +13,7 @@
       </v-chip>
     </v-card-title>
     <v-card-text>
-      <p class="text-body-2 text-medium-emphasis">
+      <p>
         {{
           sessionStore.access?.is_org_admin
             ? "You have organization administrator access to all departments."

@@ -3,7 +3,7 @@
   <v-card variant="outlined" class="mx-auto mt-4" max-width="640" aria-live="polite">
     <v-card-text>
       <v-icon icon="mdi-office-building-outline" size="40" color="primary" class="mb-4" />
-      <p class="text-body-2 text-medium-emphasis mb-2">
+      <p class="text-medium-emphasis mb-2">
         {{ sessionStore.access?.organization.name ?? "Workspace status" }}
       </p>
       <h1 class="text-h5 mb-4">{{ strTitle }}</h1>

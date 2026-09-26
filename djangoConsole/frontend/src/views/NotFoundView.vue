@@ -4,7 +4,7 @@
     <v-container class="pa-0 text-center">
       <p class="text-h4 text-medium-emphasis mb-3">404</p>
       <h1 class="text-h5 mb-3">Page not found</h1>
-      <p class="text-body-2 text-medium-emphasis mb-6">
+      <p class="text-medium-emphasis mb-6">
         This address does not point to an available Console page.
       </p>
       <v-btn

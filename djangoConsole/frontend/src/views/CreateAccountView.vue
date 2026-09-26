@@ -2,9 +2,7 @@
 <template>
   <AuthLayout>
     <h1 class="text-h5 mb-2">Create Account</h1>
-    <p class="text-body-2 text-medium-emphasis mb-6">
-      Join the organization that invited you.
-    </p>
+    <p class="text-medium-emphasis mb-6">Join the organization that invited you.</p>
     <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
       {{ requestError.message }}
       <p v-for="message in requestError.fields.__all__" :key="message" class="mt-2">
@@ -19,7 +17,7 @@
       <v-btn :to="{ name: 'sign-in' }" color="primary" variant="tonal" block>Sign In</v-btn>
     </template>
     <template v-else-if="sessionStore.authenticated">
-      <p class="text-body-2 mb-4">
+      <p class="mb-4">
         You are signed in as {{ sessionStore.session?.user.email }}. Sign out to create the
         invited account.
       </p>
@@ -97,7 +95,7 @@
         >
       </v-form>
       <template v-else-if="!boolLoading">
-        <p class="text-body-2 mb-4">
+        <p class="mb-4">
           Open the link in your invitation email. If it has expired or been revoked, ask an
           organization administrator for a new invitation.
         </p>

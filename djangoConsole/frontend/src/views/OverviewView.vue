@@ -1,9 +1,7 @@
 <!-- FileName: OverviewView.vue -->
 <template>
   <h1 class="text-h5 mb-2">Overview</h1>
-  <p class="text-body-2 text-medium-emphasis mb-6">
-    Your account and organization at a glance.
-  </p>
+  <p class="text-medium-emphasis mb-6">Your account and organization at a glance.</p>
   <v-card variant="tonal" color="primary" class="mb-4">
     <v-card-text>
       <h2 class="text-h6 mb-2">
@@ -31,7 +29,7 @@
           <p class="text-body-1 font-weight-medium mb-2">
             {{ sessionStore.access?.organization.name }}
           </p>
-          <p class="text-body-2 text-medium-emphasis">Business access available</p>
+          <p class="text-medium-emphasis">Business access available</p>
         </v-card-text>
       </v-card>
     </v-col>
@@ -49,7 +47,7 @@
                 : "Organization member"
             }}
           </p>
-          <p class="text-body-2 text-medium-emphasis">
+          <p class="text-medium-emphasis">
             {{
               sessionStore.access?.is_org_admin
                 ? "Manage this organization and its departments"
@@ -69,7 +67,7 @@
           <p class="text-body-1 font-weight-medium mb-2">
             {{ sessionStore.session?.user.username || "Your account" }}
           </p>
-          <p class="text-body-2 text-medium-emphasis text-break">
+          <p class="text-medium-emphasis text-break">
             {{ sessionStore.session?.user.email }}
           </p>
         </v-card-text>

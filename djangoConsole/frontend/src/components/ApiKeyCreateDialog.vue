@@ -15,7 +15,7 @@
           <v-alert type="success" variant="tonal" class="mb-4" role="status">
             API key {{ createdKey.name }} created.
           </v-alert>
-          <p class="text-body-2 mb-4">
+          <p class="mb-4">
             Copy and save this key now. You won't be able to view it again.
           </p>
           <v-textarea
@@ -26,8 +26,8 @@
             readonly
             spellcheck="false"
             autocomplete="off" />
-          <p v-if="boolCopied" class="text-body-2 text-success" role="status">Copied.</p>
-          <p v-if="strCopyError" class="text-body-2 text-error" role="alert">
+          <p v-if="boolCopied" class="text-success" role="status">Copied.</p>
+          <p v-if="strCopyError" class="text-error" role="alert">
             {{ strCopyError }}
           </p>
         </template>
@@ -80,7 +80,7 @@
             counter="2000"
             :error-messages="saveError?.fields.notes ?? []"
             :disabled="boolSaving || boolUncertain" />
-          <p class="text-body-2 text-medium-emphasis">
+          <p>
             API keys perform Operator actions within your current department access. Your
             account can have up to {{ activeKeyLimit }} active keys.
           </p>

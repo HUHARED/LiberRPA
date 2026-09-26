@@ -51,7 +51,7 @@
             <v-alert type="warning" variant="tonal" class="mb-4">
               Revoking this key is permanent. Further requests using it will be rejected.
             </v-alert>
-            <p v-if="strStatus !== 'active'" class="text-body-2">
+            <p v-if="strStatus !== 'active'">
               This key is {{ strStatus }} and cannot be revoked.
             </p>
           </template>

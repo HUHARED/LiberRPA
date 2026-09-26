@@ -48,7 +48,7 @@
         </v-alert>
         <template v-if="groupInfo">
           <h2 class="text-subtitle-1 mb-3">Group Information</h2>
-          <dl class="group-information mb-4">
+          <dl class="detail-fields mb-4">
             <div>
               <dt>Name</dt>
               <dd>{{ groupInfo.name }}</dd>
@@ -81,11 +81,9 @@
           </template>
           <template v-else>
             <h2 class="text-subtitle-1 mb-2">Notes</h2>
-            <p class="group-notes mb-4">{{ groupInfo.notes || "—" }}</p>
+            <p class="text-pre-wrap text-anywhere mb-4">{{ groupInfo.notes || "—" }}</p>
             <h2 class="text-subtitle-1 mb-2">Members</h2>
-            <p class="text-body-2 text-medium-emphasis mb-3">
-              Member links open in a new tab.
-            </p>
+            <p class="mb-3">Member links open in a new tab.</p>
             <v-data-table
               :headers="ARR_MEMBER_HEADER"
               :items="groupInfo.members"
@@ -100,12 +98,12 @@
                   :to="{ name: 'executor-details', params: { executorId: item.id } }"
                   target="_blank"
                   rel="noopener"
-                  class="d-inline-block member-text text-primary">
+                  class="d-inline-block table-text-narrow text-primary">
                   {{ item.name }}
                 </RouterLink>
               </template>
               <template #item.account="{ item }">
-                <div class="member-text">
+                <div class="table-text-narrow">
                   {{
                     item.account
                       ? item.account.username
@@ -316,29 +314,4 @@ onBeforeUnmount(() => {
 });
 </script>
 
-<style scoped>
-.group-information {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 16px;
-}
-
-.group-information dt {
-  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-  font-size: 0.875rem;
-}
-
-.group-information dd,
-.member-text,
-.group-notes {
-  overflow-wrap: anywhere;
-}
-
-.member-text {
-  max-width: 280px;
-}
-
-.group-notes {
-  white-space: pre-wrap;
-}
-</style>
+<style scoped></style>

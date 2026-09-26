@@ -3,9 +3,7 @@
   <v-row align="center" class="mb-4">
     <v-col>
       <h1 class="text-h5 mb-2">Executors</h1>
-      <p class="text-body-2 text-medium-emphasis">
-        Executors in your authorized departments.
-      </p>
+      <p class="text-medium-emphasis">Executors in your authorized departments.</p>
     </v-col>
     <v-col cols="auto" class="d-flex flex-wrap ga-2">
       <v-btn
@@ -145,15 +143,15 @@
       <template #item.name="{ item }">
         <RouterLink
           :to="{ name: 'executor-details', params: { executorId: item.id } }"
-          class="d-inline-block executor-text text-primary font-weight-medium">
+          class="d-inline-block table-text-narrow text-primary">
           {{ item.name }}
         </RouterLink>
       </template>
       <template #item.department="{ item }">
-        <div class="executor-text">{{ item.department.path }}</div>
+        <div class="table-text-narrow">{{ item.department.path }}</div>
       </template>
       <template #item.account="{ item }">
-        <div class="executor-text">
+        <div class="table-text-narrow">
           {{
             item.account
               ? item.account.username
@@ -180,14 +178,14 @@
         </v-chip>
       </template>
       <template #item.computer="{ item }">
-        <div class="executor-text">{{ item.computer ?? "—" }}</div>
+        <div class="table-text-narrow">{{ item.computer ?? "—" }}</div>
       </template>
       <template #item.version="{ item }">{{ item.version ?? "—" }}</template>
       <template #item.last_seen_at="{ item }">
         {{ formatDateTime(item.last_seen_at, strTimeZone) }}
       </template>
       <template #item.notes="{ item }">
-        <div class="executor-text notes-summary" :title="item.notes">
+        <div class="table-text-narrow notes-summary" :title="item.notes">
           {{ item.notes || "—" }}
         </div>
       </template>
@@ -290,9 +288,7 @@
             :error-messages="newExecutorError?.fields.notes ?? []"
             :disabled="boolSavingNewExecutor"
             @update:model-value="newExecutorError = null" />
-          <p class="text-body-2 text-medium-emphasis">
-            The new Executor starts Unassociated with Console Dispatch enabled.
-          </p>
+          <p>The new Executor starts Unassociated with Console Dispatch enabled.</p>
         </v-card-text>
         <v-card-actions>
           <v-spacer />
@@ -500,18 +496,4 @@ onBeforeUnmount(() => {
 });
 </script>
 
-<style scoped>
-.executor-text {
-  max-width: 280px;
-  overflow-wrap: anywhere;
-}
-
-.notes-summary {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  overflow: hidden;
-  white-space: pre-line;
-}
-</style>
+<style scoped></style>

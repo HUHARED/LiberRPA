@@ -1,7 +1,7 @@
 <!-- FileName: MembersView.vue -->
 <template>
   <h2 class="text-h5 mb-2">Members</h2>
-  <p class="text-body-2 text-medium-emphasis mb-6">Accounts in this organization.</p>
+  <p class="text-medium-emphasis mb-6">Accounts in this organization.</p>
   <v-alert
     v-if="strSuccessMessage"
     type="success"
@@ -42,10 +42,10 @@
       disable-sort
       hide-default-footer>
       <template #item.account="{ item }">
-        <div class="member-text">
+        <div class="table-text">
           <RouterLink
             :to="{ name: 'member-details', params: { userId: item.user.id } }"
-            class="text-primary font-weight-medium">
+            class="text-primary">
             {{ item.user.username || item.user.email }}
           </RouterLink>
           <p v-if="item.user.username" class="text-body-2 text-medium-emphasis">
@@ -58,11 +58,11 @@
           <v-chip color="primary" size="small" variant="tonal">OrgAdmin</v-chip>
           <p class="text-body-2 mt-1">All departments</p>
         </template>
-        <ul v-else-if="item.department_roles.length" class="department-roles">
+        <ul v-else-if="item.department_roles.length" class="list-unstyled">
           <li
             v-for="assignment in item.department_roles"
             :key="assignment.department.id"
-            class="member-text py-1">
+            class="table-text py-1">
             <RouterLink
               :to="{
                 name: 'department-details',
@@ -77,7 +77,7 @@
         <span v-else class="text-medium-emphasis">No department access</span>
       </template>
       <template #item.notes="{ item }">
-        <div class="member-text notes-summary" :title="item.notes">
+        <div class="table-text notes-summary" :title="item.notes">
           {{ item.notes || "—" }}
         </div>
       </template>
@@ -265,23 +265,4 @@ onBeforeUnmount(() => {
 });
 </script>
 
-<style scoped>
-.member-text {
-  max-width: 360px;
-  overflow-wrap: anywhere;
-}
-
-.department-roles {
-  list-style: none;
-  padding: 0;
-}
-
-.notes-summary {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  overflow: hidden;
-  white-space: pre-line;
-}
-</style>
+<style scoped></style>

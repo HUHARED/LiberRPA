@@ -5,10 +5,10 @@
   </v-btn>
   <v-row align="center" class="mb-4">
     <v-col>
-      <h1 class="text-h5 mb-2 executor-text">
+      <h1 class="text-h5 mb-2 text-anywhere">
         {{ executorInfo?.name ?? "Executor Details" }}
       </h1>
-      <p class="text-body-2 text-medium-emphasis">Executor Details</p>
+      <p class="text-medium-emphasis">Executor Details</p>
     </v-col>
     <v-col cols="auto" class="d-flex flex-wrap ga-2">
       <v-btn
@@ -95,7 +95,7 @@
     <v-card variant="outlined" class="mb-4" :aria-busy="boolLoading">
       <v-card-title>Executor Information</v-card-title>
       <v-card-text>
-        <dl class="executor-fields">
+        <dl class="detail-fields">
           <div>
             <dt>Name</dt>
             <dd>{{ executorInfo.name }}</dd>
@@ -131,7 +131,7 @@
                 :color="executorInfo.dispatch_enabled ? 'primary' : 'warning'">
                 {{ executorInfo.dispatch_enabled ? "Enabled" : "Paused" }}
               </v-chip>
-              <p class="text-body-2 text-medium-emphasis mt-2">
+              <p class="mt-2">
                 Pausing does not stop running processes or remove the client association.
               </p>
             </dd>
@@ -169,7 +169,9 @@
     </v-card>
     <v-card variant="outlined" class="mb-4">
       <v-card-title>Notes</v-card-title>
-      <v-card-text class="executor-notes">{{ executorInfo.notes || "—" }}</v-card-text>
+      <v-card-text class="text-pre-wrap text-anywhere">{{
+        executorInfo.notes || "—"
+      }}</v-card-text>
     </v-card>
     <v-card variant="outlined">
       <v-card-title>Executor Groups</v-card-title>
@@ -178,7 +180,7 @@
           <li
             v-for="group in executorInfo.executor_groups"
             :key="group.id"
-            class="executor-text">
+            class="text-anywhere">
             <RouterLink
               :to="{ name: 'executor-group-details', params: { groupId: group.id } }"
               target="_blank"
@@ -188,7 +190,7 @@
             </RouterLink>
           </li>
         </ul>
-        <p v-else class="text-medium-emphasis">This executor is not in any groups.</p>
+        <p v-else>This executor is not in any groups.</p>
       </v-card-text>
     </v-card>
   </template>
@@ -269,7 +271,7 @@
           role="alert">
           Unassociation was not confirmed. {{ unassociateError.message }}
         </v-alert>
-        <dl class="executor-fields mb-4">
+        <dl class="detail-fields mb-4">
           <div>
             <dt>Executor</dt>
             <dd>{{ unassociateTarget.name }}</dd>
@@ -334,7 +336,7 @@
         <v-alert v-if="deleteError" type="error" variant="tonal" class="mb-4" role="alert">
           Deletion was not confirmed. {{ deleteError.message }}
         </v-alert>
-        <dl class="executor-fields mb-4">
+        <dl class="detail-fields mb-4">
           <div>
             <dt>Executor</dt>
             <dd>{{ deleteTarget.name }}</dd>
@@ -354,7 +356,7 @@
             <li
               v-for="group in deleteTarget.executor_groups"
               :key="group.id"
-              class="executor-text">
+              class="text-anywhere">
               <RouterLink
                 :to="{ name: 'executor-group-details', params: { groupId: group.id } }"
                 target="_blank"
@@ -687,29 +689,4 @@ onBeforeUnmount(() => {
 });
 </script>
 
-<style scoped>
-.executor-text,
-.executor-fields dd,
-.executor-notes {
-  overflow-wrap: anywhere;
-}
-
-.executor-fields {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
-  gap: 20px;
-}
-
-.executor-fields dt {
-  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-  margin-bottom: 4px;
-}
-
-.executor-fields dd {
-  margin: 0;
-}
-
-.executor-notes {
-  white-space: pre-wrap;
-}
-</style>
+<style scoped></style>

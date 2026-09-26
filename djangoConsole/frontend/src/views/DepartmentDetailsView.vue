@@ -9,10 +9,10 @@
   </v-btn>
   <v-row align="center" class="mb-4">
     <v-col>
-      <h2 class="text-h5 mb-2 department-text">
+      <h2 class="text-h5 mb-2 text-anywhere">
         {{ detailsInfo?.department.name ?? "Department Details" }}
       </h2>
-      <p class="text-body-2 text-medium-emphasis">Department Details</p>
+      <p class="text-medium-emphasis">Department Details</p>
     </v-col>
     <v-col cols="auto" class="d-flex flex-wrap ga-2">
       <v-btn
@@ -75,7 +75,7 @@
     <v-card variant="outlined" class="mb-4" :aria-busy="boolLoading">
       <v-card-title>Department Information</v-card-title>
       <v-card-text>
-        <dl class="department-fields">
+        <dl class="detail-fields">
           <div>
             <dt>Name</dt>
             <dd>{{ detailsInfo.department.name }}</dd>
@@ -101,7 +101,7 @@
           </div>
           <div class="full-width-field">
             <dt>Notes</dt>
-            <dd class="department-notes">{{ detailsInfo.department.notes || "—" }}</dd>
+            <dd class="text-pre-wrap">{{ detailsInfo.department.notes || "—" }}</dd>
           </div>
         </dl>
       </v-card-text>
@@ -109,7 +109,7 @@
     <v-card variant="outlined" class="mb-4" :aria-busy="boolLoading">
       <v-card-title>Members</v-card-title>
       <v-card-text>
-        <p class="text-body-2 text-medium-emphasis mb-3">
+        <p class="mb-3">
           Only explicitly assigned department roles are listed. Organization administrators
           do not need an assignment to access this department.
         </p>
@@ -123,10 +123,10 @@
           item-value="user.id"
           disable-sort>
           <template #item.account="{ item }">
-            <div class="department-text">
+            <div class="text-anywhere">
               <RouterLink
                 :to="{ name: 'member-details', params: { userId: item.user.id } }"
-                class="text-primary font-weight-medium">
+                class="text-primary">
                 {{ item.user.username || item.user.email }}
               </RouterLink>
               <p v-if="item.user.username" class="text-body-2 text-medium-emphasis">
@@ -144,9 +144,7 @@
     <v-card variant="outlined">
       <v-card-title>Resources</v-card-title>
       <v-card-text>
-        <p class="text-body-2 text-medium-emphasis mb-3">
-          Open a resource list filtered to this department.
-        </p>
+        <p class="mb-3">Open a resource list filtered to this department.</p>
         <div class="d-flex flex-wrap ga-2">
           <v-btn
             :to="{
@@ -343,32 +341,4 @@ onBeforeUnmount(() => {
 });
 </script>
 
-<style scoped>
-.department-fields {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
-  gap: 20px;
-}
-
-.department-fields dt {
-  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-  margin-bottom: 4px;
-}
-
-.department-fields dd {
-  margin: 0;
-  overflow-wrap: anywhere;
-}
-
-.full-width-field {
-  grid-column: 1 / -1;
-}
-
-.department-text {
-  overflow-wrap: anywhere;
-}
-
-.department-notes {
-  white-space: pre-wrap;
-}
-</style>
+<style scoped></style>

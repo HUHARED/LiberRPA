@@ -9,7 +9,7 @@
     <v-card>
       <v-card-title id="department-delete-title">Delete Department</v-card-title>
       <v-card-text>
-        <p class="text-subtitle-1 font-weight-medium department-name mb-4">
+        <p class="text-subtitle-1 font-weight-medium text-anywhere mb-4">
           {{ deletionInfo?.department.name ?? department.name }}
         </p>
         <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
@@ -69,16 +69,16 @@
               </tr>
             </tbody>
           </v-table>
-          <p v-if="deletionInfo.blockers.length" class="text-body-2 mb-4">
+          <p v-if="deletionInfo.blockers.length" class="mb-4">
             View opens a new tab. After removing dependencies, return here and select Check
             Again. Pausing or unassociating an Executor does not remove it.
           </p>
         </template>
-        <p class="text-body-2 mb-3">
+        <p class="mb-3">
           Deletion cannot be undone. Your organization and accounts will remain, even if
           this is the last department.
         </p>
-        <p class="text-body-2">
+        <p>
           Retained history does not prevent deletion and remains available to organization
           administrators under its retention rules. A new department with the same name will
           not inherit this department's permissions or history.
@@ -211,8 +211,4 @@ onBeforeUnmount(() => {
 });
 </script>
 
-<style scoped>
-.department-name {
-  overflow-wrap: anywhere;
-}
-</style>
+<style scoped></style>

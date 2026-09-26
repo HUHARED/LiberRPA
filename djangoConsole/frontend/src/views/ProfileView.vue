@@ -1,9 +1,7 @@
 <!-- FileName: ProfileView.vue -->
 <template>
   <h1 class="text-h5 mb-2">My Profile</h1>
-  <p class="text-body-2 text-medium-emphasis mb-6">
-    Your current identity and organization access.
-  </p>
+  <p class="text-medium-emphasis mb-6">Your current identity and organization access.</p>
   <v-card
     variant="outlined"
     prepend-icon="mdi-account-outline"

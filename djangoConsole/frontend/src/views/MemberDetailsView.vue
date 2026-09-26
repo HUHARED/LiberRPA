@@ -9,12 +9,12 @@
   </v-btn>
   <v-row align="center" class="mb-4">
     <v-col>
-      <h2 class="text-h5 mb-2 member-text">
+      <h2 class="text-h5 mb-2 text-anywhere">
         {{
           memberInfo ? memberInfo.user.username || memberInfo.user.email : "Member Details"
         }}
       </h2>
-      <p class="text-body-2 text-medium-emphasis">Member Details</p>
+      <p class="text-medium-emphasis">Member Details</p>
     </v-col>
     <v-col cols="auto" class="d-flex flex-wrap ga-2">
       <v-btn
@@ -87,12 +87,12 @@
     <v-card variant="outlined" class="mb-4" :aria-busy="boolLoading">
       <v-card-title>Member Information</v-card-title>
       <v-card-text>
-        <dl class="member-fields">
+        <dl class="detail-fields">
           <div>
             <dt>Account</dt>
             <dd>
               {{ memberInfo.user.username || memberInfo.user.email }}
-              <p v-if="memberInfo.user.username" class="text-body-2 text-medium-emphasis">
+              <p v-if="memberInfo.user.username" class="text-medium-emphasis">
                 {{ memberInfo.user.email }}
               </p>
             </dd>
@@ -107,7 +107,7 @@
           </div>
           <div class="full-width-field">
             <dt>Notes</dt>
-            <dd class="member-notes">{{ memberInfo.notes || "—" }}</dd>
+            <dd class="text-pre-wrap">{{ memberInfo.notes || "—" }}</dd>
           </div>
         </dl>
       </v-card-text>
@@ -115,7 +115,7 @@
     <v-card variant="outlined" :aria-busy="boolLoading">
       <v-card-title>Department Roles</v-card-title>
       <v-card-text>
-        <p class="text-body-2 text-medium-emphasis mb-3">
+        <p class="mb-3">
           {{
             memberInfo.is_org_admin
               ? "Organization administrators can access all departments. These explicit assignments are retained if the administrator role is removed."
@@ -137,7 +137,7 @@
                 name: 'department-details',
                 params: { departmentId: item.department.id },
               }"
-              class="member-text text-primary">
+              class="text-anywhere text-primary">
               {{ item.department.path }}
             </RouterLink>
           </template>
@@ -155,7 +155,7 @@
       </v-card-text>
     </v-card>
     <h3 class="text-h5 mt-6 mb-2">API Keys</h3>
-    <p class="text-body-2 text-medium-emphasis mb-4">
+    <p class="text-medium-emphasis mb-4">
       View key metadata and revoke active keys for this member. Only the owner can create
       keys or edit their Notes.
     </p>
@@ -296,32 +296,4 @@ onBeforeUnmount(() => {
 });
 </script>
 
-<style scoped>
-.member-fields {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
-  gap: 20px;
-}
-
-.member-fields dt {
-  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-  margin-bottom: 4px;
-}
-
-.member-fields dd {
-  margin: 0;
-  overflow-wrap: anywhere;
-}
-
-.full-width-field {
-  grid-column: 1 / -1;
-}
-
-.member-text {
-  overflow-wrap: anywhere;
-}
-
-.member-notes {
-  white-space: pre-wrap;
-}
-</style>
+<style scoped></style>

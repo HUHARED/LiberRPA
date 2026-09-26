@@ -3,7 +3,7 @@
   <v-row align="center" class="mb-4">
     <v-col>
       <h2 class="text-h6 mb-2">Departments</h2>
-      <p class="text-body-2 text-medium-emphasis">
+      <p class="text-medium-emphasis">
         Organize resources and assign access by department. Department access is not
         inherited from a parent department.
       </p>
@@ -73,14 +73,14 @@
             aria-hidden="true" />
           <RouterLink
             :to="{ name: 'department-details', params: { departmentId: item.id } }"
-            class="department-text text-primary font-weight-medium"
+            class="table-text text-primary"
             :title="item.path">
             {{ item.name }}
           </RouterLink>
         </div>
       </template>
       <template #item.notes="{ item }">
-        <div class="department-text notes-summary" :title="item.notes">
+        <div class="table-text notes-summary" :title="item.notes">
           {{ item.notes || "—" }}
         </div>
       </template>
@@ -290,18 +290,4 @@ onBeforeUnmount(() => {
 });
 </script>
 
-<style scoped>
-.department-text {
-  max-width: 360px;
-  overflow-wrap: anywhere;
-}
-
-.notes-summary {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  overflow: hidden;
-  white-space: pre-line;
-}
-</style>
+<style scoped></style>

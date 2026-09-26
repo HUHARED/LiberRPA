@@ -6,7 +6,7 @@
     <h1 class="text-h5 mt-4 mb-3">
       {{ loading ? "Opening your workspace" : "Unable to connect" }}
     </h1>
-    <p class="text-body-2 text-medium-emphasis mb-6">
+    <p class="mb-6">
       {{
         loading
           ? "Checking your session…"

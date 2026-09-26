@@ -42,7 +42,7 @@
           </p>
         </v-alert>
         <template v-if="invitationInfo">
-          <dl class="invitation-fields mb-4">
+          <dl class="detail-fields mb-4">
             <div>
               <dt>Email</dt>
               <dd>{{ invitationInfo.email }}</dd>
@@ -98,10 +98,10 @@
             </div>
             <div class="full-width-field">
               <dt>Notes</dt>
-              <dd class="invitation-notes">{{ invitationInfo.notes || "—" }}</dd>
+              <dd class="text-pre-wrap">{{ invitationInfo.notes || "—" }}</dd>
             </div>
           </dl>
-          <p class="text-body-2 text-medium-emphasis mb-4">
+          <p class="mb-4">
             Email delivery status does not confirm that the recipient read the message.
             Revoke and create a new invitation to change roles or Notes.
           </p>
@@ -117,10 +117,10 @@
             >Revoking invalidates this invitation link. It cannot remove an account that has
             already accepted the invitation.</v-alert
           >
-          <p v-if="action === 'resend' && intResendSeconds > 0" class="text-body-2">
+          <p v-if="action === 'resend' && intResendSeconds > 0">
             Resend is available in {{ intResendSeconds }} seconds.
           </p>
-          <p v-if="!boolOpen" class="text-body-2">This invitation is closed.</p>
+          <p v-if="!boolOpen">This invitation is closed.</p>
         </template>
       </v-card-text>
       <v-card-actions class="flex-wrap ga-2">
@@ -261,24 +261,4 @@ onBeforeUnmount(() => {
 });
 </script>
 
-<style scoped>
-.invitation-fields {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
-  gap: 20px;
-}
-.invitation-fields dt {
-  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-  margin-bottom: 4px;
-}
-.invitation-fields dd {
-  margin: 0;
-  overflow-wrap: anywhere;
-}
-.full-width-field {
-  grid-column: 1 / -1;
-}
-.invitation-notes {
-  white-space: pre-wrap;
-}
-</style>
+<style scoped></style>

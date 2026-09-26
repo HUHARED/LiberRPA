@@ -3,9 +3,7 @@
   <v-row align="center" class="mb-4">
     <v-col>
       <h1 class="text-h5 mb-2">Executor Groups</h1>
-      <p class="text-body-2 text-medium-emphasis">
-        Executor groups in your authorized departments.
-      </p>
+      <p class="text-medium-emphasis">Executor groups in your authorized departments.</p>
     </v-col>
     <v-col cols="auto" class="d-flex flex-wrap ga-2">
       <v-btn
@@ -154,15 +152,15 @@
             params: { groupId: item.id },
             query: route.query,
           }"
-          class="d-inline-block group-text font-weight-medium text-primary">
+          class="d-inline-block table-text text-primary">
           {{ item.name }}
         </RouterLink>
       </template>
       <template #item.department="{ item }">
-        <div class="group-text">{{ item.department.path }}</div>
+        <div class="table-text">{{ item.department.path }}</div>
       </template>
       <template #item.notes="{ item }">
-        <div class="group-text notes-summary" :title="item.notes">
+        <div class="table-text notes-summary" :title="item.notes">
           {{ item.notes || "—" }}
         </div>
       </template>
@@ -348,18 +346,4 @@ onBeforeUnmount(() => {
 });
 </script>
 
-<style scoped>
-.group-text {
-  max-width: 360px;
-  overflow-wrap: anywhere;
-}
-
-.notes-summary {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  overflow: hidden;
-  white-space: pre-line;
-}
-</style>
+<style scoped></style>

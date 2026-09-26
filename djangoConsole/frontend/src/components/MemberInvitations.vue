@@ -3,7 +3,7 @@
   <v-row align="center" class="mt-6 mb-4">
     <v-col
       ><h3 class="text-h5 mb-2">Invitations</h3>
-      <p class="text-body-2 text-medium-emphasis">
+      <p class="text-medium-emphasis">
         Pending and expired invitations. Accepted and revoked invitations leave this list.
       </p></v-col
     >
@@ -58,7 +58,7 @@
       disable-sort
       hide-default-footer>
       <template #item.email="{ item }"
-        ><span class="invitation-text">{{ item.email }}</span></template
+        ><span class="table-text">{{ item.email }}</span></template
       >
       <template #item.status="{ item }"
         ><span class="text-capitalize">{{
@@ -70,11 +70,11 @@
           ><v-chip color="primary" size="small" variant="tonal">OrgAdmin</v-chip>
           <p class="text-body-2 mt-1">All departments</p></template
         >
-        <ul v-else-if="item.department_roles.length" class="role-list">
+        <ul v-else-if="item.department_roles.length" class="list-unstyled">
           <li
             v-for="assignment in item.department_roles"
             :key="assignment.department_id"
-            class="invitation-text py-1">
+            class="table-text py-1">
             {{ assignment.department_path
             }}{{ assignment.department_deleted ? " (Deleted)" : ""
             }}<span class="text-capitalize"> — {{ assignment.role }}</span>
@@ -284,13 +284,4 @@ onBeforeUnmount(() => {
 });
 </script>
 
-<style scoped>
-.invitation-text {
-  max-width: 360px;
-  overflow-wrap: anywhere;
-}
-.role-list {
-  list-style: none;
-  padding: 0;
-}
-</style>
+<style scoped></style>
