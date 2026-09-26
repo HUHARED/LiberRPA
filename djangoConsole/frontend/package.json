@@ -8,12 +8,10 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "npm run check:contracts && vue-tsc -b && vite build",
+    "build": "vue-tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "vue-tsc -b",
     "lint": "eslint .",
-    "generate:contracts": "node scripts/generateApiTypes.mjs",
-    "check:contracts": "node scripts/generateApiTypes.mjs --check",
     "check": "npm run lint && npm run build"
   },
   "dependencies": {

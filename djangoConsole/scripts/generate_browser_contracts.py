@@ -1,4 +1,4 @@
-# FileName: export_browser_contracts.py
+# FileName: generate_browser_contracts.py
 __author__ = "Jiyan Hu"
 __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
@@ -7,6 +7,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 import argparse
 import json
 from pathlib import Path
+import subprocess
 import sys
 
 from pydantic import BaseModel
@@ -89,34 +90,57 @@ def build_browser_contract_schema() -> JsonSchemaValue:
 
 def main() -> int:
     argumentParser = argparse.ArgumentParser(
-        description="Export browser API schemas, or check the committed schema without changing it."
+        description="Generate browser API TypeScript types from backend contracts, or check them without changing the file."
     )
     argumentParser.add_argument("--check", action="store_true")
+    argumentParser.add_argument(
+        "--node",
+        default="node",
+        help="Node.js executable path (default: node from PATH).",
+    )
     arguments = argumentParser.parse_args()
     boolCheck = bool(arguments.check)
-    pathSchema = _PATH_CONSOLE / "frontend/contracts/browser-api.schema.json"
-    strExpected = (
-        json.dumps(build_browser_contract_schema(), indent=2, sort_keys=True) + "\n"
-    )
+    strNodePath: str = arguments.node
+    pathOutput = _PATH_CONSOLE / "frontend/src/api/generated/browserApi.ts"
+    # Keep the schema in memory and let the existing converter handle TypeScript syntax.
+    try:
+        completedProcess = subprocess.run(
+            [
+                strNodePath,
+                str(_PATH_CONSOLE / "frontend/scripts/generateApiTypes.mjs"),
+            ],
+            cwd=_PATH_CONSOLE,
+            input=json.dumps(build_browser_contract_schema(), sort_keys=True),
+            stdout=subprocess.PIPE,
+            encoding="utf-8",
+            check=False,
+        )
+    except FileNotFoundError:
+        print(
+            "Node.js was not found. Add it to PATH or pass --node with its executable path.",
+            file=sys.stderr,
+        )
+        return 1
+    if completedProcess.returncode != 0:
+        return 1
+    strExpected = completedProcess.stdout
     if boolCheck:
         if (
-            not pathSchema.is_file()
-            or pathSchema.read_text(encoding="utf-8") != strExpected
+            not pathOutput.is_file()
+            or pathOutput.read_text(encoding="utf-8") != strExpected
         ):
             print(
-                "Browser API schema is out of date. Run python scripts/export_browser_contracts.py.",
+                "Browser API types are out of date. Run this command again without --check.",
                 file=sys.stderr,
             )
             return 1
     else:
-        pathSchema.parent.mkdir(parents=True, exist_ok=True)
-        pathSchema.write_text(strExpected, encoding="utf-8", newline="\n")
+        pathOutput.parent.mkdir(parents=True, exist_ok=True)
+        pathOutput.write_text(strExpected, encoding="utf-8", newline="\n")
     if boolCheck:
-        print("Browser API schema matches backend contracts.")
+        print("Browser API TypeScript types match backend contracts.")
     else:
-        print(
-            "Browser API schema exported. Run npm run generate:contracts in frontend next."
-        )
+        print("Browser API TypeScript types generated from backend contracts.")
     return 0
 
 
