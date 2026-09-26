@@ -10,7 +10,7 @@ export default defineConfig(({ mode }) => {
   const dictEnvironment = loadEnv(mode, process.cwd(), "CONSOLE_");
   const strBackendUrl = dictEnvironment.CONSOLE_BACKEND_URL ?? "http://127.0.0.1:8000";
   const proxyOptions = {
-    "/api": {
+    "/api/": {
       target: strBackendUrl,
       // Preserve the browser-facing Host so Django can verify the Origin without a CORS exception.
       changeOrigin: false,
