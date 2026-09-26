@@ -4,6 +4,7 @@ __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
+import errno
 import logging
 import time
 import uuid
@@ -12,8 +13,11 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from copy import copy
 from pathlib import Path
+from smtplib import SMTPResponseException
 from traceback import walk_tb
 from types import TracebackType
+
+from psycopg import Error as PsycopgError
 
 _REQUEST_ID: ContextVar[uuid.UUID | None] = ContextVar("console_request_id", default=None)
 
@@ -52,19 +56,45 @@ class ConsoleFormatter(logging.Formatter):
         error = exceptionInfo[1]
         if error is None:
             return ""
-        listDetail = [f"Exception type: {type(error).__name__}."]
-        if isinstance(error, AttributeError):
-            if error.name is not None and error.name.isidentifier():
-                listDetail.append(f"Missing attribute: {error.name}.")
-            if error.obj is not None:
-                listDetail.append(f"Object type: {type(error.obj).__name__}.")
-        # No exception messages, source lines, argument values, or frame locals.
-        if exceptionInfo[2] is not None:
-            for tracebackFrame, intLineNumber in walk_tb(exceptionInfo[2]):
-                codeObj = tracebackFrame.f_code
-                listDetail.append(
-                    f"  {Path(codeObj.co_filename).name}:{intLineNumber} in {codeObj.co_name}"
-                )
+        listDetail: list[str] = []
+        setSeen: set[int] = set()
+        tracebackObj = exceptionInfo[2]
+        while error is not None and id(error) not in setSeen:
+            setSeen.add(id(error))
+            listDetail.append(f"Exception type: {type(error).__name__}.")
+            if isinstance(error, AttributeError):
+                if error.name is not None and error.name.isidentifier():
+                    listDetail.append(f"Missing attribute: {error.name}.")
+                if error.obj is not None:
+                    listDetail.append(f"Object type: {type(error.obj).__name__}.")
+            if isinstance(error, OSError) and error.errno is not None:
+                strErrorCode = errno.errorcode.get(error.errno, "UNKNOWN")
+                listDetail.append(f"OS error: {error.errno} ({strErrorCode}).")
+            intWinError = getattr(error, "winerror", None)
+            if isinstance(intWinError, int):
+                listDetail.append(f"Windows error: {intWinError}.")
+            if isinstance(error, PsycopgError) and error.sqlstate is not None:
+                listDetail.append(f"PostgreSQL SQLSTATE: {error.sqlstate}.")
+            if isinstance(error, SMTPResponseException):
+                listDetail.append(f"SMTP status: {error.smtp_code}.")
+            # Standard error codes explain failures without exception messages, SQL, SMTP replies, or frame locals.
+            if tracebackObj is not None:
+                for tracebackFrame, intLineNumber in walk_tb(tracebackObj):
+                    codeObj = tracebackFrame.f_code
+                    listDetail.append(
+                        f"  {Path(codeObj.co_filename).name}:{intLineNumber} in {codeObj.co_name}"
+                    )
+            if error.__cause__ is not None:
+                error = error.__cause__
+                strRelation = "Caused by:"
+            elif not error.__suppress_context__ and error.__context__ is not None:
+                error = error.__context__
+                strRelation = "While handling:"
+            else:
+                break
+            if id(error) not in setSeen:
+                listDetail.append(strRelation)
+            tracebackObj = error.__traceback__
         return "\n".join(listDetail)
 
     def format(self, record: logging.LogRecord) -> str:

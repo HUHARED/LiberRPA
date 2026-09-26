@@ -5,7 +5,8 @@
   "debug": false,
   "allowedHosts": ["localhost", "127.0.0.1", "[::1]"],
 
-  // UTC diagnostics go to the process terminal; deployment captures and rotates the stream.
+  // Application diagnostics use UTC; run_dev.py captures and rotates development output in .local/logs/.
+  // Deployment manages process output separately.
   // Request summaries use route names and generated X-Request-ID values, never raw URLs.
   "logging": {
     "level": "INFO",
