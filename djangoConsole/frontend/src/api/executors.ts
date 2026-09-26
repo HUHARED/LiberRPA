@@ -6,8 +6,10 @@ import { isRecord, ApiError } from "./errors";
 import type {
   ExecutorDetailsResponse,
   ExecutorGroupReferenceResponse,
+  ExecutorDispatchRequest,
   ExecutorListResponse,
   ExecutorListEntryResponse,
+  ExecutorUnassociateRequest,
   ExecutorUpdateRequest,
   ExecutorUpdateResponse,
   ExecutorRecordResponse,
@@ -156,6 +158,32 @@ export async function updateExecutor(
     await requestApi(`/executors/${encodeURIComponent(executorId)}/`, {
       method: "POST",
       body: changes,
+    }),
+  );
+}
+
+export async function setExecutorDispatch(
+  executorId: string,
+  dispatchEnabled: boolean,
+): Promise<ExecutorUpdateResponse> {
+  const dispatchRequest: ExecutorDispatchRequest = { dispatch_enabled: dispatchEnabled };
+  return parseExecutorUpdateResponse(
+    await requestApi(`/executors/${encodeURIComponent(executorId)}/dispatch/`, {
+      method: "POST",
+      body: dispatchRequest,
+    }),
+  );
+}
+
+export async function unassociateExecutor(
+  executorId: string,
+  sessionId: string,
+): Promise<ExecutorUpdateResponse> {
+  const unassociateRequest: ExecutorUnassociateRequest = { session_id: sessionId };
+  return parseExecutorUpdateResponse(
+    await requestApi(`/executors/${encodeURIComponent(executorId)}/unassociate/`, {
+      method: "POST",
+      body: unassociateRequest,
     }),
   );
 }

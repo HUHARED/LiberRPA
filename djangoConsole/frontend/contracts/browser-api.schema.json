@@ -243,6 +243,18 @@
       "title": "ExecutorDetailsResponse",
       "type": "object"
     },
+    "ExecutorDispatchRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "dispatch_enabled": {
+          "title": "Dispatch Enabled",
+          "type": "boolean"
+        }
+      },
+      "required": ["dispatch_enabled"],
+      "title": "ExecutorDispatchRequest",
+      "type": "object"
+    },
     "ExecutorGroupReferenceResponse": {
       "additionalProperties": false,
       "properties": {
@@ -477,6 +489,19 @@
       "title": "ExecutorRecordResponse",
       "type": "object"
     },
+    "ExecutorUnassociateRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "session_id": {
+          "format": "uuid",
+          "title": "Session Id",
+          "type": "string"
+        }
+      },
+      "required": ["session_id"],
+      "title": "ExecutorUnassociateRequest",
+      "type": "object"
+    },
     "ExecutorUpdateRequest": {
       "additionalProperties": false,
       "properties": {
@@ -691,8 +716,14 @@
     "ExecutorDetailsResponse": {
       "$ref": "#/$defs/ExecutorDetailsResponse"
     },
+    "ExecutorDispatchRequest": {
+      "$ref": "#/$defs/ExecutorDispatchRequest"
+    },
     "ExecutorListResponse": {
       "$ref": "#/$defs/ExecutorListResponse"
+    },
+    "ExecutorUnassociateRequest": {
+      "$ref": "#/$defs/ExecutorUnassociateRequest"
     },
     "ExecutorUpdateRequest": {
       "$ref": "#/$defs/ExecutorUpdateRequest"
@@ -719,6 +750,8 @@
     "ExecutorListResponse",
     "ExecutorDetailsResponse",
     "ExecutorUpdateRequest",
+    "ExecutorDispatchRequest",
+    "ExecutorUnassociateRequest",
     "ExecutorUpdateResponse"
   ],
   "title": "BrowserApiContracts",

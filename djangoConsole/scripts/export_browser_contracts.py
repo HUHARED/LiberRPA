@@ -19,6 +19,8 @@ from accounts.contracts import LoginRequest, SessionResponse, CsrfResponse
 from console_project.contracts import MessageResponse
 from executors.contracts import (
     ExecutorUpdateRequest,
+    ExecutorDispatchRequest,
+    ExecutorUnassociateRequest,
     ExecutorUpdateResponse,
     ExecutorListResponse,
     ExecutorDetailsResponse,
@@ -34,6 +36,8 @@ _TUPLE_CONTRACT_MODEL: tuple[tuple[type[BaseModel], JsonSchemaMode], ...] = (
     (ExecutorListResponse, "serialization"),
     (ExecutorDetailsResponse, "serialization"),
     (ExecutorUpdateRequest, "validation"),
+    (ExecutorDispatchRequest, "validation"),
+    (ExecutorUnassociateRequest, "validation"),
     (ExecutorUpdateResponse, "serialization"),
 )
 

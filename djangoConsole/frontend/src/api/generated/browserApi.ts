@@ -8,7 +8,9 @@ export interface BrowserApiContracts {
   AccountAccessResponse: AccountAccessResponse;
   CsrfResponse: CsrfResponse;
   ExecutorDetailsResponse: ExecutorDetailsResponse;
+  ExecutorDispatchRequest: ExecutorDispatchRequest;
   ExecutorListResponse: ExecutorListResponse;
+  ExecutorUnassociateRequest: ExecutorUnassociateRequest;
   ExecutorUpdateRequest: ExecutorUpdateRequest;
   ExecutorUpdateResponse: ExecutorUpdateResponse;
   LoginRequest: LoginRequest;
@@ -73,6 +75,9 @@ export interface ExecutorGroupReferenceResponse {
   id: string;
   name: string;
 }
+export interface ExecutorDispatchRequest {
+  dispatch_enabled: boolean;
+}
 export interface ExecutorListResponse {
   executors: ExecutorListEntryResponse[];
   page: number;
@@ -96,6 +101,9 @@ export interface ExecutorListEntryResponse {
   notes: string;
   session_id: string | null;
   version: string | null;
+}
+export interface ExecutorUnassociateRequest {
+  session_id: string;
 }
 export interface ExecutorUpdateRequest {
   name: string;

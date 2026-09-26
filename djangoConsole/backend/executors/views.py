@@ -32,6 +32,8 @@ from organizations.permissions import AccessChannel
 
 from .contracts import (
     ExecutorUpdateRequest,
+    ExecutorDispatchRequest,
+    ExecutorUnassociateRequest,
     ExecutorUpdateResponse,
     ExecutorListResponse,
     ExecutorDetailsResponse,
@@ -71,16 +73,8 @@ class ExecutorCreationRequest(ExecutorUpdateRequest):
     notes: str = ""
 
 
-class ExecutorDispatchRequest(JsonRequest):
-    dispatch_enabled: bool
-
-
 class ExecutorDeletionRequest(JsonRequest):
     """The URL supplies the ID; the server checks current authorization and dependencies."""
-
-
-class ExecutorUnassociateRequest(JsonRequest):
-    session_id: Annotated[uuid.UUID, Field(strict=False)]
 
 
 class ExecutorListParameters(DepartmentResourceListParameters):
@@ -276,7 +270,11 @@ def change_executor_dispatch(request: HttpRequest, executorId: uuid.UUID) -> Jso
             executorId=executorId,
             dispatchEnabled=dispatchRequest.dispatch_enabled,
         )
-        return JsonResponse({"executor": build_executor_payload(executor)})
+        return JsonResponse(
+            ExecutorUpdateResponse.model_validate({
+                "executor": build_executor_payload(executor)
+            }).model_dump(mode="python")
+        )
     except _HANDLED_ERRORS as e:
         return _build_executor_error_response(e)
 
@@ -318,6 +316,10 @@ def unassociate_executor_record(
             executorId=executorId,
             expectedSessionId=unassociateRequest.session_id,
         )
-        return JsonResponse({"executor": build_executor_payload(executor)})
+        return JsonResponse(
+            ExecutorUpdateResponse.model_validate({
+                "executor": build_executor_payload(executor)
+            }).model_dump(mode="python")
+        )
     except _HANDLED_ERRORS as e:
         return _build_executor_error_response(e)

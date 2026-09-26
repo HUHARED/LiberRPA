@@ -15,7 +15,7 @@
         variant="tonal"
         prepend-icon="mdi-refresh"
         :loading="boolLoading"
-        :disabled="boolEditing || boolSaving"
+        :disabled="boolActionBlocked"
         @click="loadExecutorDetails">
         Refresh
       </v-btn>
@@ -24,14 +24,39 @@
         color="primary"
         variant="tonal"
         prepend-icon="mdi-pencil-outline"
-        :disabled="boolLoading || boolEditing || boolSaving"
+        :disabled="boolActionBlocked"
         @click="openEdit">
         Edit
       </v-btn>
+      <v-btn
+        v-if="executorInfo?.can_manage"
+        variant="tonal"
+        :prepend-icon="executorInfo.dispatch_enabled ? 'mdi-pause' : 'mdi-play'"
+        :loading="strPendingAction === 'dispatch'"
+        :disabled="boolActionBlocked"
+        @click="submitDispatch">
+        {{ executorInfo.dispatch_enabled ? "Pause" : "Resume" }}
+      </v-btn>
+      <v-btn
+        v-if="executorInfo?.can_manage"
+        variant="outlined"
+        prepend-icon="mdi-link-off"
+        :disabled="boolActionBlocked || executorInfo.session_id === null"
+        @click="openUnassociate">
+        Unassociate
+      </v-btn>
     </v-col>
   </v-row>
-  <v-alert v-if="boolSaved" type="success" variant="tonal" class="mb-4" role="status">
-    Executor updated.
+  <v-alert
+    v-if="strSuccessMessage"
+    type="success"
+    variant="tonal"
+    class="mb-4"
+    role="status">
+    {{ strSuccessMessage }}
+  </v-alert>
+  <v-alert v-if="dispatchError" type="error" variant="tonal" class="mb-4" role="alert">
+    The dispatch change was not confirmed. {{ dispatchError.message }}
   </v-alert>
   <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
     {{
@@ -96,6 +121,9 @@
                 :color="executorInfo.dispatch_enabled ? 'primary' : 'warning'">
                 {{ executorInfo.dispatch_enabled ? "Enabled" : "Paused" }}
               </v-chip>
+              <p class="text-body-2 text-medium-emphasis mt-2">
+                Pausing does not stop running processes or remove the client association.
+              </p>
             </dd>
           </div>
           <div>
@@ -209,6 +237,76 @@
       </v-form>
     </v-card>
   </v-dialog>
+  <v-dialog
+    :model-value="unassociateTarget !== null"
+    persistent
+    max-width="640"
+    aria-labelledby="executor-unassociate-title">
+    <v-card v-if="unassociateTarget">
+      <v-card-title id="executor-unassociate-title">Unassociate Executor</v-card-title>
+      <v-card-text>
+        <v-alert
+          v-if="unassociateError"
+          type="error"
+          variant="tonal"
+          class="mb-4"
+          role="alert">
+          Unassociation was not confirmed. {{ unassociateError.message }}
+        </v-alert>
+        <dl class="executor-fields mb-4">
+          <div>
+            <dt>Executor</dt>
+            <dd>{{ unassociateTarget.name }}</dd>
+          </div>
+          <div>
+            <dt>Computer</dt>
+            <dd>{{ unassociateTarget.computer ?? "—" }}</dd>
+          </div>
+          <div>
+            <dt>Account</dt>
+            <dd>
+              {{
+                unassociateTarget.account
+                  ? unassociateTarget.account.username
+                    ? `${unassociateTarget.account.username} (${unassociateTarget.account.email})`
+                    : unassociateTarget.account.email
+                  : "—"
+              }}
+            </dd>
+          </div>
+        </dl>
+        <p class="mb-2">The selected client will lose its Console association.</p>
+        <p class="mb-2">
+          The Executor record, group and schedule references, and Console Dispatch setting
+          are retained.
+        </p>
+        <p>This action does not stop running processes.</p>
+      </v-card-text>
+      <v-card-actions class="flex-wrap ga-2">
+        <v-spacer />
+        <v-btn variant="text" :disabled="boolBusy" @click="closeUnassociate">Cancel</v-btn>
+        <v-btn
+          v-if="unassociateError?.code === 'executor_association_changed'"
+          variant="tonal"
+          :disabled="boolBusy"
+          @click="refreshUnassociateDetails">
+          Refresh Details
+        </v-btn>
+        <v-btn
+          color="warning"
+          variant="tonal"
+          :loading="strPendingAction === 'unassociate'"
+          :disabled="
+            boolBusy ||
+            !executorInfo?.can_manage ||
+            unassociateError?.code === 'executor_association_changed'
+          "
+          @click="submitUnassociate">
+          Unassociate
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
 </template>
 
 <script setup lang="ts">
@@ -218,7 +316,12 @@ import type { SubmitEventPromise } from "vuetify";
 import { useSessionStore } from "../stores/sessionStore";
 
 import { type ApiError, getApiError } from "../api/errors";
-import { getExecutorDetails, updateExecutor } from "../api/executors";
+import {
+  getExecutorDetails,
+  updateExecutor,
+  setExecutorDispatch,
+  unassociateExecutor,
+} from "../api/executors";
 import type { ExecutorDetailsEntryResponse } from "../api/generated/browserApi";
 import { formatDateTime } from "../app/navigation";
 
@@ -228,10 +331,18 @@ const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC"
 const executorInfo = shallowRef<ExecutorDetailsEntryResponse | null>(null);
 const requestError = shallowRef<ApiError | null>(null);
 const editError = shallowRef<ApiError | null>(null);
+const dispatchError = shallowRef<ApiError | null>(null);
+const unassociateError = shallowRef<ApiError | null>(null);
+const unassociateTarget = shallowRef<ExecutorDetailsEntryResponse | null>(null);
 const boolLoading = ref(false);
 const boolEditing = ref(false);
-const boolSaving = ref(false);
-const boolSaved = ref(false);
+const strPendingAction = ref<"edit" | "dispatch" | "unassociate" | null>(null);
+const boolSaving = computed(() => strPendingAction.value === "edit");
+const boolBusy = computed(() => boolLoading.value || strPendingAction.value !== null);
+const boolActionBlocked = computed(
+  () => boolBusy.value || boolEditing.value || unassociateTarget.value !== null,
+);
+const strSuccessMessage = ref("");
 const strUpdatedAt = ref<string | null>(null);
 const strName = ref<string | null>("");
 const strNotes = ref<string | null>("");
@@ -254,6 +365,7 @@ async function loadExecutorDetails(): Promise<void> {
       executorInfo.value = null;
       strUpdatedAt.value = null;
       closeEdit();
+      closeUnassociate();
       if (requestError.value.statusCode === 403) await sessionStore.refreshSession();
     }
   } finally {
@@ -262,11 +374,12 @@ async function loadExecutorDetails(): Promise<void> {
 }
 
 function openEdit(): void {
-  if (!executorInfo.value?.can_manage || boolLoading.value || boolSaving.value) return;
+  if (!executorInfo.value?.can_manage || boolActionBlocked.value) return;
   strName.value = executorInfo.value.name;
   strNotes.value = executorInfo.value.notes;
   editError.value = null;
-  boolSaved.value = false;
+  dispatchError.value = null;
+  strSuccessMessage.value = "";
   boolEditing.value = true;
 }
 
@@ -282,18 +395,18 @@ function validateName(value: string | null): true | string {
 }
 
 async function submitEdit(event: SubmitEventPromise): Promise<void> {
-  if (!boolEditing.value || boolSaving.value || boolLoading.value) return;
+  if (!boolEditing.value || boolBusy.value) return;
   const intCurrentRevision = intViewRevision;
   const validationResult = await event;
   if (
     !validationResult.valid ||
     !boolEditing.value ||
-    boolSaving.value ||
+    boolBusy.value ||
     !executorInfo.value?.can_manage ||
     intCurrentRevision !== intViewRevision
   )
     return;
-  boolSaving.value = true;
+  strPendingAction.value = "edit";
   editError.value = null;
   try {
     const response = await updateExecutor(props.executorId, {
@@ -303,14 +416,102 @@ async function submitEdit(event: SubmitEventPromise): Promise<void> {
     if (intCurrentRevision !== intViewRevision) return;
     executorInfo.value = { ...executorInfo.value, ...response.executor };
     closeEdit();
-    boolSaved.value = true;
+    strSuccessMessage.value = "Executor updated.";
     await loadExecutorDetails();
   } catch (e) {
     if (intCurrentRevision !== intViewRevision) return;
     editError.value = getApiError(e);
     if ([401, 403, 404].includes(editError.value.statusCode)) await loadExecutorDetails();
   } finally {
-    if (intCurrentRevision === intViewRevision) boolSaving.value = false;
+    if (intCurrentRevision === intViewRevision) strPendingAction.value = null;
+  }
+}
+
+async function submitDispatch(): Promise<void> {
+  if (!executorInfo.value?.can_manage || boolActionBlocked.value) return;
+  const intCurrentRevision = intViewRevision;
+  const boolDispatchEnabled = !executorInfo.value.dispatch_enabled;
+  strPendingAction.value = "dispatch";
+  dispatchError.value = null;
+  strSuccessMessage.value = "";
+  try {
+    const response = await setExecutorDispatch(props.executorId, boolDispatchEnabled);
+    if (intCurrentRevision !== intViewRevision) return;
+    executorInfo.value = { ...executorInfo.value, ...response.executor };
+    strSuccessMessage.value = response.executor.dispatch_enabled
+      ? "Console Dispatch enabled."
+      : "Console Dispatch paused.";
+    await loadExecutorDetails();
+  } catch (e) {
+    if (intCurrentRevision !== intViewRevision) return;
+    dispatchError.value = getApiError(e);
+    if ([401, 403, 404].includes(dispatchError.value.statusCode))
+      await loadExecutorDetails();
+  } finally {
+    if (intCurrentRevision === intViewRevision) strPendingAction.value = null;
+  }
+}
+
+function openUnassociate(): void {
+  if (
+    !executorInfo.value?.can_manage ||
+    !executorInfo.value.session_id ||
+    boolActionBlocked.value
+  )
+    return;
+  // Keep the reviewed association fixed until this dialog closes; retries must not target a replacement.
+  unassociateTarget.value = executorInfo.value;
+  unassociateError.value = null;
+  dispatchError.value = null;
+  strSuccessMessage.value = "";
+}
+
+function closeUnassociate(): void {
+  unassociateTarget.value = null;
+  unassociateError.value = null;
+}
+
+function refreshUnassociateDetails(): void {
+  if (boolBusy.value) return;
+  closeUnassociate();
+  void loadExecutorDetails();
+}
+
+async function submitUnassociate(): Promise<void> {
+  const target = unassociateTarget.value;
+  if (
+    !target?.session_id ||
+    !executorInfo.value?.can_manage ||
+    boolBusy.value ||
+    unassociateError.value?.code === "executor_association_changed"
+  )
+    return;
+  const intCurrentRevision = intViewRevision;
+  strPendingAction.value = "unassociate";
+  unassociateError.value = null;
+  try {
+    const response = await unassociateExecutor(target.id, target.session_id);
+    if (intCurrentRevision !== intViewRevision) return;
+    executorInfo.value = {
+      ...executorInfo.value,
+      ...response.executor,
+      association_status: "unassociated",
+      session_id: null,
+      account: null,
+      computer: null,
+      version: null,
+      last_seen_at: null,
+    };
+    closeUnassociate();
+    strSuccessMessage.value = "The selected client association was removed.";
+    await loadExecutorDetails();
+  } catch (e) {
+    if (intCurrentRevision !== intViewRevision) return;
+    unassociateError.value = getApiError(e);
+    if ([401, 403, 404].includes(unassociateError.value.statusCode))
+      await loadExecutorDetails();
+  } finally {
+    if (intCurrentRevision === intViewRevision) strPendingAction.value = null;
   }
 }
 
@@ -321,9 +522,11 @@ watch(
     intViewRevision += 1;
     executorInfo.value = null;
     strUpdatedAt.value = null;
-    boolSaving.value = false;
-    boolSaved.value = false;
+    strPendingAction.value = null;
+    strSuccessMessage.value = "";
+    dispatchError.value = null;
     closeEdit();
+    closeUnassociate();
     void loadExecutorDetails();
   },
   { immediate: true },
