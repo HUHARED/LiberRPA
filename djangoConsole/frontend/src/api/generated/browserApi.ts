@@ -7,6 +7,7 @@
 export interface BrowserApiContracts {
   AccountAccessResponse: AccountAccessResponse;
   CsrfResponse: CsrfResponse;
+  ExecutorListResponse: ExecutorListResponse;
   LoginRequest: LoginRequest;
   MessageResponse: MessageResponse;
   SessionResponse: SessionResponse;
@@ -34,6 +35,40 @@ export interface OrganizationAccessResponse {
 export interface CsrfResponse {
   csrf_token: string;
 }
+export interface ExecutorListResponse {
+  executors: ExecutorListEntryResponse[];
+  page: number;
+  page_size: number;
+  total_count: number;
+  total_pages: number;
+}
+export interface ExecutorListEntryResponse {
+  account: UserResponse | null;
+  association_status: "unassociated" | "online" | "offline";
+  can_manage: boolean;
+  computer: string | null;
+  created_at: string;
+  deleted_at: string | null;
+  department: ExecutorDepartmentResponse;
+  department_id: string;
+  dispatch_enabled: boolean;
+  id: string;
+  last_seen_at: string | null;
+  name: string;
+  notes: string;
+  session_id: string | null;
+  version: string | null;
+}
+export interface UserResponse {
+  email: string;
+  id: string;
+  username: string;
+}
+export interface ExecutorDepartmentResponse {
+  id: string;
+  name: string;
+  path: string;
+}
 export interface LoginRequest {
   email: string;
   password: string;
@@ -45,10 +80,11 @@ export interface MessageResponse {
 export interface SessionResponse {
   csrf_token: string;
   expires_at: string;
-  user: UserResponse;
+  user: SessionUserResponse;
 }
-export interface UserResponse {
+export interface SessionUserResponse {
   email: string;
   id: string;
+  time_zone: string;
   username: string;
 }

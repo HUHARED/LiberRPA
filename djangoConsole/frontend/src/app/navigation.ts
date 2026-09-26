@@ -4,6 +4,7 @@ import type { RouteLocationRaw } from "vue-router";
 
 const SET_RETURN_PATH = new Set([
   "/overview",
+  "/executors",
   "/my-profile",
   "/help",
   "/organization-status",
@@ -36,12 +37,13 @@ export function getAvatarInitial(username: string, email: string): string {
   return Array.from(getDisplayName(username, email).trim())[0]?.toLocaleUpperCase() ?? "?";
 }
 
-export function formatDateTime(value: string | null): string {
+export function formatDateTime(value: string | null, timeZone?: string): string {
   if (value === null) return "—";
   const dateValue = new Date(value);
   if (!Number.isFinite(dateValue.getTime())) return "Unknown";
   return new Intl.DateTimeFormat("en", {
     dateStyle: "medium",
     timeStyle: "long",
+    timeZone,
   }).format(dateValue);
 }

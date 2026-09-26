@@ -30,6 +30,7 @@ from organizations.http import (
 from organizations.models import Department
 from organizations.permissions import AccessChannel
 
+from .contracts import ExecutorListResponse
 from .group_queries import get_executor_group_references
 from .http import (
     build_executor_info_payload,
@@ -194,7 +195,7 @@ def list_or_create_executors(request: HttpRequest) -> JsonResponse:
             channel=AccessChannel.SESSION,
             **dictListParameter,
         )
-        return JsonResponse({
+        dictListPayload = {
             "executors": [
                 build_executor_info_payload(entry) for entry in executorPage.executors
             ],
@@ -202,7 +203,10 @@ def list_or_create_executors(request: HttpRequest) -> JsonResponse:
             "page_size": executorPage.pageSize,
             "total_count": executorPage.totalCount,
             "total_pages": executorPage.totalPages,
-        })
+        }
+        return JsonResponse(
+            ExecutorListResponse.model_validate(dictListPayload).model_dump(mode="python")
+        )
     except _HANDLED_ERRORS as e:
         return _build_executor_error_response(e)
 

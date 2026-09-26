@@ -28,7 +28,7 @@ from organizations.access import get_account_access_info
 from organizations.http import build_account_access_payload
 from organizations.permissions import AccessChannel
 
-from .contracts import LoginRequest, UserResponse, SessionResponse
+from .contracts import LoginRequest, SessionUserResponse, SessionResponse
 from .http import (
     AccountRequest,
     build_error_response,
@@ -50,7 +50,12 @@ class SessionRevocationRequest(AccountRequest):
 def _build_session_response(request: HttpRequest, user: User) -> JsonResponse:
     # Return current identity only; business operations resolve their own current permissions.
     sessionResponse = SessionResponse(
-        user=UserResponse(id=user.id, email=user.email, username=user.username),
+        user=SessionUserResponse(
+            id=user.id,
+            email=user.email,
+            username=user.username,
+            time_zone=user.time_zone,
+        ),
         expires_at=request.session.get_expiry_date(),
         csrf_token=get_token(request),
     )

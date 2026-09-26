@@ -29,6 +29,12 @@ export function createAppRouter(
         meta: { title: "Overview", requiresBusiness: true },
       },
       {
+        path: "/executors",
+        name: "executors",
+        component: () => import("../views/ExecutorsView.vue"),
+        meta: { title: "Executors", requiresBusiness: true },
+      },
+      {
         path: "/my-profile",
         name: "my-profile",
         component: () => import("../views/ProfileView.vue"),

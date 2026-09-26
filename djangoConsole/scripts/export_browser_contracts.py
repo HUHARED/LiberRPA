@@ -17,6 +17,7 @@ sys.path.insert(0, str(_PATH_CONSOLE / "backend"))
 
 from accounts.contracts import LoginRequest, SessionResponse, CsrfResponse
 from console_project.contracts import MessageResponse
+from executors.contracts import ExecutorListResponse
 from organizations.contracts import AccountAccessResponse
 
 _TUPLE_CONTRACT_MODEL: tuple[tuple[type[BaseModel], JsonSchemaMode], ...] = (
@@ -25,6 +26,7 @@ _TUPLE_CONTRACT_MODEL: tuple[tuple[type[BaseModel], JsonSchemaMode], ...] = (
     (SessionResponse, "serialization"),
     (AccountAccessResponse, "serialization"),
     (MessageResponse, "serialization"),
+    (ExecutorListResponse, "serialization"),
 )
 
 

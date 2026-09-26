@@ -1,0 +1,303 @@
+<!-- FileName: ExecutorsView.vue -->
+<template>
+  <v-row align="center" class="mb-4">
+    <v-col>
+      <h1 class="text-h5 mb-2">Executors</h1>
+      <p class="text-body-2 text-medium-emphasis">
+        Executors in your authorized departments.
+      </p>
+    </v-col>
+    <v-col cols="auto">
+      <v-btn
+        variant="tonal"
+        prepend-icon="mdi-refresh"
+        :loading="boolLoading"
+        @click="loadExecutors()">
+        Refresh
+      </v-btn>
+    </v-col>
+  </v-row>
+  <v-tabs
+    model-value="executors"
+    color="primary"
+    class="mb-4"
+    aria-label="Executor sections">
+    <v-tab value="executors">Executors</v-tab>
+    <v-tab value="groups" disabled>Executor Groups</v-tab>
+  </v-tabs>
+  <v-card variant="outlined" class="mb-4">
+    <v-card-text>
+      <form aria-label="Executor filters" @submit.prevent="applyFilters">
+        <v-row>
+          <v-col cols="12" md="4">
+            <v-text-field
+              v-model="strName"
+              label="Name"
+              placeholder="Search by name"
+              maxlength="128"
+              variant="outlined"
+              density="compact"
+              hide-details
+              clearable
+              :disabled="boolLoading" />
+          </v-col>
+          <v-col cols="12" md="4">
+            <v-select
+              v-model="arrDepartmentId"
+              :items="sessionStore.access?.departments ?? []"
+              item-title="path"
+              item-value="id"
+              label="Department"
+              placeholder="All accessible departments"
+              persistent-placeholder
+              multiple
+              chips
+              closable-chips
+              clearable
+              variant="outlined"
+              density="compact"
+              hide-details
+              :disabled="boolLoading" />
+          </v-col>
+          <v-col cols="12" md="4">
+            <v-select
+              v-model="arrDispatchState"
+              :items="ARR_DISPATCH_OPTION"
+              label="Console Dispatch"
+              placeholder="All dispatch states"
+              persistent-placeholder
+              multiple
+              chips
+              closable-chips
+              clearable
+              variant="outlined"
+              density="compact"
+              hide-details
+              :disabled="boolLoading" />
+          </v-col>
+        </v-row>
+        <div class="d-flex ga-2 mt-4">
+          <v-btn type="submit" color="primary" variant="tonal" :disabled="boolLoading">
+            Apply
+          </v-btn>
+          <v-btn variant="outlined" :disabled="boolLoading" @click="resetFilters">
+            Reset
+          </v-btn>
+        </div>
+      </form>
+    </v-card-text>
+  </v-card>
+  <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
+    {{ requestError.message }}
+    <p v-if="executorPage" class="mt-2">
+      Previously loaded results are shown. Refresh to try again.
+    </p>
+  </v-alert>
+  <v-alert
+    v-if="
+      sessionStore.access &&
+      !sessionStore.access.is_org_admin &&
+      !sessionStore.access.departments.length
+    "
+    type="info"
+    variant="tonal"
+    class="mb-4">
+    No department access. Ask an organization administrator to assign a role.
+  </v-alert>
+  <div
+    class="d-flex flex-wrap justify-space-between ga-2 mb-3 text-body-2 text-medium-emphasis">
+    <span>Time zone: {{ strTimeZone }}</span>
+    <span v-if="strUpdatedAt"
+      >Updated at {{ formatDateTime(strUpdatedAt, strTimeZone) }}</span
+    >
+  </div>
+  <v-card variant="outlined" :aria-busy="boolLoading">
+    <v-data-table-server
+      :headers="ARR_HEADER"
+      :items="executorPage?.executors ?? []"
+      :items-length="executorPage?.total_count ?? 0"
+      :items-per-page="executorPage?.page_size ?? 50"
+      :page="executorPage?.page ?? 1"
+      :loading="boolLoading"
+      :mobile-breakpoint="600"
+      item-value="id"
+      loading-text="Loading executors…"
+      disable-sort
+      hide-default-footer>
+      <template #item.name="{ item }">
+        <div class="executor-text font-weight-medium">{{ item.name }}</div>
+      </template>
+      <template #item.department="{ item }">
+        <div class="executor-text">{{ item.department.path }}</div>
+      </template>
+      <template #item.account="{ item }">
+        <div class="executor-text">
+          {{
+            item.account
+              ? item.account.username
+                ? `${item.account.username} (${item.account.email})`
+                : item.account.email
+              : "—"
+          }}
+        </div>
+      </template>
+      <template #item.association_status="{ item }">
+        <v-chip
+          size="small"
+          variant="tonal"
+          :color="DICT_ASSOCIATION_STATE[item.association_status].color">
+          {{ DICT_ASSOCIATION_STATE[item.association_status].title }}
+        </v-chip>
+      </template>
+      <template #item.dispatch_enabled="{ item }">
+        <v-chip
+          size="small"
+          variant="tonal"
+          :color="item.dispatch_enabled ? 'primary' : 'warning'">
+          {{ item.dispatch_enabled ? "Enabled" : "Paused" }}
+        </v-chip>
+      </template>
+      <template #item.computer="{ item }">
+        <div class="executor-text">{{ item.computer ?? "—" }}</div>
+      </template>
+      <template #item.version="{ item }">{{ item.version ?? "—" }}</template>
+      <template #item.last_seen_at="{ item }">
+        {{ formatDateTime(item.last_seen_at, strTimeZone) }}
+      </template>
+      <template #item.notes="{ item }">
+        <div class="executor-text notes-summary" :title="item.notes">
+          {{ item.notes || "—" }}
+        </div>
+      </template>
+      <template #no-data>
+        {{
+          requestError
+            ? "The executor list could not be loaded."
+            : "No executors match the current filters."
+        }}
+      </template>
+    </v-data-table-server>
+    <template v-if="executorPage">
+      <v-divider />
+      <div class="d-flex flex-wrap align-center justify-space-between ga-2 pa-3">
+        <p class="text-body-2 text-medium-emphasis" aria-live="polite">
+          {{ executorPage.total_count }} executors · Page {{ executorPage.page }} of
+          {{ executorPage.total_pages }}
+        </p>
+        <v-pagination
+          v-if="executorPage.total_pages > 1"
+          :model-value="executorPage.page"
+          :length="executorPage.total_pages"
+          :total-visible="5"
+          :disabled="boolLoading"
+          density="comfortable"
+          aria-label="Executor pages"
+          @update:model-value="loadExecutors" />
+      </div>
+    </template>
+  </v-card>
+</template>
+
+<script setup lang="ts">
+import { computed, onMounted, ref, shallowRef } from "vue";
+
+import { useSessionStore } from "../stores/sessionStore";
+
+import { type ApiError, getApiError } from "../api/errors";
+import { type ExecutorListFilters, getExecutorList } from "../api/executors";
+import type { ExecutorListResponse } from "../api/generated/browserApi";
+import { formatDateTime } from "../app/navigation";
+
+const ARR_HEADER = [
+  { title: "Name", key: "name", minWidth: 160 },
+  { title: "Department", key: "department", minWidth: 160 },
+  { title: "Account", key: "account", minWidth: 220 },
+  { title: "Association", key: "association_status", minWidth: 140 },
+  { title: "Console Dispatch", key: "dispatch_enabled", minWidth: 170 },
+  { title: "Computer", key: "computer", minWidth: 150 },
+  { title: "Version", key: "version", minWidth: 100 },
+  { title: "Last Seen", key: "last_seen_at", minWidth: 220 },
+  { title: "Notes", key: "notes", minWidth: 200 },
+];
+const ARR_DISPATCH_OPTION = [
+  { title: "Enabled", value: true },
+  { title: "Paused", value: false },
+];
+const DICT_ASSOCIATION_STATE = {
+  unassociated: { title: "Unassociated", color: "secondary" },
+  online: { title: "Online", color: "success" },
+  offline: { title: "Offline", color: "warning" },
+};
+
+const sessionStore = useSessionStore();
+const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");
+const strName = ref<string | null>("");
+const arrDepartmentId = ref<string[]>([]);
+const arrDispatchState = ref<boolean[]>([]);
+const executorPage = shallowRef<ExecutorListResponse | null>(null);
+const requestError = shallowRef<ApiError | null>(null);
+const boolLoading = ref(false);
+const strUpdatedAt = ref<string | null>(null);
+let appliedFilters: ExecutorListFilters = {
+  name: "",
+  departmentIds: [],
+  dispatchStates: [],
+};
+let intRequestedPage = 1;
+
+async function loadExecutors(pageNumber: number = intRequestedPage): Promise<void> {
+  if (boolLoading.value) return;
+  boolLoading.value = true;
+  requestError.value = null;
+  intRequestedPage = pageNumber;
+  try {
+    executorPage.value = await getExecutorList(appliedFilters, pageNumber);
+    strUpdatedAt.value = new Date().toISOString();
+  } catch (e) {
+    requestError.value = getApiError(e);
+    if (requestError.value.statusCode === 401 || requestError.value.statusCode === 403) {
+      // Confirmed access failures clear old results; temporary failures retain the last successful list.
+      executorPage.value = null;
+      strUpdatedAt.value = null;
+      if (requestError.value.statusCode === 403) await sessionStore.refreshSession();
+    }
+  } finally {
+    boolLoading.value = false;
+  }
+}
+
+function applyFilters(): void {
+  if (boolLoading.value) return;
+  appliedFilters = {
+    name: (strName.value ?? "").trim(),
+    departmentIds: [...arrDepartmentId.value],
+    dispatchStates: [...arrDispatchState.value],
+  };
+  void loadExecutors(1);
+}
+
+function resetFilters(): void {
+  if (boolLoading.value) return;
+  strName.value = "";
+  arrDepartmentId.value = [];
+  arrDispatchState.value = [];
+  applyFilters();
+}
+
+onMounted(() => void loadExecutors());
+</script>
+
+<style scoped>
+.executor-text {
+  max-width: 280px;
+  overflow-wrap: anywhere;
+}
+
+.notes-summary {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  white-space: pre-line;
+}
+</style>

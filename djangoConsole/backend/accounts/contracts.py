@@ -25,8 +25,12 @@ class UserResponse(JsonResponsePayload):
     username: str
 
 
+class SessionUserResponse(UserResponse):
+    time_zone: str
+
+
 class SessionResponse(JsonResponsePayload):
-    user: UserResponse
+    user: SessionUserResponse
     expires_at: datetime
     csrf_token: Annotated[str, Field(min_length=1)]
 

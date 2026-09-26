@@ -134,7 +134,7 @@ import { getDisplayName, getAvatarInitial } from "../app/navigation";
 const ARR_NAVIGATION = [
   { title: "Overview", icon: "mdi-chart-box-outline", path: "/overview" },
   { title: "Packages", icon: "mdi-package-variant-closed" },
-  { title: "Executors", icon: "mdi-monitor" },
+  { title: "Executors", icon: "mdi-monitor", path: "/executors" },
   { title: "Schedules", icon: "mdi-calendar-clock-outline" },
   { title: "Job Queue", icon: "mdi-list-box-outline" },
   { title: "Run History", icon: "mdi-history" },

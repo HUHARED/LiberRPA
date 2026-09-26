@@ -30,6 +30,8 @@ export function parseSessionResponse(payload: unknown): SessionResponse {
     typeof userInfo.id !== "string" ||
     typeof userInfo.email !== "string" ||
     typeof userInfo.username !== "string" ||
+    typeof userInfo.time_zone !== "string" ||
+    !userInfo.time_zone ||
     typeof payload.expires_at !== "string" ||
     !Number.isFinite(Date.parse(payload.expires_at)) ||
     typeof payload.csrf_token !== "string" ||
@@ -41,6 +43,7 @@ export function parseSessionResponse(payload: unknown): SessionResponse {
       id: userInfo.id,
       email: userInfo.email,
       username: userInfo.username,
+      time_zone: userInfo.time_zone,
     },
     expires_at: payload.expires_at,
     csrf_token: payload.csrf_token,

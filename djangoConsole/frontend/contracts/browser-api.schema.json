@@ -22,12 +22,7 @@
           "$ref": "#/$defs/OrganizationAccessResponse"
         }
       },
-      "required": [
-        "organization",
-        "is_org_admin",
-        "business_available",
-        "departments"
-      ],
+      "required": ["organization", "is_org_admin", "business_available", "departments"],
       "title": "AccountAccessResponse",
       "type": "object"
     },
@@ -40,9 +35,7 @@
           "type": "string"
         }
       },
-      "required": [
-        "csrf_token"
-      ],
+      "required": ["csrf_token"],
       "title": "CsrfResponse",
       "type": "object"
     },
@@ -65,10 +58,7 @@
         "role": {
           "anyOf": [
             {
-              "enum": [
-                "developer",
-                "operator"
-              ],
+              "enum": ["developer", "operator"],
               "type": "string"
             },
             {
@@ -78,13 +68,191 @@
           "title": "Role"
         }
       },
+      "required": ["id", "name", "path", "role"],
+      "title": "DepartmentAccessResponse",
+      "type": "object"
+    },
+    "ExecutorDepartmentResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        }
+      },
+      "required": ["id", "name", "path"],
+      "title": "ExecutorDepartmentResponse",
+      "type": "object"
+    },
+    "ExecutorListEntryResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "account": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/UserResponse"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "association_status": {
+          "enum": ["unassociated", "online", "offline"],
+          "title": "Association Status",
+          "type": "string"
+        },
+        "can_manage": {
+          "title": "Can Manage",
+          "type": "boolean"
+        },
+        "computer": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Computer"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "deleted_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Deleted At"
+        },
+        "department": {
+          "$ref": "#/$defs/ExecutorDepartmentResponse"
+        },
+        "department_id": {
+          "format": "uuid",
+          "title": "Department Id",
+          "type": "string"
+        },
+        "dispatch_enabled": {
+          "title": "Dispatch Enabled",
+          "type": "boolean"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "last_seen_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Last Seen At"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "notes": {
+          "title": "Notes",
+          "type": "string"
+        },
+        "session_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Session Id"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Version"
+        }
+      },
       "required": [
         "id",
         "name",
-        "path",
-        "role"
+        "department_id",
+        "notes",
+        "dispatch_enabled",
+        "created_at",
+        "deleted_at",
+        "department",
+        "can_manage",
+        "association_status",
+        "session_id",
+        "account",
+        "computer",
+        "version",
+        "last_seen_at"
       ],
-      "title": "DepartmentAccessResponse",
+      "title": "ExecutorListEntryResponse",
+      "type": "object"
+    },
+    "ExecutorListResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "executors": {
+          "items": {
+            "$ref": "#/$defs/ExecutorListEntryResponse"
+          },
+          "title": "Executors",
+          "type": "array"
+        },
+        "page": {
+          "title": "Page",
+          "type": "integer"
+        },
+        "page_size": {
+          "title": "Page Size",
+          "type": "integer"
+        },
+        "total_count": {
+          "title": "Total Count",
+          "type": "integer"
+        },
+        "total_pages": {
+          "title": "Total Pages",
+          "type": "integer"
+        }
+      },
+      "required": ["executors", "page", "page_size", "total_count", "total_pages"],
+      "title": "ExecutorListResponse",
       "type": "object"
     },
     "LoginRequest": {
@@ -106,10 +274,7 @@
           "type": "boolean"
         }
       },
-      "required": [
-        "email",
-        "password"
-      ],
+      "required": ["email", "password"],
       "title": "LoginRequest",
       "type": "object"
     },
@@ -121,9 +286,7 @@
           "type": "string"
         }
       },
-      "required": [
-        "message"
-      ],
+      "required": ["message"],
       "title": "MessageResponse",
       "type": "object"
     },
@@ -213,15 +376,36 @@
           "type": "string"
         },
         "user": {
-          "$ref": "#/$defs/UserResponse"
+          "$ref": "#/$defs/SessionUserResponse"
         }
       },
-      "required": [
-        "user",
-        "expires_at",
-        "csrf_token"
-      ],
+      "required": ["user", "expires_at", "csrf_token"],
       "title": "SessionResponse",
+      "type": "object"
+    },
+    "SessionUserResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "email": {
+          "title": "Email",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "time_zone": {
+          "title": "Time Zone",
+          "type": "string"
+        },
+        "username": {
+          "title": "Username",
+          "type": "string"
+        }
+      },
+      "required": ["id", "email", "username", "time_zone"],
+      "title": "SessionUserResponse",
       "type": "object"
     },
     "UserResponse": {
@@ -241,11 +425,7 @@
           "type": "string"
         }
       },
-      "required": [
-        "id",
-        "email",
-        "username"
-      ],
+      "required": ["id", "email", "username"],
       "title": "UserResponse",
       "type": "object"
     }
@@ -258,6 +438,9 @@
     },
     "CsrfResponse": {
       "$ref": "#/$defs/CsrfResponse"
+    },
+    "ExecutorListResponse": {
+      "$ref": "#/$defs/ExecutorListResponse"
     },
     "LoginRequest": {
       "$ref": "#/$defs/LoginRequest"
@@ -274,7 +457,8 @@
     "CsrfResponse",
     "SessionResponse",
     "AccountAccessResponse",
-    "MessageResponse"
+    "MessageResponse",
+    "ExecutorListResponse"
   ],
   "title": "BrowserApiContracts",
   "type": "object"
