@@ -26,6 +26,8 @@ export default defineConfig(({ mode }) => {
       }),
     ],
     resolve: { alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) } },
+    // NOTE: Skip Vuetify pre-bundling to recreate its virtual Sass modules after restarts.
+    optimizeDeps: { exclude: ["vuetify"] },
     server: {
       host: "127.0.0.1",
       port: 5173,
