@@ -105,3 +105,36 @@ class DeletedDepartmentResponse(DepartmentIdentityResponse):
 
 class DepartmentDeletionResponse(JsonResponsePayload):
     department: DeletedDepartmentResponse
+
+
+class MemberDepartmentResponse(DepartmentIdentityResponse):
+    path: str
+
+
+class MemberDepartmentRoleResponse(JsonResponsePayload):
+    department: MemberDepartmentResponse
+    role: Literal["developer", "operator"]
+
+
+class MemberResponse(JsonResponsePayload):
+    user: UserResponse
+    is_org_admin: bool
+    department_roles: list[MemberDepartmentRoleResponse]
+    notes: str
+    joined_at: datetime
+
+
+class MemberPaginationResponse(JsonResponsePayload):
+    page: int = Field(ge=1)
+    page_size: int = Field(ge=1)
+    total_count: int = Field(ge=0)
+    total_pages: int = Field(ge=1)
+
+
+class MemberListResponse(JsonResponsePayload):
+    members: list[MemberResponse]
+    pagination: MemberPaginationResponse
+
+
+class MemberDetailsResponse(JsonResponsePayload):
+    member: MemberResponse

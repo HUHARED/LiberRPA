@@ -31,6 +31,8 @@ export interface BrowserApiContracts {
   ExecutorUpdateRequest: ExecutorUpdateRequest;
   ExecutorUpdateResponse: ExecutorUpdateResponse;
   LoginRequest: LoginRequest;
+  MemberDetailsResponse: MemberDetailsResponse;
+  MemberListResponse: MemberListResponse;
   MessageResponse: MessageResponse;
   SessionResponse: SessionResponse;
 }
@@ -295,6 +297,35 @@ export interface LoginRequest {
   email: string;
   password: string;
   remember_me?: boolean;
+}
+export interface MemberDetailsResponse {
+  member: MemberResponse;
+}
+export interface MemberResponse {
+  department_roles: MemberDepartmentRoleResponse[];
+  is_org_admin: boolean;
+  joined_at: string;
+  notes: string;
+  user: UserResponse;
+}
+export interface MemberDepartmentRoleResponse {
+  department: MemberDepartmentResponse;
+  role: "developer" | "operator";
+}
+export interface MemberDepartmentResponse {
+  id: string;
+  name: string;
+  path: string;
+}
+export interface MemberListResponse {
+  members: MemberResponse[];
+  pagination: MemberPaginationResponse;
+}
+export interface MemberPaginationResponse {
+  page: number;
+  page_size: number;
+  total_count: number;
+  total_pages: number;
 }
 export interface MessageResponse {
   message: string;

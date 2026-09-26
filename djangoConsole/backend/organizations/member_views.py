@@ -23,6 +23,7 @@ from console_project.http import (
     parse_page_number,
 )
 
+from .contracts import MemberListResponse, MemberDetailsResponse
 from .http import MembershipUpdateRequest
 from .member_queries import MemberInfo, get_member_details, get_member_list
 from .models import DepartmentRole, Membership
@@ -125,17 +126,19 @@ def list_members(request: HttpRequest) -> JsonResponse:
             channel=AccessChannel.SESSION,
             pageNumber=intPageNumber,
         )
-        return JsonResponse({
-            "members": [
-                _build_member_payload(memberInfo) for memberInfo in memberPage.members
-            ],
-            "pagination": {
-                "page": memberPage.page,
-                "page_size": memberPage.pageSize,
-                "total_count": memberPage.totalCount,
-                "total_pages": memberPage.totalPages,
-            },
-        })
+        return JsonResponse(
+            MemberListResponse.model_validate({
+                "members": [
+                    _build_member_payload(memberInfo) for memberInfo in memberPage.members
+                ],
+                "pagination": {
+                    "page": memberPage.page,
+                    "page_size": memberPage.pageSize,
+                    "total_count": memberPage.totalCount,
+                    "total_pages": memberPage.totalPages,
+                },
+            }).model_dump(mode="python")
+        )
     except InvalidPage:
         return build_error_response(
             "member_page_not_found", "Member page not found.", statusCode=404
@@ -191,7 +194,11 @@ def get_or_update_member(request: HttpRequest, userId: uuid.UUID) -> JsonRespons
             userId=userId,
         )
         # API key metadata is loaded separately through the member's api-keys endpoint.
-        return JsonResponse({"member": _build_member_payload(memberInfo)})
+        return JsonResponse(
+            MemberDetailsResponse.model_validate({
+                "member": _build_member_payload(memberInfo)
+            }).model_dump(mode="python")
+        )
     except ValidationError as e:
         return _build_membership_validation_response(e)
     except Membership.DoesNotExist:

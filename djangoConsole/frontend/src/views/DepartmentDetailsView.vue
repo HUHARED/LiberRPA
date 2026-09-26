@@ -124,7 +124,11 @@
           disable-sort>
           <template #item.account="{ item }">
             <div class="department-text">
-              <span>{{ item.user.username || item.user.email }}</span>
+              <RouterLink
+                :to="{ name: 'member-details', params: { userId: item.user.id } }"
+                class="text-primary font-weight-medium">
+                {{ item.user.username || item.user.email }}
+              </RouterLink>
               <p v-if="item.user.username" class="text-body-2 text-medium-emphasis">
                 {{ item.user.email }}
               </p>

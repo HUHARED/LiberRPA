@@ -68,6 +68,19 @@ export function createAppRouter(
         },
         children: [
           {
+            path: "members",
+            name: "members",
+            component: () => import("../views/MembersView.vue"),
+            meta: { title: "Members" },
+          },
+          {
+            path: "members/:userId",
+            name: "member-details",
+            component: () => import("../views/MemberDetailsView.vue"),
+            props: true,
+            meta: { title: "Member Details" },
+          },
+          {
             path: "departments",
             name: "departments",
             component: () => import("../views/DepartmentsView.vue"),
