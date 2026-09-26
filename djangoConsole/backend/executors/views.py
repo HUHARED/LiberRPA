@@ -30,7 +30,12 @@ from organizations.http import (
 from organizations.models import Department
 from organizations.permissions import AccessChannel
 
-from .contracts import ExecutorListResponse
+from .contracts import (
+    ExecutorUpdateRequest,
+    ExecutorUpdateResponse,
+    ExecutorListResponse,
+    ExecutorDetailsResponse,
+)
 from .group_queries import get_executor_group_references
 from .http import (
     build_executor_info_payload,
@@ -59,11 +64,6 @@ _HANDLED_ERRORS = (
     ImproperlyConfigured,
     DatabaseError,
 )
-
-
-class ExecutorUpdateRequest(JsonRequest):
-    name: str
-    notes: str
 
 
 class ExecutorCreationRequest(ExecutorUpdateRequest):
@@ -231,14 +231,18 @@ def get_or_update_executor(request: HttpRequest, executorId: uuid.UUID) -> JsonR
                 name=executorRequest.name,
                 notes=executorRequest.notes,
             )
-            return JsonResponse({"executor": build_executor_payload(executor)})
+            return JsonResponse(
+                ExecutorUpdateResponse.model_validate({
+                    "executor": build_executor_payload(executor)
+                }).model_dump(mode="python")
+            )
         details = get_executor_details(
             actorId=membership.user_id,
             organizationId=membership.organization_id,
             channel=AccessChannel.SESSION,
             executorId=executorId,
         )
-        return JsonResponse({
+        dictDetailsPayload = {
             "executor": {
                 **build_executor_info_payload(details),
                 "executor_groups": [
@@ -246,7 +250,12 @@ def get_or_update_executor(request: HttpRequest, executorId: uuid.UUID) -> JsonR
                     for group in get_executor_group_references(details.executor)
                 ],
             }
-        })
+        }
+        return JsonResponse(
+            ExecutorDetailsResponse.model_validate(dictDetailsPayload).model_dump(
+                mode="python"
+            )
+        )
     except _HANDLED_ERRORS as e:
         return _build_executor_error_response(e)
 

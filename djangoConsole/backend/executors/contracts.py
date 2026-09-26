@@ -9,7 +9,12 @@ from typing import Literal
 from uuid import UUID
 
 from accounts.contracts import UserResponse
-from console_project.contracts import JsonResponsePayload
+from console_project.contracts import JsonRequest, JsonResponsePayload
+
+
+class ExecutorUpdateRequest(JsonRequest):
+    name: str
+    notes: str
 
 
 class ExecutorDepartmentResponse(JsonResponsePayload):
@@ -18,7 +23,7 @@ class ExecutorDepartmentResponse(JsonResponsePayload):
     path: str
 
 
-class ExecutorListEntryResponse(JsonResponsePayload):
+class ExecutorRecordResponse(JsonResponsePayload):
     id: UUID
     name: str
     department_id: UUID
@@ -26,6 +31,13 @@ class ExecutorListEntryResponse(JsonResponsePayload):
     dispatch_enabled: bool
     created_at: datetime
     deleted_at: datetime | None
+
+
+class ExecutorUpdateResponse(JsonResponsePayload):
+    executor: ExecutorRecordResponse
+
+
+class ExecutorListEntryResponse(ExecutorRecordResponse):
     department: ExecutorDepartmentResponse
     can_manage: bool
     association_status: Literal["unassociated", "online", "offline"]
@@ -42,3 +54,16 @@ class ExecutorListResponse(JsonResponsePayload):
     page_size: int
     total_count: int
     total_pages: int
+
+
+class ExecutorGroupReferenceResponse(JsonResponsePayload):
+    id: UUID
+    name: str
+
+
+class ExecutorDetailsEntryResponse(ExecutorListEntryResponse):
+    executor_groups: list[ExecutorGroupReferenceResponse]
+
+
+class ExecutorDetailsResponse(JsonResponsePayload):
+    executor: ExecutorDetailsEntryResponse

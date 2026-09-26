@@ -7,7 +7,10 @@
 export interface BrowserApiContracts {
   AccountAccessResponse: AccountAccessResponse;
   CsrfResponse: CsrfResponse;
+  ExecutorDetailsResponse: ExecutorDetailsResponse;
   ExecutorListResponse: ExecutorListResponse;
+  ExecutorUpdateRequest: ExecutorUpdateRequest;
+  ExecutorUpdateResponse: ExecutorUpdateResponse;
   LoginRequest: LoginRequest;
   MessageResponse: MessageResponse;
   SessionResponse: SessionResponse;
@@ -35,6 +38,41 @@ export interface OrganizationAccessResponse {
 export interface CsrfResponse {
   csrf_token: string;
 }
+export interface ExecutorDetailsResponse {
+  executor: ExecutorDetailsEntryResponse;
+}
+export interface ExecutorDetailsEntryResponse {
+  account: UserResponse | null;
+  association_status: "unassociated" | "online" | "offline";
+  can_manage: boolean;
+  computer: string | null;
+  created_at: string;
+  deleted_at: string | null;
+  department: ExecutorDepartmentResponse;
+  department_id: string;
+  dispatch_enabled: boolean;
+  executor_groups: ExecutorGroupReferenceResponse[];
+  id: string;
+  last_seen_at: string | null;
+  name: string;
+  notes: string;
+  session_id: string | null;
+  version: string | null;
+}
+export interface UserResponse {
+  email: string;
+  id: string;
+  username: string;
+}
+export interface ExecutorDepartmentResponse {
+  id: string;
+  name: string;
+  path: string;
+}
+export interface ExecutorGroupReferenceResponse {
+  id: string;
+  name: string;
+}
 export interface ExecutorListResponse {
   executors: ExecutorListEntryResponse[];
   page: number;
@@ -59,15 +97,21 @@ export interface ExecutorListEntryResponse {
   session_id: string | null;
   version: string | null;
 }
-export interface UserResponse {
-  email: string;
-  id: string;
-  username: string;
+export interface ExecutorUpdateRequest {
+  name: string;
+  notes: string;
 }
-export interface ExecutorDepartmentResponse {
+export interface ExecutorUpdateResponse {
+  executor: ExecutorRecordResponse;
+}
+export interface ExecutorRecordResponse {
+  created_at: string;
+  deleted_at: string | null;
+  department_id: string;
+  dispatch_enabled: boolean;
   id: string;
   name: string;
-  path: string;
+  notes: string;
 }
 export interface LoginRequest {
   email: string;

@@ -125,7 +125,11 @@
       disable-sort
       hide-default-footer>
       <template #item.name="{ item }">
-        <div class="executor-text font-weight-medium">{{ item.name }}</div>
+        <RouterLink
+          :to="{ name: 'executor-details', params: { executorId: item.id } }"
+          class="d-inline-block executor-text text-primary font-weight-medium">
+          {{ item.name }}
+        </RouterLink>
       </template>
       <template #item.department="{ item }">
         <div class="executor-text">{{ item.department.path }}</div>
@@ -200,6 +204,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, shallowRef } from "vue";
+import { RouterLink } from "vue-router";
 
 import { useSessionStore } from "../stores/sessionStore";
 
@@ -297,6 +302,7 @@ onMounted(() => void loadExecutors());
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   overflow: hidden;
   white-space: pre-line;
 }

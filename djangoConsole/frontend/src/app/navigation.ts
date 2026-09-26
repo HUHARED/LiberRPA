@@ -9,6 +9,8 @@ const SET_RETURN_PATH = new Set([
   "/help",
   "/organization-status",
 ]);
+const REGEXP_EXECUTOR_DETAILS_PATH =
+  /^\/executors\/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export function getSafeReturnPath(value: unknown): string {
   if (typeof value !== "string" || value.length > 2048 || value.includes("\\"))
@@ -17,7 +19,10 @@ export function getSafeReturnPath(value: unknown): string {
     return "/overview";
   // Only application-owned workspace routes may be used after authentication.
   const strPath = value.split(/[?#]/, 1)[0];
-  return strPath !== undefined && SET_RETURN_PATH.has(strPath) ? value : "/overview";
+  return strPath !== undefined &&
+    (SET_RETURN_PATH.has(strPath) || REGEXP_EXECUTOR_DETAILS_PATH.test(strPath))
+    ? value
+    : "/overview";
 }
 
 export function getSignInLocation(returnTo: unknown): RouteLocationRaw {
