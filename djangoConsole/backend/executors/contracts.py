@@ -129,6 +129,18 @@ class ExecutorGroupListResponse(JsonResponsePayload):
     total_pages: int
 
 
+class ExecutorGroupDetailsEntryResponse(ExecutorGroupListEntryResponse):
+    members: list[ExecutorListEntryResponse]
+
+
+class ExecutorGroupDetailsResponse(JsonResponsePayload):
+    executor_group: ExecutorGroupDetailsEntryResponse
+
+
+class ExecutorGroupDeletionResponse(JsonResponsePayload):
+    executor_group: ExecutorGroupRecordResponse
+
+
 class ExecutorGroupWriteEntryResponse(ExecutorGroupRecordResponse):
     executor_ids: list[UUID]
     member_count: int

@@ -21,7 +21,7 @@
         variant="tonal"
         prepend-icon="mdi-refresh"
         :loading="boolLoading"
-        :disabled="boolNewGroupOpen"
+        :disabled="boolLoading || boolNewGroupOpen"
         @click="loadGroups()">
         Refresh
       </v-btn>
@@ -79,7 +79,16 @@
   </v-card>
   <template v-if="creationResult">
     <v-alert type="success" variant="tonal" class="mb-4" role="status">
-      Group "{{ creationResult.executor_group.name }}" created with
+      Group
+      <RouterLink
+        :to="{
+          name: 'executor-group-details',
+          params: { groupId: creationResult.executor_group.id },
+        }"
+        class="text-primary">
+        "{{ creationResult.executor_group.name }}"
+      </RouterLink>
+      created with
       {{ creationResult.executor_group.member_count }} members.
     </v-alert>
     <v-alert
@@ -92,6 +101,14 @@
       {{ warning.message }}
     </v-alert>
   </template>
+  <v-alert
+    v-if="strSuccessMessage"
+    type="success"
+    variant="tonal"
+    class="mb-4"
+    role="status">
+    {{ strSuccessMessage }}
+  </v-alert>
   <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
     {{ requestError.message }}
     <p v-if="groupPage" class="mt-2">
@@ -130,7 +147,11 @@
       disable-sort
       hide-default-footer>
       <template #item.name="{ item }">
-        <div class="group-text font-weight-medium">{{ item.name }}</div>
+        <RouterLink
+          :to="{ name: 'executor-group-details', params: { groupId: item.id } }"
+          class="d-inline-block group-text font-weight-medium text-primary">
+          {{ item.name }}
+        </RouterLink>
       </template>
       <template #item.department="{ item }">
         <div class="group-text">{{ item.department.path }}</div>
@@ -167,23 +188,32 @@
       </div>
     </template>
   </v-card>
-  <NewExecutorGroupDialog
+  <ExecutorGroupFormDialog
     v-if="boolNewGroupOpen"
     :departments="arrCreationDepartment"
     @close="boolNewGroupOpen = false"
-    @created="handleGroupCreated" />
+    @saved="handleGroupCreated" />
+  <RouterView v-slot="{ Component }">
+    <component
+      :is="Component"
+      :key="route.path"
+      @updated="handleGroupUpdated"
+      @deleted="handleGroupDeleted" />
+  </RouterView>
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from "vue";
+import { RouterLink, RouterView, useRoute } from "vue-router";
 
-import NewExecutorGroupDialog from "../components/NewExecutorGroupDialog.vue";
+import ExecutorGroupFormDialog from "../components/ExecutorGroupFormDialog.vue";
 
 import { useSessionStore } from "../stores/sessionStore";
 
 import { type ApiError, getApiError } from "../api/errors";
 import { type ExecutorGroupListFilters, getExecutorGroupList } from "../api/executorGroups";
 import type {
+  ExecutorGroupRecordResponse,
   ExecutorGroupListResponse,
   ExecutorGroupWriteResponse,
 } from "../api/generated/browserApi";
@@ -198,6 +228,7 @@ const ARR_HEADER = [
 ];
 
 const sessionStore = useSessionStore();
+const route = useRoute();
 const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");
 const strName = ref<string | null>("");
 const arrDepartmentId = ref<string[]>([]);
@@ -215,31 +246,36 @@ const boolCanCreate = computed(
 );
 const boolNewGroupOpen = ref(false);
 const creationResult = shallowRef<ExecutorGroupWriteResponse | null>(null);
-let boolUnmounted = false;
+const strSuccessMessage = ref("");
+let intListRevision = 0;
 let appliedFilters: ExecutorGroupListFilters = { name: "", departmentIds: [] };
 let intRequestedPage = 1;
 
-// TODO: Add URL-based group details and editing/deletion actions in the next group maintenance step.
 async function loadGroups(pageNumber: number = intRequestedPage): Promise<void> {
-  if (boolLoading.value) return;
+  const intCurrentRevision = ++intListRevision;
   boolLoading.value = true;
   requestError.value = null;
   intRequestedPage = pageNumber;
   try {
     const response = await getExecutorGroupList(appliedFilters, pageNumber);
-    if (boolUnmounted) return;
+    if (intCurrentRevision !== intListRevision) return;
     groupPage.value = response;
     strUpdatedAt.value = new Date().toISOString();
   } catch (e) {
-    if (boolUnmounted) return;
+    if (intCurrentRevision !== intListRevision) return;
     requestError.value = getApiError(e);
+    // A rename or deletion can remove the last result from the current page.
+    if (requestError.value.code === "invalid_page" && pageNumber > 1) {
+      await loadGroups(1);
+      return;
+    }
     if ([401, 403].includes(requestError.value.statusCode)) {
       groupPage.value = null;
       strUpdatedAt.value = null;
       if (requestError.value.statusCode === 403) await sessionStore.refreshSession();
     }
   } finally {
-    boolLoading.value = false;
+    if (intCurrentRevision === intListRevision) boolLoading.value = false;
   }
 }
 
@@ -260,8 +296,15 @@ function resetFilters(): void {
 }
 
 function openNewGroup(): void {
-  if (!boolCanCreate.value || boolLoading.value || boolNewGroupOpen.value) return;
+  if (
+    !boolCanCreate.value ||
+    boolLoading.value ||
+    boolNewGroupOpen.value ||
+    route.name !== "executor-groups"
+  )
+    return;
   creationResult.value = null;
+  strSuccessMessage.value = "";
   boolNewGroupOpen.value = true;
 }
 
@@ -271,9 +314,27 @@ function handleGroupCreated(response: ExecutorGroupWriteResponse): void {
   void loadGroups();
 }
 
+function handleGroupUpdated(): void {
+  creationResult.value = null;
+  strSuccessMessage.value = "";
+  void loadGroups();
+}
+
+function handleGroupDeleted(group: ExecutorGroupRecordResponse): void {
+  creationResult.value = null;
+  strSuccessMessage.value = `Group "${group.name}" deleted.`;
+  void loadGroups();
+}
+
+watch(
+  () => route.params.groupId,
+  (groupId) => {
+    if (groupId) boolNewGroupOpen.value = false;
+  },
+);
 onMounted(() => void loadGroups());
 onBeforeUnmount(() => {
-  boolUnmounted = true;
+  intListRevision += 1;
 });
 </script>
 

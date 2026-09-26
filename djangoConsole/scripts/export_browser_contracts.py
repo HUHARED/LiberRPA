@@ -26,8 +26,12 @@ from executors.contracts import (
     ExecutorUpdateResponse,
     ExecutorListResponse,
     ExecutorDetailsResponse,
+    ExecutorGroupUpdateRequest,
     ExecutorGroupCreationRequest,
+    ExecutorGroupDeletionRequest,
     ExecutorGroupListResponse,
+    ExecutorGroupDetailsResponse,
+    ExecutorGroupDeletionResponse,
     ExecutorGroupWriteResponse,
 )
 from organizations.contracts import AccountAccessResponse
@@ -46,8 +50,12 @@ _TUPLE_CONTRACT_MODEL: tuple[tuple[type[BaseModel], JsonSchemaMode], ...] = (
     (ExecutorDispatchRequest, "validation"),
     (ExecutorUnassociateRequest, "validation"),
     (ExecutorUpdateResponse, "serialization"),
+    (ExecutorGroupUpdateRequest, "validation"),
     (ExecutorGroupCreationRequest, "validation"),
+    (ExecutorGroupDeletionRequest, "validation"),
     (ExecutorGroupListResponse, "serialization"),
+    (ExecutorGroupDetailsResponse, "serialization"),
+    (ExecutorGroupDeletionResponse, "serialization"),
     (ExecutorGroupWriteResponse, "serialization"),
 )
 

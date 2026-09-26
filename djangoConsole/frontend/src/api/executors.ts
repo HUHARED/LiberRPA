@@ -9,8 +9,8 @@ import type {
   ExecutorDetailsResponse,
   ExecutorGroupReferenceResponse,
   ExecutorDispatchRequest,
-  ExecutorListResponse,
   ExecutorListEntryResponse,
+  ExecutorListResponse,
   ExecutorUnassociateRequest,
   ExecutorUpdateRequest,
   ExecutorUpdateResponse,
@@ -53,7 +53,7 @@ function isExecutorRecord(value: unknown): value is ExecutorRecordResponse {
   );
 }
 
-function isExecutorListEntry(value: unknown): value is ExecutorListEntryResponse {
+export function isExecutorListEntry(value: unknown): value is ExecutorListEntryResponse {
   return (
     isRecord(value) &&
     isExecutorRecord(value) &&

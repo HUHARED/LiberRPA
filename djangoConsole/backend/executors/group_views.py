@@ -32,6 +32,8 @@ from .contracts import (
     ExecutorGroupCreationRequest,
     ExecutorGroupDeletionRequest,
     ExecutorGroupListResponse,
+    ExecutorGroupDetailsResponse,
+    ExecutorGroupDeletionResponse,
     ExecutorGroupWriteResponse,
 )
 from .group_queries import (
@@ -259,14 +261,19 @@ def get_or_update_executor_group(
             channel=AccessChannel.SESSION,
             groupId=groupId,
         )
-        return JsonResponse({
+        dictDetailsPayload = {
             "executor_group": {
                 **_build_group_info_payload(details.info),
                 "members": [
                     build_executor_info_payload(member) for member in details.members
                 ],
             }
-        })
+        }
+        return JsonResponse(
+            ExecutorGroupDetailsResponse.model_validate(dictDetailsPayload).model_dump(
+                mode="python"
+            )
+        )
     except _HANDLED_GROUP_ERRORS as e:
         return _build_group_error_response(e)
 
@@ -287,6 +294,10 @@ def delete_executor_group_record(
         group = delete_executor_group(
             **get_executor_write_context(request, membership), groupId=groupId
         )
-        return JsonResponse({"executor_group": _build_group_payload(group)})
+        return JsonResponse(
+            ExecutorGroupDeletionResponse.model_validate({
+                "executor_group": _build_group_payload(group)
+            }).model_dump(mode="python")
+        )
     except _HANDLED_GROUP_ERRORS as e:
         return _build_group_error_response(e)

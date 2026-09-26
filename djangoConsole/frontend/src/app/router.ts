@@ -39,6 +39,15 @@ export function createAppRouter(
         name: "executor-groups",
         component: () => import("../views/ExecutorGroupsView.vue"),
         meta: { title: "Executor Groups", requiresBusiness: true },
+        children: [
+          {
+            path: ":groupId",
+            name: "executor-group-details",
+            component: () => import("../components/ExecutorGroupDetailsDialog.vue"),
+            props: true,
+            meta: { title: "Group Details" },
+          },
+        ],
       },
       {
         path: "/executors/:executorId",
@@ -72,7 +81,15 @@ export function createAppRouter(
         meta: { title: "Page Not Found", public: true },
       },
     ],
-    scrollBehavior: () => ({ top: 0 }),
+    scrollBehavior: (to, from, savedPosition) => {
+      // Opening or closing a group dialog keeps its mounted list and background position.
+      if (
+        to.matched.some((record) => record.name === "executor-groups") &&
+        from.matched.some((record) => record.name === "executor-groups")
+      )
+        return false;
+      return savedPosition ?? { top: 0 };
+    },
   });
 
   router.beforeEach(async (to, from) => {

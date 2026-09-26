@@ -12,7 +12,11 @@ export interface BrowserApiContracts {
   ExecutorDetailsResponse: ExecutorDetailsResponse;
   ExecutorDispatchRequest: ExecutorDispatchRequest;
   ExecutorGroupCreationRequest: ExecutorGroupCreationRequest;
+  ExecutorGroupDeletionRequest: ExecutorGroupDeletionRequest;
+  ExecutorGroupDeletionResponse: ExecutorGroupDeletionResponse;
+  ExecutorGroupDetailsResponse: ExecutorGroupDetailsResponse;
   ExecutorGroupListResponse: ExecutorGroupListResponse;
+  ExecutorGroupUpdateRequest: ExecutorGroupUpdateRequest;
   ExecutorGroupWriteResponse: ExecutorGroupWriteResponse;
   ExecutorListResponse: ExecutorListResponse;
   ExecutorUnassociateRequest: ExecutorUnassociateRequest;
@@ -98,6 +102,55 @@ export interface ExecutorGroupCreationRequest {
   name: string;
   notes?: string;
 }
+/**
+ * The URL supplies the group identity; request data cannot bypass reference checks.
+ */
+export interface ExecutorGroupDeletionRequest {}
+export interface ExecutorGroupDeletionResponse {
+  executor_group: ExecutorGroupRecordResponse;
+}
+export interface ExecutorGroupRecordResponse {
+  created_at: string;
+  deleted_at: string | null;
+  department_id: string;
+  id: string;
+  name: string;
+  notes: string;
+}
+export interface ExecutorGroupDetailsResponse {
+  executor_group: ExecutorGroupDetailsEntryResponse;
+}
+export interface ExecutorGroupDetailsEntryResponse {
+  can_manage: boolean;
+  created_at: string;
+  deleted_at: string | null;
+  department: ExecutorDepartmentResponse;
+  department_id: string;
+  id: string;
+  is_empty: boolean;
+  member_count: number;
+  members: ExecutorListEntryResponse[];
+  name: string;
+  notes: string;
+  online_count: number;
+}
+export interface ExecutorListEntryResponse {
+  account: UserResponse | null;
+  association_status: "unassociated" | "online" | "offline";
+  can_manage: boolean;
+  computer: string | null;
+  created_at: string;
+  deleted_at: string | null;
+  department: ExecutorDepartmentResponse;
+  department_id: string;
+  dispatch_enabled: boolean;
+  id: string;
+  last_seen_at: string | null;
+  name: string;
+  notes: string;
+  session_id: string | null;
+  version: string | null;
+}
 export interface ExecutorGroupListResponse {
   executor_groups: ExecutorGroupListEntryResponse[];
   page: number;
@@ -117,6 +170,11 @@ export interface ExecutorGroupListEntryResponse {
   name: string;
   notes: string;
   online_count: number;
+}
+export interface ExecutorGroupUpdateRequest {
+  executor_ids: string[];
+  name: string;
+  notes: string;
 }
 export interface ExecutorGroupWriteResponse {
   executor_group: ExecutorGroupWriteEntryResponse;
@@ -143,23 +201,6 @@ export interface ExecutorListResponse {
   page_size: number;
   total_count: number;
   total_pages: number;
-}
-export interface ExecutorListEntryResponse {
-  account: UserResponse | null;
-  association_status: "unassociated" | "online" | "offline";
-  can_manage: boolean;
-  computer: string | null;
-  created_at: string;
-  deleted_at: string | null;
-  department: ExecutorDepartmentResponse;
-  department_id: string;
-  dispatch_enabled: boolean;
-  id: string;
-  last_seen_at: string | null;
-  name: string;
-  notes: string;
-  session_id: string | null;
-  version: string | null;
 }
 export interface ExecutorUnassociateRequest {
   session_id: string;

@@ -1,27 +1,34 @@
-<!-- FileName: NewExecutorGroupDialog.vue -->
+<!-- FileName: ExecutorGroupFormDialog.vue -->
 <template>
   <v-dialog
     :model-value="true"
     persistent
     scrollable
     max-width="1000"
-    aria-labelledby="executor-group-create-title">
+    aria-labelledby="executor-group-form-title">
     <v-card>
-      <v-card-title id="executor-group-create-title">New Group</v-card-title>
+      <v-card-title id="executor-group-form-title">
+        {{ group ? "Edit Group" : "New Group" }}
+      </v-card-title>
       <v-card-text>
-        <v-form
-          id="executor-group-create-form"
-          validate-on="submit"
-          @submit.prevent="submitGroup">
+        <v-form id="executor-group-form" validate-on="submit" @submit.prevent="submitGroup">
           <v-alert v-if="saveError" type="error" variant="tonal" class="mb-4" role="alert">
-            Creation was not confirmed. {{ saveError.message }}
+            {{ group ? "Save" : "Creation" }} was not confirmed. {{ saveError.message }}
             <p v-for="message in saveError.fields.__all__" :key="message" class="mt-2">
               {{ message }}
             </p>
           </v-alert>
-          <v-alert v-if="!departments.length" type="info" variant="tonal" class="mb-4">
-            No departments are available for creation. Ask an organization administrator to
-            check departments and your access.
+          <v-alert
+            v-if="!departments.length || (group && !boolDepartmentAllowed)"
+            type="info"
+            variant="tonal"
+            class="mb-4">
+            {{
+              group
+                ? "You no longer have permission to manage this group."
+                : "No departments are available for creation."
+            }}
+            Ask an organization administrator to check departments and your access.
           </v-alert>
           <v-row>
             <v-col cols="12" md="6">
@@ -38,7 +45,15 @@
                 @update:model-value="saveError = null" />
             </v-col>
             <v-col cols="12" md="6">
+              <v-text-field
+                v-if="group"
+                :model-value="group.department.path"
+                label="Department"
+                variant="outlined"
+                density="compact"
+                readonly />
               <v-select
+                v-else
                 v-model="strDepartmentId"
                 :items="departments"
                 item-title="path"
@@ -211,12 +226,12 @@
         <v-btn variant="text" :disabled="boolSaving" @click="emit('close')">Cancel</v-btn>
         <v-btn
           type="submit"
-          form="executor-group-create-form"
+          form="executor-group-form"
           color="primary"
           variant="tonal"
           :loading="boolSaving"
           :disabled="boolSaving || boolLoadingMembers || !boolDepartmentAllowed">
-          Create
+          {{ group ? "Save" : "Create" }}
         </v-btn>
       </v-card-actions>
     </v-card>
@@ -231,15 +246,23 @@ import { useSessionStore } from "../stores/sessionStore";
 
 import { type ApiError, getApiError } from "../api/errors";
 import { getExecutorList } from "../api/executors";
-import { createExecutorGroup } from "../api/executorGroups";
+import { createExecutorGroup, updateExecutorGroup } from "../api/executorGroups";
 import type {
   DepartmentAccessResponse,
+  ExecutorGroupDetailsEntryResponse,
   ExecutorGroupWriteResponse,
   ExecutorListResponse,
 } from "../api/generated/browserApi";
 
-const props = defineProps<{ departments: DepartmentAccessResponse[] }>();
-const emit = defineEmits<{ close: []; created: [response: ExecutorGroupWriteResponse] }>();
+const props = defineProps<{
+  departments: DepartmentAccessResponse[];
+  group?: ExecutorGroupDetailsEntryResponse;
+}>();
+const emit = defineEmits<{
+  close: [];
+  saved: [response: ExecutorGroupWriteResponse];
+  refresh: [];
+}>();
 
 const ARR_MEMBER_HEADER = [
   { title: "Select", key: "data-table-select", width: 72 },
@@ -250,12 +273,14 @@ const ARR_MEMBER_HEADER = [
 ];
 
 const sessionStore = useSessionStore();
-const strName = ref<string | null>("");
-const strNotes = ref<string | null>("");
+const strName = ref<string | null>(props.group?.name ?? "");
+const strNotes = ref<string | null>(props.group?.notes ?? "");
 const strDepartmentId = ref<string | null>(
-  props.departments.length === 1 ? props.departments[0]!.id : null,
+  props.group?.department_id ??
+    (props.departments.length === 1 ? props.departments[0]!.id : null),
 );
-const arrExecutorId = ref<string[]>([]);
+// Editing starts with every saved member, including members outside the current candidate page.
+const arrExecutorId = ref<string[]>(props.group?.members.map((member) => member.id) ?? []);
 const strMemberName = ref<string | null>("");
 const memberPage = shallowRef<ExecutorListResponse | null>(null);
 const memberError = shallowRef<ApiError | null>(null);
@@ -263,7 +288,9 @@ const saveError = shallowRef<ApiError | null>(null);
 const boolLoadingMembers = ref(false);
 const boolSaving = ref(false);
 const boolDepartmentAllowed = computed(
-  () => validateDepartment(strDepartmentId.value) === true,
+  () =>
+    (!props.group || props.group.can_manage) &&
+    validateDepartment(strDepartmentId.value) === true,
 );
 let strAppliedMemberName = "";
 let intRequestedPage = 1;
@@ -328,7 +355,7 @@ function validateName(value: string | null): true | string {
 function validateDepartment(value: string | null): true | string {
   return props.departments.some((department) => department.id === value)
     ? true
-    : "Select a department where you can create groups.";
+    : "Select a department where you can manage groups.";
 }
 
 async function submitGroup(event: SubmitEventPromise): Promise<void> {
@@ -346,19 +373,26 @@ async function submitGroup(event: SubmitEventPromise): Promise<void> {
   boolSaving.value = true;
   saveError.value = null;
   try {
-    const response = await createExecutorGroup({
+    const groupRequest = {
       name: (strName.value ?? "").trim(),
-      department_id: strDepartmentId.value,
       notes: strNotes.value ?? "",
       executor_ids: [...arrExecutorId.value],
-    });
+    };
+    const response = props.group
+      ? await updateExecutorGroup(props.group.id, groupRequest)
+      : await createExecutorGroup({
+          ...groupRequest,
+          department_id: strDepartmentId.value,
+        });
     if (boolUnmounted) return;
-    emit("created", response);
+    emit("saved", response);
   } catch (e) {
     if (boolUnmounted) return;
     saveError.value = getApiError(e);
-    if ([403, 404].includes(saveError.value.statusCode))
+    if ([403, 404].includes(saveError.value.statusCode)) {
       await sessionStore.refreshSession();
+      if (!boolUnmounted && props.group) emit("refresh");
+    }
   } finally {
     boolSaving.value = false;
   }
@@ -368,7 +402,7 @@ watch(
   strDepartmentId,
   () => {
     // Selections belong to one department; late responses from a previous selection must not replace its choices.
-    arrExecutorId.value = [];
+    if (!props.group) arrExecutorId.value = [];
     strMemberName.value = "";
     strAppliedMemberName = "";
     memberPage.value = null;

@@ -179,7 +179,13 @@
             v-for="group in executorInfo.executor_groups"
             :key="group.id"
             class="executor-text">
-            {{ group.name }}
+            <RouterLink
+              :to="{ name: 'executor-group-details', params: { groupId: group.id } }"
+              target="_blank"
+              rel="noopener"
+              class="text-primary">
+              {{ group.name }}
+            </RouterLink>
           </li>
         </ul>
         <p v-else class="text-medium-emphasis">This executor is not in any groups.</p>
@@ -349,7 +355,13 @@
               v-for="group in deleteTarget.executor_groups"
               :key="group.id"
               class="executor-text">
-              {{ group.name }}
+              <RouterLink
+                :to="{ name: 'executor-group-details', params: { groupId: group.id } }"
+                target="_blank"
+                rel="noopener"
+                class="text-primary">
+                {{ group.name }}
+              </RouterLink>
             </li>
           </ul>
         </v-alert>
@@ -386,6 +398,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, shallowRef, watch } from "vue";
+import { RouterLink } from "vue-router";
 import type { SubmitEventPromise } from "vuetify";
 
 import { useSessionStore } from "../stores/sessionStore";

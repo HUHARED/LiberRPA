@@ -2,11 +2,17 @@
 
 import { requestApi } from "./client";
 import { isRecord, ApiError } from "./errors";
+import { isExecutorListEntry } from "./executors";
 
 import type {
   ExecutorGroupCreationRequest,
+  ExecutorGroupDeletionRequest,
+  ExecutorGroupDeletionResponse,
+  ExecutorGroupRecordResponse,
+  ExecutorGroupDetailsResponse,
   ExecutorGroupListResponse,
   ExecutorGroupListEntryResponse,
+  ExecutorGroupUpdateRequest,
   ExecutorGroupWriteResponse,
   ExecutorGroupWriteEntryResponse,
   ExecutorGroupWarningResponse,
@@ -27,7 +33,7 @@ function isNonnegativeInteger(value: unknown): value is number {
   return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
 }
 
-function isGroupRecord(value: unknown): value is Record<string, unknown> {
+function isGroupRecord(value: unknown): value is ExecutorGroupRecordResponse {
   return (
     isRecord(value) &&
     typeof value.id === "string" &&
@@ -44,6 +50,7 @@ function isGroupRecord(value: unknown): value is Record<string, unknown> {
 
 function isGroupListEntry(value: unknown): value is ExecutorGroupListEntryResponse {
   return (
+    isRecord(value) &&
     isGroupRecord(value) &&
     isRecord(value.department) &&
     typeof value.department.id === "string" &&
@@ -59,6 +66,7 @@ function isGroupListEntry(value: unknown): value is ExecutorGroupListEntryRespon
 
 function isGroupWriteEntry(value: unknown): value is ExecutorGroupWriteEntryResponse {
   return (
+    isRecord(value) &&
     isGroupRecord(value) &&
     Array.isArray(value.executor_ids) &&
     value.executor_ids.every((executorId: unknown) => typeof executorId === "string") &&
@@ -93,6 +101,34 @@ export function parseExecutorGroupListResponse(
   };
 }
 
+export function parseExecutorGroupDetailsResponse(
+  payload: unknown,
+): ExecutorGroupDetailsResponse {
+  if (
+    !isRecord(payload) ||
+    !isRecord(payload.executor_group) ||
+    !isGroupListEntry(payload.executor_group) ||
+    !Array.isArray(payload.executor_group.members) ||
+    !payload.executor_group.members.every(isExecutorListEntry) ||
+    payload.executor_group.member_count !== payload.executor_group.members.length
+  )
+    return rejectInvalidResponse();
+  return {
+    executor_group: {
+      ...payload.executor_group,
+      members: payload.executor_group.members,
+    },
+  };
+}
+
+export function parseExecutorGroupDeletionResponse(
+  payload: unknown,
+): ExecutorGroupDeletionResponse {
+  if (!isRecord(payload) || !isGroupRecord(payload.executor_group))
+    return rejectInvalidResponse();
+  return { executor_group: payload.executor_group };
+}
+
 export function parseExecutorGroupWriteResponse(
   payload: unknown,
 ): ExecutorGroupWriteResponse {
@@ -124,10 +160,42 @@ export async function getExecutorGroupList(
   );
 }
 
+export async function getExecutorGroupDetails(
+  groupId: string,
+): Promise<ExecutorGroupDetailsResponse> {
+  return parseExecutorGroupDetailsResponse(
+    await requestApi(`/executor-groups/${encodeURIComponent(groupId)}/`),
+  );
+}
+
 export async function createExecutorGroup(
   groupRequest: ExecutorGroupCreationRequest,
 ): Promise<ExecutorGroupWriteResponse> {
   return parseExecutorGroupWriteResponse(
     await requestApi("/executor-groups/", { method: "POST", body: groupRequest }),
+  );
+}
+
+export async function updateExecutorGroup(
+  groupId: string,
+  changes: ExecutorGroupUpdateRequest,
+): Promise<ExecutorGroupWriteResponse> {
+  return parseExecutorGroupWriteResponse(
+    await requestApi(`/executor-groups/${encodeURIComponent(groupId)}/`, {
+      method: "POST",
+      body: changes,
+    }),
+  );
+}
+
+export async function deleteExecutorGroup(
+  groupId: string,
+): Promise<ExecutorGroupDeletionResponse> {
+  const deletionRequest: ExecutorGroupDeletionRequest = {};
+  return parseExecutorGroupDeletionResponse(
+    await requestApi(`/executor-groups/${encodeURIComponent(groupId)}/deletion/`, {
+      method: "POST",
+      body: deletionRequest,
+    }),
   );
 }

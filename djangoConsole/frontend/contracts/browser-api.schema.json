@@ -314,6 +314,117 @@
       "title": "ExecutorGroupCreationRequest",
       "type": "object"
     },
+    "ExecutorGroupDeletionRequest": {
+      "additionalProperties": false,
+      "description": "The URL supplies the group identity; request data cannot bypass reference checks.",
+      "properties": {},
+      "title": "ExecutorGroupDeletionRequest",
+      "type": "object"
+    },
+    "ExecutorGroupDeletionResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "executor_group": {
+          "$ref": "#/$defs/ExecutorGroupRecordResponse"
+        }
+      },
+      "required": ["executor_group"],
+      "title": "ExecutorGroupDeletionResponse",
+      "type": "object"
+    },
+    "ExecutorGroupDetailsEntryResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "can_manage": {
+          "title": "Can Manage",
+          "type": "boolean"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "deleted_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Deleted At"
+        },
+        "department": {
+          "$ref": "#/$defs/ExecutorDepartmentResponse"
+        },
+        "department_id": {
+          "format": "uuid",
+          "title": "Department Id",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "is_empty": {
+          "title": "Is Empty",
+          "type": "boolean"
+        },
+        "member_count": {
+          "title": "Member Count",
+          "type": "integer"
+        },
+        "members": {
+          "items": {
+            "$ref": "#/$defs/ExecutorListEntryResponse"
+          },
+          "title": "Members",
+          "type": "array"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "notes": {
+          "title": "Notes",
+          "type": "string"
+        },
+        "online_count": {
+          "title": "Online Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "department_id",
+        "notes",
+        "created_at",
+        "deleted_at",
+        "department",
+        "can_manage",
+        "member_count",
+        "online_count",
+        "is_empty",
+        "members"
+      ],
+      "title": "ExecutorGroupDetailsEntryResponse",
+      "type": "object"
+    },
+    "ExecutorGroupDetailsResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "executor_group": {
+          "$ref": "#/$defs/ExecutorGroupDetailsEntryResponse"
+        }
+      },
+      "required": ["executor_group"],
+      "title": "ExecutorGroupDetailsResponse",
+      "type": "object"
+    },
     "ExecutorGroupListEntryResponse": {
       "additionalProperties": false,
       "properties": {
@@ -419,6 +530,49 @@
       "title": "ExecutorGroupListResponse",
       "type": "object"
     },
+    "ExecutorGroupRecordResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "deleted_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Deleted At"
+        },
+        "department_id": {
+          "format": "uuid",
+          "title": "Department Id",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "notes": {
+          "title": "Notes",
+          "type": "string"
+        }
+      },
+      "required": ["id", "name", "department_id", "notes", "created_at", "deleted_at"],
+      "title": "ExecutorGroupRecordResponse",
+      "type": "object"
+    },
     "ExecutorGroupReferenceResponse": {
       "additionalProperties": false,
       "properties": {
@@ -434,6 +588,30 @@
       },
       "required": ["id", "name"],
       "title": "ExecutorGroupReferenceResponse",
+      "type": "object"
+    },
+    "ExecutorGroupUpdateRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "executor_ids": {
+          "items": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "title": "Executor Ids",
+          "type": "array"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "notes": {
+          "title": "Notes",
+          "type": "string"
+        }
+      },
+      "required": ["name", "notes", "executor_ids"],
+      "title": "ExecutorGroupUpdateRequest",
       "type": "object"
     },
     "ExecutorGroupWarningResponse": {
@@ -996,8 +1174,20 @@
     "ExecutorGroupCreationRequest": {
       "$ref": "#/$defs/ExecutorGroupCreationRequest"
     },
+    "ExecutorGroupDeletionRequest": {
+      "$ref": "#/$defs/ExecutorGroupDeletionRequest"
+    },
+    "ExecutorGroupDeletionResponse": {
+      "$ref": "#/$defs/ExecutorGroupDeletionResponse"
+    },
+    "ExecutorGroupDetailsResponse": {
+      "$ref": "#/$defs/ExecutorGroupDetailsResponse"
+    },
     "ExecutorGroupListResponse": {
       "$ref": "#/$defs/ExecutorGroupListResponse"
+    },
+    "ExecutorGroupUpdateRequest": {
+      "$ref": "#/$defs/ExecutorGroupUpdateRequest"
     },
     "ExecutorGroupWriteResponse": {
       "$ref": "#/$defs/ExecutorGroupWriteResponse"
@@ -1038,8 +1228,12 @@
     "ExecutorDispatchRequest",
     "ExecutorUnassociateRequest",
     "ExecutorUpdateResponse",
+    "ExecutorGroupUpdateRequest",
     "ExecutorGroupCreationRequest",
+    "ExecutorGroupDeletionRequest",
     "ExecutorGroupListResponse",
+    "ExecutorGroupDetailsResponse",
+    "ExecutorGroupDeletionResponse",
     "ExecutorGroupWriteResponse"
   ],
   "title": "BrowserApiContracts",
