@@ -8,6 +8,9 @@ export interface BrowserApiContracts {
   AccountAccessResponse: AccountAccessResponse;
   CsrfResponse: CsrfResponse;
   DepartmentCreationRequest: DepartmentCreationRequest;
+  DepartmentDeletionPreviewResponse: DepartmentDeletionPreviewResponse;
+  DepartmentDeletionRequest: DepartmentDeletionRequest;
+  DepartmentDeletionResponse: DepartmentDeletionResponse;
   DepartmentDetailsResponse: DepartmentDetailsResponse;
   DepartmentListResponse: DepartmentListResponse;
   DepartmentUpdateRequest: DepartmentUpdateRequest;
@@ -58,6 +61,31 @@ export interface DepartmentCreationRequest {
   name: string;
   notes?: string;
   parent_id?: string | null;
+}
+export interface DepartmentDeletionPreviewResponse {
+  blockers: DepartmentDeletionBlockerResponse[];
+  can_delete: boolean;
+  department: DepartmentIdentityResponse;
+}
+export interface DepartmentDeletionBlockerResponse {
+  code: "child_departments" | "department_memberships" | "executors" | "executor_groups";
+  count: number;
+}
+export interface DepartmentIdentityResponse {
+  id: string;
+  name: string;
+}
+/**
+ * The URL selects the department; the server resolves all deletion conditions.
+ */
+export interface DepartmentDeletionRequest {}
+export interface DepartmentDeletionResponse {
+  department: DeletedDepartmentResponse;
+}
+export interface DeletedDepartmentResponse {
+  deleted_at: string;
+  id: string;
+  name: string;
 }
 export interface DepartmentDetailsResponse {
   department: DepartmentListEntryResponse;

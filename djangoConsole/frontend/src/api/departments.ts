@@ -5,6 +5,11 @@ import { isRecord, ApiError } from "./errors";
 
 import type {
   DepartmentCreationRequest,
+  DepartmentDeletionPreviewResponse,
+  DepartmentDeletionBlockerResponse,
+  DepartmentIdentityResponse,
+  DepartmentDeletionRequest,
+  DepartmentDeletionResponse,
   DepartmentDetailsResponse,
   DepartmentListEntryResponse,
   DepartmentMemberResponse,
@@ -28,6 +33,10 @@ function isDepartmentRecord(value: unknown): value is DepartmentRecordResponse {
     (value.parent_id === null || typeof value.parent_id === "string") &&
     typeof value.notes === "string"
   );
+}
+
+function isDepartmentIdentity(value: unknown): value is DepartmentIdentityResponse {
+  return isRecord(value) && typeof value.id === "string" && typeof value.name === "string";
 }
 
 function isDepartmentListEntry(value: unknown): value is DepartmentListEntryResponse {
@@ -71,6 +80,50 @@ export function parseDepartmentWriteResponse(payload: unknown): DepartmentWriteR
   return { department: payload.department };
 }
 
+export function parseDepartmentDeletionPreviewResponse(
+  payload: unknown,
+): DepartmentDeletionPreviewResponse {
+  if (
+    !isRecord(payload) ||
+    !isDepartmentIdentity(payload.department) ||
+    typeof payload.can_delete !== "boolean" ||
+    !Array.isArray(payload.blockers) ||
+    !payload.blockers.every(
+      (blocker: unknown): blocker is DepartmentDeletionBlockerResponse =>
+        isRecord(blocker) &&
+        (blocker.code === "child_departments" ||
+          blocker.code === "department_memberships" ||
+          blocker.code === "executors" ||
+          blocker.code === "executor_groups") &&
+        typeof blocker.count === "number" &&
+        Number.isSafeInteger(blocker.count) &&
+        blocker.count > 0,
+    ) ||
+    payload.can_delete !== (payload.blockers.length === 0)
+  )
+    return rejectInvalidResponse();
+  return {
+    department: payload.department,
+    can_delete: payload.can_delete,
+    blockers: payload.blockers,
+  };
+}
+
+export function parseDepartmentDeletionResponse(
+  payload: unknown,
+): DepartmentDeletionResponse {
+  if (
+    !isRecord(payload) ||
+    !isDepartmentIdentity(payload.department) ||
+    !("deleted_at" in payload.department) ||
+    typeof payload.department.deleted_at !== "string"
+  )
+    return rejectInvalidResponse();
+  return {
+    department: { ...payload.department, deleted_at: payload.department.deleted_at },
+  };
+}
+
 export async function getDepartmentList(): Promise<DepartmentListResponse> {
   return parseDepartmentListResponse(await requestApi("/organization/departments/"));
 }
@@ -104,4 +157,40 @@ export async function updateDepartment(
       body: departmentRequest,
     }),
   );
+}
+
+export async function getDepartmentDeletionPreview(
+  departmentId: string,
+): Promise<DepartmentDeletionPreviewResponse> {
+  return parseDepartmentDeletionPreviewResponse(
+    await requestApi(
+      `/organization/departments/${encodeURIComponent(departmentId)}/deletion/`,
+    ),
+  );
+}
+
+export async function deleteDepartment(
+  departmentId: string,
+): Promise<DepartmentDeletionResponse | DepartmentDeletionPreviewResponse> {
+  const deletionRequest: DepartmentDeletionRequest = {};
+  try {
+    return parseDepartmentDeletionResponse(
+      await requestApi(
+        `/organization/departments/${encodeURIComponent(departmentId)}/deletion/`,
+        { method: "POST", body: deletionRequest },
+      ),
+    );
+  } catch (e) {
+    if (
+      e instanceof ApiError &&
+      e.statusCode === 409 &&
+      e.code === "department_deletion_blocked"
+    ) {
+      // Reuse the blockers checked during this deletion attempt instead of fetching them again.
+      const preview = parseDepartmentDeletionPreviewResponse(e.responsePayload);
+      if (preview.can_delete) return rejectInvalidResponse();
+      return preview;
+    }
+    throw e;
+  }
 }

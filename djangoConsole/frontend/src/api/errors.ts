@@ -9,6 +9,7 @@ export interface ApiErrorOptions {
   code?: string;
   fields?: Record<string, string[]>;
   retryAfterSeconds?: number | null;
+  responsePayload?: unknown;
 }
 
 export class ApiError extends Error {
@@ -16,6 +17,7 @@ export class ApiError extends Error {
   readonly code: string;
   readonly fields: Record<string, string[]>;
   readonly retryAfterSeconds: number | null;
+  readonly responsePayload: unknown;
 
   constructor(message: string, options: ApiErrorOptions = {}) {
     super(message);
@@ -24,6 +26,7 @@ export class ApiError extends Error {
     this.code = options.code ?? "network_error";
     this.fields = options.fields ?? {};
     this.retryAfterSeconds = options.retryAfterSeconds ?? null;
+    this.responsePayload = options.responsePayload;
   }
 }
 
@@ -64,6 +67,7 @@ export function buildResponseError(response: Response, payload: unknown): ApiErr
       code: typeof dictErrorInfo.code === "string" ? dictErrorInfo.code : "request_failed",
       fields: dictFieldMessage,
       retryAfterSeconds: intRetryAfter,
+      responsePayload: payload,
     },
   );
 }

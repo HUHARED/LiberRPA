@@ -14,7 +14,7 @@
         color="primary"
         variant="tonal"
         prepend-icon="mdi-plus"
-        :disabled="boolLoading || boolFormOpen || arrDepartmentInfo === null"
+        :disabled="boolActionBlocked || arrDepartmentInfo === null"
         @click="openNewDepartment()">
         New Department
       </v-btn>
@@ -22,7 +22,7 @@
         variant="tonal"
         prepend-icon="mdi-refresh"
         :loading="boolLoading"
-        :disabled="boolLoading || boolFormOpen"
+        :disabled="boolActionBlocked"
         @click="loadDepartments">
         Refresh
       </v-btn>
@@ -97,7 +97,7 @@
           variant="text"
           size="small"
           prepend-icon="mdi-plus"
-          :disabled="boolLoading || boolFormOpen"
+          :disabled="boolActionBlocked"
           :aria-label="`New subdepartment of ${item.path}`"
           @click="openNewDepartment(item.id)">
           New Subdepartment
@@ -107,10 +107,21 @@
           variant="text"
           size="small"
           prepend-icon="mdi-pencil-outline"
-          :disabled="boolLoading || boolFormOpen"
+          :disabled="boolActionBlocked"
           :aria-label="`Edit department ${item.path}`"
           @click="openEditDepartment(item)">
           Edit
+        </v-btn>
+        <v-btn
+          v-if="boolCanManage"
+          color="error"
+          variant="text"
+          size="small"
+          prepend-icon="mdi-delete-outline"
+          :disabled="boolActionBlocked"
+          :aria-label="`Delete department ${item.path}`"
+          @click="openDeleteDepartment(item)">
+          Delete
         </v-btn>
       </template>
       <template #no-data>
@@ -129,6 +140,11 @@
     :parent-id="strNewParentId"
     @close="closeDepartmentForm"
     @saved="handleDepartmentSaved" />
+  <DepartmentDeleteDialog
+    v-if="deleteTarget"
+    :department="deleteTarget"
+    @close="deleteTarget = null"
+    @deleted="handleDepartmentDeleted" />
 </template>
 
 <script setup lang="ts">
@@ -136,12 +152,14 @@ import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
 import { RouterLink } from "vue-router";
 
 import DepartmentFormDialog from "../components/DepartmentFormDialog.vue";
+import DepartmentDeleteDialog from "../components/DepartmentDeleteDialog.vue";
 
 import { useSessionStore } from "../stores/sessionStore";
 
 import { type ApiError, getApiError } from "../api/errors";
 import { getDepartmentList } from "../api/departments";
 import type {
+  DeletedDepartmentResponse,
   DepartmentListEntryResponse,
   DepartmentRecordResponse,
 } from "../api/generated/browserApi";
@@ -154,7 +172,7 @@ interface DepartmentRow extends DepartmentListEntryResponse {
 const ARR_HEADER = [
   { title: "Name", key: "name", minWidth: 240 },
   { title: "Notes", key: "notes", minWidth: 240 },
-  { title: "Actions", key: "actions", width: 400 },
+  { title: "Actions", key: "actions", width: 480 },
 ];
 
 const sessionStore = useSessionStore();
@@ -165,10 +183,14 @@ const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC"
 const arrDepartmentInfo = shallowRef<DepartmentListEntryResponse[] | null>(null);
 const requestError = shallowRef<ApiError | null>(null);
 const editTarget = shallowRef<DepartmentListEntryResponse | null>(null);
+const deleteTarget = shallowRef<DepartmentListEntryResponse | null>(null);
 const strSuccessMessage = ref("");
 const strUpdatedAt = ref<string | null>(null);
 const boolLoading = ref(false);
 const boolFormOpen = ref(false);
+const boolActionBlocked = computed(
+  () => boolLoading.value || boolFormOpen.value || deleteTarget.value !== null,
+);
 const strNewParentId = ref<string | null>(null);
 let boolUnmounted = false;
 
@@ -207,6 +229,7 @@ async function loadDepartments(): Promise<void> {
       arrDepartmentInfo.value = null;
       strUpdatedAt.value = null;
       boolFormOpen.value = false;
+      deleteTarget.value = null;
       if (requestError.value.statusCode === 403) await sessionStore.refreshSession();
     }
   } finally {
@@ -215,12 +238,7 @@ async function loadDepartments(): Promise<void> {
 }
 
 function openNewDepartment(parentId: string | null = null): void {
-  if (
-    !boolCanManage.value ||
-    boolLoading.value ||
-    boolFormOpen.value ||
-    arrDepartmentInfo.value === null
-  )
+  if (!boolCanManage.value || boolActionBlocked.value || arrDepartmentInfo.value === null)
     return;
   editTarget.value = null;
   strNewParentId.value = parentId;
@@ -229,7 +247,7 @@ function openNewDepartment(parentId: string | null = null): void {
 }
 
 function openEditDepartment(department: DepartmentListEntryResponse): void {
-  if (!boolCanManage.value || boolLoading.value || boolFormOpen.value) return;
+  if (!boolCanManage.value || boolActionBlocked.value) return;
   editTarget.value = department;
   strSuccessMessage.value = "";
   boolFormOpen.value = true;
@@ -240,10 +258,28 @@ function closeDepartmentForm(): void {
   editTarget.value = null;
 }
 
+function openDeleteDepartment(department: DepartmentListEntryResponse): void {
+  if (!boolCanManage.value || boolActionBlocked.value) return;
+  deleteTarget.value = department;
+  strSuccessMessage.value = "";
+}
+
 async function handleDepartmentSaved(department: DepartmentRecordResponse): Promise<void> {
   strSuccessMessage.value = `Department "${department.name}" ${editTarget.value ? "updated" : "created"}.`;
   closeDepartmentForm();
   // Refresh access so resource forms use the current department names and paths.
+  await Promise.all([loadDepartments(), sessionStore.refreshSession()]);
+}
+
+async function handleDepartmentDeleted(
+  department: DeletedDepartmentResponse,
+): Promise<void> {
+  deleteTarget.value = null;
+  strSuccessMessage.value = `Department "${department.name}" deleted.`;
+  // Remove the confirmed deletion even if refreshing the remaining tree fails.
+  arrDepartmentInfo.value =
+    arrDepartmentInfo.value?.filter((entry) => entry.id !== department.id) ?? null;
+  strUpdatedAt.value = null;
   await Promise.all([loadDepartments(), sessionStore.refreshSession()]);
 }
 

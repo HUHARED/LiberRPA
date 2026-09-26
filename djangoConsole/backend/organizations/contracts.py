@@ -79,3 +79,29 @@ class DepartmentMemberResponse(JsonResponsePayload):
 class DepartmentDetailsResponse(JsonResponsePayload):
     department: DepartmentListEntryResponse
     members: list[DepartmentMemberResponse]
+
+
+class DepartmentIdentityResponse(JsonResponsePayload):
+    id: UUID
+    name: str
+
+
+class DepartmentDeletionBlockerResponse(JsonResponsePayload):
+    code: Literal[
+        "child_departments", "department_memberships", "executors", "executor_groups"
+    ]
+    count: int = Field(gt=0)
+
+
+class DepartmentDeletionPreviewResponse(JsonResponsePayload):
+    department: DepartmentIdentityResponse
+    can_delete: bool
+    blockers: list[DepartmentDeletionBlockerResponse]
+
+
+class DeletedDepartmentResponse(DepartmentIdentityResponse):
+    deleted_at: datetime
+
+
+class DepartmentDeletionResponse(JsonResponsePayload):
+    department: DeletedDepartmentResponse

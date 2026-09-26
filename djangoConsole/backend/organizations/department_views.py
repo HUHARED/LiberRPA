@@ -27,6 +27,8 @@ from .contracts import (
     DepartmentWriteResponse,
     DepartmentListResponse,
     DepartmentDetailsResponse,
+    DepartmentDeletionPreviewResponse,
+    DepartmentDeletionResponse,
 )
 from .department_deletion import (
     DepartmentDeletionBlockedError,
@@ -243,7 +245,7 @@ def get_or_update_department(
 def _build_department_deletion_payload(
     deletionInfo: DepartmentDeletionInfo,
 ) -> dict[str, object]:
-    return {
+    return DepartmentDeletionPreviewResponse.model_validate({
         "department": {
             "id": deletionInfo.departmentId,
             "name": deletionInfo.departmentName,
@@ -253,7 +255,7 @@ def _build_department_deletion_payload(
             {"code": blocker.code, "count": blocker.count}
             for blocker in deletionInfo.blockers
         ],
-    }
+    }).model_dump(mode="python")
 
 
 @never_cache
@@ -279,13 +281,15 @@ def get_or_delete_department(
                 channel=AccessChannel.SESSION,
                 departmentId=departmentId,
             )
-            return JsonResponse({
-                "department": {
-                    "id": department.id,
-                    "name": department.name,
-                    "deleted_at": department.deleted_at,
-                }
-            })
+            return JsonResponse(
+                DepartmentDeletionResponse.model_validate({
+                    "department": {
+                        "id": department.id,
+                        "name": department.name,
+                        "deleted_at": department.deleted_at,
+                    }
+                }).model_dump(mode="python")
+            )
 
         deletionInfo = get_department_deletion_info(
             actorId=user.id,
