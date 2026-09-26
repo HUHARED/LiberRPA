@@ -72,6 +72,35 @@
       "title": "DepartmentAccessResponse",
       "type": "object"
     },
+    "ExecutorCreationRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "department_id": {
+          "format": "uuid",
+          "title": "Department Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "notes": {
+          "default": "",
+          "title": "Notes",
+          "type": "string"
+        }
+      },
+      "required": ["name", "department_id"],
+      "title": "ExecutorCreationRequest",
+      "type": "object"
+    },
+    "ExecutorDeletionRequest": {
+      "additionalProperties": false,
+      "description": "The URL supplies the ID; the server checks current authorization and dependencies.",
+      "properties": {},
+      "title": "ExecutorDeletionRequest",
+      "type": "object"
+    },
     "ExecutorDepartmentResponse": {
       "additionalProperties": false,
       "properties": {
@@ -713,6 +742,12 @@
     "CsrfResponse": {
       "$ref": "#/$defs/CsrfResponse"
     },
+    "ExecutorCreationRequest": {
+      "$ref": "#/$defs/ExecutorCreationRequest"
+    },
+    "ExecutorDeletionRequest": {
+      "$ref": "#/$defs/ExecutorDeletionRequest"
+    },
     "ExecutorDetailsResponse": {
       "$ref": "#/$defs/ExecutorDetailsResponse"
     },
@@ -750,6 +785,8 @@
     "ExecutorListResponse",
     "ExecutorDetailsResponse",
     "ExecutorUpdateRequest",
+    "ExecutorCreationRequest",
+    "ExecutorDeletionRequest",
     "ExecutorDispatchRequest",
     "ExecutorUnassociateRequest",
     "ExecutorUpdateResponse"

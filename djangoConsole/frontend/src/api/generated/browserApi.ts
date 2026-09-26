@@ -7,6 +7,8 @@
 export interface BrowserApiContracts {
   AccountAccessResponse: AccountAccessResponse;
   CsrfResponse: CsrfResponse;
+  ExecutorCreationRequest: ExecutorCreationRequest;
+  ExecutorDeletionRequest: ExecutorDeletionRequest;
   ExecutorDetailsResponse: ExecutorDetailsResponse;
   ExecutorDispatchRequest: ExecutorDispatchRequest;
   ExecutorListResponse: ExecutorListResponse;
@@ -40,6 +42,15 @@ export interface OrganizationAccessResponse {
 export interface CsrfResponse {
   csrf_token: string;
 }
+export interface ExecutorCreationRequest {
+  department_id: string;
+  name: string;
+  notes?: string;
+}
+/**
+ * The URL supplies the ID; the server checks current authorization and dependencies.
+ */
+export interface ExecutorDeletionRequest {}
 export interface ExecutorDetailsResponse {
   executor: ExecutorDetailsEntryResponse;
 }

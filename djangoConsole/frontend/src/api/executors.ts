@@ -4,6 +4,8 @@ import { requestApi } from "./client";
 import { isRecord, ApiError } from "./errors";
 
 import type {
+  ExecutorCreationRequest,
+  ExecutorDeletionRequest,
   ExecutorDetailsResponse,
   ExecutorGroupReferenceResponse,
   ExecutorDispatchRequest,
@@ -147,6 +149,24 @@ export async function getExecutorDetails(
 ): Promise<ExecutorDetailsResponse> {
   return parseExecutorDetailsResponse(
     await requestApi(`/executors/${encodeURIComponent(executorId)}/`),
+  );
+}
+
+export async function createExecutor(
+  executorRequest: ExecutorCreationRequest,
+): Promise<ExecutorUpdateResponse> {
+  return parseExecutorUpdateResponse(
+    await requestApi("/executors/", { method: "POST", body: executorRequest }),
+  );
+}
+
+export async function deleteExecutor(executorId: string): Promise<ExecutorUpdateResponse> {
+  const deletionRequest: ExecutorDeletionRequest = {};
+  return parseExecutorUpdateResponse(
+    await requestApi(`/executors/${encodeURIComponent(executorId)}/deletion/`, {
+      method: "POST",
+      body: deletionRequest,
+    }),
   );
 }
 

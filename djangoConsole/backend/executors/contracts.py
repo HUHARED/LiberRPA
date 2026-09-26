@@ -19,6 +19,15 @@ class ExecutorUpdateRequest(JsonRequest):
     notes: str
 
 
+class ExecutorCreationRequest(ExecutorUpdateRequest):
+    department_id: Annotated[UUID, Field(strict=False)]
+    notes: str = ""
+
+
+class ExecutorDeletionRequest(JsonRequest):
+    """The URL supplies the ID; the server checks current authorization and dependencies."""
+
+
 class ExecutorDispatchRequest(JsonRequest):
     dispatch_enabled: bool
 

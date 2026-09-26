@@ -5,7 +5,6 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import uuid
-from typing import Annotated
 
 from django.core.exceptions import ImproperlyConfigured, PermissionDenied, ValidationError
 from django.core.paginator import InvalidPage
@@ -14,11 +13,9 @@ from django.http import HttpRequest, JsonResponse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_variables
 from django.views.decorators.http import require_http_methods, require_POST
-from pydantic import Field
 
 from accounts.session_revocation import SessionInvalidatedError
 from console_project.http import (
-    JsonRequest,
     build_error_response,
     build_service_unavailable_response,
     parse_json_request,
@@ -32,6 +29,8 @@ from organizations.permissions import AccessChannel
 
 from .contracts import (
     ExecutorUpdateRequest,
+    ExecutorCreationRequest,
+    ExecutorDeletionRequest,
     ExecutorDispatchRequest,
     ExecutorUnassociateRequest,
     ExecutorUpdateResponse,
@@ -66,15 +65,6 @@ _HANDLED_ERRORS = (
     ImproperlyConfigured,
     DatabaseError,
 )
-
-
-class ExecutorCreationRequest(ExecutorUpdateRequest):
-    department_id: Annotated[uuid.UUID, Field(strict=False)]
-    notes: str = ""
-
-
-class ExecutorDeletionRequest(JsonRequest):
-    """The URL supplies the ID; the server checks current authorization and dependencies."""
 
 
 class ExecutorListParameters(DepartmentResourceListParameters):
@@ -177,7 +167,10 @@ def list_or_create_executors(request: HttpRequest) -> JsonResponse:
                 notes=executorRequest.notes,
             )
             return JsonResponse(
-                {"executor": build_executor_payload(executor)}, status=201
+                ExecutorUpdateResponse.model_validate({
+                    "executor": build_executor_payload(executor)
+                }).model_dump(mode="python"),
+                status=201,
             )
 
         dictListParameter = _get_list_parameters(request)
@@ -293,7 +286,11 @@ def delete_executor_record(request: HttpRequest, executorId: uuid.UUID) -> JsonR
         executor = delete_executor(
             **get_executor_write_context(request, membership), executorId=executorId
         )
-        return JsonResponse({"executor": build_executor_payload(executor)})
+        return JsonResponse(
+            ExecutorUpdateResponse.model_validate({
+                "executor": build_executor_payload(executor)
+            }).model_dump(mode="python")
+        )
     except _HANDLED_ERRORS as e:
         return _build_executor_error_response(e)
 

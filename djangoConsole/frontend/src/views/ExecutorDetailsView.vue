@@ -12,6 +12,7 @@
     </v-col>
     <v-col cols="auto" class="d-flex flex-wrap ga-2">
       <v-btn
+        v-if="!boolDeleted"
         variant="tonal"
         prepend-icon="mdi-refresh"
         :loading="boolLoading"
@@ -44,6 +45,15 @@
         :disabled="boolActionBlocked || executorInfo.session_id === null"
         @click="openUnassociate">
         Unassociate
+      </v-btn>
+      <v-btn
+        v-if="executorInfo?.can_manage"
+        color="error"
+        variant="outlined"
+        prepend-icon="mdi-delete-outline"
+        :disabled="boolActionBlocked"
+        @click="openDelete">
+        Delete
       </v-btn>
     </v-col>
   </v-row>
@@ -307,6 +317,71 @@
       </v-card-actions>
     </v-card>
   </v-dialog>
+  <v-dialog
+    :model-value="deleteTarget !== null"
+    persistent
+    max-width="640"
+    aria-labelledby="executor-delete-title">
+    <v-card v-if="deleteTarget">
+      <v-card-title id="executor-delete-title">Delete Executor</v-card-title>
+      <v-card-text>
+        <v-alert v-if="deleteError" type="error" variant="tonal" class="mb-4" role="alert">
+          Deletion was not confirmed. {{ deleteError.message }}
+        </v-alert>
+        <dl class="executor-fields mb-4">
+          <div>
+            <dt>Executor</dt>
+            <dd>{{ deleteTarget.name }}</dd>
+          </div>
+          <div>
+            <dt>Department</dt>
+            <dd>{{ deleteTarget.department.path }}</dd>
+          </div>
+        </dl>
+        <v-alert
+          v-if="deleteTarget.executor_groups.length"
+          type="warning"
+          variant="tonal"
+          class="mb-4">
+          Remove this Executor from its groups before deleting it:
+          <ul class="pl-4 mt-2">
+            <li
+              v-for="group in deleteTarget.executor_groups"
+              :key="group.id"
+              class="executor-text">
+              {{ group.name }}
+            </li>
+          </ul>
+        </v-alert>
+        <p class="mb-2">
+          This removes the Executor from Console and revokes any client association.
+        </p>
+        <p>Remote files are retained, and running processes are not stopped.</p>
+      </v-card-text>
+      <v-card-actions class="flex-wrap ga-2">
+        <v-spacer />
+        <v-btn variant="text" :disabled="boolBusy" @click="closeDelete">Cancel</v-btn>
+        <v-btn
+          v-if="
+            deleteTarget.executor_groups.length ||
+            deleteError?.code === 'executor_group_reference'
+          "
+          variant="tonal"
+          :disabled="boolBusy"
+          @click="refreshDeleteDetails">
+          Refresh Details
+        </v-btn>
+        <v-btn
+          color="error"
+          variant="tonal"
+          :loading="strPendingAction === 'delete'"
+          :disabled="boolDeleteBlocked"
+          @click="submitDelete">
+          Delete
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
 </template>
 
 <script setup lang="ts">
@@ -318,6 +393,7 @@ import { useSessionStore } from "../stores/sessionStore";
 import { type ApiError, getApiError } from "../api/errors";
 import {
   getExecutorDetails,
+  deleteExecutor,
   updateExecutor,
   setExecutorDispatch,
   unassociateExecutor,
@@ -334,13 +410,28 @@ const editError = shallowRef<ApiError | null>(null);
 const dispatchError = shallowRef<ApiError | null>(null);
 const unassociateError = shallowRef<ApiError | null>(null);
 const unassociateTarget = shallowRef<ExecutorDetailsEntryResponse | null>(null);
+const deleteError = shallowRef<ApiError | null>(null);
+const deleteTarget = shallowRef<ExecutorDetailsEntryResponse | null>(null);
 const boolLoading = ref(false);
 const boolEditing = ref(false);
-const strPendingAction = ref<"edit" | "dispatch" | "unassociate" | null>(null);
+const boolDeleted = ref(false);
+const strPendingAction = ref<"edit" | "dispatch" | "unassociate" | "delete" | null>(null);
 const boolSaving = computed(() => strPendingAction.value === "edit");
 const boolBusy = computed(() => boolLoading.value || strPendingAction.value !== null);
 const boolActionBlocked = computed(
-  () => boolBusy.value || boolEditing.value || unassociateTarget.value !== null,
+  () =>
+    boolBusy.value ||
+    boolEditing.value ||
+    unassociateTarget.value !== null ||
+    deleteTarget.value !== null,
+);
+const boolDeleteBlocked = computed(
+  () =>
+    boolBusy.value ||
+    !executorInfo.value?.can_manage ||
+    !deleteTarget.value ||
+    deleteTarget.value.executor_groups.length > 0 ||
+    deleteError.value?.code === "executor_group_reference",
 );
 const strSuccessMessage = ref("");
 const strUpdatedAt = ref<string | null>(null);
@@ -350,6 +441,7 @@ let intViewRevision = 0;
 
 // TODO: Add job occupancy, preparation, and schedule references when their APIs are available.
 async function loadExecutorDetails(): Promise<void> {
+  if (boolDeleted.value) return;
   const intCurrentRevision = intViewRevision;
   boolLoading.value = true;
   requestError.value = null;
@@ -366,6 +458,7 @@ async function loadExecutorDetails(): Promise<void> {
       strUpdatedAt.value = null;
       closeEdit();
       closeUnassociate();
+      closeDelete();
       if (requestError.value.statusCode === 403) await sessionStore.refreshSession();
     }
   } finally {
@@ -515,6 +608,49 @@ async function submitUnassociate(): Promise<void> {
   }
 }
 
+function openDelete(): void {
+  if (!executorInfo.value?.can_manage || boolActionBlocked.value) return;
+  deleteTarget.value = executorInfo.value;
+  deleteError.value = null;
+  dispatchError.value = null;
+  strSuccessMessage.value = "";
+}
+
+function closeDelete(): void {
+  deleteTarget.value = null;
+  deleteError.value = null;
+}
+
+function refreshDeleteDetails(): void {
+  if (boolBusy.value) return;
+  closeDelete();
+  void loadExecutorDetails();
+}
+
+async function submitDelete(): Promise<void> {
+  const target = deleteTarget.value;
+  if (!target || boolDeleteBlocked.value) return;
+  const intCurrentRevision = intViewRevision;
+  strPendingAction.value = "delete";
+  deleteError.value = null;
+  try {
+    await deleteExecutor(target.id);
+    if (intCurrentRevision !== intViewRevision) return;
+    closeDelete();
+    executorInfo.value = null;
+    strUpdatedAt.value = null;
+    requestError.value = null;
+    boolDeleted.value = true;
+    strSuccessMessage.value = `Executor "${target.name}" deleted.`;
+  } catch (e) {
+    if (intCurrentRevision !== intViewRevision) return;
+    deleteError.value = getApiError(e);
+    if ([401, 403, 404].includes(deleteError.value.statusCode)) await loadExecutorDetails();
+  } finally {
+    if (intCurrentRevision === intViewRevision) strPendingAction.value = null;
+  }
+}
+
 watch(
   () => props.executorId,
   () => {
@@ -523,10 +659,12 @@ watch(
     executorInfo.value = null;
     strUpdatedAt.value = null;
     strPendingAction.value = null;
+    boolDeleted.value = false;
     strSuccessMessage.value = "";
     dispatchError.value = null;
     closeEdit();
     closeUnassociate();
+    closeDelete();
     void loadExecutorDetails();
   },
   { immediate: true },

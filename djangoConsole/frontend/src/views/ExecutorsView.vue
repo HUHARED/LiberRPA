@@ -7,11 +7,21 @@
         Executors in your authorized departments.
       </p>
     </v-col>
-    <v-col cols="auto">
+    <v-col cols="auto" class="d-flex flex-wrap ga-2">
+      <v-btn
+        v-if="boolCanCreate"
+        color="primary"
+        variant="tonal"
+        prepend-icon="mdi-plus"
+        :disabled="boolLoading || boolNewExecutorOpen"
+        @click="openNewExecutor">
+        New Executor
+      </v-btn>
       <v-btn
         variant="tonal"
         prepend-icon="mdi-refresh"
         :loading="boolLoading"
+        :disabled="boolNewExecutorOpen"
         @click="loadExecutors()">
         Refresh
       </v-btn>
@@ -87,6 +97,14 @@
       </form>
     </v-card-text>
   </v-card>
+  <v-alert v-if="createdExecutor" type="success" variant="tonal" class="mb-4" role="status">
+    Executor created.
+    <RouterLink
+      :to="{ name: 'executor-details', params: { executorId: createdExecutor.id } }"
+      class="text-primary">
+      View {{ createdExecutor.name }}
+    </RouterLink>
+  </v-alert>
   <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
     {{ requestError.message }}
     <p v-if="executorPage" class="mt-2">
@@ -200,17 +218,118 @@
       </div>
     </template>
   </v-card>
+  <v-dialog
+    v-model="boolNewExecutorOpen"
+    persistent
+    max-width="640"
+    aria-labelledby="executor-create-title">
+    <v-card v-if="boolNewExecutorOpen">
+      <v-card-title id="executor-create-title">New Executor</v-card-title>
+      <v-form validate-on="submit" @submit.prevent="submitNewExecutor">
+        <v-card-text>
+          <v-alert
+            v-if="newExecutorError"
+            type="error"
+            variant="tonal"
+            class="mb-4"
+            role="alert">
+            Creation was not confirmed. {{ newExecutorError.message }}
+            <p
+              v-for="message in newExecutorError.fields.__all__"
+              :key="message"
+              class="mt-2">
+              {{ message }}
+            </p>
+          </v-alert>
+          <v-alert
+            v-if="!arrCreationDepartment.length"
+            type="info"
+            variant="tonal"
+            class="mb-4">
+            No departments are available for creation. Ask an organization administrator to
+            check departments and your access.
+          </v-alert>
+          <v-text-field
+            v-model="strNewName"
+            label="Name"
+            variant="outlined"
+            density="compact"
+            maxlength="128"
+            :rules="[validateNewName]"
+            :error-messages="newExecutorError?.fields.name ?? []"
+            :disabled="boolSavingNewExecutor"
+            required
+            @update:model-value="newExecutorError = null" />
+          <v-select
+            v-model="strNewDepartmentId"
+            :items="arrCreationDepartment"
+            item-title="path"
+            item-value="id"
+            label="Department"
+            variant="outlined"
+            density="compact"
+            hint="The department cannot be changed after creation."
+            persistent-hint
+            :rules="[validateNewDepartment]"
+            :error-messages="
+              newExecutorError?.fields.department ??
+              newExecutorError?.fields.department_id ??
+              []
+            "
+            :disabled="boolSavingNewExecutor"
+            required
+            class="mb-4"
+            @update:model-value="newExecutorError = null" />
+          <v-textarea
+            v-model="strNewNotes"
+            label="Notes"
+            variant="outlined"
+            rows="4"
+            counter="2000"
+            maxlength="2000"
+            :error-messages="newExecutorError?.fields.notes ?? []"
+            :disabled="boolSavingNewExecutor"
+            @update:model-value="newExecutorError = null" />
+          <p class="text-body-2 text-medium-emphasis">
+            The new Executor starts Unassociated with Console Dispatch enabled.
+          </p>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" :disabled="boolSavingNewExecutor" @click="closeNewExecutor">
+            Cancel
+          </v-btn>
+          <v-btn
+            type="submit"
+            color="primary"
+            variant="tonal"
+            :loading="boolSavingNewExecutor"
+            :disabled="boolSavingNewExecutor || !arrCreationDepartment.length">
+            Create
+          </v-btn>
+        </v-card-actions>
+      </v-form>
+    </v-card>
+  </v-dialog>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, shallowRef } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
 import { RouterLink } from "vue-router";
+import type { SubmitEventPromise } from "vuetify";
 
 import { useSessionStore } from "../stores/sessionStore";
 
 import { type ApiError, getApiError } from "../api/errors";
-import { type ExecutorListFilters, getExecutorList } from "../api/executors";
-import type { ExecutorListResponse } from "../api/generated/browserApi";
+import {
+  type ExecutorListFilters,
+  getExecutorList,
+  createExecutor,
+} from "../api/executors";
+import type {
+  ExecutorListResponse,
+  ExecutorRecordResponse,
+} from "../api/generated/browserApi";
 import { formatDateTime } from "../app/navigation";
 
 const ARR_HEADER = [
@@ -243,6 +362,22 @@ const executorPage = shallowRef<ExecutorListResponse | null>(null);
 const requestError = shallowRef<ApiError | null>(null);
 const boolLoading = ref(false);
 const strUpdatedAt = ref<string | null>(null);
+const arrCreationDepartment = computed(() =>
+  (sessionStore.access?.departments ?? []).filter(
+    (department) => sessionStore.access?.is_org_admin || department.role === "developer",
+  ),
+);
+const boolCanCreate = computed(
+  () => sessionStore.access?.is_org_admin || arrCreationDepartment.value.length > 0,
+);
+const boolNewExecutorOpen = ref(false);
+const boolSavingNewExecutor = ref(false);
+const newExecutorError = shallowRef<ApiError | null>(null);
+const createdExecutor = shallowRef<ExecutorRecordResponse | null>(null);
+const strNewName = ref<string | null>("");
+const strNewDepartmentId = ref<string | null>(null);
+const strNewNotes = ref<string | null>("");
+let boolUnmounted = false;
 let appliedFilters: ExecutorListFilters = {
   name: "",
   departmentIds: [],
@@ -256,9 +391,12 @@ async function loadExecutors(pageNumber: number = intRequestedPage): Promise<voi
   requestError.value = null;
   intRequestedPage = pageNumber;
   try {
-    executorPage.value = await getExecutorList(appliedFilters, pageNumber);
+    const response = await getExecutorList(appliedFilters, pageNumber);
+    if (boolUnmounted) return;
+    executorPage.value = response;
     strUpdatedAt.value = new Date().toISOString();
   } catch (e) {
+    if (boolUnmounted) return;
     requestError.value = getApiError(e);
     if (requestError.value.statusCode === 401 || requestError.value.statusCode === 403) {
       // Confirmed access failures clear old results; temporary failures retain the last successful list.
@@ -289,7 +427,74 @@ function resetFilters(): void {
   applyFilters();
 }
 
+function openNewExecutor(): void {
+  if (!boolCanCreate.value || boolLoading.value || boolNewExecutorOpen.value) return;
+  strNewName.value = "";
+  strNewNotes.value = "";
+  strNewDepartmentId.value =
+    arrCreationDepartment.value.length === 1 ? arrCreationDepartment.value[0]!.id : null;
+  newExecutorError.value = null;
+  createdExecutor.value = null;
+  boolNewExecutorOpen.value = true;
+}
+
+function closeNewExecutor(): void {
+  boolNewExecutorOpen.value = false;
+  strNewName.value = "";
+  strNewDepartmentId.value = null;
+  strNewNotes.value = "";
+  newExecutorError.value = null;
+}
+
+function validateNewName(value: string | null): true | string {
+  return value?.trim() ? true : "Enter an executor name.";
+}
+
+function validateNewDepartment(value: string | null): true | string {
+  return arrCreationDepartment.value.some((department) => department.id === value)
+    ? true
+    : "Select a department where you can create executors.";
+}
+
+async function submitNewExecutor(event: SubmitEventPromise): Promise<void> {
+  if (!boolNewExecutorOpen.value || boolSavingNewExecutor.value) return;
+  const validationResult = await event;
+  if (
+    !validationResult.valid ||
+    !boolNewExecutorOpen.value ||
+    boolSavingNewExecutor.value ||
+    boolUnmounted ||
+    !strNewDepartmentId.value ||
+    validateNewDepartment(strNewDepartmentId.value) !== true
+  )
+    return;
+  boolSavingNewExecutor.value = true;
+  newExecutorError.value = null;
+  try {
+    const response = await createExecutor({
+      name: (strNewName.value ?? "").trim(),
+      department_id: strNewDepartmentId.value,
+      notes: strNewNotes.value ?? "",
+    });
+    if (boolUnmounted) return;
+    closeNewExecutor();
+    createdExecutor.value = response.executor;
+    // Keep the current filters; the success link also reaches records outside these results.
+    await loadExecutors();
+  } catch (e) {
+    if (boolUnmounted) return;
+    newExecutorError.value = getApiError(e);
+    if ([403, 404].includes(newExecutorError.value.statusCode))
+      await sessionStore.refreshSession();
+  } finally {
+    boolSavingNewExecutor.value = false;
+  }
+}
+
 onMounted(() => void loadExecutors());
+onBeforeUnmount(() => {
+  boolUnmounted = true;
+});
 </script>
 
 <style scoped>
