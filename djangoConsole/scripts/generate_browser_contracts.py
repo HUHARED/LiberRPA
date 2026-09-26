@@ -22,6 +22,11 @@ from accounts.contracts import (
     CsrfResponse,
     AccountDeletionRequest,
     AccountDeletionPreviewResponse,
+    ApiKeyCreateRequest,
+    ApiKeyNotesRequest,
+    ApiKeyWriteResponse,
+    ApiKeyCreationResponse,
+    ApiKeyListResponse,
 )
 from console_project.contracts import MessageResponse
 from executors.contracts import (
@@ -82,6 +87,11 @@ _TUPLE_CONTRACT_MODEL: tuple[tuple[type[BaseModel], JsonSchemaMode], ...] = (
     (MembershipWriteResponse, "serialization"),
     (AccountDeletionRequest, "validation"),
     (AccountDeletionPreviewResponse, "serialization"),
+    (ApiKeyCreateRequest, "validation"),
+    (ApiKeyNotesRequest, "validation"),
+    (ApiKeyWriteResponse, "serialization"),
+    (ApiKeyCreationResponse, "serialization"),
+    (ApiKeyListResponse, "serialization"),
     (InvitationCreateRequest, "validation"),
     (InvitationTokenRequest, "validation"),
     (InvitationCompletionRequest, "validation"),

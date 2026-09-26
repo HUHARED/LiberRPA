@@ -10,6 +10,7 @@ const SET_RETURN_PATH = new Set([
   "/organization-settings/members",
   "/organization-settings/departments",
   "/my-profile",
+  "/api-keys",
   "/help",
   "/organization-status",
 ]);
@@ -55,4 +56,18 @@ export function formatDateTime(value: string | null, timeZone?: string): string 
     timeStyle: "long",
     timeZone,
   }).format(dateValue);
+}
+
+export function formatDateTimeInput(value: string, timeZone: string): string {
+  const arrPart = new Intl.DateTimeFormat("en", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date(value));
+  const mapPart = new Map(arrPart.map((part) => [part.type, part.value]));
+  return `${mapPart.get("year")}-${mapPart.get("month")}-${mapPart.get("day")}T${mapPart.get("hour")}:${mapPart.get("minute")}`;
 }

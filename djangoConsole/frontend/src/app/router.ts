@@ -108,6 +108,12 @@ export function createAppRouter(
         meta: { title: "My Profile", requiresBusiness: true },
       },
       {
+        path: "/api-keys",
+        name: "api-keys",
+        component: () => import("../views/ApiKeysView.vue"),
+        meta: { title: "API Keys", requiresBusiness: true },
+      },
+      {
         path: "/help",
         name: "help",
         component: () => import("../views/HelpView.vue"),

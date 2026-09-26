@@ -5,13 +5,15 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import uuid
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import cast
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from django.conf import settings
 from django.contrib.auth import HASH_SESSION_KEY
 from django.core.exceptions import ImproperlyConfigured, PermissionDenied, ValidationError
 from django.db import DatabaseError
+from django.forms import DateTimeField
 from django.http import HttpRequest, JsonResponse
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
@@ -30,6 +32,13 @@ from .api_keys import (
     revoke_api_key,
     update_api_key_notes,
 )
+from .contracts import (
+    ApiKeyCreateRequest,
+    ApiKeyNotesRequest,
+    ApiKeyWriteResponse,
+    ApiKeyCreationResponse,
+    ApiKeyListResponse,
+)
 from .http import (
     AccountRequest,
     build_error_response,
@@ -44,14 +53,33 @@ from .session_revocation import SessionInvalidatedError
 _INT_MAX_API_KEY_BODY_BYTES = 16 * 1024
 
 
-class ApiKeyCreateRequest(AccountRequest):
-    name: str
-    expires_at: str
-    notes: str = ""
-
-
-class ApiKeyNotesRequest(AccountRequest):
-    notes: str
+def _parse_api_key_expiry(expiresAtText: str, timeZone: str | None) -> datetime:
+    try:
+        expiresAt = parse_datetime(expiresAtText)
+    except ValueError:
+        expiresAt = None
+    if expiresAt is None:
+        raise ValidationError({"expires_at": "Enter a valid date and time."})
+    if timeZone is None:
+        if timezone.is_naive(expiresAt):
+            raise ValidationError({
+                "expires_at": "Include a UTC offset or supply time_zone for a local time."
+            })
+        return expiresAt
+    if timezone.is_aware(expiresAt):
+        raise ValidationError({
+            "expires_at": "Enter local time without a UTC offset when supplying time_zone."
+        })
+    try:
+        expiryZone = ZoneInfo(timeZone)
+    except (ZoneInfoNotFoundError, ValueError):
+        raise ValidationError({"time_zone": "Select a valid time zone."}) from None
+    try:
+        # Django rejects local times that are missing or ambiguous during daylight saving changes.
+        with timezone.override(expiryZone):
+            return cast(datetime, DateTimeField().clean(expiresAt))
+    except ValidationError as e:
+        raise ValidationError({"expires_at": e.messages}) from None
 
 
 def _build_api_key_payload(apiKey: ApiKey) -> dict[str, object]:
@@ -130,14 +158,7 @@ def list_or_create_api_keys(
             )
             if intRetryAfterSeconds:
                 return build_rate_limited_response(intRetryAfterSeconds)
-            try:
-                expiresAt = parse_datetime(keyRequest.expires_at)
-            except ValueError:
-                expiresAt = None
-            if expiresAt is None:
-                raise ValidationError({
-                    "expires_at": "Enter an ISO 8601 time with a UTC offset."
-                })
+            expiresAt = _parse_api_key_expiry(keyRequest.expires_at, keyRequest.time_zone)
             result = create_api_key(
                 actorId=user.id,
                 channel=AccessChannel.SESSION,
@@ -148,10 +169,10 @@ def list_or_create_api_keys(
                 sessionExpiresAt=request.session.get_expiry_date(),
             )
             return JsonResponse(
-                {
+                ApiKeyCreationResponse.model_validate({
                     "api_key": _build_api_key_payload(result.apiKey),
                     "secret": result.secret,
-                },
+                }).model_dump(mode="python"),
                 status=201,
             )
 
@@ -173,15 +194,17 @@ def list_or_create_api_keys(
             asAdministrator=userId is not None,
         )
         limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
-        return JsonResponse({
-            "api_keys": [_build_api_key_payload(apiKey) for apiKey in tupleApiKey],
-            "default_expires_at": timezone.now() + timedelta(days=365),
-            "limits": {
-                "active_keys": limits.maxActiveApiKeysPerAccount,
-                "inactive_retention_days": limits.inactiveApiKeyRetentionDays,
-                "inactive_records": limits.maxInactiveApiKeysPerAccount,
-            },
-        })
+        return JsonResponse(
+            ApiKeyListResponse.model_validate({
+                "api_keys": [_build_api_key_payload(apiKey) for apiKey in tupleApiKey],
+                "default_expires_at": timezone.now() + timedelta(days=365),
+                "limits": {
+                    "active_keys": limits.maxActiveApiKeysPerAccount,
+                    "inactive_retention_days": limits.inactiveApiKeyRetentionDays,
+                    "inactive_records": limits.maxInactiveApiKeysPerAccount,
+                },
+            }).model_dump(mode="python")
+        )
     except (
         ValidationError,
         PermissionDenied,
@@ -215,7 +238,11 @@ def edit_api_key_notes(request: HttpRequest, apiKeyId: uuid.UUID) -> JsonRespons
             sessionAuthHash=request.session.get(HASH_SESSION_KEY, ""),
             sessionExpiresAt=request.session.get_expiry_date(),
         )
-        return JsonResponse({"api_key": _build_api_key_payload(apiKey)})
+        return JsonResponse(
+            ApiKeyWriteResponse.model_validate({
+                "api_key": _build_api_key_payload(apiKey)
+            }).model_dump(mode="python")
+        )
     except (
         ValidationError,
         PermissionDenied,
@@ -251,7 +278,11 @@ def revoke_account_api_key(
             sessionExpiresAt=request.session.get_expiry_date(),
             asAdministrator=userId is not None,
         )
-        return JsonResponse({"api_key": _build_api_key_payload(apiKey)})
+        return JsonResponse(
+            ApiKeyWriteResponse.model_validate({
+                "api_key": _build_api_key_payload(apiKey)
+            }).model_dump(mode="python")
+        )
     except (
         ValidationError,
         PermissionDenied,

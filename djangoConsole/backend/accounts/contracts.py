@@ -51,3 +51,46 @@ class AccountDeletionPreviewResponse(JsonResponsePayload):
     user: UserResponse
     can_delete: bool
     blockers: list[AccountDeletionBlockerResponse]
+
+
+class ApiKeyCreateRequest(JsonRequest):
+    name: str
+    expires_at: str
+    notes: str = ""
+    # Browser forms send local time with an explicit zone; other callers may send an ISO time with an offset.
+    time_zone: str | None = None
+
+
+class ApiKeyNotesRequest(JsonRequest):
+    notes: str
+
+
+class ApiKeyResponse(JsonResponsePayload):
+    id: UUID
+    name: str
+    status: Literal["active", "expired", "revoked"]
+    expires_at: datetime
+    last_used_at: datetime | None
+    notes: str
+    created_at: datetime
+    revoked_at: datetime | None
+
+
+class ApiKeyWriteResponse(JsonResponsePayload):
+    api_key: ApiKeyResponse
+
+
+class ApiKeyCreationResponse(ApiKeyWriteResponse):
+    secret: str = Field(min_length=1, repr=False)
+
+
+class ApiKeyLimitsResponse(JsonResponsePayload):
+    active_keys: int = Field(ge=0)
+    inactive_retention_days: int = Field(ge=0)
+    inactive_records: int = Field(ge=0)
+
+
+class ApiKeyListResponse(JsonResponsePayload):
+    api_keys: list[ApiKeyResponse]
+    default_expires_at: datetime
+    limits: ApiKeyLimitsResponse

@@ -154,6 +154,12 @@
         </v-data-table>
       </v-card-text>
     </v-card>
+    <h3 class="text-h5 mt-6 mb-2">API Keys</h3>
+    <p class="text-body-2 text-medium-emphasis mb-4">
+      View key metadata and revoke active keys for this member. Only the owner can create
+      keys or edit their Notes.
+    </p>
+    <ApiKeyTable :key="memberInfo.user.id" :member="memberInfo.user" />
   </template>
   <MembershipFormDialog
     v-if="editTarget"
@@ -173,6 +179,7 @@ import { RouterLink } from "vue-router";
 
 import MembershipFormDialog from "../components/MembershipFormDialog.vue";
 import MemberDeleteDialog from "../components/MemberDeleteDialog.vue";
+import ApiKeyTable from "../components/ApiKeyTable.vue";
 
 import { useSessionStore } from "../stores/sessionStore";
 
@@ -209,7 +216,6 @@ const strSuccessMessage = ref("");
 const strUpdatedAt = ref<string | null>(null);
 let intRequestRevision = 0;
 
-// TODO: Reuse the API key metadata table here when the API Keys page is implemented.
 async function loadMemberDetails(): Promise<void> {
   if (boolDeleted.value) return;
   const intCurrentRevision = ++intRequestRevision;

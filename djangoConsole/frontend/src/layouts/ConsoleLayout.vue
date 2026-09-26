@@ -77,11 +77,7 @@
             to="/my-profile"
             title="My Profile"
             prepend-icon="mdi-account-circle-outline" />
-          <v-list-item
-            title="API Keys"
-            prepend-icon="mdi-key-outline"
-            disabled
-            aria-label="API Keys — not available yet" />
+          <v-list-item to="/api-keys" title="API Keys" prepend-icon="mdi-key-outline" />
           <v-list-item
             to="/help"
             title="Help & About"

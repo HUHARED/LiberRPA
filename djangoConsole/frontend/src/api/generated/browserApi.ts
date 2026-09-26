@@ -8,6 +8,11 @@ export interface BrowserApiContracts {
   AccountAccessResponse: AccountAccessResponse;
   AccountDeletionPreviewResponse: AccountDeletionPreviewResponse;
   AccountDeletionRequest: AccountDeletionRequest;
+  ApiKeyCreateRequest: ApiKeyCreateRequest;
+  ApiKeyCreationResponse: ApiKeyCreationResponse;
+  ApiKeyListResponse: ApiKeyListResponse;
+  ApiKeyNotesRequest: ApiKeyNotesRequest;
+  ApiKeyWriteResponse: ApiKeyWriteResponse;
   CsrfResponse: CsrfResponse;
   DepartmentCreationRequest: DepartmentCreationRequest;
   DepartmentDeletionPreviewResponse: DepartmentDeletionPreviewResponse;
@@ -81,6 +86,42 @@ export interface UserResponse {
 }
 export interface AccountDeletionRequest {
   current_password: string;
+}
+export interface ApiKeyCreateRequest {
+  expires_at: string;
+  name: string;
+  notes?: string;
+  time_zone?: string | null;
+}
+export interface ApiKeyCreationResponse {
+  api_key: ApiKeyResponse;
+  secret: string;
+}
+export interface ApiKeyResponse {
+  created_at: string;
+  expires_at: string;
+  id: string;
+  last_used_at: string | null;
+  name: string;
+  notes: string;
+  revoked_at: string | null;
+  status: "active" | "expired" | "revoked";
+}
+export interface ApiKeyListResponse {
+  api_keys: ApiKeyResponse[];
+  default_expires_at: string;
+  limits: ApiKeyLimitsResponse;
+}
+export interface ApiKeyLimitsResponse {
+  active_keys: number;
+  inactive_records: number;
+  inactive_retention_days: number;
+}
+export interface ApiKeyNotesRequest {
+  notes: string;
+}
+export interface ApiKeyWriteResponse {
+  api_key: ApiKeyResponse;
 }
 export interface CsrfResponse {
   csrf_token: string;
