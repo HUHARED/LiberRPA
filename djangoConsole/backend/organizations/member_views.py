@@ -23,8 +23,12 @@ from console_project.http import (
     parse_page_number,
 )
 
-from .contracts import MemberListResponse, MemberDetailsResponse
-from .http import MembershipUpdateRequest
+from .contracts import (
+    MemberListResponse,
+    MemberDetailsResponse,
+    MembershipUpdateRequest,
+    MembershipWriteResponse,
+)
 from .member_queries import MemberInfo, get_member_details, get_member_list
 from .models import DepartmentRole, Membership
 from .permissions import AccessChannel, get_current_membership
@@ -61,17 +65,19 @@ def _build_saved_member_response(
     membership: Membership, departmentRoles: Mapping[uuid.UUID, DepartmentRole]
 ) -> JsonResponse:
     # NOTE: Self-demotion can remove read access, so do not query again after saving.
-    return JsonResponse({
-        "member": {
-            "user_id": membership.user_id,
-            "is_org_admin": membership.is_org_admin,
-            "department_roles": [
-                {"department_id": departmentId, "role": role}
-                for departmentId, role in departmentRoles.items()
-            ],
-            "notes": membership.notes,
-        }
-    })
+    return JsonResponse(
+        MembershipWriteResponse.model_validate({
+            "member": {
+                "user_id": membership.user_id,
+                "is_org_admin": membership.is_org_admin,
+                "department_roles": [
+                    {"department_id": departmentId, "role": role}
+                    for departmentId, role in departmentRoles.items()
+                ],
+                "notes": membership.notes,
+            }
+        }).model_dump(mode="python")
+    )
 
 
 def _build_membership_validation_response(
@@ -173,7 +179,7 @@ def get_or_update_member(request: HttpRequest, userId: uuid.UUID) -> JsonRespons
             if isinstance(membershipRequest, JsonResponse):
                 return membershipRequest
             dictDepartmentRole = {
-                roleRequest.department_id: roleRequest.role
+                roleRequest.department_id: DepartmentRole(roleRequest.role)
                 for roleRequest in membershipRequest.department_roles
             }
             membership = update_membership(

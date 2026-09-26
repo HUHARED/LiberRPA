@@ -5,40 +5,14 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import uuid
-from typing import Annotated, TypedDict
+from typing import TypedDict
 
 from django.http import QueryDict
-from pydantic import Field, field_validator
 
-from console_project.http import JsonRequest, parse_page_number
+from console_project.http import parse_page_number
 
 from .access import AccountAccessInfo
 from .contracts import AccountAccessResponse
-from .models import DepartmentRole
-
-
-class DepartmentRoleRequest(JsonRequest):
-    # JSON encodes UUIDs and role values as text; the other fields remain strict.
-    department_id: Annotated[uuid.UUID, Field(strict=False)]
-    role: Annotated[DepartmentRole, Field(strict=False)]
-
-
-class MembershipUpdateRequest(JsonRequest):
-    is_org_admin: bool
-    # NOTE: Submit the full explicit role list even while OrgAdmin hides it in the form.
-    department_roles: list[DepartmentRoleRequest]
-    notes: str
-
-    @field_validator("department_roles")
-    @classmethod
-    def validate_department_roles(
-        cls, departmentRoles: list[DepartmentRoleRequest]
-    ) -> list[DepartmentRoleRequest]:
-        if len({roleRequest.department_id for roleRequest in departmentRoles}) != len(
-            departmentRoles
-        ):
-            raise ValueError("Assign at most one role to each department.")
-        return departmentRoles
 
 
 class DepartmentResourceListParameters(TypedDict):

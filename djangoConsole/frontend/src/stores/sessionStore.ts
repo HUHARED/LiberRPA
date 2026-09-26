@@ -9,7 +9,7 @@ import { ApiError, getApiError } from "../api/errors";
 import type { AccountAccessResponse, SessionResponse } from "../api/generated/browserApi";
 
 export type SessionStatus = "unknown" | "authenticated" | "anonymous";
-type SessionNotice = "expired" | "signed_out" | null;
+type SessionNotice = "expired" | "signed_out" | "account_created" | null;
 
 interface SessionState {
   session: Omit<SessionResponse, "csrf_token"> | null;

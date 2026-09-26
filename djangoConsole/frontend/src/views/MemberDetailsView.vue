@@ -25,15 +25,45 @@
         My Profile
       </v-btn>
       <v-btn
+        v-if="!boolDeleted"
         variant="tonal"
         prepend-icon="mdi-refresh"
         :loading="boolLoading"
-        :disabled="boolLoading"
+        :disabled="boolActionBlocked"
         @click="loadMemberDetails">
         Refresh
       </v-btn>
+      <v-btn
+        v-if="memberInfo && boolCanManage"
+        variant="tonal"
+        prepend-icon="mdi-pencil-outline"
+        :disabled="boolActionBlocked"
+        @click="openEdit"
+        >Edit Membership</v-btn
+      >
+      <v-btn
+        v-if="
+          memberInfo &&
+          boolCanManage &&
+          memberInfo.user.id !== sessionStore.session?.user.id
+        "
+        color="error"
+        variant="tonal"
+        prepend-icon="mdi-delete-outline"
+        :disabled="boolActionBlocked"
+        @click="openDelete"
+        >Delete Account</v-btn
+      >
     </v-col>
   </v-row>
+  <v-alert
+    v-if="strSuccessMessage"
+    type="success"
+    variant="tonal"
+    class="mb-4"
+    role="status"
+    >{{ strSuccessMessage }}</v-alert
+  >
   <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
     {{
       requestError.statusCode === 404
@@ -125,17 +155,30 @@
       </v-card-text>
     </v-card>
   </template>
+  <MembershipFormDialog
+    v-if="editTarget"
+    :member="editTarget"
+    @close="editTarget = null"
+    @saved="handleMembershipSaved" />
+  <MemberDeleteDialog
+    v-if="deleteTarget"
+    :user="deleteTarget"
+    @close="deleteTarget = null"
+    @deleted="handleMemberDeleted" />
 </template>
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, shallowRef, watch } from "vue";
 import { RouterLink } from "vue-router";
 
+import MembershipFormDialog from "../components/MembershipFormDialog.vue";
+import MemberDeleteDialog from "../components/MemberDeleteDialog.vue";
+
 import { useSessionStore } from "../stores/sessionStore";
 
 import { type ApiError, getApiError } from "../api/errors";
 import { getMemberDetails } from "../api/members";
-import type { MemberResponse } from "../api/generated/browserApi";
+import type { UserResponse, MemberResponse } from "../api/generated/browserApi";
 import { formatDateTime } from "../app/navigation";
 
 const props = defineProps<{ userId: string }>();
@@ -149,12 +192,26 @@ const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC"
 const memberInfo = shallowRef<MemberResponse | null>(null);
 const requestError = shallowRef<ApiError | null>(null);
 const boolLoading = ref(false);
+const editTarget = shallowRef<UserResponse | null>(null);
+const deleteTarget = shallowRef<UserResponse | null>(null);
+const boolCanManage = computed(
+  () => sessionStore.access?.is_org_admin && sessionStore.access.business_available,
+);
+const boolDeleted = ref(false);
+const boolActionBlocked = computed(
+  () =>
+    boolLoading.value ||
+    editTarget.value !== null ||
+    deleteTarget.value !== null ||
+    !boolCanManage.value,
+);
+const strSuccessMessage = ref("");
 const strUpdatedAt = ref<string | null>(null);
 let intRequestRevision = 0;
 
-// TODO: Add membership editing and account deletion through the existing administration APIs.
 // TODO: Reuse the API key metadata table here when the API Keys page is implemented.
 async function loadMemberDetails(): Promise<void> {
+  if (boolDeleted.value) return;
   const intCurrentRevision = ++intRequestRevision;
   boolLoading.value = true;
   requestError.value = null;
@@ -168,6 +225,8 @@ async function loadMemberDetails(): Promise<void> {
     requestError.value = getApiError(e);
     if ([401, 403, 404].includes(requestError.value.statusCode)) {
       memberInfo.value = null;
+      editTarget.value = null;
+      deleteTarget.value = null;
       strUpdatedAt.value = null;
       if (requestError.value.statusCode === 403) await sessionStore.refreshSession();
     }
@@ -176,10 +235,51 @@ async function loadMemberDetails(): Promise<void> {
   }
 }
 
+function openEdit(): void {
+  if (!memberInfo.value || boolActionBlocked.value) return;
+  strSuccessMessage.value = "";
+  editTarget.value = memberInfo.value.user;
+}
+
+function openDelete(): void {
+  if (
+    !memberInfo.value ||
+    boolActionBlocked.value ||
+    memberInfo.value.user.id === sessionStore.session?.user.id
+  )
+    return;
+  strSuccessMessage.value = "";
+  deleteTarget.value = memberInfo.value.user;
+}
+
+async function handleMembershipSaved(): Promise<void> {
+  strSuccessMessage.value = `Membership for ${editTarget.value?.email} updated.`;
+  editTarget.value = null;
+  memberInfo.value = null;
+  strUpdatedAt.value = null;
+  const intCurrentRevision = intRequestRevision;
+  await sessionStore.refreshSession();
+  if (intCurrentRevision === intRequestRevision && boolCanManage.value)
+    await loadMemberDetails();
+}
+
+function handleMemberDeleted(user: UserResponse): void {
+  deleteTarget.value = null;
+  memberInfo.value = null;
+  strUpdatedAt.value = null;
+  requestError.value = null;
+  boolDeleted.value = true;
+  strSuccessMessage.value = `Account ${user.email} deleted.`;
+}
+
 watch(
   () => props.userId,
   () => {
     memberInfo.value = null;
+    editTarget.value = null;
+    deleteTarget.value = null;
+    boolDeleted.value = false;
+    strSuccessMessage.value = "";
     strUpdatedAt.value = null;
     void loadMemberDetails();
   },

@@ -17,6 +17,12 @@ export function createAppRouter(
     routes: [
       { path: "/", redirect: "/overview" },
       {
+        path: "/create-account",
+        name: "create-account",
+        component: () => import("../views/CreateAccountView.vue"),
+        meta: { title: "Create Account", public: true },
+      },
+      {
         path: "/sign-in",
         name: "sign-in",
         component: () => import("../views/SignInView.vue"),

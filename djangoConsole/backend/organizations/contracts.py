@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import Field
+from pydantic import Field, SecretStr, field_validator
 
 from accounts.contracts import UserResponse
 from console_project.contracts import JsonRequest, JsonResponsePayload
@@ -124,7 +124,7 @@ class MemberResponse(JsonResponsePayload):
     joined_at: datetime
 
 
-class MemberPaginationResponse(JsonResponsePayload):
+class PaginationResponse(JsonResponsePayload):
     page: int = Field(ge=1)
     page_size: int = Field(ge=1)
     total_count: int = Field(ge=0)
@@ -133,8 +133,101 @@ class MemberPaginationResponse(JsonResponsePayload):
 
 class MemberListResponse(JsonResponsePayload):
     members: list[MemberResponse]
-    pagination: MemberPaginationResponse
+    pagination: PaginationResponse
 
 
 class MemberDetailsResponse(JsonResponsePayload):
     member: MemberResponse
+
+
+class DepartmentRoleRequest(JsonRequest):
+    department_id: Annotated[UUID, Field(strict=False)]
+    role: Literal["developer", "operator"]
+
+
+class MembershipUpdateRequest(JsonRequest):
+    is_org_admin: bool
+    # NOTE: Submit the full explicit role list even while OrgAdmin hides it in the form.
+    department_roles: list[DepartmentRoleRequest]
+    notes: str
+
+    @field_validator("department_roles")
+    @classmethod
+    def validate_department_roles(
+        cls, departmentRoles: list[DepartmentRoleRequest]
+    ) -> list[DepartmentRoleRequest]:
+        if len({roleRequest.department_id for roleRequest in departmentRoles}) != len(
+            departmentRoles
+        ):
+            raise ValueError("Assign at most one role to each department.")
+        return departmentRoles
+
+
+class MembershipRecordResponse(JsonResponsePayload):
+    user_id: UUID
+    is_org_admin: bool
+    department_roles: list[DepartmentRoleRequest]
+    notes: str
+
+
+class MembershipWriteResponse(JsonResponsePayload):
+    member: MembershipRecordResponse
+
+
+class InvitationCreateRequest(MembershipUpdateRequest):
+    email: str
+
+
+class InvitationTokenRequest(JsonRequest):
+    token: SecretStr
+
+
+class InvitationCompletionRequest(InvitationTokenRequest):
+    password: SecretStr
+    username: str = ""
+
+
+class InvitationRegistrationResponse(JsonResponsePayload):
+    email: str
+    organization_name: str
+
+
+class InvitationDepartmentRoleResponse(JsonResponsePayload):
+    department_id: UUID
+    department_name: str
+    department_path: str
+    department_deleted: bool
+    role: Literal["developer", "operator"]
+
+
+class InvitationEmailDeliveryResponse(JsonResponsePayload):
+    id: UUID
+    status: Literal["pending", "sending", "accepted", "failed", "not_sent", "unknown"]
+    reason_code: str
+    attempted_at: datetime | None
+    finished_at: datetime | None
+
+
+class InvitationResponse(JsonResponsePayload):
+    id: UUID
+    email: str
+    is_org_admin: bool
+    department_roles: list[InvitationDepartmentRoleResponse]
+    notes: str
+    status: Literal["pending", "expired", "accepted", "revoked"]
+    created_at: datetime
+    requested_at: datetime
+    expires_at: datetime
+    resend_available_at: datetime
+    accepted_at: datetime | None
+    revoked_at: datetime | None
+    email_delivery: InvitationEmailDeliveryResponse | None
+
+
+class InvitationDetailsResponse(JsonResponsePayload):
+    invitation: InvitationResponse
+
+
+class InvitationListResponse(JsonResponsePayload):
+    invitations: list[InvitationResponse]
+    pagination: PaginationResponse

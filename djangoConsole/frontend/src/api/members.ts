@@ -2,12 +2,20 @@
 
 import { requestApi } from "./client";
 import { isRecord, ApiError } from "./errors";
+import { parseMessageResponse } from "./account";
 
 import type {
+  AccountDeletionPreviewResponse,
+  AccountDeletionBlockerResponse,
+  AccountDeletionRequest,
+  DepartmentRoleRequest,
+  PaginationResponse,
   MemberDetailsResponse,
   MemberResponse,
   MemberDepartmentRoleResponse,
   MemberListResponse,
+  MembershipUpdateRequest,
+  MembershipWriteResponse,
 } from "./generated/browserApi";
 
 function rejectInvalidResponse(): never {
@@ -48,25 +56,87 @@ export function parseMemberListResponse(payload: unknown): MemberListResponse {
   if (
     !isRecord(payload) ||
     !Array.isArray(payload.members) ||
-    !payload.members.every(isMember) ||
-    !isRecord(payload.pagination) ||
-    !isNonnegativeInteger(payload.pagination.page) ||
-    payload.pagination.page < 1 ||
-    !isNonnegativeInteger(payload.pagination.page_size) ||
-    payload.pagination.page_size < 1 ||
-    !isNonnegativeInteger(payload.pagination.total_count) ||
-    !isNonnegativeInteger(payload.pagination.total_pages) ||
-    payload.pagination.total_pages < 1
+    !payload.members.every(isMember)
   )
     return rejectInvalidResponse();
   return {
     members: payload.members,
-    pagination: {
-      page: payload.pagination.page,
-      page_size: payload.pagination.page_size,
-      total_count: payload.pagination.total_count,
-      total_pages: payload.pagination.total_pages,
+    pagination: parsePaginationResponse(payload.pagination),
+  };
+}
+
+export function parsePaginationResponse(payload: unknown): PaginationResponse {
+  if (
+    !isRecord(payload) ||
+    !isNonnegativeInteger(payload.page) ||
+    payload.page < 1 ||
+    !isNonnegativeInteger(payload.page_size) ||
+    payload.page_size < 1 ||
+    !isNonnegativeInteger(payload.total_count) ||
+    !isNonnegativeInteger(payload.total_pages) ||
+    payload.total_pages < 1
+  )
+    return rejectInvalidResponse();
+  return {
+    page: payload.page,
+    page_size: payload.page_size,
+    total_count: payload.total_count,
+    total_pages: payload.total_pages,
+  };
+}
+
+export function parseMembershipWriteResponse(payload: unknown): MembershipWriteResponse {
+  if (
+    !isRecord(payload) ||
+    !isRecord(payload.member) ||
+    typeof payload.member.user_id !== "string" ||
+    typeof payload.member.is_org_admin !== "boolean" ||
+    typeof payload.member.notes !== "string" ||
+    !Array.isArray(payload.member.department_roles) ||
+    !payload.member.department_roles.every(
+      (assignment: unknown): assignment is DepartmentRoleRequest =>
+        isRecord(assignment) &&
+        typeof assignment.department_id === "string" &&
+        (assignment.role === "developer" || assignment.role === "operator"),
+    )
+  )
+    return rejectInvalidResponse();
+  return {
+    member: {
+      user_id: payload.member.user_id,
+      is_org_admin: payload.member.is_org_admin,
+      department_roles: payload.member.department_roles,
+      notes: payload.member.notes,
     },
+  };
+}
+
+export function parseAccountDeletionPreview(
+  payload: unknown,
+): AccountDeletionPreviewResponse {
+  if (
+    !isRecord(payload) ||
+    !isRecord(payload.user) ||
+    typeof payload.user.id !== "string" ||
+    typeof payload.user.email !== "string" ||
+    typeof payload.user.username !== "string" ||
+    typeof payload.can_delete !== "boolean" ||
+    !Array.isArray(payload.blockers) ||
+    !payload.blockers.every(
+      (blocker: unknown): blocker is AccountDeletionBlockerResponse =>
+        isRecord(blocker) && blocker.code === "last_org_admin",
+    ) ||
+    payload.can_delete !== (payload.blockers.length === 0)
+  )
+    return rejectInvalidResponse();
+  return {
+    user: {
+      id: payload.user.id,
+      email: payload.user.email,
+      username: payload.user.username,
+    },
+    can_delete: payload.can_delete,
+    blockers: payload.blockers,
   };
 }
 
@@ -83,5 +153,35 @@ export async function getMemberList(pageNumber: number = 1): Promise<MemberListR
 export async function getMemberDetails(userId: string): Promise<MemberDetailsResponse> {
   return parseMemberDetailsResponse(
     await requestApi(`/organization/members/${encodeURIComponent(userId)}/`),
+  );
+}
+
+export async function updateMembership(
+  userId: string,
+  request: MembershipUpdateRequest,
+): Promise<MembershipWriteResponse> {
+  return parseMembershipWriteResponse(
+    await requestApi(`/organization/members/${encodeURIComponent(userId)}/`, {
+      method: "POST",
+      body: request,
+    }),
+  );
+}
+
+export async function getMemberDeletionPreview(
+  userId: string,
+): Promise<AccountDeletionPreviewResponse> {
+  return parseAccountDeletionPreview(
+    await requestApi(`/organization/members/${encodeURIComponent(userId)}/deletion/`),
+  );
+}
+
+export async function deleteMemberAccount(userId: string, password: string): Promise<void> {
+  const deletionRequest: AccountDeletionRequest = { current_password: password };
+  parseMessageResponse(
+    await requestApi(`/organization/members/${encodeURIComponent(userId)}/deletion/`, {
+      method: "POST",
+      body: deletionRequest,
+    }),
   );
 }

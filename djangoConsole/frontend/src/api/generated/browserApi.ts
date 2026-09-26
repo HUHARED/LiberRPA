@@ -6,6 +6,8 @@
 
 export interface BrowserApiContracts {
   AccountAccessResponse: AccountAccessResponse;
+  AccountDeletionPreviewResponse: AccountDeletionPreviewResponse;
+  AccountDeletionRequest: AccountDeletionRequest;
   CsrfResponse: CsrfResponse;
   DepartmentCreationRequest: DepartmentCreationRequest;
   DepartmentDeletionPreviewResponse: DepartmentDeletionPreviewResponse;
@@ -30,9 +32,17 @@ export interface BrowserApiContracts {
   ExecutorUnassociateRequest: ExecutorUnassociateRequest;
   ExecutorUpdateRequest: ExecutorUpdateRequest;
   ExecutorUpdateResponse: ExecutorUpdateResponse;
+  InvitationCompletionRequest: InvitationCompletionRequest;
+  InvitationCreateRequest: InvitationCreateRequest;
+  InvitationDetailsResponse: InvitationDetailsResponse;
+  InvitationListResponse: InvitationListResponse;
+  InvitationRegistrationResponse: InvitationRegistrationResponse;
+  InvitationTokenRequest: InvitationTokenRequest;
   LoginRequest: LoginRequest;
   MemberDetailsResponse: MemberDetailsResponse;
   MemberListResponse: MemberListResponse;
+  MembershipUpdateRequest: MembershipUpdateRequest;
+  MembershipWriteResponse: MembershipWriteResponse;
   MessageResponse: MessageResponse;
   SessionResponse: SessionResponse;
 }
@@ -55,6 +65,22 @@ export interface OrganizationAccessResponse {
   id: string;
   name: string;
   suspended_at: string | null;
+}
+export interface AccountDeletionPreviewResponse {
+  blockers: AccountDeletionBlockerResponse[];
+  can_delete: boolean;
+  user: UserResponse;
+}
+export interface AccountDeletionBlockerResponse {
+  code: "last_org_admin";
+}
+export interface UserResponse {
+  email: string;
+  id: string;
+  username: string;
+}
+export interface AccountDeletionRequest {
+  current_password: string;
 }
 export interface CsrfResponse {
   csrf_token: string;
@@ -103,11 +129,6 @@ export interface DepartmentListEntryResponse {
 export interface DepartmentMemberResponse {
   role: "developer" | "operator";
   user: UserResponse;
-}
-export interface UserResponse {
-  email: string;
-  id: string;
-  username: string;
 }
 export interface DepartmentListResponse {
   departments: DepartmentListEntryResponse[];
@@ -293,6 +314,70 @@ export interface ExecutorRecordResponse {
   name: string;
   notes: string;
 }
+export interface InvitationCompletionRequest {
+  password: string;
+  token: string;
+  username?: string;
+}
+export interface InvitationCreateRequest {
+  department_roles: DepartmentRoleRequest[];
+  email: string;
+  is_org_admin: boolean;
+  notes: string;
+}
+export interface DepartmentRoleRequest {
+  department_id: string;
+  role: "developer" | "operator";
+}
+export interface InvitationDetailsResponse {
+  invitation: InvitationResponse;
+}
+export interface InvitationResponse {
+  accepted_at: string | null;
+  created_at: string;
+  department_roles: InvitationDepartmentRoleResponse[];
+  email: string;
+  email_delivery: InvitationEmailDeliveryResponse | null;
+  expires_at: string;
+  id: string;
+  is_org_admin: boolean;
+  notes: string;
+  requested_at: string;
+  resend_available_at: string;
+  revoked_at: string | null;
+  status: "pending" | "expired" | "accepted" | "revoked";
+}
+export interface InvitationDepartmentRoleResponse {
+  department_deleted: boolean;
+  department_id: string;
+  department_name: string;
+  department_path: string;
+  role: "developer" | "operator";
+}
+export interface InvitationEmailDeliveryResponse {
+  attempted_at: string | null;
+  finished_at: string | null;
+  id: string;
+  reason_code: string;
+  status: "pending" | "sending" | "accepted" | "failed" | "not_sent" | "unknown";
+}
+export interface InvitationListResponse {
+  invitations: InvitationResponse[];
+  pagination: PaginationResponse;
+}
+export interface PaginationResponse {
+  page: number;
+  page_size: number;
+  total_count: number;
+  total_pages: number;
+}
+export interface InvitationRegistrationResponse {
+  email: string;
+  organization_name: string;
+}
+export interface InvitationTokenRequest {
+  token: string;
+}
 export interface LoginRequest {
   email: string;
   password: string;
@@ -319,13 +404,21 @@ export interface MemberDepartmentResponse {
 }
 export interface MemberListResponse {
   members: MemberResponse[];
-  pagination: MemberPaginationResponse;
+  pagination: PaginationResponse;
 }
-export interface MemberPaginationResponse {
-  page: number;
-  page_size: number;
-  total_count: number;
-  total_pages: number;
+export interface MembershipUpdateRequest {
+  department_roles: DepartmentRoleRequest[];
+  is_org_admin: boolean;
+  notes: string;
+}
+export interface MembershipWriteResponse {
+  member: MembershipRecordResponse;
+}
+export interface MembershipRecordResponse {
+  department_roles: DepartmentRoleRequest[];
+  is_org_admin: boolean;
+  notes: string;
+  user_id: string;
 }
 export interface MessageResponse {
   message: string;

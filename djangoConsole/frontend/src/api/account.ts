@@ -119,7 +119,7 @@ export async function signIn(
   );
 }
 
-function parseMessageResponse(payload: unknown): MessageResponse {
+export function parseMessageResponse(payload: unknown): MessageResponse {
   if (!isRecord(payload) || typeof payload.message !== "string")
     return rejectInvalidResponse();
   return { message: payload.message };

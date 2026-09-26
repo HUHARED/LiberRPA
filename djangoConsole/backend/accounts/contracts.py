@@ -5,7 +5,7 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 from pydantic import Field, SecretStr
@@ -37,3 +37,17 @@ class SessionResponse(JsonResponsePayload):
 
 class CsrfResponse(JsonResponsePayload):
     csrf_token: Annotated[str, Field(min_length=1)]
+
+
+class AccountDeletionRequest(JsonRequest):
+    current_password: SecretStr
+
+
+class AccountDeletionBlockerResponse(JsonResponsePayload):
+    code: Literal["last_org_admin"]
+
+
+class AccountDeletionPreviewResponse(JsonResponsePayload):
+    user: UserResponse
+    can_delete: bool
+    blockers: list[AccountDeletionBlockerResponse]

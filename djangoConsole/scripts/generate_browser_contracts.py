@@ -16,7 +16,13 @@ from pydantic.json_schema import JsonSchemaMode, JsonSchemaValue, models_json_sc
 _PATH_CONSOLE = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_PATH_CONSOLE / "backend"))
 
-from accounts.contracts import LoginRequest, SessionResponse, CsrfResponse
+from accounts.contracts import (
+    LoginRequest,
+    SessionResponse,
+    CsrfResponse,
+    AccountDeletionRequest,
+    AccountDeletionPreviewResponse,
+)
 from console_project.contracts import MessageResponse
 from executors.contracts import (
     ExecutorUpdateRequest,
@@ -47,6 +53,14 @@ from organizations.contracts import (
     DepartmentDeletionResponse,
     MemberListResponse,
     MemberDetailsResponse,
+    MembershipUpdateRequest,
+    MembershipWriteResponse,
+    InvitationCreateRequest,
+    InvitationTokenRequest,
+    InvitationCompletionRequest,
+    InvitationRegistrationResponse,
+    InvitationDetailsResponse,
+    InvitationListResponse,
 )
 
 _TUPLE_CONTRACT_MODEL: tuple[tuple[type[BaseModel], JsonSchemaMode], ...] = (
@@ -64,6 +78,16 @@ _TUPLE_CONTRACT_MODEL: tuple[tuple[type[BaseModel], JsonSchemaMode], ...] = (
     (DepartmentDeletionResponse, "serialization"),
     (MemberListResponse, "serialization"),
     (MemberDetailsResponse, "serialization"),
+    (MembershipUpdateRequest, "validation"),
+    (MembershipWriteResponse, "serialization"),
+    (AccountDeletionRequest, "validation"),
+    (AccountDeletionPreviewResponse, "serialization"),
+    (InvitationCreateRequest, "validation"),
+    (InvitationTokenRequest, "validation"),
+    (InvitationCompletionRequest, "validation"),
+    (InvitationRegistrationResponse, "serialization"),
+    (InvitationDetailsResponse, "serialization"),
+    (InvitationListResponse, "serialization"),
     (MessageResponse, "serialization"),
     (ExecutorListResponse, "serialization"),
     (ExecutorDetailsResponse, "serialization"),

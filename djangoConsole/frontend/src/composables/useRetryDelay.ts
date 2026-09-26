@@ -1,0 +1,27 @@
+// FileName: useRetryDelay.ts
+
+import { computed, onBeforeUnmount, ref, type ComputedRef, type Ref } from "vue";
+
+export function useRetryDelay(): {
+  intCurrentTimeMs: Ref<number>;
+  intRetrySeconds: ComputedRef<number>;
+  setRetryDelay: (seconds: number | null) => void;
+} {
+  const intCurrentTimeMs = ref(Date.now());
+  const intRetryUntilMs = ref(0);
+  const intRetrySeconds = computed(() =>
+    Math.max(0, Math.ceil((intRetryUntilMs.value - intCurrentTimeMs.value) / 1000)),
+  );
+  const intervalHandle = setInterval(() => {
+    intCurrentTimeMs.value = Date.now();
+  }, 1000);
+  onBeforeUnmount(() => clearInterval(intervalHandle));
+
+  function setRetryDelay(seconds: number | null): void {
+    if (seconds === null) return;
+    intCurrentTimeMs.value = Date.now();
+    intRetryUntilMs.value = intCurrentTimeMs.value + seconds * 1000;
+  }
+
+  return { intCurrentTimeMs, intRetrySeconds, setRetryDelay };
+}

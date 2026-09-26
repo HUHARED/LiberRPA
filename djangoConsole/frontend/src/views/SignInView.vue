@@ -21,6 +21,14 @@
       role="status">
       You have signed out.
     </v-alert>
+    <v-alert
+      v-else-if="sessionStore.notice === 'account_created'"
+      type="success"
+      variant="tonal"
+      class="mb-4"
+      role="status">
+      Account created. Sign in with your invited email address and password.
+    </v-alert>
     <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
       {{ requestError.message }}
       <span v-if="intRetrySeconds > 0" class="d-block mt-1">
@@ -97,13 +105,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, shallowRef } from "vue";
+import { onBeforeUnmount, ref, shallowRef } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import type { SubmitEventPromise } from "vuetify";
 
 import AuthLayout from "../layouts/AuthLayout.vue";
 
 import { useSessionStore } from "../stores/sessionStore";
+import { useRetryDelay } from "../composables/useRetryDelay";
 
 import { getSafeReturnPath } from "../app/navigation";
 import { ApiError, getApiError } from "../api/errors";
@@ -116,16 +125,8 @@ const strPassword = ref("");
 const boolRememberMe = ref(false);
 const boolPasswordVisible = ref(false);
 const requestError = shallowRef<ApiError | null>(null);
-const intRetryUntilMs = ref(0);
-const intCurrentTimeMs = ref(Date.now());
-const intRetrySeconds = computed(() =>
-  Math.max(0, Math.ceil((intRetryUntilMs.value - intCurrentTimeMs.value) / 1000)),
-);
-const intervalHandle = setInterval(() => {
-  intCurrentTimeMs.value = Date.now();
-}, 1000);
+const { intRetrySeconds, setRetryDelay } = useRetryDelay();
 onBeforeUnmount(() => {
-  clearInterval(intervalHandle);
   strPassword.value = "";
 });
 
@@ -158,11 +159,7 @@ async function submitSignIn(event: SubmitEventPromise): Promise<void> {
     }
   } catch (e) {
     requestError.value = getApiError(e);
-    const intWaitSeconds = requestError.value.retryAfterSeconds;
-    if (intWaitSeconds !== null) {
-      intCurrentTimeMs.value = Date.now();
-      intRetryUntilMs.value = intCurrentTimeMs.value + intWaitSeconds * 1000;
-    }
+    setRetryDelay(requestError.value.retryAfterSeconds);
   }
 }
 </script>

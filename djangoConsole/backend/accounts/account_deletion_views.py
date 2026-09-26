@@ -16,7 +16,6 @@ from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_post_parameters, sensitive_variables
 from django.views.decorators.http import require_http_methods
-from pydantic import SecretStr
 
 from organizations.models import Membership
 from organizations.permissions import AccessChannel
@@ -26,8 +25,8 @@ from .account_deletion import (
     delete_account,
     get_account_deletion_info,
 )
+from .contracts import AccountDeletionRequest, AccountDeletionPreviewResponse
 from .http import (
-    AccountRequest,
     build_error_response,
     build_service_unavailable_response,
     build_rate_limited_response,
@@ -38,14 +37,10 @@ from .rate_limits import reserve_account_deletion_request
 from .session_revocation import SessionInvalidatedError
 
 
-class AccountDeletionRequest(AccountRequest):
-    current_password: SecretStr
-
-
 def _build_account_deletion_payload(
     deletionInfo: AccountDeletionInfo,
 ) -> dict[str, object]:
-    return {
+    return AccountDeletionPreviewResponse.model_validate({
         "user": {
             "id": deletionInfo.userId,
             "email": deletionInfo.email,
@@ -53,7 +48,7 @@ def _build_account_deletion_payload(
         },
         "can_delete": deletionInfo.canDelete,
         "blockers": [{"code": "last_org_admin"}] if deletionInfo.isLastOrgAdmin else [],
-    }
+    }).model_dump(mode="python")
 
 
 def _build_deletion_validation_response(validationError: ValidationError) -> JsonResponse:

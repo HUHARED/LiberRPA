@@ -10,12 +10,20 @@
         variant="tonal"
         prepend-icon="mdi-refresh"
         :loading="boolLoading"
-        :disabled="boolLoading"
+        :disabled="boolActionBlocked"
         @click="loadMembers()">
         Refresh
       </v-btn>
     </v-col>
   </v-row>
+  <v-alert
+    v-if="strSuccessMessage"
+    type="success"
+    variant="tonal"
+    class="mb-4"
+    role="status"
+    >{{ strSuccessMessage }}</v-alert
+  >
   <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
     {{ requestError.message }}
     <p v-if="memberPage" class="mt-2">
@@ -90,6 +98,24 @@
           :aria-label="`View member ${item.user.email}`">
           View
         </v-btn>
+        <v-btn
+          variant="text"
+          size="small"
+          :disabled="boolActionBlocked"
+          :aria-label="`Edit membership for ${item.user.email}`"
+          @click="openEdit(item.user)"
+          >Edit</v-btn
+        >
+        <v-btn
+          v-if="item.user.id !== sessionStore.session?.user.id"
+          color="error"
+          variant="text"
+          size="small"
+          :disabled="boolActionBlocked"
+          :aria-label="`Delete account ${item.user.email}`"
+          @click="openDelete(item.user)"
+          >Delete Account</v-btn
+        >
       </template>
       <template #no-data>
         {{ requestError ? "The member list could not be loaded." : "No members found." }}
@@ -107,24 +133,39 @@
           :model-value="memberPage.pagination.page"
           :length="memberPage.pagination.total_pages"
           :total-visible="5"
-          :disabled="boolLoading"
+          :disabled="boolActionBlocked"
           density="comfortable"
           aria-label="Member pages"
           @update:model-value="loadMembers" />
       </div>
     </template>
   </v-card>
+  <MemberInvitations />
+  <MembershipFormDialog
+    v-if="editTarget"
+    :member="editTarget"
+    @close="editTarget = null"
+    @saved="handleMembershipSaved" />
+  <MemberDeleteDialog
+    v-if="deleteTarget"
+    :user="deleteTarget"
+    @close="deleteTarget = null"
+    @deleted="handleMemberDeleted" />
 </template>
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
 import { RouterLink } from "vue-router";
 
+import MembershipFormDialog from "../components/MembershipFormDialog.vue";
+import MemberDeleteDialog from "../components/MemberDeleteDialog.vue";
+import MemberInvitations from "../components/MemberInvitations.vue";
+
 import { useSessionStore } from "../stores/sessionStore";
 
 import { type ApiError, getApiError } from "../api/errors";
 import { getMemberList } from "../api/members";
-import type { MemberListResponse } from "../api/generated/browserApi";
+import type { UserResponse, MemberListResponse } from "../api/generated/browserApi";
 import { formatDateTime } from "../app/navigation";
 
 const sessionStore = useSessionStore();
@@ -134,16 +175,28 @@ const arrHeader = computed(() => [
   { title: "Roles / Departments", key: "roles", minWidth: 240 },
   { title: "Notes", key: "notes", minWidth: 200 },
   { title: `Joined At (${strTimeZone.value})`, key: "joined_at", minWidth: 240 },
-  { title: "Actions", key: "actions", width: 100 },
+  { title: "Actions", key: "actions", width: 320 },
 ]);
 const memberPage = shallowRef<MemberListResponse | null>(null);
 const requestError = shallowRef<ApiError | null>(null);
 const boolLoading = ref(false);
+const editTarget = shallowRef<UserResponse | null>(null);
+const deleteTarget = shallowRef<UserResponse | null>(null);
+const boolCanManage = computed(
+  () => sessionStore.access?.is_org_admin && sessionStore.access.business_available,
+);
+const boolActionBlocked = computed(
+  () =>
+    boolLoading.value ||
+    editTarget.value !== null ||
+    deleteTarget.value !== null ||
+    !boolCanManage.value,
+);
+const strSuccessMessage = ref("");
 const strUpdatedAt = ref<string | null>(null);
 let intRequestRevision = 0;
 let intRequestedPage = 1;
 
-// TODO: Add member invitations and membership editing through the existing administration APIs.
 async function loadMembers(pageNumber: number = intRequestedPage): Promise<void> {
   const intCurrentRevision = ++intRequestRevision;
   intRequestedPage = pageNumber;
@@ -164,12 +217,51 @@ async function loadMembers(pageNumber: number = intRequestedPage): Promise<void>
     }
     if ([401, 403].includes(requestError.value.statusCode)) {
       memberPage.value = null;
+      editTarget.value = null;
+      deleteTarget.value = null;
       strUpdatedAt.value = null;
       if (requestError.value.statusCode === 403) await sessionStore.refreshSession();
     }
   } finally {
     if (intCurrentRevision === intRequestRevision) boolLoading.value = false;
   }
+}
+
+function openEdit(user: UserResponse): void {
+  if (boolActionBlocked.value) return;
+  strSuccessMessage.value = "";
+  editTarget.value = user;
+}
+
+function openDelete(user: UserResponse): void {
+  if (boolActionBlocked.value || user.id === sessionStore.session?.user.id) return;
+  strSuccessMessage.value = "";
+  deleteTarget.value = user;
+}
+
+async function handleMembershipSaved(): Promise<void> {
+  strSuccessMessage.value = `Membership for ${editTarget.value?.email} updated.`;
+  editTarget.value = null;
+  const intCurrentRevision = intRequestRevision;
+  // Refresh permissions first because a successful self-demotion removes administration access.
+  await sessionStore.refreshSession();
+  if (intCurrentRevision === intRequestRevision && boolCanManage.value) await loadMembers();
+}
+
+async function handleMemberDeleted(user: UserResponse): Promise<void> {
+  deleteTarget.value = null;
+  strSuccessMessage.value = `Account ${user.email} deleted.`;
+  if (memberPage.value)
+    memberPage.value = {
+      ...memberPage.value,
+      members: memberPage.value.members.filter((member) => member.user.id !== user.id),
+      pagination: {
+        ...memberPage.value.pagination,
+        total_count: memberPage.value.pagination.total_count - 1,
+      },
+    };
+  strUpdatedAt.value = null;
+  await loadMembers();
 }
 
 onMounted(() => void loadMembers());

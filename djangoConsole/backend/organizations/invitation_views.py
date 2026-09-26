@@ -6,9 +6,11 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import uuid
 from collections.abc import Callable
+from datetime import timedelta
 from functools import wraps
 from typing import cast
 
+from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured, PermissionDenied, ValidationError
 from django.core.paginator import InvalidPage, Paginator
 from django.db import DatabaseError
@@ -16,13 +18,13 @@ from django.http import HttpRequest, JsonResponse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_variables
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
-from pydantic import SecretStr
 
 from accounts.models import User
 from accounts.rate_limits import (
     reserve_invitation_email_request,
     reserve_registration_token_request,
 )
+from console_project.config import LimitsConfig
 from console_project.http import (
     JsonRequest,
     build_error_response,
@@ -43,8 +45,16 @@ from .invitations import (
     resend_member_invitation,
     revoke_member_invitation,
 )
-from .http import MembershipUpdateRequest
-from .models import InvitationDepartmentRole, MemberInvitation
+from .contracts import (
+    InvitationCreateRequest,
+    InvitationTokenRequest,
+    InvitationCompletionRequest,
+    InvitationRegistrationResponse,
+    InvitationDetailsResponse,
+    InvitationListResponse,
+)
+from .department_queries import get_department_path
+from .models import Department, DepartmentRole, InvitationDepartmentRole, MemberInvitation
 from .permissions import (
     AccessChannel,
     get_current_membership,
@@ -54,19 +64,6 @@ from .permissions import (
 
 _INT_MAX_INVITATION_BODY_BYTES = 64 * 1024
 _INT_INVITATIONS_PER_PAGE = 50
-
-
-class InvitationCreateRequest(MembershipUpdateRequest):
-    email: str
-
-
-class InvitationTokenRequest(JsonRequest):
-    token: SecretStr
-
-
-class InvitationCompletionRequest(InvitationTokenRequest):
-    password: SecretStr
-    username: str = ""
 
 
 def _handle_invitation_errors[**Params](
@@ -129,6 +126,15 @@ def _get_invitation_actor(request: HttpRequest) -> tuple[User, uuid.UUID] | Json
 def _build_invitation_payloads(
     invitations: list[MemberInvitation],
 ) -> list[dict[str, object]]:
+    limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
+    dictDepartmentById = (
+        Department.objects
+        .filter(
+            organization_id__in={invitation.organization_id for invitation in invitations}
+        )
+        .only("id", "name", "parent")
+        .in_bulk()
+    )
     dictRoleByInvitationId: dict[uuid.UUID, list[InvitationDepartmentRole]] = {
         invitation.id: [] for invitation in invitations
     }
@@ -159,6 +165,9 @@ def _build_invitation_payloads(
                 {
                     "department_id": proposedRole.department_id,
                     "department_name": proposedRole.department.name,
+                    "department_path": get_department_path(
+                        proposedRole.department, dictDepartmentById
+                    ),
                     "department_deleted": proposedRole.department.deleted_at is not None,
                     "role": proposedRole.role,
                 }
@@ -169,6 +178,8 @@ def _build_invitation_payloads(
             "created_at": invitation.created_at,
             "requested_at": invitation.requested_at,
             "expires_at": invitation.expires_at,
+            "resend_available_at": invitation.requested_at
+            + timedelta(seconds=limits.emailResendSeconds),
             "accepted_at": invitation.accepted_at,
             "revoked_at": invitation.revoked_at,
             "email_delivery": None
@@ -188,7 +199,10 @@ def _build_invitation_response(
     invitation: MemberInvitation, *, statusCode: int = 200
 ) -> JsonResponse:
     return JsonResponse(
-        {"invitation": _build_invitation_payloads([invitation])[0]}, status=statusCode
+        InvitationDetailsResponse.model_validate({
+            "invitation": _build_invitation_payloads([invitation])[0]
+        }).model_dump(mode="python"),
+        status=statusCode,
     )
 
 
@@ -218,7 +232,7 @@ def list_or_create_invitations(request: HttpRequest) -> JsonResponse:
             email=invitationRequest.email,
             isOrgAdmin=invitationRequest.is_org_admin,
             departmentRoles={
-                roleRequest.department_id: roleRequest.role
+                roleRequest.department_id: DepartmentRole(roleRequest.role)
                 for roleRequest in invitationRequest.department_roles
             },
             notes=invitationRequest.notes,
@@ -238,15 +252,17 @@ def list_or_create_invitations(request: HttpRequest) -> JsonResponse:
     ).order_by("-created_at", "-id")
     paginator = Paginator(invitationQuery, _INT_INVITATIONS_PER_PAGE)
     invitationPage = paginator.page(intPageNumber)
-    return JsonResponse({
-        "invitations": _build_invitation_payloads(list(invitationPage.object_list)),
-        "pagination": {
-            "page": invitationPage.number,
-            "page_size": _INT_INVITATIONS_PER_PAGE,
-            "total_count": paginator.count,
-            "total_pages": paginator.num_pages,
-        },
-    })
+    return JsonResponse(
+        InvitationListResponse.model_validate({
+            "invitations": _build_invitation_payloads(list(invitationPage.object_list)),
+            "pagination": {
+                "page": invitationPage.number,
+                "page_size": _INT_INVITATIONS_PER_PAGE,
+                "total_count": paginator.count,
+                "total_pages": paginator.num_pages,
+            },
+        }).model_dump(mode="python")
+    )
 
 
 @never_cache
@@ -308,7 +324,11 @@ def check_invitation_link(request: HttpRequest) -> JsonResponse:
     if intRetryAfterSeconds:
         return build_rate_limited_response(intRetryAfterSeconds)
     strEmail, strOrganizationName = get_invitation_registration_info(strToken)
-    return JsonResponse({"email": strEmail, "organization_name": strOrganizationName})
+    return JsonResponse(
+        InvitationRegistrationResponse(
+            email=strEmail, organization_name=strOrganizationName
+        ).model_dump(mode="python")
+    )
 
 
 @never_cache
