@@ -33,15 +33,6 @@
         "
         color="primary" />
     </v-list>
-    <template #append>
-      <v-divider />
-      <v-list nav density="compact">
-        <v-list-item
-          to="/help"
-          title="Help & About"
-          prepend-icon="mdi-help-circle-outline" />
-      </v-list>
-    </template>
   </v-navigation-drawer>
   <v-app-bar flat border="b" height="64">
     <v-btn
