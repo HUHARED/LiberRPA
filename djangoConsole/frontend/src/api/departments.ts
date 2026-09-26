@@ -5,8 +5,10 @@ import { isRecord, ApiError } from "./errors";
 
 import type {
   DepartmentCreationRequest,
-  DepartmentListResponse,
+  DepartmentDetailsResponse,
   DepartmentListEntryResponse,
+  DepartmentMemberResponse,
+  DepartmentListResponse,
   DepartmentWriteResponse,
   DepartmentRecordResponse,
 } from "./generated/browserApi";
@@ -27,19 +29,39 @@ function isDepartmentRecord(value: unknown): value is DepartmentRecordResponse {
   );
 }
 
+function isDepartmentListEntry(value: unknown): value is DepartmentListEntryResponse {
+  return isDepartmentRecord(value) && "path" in value && typeof value.path === "string";
+}
+
 export function parseDepartmentListResponse(payload: unknown): DepartmentListResponse {
   if (
     !isRecord(payload) ||
     !Array.isArray(payload.departments) ||
-    !payload.departments.every(
-      (department: unknown): department is DepartmentListEntryResponse =>
-        isRecord(department) &&
-        isDepartmentRecord(department) &&
-        typeof department.path === "string",
-    )
+    !payload.departments.every(isDepartmentListEntry)
   )
     return rejectInvalidResponse();
   return { departments: payload.departments };
+}
+
+export function parseDepartmentDetailsResponse(
+  payload: unknown,
+): DepartmentDetailsResponse {
+  if (
+    !isRecord(payload) ||
+    !isDepartmentListEntry(payload.department) ||
+    !Array.isArray(payload.members) ||
+    !payload.members.every(
+      (member: unknown): member is DepartmentMemberResponse =>
+        isRecord(member) &&
+        isRecord(member.user) &&
+        typeof member.user.id === "string" &&
+        typeof member.user.email === "string" &&
+        typeof member.user.username === "string" &&
+        (member.role === "developer" || member.role === "operator"),
+    )
+  )
+    return rejectInvalidResponse();
+  return { department: payload.department, members: payload.members };
 }
 
 export function parseDepartmentWriteResponse(payload: unknown): DepartmentWriteResponse {
@@ -50,6 +72,14 @@ export function parseDepartmentWriteResponse(payload: unknown): DepartmentWriteR
 
 export async function getDepartmentList(): Promise<DepartmentListResponse> {
   return parseDepartmentListResponse(await requestApi("/organization/departments/"));
+}
+
+export async function getDepartmentDetails(
+  departmentId: string,
+): Promise<DepartmentDetailsResponse> {
+  return parseDepartmentDetailsResponse(
+    await requestApi(`/organization/departments/${encodeURIComponent(departmentId)}/`),
+  );
 }
 
 export async function createDepartment(

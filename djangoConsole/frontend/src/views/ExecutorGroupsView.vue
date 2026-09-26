@@ -84,6 +84,7 @@
         :to="{
           name: 'executor-group-details',
           params: { groupId: creationResult.executor_group.id },
+          query: route.query,
         }"
         class="text-primary">
         "{{ creationResult.executor_group.name }}"
@@ -148,7 +149,11 @@
       hide-default-footer>
       <template #item.name="{ item }">
         <RouterLink
-          :to="{ name: 'executor-group-details', params: { groupId: item.id } }"
+          :to="{
+            name: 'executor-group-details',
+            params: { groupId: item.id },
+            query: route.query,
+          }"
           class="d-inline-block group-text font-weight-medium text-primary">
           {{ item.name }}
         </RouterLink>
@@ -231,7 +236,9 @@ const sessionStore = useSessionStore();
 const route = useRoute();
 const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");
 const strName = ref<string | null>("");
-const arrDepartmentId = ref<string[]>([]);
+const arrDepartmentId = ref<string[]>(
+  typeof route.query.department_id === "string" ? [route.query.department_id] : [],
+);
 const groupPage = shallowRef<ExecutorGroupListResponse | null>(null);
 const requestError = shallowRef<ApiError | null>(null);
 const boolLoading = ref(false);
@@ -248,7 +255,10 @@ const boolNewGroupOpen = ref(false);
 const creationResult = shallowRef<ExecutorGroupWriteResponse | null>(null);
 const strSuccessMessage = ref("");
 let intListRevision = 0;
-let appliedFilters: ExecutorGroupListFilters = { name: "", departmentIds: [] };
+let appliedFilters: ExecutorGroupListFilters = {
+  name: "",
+  departmentIds: [...arrDepartmentId.value],
+};
 let intRequestedPage = 1;
 
 async function loadGroups(pageNumber: number = intRequestedPage): Promise<void> {

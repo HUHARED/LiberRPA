@@ -315,7 +315,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
-import { RouterLink } from "vue-router";
+import { RouterLink, useRoute } from "vue-router";
 import type { SubmitEventPromise } from "vuetify";
 
 import { useSessionStore } from "../stores/sessionStore";
@@ -354,9 +354,12 @@ const DICT_ASSOCIATION_STATE = {
 };
 
 const sessionStore = useSessionStore();
+const route = useRoute();
 const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");
 const strName = ref<string | null>("");
-const arrDepartmentId = ref<string[]>([]);
+const arrDepartmentId = ref<string[]>(
+  typeof route.query.department_id === "string" ? [route.query.department_id] : [],
+);
 const arrDispatchState = ref<boolean[]>([]);
 const executorPage = shallowRef<ExecutorListResponse | null>(null);
 const requestError = shallowRef<ApiError | null>(null);
@@ -380,7 +383,7 @@ const strNewNotes = ref<string | null>("");
 let boolUnmounted = false;
 let appliedFilters: ExecutorListFilters = {
   name: "",
-  departmentIds: [],
+  departmentIds: [...arrDepartmentId.value],
   dispatchStates: [],
 };
 let intRequestedPage = 1;

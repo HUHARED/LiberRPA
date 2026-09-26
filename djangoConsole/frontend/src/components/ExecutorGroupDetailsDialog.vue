@@ -165,7 +165,7 @@
           </v-btn>
           <v-spacer />
           <v-btn
-            :to="{ name: 'executor-groups' }"
+            :to="{ name: 'executor-groups', query: route.query }"
             replace
             variant="text"
             :disabled="boolBusy">
@@ -179,7 +179,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
-import { RouterLink } from "vue-router";
+import { RouterLink, useRoute } from "vue-router";
 
 import ExecutorGroupFormDialog from "./ExecutorGroupFormDialog.vue";
 
@@ -196,6 +196,7 @@ import type {
 import { formatDateTime } from "../app/navigation";
 
 const props = defineProps<{ groupId: string }>();
+const route = useRoute();
 const emit = defineEmits<{ updated: []; deleted: [group: ExecutorGroupRecordResponse] }>();
 const ARR_MEMBER_HEADER = [
   { title: "Name", key: "name", minWidth: 180 },

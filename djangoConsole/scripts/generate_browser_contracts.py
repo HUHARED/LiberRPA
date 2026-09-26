@@ -40,6 +40,7 @@ from organizations.contracts import (
     DepartmentCreationRequest,
     DepartmentWriteResponse,
     DepartmentListResponse,
+    DepartmentDetailsResponse,
 )
 
 _TUPLE_CONTRACT_MODEL: tuple[tuple[type[BaseModel], JsonSchemaMode], ...] = (
@@ -50,6 +51,7 @@ _TUPLE_CONTRACT_MODEL: tuple[tuple[type[BaseModel], JsonSchemaMode], ...] = (
     (DepartmentCreationRequest, "validation"),
     (DepartmentWriteResponse, "serialization"),
     (DepartmentListResponse, "serialization"),
+    (DepartmentDetailsResponse, "serialization"),
     (MessageResponse, "serialization"),
     (ExecutorListResponse, "serialization"),
     (ExecutorDetailsResponse, "serialization"),

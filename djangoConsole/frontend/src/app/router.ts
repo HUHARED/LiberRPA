@@ -73,6 +73,13 @@ export function createAppRouter(
             component: () => import("../views/DepartmentsView.vue"),
             meta: { title: "Departments" },
           },
+          {
+            path: "departments/:departmentId",
+            name: "department-details",
+            component: () => import("../views/DepartmentDetailsView.vue"),
+            props: true,
+            meta: { title: "Department Details" },
+          },
         ],
       },
       {

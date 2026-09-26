@@ -8,6 +8,7 @@ export interface BrowserApiContracts {
   AccountAccessResponse: AccountAccessResponse;
   CsrfResponse: CsrfResponse;
   DepartmentCreationRequest: DepartmentCreationRequest;
+  DepartmentDetailsResponse: DepartmentDetailsResponse;
   DepartmentListResponse: DepartmentListResponse;
   DepartmentWriteResponse: DepartmentWriteResponse;
   ExecutorCreationRequest: ExecutorCreationRequest;
@@ -57,8 +58,9 @@ export interface DepartmentCreationRequest {
   notes?: string;
   parent_id?: string | null;
 }
-export interface DepartmentListResponse {
-  departments: DepartmentListEntryResponse[];
+export interface DepartmentDetailsResponse {
+  department: DepartmentListEntryResponse;
+  members: DepartmentMemberResponse[];
 }
 export interface DepartmentListEntryResponse {
   id: string;
@@ -66,6 +68,18 @@ export interface DepartmentListEntryResponse {
   notes: string;
   parent_id: string | null;
   path: string;
+}
+export interface DepartmentMemberResponse {
+  role: "developer" | "operator";
+  user: UserResponse;
+}
+export interface UserResponse {
+  email: string;
+  id: string;
+  username: string;
+}
+export interface DepartmentListResponse {
+  departments: DepartmentListEntryResponse[];
 }
 export interface DepartmentWriteResponse {
   department: DepartmentRecordResponse;
@@ -105,11 +119,6 @@ export interface ExecutorDetailsEntryResponse {
   notes: string;
   session_id: string | null;
   version: string | null;
-}
-export interface UserResponse {
-  email: string;
-  id: string;
-  username: string;
 }
 export interface ExecutorDepartmentResponse {
   id: string;

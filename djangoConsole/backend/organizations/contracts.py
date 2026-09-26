@@ -10,6 +10,7 @@ from uuid import UUID
 
 from pydantic import Field
 
+from accounts.contracts import UserResponse
 from console_project.contracts import JsonRequest, JsonResponsePayload
 
 
@@ -68,3 +69,13 @@ class DepartmentListEntryResponse(DepartmentRecordResponse):
 
 class DepartmentListResponse(JsonResponsePayload):
     departments: list[DepartmentListEntryResponse]
+
+
+class DepartmentMemberResponse(JsonResponsePayload):
+    user: UserResponse
+    role: Literal["developer", "operator"]
+
+
+class DepartmentDetailsResponse(JsonResponsePayload):
+    department: DepartmentListEntryResponse
+    members: list[DepartmentMemberResponse]

@@ -70,9 +70,12 @@
             :icon="item.depth ? 'mdi-subdirectory-arrow-right' : 'mdi-folder-outline'"
             size="small"
             aria-hidden="true" />
-          <span class="department-text font-weight-medium" :title="item.path">
+          <RouterLink
+            :to="{ name: 'department-details', params: { departmentId: item.id } }"
+            class="department-text text-primary font-weight-medium"
+            :title="item.path">
             {{ item.name }}
-          </span>
+          </RouterLink>
         </div>
       </template>
       <template #item.notes="{ item }">
@@ -81,6 +84,14 @@
         </div>
       </template>
       <template #item.actions="{ item }">
+        <v-btn
+          :to="{ name: 'department-details', params: { departmentId: item.id } }"
+          variant="text"
+          size="small"
+          prepend-icon="mdi-eye-outline"
+          :aria-label="`View department ${item.path}`">
+          View
+        </v-btn>
         <v-btn
           v-if="boolCanManage"
           variant="text"
@@ -189,6 +200,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
+import { RouterLink } from "vue-router";
 import type { SubmitEventPromise } from "vuetify";
 
 import { useSessionStore } from "../stores/sessionStore";
@@ -208,7 +220,7 @@ interface DepartmentRow extends DepartmentListEntryResponse {
 const ARR_HEADER = [
   { title: "Name", key: "name", minWidth: 240 },
   { title: "Notes", key: "notes", minWidth: 240 },
-  { title: "Actions", key: "actions", width: 220 },
+  { title: "Actions", key: "actions", width: 320 },
 ];
 
 const sessionStore = useSessionStore();

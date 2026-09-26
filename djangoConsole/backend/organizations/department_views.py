@@ -26,6 +26,7 @@ from .contracts import (
     DepartmentDeletionRequest,
     DepartmentWriteResponse,
     DepartmentListResponse,
+    DepartmentDetailsResponse,
 )
 from .department_deletion import (
     DepartmentDeletionBlockedError,
@@ -204,7 +205,7 @@ def get_or_update_department(
             channel=AccessChannel.SESSION,
             departmentId=departmentId,
         )
-        return JsonResponse({
+        dictDetailsPayload = {
             "department": _build_department_payload(detailsInfo.department),
             "members": [
                 {
@@ -217,7 +218,12 @@ def get_or_update_department(
                 }
                 for memberInfo in detailsInfo.members
             ],
-        })
+        }
+        return JsonResponse(
+            DepartmentDetailsResponse.model_validate(dictDetailsPayload).model_dump(
+                mode="python"
+            )
+        )
     except ValidationError as e:
         return _build_department_validation_response(e)
     except Department.DoesNotExist:
