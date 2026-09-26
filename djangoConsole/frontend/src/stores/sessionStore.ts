@@ -6,10 +6,20 @@ import { getCurrentSession, getAccountAccess, signIn, signOut } from "../api/acc
 import { setCsrfToken } from "../api/client";
 import { ApiError, getApiError } from "../api/errors";
 
-import type { AccountAccessResponse, SessionResponse } from "../api/generated/browserApi";
+import type {
+  AccountAccessResponse,
+  SessionUserResponse,
+  SessionResponse,
+} from "../api/generated/browserApi";
 
 export type SessionStatus = "unknown" | "authenticated" | "anonymous";
-type SessionNotice = "expired" | "signed_out" | "account_created" | null;
+type SessionNotice =
+  | "expired"
+  | "signed_out"
+  | "account_created"
+  | "password_changed"
+  | "account_deleted"
+  | null;
 
 interface SessionState {
   session: Omit<SessionResponse, "csrf_token"> | null;
@@ -57,6 +67,19 @@ export const useSessionStore = defineStore("session", {
       this.status = "anonymous";
       this.notice = notice;
       setCsrfToken(null);
+    },
+
+    finishAccountSignOut(notice: "password_changed" | "account_deleted"): void {
+      this.clearSession(notice);
+      announceSessionChange();
+    },
+
+    applyProfileUser(user: SessionUserResponse): void {
+      if (this.session?.user.id !== user.id) return;
+      // Ignore an older session read that could overwrite these newly saved profile fields.
+      this.intRevision += 1;
+      MAP_REFRESH_TASK.delete(this.$state);
+      this.session.user = user;
     },
 
     applySession(currentSession: SessionResponse): void {

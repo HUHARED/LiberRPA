@@ -17,6 +17,12 @@ export function createAppRouter(
     routes: [
       { path: "/", redirect: "/overview" },
       {
+        path: "/confirm-email-change",
+        name: "confirm-email-change",
+        component: () => import("../views/ConfirmEmailChangeView.vue"),
+        meta: { title: "Confirm Email Change", public: true },
+      },
+      {
         path: "/create-account",
         name: "create-account",
         component: () => import("../views/CreateAccountView.vue"),

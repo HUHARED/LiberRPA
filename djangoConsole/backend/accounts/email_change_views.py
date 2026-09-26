@@ -14,10 +14,14 @@ from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_post_parameters, sensitive_variables
 from django.views.decorators.http import require_POST
-from pydantic import SecretStr
 
 from organizations.permissions import AccessChannel
 
+from .contracts import (
+    EmailChangeEmailRequest,
+    EmailChangeTokenRequest,
+    EmailChangeInfoResponse,
+)
 from .email_changes import (
     EmailChangeCooldownError,
     confirm_email_change,
@@ -25,7 +29,6 @@ from .email_changes import (
     request_email_change,
 )
 from .http import (
-    AccountRequest,
     build_error_response,
     build_service_unavailable_response,
     build_rate_limited_response,
@@ -37,15 +40,6 @@ from .rate_limits import (
     reserve_email_change_token_request,
 )
 from .session_revocation import SessionInvalidatedError
-
-
-class EmailChangeEmailRequest(AccountRequest):
-    current_password: SecretStr
-    new_email: str
-
-
-class EmailChangeTokenRequest(AccountRequest):
-    token: SecretStr
 
 
 def _build_email_change_validation_response(
@@ -134,10 +128,12 @@ def check_email_change_link(request: HttpRequest) -> JsonResponse:
         if intRetryAfterSeconds:
             return build_rate_limited_response(intRetryAfterSeconds)
         linkInfo = get_email_change_info(strToken)
-        return JsonResponse({
-            "new_email": linkInfo.newEmail,
-            "expires_at": linkInfo.expiresAt,
-        })
+        return JsonResponse(
+            EmailChangeInfoResponse(
+                new_email=linkInfo.newEmail,
+                expires_at=linkInfo.expiresAt,
+            ).model_dump(mode="python")
+        )
     except ValidationError as e:
         return _build_email_change_validation_response(e)
     except (ImproperlyConfigured, DatabaseError):

@@ -19,7 +19,6 @@ from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_post_parameters, sensitive_variables
 from django.views.decorators.http import require_GET, require_POST
-from pydantic import SecretStr
 
 from console_project.contracts import MessageResponse
 from operations.audit import get_audit_organization, record_audit
@@ -28,9 +27,13 @@ from organizations.access import get_account_access_info
 from organizations.http import build_account_access_payload
 from organizations.permissions import AccessChannel
 
-from .contracts import LoginRequest, SessionUserResponse, SessionResponse
+from .contracts import (
+    LoginRequest,
+    SessionUserResponse,
+    SessionResponse,
+    SessionRevocationRequest,
+)
 from .http import (
-    AccountRequest,
     build_error_response,
     build_service_unavailable_response,
     build_rate_limited_response,
@@ -41,10 +44,6 @@ from .rate_limits import reserve_login_request, reserve_session_revocation_reque
 from .session_revocation import SessionInvalidatedError, revoke_other_sessions
 
 _REMEMBERED_SESSION_LIFETIME = timedelta(days=14)
-
-
-class SessionRevocationRequest(AccountRequest):
-    current_password: SecretStr
 
 
 def _build_session_response(request: HttpRequest, user: User) -> JsonResponse:

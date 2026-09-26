@@ -39,6 +39,39 @@ class CsrfResponse(JsonResponsePayload):
     csrf_token: Annotated[str, Field(min_length=1)]
 
 
+class ProfileUpdateRequest(JsonRequest):
+    username: str
+    time_zone: str
+
+
+class ProfileWriteResponse(JsonResponsePayload):
+    user: SessionUserResponse
+
+
+class PasswordChangeRequest(JsonRequest):
+    current_password: SecretStr
+    new_password: SecretStr
+    confirm_password: SecretStr
+
+
+class SessionRevocationRequest(JsonRequest):
+    current_password: SecretStr
+
+
+class EmailChangeEmailRequest(JsonRequest):
+    current_password: SecretStr
+    new_email: str
+
+
+class EmailChangeTokenRequest(JsonRequest):
+    token: SecretStr
+
+
+class EmailChangeInfoResponse(JsonResponsePayload):
+    new_email: str
+    expires_at: datetime
+
+
 class AccountDeletionRequest(JsonRequest):
     current_password: SecretStr
 

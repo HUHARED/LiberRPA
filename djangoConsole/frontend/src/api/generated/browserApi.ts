@@ -22,6 +22,9 @@ export interface BrowserApiContracts {
   DepartmentListResponse: DepartmentListResponse;
   DepartmentUpdateRequest: DepartmentUpdateRequest;
   DepartmentWriteResponse: DepartmentWriteResponse;
+  EmailChangeEmailRequest: EmailChangeEmailRequest;
+  EmailChangeInfoResponse: EmailChangeInfoResponse;
+  EmailChangeTokenRequest: EmailChangeTokenRequest;
   ExecutorCreationRequest: ExecutorCreationRequest;
   ExecutorDeletionRequest: ExecutorDeletionRequest;
   ExecutorDetailsResponse: ExecutorDetailsResponse;
@@ -49,7 +52,11 @@ export interface BrowserApiContracts {
   MembershipUpdateRequest: MembershipUpdateRequest;
   MembershipWriteResponse: MembershipWriteResponse;
   MessageResponse: MessageResponse;
+  PasswordChangeRequest: PasswordChangeRequest;
+  ProfileUpdateRequest: ProfileUpdateRequest;
+  ProfileWriteResponse: ProfileWriteResponse;
   SessionResponse: SessionResponse;
+  SessionRevocationRequest: SessionRevocationRequest;
 }
 export interface AccountAccessResponse {
   business_available: boolean;
@@ -187,6 +194,17 @@ export interface DepartmentRecordResponse {
   name: string;
   notes: string;
   parent_id: string | null;
+}
+export interface EmailChangeEmailRequest {
+  current_password: string;
+  new_email: string;
+}
+export interface EmailChangeInfoResponse {
+  expires_at: string;
+  new_email: string;
+}
+export interface EmailChangeTokenRequest {
+  token: string;
 }
 export interface ExecutorCreationRequest {
   department_id: string;
@@ -464,9 +482,16 @@ export interface MembershipRecordResponse {
 export interface MessageResponse {
   message: string;
 }
-export interface SessionResponse {
-  csrf_token: string;
-  expires_at: string;
+export interface PasswordChangeRequest {
+  confirm_password: string;
+  current_password: string;
+  new_password: string;
+}
+export interface ProfileUpdateRequest {
+  time_zone: string;
+  username: string;
+}
+export interface ProfileWriteResponse {
   user: SessionUserResponse;
 }
 export interface SessionUserResponse {
@@ -474,4 +499,12 @@ export interface SessionUserResponse {
   id: string;
   time_zone: string;
   username: string;
+}
+export interface SessionResponse {
+  csrf_token: string;
+  expires_at: string;
+  user: SessionUserResponse;
+}
+export interface SessionRevocationRequest {
+  current_password: string;
 }

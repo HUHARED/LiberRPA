@@ -16,8 +16,8 @@ from organizations.access import get_account_access_info
 from organizations.http import build_account_access_payload
 from organizations.permissions import AccessChannel
 
+from .contracts import SessionUserResponse, ProfileUpdateRequest, ProfileWriteResponse
 from .http import (
-    AccountRequest,
     build_error_response,
     build_service_unavailable_response,
     parse_json_request,
@@ -26,18 +26,15 @@ from .models import User
 from .profile import update_profile
 
 
-class ProfileUpdateRequest(AccountRequest):
-    username: str
-    time_zone: str
-
-
-def _build_profile_user_payload(user: User) -> dict[str, object]:
-    return {
-        "id": user.id,
-        "email": user.email,
-        "username": user.username,
-        "time_zone": user.time_zone,
-    }
+def _build_profile_response(user: User) -> ProfileWriteResponse:
+    return ProfileWriteResponse(
+        user=SessionUserResponse(
+            id=user.id,
+            email=user.email,
+            username=user.username,
+            time_zone=user.time_zone,
+        )
+    )
 
 
 @never_cache
@@ -61,11 +58,11 @@ def get_or_update_profile(request: HttpRequest) -> JsonResponse:
                 timeZone=profileRequest.time_zone,
             )
             # Return the saved fields without making unrelated reads after the commit.
-            return JsonResponse({"user": _build_profile_user_payload(user)})
+            return JsonResponse(_build_profile_response(user).model_dump(mode="python"))
 
         accountAccessInfo = get_account_access_info(actorId=user.id)
         return JsonResponse({
-            "user": _build_profile_user_payload(user),
+            **_build_profile_response(user).model_dump(mode="python"),
             **build_account_access_payload(accountAccessInfo),
         })
     except ValidationError as e:

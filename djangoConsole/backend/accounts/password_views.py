@@ -13,12 +13,11 @@ from django.http import HttpRequest, JsonResponse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_post_parameters, sensitive_variables
 from django.views.decorators.http import require_POST
-from pydantic import SecretStr
 
 from organizations.permissions import AccessChannel
 
+from .contracts import PasswordChangeRequest
 from .http import (
-    AccountRequest,
     build_error_response,
     build_service_unavailable_response,
     build_rate_limited_response,
@@ -27,12 +26,6 @@ from .http import (
 from .models import User
 from .password_changes import change_password
 from .rate_limits import reserve_password_change_request
-
-
-class PasswordChangeRequest(AccountRequest):
-    current_password: SecretStr
-    new_password: SecretStr
-    confirm_password: SecretStr
 
 
 @never_cache

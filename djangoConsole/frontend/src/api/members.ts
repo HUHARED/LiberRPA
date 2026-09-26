@@ -2,12 +2,8 @@
 
 import { requestApi } from "./client";
 import { isRecord, ApiError } from "./errors";
-import { parseMessageResponse } from "./account";
 
 import type {
-  AccountDeletionPreviewResponse,
-  AccountDeletionBlockerResponse,
-  AccountDeletionRequest,
   DepartmentRoleRequest,
   PaginationResponse,
   MemberDetailsResponse,
@@ -111,35 +107,6 @@ export function parseMembershipWriteResponse(payload: unknown): MembershipWriteR
   };
 }
 
-export function parseAccountDeletionPreview(
-  payload: unknown,
-): AccountDeletionPreviewResponse {
-  if (
-    !isRecord(payload) ||
-    !isRecord(payload.user) ||
-    typeof payload.user.id !== "string" ||
-    typeof payload.user.email !== "string" ||
-    typeof payload.user.username !== "string" ||
-    typeof payload.can_delete !== "boolean" ||
-    !Array.isArray(payload.blockers) ||
-    !payload.blockers.every(
-      (blocker: unknown): blocker is AccountDeletionBlockerResponse =>
-        isRecord(blocker) && blocker.code === "last_org_admin",
-    ) ||
-    payload.can_delete !== (payload.blockers.length === 0)
-  )
-    return rejectInvalidResponse();
-  return {
-    user: {
-      id: payload.user.id,
-      email: payload.user.email,
-      username: payload.user.username,
-    },
-    can_delete: payload.can_delete,
-    blockers: payload.blockers,
-  };
-}
-
 export function parseMemberDetailsResponse(payload: unknown): MemberDetailsResponse {
   if (!isRecord(payload) || !isMember(payload.member)) return rejectInvalidResponse();
   return { member: payload.member };
@@ -164,24 +131,6 @@ export async function updateMembership(
     await requestApi(`/organization/members/${encodeURIComponent(userId)}/`, {
       method: "POST",
       body: request,
-    }),
-  );
-}
-
-export async function getMemberDeletionPreview(
-  userId: string,
-): Promise<AccountDeletionPreviewResponse> {
-  return parseAccountDeletionPreview(
-    await requestApi(`/organization/members/${encodeURIComponent(userId)}/deletion/`),
-  );
-}
-
-export async function deleteMemberAccount(userId: string, password: string): Promise<void> {
-  const deletionRequest: AccountDeletionRequest = { current_password: password };
-  parseMessageResponse(
-    await requestApi(`/organization/members/${encodeURIComponent(userId)}/deletion/`, {
-      method: "POST",
-      body: deletionRequest,
     }),
   );
 }

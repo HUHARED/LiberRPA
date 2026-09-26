@@ -29,6 +29,23 @@
       role="status">
       Account created. Sign in with your invited email address and password.
     </v-alert>
+    <v-alert
+      v-else-if="sessionStore.notice === 'password_changed'"
+      type="success"
+      variant="tonal"
+      class="mb-4"
+      role="status">
+      Password changed. All previous sessions and active API keys were revoked. Sign in with
+      your new password.
+    </v-alert>
+    <v-alert
+      v-else-if="sessionStore.notice === 'account_deleted'"
+      type="success"
+      variant="tonal"
+      class="mb-4"
+      role="status">
+      Your account has been deleted.
+    </v-alert>
     <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
       {{ requestError.message }}
       <span v-if="intRetrySeconds > 0" class="d-block mt-1">

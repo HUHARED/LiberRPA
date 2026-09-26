@@ -8,6 +8,7 @@ import type {
   DepartmentAccessResponse,
   LoginRequest,
   MessageResponse,
+  SessionUserResponse,
   SessionResponse,
 } from "./generated/browserApi";
 
@@ -23,15 +24,27 @@ function isNullableDate(value: unknown): value is string | null {
   );
 }
 
-export function parseSessionResponse(payload: unknown): SessionResponse {
-  if (!isRecord(payload) || !isRecord(payload.user)) return rejectInvalidResponse();
-  const userInfo = payload.user;
+export function parseSessionUserResponse(payload: unknown): SessionUserResponse {
   if (
-    typeof userInfo.id !== "string" ||
-    typeof userInfo.email !== "string" ||
-    typeof userInfo.username !== "string" ||
-    typeof userInfo.time_zone !== "string" ||
-    !userInfo.time_zone ||
+    !isRecord(payload) ||
+    typeof payload.id !== "string" ||
+    typeof payload.email !== "string" ||
+    typeof payload.username !== "string" ||
+    typeof payload.time_zone !== "string" ||
+    !payload.time_zone
+  )
+    return rejectInvalidResponse();
+  return {
+    id: payload.id,
+    email: payload.email,
+    username: payload.username,
+    time_zone: payload.time_zone,
+  };
+}
+
+export function parseSessionResponse(payload: unknown): SessionResponse {
+  if (
+    !isRecord(payload) ||
     typeof payload.expires_at !== "string" ||
     !Number.isFinite(Date.parse(payload.expires_at)) ||
     typeof payload.csrf_token !== "string" ||
@@ -39,12 +52,7 @@ export function parseSessionResponse(payload: unknown): SessionResponse {
   )
     return rejectInvalidResponse();
   return {
-    user: {
-      id: userInfo.id,
-      email: userInfo.email,
-      username: userInfo.username,
-      time_zone: userInfo.time_zone,
-    },
+    user: parseSessionUserResponse(payload.user),
     expires_at: payload.expires_at,
     csrf_token: payload.csrf_token,
   };
