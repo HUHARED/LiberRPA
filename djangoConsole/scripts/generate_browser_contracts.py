@@ -37,6 +37,7 @@ from executors.contracts import (
 )
 from organizations.contracts import (
     AccountAccessResponse,
+    DepartmentUpdateRequest,
     DepartmentCreationRequest,
     DepartmentWriteResponse,
     DepartmentListResponse,
@@ -48,6 +49,7 @@ _TUPLE_CONTRACT_MODEL: tuple[tuple[type[BaseModel], JsonSchemaMode], ...] = (
     (CsrfResponse, "serialization"),
     (SessionResponse, "serialization"),
     (AccountAccessResponse, "serialization"),
+    (DepartmentUpdateRequest, "validation"),
     (DepartmentCreationRequest, "validation"),
     (DepartmentWriteResponse, "serialization"),
     (DepartmentListResponse, "serialization"),

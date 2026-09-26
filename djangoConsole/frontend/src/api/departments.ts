@@ -9,6 +9,7 @@ import type {
   DepartmentListEntryResponse,
   DepartmentMemberResponse,
   DepartmentListResponse,
+  DepartmentUpdateRequest,
   DepartmentWriteResponse,
   DepartmentRecordResponse,
 } from "./generated/browserApi";
@@ -87,6 +88,18 @@ export async function createDepartment(
 ): Promise<DepartmentWriteResponse> {
   return parseDepartmentWriteResponse(
     await requestApi("/organization/departments/", {
+      method: "POST",
+      body: departmentRequest,
+    }),
+  );
+}
+
+export async function updateDepartment(
+  departmentId: string,
+  departmentRequest: DepartmentUpdateRequest,
+): Promise<DepartmentWriteResponse> {
+  return parseDepartmentWriteResponse(
+    await requestApi(`/organization/departments/${encodeURIComponent(departmentId)}/`, {
       method: "POST",
       body: departmentRequest,
     }),

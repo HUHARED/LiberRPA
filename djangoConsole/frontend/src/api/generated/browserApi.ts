@@ -10,6 +10,7 @@ export interface BrowserApiContracts {
   DepartmentCreationRequest: DepartmentCreationRequest;
   DepartmentDetailsResponse: DepartmentDetailsResponse;
   DepartmentListResponse: DepartmentListResponse;
+  DepartmentUpdateRequest: DepartmentUpdateRequest;
   DepartmentWriteResponse: DepartmentWriteResponse;
   ExecutorCreationRequest: ExecutorCreationRequest;
   ExecutorDeletionRequest: ExecutorDeletionRequest;
@@ -80,6 +81,11 @@ export interface UserResponse {
 }
 export interface DepartmentListResponse {
   departments: DepartmentListEntryResponse[];
+}
+export interface DepartmentUpdateRequest {
+  name: string;
+  notes: string;
+  parent_id: string | null;
 }
 export interface DepartmentWriteResponse {
   department: DepartmentRecordResponse;

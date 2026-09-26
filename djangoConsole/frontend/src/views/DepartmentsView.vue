@@ -14,7 +14,7 @@
         color="primary"
         variant="tonal"
         prepend-icon="mdi-plus"
-        :disabled="boolLoading || boolNewDepartmentOpen || arrDepartmentInfo === null"
+        :disabled="boolLoading || boolFormOpen || arrDepartmentInfo === null"
         @click="openNewDepartment()">
         New Department
       </v-btn>
@@ -22,19 +22,19 @@
         variant="tonal"
         prepend-icon="mdi-refresh"
         :loading="boolLoading"
-        :disabled="boolLoading || boolNewDepartmentOpen"
+        :disabled="boolLoading || boolFormOpen"
         @click="loadDepartments">
         Refresh
       </v-btn>
     </v-col>
   </v-row>
   <v-alert
-    v-if="createdDepartment"
+    v-if="strSuccessMessage"
     type="success"
     variant="tonal"
     class="mb-4"
     role="status">
-    Department "{{ createdDepartment.name }}" created.
+    {{ strSuccessMessage }}
   </v-alert>
   <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
     {{ requestError.message }}
@@ -97,10 +97,20 @@
           variant="text"
           size="small"
           prepend-icon="mdi-plus"
-          :disabled="boolLoading || boolNewDepartmentOpen"
+          :disabled="boolLoading || boolFormOpen"
           :aria-label="`New subdepartment of ${item.path}`"
           @click="openNewDepartment(item.id)">
           New Subdepartment
+        </v-btn>
+        <v-btn
+          v-if="boolCanManage"
+          variant="text"
+          size="small"
+          prepend-icon="mdi-pencil-outline"
+          :disabled="boolLoading || boolFormOpen"
+          :aria-label="`Edit department ${item.path}`"
+          @click="openEditDepartment(item)">
+          Edit
         </v-btn>
       </template>
       <template #no-data>
@@ -112,101 +122,25 @@
       </template>
     </v-data-table>
   </v-card>
-  <v-dialog
-    v-model="boolNewDepartmentOpen"
-    persistent
-    scrollable
-    max-width="640"
-    aria-labelledby="department-create-title">
-    <v-card>
-      <v-card-title id="department-create-title">
-        {{ strNewParentId === null ? "New Department" : "New Subdepartment" }}
-      </v-card-title>
-      <v-card-text>
-        <v-form
-          id="department-create-form"
-          validate-on="submit"
-          @submit.prevent="submitNewDepartment">
-          <v-alert
-            v-if="newDepartmentError"
-            type="error"
-            variant="tonal"
-            class="mb-4"
-            role="alert">
-            Creation was not confirmed. {{ newDepartmentError.message }}
-            <p
-              v-for="message in newDepartmentError.fields.__all__"
-              :key="message"
-              class="mt-2">
-              {{ message }}
-            </p>
-          </v-alert>
-          <v-text-field
-            v-model="strNewName"
-            label="Name"
-            variant="outlined"
-            maxlength="128"
-            :rules="[validateNewName]"
-            :error-messages="newDepartmentError?.fields.name ?? []"
-            :disabled="boolSaving"
-            required
-            @update:model-value="newDepartmentError = null" />
-          <v-select
-            v-model="strNewParentId"
-            :items="arrParentOption"
-            item-title="path"
-            item-value="id"
-            label="Parent Department"
-            variant="outlined"
-            :rules="[validateNewParent]"
-            :error-messages="newDepartmentError?.fields.parent_id ?? []"
-            :disabled="boolSaving"
-            @update:model-value="newDepartmentError = null" />
-          <v-text-field
-            :model-value="strNewPath"
-            label="Path"
-            variant="outlined"
-            readonly />
-          <v-textarea
-            v-model="strNewNotes"
-            label="Notes"
-            variant="outlined"
-            rows="3"
-            counter="2000"
-            maxlength="2000"
-            :error-messages="newDepartmentError?.fields.notes ?? []"
-            :disabled="boolSaving"
-            @update:model-value="newDepartmentError = null" />
-        </v-form>
-      </v-card-text>
-      <v-card-actions>
-        <v-spacer />
-        <v-btn variant="text" :disabled="boolSaving" @click="closeNewDepartment">
-          Cancel
-        </v-btn>
-        <v-btn
-          type="submit"
-          form="department-create-form"
-          color="primary"
-          variant="tonal"
-          :loading="boolSaving"
-          :disabled="boolSaving || !boolCanManage">
-          Create
-        </v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+  <DepartmentFormDialog
+    v-if="boolFormOpen && arrDepartmentInfo"
+    :departments="arrDepartmentInfo"
+    :department="editTarget ?? undefined"
+    :parent-id="strNewParentId"
+    @close="closeDepartmentForm"
+    @saved="handleDepartmentSaved" />
 </template>
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
 import { RouterLink } from "vue-router";
-import type { SubmitEventPromise } from "vuetify";
+
+import DepartmentFormDialog from "../components/DepartmentFormDialog.vue";
 
 import { useSessionStore } from "../stores/sessionStore";
 
 import { type ApiError, getApiError } from "../api/errors";
-import { getDepartmentList, createDepartment } from "../api/departments";
+import { getDepartmentList } from "../api/departments";
 import type {
   DepartmentListEntryResponse,
   DepartmentRecordResponse,
@@ -220,7 +154,7 @@ interface DepartmentRow extends DepartmentListEntryResponse {
 const ARR_HEADER = [
   { title: "Name", key: "name", minWidth: 240 },
   { title: "Notes", key: "notes", minWidth: 240 },
-  { title: "Actions", key: "actions", width: 320 },
+  { title: "Actions", key: "actions", width: 400 },
 ];
 
 const sessionStore = useSessionStore();
@@ -230,15 +164,12 @@ const boolCanManage = computed(
 const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");
 const arrDepartmentInfo = shallowRef<DepartmentListEntryResponse[] | null>(null);
 const requestError = shallowRef<ApiError | null>(null);
-const createdDepartment = shallowRef<DepartmentRecordResponse | null>(null);
-const newDepartmentError = shallowRef<ApiError | null>(null);
+const editTarget = shallowRef<DepartmentListEntryResponse | null>(null);
+const strSuccessMessage = ref("");
 const strUpdatedAt = ref<string | null>(null);
 const boolLoading = ref(false);
-const boolNewDepartmentOpen = ref(false);
-const boolSaving = ref(false);
-const strNewName = ref<string | null>("");
+const boolFormOpen = ref(false);
 const strNewParentId = ref<string | null>(null);
-const strNewNotes = ref<string | null>("");
 let boolUnmounted = false;
 
 const arrDepartmentRow = computed(() => {
@@ -259,17 +190,6 @@ const arrDepartmentRow = computed(() => {
   appendChildren(null, 0);
   return arrRow;
 });
-const arrParentOption = computed(() => [
-  { id: null, path: "No parent (top level)" },
-  ...(arrDepartmentInfo.value ?? []),
-]);
-const strNewPath = computed(() => {
-  if (!strNewName.value) return "";
-  const parent = arrDepartmentInfo.value?.find(
-    (department) => department.id === strNewParentId.value,
-  );
-  return parent ? `${parent.path}/${strNewName.value}` : strNewName.value;
-});
 
 async function loadDepartments(): Promise<void> {
   if (boolLoading.value || !boolCanManage.value) return;
@@ -286,7 +206,7 @@ async function loadDepartments(): Promise<void> {
     if ([401, 403].includes(requestError.value.statusCode)) {
       arrDepartmentInfo.value = null;
       strUpdatedAt.value = null;
-      boolNewDepartmentOpen.value = false;
+      boolFormOpen.value = false;
       if (requestError.value.statusCode === 403) await sessionStore.refreshSession();
     }
   } finally {
@@ -298,69 +218,33 @@ function openNewDepartment(parentId: string | null = null): void {
   if (
     !boolCanManage.value ||
     boolLoading.value ||
-    boolNewDepartmentOpen.value ||
+    boolFormOpen.value ||
     arrDepartmentInfo.value === null
   )
     return;
-  strNewName.value = "";
+  editTarget.value = null;
   strNewParentId.value = parentId;
-  strNewNotes.value = "";
-  newDepartmentError.value = null;
-  createdDepartment.value = null;
-  boolNewDepartmentOpen.value = true;
+  strSuccessMessage.value = "";
+  boolFormOpen.value = true;
 }
 
-function closeNewDepartment(): void {
-  if (!boolSaving.value) boolNewDepartmentOpen.value = false;
+function openEditDepartment(department: DepartmentListEntryResponse): void {
+  if (!boolCanManage.value || boolLoading.value || boolFormOpen.value) return;
+  editTarget.value = department;
+  strSuccessMessage.value = "";
+  boolFormOpen.value = true;
 }
 
-function validateNewName(value: string | null): true | string {
-  if (!value) return "Enter a department name.";
-  if (value !== value.trim()) return "The name must not start or end with whitespace.";
-  if (value.endsWith(".")) return "The name must not end with a period.";
-  if (/[\\/\p{Cc}]/u.test(value))
-    return "The name must not contain path separators or control characters.";
-  return true;
+function closeDepartmentForm(): void {
+  boolFormOpen.value = false;
+  editTarget.value = null;
 }
 
-function validateNewParent(value: string | null): true | string {
-  return value === null ||
-    arrDepartmentInfo.value?.some((department) => department.id === value)
-    ? true
-    : "Select an available parent department or the top level.";
-}
-
-async function submitNewDepartment(event: SubmitEventPromise): Promise<void> {
-  if (boolSaving.value || !boolNewDepartmentOpen.value) return;
-  const validationResult = await event;
-  if (
-    !validationResult.valid ||
-    boolSaving.value ||
-    !boolNewDepartmentOpen.value ||
-    !boolCanManage.value ||
-    boolUnmounted
-  )
-    return;
-  boolSaving.value = true;
-  newDepartmentError.value = null;
-  try {
-    const response = await createDepartment({
-      name: strNewName.value ?? "",
-      parent_id: strNewParentId.value,
-      notes: strNewNotes.value ?? "",
-    });
-    if (boolUnmounted) return;
-    createdDepartment.value = response.department;
-    boolNewDepartmentOpen.value = false;
-    // Refresh access so the new department is available in other resource forms.
-    await Promise.all([loadDepartments(), sessionStore.refreshSession()]);
-  } catch (e) {
-    if (boolUnmounted) return;
-    newDepartmentError.value = getApiError(e);
-    if (newDepartmentError.value.statusCode === 403) await sessionStore.refreshSession();
-  } finally {
-    boolSaving.value = false;
-  }
+async function handleDepartmentSaved(department: DepartmentRecordResponse): Promise<void> {
+  strSuccessMessage.value = `Department "${department.name}" ${editTarget.value ? "updated" : "created"}.`;
+  closeDepartmentForm();
+  // Refresh access so resource forms use the current department names and paths.
+  await Promise.all([loadDepartments(), sessionStore.refreshSession()]);
 }
 
 onMounted(() => void loadDepartments());
