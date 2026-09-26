@@ -32,8 +32,8 @@
     color="primary"
     class="mb-4"
     aria-label="Executor sections">
-    <v-tab value="executors">Executors</v-tab>
-    <v-tab value="groups" disabled>Executor Groups</v-tab>
+    <v-tab value="executors" to="/executors" exact>Executors</v-tab>
+    <v-tab value="groups" to="/executors/groups">Executor Groups</v-tab>
   </v-tabs>
   <v-card variant="outlined" class="mb-4">
     <v-card-text>

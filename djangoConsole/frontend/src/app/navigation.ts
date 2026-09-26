@@ -5,6 +5,7 @@ import type { RouteLocationRaw } from "vue-router";
 const SET_RETURN_PATH = new Set([
   "/overview",
   "/executors",
+  "/executors/groups",
   "/my-profile",
   "/help",
   "/organization-status",

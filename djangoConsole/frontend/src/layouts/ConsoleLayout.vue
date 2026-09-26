@@ -20,6 +20,13 @@
         :title="navigationItem.title"
         :prepend-icon="navigationItem.icon"
         :to="'path' in navigationItem ? navigationItem.path : undefined"
+        :active="
+          'path' in navigationItem &&
+          navigationItem.path === '/executors' &&
+          route.path.startsWith('/executors/')
+            ? true
+            : undefined
+        "
         :disabled="!('path' in navigationItem) || !sessionStore.access?.business_available"
         :aria-label="
           'path' in navigationItem

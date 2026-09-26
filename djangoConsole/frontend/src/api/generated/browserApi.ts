@@ -11,6 +11,9 @@ export interface BrowserApiContracts {
   ExecutorDeletionRequest: ExecutorDeletionRequest;
   ExecutorDetailsResponse: ExecutorDetailsResponse;
   ExecutorDispatchRequest: ExecutorDispatchRequest;
+  ExecutorGroupCreationRequest: ExecutorGroupCreationRequest;
+  ExecutorGroupListResponse: ExecutorGroupListResponse;
+  ExecutorGroupWriteResponse: ExecutorGroupWriteResponse;
   ExecutorListResponse: ExecutorListResponse;
   ExecutorUnassociateRequest: ExecutorUnassociateRequest;
   ExecutorUpdateRequest: ExecutorUpdateRequest;
@@ -88,6 +91,51 @@ export interface ExecutorGroupReferenceResponse {
 }
 export interface ExecutorDispatchRequest {
   dispatch_enabled: boolean;
+}
+export interface ExecutorGroupCreationRequest {
+  department_id: string;
+  executor_ids?: string[];
+  name: string;
+  notes?: string;
+}
+export interface ExecutorGroupListResponse {
+  executor_groups: ExecutorGroupListEntryResponse[];
+  page: number;
+  page_size: number;
+  total_count: number;
+  total_pages: number;
+}
+export interface ExecutorGroupListEntryResponse {
+  can_manage: boolean;
+  created_at: string;
+  deleted_at: string | null;
+  department: ExecutorDepartmentResponse;
+  department_id: string;
+  id: string;
+  is_empty: boolean;
+  member_count: number;
+  name: string;
+  notes: string;
+  online_count: number;
+}
+export interface ExecutorGroupWriteResponse {
+  executor_group: ExecutorGroupWriteEntryResponse;
+  warnings: ExecutorGroupWarningResponse[];
+}
+export interface ExecutorGroupWriteEntryResponse {
+  created_at: string;
+  deleted_at: string | null;
+  department_id: string;
+  executor_ids: string[];
+  id: string;
+  is_empty: boolean;
+  member_count: number;
+  name: string;
+  notes: string;
+}
+export interface ExecutorGroupWarningResponse {
+  code: "empty_executor_group";
+  message: string;
 }
 export interface ExecutorListResponse {
   executors: ExecutorListEntryResponse[];

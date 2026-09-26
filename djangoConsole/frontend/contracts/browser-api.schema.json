@@ -284,6 +284,141 @@
       "title": "ExecutorDispatchRequest",
       "type": "object"
     },
+    "ExecutorGroupCreationRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "department_id": {
+          "format": "uuid",
+          "title": "Department Id",
+          "type": "string"
+        },
+        "executor_ids": {
+          "items": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "title": "Executor Ids",
+          "type": "array"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "notes": {
+          "default": "",
+          "title": "Notes",
+          "type": "string"
+        }
+      },
+      "required": ["name", "department_id"],
+      "title": "ExecutorGroupCreationRequest",
+      "type": "object"
+    },
+    "ExecutorGroupListEntryResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "can_manage": {
+          "title": "Can Manage",
+          "type": "boolean"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "deleted_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Deleted At"
+        },
+        "department": {
+          "$ref": "#/$defs/ExecutorDepartmentResponse"
+        },
+        "department_id": {
+          "format": "uuid",
+          "title": "Department Id",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "is_empty": {
+          "title": "Is Empty",
+          "type": "boolean"
+        },
+        "member_count": {
+          "title": "Member Count",
+          "type": "integer"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "notes": {
+          "title": "Notes",
+          "type": "string"
+        },
+        "online_count": {
+          "title": "Online Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "department_id",
+        "notes",
+        "created_at",
+        "deleted_at",
+        "department",
+        "can_manage",
+        "member_count",
+        "online_count",
+        "is_empty"
+      ],
+      "title": "ExecutorGroupListEntryResponse",
+      "type": "object"
+    },
+    "ExecutorGroupListResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "executor_groups": {
+          "items": {
+            "$ref": "#/$defs/ExecutorGroupListEntryResponse"
+          },
+          "title": "Executor Groups",
+          "type": "array"
+        },
+        "page": {
+          "title": "Page",
+          "type": "integer"
+        },
+        "page_size": {
+          "title": "Page Size",
+          "type": "integer"
+        },
+        "total_count": {
+          "title": "Total Count",
+          "type": "integer"
+        },
+        "total_pages": {
+          "title": "Total Pages",
+          "type": "integer"
+        }
+      },
+      "required": ["executor_groups", "page", "page_size", "total_count", "total_pages"],
+      "title": "ExecutorGroupListResponse",
+      "type": "object"
+    },
     "ExecutorGroupReferenceResponse": {
       "additionalProperties": false,
       "properties": {
@@ -299,6 +434,110 @@
       },
       "required": ["id", "name"],
       "title": "ExecutorGroupReferenceResponse",
+      "type": "object"
+    },
+    "ExecutorGroupWarningResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "const": "empty_executor_group",
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "required": ["code", "message"],
+      "title": "ExecutorGroupWarningResponse",
+      "type": "object"
+    },
+    "ExecutorGroupWriteEntryResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "deleted_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Deleted At"
+        },
+        "department_id": {
+          "format": "uuid",
+          "title": "Department Id",
+          "type": "string"
+        },
+        "executor_ids": {
+          "items": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "title": "Executor Ids",
+          "type": "array"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "is_empty": {
+          "title": "Is Empty",
+          "type": "boolean"
+        },
+        "member_count": {
+          "title": "Member Count",
+          "type": "integer"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "notes": {
+          "title": "Notes",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "department_id",
+        "notes",
+        "created_at",
+        "deleted_at",
+        "executor_ids",
+        "member_count",
+        "is_empty"
+      ],
+      "title": "ExecutorGroupWriteEntryResponse",
+      "type": "object"
+    },
+    "ExecutorGroupWriteResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "executor_group": {
+          "$ref": "#/$defs/ExecutorGroupWriteEntryResponse"
+        },
+        "warnings": {
+          "items": {
+            "$ref": "#/$defs/ExecutorGroupWarningResponse"
+          },
+          "title": "Warnings",
+          "type": "array"
+        }
+      },
+      "required": ["executor_group", "warnings"],
+      "title": "ExecutorGroupWriteResponse",
       "type": "object"
     },
     "ExecutorListEntryResponse": {
@@ -754,6 +993,15 @@
     "ExecutorDispatchRequest": {
       "$ref": "#/$defs/ExecutorDispatchRequest"
     },
+    "ExecutorGroupCreationRequest": {
+      "$ref": "#/$defs/ExecutorGroupCreationRequest"
+    },
+    "ExecutorGroupListResponse": {
+      "$ref": "#/$defs/ExecutorGroupListResponse"
+    },
+    "ExecutorGroupWriteResponse": {
+      "$ref": "#/$defs/ExecutorGroupWriteResponse"
+    },
     "ExecutorListResponse": {
       "$ref": "#/$defs/ExecutorListResponse"
     },
@@ -789,7 +1037,10 @@
     "ExecutorDeletionRequest",
     "ExecutorDispatchRequest",
     "ExecutorUnassociateRequest",
-    "ExecutorUpdateResponse"
+    "ExecutorUpdateResponse",
+    "ExecutorGroupCreationRequest",
+    "ExecutorGroupListResponse",
+    "ExecutorGroupWriteResponse"
   ],
   "title": "BrowserApiContracts",
   "type": "object"

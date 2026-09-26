@@ -5,7 +5,6 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import uuid
-from typing import Annotated
 
 from django.core.exceptions import ImproperlyConfigured, PermissionDenied, ValidationError
 from django.core.paginator import InvalidPage
@@ -14,11 +13,9 @@ from django.http import HttpRequest, JsonResponse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_variables
 from django.views.decorators.http import require_http_methods, require_POST
-from pydantic import Field
 
 from accounts.session_revocation import SessionInvalidatedError
 from console_project.http import (
-    JsonRequest,
     build_error_response,
     build_service_unavailable_response,
     parse_json_request,
@@ -30,6 +27,13 @@ from organizations.http import (
 from organizations.models import Department
 from organizations.permissions import AccessChannel
 
+from .contracts import (
+    ExecutorGroupUpdateRequest,
+    ExecutorGroupCreationRequest,
+    ExecutorGroupDeletionRequest,
+    ExecutorGroupListResponse,
+    ExecutorGroupWriteResponse,
+)
 from .group_queries import (
     ExecutorGroupInfo,
     get_executor_group_details,
@@ -59,24 +63,6 @@ _HANDLED_GROUP_ERRORS = (
     ImproperlyConfigured,
     DatabaseError,
 )
-
-
-class ExecutorGroupUpdateRequest(JsonRequest):
-    name: str
-    notes: str
-    executor_ids: list[Annotated[uuid.UUID, Field(strict=False)]]
-
-
-class ExecutorGroupCreationRequest(ExecutorGroupUpdateRequest):
-    department_id: Annotated[uuid.UUID, Field(strict=False)]
-    notes: str = ""
-    executor_ids: list[Annotated[uuid.UUID, Field(strict=False)]] = Field(
-        default_factory=list
-    )
-
-
-class ExecutorGroupDeletionRequest(JsonRequest):
-    """The URL supplies the group identity; request data cannot bypass reference checks."""
 
 
 def _build_group_payload(group: ExecutorGroup) -> dict[str, object]:
@@ -109,7 +95,7 @@ def _build_group_write_payload(result: ExecutorGroupWriteResult) -> dict[str, ob
     return {
         "executor_group": {
             **_build_group_payload(result.group),
-            "executor_ids": result.executorIds,
+            "executor_ids": list(result.executorIds),
             "member_count": len(result.executorIds),
             "is_empty": not result.executorIds,
         },
@@ -206,7 +192,12 @@ def list_or_create_executor_groups(request: HttpRequest) -> JsonResponse:
                 notes=groupRequest.notes,
                 executorIds=tuple(groupRequest.executor_ids),
             )
-            return JsonResponse(_build_group_write_payload(result), status=201)
+            return JsonResponse(
+                ExecutorGroupWriteResponse.model_validate(
+                    _build_group_write_payload(result)
+                ).model_dump(mode="python"),
+                status=201,
+            )
         dictListParameter = _get_list_parameters(request)
         if isinstance(dictListParameter, JsonResponse):
             return dictListParameter
@@ -216,13 +207,18 @@ def list_or_create_executor_groups(request: HttpRequest) -> JsonResponse:
             channel=AccessChannel.SESSION,
             **dictListParameter,
         )
-        return JsonResponse({
+        dictListPayload = {
             "executor_groups": [_build_group_info_payload(info) for info in page.groups],
             "page": page.page,
             "page_size": page.pageSize,
             "total_count": page.totalCount,
             "total_pages": page.totalPages,
-        })
+        }
+        return JsonResponse(
+            ExecutorGroupListResponse.model_validate(dictListPayload).model_dump(
+                mode="python"
+            )
+        )
     except _HANDLED_GROUP_ERRORS as e:
         return _build_group_error_response(e)
 
@@ -252,7 +248,11 @@ def get_or_update_executor_group(
                 notes=groupRequest.notes,
                 executorIds=tuple(groupRequest.executor_ids),
             )
-            return JsonResponse(_build_group_write_payload(result))
+            return JsonResponse(
+                ExecutorGroupWriteResponse.model_validate(
+                    _build_group_write_payload(result)
+                ).model_dump(mode="python")
+            )
         details = get_executor_group_details(
             actorId=membership.user_id,
             organizationId=membership.organization_id,

@@ -86,3 +86,60 @@ class ExecutorDetailsEntryResponse(ExecutorListEntryResponse):
 
 class ExecutorDetailsResponse(JsonResponsePayload):
     executor: ExecutorDetailsEntryResponse
+
+
+class ExecutorGroupUpdateRequest(JsonRequest):
+    name: str
+    notes: str
+    executor_ids: list[Annotated[UUID, Field(strict=False)]]
+
+
+class ExecutorGroupCreationRequest(ExecutorGroupUpdateRequest):
+    department_id: Annotated[UUID, Field(strict=False)]
+    notes: str = ""
+    executor_ids: list[Annotated[UUID, Field(strict=False)]] = Field(default_factory=list)
+
+
+class ExecutorGroupDeletionRequest(JsonRequest):
+    """The URL supplies the group identity; request data cannot bypass reference checks."""
+
+
+class ExecutorGroupRecordResponse(JsonResponsePayload):
+    id: UUID
+    name: str
+    department_id: UUID
+    notes: str
+    created_at: datetime
+    deleted_at: datetime | None
+
+
+class ExecutorGroupListEntryResponse(ExecutorGroupRecordResponse):
+    department: ExecutorDepartmentResponse
+    can_manage: bool
+    member_count: int
+    online_count: int
+    is_empty: bool
+
+
+class ExecutorGroupListResponse(JsonResponsePayload):
+    executor_groups: list[ExecutorGroupListEntryResponse]
+    page: int
+    page_size: int
+    total_count: int
+    total_pages: int
+
+
+class ExecutorGroupWriteEntryResponse(ExecutorGroupRecordResponse):
+    executor_ids: list[UUID]
+    member_count: int
+    is_empty: bool
+
+
+class ExecutorGroupWarningResponse(JsonResponsePayload):
+    code: Literal["empty_executor_group"]
+    message: str
+
+
+class ExecutorGroupWriteResponse(JsonResponsePayload):
+    executor_group: ExecutorGroupWriteEntryResponse
+    warnings: list[ExecutorGroupWarningResponse]

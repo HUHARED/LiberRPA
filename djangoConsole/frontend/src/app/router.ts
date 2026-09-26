@@ -35,6 +35,12 @@ export function createAppRouter(
         meta: { title: "Executors", requiresBusiness: true },
       },
       {
+        path: "/executors/groups",
+        name: "executor-groups",
+        component: () => import("../views/ExecutorGroupsView.vue"),
+        meta: { title: "Executor Groups", requiresBusiness: true },
+      },
+      {
         path: "/executors/:executorId",
         name: "executor-details",
         component: () => import("../views/ExecutorDetailsView.vue"),
