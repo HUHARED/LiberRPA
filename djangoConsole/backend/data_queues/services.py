@@ -265,7 +265,7 @@ def mutate_items(
         "items": [],
         "deduplicated": False,
     }
-    actorName = str(User.objects.get(pk=access.actorId))[:254]
+    actorName = str(User.objects.get(pk=access.actorId))
     if operation == "upload":
         assert isinstance(payload, QueueUploadRequest)
         listJson = []

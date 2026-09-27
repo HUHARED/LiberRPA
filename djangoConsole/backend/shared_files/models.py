@@ -20,7 +20,7 @@ class SharedFile(models.Model):
     name_key = models.TextField()
     blob = models.OneToOneField("file_storage.StoredBlob", on_delete=models.PROTECT)
     uploaded_by_id = models.UUIDField()
-    uploaded_by_name = models.CharField(max_length=254)
+    uploaded_by_name = models.CharField(max_length=420)
     uploaded_at = models.DateTimeField(default=timezone.now)
 
     class Meta:

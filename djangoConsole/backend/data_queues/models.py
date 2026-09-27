@@ -64,11 +64,11 @@ class QueueItem(models.Model):
     )
     # Historical identities survive account deletion without retaining an account foreign key.
     uploaded_by_id = models.UUIDField(editable=False)
-    uploaded_by_name = models.CharField(max_length=254, editable=False)
+    uploaded_by_name = models.CharField(max_length=420, editable=False)
     uploaded_at = models.DateTimeField(default=timezone.now, editable=False)
     last_claimed_by_id = models.UUIDField(null=True, editable=False)
     last_claimed_by_name = models.CharField(
-        max_length=254, blank=True, default="", editable=False
+        max_length=420, blank=True, default="", editable=False
     )
     last_claimed_at = models.DateTimeField(null=True, editable=False)
 
