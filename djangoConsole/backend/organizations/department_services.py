@@ -15,6 +15,7 @@ from console_project.config import LimitsConfig
 from operations.audit import get_audit_snapshot, record_audit
 
 from .models import Department, Organization
+from .validators import normalize_path_name, path_name_key
 from .permissions import AccessChannel, lock_organization_for_admin
 
 
@@ -37,6 +38,25 @@ def _get_parent_department(
 
 
 def _validate_department_values(department: Department) -> None:
+    try:
+        department.name = normalize_path_name(department.name)
+    except ValidationError as error:
+        raise ValidationError({"name": error}) from None
+    siblings = Department.objects.filter(
+        organization_id=department.organization_id,
+        parent_id=department.parent_id,
+        deleted_at__isnull=True,
+    ).exclude(pk=department.pk)
+    if any(
+        path_name_key(name) == path_name_key(department.name)
+        for name in siblings.values_list("name", flat=True)
+    ):
+        raise ValidationError({
+            "name": ValidationError(
+                "A department with this name already exists at this level.",
+                code="duplicate_department_name",
+            )
+        })
     # The foreign keys were resolved by the caller.
     # Reuse those objects instead of querying their existence again.
     # Constraints are checked separately before saving.

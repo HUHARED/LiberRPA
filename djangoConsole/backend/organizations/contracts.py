@@ -111,6 +111,8 @@ class DepartmentDeletionBlockerResponse(JsonResponsePayload):
         "executor_groups",
         "assets",
         "data_queues",
+        "shared_files",
+        "file_uploads",
     ]
     count: int = Field(gt=0)
 

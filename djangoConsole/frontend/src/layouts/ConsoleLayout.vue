@@ -132,7 +132,7 @@ const ARR_NAVIGATION = [
   { title: "Run History", icon: "mdi-history" },
   { title: "Assets", icon: "mdi-archive-outline", path: "/assets" },
   { title: "Data Queues", icon: "mdi-database-outline", path: "/data-queues" },
-  { title: "Shared Files", icon: "mdi-folder-outline" },
+  { title: "Shared Files", icon: "mdi-folder-outline", path: "/shared-files" },
   {
     title: "Organization Settings",
     icon: "mdi-cog-outline",

@@ -20,6 +20,9 @@
   // NOTE: Back up these files separately and retain keys required by stored values or supported backups.
   // Missing configured files are errors; keys are never generated during startup.
   "encryptionKeyFiles": ["secrets/encryption-key.txt"],
+  // Relative to this configuration file; all application and cleanup workers must share this volume.
+  // Never serve this directory directly through the web server.
+  "storageRoot": "storage",
   "database": {
     "host": "127.0.0.1",
     "port": 5432,
@@ -92,6 +95,16 @@
     // A full receipt budget blocks new mutations instead of evicting unexpired receipts.
     "queueReceiptRetentionDays": 30,
     "maxQueueReceiptsPerOrganization": 100000,
+
+    // Packages and shared files share this organization pool and transfer limit.
+    // Garbage remains charged until cleanup succeeds; overwrites reserve the full new size.
+    "maxStoredBytesPerOrganization": 5368709120,
+    "maxSharedFileBytes": 20971520,
+    "minStorageFreeBytes": 5368709120,
+    "maxActiveTransfersPerOrganization": 4,
+    "fileReceiptRetentionDays": 30,
+    "maxFileReceiptsPerOrganization": 100000,
+    // Run "python backend/manage.py cleanup_file_storage" at least once per minute.
 
     // API key capacity and inactive metadata retention per account.
     // Expired and revoked keys do not consume active capacity; 0 blocks new keys.

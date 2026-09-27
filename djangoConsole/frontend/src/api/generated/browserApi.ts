@@ -24,6 +24,8 @@ export type JsonValueOutput =
   | number
   | boolean
   | null;
+export type FilePath = string;
+export type FileUuid = string;
 export type QueueUuid = string;
 /**
  * @minItems 1
@@ -77,6 +79,16 @@ export interface BrowserApiContracts {
   ExecutorUnassociateRequest: ExecutorUnassociateRequest;
   ExecutorUpdateRequest: ExecutorUpdateRequest;
   ExecutorUpdateResponse: ExecutorUpdateResponse;
+  FileDeleteRequest: FileDeleteRequest;
+  FileDeleteResponse: FileDeleteResponse;
+  FileDownloadResponse: FileDownloadResponse;
+  FileInfoResponse: FileInfoResponse;
+  FileListRequest: FileListRequest;
+  FileListResponse: FileListResponse;
+  FilePathRequest: FilePathRequest;
+  FileUploadRequest: FileUploadRequest;
+  FileUploadResponse: FileUploadResponse;
+  FileUsageResponse: FileUsageResponse;
   InvitationCompletionRequest: InvitationCompletionRequest;
   InvitationCreateRequest: InvitationCreateRequest;
   InvitationDetailsResponse: InvitationDetailsResponse;
@@ -325,7 +337,9 @@ export interface DepartmentDeletionBlockerResponse {
     | "executors"
     | "executor_groups"
     | "assets"
-    | "data_queues";
+    | "data_queues"
+    | "shared_files"
+    | "file_uploads";
   count: number;
 }
 export interface DepartmentIdentityResponse {
@@ -553,6 +567,76 @@ export interface ExecutorRecordResponse {
   id: string;
   name: string;
   notes: string;
+}
+export interface FileDeleteRequest {
+  /**
+   * @minItems 1
+   * @maxItems 100
+   */
+  paths: [FilePath, ...FilePath[]];
+  request_id: FileUuid;
+}
+export interface FileDeleteResponse {
+  deleted_count: number;
+  deleted_paths: string[];
+  missing_paths: string[];
+  request_id: string;
+}
+export interface FileDownloadResponse {
+  expires_at: string;
+  file: FileInfoResponse;
+  transfer_id: string;
+}
+export interface FileInfoResponse {
+  department_path: string;
+  name: string;
+  path: string;
+  sha256: string;
+  size_bytes: number;
+  uploaded_at: string;
+  uploaded_by_name: string;
+}
+export interface FileListRequest {
+  department_path: FilePath;
+  name?: string;
+  order?: "asc" | "desc";
+  page?: number;
+  sort_by?: "name" | "size" | "uploaded_at";
+}
+export interface FileListResponse {
+  department_path: string;
+  files: FileInfoResponse[];
+  page: number;
+  page_size: number;
+  total_count: number;
+  total_pages: number;
+  usage: FileUsageResponse;
+}
+export interface FileUsageResponse {
+  limit_bytes: number;
+  max_file_bytes: number;
+  pending_cleanup_bytes: number;
+  reserved_bytes: number;
+  used_bytes: number;
+}
+export interface FilePathRequest {
+  path: FilePath;
+}
+export interface FileUploadRequest {
+  overwrite?: boolean;
+  path: FilePath;
+  request_id: FileUuid;
+  sha256: string;
+  size_bytes: number;
+}
+export interface FileUploadResponse {
+  chunk_bytes: number;
+  expires_at: string;
+  file: FileInfoResponse | null;
+  offset: number;
+  size_bytes: number;
+  state: "receiving" | "finalizing" | "completed" | "failed" | "expired" | "canceled";
+  upload_id: string;
 }
 export interface InvitationCompletionRequest {
   password: string;

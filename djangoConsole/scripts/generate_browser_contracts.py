@@ -47,6 +47,18 @@ from data_queues.contracts import (
     QueueDeleteItemsRequest,
     QueueMutationResponse,
 )
+from shared_files.contracts import (
+    FileListRequest,
+    FilePathRequest,
+    FileUploadRequest,
+    FileDeleteRequest,
+    FileInfoResponse,
+    FileUsageResponse,
+    FileListResponse,
+    FileUploadResponse,
+    FileDeleteResponse,
+    FileDownloadResponse,
+)
 from console_project.contracts import MessageResponse
 from assets.contracts import (
     AssetDetailsRequest,
@@ -103,6 +115,16 @@ from organizations.contracts import (
 )
 
 _TUPLE_CONTRACT_MODEL: tuple[tuple[type[BaseModel], JsonSchemaMode], ...] = (
+    (FileListRequest, "validation"),
+    (FilePathRequest, "validation"),
+    (FileUploadRequest, "validation"),
+    (FileDeleteRequest, "validation"),
+    (FileInfoResponse, "serialization"),
+    (FileUsageResponse, "serialization"),
+    (FileListResponse, "serialization"),
+    (FileUploadResponse, "serialization"),
+    (FileDeleteResponse, "serialization"),
+    (FileDownloadResponse, "serialization"),
     (QueueCreationRequest, "validation"),
     (QueueDetailsRequest, "validation"),
     (QueueListResponse, "serialization"),

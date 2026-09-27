@@ -182,6 +182,15 @@
             prepend-icon="mdi-database-outline">
             Data Queues
           </v-btn>
+          <v-btn
+            :to="{
+              name: 'shared-files',
+              query: { department_path: '/' + detailsInfo.department.path },
+            }"
+            variant="tonal"
+            prepend-icon="mdi-folder-outline">
+            Shared Files
+          </v-btn>
         </div>
       </v-card-text>
     </v-card>

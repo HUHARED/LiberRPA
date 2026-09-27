@@ -1,6 +1,5 @@
 // FileName: generateApiTypes.mjs
 
-import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -8,7 +7,10 @@ import { compile } from "json-schema-to-typescript";
 
 const strFrontendPath = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 // The Python entry point sends the current backend schema through standard input.
-const dictSchema = JSON.parse(readFileSync(0, "utf8"));
+process.stdin.setEncoding("utf8");
+let strSchema = "";
+for await (const chunk of process.stdin) strSchema += chunk;
+const dictSchema = JSON.parse(strSchema);
 // Pydantic's field titles are documentation, not separate TypeScript domain types.
 for (const dictDefinition of Object.values(dictSchema.$defs ?? {})) {
   for (const dictProperty of Object.values(dictDefinition.properties ?? {})) {

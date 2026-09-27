@@ -130,6 +130,11 @@ const emit = defineEmits<{
   deleted: [department: DeletedDepartmentResponse];
 }>();
 
+const sessionStore = useSessionStore();
+const strDepartmentPath = sessionStore.access?.departments.find(
+  (entry) => entry.id === props.department.id,
+)?.path;
+
 const dictBlockerDisplay: Record<
   DepartmentDeletionBlockerResponse["code"],
   { label: string; location: RouteLocationRaw }
@@ -150,6 +155,20 @@ const dictBlockerDisplay: Record<
     label: "Executor Groups",
     location: { name: "executor-groups", query: { department_id: props.department.id } },
   },
+  shared_files: {
+    label: "Shared Files",
+    location: {
+      name: "shared-files",
+      query: { department_path: strDepartmentPath ? `/${strDepartmentPath}` : undefined },
+    },
+  },
+  file_uploads: {
+    label: "Active file uploads (cancel them or wait for expiry)",
+    location: {
+      name: "shared-files",
+      query: { department_path: strDepartmentPath ? `/${strDepartmentPath}` : undefined },
+    },
+  },
   data_queues: {
     label: "Data Queues",
     location: { name: "data-queues", query: { department_id: props.department.id } },
@@ -159,7 +178,6 @@ const dictBlockerDisplay: Record<
     location: { name: "assets", query: { department_id: props.department.id } },
   },
 };
-const sessionStore = useSessionStore();
 const boolCanManage = computed(
   () => sessionStore.access?.is_org_admin && sessionStore.access.business_available,
 );

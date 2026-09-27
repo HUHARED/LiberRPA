@@ -15,6 +15,8 @@ from django.views.decorators.debug import sensitive_variables
 from accounts.models import User
 from assets.models import Asset
 from data_queues.models import DataQueue
+from file_storage.models import StoredBlob
+from shared_files.models import SharedFile, UploadSession
 from operations.audit import record_audit
 from operations.models import AuditScope, AuditRecord
 from executors.models import Executor, ExecutorGroup, ExecutorSession
@@ -114,6 +116,13 @@ def complete_organization_deletion(
             "Organization cleanup has not started.", code="deletion_not_started"
         )
 
+    if StoredBlob.objects.filter(organization_id=organizationId).exists():
+        raise ValidationError(
+            "Stored file cleanup is still pending.", code="storage_cleanup_pending"
+        )
+    SharedFile.objects.filter(department__organization_id=organizationId).delete()
+    UploadSession.objects.filter(organization_id=organizationId).delete()
+
     organizationName = organization.name
     listAccount = list(
         Membership.objects
@@ -141,7 +150,7 @@ def complete_organization_deletion(
     # Account deletion cascades memberships, department roles, API keys, and private recovery/change proofs.
     User.objects.filter(pk__in=[userId for userId, _email in listAccount]).delete()
     _delete_organization_departments(organizationId)
-    # TODO: Add cleanup for future resource models and stored files; queue completion notices only after every cleanup stage succeeds.
+    # Add future business resources before completion notices are queued.
     AuditRecord.objects.filter(
         scope=AuditScope.ORGANIZATION, organization_id=organizationId
     ).delete()

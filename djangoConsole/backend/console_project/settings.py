@@ -30,6 +30,7 @@ ALLOWED_HOSTS = _CONSOLE_CONFIG.allowedHosts
 ROOT_URLCONF = "console_project.urls"
 ASGI_APPLICATION = "console_project.asgi.application"
 CONSOLE_LIMITS = _CONSOLE_CONFIG.limits
+CONSOLE_STORAGE_ROOT = (_PATH_CONFIG.parent / _CONSOLE_CONFIG.storageRoot).resolve()
 CONSOLE_SECRET_CIPHER = read_secret_cipher(
     _PATH_CONFIG.parent, _CONSOLE_CONFIG.encryptionKeyFiles
 )
@@ -76,6 +77,8 @@ INSTALLED_APPS = [
     "executors.apps.ExecutorsConfig",
     "assets.apps.AssetsConfig",
     "data_queues.apps.DataQueuesConfig",
+    "file_storage.apps.FileStorageConfig",
+    "shared_files.apps.SharedFilesConfig",
     "operations.apps.OperationsConfig",
     "notifications.apps.NotificationsConfig",
 ]

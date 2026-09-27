@@ -8,6 +8,7 @@ const SET_RETURN_PATH = new Set([
   "/executors/groups",
   "/assets",
   "/data-queues",
+  "/shared-files",
   "/organization-settings",
   "/organization-settings/general",
   "/organization-settings/audit-log",

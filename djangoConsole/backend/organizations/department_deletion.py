@@ -14,6 +14,7 @@ from django.utils import timezone
 from executors.models import Executor, ExecutorGroup
 from assets.models import Asset
 from data_queues.models import DataQueue
+from shared_files.models import SharedFile, UploadSession
 from operations.audit import record_audit
 
 from .models import Department, DepartmentMembership
@@ -33,6 +34,8 @@ class DepartmentDeletionBlocker:
         "executor_groups",
         "assets",
         "data_queues",
+        "shared_files",
+        "file_uploads",
     ]
     count: int
 
@@ -108,6 +111,17 @@ def _get_department_deletion_info(department: Department) -> DepartmentDeletionI
     queueCount = DataQueue.objects.filter(department=department).count()
     if queueCount:
         listBlocker.append(DepartmentDeletionBlocker("data_queues", queueCount))
+
+    fileCount = SharedFile.objects.filter(department=department).count()
+    if fileCount:
+        listBlocker.append(DepartmentDeletionBlocker("shared_files", fileCount))
+    uploadCount = UploadSession.objects.filter(
+        department_id=department.pk,
+        state__in=["receiving", "finalizing"],
+        expires_at__gt=timezone.now(),
+    ).count()
+    if uploadCount:
+        listBlocker.append(DepartmentDeletionBlocker("file_uploads", uploadCount))
 
     # Add other current business resources and unfinished Jobs here when their models exist.
     # Their writes must use the same organization lock; retained history must not block.

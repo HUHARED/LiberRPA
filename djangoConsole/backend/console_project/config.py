@@ -73,6 +73,14 @@ class LimitsConfig(_BaseConfig):
     queueReceiptRetentionDays: int = Field(default=30, ge=30, le=3650)
     maxQueueReceiptsPerOrganization: int = Field(default=100000, ge=1)
 
+    # Packages and shared files use one storage and transfer budget.
+    maxStoredBytesPerOrganization: int = Field(default=5368709120, ge=0)
+    maxSharedFileBytes: int = Field(default=20971520, ge=0, le=20971520)
+    minStorageFreeBytes: int = Field(default=5368709120, ge=0)
+    maxActiveTransfersPerOrganization: int = Field(default=4, ge=0)
+    fileReceiptRetentionDays: int = Field(default=30, ge=30, le=3650)
+    maxFileReceiptsPerOrganization: int = Field(default=100000, ge=1)
+
     # Audit cleanup is independent of business object and API key retention.
     auditRetentionDays: int = Field(default=180, ge=1, le=180)
     maxAuditRecordsPerOrganization: int = Field(default=100000, ge=1)
@@ -141,6 +149,7 @@ class ConsoleConfig(_BaseConfig):
     allowedHosts: list[NonEmptyText] = Field(min_length=1)
     secretKeyFile: NonEmptyText
     encryptionKeyFiles: list[NonEmptyText] = Field(default_factory=list)
+    storageRoot: NonEmptyText = "storage"
     database: DatabaseConfig
     limits: LimitsConfig = Field(default_factory=LimitsConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)

@@ -10,6 +10,8 @@ from contextlib import contextmanager
 from django.core.exceptions import ImproperlyConfigured
 from django.db import connection
 
+from file_storage.services import clean_organization_storage
+
 from .cleanup import (
     OrganizationDeletionResult,
     complete_organization_deletion,
@@ -56,5 +58,7 @@ def process_next_organization_deletion() -> OrganizationDeletionResult | None:
     """Process or resume one due deletion while the caller owns the worker session."""
     organizationId = start_next_organization_deletion()
     if organizationId is None:
+        return None
+    if not clean_organization_storage(organizationId):
         return None
     return complete_organization_deletion(organizationId)

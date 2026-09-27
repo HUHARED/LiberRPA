@@ -47,6 +47,12 @@ export function createAppRouter(
         meta: { title: "Executors", requiresBusiness: true },
       },
       {
+        path: "/shared-files",
+        name: "shared-files",
+        component: () => import("../views/SharedFilesView.vue"),
+        meta: { title: "Shared Files", requiresBusiness: true },
+      },
+      {
         path: "/data-queues",
         name: "data-queues",
         component: () => import("../views/DataQueuesView.vue"),

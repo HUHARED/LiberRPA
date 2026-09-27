@@ -28,3 +28,17 @@ def validate_path_segment(segmentName: str) -> None:
             "The name must not contain path separators or control characters.",
             code="invalid_path_segment",
         )
+
+
+def path_name_key(value: str) -> str:
+    return unicodedata.normalize("NFD", unicodedata.normalize("NFD", value).casefold())
+
+
+def normalize_path_name(value: str) -> str:
+    validate_path_segment(value)
+    if len(value) > 128 or any(unicodedata.category(char) == "Cs" for char in value):
+        raise ValidationError("Use at most 128 valid Unicode characters.")
+    normalized = unicodedata.normalize("NFC", value)
+    if len(normalized) > 128:
+        raise ValidationError("The normalized name exceeds 128 characters.")
+    return normalized

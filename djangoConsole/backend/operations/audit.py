@@ -62,6 +62,7 @@ _DICT_SNAPSHOT_FIELD = {
     "executors.executorsession": ("user_id", "executor_id", "computer", "client_version"),
     "assets.asset": ("name", "department_id", "asset_type", "notes"),
     "data_queues.dataqueue": ("name", "department_id", "notes"),
+    "shared_files.sharedfile": ("name", "department_id", "blob_id"),
 }
 
 

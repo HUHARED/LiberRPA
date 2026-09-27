@@ -3,8 +3,12 @@
 import { ApiError, buildResponseError, isRecord } from "./errors";
 
 export interface ApiRequestOptions {
-  method?: "GET" | "POST";
+  method?: "GET" | "POST" | "PUT";
   body?: object;
+  binaryBody?: Blob;
+  chunkSha256?: string;
+  responseType?: "json" | "blob";
+  timeoutMs?: number;
 }
 
 const INT_REQUEST_TIMEOUT_MS = 15000;
@@ -30,9 +34,16 @@ async function fetchJson(
 ): Promise<unknown> {
   const intRequestRevision = intCsrfRevision;
   const abortController = new AbortController();
-  const timeoutHandle = setTimeout(() => abortController.abort(), INT_REQUEST_TIMEOUT_MS);
+  const timeoutHandle = setTimeout(
+    () => abortController.abort(),
+    options.timeoutMs ?? INT_REQUEST_TIMEOUT_MS,
+  );
   const requestHeaders = new Headers({ Accept: "application/json" });
   if (options.body !== undefined) requestHeaders.set("Content-Type", "application/json");
+  if (options.binaryBody !== undefined)
+    requestHeaders.set("Content-Type", "application/octet-stream");
+  if (options.chunkSha256 !== undefined)
+    requestHeaders.set("X-Chunk-SHA256", options.chunkSha256);
   if (csrfToken !== undefined) requestHeaders.set("X-CSRFToken", csrfToken);
   try {
     const response = await fetch(`/api${path}`, {
@@ -41,11 +52,15 @@ async function fetchJson(
       cache: "no-store",
       redirect: "error",
       headers: requestHeaders,
-      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      body:
+        options.binaryBody ??
+        (options.body === undefined ? undefined : JSON.stringify(options.body)),
       signal: abortController.signal,
     });
     let responsePayload: unknown = null;
-    if (response.headers.get("Content-Type")?.includes("application/json")) {
+    if (response.ok && options.responseType === "blob") {
+      responsePayload = await response.blob();
+    } else if (response.headers.get("Content-Type")?.includes("application/json")) {
       try {
         responsePayload = await response.json();
       } catch {
@@ -122,7 +137,10 @@ export async function requestApi(
   if (!path.startsWith("/") || path.startsWith("//") || /[\\\r\n]/.test(path)) {
     throw new Error("API paths must be relative to this Console instance.");
   }
-  const strToken = options.method === "POST" ? await getCsrfToken() : undefined;
+  const strToken =
+    options.method === "POST" || options.method === "PUT"
+      ? await getCsrfToken()
+      : undefined;
   // Do not replay mutations after a network or CSRF failure; the user keeps control of retries.
   return fetchJson(path, options, strToken);
 }
