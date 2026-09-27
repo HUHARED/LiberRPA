@@ -173,6 +173,15 @@
             prepend-icon="mdi-archive-outline">
             Assets
           </v-btn>
+          <v-btn
+            :to="{
+              name: 'data-queues',
+              query: { department_id: detailsInfo.department.id },
+            }"
+            variant="tonal"
+            prepend-icon="mdi-database-outline">
+            Data Queues
+          </v-btn>
         </div>
       </v-card-text>
     </v-card>

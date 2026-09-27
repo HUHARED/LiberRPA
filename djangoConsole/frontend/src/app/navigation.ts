@@ -7,6 +7,7 @@ const SET_RETURN_PATH = new Set([
   "/executors",
   "/executors/groups",
   "/assets",
+  "/data-queues",
   "/organization-settings",
   "/organization-settings/general",
   "/organization-settings/audit-log",
@@ -18,7 +19,7 @@ const SET_RETURN_PATH = new Set([
   "/organization-status",
 ]);
 const REGEXP_DETAILS_PATH =
-  /^\/(?:assets|executors(?:\/groups)?|organization-settings\/(?:members|departments))\/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  /^\/(?:assets|data-queues|executors(?:\/groups)?|organization-settings\/(?:members|departments))\/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export function getSafeReturnPath(value: unknown): string {
   if (typeof value !== "string" || value.length > 2048 || value.includes("\\"))
@@ -28,7 +29,9 @@ export function getSafeReturnPath(value: unknown): string {
   // Only application-owned workspace routes may be used after authentication.
   const strPath = value.split(/[?#]/, 1)[0];
   return strPath !== undefined &&
-    (SET_RETURN_PATH.has(strPath) || REGEXP_DETAILS_PATH.test(strPath))
+    (SET_RETURN_PATH.has(strPath) ||
+      REGEXP_DETAILS_PATH.test(strPath) ||
+      /^\/data-queues\/[0-9a-f-]{36}\/items\/[0-9a-f-]{36}$/i.test(strPath))
     ? value
     : "/overview";
 }

@@ -35,6 +35,18 @@ from accounts.contracts import (
     ApiKeyCreationResponse,
     ApiKeyListResponse,
 )
+from data_queues.contracts import (
+    QueueCreationRequest,
+    QueueDetailsRequest,
+    QueueListResponse,
+    QueueDetailsResponse,
+    QueueItemsResponse,
+    QueueItemDetailsResponse,
+    QueueUploadRequest,
+    QueueResetRequest,
+    QueueDeleteItemsRequest,
+    QueueMutationResponse,
+)
 from console_project.contracts import MessageResponse
 from assets.contracts import (
     AssetDetailsRequest,
@@ -91,6 +103,16 @@ from organizations.contracts import (
 )
 
 _TUPLE_CONTRACT_MODEL: tuple[tuple[type[BaseModel], JsonSchemaMode], ...] = (
+    (QueueCreationRequest, "validation"),
+    (QueueDetailsRequest, "validation"),
+    (QueueListResponse, "serialization"),
+    (QueueDetailsResponse, "serialization"),
+    (QueueItemsResponse, "serialization"),
+    (QueueItemDetailsResponse, "serialization"),
+    (QueueUploadRequest, "validation"),
+    (QueueResetRequest, "validation"),
+    (QueueDeleteItemsRequest, "validation"),
+    (QueueMutationResponse, "serialization"),
     (AssetDetailsRequest, "validation"),
     (AssetCreationRequest, "validation"),
     (AssetValueRequest, "validation"),

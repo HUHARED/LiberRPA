@@ -137,7 +137,10 @@ const dictBlockerDisplay: Record<
   child_departments: { label: "Subdepartments", location: { name: "departments" } },
   department_memberships: {
     label: "Explicit department members",
-    location: { name: "department-details", params: { departmentId: props.department.id } },
+    location: {
+      name: "department-details",
+      params: { departmentId: props.department.id },
+    },
   },
   executors: {
     label: "Executors",
@@ -146,6 +149,10 @@ const dictBlockerDisplay: Record<
   executor_groups: {
     label: "Executor Groups",
     location: { name: "executor-groups", query: { department_id: props.department.id } },
+  },
+  data_queues: {
+    label: "Data Queues",
+    location: { name: "data-queues", query: { department_id: props.department.id } },
   },
   assets: {
     label: "Assets",

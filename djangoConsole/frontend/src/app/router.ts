@@ -47,6 +47,28 @@ export function createAppRouter(
         meta: { title: "Executors", requiresBusiness: true },
       },
       {
+        path: "/data-queues",
+        name: "data-queues",
+        component: () => import("../views/DataQueuesView.vue"),
+        meta: { title: "Data Queues", requiresBusiness: true },
+      },
+      {
+        path: "/data-queues/:queueId",
+        name: "data-queue-details",
+        component: () => import("../views/QueueDetailsView.vue"),
+        props: true,
+        meta: { title: "Queue Details", requiresBusiness: true },
+        children: [
+          {
+            path: "items/:itemId",
+            name: "queue-item-details",
+            component: () => import("../components/QueueItemDetailsDialog.vue"),
+            props: true,
+            meta: { title: "Item Details" },
+          },
+        ],
+      },
+      {
         path: "/assets",
         name: "assets",
         component: () => import("../views/AssetsView.vue"),
@@ -168,7 +190,7 @@ export function createAppRouter(
     scrollBehavior: (to, from, savedPosition) => {
       // Opening or closing a resource dialog keeps its mounted list and background position.
       if (
-        ["executor-groups", "assets"].some(
+        ["executor-groups", "assets", "data-queue-details"].some(
           (name) =>
             to.matched.some((record) => record.name === name) &&
             from.matched.some((record) => record.name === name),

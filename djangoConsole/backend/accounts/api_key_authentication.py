@@ -86,8 +86,32 @@ def authenticate_api_key(authorizationHeader: str) -> ApiKeyAuthenticationContex
             apiKey.last_used_at = currentTime
             apiKey.save(update_fields=["last_used_at"])
 
-    # TODO: API writes must revalidate the key after acquiring their organization/account locks.
     # TODO: Key expiry/revocation must not cancel accepted Jobs; execution still checks current account permissions.
     return ApiKeyAuthenticationContext(
         apiKeyId=apiKey.pk, expiresAt=apiKey.expires_at, access=access
     )
+
+
+def lock_api_key_write_access(
+    authentication: ApiKeyAuthenticationContext,
+) -> OrganizationAccessContext:
+    """Revalidate identity and credential after waiting for the business write lock."""
+    access = resolve_organization_access(
+        actorId=authentication.access.actorId,
+        organizationId=authentication.access.organization.pk,
+        channel=AccessChannel.API_KEY,
+        forUpdate=True,
+    )
+    apiKey = (
+        ApiKey.objects
+        .select_for_update()
+        .filter(pk=authentication.apiKeyId, user_id=access.actorId)
+        .first()
+    )
+    if (
+        apiKey is None
+        or apiKey.revoked_at is not None
+        or apiKey.expires_at <= timezone.now()
+    ):
+        raise InvalidApiKeyError("A valid API key is required.")
+    return access

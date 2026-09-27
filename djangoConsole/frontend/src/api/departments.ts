@@ -95,7 +95,8 @@ export function parseDepartmentDeletionPreviewResponse(
           blocker.code === "department_memberships" ||
           blocker.code === "executors" ||
           blocker.code === "executor_groups" ||
-          blocker.code === "assets") &&
+          blocker.code === "assets" ||
+          blocker.code === "data_queues") &&
         typeof blocker.count === "number" &&
         Number.isSafeInteger(blocker.count) &&
         blocker.count > 0,

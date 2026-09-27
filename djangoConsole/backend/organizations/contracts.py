@@ -110,6 +110,7 @@ class DepartmentDeletionBlockerResponse(JsonResponsePayload):
         "executors",
         "executor_groups",
         "assets",
+        "data_queues",
     ]
     count: int = Field(gt=0)
 

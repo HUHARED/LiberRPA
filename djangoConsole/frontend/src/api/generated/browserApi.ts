@@ -24,6 +24,13 @@ export type JsonValueOutput =
   | number
   | boolean
   | null;
+export type QueueUuid = string;
+/**
+ * @minItems 1
+ * @maxItems 100
+ */
+export type QueueItemIds = [QueueUuid, ...QueueUuid[]];
+export type QueueStatus = "unclaimed" | "claimed";
 
 export interface BrowserApiContracts {
   AccountAccessResponse: AccountAccessResponse;
@@ -87,6 +94,16 @@ export interface BrowserApiContracts {
   PasswordChangeRequest: PasswordChangeRequest;
   ProfileUpdateRequest: ProfileUpdateRequest;
   ProfileWriteResponse: ProfileWriteResponse;
+  QueueCreationRequest: QueueCreationRequest;
+  QueueDeleteItemsRequest: QueueDeleteItemsRequest;
+  QueueDetailsRequest: QueueDetailsRequest;
+  QueueDetailsResponse: QueueDetailsResponse;
+  QueueItemDetailsResponse: QueueItemDetailsResponse;
+  QueueItemsResponse: QueueItemsResponse;
+  QueueListResponse: QueueListResponse;
+  QueueMutationResponse: QueueMutationResponse;
+  QueueResetRequest: QueueResetRequest;
+  QueueUploadRequest: QueueUploadRequest;
   SessionResponse: SessionResponse;
   SessionRevocationRequest: SessionRevocationRequest;
 }
@@ -307,7 +324,8 @@ export interface DepartmentDeletionBlockerResponse {
     | "department_memberships"
     | "executors"
     | "executor_groups"
-    | "assets";
+    | "assets"
+    | "data_queues";
   count: number;
 }
 export interface DepartmentIdentityResponse {
@@ -670,6 +688,109 @@ export interface SessionUserResponse {
   id: string;
   time_zone: string;
   username: string;
+}
+export interface QueueCreationRequest {
+  department_id: QueueUuid;
+  name: string;
+  notes?: string;
+}
+export interface QueueDeleteItemsRequest {
+  count?: number;
+  item_ids?: QueueItemIds | null;
+  order?: "oldest_first" | "newest_first";
+  queue_path?: string | null;
+  request_id: QueueUuid;
+  status?: "all" | "unclaimed" | "claimed";
+}
+export interface QueueDetailsRequest {
+  name: string;
+  notes?: string;
+}
+export interface QueueDetailsResponse {
+  queue: QueueEntryResponse;
+}
+export interface QueueEntryResponse {
+  can_manage: boolean;
+  claimed_count: number;
+  created_at: string;
+  department: QueueDepartmentResponse;
+  id: string;
+  name: string;
+  notes: string;
+  path: string;
+  unclaimed_count: number;
+  updated_at: string;
+}
+export interface QueueDepartmentResponse {
+  id: string;
+  path: string;
+}
+export interface QueueItemDetailsResponse {
+  data: JsonValueOutput;
+  data_summary: string;
+  id: string;
+  last_claimed_at: string | null;
+  last_claimed_by_id: string | null;
+  last_claimed_by_name: string;
+  sequence: number;
+  status: QueueStatus;
+  uploaded_at: string;
+  uploaded_by_id: string;
+  uploaded_by_name: string;
+}
+export interface QueueItemsResponse {
+  items: QueueItemResponse[];
+  page: number;
+  page_size: number;
+  queue: QueueEntryResponse;
+  total_count: number;
+  total_pages: number;
+}
+export interface QueueItemResponse {
+  data_summary: string;
+  id: string;
+  last_claimed_at: string | null;
+  last_claimed_by_id: string | null;
+  last_claimed_by_name: string;
+  sequence: number;
+  status: QueueStatus;
+  uploaded_at: string;
+  uploaded_by_id: string;
+  uploaded_by_name: string;
+}
+export interface QueueListResponse {
+  page: number;
+  page_size: number;
+  queues: QueueEntryResponse[];
+  total_count: number;
+  total_pages: number;
+}
+export interface QueueMutationResponse {
+  accepted_at: string;
+  deduplicated: boolean;
+  item_ids: string[];
+  items: QueueClaimedItemResponse[];
+  missing_ids: string[];
+  request_id: string;
+  skipped_ids: string[];
+}
+export interface QueueClaimedItemResponse {
+  data: JsonValueOutput;
+  id: string;
+}
+export interface QueueResetRequest {
+  item_ids: QueueItemIds;
+  queue_path?: string | null;
+  request_id: QueueUuid;
+}
+export interface QueueUploadRequest {
+  /**
+   * @minItems 1
+   * @maxItems 100
+   */
+  items: [JsonValueInput, ...JsonValueInput[]];
+  queue_path?: string | null;
+  request_id: QueueUuid;
 }
 export interface SessionResponse {
   csrf_token: string;

@@ -61,6 +61,7 @@ _DICT_SNAPSHOT_FIELD = {
     "executors.executorgroup": ("name", "department_id", "notes", "deleted_at"),
     "executors.executorsession": ("user_id", "executor_id", "computer", "client_version"),
     "assets.asset": ("name", "department_id", "asset_type", "notes"),
+    "data_queues.dataqueue": ("name", "department_id", "notes"),
 }
 
 
@@ -153,6 +154,7 @@ def record_audit(
     channel: str = AuditChannel.SESSION,
     before: dict[str, object] | None = None,
     scope: AuditScope | None = None,
+    metadata: dict[str, object] | None = None,
 ) -> None:
     """Join the caller's transaction; an audit write failure rolls back the business write."""
     if not connection.in_atomic_block:
@@ -199,5 +201,9 @@ def record_audit(
         if target._meta.label_lower == "organizations.department"
         else getattr(target, "department_id", None),
         result=AuditResult.SUCCEEDED,
-        details=_bound_details({"stage": "operation", "changes": dictChange}),
+        details=_bound_details({
+            "stage": "operation",
+            "changes": dictChange,
+            **({"metadata": metadata} if metadata else {}),
+        }),
     )

@@ -14,6 +14,7 @@ from django.views.decorators.debug import sensitive_variables
 
 from accounts.models import User
 from assets.models import Asset
+from data_queues.models import DataQueue
 from operations.audit import record_audit
 from operations.models import AuditScope, AuditRecord
 from executors.models import Executor, ExecutorGroup, ExecutorSession
@@ -136,6 +137,7 @@ def complete_organization_deletion(
     # Delete current and historical Executor identities before their protected departments.
     Executor.objects.filter(department__organization_id=organizationId).delete()
     Asset.objects.filter(department__organization_id=organizationId).delete()
+    DataQueue.objects.filter(department__organization_id=organizationId).delete()
     # Account deletion cascades memberships, department roles, API keys, and private recovery/change proofs.
     User.objects.filter(pk__in=[userId for userId, _email in listAccount]).delete()
     _delete_organization_departments(organizationId)

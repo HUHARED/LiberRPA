@@ -83,6 +83,16 @@
     "maxAssetValueBytes": 65536,
     "maxSecretAssetValueBytes": 16384,
 
+    // Queue capacity counts both statuses. Existing business data is never auto-deleted.
+    "maxDataQueuesPerOrganization": 50,
+    "maxQueueItemsPerOrganization": 20000,
+    "maxQueueDataBytesPerOrganization": 104857600,
+    "maxQueueItemBytes": 1048576,
+    // Receipts are pruned on new queue mutations after at least 30 days.
+    // A full receipt budget blocks new mutations instead of evicting unexpired receipts.
+    "queueReceiptRetentionDays": 30,
+    "maxQueueReceiptsPerOrganization": 100000,
+
     // API key capacity and inactive metadata retention per account.
     // Expired and revoked keys do not consume active capacity; 0 blocks new keys.
     "maxActiveApiKeysPerAccount": 10,

@@ -19,6 +19,7 @@ const AUDIT_TERM_LABEL: Record<string, string> = {
   id: "ID",
   ids: "IDs",
   apikey: "API Key",
+  dataqueue: "Data Queue",
   executorgroup: "Executor Group",
   executorsession: "Executor Session",
   memberinvitation: "Member Invitation",

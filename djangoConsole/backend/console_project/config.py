@@ -66,6 +66,13 @@ class LimitsConfig(_BaseConfig):
     maxAssetValueBytes: int = Field(default=65536, ge=1, le=262144)
     maxSecretAssetValueBytes: int = Field(default=16384, ge=1, le=262144)
 
+    maxDataQueuesPerOrganization: int = Field(default=50, ge=0)
+    maxQueueItemsPerOrganization: int = Field(default=20000, ge=0)
+    maxQueueDataBytesPerOrganization: int = Field(default=104857600, ge=0)
+    maxQueueItemBytes: int = Field(default=1048576, ge=1, le=1048576)
+    queueReceiptRetentionDays: int = Field(default=30, ge=30, le=3650)
+    maxQueueReceiptsPerOrganization: int = Field(default=100000, ge=1)
+
     # Audit cleanup is independent of business object and API key retention.
     auditRetentionDays: int = Field(default=180, ge=1, le=180)
     maxAuditRecordsPerOrganization: int = Field(default=100000, ge=1)

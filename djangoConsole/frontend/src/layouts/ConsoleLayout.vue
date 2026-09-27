@@ -131,7 +131,7 @@ const ARR_NAVIGATION = [
   { title: "Job Queue", icon: "mdi-list-box-outline" },
   { title: "Run History", icon: "mdi-history" },
   { title: "Assets", icon: "mdi-archive-outline", path: "/assets" },
-  { title: "Data Queues", icon: "mdi-database-outline" },
+  { title: "Data Queues", icon: "mdi-database-outline", path: "/data-queues" },
   { title: "Shared Files", icon: "mdi-folder-outline" },
   {
     title: "Organization Settings",

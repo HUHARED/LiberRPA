@@ -75,6 +75,7 @@ INSTALLED_APPS = [
     "organizations.apps.OrganizationsConfig",
     "executors.apps.ExecutorsConfig",
     "assets.apps.AssetsConfig",
+    "data_queues.apps.DataQueuesConfig",
     "operations.apps.OperationsConfig",
     "notifications.apps.NotificationsConfig",
 ]
