@@ -12,16 +12,16 @@ from django.http import HttpRequest, JsonResponse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods
 
+from console_project.http import (
+    build_error_response,
+    build_service_unavailable_response,
+    parse_json_request,
+)
 from organizations.access import get_account_access_info
 from organizations.http import build_account_access_payload
 from organizations.permissions import AccessChannel
 
 from .contracts import SessionUserResponse, ProfileUpdateRequest, ProfileWriteResponse
-from .http import (
-    build_error_response,
-    build_service_unavailable_response,
-    parse_json_request,
-)
 from .models import User
 from .profile import update_profile
 

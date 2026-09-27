@@ -19,12 +19,12 @@ from pydantic import SecretStr
 from accounts.models import User
 from accounts.rate_limits import reserve_organization_deletion_request
 from accounts.session_revocation import SessionInvalidatedError
+from console_project.contracts import JsonRequest
 from console_project.http import (
-    JsonRequest,
     build_error_response,
     build_service_unavailable_response,
-    build_rate_limited_response,
     parse_json_request,
+    build_rate_limited_response,
 )
 
 from .lifecycle import cancel_organization_deletion, schedule_organization_deletion

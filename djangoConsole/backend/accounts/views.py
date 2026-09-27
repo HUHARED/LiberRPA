@@ -14,14 +14,15 @@ from django.views.decorators.debug import sensitive_variables
 from django.views.decorators.http import require_GET, require_POST
 from pydantic import SecretStr
 
-from .contracts import CsrfResponse
-from .http import (
-    AccountRequest,
+from console_project.contracts import JsonRequest
+from console_project.http import (
     build_error_response,
     build_service_unavailable_response,
-    build_rate_limited_response,
     parse_json_request,
+    build_rate_limited_response,
 )
+
+from .contracts import CsrfResponse
 from .rate_limits import (
     reserve_registration_email_request,
     reserve_registration_token_request,
@@ -33,11 +34,11 @@ from .registration import (
 )
 
 
-class RegistrationEmailRequest(AccountRequest):
+class RegistrationEmailRequest(JsonRequest):
     email: str
 
 
-class RegistrationTokenRequest(AccountRequest):
+class RegistrationTokenRequest(JsonRequest):
     token: SecretStr
 
 

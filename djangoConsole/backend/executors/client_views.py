@@ -20,12 +20,12 @@ from pydantic import Field, SecretStr
 
 from accounts.models import User, UserManager
 from accounts.rate_limits import reserve_executor_client_request, reserve_login_request
+from console_project.contracts import JsonRequest
 from console_project.http import (
-    JsonRequest,
     build_error_response,
     build_service_unavailable_response,
-    build_rate_limited_response,
     parse_json_request,
+    build_rate_limited_response,
 )
 from organizations.access import get_department_access_info
 from organizations.permissions import OrganizationAccessContext

@@ -17,6 +17,12 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_post_parameters, sensitive_variables
 from django.views.decorators.http import require_http_methods
 
+from console_project.http import (
+    build_error_response,
+    build_service_unavailable_response,
+    parse_json_request,
+    build_rate_limited_response,
+)
 from organizations.models import Membership
 from organizations.permissions import AccessChannel
 
@@ -26,12 +32,6 @@ from .account_deletion import (
     get_account_deletion_info,
 )
 from .contracts import AccountDeletionRequest, AccountDeletionPreviewResponse
-from .http import (
-    build_error_response,
-    build_service_unavailable_response,
-    build_rate_limited_response,
-    parse_json_request,
-)
 from .models import User
 from .rate_limits import reserve_account_deletion_request
 from .session_revocation import SessionInvalidatedError

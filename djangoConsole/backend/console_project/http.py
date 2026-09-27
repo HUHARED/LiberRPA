@@ -12,23 +12,8 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_variables
 from pydantic import BaseModel
 
-from .contracts import JsonRequest as JsonRequest
-
 _LOGGER = logging.getLogger("console.http")
 _INT_MAX_JSON_BODY_BYTES = 4096
-
-
-def _parse_json_object(fieldPairs: list[tuple[str, object]]) -> dict[str, object]:
-    dictJsonField: dict[str, object] = {}
-    for strFieldName, fieldValue in fieldPairs:
-        if strFieldName in dictJsonField:
-            raise ValueError("Duplicate JSON fields are not allowed.")
-        # Reject escaped lone surrogates before strings reach hashing or the database.
-        strFieldName.encode("utf-8")
-        if isinstance(fieldValue, str):
-            fieldValue.encode("utf-8")
-        dictJsonField[strFieldName] = fieldValue
-    return dictJsonField
 
 
 def build_error_response(
@@ -87,6 +72,19 @@ def parse_json_request[Payload: BaseModel](
     maxBodyBytes: int = _INT_MAX_JSON_BODY_BYTES,
 ) -> Payload | JsonResponse:
     """Parse and validate an untrusted HTTP body into the requested schema."""
+
+    def parse_json_object(fieldPairs: list[tuple[str, object]]) -> dict[str, object]:
+        dictJsonField: dict[str, object] = {}
+        for strFieldName, fieldValue in fieldPairs:
+            if strFieldName in dictJsonField:
+                raise ValueError("Duplicate JSON fields are not allowed.")
+            # Reject escaped lone surrogates before strings reach hashing or the database.
+            strFieldName.encode("utf-8")
+            if isinstance(fieldValue, str):
+                fieldValue.encode("utf-8")
+            dictJsonField[strFieldName] = fieldValue
+        return dictJsonField
+
     if request.content_type != "application/json":
         return build_error_response(
             "unsupported_media_type", "Send application/json.", statusCode=415
@@ -99,7 +97,7 @@ def parse_json_request[Payload: BaseModel](
         )
     try:
         return requestSchema.model_validate(
-            json.loads(requestBody.decode("utf-8"), object_pairs_hook=_parse_json_object)
+            json.loads(requestBody.decode("utf-8"), object_pairs_hook=parse_json_object)
         )
     except (ValueError, RecursionError):
         return build_error_response(

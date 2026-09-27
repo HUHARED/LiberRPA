@@ -22,6 +22,13 @@ from django.views.decorators.debug import sensitive_variables
 from django.views.decorators.http import require_http_methods, require_POST
 
 from console_project.config import LimitsConfig
+from console_project.contracts import JsonRequest
+from console_project.http import (
+    build_error_response,
+    build_service_unavailable_response,
+    parse_json_request,
+    build_rate_limited_response,
+)
 from organizations.models import Membership
 from organizations.permissions import AccessChannel
 
@@ -38,13 +45,6 @@ from .contracts import (
     ApiKeyWriteResponse,
     ApiKeyCreationResponse,
     ApiKeyListResponse,
-)
-from .http import (
-    AccountRequest,
-    build_error_response,
-    build_service_unavailable_response,
-    build_rate_limited_response,
-    parse_json_request,
 )
 from .models import ApiKey, ApiKeyStatus, User
 from .rate_limits import reserve_api_key_creation_request
@@ -265,7 +265,7 @@ def revoke_account_api_key(
             return build_error_response(
                 "authentication_required", "Sign in to continue.", statusCode=401
             )
-        emptyRequest = parse_json_request(request, AccountRequest)
+        emptyRequest = parse_json_request(request, JsonRequest)
         if isinstance(emptyRequest, JsonResponse):
             return emptyRequest
         user = cast(User, request.user)

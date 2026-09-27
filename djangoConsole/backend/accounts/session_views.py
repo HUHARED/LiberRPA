@@ -21,6 +21,12 @@ from django.views.decorators.debug import sensitive_post_parameters, sensitive_v
 from django.views.decorators.http import require_GET, require_POST
 
 from console_project.contracts import MessageResponse
+from console_project.http import (
+    build_error_response,
+    build_service_unavailable_response,
+    parse_json_request,
+    build_rate_limited_response,
+)
 from operations.audit import get_audit_organization, record_audit
 from organizations.models import Organization
 from organizations.access import get_account_access_info
@@ -32,12 +38,6 @@ from .contracts import (
     SessionUserResponse,
     SessionResponse,
     SessionRevocationRequest,
-)
-from .http import (
-    build_error_response,
-    build_service_unavailable_response,
-    build_rate_limited_response,
-    parse_json_request,
 )
 from .models import User, UserManager
 from .rate_limits import reserve_login_request, reserve_session_revocation_request

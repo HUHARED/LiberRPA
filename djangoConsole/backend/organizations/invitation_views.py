@@ -25,13 +25,13 @@ from accounts.rate_limits import (
     reserve_registration_token_request,
 )
 from console_project.config import LimitsConfig
+from console_project.contracts import JsonRequest
 from console_project.http import (
-    JsonRequest,
     build_error_response,
     build_service_unavailable_response,
-    build_rate_limited_response,
-    parse_json_request,
     parse_page_number,
+    parse_json_request,
+    build_rate_limited_response,
 )
 from notifications.models import EmailDelivery
 

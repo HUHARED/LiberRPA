@@ -13,13 +13,14 @@ from django.views.decorators.debug import sensitive_post_parameters, sensitive_v
 from django.views.decorators.http import require_POST
 from pydantic import SecretStr
 
-from .http import (
-    AccountRequest,
+from console_project.contracts import JsonRequest
+from console_project.http import (
     build_error_response,
     build_service_unavailable_response,
-    build_rate_limited_response,
     parse_json_request,
+    build_rate_limited_response,
 )
+
 from .password_resets import (
     complete_password_reset,
     get_password_reset_info,
@@ -31,11 +32,11 @@ from .rate_limits import (
 )
 
 
-class PasswordResetEmailRequest(AccountRequest):
+class PasswordResetEmailRequest(JsonRequest):
     email: str
 
 
-class PasswordResetTokenRequest(AccountRequest):
+class PasswordResetTokenRequest(JsonRequest):
     token: SecretStr
 
 
