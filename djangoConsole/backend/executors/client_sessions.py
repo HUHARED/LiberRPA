@@ -19,6 +19,7 @@ from django.utils import timezone
 from django.utils.crypto import constant_time_compare
 from django.views.decorators.debug import sensitive_variables
 
+from accounts.models import User
 from operations.audit import record_audit
 from operations.models import AuditChannel
 from organizations.models import DepartmentRole, Organization
@@ -102,7 +103,7 @@ def begin_executor_login(
         session.save(force_insert=True)
         record_audit(
             "executor_session.login",
-            actorId=userId,
+            actor=access.actor,
             organization=access.organization,
             target=session,
             channel=AuditChannel.EXECUTOR,
@@ -205,7 +206,7 @@ def _perform_executor_action(
     if boolNewAssociation:
         record_audit(
             "executor.associate",
-            actorId=session.user_id,
+            actor=access.actor,
             organization=access.organization,
             target=session.executor,
             channel=AuditChannel.EXECUTOR,
@@ -238,12 +239,17 @@ def handle_executor_client_request(
                 .filter(pk=identity.organization_id)
                 .first()
             )
-            session = ExecutorSession.objects.filter(pk=identity.id).first()
+            session = (
+                ExecutorSession.objects
+                .select_related("user")
+                .filter(pk=identity.id)
+                .first()
+            )
             if organization is None or session is None:
                 raise InvalidExecutorSessionError("A valid Executor session is required.")
             record_audit(
                 "executor_session.logout",
-                actorId=session.user_id,
+                actor=cast(User, session.user),
                 organization=organization,
                 target=session,
                 channel=AuditChannel.EXECUTOR,

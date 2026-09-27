@@ -37,7 +37,7 @@ from .models import (
 )
 from .permissions import (
     AccessChannel,
-    lock_organization_for_admin,
+    lock_organization_admin_access,
     require_organization_business_available,
 )
 
@@ -176,7 +176,8 @@ def create_member_invitation(
     departmentRoles: Mapping[uuid.UUID, DepartmentRole],
     notes: str,
 ) -> MemberInvitation:
-    organization = lock_organization_for_admin(actorId, organizationId, channel)
+    access = lock_organization_admin_access(actorId, organizationId, channel)
+    organization = access.organization
     _require_email_configuration()
     requestedAt = timezone.now()
     invitation = MemberInvitation(
@@ -209,7 +210,7 @@ def create_member_invitation(
     _queue_invitation_email(invitation)
     record_audit(
         "invitation.create",
-        actorId=actorId,
+        actor=access.actor,
         organization=organization,
         target=invitation,
         channel=channel,
@@ -226,7 +227,8 @@ def resend_member_invitation(
     channel: AccessChannel,
     invitationId: uuid.UUID,
 ) -> MemberInvitation:
-    organization = lock_organization_for_admin(actorId, organizationId, channel)
+    access = lock_organization_admin_access(actorId, organizationId, channel)
+    organization = access.organization
     invitation = MemberInvitation.objects.select_for_update().get(
         pk=invitationId, organization=organization
     )
@@ -260,7 +262,7 @@ def resend_member_invitation(
     _queue_invitation_email(invitation)
     record_audit(
         "invitation.resend",
-        actorId=actorId,
+        actor=access.actor,
         organization=organization,
         target=invitation,
         channel=channel,
@@ -277,7 +279,8 @@ def revoke_member_invitation(
     channel: AccessChannel,
     invitationId: uuid.UUID,
 ) -> MemberInvitation:
-    organization = lock_organization_for_admin(actorId, organizationId, channel)
+    access = lock_organization_admin_access(actorId, organizationId, channel)
+    organization = access.organization
     invitation = MemberInvitation.objects.select_for_update().get(
         pk=invitationId, organization=organization
     )
@@ -291,7 +294,7 @@ def revoke_member_invitation(
         invitation.save(update_fields=["revoked_at", "token_hash"])
         record_audit(
             "invitation.revoke",
-            actorId=actorId,
+            actor=access.actor,
             organization=organization,
             target=invitation,
             channel=channel,
@@ -417,5 +420,8 @@ def complete_invitation_registration(
     invitation.token_hash = None
     invitation.save(update_fields=["accepted_at", "token_hash"])
     record_audit(
-        "invitation.accept", actorId=user.id, organization=organization, target=invitation
+        "invitation.accept",
+        actor=user,
+        organization=organization,
+        target=invitation,
     )

@@ -71,9 +71,9 @@ def create_queue(
     queue.save()
     record_audit(
         "data_queue.create",
-        actorId=access.actorId,
-        target=queue,
+        actor=access.actor,
         organization=access.organization,
+        target=queue,
         channel=access.channel,
         before={},
     )
@@ -98,9 +98,9 @@ def update_queue(
     queue.save(update_fields=["name", "notes", "updated_at"])
     record_audit(
         "data_queue.update",
-        actorId=access.actorId,
-        target=queue,
+        actor=access.actor,
         organization=access.organization,
+        target=queue,
         channel=access.channel,
         before=before,
     )
@@ -111,9 +111,9 @@ def delete_queue(access: OrganizationAccessContext, queueId: uuid.UUID) -> None:
     queue = get_queue_query(access, requiredRole=DepartmentRole.DEVELOPER).get(pk=queueId)
     record_audit(
         "data_queue.delete",
-        actorId=access.actorId,
-        target=queue,
+        actor=access.actor,
         organization=access.organization,
+        target=queue,
         channel=access.channel,
         metadata={"item_count": QueueItem.objects.filter(queue=queue).count()},
     )
@@ -227,9 +227,9 @@ def _mutate_items(
         metadata["api_key_id"] = str(apiKeyId)
     record_audit(
         f"data_queue.{operation}",
-        actorId=access.actorId,
-        target=queue,
+        actor=access.actor,
         organization=access.organization,
+        target=queue,
         channel=access.channel,
         metadata=metadata,
     )

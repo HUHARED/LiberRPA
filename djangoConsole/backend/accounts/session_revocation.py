@@ -95,7 +95,13 @@ def revoke_other_sessions(
     user.session_version += 1
     user.save(update_fields=["session_version"])
     revoke_user_executor_sessions(user.id)
-    record_audit("account.revoke_sessions", actorId=actorId, target=user, channel=channel)
+    record_audit(
+        "account.revoke_sessions",
+        actor=user,
+        organization=access.organization,
+        target=user,
+        channel=channel,
+    )
     # NOTE: Independent API keys and email-change proofs must not depend on this version.
     # TODO: Revoke Editor credentials when Editor authentication is implemented.
     return user

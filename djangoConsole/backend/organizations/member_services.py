@@ -17,7 +17,7 @@ from .models import Department, DepartmentMembership, DepartmentRole, Membership
 from .permissions import (
     AccessChannel,
     has_other_active_organization_admin,
-    lock_organization_for_admin,
+    lock_organization_admin_access,
 )
 
 
@@ -101,7 +101,8 @@ def update_membership(
     An empty mapping explicitly removes every department role.
     A missing or foreign membership raises Membership.DoesNotExist.
     """
-    organization = lock_organization_for_admin(actorId, organizationId, channel)
+    access = lock_organization_admin_access(actorId, organizationId, channel)
+    organization = access.organization
     membership = (
         Membership.objects
         .select_related("user")
@@ -142,7 +143,7 @@ def update_membership(
     revoke_unqualified_executor_sessions(membership.user_id, organization.id)
     record_audit(
         "membership.update",
-        actorId=actorId,
+        actor=access.actor,
         organization=organization,
         target=membership,
         channel=channel,

@@ -57,7 +57,8 @@ def update_profile(
     user.save(update_fields=["username", "time_zone"])
     record_audit(
         "account.update_profile",
-        actorId=actorId,
+        actor=user,
+        organization=access.organization,
         target=user,
         channel=channel,
         before=dictAuditBefore,

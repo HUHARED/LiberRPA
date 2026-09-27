@@ -16,7 +16,7 @@ from .member_services import update_membership
 from .models import Organization
 from .permissions import (
     AccessChannel,
-    lock_organization_for_admin,
+    lock_organization_admin_access,
     require_organization_admin,
     resolve_organization_access,
 )
@@ -55,7 +55,8 @@ def update_organization_settings(
     notes: str,
 ) -> Organization:
     """Save the complete General form without changing members or service state."""
-    organization = lock_organization_for_admin(actorId, organizationId, channel)
+    access = lock_organization_admin_access(actorId, organizationId, channel)
+    organization = access.organization
     dictAuditBefore = get_audit_snapshot(organization)
     organization.name = name.strip()
     organization.default_time_zone = defaultTimeZone
@@ -74,7 +75,7 @@ def update_organization_settings(
     organization.save(update_fields=["name", "default_time_zone", "notes"])
     record_audit(
         "organization.update",
-        actorId=actorId,
+        actor=access.actor,
         organization=organization,
         target=organization,
         channel=channel,

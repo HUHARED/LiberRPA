@@ -20,6 +20,7 @@ from operations.audit import record_audit
 from .models import Department, DepartmentMembership
 from .permissions import (
     AccessChannel,
+    OrganizationAccessContext,
     require_organization_admin,
     resolve_organization_access,
 )
@@ -57,14 +58,14 @@ class DepartmentDeletionBlockedError(Exception):
         super().__init__("The department has remaining dependencies.")
 
 
-def _get_department_for_deletion(
+def _get_department_deletion_context(
     actorId: uuid.UUID,
     organizationId: uuid.UUID,
     channel: AccessChannel,
     departmentId: uuid.UUID,
     *,
     forUpdate: bool,
-) -> Department:
+) -> tuple[OrganizationAccessContext, Department]:
     access = resolve_organization_access(
         actorId=actorId,
         organizationId=organizationId,
@@ -72,9 +73,10 @@ def _get_department_for_deletion(
         forUpdate=forUpdate,
     )
     require_organization_admin(access)
-    return Department.objects.get(
+    department = Department.objects.get(
         pk=departmentId, organization=access.organization, deleted_at__isnull=True
     )
+    return access, department
 
 
 def _get_department_deletion_info(department: Department) -> DepartmentDeletionInfo:
@@ -140,7 +142,7 @@ def get_department_deletion_info(
     departmentId: uuid.UUID,
 ) -> DepartmentDeletionInfo:
     """Describe current blockers without reserving the department or changing any rows."""
-    department = _get_department_for_deletion(
+    _, department = _get_department_deletion_context(
         actorId, organizationId, channel, departmentId, forUpdate=False
     )
     return _get_department_deletion_info(department)
@@ -159,7 +161,7 @@ def delete_department(
     Recheck current permission and dependencies inside the same organization lock used
     by department and membership writes. A previous preview grants no deletion rights.
     """
-    department = _get_department_for_deletion(
+    access, department = _get_department_deletion_context(
         actorId, organizationId, channel, departmentId, forUpdate=True
     )
     deletionInfo = _get_department_deletion_info(department)
@@ -170,8 +172,8 @@ def delete_department(
     department.save(update_fields=["deleted_at"])
     record_audit(
         "department.delete",
-        actorId=actorId,
-        organization=department.organization,
+        actor=access.actor,
+        organization=access.organization,
         target=department,
         channel=channel,
     )

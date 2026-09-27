@@ -27,8 +27,8 @@ from console_project.http import (
     parse_json_request,
     build_rate_limited_response,
 )
-from operations.audit import get_audit_organization, record_audit
-from organizations.models import Organization
+from operations.audit import record_audit
+from organizations.models import Organization, Membership
 from organizations.access import get_account_access_info
 from organizations.http import build_account_access_payload
 from organizations.permissions import AccessChannel
@@ -60,6 +60,19 @@ def _build_session_response(request: HttpRequest, user: User) -> JsonResponse:
     )
     # Keep Django's existing UUID and datetime encoding, including its timestamp precision.
     return JsonResponse(sessionResponse.model_dump(mode="python"))
+
+
+def _lock_session_audit_organization(user: User) -> Organization | None:
+    """Serialize session auditing with organization cleanup without granting business access."""
+    organizationId = (
+        Membership.objects
+        .filter(user_id=user.pk)
+        .values_list("organization_id", flat=True)
+        .first()
+    )
+    if organizationId is None:
+        return None
+    return Organization.objects.select_for_update().filter(pk=organizationId).first()
 
 
 @never_cache
@@ -95,10 +108,8 @@ def sign_in(request: HttpRequest) -> JsonResponse:
             )
 
         with transaction.atomic():
-            organization = get_audit_organization(user.id)
-            if organization is not None:
-                # Keep the same organization-before-account lock order as security writes.
-                Organization.objects.select_for_update().get(pk=organization.pk)
+            # Keep the same organization-before-account lock order as security writes.
+            organization = _lock_session_audit_organization(user)
             login(request, user)
             sessionLifetime = (
                 _REMEMBERED_SESSION_LIFETIME
@@ -109,7 +120,10 @@ def sign_in(request: HttpRequest) -> JsonResponse:
             request.session.set_expiry(timezone.now() + sessionLifetime)
             request.session.save()
             record_audit(
-                "account.login", actorId=user.id, organization=organization, target=user
+                "account.login",
+                actor=user,
+                organization=organization,
+                target=user,
             )
         # login() rotates the CSRF secret; return a token matching the new cookie.
         return _build_session_response(request, user)
@@ -165,7 +179,13 @@ def sign_out(request: HttpRequest) -> JsonResponse:
         with transaction.atomic():
             if request.user.is_authenticated:
                 user = cast(User, request.user)
-                record_audit("account.logout", actorId=user.id, target=user)
+                organization = _lock_session_audit_organization(user)
+                record_audit(
+                    "account.logout",
+                    actor=user,
+                    organization=organization,
+                    target=user,
+                )
             logout(request)
     except (ImproperlyConfigured, DatabaseError):
         return build_service_unavailable_response()

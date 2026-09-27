@@ -82,7 +82,7 @@ def create_executor(
     executor.save(force_insert=True)
     record_audit(
         "executor.create",
-        actorId=actorId,
+        actor=access.actor,
         organization=access.organization,
         target=executor,
         channel=channel,
@@ -116,7 +116,7 @@ def update_executor(
     executor.save(update_fields=["name", "notes"])
     record_audit(
         "executor.update",
-        actorId=actorId,
+        actor=access.actor,
         organization=access.organization,
         target=executor,
         channel=channel,
@@ -147,7 +147,7 @@ def set_executor_dispatch(
     executor.save(update_fields=["dispatch_enabled"])
     record_audit(
         "executor.set_dispatch",
-        actorId=actorId,
+        actor=access.actor,
         organization=access.organization,
         target=executor,
         channel=channel,
@@ -187,7 +187,7 @@ def delete_executor(
     executor.save(update_fields=["deleted_at"])
     record_audit(
         "executor.delete",
-        actorId=actorId,
+        actor=access.actor,
         organization=access.organization,
         target=executor,
         channel=channel,
@@ -221,7 +221,7 @@ def unassociate_executor(
             )
         record_audit(
             "executor.unassociate",
-            actorId=actorId,
+            actor=access.actor,
             organization=access.organization,
             target=executor,
             channel=channel,

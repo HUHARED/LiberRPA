@@ -76,7 +76,7 @@ def create_organization_records(
     generalDepartment = create_general_department(organization)
     record_audit(
         "organization.create",
-        actorId=user.id,
+        actor=user,
         organization=organization,
         target=organization,
         before={},

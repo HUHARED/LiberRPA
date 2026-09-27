@@ -83,7 +83,7 @@ def schedule_organization_deletion(
     organization.save(update_fields=["deletion_requested_at", "deletion_due_at"])
     record_audit(
         "organization.schedule_deletion",
-        actorId=actorId,
+        actor=actor,
         organization=organization,
         target=organization,
         channel=channel,
@@ -127,7 +127,7 @@ def cancel_organization_deletion(
     organization.save(update_fields=["deletion_requested_at", "deletion_due_at"])
     record_audit(
         "organization.cancel_deletion",
-        actorId=actorId,
+        actor=actor,
         organization=organization,
         target=organization,
         channel=channel,

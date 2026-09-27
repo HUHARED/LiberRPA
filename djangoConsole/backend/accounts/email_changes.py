@@ -28,6 +28,7 @@ from operations.audit import get_audit_snapshot, record_audit
 from notifications.models import EmailDelivery, EmailType
 from organizations.permissions import (
     AccessChannel,
+    OrganizationAccessContext,
     get_current_membership,
     resolve_organization_access,
 )
@@ -70,16 +71,17 @@ def _build_email_unavailable_error() -> ValidationError:
     )
 
 
-def _get_email_change_user(userId: uuid.UUID, *, forUpdate: bool) -> User:
+def _resolve_email_change_access(
+    userId: uuid.UUID, *, forUpdate: bool
+) -> OrganizationAccessContext:
     """Resolve current business eligibility; callers separately verify the password or proof."""
     membership = get_current_membership(actorId=userId)
-    access = resolve_organization_access(
+    return resolve_organization_access(
         actorId=userId,
         organizationId=membership.organization_id,
         channel=AccessChannel.SESSION,
         forUpdate=forUpdate,
     )
-    return access.actor
 
 
 @sensitive_variables()
@@ -153,7 +155,8 @@ def request_email_change(
     """
     if channel != AccessChannel.SESSION:
         raise PermissionDenied("A signed-in account is required to change its email.")
-    user = _get_email_change_user(actorId, forUpdate=True)
+    access = _resolve_email_change_access(actorId, forUpdate=True)
+    user = access.actor
     if not sessionAuthHash or not constant_time_compare(
         sessionAuthHash, user.get_session_auth_hash()
     ):
@@ -211,7 +214,11 @@ def request_email_change(
         },
     )
     record_audit(
-        "account.request_email_change", actorId=actorId, target=user, channel=channel
+        "account.request_email_change",
+        actor=user,
+        organization=access.organization,
+        target=user,
+        channel=channel,
     )
 
 
@@ -232,7 +239,8 @@ def issue_email_change_token(
     if userId is None:
         return None
     try:
-        user = _get_email_change_user(userId, forUpdate=True)
+        access = _resolve_email_change_access(userId, forUpdate=True)
+        user = access.actor
     except PermissionDenied:
         return None
     changeRequest = (
@@ -266,7 +274,8 @@ def get_email_change_info(token: str) -> EmailChangeLinkInfo:
     """Read the fixed destination without changing the account or consuming the proof."""
     changeRequest = _get_email_change_request(token)
     try:
-        user = _get_email_change_user(changeRequest.user_id, forUpdate=False)
+        access = _resolve_email_change_access(changeRequest.user_id, forUpdate=False)
+        user = access.actor
     except PermissionDenied:
         raise _build_invalid_email_change_error() from None
     if not _has_current_email_change_credentials(changeRequest, user):
@@ -283,7 +292,8 @@ def confirm_email_change(token: str) -> None:
     """Change the proof's account email, consume its authorization, and queue the old-address notice."""
     changeRequest = _get_email_change_request(token)
     try:
-        user = _get_email_change_user(changeRequest.user_id, forUpdate=True)
+        access = _resolve_email_change_access(changeRequest.user_id, forUpdate=True)
+        user = access.actor
         changeRequest = EmailChangeRequest.objects.select_for_update().get(
             pk=changeRequest.pk, user_id=user.id, token_hash=changeRequest.token_hash
         )
@@ -319,7 +329,11 @@ def confirm_email_change(token: str) -> None:
     changeRequest.confirmed_at = confirmedAt
     changeRequest.save(update_fields=["confirmed_at"])
     record_audit(
-        "account.change_email", actorId=user.id, target=user, before=dictAuditBefore
+        "account.change_email",
+        actor=user,
+        organization=access.organization,
+        target=user,
+        before=dictAuditBefore,
     )
     # Keep the consumed request as the per-account resend cursor, including across address changes.
     EmailDelivery.objects.create(

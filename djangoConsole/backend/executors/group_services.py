@@ -118,7 +118,7 @@ def create_executor_group(
     _save_group_members(group, executorIds)
     record_audit(
         "executor_group.create",
-        actorId=actorId,
+        actor=access.actor,
         organization=access.organization,
         target=group,
         channel=channel,
@@ -155,7 +155,7 @@ def update_executor_group(
     _save_group_members(group, executorIds)
     record_audit(
         "executor_group.update",
-        actorId=actorId,
+        actor=access.actor,
         organization=access.organization,
         target=group,
         channel=channel,
@@ -187,7 +187,7 @@ def delete_executor_group(
     group.save(update_fields=["deleted_at"])
     record_audit(
         "executor_group.delete",
-        actorId=actorId,
+        actor=access.actor,
         organization=access.organization,
         target=group,
         channel=channel,

@@ -19,6 +19,7 @@ from operations.audit import record_audit
 from organizations.models import Membership
 from organizations.permissions import (
     AccessChannel,
+    OrganizationAccessContext,
     get_current_membership,
     has_other_active_organization_admin,
     require_organization_admin,
@@ -47,7 +48,7 @@ def _get_account_deletion_context(
     userId: uuid.UUID,
     *,
     forUpdate: bool,
-) -> tuple[User, Membership]:
+) -> tuple[OrganizationAccessContext, Membership]:
     """Resolve the actor's organization before looking up the target account."""
     if channel != AccessChannel.SESSION:
         raise PermissionDenied("A signed-in account is required to delete an account.")
@@ -67,7 +68,7 @@ def _get_account_deletion_context(
     if forUpdate:
         membershipQuery = membershipQuery.select_for_update(of=("self", "user"))
     membership = membershipQuery.get(user_id=userId)
-    return access.actor, membership
+    return access, membership
 
 
 def _get_account_deletion_info(membership: Membership) -> AccountDeletionInfo:
@@ -112,9 +113,10 @@ def delete_account(
     actorId, channel, and sessionAuthHash come from verified server-side authentication.
     The HTTP caller checks session expiry and logs out self-deletion in the same transaction.
     """
-    actor, membership = _get_account_deletion_context(
+    access, membership = _get_account_deletion_context(
         actorId, channel, userId, forUpdate=True
     )
+    actor = access.actor
     if not sessionAuthHash or not constant_time_compare(
         sessionAuthHash, actor.get_session_auth_hash()
     ):
@@ -136,8 +138,8 @@ def delete_account(
     target = cast(User, membership.user)
     record_audit(
         "account.delete",
-        actorId=actorId,
-        organization=membership.organization,
+        actor=actor,
+        organization=access.organization,
         target=target,
         channel=channel,
     )

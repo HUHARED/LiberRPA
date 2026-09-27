@@ -153,15 +153,15 @@ def require_organization_admin(access: OrganizationAccessContext) -> None:
     _require_organization_admin(access.isOrgAdmin, access.channel)
 
 
-def lock_organization_for_admin(
+def lock_organization_admin_access(
     actorId: uuid.UUID, organizationId: uuid.UUID, channel: AccessChannel
-) -> Organization:
+) -> OrganizationAccessContext:
     """Resolve and lock the current administrator context inside the caller's transaction."""
     access = resolve_organization_access(
         actorId=actorId, organizationId=organizationId, channel=channel, forUpdate=True
     )
     require_organization_admin(access)
-    return access.organization
+    return access
 
 
 def lock_organization_for_deletion(
@@ -179,19 +179,20 @@ def lock_organization_for_deletion(
     return organization, cast(User, membership.user)
 
 
-def lock_account_for_password_reset(*, userId: uuid.UUID) -> User:
+def lock_account_for_password_reset(*, userId: uuid.UUID) -> tuple[Organization, User]:
     """Lock the current account for recovery without granting organization business access.
 
     The caller must verify the email proof before changing the password in this transaction.
     Recovery keeps login available for deletion cancellation; it never lifts a suspension.
+    Return both locked records so a successful reset can record its audit without rereading identity.
     """
     currentMembership = get_current_membership(actorId=userId)
-    _, membership = _resolve_organization_member(
+    organization, membership = _resolve_organization_member(
         actorId=userId,
         organizationId=currentMembership.organization_id,
         forUpdate=True,
     )
-    return cast(User, membership.user)
+    return organization, cast(User, membership.user)
 
 
 def has_other_active_organization_admin(

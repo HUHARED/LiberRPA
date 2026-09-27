@@ -16,7 +16,7 @@ from operations.audit import get_audit_snapshot, record_audit
 
 from .models import Department, Organization
 from .validators import normalize_path_name, path_name_key
-from .permissions import AccessChannel, lock_organization_for_admin
+from .permissions import AccessChannel, lock_organization_admin_access
 
 
 def _get_parent_department(
@@ -160,13 +160,14 @@ def create_department(
     actorId and channel come from verified credentials, never from the request body.
     Operator-scoped API Keys cannot use this operation.
     """
-    organization = lock_organization_for_admin(actorId, organizationId, channel)
+    access = lock_organization_admin_access(actorId, organizationId, channel)
+    organization = access.organization
     department = _create_department(
         organization, name=name, parentId=parentId, notes=notes
     )
     record_audit(
         "department.create",
-        actorId=actorId,
+        actor=access.actor,
         organization=organization,
         target=department,
         channel=channel,
@@ -191,7 +192,8 @@ def update_department(
     All editable values are required; parentId=None explicitly selects the root level.
     A missing, deleted, or foreign department raises Department.DoesNotExist.
     """
-    organization = lock_organization_for_admin(actorId, organizationId, channel)
+    access = lock_organization_admin_access(actorId, organizationId, channel)
+    organization = access.organization
     department = Department.objects.get(
         pk=departmentId, organization=organization, deleted_at__isnull=True
     )
@@ -220,7 +222,7 @@ def update_department(
     department.save(update_fields=["name", "parent", "notes"])
     record_audit(
         "department.update",
-        actorId=actorId,
+        actor=access.actor,
         organization=organization,
         target=department,
         channel=channel,

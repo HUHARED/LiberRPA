@@ -6,7 +6,6 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import json
 import re
-import uuid
 from typing import cast
 
 from django.core.serializers.json import DjangoJSONEncoder
@@ -131,33 +130,25 @@ def _bound_details(details: dict[str, object]) -> dict[str, object]:
     return cast(dict[str, object], json.loads(strDetails))
 
 
-def get_audit_organization(actorId: uuid.UUID) -> Organization | None:
-    membership = (
-        Membership.objects.select_related("organization").filter(user_id=actorId).first()
-    )
-    return cast(Organization, membership.organization) if membership is not None else None
-
-
-def _get_actor_name(actorId: uuid.UUID | None) -> str:
-    if actorId is None:
-        return "System"
-    actor = User.objects.only("username", "email").get(pk=actorId)
-    return str(actor)
-
-
 @sensitive_variables()
 def record_audit(
     action: str,
     *,
-    actorId: uuid.UUID | None,
+    actor: User | None,
+    organization: Organization | None,
     target: models.Model,
-    organization: Organization | None = None,
     channel: str = AuditChannel.SESSION,
     before: dict[str, object] | None = None,
     scope: AuditScope | None = None,
     metadata: dict[str, object] | None = None,
 ) -> None:
-    """Join the caller's transaction; an audit write failure rolls back the business write."""
+    """Record verified identity snapshots in the caller's business transaction.
+
+    The caller supplies the authenticated actor and the operation's organization.
+    It must already hold the organization lock, or have created the organization in this transaction.
+    Registration, recovery, logout, and system cleanup retain their own authorization rules.
+    This function neither resolves identity nor acquires business locks; audit failures propagate.
+    """
     if not connection.in_atomic_block:
         raise RuntimeError(
             "Write successful audit records inside the business transaction."
@@ -166,12 +157,6 @@ def record_audit(
         raise ValueError("Use a controlled module.action audit name.")
     if channel not in AuditChannel.values:
         raise ValueError("Unknown audit channel.")
-    if organization is None and actorId is not None:
-        organization = get_audit_organization(actorId)
-    if organization is not None:
-        # Existing business writes already hold this lock.
-        # Session/audit-only writes take it too, so organization cleanup cannot leave late tenant records behind.
-        Organization.objects.select_for_update().get(pk=organization.pk)
     dictChange = (
         {} if before is None else _build_changes(before, get_audit_snapshot(target))
     )
@@ -189,9 +174,9 @@ def record_audit(
         or (AuditScope.ORGANIZATION if organization is not None else AuditScope.PLATFORM),
         organization_id=organization.pk if organization is not None else None,
         organization_name=organization.name if organization is not None else "",
-        actor_id=actorId,
-        actor_name=_get_actor_name(actorId),
-        channel=AuditChannel.SYSTEM if actorId is None else channel,
+        actor_id=actor.pk if actor is not None else None,
+        actor_name=str(actor) if actor is not None else "System",
+        channel=AuditChannel.SYSTEM if actor is None else channel,
         request_id=get_request_id(),
         module=action.split(".")[0],
         action=action,

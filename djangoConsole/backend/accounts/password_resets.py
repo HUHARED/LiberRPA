@@ -131,7 +131,7 @@ def request_password_reset_email(email: str) -> None:
     if userId is None:
         return
     try:
-        user = lock_account_for_password_reset(userId=userId)
+        _, user = lock_account_for_password_reset(userId=userId)
     except PermissionDenied:
         return
     # The account may have changed its email while this request was waiting for its lock.
@@ -186,7 +186,7 @@ def issue_password_reset_token(
     if userId is None:
         return None
     try:
-        user = lock_account_for_password_reset(userId=userId)
+        _, user = lock_account_for_password_reset(userId=userId)
     except PermissionDenied:
         return None
     resetRequest = (
@@ -236,7 +236,7 @@ def complete_password_reset(*, token: str, newPassword: str) -> User:
     """Change the proof's account password and consume its request in one transaction."""
     resetRequest = _get_password_reset_request(token)
     try:
-        user = lock_account_for_password_reset(userId=resetRequest.user_id)
+        organization, user = lock_account_for_password_reset(userId=resetRequest.user_id)
         # Re-read after the account lock: a resend or another completion may have won.
         resetRequest = PasswordResetRequest.objects.select_for_update().get(
             pk=resetRequest.pk, user_id=user.id, token_hash=resetRequest.token_hash
@@ -257,7 +257,12 @@ def complete_password_reset(*, token: str, newPassword: str) -> User:
     user.save(update_fields=["password"])
     revoke_active_api_keys(userId=user.id)
     revoke_user_executor_sessions(user.id)
-    record_audit("account.reset_password", actorId=user.id, target=user)
+    record_audit(
+        "account.reset_password",
+        actor=user,
+        organization=organization,
+        target=user,
+    )
     resetRequest.delete()
     # NOTE: Email-change proofs are bound to the old password hash and are now invalid.
     # TODO: Revoke Editor credentials when Editor authentication is implemented.

@@ -87,7 +87,7 @@ def _lock_management_access(
     sessionExpiresAt: datetime,
     *,
     asAdministrator: bool = False,
-) -> None:
+) -> OrganizationAccessContext:
     access = _resolve_management_access(
         actorId, channel, userId, forUpdate=True, asAdministrator=asAdministrator
     )
@@ -99,6 +99,7 @@ def _lock_management_access(
         or not constant_time_compare(sessionAuthHash, actor.get_session_auth_hash())
     ):
         raise SessionInvalidatedError("The current session is no longer valid.")
+    return access
 
 
 def _get_inactive_api_keys(userId: uuid.UUID, currentTime: datetime) -> QuerySet[ApiKey]:
@@ -184,7 +185,9 @@ def create_api_key(
     sessionExpiresAt: datetime,
 ) -> ApiKeyCreationResult:
     """Issue a 256-bit secret for the authenticated owner, returning its plaintext once."""
-    _lock_management_access(actorId, channel, actorId, sessionAuthHash, sessionExpiresAt)
+    access = _lock_management_access(
+        actorId, channel, actorId, sessionAuthHash, sessionExpiresAt
+    )
     currentTime = timezone.now()
     if timezone.is_naive(expiresAt) or expiresAt <= currentTime:
         raise ValidationError({"expires_at": "Choose a future time with a UTC offset."})
@@ -212,7 +215,12 @@ def create_api_key(
         raise ValidationError({"expires_at": "Choose a future expiry time."})
     apiKey.save(force_insert=True)
     record_audit(
-        "api_key.create", actorId=actorId, target=apiKey, channel=channel, before={}
+        "api_key.create",
+        actor=access.actor,
+        organization=access.organization,
+        target=apiKey,
+        channel=channel,
+        before={},
     )
     _prune_inactive_api_keys(actorId, currentTime)
     return ApiKeyCreationResult(apiKey=apiKey, secret=secretValue)
@@ -230,7 +238,9 @@ def update_api_key_notes(
     sessionExpiresAt: datetime,
 ) -> ApiKey:
     """Edit only the owner's Notes without changing credential state or retention."""
-    _lock_management_access(actorId, channel, actorId, sessionAuthHash, sessionExpiresAt)
+    access = _lock_management_access(
+        actorId, channel, actorId, sessionAuthHash, sessionExpiresAt
+    )
     apiKey = _get_retained_api_keys(actorId, timezone.now()).get(pk=apiKeyId)
     dictAuditBefore = get_audit_snapshot(apiKey)
     apiKey.notes = notes
@@ -238,7 +248,8 @@ def update_api_key_notes(
     apiKey.save(update_fields=["notes"])
     record_audit(
         "api_key.update",
-        actorId=actorId,
+        actor=access.actor,
+        organization=access.organization,
         target=apiKey,
         channel=channel,
         before=dictAuditBefore,
@@ -259,7 +270,7 @@ def revoke_api_key(
     asAdministrator: bool = False,
 ) -> ApiKey:
     """Permanently revoke an active owner/member key; repeats preserve the first timestamp."""
-    _lock_management_access(
+    access = _lock_management_access(
         actorId,
         channel,
         userId,
@@ -277,7 +288,13 @@ def revoke_api_key(
         )
     apiKey.revoked_at = currentTime
     apiKey.save(update_fields=["revoked_at"])
-    record_audit("api_key.revoke", actorId=actorId, target=apiKey, channel=channel)
+    record_audit(
+        "api_key.revoke",
+        actor=access.actor,
+        organization=access.organization,
+        target=apiKey,
+        channel=channel,
+    )
     _prune_inactive_api_keys(userId, currentTime)
     return apiKey
 

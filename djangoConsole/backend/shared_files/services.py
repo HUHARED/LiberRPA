@@ -314,7 +314,7 @@ def complete_upload(
     upload.save(update_fields=["state", "result"])
     record_audit(
         "shared_files.overwrite" if existing is not None else "shared_files.upload",
-        actorId=access.actorId,
+        actor=access.actor,
         organization=access.organization,
         target=file,
         channel=access.channel,
@@ -374,7 +374,7 @@ def delete_files(
         path = f"{departmentPath}/{file.name}"
         record_audit(
             "shared_files.delete",
-            actorId=access.actorId,
+            actor=access.actor,
             organization=access.organization,
             target=file,
             channel=access.channel,
@@ -462,7 +462,7 @@ def open_download(
         transfer.save(update_fields=["started", "expires_at"])
         record_audit(
             "shared_files.download",
-            actorId=access.actorId,
+            actor=access.actor,
             organization=access.organization,
             target=transfer,
             channel=access.channel,

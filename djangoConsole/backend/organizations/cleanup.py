@@ -63,7 +63,7 @@ def start_next_organization_deletion() -> uuid.UUID | None:
         organization.save(update_fields=["deletion_started_at"])
         record_audit(
             "organization.start_deletion",
-            actorId=None,
+            actor=None,
             organization=organization,
             target=organization,
             scope=AuditScope.PLATFORM,
@@ -156,7 +156,7 @@ def complete_organization_deletion(
     ).delete()
     record_audit(
         "organization.complete_deletion",
-        actorId=None,
+        actor=None,
         organization=organization,
         target=organization,
         scope=AuditScope.PLATFORM,

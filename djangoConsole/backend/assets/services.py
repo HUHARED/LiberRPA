@@ -104,7 +104,7 @@ def create_asset(
     asset.save(force_insert=True)
     record_audit(
         "asset.create",
-        actorId=access.actorId,
+        actor=access.actor,
         organization=access.organization,
         target=asset,
         channel=access.channel,
@@ -128,7 +128,7 @@ def update_asset_details(
     asset.save(update_fields=["name", "notes", "updated_at"])
     record_audit(
         "asset.update",
-        actorId=access.actorId,
+        actor=access.actor,
         organization=access.organization,
         target=asset,
         channel=access.channel,
@@ -148,7 +148,7 @@ def update_asset_value(
     # Record the operation without putting old or new ordinary/secret values into audit.
     record_audit(
         "asset.set_value",
-        actorId=access.actorId,
+        actor=access.actor,
         organization=access.organization,
         target=asset,
         channel=access.channel,
@@ -161,7 +161,7 @@ def delete_asset(access: OrganizationAccessContext, assetId: uuid.UUID) -> None:
     # TODO: Show authorized Package/Schedule bindings as warnings when those models exist; do not block deletion.
     record_audit(
         "asset.delete",
-        actorId=access.actorId,
+        actor=access.actor,
         organization=access.organization,
         target=asset,
         channel=access.channel,
