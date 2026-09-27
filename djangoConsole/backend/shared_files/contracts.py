@@ -13,6 +13,10 @@ from pydantic import Field
 from console_project.contracts import JsonRequest, JsonResponsePayload
 
 
+MAX_FILE_RESPONSE_BYTES = 2 * 1024 * 1024
+UPLOAD_CHUNK_BYTES = 4 * 1024 * 1024
+
+
 type FileUuid = Annotated[UUID, Field(strict=False)]
 type FilePath = Annotated[str, Field(min_length=1, max_length=16384)]
 
@@ -75,9 +79,7 @@ class FileListResponse(JsonResponsePayload):
 
 class FileUploadResponse(JsonResponsePayload):
     upload_id: UUID
-    state: Literal[
-        "receiving", "finalizing", "completed", "failed", "expired", "canceled"
-    ]
+    state: Literal["receiving", "completed", "failed", "expired", "canceled"]
     offset: int
     size_bytes: int
     chunk_bytes: int

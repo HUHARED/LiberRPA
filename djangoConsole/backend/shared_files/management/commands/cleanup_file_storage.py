@@ -9,6 +9,7 @@ from typing import cast
 from django.core.management.base import BaseCommand, CommandError, CommandParser
 
 from file_storage.services import cleanup_storage
+from shared_files.cleanup import cleanup_uploads
 
 
 class Command(BaseCommand):
@@ -21,6 +22,7 @@ class Command(BaseCommand):
         limit = cast(int, options["limit"])
         if not 1 <= limit <= 10000:
             raise CommandError("Use --limit between 1 and 10000.")
+        cleanup_uploads(limit)
         deleted, failed = cleanup_storage(limit)
         self.stdout.write(f"Removed {deleted} stored files; {failed} cleanup failures.")
         if failed:

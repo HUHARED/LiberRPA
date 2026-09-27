@@ -117,7 +117,7 @@ def _get_department_deletion_info(department: Department) -> DepartmentDeletionI
         listBlocker.append(DepartmentDeletionBlocker("shared_files", fileCount))
     uploadCount = UploadSession.objects.filter(
         department_id=department.pk,
-        state__in=["receiving", "finalizing"],
+        state="receiving",
         expires_at__gt=timezone.now(),
     ).count()
     if uploadCount:

@@ -11,6 +11,7 @@ from django.core.exceptions import ImproperlyConfigured
 from django.db import connection
 
 from file_storage.services import clean_organization_storage
+from shared_files.cleanup import prepare_organization_file_cleanup
 
 from .cleanup import (
     OrganizationDeletionResult,
@@ -59,6 +60,7 @@ def process_next_organization_deletion() -> OrganizationDeletionResult | None:
     organizationId = start_next_organization_deletion()
     if organizationId is None:
         return None
+    prepare_organization_file_cleanup(organizationId)
     if not clean_organization_storage(organizationId):
         return None
     return complete_organization_deletion(organizationId)

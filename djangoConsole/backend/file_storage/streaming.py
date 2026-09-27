@@ -8,13 +8,12 @@ import logging
 import time
 from typing import BinaryIO, Self
 
-from .models import DownloadSession
-
 from asgiref.sync import sync_to_async
 
+from .models import DownloadSession
 from .services import release_download, renew_download
 
-logger = logging.getLogger(__name__)
+_LOGGER = logging.getLogger("console.file_storage")
 
 
 class _FileStream:
@@ -22,14 +21,14 @@ class _FileStream:
         self.transfer = transfer
         self.handle = handle
         self.closed = False
-        self.renewed_at = time.monotonic()
+        self.renewedAt = time.monotonic()
 
     def read(self) -> bytes:
         if self.closed:
             return b""
-        if time.monotonic() - self.renewed_at > 20:
+        if time.monotonic() - self.renewedAt > 20:
             renew_download(self.transfer.pk, self.transfer.organization_id)
-            self.renewed_at = time.monotonic()
+            self.renewedAt = time.monotonic()
         return self.handle.read(64 * 1024)
 
     def close(self) -> None:
@@ -41,7 +40,7 @@ class _FileStream:
             release_download(self.transfer.pk, self.transfer.organization_id)
         except Exception:
             # An expired lease is also reclaimed by cleanup_file_storage.
-            logger.exception("Could not release a download slot immediately.")
+            _LOGGER.exception("Could not release a download slot immediately.")
 
 
 class SyncFileStream(_FileStream):

@@ -9,21 +9,21 @@ import os
 import shutil
 import uuid
 from datetime import datetime, timedelta
+from io import BufferedRandom
 from pathlib import Path
 
 from django.conf import settings
 from django.db import transaction
 from django.db.models import F, Sum
+from django.db.models.deletion import ProtectedError
 from django.utils import timezone
 
 from organizations.models import Organization
 
-from .models import DownloadSession, StorageLock, StoredBlob
+from .models import StorageLock, StoredBlob, DownloadSession
 
-CHUNK_BYTES = 4 * 1024 * 1024
-TRANSFER_LEASE_SECONDS = 120
-UPLOAD_LIFETIME_HOURS = 24
-logger = logging.getLogger(__name__)
+_TRANSFER_LEASE_SECONDS = 120
+_LOGGER = logging.getLogger("console.file_storage")
 
 
 class FileOperationError(Exception):
@@ -33,15 +33,9 @@ class FileOperationError(Exception):
         super().__init__(message)
 
 
-def storage_root() -> Path:
-    root = Path(settings.CONSOLE_STORAGE_ROOT)
-    root.mkdir(parents=True, exist_ok=True)
-    return root
-
-
-def blob_path(blobId: uuid.UUID) -> Path:
-    # Only a server-created UUID can determine a physical path.
-    return storage_root() / blobId.hex[:2] / blobId.hex
+def get_blob_path(blobId: uuid.UUID) -> Path:
+    # Only a server-created UUID can determine a physical path; lookup creates nothing.
+    return Path(settings.CONSOLE_STORAGE_ROOT) / blobId.hex[:2] / blobId.hex
 
 
 def sync_directory(path: Path) -> None:
@@ -51,6 +45,14 @@ def sync_directory(path: Path) -> None:
             os.fsync(descriptor)
         finally:
             os.close(descriptor)
+
+
+def open_blob_for_write(blobId: uuid.UUID) -> tuple[Path, BufferedRandom]:
+    path = get_blob_path(blobId)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    sync_directory(path.parent.parent)
+    # The reservation commits before disk creation, so failed writes remain owned and charged.
+    return path, path.open("r+b" if path.exists() else "w+b")
 
 
 def lock_storage() -> None:
@@ -63,15 +65,17 @@ def lock_storage() -> None:
 
 
 def check_disk_capacity(additionalBytes: int = 0) -> None:
-    # Caller holds the volume lock. Confirmed bytes already reduce disk_usage.free.
-    pending = (
-        StoredBlob.objects.aggregate(value=Sum(F("size_bytes") - F("written_bytes")))[
-            "value"
-        ]
+    # Caller holds the volume lock. Only receiving blobs can grow; written bytes already reduce disk_usage.free.
+    pendingBytes = (
+        StoredBlob.objects.filter(state=StoredBlob.State.RECEIVING).aggregate(
+            value=Sum(F("size_bytes") - F("written_bytes"))
+        )["value"]
         or 0
     )
+    pathRoot = Path(settings.CONSOLE_STORAGE_ROOT)
+    pathRoot.mkdir(parents=True, exist_ok=True)
     if (
-        shutil.disk_usage(storage_root()).free - pending - additionalBytes
+        shutil.disk_usage(pathRoot).free - pendingBytes - additionalBytes
         < settings.CONSOLE_LIMITS.minStorageFreeBytes
     ):
         raise FileOperationError(
@@ -81,7 +85,7 @@ def check_disk_capacity(additionalBytes: int = 0) -> None:
         )
 
 
-def storage_usage(organizationId: uuid.UUID) -> dict[str, int]:
+def get_storage_usage(organizationId: uuid.UUID) -> dict[str, int]:
     totals = {
         row["state"]: row["total"]
         for row in StoredBlob.objects
@@ -90,38 +94,29 @@ def storage_usage(organizationId: uuid.UUID) -> dict[str, int]:
         .annotate(total=Sum("size_bytes"))
     }
     return {
-        "used_bytes": totals.get("available", 0) + totals.get("garbage", 0),
-        "reserved_bytes": totals.get("receiving", 0),
-        "pending_cleanup_bytes": totals.get("garbage", 0),
+        "used_bytes": totals.get(StoredBlob.State.AVAILABLE, 0)
+        + totals.get(StoredBlob.State.GARBAGE, 0),
+        "reserved_bytes": totals.get(StoredBlob.State.RECEIVING, 0),
+        "pending_cleanup_bytes": totals.get(StoredBlob.State.GARBAGE, 0),
         "limit_bytes": settings.CONSOLE_LIMITS.maxStoredBytesPerOrganization,
-        "max_file_bytes": settings.CONSOLE_LIMITS.maxSharedFileBytes,
     }
 
 
-def expire_transfers(organizationId: uuid.UUID) -> None:
-    """Caller holds the organization lock; disk cleanup happens after this commit."""
-    from shared_files.models import UploadSession
-
-    now = timezone.now()
+def expire_downloads(organizationId: uuid.UUID) -> None:
+    """Reclaim expired download leases while the caller holds the organization lock."""
     DownloadSession.objects.filter(
-        organization_id=organizationId, expires_at__lte=now
+        organization_id=organizationId, expires_at__lte=timezone.now()
     ).delete()
-    uploads = UploadSession.objects.filter(
-        organization_id=organizationId, state="receiving", expires_at__lte=now
-    )
-    StoredBlob.objects.filter(pk__in=uploads.values("blob_id")).update(state="garbage")
-    uploads.update(state="expired")
 
 
 def require_transfer_slot(organizationId: uuid.UUID) -> None:
-    from shared_files.models import UploadSession
-
-    expire_transfers(organizationId)
-    count = DownloadSession.objects.filter(organization_id=organizationId).count()
-    count += UploadSession.objects.filter(
-        organization_id=organizationId, state__in=["receiving", "finalizing"]
+    """Count storage reservations, not business upload models, under the organization lock."""
+    expire_downloads(organizationId)
+    transferCount = DownloadSession.objects.filter(organization_id=organizationId).count()
+    transferCount += StoredBlob.objects.filter(
+        organization_id=organizationId, state=StoredBlob.State.RECEIVING
     ).count()
-    if count >= settings.CONSOLE_LIMITS.maxActiveTransfersPerOrganization:
+    if transferCount >= settings.CONSOLE_LIMITS.maxActiveTransfersPerOrganization:
         raise FileOperationError(
             "too_many_transfers",
             "Too many active transfers. Please try again later.",
@@ -129,8 +124,8 @@ def require_transfer_slot(organizationId: uuid.UUID) -> None:
         )
 
 
-def lease_expiry() -> datetime:
-    return timezone.now() + timedelta(seconds=TRANSFER_LEASE_SECONDS)
+def get_download_expiry() -> datetime:
+    return timezone.now() + timedelta(seconds=_TRANSFER_LEASE_SECONDS)
 
 
 @transaction.atomic
@@ -146,61 +141,43 @@ def renew_download(transferId: uuid.UUID, organizationId: uuid.UUID) -> None:
     # An already opened transfer may finish after a role/account change.
     if not Organization.objects.select_for_update().filter(pk=organizationId).exists():
         raise FileOperationError("transfer_expired", "This download has expired.", 410)
-    count = DownloadSession.objects.filter(
+    updatedCount = DownloadSession.objects.filter(
         pk=transferId,
         organization_id=organizationId,
         started=True,
         expires_at__gt=timezone.now(),
-    ).update(expires_at=lease_expiry())
-    if not count:
+    ).update(expires_at=get_download_expiry())
+    if not updatedCount:
         raise FileOperationError("transfer_expired", "This download has expired.", 410)
 
 
 @transaction.atomic
 def collect_blob(blobId: uuid.UUID, organizationId: uuid.UUID) -> bool:
-    """Delete committed garbage only; a failed transaction keeps the quota charged."""
-    from shared_files.models import SharedFile
-
+    """Remove committed garbage without releasing capacity until physical deletion succeeds."""
     if not Organization.objects.select_for_update().filter(pk=organizationId).exists():
         return False
     lock_storage()
-    expire_transfers(organizationId)
+    expire_downloads(organizationId)
     blob = StoredBlob.objects.filter(
-        pk=blobId, organization_id=organizationId, state="garbage"
+        pk=blobId, organization_id=organizationId, state=StoredBlob.State.GARBAGE
     ).first()
     if blob is None or DownloadSession.objects.filter(blob=blob).exists():
         return False
-    # A programming error must never delete an actively published file.
-    if SharedFile.objects.filter(blob=blob).exists():
-        raise RuntimeError("A published file cannot be garbage collected.")
-    path = blob_path(blob.pk)
+    path = get_blob_path(blob.pk)
+    # Let Django check all PROTECT references before touching disk, without knowing their models.
+    blob.delete()
+    # An unlink/fsync failure rolls back the row deletion and keeps its capacity charged.
     path.unlink(missing_ok=True)
     if path.parent.exists():
         sync_directory(path.parent)
-    blob.delete()
     return True
 
 
-@transaction.atomic
-def prepare_organization_cleanup(organizationId: uuid.UUID) -> None:
-    from shared_files.models import SharedFile, UploadSession
-
-    organization = Organization.objects.select_for_update().get(pk=organizationId)
-    if organization.deletion_started_at is None:
-        raise RuntimeError("Organization deletion has not started.")
-    expire_transfers(organizationId)
-    SharedFile.objects.filter(department__organization_id=organizationId).delete()
-    UploadSession.objects.filter(
-        organization_id=organizationId, state__in=["receiving", "finalizing"]
-    ).update(state="canceled")
-    StoredBlob.objects.filter(organization_id=organizationId).update(state="garbage")
-
-
 def clean_organization_storage(organizationId: uuid.UUID) -> bool:
-    prepare_organization_cleanup(organizationId)
+    """Business owners must first retire their references and mark their blobs as garbage."""
     for blobId in (
         StoredBlob.objects
-        .filter(organization_id=organizationId)
+        .filter(organization_id=organizationId, state=StoredBlob.State.GARBAGE)
         .values_list("pk", flat=True)
         .iterator()
     ):
@@ -209,16 +186,8 @@ def clean_organization_storage(organizationId: uuid.UUID) -> bool:
 
 
 def cleanup_storage(limit: int = 200) -> tuple[int, int]:
-    from shared_files.models import UploadSession
-
-    # Bound each pass, with oldest expiry/creation first to avoid starvation.
+    # Bound each pass, with oldest expiry/creation first.
     organizationIds = set(
-        UploadSession.objects
-        .filter(state="receiving", expires_at__lte=timezone.now())
-        .order_by("expires_at")
-        .values_list("organization_id", flat=True)[:limit]
-    )
-    organizationIds.update(
         DownloadSession.objects
         .filter(expires_at__lte=timezone.now())
         .order_by("expires_at")
@@ -232,18 +201,18 @@ def cleanup_storage(limit: int = 200) -> tuple[int, int]:
                 .filter(pk=organizationId)
                 .exists()
             ):
-                expire_transfers(organizationId)
-    deleted = failed = 0
+                expire_downloads(organizationId)
+    deletedCount = failedCount = 0
     candidates = list(
         StoredBlob.objects
-        .filter(state="garbage")
+        .filter(state=StoredBlob.State.GARBAGE)
         .order_by("created_at", "pk")
         .values_list("pk", "organization_id")[:limit]
     )
     for blobId, organizationId in candidates:
         try:
-            deleted += int(collect_blob(blobId, organizationId))
-        except OSError:
-            failed += 1
-            logger.exception("Stored file cleanup failed; quota remains charged.")
-    return deleted, failed
+            deletedCount += int(collect_blob(blobId, organizationId))
+        except (OSError, ProtectedError):
+            failedCount += 1
+            _LOGGER.exception("Stored file cleanup failed; quota remains charged.")
+    return deletedCount, failedCount

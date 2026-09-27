@@ -9,99 +9,59 @@ import json
 import os
 import uuid
 from datetime import timedelta
-from io import BufferedRandom
-from pathlib import Path
 from typing import BinaryIO
 
 from django.conf import settings
-from django.core.paginator import Paginator
+from django.core.exceptions import PermissionDenied
 from django.utils import timezone
 
 from accounts.models import User
-from file_storage.models import DownloadSession, StoredBlob
+from file_storage.models import StoredBlob, DownloadSession
 from file_storage.services import (
-    CHUNK_BYTES,
-    UPLOAD_LIFETIME_HOURS,
     FileOperationError,
-    blob_path,
-    check_disk_capacity,
-    lease_expiry,
-    lock_storage,
-    require_transfer_slot,
-    storage_usage,
+    get_blob_path,
     sync_directory,
+    open_blob_for_write,
+    lock_storage,
+    check_disk_capacity,
+    get_storage_usage,
+    require_transfer_slot,
+    get_download_expiry,
 )
 from operations.audit import record_audit
-from organizations.permissions import OrganizationAccessContext
+from organizations.models import DepartmentRole
+from organizations.permissions import (
+    OrganizationAccessContext,
+    get_authorized_departments,
+)
+from organizations.validators import path_name_key
 
 from .contracts import (
-    FileDeleteRequest,
-    FileInfoResponse,
-    FileListRequest,
     FileUploadRequest,
+    FileDeleteRequest,
+    FileUploadResponse,
+    FileDeleteResponse,
+    FileDownloadResponse,
 )
-from .models import FileDeletionReceipt, SharedFile, UploadChunk, UploadSession
+from .models import SharedFile, UploadSession, UploadChunk, FileDeletionReceipt
 from .paths import (
-    department_path,
-    name_key,
-    path_parts,
+    load_department_tree,
     require_department,
     resolve_department,
+    build_department_path,
 )
+from .queries import (
+    build_file_payload,
+    resolve_file,
+    get_upload_state,
+    build_upload_payload,
+)
+from .cleanup import expire_uploads
+
+_UPLOAD_LIFETIME_HOURS = 24
 
 
-def file_info(file: SharedFile) -> dict[str, object]:
-    path = department_path(file.department)
-    return FileInfoResponse(
-        path=f"{path}/{file.name}",
-        name=file.name,
-        department_path=path,
-        size_bytes=file.blob.size_bytes,
-        sha256=file.blob.sha256,
-        uploaded_by_name=file.uploaded_by_name,
-        uploaded_at=file.uploaded_at,
-    ).model_dump(mode="json")
-
-
-def resolve_file(access: OrganizationAccessContext, path: str) -> SharedFile:
-    parts = path_parts(path)
-    department = resolve_department(access, parts[:-1])
-    return SharedFile.objects.select_related("department", "blob").get(
-        department=department, name_key=name_key(parts[-1])
-    )
-
-
-def list_files(
-    access: OrganizationAccessContext, payload: FileListRequest
-) -> dict[str, object]:
-    department = resolve_department(
-        access, path_parts(payload.department_path, department=True)
-    )
-    query = SharedFile.objects.filter(department=department).select_related(
-        "department", "blob"
-    )
-    if payload.name:
-        query = query.filter(name_key__contains=name_key(payload.name))
-    orderField = {
-        "name": "name_key",
-        "size": "blob__size_bytes",
-        "uploaded_at": "uploaded_at",
-    }[payload.sort_by]
-    page = Paginator(
-        query.order_by(("-" if payload.order == "desc" else "") + orderField, "id"), 100
-    ).page(payload.page)
-    return {
-        "files": [file_info(file) for file in page],
-        "department_path": department_path(department),
-        "usage": storage_usage(access.organization.pk),
-        "page": page.number,
-        "page_size": 100,
-        "total_count": page.paginator.count,
-        "total_pages": page.paginator.num_pages,
-    }
-
-
-def digest_request(payload: object) -> str:
+def _digest_request(payload: object) -> str:
     return hashlib.sha256(
         json.dumps(
             payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")
@@ -109,58 +69,36 @@ def digest_request(payload: object) -> str:
     ).hexdigest()
 
 
-def check_receipt_capacity(access: OrganizationAccessContext) -> None:
+def _check_receipt_capacity(access: OrganizationAccessContext) -> None:
     cutoff = timezone.now() - timedelta(
         days=settings.CONSOLE_LIMITS.fileReceiptRetentionDays
     )
     # Never evict an unexpired identity to make room for a new mutation.
     UploadSession.objects.filter(
         organization=access.organization, created_at__lt=cutoff
-    ).exclude(state__in=["receiving", "finalizing"]).delete()
+    ).exclude(state="receiving").delete()
     FileDeletionReceipt.objects.filter(
         organization=access.organization, created_at__lt=cutoff
     ).delete()
-    count = (
+    receiptCount = (
         UploadSession.objects.filter(organization=access.organization).count()
         + FileDeletionReceipt.objects.filter(organization=access.organization).count()
     )
-    if count >= settings.CONSOLE_LIMITS.maxFileReceiptsPerOrganization:
+    if receiptCount >= settings.CONSOLE_LIMITS.maxFileReceiptsPerOrganization:
         raise FileOperationError(
             "file_receipt_limit",
             "The file request history is full. Please try again later.",
         )
 
 
-def upload_info(upload: UploadSession) -> dict[str, object]:
-    return {
-        "upload_id": upload.pk,
-        "state": upload.state,
-        "offset": upload.offset,
-        "size_bytes": upload.size_bytes,
-        "chunk_bytes": CHUNK_BYTES,
-        "expires_at": upload.expires_at,
-        "file": upload.result,
-    }
-
-
-def get_upload(access: OrganizationAccessContext, uploadId: uuid.UUID) -> UploadSession:
-    upload = UploadSession.objects.get(
-        pk=uploadId, organization=access.organization, actor_id=access.actorId
-    )
-    require_department(access, upload.department_id)
-    if upload.state == "receiving" and upload.expires_at <= timezone.now():
-        upload.state = "expired"
-        upload.save(update_fields=["state"])
-        StoredBlob.objects.filter(pk=upload.blob_id).update(state="garbage")
-    return upload
-
-
 def create_upload(
-    access: OrganizationAccessContext, payload: FileUploadRequest
+    access: OrganizationAccessContext,
+    payload: FileUploadRequest,
+    pathParts: tuple[str, ...],
 ) -> UploadSession:
-    parts = path_parts(payload.path)
-    requestDigest = digest_request({
-        "path": [name_key(part) for part in parts],
+    """Reserve storage after the caller locks current access and parses the path."""
+    requestDigest = _digest_request({
+        "path": [path_name_key(part) for part in pathParts],
         "size": payload.size_bytes,
         "sha256": payload.sha256,
         "overwrite": payload.overwrite,
@@ -170,15 +108,17 @@ def create_upload(
         actor_id=access.actorId,
         request_id=payload.request_id,
     ).first()
-    if existing:
+    if existing is not None:
         require_department(access, existing.department_id)
         if existing.request_digest != requestDigest:
             raise FileOperationError(
                 "request_conflict",
                 "This request ID was already used with different parameters.",
             )
-        return get_upload(access, existing.pk)
-    department = resolve_department(access, parts[:-1])
+        return existing
+    departmentsById = load_department_tree(access.organization.pk)
+    department = resolve_department(pathParts[:-1], departmentsById)
+    require_department(access, department.pk)
     if payload.size_bytes > settings.CONSOLE_LIMITS.maxSharedFileBytes:
         raise FileOperationError(
             "file_too_large", "The file exceeds the single-file size limit.", 413
@@ -186,17 +126,18 @@ def create_upload(
     if (
         not payload.overwrite
         and SharedFile.objects.filter(
-            department=department, name_key=name_key(parts[-1])
+            department=department, name_key=path_name_key(pathParts[-1])
         ).exists()
     ):
         raise FileOperationError(
             "file_exists",
             "A file with this name already exists. Enable Overwrite Existing File to replace it.",
         )
-    check_receipt_capacity(access)
+    expire_uploads(access.organization.pk)
+    _check_receipt_capacity(access)
     require_transfer_slot(access.organization.pk)
     lock_storage()
-    usage = storage_usage(access.organization.pk)
+    usage = get_storage_usage(access.organization.pk)
     if (
         usage["used_bytes"] + usage["reserved_bytes"] + payload.size_bytes
         > usage["limit_bytes"]
@@ -207,6 +148,7 @@ def create_upload(
     check_disk_capacity(payload.size_bytes)
     blob = StoredBlob.objects.create(
         organization=access.organization,
+        purpose="shared_file",
         size_bytes=payload.size_bytes,
         sha256=payload.sha256,
     )
@@ -216,48 +158,33 @@ def create_upload(
         department_id=department.pk,
         request_id=payload.request_id,
         request_digest=requestDigest,
-        name=parts[-1],
+        name=pathParts[-1],
         overwrite=payload.overwrite,
         size_bytes=payload.size_bytes,
         sha256=payload.sha256,
         blob=blob,
-        expires_at=timezone.now() + timedelta(hours=UPLOAD_LIFETIME_HOURS),
+        expires_at=timezone.now() + timedelta(hours=_UPLOAD_LIFETIME_HOURS),
     )
 
 
-def _prepare_blob_file(blobId: uuid.UUID) -> tuple[Path, BufferedRandom]:
-    path = blob_path(blobId)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    sync_directory(path.parent.parent)
-    # The row is committed before disk creation; a failed write remains owned and charged.
-    return path, path.open("r+b" if path.exists() else "w+b")
-
-
 def append_chunk(
-    upload: UploadSession, offset: int, data: bytes, sha256: str
+    upload: UploadSession, offset: int, data: bytes, chunkSha256: str
 ) -> UploadSession:
-    if not data or len(data) > CHUNK_BYTES:
-        raise FileOperationError(
-            "invalid_chunk_size", "Send a non-empty chunk of at most 4 MiB.", 400
-        )
-    digest = hashlib.sha256(data).hexdigest()
-    if digest != sha256:
-        raise FileOperationError(
-            "chunk_checksum_mismatch",
-            "The chunk checksum does not match its content.",
-            400,
-        )
+    """Apply bytes already size-checked and hashed at the HTTP boundary under the organization lock."""
+    state = get_upload_state(upload)
     if offset < upload.offset:
-        if UploadChunk.objects.filter(
-            upload=upload, offset=offset, size_bytes=len(data), sha256=digest
-        ).exists():
-            if upload.state in ("receiving", "completed"):
-                return upload
+        if (
+            state in ("receiving", "completed")
+            and UploadChunk.objects.filter(
+                upload=upload, offset=offset, size_bytes=len(data), sha256=chunkSha256
+            ).exists()
+        ):
+            return upload
         raise FileOperationError(
             "chunk_conflict",
             "The chunk conflicts with confirmed bytes. Check the upload status.",
         )
-    if upload.state != "receiving":
+    if state != "receiving":
         raise FileOperationError(
             "upload_unavailable", "This upload is no longer receiving data.", 410
         )
@@ -270,7 +197,7 @@ def append_chunk(
             "upload_data_missing", "The upload storage is unavailable.", 503
         )
     lock_storage()
-    path, handle = _prepare_blob_file(upload.blob_id)
+    path, handle = open_blob_for_write(upload.blob_id)
     with handle:
         if os.fstat(handle.fileno()).st_size < offset:
             raise FileOperationError(
@@ -281,7 +208,7 @@ def append_chunk(
         handle.truncate(offset)
         handle.flush()
         os.fsync(handle.fileno())
-        # Recover an unconfirmed tail before accounting for free disk space.
+        # A failed database commit may leave an unconfirmed tail; discard it before checking disk space.
         check_disk_capacity()
         handle.seek(offset)
         handle.write(data)
@@ -292,25 +219,28 @@ def append_chunk(
     upload.save(update_fields=["offset"])
     StoredBlob.objects.filter(pk=upload.blob_id).update(written_bytes=upload.offset)
     UploadChunk.objects.create(
-        upload=upload, offset=offset, size_bytes=len(data), sha256=digest
+        upload=upload, offset=offset, size_bytes=len(data), sha256=chunkSha256
     )
     return upload
 
 
 def cancel_upload(upload: UploadSession) -> UploadSession:
-    if upload.state in ("receiving", "finalizing"):
+    if get_upload_state(upload) == "receiving":
         upload.state = "canceled"
         upload.save(update_fields=["state"])
-        StoredBlob.objects.filter(pk=upload.blob_id).update(state="garbage")
+        StoredBlob.objects.filter(pk=upload.blob_id).update(
+            state=StoredBlob.State.GARBAGE
+        )
     return upload
 
 
 def complete_upload(
     access: OrganizationAccessContext, upload: UploadSession
-) -> UploadSession | FileOperationError:
-    if upload.state == "completed":
-        return upload
-    if upload.state != "receiving":
+) -> FileUploadResponse | FileOperationError:
+    state = get_upload_state(upload)
+    if state == "completed":
+        return build_upload_payload(upload)
+    if state != "receiving":
         raise FileOperationError(
             "upload_unavailable", "This upload is no longer available.", 410
         )
@@ -322,10 +252,8 @@ def complete_upload(
         raise FileOperationError(
             "upload_data_missing", "The upload storage is unavailable.", 503
         )
-    upload.state = "finalizing"
-    upload.save(update_fields=["state"])
-    # Synchronous verification is bounded by the 20 MiB single-file limit.
-    path, handle = _prepare_blob_file(upload.blob_id)
+    # Verification and publication share one transaction; there is no committed intermediate state.
+    path, handle = open_blob_for_write(upload.blob_id)
     with handle:
         if os.fstat(handle.fileno()).st_size < upload.offset:
             raise FileOperationError(
@@ -341,89 +269,110 @@ def complete_upload(
         actualSize = os.fstat(handle.fileno()).st_size
     sync_directory(path.parent)
     existing = SharedFile.objects.filter(
-        department_id=upload.department_id, name_key=name_key(upload.name)
+        department_id=upload.department_id, name_key=path_name_key(upload.name)
     ).first()
-    error = None
+    failure = None
     if actualSize != upload.size_bytes or digest != upload.sha256:
-        error = FileOperationError(
+        failure = FileOperationError(
             "file_checksum_mismatch",
             "The file checksum does not match. Select the source file and start a new upload.",
         )
-    elif existing and not upload.overwrite:
-        error = FileOperationError(
+    elif existing is not None and not upload.overwrite:
+        failure = FileOperationError(
             "file_exists",
             "A file with this name was created during this upload. Enable Overwrite Existing File to replace it.",
         )
-    if error:
+    if failure is not None:
         upload.state = "failed"
         upload.save(update_fields=["state"])
-        StoredBlob.objects.filter(pk=upload.blob_id).update(state="garbage")
-        # The view returns this error inside the transaction so the failed state commits.
-        return error
-    if existing:
+        StoredBlob.objects.filter(pk=upload.blob_id).update(
+            state=StoredBlob.State.GARBAGE
+        )
+        # Return the expected failure so the view can commit its terminal state before replying.
+        return failure
+    if existing is not None:
         oldBlobId = existing.blob_id
         existing.delete()
-        StoredBlob.objects.filter(pk=oldBlobId).update(state="garbage")
+        StoredBlob.objects.filter(pk=oldBlobId).update(state=StoredBlob.State.GARBAGE)
     file = SharedFile.objects.create(
         department_id=upload.department_id,
         name=upload.name,
-        name_key=name_key(upload.name),
+        name_key=path_name_key(upload.name),
         blob_id=upload.blob_id,
         uploaded_by_id=access.actorId,
         uploaded_by_name=str(User.objects.get(pk=access.actorId)),
     )
     StoredBlob.objects.filter(pk=upload.blob_id).update(
-        state="available", written_bytes=upload.size_bytes
+        state=StoredBlob.State.AVAILABLE, written_bytes=upload.size_bytes
+    )
+    departmentsById = load_department_tree(access.organization.pk)
+    filePayload = build_file_payload(
+        file,
+        build_department_path(departmentsById[upload.department_id], departmentsById),
     )
     upload.state = "completed"
-    upload.result = file_info(file)
+    upload.result = filePayload.model_dump(mode="json")
     upload.save(update_fields=["state", "result"])
     record_audit(
-        "shared_files.overwrite" if existing else "shared_files.upload",
+        "shared_files.overwrite" if existing is not None else "shared_files.upload",
         actorId=access.actorId,
         organization=access.organization,
         target=file,
         channel=access.channel,
-        metadata={"path": upload.result["path"], "size_bytes": upload.size_bytes},
+        metadata={"path": filePayload.path, "size_bytes": upload.size_bytes},
     )
-    return upload
+    return build_upload_payload(upload, filePayload=filePayload)
 
 
 def delete_files(
-    access: OrganizationAccessContext, payload: FileDeleteRequest
-) -> dict[str, object]:
-    parsed = [path_parts(path) for path in payload.paths]
-    normalized = {tuple(name_key(part) for part in parts): parts for parts in parsed}
-    requestDigest = digest_request(sorted(normalized))
+    access: OrganizationAccessContext,
+    payload: FileDeleteRequest,
+    paths: list[tuple[str, ...]],
+) -> FileDeleteResponse:
+    normalized = {tuple(path_name_key(part) for part in parts): parts for parts in paths}
+    requestDigest = _digest_request(sorted(normalized))
     receipt = FileDeletionReceipt.objects.filter(
         organization=access.organization,
         actor_id=access.actorId,
         request_id=payload.request_id,
     ).first()
-    if receipt:
-        for departmentId in receipt.department_ids:
-            require_department(access, uuid.UUID(departmentId))
+    allowedDepartmentIds = set(
+        get_authorized_departments(
+            access, requiredRole=DepartmentRole.OPERATOR
+        ).values_list("pk", flat=True)
+    )
+    if receipt is not None:
+        if (
+            not {uuid.UUID(value) for value in receipt.department_ids}
+            <= allowedDepartmentIds
+        ):
+            raise PermissionDenied("The department is unavailable.")
         if receipt.request_digest != requestDigest:
             raise FileOperationError(
                 "request_conflict",
                 "This request ID was already used with different parameters.",
             )
-        return receipt.result
-    # Resolve and authorize every department before checking any file's existence.
+        return FileDeleteResponse.model_validate(receipt.result, strict=False)
+    departmentsById = load_department_tree(access.organization.pk)
     targets = [
-        (resolve_department(access, parts[:-1]), parts[-1])
+        (resolve_department(parts[:-1], departmentsById), parts[-1])
         for parts in normalized.values()
     ]
-    check_receipt_capacity(access)
-    deletedPaths, missingPaths = [], []
+    # Authorize the whole batch before checking any file's existence or changing anything.
+    if not {department.pk for department, _ in targets} <= allowedDepartmentIds:
+        raise PermissionDenied("The department is unavailable.")
+    _check_receipt_capacity(access)
+    deletedPaths: list[str] = []
+    missingPaths: list[str] = []
     for department, name in targets:
+        departmentPath = build_department_path(department, departmentsById)
         file = SharedFile.objects.filter(
-            department=department, name_key=name_key(name)
+            department=department, name_key=path_name_key(name)
         ).first()
         if file is None:
-            missingPaths.append(f"{department_path(department)}/{name}")
+            missingPaths.append(f"{departmentPath}/{name}")
             continue
-        path = f"{department_path(department)}/{file.name}"
+        path = f"{departmentPath}/{file.name}"
         record_audit(
             "shared_files.delete",
             actorId=access.actorId,
@@ -434,46 +383,51 @@ def delete_files(
         )
         blobId = file.blob_id
         file.delete()
-        StoredBlob.objects.filter(pk=blobId).update(state="garbage")
+        StoredBlob.objects.filter(pk=blobId).update(state=StoredBlob.State.GARBAGE)
         deletedPaths.append(path)
-    result: dict[str, object] = {
-        "request_id": str(payload.request_id),
-        "deleted_paths": deletedPaths,
-        "missing_paths": missingPaths,
-        "deleted_count": len(deletedPaths),
-    }
+    result = FileDeleteResponse(
+        request_id=payload.request_id,
+        deleted_paths=deletedPaths,
+        missing_paths=missingPaths,
+        deleted_count=len(deletedPaths),
+    )
     FileDeletionReceipt.objects.create(
         organization=access.organization,
         actor_id=access.actorId,
         request_id=payload.request_id,
         request_digest=requestDigest,
         department_ids=sorted({str(department.pk) for department, _ in targets}),
-        result=result,
+        result=result.model_dump(mode="json"),
     )
     return result
 
 
-def prepare_download(access: OrganizationAccessContext, path: str) -> dict[str, object]:
-    file = resolve_file(access, path)
+def prepare_download(
+    access: OrganizationAccessContext, pathParts: tuple[str, ...]
+) -> FileDownloadResponse:
+    file, departmentPath = resolve_file(access, pathParts)
+    expire_uploads(access.organization.pk)
     require_transfer_slot(access.organization.pk)
-    physicalPath = blob_path(file.blob_id)
+    physicalPath = get_blob_path(file.blob_id)
     if not physicalPath.is_file() or physicalPath.stat().st_size != file.blob.size_bytes:
         raise FileOperationError(
             "file_content_unavailable",
             "The file content is temporarily unavailable.",
             503,
         )
-    info = file_info(file)
+    filePayload = build_file_payload(file, departmentPath)
     transfer = DownloadSession.objects.create(
         organization=access.organization,
         actor_id=access.actorId,
         department_id=file.department_id,
         blob=file.blob,
-        path=info["path"],
+        path=filePayload.path,
         name=file.name,
-        expires_at=lease_expiry(),
+        expires_at=get_download_expiry(),
     )
-    return {"transfer_id": transfer.pk, "expires_at": transfer.expires_at, "file": info}
+    return FileDownloadResponse(
+        transfer_id=transfer.pk, expires_at=transfer.expires_at, file=filePayload
+    )
 
 
 def open_download(
@@ -496,7 +450,7 @@ def open_download(
             "The file changed or was deleted. Refresh the list and download it again.",
             404,
         )
-    handle = blob_path(transfer.blob_id).open("rb")
+    handle = get_blob_path(transfer.blob_id).open("rb")
     try:
         if os.fstat(handle.fileno()).st_size != transfer.blob.size_bytes:
             raise FileOperationError(
@@ -505,7 +459,7 @@ def open_download(
                 503,
             )
         transfer.started = True
-        transfer.expires_at = lease_expiry()
+        transfer.expires_at = get_download_expiry()
         transfer.save(update_fields=["started", "expires_at"])
         record_audit(
             "shared_files.download",

@@ -635,7 +635,7 @@ export interface FileUploadResponse {
   file: FileInfoResponse | null;
   offset: number;
   size_bytes: number;
-  state: "receiving" | "finalizing" | "completed" | "failed" | "expired" | "canceled";
+  state: "receiving" | "completed" | "failed" | "expired" | "canceled";
   upload_id: string;
 }
 export interface InvitationCompletionRequest {
