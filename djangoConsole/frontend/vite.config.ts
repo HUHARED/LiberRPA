@@ -18,16 +18,8 @@ export default defineConfig(({ mode }) => {
     },
   };
   return {
-    plugins: [
-      vue(),
-      vuetify({
-        autoImport: true,
-        styles: { configFile: "src/styles/settings.scss" },
-      }),
-    ],
+    plugins: [vue(), vuetify({ autoImport: true })],
     resolve: { alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) } },
-    // NOTE: Skip Vuetify pre-bundling to recreate its virtual Sass modules after restarts.
-    optimizeDeps: { exclude: ["vuetify"] },
     server: {
       host: "127.0.0.1",
       port: 5173,

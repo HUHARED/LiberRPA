@@ -1,5 +1,13 @@
 /* FileName: styles.css */
 
+/* Keep icon fonts separate from the global text font. */
+body,
+body :not(.v-icon, .mdi-set) {
+  font-family:
+    "Noto Sans Mono", "Cascadia Mono", Consolas, "Liberation Mono", "Microsoft YaHei",
+    monospace;
+}
+
 .v-btn {
   text-transform: none;
 }
