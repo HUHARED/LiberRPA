@@ -27,7 +27,7 @@
           variant="outlined"
           readonly />
         <p class="text-medium-emphasis mb-4">
-          Expires at {{ formatDateTime(linkInfo.expires_at, "UTC") }} (UTC).
+          Expires at {{ formatDateTime(linkInfo.expires_at, "UTC") }}.
         </p>
         <p class="mb-4">
           Select Confirm Email Change to update the account that requested this link.

@@ -13,7 +13,9 @@
         type="info"
         variant="tonal"
         title="Scheduled deletion"
-        :text="formatDateTime(sessionStore.access.organization.deletion_due_at)"
+        :text="
+          formatDateTime(sessionStore.access.organization.deletion_due_at, strTimeZone)
+        "
         class="mb-4" />
       <v-alert v-if="requestError" type="error" variant="tonal" role="alert">
         {{ requestError.message }}
@@ -44,6 +46,7 @@ import { type ApiError, getApiError } from "../api/errors";
 import { formatDateTime } from "../app/navigation";
 
 const sessionStore = useSessionStore();
+const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");
 const boolRefreshing = ref(false);
 const requestError = shallowRef<ApiError | null>(null);
 const strTitle = computed(() => {
