@@ -21,7 +21,6 @@ from .contracts import (
     FileDeleteRequest,
     EmptyFileRequest,
 )
-from .paths import parse_file_path
 from .queries import (
     build_file_payload,
     resolve_file,
@@ -45,6 +44,7 @@ from .http import (
     lock_file_access,
     require_no_query_parameters,
     parse_file_request,
+    parse_file_path,
     parse_upload_chunk,
     build_file_response,
 )

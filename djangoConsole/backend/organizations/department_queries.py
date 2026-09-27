@@ -8,9 +8,8 @@ import uuid
 from collections.abc import Mapping
 from dataclasses import dataclass
 
-from django.db.models import QuerySet
-
-from .models import Department, DepartmentMembership, DepartmentRole
+from .models import Department, DepartmentRole, DepartmentMembership
+from .validators import path_name_key
 from .permissions import (
     AccessChannel,
     require_organization_admin,
@@ -41,6 +40,35 @@ class DepartmentDetailsInfo:
     members: tuple[DepartmentMemberInfo, ...]
 
 
+def get_department_tree(organizationId: uuid.UUID) -> dict[uuid.UUID, Department]:
+    """Load active departments for one operation; this is not an authorization check."""
+    return Department.objects.filter(
+        organization_id=organizationId, deleted_at__isnull=True
+    ).in_bulk()
+
+
+def resolve_department_path(
+    pathParts: tuple[str, ...], departmentsById: Mapping[uuid.UUID, Department]
+) -> Department:
+    """Resolve validated segments in one loaded tree; callers authorize the target separately."""
+    parentId = None
+    department = None
+    for part in pathParts:
+        partKey = path_name_key(part)
+        matches = [
+            entry
+            for entry in departmentsById.values()
+            if entry.parent_id == parentId and path_name_key(entry.name) == partKey
+        ]
+        if len(matches) != 1:
+            raise Department.DoesNotExist
+        department = matches[0]
+        parentId = department.pk
+    if department is None:
+        raise Department.DoesNotExist
+    return department
+
+
 def get_department_path(
     department: Department, departmentsById: Mapping[uuid.UUID, Department]
 ) -> str:
@@ -55,16 +83,14 @@ def get_department_path(
     return "/".join(reversed(listDepartmentName))
 
 
-def _get_department_query(
+def _get_admin_department_tree(
     actorId: uuid.UUID, organizationId: uuid.UUID, channel: AccessChannel
-) -> QuerySet[Department]:
+) -> dict[uuid.UUID, Department]:
     access = resolve_organization_access(
         actorId=actorId, organizationId=organizationId, channel=channel
     )
     require_organization_admin(access)
-    return Department.objects.filter(
-        organization=access.organization, deleted_at__isnull=True
-    )
+    return get_department_tree(access.organization.pk)
 
 
 def _build_department_info(
@@ -83,8 +109,7 @@ def get_department_list(
     *, actorId: uuid.UUID, organizationId: uuid.UUID, channel: AccessChannel
 ) -> list[DepartmentInfo]:
     """Return the active tree for organization administration, ordered by full path."""
-    departmentQuery = _get_department_query(actorId, organizationId, channel)
-    dictDepartmentById = departmentQuery.in_bulk()
+    dictDepartmentById = _get_admin_department_tree(actorId, organizationId, channel)
     listDepartmentInfo = [
         _build_department_info(department, dictDepartmentById)
         for department in dictDepartmentById.values()
@@ -103,8 +128,7 @@ def get_department_details(
     departmentId: uuid.UUID,
 ) -> DepartmentDetailsInfo:
     """Return one active department and its explicit current membership assignments."""
-    departmentQuery = _get_department_query(actorId, organizationId, channel)
-    dictDepartmentById = departmentQuery.in_bulk()
+    dictDepartmentById = _get_admin_department_tree(actorId, organizationId, channel)
     department = dictDepartmentById.get(departmentId)
     if department is None:
         raise Department.DoesNotExist

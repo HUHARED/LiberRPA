@@ -15,7 +15,7 @@ from console_project.config import LimitsConfig
 from operations.audit import get_audit_snapshot, record_audit
 
 from .models import Department, Organization
-from .validators import normalize_path_name, path_name_key
+from .validators import path_name_key, normalize_path_name
 from .permissions import AccessChannel, lock_organization_admin_access
 
 
@@ -40,16 +40,16 @@ def _get_parent_department(
 def _validate_department_values(department: Department) -> None:
     try:
         department.name = normalize_path_name(department.name)
-    except ValidationError as error:
-        raise ValidationError({"name": error}) from None
+    except ValidationError as e:
+        raise ValidationError({"name": e}) from None
     siblings = Department.objects.filter(
         organization_id=department.organization_id,
         parent_id=department.parent_id,
         deleted_at__isnull=True,
     ).exclude(pk=department.pk)
+    nameKey = path_name_key(department.name)
     if any(
-        path_name_key(name) == path_name_key(department.name)
-        for name in siblings.values_list("name", flat=True)
+        path_name_key(name) == nameKey for name in siblings.values_list("name", flat=True)
     ):
         raise ValidationError({
             "name": ValidationError(

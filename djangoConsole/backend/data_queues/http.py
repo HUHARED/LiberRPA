@@ -36,6 +36,7 @@ from console_project.http import (
     build_rate_limited_response,
 )
 from organizations.models import Membership, Department
+from organizations.validators import validate_path_segment
 from organizations.permissions import (
     AccessChannel,
     OrganizationAccessContext,
@@ -44,7 +45,6 @@ from organizations.permissions import (
 
 from .contracts import MAX_QUEUE_RESPONSE_BYTES, QueueMutationRequest
 from .models import DataQueue, QueueItem
-from .queries import normalize_queue_path
 from .services import QueueOperationError
 
 _LOGGER = logging.getLogger("console.data_queues")
@@ -214,6 +214,17 @@ def parse_queue_request[Payload: JsonRequest](
     return parse_json_request(
         request, requestSchema, maxBodyBytes=MAX_QUEUE_RESPONSE_BYTES
     )
+
+
+def normalize_queue_path(path: str) -> str:
+    listPart = path.replace("\\", "/").removeprefix("/").split("/")
+    if len(listPart) < 2 or len(listPart) > 65:
+        raise ValidationError("Use a full department path and queue name.")
+    for part in listPart:
+        validate_path_segment(part)
+        if len(part) > 128:
+            raise ValidationError("Path segments must not exceed 128 characters.")
+    return "/" + "/".join(listPart)
 
 
 def parse_item_request[Payload: QueueMutationRequest](

@@ -20,11 +20,12 @@ from .contracts import (
     QueueResetRequest,
     QueueDeleteItemsRequest,
 )
-from .queries import normalize_queue_path, resolve_queue_path, query_items
+from .queries import resolve_queue_path, query_items
 from .services import upload_items, claim_items, reset_items, delete_items
 from .http import (
     api_queue_view,
     parse_queue_request,
+    normalize_queue_path,
     parse_item_request,
     build_queue_response,
 )

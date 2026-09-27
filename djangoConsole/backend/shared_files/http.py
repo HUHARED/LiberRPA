@@ -39,6 +39,7 @@ from console_project.http import (
 from file_storage.models import DownloadSession
 from file_storage.services import FileOperationError
 from organizations.models import Membership, Department
+from organizations.validators import normalize_path_name
 from organizations.permissions import (
     AccessChannel,
     OrganizationAccessContext,
@@ -219,6 +220,17 @@ def parse_file_request[Payload: JsonRequest](
     return parse_json_request(
         request, requestSchema, maxBodyBytes=MAX_FILE_RESPONSE_BYTES
     )
+
+
+def parse_file_path(value: str, *, departmentOnly: bool = False) -> tuple[str, ...]:
+    """Normalize and validate once at the HTTP boundary, before taking business locks."""
+    value = value.replace("\\", "/")
+    if departmentOnly:
+        value = value.removesuffix("/")
+    parts = value.removeprefix("/").split("/")
+    if len(parts) < (1 if departmentOnly else 2) or len(parts) > 65:
+        raise ValidationError("Use a full department path and file name.")
+    return tuple(normalize_path_name(part) for part in parts)
 
 
 def parse_upload_chunk(request: HttpRequest) -> tuple[bytes, str]:

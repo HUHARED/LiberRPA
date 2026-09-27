@@ -28,6 +28,11 @@ from file_storage.services import (
     get_download_expiry,
 )
 from operations.audit import record_audit
+from organizations.department_queries import (
+    get_department_tree,
+    resolve_department_path,
+    get_department_path,
+)
 from organizations.models import DepartmentRole
 from organizations.permissions import (
     OrganizationAccessContext,
@@ -43,13 +48,8 @@ from .contracts import (
     FileDownloadResponse,
 )
 from .models import SharedFile, UploadSession, UploadChunk, FileDeletionReceipt
-from .paths import (
-    load_department_tree,
-    require_department,
-    resolve_department,
-    build_department_path,
-)
 from .queries import (
+    require_file_department_access,
     build_file_payload,
     resolve_file,
     get_upload_state,
@@ -108,16 +108,16 @@ def create_upload(
         request_id=payload.request_id,
     ).first()
     if existing is not None:
-        require_department(access, existing.department_id)
+        require_file_department_access(access, existing.department_id)
         if existing.request_digest != requestDigest:
             raise FileOperationError(
                 "request_conflict",
                 "This request ID was already used with different parameters.",
             )
         return existing
-    departmentsById = load_department_tree(access.organization.pk)
-    department = resolve_department(pathParts[:-1], departmentsById)
-    require_department(access, department.pk)
+    departmentsById = get_department_tree(access.organization.pk)
+    department = resolve_department_path(pathParts[:-1], departmentsById)
+    require_file_department_access(access, department.pk)
     if payload.size_bytes > settings.CONSOLE_LIMITS.maxSharedFileBytes:
         raise FileOperationError(
             "file_too_large", "The file exceeds the single-file size limit.", 413
@@ -304,10 +304,10 @@ def complete_upload(
     StoredBlob.objects.filter(pk=upload.blob_id).update(
         state=StoredBlob.State.AVAILABLE, written_bytes=upload.size_bytes
     )
-    departmentsById = load_department_tree(access.organization.pk)
+    departmentsById = get_department_tree(access.organization.pk)
     filePayload = build_file_payload(
         file,
-        build_department_path(departmentsById[upload.department_id], departmentsById),
+        "/" + get_department_path(departmentsById[upload.department_id], departmentsById),
     )
     upload.state = "completed"
     upload.result = filePayload.model_dump(mode="json")
@@ -352,9 +352,9 @@ def delete_files(
                 "This request ID was already used with different parameters.",
             )
         return FileDeleteResponse.model_validate(receipt.result, strict=False)
-    departmentsById = load_department_tree(access.organization.pk)
+    departmentsById = get_department_tree(access.organization.pk)
     targets = [
-        (resolve_department(parts[:-1], departmentsById), parts[-1])
+        (resolve_department_path(parts[:-1], departmentsById), parts[-1])
         for parts in normalized.values()
     ]
     # Authorize the whole batch before checking any file's existence or changing anything.
@@ -364,7 +364,7 @@ def delete_files(
     deletedPaths: list[str] = []
     missingPaths: list[str] = []
     for department, name in targets:
-        departmentPath = build_department_path(department, departmentsById)
+        departmentPath = "/" + get_department_path(department, departmentsById)
         file = SharedFile.objects.filter(
             department=department, name_key=path_name_key(name)
         ).first()
@@ -435,7 +435,7 @@ def open_download(
     transfer = DownloadSession.objects.select_related("blob").get(
         pk=transferId, organization=access.organization, actor_id=access.actorId
     )
-    require_department(access, transfer.department_id)
+    require_file_department_access(access, transfer.department_id)
     # Only an already opened download may outlive logical deletion or overwrite.
     if transfer.started or transfer.expires_at <= timezone.now():
         raise FileOperationError(

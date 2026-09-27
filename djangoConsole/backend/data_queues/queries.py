@@ -15,14 +15,17 @@ from django.core.paginator import Paginator
 from django.db.models import Count, Q, QuerySet
 from django.db.models.functions import Lower, Substr
 
-from organizations.department_queries import get_department_path
-from organizations.models import Department, DepartmentRole
+from organizations.department_queries import (
+    get_department_tree,
+    resolve_department_path,
+    get_department_path,
+)
+from organizations.models import DepartmentRole
 from organizations.permissions import (
     AccessChannel,
     OrganizationAccessContext,
     get_authorized_departments,
 )
-from organizations.validators import validate_path_segment
 
 from .contracts import (
     MAX_QUEUE_RESPONSE_BYTES,
@@ -60,33 +63,17 @@ def get_queue_query(
     return query
 
 
-def normalize_queue_path(path: str) -> str:
-    listPart = path.replace("\\", "/").removeprefix("/").split("/")
-    if len(listPart) < 2 or len(listPart) > 65:
-        raise ValidationError("Use a full department path and queue name.")
-    for part in listPart:
-        validate_path_segment(part)
-        if len(part) > 128:
-            raise ValidationError("Path segments must not exceed 128 characters.")
-    return "/" + "/".join(listPart)
-
-
 def resolve_queue_path(
     access: OrganizationAccessContext, normalizedPath: str
 ) -> DataQueue:
     """Resolve a path already normalized at the request boundary."""
-    listPart = normalizedPath.split("/")[1:]
-    departmentId = None
-    for part in listPart[:-1]:
-        departmentId = Department.objects.get(
-            organization=access.organization,
-            deleted_at__isnull=True,
-            parent_id=departmentId,
-            name__iexact=part,
-        ).pk
+    pathParts = tuple(normalizedPath.split("/")[1:])
+    departmentsById = get_department_tree(access.organization.pk)
+    department = resolve_department_path(pathParts[:-1], departmentsById)
+    # Resolving a department path never grants access to its queues.
     return get_queue_query(access).get(
-        department_id=departmentId,
-        name__iexact=listPart[-1],
+        department_id=department.pk,
+        name__iexact=pathParts[-1],
     )
 
 
@@ -96,12 +83,7 @@ def build_queue_payloads(
     """Build one page using one department tree and one management-permission set."""
     if not queues:
         return []
-    departmentsById = {
-        department.id: department
-        for department in Department.objects.filter(
-            organization=access.organization, deleted_at__isnull=True
-        )
-    }
+    departmentsById = get_department_tree(access.organization.pk)
     managedDepartmentIds = (
         set(
             get_authorized_departments(

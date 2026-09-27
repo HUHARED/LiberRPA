@@ -23,9 +23,12 @@ def validate_path_segment(segmentName: str) -> None:
         raise ValidationError(
             "The name must not end with a period.", code="invalid_path_segment"
         )
-    if any(char in "/\\" or unicodedata.category(char) == "Cc" for char in segmentName):
+    if any(
+        char in "/\\" or unicodedata.category(char) in {"Cc", "Cs"}
+        for char in segmentName
+    ):
         raise ValidationError(
-            "The name must not contain path separators or control characters.",
+            "The name must not contain path separators, control characters, or surrogate code points.",
             code="invalid_path_segment",
         )
 
@@ -36,7 +39,7 @@ def path_name_key(value: str) -> str:
 
 def normalize_path_name(value: str) -> str:
     validate_path_segment(value)
-    if len(value) > 128 or any(unicodedata.category(char) == "Cs" for char in value):
+    if len(value) > 128:
         raise ValidationError("Use at most 128 valid Unicode characters.")
     normalized = unicodedata.normalize("NFC", value)
     if len(normalized) > 128:

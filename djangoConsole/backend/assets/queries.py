@@ -11,8 +11,8 @@ from django.core.paginator import Paginator
 from django.db.models import QuerySet
 from django.db.models.functions import Lower
 
-from organizations.department_queries import get_department_path
-from organizations.models import Department, DepartmentRole
+from organizations.department_queries import get_department_tree, get_department_path
+from organizations.models import DepartmentRole
 from organizations.permissions import (
     OrganizationAccessContext,
     get_authorized_departments,
@@ -32,12 +32,7 @@ def get_asset_query(access: OrganizationAccessContext) -> QuerySet[Asset]:
 def build_asset_payloads(
     assets: list[Asset], access: OrganizationAccessContext, *, includeValue: bool = False
 ) -> list[dict[str, object]]:
-    departmentsById = {
-        department.id: department
-        for department in Department.objects.filter(
-            organization=access.organization, deleted_at__isnull=True
-        )
-    }
+    departmentsById = get_department_tree(access.organization.pk)
     managedDepartmentIds = set(
         get_authorized_departments(
             access, requiredRole=DepartmentRole.DEVELOPER

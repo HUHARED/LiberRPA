@@ -7,11 +7,21 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 import uuid
 
 from django.conf import settings
+from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
 from django.utils import timezone
 
 from file_storage.services import get_storage_usage
-from organizations.permissions import OrganizationAccessContext
+from organizations.department_queries import (
+    get_department_tree,
+    resolve_department_path,
+    get_department_path,
+)
+from organizations.models import DepartmentRole
+from organizations.permissions import (
+    OrganizationAccessContext,
+    get_authorized_departments,
+)
 from organizations.validators import path_name_key
 
 from .contracts import (
@@ -23,12 +33,18 @@ from .contracts import (
     FileUploadResponse,
 )
 from .models import SharedFile, UploadSession
-from .paths import (
-    load_department_tree,
-    require_department,
-    resolve_department,
-    build_department_path,
-)
+
+
+def require_file_department_access(
+    access: OrganizationAccessContext, departmentId: uuid.UUID
+) -> None:
+    """Check current file permissions without loading a department object a second time."""
+    if (
+        not get_authorized_departments(access, requiredRole=DepartmentRole.OPERATOR)
+        .filter(pk=departmentId)
+        .exists()
+    ):
+        raise PermissionDenied("The department is unavailable.")
 
 
 def build_file_payload(file: SharedFile, departmentPath: str) -> FileInfoResponse:
@@ -46,13 +62,13 @@ def build_file_payload(file: SharedFile, departmentPath: str) -> FileInfoRespons
 def resolve_file(
     access: OrganizationAccessContext, pathParts: tuple[str, ...]
 ) -> tuple[SharedFile, str]:
-    departmentsById = load_department_tree(access.organization.pk)
-    department = resolve_department(pathParts[:-1], departmentsById)
-    require_department(access, department.pk)
+    departmentsById = get_department_tree(access.organization.pk)
+    department = resolve_department_path(pathParts[:-1], departmentsById)
+    require_file_department_access(access, department.pk)
     file = SharedFile.objects.select_related("blob").get(
         department=department, name_key=path_name_key(pathParts[-1])
     )
-    return file, build_department_path(department, departmentsById)
+    return file, "/" + get_department_path(department, departmentsById)
 
 
 def get_file_list(
@@ -60,10 +76,10 @@ def get_file_list(
     payload: FileListRequest,
     departmentParts: tuple[str, ...],
 ) -> FileListResponse:
-    departmentsById = load_department_tree(access.organization.pk)
-    department = resolve_department(departmentParts, departmentsById)
-    require_department(access, department.pk)
-    departmentPath = build_department_path(department, departmentsById)
+    departmentsById = get_department_tree(access.organization.pk)
+    department = resolve_department_path(departmentParts, departmentsById)
+    require_file_department_access(access, department.pk)
+    departmentPath = "/" + get_department_path(department, departmentsById)
     query = SharedFile.objects.filter(department=department).select_related("blob")
     if payload.name:
         query = query.filter(name_key__contains=path_name_key(payload.name))
@@ -117,5 +133,5 @@ def get_upload(access: OrganizationAccessContext, uploadId: uuid.UUID) -> Upload
     upload = UploadSession.objects.get(
         pk=uploadId, organization=access.organization, actor_id=access.actorId
     )
-    require_department(access, upload.department_id)
+    require_file_department_access(access, upload.department_id)
     return upload
