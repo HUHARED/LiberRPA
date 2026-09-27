@@ -6,7 +6,11 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import json
 import uuid
+from collections.abc import Generator
+from contextlib import closing
+from typing import cast
 
+from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.db.models import Count, Q, QuerySet
 from django.db.models.functions import Lower, Substr
@@ -20,33 +24,58 @@ from organizations.permissions import (
 )
 from organizations.validators import validate_path_segment
 
+from .contracts import (
+    MAX_QUEUE_RESPONSE_BYTES,
+    QueueQueryRequest,
+    QueueDepartmentResponse,
+    QueueEntryResponse,
+    QueueListResponse,
+    QueueItemResponse,
+    QueueItemDetailsResponse,
+    QueueItemsResponse,
+    QueueQueryResponse,
+)
 from .models import DataQueue, QueueItem
 
 
-def get_queue_query(access: OrganizationAccessContext) -> QuerySet[DataQueue]:
-    return DataQueue.objects.filter(
-        department__in=get_authorized_departments(
-            access, requiredRole=DepartmentRole.OPERATOR
-        )
-    ).annotate(
-        unclaimed_count=Count("items", filter=Q(items__status="unclaimed")),
-        claimed_count=Count("items", filter=Q(items__status="claimed")),
+def get_queue_query(
+    access: OrganizationAccessContext,
+    *,
+    requiredRole: DepartmentRole = DepartmentRole.OPERATOR,
+    includeCounts: bool = False,
+) -> QuerySet[DataQueue]:
+    query = DataQueue.objects.filter(
+        department__in=get_authorized_departments(access, requiredRole=requiredRole)
     )
+    if includeCounts:
+        query = query.annotate(
+            unclaimed_count=Count(
+                "items",
+                filter=Q(items__status=QueueItem.Status.UNCLAIMED),
+            ),
+            claimed_count=Count(
+                "items", filter=Q(items__status=QueueItem.Status.CLAIMED)
+            ),
+        )
+    return query
 
 
 def normalize_queue_path(path: str) -> str:
     listPart = path.replace("\\", "/").removeprefix("/").split("/")
     if len(listPart) < 2 or len(listPart) > 65:
-        raise ValueError("Use a full department path and queue name.")
+        raise ValidationError("Use a full department path and queue name.")
     for part in listPart:
         validate_path_segment(part)
         if len(part) > 128:
-            raise ValueError("Path segments must not exceed 128 characters.")
+            raise ValidationError("Path segments must not exceed 128 characters.")
     return "/" + "/".join(listPart)
 
 
-def resolve_queue_path(access: OrganizationAccessContext, path: str) -> DataQueue:
-    listPart = normalize_queue_path(path).split("/")[1:]
+def resolve_queue_path(
+    access: OrganizationAccessContext, normalizedPath: str
+) -> DataQueue:
+    """Resolve a path already normalized at the request boundary."""
+    listPart = normalizedPath.split("/")[1:]
     departmentId = None
     for part in listPart[:-1]:
         departmentId = Department.objects.get(
@@ -56,38 +85,54 @@ def resolve_queue_path(access: OrganizationAccessContext, path: str) -> DataQueu
             name__iexact=part,
         ).pk
     return get_queue_query(access).get(
-        department_id=departmentId, name__iexact=listPart[-1]
+        department_id=departmentId,
+        name__iexact=listPart[-1],
     )
 
 
-def build_queue_payload(
-    queue: DataQueue, access: OrganizationAccessContext
-) -> dict[str, object]:
-    departments = {
+def build_queue_payloads(
+    queues: list[DataQueue], access: OrganizationAccessContext
+) -> list[QueueEntryResponse]:
+    """Build one page using one department tree and one management-permission set."""
+    if not queues:
+        return []
+    departmentsById = {
         department.id: department
         for department in Department.objects.filter(
             organization=access.organization, deleted_at__isnull=True
         )
     }
-    path = get_department_path(departments[queue.department_id], departments)
-    boolManage = (
-        access.channel == AccessChannel.SESSION
-        and get_authorized_departments(access, requiredRole=DepartmentRole.DEVELOPER)
-        .filter(pk=queue.department_id)
-        .exists()
+    managedDepartmentIds = (
+        set(
+            get_authorized_departments(
+                access, requiredRole=DepartmentRole.DEVELOPER
+            ).values_list("id", flat=True)
+        )
+        if access.channel == AccessChannel.SESSION
+        else set()
     )
-    return {
-        "id": queue.pk,
-        "name": queue.name,
-        "department": {"id": queue.department_id, "path": path},
-        "path": f"/{path}/{queue.name}",
-        "notes": queue.notes,
-        "unclaimed_count": queue.unclaimed_count,
-        "claimed_count": queue.claimed_count,
-        "can_manage": boolManage,
-        "created_at": queue.created_at,
-        "updated_at": queue.updated_at,
-    }
+    listPayload: list[QueueEntryResponse] = []
+    for queue in queues:
+        departmentPath = get_department_path(
+            departmentsById[queue.department_id], departmentsById
+        )
+        listPayload.append(
+            QueueEntryResponse(
+                id=queue.pk,
+                name=queue.name,
+                department=QueueDepartmentResponse(
+                    id=queue.department_id, path=departmentPath
+                ),
+                path=f"/{departmentPath}/{queue.name}",
+                notes=queue.notes,
+                unclaimed_count=queue.unclaimed_count,
+                claimed_count=queue.claimed_count,
+                can_manage=queue.department_id in managedDepartmentIds,
+                created_at=queue.created_at,
+                updated_at=queue.updated_at,
+            )
+        )
+    return listPayload
 
 
 def get_queue_list(
@@ -96,20 +141,20 @@ def get_queue_list(
     pageNumber: int = 1,
     departmentIds: tuple[uuid.UUID, ...] = (),
     name: str = "",
-) -> dict[str, object]:
-    query = get_queue_query(access)
+) -> QueueListResponse:
+    query = get_queue_query(access, includeCounts=True)
     if departmentIds:
         query = query.filter(department_id__in=departmentIds)
     if name:
         query = query.filter(name__icontains=name)
     page = Paginator(query.order_by(Lower("name"), "id"), 50).page(pageNumber)
-    return {
-        "queues": [build_queue_payload(queue, access) for queue in page],
-        "page": page.number,
-        "page_size": 50,
-        "total_count": page.paginator.count,
-        "total_pages": page.paginator.num_pages,
-    }
+    return QueueListResponse(
+        queues=build_queue_payloads(list(page.object_list), access),
+        page=page.number,
+        page_size=50,
+        total_count=page.paginator.count,
+        total_pages=page.paginator.num_pages,
+    )
 
 
 def select_items(
@@ -127,28 +172,26 @@ def select_items(
     return query.order_by("sequence" if order == "oldest_first" else "-sequence")
 
 
-def build_item_payload(
-    item: QueueItem, *, includeData: bool = False
-) -> dict[str, object]:
-    summary = item.data_json[:161] if includeData else item.summary
-    payload = {
-        field: getattr(item, field)
-        for field in (
-            "id",
-            "sequence",
-            "status",
-            "uploaded_by_id",
-            "uploaded_by_name",
-            "uploaded_at",
-            "last_claimed_by_id",
-            "last_claimed_by_name",
-            "last_claimed_at",
-        )
+def _build_item_metadata(item: QueueItem, summary: str) -> dict[str, object]:
+    return {
+        "id": item.id,
+        "sequence": item.sequence,
+        "status": item.status,
+        "data_summary": summary[:160] + ("…" if len(summary) > 160 else ""),
+        "uploaded_by_id": item.uploaded_by_id,
+        "uploaded_by_name": item.uploaded_by_name,
+        "uploaded_at": item.uploaded_at,
+        "last_claimed_by_id": item.last_claimed_by_id,
+        "last_claimed_by_name": item.last_claimed_by_name,
+        "last_claimed_at": item.last_claimed_at,
     }
-    payload["data_summary"] = summary[:160] + ("…" if len(summary) > 160 else "")
-    if includeData:
-        payload["data"] = json.loads(item.data_json)
-    return payload
+
+
+def build_item_details(item: QueueItem) -> QueueItemDetailsResponse:
+    return QueueItemDetailsResponse.model_validate({
+        **_build_item_metadata(item, item.data_json[:161]),
+        "data": json.loads(item.data_json),
+    })
 
 
 def get_item_list(
@@ -159,18 +202,60 @@ def get_item_list(
     status: str = "all",
     order: str = "oldest_first",
     itemId: uuid.UUID | None = None,
-) -> dict[str, object]:
+) -> QueueItemsResponse:
     query = (
         select_items(queue, status=status, order=order, itemId=itemId)
         .annotate(summary=Substr("data_json", 1, 161))
         .defer("data_json")
     )
     page = Paginator(query, 50).page(pageNumber)
-    return {
-        "queue": build_queue_payload(queue, access),
-        "items": [build_item_payload(item) for item in page],
-        "page": page.number,
-        "page_size": 50,
-        "total_count": page.paginator.count,
-        "total_pages": page.paginator.num_pages,
-    }
+    return QueueItemsResponse(
+        queue=build_queue_payloads([queue], access)[0],
+        items=[
+            QueueItemResponse.model_validate(_build_item_metadata(item, item.summary))
+            for item in page
+        ],
+        page=page.number,
+        page_size=50,
+        total_count=page.paginator.count,
+        total_pages=page.paginator.num_pages,
+    )
+
+
+def query_items(queue: DataQueue, payload: QueueQueryRequest) -> QueueQueryResponse:
+    query = select_items(
+        queue, status=payload.status, order=payload.order, itemId=payload.item_id
+    )
+    if payload.after_sequence is not None:
+        lookup = "sequence__gt" if payload.order == "oldest_first" else "sequence__lt"
+        query = query.filter(**{lookup: payload.after_sequence})
+    result = QueueQueryResponse(items=[], next_sequence=None)
+    responseBytes = len(result.model_dump_json().encode("utf-8"))
+    # Read one body at a time and close the cursor even when the byte budget stops the loop.
+    # NOTE: Django's iterator() returns a generator; django-stubs declares Iterator.
+    with closing(
+        cast(
+            Generator[QueueItem],
+            query[: payload.count + 1].iterator(chunk_size=1),
+        )
+    ) as candidates:
+        for item in candidates:
+            if len(result.items) == payload.count:
+                return result.model_copy(
+                    update={"next_sequence": result.items[-1].sequence},
+                )
+            entry = build_item_details(item)
+            entryBytes = len(entry.model_dump_json().encode("utf-8")) + bool(result.items)
+            cursorBytes = max(0, len(str(item.sequence)) - len("null"))
+            if responseBytes + entryBytes + cursorBytes > MAX_QUEUE_RESPONSE_BYTES:
+                if not result.items:
+                    raise ValidationError(
+                        "This queue item cannot fit in one response.",
+                        code="queue_response_too_large",
+                    )
+                return result.model_copy(
+                    update={"next_sequence": result.items[-1].sequence},
+                )
+            result.items.append(entry)
+            responseBytes += entryBytes
+    return result

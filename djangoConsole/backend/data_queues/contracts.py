@@ -12,6 +12,8 @@ from pydantic import Field, model_validator
 
 from console_project.contracts import JsonRequest, JsonResponsePayload, JsonValue
 
+MAX_QUEUE_RESPONSE_BYTES = 2 * 1024 * 1024
+
 type QueueUuid = Annotated[UUID, Field(strict=False)]
 type QueueStatus = Literal["unclaimed", "claimed"]
 type QueueFilterStatus = Literal["all", "unclaimed", "claimed"]
