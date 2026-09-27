@@ -86,6 +86,12 @@ export function createAppRouter(
             meta: { title: "General" },
           },
           {
+            path: "audit-log",
+            name: "audit-log",
+            component: () => import("../views/AuditLogView.vue"),
+            meta: { title: "Audit Log" },
+          },
+          {
             path: "members",
             name: "members",
             component: () => import("../views/MembersView.vue"),

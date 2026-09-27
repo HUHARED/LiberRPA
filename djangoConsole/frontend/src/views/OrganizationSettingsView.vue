@@ -12,7 +12,7 @@
     <v-tab value="departments" :to="{ name: 'departments' }">Departments</v-tab>
     <v-tab value="run-email-recipients" disabled>Run Email Recipients</v-tab>
     <v-tab value="usage-retention" disabled>Usage &amp; Retention</v-tab>
-    <v-tab value="audit-log" disabled>Audit Log</v-tab>
+    <v-tab value="audit-log" :to="{ name: 'audit-log' }">Audit Log</v-tab>
   </v-tabs>
   <RouterView />
 </template>
@@ -26,6 +26,7 @@ const strActiveTab = computed(() => {
   if (route.name === "members" || route.name === "member-details") return "members";
   if (route.name === "departments" || route.name === "department-details")
     return "departments";
+  if (route.name === "audit-log") return "audit-log";
   return "general";
 });
 </script>

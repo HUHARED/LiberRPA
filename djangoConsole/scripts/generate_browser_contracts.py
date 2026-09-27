@@ -53,6 +53,11 @@ from executors.contracts import (
     ExecutorGroupDeletionResponse,
     ExecutorGroupWriteResponse,
 )
+from operations.contracts import (
+    AuditListResponse,
+    AuditFilterOptionsResponse,
+    AuditDetailsResponse,
+)
 from organizations.contracts import (
     AccountAccessResponse,
     OrganizationSettingsRequest,
@@ -132,6 +137,9 @@ _TUPLE_CONTRACT_MODEL: tuple[tuple[type[BaseModel], JsonSchemaMode], ...] = (
     (ExecutorGroupDetailsResponse, "serialization"),
     (ExecutorGroupDeletionResponse, "serialization"),
     (ExecutorGroupWriteResponse, "serialization"),
+    (AuditListResponse, "serialization"),
+    (AuditFilterOptionsResponse, "serialization"),
+    (AuditDetailsResponse, "serialization"),
 )
 
 

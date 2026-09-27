@@ -13,6 +13,9 @@ export interface BrowserApiContracts {
   ApiKeyListResponse: ApiKeyListResponse;
   ApiKeyNotesRequest: ApiKeyNotesRequest;
   ApiKeyWriteResponse: ApiKeyWriteResponse;
+  AuditDetailsResponse: AuditDetailsResponse;
+  AuditFilterOptionsResponse: AuditFilterOptionsResponse;
+  AuditListResponse: AuditListResponse;
   CsrfResponse: CsrfResponse;
   DepartmentCreationRequest: DepartmentCreationRequest;
   DepartmentDeletionPreviewResponse: DepartmentDeletionPreviewResponse;
@@ -131,6 +134,68 @@ export interface ApiKeyNotesRequest {
 }
 export interface ApiKeyWriteResponse {
   api_key: ApiKeyResponse;
+}
+export interface AuditDetailsResponse {
+  record: AuditDetailsRecordResponse;
+}
+export interface AuditDetailsRecordResponse {
+  action: string;
+  actor_id: string | null;
+  actor_name: string;
+  changes: AuditChangeResponse[];
+  channel: "session" | "executor" | "api_key" | "system";
+  created_at: string;
+  department_id: string | null;
+  details_omitted: boolean;
+  http_status: number | null;
+  id: string;
+  module: string;
+  object_id: string;
+  object_name: string;
+  object_type: string;
+  organization_id: string;
+  organization_name: string;
+  reason_code: string | null;
+  request_id: string | null;
+  result: "succeeded" | "failed";
+  stage: "operation" | "request";
+}
+export interface AuditChangeResponse {
+  after: string | null;
+  before: string | null;
+  field: string;
+}
+export interface AuditFilterOptionsResponse {
+  actions: string[];
+  actors: AuditActorResponse[];
+  modules: string[];
+}
+export interface AuditActorResponse {
+  id: string | null;
+  name: string;
+}
+export interface AuditListResponse {
+  pagination: PaginationResponse;
+  records: AuditRecordResponse[];
+}
+export interface PaginationResponse {
+  page: number;
+  page_size: number;
+  total_count: number;
+  total_pages: number;
+}
+export interface AuditRecordResponse {
+  action: string;
+  actor_id: string | null;
+  actor_name: string;
+  channel: "session" | "executor" | "api_key" | "system";
+  created_at: string;
+  id: string;
+  module: string;
+  object_id: string;
+  object_name: string;
+  object_type: string;
+  result: "succeeded" | "failed";
 }
 export interface CsrfResponse {
   csrf_token: string;
@@ -425,12 +490,6 @@ export interface InvitationEmailDeliveryResponse {
 export interface InvitationListResponse {
   invitations: InvitationResponse[];
   pagination: PaginationResponse;
-}
-export interface PaginationResponse {
-  page: number;
-  page_size: number;
-  total_count: number;
-  total_pages: number;
 }
 export interface InvitationRegistrationResponse {
   email: string;
