@@ -44,7 +44,7 @@ def lock_session_write_access(
     access = resolve_organization_access(
         actorId=actorId, organizationId=organizationId, channel=channel, forUpdate=True
     )
-    actor = User.objects.get(pk=actorId)
+    actor = access.actor
     if (
         sessionExpiresAt <= timezone.now()
         or not sessionAuthHash
@@ -72,13 +72,13 @@ def revoke_other_sessions(
         raise PermissionDenied("A signed-in account is required to revoke sessions.")
 
     membership = get_current_membership(actorId=actorId)
-    resolve_organization_access(
+    access = resolve_organization_access(
         actorId=actorId,
         organizationId=membership.organization_id,
         channel=channel,
         forUpdate=True,
     )
-    user = User.objects.get(pk=actorId)
+    user = access.actor
     # NOTE: A request authenticated before a concurrent revocation must not revive its old session.
     if not sessionAuthHash or not constant_time_compare(
         sessionAuthHash, user.get_session_auth_hash()

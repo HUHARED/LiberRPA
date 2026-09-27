@@ -19,7 +19,6 @@ from organizations.permissions import (
 )
 
 from .api_keys import revoke_active_api_keys
-from .models import User
 from .passwords import validate_new_password
 
 
@@ -41,14 +40,13 @@ def change_password(
         raise PermissionDenied("A signed-in account is required to change the password.")
 
     membership = get_current_membership(actorId=actorId)
-    resolve_organization_access(
+    access = resolve_organization_access(
         actorId=actorId,
         organizationId=membership.organization_id,
         channel=channel,
         forUpdate=True,
     )
-    # The authorization service already locked this account; reload its current password hash.
-    user = User.objects.get(pk=actorId)
+    user = access.actor
     if not user.check_password(currentPassword):
         raise ValidationError({
             "current_password": ValidationError(

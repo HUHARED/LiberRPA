@@ -15,7 +15,6 @@ from django.conf import settings
 from django.core.exceptions import PermissionDenied
 from django.utils import timezone
 
-from accounts.models import User
 from file_storage.models import StoredBlob, DownloadSession
 from file_storage.services import (
     FileOperationError,
@@ -300,7 +299,7 @@ def complete_upload(
         name_key=path_name_key(upload.name),
         blob_id=upload.blob_id,
         uploaded_by_id=access.actorId,
-        uploaded_by_name=str(User.objects.get(pk=access.actorId)),
+        uploaded_by_name=str(access.actor),
     )
     StoredBlob.objects.filter(pk=upload.blob_id).update(
         state=StoredBlob.State.AVAILABLE, written_bytes=upload.size_bytes

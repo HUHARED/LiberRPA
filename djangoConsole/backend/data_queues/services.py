@@ -18,7 +18,6 @@ from django.db.models import Count, Sum
 from django.utils import timezone
 from django.views.decorators.debug import sensitive_variables
 
-from accounts.models import User
 from console_project.config import LimitsConfig
 from console_project.validators import validate_json_value
 from operations.audit import get_audit_snapshot, record_audit
@@ -283,7 +282,7 @@ def upload_items(
                 "queue_capacity_limit",
                 "This batch exceeds the organization's queue item or byte limit.",
             )
-        actorName = str(User.objects.get(pk=access.actorId))
+        actorName = str(access.actor)
         created = QueueItem.objects.bulk_create([
             QueueItem(
                 queue=queue,
@@ -356,7 +355,7 @@ def claim_items(
             QueueItem.objects.filter(queue=queue, pk__in=result.item_ids).update(
                 status=QueueItem.Status.CLAIMED,
                 last_claimed_by_id=access.actorId,
-                last_claimed_by_name=str(User.objects.get(pk=access.actorId)),
+                last_claimed_by_name=str(access.actor),
                 last_claimed_at=result.accepted_at,
             )
 

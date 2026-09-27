@@ -9,6 +9,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import cast
 
+from accounts.models import User
+
 from .department_queries import get_department_path
 from .models import Department, DepartmentRole, Organization
 from .permissions import (
@@ -116,7 +118,7 @@ def get_account_access_info(*, actorId: uuid.UUID) -> AccountAccessInfo:
     departmentAccessEntries: tuple[DepartmentAccessInfo, ...] = ()
     if businessAvailable:
         access = OrganizationAccessContext(
-            actorId=membership.user_id,
+            actor=cast(User, membership.user),
             organization=organization,
             isOrgAdmin=membership.is_org_admin,
             channel=AccessChannel.SESSION,

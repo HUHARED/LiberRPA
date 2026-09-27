@@ -30,10 +30,14 @@ class AccessChannel(StrEnum):
 class OrganizationAccessContext:
     """Business access for one operation, never a cache across requests or commits."""
 
-    actorId: uuid.UUID
+    actor: User
     organization: Organization
     isOrgAdmin: bool
     channel: AccessChannel
+
+    @property
+    def actorId(self) -> uuid.UUID:
+        return self.actor.pk
 
 
 _DICT_ALLOWED_ROLE_BY_REQUIREMENT = {
@@ -67,7 +71,9 @@ def get_current_membership(*, actorId: uuid.UUID) -> Membership:
     Business operations must still apply their service-state and action permission rules.
     """
     try:
-        return _get_active_memberships(actorId).select_related("organization").get()
+        return (
+            _get_active_memberships(actorId).select_related("organization", "user").get()
+        )
     except Membership.DoesNotExist:
         raise PermissionDenied("Organization access is required.") from None
 
@@ -94,7 +100,7 @@ def _resolve_organization_member(
                 .get()
             )
         else:
-            membership = membershipQuery.select_related("organization").get()
+            membership = membershipQuery.select_related("organization", "user").get()
             organization = cast(Organization, membership.organization)
     except (Organization.DoesNotExist, Membership.DoesNotExist):
         raise PermissionDenied("Organization access is required.") from None
@@ -114,6 +120,7 @@ def resolve_organization_access(
     actorId and channel come from verified credentials, never from the request body.
     Restricted status viewing and deletion cancellation need separate authorization.
     forUpdate requires the caller's transaction and locks the organization before its member.
+    The returned actor is the account loaded with the membership, locked for writes.
     Resolve again at a new operation or write boundary instead of reusing an old result.
     """
     if channel not in (
@@ -129,7 +136,7 @@ def resolve_organization_access(
     # Verify membership first so an outsider cannot discover the organization's state.
     require_organization_business_available(organization)
     return OrganizationAccessContext(
-        actorId=membership.user_id,
+        actor=cast(User, membership.user),
         organization=organization,
         isOrgAdmin=membership.is_org_admin,
         channel=channel,

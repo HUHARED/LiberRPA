@@ -67,10 +67,7 @@ def _get_account_deletion_context(
     if forUpdate:
         membershipQuery = membershipQuery.select_for_update(of=("self", "user"))
     membership = membershipQuery.get(user_id=userId)
-    actor = (
-        cast(User, membership.user) if userId == actorId else User.objects.get(pk=actorId)
-    )
-    return actor, membership
+    return access.actor, membership
 
 
 def _get_account_deletion_info(membership: Membership) -> AccountDeletionInfo:

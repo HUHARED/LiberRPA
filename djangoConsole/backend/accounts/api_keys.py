@@ -24,6 +24,7 @@ from operations.audit import get_audit_snapshot, record_audit
 from organizations.models import Membership
 from organizations.permissions import (
     AccessChannel,
+    OrganizationAccessContext,
     get_current_membership,
     require_organization_admin,
     resolve_organization_access,
@@ -47,15 +48,15 @@ def get_api_key_status(apiKey: ApiKey, *, currentTime: datetime) -> ApiKeyStatus
     return ApiKeyStatus.ACTIVE
 
 
-def _get_management_owner(
+def _resolve_management_access(
     actorId: uuid.UUID,
     channel: AccessChannel,
     userId: uuid.UUID,
     *,
     forUpdate: bool,
     asAdministrator: bool = False,
-) -> Membership:
-    """Authorize the actor before looking up another member or their key metadata."""
+) -> OrganizationAccessContext:
+    """Resolve the actor's access and verify that the target belongs to the same organization."""
     if channel != AccessChannel.SESSION:
         raise PermissionDenied("A signed-in account is required to manage API keys.")
     membership = get_current_membership(actorId=actorId)
@@ -67,16 +68,18 @@ def _get_management_owner(
     )
     if asAdministrator or userId != actorId:
         require_organization_admin(access)
-    membershipQuery = Membership.objects.filter(organization=access.organization)
-    if forUpdate:
-        membershipQuery = membershipQuery.select_related("user").select_for_update(
-            of=("self", "user")
-        )
-    return membershipQuery.get(user_id=userId)
+    if userId != actorId:
+        membershipQuery = Membership.objects.filter(organization=access.organization)
+        if forUpdate:
+            membershipQuery = membershipQuery.select_related("user").select_for_update(
+                of=("self", "user")
+            )
+        membershipQuery.get(user_id=userId)
+    return access
 
 
 @sensitive_variables()
-def _lock_management_owner(
+def _lock_management_access(
     actorId: uuid.UUID,
     channel: AccessChannel,
     userId: uuid.UUID,
@@ -85,10 +88,10 @@ def _lock_management_owner(
     *,
     asAdministrator: bool = False,
 ) -> None:
-    _get_management_owner(
+    access = _resolve_management_access(
         actorId, channel, userId, forUpdate=True, asAdministrator=asAdministrator
     )
-    actor = User.objects.get(pk=actorId)
+    actor = access.actor
     # A request waiting behind password/session revocation must not issue a new credential.
     if (
         sessionExpiresAt <= timezone.now()
@@ -152,7 +155,7 @@ def get_api_key_list(
     asAdministrator: bool = False,
 ) -> tuple[ApiKey, ...]:
     """Read current owner/admin metadata; filtering happens after applying retention."""
-    _get_management_owner(
+    _resolve_management_access(
         actorId, channel, userId, forUpdate=False, asAdministrator=asAdministrator
     )
     currentTime = timezone.now()
@@ -181,7 +184,7 @@ def create_api_key(
     sessionExpiresAt: datetime,
 ) -> ApiKeyCreationResult:
     """Issue a 256-bit secret for the authenticated owner, returning its plaintext once."""
-    _lock_management_owner(actorId, channel, actorId, sessionAuthHash, sessionExpiresAt)
+    _lock_management_access(actorId, channel, actorId, sessionAuthHash, sessionExpiresAt)
     currentTime = timezone.now()
     if timezone.is_naive(expiresAt) or expiresAt <= currentTime:
         raise ValidationError({"expires_at": "Choose a future time with a UTC offset."})
@@ -227,7 +230,7 @@ def update_api_key_notes(
     sessionExpiresAt: datetime,
 ) -> ApiKey:
     """Edit only the owner's Notes without changing credential state or retention."""
-    _lock_management_owner(actorId, channel, actorId, sessionAuthHash, sessionExpiresAt)
+    _lock_management_access(actorId, channel, actorId, sessionAuthHash, sessionExpiresAt)
     apiKey = _get_retained_api_keys(actorId, timezone.now()).get(pk=apiKeyId)
     dictAuditBefore = get_audit_snapshot(apiKey)
     apiKey.notes = notes
@@ -256,7 +259,7 @@ def revoke_api_key(
     asAdministrator: bool = False,
 ) -> ApiKey:
     """Permanently revoke an active owner/member key; repeats preserve the first timestamp."""
-    _lock_management_owner(
+    _lock_management_access(
         actorId,
         channel,
         userId,

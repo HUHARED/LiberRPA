@@ -73,16 +73,13 @@ def _build_email_unavailable_error() -> ValidationError:
 def _get_email_change_user(userId: uuid.UUID, *, forUpdate: bool) -> User:
     """Resolve current business eligibility; callers separately verify the password or proof."""
     membership = get_current_membership(actorId=userId)
-    resolve_organization_access(
+    access = resolve_organization_access(
         actorId=userId,
         organizationId=membership.organization_id,
         channel=AccessChannel.SESSION,
         forUpdate=forUpdate,
     )
-    try:
-        return User.objects.get(pk=userId)
-    except User.DoesNotExist:
-        raise PermissionDenied("Account access is required.") from None
+    return access.actor
 
 
 @sensitive_variables()

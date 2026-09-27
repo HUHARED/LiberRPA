@@ -19,7 +19,6 @@ from django.utils import timezone
 from django.utils.crypto import constant_time_compare
 from django.views.decorators.debug import sensitive_variables
 
-from accounts.models import User
 from operations.audit import record_audit
 from operations.models import AuditChannel
 from organizations.models import DepartmentRole, Organization
@@ -83,7 +82,7 @@ def begin_executor_login(
             channel=AccessChannel.EXECUTOR,
             forUpdate=True,
         )
-        user = User.objects.get(pk=userId)
+        user = access.actor
         if not constant_time_compare(verifiedAuthHash, user.get_session_auth_hash()):
             raise InvalidExecutorSessionError("Sign in again to continue.")
         prune_executor_sessions(access.organization.id)
