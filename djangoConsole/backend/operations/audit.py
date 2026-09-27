@@ -60,6 +60,7 @@ _DICT_SNAPSHOT_FIELD = {
     ),
     "executors.executorgroup": ("name", "department_id", "notes", "deleted_at"),
     "executors.executorsession": ("user_id", "executor_id", "computer", "client_version"),
+    "assets.asset": ("name", "department_id", "asset_type", "notes"),
 }
 
 

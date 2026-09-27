@@ -47,6 +47,21 @@ export function createAppRouter(
         meta: { title: "Executors", requiresBusiness: true },
       },
       {
+        path: "/assets",
+        name: "assets",
+        component: () => import("../views/AssetsView.vue"),
+        meta: { title: "Assets", requiresBusiness: true },
+        children: [
+          {
+            path: ":assetId",
+            name: "asset-details",
+            component: () => import("../components/AssetDetailsDialog.vue"),
+            props: true,
+            meta: { title: "Asset Details" },
+          },
+        ],
+      },
+      {
         path: "/executors/groups",
         name: "executor-groups",
         component: () => import("../views/ExecutorGroupsView.vue"),
@@ -151,10 +166,13 @@ export function createAppRouter(
       },
     ],
     scrollBehavior: (to, from, savedPosition) => {
-      // Opening or closing a group dialog keeps its mounted list and background position.
+      // Opening or closing a resource dialog keeps its mounted list and background position.
       if (
-        to.matched.some((record) => record.name === "executor-groups") &&
-        from.matched.some((record) => record.name === "executor-groups")
+        ["executor-groups", "assets"].some(
+          (name) =>
+            to.matched.some((record) => record.name === name) &&
+            from.matched.some((record) => record.name === name),
+        )
       )
         return false;
       return savedPosition ?? { top: 0 };

@@ -130,7 +130,7 @@ const ARR_NAVIGATION = [
   { title: "Schedules", icon: "mdi-calendar-clock-outline" },
   { title: "Job Queue", icon: "mdi-list-box-outline" },
   { title: "Run History", icon: "mdi-history" },
-  { title: "Assets", icon: "mdi-archive-outline" },
+  { title: "Assets", icon: "mdi-archive-outline", path: "/assets" },
   { title: "Data Queues", icon: "mdi-database-outline" },
   { title: "Shared Files", icon: "mdi-folder-outline" },
   {

@@ -14,6 +14,7 @@ from django.db import transaction
 from django.utils import timezone
 from django.views.decorators.debug import sensitive_variables
 
+from accounts.session_revocation import lock_session_write_access
 from console_project.config import LimitsConfig
 from operations.audit import get_audit_snapshot, record_audit
 from organizations.models import DepartmentRole
@@ -23,7 +24,7 @@ from organizations.permissions import (
     get_authorized_departments,
 )
 
-from .access import lock_executor_write_access, require_executor_management
+from .access import require_executor_management
 from .models import Executor, ExecutorGroupMember, ExecutorSession
 
 
@@ -56,7 +57,7 @@ def create_executor(
     sessionExpiresAt: datetime,
 ) -> Executor:
     """Create a logical record without assigning an account or creating a machine credential."""
-    access = lock_executor_write_access(
+    access = lock_session_write_access(
         actorId, organizationId, channel, sessionAuthHash, sessionExpiresAt
     )
     department = get_authorized_departments(
@@ -104,7 +105,7 @@ def update_executor(
     sessionExpiresAt: datetime,
 ) -> Executor:
     """Save Name and Notes; department, identity, and dispatch state stay server-controlled."""
-    access = lock_executor_write_access(
+    access = lock_session_write_access(
         actorId, organizationId, channel, sessionAuthHash, sessionExpiresAt
     )
     executor = _get_executor_for_management(access, executorId)
@@ -137,7 +138,7 @@ def set_executor_dispatch(
     sessionExpiresAt: datetime,
 ) -> Executor:
     """Set the persistent dispatch switch explicitly; repeating a request never toggles it."""
-    access = lock_executor_write_access(
+    access = lock_session_write_access(
         actorId, organizationId, channel, sessionAuthHash, sessionExpiresAt
     )
     executor = _get_executor_for_management(access, executorId)
@@ -168,7 +169,7 @@ def delete_executor(
     sessionExpiresAt: datetime,
 ) -> Executor:
     """Remove a current record while retaining its identity for future historical references."""
-    access = lock_executor_write_access(
+    access = lock_session_write_access(
         actorId, organizationId, channel, sessionAuthHash, sessionExpiresAt
     )
     executor = _get_executor_for_management(access, executorId)
@@ -207,7 +208,7 @@ def unassociate_executor(
     sessionExpiresAt: datetime,
 ) -> Executor:
     """Revoke the selected association without letting a delayed retry remove a replacement."""
-    access = lock_executor_write_access(
+    access = lock_session_write_access(
         actorId, organizationId, channel, sessionAuthHash, sessionExpiresAt
     )
     executor = _get_executor_for_management(access, executorId)

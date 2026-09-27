@@ -5,10 +5,12 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import uuid
+from datetime import datetime
 
 from django.contrib.auth.hashers import check_password
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
+from django.utils import timezone
 from django.utils.crypto import constant_time_compare
 from django.views.decorators.debug import sensitive_variables
 
@@ -16,6 +18,7 @@ from executors.session_state import revoke_user_executor_sessions
 from operations.audit import record_audit
 from organizations.permissions import (
     AccessChannel,
+    OrganizationAccessContext,
     get_current_membership,
     resolve_organization_access,
 )
@@ -25,6 +28,30 @@ from .models import User
 
 class SessionInvalidatedError(PermissionDenied):
     """The initiating session became invalid before its operation obtained the account lock."""
+
+
+@sensitive_variables()
+def lock_session_write_access(
+    actorId: uuid.UUID,
+    organizationId: uuid.UUID,
+    channel: AccessChannel,
+    sessionAuthHash: str,
+    sessionExpiresAt: datetime,
+) -> OrganizationAccessContext:
+    """Resolve current access and recheck a browser session after acquiring write locks."""
+    if channel != AccessChannel.SESSION:
+        raise PermissionDenied("A signed-in account is required for this operation.")
+    access = resolve_organization_access(
+        actorId=actorId, organizationId=organizationId, channel=channel, forUpdate=True
+    )
+    actor = User.objects.get(pk=actorId)
+    if (
+        sessionExpiresAt <= timezone.now()
+        or not sessionAuthHash
+        or not constant_time_compare(sessionAuthHash, actor.get_session_auth_hash())
+    ):
+        raise SessionInvalidatedError("The current session is no longer valid.")
+    return access
 
 
 @sensitive_variables()

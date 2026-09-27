@@ -36,6 +36,14 @@ from accounts.contracts import (
     ApiKeyListResponse,
 )
 from console_project.contracts import MessageResponse
+from assets.contracts import (
+    AssetDetailsRequest,
+    AssetCreationRequest,
+    AssetValueRequest,
+    AssetDeletionRequest,
+    AssetListResponse,
+    AssetDetailsResponse,
+)
 from executors.contracts import (
     ExecutorUpdateRequest,
     ExecutorCreationRequest,
@@ -83,6 +91,12 @@ from organizations.contracts import (
 )
 
 _TUPLE_CONTRACT_MODEL: tuple[tuple[type[BaseModel], JsonSchemaMode], ...] = (
+    (AssetDetailsRequest, "validation"),
+    (AssetCreationRequest, "validation"),
+    (AssetValueRequest, "validation"),
+    (AssetDeletionRequest, "validation"),
+    (AssetListResponse, "serialization"),
+    (AssetDetailsResponse, "serialization"),
     (LoginRequest, "validation"),
     (CsrfResponse, "serialization"),
     (SessionResponse, "serialization"),

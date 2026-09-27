@@ -12,6 +12,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from executors.models import Executor, ExecutorGroup
+from assets.models import Asset
 from operations.audit import record_audit
 
 from .models import Department, DepartmentMembership
@@ -25,7 +26,11 @@ from .permissions import (
 @dataclass(frozen=True)
 class DepartmentDeletionBlocker:
     code: Literal[
-        "child_departments", "department_memberships", "executors", "executor_groups"
+        "child_departments",
+        "department_memberships",
+        "executors",
+        "executor_groups",
+        "assets",
     ]
     count: int
 
@@ -93,6 +98,10 @@ def _get_department_deletion_info(department: Department) -> DepartmentDeletionI
     ).count()
     if groupCount:
         listBlocker.append(DepartmentDeletionBlocker("executor_groups", groupCount))
+
+    assetCount = Asset.objects.filter(department=department).count()
+    if assetCount:
+        listBlocker.append(DepartmentDeletionBlocker("assets", assetCount))
 
     # Add other current business resources and unfinished Jobs here when their models exist.
     # Their writes must use the same organization lock; retained history must not block.

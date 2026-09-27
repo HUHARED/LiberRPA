@@ -105,7 +105,11 @@ class DepartmentIdentityResponse(JsonResponsePayload):
 
 class DepartmentDeletionBlockerResponse(JsonResponsePayload):
     code: Literal[
-        "child_departments", "department_memberships", "executors", "executor_groups"
+        "child_departments",
+        "department_memberships",
+        "executors",
+        "executor_groups",
+        "assets",
     ]
     count: int = Field(gt=0)
 

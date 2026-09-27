@@ -50,6 +50,10 @@ _DICT_WRITE_ACTION = {
     "executor-groups": "executor_group.create",
     "executor-group": "executor_group.update",
     "executor-group-deletion": "executor_group.delete",
+    "assets": "asset.create",
+    "asset": "asset.update",
+    "asset-value": "asset.set_value",
+    "asset-deletion": "asset.delete",
 }
 
 
@@ -103,6 +107,7 @@ def record_failed_request(request: HttpRequest, response: HttpResponseBase) -> N
                     str(request.resolver_match.kwargs[strParameter])
                     for strParameter in (
                         "apiKeyId",
+                        "assetId",
                         "departmentId",
                         "executorId",
                         "groupId",

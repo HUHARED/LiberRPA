@@ -10,7 +10,7 @@ from pathlib import Path
 
 from django.core.exceptions import ImproperlyConfigured
 
-from .config import read_config, read_secret_file
+from .config import read_config, read_secret_file, read_secret_cipher
 from .logging import build_logging_config
 
 _PATH_CONSOLE = Path(__file__).resolve().parents[2]
@@ -30,6 +30,9 @@ ALLOWED_HOSTS = _CONSOLE_CONFIG.allowedHosts
 ROOT_URLCONF = "console_project.urls"
 ASGI_APPLICATION = "console_project.asgi.application"
 CONSOLE_LIMITS = _CONSOLE_CONFIG.limits
+CONSOLE_SECRET_CIPHER = read_secret_cipher(
+    _PATH_CONFIG.parent, _CONSOLE_CONFIG.encryptionKeyFiles
+)
 CONSOLE_LOG_REQUESTS = _CONSOLE_CONFIG.logging.requests
 LOGGING = build_logging_config(_CONSOLE_CONFIG.logging.level)
 CONSOLE_URL = (
@@ -71,6 +74,7 @@ INSTALLED_APPS = [
     "accounts.apps.AccountsConfig",
     "organizations.apps.OrganizationsConfig",
     "executors.apps.ExecutorsConfig",
+    "assets.apps.AssetsConfig",
     "operations.apps.OperationsConfig",
     "notifications.apps.NotificationsConfig",
 ]

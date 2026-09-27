@@ -10,6 +10,8 @@ from getpass import getpass
 from pathlib import Path
 from shutil import copyfile
 
+from cryptography.fernet import Fernet
+
 
 def _write_secret_file(secretPath: Path, secretValue: str) -> None:
     fileDescriptor = os.open(secretPath, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
@@ -31,6 +33,9 @@ def main() -> None:
     pathSecrets = pathLocal / "secrets"
     pathSecrets.mkdir(mode=0o700)
     _write_secret_file(pathSecrets / "django-secret-key.txt", secrets.token_urlsafe(64))
+    _write_secret_file(
+        pathSecrets / "encryption-key.txt", Fernet.generate_key().decode("ascii")
+    )
     _write_secret_file(pathSecrets / "database-password.txt", databasePassword)
     copyfile(pathConsole / "Console.example.jsonc", pathLocal / "Console.jsonc")
     print(f"Created local development configuration: {pathLocal / 'Console.jsonc'}")

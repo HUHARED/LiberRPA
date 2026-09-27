@@ -16,6 +16,10 @@
   // Relative secret paths are resolved against this configuration file.
   // Store UTF-8 text in these files; never put the secret values here.
   "secretKeyFile": "secrets/django-secret-key.txt",
+  // The first key encrypts new secrets; remaining keys can decrypt existing values.
+  // NOTE: Back up these files separately and retain keys required by stored values or supported backups.
+  // Missing configured files are errors; keys are never generated during startup.
+  "encryptionKeyFiles": ["secrets/encryption-key.txt"],
   "database": {
     "host": "127.0.0.1",
     "port": 5432,
@@ -72,6 +76,12 @@
     // Current Executor groups count, including empty groups; deleted groups do not count.
     // A value of 0 blocks creation; lowering the limit preserves existing groups and members.
     "maxExecutorGroupsPerOrganization": 50,
+
+    // Ordinary and secret assets share the count limit; 0 blocks creation.
+    "maxAssetsPerOrganization": 1000,
+    // UTF-8 bytes: text content or compact JSON; a Credential counts both fields together.
+    "maxAssetValueBytes": 65536,
+    "maxSecretAssetValueBytes": 16384,
 
     // API key capacity and inactive metadata retention per account.
     // Expired and revoked keys do not consume active capacity; 0 blocks new keys.

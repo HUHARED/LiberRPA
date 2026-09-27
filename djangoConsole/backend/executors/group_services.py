@@ -15,6 +15,7 @@ from django.db import transaction
 from django.utils import timezone
 from django.views.decorators.debug import sensitive_variables
 
+from accounts.session_revocation import lock_session_write_access
 from console_project.config import LimitsConfig
 from operations.audit import get_audit_snapshot, record_audit
 from organizations.models import DepartmentRole
@@ -24,7 +25,7 @@ from organizations.permissions import (
     get_authorized_departments,
 )
 
-from .access import lock_executor_write_access, require_executor_management
+from .access import require_executor_management
 from .models import Executor, ExecutorGroup, ExecutorGroupMember
 
 
@@ -91,7 +92,7 @@ def create_executor_group(
     sessionAuthHash: str,
     sessionExpiresAt: datetime,
 ) -> ExecutorGroupWriteResult:
-    access = lock_executor_write_access(
+    access = lock_session_write_access(
         actorId, organizationId, channel, sessionAuthHash, sessionExpiresAt
     )
     department = get_authorized_departments(
@@ -141,7 +142,7 @@ def update_executor_group(
     sessionExpiresAt: datetime,
 ) -> ExecutorGroupWriteResult:
     """Save the complete form and membership set together, including an explicitly empty set."""
-    access = lock_executor_write_access(
+    access = lock_session_write_access(
         actorId, organizationId, channel, sessionAuthHash, sessionExpiresAt
     )
     group = _get_group_for_management(access, groupId)
@@ -175,7 +176,7 @@ def delete_executor_group(
     sessionExpiresAt: datetime,
 ) -> ExecutorGroup:
     """Remove memberships and retain the group identity without changing any Executor."""
-    access = lock_executor_write_access(
+    access = lock_session_write_access(
         actorId, organizationId, channel, sessionAuthHash, sessionExpiresAt
     )
     group = _get_group_for_management(access, groupId)

@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Annotated, Literal, Self
 
 import json5
+from cryptography.fernet import Fernet, MultiFernet
 from django.core.exceptions import ImproperlyConfigured
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.validators import validate_email
@@ -61,6 +62,9 @@ class LimitsConfig(_BaseConfig):
     maxDepartmentDepth: int = Field(default=5, ge=1)
     maxExecutorsPerOrganization: int = Field(default=20, ge=0)
     maxExecutorGroupsPerOrganization: int = Field(default=50, ge=0)
+    maxAssetsPerOrganization: int = Field(default=1000, ge=0)
+    maxAssetValueBytes: int = Field(default=65536, ge=1, le=262144)
+    maxSecretAssetValueBytes: int = Field(default=16384, ge=1, le=262144)
 
     # Audit cleanup is independent of business object and API key retention.
     auditRetentionDays: int = Field(default=180, ge=1, le=180)
@@ -129,6 +133,7 @@ class ConsoleConfig(_BaseConfig):
     debug: bool = False
     allowedHosts: list[NonEmptyText] = Field(min_length=1)
     secretKeyFile: NonEmptyText
+    encryptionKeyFiles: list[NonEmptyText] = Field(default_factory=list)
     database: DatabaseConfig
     limits: LimitsConfig = Field(default_factory=LimitsConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
@@ -205,3 +210,18 @@ def read_secret_file(secretPath: Path) -> str:
     if not secretValue.strip():
         raise ImproperlyConfigured(f"Secret file is empty: {secretPath}")
     return secretValue
+
+
+def read_secret_cipher(configDirectory: Path, keyFiles: list[str]) -> MultiFernet | None:
+    """Load the primary encryption key followed by retained decryption keys."""
+    if not keyFiles:
+        return None
+    listCipher: list[Fernet] = []
+    for strKeyFile in keyFiles:
+        try:
+            listCipher.append(Fernet(read_secret_file(configDirectory / strKeyFile)))
+        except (ValueError, UnicodeError):
+            raise ImproperlyConfigured(
+                f"Invalid encryption key file: {strKeyFile}"
+            ) from None
+    return MultiFernet(listCipher)

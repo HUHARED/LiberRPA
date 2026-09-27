@@ -147,6 +147,10 @@ const dictBlockerDisplay: Record<
     label: "Executor Groups",
     location: { name: "executor-groups", query: { department_id: props.department.id } },
   },
+  assets: {
+    label: "Assets",
+    location: { name: "assets", query: { department_id: props.department.id } },
+  },
 };
 const sessionStore = useSessionStore();
 const boolCanManage = computed(

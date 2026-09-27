@@ -164,6 +164,15 @@
             prepend-icon="mdi-group">
             Executor Groups
           </v-btn>
+          <v-btn
+            :to="{
+              name: 'assets',
+              query: { department_id: detailsInfo.department.id },
+            }"
+            variant="tonal"
+            prepend-icon="mdi-archive-outline">
+            Assets
+          </v-btn>
         </div>
       </v-card-text>
     </v-card>

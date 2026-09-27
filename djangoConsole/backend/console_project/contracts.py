@@ -6,6 +6,8 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from pydantic import BaseModel, ConfigDict
 
+type JsonValue = dict[str, JsonValue] | list[JsonValue] | str | int | float | bool | None
+
 
 class JsonRequest(BaseModel):
     """Validate HTTP envelopes; application services own business validation."""
