@@ -7,6 +7,7 @@ const SET_RETURN_PATH = new Set([
   "/executors",
   "/executors/groups",
   "/organization-settings",
+  "/organization-settings/general",
   "/organization-settings/members",
   "/organization-settings/departments",
   "/my-profile",

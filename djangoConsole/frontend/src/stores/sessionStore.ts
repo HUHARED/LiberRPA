@@ -82,6 +82,14 @@ export const useSessionStore = defineStore("session", {
       this.session.user = user;
     },
 
+    applyOrganizationName(organizationId: string, name: string): void {
+      if (this.access?.organization.id !== organizationId) return;
+      // Ignore an older access read that could restore the previous organization name.
+      this.intRevision += 1;
+      MAP_REFRESH_TASK.delete(this.$state);
+      this.access.organization.name = name;
+    },
+
     applySession(currentSession: SessionResponse): void {
       if (this.session?.user.id !== currentSession.user.id) {
         // A different account must not inherit the previous account's mounted pages.

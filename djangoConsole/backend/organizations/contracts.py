@@ -37,6 +37,23 @@ class AccountAccessResponse(JsonResponsePayload):
     departments: list[DepartmentAccessResponse]
 
 
+class OrganizationSettingsRequest(JsonRequest):
+    name: str
+    default_time_zone: str
+    notes: str
+
+
+class OrganizationSettingsRecordResponse(JsonResponsePayload):
+    id: UUID
+    name: str
+    default_time_zone: str
+    notes: str
+
+
+class OrganizationSettingsResponse(JsonResponsePayload):
+    organization: OrganizationSettingsRecordResponse
+
+
 class DepartmentUpdateRequest(JsonRequest):
     name: str
     parent_id: Annotated[UUID, Field(strict=False)] | None

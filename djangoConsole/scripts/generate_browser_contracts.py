@@ -55,6 +55,8 @@ from executors.contracts import (
 )
 from organizations.contracts import (
     AccountAccessResponse,
+    OrganizationSettingsRequest,
+    OrganizationSettingsResponse,
     DepartmentUpdateRequest,
     DepartmentCreationRequest,
     DepartmentDeletionRequest,
@@ -87,6 +89,8 @@ _TUPLE_CONTRACT_MODEL: tuple[tuple[type[BaseModel], JsonSchemaMode], ...] = (
     (EmailChangeTokenRequest, "validation"),
     (EmailChangeInfoResponse, "serialization"),
     (AccountAccessResponse, "serialization"),
+    (OrganizationSettingsRequest, "validation"),
+    (OrganizationSettingsResponse, "serialization"),
     (DepartmentUpdateRequest, "validation"),
     (DepartmentCreationRequest, "validation"),
     (DepartmentDeletionRequest, "validation"),

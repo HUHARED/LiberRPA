@@ -14,12 +14,16 @@ from django.views.decorators.http import require_http_methods
 
 from accounts.models import User
 from console_project.http import (
-    JsonRequest,
     build_error_response,
     build_service_unavailable_response,
     parse_json_request,
 )
 
+from .contracts import (
+    OrganizationSettingsRequest,
+    OrganizationSettingsRecordResponse,
+    OrganizationSettingsResponse,
+)
 from .models import Organization
 from .permissions import AccessChannel, get_current_membership
 from .services import get_organization_settings, update_organization_settings
@@ -27,21 +31,16 @@ from .services import get_organization_settings, update_organization_settings
 _INT_MAX_SETTINGS_BODY_BYTES = 32 * 1024
 
 
-class OrganizationSettingsRequest(JsonRequest):
-    name: str
-    default_time_zone: str
-    notes: str
-
-
 def _build_organization_settings_response(organization: Organization) -> JsonResponse:
-    return JsonResponse({
-        "organization": {
-            "id": organization.id,
-            "name": organization.name,
-            "default_time_zone": organization.default_time_zone,
-            "notes": organization.notes,
-        }
-    })
+    settingsResponse = OrganizationSettingsResponse(
+        organization=OrganizationSettingsRecordResponse(
+            id=organization.id,
+            name=organization.name,
+            default_time_zone=organization.default_time_zone,
+            notes=organization.notes,
+        )
+    )
+    return JsonResponse(settingsResponse.model_dump(mode="python"))
 
 
 @never_cache

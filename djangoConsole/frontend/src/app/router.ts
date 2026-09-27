@@ -72,13 +72,19 @@ export function createAppRouter(
         path: "/organization-settings",
         name: "organization-settings",
         component: () => import("../views/OrganizationSettingsView.vue"),
-        redirect: { name: "departments" },
+        redirect: { name: "organization-general" },
         meta: {
           title: "Organization Settings",
           requiresBusiness: true,
           requiresOrgAdmin: true,
         },
         children: [
+          {
+            path: "general",
+            name: "organization-general",
+            component: () => import("../views/OrganizationGeneralView.vue"),
+            meta: { title: "General" },
+          },
           {
             path: "members",
             name: "members",

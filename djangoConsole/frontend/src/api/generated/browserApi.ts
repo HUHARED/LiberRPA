@@ -52,6 +52,8 @@ export interface BrowserApiContracts {
   MembershipUpdateRequest: MembershipUpdateRequest;
   MembershipWriteResponse: MembershipWriteResponse;
   MessageResponse: MessageResponse;
+  OrganizationSettingsRequest: OrganizationSettingsRequest;
+  OrganizationSettingsResponse: OrganizationSettingsResponse;
   PasswordChangeRequest: PasswordChangeRequest;
   ProfileUpdateRequest: ProfileUpdateRequest;
   ProfileWriteResponse: ProfileWriteResponse;
@@ -481,6 +483,20 @@ export interface MembershipRecordResponse {
 }
 export interface MessageResponse {
   message: string;
+}
+export interface OrganizationSettingsRequest {
+  default_time_zone: string;
+  name: string;
+  notes: string;
+}
+export interface OrganizationSettingsResponse {
+  organization: OrganizationSettingsRecordResponse;
+}
+export interface OrganizationSettingsRecordResponse {
+  default_time_zone: string;
+  id: string;
+  name: string;
+  notes: string;
 }
 export interface PasswordChangeRequest {
   confirm_password: string;
