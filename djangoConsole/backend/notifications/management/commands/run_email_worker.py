@@ -13,13 +13,16 @@ from django.core.management.base import BaseCommand, CommandError, CommandParser
 from django.db import DatabaseError
 from django.utils import timezone
 
-from console_project.workers import stop_on_signals
+from console_project.workers import (
+    EMAIL_WORKER_LOCK_ID,
+    WorkerAlreadyRunningError,
+    hold_worker_session,
+    stop_on_signals,
+)
 
 from notifications.worker import (
-    EmailWorkerAlreadyRunningError,
-    hold_email_worker_session,
-    process_next_email,
     recover_interrupted_email_deliveries,
+    process_next_email,
 )
 
 _LOGGER = logging.getLogger("console.email_worker")
@@ -46,7 +49,10 @@ class Command(BaseCommand):
         boolRunOnce = bool(options["once"])
         stopEvent = Event()
         try:
-            with stop_on_signals(stopEvent), hold_email_worker_session():
+            with (
+                stop_on_signals(stopEvent),
+                hold_worker_session(lockId=EMAIL_WORKER_LOCK_ID, workerName="email"),
+            ):
                 intRecoveredDeliveryCount = recover_interrupted_email_deliveries()
                 _LOGGER.info(
                     f"Email worker started. Interrupted attempts marked Unknown: {intRecoveredDeliveryCount}."
@@ -74,7 +80,7 @@ class Command(BaseCommand):
                     if boolRunOnce:
                         break
                     stopEvent.wait(floatWaitSeconds)
-        except (EmailWorkerAlreadyRunningError, ImproperlyConfigured) as e:
+        except (WorkerAlreadyRunningError, ImproperlyConfigured) as e:
             raise CommandError(str(e)) from None
         except DatabaseError:
             _LOGGER.exception("Email worker stopped after a database error.")

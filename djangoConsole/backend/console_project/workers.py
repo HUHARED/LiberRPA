@@ -10,6 +10,46 @@ from contextlib import contextmanager
 from threading import Event
 from types import FrameType
 
+from django.core.exceptions import ImproperlyConfigured
+from django.db import connection
+
+_INT_LOCK_NAMESPACE = int.from_bytes(b"LRPA", "big")
+# NOTE: Keep worker lock IDs distinct so different worker kinds can run together.
+EMAIL_WORKER_LOCK_ID = 1
+ORGANIZATION_DELETION_WORKER_LOCK_ID = 2
+
+
+class WorkerAlreadyRunningError(Exception):
+    """Another database session already owns this worker's lock."""
+
+
+@contextmanager
+def hold_worker_session(*, lockId: int, workerName: str) -> Generator[None]:
+    """Hold one standalone worker's database session across its per-item transactions."""
+    if connection.vendor != "postgresql":
+        raise ImproperlyConfigured(f"The {workerName} worker requires PostgreSQL.")
+    if connection.in_atomic_block or not connection.get_autocommit():
+        raise RuntimeError(
+            f"The {workerName} worker must run outside a database transaction."
+        )
+
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT pg_try_advisory_lock(%s, %s)",
+                [_INT_LOCK_NAMESPACE, lockId],
+            )
+            lockAcquired = cursor.fetchone()[0]
+        if not lockAcquired:
+            raise WorkerAlreadyRunningError(
+                f"Another {workerName} worker is already running for this database."
+            )
+        # NOTE: Do not recycle this connection or reconnect after an error; the session owns the lock.
+        yield
+    finally:
+        # Closing the session releases its lock after normal completion or an error.
+        connection.close()
+
 
 @contextmanager
 def stop_on_signals(stopEvent: Event) -> Generator[None]:

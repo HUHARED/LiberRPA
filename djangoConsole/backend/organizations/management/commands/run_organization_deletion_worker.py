@@ -11,13 +11,14 @@ from django.core.exceptions import ImproperlyConfigured
 from django.core.management.base import BaseCommand, CommandError, CommandParser
 from django.db import DatabaseError
 
-from console_project.workers import stop_on_signals
-
-from organizations.deletion_worker import (
-    OrganizationDeletionWorkerAlreadyRunningError,
-    hold_organization_deletion_worker_session,
-    process_next_organization_deletion,
+from console_project.workers import (
+    ORGANIZATION_DELETION_WORKER_LOCK_ID,
+    WorkerAlreadyRunningError,
+    hold_worker_session,
+    stop_on_signals,
 )
+
+from organizations.deletion_worker import process_next_organization_deletion
 
 _LOGGER = logging.getLogger("console.organization_deletion_worker")
 _INT_IDLE_POLL_SECONDS = 2
@@ -40,7 +41,13 @@ class Command(BaseCommand):
         boolRunOnce = bool(options["once"])
         stopEvent = Event()
         try:
-            with stop_on_signals(stopEvent), hold_organization_deletion_worker_session():
+            with (
+                stop_on_signals(stopEvent),
+                hold_worker_session(
+                    lockId=ORGANIZATION_DELETION_WORKER_LOCK_ID,
+                    workerName="organization deletion",
+                ),
+            ):
                 _LOGGER.info("Organization deletion worker started.")
                 while not stopEvent.is_set():
                     deletionResult = process_next_organization_deletion()
@@ -59,7 +66,7 @@ class Command(BaseCommand):
                     if boolRunOnce:
                         break
                     stopEvent.wait(intWaitSeconds)
-        except (OrganizationDeletionWorkerAlreadyRunningError, ImproperlyConfigured) as e:
+        except (WorkerAlreadyRunningError, ImproperlyConfigured) as e:
             raise CommandError(str(e)) from None
         except DatabaseError:
             _LOGGER.exception(
