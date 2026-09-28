@@ -42,26 +42,10 @@ def _validate_department_values(department: Department) -> None:
         department.name = normalize_path_name(department.name)
     except ValidationError as e:
         raise ValidationError({"name": e}) from None
-    siblings = Department.objects.filter(
-        organization_id=department.organization_id,
-        parent_id=department.parent_id,
-        deleted_at__isnull=True,
-    ).exclude(pk=department.pk)
-    nameKey = path_name_key(department.name)
-    if any(
-        path_name_key(name) == nameKey for name in siblings.values_list("name", flat=True)
-    ):
-        raise ValidationError({
-            "name": ValidationError(
-                "A department with this name already exists at this level.",
-                code="duplicate_department_name",
-            )
-        })
-    # The foreign keys were resolved by the caller.
-    # Reuse those objects instead of querying their existence again.
-    # Constraints are checked separately before saving.
+    department.name_key = path_name_key(department.name)
+    # The name and related objects are already validated; constraints are checked once before saving.
     department.full_clean(
-        exclude=["organization", "parent"],
+        exclude=["name", "organization", "parent"],
         validate_unique=False,
         validate_constraints=False,
     )
@@ -219,7 +203,7 @@ def update_department(
 
     department.validate_constraints()
     # Update the same row and leave all identity-based relationships intact.
-    department.save(update_fields=["name", "parent", "notes"])
+    department.save(update_fields=["name", "name_key", "parent", "notes"])
     record_audit(
         "department.update",
         actor=access.actor,

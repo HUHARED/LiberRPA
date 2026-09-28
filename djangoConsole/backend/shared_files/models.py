@@ -17,7 +17,7 @@ class SharedFile(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     department = models.ForeignKey("organizations.Department", on_delete=models.PROTECT)
     name = models.CharField(max_length=128)
-    name_key = models.TextField()
+    name_key = models.TextField(editable=False, db_collation="C")
     blob = models.OneToOneField("file_storage.StoredBlob", on_delete=models.PROTECT)
     uploaded_by_id = models.UUIDField()
     uploaded_by_name = models.CharField(max_length=420)

@@ -8,7 +8,6 @@ import uuid
 
 from django.core.validators import MaxLengthValidator, ProhibitNullCharactersValidator
 from django.db import models
-from django.db.models.functions import Lower
 from django.utils import timezone
 
 from organizations.validators import validate_path_segment
@@ -23,6 +22,8 @@ class DataQueue(models.Model):
         "organizations.Department", on_delete=models.PROTECT, related_name="data_queues"
     )
     name = models.CharField(max_length=128, validators=[validate_path_segment])
+    # NOTE: Name writes must update this key through the business service.
+    name_key = models.TextField(editable=False, db_collation="C")
     notes = models.TextField(
         blank=True,
         default="",
@@ -35,8 +36,7 @@ class DataQueue(models.Model):
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                "department",
-                Lower("name"),
+                fields=["department", "name_key"],
                 name="queue_department_name_unique",
                 violation_error_code="duplicate_queue_name",
                 violation_error_message="A queue with this name already exists in this department.",

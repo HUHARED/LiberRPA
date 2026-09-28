@@ -17,6 +17,7 @@ from console_project.config import LimitsConfig
 from console_project.contracts import JsonValue
 from operations.audit import get_audit_snapshot, record_audit
 from organizations.models import DepartmentRole
+from organizations.validators import path_name_key, normalize_path_name
 from organizations.permissions import (
     OrganizationAccessContext,
     get_authorized_departments,
@@ -62,7 +63,12 @@ def _set_asset_value(asset: Asset, value: JsonValue) -> None:
 
 def _validate_asset_details(asset: Asset) -> None:
     try:
-        asset.full_clean(exclude=["value_json", "encrypted_value"])
+        asset.name = normalize_path_name(asset.name)
+    except ValidationError as e:
+        raise ValidationError({"name": e}) from None
+    asset.name_key = path_name_key(asset.name)
+    try:
+        asset.full_clean(exclude=["name", "value_json", "encrypted_value"])
     except ValidationError as e:
         if "__all__" in e.message_dict and any(
             error.code == "duplicate_asset_name" for error in e.error_dict["__all__"]
@@ -125,7 +131,7 @@ def update_asset_details(
     if dictBefore == get_audit_snapshot(asset):
         return asset
     asset.updated_at = timezone.now()
-    asset.save(update_fields=["name", "notes", "updated_at"])
+    asset.save(update_fields=["name", "name_key", "notes", "updated_at"])
     record_audit(
         "asset.update",
         actor=access.actor,

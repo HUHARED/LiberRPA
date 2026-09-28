@@ -9,10 +9,10 @@ import uuid
 
 from django.core.paginator import Paginator
 from django.db.models import QuerySet
-from django.db.models.functions import Lower
 
 from organizations.department_queries import get_department_tree, get_department_path
 from organizations.models import DepartmentRole
+from organizations.validators import path_name_key
 from organizations.permissions import (
     OrganizationAccessContext,
     get_authorized_departments,
@@ -79,10 +79,10 @@ def get_asset_list(
     if departmentIds:
         assets = assets.filter(department_id__in=departmentIds)
     if name:
-        assets = assets.filter(name__icontains=name)
+        assets = assets.filter(name_key__contains=path_name_key(name))
     if assetTypes:
         assets = assets.filter(asset_type__in=assetTypes)
-    paginator = Paginator(assets.order_by(Lower("name"), "id"), 50)
+    paginator = Paginator(assets.order_by("name_key", "id"), 50)
     page = paginator.page(pageNumber)
     return {
         "assets": build_asset_payloads(list(page.object_list), access),

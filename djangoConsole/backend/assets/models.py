@@ -8,7 +8,6 @@ import uuid
 
 from django.core.validators import MaxLengthValidator, ProhibitNullCharactersValidator
 from django.db import models
-from django.db.models.functions import Lower
 from django.utils import timezone
 
 from organizations.validators import validate_path_segment
@@ -35,6 +34,8 @@ class Asset(models.Model):
         "organizations.Department", on_delete=models.PROTECT, related_name="assets"
     )
     name = models.CharField(max_length=128, validators=[validate_path_segment])
+    # NOTE: Name writes must update this key through the business service.
+    name_key = models.TextField(editable=False, db_collation="C")
     asset_type = models.CharField(
         max_length=16, choices=AssetType.choices, editable=False
     )
@@ -52,8 +53,7 @@ class Asset(models.Model):
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                "department",
-                Lower("name"),
+                fields=["department", "name_key"],
                 name="asset_department_name_unique",
                 violation_error_code="duplicate_asset_name",
                 violation_error_message="An asset with this name already exists in this department.",

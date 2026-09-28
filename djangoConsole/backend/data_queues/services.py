@@ -22,6 +22,7 @@ from console_project.config import LimitsConfig
 from console_project.validators import validate_json_value
 from operations.audit import get_audit_snapshot, record_audit
 from organizations.models import DepartmentRole
+from organizations.validators import path_name_key, normalize_path_name
 from organizations.permissions import (
     OrganizationAccessContext,
     get_authorized_departments,
@@ -47,6 +48,15 @@ class QueueOperationError(Exception):
         super().__init__(message)
 
 
+def _validate_queue_details(queue: DataQueue) -> None:
+    try:
+        queue.name = normalize_path_name(queue.name)
+    except ValidationError as e:
+        raise ValidationError({"name": e}) from None
+    queue.name_key = path_name_key(queue.name)
+    queue.full_clean(exclude=["name"])
+
+
 def create_queue(
     access: OrganizationAccessContext, *, departmentId: uuid.UUID, name: str, notes: str
 ) -> DataQueue:
@@ -67,7 +77,7 @@ def create_queue(
             "This organization has reached its queue limit.",
         )
     queue = DataQueue(department=department, name=name, notes=notes)
-    queue.full_clean()
+    _validate_queue_details(queue)
     queue.save()
     record_audit(
         "data_queue.create",
@@ -93,9 +103,9 @@ def update_queue(
     before = get_audit_snapshot(queue)
     queue.name = name
     queue.notes = notes
-    queue.full_clean()
+    _validate_queue_details(queue)
     queue.updated_at = timezone.now()
-    queue.save(update_fields=["name", "notes", "updated_at"])
+    queue.save(update_fields=["name", "name_key", "notes", "updated_at"])
     record_audit(
         "data_queue.update",
         actor=access.actor,
@@ -136,7 +146,7 @@ def _mutate_items(
         str(queueReference) if isinstance(queueReference, uuid.UUID) else None
     )
     normalized["queue_path"] = (
-        queueReference.lower() if isinstance(queueReference, str) else None
+        path_name_key(queueReference) if isinstance(queueReference, str) else None
     )
     digest = hashlib.sha256(
         json.dumps(

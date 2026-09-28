@@ -36,7 +36,7 @@ from console_project.http import (
     build_rate_limited_response,
 )
 from organizations.models import Membership, Department
-from organizations.validators import validate_path_segment
+from organizations.validators import normalize_path_name
 from organizations.permissions import (
     AccessChannel,
     OrganizationAccessContext,
@@ -116,18 +116,23 @@ def _build_queue_error_response(e: Exception) -> JsonResponse:
                 e.messages[0],
                 statusCode=409,
             )
-        duplicate = any(
-            fieldError.code == "duplicate_queue_name"
-            for fieldErrors in getattr(e, "error_dict", {}).values()
-            for fieldError in fieldErrors
-        )
+        fields: dict[str, list[str]] = {}
+        duplicate = False
+        if hasattr(e, "error_dict"):
+            for fieldName, fieldErrors in e.error_dict.items():
+                for fieldError in fieldErrors:
+                    isDuplicate = fieldError.code == "duplicate_queue_name"
+                    duplicate = duplicate or isDuplicate
+                    fields.setdefault("name" if isDuplicate else fieldName, []).extend(
+                        fieldError.messages
+                    )
+        else:
+            fields["__all__"] = e.messages
         return build_error_response(
             "duplicate_queue_name" if duplicate else "invalid_queue",
             "Some queue fields are invalid.",
             statusCode=409 if duplicate else 400,
-            fields=e.message_dict
-            if hasattr(e, "error_dict")
-            else {"__all__": e.messages},
+            fields=fields,
         )
     if isinstance(e, ContractValidationError):
         # Request-schema failures have already been handled by parse_json_request().
@@ -220,11 +225,7 @@ def normalize_queue_path(path: str) -> str:
     listPart = path.replace("\\", "/").removeprefix("/").split("/")
     if len(listPart) < 2 or len(listPart) > 65:
         raise ValidationError("Use a full department path and queue name.")
-    for part in listPart:
-        validate_path_segment(part)
-        if len(part) > 128:
-            raise ValidationError("Path segments must not exceed 128 characters.")
-    return "/" + "/".join(listPart)
+    return "/" + "/".join(normalize_path_name(part) for part in listPart)
 
 
 def parse_item_request[Payload: QueueMutationRequest](

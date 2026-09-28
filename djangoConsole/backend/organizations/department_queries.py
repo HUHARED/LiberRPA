@@ -58,7 +58,7 @@ def resolve_department_path(
         matches = [
             entry
             for entry in departmentsById.values()
-            if entry.parent_id == parentId and path_name_key(entry.name) == partKey
+            if entry.parent_id == parentId and entry.name_key == partKey
         ]
         if len(matches) != 1:
             raise Department.DoesNotExist
@@ -116,7 +116,10 @@ def get_department_list(
     ]
     return sorted(
         listDepartmentInfo,
-        key=lambda departmentInfo: (departmentInfo.path.casefold(), departmentInfo.id),
+        key=lambda departmentInfo: (
+            path_name_key(departmentInfo.path),
+            departmentInfo.id,
+        ),
     )
 
 

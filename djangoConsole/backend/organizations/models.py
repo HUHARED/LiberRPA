@@ -138,6 +138,8 @@ class Department(models.Model):
         blank=True,
     )
     name = models.CharField(max_length=128, validators=[validate_path_segment])
+    # NOTE: Name writes must update this key through the business service.
+    name_key = models.TextField(editable=False, db_collation="C")
     notes = models.TextField(
         blank=True,
         default="",
@@ -156,16 +158,14 @@ class Department(models.Model):
             ),
             # A nullable parent needs a separate rule for names at the root level.
             models.UniqueConstraint(
-                "organization",
-                Lower("name"),
+                fields=["organization", "name_key"],
                 condition=models.Q(parent__isnull=True, deleted_at__isnull=True),
                 name="department_root_name_unique",
                 violation_error_code="duplicate_department_name",
                 violation_error_message="A department with this name already exists at this level.",
             ),
             models.UniqueConstraint(
-                "parent",
-                Lower("name"),
+                fields=["parent", "name_key"],
                 condition=models.Q(parent__isnull=False, deleted_at__isnull=True),
                 name="department_child_name_unique",
                 violation_error_code="duplicate_department_name",
