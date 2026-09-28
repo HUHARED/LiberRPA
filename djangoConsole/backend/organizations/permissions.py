@@ -60,6 +60,10 @@ def require_organization_business_available(organization: Organization) -> None:
         raise PermissionDenied("Organization business operations are unavailable.")
 
 
+def _get_active_memberships(actorId: uuid.UUID) -> QuerySet[Membership]:
+    return Membership.objects.filter(user_id=actorId, user__is_active=True)
+
+
 def get_current_membership(*, actorId: uuid.UUID) -> Membership:
     """Resolve current membership for identity and restricted organization status views.
 
@@ -72,6 +76,36 @@ def get_current_membership(*, actorId: uuid.UUID) -> Membership:
         )
     except Membership.DoesNotExist:
         raise PermissionDenied("Organization access is required.") from None
+
+
+def _resolve_organization_member(
+    *,
+    actorId: uuid.UUID,
+    organizationId: uuid.UUID,
+    forUpdate: bool,
+) -> tuple[Organization, Membership]:
+    """Load current identity facts; the caller applies the operation's service-state rule."""
+    membershipQuery = _get_active_memberships(actorId).filter(
+        organization_id=organizationId
+    )
+    try:
+        if forUpdate:
+            # Organization state changes and business writes take this lock first.
+            organization = Organization.objects.select_for_update().get(pk=organizationId)
+            # Keep the current membership and account stable through the write.
+            membership = (
+                membershipQuery
+                .select_related("user")
+                .select_for_update(of=("self", "user"))
+                .get()
+            )
+        else:
+            membership = membershipQuery.select_related("organization", "user").get()
+            organization = cast(Organization, membership.organization)
+    except (Organization.DoesNotExist, Membership.DoesNotExist):
+        raise PermissionDenied("Organization access is required.") from None
+
+    return organization, membership
 
 
 def resolve_organization_access(
@@ -107,6 +141,11 @@ def resolve_organization_access(
         isOrgAdmin=membership.is_org_admin,
         channel=channel,
     )
+
+
+def _require_organization_admin(isOrgAdmin: bool, channel: AccessChannel) -> None:
+    if channel != AccessChannel.SESSION or not isOrgAdmin:
+        raise PermissionDenied("Organization administrator access is required.")
 
 
 def require_organization_admin(access: OrganizationAccessContext) -> None:
@@ -219,42 +258,3 @@ def get_authorized_departments(
     ):
         raise PermissionDenied("API keys can only perform Operator actions.")
     return departmentQuery
-
-
-def _get_active_memberships(actorId: uuid.UUID) -> QuerySet[Membership]:
-    return Membership.objects.filter(user_id=actorId, user__is_active=True)
-
-
-def _resolve_organization_member(
-    *,
-    actorId: uuid.UUID,
-    organizationId: uuid.UUID,
-    forUpdate: bool,
-) -> tuple[Organization, Membership]:
-    """Load current identity facts; the caller applies the operation's service-state rule."""
-    membershipQuery = _get_active_memberships(actorId).filter(
-        organization_id=organizationId
-    )
-    try:
-        if forUpdate:
-            # Organization state changes and business writes take this lock first.
-            organization = Organization.objects.select_for_update().get(pk=organizationId)
-            # Keep the current membership and account stable through the write.
-            membership = (
-                membershipQuery
-                .select_related("user")
-                .select_for_update(of=("self", "user"))
-                .get()
-            )
-        else:
-            membership = membershipQuery.select_related("organization", "user").get()
-            organization = cast(Organization, membership.organization)
-    except (Organization.DoesNotExist, Membership.DoesNotExist):
-        raise PermissionDenied("Organization access is required.") from None
-
-    return organization, membership
-
-
-def _require_organization_admin(isOrgAdmin: bool, channel: AccessChannel) -> None:
-    if channel != AccessChannel.SESSION or not isOrgAdmin:
-        raise PermissionDenied("Organization administrator access is required.")

@@ -37,6 +37,21 @@ class OrganizationDeletionResult:
     queuedEmailCount: int
 
 
+def _delete_organization_departments(organizationId: uuid.UUID) -> None:
+    """Delete every department from leaves upward, including logically deleted departments."""
+    departments = Department.objects.filter(organization_id=organizationId)
+    while departments.exists():
+        listLeafId = list(
+            departments.filter(children__isnull=True).values_list("id", flat=True)
+        )
+        if not listLeafId:
+            raise ValidationError(
+                "The department hierarchy prevents organization cleanup.",
+                code="department_cleanup_blocked",
+            )
+        departments.filter(pk__in=listLeafId).delete()
+
+
 @transaction.atomic(durable=True)
 def start_next_organization_deletion() -> uuid.UUID | None:
     """Commit the irreversible start boundary while the caller owns the cleanup worker session."""
@@ -171,18 +186,3 @@ def complete_organization_deletion(
         deletedAccountCount=len(listAccount),
         queuedEmailCount=len(listDelivery),
     )
-
-
-def _delete_organization_departments(organizationId: uuid.UUID) -> None:
-    """Delete every department from leaves upward, including logically deleted departments."""
-    departments = Department.objects.filter(organization_id=organizationId)
-    while departments.exists():
-        listLeafId = list(
-            departments.filter(children__isnull=True).values_list("id", flat=True)
-        )
-        if not listLeafId:
-            raise ValidationError(
-                "The department hierarchy prevents organization cleanup.",
-                code="department_cleanup_blocked",
-            )
-        departments.filter(pk__in=listLeafId).delete()

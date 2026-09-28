@@ -57,51 +57,6 @@ class DepartmentDeletionBlockedError(Exception):
         super().__init__("The department has remaining dependencies.")
 
 
-def get_department_deletion_info(
-    *,
-    actorId: uuid.UUID,
-    organizationId: uuid.UUID,
-    channel: AccessChannel,
-    departmentId: uuid.UUID,
-) -> DepartmentDeletionInfo:
-    """Describe current blockers without reserving the department or changing any rows."""
-    _, department = _resolve_department_deletion_access(
-        actorId, organizationId, channel, departmentId, forUpdate=False
-    )
-    return _build_department_deletion_info(department)
-
-
-def delete_department(
-    *,
-    actorId: uuid.UUID,
-    organizationId: uuid.UUID,
-    channel: AccessChannel,
-    departmentId: uuid.UUID,
-) -> Department:
-    """Delete an empty department while preserving its identity and historical links.
-
-    The caller owns the transaction through response construction.
-    Recheck current permission and dependencies under the organization lock; a previous preview grants no deletion rights.
-    """
-    access, department = _resolve_department_deletion_access(
-        actorId, organizationId, channel, departmentId, forUpdate=True
-    )
-    deletionInfo = _build_department_deletion_info(department)
-    if not deletionInfo.canDelete:
-        raise DepartmentDeletionBlockedError(deletionInfo)
-
-    department.deleted_at = timezone.now()
-    department.save(update_fields=["deleted_at"])
-    record_audit(
-        "department.delete",
-        actor=access.actor,
-        organization=access.organization,
-        target=department,
-        channel=channel,
-    )
-    return department
-
-
 def _resolve_department_deletion_access(
     actorId: uuid.UUID,
     organizationId: uuid.UUID,
@@ -176,3 +131,48 @@ def _build_department_deletion_info(department: Department) -> DepartmentDeletio
         departmentName=department.name,
         blockers=tuple(listBlocker),
     )
+
+
+def get_department_deletion_info(
+    *,
+    actorId: uuid.UUID,
+    organizationId: uuid.UUID,
+    channel: AccessChannel,
+    departmentId: uuid.UUID,
+) -> DepartmentDeletionInfo:
+    """Describe current blockers without reserving the department or changing any rows."""
+    _, department = _resolve_department_deletion_access(
+        actorId, organizationId, channel, departmentId, forUpdate=False
+    )
+    return _build_department_deletion_info(department)
+
+
+def delete_department(
+    *,
+    actorId: uuid.UUID,
+    organizationId: uuid.UUID,
+    channel: AccessChannel,
+    departmentId: uuid.UUID,
+) -> Department:
+    """Delete an empty department while preserving its identity and historical links.
+
+    The caller owns the transaction through response construction.
+    Recheck current permission and dependencies under the organization lock; a previous preview grants no deletion rights.
+    """
+    access, department = _resolve_department_deletion_access(
+        actorId, organizationId, channel, departmentId, forUpdate=True
+    )
+    deletionInfo = _build_department_deletion_info(department)
+    if not deletionInfo.canDelete:
+        raise DepartmentDeletionBlockedError(deletionInfo)
+
+    department.deleted_at = timezone.now()
+    department.save(update_fields=["deleted_at"])
+    record_audit(
+        "department.delete",
+        actor=access.actor,
+        organization=access.organization,
+        target=department,
+        channel=channel,
+    )
+    return department

@@ -42,129 +42,6 @@ from .models import AuditResult, AuditRecord
 _LOGGER = logging.getLogger("console.operations")
 
 
-@never_cache
-@require_GET
-def list_organization_audit(request: HttpRequest) -> JsonResponse:
-    """Return one page of the signed-in administrator's organization history."""
-    try:
-        if not request.user.is_authenticated:
-            return build_error_response(
-                "authentication_required", "Sign in to continue.", statusCode=401
-            )
-        user = cast(User, request.user)
-        membership = get_current_membership(actorId=user.id)
-        # Only parsing failures belong to the client; query and response errors do not.
-        try:
-            filters = _parse_audit_filters(request.GET, user.time_zone)
-            intPage = parse_page_number(request.GET)
-        except ValidationError as e:
-            return build_error_response(
-                "invalid_audit_filters",
-                "Some audit filters are invalid.",
-                statusCode=400,
-                fields=e.message_dict,
-            )
-        except ValueError:
-            return build_error_response(
-                "invalid_audit_filters",
-                "Send valid audit filters and one positive page number.",
-                statusCode=400,
-            )
-        auditPage = get_audit_list(
-            actorId=user.id,
-            organizationId=membership.organization_id,
-            channel=AccessChannel.SESSION,
-            filters=filters,
-            pageNumber=intPage,
-        )
-        return JsonResponse(
-            AuditListResponse.model_validate({
-                "records": [
-                    _build_record_payload(record) for record in auditPage.object_list
-                ],
-                "pagination": {
-                    "page": auditPage.number,
-                    "page_size": auditPage.paginator.per_page,
-                    "total_count": auditPage.paginator.count,
-                    "total_pages": auditPage.paginator.num_pages,
-                },
-            }).model_dump(mode="python")
-        )
-    except (
-        PermissionDenied,
-        InvalidPage,
-        ContractValidationError,
-        PydanticSerializationError,
-        ImproperlyConfigured,
-        DatabaseError,
-    ) as e:
-        return _build_audit_error_response(e)
-
-
-@never_cache
-@require_GET
-def get_organization_audit_filters(request: HttpRequest) -> JsonResponse:
-    """Return retained history's selectable actors, modules and actions."""
-    try:
-        if not request.user.is_authenticated:
-            return build_error_response(
-                "authentication_required", "Sign in to continue.", statusCode=401
-            )
-        user = cast(User, request.user)
-        membership = get_current_membership(actorId=user.id)
-        options = get_audit_filter_options(
-            actorId=user.id,
-            organizationId=membership.organization_id,
-            channel=AccessChannel.SESSION,
-        )
-        return JsonResponse(
-            AuditFilterOptionsResponse.model_validate(options).model_dump(mode="python")
-        )
-    except (
-        PermissionDenied,
-        ContractValidationError,
-        PydanticSerializationError,
-        ImproperlyConfigured,
-        DatabaseError,
-    ) as e:
-        return _build_audit_error_response(e)
-
-
-@never_cache
-@require_GET
-def get_organization_audit_details(
-    request: HttpRequest, auditId: uuid.UUID
-) -> JsonResponse:
-    """Read a single tenant record; a platform or foreign record is never selected."""
-    try:
-        if not request.user.is_authenticated:
-            return build_error_response(
-                "authentication_required", "Sign in to continue.", statusCode=401
-            )
-        user = cast(User, request.user)
-        membership = get_current_membership(actorId=user.id)
-        record = get_audit_details(
-            actorId=user.id,
-            organizationId=membership.organization_id,
-            channel=AccessChannel.SESSION,
-            auditId=auditId,
-        )
-        return JsonResponse(
-            AuditDetailsResponse.model_validate({
-                "record": _build_details_payload(record)
-            }).model_dump(mode="python")
-        )
-    except (
-        PermissionDenied,
-        AuditRecord.DoesNotExist,
-        ContractValidationError,
-        PydanticSerializationError,
-        ImproperlyConfigured,
-        DatabaseError,
-    ) as e:
-        return _build_audit_error_response(e)
-
-
 def _parse_audit_filters(query: QueryDict, defaultTimeZone: str) -> AuditListFilters:
     setSingleField = {"page", "date_from", "date_to", "time_zone"}
     setMultipleField = {"actor_id", "module", "action", "result"}
@@ -320,3 +197,126 @@ def _build_audit_error_response(e: Exception) -> JsonResponse:
             statusCode=500,
         )
     return build_service_unavailable_response()
+
+
+@never_cache
+@require_GET
+def list_organization_audit(request: HttpRequest) -> JsonResponse:
+    """Return one page of the signed-in administrator's organization history."""
+    try:
+        if not request.user.is_authenticated:
+            return build_error_response(
+                "authentication_required", "Sign in to continue.", statusCode=401
+            )
+        user = cast(User, request.user)
+        membership = get_current_membership(actorId=user.id)
+        # Only parsing failures belong to the client; query and response errors do not.
+        try:
+            filters = _parse_audit_filters(request.GET, user.time_zone)
+            intPage = parse_page_number(request.GET)
+        except ValidationError as e:
+            return build_error_response(
+                "invalid_audit_filters",
+                "Some audit filters are invalid.",
+                statusCode=400,
+                fields=e.message_dict,
+            )
+        except ValueError:
+            return build_error_response(
+                "invalid_audit_filters",
+                "Send valid audit filters and one positive page number.",
+                statusCode=400,
+            )
+        auditPage = get_audit_list(
+            actorId=user.id,
+            organizationId=membership.organization_id,
+            channel=AccessChannel.SESSION,
+            filters=filters,
+            pageNumber=intPage,
+        )
+        return JsonResponse(
+            AuditListResponse.model_validate({
+                "records": [
+                    _build_record_payload(record) for record in auditPage.object_list
+                ],
+                "pagination": {
+                    "page": auditPage.number,
+                    "page_size": auditPage.paginator.per_page,
+                    "total_count": auditPage.paginator.count,
+                    "total_pages": auditPage.paginator.num_pages,
+                },
+            }).model_dump(mode="python")
+        )
+    except (
+        PermissionDenied,
+        InvalidPage,
+        ContractValidationError,
+        PydanticSerializationError,
+        ImproperlyConfigured,
+        DatabaseError,
+    ) as e:
+        return _build_audit_error_response(e)
+
+
+@never_cache
+@require_GET
+def get_organization_audit_filters(request: HttpRequest) -> JsonResponse:
+    """Return retained history's selectable actors, modules and actions."""
+    try:
+        if not request.user.is_authenticated:
+            return build_error_response(
+                "authentication_required", "Sign in to continue.", statusCode=401
+            )
+        user = cast(User, request.user)
+        membership = get_current_membership(actorId=user.id)
+        options = get_audit_filter_options(
+            actorId=user.id,
+            organizationId=membership.organization_id,
+            channel=AccessChannel.SESSION,
+        )
+        return JsonResponse(
+            AuditFilterOptionsResponse.model_validate(options).model_dump(mode="python")
+        )
+    except (
+        PermissionDenied,
+        ContractValidationError,
+        PydanticSerializationError,
+        ImproperlyConfigured,
+        DatabaseError,
+    ) as e:
+        return _build_audit_error_response(e)
+
+
+@never_cache
+@require_GET
+def get_organization_audit_details(
+    request: HttpRequest, auditId: uuid.UUID
+) -> JsonResponse:
+    """Read a single tenant record; a platform or foreign record is never selected."""
+    try:
+        if not request.user.is_authenticated:
+            return build_error_response(
+                "authentication_required", "Sign in to continue.", statusCode=401
+            )
+        user = cast(User, request.user)
+        membership = get_current_membership(actorId=user.id)
+        record = get_audit_details(
+            actorId=user.id,
+            organizationId=membership.organization_id,
+            channel=AccessChannel.SESSION,
+            auditId=auditId,
+        )
+        return JsonResponse(
+            AuditDetailsResponse.model_validate({
+                "record": _build_details_payload(record)
+            }).model_dump(mode="python")
+        )
+    except (
+        PermissionDenied,
+        AuditRecord.DoesNotExist,
+        ContractValidationError,
+        PydanticSerializationError,
+        ImproperlyConfigured,
+        DatabaseError,
+    ) as e:
+        return _build_audit_error_response(e)

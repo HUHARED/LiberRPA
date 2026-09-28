@@ -25,6 +25,33 @@ type _SyncResponseHandler = Callable[[HttpRequest], HttpResponseBase]
 type _AsyncResponseHandler = Callable[[HttpRequest], Awaitable[HttpResponseBase]]
 
 
+def _record_request_result(
+    request: HttpRequest, response: HttpResponseBase, startedAt: float
+) -> None:
+    record_failed_request(request, response)
+    # Log route names, never a raw URL, query string, body, cookies, or authorization.
+    strRoute = request.resolver_match.url_name if request.resolver_match else "unmatched"
+    intLevel = (
+        logging.ERROR
+        if response.status_code >= 500
+        else logging.WARNING
+        if response.status_code >= 400
+        else logging.INFO
+    )
+    if settings.CONSOLE_LOG_REQUESTS or response.status_code >= 400:
+        _LOGGER.log(
+            intLevel,
+            "Request completed: method=%s route=%s status=%s duration_ms=%.1f.",
+            request.method
+            if request.method
+            in ("GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
+            else "OTHER",
+            strRoute,
+            response.status_code,
+            (perf_counter() - startedAt) * 1000,
+        )
+
+
 @sync_and_async_middleware
 def request_logging(
     getResponse: _SyncResponseHandler | _AsyncResponseHandler,
@@ -54,30 +81,3 @@ def request_logging(
             return response
 
     return sync_middleware
-
-
-def _record_request_result(
-    request: HttpRequest, response: HttpResponseBase, startedAt: float
-) -> None:
-    record_failed_request(request, response)
-    # Log route names, never a raw URL, query string, body, cookies, or authorization.
-    strRoute = request.resolver_match.url_name if request.resolver_match else "unmatched"
-    intLevel = (
-        logging.ERROR
-        if response.status_code >= 500
-        else logging.WARNING
-        if response.status_code >= 400
-        else logging.INFO
-    )
-    if settings.CONSOLE_LOG_REQUESTS or response.status_code >= 400:
-        _LOGGER.log(
-            intLevel,
-            "Request completed: method=%s route=%s status=%s duration_ms=%.1f.",
-            request.method
-            if request.method
-            in ("GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
-            else "OTHER",
-            strRoute,
-            response.status_code,
-            (perf_counter() - startedAt) * 1000,
-        )

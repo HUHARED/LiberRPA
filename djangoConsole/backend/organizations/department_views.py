@@ -52,6 +52,79 @@ _LOGGER = logging.getLogger("console.departments")
 _INT_MAX_DEPARTMENT_BODY_BYTES = 32 * 1024
 
 
+def _build_department_payload(departmentInfo: DepartmentInfo) -> dict[str, object]:
+    return {
+        "id": departmentInfo.id,
+        "name": departmentInfo.name,
+        "parent_id": departmentInfo.parentId,
+        "path": departmentInfo.path,
+        "notes": departmentInfo.notes,
+    }
+
+
+def _build_saved_department_response(
+    department: Department, *, statusCode: int
+) -> JsonResponse:
+    # Serialize the saved fields without additional queries, still inside the caller's transaction.
+    return JsonResponse(
+        DepartmentWriteResponse.model_validate({
+            "department": {
+                "id": department.id,
+                "name": department.name,
+                "parent_id": department.parent_id,
+                "notes": department.notes,
+            }
+        }).model_dump(mode="python"),
+        status=statusCode,
+    )
+
+
+def _build_department_validation_response(
+    validationError: ValidationError,
+) -> JsonResponse:
+    if hasattr(validationError, "error_dict"):
+        dictFieldMessage: dict[str, list[str]] = {}
+        boolDuplicateNameFound = False
+        for strFieldName, listFieldError in validationError.error_dict.items():
+            for fieldError in listFieldError:
+                boolDuplicateName = fieldError.code == "duplicate_department_name"
+                boolDuplicateNameFound = boolDuplicateNameFound or boolDuplicateName
+                strResponseFieldName = (
+                    "name"
+                    if boolDuplicateName
+                    else "parent_id"
+                    if strFieldName == "parent"
+                    else strFieldName
+                )
+                dictFieldMessage.setdefault(strResponseFieldName, []).extend(
+                    fieldError.messages
+                )
+        return build_error_response(
+            "duplicate_department_name"
+            if boolDuplicateNameFound
+            else "invalid_department",
+            "Some department fields are invalid.",
+            statusCode=409 if boolDuplicateNameFound else 400,
+            fields=dictFieldMessage,
+        )
+
+    strErrorCode = validationError.error_list[0].code or "invalid_department"
+    return build_error_response(
+        strErrorCode,
+        " ".join(validationError.messages),
+        statusCode=409 if strErrorCode == "department_count_limit" else 400,
+    )
+
+
+def _build_department_response_error() -> JsonResponse:
+    _LOGGER.exception("Could not build a valid department response.")
+    return build_error_response(
+        "internal_server_error",
+        "The service could not build a valid response.",
+        statusCode=500,
+    )
+
+
 @never_cache
 @require_http_methods(["GET", "POST"])
 def list_or_create_departments(request: HttpRequest) -> JsonResponse:
@@ -274,76 +347,3 @@ def get_or_delete_department(
         return _build_department_response_error()
     except (ImproperlyConfigured, DatabaseError):
         return build_service_unavailable_response()
-
-
-def _build_department_payload(departmentInfo: DepartmentInfo) -> dict[str, object]:
-    return {
-        "id": departmentInfo.id,
-        "name": departmentInfo.name,
-        "parent_id": departmentInfo.parentId,
-        "path": departmentInfo.path,
-        "notes": departmentInfo.notes,
-    }
-
-
-def _build_saved_department_response(
-    department: Department, *, statusCode: int
-) -> JsonResponse:
-    # Serialize the saved fields without additional queries, still inside the caller's transaction.
-    return JsonResponse(
-        DepartmentWriteResponse.model_validate({
-            "department": {
-                "id": department.id,
-                "name": department.name,
-                "parent_id": department.parent_id,
-                "notes": department.notes,
-            }
-        }).model_dump(mode="python"),
-        status=statusCode,
-    )
-
-
-def _build_department_validation_response(
-    validationError: ValidationError,
-) -> JsonResponse:
-    if hasattr(validationError, "error_dict"):
-        dictFieldMessage: dict[str, list[str]] = {}
-        boolDuplicateNameFound = False
-        for strFieldName, listFieldError in validationError.error_dict.items():
-            for fieldError in listFieldError:
-                boolDuplicateName = fieldError.code == "duplicate_department_name"
-                boolDuplicateNameFound = boolDuplicateNameFound or boolDuplicateName
-                strResponseFieldName = (
-                    "name"
-                    if boolDuplicateName
-                    else "parent_id"
-                    if strFieldName == "parent"
-                    else strFieldName
-                )
-                dictFieldMessage.setdefault(strResponseFieldName, []).extend(
-                    fieldError.messages
-                )
-        return build_error_response(
-            "duplicate_department_name"
-            if boolDuplicateNameFound
-            else "invalid_department",
-            "Some department fields are invalid.",
-            statusCode=409 if boolDuplicateNameFound else 400,
-            fields=dictFieldMessage,
-        )
-
-    strErrorCode = validationError.error_list[0].code or "invalid_department"
-    return build_error_response(
-        strErrorCode,
-        " ".join(validationError.messages),
-        statusCode=409 if strErrorCode == "department_count_limit" else 400,
-    )
-
-
-def _build_department_response_error() -> JsonResponse:
-    _LOGGER.exception("Could not build a valid department response.")
-    return build_error_response(
-        "internal_server_error",
-        "The service could not build a valid response.",
-        statusCode=500,
-    )

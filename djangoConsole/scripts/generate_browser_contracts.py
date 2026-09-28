@@ -122,6 +122,23 @@ _BROWSER_CONTRACTS: tuple[tuple[type[BaseModel], JsonSchemaMode], ...] = (
 )
 
 
+def build_browser_contract_schema() -> JsonSchemaValue:
+    """Export only public browser payloads, without settings, secrets or a database."""
+    dictReference, dictSchema = models_json_schema(_BROWSER_CONTRACTS)
+    dictSchema.update({
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "title": "BrowserApiContracts",
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            contractModel.__name__: dictReference[(contractModel, strMode)]
+            for contractModel, strMode in _BROWSER_CONTRACTS
+        },
+        "required": [contractModel.__name__ for contractModel, _ in _BROWSER_CONTRACTS],
+    })
+    return dictSchema
+
+
 def main() -> int:
     argumentParser = argparse.ArgumentParser(
         description="Generate browser API TypeScript types from backend contracts, or check them without changing the file."
@@ -176,23 +193,6 @@ def main() -> int:
     else:
         print("Browser API TypeScript types generated from backend contracts.")
     return 0
-
-
-def build_browser_contract_schema() -> JsonSchemaValue:
-    """Export only public browser payloads, without settings, secrets or a database."""
-    dictReference, dictSchema = models_json_schema(_BROWSER_CONTRACTS)
-    dictSchema.update({
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "title": "BrowserApiContracts",
-        "type": "object",
-        "additionalProperties": False,
-        "properties": {
-            contractModel.__name__: dictReference[(contractModel, strMode)]
-            for contractModel, strMode in _BROWSER_CONTRACTS
-        },
-        "required": [contractModel.__name__ for contractModel, _ in _BROWSER_CONTRACTS],
-    })
-    return dictSchema
 
 
 if __name__ == "__main__":
