@@ -6,21 +6,16 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from django.urls import path
 
-from .views import asset_request
+from .views import (
+    list_or_create_assets,
+    get_or_update_asset,
+    set_asset_value,
+    delete_asset_view,
+)
 
 urlpatterns = [
-    path("assets/", asset_request, {"action": "list"}, name="assets"),
-    path("assets/<uuid:assetId>/", asset_request, {"action": "details"}, name="asset"),
-    path(
-        "assets/<uuid:assetId>/value/",
-        asset_request,
-        {"action": "value"},
-        name="asset-value",
-    ),
-    path(
-        "assets/<uuid:assetId>/deletion/",
-        asset_request,
-        {"action": "delete"},
-        name="asset-deletion",
-    ),
+    path("assets/", list_or_create_assets, name="assets"),
+    path("assets/<uuid:assetId>/", get_or_update_asset, name="asset"),
+    path("assets/<uuid:assetId>/value/", set_asset_value, name="asset-value"),
+    path("assets/<uuid:assetId>/deletion/", delete_asset_view, name="asset-deletion"),
 ]

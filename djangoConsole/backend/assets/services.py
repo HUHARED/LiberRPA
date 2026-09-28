@@ -23,28 +23,13 @@ from organizations.permissions import (
     get_authorized_departments,
 )
 
-from .models import Asset, SECRET_ASSET_TYPES
+from .models import SECRET_ASSET_TYPES, Asset
+from .queries import get_asset_query
 from .values import serialize_asset_value
 
 
 class SecretStorageUnavailableError(Exception):
     pass
-
-
-def _get_asset_for_write(
-    access: OrganizationAccessContext, assetId: uuid.UUID, *, valueOnly: bool = False
-) -> Asset:
-    asset = Asset.objects.get(
-        pk=assetId,
-        department__in=get_authorized_departments(
-            access, requiredRole=DepartmentRole.OPERATOR
-        ),
-    )
-    if not valueOnly or asset.asset_type in SECRET_ASSET_TYPES:
-        get_authorized_departments(access, requiredRole=DepartmentRole.DEVELOPER).get(
-            pk=asset.department_id
-        )
-    return asset
 
 
 @sensitive_variables()
@@ -123,7 +108,7 @@ def create_asset(
 def update_asset_details(
     access: OrganizationAccessContext, assetId: uuid.UUID, *, name: str, notes: str
 ) -> Asset:
-    asset = _get_asset_for_write(access, assetId)
+    asset = get_asset_query(access, requiredRole=DepartmentRole.DEVELOPER).get(pk=assetId)
     dictBefore = get_audit_snapshot(asset)
     asset.name = name
     asset.notes = notes
@@ -147,7 +132,11 @@ def update_asset_details(
 def update_asset_value(
     access: OrganizationAccessContext, assetId: uuid.UUID, *, value: JsonValue
 ) -> Asset:
-    asset = _get_asset_for_write(access, assetId, valueOnly=True)
+    asset = get_asset_query(access).get(pk=assetId)
+    if asset.asset_type in SECRET_ASSET_TYPES:
+        get_authorized_departments(access, requiredRole=DepartmentRole.DEVELOPER).get(
+            pk=asset.department_id
+        )
     _set_asset_value(asset, value)
     asset.updated_at = timezone.now()
     asset.save(update_fields=["value_json", "encrypted_value", "updated_at"])
@@ -163,7 +152,7 @@ def update_asset_value(
 
 
 def delete_asset(access: OrganizationAccessContext, assetId: uuid.UUID) -> None:
-    asset = _get_asset_for_write(access, assetId)
+    asset = get_asset_query(access, requiredRole=DepartmentRole.DEVELOPER).get(pk=assetId)
     # TODO: Show authorized Package/Schedule bindings as warnings when those models exist; do not block deletion.
     record_audit(
         "asset.delete",

@@ -6,9 +6,11 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import json
 import uuid
+from typing import cast
 
 from django.core.paginator import Paginator
 from django.db.models import QuerySet
+from django.db.models.functions import Substr
 
 from organizations.department_queries import get_department_tree, get_department_path
 from organizations.models import DepartmentRole
@@ -18,53 +20,23 @@ from organizations.permissions import (
     get_authorized_departments,
 )
 
-from .models import Asset, SECRET_ASSET_TYPES
+from .contracts import (
+    AssetEntryResponse,
+    AssetListResponse,
+    AssetDetailsEntryResponse,
+    AssetDetailsResponse,
+)
+from .models import SECRET_ASSET_TYPES, Asset
 
 
-def get_asset_query(access: OrganizationAccessContext) -> QuerySet[Asset]:
+def get_asset_query(
+    access: OrganizationAccessContext,
+    *,
+    requiredRole: DepartmentRole = DepartmentRole.OPERATOR,
+) -> QuerySet[Asset]:
     return Asset.objects.filter(
-        department__in=get_authorized_departments(
-            access, requiredRole=DepartmentRole.OPERATOR
-        )
+        department__in=get_authorized_departments(access, requiredRole=requiredRole)
     ).defer("encrypted_value")
-
-
-def build_asset_payloads(
-    assets: list[Asset], access: OrganizationAccessContext, *, includeValue: bool = False
-) -> list[dict[str, object]]:
-    departmentsById = get_department_tree(access.organization.pk)
-    managedDepartmentIds = set(
-        get_authorized_departments(
-            access, requiredRole=DepartmentRole.DEVELOPER
-        ).values_list("id", flat=True)
-    )
-    listPayload: list[dict[str, object]] = []
-    for asset in assets:
-        strDepartmentPath = get_department_path(
-            departmentsById[asset.department_id], departmentsById
-        )
-        boolSecret = asset.asset_type in SECRET_ASSET_TYPES
-        boolCanManage = asset.department_id in managedDepartmentIds
-        strSummary = "Configured" if boolSecret else asset.value_json
-        dictPayload: dict[str, object] = {
-            "id": asset.id,
-            "name": asset.name,
-            "department": {"id": asset.department_id, "path": strDepartmentPath},
-            "path": f"/{strDepartmentPath}/{asset.name}",
-            "asset_type": asset.asset_type,
-            "notes": asset.notes,
-            "value_summary": strSummary
-            if len(strSummary) <= 160
-            else strSummary[:160] + "…",
-            "can_manage": boolCanManage,
-            "can_edit_value": boolCanManage if boolSecret else True,
-            "created_at": asset.created_at,
-            "updated_at": asset.updated_at,
-        }
-        if includeValue and not boolSecret:
-            dictPayload["value"] = json.loads(asset.value_json)
-        listPayload.append(dictPayload)
-    return listPayload
 
 
 def get_asset_list(
@@ -74,7 +46,7 @@ def get_asset_list(
     departmentIds: tuple[uuid.UUID, ...] = (),
     name: str = "",
     assetTypes: tuple[str, ...] = (),
-) -> dict[str, object]:
+) -> AssetListResponse:
     assets = get_asset_query(access)
     if departmentIds:
         assets = assets.filter(department_id__in=departmentIds)
@@ -82,12 +54,82 @@ def get_asset_list(
         assets = assets.filter(name_key__contains=path_name_key(name))
     if assetTypes:
         assets = assets.filter(asset_type__in=assetTypes)
-    paginator = Paginator(assets.order_by("name_key", "id"), 50)
+    # Fetch only the preview; neither complete values nor ciphertext belong in a list query.
+    rows = assets.order_by("name_key", "id").values(
+        "id",
+        "name",
+        "department_id",
+        "asset_type",
+        "notes",
+        "created_at",
+        "updated_at",
+        value_summary=Substr("value_json", 1, 161),
+    )
+    paginator = Paginator(rows, 50)
     page = paginator.page(pageNumber)
-    return {
-        "assets": build_asset_payloads(list(page.object_list), access),
-        "page": page.number,
-        "page_size": 50,
-        "total_count": paginator.count,
-        "total_pages": paginator.num_pages,
+    departmentsById = get_department_tree(access.organization.pk)
+    managedDepartmentIds = set(
+        get_authorized_departments(
+            access, requiredRole=DepartmentRole.DEVELOPER
+        ).values_list("id", flat=True)
+    )
+    listEntry: list[AssetEntryResponse] = []
+    for row in page.object_list:
+        departmentId = cast(uuid.UUID, row.pop("department_id"))
+        strDepartmentPath = get_department_path(
+            departmentsById[departmentId], departmentsById
+        )
+        boolSecret = row["asset_type"] in SECRET_ASSET_TYPES
+        boolCanManage = departmentId in managedDepartmentIds
+        strSummary = "Configured" if boolSecret else cast(str, row["value_summary"])
+        row.update(
+            department={"id": departmentId, "path": strDepartmentPath},
+            path=f"/{strDepartmentPath}/{row['name']}",
+            value_summary=strSummary
+            if len(strSummary) <= 160
+            else strSummary[:160] + "…",
+            can_manage=boolCanManage,
+            can_edit_value=boolCanManage if boolSecret else True,
+        )
+        listEntry.append(AssetEntryResponse.model_validate(row))
+    return AssetListResponse(
+        assets=listEntry,
+        page=page.number,
+        page_size=50,
+        total_count=paginator.count,
+        total_pages=paginator.num_pages,
+    )
+
+
+def build_asset_details(
+    asset: Asset, access: OrganizationAccessContext
+) -> AssetDetailsResponse:
+    departmentsById = get_department_tree(access.organization.pk)
+    strDepartmentPath = get_department_path(
+        departmentsById[asset.department_id], departmentsById
+    )
+    boolSecret = asset.asset_type in SECRET_ASSET_TYPES
+    boolCanManage = (
+        get_authorized_departments(access, requiredRole=DepartmentRole.DEVELOPER)
+        .filter(pk=asset.department_id)
+        .exists()
+    )
+    strSummary = "Configured" if boolSecret else asset.value_json
+    dictPayload: dict[str, object] = {
+        "id": asset.id,
+        "name": asset.name,
+        "department": {"id": asset.department_id, "path": strDepartmentPath},
+        "path": f"/{strDepartmentPath}/{asset.name}",
+        "asset_type": asset.asset_type,
+        "notes": asset.notes,
+        "value_summary": strSummary if len(strSummary) <= 160 else strSummary[:160] + "…",
+        "can_manage": boolCanManage,
+        "can_edit_value": boolCanManage if boolSecret else True,
+        "created_at": asset.created_at,
+        "updated_at": asset.updated_at,
     }
+    if not boolSecret:
+        dictPayload["value"] = json.loads(asset.value_json)
+    return AssetDetailsResponse(
+        asset=AssetDetailsEntryResponse.model_validate(dictPayload)
+    )

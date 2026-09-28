@@ -4,29 +4,37 @@ __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
+import json
+import logging
 import uuid
-from typing import Literal, cast
+from collections.abc import Callable
+from functools import wraps
+from typing import Concatenate, cast
 
 from django.contrib.auth import HASH_SESSION_KEY
 from django.core.exceptions import ImproperlyConfigured, PermissionDenied, ValidationError
 from django.core.paginator import InvalidPage
 from django.db import DatabaseError, transaction
-from django.http import HttpRequest, HttpResponse, HttpResponseNotAllowed, JsonResponse
+from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_variables
+from django.views.decorators.http import require_http_methods, require_POST
+from pydantic import ValidationError as ContractValidationError
+from pydantic_core import PydanticSerializationError
 
 from accounts.models import User
 from accounts.session_revocation import SessionInvalidatedError, lock_session_write_access
-from console_project.contracts import MessageResponse
+from console_project.contracts import JsonResponsePayload, MessageResponse
 from console_project.http import (
     build_error_response,
     build_service_unavailable_response,
     parse_json_request,
 )
 from organizations.http import parse_department_resource_filters
-from organizations.models import Department
+from organizations.models import Membership, Department
 from organizations.permissions import (
     AccessChannel,
+    OrganizationAccessContext,
     get_current_membership,
     resolve_organization_access,
 )
@@ -36,11 +44,9 @@ from .contracts import (
     AssetCreationRequest,
     AssetValueRequest,
     AssetDeletionRequest,
-    AssetListResponse,
-    AssetDetailsResponse,
 )
-from .models import Asset, AssetType
-from .queries import get_asset_query, build_asset_payloads, get_asset_list
+from .models import AssetType, Asset
+from .queries import get_asset_query, get_asset_list, build_asset_details
 from .services import (
     SecretStorageUnavailableError,
     create_asset,
@@ -49,7 +55,166 @@ from .services import (
     delete_asset,
 )
 
+_LOGGER = logging.getLogger("console.assets")
 _INT_MAX_BODY_BYTES = 2 * 1024 * 1024
+
+
+def _session_asset_view[**P](
+    view: Callable[Concatenate[HttpRequest, Membership, P], HttpResponse],
+) -> Callable[Concatenate[HttpRequest, P], HttpResponse]:
+    """Share session authentication and errors; each view owns parsing and transactions."""
+
+    @never_cache
+    @sensitive_variables()
+    @wraps(view)
+    def wrapped(request: HttpRequest, *args: P.args, **kwargs: P.kwargs) -> HttpResponse:
+        if not request.user.is_authenticated:
+            return build_error_response(
+                "authentication_required", "Sign in to continue.", statusCode=401
+            )
+        try:
+            membership = get_current_membership(actorId=cast(User, request.user).id)
+            return view(request, membership, *args, **kwargs)
+        except (
+            PermissionDenied,
+            ValidationError,
+            Asset.DoesNotExist,
+            Department.DoesNotExist,
+            InvalidPage,
+            SecretStorageUnavailableError,
+            ContractValidationError,
+            PydanticSerializationError,
+            json.JSONDecodeError,
+            ImproperlyConfigured,
+            DatabaseError,
+        ) as e:
+            return _build_asset_error_response(e)
+
+    return wrapped
+
+
+@require_http_methods(["GET", "POST"])
+@_session_asset_view
+def list_or_create_assets(request: HttpRequest, membership: Membership) -> HttpResponse:
+    if request.method == "GET":
+        try:
+            filters = parse_department_resource_filters(
+                request.GET, extraFields=frozenset({"type"})
+            )
+            listType = request.GET.getlist("type")
+            if len(listType) > len(AssetType.values) or any(
+                value not in AssetType.values for value in listType
+            ):
+                raise ValueError("Invalid asset types.")
+        except ValueError:
+            return build_error_response(
+                "invalid_filter",
+                "Use a positive page, one name, department UUIDs, and supported asset types.",
+                statusCode=400,
+            )
+        access = resolve_organization_access(
+            actorId=membership.user_id,
+            organizationId=membership.organization_id,
+            channel=AccessChannel.SESSION,
+        )
+        return _build_asset_response(
+            get_asset_list(access, **filters, assetTypes=tuple(listType))
+        )
+
+    payload = parse_json_request(
+        request, AssetCreationRequest, maxBodyBytes=_INT_MAX_BODY_BYTES
+    )
+    if isinstance(payload, JsonResponse):
+        return payload
+    with transaction.atomic():
+        access = _lock_asset_write_access(request, membership)
+        asset = create_asset(
+            access,
+            departmentId=payload.department_id,
+            name=payload.name,
+            notes=payload.notes,
+            assetType=payload.asset_type,
+            value=payload.value,
+        )
+        return _build_asset_response(build_asset_details(asset, access), statusCode=201)
+
+
+@require_http_methods(["GET", "POST"])
+@_session_asset_view
+def get_or_update_asset(
+    request: HttpRequest, membership: Membership, assetId: uuid.UUID
+) -> HttpResponse:
+    if request.method == "GET":
+        access = resolve_organization_access(
+            actorId=membership.user_id,
+            organizationId=membership.organization_id,
+            channel=AccessChannel.SESSION,
+        )
+        asset = get_asset_query(access).get(pk=assetId)
+        return _build_asset_response(build_asset_details(asset, access))
+
+    payload = parse_json_request(request, AssetDetailsRequest, maxBodyBytes=16384)
+    if isinstance(payload, JsonResponse):
+        return payload
+    with transaction.atomic():
+        access = _lock_asset_write_access(request, membership)
+        asset = update_asset_details(
+            access, assetId, name=payload.name, notes=payload.notes
+        )
+        return _build_asset_response(build_asset_details(asset, access))
+
+
+@require_POST
+@_session_asset_view
+def set_asset_value(
+    request: HttpRequest, membership: Membership, assetId: uuid.UUID
+) -> HttpResponse:
+    payload = parse_json_request(
+        request, AssetValueRequest, maxBodyBytes=_INT_MAX_BODY_BYTES
+    )
+    if isinstance(payload, JsonResponse):
+        return payload
+    with transaction.atomic():
+        access = _lock_asset_write_access(request, membership)
+        asset = update_asset_value(access, assetId, value=payload.value)
+        return _build_asset_response(build_asset_details(asset, access))
+
+
+@require_POST
+@_session_asset_view
+def delete_asset_view(
+    request: HttpRequest, membership: Membership, assetId: uuid.UUID
+) -> HttpResponse:
+    payload = parse_json_request(request, AssetDeletionRequest)
+    if isinstance(payload, JsonResponse):
+        return payload
+    with transaction.atomic():
+        access = _lock_asset_write_access(request, membership)
+        delete_asset(access, assetId)
+        return _build_asset_response(MessageResponse(message="Asset deleted."))
+
+
+def _lock_asset_write_access(
+    request: HttpRequest, membership: Membership
+) -> OrganizationAccessContext:
+    return lock_session_write_access(
+        membership.user_id,
+        membership.organization_id,
+        AccessChannel.SESSION,
+        request.session.get(HASH_SESSION_KEY, ""),
+        request.session.get_expiry_date(),
+    )
+
+
+def _build_asset_response(
+    payload: JsonResponsePayload, *, statusCode: int = 200
+) -> HttpResponse:
+    # Omit unset secret values while preserving an explicitly stored JSON null.
+    return HttpResponse(
+        payload.model_dump_json(exclude_unset=True),
+        status=statusCode,
+        content_type="application/json",
+    )
 
 
 def _build_asset_error_response(e: Exception) -> JsonResponse:
@@ -96,129 +261,17 @@ def _build_asset_error_response(e: Exception) -> JsonResponse:
                 if hasattr(e, "error_dict")
                 else {"__all__": e.messages},
             )
+        case (
+            ContractValidationError()
+            | PydanticSerializationError()
+            | json.JSONDecodeError()
+        ):
+            # Request JSON errors have already been handled at the parsing boundary.
+            _LOGGER.exception("Invalid stored asset value or response contract.")
+            return build_error_response(
+                "internal_server_error",
+                "The service could not build a valid response.",
+                statusCode=500,
+            )
         case _:
             return build_service_unavailable_response()
-
-
-@never_cache
-@sensitive_variables()
-def asset_request(
-    request: HttpRequest,
-    *,
-    action: Literal["list", "details", "value", "delete"],
-    assetId: uuid.UUID | None = None,
-) -> HttpResponse:
-    listMethod = ["GET", "POST"] if action in ("list", "details") else ["POST"]
-    if request.method not in listMethod:
-        return HttpResponseNotAllowed(listMethod)
-    if not request.user.is_authenticated:
-        return build_error_response(
-            "authentication_required", "Sign in to continue.", statusCode=401
-        )
-    try:
-        membership = get_current_membership(actorId=cast(User, request.user).id)
-        with transaction.atomic():
-            if request.method == "GET":
-                access = resolve_organization_access(
-                    actorId=membership.user_id,
-                    organizationId=membership.organization_id,
-                    channel=AccessChannel.SESSION,
-                )
-                if action == "list":
-                    try:
-                        filters = parse_department_resource_filters(
-                            request.GET, extraFields=frozenset({"type"})
-                        )
-                        listType = request.GET.getlist("type")
-                        if len(listType) > len(AssetType.values) or any(
-                            value not in AssetType.values for value in listType
-                        ):
-                            raise ValueError("Invalid asset types.")
-                    except ValueError:
-                        return build_error_response(
-                            "invalid_filter",
-                            "Use a positive page, one name, department UUIDs, and supported asset types.",
-                            statusCode=400,
-                        )
-                    payload = get_asset_list(
-                        access, **filters, assetTypes=tuple(listType)
-                    )
-                    return JsonResponse(
-                        AssetListResponse.model_validate(payload).model_dump(
-                            mode="python"
-                        )
-                    )
-                asset = get_asset_query(access).get(pk=assetId)
-            else:
-                access = lock_session_write_access(
-                    membership.user_id,
-                    membership.organization_id,
-                    AccessChannel.SESSION,
-                    request.session.get(HASH_SESSION_KEY, ""),
-                    request.session.get_expiry_date(),
-                )
-                match action:
-                    case "list":
-                        payload = parse_json_request(
-                            request,
-                            AssetCreationRequest,
-                            maxBodyBytes=_INT_MAX_BODY_BYTES,
-                        )
-                        if isinstance(payload, JsonResponse):
-                            return payload
-                        asset = create_asset(
-                            access,
-                            departmentId=payload.department_id,
-                            name=payload.name,
-                            notes=payload.notes,
-                            assetType=payload.asset_type,
-                            value=payload.value,
-                        )
-                    case "details":
-                        assert assetId is not None
-                        payload = parse_json_request(
-                            request, AssetDetailsRequest, maxBodyBytes=16384
-                        )
-                        if isinstance(payload, JsonResponse):
-                            return payload
-                        asset = update_asset_details(
-                            access, assetId, name=payload.name, notes=payload.notes
-                        )
-                    case "value":
-                        assert assetId is not None
-                        payload = parse_json_request(
-                            request, AssetValueRequest, maxBodyBytes=_INT_MAX_BODY_BYTES
-                        )
-                        if isinstance(payload, JsonResponse):
-                            return payload
-                        asset = update_asset_value(access, assetId, value=payload.value)
-                    case "delete":
-                        assert assetId is not None
-                        payload = parse_json_request(request, AssetDeletionRequest)
-                        if isinstance(payload, JsonResponse):
-                            return payload
-                        delete_asset(access, assetId)
-                        return JsonResponse(
-                            MessageResponse(message="Asset deleted.").model_dump()
-                        )
-            payload = {
-                "asset": build_asset_payloads([asset], access, includeValue=True)[0]
-            }
-            return JsonResponse(
-                AssetDetailsResponse.model_validate(payload).model_dump(
-                    mode="python", exclude_unset=True
-                ),
-                status=201 if request.method == "POST" and action == "list" else 200,
-            )
-    except (
-        SessionInvalidatedError,
-        PermissionDenied,
-        ValidationError,
-        Asset.DoesNotExist,
-        Department.DoesNotExist,
-        InvalidPage,
-        SecretStorageUnavailableError,
-        ImproperlyConfigured,
-        DatabaseError,
-    ) as e:
-        return _build_asset_error_response(e)
