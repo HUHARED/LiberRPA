@@ -20,11 +20,43 @@ from operations.audit_http import record_failed_request
 from .logging import request_log_context
 
 _LOGGER = logging.getLogger("console.http")
-type SyncResponse = Callable[[HttpRequest], HttpResponseBase]
-type AsyncResponse = Callable[[HttpRequest], Awaitable[HttpResponseBase]]
+
+type _SyncResponseHandler = Callable[[HttpRequest], HttpResponseBase]
+type _AsyncResponseHandler = Callable[[HttpRequest], Awaitable[HttpResponseBase]]
 
 
-def _finish_request(
+@sync_and_async_middleware
+def request_logging(
+    getResponse: _SyncResponseHandler | _AsyncResponseHandler,
+) -> _SyncResponseHandler | _AsyncResponseHandler:
+    """Keep correlation local to each request in both WSGI and ASGI."""
+
+    if iscoroutinefunction(getResponse):
+
+        async def async_middleware(request: HttpRequest) -> HttpResponseBase:
+            with request_log_context() as requestId:
+                floatStartedAt = perf_counter()
+                response = await cast(_AsyncResponseHandler, getResponse)(request)
+                response["X-Request-ID"] = str(requestId)
+                await sync_to_async(_record_request_result, thread_sensitive=True)(
+                    request, response, floatStartedAt
+                )
+                return response
+
+        return async_middleware
+
+    def sync_middleware(request: HttpRequest) -> HttpResponseBase:
+        with request_log_context() as requestId:
+            floatStartedAt = perf_counter()
+            response = cast(_SyncResponseHandler, getResponse)(request)
+            response["X-Request-ID"] = str(requestId)
+            _record_request_result(request, response, floatStartedAt)
+            return response
+
+    return sync_middleware
+
+
+def _record_request_result(
     request: HttpRequest, response: HttpResponseBase, startedAt: float
 ) -> None:
     record_failed_request(request, response)
@@ -49,34 +81,3 @@ def _finish_request(
             response.status_code,
             (perf_counter() - startedAt) * 1000,
         )
-
-
-@sync_and_async_middleware
-def request_logging(
-    getResponse: SyncResponse | AsyncResponse,
-) -> SyncResponse | AsyncResponse:
-    """Keep correlation local to each request in both WSGI and ASGI."""
-
-    if iscoroutinefunction(getResponse):
-
-        async def async_middleware(request: HttpRequest) -> HttpResponseBase:
-            with request_log_context() as requestId:
-                floatStartedAt = perf_counter()
-                response = await cast(AsyncResponse, getResponse)(request)
-                response["X-Request-ID"] = str(requestId)
-                await sync_to_async(_finish_request, thread_sensitive=True)(
-                    request, response, floatStartedAt
-                )
-                return response
-
-        return async_middleware
-
-    def sync_middleware(request: HttpRequest) -> HttpResponseBase:
-        with request_log_context() as requestId:
-            floatStartedAt = perf_counter()
-            response = cast(SyncResponse, getResponse)(request)
-            response["X-Request-ID"] = str(requestId)
-            _finish_request(request, response, floatStartedAt)
-            return response
-
-    return sync_middleware

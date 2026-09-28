@@ -13,7 +13,7 @@ from django.views.decorators.debug import sensitive_variables
 from pydantic import BaseModel
 
 _LOGGER = logging.getLogger("console.http")
-_INT_MAX_JSON_BODY_BYTES = 4096
+_DEFAULT_MAX_JSON_BODY_BYTES = 4096
 
 
 def build_error_response(
@@ -36,32 +36,12 @@ def build_service_unavailable_response() -> JsonResponse:
     )
 
 
-@never_cache
-def csrf_failure(request: HttpRequest, reason: str = "") -> JsonResponse:  # noqa: ARG001
-    """Give browser clients a stable error without exposing internal rejection details."""
-    # Django requires this signature; neither request data nor its reason is disclosed.
-    return build_error_response(
-        "csrf_failed",
-        "Your request could not be verified. Please submit the form again.",
-        statusCode=403,
+def build_rate_limited_response(retryAfterSeconds: int) -> JsonResponse:
+    response = build_error_response(
+        "rate_limited", "Too many requests. Try again later.", statusCode=429
     )
-
-
-def parse_page_number(query: QueryDict) -> int:
-    """Parse a single positive page number; the view keeps its own error code and message."""
-    listPageValue = query.getlist("page")
-    if not listPageValue:
-        return 1
-    strPageValue = listPageValue[0]
-    if (
-        len(listPageValue) != 1
-        or not strPageValue.isascii()
-        or not strPageValue.isdecimal()
-        or len(strPageValue) > 9
-        or int(strPageValue) < 1
-    ):
-        raise ValueError("Send one positive integer page number.")
-    return int(strPageValue)
+    response["Retry-After"] = str(retryAfterSeconds)
+    return response
 
 
 @sensitive_variables()
@@ -69,7 +49,7 @@ def parse_json_request[Payload: BaseModel](
     request: HttpRequest,
     requestSchema: type[Payload],
     *,
-    maxBodyBytes: int = _INT_MAX_JSON_BODY_BYTES,
+    maxBodyBytes: int = _DEFAULT_MAX_JSON_BODY_BYTES,
 ) -> Payload | JsonResponse:
     """Parse and validate an untrusted HTTP body into the requested schema."""
 
@@ -107,9 +87,29 @@ def parse_json_request[Payload: BaseModel](
         )
 
 
-def build_rate_limited_response(retryAfterSeconds: int) -> JsonResponse:
-    response = build_error_response(
-        "rate_limited", "Too many requests. Try again later.", statusCode=429
+def parse_page_number(query: QueryDict) -> int:
+    """Parse a single positive page number; the view keeps its own error code and message."""
+    listPageValue = query.getlist("page")
+    if not listPageValue:
+        return 1
+    strPageValue = listPageValue[0]
+    if (
+        len(listPageValue) != 1
+        or not strPageValue.isascii()
+        or not strPageValue.isdecimal()
+        or len(strPageValue) > 9
+        or int(strPageValue) < 1
+    ):
+        raise ValueError("Send one positive integer page number.")
+    return int(strPageValue)
+
+
+@never_cache
+def csrf_failure(request: HttpRequest, reason: str = "") -> JsonResponse:  # noqa: ARG001
+    """Give browser clients a stable error without exposing internal rejection details."""
+    # Django requires this signature; neither request data nor its reason is disclosed.
+    return build_error_response(
+        "csrf_failed",
+        "Your request could not be verified. Please submit the form again.",
+        statusCode=403,
     )
-    response["Retry-After"] = str(retryAfterSeconds)
-    return response

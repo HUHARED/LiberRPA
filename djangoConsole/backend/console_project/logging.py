@@ -22,21 +22,6 @@ from psycopg import Error as PsycopgError
 _REQUEST_ID: ContextVar[uuid.UUID | None] = ContextVar("console_request_id", default=None)
 
 
-def get_request_id() -> uuid.UUID | None:
-    return _REQUEST_ID.get()
-
-
-@contextmanager
-def request_log_context() -> Generator[uuid.UUID]:
-    """Generate our own correlation ID; client headers never select a log identity."""
-    requestId = uuid.uuid4()
-    contextToken = _REQUEST_ID.set(requestId)
-    try:
-        yield requestId
-    finally:
-        _REQUEST_ID.reset(contextToken)
-
-
 class RequestExceptionFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
         # The middleware already logs response summaries, including handled failures.
@@ -47,6 +32,17 @@ class ConsoleFormatter(logging.Formatter):
     """Format UTC diagnostics without dumping request data or exception values."""
 
     converter = time.gmtime
+
+    def format(self, record: logging.LogRecord) -> str:
+        logRecord = copy(record)
+        logRecord.request_id = str(get_request_id() or "-")
+        # Django error messages can contain URLs, Host headers, SQL, or exception text.
+        if logRecord.name.startswith("django."):
+            logRecord.msg = "Django diagnostic."
+            logRecord.args = ()
+        logRecord.exc_text = None
+        logRecord.stack_info = None
+        return super().format(logRecord)
 
     def formatException(
         self,
@@ -97,17 +93,6 @@ class ConsoleFormatter(logging.Formatter):
             tracebackObj = error.__traceback__
         return "\n".join(listDetail)
 
-    def format(self, record: logging.LogRecord) -> str:
-        logRecord = copy(record)
-        logRecord.request_id = str(get_request_id() or "-")
-        # Django error messages can contain URLs, Host headers, SQL, or exception text.
-        if logRecord.name.startswith("django."):
-            logRecord.msg = "Django diagnostic."
-            logRecord.args = ()
-        logRecord.exc_text = None
-        logRecord.stack_info = None
-        return super().format(logRecord)
-
 
 def build_logging_config(level: str) -> dict[str, object]:
     """Use one stream for application, Django, and worker diagnostics."""
@@ -144,3 +129,18 @@ def build_logging_config(level: str) -> dict[str, object]:
             "uvicorn.access": {"handlers": ["null"], "propagate": False},
         },
     }
+
+
+@contextmanager
+def request_log_context() -> Generator[uuid.UUID]:
+    """Generate our own correlation ID; client headers never select a log identity."""
+    requestId = uuid.uuid4()
+    contextToken = _REQUEST_ID.set(requestId)
+    try:
+        yield requestId
+    finally:
+        _REQUEST_ID.reset(contextToken)
+
+
+def get_request_id() -> uuid.UUID | None:
+    return _REQUEST_ID.get()
