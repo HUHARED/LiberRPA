@@ -16,20 +16,22 @@ from django.db import transaction
 from django.utils import timezone
 from django.views.decorators.debug import sensitive_variables
 
-from accounts.email_change_emails import (
-    build_email_change_notice,
-    build_email_change_verification,
-)
-from accounts.email_changes import issue_email_change_token
-from accounts.emails import build_registration_email
-from accounts.password_reset_emails import build_password_reset_email
-from accounts.password_resets import issue_password_reset_token
-from accounts.registration import issue_registration_token
 from console_project.config import LimitsConfig
-from organizations.invitation_emails import build_invitation_email
-from organizations.deletion_emails import build_organization_deletion_notice
-from organizations.invitations import InvitationConflictError, issue_invitation_token
+from accounts.registration import issue_registration_token
+from accounts.password_resets import issue_password_reset_token
+from accounts.email_changes import issue_email_change_token
+from accounts.emails import (
+    build_registration_email,
+    build_password_reset_email,
+    build_email_change_verification,
+    build_email_change_notice,
+)
 from organizations.models import MemberInvitation
+from organizations.invitations import InvitationConflictError, issue_invitation_token
+from organizations.emails import (
+    build_invitation_email,
+    build_organization_deletion_notice,
+)
 
 from .models import (
     EmailDelivery,

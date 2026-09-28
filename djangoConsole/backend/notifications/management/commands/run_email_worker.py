@@ -30,7 +30,7 @@ _INT_IDLE_POLL_SECONDS = 2
 
 
 class Command(BaseCommand):
-    help = "Process queued account emails without retrying attempted deliveries."
+    help = "Process queued Console emails without retrying attempted deliveries."
     requires_migrations_checks = True
 
     def add_arguments(self, parser: CommandParser) -> None:
