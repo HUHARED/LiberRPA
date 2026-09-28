@@ -34,8 +34,7 @@
             v-model="strName"
             label="Name"
             variant="outlined"
-            maxlength="128"
-            :rules="[validateName]"
+            :rules="[validatePathName]"
             :error-messages="saveError?.fields.name ?? []"
             :disabled="boolSaving"
             required
@@ -102,6 +101,8 @@ import type { SubmitEventPromise } from "vuetify";
 
 import { useSessionStore } from "../stores/sessionStore";
 
+import { validatePathName } from "../app/validators";
+
 import { type ApiError, getApiError } from "../api/errors";
 import { createDepartment, updateDepartment } from "../api/departments";
 import type {
@@ -154,15 +155,6 @@ const boolPathChanged = computed(
   () =>
     !!props.department && !!strNewPath.value && strNewPath.value !== props.department.path,
 );
-
-function validateName(value: string | null): true | string {
-  if (!value) return "Enter a department name.";
-  if (value !== value.trim()) return "The name must not start or end with whitespace.";
-  if (value.endsWith(".")) return "The name must not end with a period.";
-  if (/[\\/\p{Cc}]/u.test(value))
-    return "The name must not contain path separators or control characters.";
-  return true;
-}
 
 function validateParent(value: string | null): true | string {
   return arrParentOption.value.some((department) => department.id === value)

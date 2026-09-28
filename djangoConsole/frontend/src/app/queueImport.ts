@@ -8,7 +8,10 @@ import {
   type CellObject,
   type Range,
 } from "xlsx";
+
 import type { JsonValueInput as JsonValue } from "../api/generated/browserApi";
+
+import { validateJsonValue } from "./validators";
 
 export interface QueueImportSource {
   kind: "table" | "txt" | "json" | "jsonl";
@@ -96,26 +99,6 @@ export function getQueueColumns(
   });
 }
 
-function validateValue(value: JsonValue, depth = 0): void {
-  if (depth > 64) throw new Error("JSON must not exceed 64 levels of nesting.");
-  if (
-    typeof value === "number" &&
-    (!Number.isFinite(value) || (Number.isInteger(value) && !Number.isSafeInteger(value)))
-  )
-    throw new Error("Use finite numbers and integers within the safe integer range.");
-  if (
-    typeof value === "string" &&
-    /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/u.test(value)
-  )
-    throw new Error("Use valid Unicode text.");
-  if (Array.isArray(value)) value.forEach((child) => validateValue(child, depth + 1));
-  else if (value !== null && typeof value === "object")
-    Object.entries(value).forEach(([key, child]) => {
-      validateValue(key, depth + 1);
-      validateValue(child, depth + 1);
-    });
-}
-
 export function convertQueueFile(
   source: QueueImportSource,
   options: QueueImportOptions,
@@ -124,7 +107,7 @@ export function convertQueueFile(
   let skipped = 0;
   function add(value: JsonValue, location: string): void {
     try {
-      validateValue(value);
+      validateJsonValue(value);
       if (new TextEncoder().encode(JSON.stringify(value)).length > 1024 * 1024)
         throw new Error("The item exceeds 1 MiB.");
       if (rows.length >= 100) throw new Error("A batch can contain at most 100 items.");

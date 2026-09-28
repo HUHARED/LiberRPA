@@ -20,8 +20,7 @@
                 v-model="strName"
                 label="Name"
                 variant="outlined"
-                maxlength="128"
-                :rules="[validateName]"
+                :rules="[validatePathName]"
                 :error-messages="saveError?.fields.name ?? []"
                 :disabled="boolSaving" />
             </v-col>
@@ -169,6 +168,8 @@ import PasswordField from "./PasswordField.vue";
 
 import { useSessionStore } from "../stores/sessionStore";
 
+import { validatePathName, validateJsonValue } from "../app/validators";
+
 import { ApiError, getApiError } from "../api/errors";
 import {
   ARR_ASSET_TYPE,
@@ -254,7 +255,9 @@ let boolUnmounted = false;
 // Reuse the parsed value until one of its inputs changes.
 const valueResult = computed(() => {
   try {
-    return { valid: true as const, value: parseValue() };
+    const value = parseValue();
+    validateJsonValue(value);
+    return { valid: true as const, value };
   } catch (e) {
     return {
       valid: false as const,
@@ -262,34 +265,6 @@ const valueResult = computed(() => {
     };
   }
 });
-
-function validateName(value: string): true | string {
-  if (!value || Array.from(value).length > 128)
-    return "Enter a name of up to 128 characters.";
-  if (
-    value !== value.trim() ||
-    value.endsWith(".") ||
-    Array.from(value).some((character) => {
-      const code = character.codePointAt(0)!;
-      return (
-        character === "/" || character === "\\" || code < 32 || (code >= 127 && code <= 159)
-      );
-    })
-  )
-    return "Avoid surrounding whitespace, a trailing period, separators, and control characters.";
-  return true;
-}
-
-function validateJsonNumbers(value: unknown, depth = 0): void {
-  if (depth > 64) throw new Error("JSON must not exceed 64 levels of nesting.");
-  if (
-    typeof value === "number" &&
-    (!Number.isFinite(value) || (Number.isInteger(value) && !Number.isSafeInteger(value)))
-  )
-    throw new Error("Use finite numbers and integers within the safe integer range.");
-  if (value !== null && typeof value === "object")
-    for (const child of Object.values(value)) validateJsonNumbers(child, depth + 1);
-}
 
 function parseValue(): AssetValueRequest["value"] {
   if (assetType.value === "boolean") return boolValue.value;
@@ -307,7 +282,6 @@ function parseValue(): AssetValueRequest["value"] {
   } catch {
     throw new Error("Enter valid JSON.");
   }
-  validateJsonNumbers(value);
   return value as AssetValueRequest["value"];
 }
 

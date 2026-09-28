@@ -22,8 +22,7 @@
             v-model="name"
             label="Name"
             variant="outlined"
-            maxlength="128"
-            :rules="[(value) => !!value.trim() || 'Enter a name.']"
+            :rules="[validatePathName]"
             :disabled="saving" />
           <v-text-field
             v-if="queue"
@@ -81,6 +80,8 @@ import { computed, onBeforeUnmount, ref, shallowRef } from "vue";
 import type { SubmitEventPromise } from "vuetify";
 
 import { useSessionStore } from "../stores/sessionStore";
+
+import { validatePathName } from "../app/validators";
 
 import { getApiError, type ApiError } from "../api/errors";
 import { saveQueue } from "../api/dataQueues";

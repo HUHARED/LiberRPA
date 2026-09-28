@@ -38,7 +38,7 @@
             label="File Name"
             variant="outlined"
             :disabled="locked"
-            :rules="[nameRule]" />
+            :rules="[validatePathName]" />
           <v-text-field :model-value="path" label="Path" variant="outlined" readonly />
           <v-switch
             v-model="overwrite"
@@ -85,6 +85,8 @@ import { computed, onBeforeUnmount, ref, shallowRef } from "vue";
 import type { SubmitEventPromise } from "vuetify";
 
 import { useSessionStore } from "../stores/sessionStore";
+
+import { validatePathName } from "../app/validators";
 
 import { ApiError, getApiError } from "../api/errors";
 import {
@@ -135,16 +137,6 @@ function fileRule(): true | string {
     : file.value.size > props.maxFileBytes
       ? `Select a file no larger than ${formatFileSize(props.maxFileBytes)}.`
       : true;
-}
-function nameRule(value: string): true | string {
-  if (!value) return "Enter a file name.";
-  if (value !== value.trim()) return "The name must not start or end with whitespace.";
-  if (value.endsWith(".")) return "The name must not end with a period.";
-  if (/[\\/\p{Cc}\p{Cs}]/u.test(value))
-    return "The name must not contain path separators, control characters, or invalid Unicode.";
-  if (Array.from(value).length > 128 || Array.from(value.normalize("NFC")).length > 128)
-    return "Use at most 128 characters.";
-  return true;
 }
 function saved(result: FileUploadResponse): void {
   if (result.state !== "completed" || !result.file)
