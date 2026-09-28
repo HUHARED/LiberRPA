@@ -6,218 +6,120 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import argparse
 import json
-from pathlib import Path
 import subprocess
 import sys
+from pathlib import Path
 
 from pydantic import BaseModel
 from pydantic.json_schema import JsonSchemaMode, JsonSchemaValue, models_json_schema
 
 _PATH_CONSOLE = Path(__file__).resolve().parents[1]
+# The standalone command imports contract modules without loading Django settings.
 sys.path.insert(0, str(_PATH_CONSOLE / "backend"))
 
-from accounts.contracts import (
-    LoginRequest,
-    SessionResponse,
-    CsrfResponse,
-    ProfileUpdateRequest,
-    ProfileWriteResponse,
-    PasswordChangeRequest,
-    SessionRevocationRequest,
-    EmailChangeEmailRequest,
-    EmailChangeTokenRequest,
-    EmailChangeInfoResponse,
-    AccountDeletionRequest,
-    AccountDeletionPreviewResponse,
-    ApiKeyCreateRequest,
-    ApiKeyNotesRequest,
-    ApiKeyWriteResponse,
-    ApiKeyCreationResponse,
-    ApiKeyListResponse,
-)
-from data_queues.contracts import (
-    QueueCreationRequest,
-    QueueDetailsRequest,
-    QueueListResponse,
-    QueueDetailsResponse,
-    QueueItemsResponse,
-    QueueItemDetailsResponse,
-    QueueUploadRequest,
-    QueueResetRequest,
-    QueueDeleteItemsRequest,
-    QueueMutationResponse,
-)
-from shared_files.contracts import (
-    FileListRequest,
-    FilePathRequest,
-    FileUploadRequest,
-    FileDeleteRequest,
-    FileInfoResponse,
-    FileUsageResponse,
-    FileListResponse,
-    FileUploadResponse,
-    FileDeleteResponse,
-    FileDownloadResponse,
-)
-from console_project.contracts import MessageResponse
-from assets.contracts import (
-    AssetDetailsRequest,
-    AssetCreationRequest,
-    AssetValueRequest,
-    AssetDeletionRequest,
-    AssetListResponse,
-    AssetDetailsResponse,
-)
-from executors.contracts import (
-    ExecutorUpdateRequest,
-    ExecutorCreationRequest,
-    ExecutorDeletionRequest,
-    ExecutorDispatchRequest,
-    ExecutorUnassociateRequest,
-    ExecutorUpdateResponse,
-    ExecutorListResponse,
-    ExecutorDetailsResponse,
-    ExecutorGroupUpdateRequest,
-    ExecutorGroupCreationRequest,
-    ExecutorGroupDeletionRequest,
-    ExecutorGroupListResponse,
-    ExecutorGroupDetailsResponse,
-    ExecutorGroupDeletionResponse,
-    ExecutorGroupWriteResponse,
-)
-from operations.contracts import (
-    AuditListResponse,
-    AuditFilterOptionsResponse,
-    AuditDetailsResponse,
-)
-from organizations.contracts import (
-    AccountAccessResponse,
-    OrganizationSettingsRequest,
-    OrganizationSettingsResponse,
-    DepartmentUpdateRequest,
-    DepartmentCreationRequest,
-    DepartmentDeletionRequest,
-    DepartmentWriteResponse,
-    DepartmentListResponse,
-    DepartmentDetailsResponse,
-    DepartmentDeletionPreviewResponse,
-    DepartmentDeletionResponse,
-    MemberListResponse,
-    MemberDetailsResponse,
-    MembershipUpdateRequest,
-    MembershipWriteResponse,
-    InvitationCreateRequest,
-    InvitationTokenRequest,
-    InvitationCompletionRequest,
-    InvitationRegistrationResponse,
-    InvitationDetailsResponse,
-    InvitationListResponse,
-)
+from console_project import contracts as commonContracts
+from accounts import contracts as accountContracts
+from organizations import contracts as organizationContracts
+from assets import contracts as assetContracts
+from data_queues import contracts as queueContracts
+from shared_files import contracts as fileContracts
+from executors import contracts as executorContracts
+from operations import contracts as auditContracts
 
-_TUPLE_CONTRACT_MODEL: tuple[tuple[type[BaseModel], JsonSchemaMode], ...] = (
-    (FileListRequest, "validation"),
-    (FilePathRequest, "validation"),
-    (FileUploadRequest, "validation"),
-    (FileDeleteRequest, "validation"),
-    (FileInfoResponse, "serialization"),
-    (FileUsageResponse, "serialization"),
-    (FileListResponse, "serialization"),
-    (FileUploadResponse, "serialization"),
-    (FileDeleteResponse, "serialization"),
-    (FileDownloadResponse, "serialization"),
-    (QueueCreationRequest, "validation"),
-    (QueueDetailsRequest, "validation"),
-    (QueueListResponse, "serialization"),
-    (QueueDetailsResponse, "serialization"),
-    (QueueItemsResponse, "serialization"),
-    (QueueItemDetailsResponse, "serialization"),
-    (QueueUploadRequest, "validation"),
-    (QueueResetRequest, "validation"),
-    (QueueDeleteItemsRequest, "validation"),
-    (QueueMutationResponse, "serialization"),
-    (AssetDetailsRequest, "validation"),
-    (AssetCreationRequest, "validation"),
-    (AssetValueRequest, "validation"),
-    (AssetDeletionRequest, "validation"),
-    (AssetListResponse, "serialization"),
-    (AssetDetailsResponse, "serialization"),
-    (LoginRequest, "validation"),
-    (CsrfResponse, "serialization"),
-    (SessionResponse, "serialization"),
-    (ProfileUpdateRequest, "validation"),
-    (ProfileWriteResponse, "serialization"),
-    (PasswordChangeRequest, "validation"),
-    (SessionRevocationRequest, "validation"),
-    (EmailChangeEmailRequest, "validation"),
-    (EmailChangeTokenRequest, "validation"),
-    (EmailChangeInfoResponse, "serialization"),
-    (AccountAccessResponse, "serialization"),
-    (OrganizationSettingsRequest, "validation"),
-    (OrganizationSettingsResponse, "serialization"),
-    (DepartmentUpdateRequest, "validation"),
-    (DepartmentCreationRequest, "validation"),
-    (DepartmentDeletionRequest, "validation"),
-    (DepartmentWriteResponse, "serialization"),
-    (DepartmentListResponse, "serialization"),
-    (DepartmentDetailsResponse, "serialization"),
-    (DepartmentDeletionPreviewResponse, "serialization"),
-    (DepartmentDeletionResponse, "serialization"),
-    (MemberListResponse, "serialization"),
-    (MemberDetailsResponse, "serialization"),
-    (MembershipUpdateRequest, "validation"),
-    (MembershipWriteResponse, "serialization"),
-    (AccountDeletionRequest, "validation"),
-    (AccountDeletionPreviewResponse, "serialization"),
-    (ApiKeyCreateRequest, "validation"),
-    (ApiKeyNotesRequest, "validation"),
-    (ApiKeyWriteResponse, "serialization"),
-    (ApiKeyCreationResponse, "serialization"),
-    (ApiKeyListResponse, "serialization"),
-    (InvitationCreateRequest, "validation"),
-    (InvitationTokenRequest, "validation"),
-    (InvitationCompletionRequest, "validation"),
-    (InvitationRegistrationResponse, "serialization"),
-    (InvitationDetailsResponse, "serialization"),
-    (InvitationListResponse, "serialization"),
-    (MessageResponse, "serialization"),
-    (ExecutorListResponse, "serialization"),
-    (ExecutorDetailsResponse, "serialization"),
-    (ExecutorUpdateRequest, "validation"),
-    (ExecutorCreationRequest, "validation"),
-    (ExecutorDeletionRequest, "validation"),
-    (ExecutorDispatchRequest, "validation"),
-    (ExecutorUnassociateRequest, "validation"),
-    (ExecutorUpdateResponse, "serialization"),
-    (ExecutorGroupUpdateRequest, "validation"),
-    (ExecutorGroupCreationRequest, "validation"),
-    (ExecutorGroupDeletionRequest, "validation"),
-    (ExecutorGroupListResponse, "serialization"),
-    (ExecutorGroupDetailsResponse, "serialization"),
-    (ExecutorGroupDeletionResponse, "serialization"),
-    (ExecutorGroupWriteResponse, "serialization"),
-    (AuditListResponse, "serialization"),
-    (AuditFilterOptionsResponse, "serialization"),
-    (AuditDetailsResponse, "serialization"),
+# NOTE: Register browser contracts explicitly; keep each group in its source declaration order.
+_BROWSER_CONTRACTS: tuple[tuple[type[BaseModel], JsonSchemaMode], ...] = (
+    # Shared responses.
+    (commonContracts.MessageResponse, "serialization"),
+    # Account sessions, profile, email and API keys.
+    (accountContracts.LoginRequest, "validation"),
+    (accountContracts.SessionResponse, "serialization"),
+    (accountContracts.CsrfResponse, "serialization"),
+    (accountContracts.ProfileUpdateRequest, "validation"),
+    (accountContracts.ProfileWriteResponse, "serialization"),
+    (accountContracts.PasswordChangeRequest, "validation"),
+    (accountContracts.SessionRevocationRequest, "validation"),
+    (accountContracts.EmailChangeEmailRequest, "validation"),
+    (accountContracts.EmailChangeTokenRequest, "validation"),
+    (accountContracts.EmailChangeInfoResponse, "serialization"),
+    (accountContracts.AccountDeletionRequest, "validation"),
+    (accountContracts.AccountDeletionPreviewResponse, "serialization"),
+    (accountContracts.ApiKeyCreateRequest, "validation"),
+    (accountContracts.ApiKeyNotesRequest, "validation"),
+    (accountContracts.ApiKeyWriteResponse, "serialization"),
+    (accountContracts.ApiKeyCreationResponse, "serialization"),
+    (accountContracts.ApiKeyListResponse, "serialization"),
+    # Organization access, departments, members and invitations.
+    (organizationContracts.AccountAccessResponse, "serialization"),
+    (organizationContracts.OrganizationSettingsRequest, "validation"),
+    (organizationContracts.OrganizationSettingsResponse, "serialization"),
+    (organizationContracts.DepartmentUpdateRequest, "validation"),
+    (organizationContracts.DepartmentCreationRequest, "validation"),
+    (organizationContracts.DepartmentDeletionRequest, "validation"),
+    (organizationContracts.DepartmentWriteResponse, "serialization"),
+    (organizationContracts.DepartmentListResponse, "serialization"),
+    (organizationContracts.DepartmentDetailsResponse, "serialization"),
+    (organizationContracts.DepartmentDeletionPreviewResponse, "serialization"),
+    (organizationContracts.DepartmentDeletionResponse, "serialization"),
+    (organizationContracts.MemberListResponse, "serialization"),
+    (organizationContracts.MemberDetailsResponse, "serialization"),
+    (organizationContracts.MembershipUpdateRequest, "validation"),
+    (organizationContracts.MembershipWriteResponse, "serialization"),
+    (organizationContracts.InvitationCreateRequest, "validation"),
+    (organizationContracts.InvitationTokenRequest, "validation"),
+    (organizationContracts.InvitationCompletionRequest, "validation"),
+    (organizationContracts.InvitationRegistrationResponse, "serialization"),
+    (organizationContracts.InvitationDetailsResponse, "serialization"),
+    (organizationContracts.InvitationListResponse, "serialization"),
+    # Assets.
+    (assetContracts.AssetDetailsRequest, "validation"),
+    (assetContracts.AssetCreationRequest, "validation"),
+    (assetContracts.AssetValueRequest, "validation"),
+    (assetContracts.AssetDeletionRequest, "validation"),
+    (assetContracts.AssetListResponse, "serialization"),
+    (assetContracts.AssetDetailsResponse, "serialization"),
+    # Data queues.
+    (queueContracts.QueueDetailsRequest, "validation"),
+    (queueContracts.QueueCreationRequest, "validation"),
+    (queueContracts.QueueUploadRequest, "validation"),
+    (queueContracts.QueueResetRequest, "validation"),
+    (queueContracts.QueueDeleteItemsRequest, "validation"),
+    (queueContracts.QueueDetailsResponse, "serialization"),
+    (queueContracts.QueueListResponse, "serialization"),
+    (queueContracts.QueueItemDetailsResponse, "serialization"),
+    (queueContracts.QueueItemsResponse, "serialization"),
+    (queueContracts.QueueMutationResponse, "serialization"),
+    # Shared files.
+    (fileContracts.FileListRequest, "validation"),
+    (fileContracts.FilePathRequest, "validation"),
+    (fileContracts.FileUploadRequest, "validation"),
+    (fileContracts.FileDeleteRequest, "validation"),
+    (fileContracts.FileInfoResponse, "serialization"),
+    (fileContracts.FileUsageResponse, "serialization"),
+    (fileContracts.FileListResponse, "serialization"),
+    (fileContracts.FileUploadResponse, "serialization"),
+    (fileContracts.FileDeleteResponse, "serialization"),
+    (fileContracts.FileDownloadResponse, "serialization"),
+    # Executors and executor groups.
+    (executorContracts.ExecutorUpdateRequest, "validation"),
+    (executorContracts.ExecutorCreationRequest, "validation"),
+    (executorContracts.ExecutorDeletionRequest, "validation"),
+    (executorContracts.ExecutorDispatchRequest, "validation"),
+    (executorContracts.ExecutorUnassociateRequest, "validation"),
+    (executorContracts.ExecutorUpdateResponse, "serialization"),
+    (executorContracts.ExecutorListResponse, "serialization"),
+    (executorContracts.ExecutorDetailsResponse, "serialization"),
+    (executorContracts.ExecutorGroupUpdateRequest, "validation"),
+    (executorContracts.ExecutorGroupCreationRequest, "validation"),
+    (executorContracts.ExecutorGroupDeletionRequest, "validation"),
+    (executorContracts.ExecutorGroupListResponse, "serialization"),
+    (executorContracts.ExecutorGroupDetailsResponse, "serialization"),
+    (executorContracts.ExecutorGroupDeletionResponse, "serialization"),
+    (executorContracts.ExecutorGroupWriteResponse, "serialization"),
+    # Audit history.
+    (auditContracts.AuditListResponse, "serialization"),
+    (auditContracts.AuditFilterOptionsResponse, "serialization"),
+    (auditContracts.AuditDetailsResponse, "serialization"),
 )
-
-
-def build_browser_contract_schema() -> JsonSchemaValue:
-    """Export only public browser payloads, without settings, secrets or a database."""
-    dictReference, dictSchema = models_json_schema(_TUPLE_CONTRACT_MODEL)
-    dictSchema.update({
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "title": "BrowserApiContracts",
-        "type": "object",
-        "additionalProperties": False,
-        "properties": {
-            contractModel.__name__: dictReference[(contractModel, strMode)]
-            for contractModel, strMode in _TUPLE_CONTRACT_MODEL
-        },
-        "required": [
-            contractModel.__name__ for contractModel, _ in _TUPLE_CONTRACT_MODEL
-        ],
-    })
-    return dictSchema
 
 
 def main() -> int:
@@ -274,6 +176,23 @@ def main() -> int:
     else:
         print("Browser API TypeScript types generated from backend contracts.")
     return 0
+
+
+def build_browser_contract_schema() -> JsonSchemaValue:
+    """Export only public browser payloads, without settings, secrets or a database."""
+    dictReference, dictSchema = models_json_schema(_BROWSER_CONTRACTS)
+    dictSchema.update({
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "title": "BrowserApiContracts",
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            contractModel.__name__: dictReference[(contractModel, strMode)]
+            for contractModel, strMode in _BROWSER_CONTRACTS
+        },
+        "required": [contractModel.__name__ for contractModel, _ in _BROWSER_CONTRACTS],
+    })
+    return dictSchema
 
 
 if __name__ == "__main__":
