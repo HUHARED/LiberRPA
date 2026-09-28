@@ -10,7 +10,6 @@ from typing import TypedDict, cast
 
 from django.contrib.auth import HASH_SESSION_KEY
 from django.http import HttpRequest, JsonResponse
-from django.utils import timezone
 from django.views.decorators.debug import sensitive_variables
 
 from accounts.models import User
@@ -20,7 +19,6 @@ from organizations.permissions import AccessChannel, get_current_membership
 
 from .models import Executor
 from .queries import ExecutorInfo
-from .session_state import get_executor_association_status
 
 
 class ExecutorWriteContext(TypedDict):
@@ -66,9 +64,6 @@ def build_executor_payload(executor: Executor) -> dict[str, object]:
 
 def build_executor_info_payload(executorInfo: ExecutorInfo) -> dict[str, object]:
     session = executorInfo.session
-    associationStatus = get_executor_association_status(
-        session, currentTime=timezone.now()
-    )
     return {
         **build_executor_payload(executorInfo.executor),
         "department": {
@@ -77,7 +72,7 @@ def build_executor_info_payload(executorInfo: ExecutorInfo) -> dict[str, object]
             "path": executorInfo.departmentPath,
         },
         "can_manage": executorInfo.canManage,
-        "association_status": associationStatus,
+        "association_status": executorInfo.associationStatus,
         "session_id": None if session is None else session.id,
         "account": None
         if session is None

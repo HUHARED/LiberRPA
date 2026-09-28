@@ -5,6 +5,7 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import uuid
+from collections.abc import Iterable
 from datetime import datetime, timedelta
 from typing import Literal, cast
 
@@ -86,13 +87,16 @@ def is_executor_session_current(
 
 
 def get_current_executor_sessions(
-    organizationId: uuid.UUID, *, currentTime: datetime
+    organizationId: uuid.UUID,
+    *,
+    executorIds: Iterable[uuid.UUID],
+    currentTime: datetime,
 ) -> dict[uuid.UUID, ExecutorSession]:
-    """Read current associations without changing their contact time or expiry."""
+    """Read current associations only for the requested records, without renewing them."""
     return {
         cast(uuid.UUID, session.executor_id): session
         for session in get_executor_sessions(organizationId).filter(
-            executor__isnull=False, expires_at__gt=currentTime
+            executor_id__in=executorIds, expires_at__gt=currentTime
         )
         if is_executor_session_current(session, currentTime=currentTime)
     }

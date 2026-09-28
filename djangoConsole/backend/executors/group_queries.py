@@ -68,8 +68,17 @@ def _get_group_info_list(
 ) -> tuple[ExecutorGroupInfo, ...]:
     if not groups:
         return ()
-    context = get_executor_read_context(access)
     currentTime = timezone.now()
+    memberships = list(
+        ExecutorGroupMember.objects.filter(
+            group_id__in=[group.id for group in groups], executor__deleted_at__isnull=True
+        ).values_list("group_id", "executor_id")
+    )
+    context = get_executor_read_context(
+        access,
+        executorIds={executorId for _, executorId in memberships},
+        currentTime=currentTime,
+    )
     onlineExecutorIds = {
         executorId
         for executorId, session in context.sessionsByExecutorId.items()
@@ -77,9 +86,7 @@ def _get_group_info_list(
     }
     memberCounts: Counter[uuid.UUID] = Counter()
     onlineCounts: Counter[uuid.UUID] = Counter()
-    for groupId, executorId in ExecutorGroupMember.objects.filter(
-        group_id__in=[group.id for group in groups], executor__deleted_at__isnull=True
-    ).values_list("group_id", "executor_id"):
+    for groupId, executorId in memberships:
         memberCounts[groupId] += 1
         if executorId in onlineExecutorIds:
             onlineCounts[groupId] += 1
@@ -138,10 +145,8 @@ def get_executor_group_details(
     access = resolve_organization_access(
         actorId=actorId, organizationId=organizationId, channel=channel
     )
+    currentTime = timezone.now()
     group = _get_group_query(access).get(pk=groupId)
-    context = get_executor_read_context(access)
-    if group.department_id not in context.departmentsById:
-        raise ExecutorGroup.DoesNotExist
     members = list(
         Executor.objects
         .filter(
@@ -152,9 +157,15 @@ def get_executor_group_details(
         .select_related("department")
         .order_by(Lower("name"), "id")
     )
+    context = get_executor_read_context(
+        access,
+        executorIds=[executor.id for executor in members],
+        currentTime=currentTime,
+    )
+    if group.department_id not in context.departmentsById:
+        raise ExecutorGroup.DoesNotExist
     memberInfo = build_executor_info_list(members, context)
-    # Use the returned member snapshot for counts so a concurrent edit cannot contradict this detail response.
-    currentTime = timezone.now()
+    # NOTE: Count the same statuses returned for members; serialization must not observe a later time.
     info = ExecutorGroupInfo(
         group=group,
         departmentPath=get_department_path(
@@ -162,11 +173,7 @@ def get_executor_group_details(
         ),
         canManage=group.department_id in context.managedDepartmentIds,
         memberCount=len(memberInfo),
-        onlineCount=sum(
-            get_executor_association_status(member.session, currentTime=currentTime)
-            == "online"
-            for member in memberInfo
-        ),
+        onlineCount=sum(member.associationStatus == "online" for member in memberInfo),
     )
     return ExecutorGroupDetails(info, memberInfo)
 
