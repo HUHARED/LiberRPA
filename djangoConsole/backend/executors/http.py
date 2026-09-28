@@ -4,29 +4,24 @@ __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
-import uuid
-from datetime import datetime
-from typing import TypedDict, cast
+from typing import cast
 
 from django.contrib.auth import HASH_SESSION_KEY
 from django.http import HttpRequest, JsonResponse
 from django.views.decorators.debug import sensitive_variables
 
 from accounts.models import User
+from accounts.session_revocation import lock_session_write_access
 from console_project.http import build_error_response
 from organizations.models import Membership
-from organizations.permissions import AccessChannel, get_current_membership
+from organizations.permissions import (
+    AccessChannel,
+    OrganizationAccessContext,
+    get_current_membership,
+)
 
 from .models import Executor
 from .queries import ExecutorInfo
-
-
-class ExecutorWriteContext(TypedDict):
-    actorId: uuid.UUID
-    organizationId: uuid.UUID
-    channel: AccessChannel
-    sessionAuthHash: str
-    sessionExpiresAt: datetime
 
 
 def get_executor_request_membership(request: HttpRequest) -> Membership | JsonResponse:
@@ -38,16 +33,17 @@ def get_executor_request_membership(request: HttpRequest) -> Membership | JsonRe
 
 
 @sensitive_variables()
-def get_executor_write_context(
+def lock_executor_write_access(
     request: HttpRequest, membership: Membership
-) -> ExecutorWriteContext:
-    return {
-        "actorId": membership.user_id,
-        "organizationId": membership.organization_id,
-        "channel": AccessChannel.SESSION,
-        "sessionAuthHash": request.session.get(HASH_SESSION_KEY, ""),
-        "sessionExpiresAt": request.session.get_expiry_date(),
-    }
+) -> OrganizationAccessContext:
+    """Recheck the initiating Session and lock current access inside the view's transaction."""
+    return lock_session_write_access(
+        membership.user_id,
+        membership.organization_id,
+        AccessChannel.SESSION,
+        request.session.get(HASH_SESSION_KEY, ""),
+        request.session.get_expiry_date(),
+    )
 
 
 def build_executor_payload(executor: Executor) -> dict[str, object]:

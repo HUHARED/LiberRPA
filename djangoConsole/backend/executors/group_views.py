@@ -4,15 +4,18 @@ __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
+import logging
 import uuid
 
 from django.core.exceptions import ImproperlyConfigured, PermissionDenied, ValidationError
 from django.core.paginator import InvalidPage
-from django.db import DatabaseError
+from django.db import DatabaseError, transaction
 from django.http import HttpRequest, JsonResponse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_variables
 from django.views.decorators.http import require_http_methods, require_POST
+from pydantic import ValidationError as ContractValidationError
+from pydantic_core import PydanticSerializationError
 
 from accounts.session_revocation import SessionInvalidatedError
 from console_project.http import (
@@ -38,22 +41,23 @@ from .contracts import (
 )
 from .group_queries import (
     ExecutorGroupInfo,
-    get_executor_group_details,
     get_executor_group_list,
+    get_executor_group_details,
 )
 from .group_services import (
     ExecutorGroupWriteResult,
     create_executor_group,
-    delete_executor_group,
     update_executor_group,
+    delete_executor_group,
 )
 from .http import (
-    build_executor_info_payload,
     get_executor_request_membership,
-    get_executor_write_context,
+    lock_executor_write_access,
+    build_executor_info_payload,
 )
 from .models import ExecutorGroup
 
+_LOGGER = logging.getLogger("console.executor_groups")
 _INT_MAX_GROUP_BODY_BYTES = 64 * 1024
 _HANDLED_GROUP_ERRORS = (
     SessionInvalidatedError,
@@ -62,6 +66,8 @@ _HANDLED_GROUP_ERRORS = (
     ExecutorGroup.DoesNotExist,
     Department.DoesNotExist,
     InvalidPage,
+    ContractValidationError,
+    PydanticSerializationError,
     ImproperlyConfigured,
     DatabaseError,
 )
@@ -154,6 +160,14 @@ def _build_group_error_response(e: Exception) -> JsonResponse:
                 if hasattr(e, "error_dict")
                 else {"__all__": e.messages},
             )
+        case ContractValidationError() | PydanticSerializationError():
+            # Request parsing errors have already been handled before entering the write transaction.
+            _LOGGER.exception("Invalid Executor group response contract.")
+            return build_error_response(
+                "internal_server_error",
+                "The service could not build a valid response.",
+                statusCode=500,
+            )
         case _:
             return build_service_unavailable_response()
 
@@ -187,19 +201,21 @@ def list_or_create_executor_groups(request: HttpRequest) -> JsonResponse:
             )
             if isinstance(groupRequest, JsonResponse):
                 return groupRequest
-            result = create_executor_group(
-                **get_executor_write_context(request, membership),
-                departmentId=groupRequest.department_id,
-                name=groupRequest.name,
-                notes=groupRequest.notes,
-                executorIds=tuple(groupRequest.executor_ids),
-            )
-            return JsonResponse(
-                ExecutorGroupWriteResponse.model_validate(
-                    _build_group_write_payload(result)
-                ).model_dump(mode="python"),
-                status=201,
-            )
+            with transaction.atomic():
+                access = lock_executor_write_access(request, membership)
+                result = create_executor_group(
+                    access,
+                    departmentId=groupRequest.department_id,
+                    name=groupRequest.name,
+                    notes=groupRequest.notes,
+                    executorIds=tuple(groupRequest.executor_ids),
+                )
+                return JsonResponse(
+                    ExecutorGroupWriteResponse.model_validate(
+                        _build_group_write_payload(result)
+                    ).model_dump(mode="python"),
+                    status=201,
+                )
         dictListParameter = _get_list_parameters(request)
         if isinstance(dictListParameter, JsonResponse):
             return dictListParameter
@@ -243,18 +259,20 @@ def get_or_update_executor_group(
             )
             if isinstance(groupRequest, JsonResponse):
                 return groupRequest
-            result = update_executor_group(
-                **get_executor_write_context(request, membership),
-                groupId=groupId,
-                name=groupRequest.name,
-                notes=groupRequest.notes,
-                executorIds=tuple(groupRequest.executor_ids),
-            )
-            return JsonResponse(
-                ExecutorGroupWriteResponse.model_validate(
-                    _build_group_write_payload(result)
-                ).model_dump(mode="python")
-            )
+            with transaction.atomic():
+                access = lock_executor_write_access(request, membership)
+                result = update_executor_group(
+                    access,
+                    groupId=groupId,
+                    name=groupRequest.name,
+                    notes=groupRequest.notes,
+                    executorIds=tuple(groupRequest.executor_ids),
+                )
+                return JsonResponse(
+                    ExecutorGroupWriteResponse.model_validate(
+                        _build_group_write_payload(result)
+                    ).model_dump(mode="python")
+                )
         details = get_executor_group_details(
             actorId=membership.user_id,
             organizationId=membership.organization_id,
@@ -291,13 +309,13 @@ def delete_executor_group_record(
         deletionRequest = parse_json_request(request, ExecutorGroupDeletionRequest)
         if isinstance(deletionRequest, JsonResponse):
             return deletionRequest
-        group = delete_executor_group(
-            **get_executor_write_context(request, membership), groupId=groupId
-        )
-        return JsonResponse(
-            ExecutorGroupDeletionResponse.model_validate({
-                "executor_group": _build_group_payload(group)
-            }).model_dump(mode="python")
-        )
+        with transaction.atomic():
+            access = lock_executor_write_access(request, membership)
+            group = delete_executor_group(access, groupId=groupId)
+            return JsonResponse(
+                ExecutorGroupDeletionResponse.model_validate({
+                    "executor_group": _build_group_payload(group)
+                }).model_dump(mode="python")
+            )
     except _HANDLED_GROUP_ERRORS as e:
         return _build_group_error_response(e)

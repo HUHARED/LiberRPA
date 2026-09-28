@@ -6,27 +6,25 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import uuid
 from dataclasses import dataclass
-from datetime import datetime
 from typing import cast
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.db import transaction
 from django.utils import timezone
 from django.views.decorators.debug import sensitive_variables
 
-from accounts.session_revocation import lock_session_write_access
 from console_project.config import LimitsConfig
 from operations.audit import get_audit_snapshot, record_audit
 from organizations.models import DepartmentRole
 from organizations.permissions import (
-    AccessChannel,
     OrganizationAccessContext,
     get_authorized_departments,
 )
 
 from .access import require_executor_management
 from .models import Executor, ExecutorGroup, ExecutorGroupMember
+
+# NOTE: Call these writes with freshly locked Session access inside the caller's transaction.
 
 
 @dataclass(frozen=True)
@@ -79,22 +77,14 @@ def _save_group_members(group: ExecutorGroup, executorIds: tuple[uuid.UUID, ...]
 
 
 @sensitive_variables()
-@transaction.atomic
 def create_executor_group(
+    access: OrganizationAccessContext,
     *,
-    actorId: uuid.UUID,
-    organizationId: uuid.UUID,
-    channel: AccessChannel,
     departmentId: uuid.UUID,
     name: str,
     notes: str,
     executorIds: tuple[uuid.UUID, ...],
-    sessionAuthHash: str,
-    sessionExpiresAt: datetime,
 ) -> ExecutorGroupWriteResult:
-    access = lock_session_write_access(
-        actorId, organizationId, channel, sessionAuthHash, sessionExpiresAt
-    )
     department = get_authorized_departments(
         access, requiredRole=DepartmentRole.OPERATOR
     ).get(pk=departmentId)
@@ -121,30 +111,22 @@ def create_executor_group(
         actor=access.actor,
         organization=access.organization,
         target=group,
-        channel=channel,
+        channel=access.channel,
         before={},
     )
     return ExecutorGroupWriteResult(group, executorIds)
 
 
 @sensitive_variables()
-@transaction.atomic
 def update_executor_group(
+    access: OrganizationAccessContext,
     *,
-    actorId: uuid.UUID,
-    organizationId: uuid.UUID,
-    channel: AccessChannel,
     groupId: uuid.UUID,
     name: str,
     notes: str,
     executorIds: tuple[uuid.UUID, ...],
-    sessionAuthHash: str,
-    sessionExpiresAt: datetime,
 ) -> ExecutorGroupWriteResult:
     """Save the complete form and membership set together, including an explicitly empty set."""
-    access = lock_session_write_access(
-        actorId, organizationId, channel, sessionAuthHash, sessionExpiresAt
-    )
     group = _get_group_for_management(access, groupId)
     dictAuditBefore = get_audit_snapshot(group)
     group.name = name.strip()
@@ -158,27 +140,19 @@ def update_executor_group(
         actor=access.actor,
         organization=access.organization,
         target=group,
-        channel=channel,
+        channel=access.channel,
         before=dictAuditBefore,
     )
     return ExecutorGroupWriteResult(group, executorIds)
 
 
 @sensitive_variables()
-@transaction.atomic
 def delete_executor_group(
+    access: OrganizationAccessContext,
     *,
-    actorId: uuid.UUID,
-    organizationId: uuid.UUID,
-    channel: AccessChannel,
     groupId: uuid.UUID,
-    sessionAuthHash: str,
-    sessionExpiresAt: datetime,
 ) -> ExecutorGroup:
     """Remove memberships and retain the group identity without changing any Executor."""
-    access = lock_session_write_access(
-        actorId, organizationId, channel, sessionAuthHash, sessionExpiresAt
-    )
     group = _get_group_for_management(access, groupId)
     # TODO: Block undeleted Schedule and unfinished group Job references when those models exist.
     # Reference creation must use the same organization lock; completed history must not block deletion.
@@ -190,6 +164,6 @@ def delete_executor_group(
         actor=access.actor,
         organization=access.organization,
         target=group,
-        channel=channel,
+        channel=access.channel,
     )
     return group

@@ -4,15 +4,18 @@ __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
+import logging
 import uuid
 
 from django.core.exceptions import ImproperlyConfigured, PermissionDenied, ValidationError
 from django.core.paginator import InvalidPage
-from django.db import DatabaseError
+from django.db import DatabaseError, transaction
 from django.http import HttpRequest, JsonResponse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_variables
 from django.views.decorators.http import require_http_methods, require_POST
+from pydantic import ValidationError as ContractValidationError
+from pydantic_core import PydanticSerializationError
 
 from accounts.session_revocation import SessionInvalidatedError
 from console_project.http import (
@@ -39,21 +42,22 @@ from .contracts import (
 )
 from .group_queries import get_executor_group_references
 from .http import (
-    build_executor_info_payload,
-    build_executor_payload,
     get_executor_request_membership,
-    get_executor_write_context,
+    lock_executor_write_access,
+    build_executor_payload,
+    build_executor_info_payload,
 )
 from .models import Executor
-from .queries import get_executor_details, get_executor_list
+from .queries import get_executor_list, get_executor_details
 from .services import (
     create_executor,
-    delete_executor,
-    set_executor_dispatch,
-    unassociate_executor,
     update_executor,
+    set_executor_dispatch,
+    delete_executor,
+    unassociate_executor,
 )
 
+_LOGGER = logging.getLogger("console.executors")
 _INT_MAX_EXECUTOR_BODY_BYTES = 16 * 1024
 _HANDLED_ERRORS = (
     SessionInvalidatedError,
@@ -62,6 +66,8 @@ _HANDLED_ERRORS = (
     Executor.DoesNotExist,
     Department.DoesNotExist,
     InvalidPage,
+    ContractValidationError,
+    PydanticSerializationError,
     ImproperlyConfigured,
     DatabaseError,
 )
@@ -116,6 +122,14 @@ def _build_executor_error_response(e: Exception) -> JsonResponse:
                 if hasattr(e, "error_dict")
                 else {"__all__": e.messages},
             )
+        case ContractValidationError() | PydanticSerializationError():
+            # Request parsing errors have already been handled before entering the write transaction.
+            _LOGGER.exception("Invalid Executor response contract.")
+            return build_error_response(
+                "internal_server_error",
+                "The service could not build a valid response.",
+                statusCode=500,
+            )
         case _:
             return build_service_unavailable_response()
 
@@ -160,18 +174,20 @@ def list_or_create_executors(request: HttpRequest) -> JsonResponse:
             )
             if isinstance(executorRequest, JsonResponse):
                 return executorRequest
-            executor = create_executor(
-                **get_executor_write_context(request, membership),
-                departmentId=executorRequest.department_id,
-                name=executorRequest.name,
-                notes=executorRequest.notes,
-            )
-            return JsonResponse(
-                ExecutorUpdateResponse.model_validate({
-                    "executor": build_executor_payload(executor)
-                }).model_dump(mode="python"),
-                status=201,
-            )
+            with transaction.atomic():
+                access = lock_executor_write_access(request, membership)
+                executor = create_executor(
+                    access,
+                    departmentId=executorRequest.department_id,
+                    name=executorRequest.name,
+                    notes=executorRequest.notes,
+                )
+                return JsonResponse(
+                    ExecutorUpdateResponse.model_validate({
+                        "executor": build_executor_payload(executor)
+                    }).model_dump(mode="python"),
+                    status=201,
+                )
 
         dictListParameter = _get_list_parameters(request)
         if isinstance(dictListParameter, JsonResponse):
@@ -212,17 +228,19 @@ def get_or_update_executor(request: HttpRequest, executorId: uuid.UUID) -> JsonR
             )
             if isinstance(executorRequest, JsonResponse):
                 return executorRequest
-            executor = update_executor(
-                **get_executor_write_context(request, membership),
-                executorId=executorId,
-                name=executorRequest.name,
-                notes=executorRequest.notes,
-            )
-            return JsonResponse(
-                ExecutorUpdateResponse.model_validate({
-                    "executor": build_executor_payload(executor)
-                }).model_dump(mode="python")
-            )
+            with transaction.atomic():
+                access = lock_executor_write_access(request, membership)
+                executor = update_executor(
+                    access,
+                    executorId=executorId,
+                    name=executorRequest.name,
+                    notes=executorRequest.notes,
+                )
+                return JsonResponse(
+                    ExecutorUpdateResponse.model_validate({
+                        "executor": build_executor_payload(executor)
+                    }).model_dump(mode="python")
+                )
         details = get_executor_details(
             actorId=membership.user_id,
             organizationId=membership.organization_id,
@@ -258,16 +276,18 @@ def change_executor_dispatch(request: HttpRequest, executorId: uuid.UUID) -> Jso
         dispatchRequest = parse_json_request(request, ExecutorDispatchRequest)
         if isinstance(dispatchRequest, JsonResponse):
             return dispatchRequest
-        executor = set_executor_dispatch(
-            **get_executor_write_context(request, membership),
-            executorId=executorId,
-            dispatchEnabled=dispatchRequest.dispatch_enabled,
-        )
-        return JsonResponse(
-            ExecutorUpdateResponse.model_validate({
-                "executor": build_executor_payload(executor)
-            }).model_dump(mode="python")
-        )
+        with transaction.atomic():
+            access = lock_executor_write_access(request, membership)
+            executor = set_executor_dispatch(
+                access,
+                executorId=executorId,
+                dispatchEnabled=dispatchRequest.dispatch_enabled,
+            )
+            return JsonResponse(
+                ExecutorUpdateResponse.model_validate({
+                    "executor": build_executor_payload(executor)
+                }).model_dump(mode="python")
+            )
     except _HANDLED_ERRORS as e:
         return _build_executor_error_response(e)
 
@@ -283,14 +303,14 @@ def delete_executor_record(request: HttpRequest, executorId: uuid.UUID) -> JsonR
         deletionRequest = parse_json_request(request, ExecutorDeletionRequest)
         if isinstance(deletionRequest, JsonResponse):
             return deletionRequest
-        executor = delete_executor(
-            **get_executor_write_context(request, membership), executorId=executorId
-        )
-        return JsonResponse(
-            ExecutorUpdateResponse.model_validate({
-                "executor": build_executor_payload(executor)
-            }).model_dump(mode="python")
-        )
+        with transaction.atomic():
+            access = lock_executor_write_access(request, membership)
+            executor = delete_executor(access, executorId=executorId)
+            return JsonResponse(
+                ExecutorUpdateResponse.model_validate({
+                    "executor": build_executor_payload(executor)
+                }).model_dump(mode="python")
+            )
     except _HANDLED_ERRORS as e:
         return _build_executor_error_response(e)
 
@@ -308,15 +328,17 @@ def unassociate_executor_record(
         unassociateRequest = parse_json_request(request, ExecutorUnassociateRequest)
         if isinstance(unassociateRequest, JsonResponse):
             return unassociateRequest
-        executor = unassociate_executor(
-            **get_executor_write_context(request, membership),
-            executorId=executorId,
-            expectedSessionId=unassociateRequest.session_id,
-        )
-        return JsonResponse(
-            ExecutorUpdateResponse.model_validate({
-                "executor": build_executor_payload(executor)
-            }).model_dump(mode="python")
-        )
+        with transaction.atomic():
+            access = lock_executor_write_access(request, membership)
+            executor = unassociate_executor(
+                access,
+                executorId=executorId,
+                expectedSessionId=unassociateRequest.session_id,
+            )
+            return JsonResponse(
+                ExecutorUpdateResponse.model_validate({
+                    "executor": build_executor_payload(executor)
+                }).model_dump(mode="python")
+            )
     except _HANDLED_ERRORS as e:
         return _build_executor_error_response(e)
