@@ -1,7 +1,8 @@
 // FileName: sharedFiles.ts
 
 import { requestApi } from "./client";
-import { ApiError, isRecord } from "./errors";
+import { isRecord, ApiError } from "./errors";
+
 import type {
   FileDeleteResponse,
   FileDownloadResponse,
@@ -121,8 +122,8 @@ export async function appendSharedChunk(
   return uploadResult(
     await requestApi(`${ROOT}uploads/${encodeURIComponent(id)}/chunks/${offset}/`, {
       method: "PUT",
-      binaryBody: data,
-      chunkSha256: await sha256(data),
+      body: data,
+      headers: { "X-Chunk-SHA256": await sha256(data) },
       timeoutMs: 120000,
     }),
   );
