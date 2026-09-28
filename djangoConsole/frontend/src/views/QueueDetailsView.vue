@@ -331,6 +331,11 @@ const listQuery = computed(() => ({
 let revision = 0;
 const queryText = (key: string, fallback: string): string =>
   typeof route.query[key] === "string" ? route.query[key] : fallback;
+async function changePage(value: number): Promise<void> {
+  selected.value = [];
+  await router.replace({ query: { ...route.query, item_page: String(value) } });
+}
+
 async function load(): Promise<void> {
   const current = ++revision;
   selected.value = [];
@@ -388,10 +393,6 @@ function clearFilters(): void {
   order.value = "oldest_first";
   itemId.value = "";
   void applyFilters();
-}
-async function changePage(value: number): Promise<void> {
-  selected.value = [];
-  await router.replace({ query: { ...route.query, item_page: String(value) } });
 }
 function handleEdited(): void {
   editOpen.value = false;

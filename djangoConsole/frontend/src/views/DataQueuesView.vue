@@ -202,6 +202,10 @@ function selectedDepartments(): string[] {
       ? [value]
       : [];
 }
+async function changePage(value: number): Promise<void> {
+  await router.replace({ query: { ...route.query, page: String(value) } });
+}
+
 async function load(): Promise<void> {
   const current = ++revision;
   loading.value = true;
@@ -244,9 +248,6 @@ function clearFilters(): void {
   name.value = "";
   departments.value = [];
   void applyFilters();
-}
-async function changePage(value: number): Promise<void> {
-  await router.replace({ query: { ...route.query, page: String(value) } });
 }
 function handleSaved(response: QueueDetailsResponse): void {
   form.value = null;

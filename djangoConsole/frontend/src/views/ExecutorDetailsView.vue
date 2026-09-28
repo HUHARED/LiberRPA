@@ -454,6 +454,23 @@ const strName = ref<string | null>("");
 const strNotes = ref<string | null>("");
 let intViewRevision = 0;
 
+function closeEdit(): void {
+  boolEditing.value = false;
+  strName.value = "";
+  strNotes.value = "";
+  editError.value = null;
+}
+
+function closeUnassociate(): void {
+  unassociateTarget.value = null;
+  unassociateError.value = null;
+}
+
+function closeDelete(): void {
+  deleteTarget.value = null;
+  deleteError.value = null;
+}
+
 // TODO: Add job occupancy, preparation, and schedule references when their APIs are available.
 async function loadExecutorDetails(): Promise<void> {
   if (boolDeleted.value) return;
@@ -489,13 +506,6 @@ function openEdit(): void {
   dispatchError.value = null;
   strSuccessMessage.value = "";
   boolEditing.value = true;
-}
-
-function closeEdit(): void {
-  boolEditing.value = false;
-  strName.value = "";
-  strNotes.value = "";
-  editError.value = null;
 }
 
 function validateName(value: string | null): true | string {
@@ -574,11 +584,6 @@ function openUnassociate(): void {
   strSuccessMessage.value = "";
 }
 
-function closeUnassociate(): void {
-  unassociateTarget.value = null;
-  unassociateError.value = null;
-}
-
 function refreshUnassociateDetails(): void {
   if (boolBusy.value) return;
   closeUnassociate();
@@ -629,11 +634,6 @@ function openDelete(): void {
   deleteError.value = null;
   dispatchError.value = null;
   strSuccessMessage.value = "";
-}
-
-function closeDelete(): void {
-  deleteTarget.value = null;
-  deleteError.value = null;
 }
 
 function refreshDeleteDetails(): void {

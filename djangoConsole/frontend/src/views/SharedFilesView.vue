@@ -300,6 +300,10 @@ const ready = computed(
 );
 let revision = 0;
 let alive = true;
+async function changePage(value: number): Promise<void> {
+  await router.replace({ query: { ...route.query, page: String(value) } });
+}
+
 async function load(): Promise<void> {
   const current = ++revision;
   selected.value = [];
@@ -353,9 +357,6 @@ function clearFilters(): void {
   sortBy.value = "uploaded_at";
   order.value = "desc";
   void applyFilters();
-}
-async function changePage(value: number): Promise<void> {
-  await router.replace({ query: { ...route.query, page: String(value) } });
 }
 function uploaded(file: FileInfoResponse): void {
   showUpload.value = false;

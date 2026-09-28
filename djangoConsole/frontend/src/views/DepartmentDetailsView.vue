@@ -263,6 +263,17 @@ const strParentPath = computed(() => {
   return department.path.slice(0, department.path.lastIndexOf("/"));
 });
 
+async function handleReadError(error: unknown): Promise<void> {
+  requestError.value = getApiError(error);
+  if ([401, 403, 404].includes(requestError.value.statusCode)) {
+    detailsInfo.value = null;
+    editTarget.value = null;
+    deleteTarget.value = null;
+    strUpdatedAt.value = null;
+    if (requestError.value.statusCode === 403) await sessionStore.refreshSession();
+  }
+}
+
 // TODO: Add remaining resource links when their list pages are available.
 async function loadDepartmentDetails(): Promise<void> {
   if (boolDeleted.value) return;
@@ -279,17 +290,6 @@ async function loadDepartmentDetails(): Promise<void> {
     await handleReadError(e);
   } finally {
     if (intCurrentRevision === intRequestRevision) boolLoading.value = false;
-  }
-}
-
-async function handleReadError(error: unknown): Promise<void> {
-  requestError.value = getApiError(error);
-  if ([401, 403, 404].includes(requestError.value.statusCode)) {
-    detailsInfo.value = null;
-    editTarget.value = null;
-    deleteTarget.value = null;
-    strUpdatedAt.value = null;
-    if (requestError.value.statusCode === 403) await sessionStore.refreshSession();
   }
 }
 
