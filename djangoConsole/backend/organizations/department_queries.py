@@ -12,8 +12,8 @@ from .models import Department, DepartmentRole, DepartmentMembership
 from .validators import path_name_key
 from .permissions import (
     AccessChannel,
-    require_organization_admin,
     resolve_organization_access,
+    require_organization_admin,
 )
 
 
@@ -83,28 +83,6 @@ def get_department_path(
     return "/".join(reversed(listDepartmentName))
 
 
-def _get_admin_department_tree(
-    actorId: uuid.UUID, organizationId: uuid.UUID, channel: AccessChannel
-) -> dict[uuid.UUID, Department]:
-    access = resolve_organization_access(
-        actorId=actorId, organizationId=organizationId, channel=channel
-    )
-    require_organization_admin(access)
-    return get_department_tree(access.organization.pk)
-
-
-def _build_department_info(
-    department: Department, departmentsById: Mapping[uuid.UUID, Department]
-) -> DepartmentInfo:
-    return DepartmentInfo(
-        id=department.id,
-        name=department.name,
-        parentId=department.parent_id,
-        path=get_department_path(department, departmentsById),
-        notes=department.notes,
-    )
-
-
 def get_department_list(
     *, actorId: uuid.UUID, organizationId: uuid.UUID, channel: AccessChannel
 ) -> list[DepartmentInfo]:
@@ -162,4 +140,26 @@ def get_department_details(
                 ),
             )
         ),
+    )
+
+
+def _get_admin_department_tree(
+    actorId: uuid.UUID, organizationId: uuid.UUID, channel: AccessChannel
+) -> dict[uuid.UUID, Department]:
+    access = resolve_organization_access(
+        actorId=actorId, organizationId=organizationId, channel=channel
+    )
+    require_organization_admin(access)
+    return get_department_tree(access.organization.pk)
+
+
+def _build_department_info(
+    department: Department, departmentsById: Mapping[uuid.UUID, Department]
+) -> DepartmentInfo:
+    return DepartmentInfo(
+        id=department.id,
+        name=department.name,
+        parentId=department.parent_id,
+        path=get_department_path(department, departmentsById),
+        notes=department.notes,
     )

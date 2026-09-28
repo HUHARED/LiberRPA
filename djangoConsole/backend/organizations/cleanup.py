@@ -13,21 +13,21 @@ from django.utils import timezone
 from django.views.decorators.debug import sensitive_variables
 
 from accounts.models import User
+from executors.models import Executor, ExecutorSession, ExecutorGroup
 from assets.models import Asset
 from data_queues.models import DataQueue
 from file_storage.models import StoredBlob
 from shared_files.models import SharedFile, UploadSession
 from operations.audit import record_audit
 from operations.models import AuditScope, AuditRecord
-from executors.models import Executor, ExecutorGroup, ExecutorSession
 from notifications.models import (
-    EmailDelivery,
-    EmailStatus,
     EmailType,
+    EmailStatus,
+    EmailDelivery,
     OrganizationDeletionNotice,
 )
 
-from .models import Department, MemberInvitation, Membership, Organization
+from .models import Organization, Membership, Department, MemberInvitation
 
 
 @dataclass(frozen=True)
@@ -72,21 +72,6 @@ def start_next_organization_deletion() -> uuid.UUID | None:
     return organization.id
 
 
-def _delete_organization_departments(organizationId: uuid.UUID) -> None:
-    """Delete every department from leaves upward, including logically deleted departments."""
-    departments = Department.objects.filter(organization_id=organizationId)
-    while departments.exists():
-        listLeafId = list(
-            departments.filter(children__isnull=True).values_list("id", flat=True)
-        )
-        if not listLeafId:
-            raise ValidationError(
-                "The department hierarchy prevents organization cleanup.",
-                code="department_cleanup_blocked",
-            )
-        departments.filter(pk__in=listLeafId).delete()
-
-
 @sensitive_variables()
 @transaction.atomic(durable=True)
 def complete_organization_deletion(
@@ -97,7 +82,7 @@ def complete_organization_deletion(
     Only the standalone cleanup worker calls this after committing the start marker.
     Platform email outcomes and consumed SMTP budget survive organization deletion.
     """
-    # Match the email worker's delivery-before-organization lock order.
+    # NOTE: Match the email worker's delivery-before-organization lock order.
     # The committed start and business freeze prevent new invitation deliveries.
     listDeliveryId = list(
         EmailDelivery.objects
@@ -150,7 +135,7 @@ def complete_organization_deletion(
     # Account deletion cascades memberships, department roles, API keys, and private recovery/change proofs.
     User.objects.filter(pk__in=[userId for userId, _email in listAccount]).delete()
     _delete_organization_departments(organizationId)
-    # Add future business resources before completion notices are queued.
+    # TODO: Remove new business resources here when their models are implemented, before queuing completion notices.
     AuditRecord.objects.filter(
         scope=AuditScope.ORGANIZATION, organization_id=organizationId
     ).delete()
@@ -186,3 +171,18 @@ def complete_organization_deletion(
         deletedAccountCount=len(listAccount),
         queuedEmailCount=len(listDelivery),
     )
+
+
+def _delete_organization_departments(organizationId: uuid.UUID) -> None:
+    """Delete every department from leaves upward, including logically deleted departments."""
+    departments = Department.objects.filter(organization_id=organizationId)
+    while departments.exists():
+        listLeafId = list(
+            departments.filter(children__isnull=True).values_list("id", flat=True)
+        )
+        if not listLeafId:
+            raise ValidationError(
+                "The department hierarchy prevents organization cleanup.",
+                code="department_cleanup_blocked",
+            )
+        departments.filter(pk__in=listLeafId).delete()

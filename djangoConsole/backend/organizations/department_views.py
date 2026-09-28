@@ -30,86 +30,22 @@ from .contracts import (
     DepartmentDeletionPreviewResponse,
     DepartmentDeletionResponse,
 )
-from .department_deletion import (
-    DepartmentDeletionBlockedError,
-    DepartmentDeletionInfo,
-    delete_department,
-    get_department_deletion_info,
-)
-from .department_queries import (
-    DepartmentInfo,
-    get_department_details,
-    get_department_list,
-)
 from .models import Department
 from .permissions import AccessChannel, get_current_membership
+from .department_queries import (
+    DepartmentInfo,
+    get_department_list,
+    get_department_details,
+)
 from .department_services import create_department, update_department
+from .department_deletion import (
+    DepartmentDeletionInfo,
+    DepartmentDeletionBlockedError,
+    get_department_deletion_info,
+    delete_department,
+)
 
 _INT_MAX_DEPARTMENT_BODY_BYTES = 32 * 1024
-
-
-def _build_department_payload(departmentInfo: DepartmentInfo) -> dict[str, object]:
-    return {
-        "id": departmentInfo.id,
-        "name": departmentInfo.name,
-        "parent_id": departmentInfo.parentId,
-        "path": departmentInfo.path,
-        "notes": departmentInfo.notes,
-    }
-
-
-def _build_saved_department_response(
-    department: Department, *, statusCode: int
-) -> JsonResponse:
-    # Return the saved fields without additional queries after the write commits.
-    return JsonResponse(
-        DepartmentWriteResponse.model_validate({
-            "department": {
-                "id": department.id,
-                "name": department.name,
-                "parent_id": department.parent_id,
-                "notes": department.notes,
-            }
-        }).model_dump(mode="python"),
-        status=statusCode,
-    )
-
-
-def _build_department_validation_response(
-    validationError: ValidationError,
-) -> JsonResponse:
-    if hasattr(validationError, "error_dict"):
-        dictFieldMessage: dict[str, list[str]] = {}
-        boolDuplicateNameFound = False
-        for strFieldName, listFieldError in validationError.error_dict.items():
-            for fieldError in listFieldError:
-                boolDuplicateName = fieldError.code == "duplicate_department_name"
-                boolDuplicateNameFound = boolDuplicateNameFound or boolDuplicateName
-                strResponseFieldName = (
-                    "name"
-                    if boolDuplicateName
-                    else "parent_id"
-                    if strFieldName == "parent"
-                    else strFieldName
-                )
-                dictFieldMessage.setdefault(strResponseFieldName, []).extend(
-                    fieldError.messages
-                )
-        return build_error_response(
-            "duplicate_department_name"
-            if boolDuplicateNameFound
-            else "invalid_department",
-            "Some department fields are invalid.",
-            statusCode=409 if boolDuplicateNameFound else 400,
-            fields=dictFieldMessage,
-        )
-
-    strErrorCode = validationError.error_list[0].code or "invalid_department"
-    return build_error_response(
-        strErrorCode,
-        " ".join(validationError.messages),
-        statusCode=409 if strErrorCode == "department_count_limit" else 400,
-    )
 
 
 @never_cache
@@ -242,28 +178,28 @@ def get_or_update_department(
         return build_service_unavailable_response()
 
 
-def _build_department_deletion_payload(
-    deletionInfo: DepartmentDeletionInfo,
-) -> dict[str, object]:
-    return DepartmentDeletionPreviewResponse.model_validate({
-        "department": {
-            "id": deletionInfo.departmentId,
-            "name": deletionInfo.departmentName,
-        },
-        "can_delete": deletionInfo.canDelete,
-        "blockers": [
-            {"code": blocker.code, "count": blocker.count}
-            for blocker in deletionInfo.blockers
-        ],
-    }).model_dump(mode="python")
-
-
 @never_cache
 @require_http_methods(["GET", "POST"])
 def get_or_delete_department(
     request: HttpRequest, departmentId: uuid.UUID
 ) -> JsonResponse:
     """Preview current deletion blockers or submit a fresh deletion attempt."""
+
+    def build_deletion_payload(
+        deletionInfo: DepartmentDeletionInfo,
+    ) -> dict[str, object]:
+        return DepartmentDeletionPreviewResponse.model_validate({
+            "department": {
+                "id": deletionInfo.departmentId,
+                "name": deletionInfo.departmentName,
+            },
+            "can_delete": deletionInfo.canDelete,
+            "blockers": [
+                {"code": blocker.code, "count": blocker.count}
+                for blocker in deletionInfo.blockers
+            ],
+        }).model_dump(mode="python")
+
     try:
         if not request.user.is_authenticated:
             return build_error_response(
@@ -297,11 +233,11 @@ def get_or_delete_department(
             channel=AccessChannel.SESSION,
             departmentId=departmentId,
         )
-        return JsonResponse(_build_department_deletion_payload(deletionInfo))
+        return JsonResponse(build_deletion_payload(deletionInfo))
     except DepartmentDeletionBlockedError as e:
         return JsonResponse(
             {
-                **_build_department_deletion_payload(e.deletionInfo),
+                **build_deletion_payload(e.deletionInfo),
                 "error": {
                     "code": "department_deletion_blocked",
                     "message": (
@@ -324,3 +260,67 @@ def get_or_delete_department(
         )
     except (ImproperlyConfigured, DatabaseError):
         return build_service_unavailable_response()
+
+
+def _build_department_payload(departmentInfo: DepartmentInfo) -> dict[str, object]:
+    return {
+        "id": departmentInfo.id,
+        "name": departmentInfo.name,
+        "parent_id": departmentInfo.parentId,
+        "path": departmentInfo.path,
+        "notes": departmentInfo.notes,
+    }
+
+
+def _build_saved_department_response(
+    department: Department, *, statusCode: int
+) -> JsonResponse:
+    # Return the saved fields without additional queries after the write commits.
+    return JsonResponse(
+        DepartmentWriteResponse.model_validate({
+            "department": {
+                "id": department.id,
+                "name": department.name,
+                "parent_id": department.parent_id,
+                "notes": department.notes,
+            }
+        }).model_dump(mode="python"),
+        status=statusCode,
+    )
+
+
+def _build_department_validation_response(
+    validationError: ValidationError,
+) -> JsonResponse:
+    if hasattr(validationError, "error_dict"):
+        dictFieldMessage: dict[str, list[str]] = {}
+        boolDuplicateNameFound = False
+        for strFieldName, listFieldError in validationError.error_dict.items():
+            for fieldError in listFieldError:
+                boolDuplicateName = fieldError.code == "duplicate_department_name"
+                boolDuplicateNameFound = boolDuplicateNameFound or boolDuplicateName
+                strResponseFieldName = (
+                    "name"
+                    if boolDuplicateName
+                    else "parent_id"
+                    if strFieldName == "parent"
+                    else strFieldName
+                )
+                dictFieldMessage.setdefault(strResponseFieldName, []).extend(
+                    fieldError.messages
+                )
+        return build_error_response(
+            "duplicate_department_name"
+            if boolDuplicateNameFound
+            else "invalid_department",
+            "Some department fields are invalid.",
+            statusCode=409 if boolDuplicateNameFound else 400,
+            fields=dictFieldMessage,
+        )
+
+    strErrorCode = validationError.error_list[0].code or "invalid_department"
+    return build_error_response(
+        strErrorCode,
+        " ".join(validationError.messages),
+        statusCode=409 if strErrorCode == "department_count_limit" else 400,
+    )
