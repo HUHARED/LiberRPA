@@ -99,6 +99,16 @@
   <v-alert v-if="error" type="error" variant="tonal" class="mb-4" role="alert">{{
     error.message
   }}</v-alert>
+  <v-alert
+    v-if="strActionError"
+    type="error"
+    variant="tonal"
+    closable
+    class="mb-4 file-path"
+    role="alert"
+    @click:close="strActionError = ''">
+    {{ strActionError }}
+  </v-alert>
   <v-alert v-if="!activeDepartment" type="info" variant="tonal"
     >Select a department to view its files.</v-alert
   >
@@ -210,7 +220,7 @@ import SharedFileUploadDialog from "../components/SharedFileUploadDialog.vue";
 import { useSessionStore } from "../stores/sessionStore";
 
 import { formatDateTime } from "../app/navigation";
-import { ApiError, getApiError } from "../api/errors";
+import { type ApiError, getApiError } from "../api/errors";
 import { downloadSharedFile, formatFileSize, getSharedFiles } from "../api/sharedFiles";
 import type {
   FileDeleteResponse,
@@ -268,6 +278,7 @@ const page = shallowRef<FileListResponse | null>(null);
 const selected = ref<string[]>([]);
 const error = shallowRef<ApiError | null>(null);
 const message = ref("");
+const strActionError = ref("");
 const loading = ref(false);
 const showUpload = ref(false);
 const deletePaths = shallowRef<string[] | null>(null);
@@ -293,6 +304,7 @@ async function load(): Promise<void> {
   const current = ++revision;
   selected.value = [];
   error.value = null;
+  strActionError.value = "";
   if (!activeDepartment.value) {
     page.value = null;
     loading.value = false;
@@ -356,32 +368,46 @@ function deleted(result: FileDeleteResponse): void {
   void load();
 }
 async function copyPath(path: string): Promise<void> {
+  const current = revision;
+  strActionError.value = "";
+  message.value = "";
   try {
     await navigator.clipboard.writeText(path);
-    if (alive) message.value = "Path copied.";
+    if (current === revision) message.value = "Path copied.";
   } catch {
-    if (alive) error.value = new ApiError(`Could not copy the path: ${path}`);
+    if (current === revision) strActionError.value = `Could not copy the path: ${path}`;
   }
 }
 async function download(path: string): Promise<void> {
   if (downloading.value.has(path)) return;
+  const current = revision;
+  strActionError.value = "";
+  message.value = "";
   downloading.value.add(path);
   try {
     await downloadSharedFile(path);
-    if (alive)
+    if (current === revision)
       message.value =
         "Download handed to your browser. Check its downloads for the save status.";
   } catch (e) {
-    if (alive) error.value = getApiError(e);
+    if (current === revision) strActionError.value = `${path}: ${getApiError(e).message}`;
   } finally {
     if (alive) downloading.value.delete(path);
   }
 }
+
 watch([department, name, sortBy, order], () => {
   selected.value = [];
 });
+// Reload only when the file-list request changes, not for unrelated route changes.
 watch(
-  () => [route.fullPath, activeDepartment.value],
+  [
+    activeDepartment,
+    activeName,
+    activeSort,
+    activeOrder,
+    () => Number(route.query.page) || 1,
+  ],
   () => {
     department.value = activeDepartment.value;
     name.value = activeName.value;

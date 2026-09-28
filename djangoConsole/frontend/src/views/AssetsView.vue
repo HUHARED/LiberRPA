@@ -97,6 +97,16 @@
     </p>
   </v-alert>
   <v-alert
+    v-if="strActionError"
+    type="error"
+    variant="tonal"
+    closable
+    class="mb-4"
+    role="alert"
+    @click:close="strActionError = ''">
+    {{ strActionError }}
+  </v-alert>
+  <v-alert
     v-if="!sessionStore.access?.departments.length"
     type="info"
     variant="tonal"
@@ -201,7 +211,7 @@ import AssetFormDialog from "../components/AssetFormDialog.vue";
 
 import { useSessionStore } from "../stores/sessionStore";
 
-import { ApiError, getApiError } from "../api/errors";
+import { type ApiError, getApiError } from "../api/errors";
 import {
   ARR_ASSET_TYPE,
   type AssetListFilters,
@@ -243,6 +253,7 @@ const boolLoading = ref(false);
 const boolNewAssetOpen = ref(false);
 const strUpdatedAt = ref<string | null>(null);
 const strSuccessMessage = ref("");
+const strActionError = ref("");
 let intListRevision = 0;
 let intRequestedPage = 1;
 let appliedFilters: AssetListFilters = {
@@ -260,6 +271,7 @@ async function loadAssets(pageNumber: number = intRequestedPage): Promise<void> 
   intRequestedPage = pageNumber;
   boolLoading.value = true;
   requestError.value = null;
+  strActionError.value = "";
   try {
     const response = await getAssetList(appliedFilters, pageNumber);
     if (intCurrentRevision !== intListRevision) return;
@@ -311,13 +323,16 @@ function handleDeleted(): void {
 }
 
 async function copyPath(path: string): Promise<void> {
+  const intCurrentRevision = intListRevision;
+  strActionError.value = "";
+  strSuccessMessage.value = "";
   try {
     await navigator.clipboard.writeText(path);
-    strSuccessMessage.value = "Path copied.";
+    if (intCurrentRevision === intListRevision) strSuccessMessage.value = "Path copied.";
   } catch {
-    requestError.value = new ApiError(
-      "The path could not be copied. Open the asset details to copy it manually.",
-    );
+    if (intCurrentRevision === intListRevision)
+      strActionError.value =
+        "The path could not be copied. Open the asset details to copy it manually.";
   }
 }
 

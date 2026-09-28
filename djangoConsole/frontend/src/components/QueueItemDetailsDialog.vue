@@ -15,6 +15,16 @@
             ? "The item no longer exists or is unavailable."
             : error.message
         }}</v-alert>
+        <v-alert
+          v-if="strActionError"
+          type="error"
+          variant="tonal"
+          closable
+          class="mb-4"
+          role="alert"
+          @click:close="strActionError = ''">
+          {{ strActionError }}
+        </v-alert>
         <v-alert v-if="message" type="success" variant="tonal" class="mb-4" role="status">{{
           message
         }}</v-alert>
@@ -76,7 +86,7 @@ import { useRoute } from "vue-router";
 
 import { useSessionStore } from "../stores/sessionStore";
 
-import { ApiError, getApiError } from "../api/errors";
+import { type ApiError, getApiError } from "../api/errors";
 import { getQueueItem } from "../api/dataQueues";
 import type { QueueItemDetailsResponse } from "../api/generated/browserApi";
 import { formatDateTime } from "../app/navigation";
@@ -88,6 +98,7 @@ const timeZone = computed(() => session.session?.user.time_zone ?? "UTC");
 const item = shallowRef<QueueItemDetailsResponse | null>(null);
 const error = shallowRef<ApiError | null>(null);
 const message = ref("");
+const strActionError = ref("");
 const loading = ref(false);
 const json = computed(() => (item.value ? JSON.stringify(item.value.data, null, 2) : ""));
 let unmounted = false;
@@ -95,6 +106,7 @@ async function load(): Promise<void> {
   if (loading.value) return;
   loading.value = true;
   error.value = null;
+  strActionError.value = "";
   item.value = null;
   try {
     const response = await getQueueItem(props.queueId, props.itemId);
@@ -109,15 +121,17 @@ async function load(): Promise<void> {
   }
 }
 async function copyJson(): Promise<void> {
+  strActionError.value = "";
+  message.value = "";
   try {
     await navigator.clipboard.writeText(json.value);
-    message.value = "JSON copied.";
+    if (!unmounted) message.value = "JSON copied.";
   } catch {
-    error.value = new ApiError(
-      "The JSON could not be copied. Copy it from the Data field.",
-    );
+    if (!unmounted)
+      strActionError.value = "The JSON could not be copied. Copy it from the Data field.";
   }
 }
+
 onMounted(() => void load());
 onBeforeUnmount(() => {
   unmounted = true;

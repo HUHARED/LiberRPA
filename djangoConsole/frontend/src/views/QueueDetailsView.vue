@@ -12,6 +12,16 @@
       >Retry</v-btn
     ></v-alert
   >
+  <v-alert
+    v-if="strActionError"
+    type="error"
+    variant="tonal"
+    closable
+    class="mb-4"
+    role="alert"
+    @click:close="strActionError = ''">
+    {{ strActionError }}
+  </v-alert>
   <v-alert v-if="message" type="success" variant="tonal" class="mb-4" role="status">{{
     message
   }}</v-alert>
@@ -265,7 +275,7 @@ import QueueUploadDialog from "../components/QueueUploadDialog.vue";
 
 import { useSessionStore } from "../stores/sessionStore";
 
-import { ApiError, getApiError } from "../api/errors";
+import { type ApiError, getApiError } from "../api/errors";
 import {
   QUEUE_STATUSES,
   QUEUE_ORDERS,
@@ -297,6 +307,7 @@ const page = shallowRef<QueueItemsResponse | null>(null);
 const error = shallowRef<ApiError | null>(null);
 const mutationError = shallowRef<ApiError | null>(null);
 const message = ref("");
+const strActionError = ref("");
 const selected = ref<string[]>([]);
 const status = ref("all");
 const order = ref("oldest_first");
@@ -325,6 +336,7 @@ async function load(): Promise<void> {
   selected.value = [];
   loading.value = true;
   error.value = null;
+  strActionError.value = "";
   try {
     const result = await getQueueItems(
       props.queueId,
@@ -427,15 +439,18 @@ async function submitMutation(): Promise<void> {
 }
 async function copyPath(): Promise<void> {
   if (!page.value) return;
+  const current = revision;
+  strActionError.value = "";
+  message.value = "";
   try {
     await navigator.clipboard.writeText(page.value.queue.path);
-    message.value = "Path copied.";
+    if (current === revision) message.value = "Path copied.";
   } catch {
-    error.value = new ApiError(
-      "The path could not be copied. Copy it from the Path field.",
-    );
+    if (current === revision)
+      strActionError.value = "The path could not be copied. Copy it from the Path field.";
   }
 }
+
 watch(
   () => props.queueId,
   () => {
@@ -446,13 +461,14 @@ watch(
 watch([status, order, itemId], () => {
   selected.value = [];
 });
+// Opening an item dialog must not reload the list or reset its selection and drafts.
 watch(
-  () => [
-    props.queueId,
-    route.query.status,
-    route.query.order,
-    route.query.item_id,
-    route.query.item_page,
+  [
+    () => props.queueId,
+    () => queryText("status", "all"),
+    () => queryText("order", "oldest_first"),
+    () => queryText("item_id", ""),
+    () => Number(route.query.item_page) || 1,
   ],
   () => {
     status.value = queryText("status", "all");

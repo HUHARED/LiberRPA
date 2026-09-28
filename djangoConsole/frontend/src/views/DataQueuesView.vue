@@ -71,6 +71,16 @@
     >{{ error.message }}
     <p v-if="page">Previously loaded results are shown. Refresh to try again.</p></v-alert
   >
+  <v-alert
+    v-if="strActionError"
+    type="error"
+    variant="tonal"
+    closable
+    class="mb-4"
+    role="alert"
+    @click:close="strActionError = ''">
+    {{ strActionError }}
+  </v-alert>
   <v-card variant="outlined">
     <v-data-table-server
       :headers="headers"
@@ -143,7 +153,7 @@ import QueueFormDialog from "../components/QueueFormDialog.vue";
 
 import { useSessionStore } from "../stores/sessionStore";
 
-import { ApiError, getApiError } from "../api/errors";
+import { type ApiError, getApiError } from "../api/errors";
 import { getQueues } from "../api/dataQueues";
 import type {
   QueueListResponse,
@@ -176,6 +186,7 @@ const error = shallowRef<ApiError | null>(null);
 const form = shallowRef<QueueEntryResponse | "new" | null>(null);
 const savedQueue = shallowRef<QueueEntryResponse | null>(null);
 const message = ref("");
+const strActionError = ref("");
 const loading = ref(false);
 let revision = 0;
 const detailsLocation = (queueId: string): RouteLocationRaw => ({
@@ -195,6 +206,7 @@ async function load(): Promise<void> {
   const current = ++revision;
   loading.value = true;
   error.value = null;
+  strActionError.value = "";
   try {
     const result = await getQueues(
       typeof route.query.name === "string" ? route.query.name : "",
@@ -243,16 +255,20 @@ function handleSaved(response: QueueDetailsResponse): void {
   void load();
 }
 async function copyPath(value: string): Promise<void> {
+  const current = revision;
+  strActionError.value = "";
+  message.value = "";
+  savedQueue.value = null;
   try {
     await navigator.clipboard.writeText(value);
-    savedQueue.value = null;
-    message.value = "Path copied.";
+    if (current === revision) message.value = "Path copied.";
   } catch {
-    error.value = new ApiError(
-      "The path could not be copied. Open Queue Details to copy it manually.",
-    );
+    if (current === revision)
+      strActionError.value =
+        "The path could not be copied. Open Queue Details to copy it manually.";
   }
 }
+
 watch(
   () => [route.query.name, route.query.department_id, route.query.page],
   () => {
