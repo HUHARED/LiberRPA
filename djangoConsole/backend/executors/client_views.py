@@ -24,8 +24,8 @@ from console_project.contracts import JsonRequest
 from console_project.http import (
     build_error_response,
     build_service_unavailable_response,
-    parse_json_request,
     build_rate_limited_response,
+    parse_json_request,
 )
 from organizations.access import get_department_access_info
 from organizations.permissions import OrganizationAccessContext

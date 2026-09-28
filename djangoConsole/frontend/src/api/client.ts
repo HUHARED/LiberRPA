@@ -28,52 +28,6 @@ export function setCsrfToken(token: string | null): void {
   csrfRequest = null;
 }
 
-export async function requestApi(
-  path: string,
-  options: ApiRequestOptions = {},
-): Promise<unknown> {
-  if (!path.startsWith("/") || path.startsWith("//") || /[\\\r\n]/.test(path)) {
-    throw new Error("API paths must be relative to this Console instance.");
-  }
-  const strToken =
-    options.method === "POST" || options.method === "PUT"
-      ? await getCsrfToken()
-      : undefined;
-  // Do not replay mutations after a network or CSRF failure; the user keeps control of retries.
-  return fetchApi(path, options, strToken);
-}
-
-async function getCsrfToken(): Promise<string> {
-  if (strCsrfToken !== null) return strCsrfToken;
-  if (csrfRequest !== null) return csrfRequest;
-  const intRevision = intCsrfRevision;
-  const pendingRequest = fetchApi("/auth/csrf/", {})
-    .then((payload) => {
-      if (
-        !isRecord(payload) ||
-        typeof payload.csrf_token !== "string" ||
-        !payload.csrf_token
-      ) {
-        throw new ApiError("Could not prepare a secure request. Please try again.", {
-          code: "invalid_response",
-        });
-      }
-      if (intRevision !== intCsrfRevision) {
-        if (strCsrfToken !== null) return strCsrfToken;
-        throw new ApiError("Your session changed. Please try again.", {
-          code: "session_changed",
-        });
-      }
-      strCsrfToken = payload.csrf_token;
-      return strCsrfToken;
-    })
-    .finally(() => {
-      if (csrfRequest === pendingRequest) csrfRequest = null;
-    });
-  csrfRequest = pendingRequest;
-  return pendingRequest;
-}
-
 async function fetchApi(
   path: string,
   options: ApiRequestOptions,
@@ -158,4 +112,50 @@ async function fetchApi(
     });
   }
   return responsePayload;
+}
+
+async function getCsrfToken(): Promise<string> {
+  if (strCsrfToken !== null) return strCsrfToken;
+  if (csrfRequest !== null) return csrfRequest;
+  const intRevision = intCsrfRevision;
+  const pendingRequest = fetchApi("/auth/csrf/", {})
+    .then((payload) => {
+      if (
+        !isRecord(payload) ||
+        typeof payload.csrf_token !== "string" ||
+        !payload.csrf_token
+      ) {
+        throw new ApiError("Could not prepare a secure request. Please try again.", {
+          code: "invalid_response",
+        });
+      }
+      if (intRevision !== intCsrfRevision) {
+        if (strCsrfToken !== null) return strCsrfToken;
+        throw new ApiError("Your session changed. Please try again.", {
+          code: "session_changed",
+        });
+      }
+      strCsrfToken = payload.csrf_token;
+      return strCsrfToken;
+    })
+    .finally(() => {
+      if (csrfRequest === pendingRequest) csrfRequest = null;
+    });
+  csrfRequest = pendingRequest;
+  return pendingRequest;
+}
+
+export async function requestApi(
+  path: string,
+  options: ApiRequestOptions = {},
+): Promise<unknown> {
+  if (!path.startsWith("/") || path.startsWith("//") || /[\\\r\n]/.test(path)) {
+    throw new Error("API paths must be relative to this Console instance.");
+  }
+  const strToken =
+    options.method === "POST" || options.method === "PUT"
+      ? await getCsrfToken()
+      : undefined;
+  // Do not replay mutations after a network or CSRF failure; the user keeps control of retries.
+  return fetchApi(path, options, strToken);
 }

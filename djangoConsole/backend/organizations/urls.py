@@ -12,9 +12,9 @@ from accounts.api_key_views import (
     revoke_account_api_key,
 )
 from .department_views import (
-    get_or_delete_department,
-    get_or_update_department,
     list_or_create_departments,
+    get_or_update_department,
+    get_or_delete_department,
 )
 from .invitation_views import (
     check_invitation_link,

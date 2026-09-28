@@ -33,8 +33,8 @@ from console_project.contracts import JsonRequest, JsonResponsePayload
 from console_project.http import (
     build_error_response,
     build_service_unavailable_response,
-    parse_json_request,
     build_rate_limited_response,
+    parse_json_request,
 )
 from file_storage.models import DownloadSession
 from file_storage.services import FileOperationError

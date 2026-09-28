@@ -29,9 +29,9 @@ from console_project.contracts import JsonRequest
 from console_project.http import (
     build_error_response,
     build_service_unavailable_response,
-    parse_page_number,
-    parse_json_request,
     build_rate_limited_response,
+    parse_json_request,
+    parse_page_number,
 )
 from notifications.models import EmailDelivery
 
@@ -58,8 +58,8 @@ from .models import Department, DepartmentRole, InvitationDepartmentRole, Member
 from .permissions import (
     AccessChannel,
     get_current_membership,
-    require_organization_admin,
     resolve_organization_access,
+    require_organization_admin,
 )
 
 _INT_MAX_INVITATION_BODY_BYTES = 64 * 1024

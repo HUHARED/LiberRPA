@@ -20,8 +20,8 @@ from .department_queries import get_department_path
 from .models import Department, DepartmentMembership, DepartmentRole, Membership
 from .permissions import (
     AccessChannel,
-    require_organization_admin,
     resolve_organization_access,
+    require_organization_admin,
 )
 
 _INT_MEMBERS_PER_PAGE = 50

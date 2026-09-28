@@ -26,9 +26,9 @@ from organizations.models import DepartmentRole, Organization
 from organizations.permissions import (
     AccessChannel,
     OrganizationAccessContext,
-    get_authorized_departments,
     get_current_membership,
     resolve_organization_access,
+    get_authorized_departments,
 )
 
 from .models import Executor, ExecutorSession

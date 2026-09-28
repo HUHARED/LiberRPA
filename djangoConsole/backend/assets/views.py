@@ -59,6 +59,89 @@ _LOGGER = logging.getLogger("console.assets")
 _INT_MAX_BODY_BYTES = 2 * 1024 * 1024
 
 
+def _lock_asset_write_access(
+    request: HttpRequest, membership: Membership
+) -> OrganizationAccessContext:
+    return lock_session_write_access(
+        membership.user_id,
+        membership.organization_id,
+        AccessChannel.SESSION,
+        request.session.get(HASH_SESSION_KEY, ""),
+        request.session.get_expiry_date(),
+    )
+
+
+def _build_asset_response(
+    payload: JsonResponsePayload, *, statusCode: int = 200
+) -> HttpResponse:
+    # Omit unset secret values while preserving an explicitly stored JSON null.
+    return HttpResponse(
+        payload.model_dump_json(exclude_unset=True),
+        status=statusCode,
+        content_type="application/json",
+    )
+
+
+def _build_asset_error_response(e: Exception) -> JsonResponse:
+    match e:
+        case SessionInvalidatedError():
+            return build_error_response(
+                "authentication_required", "Sign in again to continue.", statusCode=401
+            )
+        case PermissionDenied():
+            return build_error_response(
+                "asset_access_required", "Asset access is unavailable.", statusCode=403
+            )
+        case Asset.DoesNotExist() | Department.DoesNotExist():
+            return build_error_response(
+                "asset_not_found",
+                "The asset or department is unavailable.",
+                statusCode=404,
+            )
+        case InvalidPage():
+            return build_error_response(
+                "invalid_page", "The requested page is unavailable.", statusCode=400
+            )
+        case SecretStorageUnavailableError():
+            return build_error_response(
+                "secret_storage_unavailable",
+                "Secret storage is not configured. Ask the Console administrator to configure encryption keys.",
+                statusCode=503,
+            )
+        case ValidationError():
+            if getattr(e, "code", None) == "asset_count_limit":
+                return build_error_response(
+                    "asset_count_limit", e.messages[0], statusCode=409
+                )
+            boolDuplicate = any(
+                error.code == "duplicate_asset_name"
+                for errors in getattr(e, "error_dict", {}).values()
+                for error in errors
+            )
+            return build_error_response(
+                "duplicate_asset_name" if boolDuplicate else "invalid_asset",
+                "Some asset fields are invalid.",
+                statusCode=409 if boolDuplicate else 400,
+                fields=e.message_dict
+                if hasattr(e, "error_dict")
+                else {"__all__": e.messages},
+            )
+        case (
+            ContractValidationError()
+            | PydanticSerializationError()
+            | json.JSONDecodeError()
+        ):
+            # Request JSON errors have already been handled at the parsing boundary.
+            _LOGGER.exception("Invalid stored asset value or response contract.")
+            return build_error_response(
+                "internal_server_error",
+                "The service could not build a valid response.",
+                statusCode=500,
+            )
+        case _:
+            return build_service_unavailable_response()
+
+
 def _session_asset_view[**P](
     view: Callable[Concatenate[HttpRequest, Membership, P], HttpResponse],
 ) -> Callable[Concatenate[HttpRequest, P], HttpResponse]:
@@ -192,86 +275,3 @@ def delete_asset_view(
         access = _lock_asset_write_access(request, membership)
         delete_asset(access, assetId)
         return _build_asset_response(MessageResponse(message="Asset deleted."))
-
-
-def _lock_asset_write_access(
-    request: HttpRequest, membership: Membership
-) -> OrganizationAccessContext:
-    return lock_session_write_access(
-        membership.user_id,
-        membership.organization_id,
-        AccessChannel.SESSION,
-        request.session.get(HASH_SESSION_KEY, ""),
-        request.session.get_expiry_date(),
-    )
-
-
-def _build_asset_response(
-    payload: JsonResponsePayload, *, statusCode: int = 200
-) -> HttpResponse:
-    # Omit unset secret values while preserving an explicitly stored JSON null.
-    return HttpResponse(
-        payload.model_dump_json(exclude_unset=True),
-        status=statusCode,
-        content_type="application/json",
-    )
-
-
-def _build_asset_error_response(e: Exception) -> JsonResponse:
-    match e:
-        case SessionInvalidatedError():
-            return build_error_response(
-                "authentication_required", "Sign in again to continue.", statusCode=401
-            )
-        case PermissionDenied():
-            return build_error_response(
-                "asset_access_required", "Asset access is unavailable.", statusCode=403
-            )
-        case Asset.DoesNotExist() | Department.DoesNotExist():
-            return build_error_response(
-                "asset_not_found",
-                "The asset or department is unavailable.",
-                statusCode=404,
-            )
-        case InvalidPage():
-            return build_error_response(
-                "invalid_page", "The requested page is unavailable.", statusCode=400
-            )
-        case SecretStorageUnavailableError():
-            return build_error_response(
-                "secret_storage_unavailable",
-                "Secret storage is not configured. Ask the Console administrator to configure encryption keys.",
-                statusCode=503,
-            )
-        case ValidationError():
-            if getattr(e, "code", None) == "asset_count_limit":
-                return build_error_response(
-                    "asset_count_limit", e.messages[0], statusCode=409
-                )
-            boolDuplicate = any(
-                error.code == "duplicate_asset_name"
-                for errors in getattr(e, "error_dict", {}).values()
-                for error in errors
-            )
-            return build_error_response(
-                "duplicate_asset_name" if boolDuplicate else "invalid_asset",
-                "Some asset fields are invalid.",
-                statusCode=409 if boolDuplicate else 400,
-                fields=e.message_dict
-                if hasattr(e, "error_dict")
-                else {"__all__": e.messages},
-            )
-        case (
-            ContractValidationError()
-            | PydanticSerializationError()
-            | json.JSONDecodeError()
-        ):
-            # Request JSON errors have already been handled at the parsing boundary.
-            _LOGGER.exception("Invalid stored asset value or response contract.")
-            return build_error_response(
-                "internal_server_error",
-                "The service could not build a valid response.",
-                statusCode=500,
-            )
-        case _:
-            return build_service_unavailable_response()

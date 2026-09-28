@@ -13,11 +13,20 @@ from django.core.exceptions import ImproperlyConfigured
 from django.core.mail import EmailMessage
 from django.views.decorators.debug import sensitive_variables
 
-from notifications.models import EmailDelivery, EmailType
+from notifications.models import EmailType, EmailDelivery
 
 from .registration import RegistrationTokenDeliveryInfo
 from .password_resets import PasswordResetTokenDeliveryInfo
 from .email_changes import EmailChangeTokenDeliveryInfo
+
+
+def _get_console_url() -> str:
+    consoleUrl = cast(str | None, settings.CONSOLE_URL)
+    if consoleUrl is None:
+        raise ImproperlyConfigured(
+            "Configure consoleUrl, supportEmail, and smtp in Console.jsonc before preparing email."
+        )
+    return consoleUrl
 
 
 @sensitive_variables()
@@ -142,12 +151,3 @@ def build_email_change_notice(delivery: EmailDelivery) -> EmailMessage:
         to=[delivery.recipient],
         reply_to=[cast(str, settings.CONSOLE_SUPPORT_EMAIL)],
     )
-
-
-def _get_console_url() -> str:
-    consoleUrl = cast(str | None, settings.CONSOLE_URL)
-    if consoleUrl is None:
-        raise ImproperlyConfigured(
-            "Configure consoleUrl, supportEmail, and smtp in Console.jsonc before preparing email."
-        )
-    return consoleUrl

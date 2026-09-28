@@ -18,8 +18,8 @@ from console_project.contracts import JsonRequest
 from console_project.http import (
     build_error_response,
     build_service_unavailable_response,
-    parse_json_request,
     build_rate_limited_response,
+    parse_json_request,
 )
 
 from .contracts import CsrfResponse

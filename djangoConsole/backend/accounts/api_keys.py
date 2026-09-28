@@ -26,8 +26,8 @@ from organizations.permissions import (
     AccessChannel,
     OrganizationAccessContext,
     get_current_membership,
-    require_organization_admin,
     resolve_organization_access,
+    require_organization_admin,
 )
 
 from .models import ApiKey, ApiKeyStatus, User

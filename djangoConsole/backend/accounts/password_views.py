@@ -17,8 +17,8 @@ from django.views.decorators.http import require_POST
 from console_project.http import (
     build_error_response,
     build_service_unavailable_response,
-    parse_json_request,
     build_rate_limited_response,
+    parse_json_request,
 )
 from organizations.permissions import AccessChannel
 

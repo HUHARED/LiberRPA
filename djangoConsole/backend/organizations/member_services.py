@@ -16,8 +16,8 @@ from operations.audit import get_audit_snapshot, record_audit
 from .models import Department, DepartmentMembership, DepartmentRole, Membership
 from .permissions import (
     AccessChannel,
-    has_other_active_organization_admin,
     lock_organization_admin_access,
+    has_other_active_organization_admin,
 )
 
 

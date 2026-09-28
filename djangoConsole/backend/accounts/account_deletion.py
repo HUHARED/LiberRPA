@@ -21,9 +21,9 @@ from organizations.permissions import (
     AccessChannel,
     OrganizationAccessContext,
     get_current_membership,
-    has_other_active_organization_admin,
-    require_organization_admin,
     resolve_organization_access,
+    require_organization_admin,
+    has_other_active_organization_admin,
 )
 
 from .models import User

@@ -21,8 +21,8 @@ from operations.audit import get_audit_snapshot, record_audit
 from .models import Organization
 from .permissions import (
     AccessChannel,
-    lock_organization_for_deletion,
     require_organization_business_available,
+    lock_organization_for_deletion,
 )
 
 _ORGANIZATION_DELETION_DELAY = timedelta(days=7)

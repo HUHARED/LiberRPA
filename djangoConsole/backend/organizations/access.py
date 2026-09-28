@@ -16,9 +16,9 @@ from .models import Department, DepartmentRole, Organization
 from .permissions import (
     AccessChannel,
     OrganizationAccessContext,
-    get_authorized_departments,
-    get_current_membership,
     is_organization_business_available,
+    get_current_membership,
+    get_authorized_departments,
 )
 
 

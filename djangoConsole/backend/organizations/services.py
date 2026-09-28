@@ -16,9 +16,9 @@ from .member_services import update_membership
 from .models import Organization
 from .permissions import (
     AccessChannel,
-    lock_organization_admin_access,
-    require_organization_admin,
     resolve_organization_access,
+    require_organization_admin,
+    lock_organization_admin_access,
 )
 
 # Preserve existing Python entry points; each implementation belongs to its domain module.
