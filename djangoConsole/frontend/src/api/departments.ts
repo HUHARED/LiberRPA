@@ -1,7 +1,8 @@
 // FileName: departments.ts
 
 import { requestApi } from "./client";
-import { isRecord, ApiError } from "./errors";
+import { ApiError } from "./errors";
+import { isRecord, rejectInvalidResponse } from "./responses";
 
 import type {
   DepartmentCreationRequest,
@@ -18,12 +19,6 @@ import type {
   DepartmentWriteResponse,
   DepartmentRecordResponse,
 } from "./generated/browserApi";
-
-function rejectInvalidResponse(): never {
-  throw new ApiError("The service returned an unexpected response. Please try again.", {
-    code: "invalid_response",
-  });
-}
 
 function isDepartmentRecord(value: unknown): value is DepartmentRecordResponse {
   return (

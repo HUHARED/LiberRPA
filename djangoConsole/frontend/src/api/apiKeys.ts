@@ -1,7 +1,13 @@
 // FileName: apiKeys.ts
 
 import { requestApi } from "./client";
-import { isRecord, ApiError } from "./errors";
+import {
+  isRecord,
+  isNonnegativeInteger,
+  isDateString,
+  isNullableDateString,
+  rejectInvalidResponse,
+} from "./responses";
 
 import type {
   ApiKeyCreateRequest,
@@ -14,24 +20,6 @@ import type {
 
 export type ApiKeyStatus = ApiKeyResponse["status"];
 
-function rejectInvalidResponse(): never {
-  throw new ApiError("The service returned an unexpected response. Please try again.", {
-    code: "invalid_response",
-  });
-}
-
-function isDate(value: unknown): value is string {
-  return typeof value === "string" && Number.isFinite(Date.parse(value));
-}
-
-function isNullableDate(value: unknown): value is string | null {
-  return value === null || isDate(value);
-}
-
-function isNonnegativeInteger(value: unknown): value is number {
-  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
-}
-
 function parseApiKey(payload: unknown): ApiKeyResponse {
   if (
     !isRecord(payload) ||
@@ -40,11 +28,11 @@ function parseApiKey(payload: unknown): ApiKeyResponse {
     (payload.status !== "active" &&
       payload.status !== "expired" &&
       payload.status !== "revoked") ||
-    !isDate(payload.expires_at) ||
-    !isNullableDate(payload.last_used_at) ||
+    !isDateString(payload.expires_at) ||
+    !isNullableDateString(payload.last_used_at) ||
     typeof payload.notes !== "string" ||
-    !isDate(payload.created_at) ||
-    !isNullableDate(payload.revoked_at)
+    !isDateString(payload.created_at) ||
+    !isNullableDateString(payload.revoked_at)
   )
     return rejectInvalidResponse();
   // Keep only metadata in tables and events; credentials belong only in the creation dialog.
@@ -64,7 +52,7 @@ export function parseApiKeyListResponse(payload: unknown): ApiKeyListResponse {
   if (
     !isRecord(payload) ||
     !Array.isArray(payload.api_keys) ||
-    !isDate(payload.default_expires_at) ||
+    !isDateString(payload.default_expires_at) ||
     !isRecord(payload.limits) ||
     !isNonnegativeInteger(payload.limits.active_keys) ||
     !isNonnegativeInteger(payload.limits.inactive_retention_days) ||

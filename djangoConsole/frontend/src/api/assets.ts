@@ -1,7 +1,12 @@
 // FileName: assets.ts
 
 import { requestApi } from "./client";
-import { isRecord, ApiError } from "./errors";
+import {
+  isRecord,
+  rejectInvalidResponse,
+  parsePaginationResponse,
+  parseMessageResponse,
+} from "./responses";
 
 import type {
   AssetType,
@@ -43,12 +48,6 @@ export function formatAssetValue(asset: AssetDetailsEntryResponse): string {
   if (asset.asset_type === "text" && typeof asset.value === "string")
     return asset.value === "" ? '""' : asset.value;
   return JSON.stringify(asset.value, null, 2) ?? "";
-}
-
-function rejectInvalidResponse(): never {
-  throw new ApiError("The service returned an unexpected response. Please try again.", {
-    code: "invalid_response",
-  });
 }
 
 function isAssetEntry(value: unknown): value is AssetEntryResponse {
@@ -93,25 +92,12 @@ export async function getAssetList(
   if (
     !isRecord(payload) ||
     !Array.isArray(payload.assets) ||
-    !payload.assets.every(isAssetEntry) ||
-    ![payload.page, payload.page_size, payload.total_count, payload.total_pages].every(
-      (value) => typeof value === "number" && Number.isSafeInteger(value) && value >= 0,
-    ) ||
-    typeof payload.page !== "number" ||
-    typeof payload.page_size !== "number" ||
-    typeof payload.total_count !== "number" ||
-    typeof payload.total_pages !== "number" ||
-    payload.page < 1 ||
-    payload.page_size < 1 ||
-    payload.total_pages < 1
+    !payload.assets.every(isAssetEntry)
   )
     return rejectInvalidResponse();
   return {
     assets: payload.assets,
-    page: payload.page,
-    page_size: payload.page_size,
-    total_count: payload.total_count,
-    total_pages: payload.total_pages,
+    ...parsePaginationResponse(payload),
   };
 }
 
@@ -154,5 +140,5 @@ export async function deleteAsset(assetId: string): Promise<void> {
     method: "POST",
     body: {},
   });
-  if (!isRecord(payload) || typeof payload.message !== "string") rejectInvalidResponse();
+  parseMessageResponse(payload);
 }

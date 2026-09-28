@@ -1,9 +1,14 @@
 // FileName: invitations.ts
 
 import { requestApi } from "./client";
-import { isRecord, ApiError } from "./errors";
-import { parseMessageResponse } from "./account";
-import { parsePaginationResponse } from "./members";
+import {
+  isRecord,
+  isDateString,
+  isNullableDateString,
+  rejectInvalidResponse,
+  parsePaginationResponse,
+  parseMessageResponse,
+} from "./responses";
 
 import type {
   InvitationCompletionRequest,
@@ -17,20 +22,6 @@ import type {
   InvitationTokenRequest,
 } from "./generated/browserApi";
 
-function rejectInvalidResponse(): never {
-  throw new ApiError("The service returned an unexpected response. Please try again.", {
-    code: "invalid_response",
-  });
-}
-
-function isDate(value: unknown): value is string {
-  return typeof value === "string" && Number.isFinite(Date.parse(value));
-}
-
-function isNullableDate(value: unknown): value is string | null {
-  return value === null || isDate(value);
-}
-
 function isDelivery(value: unknown): value is InvitationEmailDeliveryResponse | null {
   return (
     value === null ||
@@ -41,8 +32,8 @@ function isDelivery(value: unknown): value is InvitationEmailDeliveryResponse | 
         value.status,
       ) &&
       typeof value.reason_code === "string" &&
-      isNullableDate(value.attempted_at) &&
-      isNullableDate(value.finished_at))
+      isNullableDateString(value.attempted_at) &&
+      isNullableDateString(value.finished_at))
   );
 }
 
@@ -55,12 +46,12 @@ function isInvitation(value: unknown): value is InvitationResponse {
     typeof value.notes === "string" &&
     typeof value.status === "string" &&
     ["pending", "expired", "accepted", "revoked"].includes(value.status) &&
-    isDate(value.created_at) &&
-    isDate(value.requested_at) &&
-    isDate(value.expires_at) &&
-    isDate(value.resend_available_at) &&
-    isNullableDate(value.accepted_at) &&
-    isNullableDate(value.revoked_at) &&
+    isDateString(value.created_at) &&
+    isDateString(value.requested_at) &&
+    isDateString(value.expires_at) &&
+    isDateString(value.resend_available_at) &&
+    isNullableDateString(value.accepted_at) &&
+    isNullableDateString(value.revoked_at) &&
     isDelivery(value.email_delivery) &&
     Array.isArray(value.department_roles) &&
     value.department_roles.every(

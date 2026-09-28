@@ -1,8 +1,12 @@
 // FileName: audit.ts
 
 import { requestApi } from "./client";
-import { isRecord, ApiError } from "./errors";
-import { parsePaginationResponse } from "./members";
+import {
+  isRecord,
+  isNullableString,
+  rejectInvalidResponse,
+  parsePaginationResponse,
+} from "./responses";
 
 import type {
   AuditDetailsResponse,
@@ -21,16 +25,6 @@ export interface AuditListFilters {
   modules: string[];
   actions: string[];
   results: string[];
-}
-
-function rejectInvalidResponse(): never {
-  throw new ApiError("The service returned an unexpected response. Please try again.", {
-    code: "invalid_response",
-  });
-}
-
-function isNullableString(value: unknown): value is string | null {
-  return value === null || typeof value === "string";
 }
 
 function isAuditRecord(value: unknown): value is AuditRecordResponse {

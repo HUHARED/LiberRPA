@@ -1,7 +1,8 @@
 // FileName: sharedFiles.ts
 
 import { requestApi } from "./client";
-import { isRecord, ApiError } from "./errors";
+import { ApiError } from "./errors";
+import { isRecord, isNonnegativeInteger } from "./responses";
 
 import type {
   FileDeleteResponse,
@@ -22,15 +23,13 @@ function invalidResponse(): never {
     { code: "invalid_response" },
   );
 }
-const isCount = (value: unknown): value is number =>
-  typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
 function isFile(value: unknown): value is FileInfoResponse {
   return (
     isRecord(value) &&
     typeof value.path === "string" &&
     typeof value.name === "string" &&
     typeof value.department_path === "string" &&
-    isCount(value.size_bytes) &&
+    isNonnegativeInteger(value.size_bytes) &&
     typeof value.sha256 === "string" &&
     /^[0-9a-f]{64}$/.test(value.sha256) &&
     typeof value.uploaded_by_name === "string" &&
@@ -43,10 +42,10 @@ function uploadResult(value: unknown): FileUploadResponse {
     typeof value.upload_id !== "string" ||
     !UUID.test(value.upload_id) ||
     !UPLOAD_STATES.includes(String(value.state)) ||
-    !isCount(value.offset) ||
-    !isCount(value.size_bytes) ||
+    !isNonnegativeInteger(value.offset) ||
+    !isNonnegativeInteger(value.size_bytes) ||
     value.offset > value.size_bytes ||
-    !isCount(value.chunk_bytes) ||
+    !isNonnegativeInteger(value.chunk_bytes) ||
     value.chunk_bytes < 1 ||
     value.chunk_bytes > 4 * 1024 * 1024 ||
     typeof value.expires_at !== "string" ||
@@ -95,7 +94,7 @@ export async function getSharedFiles(body: FileListRequest): Promise<FileListRes
       value.usage.pending_cleanup_bytes,
       value.usage.limit_bytes,
       value.usage.max_file_bytes,
-    ].every(isCount) ||
+    ].every(isNonnegativeInteger) ||
     value.page === 0 ||
     value.total_pages === 0 ||
     value.page_size !== 100
@@ -147,7 +146,7 @@ export async function deleteSharedFiles(
   if (
     !isRecord(result) ||
     result.request_id !== identity.requestId ||
-    !isCount(result.deleted_count) ||
+    !isNonnegativeInteger(result.deleted_count) ||
     !Array.isArray(result.deleted_paths) ||
     !result.deleted_paths.every((path) => typeof path === "string") ||
     !Array.isArray(result.missing_paths) ||

@@ -1,7 +1,12 @@
 // FileName: executorGroups.ts
 
 import { requestApi } from "./client";
-import { isRecord, ApiError } from "./errors";
+import {
+  isRecord,
+  isNonnegativeInteger,
+  rejectInvalidResponse,
+  parsePaginationResponse,
+} from "./responses";
 import { isExecutorListEntry } from "./executors";
 
 import type {
@@ -21,16 +26,6 @@ import type {
 export interface ExecutorGroupListFilters {
   name: string;
   departmentIds: string[];
-}
-
-function rejectInvalidResponse(): never {
-  throw new ApiError("The service returned an unexpected response. Please try again.", {
-    code: "invalid_response",
-  });
-}
-
-function isNonnegativeInteger(value: unknown): value is number {
-  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
 }
 
 function isGroupRecord(value: unknown): value is ExecutorGroupRecordResponse {
@@ -82,22 +77,12 @@ export function parseExecutorGroupListResponse(
   if (
     !isRecord(payload) ||
     !Array.isArray(payload.executor_groups) ||
-    !payload.executor_groups.every(isGroupListEntry) ||
-    !isNonnegativeInteger(payload.page) ||
-    payload.page < 1 ||
-    !isNonnegativeInteger(payload.page_size) ||
-    payload.page_size < 1 ||
-    !isNonnegativeInteger(payload.total_count) ||
-    !isNonnegativeInteger(payload.total_pages) ||
-    payload.total_pages < 1
+    !payload.executor_groups.every(isGroupListEntry)
   )
     return rejectInvalidResponse();
   return {
     executor_groups: payload.executor_groups,
-    page: payload.page,
-    page_size: payload.page_size,
-    total_count: payload.total_count,
-    total_pages: payload.total_pages,
+    ...parsePaginationResponse(payload),
   };
 }
 

@@ -1,7 +1,13 @@
 // FileName: executors.ts
 
 import { requestApi } from "./client";
-import { isRecord, ApiError } from "./errors";
+import {
+  isRecord,
+  isNullableString,
+  isNullableDateString,
+  rejectInvalidResponse,
+  parsePaginationResponse,
+} from "./responses";
 
 import type {
   ExecutorCreationRequest,
@@ -23,22 +29,6 @@ export interface ExecutorListFilters {
   dispatchStates: boolean[];
 }
 
-function rejectInvalidResponse(): never {
-  throw new ApiError("The service returned an unexpected response. Please try again.", {
-    code: "invalid_response",
-  });
-}
-
-function isNullableText(value: unknown): value is string | null {
-  return value === null || typeof value === "string";
-}
-
-function isNullableDate(value: unknown): value is string | null {
-  return (
-    value === null || (typeof value === "string" && Number.isFinite(Date.parse(value)))
-  );
-}
-
 function isExecutorRecord(value: unknown): value is ExecutorRecordResponse {
   return (
     isRecord(value) &&
@@ -48,8 +38,8 @@ function isExecutorRecord(value: unknown): value is ExecutorRecordResponse {
     typeof value.notes === "string" &&
     typeof value.dispatch_enabled === "boolean" &&
     typeof value.created_at === "string" &&
-    isNullableDate(value.created_at) &&
-    isNullableDate(value.deleted_at)
+    isNullableDateString(value.created_at) &&
+    isNullableDateString(value.deleted_at)
   );
 }
 
@@ -65,15 +55,15 @@ export function isExecutorListEntry(value: unknown): value is ExecutorListEntryR
     (value.association_status === "unassociated" ||
       value.association_status === "online" ||
       value.association_status === "offline") &&
-    isNullableText(value.session_id) &&
+    isNullableString(value.session_id) &&
     (value.account === null ||
       (isRecord(value.account) &&
         typeof value.account.id === "string" &&
         typeof value.account.email === "string" &&
         typeof value.account.username === "string")) &&
-    isNullableText(value.computer) &&
-    isNullableText(value.version) &&
-    isNullableDate(value.last_seen_at)
+    isNullableString(value.computer) &&
+    isNullableString(value.version) &&
+    isNullableDateString(value.last_seen_at)
   );
 }
 
@@ -81,27 +71,12 @@ export function parseExecutorListResponse(payload: unknown): ExecutorListRespons
   if (
     !isRecord(payload) ||
     !Array.isArray(payload.executors) ||
-    !payload.executors.every(isExecutorListEntry) ||
-    typeof payload.page !== "number" ||
-    !Number.isSafeInteger(payload.page) ||
-    payload.page < 1 ||
-    typeof payload.page_size !== "number" ||
-    !Number.isSafeInteger(payload.page_size) ||
-    payload.page_size < 1 ||
-    typeof payload.total_count !== "number" ||
-    !Number.isSafeInteger(payload.total_count) ||
-    payload.total_count < 0 ||
-    typeof payload.total_pages !== "number" ||
-    !Number.isSafeInteger(payload.total_pages) ||
-    payload.total_pages < 1
+    !payload.executors.every(isExecutorListEntry)
   )
     return rejectInvalidResponse();
   return {
     executors: payload.executors,
-    page: payload.page,
-    page_size: payload.page_size,
-    total_count: payload.total_count,
-    total_pages: payload.total_pages,
+    ...parsePaginationResponse(payload),
   };
 }
 

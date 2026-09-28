@@ -1,7 +1,14 @@
 // FileName: dataQueues.ts
 
 import { requestApi } from "./client";
-import { ApiError, isRecord } from "./errors";
+import { ApiError } from "./errors";
+import {
+  isRecord,
+  rejectInvalidResponse,
+  parsePaginationResponse,
+  parseMessageResponse,
+} from "./responses";
+
 import type {
   QueueCreationRequest,
   QueueDetailsRequest,
@@ -26,11 +33,6 @@ export const QUEUE_ORDERS = [
   { title: "Newest First", value: "newest_first" },
 ];
 
-function invalidResponse(): never {
-  throw new ApiError("The service returned an unexpected response. Please try again.", {
-    code: "invalid_response",
-  });
-}
 function isQueue(value: unknown): value is QueueEntryResponse {
   return (
     isRecord(value) &&
@@ -63,18 +65,8 @@ function isItem(value: unknown): value is QueueItemResponse {
     (value.last_claimed_at === null || typeof value.last_claimed_at === "string")
   );
 }
-function isPage(value: Record<string, unknown>): boolean {
-  return (
-    [value.page, value.page_size, value.total_pages].every(
-      (entry) => typeof entry === "number" && Number.isSafeInteger(entry) && entry > 0,
-    ) &&
-    typeof value.total_count === "number" &&
-    Number.isSafeInteger(value.total_count) &&
-    value.total_count >= 0
-  );
-}
 function details(payload: unknown): QueueDetailsResponse {
-  if (!isRecord(payload) || !isQueue(payload.queue)) return invalidResponse();
+  if (!isRecord(payload) || !isQueue(payload.queue)) return rejectInvalidResponse();
   return { queue: payload.queue };
 }
 export async function getQueues(
@@ -85,14 +77,13 @@ export async function getQueues(
   const query = new URLSearchParams({ name, page: String(page) });
   departments.forEach((id) => query.append("department_id", id));
   const result = await requestApi(`${ROOT}?${query}`);
-  if (
-    !isRecord(result) ||
-    !isPage(result) ||
-    !Array.isArray(result.queues) ||
-    !result.queues.every(isQueue)
-  )
-    return invalidResponse();
-  return result as unknown as QueueListResponse;
+  if (!isRecord(result) || !Array.isArray(result.queues) || !result.queues.every(isQueue))
+    return rejectInvalidResponse();
+  return {
+    ...result,
+    queues: result.queues,
+    ...parsePaginationResponse(result),
+  };
 }
 export async function saveQueue(
   body: QueueCreationRequest | QueueDetailsRequest,
@@ -117,13 +108,17 @@ export async function getQueueItems(
   const result = await requestApi(`${ROOT}${encodeURIComponent(id)}/items/?${query}`);
   if (
     !isRecord(result) ||
-    !isPage(result) ||
     !isQueue(result.queue) ||
     !Array.isArray(result.items) ||
     !result.items.every(isItem)
   )
-    return invalidResponse();
-  return result as unknown as QueueItemsResponse;
+    return rejectInvalidResponse();
+  return {
+    ...result,
+    queue: result.queue,
+    items: result.items,
+    ...parsePaginationResponse(result),
+  };
 }
 export async function getQueueItem(
   queueId: string,
@@ -132,7 +127,7 @@ export async function getQueueItem(
   const result = await requestApi(
     `${ROOT}${encodeURIComponent(queueId)}/items/${encodeURIComponent(itemId)}/`,
   );
-  if (!isItem(result) || !("data" in result)) return invalidResponse();
+  if (!isItem(result) || !("data" in result)) return rejectInvalidResponse();
   return result as QueueItemDetailsResponse;
 }
 export async function deleteQueue(id: string): Promise<void> {
@@ -140,7 +135,7 @@ export async function deleteQueue(id: string): Promise<void> {
     method: "POST",
     body: {},
   });
-  if (!isRecord(result) || typeof result.message !== "string") invalidResponse();
+  parseMessageResponse(result);
 }
 export async function changeQueueItems(
   userId: string,
@@ -184,7 +179,7 @@ export async function changeQueueItems(
     ) ||
     !Array.isArray(result.items)
   )
-    return invalidResponse();
+    return rejectInvalidResponse();
   sessionStorage.removeItem(key);
   return result as unknown as QueueMutationResponse;
 }

@@ -1,7 +1,7 @@
 // FileName: organization.ts
 
 import { requestApi } from "./client";
-import { isRecord, ApiError } from "./errors";
+import { isRecord, rejectInvalidResponse } from "./responses";
 
 import type {
   OrganizationSettingsRequest,
@@ -20,9 +20,7 @@ export function parseOrganizationSettingsResponse(
     !payload.organization.default_time_zone ||
     typeof payload.organization.notes !== "string"
   )
-    throw new ApiError("The service returned an unexpected response. Please try again.", {
-      code: "invalid_response",
-    });
+    return rejectInvalidResponse();
   return {
     organization: {
       id: payload.organization.id,

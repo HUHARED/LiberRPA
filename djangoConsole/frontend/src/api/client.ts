@@ -1,6 +1,7 @@
 // FileName: client.ts
 
-import { isRecord, ApiError, buildResponseError } from "./errors";
+import { ApiError } from "./errors";
+import { isRecord, buildResponseError } from "./responses";
 
 export interface ApiRequestOptions {
   method?: "GET" | "POST" | "PUT";

@@ -1,8 +1,8 @@
 // FileName: profile.ts
 
 import { requestApi } from "./client";
-import { isRecord, ApiError } from "./errors";
-import { parseSessionUserResponse, parseMessageResponse } from "./account";
+import { isRecord, rejectInvalidResponse, parseMessageResponse } from "./responses";
+import { parseSessionUserResponse } from "./account";
 
 import type {
   ProfileUpdateRequest,
@@ -13,12 +13,6 @@ import type {
   EmailChangeTokenRequest,
   EmailChangeInfoResponse,
 } from "./generated/browserApi";
-
-function rejectInvalidResponse(): never {
-  throw new ApiError("The service returned an unexpected response. Please try again.", {
-    code: "invalid_response",
-  });
-}
 
 export async function updateProfile(
   request: ProfileUpdateRequest,

@@ -1,20 +1,13 @@
 // FileName: accountDeletion.ts
 
 import { requestApi } from "./client";
-import { isRecord, ApiError } from "./errors";
-import { parseMessageResponse } from "./account";
+import { isRecord, rejectInvalidResponse, parseMessageResponse } from "./responses";
 
 import type {
   AccountDeletionPreviewResponse,
   AccountDeletionBlockerResponse,
   AccountDeletionRequest,
 } from "./generated/browserApi";
-
-function rejectInvalidResponse(): never {
-  throw new ApiError("The service returned an unexpected response. Please try again.", {
-    code: "invalid_response",
-  });
-}
 
 export function parseAccountDeletionPreview(
   payload: unknown,

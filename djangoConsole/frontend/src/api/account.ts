@@ -1,28 +1,20 @@
 // FileName: account.ts
 
 import { requestApi } from "./client";
-import { isRecord, ApiError } from "./errors";
+import {
+  isRecord,
+  isNullableDateString,
+  rejectInvalidResponse,
+  parseMessageResponse,
+} from "./responses";
 
 import type {
   AccountAccessResponse,
   DepartmentAccessResponse,
   LoginRequest,
-  MessageResponse,
   SessionUserResponse,
   SessionResponse,
 } from "./generated/browserApi";
-
-function rejectInvalidResponse(): never {
-  throw new ApiError("The service returned an unexpected response. Please try again.", {
-    code: "invalid_response",
-  });
-}
-
-function isNullableDate(value: unknown): value is string | null {
-  return (
-    value === null || (typeof value === "string" && Number.isFinite(Date.parse(value)))
-  );
-}
 
 export function parseSessionUserResponse(payload: unknown): SessionUserResponse {
   if (
@@ -64,10 +56,10 @@ export function parseAccountAccessResponse(payload: unknown): AccountAccessRespo
   if (
     typeof organizationInfo.id !== "string" ||
     typeof organizationInfo.name !== "string" ||
-    !isNullableDate(organizationInfo.suspended_at) ||
-    !isNullableDate(organizationInfo.deletion_requested_at) ||
-    !isNullableDate(organizationInfo.deletion_due_at) ||
-    !isNullableDate(organizationInfo.deletion_started_at) ||
+    !isNullableDateString(organizationInfo.suspended_at) ||
+    !isNullableDateString(organizationInfo.deletion_requested_at) ||
+    !isNullableDateString(organizationInfo.deletion_due_at) ||
+    !isNullableDateString(organizationInfo.deletion_started_at) ||
     typeof payload.is_org_admin !== "boolean" ||
     typeof payload.business_available !== "boolean" ||
     !Array.isArray(payload.departments)
@@ -125,12 +117,6 @@ export async function signIn(
   return parseSessionResponse(
     await requestApi("/auth/login/", { method: "POST", body: loginRequest }),
   );
-}
-
-export function parseMessageResponse(payload: unknown): MessageResponse {
-  if (!isRecord(payload) || typeof payload.message !== "string")
-    return rejectInvalidResponse();
-  return { message: payload.message };
 }
 
 export async function signOut(): Promise<void> {

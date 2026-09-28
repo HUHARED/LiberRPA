@@ -1,11 +1,10 @@
 // FileName: members.ts
 
 import { requestApi } from "./client";
-import { isRecord, ApiError } from "./errors";
+import { isRecord, rejectInvalidResponse, parsePaginationResponse } from "./responses";
 
 import type {
   DepartmentRoleRequest,
-  PaginationResponse,
   MemberDetailsResponse,
   MemberResponse,
   MemberDepartmentRoleResponse,
@@ -13,16 +12,6 @@ import type {
   MembershipUpdateRequest,
   MembershipWriteResponse,
 } from "./generated/browserApi";
-
-function rejectInvalidResponse(): never {
-  throw new ApiError("The service returned an unexpected response. Please try again.", {
-    code: "invalid_response",
-  });
-}
-
-function isNonnegativeInteger(value: unknown): value is number {
-  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
-}
 
 function isMember(value: unknown): value is MemberResponse {
   return (
@@ -58,26 +47,6 @@ export function parseMemberListResponse(payload: unknown): MemberListResponse {
   return {
     members: payload.members,
     pagination: parsePaginationResponse(payload.pagination),
-  };
-}
-
-export function parsePaginationResponse(payload: unknown): PaginationResponse {
-  if (
-    !isRecord(payload) ||
-    !isNonnegativeInteger(payload.page) ||
-    payload.page < 1 ||
-    !isNonnegativeInteger(payload.page_size) ||
-    payload.page_size < 1 ||
-    !isNonnegativeInteger(payload.total_count) ||
-    !isNonnegativeInteger(payload.total_pages) ||
-    payload.total_pages < 1
-  )
-    return rejectInvalidResponse();
-  return {
-    page: payload.page,
-    page_size: payload.page_size,
-    total_count: payload.total_count,
-    total_pages: payload.total_pages,
   };
 }
 
