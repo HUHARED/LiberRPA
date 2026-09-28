@@ -414,7 +414,7 @@ import {
   unassociateExecutor,
 } from "../api/executors";
 import type { ExecutorDetailsEntryResponse } from "../api/generated/browserApi";
-import { formatDateTime } from "../app/navigation";
+import { formatDateTime } from "../app/formatters";
 
 const props = defineProps<{ executorId: string }>();
 const sessionStore = useSessionStore();

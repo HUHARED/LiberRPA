@@ -223,7 +223,7 @@ import type {
   AssetListResponse,
   AssetDetailsResponse,
 } from "../api/generated/browserApi";
-import { formatDateTime } from "../app/navigation";
+import { formatDateTime } from "../app/formatters";
 
 const ARR_HEADER = [
   { title: "Name", key: "name", minWidth: 160 },

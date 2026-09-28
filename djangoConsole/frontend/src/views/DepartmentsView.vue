@@ -164,7 +164,7 @@ import type {
   DepartmentListEntryResponse,
   DepartmentRecordResponse,
 } from "../api/generated/browserApi";
-import { formatDateTime } from "../app/navigation";
+import { formatDateTime } from "../app/formatters";
 
 interface DepartmentRow extends DepartmentListEntryResponse {
   depth: number;

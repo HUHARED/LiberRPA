@@ -85,7 +85,7 @@ import { useSessionStore } from "../stores/sessionStore";
 
 import DepartmentAccess from "../components/DepartmentAccess.vue";
 
-import { getDisplayName } from "../app/navigation";
+import { getDisplayName } from "../app/formatters";
 
 const sessionStore = useSessionStore();
 </script>

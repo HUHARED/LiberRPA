@@ -219,9 +219,9 @@ import SharedFileUploadDialog from "../components/SharedFileUploadDialog.vue";
 
 import { useSessionStore } from "../stores/sessionStore";
 
-import { formatDateTime } from "../app/navigation";
+import { formatDateTime, formatFileSize } from "../app/formatters";
 import { type ApiError, getApiError } from "../api/errors";
-import { downloadSharedFile, formatFileSize, getSharedFiles } from "../api/sharedFiles";
+import { getSharedFiles, downloadSharedFile } from "../api/sharedFiles";
 import type {
   FileDeleteResponse,
   FileInfoResponse,

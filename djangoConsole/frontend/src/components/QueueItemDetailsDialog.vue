@@ -89,7 +89,7 @@ import { useSessionStore } from "../stores/sessionStore";
 import { type ApiError, getApiError } from "../api/errors";
 import { getQueueItem } from "../api/dataQueues";
 import type { QueueItemDetailsResponse } from "../api/generated/browserApi";
-import { formatDateTime } from "../app/navigation";
+import { formatDateTime } from "../app/formatters";
 
 const props = defineProps<{ queueId: string; itemId: string }>();
 const route = useRoute();

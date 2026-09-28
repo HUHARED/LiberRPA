@@ -151,7 +151,7 @@ import type {
   ApiKeyResponse,
   ApiKeyListResponse,
 } from "../api/generated/browserApi";
-import { formatDateTime } from "../app/navigation";
+import { formatDateTime } from "../app/formatters";
 
 const props = defineProps<{ member?: UserResponse }>();
 const ARR_STATUS_OPTION = [

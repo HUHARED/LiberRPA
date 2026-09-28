@@ -230,7 +230,7 @@ import type {
   AuditListResponse,
 } from "../api/generated/browserApi";
 import { AUDIT_CHANNEL_LABEL, ARR_AUDIT_RESULT, formatAuditLabel } from "../app/audit";
-import { formatDateTime } from "../app/navigation";
+import { formatDateTime } from "../app/formatters";
 
 const ARR_HEADER = [
   { title: "Time", key: "created_at", minWidth: 180 },

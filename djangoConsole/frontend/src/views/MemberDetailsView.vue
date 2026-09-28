@@ -186,7 +186,7 @@ import { useSessionStore } from "../stores/sessionStore";
 import { type ApiError, getApiError } from "../api/errors";
 import { getMemberDetails } from "../api/members";
 import type { UserResponse, MemberResponse } from "../api/generated/browserApi";
-import { formatDateTime } from "../app/navigation";
+import { formatDateTime } from "../app/formatters";
 
 const props = defineProps<{ userId: string }>();
 const ARR_ROLE_HEADER = [

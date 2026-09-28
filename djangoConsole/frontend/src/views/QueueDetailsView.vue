@@ -287,7 +287,7 @@ import type {
   QueueItemsResponse,
   QueueMutationResponse,
 } from "../api/generated/browserApi";
-import { formatDateTime } from "../app/navigation";
+import { formatDateTime } from "../app/formatters";
 
 const props = defineProps<{ queueId: string }>();
 const route = useRoute();

@@ -161,7 +161,7 @@ import { useSessionStore } from "../stores/sessionStore";
 import { type ApiError, getApiError } from "../api/errors";
 import { getMemberList } from "../api/members";
 import type { UserResponse, MemberListResponse } from "../api/generated/browserApi";
-import { formatDateTime } from "../app/navigation";
+import { formatDateTime } from "../app/formatters";
 
 const sessionStore = useSessionStore();
 const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");

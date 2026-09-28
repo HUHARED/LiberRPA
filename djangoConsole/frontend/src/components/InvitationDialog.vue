@@ -164,7 +164,7 @@ import {
   getDeliveryLabel,
 } from "../api/invitations";
 import type { InvitationResponse } from "../api/generated/browserApi";
-import { formatDateTime } from "../app/navigation";
+import { formatDateTime } from "../app/formatters";
 
 const props = defineProps<{ invitationId: string; action: "view" | "resend" | "revoke" }>();
 const emit = defineEmits<{ close: []; updated: [invitation: InvitationResponse] }>();

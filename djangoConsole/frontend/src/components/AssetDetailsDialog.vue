@@ -165,7 +165,7 @@ import type {
   AssetDetailsEntryResponse,
   AssetDetailsResponse,
 } from "../api/generated/browserApi";
-import { formatDateTime } from "../app/navigation";
+import { formatDateTime } from "../app/formatters";
 
 const props = defineProps<{ assetId: string }>();
 const emit = defineEmits<{ updated: []; deleted: [] }>();

@@ -123,7 +123,7 @@ import { useRetryDelay } from "../composables/useRetryDelay";
 import { type ApiError, getApiError } from "../api/errors";
 import { createApiKey } from "../api/apiKeys";
 import type { ApiKeyResponse } from "../api/generated/browserApi";
-import { formatDateTimeInput } from "../app/navigation";
+import { formatDateTimeInput } from "../app/formatters";
 
 const props = defineProps<{ defaultExpiresAt: string; activeKeyLimit: number }>();
 const emit = defineEmits<{ close: []; refresh: []; created: [apiKey: ApiKeyResponse] }>();

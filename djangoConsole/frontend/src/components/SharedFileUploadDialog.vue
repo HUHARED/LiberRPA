@@ -86,17 +86,17 @@ import type { SubmitEventPromise } from "vuetify";
 
 import { useSessionStore } from "../stores/sessionStore";
 
+import { formatFileSize } from "../app/formatters";
 import { validatePathName } from "../app/validators";
 
 import { ApiError, getApiError } from "../api/errors";
 import {
-  appendSharedChunk,
-  createSharedUpload,
+  sha256,
   fileRequestIdentity,
   finishFileRequest,
+  createSharedUpload,
+  appendSharedChunk,
   finishSharedUpload,
-  formatFileSize,
-  sha256,
 } from "../api/sharedFiles";
 import type { FileInfoResponse, FileUploadResponse } from "../api/generated/browserApi";
 

@@ -127,7 +127,7 @@ import { type ApiError, getApiError } from "../api/errors";
 import { getAuditDetails } from "../api/audit";
 import type { AuditDetailsRecordResponse } from "../api/generated/browserApi";
 import { AUDIT_CHANNEL_LABEL, formatAuditLabel } from "../app/audit";
-import { formatDateTime } from "../app/navigation";
+import { formatDateTime } from "../app/formatters";
 
 const props = defineProps<{ auditId: string }>();
 const emit = defineEmits<{ close: [] }>();

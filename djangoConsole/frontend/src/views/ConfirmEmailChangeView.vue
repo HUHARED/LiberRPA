@@ -74,7 +74,7 @@ import AuthLayout from "../layouts/AuthLayout.vue";
 
 import { useSessionStore } from "../stores/sessionStore";
 import { useRetryDelay } from "../composables/useRetryDelay";
-import { formatDateTime } from "../app/navigation";
+import { formatDateTime } from "../app/formatters";
 
 import { ApiError, getApiError } from "../api/errors";
 import { checkEmailChange, confirmEmailChange } from "../api/profile";

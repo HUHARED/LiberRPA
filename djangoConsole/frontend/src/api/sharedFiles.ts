@@ -56,12 +56,6 @@ function uploadResult(value: unknown): FileUploadResponse {
     return invalidResponse();
   return value as unknown as FileUploadResponse;
 }
-export function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KiB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MiB`;
-  return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GiB`;
-}
 export async function sha256(data: Blob | Uint8Array<ArrayBuffer>): Promise<string> {
   const bytes = data instanceof Blob ? await data.arrayBuffer() : data;
   return Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)), (value) =>

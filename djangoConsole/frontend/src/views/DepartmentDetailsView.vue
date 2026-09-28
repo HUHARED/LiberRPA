@@ -225,7 +225,7 @@ import type {
   DepartmentListEntryResponse,
   DepartmentRecordResponse,
 } from "../api/generated/browserApi";
-import { formatDateTime } from "../app/navigation";
+import { formatDateTime } from "../app/formatters";
 
 const props = defineProps<{ departmentId: string }>();
 const ARR_MEMBER_HEADER = [

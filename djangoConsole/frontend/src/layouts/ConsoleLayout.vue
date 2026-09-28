@@ -121,7 +121,7 @@ import { useSessionStore } from "../stores/sessionStore";
 import { usePreferencesStore } from "../stores/preferencesStore";
 
 import { type ApiError, getApiError } from "../api/errors";
-import { getDisplayName, getAvatarInitial } from "../app/navigation";
+import { getDisplayName } from "../app/formatters";
 
 const ARR_NAVIGATION = [
   { title: "Overview", icon: "mdi-chart-box-outline", path: "/overview" },
@@ -165,11 +165,8 @@ const strDisplayName = computed(() =>
     sessionStore.session?.user.email ?? "",
   ),
 );
-const strAvatarInitial = computed(() =>
-  getAvatarInitial(
-    sessionStore.session?.user.username ?? "",
-    sessionStore.session?.user.email ?? "",
-  ),
+const strAvatarInitial = computed(
+  () => Array.from(strDisplayName.value.trim())[0]?.toLocaleUpperCase() ?? "?",
 );
 watch(boolDesktop, (desktop) => {
   boolDrawerOpen.value = desktop;
