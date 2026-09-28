@@ -22,7 +22,7 @@ import type {
   JsonValueInput as JsonValue,
 } from "./generated/browserApi";
 
-const ROOT = "/data-queues/";
+const API_ROOT = "/data-queues/";
 export const QUEUE_STATUSES = [
   { title: "All", value: "all" },
   { title: "Unclaimed", value: "unclaimed" },
@@ -65,7 +65,7 @@ function isItem(value: unknown): value is QueueItemResponse {
     (value.last_claimed_at === null || typeof value.last_claimed_at === "string")
   );
 }
-function details(payload: unknown): QueueDetailsResponse {
+function parseQueueDetailsResponse(payload: unknown): QueueDetailsResponse {
   if (!isRecord(payload) || !isQueue(payload.queue)) return rejectInvalidResponse();
   return { queue: payload.queue };
 }
@@ -76,7 +76,7 @@ export async function getQueues(
 ): Promise<QueueListResponse> {
   const query = new URLSearchParams({ name, page: String(page) });
   departments.forEach((id) => query.append("department_id", id));
-  const result = await requestApi(`${ROOT}?${query}`);
+  const result = await requestApi(`${API_ROOT}?${query}`);
   if (!isRecord(result) || !Array.isArray(result.queues) || !result.queues.every(isQueue))
     return rejectInvalidResponse();
   return {
@@ -89,8 +89,8 @@ export async function saveQueue(
   body: QueueCreationRequest | QueueDetailsRequest,
   id?: string,
 ): Promise<QueueDetailsResponse> {
-  return details(
-    await requestApi(id ? `${ROOT}${encodeURIComponent(id)}/` : ROOT, {
+  return parseQueueDetailsResponse(
+    await requestApi(id ? `${API_ROOT}${encodeURIComponent(id)}/` : API_ROOT, {
       method: "POST",
       body,
     }),
@@ -105,7 +105,7 @@ export async function getQueueItems(
 ): Promise<QueueItemsResponse> {
   const query = new URLSearchParams({ status, order, page: String(page) });
   if (itemId) query.set("item_id", itemId);
-  const result = await requestApi(`${ROOT}${encodeURIComponent(id)}/items/?${query}`);
+  const result = await requestApi(`${API_ROOT}${encodeURIComponent(id)}/items/?${query}`);
   if (
     !isRecord(result) ||
     !isQueue(result.queue) ||
@@ -125,13 +125,13 @@ export async function getQueueItem(
   itemId: string,
 ): Promise<QueueItemDetailsResponse> {
   const result = await requestApi(
-    `${ROOT}${encodeURIComponent(queueId)}/items/${encodeURIComponent(itemId)}/`,
+    `${API_ROOT}${encodeURIComponent(queueId)}/items/${encodeURIComponent(itemId)}/`,
   );
   if (!isItem(result) || !("data" in result)) return rejectInvalidResponse();
   return result as QueueItemDetailsResponse;
 }
 export async function deleteQueue(id: string): Promise<void> {
-  const result = await requestApi(`${ROOT}${encodeURIComponent(id)}/deletion/`, {
+  const result = await requestApi(`${API_ROOT}${encodeURIComponent(id)}/deletion/`, {
     method: "POST",
     body: {},
   });
@@ -165,7 +165,7 @@ export async function changeQueueItems(
   const requestBody = { ...body, request_id: requestId };
   if (new TextEncoder().encode(JSON.stringify(requestBody)).length > 2 * 1024 * 1024)
     throw new ApiError("The complete request exceeds 2 MiB. Reduce this batch.");
-  const result = await requestApi(`${ROOT}${encodeURIComponent(queueId)}/${action}/`, {
+  const result = await requestApi(`${API_ROOT}${encodeURIComponent(queueId)}/${action}/`, {
     method: "POST",
     body: requestBody,
   });

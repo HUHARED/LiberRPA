@@ -22,7 +22,7 @@ from organizations.permissions import (
     OrganizationAccessContext,
     get_authorized_departments,
 )
-from organizations.validators import path_name_key
+from organizations.validators import get_path_name_key
 
 from .contracts import (
     UPLOAD_CHUNK_BYTES,
@@ -66,7 +66,7 @@ def resolve_file(
     department = resolve_department_path(pathParts[:-1], departmentsById)
     require_file_department_access(access, department.pk)
     file = SharedFile.objects.select_related("blob").get(
-        department=department, name_key=path_name_key(pathParts[-1])
+        department=department, name_key=get_path_name_key(pathParts[-1])
     )
     return file, "/" + get_department_path(department, departmentsById)
 
@@ -82,7 +82,7 @@ def get_file_list(
     departmentPath = "/" + get_department_path(department, departmentsById)
     query = SharedFile.objects.filter(department=department).select_related("blob")
     if payload.name:
-        query = query.filter(name_key__contains=path_name_key(payload.name))
+        query = query.filter(name_key__contains=get_path_name_key(payload.name))
     orderField = {
         "name": "name_key",
         "size": "blob__size_bytes",

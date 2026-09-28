@@ -69,7 +69,7 @@ export async function readQueueFile(file: File): Promise<QueueImportSource> {
   throw new Error("Choose an XLSX, XLS, CSV, TSV, TXT, JSON, or JSONL file.");
 }
 
-function sheetRange(sheet: WorkSheet): Range {
+function parseWorksheetRange(sheet: WorkSheet): Range {
   const fullRange: unknown = sheet["!fullref"];
   const range = utils.decode_range(
     typeof fullRange === "string" ? fullRange : (sheet["!ref"] ?? "A1"),
@@ -86,7 +86,7 @@ export function getQueueColumns(
 ): { title: string; value: number }[] {
   const sheet = source.workbook?.Sheets[worksheet];
   if (!sheet) return [];
-  const range = sheetRange(sheet);
+  const range = parseWorksheetRange(sheet);
   return Array.from({ length: range.e.c - range.s.c + 1 }, (_, offset) => {
     const column = range.s.c + offset;
     const cell = sheet[utils.encode_cell({ r: range.s.r, c: column })] as
@@ -145,7 +145,7 @@ export function convertQueueFile(
   } else {
     const sheet = source.workbook?.Sheets[options.worksheet];
     if (!sheet) throw new Error("Select a worksheet and column.");
-    const range = sheetRange(sheet);
+    const range = parseWorksheetRange(sheet);
     if (options.column === null) throw new Error("Select a worksheet and column.");
     for (let row = range.s.r + (options.header ? 1 : 0); row <= range.e.r; row += 1) {
       const address = utils.encode_cell({ r: row, c: options.column });

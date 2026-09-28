@@ -38,7 +38,7 @@ from organizations.permissions import (
     OrganizationAccessContext,
     get_authorized_departments,
 )
-from organizations.validators import path_name_key
+from organizations.validators import get_path_name_key
 
 from .contracts import (
     FileUploadRequest,
@@ -60,7 +60,7 @@ from .cleanup import expire_uploads
 _UPLOAD_LIFETIME_HOURS = 24
 
 
-def _digest_request(payload: object) -> str:
+def _get_request_digest(payload: object) -> str:
     return hashlib.sha256(
         json.dumps(
             payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")
@@ -68,7 +68,7 @@ def _digest_request(payload: object) -> str:
     ).hexdigest()
 
 
-def _check_receipt_capacity(access: OrganizationAccessContext) -> None:
+def _prune_receipts_and_require_capacity(access: OrganizationAccessContext) -> None:
     cutoff = timezone.now() - timedelta(
         days=settings.CONSOLE_LIMITS.fileReceiptRetentionDays
     )
@@ -96,8 +96,8 @@ def create_upload(
     pathParts: tuple[str, ...],
 ) -> UploadSession:
     """Reserve storage after the caller locks current access and parses the path."""
-    requestDigest = _digest_request({
-        "path": [path_name_key(part) for part in pathParts],
+    requestDigest = _get_request_digest({
+        "path": [get_path_name_key(part) for part in pathParts],
         "size": payload.size_bytes,
         "sha256": payload.sha256,
         "overwrite": payload.overwrite,
@@ -125,7 +125,7 @@ def create_upload(
     if (
         not payload.overwrite
         and SharedFile.objects.filter(
-            department=department, name_key=path_name_key(pathParts[-1])
+            department=department, name_key=get_path_name_key(pathParts[-1])
         ).exists()
     ):
         raise FileOperationError(
@@ -133,7 +133,7 @@ def create_upload(
             "A file with this name already exists. Enable Overwrite Existing File to replace it.",
         )
     expire_uploads(access.organization.pk)
-    _check_receipt_capacity(access)
+    _prune_receipts_and_require_capacity(access)
     require_transfer_slot(access.organization.pk)
     lock_storage()
     usage = get_storage_usage(access.organization.pk)
@@ -268,7 +268,7 @@ def complete_upload(
         actualSize = os.fstat(handle.fileno()).st_size
     sync_directory(path.parent)
     existing = SharedFile.objects.filter(
-        department_id=upload.department_id, name_key=path_name_key(upload.name)
+        department_id=upload.department_id, name_key=get_path_name_key(upload.name)
     ).first()
     failure = None
     if actualSize != upload.size_bytes or digest != upload.sha256:
@@ -296,7 +296,7 @@ def complete_upload(
     file = SharedFile.objects.create(
         department_id=upload.department_id,
         name=upload.name,
-        name_key=path_name_key(upload.name),
+        name_key=get_path_name_key(upload.name),
         blob_id=upload.blob_id,
         uploaded_by_id=access.actorId,
         uploaded_by_name=str(access.actor),
@@ -328,8 +328,10 @@ def delete_files(
     payload: FileDeleteRequest,
     paths: list[tuple[str, ...]],
 ) -> FileDeleteResponse:
-    normalized = {tuple(path_name_key(part) for part in parts): parts for parts in paths}
-    requestDigest = _digest_request(sorted(normalized))
+    normalized = {
+        tuple(get_path_name_key(part) for part in parts): parts for parts in paths
+    }
+    requestDigest = _get_request_digest(sorted(normalized))
     receipt = FileDeletionReceipt.objects.filter(
         organization=access.organization,
         actor_id=access.actorId,
@@ -360,13 +362,13 @@ def delete_files(
     # Authorize the whole batch before checking any file's existence or changing anything.
     if not {department.pk for department, _ in targets} <= allowedDepartmentIds:
         raise PermissionDenied("The department is unavailable.")
-    _check_receipt_capacity(access)
+    _prune_receipts_and_require_capacity(access)
     deletedPaths: list[str] = []
     missingPaths: list[str] = []
     for department, name in targets:
         departmentPath = "/" + get_department_path(department, departmentsById)
         file = SharedFile.objects.filter(
-            department=department, name_key=path_name_key(name)
+            department=department, name_key=get_path_name_key(name)
         ).first()
         if file is None:
             missingPaths.append(f"{departmentPath}/{name}")

@@ -91,9 +91,9 @@ import { validatePathName } from "../app/validators";
 
 import { ApiError, getApiError } from "../api/errors";
 import {
-  sha256,
-  fileRequestIdentity,
-  finishFileRequest,
+  getSha256,
+  getOrCreateFileRequestIdentity,
+  clearFileRequestIdentity,
   createSharedUpload,
   appendSharedChunk,
   finishSharedUpload,
@@ -125,7 +125,7 @@ const allowed = computed(
       (department) => `/${department.path}` === props.departmentPath,
     ),
 );
-let identity: Awaited<ReturnType<typeof fileRequestIdentity>> | null = null;
+let identity: Awaited<ReturnType<typeof getOrCreateFileRequestIdentity>> | null = null;
 let alive = true;
 function selectFile(): void {
   name.value = file.value?.name ?? "";
@@ -142,7 +142,7 @@ function saved(result: FileUploadResponse): void {
   if (result.state !== "completed" || !result.file)
     throw new ApiError("The upload is not complete. Retry to check its status.");
   upload.value = result;
-  if (identity) finishFileRequest(identity);
+  if (identity) clearFileRequestIdentity(identity);
   if (alive) emit("saved", result.file);
 }
 async function cancelKnownUpload(): Promise<void> {
@@ -154,7 +154,7 @@ async function cancelKnownUpload(): Promise<void> {
     }
     if (!["canceled", "expired", "failed"].includes(result.state))
       throw new ApiError("Cancellation is not confirmed. Try again.");
-    if (identity) finishFileRequest(identity);
+    if (identity) clearFileRequestIdentity(identity);
   }
   // An unknown create result keeps its identity for a later retry with the same file.
   if (alive) emit("close");
@@ -187,11 +187,15 @@ async function submit(event: SubmitEventPromise): Promise<void> {
     const body = {
       path: path.value,
       size_bytes: source.size,
-      sha256: await sha256(source),
+      sha256: await getSha256(source),
       overwrite: overwrite.value,
     };
     if (!alive || cancelRequested.value) return;
-    identity = await fileRequestIdentity(session.session!.user.id, "upload", body);
+    identity = await getOrCreateFileRequestIdentity(
+      session.session!.user.id,
+      "upload",
+      body,
+    );
     if (!alive || cancelRequested.value) return;
     upload.value = await createSharedUpload({ ...body, request_id: identity.requestId });
     if (!alive || cancelRequested.value) return;

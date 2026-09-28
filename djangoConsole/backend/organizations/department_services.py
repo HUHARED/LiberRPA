@@ -14,7 +14,7 @@ from console_project.config import LimitsConfig
 from operations.audit import get_audit_snapshot, record_audit
 
 from .models import Organization, Department
-from .validators import path_name_key, normalize_path_name
+from .validators import get_path_name_key, normalize_path_name
 from .permissions import AccessChannel, lock_organization_admin_access
 
 # NOTE: Department writes require the caller's transaction through response construction.
@@ -44,7 +44,7 @@ def _prepare_department_values(department: Department) -> None:
         department.name = normalize_path_name(department.name)
     except ValidationError as e:
         raise ValidationError({"name": e}) from None
-    department.name_key = path_name_key(department.name)
+    department.name_key = get_path_name_key(department.name)
     # The name and related objects are already validated; constraints are checked once before saving.
     department.full_clean(
         exclude=["name", "organization", "parent"],

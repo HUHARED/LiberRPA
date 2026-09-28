@@ -21,7 +21,7 @@ from organizations.department_queries import (
     get_department_path,
 )
 from organizations.models import DepartmentRole
-from organizations.validators import path_name_key
+from organizations.validators import get_path_name_key
 from organizations.permissions import (
     AccessChannel,
     OrganizationAccessContext,
@@ -74,7 +74,7 @@ def resolve_queue_path(
     # Resolving a department path never grants access to its queues.
     return get_queue_query(access).get(
         department_id=department.pk,
-        name_key=path_name_key(pathParts[-1]),
+        name_key=get_path_name_key(pathParts[-1]),
     )
 
 
@@ -129,7 +129,7 @@ def get_queue_list(
     if departmentIds:
         query = query.filter(department_id__in=departmentIds)
     if name:
-        query = query.filter(name_key__contains=path_name_key(name))
+        query = query.filter(name_key__contains=get_path_name_key(name))
     page = Paginator(query.order_by("name_key", "id"), 50).page(pageNumber)
     return QueueListResponse(
         queues=build_queue_payloads(list(page.object_list), access),

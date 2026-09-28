@@ -33,7 +33,7 @@ def validate_path_segment(segmentName: str) -> None:
         )
 
 
-def path_name_key(value: str) -> str:
+def get_path_name_key(value: str) -> str:
     """Build the canonical caseless key without changing the display name."""
     # NOTE: Persisted name keys and request digests use this rule; changes require an explicit data migration.
     return unicodedata.normalize("NFD", unicodedata.normalize("NFD", value).casefold())

@@ -14,16 +14,17 @@ import type {
   FileUploadResponse,
 } from "./generated/browserApi";
 
-const ROOT = "/shared-files/";
+const API_ROOT = "/shared-files/";
 const UPLOAD_STATES = ["receiving", "completed", "failed", "expired", "canceled"];
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-function invalidResponse(): never {
+const UUID_V4_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+function rejectInvalidFileResponse(): never {
   throw new ApiError(
     "The service returned an unexpected response. Retry to check the same operation.",
     { code: "invalid_response" },
   );
 }
-function isFile(value: unknown): value is FileInfoResponse {
+function isFileInfoResponse(value: unknown): value is FileInfoResponse {
   return (
     isRecord(value) &&
     typeof value.path === "string" &&
@@ -36,11 +37,11 @@ function isFile(value: unknown): value is FileInfoResponse {
     typeof value.uploaded_at === "string"
   );
 }
-function uploadResult(value: unknown): FileUploadResponse {
+function parseFileUploadResponse(value: unknown): FileUploadResponse {
   if (
     !isRecord(value) ||
     typeof value.upload_id !== "string" ||
-    !UUID.test(value.upload_id) ||
+    !UUID_V4_PATTERN.test(value.upload_id) ||
     !UPLOAD_STATES.includes(String(value.state)) ||
     !isNonnegativeInteger(value.offset) ||
     !isNonnegativeInteger(value.size_bytes) ||
@@ -49,39 +50,42 @@ function uploadResult(value: unknown): FileUploadResponse {
     value.chunk_bytes < 1 ||
     value.chunk_bytes > 4 * 1024 * 1024 ||
     typeof value.expires_at !== "string" ||
-    !(value.file === null || isFile(value.file)) ||
+    !(value.file === null || isFileInfoResponse(value.file)) ||
     (value.state === "completed" && value.file === null)
   )
-    return invalidResponse();
+    return rejectInvalidFileResponse();
   return value as unknown as FileUploadResponse;
 }
-export async function sha256(data: Blob | Uint8Array<ArrayBuffer>): Promise<string> {
+export async function getSha256(data: Blob | Uint8Array<ArrayBuffer>): Promise<string> {
   const bytes = data instanceof Blob ? await data.arrayBuffer() : data;
   return Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)), (value) =>
     value.toString(16).padStart(2, "0"),
   ).join("");
 }
-export async function fileRequestIdentity(
+export async function getOrCreateFileRequestIdentity(
   userId: string,
   action: "upload" | "delete",
   body: object,
 ): Promise<{ key: string; requestId: string }> {
-  const digest = await sha256(new TextEncoder().encode(JSON.stringify(body)));
+  const digest = await getSha256(new TextEncoder().encode(JSON.stringify(body)));
   const key = `file-request:${userId}:${action}:${digest}`;
   const requestId = sessionStorage.getItem(key) ?? crypto.randomUUID();
   sessionStorage.setItem(key, requestId);
   return { key, requestId };
 }
-export function finishFileRequest(identity: { key: string; requestId: string }): void {
+export function clearFileRequestIdentity(identity: {
+  key: string;
+  requestId: string;
+}): void {
   if (sessionStorage.getItem(identity.key) === identity.requestId)
     sessionStorage.removeItem(identity.key);
 }
 export async function getSharedFiles(body: FileListRequest): Promise<FileListResponse> {
-  const value = await requestApi(`${ROOT}list/`, { method: "POST", body });
+  const value = await requestApi(`${API_ROOT}list/`, { method: "POST", body });
   if (
     !isRecord(value) ||
     !Array.isArray(value.files) ||
-    !value.files.every(isFile) ||
+    !value.files.every(isFileInfoResponse) ||
     typeof value.department_path !== "string" ||
     !isRecord(value.usage) ||
     ![
@@ -99,34 +103,39 @@ export async function getSharedFiles(body: FileListRequest): Promise<FileListRes
     value.total_pages === 0 ||
     value.page_size !== 100
   )
-    return invalidResponse();
+    return rejectInvalidFileResponse();
   return value as unknown as FileListResponse;
 }
 export async function createSharedUpload(
   body: FileUploadRequest,
 ): Promise<FileUploadResponse> {
-  return uploadResult(await requestApi(`${ROOT}uploads/`, { method: "POST", body }));
+  return parseFileUploadResponse(
+    await requestApi(`${API_ROOT}uploads/`, { method: "POST", body }),
+  );
 }
 export async function appendSharedChunk(
-  id: string,
+  uploadId: string,
   offset: number,
-  data: Blob,
+  chunk: Blob,
 ): Promise<FileUploadResponse> {
-  return uploadResult(
-    await requestApi(`${ROOT}uploads/${encodeURIComponent(id)}/chunks/${offset}/`, {
-      method: "PUT",
-      body: data,
-      headers: { "X-Chunk-SHA256": await sha256(data) },
-      timeoutMs: 120000,
-    }),
+  return parseFileUploadResponse(
+    await requestApi(
+      `${API_ROOT}uploads/${encodeURIComponent(uploadId)}/chunks/${offset}/`,
+      {
+        method: "PUT",
+        body: chunk,
+        headers: { "X-Chunk-SHA256": await getSha256(chunk) },
+        timeoutMs: 120000,
+      },
+    ),
   );
 }
 export async function finishSharedUpload(
-  id: string,
+  uploadId: string,
   action: "complete" | "cancel",
 ): Promise<FileUploadResponse> {
-  return uploadResult(
-    await requestApi(`${ROOT}uploads/${encodeURIComponent(id)}/${action}/`, {
+  return parseFileUploadResponse(
+    await requestApi(`${API_ROOT}uploads/${encodeURIComponent(uploadId)}/${action}/`, {
       method: "POST",
       body: {},
       timeoutMs: 120000,
@@ -138,8 +147,8 @@ export async function deleteSharedFiles(
   paths: string[],
 ): Promise<FileDeleteResponse> {
   const body = { paths: [...paths].sort() };
-  const identity = await fileRequestIdentity(userId, "delete", body);
-  const result = await requestApi(`${ROOT}deletion/`, {
+  const identity = await getOrCreateFileRequestIdentity(userId, "delete", body);
+  const result = await requestApi(`${API_ROOT}deletion/`, {
     method: "POST",
     body: { ...body, request_id: identity.requestId },
   });
@@ -153,32 +162,32 @@ export async function deleteSharedFiles(
     !result.missing_paths.every((path) => typeof path === "string") ||
     result.deleted_count !== result.deleted_paths.length
   )
-    return invalidResponse();
-  finishFileRequest(identity);
+    return rejectInvalidFileResponse();
+  clearFileRequestIdentity(identity);
   return result as unknown as FileDeleteResponse;
 }
 export async function downloadSharedFile(path: string): Promise<void> {
-  const result = await requestApi(`${ROOT}downloads/`, {
+  const result = await requestApi(`${API_ROOT}downloads/`, {
     method: "POST",
     body: { path },
   });
   if (
     !isRecord(result) ||
     typeof result.transfer_id !== "string" ||
-    !UUID.test(result.transfer_id) ||
+    !UUID_V4_PATTERN.test(result.transfer_id) ||
     typeof result.expires_at !== "string" ||
-    !isFile(result.file)
+    !isFileInfoResponse(result.file)
   )
-    return invalidResponse();
+    return rejectInvalidFileResponse();
   const transfer = result as unknown as FileDownloadResponse;
   const data = await requestApi(
-    `${ROOT}downloads/${encodeURIComponent(transfer.transfer_id)}/`,
+    `${API_ROOT}downloads/${encodeURIComponent(transfer.transfer_id)}/`,
     { responseType: "blob", timeoutMs: 300000 },
   );
   if (
     !(data instanceof Blob) ||
     data.size !== transfer.file.size_bytes ||
-    (await sha256(data)) !== transfer.file.sha256
+    (await getSha256(data)) !== transfer.file.sha256
   )
     throw new ApiError(
       "The downloaded file failed its integrity check. Download it again.",

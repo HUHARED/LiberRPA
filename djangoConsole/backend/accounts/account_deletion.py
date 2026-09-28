@@ -42,7 +42,7 @@ class AccountDeletionInfo:
         return not self.isLastOrgAdmin
 
 
-def _get_account_deletion_context(
+def _resolve_account_deletion_access(
     actorId: uuid.UUID,
     channel: AccessChannel,
     userId: uuid.UUID,
@@ -71,7 +71,7 @@ def _get_account_deletion_context(
     return access, membership
 
 
-def _get_account_deletion_info(membership: Membership) -> AccountDeletionInfo:
+def _build_account_deletion_info(membership: Membership) -> AccountDeletionInfo:
     user = cast(User, membership.user)
     isLastOrgAdmin = (
         membership.is_org_admin
@@ -92,10 +92,10 @@ def get_account_deletion_info(
     *, actorId: uuid.UUID, channel: AccessChannel, userId: uuid.UUID
 ) -> AccountDeletionInfo:
     """Preview account deletion without authorizing a later write or checking a password."""
-    _, membership = _get_account_deletion_context(
+    _, membership = _resolve_account_deletion_access(
         actorId, channel, userId, forUpdate=False
     )
-    return _get_account_deletion_info(membership)
+    return _build_account_deletion_info(membership)
 
 
 @sensitive_variables()
@@ -113,7 +113,7 @@ def delete_account(
     actorId, channel, and sessionAuthHash come from verified server-side authentication.
     The HTTP caller checks session expiry and logs out self-deletion in the same transaction.
     """
-    access, membership = _get_account_deletion_context(
+    access, membership = _resolve_account_deletion_access(
         actorId, channel, userId, forUpdate=True
     )
     actor = access.actor
@@ -128,7 +128,7 @@ def delete_account(
                 "The current password is incorrect.", code="incorrect_password"
             )
         })
-    if not _get_account_deletion_info(membership).canDelete:
+    if not _build_account_deletion_info(membership).canDelete:
         raise ValidationError(
             "The organization must retain at least one active administrator.",
             code="last_org_admin",

@@ -14,7 +14,7 @@ from django.db.models.functions import Substr
 
 from organizations.department_queries import get_department_tree, get_department_path
 from organizations.models import DepartmentRole
-from organizations.validators import path_name_key
+from organizations.validators import get_path_name_key
 from organizations.permissions import (
     OrganizationAccessContext,
     get_authorized_departments,
@@ -51,7 +51,7 @@ def get_asset_list(
     if departmentIds:
         assets = assets.filter(department_id__in=departmentIds)
     if name:
-        assets = assets.filter(name_key__contains=path_name_key(name))
+        assets = assets.filter(name_key__contains=get_path_name_key(name))
     if assetTypes:
         assets = assets.filter(asset_type__in=assetTypes)
     # Fetch only the preview; neither complete values nor ciphertext belong in a list query.

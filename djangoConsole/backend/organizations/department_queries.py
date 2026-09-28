@@ -9,7 +9,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 
 from .models import Department, DepartmentRole, DepartmentMembership
-from .validators import path_name_key
+from .validators import get_path_name_key
 from .permissions import (
     AccessChannel,
     resolve_organization_access,
@@ -54,7 +54,7 @@ def resolve_department_path(
     parentId = None
     department = None
     for part in pathParts:
-        partKey = path_name_key(part)
+        partKey = get_path_name_key(part)
         matches = [
             entry
             for entry in departmentsById.values()
@@ -117,7 +117,7 @@ def get_department_list(
     return sorted(
         listDepartmentInfo,
         key=lambda departmentInfo: (
-            path_name_key(departmentInfo.path),
+            get_path_name_key(departmentInfo.path),
             departmentInfo.id,
         ),
     )
