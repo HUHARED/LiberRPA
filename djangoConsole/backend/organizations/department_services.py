@@ -9,7 +9,6 @@ from typing import cast
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.db import transaction
 
 from console_project.config import LimitsConfig
 from operations.audit import get_audit_snapshot, record_audit
@@ -18,8 +17,9 @@ from .models import Organization, Department
 from .validators import path_name_key, normalize_path_name
 from .permissions import AccessChannel, lock_organization_admin_access
 
+# NOTE: Department writes require the caller's transaction through response construction.
 
-@transaction.atomic
+
 def create_department(
     *,
     actorId: uuid.UUID,
@@ -50,7 +50,6 @@ def create_department(
     return department
 
 
-@transaction.atomic
 def update_department(
     *,
     actorId: uuid.UUID,

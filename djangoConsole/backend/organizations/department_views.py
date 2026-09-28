@@ -4,14 +4,17 @@ __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
+import logging
 import uuid
 from typing import cast
 
 from django.core.exceptions import ImproperlyConfigured, PermissionDenied, ValidationError
-from django.db import DatabaseError
+from django.db import DatabaseError, transaction
 from django.http import HttpRequest, JsonResponse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods
+from pydantic import ValidationError as ContractValidationError
+from pydantic_core import PydanticSerializationError
 
 from accounts.models import User
 from console_project.http import (
@@ -45,6 +48,7 @@ from .department_deletion import (
     delete_department,
 )
 
+_LOGGER = logging.getLogger("console.departments")
 _INT_MAX_DEPARTMENT_BODY_BYTES = 32 * 1024
 
 
@@ -67,15 +71,16 @@ def list_or_create_departments(request: HttpRequest) -> JsonResponse:
             )
             if isinstance(departmentRequest, JsonResponse):
                 return departmentRequest
-            department = create_department(
-                actorId=user.id,
-                organizationId=membership.organization_id,
-                channel=AccessChannel.SESSION,
-                name=departmentRequest.name,
-                parentId=departmentRequest.parent_id,
-                notes=departmentRequest.notes,
-            )
-            return _build_saved_department_response(department, statusCode=201)
+            with transaction.atomic():
+                department = create_department(
+                    actorId=user.id,
+                    organizationId=membership.organization_id,
+                    channel=AccessChannel.SESSION,
+                    name=departmentRequest.name,
+                    parentId=departmentRequest.parent_id,
+                    notes=departmentRequest.notes,
+                )
+                return _build_saved_department_response(department, statusCode=201)
 
         listDepartmentInfo = get_department_list(
             actorId=user.id,
@@ -101,6 +106,8 @@ def list_or_create_departments(request: HttpRequest) -> JsonResponse:
             "Department administration is unavailable.",
             statusCode=403,
         )
+    except (ContractValidationError, PydanticSerializationError):
+        return _build_department_response_error()
     except (ImproperlyConfigured, DatabaseError):
         return build_service_unavailable_response()
 
@@ -126,16 +133,17 @@ def get_or_update_department(
             )
             if isinstance(departmentRequest, JsonResponse):
                 return departmentRequest
-            department = update_department(
-                actorId=user.id,
-                organizationId=membership.organization_id,
-                channel=AccessChannel.SESSION,
-                departmentId=departmentId,
-                name=departmentRequest.name,
-                parentId=departmentRequest.parent_id,
-                notes=departmentRequest.notes,
-            )
-            return _build_saved_department_response(department, statusCode=200)
+            with transaction.atomic():
+                department = update_department(
+                    actorId=user.id,
+                    organizationId=membership.organization_id,
+                    channel=AccessChannel.SESSION,
+                    departmentId=departmentId,
+                    name=departmentRequest.name,
+                    parentId=departmentRequest.parent_id,
+                    notes=departmentRequest.notes,
+                )
+                return _build_saved_department_response(department, statusCode=200)
 
         detailsInfo = get_department_details(
             actorId=user.id,
@@ -174,6 +182,8 @@ def get_or_update_department(
             "Department administration is unavailable.",
             statusCode=403,
         )
+    except (ContractValidationError, PydanticSerializationError):
+        return _build_department_response_error()
     except (ImproperlyConfigured, DatabaseError):
         return build_service_unavailable_response()
 
@@ -211,21 +221,37 @@ def get_or_delete_department(
             deletionRequest = parse_json_request(request, DepartmentDeletionRequest)
             if isinstance(deletionRequest, JsonResponse):
                 return deletionRequest
-            department = delete_department(
-                actorId=user.id,
-                organizationId=membership.organization_id,
-                channel=AccessChannel.SESSION,
-                departmentId=departmentId,
-            )
-            return JsonResponse(
-                DepartmentDeletionResponse.model_validate({
-                    "department": {
-                        "id": department.id,
-                        "name": department.name,
-                        "deleted_at": department.deleted_at,
-                    }
-                }).model_dump(mode="python")
-            )
+            try:
+                with transaction.atomic():
+                    department = delete_department(
+                        actorId=user.id,
+                        organizationId=membership.organization_id,
+                        channel=AccessChannel.SESSION,
+                        departmentId=departmentId,
+                    )
+                    return JsonResponse(
+                        DepartmentDeletionResponse.model_validate({
+                            "department": {
+                                "id": department.id,
+                                "name": department.name,
+                                "deleted_at": department.deleted_at,
+                            }
+                        }).model_dump(mode="python")
+                    )
+            except DepartmentDeletionBlockedError as e:
+                return JsonResponse(
+                    {
+                        **build_deletion_payload(e.deletionInfo),
+                        "error": {
+                            "code": "department_deletion_blocked",
+                            "message": (
+                                "Remove the remaining dependencies "
+                                "before deleting this department."
+                            ),
+                        },
+                    },
+                    status=409,
+                )
 
         deletionInfo = get_department_deletion_info(
             actorId=user.id,
@@ -234,20 +260,6 @@ def get_or_delete_department(
             departmentId=departmentId,
         )
         return JsonResponse(build_deletion_payload(deletionInfo))
-    except DepartmentDeletionBlockedError as e:
-        return JsonResponse(
-            {
-                **build_deletion_payload(e.deletionInfo),
-                "error": {
-                    "code": "department_deletion_blocked",
-                    "message": (
-                        "Remove the remaining dependencies "
-                        "before deleting this department."
-                    ),
-                },
-            },
-            status=409,
-        )
     except Department.DoesNotExist:
         return build_error_response(
             "department_not_found", "Department not found or unavailable.", statusCode=404
@@ -258,6 +270,8 @@ def get_or_delete_department(
             "Department administration is unavailable.",
             statusCode=403,
         )
+    except (ContractValidationError, PydanticSerializationError):
+        return _build_department_response_error()
     except (ImproperlyConfigured, DatabaseError):
         return build_service_unavailable_response()
 
@@ -275,7 +289,7 @@ def _build_department_payload(departmentInfo: DepartmentInfo) -> dict[str, objec
 def _build_saved_department_response(
     department: Department, *, statusCode: int
 ) -> JsonResponse:
-    # Return the saved fields without additional queries after the write commits.
+    # Serialize the saved fields without additional queries, still inside the caller's transaction.
     return JsonResponse(
         DepartmentWriteResponse.model_validate({
             "department": {
@@ -323,4 +337,13 @@ def _build_department_validation_response(
         strErrorCode,
         " ".join(validationError.messages),
         statusCode=409 if strErrorCode == "department_count_limit" else 400,
+    )
+
+
+def _build_department_response_error() -> JsonResponse:
+    _LOGGER.exception("Could not build a valid department response.")
+    return build_error_response(
+        "internal_server_error",
+        "The service could not build a valid response.",
+        statusCode=500,
     )

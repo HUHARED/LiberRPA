@@ -8,7 +8,6 @@ import uuid
 from dataclasses import dataclass
 from typing import Literal
 
-from django.db import transaction
 from django.utils import timezone
 
 from executors.models import Executor, ExecutorGroup
@@ -72,7 +71,6 @@ def get_department_deletion_info(
     return _build_department_deletion_info(department)
 
 
-@transaction.atomic
 def delete_department(
     *,
     actorId: uuid.UUID,
@@ -82,8 +80,8 @@ def delete_department(
 ) -> Department:
     """Delete an empty department while preserving its identity and historical links.
 
-    Recheck current permission and dependencies inside the same organization lock used
-    by department and membership writes. A previous preview grants no deletion rights.
+    The caller owns the transaction through response construction.
+    Recheck current permission and dependencies under the organization lock; a previous preview grants no deletion rights.
     """
     access, department = _resolve_department_deletion_access(
         actorId, organizationId, channel, departmentId, forUpdate=True
