@@ -9,7 +9,6 @@ from typing import cast
 from urllib.parse import urlencode
 
 from django.conf import settings
-from django.core.exceptions import ImproperlyConfigured
 from django.core.mail import EmailMessage
 from django.views.decorators.debug import sensitive_variables
 
@@ -21,9 +20,7 @@ from .invitations import InvitationDeliveryInfo
 @sensitive_variables()
 def build_invitation_email(deliveryInfo: InvitationDeliveryInfo) -> EmailMessage:
     """Build one private message without contacting SMTP or exposing the token to an administrator."""
-    consoleUrl = cast(str | None, settings.CONSOLE_URL)
-    if consoleUrl is None:
-        raise ImproperlyConfigured("Configure Console email before inviting members.")
+    consoleUrl = cast(str, settings.CONSOLE_URL)
     # NOTE: Use only the configured origin; fragments stay out of initial HTTP access logs.
     invitationUrl = (
         f"{consoleUrl}/create-account/#{urlencode({'token': deliveryInfo.token})}"
@@ -53,11 +50,7 @@ def build_organization_deletion_notice(delivery: EmailDelivery) -> EmailMessage:
     """Build a historical completion notice using only the committed deletion snapshot."""
     if delivery.email_type != EmailType.ORGANIZATION_DELETION_NOTICE:
         raise ValueError("An organization deletion notice delivery is required.")
-    consoleUrl = cast(str | None, settings.CONSOLE_URL)
-    if consoleUrl is None:
-        raise ImproperlyConfigured(
-            "Configure consoleUrl, supportEmail, and smtp in Console.jsonc before preparing email."
-        )
+    consoleUrl = cast(str, settings.CONSOLE_URL)
     notice = OrganizationDeletionNotice.objects.get(delivery_id=delivery.id)
     completedAtText = delivery.created_at.astimezone(UTC).strftime(
         "%Y-%m-%d %H:%M:%S UTC"

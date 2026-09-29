@@ -7,7 +7,6 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 import logging
 from threading import Event
 
-from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.core.management.base import BaseCommand, CommandError, CommandParser
 from django.db import DatabaseError
@@ -41,11 +40,6 @@ class Command(BaseCommand):
         )
 
     def handle(self, *_args: object, **options: object) -> None:
-        if settings.CONSOLE_URL is None:
-            raise CommandError(
-                "Configure consoleUrl, supportEmail, and smtp in Console.jsonc before starting the email worker."
-            )
-
         boolRunOnce = bool(options["once"])
         stopEvent = Event()
         try:

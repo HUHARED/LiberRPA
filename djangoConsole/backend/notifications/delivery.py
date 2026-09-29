@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from typing import cast
 
 from django.conf import settings
-from django.core.exceptions import ImproperlyConfigured, PermissionDenied, ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.mail import EmailMessage
 from django.db import transaction
 from django.utils import timezone
@@ -100,11 +100,6 @@ def prepare_email(deliveryId: uuid.UUID) -> EmailPreparationResult:
     A message grants one immediate attempt; retryAt schedules only an unattempted request.
     This function does not contact SMTP or recover an earlier Sending request.
     """
-    if settings.CONSOLE_URL is None:
-        raise ImproperlyConfigured(
-            "Configure consoleUrl, supportEmail, and smtp in Console.jsonc before preparing email."
-        )
-
     delivery = EmailDelivery.objects.select_for_update().get(pk=deliveryId)
     if delivery.email_type not in EmailType.values:
         raise ValueError("Unsupported email type.")

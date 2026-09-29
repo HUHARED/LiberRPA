@@ -16,7 +16,7 @@ from typing import cast
 
 from django.conf import settings
 from django.contrib.auth.hashers import check_password
-from django.core.exceptions import ImproperlyConfigured, PermissionDenied, ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, transaction
 from django.db.models import EmailField
 from django.utils import timezone
@@ -177,10 +177,6 @@ def request_email_change(
         raise ValidationError({"new_email": "Enter a different email address."})
     if User.objects.filter(email=newEmail).exists():
         raise _build_email_unavailable_error()
-    if settings.CONSOLE_URL is None:
-        raise ImproperlyConfigured(
-            "Configure consoleUrl, supportEmail, and smtp in Console.jsonc before requesting email."
-        )
 
     # The account lock serializes this cursor; never lock old deliveries in this order.
     previousRequest = (

@@ -36,36 +36,31 @@ CONSOLE_SECRET_CIPHER = read_secret_cipher(
 )
 CONSOLE_LOG_REQUESTS = _CONSOLE_CONFIG.logging.requests
 LOGGING = build_logging_config(_CONSOLE_CONFIG.logging.level)
-CONSOLE_URL = (
-    str(_CONSOLE_CONFIG.consoleUrl).rstrip("/") if _CONSOLE_CONFIG.consoleUrl else None
-)
+CONSOLE_URL = str(_CONSOLE_CONFIG.consoleUrl).rstrip("/")
 CONSOLE_SUPPORT_EMAIL = _CONSOLE_CONFIG.supportEmail
 
-# An empty MAILERS configuration prevents fallback to an unintended local SMTP server.
-MAILERS = {}
-if _CONSOLE_CONFIG.smtp is not None:
-    DEFAULT_FROM_EMAIL = str(
-        Address(
-            display_name=_CONSOLE_CONFIG.smtp.fromName,
-            addr_spec=_CONSOLE_CONFIG.smtp.fromEmail,
-        )
+DEFAULT_FROM_EMAIL = str(
+    Address(
+        display_name=_CONSOLE_CONFIG.smtp.fromName,
+        addr_spec=_CONSOLE_CONFIG.smtp.fromEmail,
     )
-    MAILERS = {
-        "default": {
-            "BACKEND": "django.core.mail.backends.smtp.EmailBackend",
-            "OPTIONS": {
-                "host": _CONSOLE_CONFIG.smtp.host,
-                "port": _CONSOLE_CONFIG.smtp.port,
-                "username": _CONSOLE_CONFIG.smtp.user,
-                "password": read_secret_file(
-                    _PATH_CONFIG.parent / _CONSOLE_CONFIG.smtp.passwordFile
-                ),
-                "use_ssl": _CONSOLE_CONFIG.smtp.security == "ssl",
-                "use_tls": _CONSOLE_CONFIG.smtp.security == "starttls",
-                "timeout": _CONSOLE_CONFIG.smtp.timeoutSeconds,
-            },
-        }
+)
+MAILERS = {
+    "default": {
+        "BACKEND": "django.core.mail.backends.smtp.EmailBackend",
+        "OPTIONS": {
+            "host": _CONSOLE_CONFIG.smtp.host,
+            "port": _CONSOLE_CONFIG.smtp.port,
+            "username": _CONSOLE_CONFIG.smtp.user,
+            "password": read_secret_file(
+                _PATH_CONFIG.parent / _CONSOLE_CONFIG.smtp.passwordFile
+            ),
+            "use_ssl": _CONSOLE_CONFIG.smtp.security == "ssl",
+            "use_tls": _CONSOLE_CONFIG.smtp.security == "starttls",
+            "timeout": _CONSOLE_CONFIG.smtp.timeoutSeconds,
+        },
     }
+}
 
 # Define the Console account before creating any database tables.
 INSTALLED_APPS = [
@@ -93,7 +88,7 @@ SESSION_SAVE_EVERY_REQUEST = False
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
 # Cookie transport follows the configured browser-facing URL, including local HTTP development.
-SESSION_COOKIE_SECURE = CONSOLE_URL is not None and CONSOLE_URL.startswith("https://")
+SESSION_COOKIE_SECURE = CONSOLE_URL.startswith("https://")
 CSRF_COOKIE_SECURE = SESSION_COOKIE_SECURE
 CSRF_FAILURE_VIEW = "console_project.http.csrf_failure"
 # New-password entry points also enforce length in validate_new_password().

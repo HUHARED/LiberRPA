@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from typing import cast
 
 from django.conf import settings
-from django.core.exceptions import ImproperlyConfigured, ValidationError
+from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 from django.views.decorators.debug import sensitive_variables
@@ -73,10 +73,6 @@ def request_registration_email(email: str) -> None:
     The HTTP adapter must apply source-based request limits and give a generic response.
     The worker issues the token only when preparing the first delivery attempt.
     """
-    if settings.CONSOLE_URL is None:
-        raise ImproperlyConfigured(
-            "Configure consoleUrl, supportEmail, and smtp in Console.jsonc before requesting email."
-        )
     delivery = EmailDelivery(
         email_type=EmailType.ORGANIZATION_REGISTRATION,
         recipient=UserManager.normalize_email(email),

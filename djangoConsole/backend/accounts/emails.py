@@ -9,7 +9,6 @@ from typing import cast
 from urllib.parse import urlencode
 
 from django.conf import settings
-from django.core.exceptions import ImproperlyConfigured
 from django.core.mail import EmailMessage
 from django.views.decorators.debug import sensitive_variables
 
@@ -20,15 +19,6 @@ from .password_resets import PasswordResetTokenDeliveryInfo
 from .email_changes import EmailChangeTokenDeliveryInfo
 
 
-def _get_console_url() -> str:
-    consoleUrl = cast(str | None, settings.CONSOLE_URL)
-    if consoleUrl is None:
-        raise ImproperlyConfigured(
-            "Configure consoleUrl, supportEmail, and smtp in Console.jsonc before preparing email."
-        )
-    return consoleUrl
-
-
 @sensitive_variables()
 def build_registration_email(deliveryInfo: RegistrationTokenDeliveryInfo) -> EmailMessage:
     """Build a private message from an issued token without sending it or accessing the database.
@@ -36,7 +26,7 @@ def build_registration_email(deliveryInfo: RegistrationTokenDeliveryInfo) -> Ema
     The delivery process owns current eligibility, budgets, one SMTP attempt, and result recording.
     The caller must not log or return the message body to an anonymous requesting client.
     """
-    consoleUrl = _get_console_url()
+    consoleUrl = cast(str, settings.CONSOLE_URL)
 
     # Use the configured origin; an incoming request must not choose the email link's host.
     # The browser keeps the fragment out of the initial page request and HTTP access logs.
@@ -70,7 +60,7 @@ def build_password_reset_email(
     deliveryInfo: PasswordResetTokenDeliveryInfo,
 ) -> EmailMessage:
     """Build the private recovery message; delivery and retry rules belong to the worker."""
-    consoleUrl = _get_console_url()
+    consoleUrl = cast(str, settings.CONSOLE_URL)
     # Keep the token in the fragment and use the configured origin, never the request host.
     resetUrl = f"{consoleUrl}/reset-password/#{urlencode({'token': deliveryInfo.token})}"
     expiresAtText = deliveryInfo.expiresAt.astimezone(UTC).strftime(
@@ -101,7 +91,7 @@ def build_email_change_verification(
     deliveryInfo: EmailChangeTokenDeliveryInfo,
 ) -> EmailMessage:
     """Build a private confirmation link for the exact address authorized by the account owner."""
-    consoleUrl = _get_console_url()
+    consoleUrl = cast(str, settings.CONSOLE_URL)
     # The configured origin and URL fragment keep the token out of request-host input and access logs.
     confirmationUrl = (
         f"{consoleUrl}/confirm-email-change/#{urlencode({'token': deliveryInfo.token})}"
@@ -134,7 +124,7 @@ def build_email_change_notice(delivery: EmailDelivery) -> EmailMessage:
     """Describe a committed change using its original recipient and event time."""
     if delivery.email_type != EmailType.EMAIL_CHANGE_NOTICE:
         raise ValueError("An email change notice delivery is required.")
-    consoleUrl = _get_console_url()
+    consoleUrl = cast(str, settings.CONSOLE_URL)
     changedAtText = delivery.created_at.astimezone(UTC).strftime("%Y-%m-%d %H:%M:%S UTC")
     # This is a historical notice, so later email changes, account deletion, or organization freezes do not suppress it.
     emailBody = (

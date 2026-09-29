@@ -31,27 +31,21 @@
     "passwordFile": "secrets/database-password.txt"
   },
 
-  // Configure these three fields together before using email.
-  // null keeps email unavailable during backend development.
+  // Required email settings. Replace the example addresses and SMTP host.
   // consoleUrl is the browser-facing site root, not the internal listening address.
   // Use HTTPS; HTTP is accepted only for localhost, 127.0.0.1, or [::1].
-  "consoleUrl": null,
-  "supportEmail": null,
-  "smtp": null,
-
-  // Example values for the fields above; replace the addresses and SMTP host.
-  // "consoleUrl": "https://console.example.com/",
-  // "supportEmail": "support@example.com",
-  // "smtp": {
-  //     "host": "smtp.example.com",
-  //     "port": 465,
-  //     "security": "ssl", // "ssl" for implicit TLS, or "starttls" for STARTTLS.
-  //     "user": "notifications@example.com",
-  //     "passwordFile": "secrets/smtp-password.txt",
-  //     "fromEmail": "notifications@example.com",
-  //     "fromName": "LiberRPA Console",
-  //     "timeoutSeconds": 10
-  // },
+  "consoleUrl": "http://127.0.0.1:5173",
+  "supportEmail": "support@example.com",
+  "smtp": {
+    "host": "smtp.example.com",
+    "port": 465,
+    "security": "ssl", // "ssl" for implicit TLS, or "starttls" for STARTTLS.
+    "user": "notifications@example.com",
+    "passwordFile": "secrets/smtp-password.txt",
+    "fromEmail": "notifications@example.com",
+    "fromName": "LiberRPA Console",
+    "timeoutSeconds": 10
+  },
 
   // Optional deployment limits. Omitted values use defaults.
   "limits": {

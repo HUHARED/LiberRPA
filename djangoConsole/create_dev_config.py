@@ -28,6 +28,9 @@ def main() -> None:
     databasePassword = getpass("Development database password: ")
     if not databasePassword.strip():
         raise ValueError("The development database password must not be empty.")
+    smtpPassword = getpass("Development SMTP password: ")
+    if not smtpPassword.strip():
+        raise ValueError("The development SMTP password must not be empty.")
 
     pathLocal.mkdir(mode=0o700)
     pathSecrets = pathLocal / "secrets"
@@ -37,6 +40,7 @@ def main() -> None:
         pathSecrets / "encryption-key.txt", Fernet.generate_key().decode("ascii")
     )
     _write_secret_file(pathSecrets / "database-password.txt", databasePassword)
+    _write_secret_file(pathSecrets / "smtp-password.txt", smtpPassword)
     copyfile(pathConsole / "Console.example.jsonc", pathLocal / "Console.jsonc")
     print(f"Created local development configuration: {pathLocal / 'Console.jsonc'}")
 

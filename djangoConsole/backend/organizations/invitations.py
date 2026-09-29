@@ -15,7 +15,7 @@ from datetime import datetime, timedelta
 from typing import cast
 
 from django.conf import settings
-from django.core.exceptions import ImproperlyConfigured, ValidationError
+from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.db.models import QuerySet
 from django.utils import timezone
@@ -131,11 +131,6 @@ def _get_invitation_roles(
     }
 
 
-def _require_email_configuration() -> None:
-    if settings.CONSOLE_URL is None:
-        raise ImproperlyConfigured("Configure Console email before inviting members.")
-
-
 def _require_recipient_cooldown(organizationId: uuid.UUID, email: str) -> None:
     previousInvitation = (
         MemberInvitation.objects
@@ -178,7 +173,6 @@ def create_member_invitation(
 ) -> MemberInvitation:
     access = lock_organization_admin_access(actorId, organizationId, channel)
     organization = access.organization
-    _require_email_configuration()
     requestedAt = timezone.now()
     invitation = MemberInvitation(
         organization=organization,
@@ -236,7 +230,6 @@ def resend_member_invitation(
         raise InvitationConflictError(
             "invitation_closed", "This invitation is already closed."
         )
-    _require_email_configuration()
     _require_unregistered_email(invitation.email)
     _validate_department_roles(organization.id, _get_invitation_roles(invitation))
     if (

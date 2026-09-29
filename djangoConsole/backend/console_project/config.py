@@ -5,7 +5,7 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from pathlib import Path
-from typing import Annotated, Literal, Self
+from typing import Annotated, Literal
 
 import json5
 from cryptography.fernet import Fernet, MultiFernet
@@ -21,7 +21,6 @@ from pydantic import (
     StringConstraints,
     ValidationError,
     field_validator,
-    model_validator,
 )
 
 type NonEmptyText = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
@@ -153,16 +152,13 @@ class ConsoleConfig(_BaseConfig):
     database: DatabaseConfig
     limits: LimitsConfig = Field(default_factory=LimitsConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
-    # These may be absent during backend development; configure all three before sending mail.
-    consoleUrl: HttpUrl | None = None
-    supportEmail: EmailAddress | None = None
-    smtp: SmtpConfig | None = None
+    consoleUrl: HttpUrl
+    supportEmail: EmailAddress
+    smtp: SmtpConfig
 
     @field_validator("consoleUrl")
     @classmethod
-    def validate_console_url(cls, consoleUrl: HttpUrl | None) -> HttpUrl | None:
-        if consoleUrl is None:
-            return None
+    def validate_console_url(cls, consoleUrl: HttpUrl) -> HttpUrl:
         if (
             consoleUrl.username is not None
             or consoleUrl.password is not None
@@ -182,17 +178,6 @@ class ConsoleConfig(_BaseConfig):
                 "Console URL must use HTTPS, except on the local loopback host."
             )
         return consoleUrl
-
-    @model_validator(mode="after")
-    def validate_email_configuration(self) -> Self:
-        emailConfigurationFlags = (
-            self.consoleUrl is not None,
-            self.supportEmail is not None,
-            self.smtp is not None,
-        )
-        if any(emailConfigurationFlags) and not all(emailConfigurationFlags):
-            raise ValueError("Configure consoleUrl, supportEmail, and smtp together.")
-        return self
 
 
 def read_config(configPath: Path) -> ConsoleConfig:

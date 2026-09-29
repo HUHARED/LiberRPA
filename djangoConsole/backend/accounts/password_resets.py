@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from typing import cast
 
 from django.conf import settings
-from django.core.exceptions import ImproperlyConfigured, PermissionDenied, ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.utils import timezone
 from django.utils.crypto import constant_time_compare, salted_hmac
@@ -116,10 +116,6 @@ def request_password_reset_email(email: str) -> None:
     The HTTP adapter applies source limits and returns the same response for unknown,
     inactive, unusable-password, cooldown, and accepted addresses.
     """
-    if settings.CONSOLE_URL is None:
-        raise ImproperlyConfigured(
-            "Configure consoleUrl, supportEmail, and smtp in Console.jsonc before requesting email."
-        )
     delivery = EmailDelivery(
         email_type=EmailType.PASSWORD_RESET,
         recipient=UserManager.normalize_email(email),
