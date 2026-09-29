@@ -38,7 +38,7 @@ from .contracts import (
     QueueClaimedItemResponse,
     QueueMutationResponse,
 )
-from .models import DataQueue, QueueItem, QueueReceipt
+from .models import DataQueue, QueueItem, QueueOperation, QueueReceipt
 from .queries import get_queue_query, resolve_queue_path, select_items
 
 
@@ -136,7 +136,7 @@ def _mutate_items(
     queueReference: uuid.UUID | str,
     payload: QueueMutationRequest,
     *,
-    operation: str,
+    operation: QueueOperation,
     applyChange: Callable[[DataQueue, QueueMutationResponse], None],
     apiKeyId: uuid.UUID | None,
 ) -> QueueMutationResponse:
@@ -180,7 +180,7 @@ def _mutate_items(
         result = QueueMutationResponse.model_validate(
             receipt.result, strict=False
         ).model_copy(update={"deduplicated": True})
-        if operation == "claim":
+        if operation == QueueOperation.CLAIM:
             dataById = dict(
                 QueueItem.objects.filter(
                     queue_id=receipt.queue_id,
@@ -313,7 +313,7 @@ def upload_items(
         access,
         queueReference,
         payload,
-        operation="upload",
+        operation=QueueOperation.UPLOAD,
         applyChange=apply_upload,
         apiKeyId=apiKeyId,
     )
@@ -373,7 +373,7 @@ def claim_items(
         access,
         queueReference,
         payload,
-        operation="claim",
+        operation=QueueOperation.CLAIM,
         applyChange=apply_claim,
         apiKeyId=apiKeyId,
     )
@@ -416,7 +416,7 @@ def reset_items(
         access,
         queueReference,
         payload,
-        operation="reset",
+        operation=QueueOperation.RESET,
         applyChange=apply_reset,
         apiKeyId=apiKeyId,
     )
@@ -456,7 +456,7 @@ def delete_items(
         access,
         queueReference,
         payload,
-        operation="delete_items",
+        operation=QueueOperation.DELETE_ITEMS,
         applyChange=apply_delete,
         apiKeyId=apiKeyId,
     )

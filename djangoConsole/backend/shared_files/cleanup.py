@@ -9,27 +9,29 @@ import uuid
 from django.db import transaction
 from django.utils import timezone
 
-from file_storage.models import StoredBlob
+from file_storage.models import StoredBlobPurpose, StoredBlobState, StoredBlob
 from organizations.models import Organization
 
-from .models import SharedFile, UploadSession
+from .models import SharedFile, UploadState, UploadSession
 
 
 def expire_uploads(organizationId: uuid.UUID) -> None:
     """Retire expired uploads under the organization lock; physical cleanup runs separately."""
     uploads = UploadSession.objects.filter(
-        organization_id=organizationId, state="receiving", expires_at__lte=timezone.now()
+        organization_id=organizationId,
+        state=UploadState.RECEIVING,
+        expires_at__lte=timezone.now(),
     )
     StoredBlob.objects.filter(pk__in=uploads.values("blob_id")).update(
-        state=StoredBlob.State.GARBAGE
+        state=StoredBlobState.GARBAGE
     )
-    uploads.update(state="expired")
+    uploads.update(state=UploadState.EXPIRED)
 
 
 def cleanup_uploads(limit: int = 200) -> None:
     organizationIds = set(
         UploadSession.objects
-        .filter(state="receiving", expires_at__lte=timezone.now())
+        .filter(state=UploadState.RECEIVING, expires_at__lte=timezone.now())
         .order_by("expires_at")
         .values_list("organization_id", flat=True)[:limit]
     )
@@ -51,8 +53,8 @@ def prepare_organization_file_cleanup(organizationId: uuid.UUID) -> None:
         raise RuntimeError("Organization deletion has not started.")
     SharedFile.objects.filter(department__organization_id=organizationId).delete()
     UploadSession.objects.filter(
-        organization_id=organizationId, state="receiving"
-    ).update(state="canceled")
+        organization_id=organizationId, state=UploadState.RECEIVING
+    ).update(state=UploadState.CANCELED)
     StoredBlob.objects.filter(
-        organization_id=organizationId, purpose="shared_file"
-    ).update(state=StoredBlob.State.GARBAGE)
+        organization_id=organizationId, purpose=StoredBlobPurpose.SHARED_FILE
+    ).update(state=StoredBlobState.GARBAGE)

@@ -32,6 +32,44 @@ class EmailStatus(models.TextChoices):
     UNKNOWN = "unknown", "Unknown"
 
 
+class EmailReasonCode(models.TextChoices):
+    NONE = "", "No reason"
+    SMTP_BUDGET_EXHAUSTED = "smtp_budget_exhausted", "SMTP budget exhausted"
+    ORGANIZATION_CREATION_DISABLED = (
+        "organization_creation_disabled",
+        "Organization creation disabled",
+    )
+    REGISTRATION_NOT_ELIGIBLE = "registration_not_eligible", "Registration not eligible"
+    ORGANIZATION_UNAVAILABLE = "organization_unavailable", "Organization unavailable"
+    MEMBER_LIMIT_REACHED = "member_limit_reached", "Member limit reached"
+    EMAIL_ALREADY_REGISTERED = "email_already_registered", "Email already registered"
+    INVITATION_NOT_ELIGIBLE = "invitation_not_eligible", "Invitation not eligible"
+    INVITATION_SUPERSEDED = "invitation_superseded", "Invitation superseded"
+    PASSWORD_RESET_NOT_ELIGIBLE = (
+        "password_reset_not_eligible",
+        "Password reset not eligible",
+    )
+    EMAIL_CHANGE_NOT_ELIGIBLE = "email_change_not_eligible", "Email change not eligible"
+    DELETION_NOTICE_MISSING = "deletion_notice_missing", "Deletion notice missing"
+    SMTP_AUTHENTICATION_FAILED = (
+        "smtp_authentication_failed",
+        "SMTP authentication failed",
+    )
+    SMTP_NOT_SUPPORTED = "smtp_not_supported", "SMTP not supported"
+    SMTP_TLS_FAILED = "smtp_tls_failed", "SMTP TLS failed"
+    SMTP_CONFIGURATION_INVALID = (
+        "smtp_configuration_invalid",
+        "SMTP configuration invalid",
+    )
+    SMTP_CONNECTION_FAILED = "smtp_connection_failed", "SMTP connection failed"
+    SMTP_REJECTED = "smtp_rejected", "SMTP rejected"
+    EMAIL_MESSAGE_INVALID = "email_message_invalid", "Email message invalid"
+    SMTP_RESULT_UNKNOWN = "smtp_result_unknown", "SMTP result unknown"
+    SMTP_NOT_ACCEPTED = "smtp_not_accepted", "SMTP not accepted"
+    EMAIL_WORKER_INTERRUPTED = "email_worker_interrupted", "Email worker interrupted"
+    ORGANIZATION_DELETED = "organization_deleted", "Organization deleted"
+
+
 class EmailDispatchState(models.Model):
     """Shared SMTP rate allowance; the row lock also serializes budget reservations."""
 
@@ -69,7 +107,12 @@ class EmailDelivery(models.Model):
     attempted_at = models.DateTimeField(null=True, blank=True, editable=False)
     finished_at = models.DateTimeField(null=True, blank=True, editable=False)
     # Store a controlled reason code, never an SMTP reply, message body, or traceback.
-    reason_code = models.CharField(max_length=64, blank=True, default="")
+    reason_code = models.CharField(
+        max_length=64,
+        choices=EmailReasonCode.choices,
+        blank=True,
+        default=EmailReasonCode.NONE,
+    )
 
     class Meta:
         indexes = [
@@ -120,6 +163,10 @@ class EmailDelivery(models.Model):
                 name="email_delivery_type_valid",
             ),
             models.CheckConstraint(
+                condition=models.Q(reason_code__in=EmailReasonCode.values),
+                name="email_delivery_reason_valid",
+            ),
+            models.CheckConstraint(
                 condition=models.Q(recipient=Lower(Trim("recipient")))
                 & ~models.Q(recipient=""),
                 name="email_delivery_recipient_canonical",
@@ -146,19 +193,19 @@ class EmailDelivery(models.Model):
                         status=EmailStatus.PENDING,
                         attempted_at__isnull=True,
                         finished_at__isnull=True,
-                        reason_code="",
+                        reason_code=EmailReasonCode.NONE,
                     )
                     | models.Q(
                         status=EmailStatus.SENDING,
                         attempted_at__isnull=False,
                         finished_at__isnull=True,
-                        reason_code="",
+                        reason_code=EmailReasonCode.NONE,
                     )
                     | models.Q(
                         status=EmailStatus.ACCEPTED,
                         attempted_at__isnull=False,
                         finished_at__isnull=False,
-                        reason_code="",
+                        reason_code=EmailReasonCode.NONE,
                     )
                     | (
                         models.Q(
@@ -166,7 +213,7 @@ class EmailDelivery(models.Model):
                             attempted_at__isnull=False,
                             finished_at__isnull=False,
                         )
-                        & ~models.Q(reason_code="")
+                        & ~models.Q(reason_code=EmailReasonCode.NONE)
                     )
                     | (
                         models.Q(
@@ -174,7 +221,7 @@ class EmailDelivery(models.Model):
                             attempted_at__isnull=True,
                             finished_at__isnull=False,
                         )
-                        & ~models.Q(reason_code="")
+                        & ~models.Q(reason_code=EmailReasonCode.NONE)
                     )
                 ),
                 name="email_delivery_state_consistent",

@@ -31,6 +31,7 @@ from .models import (
     DepartmentMembership,
     DepartmentRole,
     InvitationDepartmentRole,
+    InvitationStatus,
     MemberInvitation,
     Membership,
     Organization,
@@ -75,12 +76,16 @@ def get_pending_invitations(organizationId: uuid.UUID) -> QuerySet[MemberInvitat
     )
 
 
-def get_invitation_status(invitation: MemberInvitation) -> str:
+def get_invitation_status(invitation: MemberInvitation) -> InvitationStatus:
     if invitation.accepted_at is not None:
-        return "accepted"
+        return InvitationStatus.ACCEPTED
     if invitation.revoked_at is not None:
-        return "revoked"
-    return "pending" if invitation.expires_at > timezone.now() else "expired"
+        return InvitationStatus.REVOKED
+    return (
+        InvitationStatus.PENDING
+        if invitation.expires_at > timezone.now()
+        else InvitationStatus.EXPIRED
+    )
 
 
 def _require_member_capacity(
@@ -296,7 +301,7 @@ def revoke_member_invitation(
 
 
 def _require_invitation_pending(invitation: MemberInvitation) -> None:
-    if get_invitation_status(invitation) != "pending":
+    if get_invitation_status(invitation) != InvitationStatus.PENDING:
         raise ValidationError(
             "The invitation link is invalid or expired.", code="invalid_invitation_token"
         )

@@ -34,10 +34,11 @@ from organizations.emails import (
 )
 
 from .models import (
-    EmailDelivery,
-    EmailDispatchState,
-    EmailStatus,
     EmailType,
+    EmailStatus,
+    EmailReasonCode,
+    EmailDispatchState,
+    EmailDelivery,
     OrganizationDeletionNotice,
 )
 from .smtp import send_smtp_once
@@ -81,7 +82,7 @@ def _refill_email_allowance(
 
 
 def _mark_email_not_sent(
-    delivery: EmailDelivery, *, reasonCode: str
+    delivery: EmailDelivery, *, reasonCode: EmailReasonCode
 ) -> EmailPreparationResult:
     """Finish a locked pending request without reserving a recipient unit."""
     delivery.status = EmailStatus.NOT_SENT
@@ -121,7 +122,9 @@ def prepare_email(deliveryId: uuid.UUID) -> EmailPreparationResult:
         attempted_at__gt=currentTime - _EMAIL_BUDGET_WINDOW
     ).count()
     if usedUnits >= limits.maxEmailRecipientsPer24Hours:
-        return _mark_email_not_sent(delivery, reasonCode="smtp_budget_exhausted")
+        return _mark_email_not_sent(
+            delivery, reasonCode=EmailReasonCode.SMTP_BUDGET_EXHAUSTED
+        )
 
     _refill_email_allowance(dispatchState, currentTime=currentTime, limits=limits)
     if dispatchState.available_units == 0:
@@ -140,11 +143,11 @@ def prepare_email(deliveryId: uuid.UUID) -> EmailPreparationResult:
                 )
             except PermissionDenied:
                 return _mark_email_not_sent(
-                    delivery, reasonCode="organization_creation_disabled"
+                    delivery, reasonCode=EmailReasonCode.ORGANIZATION_CREATION_DISABLED
                 )
             if registrationTokenDeliveryInfo is None:
                 return _mark_email_not_sent(
-                    delivery, reasonCode="registration_not_eligible"
+                    delivery, reasonCode=EmailReasonCode.REGISTRATION_NOT_ELIGIBLE
                 )
             emailMessage = build_registration_email(registrationTokenDeliveryInfo)
         case EmailType.MEMBER_INVITATION:
@@ -152,29 +155,33 @@ def prepare_email(deliveryId: uuid.UUID) -> EmailPreparationResult:
                 invitationDeliveryInfo = issue_invitation_token(delivery)
             except PermissionDenied:
                 return _mark_email_not_sent(
-                    delivery, reasonCode="organization_unavailable"
+                    delivery, reasonCode=EmailReasonCode.ORGANIZATION_UNAVAILABLE
                 )
             except InvitationConflictError as e:
-                return _mark_email_not_sent(delivery, reasonCode=e.errorCode)
+                return _mark_email_not_sent(
+                    delivery, reasonCode=EmailReasonCode(e.errorCode)
+                )
             except (ValidationError, MemberInvitation.DoesNotExist):
                 return _mark_email_not_sent(
-                    delivery, reasonCode="invitation_not_eligible"
+                    delivery, reasonCode=EmailReasonCode.INVITATION_NOT_ELIGIBLE
                 )
             if invitationDeliveryInfo is None:
-                return _mark_email_not_sent(delivery, reasonCode="invitation_superseded")
+                return _mark_email_not_sent(
+                    delivery, reasonCode=EmailReasonCode.INVITATION_SUPERSEDED
+                )
             emailMessage = build_invitation_email(invitationDeliveryInfo)
         case EmailType.PASSWORD_RESET:
             resetDeliveryInfo = issue_password_reset_token(delivery)
             if resetDeliveryInfo is None:
                 return _mark_email_not_sent(
-                    delivery, reasonCode="password_reset_not_eligible"
+                    delivery, reasonCode=EmailReasonCode.PASSWORD_RESET_NOT_ELIGIBLE
                 )
             emailMessage = build_password_reset_email(resetDeliveryInfo)
         case EmailType.EMAIL_CHANGE_VERIFICATION:
             changeDeliveryInfo = issue_email_change_token(delivery)
             if changeDeliveryInfo is None:
                 return _mark_email_not_sent(
-                    delivery, reasonCode="email_change_not_eligible"
+                    delivery, reasonCode=EmailReasonCode.EMAIL_CHANGE_NOT_ELIGIBLE
                 )
             emailMessage = build_email_change_verification(changeDeliveryInfo)
         case EmailType.EMAIL_CHANGE_NOTICE:
@@ -184,7 +191,7 @@ def prepare_email(deliveryId: uuid.UUID) -> EmailPreparationResult:
                 emailMessage = build_organization_deletion_notice(delivery)
             except OrganizationDeletionNotice.DoesNotExist:
                 return _mark_email_not_sent(
-                    delivery, reasonCode="deletion_notice_missing"
+                    delivery, reasonCode=EmailReasonCode.DELETION_NOTICE_MISSING
                 )
         case _:
             raise ValueError("Unsupported email type.")

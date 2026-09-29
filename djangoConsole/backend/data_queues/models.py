@@ -96,12 +96,19 @@ class QueueItem(models.Model):
         ]
 
 
+class QueueOperation(models.TextChoices):
+    UPLOAD = "upload", "Upload"
+    CLAIM = "claim", "Claim"
+    RESET = "reset", "Reset"
+    DELETE_ITEMS = "delete_items", "Delete Items"
+
+
 class QueueReceipt(models.Model):
     organization = models.ForeignKey(
         "organizations.Organization", on_delete=models.CASCADE
     )
     actor_id = models.UUIDField()
-    operation = models.CharField(max_length=16)
+    operation = models.CharField(max_length=16, choices=QueueOperation.choices)
     request_id = models.UUIDField()
     request_digest = models.CharField(max_length=64)
     # Preserve original identities when a queue or department is removed and recreated.
@@ -115,7 +122,11 @@ class QueueReceipt(models.Model):
             models.UniqueConstraint(
                 fields=["organization", "actor_id", "operation", "request_id"],
                 name="queue_receipt_request_unique",
-            )
+            ),
+            models.CheckConstraint(
+                condition=models.Q(operation__in=QueueOperation.values),
+                name="queue_receipt_operation_valid",
+            ),
         ]
         indexes = [
             models.Index(

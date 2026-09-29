@@ -23,6 +23,7 @@ from operations.models import AuditScope, AuditRecord
 from notifications.models import (
     EmailType,
     EmailStatus,
+    EmailReasonCode,
     EmailDelivery,
     OrganizationDeletionNotice,
 )
@@ -135,7 +136,7 @@ def complete_organization_deletion(
     deliveries.filter(status=EmailStatus.PENDING).update(
         status=EmailStatus.NOT_SENT,
         finished_at=timezone.now(),
-        reason_code="organization_deleted",
+        reason_code=EmailReasonCode.ORGANIZATION_DELETED,
     )
     deliveries.update(invitation=None)
     MemberInvitation.objects.filter(organization_id=organizationId).delete()

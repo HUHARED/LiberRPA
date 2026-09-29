@@ -20,7 +20,7 @@ from django.utils import timezone
 
 from organizations.models import Organization
 
-from .models import StorageLock, StoredBlob, DownloadSession
+from .models import StorageLock, StoredBlobState, StoredBlob, DownloadSession
 
 _TRANSFER_LEASE_SECONDS = 120
 _LOGGER = logging.getLogger("console.file_storage")
@@ -67,7 +67,7 @@ def lock_storage() -> None:
 def check_disk_capacity(additionalBytes: int = 0) -> None:
     # Caller holds the volume lock. Only receiving blobs can grow; written bytes already reduce disk_usage.free.
     pendingBytes = (
-        StoredBlob.objects.filter(state=StoredBlob.State.RECEIVING).aggregate(
+        StoredBlob.objects.filter(state=StoredBlobState.RECEIVING).aggregate(
             value=Sum(F("size_bytes") - F("written_bytes"))
         )["value"]
         or 0
@@ -94,10 +94,10 @@ def get_storage_usage(organizationId: uuid.UUID) -> dict[str, int]:
         .annotate(total=Sum("size_bytes"))
     }
     return {
-        "used_bytes": totals.get(StoredBlob.State.AVAILABLE, 0)
-        + totals.get(StoredBlob.State.GARBAGE, 0),
-        "reserved_bytes": totals.get(StoredBlob.State.RECEIVING, 0),
-        "pending_cleanup_bytes": totals.get(StoredBlob.State.GARBAGE, 0),
+        "used_bytes": totals.get(StoredBlobState.AVAILABLE, 0)
+        + totals.get(StoredBlobState.GARBAGE, 0),
+        "reserved_bytes": totals.get(StoredBlobState.RECEIVING, 0),
+        "pending_cleanup_bytes": totals.get(StoredBlobState.GARBAGE, 0),
         "limit_bytes": settings.CONSOLE_LIMITS.maxStoredBytesPerOrganization,
     }
 
@@ -114,7 +114,7 @@ def require_transfer_slot(organizationId: uuid.UUID) -> None:
     expire_downloads(organizationId)
     transferCount = DownloadSession.objects.filter(organization_id=organizationId).count()
     transferCount += StoredBlob.objects.filter(
-        organization_id=organizationId, state=StoredBlob.State.RECEIVING
+        organization_id=organizationId, state=StoredBlobState.RECEIVING
     ).count()
     if transferCount >= settings.CONSOLE_LIMITS.maxActiveTransfersPerOrganization:
         raise FileOperationError(
@@ -159,7 +159,7 @@ def collect_blob(blobId: uuid.UUID, organizationId: uuid.UUID) -> bool:
     lock_storage()
     expire_downloads(organizationId)
     blob = StoredBlob.objects.filter(
-        pk=blobId, organization_id=organizationId, state=StoredBlob.State.GARBAGE
+        pk=blobId, organization_id=organizationId, state=StoredBlobState.GARBAGE
     ).first()
     if blob is None or DownloadSession.objects.filter(blob=blob).exists():
         return False
@@ -177,7 +177,7 @@ def clean_organization_storage(organizationId: uuid.UUID) -> bool:
     """Business owners must first retire their references and mark their blobs as garbage."""
     for blobId in (
         StoredBlob.objects
-        .filter(organization_id=organizationId, state=StoredBlob.State.GARBAGE)
+        .filter(organization_id=organizationId, state=StoredBlobState.GARBAGE)
         .values_list("pk", flat=True)
         .iterator()
     ):
@@ -205,7 +205,7 @@ def cleanup_storage(limit: int = 200) -> tuple[int, int]:
     deletedCount = failedCount = 0
     candidates = list(
         StoredBlob.objects
-        .filter(state=StoredBlob.State.GARBAGE)
+        .filter(state=StoredBlobState.GARBAGE)
         .order_by("created_at", "pk")
         .values_list("pk", "organization_id")[:limit]
     )

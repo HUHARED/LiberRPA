@@ -16,30 +16,47 @@ class StorageLock(models.Model):
     id = models.PositiveSmallIntegerField(primary_key=True, default=1)
 
 
+class StoredBlobPurpose(models.TextChoices):
+    SHARED_FILE = "shared_file", "Shared File"
+
+
+class StoredBlobState(models.TextChoices):
+    RECEIVING = "receiving", "Receiving"
+    AVAILABLE = "available", "Available"
+    GARBAGE = "garbage", "Pending cleanup"
+
+
 class StoredBlob(models.Model):
     organization_id: uuid.UUID
-
-    class State(models.TextChoices):
-        RECEIVING = "receiving", "Receiving"
-        AVAILABLE = "available", "Available"
-        GARBAGE = "garbage", "Pending cleanup"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     # PROTECT prevents quota and disk ownership from disappearing through a cascade.
     organization = models.ForeignKey(
         "organizations.Organization", on_delete=models.PROTECT
     )
-    purpose = models.CharField(max_length=24, default="shared_file")
+    purpose = models.CharField(
+        max_length=24,
+        choices=StoredBlobPurpose.choices,
+        default=StoredBlobPurpose.SHARED_FILE,
+    )
     size_bytes = models.PositiveBigIntegerField()
     written_bytes = models.PositiveBigIntegerField(default=0)
     sha256 = models.CharField(max_length=64)
     state = models.CharField(
-        max_length=10, choices=State.choices, default=State.RECEIVING
+        max_length=10, choices=StoredBlobState.choices, default=StoredBlobState.RECEIVING
     )
     created_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
         constraints = [
+            models.CheckConstraint(
+                condition=models.Q(purpose__in=StoredBlobPurpose.values),
+                name="blob_purpose_valid",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(state__in=StoredBlobState.values),
+                name="blob_state_valid",
+            ),
             models.CheckConstraint(
                 condition=models.Q(written_bytes__lte=models.F("size_bytes")),
                 name="blob_written_within_size",

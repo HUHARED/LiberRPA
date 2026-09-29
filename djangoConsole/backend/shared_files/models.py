@@ -31,6 +31,14 @@ class SharedFile(models.Model):
         ]
 
 
+class UploadState(models.TextChoices):
+    RECEIVING = "receiving", "Receiving"
+    COMPLETED = "completed", "Completed"
+    FAILED = "failed", "Failed"
+    EXPIRED = "expired", "Expired"
+    CANCELED = "canceled", "Canceled"
+
+
 class UploadSession(models.Model):
     organization_id: uuid.UUID
     blob_id: uuid.UUID | None
@@ -51,7 +59,9 @@ class UploadSession(models.Model):
     blob = models.OneToOneField(
         "file_storage.StoredBlob", null=True, on_delete=models.SET_NULL
     )
-    state = models.CharField(max_length=10, default="receiving")
+    state = models.CharField(
+        max_length=10, choices=UploadState.choices, default=UploadState.RECEIVING
+    )
     offset = models.PositiveBigIntegerField(default=0)
     result = models.JSONField(null=True)
     created_at = models.DateTimeField(default=timezone.now)
@@ -62,7 +72,11 @@ class UploadSession(models.Model):
             models.UniqueConstraint(
                 fields=["organization", "actor_id", "request_id"],
                 name="file_upload_request_unique",
-            )
+            ),
+            models.CheckConstraint(
+                condition=models.Q(state__in=UploadState.values),
+                name="file_upload_state_valid",
+            ),
         ]
         indexes = [
             models.Index(

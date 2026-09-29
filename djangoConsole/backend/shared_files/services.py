@@ -15,7 +15,12 @@ from django.conf import settings
 from django.core.exceptions import PermissionDenied
 from django.utils import timezone
 
-from file_storage.models import StoredBlob, DownloadSession
+from file_storage.models import (
+    StoredBlobPurpose,
+    StoredBlobState,
+    StoredBlob,
+    DownloadSession,
+)
 from file_storage.services import (
     FileOperationError,
     get_blob_path,
@@ -47,7 +52,13 @@ from .contracts import (
     FileDeleteResponse,
     FileDownloadResponse,
 )
-from .models import SharedFile, UploadSession, UploadChunk, FileDeletionReceipt
+from .models import (
+    SharedFile,
+    UploadState,
+    UploadSession,
+    UploadChunk,
+    FileDeletionReceipt,
+)
 from .queries import (
     require_file_department_access,
     build_file_payload,
@@ -75,7 +86,7 @@ def _prune_receipts_and_require_capacity(access: OrganizationAccessContext) -> N
     # Never evict an unexpired identity to make room for a new mutation.
     UploadSession.objects.filter(
         organization=access.organization, created_at__lt=cutoff
-    ).exclude(state="receiving").delete()
+    ).exclude(state=UploadState.RECEIVING).delete()
     FileDeletionReceipt.objects.filter(
         organization=access.organization, created_at__lt=cutoff
     ).delete()
@@ -147,7 +158,7 @@ def create_upload(
     check_disk_capacity(payload.size_bytes)
     blob = StoredBlob.objects.create(
         organization=access.organization,
-        purpose="shared_file",
+        purpose=StoredBlobPurpose.SHARED_FILE,
         size_bytes=payload.size_bytes,
         sha256=payload.sha256,
     )
@@ -173,7 +184,7 @@ def append_chunk(
     state = get_upload_state(upload)
     if offset < upload.offset:
         if (
-            state in ("receiving", "completed")
+            state in (UploadState.RECEIVING, UploadState.COMPLETED)
             and UploadChunk.objects.filter(
                 upload=upload, offset=offset, size_bytes=len(data), sha256=chunkSha256
             ).exists()
@@ -183,7 +194,7 @@ def append_chunk(
             "chunk_conflict",
             "The chunk conflicts with confirmed bytes. Check the upload status.",
         )
-    if state != "receiving":
+    if state != UploadState.RECEIVING:
         raise FileOperationError(
             "upload_unavailable", "This upload is no longer receiving data.", 410
         )
@@ -224,12 +235,10 @@ def append_chunk(
 
 
 def cancel_upload(upload: UploadSession) -> UploadSession:
-    if get_upload_state(upload) == "receiving":
-        upload.state = "canceled"
+    if get_upload_state(upload) == UploadState.RECEIVING:
+        upload.state = UploadState.CANCELED
         upload.save(update_fields=["state"])
-        StoredBlob.objects.filter(pk=upload.blob_id).update(
-            state=StoredBlob.State.GARBAGE
-        )
+        StoredBlob.objects.filter(pk=upload.blob_id).update(state=StoredBlobState.GARBAGE)
     return upload
 
 
@@ -237,9 +246,9 @@ def complete_upload(
     access: OrganizationAccessContext, upload: UploadSession
 ) -> FileUploadResponse | FileOperationError:
     state = get_upload_state(upload)
-    if state == "completed":
+    if state == UploadState.COMPLETED:
         return build_upload_payload(upload)
-    if state != "receiving":
+    if state != UploadState.RECEIVING:
         raise FileOperationError(
             "upload_unavailable", "This upload is no longer available.", 410
         )
@@ -282,17 +291,15 @@ def complete_upload(
             "A file with this name was created during this upload. Enable Overwrite Existing File to replace it.",
         )
     if failure is not None:
-        upload.state = "failed"
+        upload.state = UploadState.FAILED
         upload.save(update_fields=["state"])
-        StoredBlob.objects.filter(pk=upload.blob_id).update(
-            state=StoredBlob.State.GARBAGE
-        )
+        StoredBlob.objects.filter(pk=upload.blob_id).update(state=StoredBlobState.GARBAGE)
         # Return the expected failure so the view can commit its terminal state before replying.
         return failure
     if existing is not None:
         oldBlobId = existing.blob_id
         existing.delete()
-        StoredBlob.objects.filter(pk=oldBlobId).update(state=StoredBlob.State.GARBAGE)
+        StoredBlob.objects.filter(pk=oldBlobId).update(state=StoredBlobState.GARBAGE)
     file = SharedFile.objects.create(
         department_id=upload.department_id,
         name=upload.name,
@@ -302,14 +309,14 @@ def complete_upload(
         uploaded_by_name=str(access.actor),
     )
     StoredBlob.objects.filter(pk=upload.blob_id).update(
-        state=StoredBlob.State.AVAILABLE, written_bytes=upload.size_bytes
+        state=StoredBlobState.AVAILABLE, written_bytes=upload.size_bytes
     )
     departmentsById = get_department_tree(access.organization.pk)
     filePayload = build_file_payload(
         file,
         "/" + get_department_path(departmentsById[upload.department_id], departmentsById),
     )
-    upload.state = "completed"
+    upload.state = UploadState.COMPLETED
     upload.result = filePayload.model_dump(mode="json")
     upload.save(update_fields=["state", "result"])
     record_audit(
@@ -384,7 +391,7 @@ def delete_files(
         )
         blobId = file.blob_id
         file.delete()
-        StoredBlob.objects.filter(pk=blobId).update(state=StoredBlob.State.GARBAGE)
+        StoredBlob.objects.filter(pk=blobId).update(state=StoredBlobState.GARBAGE)
         deletedPaths.append(path)
     result = FileDeleteResponse(
         request_id=payload.request_id,

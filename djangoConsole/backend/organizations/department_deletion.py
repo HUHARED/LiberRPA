@@ -13,7 +13,7 @@ from django.utils import timezone
 from executors.models import Executor, ExecutorGroup
 from assets.models import Asset
 from data_queues.models import DataQueue
-from shared_files.models import SharedFile, UploadSession
+from shared_files.models import SharedFile, UploadState, UploadSession
 from operations.audit import record_audit
 
 from .models import Department, DepartmentMembership
@@ -118,7 +118,7 @@ def _build_department_deletion_info(department: Department) -> DepartmentDeletio
         listBlocker.append(DepartmentDeletionBlocker("shared_files", fileCount))
     uploadCount = UploadSession.objects.filter(
         department_id=department.pk,
-        state="receiving",
+        state=UploadState.RECEIVING,
         expires_at__gt=timezone.now(),
     ).count()
     if uploadCount:

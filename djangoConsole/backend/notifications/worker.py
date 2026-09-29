@@ -7,7 +7,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 from django.utils import timezone
 
 from .delivery import EmailDeliveryResult, deliver_email
-from .models import EmailDelivery, EmailStatus
+from .models import EmailStatus, EmailReasonCode, EmailDelivery
 
 
 def recover_interrupted_email_deliveries() -> int:
@@ -19,7 +19,7 @@ def recover_interrupted_email_deliveries() -> int:
     return EmailDelivery.objects.filter(status=EmailStatus.SENDING).update(
         status=EmailStatus.UNKNOWN,
         finished_at=timezone.now(),
-        reason_code="email_worker_interrupted",
+        reason_code=EmailReasonCode.EMAIL_WORKER_INTERRUPTED,
     )
 
 

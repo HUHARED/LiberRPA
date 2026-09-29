@@ -273,6 +273,13 @@ class DepartmentMembership(models.Model):
         )
 
 
+class InvitationStatus(models.TextChoices):
+    PENDING = "pending", "Pending"
+    EXPIRED = "expired", "Expired"
+    ACCEPTED = "accepted", "Accepted"
+    REVOKED = "revoked", "Revoked"
+
+
 class MemberInvitation(models.Model):
     """An immutable proposed membership with a replaceable, private registration proof."""
 

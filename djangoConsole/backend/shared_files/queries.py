@@ -32,7 +32,7 @@ from .contracts import (
     FileListResponse,
     FileUploadResponse,
 )
-from .models import SharedFile, UploadSession
+from .models import SharedFile, UploadState, UploadSession
 
 
 def require_file_department_access(
@@ -105,11 +105,11 @@ def get_file_list(
     )
 
 
-def get_upload_state(upload: UploadSession) -> str:
+def get_upload_state(upload: UploadSession) -> UploadState:
     # A status read reports expiry without acquiring a write lock or running cleanup.
-    if upload.state == "receiving" and upload.expires_at <= timezone.now():
-        return "expired"
-    return upload.state
+    if upload.state == UploadState.RECEIVING and upload.expires_at <= timezone.now():
+        return UploadState.EXPIRED
+    return UploadState(upload.state)
 
 
 def build_upload_payload(
