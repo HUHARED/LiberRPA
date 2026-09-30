@@ -16,6 +16,7 @@ from django.views.decorators.http import require_POST
 
 from console_project.http import (
     build_error_response,
+    build_authentication_required_response,
     build_service_unavailable_response,
     build_rate_limited_response,
     parse_json_request,
@@ -36,9 +37,7 @@ def change_account_password(request: HttpRequest) -> JsonResponse:
     """Change the current account's password and require every old web session to sign in again."""
     try:
         if not request.user.is_authenticated:
-            return build_error_response(
-                "authentication_required", "Sign in to continue.", statusCode=401
-            )
+            return build_authentication_required_response()
         user = cast(User, request.user)
         passwordRequest = parse_json_request(request, PasswordChangeRequest)
         if isinstance(passwordRequest, JsonResponse):

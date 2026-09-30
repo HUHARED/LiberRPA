@@ -29,6 +29,12 @@ def build_error_response(
     return JsonResponse({"error": dictErrorDetail}, status=statusCode)
 
 
+def build_authentication_required_response(
+    errorMessage: str = "Sign in to continue.",
+) -> JsonResponse:
+    return build_error_response("authentication_required", errorMessage, statusCode=401)
+
+
 def build_service_unavailable_response() -> JsonResponse:
     _LOGGER.exception("Service temporarily unavailable.")
     return build_error_response(

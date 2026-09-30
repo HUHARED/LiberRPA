@@ -31,6 +31,7 @@ from accounts.session_revocation import SessionInvalidatedError, lock_session_wr
 from console_project.contracts import JsonRequest, JsonResponsePayload
 from console_project.http import (
     build_error_response,
+    build_authentication_required_response,
     build_service_unavailable_response,
     build_rate_limited_response,
     parse_json_request,
@@ -155,11 +156,7 @@ def session_queue_view[**P](
     @wraps(view)
     def wrapped(request: HttpRequest, *args: P.args, **kwargs: P.kwargs) -> HttpResponse:
         if not request.user.is_authenticated:
-            return build_error_response(
-                "authentication_required",
-                "Sign in to continue.",
-                statusCode=401,
-            )
+            return build_authentication_required_response()
         try:
             membership = get_current_membership(actorId=cast(User, request.user).id)
             return view(request, membership, *args, **kwargs)

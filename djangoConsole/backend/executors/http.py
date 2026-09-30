@@ -12,7 +12,7 @@ from django.views.decorators.debug import sensitive_variables
 
 from accounts.models import User
 from accounts.session_revocation import lock_session_write_access
-from console_project.http import build_error_response
+from console_project.http import build_authentication_required_response
 from organizations.models import Membership
 from organizations.permissions import (
     AccessChannel,
@@ -26,9 +26,7 @@ from .queries import ExecutorInfo
 
 def get_executor_request_membership(request: HttpRequest) -> Membership | JsonResponse:
     if not request.user.is_authenticated:
-        return build_error_response(
-            "authentication_required", "Sign in to continue.", statusCode=401
-        )
+        return build_authentication_required_response()
     return get_current_membership(actorId=cast(User, request.user).id)
 
 

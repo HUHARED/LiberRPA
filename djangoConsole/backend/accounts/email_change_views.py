@@ -17,6 +17,7 @@ from django.views.decorators.http import require_POST
 
 from console_project.http import (
     build_error_response,
+    build_authentication_required_response,
     build_service_unavailable_response,
     build_rate_limited_response,
     parse_json_request,
@@ -68,9 +69,7 @@ def queue_email_change_verification(request: HttpRequest) -> JsonResponse:
     """Authorize a new destination using the current account's session and password."""
     try:
         if not request.user.is_authenticated:
-            return build_error_response(
-                "authentication_required", "Sign in to continue.", statusCode=401
-            )
+            return build_authentication_required_response()
         user = cast(User, request.user)
         changeRequest = parse_json_request(request, EmailChangeEmailRequest)
         if isinstance(changeRequest, JsonResponse):
@@ -95,10 +94,8 @@ def queue_email_change_verification(request: HttpRequest) -> JsonResponse:
     except EmailChangeCooldownError as e:
         return build_rate_limited_response(e.retryAfterSeconds)
     except SessionInvalidatedError:
-        return build_error_response(
-            "authentication_required",
-            "The current session is no longer valid. Sign in again.",
-            statusCode=401,
+        return build_authentication_required_response(
+            "The current session is no longer valid. Sign in again."
         )
     except ValidationError as e:
         return _build_email_change_validation_response(e)

@@ -23,6 +23,7 @@ from django.views.decorators.http import require_GET, require_POST
 from console_project.contracts import MessageResponse
 from console_project.http import (
     build_error_response,
+    build_authentication_required_response,
     build_service_unavailable_response,
     build_rate_limited_response,
     parse_json_request,
@@ -140,9 +141,7 @@ def get_current_session(request: HttpRequest) -> JsonResponse:
     """Resolve the session and current account through Django's authentication middleware."""
     try:
         if not request.user.is_authenticated:
-            return build_error_response(
-                "authentication_required", "Sign in to continue.", statusCode=401
-            )
+            return build_authentication_required_response()
         return _build_session_response(request, cast(User, request.user))
     except (ImproperlyConfigured, DatabaseError):
         return build_service_unavailable_response()
@@ -154,9 +153,7 @@ def get_current_access(request: HttpRequest) -> JsonResponse:
     """Return organization and department display data for the authenticated session."""
     try:
         if not request.user.is_authenticated:
-            return build_error_response(
-                "authentication_required", "Sign in to continue.", statusCode=401
-            )
+            return build_authentication_required_response()
         # The caller cannot select another account, organization, or credential channel.
         user = cast(User, request.user)
         accountAccessInfo = get_account_access_info(actorId=user.id)
@@ -200,9 +197,7 @@ def sign_out_other_sessions(request: HttpRequest) -> JsonResponse:
     """Revoke other web sessions while keeping this session and its original expiry."""
     try:
         if not request.user.is_authenticated:
-            return build_error_response(
-                "authentication_required", "Sign in to continue.", statusCode=401
-            )
+            return build_authentication_required_response()
         user = cast(User, request.user)
         revocationRequest = parse_json_request(request, SessionRevocationRequest)
         if isinstance(revocationRequest, JsonResponse):
@@ -242,10 +237,8 @@ def sign_out_other_sessions(request: HttpRequest) -> JsonResponse:
         request.user = user
         return JsonResponse({"message": "Other sessions signed out."})
     except SessionInvalidatedError:
-        return build_error_response(
-            "authentication_required",
-            "The current session is no longer valid. Sign in again.",
-            statusCode=401,
+        return build_authentication_required_response(
+            "The current session is no longer valid. Sign in again."
         )
     except ValidationError as e:
         return build_error_response(

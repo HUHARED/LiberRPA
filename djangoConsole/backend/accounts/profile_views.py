@@ -14,6 +14,7 @@ from django.views.decorators.http import require_http_methods
 
 from console_project.http import (
     build_error_response,
+    build_authentication_required_response,
     build_service_unavailable_response,
     parse_json_request,
 )
@@ -43,9 +44,7 @@ def get_or_update_profile(request: HttpRequest) -> JsonResponse:
     """Read the signed-in account's profile or save only its two editable fields."""
     try:
         if not request.user.is_authenticated:
-            return build_error_response(
-                "authentication_required", "Sign in to continue.", statusCode=401
-            )
+            return build_authentication_required_response()
         user = cast(User, request.user)
         if request.method == "POST":
             profileRequest = parse_json_request(request, ProfileUpdateRequest)

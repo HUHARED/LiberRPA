@@ -20,6 +20,7 @@ from pydantic_core import PydanticSerializationError
 from accounts.session_revocation import SessionInvalidatedError
 from console_project.http import (
     build_error_response,
+    build_authentication_required_response,
     build_service_unavailable_response,
     parse_json_request,
 )
@@ -121,9 +122,7 @@ def _build_group_write_payload(result: ExecutorGroupWriteResult) -> dict[str, ob
 def _build_group_error_response(e: Exception) -> JsonResponse:
     match e:
         case SessionInvalidatedError():
-            return build_error_response(
-                "authentication_required", "Sign in again to continue.", statusCode=401
-            )
+            return build_authentication_required_response()
         case PermissionDenied():
             return build_error_response(
                 "executor_group_access_required",

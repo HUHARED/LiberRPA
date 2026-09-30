@@ -15,6 +15,7 @@ from django.views.decorators.http import require_http_methods
 from accounts.models import User
 from console_project.http import (
     build_error_response,
+    build_authentication_required_response,
     build_service_unavailable_response,
     parse_json_request,
 )
@@ -49,9 +50,7 @@ def get_or_update_organization_settings(request: HttpRequest) -> JsonResponse:
     """Read or update the signed-in administrator's own organization General settings."""
     try:
         if not request.user.is_authenticated:
-            return build_error_response(
-                "authentication_required", "Sign in to continue.", statusCode=401
-            )
+            return build_authentication_required_response()
         user = cast(User, request.user)
         membership = get_current_membership(actorId=user.id)
         if request.method == "POST":

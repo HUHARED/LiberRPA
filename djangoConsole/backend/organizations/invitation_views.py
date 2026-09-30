@@ -28,6 +28,7 @@ from console_project.config import LimitsConfig
 from console_project.contracts import JsonRequest
 from console_project.http import (
     build_error_response,
+    build_authentication_required_response,
     build_service_unavailable_response,
     build_rate_limited_response,
     parse_json_request,
@@ -109,9 +110,7 @@ def _handle_invitation_errors[**Params](
 
 def _get_invitation_actor(request: HttpRequest) -> tuple[User, uuid.UUID] | JsonResponse:
     if not request.user.is_authenticated:
-        return build_error_response(
-            "authentication_required", "Sign in to continue.", statusCode=401
-        )
+        return build_authentication_required_response()
     user = cast(User, request.user)
     membership = get_current_membership(actorId=user.id)
     access = resolve_organization_access(

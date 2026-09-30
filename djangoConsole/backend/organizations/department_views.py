@@ -19,6 +19,7 @@ from pydantic_core import PydanticSerializationError
 from accounts.models import User
 from console_project.http import (
     build_error_response,
+    build_authentication_required_response,
     build_service_unavailable_response,
     parse_json_request,
 )
@@ -131,9 +132,7 @@ def list_or_create_departments(request: HttpRequest) -> JsonResponse:
     """Read the department tree or create a department with administrator permission."""
     try:
         if not request.user.is_authenticated:
-            return build_error_response(
-                "authentication_required", "Sign in to continue.", statusCode=401
-            )
+            return build_authentication_required_response()
         user = cast(User, request.user)
         membership = get_current_membership(actorId=user.id)
         if request.method == "POST":
@@ -193,9 +192,7 @@ def get_or_update_department(
     """Read or edit one current department without changing its stable identity."""
     try:
         if not request.user.is_authenticated:
-            return build_error_response(
-                "authentication_required", "Sign in to continue.", statusCode=401
-            )
+            return build_authentication_required_response()
         user = cast(User, request.user)
         membership = get_current_membership(actorId=user.id)
         if request.method == "POST":
@@ -285,9 +282,7 @@ def get_or_delete_department(
 
     try:
         if not request.user.is_authenticated:
-            return build_error_response(
-                "authentication_required", "Sign in to continue.", statusCode=401
-            )
+            return build_authentication_required_response()
         user = cast(User, request.user)
         membership = get_current_membership(actorId=user.id)
         if request.method == "POST":

@@ -18,6 +18,7 @@ from django.views.decorators.http import require_GET, require_http_methods
 from accounts.models import User
 from console_project.http import (
     build_error_response,
+    build_authentication_required_response,
     build_service_unavailable_response,
     parse_json_request,
     parse_page_number,
@@ -118,9 +119,7 @@ def list_members(request: HttpRequest) -> JsonResponse:
     """Read a page of members in the signed-in administrator's organization."""
     try:
         if not request.user.is_authenticated:
-            return build_error_response(
-                "authentication_required", "Sign in to continue.", statusCode=401
-            )
+            return build_authentication_required_response()
         user = cast(User, request.user)
         membership = get_current_membership(actorId=user.id)
         intPageNumber = _get_page_number(request)
@@ -165,9 +164,7 @@ def get_or_update_member(request: HttpRequest, userId: uuid.UUID) -> JsonRespons
     """Read member details or save organization and department roles with Notes."""
     try:
         if not request.user.is_authenticated:
-            return build_error_response(
-                "authentication_required", "Sign in to continue.", statusCode=401
-            )
+            return build_authentication_required_response()
         user = cast(User, request.user)
         currentMembership = get_current_membership(actorId=user.id)
         if request.method == "POST":

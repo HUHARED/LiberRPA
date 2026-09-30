@@ -24,6 +24,7 @@ from pydantic_core import PydanticSerializationError
 from accounts.models import User
 from console_project.http import (
     build_error_response,
+    build_authentication_required_response,
     build_service_unavailable_response,
     parse_page_number,
 )
@@ -205,9 +206,7 @@ def list_organization_audit(request: HttpRequest) -> JsonResponse:
     """Return one page of the signed-in administrator's organization history."""
     try:
         if not request.user.is_authenticated:
-            return build_error_response(
-                "authentication_required", "Sign in to continue.", statusCode=401
-            )
+            return build_authentication_required_response()
         user = cast(User, request.user)
         membership = get_current_membership(actorId=user.id)
         # Only parsing failures belong to the client; query and response errors do not.
@@ -264,9 +263,7 @@ def get_organization_audit_filters(request: HttpRequest) -> JsonResponse:
     """Return retained history's selectable actors, modules and actions."""
     try:
         if not request.user.is_authenticated:
-            return build_error_response(
-                "authentication_required", "Sign in to continue.", statusCode=401
-            )
+            return build_authentication_required_response()
         user = cast(User, request.user)
         membership = get_current_membership(actorId=user.id)
         options = get_audit_filter_options(
@@ -295,9 +292,7 @@ def get_organization_audit_details(
     """Read a single tenant record; a platform or foreign record is never selected."""
     try:
         if not request.user.is_authenticated:
-            return build_error_response(
-                "authentication_required", "Sign in to continue.", statusCode=401
-            )
+            return build_authentication_required_response()
         user = cast(User, request.user)
         membership = get_current_membership(actorId=user.id)
         record = get_audit_details(

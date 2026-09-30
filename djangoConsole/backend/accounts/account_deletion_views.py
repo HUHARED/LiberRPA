@@ -19,6 +19,7 @@ from django.views.decorators.http import require_http_methods
 
 from console_project.http import (
     build_error_response,
+    build_authentication_required_response,
     build_service_unavailable_response,
     build_rate_limited_response,
     parse_json_request,
@@ -77,9 +78,7 @@ def get_or_delete_account(
     """Preview or delete the current account, or a different member through the admin route."""
     try:
         if not request.user.is_authenticated:
-            return build_error_response(
-                "authentication_required", "Sign in to continue.", statusCode=401
-            )
+            return build_authentication_required_response()
         user = cast(User, request.user)
         boolOwnAccount = userId is None
         if userId == user.id:
@@ -131,10 +130,8 @@ def get_or_delete_account(
             else "Account deleted."
         })
     except SessionInvalidatedError:
-        return build_error_response(
-            "authentication_required",
-            "The current session is no longer valid. Sign in again.",
-            statusCode=401,
+        return build_authentication_required_response(
+            "The current session is no longer valid. Sign in again."
         )
     except ValidationError as e:
         return _build_deletion_validation_response(e)

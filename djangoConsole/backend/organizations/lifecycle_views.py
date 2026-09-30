@@ -22,6 +22,7 @@ from accounts.session_revocation import SessionInvalidatedError
 from console_project.contracts import JsonRequest
 from console_project.http import (
     build_error_response,
+    build_authentication_required_response,
     build_service_unavailable_response,
     build_rate_limited_response,
     parse_json_request,
@@ -91,9 +92,7 @@ def _handle_organization_deletion(
 ) -> JsonResponse:
     try:
         if not request.user.is_authenticated:
-            return build_error_response(
-                "authentication_required", "Sign in to continue.", statusCode=401
-            )
+            return build_authentication_required_response()
         user = cast(User, request.user)
         membership = get_current_membership(actorId=user.id)
         if request.method == "GET":
@@ -140,10 +139,8 @@ def _handle_organization_deletion(
                 raise SessionInvalidatedError("The current session has expired.")
         return _build_organization_deletion_response(organization, isOrgAdmin=True)
     except SessionInvalidatedError:
-        return build_error_response(
-            "authentication_required",
-            "The current session is no longer valid. Sign in again.",
-            statusCode=401,
+        return build_authentication_required_response(
+            "The current session is no longer valid. Sign in again."
         )
     except ValidationError as e:
         return _build_deletion_validation_response(e)

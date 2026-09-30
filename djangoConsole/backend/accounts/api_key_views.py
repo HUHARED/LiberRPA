@@ -25,6 +25,7 @@ from console_project.config import LimitsConfig
 from console_project.contracts import JsonRequest
 from console_project.http import (
     build_error_response,
+    build_authentication_required_response,
     build_service_unavailable_response,
     build_rate_limited_response,
     parse_json_request,
@@ -98,9 +99,7 @@ def _build_api_key_payload(apiKey: ApiKey) -> dict[str, object]:
 
 def _build_api_key_error_response(e: Exception) -> JsonResponse:
     if isinstance(e, SessionInvalidatedError):
-        return build_error_response(
-            "authentication_required", "Sign in again to continue.", statusCode=401
-        )
+        return build_authentication_required_response()
     if isinstance(e, PermissionDenied):
         return build_error_response(
             "api_key_access_required",
@@ -143,9 +142,7 @@ def list_or_create_api_keys(
         return response
     try:
         if not request.user.is_authenticated:
-            return build_error_response(
-                "authentication_required", "Sign in to continue.", statusCode=401
-            )
+            return build_authentication_required_response()
         user = cast(User, request.user)
         if request.method == "POST":
             keyRequest = parse_json_request(
@@ -222,9 +219,7 @@ def list_or_create_api_keys(
 def edit_api_key_notes(request: HttpRequest, apiKeyId: uuid.UUID) -> JsonResponse:
     try:
         if not request.user.is_authenticated:
-            return build_error_response(
-                "authentication_required", "Sign in to continue.", statusCode=401
-            )
+            return build_authentication_required_response()
         keyRequest = parse_json_request(
             request, ApiKeyNotesRequest, maxBodyBytes=_INT_MAX_API_KEY_BODY_BYTES
         )
@@ -262,9 +257,7 @@ def revoke_account_api_key(
 ) -> JsonResponse:
     try:
         if not request.user.is_authenticated:
-            return build_error_response(
-                "authentication_required", "Sign in to continue.", statusCode=401
-            )
+            return build_authentication_required_response()
         emptyRequest = parse_json_request(request, JsonRequest)
         if isinstance(emptyRequest, JsonResponse):
             return emptyRequest
