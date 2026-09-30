@@ -24,8 +24,8 @@ from console_project.http import (
 
 from .contracts import CsrfResponse
 from .rate_limits import (
-    reserve_registration_email_request,
-    reserve_registration_token_request,
+    apply_registration_email_rate_limit,
+    apply_registration_token_rate_limit,
 )
 from .registration import (
     complete_organization_registration,
@@ -101,7 +101,7 @@ def queue_registration_email(request: HttpRequest) -> JsonResponse:
         return registrationRequest
     try:
         # Uvicorn must disable proxy headers until a trusted proxy is configured.
-        intRetryAfterSeconds = reserve_registration_email_request(
+        intRetryAfterSeconds = apply_registration_email_rate_limit(
             request.META.get("REMOTE_ADDR", "")
         )
         if intRetryAfterSeconds:
@@ -137,7 +137,7 @@ def check_registration_link(request: HttpRequest) -> JsonResponse:
         return registrationRequest
     try:
         strToken = registrationRequest.token.get_secret_value()
-        intRetryAfterSeconds = reserve_registration_token_request(
+        intRetryAfterSeconds = apply_registration_token_rate_limit(
             request.META.get("REMOTE_ADDR", ""), token=strToken
         )
         if intRetryAfterSeconds:
@@ -159,7 +159,7 @@ def complete_registration(request: HttpRequest) -> JsonResponse:
         return registrationRequest
     try:
         strToken = registrationRequest.token.get_secret_value()
-        intRetryAfterSeconds = reserve_registration_token_request(
+        intRetryAfterSeconds = apply_registration_token_rate_limit(
             request.META.get("REMOTE_ADDR", ""), token=strToken
         )
         if intRetryAfterSeconds:

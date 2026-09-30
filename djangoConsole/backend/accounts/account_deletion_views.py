@@ -34,7 +34,7 @@ from .account_deletion import (
 )
 from .contracts import AccountDeletionRequest, AccountDeletionPreviewResponse
 from .models import User
-from .rate_limits import reserve_account_deletion_request
+from .rate_limits import apply_account_deletion_rate_limit
 from .session_revocation import SessionInvalidatedError
 
 
@@ -97,7 +97,7 @@ def get_or_delete_account(
         deletionRequest = parse_json_request(request, AccountDeletionRequest)
         if isinstance(deletionRequest, JsonResponse):
             return deletionRequest
-        intRetryAfterSeconds = reserve_account_deletion_request(
+        intRetryAfterSeconds = apply_account_deletion_rate_limit(
             request.META.get("REMOTE_ADDR", ""), actorId=str(user.id)
         )
         if intRetryAfterSeconds:

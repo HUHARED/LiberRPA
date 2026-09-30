@@ -27,8 +27,8 @@ from .password_resets import (
     request_password_reset_email,
 )
 from .rate_limits import (
-    reserve_password_reset_email_request,
-    reserve_password_reset_token_request,
+    apply_password_reset_email_rate_limit,
+    apply_password_reset_token_rate_limit,
 )
 
 
@@ -69,7 +69,7 @@ def queue_password_reset_email(request: HttpRequest) -> JsonResponse:
     if isinstance(resetRequest, JsonResponse):
         return resetRequest
     try:
-        intRetryAfterSeconds = reserve_password_reset_email_request(
+        intRetryAfterSeconds = apply_password_reset_email_rate_limit(
             request.META.get("REMOTE_ADDR", "")
         )
         if intRetryAfterSeconds:
@@ -97,7 +97,7 @@ def check_password_reset_link(request: HttpRequest) -> JsonResponse:
         return resetRequest
     try:
         strToken = resetRequest.token.get_secret_value()
-        intRetryAfterSeconds = reserve_password_reset_token_request(
+        intRetryAfterSeconds = apply_password_reset_token_rate_limit(
             request.META.get("REMOTE_ADDR", ""), token=strToken
         )
         if intRetryAfterSeconds:
@@ -121,7 +121,7 @@ def reset_account_password(request: HttpRequest) -> JsonResponse:
         return resetRequest
     try:
         strToken = resetRequest.token.get_secret_value()
-        intRetryAfterSeconds = reserve_password_reset_token_request(
+        intRetryAfterSeconds = apply_password_reset_token_rate_limit(
             request.META.get("REMOTE_ADDR", ""), token=strToken
         )
         if intRetryAfterSeconds:

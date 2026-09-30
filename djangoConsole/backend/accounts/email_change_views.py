@@ -37,8 +37,8 @@ from .email_changes import (
 )
 from .models import User
 from .rate_limits import (
-    reserve_email_change_email_request,
-    reserve_email_change_token_request,
+    apply_email_change_email_rate_limit,
+    apply_email_change_token_rate_limit,
 )
 from .session_revocation import SessionInvalidatedError
 
@@ -74,7 +74,7 @@ def queue_email_change_verification(request: HttpRequest) -> JsonResponse:
         changeRequest = parse_json_request(request, EmailChangeEmailRequest)
         if isinstance(changeRequest, JsonResponse):
             return changeRequest
-        intRetryAfterSeconds = reserve_email_change_email_request(
+        intRetryAfterSeconds = apply_email_change_email_rate_limit(
             request.META.get("REMOTE_ADDR", ""), actorId=str(user.id)
         )
         if intRetryAfterSeconds:
@@ -119,7 +119,7 @@ def check_email_change_link(request: HttpRequest) -> JsonResponse:
         return changeRequest
     try:
         strToken = changeRequest.token.get_secret_value()
-        intRetryAfterSeconds = reserve_email_change_token_request(
+        intRetryAfterSeconds = apply_email_change_token_rate_limit(
             request.META.get("REMOTE_ADDR", ""), token=strToken
         )
         if intRetryAfterSeconds:
@@ -147,7 +147,7 @@ def confirm_account_email_change(request: HttpRequest) -> JsonResponse:
         return changeRequest
     try:
         strToken = changeRequest.token.get_secret_value()
-        intRetryAfterSeconds = reserve_email_change_token_request(
+        intRetryAfterSeconds = apply_email_change_token_rate_limit(
             request.META.get("REMOTE_ADDR", ""), token=strToken
         )
         if intRetryAfterSeconds:

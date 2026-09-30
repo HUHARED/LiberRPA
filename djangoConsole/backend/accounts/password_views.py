@@ -26,7 +26,7 @@ from organizations.permissions import AccessChannel
 from .contracts import PasswordChangeRequest
 from .models import User
 from .password_changes import change_password
-from .rate_limits import reserve_password_change_request
+from .rate_limits import apply_password_change_rate_limit
 
 
 @never_cache
@@ -43,7 +43,7 @@ def change_account_password(request: HttpRequest) -> JsonResponse:
         if isinstance(passwordRequest, JsonResponse):
             return passwordRequest
 
-        intRetryAfterSeconds = reserve_password_change_request(
+        intRetryAfterSeconds = apply_password_change_rate_limit(
             request.META.get("REMOTE_ADDR", ""), actorId=str(user.id)
         )
         if intRetryAfterSeconds:

@@ -48,7 +48,7 @@ from .contracts import (
     ApiKeyListResponse,
 )
 from .models import ApiKey, ApiKeyStatus, User
-from .rate_limits import reserve_api_key_creation_request
+from .rate_limits import apply_api_key_creation_rate_limit
 from .session_revocation import SessionInvalidatedError
 
 _INT_MAX_API_KEY_BODY_BYTES = 16 * 1024
@@ -150,7 +150,7 @@ def list_or_create_api_keys(
             )
             if isinstance(keyRequest, JsonResponse):
                 return keyRequest
-            intRetryAfterSeconds = reserve_api_key_creation_request(
+            intRetryAfterSeconds = apply_api_key_creation_rate_limit(
                 request.META.get("REMOTE_ADDR", ""), actorId=str(user.id)
             )
             if intRetryAfterSeconds:

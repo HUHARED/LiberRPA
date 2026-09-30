@@ -17,7 +17,7 @@ from django.views.decorators.http import require_http_methods, require_POST
 from pydantic import SecretStr
 
 from accounts.models import User
-from accounts.rate_limits import reserve_organization_deletion_request
+from accounts.rate_limits import apply_organization_deletion_rate_limit
 from accounts.session_revocation import SessionInvalidatedError
 from console_project.contracts import JsonRequest
 from console_project.http import (
@@ -112,7 +112,7 @@ def _handle_organization_deletion(
             deletionRequest = parse_json_request(request, OrganizationDeletionRequest)
             if isinstance(deletionRequest, JsonResponse):
                 return deletionRequest
-            intRetryAfterSeconds = reserve_organization_deletion_request(
+            intRetryAfterSeconds = apply_organization_deletion_rate_limit(
                 request.META.get("REMOTE_ADDR", ""), actorId=str(user.id)
             )
             if intRetryAfterSeconds:

@@ -19,7 +19,7 @@ from django.views.decorators.http import require_POST
 from pydantic import Field, SecretStr
 
 from accounts.models import User, UserManager
-from accounts.rate_limits import reserve_executor_client_request, reserve_login_request
+from accounts.rate_limits import apply_executor_client_rate_limit, apply_login_rate_limit
 from console_project.contracts import JsonRequest
 from console_project.http import (
     build_error_response,
@@ -164,7 +164,7 @@ def sign_in_executor(request: HttpRequest) -> JsonResponse:
         return loginRequest
     try:
         strNormalizedEmail = UserManager.normalize_email(loginRequest.email)
-        intRetryAfterSeconds = reserve_login_request(
+        intRetryAfterSeconds = apply_login_rate_limit(
             request.META.get("REMOTE_ADDR", ""), normalizedEmail=strNormalizedEmail
         )
         if intRetryAfterSeconds:
@@ -215,7 +215,7 @@ def executor_client_request(
         return response
     try:
         if action != ExecutorClientAction.LOGOUT:
-            intRetryAfterSeconds = reserve_executor_client_request(
+            intRetryAfterSeconds = apply_executor_client_rate_limit(
                 request.META.get("REMOTE_ADDR", "")
             )
             if intRetryAfterSeconds:

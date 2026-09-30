@@ -21,8 +21,8 @@ from django.views.decorators.http import require_GET, require_POST, require_http
 
 from accounts.models import User
 from accounts.rate_limits import (
-    reserve_invitation_email_request,
-    reserve_registration_token_request,
+    apply_invitation_email_rate_limit,
+    apply_registration_token_rate_limit,
 )
 from console_project.config import LimitsConfig
 from console_project.contracts import JsonRequest
@@ -219,7 +219,7 @@ def list_or_create_invitations(request: HttpRequest) -> JsonResponse:
         )
         if isinstance(invitationRequest, JsonResponse):
             return invitationRequest
-        intRetryAfterSeconds = reserve_invitation_email_request(
+        intRetryAfterSeconds = apply_invitation_email_rate_limit(
             request.META.get("REMOTE_ADDR", ""), actorId=str(user.id)
         )
         if intRetryAfterSeconds:
@@ -292,7 +292,7 @@ def resend_or_revoke_invitation(
     if isinstance(emptyRequest, JsonResponse):
         return emptyRequest
     if resend:
-        intRetryAfterSeconds = reserve_invitation_email_request(
+        intRetryAfterSeconds = apply_invitation_email_rate_limit(
             request.META.get("REMOTE_ADDR", ""), actorId=str(user.id)
         )
         if intRetryAfterSeconds:
@@ -317,7 +317,7 @@ def check_invitation_link(request: HttpRequest) -> JsonResponse:
         return invitationRequest
     strToken = invitationRequest.token.get_secret_value()
     # Both public registration paths share the source and proof request budgets.
-    intRetryAfterSeconds = reserve_registration_token_request(
+    intRetryAfterSeconds = apply_registration_token_rate_limit(
         request.META.get("REMOTE_ADDR", ""), token=strToken
     )
     if intRetryAfterSeconds:
@@ -339,7 +339,7 @@ def complete_invited_registration(request: HttpRequest) -> JsonResponse:
     if isinstance(invitationRequest, JsonResponse):
         return invitationRequest
     strToken = invitationRequest.token.get_secret_value()
-    intRetryAfterSeconds = reserve_registration_token_request(
+    intRetryAfterSeconds = apply_registration_token_rate_limit(
         request.META.get("REMOTE_ADDR", ""), token=strToken
     )
     if intRetryAfterSeconds:

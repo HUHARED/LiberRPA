@@ -20,7 +20,7 @@ from organizations.access import get_department_access_info
 from organizations.models import DepartmentRole
 
 from .api_key_authentication import InvalidApiKeyError, authenticate_api_key
-from .rate_limits import reserve_api_key_authentication_request
+from .rate_limits import apply_api_key_authentication_rate_limit
 
 
 @never_cache
@@ -29,7 +29,7 @@ from .rate_limits import reserve_api_key_authentication_request
 def get_api_key_access(request: HttpRequest) -> JsonResponse:
     """Return current Operator access using only the Authorization header, without a session."""
     try:
-        intRetryAfterSeconds = reserve_api_key_authentication_request(
+        intRetryAfterSeconds = apply_api_key_authentication_rate_limit(
             request.META.get("REMOTE_ADDR", "")
         )
         if intRetryAfterSeconds:

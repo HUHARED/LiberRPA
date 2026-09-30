@@ -26,7 +26,7 @@ from accounts.api_key_authentication import (
     authenticate_api_key,
 )
 from accounts.models import User
-from accounts.rate_limits import reserve_api_key_authentication_request
+from accounts.rate_limits import apply_api_key_authentication_rate_limit
 from accounts.session_revocation import SessionInvalidatedError, lock_session_write_access
 from console_project.contracts import JsonRequest, JsonResponsePayload
 from console_project.http import (
@@ -179,7 +179,7 @@ def api_queue_view[**P](
     @wraps(view)
     def wrapped(request: HttpRequest, *args: P.args, **kwargs: P.kwargs) -> HttpResponse:
         try:
-            retryAfter = reserve_api_key_authentication_request(
+            retryAfter = apply_api_key_authentication_rate_limit(
                 request.META.get("REMOTE_ADDR", ""),
             )
             if retryAfter:

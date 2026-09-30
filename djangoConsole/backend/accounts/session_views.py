@@ -41,7 +41,7 @@ from .contracts import (
     SessionRevocationRequest,
 )
 from .models import User, UserManager
-from .rate_limits import reserve_login_request, reserve_session_revocation_request
+from .rate_limits import apply_login_rate_limit, apply_session_revocation_rate_limit
 from .session_revocation import SessionInvalidatedError, revoke_other_sessions
 
 _REMEMBERED_SESSION_LIFETIME = timedelta(days=14)
@@ -84,9 +84,10 @@ def sign_in(request: HttpRequest) -> JsonResponse:
     loginRequest = parse_json_request(request, LoginRequest)
     if isinstance(loginRequest, JsonResponse):
         return loginRequest
+
     try:
         strNormalizedEmail = UserManager.normalize_email(loginRequest.email)
-        intRetryAfterSeconds = reserve_login_request(
+        intRetryAfterSeconds = apply_login_rate_limit(
             request.META.get("REMOTE_ADDR", ""), normalizedEmail=strNormalizedEmail
         )
         if intRetryAfterSeconds:
@@ -203,7 +204,7 @@ def sign_out_other_sessions(request: HttpRequest) -> JsonResponse:
         if isinstance(revocationRequest, JsonResponse):
             return revocationRequest
 
-        intRetryAfterSeconds = reserve_session_revocation_request(
+        intRetryAfterSeconds = apply_session_revocation_rate_limit(
             request.META.get("REMOTE_ADDR", ""), actorId=str(user.id)
         )
         if intRetryAfterSeconds:
