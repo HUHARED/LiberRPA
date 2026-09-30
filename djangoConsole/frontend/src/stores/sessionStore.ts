@@ -17,6 +17,7 @@ type SessionNotice =
   | "expired"
   | "signed_out"
   | "account_created"
+  | "organization_created"
   | "password_changed"
   | "account_deleted"
   | null;

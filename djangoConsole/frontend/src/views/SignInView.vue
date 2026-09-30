@@ -30,6 +30,14 @@
       Account created. Sign in with your invited email address and password.
     </v-alert>
     <v-alert
+      v-else-if="sessionStore.notice === 'organization_created'"
+      type="success"
+      variant="tonal"
+      class="mb-4"
+      role="status">
+      Organization created. Sign in with your verified email address and password.
+    </v-alert>
+    <v-alert
       v-else-if="sessionStore.notice === 'password_changed'"
       type="success"
       variant="tonal"
@@ -118,6 +126,14 @@
     <p class="text-medium-emphasis">
       Use the email address associated with your organization.
     </p>
+    <v-btn
+      :to="{ name: 'create-organization' }"
+      variant="text"
+      block
+      class="mt-3"
+      :disabled="sessionStore.busy">
+      Create Organization
+    </v-btn>
   </AuthLayout>
 </template>
 

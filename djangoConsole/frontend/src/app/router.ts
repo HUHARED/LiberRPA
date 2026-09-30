@@ -17,6 +17,12 @@ export function createAppRouter(
     routes: [
       { path: "/", redirect: "/overview" },
       {
+        path: "/create-organization",
+        name: "create-organization",
+        component: () => import("../views/CreateOrganizationView.vue"),
+        meta: { title: "Create Organization", public: true },
+      },
+      {
         path: "/confirm-email-change",
         name: "confirm-email-change",
         component: () => import("../views/ConfirmEmailChangeView.vue"),
