@@ -44,7 +44,7 @@ class Asset(models.Model):
         default="",
         validators=[MaxLengthValidator(2000), ProhibitNullCharactersValidator()],
     )
-    # Store canonical JSON text so JSON null and an absent secret plaintext remain distinct.
+    # Secret assets leave this field empty; their values are stored in encrypted_value.
     value_json = models.TextField(blank=True, default="", editable=False)
     encrypted_value = models.TextField(blank=True, default="", editable=False)
     created_at = models.DateTimeField(default=timezone.now, editable=False)

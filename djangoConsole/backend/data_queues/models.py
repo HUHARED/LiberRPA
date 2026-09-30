@@ -10,6 +10,7 @@ from django.core.validators import MaxLengthValidator, ProhibitNullCharactersVal
 from django.db import models
 from django.utils import timezone
 
+from console_project.constants import INT_DISPLAY_NAME_SNAPSHOT_MAX_LENGTH
 from organizations.validators import validate_path_segment
 
 
@@ -64,11 +65,16 @@ class QueueItem(models.Model):
     )
     # Historical identities survive account deletion without retaining an account foreign key.
     uploaded_by_id = models.UUIDField(editable=False)
-    uploaded_by_name = models.CharField(max_length=420, editable=False)
+    uploaded_by_name = models.CharField(
+        max_length=INT_DISPLAY_NAME_SNAPSHOT_MAX_LENGTH, editable=False
+    )
     uploaded_at = models.DateTimeField(default=timezone.now, editable=False)
     last_claimed_by_id = models.UUIDField(null=True, editable=False)
     last_claimed_by_name = models.CharField(
-        max_length=420, blank=True, default="", editable=False
+        max_length=INT_DISPLAY_NAME_SNAPSHOT_MAX_LENGTH,
+        blank=True,
+        default="",
+        editable=False,
     )
     last_claimed_at = models.DateTimeField(null=True, editable=False)
 

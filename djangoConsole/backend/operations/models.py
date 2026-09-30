@@ -9,8 +9,7 @@ import uuid
 from django.db import models
 from django.utils import timezone
 
-# NOTE: User.__str__() needs up to 407 characters (150 username + 254 email + 3 separators); keep the existing 420-character capacity.
-_INT_AUDIT_NAME_MAX_LENGTH = 420
+from console_project.constants import INT_DISPLAY_NAME_SNAPSHOT_MAX_LENGTH
 
 
 class ServiceSettings(models.Model):
@@ -59,7 +58,7 @@ class AuditRecord(models.Model):
     organization_id = models.UUIDField(null=True, editable=False)
     organization_name = models.CharField(max_length=200, blank=True, editable=False)
     actor_id = models.UUIDField(null=True, editable=False)
-    actor_name = models.CharField(max_length=_INT_AUDIT_NAME_MAX_LENGTH, editable=False)
+    actor_name = models.CharField(max_length=INT_DISPLAY_NAME_SNAPSHOT_MAX_LENGTH, editable=False)
     channel = models.CharField(max_length=16, choices=AuditChannel, editable=False)
     request_id = models.UUIDField(null=True, editable=False)
     module = models.CharField(max_length=32, editable=False)
@@ -67,7 +66,7 @@ class AuditRecord(models.Model):
     object_type = models.CharField(max_length=64, editable=False)
     object_id = models.CharField(max_length=64, blank=True, editable=False)
     object_name = models.CharField(
-        max_length=_INT_AUDIT_NAME_MAX_LENGTH, blank=True, editable=False
+        max_length=INT_DISPLAY_NAME_SNAPSHOT_MAX_LENGTH, blank=True, editable=False
     )
     department_id = models.UUIDField(null=True, editable=False)
     result = models.CharField(max_length=16, choices=AuditResult, editable=False)

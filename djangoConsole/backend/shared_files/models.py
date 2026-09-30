@@ -9,6 +9,8 @@ import uuid
 from django.db import models
 from django.utils import timezone
 
+from console_project.constants import INT_DISPLAY_NAME_SNAPSHOT_MAX_LENGTH
+
 
 class SharedFile(models.Model):
     department_id: uuid.UUID
@@ -20,7 +22,7 @@ class SharedFile(models.Model):
     name_key = models.TextField(editable=False, db_collation="C")
     blob = models.OneToOneField("file_storage.StoredBlob", on_delete=models.PROTECT)
     uploaded_by_id = models.UUIDField()
-    uploaded_by_name = models.CharField(max_length=420)
+    uploaded_by_name = models.CharField(max_length=INT_DISPLAY_NAME_SNAPSHOT_MAX_LENGTH)
     uploaded_at = models.DateTimeField(default=timezone.now)
 
     class Meta:

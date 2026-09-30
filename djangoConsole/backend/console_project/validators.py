@@ -27,6 +27,7 @@ def validate_json_value(value: JsonValue) -> None:
     """Validate the shared JSON value rules, independently of resource-specific size limits."""
 
     def validate_child(child: JsonValue, depth: int) -> None:
+        # Customized depth.
         if depth > 64:
             raise ValueError("JSON must not exceed 64 levels of nesting.")
         if type(child) is int and abs(child) > 2**53 - 1:

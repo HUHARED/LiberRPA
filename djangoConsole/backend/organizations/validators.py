@@ -43,7 +43,7 @@ def normalize_path_name(value: str) -> str:
     validate_path_segment(value)
     if len(value) > 128:
         raise ValidationError("Use at most 128 valid Unicode characters.")
-    normalized = unicodedata.normalize("NFC", value)
-    if len(normalized) > 128:
+    strNormalized = unicodedata.normalize("NFC", value)
+    if len(strNormalized) > 128:
         raise ValidationError("The normalized name exceeds 128 characters.")
-    return normalized
+    return strNormalized

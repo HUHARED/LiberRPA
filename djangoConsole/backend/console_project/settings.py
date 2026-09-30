@@ -19,6 +19,16 @@ _PATH_CONFIG = Path(
 ).resolve()
 _CONSOLE_CONFIG = read_config(_PATH_CONFIG)
 
+CONSOLE_LIMITS = _CONSOLE_CONFIG.limits
+CONSOLE_STORAGE_ROOT = (_PATH_CONFIG.parent / _CONSOLE_CONFIG.storageRoot).resolve()
+CONSOLE_SECRET_CIPHER = read_secret_cipher(
+    _PATH_CONFIG.parent, _CONSOLE_CONFIG.encryptionKeyFiles
+)
+CONSOLE_LOG_REQUESTS = _CONSOLE_CONFIG.logging.requests
+CONSOLE_URL = str(_CONSOLE_CONFIG.consoleUrl).rstrip("/")
+CONSOLE_SUPPORT_EMAIL = _CONSOLE_CONFIG.supportEmail
+
+# region Django settings
 SECRET_KEY = read_secret_file(_PATH_CONFIG.parent / _CONSOLE_CONFIG.secretKeyFile)
 if len(SECRET_KEY) < 50:
     raise ImproperlyConfigured(
@@ -28,17 +38,7 @@ if len(SECRET_KEY) < 50:
 DEBUG = _CONSOLE_CONFIG.debug
 ALLOWED_HOSTS = _CONSOLE_CONFIG.allowedHosts
 ROOT_URLCONF = "console_project.urls"
-ASGI_APPLICATION = "console_project.asgi.application"
-CONSOLE_LIMITS = _CONSOLE_CONFIG.limits
-CONSOLE_STORAGE_ROOT = (_PATH_CONFIG.parent / _CONSOLE_CONFIG.storageRoot).resolve()
-CONSOLE_SECRET_CIPHER = read_secret_cipher(
-    _PATH_CONFIG.parent, _CONSOLE_CONFIG.encryptionKeyFiles
-)
-CONSOLE_LOG_REQUESTS = _CONSOLE_CONFIG.logging.requests
 LOGGING = build_logging_config(_CONSOLE_CONFIG.logging.level)
-CONSOLE_URL = str(_CONSOLE_CONFIG.consoleUrl).rstrip("/")
-CONSOLE_SUPPORT_EMAIL = _CONSOLE_CONFIG.supportEmail
-
 DEFAULT_FROM_EMAIL = str(
     Address(
         display_name=_CONSOLE_CONFIG.smtp.fromName,
@@ -61,8 +61,6 @@ MAILERS = {
         },
     }
 }
-
-# Define the Console account before creating any database tables.
 INSTALLED_APPS = [
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -77,6 +75,7 @@ INSTALLED_APPS = [
     "operations.apps.OperationsConfig",
     "notifications.apps.NotificationsConfig",
 ]
+# Configure the custom user model before generating or applying initial migrations.
 AUTH_USER_MODEL = "accounts.User"
 # Authenticate identity with Django; Console business permissions remain in organizations.permissions.
 AUTHENTICATION_BACKENDS = ["django.contrib.auth.backends.ModelBackend"]
@@ -128,3 +127,4 @@ DATABASES = {
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
 USE_TZ = True
+# endregion
