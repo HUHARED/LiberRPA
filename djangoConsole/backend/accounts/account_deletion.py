@@ -121,6 +121,7 @@ def delete_account(
         sessionAuthHash, actor.get_session_auth_hash()
     ):
         raise SessionInvalidatedError("The current session is no longer valid.")
+
     # Verify without upgrading the actor's password hash or affecting their other sessions.
     if not check_password(currentPassword, actor.password):
         raise ValidationError({
@@ -128,6 +129,7 @@ def delete_account(
                 "The current password is incorrect.", code="incorrect_password"
             )
         })
+
     if not _build_account_deletion_info(membership).canDelete:
         raise ValidationError(
             "The organization must retain at least one active administrator.",

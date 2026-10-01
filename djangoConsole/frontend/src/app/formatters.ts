@@ -6,6 +6,7 @@ export function getDisplayName(username: string, email: string): string {
 
 export function formatDateTime(value: string | null, timeZone: string): string {
   if (value === null) return "—";
+  
   const dateValue = new Date(value);
   if (!Number.isFinite(dateValue.getTime())) return "Unknown";
   const arrPart = new Intl.DateTimeFormat("en", {

@@ -7,9 +7,9 @@
     type="success"
     variant="tonal"
     class="mb-4"
-    role="status"
-    >{{ strSuccessMessage }}</v-alert
-  >
+    role="status">
+    {{ strSuccessMessage }}
+  </v-alert>
   <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
     {{ requestError.message }}
     <p v-if="memberPage" class="mt-2">
@@ -98,9 +98,9 @@
           size="small"
           :disabled="boolActionBlocked"
           :aria-label="`Edit membership for ${item.user.email}`"
-          @click="openEdit(item.user)"
-          >Edit</v-btn
-        >
+          @click="openEdit(item.user)">
+          Edit
+        </v-btn>
         <v-btn
           v-if="item.user.id !== sessionStore.session?.user.id"
           color="error"
@@ -108,9 +108,9 @@
           size="small"
           :disabled="boolActionBlocked"
           :aria-label="`Delete account ${item.user.email}`"
-          @click="openDelete(item.user)"
-          >Delete Account</v-btn
-        >
+          @click="openDelete(item.user)">
+          Delete Account
+        </v-btn>
       </template>
       <template #no-data>
         {{ requestError ? "The member list could not be loaded." : "No members found." }}

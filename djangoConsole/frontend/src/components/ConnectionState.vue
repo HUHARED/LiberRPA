@@ -2,6 +2,7 @@
 <template>
   <v-container class="pa-0 text-center" aria-live="polite">
     <v-progress-circular v-if="loading" indeterminate color="primary" size="40" />
+
     <v-icon v-else icon="mdi-cloud-alert-outline" size="48" color="primary" />
     <h1 class="text-h5 mt-4 mb-3">
       {{ loading ? "Opening your workspace" : "Unable to connect" }}

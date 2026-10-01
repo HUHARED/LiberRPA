@@ -52,6 +52,7 @@ export function parseSessionResponse(payload: unknown): SessionResponse {
 
 export function parseAccountAccessResponse(payload: unknown): AccountAccessResponse {
   if (!isRecord(payload) || !isRecord(payload.organization)) return rejectInvalidResponse();
+
   const organizationInfo = payload.organization;
   if (
     typeof organizationInfo.id !== "string" ||
@@ -65,6 +66,7 @@ export function parseAccountAccessResponse(payload: unknown): AccountAccessRespo
     !Array.isArray(payload.departments)
   )
     return rejectInvalidResponse();
+
   const arrDepartment = payload.departments.map(
     (departmentInfo: unknown): DepartmentAccessResponse => {
       if (
@@ -77,6 +79,7 @@ export function parseAccountAccessResponse(payload: unknown): AccountAccessRespo
           departmentInfo.role !== "developer")
       )
         return rejectInvalidResponse();
+
       return {
         id: departmentInfo.id,
         name: departmentInfo.name,

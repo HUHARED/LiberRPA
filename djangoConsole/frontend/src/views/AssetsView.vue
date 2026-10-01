@@ -12,25 +12,25 @@
         variant="tonal"
         prepend-icon="mdi-plus"
         :disabled="boolLoading || boolNewAssetOpen"
-        @click="boolNewAssetOpen = true"
-        >New Asset</v-btn
-      >
+        @click="boolNewAssetOpen = true">
+        New Asset
+      </v-btn>
       <v-btn
         variant="tonal"
         prepend-icon="mdi-refresh"
         :loading="boolLoading"
         :disabled="boolLoading || boolNewAssetOpen"
-        @click="loadAssets()"
-        >Refresh</v-btn
-      >
+        @click="loadAssets()">
+        Refresh
+      </v-btn>
     </v-col>
   </v-row>
   <v-card variant="outlined" class="mb-4">
     <v-card-text>
       <form aria-label="Asset filters" @submit.prevent="applyFilters">
         <v-row>
-          <v-col cols="12" md="4"
-            ><v-text-field
+          <v-col cols="12" md="4">
+            <v-text-field
               v-model="strName"
               label="Name"
               maxlength="128"
@@ -38,10 +38,10 @@
               density="compact"
               hide-details
               clearable
-              :disabled="boolLoading"
-          /></v-col>
-          <v-col cols="12" md="4"
-            ><v-select
+              :disabled="boolLoading" />
+          </v-col>
+          <v-col cols="12" md="4">
+            <v-select
               v-model="arrDepartmentId"
               :items="sessionStore.access?.departments ?? []"
               item-title="path"
@@ -54,10 +54,10 @@
               variant="outlined"
               density="compact"
               hide-details
-              :disabled="boolLoading"
-          /></v-col>
-          <v-col cols="12" md="4"
-            ><v-select
+              :disabled="boolLoading" />
+          </v-col>
+          <v-col cols="12" md="4">
+            <v-select
               v-model="arrAssetType"
               :items="ARR_ASSET_TYPE"
               label="Type"
@@ -68,16 +68,16 @@
               variant="outlined"
               density="compact"
               hide-details
-              :disabled="boolLoading"
-          /></v-col>
+              :disabled="boolLoading" />
+          </v-col>
         </v-row>
         <div class="d-flex ga-2 mt-4">
-          <v-btn type="submit" color="primary" variant="tonal" :disabled="boolLoading"
-            >Apply</v-btn
-          >
-          <v-btn variant="outlined" :disabled="boolLoading" @click="clearFilters"
-            >Clear Filters</v-btn
-          >
+          <v-btn type="submit" color="primary" variant="tonal" :disabled="boolLoading">
+            Apply
+          </v-btn>
+          <v-btn variant="outlined" :disabled="boolLoading" @click="clearFilters">
+            Clear Filters
+          </v-btn>
         </div>
       </form>
     </v-card-text>
@@ -87,9 +87,9 @@
     type="success"
     variant="tonal"
     class="mb-4"
-    role="status"
-    >{{ strSuccessMessage }}</v-alert
-  >
+    role="status">
+    {{ strSuccessMessage }}
+  </v-alert>
   <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
     {{ requestError.message }}
     <p v-if="assetPage" class="mt-2">
@@ -110,16 +110,16 @@
     v-if="!sessionStore.access?.departments.length"
     type="info"
     variant="tonal"
-    class="mb-4"
-    >No department access. Ask an organization administrator to check departments and your
+    class="mb-4">
+    No department access. Ask an organization administrator to check departments and your
     access.</v-alert
   >
   <div
     class="d-flex flex-wrap justify-space-between ga-2 mb-3 text-body-2 text-medium-emphasis">
     <span>Time zone: {{ strTimeZone }}</span>
-    <span v-if="strUpdatedAt"
-      >Updated at {{ formatDateTime(strUpdatedAt, strTimeZone) }}</span
-    >
+    <span v-if="strUpdatedAt">
+      Updated at {{ formatDateTime(strUpdatedAt, strTimeZone) }}
+    </span>
   </div>
   <v-card variant="outlined" :aria-busy="boolLoading">
     <v-data-table-server
@@ -133,30 +133,28 @@
       item-value="id"
       disable-sort
       hide-default-footer>
-      <template #item.name="{ item }"
-        ><RouterLink
+      <template #item.name="{ item }">
+        <RouterLink
           :to="getDetailsLocation(item.id)"
-          class="d-inline-block table-text-narrow text-primary"
-          >{{ item.name }}</RouterLink
-        ></template
-      >
-      <template #item.department="{ item }"
-        ><div class="table-text-narrow">{{ item.department.path }}</div></template
-      >
-      <template #item.asset_type="{ item }">{{
-        getAssetTypeLabel(item.asset_type)
-      }}</template>
-      <template #item.value_summary="{ item }"
-        ><div class="table-text notes-summary">{{ item.value_summary }}</div></template
-      >
-      <template #item.notes="{ item }"
-        ><div class="table-text notes-summary">{{ item.notes || "—" }}</div></template
-      >
-      <template #item.updated_at="{ item }"
-        ><span class="text-no-wrap">{{
-          formatDateTime(item.updated_at, strTimeZone)
-        }}</span></template
-      >
+          class="d-inline-block table-text-narrow text-primary">
+          {{ item.name }}
+        </RouterLink>
+      </template>
+      <template #item.department="{ item }">
+        <div class="table-text-narrow">{{ item.department.path }}</div>
+      </template>
+      <template #item.asset_type="{ item }">
+        {{ getAssetTypeLabel(item.asset_type) }}
+      </template>
+      <template #item.value_summary="{ item }">
+        <div class="table-text notes-summary">{{ item.value_summary }}</div>
+      </template>
+      <template #item.notes="{ item }">
+        <div class="table-text notes-summary">{{ item.notes || "—" }}</div>
+      </template>
+      <template #item.updated_at="{ item }">
+        <span class="text-no-wrap">{{ formatDateTime(item.updated_at, strTimeZone) }}</span>
+      </template>
       <template #item.actions="{ item }">
         <div class="d-flex ga-1">
           <v-btn :to="getDetailsLocation(item.id)" variant="text" size="small">View</v-btn>
@@ -193,13 +191,13 @@
     mode="create"
     @close="boolNewAssetOpen = false"
     @saved="handleCreated" />
-  <RouterView v-slot="{ Component }"
-    ><component
+  <RouterView v-slot="{ Component }">
+    <component
       :is="Component"
       :key="route.path"
       @updated="handleUpdated"
-      @deleted="handleDeleted"
-  /></RouterView>
+      @deleted="handleDeleted" />
+  </RouterView>
 </template>
 
 <script setup lang="ts">

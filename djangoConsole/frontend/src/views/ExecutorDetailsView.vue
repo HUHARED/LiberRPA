@@ -169,9 +169,9 @@
     </v-card>
     <v-card variant="outlined" class="mb-4">
       <v-card-title>Notes</v-card-title>
-      <v-card-text class="text-pre-wrap text-anywhere">{{
-        executorInfo.notes || "—"
-      }}</v-card-text>
+      <v-card-text class="text-pre-wrap text-anywhere">
+        {{ executorInfo.notes || "—" }}
+      </v-card-text>
     </v-card>
     <v-card variant="outlined">
       <v-card-title>Executor Groups</v-card-title>

@@ -11,9 +11,9 @@
       <p v-if="intRetrySeconds" class="mt-2">Try again in {{ intRetrySeconds }} seconds.</p>
     </v-alert>
     <template v-if="boolCreated">
-      <v-alert type="success" variant="tonal" class="mb-4" role="status"
-        >Account created. Sign in with your invited email address and password.</v-alert
-      >
+      <v-alert type="success" variant="tonal" class="mb-4" role="status">
+        Account created. Sign in with your invited email address and password.
+      </v-alert>
       <v-btn :to="{ name: 'sign-in' }" color="primary" variant="tonal" block>Sign In</v-btn>
     </template>
     <template v-else-if="sessionStore.authenticated">
@@ -25,9 +25,9 @@
         variant="tonal"
         :loading="sessionStore.busy"
         :disabled="sessionStore.busy"
-        @click="signOutCurrentAccount"
-        >Sign Out</v-btn
-      >
+        @click="signOutCurrentAccount">
+        Sign Out
+      </v-btn>
     </template>
     <template v-else>
       <v-progress-linear
@@ -73,16 +73,16 @@
           :error-messages="requestError?.fields.password ?? []"
           :disabled="boolSaving"
           required>
-          <template #append-inner
-            ><v-btn
+          <template #append-inner>
+            <v-btn
               type="button"
               variant="text"
               size="small"
               :icon="boolPasswordVisible ? 'mdi-eye-off-outline' : 'mdi-eye-outline'"
               :aria-label="boolPasswordVisible ? 'Hide password' : 'Show password'"
               :disabled="boolSaving"
-              @click="boolPasswordVisible = !boolPasswordVisible"
-          /></template>
+              @click="boolPasswordVisible = !boolPasswordVisible" />
+          </template>
         </v-text-field>
         <v-btn
           type="submit"
@@ -90,9 +90,9 @@
           variant="tonal"
           block
           :loading="boolSaving"
-          :disabled="boolSaving || boolLoading || intRetrySeconds > 0"
-          >Create Account</v-btn
-        >
+          :disabled="boolSaving || boolLoading || intRetrySeconds > 0">
+          Create Account
+        </v-btn>
       </v-form>
       <template v-else-if="!boolLoading">
         <p class="mb-4">
@@ -103,13 +103,13 @@
           v-if="strToken"
           variant="tonal"
           :disabled="intRetrySeconds > 0"
-          @click="loadInvitation"
-          >Check Again</v-btn
-        >
+          @click="loadInvitation">
+          Check Again
+        </v-btn>
       </template>
-      <v-btn :to="{ name: 'sign-in' }" variant="text" class="mt-4" :disabled="boolSaving"
-        >Back to Sign In</v-btn
-      >
+      <v-btn :to="{ name: 'sign-in' }" variant="text" class="mt-4" :disabled="boolSaving">
+        Back to Sign In
+      </v-btn>
     </template>
   </AuthLayout>
 </template>

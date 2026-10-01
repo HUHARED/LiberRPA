@@ -87,6 +87,7 @@ def get_or_delete_account(
                 "Delete your own account from My Profile.",
                 statusCode=400,
             )
+
         targetId = user.id if userId is None else userId
         if request.method == "GET":
             deletionInfo = get_account_deletion_info(
@@ -116,14 +117,17 @@ def get_or_delete_account(
                 )
                 if request.session.get_expiry_date() <= timezone.now():
                     raise SessionInvalidatedError("The current session has expired.")
+
                 if boolOwnAccount:
                     logout(request)
+
         except Exception:
             # Rollback restores stored sessions; also restore the browser request after logout cleared it in memory.
             if previousSession is not None:
                 request.session = previousSession
                 request.user = user
             raise
+
         return JsonResponse({
             "message": "Account deleted. Sign in again."
             if boolOwnAccount

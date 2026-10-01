@@ -7,17 +7,17 @@
     max-width="660"
     aria-labelledby="queue-form-title">
     <v-card>
-      <v-card-title id="queue-form-title">{{
-        queue ? "Edit Queue" : "New Queue"
-      }}</v-card-title>
+      <v-card-title id="queue-form-title">
+        {{ queue ? "Edit Queue" : "New Queue" }}
+      </v-card-title>
       <v-card-text>
         <v-form id="queue-form" validate-on="submit" @submit.prevent="submit">
-          <v-alert v-if="error" type="error" variant="tonal" class="mb-4" role="alert"
-            >{{ error.message }}
+          <v-alert v-if="error" type="error" variant="tonal" class="mb-4" role="alert">
+            {{ error.message }}
             <p v-for="message in Object.values(error.fields).flat()" :key="message">
               {{ message }}
-            </p></v-alert
-          >
+            </p>
+          </v-alert>
           <v-text-field
             v-model="name"
             label="Name"
@@ -45,8 +45,8 @@
             v-if="queue && name !== queue.name"
             type="warning"
             variant="tonal"
-            class="mb-4"
-            >Renaming changes the resource path. Update saved paths in your code and
+            class="mb-4">
+            Renaming changes the resource path. Update saved paths in your code and
             configuration.</v-alert
           >
           <v-textarea
@@ -59,18 +59,19 @@
             :disabled="saving" />
         </v-form>
       </v-card-text>
-      <v-card-actions
-        ><v-spacer /><v-btn :disabled="saving" @click="emit('close')">Cancel</v-btn
-        ><v-btn
+      <v-card-actions>
+        <v-spacer />
+        <v-btn :disabled="saving" @click="emit('close')"> Cancel </v-btn>
+        <v-btn
           type="submit"
           form="queue-form"
           color="primary"
           variant="tonal"
           :loading="saving"
-          :disabled="saving || !allowed"
-          >{{ queue ? "Save" : "Create" }}</v-btn
-        ></v-card-actions
-      >
+          :disabled="saving || !allowed">
+          {{ queue ? "Save" : "Create" }}
+        </v-btn>
+      </v-card-actions>
     </v-card>
   </v-dialog>
 </template>

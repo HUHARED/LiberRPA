@@ -2,6 +2,7 @@
 <template>
   <h1 class="text-h5 mb-2">Overview</h1>
   <p class="text-medium-emphasis mb-6">Your account and organization at a glance.</p>
+
   <v-card variant="tonal" color="primary" class="mb-4">
     <v-card-text>
       <h2 class="text-h6 mb-2">
@@ -18,6 +19,7 @@
       </p>
     </v-card-text>
   </v-card>
+
   <v-row>
     <v-col cols="12" md="4">
       <v-card
@@ -33,6 +35,7 @@
         </v-card-text>
       </v-card>
     </v-col>
+
     <v-col cols="12" md="4">
       <v-card
         class="h-100"
@@ -57,6 +60,7 @@
         </v-card-text>
       </v-card>
     </v-col>
+
     <v-col cols="12" md="4">
       <v-card
         class="h-100"

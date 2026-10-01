@@ -15,6 +15,7 @@ export function useSessionLifecycle(): void {
 
   function refreshVisibleSession(): void {
     if (document.visibilityState !== "visible" || sessionStore.busy) return;
+
     const intNow = Date.now();
     if (intNow - intLastRefreshAt < INT_FOCUS_THROTTLE_MS) return;
     intLastRefreshAt = intNow;

@@ -132,9 +132,9 @@
   <div
     class="d-flex flex-wrap justify-space-between ga-2 mb-3 text-body-2 text-medium-emphasis">
     <span>Time zone: {{ strTimeZone }}</span>
-    <span v-if="strUpdatedAt"
-      >Updated at {{ formatDateTime(strUpdatedAt, strTimeZone) }}</span
-    >
+    <span v-if="strUpdatedAt">
+      Updated at {{ formatDateTime(strUpdatedAt, strTimeZone) }}
+    </span>
   </div>
   <v-card variant="outlined" :aria-busy="boolLoading">
     <v-data-table-server
@@ -171,9 +171,9 @@
         </v-chip>
       </template>
       <template #item.actions="{ item }">
-        <v-btn variant="text" size="small" @click="strDetailsId = item.id"
-          >View Details</v-btn
-        >
+        <v-btn variant="text" size="small" @click="strDetailsId = item.id">
+          View Details
+        </v-btn>
       </template>
       <template #no-data>
         {{

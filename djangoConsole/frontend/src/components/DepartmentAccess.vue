@@ -3,7 +3,9 @@
   <v-card variant="outlined" class="mt-4" aria-labelledby="department-heading">
     <v-card-title class="d-flex flex-wrap align-center ga-2">
       <h2 id="department-heading" class="text-h6">Departments</h2>
+
       <v-spacer />
+
       <v-chip size="small" variant="tonal">
         {{
           sessionStore.access?.is_org_admin
@@ -12,6 +14,7 @@
         }}
       </v-chip>
     </v-card-title>
+
     <v-card-text>
       <p>
         {{
@@ -21,6 +24,7 @@
         }}
       </p>
     </v-card-text>
+
     <v-list v-if="sessionStore.access?.departments.length" density="compact">
       <v-list-item
         v-for="departmentInfo in sessionStore.access.departments"
@@ -47,6 +51,7 @@
         </template>
       </v-list-item>
     </v-list>
+
     <v-card-text v-else>
       No department access. Ask an organization administrator to assign a role.
     </v-card-text>

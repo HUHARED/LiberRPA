@@ -27,6 +27,7 @@ export function parseAccountDeletionPreview(
     payload.can_delete !== (payload.blockers.length === 0)
   )
     return rejectInvalidResponse();
+
   return {
     user: {
       id: payload.user.id,

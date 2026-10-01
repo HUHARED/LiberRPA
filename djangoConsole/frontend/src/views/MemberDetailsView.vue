@@ -29,9 +29,9 @@
         variant="tonal"
         prepend-icon="mdi-pencil-outline"
         :disabled="boolActionBlocked"
-        @click="openEdit"
-        >Edit Membership</v-btn
-      >
+        @click="openEdit">
+        Edit Membership
+      </v-btn>
       <v-btn
         v-if="
           memberInfo &&
@@ -42,9 +42,9 @@
         variant="tonal"
         prepend-icon="mdi-delete-outline"
         :disabled="boolActionBlocked"
-        @click="openDelete"
-        >Delete Account</v-btn
-      >
+        @click="openDelete">
+        Delete Account
+      </v-btn>
     </v-col>
   </v-row>
   <v-alert
@@ -52,9 +52,9 @@
     type="success"
     variant="tonal"
     class="mb-4"
-    role="status"
-    >{{ strSuccessMessage }}</v-alert
-  >
+    role="status">
+    {{ strSuccessMessage }}
+  </v-alert>
   <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
     {{
       requestError.statusCode === 404

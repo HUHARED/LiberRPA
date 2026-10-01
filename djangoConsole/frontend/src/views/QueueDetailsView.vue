@@ -2,16 +2,14 @@
 <template>
   <div class="d-flex flex-wrap align-center justify-space-between ga-3 mb-4">
     <h1 class="text-h5">Queue Details{{ page ? ` — ${page.queue.name}` : "" }}</h1>
-    <v-btn :to="{ name: 'data-queues', query: listQuery }" variant="text"
-      >Back to Queues</v-btn
-    >
+    <v-btn :to="{ name: 'data-queues', query: listQuery }" variant="text">
+      Back to Queues
+    </v-btn>
   </div>
-  <v-alert v-if="error" type="error" variant="tonal" class="mb-4" role="alert"
-    >{{ error.message
-    }}<v-btn v-if="!page" variant="text" :disabled="loading" @click="load"
-      >Retry</v-btn
-    ></v-alert
-  >
+  <v-alert v-if="error" type="error" variant="tonal" class="mb-4" role="alert">
+    {{ error.message
+    }}<v-btn v-if="!page" variant="text" :disabled="loading" @click="load"> Retry </v-btn>
+  </v-alert>
   <v-alert
     v-if="strActionError"
     type="error"
@@ -22,13 +20,13 @@
     @click:close="strActionError = ''">
     {{ strActionError }}
   </v-alert>
-  <v-alert v-if="message" type="success" variant="tonal" class="mb-4" role="status">{{
-    message
-  }}</v-alert>
+  <v-alert v-if="message" type="success" variant="tonal" class="mb-4" role="status">
+    {{ message }}
+  </v-alert>
   <v-progress-linear v-if="loading && !page" indeterminate />
   <template v-if="page">
-    <v-card variant="outlined" class="mb-4"
-      ><v-card-text>
+    <v-card variant="outlined" class="mb-4">
+      <v-card-text>
         <v-text-field
           :model-value="page.queue.path"
           label="Path"
@@ -48,92 +46,101 @@
           {{ page.queue.claimed_count }}
         </p>
         <div class="d-flex flex-wrap ga-2 mt-4">
-          <v-btn variant="tonal" @click="copyPath">Copy Path</v-btn
-          ><v-btn
+          <v-btn variant="tonal" @click="copyPath">Copy Path</v-btn>
+          <v-btn
             v-if="page.queue.can_manage"
             variant="tonal"
             :disabled="busy || !!error"
-            @click="editOpen = true"
-            >Edit Queue</v-btn
-          ><v-btn
+            @click="editOpen = true">
+            Edit Queue
+          </v-btn>
+          <v-btn
             v-if="page.queue.can_manage"
             color="error"
             variant="tonal"
             :disabled="busy || !!error"
-            @click="confirm = 'queue'"
-            >Delete Queue</v-btn
-          >
+            @click="confirm = 'queue'">
+            Delete Queue
+          </v-btn>
         </div>
-      </v-card-text></v-card
-    >
-    <v-card variant="outlined" class="mb-4"
-      ><v-card-text
-        ><form @submit.prevent="applyFilters">
-          <v-row
-            ><v-col cols="12" md="3"
-              ><v-select
+      </v-card-text>
+    </v-card>
+    <v-card variant="outlined" class="mb-4">
+      <v-card-text>
+        <form @submit.prevent="applyFilters">
+          <v-row>
+            <v-col cols="12" md="3">
+              <v-select
                 v-model="status"
                 :items="QUEUE_STATUSES"
                 label="Status"
                 variant="outlined"
                 density="compact"
                 hide-details
-                :disabled="busy" /></v-col
-            ><v-col cols="12" md="5"
-              ><v-text-field
+                :disabled="busy" />
+            </v-col>
+            <v-col cols="12" md="5">
+              <v-text-field
                 v-model="itemId"
                 label="Item ID"
                 variant="outlined"
                 density="compact"
                 hide-details
                 clearable
-                :disabled="busy" /></v-col
-            ><v-col cols="12" md="4"
-              ><v-select
+                :disabled="busy" />
+            </v-col>
+            <v-col cols="12" md="4">
+              <v-select
                 v-model="order"
                 :items="QUEUE_ORDERS"
                 label="Order"
                 variant="outlined"
                 density="compact"
                 hide-details
-                :disabled="busy" /></v-col
-          ></v-row>
+                :disabled="busy" />
+            </v-col>
+          </v-row>
           <div class="d-flex flex-wrap ga-2 mt-4">
-            <v-btn type="submit" variant="tonal" color="primary" :disabled="busy"
-              >Apply</v-btn
-            ><v-btn variant="outlined" :disabled="busy" @click="clearFilters"
-              >Clear Filters</v-btn
-            >
+            <v-btn type="submit" variant="tonal" color="primary" :disabled="busy">
+              Apply
+            </v-btn>
+            <v-btn variant="outlined" :disabled="busy" @click="clearFilters">
+              Clear Filters
+            </v-btn>
           </div>
-        </form></v-card-text
-      ></v-card
-    >
+        </form>
+      </v-card-text>
+    </v-card>
     <div class="d-flex flex-wrap ga-2 mb-4">
       <v-btn
         color="primary"
         variant="tonal"
         :disabled="busy || !!error"
-        @click="uploadOpen = true"
-        >Upload Items</v-btn
-      ><v-btn
+        @click="uploadOpen = true">
+        Upload Items
+      </v-btn>
+      <v-btn
         variant="tonal"
         :disabled="busy || !!error || !canReset"
-        @click="confirm = 'reset'"
-        >Reset Selected</v-btn
-      ><v-btn
+        @click="confirm = 'reset'">
+        Reset Selected
+      </v-btn>
+      <v-btn
         color="error"
         variant="tonal"
         :disabled="busy || !!error || !selected.length"
-        @click="confirm = 'items'"
-        >Delete Selected</v-btn
-      ><v-spacer /><v-btn
+        @click="confirm = 'items'">
+        Delete Selected
+      </v-btn>
+      <v-spacer />
+      <v-btn
         variant="tonal"
         prepend-icon="mdi-refresh"
         :loading="loading"
         :disabled="busy"
-        @click="load"
-        >Refresh</v-btn
-      >
+        @click="load">
+        Refresh
+      </v-btn>
     </div>
     <p class="text-body-2 text-medium-emphasis mb-3">Time zone: {{ timeZone }}</p>
     <v-card variant="outlined">
@@ -152,42 +159,40 @@
         disable-sort
         hide-default-footer
         :mobile-breakpoint="600">
-        <template #item.data_summary="{ item }"
-          ><div class="table-text notes-summary">{{ item.data_summary }}</div></template
-        >
-        <template #item.status="{ item }">{{
-          item.status === "claimed" ? "Claimed" : "Unclaimed"
-        }}</template>
-        <template #item.uploaded_by_name="{ item }"
-          ><div class="table-text-narrow">{{ item.uploaded_by_name }}</div></template
-        >
-        <template #item.uploaded_at="{ item }"
-          ><span class="text-no-wrap">{{
-            formatDateTime(item.uploaded_at, timeZone)
-          }}</span></template
-        >
-        <template #item.last_claimed_by_name="{ item }"
-          ><div class="table-text-narrow">
+        <template #item.data_summary="{ item }">
+          <div class="table-text notes-summary">{{ item.data_summary }}</div>
+        </template>
+        <template #item.status="{ item }">
+          {{ item.status === "claimed" ? "Claimed" : "Unclaimed" }}
+        </template>
+        <template #item.uploaded_by_name="{ item }">
+          <div class="table-text-narrow">{{ item.uploaded_by_name }}</div>
+        </template>
+        <template #item.uploaded_at="{ item }">
+          <span class="text-no-wrap">{{ formatDateTime(item.uploaded_at, timeZone) }}</span>
+        </template>
+        <template #item.last_claimed_by_name="{ item }">
+          <div class="table-text-narrow">
             {{ item.last_claimed_by_name || "—" }}
-          </div></template
-        >
-        <template #item.last_claimed_at="{ item }"
-          ><span class="text-no-wrap">{{
-            formatDateTime(item.last_claimed_at, timeZone)
-          }}</span></template
-        >
-        <template #item.actions="{ item }"
-          ><v-btn
+          </div>
+        </template>
+        <template #item.last_claimed_at="{ item }">
+          <span class="text-no-wrap">
+            {{ formatDateTime(item.last_claimed_at, timeZone) }}
+          </span>
+        </template>
+        <template #item.actions="{ item }">
+          <v-btn
             :to="{
               name: 'queue-item-details',
               params: { queueId, itemId: item.id },
               query: route.query,
             }"
             variant="text"
-            size="small"
-            >View</v-btn
-          ></template
-        >
+            size="small">
+            View
+          </v-btn>
+        </template>
         <template #no-data>No items match the current filters.</template>
       </v-data-table-server>
       <div class="d-flex flex-wrap align-center justify-space-between ga-2 pa-3">
@@ -218,8 +223,8 @@
       :model-value="!!confirm"
       persistent
       max-width="560"
-      aria-labelledby="queue-confirm-title"
-      ><v-card>
+      aria-labelledby="queue-confirm-title">
+      <v-card>
         <v-card-title id="queue-confirm-title">{{
           confirm === "reset"
             ? "Reset to Unclaimed"
@@ -227,8 +232,8 @@
               ? "Delete Queue"
               : "Delete Items"
         }}</v-card-title>
-        <v-card-text
-          ><p class="text-break mb-3">{{ page.queue.path }}</p>
+        <v-card-text>
+          <p class="text-break mb-3">{{ page.queue.path }}</p>
           <p>
             {{
               confirm === "queue"
@@ -243,27 +248,28 @@
             type="error"
             variant="tonal"
             class="mt-4"
-            role="alert"
-            >The operation was not confirmed. {{ mutationError.message }}</v-alert
-          ></v-card-text
-        >
-        <v-card-actions
-          ><v-spacer /><v-btn :disabled="saving" @click="closeConfirm">Cancel</v-btn
-          ><v-btn
+            role="alert">
+            The operation was not confirmed. {{ mutationError.message }}
+          </v-alert>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn :disabled="saving" @click="closeConfirm">Cancel</v-btn>
+          <v-btn
             :color="confirm === 'reset' ? 'primary' : 'error'"
             variant="tonal"
             :disabled="saving"
             :loading="saving"
-            @click="submitMutation"
-            >{{ confirm === "reset" ? "Reset" : "Delete" }}</v-btn
-          ></v-card-actions
-        >
-      </v-card></v-dialog
-    >
+            @click="submitMutation">
+            {{ confirm === "reset" ? "Reset" : "Delete" }}
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </template>
-  <RouterView v-slot="{ Component }"
-    ><component :is="Component" :key="route.path"
-  /></RouterView>
+  <RouterView v-slot="{ Component }">
+    <component :is="Component" :key="route.path" />
+  </RouterView>
 </template>
 
 <script setup lang="ts">

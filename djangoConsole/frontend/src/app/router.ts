@@ -2,16 +2,12 @@
 
 import { createRouter, createWebHistory } from "vue-router";
 import type { Router, RouterHistory } from "vue-router";
-import type { Pinia } from "pinia";
 
 import { useSessionStore } from "../stores/sessionStore";
 
 import { getSafeReturnPath, getSignInLocation } from "./navigation";
 
-export function createAppRouter(
-  pinia: Pinia,
-  history: RouterHistory = createWebHistory(),
-): Router {
+export function createAppRouter(history: RouterHistory = createWebHistory()): Router {
   const router = createRouter({
     history,
     routes: [
@@ -214,13 +210,15 @@ export function createAppRouter(
   });
 
   router.beforeEach(async (to, from) => {
-    const sessionStore = useSessionStore(pinia);
+    const sessionStore = useSessionStore();
     await sessionStore.initializeSession();
     // Keep an open page mounted until the session can be checked again.
     if (sessionStore.unavailable) return from.matched.length === 0;
+
     if (sessionStore.status === "anonymous" && !to.meta.public) {
       return getSignInLocation(to.fullPath);
     }
+
     if (sessionStore.authenticated) {
       if (to.name === "sign-in") return getSafeReturnPath(to.query.returnTo);
       if (to.meta.requiresBusiness && !sessionStore.access?.business_available)
@@ -232,5 +230,6 @@ export function createAppRouter(
     }
     return true;
   });
+
   return router;
 }

@@ -26,8 +26,8 @@ from .password_views import change_account_password
 from .profile_views import get_or_update_profile
 from .public_api_views import get_api_key_access
 from .session_views import (
-    get_current_access,
     get_current_session,
+    get_current_access,
     sign_in,
     sign_out,
     sign_out_other_sessions,

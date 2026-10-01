@@ -7,6 +7,7 @@
       <p class="text-medium-emphasis mb-6">
         This address does not point to an available Console page.
       </p>
+
       <v-btn
         color="primary"
         variant="tonal"

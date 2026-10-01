@@ -85,4 +85,11 @@ export default tseslint.config(
     files: ["*.mjs", "vite.config.ts", "scripts/**/*.mjs"],
     languageOptions: { globals: globals.node },
   },
+
+  {
+    files: ["src/stores/*.ts"],
+    rules: {
+      "@typescript-eslint/no-unnecessary-type-assertion": "off",
+    },
+  },
 );

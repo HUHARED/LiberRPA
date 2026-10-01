@@ -63,18 +63,18 @@
       </v-card-text>
       <v-card-actions>
         <v-spacer />
-        <v-btn :disabled="cancelRequested || canceling" @click="cancel">{{
-          busy ? "Cancel Upload" : "Cancel"
-        }}</v-btn>
+        <v-btn :disabled="cancelRequested || canceling" @click="cancel">
+          {{ busy ? "Cancel Upload" : "Cancel" }}
+        </v-btn>
         <v-btn
           type="submit"
           form="file-upload-form"
           color="primary"
           variant="tonal"
           :loading="busy"
-          :disabled="busy || canceling || !allowed"
-          >{{ upload ? "Retry Upload" : "Upload" }}</v-btn
-        >
+          :disabled="busy || canceling || !allowed">
+          {{ upload ? "Retry Upload" : "Upload" }}
+        </v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>

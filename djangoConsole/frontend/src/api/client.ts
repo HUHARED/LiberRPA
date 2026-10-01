@@ -3,7 +3,7 @@
 import { ApiError } from "./errors";
 import { isRecord, buildResponseError } from "./responses";
 
-export interface ApiRequestOptions {
+interface ApiRequestOptions {
   method?: "GET" | "POST" | "PUT";
   // JSON objects and arrays are serialized; Blob bodies are sent unchanged.
   body?: object;
@@ -41,6 +41,7 @@ async function fetchApi(
       ? "application/octet-stream, application/json"
       : "application/json",
   );
+
   let requestBody: string | Blob | undefined;
   if (options.body instanceof Blob) {
     requestBody = options.body;
@@ -49,6 +50,7 @@ async function fetchApi(
     requestBody = JSON.stringify(options.body);
     requestHeaders.set("Content-Type", "application/json");
   }
+
   if (csrfToken !== undefined) requestHeaders.set("X-CSRFToken", csrfToken);
 
   const abortController = new AbortController();
@@ -116,7 +118,9 @@ async function fetchApi(
 
 async function getCsrfToken(): Promise<string> {
   if (strCsrfToken !== null) return strCsrfToken;
+
   if (csrfRequest !== null) return csrfRequest;
+
   const intRevision = intCsrfRevision;
   const pendingRequest = fetchApi("/auth/csrf/", {})
     .then((payload) => {
@@ -131,6 +135,7 @@ async function getCsrfToken(): Promise<string> {
       }
       if (intRevision !== intCsrfRevision) {
         if (strCsrfToken !== null) return strCsrfToken;
+
         throw new ApiError("Your session changed. Please try again.", {
           code: "session_changed",
         });

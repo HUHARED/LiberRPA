@@ -17,9 +17,9 @@
           :disabled="saving || reading"
           :loading="reading"
           @update:model-value="selectFile" />
-        <v-alert v-if="fileError" type="error" variant="tonal" class="mb-4" role="alert">{{
-          fileError
-        }}</v-alert>
+        <v-alert v-if="fileError" type="error" variant="tonal" class="mb-4" role="alert">
+          {{ fileError }}
+        </v-alert>
         <template v-if="source">
           <v-select
             v-if="source.excel"
@@ -51,15 +51,15 @@
             label="Value Format"
             variant="outlined"
             :disabled="saving" />
-          <v-alert v-if="preview.error" type="info" variant="tonal" class="mb-4">{{
-            preview.error
-          }}</v-alert>
+          <v-alert v-if="preview.error" type="info" variant="tonal" class="mb-4">
+            {{ preview.error }}
+          </v-alert>
           <template v-else>
             <p class="mb-3">
               {{ preview.rows.length }} items · {{ preview.skipped }} empty entries skipped
             </p>
-            <v-table density="compact"
-              ><thead>
+            <v-table density="compact">
+              <thead>
                 <tr>
                   <th>Source</th>
                   <th>Preview (first 10 items)</th>
@@ -72,28 +72,29 @@
                     {{ JSON.stringify(row.value).slice(0, 160) }}
                   </td>
                 </tr>
-              </tbody></v-table
-            >
+              </tbody>
+            </v-table>
           </template>
         </template>
-        <v-alert v-if="error" type="error" variant="tonal" class="mt-4" role="alert"
-          >Upload was not confirmed. {{ error.message }}
+        <v-alert v-if="error" type="error" variant="tonal" class="mt-4" role="alert">
+          Upload was not confirmed. {{ error.message }}
           <p v-for="message in Object.values(error.fields).flat()" :key="message">
             {{ message }}
-          </p></v-alert
-        >
+          </p>
+        </v-alert>
       </v-card-text>
-      <v-card-actions
-        ><v-spacer /><v-btn :disabled="saving" @click="emit('close')">Cancel</v-btn
-        ><v-btn
+      <v-card-actions>
+        <v-spacer />
+        <v-btn :disabled="saving" @click="emit('close')">Cancel</v-btn>
+        <v-btn
           color="primary"
           variant="tonal"
           :loading="saving"
           :disabled="saving || reading || !!preview.error || !source"
-          @click="submit"
-          >Upload</v-btn
-        ></v-card-actions
-      >
+          @click="submit">
+          Upload
+        </v-btn>
+      </v-card-actions>
     </v-card>
   </v-dialog>
 </template>

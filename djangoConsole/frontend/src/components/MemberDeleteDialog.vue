@@ -8,6 +8,7 @@
     aria-labelledby="member-delete-title">
     <v-card>
       <v-card-title id="member-delete-title">Delete Account</v-card-title>
+
       <v-card-text>
         <v-progress-linear
           v-if="boolLoading"
@@ -15,14 +16,10 @@
           color="primary"
           class="mb-4"
           aria-label="Checking account deletion conditions" />
-        <v-alert
-          v-if="requestError"
-          type="error"
-          variant="tonal"
-          class="mb-4"
-          role="alert"
-          >{{ requestError.message }}</v-alert
-        >
+
+        <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
+          {{ requestError.message }}
+        </v-alert>
         <v-alert v-if="deleteError" type="error" variant="tonal" class="mb-4" role="alert">
           Deletion was not confirmed. {{ deleteError.message }}
           <p v-if="!deletionInfo" class="mt-2">
@@ -36,6 +33,7 @@
           The organization must retain at least one active administrator. Assign another
           administrator before deleting your account.
         </v-alert>
+
         <v-form
           v-if="!boolOwnDeletionBlocked"
           id="member-delete-form"
@@ -50,14 +48,16 @@
             v-if="deletionInfo && !deletionInfo.can_delete"
             type="warning"
             variant="tonal"
-            class="mb-4"
-            >The organization must retain at least one active administrator.</v-alert
-          >
+            class="mb-4">
+            The organization must retain at least one active administrator.
+          </v-alert>
+
           <p class="mb-4">
             This permanently deletes the account, its department roles, API Keys and client
             associations. Organization resources and history remain. Creating an account
             with the same email later will not restore this account.
           </p>
+
           <PasswordField
             v-model="strPassword"
             :label="boolOwnAccount ? 'Current Password' : 'Your Current Password'"
@@ -74,11 +74,13 @@
             required />
         </v-form>
       </v-card-text>
+
       <v-card-actions class="flex-wrap ga-2">
         <v-spacer />
-        <v-btn variant="text" :disabled="boolDeleting" @click="closeDialog">{{
-          boolOwnDeletionBlocked ? "Close" : "Cancel"
-        }}</v-btn>
+        <v-btn variant="text" :disabled="boolDeleting" @click="closeDialog">
+          {{ boolOwnDeletionBlocked ? "Close" : "Cancel" }}
+        </v-btn>
+
         <v-btn
           v-if="
             !boolOwnDeletionBlocked &&
@@ -88,9 +90,10 @@
           "
           variant="tonal"
           :disabled="boolLoading || boolDeleting || !boolCanDelete"
-          @click="loadPreview"
-          >{{ requestError ? "Retry" : "Check Again" }}</v-btn
-        >
+          @click="loadPreview">
+          {{ requestError ? "Retry" : "Check Again" }}
+        </v-btn>
+
         <v-btn
           v-if="!boolOwnDeletionBlocked"
           type="submit"
@@ -104,9 +107,9 @@
             !boolCanDelete ||
             !deletionInfo?.can_delete ||
             intRetrySeconds > 0
-          "
-          >Delete Account</v-btn
-        >
+          ">
+          Delete Account
+        </v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>
@@ -164,6 +167,7 @@ async function loadPreview(): Promise<void> {
     if (!boolUnmounted) deletionInfo.value = response;
   } catch (e) {
     if (boolUnmounted) return;
+
     requestError.value = getApiError(e);
     if (requestError.value.statusCode === 403) await sessionStore.refreshSession();
   } finally {
@@ -188,6 +192,7 @@ async function submitDelete(event: SubmitEventPromise): Promise<void> {
     intRetrySeconds.value
   )
     return;
+
   const validation = await event;
   if (
     !validation.valid ||
@@ -199,6 +204,7 @@ async function submitDelete(event: SubmitEventPromise): Promise<void> {
     intRetrySeconds.value > 0
   )
     return;
+
   boolDeleting.value = true;
   deleteError.value = null;
   try {

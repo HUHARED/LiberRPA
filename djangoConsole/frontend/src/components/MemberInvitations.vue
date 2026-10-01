@@ -1,21 +1,21 @@
 <!-- FileName: MemberInvitations.vue -->
 <template>
   <v-row align="center" class="mt-6 mb-4">
-    <v-col
-      ><h3 class="text-h5 mb-2">Invitations</h3>
+    <v-col>
+      <h3 class="text-h5 mb-2">Invitations</h3>
       <p class="text-medium-emphasis">
         Pending and expired invitations. Accepted and revoked invitations leave this list.
-      </p></v-col
-    >
+      </p>
+    </v-col>
     <v-col cols="auto" class="d-flex flex-wrap ga-2">
       <v-btn
         color="primary"
         variant="tonal"
         prepend-icon="mdi-account-plus-outline"
         :disabled="boolActionBlocked"
-        @click="openInvitationForm"
-        >Invite Member</v-btn
-      >
+        @click="openInvitationForm">
+        Invite Member
+      </v-btn>
     </v-col>
   </v-row>
   <v-alert
@@ -23,9 +23,9 @@
     type="success"
     variant="tonal"
     class="mb-4"
-    role="status"
-    >{{ strSuccessMessage }}</v-alert
-  >
+    role="status">
+    {{ strSuccessMessage }}
+  </v-alert>
   <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
     {{ requestError.message }}
     <p v-if="invitationPage" class="mt-2">
@@ -57,19 +57,19 @@
       loading-text="Loading invitations…"
       disable-sort
       hide-default-footer>
-      <template #item.email="{ item }"
-        ><span class="table-text">{{ item.email }}</span></template
-      >
-      <template #item.status="{ item }"
-        ><span class="text-capitalize">{{
-          getInvitationStatus(item, intCurrentTimeMs)
-        }}</span></template
-      >
+      <template #item.email="{ item }">
+        <span class="table-text">{{ item.email }}</span>
+      </template>
+      <template #item.status="{ item }">
+        <span class="text-capitalize">
+          {{ getInvitationStatus(item, intCurrentTimeMs) }}
+        </span>
+      </template>
       <template #item.roles="{ item }">
-        <template v-if="item.is_org_admin"
-          ><v-chip color="primary" size="small" variant="tonal">OrgAdmin</v-chip>
-          <p class="text-body-2 mt-1">All departments</p></template
-        >
+        <template v-if="item.is_org_admin">
+          <v-chip color="primary" size="small" variant="tonal">OrgAdmin </v-chip>
+          <p class="text-body-2 mt-1">All departments</p>
+        </template>
         <ul v-else-if="item.department_roles.length" class="list-unstyled">
           <li
             v-for="assignment in item.department_roles"
@@ -82,38 +82,38 @@
         </ul>
         <span v-else class="text-medium-emphasis">No department access</span>
       </template>
-      <template #item.expires_at="{ item }">{{
-        formatDateTime(item.expires_at, strTimeZone)
-      }}</template>
-      <template #item.email_delivery="{ item }">{{
-        getDeliveryLabel(item.email_delivery)
-      }}</template>
+      <template #item.expires_at="{ item }">
+        {{ formatDateTime(item.expires_at, strTimeZone) }}
+      </template>
+      <template #item.email_delivery="{ item }">
+        {{ getDeliveryLabel(item.email_delivery) }}
+      </template>
       <template #item.actions="{ item }">
         <v-btn
           variant="text"
           size="small"
           :disabled="boolActionBlocked"
           :aria-label="`View invitation for ${item.email}`"
-          @click="openInvitation(item.id, 'view')"
-          >View</v-btn
-        >
+          @click="openInvitation(item.id, 'view')">
+          View
+        </v-btn>
         <v-btn
           variant="text"
           size="small"
           :disabled="boolActionBlocked"
           :aria-label="`Resend invitation to ${item.email}`"
-          @click="openInvitation(item.id, 'resend')"
-          >Resend</v-btn
-        >
+          @click="openInvitation(item.id, 'resend')">
+          Resend
+        </v-btn>
         <v-btn
           color="error"
           variant="text"
           size="small"
           :disabled="boolActionBlocked"
           :aria-label="`Revoke invitation for ${item.email}`"
-          @click="openInvitation(item.id, 'revoke')"
-          >Revoke</v-btn
-        >
+          @click="openInvitation(item.id, 'revoke')">
+          Revoke
+        </v-btn>
       </template>
       <template #no-data>{{
         requestError

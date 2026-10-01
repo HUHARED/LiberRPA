@@ -1,39 +1,45 @@
 <!-- FileName: SharedFilesView.vue -->
 <template>
   <v-row align="center" class="mb-4">
-    <v-col><h1 class="text-h5">Shared Files</h1></v-col>
+    <v-col>
+      <h1 class="text-h5">Shared Files</h1>
+    </v-col>
+
     <v-col cols="auto" class="d-flex flex-wrap ga-2">
       <v-btn
         color="primary"
         variant="tonal"
         prepend-icon="mdi-upload"
         :disabled="!ready"
-        @click="showUpload = true"
-        >Upload File</v-btn
-      >
+        @click="showUpload = true">
+        Upload File
+      </v-btn>
+
       <v-btn
         color="error"
         variant="tonal"
         :disabled="!ready || !selected.length"
-        @click="deletePaths = [...selected]"
-        >Delete Selected</v-btn
-      >
+        @click="deletePaths = [...selected]">
+        Delete Selected
+      </v-btn>
+
       <v-btn
         variant="tonal"
         prepend-icon="mdi-refresh"
         :loading="loading"
         :disabled="loading || !activeDepartment"
-        @click="load"
-        >Refresh</v-btn
-      >
+        @click="load">
+        Refresh
+      </v-btn>
     </v-col>
   </v-row>
+
   <v-card variant="outlined" class="mb-4">
     <v-card-text>
       <form @submit.prevent="applyFilters">
         <v-row>
-          <v-col cols="12" md="4"
-            ><v-autocomplete
+          <v-col cols="12" md="4">
+            <v-autocomplete
               v-model="department"
               :items="departments"
               item-title="path"
@@ -43,10 +49,10 @@
               density="compact"
               hide-details
               clearable
-              :disabled="loading"
-          /></v-col>
-          <v-col cols="12" md="4"
-            ><v-text-field
+              :disabled="loading" />
+          </v-col>
+          <v-col cols="12" md="4">
+            <v-text-field
               v-model="name"
               label="File Name"
               maxlength="128"
@@ -54,36 +60,36 @@
               density="compact"
               hide-details
               clearable
-              :disabled="loading"
-          /></v-col>
-          <v-col cols="6" md="2"
-            ><v-select
+              :disabled="loading" />
+          </v-col>
+          <v-col cols="6" md="2">
+            <v-select
               v-model="sortBy"
               :items="sortOptions"
               label="Sort By"
               variant="outlined"
               density="compact"
               hide-details
-              :disabled="loading"
-          /></v-col>
-          <v-col cols="6" md="2"
-            ><v-select
+              :disabled="loading" />
+          </v-col>
+          <v-col cols="6" md="2">
+            <v-select
               v-model="order"
               :items="orderOptions"
               label="Order"
               variant="outlined"
               density="compact"
               hide-details
-              :disabled="loading"
-          /></v-col>
+              :disabled="loading" />
+          </v-col>
         </v-row>
         <div class="d-flex ga-2 mt-4">
-          <v-btn type="submit" color="primary" variant="tonal" :disabled="loading"
-            >Apply</v-btn
-          >
-          <v-btn variant="outlined" :disabled="loading" @click="clearFilters"
-            >Clear Filters</v-btn
-          >
+          <v-btn type="submit" color="primary" variant="tonal" :disabled="loading">
+            Apply
+          </v-btn>
+          <v-btn variant="outlined" :disabled="loading" @click="clearFilters">
+            Clear Filters
+          </v-btn>
         </div>
       </form>
     </v-card-text>
@@ -93,12 +99,12 @@
     type="success"
     variant="tonal"
     class="mb-4 file-path"
-    role="status"
-    >{{ message }}</v-alert
-  >
-  <v-alert v-if="error" type="error" variant="tonal" class="mb-4" role="alert">{{
-    error.message
-  }}</v-alert>
+    role="status">
+    {{ message }}
+  </v-alert>
+  <v-alert v-if="error" type="error" variant="tonal" class="mb-4" role="alert">
+    {{ error.message }}
+  </v-alert>
   <v-alert
     v-if="strActionError"
     type="error"
@@ -109,9 +115,9 @@
     @click:close="strActionError = ''">
     {{ strActionError }}
   </v-alert>
-  <v-alert v-if="!activeDepartment" type="info" variant="tonal"
-    >Select a department to view its files.</v-alert
-  >
+  <v-alert v-if="!activeDepartment" type="info" variant="tonal">
+    Select a department to view its files.
+  </v-alert>
   <template v-else>
     <div v-if="page" class="mb-4">
       <p class="file-path mb-1">{{ page.department_path }}</p>
@@ -142,18 +148,18 @@
         disable-sort
         hide-default-footer
         :mobile-breakpoint="600">
-        <template #item.name="{ item }"
-          ><span class="file-path">{{ item.name }}</span></template
-        >
-        <template #item.size_bytes="{ item }">{{
-          formatFileSize(item.size_bytes)
-        }}</template>
-        <template #item.uploaded_by_name="{ item }"
-          ><span class="file-path">{{ item.uploaded_by_name }}</span></template
-        >
-        <template #item.uploaded_at="{ item }">{{
-          formatDateTime(item.uploaded_at, timeZone)
-        }}</template>
+        <template #item.name="{ item }">
+          <span class="file-path">{{ item.name }}</span>
+        </template>
+        <template #item.size_bytes="{ item }">
+          {{ formatFileSize(item.size_bytes) }}
+        </template>
+        <template #item.uploaded_by_name="{ item }">
+          <span class="file-path">{{ item.uploaded_by_name }}</span>
+        </template>
+        <template #item.uploaded_at="{ item }">
+          {{ formatDateTime(item.uploaded_at, timeZone) }}
+        </template>
         <template #item.actions="{ item }">
           <div class="d-flex ga-1">
             <v-btn
@@ -161,20 +167,20 @@
               size="small"
               :loading="downloading.has(item.path)"
               :disabled="!ready || downloading.has(item.path)"
-              @click="download(item.path)"
-              >Download</v-btn
-            >
-            <v-btn variant="text" size="small" @click="copyPath(item.path)"
-              >Copy Path</v-btn
-            >
+              @click="download(item.path)">
+              Download
+            </v-btn>
+            <v-btn variant="text" size="small" @click="copyPath(item.path)">
+              Copy Path
+            </v-btn>
             <v-btn
               variant="text"
               size="small"
               color="error"
               :disabled="!ready"
-              @click="deletePaths = [item.path]"
-              >Delete</v-btn
-            >
+              @click="deletePaths = [item.path]">
+              Delete
+            </v-btn>
           </div>
         </template>
         <template #no-data>{{

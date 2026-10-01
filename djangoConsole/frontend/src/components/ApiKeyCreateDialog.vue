@@ -7,9 +7,9 @@
     max-width="680"
     aria-labelledby="api-key-create-title">
     <v-card>
-      <v-card-title id="api-key-create-title">{{
-        createdKey ? "API Key Created" : "New API Key"
-      }}</v-card-title>
+      <v-card-title id="api-key-create-title">
+        {{ createdKey ? "API Key Created" : "New API Key" }}
+      </v-card-title>
       <v-card-text>
         <template v-if="createdKey">
           <v-alert type="success" variant="tonal" class="mb-4" role="status">
@@ -94,9 +94,9 @@
         </template>
         <template v-else>
           <v-btn variant="text" :disabled="boolSaving" @click="closeDialog">Cancel</v-btn>
-          <v-btn v-if="boolUncertain" variant="tonal" @click="emit('refresh')"
-            >Check List</v-btn
-          >
+          <v-btn v-if="boolUncertain" variant="tonal" @click="emit('refresh')">
+            Check List
+          </v-btn>
           <v-btn
             v-else
             type="submit"
@@ -104,9 +104,9 @@
             color="primary"
             variant="tonal"
             :loading="boolSaving"
-            :disabled="boolSubmitBlocked"
-            >Create</v-btn
-          >
+            :disabled="boolSubmitBlocked">
+            Create
+          </v-btn>
         </template>
       </v-card-actions>
     </v-card>

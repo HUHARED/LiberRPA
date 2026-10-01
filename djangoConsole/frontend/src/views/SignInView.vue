@@ -5,6 +5,7 @@
     <p class="text-medium-emphasis mb-6">
       Enter your account details to open your workspace.
     </p>
+
     <v-alert
       v-if="sessionStore.notice === 'expired'"
       type="info"
@@ -54,12 +55,14 @@
       role="status">
       Your account has been deleted.
     </v-alert>
+
     <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
       {{ requestError.message }}
       <span v-if="intRetrySeconds > 0" class="d-block mt-1">
         Try again in {{ intRetrySeconds }} seconds.
       </span>
     </v-alert>
+
     <v-form :novalidate="false" validate-on="submit" @submit.prevent="submitSignIn">
       <v-text-field
         id="sign-in-email"
@@ -78,6 +81,7 @@
         spellcheck="false"
         autocapitalize="none"
         required />
+
       <v-text-field
         id="sign-in-password"
         v-model="strPassword"
@@ -103,6 +107,7 @@
             @click="boolPasswordVisible = !boolPasswordVisible" />
         </template>
       </v-text-field>
+
       <v-checkbox
         v-model="boolRememberMe"
         color="primary"
@@ -110,6 +115,7 @@
         hide-details
         density="compact"
         :disabled="sessionStore.busy" />
+
       <v-btn
         type="submit"
         color="primary"
@@ -122,7 +128,9 @@
         Sign In
       </v-btn>
     </v-form>
+
     <v-divider class="my-4" />
+
     <p class="text-medium-emphasis">
       Use the email address associated with your organization.
     </p>
@@ -159,6 +167,7 @@ const boolRememberMe = ref(false);
 const boolPasswordVisible = ref(false);
 const requestError = shallowRef<ApiError | null>(null);
 const { intRetrySeconds, setRetryDelay } = useRetryDelay();
+
 onBeforeUnmount(() => {
   strPassword.value = "";
 });
@@ -173,6 +182,7 @@ function validateRequiredPassword(value: string): true | string {
 
 async function submitSignIn(event: SubmitEventPromise): Promise<void> {
   if (sessionStore.busy || intRetrySeconds.value > 0) return;
+
   const validationResult = await event;
   if (!validationResult.valid || sessionStore.busy || intRetrySeconds.value > 0) return;
   requestError.value = null;

@@ -7,9 +7,9 @@
     max-width="640"
     aria-labelledby="api-key-action-title">
     <v-card>
-      <v-card-title id="api-key-action-title">{{
-        action === "edit" ? "Edit API Key Notes" : "Revoke API Key"
-      }}</v-card-title>
+      <v-card-title id="api-key-action-title">
+        {{ action === "edit" ? "Edit API Key Notes" : "Revoke API Key" }}
+      </v-card-title>
       <v-card-text>
         <v-alert v-if="saveError" type="error" variant="tonal" class="mb-4" role="alert">
           The operation was not confirmed. {{ saveError.message }}
@@ -60,18 +60,18 @@
       <v-card-actions class="flex-wrap ga-2">
         <v-spacer />
         <v-btn variant="text" :disabled="boolSaving" @click="closeDialog">Cancel</v-btn>
-        <v-btn v-if="boolRefreshRequired" variant="tonal" @click="emit('refresh')"
-          >Refresh List</v-btn
-        >
+        <v-btn v-if="boolRefreshRequired" variant="tonal" @click="emit('refresh')">
+          Refresh List
+        </v-btn>
         <v-btn
           type="submit"
           form="api-key-action-form"
           :color="action === 'revoke' ? 'error' : 'primary'"
           variant="tonal"
           :loading="boolSaving"
-          :disabled="boolSubmitBlocked"
-          >{{ action === "edit" ? "Save" : "Revoke" }}</v-btn
-        >
+          :disabled="boolSubmitBlocked">
+          {{ action === "edit" ? "Save" : "Revoke" }}
+        </v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>

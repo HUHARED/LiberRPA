@@ -1,32 +1,35 @@
 <!-- FileName: DataQueuesView.vue -->
 <template>
   <v-row align="center" class="mb-4">
-    <v-col><h1 class="text-h5">Data Queues</h1></v-col>
-    <v-col cols="auto" class="d-flex ga-2"
-      ><v-btn
+    <v-col>
+      <h1 class="text-h5">Data Queues</h1>
+    </v-col>
+    <v-col cols="auto" class="d-flex ga-2">
+      <v-btn
         v-if="canCreate"
         color="primary"
         variant="tonal"
         prepend-icon="mdi-plus"
         :disabled="loading"
-        @click="form = 'new'"
-        >New Queue</v-btn
-      ><v-btn
+        @click="form = 'new'">
+        New Queue
+      </v-btn>
+      <v-btn
         variant="tonal"
         prepend-icon="mdi-refresh"
         :loading="loading"
         :disabled="loading"
-        @click="load"
-        >Refresh</v-btn
-      ></v-col
-    >
+        @click="load">
+        Refresh
+      </v-btn>
+    </v-col>
   </v-row>
-  <v-card variant="outlined" class="mb-4"
-    ><v-card-text
-      ><form @submit.prevent="applyFilters">
-        <v-row
-          ><v-col cols="12" md="6"
-            ><v-text-field
+  <v-card variant="outlined" class="mb-4">
+    <v-card-text>
+      <form @submit.prevent="applyFilters">
+        <v-row>
+          <v-col cols="12" md="6">
+            <v-text-field
               v-model="name"
               label="Name"
               maxlength="128"
@@ -34,9 +37,10 @@
               density="compact"
               hide-details
               clearable
-              :disabled="loading" /></v-col
-          ><v-col cols="12" md="6"
-            ><v-autocomplete
+              :disabled="loading" />
+          </v-col>
+          <v-col cols="12" md="6">
+            <v-autocomplete
               v-model="departments"
               :items="session.access?.departments ?? []"
               item-title="path"
@@ -49,28 +53,28 @@
               variant="outlined"
               density="compact"
               hide-details
-              :disabled="loading" /></v-col
-        ></v-row>
+              :disabled="loading" />
+          </v-col>
+        </v-row>
         <div class="d-flex ga-2 mt-4">
-          <v-btn type="submit" color="primary" variant="tonal" :disabled="loading"
-            >Apply</v-btn
-          ><v-btn variant="outlined" :disabled="loading" @click="clearFilters"
-            >Clear Filters</v-btn
-          >
+          <v-btn type="submit" color="primary" variant="tonal" :disabled="loading">
+            Apply
+          </v-btn>
+          <v-btn variant="outlined" :disabled="loading" @click="clearFilters">
+            Clear Filters
+          </v-btn>
         </div>
-      </form></v-card-text
-    ></v-card
-  >
-  <v-alert v-if="message" type="success" variant="tonal" class="mb-4" role="status"
-    >{{ message }}
-    <RouterLink v-if="savedQueue" :to="detailsLocation(savedQueue.id)"
-      >View</RouterLink
-    ></v-alert
-  >
-  <v-alert v-if="error" type="error" variant="tonal" class="mb-4" role="alert"
-    >{{ error.message }}
-    <p v-if="page">Previously loaded results are shown. Refresh to try again.</p></v-alert
-  >
+      </form>
+    </v-card-text>
+  </v-card>
+  <v-alert v-if="message" type="success" variant="tonal" class="mb-4" role="status">
+    {{ message }}
+    <RouterLink v-if="savedQueue" :to="detailsLocation(savedQueue.id)"> View </RouterLink>
+  </v-alert>
+  <v-alert v-if="error" type="error" variant="tonal" class="mb-4" role="alert">
+    {{ error.message }}
+    <p v-if="page">Previously loaded results are shown. Refresh to try again.</p>
+  </v-alert>
   <v-alert
     v-if="strActionError"
     type="error"
@@ -93,33 +97,33 @@
       disable-sort
       hide-default-footer
       :mobile-breakpoint="600">
-      <template #item.name="{ item }"
-        ><RouterLink
-          :to="detailsLocation(item.id)"
-          class="table-text-narrow text-primary"
-          >{{ item.name }}</RouterLink
-        ></template
-      >
-      <template #item.department="{ item }"
-        ><div class="table-text-narrow">{{ item.department.path }}</div></template
-      >
-      <template #item.notes="{ item }"
-        ><div class="table-text notes-summary">{{ item.notes || "—" }}</div></template
-      >
-      <template #item.actions="{ item }"
-        ><div class="d-flex ga-1">
-          <v-btn :to="detailsLocation(item.id)" variant="text" size="small">View</v-btn
-          ><v-btn variant="text" size="small" @click="copyPath(item.path)">Copy Path</v-btn
-          ><v-btn
+      <template #item.name="{ item }">
+        <RouterLink :to="detailsLocation(item.id)" class="table-text-narrow text-primary">
+          {{ item.name }}
+        </RouterLink>
+      </template>
+      <template #item.department="{ item }">
+        <div class="table-text-narrow">{{ item.department.path }}</div>
+      </template>
+      <template #item.notes="{ item }">
+        <div class="table-text notes-summary">{{ item.notes || "—" }}</div>
+      </template>
+      <template #item.actions="{ item }">
+        <div class="d-flex ga-1">
+          <v-btn :to="detailsLocation(item.id)" variant="text" size="small">View</v-btn>
+          <v-btn variant="text" size="small" @click="copyPath(item.path)">
+            Copy Path
+          </v-btn>
+          <v-btn
             v-if="item.can_manage"
             variant="text"
             size="small"
             :disabled="loading || !!error"
-            @click="form = item"
-            >Edit</v-btn
-          >
-        </div></template
-      >
+            @click="form = item">
+            Edit
+          </v-btn>
+        </div>
+      </template>
       <template #no-data>{{
         error
           ? "The queue list could not be loaded."

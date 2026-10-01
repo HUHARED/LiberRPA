@@ -7,9 +7,9 @@
     max-width="620"
     aria-labelledby="file-delete-title">
     <v-card>
-      <v-card-title id="file-delete-title">{{
-        paths.length === 1 ? "Delete File" : "Delete Selected Files"
-      }}</v-card-title>
+      <v-card-title id="file-delete-title">
+        {{ paths.length === 1 ? "Delete File" : "Delete Selected Files" }}
+      </v-card-title>
       <v-card-text>
         <v-alert v-if="error" type="error" variant="tonal" class="mb-4" role="alert">
           {{ error.message }}
@@ -26,15 +26,16 @@
         </ul>
       </v-card-text>
       <v-card-actions>
-        <v-spacer /><v-btn :disabled="busy" @click="emit('close')">Cancel</v-btn>
+        <v-spacer />
+        <v-btn :disabled="busy" @click="emit('close')">Cancel</v-btn>
         <v-btn
           color="error"
           variant="tonal"
           :loading="busy"
           :disabled="busy"
-          @click="submit"
-          >Delete</v-btn
-        >
+          @click="submit">
+          Delete
+        </v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>

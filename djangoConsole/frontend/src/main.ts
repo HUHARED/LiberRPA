@@ -15,10 +15,11 @@ import "@/styles.css";
 const app = createApp(App);
 const pinia = createPinia();
 app.use(pinia);
-const sessionStore = useSessionStore(pinia);
+
+const sessionStore = useSessionStore();
 setSessionInvalidatedHandler(() => {
   sessionStore.clearSession(sessionStore.session === null ? null : "expired");
 });
-app.use(createAppRouter(pinia));
+app.use(createAppRouter());
 app.use(vuetify);
 app.mount("#app");

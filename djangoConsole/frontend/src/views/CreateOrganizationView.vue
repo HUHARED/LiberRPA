@@ -2,9 +2,11 @@
 <template>
   <AuthLayout>
     <h1 class="text-h5 mb-2">Create Organization</h1>
+
     <p class="text-medium-emphasis mb-6">
       Verify your email, then create your organization and administrator account.
     </p>
+
     <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
       {{ requestError.message }}
       <p v-for="message in requestError.fields.__all__" :key="message" class="mt-2">
@@ -12,12 +14,14 @@
       </p>
       <p v-if="intRetrySeconds" class="mt-2">Try again in {{ intRetrySeconds }} seconds.</p>
     </v-alert>
-    <template v-if="isCreated">
+
+    <template v-if="boolCreated">
       <v-alert type="success" variant="tonal" class="mb-4" role="status">
         Organization created. Sign in with your verified email address and password.
       </v-alert>
       <v-btn :to="{ name: 'sign-in' }" color="primary" variant="tonal" block>Sign In</v-btn>
     </template>
+
     <template v-else-if="sessionStore.authenticated">
       <p class="mb-4">
         You are signed in as {{ sessionStore.session?.user.email }}. Sign out to create a
@@ -31,23 +35,25 @@
         Sign Out
       </v-btn>
     </template>
+
     <template v-else>
-      <template v-if="!hasRegistrationLink">
+      <template v-if="!boolHasRegistrationLink">
         <v-alert
-          v-if="emailMessage"
+          v-if="strEmailMessage"
           type="success"
           variant="tonal"
           class="mb-4"
           role="status">
-          {{ emailMessage }}
+          {{ strEmailMessage }}
           <p class="mt-2">Open the verification link in your inbox to continue.</p>
         </v-alert>
+
         <v-form
           :novalidate="false"
           validate-on="submit"
           @submit.prevent="submitEmailRequest">
           <v-text-field
-            v-model="email"
+            v-model="strEmail"
             label="Email"
             name="email"
             type="email"
@@ -58,26 +64,29 @@
             autocapitalize="none"
             :rules="[validateRequiredEmail]"
             :error-messages="requestError?.fields.email ?? []"
-            :disabled="isSending"
+            :disabled="boolSending"
             required />
+
           <v-btn
             type="submit"
             color="primary"
             variant="tonal"
             block
-            :loading="isSending"
-            :disabled="isSending || intRetrySeconds > 0">
+            :loading="boolSending"
+            :disabled="boolSending || intRetrySeconds > 0">
             Send Verification Email
           </v-btn>
         </v-form>
       </template>
+
       <template v-else>
         <v-progress-linear
-          v-if="isChecking"
+          v-if="boolChecking"
           indeterminate
           color="primary"
           class="mb-4"
           aria-label="Checking registration link" />
+
         <v-form
           v-if="registrationInfo"
           :novalidate="false"
@@ -89,8 +98,9 @@
             autocomplete="username"
             variant="outlined"
             readonly />
+
           <v-text-field
-            v-model="username"
+            v-model="strUsername"
             label="Username"
             autocomplete="nickname"
             variant="outlined"
@@ -98,43 +108,47 @@
             hint="Leave blank to generate a username."
             persistent-hint
             :error-messages="requestError?.fields.username ?? []"
-            :disabled="isSaving"
+            :disabled="boolSaving"
             class="mb-3" />
+
           <PasswordField
-            v-model="password"
+            v-model="strPassword"
             label="Password"
             autocomplete="new-password"
             :rules="[validateRequiredPassword]"
             :error-messages="requestError?.fields.password ?? []"
-            :disabled="isSaving"
+            :disabled="boolSaving"
             required />
+
           <v-text-field
-            v-model="organizationName"
+            v-model="strOrganizationName"
             label="Organization Name"
             autocomplete="organization"
             variant="outlined"
             maxlength="200"
             :rules="[validateRequiredOrganizationName]"
             :error-messages="requestError?.fields.organization_name ?? []"
-            :disabled="isSaving"
+            :disabled="boolSaving"
             required />
+
           <v-btn
             type="submit"
             color="primary"
             variant="tonal"
             block
-            :loading="isSaving"
-            :disabled="isSaving || isChecking || intRetrySeconds > 0">
+            :loading="boolSaving"
+            :disabled="boolSaving || boolChecking || intRetrySeconds > 0">
             Create Organization
           </v-btn>
         </v-form>
-        <template v-else-if="!isChecking">
+
+        <template v-else-if="!boolChecking">
           <p class="mb-4">
             Open the link in your verification email. If it has expired, request a new
             verification email.
           </p>
           <v-btn
-            v-if="token && requestError?.code !== 'invalid_registration_token'"
+            v-if="strToken && requestError?.code !== 'invalid_registration_token'"
             variant="tonal"
             block
             class="mb-3"
@@ -142,16 +156,18 @@
             @click="loadRegistration">
             Check Again
           </v-btn>
+
           <v-btn :to="{ name: 'create-organization', hash: '' }" variant="tonal" block>
             Request a New Verification Email
           </v-btn>
         </template>
       </template>
+
       <v-btn
         :to="{ name: 'sign-in' }"
         variant="text"
         class="mt-4"
-        :disabled="isSending || isSaving">
+        :disabled="boolSending || boolSaving">
         Back to Sign In
       </v-btn>
     </template>
@@ -181,19 +197,19 @@ const sessionStore = useSessionStore();
 const route = useRoute();
 const router = useRouter();
 const { intRetrySeconds, setRetryDelay } = useRetryDelay();
-const hasRegistrationLink = computed(() => route.hash !== "");
-const email = ref("");
-const emailMessage = ref("");
-const token = ref("");
+const boolHasRegistrationLink = computed(() => route.hash !== "");
+const strEmail = ref("");
+const strEmailMessage = ref("");
+const strToken = ref("");
 const registrationInfo = shallowRef<RegistrationInfoResponse | null>(null);
-const username = ref("");
-const password = ref("");
-const organizationName = ref("");
+const strUsername = ref("");
+const strPassword = ref("");
+const strOrganizationName = ref("");
 const requestError = shallowRef<ApiError | null>(null);
-const isSending = ref(false);
-const isChecking = ref(false);
-const isSaving = ref(false);
-const isCreated = ref(false);
+const boolSending = ref(false);
+const boolChecking = ref(false);
+const boolSaving = ref(false);
+const boolCreated = ref(false);
 let requestRevision = 0;
 
 function validateRequiredEmail(value: string): true | string {
@@ -209,81 +225,89 @@ function validateRequiredOrganizationName(value: string): true | string {
 }
 
 async function submitEmailRequest(event: SubmitEventPromise): Promise<void> {
-  if (isSending.value || sessionStore.authenticated || intRetrySeconds.value) return;
-  const currentRevision = requestRevision;
-  isSending.value = true;
+  if (boolSending.value || sessionStore.authenticated || intRetrySeconds.value) return;
+
+  const intCurrentRevision = requestRevision;
+  boolSending.value = true;
   requestError.value = null;
-  emailMessage.value = "";
+  strEmailMessage.value = "";
   try {
     const validation = await event;
-    if (!validation.valid || currentRevision !== requestRevision) return;
-    const response = await requestRegistrationEmail(email.value.trim());
-    if (currentRevision === requestRevision) emailMessage.value = response.message;
+    if (!validation.valid || intCurrentRevision !== requestRevision) return;
+
+    const response = await requestRegistrationEmail(strEmail.value.trim());
+    if (intCurrentRevision === requestRevision) strEmailMessage.value = response.message;
   } catch (e) {
-    if (currentRevision !== requestRevision) return;
+    if (intCurrentRevision !== requestRevision) return;
+
     requestError.value = getApiError(e);
     setRetryDelay(requestError.value.retryAfterSeconds);
   } finally {
-    if (currentRevision === requestRevision) isSending.value = false;
+    if (intCurrentRevision === requestRevision) boolSending.value = false;
   }
 }
 
 async function loadRegistration(): Promise<void> {
   if (
-    !token.value ||
-    isChecking.value ||
-    isSaving.value ||
+    !strToken.value ||
+    boolChecking.value ||
+    boolSaving.value ||
     sessionStore.authenticated ||
     intRetrySeconds.value
   )
     return;
-  const currentRevision = requestRevision;
-  isChecking.value = true;
+
+  const intCurrentRevision = requestRevision;
+  boolChecking.value = true;
   requestError.value = null;
   registrationInfo.value = null;
   try {
-    const response = await checkRegistration(token.value);
-    if (currentRevision === requestRevision) registrationInfo.value = response;
+    const response = await checkRegistration(strToken.value);
+    if (intCurrentRevision === requestRevision) registrationInfo.value = response;
   } catch (e) {
-    if (currentRevision !== requestRevision) return;
+    if (intCurrentRevision !== requestRevision) return;
     requestError.value = getApiError(e);
     setRetryDelay(requestError.value.retryAfterSeconds);
   } finally {
-    if (currentRevision === requestRevision) isChecking.value = false;
+    if (intCurrentRevision === requestRevision) boolChecking.value = false;
   }
 }
 
 async function submitRegistration(event: SubmitEventPromise): Promise<void> {
   if (
     !registrationInfo.value ||
-    isChecking.value ||
-    isSaving.value ||
-    isCreated.value ||
+    boolChecking.value ||
+    boolSaving.value ||
+    boolCreated.value ||
     sessionStore.authenticated ||
     intRetrySeconds.value
   )
     return;
-  const currentRevision = requestRevision;
-  isSaving.value = true;
+
+  const intCurrentRevision = requestRevision;
+  boolSaving.value = true;
   requestError.value = null;
   try {
     const validation = await event;
-    if (!validation.valid || currentRevision !== requestRevision) return;
+    if (!validation.valid || intCurrentRevision !== requestRevision) return;
+
     await completeRegistration({
-      token: token.value,
-      username: username.value,
-      password: password.value,
-      organization_name: organizationName.value,
+      token: strToken.value,
+      username: strUsername.value,
+      password: strPassword.value,
+      organization_name: strOrganizationName.value,
     });
-    if (currentRevision !== requestRevision) return;
-    isCreated.value = true;
-    token.value = "";
-    password.value = "";
+    if (intCurrentRevision !== requestRevision) return;
+
+    boolCreated.value = true;
+    strToken.value = "";
+    strPassword.value = "";
     registrationInfo.value = null;
     sessionStore.notice = "organization_created";
     await router.replace({ name: "sign-in" });
   } catch (e) {
-    if (currentRevision !== requestRevision) return;
+    if (intCurrentRevision !== requestRevision) return;
+
     requestError.value = getApiError(e);
     setRetryDelay(requestError.value.retryAfterSeconds);
     if (
@@ -292,10 +316,10 @@ async function submitRegistration(event: SubmitEventPromise): Promise<void> {
       )
     ) {
       registrationInfo.value = null;
-      password.value = "";
+      strPassword.value = "";
     }
   } finally {
-    if (currentRevision === requestRevision) isSaving.value = false;
+    if (intCurrentRevision === requestRevision) boolSaving.value = false;
   }
 }
 
@@ -312,26 +336,28 @@ async function signOutCurrentAccount(): Promise<void> {
 watch(
   () => route.hash,
   () => {
-    if (isCreated.value) return;
+    if (boolCreated.value) return;
+
     requestRevision += 1;
-    token.value = "";
+    strToken.value = "";
     registrationInfo.value = null;
     requestError.value = null;
-    emailMessage.value = "";
-    username.value = "";
-    password.value = "";
-    organizationName.value = "";
-    isSending.value = false;
-    isChecking.value = false;
-    isSaving.value = false;
-    if (!hasRegistrationLink.value) return;
+    strEmailMessage.value = "";
+    strUsername.value = "";
+    strPassword.value = "";
+    strOrganizationName.value = "";
+    boolSending.value = false;
+    boolChecking.value = false;
+    boolSaving.value = false;
+    if (!boolHasRegistrationLink.value) return;
+
     const parameters = new URLSearchParams(route.hash.slice(1));
     const linkToken = parameters.get("token") ?? "";
-    token.value =
+    strToken.value =
       parameters.getAll("token").length === 1 && /^[A-Za-z0-9_-]{43}$/.test(linkToken)
         ? linkToken
         : "";
-    if (!token.value)
+    if (!strToken.value)
       requestError.value = new ApiError("The registration link is missing or invalid.", {
         code: "invalid_registration_token",
       });
@@ -342,8 +368,8 @@ watch(
 
 onBeforeUnmount(() => {
   requestRevision += 1;
-  token.value = "";
-  password.value = "";
+  strToken.value = "";
+  strPassword.value = "";
 });
 </script>
 

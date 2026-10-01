@@ -7,12 +7,14 @@
     max-width="640"
     aria-labelledby="account-action-title">
     <v-card>
-      <v-card-title id="account-action-title">{{ strTitle }}</v-card-title>
+      <v-card-title id="account-action-title"> {{ strTitle }} </v-card-title>
+
       <v-card-text>
         <v-alert v-if="boolEmailQueued" type="success" variant="tonal" role="status">
           Verification email queued for {{ strNewEmail }}. Open the link in that mailbox and
           select Confirm Email Change. Your current email remains unchanged until then.
         </v-alert>
+
         <template v-else>
           <p v-if="action === 'password'" class="mb-4">
             Changing your password will sign you out of all sessions and revoke your active
@@ -28,6 +30,7 @@
             and API keys remain active. The link expires after one hour; wait at least five
             minutes before requesting another email.
           </p>
+
           <v-alert
             v-if="requestError"
             type="error"
@@ -39,6 +42,7 @@
               Try again in {{ intRetrySeconds }} seconds.
             </p>
           </v-alert>
+
           <v-form
             id="account-action-form"
             :novalidate="false"
@@ -50,6 +54,7 @@
               label="Current Email"
               variant="outlined"
               readonly />
+
             <PasswordField
               v-model="strCurrentPassword"
               label="Current Password"
@@ -58,6 +63,7 @@
               :error-messages="requestError?.fields.current_password ?? []"
               :disabled="boolSubmitting"
               required />
+
             <template v-if="action === 'password'">
               <PasswordField
                 v-model="strNewPassword"
@@ -69,6 +75,7 @@
                 :error-messages="requestError?.fields.new_password ?? []"
                 :disabled="boolSubmitting"
                 required />
+
               <PasswordField
                 v-model="strConfirmPassword"
                 label="Confirm New Password"
@@ -78,6 +85,7 @@
                 :disabled="boolSubmitting"
                 required />
             </template>
+
             <v-text-field
               v-if="action === 'email'"
               v-model="strNewEmail"
@@ -95,11 +103,13 @@
           </v-form>
         </template>
       </v-card-text>
+
       <v-card-actions class="flex-wrap ga-2">
         <v-spacer />
         <v-btn variant="text" :disabled="boolSubmitting" @click="emit('close')">
           {{ boolEmailQueued ? "Done" : "Cancel" }}
         </v-btn>
+
         <v-btn
           v-if="!boolEmailQueued"
           type="submit"

@@ -8,6 +8,7 @@
         :retrying="boolRetrying"
         @retry="retryConnection" />
     </AuthLayout>
+
     <div
       v-else-if="sessionStore.authenticated || route.meta.public"
       :key="sessionStore.authenticated ? sessionStore.session?.user.id : 'anonymous'"
@@ -18,6 +19,7 @@
       </ConsoleLayout>
       <RouterView v-else />
     </div>
+
     <v-dialog
       :model-value="sessionStore.unavailable && sessionStore.status !== 'unknown'"
       persistent
@@ -79,6 +81,7 @@ watch(
   ],
   () => {
     if (sessionStore.unavailable) return;
+
     if (sessionStore.status === "anonymous" && route.matched.length && !route.meta.public) {
       void router.replace(getSignInLocation(route.fullPath));
     } else if (sessionStore.authenticated) {

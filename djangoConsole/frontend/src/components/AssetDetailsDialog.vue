@@ -13,9 +13,9 @@
     max-width="900"
     aria-labelledby="asset-details-title">
     <v-card>
-      <v-card-title id="asset-details-title">{{
-        boolConfirmDelete ? "Delete Asset" : "Asset Details"
-      }}</v-card-title>
+      <v-card-title id="asset-details-title">
+        {{ boolConfirmDelete ? "Delete Asset" : "Asset Details" }}
+      </v-card-title>
       <v-card-text>
         <v-progress-linear v-if="boolLoading" indeterminate class="mb-4" />
         <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
@@ -29,9 +29,9 @@
           type="success"
           variant="tonal"
           class="mb-4"
-          role="status"
-          >{{ strSuccessMessage }}</v-alert
-        >
+          role="status">
+          {{ strSuccessMessage }}
+        </v-alert>
         <template v-if="asset">
           <p v-if="boolConfirmDelete" class="mb-4">
             Delete "{{ asset.path }}"? This permanently removes the asset and its value.
@@ -89,56 +89,56 @@
       <v-card-actions class="flex-wrap ga-2">
         <template v-if="boolConfirmDelete">
           <v-spacer />
-          <v-btn variant="text" :disabled="boolBusy" @click="boolConfirmDelete = false"
-            >Cancel</v-btn
-          >
+          <v-btn variant="text" :disabled="boolBusy" @click="boolConfirmDelete = false">
+            Cancel
+          </v-btn>
           <v-btn
             color="error"
             variant="tonal"
             :loading="boolDeleting"
             :disabled="boolBusy"
-            @click="submitDelete"
-            >Delete</v-btn
-          >
+            @click="submitDelete">
+            Delete
+          </v-btn>
         </template>
         <template v-else>
           <v-btn
             v-if="requestError && !boolDeleted"
             variant="text"
             :disabled="boolBusy"
-            @click="loadDetails"
-            >Retry</v-btn
-          >
+            @click="loadDetails">
+            Retry
+          </v-btn>
           <v-btn
             v-if="asset?.can_manage"
             variant="tonal"
             :disabled="boolBusy || !!requestError"
-            @click="openEdit('details')"
-            >Edit Details</v-btn
-          >
+            @click="openEdit('details')">
+            Edit Details
+          </v-btn>
           <v-btn
             v-if="asset?.can_edit_value"
             variant="tonal"
             :disabled="boolBusy || !!requestError"
-            @click="openEdit('value')"
-            >{{ isSecretAsset(asset!.asset_type) ? "Replace Value" : "Edit Value" }}</v-btn
-          >
+            @click="openEdit('value')">
+            {{ isSecretAsset(asset!.asset_type) ? "Replace Value" : "Edit Value" }}
+          </v-btn>
           <v-btn
             v-if="asset?.can_manage"
             color="error"
             variant="tonal"
             :disabled="boolBusy || !!requestError"
-            @click="boolConfirmDelete = true"
-            >Delete</v-btn
-          >
+            @click="boolConfirmDelete = true">
+            Delete
+          </v-btn>
           <v-spacer />
           <v-btn
             :to="{ name: 'assets', query: route.query }"
             replace
             variant="text"
-            :disabled="boolBusy"
-            >Close</v-btn
-          >
+            :disabled="boolBusy">
+            Close
+          </v-btn>
         </template>
       </v-card-actions>
     </v-card>

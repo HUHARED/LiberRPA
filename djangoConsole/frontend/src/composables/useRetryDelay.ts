@@ -1,6 +1,6 @@
 // FileName: useRetryDelay.ts
 
-import { computed, onBeforeUnmount, ref, type ComputedRef, type Ref } from "vue";
+import { type ComputedRef, type Ref, computed, onBeforeUnmount, ref } from "vue";
 
 export function useRetryDelay(): {
   intCurrentTimeMs: Ref<number>;
@@ -19,6 +19,7 @@ export function useRetryDelay(): {
 
   function setRetryDelay(seconds: number | null): void {
     if (seconds === null) return;
+
     intCurrentTimeMs.value = Date.now();
     intRetryUntilMs.value = intCurrentTimeMs.value + seconds * 1000;
   }

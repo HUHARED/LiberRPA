@@ -130,7 +130,7 @@ def sign_in(request: HttpRequest) -> JsonResponse:
         # login() rotates the CSRF secret; return a token matching the new cookie.
         return _build_session_response(request, user)
     except (ImproperlyConfigured, DatabaseError):
-        # Do not let SessionMiddleware persist an in-memory login whose transaction failed.
+        # Clean in-memory login whose transaction failed.
         request.session = type(request.session)()
         request.user = AnonymousUser()
         return build_service_unavailable_response()

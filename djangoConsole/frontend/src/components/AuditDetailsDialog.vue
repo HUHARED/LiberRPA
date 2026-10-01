@@ -13,9 +13,9 @@
         <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
           {{ requestError.message }}
           <div v-if="![401, 403, 404].includes(requestError.statusCode)" class="mt-3">
-            <v-btn variant="outlined" :disabled="boolLoading" @click="loadDetails"
-              >Retry</v-btn
-            >
+            <v-btn variant="outlined" :disabled="boolLoading" @click="loadDetails">
+              Retry
+            </v-btn>
           </div>
         </v-alert>
         <template v-if="record">

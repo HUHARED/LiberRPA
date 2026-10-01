@@ -15,31 +15,37 @@
         :disabled="boolDialogOpen || !boolCanManage"
         @update:model-value="changeStatusFilter" />
     </v-col>
+
     <v-spacer v-if="!member" />
+
     <v-col v-if="!member" cols="auto">
       <v-btn
         color="primary"
         variant="tonal"
         prepend-icon="mdi-plus"
         :disabled="boolActionBlocked || keyList === null"
-        @click="openCreation"
-        >New API Key</v-btn
-      >
+        @click="openCreation">
+        New API Key
+      </v-btn>
     </v-col>
   </v-row>
+
   <v-alert
     v-if="strSuccessMessage"
     type="success"
     variant="tonal"
     class="mb-4"
-    role="status"
-    >{{ strSuccessMessage }}</v-alert
-  >
+    role="status">
+    {{ strSuccessMessage }}
+  </v-alert>
+
   <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
     {{ requestError.message }}
+
     <p v-if="keyList" class="mt-2">
       Previously loaded keys are shown and may be out of date.
     </p>
+
     <template #append>
       <v-btn
         variant="tonal"
@@ -50,6 +56,7 @@
       </v-btn>
     </template>
   </v-alert>
+
   <p v-if="keyList" class="mb-3">
     Active key limit: {{ keyList.limits.active_keys }} per account.
     <template
@@ -58,12 +65,16 @@
       {{ keyList.limits.inactive_retention_days }} days, up to the most recent
       {{ keyList.limits.inactive_records }} records.
     </template>
+
     <template v-else>Expired and revoked records are not retained.</template>
+
     Inactive keys do not count toward the active key limit.
   </p>
+
   <p v-if="strUpdatedAt" class="text-body-2 text-medium-emphasis mb-3">
     Updated at {{ formatDateTime(strUpdatedAt, strTimeZone) }}
   </p>
+
   <v-card variant="outlined" :aria-busy="boolLoading">
     <v-data-table
       :headers="arrHeader"
@@ -79,18 +90,23 @@
       <template #item.name="{ item }">
         <span class="table-text">{{ item.name }}</span>
       </template>
+
       <template #item.status="{ item }">
         <span class="text-capitalize">{{ getApiKeyStatus(item, intCurrentTimeMs) }}</span>
       </template>
-      <template #item.expires_at="{ item }">{{
-        formatDateTime(item.expires_at, strTimeZone)
-      }}</template>
-      <template #item.last_used_at="{ item }">{{
-        formatDateTime(item.last_used_at, strTimeZone)
-      }}</template>
+
+      <template #item.expires_at="{ item }">
+        {{ formatDateTime(item.expires_at, strTimeZone) }}
+      </template>
+
+      <template #item.last_used_at="{ item }">
+        {{ formatDateTime(item.last_used_at, strTimeZone) }}
+      </template>
+
       <template #item.notes="{ item }">
         <p class="table-text text-pre-wrap">{{ item.notes || "—" }}</p>
       </template>
+
       <template #item.actions="{ item }">
         <v-btn
           v-if="!member"
@@ -98,9 +114,10 @@
           size="small"
           :disabled="boolActionBlocked"
           :aria-label="`Edit Notes for API key ${item.name}`"
-          @click="openAction(item, 'edit')"
-          >Edit Notes</v-btn
-        >
+          @click="openAction(item, 'edit')">
+          Edit Notes
+        </v-btn>
+
         <v-btn
           v-if="getApiKeyStatus(item, intCurrentTimeMs) === 'active'"
           color="error"
@@ -108,15 +125,19 @@
           size="small"
           :disabled="boolActionBlocked"
           :aria-label="`Revoke API key ${item.name}`"
-          @click="openAction(item, 'revoke')"
-          >Revoke</v-btn
-        >
+          @click="openAction(item, 'revoke')">
+          Revoke
+        </v-btn>
       </template>
-      <template #no-data>{{
-        requestError ? "The API key list could not be loaded." : "No matching API keys."
-      }}</template>
+
+      <template #no-data>
+        {{
+          requestError ? "The API key list could not be loaded." : "No matching API keys."
+        }}
+      </template>
     </v-data-table>
   </v-card>
+
   <ApiKeyCreateDialog
     v-if="boolCreating && keyList"
     :default-expires-at="keyList.default_expires_at"
@@ -124,6 +145,7 @@
     @close="boolCreating = false"
     @refresh="closeAndRefresh"
     @created="handleCreated" />
+
   <ApiKeyActionDialog
     v-if="selectedKey && account"
     :api-key="selectedKey.apiKey"
@@ -159,6 +181,7 @@ const ARR_STATUS_OPTION = [
   { title: "Expired", value: "expired" },
   { title: "Revoked", value: "revoked" },
 ];
+
 const sessionStore = useSessionStore();
 const account = computed(() => props.member ?? sessionStore.session?.user);
 const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");
@@ -208,10 +231,12 @@ async function loadApiKeys(): Promise<void> {
   try {
     const response = await getApiKeyList(arrStatus.value, props.member?.id);
     if (intCurrentRevision !== intRequestRevision) return;
+
     keyList.value = response;
     strUpdatedAt.value = new Date().toISOString();
   } catch (e) {
     if (intCurrentRevision !== intRequestRevision) return;
+
     requestError.value = getApiError(e);
     if ([401, 403, 404].includes(requestError.value.statusCode)) {
       keyList.value = null;
@@ -227,6 +252,7 @@ async function loadApiKeys(): Promise<void> {
 
 function changeStatusFilter(statuses: ApiKeyStatus[]): void {
   if (boolDialogOpen.value || !boolCanManage.value) return;
+
   arrStatus.value = statuses;
   keyList.value = null;
   strUpdatedAt.value = null;
@@ -235,6 +261,7 @@ function changeStatusFilter(statuses: ApiKeyStatus[]): void {
 
 function openCreation(): void {
   if (props.member || boolActionBlocked.value || !keyList.value) return;
+
   strSuccessMessage.value = "";
   boolCreating.value = true;
 }
@@ -253,6 +280,7 @@ function openAction(apiKey: ApiKeyResponse, action: "edit" | "revoke"): void {
 function applySavedKey(apiKey: ApiKeyResponse): void {
   const currentList = keyList.value;
   if (!currentList) return;
+
   const arrKey = [apiKey, ...currentList.api_keys.filter((key) => key.id !== apiKey.id)]
     .filter((key) => {
       const status = getApiKeyStatus(key, Date.now());

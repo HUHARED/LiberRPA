@@ -5,6 +5,7 @@
       <h1 class="text-h5 mb-2">Executors</h1>
       <p class="text-medium-emphasis">Executors in your authorized departments.</p>
     </v-col>
+
     <v-col cols="auto" class="d-flex flex-wrap ga-2">
       <v-btn
         v-if="boolCanCreate"
@@ -15,6 +16,7 @@
         @click="openNewExecutor">
         New Executor
       </v-btn>
+
       <v-btn
         variant="tonal"
         prepend-icon="mdi-refresh"
@@ -25,6 +27,7 @@
       </v-btn>
     </v-col>
   </v-row>
+
   <v-tabs
     model-value="executors"
     color="primary"
@@ -33,6 +36,7 @@
     <v-tab value="executors" to="/executors" exact>Executors</v-tab>
     <v-tab value="groups" to="/executors/groups">Executor Groups</v-tab>
   </v-tabs>
+
   <v-card variant="outlined" class="mb-4">
     <v-card-text>
       <form aria-label="Executor filters" @submit.prevent="applyFilters">
@@ -49,6 +53,7 @@
               clearable
               :disabled="boolLoading" />
           </v-col>
+
           <v-col cols="12" md="4">
             <v-select
               v-model="arrDepartmentId"
@@ -67,6 +72,7 @@
               hide-details
               :disabled="boolLoading" />
           </v-col>
+
           <v-col cols="12" md="4">
             <v-select
               v-model="arrDispatchState"
@@ -88,6 +94,7 @@
           <v-btn type="submit" color="primary" variant="tonal" :disabled="boolLoading">
             Apply
           </v-btn>
+
           <v-btn variant="outlined" :disabled="boolLoading" @click="resetFilters">
             Reset
           </v-btn>
@@ -95,6 +102,7 @@
       </form>
     </v-card-text>
   </v-card>
+
   <v-alert v-if="createdExecutor" type="success" variant="tonal" class="mb-4" role="status">
     Executor created.
     <RouterLink
@@ -103,12 +111,14 @@
       View {{ createdExecutor.name }}
     </RouterLink>
   </v-alert>
+
   <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
     {{ requestError.message }}
     <p v-if="executorPage" class="mt-2">
       Previously loaded results are shown. Refresh to try again.
     </p>
   </v-alert>
+
   <v-alert
     v-if="
       sessionStore.access &&
@@ -120,13 +130,15 @@
     class="mb-4">
     No department access. Ask an organization administrator to assign a role.
   </v-alert>
+
   <div
     class="d-flex flex-wrap justify-space-between ga-2 mb-3 text-body-2 text-medium-emphasis">
     <span>Time zone: {{ strTimeZone }}</span>
-    <span v-if="strUpdatedAt"
-      >Updated at {{ formatDateTime(strUpdatedAt, strTimeZone) }}</span
-    >
+    <span v-if="strUpdatedAt">
+      Updated at {{ formatDateTime(strUpdatedAt, strTimeZone) }}
+    </span>
   </div>
+
   <v-card variant="outlined" :aria-busy="boolLoading">
     <v-data-table-server
       :headers="ARR_HEADER"
@@ -147,9 +159,11 @@
           {{ item.name }}
         </RouterLink>
       </template>
+
       <template #item.department="{ item }">
         <div class="table-text-narrow">{{ item.department.path }}</div>
       </template>
+
       <template #item.account="{ item }">
         <div class="table-text-narrow">
           {{
@@ -161,6 +175,7 @@
           }}
         </div>
       </template>
+
       <template #item.association_status="{ item }">
         <v-chip
           size="small"
@@ -169,6 +184,7 @@
           {{ DICT_ASSOCIATION_STATE[item.association_status].title }}
         </v-chip>
       </template>
+
       <template #item.dispatch_enabled="{ item }">
         <v-chip
           size="small"
@@ -177,18 +193,23 @@
           {{ item.dispatch_enabled ? "Enabled" : "Paused" }}
         </v-chip>
       </template>
+
       <template #item.computer="{ item }">
         <div class="table-text-narrow">{{ item.computer ?? "—" }}</div>
       </template>
+
       <template #item.version="{ item }">{{ item.version ?? "—" }}</template>
+
       <template #item.last_seen_at="{ item }">
         {{ formatDateTime(item.last_seen_at, strTimeZone) }}
       </template>
+
       <template #item.notes="{ item }">
         <div class="table-text-narrow notes-summary" :title="item.notes">
           {{ item.notes || "—" }}
         </div>
       </template>
+
       <template #no-data>
         {{
           requestError
@@ -197,6 +218,7 @@
         }}
       </template>
     </v-data-table-server>
+
     <template v-if="executorPage">
       <v-divider />
       <div class="d-flex flex-wrap align-center justify-space-between ga-2 pa-3">
@@ -204,6 +226,7 @@
           {{ executorPage.total_count }} executors · Page {{ executorPage.page }} of
           {{ executorPage.total_pages }}
         </p>
+
         <v-pagination
           v-if="executorPage.total_pages > 1"
           :model-value="executorPage.page"
@@ -216,6 +239,7 @@
       </div>
     </template>
   </v-card>
+
   <v-dialog
     v-model="boolNewExecutorOpen"
     persistent
@@ -457,6 +481,7 @@ function validateNewDepartment(value: string | null): true | string {
 
 async function submitNewExecutor(event: SubmitEventPromise): Promise<void> {
   if (!boolNewExecutorOpen.value || boolSavingNewExecutor.value) return;
+
   const validationResult = await event;
   if (
     !validationResult.valid ||
@@ -476,6 +501,7 @@ async function submitNewExecutor(event: SubmitEventPromise): Promise<void> {
       notes: strNewNotes.value ?? "",
     });
     if (boolUnmounted) return;
+
     closeNewExecutor();
     createdExecutor.value = response.executor;
     // Keep the current filters; the success link also reaches records outside these results.

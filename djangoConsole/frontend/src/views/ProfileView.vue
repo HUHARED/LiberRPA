@@ -2,14 +2,17 @@
 <template>
   <h1 class="text-h5 mb-2">My Profile</h1>
   <p class="text-medium-emphasis mb-6">Manage your profile and account security.</p>
+
   <v-alert v-if="strSuccess" type="success" variant="tonal" class="mb-4" role="status">
     {{ strSuccess }}
   </v-alert>
+
   <v-card variant="outlined" title="Profile">
     <v-card-text>
       <v-alert v-if="saveError" type="error" variant="tonal" class="mb-4" role="alert">
         {{ saveError.message }}
       </v-alert>
+
       <v-form id="profile-form" validate-on="submit" @submit.prevent="saveProfile">
         <v-row>
           <v-col cols="12" md="6">
@@ -24,6 +27,7 @@
               :disabled="boolSaving || activeAction !== null"
               required />
           </v-col>
+
           <v-col cols="12" md="6">
             <v-autocomplete
               v-model="strTimeZone"
@@ -39,6 +43,7 @@
           </v-col>
         </v-row>
       </v-form>
+
       <v-row align="center">
         <v-col cols="12" md="6">
           <v-text-field
@@ -48,6 +53,7 @@
             hide-details
             readonly />
         </v-col>
+
         <v-col cols="12" md="6">
           <v-btn
             variant="tonal"
@@ -58,6 +64,7 @@
         </v-col>
       </v-row>
     </v-card-text>
+
     <v-card-actions>
       <v-spacer />
       <v-btn
@@ -73,6 +80,7 @@
       </v-btn>
     </v-card-actions>
   </v-card>
+
   <v-card variant="outlined" title="Organization" class="mt-6">
     <v-card-text>
       <v-row>
@@ -85,6 +93,7 @@
             hide-details
             readonly />
         </v-col>
+
         <v-col cols="12" md="6">
           <v-text-field
             :model-value="sessionStore.access?.is_org_admin ? 'OrgAdmin' : 'Member'"
@@ -97,7 +106,9 @@
       </v-row>
     </v-card-text>
   </v-card>
+
   <DepartmentAccess />
+
   <v-card variant="outlined" title="Account Actions" class="mt-6">
     <v-card-text class="d-flex flex-wrap ga-3">
       <v-btn
@@ -106,6 +117,7 @@
         @click="openAction('password')">
         Change Password
       </v-btn>
+
       <v-btn
         variant="tonal"
         :disabled="boolSaving || sessionStore.busy"
@@ -114,6 +126,7 @@
       </v-btn>
     </v-card-text>
   </v-card>
+
   <div class="mt-6">
     <v-btn
       color="error"
@@ -123,10 +136,12 @@
       Delete Account
     </v-btn>
   </div>
+
   <MemberDeleteDialog
     v-if="activeAction === 'delete' && sessionStore.session"
     :user="sessionStore.session.user"
     @close="activeAction = null" />
+
   <AccountActionDialog
     v-else-if="activeAction !== null && activeAction !== 'delete'"
     :action="activeAction"
@@ -148,18 +163,22 @@ import { type ApiError, getApiError } from "../api/errors";
 import { updateProfile } from "../api/profile";
 
 const sessionStore = useSessionStore();
+
 // Initialize this draft once so session refreshes and account actions preserve unsaved edits.
 const strUsername = ref(sessionStore.session?.user.username ?? "");
 const strTimeZone = ref(sessionStore.session?.user.time_zone ?? "UTC");
 const arrTimeZone = [
   ...new Set(["UTC", strTimeZone.value, ...Intl.supportedValuesOf("timeZone")]),
 ].sort();
+
 const savedProfile = ref({ username: strUsername.value, timeZone: strTimeZone.value });
+
 const boolChanged = computed(
   () =>
     strUsername.value !== savedProfile.value.username ||
     strTimeZone.value !== savedProfile.value.timeZone,
 );
+
 const activeAction = ref<"password" | "sessions" | "email" | "delete" | null>(null);
 const strSuccess = ref("");
 const saveError = shallowRef<ApiError | null>(null);
@@ -169,13 +188,16 @@ let boolUnmounted = false;
 function validateUsername(value: string): true | string {
   return value.trim() ? true : "Enter a username.";
 }
+
 function validateTimeZone(value: string | null): true | string {
   return value ? true : "Select a time zone.";
 }
+
 function openAction(action: NonNullable<typeof activeAction.value>): void {
   strSuccess.value = "";
   activeAction.value = action;
 }
+
 function completeAction(message: string): void {
   activeAction.value = null;
   strSuccess.value = message;
@@ -184,6 +206,7 @@ function completeAction(message: string): void {
 async function saveProfile(event: SubmitEventPromise): Promise<void> {
   if (boolSaving.value || sessionStore.busy || activeAction.value || !boolChanged.value)
     return;
+
   const validation = await event;
   if (
     !validation.valid ||
@@ -193,6 +216,7 @@ async function saveProfile(event: SubmitEventPromise): Promise<void> {
     activeAction.value
   )
     return;
+
   boolSaving.value = true;
   saveError.value = null;
   strSuccess.value = "";
@@ -203,12 +227,14 @@ async function saveProfile(event: SubmitEventPromise): Promise<void> {
     });
     sessionStore.applyProfileUser(response.user);
     if (boolUnmounted) return;
+
     strUsername.value = response.user.username;
     strTimeZone.value = response.user.time_zone;
     savedProfile.value = { username: strUsername.value, timeZone: strTimeZone.value };
     strSuccess.value = "Profile saved.";
   } catch (e) {
     if (boolUnmounted) return;
+
     saveError.value = getApiError(e);
     if (saveError.value.statusCode === 403) await sessionStore.refreshSession();
   } finally {

@@ -21,14 +21,9 @@
           color="primary"
           class="mb-4"
           aria-label="Loading invitation" />
-        <v-alert
-          v-if="requestError"
-          type="error"
-          variant="tonal"
-          class="mb-4"
-          role="alert"
-          >{{ requestError.message }}</v-alert
-        >
+        <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
+          {{ requestError.message }}
+        </v-alert>
         <v-alert v-if="actionError" type="error" variant="tonal" class="mb-4" role="alert">
           The operation was not confirmed. {{ actionError.message }}
           <p
@@ -82,9 +77,9 @@
                       }"
                       target="_blank"
                       rel="noopener"
-                      class="text-primary"
-                      >{{ assignment.department_path }}</RouterLink
-                    >
+                      class="text-primary">
+                      {{ assignment.department_path }}
+                    </RouterLink>
                     <span v-else>{{ assignment.department_path }} (Deleted)</span>
                     <span class="text-capitalize"> — {{ assignment.role }}</span>
                   </li>
@@ -105,16 +100,16 @@
             Email delivery status does not confirm that the recipient read the message.
             Revoke and create a new invitation to change roles or Notes.
           </p>
-          <v-alert v-if="action === 'resend'" type="warning" variant="tonal" class="mb-4"
-            >Resending requests a new email and invalidates the previous invitation link.
-            The assigned roles and Notes are kept.</v-alert
+          <v-alert v-if="action === 'resend'" type="warning" variant="tonal" class="mb-4">
+            Resending requests a new email and invalidates the previous invitation link. The
+            assigned roles and Notes are kept.</v-alert
           >
           <v-alert
             v-else-if="action === 'revoke'"
             type="warning"
             variant="tonal"
-            class="mb-4"
-            >Revoking invalidates this invitation link. It cannot remove an account that has
+            class="mb-4">
+            Revoking invalidates this invitation link. It cannot remove an account that has
             already accepted the invitation.</v-alert
           >
           <p v-if="action === 'resend' && intResendSeconds > 0">
@@ -125,25 +120,25 @@
       </v-card-text>
       <v-card-actions class="flex-wrap ga-2">
         <v-spacer />
-        <v-btn variant="text" :disabled="boolSaving" @click="closeDialog">{{
-          action === "view" ? "Close" : "Cancel"
-        }}</v-btn>
+        <v-btn variant="text" :disabled="boolSaving" @click="closeDialog">
+          {{ action === "view" ? "Close" : "Cancel" }}
+        </v-btn>
         <v-btn
           v-if="requestError || actionError"
           variant="tonal"
           :disabled="boolLoading || boolSaving || !boolCanManage"
-          @click="loadInvitation"
-          >{{ requestError ? "Retry" : "Check Status" }}</v-btn
-        >
+          @click="loadInvitation">
+          {{ requestError ? "Retry" : "Check Status" }}
+        </v-btn>
         <v-btn
           v-if="action !== 'view'"
           :color="action === 'revoke' ? 'error' : 'primary'"
           variant="tonal"
           :loading="boolSaving"
           :disabled="boolActionBlocked"
-          @click="submitAction"
-          >{{ action === "resend" ? "Resend" : "Revoke" }}</v-btn
-        >
+          @click="submitAction">
+          {{ action === "resend" ? "Resend" : "Revoke" }}
+        </v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>

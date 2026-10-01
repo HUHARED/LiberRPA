@@ -12,7 +12,6 @@ import type {
   SessionResponse,
 } from "../api/generated/browserApi";
 
-export type SessionStatus = "unknown" | "authenticated" | "anonymous";
 type SessionNotice =
   | "expired"
   | "signed_out"
@@ -21,17 +20,6 @@ type SessionNotice =
   | "password_changed"
   | "account_deleted"
   | null;
-
-interface SessionState {
-  session: Omit<SessionResponse, "csrf_token"> | null;
-  access: AccountAccessResponse | null;
-  status: SessionStatus;
-  notice: SessionNotice;
-  issue: ApiError | null;
-  unavailable: boolean;
-  busy: boolean;
-  intRevision: number;
-}
 
 // Cache pending requests by $state so action proxies share one task without adding promises to reactive state.
 const MAP_REFRESH_TASK = new WeakMap<object, Promise<void>>();
@@ -42,16 +30,16 @@ function announceSessionChange(): void {
 }
 
 export const useSessionStore = defineStore("session", {
-  state: (): SessionState => {
+  state: () => {
     return {
-      session: null,
-      access: null,
-      status: "unknown",
-      notice: null,
-      issue: null,
-      unavailable: false,
-      busy: false,
-      intRevision: 0,
+      session: null as Omit<SessionResponse, "csrf_token"> | null,
+      access: null as AccountAccessResponse | null,
+      status: "unknown" as "unknown" | "authenticated" | "anonymous",
+      notice: null as SessionNotice,
+      issue: null as ApiError | null,
+      unavailable: false as boolean,
+      busy: false as boolean,
+      intRevision: 0 as number,
     };
   },
   getters: {
@@ -77,6 +65,7 @@ export const useSessionStore = defineStore("session", {
 
     applyProfileUser(user: SessionUserResponse): void {
       if (this.session?.user.id !== user.id) return;
+
       // Ignore an older session read that could overwrite these newly saved profile fields.
       this.intRevision += 1;
       MAP_REFRESH_TASK.delete(this.$state);
@@ -95,6 +84,7 @@ export const useSessionStore = defineStore("session", {
       if (this.session?.user.id !== currentSession.user.id) {
         // A different account must not inherit the previous account's mounted pages.
         if (this.status === "authenticated") this.status = "unknown";
+
         this.access = null;
       }
       this.session = {
@@ -107,14 +97,17 @@ export const useSessionStore = defineStore("session", {
     refreshSession(): Promise<void> {
       const refreshTask = MAP_REFRESH_TASK.get(this.$state);
       if (refreshTask !== undefined) return refreshTask;
+
       const intCurrentRevision = this.intRevision;
       const pendingRefresh = (async () => {
         try {
           const currentSession = await getCurrentSession();
           if (intCurrentRevision !== this.intRevision) return;
+
           this.applySession(currentSession);
           const currentAccess = await getAccountAccess();
           if (intCurrentRevision !== this.intRevision) return;
+
           this.access = currentAccess;
           this.issue = null;
           this.unavailable = false;
@@ -122,6 +115,7 @@ export const useSessionStore = defineStore("session", {
           this.notice = null;
         } catch (e) {
           if (intCurrentRevision !== this.intRevision) return;
+
           const requestError = getApiError(e);
           if (
             requestError.statusCode === 401 &&
@@ -160,6 +154,7 @@ export const useSessionStore = defineStore("session", {
       rememberMe: boolean,
     ): Promise<void> {
       if (this.busy) throw new ApiError("A sign-in request is already in progress.");
+
       this.busy = true;
       this.intRevision += 1;
       MAP_REFRESH_TASK.delete(this.$state);
@@ -167,6 +162,7 @@ export const useSessionStore = defineStore("session", {
       try {
         const currentSession = await signIn(email, password, rememberMe);
         if (intCurrentRevision !== this.intRevision) return;
+
         this.applySession(currentSession);
         announceSessionChange();
         // Verify that the browser accepted the session cookie before opening the workspace.
@@ -178,6 +174,7 @@ export const useSessionStore = defineStore("session", {
 
     async signOutAccount(): Promise<void> {
       if (this.busy) return;
+
       this.busy = true;
       // An earlier successful GET must never restore a session after this logout starts.
       this.intRevision += 1;

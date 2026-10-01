@@ -7,9 +7,9 @@
     max-width="760"
     aria-labelledby="membership-form-title">
     <v-card>
-      <v-card-title id="membership-form-title">{{
-        member ? "Edit Membership" : "Invite Member"
-      }}</v-card-title>
+      <v-card-title id="membership-form-title">
+        {{ member ? "Edit Membership" : "Invite Member" }}
+      </v-card-title>
       <v-card-text>
         <v-progress-linear
           v-if="boolLoading"
@@ -17,14 +17,9 @@
           color="primary"
           class="mb-4"
           aria-label="Loading membership form" />
-        <v-alert
-          v-if="requestError"
-          type="error"
-          variant="tonal"
-          class="mb-4"
-          role="alert"
-          >{{ requestError.message }}</v-alert
-        >
+        <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
+          {{ requestError.message }}
+        </v-alert>
         <v-form
           v-if="arrDepartment !== null"
           id="membership-form"
@@ -128,9 +123,9 @@
                       size="small"
                       :disabled="boolSaving"
                       :aria-label="`Remove department role ${index + 1}`"
-                      @click="arrRole.splice(index, 1)"
-                      >Remove</v-btn
-                    >
+                      @click="arrRole.splice(index, 1)">
+                      Remove
+                    </v-btn>
                   </td>
                 </tr>
                 <tr v-if="!arrRole.length">
@@ -145,9 +140,9 @@
               prepend-icon="mdi-plus"
               class="mt-3"
               :disabled="boolSaving || arrRole.length >= arrDepartment.length"
-              @click="addDepartment"
-              >Add Department</v-btn
-            >
+              @click="addDepartment">
+              Add Department
+            </v-btn>
           </div>
           <v-textarea
             v-model="strNotes"
@@ -171,9 +166,9 @@
           v-if="requestError"
           variant="tonal"
           :disabled="boolLoading || !boolCanManage"
-          @click="loadForm"
-          >Retry</v-btn
-        >
+          @click="loadForm">
+          Retry
+        </v-btn>
         <v-btn
           type="submit"
           form="membership-form"
@@ -186,9 +181,9 @@
             arrDepartment === null ||
             !boolCanManage ||
             intRetrySeconds > 0
-          "
-          >{{ member ? "Save" : "Invite Member" }}</v-btn
-        >
+          ">
+          {{ member ? "Save" : "Invite Member" }}
+        </v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>

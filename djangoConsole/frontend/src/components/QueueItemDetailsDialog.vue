@@ -5,8 +5,8 @@
     persistent
     scrollable
     max-width="900"
-    aria-labelledby="queue-item-title"
-    ><v-card>
+    aria-labelledby="queue-item-title">
+    <v-card>
       <v-card-title id="queue-item-title">Item Details</v-card-title>
       <v-card-text>
         <v-progress-linear v-if="loading" indeterminate class="mb-4" />
@@ -25,11 +25,11 @@
           @click:close="strActionError = ''">
           {{ strActionError }}
         </v-alert>
-        <v-alert v-if="message" type="success" variant="tonal" class="mb-4" role="status">{{
-          message
-        }}</v-alert>
-        <template v-if="item"
-          ><dl class="detail-fields">
+        <v-alert v-if="message" type="success" variant="tonal" class="mb-4" role="status">
+          {{ message }}
+        </v-alert>
+        <template v-if="item">
+          <dl class="detail-fields">
             <div class="full-width-field">
               <dt>Item ID</dt>
               <dd>{{ item.id }}</dd>
@@ -62,22 +62,24 @@
             readonly
             rows="12"
             class="mt-5"
-            hide-details
-        /></template>
+            hide-details />
+        </template>
       </v-card-text>
-      <v-card-actions
-        ><v-btn v-if="error" variant="text" :disabled="loading" @click="load">Retry</v-btn
-        ><v-btn variant="tonal" :disabled="loading || !item || !!error" @click="copyJson"
-          >Copy JSON</v-btn
-        ><v-spacer /><v-btn
+      <v-card-actions>
+        <v-btn v-if="error" variant="text" :disabled="loading" @click="load"> Retry </v-btn>
+        <v-btn variant="tonal" :disabled="loading || !item || !!error" @click="copyJson">
+          Copy JSON
+        </v-btn>
+        <v-spacer />
+        <v-btn
           :to="{ name: 'data-queue-details', params: { queueId }, query: route.query }"
           replace
-          variant="text"
-          >Close</v-btn
-        ></v-card-actions
-      >
-    </v-card></v-dialog
-  >
+          variant="text">
+          Close
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
 </template>
 
 <script setup lang="ts">

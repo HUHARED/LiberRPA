@@ -9,7 +9,9 @@
     :temporary="!boolDesktop"
     width="256">
     <template #prepend>
-      <v-list-item class="py-4"><BrandMark /></v-list-item>
+      <v-list-item class="py-4">
+        <BrandMark />
+      </v-list-item>
       <v-divider />
     </template>
     <v-list tag="nav" nav density="compact" aria-label="Workspace navigation">
