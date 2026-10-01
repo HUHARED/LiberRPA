@@ -87,7 +87,7 @@
 <script setup lang="ts">
 import { useSessionStore } from "../stores/sessionStore";
 
-import DepartmentAccess from "../components/DepartmentAccess.vue";
+import DepartmentAccess from "@/components/organizations/DepartmentAccess.vue";
 
 import { getDisplayName } from "../app/formatters";
 

@@ -117,7 +117,7 @@ import { computed, ref, shallowRef, watch } from "vue";
 import { useRoute } from "vue-router";
 import { useDisplay } from "vuetify";
 
-import BrandMark from "../components/BrandMark.vue";
+import BrandMark from "@/components/common/BrandMark.vue";
 
 import { useSessionStore } from "../stores/sessionStore";
 import { usePreferencesStore } from "../stores/preferencesStore";

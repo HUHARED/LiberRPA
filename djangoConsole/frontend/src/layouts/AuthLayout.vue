@@ -17,7 +17,7 @@
 </template>
 
 <script setup lang="ts">
-import BrandMark from "../components/BrandMark.vue";
+import BrandMark from "@/components/common/BrandMark.vue";
 </script>
 
 <style scoped></style>

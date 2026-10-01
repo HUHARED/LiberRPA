@@ -57,7 +57,7 @@ import { useSessionLifecycle } from "./composables/useSessionLifecycle";
 
 import { getSafeReturnPath, getSignInLocation } from "./app/navigation";
 
-import ConnectionState from "./components/ConnectionState.vue";
+import ConnectionState from "@/components/common/ConnectionState.vue";
 import AuthLayout from "./layouts/AuthLayout.vue";
 import ConsoleLayout from "./layouts/ConsoleLayout.vue";
 

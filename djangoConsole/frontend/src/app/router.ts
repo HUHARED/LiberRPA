@@ -15,25 +15,25 @@ export function createAppRouter(history: RouterHistory = createWebHistory()): Ro
       {
         path: "/create-organization",
         name: "create-organization",
-        component: () => import("../views/CreateOrganizationView.vue"),
+        component: () => import("@/views/accounts/CreateOrganizationView.vue"),
         meta: { title: "Create Organization", public: true },
       },
       {
         path: "/confirm-email-change",
         name: "confirm-email-change",
-        component: () => import("../views/ConfirmEmailChangeView.vue"),
+        component: () => import("@/views/accounts/ConfirmEmailChangeView.vue"),
         meta: { title: "Confirm Email Change", public: true },
       },
       {
         path: "/create-account",
         name: "create-account",
-        component: () => import("../views/CreateAccountView.vue"),
+        component: () => import("@/views/accounts/CreateAccountView.vue"),
         meta: { title: "Create Account", public: true },
       },
       {
         path: "/sign-in",
         name: "sign-in",
-        component: () => import("../views/SignInView.vue"),
+        component: () => import("@/views/accounts/SignInView.vue"),
         meta: { title: "Sign In", public: true },
       },
       {
@@ -45,32 +45,32 @@ export function createAppRouter(history: RouterHistory = createWebHistory()): Ro
       {
         path: "/executors",
         name: "executors",
-        component: () => import("../views/ExecutorsView.vue"),
+        component: () => import("@/views/executors/ExecutorsView.vue"),
         meta: { title: "Executors", requiresBusiness: true },
       },
       {
         path: "/shared-files",
         name: "shared-files",
-        component: () => import("../views/SharedFilesView.vue"),
+        component: () => import("@/views/sharedFiles/SharedFilesView.vue"),
         meta: { title: "Shared Files", requiresBusiness: true },
       },
       {
         path: "/data-queues",
         name: "data-queues",
-        component: () => import("../views/DataQueuesView.vue"),
+        component: () => import("@/views/dataQueues/DataQueuesView.vue"),
         meta: { title: "Data Queues", requiresBusiness: true },
       },
       {
         path: "/data-queues/:queueId",
         name: "data-queue-details",
-        component: () => import("../views/QueueDetailsView.vue"),
+        component: () => import("@/views/dataQueues/QueueDetailsView.vue"),
         props: true,
         meta: { title: "Queue Details", requiresBusiness: true },
         children: [
           {
             path: "items/:itemId",
             name: "queue-item-details",
-            component: () => import("../components/QueueItemDetailsDialog.vue"),
+            component: () => import("@/components/dataQueues/QueueItemDetailsDialog.vue"),
             props: true,
             meta: { title: "Item Details" },
           },
@@ -79,13 +79,13 @@ export function createAppRouter(history: RouterHistory = createWebHistory()): Ro
       {
         path: "/assets",
         name: "assets",
-        component: () => import("../views/AssetsView.vue"),
+        component: () => import("@/views/assets/AssetsView.vue"),
         meta: { title: "Assets", requiresBusiness: true },
         children: [
           {
             path: ":assetId",
             name: "asset-details",
-            component: () => import("../components/AssetDetailsDialog.vue"),
+            component: () => import("@/components/assets/AssetDetailsDialog.vue"),
             props: true,
             meta: { title: "Asset Details" },
           },
@@ -94,13 +94,13 @@ export function createAppRouter(history: RouterHistory = createWebHistory()): Ro
       {
         path: "/executors/groups",
         name: "executor-groups",
-        component: () => import("../views/ExecutorGroupsView.vue"),
+        component: () => import("@/views/executors/ExecutorGroupsView.vue"),
         meta: { title: "Executor Groups", requiresBusiness: true },
         children: [
           {
             path: ":groupId",
             name: "executor-group-details",
-            component: () => import("../components/ExecutorGroupDetailsDialog.vue"),
+            component: () => import("@/components/executors/ExecutorGroupDetailsDialog.vue"),
             props: true,
             meta: { title: "Group Details" },
           },
@@ -109,14 +109,14 @@ export function createAppRouter(history: RouterHistory = createWebHistory()): Ro
       {
         path: "/executors/:executorId",
         name: "executor-details",
-        component: () => import("../views/ExecutorDetailsView.vue"),
+        component: () => import("@/views/executors/ExecutorDetailsView.vue"),
         props: true,
         meta: { title: "Executor Details", requiresBusiness: true },
       },
       {
         path: "/organization-settings",
         name: "organization-settings",
-        component: () => import("../views/OrganizationSettingsView.vue"),
+        component: () => import("@/views/organizations/OrganizationSettingsView.vue"),
         redirect: { name: "organization-general" },
         meta: {
           title: "Organization Settings",
@@ -127,38 +127,38 @@ export function createAppRouter(history: RouterHistory = createWebHistory()): Ro
           {
             path: "general",
             name: "organization-general",
-            component: () => import("../views/OrganizationGeneralView.vue"),
+            component: () => import("@/views/organizations/OrganizationGeneralView.vue"),
             meta: { title: "General" },
           },
           {
             path: "audit-log",
             name: "audit-log",
-            component: () => import("../views/AuditLogView.vue"),
+            component: () => import("@/views/audit/AuditLogView.vue"),
             meta: { title: "Audit Log" },
           },
           {
             path: "members",
             name: "members",
-            component: () => import("../views/MembersView.vue"),
+            component: () => import("@/views/organizations/MembersView.vue"),
             meta: { title: "Members" },
           },
           {
             path: "members/:userId",
             name: "member-details",
-            component: () => import("../views/MemberDetailsView.vue"),
+            component: () => import("@/views/organizations/MemberDetailsView.vue"),
             props: true,
             meta: { title: "Member Details" },
           },
           {
             path: "departments",
             name: "departments",
-            component: () => import("../views/DepartmentsView.vue"),
+            component: () => import("@/views/organizations/DepartmentsView.vue"),
             meta: { title: "Departments" },
           },
           {
             path: "departments/:departmentId",
             name: "department-details",
-            component: () => import("../views/DepartmentDetailsView.vue"),
+            component: () => import("@/views/organizations/DepartmentDetailsView.vue"),
             props: true,
             meta: { title: "Department Details" },
           },
@@ -167,13 +167,13 @@ export function createAppRouter(history: RouterHistory = createWebHistory()): Ro
       {
         path: "/my-profile",
         name: "my-profile",
-        component: () => import("../views/ProfileView.vue"),
+        component: () => import("@/views/accounts/ProfileView.vue"),
         meta: { title: "My Profile", requiresBusiness: true },
       },
       {
         path: "/api-keys",
         name: "api-keys",
-        component: () => import("../views/ApiKeysView.vue"),
+        component: () => import("@/views/accounts/ApiKeysView.vue"),
         meta: { title: "API Keys", requiresBusiness: true },
       },
       {
@@ -185,7 +185,7 @@ export function createAppRouter(history: RouterHistory = createWebHistory()): Ro
       {
         path: "/organization-status",
         name: "organization-status",
-        component: () => import("../views/OrganizationStatusView.vue"),
+        component: () => import("@/views/organizations/OrganizationStatusView.vue"),
         meta: { title: "Organization Status" },
       },
       {
