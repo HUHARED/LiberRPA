@@ -48,10 +48,10 @@ def _parse_audit_filters(query: QueryDict, defaultTimeZone: str) -> AuditListFil
     setMultipleField = {"actor_id", "module", "action", "result"}
     if set(query) - setSingleField - setMultipleField:
         raise ValueError("Unknown audit filters.")
-    if any(len(query.getlist(field)) > 1 for field in setSingleField):
+    if any(len(query.getlist(strField)) > 1 for strField in setSingleField):
         raise ValueError("Send each date, time zone and page only once.")
     # Match the existing resource filters' bound on repeated selections.
-    if any(len(query.getlist(field)) > 100 for field in setMultipleField):
+    if any(len(query.getlist(strField)) > 100 for strField in setMultipleField):
         raise ValueError("Too many filter values.")
     strTimeZone = query.get("time_zone", defaultTimeZone)
     try:
@@ -95,18 +95,20 @@ def _parse_audit_filters(query: QueryDict, defaultTimeZone: str) -> AuditListFil
     except OverflowError:
         raise ValidationError({"date_to": "Select an earlier end date."}) from None
     listActor = query.getlist("actor_id")
-    tupleActorId = tuple(uuid.UUID(value) for value in listActor if value != "system")
+    tupleActorId = tuple(
+        uuid.UUID(strValue) for strValue in listActor if strValue != "system"
+    )
     tupleModule = tuple(query.getlist("module"))
     tupleAction = tuple(query.getlist("action"))
     tupleResult = tuple(query.getlist("result"))
-    if any(re.fullmatch(r"[a-z_]{1,32}", value) is None for value in tupleModule):
+    if any(re.fullmatch(r"[a-z_]{1,32}", strValue) is None for strValue in tupleModule):
         raise ValueError("Invalid audit module.")
     if any(
-        len(value) > 64 or re.fullmatch(r"[a-z_]+\.[a-z_]+", value) is None
-        for value in tupleAction
+        len(strValue) > 64 or re.fullmatch(r"[a-z_]+\.[a-z_]+", strValue) is None
+        for strValue in tupleAction
     ):
         raise ValueError("Invalid audit action.")
-    if any(value not in AuditResult.values for value in tupleResult):
+    if any(strValue not in AuditResult.values for strValue in tupleResult):
         raise ValueError("Invalid audit result.")
     return AuditListFilters(
         fromTime=fromTime,

@@ -66,7 +66,7 @@ class InvitationDeliveryInfo:
     expiresAt: datetime
 
 
-def get_pending_invitations(organizationId: uuid.UUID) -> QuerySet[MemberInvitation]:
+def _get_pending_invitations(organizationId: uuid.UUID) -> QuerySet[MemberInvitation]:
     """Count reservations using current time; expiry needs no cleanup job."""
     return MemberInvitation.objects.filter(
         organization_id=organizationId,
@@ -93,7 +93,7 @@ def _require_member_capacity(
 ) -> None:
     # TODO: Apply organization-specific member limits when quota overrides are implemented.
     limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
-    pendingQuery = get_pending_invitations(organizationId)
+    pendingQuery = _get_pending_invitations(organizationId)
     if invitationId is not None:
         pendingQuery = pendingQuery.exclude(pk=invitationId)
     # NOTE: Inactive members still count. Acceptance replaces its own reservation.
@@ -129,8 +129,8 @@ def _get_invitation_roles(
     invitation: MemberInvitation,
 ) -> dict[uuid.UUID, DepartmentRole]:
     return {
-        departmentId: DepartmentRole(role)
-        for departmentId, role in InvitationDepartmentRole.objects.filter(
+        departmentId: DepartmentRole(strRole)
+        for departmentId, strRole in InvitationDepartmentRole.objects.filter(
             invitation=invitation
         ).values_list("department_id", "role")
     }
@@ -192,7 +192,7 @@ def create_member_invitation(
     )
     _validate_department_roles(organization.id, departmentRoles)
     _require_unregistered_email(invitation.email)
-    if get_pending_invitations(organization.id).filter(email=invitation.email).exists():
+    if _get_pending_invitations(organization.id).filter(email=invitation.email).exists():
         raise InvitationConflictError(
             "invitation_already_pending",
             "An invitation is already pending for this address.",
@@ -238,7 +238,7 @@ def resend_member_invitation(
     _require_unregistered_email(invitation.email)
     _validate_department_roles(organization.id, _get_invitation_roles(invitation))
     if (
-        get_pending_invitations(organization.id)
+        _get_pending_invitations(organization.id)
         .filter(email=invitation.email)
         .exclude(pk=invitation.id)
         .exists()
@@ -397,7 +397,7 @@ def complete_invitation_registration(
                 invitation.email,
                 password,
                 username=strDisplayName,
-                timeZone=organization.default_time_zone,
+                time_zone=organization.default_time_zone,
             )
     except IntegrityError:
         _require_unregistered_email(invitation.email)

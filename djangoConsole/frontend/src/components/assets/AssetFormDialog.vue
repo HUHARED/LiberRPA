@@ -12,7 +12,9 @@
         <v-form id="asset-form" validate-on="submit" @submit.prevent="submitAsset">
           <v-alert v-if="saveError" type="error" variant="tonal" class="mb-4" role="alert">
             Save was not confirmed. {{ saveError.message }}
-            <p v-for="message in saveError.fields.__all__" :key="message">{{ message }}</p>
+            <p v-for="strMessage in saveError.fields.__all__" :key="strMessage">
+              {{ strMessage }}
+            </p>
           </v-alert>
           <v-row v-if="mode !== 'value'">
             <v-col cols="12" md="6">
@@ -55,7 +57,7 @@
           </v-alert>
           <v-select
             v-if="mode === 'create'"
-            v-model="assetType"
+            v-model="strAssetType"
             :items="ARR_ASSET_TYPE"
             label="Type"
             variant="outlined"
@@ -65,7 +67,7 @@
             :disabled="boolSaving" />
           <v-text-field
             v-else
-            :model-value="getAssetTypeLabel(assetType)"
+            :model-value="getAssetTypeLabel(strAssetType)"
             label="Type"
             variant="outlined"
             readonly />
@@ -84,12 +86,12 @@
               Enter the complete replacement value. The stored secret is never displayed.
             </v-alert>
             <v-switch
-              v-if="assetType === 'boolean'"
+              v-if="strAssetType === 'boolean'"
               v-model="boolValue"
               :label="`Value: ${boolValue}`"
               color="primary"
               :disabled="boolSaving" />
-            <template v-else-if="assetType === 'credential'">
+            <template v-else-if="strAssetType === 'credential'">
               <v-text-field
                 v-model="strUsername"
                 label="Username"
@@ -103,39 +105,39 @@
                 :disabled="boolSaving" />
             </template>
             <PasswordField
-              v-else-if="assetType === 'secret_text'"
+              v-else-if="strAssetType === 'secret_text'"
               v-model="strValue"
               label="Value"
               autocomplete="new-password"
               :disabled="boolSaving" />
             <v-number-input
-              v-else-if="assetType === 'integer' || assetType === 'number'"
-              :key="assetType"
-              v-model="numberValue"
+              v-else-if="strAssetType === 'integer' || strAssetType === 'number'"
+              :key="strAssetType"
+              v-model="floatValue"
               label="Value"
               variant="outlined"
               control-variant="stacked"
               inset
               :min="Number.MIN_SAFE_INTEGER"
               :max="Number.MAX_SAFE_INTEGER"
-              :precision="assetType === 'integer' ? 0 : null"
+              :precision="strAssetType === 'integer' ? 0 : null"
               validate-on="blur"
               :rules="[validateValue]"
               :disabled="boolSaving" />
             <v-textarea
               v-else
               v-model="strValue"
-              :label="assetType === 'json' ? 'Value (JSON)' : 'Value'"
+              :label="strAssetType === 'json' ? 'Value (JSON)' : 'Value'"
               variant="outlined"
               rows="6"
               :rules="[validateValue]"
               :disabled="boolSaving" />
             <p
-              v-for="message in saveError?.fields.value ?? []"
-              :key="message"
+              v-for="strMessage in saveError?.fields.value ?? []"
+              :key="strMessage"
               class="text-error mb-2"
               role="alert">
-              {{ message }}
+              {{ strMessage }}
             </p>
           </template>
           <v-alert v-if="!boolAllowed" type="info" variant="tonal" class="mt-3">
@@ -203,7 +205,7 @@ const strDepartmentId = ref<string | null>(
 );
 const strName = ref(props.asset?.name ?? "");
 const strNotes = ref(props.asset?.notes ?? "");
-const assetType = ref<AssetType>(props.asset?.asset_type ?? "text");
+const strAssetType = ref<AssetType>(props.asset?.asset_type ?? "text");
 const strValue = ref(
   props.asset?.asset_type === "json"
     ? (JSON.stringify(props.asset.value, null, 2) ?? "")
@@ -211,7 +213,7 @@ const strValue = ref(
       ? props.asset.value
       : "",
 );
-const numberValue = ref<number | null>(
+const floatValue = ref<number | null>(
   typeof props.asset?.value === "number" ? props.asset.value : null,
 );
 const boolValue = ref(props.asset?.value === true);
@@ -219,7 +221,7 @@ const strUsername = ref("");
 const strPassword = ref("");
 const boolSaving = ref(false);
 const saveError = shallowRef<ApiError | null>(null);
-const boolSecret = computed(() => isSecretAsset(assetType.value));
+const boolSecret = computed(() => isSecretAsset(strAssetType.value));
 const strTitle = computed(() =>
   props.mode === "create"
     ? "New Asset"
@@ -267,14 +269,14 @@ const valueResult = computed(() => {
 });
 
 function parseValue(): AssetValueRequest["value"] {
-  if (assetType.value === "boolean") return boolValue.value;
-  if (assetType.value === "credential")
+  if (strAssetType.value === "boolean") return boolValue.value;
+  if (strAssetType.value === "credential")
     return { username: strUsername.value, password: strPassword.value };
-  if (assetType.value === "text" || assetType.value === "secret_text")
+  if (strAssetType.value === "text" || strAssetType.value === "secret_text")
     return strValue.value;
-  if (assetType.value === "integer" || assetType.value === "number") {
-    if (numberValue.value === null) throw new Error("Enter a value.");
-    return numberValue.value;
+  if (strAssetType.value === "integer" || strAssetType.value === "number") {
+    if (floatValue.value === null) throw new Error("Enter a value.");
+    return floatValue.value;
   }
   let value: unknown;
   try {
@@ -306,7 +308,7 @@ async function submitAsset(event: SubmitEventPromise): Promise<void> {
             department_id: strDepartmentId.value!,
             name: strName.value,
             notes: strNotes.value,
-            asset_type: assetType.value,
+            asset_type: strAssetType.value,
             value: getValue(),
           })
         : props.mode === "details"
@@ -332,9 +334,9 @@ async function submitAsset(event: SubmitEventPromise): Promise<void> {
   }
 }
 
-watch(assetType, () => {
+watch(strAssetType, () => {
   strValue.value = "";
-  numberValue.value = null;
+  floatValue.value = null;
   boolValue.value = false;
   strUsername.value = "";
   strPassword.value = "";

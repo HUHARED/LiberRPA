@@ -92,7 +92,7 @@ def _get_member_info_list(
     dictRoleByMemberId: dict[uuid.UUID, list[MemberDepartmentRoleInfo]] = {
         membership.user_id: [] for membership in memberships
     }
-    for memberId, departmentId, role in DepartmentMembership.objects.filter(
+    for memberId, departmentId, strRole in DepartmentMembership.objects.filter(
         membership_id__in=dictRoleByMemberId,
         department_id__in=dictDepartmentById,
     ).values_list("membership_id", "department_id", "role"):
@@ -102,7 +102,7 @@ def _get_member_info_list(
                 departmentId=department.id,
                 departmentName=department.name,
                 departmentPath=get_department_path(department, dictDepartmentById),
-                role=DepartmentRole(role),
+                role=DepartmentRole(strRole),
             )
         )
 

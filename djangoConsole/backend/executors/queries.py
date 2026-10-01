@@ -155,7 +155,7 @@ def get_executor_list(
     paginator = Paginator(executorQuery, _INT_EXECUTORS_PER_PAGE)
     executorPage = paginator.page(pageNumber)
     executors = list(executorPage.object_list)
-    executorInfo: tuple[ExecutorInfo, ...] = ()
+    executorInfoEntries: tuple[ExecutorInfo, ...] = ()
     if executors:
         # NOTE: Selection already excluded every current association; do not read those sessions again.
         context = get_executor_read_context(
@@ -163,9 +163,9 @@ def get_executor_list(
             executorIds=() if availableOnly else [executor.id for executor in executors],
             currentTime=currentTime,
         )
-        executorInfo = build_executor_info_list(executors, context)
+        executorInfoEntries = build_executor_info_list(executors, context)
     return ExecutorPageInfo(
-        executors=executorInfo,
+        executors=executorInfoEntries,
         page=executorPage.number,
         pageSize=_INT_EXECUTORS_PER_PAGE,
         totalCount=paginator.count,

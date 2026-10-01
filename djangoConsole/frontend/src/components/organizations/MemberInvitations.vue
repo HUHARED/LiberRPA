@@ -253,10 +253,10 @@ function handleInvited(invitation: InvitationResponse): void {
 }
 
 function handleInvitationUpdated(invitation: InvitationResponse): void {
-  const action = selectedInvitation.value?.action;
+  const strAction = selectedInvitation.value?.action;
   selectedInvitation.value = null;
   strSuccessMessage.value =
-    action === "revoke"
+    strAction === "revoke"
       ? `Invitation for ${invitation.email} revoked.`
       : `Resend requested for ${invitation.email}. The previous invitation link is no longer valid.`;
   // Apply the confirmed result before refreshing so a failed read cannot restore an obsolete action target.

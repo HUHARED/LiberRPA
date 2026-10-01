@@ -183,7 +183,7 @@ def list_or_create_assets(request: HttpRequest, membership: Membership) -> HttpR
             )
             listType = request.GET.getlist("type")
             if len(listType) > len(AssetType.values) or any(
-                value not in AssetType.values for value in listType
+                strValue not in AssetType.values for strValue in listType
             ):
                 raise ValueError("Invalid asset types.")
         except ValueError:

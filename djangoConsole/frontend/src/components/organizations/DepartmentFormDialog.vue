@@ -26,8 +26,11 @@
               department ? "The update was not confirmed." : "Creation was not confirmed."
             }}
             {{ saveError.message }}
-            <p v-for="message in saveError.fields.__all__" :key="message" class="mt-2">
-              {{ message }}
+            <p
+              v-for="strMessage in saveError.fields.__all__"
+              :key="strMessage"
+              class="mt-2">
+              {{ strMessage }}
             </p>
           </v-alert>
           <v-text-field

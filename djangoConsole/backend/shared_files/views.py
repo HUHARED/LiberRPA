@@ -70,8 +70,8 @@ def query_shared_file(
     if isinstance(payload, JsonResponse):
         return payload
     pathParts = parse_file_path(payload.path)
-    file, departmentPath = resolve_file(get_file_access(authentication), pathParts)
-    return build_file_response(build_file_payload(file, departmentPath))
+    file, strDepartmentPath = resolve_file(get_file_access(authentication), pathParts)
+    return build_file_response(build_file_payload(file, strDepartmentPath))
 
 
 @require_POST
@@ -104,11 +104,11 @@ def append_file_chunk(
     uploadId: uuid.UUID,
     offset: int,
 ) -> HttpResponse:
-    data, chunkSha256 = parse_upload_chunk(request)
+    chunkData, strChunkSha256 = parse_upload_chunk(request)
     with transaction.atomic():
         access = lock_file_access(request, authentication)
         upload = get_upload(access, uploadId)
-        append_chunk(upload, offset, data, chunkSha256)
+        append_chunk(upload, offset, chunkData, strChunkSha256)
         return build_file_response(build_upload_payload(upload))
 
 
@@ -147,7 +147,7 @@ def delete_shared_files(
     payload = parse_file_request(request, FileDeleteRequest)
     if isinstance(payload, JsonResponse):
         return payload
-    paths = [parse_file_path(path) for path in payload.paths]
+    paths = [parse_file_path(strPath) for strPath in payload.paths]
     with transaction.atomic():
         access = lock_file_access(request, authentication)
         return build_file_response(delete_files(access, payload, paths))

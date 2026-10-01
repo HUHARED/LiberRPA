@@ -99,7 +99,7 @@ class ConsoleFormatter(logging.Formatter):
 
     def format(self, record: logging.LogRecord) -> str:
         logRecord = copy(record)
-        logRecord.request_id = str(get_request_id() or "-")
+        logRecord.requestId = str(get_request_id() or "-")
         # Django error messages can contain URLs, Host headers, SQL, or exception text.
         if logRecord.name.startswith("django."):
             logRecord.msg = "Django diagnostic."
@@ -118,7 +118,7 @@ def build_logging_config(level: str) -> dict[str, object]:
             "console": {
                 "()": ConsoleFormatter,
                 "format": "%(asctime)s.%(msecs)03dZ %(levelname)s %(name)s "
-                "request=%(request_id)s %(message)s",
+                "request=%(requestId)s %(message)s",
                 "datefmt": "%Y-%m-%dT%H:%M:%S",
             }
         },

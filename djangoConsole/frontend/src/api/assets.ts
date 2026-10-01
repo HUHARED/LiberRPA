@@ -85,9 +85,9 @@ export async function getAssetList(
 ): Promise<AssetListResponse> {
   const query = new URLSearchParams({ page: String(page) });
   if (filters.name) query.set("name", filters.name);
-  for (const departmentId of filters.departmentIds)
-    query.append("department_id", departmentId);
-  for (const assetType of filters.assetTypes) query.append("type", assetType);
+  for (const strDepartmentId of filters.departmentIds)
+    query.append("department_id", strDepartmentId);
+  for (const strAssetType of filters.assetTypes) query.append("type", strAssetType);
   const payload = await requestApi(`/assets/?${query}`);
   if (
     !isRecord(payload) ||

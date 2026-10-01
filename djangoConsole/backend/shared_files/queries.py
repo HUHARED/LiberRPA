@@ -79,21 +79,22 @@ def get_file_list(
     departmentsById = get_department_tree(access.organization.pk)
     department = resolve_department_path(departmentParts, departmentsById)
     require_file_department_access(access, department.pk)
-    departmentPath = "/" + get_department_path(department, departmentsById)
+    strDepartmentPath = "/" + get_department_path(department, departmentsById)
     query = SharedFile.objects.filter(department=department).select_related("blob")
     if payload.name:
         query = query.filter(name_key__contains=get_path_name_key(payload.name))
-    orderField = {
+    strOrderField = {
         "name": "name_key",
         "size": "blob__size_bytes",
         "uploaded_at": "uploaded_at",
     }[payload.sort_by]
     page = Paginator(
-        query.order_by(("-" if payload.order == "desc" else "") + orderField, "id"), 100
+        query.order_by(("-" if payload.order == "desc" else "") + strOrderField, "id"),
+        100,
     ).page(payload.page)
     return FileListResponse(
-        files=[build_file_payload(file, departmentPath) for file in page],
-        department_path=departmentPath,
+        files=[build_file_payload(file, strDepartmentPath) for file in page],
+        department_path=strDepartmentPath,
         usage=FileUsageResponse(
             **get_storage_usage(access.organization.pk),
             max_file_bytes=settings.CONSOLE_LIMITS.maxSharedFileBytes,

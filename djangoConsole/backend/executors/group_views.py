@@ -215,14 +215,14 @@ def list_or_create_executor_groups(request: HttpRequest) -> JsonResponse:
                     ).model_dump(mode="python"),
                     status=201,
                 )
-        dictListParameter = _get_list_parameters(request)
-        if isinstance(dictListParameter, JsonResponse):
-            return dictListParameter
+        listParametersResult = _get_list_parameters(request)
+        if isinstance(listParametersResult, JsonResponse):
+            return listParametersResult
         page = get_executor_group_list(
             actorId=membership.user_id,
             organizationId=membership.organization_id,
             channel=AccessChannel.SESSION,
-            **dictListParameter,
+            **listParametersResult,
         )
         dictListPayload = {
             "executor_groups": [_build_group_info_payload(info) for info in page.groups],

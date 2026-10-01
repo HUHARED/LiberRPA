@@ -65,7 +65,7 @@ def create_organization_records(
         verifiedEmail,
         password,
         username=strDisplayName,
-        timeZone=organization.default_time_zone,
+        time_zone=organization.default_time_zone,
     )
     organization.save(force_insert=True)
     membership = Membership(user=user, organization=organization, is_org_admin=True)

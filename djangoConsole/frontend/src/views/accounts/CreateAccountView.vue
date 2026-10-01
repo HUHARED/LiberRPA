@@ -5,8 +5,8 @@
     <p class="text-medium-emphasis mb-6">Join the organization that invited you.</p>
     <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
       {{ requestError.message }}
-      <p v-for="message in requestError.fields.__all__" :key="message" class="mt-2">
-        {{ message }}
+      <p v-for="strMessage in requestError.fields.__all__" :key="strMessage" class="mt-2">
+        {{ strMessage }}
       </p>
       <p v-if="intRetrySeconds" class="mt-2">Try again in {{ intRetrySeconds }} seconds.</p>
     </v-alert>
@@ -248,10 +248,10 @@ watch(
     boolLoading.value = false;
     boolSaving.value = false;
     const parameters = new URLSearchParams(route.hash.slice(1));
-    const token = parameters.get("token") ?? "";
+    const strLinkToken = parameters.get("token") ?? "";
     strToken.value =
-      parameters.getAll("token").length === 1 && /^[A-Za-z0-9_-]{43}$/.test(token)
-        ? token
+      parameters.getAll("token").length === 1 && /^[A-Za-z0-9_-]{43}$/.test(strLinkToken)
+        ? strLinkToken
         : "";
     if (!strToken.value)
       requestError.value = new ApiError("The invitation link is missing or invalid.", {

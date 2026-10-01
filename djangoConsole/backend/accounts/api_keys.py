@@ -192,20 +192,20 @@ def create_api_key(
     if timezone.is_naive(expiresAt) or expiresAt <= currentTime:
         raise ValidationError({"expires_at": "Choose a future time with a UTC offset."})
     limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
-    activeCount = ApiKey.objects.filter(
+    intActiveCount = ApiKey.objects.filter(
         user_id=actorId, revoked_at__isnull=True, expires_at__gt=currentTime
     ).count()
-    if activeCount >= limits.maxActiveApiKeysPerAccount:
+    if intActiveCount >= limits.maxActiveApiKeysPerAccount:
         raise ValidationError(
             "The active API key limit has been reached.", code="api_key_limit"
         )
 
-    secretValue = f"lrpa_{secrets.token_urlsafe(32)}"
+    strSecretValue = f"lrpa_{secrets.token_urlsafe(32)}"
     apiKey = ApiKey(
         user_id=actorId,
         name=name.strip(),
         notes=notes,
-        token_hash=hashlib.sha256(secretValue.encode("ascii")).hexdigest(),
+        token_hash=hashlib.sha256(strSecretValue.encode("ascii")).hexdigest(),
         created_at=currentTime,
         expires_at=expiresAt,
     )
@@ -223,7 +223,7 @@ def create_api_key(
         before={},
     )
     _prune_inactive_api_keys(actorId, currentTime)
-    return ApiKeyCreationResult(apiKey=apiKey, secret=secretValue)
+    return ApiKeyCreationResult(apiKey=apiKey, secret=strSecretValue)
 
 
 @sensitive_variables()
@@ -304,11 +304,11 @@ def revoke_active_api_keys(*, userId: uuid.UUID) -> int:
     """Join the password-change/reset transaction and revoke only currently active keys."""
     User.objects.select_for_update().get(pk=userId)
     currentTime = timezone.now()
-    revokedCount = ApiKey.objects.filter(
+    intRevokedCount = ApiKey.objects.filter(
         user_id=userId, revoked_at__isnull=True, expires_at__gt=currentTime
     ).update(revoked_at=currentTime)
     _prune_inactive_api_keys(userId, currentTime)
-    return revokedCount
+    return intRevokedCount
 
 
 def prune_inactive_api_keys() -> int:
@@ -320,9 +320,9 @@ def prune_inactive_api_keys() -> int:
         .values_list("user_id", flat=True)
         .distinct()
     )
-    deletedCount = 0
+    intDeletedCount = 0
     for userId in userIds.iterator(chunk_size=200):
         with transaction.atomic():
             if User.objects.select_for_update().filter(pk=userId).exists():
-                deletedCount += _prune_inactive_api_keys(userId, timezone.now())
-    return deletedCount
+                intDeletedCount += _prune_inactive_api_keys(userId, timezone.now())
+    return intDeletedCount

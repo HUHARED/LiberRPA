@@ -26,21 +26,21 @@ def build_registration_email(deliveryInfo: RegistrationTokenDeliveryInfo) -> Ema
     The delivery process owns current eligibility, budgets, one SMTP attempt, and result recording.
     The caller must not log or return the message body to an anonymous requesting client.
     """
-    consoleUrl = cast(str, settings.CONSOLE_URL)
+    strConsoleUrl = cast(str, settings.CONSOLE_URL)
 
     # Use the configured origin; an incoming request must not choose the email link's host.
     # The browser keeps the fragment out of the initial page request and HTTP access logs.
-    verificationUrl = (
-        f"{consoleUrl}/create-organization/#{urlencode({'token': deliveryInfo.token})}"
+    strVerificationUrl = (
+        f"{strConsoleUrl}/create-organization/#{urlencode({'token': deliveryInfo.token})}"
     )
-    expiresAtText = deliveryInfo.expiresAt.astimezone(UTC).strftime(
+    strExpiresAtText = deliveryInfo.expiresAt.astimezone(UTC).strftime(
         "%Y-%m-%d %H:%M:%S UTC"
     )
-    emailBody = (
+    strEmailBody = (
         "Verify your email to create a LiberRPA Console organization.\n\n"
         "Open this link to complete registration:\n"
-        f"{verificationUrl}\n\n"
-        f"This link expires at {expiresAtText}.\n"
+        f"{strVerificationUrl}\n\n"
+        f"This link expires at {strExpiresAtText}.\n"
         "Opening the link does not create an account or use up the link.\n"
         "After successful registration, the link cannot be used again.\n"
         "If a new link is issued, this link stops working.\n\n"
@@ -49,7 +49,7 @@ def build_registration_email(deliveryInfo: RegistrationTokenDeliveryInfo) -> Ema
     )
     return EmailMessage(
         subject="Verify your email for LiberRPA Console",
-        body=emailBody,
+        body=strEmailBody,
         to=[deliveryInfo.email],
         reply_to=[cast(str, settings.CONSOLE_SUPPORT_EMAIL)],
     )
@@ -60,17 +60,19 @@ def build_password_reset_email(
     deliveryInfo: PasswordResetTokenDeliveryInfo,
 ) -> EmailMessage:
     """Build the private recovery message; delivery and retry rules belong to the worker."""
-    consoleUrl = cast(str, settings.CONSOLE_URL)
+    strConsoleUrl = cast(str, settings.CONSOLE_URL)
     # Keep the token in the fragment and use the configured origin, never the request host.
-    resetUrl = f"{consoleUrl}/reset-password/#{urlencode({'token': deliveryInfo.token})}"
-    expiresAtText = deliveryInfo.expiresAt.astimezone(UTC).strftime(
+    strResetUrl = (
+        f"{strConsoleUrl}/reset-password/#{urlencode({'token': deliveryInfo.token})}"
+    )
+    strExpiresAtText = deliveryInfo.expiresAt.astimezone(UTC).strftime(
         "%Y-%m-%d %H:%M:%S UTC"
     )
-    emailBody = (
+    strEmailBody = (
         "A password reset was requested for your LiberRPA Console account.\n\n"
         "Open this link to choose a new password:\n"
-        f"{resetUrl}\n\n"
-        f"This link expires at {expiresAtText}.\n"
+        f"{strResetUrl}\n\n"
+        f"This link expires at {strExpiresAtText}.\n"
         "Opening the link does not change your password or use up the link.\n"
         "After a successful reset, the link cannot be used again.\n"
         "Requesting a new reset link invalidates any earlier link.\n\n"
@@ -80,7 +82,7 @@ def build_password_reset_email(
     )
     return EmailMessage(
         subject="Reset your LiberRPA Console password",
-        body=emailBody,
+        body=strEmailBody,
         to=[deliveryInfo.email],
         reply_to=[cast(str, settings.CONSOLE_SUPPORT_EMAIL)],
     )
@@ -91,19 +93,17 @@ def build_email_change_verification(
     deliveryInfo: EmailChangeTokenDeliveryInfo,
 ) -> EmailMessage:
     """Build a private confirmation link for the exact address authorized by the account owner."""
-    consoleUrl = cast(str, settings.CONSOLE_URL)
+    strConsoleUrl = cast(str, settings.CONSOLE_URL)
     # The configured origin and URL fragment keep the token out of request-host input and access logs.
-    confirmationUrl = (
-        f"{consoleUrl}/confirm-email-change/#{urlencode({'token': deliveryInfo.token})}"
-    )
-    expiresAtText = deliveryInfo.expiresAt.astimezone(UTC).strftime(
+    strConfirmationUrl = f"{strConsoleUrl}/confirm-email-change/#{urlencode({'token': deliveryInfo.token})}"
+    strExpiresAtText = deliveryInfo.expiresAt.astimezone(UTC).strftime(
         "%Y-%m-%d %H:%M:%S UTC"
     )
-    emailBody = (
+    strEmailBody = (
         "Confirm this address as your new LiberRPA Console sign-in email.\n\n"
         "Open this link, then select Confirm Email Change:\n"
-        f"{confirmationUrl}\n\n"
-        f"This link expires at {expiresAtText}.\n"
+        f"{strConfirmationUrl}\n\n"
+        f"This link expires at {strExpiresAtText}.\n"
         "Opening the link does not change the account or use up the link.\n"
         "After confirmation, you can sign in with this email and your existing password.\n"
         "Existing sessions stay signed in. A notice will be sent to the previous email address.\n"
@@ -113,7 +113,7 @@ def build_email_change_verification(
     )
     return EmailMessage(
         subject="Confirm your new LiberRPA Console email",
-        body=emailBody,
+        body=strEmailBody,
         to=[deliveryInfo.newEmail],
         reply_to=[cast(str, settings.CONSOLE_SUPPORT_EMAIL)],
     )
@@ -124,20 +124,22 @@ def build_email_change_notice(delivery: EmailDelivery) -> EmailMessage:
     """Describe a committed change using its original recipient and event time."""
     if delivery.email_type != EmailType.EMAIL_CHANGE_NOTICE:
         raise ValueError("An email change notice delivery is required.")
-    consoleUrl = cast(str, settings.CONSOLE_URL)
-    changedAtText = delivery.created_at.astimezone(UTC).strftime("%Y-%m-%d %H:%M:%S UTC")
+    strConsoleUrl = cast(str, settings.CONSOLE_URL)
+    strChangedAtText = delivery.created_at.astimezone(UTC).strftime(
+        "%Y-%m-%d %H:%M:%S UTC"
+    )
     # This is a historical notice, so later email changes, account deletion, or organization freezes do not suppress it.
-    emailBody = (
-        f"The sign-in email for your LiberRPA Console account was changed at {changedAtText}.\n\n"
+    strEmailBody = (
+        f"The sign-in email for your LiberRPA Console account was changed at {strChangedAtText}.\n\n"
         "This notice was sent to the address used before that change.\n"
         "If you made this change, no further action is needed.\n"
         "If you did not authorize this change, reply to this email to contact support.\n\n"
-        f"Open Console: {consoleUrl}\n\n"
+        f"Open Console: {strConsoleUrl}\n\n"
         "LiberRPA Console\n"
     )
     return EmailMessage(
         subject="Your LiberRPA Console sign-in email was changed",
-        body=emailBody,
+        body=strEmailBody,
         to=[delivery.recipient],
         reply_to=[cast(str, settings.CONSOLE_SUPPORT_EMAIL)],
     )

@@ -12,10 +12,10 @@ export function useRetryDelay(): {
   const intRetrySeconds = computed(() =>
     Math.max(0, Math.ceil((intRetryUntilMs.value - intCurrentTimeMs.value) / 1000)),
   );
-  const intervalHandle = setInterval(() => {
+  const intIntervalHandle = setInterval(() => {
     intCurrentTimeMs.value = Date.now();
   }, 1000);
-  onBeforeUnmount(() => clearInterval(intervalHandle));
+  onBeforeUnmount(() => clearInterval(intIntervalHandle));
 
   function setRetryDelay(seconds: number | null): void {
     if (seconds === null) return;

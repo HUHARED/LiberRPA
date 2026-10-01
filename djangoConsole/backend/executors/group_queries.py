@@ -164,7 +164,7 @@ def get_executor_group_details(
     )
     if group.department_id not in context.departmentsById:
         raise ExecutorGroup.DoesNotExist
-    memberInfo = build_executor_info_list(members, context)
+    memberInfoEntries = build_executor_info_list(members, context)
     # NOTE: Count the same statuses returned for members; serialization must not observe a later time.
     info = ExecutorGroupInfo(
         group=group,
@@ -172,10 +172,12 @@ def get_executor_group_details(
             context.departmentsById[group.department_id], context.departmentsById
         ),
         canManage=group.department_id in context.managedDepartmentIds,
-        memberCount=len(memberInfo),
-        onlineCount=sum(member.associationStatus == "online" for member in memberInfo),
+        memberCount=len(memberInfoEntries),
+        onlineCount=sum(
+            member.associationStatus == "online" for member in memberInfoEntries
+        ),
     )
-    return ExecutorGroupDetails(info, memberInfo)
+    return ExecutorGroupDetails(info, memberInfoEntries)
 
 
 def get_executor_group_references(executor: Executor) -> tuple[ExecutorGroup, ...]:

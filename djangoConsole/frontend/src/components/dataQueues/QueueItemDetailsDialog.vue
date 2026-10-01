@@ -9,7 +9,7 @@
     <v-card>
       <v-card-title id="queue-item-title">Item Details</v-card-title>
       <v-card-text>
-        <v-progress-linear v-if="loading" indeterminate class="mb-4" />
+        <v-progress-linear v-if="boolLoading" indeterminate class="mb-4" />
         <v-alert v-if="error" type="error" variant="tonal" class="mb-4" role="alert">{{
           error.statusCode === 404
             ? "The item no longer exists or is unavailable."
@@ -25,8 +25,13 @@
           @click:close="strActionError = ''">
           {{ strActionError }}
         </v-alert>
-        <v-alert v-if="message" type="success" variant="tonal" class="mb-4" role="status">
-          {{ message }}
+        <v-alert
+          v-if="strMessage"
+          type="success"
+          variant="tonal"
+          class="mb-4"
+          role="status">
+          {{ strMessage }}
         </v-alert>
         <template v-if="item">
           <dl class="detail-fields">
@@ -43,20 +48,20 @@
               <dd>{{ item.uploaded_by_name }}</dd>
             </div>
             <div>
-              <dt>Uploaded At ({{ timeZone }})</dt>
-              <dd>{{ formatDateTime(item.uploaded_at, timeZone) }}</dd>
+              <dt>Uploaded At ({{ strTimeZone }})</dt>
+              <dd>{{ formatDateTime(item.uploaded_at, strTimeZone) }}</dd>
             </div>
             <div>
               <dt>Last Claimed By</dt>
               <dd>{{ item.last_claimed_by_name || "—" }}</dd>
             </div>
             <div>
-              <dt>Last Claimed At ({{ timeZone }})</dt>
-              <dd>{{ formatDateTime(item.last_claimed_at, timeZone) }}</dd>
+              <dt>Last Claimed At ({{ strTimeZone }})</dt>
+              <dd>{{ formatDateTime(item.last_claimed_at, strTimeZone) }}</dd>
             </div>
           </dl>
           <v-textarea
-            :model-value="json"
+            :model-value="strJson"
             label="Data (JSON)"
             variant="outlined"
             readonly
@@ -66,8 +71,13 @@
         </template>
       </v-card-text>
       <v-card-actions>
-        <v-btn v-if="error" variant="text" :disabled="loading" @click="load"> Retry </v-btn>
-        <v-btn variant="tonal" :disabled="loading || !item || !!error" @click="copyJson">
+        <v-btn v-if="error" variant="text" :disabled="boolLoading" @click="load">
+          Retry
+        </v-btn>
+        <v-btn
+          variant="tonal"
+          :disabled="boolLoading || !item || !!error"
+          @click="copyJson">
           Copy JSON
         </v-btn>
         <v-spacer />
@@ -95,48 +105,50 @@ import { formatDateTime } from "@/app/formatters";
 
 const props = defineProps<{ queueId: string; itemId: string }>();
 const route = useRoute();
-const session = useSessionStore();
-const timeZone = computed(() => session.session?.user.time_zone ?? "UTC");
+const sessionStore = useSessionStore();
+const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");
 const item = shallowRef<QueueItemDetailsResponse | null>(null);
 const error = shallowRef<ApiError | null>(null);
-const message = ref("");
+const strMessage = ref("");
 const strActionError = ref("");
-const loading = ref(false);
-const json = computed(() => (item.value ? JSON.stringify(item.value.data, null, 2) : ""));
-let unmounted = false;
+const boolLoading = ref(false);
+const strJson = computed(() =>
+  item.value ? JSON.stringify(item.value.data, null, 2) : "",
+);
+let boolUnmounted = false;
 async function load(): Promise<void> {
-  if (loading.value) return;
-  loading.value = true;
+  if (boolLoading.value) return;
+  boolLoading.value = true;
   error.value = null;
   strActionError.value = "";
   item.value = null;
   try {
     const response = await getQueueItem(props.queueId, props.itemId);
-    if (!unmounted) item.value = response;
+    if (!boolUnmounted) item.value = response;
   } catch (e) {
-    if (!unmounted) {
+    if (!boolUnmounted) {
       error.value = getApiError(e);
-      if (error.value.statusCode === 403) await session.refreshSession();
+      if (error.value.statusCode === 403) await sessionStore.refreshSession();
     }
   } finally {
-    loading.value = false;
+    boolLoading.value = false;
   }
 }
 async function copyJson(): Promise<void> {
   strActionError.value = "";
-  message.value = "";
+  strMessage.value = "";
   try {
-    await navigator.clipboard.writeText(json.value);
-    if (!unmounted) message.value = "JSON copied.";
+    await navigator.clipboard.writeText(strJson.value);
+    if (!boolUnmounted) strMessage.value = "JSON copied.";
   } catch {
-    if (!unmounted)
+    if (!boolUnmounted)
       strActionError.value = "The JSON could not be copied. Copy it from the Data field.";
   }
 }
 
 onMounted(() => void load());
 onBeforeUnmount(() => {
-  unmounted = true;
+  boolUnmounted = true;
 });
 </script>
 

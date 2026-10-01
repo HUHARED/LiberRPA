@@ -118,21 +118,21 @@ def _build_queue_error_response(e: Exception) -> JsonResponse:
                 statusCode=409,
             )
         fields: dict[str, list[str]] = {}
-        duplicate = False
+        boolDuplicate = False
         if hasattr(e, "error_dict"):
-            for fieldName, fieldErrors in e.error_dict.items():
+            for strFieldName, fieldErrors in e.error_dict.items():
                 for fieldError in fieldErrors:
-                    isDuplicate = fieldError.code == "duplicate_queue_name"
-                    duplicate = duplicate or isDuplicate
-                    fields.setdefault("name" if isDuplicate else fieldName, []).extend(
-                        fieldError.messages
-                    )
+                    boolIsDuplicate = fieldError.code == "duplicate_queue_name"
+                    boolDuplicate = boolDuplicate or boolIsDuplicate
+                    fields.setdefault(
+                        "name" if boolIsDuplicate else strFieldName, []
+                    ).extend(fieldError.messages)
         else:
             fields["__all__"] = e.messages
         return build_error_response(
-            "duplicate_queue_name" if duplicate else "invalid_queue",
+            "duplicate_queue_name" if boolDuplicate else "invalid_queue",
             "Some queue fields are invalid.",
-            statusCode=409 if duplicate else 400,
+            statusCode=409 if boolDuplicate else 400,
             fields=fields,
         )
     if isinstance(e, ContractValidationError):
@@ -179,11 +179,11 @@ def api_queue_view[**P](
     @wraps(view)
     def wrapped(request: HttpRequest, *args: P.args, **kwargs: P.kwargs) -> HttpResponse:
         try:
-            retryAfter = apply_api_key_authentication_rate_limit(
+            intRetryAfter = apply_api_key_authentication_rate_limit(
                 request.META.get("REMOTE_ADDR", ""),
             )
-            if retryAfter:
-                return build_rate_limited_response(retryAfter)
+            if intRetryAfter:
+                return build_rate_limited_response(intRetryAfter)
             authentication = authenticate_api_key(
                 request.headers.get("Authorization", "")
             )
@@ -222,7 +222,7 @@ def normalize_queue_path(path: str) -> str:
     listPart = path.replace("\\", "/").removeprefix("/").split("/")
     if len(listPart) < 2 or len(listPart) > 65:
         raise ValidationError("Use a full department path and queue name.")
-    return "/" + "/".join(normalize_path_name(part) for part in listPart)
+    return "/" + "/".join(normalize_path_name(strPart) for strPart in listPart)
 
 
 def parse_item_request[Payload: QueueMutationRequest](

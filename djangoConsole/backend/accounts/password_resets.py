@@ -77,9 +77,9 @@ def _has_current_reset_credentials(
         and any(
             constant_time_compare(
                 resetRequest.credential_hash,
-                _get_password_reset_credential_hash(user, secret=secret),
+                _get_password_reset_credential_hash(user, secret=strSecret),
             )
-            for secret in [settings.SECRET_KEY, *settings.SECRET_KEY_FALLBACKS]
+            for strSecret in [settings.SECRET_KEY, *settings.SECRET_KEY_FALLBACKS]
         )
     )
 
@@ -99,10 +99,10 @@ def _require_reset_token_unexpired(resetRequest: PasswordResetRequest) -> dateti
 def _get_password_reset_request(token: str) -> PasswordResetRequest:
     if _PASSWORD_RESET_TOKEN_PATTERN.fullmatch(token) is None:
         raise _build_invalid_password_reset_error()
-    tokenHash = hashlib.sha256(token.encode("ascii")).hexdigest()
+    strTokenHash = hashlib.sha256(token.encode("ascii")).hexdigest()
     try:
         return PasswordResetRequest.objects.select_related("user").get(
-            token_hash=tokenHash
+            token_hash=strTokenHash
         )
     except PasswordResetRequest.DoesNotExist:
         raise _build_invalid_password_reset_error() from None
@@ -199,14 +199,14 @@ def issue_password_reset_token(
     ):
         return None
 
-    token = secrets.token_urlsafe(32)
+    strToken = secrets.token_urlsafe(32)
     issuedAt = timezone.now()
-    resetRequest.token_hash = hashlib.sha256(token.encode("ascii")).hexdigest()
+    resetRequest.token_hash = hashlib.sha256(strToken.encode("ascii")).hexdigest()
     resetRequest.issued_at = issuedAt
     resetRequest.expires_at = issuedAt + _PASSWORD_RESET_TOKEN_LIFETIME
     resetRequest.save(update_fields=["token_hash", "issued_at", "expires_at"])
     return PasswordResetTokenDeliveryInfo(
-        email=user.email, expiresAt=resetRequest.expires_at, token=token
+        email=user.email, expiresAt=resetRequest.expires_at, token=strToken
     )
 
 

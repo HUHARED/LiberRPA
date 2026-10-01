@@ -41,13 +41,13 @@ class UserManager(BaseUserManager["User"]):
         password: str | None = None,
         *,
         username: str,
-        timeZone: str = "UTC",
+        time_zone: str = "UTC",
     ) -> "User":
         """Create an account record; callers handle verified registration and membership."""
         user = self.model(
             email=self.normalize_email(email),
             username=username.strip(),
-            time_zone=timeZone,
+            time_zone=time_zone,
         )
         # Validate fields once. The database enforces uniqueness at the actual write.
         user.full_clean(
@@ -95,11 +95,11 @@ class User(AbstractBaseUser):
 
     def _get_session_auth_hash(self, secret: str | None = None) -> str:
         """Include the revocation version in Django's normal and fallback session hashes."""
-        keySalt = "accounts.User.get_session_auth_hash"
-        authValue = f"{self.password}:{self.session_version}"
+        strKeySalt = "accounts.User.get_session_auth_hash"
+        strAuthValue = f"{self.password}:{self.session_version}"
         return salted_hmac(
-            keySalt,
-            authValue,
+            strKeySalt,
+            strAuthValue,
             secret=secret,
             algorithm="sha256",
         ).hexdigest()

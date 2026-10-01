@@ -25,13 +25,13 @@ export type JsonValueOutput =
   | boolean
   | null;
 export type FilePath = string;
-export type FileUuid = string;
-export type QueueUuid = string;
+export type FileRequestUuid = string;
+export type QueueRequestUuid = string;
 /**
  * @minItems 1
  * @maxItems 100
  */
-export type QueueItemIds = [QueueUuid, ...QueueUuid[]];
+export type QueueItemIds = [QueueRequestUuid, ...QueueRequestUuid[]];
 export type QueueStatus = "unclaimed" | "claimed";
 
 export interface BrowserApiContracts {
@@ -574,7 +574,7 @@ export interface FileDeleteRequest {
    * @maxItems 100
    */
   paths: [FilePath, ...FilePath[]];
-  request_id: FileUuid;
+  request_id: FileRequestUuid;
 }
 export interface FileDeleteResponse {
   deleted_count: number;
@@ -625,7 +625,7 @@ export interface FilePathRequest {
 export interface FileUploadRequest {
   overwrite?: boolean;
   path: FilePath;
-  request_id: FileUuid;
+  request_id: FileRequestUuid;
   sha256: string;
   size_bytes: number;
 }
@@ -774,7 +774,7 @@ export interface SessionUserResponse {
   username: string;
 }
 export interface QueueCreationRequest {
-  department_id: QueueUuid;
+  department_id: QueueRequestUuid;
   name: string;
   notes?: string;
 }
@@ -783,7 +783,7 @@ export interface QueueDeleteItemsRequest {
   item_ids?: QueueItemIds | null;
   order?: "oldest_first" | "newest_first";
   queue_path?: string | null;
-  request_id: QueueUuid;
+  request_id: QueueRequestUuid;
   status?: "all" | "unclaimed" | "claimed";
 }
 export interface QueueDetailsRequest {
@@ -865,7 +865,7 @@ export interface QueueClaimedItemResponse {
 export interface QueueResetRequest {
   item_ids: QueueItemIds;
   queue_path?: string | null;
-  request_id: QueueUuid;
+  request_id: QueueRequestUuid;
 }
 export interface QueueUploadRequest {
   /**
@@ -874,7 +874,7 @@ export interface QueueUploadRequest {
    */
   items: [JsonValueInput, ...JsonValueInput[]];
   queue_path?: string | null;
-  request_id: QueueUuid;
+  request_id: QueueRequestUuid;
 }
 export interface SessionResponse {
   csrf_token: string;

@@ -10,7 +10,7 @@ const INT_FOCUS_THROTTLE_MS = 5000;
 export function useSessionLifecycle(): void {
   const sessionStore = useSessionStore();
   let broadcastChannel: BroadcastChannel | null = null;
-  let intervalHandle: ReturnType<typeof setInterval> | undefined;
+  let intIntervalHandle: ReturnType<typeof setInterval> | undefined;
   let intLastRefreshAt = 0;
 
   function refreshVisibleSession(): void {
@@ -38,7 +38,7 @@ export function useSessionLifecycle(): void {
         // Restricted browser storage still permits focus-based session checks.
       }
     }
-    intervalHandle = setInterval(() => {
+    intIntervalHandle = setInterval(() => {
       if (sessionStore.status !== "anonymous") refreshVisibleSession();
     }, INT_SESSION_POLL_MS);
     window.addEventListener("focus", refreshVisibleSession);
@@ -48,7 +48,7 @@ export function useSessionLifecycle(): void {
     window.addEventListener("console-session-changed", announceChange);
   });
   onBeforeUnmount(() => {
-    clearInterval(intervalHandle);
+    clearInterval(intIntervalHandle);
     broadcastChannel?.close();
     window.removeEventListener("focus", refreshVisibleSession);
     window.removeEventListener("pageshow", refreshVisibleSession);

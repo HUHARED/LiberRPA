@@ -188,14 +188,14 @@ def list_or_create_executors(request: HttpRequest) -> JsonResponse:
                     status=201,
                 )
 
-        dictListParameter = _get_list_parameters(request)
-        if isinstance(dictListParameter, JsonResponse):
-            return dictListParameter
+        listParametersResult = _get_list_parameters(request)
+        if isinstance(listParametersResult, JsonResponse):
+            return listParametersResult
         executorPage = get_executor_list(
             actorId=membership.user_id,
             organizationId=membership.organization_id,
             channel=AccessChannel.SESSION,
-            **dictListParameter,
+            **listParametersResult,
         )
         dictListPayload = {
             "executors": [

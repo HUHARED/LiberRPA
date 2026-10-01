@@ -14,8 +14,11 @@
         <v-form id="executor-group-form" validate-on="submit" @submit.prevent="submitGroup">
           <v-alert v-if="saveError" type="error" variant="tonal" class="mb-4" role="alert">
             {{ group ? "Save" : "Creation" }} was not confirmed. {{ saveError.message }}
-            <p v-for="message in saveError.fields.__all__" :key="message" class="mt-2">
-              {{ message }}
+            <p
+              v-for="strMessage in saveError.fields.__all__"
+              :key="strMessage"
+              class="mt-2">
+              {{ strMessage }}
             </p>
           </v-alert>
           <v-alert
@@ -151,8 +154,8 @@
               variant="tonal"
               class="mb-3"
               role="alert">
-              <p v-for="message in saveError.fields.executor_ids" :key="message">
-                {{ message }}
+              <p v-for="strMessage in saveError.fields.executor_ids" :key="strMessage">
+                {{ strMessage }}
               </p>
             </v-alert>
             <v-data-table-server

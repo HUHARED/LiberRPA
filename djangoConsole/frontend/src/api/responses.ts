@@ -56,7 +56,7 @@ export function parseMessageResponse(payload: unknown): MessageResponse {
   return { message: payload.message };
 }
 
-export function buildResponseError(response: Response, payload: unknown): ApiError {
+export function parseResponseError(response: Response, payload: unknown): ApiError {
   const dictErrorInfo = isRecord(payload) && isRecord(payload.error) ? payload.error : {};
   const dictFieldMessage: Record<string, string[]> = {};
   if (isRecord(dictErrorInfo.fields)) {

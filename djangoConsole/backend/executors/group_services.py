@@ -52,10 +52,10 @@ def _validate_group_members(
 ) -> None:
     if len(set(executorIds)) != len(executorIds):
         raise ValidationError({"executor_ids": "Select each Executor only once."})
-    memberCount = Executor.objects.filter(
+    intMemberCount = Executor.objects.filter(
         pk__in=executorIds, department_id=group.department_id, deleted_at__isnull=True
     ).count()
-    if memberCount != len(executorIds):
+    if intMemberCount != len(executorIds):
         # Do not disclose whether an unavailable ID exists in another department or organization.
         raise ValidationError({
             "executor_ids": "Select current Executors from the group's department."

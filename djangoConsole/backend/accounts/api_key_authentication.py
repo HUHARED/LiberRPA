@@ -54,7 +54,7 @@ def authenticate_api_key(authorizationHeader: str) -> ApiKeyAuthenticationContex
     )
     if credentialMatch is None:
         raise InvalidApiKeyError("A valid API key is required.")
-    tokenHash = hashlib.sha256(credentialMatch.group(1).encode("ascii")).hexdigest()
+    strTokenHash = hashlib.sha256(credentialMatch.group(1).encode("ascii")).hexdigest()
 
     with transaction.atomic(durable=True):
         try:
@@ -62,7 +62,7 @@ def authenticate_api_key(authorizationHeader: str) -> ApiKeyAuthenticationContex
                 ApiKey.objects
                 .select_for_update(of=("self",))
                 .only("id", "user", "expires_at", "revoked_at", "last_used_at")
-                .get(token_hash=tokenHash)
+                .get(token_hash=strTokenHash)
             )
         except ApiKey.DoesNotExist:
             raise InvalidApiKeyError("A valid API key is required.") from None

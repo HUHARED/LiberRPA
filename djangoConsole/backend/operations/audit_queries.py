@@ -100,8 +100,8 @@ def get_audit_filter_options(
     )
     return {
         "actors": [
-            {"id": actorId, "name": actorName if actorId is not None else "System"}
-            for actorId, actorName in actorQuery
+            {"id": actorId, "name": strActorName if actorId is not None else "System"}
+            for actorId, strActorName in actorQuery
         ],
         "modules": list(
             auditQuery.order_by("module").values_list("module", flat=True).distinct()

@@ -88,11 +88,11 @@ def begin_executor_login(
             raise InvalidExecutorSessionError("Sign in again to continue.")
         prune_executor_sessions(access.organization.id)
         currentTime = timezone.now()
-        token = f"lrex_{secrets.token_urlsafe(32)}"
+        strToken = f"lrex_{secrets.token_urlsafe(32)}"
         session = ExecutorSession(
             user=user,
             organization=access.organization,
-            token_hash=hashlib.sha256(token.encode("ascii")).hexdigest(),
+            token_hash=hashlib.sha256(strToken.encode("ascii")).hexdigest(),
             auth_hash=user.get_session_auth_hash(),
             computer=computer.strip(),
             client_version=clientVersion.strip(),
@@ -108,7 +108,7 @@ def begin_executor_login(
             target=session,
             channel=AuditChannel.EXECUTOR,
         )
-    return ExecutorLoginResult(session=session, access=access, token=token)
+    return ExecutorLoginResult(session=session, access=access, token=strToken)
 
 
 @sensitive_variables()
@@ -120,10 +120,10 @@ def _get_session_identity(authorizationHeader: str) -> ExecutorSession:
     )
     if credentialMatch is None:
         raise InvalidExecutorSessionError("A valid Executor session is required.")
-    tokenHash = hashlib.sha256(credentialMatch.group(1).encode("ascii")).hexdigest()
+    strTokenHash = hashlib.sha256(credentialMatch.group(1).encode("ascii")).hexdigest()
     try:
         return ExecutorSession.objects.only("id", "user", "organization").get(
-            token_hash=tokenHash
+            token_hash=strTokenHash
         )
     except ExecutorSession.DoesNotExist:
         raise InvalidExecutorSessionError(
@@ -228,7 +228,7 @@ def handle_executor_client_request(
     Cookie sessions, API keys, and pending-selection credentials cannot substitute for an association.
     """
     identity = _get_session_identity(authorizationHeader)
-    invalidSession = False
+    boolInvalidSession = False
     result: ExecutorClientResult | None = None
     with transaction.atomic(durable=True):
         if action == ExecutorClientAction.LOGOUT:
@@ -256,8 +256,8 @@ def handle_executor_client_request(
                 before={},
             )
             # TODO: The native client must block logout during any actual Run; add central-work checks with the Run model.
-            deletedCount, _ = ExecutorSession.objects.filter(pk=identity.id).delete()
-            if not deletedCount:
+            intDeletedCount, _ = ExecutorSession.objects.filter(pk=identity.id).delete()
+            if not intDeletedCount:
                 raise InvalidExecutorSessionError("A valid Executor session is required.")
             return None
         access = resolve_organization_access(
@@ -279,8 +279,8 @@ def handle_executor_client_request(
             )
         except (ExecutorSession.DoesNotExist, InvalidExecutorSessionError):
             ExecutorSession.objects.filter(pk=identity.id).delete()
-            invalidSession = True
+            boolInvalidSession = True
     # Commit invalidation before reporting it; a later permission restoration cannot revive this login.
-    if invalidSession:
+    if boolInvalidSession:
         raise InvalidExecutorSessionError("A valid Executor session is required.")
     return cast(ExecutorClientResult, result)

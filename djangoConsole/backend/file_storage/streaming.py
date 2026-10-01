@@ -49,9 +49,9 @@ class SyncFileStream(_FileStream):
 
     def __next__(self) -> bytes:
         try:
-            data = self.read()
-            if data:
-                return data
+            chunkData = self.read()
+            if chunkData:
+                return chunkData
         except Exception:
             self.close()
             raise
@@ -65,9 +65,9 @@ class AsyncFileStream(_FileStream):
 
     async def __anext__(self) -> bytes:
         try:
-            data = await sync_to_async(self.read, thread_sensitive=True)()
-            if data:
-                return data
+            chunkData = await sync_to_async(self.read, thread_sensitive=True)()
+            if chunkData:
+                return chunkData
         except BaseException:
             await sync_to_async(self.close, thread_sensitive=True)()
             raise

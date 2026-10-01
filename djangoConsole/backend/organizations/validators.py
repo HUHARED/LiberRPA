@@ -24,8 +24,8 @@ def validate_path_segment(segmentName: str) -> None:
             "The name must not end with a period.", code="invalid_path_segment"
         )
     if any(
-        char in "/\\" or unicodedata.category(char) in {"Cc", "Cs"}
-        for char in segmentName
+        strChar in "/\\" or unicodedata.category(strChar) in {"Cc", "Cs"}
+        for strChar in segmentName
     ):
         raise ValidationError(
             "The name must not contain path separators, control characters, or surrogate code points.",

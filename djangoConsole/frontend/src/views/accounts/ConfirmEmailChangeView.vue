@@ -160,10 +160,10 @@ watch(
     boolConfirmed.value = false;
     boolConfirmationFailed.value = false;
     const parameters = new URLSearchParams(route.hash.slice(1));
-    const token = parameters.get("token") ?? "";
+    const strLinkToken = parameters.get("token") ?? "";
     strToken.value =
-      parameters.getAll("token").length === 1 && /^[A-Za-z0-9_-]{43}$/.test(token)
-        ? token
+      parameters.getAll("token").length === 1 && /^[A-Za-z0-9_-]{43}$/.test(strLinkToken)
+        ? strLinkToken
         : "";
     if (!strToken.value)
       requestError.value = new ApiError("The email change link is missing or invalid.", {

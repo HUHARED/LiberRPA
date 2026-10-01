@@ -130,10 +130,10 @@ export async function getAuditList(
   });
   if (filters.fromDate) parameters.set("date_from", filters.fromDate);
   if (filters.toDate) parameters.set("date_to", filters.toDate);
-  for (const actorId of filters.actorIds) parameters.append("actor_id", actorId);
-  for (const module of filters.modules) parameters.append("module", module);
-  for (const action of filters.actions) parameters.append("action", action);
-  for (const result of filters.results) parameters.append("result", result);
+  for (const strActorId of filters.actorIds) parameters.append("actor_id", strActorId);
+  for (const strModule of filters.modules) parameters.append("module", strModule);
+  for (const strAction of filters.actions) parameters.append("action", strAction);
+  for (const strResult of filters.results) parameters.append("result", strResult);
   return parseAuditListResponse(await requestApi(`/organization/audit/?${parameters}`));
 }
 

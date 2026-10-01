@@ -14,11 +14,11 @@ from console_project.contracts import JsonRequest, JsonResponsePayload, JsonValu
 
 MAX_QUEUE_RESPONSE_BYTES = 2 * 1024 * 1024
 
-type QueueUuid = Annotated[UUID, Field(strict=False)]
+type QueueRequestUuid = Annotated[UUID, Field(strict=False)]
 type QueueStatus = Literal["unclaimed", "claimed"]
 type QueueFilterStatus = Literal["all", "unclaimed", "claimed"]
 type QueueOrder = Literal["oldest_first", "newest_first"]
-type QueueItemIds = Annotated[list[QueueUuid], Field(min_length=1, max_length=100)]
+type QueueItemIds = Annotated[list[QueueRequestUuid], Field(min_length=1, max_length=100)]
 
 
 class QueueDetailsRequest(JsonRequest):
@@ -27,7 +27,7 @@ class QueueDetailsRequest(JsonRequest):
 
 
 class QueueCreationRequest(QueueDetailsRequest):
-    department_id: QueueUuid
+    department_id: QueueRequestUuid
 
 
 class QueueDeletionRequest(JsonRequest):
@@ -35,7 +35,7 @@ class QueueDeletionRequest(JsonRequest):
 
 
 class QueueMutationRequest(JsonRequest):
-    request_id: QueueUuid
+    request_id: QueueRequestUuid
     queue_path: str | None = Field(default=None, max_length=1024)
 
 
@@ -46,7 +46,7 @@ class QueueUploadRequest(QueueMutationRequest):
 class QueueSelectionRequest(JsonRequest):
     status: QueueFilterStatus = "all"
     order: QueueOrder = "oldest_first"
-    item_id: QueueUuid | None = None
+    item_id: QueueRequestUuid | None = None
     count: int = Field(default=50, ge=1, le=100)
 
 

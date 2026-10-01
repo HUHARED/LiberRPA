@@ -112,10 +112,10 @@ export async function getExecutorList(
 ): Promise<ExecutorListResponse> {
   const queryParameters = new URLSearchParams({ page: String(pageNumber) });
   if (filters.name) queryParameters.set("name", filters.name);
-  for (const departmentId of filters.departmentIds)
-    queryParameters.append("department_id", departmentId);
-  for (const dispatchEnabled of filters.dispatchStates)
-    queryParameters.append("dispatch_enabled", String(dispatchEnabled));
+  for (const strDepartmentId of filters.departmentIds)
+    queryParameters.append("department_id", strDepartmentId);
+  for (const boolDispatchEnabled of filters.dispatchStates)
+    queryParameters.append("dispatch_enabled", String(boolDispatchEnabled));
   return parseExecutorListResponse(await requestApi(`/executors/?${queryParameters}`));
 }
 

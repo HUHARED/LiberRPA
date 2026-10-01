@@ -22,17 +22,17 @@
           be undone.
         </p>
         <ul class="pl-5">
-          <li v-for="path in paths" :key="path" class="file-path">{{ path }}</li>
+          <li v-for="strPath in paths" :key="strPath" class="file-path">{{ strPath }}</li>
         </ul>
       </v-card-text>
       <v-card-actions>
         <v-spacer />
-        <v-btn :disabled="busy" @click="emit('close')">Cancel</v-btn>
+        <v-btn :disabled="boolBusy" @click="emit('close')">Cancel</v-btn>
         <v-btn
           color="error"
           variant="tonal"
-          :loading="busy"
-          :disabled="busy"
+          :loading="boolBusy"
+          :disabled="boolBusy"
           @click="submit">
           Delete
         </v-btn>
@@ -52,25 +52,25 @@ import type { FileDeleteResponse } from "@/api/generated/browserApi";
 
 const props = defineProps<{ paths: string[] }>();
 const emit = defineEmits<{ close: []; deleted: [result: FileDeleteResponse] }>();
-const session = useSessionStore();
-const busy = ref(false);
+const sessionStore = useSessionStore();
+const boolBusy = ref(false);
 const error = shallowRef<ApiError | null>(null);
-let alive = true;
+let boolAlive = true;
 async function submit(): Promise<void> {
-  if (busy.value || !session.session) return;
-  busy.value = true;
+  if (boolBusy.value || !sessionStore.session) return;
+  boolBusy.value = true;
   error.value = null;
   try {
-    const result = await deleteSharedFiles(session.session.user.id, props.paths);
-    if (alive) emit("deleted", result);
+    const result = await deleteSharedFiles(sessionStore.session.user.id, props.paths);
+    if (boolAlive) emit("deleted", result);
   } catch (e) {
-    if (alive) error.value = getApiError(e);
+    if (boolAlive) error.value = getApiError(e);
   } finally {
-    if (alive) busy.value = false;
+    if (boolAlive) boolBusy.value = false;
   }
 }
 onBeforeUnmount(() => {
-  alive = false;
+  boolAlive = false;
 });
 </script>
 

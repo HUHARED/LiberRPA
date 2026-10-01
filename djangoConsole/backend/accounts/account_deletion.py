@@ -73,7 +73,7 @@ def _resolve_account_deletion_access(
 
 def _build_account_deletion_info(membership: Membership) -> AccountDeletionInfo:
     user = cast(User, membership.user)
-    isLastOrgAdmin = (
+    boolIsLastOrgAdmin = (
         membership.is_org_admin
         and user.is_active
         and not has_other_active_organization_admin(
@@ -84,7 +84,7 @@ def _build_account_deletion_info(membership: Membership) -> AccountDeletionInfo:
         userId=user.id,
         email=user.email,
         username=user.username,
-        isLastOrgAdmin=isLastOrgAdmin,
+        isLastOrgAdmin=boolIsLastOrgAdmin,
     )
 
 

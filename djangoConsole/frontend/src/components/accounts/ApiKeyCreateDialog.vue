@@ -39,11 +39,17 @@
           @submit.prevent="submitCreate">
           <v-alert v-if="saveError" type="error" variant="tonal" class="mb-4" role="alert">
             Creation was not confirmed. {{ saveError.message }}
-            <p v-for="message in saveError.fields.__all__" :key="message" class="mt-2">
-              {{ message }}
+            <p
+              v-for="strMessage in saveError.fields.__all__"
+              :key="strMessage"
+              class="mt-2">
+              {{ strMessage }}
             </p>
-            <p v-for="message in saveError.fields.time_zone" :key="message" class="mt-2">
-              {{ message }}
+            <p
+              v-for="strMessage in saveError.fields.time_zone"
+              :key="strMessage"
+              class="mt-2">
+              {{ strMessage }}
             </p>
             <p v-if="boolUncertain" class="mt-2">
               Check the list before creating another key. If a key was created without

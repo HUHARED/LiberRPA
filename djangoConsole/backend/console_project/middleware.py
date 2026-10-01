@@ -54,16 +54,16 @@ def _record_request_result(
 
 @sync_and_async_middleware
 def request_logging(
-    getResponse: _SyncResponseHandler | _AsyncResponseHandler,
+    get_response: _SyncResponseHandler | _AsyncResponseHandler,
 ) -> _SyncResponseHandler | _AsyncResponseHandler:
     """Keep correlation local to each request in both WSGI and ASGI."""
 
-    if iscoroutinefunction(getResponse):
+    if iscoroutinefunction(get_response):
 
         async def async_middleware(request: HttpRequest) -> HttpResponseBase:
             with request_log_context() as requestId:
                 floatStartedAt = perf_counter()
-                response = await cast(_AsyncResponseHandler, getResponse)(request)
+                response = await cast(_AsyncResponseHandler, get_response)(request)
                 response["X-Request-ID"] = str(requestId)
                 await sync_to_async(_record_request_result, thread_sensitive=True)(
                     request, response, floatStartedAt
@@ -75,7 +75,7 @@ def request_logging(
     def sync_middleware(request: HttpRequest) -> HttpResponseBase:
         with request_log_context() as requestId:
             floatStartedAt = perf_counter()
-            response = cast(_SyncResponseHandler, getResponse)(request)
+            response = cast(_SyncResponseHandler, get_response)(request)
             response["X-Request-ID"] = str(requestId)
             _record_request_result(request, response, floatStartedAt)
             return response

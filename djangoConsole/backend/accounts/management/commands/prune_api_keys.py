@@ -16,9 +16,9 @@ class Command(BaseCommand):
 
     def handle(self, *_args: object, **_options: object) -> None:
         try:
-            deletedCount = prune_inactive_api_keys()
+            intDeletedCount = prune_inactive_api_keys()
         except DatabaseError:
             raise CommandError(
                 "API key cleanup stopped after a database error; it can be rerun."
             ) from None
-        self.stdout.write(f"Deleted {deletedCount} inactive API key record(s).")
+        self.stdout.write(f"Deleted {intDeletedCount} inactive API key record(s).")

@@ -31,8 +31,11 @@
               member ? "The update was not confirmed." : "The invitation was not confirmed."
             }}
             {{ saveError.message }}
-            <p v-for="message in saveError.fields.__all__" :key="message" class="mt-2">
-              {{ message }}
+            <p
+              v-for="strMessage in saveError.fields.__all__"
+              :key="strMessage"
+              class="mt-2">
+              {{ strMessage }}
             </p>
             <p v-if="intRetrySeconds" class="mt-2">
               Try again in {{ intRetrySeconds }} seconds.
@@ -81,8 +84,8 @@
               type="error"
               variant="tonal"
               class="mb-3">
-              <p v-for="message in saveError.fields.department_roles" :key="message">
-                {{ message }}
+              <p v-for="strMessage in saveError.fields.department_roles" :key="strMessage">
+                {{ strMessage }}
               </p>
             </v-alert>
             <v-table>
@@ -94,14 +97,16 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="(assignment, index) in arrRole" :key="assignment.department_id">
+                <tr
+                  v-for="(assignment, intIndex) in arrRole"
+                  :key="assignment.department_id">
                   <td class="department-cell">
                     <v-select
                       v-model="assignment.department_id"
                       :items="getDepartmentOptions(assignment.department_id)"
                       item-title="path"
                       item-value="id"
-                      :aria-label="`Department ${index + 1}`"
+                      :aria-label="`Department ${intIndex + 1}`"
                       variant="outlined"
                       density="compact"
                       hide-details
@@ -111,7 +116,7 @@
                     <v-select
                       v-model="assignment.role"
                       :items="ARR_ROLE_OPTION"
-                      :aria-label="`Role ${index + 1}`"
+                      :aria-label="`Role ${intIndex + 1}`"
                       variant="outlined"
                       density="compact"
                       hide-details
@@ -122,8 +127,8 @@
                       variant="text"
                       size="small"
                       :disabled="boolSaving"
-                      :aria-label="`Remove department role ${index + 1}`"
-                      @click="arrRole.splice(index, 1)">
+                      :aria-label="`Remove department role ${intIndex + 1}`"
+                      @click="arrRole.splice(intIndex, 1)">
                       Remove
                     </v-btn>
                   </td>

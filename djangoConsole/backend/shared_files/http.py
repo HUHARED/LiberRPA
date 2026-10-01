@@ -168,11 +168,11 @@ def api_file_view[**P](
         request: HttpRequest, *args: P.args, **kwargs: P.kwargs
     ) -> HttpResponseBase:
         try:
-            retryAfter = apply_api_key_authentication_rate_limit(
+            intRetryAfter = apply_api_key_authentication_rate_limit(
                 request.META.get("REMOTE_ADDR", "")
             )
-            if retryAfter:
-                return build_rate_limited_response(retryAfter)
+            if intRetryAfter:
+                return build_rate_limited_response(intRetryAfter)
             authentication = authenticate_api_key(
                 request.headers.get("Authorization", "")
             )
@@ -229,7 +229,7 @@ def parse_file_path(value: str, *, departmentOnly: bool = False) -> tuple[str, .
     parts = value.removeprefix("/").split("/")
     if len(parts) < (1 if departmentOnly else 2) or len(parts) > 65:
         raise ValidationError("Use a full department path and file name.")
-    return tuple(normalize_path_name(part) for part in parts)
+    return tuple(normalize_path_name(strPart) for strPart in parts)
 
 
 def parse_upload_chunk(request: HttpRequest) -> tuple[bytes, str]:
@@ -238,19 +238,19 @@ def parse_upload_chunk(request: HttpRequest) -> tuple[bytes, str]:
         raise FileOperationError(
             "invalid_chunk_type", "Send application/octet-stream content.", 415
         )
-    data = request.read(UPLOAD_CHUNK_BYTES + 1)
-    if not data or len(data) > UPLOAD_CHUNK_BYTES:
+    chunkData = request.read(UPLOAD_CHUNK_BYTES + 1)
+    if not chunkData or len(chunkData) > UPLOAD_CHUNK_BYTES:
         raise FileOperationError(
             "invalid_chunk_size", "Send a non-empty chunk of at most 4 MiB.", 400
         )
-    chunkSha256 = hashlib.sha256(data).hexdigest()
-    if chunkSha256 != request.headers.get("X-Chunk-SHA256", ""):
+    strChunkSha256 = hashlib.sha256(chunkData).hexdigest()
+    if strChunkSha256 != request.headers.get("X-Chunk-SHA256", ""):
         raise FileOperationError(
             "chunk_checksum_mismatch",
             "The chunk checksum does not match its content.",
             400,
         )
-    return data, chunkSha256
+    return chunkData, strChunkSha256
 
 
 def build_file_response(

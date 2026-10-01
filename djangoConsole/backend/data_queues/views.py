@@ -139,18 +139,18 @@ def list_queue_items(
 ) -> HttpResponse:
     try:
         if set(request.GET) - {"page", "status", "order", "item_id"} or any(
-            len(request.GET.getlist(key)) != 1 for key in request.GET
+            len(request.GET.getlist(strKey)) != 1 for strKey in request.GET
         ):
             raise ValueError
-        status = request.GET.get("status", "all")
-        order = request.GET.get("order", "oldest_first")
-        if status not in ("all", "unclaimed", "claimed") or order not in (
+        strStatus = request.GET.get("status", "all")
+        strOrder = request.GET.get("order", "oldest_first")
+        if strStatus not in ("all", "unclaimed", "claimed") or strOrder not in (
             "oldest_first",
             "newest_first",
         ):
             raise ValueError
         itemId = uuid.UUID(request.GET["item_id"]) if request.GET.get("item_id") else None
-        pageNumber = parse_page_number(request.GET)
+        intPageNumber = parse_page_number(request.GET)
     except ValueError:
         raise QueueRequestError(
             "Use supported fields, valid UUIDs, and valid queue filters.",
@@ -165,9 +165,9 @@ def list_queue_items(
         get_item_list(
             queue,
             access,
-            pageNumber=pageNumber,
-            status=status,
-            order=order,
+            pageNumber=intPageNumber,
+            status=strStatus,
+            order=strOrder,
             itemId=itemId,
         ),
     )

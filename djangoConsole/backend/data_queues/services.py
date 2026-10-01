@@ -141,16 +141,18 @@ def _mutate_items(
     apiKeyId: uuid.UUID | None,
 ) -> QueueMutationResponse:
     """Keep the item change, receipt and audit within the caller's organization/account write locks."""
-    normalized = payload.model_dump(mode="json", exclude={"request_id", "queue_path"})
-    normalized["queue_id"] = (
+    normalizedRequest = payload.model_dump(
+        mode="json", exclude={"request_id", "queue_path"}
+    )
+    normalizedRequest["queue_id"] = (
         str(queueReference) if isinstance(queueReference, uuid.UUID) else None
     )
-    normalized["queue_path"] = (
+    normalizedRequest["queue_path"] = (
         get_path_name_key(queueReference) if isinstance(queueReference, str) else None
     )
-    digest = hashlib.sha256(
+    strDigest = hashlib.sha256(
         json.dumps(
-            normalized,
+            normalizedRequest,
             sort_keys=True,
             ensure_ascii=False,
             allow_nan=False,
@@ -171,7 +173,7 @@ def _mutate_items(
             access,
             requiredRole=DepartmentRole.OPERATOR,
         ).get(pk=receipt.department_id)
-        if receipt.request_digest != digest:
+        if receipt.request_digest != strDigest:
             raise QueueOperationError(
                 "idempotency_conflict",
                 "This request_id was already used with different input.",
@@ -222,7 +224,7 @@ def _mutate_items(
         actor_id=access.actorId,
         operation=operation,
         request_id=payload.request_id,
-        request_digest=digest,
+        request_digest=strDigest,
         queue_id=queue.pk,
         department_id=queue.department_id,
         result={**result.model_dump(mode="json", exclude={"items"}), "items": []},
@@ -256,25 +258,25 @@ def upload_items(
 ) -> QueueMutationResponse:
     limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
     serializedItems: list[tuple[str, int]] = []
-    for index, value in enumerate(payload.items):
+    for intIndex, value in enumerate(payload.items):
         try:
             validate_json_value(value)
-            serialized = json.dumps(
+            strSerialized = json.dumps(
                 value,
                 ensure_ascii=False,
                 allow_nan=False,
                 separators=(",", ":"),
             )
-            sizeBytes = len(serialized.encode("utf-8"))
+            intSizeBytes = len(strSerialized.encode("utf-8"))
         except (ValueError, RecursionError, OverflowError) as e:
-            raise ValidationError({"items": f"Item {index + 1}: {e}"}) from None
-        serializedItems.append((serialized, sizeBytes))
+            raise ValidationError({"items": f"Item {intIndex + 1}: {e}"}) from None
+        serializedItems.append((strSerialized, intSizeBytes))
 
     def apply_upload(queue: DataQueue, result: QueueMutationResponse) -> None:
-        for index, (_, sizeBytes) in enumerate(serializedItems):
-            if sizeBytes > limits.maxQueueItemBytes:
+        for intIndex, (_, intSizeBytes) in enumerate(serializedItems):
+            if intSizeBytes > limits.maxQueueItemBytes:
                 raise ValidationError({
-                    "items": f"Item {index + 1}: The item exceeds the configured byte limit."
+                    "items": f"Item {intIndex + 1}: The item exceeds the configured byte limit."
                 })
         usage = QueueItem.objects.filter(
             queue__department__organization=access.organization
@@ -285,29 +287,30 @@ def upload_items(
         if (
             usage["item_count"] + len(serializedItems)
             > limits.maxQueueItemsPerOrganization
-            or usage["data_bytes"] + sum(sizeBytes for _, sizeBytes in serializedItems)
+            or usage["data_bytes"]
+            + sum(intSizeBytes for _, intSizeBytes in serializedItems)
             > limits.maxQueueDataBytesPerOrganization
         ):
             raise QueueOperationError(
                 "queue_capacity_limit",
                 "This batch exceeds the organization's queue item or byte limit.",
             )
-        actorName = str(access.actor)
-        created = QueueItem.objects.bulk_create([
+        strActorName = str(access.actor)
+        createdItems = QueueItem.objects.bulk_create([
             QueueItem(
                 queue=queue,
-                sequence=queue.next_sequence + index,
-                data_json=serialized,
-                size_bytes=sizeBytes,
+                sequence=queue.next_sequence + intIndex,
+                data_json=strSerialized,
+                size_bytes=intSizeBytes,
                 uploaded_by_id=access.actorId,
-                uploaded_by_name=actorName,
+                uploaded_by_name=strActorName,
                 uploaded_at=result.accepted_at,
             )
-            for index, (serialized, sizeBytes) in enumerate(serializedItems)
+            for intIndex, (strSerialized, intSizeBytes) in enumerate(serializedItems)
         ])
-        queue.next_sequence += len(created)
+        queue.next_sequence += len(createdItems)
         queue.save(update_fields=["next_sequence"])
-        result.item_ids.extend(item.id for item in created)
+        result.item_ids.extend(item.id for item in createdItems)
 
     return _mutate_items(
         access,
@@ -328,7 +331,7 @@ def claim_items(
     apiKeyId: uuid.UUID | None = None,
 ) -> QueueMutationResponse:
     def apply_claim(queue: DataQueue, result: QueueMutationResponse) -> None:
-        responseBytes = len(result.model_dump_json().encode("utf-8"))
+        intResponseBytes = len(result.model_dump_json().encode("utf-8"))
         query = select_items(
             queue,
             status=payload.status,
@@ -345,13 +348,13 @@ def claim_items(
                     data=json.loads(item.data_json),
                 )
                 # Account for the entry, its ID, and both array separators; a replay cannot be larger.
-                entryBytes = (
+                intEntryBytes = (
                     len(entry.model_dump_json().encode("utf-8"))
                     + len(str(item.id))
                     + 2
                     + 2 * bool(result.item_ids)
                 )
-                if responseBytes + entryBytes > MAX_QUEUE_RESPONSE_BYTES:
+                if intResponseBytes + intEntryBytes > MAX_QUEUE_RESPONSE_BYTES:
                     if not result.item_ids:
                         raise QueueOperationError(
                             "queue_response_too_large",
@@ -360,7 +363,7 @@ def claim_items(
                     break
                 result.items.append(entry)
                 result.item_ids.append(item.id)
-                responseBytes += entryBytes
+                intResponseBytes += intEntryBytes
         if result.item_ids:
             QueueItem.objects.filter(queue=queue, pk__in=result.item_ids).update(
                 status=QueueItem.Status.CLAIMED,

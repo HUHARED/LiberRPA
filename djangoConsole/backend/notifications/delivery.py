@@ -70,15 +70,15 @@ def _refill_email_allowance(
 ) -> None:
     """Update the already locked rate state in memory, preserving partial refill intervals."""
     refillInterval = timedelta(seconds=limits.emailRefillSeconds)
-    elapsedUnits = max(0, (currentTime - dispatchState.refilled_at) // refillInterval)
+    intElapsedUnits = max(0, (currentTime - dispatchState.refilled_at) // refillInterval)
     dispatchState.available_units = min(
-        limits.emailBurstRecipients, dispatchState.available_units + elapsedUnits
+        limits.emailBurstRecipients, dispatchState.available_units + intElapsedUnits
     )
     if dispatchState.available_units == limits.emailBurstRecipients:
         # Time spent with a full allowance cannot accumulate an extra burst.
         dispatchState.refilled_at = currentTime
     else:
-        dispatchState.refilled_at += elapsedUnits * refillInterval
+        dispatchState.refilled_at += intElapsedUnits * refillInterval
 
 
 def _mark_email_not_sent(
@@ -94,7 +94,7 @@ def _mark_email_not_sent(
 
 @sensitive_variables()
 @transaction.atomic(durable=True)
-def prepare_email(deliveryId: uuid.UUID) -> EmailPreparationResult:
+def _prepare_email(deliveryId: uuid.UUID) -> EmailPreparationResult:
     """Commit one email reservation and its token before an SMTP attempt.
 
     Call this from the delivery worker outside any surrounding transaction.
@@ -118,10 +118,10 @@ def prepare_email(deliveryId: uuid.UUID) -> EmailPreparationResult:
         defaults={"available_units": limits.emailBurstRecipients},
     )
     currentTime = timezone.now()
-    usedUnits = EmailDelivery.objects.filter(
+    intUsedUnits = EmailDelivery.objects.filter(
         attempted_at__gt=currentTime - _EMAIL_BUDGET_WINDOW
     ).count()
-    if usedUnits >= limits.maxEmailRecipientsPer24Hours:
+    if intUsedUnits >= limits.maxEmailRecipientsPer24Hours:
         return _mark_email_not_sent(
             delivery, reasonCode=EmailReasonCode.SMTP_BUDGET_EXHAUSTED
         )
@@ -220,7 +220,7 @@ def deliver_email(deliveryId: uuid.UUID) -> EmailDeliveryResult:
     A repeated call for a Sending or finished record does not send the message again.
     If result persistence fails, leave Sending for worker recovery; never repeat SMTP.
     """
-    preparationResult = prepare_email(deliveryId)
+    preparationResult = _prepare_email(deliveryId)
     if preparationResult.message is None:
         return EmailDeliveryResult(
             deliveryId=preparationResult.deliveryId,
@@ -230,14 +230,14 @@ def deliver_email(deliveryId: uuid.UUID) -> EmailDeliveryResult:
 
     # Preparation committed before network I/O; no database locks span the SMTP session.
     smtpResult = send_smtp_once(preparationResult.message)
-    updatedRowCount = EmailDelivery.objects.filter(
+    intUpdatedRowCount = EmailDelivery.objects.filter(
         pk=deliveryId, status=EmailStatus.SENDING
     ).update(
         status=smtpResult.status,
         finished_at=timezone.now(),
         reason_code=smtpResult.reasonCode,
     )
-    if updatedRowCount != 1:
+    if intUpdatedRowCount != 1:
         raise RuntimeError(
             "The email attempt result could not be recorded; do not resend it."
         )

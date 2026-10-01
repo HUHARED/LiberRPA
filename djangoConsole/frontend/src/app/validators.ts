@@ -33,8 +33,8 @@ export function validateJsonValue(value: JsonValue): void {
     else if (Array.isArray(child))
       for (const entry of child) validateChild(entry, depth + 1);
     else if (child !== null && typeof child === "object")
-      for (const [key, entry] of Object.entries(child)) {
-        validateText(key);
+      for (const [strKey, entry] of Object.entries(child)) {
+        validateText(strKey);
         validateChild(entry, depth + 1);
       }
   }

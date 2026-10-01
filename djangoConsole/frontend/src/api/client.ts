@@ -1,7 +1,7 @@
 // FileName: client.ts
 
 import { ApiError } from "./errors";
-import { isRecord, buildResponseError } from "./responses";
+import { isRecord, parseResponseError } from "./responses";
 
 interface ApiRequestOptions {
   method?: "GET" | "POST" | "PUT";
@@ -54,7 +54,7 @@ async function fetchApi(
   if (csrfToken !== undefined) requestHeaders.set("X-CSRFToken", csrfToken);
 
   const abortController = new AbortController();
-  const timeoutHandle = setTimeout(
+  const intTimeoutHandle = setTimeout(
     () => abortController.abort(),
     options.timeoutMs ?? INT_REQUEST_TIMEOUT_MS,
   );
@@ -91,11 +91,11 @@ async function fetchApi(
       { code: abortController.signal.aborted ? "request_timeout" : "network_error" },
     );
   } finally {
-    clearTimeout(timeoutHandle);
+    clearTimeout(intTimeoutHandle);
   }
 
   if (!response.ok) {
-    const apiError = buildResponseError(response, responsePayload);
+    const apiError = parseResponseError(response, responsePayload);
     if (apiError.code === "csrf_failed" && intRequestRevision === intCsrfRevision)
       setCsrfToken(null);
     if (

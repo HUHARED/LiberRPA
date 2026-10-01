@@ -22,7 +22,9 @@ import type {
   InvitationTokenRequest,
 } from "./generated/browserApi";
 
-function isDelivery(value: unknown): value is InvitationEmailDeliveryResponse | null {
+function isNullableDeliveryResponse(
+  value: unknown,
+): value is InvitationEmailDeliveryResponse | null {
   return (
     value === null ||
     (isRecord(value) &&
@@ -52,7 +54,7 @@ function isInvitation(value: unknown): value is InvitationResponse {
     isDateString(value.resend_available_at) &&
     isNullableDateString(value.accepted_at) &&
     isNullableDateString(value.revoked_at) &&
-    isDelivery(value.email_delivery) &&
+    isNullableDeliveryResponse(value.email_delivery) &&
     Array.isArray(value.department_roles) &&
     value.department_roles.every(
       (assignment: unknown): assignment is InvitationDepartmentRoleResponse =>

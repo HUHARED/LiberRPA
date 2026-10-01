@@ -80,49 +80,51 @@ def _resolve_department_deletion_access(
 
 def _build_department_deletion_info(department: Department) -> DepartmentDeletionInfo:
     listBlocker: list[DepartmentDeletionBlocker] = []
-    childCount = Department.objects.filter(
+    intChildCount = Department.objects.filter(
         parent=department, deleted_at__isnull=True
     ).count()
-    if childCount:
-        listBlocker.append(DepartmentDeletionBlocker("child_departments", childCount))
+    if intChildCount:
+        listBlocker.append(DepartmentDeletionBlocker("child_departments", intChildCount))
 
     # Explicit roles still block deletion when the account is inactive or an OrgAdmin.
-    membershipCount = DepartmentMembership.objects.filter(department=department).count()
-    if membershipCount:
+    intMembershipCount = DepartmentMembership.objects.filter(
+        department=department
+    ).count()
+    if intMembershipCount:
         listBlocker.append(
-            DepartmentDeletionBlocker("department_memberships", membershipCount)
+            DepartmentDeletionBlocker("department_memberships", intMembershipCount)
         )
 
-    executorCount = Executor.objects.filter(
+    intExecutorCount = Executor.objects.filter(
         department=department, deleted_at__isnull=True
     ).count()
-    if executorCount:
-        listBlocker.append(DepartmentDeletionBlocker("executors", executorCount))
+    if intExecutorCount:
+        listBlocker.append(DepartmentDeletionBlocker("executors", intExecutorCount))
 
-    groupCount = ExecutorGroup.objects.filter(
+    intGroupCount = ExecutorGroup.objects.filter(
         department=department, deleted_at__isnull=True
     ).count()
-    if groupCount:
-        listBlocker.append(DepartmentDeletionBlocker("executor_groups", groupCount))
+    if intGroupCount:
+        listBlocker.append(DepartmentDeletionBlocker("executor_groups", intGroupCount))
 
-    assetCount = Asset.objects.filter(department=department).count()
-    if assetCount:
-        listBlocker.append(DepartmentDeletionBlocker("assets", assetCount))
+    intAssetCount = Asset.objects.filter(department=department).count()
+    if intAssetCount:
+        listBlocker.append(DepartmentDeletionBlocker("assets", intAssetCount))
 
-    queueCount = DataQueue.objects.filter(department=department).count()
-    if queueCount:
-        listBlocker.append(DepartmentDeletionBlocker("data_queues", queueCount))
+    intQueueCount = DataQueue.objects.filter(department=department).count()
+    if intQueueCount:
+        listBlocker.append(DepartmentDeletionBlocker("data_queues", intQueueCount))
 
-    fileCount = SharedFile.objects.filter(department=department).count()
-    if fileCount:
-        listBlocker.append(DepartmentDeletionBlocker("shared_files", fileCount))
-    uploadCount = UploadSession.objects.filter(
+    intFileCount = SharedFile.objects.filter(department=department).count()
+    if intFileCount:
+        listBlocker.append(DepartmentDeletionBlocker("shared_files", intFileCount))
+    intUploadCount = UploadSession.objects.filter(
         department_id=department.pk,
         state=UploadState.RECEIVING,
         expires_at__gt=timezone.now(),
     ).count()
-    if uploadCount:
-        listBlocker.append(DepartmentDeletionBlocker("file_uploads", uploadCount))
+    if intUploadCount:
+        listBlocker.append(DepartmentDeletionBlocker("file_uploads", intUploadCount))
 
     # TODO: Include remaining business resources and unfinished Jobs when their models are implemented.
     # NOTE: Dependency writes must share the organization lock; retained history must not block deletion.

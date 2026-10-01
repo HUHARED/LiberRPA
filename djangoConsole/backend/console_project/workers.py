@@ -39,8 +39,8 @@ def hold_worker_session(*, lockId: int, workerName: str) -> Generator[None]:
                 "SELECT pg_try_advisory_lock(%s, %s)",
                 [_INT_LOCK_NAMESPACE, lockId],
             )
-            lockAcquired = cursor.fetchone()[0]
-        if not lockAcquired:
+            boolLockAcquired = cursor.fetchone()[0]
+        if not boolLockAcquired:
             raise WorkerAlreadyRunningError(
                 f"Another {workerName} worker is already running for this database."
             )

@@ -67,11 +67,11 @@ export async function getOrCreateFileRequestIdentity(
   action: "upload" | "delete",
   body: object,
 ): Promise<{ key: string; requestId: string }> {
-  const digest = await getSha256(new TextEncoder().encode(JSON.stringify(body)));
-  const key = `file-request:${userId}:${action}:${digest}`;
-  const requestId = sessionStorage.getItem(key) ?? crypto.randomUUID();
-  sessionStorage.setItem(key, requestId);
-  return { key, requestId };
+  const strDigest = await getSha256(new TextEncoder().encode(JSON.stringify(body)));
+  const strKey = `file-request:${userId}:${action}:${strDigest}`;
+  const strRequestId = sessionStorage.getItem(strKey) ?? crypto.randomUUID();
+  sessionStorage.setItem(strKey, strRequestId);
+  return { key: strKey, requestId: strRequestId };
 }
 export function clearFileRequestIdentity(identity: {
   key: string;
@@ -180,25 +180,25 @@ export async function downloadSharedFile(path: string): Promise<void> {
   )
     return rejectInvalidFileResponse();
   const transfer = result as unknown as FileDownloadResponse;
-  const data = await requestApi(
+  const fileBlob = await requestApi(
     `${API_ROOT}downloads/${encodeURIComponent(transfer.transfer_id)}/`,
     { responseType: "blob", timeoutMs: 300000 },
   );
   if (
-    !(data instanceof Blob) ||
-    data.size !== transfer.file.size_bytes ||
-    (await getSha256(data)) !== transfer.file.sha256
+    !(fileBlob instanceof Blob) ||
+    fileBlob.size !== transfer.file.size_bytes ||
+    (await getSha256(fileBlob)) !== transfer.file.sha256
   )
     throw new ApiError(
       "The downloaded file failed its integrity check. Download it again.",
     );
-  const url = URL.createObjectURL(data);
+  const strUrl = URL.createObjectURL(fileBlob);
   const link = document.createElement("a");
-  link.href = url;
+  link.href = strUrl;
   link.download = transfer.file.name;
   document.body.append(link);
   link.click();
   link.remove();
   // Leave enough time for the browser to accept the save request.
-  setTimeout(() => URL.revokeObjectURL(url), 60000);
+  setTimeout(() => URL.revokeObjectURL(strUrl), 60000);
 }

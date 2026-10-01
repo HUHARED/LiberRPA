@@ -22,7 +22,7 @@ type SessionNotice =
   | null;
 
 // Cache pending requests by $state so action proxies share one task without adding promises to reactive state.
-const MAP_REFRESH_TASK = new WeakMap<object, Promise<void>>();
+const mapRefreshTask = new WeakMap<object, Promise<void>>();
 
 function announceSessionChange(): void {
   if (typeof window !== "undefined")
@@ -48,7 +48,7 @@ export const useSessionStore = defineStore("session", {
   actions: {
     clearSession(notice: SessionNotice = null): void {
       this.intRevision += 1;
-      MAP_REFRESH_TASK.delete(this.$state);
+      mapRefreshTask.delete(this.$state);
       this.session = null;
       this.access = null;
       this.issue = null;
@@ -68,7 +68,7 @@ export const useSessionStore = defineStore("session", {
 
       // Ignore an older session read that could overwrite these newly saved profile fields.
       this.intRevision += 1;
-      MAP_REFRESH_TASK.delete(this.$state);
+      mapRefreshTask.delete(this.$state);
       this.session.user = user;
     },
 
@@ -76,7 +76,7 @@ export const useSessionStore = defineStore("session", {
       if (this.access?.organization.id !== organizationId) return;
       // Ignore an older access read that could restore the previous organization name.
       this.intRevision += 1;
-      MAP_REFRESH_TASK.delete(this.$state);
+      mapRefreshTask.delete(this.$state);
       this.access.organization.name = name;
     },
 
@@ -95,7 +95,7 @@ export const useSessionStore = defineStore("session", {
     },
 
     refreshSession(): Promise<void> {
-      const refreshTask = MAP_REFRESH_TASK.get(this.$state);
+      const refreshTask = mapRefreshTask.get(this.$state);
       if (refreshTask !== undefined) return refreshTask;
 
       const intCurrentRevision = this.intRevision;
@@ -137,10 +137,10 @@ export const useSessionStore = defineStore("session", {
           }
         }
       })().finally(() => {
-        if (MAP_REFRESH_TASK.get(this.$state) === pendingRefresh)
-          MAP_REFRESH_TASK.delete(this.$state);
+        if (mapRefreshTask.get(this.$state) === pendingRefresh)
+          mapRefreshTask.delete(this.$state);
       });
-      MAP_REFRESH_TASK.set(this.$state, pendingRefresh);
+      mapRefreshTask.set(this.$state, pendingRefresh);
       return pendingRefresh;
     },
 
@@ -157,7 +157,7 @@ export const useSessionStore = defineStore("session", {
 
       this.busy = true;
       this.intRevision += 1;
-      MAP_REFRESH_TASK.delete(this.$state);
+      mapRefreshTask.delete(this.$state);
       const intCurrentRevision = this.intRevision;
       try {
         const currentSession = await signIn(email, password, rememberMe);
@@ -178,7 +178,7 @@ export const useSessionStore = defineStore("session", {
       this.busy = true;
       // An earlier successful GET must never restore a session after this logout starts.
       this.intRevision += 1;
-      MAP_REFRESH_TASK.delete(this.$state);
+      mapRefreshTask.delete(this.$state);
       try {
         await signOut();
         this.clearSession("signed_out");
@@ -191,7 +191,7 @@ export const useSessionStore = defineStore("session", {
 
     async refreshChangedSession(): Promise<void> {
       this.intRevision += 1;
-      MAP_REFRESH_TASK.delete(this.$state);
+      mapRefreshTask.delete(this.$state);
       this.session = null;
       this.access = null;
       this.issue = null;

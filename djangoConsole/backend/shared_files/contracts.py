@@ -17,7 +17,7 @@ MAX_FILE_RESPONSE_BYTES = 2 * 1024 * 1024
 UPLOAD_CHUNK_BYTES = 4 * 1024 * 1024
 
 
-type FileUuid = Annotated[UUID, Field(strict=False)]
+type FileRequestUuid = Annotated[UUID, Field(strict=False)]
 type FilePath = Annotated[str, Field(min_length=1, max_length=16384)]
 
 
@@ -34,14 +34,14 @@ class FilePathRequest(JsonRequest):
 
 
 class FileUploadRequest(FilePathRequest):
-    request_id: FileUuid
+    request_id: FileRequestUuid
     size_bytes: int = Field(ge=0)
     sha256: str = Field(pattern="^[0-9a-f]{64}$")
     overwrite: bool = False
 
 
 class FileDeleteRequest(JsonRequest):
-    request_id: FileUuid
+    request_id: FileRequestUuid
     paths: list[FilePath] = Field(min_length=1, max_length=100)
 
 

@@ -13,8 +13,8 @@
       <v-card-text>
         <v-alert v-if="saveError" type="error" variant="tonal" class="mb-4" role="alert">
           The operation was not confirmed. {{ saveError.message }}
-          <p v-for="message in saveError.fields.__all__" :key="message" class="mt-2">
-            {{ message }}
+          <p v-for="strMessage in saveError.fields.__all__" :key="strMessage" class="mt-2">
+            {{ strMessage }}
           </p>
           <p v-if="boolRefreshRequired" class="mt-2">
             Refresh the list to check this key's current state before trying again.

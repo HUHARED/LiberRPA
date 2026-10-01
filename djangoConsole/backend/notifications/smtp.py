@@ -70,7 +70,7 @@ def send_smtp_once(emailMessage: EmailMessage) -> SmtpResult:
             )
 
         try:
-            sentMessageCount = mailer.send_messages([emailMessage])
+            intSentMessageCount = mailer.send_messages([emailMessage])
         except (SMTPResponseException, SMTPRecipientsRefused):
             return SmtpResult(
                 status=EmailStatus.FAILED, reasonCode=EmailReasonCode.SMTP_REJECTED
@@ -91,9 +91,9 @@ def send_smtp_once(emailMessage: EmailMessage) -> SmtpResult:
                 status=EmailStatus.UNKNOWN, reasonCode=EmailReasonCode.SMTP_RESULT_UNKNOWN
             )
 
-        if sentMessageCount == 1:
+        if intSentMessageCount == 1:
             return SmtpResult(status=EmailStatus.ACCEPTED)
-        if sentMessageCount == 0:
+        if intSentMessageCount == 0:
             return SmtpResult(
                 status=EmailStatus.FAILED, reasonCode=EmailReasonCode.SMTP_NOT_ACCEPTED
             )

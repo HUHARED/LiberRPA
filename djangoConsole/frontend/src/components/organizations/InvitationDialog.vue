@@ -27,10 +27,10 @@
         <v-alert v-if="actionError" type="error" variant="tonal" class="mb-4" role="alert">
           The operation was not confirmed. {{ actionError.message }}
           <p
-            v-for="message in actionError.fields.department_roles"
-            :key="message"
+            v-for="strMessage in actionError.fields.department_roles"
+            :key="strMessage"
             class="mt-2">
-            {{ message }}
+            {{ strMessage }}
           </p>
           <p v-if="intRetrySeconds" class="mt-2">
             Try again in {{ intRetrySeconds }} seconds.

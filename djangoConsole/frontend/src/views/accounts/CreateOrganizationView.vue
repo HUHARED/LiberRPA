@@ -9,8 +9,8 @@
 
     <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
       {{ requestError.message }}
-      <p v-for="message in requestError.fields.__all__" :key="message" class="mt-2">
-        {{ message }}
+      <p v-for="strMessage in requestError.fields.__all__" :key="strMessage" class="mt-2">
+        {{ strMessage }}
       </p>
       <p v-if="intRetrySeconds" class="mt-2">Try again in {{ intRetrySeconds }} seconds.</p>
     </v-alert>
@@ -210,7 +210,7 @@ const boolSending = ref(false);
 const boolChecking = ref(false);
 const boolSaving = ref(false);
 const boolCreated = ref(false);
-let requestRevision = 0;
+let intRequestRevision = 0;
 
 function validateRequiredEmail(value: string): true | string {
   return value.trim() ? true : "Enter an email address.";
@@ -227,23 +227,23 @@ function validateRequiredOrganizationName(value: string): true | string {
 async function submitEmailRequest(event: SubmitEventPromise): Promise<void> {
   if (boolSending.value || sessionStore.authenticated || intRetrySeconds.value) return;
 
-  const intCurrentRevision = requestRevision;
+  const intCurrentRevision = intRequestRevision;
   boolSending.value = true;
   requestError.value = null;
   strEmailMessage.value = "";
   try {
     const validation = await event;
-    if (!validation.valid || intCurrentRevision !== requestRevision) return;
+    if (!validation.valid || intCurrentRevision !== intRequestRevision) return;
 
     const response = await requestRegistrationEmail(strEmail.value.trim());
-    if (intCurrentRevision === requestRevision) strEmailMessage.value = response.message;
+    if (intCurrentRevision === intRequestRevision) strEmailMessage.value = response.message;
   } catch (e) {
-    if (intCurrentRevision !== requestRevision) return;
+    if (intCurrentRevision !== intRequestRevision) return;
 
     requestError.value = getApiError(e);
     setRetryDelay(requestError.value.retryAfterSeconds);
   } finally {
-    if (intCurrentRevision === requestRevision) boolSending.value = false;
+    if (intCurrentRevision === intRequestRevision) boolSending.value = false;
   }
 }
 
@@ -257,19 +257,19 @@ async function loadRegistration(): Promise<void> {
   )
     return;
 
-  const intCurrentRevision = requestRevision;
+  const intCurrentRevision = intRequestRevision;
   boolChecking.value = true;
   requestError.value = null;
   registrationInfo.value = null;
   try {
     const response = await checkRegistration(strToken.value);
-    if (intCurrentRevision === requestRevision) registrationInfo.value = response;
+    if (intCurrentRevision === intRequestRevision) registrationInfo.value = response;
   } catch (e) {
-    if (intCurrentRevision !== requestRevision) return;
+    if (intCurrentRevision !== intRequestRevision) return;
     requestError.value = getApiError(e);
     setRetryDelay(requestError.value.retryAfterSeconds);
   } finally {
-    if (intCurrentRevision === requestRevision) boolChecking.value = false;
+    if (intCurrentRevision === intRequestRevision) boolChecking.value = false;
   }
 }
 
@@ -284,12 +284,12 @@ async function submitRegistration(event: SubmitEventPromise): Promise<void> {
   )
     return;
 
-  const intCurrentRevision = requestRevision;
+  const intCurrentRevision = intRequestRevision;
   boolSaving.value = true;
   requestError.value = null;
   try {
     const validation = await event;
-    if (!validation.valid || intCurrentRevision !== requestRevision) return;
+    if (!validation.valid || intCurrentRevision !== intRequestRevision) return;
 
     await completeRegistration({
       token: strToken.value,
@@ -297,7 +297,7 @@ async function submitRegistration(event: SubmitEventPromise): Promise<void> {
       password: strPassword.value,
       organization_name: strOrganizationName.value,
     });
-    if (intCurrentRevision !== requestRevision) return;
+    if (intCurrentRevision !== intRequestRevision) return;
 
     boolCreated.value = true;
     strToken.value = "";
@@ -306,7 +306,7 @@ async function submitRegistration(event: SubmitEventPromise): Promise<void> {
     sessionStore.notice = "organization_created";
     await router.replace({ name: "sign-in" });
   } catch (e) {
-    if (intCurrentRevision !== requestRevision) return;
+    if (intCurrentRevision !== intRequestRevision) return;
 
     requestError.value = getApiError(e);
     setRetryDelay(requestError.value.retryAfterSeconds);
@@ -319,7 +319,7 @@ async function submitRegistration(event: SubmitEventPromise): Promise<void> {
       strPassword.value = "";
     }
   } finally {
-    if (intCurrentRevision === requestRevision) boolSaving.value = false;
+    if (intCurrentRevision === intRequestRevision) boolSaving.value = false;
   }
 }
 
@@ -338,7 +338,7 @@ watch(
   () => {
     if (boolCreated.value) return;
 
-    requestRevision += 1;
+    intRequestRevision += 1;
     strToken.value = "";
     registrationInfo.value = null;
     requestError.value = null;
@@ -352,10 +352,10 @@ watch(
     if (!boolHasRegistrationLink.value) return;
 
     const parameters = new URLSearchParams(route.hash.slice(1));
-    const linkToken = parameters.get("token") ?? "";
+    const strLinkToken = parameters.get("token") ?? "";
     strToken.value =
-      parameters.getAll("token").length === 1 && /^[A-Za-z0-9_-]{43}$/.test(linkToken)
-        ? linkToken
+      parameters.getAll("token").length === 1 && /^[A-Za-z0-9_-]{43}$/.test(strLinkToken)
+        ? strLinkToken
         : "";
     if (!strToken.value)
       requestError.value = new ApiError("The registration link is missing or invalid.", {
@@ -367,7 +367,7 @@ watch(
 );
 
 onBeforeUnmount(() => {
-  requestRevision += 1;
+  intRequestRevision += 1;
   strToken.value = "";
   strPassword.value = "";
 });

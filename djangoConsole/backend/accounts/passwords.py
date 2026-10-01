@@ -14,14 +14,14 @@ _INT_MAX_PASSWORD_LENGTH = 128
 
 def validate_new_password(password: str, user: AbstractBaseUser) -> None:
     """Validate a proposed new password without changing its text or saving the user."""
-    passwordLength = len(password)
-    if passwordLength < _INT_MIN_PASSWORD_LENGTH:
+    intPasswordLength = len(password)
+    if intPasswordLength < _INT_MIN_PASSWORD_LENGTH:
         raise ValidationError(
             "The password must contain at least %(min_length)d characters.",
             code="password_too_short",
             params={"min_length": _INT_MIN_PASSWORD_LENGTH},
         )
-    if passwordLength > _INT_MAX_PASSWORD_LENGTH:
+    if intPasswordLength > _INT_MAX_PASSWORD_LENGTH:
         raise ValidationError(
             "The password must contain at most %(max_length)d characters.",
             code="password_too_long",

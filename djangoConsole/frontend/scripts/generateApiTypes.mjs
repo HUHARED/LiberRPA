@@ -9,7 +9,7 @@ const strFrontendPath = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 // The Python entry point sends the current backend schema through standard input.
 process.stdin.setEncoding("utf8");
 let strSchema = "";
-for await (const chunk of process.stdin) strSchema += chunk;
+for await (const strChunk of process.stdin) strSchema += strChunk;
 const dictSchema = JSON.parse(strSchema);
 // Pydantic's field titles are documentation, not separate TypeScript domain types.
 for (const dictDefinition of Object.values(dictSchema.$defs ?? {})) {

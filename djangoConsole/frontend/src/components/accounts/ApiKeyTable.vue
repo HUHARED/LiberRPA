@@ -283,12 +283,14 @@ function applySavedKey(apiKey: ApiKeyResponse): void {
 
   const arrKey = [apiKey, ...currentList.api_keys.filter((key) => key.id !== apiKey.id)]
     .filter((key) => {
-      const status = getApiKeyStatus(key, Date.now());
+      const strStatus = getApiKeyStatus(key, Date.now());
       const boolRetained =
-        status === "active" ||
+        strStatus === "active" ||
         (currentList.limits.inactive_retention_days > 0 &&
           currentList.limits.inactive_records > 0);
-      return boolRetained && (!arrStatus.value.length || arrStatus.value.includes(status));
+      return (
+        boolRetained && (!arrStatus.value.length || arrStatus.value.includes(strStatus))
+      );
     })
     .sort(
       (first, second) =>
@@ -307,10 +309,10 @@ function handleCreated(apiKey: ApiKeyResponse): void {
 }
 
 function handleSaved(apiKey: ApiKeyResponse): void {
-  const action = selectedKey.value?.action;
+  const strAction = selectedKey.value?.action;
   selectedKey.value = null;
   strSuccessMessage.value =
-    action === "revoke" ? `API key ${apiKey.name} revoked.` : "API key Notes updated.";
+    strAction === "revoke" ? `API key ${apiKey.name} revoked.` : "API key Notes updated.";
   applySavedKey(apiKey);
   void loadApiKeys();
 }

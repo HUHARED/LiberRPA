@@ -24,7 +24,7 @@
               :maxlength="150"
               :rules="[validateUsername]"
               :error-messages="saveError?.fields.username ?? []"
-              :disabled="boolSaving || activeAction !== null"
+              :disabled="boolSaving || strActiveAction !== null"
               required />
           </v-col>
 
@@ -36,7 +36,7 @@
               :items="arrTimeZone"
               :rules="[validateTimeZone]"
               :error-messages="saveError?.fields.time_zone ?? []"
-              :disabled="boolSaving || activeAction !== null"
+              :disabled="boolSaving || strActiveAction !== null"
               hint="Used for dates and times displayed in Console."
               persistent-hint
               required />
@@ -74,7 +74,7 @@
         variant="tonal"
         :loading="boolSaving"
         :disabled="
-          boolSaving || sessionStore.busy || activeAction !== null || !boolChanged
+          boolSaving || sessionStore.busy || strActiveAction !== null || !boolChanged
         ">
         Save
       </v-btn>
@@ -138,14 +138,14 @@
   </div>
 
   <MemberDeleteDialog
-    v-if="activeAction === 'delete' && sessionStore.session"
+    v-if="strActiveAction === 'delete' && sessionStore.session"
     :user="sessionStore.session.user"
-    @close="activeAction = null" />
+    @close="strActiveAction = null" />
 
   <AccountActionDialog
-    v-else-if="activeAction !== null && activeAction !== 'delete'"
-    :action="activeAction"
-    @close="activeAction = null"
+    v-else-if="strActiveAction !== null && strActiveAction !== 'delete'"
+    :action="strActiveAction"
+    @close="strActiveAction = null"
     @completed="completeAction" />
 </template>
 
@@ -179,7 +179,7 @@ const boolChanged = computed(
     strTimeZone.value !== savedProfile.value.timeZone,
 );
 
-const activeAction = ref<"password" | "sessions" | "email" | "delete" | null>(null);
+const strActiveAction = ref<"password" | "sessions" | "email" | "delete" | null>(null);
 const strSuccess = ref("");
 const saveError = shallowRef<ApiError | null>(null);
 const boolSaving = ref(false);
@@ -193,18 +193,18 @@ function validateTimeZone(value: string | null): true | string {
   return value ? true : "Select a time zone.";
 }
 
-function openAction(action: NonNullable<typeof activeAction.value>): void {
+function openAction(action: NonNullable<typeof strActiveAction.value>): void {
   strSuccess.value = "";
-  activeAction.value = action;
+  strActiveAction.value = action;
 }
 
 function completeAction(message: string): void {
-  activeAction.value = null;
+  strActiveAction.value = null;
   strSuccess.value = message;
 }
 
 async function saveProfile(event: SubmitEventPromise): Promise<void> {
-  if (boolSaving.value || sessionStore.busy || activeAction.value || !boolChanged.value)
+  if (boolSaving.value || sessionStore.busy || strActiveAction.value || !boolChanged.value)
     return;
 
   const validation = await event;
@@ -213,7 +213,7 @@ async function saveProfile(event: SubmitEventPromise): Promise<void> {
     boolUnmounted ||
     boolSaving.value ||
     sessionStore.busy ||
-    activeAction.value
+    strActiveAction.value
   )
     return;
 

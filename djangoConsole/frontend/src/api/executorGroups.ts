@@ -138,8 +138,8 @@ export async function getExecutorGroupList(
 ): Promise<ExecutorGroupListResponse> {
   const queryParameters = new URLSearchParams({ page: String(pageNumber) });
   if (filters.name) queryParameters.set("name", filters.name);
-  for (const departmentId of filters.departmentIds)
-    queryParameters.append("department_id", departmentId);
+  for (const strDepartmentId of filters.departmentIds)
+    queryParameters.append("department_id", strDepartmentId);
   return parseExecutorGroupListResponse(
     await requestApi(`/executor-groups/?${queryParameters}`),
   );

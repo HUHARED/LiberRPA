@@ -122,14 +122,14 @@ def list_members(request: HttpRequest) -> JsonResponse:
             return build_authentication_required_response()
         user = cast(User, request.user)
         membership = get_current_membership(actorId=user.id)
-        intPageNumber = _get_page_number(request)
-        if isinstance(intPageNumber, JsonResponse):
-            return intPageNumber
+        pageNumberResult = _get_page_number(request)
+        if isinstance(pageNumberResult, JsonResponse):
+            return pageNumberResult
         memberPage = get_member_list(
             actorId=user.id,
             organizationId=membership.organization_id,
             channel=AccessChannel.SESSION,
-            pageNumber=intPageNumber,
+            pageNumber=pageNumberResult,
         )
         return JsonResponse(
             MemberListResponse.model_validate({

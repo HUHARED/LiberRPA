@@ -96,7 +96,7 @@ def build_queue_payloads(
     )
     listPayload: list[QueueEntryResponse] = []
     for queue in queues:
-        departmentPath = get_department_path(
+        strDepartmentPath = get_department_path(
             departmentsById[queue.department_id], departmentsById
         )
         listPayload.append(
@@ -104,9 +104,9 @@ def build_queue_payloads(
                 id=queue.pk,
                 name=queue.name,
                 department=QueueDepartmentResponse(
-                    id=queue.department_id, path=departmentPath
+                    id=queue.department_id, path=strDepartmentPath
                 ),
-                path=f"/{departmentPath}/{queue.name}",
+                path=f"/{strDepartmentPath}/{queue.name}",
                 notes=queue.notes,
                 unclaimed_count=queue.unclaimed_count,
                 claimed_count=queue.claimed_count,
@@ -210,10 +210,10 @@ def query_items(queue: DataQueue, payload: QueueQueryRequest) -> QueueQueryRespo
         queue, status=payload.status, order=payload.order, itemId=payload.item_id
     )
     if payload.after_sequence is not None:
-        lookup = "sequence__gt" if payload.order == "oldest_first" else "sequence__lt"
-        query = query.filter(**{lookup: payload.after_sequence})
+        strLookup = "sequence__gt" if payload.order == "oldest_first" else "sequence__lt"
+        query = query.filter(**{strLookup: payload.after_sequence})
     result = QueueQueryResponse(items=[], next_sequence=None)
-    responseBytes = len(result.model_dump_json().encode("utf-8"))
+    intResponseBytes = len(result.model_dump_json().encode("utf-8"))
     # Read one body at a time and close the cursor even when the byte budget stops the loop.
     # NOTE: Django's iterator() returns a generator; django-stubs declares Iterator.
     with closing(
@@ -228,9 +228,14 @@ def query_items(queue: DataQueue, payload: QueueQueryRequest) -> QueueQueryRespo
                     update={"next_sequence": result.items[-1].sequence},
                 )
             entry = build_item_details(item)
-            entryBytes = len(entry.model_dump_json().encode("utf-8")) + bool(result.items)
-            cursorBytes = max(0, len(str(item.sequence)) - len("null"))
-            if responseBytes + entryBytes + cursorBytes > MAX_QUEUE_RESPONSE_BYTES:
+            intEntryBytes = len(entry.model_dump_json().encode("utf-8")) + bool(
+                result.items
+            )
+            intCursorBytes = max(0, len(str(item.sequence)) - len("null"))
+            if (
+                intResponseBytes + intEntryBytes + intCursorBytes
+                > MAX_QUEUE_RESPONSE_BYTES
+            ):
                 if not result.items:
                     raise ValidationError(
                         "This queue item cannot fit in one response.",
@@ -240,5 +245,5 @@ def query_items(queue: DataQueue, payload: QueueQueryRequest) -> QueueQueryRespo
                     update={"next_sequence": result.items[-1].sequence},
                 )
             result.items.append(entry)
-            responseBytes += entryBytes
+            intResponseBytes += intEntryBytes
     return result

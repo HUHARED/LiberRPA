@@ -8,7 +8,7 @@ from django.urls import path
 
 from .client_sessions import ExecutorClientAction
 from .client_views import (
-    executor_client_request,
+    process_executor_client_request,
     sign_in_executor,
 )
 from .group_views import (
@@ -56,31 +56,31 @@ urlpatterns = [
     path("clients/executor/login/", sign_in_executor, name="executor-client-login"),
     path(
         "clients/executor/choices/",
-        executor_client_request,
+        process_executor_client_request,
         {"action": ExecutorClientAction.CHOICES},
         name="executor-client-choices",
     ),
     path(
         "clients/executor/associate/",
-        executor_client_request,
+        process_executor_client_request,
         {"action": ExecutorClientAction.ASSOCIATE},
         name="executor-client-associate",
     ),
     path(
         "clients/executor/session/",
-        executor_client_request,
+        process_executor_client_request,
         {"action": ExecutorClientAction.SESSION},
         name="executor-client-session",
     ),
     path(
         "clients/executor/heartbeat/",
-        executor_client_request,
+        process_executor_client_request,
         {"action": ExecutorClientAction.HEARTBEAT},
         name="executor-client-heartbeat",
     ),
     path(
         "clients/executor/logout/",
-        executor_client_request,
+        process_executor_client_request,
         {"action": ExecutorClientAction.LOGOUT},
         name="executor-client-logout",
     ),

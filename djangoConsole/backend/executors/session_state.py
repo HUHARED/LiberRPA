@@ -110,8 +110,8 @@ def prune_executor_sessions(organizationId: uuid.UUID) -> int:
         for session in get_executor_sessions(organizationId)
         if not is_executor_session_current(session, currentTime=currentTime)
     ]
-    count, _ = ExecutorSession.objects.filter(pk__in=invalidIds).delete()
-    return count
+    intCount, _ = ExecutorSession.objects.filter(pk__in=invalidIds).delete()
+    return intCount
 
 
 def revoke_user_executor_sessions(userId: uuid.UUID) -> None:

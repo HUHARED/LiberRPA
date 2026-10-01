@@ -14,8 +14,8 @@ from cryptography.fernet import Fernet
 
 
 def _write_secret_file(secretPath: Path, secretValue: str) -> None:
-    fileDescriptor = os.open(secretPath, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-    with os.fdopen(fileDescriptor, "w", encoding="utf-8") as secretFile:
+    intFileDescriptor = os.open(secretPath, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(intFileDescriptor, "w", encoding="utf-8") as secretFile:
         secretFile.write(secretValue)
 
 
@@ -25,11 +25,11 @@ def main() -> None:
     if pathLocal.exists():
         raise FileExistsError(f"Local configuration already exists: {pathLocal}")
 
-    databasePassword = getpass("Development database password: ")
-    if not databasePassword.strip():
+    strDatabasePassword = getpass("Development database password: ")
+    if not strDatabasePassword.strip():
         raise ValueError("The development database password must not be empty.")
-    smtpPassword = getpass("Development SMTP password: ")
-    if not smtpPassword.strip():
+    strSmtpPassword = getpass("Development SMTP password: ")
+    if not strSmtpPassword.strip():
         raise ValueError("The development SMTP password must not be empty.")
 
     pathLocal.mkdir(mode=0o700)
@@ -39,8 +39,8 @@ def main() -> None:
     _write_secret_file(
         pathSecrets / "encryption-key.txt", Fernet.generate_key().decode("ascii")
     )
-    _write_secret_file(pathSecrets / "database-password.txt", databasePassword)
-    _write_secret_file(pathSecrets / "smtp-password.txt", smtpPassword)
+    _write_secret_file(pathSecrets / "database-password.txt", strDatabasePassword)
+    _write_secret_file(pathSecrets / "smtp-password.txt", strSmtpPassword)
     copyfile(pathConsole / "Console.example.jsonc", pathLocal / "Console.jsonc")
     print(f"Created local development configuration: {pathLocal / 'Console.jsonc'}")
 

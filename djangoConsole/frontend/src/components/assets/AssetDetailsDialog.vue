@@ -1,10 +1,10 @@
 <!-- FileName: AssetDetailsDialog.vue -->
 <template>
   <AssetFormDialog
-    v-if="editMode && asset"
-    :mode="editMode"
+    v-if="strEditMode && asset"
+    :mode="strEditMode"
     :asset="asset"
-    @close="editMode = null"
+    @close="strEditMode = null"
     @saved="handleSaved" />
   <v-dialog
     :model-value="true"
@@ -173,7 +173,7 @@ const route = useRoute();
 const sessionStore = useSessionStore();
 const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");
 const asset = shallowRef<AssetDetailsEntryResponse | null>(null);
-const editMode = ref<"details" | "value" | null>(null);
+const strEditMode = ref<"details" | "value" | null>(null);
 const requestError = shallowRef<ApiError | null>(null);
 const strSuccessMessage = ref("");
 const boolLoading = ref(false);
@@ -195,7 +195,7 @@ async function loadDetails(): Promise<void> {
     requestError.value = getApiError(e);
     if ([401, 403, 404].includes(requestError.value.statusCode)) {
       asset.value = null;
-      editMode.value = null;
+      strEditMode.value = null;
       boolConfirmDelete.value = false;
       if (requestError.value.statusCode === 403) await sessionStore.refreshSession();
     }
@@ -207,12 +207,12 @@ async function loadDetails(): Promise<void> {
 function openEdit(mode: "details" | "value"): void {
   if (boolBusy.value || !asset.value) return;
   strSuccessMessage.value = "";
-  editMode.value = mode;
+  strEditMode.value = mode;
 }
 
 function handleSaved(response: AssetDetailsResponse): void {
   asset.value = response.asset;
-  editMode.value = null;
+  strEditMode.value = null;
   strSuccessMessage.value = "Asset updated.";
   requestError.value = null;
   emit("updated");

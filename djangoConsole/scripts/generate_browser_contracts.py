@@ -122,7 +122,7 @@ _BROWSER_CONTRACTS: tuple[tuple[type[BaseModel], JsonSchemaMode], ...] = (
 )
 
 
-def build_browser_contract_schema() -> JsonSchemaValue:
+def _build_browser_contract_schema() -> JsonSchemaValue:
     """Export only public browser payloads, without settings, secrets or a database."""
     dictReference, dictSchema = models_json_schema(_BROWSER_CONTRACTS)
     dictSchema.update({
@@ -161,7 +161,7 @@ def main() -> int:
                 str(_PATH_CONSOLE / "frontend/scripts/generateApiTypes.mjs"),
             ],
             cwd=_PATH_CONSOLE,
-            input=json.dumps(build_browser_contract_schema(), sort_keys=True),
+            input=json.dumps(_build_browser_contract_schema(), sort_keys=True),
             stdout=subprocess.PIPE,
             encoding="utf-8",
             check=False,

@@ -89,9 +89,12 @@ def _get_email_change_credential_hash(
     user: User, newEmail: str, *, secret: str | None = None
 ) -> str:
     # Bind the exact destination and current credentials without tying the proof to a session.
-    authValue = json.dumps([str(user.id), user.email, user.password, newEmail])
+    strAuthValue = json.dumps([str(user.id), user.email, user.password, newEmail])
     return salted_hmac(
-        "accounts.email_change.credentials", authValue, secret=secret, algorithm="sha256"
+        "accounts.email_change.credentials",
+        strAuthValue,
+        secret=secret,
+        algorithm="sha256",
     ).hexdigest()
 
 
@@ -107,10 +110,10 @@ def _has_current_email_change_credentials(
             constant_time_compare(
                 changeRequest.credential_hash,
                 _get_email_change_credential_hash(
-                    user, changeRequest.new_email, secret=secret
+                    user, changeRequest.new_email, secret=strSecret
                 ),
             )
-            for secret in [settings.SECRET_KEY, *settings.SECRET_KEY_FALLBACKS]
+            for strSecret in [settings.SECRET_KEY, *settings.SECRET_KEY_FALLBACKS]
         )
     )
 
@@ -131,9 +134,9 @@ def _require_email_change_token_unexpired(changeRequest: EmailChangeRequest) -> 
 def _get_email_change_request(token: str) -> EmailChangeRequest:
     if _EMAIL_CHANGE_TOKEN_PATTERN.fullmatch(token) is None:
         raise _build_invalid_email_change_error()
-    tokenHash = hashlib.sha256(token.encode("ascii")).hexdigest()
+    strTokenHash = hashlib.sha256(token.encode("ascii")).hexdigest()
     try:
-        return EmailChangeRequest.objects.get(token_hash=tokenHash)
+        return EmailChangeRequest.objects.get(token_hash=strTokenHash)
     except EmailChangeRequest.DoesNotExist:
         raise _build_invalid_email_change_error() from None
 
@@ -254,14 +257,16 @@ def issue_email_change_token(
     ):
         return None
 
-    token = secrets.token_urlsafe(32)
+    strToken = secrets.token_urlsafe(32)
     issuedAt = timezone.now()
-    changeRequest.token_hash = hashlib.sha256(token.encode("ascii")).hexdigest()
+    changeRequest.token_hash = hashlib.sha256(strToken.encode("ascii")).hexdigest()
     changeRequest.issued_at = issuedAt
     changeRequest.expires_at = issuedAt + _EMAIL_CHANGE_TOKEN_LIFETIME
     changeRequest.save(update_fields=["token_hash", "issued_at", "expires_at"])
     return EmailChangeTokenDeliveryInfo(
-        newEmail=changeRequest.new_email, expiresAt=changeRequest.expires_at, token=token
+        newEmail=changeRequest.new_email,
+        expiresAt=changeRequest.expires_at,
+        token=strToken,
     )
 
 
@@ -301,7 +306,7 @@ def confirm_email_change(token: str) -> None:
     if User.objects.filter(email=changeRequest.new_email).exists():
         raise _build_email_unavailable_error()
 
-    oldEmail = user.email
+    strOldEmail = user.email
     dictAuditBefore = get_audit_snapshot(user)
     user.email = changeRequest.new_email
     try:
@@ -334,7 +339,7 @@ def confirm_email_change(token: str) -> None:
     # Keep the consumed request as the per-account resend cursor, including across address changes.
     EmailDelivery.objects.create(
         email_type=EmailType.EMAIL_CHANGE_NOTICE,
-        recipient=oldEmail,
+        recipient=strOldEmail,
         created_at=confirmedAt,
     )
     # NOTE: The password and session version stay unchanged; existing sessions and independent keys remain valid.

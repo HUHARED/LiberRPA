@@ -10,24 +10,24 @@
         color="primary"
         variant="tonal"
         prepend-icon="mdi-upload"
-        :disabled="!ready"
-        @click="showUpload = true">
+        :disabled="!boolReady"
+        @click="boolShowUpload = true">
         Upload File
       </v-btn>
 
       <v-btn
         color="error"
         variant="tonal"
-        :disabled="!ready || !selected.length"
-        @click="deletePaths = [...selected]">
+        :disabled="!boolReady || !selectedFilePaths.length"
+        @click="deletePaths = [...selectedFilePaths]">
         Delete Selected
       </v-btn>
 
       <v-btn
         variant="tonal"
         prepend-icon="mdi-refresh"
-        :loading="loading"
-        :disabled="loading || !activeDepartment"
+        :loading="boolLoading"
+        :disabled="boolLoading || !strActiveDepartmentPath"
         @click="load">
         Refresh
       </v-btn>
@@ -40,7 +40,7 @@
         <v-row>
           <v-col cols="12" md="4">
             <v-autocomplete
-              v-model="department"
+              v-model="strDepartmentPath"
               :items="departments"
               item-title="path"
               item-value="path"
@@ -49,45 +49,45 @@
               density="compact"
               hide-details
               clearable
-              :disabled="loading" />
+              :disabled="boolLoading" />
           </v-col>
           <v-col cols="12" md="4">
             <v-text-field
-              v-model="name"
+              v-model="strName"
               label="File Name"
               maxlength="128"
               variant="outlined"
               density="compact"
               hide-details
               clearable
-              :disabled="loading" />
+              :disabled="boolLoading" />
           </v-col>
           <v-col cols="6" md="2">
             <v-select
-              v-model="sortBy"
-              :items="sortOptions"
+              v-model="strSortBy"
+              :items="ARR_SORT_OPTION"
               label="Sort By"
               variant="outlined"
               density="compact"
               hide-details
-              :disabled="loading" />
+              :disabled="boolLoading" />
           </v-col>
           <v-col cols="6" md="2">
             <v-select
-              v-model="order"
-              :items="orderOptions"
+              v-model="strOrder"
+              :items="ARR_ORDER_OPTION"
               label="Order"
               variant="outlined"
               density="compact"
               hide-details
-              :disabled="loading" />
+              :disabled="boolLoading" />
           </v-col>
         </v-row>
         <div class="d-flex ga-2 mt-4">
-          <v-btn type="submit" color="primary" variant="tonal" :disabled="loading">
+          <v-btn type="submit" color="primary" variant="tonal" :disabled="boolLoading">
             Apply
           </v-btn>
-          <v-btn variant="outlined" :disabled="loading" @click="clearFilters">
+          <v-btn variant="outlined" :disabled="boolLoading" @click="clearFilters">
             Clear Filters
           </v-btn>
         </div>
@@ -95,12 +95,12 @@
     </v-card-text>
   </v-card>
   <v-alert
-    v-if="message"
+    v-if="strMessage"
     type="success"
     variant="tonal"
     class="mb-4 file-path"
     role="status">
-    {{ message }}
+    {{ strMessage }}
   </v-alert>
   <v-alert v-if="error" type="error" variant="tonal" class="mb-4" role="alert">
     {{ error.message }}
@@ -115,7 +115,7 @@
     @click:close="strActionError = ''">
     {{ strActionError }}
   </v-alert>
-  <v-alert v-if="!activeDepartment" type="info" variant="tonal">
+  <v-alert v-if="!strActiveDepartmentPath" type="info" variant="tonal">
     Select a department to view its files.
   </v-alert>
   <template v-else>
@@ -136,15 +136,15 @@
     </div>
     <v-card variant="outlined">
       <v-data-table-server
-        v-model="selected"
-        :headers="headers"
+        v-model="selectedFilePaths"
+        :headers="ARR_HEADER"
         :items="page?.files ?? []"
         :items-length="page?.total_count ?? 0"
         :items-per-page="100"
         :page="page?.page ?? 1"
-        :loading="loading"
+        :loading="boolLoading"
         item-value="path"
-        :show-select="ready"
+        :show-select="boolReady"
         disable-sort
         hide-default-footer
         :mobile-breakpoint="600">
@@ -158,15 +158,15 @@
           <span class="file-path">{{ item.uploaded_by_name }}</span>
         </template>
         <template #item.uploaded_at="{ item }">
-          {{ formatDateTime(item.uploaded_at, timeZone) }}
+          {{ formatDateTime(item.uploaded_at, strTimeZone) }}
         </template>
         <template #item.actions="{ item }">
           <div class="d-flex ga-1">
             <v-btn
               variant="text"
               size="small"
-              :loading="downloading.has(item.path)"
-              :disabled="!ready || downloading.has(item.path)"
+              :loading="setDownloadingFilePath.has(item.path)"
+              :disabled="!boolReady || setDownloadingFilePath.has(item.path)"
               @click="download(item.path)">
               Download
             </v-btn>
@@ -177,7 +177,7 @@
               variant="text"
               size="small"
               color="error"
-              :disabled="!ready"
+              :disabled="!boolReady"
               @click="deletePaths = [item.path]">
               Delete
             </v-btn>
@@ -198,22 +198,22 @@
           :model-value="page.page"
           :length="page.total_pages"
           :total-visible="5"
-          :disabled="loading || dirty"
+          :disabled="boolLoading || boolDirty"
           @update:model-value="changePage" />
       </div>
     </v-card>
   </template>
   <SharedFileUploadDialog
-    v-if="showUpload && page"
+    v-if="boolShowUpload && page"
     :department-path="page.department_path"
     :max-file-bytes="page.usage.max_file_bytes"
-    @close="showUpload = false"
-    @saved="uploaded" />
+    @close="boolShowUpload = false"
+    @saved="handleUploaded" />
   <SharedFileDeleteDialog
     v-if="deletePaths"
     :paths="deletePaths"
     @close="deletePaths = null"
-    @deleted="deleted" />
+    @deleted="handleDeleted" />
 </template>
 
 <script setup lang="ts">
@@ -235,103 +235,103 @@ import type {
   FileListResponse,
 } from "@/api/generated/browserApi";
 
-const headers = [
+const ARR_HEADER = [
   { title: "File Name", key: "name", minWidth: 180 },
   { title: "Size", key: "size_bytes" },
   { title: "Uploaded By", key: "uploaded_by_name", minWidth: 150 },
   { title: "Uploaded At", key: "uploaded_at", minWidth: 200 },
   { title: "Actions", key: "actions", minWidth: 300 },
 ];
-const sortOptions = [
+const ARR_SORT_OPTION = [
   { title: "File Name", value: "name" },
   { title: "Size", value: "size" },
   { title: "Uploaded At", value: "uploaded_at" },
 ];
-const orderOptions = [
+const ARR_ORDER_OPTION = [
   { title: "Ascending", value: "asc" },
   { title: "Descending", value: "desc" },
 ];
-const session = useSessionStore();
+const sessionStore = useSessionStore();
 const route = useRoute();
 const router = useRouter();
 const departments = computed(() =>
-  (session.access?.departments ?? []).map((entry) => ({ path: `/${entry.path}` })),
+  (sessionStore.access?.departments ?? []).map((entry) => ({ path: `/${entry.path}` })),
 );
-const timeZone = computed(() => session.session?.user.time_zone ?? "UTC");
-const activeDepartment = computed(() =>
+const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");
+const strActiveDepartmentPath = computed(() =>
   typeof route.query.department_path === "string"
     ? route.query.department_path
     : departments.value.length === 1
       ? departments.value[0]!.path
       : "",
 );
-const activeName = computed(() =>
+const strActiveName = computed(() =>
   typeof route.query.name === "string" ? route.query.name : "",
 );
-const activeSort = computed<FileListRequest["sort_by"]>(() =>
+const strActiveSort = computed<FileListRequest["sort_by"]>(() =>
   route.query.sort_by === "name" || route.query.sort_by === "size"
     ? route.query.sort_by
     : "uploaded_at",
 );
-const activeOrder = computed<FileListRequest["order"]>(() =>
+const strActiveOrder = computed<FileListRequest["order"]>(() =>
   route.query.order === "asc" ? "asc" : "desc",
 );
-const department = ref<string | null>("");
-const name = ref<string | null>("");
-const sortBy = ref<FileListRequest["sort_by"]>("uploaded_at");
-const order = ref<FileListRequest["order"]>("desc");
+const strDepartmentPath = ref<string | null>("");
+const strName = ref<string | null>("");
+const strSortBy = ref<FileListRequest["sort_by"]>("uploaded_at");
+const strOrder = ref<FileListRequest["order"]>("desc");
 const page = shallowRef<FileListResponse | null>(null);
-const selected = ref<string[]>([]);
+const selectedFilePaths = ref<string[]>([]);
 const error = shallowRef<ApiError | null>(null);
-const message = ref("");
+const strMessage = ref("");
 const strActionError = ref("");
-const loading = ref(false);
-const showUpload = ref(false);
+const boolLoading = ref(false);
+const boolShowUpload = ref(false);
 const deletePaths = shallowRef<string[] | null>(null);
-const downloading = ref(new Set<string>());
-const dirty = computed(
+const setDownloadingFilePath = ref(new Set<string>());
+const boolDirty = computed(
   () =>
-    (department.value ?? "") !== activeDepartment.value ||
-    (name.value ?? "") !== activeName.value ||
-    sortBy.value !== activeSort.value ||
-    order.value !== activeOrder.value,
+    (strDepartmentPath.value ?? "") !== strActiveDepartmentPath.value ||
+    (strName.value ?? "") !== strActiveName.value ||
+    strSortBy.value !== strActiveSort.value ||
+    strOrder.value !== strActiveOrder.value,
 );
-const ready = computed(
+const boolReady = computed(
   () =>
     !!page.value &&
-    !loading.value &&
+    !boolLoading.value &&
     !error.value &&
-    !dirty.value &&
-    !!session.access?.business_available,
+    !boolDirty.value &&
+    !!sessionStore.access?.business_available,
 );
-let revision = 0;
-let alive = true;
+let intRevision = 0;
+let boolAlive = true;
 async function changePage(value: number): Promise<void> {
   await router.replace({ query: { ...route.query, page: String(value) } });
 }
 
 async function load(): Promise<void> {
-  const current = ++revision;
-  selected.value = [];
+  const intCurrentRevision = ++intRevision;
+  selectedFilePaths.value = [];
   error.value = null;
   strActionError.value = "";
-  if (!activeDepartment.value) {
+  if (!strActiveDepartmentPath.value) {
     page.value = null;
-    loading.value = false;
+    boolLoading.value = false;
     return;
   }
-  loading.value = true;
+  boolLoading.value = true;
   try {
     const result = await getSharedFiles({
-      department_path: activeDepartment.value,
-      name: activeName.value,
-      sort_by: activeSort.value,
-      order: activeOrder.value,
+      department_path: strActiveDepartmentPath.value,
+      name: strActiveName.value,
+      sort_by: strActiveSort.value,
+      order: strActiveOrder.value,
       page: Number(route.query.page) || 1,
     });
-    if (current === revision) page.value = result;
+    if (intCurrentRevision === intRevision) page.value = result;
   } catch (e) {
-    if (current !== revision) return;
+    if (intCurrentRevision !== intRevision) return;
     error.value = getApiError(e);
     if (error.value.code === "invalid_page" && Number(route.query.page) > 1) {
       await changePage(1);
@@ -339,97 +339,99 @@ async function load(): Promise<void> {
     }
     if ([401, 403, 404].includes(error.value.statusCode)) {
       page.value = null;
-      showUpload.value = false;
+      boolShowUpload.value = false;
       deletePaths.value = null;
-      if (error.value.statusCode === 403) await session.refreshSession();
+      if (error.value.statusCode === 403) await sessionStore.refreshSession();
     }
   } finally {
-    if (current === revision) loading.value = false;
+    if (intCurrentRevision === intRevision) boolLoading.value = false;
   }
 }
 async function applyFilters(): Promise<void> {
   const query = {
-    department_path: department.value || undefined,
-    name: name.value || undefined,
-    sort_by: sortBy.value,
-    order: order.value,
+    department_path: strDepartmentPath.value || undefined,
+    name: strName.value || undefined,
+    sort_by: strSortBy.value,
+    order: strOrder.value,
   };
   if (router.resolve({ name: "shared-files", query }).fullPath === route.fullPath)
     await load();
   else await router.replace({ name: "shared-files", query });
 }
 function clearFilters(): void {
-  name.value = "";
-  sortBy.value = "uploaded_at";
-  order.value = "desc";
+  strName.value = "";
+  strSortBy.value = "uploaded_at";
+  strOrder.value = "desc";
   void applyFilters();
 }
-function uploaded(file: FileInfoResponse): void {
-  showUpload.value = false;
-  message.value = `File uploaded: ${file.path}`;
+function handleUploaded(file: FileInfoResponse): void {
+  boolShowUpload.value = false;
+  strMessage.value = `File uploaded: ${file.path}`;
   void load();
 }
-function deleted(result: FileDeleteResponse): void {
+function handleDeleted(result: FileDeleteResponse): void {
   deletePaths.value = null;
-  message.value = `${result.deleted_count} ${result.deleted_count === 1 ? "file deleted" : "files deleted"}.${result.missing_paths.length ? ` ${result.missing_paths.length} already unavailable.` : ""}`;
+  strMessage.value = `${result.deleted_count} ${result.deleted_count === 1 ? "file deleted" : "files deleted"}.${result.missing_paths.length ? ` ${result.missing_paths.length} already unavailable.` : ""}`;
   void load();
 }
 async function copyPath(path: string): Promise<void> {
-  const current = revision;
+  const intCurrentRevision = intRevision;
   strActionError.value = "";
-  message.value = "";
+  strMessage.value = "";
   try {
     await navigator.clipboard.writeText(path);
-    if (current === revision) message.value = "Path copied.";
+    if (intCurrentRevision === intRevision) strMessage.value = "Path copied.";
   } catch {
-    if (current === revision) strActionError.value = `Could not copy the path: ${path}`;
+    if (intCurrentRevision === intRevision)
+      strActionError.value = `Could not copy the path: ${path}`;
   }
 }
 async function download(path: string): Promise<void> {
-  if (downloading.value.has(path)) return;
-  const current = revision;
+  if (setDownloadingFilePath.value.has(path)) return;
+  const intCurrentRevision = intRevision;
   strActionError.value = "";
-  message.value = "";
-  downloading.value.add(path);
+  strMessage.value = "";
+  setDownloadingFilePath.value.add(path);
   try {
     await downloadSharedFile(path);
-    if (current === revision)
-      message.value =
+    if (intCurrentRevision === intRevision)
+      strMessage.value =
         "Download handed to your browser. Check its downloads for the save status.";
   } catch (e) {
-    if (current === revision) strActionError.value = `${path}: ${getApiError(e).message}`;
+    if (intCurrentRevision === intRevision)
+      strActionError.value = `${path}: ${getApiError(e).message}`;
   } finally {
-    if (alive) downloading.value.delete(path);
+    if (boolAlive) setDownloadingFilePath.value.delete(path);
   }
 }
 
-watch([department, name, sortBy, order], () => {
-  selected.value = [];
+watch([strDepartmentPath, strName, strSortBy, strOrder], () => {
+  selectedFilePaths.value = [];
 });
 // Reload only when the file-list request changes, not for unrelated route changes.
 watch(
   [
-    activeDepartment,
-    activeName,
-    activeSort,
-    activeOrder,
+    strActiveDepartmentPath,
+    strActiveName,
+    strActiveSort,
+    strActiveOrder,
     () => Number(route.query.page) || 1,
   ],
   () => {
-    department.value = activeDepartment.value;
-    name.value = activeName.value;
-    sortBy.value = activeSort.value;
-    order.value = activeOrder.value;
+    strDepartmentPath.value = strActiveDepartmentPath.value;
+    strName.value = strActiveName.value;
+    strSortBy.value = strActiveSort.value;
+    strOrder.value = strActiveOrder.value;
     page.value = null;
-    showUpload.value = false;
+    boolShowUpload.value = false;
     deletePaths.value = null;
     void load();
   },
   { immediate: true },
 );
 onBeforeUnmount(() => {
-  alive = false;
-  revision += 1;
+  boolAlive = false;
+  intRevision += 1;
 });
 </script>
 

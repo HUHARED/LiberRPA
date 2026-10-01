@@ -124,7 +124,7 @@ def complete_organization_deletion(
     SharedFile.objects.filter(department__organization_id=organizationId).delete()
     UploadSession.objects.filter(organization_id=organizationId).delete()
 
-    organizationName = organization.name
+    strOrganizationName = organization.name
     listAccount = list(
         Membership.objects
         .filter(organization_id=organizationId)
@@ -149,7 +149,7 @@ def complete_organization_deletion(
     Asset.objects.filter(department__organization_id=organizationId).delete()
     DataQueue.objects.filter(department__organization_id=organizationId).delete()
     # Account deletion cascades memberships, department roles, API keys, and private recovery/change proofs.
-    User.objects.filter(pk__in=[userId for userId, _email in listAccount]).delete()
+    User.objects.filter(pk__in=[userId for userId, _strEmail in listAccount]).delete()
     _delete_organization_departments(organizationId)
     # TODO: Remove new business resources here when their models are implemented, before queuing completion notices.
     AuditRecord.objects.filter(
@@ -168,16 +168,16 @@ def complete_organization_deletion(
     listDelivery = EmailDelivery.objects.bulk_create([
         EmailDelivery(
             email_type=EmailType.ORGANIZATION_DELETION_NOTICE,
-            recipient=email,
+            recipient=strEmail,
             created_at=completedAt,
         )
-        for _userId, email in listAccount
+        for _userId, strEmail in listAccount
     ])
     OrganizationDeletionNotice.objects.bulk_create([
         OrganizationDeletionNotice(
             delivery=delivery,
             organization_id=organizationId,
-            organization_name=organizationName,
+            organization_name=strOrganizationName,
         )
         for delivery in listDelivery
     ])

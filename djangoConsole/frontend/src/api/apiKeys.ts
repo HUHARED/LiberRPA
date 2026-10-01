@@ -92,7 +92,7 @@ export async function getApiKeyList(
   memberId?: string,
 ): Promise<ApiKeyListResponse> {
   const parameters = new URLSearchParams();
-  for (const status of statuses) parameters.append("status", status);
+  for (const strStatus of statuses) parameters.append("status", strStatus);
   return parseApiKeyListResponse(
     await requestApi(`${getApiKeyCollectionPath(memberId)}?${parameters}`),
   );

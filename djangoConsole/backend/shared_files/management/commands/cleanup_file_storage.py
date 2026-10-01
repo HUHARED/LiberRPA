@@ -19,13 +19,15 @@ class Command(BaseCommand):
         parser.add_argument("--limit", type=int, default=200)
 
     def handle(self, *_args: object, **options: object) -> None:
-        limit = cast(int, options["limit"])
-        if not 1 <= limit <= 10000:
+        intLimit = cast(int, options["limit"])
+        if not 1 <= intLimit <= 10000:
             raise CommandError("Use --limit between 1 and 10000.")
-        cleanup_uploads(limit)
-        deleted, failed = cleanup_storage(limit)
-        self.stdout.write(f"Removed {deleted} stored files; {failed} cleanup failures.")
-        if failed:
+        cleanup_uploads(intLimit)
+        intDeletedCount, intFailedCount = cleanup_storage(intLimit)
+        self.stdout.write(
+            f"Removed {intDeletedCount} stored files; {intFailedCount} cleanup failures."
+        )
+        if intFailedCount:
             raise CommandError(
                 "Some files could not be removed. Their capacity is still charged."
             )

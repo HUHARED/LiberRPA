@@ -200,7 +200,7 @@ def sign_in_executor(request: HttpRequest) -> JsonResponse:
 @csrf_exempt
 @never_cache
 @sensitive_variables()
-def executor_client_request(
+def process_executor_client_request(
     request: HttpRequest, action: ExecutorClientAction
 ) -> JsonResponse:
     """Adapt a server-selected route action; request data cannot choose another operation."""

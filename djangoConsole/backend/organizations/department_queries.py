@@ -53,12 +53,12 @@ def resolve_department_path(
     """Resolve validated segments in one loaded tree; callers authorize the target separately."""
     parentId = None
     department = None
-    for part in pathParts:
-        partKey = get_path_name_key(part)
+    for strPart in pathParts:
+        strPartKey = get_path_name_key(strPart)
         matches = [
             entry
             for entry in departmentsById.values()
-            if entry.parent_id == parentId and entry.name_key == partKey
+            if entry.parent_id == parentId and entry.name_key == strPartKey
         ]
         if len(matches) != 1:
             raise Department.DoesNotExist
@@ -139,9 +139,12 @@ def get_department_details(
     # An organization administrator without an explicit department role is not a row here.
     listDepartmentMemberInfo = [
         DepartmentMemberInfo(
-            userId=userId, email=email, username=username, role=DepartmentRole(role)
+            userId=userId,
+            email=strEmail,
+            username=strUsername,
+            role=DepartmentRole(strRole),
         )
-        for userId, email, username, role in DepartmentMembership.objects.filter(
+        for userId, strEmail, strUsername, strRole in DepartmentMembership.objects.filter(
             department=department, membership__organization_id=organizationId
         ).values_list(
             "membership_id",

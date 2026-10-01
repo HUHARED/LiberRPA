@@ -34,9 +34,9 @@ const MAX_ROWS = 10000;
 
 export async function readQueueFile(file: File): Promise<QueueImportSource> {
   if (file.size > MAX_BYTES) throw new Error("The source file exceeds 2 MiB.");
-  const extension = file.name.split(".").at(-1)?.toLowerCase();
+  const strExtension = file.name.split(".").at(-1)?.toLowerCase();
   const bytes = await file.arrayBuffer();
-  if (["xlsx", "xls"].includes(extension ?? "")) {
+  if (["xlsx", "xls"].includes(strExtension ?? "")) {
     return {
       kind: "table",
       excel: true,
@@ -49,23 +49,23 @@ export async function readQueueFile(file: File): Promise<QueueImportSource> {
       }),
     };
   }
-  const text = new TextDecoder("utf-8", { fatal: true })
+  const strText = new TextDecoder("utf-8", { fatal: true })
     .decode(bytes)
     .replace(/^\uFEFF/, "");
-  if (extension === "csv" || extension === "tsv") {
+  if (strExtension === "csv" || strExtension === "tsv") {
     return {
       kind: "table",
       excel: false,
-      workbook: read(text, {
+      workbook: read(strText, {
         type: "string",
         raw: true,
-        FS: extension === "tsv" ? "\t" : ",",
+        FS: strExtension === "tsv" ? "\t" : ",",
         sheetRows: MAX_ROWS + 1,
       }),
     };
   }
-  if (extension === "txt" || extension === "json" || extension === "jsonl")
-    return { kind: extension, text, excel: false };
+  if (strExtension === "txt" || strExtension === "json" || strExtension === "jsonl")
+    return { kind: strExtension, text: strText, excel: false };
   throw new Error("Choose an XLSX, XLS, CSV, TSV, TXT, JSON, or JSONL file.");
 }
 
@@ -88,13 +88,13 @@ export function getQueueColumns(
   if (!sheet) return [];
   const range = parseWorksheetRange(sheet);
   return Array.from({ length: range.e.c - range.s.c + 1 }, (_, offset) => {
-    const column = range.s.c + offset;
-    const cell = sheet[utils.encode_cell({ r: range.s.r, c: column })] as
+    const intColumn = range.s.c + offset;
+    const cell = sheet[utils.encode_cell({ r: range.s.r, c: intColumn })] as
       CellObject | undefined;
-    const title = header && cell ? utils.format_cell(cell).slice(0, 100) : "";
+    const strTitle = header && cell ? utils.format_cell(cell).slice(0, 100) : "";
     return {
-      value: column,
-      title: `${utils.encode_col(column)}${title ? ` — ${title}` : ""}`,
+      value: intColumn,
+      title: `${utils.encode_col(intColumn)}${strTitle ? ` — ${strTitle}` : ""}`,
     };
   });
 }
@@ -104,7 +104,7 @@ export function convertQueueFile(
   options: QueueImportOptions,
 ): { rows: QueueImportRow[]; skipped: number } {
   const rows: QueueImportRow[] = [];
-  let skipped = 0;
+  let intSkipped = 0;
   function add(value: JsonValue, location: string): void {
     try {
       validateJsonValue(value);
@@ -133,13 +133,15 @@ export function convertQueueFile(
   } else if (source.kind === "txt" || source.kind === "jsonl") {
     (source.text ?? "").split(/\r\n|\n|\r/).forEach((line, index) => {
       if (!line.trim()) {
-        skipped += 1;
+        intSkipped += 1;
         return;
       }
-      const location = `Line ${index + 1}`;
+      const strLocation = `Line ${index + 1}`;
       add(
-        source.kind === "jsonl" || options.format === "json" ? parse(line, location) : line,
-        location,
+        source.kind === "jsonl" || options.format === "json"
+          ? parse(line, strLocation)
+          : line,
+        strLocation,
       );
     });
   } else {
@@ -147,29 +149,33 @@ export function convertQueueFile(
     if (!sheet) throw new Error("Select a worksheet and column.");
     const range = parseWorksheetRange(sheet);
     if (options.column === null) throw new Error("Select a worksheet and column.");
-    for (let row = range.s.r + (options.header ? 1 : 0); row <= range.e.r; row += 1) {
-      const address = utils.encode_cell({ r: row, c: options.column });
-      const cell = sheet[address] as CellObject | undefined;
-      const location = `${options.worksheet}!${address}`;
+    for (
+      let intRow = range.s.r + (options.header ? 1 : 0);
+      intRow <= range.e.r;
+      intRow += 1
+    ) {
+      const strAddress = utils.encode_cell({ r: intRow, c: options.column });
+      const cell = sheet[strAddress] as CellObject | undefined;
+      const strLocation = `${options.worksheet}!${strAddress}`;
       if (cell?.t === "e" || (cell?.f && cell.v === undefined))
-        throw new Error(`${location}: No readable saved cell result.`);
+        throw new Error(`${strLocation}: No readable saved cell result.`);
       if (
         !cell ||
         cell.v === undefined ||
         cell.v === null ||
         String(cell.v).trim() === ""
       ) {
-        skipped += 1;
+        intSkipped += 1;
         continue;
       }
-      const text = utils.format_cell(cell);
+      const strText = utils.format_cell(cell);
       const value =
         options.format === "text"
-          ? text
+          ? strText
           : typeof cell.v === "boolean"
             ? cell.v
-            : parse(text, location);
-      add(value, location);
+            : parse(strText, strLocation);
+      add(value, strLocation);
     }
   }
   if (!rows.length) throw new Error("No nonempty items were found.");
@@ -182,5 +188,5 @@ export function convertQueueFile(
     ).length > MAX_BYTES
   )
     throw new Error("The complete JSON request exceeds 2 MiB. Reduce this batch.");
-  return { rows, skipped };
+  return { rows, skipped: intSkipped };
 }

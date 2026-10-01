@@ -139,7 +139,7 @@ class SmtpConfig(_BaseConfig):
 
 
 class LoggingConfig(_BaseConfig):
-    level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
+    level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "DEBUG"
     requests: bool = True
 
 
@@ -204,13 +204,13 @@ def read_config(configPath: Path) -> ConsoleConfig:
 def read_secret_file(secretPath: Path) -> str:
     try:
         # Remove text-file line endings without changing spaces in a password.
-        secretValue = secretPath.read_text(encoding="utf-8-sig").rstrip("\r\n")
+        strSecretValue = secretPath.read_text(encoding="utf-8-sig").rstrip("\r\n")
     except (OSError, UnicodeError) as e:
         raise ImproperlyConfigured(f"Cannot read secret file: {secretPath}") from e
 
-    if not secretValue.strip():
+    if not strSecretValue.strip():
         raise ImproperlyConfigured(f"Secret file is empty: {secretPath}")
-    return secretValue
+    return strSecretValue
 
 
 def read_secret_cipher(configDirectory: Path, keyFiles: list[str]) -> MultiFernet | None:

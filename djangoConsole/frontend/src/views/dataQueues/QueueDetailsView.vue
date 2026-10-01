@@ -8,7 +8,9 @@
   </div>
   <v-alert v-if="error" type="error" variant="tonal" class="mb-4" role="alert">
     {{ error.message
-    }}<v-btn v-if="!page" variant="text" :disabled="loading" @click="load"> Retry </v-btn>
+    }}<v-btn v-if="!page" variant="text" :disabled="boolLoading" @click="load">
+      Retry
+    </v-btn>
   </v-alert>
   <v-alert
     v-if="strActionError"
@@ -20,10 +22,10 @@
     @click:close="strActionError = ''">
     {{ strActionError }}
   </v-alert>
-  <v-alert v-if="message" type="success" variant="tonal" class="mb-4" role="status">
-    {{ message }}
+  <v-alert v-if="strMessage" type="success" variant="tonal" class="mb-4" role="status">
+    {{ strMessage }}
   </v-alert>
-  <v-progress-linear v-if="loading && !page" indeterminate />
+  <v-progress-linear v-if="boolLoading && !page" indeterminate />
   <template v-if="page">
     <v-card variant="outlined" class="mb-4">
       <v-card-text>
@@ -50,16 +52,16 @@
           <v-btn
             v-if="page.queue.can_manage"
             variant="tonal"
-            :disabled="busy || !!error"
-            @click="editOpen = true">
+            :disabled="boolBusy || !!error"
+            @click="boolEditOpen = true">
             Edit Queue
           </v-btn>
           <v-btn
             v-if="page.queue.can_manage"
             color="error"
             variant="tonal"
-            :disabled="busy || !!error"
-            @click="confirm = 'queue'">
+            :disabled="boolBusy || !!error"
+            @click="strConfirm = 'queue'">
             Delete Queue
           </v-btn>
         </div>
@@ -71,40 +73,40 @@
           <v-row>
             <v-col cols="12" md="3">
               <v-select
-                v-model="status"
+                v-model="strStatus"
                 :items="QUEUE_STATUSES"
                 label="Status"
                 variant="outlined"
                 density="compact"
                 hide-details
-                :disabled="busy" />
+                :disabled="boolBusy" />
             </v-col>
             <v-col cols="12" md="5">
               <v-text-field
-                v-model="itemId"
+                v-model="strItemId"
                 label="Item ID"
                 variant="outlined"
                 density="compact"
                 hide-details
                 clearable
-                :disabled="busy" />
+                :disabled="boolBusy" />
             </v-col>
             <v-col cols="12" md="4">
               <v-select
-                v-model="order"
+                v-model="strOrder"
                 :items="QUEUE_ORDERS"
                 label="Order"
                 variant="outlined"
                 density="compact"
                 hide-details
-                :disabled="busy" />
+                :disabled="boolBusy" />
             </v-col>
           </v-row>
           <div class="d-flex flex-wrap ga-2 mt-4">
-            <v-btn type="submit" variant="tonal" color="primary" :disabled="busy">
+            <v-btn type="submit" variant="tonal" color="primary" :disabled="boolBusy">
               Apply
             </v-btn>
-            <v-btn variant="outlined" :disabled="busy" @click="clearFilters">
+            <v-btn variant="outlined" :disabled="boolBusy" @click="clearFilters">
               Clear Filters
             </v-btn>
           </div>
@@ -115,44 +117,44 @@
       <v-btn
         color="primary"
         variant="tonal"
-        :disabled="busy || !!error"
-        @click="uploadOpen = true">
+        :disabled="boolBusy || !!error"
+        @click="boolUploadOpen = true">
         Upload Items
       </v-btn>
       <v-btn
         variant="tonal"
-        :disabled="busy || !!error || !canReset"
-        @click="confirm = 'reset'">
+        :disabled="boolBusy || !!error || !boolCanReset"
+        @click="strConfirm = 'reset'">
         Reset Selected
       </v-btn>
       <v-btn
         color="error"
         variant="tonal"
-        :disabled="busy || !!error || !selected.length"
-        @click="confirm = 'items'">
+        :disabled="boolBusy || !!error || !selectedItemIds.length"
+        @click="strConfirm = 'items'">
         Delete Selected
       </v-btn>
       <v-spacer />
       <v-btn
         variant="tonal"
         prepend-icon="mdi-refresh"
-        :loading="loading"
-        :disabled="busy"
+        :loading="boolLoading"
+        :disabled="boolBusy"
         @click="load">
         Refresh
       </v-btn>
     </div>
-    <p class="text-body-2 text-medium-emphasis mb-3">Time zone: {{ timeZone }}</p>
+    <p class="text-body-2 text-medium-emphasis mb-3">Time zone: {{ strTimeZone }}</p>
     <v-card variant="outlined">
       <v-data-table-server
-        v-model="selected"
-        :headers="headers"
+        v-model="selectedItemIds"
+        :headers="ARR_HEADER"
         :items="page.items"
         :items-length="page.total_count"
         :items-per-page="50"
         :page="page.page"
-        :loading="loading"
-        :item-selectable="() => !busy && !error"
+        :loading="boolLoading"
+        :item-selectable="() => !boolBusy && !error"
         item-value="id"
         show-select
         select-strategy="page"
@@ -169,7 +171,9 @@
           <div class="table-text-narrow">{{ item.uploaded_by_name }}</div>
         </template>
         <template #item.uploaded_at="{ item }">
-          <span class="text-no-wrap">{{ formatDateTime(item.uploaded_at, timeZone) }}</span>
+          <span class="text-no-wrap">{{
+            formatDateTime(item.uploaded_at, strTimeZone)
+          }}</span>
         </template>
         <template #item.last_claimed_by_name="{ item }">
           <div class="table-text-narrow">
@@ -178,7 +182,7 @@
         </template>
         <template #item.last_claimed_at="{ item }">
           <span class="text-no-wrap">
-            {{ formatDateTime(item.last_claimed_at, timeZone) }}
+            {{ formatDateTime(item.last_claimed_at, strTimeZone) }}
           </span>
         </template>
         <template #item.actions="{ item }">
@@ -205,30 +209,30 @@
           :model-value="page.page"
           :length="page.total_pages"
           :total-visible="5"
-          :disabled="busy"
+          :disabled="boolBusy"
           @update:model-value="changePage" />
       </div>
     </v-card>
     <QueueFormDialog
-      v-if="editOpen"
+      v-if="boolEditOpen"
       :queue="page.queue"
-      @close="editOpen = false"
+      @close="boolEditOpen = false"
       @saved="handleEdited" />
     <QueueUploadDialog
-      v-if="uploadOpen"
+      v-if="boolUploadOpen"
       :queue="page.queue"
-      @close="uploadOpen = false"
+      @close="boolUploadOpen = false"
       @uploaded="handleUploaded" />
     <v-dialog
-      :model-value="!!confirm"
+      :model-value="!!strConfirm"
       persistent
       max-width="560"
       aria-labelledby="queue-confirm-title">
       <v-card>
         <v-card-title id="queue-confirm-title">{{
-          confirm === "reset"
+          strConfirm === "reset"
             ? "Reset to Unclaimed"
-            : confirm === "queue"
+            : strConfirm === "queue"
               ? "Delete Queue"
               : "Delete Items"
         }}</v-card-title>
@@ -236,11 +240,11 @@
           <p class="text-break mb-3">{{ page.queue.path }}</p>
           <p>
             {{
-              confirm === "queue"
+              strConfirm === "queue"
                 ? `Delete this queue and all ${page.queue.unclaimed_count + page.queue.claimed_count} items?`
-                : confirm === "reset"
-                  ? `Reset ${selected.length} selected items to Unclaimed?`
-                  : `Delete ${selected.length} selected items?`
+                : strConfirm === "reset"
+                  ? `Reset ${selectedItemIds.length} selected items to Unclaimed?`
+                  : `Delete ${selectedItemIds.length} selected items?`
             }}
           </p>
           <v-alert
@@ -254,14 +258,14 @@
         </v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn :disabled="saving" @click="closeConfirm">Cancel</v-btn>
+          <v-btn :disabled="boolSaving" @click="closeConfirm">Cancel</v-btn>
           <v-btn
-            :color="confirm === 'reset' ? 'primary' : 'error'"
+            :color="strConfirm === 'reset' ? 'primary' : 'error'"
             variant="tonal"
-            :disabled="saving"
-            :loading="saving"
+            :disabled="boolSaving"
+            :loading="boolSaving"
             @click="submitMutation">
-            {{ confirm === "reset" ? "Reset" : "Delete" }}
+            {{ strConfirm === "reset" ? "Reset" : "Delete" }}
           </v-btn>
         </v-card-actions>
       </v-card>
@@ -289,18 +293,15 @@ import {
   deleteQueue,
   changeQueueItems,
 } from "@/api/dataQueues";
-import type {
-  QueueItemsResponse,
-  QueueMutationResponse,
-} from "@/api/generated/browserApi";
+import type { QueueItemsResponse, QueueMutationResponse } from "@/api/generated/browserApi";
 import { formatDateTime } from "@/app/formatters";
 
 const props = defineProps<{ queueId: string }>();
 const route = useRoute();
 const router = useRouter();
-const session = useSessionStore();
-const timeZone = computed(() => session.session?.user.time_zone ?? "UTC");
-const headers = [
+const sessionStore = useSessionStore();
+const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");
+const ARR_HEADER = [
   { title: "Data", key: "data_summary", minWidth: 220 },
   { title: "Status", key: "status" },
   { title: "Uploaded By", key: "uploaded_by_name", minWidth: 180 },
@@ -312,21 +313,21 @@ const headers = [
 const page = shallowRef<QueueItemsResponse | null>(null);
 const error = shallowRef<ApiError | null>(null);
 const mutationError = shallowRef<ApiError | null>(null);
-const message = ref("");
+const strMessage = ref("");
 const strActionError = ref("");
-const selected = ref<string[]>([]);
-const status = ref("all");
-const order = ref("oldest_first");
-const itemId = ref<string | null>("");
-const loading = ref(false);
-const saving = ref(false);
-const editOpen = ref(false);
-const uploadOpen = ref(false);
-const confirm = ref<"queue" | "items" | "reset" | null>(null);
-const busy = computed(() => loading.value || saving.value);
-const canReset = computed(() =>
+const selectedItemIds = ref<string[]>([]);
+const strStatus = ref("all");
+const strOrder = ref("oldest_first");
+const strItemId = ref<string | null>("");
+const boolLoading = ref(false);
+const boolSaving = ref(false);
+const boolEditOpen = ref(false);
+const boolUploadOpen = ref(false);
+const strConfirm = ref<"queue" | "items" | "reset" | null>(null);
+const boolBusy = computed(() => boolLoading.value || boolSaving.value);
+const boolCanReset = computed(() =>
   page.value?.items.some(
-    (item) => selected.value.includes(item.id) && item.status === "claimed",
+    (item) => selectedItemIds.value.includes(item.id) && item.status === "claimed",
   ),
 );
 const listQuery = computed(() => ({
@@ -334,34 +335,34 @@ const listQuery = computed(() => ({
   department_id: route.query.department_id,
   page: route.query.page,
 }));
-let revision = 0;
-const queryText = (key: string, fallback: string): string =>
+let intRevision = 0;
+const getQueryText = (key: string, fallback: string): string =>
   typeof route.query[key] === "string" ? route.query[key] : fallback;
 async function changePage(value: number): Promise<void> {
-  selected.value = [];
+  selectedItemIds.value = [];
   await router.replace({ query: { ...route.query, item_page: String(value) } });
 }
 
 async function load(): Promise<void> {
-  const current = ++revision;
-  selected.value = [];
-  loading.value = true;
+  const intCurrentRevision = ++intRevision;
+  selectedItemIds.value = [];
+  boolLoading.value = true;
   error.value = null;
   strActionError.value = "";
   try {
     const result = await getQueueItems(
       props.queueId,
-      queryText("status", "all"),
-      queryText("order", "oldest_first"),
-      queryText("item_id", ""),
+      getQueryText("status", "all"),
+      getQueryText("order", "oldest_first"),
+      getQueryText("item_id", ""),
       Number(route.query.item_page) || 1,
     );
-    if (current === revision) {
+    if (intCurrentRevision === intRevision) {
       page.value = result;
-      selected.value = [];
+      selectedItemIds.value = [];
     }
   } catch (e) {
-    if (current !== revision) return;
+    if (intCurrentRevision !== intRevision) return;
     error.value = getApiError(e);
     if (error.value.code === "invalid_page" && Number(route.query.item_page) > 1) {
       await changePage(1);
@@ -369,22 +370,22 @@ async function load(): Promise<void> {
     }
     if ([401, 403, 404].includes(error.value.statusCode)) {
       page.value = null;
-      editOpen.value = false;
-      uploadOpen.value = false;
-      confirm.value = null;
-      if (error.value.statusCode === 403) await session.refreshSession();
+      boolEditOpen.value = false;
+      boolUploadOpen.value = false;
+      strConfirm.value = null;
+      if (error.value.statusCode === 403) await sessionStore.refreshSession();
     }
   } finally {
-    if (current === revision) loading.value = false;
+    if (intCurrentRevision === intRevision) boolLoading.value = false;
   }
 }
 async function applyFilters(): Promise<void> {
-  selected.value = [];
+  selectedItemIds.value = [];
   const query = {
     ...listQuery.value,
-    status: status.value,
-    order: order.value,
-    item_id: itemId.value?.trim() || undefined,
+    status: strStatus.value,
+    order: strOrder.value,
+    item_id: strItemId.value?.trim() || undefined,
   };
   const location = {
     name: "data-queue-details",
@@ -395,65 +396,65 @@ async function applyFilters(): Promise<void> {
   else await router.replace(location);
 }
 function clearFilters(): void {
-  status.value = "all";
-  order.value = "oldest_first";
-  itemId.value = "";
+  strStatus.value = "all";
+  strOrder.value = "oldest_first";
+  strItemId.value = "";
   void applyFilters();
 }
 function handleEdited(): void {
-  editOpen.value = false;
-  message.value = "Queue updated.";
+  boolEditOpen.value = false;
+  strMessage.value = "Queue updated.";
   void load();
 }
 function handleUploaded(result: QueueMutationResponse): void {
-  uploadOpen.value = false;
-  message.value = `${result.item_ids.length} items uploaded${result.deduplicated ? " (original request confirmed)" : ""}.`;
+  boolUploadOpen.value = false;
+  strMessage.value = `${result.item_ids.length} items uploaded${result.deduplicated ? " (original request confirmed)" : ""}.`;
   void load();
 }
 function closeConfirm(): void {
-  confirm.value = null;
+  strConfirm.value = null;
   mutationError.value = null;
 }
 async function submitMutation(): Promise<void> {
-  if (saving.value || !confirm.value || !session.session) return;
-  const current = revision;
-  saving.value = true;
+  if (boolSaving.value || !strConfirm.value || !sessionStore.session) return;
+  const intCurrentRevision = intRevision;
+  boolSaving.value = true;
   mutationError.value = null;
   try {
-    if (confirm.value === "queue") {
+    if (strConfirm.value === "queue") {
       await deleteQueue(props.queueId);
-      if (current !== revision) return;
+      if (intCurrentRevision !== intRevision) return;
       await router.push({ name: "data-queues", query: listQuery.value });
       return;
     }
     const result = await changeQueueItems(
-      session.session.user.id,
+      sessionStore.session.user.id,
       props.queueId,
-      confirm.value === "reset" ? "reset" : "delete_items",
-      { item_ids: [...selected.value] },
+      strConfirm.value === "reset" ? "reset" : "delete_items",
+      { item_ids: [...selectedItemIds.value] },
     );
-    if (current !== revision) return;
-    message.value = `${result.item_ids.length} items ${confirm.value === "reset" ? "reset" : "deleted"}; ${result.missing_ids.length} no longer present; ${result.skipped_ids.length} unchanged${result.deduplicated ? " (original request confirmed)" : ""}.`;
+    if (intCurrentRevision !== intRevision) return;
+    strMessage.value = `${result.item_ids.length} items ${strConfirm.value === "reset" ? "reset" : "deleted"}; ${result.missing_ids.length} no longer present; ${result.skipped_ids.length} unchanged${result.deduplicated ? " (original request confirmed)" : ""}.`;
     closeConfirm();
     await load();
   } catch (e) {
-    if (current !== revision) return;
+    if (intCurrentRevision !== intRevision) return;
     mutationError.value = getApiError(e);
-    if (mutationError.value.statusCode === 403) await session.refreshSession();
+    if (mutationError.value.statusCode === 403) await sessionStore.refreshSession();
   } finally {
-    saving.value = false;
+    boolSaving.value = false;
   }
 }
 async function copyPath(): Promise<void> {
   if (!page.value) return;
-  const current = revision;
+  const intCurrentRevision = intRevision;
   strActionError.value = "";
-  message.value = "";
+  strMessage.value = "";
   try {
     await navigator.clipboard.writeText(page.value.queue.path);
-    if (current === revision) message.value = "Path copied.";
+    if (intCurrentRevision === intRevision) strMessage.value = "Path copied.";
   } catch {
-    if (current === revision)
+    if (intCurrentRevision === intRevision)
       strActionError.value = "The path could not be copied. Copy it from the Path field.";
   }
 }
@@ -462,34 +463,34 @@ watch(
   () => props.queueId,
   () => {
     page.value = null;
-    message.value = "";
+    strMessage.value = "";
   },
 );
-watch([status, order, itemId], () => {
-  selected.value = [];
+watch([strStatus, strOrder, strItemId], () => {
+  selectedItemIds.value = [];
 });
 // Opening an item dialog must not reload the list or reset its selection and drafts.
 watch(
   [
     () => props.queueId,
-    () => queryText("status", "all"),
-    () => queryText("order", "oldest_first"),
-    () => queryText("item_id", ""),
+    () => getQueryText("status", "all"),
+    () => getQueryText("order", "oldest_first"),
+    () => getQueryText("item_id", ""),
     () => Number(route.query.item_page) || 1,
   ],
   () => {
-    status.value = queryText("status", "all");
-    order.value = queryText("order", "oldest_first");
-    itemId.value = queryText("item_id", "");
+    strStatus.value = getQueryText("status", "all");
+    strOrder.value = getQueryText("order", "oldest_first");
+    strItemId.value = getQueryText("item_id", "");
     closeConfirm();
-    editOpen.value = false;
-    uploadOpen.value = false;
+    boolEditOpen.value = false;
+    boolUploadOpen.value = false;
     void load();
   },
   { immediate: true },
 );
 onBeforeUnmount(() => {
-  revision += 1;
+  intRevision += 1;
 });
 </script>
 

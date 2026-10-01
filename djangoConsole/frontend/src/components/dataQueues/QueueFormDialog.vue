@@ -14,16 +14,16 @@
         <v-form id="queue-form" validate-on="submit" @submit.prevent="submit">
           <v-alert v-if="error" type="error" variant="tonal" class="mb-4" role="alert">
             {{ error.message }}
-            <p v-for="message in Object.values(error.fields).flat()" :key="message">
-              {{ message }}
+            <p v-for="strMessage in Object.values(error.fields).flat()" :key="strMessage">
+              {{ strMessage }}
             </p>
           </v-alert>
           <v-text-field
-            v-model="name"
+            v-model="strName"
             label="Name"
             variant="outlined"
             :rules="[validatePathName]"
-            :disabled="saving" />
+            :disabled="boolSaving" />
           <v-text-field
             v-if="queue"
             :model-value="queue.department.path"
@@ -32,17 +32,17 @@
             readonly />
           <v-select
             v-else
-            v-model="departmentId"
+            v-model="strDepartmentId"
             :items="departments"
             item-title="path"
             item-value="id"
             label="Department"
             variant="outlined"
             :rules="[(value) => !!value || 'Select a department.']"
-            :disabled="saving" />
-          <v-text-field :model-value="path" label="Path" variant="outlined" readonly />
+            :disabled="boolSaving" />
+          <v-text-field :model-value="strPath" label="Path" variant="outlined" readonly />
           <v-alert
-            v-if="queue && name !== queue.name"
+            v-if="queue && strName !== queue.name"
             type="warning"
             variant="tonal"
             class="mb-4">
@@ -50,25 +50,25 @@
             configuration.</v-alert
           >
           <v-textarea
-            v-model="notes"
+            v-model="strNotes"
             label="Notes"
             variant="outlined"
             rows="3"
             maxlength="2000"
             counter="2000"
-            :disabled="saving" />
+            :disabled="boolSaving" />
         </v-form>
       </v-card-text>
       <v-card-actions>
         <v-spacer />
-        <v-btn :disabled="saving" @click="emit('close')"> Cancel </v-btn>
+        <v-btn :disabled="boolSaving" @click="emit('close')"> Cancel </v-btn>
         <v-btn
           type="submit"
           form="queue-form"
           color="primary"
           variant="tonal"
-          :loading="saving"
-          :disabled="saving || !allowed">
+          :loading="boolSaving"
+          :disabled="boolSaving || !boolAllowed">
           {{ queue ? "Save" : "Create" }}
         </v-btn>
       </v-card-actions>
@@ -90,15 +90,15 @@ import type { QueueEntryResponse, QueueDetailsResponse } from "@/api/generated/b
 
 const props = defineProps<{ queue?: QueueEntryResponse; initialDepartmentId?: string }>();
 const emit = defineEmits<{ close: []; saved: [response: QueueDetailsResponse] }>();
-const session = useSessionStore();
+const sessionStore = useSessionStore();
 const departments = computed(() =>
-  (session.access?.departments ?? []).filter(
-    (department) => session.access?.is_org_admin || department.role === "developer",
+  (sessionStore.access?.departments ?? []).filter(
+    (department) => sessionStore.access?.is_org_admin || department.role === "developer",
   ),
 );
-const name = ref(props.queue?.name ?? "");
-const notes = ref(props.queue?.notes ?? "");
-const departmentId = ref(
+const strName = ref(props.queue?.name ?? "");
+const strNotes = ref(props.queue?.notes ?? "");
+const strDepartmentId = ref(
   props.queue?.department.id ??
     (departments.value.some((department) => department.id === props.initialDepartmentId)
       ? props.initialDepartmentId
@@ -106,43 +106,47 @@ const departmentId = ref(
         ? departments.value[0]!.id
         : null),
 );
-const path = computed(() => {
-  const department =
+const strPath = computed(() => {
+  const strDepartmentPath =
     props.queue?.department.path ??
-    departments.value.find((entry) => entry.id === departmentId.value)?.path;
-  return department ? `/${department}/${name.value}` : "";
+    departments.value.find((entry) => entry.id === strDepartmentId.value)?.path;
+  return strDepartmentPath ? `/${strDepartmentPath}/${strName.value}` : "";
 });
-const allowed = computed(
+const boolAllowed = computed(
   () =>
-    session.access?.business_available &&
-    departments.value.some((department) => department.id === departmentId.value),
+    sessionStore.access?.business_available &&
+    departments.value.some((department) => department.id === strDepartmentId.value),
 );
 const error = shallowRef<ApiError | null>(null);
-const saving = ref(false);
-let unmounted = false;
+const boolSaving = ref(false);
+let boolUnmounted = false;
 async function submit(event: SubmitEventPromise): Promise<void> {
-  if (saving.value || !allowed.value || !(await event).valid) return;
-  saving.value = true;
+  if (boolSaving.value || !boolAllowed.value || !(await event).valid) return;
+  boolSaving.value = true;
   error.value = null;
   try {
     const response = await saveQueue(
       props.queue
-        ? { name: name.value, notes: notes.value }
-        : { name: name.value, notes: notes.value, department_id: departmentId.value! },
+        ? { name: strName.value, notes: strNotes.value }
+        : {
+            name: strName.value,
+            notes: strNotes.value,
+            department_id: strDepartmentId.value!,
+          },
       props.queue?.id,
     );
-    if (!unmounted) emit("saved", response);
+    if (!boolUnmounted) emit("saved", response);
   } catch (e) {
-    if (!unmounted) {
+    if (!boolUnmounted) {
       error.value = getApiError(e);
-      if (error.value.statusCode === 403) await session.refreshSession();
+      if (error.value.statusCode === 403) await sessionStore.refreshSession();
     }
   } finally {
-    saving.value = false;
+    boolSaving.value = false;
   }
 }
 onBeforeUnmount(() => {
-  unmounted = true;
+  boolUnmounted = true;
 });
 </script>
 

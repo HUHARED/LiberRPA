@@ -41,8 +41,8 @@ def validate_json_value(value: JsonValue) -> None:
                 "Use finite numbers and integers within the safe integer range.",
             )
         if isinstance(child, dict):
-            for key, entry in child.items():
-                key.encode("utf-8")
+            for strKey, entry in child.items():
+                strKey.encode("utf-8")
                 validate_child(entry, depth + 1)
         elif isinstance(child, list):
             for entry in child:

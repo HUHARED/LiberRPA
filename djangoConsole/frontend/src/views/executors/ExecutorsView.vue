@@ -257,10 +257,10 @@
             role="alert">
             Creation was not confirmed. {{ newExecutorError.message }}
             <p
-              v-for="message in newExecutorError.fields.__all__"
-              :key="message"
+              v-for="strMessage in newExecutorError.fields.__all__"
+              :key="strMessage"
               class="mt-2">
-              {{ message }}
+              {{ strMessage }}
             </p>
           </v-alert>
           <v-alert
@@ -341,11 +341,7 @@ import type { SubmitEventPromise } from "vuetify";
 import { useSessionStore } from "@/stores/sessionStore";
 
 import { type ApiError, getApiError } from "@/api/errors";
-import {
-  type ExecutorListFilters,
-  getExecutorList,
-  createExecutor,
-} from "@/api/executors";
+import { type ExecutorListFilters, getExecutorList, createExecutor } from "@/api/executors";
 import type {
   ExecutorListResponse,
   ExecutorRecordResponse,

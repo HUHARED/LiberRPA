@@ -70,8 +70,8 @@ def get_department_access_info(
     else:
         # Reuse the membership join already scoped by get_authorized_departments().
         dictRoleByDepartmentId = {
-            departmentId: DepartmentRole(role)
-            for departmentId, role in departmentQuery.values_list(
+            departmentId: DepartmentRole(strRole)
+            for departmentId, strRole in departmentQuery.values_list(
                 "id", "memberships__role"
             )
         }
@@ -114,9 +114,9 @@ def get_account_access_info(*, actorId: uuid.UUID) -> AccountAccessInfo:
     """
     membership = get_current_membership(actorId=actorId)
     organization = cast(Organization, membership.organization)
-    businessAvailable = is_organization_business_available(organization)
+    boolBusinessAvailable = is_organization_business_available(organization)
     departmentAccessEntries: tuple[DepartmentAccessInfo, ...] = ()
-    if businessAvailable:
+    if boolBusinessAvailable:
         access = OrganizationAccessContext(
             actor=cast(User, membership.user),
             organization=organization,
@@ -135,6 +135,6 @@ def get_account_access_info(*, actorId: uuid.UUID) -> AccountAccessInfo:
             deletionStartedAt=organization.deletion_started_at,
         ),
         isOrgAdmin=membership.is_org_admin,
-        businessAvailable=businessAvailable,
+        businessAvailable=boolBusinessAvailable,
         departments=departmentAccessEntries,
     )
