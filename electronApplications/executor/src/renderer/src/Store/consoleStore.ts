@@ -13,6 +13,7 @@ export const useConsoleStore = defineStore("console", {
     return {
       account: {
         consoleUrl: "" as string,
+        rememberedEmail: "" as string,
         connection: ConsoleConnection.SignedOut as ConsoleConnection,
         sessionInfo: null as ConsoleSessionInfo | null,
         message: "" as string,

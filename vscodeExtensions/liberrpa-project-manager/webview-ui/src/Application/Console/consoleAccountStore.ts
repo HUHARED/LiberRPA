@@ -14,6 +14,7 @@ export const useConsoleAccountStore = defineStore("consoleAccount", {
     return {
       accountState: {
         url: "" as string,
+        rememberedEmail: "" as string,
         connection: ConsoleConnection.SignedOut as ConsoleConnection,
         signedIn: false as boolean,
         account: null as EditorSessionInfo | null,

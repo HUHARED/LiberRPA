@@ -19,6 +19,7 @@ import {
 } from "../../Adapter/Console/consoleClient";
 
 const STR_ADDRESS_KEY = "console.url";
+const STR_EMAIL_KEY = "console.email";
 const STR_SESSION_KEY = "console.editorSession";
 
 interface ConsoleCredential {
@@ -39,8 +40,10 @@ export class ConsoleAccount implements vscode.Disposable {
   private state: ConsoleAccountState;
 
   public constructor(private readonly context: vscode.ExtensionContext) {
+    const strUrl = context.globalState.get<string>(STR_ADDRESS_KEY, "");
     this.state = {
-      url: context.globalState.get<string>(STR_ADDRESS_KEY, ""),
+      url: strUrl,
+      rememberedEmail: this.getRememberedEmail(strUrl),
       connection: ConsoleConnection.SignedOut,
       signedIn: false,
       account: null,
@@ -69,6 +72,12 @@ export class ConsoleAccount implements vscode.Disposable {
   public async getState(): Promise<ConsoleAccountState> {
     await this.initialization;
     return this.state;
+  }
+
+  private getRememberedEmail(url: string): string {
+    return url !== "" && url === this.context.globalState.get<string>(STR_ADDRESS_KEY, "")
+      ? this.context.globalState.get<string>(STR_EMAIL_KEY, "")
+      : "";
   }
 
   private publishState(): void {
@@ -152,6 +161,7 @@ export class ConsoleAccount implements vscode.Disposable {
     try {
       const strCredential = await this.context.secrets.get(STR_SESSION_KEY);
       if (strCredential === undefined) {
+        const strUrl = this.context.globalState.get<string>(STR_ADDRESS_KEY, "");
         const strMessage =
           this.credential === null
             ? this.state.message
@@ -159,6 +169,8 @@ export class ConsoleAccount implements vscode.Disposable {
         this.credential = null;
         this.state = {
           ...this.state,
+          url: strUrl,
+          rememberedEmail: this.getRememberedEmail(strUrl),
           signedIn: false,
           connection: ConsoleConnection.SignedOut,
           account: null,
@@ -179,16 +191,20 @@ export class ConsoleAccount implements vscode.Disposable {
         return;
       }
       const strUrl = normalizeConsoleUrl(credentialValue["url"]);
+      const strRememberedEmail = this.getRememberedEmail(strUrl);
       if (
         this.credential?.token === credentialValue["token"] &&
         this.credential.url === strUrl
       ) {
+        this.state = { ...this.state, rememberedEmail: strRememberedEmail };
+        this.publishState();
         return;
       }
       this.credential = { url: strUrl, token: credentialValue["token"] };
       this.state = {
         ...this.state,
         url: strUrl,
+        rememberedEmail: strRememberedEmail,
         signedIn: true,
         account: null,
         lastContactAt: null,
@@ -260,10 +276,12 @@ export class ConsoleAccount implements vscode.Disposable {
       }
       // Revoke the old session only after anonymous validation succeeds.
       await this.revokeSession();
+      await this.context.globalState.update(STR_EMAIL_KEY, "");
       await this.context.globalState.update(STR_ADDRESS_KEY, strUrl);
       this.state = {
         ...this.state,
         url: strUrl,
+        rememberedEmail: "",
         message: "Console address saved. Sign in to connect.",
       };
       this.publishState();
@@ -316,7 +334,9 @@ export class ConsoleAccount implements vscode.Disposable {
         await requestConsole(strUrl, "/api/clients/editor/logout/", credential.token, {});
         throw new Error("VS Code could not securely save the Console session.");
       }
+      await this.context.globalState.update(STR_EMAIL_KEY, account.user.email);
       this.credential = credential;
+      this.state = { ...this.state, rememberedEmail: account.user.email };
       this.applySession(account);
     });
   }

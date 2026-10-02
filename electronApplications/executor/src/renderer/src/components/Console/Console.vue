@@ -346,6 +346,7 @@ function closeSignInDialog(): void {
 }
 
 function openSignInDialog(): void {
+  strEmail.value = account.value.rememberedEmail;
   strSignInError.value = "";
   boolShowSignIn.value = true;
 }

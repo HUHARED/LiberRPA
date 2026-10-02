@@ -212,7 +212,7 @@
   </v-dialog>
 </template>
 <script setup lang="ts">
-import { computed, onUnmounted, ref } from "vue";
+import { computed, onUnmounted, ref, watch } from "vue";
 
 import { postMessage } from "../Adapter/Extension/vscodeApi";
 import { useProjectManagerStore } from "../Application/projectManagerStore";
@@ -280,6 +280,7 @@ function changeAddress(): void {
 }
 
 function openSignIn(): void {
+  strEmail.value = consoleAccountStore.accountState.rememberedEmail;
   strPassword.value = "";
   boolShowPassword.value = false;
   consoleAccountStore.signInError = "";
@@ -317,6 +318,15 @@ function checkConnection(): void {
   projectManagerStore.busy = true;
   postMessage({ command: "checkConsoleConnection" });
 }
+
+watch(
+  () => consoleAccountStore.accountState.url,
+  () => {
+    strEmail.value = consoleAccountStore.accountState.rememberedEmail;
+    strPassword.value = "";
+    boolShowPassword.value = false;
+  },
+);
 
 onUnmounted(() => {
   strPassword.value = "";

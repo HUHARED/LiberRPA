@@ -29,6 +29,7 @@ import {
 } from "./consoleApi";
 
 let strConsoleUrl = "";
+let strRememberedEmail = "";
 let strToken = "";
 let sessionInfo: ConsoleSessionInfo | null = null;
 let connection = ConsoleConnection.SignedOut;
@@ -44,7 +45,7 @@ function getCredentialPath(): string {
   return path.join(app.getPath("userData"), "console-account.json");
 }
 
-function writeAccount(consoleUrl: string, token: string): void {
+function writeAccount(consoleUrl: string, token: string, email: string): void {
   if (token !== "" && !safeStorage.isEncryptionAvailable()) {
     throw new Error("Windows protected credential storage is unavailable.");
   }
@@ -52,6 +53,7 @@ function writeAccount(consoleUrl: string, token: string): void {
   fs.mkdirSync(path.dirname(strFilePath), { recursive: true });
   writeJsonFileAtomic(strFilePath, {
     consoleUrl,
+    email,
     encryptedToken: token === "" ? "" : safeStorage.encryptString(token).toString("base64"),
   });
 }
@@ -61,7 +63,7 @@ function clearSession(message = ""): void {
   sessionInfo = null;
   connection = ConsoleConnection.SignedOut;
   strMessage = message;
-  writeAccount(strConsoleUrl, "");
+  writeAccount(strConsoleUrl, "", strRememberedEmail);
 }
 
 function isInvalidSession(e: unknown): boolean {
@@ -72,12 +74,13 @@ function isInvalidSession(e: unknown): boolean {
   );
 }
 
-function updateSession(response: Record<string, unknown>): void {
+function updateSession(response: Record<string, unknown>): ConsoleSessionInfo {
   sessionInfo = parseConsoleSession(response);
   connection = sessionInfo.session.selection_required
     ? ConsoleConnection.SelectingExecutor
     : ConsoleConnection.Connected;
   strMessage = "";
+  return sessionInfo;
 }
 
 function handleContactError(e: unknown): void {
@@ -182,6 +185,7 @@ async function runAccountOperation<T>(operation: () => Promise<T>): Promise<T> {
 export function getConsoleAccountState(): ConsoleAccountState {
   return {
     consoleUrl: strConsoleUrl,
+    rememberedEmail: strRememberedEmail,
     connection,
     sessionInfo,
     message: strMessage,
@@ -209,6 +213,10 @@ export function startConsoleAccount(onChanged: () => void): void {
       );
       const strSavedUrl = ensureString(dictAccount.consoleUrl, "Console URL");
       strConsoleUrl = strSavedUrl === "" ? "" : normalizeConsoleUrl(strSavedUrl);
+      strRememberedEmail =
+        dictAccount.email === undefined
+          ? ""
+          : ensureString(dictAccount.email, "Remembered email");
       const strEncryptedToken = ensureString(
         dictAccount.encryptedToken,
         "Protected credential",
@@ -245,8 +253,9 @@ export async function saveConsoleAddress(consoleUrl: string): Promise<ConsoleAcc
     try {
       // Only the old address receives the old credential, after anonymous validation succeeds.
       await revokeSession();
-      writeAccount(strNewUrl, "");
+      writeAccount(strNewUrl, "", "");
       strConsoleUrl = strNewUrl;
+      strRememberedEmail = "";
       strToken = "";
       sessionInfo = null;
       connection = ConsoleConnection.SignedOut;
@@ -281,8 +290,9 @@ export async function signInConsole(args: ConsoleSignInArgs): Promise<ConsoleAcc
     // Persist the protected selection credential before any association request can commit remotely.
     strToken = strNewToken;
     try {
-      writeAccount(strConsoleUrl, strToken);
-      updateSession(dictResponse);
+      const loginSession = updateSession(dictResponse);
+      writeAccount(strConsoleUrl, strToken, loginSession.user.email);
+      strRememberedEmail = loginSession.user.email;
     } catch (e: unknown) {
       await revokeSession();
       clearSession();

@@ -46,6 +46,7 @@ export interface EditorSessionInfo {
 
 export interface ConsoleAccountState {
   url: string;
+  rememberedEmail: string;
   connection: ConsoleConnection;
   signedIn: boolean;
   account: EditorSessionInfo | null;
@@ -90,6 +91,7 @@ export function isConsoleAccountState(value: unknown): value is ConsoleAccountSt
   return (
     isRecord(value) &&
     typeof value["url"] === "string" &&
+    typeof value["rememberedEmail"] === "string" &&
     Object.values(ConsoleConnection).some(
       (connection) => connection === value["connection"],
     ) &&

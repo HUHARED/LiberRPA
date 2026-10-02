@@ -56,6 +56,7 @@ export interface ConsoleSignInArgs {
 
 export interface ConsoleAccountState {
   consoleUrl: string;
+  rememberedEmail: string;
   connection: ConsoleConnection;
   sessionInfo: ConsoleSessionInfo | null;
   message: string;
