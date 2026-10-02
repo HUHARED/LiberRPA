@@ -34,6 +34,8 @@ from .contracts import (
 )
 from .models import SharedFile, UploadState, UploadSession
 
+_INT_FILES_PER_PAGE = 50
+
 
 def require_file_department_access(
     access: OrganizationAccessContext, departmentId: uuid.UUID
@@ -90,7 +92,7 @@ def get_file_list(
     }[payload.sort_by]
     page = Paginator(
         query.order_by(("-" if payload.order == "desc" else "") + strOrderField, "id"),
-        100,
+        _INT_FILES_PER_PAGE,
     ).page(payload.page)
     return FileListResponse(
         files=[build_file_payload(file, strDepartmentPath) for file in page],
@@ -100,7 +102,7 @@ def get_file_list(
             max_file_bytes=settings.CONSOLE_LIMITS.maxSharedFileBytes,
         ),
         page=page.number,
-        page_size=100,
+        page_size=_INT_FILES_PER_PAGE,
         total_count=page.paginator.count,
         total_pages=page.paginator.num_pages,
     )

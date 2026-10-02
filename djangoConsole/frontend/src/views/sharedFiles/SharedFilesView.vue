@@ -140,7 +140,7 @@
         :headers="ARR_HEADER"
         :items="page?.files ?? []"
         :items-length="page?.total_count ?? 0"
-        :items-per-page="100"
+        :items-per-page="50"
         :page="page?.page ?? 1"
         :loading="boolLoading"
         item-value="path"

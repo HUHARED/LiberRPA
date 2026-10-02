@@ -28,6 +28,8 @@ from .contracts import (
 )
 from .models import SECRET_ASSET_TYPES, Asset
 
+_INT_ASSETS_PER_PAGE = 50
+
 
 def get_asset_query(
     access: OrganizationAccessContext,
@@ -65,7 +67,7 @@ def get_asset_list(
         "updated_at",
         value_summary=Substr("value_json", 1, 161),
     )
-    paginator = Paginator(rows, 50)
+    paginator = Paginator(rows, _INT_ASSETS_PER_PAGE)
     page = paginator.page(pageNumber)
     departmentsById = get_department_tree(access.organization.pk)
     managedDepartmentIds = set(
@@ -95,7 +97,7 @@ def get_asset_list(
     return AssetListResponse(
         assets=listEntry,
         page=page.number,
-        page_size=50,
+        page_size=_INT_ASSETS_PER_PAGE,
         total_count=paginator.count,
         total_pages=paginator.num_pages,
     )

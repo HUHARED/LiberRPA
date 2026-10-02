@@ -42,6 +42,10 @@ from .contracts import (
 from .models import DataQueue, QueueItem
 
 
+_INT_QUEUES_PER_PAGE = 50
+_INT_ITEMS_PER_PAGE = 50
+
+
 def get_queue_query(
     access: OrganizationAccessContext,
     *,
@@ -130,11 +134,13 @@ def get_queue_list(
         query = query.filter(department_id__in=departmentIds)
     if name:
         query = query.filter(name_key__contains=get_path_name_key(name))
-    page = Paginator(query.order_by("name_key", "id"), 50).page(pageNumber)
+    page = Paginator(query.order_by("name_key", "id"), _INT_QUEUES_PER_PAGE).page(
+        pageNumber
+    )
     return QueueListResponse(
         queues=build_queue_payloads(list(page.object_list), access),
         page=page.number,
-        page_size=50,
+        page_size=_INT_QUEUES_PER_PAGE,
         total_count=page.paginator.count,
         total_pages=page.paginator.num_pages,
     )
@@ -191,7 +197,7 @@ def get_item_list(
         .annotate(summary=Substr("data_json", 1, 161))
         .defer("data_json")
     )
-    page = Paginator(query, 50).page(pageNumber)
+    page = Paginator(query, _INT_ITEMS_PER_PAGE).page(pageNumber)
     return QueueItemsResponse(
         queue=build_queue_payloads([queue], access)[0],
         items=[
@@ -199,7 +205,7 @@ def get_item_list(
             for item in page
         ],
         page=page.number,
-        page_size=50,
+        page_size=_INT_ITEMS_PER_PAGE,
         total_count=page.paginator.count,
         total_pages=page.paginator.num_pages,
     )
