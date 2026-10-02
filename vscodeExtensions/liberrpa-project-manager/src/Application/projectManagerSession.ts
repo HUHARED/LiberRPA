@@ -62,6 +62,8 @@ import {
   selectComponentWheelFilePaths,
   importComponentWheelFiles,
 } from "./Repository/importComponentWheels";
+import type { ConsoleAccount } from "./Console/consoleAccount";
+import { type ConsoleAccountState, ConsoleAction } from "../Domain/Console/consoleTypes";
 
 export interface ProjectManagerSessionHost {
   postMessage(message: DictMessage_ExtensionToWebview): Promise<void>;
@@ -86,6 +88,7 @@ export class ProjectManagerSession {
   public constructor(
     private readonly host: ProjectManagerSessionHost,
     private operation: ProjectManagerOperation,
+    private readonly consoleAccount: ConsoleAccount,
   ) {}
 
   public get currentOperation(): ProjectManagerOperation {
@@ -196,6 +199,20 @@ export class ProjectManagerSession {
 
     const intLoadId = ++this.operationLoadId;
     switch (this.operation) {
+      case "console": {
+        const state = await this.consoleAccount.getState();
+        if (intLoadId !== this.operationLoadId || this.operation !== "console") {
+          return;
+        }
+
+        await this.host.postMessage({
+          command: "loadConsole",
+          theme: getTheme(vscode.window.activeColorTheme),
+          state,
+        });
+        return;
+      }
+
       case "createProject": {
         const initialData = {
           templates: getProjectTemplates(),
@@ -581,6 +598,35 @@ export class ProjectManagerSession {
     });
   }
 
+  public async handleConsoleStateChanged(state: ConsoleAccountState): Promise<void> {
+    if (this.webviewReady && this.operation === "console") {
+      await this.host.postMessage({ command: "consoleStateChanged", state });
+    }
+  }
+
+  private async runConsoleAction(
+    action: ConsoleAction,
+    callback: () => Promise<void>,
+  ): Promise<void> {
+    if (this.operation !== "console") {
+      return;
+    }
+
+    await this.runBusyOperation(async () => {
+      let strError: string | null = null;
+      try {
+        await callback();
+      } catch (e: unknown) {
+        strError = getErrorMessage(e);
+      }
+      await this.host.postMessage({
+        command: "consoleActionFinished",
+        action,
+        error: strError,
+      });
+    });
+  }
+
   public async handleMessage(message: DictMessage_WebviewToExtension): Promise<void> {
     if (message.command === "showLogs") {
       showLogs();
@@ -593,6 +639,30 @@ export class ProjectManagerSession {
     }
 
     switch (message.command) {
+      case "changeConsoleAddress":
+        await this.runConsoleAction(ConsoleAction.ChangeAddress, () =>
+          this.consoleAccount.changeAddress(message.url),
+        );
+        return;
+
+      case "signInConsole":
+        await this.runConsoleAction(ConsoleAction.SignIn, () =>
+          this.consoleAccount.signIn(message.email, message.password),
+        );
+        return;
+
+      case "signOutConsole":
+        await this.runConsoleAction(ConsoleAction.SignOut, () =>
+          this.consoleAccount.signOut(),
+        );
+        return;
+
+      case "checkConsoleConnection":
+        await this.runConsoleAction(ConsoleAction.CheckConnection, () =>
+          this.consoleAccount.checkConnection(),
+        );
+        return;
+
       case "ready":
         if (!this.webviewReady) {
           this.webviewReady = true;

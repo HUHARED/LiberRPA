@@ -1,5 +1,6 @@
 // FileName: validation.ts
 
+import type { ConsoleSignInArgs } from "../../shared/consoleAccount";
 import type { Dict_ProjectSettingsUpdate } from "../../shared/project";
 import type { Dict_RunHistory_Options } from "../../shared/run";
 import type { Dict_ScheduleCreate, Dict_ScheduleUpdate } from "../../shared/schedule";
@@ -46,6 +47,12 @@ function ensureRunHistorySortOrder(value: unknown, strSourceName: string): "asc"
 
 export function ensureInvokeCommand(value: unknown): Str_ExecutorInvokeCommand {
   switch (value) {
+    case "getConsoleAccount":
+    case "saveConsoleAddress":
+    case "signInConsole":
+    case "getConsoleExecutorChoices":
+    case "associateConsoleExecutor":
+    case "signOutConsole":
     case "openProjectLogFolder":
     case "saveExecutorConfig":
     case "runProject":
@@ -321,5 +328,13 @@ export function ensureRunHistoryOptions(value: unknown): Dict_RunHistory_Options
       ),
       status,
     },
+  };
+}
+
+export function ensureConsoleSignIn(value: unknown): ConsoleSignInArgs {
+  const dictValue = ensureExactRecord(value, ["email", "password"], "Console sign in");
+  return {
+    email: ensureNonEmptyString(dictValue.email, "Email"),
+    password: ensureNonEmptyString(dictValue.password, "Password"),
   };
 }

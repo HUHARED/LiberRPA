@@ -25,6 +25,11 @@ import { electronApp, optimizer, is } from "@electron-toolkit/utils";
 import icon from "../../resources/LiberRPA_icon_v3_color_Executor_256.ico?asset";
 
 import { getErrorMessage } from "../shared/error";
+import {
+  getConsoleAccountState,
+  startConsoleAccount,
+  stopConsoleAccount,
+} from "./Console/consoleAccount";
 import { loggerMain } from "./Logging/logger";
 import { strDefaultProjectLogFolderPath } from "./Config/basicConfig";
 import { dictConfigExecutor } from "./Config/executorConfig";
@@ -35,7 +40,7 @@ import { recoverProjectPackageDeletions } from "./Package/projectDeletion";
 import { startRdpSessionManager, stopRdpSessionManager } from "./Rdp/rdpSession";
 import { registerExecutorIpc } from "./IPC/ipc";
 import { sendMainMessage } from "./IPC/mainMessage";
-import { onRunEnded } from "./Run/lifecycle";
+import { onRunEnded, onRunActivityChanged } from "./Run/lifecycle";
 import { startRunHousekeeping, stopRunHousekeeping } from "./Run/housekeeping";
 import { beginProjectRunShutdown, shutdownProjectRuns } from "./Run/projectRunner";
 import {
@@ -94,6 +99,10 @@ function createWindow(): void {
         configDict: dictConfigExecutor,
         defaultProjectLogFolderPath: strDefaultProjectLogFolderPath,
       },
+    });
+    sendMainMessage(webContentsObj, {
+      type: "consoleAccountChanged",
+      data: getConsoleAccountState(),
     });
     sendMainMessage(webContentsObj, {
       type: "runQueueChanged",
@@ -213,8 +222,20 @@ void app
       () => boolShutdownStarted,
     );
 
+    startConsoleAccount(() => {
+      sendMessageToRenderer({
+        type: "consoleAccountChanged",
+        data: getConsoleAccountState(),
+      });
+    });
     createWindow();
 
+    onRunActivityChanged(() => {
+      sendMessageToRenderer({
+        type: "consoleAccountChanged",
+        data: getConsoleAccountState(),
+      });
+    });
     onRunEnded(() => {
       sendMessageToRenderer({ type: "runEnded" });
     });
@@ -234,6 +255,7 @@ void app
   });
 
 async function shutdownExecutor(): Promise<void> {
+  await stopConsoleAccount();
   try {
     await stopSchedulerEngine();
   } catch (e: unknown) {

@@ -1,5 +1,10 @@
 // FileName: ipc.ts
 
+import type {
+  ConsoleAccountState,
+  ConsoleExecutorPage,
+  ConsoleSignInArgs,
+} from "./consoleAccount";
 import type { Dict_ExecutorConfig } from "./config";
 import type {
   Dict_ProjectDetail,
@@ -32,6 +37,12 @@ export type Str_RendererLogLevel =
   | "silly";
 
 interface Dict_ExecutorInvoke_Contract {
+  getConsoleAccount: { request: undefined; response: ConsoleAccountState };
+  saveConsoleAddress: { request: string; response: ConsoleAccountState };
+  signInConsole: { request: ConsoleSignInArgs; response: ConsoleAccountState };
+  getConsoleExecutorChoices: { request: number; response: ConsoleExecutorPage };
+  associateConsoleExecutor: { request: string; response: ConsoleAccountState };
+  signOutConsole: { request: undefined; response: ConsoleAccountState };
   openProjectLogFolder: {
     request: undefined;
     response: void;
@@ -146,6 +157,7 @@ export type Dict_Result_Invoke<T> =
     };
 
 export type Dict_Message_Main =
+  | { type: "consoleAccountChanged"; data: ConsoleAccountState }
   | {
       type: "initializeSetting";
       data: {

@@ -14,6 +14,7 @@ import {
   type ProjectManagerSessionHost,
   ProjectManagerSession,
 } from "../../Application/projectManagerSession";
+import { type ConsoleAccount } from "../../Application/Console/consoleAccount";
 
 export class ProjectManagerPanel implements ProjectManagerSessionHost {
   private static currentPanel: ProjectManagerPanel | undefined;
@@ -26,6 +27,7 @@ export class ProjectManagerPanel implements ProjectManagerSessionHost {
   private constructor(
     private readonly context: vscode.ExtensionContext,
     operation: ProjectManagerOperation,
+    consoleAccount: ConsoleAccount,
   ) {
     const webviewDistUri = vscode.Uri.joinPath(context.extensionUri, "webview-ui", "dist");
 
@@ -39,7 +41,14 @@ export class ProjectManagerPanel implements ProjectManagerSessionHost {
         localResourceRoots: [webviewDistUri],
       },
     );
-    this.session = new ProjectManagerSession(this, operation);
+    this.session = new ProjectManagerSession(this, operation, consoleAccount);
+    this.disposables.push(
+      consoleAccount.onDidChangeState((state) => {
+        void this.session.handleConsoleStateChanged(state).catch(() => {
+          log.warn("Could not update the Console view.");
+        });
+      }),
+    );
 
     try {
       this.panel.webview.html = this.getWebviewContent(this.panel.webview);
@@ -167,11 +176,16 @@ export class ProjectManagerPanel implements ProjectManagerSessionHost {
   public static show(
     context: vscode.ExtensionContext,
     operation: ProjectManagerOperation,
+    consoleAccount: ConsoleAccount,
   ): void {
     try {
       const currentPanel = ProjectManagerPanel.currentPanel;
       if (currentPanel === undefined) {
-        ProjectManagerPanel.currentPanel = new ProjectManagerPanel(context, operation);
+        ProjectManagerPanel.currentPanel = new ProjectManagerPanel(
+          context,
+          operation,
+          consoleAccount,
+        );
         return;
       }
 

@@ -136,12 +136,12 @@
     "apiKeyRequestsPerSource": 2400,
     "apiKeyRequestWindowSeconds": 60,
 
-    // Executor selection/contact requests have an independent source-IP allowance.
+    // Editor and Executor contact requests each have an independent source-IP allowance using these limits.
     // Canceling a selection or signing out does not consume this allowance.
     // Password login shares the login counters above with web login.
-    "executorRequestsPerSource": 2400,
-    "executorRequestWindowSeconds": 60,
-    // Clients are asked to contact every 15 seconds; Offline never releases a valid association.
+    "nativeClientRequestsPerSource": 2400,
+    "nativeClientRequestWindowSeconds": 60,
+    // Executors are asked to contact every 15 seconds; Offline never releases a valid association.
     "executorOfflineSeconds": 60,
 
     // Public registration and password-recovery email requests count separately, including suppressed requests.

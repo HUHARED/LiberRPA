@@ -4,6 +4,7 @@
     v-model="informationStore.tab"
     bg-color="navigation"
     color="on-navigation"
+    :disabled="consoleStore.boolWorking"
     density="compact"
     direction="vertical"
     class="clean-space fill-height"
@@ -28,13 +29,32 @@
       <v-icon size="x-large" icon="mdi-cog-outline"> </v-icon>
       <v-tooltip activator="parent" location="bottom"> Settings </v-tooltip>
     </v-tab>
+    <v-tab value="console">
+      <v-icon size="x-large" icon="mdi-cloud-outline"> </v-icon>
+      <v-tooltip activator="parent" location="bottom"> Console </v-tooltip>
+    </v-tab>
   </v-tabs>
 </template>
 
 <script setup lang="ts">
+import { computed, watch } from "vue";
 import { useInformationStore } from "../../Store/informationStore";
+import { useConsoleStore } from "../../Store/consoleStore";
 
 const informationStore = useInformationStore();
+const consoleStore = useConsoleStore();
+const boolSelectingExecutor = computed(
+  () => consoleStore.account.sessionInfo?.session.selection_required === true,
+);
+watch(
+  boolSelectingExecutor,
+  (boolSelecting) => {
+    if (boolSelecting) {
+      informationStore.tab = "console";
+    }
+  },
+  { immediate: true },
+);
 </script>
 
 <style scoped></style>

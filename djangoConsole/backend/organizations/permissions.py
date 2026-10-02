@@ -23,6 +23,7 @@ class AccessChannel(StrEnum):
 
     SESSION = "session"
     API_KEY = "api_key"
+    EDITOR = "editor"
     EXECUTOR = "executor"
 
 
@@ -126,6 +127,7 @@ def resolve_organization_access(
     if channel not in (
         AccessChannel.SESSION,
         AccessChannel.API_KEY,
+        AccessChannel.EDITOR,
         AccessChannel.EXECUTOR,
     ):
         raise PermissionDenied("Unsupported access channel.")

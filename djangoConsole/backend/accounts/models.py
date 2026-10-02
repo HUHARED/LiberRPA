@@ -105,6 +105,53 @@ class User(AbstractBaseUser):
         ).hexdigest()
 
 
+class EditorSession(models.Model):
+    """An independent native Editor login bound to current account authentication."""
+
+    user_id: uuid.UUID
+    organization_id: uuid.UUID
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="editor_sessions"
+    )
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.PROTECT,
+        related_name="editor_sessions",
+    )
+    token_hash = models.CharField(max_length=64, unique=True, editable=False)
+    auth_hash = models.CharField(max_length=64, editable=False)
+    computer = models.CharField(
+        max_length=128,
+        validators=[
+            RegexValidator(
+                r"^[^\x00-\x1f\x7f-\x9f]+$", "Use a single-line computer name."
+            )
+        ],
+    )
+    client_version = models.CharField(
+        max_length=64,
+        validators=[
+            RegexValidator(
+                r"^[^\x00-\x1f\x7f-\x9f]+$", "Use a single-line client version."
+            )
+        ],
+    )
+    created_at = models.DateTimeField(default=timezone.now, editable=False)
+    last_seen_at = models.DateTimeField(editable=False)
+    expires_at = models.DateTimeField(db_index=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(last_seen_at__gte=models.F("created_at"))
+                & models.Q(expires_at__gt=models.F("last_seen_at")),
+                name="editor_session_timestamps_valid",
+            ),
+        ]
+
+
 class ApiKeyStatus(models.TextChoices):
     ACTIVE = "active", "Active"
     EXPIRED = "expired", "Expired"

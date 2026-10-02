@@ -26,13 +26,19 @@ import type {
   DictPackageProjectInput,
   DictProjectPackageResult,
 } from "../../Domain/Project/projectTypes";
+import {
+  ConsoleAction,
+  isConsoleAccountState,
+  type ConsoleAccountState,
+} from "../../Domain/Console/consoleTypes";
 
 export type Theme = "light" | "dark";
 export type ProjectManagerOperation =
   | "createProject"
   | "packageProject"
   | "publishComponent"
-  | "manageComponents";
+  | "manageComponents"
+  | "console";
 export type Str_PublishComponentFile = "astSnippets" | "snippetsConfig";
 
 export interface DictProjectManagerNotification {
@@ -119,9 +125,16 @@ export type DictMessage_WebviewToExtension =
   | { command: "repairProjectComponents" }
   | { command: "importComponentWheels" }
   | { command: "refreshManageComponents" }
+  | { command: "changeConsoleAddress"; url: string }
+  | { command: "signInConsole"; email: string; password: string }
+  | { command: "signOutConsole" }
+  | { command: "checkConsoleConnection" }
   | { command: "cancel" };
 
 export type DictMessage_ExtensionToWebview =
+  | { command: "loadConsole"; theme: Theme; state: ConsoleAccountState }
+  | { command: "consoleStateChanged"; state: ConsoleAccountState }
+  | { command: "consoleActionFinished"; action: ConsoleAction; error: string | null }
   | {
       command: "loadCreateProject";
       initialData: DictCreateProjectInitialData;
@@ -545,8 +558,22 @@ export function isMessage_WebviewToExtension(
     case "repairProjectComponents":
     case "importComponentWheels":
     case "refreshManageComponents":
+    case "signOutConsole":
+    case "checkConsoleConnection":
     case "cancel":
       return hasExactKeys(value, new Set(["command"]));
+
+    case "changeConsoleAddress":
+      return (
+        hasExactKeys(value, new Set(["command", "url"])) && typeof value["url"] === "string"
+      );
+
+    case "signInConsole":
+      return (
+        hasExactKeys(value, new Set(["command", "email", "password"])) &&
+        typeof value["email"] === "string" &&
+        typeof value["password"] === "string"
+      );
 
     case "confirmCreateProject":
       return (
@@ -597,6 +624,26 @@ export function isMessage_ExtensionToWebview(
   }
 
   switch (value["command"]) {
+    case "loadConsole":
+      return (
+        hasExactKeys(value, new Set(["command", "theme", "state"])) &&
+        isTheme(value["theme"]) &&
+        isConsoleAccountState(value["state"])
+      );
+
+    case "consoleStateChanged":
+      return (
+        hasExactKeys(value, new Set(["command", "state"])) &&
+        isConsoleAccountState(value["state"])
+      );
+
+    case "consoleActionFinished":
+      return (
+        hasExactKeys(value, new Set(["command", "action", "error"])) &&
+        Object.values(ConsoleAction).some((action) => action === value["action"]) &&
+        (value["error"] === null || typeof value["error"] === "string")
+      );
+
     case "loadCreateProject":
       return (
         hasExactKeys(value, new Set(["command", "initialData"])) &&

@@ -17,7 +17,7 @@ class AuditRecordResponse(JsonResponsePayload):
     created_at: datetime
     actor_id: UUID | None
     actor_name: str
-    channel: Literal["session", "executor", "api_key", "system"]
+    channel: Literal["session", "editor", "executor", "api_key", "system"]
     module: str
     action: str
     object_type: str

@@ -19,6 +19,7 @@ from organizations.permissions import (
 )
 
 from .api_keys import revoke_active_api_keys
+from .editor_sessions import revoke_user_editor_sessions
 from .passwords import validate_new_password
 
 
@@ -64,6 +65,7 @@ def change_password(
     user.save(update_fields=["password"])
     revoke_active_api_keys(userId=user.id)
     revoke_user_executor_sessions(user.id)
+    revoke_user_editor_sessions(user.id)
     record_audit(
         "account.change_password",
         actor=user,
@@ -72,4 +74,3 @@ def change_password(
         channel=channel,
     )
     # NOTE: Email-change proofs are bound to the old password hash and are now invalid.
-    # TODO: Revoke Editor credentials when Editor authentication is implemented.

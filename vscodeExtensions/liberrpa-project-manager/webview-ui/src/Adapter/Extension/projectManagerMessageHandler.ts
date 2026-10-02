@@ -5,10 +5,12 @@ import { useCreateProjectStore } from "../../Application/CreateProject/createPro
 import { usePackageProjectStore } from "../../Application/PackageProject/packageProjectStore";
 import { usePublishComponentStore } from "../../Application/Publish/publishComponentStore";
 import { useProjectManagerStore } from "../../Application/projectManagerStore";
+import { useConsoleAccountStore } from "../../Application/Console/consoleAccountStore";
 import {
   type DictMessage_ExtensionToWebview,
   isMessage_ExtensionToWebview,
 } from "./projectManagerMessages";
+import { ConsoleAction } from "../../Domain/Console/consoleTypes";
 
 function applyMessage(message: DictMessage_ExtensionToWebview): void {
   const projectManagerStore = useProjectManagerStore();
@@ -18,6 +20,26 @@ function applyMessage(message: DictMessage_ExtensionToWebview): void {
   const componentManagementStore = useComponentManagementStore();
 
   switch (message.command) {
+    case "loadConsole":
+      projectManagerStore.load("console", message.theme);
+      useConsoleAccountStore().load(message.state);
+      return;
+
+    case "consoleStateChanged":
+      useConsoleAccountStore().load(message.state);
+      return;
+
+    case "consoleActionFinished":
+      useConsoleAccountStore().finishAction(message.action, message.error);
+      if (
+        message.error !== null &&
+        message.action !== ConsoleAction.ChangeAddress &&
+        message.action !== ConsoleAction.SignIn
+      ) {
+        projectManagerStore.showError(message.error);
+      }
+      return;
+
     case "loadCreateProject":
       projectManagerStore.load("createProject", message.initialData.theme);
       createProjectStore.load(message.initialData);

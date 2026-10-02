@@ -6,9 +6,10 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from django.urls import include, path
 
-from .health import check_database, check_liveness
+from .health import check_database, check_liveness, get_client_info
 
 urlpatterns = [
+    path("api/clients/info/", get_client_info, name="client-info"),
     path("api/health/live/", check_liveness, name="health-live"),
     path("api/health/database/", check_database, name="health-database"),
     # Applications own their endpoints; existing route names stay unnamespaced.

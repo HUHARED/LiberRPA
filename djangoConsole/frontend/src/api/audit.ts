@@ -36,7 +36,7 @@ function isAuditRecord(value: unknown): value is AuditRecordResponse {
     isNullableString(value.actor_id) &&
     typeof value.actor_name === "string" &&
     typeof value.channel === "string" &&
-    ["session", "executor", "api_key", "system"].includes(value.channel) &&
+    ["session", "editor", "executor", "api_key", "system"].includes(value.channel) &&
     typeof value.module === "string" &&
     typeof value.action === "string" &&
     typeof value.object_type === "string" &&

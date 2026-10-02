@@ -48,6 +48,11 @@
         "command": "LiberRPA.rebuildComponentRepositoryIndex",
         "category": "LiberRPA",
         "title": "Rebuild Component Repository Index"
+      },
+      {
+        "command": "LiberRPA.console",
+        "category": "LiberRPA",
+        "title": "Console"
       }
     ],
     "jsonValidation": [

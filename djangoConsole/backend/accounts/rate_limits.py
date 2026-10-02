@@ -212,13 +212,25 @@ def apply_api_key_authentication_rate_limit(clientAddress: str) -> int:
 
 @sensitive_variables()
 def apply_executor_client_rate_limit(clientAddress: str) -> int:
-    """Bound native-client authentication separately from public API and login traffic."""
+    """Limit Executor contact by source IP with a counter independent of Editor."""
     limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
     return _apply_source_rate_limit(
         clientAddress,
         scope="executors.client",
-        maxRequests=limits.executorRequestsPerSource,
-        windowSeconds=limits.executorRequestWindowSeconds,
+        maxRequests=limits.nativeClientRequestsPerSource,
+        windowSeconds=limits.nativeClientRequestWindowSeconds,
+    )
+
+
+@sensitive_variables()
+def apply_editor_client_rate_limit(clientAddress: str) -> int:
+    """Limit Editor contact by source IP with a counter independent of Executor."""
+    limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
+    return _apply_source_rate_limit(
+        clientAddress,
+        scope="accounts.editor_client",
+        maxRequests=limits.nativeClientRequestsPerSource,
+        windowSeconds=limits.nativeClientRequestWindowSeconds,
     )
 
 

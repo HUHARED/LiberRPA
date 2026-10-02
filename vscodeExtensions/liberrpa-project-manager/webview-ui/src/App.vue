@@ -25,6 +25,11 @@
             projectManagerStore.loadState === 'ready' &&
             projectManagerStore.operation === 'manageComponents'
           " />
+        <ConsoleView
+          v-else-if="
+            projectManagerStore.loadState === 'ready' &&
+            projectManagerStore.operation === 'console'
+          " />
         <div
           v-else-if="projectManagerStore.loadState === 'failed'"
           class="fill-height d-flex flex-column align-center justify-center ga-4 text-center">
@@ -51,6 +56,7 @@ import CreateProjectView from "./views/CreateProjectView.vue";
 import ManageComponentsView from "./views/ManageComponentsView.vue";
 import PackageProjectView from "./views/PackageProjectView.vue";
 import PublishComponentView from "./views/PublishComponentView.vue";
+import ConsoleView from "./views/ConsoleView.vue";
 
 const projectManagerStore = useProjectManagerStore();
 
@@ -67,3 +73,5 @@ onUnmounted(() => {
   window.removeEventListener("message", handleExtensionMessage);
 });
 </script>
+
+<style scoped></style>

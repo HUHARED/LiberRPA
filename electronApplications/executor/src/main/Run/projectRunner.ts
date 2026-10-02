@@ -11,7 +11,7 @@ import { getPythonEnvironmentPath } from "../Config/environment";
 import { dbInsertRunHistory, dbUpdateRunHistory } from "../Database/runHistoryRepository";
 import { getExecutorPackageFolderPath } from "../FileSystem/executorFiles";
 import { loggerMain } from "../Logging/logger";
-import { notifyRunEnded } from "./lifecycle";
+import { notifyRunEnded, notifyRunActivityChanged } from "./lifecycle";
 import {
   type Dict_PythonProcess_DiagnosticOutput,
   logPythonDiagnosticOutput,
@@ -48,6 +48,32 @@ const mapStartingRunCountByProject = new Map<number, number>();
 const setStartingRunPromise = new Set<Promise<void>>();
 let intStartingRunCount = 0;
 let boolProjectRunShutdownStarted = false;
+let promiseConsoleAccountTransition: Promise<void> | undefined;
+let finishConsoleAccountTransition: (() => void) | undefined;
+
+export function hasActiveProjectRun(): boolean {
+  return intStartingRunCount !== 0 || mapActiveRunByRunId.size !== 0;
+}
+
+export function beginConsoleAccountTransition(): void {
+  if (hasActiveProjectRun()) {
+    throw new Error(
+      "Wait for all actual Runs to finish or stop them before signing out or changing the Console address.",
+    );
+  }
+  if (promiseConsoleAccountTransition !== undefined) {
+    throw new Error("A Console account change is already in progress.");
+  }
+  promiseConsoleAccountTransition = new Promise<void>((resolve) => {
+    finishConsoleAccountTransition = resolve;
+  });
+}
+
+export function endConsoleAccountTransition(): void {
+  finishConsoleAccountTransition?.();
+  finishConsoleAccountTransition = undefined;
+  promiseConsoleAccountTransition = undefined;
+}
 
 function addStartingRun(projectId: number): void {
   intStartingRunCount += 1;
@@ -55,6 +81,7 @@ function addStartingRun(projectId: number): void {
     projectId,
     (mapStartingRunCountByProject.get(projectId) ?? 0) + 1,
   );
+  notifyRunActivityChanged();
 }
 
 function removeStartingRun(projectId: number): void {
@@ -65,6 +92,7 @@ function removeStartingRun(projectId: number): void {
   } else {
     mapStartingRunCountByProject.set(projectId, intProjectCount - 1);
   }
+  notifyRunActivityChanged();
 }
 
 function trackActiveProjectRun(activeRun: ActiveProjectRun): void {
@@ -72,6 +100,7 @@ function trackActiveProjectRun(activeRun: ActiveProjectRun): void {
   activeRun.processPy.once("close", () => {
     if (mapActiveRunByRunId.get(activeRun.strRunId) === activeRun) {
       mapActiveRunByRunId.delete(activeRun.strRunId);
+      notifyRunActivityChanged();
     }
   });
 }
@@ -152,6 +181,11 @@ export function isProjectRunStarting(projectId: number): boolean {
 }
 
 export async function pythonRun(detailDict: Dict_ProjectRun_Detail): Promise<void> {
+  // Scheduled and manual launches wait without dropping work while a Console account change commits.
+  if (promiseConsoleAccountTransition !== undefined) {
+    await promiseConsoleAccountTransition;
+  }
+
   if (boolProjectRunShutdownStarted) {
     throw new Error("Executor is shutting down and cannot start a new Project Run.");
   }

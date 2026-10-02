@@ -3,6 +3,14 @@
 import { ipcMain } from "electron";
 import type { IpcMainEvent, IpcMainInvokeEvent, WebContents } from "electron";
 
+import {
+  getConsoleAccountState,
+  saveConsoleAddress,
+  signInConsole,
+  getConsoleExecutorChoices,
+  associateConsoleExecutor,
+  signOutConsole,
+} from "../Console/consoleAccount";
 import { getErrorMessage } from "../../shared/error";
 import {
   chooseProjectLogFolder,
@@ -46,6 +54,7 @@ import {
   refreshSchedulerEngine,
 } from "../Scheduler/schedulerEngine";
 import {
+  ensureConsoleSignIn,
   ensureInvokeCommand,
   ensureNoData,
   ensurePositiveIntegerData,
@@ -85,6 +94,13 @@ type Map_ExecutorInvoke_Handler = {
 };
 
 const INVOKE_VALIDATOR = {
+  getConsoleAccount: (rawData: unknown) => ensureNoData(rawData, "getConsoleAccount"),
+  saveConsoleAddress: (rawData: unknown) => ensureStringData(rawData, "Console URL"),
+  signInConsole: ensureConsoleSignIn,
+  getConsoleExecutorChoices: (rawData: unknown) =>
+    ensurePositiveIntegerData(rawData, "Executor choices page"),
+  associateConsoleExecutor: (rawData: unknown) => ensureStringData(rawData, "Executor ID"),
+  signOutConsole: (rawData: unknown) => ensureNoData(rawData, "signOutConsole"),
   openProjectLogFolder: (rawData: unknown) => ensureNoData(rawData, "openProjectLogFolder"),
   saveExecutorConfig: (rawData: unknown) => validateExecutorConfig(rawData),
   runProject: (rawData: unknown) => ensurePositiveIntegerData(rawData, "runProject"),
@@ -121,6 +137,12 @@ function createInvokeHandlerMap(
   ensureExecutorRunning: () => void,
 ): Map_ExecutorInvoke_Handler {
   return {
+    getConsoleAccount: getConsoleAccountState,
+    saveConsoleAddress,
+    signInConsole,
+    getConsoleExecutorChoices,
+    associateConsoleExecutor,
+    signOutConsole,
     async openProjectLogFolder() {
       await fileOpenFolder(getEffectiveProjectLogFolderPath());
     },

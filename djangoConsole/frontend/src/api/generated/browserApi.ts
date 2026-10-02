@@ -263,7 +263,7 @@ export interface AuditDetailsRecordResponse {
   actor_id: string | null;
   actor_name: string;
   changes: AuditChangeResponse[];
-  channel: "session" | "executor" | "api_key" | "system";
+  channel: "session" | "editor" | "executor" | "api_key" | "system";
   created_at: string;
   department_id: string | null;
   details_omitted: boolean;
@@ -308,7 +308,7 @@ export interface AuditRecordResponse {
   action: string;
   actor_id: string | null;
   actor_name: string;
-  channel: "session" | "executor" | "api_key" | "system";
+  channel: "session" | "editor" | "executor" | "api_key" | "system";
   created_at: string;
   id: string;
   module: string;

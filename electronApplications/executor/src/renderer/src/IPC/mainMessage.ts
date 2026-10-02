@@ -2,6 +2,7 @@
 
 import { getErrorMessage } from "../../../shared/error";
 import { loggerRenderer } from "../Logging/logger";
+import { useConsoleStore } from "../Store/consoleStore";
 import { useRunHistoryStore } from "../Store/runHistoryStore";
 import { useRunQueueStore } from "../Store/runQueueStore";
 import { useInformationStore } from "../Store/informationStore";
@@ -19,6 +20,11 @@ export function registerMainMessageListener(): void {
             message.data.configDict,
             message.data.defaultProjectLogFolderPath,
           );
+          break;
+        }
+
+        case "consoleAccountChanged": {
+          useConsoleStore().setAccount(message.data);
           break;
         }
 

@@ -22,6 +22,7 @@ import Schedules from "./components/Schedules/Schedules.vue";
 import RunQueue from "./components/Runs/RunQueue.vue";
 import RunHistory from "./components/Runs/RunHistory.vue";
 import Settings from "./components/Settings/Settings.vue";
+import Console from "./components/Console/Console.vue";
 import { loggerRenderer } from "./Logging/logger";
 import { useInformationStore } from "./Store/informationStore";
 import { useSettingStore } from "./Store/settingStore";
@@ -42,6 +43,8 @@ const componentCurrent = computed(() => {
     case "runHistory":
       // Run History loads its data through the server table.
       return RunHistory;
+    case "console":
+      return Console;
     default:
       return Settings;
   }

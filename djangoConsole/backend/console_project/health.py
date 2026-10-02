@@ -6,10 +6,13 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import logging
 
+from django.core.exceptions import ImproperlyConfigured
 from django.db import DatabaseError, connection
 from django.http import HttpRequest, JsonResponse
 from django.views.decorators.cache import never_cache
-from django.views.decorators.http import require_safe
+from django.views.decorators.http import require_GET, require_safe
+
+from .http import build_service_unavailable_response
 
 _LOGGER = logging.getLogger("console.health")
 
@@ -33,3 +36,16 @@ def check_database(_request: HttpRequest) -> JsonResponse:
         return JsonResponse({"status": "unavailable"}, status=503)
 
     return JsonResponse({"status": "ok"})
+
+
+@never_cache
+@require_GET
+def get_client_info(_request: HttpRequest) -> JsonResponse:
+    """Identify a usable Console address before a native client sends any credentials."""
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+            cursor.fetchone()
+    except (ImproperlyConfigured, DatabaseError):
+        return build_service_unavailable_response()
+    return JsonResponse({"product": "LiberRPA Console", "protocol_version": 1})

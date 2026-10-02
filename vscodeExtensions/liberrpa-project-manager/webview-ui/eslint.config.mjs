@@ -124,6 +124,7 @@ export default tseslint.config(
       "src/Application/ComponentManagement/componentManagementStore.ts",
       "src/Application/Publish/publishComponentStore.ts",
       "src/Application/PackageProject/packageProjectStore.ts",
+      "src/Application/Console/consoleAccountStore.ts",
     ],
     rules: {
       "@typescript-eslint/no-unnecessary-type-assertion": "off",

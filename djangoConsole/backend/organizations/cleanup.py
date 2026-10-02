@@ -12,7 +12,7 @@ from django.db import transaction
 from django.utils import timezone
 from django.views.decorators.debug import sensitive_variables
 
-from accounts.models import User
+from accounts.models import User, EditorSession
 from executors.models import Executor, ExecutorSession, ExecutorGroup
 from assets.models import Asset
 from data_queues.models import DataQueue
@@ -142,6 +142,7 @@ def complete_organization_deletion(
     MemberInvitation.objects.filter(organization_id=organizationId).delete()
     # Remove pending logins and associations before deleting their logical records.
     ExecutorSession.objects.filter(organization_id=organizationId).delete()
+    EditorSession.objects.filter(organization_id=organizationId).delete()
     # Group deletion cascades memberships before their protected Executor references are removed.
     ExecutorGroup.objects.filter(department__organization_id=organizationId).delete()
     # Delete current and historical Executor identities before their protected departments.

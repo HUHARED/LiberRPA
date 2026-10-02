@@ -17,6 +17,8 @@ from .email_change_views import (
     confirm_account_email_change,
     queue_email_change_verification,
 )
+from .editor_sessions import EditorClientAction
+from .editor_views import sign_in_editor, process_editor_client_request
 from .password_reset_views import (
     check_password_reset_link,
     queue_password_reset_email,
@@ -40,6 +42,19 @@ from .views import (
 )
 
 urlpatterns = [
+    path("clients/editor/login/", sign_in_editor, name="editor-client-login"),
+    path(
+        "clients/editor/session/",
+        process_editor_client_request,
+        {"action": EditorClientAction.SESSION},
+        name="editor-client-session",
+    ),
+    path(
+        "clients/editor/logout/",
+        process_editor_client_request,
+        {"action": EditorClientAction.LOGOUT},
+        name="editor-client-logout",
+    ),
     path("v1/access/", get_api_key_access, name="api-v1-access"),
     path("auth/csrf/", get_csrf_token, name="auth-csrf"),
     path("auth/login/", sign_in, name="auth-login"),

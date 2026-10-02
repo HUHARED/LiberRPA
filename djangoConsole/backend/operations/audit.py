@@ -32,6 +32,7 @@ _INT_MAX_DETAIL_BYTES = 4096
 _DICT_SNAPSHOT_FIELD = {
     "accounts.user": ("username", "email", "time_zone"),
     "accounts.apikey": ("name", "user_id", "expires_at", "revoked_at", "notes"),
+    "accounts.editorsession": ("user_id", "computer", "client_version"),
     "organizations.organization": (
         "name",
         "default_time_zone",

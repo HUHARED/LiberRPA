@@ -28,6 +28,7 @@ from organizations.permissions import (
 )
 
 from .api_keys import revoke_active_api_keys
+from .editor_sessions import revoke_user_editor_sessions
 from .models import PasswordResetRequest, User, UserManager
 from .passwords import validate_new_password
 
@@ -253,6 +254,7 @@ def complete_password_reset(*, token: str, newPassword: str) -> User:
     user.save(update_fields=["password"])
     revoke_active_api_keys(userId=user.id)
     revoke_user_executor_sessions(user.id)
+    revoke_user_editor_sessions(user.id)
     record_audit(
         "account.reset_password",
         actor=user,
@@ -261,5 +263,4 @@ def complete_password_reset(*, token: str, newPassword: str) -> User:
     )
     resetRequest.delete()
     # NOTE: Email-change proofs are bound to the old password hash and are now invalid.
-    # TODO: Revoke Editor credentials when Editor authentication is implemented.
     return user

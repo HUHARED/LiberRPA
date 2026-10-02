@@ -107,9 +107,9 @@ class LimitsConfig(_BaseConfig):
     apiKeyRequestsPerSource: int = Field(default=2400, ge=0, le=2147483647)
     apiKeyRequestWindowSeconds: int = Field(default=60, ge=1, le=86400)
 
-    # Executor contact uses a separate allowance from public APIs and password login.
-    executorRequestsPerSource: int = Field(default=2400, ge=0, le=2147483647)
-    executorRequestWindowSeconds: int = Field(default=60, ge=1, le=86400)
+    # Editor and Executor contact use independent counters with these shared native-client limits.
+    nativeClientRequestsPerSource: int = Field(default=2400, ge=0, le=2147483647)
+    nativeClientRequestWindowSeconds: int = Field(default=60, ge=1, le=86400)
     executorOfflineSeconds: int = Field(default=60, ge=30, le=3600)
 
     # Public registration and recovery email requests count separately.

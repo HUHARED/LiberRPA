@@ -136,7 +136,7 @@ def delete_account(
             code="last_org_admin",
         )
 
-    # Cascade membership, department roles, API keys, Executor sessions/associations, and private email proofs; retain organization resources and delivery history.
+    # Cascade membership, department roles, API keys, Editor/Executor sessions, and private email proofs; retain organization resources and delivery history.
     target = cast(User, membership.user)
     record_audit(
         "account.delete",
@@ -147,4 +147,3 @@ def delete_account(
     )
     target.delete()
     # Django rejects old web sessions because their User ID no longer resolves.
-    # TODO: Revoke Editor credentials when Editor authentication is implemented.

@@ -23,3 +23,19 @@ export function notifyRunEnded(): void {
     }
   }
 }
+
+const setRunActivityListener = new Set<() => void>();
+
+export function onRunActivityChanged(listener: () => void): void {
+  setRunActivityListener.add(listener);
+}
+
+export function notifyRunActivityChanged(): void {
+  for (const listener of setRunActivityListener) {
+    try {
+      listener();
+    } catch (e: unknown) {
+      loggerMain.error(`Run-activity listener failed: ${getErrorMessage(e)}`);
+    }
+  }
+}

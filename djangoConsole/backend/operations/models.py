@@ -39,6 +39,7 @@ class AuditScope(models.TextChoices):
 
 class AuditChannel(models.TextChoices):
     SESSION = "session", "Web"
+    EDITOR = "editor", "Editor"
     EXECUTOR = "executor", "Executor"
     API_KEY = "api_key", "API Key"
     SYSTEM = "system", "System"
@@ -58,7 +59,9 @@ class AuditRecord(models.Model):
     organization_id = models.UUIDField(null=True, editable=False)
     organization_name = models.CharField(max_length=200, blank=True, editable=False)
     actor_id = models.UUIDField(null=True, editable=False)
-    actor_name = models.CharField(max_length=INT_DISPLAY_NAME_SNAPSHOT_MAX_LENGTH, editable=False)
+    actor_name = models.CharField(
+        max_length=INT_DISPLAY_NAME_SNAPSHOT_MAX_LENGTH, editable=False
+    )
     channel = models.CharField(max_length=16, choices=AuditChannel, editable=False)
     request_id = models.UUIDField(null=True, editable=False)
     module = models.CharField(max_length=32, editable=False)

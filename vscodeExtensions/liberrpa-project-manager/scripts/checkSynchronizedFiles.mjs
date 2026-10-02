@@ -21,6 +21,7 @@ const arrSynchronizedFilePair = [
     "src/Domain/ComponentManagement/componentManagementTypes.ts",
     "webview-ui/src/Domain/ComponentManagement/componentManagementTypes.ts",
   ],
+  ["src/Domain/Console/consoleTypes.ts", "webview-ui/src/Domain/Console/consoleTypes.ts"],
   [
     "src/Adapter/Webview/projectManagerMessages.ts",
     "webview-ui/src/Adapter/Extension/projectManagerMessages.ts",
