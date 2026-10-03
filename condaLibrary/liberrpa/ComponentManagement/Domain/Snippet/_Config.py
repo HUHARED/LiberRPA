@@ -88,6 +88,7 @@ _TUPLE_LIBERRPA_IMPORT_ORDER = (
     "File",
     "OCR",
     #
+    "Console",
     "Web",
     "Mail",
     "FTP",

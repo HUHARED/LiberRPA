@@ -119,6 +119,33 @@ def _get_session_identity(authorizationHeader: str) -> EditorSession:
 
 
 @sensitive_variables()
+def get_locked_editor_session(
+    access: OrganizationAccessContext, sessionId: uuid.UUID
+) -> EditorSession:
+    """Recheck the credential after the caller locks its organization and account."""
+    session = (
+        EditorSession.objects
+        .select_for_update()
+        .filter(
+            pk=sessionId,
+            user_id=access.actorId,
+            organization_id=access.organization.pk,
+        )
+        .first()
+    )
+    if (
+        session is None
+        or session.expires_at <= timezone.now()
+        or not constant_time_compare(
+            session.auth_hash, access.actor.get_session_auth_hash()
+        )
+    ):
+        raise InvalidEditorSessionError("A valid Editor session is required.")
+    session.user = access.actor
+    return session
+
+
+@sensitive_variables()
 def handle_editor_client_request(
     *, authorizationHeader: str, action: EditorClientAction
 ) -> EditorClientResult | None:
@@ -160,23 +187,18 @@ def handle_editor_client_request(
             channel=AccessChannel.EDITOR,
             forUpdate=True,
         )
-        session = EditorSession.objects.select_for_update().filter(pk=identity.id).first()
-        currentTime = timezone.now()
-        if (
-            session is None
-            or session.expires_at <= currentTime
-            or not constant_time_compare(
-                session.auth_hash, access.actor.get_session_auth_hash()
-            )
-        ):
-            EditorSession.objects.filter(pk=identity.id).delete()
-            boolInvalidSession = True
-        else:
-            session.user = access.actor
+        try:
+            session = get_locked_editor_session(access, identity.id)
+            currentTime = timezone.now()
+            if session.expires_at <= currentTime:
+                raise InvalidEditorSessionError("A valid Editor session is required.")
             session.last_seen_at = max(currentTime, session.last_seen_at)
             session.expires_at = session.last_seen_at + _SESSION_IDLE_LIFETIME
             session.save(update_fields=["last_seen_at", "expires_at"])
             result = EditorClientResult(session=session, access=access)
+        except InvalidEditorSessionError:
+            EditorSession.objects.filter(pk=identity.id).delete()
+            boolInvalidSession = True
     # Commit invalidation before rejecting the credential; it must never be renewed later.
     if boolInvalidSession:
         raise InvalidEditorSessionError("A valid Editor session is required.")

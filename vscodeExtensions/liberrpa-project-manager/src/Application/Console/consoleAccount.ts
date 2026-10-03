@@ -5,6 +5,7 @@ import { hostname } from "node:os";
 
 import { isRecord } from "../../Common/typeCheck";
 import { getErrorMessage } from "../../Common/utils";
+import type { ConsoleCredentialSnapshot } from "../../Adapter/Console/consoleContextBridge";
 import {
   ConsoleConnection,
   type ConsoleAccountState,
@@ -36,6 +37,7 @@ export class ConsoleAccount implements vscode.Disposable {
   private sessionRevision = 0;
   private pendingCredentialReload = false;
   private readonly secretSubscription: vscode.Disposable;
+  private readonly credentialInitialization: Promise<boolean>;
   private readonly initialization: Promise<void>;
   private state: ConsoleAccountState;
 
@@ -50,7 +52,8 @@ export class ConsoleAccount implements vscode.Disposable {
       lastContactAt: null,
       message: "",
     };
-    this.initialization = this.restoreSession();
+    this.credentialInitialization = this.loadCredential();
+    this.initialization = this.restoreSession(this.credentialInitialization);
     this.secretSubscription = context.secrets.onDidChange((event) => {
       if (event.key !== STR_SESSION_KEY || this.disposed) {
         return;
@@ -72,6 +75,18 @@ export class ConsoleAccount implements vscode.Disposable {
   public async getState(): Promise<ConsoleAccountState> {
     await this.initialization;
     return this.state;
+  }
+
+  public async waitForLocalCredential(): Promise<void> {
+    await this.credentialInitialization;
+  }
+
+  public getPythonCredential(): ConsoleCredentialSnapshot | null {
+    if (this.disposed || this.pendingCredentialReload || this.credential === null) {
+      return null;
+    }
+    // Keep this internal to the extension host; webviews receive account state only.
+    return { consoleUrl: this.credential.url, token: this.credential.token };
   }
 
   private getRememberedEmail(url: string): string {
@@ -157,7 +172,15 @@ export class ConsoleAccount implements vscode.Disposable {
     }
   }
 
-  private async restoreSession(): Promise<void> {
+  private handleSessionRestoreError(): void {
+    this.state = {
+      ...this.state,
+      message: "The saved Console session could not be restored. Sign in again.",
+    };
+    this.publishState();
+  }
+
+  private async loadCredential(): Promise<boolean> {
     try {
       const strCredential = await this.context.secrets.get(STR_SESSION_KEY);
       if (strCredential === undefined) {
@@ -178,7 +201,7 @@ export class ConsoleAccount implements vscode.Disposable {
           message: strMessage,
         };
         this.publishState();
-        return;
+        return false;
       }
       const credentialValue: unknown = JSON.parse(strCredential);
       if (
@@ -188,7 +211,7 @@ export class ConsoleAccount implements vscode.Disposable {
         credentialValue["token"].length === 0
       ) {
         await this.clearSession("Sign in again to connect to Console.");
-        return;
+        return false;
       }
       const strUrl = normalizeConsoleUrl(credentialValue["url"]);
       const strRememberedEmail = this.getRememberedEmail(strUrl);
@@ -198,7 +221,7 @@ export class ConsoleAccount implements vscode.Disposable {
       ) {
         this.state = { ...this.state, rememberedEmail: strRememberedEmail };
         this.publishState();
-        return;
+        return false;
       }
       this.credential = { url: strUrl, token: credentialValue["token"] };
       this.state = {
@@ -210,13 +233,22 @@ export class ConsoleAccount implements vscode.Disposable {
         lastContactAt: null,
         connection: ConsoleConnection.Checking,
       };
-      await this.refreshSession();
+      return true;
     } catch {
-      this.state = {
-        ...this.state,
-        message: "The saved Console session could not be restored. Sign in again.",
-      };
-      this.publishState();
+      this.handleSessionRestoreError();
+      return false;
+    }
+  }
+
+  private async restoreSession(
+    credentialInitialization: Promise<boolean> = this.loadCredential(),
+  ): Promise<void> {
+    try {
+      if (await credentialInitialization) {
+        await this.refreshSession();
+      }
+    } catch {
+      this.handleSessionRestoreError();
     }
   }
 

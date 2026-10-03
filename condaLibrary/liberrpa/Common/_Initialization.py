@@ -11,6 +11,7 @@ import multiprocessing
 multiprocessing.freeze_support()
 
 from liberrpa.Common._Utils import STR_PROJECT_ROOT, PROCESS_NAME
+from liberrpa.Common._ConsoleContext import initialize_console_context
 
 from datetime import datetime
 import json
@@ -29,7 +30,7 @@ from typing import Any
 
 def _print_program_info() -> None:
     # vscode will cd to the workspace's path.
-    print(f"The current workpath: {STR_PROJECT_ROOT}")
+    print(f"Workpath: {STR_PROJECT_ROOT}")
 
 
 def _check_update() -> None:
@@ -38,7 +39,9 @@ def _check_update() -> None:
         strVersion: str = "None"
         strLiberRPAPath = os.environ.get("LiberRPA")
         if strLiberRPAPath:
-            strFile = Path(os.path.join(strLiberRPAPath, "data.json")).read_text(encoding="utf-8")
+            strFile = Path(os.path.join(strLiberRPAPath, "data.json")).read_text(
+                encoding="utf-8"
+            )
             strVersion = json.loads(strFile).get("version", "None")
     except Exception as e:
         print(f"Failure to read version data in LiberRPA root folder. {e}")
@@ -66,7 +69,9 @@ def _update_daily_data() -> None:
 
     strBase = os.path.join(os.environ.get("USERPROFILE", "N/A"), "Documents\\LiberRPA\\")
     if not os.path.isdir(strBase):
-        raise RuntimeError("LiberRPA folder is missing. Please run InitLiberRPA.exe before using LiberRPA.")
+        raise RuntimeError(
+            "LiberRPA folder is missing. Please run InitLiberRPA.exe before using LiberRPA."
+        )
 
     strDatePath = os.path.join(strBase, "UpdateDate.txt")
     strSystemDataPath = os.path.join(strBase, "SystemData.json")
@@ -76,7 +81,8 @@ def _update_daily_data() -> None:
     # Do update and save date file.
     if not os.path.isfile(strDatePath):
         Path(strSystemDataPath).write_text(
-            data=json.dumps(get_system_data(), indent=4, ensure_ascii=False), encoding="utf-8"
+            data=json.dumps(get_system_data(), indent=4, ensure_ascii=False),
+            encoding="utf-8",
         )
 
         _check_update()
@@ -92,7 +98,8 @@ def _update_daily_data() -> None:
     strDate = Path(strDatePath).read_text(encoding="utf-8")
     if strDate != strToday:
         Path(strSystemDataPath).write_text(
-            data=json.dumps(get_system_data(), indent=4, ensure_ascii=False), encoding="utf-8"
+            data=json.dumps(get_system_data(), indent=4, ensure_ascii=False),
+            encoding="utf-8",
         )
 
         _check_update()
@@ -126,7 +133,9 @@ def get_system_data() -> dict[str, Any]:
         dictUserInfo = {
             "Username": getpass.getuser(),
             "Home Directory": os.path.expanduser("~"),
-            "Is Admin": "Yes (Admin Privileges)" if _is_user_admin() else "No (No Admin Privileges)",
+            "Is Admin": "Yes (Admin Privileges)"
+            if _is_user_admin()
+            else "No (No Admin Privileges)",
             "Environment Variables": {
                 "User Profile": os.environ.get("USERPROFILE", "N/A"),
                 "App Data": os.environ.get("APPDATA", "N/A"),
@@ -193,7 +202,10 @@ def get_system_data() -> dict[str, Any]:
         try:
             listGpuInfo = (
                 subprocess
-                .check_output("wmic path win32_VideoController get caption,adapterram,driverversion", shell=True)
+                .check_output(
+                    "wmic path win32_VideoController get caption,adapterram,driverversion",
+                    shell=True,
+                )
                 .decode()
                 .strip()
                 .split("\n")
@@ -233,6 +245,8 @@ def get_system_data() -> dict[str, Any]:
         print(f"Failed to get system data: {e}")
         return {}
 
+
+initialize_console_context()
 
 if PROCESS_NAME == "MainProcess":
     _print_program_info()

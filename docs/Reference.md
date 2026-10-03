@@ -40,6 +40,7 @@ Use your browser or editor search when you already know the API or Snippet name.
 - [Time](#time)
 - [File](#file)
 - [OCR](#ocr)
+- [Console](#console)
 - [Web](#web)
 - [Mail](#mail)
 - [FTP](#ftp)
@@ -2154,6 +2155,9 @@ list[str]: A list contains the path of all attachments.
 
 Run an application with a specified window state.
 
+For GUI applications, the function briefly waits for the launched application to expose a usable GUI process.
+If a launcher creates the actual GUI process, the PID of that GUI process may be returned.
+
 Parameters:
 
 ```text
@@ -2165,7 +2169,7 @@ windowState: 'default', 'maximize', 'minimize'
 Returns:
 
 ```text
-int: The application's PID.
+int: The PID of the launched application process used for RPA operations.
 ```
 
 ### open_url
@@ -4249,6 +4253,279 @@ Returns:
 
 ```text
 str: The extracted text as a single string.
+```
+
+## Console
+
+### asset_get_value
+
+Read the current value of an ordinary Console Asset.
+
+Parameters:
+
+```text
+path: The full Asset path, including its department path and name.
+```
+
+Returns:
+
+```text
+JsonValue: The Asset value as a Python JSON value.
+```
+
+### asset_set_value
+
+Replace the value of an ordinary Console Asset.
+
+The value must match the Asset's existing type. Secret Text and Credential Assets must be maintained in Console.
+
+Parameters:
+
+```text
+path: The full Asset path, including its department path and name.
+value: The replacement value. Only JSON-compatible values are accepted.
+```
+
+### asset_get_secret_text
+
+Read a Secret Text Asset using the host account's current permissions.
+
+The returned value is sensitive and should not be written to logs.
+
+Parameters:
+
+```text
+path: The full Asset path, including its department path and name.
+```
+
+Returns:
+
+```text
+str: The decrypted secret text.
+```
+
+### asset_get_credential
+
+Read a Credential Asset using the host account's current permissions.
+
+The returned username and password are sensitive and should not be written to logs.
+
+Parameters:
+
+```text
+path: The full Asset path, including its department path and name.
+```
+
+Returns:
+
+```text
+Credential: The decrypted username and password.
+```
+
+### data_queue_query_items
+
+Query Data Queue items without claiming them.
+
+Results may contain fewer than count items because each response is limited to 2 MiB. Continue with nextSequence as afterSequence, keeping the same filters and order. Results may change between pages.
+
+Parameters:
+
+```text
+queuePath: The full Data Queue path, including its department path and name.
+status: The status filter: 'all', 'unclaimed', or 'claimed'.
+order: The queue order: 'oldest_first' or 'newest_first'.
+itemId: An optional item UUID used to narrow the query.
+count: The maximum number of items to return, from 1 to 100.
+afterSequence: The previous result's nextSequence, or None for the first page.
+```
+
+Returns:
+
+```text
+DataQueuePage: The matching items and nextSequence. A nextSequence of None means there is no further page.
+```
+
+### data_queue_upload_items
+
+Add a batch of JSON values to a Data Queue.
+
+Each item is limited to 1 MiB of UTF-8 JSON, and the complete request is limited to 2 MiB. Console may configure a smaller item limit. Invalid or oversized batches are rejected in full.
+
+If a network error leaves the result uncertain, check Console before uploading the same items again to avoid duplicates.
+
+Parameters:
+
+```text
+queuePath: The full Data Queue path, including its department path and name.
+items: A list containing 1 to 100 JSON values. To upload a JSON array as one item, wrap that array in an outer list.
+```
+
+Returns:
+
+```text
+DataQueueMutationResult: The IDs of the added items.
+```
+
+### data_queue_claim_items
+
+Mark matching Data Queue items as Claimed and return their data.
+
+The number of items claimed may be lower than count because each response is limited to 2 MiB. Choosing 'claimed' or 'all' allows previously claimed items to be selected again.
+
+If a network error leaves the result uncertain, check Console before calling again; another call may claim a different batch.
+
+Parameters:
+
+```text
+queuePath: The full Data Queue path, including its department path and name.
+count: The maximum number of items to claim, from 1 to 100.
+status: The status filter: 'unclaimed', 'claimed', or 'all'.
+order: The queue order: 'oldest_first' or 'newest_first'.
+itemId: An optional item UUID used to narrow the selection.
+```
+
+Returns:
+
+```text
+list[DataQueueItem]: The claimed item IDs and data. Returns an empty list when no items match.
+```
+
+### data_queue_reset_items
+
+Reset selected Data Queue items to Unclaimed.
+
+Item IDs, data, and original queue order are preserved.
+
+Parameters:
+
+```text
+queuePath: The full Data Queue path, including its department path and name.
+itemIds: One item UUID or a list containing 1 to 100 item UUIDs.
+```
+
+Returns:
+
+```text
+DataQueueMutationResult: The reset, missing, and skipped item IDs.
+```
+
+### data_queue_delete_items
+
+Delete Data Queue items by ID or by status, order, and count.
+
+Supply itemIds or selection parameters, but not both. Prefer IDs from the items actually processed. Without IDs, the defaults select one Claimed item in oldest-first order.
+
+If a network error leaves the result uncertain, check Console before deleting by conditions again; another call may delete a different batch.
+
+Parameters:
+
+```text
+queuePath: The full Data Queue path, including its department path and name.
+itemIds: One item UUID or a list containing 1 to 100 item UUIDs. Leave as None to use selection parameters.
+status: The selection status: 'all', 'unclaimed', or 'claimed'. None uses 'claimed'.
+order: The selection order: 'oldest_first' or 'newest_first'. None uses 'oldest_first'.
+count: The maximum number to delete, from 1 to 100. None uses 1.
+```
+
+Returns:
+
+```text
+DataQueueMutationResult: The deleted, missing, and skipped item IDs.
+```
+
+### shared_file_list
+
+List one page of Shared Files in a Console department.
+
+Each call returns one page. Console determines the page size, available as pageSize.
+
+Parameters:
+
+```text
+departmentPath: The full department path containing the Shared Files.
+name: An optional filename search filter. An empty string includes all names.
+sortBy: The sort field: 'name', 'size', or 'uploaded_at'.
+order: The sort direction: 'asc' or 'desc'.
+page: The page number, starting from 1.
+```
+
+Returns:
+
+```text
+SharedFilePage: The file metadata, department storage usage, and pagination details.
+```
+
+### shared_file_get_info
+
+Read current Shared File metadata without downloading its content.
+
+Parameters:
+
+```text
+path: The full Shared File path, including its department path and filename.
+```
+
+Returns:
+
+```text
+SharedFileInfo: The file path, size, checksum, and upload details.
+```
+
+### shared_file_upload
+
+Upload a local file to Console as a Shared File.
+
+The file size is limited to 20 MiB. An existing Shared File is replaced only after the complete upload succeeds.
+
+Parameters:
+
+```text
+localPath: The local source file path. Accepts str or PathLike[str].
+path: The full target Shared File path, including its department path and filename.
+overwrite: If True, replaces an existing Shared File. If False, an existing file causes an error.
+```
+
+Returns:
+
+```text
+SharedFileInfo: The published file metadata.
+```
+
+### shared_file_download
+
+Download a Shared File to a local folder.
+
+Missing folders are created automatically. The filename is sanitized for local use, with a Warning log if it changes. Existing files are preserved if downloading or verification fails.
+
+Parameters:
+
+```text
+path: The full Shared File path, including its department path and filename.
+folderPath: The destination folder. Accepts str or PathLike[str].
+filename: An optional local filename. None uses the filename returned by Console.
+overwrite: If True, replaces an existing file after verification. If False, a file at the sanitized destination causes FileExistsError.
+```
+
+Returns:
+
+```text
+str: The actual absolute path of the downloaded file, including its sanitized filename.
+```
+
+### shared_file_delete
+
+Delete Shared Files at the specified paths as one operation.
+
+Parameters:
+
+```text
+paths: One full Shared File path or a list containing 1 to 100 paths.
+```
+
+Returns:
+
+```text
+SharedFileDeleteResult: The deleted and missing paths, and the number of deleted files.
 ```
 
 ## Web

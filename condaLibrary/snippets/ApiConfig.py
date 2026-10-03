@@ -77,6 +77,7 @@ PUBLIC_MODULE_ORDER = [
     "File",
     "OCR",
     # Web protocol
+    "Console",
     "Web",
     "Mail",
     "FTP",
@@ -135,6 +136,7 @@ SNIPPET_CATEGORY_ICON: dict[str, str] = {
     "File": "request-changes",
     "OCR": "search-fuzzy",
     #
+    "Console": "account",
     "Web": "cloud",
     "Mail": "mail",
     "FTP": "references",

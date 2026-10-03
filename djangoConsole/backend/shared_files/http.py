@@ -21,13 +21,14 @@ from django.views.decorators.debug import sensitive_variables
 from pydantic import ValidationError as ContractValidationError
 
 from accounts.models import User
-from accounts.api_key_authentication import (
-    InvalidApiKeyError,
-    ApiKeyAuthenticationContext,
-    authenticate_api_key,
-    lock_api_key_write_access,
+from accounts.api_key_authentication import InvalidApiKeyError
+from accounts.resource_authentication import (
+    InvalidResourceCredentialError,
+    ResourceAuthenticationContext,
+    apply_resource_authentication_rate_limit,
+    authenticate_resource,
+    lock_resource_write_access,
 )
-from accounts.rate_limits import apply_api_key_authentication_rate_limit
 from accounts.session_revocation import SessionInvalidatedError, lock_session_write_access
 from console_project.contracts import JsonRequest, JsonResponsePayload
 from console_project.http import (
@@ -53,7 +54,7 @@ from .models import SharedFile, UploadSession
 
 _LOGGER = logging.getLogger("console.shared_files")
 
-type FileAuthentication = Membership | ApiKeyAuthenticationContext
+type FileAuthentication = Membership | ResourceAuthenticationContext
 
 
 class FileRequestError(Exception):
@@ -63,6 +64,8 @@ class FileRequestError(Exception):
 _HANDLED_ERRORS = (
     PermissionDenied,
     InvalidApiKeyError,
+    InvalidResourceCredentialError,
+    SessionInvalidatedError,
     SharedFile.DoesNotExist,
     Department.DoesNotExist,
     UploadSession.DoesNotExist,
@@ -79,7 +82,9 @@ _HANDLED_ERRORS = (
 
 
 def build_file_error_response(e: Exception) -> JsonResponse:
-    if isinstance(e, (SessionInvalidatedError, InvalidApiKeyError)):
+    if isinstance(
+        e, (SessionInvalidatedError, InvalidApiKeyError, InvalidResourceCredentialError)
+    ):
         response = build_error_response(
             "api_key_authentication_required"
             if isinstance(e, InvalidApiKeyError)
@@ -87,7 +92,7 @@ def build_file_error_response(e: Exception) -> JsonResponse:
             "Valid credentials are required.",
             statusCode=401,
         )
-        if isinstance(e, InvalidApiKeyError):
+        if isinstance(e, (InvalidApiKeyError, InvalidResourceCredentialError)):
             response["WWW-Authenticate"] = (
                 'Bearer realm="LiberRPA Console", error="invalid_token"'
             )
@@ -158,7 +163,7 @@ def session_file_view[**P](
 def api_file_view[**P](
     view: Callable[Concatenate[HttpRequest, FileAuthentication, P], HttpResponseBase],
 ) -> Callable[Concatenate[HttpRequest, P], HttpResponseBase]:
-    """Public routes authenticate only the Bearer key, including binary downloads."""
+    """Authenticate the Bearer key or native session, including binary downloads."""
 
     @csrf_exempt
     @never_cache
@@ -168,12 +173,13 @@ def api_file_view[**P](
         request: HttpRequest, *args: P.args, **kwargs: P.kwargs
     ) -> HttpResponseBase:
         try:
-            intRetryAfter = apply_api_key_authentication_rate_limit(
-                request.META.get("REMOTE_ADDR", "")
+            intRetryAfter = apply_resource_authentication_rate_limit(
+                request.META.get("REMOTE_ADDR", ""),
+                request.headers.get("Authorization", ""),
             )
             if intRetryAfter:
                 return build_rate_limited_response(intRetryAfter)
-            authentication = authenticate_api_key(
+            authentication = authenticate_resource(
                 request.headers.get("Authorization", "")
             )
             return view(request, authentication, *args, **kwargs)
@@ -184,7 +190,7 @@ def api_file_view[**P](
 
 
 def get_file_access(authentication: FileAuthentication) -> OrganizationAccessContext:
-    if isinstance(authentication, ApiKeyAuthenticationContext):
+    if not isinstance(authentication, Membership):
         return authentication.access
     return resolve_organization_access(
         actorId=authentication.user_id,
@@ -196,8 +202,8 @@ def get_file_access(authentication: FileAuthentication) -> OrganizationAccessCon
 def lock_file_access(
     request: HttpRequest, authentication: FileAuthentication
 ) -> OrganizationAccessContext:
-    if isinstance(authentication, ApiKeyAuthenticationContext):
-        return lock_api_key_write_access(authentication)
+    if not isinstance(authentication, Membership):
+        return lock_resource_write_access(authentication)
     return lock_session_write_access(
         authentication.user_id,
         authentication.organization_id,

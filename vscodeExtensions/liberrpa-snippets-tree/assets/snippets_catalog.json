@@ -24,6 +24,7 @@
     "Time",
     "File",
     "OCR",
+    "Console",
     "Web",
     "Mail",
     "FTP",
@@ -58,6 +59,7 @@
     "Time": "calendar",
     "File": "request-changes",
     "OCR": "search-fuzzy",
+    "Console": "account",
     "Web": "cloud",
     "Mail": "mail",
     "FTP": "references",
@@ -92,6 +94,7 @@
         "Time",
         "File",
         "OCR",
+        "Console",
         "Web",
         "Mail",
         "FTP",
@@ -2397,7 +2400,7 @@
         "${1:intResult} = Application.run_application(filePath=$2, workingDirectory=${3:'./'}, windowState=${4|'default','maximize','minimize'|})",
         "$0"
       ],
-      "description": "Run an application with a specified window state.\n\nParameters:\n    filePath: The path of the application to run. Accepts str or PathLike[str].\n    workingDirectory: The working directory of the application. Accepts str or PathLike[str].\n    windowState: 'default', 'maximize', 'minimize'\n\nReturns:\n    int: The application's PID.",
+      "description": "Run an application with a specified window state.\n\nFor GUI applications, the function briefly waits for the launched application to expose a usable GUI process.\nIf a launcher creates the actual GUI process, the PID of that GUI process may be returned.\n\nParameters:\n    filePath: The path of the application to run. Accepts str or PathLike[str].\n    workingDirectory: The working directory of the application. Accepts str or PathLike[str].\n    windowState: 'default', 'maximize', 'minimize'\n\nReturns:\n    int: The PID of the launched application process used for RPA operations.",
       "insertionMode": "line",
       "imports": {
         "liberrpa.Modules": [
@@ -4291,6 +4294,230 @@
       "imports": {
         "liberrpa.Modules": [
           "OCR"
+        ]
+      }
+    },
+    "Console.asset_get_value": {
+      "category": "Console",
+      "label": "asset_get_value",
+      "prefix": "Console.asset_get_value",
+      "body": [
+        "${1:result} = Console.asset_get_value(path=$2)",
+        "$0"
+      ],
+      "description": "Read the current value of an ordinary Console Asset.\n\nParameters:\n    path: The full Asset path, including its department path and name.\n\nReturns:\n    JsonValue: The Asset value as a Python JSON value.",
+      "insertionMode": "line",
+      "imports": {
+        "liberrpa.Modules": [
+          "Console"
+        ]
+      }
+    },
+    "Console.asset_set_value": {
+      "category": "Console",
+      "label": "asset_set_value",
+      "prefix": "Console.asset_set_value",
+      "body": [
+        "Console.asset_set_value(path=$1, value=$2)",
+        "$0"
+      ],
+      "description": "Replace the value of an ordinary Console Asset.\n\nThe value must match the Asset's existing type. Secret Text and Credential Assets must be maintained in Console.\n\nParameters:\n    path: The full Asset path, including its department path and name.\n    value: The replacement value. Only JSON-compatible values are accepted.",
+      "insertionMode": "line",
+      "imports": {
+        "liberrpa.Modules": [
+          "Console"
+        ]
+      }
+    },
+    "Console.asset_get_secret_text": {
+      "category": "Console",
+      "label": "asset_get_secret_text",
+      "prefix": "Console.asset_get_secret_text",
+      "body": [
+        "${1:strResult} = Console.asset_get_secret_text(path=$2)",
+        "$0"
+      ],
+      "description": "Read a Secret Text Asset using the host account's current permissions.\n\nThe returned value is sensitive and should not be written to logs.\n\nParameters:\n    path: The full Asset path, including its department path and name.\n\nReturns:\n    str: The decrypted secret text.",
+      "insertionMode": "line",
+      "imports": {
+        "liberrpa.Modules": [
+          "Console"
+        ]
+      }
+    },
+    "Console.asset_get_credential": {
+      "category": "Console",
+      "label": "asset_get_credential",
+      "prefix": "Console.asset_get_credential",
+      "body": [
+        "${1:result} = Console.asset_get_credential(path=$2)",
+        "$0"
+      ],
+      "description": "Read a Credential Asset using the host account's current permissions.\n\nThe returned username and password are sensitive and should not be written to logs.\n\nParameters:\n    path: The full Asset path, including its department path and name.\n\nReturns:\n    Credential: The decrypted username and password.",
+      "insertionMode": "line",
+      "imports": {
+        "liberrpa.Modules": [
+          "Console"
+        ]
+      }
+    },
+    "Console.data_queue_query_items": {
+      "category": "Console",
+      "label": "data_queue_query_items",
+      "prefix": "Console.data_queue_query_items",
+      "body": [
+        "${1:result} = Console.data_queue_query_items(queuePath=$2, status=${3|'all','unclaimed','claimed'|}, order=${4|'oldest_first','newest_first'|}, itemId=${5:None}, count=${6:50}, afterSequence=${7:None})",
+        "$0"
+      ],
+      "description": "Query Data Queue items without claiming them.\n\nResults may contain fewer than count items because each response is limited to 2 MiB. Continue with nextSequence as afterSequence, keeping the same filters and order. Results may change between pages.\n\nParameters:\n    queuePath: The full Data Queue path, including its department path and name.\n    status: The status filter: 'all', 'unclaimed', or 'claimed'.\n    order: The queue order: 'oldest_first' or 'newest_first'.\n    itemId: An optional item UUID used to narrow the query.\n    count: The maximum number of items to return, from 1 to 100.\n    afterSequence: The previous result's nextSequence, or None for the first page.\n\nReturns:\n    DataQueuePage: The matching items and nextSequence. A nextSequence of None means there is no further page.",
+      "insertionMode": "line",
+      "imports": {
+        "liberrpa.Modules": [
+          "Console"
+        ]
+      }
+    },
+    "Console.data_queue_upload_items": {
+      "category": "Console",
+      "label": "data_queue_upload_items",
+      "prefix": "Console.data_queue_upload_items",
+      "body": [
+        "${1:result} = Console.data_queue_upload_items(queuePath=$2, items=$3)",
+        "$0"
+      ],
+      "description": "Add a batch of JSON values to a Data Queue.\n\nEach item is limited to 1 MiB of UTF-8 JSON, and the complete request is limited to 2 MiB. Console may configure a smaller item limit. Invalid or oversized batches are rejected in full.\n\nIf a network error leaves the result uncertain, check Console before uploading the same items again to avoid duplicates.\n\nParameters:\n    queuePath: The full Data Queue path, including its department path and name.\n    items: A list containing 1 to 100 JSON values. To upload a JSON array as one item, wrap that array in an outer list.\n\nReturns:\n    DataQueueMutationResult: The IDs of the added items.",
+      "insertionMode": "line",
+      "imports": {
+        "liberrpa.Modules": [
+          "Console"
+        ]
+      }
+    },
+    "Console.data_queue_claim_items": {
+      "category": "Console",
+      "label": "data_queue_claim_items",
+      "prefix": "Console.data_queue_claim_items",
+      "body": [
+        "${1:listResult} = Console.data_queue_claim_items(queuePath=$2, count=${3:1}, status=${4|'unclaimed','all','claimed'|}, order=${5|'oldest_first','newest_first'|}, itemId=${6:None})",
+        "$0"
+      ],
+      "description": "Mark matching Data Queue items as Claimed and return their data.\n\nThe number of items claimed may be lower than count because each response is limited to 2 MiB. Choosing 'claimed' or 'all' allows previously claimed items to be selected again.\n\nIf a network error leaves the result uncertain, check Console before calling again; another call may claim a different batch.\n\nParameters:\n    queuePath: The full Data Queue path, including its department path and name.\n    count: The maximum number of items to claim, from 1 to 100.\n    status: The status filter: 'unclaimed', 'claimed', or 'all'.\n    order: The queue order: 'oldest_first' or 'newest_first'.\n    itemId: An optional item UUID used to narrow the selection.\n\nReturns:\n    list[DataQueueItem]: The claimed item IDs and data. Returns an empty list when no items match.",
+      "insertionMode": "line",
+      "imports": {
+        "liberrpa.Modules": [
+          "Console"
+        ]
+      }
+    },
+    "Console.data_queue_reset_items": {
+      "category": "Console",
+      "label": "data_queue_reset_items",
+      "prefix": "Console.data_queue_reset_items",
+      "body": [
+        "${1:result} = Console.data_queue_reset_items(queuePath=$2, itemIds=$3)",
+        "$0"
+      ],
+      "description": "Reset selected Data Queue items to Unclaimed.\n\nItem IDs, data, and original queue order are preserved.\n\nParameters:\n    queuePath: The full Data Queue path, including its department path and name.\n    itemIds: One item UUID or a list containing 1 to 100 item UUIDs.\n\nReturns:\n    DataQueueMutationResult: The reset, missing, and skipped item IDs.",
+      "insertionMode": "line",
+      "imports": {
+        "liberrpa.Modules": [
+          "Console"
+        ]
+      }
+    },
+    "Console.data_queue_delete_items": {
+      "category": "Console",
+      "label": "data_queue_delete_items",
+      "prefix": "Console.data_queue_delete_items",
+      "body": [
+        "${1:result} = Console.data_queue_delete_items(queuePath=$2, itemIds=${3:None}, status=${4:None}, order=${5:None}, count=${6:None})",
+        "$0"
+      ],
+      "description": "Delete Data Queue items by ID or by status, order, and count.\n\nSupply itemIds or selection parameters, but not both. Prefer IDs from the items actually processed. Without IDs, the defaults select one Claimed item in oldest-first order.\n\nIf a network error leaves the result uncertain, check Console before deleting by conditions again; another call may delete a different batch.\n\nParameters:\n    queuePath: The full Data Queue path, including its department path and name.\n    itemIds: One item UUID or a list containing 1 to 100 item UUIDs. Leave as None to use selection parameters.\n    status: The selection status: 'all', 'unclaimed', or 'claimed'. None uses 'claimed'.\n    order: The selection order: 'oldest_first' or 'newest_first'. None uses 'oldest_first'.\n    count: The maximum number to delete, from 1 to 100. None uses 1.\n\nReturns:\n    DataQueueMutationResult: The deleted, missing, and skipped item IDs.",
+      "insertionMode": "line",
+      "imports": {
+        "liberrpa.Modules": [
+          "Console"
+        ]
+      }
+    },
+    "Console.shared_file_list": {
+      "category": "Console",
+      "label": "shared_file_list",
+      "prefix": "Console.shared_file_list",
+      "body": [
+        "${1:result} = Console.shared_file_list(departmentPath=$2, name=${3:''}, sortBy=${4|'uploaded_at','name','size'|}, order=${5|'desc','asc'|}, page=${6:1})",
+        "$0"
+      ],
+      "description": "List one page of Shared Files in a Console department.\n\nEach call returns one page. Console determines the page size, available as pageSize.\n\nParameters:\n    departmentPath: The full department path containing the Shared Files.\n    name: An optional filename search filter. An empty string includes all names.\n    sortBy: The sort field: 'name', 'size', or 'uploaded_at'.\n    order: The sort direction: 'asc' or 'desc'.\n    page: The page number, starting from 1.\n\nReturns:\n    SharedFilePage: The file metadata, department storage usage, and pagination details.",
+      "insertionMode": "line",
+      "imports": {
+        "liberrpa.Modules": [
+          "Console"
+        ]
+      }
+    },
+    "Console.shared_file_get_info": {
+      "category": "Console",
+      "label": "shared_file_get_info",
+      "prefix": "Console.shared_file_get_info",
+      "body": [
+        "${1:result} = Console.shared_file_get_info(path=$2)",
+        "$0"
+      ],
+      "description": "Read current Shared File metadata without downloading its content.\n\nParameters:\n    path: The full Shared File path, including its department path and filename.\n\nReturns:\n    SharedFileInfo: The file path, size, checksum, and upload details.",
+      "insertionMode": "line",
+      "imports": {
+        "liberrpa.Modules": [
+          "Console"
+        ]
+      }
+    },
+    "Console.shared_file_upload": {
+      "category": "Console",
+      "label": "shared_file_upload",
+      "prefix": "Console.shared_file_upload",
+      "body": [
+        "${1:result} = Console.shared_file_upload(localPath=$2, path=$3, overwrite=${4:False})",
+        "$0"
+      ],
+      "description": "Upload a local file to Console as a Shared File.\n\nThe file size is limited to 20 MiB. An existing Shared File is replaced only after the complete upload succeeds.\n\nParameters:\n    localPath: The local source file path. Accepts str or PathLike[str].\n    path: The full target Shared File path, including its department path and filename.\n    overwrite: If True, replaces an existing Shared File. If False, an existing file causes an error.\n\nReturns:\n    SharedFileInfo: The published file metadata.",
+      "insertionMode": "line",
+      "imports": {
+        "liberrpa.Modules": [
+          "Console"
+        ]
+      }
+    },
+    "Console.shared_file_download": {
+      "category": "Console",
+      "label": "shared_file_download",
+      "prefix": "Console.shared_file_download",
+      "body": [
+        "${1:strResult} = Console.shared_file_download(path=$2, folderPath=$3, filename=${4:None}, overwrite=${5:False})",
+        "$0"
+      ],
+      "description": "Download a Shared File to a local folder.\n\nMissing folders are created automatically. The filename is sanitized for local use, with a Warning log if it changes. Existing files are preserved if downloading or verification fails.\n\nParameters:\n    path: The full Shared File path, including its department path and filename.\n    folderPath: The destination folder. Accepts str or PathLike[str].\n    filename: An optional local filename. None uses the filename returned by Console.\n    overwrite: If True, replaces an existing file after verification. If False, a file at the sanitized destination causes FileExistsError.\n\nReturns:\n    str: The actual absolute path of the downloaded file, including its sanitized filename.",
+      "insertionMode": "line",
+      "imports": {
+        "liberrpa.Modules": [
+          "Console"
+        ]
+      }
+    },
+    "Console.shared_file_delete": {
+      "category": "Console",
+      "label": "shared_file_delete",
+      "prefix": "Console.shared_file_delete",
+      "body": [
+        "${1:result} = Console.shared_file_delete(paths=$2)",
+        "$0"
+      ],
+      "description": "Delete Shared Files at the specified paths as one operation.\n\nParameters:\n    paths: One full Shared File path or a list containing 1 to 100 paths.\n\nReturns:\n    SharedFileDeleteResult: The deleted and missing paths, and the number of deleted files.",
+      "insertionMode": "line",
+      "imports": {
+        "liberrpa.Modules": [
+          "Console"
         ]
       }
     },

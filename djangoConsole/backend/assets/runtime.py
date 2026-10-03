@@ -1,0 +1,120 @@
+# FileName: runtime.py
+__author__ = "Jiyan Hu"
+__email__ = "mailwork.hu@gmail.com"
+__license__ = "GNU Affero General Public License v3.0 or later"
+__copyright__ = f"Copyright (C) 2025 {__author__}"
+
+import json
+from typing import Annotated, cast
+
+from cryptography.fernet import InvalidToken, MultiFernet
+from django.conf import settings
+from django.core.exceptions import PermissionDenied, ValidationError
+from django.views.decorators.debug import sensitive_variables
+from pydantic import Field
+
+from console_project.contracts import JsonRequest, JsonResponsePayload, JsonValue
+from organizations.department_queries import get_department_tree, resolve_department_path
+from organizations.permissions import AccessChannel, OrganizationAccessContext
+from organizations.validators import get_path_name_key, normalize_path_name
+
+from .models import SECRET_ASSET_TYPES, Asset, AssetType
+from .queries import get_asset_query
+from .services import SecretStorageUnavailableError, save_asset_value
+
+MAX_ASSET_RUNTIME_BYTES = 2 * 1024 * 1024
+
+
+class AssetPathRequest(JsonRequest):
+    path: Annotated[str, Field(min_length=1, max_length=16384)]
+
+
+class AssetRuntimeValueRequest(AssetPathRequest):
+    value: JsonValue
+
+
+class AssetRuntimeValueResponse(JsonResponsePayload):
+    value: JsonValue
+
+
+class AssetCredentialResponse(JsonResponsePayload):
+    username: str = Field(repr=False)
+    password: str = Field(repr=False)
+
+
+class AssetRuntimeError(Exception):
+    def __init__(self, code: str, message: str) -> None:
+        self.code = code
+        super().__init__(message)
+
+
+def parse_asset_path(assetPath: str) -> tuple[str, ...]:
+    """Normalize once at the HTTP boundary; services resolve current path ownership."""
+    listPathPart = assetPath.replace("\\", "/").removeprefix("/").split("/")
+    if len(listPathPart) < 2 or len(listPathPart) > 65:
+        raise ValidationError("Use a full department path and asset name.")
+    return tuple(normalize_path_name(strPathPart) for strPathPart in listPathPart)
+
+
+def _resolve_asset_path(
+    access: OrganizationAccessContext, assetPathParts: tuple[str, ...]
+) -> Asset:
+    dictDepartmentById = get_department_tree(access.organization.pk)
+    department = resolve_department_path(assetPathParts[:-1], dictDepartmentById)
+    return get_asset_query(access).get(
+        department_id=department.pk, name_key=get_path_name_key(assetPathParts[-1])
+    )
+
+
+def _validate_ordinary_asset_type(asset: Asset) -> None:
+    if asset.asset_type in SECRET_ASSET_TYPES:
+        raise AssetRuntimeError(
+            "asset_type_mismatch",
+            "Use the dedicated function for this secret asset type.",
+        )
+
+
+@sensitive_variables()
+def get_runtime_asset_value(
+    access: OrganizationAccessContext, assetPathParts: tuple[str, ...]
+) -> AssetRuntimeValueResponse:
+    asset = _resolve_asset_path(access, assetPathParts)
+    _validate_ordinary_asset_type(asset)
+    return AssetRuntimeValueResponse(value=json.loads(asset.value_json))
+
+
+@sensitive_variables()
+def set_runtime_asset_value(
+    access: OrganizationAccessContext,
+    assetPathParts: tuple[str, ...],
+    value: JsonValue,
+) -> AssetRuntimeValueResponse:
+    asset = _resolve_asset_path(access, assetPathParts)
+    _validate_ordinary_asset_type(asset)
+    save_asset_value(access, asset, value=value)
+    return AssetRuntimeValueResponse(value=value)
+
+
+@sensitive_variables()
+def get_runtime_secret_value(
+    access: OrganizationAccessContext,
+    assetPathParts: tuple[str, ...],
+    assetType: AssetType,
+) -> AssetRuntimeValueResponse | AssetCredentialResponse:
+    if access.channel not in (AccessChannel.EDITOR, AccessChannel.EXECUTOR):
+        raise PermissionDenied("Only native sessions can read secret assets.")
+    asset = _resolve_asset_path(access, assetPathParts)
+    if asset.asset_type != assetType:
+        raise AssetRuntimeError(
+            "asset_type_mismatch", "Use the function matching the asset's type."
+        )
+    cipher = cast(MultiFernet | None, settings.CONSOLE_SECRET_CIPHER)
+    if cipher is None:
+        raise SecretStorageUnavailableError()
+    try:
+        secretValue = json.loads(cipher.decrypt(asset.encrypted_value.encode("ascii")))
+    except InvalidToken:
+        raise SecretStorageUnavailableError() from None
+    if assetType == AssetType.CREDENTIAL:
+        return AssetCredentialResponse.model_validate(secretValue)
+    return AssetRuntimeValueResponse(value=secretValue)

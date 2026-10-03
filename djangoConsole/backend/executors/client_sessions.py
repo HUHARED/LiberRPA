@@ -143,6 +143,26 @@ def _touch_executor_session(session: ExecutorSession) -> None:
     )
 
 
+@sensitive_variables()
+def get_locked_executor_session(
+    access: OrganizationAccessContext, sessionId: uuid.UUID
+) -> ExecutorSession:
+    """Apply the same account and association rules after acquiring business locks."""
+    try:
+        session = (
+            get_executor_sessions(access.organization.pk)
+            .select_for_update(of=("self",))
+            .get(pk=sessionId, user_id=access.actorId)
+        )
+    except ExecutorSession.DoesNotExist:
+        raise InvalidExecutorSessionError(
+            "A valid Executor session is required."
+        ) from None
+    if not is_executor_session_current(session, currentTime=timezone.now()):
+        raise InvalidExecutorSessionError("A valid Executor session is required.")
+    return session
+
+
 def _perform_executor_action(
     session: ExecutorSession,
     access: OrganizationAccessContext,
@@ -267,17 +287,11 @@ def handle_executor_client_request(
             forUpdate=True,
         )
         try:
-            session = (
-                get_executor_sessions(identity.organization_id)
-                .select_for_update(of=("self",))
-                .get(pk=identity.id)
-            )
-            if not is_executor_session_current(session, currentTime=timezone.now()):
-                raise InvalidExecutorSessionError("A valid Executor session is required.")
+            session = get_locked_executor_session(access, identity.id)
             result = _perform_executor_action(
                 session, access, action, executorId, pageNumber
             )
-        except (ExecutorSession.DoesNotExist, InvalidExecutorSessionError):
+        except InvalidExecutorSessionError:
             ExecutorSession.objects.filter(pk=identity.id).delete()
             boolInvalidSession = True
     # Commit invalidation before reporting it; a later permission restoration cannot revive this login.

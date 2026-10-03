@@ -8,9 +8,9 @@ from django.db import transaction
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.views.decorators.http import require_POST
 
-from accounts.api_key_authentication import (
-    ApiKeyAuthenticationContext,
-    lock_api_key_write_access,
+from accounts.resource_authentication import (
+    ResourceAuthenticationContext,
+    lock_resource_write_access,
 )
 
 from .contracts import (
@@ -35,7 +35,7 @@ from .http import (
 @api_queue_view
 def query_queue_items(
     request: HttpRequest,
-    authentication: ApiKeyAuthenticationContext,
+    authentication: ResourceAuthenticationContext,
 ) -> HttpResponse:
     payload = parse_queue_request(request, QueueQueryRequest)
     if isinstance(payload, JsonResponse):
@@ -51,14 +51,14 @@ def query_queue_items(
 @api_queue_view
 def upload_queue_items(
     request: HttpRequest,
-    authentication: ApiKeyAuthenticationContext,
+    authentication: ResourceAuthenticationContext,
 ) -> HttpResponse:
     parsed = parse_item_request(request, QueueUploadRequest)
     if isinstance(parsed, JsonResponse):
         return parsed
     queueReference, payload = parsed
     with transaction.atomic():
-        access = lock_api_key_write_access(authentication)
+        access = lock_resource_write_access(authentication)
         return build_queue_response(
             upload_items(
                 access, queueReference, payload, apiKeyId=authentication.apiKeyId
@@ -70,14 +70,14 @@ def upload_queue_items(
 @api_queue_view
 def claim_queue_items(
     request: HttpRequest,
-    authentication: ApiKeyAuthenticationContext,
+    authentication: ResourceAuthenticationContext,
 ) -> HttpResponse:
     parsed = parse_item_request(request, QueueClaimRequest)
     if isinstance(parsed, JsonResponse):
         return parsed
     queueReference, payload = parsed
     with transaction.atomic():
-        access = lock_api_key_write_access(authentication)
+        access = lock_resource_write_access(authentication)
         return build_queue_response(
             claim_items(
                 access, queueReference, payload, apiKeyId=authentication.apiKeyId
@@ -89,14 +89,14 @@ def claim_queue_items(
 @api_queue_view
 def reset_queue_items(
     request: HttpRequest,
-    authentication: ApiKeyAuthenticationContext,
+    authentication: ResourceAuthenticationContext,
 ) -> HttpResponse:
     parsed = parse_item_request(request, QueueResetRequest)
     if isinstance(parsed, JsonResponse):
         return parsed
     queueReference, payload = parsed
     with transaction.atomic():
-        access = lock_api_key_write_access(authentication)
+        access = lock_resource_write_access(authentication)
         return build_queue_response(
             reset_items(
                 access, queueReference, payload, apiKeyId=authentication.apiKeyId
@@ -108,14 +108,14 @@ def reset_queue_items(
 @api_queue_view
 def delete_queue_items(
     request: HttpRequest,
-    authentication: ApiKeyAuthenticationContext,
+    authentication: ResourceAuthenticationContext,
 ) -> HttpResponse:
     parsed = parse_item_request(request, QueueDeleteItemsRequest)
     if isinstance(parsed, JsonResponse):
         return parsed
     queueReference, payload = parsed
     with transaction.atomic():
-        access = lock_api_key_write_access(authentication)
+        access = lock_resource_write_access(authentication)
         return build_queue_response(
             delete_items(
                 access, queueReference, payload, apiKeyId=authentication.apiKeyId

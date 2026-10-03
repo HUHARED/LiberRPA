@@ -27,6 +27,7 @@ import {
   parseExecutorChoices,
   requestConsole,
 } from "./consoleApi";
+import type { ConsoleCredentialSnapshot } from "./consoleContextBridge";
 
 let strConsoleUrl = "";
 let strRememberedEmail = "";
@@ -193,6 +194,20 @@ export function getConsoleAccountState(): ConsoleAccountState {
     hasActiveRun: hasActiveProjectRun(),
     busy: boolBusy,
   };
+}
+
+export function getConsolePythonCredential(): ConsoleCredentialSnapshot | null {
+  if (
+    boolStopped ||
+    boolBusy ||
+    strToken === "" ||
+    sessionInfo?.session.selection_required
+  ) {
+    return null;
+  }
+
+  // Only the private Python bridge receives this snapshot; never send it to Renderer.
+  return { consoleUrl: strConsoleUrl, token: strToken };
 }
 
 async function runAccountStateOperation(

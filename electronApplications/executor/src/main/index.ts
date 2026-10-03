@@ -27,9 +27,14 @@ import icon from "../../resources/LiberRPA_icon_v3_color_Executor_256.ico?asset"
 import { getErrorMessage } from "../shared/error";
 import {
   getConsoleAccountState,
+  getConsolePythonCredential,
   startConsoleAccount,
   stopConsoleAccount,
 } from "./Console/consoleAccount";
+import {
+  startConsoleContextBridge,
+  stopConsoleContextBridge,
+} from "./Console/consoleContextBridge";
 import { loggerMain } from "./Logging/logger";
 import { strDefaultProjectLogFolderPath } from "./Config/basicConfig";
 import { dictConfigExecutor } from "./Config/executorConfig";
@@ -161,7 +166,7 @@ function createWindow(): void {
 
 void app
   .whenReady()
-  .then(() => {
+  .then(async () => {
     initializeDatabase();
     recoverProjectPackageInstallations();
     recoverProjectPackageDeletions();
@@ -228,6 +233,12 @@ void app
         data: getConsoleAccountState(),
       });
     });
+
+    try {
+      await startConsoleContextBridge(getConsolePythonCredential);
+    } catch {
+      loggerMain.error("The local Console credential pipe could not be started.");
+    }
     createWindow();
 
     onRunActivityChanged(() => {
@@ -255,6 +266,7 @@ void app
   });
 
 async function shutdownExecutor(): Promise<void> {
+  stopConsoleContextBridge();
   await stopConsoleAccount();
   try {
     await stopSchedulerEngine();

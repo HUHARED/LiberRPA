@@ -54,6 +54,7 @@ __all__ = [
     "File",
     "OCR",
     # Web protocol
+    "Console",
     "Web",
     "Mail",
     "FTP",
@@ -100,6 +101,7 @@ _LAZY_MODULE_EXPORTS: dict[str, str] = {
     "File": "liberrpa.File",
     "OCR": "liberrpa.OCR",
     # Web protocol
+    "Console": "liberrpa.Console",
     "Web": "liberrpa.Web",
     "Mail": "liberrpa.Mail",
     "FTP": "liberrpa.FTP",
@@ -189,6 +191,7 @@ if TYPE_CHECKING:
     from liberrpa import File as File
     from liberrpa import OCR as OCR
 
+    from liberrpa import Console as Console
     from liberrpa import Web as Web
     from liberrpa import Mail as Mail
     from liberrpa import FTP as FTP

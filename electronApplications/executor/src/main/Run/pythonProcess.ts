@@ -7,6 +7,7 @@ import path from "path";
 import { getErrorMessage } from "../../shared/error";
 import { isProcessRunning } from "../Common/process";
 import { buildPythonProcessEnvironment } from "../Config/environment";
+import { getConsoleContextEnvironment } from "../Console/consoleContextBridge";
 import { loggerMain } from "../Logging/logger";
 import type { Dict_ProjectRun_Detail } from "./types";
 
@@ -102,6 +103,8 @@ export function spawnProjectPythonProcess({
         pythonEnvironmentPath,
         pythonPathEntries: [packagePath, path.join(packagePath, "_Components")],
         additionalVariables: {
+          // Replace inherited Editor metadata even when this Executor bridge is unavailable.
+          ...getConsoleContextEnvironment(),
           LIBERRPA_RUN_STARTED_AT: startedAt,
           LIBERRPA_EXECUTOR_RUN_ID: runId,
           LIBERRPA_EXECUTOR_RUN_STATE_PATH: runStatePath,

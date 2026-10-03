@@ -129,14 +129,10 @@ def update_asset_details(
 
 
 @sensitive_variables()
-def update_asset_value(
-    access: OrganizationAccessContext, assetId: uuid.UUID, *, value: JsonValue
+def save_asset_value(
+    access: OrganizationAccessContext, asset: Asset, *, value: JsonValue
 ) -> Asset:
-    asset = get_asset_query(access).get(pk=assetId)
-    if asset.asset_type in SECRET_ASSET_TYPES:
-        get_authorized_departments(access, requiredRole=DepartmentRole.DEVELOPER).get(
-            pk=asset.department_id
-        )
+    """Save an asset already authorized for this write under the organization lock."""
     _set_asset_value(asset, value)
     asset.updated_at = timezone.now()
     asset.save(update_fields=["value_json", "encrypted_value", "updated_at"])
@@ -149,6 +145,18 @@ def update_asset_value(
         channel=access.channel,
     )
     return asset
+
+
+@sensitive_variables()
+def update_asset_value(
+    access: OrganizationAccessContext, assetId: uuid.UUID, *, value: JsonValue
+) -> Asset:
+    asset = get_asset_query(access).get(pk=assetId)
+    if asset.asset_type in SECRET_ASSET_TYPES:
+        get_authorized_departments(access, requiredRole=DepartmentRole.DEVELOPER).get(
+            pk=asset.department_id
+        )
+    return save_asset_value(access, asset, value=value)
 
 
 def delete_asset(access: OrganizationAccessContext, assetId: uuid.UUID) -> None:

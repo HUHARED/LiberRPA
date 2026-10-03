@@ -101,7 +101,7 @@ export async function getSharedFiles(body: FileListRequest): Promise<FileListRes
     ].every(isNonnegativeInteger) ||
     value.page === 0 ||
     value.total_pages === 0 ||
-    value.page_size !== 100
+    value.page_size !== 50
   )
     return rejectInvalidFileResponse();
   return value as unknown as FileListResponse;

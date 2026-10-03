@@ -4,8 +4,6 @@ __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
-
-# from liberrpa.UI._UiDict import *
 from os import PathLike
 from typing import TypedDict, Literal, NotRequired, Any
 
@@ -628,12 +626,12 @@ HookKey = Literal[
 
 type MouseButton = Literal["left", "right", "middle"]
 type ClickMode = Literal["single_click", "double_click", "down", "up"]
-type FivePosition = Literal["center", "top_left", "top_right", "bottom_left", "bottom_right"]
+type FivePosition = Literal[
+    "center", "top_left", "top_right", "bottom_left", "bottom_right"
+]
 type ExecutionMode = Literal["simulate", "api"]
 
-type JsonPrimitive = str | int | float | bool | None
-type JsonValue = JsonPrimitive | list[JsonValue] | dict[str, JsonValue]
-
+type JsonValue = None | bool | int | float | str | list[JsonValue] | dict[str, JsonValue]
 
 type StrPath = str | PathLike[str]
 

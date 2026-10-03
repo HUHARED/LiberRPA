@@ -20,13 +20,14 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.debug import sensitive_variables
 from pydantic import ValidationError as ContractValidationError
 
-from accounts.api_key_authentication import (
-    InvalidApiKeyError,
-    ApiKeyAuthenticationContext,
-    authenticate_api_key,
+from accounts.api_key_authentication import InvalidApiKeyError
+from accounts.resource_authentication import (
+    InvalidResourceCredentialError,
+    ResourceAuthenticationContext,
+    apply_resource_authentication_rate_limit,
+    authenticate_resource,
 )
 from accounts.models import User
-from accounts.rate_limits import apply_api_key_authentication_rate_limit
 from accounts.session_revocation import SessionInvalidatedError, lock_session_write_access
 from console_project.contracts import JsonRequest, JsonResponsePayload
 from console_project.http import (
@@ -58,6 +59,8 @@ class QueueRequestError(Exception):
 _HANDLED_ERRORS = (
     PermissionDenied,
     InvalidApiKeyError,
+    InvalidResourceCredentialError,
+    SessionInvalidatedError,
     DataQueue.DoesNotExist,
     QueueItem.DoesNotExist,
     Department.DoesNotExist,
@@ -72,7 +75,9 @@ _HANDLED_ERRORS = (
 
 
 def _build_queue_error_response(e: Exception) -> JsonResponse:
-    if isinstance(e, (SessionInvalidatedError, InvalidApiKeyError)):
+    if isinstance(
+        e, (SessionInvalidatedError, InvalidApiKeyError, InvalidResourceCredentialError)
+    ):
         response = build_error_response(
             "api_key_authentication_required"
             if isinstance(e, InvalidApiKeyError)
@@ -80,7 +85,7 @@ def _build_queue_error_response(e: Exception) -> JsonResponse:
             "Valid credentials are required.",
             statusCode=401,
         )
-        if isinstance(e, InvalidApiKeyError):
+        if isinstance(e, (InvalidApiKeyError, InvalidResourceCredentialError)):
             response["WWW-Authenticate"] = (
                 'Bearer realm="LiberRPA Console", error="invalid_token"'
             )
@@ -168,10 +173,10 @@ def session_queue_view[**P](
 
 def api_queue_view[**P](
     view: Callable[
-        Concatenate[HttpRequest, ApiKeyAuthenticationContext, P], HttpResponse
+        Concatenate[HttpRequest, ResourceAuthenticationContext, P], HttpResponse
     ],
 ) -> Callable[Concatenate[HttpRequest, P], HttpResponse]:
-    """Authenticate only the Bearer key; browser cookies never establish this identity."""
+    """Authenticate the Bearer key or native session; cookies never establish identity."""
 
     @csrf_exempt
     @never_cache
@@ -179,12 +184,13 @@ def api_queue_view[**P](
     @wraps(view)
     def wrapped(request: HttpRequest, *args: P.args, **kwargs: P.kwargs) -> HttpResponse:
         try:
-            intRetryAfter = apply_api_key_authentication_rate_limit(
+            intRetryAfter = apply_resource_authentication_rate_limit(
                 request.META.get("REMOTE_ADDR", ""),
+                request.headers.get("Authorization", ""),
             )
             if intRetryAfter:
                 return build_rate_limited_response(intRetryAfter)
-            authentication = authenticate_api_key(
+            authentication = authenticate_resource(
                 request.headers.get("Authorization", "")
             )
             return view(request, authentication, *args, **kwargs)
