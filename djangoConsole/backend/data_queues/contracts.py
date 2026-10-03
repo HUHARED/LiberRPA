@@ -5,7 +5,8 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from datetime import datetime
-from typing import Annotated, Literal, Self
+from enum import StrEnum
+from typing import Annotated, Self
 from uuid import UUID
 
 from pydantic import Field, model_validator
@@ -15,10 +16,23 @@ from console_project.contracts import JsonRequest, JsonResponsePayload, JsonValu
 MAX_QUEUE_RESPONSE_BYTES = 2 * 1024 * 1024
 
 type QueueRequestUuid = Annotated[UUID, Field(strict=False)]
-type QueueStatus = Literal["unclaimed", "claimed"]
-type QueueFilterStatus = Literal["all", "unclaimed", "claimed"]
-type QueueOrder = Literal["oldest_first", "newest_first"]
 type QueueItemIds = Annotated[list[QueueRequestUuid], Field(min_length=1, max_length=100)]
+
+
+class QueueStatus(StrEnum):
+    UNCLAIMED = "unclaimed"
+    CLAIMED = "claimed"
+
+
+class QueueFilterStatus(StrEnum):
+    ALL = "all"
+    UNCLAIMED = QueueStatus.UNCLAIMED
+    CLAIMED = QueueStatus.CLAIMED
+
+
+class QueueOrder(StrEnum):
+    OLDEST_FIRST = "oldest_first"
+    NEWEST_FIRST = "newest_first"
 
 
 class QueueDetailsRequest(JsonRequest):
@@ -36,7 +50,7 @@ class QueueDeletionRequest(JsonRequest):
 
 class QueueMutationRequest(JsonRequest):
     request_id: QueueRequestUuid
-    queue_path: str | None = Field(default=None, max_length=1024)
+    queue_path: str | None = Field(default=None, min_length=1, max_length=16384)
 
 
 class QueueUploadRequest(QueueMutationRequest):
@@ -44,19 +58,19 @@ class QueueUploadRequest(QueueMutationRequest):
 
 
 class QueueSelectionRequest(JsonRequest):
-    status: QueueFilterStatus = "all"
-    order: QueueOrder = "oldest_first"
+    status: QueueFilterStatus = Field(default=QueueFilterStatus.ALL, strict=False)
+    order: QueueOrder = Field(default=QueueOrder.OLDEST_FIRST, strict=False)
     item_id: QueueRequestUuid | None = None
     count: int = Field(default=50, ge=1, le=100)
 
 
 class QueueQueryRequest(QueueSelectionRequest):
-    queue_path: str = Field(max_length=1024)
+    queue_path: str = Field(min_length=1, max_length=16384)
     after_sequence: int | None = Field(default=None, ge=0)
 
 
 class QueueClaimRequest(QueueMutationRequest, QueueSelectionRequest):
-    status: QueueFilterStatus = "unclaimed"
+    status: QueueFilterStatus = Field(default=QueueFilterStatus.UNCLAIMED, strict=False)
     count: int = Field(default=1, ge=1, le=100)
 
 
@@ -66,8 +80,8 @@ class QueueResetRequest(QueueMutationRequest):
 
 class QueueDeleteItemsRequest(QueueMutationRequest):
     item_ids: QueueItemIds | None = None
-    status: QueueFilterStatus = "claimed"
-    order: QueueOrder = "oldest_first"
+    status: QueueFilterStatus = Field(default=QueueFilterStatus.CLAIMED, strict=False)
+    order: QueueOrder = Field(default=QueueOrder.OLDEST_FIRST, strict=False)
     count: int = Field(default=1, ge=1, le=100)
 
     @model_validator(mode="after")
@@ -117,7 +131,7 @@ class QueueListResponse(QueuePageResponse):
 class QueueItemResponse(JsonResponsePayload):
     id: UUID
     sequence: int
-    status: QueueStatus
+    status: QueueStatus = Field(strict=False)
     data_summary: str
     uploaded_by_id: UUID
     uploaded_by_name: str

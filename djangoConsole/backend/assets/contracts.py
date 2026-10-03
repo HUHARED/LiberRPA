@@ -13,6 +13,8 @@ from pydantic import Field
 from console_project.contracts import JsonValue, JsonRequest, JsonResponsePayload
 
 
+MAX_ASSET_RUNTIME_BYTES = 2 * 1024 * 1024
+
 type AssetType = Literal[
     "text", "integer", "number", "boolean", "json", "secret_text", "credential"
 ]
@@ -35,6 +37,14 @@ class AssetValueRequest(JsonRequest):
 
 class AssetDeletionRequest(JsonRequest):
     pass
+
+
+class AssetPathRequest(JsonRequest):
+    path: Annotated[str, Field(min_length=1, max_length=16384)]
+
+
+class AssetRuntimeValueRequest(AssetPathRequest):
+    value: JsonValue
 
 
 class AssetDepartmentResponse(JsonResponsePayload):
@@ -71,3 +81,12 @@ class AssetDetailsEntryResponse(AssetEntryResponse):
 
 class AssetDetailsResponse(JsonResponsePayload):
     asset: AssetDetailsEntryResponse
+
+
+class AssetRuntimeValueResponse(JsonResponsePayload):
+    value: JsonValue
+
+
+class AssetCredentialResponse(JsonResponsePayload):
+    username: str = Field(repr=False)
+    password: str = Field(repr=False)

@@ -24,8 +24,8 @@ from accounts.api_key_authentication import InvalidApiKeyError
 from accounts.resource_authentication import (
     InvalidResourceCredentialError,
     ResourceAuthenticationContext,
-    apply_resource_authentication_rate_limit,
-    authenticate_resource,
+    build_resource_authentication_required_response,
+    authenticate_resource_request,
 )
 from accounts.models import User
 from accounts.session_revocation import SessionInvalidatedError, lock_session_write_access
@@ -34,11 +34,10 @@ from console_project.http import (
     build_error_response,
     build_authentication_required_response,
     build_service_unavailable_response,
-    build_rate_limited_response,
     parse_json_request,
 )
 from organizations.models import Membership, Department
-from organizations.validators import normalize_path_name
+from organizations.validators import parse_resource_path
 from organizations.permissions import (
     AccessChannel,
     OrganizationAccessContext,
@@ -75,21 +74,10 @@ _HANDLED_ERRORS = (
 
 
 def _build_queue_error_response(e: Exception) -> JsonResponse:
-    if isinstance(
-        e, (SessionInvalidatedError, InvalidApiKeyError, InvalidResourceCredentialError)
-    ):
-        response = build_error_response(
-            "api_key_authentication_required"
-            if isinstance(e, InvalidApiKeyError)
-            else "authentication_required",
-            "Valid credentials are required.",
-            statusCode=401,
-        )
-        if isinstance(e, (InvalidApiKeyError, InvalidResourceCredentialError)):
-            response["WWW-Authenticate"] = (
-                'Bearer realm="LiberRPA Console", error="invalid_token"'
-            )
-        return response
+    if isinstance(e, (InvalidApiKeyError, InvalidResourceCredentialError)):
+        return build_resource_authentication_required_response()
+    if isinstance(e, SessionInvalidatedError):
+        return build_authentication_required_response()
     if isinstance(e, PermissionDenied):
         return build_error_response(
             "queue_access_required",
@@ -184,15 +172,9 @@ def api_queue_view[**P](
     @wraps(view)
     def wrapped(request: HttpRequest, *args: P.args, **kwargs: P.kwargs) -> HttpResponse:
         try:
-            intRetryAfter = apply_resource_authentication_rate_limit(
-                request.META.get("REMOTE_ADDR", ""),
-                request.headers.get("Authorization", ""),
-            )
-            if intRetryAfter:
-                return build_rate_limited_response(intRetryAfter)
-            authentication = authenticate_resource(
-                request.headers.get("Authorization", "")
-            )
+            authentication = authenticate_resource_request(request)
+            if isinstance(authentication, JsonResponse):
+                return authentication
             return view(request, authentication, *args, **kwargs)
         except _HANDLED_ERRORS as e:
             return _build_queue_error_response(e)
@@ -224,19 +206,12 @@ def parse_queue_request[Payload: JsonRequest](
     )
 
 
-def normalize_queue_path(path: str) -> str:
-    listPart = path.replace("\\", "/").removeprefix("/").split("/")
-    if len(listPart) < 2 or len(listPart) > 65:
-        raise ValidationError("Use a full department path and queue name.")
-    return "/" + "/".join(normalize_path_name(strPart) for strPart in listPart)
-
-
 def parse_item_request[Payload: QueueMutationRequest](
     request: HttpRequest,
     requestSchema: type[Payload],
     *,
     queueId: uuid.UUID | None = None,
-) -> tuple[uuid.UUID | str, Payload] | JsonResponse:
+) -> tuple[uuid.UUID | tuple[str, ...], Payload] | JsonResponse:
     payload = parse_queue_request(request, requestSchema)
     if isinstance(payload, JsonResponse):
         return payload
@@ -248,7 +223,7 @@ def parse_item_request[Payload: QueueMutationRequest](
         return queueId, payload
     if payload.queue_path is None:
         raise QueueRequestError("queue_path is required.")
-    return normalize_queue_path(payload.queue_path), payload
+    return parse_resource_path(payload.queue_path), payload
 
 
 def build_queue_response(

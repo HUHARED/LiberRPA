@@ -28,6 +28,18 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   environmentVariableCollection.description =
     "Connect Python to this Editor's Console account.";
   context.subscriptions.push({ dispose: () => environmentVariableCollection.clear() });
+
+  function updatePythonEnvironment(): void {
+    for (const [strName, strValue] of Object.entries(
+      consoleContextBridge.getEnvironment(),
+    )) {
+      // Empty values override inherited credentials from another Editor or Executor.
+      environmentVariableCollection.replace(strName, strValue ?? "");
+    }
+  }
+
+  context.subscriptions.push(consoleAccount.onDidChangeState(updatePythonEnvironment));
+  updatePythonEnvironment();
   const promiseBridgeInitialization = consoleContextBridge.initialization.catch(() => {
     log.error("The local Console credential pipe could not be started.");
   });
@@ -87,13 +99,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   );
 
   await promisePythonContextInitialization;
-  for (const [strName, strValue] of Object.entries(consoleContextBridge.getEnvironment())) {
-    if (strValue !== undefined) {
-      environmentVariableCollection.replace(strName, strValue);
-    } else {
-      environmentVariableCollection.delete(strName);
-    }
-  }
+  updatePythonEnvironment();
 }
 
 export function deactivate(): void {

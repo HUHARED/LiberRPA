@@ -23,6 +23,7 @@ from organizations.permissions import (
     get_authorized_departments,
 )
 
+from .contracts import ExecutorAssociationStatus
 from .models import Executor, ExecutorGroup, ExecutorGroupMember
 from .queries import ExecutorInfo, get_executor_read_context, build_executor_info_list
 from .session_state import get_executor_association_status
@@ -82,7 +83,8 @@ def _get_group_info_list(
     onlineExecutorIds = {
         executorId
         for executorId, session in context.sessionsByExecutorId.items()
-        if get_executor_association_status(session, currentTime=currentTime) == "online"
+        if get_executor_association_status(session, currentTime=currentTime)
+        == ExecutorAssociationStatus.ONLINE
     }
     memberCounts: Counter[uuid.UUID] = Counter()
     onlineCounts: Counter[uuid.UUID] = Counter()
@@ -174,7 +176,8 @@ def get_executor_group_details(
         canManage=group.department_id in context.managedDepartmentIds,
         memberCount=len(memberInfoEntries),
         onlineCount=sum(
-            member.associationStatus == "online" for member in memberInfoEntries
+            member.associationStatus == ExecutorAssociationStatus.ONLINE
+            for member in memberInfoEntries
         ),
     )
     return ExecutorGroupDetails(info, memberInfoEntries)

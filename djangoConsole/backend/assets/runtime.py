@@ -5,55 +5,28 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import json
-from typing import Annotated, cast
+from typing import cast
 
 from cryptography.fernet import InvalidToken, MultiFernet
 from django.conf import settings
-from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.exceptions import PermissionDenied
 from django.views.decorators.debug import sensitive_variables
-from pydantic import Field
 
-from console_project.contracts import JsonRequest, JsonResponsePayload, JsonValue
+from console_project.contracts import JsonValue
 from organizations.department_queries import get_department_tree, resolve_department_path
 from organizations.permissions import AccessChannel, OrganizationAccessContext
-from organizations.validators import get_path_name_key, normalize_path_name
+from organizations.validators import get_path_name_key
 
+from .contracts import AssetRuntimeValueResponse, AssetCredentialResponse
 from .models import SECRET_ASSET_TYPES, Asset, AssetType
 from .queries import get_asset_query
 from .services import SecretStorageUnavailableError, save_asset_value
-
-MAX_ASSET_RUNTIME_BYTES = 2 * 1024 * 1024
-
-
-class AssetPathRequest(JsonRequest):
-    path: Annotated[str, Field(min_length=1, max_length=16384)]
-
-
-class AssetRuntimeValueRequest(AssetPathRequest):
-    value: JsonValue
-
-
-class AssetRuntimeValueResponse(JsonResponsePayload):
-    value: JsonValue
-
-
-class AssetCredentialResponse(JsonResponsePayload):
-    username: str = Field(repr=False)
-    password: str = Field(repr=False)
 
 
 class AssetRuntimeError(Exception):
     def __init__(self, code: str, message: str) -> None:
         self.code = code
         super().__init__(message)
-
-
-def parse_asset_path(assetPath: str) -> tuple[str, ...]:
-    """Normalize once at the HTTP boundary; services resolve current path ownership."""
-    listPathPart = assetPath.replace("\\", "/").removeprefix("/").split("/")
-    if len(listPathPart) < 2 or len(listPathPart) > 65:
-        raise ValidationError("Use a full department path and asset name.")
-    return tuple(normalize_path_name(strPathPart) for strPathPart in listPathPart)
 
 
 def _resolve_asset_path(

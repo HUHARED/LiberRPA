@@ -29,7 +29,7 @@ from organizations.http import (
     parse_department_resource_filters,
 )
 from organizations.models import Department
-from organizations.permissions import AccessChannel
+from organizations.permissions import AccessChannel, resolve_organization_access
 
 from .contracts import (
     ExecutorUpdateRequest,
@@ -191,10 +191,13 @@ def list_or_create_executors(request: HttpRequest) -> JsonResponse:
         listParametersResult = _get_list_parameters(request)
         if isinstance(listParametersResult, JsonResponse):
             return listParametersResult
-        executorPage = get_executor_list(
+        access = resolve_organization_access(
             actorId=membership.user_id,
             organizationId=membership.organization_id,
             channel=AccessChannel.SESSION,
+        )
+        executorPage = get_executor_list(
+            access,
             **listParametersResult,
         )
         dictListPayload = {

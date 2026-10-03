@@ -6,6 +6,10 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
 from liberrpa.Common import _Initialization  # noqa: F401 - Freeze the host identity before any resource request.
+
+from typing import get_args
+from uuid import UUID, uuid4
+
 from liberrpa.Logging import Log
 from liberrpa.Common._TypedValue import JsonValue, StrPath
 from liberrpa.Common._ConsoleHttp import (
@@ -19,6 +23,7 @@ from liberrpa.Common._Console import (
     DataQueueOrder as DataQueueOrder,
     SharedFileSort as SharedFileSort,
     SortOrder as SortOrder,
+    _DataQueueMutationOperation,
     Credential as Credential,
     DataQueueItem as DataQueueItem,
     DataQueueItemDetails as DataQueueItemDetails,
@@ -30,19 +35,16 @@ from liberrpa.Common._Console import (
     SharedFilePage as SharedFilePage,
     SharedFileDeleteResult as SharedFileDeleteResult,
     _validate_choice,
-    _parse_data_queue_item_details,
-    _parse_shared_file_info,
-    _validate_queue_count,
     _validate_batch_items,
+    _parse_data_queue_selection,
     _normalize_queue_item_ids,
+    _parse_data_queue_item_details,
     _mutate_data_queue_items,
     _upload_data_queue_items,
+    _parse_shared_file_info,
     _upload_shared_file,
     _download_shared_file,
 )
-
-from typing import get_args
-from uuid import UUID, uuid4
 
 
 @Log.trace()
@@ -56,7 +58,11 @@ def asset_get_value(path: str) -> JsonValue:
     Returns:
         JsonValue: The Asset value as a Python JSON value.
     """
-    return request_json("assets/get_value/", {"path": path})["value"]
+    return request_json(
+        "assets/get_value/",
+        {"path": path},
+        retryBudget=RetryBudget(),
+    )["value"]
 
 
 @Log.trace()
@@ -66,11 +72,17 @@ def asset_set_value(path: str, value: JsonValue) -> None:
 
     The value must match the Asset's existing type. Secret Text and Credential Assets must be maintained in Console.
 
+    Writes are not retried automatically. A connection failure may leave the result uncertain; check Console before writing again.
+
     Parameters:
         path: The full Asset path, including its department path and name.
         value: The replacement value. Only JSON-compatible values are accepted.
     """
-    request_json("assets/set_value/", {"path": path, "value": value})
+    request_json(
+        "assets/set_value/",
+        {"path": path, "value": value},
+        isMutation=True,
+    )
 
 
 @Log.trace()
@@ -86,7 +98,11 @@ def asset_get_secret_text(path: str) -> str:
     Returns:
         str: The decrypted secret text.
     """
-    return request_json("assets/get_secret_text/", {"path": path})["value"]
+    return request_json(
+        "assets/get_secret_text/",
+        {"path": path},
+        retryBudget=RetryBudget(),
+    )["value"]
 
 
 @Log.trace()
@@ -102,9 +118,14 @@ def asset_get_credential(path: str) -> Credential:
     Returns:
         Credential: The decrypted username and password.
     """
-    dictCredential = request_json("assets/get_credential/", {"path": path})
+    dictCredential = request_json(
+        "assets/get_credential/",
+        {"path": path},
+        retryBudget=RetryBudget(),
+    )
     return Credential(
-        username=dictCredential["username"], password=dictCredential["password"]
+        username=dictCredential["username"],
+        password=dictCredential["password"],
     )
 
 
@@ -134,9 +155,6 @@ def data_queue_query_items(
     Returns:
         DataQueuePage: The matching items and nextSequence. A nextSequence of None means there is no further page.
     """
-    _validate_queue_count(count)
-    _validate_choice(status, get_args(DataQueueFilterStatus.__value__), "status")
-    _validate_choice(order, get_args(DataQueueOrder.__value__), "order")
     if afterSequence is not None and (
         type(afterSequence) is not int or afterSequence < 0
     ):
@@ -145,12 +163,11 @@ def data_queue_query_items(
         "data-queues/query/",
         {
             "queue_path": queuePath,
-            "status": status,
-            "order": order,
+            **_parse_data_queue_selection(status, order, count),
             "item_id": str(UUID(itemId)) if itemId is not None else None,
-            "count": count,
             "after_sequence": afterSequence,
         },
+        retryBudget=RetryBudget(),
     )
     return DataQueuePage(
         items=[
@@ -207,16 +224,11 @@ def data_queue_claim_items(
     Returns:
         list[DataQueueItem]: The claimed item IDs and data. Returns an empty list when no items match.
     """
-    _validate_queue_count(count)
-    _validate_choice(status, get_args(DataQueueFilterStatus.__value__), "status")
-    _validate_choice(order, get_args(DataQueueOrder.__value__), "order")
     claimResult = _mutate_data_queue_items(
-        "claim",
+        _DataQueueMutationOperation.CLAIM,
         queuePath,
         {
-            "count": count,
-            "status": status,
-            "order": order,
+            **_parse_data_queue_selection(status, order, count),
             "item_id": str(UUID(itemId)) if itemId is not None else None,
         },
     )
@@ -242,7 +254,9 @@ def data_queue_reset_items(
         DataQueueMutationResult: The reset, missing, and skipped item IDs.
     """
     return _mutate_data_queue_items(
-        "reset", queuePath, {"item_ids": _normalize_queue_item_ids(itemIds)}
+        _DataQueueMutationOperation.RESET,
+        queuePath,
+        {"item_ids": _normalize_queue_item_ids(itemIds)},
     )
 
 
@@ -279,18 +293,14 @@ def data_queue_delete_items(
             "item_ids": _normalize_queue_item_ids(itemIds)
         }
     else:
-        if status is not None:
-            _validate_choice(status, get_args(DataQueueFilterStatus.__value__), "status")
-        if order is not None:
-            _validate_choice(order, get_args(DataQueueOrder.__value__), "order")
-        intCount = 1 if count is None else count
-        _validate_queue_count(intCount)
-        dictSelection = {
-            "status": status if status is not None else "claimed",
-            "order": order if order is not None else "oldest_first",
-            "count": intCount,
-        }
-    return _mutate_data_queue_items("delete_items", queuePath, dictSelection)
+        dictSelection = _parse_data_queue_selection(
+            status if status is not None else "claimed",
+            order if order is not None else "oldest_first",
+            1 if count is None else count,
+        )
+    return _mutate_data_queue_items(
+        _DataQueueMutationOperation.DELETE_ITEMS, queuePath, dictSelection
+    )
 
 
 @Log.trace()

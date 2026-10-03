@@ -6,11 +6,11 @@ import {
   type ConsoleExecutorPage,
 } from "../../shared/consoleAccount";
 import {
-  ensureBoolean,
-  ensureNonEmptyString,
-  ensurePositiveInteger,
   ensureRecord,
   ensureString,
+  ensureNonEmptyString,
+  ensureBoolean,
+  ensurePositiveInteger,
 } from "../Common/validation";
 
 export class ConsoleRequestError extends Error {
@@ -87,31 +87,22 @@ export async function requestConsole(
   return dictResponse;
 }
 
-function parseIdentity(value: unknown): { id: string; name: string } {
-  const dictValue = ensureRecord(value, "Console identity");
+function parseIdentity(value: Record<string, unknown>): { id: string; name: string } {
   return {
-    id: ensureNonEmptyString(dictValue.id, "Console identity.id"),
-    name: ensureString(dictValue.name, "Console identity.name"),
+    id: ensureNonEmptyString(value.id, "Console identity.id"),
+    name: ensureString(value.name, "Console identity.name"),
   };
 }
 
-function parseDepartment(value: unknown): { id: string; name: string; path: string } {
-  const dictValue = ensureRecord(value, "Console department");
+function parseDepartment(value: Record<string, unknown>): {
+  id: string;
+  name: string;
+  path: string;
+} {
   return {
-    ...parseIdentity(dictValue),
-    path: ensureString(dictValue.path, "Console department.path"),
+    ...parseIdentity(value),
+    path: ensureString(value.path, "Console department.path"),
   };
-}
-
-function parseDepartmentRole(value: unknown): ConsoleDepartmentRole | null {
-  if (
-    value === null ||
-    value === ConsoleDepartmentRole.Developer ||
-    value === ConsoleDepartmentRole.Operator
-  ) {
-    return value;
-  }
-  throw new Error("Console returned an invalid department role.");
 }
 
 export function parseConsoleSession(response: Record<string, unknown>): ConsoleSessionInfo {
@@ -140,13 +131,23 @@ export function parseConsoleSession(response: Record<string, unknown>): ConsoleS
       email: ensureString(dictUser.email, "Console user.email"),
       username: ensureString(dictUser.username, "Console user.username"),
     },
-    organization: parseIdentity(response.organization),
+    organization: parseIdentity(
+      ensureRecord(response.organization, "Console organization"),
+    ),
     is_org_admin: ensureBoolean(response.is_org_admin, "Console is_org_admin"),
     account_departments: response.account_departments.map((departmentValue) => {
       const dictDepartment = ensureRecord(departmentValue, "Console department");
+      const role = dictDepartment.role;
+      if (
+        role !== null &&
+        role !== ConsoleDepartmentRole.Developer &&
+        role !== ConsoleDepartmentRole.Operator
+      ) {
+        throw new Error("Console returned an invalid department role.");
+      }
       return {
         ...parseDepartment(dictDepartment),
-        role: parseDepartmentRole(dictDepartment.role),
+        role,
       };
     }),
     executor:
@@ -185,7 +186,9 @@ export function parseExecutorChoices(
       const dictExecutor = ensureRecord(executorValue, "Console Executor choice");
       return {
         ...parseIdentity(dictExecutor),
-        department: parseDepartment(dictExecutor.department),
+        department: parseDepartment(
+          ensureRecord(dictExecutor.department, "Console department"),
+        ),
         dispatch_enabled: ensureBoolean(
           dictExecutor.dispatch_enabled,
           "Executor dispatch_enabled",

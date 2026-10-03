@@ -30,6 +30,7 @@ from organizations.permissions import (
 
 from .contracts import (
     MAX_QUEUE_RESPONSE_BYTES,
+    QueueStatus,
     QueueMutationRequest,
     QueueUploadRequest,
     QueueClaimRequest,
@@ -133,7 +134,7 @@ def delete_queue(access: OrganizationAccessContext, queueId: uuid.UUID) -> None:
 @sensitive_variables()
 def _mutate_items(
     access: OrganizationAccessContext,
-    queueReference: uuid.UUID | str,
+    queueReference: uuid.UUID | tuple[str, ...],
     payload: QueueMutationRequest,
     *,
     operation: QueueOperation,
@@ -148,7 +149,9 @@ def _mutate_items(
         str(queueReference) if isinstance(queueReference, uuid.UUID) else None
     )
     normalizedRequest["queue_path"] = (
-        get_path_name_key(queueReference) if isinstance(queueReference, str) else None
+        get_path_name_key("/" + "/".join(queueReference))
+        if isinstance(queueReference, tuple)
+        else None
     )
     strDigest = hashlib.sha256(
         json.dumps(
@@ -251,7 +254,7 @@ def _mutate_items(
 @sensitive_variables()
 def upload_items(
     access: OrganizationAccessContext,
-    queueReference: uuid.UUID | str,
+    queueReference: uuid.UUID | tuple[str, ...],
     payload: QueueUploadRequest,
     *,
     apiKeyId: uuid.UUID | None = None,
@@ -325,7 +328,7 @@ def upload_items(
 @sensitive_variables()
 def claim_items(
     access: OrganizationAccessContext,
-    queueReference: uuid.UUID | str,
+    queueReference: uuid.UUID | tuple[str, ...],
     payload: QueueClaimRequest,
     *,
     apiKeyId: uuid.UUID | None = None,
@@ -366,7 +369,7 @@ def claim_items(
                 intResponseBytes += intEntryBytes
         if result.item_ids:
             QueueItem.objects.filter(queue=queue, pk__in=result.item_ids).update(
-                status=QueueItem.Status.CLAIMED,
+                status=QueueStatus.CLAIMED,
                 last_claimed_by_id=access.actorId,
                 last_claimed_by_name=str(access.actor),
                 last_claimed_at=result.accepted_at,
@@ -385,7 +388,7 @@ def claim_items(
 @sensitive_variables()
 def reset_items(
     access: OrganizationAccessContext,
-    queueReference: uuid.UUID | str,
+    queueReference: uuid.UUID | tuple[str, ...],
     payload: QueueResetRequest,
     *,
     apiKeyId: uuid.UUID | None = None,
@@ -403,17 +406,15 @@ def reset_items(
         result.skipped_ids.extend(
             itemId
             for itemId in itemIds
-            if statusById.get(itemId) == QueueItem.Status.UNCLAIMED
+            if statusById.get(itemId) == QueueStatus.UNCLAIMED
         )
         result.item_ids.extend(
-            itemId
-            for itemId in itemIds
-            if statusById.get(itemId) == QueueItem.Status.CLAIMED
+            itemId for itemId in itemIds if statusById.get(itemId) == QueueStatus.CLAIMED
         )
         QueueItem.objects.filter(
             queue=queue,
             pk__in=result.item_ids,
-        ).update(status=QueueItem.Status.UNCLAIMED)
+        ).update(status=QueueStatus.UNCLAIMED)
 
     return _mutate_items(
         access,
@@ -428,7 +429,7 @@ def reset_items(
 @sensitive_variables()
 def delete_items(
     access: OrganizationAccessContext,
-    queueReference: uuid.UUID | str,
+    queueReference: uuid.UUID | tuple[str, ...],
     payload: QueueDeleteItemsRequest,
     *,
     apiKeyId: uuid.UUID | None = None,

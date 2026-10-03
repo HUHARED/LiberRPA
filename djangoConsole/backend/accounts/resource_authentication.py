@@ -9,8 +9,10 @@ from dataclasses import dataclass
 from typing import cast
 
 from django.core.exceptions import ValidationError
+from django.http import HttpRequest, JsonResponse
 from django.views.decorators.debug import sensitive_variables
 
+from console_project.http import build_error_response, build_rate_limited_response
 from executors.client_sessions import (
     InvalidExecutorSessionError,
     ExecutorClientAction,
@@ -25,6 +27,7 @@ from organizations.permissions import (
 )
 
 from .api_key_authentication import (
+    InvalidApiKeyError,
     ApiKeyAuthenticationContext,
     authenticate_api_key,
     lock_api_key_write_access,
@@ -38,8 +41,7 @@ from .editor_sessions import (
 )
 from .rate_limits import (
     apply_api_key_authentication_rate_limit,
-    apply_editor_client_rate_limit,
-    apply_executor_client_rate_limit,
+    apply_native_resource_authentication_rate_limit,
 )
 
 
@@ -76,19 +78,6 @@ def _get_credential_channel(authorizationHeader: str) -> AccessChannel:
 
 
 @sensitive_variables()
-def apply_resource_authentication_rate_limit(
-    clientAddress: str, authorizationHeader: str
-) -> int:
-    match _get_credential_channel(authorizationHeader):
-        case AccessChannel.EDITOR:
-            return apply_editor_client_rate_limit(clientAddress)
-        case AccessChannel.EXECUTOR:
-            return apply_executor_client_rate_limit(clientAddress)
-        case _:
-            return apply_api_key_authentication_rate_limit(clientAddress)
-
-
-@sensitive_variables()
 def authenticate_resource(authorizationHeader: str) -> ResourceAuthenticationContext:
     """Authenticate each request using the existing key or native-session rules.
 
@@ -113,7 +102,7 @@ def authenticate_resource(authorizationHeader: str) -> ResourceAuthenticationCon
                 ExecutorClientResult,
                 handle_executor_client_request(
                     authorizationHeader=authorizationHeader,
-                    action=ExecutorClientAction.SESSION,
+                    action=ExecutorClientAction.RESOURCE,
                 ),
             )
     except (InvalidEditorSessionError, InvalidExecutorSessionError):
@@ -121,7 +110,7 @@ def authenticate_resource(authorizationHeader: str) -> ResourceAuthenticationCon
             "Sign in again to use Console resources."
         ) from None
     except ValidationError as e:
-        if e.code != "executor_selection_required":
+        if getattr(e, "code", None) != "executor_selection_required":
             raise
         raise InvalidResourceCredentialError(
             "Select an Executor to finish signing in before using Console resources."
@@ -157,3 +146,31 @@ def lock_resource_write_access(
             "Sign in again to use Console resources."
         ) from None
     return access
+
+
+def build_resource_authentication_required_response() -> JsonResponse:
+    response = build_error_response(
+        "authentication_required", "Valid credentials are required.", statusCode=401
+    )
+    response["WWW-Authenticate"] = (
+        'Bearer realm="LiberRPA Console", error="invalid_token"'
+    )
+    return response
+
+
+@sensitive_variables()
+def authenticate_resource_request(
+    request: HttpRequest,
+) -> ResourceAuthenticationContext | JsonResponse:
+    strAuthorization = request.headers.get("Authorization", "")
+    strClientAddress = request.META.get("REMOTE_ADDR", "")
+    if _get_credential_channel(strAuthorization) == AccessChannel.API_KEY:
+        intRetryAfter = apply_api_key_authentication_rate_limit(strClientAddress)
+    else:
+        intRetryAfter = apply_native_resource_authentication_rate_limit(strClientAddress)
+    if intRetryAfter:
+        return build_rate_limited_response(intRetryAfter)
+    try:
+        return authenticate_resource(strAuthorization)
+    except (InvalidApiKeyError, InvalidResourceCredentialError):
+        return build_resource_authentication_required_response()

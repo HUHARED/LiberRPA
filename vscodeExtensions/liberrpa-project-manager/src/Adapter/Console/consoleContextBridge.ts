@@ -1,6 +1,6 @@
 // FileName: consoleContextBridge.ts
 
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { createServer, type Server, type Socket } from "node:net";
 
 export interface ConsoleCredentialSnapshot {
@@ -8,9 +8,16 @@ export interface ConsoleCredentialSnapshot {
   token: string;
 }
 
-const STR_CONTEXT_REQUEST = "LIBERRPA_CONSOLE_CONTEXT_V1\n";
+const STR_CONTEXT_REQUEST_PREFIX = "LIBERRPA_CONSOLE_CONTEXT_V1 ";
 const INT_REQUEST_MAX_BYTES = 128;
 const INT_SOCKET_TIMEOUT_MS = 3000;
+
+function getCredentialIdentity(credential: ConsoleCredentialSnapshot): string {
+  // This public identifier binds a launch to one credential; it does not authorize requests.
+  return createHash("sha256")
+    .update(JSON.stringify([credential.consoleUrl, credential.token]))
+    .digest("hex");
+}
 
 export class ConsoleContextBridge {
   public readonly initialization: Promise<void>;
@@ -20,7 +27,9 @@ export class ConsoleContextBridge {
   private listening = false;
   private disposed = false;
 
-  public constructor(getCredentialSnapshot: () => ConsoleCredentialSnapshot | null) {
+  public constructor(
+    private readonly getCredentialSnapshot: () => ConsoleCredentialSnapshot | null,
+  ) {
     this.pipeServer = createServer((clientSocket) => {
       this.clientSockets.add(clientSocket);
       clientSocket.setTimeout(INT_SOCKET_TIMEOUT_MS, () => clientSocket.destroy());
@@ -39,25 +48,24 @@ export class ConsoleContextBridge {
           return;
         }
         requestBuffer = Buffer.concat([requestBuffer, requestChunk]);
+        if (!requestBuffer.includes(0x0a)) {
+          return;
+        }
         const strRequest = requestBuffer.toString("utf8");
-        if (!STR_CONTEXT_REQUEST.startsWith(strRequest)) {
-          clientSocket.destroy();
-          return;
-        }
-        if (strRequest !== STR_CONTEXT_REQUEST) {
-          return;
-        }
         // The default Windows pipe ACL permits read-only access for some identities.
         // Require this write before returning credentials; never send on connection alone.
         boolReplied = true;
-        const credentialSnapshot = getCredentialSnapshot();
+        const credentialSnapshot = this.getCredentialSnapshot();
+        const boolOriginalCredential =
+          credentialSnapshot !== null &&
+          strRequest ===
+            `${STR_CONTEXT_REQUEST_PREFIX}${getCredentialIdentity(credentialSnapshot)}\n`;
         clientSocket.end(
           JSON.stringify({
             version: 1,
-            context:
-              credentialSnapshot === null
-                ? null
-                : { ...credentialSnapshot, clientType: "editor" },
+            context: boolOriginalCredential
+              ? { ...credentialSnapshot, clientType: "editor" }
+              : null,
           }) + "\n",
         );
       });
@@ -72,7 +80,7 @@ export class ConsoleContextBridge {
         this.listening = false;
         reject(new Error("The local Console credential pipe could not be started."));
       });
-      // Keep the operating system's default ACL; do not grant access to other users.
+      // Keep the operating system's default ACL; do not broaden write access.
       this.pipeServer.listen(
         { path: this.pipePath, readableAll: false, writableAll: false },
         () => {
@@ -88,9 +96,14 @@ export class ConsoleContextBridge {
   }
 
   public getEnvironment(): Record<string, string | undefined> {
+    const credentialSnapshot = this.getCredentialSnapshot();
     return {
       LIBERRPA_CONSOLE_PIPE: this.listening ? this.pipePath : undefined,
       LIBERRPA_CONSOLE_HOST_PID: this.listening ? String(process.pid) : undefined,
+      LIBERRPA_CONSOLE_CREDENTIAL_ID:
+        this.listening && credentialSnapshot !== null
+          ? getCredentialIdentity(credentialSnapshot)
+          : undefined,
     };
   }
 

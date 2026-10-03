@@ -4,14 +4,14 @@ __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
+from collections.abc import Callable, Generator
+from contextlib import contextmanager
+from datetime import UTC, datetime
+from email.utils import parsedate_to_datetime
 import json
 import math
 import time
-from contextlib import contextmanager
-from collections.abc import Callable, Generator
-from datetime import UTC, datetime
-from email.utils import parsedate_to_datetime
-from typing import Any, TypeVar
+from typing import Any
 
 import requests
 
@@ -21,7 +21,6 @@ INT_MAX_JSON_BYTES = 2 * 1024 * 1024
 _SET_RETRY_STATUS_CODE = frozenset({408, 429, 500, 502, 503, 504})
 _TUPLE_RETRY_DELAY_SECONDS = (1.0, 3.0)
 _FLOAT_MAX_RETRY_WAIT_SECONDS = 30.0
-_OperationResult = TypeVar("_OperationResult")
 
 
 class ConsoleError(RuntimeError):
@@ -50,7 +49,9 @@ class RetryBudget:
         self.retryCount = 0
         self.waitSeconds = 0.0
 
-    def run(self, operation: Callable[[], _OperationResult]) -> _OperationResult:
+    def run[OperationResult](
+        self, operation: Callable[[], OperationResult]
+    ) -> OperationResult:
         while True:
             try:
                 return operation()
@@ -172,6 +173,7 @@ def open_response(
     body: bytes | None = None,
     contentType: str = "application/json",
     headers: dict[str, str] | None = None,
+    requestId: str | None = None,
 ) -> Generator[requests.Response]:
     consoleContext = get_console_context()
     dictHeaders = {
@@ -181,19 +183,26 @@ def open_response(
         "Content-Type": contentType,
         **(headers or {}),
     }
-    with requests.Session() as httpSession:
-        # Console uses the original native credential; .netrc must not replace it.
-        httpSession.trust_env = False
-        with httpSession.request(
-            method,
-            f"{consoleContext.consoleUrl.rstrip('/')}/api/v1/{path}",
-            data=body,
-            headers=dictHeaders,
-            timeout=(10, 60),
-            allow_redirects=False,
-            stream=True,
-        ) as response:
-            yield response
+    try:
+        with requests.Session() as httpSession:
+            # Console uses the original native credential; .netrc must not replace it.
+            httpSession.trust_env = False
+            with httpSession.request(
+                method,
+                f"{consoleContext.consoleUrl}/api/v1/{path}",
+                data=body,
+                headers=dictHeaders,
+                timeout=(10, 60),
+                allow_redirects=False,
+                stream=True,
+            ) as response:
+                yield response
+    except requests.RequestException:
+        raise ConsoleError(
+            "connection_error",
+            "Could not complete the Console request.",
+            requestId=requestId,
+        ) from None
 
 
 def request_json(
@@ -206,22 +215,22 @@ def request_json(
     headers: dict[str, str] | None = None,
     retryBudget: RetryBudget | None = None,
     requestId: str | None = None,
+    isMutation: bool = False,
 ) -> dict[str, Any]:
+    intInitialRetryCount = retryBudget.retryCount if retryBudget is not None else 0
     if body is None and payload is not None:
         body = encode_json(payload)
 
     def _perform_request() -> dict[str, Any]:
-        try:
-            with open_response(
-                method, path, body=body, contentType=contentType, headers=headers
-            ) as response:
-                return read_json_response(response, requestId)
-        except requests.RequestException:
-            raise ConsoleError(
-                "connection_error",
-                "Could not complete the Console request.",
-                requestId=requestId,
-            ) from None
+        with open_response(
+            method,
+            path,
+            body=body,
+            contentType=contentType,
+            headers=headers,
+            requestId=requestId,
+        ) as response:
+            return read_json_response(response, requestId)
 
     try:
         return (
@@ -230,10 +239,10 @@ def request_json(
             else _perform_request()
         )
     except ConsoleError as e:
-        if requestId is not None and (
+        if (isMutation or requestId is not None) and (
             e.code in {"connection_error", "invalid_response", "response_too_large"}
             or e.statusCode in _SET_RETRY_STATUS_CODE
-            or (retryBudget is not None and retryBudget.retryCount > 0)
+            or (retryBudget is not None and retryBudget.retryCount > intInitialRetryCount)
         ):
             raise ConsoleError(
                 e.code,

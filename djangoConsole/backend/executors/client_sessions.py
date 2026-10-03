@@ -36,7 +36,6 @@ from .queries import ExecutorPageInfo, get_executor_list
 from .session_state import (
     get_executor_sessions,
     is_executor_session_current,
-    prune_executor_sessions,
 )
 
 _SELECTION_LIFETIME = timedelta(minutes=10)
@@ -53,6 +52,7 @@ class ExecutorClientAction(StrEnum):
     ASSOCIATE = "associate"
     SESSION = "session"
     HEARTBEAT = "heartbeat"
+    RESOURCE = "resource"
     LOGOUT = "logout"
 
 
@@ -86,8 +86,10 @@ def begin_executor_login(
         user = access.actor
         if not constant_time_compare(verifiedAuthHash, user.get_session_auth_hash()):
             raise InvalidExecutorSessionError("Sign in again to continue.")
-        prune_executor_sessions(access.organization.id)
         currentTime = timezone.now()
+        ExecutorSession.objects.filter(
+            organization=access.organization, expires_at__lte=currentTime
+        ).delete()
         strToken = f"lrex_{secrets.token_urlsafe(32)}"
         session = ExecutorSession(
             user=user,
@@ -131,18 +133,6 @@ def _get_session_identity(authorizationHeader: str) -> ExecutorSession:
         ) from None
 
 
-def _touch_executor_session(session: ExecutorSession) -> None:
-    currentTime = timezone.now()
-    # A wait or slow authorization must never renew a credential that has already expired.
-    if session.expires_at <= currentTime:
-        raise InvalidExecutorSessionError("A valid Executor session is required.")
-    session.last_seen_at = max(currentTime, session.last_seen_at or session.created_at)
-    session.expires_at = session.last_seen_at + _SESSION_IDLE_LIFETIME
-    session.save(
-        update_fields=["executor", "associated_at", "last_seen_at", "expires_at"]
-    )
-
-
 @sensitive_variables()
 def get_locked_executor_session(
     access: OrganizationAccessContext, sessionId: uuid.UUID
@@ -161,77 +151,6 @@ def get_locked_executor_session(
     if not is_executor_session_current(session, currentTime=timezone.now()):
         raise InvalidExecutorSessionError("A valid Executor session is required.")
     return session
-
-
-def _perform_executor_action(
-    session: ExecutorSession,
-    access: OrganizationAccessContext,
-    action: ExecutorClientAction,
-    executorId: uuid.UUID | None,
-    pageNumber: int,
-) -> ExecutorClientResult:
-    boolNewAssociation = (
-        action == ExecutorClientAction.ASSOCIATE and session.executor_id is None
-    )
-    match action:
-        case ExecutorClientAction.CHOICES:
-            if session.executor_id is not None:
-                raise ValidationError(
-                    "Sign out before selecting another Executor.",
-                    code="executor_already_associated",
-                )
-            choices = get_executor_list(
-                actorId=session.user_id,
-                organizationId=session.organization_id,
-                channel=AccessChannel.EXECUTOR,
-                pageNumber=pageNumber,
-                availableOnly=True,
-            )
-            # Listing choices never extends the ten-minute selection deadline.
-            return ExecutorClientResult(session=session, access=access, choices=choices)
-        case ExecutorClientAction.ASSOCIATE:
-            if session.executor_id is not None:
-                if session.executor_id != executorId:
-                    raise ValidationError(
-                        "Sign out before selecting another Executor.",
-                        code="executor_already_associated",
-                    )
-            else:
-                executor = Executor.objects.select_related("department").get(
-                    pk=executorId,
-                    deleted_at__isnull=True,
-                    department__in=get_authorized_departments(
-                        access, requiredRole=DepartmentRole.OPERATOR
-                    ),
-                )
-                prune_executor_sessions(access.organization.id)
-                if ExecutorSession.objects.filter(executor=executor).exists():
-                    raise ValidationError(
-                        "This Executor already has a valid association.",
-                        code="executor_already_associated",
-                    )
-                session.executor = executor
-                session.associated_at = max(timezone.now(), session.created_at)
-            # Repeating the same selection after a lost response preserves the original session.
-        case ExecutorClientAction.SESSION | ExecutorClientAction.HEARTBEAT:
-            if session.executor_id is None:
-                raise ValidationError(
-                    "Select an Executor to finish signing in.",
-                    code="executor_selection_required",
-                )
-        case _:
-            raise ValueError("Unsupported Executor client action.")
-
-    _touch_executor_session(session)
-    if boolNewAssociation:
-        record_audit(
-            "executor.associate",
-            actor=access.actor,
-            organization=access.organization,
-            target=session.executor,
-            channel=AuditChannel.EXECUTOR,
-        )
-    return ExecutorClientResult(session=session, access=access)
 
 
 @sensitive_variables()
@@ -288,13 +207,104 @@ def handle_executor_client_request(
         )
         try:
             session = get_locked_executor_session(access, identity.id)
-            result = _perform_executor_action(
-                session, access, action, executorId, pageNumber
+            boolNewAssociation = (
+                action == ExecutorClientAction.ASSOCIATE and session.executor_id is None
             )
+            match action:
+                case ExecutorClientAction.CHOICES:
+                    if session.executor_id is not None:
+                        raise ValidationError(
+                            "Sign out before selecting another Executor.",
+                            code="executor_already_associated",
+                        )
+                    choices = get_executor_list(
+                        access,
+                        pageNumber=pageNumber,
+                        availableOnly=True,
+                    )
+                    # Listing choices never extends the ten-minute selection deadline.
+                    return ExecutorClientResult(
+                        session=session, access=access, choices=choices
+                    )
+                case ExecutorClientAction.ASSOCIATE:
+                    if session.executor_id is not None:
+                        if session.executor_id != executorId:
+                            raise ValidationError(
+                                "Sign out before selecting another Executor.",
+                                code="executor_already_associated",
+                            )
+                    else:
+                        executor = Executor.objects.select_related("department").get(
+                            pk=executorId,
+                            deleted_at__isnull=True,
+                            department__in=get_authorized_departments(
+                                access, requiredRole=DepartmentRole.OPERATOR
+                            ),
+                        )
+                        previousSession = (
+                            get_executor_sessions(access.organization.id)
+                            .filter(executor=executor)
+                            .first()
+                        )
+                        if previousSession is not None:
+                            if is_executor_session_current(
+                                previousSession, currentTime=timezone.now()
+                            ):
+                                raise ValidationError(
+                                    "This Executor already has a valid association.",
+                                    code="executor_already_associated",
+                                )
+                            previousSession.delete()
+                        session.executor = executor
+                        session.associated_at = max(timezone.now(), session.created_at)
+                    # Repeating the same selection after a lost response preserves the original session.
+                case (
+                    ExecutorClientAction.SESSION
+                    | ExecutorClientAction.HEARTBEAT
+                    | ExecutorClientAction.RESOURCE
+                ):
+                    if session.executor_id is None:
+                        raise ValidationError(
+                            "Select an Executor to finish signing in.",
+                            code="executor_selection_required",
+                        )
+                case _:
+                    raise ValueError("Unsupported Executor client action.")
+
+            currentTime = timezone.now()
+            # A wait or slow authorization must never renew a credential that has already expired.
+            if session.expires_at <= currentTime:
+                raise InvalidExecutorSessionError("A valid Executor session is required.")
+            session.expires_at = currentTime + _SESSION_IDLE_LIFETIME
+            if action == ExecutorClientAction.RESOURCE:
+                # Python contact renews its credential but does not prove the Executor is online.
+                session.save(update_fields=["expires_at"])
+            else:
+                session.last_seen_at = max(
+                    currentTime, session.last_seen_at or session.created_at
+                )
+                session.save(
+                    update_fields=[
+                        "executor",
+                        "associated_at",
+                        "last_seen_at",
+                        "expires_at",
+                    ]
+                )
+
+            if boolNewAssociation:
+                record_audit(
+                    "executor.associate",
+                    actor=access.actor,
+                    organization=access.organization,
+                    target=session.executor,
+                    channel=AuditChannel.EXECUTOR,
+                )
+            result = ExecutorClientResult(session=session, access=access)
         except InvalidExecutorSessionError:
             ExecutorSession.objects.filter(pk=identity.id).delete()
             boolInvalidSession = True
     # Commit invalidation before reporting it; a later permission restoration cannot revive this login.
     if boolInvalidSession:
         raise InvalidExecutorSessionError("A valid Executor session is required.")
-    return cast(ExecutorClientResult, result)
+    return result

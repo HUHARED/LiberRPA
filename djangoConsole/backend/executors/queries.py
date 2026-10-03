@@ -8,7 +8,6 @@ import uuid
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Literal
 
 from django.core.paginator import Paginator
 from django.db.models import QuerySet
@@ -24,6 +23,7 @@ from organizations.permissions import (
     get_authorized_departments,
 )
 
+from .contracts import ExecutorAssociationStatus
 from .models import Executor, ExecutorSession
 from .session_state import (
     get_executor_association_status,
@@ -39,7 +39,7 @@ class ExecutorInfo:
     departmentPath: str
     canManage: bool
     session: ExecutorSession | None
-    associationStatus: Literal["unassociated", "online", "offline"]
+    associationStatus: ExecutorAssociationStatus
 
 
 @dataclass(frozen=True)
@@ -122,10 +122,8 @@ def build_executor_info_list(
 
 
 def get_executor_list(
+    access: OrganizationAccessContext,
     *,
-    actorId: uuid.UUID,
-    organizationId: uuid.UUID,
-    channel: AccessChannel,
     pageNumber: int = 1,
     departmentIds: tuple[uuid.UUID, ...] = (),
     name: str = "",
@@ -133,9 +131,6 @@ def get_executor_list(
     availableOnly: bool = False,
 ) -> ExecutorPageInfo:
     """Filter within current visible departments; request filters never expand that scope."""
-    access = resolve_organization_access(
-        actorId=actorId, organizationId=organizationId, channel=channel
-    )
     currentTime = timezone.now()
     executorQuery = _get_executor_query(access)
     if departmentIds:

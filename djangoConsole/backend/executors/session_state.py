@@ -7,7 +7,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 import uuid
 from collections.abc import Iterable
 from datetime import datetime, timedelta
-from typing import Literal, cast
+from typing import cast
 
 from django.conf import settings
 from django.db.models import Exists, OuterRef, QuerySet
@@ -20,21 +20,22 @@ from console_project.config import LimitsConfig
 from organizations.models import DepartmentRole, Membership
 from organizations.permissions import get_department_access_query
 
+from .contracts import ExecutorAssociationStatus
 from .models import Executor, ExecutorSession
 
 
 def get_executor_association_status(
     session: ExecutorSession | None, *, currentTime: datetime
-) -> Literal["unassociated", "online", "offline"]:
+) -> ExecutorAssociationStatus:
     """Describe a session already checked for validity without changing its expiry."""
     if session is None:
-        return "unassociated"
+        return ExecutorAssociationStatus.UNASSOCIATED
     limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
     offlineAt = currentTime - timedelta(seconds=limits.executorOfflineSeconds)
     return (
-        "online"
+        ExecutorAssociationStatus.ONLINE
         if session.last_seen_at is not None and session.last_seen_at > offlineAt
-        else "offline"
+        else ExecutorAssociationStatus.OFFLINE
     )
 
 
@@ -102,18 +103,6 @@ def get_current_executor_sessions(
     }
 
 
-def prune_executor_sessions(organizationId: uuid.UUID) -> int:
-    """Remove unusable credentials while the caller holds the organization's write lock."""
-    currentTime = timezone.now()
-    invalidIds = [
-        session.id
-        for session in get_executor_sessions(organizationId)
-        if not is_executor_session_current(session, currentTime=currentTime)
-    ]
-    intCount, _ = ExecutorSession.objects.filter(pk__in=invalidIds).delete()
-    return intCount
-
-
 def revoke_user_executor_sessions(userId: uuid.UUID) -> None:
     """Revoke pending logins and associations in the caller's account-security transaction."""
     ExecutorSession.objects.filter(user_id=userId).delete()
@@ -125,9 +114,9 @@ def revoke_unqualified_executor_sessions(
 ) -> None:
     """Remove ineligible credentials within the membership update transaction."""
     currentTime = timezone.now()
-    invalidIds = [
+    listInvalidSessionId = [
         session.id
         for session in get_executor_sessions(organizationId).filter(user_id=userId)
         if not is_executor_session_current(session, currentTime=currentTime)
     ]
-    ExecutorSession.objects.filter(pk__in=invalidIds).delete()
+    ExecutorSession.objects.filter(pk__in=listInvalidSessionId).delete()

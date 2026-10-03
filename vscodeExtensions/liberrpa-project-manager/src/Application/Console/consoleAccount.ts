@@ -1,11 +1,10 @@
 // FileName: consoleAccount.ts
 
-import * as vscode from "vscode";
 import { hostname } from "node:os";
+import * as vscode from "vscode";
 
 import { isRecord } from "../../Common/typeCheck";
 import { getErrorMessage } from "../../Common/utils";
-import type { ConsoleCredentialSnapshot } from "../../Adapter/Console/consoleContextBridge";
 import {
   ConsoleConnection,
   type ConsoleAccountState,
@@ -18,10 +17,17 @@ import {
   validateConsoleUrl,
   parseEditorSession,
 } from "../../Adapter/Console/consoleClient";
+import type { ConsoleCredentialSnapshot } from "../../Adapter/Console/consoleContextBridge";
 
 const STR_ADDRESS_KEY = "console.url";
 const STR_EMAIL_KEY = "console.email";
 const STR_SESSION_KEY = "console.editorSession";
+
+enum CredentialLoadResult {
+  Unchanged = "unchanged",
+  Changed = "changed",
+  Unavailable = "unavailable",
+}
 
 interface ConsoleCredential {
   url: string;
@@ -36,58 +42,11 @@ export class ConsoleAccount implements vscode.Disposable {
   private busy = false;
   private sessionRevision = 0;
   private pendingCredentialReload = false;
+  private loadingCredential = false;
   private readonly secretSubscription: vscode.Disposable;
-  private readonly credentialInitialization: Promise<boolean>;
-  private readonly initialization: Promise<void>;
+  private readonly credentialInitialization: Promise<CredentialLoadResult>;
+  private readonly initialization: Promise<boolean>;
   private state: ConsoleAccountState;
-
-  public constructor(private readonly context: vscode.ExtensionContext) {
-    const strUrl = context.globalState.get<string>(STR_ADDRESS_KEY, "");
-    this.state = {
-      url: strUrl,
-      rememberedEmail: this.getRememberedEmail(strUrl),
-      connection: ConsoleConnection.SignedOut,
-      signedIn: false,
-      account: null,
-      lastContactAt: null,
-      message: "",
-    };
-    this.credentialInitialization = this.loadCredential();
-    this.initialization = this.restoreSession(this.credentialInitialization);
-    this.secretSubscription = context.secrets.onDidChange((event) => {
-      if (event.key !== STR_SESSION_KEY || this.disposed) {
-        return;
-      }
-      this.sessionRevision += 1;
-      this.pendingCredentialReload = true;
-      void this.initialization
-        .then(async () => {
-          if (!this.busy && !this.disposed) {
-            await this.runOperation(async () => {});
-          }
-        })
-        .catch(() => {
-          // The next account action can retry a failed secure-storage read.
-        });
-    });
-  }
-
-  public async getState(): Promise<ConsoleAccountState> {
-    await this.initialization;
-    return this.state;
-  }
-
-  public async waitForLocalCredential(): Promise<void> {
-    await this.credentialInitialization;
-  }
-
-  public getPythonCredential(): ConsoleCredentialSnapshot | null {
-    if (this.disposed || this.pendingCredentialReload || this.credential === null) {
-      return null;
-    }
-    // Keep this internal to the extension host; webviews receive account state only.
-    return { consoleUrl: this.credential.url, token: this.credential.token };
-  }
 
   private getRememberedEmail(url: string): string {
     return url !== "" && url === this.context.globalState.get<string>(STR_ADDRESS_KEY, "")
@@ -101,9 +60,7 @@ export class ConsoleAccount implements vscode.Disposable {
     }
   }
 
-  private async clearSession(message: string): Promise<void> {
-    await this.context.secrets.delete(STR_SESSION_KEY);
-    this.sessionRevision += 1;
+  private clearLocalSession(message: string): void {
     this.credential = null;
     this.state = {
       ...this.state,
@@ -114,6 +71,12 @@ export class ConsoleAccount implements vscode.Disposable {
       message,
     };
     this.publishState();
+  }
+
+  private async clearSession(message: string): Promise<void> {
+    this.sessionRevision += 1;
+    this.clearLocalSession(message);
+    await this.context.secrets.delete(STR_SESSION_KEY);
   }
 
   private applySession(account: EditorSessionInfo): void {
@@ -173,35 +136,34 @@ export class ConsoleAccount implements vscode.Disposable {
   }
 
   private handleSessionRestoreError(): void {
-    this.state = {
-      ...this.state,
-      message: "The saved Console session could not be restored. Sign in again.",
-    };
-    this.publishState();
+    this.pendingCredentialReload = true;
+    this.clearLocalSession(
+      "The saved Console session could not be read. Try again before changing accounts.",
+    );
   }
 
-  private async loadCredential(): Promise<boolean> {
+  private async loadCredential(): Promise<CredentialLoadResult> {
+    const intSessionRevision = this.sessionRevision;
+    this.loadingCredential = true;
+    this.publishState();
     try {
       const strCredential = await this.context.secrets.get(STR_SESSION_KEY);
+      if (this.disposed || intSessionRevision !== this.sessionRevision) {
+        return CredentialLoadResult.Unchanged;
+      }
       if (strCredential === undefined) {
         const strUrl = this.context.globalState.get<string>(STR_ADDRESS_KEY, "");
         const strMessage =
           this.credential === null
             ? this.state.message
             : "Signed out in another Editor window.";
-        this.credential = null;
         this.state = {
           ...this.state,
           url: strUrl,
           rememberedEmail: this.getRememberedEmail(strUrl),
-          signedIn: false,
-          connection: ConsoleConnection.SignedOut,
-          account: null,
-          lastContactAt: null,
-          message: strMessage,
         };
-        this.publishState();
-        return false;
+        this.clearLocalSession(strMessage);
+        return CredentialLoadResult.Unchanged;
       }
       const credentialValue: unknown = JSON.parse(strCredential);
       if (
@@ -211,7 +173,7 @@ export class ConsoleAccount implements vscode.Disposable {
         credentialValue["token"].length === 0
       ) {
         await this.clearSession("Sign in again to connect to Console.");
-        return false;
+        return CredentialLoadResult.Unchanged;
       }
       const strUrl = normalizeConsoleUrl(credentialValue["url"]);
       const strRememberedEmail = this.getRememberedEmail(strUrl);
@@ -221,7 +183,7 @@ export class ConsoleAccount implements vscode.Disposable {
       ) {
         this.state = { ...this.state, rememberedEmail: strRememberedEmail };
         this.publishState();
-        return false;
+        return CredentialLoadResult.Unchanged;
       }
       this.credential = { url: strUrl, token: credentialValue["token"] };
       this.state = {
@@ -233,6 +195,27 @@ export class ConsoleAccount implements vscode.Disposable {
         lastContactAt: null,
         connection: ConsoleConnection.Checking,
       };
+      return CredentialLoadResult.Changed;
+    } catch {
+      this.handleSessionRestoreError();
+      return CredentialLoadResult.Unavailable;
+    } finally {
+      this.loadingCredential = false;
+      this.publishState();
+    }
+  }
+
+  private async restoreSession(
+    credentialInitialization: Promise<CredentialLoadResult> = this.loadCredential(),
+  ): Promise<boolean> {
+    try {
+      const result = await credentialInitialization;
+      if (result === CredentialLoadResult.Unavailable) {
+        return false;
+      }
+      if (result === CredentialLoadResult.Changed) {
+        await this.refreshSession();
+      }
       return true;
     } catch {
       this.handleSessionRestoreError();
@@ -240,31 +223,32 @@ export class ConsoleAccount implements vscode.Disposable {
     }
   }
 
-  private async restoreSession(
-    credentialInitialization: Promise<boolean> = this.loadCredential(),
-  ): Promise<void> {
-    try {
-      if (await credentialInitialization) {
-        await this.refreshSession();
+  private async reloadChangedCredential(): Promise<boolean> {
+    while (this.pendingCredentialReload && !this.disposed) {
+      this.pendingCredentialReload = false;
+      if (!(await this.restoreSession())) {
+        return false;
       }
-    } catch {
-      this.handleSessionRestoreError();
     }
+    return true;
   }
 
-  private async runOperation(action: () => Promise<void>): Promise<void> {
+  private async runOperation(action?: () => Promise<void>): Promise<void> {
     await this.initialization;
     if (this.busy) {
       throw new Error("A Console request is already in progress. Try again shortly.");
     }
     this.busy = true;
     try {
-      await action();
-    } finally {
-      if (this.pendingCredentialReload) {
-        this.pendingCredentialReload = false;
-        await this.restoreSession();
+      if (!(await this.reloadChangedCredential())) {
+        throw new Error(this.state.message);
       }
+      try {
+        await action?.();
+      } finally {
+        await this.reloadChangedCredential();
+      }
+    } finally {
       this.busy = false;
     }
   }
@@ -294,6 +278,60 @@ export class ConsoleAccount implements vscode.Disposable {
       throw new Error("The Console session changed in another Editor window. Try again.");
     }
     await this.clearSession("");
+  }
+
+  public constructor(private readonly context: vscode.ExtensionContext) {
+    const strUrl = context.globalState.get<string>(STR_ADDRESS_KEY, "");
+    this.state = {
+      url: strUrl,
+      rememberedEmail: this.getRememberedEmail(strUrl),
+      connection: ConsoleConnection.SignedOut,
+      signedIn: false,
+      account: null,
+      lastContactAt: null,
+      message: "",
+    };
+    this.credentialInitialization = this.loadCredential();
+    this.initialization = this.restoreSession(this.credentialInitialization);
+    this.secretSubscription = context.secrets.onDidChange((event) => {
+      if (event.key !== STR_SESSION_KEY || this.disposed) {
+        return;
+      }
+      this.sessionRevision += 1;
+      this.pendingCredentialReload = true;
+      this.publishState();
+      void this.initialization
+        .then(async () => {
+          if (!this.busy && !this.disposed) {
+            await this.runOperation();
+          }
+        })
+        .catch(() => {
+          // An account operation already in progress also reloads changed credentials.
+        });
+    });
+  }
+
+  public async getState(): Promise<ConsoleAccountState> {
+    await this.initialization;
+    return this.state;
+  }
+
+  public async waitForLocalCredential(): Promise<void> {
+    await this.credentialInitialization;
+  }
+
+  public getPythonCredential(): ConsoleCredentialSnapshot | null {
+    if (
+      this.disposed ||
+      this.loadingCredential ||
+      this.pendingCredentialReload ||
+      this.credential === null
+    ) {
+      return null;
+    }
+    // Keep this internal to the extension host; webviews receive account state only.
+    return { consoleUrl: this.credential.url, token: this.credential.token };
   }
 
   public async changeAddress(value: string): Promise<void> {

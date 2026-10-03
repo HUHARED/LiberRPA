@@ -4,6 +4,7 @@ __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
+import json
 import uuid
 from typing import cast
 
@@ -15,6 +16,7 @@ from django.views.decorators.debug import sensitive_variables
 
 from console_project.config import LimitsConfig
 from console_project.contracts import JsonValue
+from console_project.validators import validate_json_value
 from operations.audit import get_audit_snapshot, record_audit
 from organizations.models import DepartmentRole
 from organizations.validators import get_path_name_key, normalize_path_name
@@ -23,9 +25,8 @@ from organizations.permissions import (
     get_authorized_departments,
 )
 
-from .models import SECRET_ASSET_TYPES, Asset
+from .models import AssetType, SECRET_ASSET_TYPES, Asset
 from .queries import get_asset_query
-from .values import serialize_asset_value
 
 
 class SecretStorageUnavailableError(Exception):
@@ -34,7 +35,55 @@ class SecretStorageUnavailableError(Exception):
 
 @sensitive_variables()
 def _set_asset_value(asset: Asset, value: JsonValue) -> None:
-    strJson = serialize_asset_value(asset.asset_type, value)
+    try:
+        match asset.asset_type:
+            case AssetType.TEXT | AssetType.SECRET_TEXT:
+                if not isinstance(value, str):
+                    raise ValueError("Enter a text value.")
+            case AssetType.INTEGER:
+                if type(value) is not int:
+                    raise ValueError("Enter an integer.")
+            case AssetType.NUMBER:
+                if type(value) not in (int, float):
+                    raise ValueError("Enter a number.")
+            case AssetType.BOOLEAN:
+                if type(value) is not bool:
+                    raise ValueError("Select true or false.")
+            case AssetType.CREDENTIAL:
+                if (
+                    not isinstance(value, dict)
+                    or set(value) != {"username", "password"}
+                    or not all(isinstance(part, str) for part in value.values())
+                ):
+                    raise ValueError(
+                        "Provide the complete Username and Password as text."
+                    )
+            case AssetType.JSON:
+                pass
+            case _:
+                raise ValueError("Select a supported asset type.")
+        validate_json_value(value)
+        strJson = json.dumps(
+            value, ensure_ascii=False, allow_nan=False, separators=(",", ":")
+        )
+        limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
+        intLimit = (
+            limits.maxSecretAssetValueBytes
+            if asset.asset_type in SECRET_ASSET_TYPES
+            else limits.maxAssetValueBytes
+        )
+        intValueBytes = len(
+            (value if isinstance(value, str) else strJson).encode("utf-8")
+        )
+        if intValueBytes > intLimit:
+            raise ValueError(f"The value exceeds the {intLimit}-byte UTF-8 limit.")
+    except (ValueError, RecursionError) as e:
+        raise ValidationError({
+            "value": str(e)
+            if not isinstance(e, (UnicodeError, RecursionError))
+            else "Enter valid Unicode JSON within 64 levels of nesting."
+        }) from None
+
     if asset.asset_type in SECRET_ASSET_TYPES:
         cipher = cast(MultiFernet | None, settings.CONSOLE_SECRET_CIPHER)
         if cipher is None:

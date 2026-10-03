@@ -235,6 +235,18 @@ def apply_editor_client_rate_limit(clientAddress: str) -> int:
 
 
 @sensitive_variables()
+def apply_native_resource_authentication_rate_limit(clientAddress: str) -> int:
+    """Keep Python resource traffic from exhausting native heartbeat and control budgets."""
+    limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
+    return _apply_source_rate_limit(
+        clientAddress,
+        scope="accounts.native_resource_authentication",
+        maxRequests=limits.nativeClientRequestsPerSource,
+        windowSeconds=limits.nativeClientRequestWindowSeconds,
+    )
+
+
+@sensitive_variables()
 def apply_api_key_creation_rate_limit(clientAddress: str, *, actorId: str) -> int:
     """Limit credential creation separately; revoking a key never consumes this allowance."""
     return _apply_sensitive_action_rate_limit(

@@ -13,6 +13,7 @@ from django.views.decorators.http import require_http_methods, require_GET, requ
 
 from file_storage.services import FileOperationError
 from file_storage.streaming import SyncFileStream, AsyncFileStream
+from organizations.validators import parse_resource_path
 
 from .contracts import (
     FileListRequest,
@@ -44,7 +45,6 @@ from .http import (
     lock_file_access,
     require_no_query_parameters,
     parse_file_request,
-    parse_file_path,
     parse_upload_chunk,
     build_file_response,
 )
@@ -57,7 +57,7 @@ def list_shared_files(
     payload = parse_file_request(request, FileListRequest)
     if isinstance(payload, JsonResponse):
         return payload
-    departmentParts = parse_file_path(payload.department_path, departmentOnly=True)
+    departmentParts = parse_resource_path(payload.department_path, departmentOnly=True)
     access = get_file_access(authentication)
     return build_file_response(get_file_list(access, payload, departmentParts))
 
@@ -69,7 +69,7 @@ def query_shared_file(
     payload = parse_file_request(request, FilePathRequest)
     if isinstance(payload, JsonResponse):
         return payload
-    pathParts = parse_file_path(payload.path)
+    pathParts = parse_resource_path(payload.path)
     file, strDepartmentPath = resolve_file(get_file_access(authentication), pathParts)
     return build_file_response(build_file_payload(file, strDepartmentPath))
 
@@ -81,7 +81,7 @@ def create_file_upload(
     payload = parse_file_request(request, FileUploadRequest)
     if isinstance(payload, JsonResponse):
         return payload
-    pathParts = parse_file_path(payload.path)
+    pathParts = parse_resource_path(payload.path)
     with transaction.atomic():
         access = lock_file_access(request, authentication)
         upload = create_upload(access, payload, pathParts)
@@ -147,7 +147,7 @@ def delete_shared_files(
     payload = parse_file_request(request, FileDeleteRequest)
     if isinstance(payload, JsonResponse):
         return payload
-    paths = [parse_file_path(strPath) for strPath in payload.paths]
+    paths = [parse_resource_path(strPath) for strPath in payload.paths]
     with transaction.atomic():
         access = lock_file_access(request, authentication)
         return build_file_response(delete_files(access, payload, paths))
@@ -160,7 +160,7 @@ def create_file_download(
     payload = parse_file_request(request, FilePathRequest)
     if isinstance(payload, JsonResponse):
         return payload
-    pathParts = parse_file_path(payload.path)
+    pathParts = parse_resource_path(payload.path)
     with transaction.atomic():
         access = lock_file_access(request, authentication)
         return build_file_response(prepare_download(access, pathParts), statusCode=201)

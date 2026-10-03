@@ -4,14 +4,14 @@ __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
-from dataclasses import dataclass, field
-from enum import StrEnum
-import json
 import os
+import json
 import re
 import time
-from urllib.parse import urlsplit
+from dataclasses import dataclass, field
+from enum import StrEnum
 from typing import cast
+from urllib.parse import urlsplit
 
 
 class ConsoleClientType(StrEnum):
@@ -28,10 +28,11 @@ class ConsoleContext:
 
 _STR_ENV_CONSOLE_PIPE = "LIBERRPA_CONSOLE_PIPE"
 _STR_ENV_CONSOLE_HOST_PID = "LIBERRPA_CONSOLE_HOST_PID"
+_STR_ENV_CONSOLE_CREDENTIAL_ID = "LIBERRPA_CONSOLE_CREDENTIAL_ID"
 _CONSOLE_PIPE_PATTERN = re.compile(
     r"\\\\\.\\pipe\\LiberRPA-Console-(editor|executor)-[0-9a-f-]{36}"
 )
-_BYTES_CONTEXT_REQUEST = b"LIBERRPA_CONSOLE_CONTEXT_V1\n"
+_STR_CONTEXT_REQUEST_PREFIX = "LIBERRPA_CONSOLE_CONTEXT_V1 "
 _INT_MAX_CONTEXT_BYTES = 16 * 1024
 _INT_CONTACT_TIMEOUT_SECONDS = 3
 # WinBase.h SECURITY_IDENTIFICATION; pywin32 does not expose it in win32con.
@@ -42,7 +43,7 @@ _boolInitialized = False
 _strUnavailableMessage = "Console authentication has not been initialized."
 
 
-def _read_host_context(pipePath: str, hostProcessId: int) -> bytes:
+def _read_host_context(pipePath: str, hostProcessId: int, credentialId: str) -> bytes:
     import win32con
     import win32file
     import win32pipe
@@ -66,7 +67,10 @@ def _read_host_context(pipePath: str, hostProcessId: int) -> bytes:
 
         # The host replies only after receiving this request.
         # Its default Windows pipe ACL permits writes by its owner, not by other ordinary users.
-        win32file.WriteFile(intPipeHandle, _BYTES_CONTEXT_REQUEST)
+        win32file.WriteFile(
+            intPipeHandle,
+            f"{_STR_CONTEXT_REQUEST_PREFIX}{credentialId}\n".encode("ascii"),
+        )
         responseBuffer = bytearray()
         while time.monotonic() < floatContactDeadline:
             _, intAvailableBytes, _ = win32pipe.PeekNamedPipe(intPipeHandle, 0)
@@ -138,12 +142,13 @@ def _parse_host_context(
 
 
 def initialize_console_context() -> None:
-    """Freeze this process's host identity once, without contacting Console."""
+    """Resolve launch credentials once and report their local availability."""
     global _consoleContext, _boolInitialized, _strUnavailableMessage
 
     if _boolInitialized:
         return
     _boolInitialized = True
+
     strPipePath = os.environ.get(_STR_ENV_CONSOLE_PIPE, "")
     if not strPipePath:
         _strUnavailableMessage = (
@@ -151,9 +156,22 @@ def initialize_console_context() -> None:
             "Sign in to Editor or Executor, then start a new Python run from that client. "
             "In VS Code, use a new terminal."
         )
-        print("Console: No host available.")
+        print("Console: No host available.", flush=True)
         return
+
+    strCredentialId = os.environ.get(_STR_ENV_CONSOLE_CREDENTIAL_ID, "")
+    if not strCredentialId:
+        _strUnavailableMessage = (
+            "No Console credentials were available in this process's launch environment. "
+            "Sign in to the launching client, then start a new run or terminal."
+        )
+        print("Console: No credentials available at launch.", flush=True)
+        return
+
     try:
+        if re.fullmatch(r"[0-9a-f]{64}", strCredentialId) is None:
+            raise ValueError("The launching Console credential identity is invalid.")
+
         pipePathMatch = _CONSOLE_PIPE_PATTERN.fullmatch(strPipePath)
         if os.name != "nt" or pipePathMatch is None:
             raise ValueError("The Console host pipe is invalid.")
@@ -163,26 +181,29 @@ def initialize_console_context() -> None:
             raise ValueError("The Console host process is missing.")
 
         _consoleContext = _parse_host_context(
-            _read_host_context(strPipePath, intHostProcessId),
+            _read_host_context(strPipePath, intHostProcessId, strCredentialId),
             ConsoleClientType(pipePathMatch.group(1)),
         )
-        _strUnavailableMessage = (
-            "No signed-in Console account was available when liberrpa initialized. "
-            "Sign in to the launching client (and select an Executor if required), then start a new run."
-        )
-        if _consoleContext is None:
-            print("Console: No signed-in account.")
-        else:
-            print("Console: Credentials available.")
     except Exception:
-        # Console setup must not prevent existing local automation from running.
+        # Console setup must not prevent local automation from running.
         # pywintypes.error is not an OSError subclass.
-        # Do not retain exception details: malformed IPC data could contain a token.
+        # Do not expose exception details: malformed IPC data could contain a token.
         _strUnavailableMessage = (
             "The launching client's Console identity could not be prepared. "
             "Check the client, then start a new Python run. "
             "In VS Code, use a new terminal after reloading the window."
         )
+        print("Console: Credential initialization failed.", flush=True)
+        return
+
+    if _consoleContext is None:
+        _strUnavailableMessage = (
+            "The launching client's original Console identity is no longer available. "
+            "Start a new run or terminal from the signed-in client."
+        )
+        print("Console: Launch credentials unavailable.", flush=True)
+    else:
+        print("Console: Credentials available.", flush=True)
 
 
 def get_console_context() -> ConsoleContext:

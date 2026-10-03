@@ -12,6 +12,7 @@ from accounts.resource_authentication import (
     ResourceAuthenticationContext,
     lock_resource_write_access,
 )
+from organizations.validators import parse_resource_path
 
 from .contracts import (
     QueueUploadRequest,
@@ -25,7 +26,6 @@ from .services import upload_items, claim_items, reset_items, delete_items
 from .http import (
     api_queue_view,
     parse_queue_request,
-    normalize_queue_path,
     parse_item_request,
     build_queue_response,
 )
@@ -42,7 +42,7 @@ def query_queue_items(
         return payload
     queue = resolve_queue_path(
         authentication.access,
-        normalize_queue_path(payload.queue_path),
+        parse_resource_path(payload.queue_path),
     )
     return build_queue_response(query_items(queue, payload))
 

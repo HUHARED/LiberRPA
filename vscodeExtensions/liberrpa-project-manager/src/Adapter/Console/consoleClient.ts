@@ -76,17 +76,14 @@ export async function requestConsole(
     throw new ConsoleRequestError("Console returned an invalid response.", response.status);
   }
   if (!response.ok) {
+    const errorValue = isRecord(responseValue) ? responseValue["error"] : undefined;
     const strMessage =
-      isRecord(responseValue) &&
-      isRecord(responseValue["error"]) &&
-      typeof responseValue["error"]["message"] === "string"
-        ? responseValue["error"]["message"]
+      isRecord(errorValue) && typeof errorValue["message"] === "string"
+        ? errorValue["message"]
         : `Console request failed (${response.status}).`;
     const strCode =
-      isRecord(responseValue) &&
-      isRecord(responseValue["error"]) &&
-      typeof responseValue["error"]["code"] === "string"
-        ? responseValue["error"]["code"]
+      isRecord(errorValue) && typeof errorValue["code"] === "string"
+        ? errorValue["code"]
         : "";
     throw new ConsoleRequestError(strMessage, response.status, strCode);
   }

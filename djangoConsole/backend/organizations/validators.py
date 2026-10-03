@@ -47,3 +47,14 @@ def normalize_path_name(value: str) -> str:
     if len(strNormalized) > 128:
         raise ValidationError("The normalized name exceeds 128 characters.")
     return strNormalized
+
+
+def parse_resource_path(value: str, *, departmentOnly: bool = False) -> tuple[str, ...]:
+    """Validate resource paths at the request boundary and retain their normalized segments."""
+    strPath = value.replace("\\", "/")
+    if departmentOnly:
+        strPath = strPath.removesuffix("/")
+    listPathPart = strPath.removeprefix("/").split("/")
+    if not departmentOnly and len(listPathPart) < 2:
+        raise ValidationError("Use a full department path and resource name.")
+    return tuple(normalize_path_name(strPathPart) for strPathPart in listPathPart)

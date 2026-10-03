@@ -13,6 +13,8 @@ from django.utils import timezone
 from console_project.constants import INT_DISPLAY_NAME_SNAPSHOT_MAX_LENGTH
 from organizations.validators import validate_path_segment
 
+from .contracts import QueueStatus
+
 
 class DataQueue(models.Model):
     department_id: uuid.UUID
@@ -51,17 +53,15 @@ class DataQueue(models.Model):
 class QueueItem(models.Model):
     summary: str
 
-    class Status(models.TextChoices):
-        UNCLAIMED = "unclaimed", "Unclaimed"
-        CLAIMED = "claimed", "Claimed"
-
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     queue = models.ForeignKey(DataQueue, on_delete=models.CASCADE, related_name="items")
     sequence = models.PositiveBigIntegerField(editable=False)
     data_json = models.TextField(editable=False)
     size_bytes = models.PositiveIntegerField(editable=False)
     status = models.CharField(
-        max_length=9, choices=Status.choices, default=Status.UNCLAIMED
+        max_length=9,
+        choices=[(state, state.value.title()) for state in QueueStatus],
+        default=QueueStatus.UNCLAIMED,
     )
     # Historical identities survive account deletion without retaining an account foreign key.
     uploaded_by_id = models.UUIDField(editable=False)
@@ -84,11 +84,11 @@ class QueueItem(models.Model):
                 fields=["queue", "sequence"], name="queue_item_sequence_unique"
             ),
             models.CheckConstraint(
-                condition=models.Q(status__in=["unclaimed", "claimed"]),
+                condition=models.Q(status__in=list(QueueStatus)),
                 name="queue_item_status_valid",
             ),
             models.CheckConstraint(
-                condition=models.Q(status="unclaimed")
+                condition=models.Q(status=QueueStatus.UNCLAIMED)
                 | models.Q(
                     last_claimed_by_id__isnull=False, last_claimed_at__isnull=False
                 ),

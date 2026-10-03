@@ -30,6 +30,9 @@ from organizations.permissions import (
 
 from .contracts import (
     MAX_QUEUE_RESPONSE_BYTES,
+    QueueStatus,
+    QueueFilterStatus,
+    QueueOrder,
     QueueQueryRequest,
     QueueDepartmentResponse,
     QueueEntryResponse,
@@ -59,20 +62,17 @@ def get_queue_query(
         query = query.annotate(
             unclaimed_count=Count(
                 "items",
-                filter=Q(items__status=QueueItem.Status.UNCLAIMED),
+                filter=Q(items__status=QueueStatus.UNCLAIMED),
             ),
-            claimed_count=Count(
-                "items", filter=Q(items__status=QueueItem.Status.CLAIMED)
-            ),
+            claimed_count=Count("items", filter=Q(items__status=QueueStatus.CLAIMED)),
         )
     return query
 
 
 def resolve_queue_path(
-    access: OrganizationAccessContext, normalizedPath: str
+    access: OrganizationAccessContext, pathParts: tuple[str, ...]
 ) -> DataQueue:
     """Resolve a path already normalized at the request boundary."""
-    pathParts = tuple(normalizedPath.split("/")[1:])
     departmentsById = get_department_tree(access.organization.pk)
     department = resolve_department_path(pathParts[:-1], departmentsById)
     # Resolving a department path never grants access to its queues.
@@ -149,16 +149,16 @@ def get_queue_list(
 def select_items(
     queue: DataQueue,
     *,
-    status: str = "all",
-    order: str = "oldest_first",
+    status: QueueFilterStatus = QueueFilterStatus.ALL,
+    order: QueueOrder = QueueOrder.OLDEST_FIRST,
     itemId: uuid.UUID | None = None,
 ) -> QuerySet[QueueItem]:
     query = QueueItem.objects.filter(queue=queue)
-    if status != "all":
+    if status != QueueFilterStatus.ALL:
         query = query.filter(status=status)
     if itemId is not None:
         query = query.filter(pk=itemId)
-    return query.order_by("sequence" if order == "oldest_first" else "-sequence")
+    return query.order_by("sequence" if order == QueueOrder.OLDEST_FIRST else "-sequence")
 
 
 def _build_item_metadata(item: QueueItem, summary: str) -> dict[str, object]:
@@ -188,8 +188,8 @@ def get_item_list(
     access: OrganizationAccessContext,
     *,
     pageNumber: int = 1,
-    status: str = "all",
-    order: str = "oldest_first",
+    status: QueueFilterStatus = QueueFilterStatus.ALL,
+    order: QueueOrder = QueueOrder.OLDEST_FIRST,
     itemId: uuid.UUID | None = None,
 ) -> QueueItemsResponse:
     query = (
@@ -216,7 +216,9 @@ def query_items(queue: DataQueue, payload: QueueQueryRequest) -> QueueQueryRespo
         queue, status=payload.status, order=payload.order, itemId=payload.item_id
     )
     if payload.after_sequence is not None:
-        strLookup = "sequence__gt" if payload.order == "oldest_first" else "sequence__lt"
+        strLookup = (
+            "sequence__gt" if payload.order == QueueOrder.OLDEST_FIRST else "sequence__lt"
+        )
         query = query.filter(**{strLookup: payload.after_sequence})
     result = QueueQueryResponse(items=[], next_sequence=None)
     intResponseBytes = len(result.model_dump_json().encode("utf-8"))

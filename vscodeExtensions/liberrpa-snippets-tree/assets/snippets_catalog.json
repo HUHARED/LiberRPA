@@ -4321,7 +4321,7 @@
         "Console.asset_set_value(path=$1, value=$2)",
         "$0"
       ],
-      "description": "Replace the value of an ordinary Console Asset.\n\nThe value must match the Asset's existing type. Secret Text and Credential Assets must be maintained in Console.\n\nParameters:\n    path: The full Asset path, including its department path and name.\n    value: The replacement value. Only JSON-compatible values are accepted.",
+      "description": "Replace the value of an ordinary Console Asset.\n\nThe value must match the Asset's existing type. Secret Text and Credential Assets must be maintained in Console.\n\nWrites are not retried automatically. A connection failure may leave the result uncertain; check Console before writing again.\n\nParameters:\n    path: The full Asset path, including its department path and name.\n    value: The replacement value. Only JSON-compatible values are accepted.",
       "insertionMode": "line",
       "imports": {
         "liberrpa.Modules": [

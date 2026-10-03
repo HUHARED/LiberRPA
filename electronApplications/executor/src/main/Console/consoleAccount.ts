@@ -7,25 +7,25 @@ import path from "path";
 
 import {
   ConsoleConnection,
-  type ConsoleAccountState,
-  type ConsoleExecutorPage,
   type ConsoleSessionInfo,
+  type ConsoleExecutorPage,
   type ConsoleSignInArgs,
+  type ConsoleAccountState,
 } from "../../shared/consoleAccount";
 import { getErrorMessage } from "../../shared/error";
 import { readJsonFile, writeJsonFileAtomic } from "../Common/jsonFile";
-import { ensureNonEmptyString, ensureRecord, ensureString } from "../Common/validation";
+import { ensureRecord, ensureString, ensureNonEmptyString } from "../Common/validation";
 import {
+  hasActiveProjectRun,
   beginConsoleAccountTransition,
   endConsoleAccountTransition,
-  hasActiveProjectRun,
 } from "../Run/projectRunner";
 import {
   ConsoleRequestError,
   normalizeConsoleUrl,
+  requestConsole,
   parseConsoleSession,
   parseExecutorChoices,
-  requestConsole,
 } from "./consoleApi";
 import type { ConsoleCredentialSnapshot } from "./consoleContextBridge";
 
@@ -197,15 +197,11 @@ export function getConsoleAccountState(): ConsoleAccountState {
 }
 
 export function getConsolePythonCredential(): ConsoleCredentialSnapshot | null {
-  if (
-    boolStopped ||
-    boolBusy ||
-    strToken === "" ||
-    sessionInfo?.session.selection_required
-  ) {
+  if (boolStopped || strToken === "" || sessionInfo?.session.selection_required) {
     return null;
   }
 
+  // URL validation does not change the credential, even while the account UI is busy.
   // Only the private Python bridge receives this snapshot; never send it to Renderer.
   return { consoleUrl: strConsoleUrl, token: strToken };
 }
@@ -228,10 +224,7 @@ export function startConsoleAccount(onChanged: () => void): void {
       );
       const strSavedUrl = ensureString(dictAccount.consoleUrl, "Console URL");
       strConsoleUrl = strSavedUrl === "" ? "" : normalizeConsoleUrl(strSavedUrl);
-      strRememberedEmail =
-        dictAccount.email === undefined
-          ? ""
-          : ensureString(dictAccount.email, "Remembered email");
+      strRememberedEmail = ensureString(dictAccount.email, "Remembered email");
       const strEncryptedToken = ensureString(
         dictAccount.encryptedToken,
         "Protected credential",

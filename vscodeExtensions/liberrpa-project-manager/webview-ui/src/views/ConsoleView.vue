@@ -204,9 +204,9 @@
           variant="flat"
           :disabled="boolBusy || !strEmail.trim() || !strPassword"
           :loading="boolBusy"
-          @click="signIn"
-          >Sign In</v-btn
-        >
+          @click="signIn">
+          Sign In
+        </v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>

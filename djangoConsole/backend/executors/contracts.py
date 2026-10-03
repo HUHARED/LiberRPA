@@ -5,6 +5,7 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from datetime import datetime
+from enum import StrEnum
 from typing import Annotated, Literal
 from uuid import UUID
 
@@ -12,6 +13,12 @@ from pydantic import Field
 
 from accounts.contracts import UserResponse
 from console_project.contracts import JsonRequest, JsonResponsePayload
+
+
+class ExecutorAssociationStatus(StrEnum):
+    UNASSOCIATED = "unassociated"
+    ONLINE = "online"
+    OFFLINE = "offline"
 
 
 class ExecutorUpdateRequest(JsonRequest):
@@ -59,7 +66,7 @@ class ExecutorUpdateResponse(JsonResponsePayload):
 class ExecutorListEntryResponse(ExecutorRecordResponse):
     department: ExecutorDepartmentResponse
     can_manage: bool
-    association_status: Literal["unassociated", "online", "offline"]
+    association_status: ExecutorAssociationStatus
     session_id: UUID | None
     account: UserResponse | None
     computer: str | None

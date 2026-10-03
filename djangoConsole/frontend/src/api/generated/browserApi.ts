@@ -24,6 +24,7 @@ export type JsonValueOutput =
   | number
   | boolean
   | null;
+export type ExecutorAssociationStatus = "unassociated" | "online" | "offline";
 export type FilePath = string;
 export type FileRequestUuid = string;
 export type QueueRequestUuid = string;
@@ -32,6 +33,8 @@ export type QueueRequestUuid = string;
  * @maxItems 100
  */
 export type QueueItemIds = [QueueRequestUuid, ...QueueRequestUuid[]];
+export type QueueOrder = "oldest_first" | "newest_first";
+export type QueueFilterStatus = "all" | "unclaimed" | "claimed";
 export type QueueStatus = "unclaimed" | "claimed";
 
 export interface BrowserApiContracts {
@@ -415,7 +418,7 @@ export interface ExecutorDetailsResponse {
 }
 export interface ExecutorDetailsEntryResponse {
   account: UserResponse | null;
-  association_status: "unassociated" | "online" | "offline";
+  association_status: ExecutorAssociationStatus;
   can_manage: boolean;
   computer: string | null;
   created_at: string;
@@ -483,7 +486,7 @@ export interface ExecutorGroupDetailsEntryResponse {
 }
 export interface ExecutorListEntryResponse {
   account: UserResponse | null;
-  association_status: "unassociated" | "online" | "offline";
+  association_status: ExecutorAssociationStatus;
   can_manage: boolean;
   computer: string | null;
   created_at: string;
@@ -781,10 +784,10 @@ export interface QueueCreationRequest {
 export interface QueueDeleteItemsRequest {
   count?: number;
   item_ids?: QueueItemIds | null;
-  order?: "oldest_first" | "newest_first";
+  order?: QueueOrder;
   queue_path?: string | null;
   request_id: QueueRequestUuid;
-  status?: "all" | "unclaimed" | "claimed";
+  status?: QueueFilterStatus;
 }
 export interface QueueDetailsRequest {
   name: string;

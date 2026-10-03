@@ -24,26 +24,23 @@ from accounts.api_key_authentication import InvalidApiKeyError
 from accounts.resource_authentication import (
     InvalidResourceCredentialError,
     ResourceAuthenticationContext,
-    apply_resource_authentication_rate_limit,
-    authenticate_resource,
+    build_resource_authentication_required_response,
+    authenticate_resource_request,
     lock_resource_write_access,
 )
 from console_project.contracts import JsonRequest, JsonResponsePayload
 from console_project.http import (
     build_error_response,
-    build_rate_limited_response,
     build_service_unavailable_response,
     parse_json_request,
 )
 from organizations.models import Department
+from organizations.validators import parse_resource_path
 
 from .models import Asset, AssetType
+from .contracts import MAX_ASSET_RUNTIME_BYTES, AssetPathRequest, AssetRuntimeValueRequest
 from .runtime import (
-    MAX_ASSET_RUNTIME_BYTES,
-    AssetPathRequest,
-    AssetRuntimeValueRequest,
     AssetRuntimeError,
-    parse_asset_path,
     get_runtime_asset_value,
     set_runtime_asset_value,
     get_runtime_secret_value,
@@ -64,26 +61,12 @@ def _api_asset_view[**P](
     @wraps(view)
     def wrapped(request: HttpRequest, *args: P.args, **kwargs: P.kwargs) -> HttpResponse:
         try:
-            intRetryAfter = apply_resource_authentication_rate_limit(
-                request.META.get("REMOTE_ADDR", ""),
-                request.headers.get("Authorization", ""),
-            )
-            if intRetryAfter:
-                return build_rate_limited_response(intRetryAfter)
-            authentication = authenticate_resource(
-                request.headers.get("Authorization", "")
-            )
+            authentication = authenticate_resource_request(request)
+            if isinstance(authentication, JsonResponse):
+                return authentication
             return view(request, authentication, *args, **kwargs)
         except (InvalidApiKeyError, InvalidResourceCredentialError):
-            response = build_error_response(
-                "authentication_required",
-                "Valid credentials are required.",
-                statusCode=401,
-            )
-            response["WWW-Authenticate"] = (
-                'Bearer realm="LiberRPA Console", error="invalid_token"'
-            )
-            return response
+            return build_resource_authentication_required_response()
         except PermissionDenied:
             return build_error_response(
                 "asset_access_required", "Asset access is unavailable.", statusCode=403
@@ -163,7 +146,7 @@ def get_asset_value(
     if isinstance(payload, JsonResponse):
         return payload
     return _build_asset_response(
-        get_runtime_asset_value(authentication.access, parse_asset_path(payload.path))
+        get_runtime_asset_value(authentication.access, parse_resource_path(payload.path))
     )
 
 
@@ -175,7 +158,7 @@ def set_asset_value(
     payload = _parse_asset_request(request, AssetRuntimeValueRequest)
     if isinstance(payload, JsonResponse):
         return payload
-    assetPathParts = parse_asset_path(payload.path)
+    assetPathParts = parse_resource_path(payload.path)
     with transaction.atomic():
         access = lock_resource_write_access(authentication)
         return _build_asset_response(
@@ -193,7 +176,9 @@ def get_asset_secret_text(
         return payload
     return _build_asset_response(
         get_runtime_secret_value(
-            authentication.access, parse_asset_path(payload.path), AssetType.SECRET_TEXT
+            authentication.access,
+            parse_resource_path(payload.path),
+            AssetType.SECRET_TEXT,
         )
     )
 
@@ -208,6 +193,6 @@ def get_asset_credential(
         return payload
     return _build_asset_response(
         get_runtime_secret_value(
-            authentication.access, parse_asset_path(payload.path), AssetType.CREDENTIAL
+            authentication.access, parse_resource_path(payload.path), AssetType.CREDENTIAL
         )
     )

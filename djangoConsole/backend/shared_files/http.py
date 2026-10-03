@@ -25,8 +25,8 @@ from accounts.api_key_authentication import InvalidApiKeyError
 from accounts.resource_authentication import (
     InvalidResourceCredentialError,
     ResourceAuthenticationContext,
-    apply_resource_authentication_rate_limit,
-    authenticate_resource,
+    build_resource_authentication_required_response,
+    authenticate_resource_request,
     lock_resource_write_access,
 )
 from accounts.session_revocation import SessionInvalidatedError, lock_session_write_access
@@ -35,13 +35,11 @@ from console_project.http import (
     build_error_response,
     build_authentication_required_response,
     build_service_unavailable_response,
-    build_rate_limited_response,
     parse_json_request,
 )
 from file_storage.models import DownloadSession
 from file_storage.services import FileOperationError
 from organizations.models import Membership, Department
-from organizations.validators import normalize_path_name
 from organizations.permissions import (
     AccessChannel,
     OrganizationAccessContext,
@@ -82,21 +80,10 @@ _HANDLED_ERRORS = (
 
 
 def build_file_error_response(e: Exception) -> JsonResponse:
-    if isinstance(
-        e, (SessionInvalidatedError, InvalidApiKeyError, InvalidResourceCredentialError)
-    ):
-        response = build_error_response(
-            "api_key_authentication_required"
-            if isinstance(e, InvalidApiKeyError)
-            else "authentication_required",
-            "Valid credentials are required.",
-            statusCode=401,
-        )
-        if isinstance(e, (InvalidApiKeyError, InvalidResourceCredentialError)):
-            response["WWW-Authenticate"] = (
-                'Bearer realm="LiberRPA Console", error="invalid_token"'
-            )
-        return response
+    if isinstance(e, (InvalidApiKeyError, InvalidResourceCredentialError)):
+        return build_resource_authentication_required_response()
+    if isinstance(e, SessionInvalidatedError):
+        return build_authentication_required_response()
     if isinstance(e, PermissionDenied):
         return build_error_response(
             "file_access_required", "Shared file access is unavailable.", statusCode=403
@@ -173,15 +160,9 @@ def api_file_view[**P](
         request: HttpRequest, *args: P.args, **kwargs: P.kwargs
     ) -> HttpResponseBase:
         try:
-            intRetryAfter = apply_resource_authentication_rate_limit(
-                request.META.get("REMOTE_ADDR", ""),
-                request.headers.get("Authorization", ""),
-            )
-            if intRetryAfter:
-                return build_rate_limited_response(intRetryAfter)
-            authentication = authenticate_resource(
-                request.headers.get("Authorization", "")
-            )
+            authentication = authenticate_resource_request(request)
+            if isinstance(authentication, JsonResponse):
+                return authentication
             return view(request, authentication, *args, **kwargs)
         except _HANDLED_ERRORS as e:
             return build_file_error_response(e)
@@ -225,17 +206,6 @@ def parse_file_request[Payload: JsonRequest](
     return parse_json_request(
         request, requestSchema, maxBodyBytes=MAX_FILE_RESPONSE_BYTES
     )
-
-
-def parse_file_path(value: str, *, departmentOnly: bool = False) -> tuple[str, ...]:
-    """Normalize and validate once at the HTTP boundary, before taking business locks."""
-    value = value.replace("\\", "/")
-    if departmentOnly:
-        value = value.removesuffix("/")
-    parts = value.removeprefix("/").split("/")
-    if len(parts) < (1 if departmentOnly else 2) or len(parts) > 65:
-        raise ValidationError("Use a full department path and file name.")
-    return tuple(normalize_path_name(strPart) for strPart in parts)
 
 
 def parse_upload_chunk(request: HttpRequest) -> tuple[bytes, str]:
