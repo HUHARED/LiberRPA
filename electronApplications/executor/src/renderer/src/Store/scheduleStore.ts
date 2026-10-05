@@ -90,14 +90,18 @@ export const useScheduleStore = defineStore("schedule", {
       }
     },
 
-    async refreshScheduleList(): Promise<void> {
+    resetScheduleDialogs(): void {
       this.invalidateScheduleDetailSelection();
-      this.arrListItem = [];
-      await this.loadScheduleList();
       this.showFormDialog = false;
       this.showDeleteDialog = false;
       this.formMode = undefined;
       this.dictDetailNew = undefined;
+    },
+
+    async refreshScheduleList(): Promise<void> {
+      this.resetScheduleDialogs();
+      this.arrListItem = [];
+      await this.loadScheduleList();
     },
 
     async loadScheduleDetail(
@@ -146,6 +150,7 @@ export const useScheduleStore = defineStore("schedule", {
         period_start_ms: intPeriodStartMs,
         period_end_ms: intPeriodEndMs,
         enable: this.dictDetailNew.enable,
+        retry_count: this.dictDetailNew.retry_count,
         timeout_min: this.dictDetailNew.timeout_min,
         builtin_log_level: this.dictDetailNew.builtin_log_level,
         builtin_record_video: this.dictDetailNew.builtin_record_video,
@@ -180,6 +185,7 @@ export const useScheduleStore = defineStore("schedule", {
         period_start_ms: intPeriodStartMs,
         period_end_ms: intPeriodEndMs,
         enable: this.dictDetailEdit.enable,
+        retry_count: this.dictDetailEdit.retry_count,
         timeout_min: this.dictDetailEdit.timeout_min,
         builtin_log_level: this.dictDetailEdit.builtin_log_level,
         builtin_record_video: this.dictDetailEdit.builtin_record_video,

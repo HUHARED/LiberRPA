@@ -1,7 +1,11 @@
 // FileName: packageMetadata.ts
 
+import { execFile } from "child_process";
 import fs from "fs";
 import path from "path";
+import { promisify } from "util";
+
+import { app } from "electron";
 
 import { readJsonFile } from "../Common/jsonFile";
 import {
@@ -10,10 +14,16 @@ import {
   ensureExactRecord,
   ensureLogLevel,
   ensureRecord,
-  ensureString,
+  ensurePackageDescription,
+  ensureVersionSummary,
   ensureTrimmedSingleLineString,
 } from "../Common/validation";
-import { STR_DEFAULT_PYTHON_ENVIRONMENT_NAME } from "../Config/environment";
+import {
+  STR_DEFAULT_PYTHON_ENVIRONMENT_NAME,
+  buildPythonProcessEnvironment,
+  getPythonEnvironmentPath,
+} from "../Config/environment";
+import { getTargetFolderName } from "./packageArchive";
 import type { Dict_ProjectCreate } from "../../shared/project";
 import type { Arr_CustomProjectArgs, Str_LogLevel } from "../../shared/runOptions";
 
@@ -45,6 +55,7 @@ interface Dict_ProjectPackage_Metadata {
   projectDetail: Dict_ProjectCreate;
 }
 
+const execFileAsync = promisify(execFile);
 const STR_FLOW_MANIFEST_FILE_NAME = "flow.json";
 const STR_PACKAGE_MANIFEST_FILE_NAME = ".liberrpa-package.json";
 const STR_PROJECT_FLOW_FILE_NAME = "project.flow";
@@ -72,25 +83,68 @@ function parseFlowManifest(value: unknown): DictFlowManifest {
   );
   const dictDependency: Record<string, string> = {};
   for (const [strComponentId, dependencyValue] of Object.entries(dictRawDependency)) {
-    if (typeof dependencyValue !== "string") {
+    if (
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(
+        strComponentId,
+      )
+    ) {
       throw new Error(
-        `flow.json componentDependencies.${strComponentId} must be a string.`,
+        "flow.json component dependency IDs must use canonical lowercase UUID v4 format.",
       );
     }
-    dictDependency[strComponentId] = dependencyValue;
+    dictDependency[strComponentId] = ensureTrimmedSingleLineString(
+      dependencyValue,
+      `flow.json componentDependencies.${strComponentId}`,
+    );
   }
 
   return {
     schemaVersion: 1,
     name: ensureTrimmedSingleLineString(dictManifest.name, "flow.json name"),
     version: ensureTrimmedSingleLineString(dictManifest.version, "flow.json version"),
-    description: ensureString(dictManifest.description, "flow.json description"),
+    description: ensurePackageDescription(
+      dictManifest.description,
+      "flow.json description",
+    ),
     requiresLiberrpa: ensureTrimmedSingleLineString(
       dictManifest.requiresLiberrpa,
       "flow.json requiresLiberrpa",
     ),
     componentDependencies: dictDependency,
   };
+}
+
+async function validateAndNormalizeFlowVersionMetadata(
+  manifest: DictFlowManifest,
+): Promise<string> {
+  const strResourcesPath = app.isPackaged
+    ? path.join(process.resourcesPath, "app.asar.unpacked/resources")
+    : path.join(app.getAppPath(), "resources");
+  const strScriptPath = path.join(
+    strResourcesPath,
+    "pyPackageScript/ValidateVersionMetadata.py",
+  );
+  const strEnvironmentPath = getPythonEnvironmentPath(STR_DEFAULT_PYTHON_ENVIRONMENT_NAME);
+  const promiseResult = execFileAsync(
+    path.join(strEnvironmentPath, "python.exe"),
+    ["-I", "-X", "utf8", strScriptPath],
+    {
+      env: buildPythonProcessEnvironment({ pythonEnvironmentPath: strEnvironmentPath }),
+      timeout: 15_000,
+      maxBuffer: 1024 * 1024,
+      windowsHide: true,
+    },
+  );
+  // Use stdin to avoid Windows command-line length limits for dependency metadata.
+  promiseResult.child.stdin?.end(
+    JSON.stringify({
+      version: manifest.version,
+      requiresLiberrpa: manifest.requiresLiberrpa,
+      componentDependencies: manifest.componentDependencies,
+    }),
+  );
+  const { stdout } = await promiseResult;
+  return ensureTrimmedSingleLineString(stdout.trim(), "Normalized flow.json version");
 }
 
 function parsePackageManifest(value: unknown): DictPackageManifest {
@@ -104,10 +158,9 @@ function parsePackageManifest(value: unknown): DictPackageManifest {
   }
   return {
     schemaVersion: 1,
-    versionSummary: ensureTrimmedSingleLineString(
+    versionSummary: ensureVersionSummary(
       dictManifest.versionSummary,
       ".liberrpa-package.json versionSummary",
-      true,
     ),
   };
 }
@@ -166,6 +219,7 @@ function buildProjectDetail(
     description: flowManifest.description,
     version_summary: packageManifest.versionSummary,
     python_environment_name: STR_DEFAULT_PYTHON_ENVIRONMENT_NAME,
+    retry_count: 0,
     timeout_min: 0,
     builtin_log_level: runtimeSettings.logLevel,
     builtin_record_video: runtimeSettings.recordVideo,
@@ -175,9 +229,9 @@ function buildProjectDetail(
   };
 }
 
-export function readProjectPackageMetadata(
+export async function readProjectPackageMetadata(
   projectPath: string,
-): Dict_ProjectPackage_Metadata {
+): Promise<Dict_ProjectPackage_Metadata> {
   const flowManifest = parseFlowManifest(
     readRequiredRootJson(projectPath, STR_FLOW_MANIFEST_FILE_NAME),
   );
@@ -188,6 +242,8 @@ export function readProjectPackageMetadata(
     readRequiredRootJson(projectPath, STR_PROJECT_FLOW_FILE_NAME),
   );
 
+  flowManifest.version = await validateAndNormalizeFlowVersionMetadata(flowManifest);
+  getTargetFolderName(flowManifest.name, flowManifest.version);
   return {
     name: flowManifest.name,
     version: flowManifest.version,

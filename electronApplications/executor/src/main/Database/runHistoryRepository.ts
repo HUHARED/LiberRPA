@@ -7,7 +7,11 @@ import type {
   Dict_RunHistory_Options,
   Dict_RunHistory_Page,
   Str_RunHistory_Status,
+  Str_RunHistoryTerminalStatus,
+  RunDetails,
+  RunOutputs,
 } from "../../shared/run";
+import { RunSource } from "../../shared/run";
 import { loggerMain } from "../Logging/logger";
 import { getDatabase } from "./connection";
 import {
@@ -17,10 +21,16 @@ import {
   ensureRunHistoryListRows,
   ensureSingleRowAffected,
 } from "./rowValidation";
+import { isRecoveredRunHistoryActive } from "../Run/recoveredRuns";
 
 interface Dict_RunHistory_Insert {
   schedule_name: string | null;
-  project_id: number;
+  project_id: number | null;
+  source: RunSource;
+  run_id: string;
+  job_id: string;
+  attempt: number;
+  inputs: object;
   project_name: string;
   project_version: string;
   python_environment_name: string;
@@ -32,7 +42,9 @@ interface Dict_RunHistory_Insert {
 interface Dict_RunHistory_Update {
   id: number;
   run_ended_at_ms: number;
-  status: "completed" | "error" | "cancel" | "timeout";
+  status: Str_RunHistoryTerminalStatus;
+  outputs: RunOutputs;
+  error_summary: { type: string; message: string } | null;
 }
 
 const MAP_RUN_HISTORY_SORT_COLUMN: Record<
@@ -56,6 +68,12 @@ export function dbInsertRunHistory(detailDict: Dict_RunHistory_Insert): Database
       `
       INSERT INTO
           run_history (
+              source,
+              run_id,
+              job_id,
+              attempt,
+              inputs,
+              outputs,
               schedule_name,
               project_id,
               project_name,
@@ -68,10 +86,21 @@ export function dbInsertRunHistory(detailDict: Dict_RunHistory_Insert): Database
               updated_at_ms
           )
       VALUES
-          (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+          (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
       `,
     )
     .run(
+      detailDict.source,
+      detailDict.run_id,
+      detailDict.job_id,
+      detailDict.attempt,
+      JSON.stringify(detailDict.inputs),
+      JSON.stringify({
+        status: "unavailable",
+        values: null,
+        unavailableKeys: [],
+        reason: "The Run has not produced an output snapshot.",
+      }),
       detailDict.schedule_name,
       detailDict.project_id,
       detailDict.project_name,
@@ -94,6 +123,8 @@ export function dbUpdateRunHistory(detailDict: Dict_RunHistory_Update): void {
       `
       UPDATE run_history
       SET
+          outputs = ?,
+          error_summary = ?,
           run_ended_at_ms = ?,
           status = ?,
           updated_at_ms = ?
@@ -101,44 +132,53 @@ export function dbUpdateRunHistory(detailDict: Dict_RunHistory_Update): void {
           id = ?;
       `,
     )
-    .run(detailDict.run_ended_at_ms, detailDict.status, Date.now(), detailDict.id);
+    .run(
+      JSON.stringify(detailDict.outputs),
+      JSON.stringify(detailDict.error_summary),
+      detailDict.run_ended_at_ms,
+      detailDict.status,
+      Date.now(),
+      detailDict.id,
+    );
   ensureSingleRowAffected(result, `Finalize Run History ID ${detailDict.id}`);
 }
 
-export function dbMarkRunningRunsInterrupted(): void {
-  loggerMain.debug("--dbMarkRunningRunsInterrupted--");
+export function dbMarkUnfinishedRunsAfterRestart(): void {
+  loggerMain.debug("--dbMarkUnfinishedRunsAfterRestart--");
   const result = getDatabase()
     .prepare(
       `
       UPDATE run_history
       SET
           run_ended_at_ms = NULL,
-          status = 'interrupted',
+          status = CASE source WHEN ? THEN 'interrupted' ELSE 'unknown' END,
           updated_at_ms = ?
       WHERE
           status = 'running';
       `,
     )
-    .run(Date.now());
+    .run(RunSource.Local, Date.now());
 
   if (result.changes > 0) {
-    loggerMain.warn(`Marked ${result.changes} unfinished Run(s) as interrupted.`);
+    loggerMain.warn(
+      `Reconciled ${result.changes} unfinished local and Console Run(s) after restart.`,
+    );
   }
-}
-
-export function dbHasRunningRun(): boolean {
-  // loggerMain.debug("--dbHasRunningRun--"); It's too frequent.
-  const row = getDatabase()
-    .prepare("SELECT COUNT(*) AS runningCount FROM run_history WHERE status = 'running';")
-    .get();
-  return ensureCountRow(row, "runningCount", "Running Run count query result") > 0;
 }
 
 export function dbHasRunningRunForProject(projectId: number): boolean {
   loggerMain.debug("--dbHasRunningRunForProject--");
   const row = getDatabase()
     .prepare(
-      "SELECT COUNT(*) AS runningCount FROM run_history WHERE status = 'running' AND project_id = ?;",
+      `
+      SELECT
+          COUNT(*) AS runningCount
+      FROM
+          run_history
+      WHERE
+          status = 'running'
+          AND project_id = ?;
+      `,
     )
     .get(projectId);
   return (
@@ -225,6 +265,8 @@ export function dbSelectRunHistoryPage(
       `
       SELECT
           id,
+          source,
+          attempt,
           schedule_name,
           project_name,
           project_version,
@@ -269,9 +311,8 @@ function parseRetentionLogLocations(
   const arrLogLocation: Dict_RunHistory_LogLocation[] = [];
   for (const [intIndex, row] of rows.entries()) {
     try {
-      arrLogLocation.push(
-        ensureRunHistoryLogLocationRow(row, `${sourceName}[${intIndex}]`),
-      );
+      const location = ensureRunHistoryLogLocationRow(row, `${sourceName}[${intIndex}]`);
+      if (!isRecoveredRunHistoryActive(location.id)) arrLogLocation.push(location);
     } catch (e: unknown) {
       loggerMain.warn(`Skip invalid Retention log location: ${getErrorMessage(e)}`);
     }
@@ -378,4 +419,45 @@ export function dbUpdateNoVideo(runHistoryId: number): void {
       `,
     )
     .run(Date.now(), runHistoryId);
+}
+
+export function dbSelectRunDetails(id: number): RunDetails {
+  const row = getDatabase()
+    .prepare(
+      `
+      SELECT
+          source,
+          run_id,
+          job_id,
+          attempt,
+          inputs,
+          outputs,
+          error_summary
+      FROM
+          run_history
+      WHERE
+          id = ?;
+      `,
+    )
+    .get(id) as
+    | {
+        source: RunSource;
+        run_id: string;
+        job_id: string;
+        attempt: number;
+        inputs: string;
+        outputs: string;
+        error_summary: string | null;
+      }
+    | undefined;
+  if (!row) throw new Error("Run History record not found.");
+  return {
+    ...row,
+    inputs: JSON.parse(row.inputs) as Record<string, unknown>,
+    outputs: JSON.parse(row.outputs) as RunOutputs,
+    error_summary:
+      row.error_summary === null
+        ? null
+        : (JSON.parse(row.error_summary) as RunDetails["error_summary"]),
+  };
 }

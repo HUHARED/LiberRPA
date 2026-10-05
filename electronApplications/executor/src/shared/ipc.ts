@@ -12,6 +12,7 @@ import type {
   Dict_ProjectSettingsUpdate,
 } from "./project";
 import type {
+  RunDetails,
   Dict_RunHistory_Options,
   Dict_RunHistory_Page,
   Dict_ListItem_RunQueue,
@@ -52,7 +53,7 @@ interface Dict_ExecutorInvoke_Contract {
     response: void;
   };
   runProject: {
-    request: number;
+    request: Dict_ProjectSettingsUpdate;
     response: void;
   };
   getPythonEnvironmentNames: {
@@ -103,10 +104,12 @@ interface Dict_ExecutorInvoke_Contract {
     request: Dict_ScheduleUpdate;
     response: void;
   };
+  setScheduleEnabled: { request: { id: number; enable: boolean }; response: void };
   deleteSchedule: {
     request: number;
     response: void;
   };
+  getRunDetails: { request: number; response: RunDetails };
   getRunHistoryPage: {
     request: Dict_RunHistory_Options;
     response: Dict_RunHistory_Page;

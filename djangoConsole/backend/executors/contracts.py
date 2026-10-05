@@ -87,8 +87,19 @@ class ExecutorGroupReferenceResponse(JsonResponsePayload):
     name: str
 
 
+class ExecutorScheduleReferenceResponse(JsonResponsePayload):
+    id: UUID
+    name: str
+    enabled: bool
+
+
 class ExecutorDetailsEntryResponse(ExecutorListEntryResponse):
     executor_groups: list[ExecutorGroupReferenceResponse]
+    referencing_schedules: list[ExecutorScheduleReferenceResponse]
+    local_running_count: int | None
+    central_running_count: int | None
+    local_waiting_count: int | None
+    last_work_reported_at: datetime | None
 
 
 class ExecutorDetailsResponse(JsonResponsePayload):
@@ -138,6 +149,7 @@ class ExecutorGroupListResponse(JsonResponsePayload):
 
 class ExecutorGroupDetailsEntryResponse(ExecutorGroupListEntryResponse):
     members: list[ExecutorListEntryResponse]
+    referencing_schedules: list[ExecutorScheduleReferenceResponse]
 
 
 class ExecutorGroupDetailsResponse(JsonResponsePayload):

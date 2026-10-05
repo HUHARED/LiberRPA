@@ -44,6 +44,12 @@
 
       <template #item.actions="{ item }">
         <div class="d-flex ga-2 justify-start">
+          <v-icon
+            icon="mdi-information-outline"
+            size="small"
+            title="Inputs and Outputs"
+            @click="showRunDetails(item.id)" />
+
           <v-tooltip text="Open Log Folder" location="bottom" :open-on-focus="false">
             <template #activator="{ props }">
               <v-icon
@@ -51,8 +57,7 @@
                 color="medium-emphasis"
                 icon="mdi-file-document-outline"
                 size="small"
-                @click="openLogFolder(item.id)">
-              </v-icon>
+                @click="openLogFolder(item.id)"></v-icon>
             </template>
           </v-tooltip>
 
@@ -67,13 +72,12 @@
                 color="medium-emphasis"
                 icon="mdi-stop-circle-outline"
                 size="small"
-                @click="cancelProcess(item.id)">
-              </v-icon>
+                @click="cancelProcess(item.id)"></v-icon>
             </template>
           </v-tooltip>
 
           <v-tooltip
-            v-else
+            v-else-if="item.source === 'local'"
             text="Run Most Recently Installed Version"
             location="bottom"
             :open-on-focus="false">
@@ -83,8 +87,7 @@
                 color="medium-emphasis"
                 icon="mdi-replay"
                 size="small"
-                @click="runMostRecentlyInstalledProjectVersion(item.project_name)">
-              </v-icon>
+                @click="runMostRecentlyInstalledProjectVersion(item.project_name)"></v-icon>
             </template>
           </v-tooltip>
         </div>
@@ -98,8 +101,7 @@
               class="pa-0 ma-0 pl-2 pr-2"
               density="compact"
               hide-details
-              variant="underlined">
-            </v-text-field>
+              variant="underlined"></v-text-field>
           </td>
           <td>
             <v-text-field
@@ -107,8 +109,7 @@
               class="pa-0 ma-0 pl-2 pr-2"
               density="compact"
               hide-details
-              variant="underlined">
-            </v-text-field>
+              variant="underlined"></v-text-field>
           </td>
           <td>
             <v-text-field
@@ -116,8 +117,7 @@
               class="pa-0 ma-0 pl-2 pr-2"
               density="compact"
               hide-details
-              variant="underlined">
-            </v-text-field>
+              variant="underlined"></v-text-field>
           </td>
           <td></td>
           <td></td>
@@ -137,12 +137,43 @@
                 { title: 'Canceled', value: 'cancel' },
                 { title: 'Timed Out', value: 'timeout' },
                 { title: 'Interrupted', value: 'interrupted' },
-              ]">
-            </v-select>
+                { title: 'Unknown', value: 'unknown' },
+              ]"></v-select>
           </td>
         </tr>
       </template>
     </v-data-table-server>
+
+    <v-dialog v-model="boolShowDetails" max-width="850" persistent scrollable>
+      <v-card v-if="runDetails" title="Run Details">
+        <v-card-text>
+          <div>
+            {{ runDetails.source }} · Job {{ runDetails.job_id }} · Attempt
+            {{ runDetails.attempt }}
+          </div>
+          <h3 class="mt-3">Inputs</h3>
+          <pre class="text-wrap">{{ JSON.stringify(runDetails.inputs, null, 2) }}</pre>
+          <h3 class="mt-3">Outputs — {{ runDetails.outputs.status }}</h3>
+          <v-alert v-if="runDetails.outputs.reason" variant="tonal" class="my-2">
+            {{ runDetails.outputs.reason }}
+          </v-alert>
+          <pre class="text-wrap">{{
+            JSON.stringify(runDetails.outputs.values, null, 2)
+          }}</pre>
+          <div v-if="runDetails.outputs.unavailableKeys.length">
+            Unavailable: {{ runDetails.outputs.unavailableKeys.join(", ") }}
+          </div>
+          <v-alert v-if="runDetails.error_summary" type="error" variant="tonal">
+            {{ runDetails.error_summary.type }}:
+            {{ runDetails.error_summary.message }}
+          </v-alert>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn @click="boolShowDetails = false">Close</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-container>
 </template>
 
@@ -160,6 +191,7 @@ import { useSettingStore } from "../../Store/settingStore";
 import { formatTimestamp } from "../../Common/time";
 import { getErrorMessage } from "../../../../shared/error";
 import type {
+  RunDetails,
   Dict_RunHistory_Item,
   Dict_RunHistory_Options,
   Dict_RunHistory_Search,
@@ -168,6 +200,13 @@ import type {
 
 const runHistoryStore = useRunHistoryStore();
 const settingStore = useSettingStore();
+
+const boolShowDetails = ref(false);
+const runDetails = ref<RunDetails>();
+async function showRunDetails(id: number): Promise<void> {
+  runDetails.value = await invokeMain("getRunDetails", id);
+  boolShowDetails.value = true;
+}
 
 const itemPerPage: Ref<15 | 50 | 100> = ref(15);
 
@@ -242,6 +281,8 @@ const arrHeader: DataTableHeader<Dict_RunHistory_Item>[] = [
   { title: "Started", value: "run_started_at_ms", align: "center", sortable: true },
   { title: "Ended", value: "run_ended_at_ms", align: "center", sortable: true },
   { title: "Status", value: "status", align: "start", sortable: true },
+  { title: "Source", value: "source", align: "start", sortable: false },
+  { title: "Attempt", value: "attempt", align: "start", sortable: false },
   { title: "Actions", key: "actions", align: "start", sortable: false },
 ];
 
@@ -259,6 +300,8 @@ function getStatusLabel(status: Str_RunHistory_Status): string {
       return "Timed Out";
     case "interrupted":
       return "Interrupted";
+    case "unknown":
+      return "Unknown";
   }
 }
 

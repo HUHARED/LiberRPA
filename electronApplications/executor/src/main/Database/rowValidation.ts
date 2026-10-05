@@ -4,15 +4,20 @@ import type Database from "better-sqlite3";
 
 import type { Dict_ProjectDetail } from "../../shared/project";
 import type { Dict_RunHistory_Item } from "../../shared/run";
+import { RunSource } from "../../shared/run";
 import type { Dict_ProjectRun_Detail } from "../Run/types";
 import type { Dict_Detail_Schedule, Dict_ListItem_Schedule } from "../../shared/schedule";
 import type { Arr_CustomProjectArgs } from "../../shared/runOptions";
 import {
   ensureExactRecord,
   ensureString,
+  ensurePackageDescription,
+  ensureVersionSummary,
+  ensurePythonEnvironmentName,
   ensureNonEmptyString,
   ensureNonNegativeInteger,
   ensurePositiveInteger,
+  ensureRetryCount,
   ensureRunTimeoutMinutes,
   ensureNullableString,
   ensureNullableNonNegativeInteger,
@@ -101,6 +106,7 @@ export function ensureProjectDetailRow(
       "description",
       "version_summary",
       "python_environment_name",
+      "retry_count",
       "timeout_min",
       "builtin_log_level",
       "builtin_record_video",
@@ -117,12 +123,16 @@ export function ensureProjectDetailRow(
     id: ensurePositiveInteger(row.id, `${sourceName}.id`),
     name: ensureNonEmptyString(row.name, `${sourceName}.name`),
     version: ensureNonEmptyString(row.version, `${sourceName}.version`),
-    description: ensureString(row.description, `${sourceName}.description`),
-    version_summary: ensureString(row.version_summary, `${sourceName}.version_summary`),
-    python_environment_name: ensureNonEmptyString(
+    description: ensurePackageDescription(row.description, `${sourceName}.description`),
+    version_summary: ensureVersionSummary(
+      row.version_summary,
+      `${sourceName}.version_summary`,
+    ),
+    python_environment_name: ensurePythonEnvironmentName(
       row.python_environment_name,
       `${sourceName}.python_environment_name`,
     ),
+    retry_count: ensureRetryCount(row.retry_count, `${sourceName}.retry_count`),
     timeout_min: ensureRunTimeoutMinutes(row.timeout_min, `${sourceName}.timeout_min`),
     builtin_log_level: ensureLogLevel(
       row.builtin_log_level,
@@ -232,6 +242,7 @@ export function ensureScheduleDetailRow(
       "period_start_ms",
       "period_end_ms",
       "enable",
+      "retry_count",
       "timeout_min",
       "builtin_log_level",
       "builtin_record_video",
@@ -272,6 +283,7 @@ export function ensureScheduleDetailRow(
     period_start_ms: intPeriodStartMs,
     period_end_ms: intPeriodEndMs,
     enable: ensureBinaryInteger(row.enable, `${sourceName}.enable`) === 1,
+    retry_count: ensureRetryCount(row.retry_count, `${sourceName}.retry_count`),
     timeout_min: ensureRunTimeoutMinutes(row.timeout_min, `${sourceName}.timeout_min`),
     builtin_log_level: ensureLogLevel(
       row.builtin_log_level,
@@ -315,10 +327,12 @@ export function ensureScheduleRunDetailRow(
     value,
     [
       "schedule_name",
+      "run_conflict_policy",
       "id",
       "name",
       "version",
       "python_environment_name",
+      "retry_count",
       "timeout_min",
       "builtin_log_level",
       "builtin_record_video",
@@ -331,13 +345,18 @@ export function ensureScheduleRunDetailRow(
 
   return {
     schedule_name: ensureNonEmptyString(row.schedule_name, `${sourceName}.schedule_name`),
+    run_conflict_policy: ensureRunConflictPolicy(
+      row.run_conflict_policy,
+      `${sourceName}.run_conflict_policy`,
+    ),
     id: ensurePositiveInteger(row.id, `${sourceName}.id`),
     name: ensureNonEmptyString(row.name, `${sourceName}.name`),
     version: ensureNonEmptyString(row.version, `${sourceName}.version`),
-    python_environment_name: ensureNonEmptyString(
+    python_environment_name: ensurePythonEnvironmentName(
       row.python_environment_name,
       `${sourceName}.python_environment_name`,
     ),
+    retry_count: ensureRetryCount(row.retry_count, `${sourceName}.retry_count`),
     timeout_min: ensureRunTimeoutMinutes(row.timeout_min, `${sourceName}.timeout_min`),
     builtin_log_level: ensureLogLevel(
       row.builtin_log_level,
@@ -373,6 +392,8 @@ function ensureRunHistoryListItemRow(
     value,
     [
       "id",
+      "source",
+      "attempt",
       "schedule_name",
       "project_name",
       "project_version",
@@ -389,21 +410,23 @@ function ensureRunHistoryListItemRow(
     `${sourceName}.run_ended_at_ms`,
   );
   if (
-    ((status === "running" || status === "interrupted") && intRunEndedAtMs !== null) ||
-    (status !== "running" && status !== "interrupted" && intRunEndedAtMs === null)
+    (["running", "unknown"].includes(status) && intRunEndedAtMs !== null) ||
+    (!["running", "unknown", "interrupted"].includes(status) && intRunEndedAtMs === null)
   ) {
     throw new Error(`${sourceName} has an inconsistent status and run_ended_at_ms.`);
   }
 
   return {
     id: ensurePositiveInteger(row.id, `${sourceName}.id`),
+    source: row.source === RunSource.Console ? RunSource.Console : RunSource.Local,
+    attempt: ensurePositiveInteger(row.attempt, `${sourceName}.attempt`),
     schedule_name: ensureNullableString(row.schedule_name, `${sourceName}.schedule_name`),
     project_name: ensureNonEmptyString(row.project_name, `${sourceName}.project_name`),
     project_version: ensureNonEmptyString(
       row.project_version,
       `${sourceName}.project_version`,
     ),
-    python_environment_name: ensureNonEmptyString(
+    python_environment_name: ensurePythonEnvironmentName(
       row.python_environment_name,
       `${sourceName}.python_environment_name`,
     ),

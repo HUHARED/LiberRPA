@@ -17,6 +17,8 @@ _INT_LOCK_NAMESPACE = int.from_bytes(b"LRPA", "big")
 # NOTE: Keep worker lock IDs distinct so different worker kinds can run together.
 EMAIL_WORKER_LOCK_ID = 1
 ORGANIZATION_DELETION_WORKER_LOCK_ID = 2
+SCHEDULE_WORKER_LOCK_ID = 3
+RUN_WORKER_LOCK_ID = 4
 
 
 class WorkerAlreadyRunningError(Exception):

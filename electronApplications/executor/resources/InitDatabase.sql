@@ -9,6 +9,7 @@ CREATE TABLE
         description TEXT NOT NULL DEFAULT '',
         version_summary TEXT NOT NULL DEFAULT '',
         python_environment_name TEXT NOT NULL DEFAULT 'default' CHECK (LENGTH(TRIM(python_environment_name)) > 0),
+        retry_count INTEGER NOT NULL DEFAULT 0 CHECK (retry_count BETWEEN 0 AND 3),
         timeout_min INTEGER NOT NULL DEFAULT 0 CHECK (timeout_min >= 0),
         builtin_log_level TEXT NOT NULL DEFAULT 'DEBUG' CHECK (
             builtin_log_level IN (
@@ -42,6 +43,7 @@ CREATE TABLE
         period_start_ms INTEGER NOT NULL CHECK (period_start_ms >= 0),
         period_end_ms INTEGER NOT NULL CHECK (period_end_ms > period_start_ms),
         enable INTEGER NOT NULL DEFAULT 1 CHECK (enable IN (0, 1)),
+        retry_count INTEGER NOT NULL DEFAULT 0 CHECK (retry_count BETWEEN 0 AND 3),
         timeout_min INTEGER NOT NULL DEFAULT 0 CHECK (timeout_min >= 0),
         builtin_log_level TEXT NOT NULL DEFAULT 'DEBUG' CHECK (
             builtin_log_level IN (
@@ -65,8 +67,18 @@ CREATE TABLE
 CREATE TABLE
     run_history (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        source TEXT NOT NULL CHECK (source IN ('local', 'console')),
+        run_id TEXT NOT NULL UNIQUE,
+        job_id TEXT NOT NULL,
+        attempt INTEGER NOT NULL CHECK (attempt > 0),
+        inputs TEXT NOT NULL,
+        outputs TEXT NOT NULL,
+        error_summary TEXT NULL,
         schedule_name TEXT NULL DEFAULT NULL,
-        project_id INTEGER NOT NULL CHECK (project_id > 0),
+        project_id INTEGER NULL CHECK (
+            project_id IS NULL
+            OR project_id > 0
+        ),
         project_name TEXT NOT NULL CHECK (LENGTH(TRIM(project_name)) > 0),
         project_version TEXT NOT NULL CHECK (LENGTH(TRIM(project_version)) > 0),
         python_environment_name TEXT NOT NULL CHECK (LENGTH(TRIM(python_environment_name)) > 0),
@@ -82,7 +94,8 @@ CREATE TABLE
                 'error',
                 'cancel',
                 'timeout',
-                'interrupted'
+                'interrupted',
+                'unknown'
             )
         ),
         log_path TEXT NOT NULL CHECK (LENGTH(TRIM(log_path)) > 0),
@@ -92,12 +105,21 @@ CREATE TABLE
         updated_at_ms INTEGER NOT NULL CHECK (updated_at_ms >= 0),
         CHECK (
             (
-                status IN ('running', 'interrupted')
+                status IN ('running', 'unknown')
                 AND run_ended_at_ms IS NULL
             )
             OR (
-                status IN ('completed', 'error', 'cancel', 'timeout')
-                AND run_ended_at_ms IS NOT NULL
+                status IN (
+                    'completed',
+                    'error',
+                    'cancel',
+                    'timeout',
+                    'interrupted'
+                )
+                AND (
+                    run_ended_at_ms IS NOT NULL
+                    OR status = 'interrupted'
+                )
             )
         )
     ) STRICT;
@@ -106,4 +128,31 @@ CREATE INDEX idx_schedule_project_id ON schedule (project_id);
 
 CREATE INDEX idx_run_history_run_started_at_ms ON run_history (run_started_at_ms DESC);
 
-PRAGMA user_version = 1;
+CREATE TABLE
+    console_work (
+        id TEXT PRIMARY KEY,
+        session_key TEXT NOT NULL,
+        console_url TEXT NOT NULL,
+        state TEXT NOT NULL CHECK (
+            state IN (
+                'preparing',
+                'permitted',
+                'launching',
+                'running',
+                'finished',
+                'unknown'
+            )
+        ),
+        content TEXT NOT NULL,
+        updated_at_ms INTEGER NOT NULL
+    ) STRICT;
+
+CREATE TABLE
+    console_event (
+        id TEXT PRIMARY KEY,
+        session_key TEXT NOT NULL,
+        payload TEXT NOT NULL,
+        rejected INTEGER NOT NULL DEFAULT 0 CHECK (rejected IN (0, 1))
+    ) STRICT;
+
+PRAGMA user_version = 2;

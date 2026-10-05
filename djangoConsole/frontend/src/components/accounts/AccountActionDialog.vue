@@ -7,7 +7,7 @@
     max-width="640"
     aria-labelledby="account-action-title">
     <v-card>
-      <v-card-title id="account-action-title"> {{ strTitle }} </v-card-title>
+      <v-card-title id="account-action-title">{{ strTitle }}</v-card-title>
 
       <v-card-text>
         <v-alert v-if="boolEmailQueued" type="success" variant="tonal" role="status">

@@ -28,11 +28,7 @@
             : undefined
         "
         :disabled="!('path' in navigationItem) || !sessionStore.access?.business_available"
-        :aria-label="
-          'path' in navigationItem
-            ? navigationItem.title
-            : `${navigationItem.title} — not available yet`
-        "
+        :aria-label="navigationItem.title"
         color="primary" />
     </v-list>
   </v-navigation-drawer>
@@ -47,10 +43,7 @@
       {{ sessionStore.access?.organization.name ?? "Organization" }}
     </v-app-bar-title>
     <template #append>
-      <v-btn
-        icon="mdi-bell-outline"
-        aria-label="Notifications — not available yet"
-        disabled />
+      <NotificationsPanel />
       <v-menu location="bottom end">
         <template #activator="{ props }">
           <v-btn v-bind="props" class="mr-2" aria-label="Open account menu">
@@ -117,6 +110,7 @@ import { computed, ref, shallowRef, watch } from "vue";
 import { useRoute } from "vue-router";
 import { useDisplay } from "vuetify";
 
+import NotificationsPanel from "@/components/notifications/NotificationsPanel.vue";
 import BrandMark from "@/components/common/BrandMark.vue";
 
 import { useSessionStore } from "../stores/sessionStore";
@@ -127,11 +121,11 @@ import { getDisplayName } from "../app/formatters";
 
 const ARR_NAVIGATION = [
   { title: "Overview", icon: "mdi-chart-box-outline", path: "/overview" },
-  { title: "Packages", icon: "mdi-package-variant-closed" },
+  { title: "Packages", icon: "mdi-package-variant-closed", path: "/packages" },
   { title: "Executors", icon: "mdi-monitor", path: "/executors" },
-  { title: "Schedules", icon: "mdi-calendar-clock-outline" },
-  { title: "Job Queue", icon: "mdi-list-box-outline" },
-  { title: "Run History", icon: "mdi-history" },
+  { title: "Schedules", icon: "mdi-calendar-clock-outline", path: "/schedules" },
+  { title: "Job Queue", icon: "mdi-list-box-outline", path: "/jobs" },
+  { title: "Run History", icon: "mdi-history", path: "/runs" },
   { title: "Assets", icon: "mdi-archive-outline", path: "/assets" },
   { title: "Data Queues", icon: "mdi-database-outline", path: "/data-queues" },
   { title: "Shared Files", icon: "mdi-folder-outline", path: "/shared-files" },

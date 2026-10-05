@@ -7,7 +7,7 @@ import {
   rejectInvalidResponse,
   parsePaginationResponse,
 } from "./responses";
-import { isExecutorListEntry } from "./executors";
+import { isExecutorListEntry, isExecutorScheduleReference } from "./executors";
 
 import type {
   ExecutorGroupCreationRequest,
@@ -93,6 +93,8 @@ export function parseExecutorGroupDetailsResponse(
     !isRecord(payload) ||
     !isRecord(payload.executor_group) ||
     !isGroupListEntry(payload.executor_group) ||
+    !Array.isArray(payload.executor_group.referencing_schedules) ||
+    !payload.executor_group.referencing_schedules.every(isExecutorScheduleReference) ||
     !Array.isArray(payload.executor_group.members) ||
     !payload.executor_group.members.every(isExecutorListEntry) ||
     payload.executor_group.member_count !== payload.executor_group.members.length
@@ -102,6 +104,7 @@ export function parseExecutorGroupDetailsResponse(
     executor_group: {
       ...payload.executor_group,
       members: payload.executor_group.members,
+      referencing_schedules: payload.executor_group.referencing_schedules,
     },
   };
 }

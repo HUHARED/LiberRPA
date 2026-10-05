@@ -95,7 +95,7 @@ export function getVersionInputError(version: string): string | undefined {
   return undefined;
 }
 
-export function getOptionalSingleLineTextError(
+function getOptionalSingleLineTextError(
   value: string,
   description: string,
 ): string | undefined {
@@ -107,6 +107,39 @@ export function getOptionalSingleLineTextError(
     return `${description} must be a single line.`;
   }
 
+  return undefined;
+}
+
+export const INT_MAX_DESCRIPTION_LENGTH = 2000;
+export const INT_MAX_VERSION_SUMMARY_LENGTH = 500;
+
+export function getDescriptionError(description: string): string | undefined {
+  if ([...description].length > INT_MAX_DESCRIPTION_LENGTH) {
+    return `Description cannot be longer than ${String(INT_MAX_DESCRIPTION_LENGTH)} characters.`;
+  }
+  if (/[\uD800-\uDFFF]/u.test(description)) {
+    return "Description must contain valid Unicode text.";
+  }
+  if (description.includes("\0")) {
+    return "Description cannot contain a null character.";
+  }
+  return undefined;
+}
+
+export function getVersionSummaryError(versionSummary: string): string | undefined {
+  const strTextError = getOptionalSingleLineTextError(versionSummary, "Version summary");
+  if (strTextError !== undefined) {
+    return strTextError;
+  }
+  if ([...versionSummary].length > INT_MAX_VERSION_SUMMARY_LENGTH) {
+    return `Version summary cannot be longer than ${String(INT_MAX_VERSION_SUMMARY_LENGTH)} characters.`;
+  }
+  if (/[\uD800-\uDFFF]/u.test(versionSummary)) {
+    return "Version summary must contain valid Unicode text.";
+  }
+  if (versionSummary.includes("\0")) {
+    return "Version summary cannot contain a null character.";
+  }
   return undefined;
 }
 

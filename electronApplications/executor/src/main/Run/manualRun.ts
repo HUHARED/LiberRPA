@@ -1,6 +1,6 @@
 // FileName: manualRun.ts
 
-import type { Dict_ProjectDetail } from "../../shared/project";
+import type { Dict_ProjectDetail, Dict_ProjectSettingsUpdate } from "../../shared/project";
 import {
   dbSelectProjectDetailById,
   dbSelectProjectMostRecentlyInstalledDetail,
@@ -18,6 +18,7 @@ function createManualRunDetail(dictProject: Dict_ProjectDetail): Dict_ProjectRun
 
     python_environment_name: dictProject.python_environment_name,
 
+    retry_count: dictProject.retry_count,
     timeout_min: dictProject.timeout_min,
 
     builtin_log_level: dictProject.builtin_log_level,
@@ -28,13 +29,15 @@ function createManualRunDetail(dictProject: Dict_ProjectDetail): Dict_ProjectRun
   };
 }
 
-export async function runInstalledProject(projectId: number): Promise<void> {
-  const dictProject = dbSelectProjectDetailById(projectId);
+export async function runInstalledProject(
+  settings: Dict_ProjectSettingsUpdate,
+): Promise<void> {
+  const dictProject = dbSelectProjectDetailById(settings.id);
   if (dictProject === undefined) {
-    throw new Error(`Project not found: ${projectId}`);
+    throw new Error(`Project not found: ${settings.id}`);
   }
 
-  await pythonRun(createManualRunDetail(dictProject));
+  await pythonRun(createManualRunDetail({ ...dictProject, ...settings }));
 }
 
 export async function runMostRecentlyInstalledProjectVersion(

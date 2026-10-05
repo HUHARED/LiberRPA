@@ -42,20 +42,31 @@ export async function requestConsole(
   url: string,
   path: string,
   token?: string,
-  body?: object,
+  body?: object | Uint8Array<ArrayBuffer>,
+  options: {
+    method?: "GET" | "POST" | "PUT";
+    headers?: Record<string, string>;
+    timeoutMs?: number;
+  } = {},
 ): Promise<unknown> {
+  const boolBinary = body instanceof Uint8Array;
   let response: Response;
   try {
     response = await fetch(`${url}${path}`, {
-      method: body === undefined ? "GET" : "POST",
+      method: options.method ?? (body === undefined ? "GET" : "POST"),
       headers: {
         Accept: "application/json",
-        ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+        ...(body === undefined
+          ? {}
+          : {
+              "Content-Type": boolBinary ? "application/octet-stream" : "application/json",
+            }),
+        ...options.headers,
         ...(token === undefined ? {} : { Authorization: `Bearer ${token}` }),
       },
-      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      ...(body === undefined ? {} : { body: boolBinary ? body : JSON.stringify(body) }),
       redirect: "manual",
-      signal: AbortSignal.timeout(15_000),
+      signal: AbortSignal.timeout(options.timeoutMs ?? 15_000),
     });
   } catch {
     throw new ConsoleRequestError(

@@ -16,9 +16,27 @@ export function validatePathName(value: string | null): true | string {
   return true;
 }
 
+export function validateEnvironmentName(value: string | null): true | string {
+  // NOTE: Keep this rule aligned with backend/console_project/validators.py; do not rewrite user input.
+  if (!value) return "Enter an environment name.";
+  if (/^\p{White_Space}|\p{White_Space}$/u.test(value))
+    return "The environment name must not start or end with whitespace.";
+  if (value.endsWith(".")) return "The environment name must not end with a period.";
+  if (
+    /[<>:"/\\|?*\p{Cs}]/u.test(value) ||
+    Array.from(value).some((strCharacter) => strCharacter.charCodeAt(0) < 32)
+  )
+    return "Use a valid Windows folder name without control characters or invalid Unicode.";
+  if (value.length > 255) return "Use at most 255 UTF-16 code units.";
+  if (/^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\.|$)/i.test(value))
+    return "The environment name must not use a reserved Windows device name.";
+  return true;
+}
+
 export function validateJsonValue(value: JsonValue): void {
   // NOTE: Keep these value rules aligned with backend/console_project/validators.py; size limits belong to the resource.
   function validateText(text: string): void {
+    if (text.includes("\0")) throw new Error("JSON text must not contain NUL characters.");
     if (/\p{Cs}/u.test(text)) throw new Error("Use valid Unicode text.");
   }
 

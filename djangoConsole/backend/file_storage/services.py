@@ -4,6 +4,7 @@ __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
+import errno
 import logging
 import os
 import shutil
@@ -118,6 +119,12 @@ def require_transfer_slot(organizationId: uuid.UUID) -> None:
     intTransferCount += StoredBlob.objects.filter(
         organization_id=organizationId, state=StoredBlobState.RECEIVING
     ).count()
+    from runs.models import RunFileTransfer
+
+    RunFileTransfer.objects.filter(expires_at__lte=timezone.now()).delete()
+    intTransferCount += RunFileTransfer.objects.filter(
+        organization_id=organizationId
+    ).count()
     if intTransferCount >= settings.CONSOLE_LIMITS.maxActiveTransfersPerOrganization:
         raise FileOperationError(
             "too_many_transfers",
@@ -172,6 +179,15 @@ def _collect_blob(blobId: uuid.UUID, organizationId: uuid.UUID) -> bool:
     path.unlink(missing_ok=True)
     if path.parent.exists():
         sync_directory(path.parent)
+    # Empty shard cleanup must not prevent releasing the deleted file's capacity.
+    try:
+        path.parent.rmdir()
+        sync_directory(path.parent.parent)
+    except OSError as e:
+        if e.errno not in (errno.ENOENT, errno.ENOTEMPTY, errno.EEXIST):
+            _LOGGER.warning(
+                "Empty storage directory cleanup failed: %s", path.parent, exc_info=True
+            )
     return True
 
 

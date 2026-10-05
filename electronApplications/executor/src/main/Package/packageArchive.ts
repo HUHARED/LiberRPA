@@ -4,65 +4,19 @@ import fs from "fs";
 import path from "path";
 import AdmZip from "adm-zip";
 
+import { getWindowsFolderNameError } from "../Common/validation";
+
 // Large datasets and other heavyweight resources should remain outside the Flow Package.
 const INT_MAX_PACKAGE_ARCHIVE_SIZE_BYTES = 512 * 1024 ** 2;
 const INT_MAX_ZIP_ENTRY_COUNT = 20_000;
 const INT_MAX_ZIP_ENTRY_SIZE_BYTES = 512 * 1024 ** 2;
 const INT_MAX_UNCOMPRESSED_SIZE_BYTES = 2 * 1024 ** 3;
-const SET_RESERVED_WINDOWS_NAME = new Set([
-  "CON",
-  "PRN",
-  "AUX",
-  "NUL",
-  "COM1",
-  "COM2",
-  "COM3",
-  "COM4",
-  "COM5",
-  "COM6",
-  "COM7",
-  "COM8",
-  "COM9",
-  "LPT1",
-  "LPT2",
-  "LPT3",
-  "LPT4",
-  "LPT5",
-  "LPT6",
-  "LPT7",
-  "LPT8",
-  "LPT9",
-]);
-const REGEX_INVALID_WINDOWS_NAME_CHARACTER = /[<>:"/\\|?*]/;
-
-function getWindowsFolderNameError(name: string): string | undefined {
-  if (name.length === 0 || name !== name.trim()) {
-    return "Folder name cannot be empty or start/end with whitespace.";
-  }
-  if (REGEX_INVALID_WINDOWS_NAME_CHARACTER.test(name)) {
-    return "Folder name contains Windows reserved characters.";
-  }
-  if ([...name].some((strCharacter) => strCharacter.charCodeAt(0) <= 0x1f)) {
-    return "Folder name contains ASCII control characters.";
-  }
-  if (name.endsWith(".")) {
-    return "Folder name cannot end with a period.";
-  }
-  const strBaseName = name.split(".", 1)[0]?.toUpperCase();
-  if (strBaseName !== undefined && SET_RESERVED_WINDOWS_NAME.has(strBaseName)) {
-    return `Folder name '${name}' is reserved by Windows.`;
-  }
-  if (name.length > 255) {
-    return "Folder name cannot be longer than 255 characters.";
-  }
-  return undefined;
-}
 
 export function getTargetFolderName(name: string, version: string): string {
   const strFolderName = `${name}_${version}`;
   const strError = getWindowsFolderNameError(strFolderName);
   if (strError !== undefined) {
-    throw new Error(`Cannot create the Executor Package folder: ${strError}`);
+    throw new Error(`Cannot create the Flow Package folder name: ${strError}`);
   }
   return strFolderName;
 }

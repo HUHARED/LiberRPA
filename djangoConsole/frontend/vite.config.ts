@@ -15,6 +15,7 @@ export default defineConfig(({ mode }) => {
       // Preserve the browser-facing Host so Django can verify the Origin without a CORS exception.
       changeOrigin: false,
       xfwd: false,
+      ws: true,
     },
   };
   return {

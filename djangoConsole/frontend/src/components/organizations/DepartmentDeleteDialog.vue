@@ -37,7 +37,7 @@
             role="status">
             {{
               deletionInfo.can_delete
-                ? "No dependencies currently prevent deletion. Conditions will be checked again when you delete."
+                ? "No dependencies currently prevent deletion."
                 : "This department cannot be deleted until the following dependencies are removed."
             }}
           </v-alert>
@@ -172,6 +172,22 @@ const dictBlockerDisplay: Record<
   data_queues: {
     label: "Data Queues",
     location: { name: "data-queues", query: { department_id: props.department.id } },
+  },
+  packages: {
+    label: "Packages",
+    location: { name: "packages", query: { department_id: props.department.id } },
+  },
+  schedules: {
+    label: "Schedules",
+    location: { name: "schedules", query: { department_id: props.department.id } },
+  },
+  active_jobs: {
+    label: "Active Jobs",
+    location: { name: "job-queue", query: { department_id: props.department.id } },
+  },
+  package_uploads: {
+    label: "Package uploads (cancel them or wait for expiry)",
+    location: { name: "packages", query: { department_id: props.department.id } },
   },
   assets: {
     label: "Assets",

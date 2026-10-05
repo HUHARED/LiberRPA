@@ -25,6 +25,8 @@ from .contracts import (
     AssetListResponse,
     AssetDetailsEntryResponse,
     AssetDetailsResponse,
+    AssetReferenceKind,
+    AssetReferenceResponse,
 )
 from .models import SECRET_ASSET_TYPES, Asset
 
@@ -103,6 +105,54 @@ def get_asset_list(
     )
 
 
+def get_asset_references(
+    asset: Asset, access: OrganizationAccessContext
+) -> list[AssetReferenceResponse]:
+    """Report visible saved bindings only; arbitrary Flow code is not inspected."""
+    from packages.models import Package
+    from schedules.models import Schedule
+
+    if asset.asset_type in SECRET_ASSET_TYPES:
+        return []
+    departments = get_authorized_departments(
+        access, requiredRole=DepartmentRole.OPERATOR
+    ).filter(pk=asset.department_id)
+    listReference = []
+    listSource = [
+        (
+            AssetReferenceKind.PACKAGE,
+            Package.objects.filter(department__in=departments).values(
+                "id", "project_name", "version", "custom_arg_assets"
+            ),
+        ),
+        (
+            AssetReferenceKind.SCHEDULE,
+            Schedule.objects.filter(
+                department__in=departments, deleted_at__isnull=True
+            ).values("id", "name", "custom_arg_assets"),
+        ),
+    ]
+    for kind, rows in listSource:
+        for row in rows:
+            if any(
+                binding is not None
+                and binding["asset_type"] == asset.asset_type
+                and get_path_name_key(binding["name"]) == asset.name_key
+                for binding in (row["custom_arg_assets"] or [])
+            ):
+                listReference.append(
+                    AssetReferenceResponse(
+                        kind=kind,
+                        id=row["id"],
+                        name=row["project_name"]
+                        if kind == AssetReferenceKind.PACKAGE
+                        else row["name"],
+                        version=row.get("version"),
+                    )
+                )
+    return listReference
+
+
 def build_asset_details(
     asset: Asset, access: OrganizationAccessContext
 ) -> AssetDetailsResponse:
@@ -129,6 +179,7 @@ def build_asset_details(
         "can_edit_value": boolCanManage if boolSecret else True,
         "created_at": asset.created_at,
         "updated_at": asset.updated_at,
+        "references": get_asset_references(asset, access),
     }
     if not boolSecret:
         dictPayload["value"] = json.loads(asset.value_json)

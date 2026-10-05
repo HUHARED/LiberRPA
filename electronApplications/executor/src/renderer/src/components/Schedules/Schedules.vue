@@ -36,13 +36,14 @@
           size="small"></v-chip>
       </template>
 
-      <template #item.enable="{ value }">
+      <template #item.enable="{ item, value }">
         <v-chip
           :border="`${getEnabledColor(value)} thin opacity-25`"
           :color="getEnabledColor(value)"
           :text="value ? 'Enabled' : 'Disabled'"
           variant="text"
-          size="x-small"></v-chip>
+          size="x-small"
+          @click="toggleSchedule(item)"></v-chip>
       </template>
 
       <template #item.actions="{ item }">
@@ -91,6 +92,7 @@ import DeleteScheduleDialog from "./DeleteScheduleDialog.vue";
 import ScheduleDialog from "./ScheduleDialog.vue";
 import HorizontalDivider from "../Common/HorizontalDivider.vue";
 
+import { invokeMain } from "../../IPC/ipc";
 import { getDefaultSchedulePeriod } from "../../Common/time";
 import { loggerRenderer } from "../../Logging/logger";
 import { useScheduleStore } from "../../Store/scheduleStore";
@@ -126,6 +128,7 @@ function newSchedule(): void {
     period_start: dictDefaultPeriod.periodStartLocal,
     period_end: dictDefaultPeriod.periodEndLocal,
     enable: true,
+    retry_count: 0,
     timeout_min: 0,
     builtin_log_level: "DEBUG",
     builtin_record_video: true,
@@ -157,6 +160,11 @@ const arrHeader: DataTableHeader<Dict_ListItem_Schedule>[] = [
   { title: "Enabled", value: "enable", align: "start", sortable: true },
   { title: "Actions", key: "actions", align: "start", sortable: false },
 ];
+
+async function toggleSchedule(item: Dict_ListItem_Schedule): Promise<void> {
+  await invokeMain("setScheduleEnabled", { id: item.id, enable: !item.enable });
+  await scheduleStore.refreshScheduleList();
+}
 
 function getEnabledColor(enable: boolean): string {
   return enable ? "success" : "inactive";

@@ -112,8 +112,8 @@
     variant="tonal"
     class="mb-4">
     No department access. Ask an organization administrator to check departments and your
-    access.</v-alert
-  >
+    access.
+  </v-alert>
   <div
     class="d-flex flex-wrap justify-space-between ga-2 mb-3 text-body-2 text-medium-emphasis">
     <span>Time zone: {{ strTimeZone }}</span>
@@ -161,11 +161,13 @@
           <v-btn variant="text" size="small" @click="copyPath(item.path)">Copy Path</v-btn>
         </div>
       </template>
-      <template #no-data>{{
-        requestError
-          ? "The asset list could not be loaded."
-          : "No assets match the current filters."
-      }}</template>
+      <template #no-data>
+        {{
+          requestError
+            ? "The asset list could not be loaded."
+            : "No assets match the current filters."
+        }}
+      </template>
     </v-data-table-server>
     <template v-if="assetPage">
       <v-divider />

@@ -6,6 +6,8 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
 from datetime import datetime
+from enum import StrEnum
+import math
 import json
 import os
 from pathlib import Path
@@ -13,6 +15,32 @@ from uuid import UUID
 from dataclasses import dataclass
 from functools import cache
 from typing import Literal, NotRequired, TypedDict, cast
+
+from liberrpa.Common._TypedValue import JsonValue
+
+
+class OutputSnapshotStatus(StrEnum):
+    COMPLETE = "complete"
+    PARTIAL = "partial"
+    UNAVAILABLE = "unavailable"
+
+
+class OutputSnapshot(TypedDict):
+    status: OutputSnapshotStatus
+    values: dict[str, JsonValue] | None
+    unavailableKeys: list[str]
+    reason: str
+
+
+class ExecutionErrorSummary(TypedDict):
+    type: str
+    message: str
+
+
+_INT_MAX_CUSTOM_ARGS_BYTES = 64 * 1024
+_INT_MAX_JSON_DEPTH = 64
+_INT_MAX_SAFE_INTEGER = 2**53 - 1
+_INT_MAX_ERROR_MESSAGE_LENGTH = 2000
 
 
 type Str_ExecutorRunStateStatus = Literal["running", "completed", "error", "terminated"]
@@ -36,6 +64,8 @@ class DictExecutorRunState(TypedDict):
     logPath: str
     status: Str_ExecutorRunStateStatus
     endedAt: NotRequired[str]
+    outputs: NotRequired[OutputSnapshot]
+    errorSummary: NotRequired[ExecutionErrorSummary | None]
 
 
 _ENV_RUN_STARTED_AT = "LIBERRPA_RUN_STARTED_AT"
@@ -43,6 +73,107 @@ _ENV_EXECUTOR_RUN_ID = "LIBERRPA_EXECUTOR_RUN_ID"
 _ENV_EXECUTOR_RUN_STATE_PATH = "LIBERRPA_EXECUTOR_RUN_STATE_PATH"
 _ENV_EXECUTOR_PACKAGE_NAME = "LIBERRPA_EXECUTOR_PACKAGE_NAME"
 _ENV_EXECUTOR_PACKAGE_VERSION = "LIBERRPA_EXECUTOR_PACKAGE_VERSION"
+
+
+def _validate_json_value(value: object, depth: int = 0) -> None:
+    if depth > _INT_MAX_JSON_DEPTH:
+        raise ValueError("JSON must not exceed 64 levels of nesting.")
+    if value is None or type(value) is bool:
+        return
+    if type(value) is int:
+        if abs(value) > _INT_MAX_SAFE_INTEGER:
+            raise ValueError("The integer exceeds the shared safe JSON integer range.")
+        return
+    if type(value) is float:
+        if not math.isfinite(value) or (
+            value.is_integer() and abs(value) > _INT_MAX_SAFE_INTEGER
+        ):
+            raise ValueError("The number is not a finite safe JSON number.")
+        return
+    if type(value) is str:
+        value.encode("utf-8")
+        return
+    if type(value) is list:
+        for child in value:
+            _validate_json_value(child, depth + 1)
+        return
+    if type(value) is dict:
+        for strKey, child in value.items():
+            if type(strKey) is not str:
+                raise ValueError("JSON object keys must be strings.")
+            strKey.encode("utf-8")
+            _validate_json_value(child, depth + 1)
+        return
+    raise ValueError("The value is not ordinary JSON.")
+
+
+def _serialize_bounded_json(value: object) -> str:
+    listPart: list[str] = []
+    intBytes = 0
+    encoderObj = json.JSONEncoder(
+        ensure_ascii=False, allow_nan=False, separators=(",", ":")
+    )
+    for strPart in encoderObj.iterencode(value):
+        intBytes += len(strPart.encode("utf-8"))
+        if intBytes > _INT_MAX_CUSTOM_ARGS_BYTES:
+            raise ValueError("The CustomArgs snapshot exceeds 64 KiB.")
+        listPart.append(strPart)
+    return "".join(listPart)
+
+
+def capture_output_snapshot(customArgs: object) -> OutputSnapshot:
+    """Capture final ordinary JSON values without changing the actual execution result."""
+    try:
+        if type(customArgs) is not dict:
+            raise ValueError("Final CustomArgs is not a dictionary.")
+        dictValue: dict[str, object] = {}
+        listUnavailableKey: list[str] = []
+        for strKey, value in customArgs.items():
+            if type(strKey) is not str:
+                raise ValueError("Final CustomArgs contains a non-string key.")
+            strKey.encode("utf-8")
+            try:
+                _validate_json_value(value, 1)
+            except (ValueError, UnicodeError, RecursionError):
+                listUnavailableKey.append(strKey)
+            else:
+                dictValue[strKey] = value
+        strValues = _serialize_bounded_json(dictValue)
+        # Keep diagnostic metadata bounded too, without silently dropping unavailable names.
+        _serialize_bounded_json(listUnavailableKey)
+        return {
+            "status": (
+                OutputSnapshotStatus.PARTIAL
+                if listUnavailableKey
+                else OutputSnapshotStatus.COMPLETE
+            ),
+            "values": json.loads(strValues),
+            "unavailableKeys": listUnavailableKey,
+            "reason": (
+                "Some final CustomArgs values are not ordinary JSON."
+                if listUnavailableKey
+                else ""
+            ),
+        }
+    except Exception:
+        return {
+            "status": OutputSnapshotStatus.UNAVAILABLE,
+            "values": None,
+            "unavailableKeys": [],
+            "reason": "Final CustomArgs could not be captured within the shared JSON limits.",
+        }
+
+
+def capture_execution_error(errorObj: Exception | None) -> ExecutionErrorSummary | None:
+    """Summarize only the exception recorded as the final unhandled execution error."""
+    if errorObj is None:
+        return None
+    try:
+        strMessage = str(errorObj)[:_INT_MAX_ERROR_MESSAGE_LENGTH]
+        strMessage = strMessage.encode("utf-8", errors="replace").decode("utf-8")
+        return {"type": type(errorObj).__name__, "message": strMessage}
+    except Exception:
+        return {"type": type(errorObj).__name__, "message": "Error message unavailable."}
 
 
 def _parse_datetime(value: str, variableName: str) -> datetime:
@@ -156,7 +287,12 @@ def build_executor_run_state(
     )
 
 
-def write_executor_run_state(status: Str_ExecutorRunStateStatus, logPath: str) -> None:
+def write_executor_run_state(
+    status: Str_ExecutorRunStateStatus,
+    logPath: str,
+    outputs: OutputSnapshot | None = None,
+    errorSummary: ExecutionErrorSummary | None = None,
+) -> None:
     contextObj = get_executor_run_context()
     if contextObj is None:
         return
@@ -166,6 +302,11 @@ def write_executor_run_state(status: Str_ExecutorRunStateStatus, logPath: str) -
         status=status,
         logPath=logPath,
     )
+
+    if status != "running":
+        if outputs is not None:
+            dictState["outputs"] = outputs
+        dictState["errorSummary"] = errorSummary if status == "error" else None
 
     pathRunState = contextObj.runStatePath
     pathTemp = pathRunState.with_name(f".{pathRunState.name}.{os.getpid()}.tmp")
@@ -177,7 +318,6 @@ def write_executor_run_state(status: Str_ExecutorRunStateStatus, logPath: str) -
             errors="strict",
         )
         pathTemp.replace(pathRunState)
-        # print(pathRunState)
     finally:
         if pathTemp.exists():
             pathTemp.unlink()

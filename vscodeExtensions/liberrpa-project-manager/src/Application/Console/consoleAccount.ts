@@ -9,6 +9,7 @@ import {
   ConsoleConnection,
   type ConsoleAccountState,
   type EditorSessionInfo,
+  type ConsolePublishDepartment,
 } from "../../Domain/Console/consoleTypes";
 import {
   ConsoleRequestError,
@@ -17,6 +18,10 @@ import {
   validateConsoleUrl,
   parseEditorSession,
 } from "../../Adapter/Console/consoleClient";
+import {
+  getConsolePackageDepartments,
+  publishConsolePackage,
+} from "../../Adapter/Console/packagePublishing";
 import type { ConsoleCredentialSnapshot } from "../../Adapter/Console/consoleContextBridge";
 
 const STR_ADDRESS_KEY = "console.url";
@@ -421,6 +426,41 @@ export class ConsoleAccount implements vscode.Disposable {
     await this.runOperation(async () => {
       await this.refreshSession();
     });
+  }
+
+  public async getPackageDepartments(): Promise<ConsolePublishDepartment[]> {
+    let arrDepartment: ConsolePublishDepartment[] = [];
+    await this.runOperation(async () => {
+      const credential = this.credential;
+      if (credential === null) {
+        throw new Error("Sign in using the Console command before publishing a Package.");
+      }
+      arrDepartment = await getConsolePackageDepartments(credential.url, credential.token);
+    });
+    return arrDepartment;
+  }
+
+  public async publishPackage(
+    packageFilePath: string,
+    departmentId: string,
+    requestId: string,
+  ): Promise<string> {
+    let strPackageId = "";
+    await this.runOperation(async () => {
+      const credential = this.credential;
+      if (credential === null) {
+        throw new Error("Sign in using the Console command before publishing a Package.");
+      }
+      // This transfer keeps its initiating account even if another Editor changes the saved session.
+      strPackageId = await publishConsolePackage(
+        credential.url,
+        credential.token,
+        packageFilePath,
+        departmentId,
+        requestId,
+      );
+    });
+    return strPackageId;
   }
 
   public dispose(): void {

@@ -121,7 +121,32 @@
               </template>
               <template #no-data>This group has no members.</template>
             </v-data-table>
-            <!-- TODO: Show referencing schedules when schedule queries are implemented. -->
+            <h2 class="text-subtitle-1 mt-5 mb-2">Referencing Schedules</h2>
+            <p v-if="!groupInfo.referencing_schedules.length">No referencing schedules.</p>
+            <v-table v-else>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Enabled</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="schedule in groupInfo.referencing_schedules" :key="schedule.id">
+                  <td>
+                    <RouterLink
+                      :to="{
+                        name: 'schedule-details',
+                        params: { scheduleId: schedule.id },
+                      }"
+                      target="_blank"
+                      rel="noopener">
+                      {{ schedule.name }}
+                    </RouterLink>
+                  </td>
+                  <td>{{ schedule.enabled ? "Enabled" : "Disabled" }}</td>
+                </tr>
+              </tbody>
+            </v-table>
           </template>
         </template>
       </v-card-text>

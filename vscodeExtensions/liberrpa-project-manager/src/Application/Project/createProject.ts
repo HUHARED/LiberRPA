@@ -26,6 +26,7 @@ import type {
 import {
   getProjectFolderNameError,
   getVersionInputError,
+  getDescriptionError,
   getComponentPackageNameError,
   getDisplayNameError,
 } from "../../Domain/Project/projectValidation";
@@ -59,6 +60,11 @@ function validateCreateProjectInput(input: DictCreateProjectInput): void {
   const strVersionError = getVersionInputError(input.version);
   if (strVersionError !== undefined) {
     throw new Error(strVersionError);
+  }
+
+  const strDescriptionError = getDescriptionError(input.description);
+  if (strDescriptionError !== undefined) {
+    throw new Error(strDescriptionError);
   }
 
   if (input.projectType === "component") {

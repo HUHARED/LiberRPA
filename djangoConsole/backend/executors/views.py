@@ -30,6 +30,7 @@ from organizations.http import (
 )
 from organizations.models import Department
 from organizations.permissions import AccessChannel, resolve_organization_access
+from schedules.models import Schedule
 
 from .contracts import (
     ExecutorUpdateRequest,
@@ -47,6 +48,7 @@ from .http import (
     lock_executor_write_access,
     build_executor_payload,
     build_executor_info_payload,
+    build_executor_work_payload,
 )
 from .models import Executor
 from .queries import get_executor_list, get_executor_details
@@ -104,6 +106,7 @@ def _build_executor_error_response(e: Exception) -> JsonResponse:
                 "executor_count_limit",
                 "executor_association_changed",
                 "executor_group_reference",
+                "executor_work_reference",
             ):
                 return build_error_response(strErrorCode, e.messages[0], statusCode=409)
             boolDuplicateNameFound = any(
@@ -252,10 +255,21 @@ def get_or_update_executor(request: HttpRequest, executorId: uuid.UUID) -> JsonR
         dictDetailsPayload = {
             "executor": {
                 **build_executor_info_payload(details),
+                **build_executor_work_payload(details),
                 "executor_groups": [
                     {"id": group.id, "name": group.name}
                     for group in get_executor_group_references(details.executor)
                 ],
+                "referencing_schedules": list(
+                    Schedule.objects
+                    .filter(
+                        department_id=details.executor.department_id,
+                        deleted_at__isnull=True,
+                        executor_ids__contains=[str(details.executor.pk)],
+                    )
+                    .order_by("name", "id")
+                    .values("id", "name", "enabled")
+                ),
             }
         }
         return JsonResponse(

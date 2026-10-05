@@ -17,6 +17,7 @@ class StorageLock(models.Model):
 
 
 class StoredBlobPurpose(models.TextChoices):
+    PACKAGE = "package", "Package"
     SHARED_FILE = "shared_file", "Shared File"
 
 
@@ -35,7 +36,7 @@ class StoredBlob(models.Model):
         "organizations.Organization", on_delete=models.PROTECT
     )
     purpose = models.CharField(
-        max_length=24,
+        max_length=max(len(value) for value in StoredBlobPurpose.values),
         choices=StoredBlobPurpose.choices,
         default=StoredBlobPurpose.SHARED_FILE,
     )
@@ -43,7 +44,9 @@ class StoredBlob(models.Model):
     written_bytes = models.PositiveBigIntegerField(default=0)
     sha256 = models.CharField(max_length=64)
     state = models.CharField(
-        max_length=10, choices=StoredBlobState.choices, default=StoredBlobState.RECEIVING
+        max_length=max(len(value) for value in StoredBlobState.values),
+        choices=StoredBlobState.choices,
+        default=StoredBlobState.RECEIVING,
     )
     created_at = models.DateTimeField(default=timezone.now)
 

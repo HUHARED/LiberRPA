@@ -9,7 +9,7 @@
       class="mr-2 flex-shrink-0" />
     <div>
       <span class="text-h6 font-weight-bold">Console</span>
-      <span class="text-body-2 text-medium-emphasis"> - LiberRPA</span>
+      <span class="text-body-2 text-medium-emphasis">- LiberRPA</span>
     </div>
   </v-container>
 </template>

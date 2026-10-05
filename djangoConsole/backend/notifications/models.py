@@ -12,6 +12,11 @@ from django.utils import timezone
 
 
 class EmailType(models.TextChoices):
+    RUN = "run", "Run"
+    RUN_RECIPIENT_VERIFICATION = (
+        "run_recipient_verification",
+        "Run recipient verification",
+    )
     MEMBER_INVITATION = "member_invitation", "Member invitation"
     ORGANIZATION_REGISTRATION = "organization_registration", "Organization registration"
     PASSWORD_RESET = "password_reset", "Password reset"
@@ -33,6 +38,12 @@ class EmailStatus(models.TextChoices):
 
 
 class EmailReasonCode(models.TextChoices):
+    RUN_NOT_ELIGIBLE = "run_not_eligible", "Run email is no longer eligible"
+    RUN_BUDGET_EXHAUSTED = "run_budget_exhausted", "Run email budget exhausted"
+    RECIPIENT_NOT_ELIGIBLE = (
+        "recipient_not_eligible",
+        "Recipient confirmation is no longer eligible",
+    )
     NONE = "", "No reason"
     SMTP_BUDGET_EXHAUSTED = "smtp_budget_exhausted", "SMTP budget exhausted"
     ORGANIZATION_CREATION_DISABLED = (
@@ -89,7 +100,10 @@ class EmailDelivery(models.Model):
     """One delivery request and its outcome, without message bodies or usable tokens."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    email_type = models.CharField(max_length=32, choices=EmailType.choices)
+    email_type = models.CharField(
+        max_length=max(len(value) for value in EmailType.values),
+        choices=EmailType.choices,
+    )
     recipient = models.EmailField()
     invitation_id: uuid.UUID | None
     invitation = models.ForeignKey(
@@ -101,14 +115,16 @@ class EmailDelivery(models.Model):
     )
     invitation_request_id = models.UUIDField(null=True, blank=True, editable=False)
     status = models.CharField(
-        max_length=16, choices=EmailStatus.choices, default=EmailStatus.PENDING
+        max_length=max(len(value) for value in EmailStatus.values),
+        choices=EmailStatus.choices,
+        default=EmailStatus.PENDING,
     )
     created_at = models.DateTimeField(default=timezone.now, editable=False)
     attempted_at = models.DateTimeField(null=True, blank=True, editable=False)
     finished_at = models.DateTimeField(null=True, blank=True, editable=False)
     # Store a controlled reason code, never an SMTP reply, message body, or traceback.
     reason_code = models.CharField(
-        max_length=64,
+        max_length=max(len(value) for value in EmailReasonCode.values),
         choices=EmailReasonCode.choices,
         blank=True,
         default=EmailReasonCode.NONE,
@@ -146,6 +162,8 @@ class EmailDelivery(models.Model):
                     )
                     | models.Q(
                         email_type__in=[
+                            EmailType.RUN,
+                            EmailType.RUN_RECIPIENT_VERIFICATION,
                             EmailType.ORGANIZATION_REGISTRATION,
                             EmailType.PASSWORD_RESET,
                             EmailType.EMAIL_CHANGE_VERIFICATION,
@@ -257,3 +275,107 @@ class OrganizationDeletionNotice(models.Model):
     )
     organization_id = models.UUIDField(editable=False)
     organization_name = models.CharField(max_length=200, editable=False)
+
+
+class RunEmailRecipient(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization_id: uuid.UUID
+    organization = models.ForeignKey(
+        "organizations.Organization", on_delete=models.CASCADE
+    )
+    email = models.EmailField()
+    notes = models.TextField(blank=True, default="")
+    created_at = models.DateTimeField(default=timezone.now)
+    verified_at = models.DateTimeField(null=True, blank=True)
+    verification_id = models.UUIDField(default=uuid.uuid4)
+    verification_requested_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "email"], name="run_recipient_email_unique"
+            ),
+            models.CheckConstraint(
+                condition=models.Q(email=Lower(Trim("email"))) & ~models.Q(email=""),
+                name="run_recipient_email_canonical",
+            ),
+        ]
+
+
+class RunRecipientVerification(models.Model):
+    delivery_id: uuid.UUID
+    recipient_id: uuid.UUID
+
+    delivery = models.OneToOneField(
+        EmailDelivery, on_delete=models.CASCADE, primary_key=True
+    )
+    recipient = models.ForeignKey(RunEmailRecipient, on_delete=models.CASCADE)
+    verification_id = models.UUIDField()
+
+
+class RunEmailEvent(models.TextChoices):
+    START = "start", "Started"
+    COMPLETED = "completed", "Completed"
+    ERROR = "error", "Error"
+
+
+class RunEmailReference(models.Model):
+    delivery_id: uuid.UUID
+    organization_id: uuid.UUID
+    recipient_id: uuid.UUID | None
+
+    delivery = models.OneToOneField(
+        EmailDelivery,
+        on_delete=models.CASCADE,
+        primary_key=True,
+        related_name="run_reference",
+    )
+    organization = models.ForeignKey(
+        "organizations.Organization", on_delete=models.CASCADE
+    )
+    recipient = models.ForeignKey(RunEmailRecipient, on_delete=models.SET_NULL, null=True)
+    run_id = models.UUIDField()
+    event = models.CharField(
+        max_length=max(len(value) for value in RunEmailEvent.values),
+        choices=RunEmailEvent.choices,
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["run_id", "event", "recipient"],
+                name="run_email_event_recipient_once",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(event__in=RunEmailEvent.values),
+                name="run_email_event_valid",
+            ),
+        ]
+
+
+class Notification(models.Model):
+    organization_id: uuid.UUID
+    user_id: uuid.UUID
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        "organizations.Organization", on_delete=models.CASCADE
+    )
+    user = models.ForeignKey("accounts.User", on_delete=models.CASCADE)
+    event_key = models.CharField(max_length=200)
+    title = models.CharField(max_length=200)
+    detail = models.TextField()
+    created_at = models.DateTimeField(default=timezone.now)
+    read_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=["user", "-created_at"], name="notification_user_time_idx"
+            )
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "event_key"], name="notification_event_user_once"
+            )
+        ]

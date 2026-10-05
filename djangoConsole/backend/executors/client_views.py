@@ -114,7 +114,7 @@ def _build_client_error_response(e: Exception) -> JsonResponse:
             return build_service_unavailable_response()
 
 
-def _build_client_session_payload(
+def build_client_session_payload(
     session: ExecutorSession, access: OrganizationAccessContext
 ) -> dict[str, object]:
     user = cast(User, session.user)
@@ -190,7 +190,7 @@ def sign_in_executor(request: HttpRequest) -> JsonResponse:
             clientVersion=loginRequest.version,
         )
         return JsonResponse({
-            **_build_client_session_payload(result.session, result.access),
+            **build_client_session_payload(result.session, result.access),
             "token": result.token,
         })
     except _HANDLED_CLIENT_ERRORS as e:
@@ -256,7 +256,7 @@ def process_executor_client_request(
         )
         if result is None:
             return JsonResponse({"message": "Signed out."})
-        dictSessionPayload = _build_client_session_payload(result.session, result.access)
+        dictSessionPayload = build_client_session_payload(result.session, result.access)
         if result.choices is not None:
             page = result.choices
             dictSessionPayload.update({

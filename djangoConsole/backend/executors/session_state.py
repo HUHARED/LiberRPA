@@ -105,8 +105,13 @@ def get_current_executor_sessions(
 
 def revoke_user_executor_sessions(userId: uuid.UUID) -> None:
     """Revoke pending logins and associations in the caller's account-security transaction."""
+    listSessionId = list(
+        ExecutorSession.objects.filter(user_id=userId).values_list("id", flat=True)
+    )
     ExecutorSession.objects.filter(user_id=userId).delete()
-    # TODO: End undispatched direct work and preserve unresolved start facts when Jobs are implemented.
+    from runs.services import reconcile_revoked_sessions
+
+    reconcile_revoked_sessions(listSessionId)
 
 
 def revoke_unqualified_executor_sessions(
@@ -120,3 +125,6 @@ def revoke_unqualified_executor_sessions(
         if not is_executor_session_current(session, currentTime=currentTime)
     ]
     ExecutorSession.objects.filter(pk__in=listInvalidSessionId).delete()
+    from runs.services import reconcile_revoked_sessions
+
+    reconcile_revoked_sessions(listInvalidSessionId)

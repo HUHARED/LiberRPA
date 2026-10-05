@@ -1,15 +1,45 @@
 // FileName: run.ts
 
+export enum RunSource {
+  Local = "local",
+  Console = "console",
+}
+
+export interface RunOutputs {
+  status: "complete" | "partial" | "unavailable";
+  values: Record<string, unknown> | null;
+  unavailableKeys: string[];
+  reason: string;
+}
+
+export interface RunDetails {
+  source: RunSource;
+  run_id: string;
+  job_id: string;
+  attempt: number;
+  inputs: Record<string, unknown>;
+  outputs: RunOutputs;
+  error_summary: { type: string; message: string } | null;
+}
+
 export type Str_RunHistory_Status =
   | "running"
   | "completed"
   | "error"
   | "cancel"
   | "timeout"
-  | "interrupted";
+  | "interrupted"
+  | "unknown";
+
+export type Str_RunHistoryTerminalStatus = Exclude<
+  Str_RunHistory_Status,
+  "running" | "unknown"
+>;
 
 export interface Dict_RunHistory_Item {
   id: number;
+  source: RunSource;
+  attempt: number;
   schedule_name: string | null;
   project_name: string;
   project_version: string;

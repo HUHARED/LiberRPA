@@ -19,5 +19,13 @@ urlpatterns = [
     path("api/", include("assets.urls")),
     path("api/", include("data_queues.urls")),
     path("api/", include("shared_files.urls")),
+    path("api/packages/", include("packages.urls")),
+    path("api/clients/editor/packages/", include("packages.editor_urls")),
+    path("api/clients/executor/packages/", include("packages.executor_urls")),
+    path("api/schedules/", include("schedules.urls")),
+    path("api/", include("runs.log_urls")),
+    path("api/", include("runs.urls")),
+    path("api/notifications/", include("notifications.urls")),
+    path("api/run-email-recipients/", include("notifications.recipient_urls")),
     path("api/", include("operations.urls")),
 ]

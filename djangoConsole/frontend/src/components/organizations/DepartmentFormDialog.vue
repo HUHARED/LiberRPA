@@ -65,9 +65,8 @@
             variant="outlined"
             readonly />
           <v-alert v-if="boolPathChanged" type="warning" variant="tonal" class="mb-4">
-            Subdepartment and resource paths will also change. Existing IDs and
-            relationships are preserved. Update any path strings in code, arguments, and
-            templates yourself.
+            Subdepartment and resource paths will also change. Update any paths used in
+            code, arguments, and templates.
           </v-alert>
           <v-textarea
             v-model="strNotes"

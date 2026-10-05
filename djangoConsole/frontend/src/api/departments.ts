@@ -93,7 +93,11 @@ export function parseDepartmentDeletionPreviewResponse(
           blocker.code === "assets" ||
           blocker.code === "data_queues" ||
           blocker.code === "shared_files" ||
-          blocker.code === "file_uploads") &&
+          blocker.code === "file_uploads" ||
+          blocker.code === "packages" ||
+          blocker.code === "schedules" ||
+          blocker.code === "active_jobs" ||
+          blocker.code === "package_uploads") &&
         typeof blocker.count === "number" &&
         Number.isSafeInteger(blocker.count) &&
         blocker.count > 0,

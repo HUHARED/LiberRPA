@@ -14,6 +14,9 @@ from executors.models import Executor, ExecutorGroup
 from assets.models import Asset
 from data_queues.models import DataQueue
 from shared_files.models import SharedFile, UploadState, UploadSession
+from packages.models import Package, PackageUpload, PackageUploadState
+from schedules.models import Schedule
+from runs.models import Job, JobState
 from operations.audit import record_audit
 
 from .models import Department, DepartmentMembership
@@ -36,6 +39,10 @@ class DepartmentDeletionBlocker:
         "data_queues",
         "shared_files",
         "file_uploads",
+        "packages",
+        "package_uploads",
+        "schedules",
+        "active_jobs",
     ]
     count: int
 
@@ -126,7 +133,34 @@ def _build_department_deletion_info(department: Department) -> DepartmentDeletio
     if intUploadCount:
         listBlocker.append(DepartmentDeletionBlocker("file_uploads", intUploadCount))
 
-    # TODO: Include remaining business resources and unfinished Jobs when their models are implemented.
+    for blocker in (
+        DepartmentDeletionBlocker(
+            "packages", Package.objects.filter(department=department).count()
+        ),
+        DepartmentDeletionBlocker(
+            "package_uploads",
+            PackageUpload.objects.filter(
+                department_id=department.pk,
+                state=PackageUploadState.RECEIVING,
+                expires_at__gt=timezone.now(),
+            ).count(),
+        ),
+        DepartmentDeletionBlocker(
+            "schedules",
+            Schedule.objects.filter(
+                department=department, deleted_at__isnull=True
+            ).count(),
+        ),
+        DepartmentDeletionBlocker(
+            "active_jobs",
+            Job.objects
+            .filter(department=department)
+            .exclude(state=JobState.FINISHED)
+            .count(),
+        ),
+    ):
+        if blocker.count:
+            listBlocker.append(blocker)
     # NOTE: Dependency writes must share the organization lock; retained history must not block deletion.
     return DepartmentDeletionInfo(
         departmentId=department.id,

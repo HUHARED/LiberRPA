@@ -57,6 +57,8 @@ export interface DictPackageProjectInput {
   includeVscodeSettings: boolean;
   includeProjectTests: boolean;
   includeGitRepository: boolean;
+  publishToConsole: boolean;
+  consoleDepartmentId: string;
 }
 
 export interface DictProjectPackageResult {

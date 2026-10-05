@@ -5,6 +5,7 @@ import type { AuditRecordResponse } from "../api/generated/browserApi";
 export const AUDIT_CHANNEL_LABEL: Record<AuditRecordResponse["channel"], string> = {
   session: "Web",
   executor: "Executor",
+  editor: "Editor",
   api_key: "API Key",
   system: "System",
 };

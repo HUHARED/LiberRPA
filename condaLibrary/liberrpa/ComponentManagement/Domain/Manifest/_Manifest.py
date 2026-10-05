@@ -28,9 +28,9 @@ from liberrpa.ComponentManagement.Types._Manifest import (
 
 
 from pathlib import Path
-
-
 import uuid
+
+_INT_MAX_DESCRIPTION_LENGTH = 2000
 
 
 _SET_MANIFEST_KEYS_FLOW = {
@@ -111,6 +111,37 @@ def _validate_string_field(
         return None
 
     return value
+
+
+def _validate_description_field(
+    value: object,
+    issueList: list[dict[str, object]],
+) -> str | None:
+    strDescription = _validate_string_field(
+        value, "description", issueList, allowEmpty=True
+    )
+    if strDescription is None:
+        return None
+    if len(strDescription) > _INT_MAX_DESCRIPTION_LENGTH:
+        add_validation_issue(
+            issueList,
+            "description",
+            f"Description cannot be longer than {_INT_MAX_DESCRIPTION_LENGTH} characters.",
+        )
+        return None
+    try:
+        strDescription.encode("utf-8")
+    except UnicodeEncodeError:
+        add_validation_issue(
+            issueList, "description", "Description must contain valid Unicode text."
+        )
+        return None
+    if "\0" in strDescription:
+        add_validation_issue(
+            issueList, "description", "Description cannot contain a null character."
+        )
+        return None
+    return strDescription
 
 
 def _validate_trimmed_single_line_field(
@@ -304,12 +335,7 @@ def parse_flow_manifest(
     strNormalizedVersion = _parse_version_field(
         value.get("version"), "version", listIssue
     )
-    strDescription = _validate_string_field(
-        value.get("description"),
-        "description",
-        listIssue,
-        allowEmpty=True,
-    )
+    strDescription = _validate_description_field(value.get("description"), listIssue)
     strNormalizedRequiresLiberrpa = _parse_version_specifier_field(
         value.get("requiresLiberrpa"),
         "requiresLiberrpa",
@@ -387,12 +413,7 @@ def parse_component_manifest(
         except ValueError as e:
             add_validation_issue(listIssue, "packageName/version", str(e))
 
-    strDescription = _validate_string_field(
-        value.get("description"),
-        "description",
-        listIssue,
-        allowEmpty=True,
-    )
+    strDescription = _validate_description_field(value.get("description"), listIssue)
     strNormalizedRequiresLiberrpa = _parse_version_specifier_field(
         value.get("requiresLiberrpa"),
         "requiresLiberrpa",

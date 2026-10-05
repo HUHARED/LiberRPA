@@ -167,6 +167,12 @@ def _run_service(service: str, logger: logging.Logger) -> int:
             "127.0.0.1",
             "--port",
             "8000",
+            "--ws",
+            "websockets-sansio",
+            "--ws-max-size",
+            "65536",  # 64 KiB; control messages contain no files or log batches.
+            "--lifespan",
+            "on",
             "--reload",
             "--reload-dir",
             str(_PATH_CONSOLE / "backend"),

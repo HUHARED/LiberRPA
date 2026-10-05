@@ -48,6 +48,7 @@
   },
 
   // Optional deployment limits. Omitted values use defaults.
+  // Byte limits use binary units: 1 KiB = 1024 bytes, 1 MiB = 1048576 bytes, 1 GiB = 1073741824 bytes.
   "limits": {
     // Run "python backend/manage.py prune_audit_records" regularly in deployment.
     // Both age and count apply; organization deletion also removes its tenant audit.
@@ -74,17 +75,40 @@
     // A value of 0 blocks creation; lowering the limit preserves existing groups and members.
     "maxExecutorGroupsPerOrganization": 50,
 
+    // Projects are grouped by department and project name among uploaded packages.
+    "maxProjectsPerOrganization": 100,
+    // Per project within one department; each package has a distinct version.
+    "maxPackagesPerProject": 20,
+    "maxPackageBytes": 536870912, // 512 MiB
+    "maxSchedulesPerOrganization": 200,
+    "maxActiveJobsPerOrganization": 500,
+    "newJobsPerMinute": 60,
+    "newJobsBurst": 120,
+    // Only completed or administratively closed Jobs are eligible for grouped cleanup.
+    "runHistoryRetentionDays": 720,
+    "maxRunHistoryPerOrganization": 20000,
+    "runLogRetentionDays": 720,
+    "maxRunLogBytesPerOrganization": 5368709120, // 5 GiB
+    "maxRunLogGroupsPerOrganization": 10000,
+    "maxRunEmailAddressesPerOrganization": 100,
+    "maxRunEmailRecipientsPerOrganizationHour": 100,
+    "maxRunEmailRecipientsPerOrganizationDay": 500,
+    "maxRunEmailRecipientsPerAddressHour": 30,
+    "maxRunEmailRecipientsPer24Hours": 2000,
+    "maxNotificationsPerAccount": 200,
+    "notificationRetentionDays": 30,
+
     // Ordinary and secret assets share the count limit; 0 blocks creation.
     "maxAssetsPerOrganization": 1000,
     // UTF-8 bytes: text content or compact JSON; a Credential counts both fields together.
-    "maxAssetValueBytes": 65536,
-    "maxSecretAssetValueBytes": 16384,
+    "maxAssetValueBytes": 65536, // 64 KiB
+    "maxSecretAssetValueBytes": 16384, // 16 KiB
 
     // Queue capacity counts both statuses. Existing business data is never auto-deleted.
     "maxDataQueuesPerOrganization": 50,
     "maxQueueItemsPerOrganization": 20000,
-    "maxQueueDataBytesPerOrganization": 104857600,
-    "maxQueueItemBytes": 1048576,
+    "maxQueueDataBytesPerOrganization": 104857600, // 100 MiB
+    "maxQueueItemBytes": 1048576, // 1 MiB
     // Receipts are pruned on new queue mutations after at least 30 days.
     // A full receipt budget blocks new mutations instead of evicting unexpired receipts.
     "queueReceiptRetentionDays": 30,
@@ -92,9 +116,9 @@
 
     // Packages and shared files share this organization pool and transfer limit.
     // Garbage remains charged until cleanup succeeds; overwrites reserve the full new size.
-    "maxStoredBytesPerOrganization": 5368709120,
-    "maxSharedFileBytes": 20971520,
-    "minStorageFreeBytes": 5368709120,
+    "maxStoredBytesPerOrganization": 5368709120, // 5 GiB
+    "maxSharedFileBytes": 20971520, // 20 MiB
+    "minStorageFreeBytes": 5368709120, // 5 GiB
     "maxActiveTransfersPerOrganization": 4,
     "fileReceiptRetentionDays": 30,
     "maxFileReceiptsPerOrganization": 100000,

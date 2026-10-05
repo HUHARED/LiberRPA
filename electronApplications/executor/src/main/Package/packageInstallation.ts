@@ -60,7 +60,8 @@ async function runProjectPackageInstallation(
   let boolDatabaseCommitted = false;
   try {
     extractProjectPackageArchive(strPackageFilePath, stagedProjectPath);
-    const packageMetadata = readProjectPackageMetadata(stagedProjectPath);
+    const packageMetadata = await readProjectPackageMetadata(stagedProjectPath);
+    ensureExecutorRunning();
 
     if (
       dbSelectProjectDetail(packageMetadata.name, packageMetadata.version) !== undefined

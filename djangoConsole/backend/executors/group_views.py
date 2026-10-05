@@ -30,6 +30,7 @@ from organizations.http import (
 )
 from organizations.models import Department
 from organizations.permissions import AccessChannel
+from schedules.models import Schedule
 
 from .contracts import (
     ExecutorGroupUpdateRequest,
@@ -140,10 +141,12 @@ def _build_group_error_response(e: Exception) -> JsonResponse:
                 "invalid_page", "The requested page is unavailable.", statusCode=400
             )
         case ValidationError():
-            if getattr(e, "code", None) == "executor_group_count_limit":
-                return build_error_response(
-                    "executor_group_count_limit", e.messages[0], statusCode=409
-                )
+            strCode = getattr(e, "code", None)
+            if strCode is not None and strCode in (
+                "executor_group_count_limit",
+                "executor_group_work_reference",
+            ):
+                return build_error_response(strCode, e.messages[0], statusCode=409)
             boolDuplicateNameFound = any(
                 fieldError.code == "duplicate_executor_group_name"
                 for listFieldError in getattr(e, "error_dict", {}).values()
@@ -284,6 +287,12 @@ def get_or_update_executor_group(
                 "members": [
                     build_executor_info_payload(member) for member in details.members
                 ],
+                "referencing_schedules": list(
+                    Schedule.objects
+                    .filter(group_id=groupId, deleted_at__isnull=True)
+                    .order_by("name", "id")
+                    .values("id", "name", "enabled")
+                ),
             }
         }
         return JsonResponse(

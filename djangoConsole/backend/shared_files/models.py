@@ -62,7 +62,9 @@ class UploadSession(models.Model):
         "file_storage.StoredBlob", null=True, on_delete=models.SET_NULL
     )
     state = models.CharField(
-        max_length=10, choices=UploadState.choices, default=UploadState.RECEIVING
+        max_length=max(len(value) for value in UploadState.values),
+        choices=UploadState.choices,
+        default=UploadState.RECEIVING,
     )
     offset = models.PositiveBigIntegerField(default=0)
     result = models.JSONField(null=True)

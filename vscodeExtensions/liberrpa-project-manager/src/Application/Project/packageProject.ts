@@ -28,7 +28,8 @@ import {
   buildProjectPackageManifest,
   STR_PROJECT_PACKAGE_MANIFEST_FILE_NAME,
 } from "../../Domain/Project/projectPackageManifest";
-import { getOptionalSingleLineTextError } from "../../Domain/Project/projectValidation";
+import { getVersionSummaryError } from "../../Domain/Project/projectValidation";
+import { validateProjectFlowCustomArguments } from "../../Domain/Project/projectFlow";
 import type {
   DictProjectManifest_Flow,
   DictPackageProjectInput,
@@ -49,6 +50,7 @@ interface Info_PackageProjectData {
   projectPath: string;
   manifest: DictProjectManifest_Flow;
   projectDependencyState: DictProtocolResult_ProjectDependencyState;
+  projectFlowContent: Buffer | null;
 
   input: DictPackageProjectInput;
   packageFileName: string | null;
@@ -117,6 +119,8 @@ export function getDefaultPackageProjectInput(
     includeVscodeSettings: false,
     includeProjectTests: false,
     includeGitRepository: false,
+    publishToConsole: false,
+    consoleDepartmentId: "",
   };
 }
 
@@ -198,10 +202,7 @@ async function getPackageBlockingReasons(
     arrReason.unshift(strFileNameError);
   }
 
-  const strVersionSummaryError = getOptionalSingleLineTextError(
-    input.versionSummary,
-    "Version summary",
-  );
+  const strVersionSummaryError = getVersionSummaryError(input.versionSummary);
   if (strVersionSummaryError !== undefined) {
     arrReason.push(strVersionSummaryError);
   }
@@ -243,19 +244,39 @@ export async function loadPackageProjectData(
   const packageFilePath =
     packageFileName === null ? null : path.join(input.outputFolderPath, packageFileName);
 
-  return {
+  const arrBlockingReason = await getPackageBlockingReasons(
     projectPath,
     manifest,
     projectDependencyState,
     input,
+  );
+  let projectFlowContent: Buffer | null = null;
+  try {
+    const strProjectFlowPath = path.join(projectPath, "project.flow");
+    const projectFlowStat = await fs.promises.lstat(strProjectFlowPath);
+    if (!projectFlowStat.isFile() || projectFlowStat.isSymbolicLink()) {
+      throw new Error("project.flow must be a regular file at the Project root.");
+    }
+    const content = await fs.promises.readFile(strProjectFlowPath);
+    validateProjectFlowCustomArguments(
+      JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(content)) as unknown,
+    );
+    projectFlowContent = content;
+  } catch (e: unknown) {
+    arrBlockingReason.push(
+      "Invalid project.flow: " + (e instanceof Error ? e.message : String(e)),
+    );
+  }
+
+  return {
+    projectPath,
+    manifest,
+    projectDependencyState,
+    projectFlowContent,
+    input,
     packageFileName,
     packageFileExists: packageFilePath === null ? false : await pathExists(packageFilePath),
-    blockingReasons: await getPackageBlockingReasons(
-      projectPath,
-      manifest,
-      projectDependencyState,
-      input,
-    ),
+    blockingReasons: arrBlockingReason,
     warnings: operationResult.warnings,
   };
 }
@@ -384,6 +405,7 @@ async function createPackageArchive(
   tempPackageFilePath: string,
   arrEntry: Info_ProjectPackageEntry[],
   packageManifestContent: string,
+  projectFlowContent: Buffer,
 ): Promise<void> {
   const { ZipArchive } = await import(/* webpackMode: "eager" */ "archiver");
   const outputFileObj = fs.createWriteStream(tempPackageFilePath, {
@@ -406,6 +428,12 @@ async function createPackageArchive(
       if (entryObj.type === "folder") {
         archiveObj.append(Buffer.alloc(0), {
           name: `${entryObj.archivePath}/`,
+          date: entryObj.modifiedAt,
+        });
+      } else if (entryObj.archivePath === "project.flow") {
+        // Package the bytes validated at the boundary instead of reopening a mutable file.
+        archiveObj.append(projectFlowContent, {
+          name: entryObj.archivePath,
           date: entryObj.modifiedAt,
         });
       } else {
@@ -459,6 +487,10 @@ export async function packageFlowProject(
     );
   }
 
+  if (data.projectFlowContent === null) {
+    throw new Error("Validated project.flow content is unavailable.");
+  }
+
   const packageFileName = getProjectPackageFileName(data.manifest);
   const packageFilePath = path.join(input.outputFolderPath, packageFileName);
   if (data.packageFileExists || (await pathExists(packageFilePath))) {
@@ -466,6 +498,13 @@ export async function packageFlowProject(
   }
 
   const arrEntry = await collectProjectPackageEntries(data.projectPath, input);
+  const projectFlowEntry = arrEntry.find(
+    (entryObj) => entryObj.archivePath === "project.flow",
+  );
+  if (projectFlowEntry === undefined || projectFlowEntry.type !== "file") {
+    throw new Error("project.flow must be a regular file at the Project root.");
+  }
+  projectFlowEntry.size = data.projectFlowContent.length;
   const packageManifestContent = stringifyJson(
     buildProjectPackageManifest(input.versionSummary),
     2,
@@ -478,7 +517,12 @@ export async function packageFlowProject(
   );
 
   try {
-    await createPackageArchive(tempPackageFilePath, arrEntry, packageManifestContent);
+    await createPackageArchive(
+      tempPackageFilePath,
+      arrEntry,
+      packageManifestContent,
+      data.projectFlowContent,
+    );
     if (await pathExists(packageFilePath)) {
       throw new Error(`Package file already exists: ${packageFilePath}`);
     }

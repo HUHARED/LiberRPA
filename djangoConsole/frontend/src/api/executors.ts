@@ -5,6 +5,7 @@ import {
   isRecord,
   isNullableString,
   isNullableDateString,
+  isNonnegativeInteger,
   rejectInvalidResponse,
   parsePaginationResponse,
 } from "./responses";
@@ -14,6 +15,7 @@ import type {
   ExecutorDeletionRequest,
   ExecutorDetailsResponse,
   ExecutorGroupReferenceResponse,
+  ExecutorScheduleReferenceResponse,
   ExecutorDispatchRequest,
   ExecutorListEntryResponse,
   ExecutorListResponse,
@@ -27,6 +29,17 @@ export interface ExecutorListFilters {
   name: string;
   departmentIds: string[];
   dispatchStates: boolean[];
+}
+
+export function isExecutorScheduleReference(
+  value: unknown,
+): value is ExecutorScheduleReferenceResponse {
+  return (
+    isRecord(value) &&
+    typeof value.id === "string" &&
+    typeof value.name === "string" &&
+    typeof value.enabled === "boolean"
+  );
 }
 
 function isExecutorRecord(value: unknown): value is ExecutorRecordResponse {
@@ -85,6 +98,14 @@ export function parseExecutorDetailsResponse(payload: unknown): ExecutorDetailsR
     !isRecord(payload) ||
     !isRecord(payload.executor) ||
     !isExecutorListEntry(payload.executor) ||
+    !Array.isArray(payload.executor.referencing_schedules) ||
+    !payload.executor.referencing_schedules.every(isExecutorScheduleReference) ||
+    ![
+      payload.executor.local_running_count,
+      payload.executor.central_running_count,
+      payload.executor.local_waiting_count,
+    ].every((value) => value === null || isNonnegativeInteger(value)) ||
+    !isNullableDateString(payload.executor.last_work_reported_at) ||
     !Array.isArray(payload.executor.executor_groups) ||
     !payload.executor.executor_groups.every(
       (group: unknown): group is ExecutorGroupReferenceResponse =>
@@ -96,6 +117,11 @@ export function parseExecutorDetailsResponse(payload: unknown): ExecutorDetailsR
     executor: {
       ...payload.executor,
       executor_groups: payload.executor.executor_groups,
+      referencing_schedules: payload.executor.referencing_schedules,
+      local_running_count: payload.executor.local_running_count as number | null,
+      central_running_count: payload.executor.central_running_count as number | null,
+      local_waiting_count: payload.executor.local_waiting_count as number | null,
+      last_work_reported_at: payload.executor.last_work_reported_at,
     },
   };
 }

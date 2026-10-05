@@ -5,11 +5,41 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import math
+import re
+from datetime import datetime, UTC
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from django.core.exceptions import ValidationError
 
 from .contracts import JsonValue
+from .constants import INT_WINDOWS_NAME_MAX_LENGTH
+
+_SET_RESERVED_WINDOWS_NAME = {
+    "CON",
+    "PRN",
+    "AUX",
+    "NUL",
+    *(f"COM{intIndex}" for intIndex in range(1, 10)),
+    *(f"LPT{intIndex}" for intIndex in range(1, 10)),
+}
+
+
+def validate_windows_name(name: str) -> None:
+    if (
+        not name
+        or name != name.strip()
+        or name.endswith(".")
+        or len(name.encode("utf-16-le")) // 2 > INT_WINDOWS_NAME_MAX_LENGTH
+        or re.search(r'[<>:"/\\|?*\x00-\x1f]', name)
+        or name.split(".", 1)[0].upper() in _SET_RESERVED_WINDOWS_NAME
+    ):
+        raise ValueError(f"Invalid Windows file or directory name: {name!r}.")
+
+
+def validate_json_text(value: str) -> None:
+    if "\0" in value:
+        raise ValueError("JSON text must not contain NUL characters.")
+    value.encode("utf-8")
 
 
 def validate_time_zone(timeZone: str) -> None:
@@ -42,12 +72,30 @@ def validate_json_value(value: JsonValue) -> None:
             )
         if isinstance(child, dict):
             for strKey, entry in child.items():
-                strKey.encode("utf-8")
+                validate_json_text(strKey)
                 validate_child(entry, depth + 1)
         elif isinstance(child, list):
             for entry in child:
                 validate_child(entry, depth + 1)
         elif isinstance(child, str):
-            child.encode("utf-8")
+            validate_json_text(child)
 
     validate_child(value, 0)
+
+
+def parse_zoned_time(value: str, timeZone: str) -> datetime:
+    try:
+        dateTime = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        raise ValidationError("Use an ISO date and time.") from None
+    if dateTime.tzinfo is not None:
+        return dateTime.astimezone(UTC)
+    validate_time_zone(timeZone)
+    zone = ZoneInfo(timeZone)
+    firstTime = dateTime.replace(tzinfo=zone, fold=0)
+    utcTime = firstTime.astimezone(UTC)
+    if utcTime.astimezone(zone).replace(tzinfo=None) != dateTime:
+        raise ValidationError("This local time does not exist in the selected time zone.")
+    if firstTime.utcoffset() != dateTime.replace(tzinfo=zone, fold=1).utcoffset():
+        raise ValidationError("This local time is ambiguous. Include its UTC offset.")
+    return utcTime

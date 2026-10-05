@@ -6,10 +6,12 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from file_storage.services import clean_organization_storage
 from shared_files.cleanup import prepare_organization_file_cleanup
+from packages.cleanup import prepare_organization_package_cleanup
 
 from .cleanup import (
     OrganizationDeletionResult,
     start_next_organization_deletion,
+    prepare_organization_execution_cleanup,
     complete_organization_deletion,
 )
 
@@ -19,6 +21,8 @@ def process_next_organization_deletion() -> OrganizationDeletionResult | None:
     organizationId = start_next_organization_deletion()
     if organizationId is None:
         return None
+    prepare_organization_execution_cleanup(organizationId)
+    prepare_organization_package_cleanup(organizationId)
     prepare_organization_file_cleanup(organizationId)
     if not clean_organization_storage(organizationId):
         return None

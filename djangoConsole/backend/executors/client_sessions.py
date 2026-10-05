@@ -87,9 +87,14 @@ def begin_executor_login(
         if not constant_time_compare(verifiedAuthHash, user.get_session_auth_hash()):
             raise InvalidExecutorSessionError("Sign in again to continue.")
         currentTime = timezone.now()
-        ExecutorSession.objects.filter(
+        from runs.services import reconcile_revoked_sessions
+
+        expiredSessions = ExecutorSession.objects.filter(
             organization=access.organization, expires_at__lte=currentTime
-        ).delete()
+        )
+        listExpiredSessionId = list(expiredSessions.values_list("id", flat=True))
+        expiredSessions.delete()
+        reconcile_revoked_sessions(listExpiredSessionId)
         strToken = f"lrex_{secrets.token_urlsafe(32)}"
         session = ExecutorSession(
             user=user,
@@ -194,8 +199,11 @@ def handle_executor_client_request(
                 channel=AuditChannel.EXECUTOR,
                 before={},
             )
-            # TODO: The native client must block logout during any actual Run; add central-work checks with the Run model.
+            from runs.services import reconcile_revoked_sessions
+
+            # The native client also guards actual local Runs before requesting logout.
             intDeletedCount, _ = ExecutorSession.objects.filter(pk=identity.id).delete()
+            reconcile_revoked_sessions([identity.id])
             if not intDeletedCount:
                 raise InvalidExecutorSessionError("A valid Executor session is required.")
             return None
@@ -254,7 +262,11 @@ def handle_executor_client_request(
                                     "This Executor already has a valid association.",
                                     code="executor_already_associated",
                                 )
+                            from runs.services import reconcile_revoked_sessions
+
+                            previousSessionId = previousSession.pk
                             previousSession.delete()
+                            reconcile_revoked_sessions([previousSessionId])
                         session.executor = executor
                         session.associated_at = max(timezone.now(), session.created_at)
                     # Repeating the same selection after a lost response preserves the original session.
@@ -302,7 +314,10 @@ def handle_executor_client_request(
                 )
             result = ExecutorClientResult(session=session, access=access)
         except InvalidExecutorSessionError:
+            from runs.services import reconcile_revoked_sessions
+
             ExecutorSession.objects.filter(pk=identity.id).delete()
+            reconcile_revoked_sessions([identity.id])
             boolInvalidSession = True
     # Commit invalidation before reporting it; a later permission restoration cannot revive this login.
     if boolInvalidSession:

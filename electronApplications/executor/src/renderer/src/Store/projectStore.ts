@@ -103,6 +103,7 @@ export const useProjectStore = defineStore("project", {
       const dictTemp: Dict_ProjectSettingsUpdate = {
         id: this.dictDetailEdit.id,
         python_environment_name: this.dictDetailEdit.python_environment_name,
+        retry_count: this.dictDetailEdit.retry_count,
         timeout_min: this.dictDetailEdit.timeout_min,
         builtin_log_level: this.dictDetailEdit.builtin_log_level,
         builtin_record_video: this.dictDetailEdit.builtin_record_video,

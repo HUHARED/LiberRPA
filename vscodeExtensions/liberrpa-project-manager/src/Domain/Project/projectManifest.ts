@@ -6,6 +6,7 @@ import type {
   DictProjectManifest_Component,
   DictProjectManifest,
 } from "./projectTypes";
+import { getDescriptionError } from "./projectValidation";
 import { isRecord, isStringRecord, hasExactKeys } from "../../Common/typeCheck";
 import { readJsonFile, writeJsonFile } from "../../Common/utils";
 
@@ -43,6 +44,10 @@ export function parseFlowManifest(
     typeof value["requiresLiberrpa"] === "string" &&
     isStringRecord(value["componentDependencies"])
   ) {
+    const strDescriptionError = getDescriptionError(value["description"]);
+    if (strDescriptionError !== undefined) {
+      throw new Error(`${sourceName}: ${strDescriptionError}`);
+    }
     return {
       schemaVersion: 1,
       name: value["name"],
@@ -72,6 +77,10 @@ export function parseComponentManifest(
     typeof value["requiresLiberrpa"] === "string" &&
     isStringRecord(value["componentDependencies"])
   ) {
+    const strDescriptionError = getDescriptionError(value["description"]);
+    if (strDescriptionError !== undefined) {
+      throw new Error(`${sourceName}: ${strDescriptionError}`);
+    }
     return {
       schemaVersion: 1,
       id: value["id"],

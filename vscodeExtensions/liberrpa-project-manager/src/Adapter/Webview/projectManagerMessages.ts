@@ -28,6 +28,9 @@ import type {
 } from "../../Domain/Project/projectTypes";
 import {
   ConsoleAction,
+  ConsolePublishStatus,
+  type ConsolePublishDepartment,
+  type ConsolePublishResult,
   isConsoleAccountState,
   type ConsoleAccountState,
 } from "../../Domain/Console/consoleTypes";
@@ -64,6 +67,10 @@ export interface DictPackageProjectInitialData {
   warningMessages: string[];
 
   packageResult: DictProjectPackageResult | null;
+  consoleDepartments: ConsolePublishDepartment[];
+  consolePublishingMessage: string;
+  consolePublishResult: ConsolePublishResult;
+
   notification?: DictProjectManagerNotification;
 }
 
@@ -106,6 +113,7 @@ export type DictMessage_WebviewToExtension =
   | { command: "refreshPackageProject"; input: DictPackageProjectInput }
   | { command: "openPackageProjectManifest" }
   | { command: "revealProjectPackage" }
+  | { command: "retryConsolePublish" }
   | { command: "openManageComponents" }
   | { command: "runPublishComponent" }
   | { command: "refreshPublishComponent" }
@@ -322,13 +330,17 @@ function isPackageProjectInput(value: unknown): value is DictPackageProjectInput
         "includeVscodeSettings",
         "includeProjectTests",
         "includeGitRepository",
+        "publishToConsole",
+        "consoleDepartmentId",
       ]),
     ) &&
     typeof value["outputFolderPath"] === "string" &&
     typeof value["versionSummary"] === "string" &&
     typeof value["includeVscodeSettings"] === "boolean" &&
     typeof value["includeProjectTests"] === "boolean" &&
-    typeof value["includeGitRepository"] === "boolean"
+    typeof value["includeGitRepository"] === "boolean" &&
+    typeof value["publishToConsole"] === "boolean" &&
+    typeof value["consoleDepartmentId"] === "string"
   );
 }
 
@@ -412,6 +424,15 @@ function isCreateProjectInitialData(value: unknown): value is DictCreateProjectI
   );
 }
 
+function isConsolePublishResult(value: unknown): value is ConsolePublishResult {
+  return (
+    isRecord(value) &&
+    Object.values(ConsolePublishStatus).some((status) => status === value["status"]) &&
+    typeof value["message"] === "string" &&
+    (value["packageId"] === null || typeof value["packageId"] === "string")
+  );
+}
+
 function isPackageProjectInitialData(
   value: unknown,
 ): value is DictPackageProjectInitialData {
@@ -430,6 +451,9 @@ function isPackageProjectInitialData(
     "blockingReasons",
     "warningMessages",
     "packageResult",
+    "consoleDepartments",
+    "consolePublishingMessage",
+    "consolePublishResult",
   ]);
   const setAllowedKey =
     value["notification"] === undefined
@@ -448,6 +472,16 @@ function isPackageProjectInitialData(
     typeof value["packageFileExists"] === "boolean" &&
     isStringArray(value["blockingReasons"]) &&
     isStringArray(value["warningMessages"]) &&
+    Array.isArray(value["consoleDepartments"]) &&
+    value["consoleDepartments"].every(
+      (entry: unknown) =>
+        isRecord(entry) &&
+        typeof entry["id"] === "string" &&
+        typeof entry["name"] === "string" &&
+        typeof entry["path"] === "string",
+    ) &&
+    typeof value["consolePublishingMessage"] === "string" &&
+    isConsolePublishResult(value["consolePublishResult"]) &&
     (value["packageResult"] === null || isProjectPackageResult(value["packageResult"])) &&
     (value["notification"] === undefined ||
       isProjectManagerNotification(value["notification"]))
@@ -552,6 +586,7 @@ export function isMessage_WebviewToExtension(
     case "selectTargetFolder":
     case "openPackageProjectManifest":
     case "revealProjectPackage":
+    case "retryConsolePublish":
     case "openManageComponents":
     case "runPublishComponent":
     case "refreshPublishComponent":

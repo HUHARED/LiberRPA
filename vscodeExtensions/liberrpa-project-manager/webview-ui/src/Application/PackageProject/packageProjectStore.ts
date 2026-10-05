@@ -9,6 +9,11 @@ import type {
   DictPackageProjectInput,
   DictProjectPackageResult,
 } from "../../Domain/Project/projectTypes";
+import {
+  ConsolePublishStatus,
+  type ConsolePublishDepartment,
+  type ConsolePublishResult,
+} from "../../Domain/Console/consoleTypes";
 
 export const usePackageProjectStore = defineStore("packageProject", {
   state: () => ({
@@ -21,6 +26,17 @@ export const usePackageProjectStore = defineStore("packageProject", {
     includeVscodeSettings: false,
     includeProjectTests: false,
     includeGitRepository: false,
+
+    publishToConsole: false,
+    consoleDepartmentId: "",
+    consoleDepartments: [] as ConsolePublishDepartment[],
+    consolePublishingMessage: "",
+    consolePublishResult: {
+      status: ConsolePublishStatus.NotRequested,
+      message: "",
+      packageId: null,
+    } as ConsolePublishResult,
+
     packageFileName: null as string | null,
     packageFileExists: false,
 
@@ -40,6 +56,13 @@ export const usePackageProjectStore = defineStore("packageProject", {
       this.includeVscodeSettings = initialData.input.includeVscodeSettings;
       this.includeProjectTests = initialData.input.includeProjectTests;
       this.includeGitRepository = initialData.input.includeGitRepository;
+
+      this.publishToConsole = initialData.input.publishToConsole;
+      this.consoleDepartmentId = initialData.input.consoleDepartmentId;
+      this.consoleDepartments = initialData.consoleDepartments;
+      this.consolePublishingMessage = initialData.consolePublishingMessage;
+      this.consolePublishResult = initialData.consolePublishResult;
+
       this.packageFileName = initialData.packageFileName;
       this.packageFileExists = initialData.packageFileExists;
 
@@ -55,6 +78,8 @@ export const usePackageProjectStore = defineStore("packageProject", {
         includeVscodeSettings: this.includeVscodeSettings,
         includeProjectTests: this.includeProjectTests,
         includeGitRepository: this.includeGitRepository,
+        publishToConsole: this.publishToConsole,
+        consoleDepartmentId: this.consoleDepartmentId,
       };
     },
   },

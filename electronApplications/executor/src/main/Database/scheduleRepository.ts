@@ -58,6 +58,7 @@ export function dbSelectScheduleDetail(name: string): Dict_Detail_Schedule | und
           s.period_start_ms,
           s.period_end_ms,
           s.enable,
+          s.retry_count,
           s.timeout_min,
           s.builtin_log_level,
           s.builtin_record_video,
@@ -88,10 +89,12 @@ export function dbSelectScheduleRunDetail(
       `
       SELECT
           s.name AS schedule_name,
+          s.run_conflict_policy,
           s.project_id AS id,
           p.name AS name,
           p.version AS version,
           p.python_environment_name,
+          s.retry_count,
           s.timeout_min,
           s.builtin_log_level,
           s.builtin_record_video,
@@ -126,6 +129,7 @@ export function dbInsertSchedule(detailDict: Dict_ScheduleCreate): void {
               period_start_ms,
               period_end_ms,
               enable,
+              retry_count,
               timeout_min,
               builtin_log_level,
               builtin_record_video,
@@ -136,7 +140,7 @@ export function dbInsertSchedule(detailDict: Dict_ScheduleCreate): void {
               updated_at_ms
           )
       VALUES
-          (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+          (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
       `,
     )
     .run(
@@ -147,6 +151,7 @@ export function dbInsertSchedule(detailDict: Dict_ScheduleCreate): void {
       detailDict.period_start_ms,
       detailDict.period_end_ms,
       detailDict.enable ? 1 : 0,
+      detailDict.retry_count,
       detailDict.timeout_min,
       detailDict.builtin_log_level,
       detailDict.builtin_record_video ? 1 : 0,
@@ -173,6 +178,7 @@ export function dbUpdateSchedule(detailDict: Dict_ScheduleUpdate): void {
           period_start_ms = ?,
           period_end_ms = ?,
           enable = ?,
+          retry_count = ?,
           timeout_min = ?,
           builtin_log_level = ?,
           builtin_record_video = ?,
@@ -192,6 +198,7 @@ export function dbUpdateSchedule(detailDict: Dict_ScheduleUpdate): void {
       detailDict.period_start_ms,
       detailDict.period_end_ms,
       detailDict.enable ? 1 : 0,
+      detailDict.retry_count,
       detailDict.timeout_min,
       detailDict.builtin_log_level,
       detailDict.builtin_record_video ? 1 : 0,
@@ -208,4 +215,19 @@ export function dbDeleteSchedule(id: number): void {
   loggerMain.debug("--dbDeleteSchedule--");
   const result = getDatabase().prepare("DELETE FROM schedule WHERE id = ?;").run(id);
   ensureSingleRowAffected(result, `Delete Schedule ID ${id}`);
+}
+
+export function dbSetScheduleEnabled(id: number, enable: boolean): void {
+  const result = getDatabase()
+    .prepare(
+      `
+      UPDATE schedule
+      SET
+          enable = ?,
+          updated_at_ms = ?
+      WHERE
+          id = ?
+      `)
+    .run(enable ? 1 : 0, Date.now(), id);
+  ensureSingleRowAffected(result, `Set Schedule ${id} enabled`);
 }

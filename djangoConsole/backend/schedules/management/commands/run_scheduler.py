@@ -1,0 +1,82 @@
+# FileName: run_scheduler.py
+__author__ = "Jiyan Hu"
+__email__ = "mailwork.hu@gmail.com"
+__license__ = "GNU Affero General Public License v3.0 or later"
+__copyright__ = f"Copyright (C) 2025 {__author__}"
+
+import logging
+from threading import Event
+
+from django.core.management.base import BaseCommand, CommandError, CommandParser
+from django.db import DatabaseError
+from django.core.exceptions import ValidationError
+from django.utils import timezone
+
+from console_project.workers import (
+    hold_worker_session,
+    stop_on_signals,
+    WorkerAlreadyRunningError,
+    SCHEDULE_WORKER_LOCK_ID,
+)
+from runs.services import _require_control_service
+from schedules.worker import get_recovery_boundary, scan_schedules
+
+_LOGGER = logging.getLogger("console.scheduler")
+
+
+class Command(BaseCommand):
+    help = (
+        "Trigger Console Schedules using their saved time zones and independent settings."
+    )
+    requires_migrations_checks = True
+
+    def add_arguments(self, parser: CommandParser) -> None:
+        parser.add_argument(
+            "--once", action="store_true", help="Process one bounded scan and exit."
+        )
+
+    def handle(self, *_args: object, **options: object) -> None:
+        stopEvent = Event()
+        try:
+            with (
+                stop_on_signals(stopEvent),
+                hold_worker_session(
+                    lockId=SCHEDULE_WORKER_LOCK_ID, workerName="scheduler"
+                ),
+            ):
+                recoveryFrom = recoveryUntil = None
+                boolInitialized = False
+                _LOGGER.info("Schedule worker started.")
+                while not stopEvent.is_set():
+                    try:
+                        control = _require_control_service(timezone.now())
+                        boolReady = (
+                            control.recovery_until is None
+                            or control.recovery_until <= timezone.now()
+                        )
+                    except ValidationError:
+                        boolReady = False
+                    if not boolReady:
+                        boolInitialized = False
+                        if options["once"]:
+                            _LOGGER.info(
+                                "Schedule triggers are waiting for run control recovery."
+                            )
+                            break
+                        stopEvent.wait(0.5)
+                        continue
+                    if not boolInitialized:
+                        recoveryFrom, recoveryUntil = get_recovery_boundary()
+                        boolInitialized = True
+                    boolMore = scan_schedules(
+                        recoveryFrom=recoveryFrom, recoveryUntil=recoveryUntil
+                    )
+                    if not boolMore:
+                        recoveryFrom = None
+                        recoveryUntil = None
+                    if options["once"]:
+                        break
+                    stopEvent.wait(0.01 if boolMore else 0.5)
+        except (WorkerAlreadyRunningError, DatabaseError) as e:
+            raise CommandError("Schedule worker stopped: " + type(e).__name__) from None
+        _LOGGER.info("Schedule worker stopped.")

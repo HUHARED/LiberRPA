@@ -37,6 +37,64 @@ export function createAppRouter(history: RouterHistory = createWebHistory()): Ro
         meta: { title: "Sign In", public: true },
       },
       {
+        path: "/packages",
+        name: "packages",
+        component: () => import("@/views/packages/PackagesView.vue"),
+        meta: { title: "Packages", requiresBusiness: true },
+      },
+      {
+        path: "/packages/:packageId",
+        name: "package-details",
+        component: () => import("@/views/packages/PackageDetailsView.vue"),
+        props: true,
+        meta: { title: "Package Details", requiresBusiness: true },
+      },
+      {
+        path: "/schedules",
+        name: "schedules",
+        component: () => import("@/views/schedules/SchedulesView.vue"),
+        meta: { title: "Schedules", requiresBusiness: true },
+      },
+      {
+        path: "/schedules/:scheduleId",
+        name: "schedule-details",
+        component: () => import("@/views/schedules/ScheduleDetailsView.vue"),
+        props: true,
+        meta: { title: "Schedule Details", requiresBusiness: true },
+      },
+      {
+        path: "/jobs",
+        name: "job-queue",
+        component: () => import("@/views/runs/JobQueueView.vue"),
+        meta: { title: "Job Queue", requiresBusiness: true },
+      },
+      {
+        path: "/jobs/:jobId",
+        name: "job-details",
+        component: () => import("@/views/runs/JobDetailsView.vue"),
+        props: true,
+        meta: { title: "Job Details", requiresBusiness: true },
+      },
+      {
+        path: "/runs",
+        name: "run-history",
+        component: () => import("@/views/runs/RunHistoryView.vue"),
+        meta: { title: "Run History", requiresBusiness: true },
+      },
+      {
+        path: "/runs/:runId",
+        name: "run-details",
+        component: () => import("@/views/runs/RunDetailsView.vue"),
+        props: true,
+        meta: { title: "Run Details", requiresBusiness: true },
+      },
+      {
+        path: "/verify-run-email/",
+        name: "verify-run-email",
+        component: () => import("@/views/accounts/VerifyRunEmailView.vue"),
+        meta: { title: "Run Email Verification", public: true },
+      },
+      {
         path: "/overview",
         name: "overview",
         component: () => import("../views/OverviewView.vue"),
@@ -100,7 +158,8 @@ export function createAppRouter(history: RouterHistory = createWebHistory()): Ro
           {
             path: ":groupId",
             name: "executor-group-details",
-            component: () => import("@/components/executors/ExecutorGroupDetailsDialog.vue"),
+            component: () =>
+              import("@/components/executors/ExecutorGroupDetailsDialog.vue"),
             props: true,
             meta: { title: "Group Details" },
           },
@@ -124,6 +183,12 @@ export function createAppRouter(history: RouterHistory = createWebHistory()): Ro
           requiresOrgAdmin: true,
         },
         children: [
+          {
+            path: "run-email-recipients",
+            name: "run-email-recipients",
+            component: () => import("@/views/organizations/RunEmailRecipientsView.vue"),
+            meta: { title: "Run Email Recipients" },
+          },
           {
             path: "general",
             name: "organization-general",
@@ -229,6 +294,12 @@ export function createAppRouter(history: RouterHistory = createWebHistory()): Ro
         return { name: "overview" };
     }
     return true;
+  });
+
+  router.afterEach((to, _from, failure) => {
+    if (failure) return;
+    const strTitle = typeof to.meta.title === "string" ? to.meta.title : "";
+    document.title = strTitle ? `${strTitle} - LiberRPA Console` : "LiberRPA Console";
   });
 
   return router;

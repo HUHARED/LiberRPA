@@ -5,6 +5,7 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from datetime import datetime
+from enum import StrEnum
 from typing import Annotated, Literal
 from uuid import UUID
 
@@ -74,9 +75,22 @@ class AssetListResponse(JsonResponsePayload):
     total_pages: int
 
 
+class AssetReferenceKind(StrEnum):
+    PACKAGE = "package"
+    SCHEDULE = "schedule"
+
+
+class AssetReferenceResponse(JsonResponsePayload):
+    kind: AssetReferenceKind
+    id: UUID
+    name: str
+    version: str | None = None
+
+
 class AssetDetailsEntryResponse(AssetEntryResponse):
     # Secret values are omitted from the payload, including both Credential fields.
     value: JsonValue = None
+    references: list[AssetReferenceResponse] = Field(default_factory=list)
 
 
 class AssetDetailsResponse(JsonResponsePayload):

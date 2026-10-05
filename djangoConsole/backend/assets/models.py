@@ -37,7 +37,9 @@ class Asset(models.Model):
     # NOTE: Name writes must update this key through the business service.
     name_key = models.TextField(editable=False, db_collation="C")
     asset_type = models.CharField(
-        max_length=16, choices=AssetType.choices, editable=False
+        max_length=max(len(value) for value in AssetType.values),
+        choices=AssetType.choices,
+        editable=False,
     )
     notes = models.TextField(
         blank=True,

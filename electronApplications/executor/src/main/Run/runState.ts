@@ -5,6 +5,7 @@ import fs from "fs";
 import path from "path";
 
 import { getErrorMessage } from "../../shared/error";
+import type { RunOutputs } from "../../shared/run";
 import { isProcessRunning } from "../Common/process";
 import {
   ensureExactRecord,
@@ -27,6 +28,8 @@ export interface ExecutorRunState {
   logPath: string;
   status: Str_ExecutorRunState_Status;
   endedAt?: string;
+  outputs?: RunOutputs;
+  errorSummary?: { type: string; message: string } | null;
 }
 
 const INT_INITIAL_RUN_STATE_INTERVAL_MS = 250;
@@ -42,7 +45,12 @@ const ARR_RUNNING_RUN_STATE_KEY = [
   "logPath",
   "status",
 ] as const;
-const ARR_FINAL_RUN_STATE_KEY = [...ARR_RUNNING_RUN_STATE_KEY, "endedAt"] as const;
+const ARR_FINAL_RUN_STATE_KEY = [
+  ...ARR_RUNNING_RUN_STATE_KEY,
+  "endedAt",
+  "outputs",
+  "errorSummary",
+] as const;
 
 const strExecutorRunStateFolderPath = path.join(
   strDocumentsFolderPath,
@@ -173,6 +181,60 @@ export function readExecutorRunState({
     logPath: strLogPath,
     status,
     endedAt: strEndedAt,
+    outputs: readRunOutputs(dictState.outputs),
+    errorSummary: readErrorSummary(dictState.errorSummary),
+  };
+}
+
+function readRunOutputs(value: unknown): RunOutputs {
+  try {
+    return parseRunOutputs(value);
+  } catch {
+    return {
+      status: "unavailable",
+      values: null,
+      unavailableKeys: [],
+      reason: "Python returned an invalid or oversized output snapshot.",
+    };
+  }
+}
+
+function readErrorSummary(value: unknown): { type: string; message: string } | null {
+  try {
+    return parseErrorSummary(value);
+  } catch {
+    return null;
+  }
+}
+
+function parseRunOutputs(value: unknown): RunOutputs {
+  const dictValue = ensureRecord(value, "Run outputs");
+  if (
+    !["complete", "partial", "unavailable"].includes(String(dictValue.status)) ||
+    !Array.isArray(dictValue.unavailableKeys) ||
+    !dictValue.unavailableKeys.every((item) => typeof item === "string")
+  ) {
+    throw new Error("Invalid Run outputs status or unavailable keys.");
+  }
+  if (Buffer.byteLength(JSON.stringify(value), "utf8") > 80 * 1024)
+    throw new Error("Run outputs exceed the snapshot limit.");
+  return {
+    status: dictValue.status as RunOutputs["status"],
+    values:
+      dictValue.values === null
+        ? null
+        : ensureRecord(dictValue.values, "Run output values"),
+    unavailableKeys: dictValue.unavailableKeys as string[],
+    reason: ensureString(dictValue.reason, "Run outputs reason"),
+  };
+}
+
+function parseErrorSummary(value: unknown): { type: string; message: string } | null {
+  if (value === null) return null;
+  const dictValue = ensureRecord(value, "Run error summary");
+  return {
+    type: ensureString(dictValue.type, "Run error type"),
+    message: ensureString(dictValue.message, "Run error message"),
   };
 }
 

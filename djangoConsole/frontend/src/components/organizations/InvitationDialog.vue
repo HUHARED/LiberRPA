@@ -7,13 +7,15 @@
     max-width="720"
     aria-labelledby="invitation-title">
     <v-card>
-      <v-card-title id="invitation-title">{{
-        action === "view"
-          ? "Invitation Details"
-          : action === "resend"
-            ? "Resend Invitation"
-            : "Revoke Invitation"
-      }}</v-card-title>
+      <v-card-title id="invitation-title">
+        {{
+          action === "view"
+            ? "Invitation Details"
+            : action === "resend"
+              ? "Resend Invitation"
+              : "Revoke Invitation"
+        }}
+      </v-card-title>
       <v-card-text>
         <v-progress-linear
           v-if="boolLoading"
@@ -81,14 +83,16 @@
                       {{ assignment.department_path }}
                     </RouterLink>
                     <span v-else>{{ assignment.department_path }} (Deleted)</span>
-                    <span class="text-capitalize"> — {{ assignment.role }}</span>
+                    <span class="text-capitalize">— {{ assignment.role }}</span>
                   </li>
                 </ul>
-                <template v-else>{{
-                  invitationInfo.is_org_admin
-                    ? "No explicit department roles; all departments are accessible."
-                    : "No department access."
-                }}</template>
+                <template v-else>
+                  {{
+                    invitationInfo.is_org_admin
+                      ? "No explicit department roles; all departments are accessible."
+                      : "No department access."
+                  }}
+                </template>
               </dd>
             </div>
             <div class="full-width-field">
@@ -102,16 +106,16 @@
           </p>
           <v-alert v-if="action === 'resend'" type="warning" variant="tonal" class="mb-4">
             Resending requests a new email and invalidates the previous invitation link. The
-            assigned roles and Notes are kept.</v-alert
-          >
+            assigned roles and Notes are kept.
+          </v-alert>
           <v-alert
             v-else-if="action === 'revoke'"
             type="warning"
             variant="tonal"
             class="mb-4">
             Revoking invalidates this invitation link. It cannot remove an account that has
-            already accepted the invitation.</v-alert
-          >
+            already accepted the invitation.
+          </v-alert>
           <p v-if="action === 'resend' && intResendSeconds > 0">
             Resend is available in {{ intResendSeconds }} seconds.
           </p>

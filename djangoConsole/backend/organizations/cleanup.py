@@ -9,6 +9,7 @@ from dataclasses import dataclass
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 from django.views.decorators.debug import sensitive_variables
 
@@ -18,6 +19,9 @@ from assets.models import Asset
 from data_queues.models import DataQueue
 from file_storage.models import StoredBlob
 from shared_files.models import SharedFile, UploadSession
+from packages.models import PackageUpload
+from runs.models import JobRequest
+from schedules.models import Schedule
 from operations.audit import record_audit
 from operations.models import AuditScope, AuditRecord
 from notifications.models import (
@@ -36,6 +40,46 @@ class OrganizationDeletionResult:
     organizationId: uuid.UUID
     deletedAccountCount: int
     queuedEmailCount: int
+
+
+def _lock_organization_deliveries(organizationId: uuid.UUID) -> list[uuid.UUID]:
+    """Lock delivery rows before the organization, matching the SMTP preparation order."""
+    return list(
+        EmailDelivery.objects
+        .select_for_update(of=("self",))
+        .filter(
+            Q(invitation__organization_id=organizationId)
+            | Q(run_reference__organization_id=organizationId)
+            | Q(runrecipientverification__recipient__organization_id=organizationId)
+        )
+        .order_by("id")
+        .values_list("id", flat=True)
+    )
+
+
+@transaction.atomic(durable=True)
+def prepare_organization_execution_cleanup(organizationId: uuid.UUID) -> None:
+    """Retire pending business mail before deleting its execution facts and references."""
+    listDeliveryId = _lock_organization_deliveries(organizationId)
+    organization = (
+        Organization.objects.select_for_update().filter(pk=organizationId).first()
+    )
+    if organization is None:
+        return
+    if organization.deletion_started_at is None:
+        raise ValidationError(
+            "Organization cleanup has not started.", code="deletion_not_started"
+        )
+    EmailDelivery.objects.filter(
+        pk__in=listDeliveryId, status=EmailStatus.PENDING
+    ).update(
+        status=EmailStatus.NOT_SENT,
+        finished_at=timezone.now(),
+        reason_code=EmailReasonCode.ORGANIZATION_DELETED,
+    )
+    # Schedule protects Package; assignments protect Executor; Jobs protect Department.
+    Schedule.objects.filter(department__organization_id=organizationId).delete()
+    JobRequest.objects.filter(organization_id=organizationId).delete()
 
 
 def _delete_organization_departments(organizationId: uuid.UUID) -> None:
@@ -100,13 +144,7 @@ def complete_organization_deletion(
     """
     # NOTE: Match the email worker's delivery-before-organization lock order.
     # The committed start and business freeze prevent new invitation deliveries.
-    listDeliveryId = list(
-        EmailDelivery.objects
-        .select_for_update(of=("self",))
-        .filter(invitation__organization_id=organizationId)
-        .order_by("id")
-        .values_list("id", flat=True)
-    )
+    listDeliveryId = _lock_organization_deliveries(organizationId)
     organization = (
         Organization.objects.select_for_update().filter(pk=organizationId).first()
     )
@@ -123,6 +161,7 @@ def complete_organization_deletion(
         )
     SharedFile.objects.filter(department__organization_id=organizationId).delete()
     UploadSession.objects.filter(organization_id=organizationId).delete()
+    PackageUpload.objects.filter(organization_id=organizationId).delete()
 
     strOrganizationName = organization.name
     listAccount = list(
@@ -152,7 +191,6 @@ def complete_organization_deletion(
     # Account deletion cascades memberships, department roles, API keys, and private recovery/change proofs.
     User.objects.filter(pk__in=[userId for userId, _strEmail in listAccount]).delete()
     _delete_organization_departments(organizationId)
-    # TODO: Remove new business resources here when their models are implemented, before queuing completion notices.
     AuditRecord.objects.filter(
         scope=AuditScope.ORGANIZATION, organization_id=organizationId
     ).delete()

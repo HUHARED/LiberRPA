@@ -9,8 +9,7 @@
         icon="mdi-refresh"
         variant="text"
         :disabled="projectManagerStore.busy"
-        @click="refresh">
-      </v-btn>
+        @click="refresh"></v-btn>
     </v-card-title>
 
     <v-card-subtitle class="px-5 pb-2">
@@ -150,14 +149,13 @@
             class="mt-4"
             label="Version summary"
             placeholder="Summarize the changes in this version"
-            hint="Optional. Stored only in the generated Package."
+            hint="Optional. Up to 500 characters on one line, without surrounding whitespace."
             persistent-hint
             variant="outlined"
             density="comfortable"
             :error-messages="
               versionSummaryError === undefined ? [] : [versionSummaryError]
-            ">
-          </v-text-field>
+            "></v-text-field>
 
           <v-divider class="my-3"></v-divider>
 
@@ -172,20 +170,17 @@
             v-model="packageProjectStore.includeVscodeSettings"
             label="Include VS Code settings (.vscode)"
             density="comfortable"
-            hide-details>
-          </v-checkbox>
+            hide-details></v-checkbox>
           <v-checkbox
             v-model="packageProjectStore.includeProjectTests"
             label="Include test and verification files (_Test)"
             density="comfortable"
-            hide-details>
-          </v-checkbox>
+            hide-details></v-checkbox>
           <v-checkbox
             v-model="packageProjectStore.includeGitRepository"
             label="Include Git repository and history (.git)"
             density="comfortable"
-            hide-details>
-          </v-checkbox>
+            hide-details></v-checkbox>
 
           <v-alert
             v-if="packageProjectStore.includeGitRepository"
@@ -194,6 +189,72 @@
             class="mt-3">
             The .git entry may be large and may contain remote URLs, complete history and
             content that was deleted from the current Project.
+          </v-alert>
+        </v-card-text>
+      </v-card>
+
+      <v-card variant="outlined" class="mb-4">
+        <v-card-title class="text-subtitle-1">Console publishing</v-card-title>
+        <v-card-text>
+          <v-switch
+            v-model="packageProjectStore.publishToConsole"
+            label="Publish to Console"
+            color="primary"
+            :disabled="projectManagerStore.busy || packageCreated"
+            hide-details></v-switch>
+          <div class="text-body-2 text-medium-emphasis mb-3">
+            Create the local Package first, then upload it to the selected department. The
+            local file remains available if publishing fails.
+          </div>
+          <template v-if="packageProjectStore.publishToConsole">
+            <v-alert
+              v-if="packageProjectStore.consolePublishingMessage"
+              type="warning"
+              variant="tonal"
+              class="mb-3">
+              {{ packageProjectStore.consolePublishingMessage }}
+              Use the Console command to manage your account, then refresh this page.
+            </v-alert>
+            <v-select
+              v-model="packageProjectStore.consoleDepartmentId"
+              :items="packageProjectStore.consoleDepartments"
+              item-title="path"
+              item-value="id"
+              label="Publishing department"
+              variant="outlined"
+              density="comfortable"
+              :disabled="projectManagerStore.busy || packageCreated"
+              hide-details></v-select>
+          </template>
+          <v-alert
+            v-if="
+              packageProjectStore.consolePublishResult.status !==
+              ConsolePublishStatus.NotRequested
+            "
+            :type="
+              packageProjectStore.consolePublishResult.status ===
+              ConsolePublishStatus.Failed
+                ? 'warning'
+                : packageProjectStore.consolePublishResult.status ===
+                    ConsolePublishStatus.Completed
+                  ? 'success'
+                  : 'info'
+            "
+            variant="tonal"
+            class="mt-3">
+            {{ packageProjectStore.consolePublishResult.message }}
+            <v-btn
+              v-if="
+                packageProjectStore.consolePublishResult.status ===
+                ConsolePublishStatus.Failed
+              "
+              class="mt-2"
+              variant="tonal"
+              size="small"
+              :disabled="projectManagerStore.busy"
+              @click="retryConsolePublish">
+              Retry upload
+            </v-btn>
           </v-alert>
         </v-card-text>
       </v-card>
@@ -291,7 +352,8 @@ import { computed } from "vue";
 import { postMessage } from "../Adapter/Extension/vscodeApi";
 import { usePackageProjectStore } from "../Application/PackageProject/packageProjectStore";
 import { useProjectManagerStore } from "../Application/projectManagerStore";
-import { getOptionalSingleLineTextError } from "../Domain/Project/projectValidation";
+import { getVersionSummaryError } from "../Domain/Project/projectValidation";
+import { ConsolePublishStatus } from "../Domain/Console/consoleTypes";
 
 const projectManagerStore = useProjectManagerStore();
 const packageProjectStore = usePackageProjectStore();
@@ -318,7 +380,7 @@ const resolvedComponentCount = computed(
 );
 const packageCreated = computed(() => packageProjectStore.packageResult !== null);
 const versionSummaryError = computed(() =>
-  getOptionalSingleLineTextError(packageProjectStore.versionSummary, "Version summary"),
+  getVersionSummaryError(packageProjectStore.versionSummary),
 );
 const canPackage = computed(
   () =>
@@ -327,7 +389,11 @@ const canPackage = computed(
     packageProjectStore.packageFileName !== null &&
     !packageProjectStore.packageFileExists &&
     versionSummaryError.value === undefined &&
-    packageProjectStore.blockingReasons.length === 0,
+    packageProjectStore.blockingReasons.length === 0 &&
+    (!packageProjectStore.publishToConsole ||
+      packageProjectStore.consoleDepartments.some(
+        (department) => department.id === packageProjectStore.consoleDepartmentId,
+      )),
 );
 
 function getStateColor(state: string): string | undefined {
@@ -373,6 +439,12 @@ function packageProject(): void {
   }
 }
 
+function retryConsolePublish(): void {
+  if (!projectManagerStore.busy) {
+    postMessage({ command: "retryConsolePublish" });
+  }
+}
+
 function refresh(): void {
   if (!projectManagerStore.busy) {
     postMessage({
@@ -406,3 +478,5 @@ function close(): void {
   }
 }
 </script>
+
+<style scoped></style>

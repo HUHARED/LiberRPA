@@ -36,6 +36,44 @@
           <p v-if="boolConfirmDelete" class="mb-4">
             Delete "{{ asset.path }}"? This permanently removes the asset and its value.
           </p>
+          <v-alert v-if="boolConfirmDelete" type="warning" variant="tonal" class="mb-4">
+            Future Jobs that need this asset will fail to read it. Inputs for Jobs already
+            created remain unchanged. Check any references in your flow code as well.
+          </v-alert>
+          <v-table v-if="boolConfirmDelete && asset.references?.length" class="mb-4">
+            <thead>
+              <tr>
+                <th>Referenced By</th>
+                <th>Version</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="reference in asset.references"
+                :key="`${reference.kind}:${reference.id}`">
+                <td>
+                  <RouterLink
+                    :to="{
+                      name:
+                        reference.kind === 'package'
+                          ? 'package-details'
+                          : 'schedule-details',
+                      params:
+                        reference.kind === 'package'
+                          ? { packageId: reference.id }
+                          : { scheduleId: reference.id },
+                    }"
+                    target="_blank"
+                    rel="noopener">
+                    {{ reference.name }}
+                  </RouterLink>
+                </td>
+                <td>{{ reference.version || "—" }}</td>
+                <td>{{ reference.kind === "package" ? "Package" : "Schedule" }}</td>
+              </tr>
+            </tbody>
+          </v-table>
           <dl class="detail-fields">
             <div>
               <dt>Name</dt>
@@ -82,7 +120,6 @@
               rows="3"
               readonly
               hide-details />
-            <!-- TODO: Show authorized Package/Schedule bindings when their models exist; dynamic code references cannot be enumerated. -->
           </template>
         </template>
       </v-card-text>
@@ -147,7 +184,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
-import { useRoute } from "vue-router";
+import { RouterLink, useRoute } from "vue-router";
 
 import AssetFormDialog from "./AssetFormDialog.vue";
 

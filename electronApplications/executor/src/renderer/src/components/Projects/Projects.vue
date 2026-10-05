@@ -32,8 +32,7 @@
           mandatory
           density="compact"
           variant="flat"
-          @update:activated="clickNewProjectItem($event as string[])">
-        </v-list>
+          @update:activated="clickNewProjectItem($event as string[])"></v-list>
       </v-container>
 
       <VerticalDivider />
@@ -65,7 +64,7 @@
         fluid
         class="clean-space fill-height flex-column"
         style="flex: 1; min-width: 0px">
-        <v-label class="header-label column-header"> Details </v-label>
+        <v-label class="header-label column-header">Details</v-label>
 
         <!-- The data area. -->
         <v-container
@@ -139,6 +138,30 @@
           </v-row>
         </v-container>
 
+        <v-dialog v-model="boolShowRunDialog" max-width="800" persistent scrollable>
+          <v-card v-if="runSettings" title="Run Now">
+            <v-card-text>
+              <v-select
+                v-model="runSettings.python_environment_name"
+                label="Python Environment"
+                :items="projectStore.arrPythonEnvironmentName" />
+              <BuiltInRunOptions
+                v-model:retry-count="runSettings.retry_count"
+                v-model:timeout-min="runSettings.timeout_min"
+                v-model:log-level="runSettings.builtin_log_level"
+                v-model:record-video="runSettings.builtin_record_video"
+                v-model:stop-shortcut="runSettings.builtin_stop_shortcut"
+                v-model:highlight-ui="runSettings.builtin_highlight_ui" />
+              <CustomArgumentsEditor v-model:custom-args="runSettings.custom_prj_args" />
+            </v-card-text>
+            <v-card-actions>
+              <v-spacer />
+              <v-btn @click="boolShowRunDialog = false">Cancel</v-btn>
+              <v-btn color="primary" @click="submitRun">Run</v-btn>
+            </v-card-actions>
+          </v-card>
+        </v-dialog>
+
         <DeleteProjectDialog @deleted="resetProjectSelection" />
       </v-container>
     </v-container>
@@ -150,7 +173,10 @@ import DeleteProjectDialog from "./DeleteProjectDialog.vue";
 import ProjectMetadata from "./ProjectMetadata.vue";
 import ProjectRunSettings from "./ProjectRunSettings.vue";
 import CustomArgumentsEditor from "../RunOptions/CustomArgumentsEditor.vue";
+import BuiltInRunOptions from "../RunOptions/BuiltInRunOptions.vue";
 import VerticalDivider from "../Common/VerticalDivider.vue";
+import { cloneJsonSerializable } from "../../Common/json";
+import type { Dict_ProjectSettingsUpdate } from "../../../../shared/project";
 
 import { onBeforeMount, onBeforeUnmount, ref, watch } from "vue";
 import { debounce } from "lodash";
@@ -162,6 +188,25 @@ import { useRunHistoryStore } from "../../Store/runHistoryStore";
 
 const projectStore = useProjectStore();
 const runHistoryStore = useRunHistoryStore();
+const boolShowRunDialog = ref(false);
+const runSettings = ref<Dict_ProjectSettingsUpdate>();
+async function submitRun(): Promise<void> {
+  if (!runSettings.value) return;
+  const detail = runSettings.value;
+  await invokeMain("runProject", {
+    id: detail.id,
+    python_environment_name: detail.python_environment_name,
+    retry_count: detail.retry_count,
+    timeout_min: detail.timeout_min,
+    builtin_log_level: detail.builtin_log_level,
+    builtin_record_video: detail.builtin_record_video,
+    builtin_stop_shortcut: detail.builtin_stop_shortcut,
+    builtin_highlight_ui: detail.builtin_highlight_ui,
+    custom_prj_args: cloneJsonSerializable(detail.custom_prj_args),
+  });
+  boolShowRunDialog.value = false;
+  await runHistoryStore.refreshRunHistory();
+}
 
 const strName = ref("");
 const strVersion = ref("");
@@ -281,8 +326,8 @@ async function openDeleteDialog(): Promise<void> {
 async function runProject(): Promise<void> {
   loggerRenderer.debug("--runProject--");
   if (projectStore.dictDetailEdit) {
-    await invokeMain("runProject", projectStore.dictDetailEdit.id);
-    await runHistoryStore.refreshRunHistory();
+    runSettings.value = cloneJsonSerializable(projectStore.dictDetailEdit);
+    boolShowRunDialog.value = true;
   }
 }
 </script>

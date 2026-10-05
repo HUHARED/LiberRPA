@@ -22,6 +22,8 @@ from organizations.permissions import (
 
 from .access import require_executor_management
 from .models import Executor, ExecutorGroupMember, ExecutorSession
+from runs.models import Assignment, AssignmentState, Job, JobState
+from schedules.models import Schedule
 
 # NOTE: Call these writes with freshly locked Session access inside the caller's transaction.
 
@@ -127,7 +129,7 @@ def set_executor_dispatch(
         channel=access.channel,
         before=dictAuditBefore,
     )
-    # TODO: New central permits must check this switch; pausing must not stop active Runs or clear Waiting Jobs.
+    # The shared permit service checks this switch without changing accepted Waiting Jobs.
     return executor
 
 
@@ -146,7 +148,31 @@ def delete_executor(
             "Remove this Executor from its groups before deleting it.",
             code="executor_group_reference",
         )
-    # TODO: Check Schedule/current-work references when those models are added.
+    if (
+        Schedule.objects.filter(
+            deleted_at__isnull=True, executor_ids__contains=[str(executor.pk)]
+        ).exists()
+        or Job.objects
+        .filter(target_executor_id=executor.pk)
+        .exclude(state=JobState.FINISHED)
+        .exists()
+        or Assignment.objects
+        .filter(
+            executor=executor,
+            state__in=[
+                AssignmentState.PREPARING,
+                AssignmentState.PERMITTED,
+                AssignmentState.RUNNING,
+                AssignmentState.REVIEW,
+            ],
+        )
+        .exclude(job__state=JobState.FINISHED)
+        .exists()
+    ):
+        raise ValidationError(
+            "Remove referencing Schedules and resolve unfinished work before deleting this Executor.",
+            code="executor_work_reference",
+        )
     # Reference creation must share this organization lock; retained history must not block deletion.
     ExecutorSession.objects.filter(executor=executor).delete()
     executor.deleted_at = timezone.now()
@@ -184,6 +210,9 @@ def unassociate_executor(
             target=executor,
             channel=access.channel,
         )
+        sessionId = session.pk
         session.delete()
-    # TODO: Reconcile associated unfinished work without claiming that remote processes stopped.
+        from runs.services import reconcile_revoked_sessions
+
+        reconcile_revoked_sessions([sessionId])
     return executor

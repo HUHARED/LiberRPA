@@ -15,6 +15,7 @@ export type JsonValueInput =
   | number
   | boolean
   | null;
+export type AssetReferenceKind = "package" | "schedule";
 export type JsonValueOutput =
   | {
       [k: string]: JsonValueOutput;
@@ -219,6 +220,7 @@ export interface AssetDetailsEntryResponse {
   name: string;
   notes: string;
   path: string;
+  references?: AssetReferenceResponse[];
   updated_at: string;
   value?:
     | {
@@ -234,6 +236,12 @@ export interface AssetDetailsEntryResponse {
 export interface AssetDepartmentResponse {
   id: string;
   path: string;
+}
+export interface AssetReferenceResponse {
+  id: string;
+  kind: AssetReferenceKind;
+  name: string;
+  version?: string | null;
 }
 export interface AssetListResponse {
   assets: AssetEntryResponse[];
@@ -342,7 +350,11 @@ export interface DepartmentDeletionBlockerResponse {
     | "assets"
     | "data_queues"
     | "shared_files"
-    | "file_uploads";
+    | "file_uploads"
+    | "packages"
+    | "package_uploads"
+    | "schedules"
+    | "active_jobs";
   count: number;
 }
 export interface DepartmentIdentityResponse {
@@ -420,6 +432,7 @@ export interface ExecutorDetailsEntryResponse {
   account: UserResponse | null;
   association_status: ExecutorAssociationStatus;
   can_manage: boolean;
+  central_running_count: number | null;
   computer: string | null;
   created_at: string;
   deleted_at: string | null;
@@ -429,8 +442,12 @@ export interface ExecutorDetailsEntryResponse {
   executor_groups: ExecutorGroupReferenceResponse[];
   id: string;
   last_seen_at: string | null;
+  last_work_reported_at: string | null;
+  local_running_count: number | null;
+  local_waiting_count: number | null;
   name: string;
   notes: string;
+  referencing_schedules: ExecutorScheduleReferenceResponse[];
   session_id: string | null;
   version: string | null;
 }
@@ -440,6 +457,11 @@ export interface ExecutorDepartmentResponse {
   path: string;
 }
 export interface ExecutorGroupReferenceResponse {
+  id: string;
+  name: string;
+}
+export interface ExecutorScheduleReferenceResponse {
+  enabled: boolean;
   id: string;
   name: string;
 }
@@ -483,6 +505,7 @@ export interface ExecutorGroupDetailsEntryResponse {
   name: string;
   notes: string;
   online_count: number;
+  referencing_schedules: ExecutorScheduleReferenceResponse[];
 }
 export interface ExecutorListEntryResponse {
   account: UserResponse | null;

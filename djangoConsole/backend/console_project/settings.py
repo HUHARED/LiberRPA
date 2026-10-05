@@ -72,6 +72,9 @@ INSTALLED_APPS = [
     "data_queues.apps.DataQueuesConfig",
     "file_storage.apps.FileStorageConfig",
     "shared_files.apps.SharedFilesConfig",
+    "packages.apps.PackagesConfig",
+    "schedules.apps.SchedulesConfig",
+    "runs.apps.RunsConfig",
     "operations.apps.OperationsConfig",
     "notifications.apps.NotificationsConfig",
 ]

@@ -5,13 +5,20 @@ import { randomUUID } from "crypto";
 import fs from "fs";
 
 import { getErrorMessage } from "../../shared/error";
+import {
+  type RunOutputs,
+  type Str_RunHistoryTerminalStatus,
+  RunSource,
+} from "../../shared/run";
 import { isProcessRunning } from "../Common/process";
 import { getEffectiveProjectLogFolderPath } from "../Config/executorConfig";
 import { getPythonEnvironmentPath } from "../Config/environment";
 import { dbInsertRunHistory, dbUpdateRunHistory } from "../Database/runHistoryRepository";
+import { getDatabase } from "../Database/connection";
+import { verifyPythonPackageEnvironment } from "../Console/packagePreparation";
 import { getExecutorPackageFolderPath } from "../FileSystem/executorFiles";
 import { loggerMain } from "../Logging/logger";
-import { notifyRunEnded, notifyRunActivityChanged } from "./lifecycle";
+import { notifyRunEnded, notifyRunActivityChanged, notifyRunFinished } from "./lifecycle";
 import {
   type Dict_PythonProcess_DiagnosticOutput,
   logPythonDiagnosticOutput,
@@ -28,14 +35,16 @@ import {
   removeExecutorRunStateFile,
   waitForExecutorRunStateAvailable,
 } from "./runState";
-import type { Dict_ProjectRun_Detail } from "./types";
+import type { Dict_ProjectRun_Detail, RunExecutionContext, RunEndedFact } from "./types";
+import { hasRecoveredRun } from "./recoveredRuns";
 
 type Str_ProjectRunTerminationReason = "cancel" | "shutdown" | "timeout";
-type Str_RunHistoryTerminalStatus = "cancel" | "completed" | "error" | "timeout";
 
 interface ActiveProjectRun {
   processPy: ChildProcessWithoutNullStreams;
   strRunId: string;
+  source: RunSource;
+  onStopping?: RunExecutionContext["onStopping"];
   terminationReason?: Str_ProjectRunTerminationReason;
   terminationPromise?: Promise<void>;
   boolForceTerminationRequired: boolean;
@@ -47,12 +56,13 @@ const mapActiveRunByRunId = new Map<string, ActiveProjectRun>();
 const mapStartingRunCountByProject = new Map<number, number>();
 const setStartingRunPromise = new Set<Promise<void>>();
 let intStartingRunCount = 0;
+let intStartingLocalRunCount = 0;
 let boolProjectRunShutdownStarted = false;
 let promiseConsoleAccountTransition: Promise<void> | undefined;
 let finishConsoleAccountTransition: (() => void) | undefined;
 
 export function hasActiveProjectRun(): boolean {
-  return intStartingRunCount !== 0 || mapActiveRunByRunId.size !== 0;
+  return intStartingRunCount !== 0 || mapActiveRunByRunId.size !== 0 || hasRecoveredRun();
 }
 
 export function beginConsoleAccountTransition(): void {
@@ -75,8 +85,9 @@ export function endConsoleAccountTransition(): void {
   promiseConsoleAccountTransition = undefined;
 }
 
-function addStartingRun(projectId: number): void {
+function addStartingRun(projectId: number, source: RunSource): void {
   intStartingRunCount += 1;
+  if (source === RunSource.Local) intStartingLocalRunCount += 1;
   mapStartingRunCountByProject.set(
     projectId,
     (mapStartingRunCountByProject.get(projectId) ?? 0) + 1,
@@ -84,8 +95,9 @@ function addStartingRun(projectId: number): void {
   notifyRunActivityChanged();
 }
 
-function removeStartingRun(projectId: number): void {
+function removeStartingRun(projectId: number, source: RunSource): void {
   intStartingRunCount -= 1;
+  if (source === RunSource.Local) intStartingLocalRunCount -= 1;
   const intProjectCount = mapStartingRunCountByProject.get(projectId);
   if (intProjectCount === undefined || intProjectCount <= 1) {
     mapStartingRunCountByProject.delete(projectId);
@@ -117,6 +129,7 @@ function requestProjectRunTermination(
   }
 
   activeRun.terminationReason = reason;
+  activeRun.onStopping?.(reason);
   if (!requestPythonTermination(activeRun.processPy, activeRun.strRunId)) {
     loggerMain.debug(
       `Python process ${activeRun.strRunId} cannot receive the termination message.`,
@@ -172,15 +185,18 @@ export async function shutdownProjectRuns(): Promise<void> {
   }
 }
 
-export function hasStartingRun(): boolean {
-  return intStartingRunCount !== 0;
-}
-
 export function isProjectRunStarting(projectId: number): boolean {
   return mapStartingRunCountByProject.has(projectId);
 }
 
-export async function pythonRun(detailDict: Dict_ProjectRun_Detail): Promise<void> {
+export async function pythonRun(
+  detailDict: Dict_ProjectRun_Detail,
+  context: RunExecutionContext = {
+    source: RunSource.Local,
+    jobId: randomUUID(),
+    attempt: 1,
+  },
+): Promise<void> {
   // Scheduled and manual launches wait without dropping work while a Console account change commits.
   if (promiseConsoleAccountTransition !== undefined) {
     await promiseConsoleAccountTransition;
@@ -190,26 +206,34 @@ export async function pythonRun(detailDict: Dict_ProjectRun_Detail): Promise<voi
     throw new Error("Executor is shutting down and cannot start a new Project Run.");
   }
 
-  addStartingRun(detailDict.id);
-  const promiseStartingRun = startProjectRun(detailDict);
+  addStartingRun(detailDict.id, context.source);
+  const promiseStartingRun = startProjectRun(structuredClone(detailDict), context);
   setStartingRunPromise.add(promiseStartingRun);
   try {
     await promiseStartingRun;
   } finally {
     setStartingRunPromise.delete(promiseStartingRun);
-    removeStartingRun(detailDict.id);
+    removeStartingRun(detailDict.id, context.source);
   }
 }
 
-async function startProjectRun(detailDict: Dict_ProjectRun_Detail): Promise<void> {
-  const strExecutorPackagePath = getExecutorPackageFolderPath(
-    detailDict.name,
-    detailDict.version,
-  );
+async function startProjectRun(
+  detailDict: Dict_ProjectRun_Detail,
+  context: RunExecutionContext,
+): Promise<void> {
+  const strExecutorPackagePath =
+    context.packagePath ??
+    getExecutorPackageFolderPath(detailDict.name, detailDict.version);
 
   if (!fs.existsSync(strExecutorPackagePath)) {
     throw new Error(`Installed Project folder does not exist: ${strExecutorPackagePath}`);
   }
+
+  if (context.source === RunSource.Local)
+    await verifyPythonPackageEnvironment(
+      strExecutorPackagePath,
+      detailDict.python_environment_name,
+    );
 
   const strPythonEnvironmentPath = getPythonEnvironmentPath(
     detailDict.python_environment_name,
@@ -218,10 +242,11 @@ async function startProjectRun(detailDict: Dict_ProjectRun_Detail): Promise<void
     `Use Python environment '${detailDict.python_environment_name}' for ${detailDict.name}-${detailDict.version}.`,
   );
 
-  const strRunId = randomUUID();
+  const strRunId = context.runId ?? randomUUID();
   const strStartedAt = new Date().toISOString();
   const strProjectLogRootPath = getEffectiveProjectLogFolderPath();
   const strRunStatePath = createExecutorRunStatePath(strRunId);
+  context.beforeSpawn?.();
   const { processPy, diagnosticOutput, getProcessError } = spawnProjectPythonProcess({
     detail: detailDict,
     packagePath: strExecutorPackagePath,
@@ -233,6 +258,8 @@ async function startProjectRun(detailDict: Dict_ProjectRun_Detail): Promise<void
   const activeRun: ActiveProjectRun = {
     processPy,
     strRunId,
+    source: context.source,
+    onStopping: context.onStopping,
     boolForceTerminationRequired: false,
   };
   trackActiveProjectRun(activeRun);
@@ -257,10 +284,23 @@ async function startProjectRun(detailDict: Dict_ProjectRun_Detail): Promise<void
     runStatePath: strRunStatePath,
     runState: dictRunState,
     detail: detailDict,
+    context,
     diagnosticOutput,
   });
 
   mapActiveRunByHistoryId.set(intRunHistoryId, activeRun);
+  const startedFact = {
+    runId: strRunId,
+    historyId: intRunHistoryId,
+    processId: processPy.pid,
+    startedAt: strStartedAt,
+    logPath: dictRunState.logPath,
+  };
+  try {
+    context.onStarted?.(startedFact);
+  } catch (e: unknown) {
+    loggerMain.error(`Failed to persist the actual Run start: ${getErrorMessage(e)}`);
+  }
 
   let timeoutId: NodeJS.Timeout | undefined;
   if (detailDict.timeout_min !== 0) {
@@ -301,6 +341,13 @@ async function startProjectRun(detailDict: Dict_ProjectRun_Detail): Promise<void
       getProcessError() !== undefined || activeRun.boolForceTerminationRequired;
     const intProcessExitedAtMs = Date.now();
     let intRunEndedAtMs = intProcessExitedAtMs;
+    let outputs: RunOutputs = {
+      status: "unavailable",
+      values: null,
+      unavailableKeys: [],
+      reason: "Python did not publish a valid final snapshot.",
+    };
+    let errorSummary: { type: string; message: string } | null = null;
 
     try {
       const dictFinalState = readExecutorRunState({
@@ -312,6 +359,8 @@ async function startProjectRun(detailDict: Dict_ProjectRun_Detail): Promise<void
         expectedLogRootPath: strProjectLogRootPath,
         expectedLogPath: dictRunState.logPath,
       });
+      outputs = dictFinalState.outputs ?? outputs;
+      errorSummary = dictFinalState.errorSummary ?? null;
       if (dictFinalState.startedAt !== dictRunState.startedAt) {
         throw new Error(`Final Executor run state changed startedAt for Run ${strRunId}.`);
       }
@@ -354,7 +403,7 @@ async function startProjectRun(detailDict: Dict_ProjectRun_Detail): Promise<void
             loggerMain.error(
               `Python process ${strRunId} exited unexpectedly with code ${String(intExitCode)}` +
                 `${strSignal === null ? "" : ` and signal ${strSignal}`}; ` +
-                `override final Run State '${dictFinalState.status}' with Run History status 'error'.`,
+                `record Run History status 'interrupted' because the process lifecycle was not completed.`,
             );
           }
           strRunHistoryStatus = "error";
@@ -377,19 +426,33 @@ async function startProjectRun(detailDict: Dict_ProjectRun_Detail): Promise<void
       });
     }
 
+    if (boolUnexpectedProcessFailure && strRequestedStatus === undefined)
+      strRunHistoryStatus = "interrupted";
+    const endedFact: RunEndedFact = {
+      ...startedFact,
+      endedAt: new Date(intRunEndedAtMs).toISOString(),
+      status: strRunHistoryStatus,
+      retryEligible: strRunHistoryStatus === "error" && !boolUnexpectedProcessFailure,
+      outputs,
+      errorSummary,
+    };
     try {
-      dbUpdateRunHistory({
-        id: intRunHistoryId,
-        run_ended_at_ms: intRunEndedAtMs,
-        status: strRunHistoryStatus,
-      });
+      getDatabase().transaction(() => {
+        dbUpdateRunHistory({
+          id: intRunHistoryId,
+          run_ended_at_ms: intRunEndedAtMs,
+          status: strRunHistoryStatus,
+          outputs,
+          error_summary: errorSummary,
+        });
+        context.onEnded?.(endedFact);
+      })();
+      removeExecutorRunStateFile(strRunStatePath);
+      notifyRunFinished(detailDict, context, endedFact);
     } catch (e: unknown) {
-      loggerMain.error(
-        `Failed to update Run History ${String(intRunHistoryId)}: ${getErrorMessage(e)}`,
-      );
+      loggerMain.error(`Failed to persist the actual Run result: ${getErrorMessage(e)}`);
     } finally {
       mapActiveRunByHistoryId.delete(intRunHistoryId);
-      removeExecutorRunStateFile(strRunStatePath);
       notifyRunEnded();
     }
   };
@@ -455,6 +518,7 @@ async function createRunHistory({
   runStatePath,
   runState,
   detail,
+  context,
   diagnosticOutput,
 }: {
   processPy: ChildProcessWithoutNullStreams;
@@ -462,12 +526,18 @@ async function createRunHistory({
   runStatePath: string;
   runState: ExecutorRunState;
   detail: Dict_ProjectRun_Detail;
+  context: RunExecutionContext;
   diagnosticOutput: Dict_PythonProcess_DiagnosticOutput;
 }): Promise<number> {
   try {
     const intRunHistoryIdValue = dbInsertRunHistory({
       schedule_name: detail.schedule_name,
-      project_id: detail.id,
+      project_id: context.source === RunSource.Console ? null : detail.id,
+      source: context.source,
+      run_id: runId,
+      job_id: context.jobId,
+      attempt: context.attempt,
+      inputs: detail,
       project_name: detail.name,
       project_version: detail.version,
       python_environment_name: detail.python_environment_name,
@@ -514,4 +584,23 @@ export function pythonCancel(runHistoryId: number): void {
 
   loggerMain.info(`Cancel Run History ${String(runHistoryId)}.`);
   void requestProjectRunTermination(activeRun, "cancel");
+}
+
+export function getActiveConsoleRunIds(): string[] {
+  return [...mapActiveRunByRunId.values()]
+    .filter((activeRun) => activeRun.source === RunSource.Console)
+    .map((activeRun) => activeRun.strRunId);
+}
+
+export function cancelRunById(runId: string): void {
+  const activeRun = mapActiveRunByRunId.get(runId);
+  if (activeRun) void requestProjectRunTermination(activeRun, "cancel");
+}
+
+export function getLocalRunningCount(): number {
+  return (
+    [...mapActiveRunByRunId.values()].filter(
+      (activeRun) => activeRun.source === RunSource.Local,
+    ).length + intStartingLocalRunCount
+  );
 }

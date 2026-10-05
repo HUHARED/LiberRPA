@@ -1,5 +1,7 @@
 // FileName: runOptions.ts
 
+export const INT_MAX_RETRY_COUNT = 3;
+export const INT_RETRY_DELAY_MS = 60_000;
 // Keep the timeout within the Node.js single-timer delay range.
 export const INT_MAX_RUN_TIMEOUT_MIN = 35_791;
 
@@ -8,6 +10,7 @@ export type Str_LogLevel = "VERBOSE" | "DEBUG" | "INFO" | "WARNING" | "ERROR" | 
 export type Arr_CustomProjectArgs = [string, unknown][];
 
 export interface Dict_RunOptions {
+  retry_count: number;
   timeout_min: number;
 
   builtin_log_level: Str_LogLevel;

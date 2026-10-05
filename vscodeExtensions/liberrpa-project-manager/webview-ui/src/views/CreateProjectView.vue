@@ -1,7 +1,7 @@
 <!-- FileName: CreateProjectView.vue -->
 <template>
   <v-card class="mx-auto" max-width="980">
-    <v-card-title class="text-h5 pa-5 pb-2"> Create a New Project </v-card-title>
+    <v-card-title class="text-h5 pa-5 pb-2">Create a New Project</v-card-title>
 
     <v-card-subtitle class="px-5 pb-4">
       Review all settings before creating the Project.
@@ -32,8 +32,7 @@
             item-value="templateName"
             label="Template"
             :disabled="projectManagerStore.busy"
-            @update:model-value="handleTemplateChange">
-          </v-select>
+            @update:model-value="handleTemplateChange"></v-select>
         </v-col>
 
         <v-col cols="12" md="6">
@@ -45,8 +44,7 @@
             :hint="`Use a Python PEP 440 version.\nFor most users, MAJOR.MINOR.PATCH is sufficient.`"
             persistent-hint
             :error-messages="versionError"
-            :disabled="projectManagerStore.busy">
-          </v-text-field>
+            :disabled="projectManagerStore.busy"></v-text-field>
         </v-col>
 
         <v-col cols="12">
@@ -73,8 +71,7 @@
             v-model="createProjectStore.projectFolderName"
             label="Project folder name"
             :error-messages="projectFolderNameError"
-            :disabled="projectManagerStore.busy">
-          </v-text-field>
+            :disabled="projectManagerStore.busy"></v-text-field>
         </v-col>
 
         <template v-if="createProjectStore.projectType === 'component'">
@@ -86,8 +83,7 @@
               hint="PascalCase; used as the top-level Python package name."
               persistent-hint
               :error-messages="packageNameError"
-              :disabled="projectManagerStore.busy">
-            </v-text-field>
+              :disabled="projectManagerStore.busy"></v-text-field>
           </v-col>
 
           <v-col cols="12">
@@ -97,8 +93,7 @@
               :hint="STR_COMPONENT_DISPLAY_NAME_HINT"
               persistent-hint
               :error-messages="displayNameError"
-              :disabled="projectManagerStore.busy">
-            </v-text-field>
+              :disabled="projectManagerStore.busy"></v-text-field>
           </v-col>
         </template>
 
@@ -106,10 +101,12 @@
           <v-textarea
             v-model="createProjectStore.description"
             label="Description"
+            hint="Optional. Up to 2,000 characters; multiple lines are allowed."
+            persistent-hint
+            :error-messages="descriptionError"
             rows="3"
             auto-grow
-            :disabled="projectManagerStore.busy">
-          </v-textarea>
+            :disabled="projectManagerStore.busy"></v-textarea>
         </v-col>
       </v-row>
     </v-card-text>
@@ -143,6 +140,7 @@ import {
   REGEX_COMPONENT_PACKAGE_NAME,
   getProjectFolderNameError,
   getVersionInputError,
+  getDescriptionError,
   getComponentPackageNameError,
   getDisplayNameError,
 } from "../Domain/Project/projectValidation";
@@ -182,6 +180,10 @@ const displayNameError = computed(() =>
     : undefined,
 );
 
+const descriptionError = computed(() =>
+  getDescriptionError(createProjectStore.description),
+);
+
 const canConfirm = computed(
   () =>
     projectManagerStore.loadState === "ready" &&
@@ -191,7 +193,8 @@ const canConfirm = computed(
     projectFolderNameError.value === undefined &&
     versionError.value === undefined &&
     packageNameError.value === undefined &&
-    displayNameError.value === undefined,
+    displayNameError.value === undefined &&
+    descriptionError.value === undefined,
 );
 
 let strLastSuggestedPackageName = "";

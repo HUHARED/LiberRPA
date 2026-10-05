@@ -55,14 +55,22 @@ class AuditRecord(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     created_at = models.DateTimeField(default=timezone.now, editable=False)
-    scope = models.CharField(max_length=16, choices=AuditScope, editable=False)
+    scope = models.CharField(
+        max_length=max(len(value) for value in AuditScope.values),
+        choices=AuditScope,
+        editable=False,
+    )
     organization_id = models.UUIDField(null=True, editable=False)
     organization_name = models.CharField(max_length=200, blank=True, editable=False)
     actor_id = models.UUIDField(null=True, editable=False)
     actor_name = models.CharField(
         max_length=INT_DISPLAY_NAME_SNAPSHOT_MAX_LENGTH, editable=False
     )
-    channel = models.CharField(max_length=16, choices=AuditChannel, editable=False)
+    channel = models.CharField(
+        max_length=max(len(value) for value in AuditChannel.values),
+        choices=AuditChannel,
+        editable=False,
+    )
     request_id = models.UUIDField(null=True, editable=False)
     module = models.CharField(max_length=32, editable=False)
     action = models.CharField(max_length=64, editable=False)
@@ -72,7 +80,11 @@ class AuditRecord(models.Model):
         max_length=INT_DISPLAY_NAME_SNAPSHOT_MAX_LENGTH, blank=True, editable=False
     )
     department_id = models.UUIDField(null=True, editable=False)
-    result = models.CharField(max_length=16, choices=AuditResult, editable=False)
+    result = models.CharField(
+        max_length=max(len(value) for value in AuditResult.values),
+        choices=AuditResult,
+        editable=False,
+    )
     # Writers allowlist metadata and bound the entire JSON document to 4 KiB.
     details = models.JSONField(default=dict, editable=False)
 

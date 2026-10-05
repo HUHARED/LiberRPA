@@ -63,6 +63,20 @@ _DICT_SNAPSHOT_FIELD = {
     "assets.asset": ("name", "department_id", "asset_type", "notes"),
     "data_queues.dataqueue": ("name", "department_id", "notes"),
     "shared_files.sharedfile": ("name", "department_id", "blob_id"),
+    "schedules.schedule": (
+        "name",
+        "department_id",
+        "package_id",
+        "cron",
+        "time_zone",
+        "active_from",
+        "active_until",
+        "enabled",
+        "notes",
+        "deleted_at",
+        "group_id",
+        "executor_ids",
+    ),
 }
 
 

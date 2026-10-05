@@ -225,7 +225,10 @@ class DepartmentMembership(models.Model):
         related_name="memberships",
     )
     # OrgAdmin stays on Membership and does not require a role in each department.
-    role = models.CharField(max_length=9, choices=DepartmentRole.choices)
+    role = models.CharField(
+        max_length=max(len(value) for value in DepartmentRole.values),
+        choices=DepartmentRole.choices,
+    )
 
     class Meta:
         constraints = [
@@ -343,7 +346,10 @@ class InvitationDepartmentRole(models.Model):
         MemberInvitation, on_delete=models.CASCADE, related_name="department_roles"
     )
     department = models.ForeignKey(Department, on_delete=models.PROTECT)
-    role = models.CharField(max_length=9, choices=DepartmentRole.choices)
+    role = models.CharField(
+        max_length=max(len(value) for value in DepartmentRole.values),
+        choices=DepartmentRole.choices,
+    )
 
     class Meta:
         constraints = [

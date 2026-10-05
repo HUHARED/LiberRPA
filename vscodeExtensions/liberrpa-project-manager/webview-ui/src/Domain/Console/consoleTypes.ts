@@ -26,6 +26,25 @@ export enum ConsoleDepartmentRole {
   Operator = "operator",
 }
 
+export interface ConsolePublishDepartment {
+  id: string;
+  name: string;
+  path: string;
+}
+
+export enum ConsolePublishStatus {
+  NotRequested = "notRequested",
+  Publishing = "publishing",
+  Completed = "completed",
+  Failed = "failed",
+}
+
+export interface ConsolePublishResult {
+  status: ConsolePublishStatus;
+  message: string;
+  packageId: string | null;
+}
+
 export interface ConsoleDepartmentInfo {
   id: string;
   name: string;

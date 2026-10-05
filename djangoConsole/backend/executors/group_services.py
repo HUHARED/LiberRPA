@@ -23,6 +23,8 @@ from organizations.permissions import (
 
 from .access import require_executor_management
 from .models import Executor, ExecutorGroup, ExecutorGroupMember
+from runs.models import Job, JobState
+from schedules.models import Schedule
 
 # NOTE: Call these writes with freshly locked Session access inside the caller's transaction.
 
@@ -72,7 +74,7 @@ def _save_group_members(group: ExecutorGroup, executorIds: tuple[uuid.UUID, ...]
         for executorId in executorIds
         if executorId not in currentIds
     ])
-    # TODO: Recheck unpermitted group assignments when Jobs exist; never rewrite permitted or actual Runs.
+    # NOTE: The worker and permit service recheck membership before granting start permission.
     # An empty group does not change any referencing Schedule's Enabled flag or emit a notification.
 
 
@@ -154,7 +156,17 @@ def delete_executor_group(
 ) -> ExecutorGroup:
     """Remove memberships and retain the group identity without changing any Executor."""
     group = _get_group_for_management(access, groupId)
-    # TODO: Block undeleted Schedule and unfinished group Job references when those models exist.
+    if (
+        Schedule.objects.filter(group_id=group.pk, deleted_at__isnull=True).exists()
+        or Job.objects
+        .filter(target_group_id=group.pk)
+        .exclude(state=JobState.FINISHED)
+        .exists()
+    ):
+        raise ValidationError(
+            "Remove referencing Schedules and resolve unfinished Jobs before deleting this group.",
+            code="executor_group_work_reference",
+        )
     # Reference creation must use the same organization lock; completed history must not block deletion.
     ExecutorGroupMember.objects.filter(group=group).delete()
     group.deleted_at = timezone.now()

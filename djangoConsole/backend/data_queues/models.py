@@ -59,7 +59,7 @@ class QueueItem(models.Model):
     data_json = models.TextField(editable=False)
     size_bytes = models.PositiveIntegerField(editable=False)
     status = models.CharField(
-        max_length=9,
+        max_length=max(len(entry.value) for entry in QueueStatus),
         choices=[(state, state.value.title()) for state in QueueStatus],
         default=QueueStatus.UNCLAIMED,
     )
@@ -114,7 +114,10 @@ class QueueReceipt(models.Model):
         "organizations.Organization", on_delete=models.CASCADE
     )
     actor_id = models.UUIDField()
-    operation = models.CharField(max_length=16, choices=QueueOperation.choices)
+    operation = models.CharField(
+        max_length=max(len(value) for value in QueueOperation.values),
+        choices=QueueOperation.choices,
+    )
     request_id = models.UUIDField()
     request_digest = models.CharField(max_length=64)
     # Preserve original identities when a queue or department is removed and recreated.

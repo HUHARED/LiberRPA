@@ -19,7 +19,21 @@
       </v-col>
     </v-row>
 
+    <v-alert
+      v-if="
+        !projectStore.arrPythonEnvironmentName.includes(
+          projectStore.dictDetailEdit.python_environment_name,
+        )
+      "
+      type="warning"
+      variant="tonal"
+      density="compact">
+      This Python environment is currently unavailable. You can save its name and install
+      the environment before running.
+    </v-alert>
+
     <BuiltInRunOptions
+      v-model:retry-count="projectStore.dictDetailEdit.retry_count"
       v-model:timeout-min="projectStore.dictDetailEdit.timeout_min"
       v-model:log-level="projectStore.dictDetailEdit.builtin_log_level"
       v-model:record-video="projectStore.dictDetailEdit.builtin_record_video"

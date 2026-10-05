@@ -1,0 +1,18 @@
+# FileName: recipient_urls.py
+__author__ = "Jiyan Hu"
+__email__ = "mailwork.hu@gmail.com"
+__license__ = "GNU Affero General Public License v3.0 or later"
+__copyright__ = f"Copyright (C) 2025 {__author__}"
+
+from django.urls import path
+
+from . import views
+
+urlpatterns = [
+    path("", views.list_or_create_recipients),
+    path("templates/", views.template_metadata),
+    path("verify/", views.verify_recipient),
+    path("<uuid:recipientId>/", views.change_recipient, {"action": "notes"}),
+    path("<uuid:recipientId>/delete/", views.change_recipient, {"action": "delete"}),
+    path("<uuid:recipientId>/resend/", views.change_recipient, {"action": "resend"}),
+]

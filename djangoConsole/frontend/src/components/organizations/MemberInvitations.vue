@@ -67,7 +67,7 @@
       </template>
       <template #item.roles="{ item }">
         <template v-if="item.is_org_admin">
-          <v-chip color="primary" size="small" variant="tonal">OrgAdmin </v-chip>
+          <v-chip color="primary" size="small" variant="tonal">OrgAdmin</v-chip>
           <p class="text-body-2 mt-1">All departments</p>
         </template>
         <ul v-else-if="item.department_roles.length" class="list-unstyled">
@@ -76,8 +76,8 @@
             :key="assignment.department_id"
             class="table-text py-1">
             {{ assignment.department_path
-            }}{{ assignment.department_deleted ? " (Deleted)" : ""
-            }}<span class="text-capitalize"> — {{ assignment.role }}</span>
+            }}{{ assignment.department_deleted ? " (Deleted)" : "" }}
+            <span class="text-capitalize">— {{ assignment.role }}</span>
           </li>
         </ul>
         <span v-else class="text-medium-emphasis">No department access</span>
@@ -115,11 +115,13 @@
           Revoke
         </v-btn>
       </template>
-      <template #no-data>{{
-        requestError
-          ? "The invitation list could not be loaded."
-          : "No pending or expired invitations."
-      }}</template>
+      <template #no-data>
+        {{
+          requestError
+            ? "The invitation list could not be loaded."
+            : "No pending or expired invitations."
+        }}
+      </template>
     </v-data-table-server>
     <template v-if="invitationPage">
       <v-divider />

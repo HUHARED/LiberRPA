@@ -19,7 +19,9 @@
     "vue": "3.5.43",
     "vue-router": "4.6.4",
     "vuetify": "3.13.5",
-    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
+    "@vue-js-cron/vuetify": "^5.1.1",
+    "cronstrue": "^3.24.0"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

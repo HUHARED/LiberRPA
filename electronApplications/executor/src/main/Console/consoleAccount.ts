@@ -28,6 +28,7 @@ import {
   parseExecutorChoices,
 } from "./consoleApi";
 import type { ConsoleCredentialSnapshot } from "./consoleContextBridge";
+import { startConsoleControl, stopConsoleControl } from "./consoleControl";
 
 let strConsoleUrl = "";
 let strRememberedEmail = "";
@@ -37,7 +38,6 @@ let connection = ConsoleConnection.SignedOut;
 let strMessage = "";
 let boolBusy = false;
 let boolStopped = false;
-let timerContact: NodeJS.Timeout | undefined;
 let promiseContact: Promise<void> | undefined;
 let promiseOperation: Promise<unknown> | undefined;
 let publishState: (() => void) | undefined;
@@ -60,6 +60,7 @@ function writeAccount(consoleUrl: string, token: string, email: string): void {
 }
 
 function clearSession(message = ""): void {
+  stopConsoleControl();
   strToken = "";
   sessionInfo = null;
   connection = ConsoleConnection.SignedOut;
@@ -113,12 +114,7 @@ async function revokeSession(): Promise<void> {
 
 async function contactConsole(): Promise<void> {
   try {
-    const dictResponse = await requestConsole(
-      strConsoleUrl,
-      sessionInfo === null ? "executor/session/" : "executor/heartbeat/",
-      strToken,
-      sessionInfo === null ? undefined : {},
-    );
+    const dictResponse = await requestConsole(strConsoleUrl, "executor/session/", strToken);
     updateSession(dictResponse);
   } catch (e: unknown) {
     if (e instanceof ConsoleRequestError && e.code === "executor_selection_required") {
@@ -138,7 +134,40 @@ async function contactConsole(): Promise<void> {
     }
   } finally {
     publishState?.();
+    refreshConsoleControl();
   }
+}
+
+function refreshConsoleControl(): void {
+  if (
+    boolStopped ||
+    boolBusy ||
+    strToken === "" ||
+    sessionInfo?.session.selection_required
+  ) {
+    if (boolStopped || strToken === "" || sessionInfo?.session.selection_required)
+      stopConsoleControl();
+    return;
+  }
+  const credential = { consoleUrl: strConsoleUrl, token: strToken };
+  startConsoleControl(
+    credential,
+    (response) => {
+      if (credential.token !== strToken || credential.consoleUrl !== strConsoleUrl) return;
+      updateSession(response);
+      publishState?.();
+    },
+    (e) => {
+      if (credential.token !== strToken || credential.consoleUrl !== strConsoleUrl) return;
+      if (e instanceof ConsoleRequestError && e.code === "executor_selection_required") {
+        stopConsoleControl();
+        requestConsoleContact();
+      } else {
+        handleContactError(e);
+        publishState?.();
+      }
+    },
+  );
 }
 
 function requestConsoleContact(): void {
@@ -179,6 +208,7 @@ async function runAccountOperation<T>(operation: () => Promise<T>): Promise<T> {
   } finally {
     boolBusy = false;
     promiseOperation = undefined;
+    refreshConsoleControl();
     publishState?.();
   }
 }
@@ -243,7 +273,6 @@ export function startConsoleAccount(onChanged: () => void): void {
   }
   publishState();
   requestConsoleContact();
-  timerContact = setInterval(requestConsoleContact, 15000);
 }
 
 export async function saveConsoleAddress(consoleUrl: string): Promise<ConsoleAccountState> {
@@ -258,6 +287,7 @@ export async function saveConsoleAddress(consoleUrl: string): Promise<ConsoleAcc
     }
 
     beginConsoleAccountTransition();
+    stopConsoleControl();
     try {
       // Only the old address receives the old credential, after anonymous validation succeeds.
       await revokeSession();
@@ -368,6 +398,7 @@ export async function associateConsoleExecutor(
 export async function signOutConsole(): Promise<ConsoleAccountState> {
   return await runAccountStateOperation(async () => {
     beginConsoleAccountTransition();
+    stopConsoleControl();
     try {
       await revokeSession();
       clearSession();
@@ -379,7 +410,7 @@ export async function signOutConsole(): Promise<ConsoleAccountState> {
 
 export async function stopConsoleAccount(): Promise<void> {
   boolStopped = true;
-  clearInterval(timerContact);
+  stopConsoleControl();
   await Promise.allSettled([promiseContact, promiseOperation]);
   if (sessionInfo?.session.selection_required) {
     try {

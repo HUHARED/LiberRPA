@@ -69,9 +69,7 @@
   </v-card>
   <v-alert v-if="strMessage" type="success" variant="tonal" class="mb-4" role="status">
     {{ strMessage }}
-    <RouterLink v-if="savedQueue" :to="getDetailsLocation(savedQueue.id)">
-      View
-    </RouterLink>
+    <RouterLink v-if="savedQueue" :to="getDetailsLocation(savedQueue.id)">View</RouterLink>
   </v-alert>
   <v-alert v-if="error" type="error" variant="tonal" class="mb-4" role="alert">
     {{ error.message }}
@@ -126,11 +124,13 @@
           </v-btn>
         </div>
       </template>
-      <template #no-data>{{
-        error
-          ? "The queue list could not be loaded."
-          : "No queues match the current filters."
-      }}</template>
+      <template #no-data>
+        {{
+          error
+            ? "The queue list could not be loaded."
+            : "No queues match the current filters."
+        }}
+      </template>
     </v-data-table-server>
     <div v-if="page" class="d-flex flex-wrap align-center justify-space-between ga-2 pa-3">
       <p>{{ page.total_count }} queues · Page {{ page.page }} of {{ page.total_pages }}</p>

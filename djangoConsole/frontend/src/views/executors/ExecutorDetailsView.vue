@@ -173,6 +173,58 @@
         {{ executorInfo.notes || "—" }}
       </v-card-text>
     </v-card>
+    <v-card variant="outlined" class="mb-4">
+      <v-card-title>Last Reported Work</v-card-title>
+      <v-card-text>
+        <p class="mb-3">
+          Updated at {{ formatDateTime(executorInfo.last_work_reported_at, strTimeZone) }}.
+          Counts describe the last report from the current associated client.
+        </p>
+        <v-table>
+          <tbody>
+            <tr>
+              <td>Local Running</td>
+              <td>{{ executorInfo.local_running_count ?? "Unknown" }}</td>
+            </tr>
+            <tr>
+              <td>Console Running</td>
+              <td>{{ executorInfo.central_running_count ?? "Unknown" }}</td>
+            </tr>
+            <tr>
+              <td>Local Waiting</td>
+              <td>{{ executorInfo.local_waiting_count ?? "Unknown" }}</td>
+            </tr>
+          </tbody>
+        </v-table>
+      </v-card-text>
+    </v-card>
+    <v-card variant="outlined" class="mb-4">
+      <v-card-title>Referencing Schedules</v-card-title>
+      <v-card-text>
+        <p v-if="!executorInfo.referencing_schedules.length">No referencing schedules.</p>
+        <v-table v-else>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Enabled</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="schedule in executorInfo.referencing_schedules" :key="schedule.id">
+              <td>
+                <RouterLink
+                  :to="{ name: 'schedule-details', params: { scheduleId: schedule.id } }"
+                  target="_blank"
+                  rel="noopener">
+                  {{ schedule.name }}
+                </RouterLink>
+              </td>
+              <td>{{ schedule.enabled ? "Enabled" : "Disabled" }}</td>
+            </tr>
+          </tbody>
+        </v-table>
+      </v-card-text>
+    </v-card>
     <v-card variant="outlined">
       <v-card-title>Executor Groups</v-card-title>
       <v-card-text>

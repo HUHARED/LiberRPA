@@ -47,8 +47,8 @@
             variant="tonal"
             class="mb-4">
             Renaming changes the resource path. Update saved paths in your code and
-            configuration.</v-alert
-          >
+            configuration.
+          </v-alert>
           <v-textarea
             v-model="strNotes"
             label="Notes"
@@ -61,7 +61,7 @@
       </v-card-text>
       <v-card-actions>
         <v-spacer />
-        <v-btn :disabled="boolSaving" @click="emit('close')"> Cancel </v-btn>
+        <v-btn :disabled="boolSaving" @click="emit('close')">Cancel</v-btn>
         <v-btn
           type="submit"
           form="queue-form"

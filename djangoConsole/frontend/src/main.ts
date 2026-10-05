@@ -2,6 +2,7 @@
 
 import { createApp } from "vue";
 import { createPinia } from "pinia";
+import CronVuetifyPlugin from "@vue-js-cron/vuetify";
 import App from "@/App.vue";
 
 import { createAppRouter } from "@/app/router";
@@ -22,4 +23,5 @@ setSessionInvalidatedHandler(() => {
 });
 app.use(createAppRouter());
 app.use(vuetify);
+app.use(CronVuetifyPlugin);
 app.mount("#app");

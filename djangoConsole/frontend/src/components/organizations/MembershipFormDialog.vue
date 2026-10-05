@@ -158,10 +158,7 @@
             counter="2000"
             :error-messages="saveError?.fields.notes ?? []"
             :disabled="boolSaving" />
-          <p v-if="!member">
-            The recipient will receive a link to create an account. Sending an invitation
-            does not create the account yet.
-          </p>
+          <p v-if="!member">The recipient will receive a link to create an account.</p>
         </v-form>
       </v-card-text>
       <v-card-actions class="flex-wrap ga-2">

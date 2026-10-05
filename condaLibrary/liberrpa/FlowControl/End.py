@@ -6,7 +6,11 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
 from liberrpa.Logging import Log
-from liberrpa.Common._RunContext import write_executor_run_state
+from liberrpa.Common._RunContext import (
+    capture_output_snapshot,
+    capture_execution_error,
+    write_executor_run_state,
+)
 from liberrpa.Common._Utils import PROCESS_NAME
 import liberrpa.UI._TerminableThread as _TerminableThread
 from liberrpa.Dialog import show_notification
@@ -17,10 +21,12 @@ import sys
 import threading
 from typing import Literal
 
+
 type FlowExecutionResult = Literal["completed", "error", "terminated"]
 
 # The final execution result of the current Flow. Executor maps "terminated" to "cancel" or "timeout" according to the action that requested termination.
 executionResult: FlowExecutionResult = "completed"
+executionError: Exception | None = None
 
 _LOCK_CLEANUP = threading.Lock()
 _EVENT_CLEANUP_FINISHED = threading.Event()
@@ -94,7 +100,18 @@ def cleanup() -> None:
 
         # Capture late termination requests, then use one result for the state and final log.
         strExecutionResult = executionResult
-        write_executor_run_state(status=strExecutionResult, logPath=Log.strLogFolder)
+        outputSnapshot = capture_output_snapshot(PrjArgs.customArgs)
+        errorSummary = (
+            capture_execution_error(executionError)
+            if strExecutionResult == "error"
+            else None
+        )
+        write_executor_run_state(
+            status=strExecutionResult,
+            logPath=Log.strLogFolder,
+            outputs=outputSnapshot,
+            errorSummary=errorSummary,
+        )
         Log.debug(dictResultMessage[strExecutionResult])
     except BaseException as e:
         _cleanupError = e

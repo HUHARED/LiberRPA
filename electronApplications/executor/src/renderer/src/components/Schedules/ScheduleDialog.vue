@@ -21,8 +21,7 @@
                 density="compact"
                 hide-details
                 readonly
-                variant="plain">
-              </v-text-field>
+                variant="plain"></v-text-field>
             </v-col>
 
             <v-col cols="6" class="pb-0">
@@ -38,8 +37,7 @@
                 density="compact"
                 hide-details
                 readonly
-                variant="plain">
-              </v-text-field>
+                variant="plain"></v-text-field>
             </v-col>
           </v-row>
         </v-container>
@@ -102,7 +100,10 @@ const dialogTitle = computed(() =>
 
 const debouncedUpdateSaveState = debounce(() => {
   const detail = currentDetail.value;
-  if (detail === undefined || !validateCronExpression(detail.cron).valid) {
+  if (
+    detail === undefined ||
+    !validateCronExpression(detail.cron, settingStore.timezone).valid
+  ) {
     boolCanSave.value = false;
     return;
   }
@@ -143,7 +144,7 @@ const debouncedUpdateSaveState = debounce(() => {
 }, 300);
 
 watch(
-  currentDetail,
+  [currentDetail, () => settingStore.timezone],
   () => {
     debouncedUpdateSaveState();
   },

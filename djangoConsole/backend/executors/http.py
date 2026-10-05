@@ -19,6 +19,7 @@ from organizations.permissions import (
     OrganizationAccessContext,
     get_current_membership,
 )
+from runs.models import ExecutorWorkState
 
 from .models import Executor
 from .queries import ExecutorInfo
@@ -78,4 +79,27 @@ def build_executor_info_payload(executorInfo: ExecutorInfo) -> dict[str, object]
         "computer": None if session is None else session.computer,
         "version": None if session is None else session.client_version,
         "last_seen_at": None if session is None else session.last_seen_at,
+    }
+
+
+def build_executor_work_payload(executorInfo: ExecutorInfo) -> dict[str, object]:
+    session = executorInfo.session
+    workState = (
+        None
+        if session is None
+        else ExecutorWorkState.objects.filter(
+            executor=executorInfo.executor, session_id=session.pk
+        ).first()
+    )
+    return {
+        "local_running_count": None
+        if workState is None
+        else workState.local_running_count,
+        "central_running_count": None
+        if workState is None
+        else len(workState.running_run_ids),
+        "local_waiting_count": None
+        if workState is None
+        else workState.local_waiting_count,
+        "last_work_reported_at": None if workState is None else workState.reported_at,
     }

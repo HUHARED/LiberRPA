@@ -88,6 +88,7 @@ export function dbSelectProjectDetail(
           description,
           version_summary,
           python_environment_name,
+          retry_count,
           timeout_min,
           builtin_log_level,
           builtin_record_video,
@@ -121,6 +122,7 @@ export function dbSelectProjectDetailById(id: number): Dict_ProjectDetail | unde
           description,
           version_summary,
           python_environment_name,
+          retry_count,
           timeout_min,
           builtin_log_level,
           builtin_record_video,
@@ -154,6 +156,7 @@ export function dbInsertProjectDetail(dictDetail: Dict_ProjectCreate): void {
               description,
               version_summary,
               python_environment_name,
+              retry_count,
               timeout_min,
               builtin_log_level,
               builtin_record_video,
@@ -164,7 +167,7 @@ export function dbInsertProjectDetail(dictDetail: Dict_ProjectCreate): void {
               updated_at_ms
           )
       VALUES
-          (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+          (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
       `,
     )
     .run(
@@ -173,6 +176,7 @@ export function dbInsertProjectDetail(dictDetail: Dict_ProjectCreate): void {
       dictDetail.description,
       dictDetail.version_summary ?? "",
       dictDetail.python_environment_name,
+      dictDetail.retry_count,
       dictDetail.timeout_min,
       dictDetail.builtin_log_level,
       dictDetail.builtin_record_video ? 1 : 0,
@@ -196,6 +200,7 @@ export function dbUpdateProjectSettings(dictDetail: Dict_ProjectSettingsUpdate):
       UPDATE project
       SET
           python_environment_name = ?,
+          retry_count = ?,
           timeout_min = ?,
           builtin_log_level = ?,
           builtin_record_video = ?,
@@ -209,6 +214,7 @@ export function dbUpdateProjectSettings(dictDetail: Dict_ProjectSettingsUpdate):
     )
     .run(
       dictDetail.python_environment_name,
+      dictDetail.retry_count,
       dictDetail.timeout_min,
       dictDetail.builtin_log_level,
       dictDetail.builtin_record_video ? 1 : 0,
@@ -251,6 +257,7 @@ export function dbSelectProjectMostRecentlyInstalledDetail(
           description,
           version_summary,
           python_environment_name,
+          retry_count,
           timeout_min,
           builtin_log_level,
           builtin_record_video,

@@ -4,6 +4,8 @@ import { app } from "electron";
 import fs from "fs";
 import path from "path";
 
+import { ensurePythonEnvironmentName } from "../Common/validation";
+
 export const strDocumentsFolderPath = app.getPath("documents");
 app.setPath("userData", path.join(strDocumentsFolderPath, "LiberRPA/AppData/executor/"));
 
@@ -65,16 +67,12 @@ export function getPythonEnvironmentNames(): string[] {
   });
 }
 
+export function validatePythonEnvironmentName(strEnvironmentName: string): void {
+  ensurePythonEnvironmentName(strEnvironmentName, "Python environment name");
+}
+
 export function getPythonEnvironmentPath(strEnvironmentName: string): string {
-  if (
-    strEnvironmentName.trim() === "" ||
-    strEnvironmentName !== strEnvironmentName.trim() ||
-    strEnvironmentName === "." ||
-    strEnvironmentName === ".." ||
-    path.basename(strEnvironmentName) !== strEnvironmentName
-  ) {
-    throw new Error(`Invalid Python environment name: ${strEnvironmentName}`);
-  }
+  validatePythonEnvironmentName(strEnvironmentName);
 
   const strEnvironmentPath = path.join(strPythonEnvironmentRootPath, strEnvironmentName);
   const strPythonPath = path.join(strEnvironmentPath, "python.exe");

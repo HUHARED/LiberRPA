@@ -7,10 +7,8 @@
     </v-btn>
   </div>
   <v-alert v-if="error" type="error" variant="tonal" class="mb-4" role="alert">
-    {{ error.message
-    }}<v-btn v-if="!page" variant="text" :disabled="boolLoading" @click="load">
-      Retry
-    </v-btn>
+    {{ error.message }}
+    <v-btn v-if="!page" variant="text" :disabled="boolLoading" @click="load">Retry</v-btn>
   </v-alert>
   <v-alert
     v-if="strActionError"
@@ -171,9 +169,9 @@
           <div class="table-text-narrow">{{ item.uploaded_by_name }}</div>
         </template>
         <template #item.uploaded_at="{ item }">
-          <span class="text-no-wrap">{{
-            formatDateTime(item.uploaded_at, strTimeZone)
-          }}</span>
+          <span class="text-no-wrap">
+            {{ formatDateTime(item.uploaded_at, strTimeZone) }}
+          </span>
         </template>
         <template #item.last_claimed_by_name="{ item }">
           <div class="table-text-narrow">
@@ -229,13 +227,15 @@
       max-width="560"
       aria-labelledby="queue-confirm-title">
       <v-card>
-        <v-card-title id="queue-confirm-title">{{
-          strConfirm === "reset"
-            ? "Reset to Unclaimed"
-            : strConfirm === "queue"
-              ? "Delete Queue"
-              : "Delete Items"
-        }}</v-card-title>
+        <v-card-title id="queue-confirm-title">
+          {{
+            strConfirm === "reset"
+              ? "Reset to Unclaimed"
+              : strConfirm === "queue"
+                ? "Delete Queue"
+                : "Delete Items"
+          }}
+        </v-card-title>
         <v-card-text>
           <p class="text-break mb-3">{{ page.queue.path }}</p>
           <p>

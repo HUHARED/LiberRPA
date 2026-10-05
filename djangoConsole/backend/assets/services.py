@@ -210,7 +210,7 @@ def update_asset_value(
 
 def delete_asset(access: OrganizationAccessContext, assetId: uuid.UUID) -> None:
     asset = get_asset_query(access, requiredRole=DepartmentRole.DEVELOPER).get(pk=assetId)
-    # TODO: Show authorized Package/Schedule bindings as warnings when those models exist; do not block deletion.
+    # The details response reports known bindings; confirmed deletion leaves their configuration unchanged.
     record_audit(
         "asset.delete",
         actor=access.actor,

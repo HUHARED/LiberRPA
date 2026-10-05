@@ -5,14 +5,18 @@ import type { Dict_ProjectSettingsUpdate } from "../../shared/project";
 import type { Dict_RunHistory_Options } from "../../shared/run";
 import type { Dict_ScheduleCreate, Dict_ScheduleUpdate } from "../../shared/schedule";
 import type { Str_ExecutorInvokeCommand, Str_RendererLogLevel } from "../../shared/ipc";
+import { parseScheduleCron } from "../../shared/cron";
+import { dictConfigExecutor } from "../Config/executorConfig";
 import {
   ensureExactRecord,
   ensureString,
   ensureNonEmptyString,
+  ensurePythonEnvironmentName,
   ensureTrimmedSingleLineString,
   ensureBoolean,
   ensureNonNegativeInteger,
   ensurePositiveInteger,
+  ensureRetryCount,
   ensureRunTimeoutMinutes,
   ensureLogLevel,
   ensureRunConflictPolicy,
@@ -68,7 +72,9 @@ export function ensureInvokeCommand(value: unknown): Str_ExecutorInvokeCommand {
     case "getScheduleDetail":
     case "createSchedule":
     case "saveSchedule":
+    case "setScheduleEnabled":
     case "deleteSchedule":
+    case "getRunDetails":
     case "getRunHistoryPage":
     case "getRunQueue":
     case "cancelWaitingRun":
@@ -130,6 +136,7 @@ export function ensureProjectSettingsUpdate(value: unknown): Dict_ProjectSetting
     [
       "id",
       "python_environment_name",
+      "retry_count",
       "timeout_min",
       "builtin_log_level",
       "builtin_record_video",
@@ -142,9 +149,13 @@ export function ensureProjectSettingsUpdate(value: unknown): Dict_ProjectSetting
 
   return {
     id: ensurePositiveInteger(dictValue.id, "Project settings update request.id"),
-    python_environment_name: ensureNonEmptyString(
+    python_environment_name: ensurePythonEnvironmentName(
       dictValue.python_environment_name,
       "Project settings update request.python_environment_name",
+    ),
+    retry_count: ensureRetryCount(
+      dictValue.retry_count,
+      "Project settings update request.retry_count",
     ),
     timeout_min: ensureRunTimeoutMinutes(
       dictValue.timeout_min,
@@ -185,6 +196,7 @@ function ensureScheduleData(
     "period_start_ms",
     "period_end_ms",
     "enable",
+    "retry_count",
     "timeout_min",
     "builtin_log_level",
     "builtin_record_video",
@@ -209,10 +221,12 @@ function ensureScheduleData(
     throw new Error("Schedule request.period_end_ms must be greater than period_start_ms.");
   }
 
+  const strCron = ensureNonEmptyString(dictValue.cron, "Schedule request.cron");
+  parseScheduleCron(strCron, dictConfigExecutor.timezone);
   const dictBase: Dict_ScheduleCreate = {
     name: ensureTrimmedSingleLineString(dictValue.name, "Schedule request.name"),
     project_id: ensurePositiveInteger(dictValue.project_id, "Schedule request.project_id"),
-    cron: ensureNonEmptyString(dictValue.cron, "Schedule request.cron"),
+    cron: strCron,
     run_conflict_policy: ensureRunConflictPolicy(
       dictValue.run_conflict_policy,
       "Schedule request.run_conflict_policy",
@@ -220,6 +234,7 @@ function ensureScheduleData(
     period_start_ms: intPeriodStartMs,
     period_end_ms: intPeriodEndMs,
     enable: ensureBoolean(dictValue.enable, "Schedule request.enable"),
+    retry_count: ensureRetryCount(dictValue.retry_count, "Schedule request.retry_count"),
     timeout_min: ensureRunTimeoutMinutes(
       dictValue.timeout_min,
       "Schedule request.timeout_min",
@@ -334,7 +349,15 @@ export function ensureRunHistoryOptions(value: unknown): Dict_RunHistory_Options
 export function ensureConsoleSignIn(value: unknown): ConsoleSignInArgs {
   const dictValue = ensureExactRecord(value, ["email", "password"], "Console sign in");
   return {
-    email: ensureNonEmptyString(dictValue.email, "Email"),
-    password: ensureNonEmptyString(dictValue.password, "Password"),
+    email: ensureNonEmptyString(dictValue.email, "Console sign in.email"),
+    password: ensureNonEmptyString(dictValue.password, "Console sign in.password"),
+  };
+}
+
+export function ensureScheduleEnabled(value: unknown): { id: number; enable: boolean } {
+  const dictValue = ensureExactRecord(value, ["id", "enable"], "Schedule enable request");
+  return {
+    id: ensurePositiveInteger(dictValue.id, "Schedule enable request.id"),
+    enable: ensureBoolean(dictValue.enable, "Schedule enable request.enable"),
   };
 }

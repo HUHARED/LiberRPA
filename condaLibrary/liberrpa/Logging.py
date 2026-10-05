@@ -29,6 +29,7 @@ from liberrpa.Common._RunContext import (
 from liberrpa.Common._Exception import get_exception_info
 from liberrpa.Common._LogFormatter import create_human_read_formatter
 
+from datetime import datetime, UTC
 import os
 import getpass
 import io
@@ -131,7 +132,9 @@ class JsonLineFormatter(logging.Formatter):
 
     def format(self, record: logging.LogRecord) -> str:
         dictData = {
-            "timestamp": self.formatTime(record, self.datefmt),
+            "timestamp": datetime.fromtimestamp(record.created, UTC).isoformat(
+                timespec="milliseconds"
+            ),
             "level": record.levelname,
             "message": self._get_serializable_obj_or_str(record.msg),
             "userName": self.userName,

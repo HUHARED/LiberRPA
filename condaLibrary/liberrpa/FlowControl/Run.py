@@ -176,6 +176,7 @@ def _run_by_direction(id: str) -> str | None:
         else:
             # Assign the value to record exit reason.
             End.executionResult = "error"
+            End.executionError = e
             # The node has no "Error" direction. return None to stop the loop.
             return None
 

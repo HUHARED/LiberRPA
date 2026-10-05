@@ -1,6 +1,7 @@
 // FileName: projectManagerSession.ts
 
 import * as vscode from "vscode";
+import { randomUUID } from "node:crypto";
 
 import {
   log,
@@ -63,7 +64,13 @@ import {
   importComponentWheelFiles,
 } from "./Repository/importComponentWheels";
 import type { ConsoleAccount } from "./Console/consoleAccount";
-import { type ConsoleAccountState, ConsoleAction } from "../Domain/Console/consoleTypes";
+import {
+  type ConsoleAccountState,
+  type ConsolePublishDepartment,
+  type ConsolePublishResult,
+  ConsoleAction,
+  ConsolePublishStatus,
+} from "../Domain/Console/consoleTypes";
 
 export interface ProjectManagerSessionHost {
   postMessage(message: DictMessage_ExtensionToWebview): Promise<void>;
@@ -84,6 +91,12 @@ export class ProjectManagerSession {
   private packageProjectInput: DictPackageProjectInput | null = null;
   private packageResult: DictProjectPackageResult | null = null;
   private publishResult: DictProtocolResult_Publish | null = null;
+  private consolePublishRequestId = "";
+  private consolePublishResult: ConsolePublishResult = {
+    status: ConsolePublishStatus.NotRequested,
+    message: "",
+    packageId: null,
+  };
 
   public constructor(
     private readonly host: ProjectManagerSessionHost,
@@ -123,6 +136,17 @@ export class ProjectManagerSession {
     const data = await loadPackageProjectData(workspaceFolder, input);
     logComponentManagementWarnings(data.warnings);
     this.packageProjectInput = data.input;
+    let arrConsoleDepartment: ConsolePublishDepartment[] = [];
+    let strConsolePublishingMessage = "";
+    try {
+      arrConsoleDepartment = await this.consoleAccount.getPackageDepartments();
+      if (arrConsoleDepartment.length === 0) {
+        strConsolePublishingMessage =
+          "Your account has no department where it can publish Packages.";
+      }
+    } catch (e: unknown) {
+      strConsolePublishingMessage = getErrorMessage(e);
+    }
 
     return {
       theme: getTheme(vscode.window.activeColorTheme),
@@ -140,6 +164,9 @@ export class ProjectManagerSession {
         ]),
       ],
       packageResult: this.packageResult,
+      consoleDepartments: arrConsoleDepartment,
+      consolePublishingMessage: strConsolePublishingMessage,
+      consolePublishResult: this.consolePublishResult,
       ...(notification === undefined ? {} : { notification }),
     };
   }
@@ -297,10 +324,16 @@ export class ProjectManagerSession {
     const previousPackageProjectInput = this.packageProjectInput;
     const previousPackageResult = this.packageResult;
     const previousPublishResult = this.publishResult;
+    const previousConsolePublishResult = this.consolePublishResult;
     this.operation = operation;
     if (operation === "packageProject") {
       this.packageProjectInput = null;
       this.packageResult = null;
+      this.consolePublishResult = {
+        status: ConsolePublishStatus.NotRequested,
+        message: "",
+        packageId: null,
+      };
     }
     if (operation === "publishComponent") {
       this.publishResult = null;
@@ -314,6 +347,7 @@ export class ProjectManagerSession {
       this.packageProjectInput = previousPackageProjectInput;
       this.packageResult = previousPackageResult;
       this.publishResult = previousPublishResult;
+      this.consolePublishResult = previousConsolePublishResult;
       throw e;
     }
   }
@@ -330,10 +364,63 @@ export class ProjectManagerSession {
         outputFolderPath: strOutputFolderPath,
       };
       this.packageResult = null;
+      this.consolePublishResult = {
+        status: ConsolePublishStatus.NotRequested,
+        message: "",
+        packageId: null,
+      };
       await this.host.postMessage({
         command: "loadPackageProject",
         initialData: await this.getPackageProjectInitialData(),
       });
+    });
+  }
+
+  private async publishCreatedPackage(): Promise<void> {
+    const packageResult = this.packageResult;
+    const input = this.packageProjectInput;
+    if (packageResult === null || input === null || input.consoleDepartmentId === "") {
+      throw new Error("Create a local Package and select a publishing department first.");
+    }
+    this.consolePublishResult = {
+      status: ConsolePublishStatus.Publishing,
+      message: "The local Package was created. Uploading it to Console...",
+      packageId: null,
+    };
+    await this.host.postMessage({
+      command: "loadPackageProject",
+      initialData: await this.getPackageProjectInitialData(),
+    });
+    try {
+      const strPackageId = await this.consoleAccount.publishPackage(
+        packageResult.packageFilePath,
+        input.consoleDepartmentId,
+        this.consolePublishRequestId,
+      );
+      this.consolePublishResult = {
+        status: ConsolePublishStatus.Completed,
+        message: "The Package was published to Console successfully.",
+        packageId: strPackageId,
+      };
+    } catch (e: unknown) {
+      this.consolePublishResult = {
+        status: ConsolePublishStatus.Failed,
+        message: `The local Package is ready, but Console publishing failed: ${getErrorMessage(e)}`,
+        packageId: null,
+      };
+    }
+    await this.host.postMessage({
+      command: "loadPackageProject",
+      initialData: await this.getPackageProjectInitialData(),
+    });
+  }
+
+  private async retryConsolePublish(): Promise<void> {
+    if (this.consolePublishResult.status !== ConsolePublishStatus.Failed) {
+      throw new Error("There is no failed Console upload to retry.");
+    }
+    await this.runBusyOperation(async () => {
+      await this.publishCreatedPackage();
     });
   }
 
@@ -343,6 +430,15 @@ export class ProjectManagerSession {
       const workspaceFolder = this.getSingleWorkspaceFolder();
       this.packageProjectInput = input;
       this.packageResult = null;
+      this.consolePublishRequestId = randomUUID();
+      this.consolePublishResult = {
+        status: ConsolePublishStatus.NotRequested,
+        message: "",
+        packageId: null,
+      };
+      if (input.publishToConsole && input.consoleDepartmentId === "") {
+        throw new Error("Select a department for Console publishing.");
+      }
 
       const operationResult = await packageFlowProject(workspaceFolder, input);
       logComponentManagementWarnings(operationResult.warnings);
@@ -360,6 +456,9 @@ export class ProjectManagerSession {
           getComponentManagementWarningMessages(operationResult.warnings),
         ),
       });
+      if (input.publishToConsole) {
+        await this.publishCreatedPackage();
+      }
     });
   }
 
@@ -368,6 +467,11 @@ export class ProjectManagerSession {
       await this.saveAllProjectFiles();
       this.packageProjectInput = input;
       this.packageResult = null;
+      this.consolePublishResult = {
+        status: ConsolePublishStatus.NotRequested,
+        message: "",
+        packageId: null,
+      };
       await this.host.postMessage({
         command: "loadPackageProject",
         initialData: await this.getPackageProjectInitialData(),
@@ -718,6 +822,12 @@ export class ProjectManagerSession {
       case "revealProjectPackage":
         if (this.operation === "packageProject") {
           await this.revealPackageResult();
+        }
+        return;
+
+      case "retryConsolePublish":
+        if (this.operation === "packageProject") {
+          await this.retryConsolePublish();
         }
         return;
 

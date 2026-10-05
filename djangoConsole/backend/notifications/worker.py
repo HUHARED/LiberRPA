@@ -5,9 +5,10 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from django.utils import timezone
+from django.db.models import Case, When, Value, IntegerField
 
 from .delivery import EmailDeliveryResult, deliver_email
-from .models import EmailStatus, EmailReasonCode, EmailDelivery
+from .models import EmailStatus, EmailReasonCode, EmailDelivery, EmailType
 
 
 def recover_interrupted_email_deliveries() -> int:
@@ -30,7 +31,14 @@ def process_next_email() -> EmailDeliveryResult | None:
         .filter(
             status=EmailStatus.PENDING,
         )
-        .order_by("created_at", "id")
+        .annotate(
+            mail_priority=Case(
+                When(email_type=EmailType.RUN, then=Value(1)),
+                default=Value(0),
+                output_field=IntegerField(),
+            )
+        )
+        .order_by("mail_priority", "created_at", "id")
         .values_list("id", flat=True)
         .first()
     )

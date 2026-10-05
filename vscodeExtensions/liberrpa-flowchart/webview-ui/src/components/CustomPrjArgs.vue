@@ -98,6 +98,8 @@ import type { StoreCustomPrjArg } from "../store";
 import { requestDocumentSave, showAlert, updateLocalData } from "../commonFunc";
 import type { JsonValue, CustomPrjArg } from "../interface";
 
+// NOTE: Keep this limit aligned with Project Manager, Executor, and Console.
+const INT_CUSTOM_ARGUMENT_MAX_COUNT = 100;
 const argsStore = useArgsStore();
 
 function stringifyKeyForInput(key: string): string {
@@ -265,6 +267,13 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 }
 
 function addNewArgument(): void {
+  if (argsStore.customPrjArgs.length >= INT_CUSTOM_ARGUMENT_MAX_COUNT) {
+    showAlert(
+      `Custom Project Arguments cannot exceed ${INT_CUSTOM_ARGUMENT_MAX_COUNT} entries.`,
+    );
+    return;
+  }
+
   argsStore.customPrjArgs.push(["", ""]);
   arrKeyCache.value.push("");
   arrValueCache.value.push('""');

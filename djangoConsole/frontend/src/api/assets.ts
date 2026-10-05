@@ -17,6 +17,7 @@ import type {
   AssetDetailsEntryResponse,
   AssetDetailsResponse,
   AssetValueRequest,
+  AssetReferenceResponse,
 } from "./generated/browserApi";
 
 export const ARR_ASSET_TYPE: { title: string; value: AssetType }[] = [
@@ -72,11 +73,25 @@ function isAssetEntry(value: unknown): value is AssetEntryResponse {
 }
 
 function parseAssetDetails(payload: unknown): AssetDetailsResponse {
-  if (!isRecord(payload) || !isAssetEntry(payload.asset)) return rejectInvalidResponse();
+  if (
+    !isRecord(payload) ||
+    !isAssetEntry(payload.asset) ||
+    !("references" in payload.asset) ||
+    !Array.isArray(payload.asset.references) ||
+    !payload.asset.references.every(
+      (reference: unknown): reference is AssetReferenceResponse =>
+        isRecord(reference) &&
+        (reference.kind === "package" || reference.kind === "schedule") &&
+        typeof reference.id === "string" &&
+        typeof reference.name === "string" &&
+        (reference.version === null || typeof reference.version === "string"),
+    )
+  )
+    return rejectInvalidResponse();
   if (isSecretAsset(payload.asset.asset_type)) {
     if ("value" in payload.asset) return rejectInvalidResponse();
   } else if (!("value" in payload.asset)) return rejectInvalidResponse();
-  return { asset: payload.asset };
+  return { asset: { ...payload.asset, references: payload.asset.references } };
 }
 
 export async function getAssetList(

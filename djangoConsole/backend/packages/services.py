@@ -1,0 +1,394 @@
+# FileName: services.py
+__author__ = "Jiyan Hu"
+__email__ = "mailwork.hu@gmail.com"
+__license__ = "GNU Affero General Public License v3.0 or later"
+__copyright__ = f"Copyright (C) 2025 {__author__}"
+
+import hashlib
+import os
+import uuid
+from datetime import timedelta
+from typing import BinaryIO
+
+from django.conf import settings
+from django.core.exceptions import ValidationError
+from django.utils import timezone
+
+from file_storage.models import (
+    StoredBlob,
+    StoredBlobPurpose,
+    StoredBlobState,
+    DownloadSession,
+)
+from file_storage.services import (
+    FileOperationError,
+    get_blob_path,
+    open_blob_for_write,
+    sync_directory,
+    lock_storage,
+    check_disk_capacity,
+    get_storage_usage,
+    require_transfer_slot,
+    get_download_expiry,
+)
+from operations.audit import record_audit
+from organizations.permissions import OrganizationAccessContext
+from organizations.validators import get_path_name_key
+
+from .archive import read_package_archive
+from .cleanup import expire_uploads
+from .contracts import PackageUploadRequest, PackageSettingsRequest
+from .models import Package, PackageUpload, PackageUploadChunk, PackageUploadState
+from .queries import (
+    require_package_department,
+    get_package_query,
+    build_package_payload,
+    build_upload_payload,
+    get_upload_state,
+)
+from .runtime import apply_run_settings, validate_run_settings
+
+
+def create_upload(
+    access: OrganizationAccessContext, payload: PackageUploadRequest
+) -> PackageUpload:
+    require_package_department(access, payload.department_id, manage=True)
+    existing = PackageUpload.objects.filter(
+        organization=access.organization,
+        actor_id=access.actorId,
+        request_id=payload.request_id,
+    ).first()
+    if existing is not None:
+        if (existing.department_id, existing.size_bytes, existing.sha256) != (
+            payload.department_id,
+            payload.size_bytes,
+            payload.sha256,
+        ):
+            raise FileOperationError(
+                "request_conflict", "This request ID has different upload parameters."
+            )
+        return existing
+    if payload.size_bytes > settings.CONSOLE_LIMITS.maxPackageBytes:
+        raise FileOperationError(
+            "package_too_large", "The Package exceeds the archive size limit.", 413
+        )
+    expire_uploads(access.organization.pk)
+    if (
+        PackageUpload.objects.filter(organization=access.organization).count()
+        >= settings.CONSOLE_LIMITS.maxFileReceiptsPerOrganization
+    ):
+        raise FileOperationError(
+            "upload_receipt_limit", "The upload request history is full."
+        )
+    require_transfer_slot(access.organization.pk)
+    lock_storage()
+    usage = get_storage_usage(access.organization.pk)
+    if (
+        usage["used_bytes"] + usage["reserved_bytes"] + payload.size_bytes
+        > usage["limit_bytes"]
+    ):
+        raise FileOperationError(
+            "storage_quota_exceeded", "The organization storage limit has been reached."
+        )
+    check_disk_capacity(payload.size_bytes)
+    blob = StoredBlob.objects.create(
+        organization=access.organization,
+        purpose=StoredBlobPurpose.PACKAGE,
+        size_bytes=payload.size_bytes,
+        sha256=payload.sha256,
+    )
+    return PackageUpload.objects.create(
+        organization=access.organization,
+        actor_id=access.actorId,
+        department_id=payload.department_id,
+        request_id=payload.request_id,
+        size_bytes=payload.size_bytes,
+        sha256=payload.sha256,
+        blob=blob,
+        expires_at=timezone.now() + timedelta(hours=24),
+    )
+
+
+def append_chunk(
+    upload: PackageUpload, offset: int, chunkData: bytes, chunkSha256: str
+) -> None:
+    strState = get_upload_state(upload)
+    if (
+        offset < upload.offset
+        and strState in (PackageUploadState.RECEIVING, PackageUploadState.COMPLETED)
+        and PackageUploadChunk.objects.filter(
+            upload=upload, offset=offset, size_bytes=len(chunkData), sha256=chunkSha256
+        ).exists()
+    ):
+        return
+    if strState != PackageUploadState.RECEIVING:
+        raise FileOperationError(
+            "upload_unavailable", "This upload is no longer receiving data.", 410
+        )
+    if offset != upload.offset or offset + len(chunkData) > upload.size_bytes:
+        raise FileOperationError(
+            "chunk_offset_conflict", "Use the confirmed offset and declared Package size."
+        )
+    if upload.blob_id is None:
+        raise FileOperationError(
+            "upload_data_missing", "The upload storage is unavailable.", 503
+        )
+    lock_storage()
+    path, handle = open_blob_for_write(upload.blob_id)
+    with handle:
+        if os.fstat(handle.fileno()).st_size < offset:
+            raise FileOperationError(
+                "upload_data_missing", "Confirmed upload bytes are unavailable.", 503
+            )
+        handle.truncate(offset)
+        handle.flush()
+        os.fsync(handle.fileno())
+        check_disk_capacity()
+        handle.seek(offset)
+        handle.write(chunkData)
+        handle.flush()
+        os.fsync(handle.fileno())
+    sync_directory(path.parent)
+    upload.offset += len(chunkData)
+    upload.save(update_fields=["offset"])
+    StoredBlob.objects.filter(pk=upload.blob_id).update(written_bytes=upload.offset)
+    PackageUploadChunk.objects.create(
+        upload=upload, offset=offset, size_bytes=len(chunkData), sha256=chunkSha256
+    )
+
+
+def cancel_upload(upload: PackageUpload) -> None:
+    if get_upload_state(upload) == PackageUploadState.RECEIVING:
+        upload.state = PackageUploadState.CANCELED
+        upload.save(update_fields=["state"])
+        StoredBlob.objects.filter(pk=upload.blob_id).update(state=StoredBlobState.GARBAGE)
+
+
+def _validate_package_capacity(
+    access: OrganizationAccessContext, departmentId: uuid.UUID, projectNameKey: str
+) -> None:
+    projectPackages = Package.objects.filter(
+        department_id=departmentId, project_name_key=projectNameKey
+    )
+    if projectPackages.count() >= settings.CONSOLE_LIMITS.maxPackagesPerProject:
+        raise FileOperationError(
+            "package_limit", "This project has reached its package limit."
+        )
+    if (
+        not projectPackages.exists()
+        and Package.objects
+        .filter(department__organization=access.organization)
+        .values("department_id", "project_name_key")
+        .distinct()
+        .count()
+        >= settings.CONSOLE_LIMITS.maxProjectsPerOrganization
+    ):
+        raise FileOperationError(
+            "package_project_limit",
+            "The organization has reached its Package project limit.",
+        )
+
+
+def complete_upload(
+    access: OrganizationAccessContext, upload: PackageUpload
+) -> dict | FileOperationError:
+    strState = get_upload_state(upload)
+    if strState == PackageUploadState.COMPLETED:
+        return build_upload_payload(upload)
+    if strState != PackageUploadState.RECEIVING:
+        raise FileOperationError(
+            "upload_unavailable", "This upload is no longer available.", 410
+        )
+    if upload.offset != upload.size_bytes:
+        raise FileOperationError(
+            "upload_incomplete", "Upload all bytes before completing this Package."
+        )
+    if upload.blob_id is None:
+        raise FileOperationError(
+            "upload_data_missing", "The upload storage is unavailable.", 503
+        )
+    try:
+        path = get_blob_path(upload.blob_id)
+        with path.open("rb") as handle:
+            if (
+                os.fstat(handle.fileno()).st_size != upload.size_bytes
+                or hashlib.file_digest(handle, "sha256").hexdigest() != upload.sha256
+            ):
+                raise FileOperationError(
+                    "package_checksum_mismatch",
+                    "The Package checksum does not match its declared content.",
+                )
+        metadata = read_package_archive(path)
+        strNameKey = get_path_name_key(metadata["project_name"])
+        strVersionKey = get_path_name_key(metadata["version"])
+        if Package.objects.filter(
+            department_id=upload.department_id,
+            project_name_key=strNameKey,
+            version_key=strVersionKey,
+        ).exists():
+            raise FileOperationError(
+                "package_exists",
+                "This department already contains the project version; versions cannot be overwritten.",
+            )
+        _validate_package_capacity(access, upload.department_id, strNameKey)
+    except (ValidationError, FileOperationError) as e:
+        upload.state = PackageUploadState.FAILED
+        upload.save(update_fields=["state"])
+        StoredBlob.objects.filter(pk=upload.blob_id).update(state=StoredBlobState.GARBAGE)
+        return (
+            e
+            if isinstance(e, FileOperationError)
+            else FileOperationError("invalid_package", " ".join(e.messages), 400)
+        )
+    package = Package.objects.create(
+        department_id=upload.department_id,
+        project_name_key=strNameKey,
+        version_key=strVersionKey,
+        blob_id=upload.blob_id,
+        uploaded_by_id=access.actorId,
+        uploaded_by_name=str(access.actor),
+        **metadata,
+    )
+    StoredBlob.objects.filter(pk=upload.blob_id).update(
+        state=StoredBlobState.AVAILABLE, written_bytes=upload.size_bytes
+    )
+    upload.state = PackageUploadState.COMPLETED
+    upload.result = build_package_payload(package, access)
+    upload.save(update_fields=["state", "result"])
+    record_audit(
+        "packages.upload",
+        actor=access.actor,
+        organization=access.organization,
+        target=package,
+        channel=access.channel,
+        metadata={
+            "project_name": package.project_name,
+            "version": package.version,
+            "size_bytes": upload.size_bytes,
+        },
+    )
+    return build_upload_payload(upload)
+
+
+def save_package_settings(
+    access: OrganizationAccessContext,
+    package: Package,
+    payload: PackageSettingsRequest,
+) -> None:
+    require_package_department(access, package.department_id, manage=True)
+    dictSettings = validate_run_settings(package, payload.settings)
+    apply_run_settings(package, dictSettings)
+    package.python_environment_name = payload.python_environment_name
+    package.updated_at = timezone.now()
+    package.save(update_fields=[*dictSettings, "python_environment_name", "updated_at"])
+    from .preparation import request_referenced_preparation
+
+    request_referenced_preparation(package)
+    record_audit(
+        "packages.update",
+        actor=access.actor,
+        organization=access.organization,
+        target=package,
+        channel=access.channel,
+    )
+
+
+def get_package_references(package: Package) -> list[dict]:
+    from schedules.models import Schedule
+    from runs.models import Job, JobState
+
+    listReference = [
+        {"kind": "schedule", "id": str(schedule.pk), "name": schedule.name}
+        for schedule in Schedule.objects.filter(package=package, deleted_at__isnull=True)
+    ]
+    listReference.extend(
+        {"kind": "job", "id": str(job.pk), "name": str(job.pk)}
+        for job in Job.objects.filter(package_id=package.pk).exclude(
+            state=JobState.FINISHED
+        )
+    )
+    return listReference
+
+
+def delete_package(access: OrganizationAccessContext, package: Package) -> None:
+    require_package_department(access, package.department_id, manage=True)
+    if get_package_references(package):
+        raise FileOperationError(
+            "package_in_use",
+            "Remove Schedule references and finish or close active Jobs before deleting this Package.",
+        )
+    record_audit(
+        "packages.delete",
+        actor=access.actor,
+        organization=access.organization,
+        target=package,
+        channel=access.channel,
+    )
+    from schedules.models import Schedule
+
+    Schedule.objects.filter(package=package, deleted_at__isnull=False).delete()
+    blobId = package.blob_id
+    package.delete()
+    StoredBlob.objects.filter(pk=blobId).update(state=StoredBlobState.GARBAGE)
+
+
+def prepare_download(access: OrganizationAccessContext, package: Package) -> dict:
+    expire_uploads(access.organization.pk)
+    require_transfer_slot(access.organization.pk)
+    path = get_blob_path(package.blob_id)
+    if not path.is_file() or path.stat().st_size != package.blob.size_bytes:
+        raise FileOperationError(
+            "package_content_unavailable", "The Package content is unavailable.", 503
+        )
+    transfer = DownloadSession.objects.create(
+        organization=access.organization,
+        actor_id=access.actorId,
+        department_id=package.department_id,
+        blob=package.blob,
+        path=str(package.pk),
+        name=f"{package.project_name}_{package.version}.zip"[:128],
+        expires_at=get_download_expiry(),
+    )
+    return {
+        "transfer_id": str(transfer.pk),
+        "expires_at": transfer.expires_at.isoformat(),
+        "package": build_package_payload(package, access),
+    }
+
+
+def open_download(
+    access: OrganizationAccessContext, transferId: uuid.UUID
+) -> tuple[DownloadSession, BinaryIO]:
+    transfer = DownloadSession.objects.select_related("blob").get(
+        pk=transferId,
+        organization=access.organization,
+        actor_id=access.actorId,
+        blob__purpose=StoredBlobPurpose.PACKAGE,
+    )
+    require_package_department(access, transfer.department_id)
+    if transfer.started or transfer.expires_at <= timezone.now():
+        raise FileOperationError("transfer_expired", "Start a new Package download.", 410)
+    if not get_package_query(access).filter(blob=transfer.blob).exists():
+        raise FileOperationError(
+            "package_not_found", "The Package is no longer available.", 404
+        )
+    handle = get_blob_path(transfer.blob_id).open("rb")
+    try:
+        if os.fstat(handle.fileno()).st_size != transfer.blob.size_bytes:
+            raise FileOperationError(
+                "package_content_unavailable", "The Package content is unavailable.", 503
+            )
+        transfer.started = True
+        transfer.expires_at = get_download_expiry()
+        transfer.save(update_fields=["started", "expires_at"])
+        record_audit(
+            "packages.download",
+            actor=access.actor,
+            organization=access.organization,
+            target=transfer,
+            channel=access.channel,
+        )
+    except Exception:
+        handle.close()
+        raise
+    return transfer, handle

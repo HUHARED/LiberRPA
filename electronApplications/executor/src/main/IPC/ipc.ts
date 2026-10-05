@@ -19,7 +19,10 @@ import {
   saveExecutorConfigDict,
   validateExecutorConfig,
 } from "../Config/executorConfig";
-import { getPythonEnvironmentNames, getPythonEnvironmentPath } from "../Config/environment";
+import {
+  getPythonEnvironmentNames,
+  validatePythonEnvironmentName,
+} from "../Config/environment";
 import {
   dbSelectProjectBoundSchedules,
   dbSelectProjectDetail,
@@ -30,8 +33,10 @@ import {
 import {
   dbSelectRunHistoryLogLocation,
   dbSelectRunHistoryPage,
+  dbSelectRunDetails,
 } from "../Database/runHistoryRepository";
 import {
+  dbSetScheduleEnabled,
   dbDeleteSchedule,
   dbInsertSchedule,
   dbSelectScheduleDetail,
@@ -62,6 +67,7 @@ import {
   ensureProjectSettingsUpdate,
   ensureRendererLogLevel,
   ensureRunHistoryOptions,
+  ensureScheduleEnabled,
   ensureScheduleCreate,
   ensureScheduleUpdate,
   ensureStringData,
@@ -103,7 +109,7 @@ const INVOKE_VALIDATOR = {
   signOutConsole: (rawData: unknown) => ensureNoData(rawData, "signOutConsole"),
   openProjectLogFolder: (rawData: unknown) => ensureNoData(rawData, "openProjectLogFolder"),
   saveExecutorConfig: (rawData: unknown) => validateExecutorConfig(rawData),
-  runProject: (rawData: unknown) => ensurePositiveIntegerData(rawData, "runProject"),
+  runProject: ensureProjectSettingsUpdate,
   getPythonEnvironmentNames: (rawData: unknown) =>
     ensureNoData(rawData, "getPythonEnvironmentNames"),
   installProjectPackage: (rawData: unknown) =>
@@ -119,8 +125,10 @@ const INVOKE_VALIDATOR = {
   getScheduleDetail: (rawData: unknown) => ensureStringData(rawData, "getScheduleDetail"),
   createSchedule: ensureScheduleCreate,
   saveSchedule: ensureScheduleUpdate,
+  setScheduleEnabled: ensureScheduleEnabled,
   deleteSchedule: (rawData: unknown) =>
     ensurePositiveIntegerData(rawData, "deleteSchedule"),
+  getRunDetails: (rawData: unknown) => ensurePositiveIntegerData(rawData, "Run History ID"),
   getRunHistoryPage: ensureRunHistoryOptions,
   getRunQueue: (rawData: unknown) => ensureNoData(rawData, "getRunQueue"),
   cancelWaitingRun: ensureWaitingRunId,
@@ -182,7 +190,7 @@ function createInvokeHandlerMap(
     },
 
     saveProjectSettings(detailDict) {
-      getPythonEnvironmentPath(detailDict.python_environment_name);
+      validatePythonEnvironmentName(detailDict.python_environment_name);
       dbUpdateProjectSettings(detailDict);
     },
 
@@ -212,10 +220,17 @@ function createInvokeHandlerMap(
       refreshSchedulerEngine();
     },
 
+    setScheduleEnabled({ id, enable }) {
+      dbSetScheduleEnabled(id, enable);
+      refreshSchedulerEngine();
+    },
+
     deleteSchedule(scheduleId) {
       dbDeleteSchedule(scheduleId);
       refreshSchedulerEngine();
     },
+
+    getRunDetails: dbSelectRunDetails,
 
     getRunHistoryPage(optionsDict) {
       return dbSelectRunHistoryPage(optionsDict);

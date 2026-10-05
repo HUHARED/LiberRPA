@@ -183,11 +183,13 @@
             </v-btn>
           </div>
         </template>
-        <template #no-data>{{
-          error
-            ? "The file list could not be loaded."
-            : "No files match the current filters."
-        }}</template>
+        <template #no-data>
+          {{
+            error
+              ? "The file list could not be loaded."
+              : "No files match the current filters."
+          }}
+        </template>
       </v-data-table-server>
       <div
         v-if="page"

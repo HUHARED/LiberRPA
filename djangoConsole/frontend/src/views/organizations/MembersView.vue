@@ -71,7 +71,7 @@
               class="text-primary">
               {{ assignment.department.path }}
             </RouterLink>
-            <span class="text-capitalize"> — {{ assignment.role }}</span>
+            <span class="text-capitalize">— {{ assignment.role }}</span>
           </li>
         </ul>
         <span v-else class="text-medium-emphasis">No department access</span>

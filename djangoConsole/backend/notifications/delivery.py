@@ -6,7 +6,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from typing import cast
 
 from django.conf import settings
@@ -40,6 +40,9 @@ from .models import (
     EmailDispatchState,
     EmailDelivery,
     OrganizationDeletionNotice,
+    RunEmailReference,
+    RunEmailEvent,
+    RunEmailRecipient,
 )
 from .smtp import send_smtp_once
 
@@ -135,66 +138,159 @@ def _prepare_email(deliveryId: uuid.UUID) -> EmailPreparationResult:
             retryAt=retryAt,
         )
 
-    match delivery.email_type:
-        case EmailType.ORGANIZATION_REGISTRATION:
-            try:
-                registrationTokenDeliveryInfo = issue_registration_token(
-                    delivery.recipient
-                )
-            except PermissionDenied:
-                return _mark_email_not_sent(
-                    delivery, reasonCode=EmailReasonCode.ORGANIZATION_CREATION_DISABLED
-                )
-            if registrationTokenDeliveryInfo is None:
-                return _mark_email_not_sent(
-                    delivery, reasonCode=EmailReasonCode.REGISTRATION_NOT_ELIGIBLE
-                )
-            emailMessage = build_registration_email(registrationTokenDeliveryInfo)
-        case EmailType.MEMBER_INVITATION:
-            try:
-                invitationDeliveryInfo = issue_invitation_token(delivery)
-            except PermissionDenied:
-                return _mark_email_not_sent(
-                    delivery, reasonCode=EmailReasonCode.ORGANIZATION_UNAVAILABLE
-                )
-            except InvitationConflictError as e:
-                return _mark_email_not_sent(
-                    delivery, reasonCode=EmailReasonCode(e.errorCode)
-                )
-            except (ValidationError, MemberInvitation.DoesNotExist):
-                return _mark_email_not_sent(
-                    delivery, reasonCode=EmailReasonCode.INVITATION_NOT_ELIGIBLE
-                )
-            if invitationDeliveryInfo is None:
-                return _mark_email_not_sent(
-                    delivery, reasonCode=EmailReasonCode.INVITATION_SUPERSEDED
-                )
-            emailMessage = build_invitation_email(invitationDeliveryInfo)
-        case EmailType.PASSWORD_RESET:
-            resetDeliveryInfo = issue_password_reset_token(delivery)
-            if resetDeliveryInfo is None:
-                return _mark_email_not_sent(
-                    delivery, reasonCode=EmailReasonCode.PASSWORD_RESET_NOT_ELIGIBLE
-                )
-            emailMessage = build_password_reset_email(resetDeliveryInfo)
-        case EmailType.EMAIL_CHANGE_VERIFICATION:
-            changeDeliveryInfo = issue_email_change_token(delivery)
-            if changeDeliveryInfo is None:
-                return _mark_email_not_sent(
-                    delivery, reasonCode=EmailReasonCode.EMAIL_CHANGE_NOT_ELIGIBLE
-                )
-            emailMessage = build_email_change_verification(changeDeliveryInfo)
-        case EmailType.EMAIL_CHANGE_NOTICE:
-            emailMessage = build_email_change_notice(delivery)
-        case EmailType.ORGANIZATION_DELETION_NOTICE:
-            try:
-                emailMessage = build_organization_deletion_notice(delivery)
-            except OrganizationDeletionNotice.DoesNotExist:
-                return _mark_email_not_sent(
-                    delivery, reasonCode=EmailReasonCode.DELETION_NOTICE_MISSING
-                )
-        case _:
-            raise ValueError("Unsupported email type.")
+    if delivery.email_type == EmailType.RUN:
+        from organizations.models import Organization
+        from organizations.permissions import is_organization_business_available
+        from runs.models import Run
+        from .run_email import build_run_email
+
+        reference = (
+            RunEmailReference.objects
+            .select_related("organization", "recipient")
+            .filter(delivery=delivery)
+            .first()
+        )
+        organization = (
+            None
+            if reference is None
+            else Organization.objects
+            .select_for_update()
+            .filter(pk=reference.organization_id)
+            .first()
+        )
+        if reference is not None:
+            reference.recipient = RunEmailRecipient.objects.filter(
+                pk=reference.recipient_id
+            ).first()
+        if (
+            reference is None
+            or organization is None
+            or reference.recipient is None
+            or reference.recipient.verified_at is None
+            or not is_organization_business_available(organization)
+        ):
+            return _mark_email_not_sent(
+                delivery, reasonCode=EmailReasonCode.RUN_NOT_ELIGIBLE
+            )
+        run = (
+            Run.objects
+            .select_related("job__request__organization", "job__department", "assignment")
+            .filter(pk=reference.run_id, job__closed_at__isnull=True)
+            .first()
+        )
+        if run is None or (
+            reference.event != RunEmailEvent.START and run.result != reference.event
+        ):
+            return _mark_email_not_sent(
+                delivery, reasonCode=EmailReasonCode.RUN_NOT_ELIGIBLE
+            )
+        attemptedRunEmails = EmailDelivery.objects.filter(
+            email_type=EmailType.RUN, attempted_at__isnull=False
+        )
+        organizationEmails = attemptedRunEmails.filter(
+            run_reference__organization=reference.organization
+        )
+        utcDay = currentTime.astimezone(UTC).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
+        if (
+            attemptedRunEmails.filter(
+                attempted_at__gt=currentTime - timedelta(hours=24)
+            ).count()
+            >= limits.maxRunEmailRecipientsPer24Hours
+            or organizationEmails.filter(
+                attempted_at__gt=currentTime - timedelta(hours=1)
+            ).count()
+            >= limits.maxRunEmailRecipientsPerOrganizationHour
+            or organizationEmails.filter(attempted_at__gte=utcDay).count()
+            >= limits.maxRunEmailRecipientsPerOrganizationDay
+            or attemptedRunEmails.filter(
+                recipient=delivery.recipient,
+                attempted_at__gt=currentTime - timedelta(hours=1),
+            ).count()
+            >= limits.maxRunEmailRecipientsPerAddressHour
+        ):
+            return _mark_email_not_sent(
+                delivery, reasonCode=EmailReasonCode.RUN_BUDGET_EXHAUSTED
+            )
+        emailMessage = build_run_email(
+            run, event=reference.event, recipient=delivery.recipient
+        )
+    elif delivery.email_type == EmailType.RUN_RECIPIENT_VERIFICATION:
+        from .recipients import build_recipient_verification_email
+
+        try:
+            preparedMessage = build_recipient_verification_email(delivery)
+        except PermissionDenied:
+            preparedMessage = None
+        if preparedMessage is None:
+            return _mark_email_not_sent(
+                delivery, reasonCode=EmailReasonCode.RECIPIENT_NOT_ELIGIBLE
+            )
+        emailMessage = preparedMessage
+    else:
+        match delivery.email_type:
+            case EmailType.ORGANIZATION_REGISTRATION:
+                try:
+                    registrationTokenDeliveryInfo = issue_registration_token(
+                        delivery.recipient
+                    )
+                except PermissionDenied:
+                    return _mark_email_not_sent(
+                        delivery,
+                        reasonCode=EmailReasonCode.ORGANIZATION_CREATION_DISABLED,
+                    )
+                if registrationTokenDeliveryInfo is None:
+                    return _mark_email_not_sent(
+                        delivery, reasonCode=EmailReasonCode.REGISTRATION_NOT_ELIGIBLE
+                    )
+                emailMessage = build_registration_email(registrationTokenDeliveryInfo)
+            case EmailType.MEMBER_INVITATION:
+                try:
+                    invitationDeliveryInfo = issue_invitation_token(delivery)
+                except PermissionDenied:
+                    return _mark_email_not_sent(
+                        delivery, reasonCode=EmailReasonCode.ORGANIZATION_UNAVAILABLE
+                    )
+                except InvitationConflictError as e:
+                    return _mark_email_not_sent(
+                        delivery, reasonCode=EmailReasonCode(e.errorCode)
+                    )
+                except (ValidationError, MemberInvitation.DoesNotExist):
+                    return _mark_email_not_sent(
+                        delivery, reasonCode=EmailReasonCode.INVITATION_NOT_ELIGIBLE
+                    )
+                if invitationDeliveryInfo is None:
+                    return _mark_email_not_sent(
+                        delivery, reasonCode=EmailReasonCode.INVITATION_SUPERSEDED
+                    )
+                emailMessage = build_invitation_email(invitationDeliveryInfo)
+            case EmailType.PASSWORD_RESET:
+                resetDeliveryInfo = issue_password_reset_token(delivery)
+                if resetDeliveryInfo is None:
+                    return _mark_email_not_sent(
+                        delivery, reasonCode=EmailReasonCode.PASSWORD_RESET_NOT_ELIGIBLE
+                    )
+                emailMessage = build_password_reset_email(resetDeliveryInfo)
+            case EmailType.EMAIL_CHANGE_VERIFICATION:
+                changeDeliveryInfo = issue_email_change_token(delivery)
+                if changeDeliveryInfo is None:
+                    return _mark_email_not_sent(
+                        delivery, reasonCode=EmailReasonCode.EMAIL_CHANGE_NOT_ELIGIBLE
+                    )
+                emailMessage = build_email_change_verification(changeDeliveryInfo)
+            case EmailType.EMAIL_CHANGE_NOTICE:
+                emailMessage = build_email_change_notice(delivery)
+            case EmailType.ORGANIZATION_DELETION_NOTICE:
+                try:
+                    emailMessage = build_organization_deletion_notice(delivery)
+                except OrganizationDeletionNotice.DoesNotExist:
+                    return _mark_email_not_sent(
+                        delivery, reasonCode=EmailReasonCode.DELETION_NOTICE_MISSING
+                    )
+            case _:
+                raise ValueError("Unsupported email type.")
+
     attemptedAt = timezone.now()
     # The dispatch lock prevents other reservations while token or policy locks are awaited.
     # Budget usage cannot grow here; refresh only the rate allowance and attempt timestamp.

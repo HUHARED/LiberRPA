@@ -1,10 +1,10 @@
 // FileName: rdpSession.ts
 
-import { is } from "@electron-toolkit/utils";
 import { spawn } from "child_process";
 import type { ChildProcessWithoutNullStreams } from "child_process";
 import path from "path";
 import { createInterface } from "readline";
+import { app } from "electron";
 
 import { getErrorMessage } from "../../shared/error";
 import { isProcessRunning } from "../Common/process";
@@ -31,10 +31,9 @@ const setRdpProcess = new Set<ChildProcessWithoutNullStreams>();
 const setGracefulTerminationRequested = new Set<ChildProcessWithoutNullStreams>();
 
 function getScriptFolderPath(): string {
-  if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
-    return path.join(__dirname, "../../resources/pyRdpScript");
-  }
-  return path.join(process.resourcesPath, "app.asar.unpacked/resources/pyRdpScript");
+  return app.isPackaged
+    ? path.join(process.resourcesPath, "app.asar.unpacked/resources/pyRdpScript")
+    : path.join(app.getAppPath(), "resources/pyRdpScript");
 }
 
 const strScriptFolderPath = getScriptFolderPath();

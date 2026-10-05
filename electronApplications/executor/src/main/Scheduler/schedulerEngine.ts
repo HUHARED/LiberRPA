@@ -1,18 +1,20 @@
 // FileName: schedulerEngine.ts
 
 import { randomUUID } from "crypto";
-import { CronExpressionParser } from "cron-parser";
+import { nextScheduleDate, parseScheduleCron } from "../../shared/cron";
 
 import { getErrorMessage } from "../../shared/error";
+import { RunSource } from "../../shared/run";
+import { INT_RETRY_DELAY_MS } from "../../shared/runOptions";
+import { onRunFinished } from "../Run/lifecycle";
 import { dictConfigExecutor } from "../Config/executorConfig";
-import { dbHasRunningRun } from "../Database/runHistoryRepository";
 import {
   dbSelectScheduleList,
   dbSelectScheduleRunDetail,
 } from "../Database/scheduleRepository";
 import { loggerMain } from "../Logging/logger";
-import { hasStartingRun, pythonRun } from "../Run/projectRunner";
-import type { Dict_ProjectRun_Detail } from "../Run/types";
+import { hasActiveProjectRun, pythonRun } from "../Run/projectRunner";
+import type { Dict_ProjectRun_Detail, RunExecutionContext } from "../Run/types";
 import type { Dict_ListItem_RunQueue } from "../../shared/run";
 import type { Str_RunConflictPolicy } from "../../shared/schedule";
 
@@ -28,6 +30,8 @@ interface WaitingRun {
   scheduleId: number;
   queueItem: Dict_ListItem_RunQueue;
   runDetail: Dict_ProjectRun_Detail;
+  context?: RunExecutionContext;
+  retryAt?: number;
 }
 
 const INT_SCHEDULER_CHECK_INTERVAL_MS = 1000;
@@ -35,6 +39,36 @@ const INT_SCHEDULER_CHECK_INTERVAL_MS = 1000;
 const arrPendingRun: PendingRun[] = [];
 const arrWaitingRun: WaitingRun[] = [];
 const setListener_RunQueueChanged = new Set<Listener_RunQueueChanged>();
+
+onRunFinished((detail, context, fact) => {
+  if (
+    !boolSchedulerStarted ||
+    context.source !== RunSource.Local ||
+    !fact.retryEligible ||
+    context.attempt > detail.retry_count
+  )
+    return;
+  const intRetryAt = Date.now() + INT_RETRY_DELAY_MS;
+  arrWaitingRun.push({
+    scheduleId: 0,
+    runDetail: structuredClone(detail),
+    context: { ...context, attempt: context.attempt + 1 },
+    retryAt: intRetryAt,
+    queueItem: {
+      queue_id: context.jobId,
+      schedule_name: detail.schedule_name ?? "Manual Run",
+      project_name: detail.name,
+      project_version: detail.version,
+      estimated_run_at_ms: intRetryAt,
+      waiting: true,
+    },
+  });
+  publishRunQueueChanged();
+});
+
+export function getLocalWaitingCount(): number {
+  return arrWaitingRun.length;
+}
 
 let timerSchedulerCheck: NodeJS.Timeout | undefined;
 let promiseSchedulerTick: Promise<void> | undefined;
@@ -83,6 +117,8 @@ export async function stopSchedulerEngine(): Promise<void> {
   if (promiseCurrentTick !== undefined) {
     await promiseCurrentTick;
   }
+  arrWaitingRun.splice(0);
+  arrPendingRun.splice(0);
   loggerMain.info("Stop Scheduler engine.");
 }
 
@@ -132,16 +168,6 @@ function resetPendingRuns(): void {
   const intNowMs = Date.now();
   const arrSchedule = dbSelectScheduleList();
   const arrNextPending: PendingRun[] = [];
-  const setScheduleId = new Set(arrSchedule.map((dictSchedule) => dictSchedule.id));
-
-  for (let intIndex = arrWaitingRun.length - 1; intIndex >= 0; intIndex--) {
-    if (!setScheduleId.has(arrWaitingRun[intIndex].scheduleId)) {
-      loggerMain.info(
-        `Remove waiting Run because its Schedule no longer exists: ${arrWaitingRun[intIndex].queueItem.schedule_name}`,
-      );
-      arrWaitingRun.splice(intIndex, 1);
-    }
-  }
 
   for (const dictSchedule of arrSchedule) {
     if (!dictSchedule.enable) {
@@ -150,12 +176,15 @@ function resetPendingRuns(): void {
 
     try {
       const intCurrentDateMs = Math.max(intNowMs, dictSchedule.period_start_ms - 1);
-      const intervalObj = CronExpressionParser.parse(dictSchedule.cron, {
-        currentDate: new Date(intCurrentDateMs),
-        endDate: new Date(dictSchedule.period_end_ms),
-        tz: dictConfigExecutor.timezone,
-      });
-      const intEstimatedRunAtMs = intervalObj.next().toDate().getTime();
+      const intervalObj = parseScheduleCron(
+        dictSchedule.cron,
+        dictConfigExecutor.timezone,
+        {
+          currentDate: new Date(intCurrentDateMs),
+          endDate: new Date(dictSchedule.period_end_ms),
+        },
+      );
+      const intEstimatedRunAtMs = nextScheduleDate(intervalObj).toDate().getTime();
 
       arrNextPending.push({
         scheduleId: dictSchedule.id,
@@ -186,15 +215,31 @@ function resetPendingRuns(): void {
 }
 
 async function processSchedulerTick(): Promise<void> {
-  let boolOthersRunning = dbHasRunningRun() || hasStartingRun();
+  let boolOthersRunning = hasActiveProjectRun();
 
-  if (!boolOthersRunning && arrWaitingRun.length !== 0) {
-    const waitingRun = arrWaitingRun.shift();
+  const intReadyIndex = arrWaitingRun.findIndex((waitingRun) => {
+    if (waitingRun.retryAt !== undefined && waitingRun.retryAt > Date.now()) return false;
+    return (
+      !boolOthersRunning ||
+      (waitingRun.retryAt !== undefined &&
+        (waitingRun.runDetail.run_conflict_policy ?? "concurrent") !== "wait")
+    );
+  });
+  if (intReadyIndex !== -1) {
+    const waitingRun = arrWaitingRun.splice(intReadyIndex, 1)[0];
     if (waitingRun !== undefined) {
       publishRunQueueChanged();
       try {
-        await pythonRun(waitingRun.runDetail);
-        boolOthersRunning = dbHasRunningRun();
+        if (
+          boolOthersRunning &&
+          waitingRun.retryAt !== undefined &&
+          waitingRun.runDetail.run_conflict_policy === "skip"
+        ) {
+          loggerMain.info("Skip local retry because another Run is active.");
+        } else {
+          await pythonRun(waitingRun.runDetail, waitingRun.context);
+        }
+        boolOthersRunning = hasActiveProjectRun();
       } catch (e: unknown) {
         loggerMain.error(
           `Failed to start waiting Run for Schedule '${waitingRun.queueItem.schedule_name}': ${getErrorMessage(
@@ -240,7 +285,7 @@ async function processSchedulerTick(): Promise<void> {
     if (!boolOthersRunning || runConflictPolicy === "concurrent") {
       try {
         await pythonRun(dictRunDetail);
-        boolOthersRunning = dbHasRunningRun();
+        boolOthersRunning = hasActiveProjectRun();
       } catch (e: unknown) {
         loggerMain.error(
           `Failed to start scheduled Run for '${strScheduleName}': ${getErrorMessage(e)}`,

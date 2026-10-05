@@ -10,11 +10,13 @@
       <v-card-title id="queue-item-title">Item Details</v-card-title>
       <v-card-text>
         <v-progress-linear v-if="boolLoading" indeterminate class="mb-4" />
-        <v-alert v-if="error" type="error" variant="tonal" class="mb-4" role="alert">{{
-          error.statusCode === 404
-            ? "The item no longer exists or is unavailable."
-            : error.message
-        }}</v-alert>
+        <v-alert v-if="error" type="error" variant="tonal" class="mb-4" role="alert">
+          {{
+            error.statusCode === 404
+              ? "The item no longer exists or is unavailable."
+              : error.message
+          }}
+        </v-alert>
         <v-alert
           v-if="strActionError"
           type="error"

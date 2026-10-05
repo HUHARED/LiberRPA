@@ -204,6 +204,8 @@ class ExecutorGroupMember(models.Model):
         Executor, on_delete=models.PROTECT, related_name="group_memberships"
     )
 
+    joined_at = models.DateTimeField(default=timezone.now, editable=False)
+
     class Meta:
         constraints = [
             models.UniqueConstraint(

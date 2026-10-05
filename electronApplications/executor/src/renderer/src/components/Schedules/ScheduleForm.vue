@@ -10,8 +10,7 @@
             class="clean-space"
             density="compact"
             hide-details
-            variant="underlined">
-          </v-text-field>
+            variant="underlined"></v-text-field>
         </v-col>
 
         <v-col cols="5">
@@ -22,8 +21,7 @@
             class="clean-space"
             density="compact"
             hide-details
-            :items="ARR_RUN_CONFLICT_POLICY">
-          </v-select>
+            :items="ARR_RUN_CONFLICT_POLICY"></v-select>
         </v-col>
       </v-row>
 
@@ -40,7 +38,7 @@
             required
             spellcheck="false">
             <v-tooltip activator="parent" location="top">
-              Interpreted using Executor time zone: {{ settingStore.timezone }}
+              Time zone from Settings: {{ settingStore.timezone }}
             </v-tooltip>
           </v-text-field>
         </v-col>
@@ -57,22 +55,21 @@
             required
             spellcheck="false">
             <v-tooltip activator="parent" location="top">
-              Interpreted using Executor time zone: {{ settingStore.timezone }}
+              Time zone from Settings: {{ settingStore.timezone }}
             </v-tooltip>
           </v-text-field>
         </v-col>
 
         <v-col cols="2" class="pt-0 pb-1">
           <v-container fluid class="clean-space">
-            <v-label class="clean-space" style="font-size: 0.75em"> Enabled </v-label>
+            <v-label class="clean-space" style="font-size: 0.75em">Enabled</v-label>
 
             <v-switch
               v-model="detail.enable"
               hide-details
               class="clean-space pl-1"
               density="compact"
-              true-icon="mdi-flash">
-            </v-switch>
+              true-icon="mdi-flash"></v-switch>
           </v-container>
         </v-col>
       </v-row>
@@ -95,14 +92,19 @@
 
         <v-col cols="9" class="clean-space">
           <v-container fluid class="clean-space pt-0 flex-column">
-            <cron-vuetify v-model="detail.cron" class="clean-space mb-2"> </cron-vuetify>
+            <cron-vuetify v-model="detail.cron" class="clean-space mb-2"></cron-vuetify>
           </v-container>
         </v-col>
       </v-row>
 
+      <v-alert v-if="cronValidation.valid" density="compact" variant="tonal" class="my-2">
+        Next:
+        {{ arrPreview.join(" · ") || "No upcoming trigger within the active period." }}
+      </v-alert>
+
       <v-divider class="mt-2"></v-divider>
 
-      <v-label class="mt-2 mb-3"> Project </v-label>
+      <v-label class="mt-2 mb-3">Project</v-label>
 
       <v-row class="w-100">
         <v-col cols="8">
@@ -114,8 +116,7 @@
             density="compact"
             hide-details
             :items="scheduleStore.arrProjectName"
-            @update:model-value="whenProjectNameChanged()">
-          </v-select>
+            @update:model-value="whenProjectNameChanged()"></v-select>
         </v-col>
 
         <v-col cols="4">
@@ -127,18 +128,18 @@
             density="compact"
             hide-details
             :items="detail.project_name ? scheduleStore.arrProjectVersion : []"
-            @update:model-value="whenProjectVersionChanged()">
-          </v-select>
+            @update:model-value="whenProjectVersionChanged()"></v-select>
         </v-col>
       </v-row>
     </v-container>
 
     <v-container fluid class="pa-2 ma-0 pt-0 flex-column-grow-1">
-      <v-label> Run Options </v-label>
+      <v-label>Run Options</v-label>
 
       <v-row class="clean-space flex-column-grow-1">
         <v-col cols="5" class="clean-space fill-height pt-3">
           <BuiltInRunOptions
+            v-model:retry-count="detail.retry_count"
             v-model:timeout-min="detail.timeout_min"
             v-model:log-level="detail.builtin_log_level"
             v-model:record-video="detail.builtin_record_video"
@@ -147,9 +148,7 @@
         </v-col>
 
         <v-col cols="7" class="clean-space flex-column">
-          <v-label class="clean-space" style="font-size: 0.75em">
-            Custom Arguments
-          </v-label>
+          <v-label class="clean-space" style="font-size: 0.75em">Custom Arguments</v-label>
 
           <CustomArgumentsEditor v-model:custom-args="detail.custom_prj_args" />
         </v-col>
@@ -165,6 +164,10 @@ import BuiltInRunOptions from "../RunOptions/BuiltInRunOptions.vue";
 import CustomArgumentsEditor from "../RunOptions/CustomArgumentsEditor.vue";
 
 import { cloneJsonSerializable } from "../../Common/json";
+import {
+  formatTimestampForDateTimeLocal,
+  parseDateTimeLocalToTimestamp,
+} from "../../Common/time";
 import { invokeMain } from "../../IPC/ipc";
 import { loggerRenderer } from "../../Logging/logger";
 import { validateCronExpression } from "../../Schedule/cron";
@@ -172,6 +175,7 @@ import { useScheduleStore } from "../../Store/scheduleStore";
 import { useSettingStore } from "../../Store/settingStore";
 import type { Dict_Detail_ScheduleForm } from "../../Schedule/types";
 import type { Str_RunConflictPolicy } from "../../../../shared/schedule";
+import { previewScheduleCron } from "../../../../shared/cron";
 
 const scheduleStore = useScheduleStore();
 const settingStore = useSettingStore();
@@ -192,7 +196,29 @@ const cronValidation = computed(() => {
   const currentDetail = detail.value;
   return currentDetail === undefined
     ? { valid: false as const, error: "Cron expression is unavailable." }
-    : validateCronExpression(currentDetail.cron);
+    : validateCronExpression(currentDetail.cron, settingStore.timezone);
+});
+
+const arrPreview = computed(() => {
+  const currentDetail = detail.value;
+  if (!currentDetail || !cronValidation.value.valid) return [];
+  const intStart = parseDateTimeLocalToTimestamp(
+    currentDetail.period_start,
+    settingStore.timezone,
+  );
+  const intEnd = parseDateTimeLocalToTimestamp(
+    currentDetail.period_end,
+    settingStore.timezone,
+  );
+  if (intStart === undefined || intEnd === undefined) return [];
+  return previewScheduleCron(
+    currentDetail.cron,
+    settingStore.timezone,
+    Math.max(Date.now(), intStart - 1),
+    intEnd,
+  ).map((intTimestamp) =>
+    formatTimestampForDateTimeLocal(intTimestamp, settingStore.timezone).replace("T", " "),
+  );
 });
 
 const ARR_RUN_CONFLICT_POLICY: { title: string; value: Str_RunConflictPolicy }[] = [
@@ -275,6 +301,7 @@ async function applyProjectDetailToSchedule(
   }
 
   currentDetail.project_id = projectDetail.id;
+  currentDetail.retry_count = projectDetail.retry_count;
   currentDetail.timeout_min = projectDetail.timeout_min;
   currentDetail.builtin_log_level = projectDetail.builtin_log_level;
   currentDetail.builtin_record_video = projectDetail.builtin_record_video;

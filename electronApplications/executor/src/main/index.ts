@@ -39,14 +39,17 @@ import { loggerMain } from "./Logging/logger";
 import { strDefaultProjectLogFolderPath } from "./Config/basicConfig";
 import { dictConfigExecutor } from "./Config/executorConfig";
 import { closeDatabase, initializeDatabase } from "./Database/connection";
-import { dbMarkRunningRunsInterrupted } from "./Database/runHistoryRepository";
+import { dbMarkUnfinishedRunsAfterRestart } from "./Database/runHistoryRepository";
 import { recoverProjectPackageInstallations } from "./Package/packageInstallationTransaction";
 import { recoverProjectPackageDeletions } from "./Package/projectDeletion";
 import { startRdpSessionManager, stopRdpSessionManager } from "./Rdp/rdpSession";
 import { registerExecutorIpc } from "./IPC/ipc";
 import { sendMainMessage } from "./IPC/mainMessage";
 import { onRunEnded, onRunActivityChanged } from "./Run/lifecycle";
+import { stopRecoveredRunObservation } from "./Run/recoveredRuns";
 import { startRunHousekeeping, stopRunHousekeeping } from "./Run/housekeeping";
+import { startConsoleWork, stopConsoleWork } from "./Console/consoleWork";
+import { recoverConsoleWorkAfterRestart } from "./Console/workRepository";
 import { beginProjectRunShutdown, shutdownProjectRuns } from "./Run/projectRunner";
 import {
   getRunQueueItems,
@@ -170,7 +173,8 @@ void app
     initializeDatabase();
     recoverProjectPackageInstallations();
     recoverProjectPackageDeletions();
-    dbMarkRunningRunsInterrupted();
+    dbMarkUnfinishedRunsAfterRestart();
+    recoverConsoleWorkAfterRestart();
 
     // Set the Windows application user model ID.
     electronApp.setAppUserModelId("com.liberrpa.executor");
@@ -258,6 +262,7 @@ void app
     });
     startRunHousekeeping();
     startSchedulerEngine();
+    startConsoleWork();
     startRdpSessionManager();
   })
   .catch((e: unknown) => {
@@ -266,6 +271,8 @@ void app
   });
 
 async function shutdownExecutor(): Promise<void> {
+  stopRecoveredRunObservation();
+  await stopConsoleWork();
   stopConsoleContextBridge();
   await stopConsoleAccount();
   try {

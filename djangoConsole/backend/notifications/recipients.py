@@ -1,0 +1,230 @@
+# FileName: recipients.py
+__author__ = "Jiyan Hu"
+__email__ = "mailwork.hu@gmail.com"
+__license__ = "GNU Affero General Public License v3.0 or later"
+__copyright__ = f"Copyright (C) 2025 {__author__}"
+
+import uuid
+from datetime import timedelta
+from urllib.parse import urlencode
+
+from django.conf import settings
+from django.core import signing
+from django.core.exceptions import ValidationError
+from django.core.mail import EmailMessage
+from django.core.validators import validate_email
+from django.utils import timezone
+
+from operations.audit import record_audit
+from organizations.models import Organization
+from organizations.permissions import (
+    OrganizationAccessContext,
+    require_organization_admin,
+    require_organization_business_available,
+)
+
+from .models import (
+    EmailDelivery,
+    EmailStatus,
+    EmailType,
+    EmailReasonCode,
+    RunEmailRecipient,
+    RunEmailReference,
+    RunRecipientVerification,
+)
+
+_STR_TOKEN_SALT = "console.run-email-recipient"
+_INT_TOKEN_AGE_SECONDS = 86400
+
+
+def queue_recipient_verification(recipient: RunEmailRecipient) -> None:
+    delivery = EmailDelivery.objects.create(
+        email_type=EmailType.RUN_RECIPIENT_VERIFICATION, recipient=recipient.email
+    )
+    RunRecipientVerification.objects.create(
+        delivery=delivery, recipient=recipient, verification_id=recipient.verification_id
+    )
+
+
+def create_recipient(
+    access: OrganizationAccessContext, *, email: str, notes: str
+) -> RunEmailRecipient:
+    require_organization_admin(access)
+    strEmail = email.strip().lower()
+    validate_email(strEmail)
+    if len(strEmail) > 254 or len(notes) > 2000 or "\x00" in notes:
+        raise ValidationError("The email address or notes are too long or invalid.")
+    if RunEmailRecipient.objects.filter(
+        organization=access.organization, email=strEmail
+    ).exists():
+        raise ValidationError(
+            "This email address is already registered for this organization."
+        )
+    if (
+        RunEmailRecipient.objects.filter(organization=access.organization).count()
+        >= settings.CONSOLE_LIMITS.maxRunEmailAddressesPerOrganization
+    ):
+        raise ValidationError(
+            "This organization has reached its Run email address limit."
+        )
+    recipient = RunEmailRecipient.objects.create(
+        organization=access.organization, email=strEmail, notes=notes
+    )
+    queue_recipient_verification(recipient)
+    record_audit(
+        "run_email_recipient.create",
+        actor=access.actor,
+        organization=access.organization,
+        target=recipient,
+    )
+    return recipient
+
+
+def resend_recipient_verification(recipient: RunEmailRecipient) -> None:
+    if recipient.verified_at is not None:
+        raise ValidationError("This email address is already verified.")
+    currentTime = timezone.now()
+    if currentTime < recipient.verification_requested_at + timedelta(
+        seconds=settings.CONSOLE_LIMITS.emailResendSeconds
+    ):
+        raise ValidationError("Please wait before requesting another confirmation email.")
+    recipient.verification_id = uuid.uuid4()
+    recipient.verification_requested_at = currentTime
+    recipient.save(update_fields=["verification_id", "verification_requested_at"])
+    queue_recipient_verification(recipient)
+
+
+def get_recipient_references(recipient: RunEmailRecipient) -> list[dict]:
+    from packages.models import Package
+    from schedules.models import Schedule
+    from runs.models import Job, JobState
+
+    strId = str(recipient.pk)
+    listReference = []
+    for package in Package.objects.filter(
+        department__organization_id=recipient.organization_id,
+        run_email__recipient_ids__contains=[strId],
+    ).select_related("department"):
+        listReference.append({
+            "kind": "package",
+            "id": str(package.pk),
+            "name": f"{package.project_name} {package.version}",
+            "department": package.department.name,
+        })
+    for schedule in Schedule.objects.filter(
+        department__organization_id=recipient.organization_id,
+        deleted_at__isnull=True,
+        run_email__recipient_ids__contains=[strId],
+    ).select_related("department"):
+        listReference.append({
+            "kind": "schedule",
+            "id": str(schedule.pk),
+            "name": schedule.name,
+            "department": schedule.department.name,
+        })
+    if (
+        Job.objects
+        .filter(
+            request__organization_id=recipient.organization_id,
+            inputs__run_email__recipient_ids__contains=[strId],
+        )
+        .exclude(state=JobState.FINISHED)
+        .exists()
+    ):
+        listReference.append({
+            "kind": "job",
+            "name": "An unfinished Job still needs this address.",
+        })
+    if RunEmailReference.objects.filter(
+        recipient=recipient,
+        delivery__status__in=[EmailStatus.PENDING, EmailStatus.SENDING],
+    ).exists():
+        listReference.append({
+            "kind": "delivery",
+            "name": "An unfinished Run email delivery still needs this address.",
+        })
+    return listReference
+
+
+def delete_recipient(recipient: RunEmailRecipient) -> None:
+    EmailDelivery.objects.filter(
+        runrecipientverification__recipient=recipient, status=EmailStatus.PENDING
+    ).update(
+        status=EmailStatus.NOT_SENT,
+        finished_at=timezone.now(),
+        reason_code=EmailReasonCode.RECIPIENT_NOT_ELIGIBLE,
+    )
+    recipient.delete()
+
+
+def load_verification_recipient(
+    token: str, *, forUpdate: bool = False
+) -> RunEmailRecipient:
+    try:
+        dictToken = signing.loads(
+            token, salt=_STR_TOKEN_SALT, max_age=_INT_TOKEN_AGE_SECONDS
+        )
+        recipientId = uuid.UUID(dictToken["recipient_id"])
+        verificationId = uuid.UUID(dictToken["verification_id"])
+        query = RunEmailRecipient.objects.select_related("organization")
+        if forUpdate:
+            query = query.select_for_update(of=("self",))
+        recipient = query.get(pk=recipientId, verification_id=verificationId)
+    except (
+        signing.BadSignature,
+        KeyError,
+        TypeError,
+        ValueError,
+        RunEmailRecipient.DoesNotExist,
+    ):
+        raise ValidationError(
+            "This confirmation link is invalid, expired, or replaced."
+        ) from None
+    require_organization_business_available(recipient.organization)
+    return recipient
+
+
+def build_recipient_verification_email(delivery: EmailDelivery) -> EmailMessage | None:
+    reference = (
+        RunRecipientVerification.objects
+        .select_related("recipient__organization")
+        .filter(delivery=delivery)
+        .first()
+    )
+    if reference is None:
+        return None
+    if (
+        not Organization.objects
+        .select_for_update()
+        .filter(pk=reference.recipient.organization_id)
+        .exists()
+    ):
+        return None
+    recipient = (
+        RunEmailRecipient.objects
+        .select_related("organization")
+        .filter(pk=reference.recipient_id)
+        .first()
+    )
+    if recipient is None:
+        return None
+    if (
+        recipient.verified_at is not None
+        or recipient.verification_id != reference.verification_id
+    ):
+        return None
+    require_organization_business_available(recipient.organization)
+    strToken = signing.dumps(
+        {
+            "recipient_id": str(recipient.pk),
+            "verification_id": str(recipient.verification_id),
+        },
+        salt=_STR_TOKEN_SALT,
+    )
+    strUrl = f"{settings.CONSOLE_URL}/verify-run-email/#{urlencode({'token': strToken})}"
+    return EmailMessage(
+        subject="Confirm Run emails from LiberRPA Console",
+        body=f"{recipient.organization.name} wants to send automation Run emails to this address.\n\nOpen the link and confirm that you want to receive these messages:\n{strUrl}\n\nThis link expires in 24 hours. Opening it does not confirm consent.\nIf you did not expect this email, you can ignore it.",
+        to=[recipient.email],
+        reply_to=[settings.CONSOLE_SUPPORT_EMAIL],
+    )
