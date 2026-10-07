@@ -151,7 +151,16 @@ async function prepareAndRun(
   let boolPrepared = false;
   try {
     const detail = getRunDetail(record.assignment);
-    const strPackagePath = await prepareConsolePackage(record.assignment, credential);
+    const strPackagePath = await prepareConsolePackage(
+      {
+        id: record.assignment.package_id,
+        name: detail.name,
+        version: detail.version,
+        sha256: ensureNonEmptyString(record.assignment.snapshot.sha256, "Package SHA256"),
+      },
+      detail.python_environment_name,
+      credential,
+    );
     boolPrepared = true;
     ensureWorkMayStart(record, credential);
     const permit = await getStartPermit(record, credential);
@@ -407,13 +416,12 @@ async function prepareRequestedPackages(
     try {
       await prepareConsolePackage(
         {
-          id: strId,
-          job_id: "",
-          run_id: "",
-          attempt: 1,
-          package_id: ensureNonEmptyString(inputs.package_id, "Package ID"),
-          snapshot: inputs,
+          id: ensureNonEmptyString(inputs.package_id, "Package ID"),
+          name: ensureNonEmptyString(inputs.project_name, "Package name"),
+          version: ensureNonEmptyString(inputs.project_version, "Package version"),
+          sha256: ensureNonEmptyString(inputs.sha256, "Package SHA256"),
         },
+        ensurePythonEnvironmentName(inputs.python_environment_name, "Python environment"),
         credential,
       );
     } catch (e: unknown) {

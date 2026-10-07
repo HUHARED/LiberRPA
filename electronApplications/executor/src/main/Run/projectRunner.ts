@@ -15,7 +15,7 @@ import { getEffectiveProjectLogFolderPath } from "../Config/executorConfig";
 import { getPythonEnvironmentPath } from "../Config/environment";
 import { dbInsertRunHistory, dbUpdateRunHistory } from "../Database/runHistoryRepository";
 import { getDatabase } from "../Database/connection";
-import { verifyPythonPackageEnvironment } from "../Console/packagePreparation";
+import { validatePythonPackageEnvironment } from "../Package/packageMetadata";
 import { getExecutorPackageFolderPath } from "../FileSystem/executorFiles";
 import { loggerMain } from "../Logging/logger";
 import { notifyRunEnded, notifyRunActivityChanged, notifyRunFinished } from "./lifecycle";
@@ -229,15 +229,10 @@ async function startProjectRun(
     throw new Error(`Installed Project folder does not exist: ${strExecutorPackagePath}`);
   }
 
-  if (context.source === RunSource.Local)
-    await verifyPythonPackageEnvironment(
-      strExecutorPackagePath,
-      detailDict.python_environment_name,
-    );
-
   const strPythonEnvironmentPath = getPythonEnvironmentPath(
     detailDict.python_environment_name,
   );
+  await validatePythonPackageEnvironment(strExecutorPackagePath, strPythonEnvironmentPath);
   loggerMain.info(
     `Use Python environment '${detailDict.python_environment_name}' for ${detailDict.name}-${detailDict.version}.`,
   );

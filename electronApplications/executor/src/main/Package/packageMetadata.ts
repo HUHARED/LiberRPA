@@ -250,3 +250,35 @@ export async function readProjectPackageMetadata(
     projectDetail: buildProjectDetail(flowManifest, packageManifest, runtimeSettings),
   };
 }
+
+export async function validatePythonPackageEnvironment(
+  packagePath: string,
+  pythonEnvironmentPath: string,
+): Promise<void> {
+  await execFileAsync(
+    path.join(pythonEnvironmentPath, "python.exe"),
+    [
+      "-I",
+      "-X",
+      "utf8",
+      "-c",
+      [
+        "import importlib.metadata, json, sys",
+        "from packaging.specifiers import SpecifierSet",
+        "with open(sys.argv[1], encoding='utf-8-sig') as manifestFile:",
+        "    dictManifest = json.load(manifestFile)",
+        "strVersion = importlib.metadata.version('liberrpa')",
+        "strRequirement = dictManifest['requiresLiberrpa']",
+        "if strVersion not in SpecifierSet(strRequirement):",
+        "    sys.exit(f'Installed liberrpa {strVersion} does not satisfy {strRequirement}')",
+      ].join("\n"),
+      path.join(packagePath, STR_FLOW_MANIFEST_FILE_NAME),
+    ],
+    {
+      env: buildPythonProcessEnvironment({ pythonEnvironmentPath }),
+      timeout: 15_000,
+      maxBuffer: 64 * 1024,
+      windowsHide: true,
+    },
+  );
+}
