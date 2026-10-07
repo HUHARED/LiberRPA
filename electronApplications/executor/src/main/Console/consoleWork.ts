@@ -18,6 +18,7 @@ import { getDatabase } from "../Database/connection";
 import { loggerMain } from "../Logging/logger";
 import { cancelRunById, pythonRun } from "../Run/projectRunner";
 import type { Dict_ProjectRun_Detail } from "../Run/types";
+import { getLocalWaitingCount } from "../Scheduler/schedulerEngine";
 import { getConsolePythonCredential } from "./consoleAccount";
 import { ConsoleRequestError, requestConsole } from "./consoleApi";
 import type { ConsoleCredentialSnapshot } from "./consoleContextBridge";
@@ -47,6 +48,12 @@ enum ConsolePermitWaitReason {
   ExecutorBusy = "executor_busy",
   WorkStateRequired = "work_state_required",
 }
+
+enum ConsoleNotStartedReason {
+  LocalConflict = "local_conflict",
+}
+
+class ConsoleStartConflictError extends Error {}
 
 const INT_MIN_PERMIT_RETRY_MS = 2000;
 const INT_MAX_PERMIT_RETRY_MS = 30_000;
@@ -264,10 +271,17 @@ async function prepareAndRun(
       runId: record.assignment.run_id,
       attempt: record.assignment.attempt,
       packagePath: strPackagePath,
-      beforeSpawn() {
+      beforeSpawn(boolOtherRunActive) {
         ensureWorkMayStart(record, credential);
         if (!record.permitExpiresAt || Date.parse(record.permitExpiresAt) <= Date.now())
           throw new Error("The Console start permit expired before process creation.");
+        if (
+          detail.run_conflict_policy !== "concurrent" &&
+          (boolOtherRunActive || getLocalWaitingCount() > 0)
+        )
+          throw new ConsoleStartConflictError(
+            "Local running or waiting work takes priority.",
+          );
         record.state = ConsoleWorkState.Launching;
         saveConsoleWork(record);
       },
@@ -323,12 +337,21 @@ async function prepareAndRun(
           setStoppedAssignment.has(record.assignment.id)
         ? "not_started"
         : "preparation_failed";
+    const boolLocalConflict = !boolUncertain && e instanceof ConsoleStartConflictError;
     record.state = boolUncertain ? ConsoleWorkState.Unknown : ConsoleWorkState.Finished;
     getDatabase().transaction(() => {
       saveConsoleWork(record);
-      saveConsoleEvent(record, { kind: strKind, reason: getErrorMessage(e) });
+      saveConsoleEvent(record, {
+        kind: strKind,
+        reason: getErrorMessage(e),
+        ...(boolLocalConflict && {
+          not_started_reason: ConsoleNotStartedReason.LocalConflict,
+        }),
+      });
     })();
-    loggerMain.warn(`Console assignment ${record.assignment.id}: ${getErrorMessage(e)}`);
+    const strMessage = `Console assignment ${record.assignment.id}: ${getErrorMessage(e)}`;
+    if (boolLocalConflict) loggerMain.info(strMessage);
+    else loggerMain.warn(strMessage);
   } finally {
     setStoppedAssignment.delete(record.assignment.id);
   }

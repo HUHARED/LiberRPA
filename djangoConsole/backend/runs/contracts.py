@@ -5,6 +5,7 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import uuid
+from enum import StrEnum
 from typing import Annotated, Literal
 
 from pydantic import AwareDatetime, Field, JsonValue, model_validator
@@ -59,6 +60,10 @@ class RecordingInfo(JsonRequest):
     reason: str = Field(default="", max_length=2000)
 
 
+class RunNotStartedReason(StrEnum):
+    LOCAL_CONFLICT = "local_conflict"
+
+
 class WorkEvent(JsonRequest):
     event_id: UuidValue
     assignment_id: UuidValue
@@ -75,9 +80,12 @@ class WorkEvent(JsonRequest):
     error_summary: dict[str, str] | None = None
     recording: RecordingInfo | None = None
     reason: str = Field(default="", max_length=2000)
+    not_started_reason: Annotated[RunNotStartedReason, Field(strict=False)] | None = None
 
     @model_validator(mode="after")
     def validate_event(self) -> "WorkEvent":
+        if self.not_started_reason is not None and self.kind != RunEventKind.NOT_STARTED:
+            raise ValueError("A non-start reason requires a not_started event.")
         if self.kind == RunEventKind.ENDED:
             if self.started_at is None or self.result in (None, RunResult.RUNNING):
                 raise ValueError(

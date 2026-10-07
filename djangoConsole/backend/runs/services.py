@@ -35,8 +35,9 @@ from organizations.permissions import (
     require_organization_business_available,
     resolve_organization_access,
 )
+from packages.contracts import RunConflictPolicy
 
-from .contracts import WorkEvent
+from .contracts import RunNotStartedReason, WorkEvent
 from .control_notifications import notify_executor_control
 from .models import (
     Assignment,
@@ -882,6 +883,20 @@ def receive_event(session: ExecutorSession, event: WorkEvent) -> None:
         )
         return
     if event.kind in (RunEventKind.STARTED, RunEventKind.ENDED):
+        if (
+            assignment.state
+            in (
+                AssignmentState.WITHDRAWN,
+                AssignmentState.FINISHED,
+            )
+            and RunEvent.objects.filter(
+                assignment=assignment, kind=RunEventKind.NOT_STARTED
+            ).exists()
+        ):
+            raise ValidationError(
+                "The client already confirmed that no process was created.",
+                code="conflicting_start_evidence",
+            )
         if assignment.permit_expires_at is None:
             raise ValidationError(
                 "No start permission was issued for this assignment.",
@@ -981,11 +996,53 @@ def receive_event(session: ExecutorSession, event: WorkEvent) -> None:
             raise ValidationError(
                 "An actual Run already exists.", code="actual_run_exists"
             )
-        assignment.state = AssignmentState.FINISHED
-        assignment.reason = event.reason or "The client confirmed no process was created."
-        assignment.save(update_fields=["state", "reason"])
-        if job.state != JobState.FINISHED:
-            _finish_job(job, assignment.reason, notify=job.stop_requested_at is None)
+        if event.not_started_reason == RunNotStartedReason.LOCAL_CONFLICT:
+            strPolicy = job.inputs["run_conflict_policy"]
+            if (
+                assignment.permit_expires_at is None
+                or assignment.state
+                not in (
+                    AssignmentState.PERMITTED,
+                    AssignmentState.REVIEW,
+                )
+                or strPolicy not in (RunConflictPolicy.WAIT, RunConflictPolicy.SKIP)
+            ):
+                raise ValidationError(
+                    "A local conflict requires an unused Wait or Skip start permission.",
+                    code="invalid_start_conflict",
+                )
+            # Keep the issued permit as evidence, but withdraw its right to start or be retried.
+            assignment.state = AssignmentState.WITHDRAWN
+            assignment.reason = (
+                "Skipped because local running or waiting work has priority."
+                if strPolicy == RunConflictPolicy.SKIP
+                else "Waiting for local running or waiting work to finish."
+            )
+            assignment.save(update_fields=["state", "reason"])
+            if job.state != JobState.FINISHED and job.closed_at is None:
+                if job.stop_requested_at is not None:
+                    _finish_job(job, "Canceled before process creation.")
+                elif not _has_source_access(job):
+                    _finish_job(
+                        job,
+                        "The source account no longer has permission to run this Job.",
+                        notify=True,
+                    )
+                elif strPolicy == RunConflictPolicy.SKIP:
+                    _finish_job(job, assignment.reason)
+                else:
+                    job.state = JobState.WAITING
+                    job.reason = assignment.reason
+                    job.retry_at = None
+                    job.save(update_fields=["state", "reason", "retry_at"])
+        else:
+            assignment.state = AssignmentState.FINISHED
+            assignment.reason = (
+                event.reason or "The client confirmed no process was created."
+            )
+            assignment.save(update_fields=["state", "reason"])
+            if job.state != JobState.FINISHED:
+                _finish_job(job, assignment.reason, notify=job.stop_requested_at is None)
     elif event.kind == RunEventKind.RECORDING:
         run = Run.objects.get(assignment=assignment)
         if event.recording is None:
@@ -1014,7 +1071,9 @@ def receive_event(session: ExecutorSession, event: WorkEvent) -> None:
         occurred_at=event.occurred_at,
         reason=event.reason,
     )
-    if boolWasPreparing and assignment.state != AssignmentState.PREPARING:
+    if (
+        boolWasPreparing and assignment.state != AssignmentState.PREPARING
+    ) or event.not_started_reason == RunNotStartedReason.LOCAL_CONFLICT:
         notify_executor_control(assignment.executor_id)
 
 

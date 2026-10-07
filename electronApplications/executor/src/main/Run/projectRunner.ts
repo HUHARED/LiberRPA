@@ -61,8 +61,12 @@ let boolProjectRunShutdownStarted = false;
 let promiseConsoleAccountTransition: Promise<void> | undefined;
 let finishConsoleAccountTransition: (() => void) | undefined;
 
-export function hasActiveProjectRun(): boolean {
-  return intStartingRunCount !== 0 || mapActiveRunByRunId.size !== 0 || hasRecoveredRun();
+export function hasActiveProjectRun(excludeCurrentStart = false): boolean {
+  return (
+    intStartingRunCount > (excludeCurrentStart ? 1 : 0) ||
+    mapActiveRunByRunId.size !== 0 ||
+    hasRecoveredRun()
+  );
 }
 
 export function beginConsoleAccountTransition(): void {
@@ -241,7 +245,8 @@ async function startProjectRun(
   const strStartedAt = new Date().toISOString();
   const strProjectLogRootPath = getEffectiveProjectLogFolderPath();
   const strRunStatePath = createExecutorRunStatePath(strRunId);
-  context.beforeSpawn?.();
+  // This call already owns one starting slot; all other starts and actual Runs still count.
+  context.beforeSpawn?.(hasActiveProjectRun(true));
   const { processPy, diagnosticOutput, getProcessError } = spawnProjectPythonProcess({
     detail: detailDict,
     packagePath: strExecutorPackagePath,
