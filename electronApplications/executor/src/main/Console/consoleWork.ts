@@ -418,17 +418,27 @@ async function syncConsoleWork(
     getConsoleWorkState(),
   );
   if (boolStopped || !isCurrentControlCredential(credential)) return;
-  if (Array.isArray(response.stop_run_ids))
-    for (const value of response.stop_run_ids)
-      cancelRunById(ensureNonEmptyString(value, "Stop Run ID"));
-  if (Array.isArray(response.stop_assignment_ids))
-    for (const value of response.stop_assignment_ids) {
-      const strId = ensureNonEmptyString(value, "Stop assignment ID");
-      setStoppedAssignment.add(strId);
-      mapPermitWaiter.get(strId)?.();
-      const record = getConsoleWork(strId);
-      if (record) cancelRunById(record.assignment.run_id);
+  if (!Array.isArray(response.stop_requests))
+    throw new Error("Console returned invalid stop requests.");
+  for (const value of response.stop_requests) {
+    const request = ensureRecord(value, "Console stop request");
+    const strAssignmentId = ensureNonEmptyString(
+      request.assignment_id,
+      "Stop assignment ID",
+    );
+    const strRunId = ensureNonEmptyString(request.run_id, "Stop Run ID");
+    const record = getConsoleWork(strAssignmentId);
+    if (
+      record &&
+      (record.sessionKey !== strSessionKey || record.assignment.run_id !== strRunId)
+    )
+      throw new Error("Console returned a stop request for a different local assignment.");
+    if (mapPreparingWork.has(strAssignmentId)) {
+      setStoppedAssignment.add(strAssignmentId);
+      mapPermitWaiter.get(strAssignmentId)?.();
     }
+    cancelRunById(strRunId);
+  }
   if (Array.isArray(response.assignments))
     for (const value of response.assignments) {
       const assignment = parseAssignment(value);

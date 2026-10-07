@@ -34,7 +34,7 @@ from executors.models import ExecutorSession
 from organizations.permissions import AccessChannel, resolve_organization_access
 
 from .contracts import WorkEventsRequest, WorkPermitRequest, WorkPollRequest
-from .models import Assignment, AssignmentState, ExecutorWorkState, JobState
+from .models import Assignment, AssignmentState, ExecutorWorkState, JobState, RunEventKind
 from .services import issue_permission, receive_event
 
 _LOGGER = logging.getLogger("console.runs.protocol")
@@ -141,12 +141,24 @@ def _poll(authentication: ExecutorClientResult, payload: WorkPollRequest) -> Jso
                 session_id=session.id,
             )
             .exclude(state=AssignmentState.FINISHED)
+            # A non-start receipt ends redelivery without changing withdrawal into preparation failure.
+            .exclude(
+                state=AssignmentState.WITHDRAWN,
+                events__kind=RunEventKind.NOT_STARTED,
+            )
+            .exclude(
+                state=AssignmentState.WITHDRAWN,
+                permit_expires_at__isnull=True,
+                events__kind=RunEventKind.PREPARATION_FAILED,
+            )
             .values("id", "run_id")
         )
         return JsonResponse({
             "assignments": [_build_assignment_payload(entry) for entry in listAssignment],
-            "stop_run_ids": [entry["run_id"] for entry in listStop],
-            "stop_assignment_ids": [entry["id"] for entry in listStop],
+            "stop_requests": [
+                {"assignment_id": entry["id"], "run_id": entry["run_id"]}
+                for entry in listStop
+            ],
             "file_transfers": get_pending_transfers(session.pk),
             "preparations": get_preparation_commands(authentication.access, session),
             "server_time": timezone.now(),
