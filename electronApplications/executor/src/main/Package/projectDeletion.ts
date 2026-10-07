@@ -23,7 +23,7 @@ import {
 } from "../FileSystem/executorFiles";
 import { loggerMain } from "../Logging/logger";
 import { isProjectRunStarting } from "../Run/projectRunner";
-import { hasWaitingRunForProject } from "../Scheduler/schedulerEngine";
+import { hasQueuedRunForProject } from "../Scheduler/schedulerEngine";
 import { getTargetFolderName } from "./packageArchive";
 
 interface Dict_Transaction_ProjectPackageDelete {
@@ -110,8 +110,10 @@ export function deleteInstalledProject(projectId: number): void {
         .join(", ")}.`,
     );
   }
-  if (hasWaitingRunForProject(projectId)) {
-    throw new Error(`Cannot delete Project ${projectId} while it has a waiting Run.`);
+  if (hasQueuedRunForProject(projectId)) {
+    throw new Error(
+      `Cannot delete Project ${projectId} while it has a waiting Run or pending retry.`,
+    );
   }
   if (isProjectRunStarting(projectId) || dbHasRunningRunForProject(projectId)) {
     throw new Error(`Cannot delete Project ${projectId} while it is running.`);

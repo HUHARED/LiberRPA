@@ -22,11 +22,11 @@
           class="clean-space"></v-chip>
       </template>
 
-      <template #item.waiting="{ value }">
+      <template #item.state="{ item }">
         <v-chip
-          :border="`${getWaitingColor(value)} thin opacity-25`"
-          :color="getWaitingColor(value)"
-          :text="value ? 'Waiting' : 'Pending'"
+          :border="`${dictQueueState[item.state].color} thin opacity-25`"
+          :color="dictQueueState[item.state].color"
+          :text="dictQueueState[item.state].label"
           variant="text"
           size="x-small"></v-chip>
       </template>
@@ -34,8 +34,10 @@
       <template #item.actions="{ item }">
         <div class="d-flex ga-2 justify-start">
           <v-tooltip
-            v-if="item.waiting"
-            text="Cancel Waiting Run"
+            v-if="item.state !== RunQueueState.Pending"
+            :text="
+              item.state === RunQueueState.WaitingRetry ? 'Cancel Retry' : 'Cancel Run'
+            "
             location="bottom"
             :open-on-focus="false">
             <template #activator="{ props }">
@@ -44,8 +46,7 @@
                 color="medium-emphasis"
                 icon="mdi-stop-circle-outline"
                 size="small"
-                @click="removeWaitingItem(item)">
-              </v-icon>
+                @click="cancelQueuedItem(item)"></v-icon>
             </template>
           </v-tooltip>
         </div>
@@ -63,7 +64,7 @@ import { useRunQueueStore } from "../../Store/runQueueStore";
 import { useSettingStore } from "../../Store/settingStore";
 import { formatTimestamp } from "../../Common/time";
 import { getErrorMessage } from "../../../../shared/error";
-import type { Dict_ListItem_RunQueue } from "../../../../shared/run";
+import { RunQueueState, type Dict_ListItem_RunQueue } from "../../../../shared/run";
 
 const runQueueStore = useRunQueueStore();
 const settingStore = useSettingStore();
@@ -73,6 +74,12 @@ onBeforeMount(() => {
     loggerRenderer.error(`Failed to load Run Queue: ${getErrorMessage(e)}`);
   });
 });
+
+const dictQueueState: Record<RunQueueState, { label: string; color: string }> = {
+  [RunQueueState.Pending]: { label: "Pending", color: "inactive" },
+  [RunQueueState.WaitingRetry]: { label: "Waiting for Retry", color: "info" },
+  [RunQueueState.Waiting]: { label: "Waiting", color: "warning" },
+};
 
 const arrHeader: DataTableHeader<Dict_ListItem_RunQueue>[] = [
   { title: "Schedule", value: "schedule_name", align: "start", sortable: false },
@@ -95,19 +102,16 @@ const arrHeader: DataTableHeader<Dict_ListItem_RunQueue>[] = [
     align: "center",
     sortable: false,
   },
-  { title: "State", value: "waiting", align: "start", sortable: false },
+  { title: "State", value: "state", align: "start", sortable: false },
   { title: "Actions", key: "actions", align: "start", sortable: false },
 ];
 
-function getWaitingColor(waiting: boolean): string {
-  return waiting ? "warning" : "inactive";
-}
-
-async function removeWaitingItem(item: Dict_ListItem_RunQueue): Promise<void> {
-  loggerRenderer.info(
-    `Cancel waiting Run: ${item.schedule_name}-${item.estimated_run_at_ms}`,
-  );
-  await runQueueStore.cancelWaitingRun(item.queue_id);
+async function cancelQueuedItem(item: Dict_ListItem_RunQueue): Promise<void> {
+  try {
+    await runQueueStore.cancelQueuedRun(item.queue_id);
+  } catch (e: unknown) {
+    loggerRenderer.error(`Failed to cancel queued Run: ${getErrorMessage(e)}`);
+  }
 }
 </script>
 

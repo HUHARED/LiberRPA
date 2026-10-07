@@ -26,8 +26,8 @@ export const useRunQueueStore = defineStore("runQueue", {
       this.arrListItem = arrItem;
     },
 
-    async cancelWaitingRun(queueId: string): Promise<void> {
-      await invokeMain("cancelWaitingRun", queueId);
+    async cancelQueuedRun(queueId: string): Promise<void> {
+      await invokeMain("cancelQueuedRun", queueId);
       await this.refreshRunQueue();
     },
   },

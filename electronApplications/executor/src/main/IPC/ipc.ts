@@ -54,7 +54,7 @@ import {
 import { ensureExistingRunLogFolderPath } from "../Run/logPath";
 import { pythonCancel } from "../Run/projectRunner";
 import {
-  cancelWaitingRun,
+  cancelQueuedRun,
   getRunQueueItems,
   refreshSchedulerEngine,
 } from "../Scheduler/schedulerEngine";
@@ -71,7 +71,7 @@ import {
   ensureScheduleCreate,
   ensureScheduleUpdate,
   ensureStringData,
-  ensureWaitingRunId,
+  ensureQueuedRunId,
 } from "./validation";
 import { IPC_CHANNEL_RENDERER_INVOKE, IPC_CHANNEL_RENDERER_LOG } from "../../shared/ipc";
 import type {
@@ -131,7 +131,7 @@ const INVOKE_VALIDATOR = {
   getRunDetails: (rawData: unknown) => ensurePositiveIntegerData(rawData, "Run History ID"),
   getRunHistoryPage: ensureRunHistoryOptions,
   getRunQueue: (rawData: unknown) => ensureNoData(rawData, "getRunQueue"),
-  cancelWaitingRun: ensureWaitingRunId,
+  cancelQueuedRun: ensureQueuedRunId,
   openRunLogFolder: (rawData: unknown) =>
     ensurePositiveIntegerData(rawData, "openRunLogFolder"),
   runMostRecentlyInstalledProjectVersion: (rawData: unknown) =>
@@ -240,8 +240,8 @@ function createInvokeHandlerMap(
       return getRunQueueItems();
     },
 
-    cancelWaitingRun(queueId) {
-      cancelWaitingRun(queueId);
+    cancelQueuedRun(queueId) {
+      cancelQueuedRun(queueId);
     },
 
     async openRunLogFolder(runHistoryId) {

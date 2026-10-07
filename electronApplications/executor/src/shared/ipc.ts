@@ -118,7 +118,7 @@ interface Dict_ExecutorInvoke_Contract {
     request: undefined;
     response: Dict_ListItem_RunQueue[];
   };
-  cancelWaitingRun: {
+  cancelQueuedRun: {
     request: string;
     response: void;
   };

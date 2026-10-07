@@ -77,7 +77,7 @@ export function ensureInvokeCommand(value: unknown): Str_ExecutorInvokeCommand {
     case "getRunDetails":
     case "getRunHistoryPage":
     case "getRunQueue":
-    case "cancelWaitingRun":
+    case "cancelQueuedRun":
     case "openRunLogFolder":
     case "runMostRecentlyInstalledProjectVersion":
     case "pythonCancel":
@@ -126,8 +126,8 @@ export function ensureProjectRef(value: unknown): { name: string; version: strin
   };
 }
 
-export function ensureWaitingRunId(value: unknown): string {
-  return ensureNonEmptyString(value, "Waiting Run ID");
+export function ensureQueuedRunId(value: unknown): string {
+  return ensureNonEmptyString(value, "Queued Run ID");
 }
 
 export function ensureProjectSettingsUpdate(value: unknown): Dict_ProjectSettingsUpdate {

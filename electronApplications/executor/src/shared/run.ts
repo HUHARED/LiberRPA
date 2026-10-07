@@ -79,11 +79,17 @@ export interface Dict_RunHistory_Page {
   total: number;
 }
 
+export enum RunQueueState {
+  Pending = "pending",
+  WaitingRetry = "waiting_retry",
+  Waiting = "waiting",
+}
+
 export interface Dict_ListItem_RunQueue {
   queue_id: string;
   schedule_name: string;
   project_name: string;
   project_version: string;
   estimated_run_at_ms: number;
-  waiting: boolean;
+  state: RunQueueState;
 }
