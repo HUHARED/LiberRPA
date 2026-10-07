@@ -71,7 +71,7 @@ class WorkEvent(JsonRequest):
     )
     outputs: dict[str, JsonValue] | None = None
     outputs_reason: str = Field(default="", max_length=2000)
-    outputs_unavailable_keys: list[str] = Field(default_factory=list, max_length=1000)
+    outputs_unavailable_keys: list[str] = Field(default_factory=list)
     error_summary: dict[str, str] | None = None
     recording: RecordingInfo | None = None
     reason: str = Field(default="", max_length=2000)

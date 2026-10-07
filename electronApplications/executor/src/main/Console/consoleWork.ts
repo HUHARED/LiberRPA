@@ -45,14 +45,18 @@ const setStoppedAssignment = new Set<string>();
 const mapPreparingWork = new Map<string, Promise<void>>();
 let timerLogs: NodeJS.Timeout | undefined;
 let timerRetry: NodeJS.Timeout | undefined;
+let timerEventRetry: NodeJS.Timeout | undefined;
 let promiseSync: Promise<void> | undefined;
+let promiseEvents: Promise<void> | undefined;
 let boolStopped = true;
 let boolWorkRequested = false;
 let boolEventsRequested = false;
 let boolContactFailureLogged = false;
+let boolEventFailureLogged = false;
 let boolPreparationRefresh = false;
 let boolFilesRefresh = false;
 let intRetryDelayMs = 2000;
+let intEventRetryDelayMs = 2000;
 let stopWorkListener: (() => void) | undefined;
 let stopEventListener: (() => void) | undefined;
 let promiseLogs: Promise<void> | undefined;
@@ -248,31 +252,67 @@ function isCurrentControlCredential(credential: ConsoleCredentialSnapshot): bool
 async function sendPendingConsoleEvents(
   strSessionKey: string,
   credential: ConsoleCredentialSnapshot,
-): Promise<void> {
-  while (!boolStopped) {
-    const arrEvent = getPendingConsoleEvents(strSessionKey);
-    if (!arrEvent.length) return;
-    const response = await requestConsole(
-      credential.consoleUrl,
-      "executor/work/events/",
-      credential.token,
-      { events: arrEvent },
-    );
-    const arrAccepted = Array.isArray(response.accepted_event_ids)
-      ? response.accepted_event_ids.filter(
-          (value): value is string => typeof value === "string",
-        )
-      : [];
-    const arrRejected = Array.isArray(response.rejected_events)
-      ? response.rejected_events
-          .map((value) => ensureRecord(value, "Rejected event"))
-          .map((value) => ensureNonEmptyString(value.event_id, "Rejected event ID"))
-      : [];
-    if (!arrAccepted.length && !arrRejected.length)
-      throw new Error("Console did not acknowledge the pending Run events.");
-    acknowledgeConsoleEvents(arrAccepted, arrRejected);
-    if (!isCurrentControlCredential(credential)) return;
-  }
+): Promise<boolean> {
+  const arrEvent = getPendingConsoleEvents(strSessionKey);
+  if (!arrEvent.length) return false;
+  const response = await requestConsole(
+    credential.consoleUrl,
+    "executor/work/events/",
+    credential.token,
+    { events: arrEvent },
+  );
+  const arrAccepted = Array.isArray(response.accepted_event_ids)
+    ? response.accepted_event_ids.filter(
+        (value): value is string => typeof value === "string",
+      )
+    : [];
+  const arrRejected = Array.isArray(response.rejected_events)
+    ? response.rejected_events
+        .map((value) => ensureRecord(value, "Rejected event"))
+        .map((value) => ensureNonEmptyString(value.event_id, "Rejected event ID"))
+    : [];
+  if (!arrAccepted.length && !arrRejected.length)
+    throw new Error("Console did not acknowledge the pending Run events.");
+  acknowledgeConsoleEvents(arrAccepted, arrRejected);
+  return isCurrentControlCredential(credential);
+}
+
+function requestConsoleEvents(): void {
+  if (boolStopped) return;
+  boolEventsRequested = true;
+  const credential = getConsoleControlCredential();
+  if (promiseEvents || timerEventRetry || !credential) return;
+  boolEventsRequested = false;
+  let boolFailed = false;
+  // Send one bounded batch at a time without holding up control synchronization.
+  promiseEvents = sendPendingConsoleEvents(getConsoleWorkSessionKey(credential), credential)
+    .then((boolMoreEvents) => {
+      boolEventsRequested ||= boolMoreEvents;
+      intEventRetryDelayMs = 2000;
+      boolEventFailureLogged = false;
+    })
+    .catch((e: unknown) => {
+      boolFailed = true;
+      boolEventsRequested = true;
+      if (!boolEventFailureLogged) {
+        boolEventFailureLogged = true;
+        loggerMain.warn(`Console Run events: ${getErrorMessage(e)}`);
+      }
+    })
+    .finally(() => {
+      promiseEvents = undefined;
+      if (boolStopped) return;
+      if (boolFailed) {
+        if (!getConsoleControlCredential()) return;
+        timerEventRetry = setTimeout(() => {
+          timerEventRetry = undefined;
+          requestConsoleEvents();
+        }, intEventRetryDelayMs);
+        intEventRetryDelayMs = Math.min(intEventRetryDelayMs * 2, 30_000);
+      } else if (boolEventsRequested) {
+        requestConsoleEvents();
+      }
+    });
 }
 
 async function syncConsoleWork(
@@ -403,28 +443,15 @@ function requestLogFlush(): void {
 }
 
 async function processConsoleUpdates(): Promise<void> {
-  while (!boolStopped && (boolWorkRequested || boolEventsRequested)) {
+  while (!boolStopped && boolWorkRequested) {
     const credential = getConsoleControlCredential();
     if (!credential) return;
-    const strSessionKey = getConsoleWorkSessionKey(credential);
-    if (boolEventsRequested || getPendingConsoleEvents(strSessionKey).length) {
-      boolEventsRequested = false;
-      try {
-        await sendPendingConsoleEvents(strSessionKey, credential);
-      } catch (e: unknown) {
-        boolEventsRequested = true;
-        throw e;
-      }
-    }
-    if (!isCurrentControlCredential(credential)) continue;
-    if (boolWorkRequested) {
-      boolWorkRequested = false;
-      try {
-        await syncConsoleWork(strSessionKey, credential);
-      } catch (e: unknown) {
-        boolWorkRequested = true;
-        throw e;
-      }
+    boolWorkRequested = false;
+    try {
+      await syncConsoleWork(getConsoleWorkSessionKey(credential), credential);
+    } catch (e: unknown) {
+      boolWorkRequested = true;
+      throw e;
     }
   }
 }
@@ -456,14 +483,13 @@ function requestConsoleSync(): void {
     .finally(() => {
       promiseSync = undefined;
       if (boolFailed) scheduleConsoleRetry();
-      else if (boolWorkRequested || boolEventsRequested) requestConsoleSync();
+      else if (boolWorkRequested) requestConsoleSync();
     });
 }
 
 function requestConsoleWork(delayed = false): void {
   if (boolStopped) return;
   boolWorkRequested = true;
-  boolEventsRequested = true;
   if (delayed) scheduleConsoleRetry();
   else {
     clearTimeout(timerRetry);
@@ -471,15 +497,18 @@ function requestConsoleWork(delayed = false): void {
     requestConsoleSync();
     requestLogFlush();
   }
+  requestConsoleEvents();
 }
 
 export function startConsoleWork(): void {
   boolStopped = false;
+  intRetryDelayMs = 2000;
+  intEventRetryDelayMs = 2000;
+  boolContactFailureLogged = false;
+  boolEventFailureLogged = false;
   stopWorkListener = onConsoleWorkAvailable(() => requestConsoleWork());
   stopEventListener = onConsoleEventSaved(() => {
-    if (boolStopped) return;
-    boolEventsRequested = true;
-    if (!timerRetry) requestConsoleSync();
+    requestConsoleEvents();
     requestLogFlush();
   });
   timerLogs = setInterval(requestLogFlush, 2000);
@@ -493,8 +522,13 @@ export async function stopConsoleWork(): Promise<void> {
   stopPackagePreparation();
   stopConsoleFiles();
   clearTimeout(timerRetry);
+  clearTimeout(timerEventRetry);
   clearInterval(timerLogs);
-  await promiseSync;
+  timerRetry = undefined;
+  timerEventRetry = undefined;
+  boolWorkRequested = false;
+  boolEventsRequested = false;
+  await Promise.all([promiseSync, promiseEvents]);
   await Promise.allSettled([
     ...mapPreparingWork.values(),
     promisePreparation,

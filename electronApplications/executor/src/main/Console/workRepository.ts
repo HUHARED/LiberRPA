@@ -123,6 +123,7 @@ export function getConsoleWorkRecords(sessionKey: string): ConsoleWorkRecord[] {
   return arrRow.map((row) => JSON.parse(row.content) as ConsoleWorkRecord);
 }
 
+const INT_MAX_EVENT_REQUEST_BYTES = 1024 * 1024;
 const setEventSavedListener = new Set<() => void>();
 
 export function onConsoleEventSaved(listener: () => void): () => void {
@@ -186,11 +187,18 @@ export function getPendingConsoleEvents(sessionKey: string): Record<string, unkn
     )
     .all(sessionKey) as { payload: string }[];
   const arrEvent: Record<string, unknown>[] = [];
-  let intBytes = 0;
+  let intBytes = Buffer.byteLength(JSON.stringify({ events: [] }), "utf8");
   for (const row of arrRow) {
-    intBytes += Buffer.byteLength(row.payload, "utf8");
-    if (intBytes > 1024 * 1024) break;
-    arrEvent.push(JSON.parse(row.payload) as Record<string, unknown>);
+    const event = JSON.parse(row.payload) as Record<string, unknown>;
+    const intEventBytes =
+      Buffer.byteLength(JSON.stringify(event), "utf8") + (arrEvent.length ? 1 : 0);
+    if (intBytes + intEventBytes > INT_MAX_EVENT_REQUEST_BYTES) {
+      if (!arrEvent.length)
+        throw new Error("A pending Run event exceeds the 1 MiB request limit.");
+      break;
+    }
+    intBytes += intEventBytes;
+    arrEvent.push(event);
   }
   return arrEvent;
 }
