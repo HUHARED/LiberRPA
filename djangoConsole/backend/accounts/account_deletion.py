@@ -14,7 +14,9 @@ from django.db import transaction
 from django.utils.crypto import constant_time_compare
 from django.views.decorators.debug import sensitive_variables
 
+from executors.session_state import revoke_user_executor_sessions
 from operations.audit import record_audit
+from runs.services import reconcile_source_access
 
 from organizations.models import Membership
 from organizations.permissions import (
@@ -136,7 +138,7 @@ def delete_account(
             code="last_org_admin",
         )
 
-    # Cascade membership, department roles, API keys, Editor/Executor sessions, and private email proofs; retain organization resources and delivery history.
+    # Reconcile Executor associations before cascading account-owned credentials; retain resources and history.
     target = cast(User, membership.user)
     record_audit(
         "account.delete",
@@ -145,5 +147,7 @@ def delete_account(
         target=target,
         channel=channel,
     )
+    revoke_user_executor_sessions(userId)
     target.delete()
+    reconcile_source_access(userId, access.organization.id)
     # Django rejects old web sessions because their User ID no longer resolves.

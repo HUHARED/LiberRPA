@@ -157,6 +157,8 @@ class Job(models.Model):
     retry_at = models.DateTimeField(null=True)
     retry_count = models.PositiveSmallIntegerField(default=0)
     attempts = models.PositiveSmallIntegerField(default=0)
+    # Revocation prevents future attempts without requesting a stop or closing unknown execution.
+    source_access_revoked_at = models.DateTimeField(null=True)
     stop_requested_at = models.DateTimeField(null=True)
     closed_at = models.DateTimeField(null=True)
     ended_at = models.DateTimeField(null=True)

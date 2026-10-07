@@ -12,6 +12,7 @@ from django.db import transaction
 
 from executors.session_state import revoke_unqualified_executor_sessions
 from operations.audit import get_audit_snapshot, record_audit
+from runs.services import reconcile_source_access
 
 from .models import Department, DepartmentMembership, DepartmentRole, Membership
 from .permissions import (
@@ -140,6 +141,7 @@ def update_membership(
     )
     membership.save(update_fields=["is_org_admin", "notes"])
     _save_department_memberships(membership, listDepartmentMembership)
+    reconcile_source_access(membership.user_id, organization.id)
     revoke_unqualified_executor_sessions(membership.user_id, organization.id)
     record_audit(
         "membership.update",

@@ -62,6 +62,9 @@ _INT_RETRY_SECONDS = 60
 _INT_CONTROL_STALE_SECONDS = 15
 _INT_WORK_STATE_STALE_SECONDS = 45
 _INT_CUSTOM_ARGS_BYTES = 64 * 1024
+_STR_SOURCE_ACCESS_REVOKED_REASON = (
+    "The initiating account lost run permission; no further attempts will be scheduled."
+)
 _DICT_PRIORITY = {"high": 0, "normal": 1, "low": 2}
 _ACTIVE_ASSIGNMENT_STATES = (
     AssignmentState.PREPARING,
@@ -78,7 +81,7 @@ def _get_actor_name(actor: User) -> str:
 def _has_source_access(job: Job) -> bool:
     if job.request.source == JobSource.SCHEDULE:
         return True
-    if job.request.actor_id is None:
+    if job.source_access_revoked_at is not None or job.request.actor_id is None:
         return False
     try:
         access = resolve_organization_access(
@@ -105,6 +108,61 @@ def _finish_job(job: Job, reason: str, *, notify: bool = False) -> None:
         from notifications.run_events import notify_job_failure
 
         notify_job_failure(job)
+
+
+def _revoke_source_job(job: Job, currentTime: datetime) -> None:
+    """Persist lost source authority without inventing a stop or an execution result."""
+    if job.state == JobState.FINISHED or job.source_access_revoked_at is not None:
+        return
+    job.source_access_revoked_at = currentTime
+    job.retry_at = None
+    job.reason = (
+        f"{job.reason[:1800]}\n{_STR_SOURCE_ACCESS_REVOKED_REASON}"
+        if job.reason
+        else _STR_SOURCE_ACCESS_REVOKED_REASON
+    )
+    job.save(update_fields=["source_access_revoked_at", "retry_at", "reason"])
+    assignment = Assignment.objects.filter(
+        job=job, state__in=_ACTIVE_ASSIGNMENT_STATES
+    ).first()
+    if assignment is not None and assignment.state != AssignmentState.PREPARING:
+        # An issued permit may already have produced a process; retain its evidence and active state.
+        return
+    if assignment is not None:
+        assignment.state = AssignmentState.WITHDRAWN
+        assignment.reason = _STR_SOURCE_ACCESS_REVOKED_REASON
+        assignment.stop_requested_at = assignment.stop_requested_at or currentTime
+        assignment.save(update_fields=["state", "reason", "stop_requested_at"])
+        notify_executor_control(assignment.executor_id)
+    _finish_job(job, _STR_SOURCE_ACCESS_REVOKED_REASON, notify=True)
+
+
+def reconcile_source_access(userId: uuid.UUID, organizationId: uuid.UUID) -> None:
+    """Revoke only this account's ineligible Jobs inside the permission change's organization lock."""
+    jobQuery = Job.objects.filter(
+        request__organization_id=organizationId,
+        request__actor_id=userId,
+        request__source__in=(JobSource.MANUAL, JobSource.API),
+        source_access_revoked_at__isnull=True,
+    ).exclude(state=JobState.FINISHED)
+    try:
+        access = resolve_organization_access(
+            actorId=userId,
+            organizationId=organizationId,
+            channel=AccessChannel.SESSION,
+        )
+    except PermissionDenied:
+        # Account deletion removes membership, but JobRequest retains its source UUID.
+        pass
+    else:
+        jobQuery = jobQuery.exclude(
+            department__in=get_authorized_departments(
+                access, requiredRole=DepartmentRole.OPERATOR
+            )
+        )
+    currentTime = timezone.now()
+    for job in jobQuery.select_related("request"):
+        _revoke_source_job(job, currentTime)
 
 
 def _get_candidates(job: Job) -> list[Executor]:
@@ -447,14 +505,10 @@ def _is_busy(
 def _advance_job(job: Job, currentTime: datetime, control: DispatchControl) -> None:
     if job.state not in (JobState.WAITING, JobState.RETRY):
         return
-    if job.retry_at and job.retry_at > currentTime:
-        return
     if not _has_source_access(job):
-        _finish_job(
-            job,
-            "The source account no longer has permission to run this Job.",
-            notify=True,
-        )
+        _revoke_source_job(job, currentTime)
+        return
+    if job.retry_at and job.retry_at > currentTime:
         return
     listCandidate, dictSession, dictWork = _get_live_candidates(job, currentTime)
     if not dictSession:
@@ -559,6 +613,10 @@ def _reconcile_assignment(
     assignment: Assignment, currentTime: datetime, control: DispatchControl
 ) -> None:
     job = assignment.job
+    if not _has_source_access(job):
+        _revoke_source_job(job, currentTime)
+        if assignment.state == AssignmentState.PREPARING:
+            return
     if (
         assignment.state == AssignmentState.PERMITTED
         and assignment.permit_expires_at
@@ -590,7 +648,6 @@ def _reconcile_assignment(
     boolRecovering = (
         control.recovery_until is not None and currentTime < control.recovery_until
     )
-    boolSourceValid = _has_source_access(job)
     boolGroupMemberValid = (
         not job.target_group_id
         or ExecutorGroupMember.objects.filter(
@@ -601,14 +658,11 @@ def _reconcile_assignment(
     )
     if assignment.state == AssignmentState.PREPARING and (
         not boolSessionValid
-        or not boolSourceValid
         or not boolGroupMemberValid
         or (not boolOnline and not boolRecovering)
     ):
         assignment.state = AssignmentState.WITHDRAWN
-        assignment.reason = (
-            "The target or source is no longer eligible before permission."
-        )
+        assignment.reason = "The target is no longer eligible before permission."
         assignment.save(update_fields=["state", "reason"])
         notify_executor_control(assignment.executor_id)
         job.state = JobState.WAITING
@@ -948,12 +1002,12 @@ def receive_event(session: ExecutorSession, event: WorkEvent) -> None:
             if job.closed_at is None:
                 if run.result in (RunResult.COMPLETED, RunResult.ERROR):
                     notify_run_event(run, event=str(run.result))
-                if (
+                boolRunRetryable = (
                     run.result == RunResult.ERROR
                     and job.stop_requested_at is None
                     and assignment.attempt <= job.retry_count
-                    and _has_source_access(job)
-                ):
+                )
+                if boolRunRetryable and _has_source_access(job):
                     job.state = JobState.RETRY
                     job.retry_at = timezone.now() + timedelta(seconds=_INT_RETRY_SECONDS)
                     job.attempt_queued_at = job.retry_at
@@ -962,7 +1016,13 @@ def receive_event(session: ExecutorSession, event: WorkEvent) -> None:
                         update_fields=["state", "retry_at", "attempt_queued_at", "reason"]
                     )
                 else:
-                    _finish_job(job, event.reason or f"Run {run.result}.")
+                    strReason = event.reason or f"Run {run.result}."
+                    if boolRunRetryable:
+                        strReason = (
+                            f"{strReason[:1800]}\n"
+                            "No retry was scheduled because the initiating account lost run permission."
+                        )
+                    _finish_job(job, strReason)
         elif event.kind == RunEventKind.STARTED and run.ended_at is None:
             assignment.state = AssignmentState.RUNNING
             assignment.save(update_fields=["state"])
@@ -970,7 +1030,11 @@ def receive_event(session: ExecutorSession, event: WorkEvent) -> None:
                 job.state = (
                     JobState.STOPPING if job.stop_requested_at else JobState.RUNNING
                 )
-                job.reason = ""
+                job.reason = (
+                    _STR_SOURCE_ACCESS_REVOKED_REASON
+                    if job.source_access_revoked_at is not None
+                    else ""
+                )
                 job.save(update_fields=["state", "reason"])
     elif event.kind == RunEventKind.PREPARATION_FAILED:
         if assignment.permit_expires_at is not None:
