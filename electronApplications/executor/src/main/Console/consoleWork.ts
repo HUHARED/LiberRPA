@@ -25,6 +25,7 @@ import {
   getConsoleControlCredential,
   getConsoleWorkState,
   onConsoleWorkAvailable,
+  onConsoleWorkStateReported,
 } from "./consoleControl";
 import { prepareConsolePackage, stopPackagePreparation } from "./packagePreparation";
 import {
@@ -41,7 +42,16 @@ import {
 } from "./workRepository";
 import { flushConsoleLogs, sendConsoleFiles, stopConsoleFiles } from "./consoleWorkFiles";
 
+enum ConsolePermitWaitReason {
+  DispatchPaused = "dispatch_paused",
+  ExecutorBusy = "executor_busy",
+  WorkStateRequired = "work_state_required",
+}
+
+const INT_MIN_PERMIT_RETRY_MS = 2000;
+const INT_MAX_PERMIT_RETRY_MS = 30_000;
 const setStoppedAssignment = new Set<string>();
+const mapPermitWaiter = new Map<string, () => void>();
 const mapPreparingWork = new Map<string, Promise<void>>();
 let timerLogs: NodeJS.Timeout | undefined;
 let timerRetry: NodeJS.Timeout | undefined;
@@ -118,29 +128,102 @@ async function getStartPermit(
   record: ConsoleWorkRecord,
   credential: ConsoleCredentialSnapshot,
 ): Promise<Record<string, unknown>> {
-  while (true) {
-    ensureWorkMayStart(record, credential);
-    try {
-      return await requestConsole(
-        credential.consoleUrl,
-        "executor/work/permit/",
-        credential.token,
-        { assignment_id: record.assignment.id },
-      );
-    } catch (e: unknown) {
-      const boolTemporary =
-        !(e instanceof ConsoleRequestError) ||
-        e.status >= 500 ||
-        [
-          "dispatch_paused",
-          "executor_busy",
-          "work_state_required",
-          "control_service_unavailable",
-        ].includes(e.code);
-      if (!boolTemporary) throw e;
-      // Repeating this assignment returns the original nonrenewable permit after a lost response.
-      await new Promise<void>((resolve) => setTimeout(resolve, 2000));
+  let intRetryDelayMs = INT_MIN_PERMIT_RETRY_MS;
+  let boolWorkChanged = false;
+  let boolStateReported = false;
+  let checkRetry: (() => void) | undefined;
+  const stopWorkListener = onConsoleWorkAvailable(() => {
+    boolWorkChanged = true;
+    checkRetry?.();
+  });
+  const stopStateListener = onConsoleWorkStateReported(() => {
+    boolStateReported = true;
+    checkRetry?.();
+  });
+  mapPermitWaiter.set(record.assignment.id, () => checkRetry?.());
+
+  function waitForRetry(
+    delayMs: number,
+    waitReason: ConsolePermitWaitReason | undefined,
+  ): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      const floatEarliestRetryAt = performance.now() + INT_MIN_PERMIT_RETRY_MS;
+      let floatRetryAt = performance.now() + delayMs;
+      let timer: NodeJS.Timeout | undefined;
+      function checkPermitRetry(): void {
+        clearTimeout(timer);
+        try {
+          ensureWorkMayStart(record, credential);
+        } catch (e: unknown) {
+          checkRetry = undefined;
+          reject(e);
+          return;
+        }
+        if (
+          waitReason !== undefined &&
+          (boolWorkChanged ||
+            (waitReason !== ConsolePermitWaitReason.DispatchPaused && boolStateReported))
+        )
+          floatRetryAt = Math.min(floatRetryAt, floatEarliestRetryAt);
+        const floatRemainingMs = floatRetryAt - performance.now();
+        if (floatRemainingMs <= 0) {
+          checkRetry = undefined;
+          resolve();
+        } else {
+          // Long Retry-After values still allow regular local cancellation checks.
+          timer = setTimeout(
+            checkPermitRetry,
+            Math.min(floatRemainingMs, INT_MAX_PERMIT_RETRY_MS),
+          );
+        }
+      }
+      checkRetry = checkPermitRetry;
+      checkPermitRetry();
+    });
+  }
+
+  try {
+    while (true) {
+      ensureWorkMayStart(record, credential);
+      boolWorkChanged = false;
+      boolStateReported = false;
+      try {
+        return await requestConsole(
+          credential.consoleUrl,
+          "executor/work/permit/",
+          credential.token,
+          { assignment_id: record.assignment.id },
+        );
+      } catch (e: unknown) {
+        const waitReason =
+          e instanceof ConsoleRequestError && e.status === 409
+            ? Object.values(ConsolePermitWaitReason).find((reason) => reason === e.code)
+            : undefined;
+        const boolTemporary =
+          !(e instanceof ConsoleRequestError) ||
+          e.status === 429 ||
+          e.status >= 500 ||
+          (e.status === 409 && e.code === "control_service_unavailable");
+        if (waitReason === undefined && !boolTemporary) throw e;
+        const intRetryAfterMs = e instanceof ConsoleRequestError ? e.retryAfterMs : 0;
+        // A retry requests the original assignment; it never renews an issued permit.
+        await waitForRetry(
+          Math.max(
+            intRetryAfterMs,
+            waitReason === undefined ? intRetryDelayMs : INT_MAX_PERMIT_RETRY_MS,
+          ),
+          intRetryAfterMs === 0 ? waitReason : undefined,
+        );
+        intRetryDelayMs =
+          waitReason === undefined
+            ? Math.min(intRetryDelayMs * 2, INT_MAX_PERMIT_RETRY_MS)
+            : INT_MIN_PERMIT_RETRY_MS;
+      }
     }
+  } finally {
+    stopWorkListener();
+    stopStateListener();
+    mapPermitWaiter.delete(record.assignment.id);
   }
 }
 
@@ -342,6 +425,7 @@ async function syncConsoleWork(
     for (const value of response.stop_assignment_ids) {
       const strId = ensureNonEmptyString(value, "Stop assignment ID");
       setStoppedAssignment.add(strId);
+      mapPermitWaiter.get(strId)?.();
       const record = getConsoleWork(strId);
       if (record) cancelRunById(record.assignment.run_id);
     }
@@ -525,6 +609,7 @@ export function startConsoleWork(): void {
 
 export async function stopConsoleWork(): Promise<void> {
   boolStopped = true;
+  for (const checkRetry of mapPermitWaiter.values()) checkRetry();
   stopWorkListener?.();
   stopEventListener?.();
   stopPackagePreparation();

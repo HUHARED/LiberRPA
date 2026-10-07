@@ -22,6 +22,7 @@ from organizations.permissions import (
 
 from .access import require_executor_management
 from .models import Executor, ExecutorGroupMember, ExecutorSession
+from runs.control_notifications import notify_executor_control
 from runs.models import Assignment, AssignmentState, Job, JobState
 from schedules.models import Schedule
 
@@ -118,6 +119,7 @@ def set_executor_dispatch(
 ) -> Executor:
     """Set the persistent dispatch switch explicitly; repeating a request never toggles it."""
     executor = _get_executor_for_management(access, executorId)
+    boolDispatchChanged = executor.dispatch_enabled != dispatchEnabled
     dictAuditBefore = get_audit_snapshot(executor)
     executor.dispatch_enabled = dispatchEnabled
     executor.save(update_fields=["dispatch_enabled"])
@@ -129,7 +131,8 @@ def set_executor_dispatch(
         channel=access.channel,
         before=dictAuditBefore,
     )
-    # The shared permit service checks this switch without changing accepted Waiting Jobs.
+    if boolDispatchChanged:
+        notify_executor_control(executor.id)
     return executor
 
 

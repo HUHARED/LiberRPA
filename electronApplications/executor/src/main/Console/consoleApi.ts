@@ -18,6 +18,7 @@ export class ConsoleRequestError extends Error {
     message: string,
     readonly status: number,
     readonly code: string,
+    readonly retryAfterMs = 0,
   ) {
     super(message);
   }
@@ -70,18 +71,30 @@ export async function requestConsole(
       "Cannot reach Console. Check the address and connection, then retry. Redirects are not accepted.",
     );
   }
-  let dictResponse: Record<string, unknown>;
+  let dictResponse: Record<string, unknown> = {};
+  let strErrorMessage = `Console request failed (HTTP ${response.status}).`;
+  let strErrorCode = "http_error";
   try {
     dictResponse = ensureRecord(await response.json(), "Console response");
+    if (!response.ok) {
+      const dictError = ensureRecord(dictResponse.error, "Console error");
+      strErrorMessage = ensureString(dictError.message, "Console error.message");
+      strErrorCode = ensureString(dictError.code, "Console error.code");
+    }
   } catch {
-    throw new Error("Console returned an invalid response.");
+    if (response.ok) throw new Error("Console returned an invalid response.");
+    // Preserve HTTP status and retry timing even when a proxy returns a non-JSON error.
   }
   if (!response.ok) {
-    const dictError = ensureRecord(dictResponse.error, "Console error");
+    const strRetryAfter = response.headers.get("Retry-After")?.trim() ?? "";
+    const intRetryAfterMs = /^\d+$/.test(strRetryAfter)
+      ? Number(strRetryAfter) * 1000
+      : Math.max(0, Date.parse(strRetryAfter) - Date.now());
     throw new ConsoleRequestError(
-      ensureString(dictError.message, "Console error.message"),
+      strErrorMessage,
       response.status,
-      ensureString(dictError.code, "Console error.code"),
+      strErrorCode,
+      Number.isFinite(intRetryAfterMs) ? intRetryAfterMs : 0,
     );
   }
   return dictResponse;

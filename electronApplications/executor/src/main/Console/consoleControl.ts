@@ -25,6 +25,7 @@ const INT_RESPONSE_TIMEOUT_MS = 45_000;
 const INT_CONNECTION_TIMEOUT_MS = 10_000;
 const INT_MAX_RECONNECT_DELAY_MS = 30_000;
 const setWorkListener = new Set<() => void>();
+const setWorkStateListener = new Set<() => void>();
 let credential: ConsoleCredentialSnapshot | null = null;
 let socket: WebSocket | undefined;
 let timerHeartbeat: NodeJS.Timeout | undefined;
@@ -65,6 +66,15 @@ export function onConsoleWorkAvailable(listener: () => void): () => void {
 
 function notifyWorkAvailable(): void {
   for (const listener of setWorkListener) listener();
+}
+
+export function onConsoleWorkStateReported(listener: () => void): () => void {
+  setWorkStateListener.add(listener);
+  return () => setWorkStateListener.delete(listener);
+}
+
+function notifyWorkStateReported(): void {
+  for (const listener of setWorkStateListener) listener();
 }
 
 export function stopConsoleControl(): void {
@@ -177,8 +187,10 @@ function connectConsoleControl(): void {
           }, INT_HEARTBEAT_INTERVAL_MS);
           notifyWorkAvailable();
         }
+        notifyWorkStateReported();
       } else if (response.type === ConsoleControlMessage.State) {
         intLastResponseAt = Date.now();
+        notifyWorkStateReported();
       } else if (response.type === ConsoleControlMessage.WorkAvailable && boolReady) {
         notifyWorkAvailable();
       } else {
