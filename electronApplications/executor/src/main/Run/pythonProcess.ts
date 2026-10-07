@@ -2,6 +2,7 @@
 
 import type { ChildProcessWithoutNullStreams } from "child_process";
 import { spawn } from "child_process";
+import fs from "fs";
 import path from "path";
 
 import { getErrorMessage } from "../../shared/error";
@@ -83,38 +84,60 @@ export function spawnProjectPythonProcess({
   startedAt: string;
   runStatePath: string;
 }): StartedProjectPythonProcess {
-  const processPy = spawn(
-    path.join(pythonEnvironmentPath, "python.exe"),
-    [
-      "-m",
-      "liberrpa.FlowControl.Run",
-      "--executor_args",
-      JSON.stringify({
-        logLevel: detail.builtin_log_level,
-        recordVideo: detail.builtin_record_video,
-        stopShortcut: detail.builtin_stop_shortcut,
-        highlightUi: detail.builtin_highlight_ui,
-        customPrjArgs: detail.custom_prj_args,
-      }),
-    ],
-    {
-      cwd: packagePath,
-      env: buildPythonProcessEnvironment({
-        pythonEnvironmentPath,
-        pythonPathEntries: [packagePath, path.join(packagePath, "_Components")],
-        additionalVariables: {
-          // Replace inherited Editor metadata even when this Executor bridge is unavailable.
-          ...getConsoleContextEnvironment(),
-          LIBERRPA_RUN_STARTED_AT: startedAt,
-          LIBERRPA_EXECUTOR_RUN_ID: runId,
-          LIBERRPA_EXECUTOR_RUN_STATE_PATH: runStatePath,
-          LIBERRPA_EXECUTOR_PACKAGE_NAME: detail.name,
-          LIBERRPA_EXECUTOR_PACKAGE_VERSION: detail.version,
-        },
-      }),
-      stdio: ["pipe", "pipe", "pipe"],
-    },
-  );
+  const strArgumentsPath = path.join(path.dirname(runStatePath), `${runId}.args.json`);
+  const strArguments = JSON.stringify({
+    logLevel: detail.builtin_log_level,
+    recordVideo: detail.builtin_record_video,
+    stopShortcut: detail.builtin_stop_shortcut,
+    highlightUi: detail.builtin_highlight_ui,
+    customPrjArgs: detail.custom_prj_args,
+  });
+  const removeArgumentsFile = (): void => {
+    try {
+      fs.rmSync(strArgumentsPath, { force: true });
+    } catch (e: unknown) {
+      loggerMain.warn(`Failed to remove arguments for Run ${runId}: ${getErrorMessage(e)}`);
+    }
+  };
+
+  // Open exclusively so a failed launch cannot overwrite another run's arguments.
+  const intArgumentsFd = fs.openSync(strArgumentsPath, "wx");
+  let processPy: ChildProcessWithoutNullStreams;
+  try {
+    try {
+      fs.writeFileSync(intArgumentsFd, strArguments, "utf8");
+    } finally {
+      fs.closeSync(intArgumentsFd);
+    }
+
+    processPy = spawn(
+      path.join(pythonEnvironmentPath, "python.exe"),
+      ["-m", "liberrpa.FlowControl.Run"],
+      {
+        cwd: packagePath,
+        env: buildPythonProcessEnvironment({
+          pythonEnvironmentPath,
+          pythonPathEntries: [packagePath, path.join(packagePath, "_Components")],
+          additionalVariables: {
+            // Clear inherited Editor metadata when the Executor bridge is unavailable.
+            ...getConsoleContextEnvironment(),
+            LIBERRPA_RUN_STARTED_AT: startedAt,
+            LIBERRPA_EXECUTOR_RUN_ID: runId,
+            LIBERRPA_EXECUTOR_RUN_STATE_PATH: runStatePath,
+            LIBERRPA_EXECUTOR_PACKAGE_NAME: detail.name,
+            LIBERRPA_EXECUTOR_PACKAGE_VERSION: detail.version,
+          },
+        }),
+        stdio: ["pipe", "pipe", "pipe"],
+      },
+    );
+  } catch (e: unknown) {
+    removeArgumentsFile();
+    throw e;
+  }
+
+  // Spawned Python workers re-import the run arguments, so keep the file until close.
+  processPy.once("close", removeArgumentsFile);
 
   const diagnosticOutput = attachPythonDiagnosticStreams(processPy);
   let processError: Error | undefined;

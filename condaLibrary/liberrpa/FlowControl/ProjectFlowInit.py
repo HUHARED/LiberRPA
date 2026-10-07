@@ -5,14 +5,14 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
-from liberrpa.Logging import Log
+from liberrpa.Logging import Log, LogLevel
+from liberrpa.Common._RunContext import get_executor_run_context
 from liberrpa.Common._Utils import STR_PROJECT_ROOT, PATH_PROJECT_FLOW
 from liberrpa.FlowControl._ProjectDict import DictProject_Original
 
-import argparse
 import json
 import time
-from typing import Literal, Any
+from typing import Literal, Any, get_args
 
 _timeStart = time.monotonic()
 
@@ -33,26 +33,40 @@ _SET_EXECUTOR_ARG_KEYS = {
     "customPrjArgs",
 }
 
-# Update "logLevel", "recordVideo", "stopShortcut", "highlightUi", "customPrjArgs" if argument sent from command line.
-_parser = argparse.ArgumentParser()
-_parser.add_argument("--executor_args", required=False)
-_args, _unknown = _parser.parse_known_args()
-_strExecutorArgs: str | None = _args.executor_args
-boolRunByExecutor = _strExecutorArgs is not None
 
-if boolRunByExecutor:
-    dictArgs = json.loads(_strExecutorArgs)
+# The file budget includes the 64 KiB CustomArgs list and the fixed built-in options.
+_INT_MAX_EXECUTOR_ARGUMENT_BYTES = 64 * 1024 + 1024
+
+_executorRunContext = get_executor_run_context()
+boolRunByExecutor = _executorRunContext is not None
+if _executorRunContext is not None:
+    pathExecutorArguments = _executorRunContext.runStatePath.with_name(
+        f"{_executorRunContext.runId}.args.json"
+    )
+    with pathExecutorArguments.open("rb") as fileArguments:
+        bytesArguments = fileArguments.read(_INT_MAX_EXECUTOR_ARGUMENT_BYTES + 1)
+    if len(bytesArguments) > _INT_MAX_EXECUTOR_ARGUMENT_BYTES:
+        raise ValueError("Executor arguments exceed the input file size limit.")
+
+    dictArgs = json.loads(bytesArguments.decode("utf-8"))
     if not isinstance(dictArgs, dict):
         raise TypeError("Executor arguments must be a JSON object.")
 
-    setUnknownKeys = dictArgs.keys() - _SET_EXECUTOR_ARG_KEYS
-    if setUnknownKeys:
-        raise ValueError(f"Unknown Executor argument(s): {sorted(setUnknownKeys)}")
+    if dictArgs.keys() != _SET_EXECUTOR_ARG_KEYS:
+        raise ValueError("Executor arguments contain missing or unknown fields.")
+    if dictArgs["logLevel"] not in get_args(LogLevel.__value__):
+        raise ValueError("Executor arguments contain an unsupported log level.")
+    for strKey in ("recordVideo", "stopShortcut", "highlightUi"):
+        if type(dictArgs[strKey]) is not bool:
+            raise TypeError(f"Executor argument '{strKey}' must be a boolean.")
+    if not isinstance(dictArgs["customPrjArgs"], list) or any(
+        not isinstance(item, list) or len(item) != 2 or not isinstance(item[0], str)
+        for item in dictArgs["customPrjArgs"]
+    ):
+        raise TypeError("Executor CustomArgs must be a list of [string, value] pairs.")
 
     dictFlowFile.update(dictArgs)
-    Log.debug(f"Updated arguments from Executor: {dictArgs}")
-else:
-    Log.debug("No built-in and custom project argument from Executor.")
+    Log.debug("Loaded run arguments from Executor.")
 
 
 def _generate_next_dict() -> tuple[
