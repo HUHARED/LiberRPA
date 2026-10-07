@@ -242,11 +242,11 @@ async function startProjectRun(
   );
 
   const strRunId = context.runId ?? randomUUID();
-  const strStartedAt = new Date().toISOString();
   const strProjectLogRootPath = getEffectiveProjectLogFolderPath();
   const strRunStatePath = createExecutorRunStatePath(strRunId);
+  const strStartedAt = new Date().toISOString();
   // This call already owns one starting slot; all other starts and actual Runs still count.
-  context.beforeSpawn?.(hasActiveProjectRun(true));
+  context.beforeSpawn?.(hasActiveProjectRun(true), strStartedAt);
   const { processPy, diagnosticOutput, getProcessError } = spawnProjectPythonProcess({
     detail: detailDict,
     packagePath: strExecutorPackagePath,

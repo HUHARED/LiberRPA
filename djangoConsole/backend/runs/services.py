@@ -57,6 +57,7 @@ from .models import (
 )
 
 _INT_PERMIT_SECONDS = 15
+_INT_START_EVIDENCE_TOLERANCE_SECONDS = 5
 _INT_RETRY_SECONDS = 60
 _INT_CONTROL_STALE_SECONDS = 15
 _INT_WORK_STATE_STALE_SECONDS = 45
@@ -652,6 +653,13 @@ def dispatch_organization(organizationId: uuid.UUID) -> None:
         _advance_job(job, currentTime, control)
 
 
+def get_start_evidence_not_before(permitExpiresAt: datetime) -> datetime:
+    """Use the same reported-start boundary in permits and event validation."""
+    return permitExpiresAt - timedelta(
+        seconds=_INT_PERMIT_SECONDS + _INT_START_EVIDENCE_TOLERANCE_SECONDS
+    )
+
+
 def issue_permission(session: ExecutorSession, assignmentId: uuid.UUID) -> Assignment:
     currentTime = timezone.now()
     control = _require_control_service(currentTime)
@@ -910,8 +918,7 @@ def receive_event(session: ExecutorSession, event: WorkEvent) -> None:
         if (
             startedAt is None
             or startedAt > assignment.permit_expires_at
-            or startedAt
-            < assignment.permit_expires_at - timedelta(seconds=_INT_PERMIT_SECONDS + 5)
+            or startedAt < get_start_evidence_not_before(assignment.permit_expires_at)
         ):
             raise ValidationError(
                 "The reported start is outside this permission window.",

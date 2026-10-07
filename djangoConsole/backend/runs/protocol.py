@@ -35,7 +35,7 @@ from organizations.permissions import AccessChannel, resolve_organization_access
 
 from .contracts import WorkEventsRequest, WorkPermitRequest, WorkPollRequest
 from .models import Assignment, AssignmentState, ExecutorWorkState, JobState, RunEventKind
-from .services import issue_permission, receive_event
+from .services import get_start_evidence_not_before, issue_permission, receive_event
 
 _LOGGER = logging.getLogger("console.runs.protocol")
 
@@ -201,6 +201,10 @@ def executor_work_endpoint(request: HttpRequest, action: str) -> JsonResponse:
                     "assignment_id": assignment.id,
                     "run_id": assignment.run_id,
                     "permit_expires_at": assignment.permit_expires_at,
+                    "start_evidence_not_before": get_start_evidence_not_before(
+                        assignment.permit_expires_at
+                    ),
+                    "server_time": timezone.now(),
                 })
         listAccepted = []
         listRejected = []

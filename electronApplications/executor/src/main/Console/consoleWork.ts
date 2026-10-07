@@ -53,6 +53,13 @@ enum ConsoleNotStartedReason {
   LocalConflict = "local_conflict",
 }
 
+interface ConsoleStartPermit {
+  expiresAt: string;
+  earliestStartMs: number;
+  expiresAtMs: number;
+  monotonicDeadlineMs: number;
+}
+
 class ConsoleStartConflictError extends Error {}
 
 const INT_MIN_PERMIT_RETRY_MS = 2000;
@@ -131,10 +138,31 @@ function ensureWorkMayStart(
     throw new Error("The original Console account is no longer associated.");
 }
 
+function validateStartPermitTime(permit: ConsoleStartPermit, startedAt: string): void {
+  if (performance.now() >= permit.monotonicDeadlineMs)
+    throw new Error(
+      "The Console start permit has too little time remaining. Run the task again.",
+    );
+  const intStartedAt = Date.parse(startedAt);
+  if (intStartedAt < permit.earliestStartMs || intStartedAt >= permit.expiresAtMs)
+    throw new Error(
+      "Executor and Console clocks are out of sync. " +
+        "Synchronize both computers' clocks, then run the task again.",
+    );
+}
+
 async function getStartPermit(
   record: ConsoleWorkRecord,
   credential: ConsoleCredentialSnapshot,
-): Promise<Record<string, unknown>> {
+): Promise<ConsoleStartPermit> {
+  function parsePermitTime(value: unknown, sourceName: string): number {
+    const strTime = ensureNonEmptyString(value, sourceName);
+    const intTime = Date.parse(strTime);
+    if (!Number.isFinite(intTime) || !/(?:Z|[+-]\d{2}:\d{2})$/.test(strTime))
+      throw new Error(`Console returned an invalid ${sourceName}.`);
+    return intTime;
+  }
+
   let intRetryDelayMs = INT_MIN_PERMIT_RETRY_MS;
   let boolWorkChanged = false;
   let boolStateReported = false;
@@ -194,8 +222,10 @@ async function getStartPermit(
       ensureWorkMayStart(record, credential);
       boolWorkChanged = false;
       boolStateReported = false;
+      const floatRequestedAt = performance.now();
+      let response: Record<string, unknown>;
       try {
-        return await requestConsole(
+        response = await requestConsole(
           credential.consoleUrl,
           "executor/work/permit/",
           credential.token,
@@ -225,7 +255,32 @@ async function getStartPermit(
           waitReason === undefined
             ? Math.min(intRetryDelayMs * 2, INT_MAX_PERMIT_RETRY_MS)
             : INT_MIN_PERMIT_RETRY_MS;
+        continue;
       }
+      // Validate successful responses outside the transport retry path.
+      if (
+        response.assignment_id !== record.assignment.id ||
+        response.run_id !== record.assignment.run_id
+      )
+        throw new Error("Console returned an unrelated start permit.");
+      const intExpiresAt = parsePermitTime(response.permit_expires_at, "permit expiry");
+      const intEarliestStart = parsePermitTime(
+        response.start_evidence_not_before,
+        "earliest start time",
+      );
+      const intServerTime = parsePermitTime(response.server_time, "server time");
+      if (intEarliestStart >= intExpiresAt)
+        throw new Error("Console returned an invalid start permission window.");
+      const permit: ConsoleStartPermit = {
+        expiresAt: new Date(intExpiresAt).toISOString(),
+        // Server JSON timestamps lose sub-millisecond precision; keep both bounds safe.
+        earliestStartMs: intEarliestStart + 1,
+        expiresAtMs: intExpiresAt,
+        // Subtract the full request duration rather than assume symmetric network delay.
+        monotonicDeadlineMs: floatRequestedAt + (intExpiresAt - intServerTime - 1),
+      };
+      validateStartPermitTime(permit, new Date().toISOString());
+      return permit;
     }
   } finally {
     stopWorkListener();
@@ -254,15 +309,7 @@ async function prepareAndRun(
     boolPrepared = true;
     ensureWorkMayStart(record, credential);
     const permit = await getStartPermit(record, credential);
-    if (
-      permit.assignment_id !== record.assignment.id ||
-      permit.run_id !== record.assignment.run_id
-    )
-      throw new Error("Console returned an unrelated start permit.");
-    record.permitExpiresAt = ensureNonEmptyString(
-      permit.permit_expires_at,
-      "Permit expiry",
-    );
+    record.permitExpiresAt = permit.expiresAt;
     record.state = ConsoleWorkState.Permitted;
     saveConsoleWork(record);
     await pythonRun(detail, {
@@ -271,10 +318,9 @@ async function prepareAndRun(
       runId: record.assignment.run_id,
       attempt: record.assignment.attempt,
       packagePath: strPackagePath,
-      beforeSpawn(boolOtherRunActive) {
+      beforeSpawn(boolOtherRunActive, startedAt) {
         ensureWorkMayStart(record, credential);
-        if (!record.permitExpiresAt || Date.parse(record.permitExpiresAt) <= Date.now())
-          throw new Error("The Console start permit expired before process creation.");
+        validateStartPermitTime(permit, startedAt);
         if (
           detail.run_conflict_policy !== "concurrent" &&
           (boolOtherRunActive || getLocalWaitingCount() > 0)

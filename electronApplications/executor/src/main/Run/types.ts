@@ -22,7 +22,7 @@ export interface RunExecutionContext {
   attempt: number;
   runId?: string;
   packagePath?: string;
-  beforeSpawn?: (hasOtherActiveRun: boolean) => void;
+  beforeSpawn?: (hasOtherActiveRun: boolean, startedAt: string) => void;
   onStarted?: (fact: RunStartedFact) => void;
   onStopping?: (reason: "cancel" | "shutdown" | "timeout") => void;
   onEnded?: (fact: RunEndedFact) => void;
