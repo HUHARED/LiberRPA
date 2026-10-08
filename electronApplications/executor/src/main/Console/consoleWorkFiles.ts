@@ -1,12 +1,20 @@
 // FileName: consoleWorkFiles.ts
 
 import fs from "fs";
+import http, { type IncomingMessage } from "http";
+import https from "https";
+import { performance } from "perf_hooks";
+import { finished } from "stream/promises";
 import os from "os";
 import path from "path";
 import AdmZip from "adm-zip";
 
 import { getErrorMessage } from "../../shared/error";
-import { ensureNonEmptyString, ensureRecord } from "../Common/validation";
+import {
+  ensureNonEmptyString,
+  ensurePositiveInteger,
+  ensureRecord,
+} from "../Common/validation";
 import { loggerMain } from "../Logging/logger";
 import { ensureExistingRunLogFolderPath } from "../Run/logPath";
 import { requestConsole } from "./consoleApi";
@@ -378,7 +386,9 @@ async function sendConsoleFile(
       throw new Error(
         "The requested original file is missing or exceeds its download limit.",
       );
-    await requestConsole(
+    abortFiles.signal.throwIfAborted();
+    const floatReadyStartedAt = performance.now();
+    const ready = await requestConsole(
       credential.consoleUrl,
       `executor/file-transfers/${encodeURIComponent(strTransferId)}/ready/`,
       credential.token,
@@ -389,24 +399,104 @@ async function sendConsoleFile(
       },
     );
     boolReady = true;
-    const response = await fetch(
-      `${credential.consoleUrl}/api/clients/executor/file-transfers/${encodeURIComponent(strTransferId)}/content/`,
-      {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${credential.token}`,
-          "Content-Type": source.contentType,
-          "Content-Length": String(stat.size),
-        },
-        body: fs.createReadStream(source.filePath) as unknown as BodyInit,
-        duplex: "half",
-        redirect: "error",
-        credentials: "omit",
-        signal: AbortSignal.any([AbortSignal.timeout(120_000), abortFiles.signal]),
-      } as RequestInit,
+    if (ready.ready !== true)
+      throw new Error("Console did not accept the prepared original file.");
+    const intTimeoutMs = ensurePositiveInteger(
+      ready.transfer_timeout_ms,
+      "File transfer timeout",
     );
-    if (!response.ok)
-      throw new Error(`Original file transfer failed (${response.status}).`);
+    const intIdleMs = ensurePositiveInteger(ready.idle_timeout_ms, "File idle timeout");
+    if (intTimeoutMs > 2_147_483_647 || intIdleMs > 2_147_483_647)
+      throw new Error("Console returned an unsupported file transfer timeout.");
+    // Conservatively include the complete ready request without comparing wall clocks.
+    const floatRemainingMs = intTimeoutMs - (performance.now() - floatReadyStartedAt);
+    if (floatRemainingMs <= 0) throw new Error("The original file transfer has expired.");
+    abortFiles.signal.throwIfAborted();
+    const urlObj = new URL(
+      `${credential.consoleUrl}/api/clients/executor/file-transfers/${encodeURIComponent(strTransferId)}/content/`,
+    );
+    const requestUpload = urlObj.protocol === "https:" ? https.request : http.request;
+    const requestObj = requestUpload(urlObj, {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${credential.token}`,
+        "Content-Type": source.contentType,
+        "Content-Length": String(stat.size),
+      },
+      agent: false,
+      signal: abortFiles.signal,
+    });
+    const fileStream = fs.createReadStream(source.filePath);
+    let responseObj: IncomingMessage | undefined;
+    const timerTotal = setTimeout(
+      () => requestObj.destroy(new Error("The original file transfer has expired.")),
+      floatRemainingMs,
+    );
+    // Socket inactivity starts after connection; also bound DNS, TCP and TLS setup.
+    const timerConnect = setTimeout(
+      () => requestObj.destroy(new Error("The file transfer connection timed out.")),
+      intIdleMs,
+    );
+    requestObj.once("socket", (socket) => {
+      socket.once(urlObj.protocol === "https:" ? "secureConnect" : "connect", () =>
+        clearTimeout(timerConnect),
+      );
+    });
+    requestObj.setTimeout(intIdleMs, () =>
+      requestObj.destroy(new Error("The original file transfer stopped making progress.")),
+    );
+    // Once sent, the relay owns progress checks while its browser consumer drains buffers.
+    requestObj.once("finish", () => {
+      if (!responseObj) requestObj.setTimeout(0);
+    });
+    try {
+      await new Promise<void>((resolve, reject) => {
+        requestObj.once("error", reject);
+        fileStream.once("error", reject);
+        requestObj.once("response", (response) => {
+          responseObj = response;
+          requestObj.setTimeout(intIdleMs);
+          response.once("error", reject);
+          if (response.statusCode !== 200) {
+            reject(new Error(`Original file transfer failed (${response.statusCode}).`));
+            return;
+          }
+          let intBytes = 0;
+          const arrChunk: Buffer[] = [];
+          response.on("data", (chunk: Buffer) => {
+            intBytes += chunk.length;
+            if (intBytes > 1024) {
+              reject(new Error("Console returned an oversized file acknowledgment."));
+              return;
+            }
+            arrChunk.push(chunk);
+          });
+          response.once("end", () => {
+            try {
+              const acknowledgment = ensureRecord(
+                JSON.parse(Buffer.concat(arrChunk).toString("utf8")) as unknown,
+                "File acknowledgment",
+              );
+              if (acknowledgment.received !== true)
+                throw new Error("Console did not acknowledge the original file.");
+              resolve();
+            } catch (e: unknown) {
+              reject(e);
+            }
+          });
+        });
+        // Pipe preserves backpressure; only this long request uses a streaming transport.
+        fileStream.pipe(requestObj);
+      });
+    } finally {
+      clearTimeout(timerTotal);
+      clearTimeout(timerConnect);
+      responseObj?.destroy();
+      requestObj.destroy();
+      fileStream.destroy();
+      // Windows cannot remove a temporary ZIP until its reader has closed.
+      await finished(fileStream, { cleanup: true }).catch(() => {});
+    }
   } catch (e: unknown) {
     if (!boolReady) {
       setTransferStarted.delete(strTransferId);

@@ -65,6 +65,9 @@ from .control_notifications import notify_executor_control
 _INT_CHUNK_BYTES = 64 * 1024
 _INT_MAX_ACTIVE_TRANSFERS = 8
 _INT_BYTES_PER_SECOND = 5 * 1024 * 1024
+_INT_PREPARATION_SECONDS = 60
+_INT_TRANSFER_SECONDS = 30 * 60
+_INT_IDLE_SECONDS = 60
 _DICT_MAX_FILE_BYTES = {
     RunFileKind.LOGS: 2 * 1024 * 1024 * 1024,
     RunFileKind.VIDEO: 512 * 1024 * 1024,
@@ -258,7 +261,9 @@ def create_file_transfer(request: HttpRequest, runId: uuid.UUID) -> HttpResponse
                 actor_id=access.actorId,
                 session_id=run.assignment.session_id,
                 kind=payload.kind,
-                expires_at=timezone.now() + timedelta(minutes=30),
+                # Keep the reservation for both preparation and the full streaming window.
+                expires_at=timezone.now()
+                + timedelta(seconds=_INT_PREPARATION_SECONDS + _INT_TRANSFER_SECONDS),
             )
             ticket = TransferTicket(
                 transfer.pk,
@@ -267,7 +272,7 @@ def create_file_transfer(request: HttpRequest, runId: uuid.UUID) -> HttpResponse
                 run.assignment.session_id,
                 run.pk,
                 payload.kind,
-                time.monotonic() + 60,
+                time.monotonic() + _INT_PREPARATION_SECONDS,
             )
 
             # The ticket must exist before the committed notification can wake its source.
@@ -276,7 +281,9 @@ def create_file_transfer(request: HttpRequest, runId: uuid.UUID) -> HttpResponse
             notify_executor_control(run.assignment.executor_id)
             response = JsonResponse({
                 "download_url": f"/api/run-files/{transfer.pk}/",
-                "expires_at": (timezone.now() + timedelta(seconds=60)).isoformat(),
+                "expires_at": (
+                    timezone.now() + timedelta(seconds=_INT_PREPARATION_SECONDS)
+                ).isoformat(),
             })
         boolCommitted = True
         return response
@@ -329,6 +336,16 @@ def set_file_ready(request: HttpRequest, transferId: uuid.UUID) -> HttpResponse:
         return payload
     ticket: TransferTicket | None = None
     boolOwnPreparation = False
+
+    def build_ready_response(ticket: TransferTicket) -> JsonResponse:
+        return JsonResponse({
+            "ready": not bool(ticket.error),
+            "transfer_timeout_ms": max(
+                0, int((ticket.expiresAt - time.monotonic()) * 1000)
+            ),
+            "idle_timeout_ms": _INT_IDLE_SECONDS * 1000,
+        })
+
     try:
         ticket = _get_ticket(transferId)
         # Reuse the parsed credential context; only commit-time eligibility is rechecked.
@@ -350,7 +367,7 @@ def set_file_ready(request: HttpRequest, transferId: uuid.UUID) -> HttpResponse:
                 and ticket.filename == payload.filename
                 and ticket.error == payload.error
             ):
-                return JsonResponse({"ready": not bool(ticket.error)})
+                return build_ready_response(ticket)
             raise ValidationError(
                 "This transfer was already prepared with different metadata."
             )
@@ -372,9 +389,12 @@ def set_file_ready(request: HttpRequest, transferId: uuid.UUID) -> HttpResponse:
             if ticket.kind == RunFileKind.SUBTITLES
             else "application/octet-stream"
         )
+        # Start the transfer budget once; repeated ready requests never renew it.
+        if not ticket.error:
+            ticket.expiresAt = time.monotonic() + _INT_TRANSFER_SECONDS
         ticket.state = TransferState.READY
         ticket.readyEvent.set()
-        return JsonResponse({"ready": not bool(ticket.error)})
+        return build_ready_response(ticket)
     except (PermissionDenied, ObjectDoesNotExist):
         return build_error_response(
             "transfer_unavailable",
@@ -431,8 +451,9 @@ def _cancel_ticket(ticket: TransferTicket, message: str) -> None:
 
 
 async def _wait_event(event: threading.Event, ticket: TransferTicket) -> None:
+    floatDeadline = min(time.monotonic() + _INT_IDLE_SECONDS, ticket.expiresAt)
     while True:
-        if ticket.canceledEvent.is_set() or ticket.expiresAt < time.monotonic():
+        if ticket.canceledEvent.is_set() or time.monotonic() >= floatDeadline:
             raise TimeoutError("The original Executor did not provide the file in time.")
         if event.is_set():
             return
@@ -440,18 +461,19 @@ async def _wait_event(event: threading.Event, ticket: TransferTicket) -> None:
 
 
 async def _put_chunk(ticket: TransferTicket, content: bytes | None) -> None:
-    while not ticket.canceledEvent.is_set() and time.monotonic() < ticket.expiresAt:
+    floatDeadline = min(time.monotonic() + _INT_IDLE_SECONDS, ticket.expiresAt)
+    while not ticket.canceledEvent.is_set() and time.monotonic() < floatDeadline:
         try:
             await asyncio.to_thread(ticket.chunks.put, content, True, 1)
             return
         except queue.Full:
             continue
-    raise ConnectionError("The browser download was disconnected.")
+    raise ConnectionError("The browser download stopped accepting data.")
 
 
 async def _get_chunk(ticket: TransferTicket) -> bytes | None:
-    intDeadline = min(time.monotonic() + 60, ticket.expiresAt)
-    while not ticket.canceledEvent.is_set() and time.monotonic() < intDeadline:
+    floatDeadline = min(time.monotonic() + _INT_IDLE_SECONDS, ticket.expiresAt)
+    while not ticket.canceledEvent.is_set() and time.monotonic() < floatDeadline:
         try:
             return await asyncio.to_thread(ticket.chunks.get, True, 1)
         except queue.Empty:
@@ -481,40 +503,52 @@ async def _receive_file(
         raise PermissionDenied("The original file was not prepared.")
     ticket.state = TransferState.STREAMING
     try:
-        await _wait_event(ticket.consumerEvent, ticket)
-        intReceivedBytes = 0
-        while True:
-            message = await asyncio.wait_for(receive(), 60)
-            if message["type"] == "http.disconnect":
-                raise ConnectionError("The Executor disconnected during the transfer.")
-            content = message.get("body", b"")
-            intReceivedBytes += len(content)
-            if intReceivedBytes > ticket.sizeBytes:
-                raise ValueError("The source sent more bytes than declared.")
-            for intOffset in range(0, len(content), _INT_CHUNK_BYTES):
-                await _put_chunk(
-                    ticket, content[intOffset : intOffset + _INT_CHUNK_BYTES]
-                )
-            if not message.get("more_body", False):
-                break
-        if intReceivedBytes != ticket.sizeBytes:
-            raise ValueError("The source file ended before its declared size.")
-        await _put_chunk(ticket, None)
-        ticket.state = TransferState.FINISHED
-        await send({
-            "type": "http.response.start",
-            "status": 200,
-            "headers": [(b"content-type", b"application/json")],
-            "trailers": False,
-        })
-        await send({
-            "type": "http.response.body",
-            "body": b'{"received":true}',
-            "more_body": False,
-        })
-    except (Exception, asyncio.CancelledError):
+        async with asyncio.timeout(max(0, ticket.expiresAt - time.monotonic())):
+            await _wait_event(ticket.consumerEvent, ticket)
+            intReceivedBytes = 0
+            while True:
+                message = await asyncio.wait_for(receive(), _INT_IDLE_SECONDS)
+                if message["type"] == "http.disconnect":
+                    raise ConnectionError(
+                        "The Executor disconnected during the transfer."
+                    )
+                content = message.get("body", b"")
+                intReceivedBytes += len(content)
+                if intReceivedBytes > ticket.sizeBytes:
+                    raise ValueError("The source sent more bytes than declared.")
+                for intOffset in range(0, len(content), _INT_CHUNK_BYTES):
+                    await _put_chunk(
+                        ticket, content[intOffset : intOffset + _INT_CHUNK_BYTES]
+                    )
+                if not message.get("more_body", False):
+                    break
+            if intReceivedBytes != ticket.sizeBytes:
+                raise ValueError("The source file ended before its declared size.")
+            await _put_chunk(ticket, None)
+            ticket.state = TransferState.FINISHED
+            await asyncio.wait_for(
+                send({
+                    "type": "http.response.start",
+                    "status": 200,
+                    "headers": [(b"content-type", b"application/json")],
+                    "trailers": False,
+                }),
+                _INT_IDLE_SECONDS,
+            )
+            await asyncio.wait_for(
+                send({
+                    "type": "http.response.body",
+                    "body": b'{"received":true}',
+                    "more_body": False,
+                }),
+                _INT_IDLE_SECONDS,
+            )
+    except (Exception, asyncio.CancelledError) as e:
         # Only this authenticated source owns the stream and may abort its browser consumer.
         _cancel_ticket(ticket, "The original file stream was interrupted.")
+        await sync_to_async(_discard_ticket)(ticket)
+        if isinstance(e, TimeoutError):
+            raise TimeoutError("The original file transfer timed out.") from e
         raise
 
 
@@ -534,43 +568,58 @@ async def _download_file(
         await _wait_event(ticket.readyEvent, ticket)
         if ticket.error:
             raise ValueError(ticket.error)
-        ticket.expiresAt = time.monotonic() + 30 * 60
-        strDisposition = content_disposition_header(True, ticket.filename)
-        await send({
-            "type": "http.response.start",
-            "status": 200,
-            "headers": [
-                (b"content-type", ticket.contentType.encode()),
-                (b"content-length", str(ticket.sizeBytes).encode()),
-                (b"content-disposition", strDisposition.encode("latin1")),
-                (b"cache-control", b"no-store"),
-                (b"x-accel-buffering", b"no"),
-            ],
-            "trailers": False,
-        })
-        boolStarted = True
-        while True:
-            content = await _get_chunk(ticket)
-            if content is None:
-                await send({
-                    "type": "http.response.body",
-                    "body": b"",
-                    "more_body": False,
-                })
-                break
-            with _LOCK_TICKET:
-                floatStart = max(
-                    time.monotonic(), _DICT_RATE_TIME.get(ticket.organizationId, 0)
+        async with asyncio.timeout(max(0, ticket.expiresAt - time.monotonic())):
+            strDisposition = content_disposition_header(True, ticket.filename)
+            await asyncio.wait_for(
+                send({
+                    "type": "http.response.start",
+                    "status": 200,
+                    "headers": [
+                        (b"content-type", ticket.contentType.encode()),
+                        (b"content-length", str(ticket.sizeBytes).encode()),
+                        (b"content-disposition", strDisposition.encode("latin1")),
+                        (b"cache-control", b"no-store"),
+                        (b"x-accel-buffering", b"no"),
+                    ],
+                    "trailers": False,
+                }),
+                _INT_IDLE_SECONDS,
+            )
+            boolStarted = True
+            while True:
+                content = await _get_chunk(ticket)
+                if content is None:
+                    await asyncio.wait_for(
+                        send({
+                            "type": "http.response.body",
+                            "body": b"",
+                            "more_body": False,
+                        }),
+                        _INT_IDLE_SECONDS,
+                    )
+                    break
+                with _LOCK_TICKET:
+                    floatStart = max(
+                        time.monotonic(), _DICT_RATE_TIME.get(ticket.organizationId, 0)
+                    )
+                    _DICT_RATE_TIME[ticket.organizationId] = (
+                        floatStart + len(content) / _INT_BYTES_PER_SECOND
+                    )
+                await asyncio.sleep(max(0, floatStart - time.monotonic()))
+                await asyncio.wait_for(
+                    send({
+                        "type": "http.response.body",
+                        "body": content,
+                        "more_body": True,
+                    }),
+                    _INT_IDLE_SECONDS,
                 )
-                _DICT_RATE_TIME[ticket.organizationId] = (
-                    floatStart + len(content) / _INT_BYTES_PER_SECOND
-                )
-            await asyncio.sleep(max(0, floatStart - time.monotonic()))
-            await send({"type": "http.response.body", "body": content, "more_body": True})
-    except Exception:
+    except Exception as e:
         if boolStarted:
             # Raising aborts the incomplete Content-Length response instead of claiming a successful file.
             ticket.canceledEvent.set()
+        if isinstance(e, TimeoutError):
+            raise TimeoutError("The original file transfer timed out.") from e
         raise
     finally:
         taskDisconnect.cancel()
