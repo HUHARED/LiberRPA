@@ -284,6 +284,7 @@ class Run(models.Model):
     outputs_reason = models.CharField(max_length=2000, blank=True)
     outputs_unavailable_keys = models.JSONField(default=list)
     error_summary = models.JSONField(null=True)
+    logs_complete = models.BooleanField(default=False)
     logs_cleared_at = models.DateTimeField(null=True)
     recording = models.JSONField(default=dict)
 
@@ -346,13 +347,6 @@ class RunLog(models.Model):
                 name="run_log_level_valid",
             ),
         ]
-
-
-class RunLogState(models.Model):
-    run_id: uuid.UUID
-
-    run = models.OneToOneField("runs.Run", primary_key=True, on_delete=models.CASCADE)
-    complete = models.BooleanField(default=False)
 
 
 class RunFileTransfer(models.Model):

@@ -42,7 +42,7 @@ from organizations.permissions import (
     resolve_organization_access,
 )
 
-from .models import JobState, Run, RunLog, RunLogState
+from .models import JobState, Run, RunLog
 
 _INT_UPLOAD_BYTES = 1024 * 1024
 _INT_ENTRY_BYTES = 256 * 1024
@@ -335,8 +335,9 @@ def upload_logs(request: HttpRequest, runId: uuid.UUID) -> HttpResponse:
                     )
                 # Do not ignore database conflicts: receipts must describe a fully committed batch.
                 RunLog.objects.bulk_create(listRunLog)
-            if payload.complete:
-                RunLogState.objects.update_or_create(run=run, defaults={"complete": True})
+            if payload.complete and not run.logs_complete:
+                run.logs_complete = True
+                run.save(update_fields=["logs_complete"])
             return JsonResponse({
                 "accepted": True,
                 "accepting": True,
@@ -390,7 +391,7 @@ def list_logs(request: HttpRequest, runId: uuid.UUID) -> HttpResponse:
             "after_cursor": intCursor or 0,
             "has_more": False,
             "cleared": run.logs_cleared_at is not None,
-            "complete": RunLogState.objects.filter(run=run, complete=True).exists(),
+            "complete": run.logs_complete,
         }
         intBeforeCursor: int | None = None
         intAfterCursor = 0
