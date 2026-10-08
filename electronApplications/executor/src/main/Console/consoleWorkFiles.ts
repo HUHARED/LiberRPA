@@ -24,43 +24,128 @@ export function stopConsoleFiles(): void {
   abortFiles.abort();
 }
 
-// Read two entry budgets at once; Console validates each entry against 256 KiB.
-const INT_LOG_READ_BYTES = 512 * 1024;
+const INT_LOG_READ_BYTES = 64 * 1024;
+const INT_LOG_ENTRY_BYTES = 256 * 1024;
+const INT_LOG_BATCH_BYTES = 1024 * 1024;
+const INT_LOG_BATCH_ENTRIES = 500;
+
+interface LogBatch {
+  fileKey: string;
+  startOffset: number;
+  logs: string[];
+  nextOffset: number;
+  atEnd: boolean;
+  skipped: { offset: number; reason: string }[];
+}
+
 const setTransferStarted = new Set<string>();
 const mapLogRetry = new Map<string, { nextAt: number; delayMs: number }>();
 
-function readLogBatch(
+async function readLogBatch(
   filePath: string,
-  offset: number,
-): { logs: unknown[]; nextOffset: number; atEnd: boolean } {
-  const intSize = fs.statSync(filePath).size;
-  if (offset >= intSize) return { logs: [], nextOffset: offset, atEnd: true };
-  const intFile = fs.openSync(filePath, "r");
-  const buffer = Buffer.alloc(Math.min(INT_LOG_READ_BYTES, intSize - offset));
-  let intRead: number;
+  offsets: Record<string, number>,
+  ended: boolean,
+): Promise<LogBatch> {
+  const fileObj = await fs.promises.open(filePath, "r");
   try {
-    intRead = fs.readSync(intFile, buffer, 0, buffer.length, offset);
+    const stat = await fileObj.stat();
+    const strFileKey = `${stat.dev}:${stat.ino}:${stat.birthtimeMs}`;
+    const intSize = stat.size;
+    const intStoredOffset = offsets[strFileKey] ?? 0;
+    const intOffset = intStoredOffset > intSize ? 0 : intStoredOffset;
+    const batch: LogBatch = {
+      fileKey: strFileKey,
+      startOffset: intOffset,
+      logs: [],
+      nextOffset: intOffset,
+      atEnd: intOffset >= intSize,
+      skipped: [],
+    };
+    if (batch.atEnd) return batch;
+    const buffer = Buffer.alloc(INT_LOG_READ_BYTES);
+    // One extra byte allows a CRLF terminator without reducing the entry budget.
+    const lineBuffer = Buffer.alloc(INT_LOG_ENTRY_BYTES + 1);
+    const decoder = new TextDecoder("utf-8", { fatal: true });
+    let intPosition = intOffset;
+    let intLineBytes = 0;
+    let intLastByte = 0;
+    let intLines = 0;
+    let intBatchBytes = Buffer.byteLength('{"logs":[],"complete":false}', "utf8");
+
+    function finishLine(nextOffset: number): boolean {
+      const intContentBytes = intLineBytes - (intLastByte === 13 ? 1 : 0);
+      let strReason = "";
+      let strLine = "";
+      if (intContentBytes > INT_LOG_ENTRY_BYTES) {
+        strReason = "The log entry exceeds 256 KiB.";
+      } else {
+        try {
+          strLine = decoder.decode(lineBuffer.subarray(0, intContentBytes)).trim();
+        } catch {
+          strReason = "The log entry is not valid UTF-8.";
+        }
+      }
+      if (strLine) {
+        const intBytes =
+          Buffer.byteLength(JSON.stringify(strLine), "utf8") + (batch.logs.length ? 1 : 0);
+        if (intBatchBytes + intBytes > INT_LOG_BATCH_BYTES) return false;
+        // Keep source JSON as text; parsing its numbers in JavaScript can lose precision.
+        batch.logs.push(strLine);
+        intBatchBytes += intBytes;
+      }
+      if (strReason) batch.skipped.push({ offset: batch.nextOffset, reason: strReason });
+      batch.nextOffset = nextOffset;
+      intLineBytes = 0;
+      intLastByte = 0;
+      intLines++;
+      return intLines < INT_LOG_BATCH_ENTRIES;
+    }
+
+    let boolContinue = true;
+    while (intPosition < intSize && boolContinue) {
+      abortFiles.signal.throwIfAborted();
+      const { bytesRead: intRead } = await fileObj.read(
+        buffer,
+        0,
+        Math.min(buffer.length, intSize - intPosition),
+        intPosition,
+      );
+      if (!intRead) break;
+      let intStart = 0;
+      while (intStart < intRead) {
+        const intNewline = buffer.indexOf(10, intStart);
+        const boolNewline = intNewline >= 0 && intNewline < intRead;
+        const intEnd = boolNewline ? intNewline : intRead;
+        const intPartBytes = intEnd - intStart;
+        if (intPartBytes) {
+          const intCopyBytes = Math.min(
+            intPartBytes,
+            Math.max(0, lineBuffer.length - intLineBytes),
+          );
+          if (intCopyBytes)
+            buffer.copy(lineBuffer, intLineBytes, intStart, intStart + intCopyBytes);
+          intLineBytes += intPartBytes;
+          intLastByte = buffer[intEnd - 1];
+        }
+        if (boolNewline && !finishLine(intPosition + intEnd + 1)) {
+          boolContinue = false;
+          break;
+        }
+        intStart = intEnd + (boolNewline ? 1 : 0);
+      }
+      intPosition += intRead;
+    }
+    // A running process may still be writing its final line; do not consume that tail.
+    if (boolContinue && ended && intPosition >= intSize && intLineBytes)
+      finishLine(intSize);
+    batch.atEnd = batch.nextOffset >= intSize;
+    return batch;
   } finally {
-    fs.closeSync(intFile);
+    await fileObj.close();
   }
-  const arrLog: unknown[] = [];
-  let intStart = 0;
-  let intNextOffset = offset;
-  for (let intIndex = 0; intIndex < intRead && arrLog.length < 500; intIndex++) {
-    if (buffer[intIndex] !== 10) continue;
-    const strLine = buffer.subarray(intStart, intIndex).toString("utf8").trim();
-    if (strLine) arrLog.push(JSON.parse(strLine) as unknown);
-    intStart = intIndex + 1;
-    intNextOffset = offset + intStart;
-  }
-  if (intNextOffset === offset && intRead === INT_LOG_READ_BYTES)
-    throw new Error(
-      "A MachineLog line exceeds the 512 KiB read window; upload for this Run cannot continue. The original log file is retained.",
-    );
-  return { logs: arrLog, nextOffset: intNextOffset, atEnd: intNextOffset >= intSize };
 }
 
-function getLogRejections(response: Record<string, unknown>, logs: unknown[]): string[] {
+function getLogRejections(response: Record<string, unknown>, logs: string[]): string[] {
   if (response.accepted !== true)
     throw new Error("Console did not acknowledge the MachineLog batch.");
   if (response.accepting === false) return [];
@@ -92,7 +177,8 @@ function getLogRejections(response: Record<string, unknown>, logs: unknown[]): s
   }
   for (const [intIndex, value] of logs.entries()) {
     if (mapRejected.has(intIndex)) continue;
-    const log = ensureRecord(value, "Acknowledged log entry");
+    // Inspect only the acknowledged identity; never reserialize this parsed entry.
+    const log = ensureRecord(JSON.parse(value) as unknown, "Acknowledged log entry");
     const strLogId = ensureNonEmptyString(log.logId, "Log ID").toLowerCase();
     if (!setAcknowledged.has(strLogId))
       throw new Error(`Console did not acknowledge MachineLog batch entry ${intIndex}.`);
@@ -130,32 +216,49 @@ async function flushRunLogs(
   let boolAtEnd = true;
   for (const strName of arrName) {
     const strFilePath = path.join(strFolder, strName);
-    const stat = fs.statSync(strFilePath);
-    const strFileKey = `${stat.dev}:${stat.ino}:${stat.birthtimeMs}`;
-    const intStoredOffset = record.logOffsets[strFileKey] ?? 0;
-    const intOffset = intStoredOffset > stat.size ? 0 : intStoredOffset;
-    const batch = readLogBatch(strFilePath, intOffset);
-    boolAtEnd &&= batch.atEnd;
-    if (!batch.logs.length) continue;
-    const response = await requestConsole(
-      credential.consoleUrl,
-      `executor/runs/${record.assignment.run_id}/logs/`,
-      credential.token,
-      { logs: batch.logs, complete: false },
+    const batch = await readLogBatch(
+      strFilePath,
+      record.logOffsets,
+      record.ended !== undefined,
     );
-    const arrRejected = getLogRejections(response, batch.logs);
-    if (response.accepting === false) {
-      record.logsComplete = true;
-      saveConsoleLogProgress(record.assignment.id, record.logOffsets, true);
-      break;
-    }
-    if (arrRejected.length)
-      loggerMain.warn(
-        `Console rejected ${arrRejected.length} MachineLog entries for Run ${record.assignment.run_id}, file ${strName}, batch starting at byte ${intOffset}. Rejected indexes: ${arrRejected.join("; ")}. Original logs remain in ${strFolder}.`,
+    const { fileKey: strFileKey, startOffset: intOffset } = batch;
+    boolAtEnd &&= batch.atEnd;
+    let arrRejected: string[] = [];
+    if (batch.logs.length) {
+      const response = await requestConsole(
+        credential.consoleUrl,
+        `executor/runs/${record.assignment.run_id}/logs/`,
+        credential.token,
+        { logs: batch.logs, complete: false },
       );
-    // Permanent rejections are reported once; retrying them would block later entries.
+      arrRejected = getLogRejections(response, batch.logs);
+      if (response.accepting === false) {
+        record.logsComplete = true;
+        saveConsoleLogProgress(record.assignment.id, record.logOffsets, true);
+        break;
+      }
+    }
+    if (batch.nextOffset === intOffset) continue;
+    // Only acknowledged entries and locally rejected whole lines advance the saved cursor.
     record.logOffsets[strFileKey] = batch.nextOffset;
     saveConsoleLogProgress(record.assignment.id, record.logOffsets, record.logsComplete);
+    if (arrRejected.length)
+      loggerMain.warn(
+        `Console rejected ${arrRejected.length} MachineLog entries for Run ` +
+          `${record.assignment.run_id}, file ${strName}, batch at byte ${intOffset}. ` +
+          `Rejected indexes: ${arrRejected.join("; ")}. ` +
+          `Original logs remain in ${strFolder}.`,
+      );
+    if (batch.skipped.length) {
+      const strDetails = batch.skipped
+        .map((entry) => `byte ${entry.offset}: ${entry.reason}`)
+        .join("; ");
+      loggerMain.warn(
+        `Skipped ${batch.skipped.length} MachineLog entries for Run ` +
+          `${record.assignment.run_id}, file ${strName}: ${strDetails}. ` +
+          `Original logs remain in ${strFolder}.`,
+      );
+    }
   }
   if (!record.logsComplete && record.ended && boolAtEnd) {
     const response = await requestConsole(

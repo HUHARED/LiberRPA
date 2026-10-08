@@ -62,7 +62,7 @@ _SET_BUILTIN_LOG_KEYS = {
 
 
 class LogBatchRequest(JsonRequest):
-    logs: list[JsonValue] = Field(max_length=1000)
+    logs: list[str] = Field(max_length=1000)
     complete: bool = False
 
 
@@ -126,7 +126,25 @@ def _validate_log_text(value: JsonValue) -> None:
         validate_json_text(value)
 
 
-def _build_run_log(value: JsonValue, run: Run) -> RunLog:
+def _build_run_log(entryText: str, run: Run) -> RunLog:
+    def parse_log_object(fieldPairs: list[tuple[str, JsonValue]]) -> dict[str, JsonValue]:
+        dictField: dict[str, JsonValue] = {}
+        for strKey, value in fieldPairs:
+            if strKey in dictField:
+                raise ValueError("Duplicate JSON fields are not allowed.")
+            dictField[strKey] = value
+        return dictField
+
+    try:
+        intSourceBytes = len(entryText.encode("utf-8"))
+    except UnicodeEncodeError:
+        raise ValueError("The log entry is not valid UTF-8.") from None
+    if intSourceBytes > _INT_ENTRY_BYTES:
+        raise ValueError("The log entry exceeds 256 KiB.")
+    try:
+        value = cast(JsonValue, json.loads(entryText, object_pairs_hook=parse_log_object))
+    except (ValueError, RecursionError):
+        raise ValueError("Use a valid JSON log entry without duplicate fields.") from None
     if not isinstance(value, dict):
         raise ValueError("A log entry must be an object.")
     if not _SET_BUILTIN_LOG_KEYS.issubset(value):
@@ -256,9 +274,9 @@ def upload_logs(request: HttpRequest, runId: uuid.UUID) -> HttpResponse:
             listSaved: list[str] = []
             listExisting: list[str] = []
             listRejected: list[dict] = []
-            for intIndex, value in enumerate(payload.logs):
+            for intIndex, strEntry in enumerate(payload.logs):
                 try:
-                    runLog = _build_run_log(value, run)
+                    runLog = _build_run_log(strEntry, run)
                 except ValueError as e:
                     listRejected.append({
                         "index": intIndex,
@@ -329,13 +347,26 @@ def list_logs(request: HttpRequest, runId: uuid.UUID) -> HttpResponse:
             query = query.filter(**{
                 "sequence__gt" if strField == "after" else "sequence__lt": intCursor
             })
-        listLog = []
+        listLog: list[dict[str, object]] = []
         intTotalBytes = 0
         boolMore = False
+        dictResponse: dict[str, object] = {
+            "logs": [],
+            "before_cursor": None,
+            "after_cursor": intCursor or 0,
+            "has_more": False,
+            "cleared": run.logs_cleared_at is not None,
+            "complete": RunLogState.objects.filter(run=run, complete=True).exists(),
+        }
+        intBeforeCursor: int | None = None
+        intAfterCursor = 0
         for log in query.order_by("sequence" if strField == "after" else "-sequence")[
             :501
         ]:
-            dictLog = {
+            if len(listLog) == 500:
+                boolMore = True
+                break
+            dictLog: dict[str, object] = {
                 "log_id": str(log.log_id),
                 "sequence": log.sequence,
                 "timestamp": log.timestamp.isoformat(),
@@ -345,31 +376,48 @@ def list_logs(request: HttpRequest, runId: uuid.UUID) -> HttpResponse:
                 "machine_name": log.machine_name,
                 "process_name": log.process_name,
                 "file_name": log.file_name,
-                "line_no": log.line_no,
+                "line_no": str(log.line_no),
                 "project_name": log.project_name,
-                "message": log.message,
+                # Browser previews must not parse message numbers into JavaScript Number.
+                "message_text": log.message
+                if isinstance(log.message, str)
+                else json.dumps(
+                    log.message,
+                    ensure_ascii=False,
+                    allow_nan=False,
+                    separators=(",", ":"),
+                ),
                 "custom_fields": log.custom_fields,
             }
             intBytes = len(
                 json.dumps(dictLog, ensure_ascii=False, separators=(",", ":")).encode()
             )
-            if (
-                len(listLog) == 500
-                or intTotalBytes + intBytes > _INT_PREVIEW_BYTES - 1024
-            ):
+            intBeforeCursor = (
+                min(intBeforeCursor, log.sequence)
+                if intBeforeCursor is not None
+                else log.sequence
+            )
+            intAfterCursor = max(intAfterCursor, log.sequence)
+            dictHeader = dictResponse | {
+                "before_cursor": intBeforeCursor,
+                "after_cursor": intAfterCursor,
+            }
+            intHeaderBytes = len(
+                json.dumps(dictHeader, ensure_ascii=False, separators=(",", ":")).encode()
+            )
+            intContentBytes = intTotalBytes + intBytes + (1 if listLog else 0)
+            if intHeaderBytes + intContentBytes > _INT_PREVIEW_BYTES:
                 boolMore = True
                 break
             listLog.append(dictLog)
-            intTotalBytes += intBytes
-        listSequence = [log["sequence"] for log in listLog]
-        return JsonResponse({
-            "logs": listLog,
-            "before_cursor": min(listSequence) if listSequence else None,
-            "after_cursor": max(listSequence) if listSequence else (intCursor or 0),
-            "has_more": boolMore,
-            "cleared": run.logs_cleared_at is not None,
-            "complete": RunLogState.objects.filter(run=run, complete=True).exists(),
-        })
+            intTotalBytes = intContentBytes
+            dictResponse = dictHeader
+        dictResponse["logs"] = listLog
+        dictResponse["has_more"] = boolMore
+        return JsonResponse(
+            dictResponse,
+            json_dumps_params={"ensure_ascii": False, "separators": (",", ":")},
+        )
     except (PermissionDenied, ObjectDoesNotExist):
         return build_error_response(
             "run_unavailable", "Run access is unavailable.", statusCode=403

@@ -151,9 +151,9 @@ export interface LogEntry {
   machine_name: string;
   process_name: string;
   file_name: string;
-  line_no: number;
+  line_no: string;
   project_name: string;
-  message: JsonValue;
+  message_text: string;
   custom_fields: Record<string, string>;
 }
 export interface LogPage {
@@ -303,10 +303,10 @@ function isLogEntry(value: unknown): value is LogEntry {
     typeof value.machine_name === "string" &&
     typeof value.process_name === "string" &&
     typeof value.file_name === "string" &&
-    isNonnegativeInteger(value.line_no) &&
+    typeof value.line_no === "string" &&
+    /^(0|[1-9]\d*)$/.test(value.line_no) &&
     typeof value.project_name === "string" &&
-    // The API response is already parsed JSON; message can contain any JSON value.
-    value.message !== undefined &&
+    typeof value.message_text === "string" &&
     isRecord(value.custom_fields) &&
     Object.values(value.custom_fields).every((field) => typeof field === "string")
   );

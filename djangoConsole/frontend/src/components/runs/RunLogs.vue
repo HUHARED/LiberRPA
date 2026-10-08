@@ -71,21 +71,21 @@
     </template>
     <template #item.level="{ item }">{{ item.level }}</template>
     <template #item.process="{ item }">{{ item.process_name || "—" }}</template>
-    <template #item.message="{ item }">
-      <div class="text-truncate">{{ formatMessage(item.message) }}</div>
+    <template #item.message_text="{ item }">
+      <div class="text-truncate">{{ item.message_text }}</div>
     </template>
     <template #expanded-row="{ item, columns }">
       <tr>
         <td :colspan="columns.length">
           <h3 class="text-subtitle-1 my-2">Message</h3>
-          <pre class="text-pre-wrap text-break mb-4">{{ formatMessage(item.message) }}</pre>
+          <pre class="text-pre-wrap text-break mb-4">{{ item.message_text }}</pre>
           <h3 class="text-subtitle-1 my-2">Fields</h3>
           <v-table density="compact" class="mb-4">
             <tbody>
               <tr v-for="(value, key) in getFields(item)" :key="key">
                 <td>{{ key }}</td>
                 <td>
-                  <pre class="text-pre-wrap text-break">{{ formatJsonValue(value) }}</pre>
+                  <pre class="text-pre-wrap text-break">{{ value }}</pre>
                 </td>
               </tr>
             </tbody>
@@ -117,12 +117,7 @@
 <script setup lang="ts">
 import { shallowRef, computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { getRunLogs, type LogEntry } from "@/api/runs";
-import {
-  ARR_LOG_LEVEL,
-  formatJsonValue,
-  type JsonValue,
-  type LogLevel,
-} from "@/api/runOptions";
+import { ARR_LOG_LEVEL, formatJsonValue, type LogLevel } from "@/api/runOptions";
 import { getApiError } from "@/api/errors";
 import { formatDateTime, formatFileSize } from "@/app/formatters";
 const props = defineProps<{
@@ -138,7 +133,7 @@ const ARR_HEADER = [
   { title: "Timestamp", key: "timestamp", width: 235 },
   { title: "Level", key: "level", width: 95 },
   { title: "Process", key: "process", width: 180 },
-  { title: "Message", key: "message", maxWidth: 600 },
+  { title: "Message", key: "message_text", maxWidth: 600 },
 ];
 const INT_MAX_ENTRIES = 10000;
 const INT_MAX_BYTES = 10 * 1024 * 1024;
@@ -169,7 +164,7 @@ const arrFiltered = computed(() =>
         (!strProcess.value || log.process_name === strProcess.value) &&
         (!arrLevel.value.length || arrLevel.value.some((level) => level === log.level)) &&
         (!strMessage.value ||
-          formatMessage(log.message)
+          log.message_text
             .toLocaleLowerCase()
             .includes(strMessage.value.toLocaleLowerCase())),
     )
@@ -178,17 +173,14 @@ const arrFiltered = computed(() =>
         right.timestamp.localeCompare(left.timestamp) || right.sequence - left.sequence,
     ),
 );
-function formatMessage(value: JsonValue): string {
-  return typeof value === "string" ? value : formatJsonValue(value);
-}
-function getFields(log: LogEntry): Record<string, JsonValue> {
+function getFields(log: LogEntry): Record<string, string> {
   return {
-    user_name: log.user_name,
-    machine_name: log.machine_name,
-    file_name: log.file_name,
+    user_name: formatJsonValue(log.user_name),
+    machine_name: formatJsonValue(log.machine_name),
+    file_name: formatJsonValue(log.file_name),
     line_no: log.line_no,
-    project_name: log.project_name,
-    custom_fields: log.custom_fields,
+    project_name: formatJsonValue(log.project_name),
+    custom_fields: formatJsonValue(log.custom_fields),
   };
 }
 function pauseFollow(): void {
