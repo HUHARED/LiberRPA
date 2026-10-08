@@ -37,8 +37,15 @@ from organizations.validators import get_path_name_key
 
 from .archive import read_package_archive
 from .cleanup import expire_uploads
-from .contracts import PackageUploadRequest, PackageSettingsRequest
-from .models import Package, PackageUpload, PackageUploadChunk, PackageUploadState
+from .contracts import PackageUploadRequest, PackageSettingsRequest, PackageReferenceKind
+from .models import (
+    Package,
+    PackageUpload,
+    PackageUploadChunk,
+    PackageUploadState,
+    PackagePreparation,
+    PackagePreparationState,
+)
 from .queries import (
     require_package_department,
     get_package_query,
@@ -293,19 +300,51 @@ def save_package_settings(
     )
 
 
-def get_package_references(package: Package) -> list[dict]:
+def get_package_references(package: Package) -> list[dict[str, str]]:
     from schedules.models import Schedule
     from runs.models import Job, JobState
 
-    listReference = [
-        {"kind": "schedule", "id": str(schedule.pk), "name": schedule.name}
+    listReference: list[dict[str, str]] = [
+        {
+            "kind": PackageReferenceKind.SCHEDULE,
+            "id": str(schedule.pk),
+            "name": schedule.name,
+        }
         for schedule in Schedule.objects.filter(package=package, deleted_at__isnull=True)
     ]
     listReference.extend(
-        {"kind": "job", "id": str(job.pk), "name": str(job.pk)}
+        {"kind": PackageReferenceKind.JOB, "id": str(job.pk), "name": str(job.pk)}
         for job in Job.objects.filter(package_id=package.pk).exclude(
             state=JobState.FINISHED
         )
+    )
+    listReference.extend(
+        {
+            "kind": PackageReferenceKind.PREPARATION,
+            "id": str(preparation.pk),
+            "name": f"{preparation.executor.name} / {preparation.python_environment_name}",
+        }
+        for preparation in PackagePreparation.objects
+        .filter(
+            package=package,
+            state__in=[
+                PackagePreparationState.PENDING,
+                PackagePreparationState.PREPARING,
+            ],
+        )
+        .select_related("executor")
+        .order_by("executor__name", "python_environment_name", "pk")
+    )
+    # An unused download authorization still protects the content it is allowed to open.
+    listReference.extend(
+        {
+            "kind": PackageReferenceKind.DOWNLOAD,
+            "id": str(transfer.pk),
+            "name": transfer.name,
+        }
+        for transfer in DownloadSession.objects.filter(
+            blob_id=package.blob_id, expires_at__gt=timezone.now()
+        ).order_by("expires_at", "pk")
     )
     return listReference
 
@@ -315,7 +354,7 @@ def delete_package(access: OrganizationAccessContext, package: Package) -> None:
     if get_package_references(package):
         raise FileOperationError(
             "package_in_use",
-            "Remove Schedule references and finish or close active Jobs before deleting this Package.",
+            "Remove Schedule references, finish or close active Jobs, cancel preparation requests, and finish downloads or wait for unused links to expire.",
         )
     record_audit(
         "packages.delete",
@@ -340,17 +379,21 @@ def prepare_download(access: OrganizationAccessContext, package: Package) -> dic
         raise FileOperationError(
             "package_content_unavailable", "The Package content is unavailable.", 503
         )
+    strSuffix = ".rpa.zip"
+    strName = f"{package.project_name}_{package.version}"
     transfer = DownloadSession.objects.create(
         organization=access.organization,
         actor_id=access.actorId,
         department_id=package.department_id,
         blob=package.blob,
         path=str(package.pk),
-        name=f"{package.project_name}_{package.version}.zip"[:128],
+        # Preserve the suffix within DownloadSession.name's 128-character limit.
+        name=strName[: 128 - len(strSuffix)] + strSuffix,
         expires_at=get_download_expiry(),
     )
     return {
         "transfer_id": str(transfer.pk),
+        "file_name": transfer.name,
         "expires_at": transfer.expires_at.isoformat(),
         "package": build_package_payload(package, access),
     }

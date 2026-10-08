@@ -129,9 +129,14 @@
       <v-tabs-window-item value="preparation">
         <v-card variant="outlined">
           <v-card-text>
-            <p class="mb-4">
-              Offline Executors prepare this package when they reconnect or receive work.
-            </p>
+            <v-btn
+              v-if="details.package.can_manage && boolHasPreparationRequests"
+              class="mb-4"
+              variant="tonal"
+              :disabled="boolBusy"
+              @click="openCancelPreparation">
+              Cancel Preparation Requests
+            </v-btn>
             <v-table>
               <thead>
                 <tr>
@@ -173,7 +178,7 @@
                 v-for="reference in details.references"
                 :key="`${reference.kind}:${reference.id}`"
                 :title="reference.name"
-                :subtitle="reference.kind"
+                :subtitle="PACKAGE_REFERENCE_LABELS[reference.kind]"
                 :to="getReferenceLocation(reference)" />
             </v-list>
           </v-card-text>
@@ -224,14 +229,23 @@
       </v-card-actions>
     </v-card>
   </v-dialog>
-  <v-dialog v-model="boolDelete" persistent max-width="600">
+  <v-dialog v-model="boolDelete" persistent scrollable max-width="600">
     <v-card>
       <v-card-title>Delete Package</v-card-title>
       <v-card-text>
         <p>
-          Delete this package? It must no longer be used by schedules, active Jobs,
-          preparation or transfers. Existing Run history is retained.
+          Delete this package? Remove its Schedule references, finish or close active Jobs,
+          cancel preparation requests, and finish downloads first. Unused download links
+          must expire. Existing Run history is retained.
         </p>
+        <v-list v-if="details?.references.length" class="mt-3">
+          <v-list-item
+            v-for="reference in details.references"
+            :key="`${reference.kind}:${reference.id}`"
+            :title="reference.name"
+            :subtitle="PACKAGE_REFERENCE_LABELS[reference.kind]"
+            :to="getReferenceLocation(reference)" />
+        </v-list>
         <v-alert v-if="strDeleteError" type="error" variant="tonal" class="mt-4">
           {{ strDeleteError }}
         </v-alert>
@@ -240,6 +254,25 @@
         <v-spacer />
         <v-btn :disabled="boolBusy" @click="boolDelete = false">Cancel</v-btn>
         <v-btn color="error" :loading="boolBusy" @click="remove">Delete</v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
+  <v-dialog v-model="boolCancelPreparation" persistent max-width="600">
+    <v-card>
+      <v-card-title>Cancel Preparation Requests</v-card-title>
+      <v-card-text>
+        Cancel unfinished preparation requests for this package? Downloads already in
+        progress may finish. Schedules, Jobs and files cached on Executors are unchanged.
+        <v-alert v-if="strPreparationError" type="error" variant="tonal" class="mt-4">
+          {{ strPreparationError }}
+        </v-alert>
+      </v-card-text>
+      <v-card-actions>
+        <v-spacer />
+        <v-btn :disabled="boolBusy" @click="boolCancelPreparation = false">Back</v-btn>
+        <v-btn color="error" :loading="boolBusy" @click="cancelPreparation">
+          Cancel Requests
+        </v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>
@@ -262,7 +295,10 @@ import RunPackageDialog from "@/components/packages/RunPackageDialog.vue";
 import {
   getPackageDetails,
   savePackageSettings,
+  cancelPackagePreparation,
   deletePackage,
+  PackageReferenceKind,
+  PACKAGE_REFERENCE_LABELS,
   downloadPackage,
   type PackageDetails,
   type PackageReference,
@@ -296,16 +332,24 @@ const boolBusy = ref(false);
 const boolDownload = ref(false);
 const boolEdit = ref(false);
 const boolDelete = ref(false);
+const boolCancelPreparation = ref(false);
+const boolHasPreparationRequests = computed(
+  () =>
+    details.value?.references.some(
+      (reference) => reference.kind === PackageReferenceKind.Preparation,
+    ) ?? false,
+);
 const boolRun = ref(false);
 const boolArgsValid = ref(true);
 const strError = ref("");
 const strEditError = ref("");
 const strDeleteError = ref("");
+const strPreparationError = ref("");
 const strSuccess = ref("");
 function getReferenceLocation(reference: PackageReference): RouteLocationRaw | undefined {
-  return reference.kind === "schedule"
+  return reference.kind === PackageReferenceKind.Schedule
     ? { name: "schedule-details", params: { scheduleId: reference.id } }
-    : reference.kind === "job"
+    : reference.kind === PackageReferenceKind.Job
       ? { name: "job-details", params: { jobId: reference.id } }
       : undefined;
 }
@@ -347,7 +391,30 @@ async function save(): Promise<void> {
     boolBusy.value = false;
   }
 }
+function openCancelPreparation(): void {
+  strPreparationError.value = "";
+  boolCancelPreparation.value = true;
+}
+async function cancelPreparation(): Promise<void> {
+  if (boolBusy.value || !details.value?.package.can_manage) return;
+  const strPackageId = props.packageId;
+  boolBusy.value = true;
+  strPreparationError.value = "";
+  try {
+    const intCanceledCount = await cancelPackagePreparation(strPackageId);
+    if (strPackageId !== props.packageId) return;
+    boolCancelPreparation.value = false;
+    strSuccess.value = `${intCanceledCount} preparation request(s) canceled.`;
+    await load();
+  } catch (e) {
+    if (strPackageId === props.packageId)
+      strPreparationError.value = getApiError(e).message;
+  } finally {
+    boolBusy.value = false;
+  }
+}
 async function remove(): Promise<void> {
+  if (boolBusy.value) return;
   boolBusy.value = true;
   strDeleteError.value = "";
   try {
@@ -355,6 +422,7 @@ async function remove(): Promise<void> {
     await router.push({ name: "packages" });
   } catch (e) {
     strDeleteError.value = getApiError(e).message;
+    await load();
   } finally {
     boolBusy.value = false;
   }
@@ -378,6 +446,7 @@ function handleRun(): void {
 watch(
   () => props.packageId,
   () => {
+    boolCancelPreparation.value = false;
     details.value = null;
     void load();
   },

@@ -11,6 +11,7 @@ from django.db.models import Q, F
 from django.utils import timezone
 
 from accounts.resource_authentication import NativeResourceAuthenticationContext
+from operations.audit import record_audit
 from executors.models import Executor, ExecutorSession, ExecutorGroupMember
 from organizations.permissions import OrganizationAccessContext
 from runs.control_notifications import notify_executor_control
@@ -87,8 +88,6 @@ def get_preparation_commands(
     )
     for preparation in preparations:
         package = preparation.package
-        if preparation.python_environment_name != package.python_environment_name:
-            continue
         preparation.session_id = session.pk
         preparation.state = PackagePreparationState.PREPARING
         preparation.reason = ""
@@ -109,6 +108,30 @@ def get_preparation_commands(
     return listCommand
 
 
+def cancel_package_preparation(
+    access: OrganizationAccessContext, package: Package
+) -> int:
+    require_package_department(access, package.department_id, manage=True)
+    preparations = PackagePreparation.objects.filter(
+        package=package,
+        state__in=[PackagePreparationState.PENDING, PackagePreparationState.PREPARING],
+    )
+    setExecutorId = set(preparations.values_list("executor_id", flat=True))
+    intCanceledCount, _ = preparations.delete()
+    if intCanceledCount:
+        record_audit(
+            "packages.cancel_preparation",
+            actor=access.actor,
+            organization=access.organization,
+            target=package,
+            channel=access.channel,
+            metadata={"canceled_count": intCanceledCount},
+        )
+        for executorId in setExecutorId:
+            notify_executor_control(executorId)
+    return intCanceledCount
+
+
 def complete_preparation(
     access: OrganizationAccessContext,
     authentication: NativeResourceAuthenticationContext,
@@ -117,12 +140,25 @@ def complete_preparation(
     reason: str,
 ) -> None:
     session = ExecutorSession.objects.get(pk=authentication.sessionId)
-    preparation = PackagePreparation.objects.select_related("package").get(
-        pk=preparationId,
-        executor_id=session.executor_id,
-        session_id=session.pk,
-        package__department__organization=access.organization,
+    preparation = (
+        PackagePreparation.objects
+        .select_related("package")
+        .filter(
+            pk=preparationId,
+            package__department__organization=access.organization,
+        )
+        .first()
     )
+    # Canceled requests are removed; a later request has a new ID and cannot use this report.
+    if preparation is None:
+        return
+    if (
+        preparation.executor_id != session.executor_id
+        or preparation.session_id != session.pk
+    ):
+        raise PackagePreparation.DoesNotExist(
+            "This preparation belongs to another session."
+        )
     require_package_department(access, preparation.package.department_id)
     if preparation.python_environment_name != preparation.package.python_environment_name:
         raise ValidationError(

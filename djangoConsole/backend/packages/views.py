@@ -113,6 +113,22 @@ def update_settings(
 
 
 @require_POST
+def cancel_preparation(
+    request: HttpRequest, authentication: FileAuthentication, packageId: uuid.UUID
+) -> JsonResponse:
+    from .preparation import cancel_package_preparation
+
+    payload = _parse_request(request, EmptyRequest)
+    if isinstance(payload, JsonResponse):
+        return payload
+    with transaction.atomic():
+        access = lock_file_access(request, authentication)
+        package = get_package_query(access, manage=True).get(pk=packageId)
+        intCanceledCount = cancel_package_preparation(access, package)
+    return JsonResponse({"canceled_count": intCanceledCount})
+
+
+@require_POST
 def remove_package(
     request: HttpRequest, authentication: FileAuthentication, packageId: uuid.UUID
 ) -> JsonResponse:
@@ -262,4 +278,4 @@ def preparation_result(
         complete_preparation(
             access, authentication, preparationId, payload.state, payload.reason
         )
-    return JsonResponse({"message": "Package preparation recorded."})
+    return JsonResponse({"message": "Package preparation report received."})

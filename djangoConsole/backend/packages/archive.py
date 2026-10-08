@@ -7,6 +7,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 import json
 import stat
 import zipfile
+import zlib
 from pathlib import Path
 from uuid import UUID
 
@@ -246,6 +247,10 @@ def read_package_archive(path: Path) -> dict:
                 if intReadBytes != entry.file_size:
                     raise ValidationError("A ZIP entry has an inconsistent size.")
             return _read_metadata(archive)
+    except (zlib.error, EOFError):
+        raise ValidationError(
+            "The Package archive contains damaged or incomplete data."
+        ) from None
     except (
         zipfile.BadZipFile,
         UnicodeError,

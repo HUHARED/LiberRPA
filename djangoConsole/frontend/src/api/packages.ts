@@ -23,10 +23,22 @@ export interface PackageInfo {
   uploaded_by_name: string;
   can_manage: boolean;
 }
+export enum PackageReferenceKind {
+  Schedule = "schedule",
+  Job = "job",
+  Preparation = "preparation",
+  Download = "download",
+}
+export const PACKAGE_REFERENCE_LABELS: Record<PackageReferenceKind, string> = {
+  [PackageReferenceKind.Schedule]: "Schedule",
+  [PackageReferenceKind.Job]: "Job",
+  [PackageReferenceKind.Preparation]: "Preparation Request",
+  [PackageReferenceKind.Download]: "Download",
+};
 export interface PackageReference {
   id: string;
   name: string;
-  kind: string;
+  kind: PackageReferenceKind;
 }
 export interface PackagePreparation {
   executor_id: string;
@@ -69,7 +81,14 @@ function parsePackageDetails(value: unknown): PackageDetails {
     !isRecord(value) ||
     !isPackageInfo(value.package) ||
     !Array.isArray(value.preparation) ||
-    !Array.isArray(value.references)
+    !Array.isArray(value.references) ||
+    !value.references.every(
+      (reference) =>
+        isRecord(reference) &&
+        typeof reference.id === "string" &&
+        typeof reference.name === "string" &&
+        Object.values(PackageReferenceKind).some((kind) => kind === reference.kind),
+    )
   )
     return rejectInvalidResponse();
   return value as unknown as PackageDetails;
@@ -114,6 +133,20 @@ export async function savePackageSettings(
     method: "POST",
     body: { python_environment_name: environment, settings },
   });
+}
+export async function cancelPackagePreparation(id: string): Promise<number> {
+  const response = await requestApi(
+    `/packages/${encodeURIComponent(id)}/preparations/cancel/`,
+    { method: "POST", body: {} },
+  );
+  if (
+    !isRecord(response) ||
+    typeof response.canceled_count !== "number" ||
+    !Number.isSafeInteger(response.canceled_count) ||
+    response.canceled_count < 0
+  )
+    return rejectInvalidResponse();
+  return response.canceled_count;
 }
 export async function deletePackage(id: string): Promise<void> {
   await requestApi(`/packages/${encodeURIComponent(id)}/delete/`, {
@@ -180,7 +213,12 @@ export async function downloadPackage(packageInfo: PackageInfo): Promise<void> {
     `/packages/${encodeURIComponent(packageInfo.id)}/downloads/`,
     { method: "POST", body: {} },
   );
-  if (!isRecord(response) || typeof response.transfer_id !== "string")
+  if (
+    !isRecord(response) ||
+    typeof response.transfer_id !== "string" ||
+    typeof response.file_name !== "string" ||
+    !response.file_name.endsWith(".rpa.zip")
+  )
     return rejectInvalidResponse();
   const blob = await requestApi(
     `/packages/downloads/${encodeURIComponent(response.transfer_id)}/content/`,
@@ -192,5 +230,5 @@ export async function downloadPackage(packageInfo: PackageInfo): Promise<void> {
     (await getSha256(blob)) !== packageInfo.sha256
   )
     throw new Error("The package download failed its integrity check.");
-  saveBlob(blob, `${packageInfo.project_name}_${packageInfo.version}.zip`);
+  saveBlob(blob, response.file_name);
 }

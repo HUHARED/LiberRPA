@@ -46,6 +46,13 @@ def validate_custom_arguments(arguments: list[list[JsonValue]]) -> None:
         raise ValueError("Custom Arguments exceed the 64 KiB JSON limit.")
 
 
+class PackageReferenceKind(StrEnum):
+    SCHEDULE = "schedule"
+    JOB = "job"
+    PREPARATION = "preparation"
+    DOWNLOAD = "download"
+
+
 class RunConflictPolicy(StrEnum):
     SKIP = "skip"
     WAIT = "wait"

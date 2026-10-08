@@ -22,6 +22,7 @@ urlpatterns = [
     path("downloads/<uuid:transferId>/content/", package_view(views.download_content)),
     path("<uuid:packageId>/", package_view(views.package_detail)),
     path("<uuid:packageId>/settings/", package_view(views.update_settings)),
+    path("<uuid:packageId>/preparations/cancel/", package_view(views.cancel_preparation)),
     path("<uuid:packageId>/delete/", package_view(views.remove_package)),
     path("<uuid:packageId>/downloads/", package_view(views.start_download)),
 ]
