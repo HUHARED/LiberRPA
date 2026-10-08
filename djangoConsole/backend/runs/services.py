@@ -75,24 +75,39 @@ def _get_actor_name(actor: User) -> str:
     return f"{actor.username} ({actor.email})"[:INT_DISPLAY_NAME_SNAPSHOT_MAX_LENGTH]
 
 
-def _has_source_access(job: Job) -> bool:
+def _has_source_access(
+    job: Job,
+    *,
+    sourceDepartmentIdsByActor: dict[uuid.UUID, set[uuid.UUID]] | None = None,
+) -> bool:
+    """Share source departments only within one locked organization dispatch pass."""
     if job.request.source == JobSource.SCHEDULE:
         return True
-    if job.source_access_revoked_at is not None or job.request.actor_id is None:
+    actorId = job.request.actor_id
+    if job.source_access_revoked_at is not None or actorId is None:
         return False
+    if sourceDepartmentIdsByActor is not None and actorId in sourceDepartmentIdsByActor:
+        return job.department_id in sourceDepartmentIdsByActor[actorId]
     try:
         access = resolve_organization_access(
-            actorId=job.request.actor_id,
+            actorId=actorId,
             organizationId=job.request.organization_id,
             channel=AccessChannel.SESSION,
         )
-        return (
-            get_authorized_departments(access, requiredRole=DepartmentRole.OPERATOR)
-            .filter(pk=job.department_id)
-            .exists()
+        departmentQuery = get_authorized_departments(
+            access, requiredRole=DepartmentRole.OPERATOR
+        )
+        if sourceDepartmentIdsByActor is None:
+            # Permits and event processing recheck their own current operation, without sharing a cache.
+            return departmentQuery.filter(pk=job.department_id).exists()
+        setDepartmentId: set[uuid.UUID] = set(
+            departmentQuery.values_list("id", flat=True)
         )
     except PermissionDenied:
-        return False
+        setDepartmentId = set()
+    if sourceDepartmentIdsByActor is not None:
+        sourceDepartmentIdsByActor[actorId] = setDepartmentId
+    return job.department_id in setDepartmentId
 
 
 def _finish_job(job: Job, reason: str, *, notify: bool = False) -> None:
@@ -499,10 +514,16 @@ def _is_busy(
     return assignmentQuery.exists()
 
 
-def _advance_job(job: Job, currentTime: datetime, control: DispatchControl) -> None:
+def _advance_job(
+    job: Job,
+    currentTime: datetime,
+    control: DispatchControl,
+    *,
+    sourceDepartmentIdsByActor: dict[uuid.UUID, set[uuid.UUID]],
+) -> None:
     if job.state not in (JobState.WAITING, JobState.RETRY):
         return
-    if not _has_source_access(job):
+    if not _has_source_access(job, sourceDepartmentIdsByActor=sourceDepartmentIdsByActor):
         _revoke_source_job(job, currentTime)
         return
     if job.retry_at and job.retry_at > currentTime:
@@ -521,8 +542,10 @@ def _advance_job(job: Job, currentTime: datetime, control: DispatchControl) -> N
         if entry.id in dictSession and entry.dispatch_enabled
     ]
     if not listEnabled:
-        job.reason = "Console Dispatch is paused."
-        job.save(update_fields=["reason"])
+        strReason = "Console Dispatch is paused."
+        if job.reason != strReason:
+            job.reason = strReason
+            job.save(update_fields=["reason"])
         return
     listOnline = [
         entry
@@ -545,8 +568,10 @@ def _advance_job(job: Job, currentTime: datetime, control: DispatchControl) -> N
         if not listOnline:
             _finish_job(job, "All eligible targets are confirmed offline.", notify=True)
         else:
-            job.reason = "Waiting for the Executor to report its current work state."
-            job.save(update_fields=["reason"])
+            strReason = "Waiting for the Executor to report its current work state."
+            if job.reason != strReason:
+                job.reason = strReason
+                job.save(update_fields=["reason"])
         return
     setFailedExecutorId = set(
         Assignment.objects.filter(
@@ -567,12 +592,18 @@ def _advance_job(job: Job, currentTime: datetime, control: DispatchControl) -> N
         _finish_job(job, "Skipped because all eligible targets are busy.")
         return
     if not listIdle and strPolicy == "wait":
-        job.state = JobState.WAITING
-        job.reason = (
+        strReason = (
             "Waiting for an eligible Executor to finish running or locally waiting work."
         )
-        job.retry_at = None
-        job.save(update_fields=["state", "reason", "retry_at"])
+        if (
+            job.state != JobState.WAITING
+            or job.reason != strReason
+            or job.retry_at is not None
+        ):
+            job.state = JobState.WAITING
+            job.reason = strReason
+            job.retry_at = None
+            job.save(update_fields=["state", "reason", "retry_at"])
         return
     listReady = listIdle or listReady
     dictCandidatePosition = {
@@ -607,10 +638,14 @@ def _advance_job(job: Job, currentTime: datetime, control: DispatchControl) -> N
 
 
 def _reconcile_assignment(
-    assignment: Assignment, currentTime: datetime, control: DispatchControl
+    assignment: Assignment,
+    currentTime: datetime,
+    control: DispatchControl,
+    *,
+    sourceDepartmentIdsByActor: dict[uuid.UUID, set[uuid.UUID]],
 ) -> None:
     job = assignment.job
-    if not _has_source_access(job):
+    if not _has_source_access(job, sourceDepartmentIdsByActor=sourceDepartmentIdsByActor):
         _revoke_source_job(job, currentTime)
         if assignment.state == AssignmentState.PREPARING:
             return
@@ -688,10 +723,17 @@ def dispatch_organization(organizationId: uuid.UUID) -> None:
         control = _require_control_service(currentTime)
     except (PermissionDenied, ValidationError):
         return
+    # Membership and department writes take the same organization lock; never reuse these facts after commit.
+    dictSourceDepartmentIdsByActor: dict[uuid.UUID, set[uuid.UUID]] = {}
     for assignment in Assignment.objects.filter(
         job__request__organization=organization, state__in=_ACTIVE_ASSIGNMENT_STATES
     ).select_related("job__request"):
-        _reconcile_assignment(assignment, currentTime, control)
+        _reconcile_assignment(
+            assignment,
+            currentTime,
+            control,
+            sourceDepartmentIdsByActor=dictSourceDepartmentIdsByActor,
+        )
     for job in (
         Job.objects
         .filter(
@@ -701,7 +743,12 @@ def dispatch_organization(organizationId: uuid.UUID) -> None:
         .select_related("request")
         .order_by("priority", "attempt_queued_at", "id")
     ):
-        _advance_job(job, currentTime, control)
+        _advance_job(
+            job,
+            currentTime,
+            control,
+            sourceDepartmentIdsByActor=dictSourceDepartmentIdsByActor,
+        )
 
 
 def get_start_evidence_not_before(permitExpiresAt: datetime) -> datetime:
@@ -785,7 +832,6 @@ def issue_permission(session: ExecutorSession, assignmentId: uuid.UUID) -> Assig
             assignment.state = AssignmentState.WITHDRAWN
             assignment.reason = "Current local work takes priority; return the group Job to central waiting."
             assignment.save(update_fields=["state", "reason"])
-            notify_executor_control(assignment.executor_id)
             job.state = JobState.WAITING
             job.reason = assignment.reason
             job.save(update_fields=["state", "reason"])
