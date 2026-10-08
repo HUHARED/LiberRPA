@@ -34,7 +34,7 @@ from .client_sessions import (
     ExecutorClientAction,
     InvalidExecutorSessionError,
     begin_executor_login,
-    handle_executor_client_request,
+    open_executor_client_request,
 )
 from .models import Executor, ExecutorSession
 
@@ -51,7 +51,6 @@ _DICT_CLIENT_METHOD = {
     ExecutorClientAction.CHOICES: "GET",
     ExecutorClientAction.ASSOCIATE: "POST",
     ExecutorClientAction.SESSION: "GET",
-    ExecutorClientAction.HEARTBEAT: "POST",
     ExecutorClientAction.LOGOUT: "POST",
 }
 
@@ -248,36 +247,38 @@ def process_executor_client_request(
             contactRequest = parse_json_request(request, ExecutorContactRequest)
             if isinstance(contactRequest, JsonResponse):
                 return contactRequest
-        result = handle_executor_client_request(
+        with open_executor_client_request(
             authorizationHeader=request.headers.get("Authorization", ""),
             action=action,
             executorId=executorId,
             pageNumber=intPageNumber,
-        )
-        if result is None:
-            return JsonResponse({"message": "Signed out."})
-        dictSessionPayload = build_client_session_payload(result.session, result.access)
-        if result.choices is not None:
-            page = result.choices
-            dictSessionPayload.update({
-                "executors": [
-                    {
-                        "id": entry.executor.id,
-                        "name": entry.executor.name,
-                        "department": {
-                            "id": entry.executor.department_id,
-                            "name": entry.executor.department.name,
-                            "path": entry.departmentPath,
-                        },
-                        "dispatch_enabled": entry.executor.dispatch_enabled,
-                    }
-                    for entry in page.executors
-                ],
-                "page": page.page,
-                "page_size": page.pageSize,
-                "total_count": page.totalCount,
-                "total_pages": page.totalPages,
-            })
-        return JsonResponse(dictSessionPayload)
+        ) as result:
+            if result is None:
+                return JsonResponse({"message": "Signed out."})
+            dictSessionPayload = build_client_session_payload(
+                result.session, result.access
+            )
+            if result.choices is not None:
+                page = result.choices
+                dictSessionPayload.update({
+                    "executors": [
+                        {
+                            "id": entry.executor.id,
+                            "name": entry.executor.name,
+                            "department": {
+                                "id": entry.executor.department_id,
+                                "name": entry.executor.department.name,
+                                "path": entry.departmentPath,
+                            },
+                            "dispatch_enabled": entry.executor.dispatch_enabled,
+                        }
+                        for entry in page.executors
+                    ],
+                    "page": page.page,
+                    "page_size": page.pageSize,
+                    "total_count": page.totalCount,
+                    "total_pages": page.totalPages,
+                })
+            return JsonResponse(dictSessionPayload)
     except _HANDLED_CLIENT_ERRORS as e:
         return _build_client_error_response(e)

@@ -73,12 +73,6 @@ urlpatterns = [
         name="executor-client-session",
     ),
     path(
-        "clients/executor/heartbeat/",
-        process_executor_client_request,
-        {"action": ExecutorClientAction.HEARTBEAT},
-        name="executor-client-heartbeat",
-    ),
-    path(
         "clients/executor/logout/",
         process_executor_client_request,
         {"action": ExecutorClientAction.LOGOUT},

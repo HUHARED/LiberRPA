@@ -14,6 +14,7 @@ from django.http import HttpRequest, JsonResponse
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.debug import sensitive_variables
 from django.views.decorators.http import require_POST
 
 from accounts.rate_limits import apply_executor_client_rate_limit
@@ -28,7 +29,7 @@ from executors.client_sessions import (
     ExecutorClientResult,
     InvalidExecutorSessionError,
     get_locked_executor_session,
-    handle_executor_client_request,
+    open_executor_client_request,
 )
 from executors.models import ExecutorSession
 from organizations.permissions import AccessChannel, resolve_organization_access
@@ -40,34 +41,21 @@ from .services import get_start_evidence_not_before, issue_permission, receive_e
 _LOGGER = logging.getLogger("console.runs.protocol")
 
 
-def authenticate_executor_contact(
-    *,
-    clientAddress: str,
-    authorizationHeader: str,
-) -> ExecutorClientResult | JsonResponse:
-    intRetryAfter = apply_executor_client_rate_limit(clientAddress)
-    if intRetryAfter:
-        return build_rate_limited_response(intRetryAfter)
-    # The authenticated control contact renews its original session and current online fact.
-    result = cast(
-        ExecutorClientResult,
-        handle_executor_client_request(
-            authorizationHeader=authorizationHeader,
-            action=ExecutorClientAction.HEARTBEAT,
-        ),
-    )
-    if result.session.executor_id is None:
-        raise InvalidExecutorSessionError("Select an Executor first.")
-    return result
-
-
+@sensitive_variables()
 def authenticate_executor_work(
     request: HttpRequest,
 ) -> ExecutorClientResult | JsonResponse:
-    return authenticate_executor_contact(
-        clientAddress=request.META.get("REMOTE_ADDR", ""),
+    intRetryAfter = apply_executor_client_rate_limit(request.META.get("REMOTE_ADDR", ""))
+    if intRetryAfter:
+        return build_rate_limited_response(intRetryAfter)
+    with open_executor_client_request(
         authorizationHeader=request.headers.get("Authorization", ""),
-    )
+        action=ExecutorClientAction.HEARTBEAT,
+    ) as authentication:
+        result = cast(ExecutorClientResult, authentication)
+        if result.session.executor_id is None:
+            raise InvalidExecutorSessionError("Select an Executor first.")
+        return result
 
 
 def lock_executor_work(authentication: ExecutorClientResult) -> ExecutorSession:
@@ -87,16 +75,37 @@ def update_executor_work_state(
     session: ExecutorSession, payload: WorkPollRequest
 ) -> None:
     """Save a validated report inside the caller's locked association transaction."""
-    work, _ = ExecutorWorkState.objects.get_or_create(
+    currentTime = timezone.now()
+    listRunningRunId = [str(entry) for entry in payload.running_run_ids]
+    work, boolCreated = ExecutorWorkState.objects.get_or_create(
         executor_id=session.executor_id,
-        defaults={"session_id": session.id},
+        defaults={
+            "session_id": session.id,
+            "reported_at": currentTime,
+            "running_run_ids": listRunningRunId,
+            "local_waiting_count": payload.local_waiting_count,
+            "local_running_count": payload.local_running_count,
+        },
     )
-    work.session_id = session.id
-    work.reported_at = timezone.now()
-    work.running_run_ids = [str(entry) for entry in payload.running_run_ids]
-    work.local_waiting_count = payload.local_waiting_count
-    work.local_running_count = payload.local_running_count
-    work.save()
+    if boolCreated:
+        return
+
+    # Freshness is a new fact on every report; unchanged occupancy is not.
+    work.reported_at = currentTime
+    listUpdateField = ["reported_at"]
+    if work.session_id != session.id:
+        work.session_id = session.id
+        listUpdateField.append("session_id")
+    if work.running_run_ids != listRunningRunId:
+        work.running_run_ids = listRunningRunId
+        listUpdateField.append("running_run_ids")
+    if work.local_waiting_count != payload.local_waiting_count:
+        work.local_waiting_count = payload.local_waiting_count
+        listUpdateField.append("local_waiting_count")
+    if work.local_running_count != payload.local_running_count:
+        work.local_running_count = payload.local_running_count
+        listUpdateField.append("local_running_count")
+    work.save(update_fields=listUpdateField)
 
 
 def _build_assignment_payload(assignment: Assignment) -> dict:

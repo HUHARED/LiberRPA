@@ -26,22 +26,23 @@ from django.core.exceptions import (
     ValidationError,
 )
 from django.core.serializers.json import DjangoJSONEncoder
-from django.db import DatabaseError, close_old_connections, transaction
+from django.db import DatabaseError, close_old_connections
 from django.http import HttpRequest, JsonResponse
 from django.views.decorators.debug import sensitive_variables
 from pydantic import Field, SecretStr
 
-from console_project.http import build_error_response
-from executors.client_sessions import InvalidExecutorSessionError
+from accounts.rate_limits import apply_executor_client_rate_limit
+from console_project.http import build_error_response, build_rate_limited_response
+from executors.client_sessions import (
+    ExecutorClientAction,
+    InvalidExecutorSessionError,
+    open_executor_client_request,
+)
 from executors.client_views import build_client_session_payload
 
 from .contracts import WorkPollRequest
 from .control_notifications import listen_for_executor_notifications
-from .protocol import (
-    authenticate_executor_contact,
-    lock_executor_work,
-    update_executor_work_state,
-)
+from .protocol import update_executor_work_state
 
 _LOGGER = logging.getLogger("console.runs.control")
 _STR_CONTROL_PATH = "/api/clients/executor/control/"
@@ -131,14 +132,16 @@ def _process_message(
     # Long-lived ASGI connections do not run Django's HTTP connection cleanup hooks.
     close_old_connections()
     try:
-        authentication = authenticate_executor_contact(
-            clientAddress=clientAddress,
+        intRetryAfter = apply_executor_client_rate_limit(clientAddress)
+        if intRetryAfter:
+            return build_rate_limited_response(intRetryAfter)
+        with open_executor_client_request(
             authorizationHeader=f"Bearer {token.get_secret_value()}",
-        )
-        if isinstance(authentication, JsonResponse):
-            return authentication
-        with transaction.atomic():
-            session = lock_executor_work(authentication)
+            action=ExecutorClientAction.HEARTBEAT,
+        ) as authentication:
+            if authentication is None:
+                raise InvalidExecutorSessionError("A valid Executor session is required.")
+            session = authentication.session
             executorId = session.executor_id
             if executorId is None:
                 raise InvalidExecutorSessionError("Select an Executor first.")

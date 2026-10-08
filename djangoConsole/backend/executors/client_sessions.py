@@ -8,6 +8,8 @@ import hashlib
 import re
 import secrets
 import uuid
+from collections.abc import Generator
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import timedelta
 from enum import StrEnum
@@ -158,18 +160,19 @@ def get_locked_executor_session(
     return session
 
 
+@contextmanager
 @sensitive_variables()
-def handle_executor_client_request(
+def open_executor_client_request(
     *,
     authorizationHeader: str,
     action: ExecutorClientAction,
     executorId: uuid.UUID | None = None,
     pageNumber: int = 1,
-) -> ExecutorClientResult | None:
-    """Serialize authentication and state changes with account, membership, and Executor writes.
+) -> Generator[ExecutorClientResult | None]:
+    """Keep one authenticated contact and its caller's writes in the same transaction.
 
-    Take the organization/account locks before the session lock, including for a heartbeat.
-    Cookie sessions, API keys, and pending-selection credentials cannot substitute for an association.
+    Call outside other transactions; the organization/account locks precede the session lock.
+    The yielded access is valid only inside this context, not for later business transactions.
     """
     identity = _get_session_identity(authorizationHeader)
     boolInvalidSession = False
@@ -206,7 +209,8 @@ def handle_executor_client_request(
             reconcile_revoked_sessions([identity.id])
             if not intDeletedCount:
                 raise InvalidExecutorSessionError("A valid Executor session is required.")
-            return None
+            yield None
+            return
         access = resolve_organization_access(
             actorId=identity.user_id,
             organizationId=identity.organization_id,
@@ -231,7 +235,7 @@ def handle_executor_client_request(
                         availableOnly=True,
                     )
                     # Listing choices never extends the ten-minute selection deadline.
-                    return ExecutorClientResult(
+                    result = ExecutorClientResult(
                         session=session, access=access, choices=choices
                     )
                 case ExecutorClientAction.ASSOCIATE:
@@ -283,43 +287,43 @@ def handle_executor_client_request(
                 case _:
                     raise ValueError("Unsupported Executor client action.")
 
-            currentTime = timezone.now()
-            # A wait or slow authorization must never renew a credential that has already expired.
-            if session.expires_at <= currentTime:
-                raise InvalidExecutorSessionError("A valid Executor session is required.")
-            session.expires_at = currentTime + _SESSION_IDLE_LIFETIME
-            if action == ExecutorClientAction.RESOURCE:
-                # Python contact renews its credential but does not prove the Executor is online.
-                session.save(update_fields=["expires_at"])
-            else:
-                session.last_seen_at = max(
-                    currentTime, session.last_seen_at or session.created_at
-                )
-                session.save(
-                    update_fields=[
-                        "executor",
-                        "associated_at",
-                        "last_seen_at",
-                        "expires_at",
-                    ]
-                )
+            if action != ExecutorClientAction.CHOICES:
+                currentTime = timezone.now()
+                # A wait or slow authorization must never renew a credential that has already expired.
+                if session.expires_at <= currentTime:
+                    raise InvalidExecutorSessionError(
+                        "A valid Executor session is required."
+                    )
+                session.expires_at = currentTime + _SESSION_IDLE_LIFETIME
+                listUpdateField = ["expires_at"]
+                if action != ExecutorClientAction.RESOURCE:
+                    # Python resource traffic does not prove that the Executor is online.
+                    session.last_seen_at = max(
+                        currentTime, session.last_seen_at or session.created_at
+                    )
+                    listUpdateField.append("last_seen_at")
+                if boolNewAssociation:
+                    listUpdateField.extend(["executor", "associated_at"])
+                session.save(update_fields=listUpdateField)
 
-            if boolNewAssociation:
-                record_audit(
-                    "executor.associate",
-                    actor=access.actor,
-                    organization=access.organization,
-                    target=session.executor,
-                    channel=AuditChannel.EXECUTOR,
-                )
-            result = ExecutorClientResult(session=session, access=access)
+                if boolNewAssociation:
+                    record_audit(
+                        "executor.associate",
+                        actor=access.actor,
+                        organization=access.organization,
+                        target=session.executor,
+                        channel=AuditChannel.EXECUTOR,
+                    )
+                result = ExecutorClientResult(session=session, access=access)
         except InvalidExecutorSessionError:
             from runs.services import reconcile_revoked_sessions
 
             ExecutorSession.objects.filter(pk=identity.id).delete()
             reconcile_revoked_sessions([identity.id])
             boolInvalidSession = True
+        if result is not None:
+            # Caller failures roll back contact writes; they do not invalidate a valid credential.
+            yield result
     # Commit invalidation before reporting it; a later permission restoration cannot revive this login.
     if boolInvalidSession:
         raise InvalidExecutorSessionError("A valid Executor session is required.")
-    return result

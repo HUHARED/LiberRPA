@@ -18,7 +18,7 @@ from executors.client_sessions import (
     ExecutorClientAction,
     ExecutorClientResult,
     get_locked_executor_session,
-    handle_executor_client_request,
+    open_executor_client_request,
 )
 from organizations.permissions import (
     AccessChannel,
@@ -98,13 +98,11 @@ def authenticate_resource(authorizationHeader: str) -> ResourceAuthenticationCon
                 ),
             )
         else:
-            clientResult = cast(
-                ExecutorClientResult,
-                handle_executor_client_request(
-                    authorizationHeader=authorizationHeader,
-                    action=ExecutorClientAction.RESOURCE,
-                ),
-            )
+            with open_executor_client_request(
+                authorizationHeader=authorizationHeader,
+                action=ExecutorClientAction.RESOURCE,
+            ) as executorResult:
+                clientResult = cast(ExecutorClientResult, executorResult)
     except (InvalidEditorSessionError, InvalidExecutorSessionError):
         raise InvalidResourceCredentialError(
             "Sign in again to use Console resources."
