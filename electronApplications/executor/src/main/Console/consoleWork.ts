@@ -362,10 +362,7 @@ async function prepareAndRun(
                 : fact.status === "timeout"
                   ? "timed_out"
                   : fact.status,
-            outputs_status: fact.outputs.status,
-            outputs: fact.outputs.values,
-            outputs_unavailable_keys: fact.outputs.unavailableKeys,
-            outputs_reason: fact.outputs.reason,
+            outputs: fact.outputs,
             error_summary: fact.errorSummary,
           });
         })();

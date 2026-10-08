@@ -115,7 +115,7 @@ export interface RunDetails extends RunInfo {
   department_path: string;
   department_deleted_at: string | null;
   inputs: RunSnapshot;
-  outputs: Record<string, JsonValue> | null;
+  outputs: [string, JsonValue][] | null;
   outputs_reason: string;
   outputs_unavailable_keys: string[];
   error_summary: Record<string, JsonValue> | null;
@@ -259,7 +259,17 @@ export async function getRun(id: string): Promise<RunDetails> {
     result.run.department_path.length === 0 ||
     !isNullableDateString(result.run.department_deleted_at) ||
     !isRecord(result.run.inputs) ||
-    !isRun(result.run)
+    !isRun(result.run) ||
+    typeof result.run.outputs_reason !== "string" ||
+    !Array.isArray(result.run.outputs_unavailable_keys) ||
+    !result.run.outputs_unavailable_keys.every((key: unknown) => typeof key === "string") ||
+    (result.run.outputs_status === "complete" || result.run.outputs_status === "partial"
+      ? !Array.isArray(result.run.outputs) ||
+        !result.run.outputs.every(
+          (entry: unknown) =>
+            Array.isArray(entry) && entry.length === 2 && typeof entry[0] === "string",
+        )
+      : result.run.outputs !== null)
   )
     return rejectInvalidResponse();
   return result.run as unknown as RunDetails;

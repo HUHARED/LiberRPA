@@ -7,7 +7,7 @@ export enum RunSource {
 
 export interface RunOutputs {
   status: "complete" | "partial" | "unavailable";
-  values: Record<string, unknown> | null;
+  values: [string, unknown][] | null;
   unavailableKeys: string[];
   reason: string;
 }

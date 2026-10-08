@@ -18,7 +18,6 @@ from django.utils import timezone
 from accounts.models import User
 from console_project.config import LimitsConfig
 from console_project.constants import INT_DISPLAY_NAME_SNAPSHOT_MAX_LENGTH
-from console_project.validators import validate_json_value
 from executors.contracts import ExecutorAssociationStatus
 from executors.models import Executor, ExecutorGroup, ExecutorGroupMember, ExecutorSession
 from executors.session_state import (
@@ -49,7 +48,6 @@ from .models import (
     JobRequest,
     JobSource,
     JobState,
-    OutputsStatus,
     Run,
     RunEvent,
     RunEventKind,
@@ -61,7 +59,6 @@ _INT_START_EVIDENCE_TOLERANCE_SECONDS = 5
 _INT_RETRY_SECONDS = 60
 _INT_CONTROL_STALE_SECONDS = 15
 _INT_WORK_STATE_STALE_SECONDS = 45
-_INT_CUSTOM_ARGS_BYTES = 64 * 1024
 _STR_SOURCE_ACCESS_REVOKED_REASON = (
     "The initiating account lost run permission; no further attempts will be scheduled."
 )
@@ -878,36 +875,6 @@ def control_job(job: Job, action: str, *, run: Run | None = None) -> None:
         notify_executor_control(assignment.executor_id)
 
 
-def _capture_outputs(run: Run, event: WorkEvent) -> None:
-    run.outputs_status = event.outputs_status
-    run.outputs = event.outputs
-    run.outputs_reason = event.outputs_reason
-    run.outputs_unavailable_keys = event.outputs_unavailable_keys
-    try:
-        if event.outputs_status in (OutputsStatus.COMPLETE, OutputsStatus.PARTIAL):
-            if event.outputs is None:
-                raise ValueError("The output object was not provided.")
-            validate_json_value(event.outputs)
-            if (
-                len(
-                    json.dumps(
-                        event.outputs,
-                        ensure_ascii=False,
-                        separators=(",", ":"),
-                        allow_nan=False,
-                    ).encode("utf-8")
-                )
-                > _INT_CUSTOM_ARGS_BYTES
-            ):
-                raise ValueError("Outputs exceed the 64 KiB snapshot limit.")
-        else:
-            run.outputs = None
-    except (ValueError, UnicodeError, RecursionError) as e:
-        run.outputs_status = OutputsStatus.UNAVAILABLE
-        run.outputs = None
-        run.outputs_reason = str(e)[:2000]
-
-
 def receive_event(session: ExecutorSession, event: WorkEvent) -> None:
     """Commit one stable event under the organization lock before acknowledging it."""
     from notifications.run_events import notify_run_event
@@ -994,7 +961,10 @@ def receive_event(session: ExecutorSession, event: WorkEvent) -> None:
             run.error_summary = event.error_summary
             if event.recording is not None:
                 run.recording = event.recording.model_dump(mode="json")
-            _capture_outputs(run, event)
+            run.outputs_status = event.outputs.status
+            run.outputs = event.outputs.model_dump(mode="json")["values"]
+            run.outputs_reason = event.outputs.reason
+            run.outputs_unavailable_keys = event.outputs.unavailable_keys
             run.save()
             assignment.state = AssignmentState.FINISHED
             assignment.reason = event.reason

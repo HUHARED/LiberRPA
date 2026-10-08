@@ -240,7 +240,7 @@ def build_run_email(run: "Run", *, event: str, recipient: str) -> EmailMessage:
         "error_message": (run.error_summary or {}).get("message", "Not available"),
     }
     dictInput = dict(job.inputs["custom_prj_args"])
-    dictOutput = run.outputs if isinstance(run.outputs, dict) else {}
+    dictOutput = dict(run.outputs or [])
     for strField in dict.fromkeys(_RE_FIELD.findall(strSubject + strBody)):
         for strPrefix, dictValue in (
             ("Input_CustomArgs_", dictInput),

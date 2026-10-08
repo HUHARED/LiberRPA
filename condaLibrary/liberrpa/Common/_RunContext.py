@@ -27,7 +27,7 @@ class OutputSnapshotStatus(StrEnum):
 
 class OutputSnapshot(TypedDict):
     status: OutputSnapshotStatus
-    values: dict[str, JsonValue] | None
+    values: list[tuple[str, JsonValue]] | None
     unavailableKeys: list[str]
     reason: str
 
@@ -91,6 +91,8 @@ def _validate_json_value(value: object, depth: int = 0) -> None:
             raise ValueError("The number is not a finite safe JSON number.")
         return
     if type(value) is str:
+        if "\0" in value:
+            raise ValueError("JSON text must not contain NUL characters.")
         value.encode("utf-8")
         return
     if type(value) is list:
@@ -101,6 +103,8 @@ def _validate_json_value(value: object, depth: int = 0) -> None:
         for strKey, child in value.items():
             if type(strKey) is not str:
                 raise ValueError("JSON object keys must be strings.")
+            if "\0" in strKey:
+                raise ValueError("JSON object keys must not contain NUL characters.")
             strKey.encode("utf-8")
             _validate_json_value(child, depth + 1)
         return
@@ -126,19 +130,22 @@ def capture_output_snapshot(customArgs: object) -> OutputSnapshot:
     try:
         if type(customArgs) is not dict:
             raise ValueError("Final CustomArgs is not a dictionary.")
-        dictValue: dict[str, object] = {}
+        listValue: list[tuple[str, object]] = []
         listUnavailableKey: list[str] = []
         for strKey, value in customArgs.items():
             if type(strKey) is not str:
                 raise ValueError("Final CustomArgs contains a non-string key.")
+            if "\0" in strKey:
+                raise ValueError("Final CustomArgs contains a NUL character in a key.")
             strKey.encode("utf-8")
             try:
-                _validate_json_value(value, 1)
+                # Count from the ordered list and its [key, value] pair, as for inputs.
+                _validate_json_value(value, 2)
             except (ValueError, UnicodeError, RecursionError):
                 listUnavailableKey.append(strKey)
             else:
-                dictValue[strKey] = value
-        strValues = _serialize_bounded_json(dictValue)
+                listValue.append((strKey, value))
+        strValues = _serialize_bounded_json(listValue)
         # Keep diagnostic metadata bounded too, without silently dropping unavailable names.
         _serialize_bounded_json(listUnavailableKey)
         return {
@@ -147,7 +154,7 @@ def capture_output_snapshot(customArgs: object) -> OutputSnapshot:
                 if listUnavailableKey
                 else OutputSnapshotStatus.COMPLETE
             ),
-            "values": json.loads(strValues),
+            "values": [(strKey, value) for strKey, value in json.loads(strValues)],
             "unavailableKeys": listUnavailableKey,
             "reason": (
                 "Some final CustomArgs values are not ordinary JSON."

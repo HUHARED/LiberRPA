@@ -4,13 +4,22 @@ __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
+import json
 import uuid
 from enum import StrEnum
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Self, cast
 
-from pydantic import AwareDatetime, Field, JsonValue, model_validator
+from pydantic import (
+    AwareDatetime,
+    Field,
+    JsonValue,
+    ModelWrapValidatorHandler,
+    model_validator,
+)
 
 from console_project.contracts import JsonRequest
+from console_project.validators import validate_json_text, validate_json_value
+from packages.contracts import INT_CUSTOM_ARGUMENT_MAX_BYTES
 
 from .models import RunEventKind, RunResult, OutputsStatus, RecordingStatus
 
@@ -64,6 +73,66 @@ class RunNotStartedReason(StrEnum):
     LOCAL_CONFLICT = "local_conflict"
 
 
+class RunOutputs(JsonRequest):
+    status: Annotated[OutputsStatus, Field(strict=False)] = OutputsStatus.UNAVAILABLE
+    values: list[Annotated[tuple[str, JsonValue], Field(strict=False)]] | None = None
+    unavailable_keys: list[str] = Field(default_factory=list, alias="unavailableKeys")
+    reason: str = Field(default="", max_length=2000)
+
+    @model_validator(mode="after")
+    def validate_snapshot(self) -> Self:
+        validate_json_text(self.reason)
+        if self.status == OutputsStatus.UNAVAILABLE:
+            if self.values is not None or self.unavailable_keys:
+                raise ValueError("Unavailable outputs cannot contain values or keys.")
+            return self
+        if (
+            self.status not in (OutputsStatus.COMPLETE, OutputsStatus.PARTIAL)
+            or self.values is None
+            or (self.status == OutputsStatus.PARTIAL) != bool(self.unavailable_keys)
+        ):
+            raise ValueError("Run outputs do not match their status.")
+        setKey = set(self.unavailable_keys)
+        if len(setKey) != len(self.unavailable_keys):
+            raise ValueError("Run unavailable keys contain duplicates.")
+        for strKey, _value in self.values:
+            if strKey in setKey:
+                raise ValueError("Run output keys must be unique.")
+            setKey.add(strKey)
+        # Validate JSON arrays rather than Python tuples so depth matches input pairs.
+        listValue = [[strKey, value] for strKey, value in self.values]
+        for value in (listValue, self.unavailable_keys):
+            validate_json_value(cast(JsonValue, value))
+            if (
+                len(
+                    json.dumps(
+                        value, ensure_ascii=False, allow_nan=False, separators=(",", ":")
+                    ).encode("utf-8")
+                )
+                > INT_CUSTOM_ARGUMENT_MAX_BYTES
+            ):
+                raise ValueError(
+                    "Run output values or keys exceed the 64 KiB JSON limit."
+                )
+        return self
+
+    @model_validator(mode="wrap")
+    @classmethod
+    def parse_snapshot(
+        cls, value: object, handler: ModelWrapValidatorHandler[Self]
+    ) -> Self:
+        try:
+            return handler(value)
+        except (ValueError, UnicodeError, RecursionError):
+            # Output diagnostics degrade without relaxing event identity or time checks.
+            return cls.model_construct(
+                status=OutputsStatus.UNAVAILABLE,
+                values=None,
+                unavailable_keys=[],
+                reason="The output snapshot was invalid or exceeded the shared JSON limits.",
+            )
+
+
 class WorkEvent(JsonRequest):
     event_id: UuidValue
     assignment_id: UuidValue
@@ -71,12 +140,7 @@ class WorkEvent(JsonRequest):
     occurred_at: Annotated[AwareDatetime, Field(strict=False)]
     started_at: Annotated[AwareDatetime, Field(strict=False)] | None = None
     result: Annotated[RunResult, Field(strict=False)] | None = None
-    outputs_status: Annotated[OutputsStatus, Field(strict=False)] = (
-        OutputsStatus.UNAVAILABLE
-    )
-    outputs: dict[str, JsonValue] | None = None
-    outputs_reason: str = Field(default="", max_length=2000)
-    outputs_unavailable_keys: list[str] = Field(default_factory=list)
+    outputs: RunOutputs = Field(default_factory=RunOutputs)
     error_summary: dict[str, str] | None = None
     recording: RecordingInfo | None = None
     reason: str = Field(default="", max_length=2000)

@@ -79,9 +79,7 @@
             </v-alert>
             <p
               v-if="
-                run.outputs_status === 'complete' &&
-                run.outputs &&
-                Object.keys(run.outputs).length === 0
+                run.outputs_status === 'complete' && run.outputs && run.outputs.length === 0
               ">
               No output items.
             </p>
@@ -93,7 +91,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="(value, key) in run.outputs ?? {}" :key="key">
+                <tr v-for="[key, value] in run.outputs ?? []" :key="`value:${key}`">
                   <td>{{ key }}</td>
                   <td>
                     <pre class="text-pre-wrap text-break py-2">{{

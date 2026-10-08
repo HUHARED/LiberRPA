@@ -8,6 +8,8 @@ import { getErrorMessage } from "../../shared/error";
 import type { RunOutputs } from "../../shared/run";
 import { isProcessRunning } from "../Common/process";
 import {
+  INT_MAX_CUSTOM_ARGUMENT_JSON_BYTES,
+  ensureJsonValue,
   ensureExactRecord,
   ensureNonEmptyString,
   ensureRecord,
@@ -188,7 +190,60 @@ export function readExecutorRunState({
 
 function readRunOutputs(value: unknown): RunOutputs {
   try {
-    return parseRunOutputs(value);
+    const dictValue = ensureExactRecord(
+      value,
+      ["status", "values", "unavailableKeys", "reason"],
+      "Run outputs",
+    );
+    const status = dictValue.status;
+    if (status !== "complete" && status !== "partial" && status !== "unavailable")
+      throw new Error("Invalid Run outputs status.");
+    const strReason = ensureString(dictValue.reason, "Run outputs reason");
+    if ([...strReason].length > 2000)
+      throw new Error("Run outputs reason exceeds the length limit.");
+    if (!Array.isArray(dictValue.unavailableKeys))
+      throw new Error("Run unavailable keys must be an array.");
+    const arrUnavailableKey = dictValue.unavailableKeys.map((key: unknown) =>
+      ensureString(key, "Run unavailable key"),
+    );
+    const setKey = new Set(arrUnavailableKey);
+    if (setKey.size !== arrUnavailableKey.length)
+      throw new Error("Run unavailable keys contain duplicates.");
+    if (
+      Buffer.byteLength(JSON.stringify(arrUnavailableKey), "utf8") >
+      INT_MAX_CUSTOM_ARGUMENT_JSON_BYTES
+    )
+      throw new Error("Run unavailable keys exceed the 64 KiB JSON limit.");
+    if (status === "unavailable") {
+      if (dictValue.values !== null || arrUnavailableKey.length !== 0)
+        throw new Error("Unavailable outputs cannot contain values or keys.");
+      return { status, values: null, unavailableKeys: [], reason: strReason };
+    }
+    if (
+      !Array.isArray(dictValue.values) ||
+      (status === "partial") !== arrUnavailableKey.length > 0
+    )
+      throw new Error("Run outputs do not match their status.");
+    // The values budget and depth match the ordered CustomArgs input representation.
+    ensureJsonValue(dictValue.values, "Run output values");
+    const arrValue: [string, unknown][] = dictValue.values.map((entry: unknown) => {
+      if (!Array.isArray(entry) || entry.length !== 2 || typeof entry[0] !== "string")
+        throw new Error("A Run output must be a [string, value] pair.");
+      if (setKey.has(entry[0])) throw new Error("Run output keys must be unique.");
+      setKey.add(entry[0]);
+      return [entry[0], entry[1]];
+    });
+    if (
+      Buffer.byteLength(JSON.stringify(arrValue), "utf8") >
+      INT_MAX_CUSTOM_ARGUMENT_JSON_BYTES
+    )
+      throw new Error("Run output values exceed the 64 KiB JSON limit.");
+    return {
+      status,
+      values: arrValue,
+      unavailableKeys: arrUnavailableKey,
+      reason: strReason,
+    };
   } catch {
     return {
       status: "unavailable",
@@ -205,28 +260,6 @@ function readErrorSummary(value: unknown): { type: string; message: string } | n
   } catch {
     return null;
   }
-}
-
-function parseRunOutputs(value: unknown): RunOutputs {
-  const dictValue = ensureRecord(value, "Run outputs");
-  if (
-    !["complete", "partial", "unavailable"].includes(String(dictValue.status)) ||
-    !Array.isArray(dictValue.unavailableKeys) ||
-    !dictValue.unavailableKeys.every((item) => typeof item === "string")
-  ) {
-    throw new Error("Invalid Run outputs status or unavailable keys.");
-  }
-  if (Buffer.byteLength(JSON.stringify(value), "utf8") > 80 * 1024)
-    throw new Error("Run outputs exceed the snapshot limit.");
-  return {
-    status: dictValue.status as RunOutputs["status"],
-    values:
-      dictValue.values === null
-        ? null
-        : ensureRecord(dictValue.values, "Run output values"),
-    unavailableKeys: dictValue.unavailableKeys as string[],
-    reason: ensureString(dictValue.reason, "Run outputs reason"),
-  };
 }
 
 function parseErrorSummary(value: unknown): { type: string; message: string } | null {

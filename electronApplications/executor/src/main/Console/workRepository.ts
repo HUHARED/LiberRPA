@@ -137,8 +137,6 @@ export function saveConsoleEvent(
 ): void {
   const strEventId = randomUUID();
   if (typeof event.reason === "string") event.reason = event.reason.slice(0, 2000);
-  if (typeof event.outputs_reason === "string")
-    event.outputs_reason = event.outputs_reason.slice(0, 2000);
   getDatabase()
     .prepare(
       `
@@ -281,10 +279,7 @@ function recoverFinishedConsoleRun(record: ConsoleWorkRecord): boolean {
       started_at: started.startedAt,
       result:
         status === "cancel" ? "canceled" : status === "timeout" ? "timed_out" : status,
-      outputs_status: outputs.status,
-      outputs: outputs.values,
-      outputs_unavailable_keys: outputs.unavailableKeys,
-      outputs_reason: outputs.reason,
+      outputs,
       error_summary: state.errorSummary ?? null,
     });
     dbUpdateRunHistory({

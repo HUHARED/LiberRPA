@@ -8,7 +8,7 @@ import type { Arr_CustomProjectArgs, Str_LogLevel } from "../../shared/runOption
 const INT_MAX_DESCRIPTION_LENGTH = 2000;
 const INT_MAX_VERSION_SUMMARY_LENGTH = 500;
 const INT_MAX_CUSTOM_ARGUMENT_COUNT = 100;
-const INT_MAX_CUSTOM_ARGUMENT_JSON_BYTES = 64 * 1024;
+export const INT_MAX_CUSTOM_ARGUMENT_JSON_BYTES = 64 * 1024;
 const INT_MAX_JSON_DEPTH = 64;
 const SET_RESERVED_WINDOWS_NAME = new Set([
   "CON",
@@ -272,7 +272,7 @@ export function ensureRunHistoryStatus(
   }
 }
 
-function ensureJsonValue(
+export function ensureJsonValue(
   value: unknown,
   sourceName: string,
   depth = 0,

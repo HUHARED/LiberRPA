@@ -157,9 +157,30 @@
           <v-alert v-if="runDetails.outputs.reason" variant="tonal" class="my-2">
             {{ runDetails.outputs.reason }}
           </v-alert>
-          <pre class="text-wrap">{{
-            JSON.stringify(runDetails.outputs.values, null, 2)
-          }}</pre>
+          <p
+            v-if="
+              runDetails.outputs.status === 'complete' && !runDetails.outputs.values?.length
+            ">
+            No output items.
+          </p>
+          <v-table v-else-if="runDetails.outputs.values?.length">
+            <thead>
+              <tr>
+                <th>Key</th>
+                <th>Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="[key, value] in runDetails.outputs.values" :key="key">
+                <td>{{ key }}</td>
+                <td>
+                  <pre class="text-pre-wrap text-break py-2">{{
+                    JSON.stringify(value, null, 2)
+                  }}</pre>
+                </td>
+              </tr>
+            </tbody>
+          </v-table>
           <div v-if="runDetails.outputs.unavailableKeys.length">
             Unavailable: {{ runDetails.outputs.unavailableKeys.join(", ") }}
           </div>
