@@ -27,6 +27,7 @@ from shared_files.http import (
 )
 
 from .contracts import EmptyRequest, PackageUploadRequest, PackageSettingsRequest
+from .models import PackageUploadState
 from .queries import (
     get_packages,
     get_package_query,
@@ -38,6 +39,7 @@ from .services import (
     create_upload,
     append_chunk,
     cancel_upload,
+    validate_upload_content,
     complete_upload,
     save_package_settings,
     get_package_references,
@@ -189,12 +191,19 @@ def finish_upload(
         return payload
     with transaction.atomic():
         access = lock_file_access(request, authentication)
-        result = complete_upload(access, get_upload(access, uploadId))
-        return (
-            build_package_error(result)
-            if isinstance(result, FileOperationError)
-            else JsonResponse(result)
-        )
+        upload = get_upload(access, uploadId)
+        if upload.state == PackageUploadState.COMPLETED:
+            return JsonResponse(build_upload_payload(upload))
+    # The file scan must not hold the organization lock or a database transaction.
+    validationResult = validate_upload_content(upload)
+    with transaction.atomic():
+        access = lock_file_access(request, authentication)
+        result = complete_upload(access, get_upload(access, uploadId), validationResult)
+    return (
+        build_package_error(result)
+        if isinstance(result, FileOperationError)
+        else JsonResponse(result)
+    )
 
 
 @require_POST

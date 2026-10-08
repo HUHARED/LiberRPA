@@ -7,6 +7,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 import hashlib
 import os
 import uuid
+from dataclasses import dataclass
 from datetime import timedelta
 from typing import BinaryIO
 
@@ -54,6 +55,18 @@ from .queries import (
     get_upload_state,
 )
 from .runtime import apply_run_settings, validate_run_settings
+
+
+@dataclass(frozen=True)
+class PackageUploadValidationResult:
+    """Bind validated metadata to the uploaded content, not to lasting write permission."""
+
+    uploadId: uuid.UUID
+    blobId: uuid.UUID
+    sizeBytes: int
+    sha256: str
+    fileSignature: tuple[int, int, int, int]
+    metadata: dict
 
 
 def create_upload(
@@ -196,13 +209,8 @@ def _validate_package_capacity(
         )
 
 
-def complete_upload(
-    access: OrganizationAccessContext, upload: PackageUpload
-) -> dict | FileOperationError:
-    strState = get_upload_state(upload)
-    if strState == PackageUploadState.COMPLETED:
-        return build_upload_payload(upload)
-    if strState != PackageUploadState.RECEIVING:
+def _require_uploaded_blob(upload: PackageUpload) -> uuid.UUID:
+    if get_upload_state(upload) != PackageUploadState.RECEIVING:
         raise FileOperationError(
             "upload_unavailable", "This upload is no longer available.", 410
         )
@@ -214,18 +222,99 @@ def complete_upload(
         raise FileOperationError(
             "upload_data_missing", "The upload storage is unavailable.", 503
         )
+    return upload.blob_id
+
+
+def _get_file_signature(fileStat: os.stat_result) -> tuple[int, int, int, int]:
+    return (
+        fileStat.st_dev,
+        fileStat.st_ino,
+        fileStat.st_size,
+        fileStat.st_mtime_ns,
+    )
+
+
+def validate_upload_content(
+    upload: PackageUpload,
+) -> PackageUploadValidationResult | FileOperationError:
+    """Read complete content outside the organization transaction; persist nothing here."""
+    blobId = _require_uploaded_blob(upload)
     try:
-        path = get_blob_path(upload.blob_id)
-        with path.open("rb") as handle:
+        with get_blob_path(blobId).open("rb") as handle:
+            fileStat = os.fstat(handle.fileno())
             if (
-                os.fstat(handle.fileno()).st_size != upload.size_bytes
+                fileStat.st_size != upload.size_bytes
                 or hashlib.file_digest(handle, "sha256").hexdigest() != upload.sha256
             ):
                 raise FileOperationError(
                     "package_checksum_mismatch",
                     "The Package checksum does not match its declared content.",
                 )
-        metadata = read_package_archive(path)
+            handle.seek(0)
+            metadata = read_package_archive(handle)
+            fileSignature = _get_file_signature(fileStat)
+            if _get_file_signature(os.fstat(handle.fileno())) != fileSignature:
+                raise FileOperationError(
+                    "upload_content_changed",
+                    "The uploaded content changed during validation. Upload the Package again.",
+                )
+        return PackageUploadValidationResult(
+            uploadId=upload.pk,
+            blobId=blobId,
+            sizeBytes=upload.size_bytes,
+            sha256=upload.sha256,
+            fileSignature=fileSignature,
+            metadata=metadata,
+        )
+    except ValidationError as e:
+        return FileOperationError("invalid_package", " ".join(e.messages), 400)
+    except FileOperationError as e:
+        return e
+
+
+def complete_upload(
+    access: OrganizationAccessContext,
+    upload: PackageUpload,
+    validationResult: PackageUploadValidationResult | FileOperationError,
+) -> dict | FileOperationError:
+    """Commit with freshly authorized upload facts while holding the organization lock."""
+    if get_upload_state(upload) == PackageUploadState.COMPLETED:
+        return build_upload_payload(upload)
+    blobId = _require_uploaded_blob(upload)
+    if isinstance(validationResult, PackageUploadValidationResult) and (
+        validationResult.uploadId != upload.pk
+        or validationResult.blobId != blobId
+        or validationResult.sizeBytes != upload.size_bytes
+        or validationResult.sha256 != upload.sha256
+    ):
+        raise FileOperationError(
+            "upload_changed", "The upload changed. Check its status and try again."
+        )
+    if not StoredBlob.objects.filter(
+        pk=blobId,
+        organization=access.organization,
+        purpose=StoredBlobPurpose.PACKAGE,
+        state=StoredBlobState.RECEIVING,
+        size_bytes=upload.size_bytes,
+        written_bytes=upload.size_bytes,
+        sha256=upload.sha256,
+    ).exists():
+        raise FileOperationError(
+            "upload_data_missing", "The upload storage is unavailable.", 503
+        )
+    try:
+        if isinstance(validationResult, FileOperationError):
+            raise validationResult
+        # Fully received uploads cannot grow; duplicate chunks return without rewriting the file.
+        if (
+            _get_file_signature(get_blob_path(blobId).stat())
+            != validationResult.fileSignature
+        ):
+            raise FileOperationError(
+                "upload_content_changed",
+                "The uploaded content changed during validation. Upload the Package again.",
+            )
+        metadata = validationResult.metadata
         strNameKey = get_path_name_key(metadata["project_name"])
         strVersionKey = get_path_name_key(metadata["version"])
         if Package.objects.filter(
@@ -238,15 +327,13 @@ def complete_upload(
                 "This department already contains the project version; versions cannot be overwritten.",
             )
         _validate_package_capacity(access, upload.department_id, strNameKey)
-    except (ValidationError, FileOperationError) as e:
+    except FileOperationError as e:
+        # Return validation failures so the caller commits the failure and cleanup marker.
         upload.state = PackageUploadState.FAILED
         upload.save(update_fields=["state"])
-        StoredBlob.objects.filter(pk=upload.blob_id).update(state=StoredBlobState.GARBAGE)
-        return (
-            e
-            if isinstance(e, FileOperationError)
-            else FileOperationError("invalid_package", " ".join(e.messages), 400)
-        )
+        StoredBlob.objects.filter(pk=blobId).update(state=StoredBlobState.GARBAGE)
+        return e
+
     package = Package.objects.create(
         department_id=upload.department_id,
         project_name_key=strNameKey,

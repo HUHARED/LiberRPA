@@ -8,7 +8,7 @@ import json
 import stat
 import zipfile
 import zlib
-from pathlib import Path
+from typing import BinaryIO
 from uuid import UUID
 
 from django.core.exceptions import ValidationError
@@ -191,10 +191,10 @@ def _read_metadata(archive: zipfile.ZipFile) -> dict:
     }
 
 
-def read_package_archive(path: Path) -> dict:
+def read_package_archive(handle: BinaryIO) -> dict:
     """Validate the uploaded file boundary once without extracting executable content."""
     try:
-        with zipfile.ZipFile(path) as archive:
+        with zipfile.ZipFile(handle) as archive:
             listEntry = archive.infolist()
             if len(listEntry) > _INT_MAX_ENTRY_COUNT:
                 raise ValidationError("The Package contains more than 20,000 entries.")
@@ -237,8 +237,8 @@ def read_package_archive(path: Path) -> dict:
             # Stream every member to verify CRC and actual byte counts without retaining expanded content.
             for entry in listEntry:
                 intReadBytes = 0
-                with archive.open(entry) as handle:
-                    while chunk := handle.read(1024 * 1024):
+                with archive.open(entry) as entryHandle:
+                    while chunk := entryHandle.read(1024 * 1024):
                         intReadBytes += len(chunk)
                         if intReadBytes > entry.file_size:
                             raise ValidationError(
