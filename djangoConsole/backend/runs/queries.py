@@ -22,6 +22,7 @@ from organizations.permissions import (
 from .models import AssignmentState, Job, JobState, Run, RunResult
 
 _INT_PAGE_SIZE = 50
+_INT_MAX_SELECTED_RUNS = 20000
 _DICT_PRIORITY_NAME = {0: "high", 1: "normal", 2: "low"}
 
 
@@ -187,7 +188,9 @@ def build_run_payload(run: Run, *, details: bool = False) -> dict[str, object]:
     return dictPayload
 
 
-def list_work(access: OrganizationAccessContext, query: QueryDict, *, runs: bool) -> dict:
+def _get_filtered_work(
+    access: OrganizationAccessContext, query: QueryDict, *, runs: bool
+) -> QuerySet[Job | Run]:
     strPrefix = "job__" if runs else ""
     workQuery: QuerySet[Job | Run] = (
         get_visible_runs(access)
@@ -235,11 +238,32 @@ def list_work(access: OrganizationAccessContext, query: QueryDict, *, runs: bool
                 workQuery = workQuery.filter(**{
                     strLookup: parse_zoned_time(strTime, access.actor.time_zone)
                 })
-    workQuery = (
+    return (
         workQuery.order_by("-started_at", "-id")
         if runs
         else workQuery.order_by("priority", "queued_at", "id")
     )
+
+
+def get_matching_run_ids(
+    access: OrganizationAccessContext, query: QueryDict
+) -> list[uuid.UUID]:
+    # Read one bounded ID set; separate count and page queries could see different runs.
+    listRunId: list[uuid.UUID] = list(
+        _get_filtered_work(access, query, runs=True).values_list("id", flat=True)[
+            : _INT_MAX_SELECTED_RUNS + 1
+        ]
+    )
+    if len(listRunId) > _INT_MAX_SELECTED_RUNS:
+        raise ValidationError(
+            f"Narrow the filters before selecting all runs (maximum {_INT_MAX_SELECTED_RUNS:,}).",
+            code="run_selection_too_large",
+        )
+    return listRunId
+
+
+def list_work(access: OrganizationAccessContext, query: QueryDict, *, runs: bool) -> dict:
+    workQuery = _get_filtered_work(access, query, runs=runs)
     intPage = int(query.get("page", "1"))
     paginator: Paginator[Job | Run] = Paginator(workQuery, _INT_PAGE_SIZE)
     page = paginator.page(intPage)

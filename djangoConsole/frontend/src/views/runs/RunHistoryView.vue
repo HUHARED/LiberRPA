@@ -91,22 +91,22 @@
     <v-btn
       size="small"
       variant="text"
-      :disabled="!arrSelectedId.length"
-      @click="arrSelectedId = []">
+      :disabled="!arrSelectedId.length && !boolSelecting"
+      @click="clearSelection">
       Clear Selection
     </v-btn>
     <v-spacer />
     <v-btn
       color="warning"
       variant="tonal"
-      :disabled="!arrSelectedId.length || boolSelecting"
+      :disabled="!arrSelectedId.length || boolSelecting || boolLoading || boolClearing"
       @click="confirmClear">
       Clear Logs
     </v-btn>
   </div>
   <v-card variant="outlined">
     <v-data-table-server
-      v-model="arrSelectedId"
+      :model-value="arrSelectedId"
       :headers="ARR_HEADER"
       :items="page?.runs ?? []"
       :items-length="page?.total_count ?? 0"
@@ -116,7 +116,8 @@
       show-select
       select-strategy="page"
       disable-sort
-      hide-default-footer>
+      hide-default-footer
+      @update:model-value="updateSelection">
       <template #item.schedule_name="{ item }">{{ item.schedule_name || "—" }}</template>
       <template #item.started_at="{ item }">
         {{ formatDateTime(item.started_at, strTimeZone) }}
@@ -195,12 +196,13 @@
     @saved="runCreated" />
 </template>
 <script setup lang="ts">
-import { shallowRef, computed, onMounted, ref } from "vue";
+import { shallowRef, computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import RunPackageDialog from "@/components/packages/RunPackageDialog.vue";
 import {
   ARR_RUN_RESULT,
   getRuns,
+  getMatchingRunIds,
   getRunDepartments,
   type RunDepartmentInfo,
   getRerun,
@@ -261,6 +263,15 @@ const clearResult = ref<Awaited<ReturnType<typeof clearRunLogs>> | null>(null);
 const boolActionBusy = ref(false);
 const rerunInfo = ref<Awaited<ReturnType<typeof getRerun>> | null>(null);
 let intLoadRevision = 0;
+let intSelectionRevision = 0;
+function updateSelection(ids: string[]): void {
+  intSelectionRevision += 1;
+  boolSelecting.value = false;
+  arrSelectedId.value = ids;
+}
+function clearSelection(): void {
+  updateSelection([]);
+}
 async function load(pageNumber = page.value?.page ?? 1): Promise<void> {
   const intRevision = ++intLoadRevision;
   boolLoading.value = true;
@@ -280,7 +291,8 @@ function apply(): void {
     departmentIds: [...filters.value.departmentIds],
     states: [...filters.value.states],
   };
-  arrSelectedId.value = [];
+  clearSelection();
+  page.value = null;
   void load(1);
 }
 function clearFilters(): void {
@@ -288,40 +300,42 @@ function clearFilters(): void {
   apply();
 }
 async function selectAll(): Promise<void> {
+  if (boolSelecting.value || boolLoading.value || boolClearDialog.value) return;
+  const intRevision = ++intSelectionRevision;
+  // Applying filters replaces this detached snapshot instead of mutating it.
+  const selectionFilters = appliedFilters;
   boolSelecting.value = true;
   strError.value = "";
   try {
-    const arrId: string[] = [];
-    let intPage = 1;
-    let intTotalPages = 1;
-    do {
-      const result = await getRuns(appliedFilters, intPage++);
-      if (result.total_count > 20000)
-        throw new Error(
-          "Select a narrower date range before selecting all runs (maximum 20,000).",
-        );
-      arrId.push(...result.runs.map((run) => run.id));
-      intTotalPages = result.total_pages;
-    } while (intPage <= intTotalPages);
-    arrSelectedId.value = [...new Set(arrId)];
+    const arrId = await getMatchingRunIds(selectionFilters);
+    if (intRevision === intSelectionRevision) arrSelectedId.value = arrId;
   } catch (e) {
-    strError.value = getApiError(e).message;
+    if (intRevision === intSelectionRevision) strError.value = getApiError(e).message;
   } finally {
-    boolSelecting.value = false;
+    if (intRevision === intSelectionRevision) boolSelecting.value = false;
   }
 }
 function confirmClear(): void {
+  if (
+    !arrSelectedId.value.length ||
+    boolSelecting.value ||
+    boolLoading.value ||
+    boolClearDialog.value
+  )
+    return;
   arrConfirmedId.value = [...arrSelectedId.value];
   strClearError.value = "";
   boolClearDialog.value = true;
 }
 async function clearLogs(): Promise<void> {
+  if (boolClearing.value || !boolClearDialog.value || !arrConfirmedId.value.length) return;
+  const arrRunId = [...arrConfirmedId.value];
   boolClearing.value = true;
   strClearError.value = "";
   try {
-    clearResult.value = await clearRunLogs(arrConfirmedId.value);
+    clearResult.value = await clearRunLogs(arrRunId);
     boolClearDialog.value = false;
-    arrSelectedId.value = [];
+    clearSelection();
   } catch (e) {
     strClearError.value = getApiError(e).message;
   } finally {
@@ -355,6 +369,10 @@ function runCreated(): void {
   rerunInfo.value = null;
   void router.push({ name: "job-queue" });
 }
+onBeforeUnmount(() => {
+  intLoadRevision += 1;
+  clearSelection();
+});
 onMounted(async () => {
   void load();
   try {

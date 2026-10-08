@@ -20,6 +20,12 @@ urlpatterns = [
     ),
     path("runs/", work_endpoint, {"action": "runs"}, name="runs"),
     path(
+        "runs/selection/",
+        work_endpoint,
+        {"action": "run-selection"},
+        name="run-selection",
+    ),
+    path(
         "runs/departments/",
         work_endpoint,
         {"action": "departments"},

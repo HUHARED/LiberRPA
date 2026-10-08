@@ -172,8 +172,13 @@ export function getStateLabel(state: string): string {
         .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
         .join(" ");
 }
-function buildQuery(filters: RunFilters, page: number, isJob: boolean): URLSearchParams {
-  const query = new URLSearchParams({ page: String(page) });
+function buildQuery(
+  filters: RunFilters,
+  page: number | undefined,
+  isJob: boolean,
+): URLSearchParams {
+  const query = new URLSearchParams();
+  if (page !== undefined) query.set("page", String(page));
   for (const id of filters.departmentIds) query.append("department_id", id);
   for (const state of filters.states) query.append(isJob ? "state" : "result", state);
   for (const [key, value] of [
@@ -218,6 +223,18 @@ export async function getRuns(filters: RunFilters, page = 1): Promise<RunPage> {
   if (!isRecord(result) || !Array.isArray(result.runs) || !result.runs.every(isRun))
     return rejectInvalidResponse();
   return { runs: result.runs, ...parsePaginationResponse(result) };
+}
+export async function getMatchingRunIds(filters: RunFilters): Promise<string[]> {
+  const result = await requestApi(
+    `/runs/selection/?${buildQuery(filters, undefined, false)}`,
+  );
+  if (
+    !isRecord(result) ||
+    !Array.isArray(result.run_ids) ||
+    !result.run_ids.every((id: unknown) => typeof id === "string")
+  )
+    return rejectInvalidResponse();
+  return result.run_ids;
 }
 export async function getJob(id: string): Promise<JobDetails> {
   const result = await requestApi(`/jobs/${encodeURIComponent(id)}/`);

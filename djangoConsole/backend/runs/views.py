@@ -50,6 +50,7 @@ from .queries import (
     get_visible_jobs,
     get_history_departments,
     get_visible_runs,
+    get_matching_run_ids,
     list_work,
 )
 from .services import accept_request, control_job, get_existing_request
@@ -166,6 +167,10 @@ def _process_work_request(
             access = _get_access(request, authentication, write=False)
             if action == "departments":
                 return JsonResponse({"departments": get_history_departments(access)})
+            if action == "run-selection":
+                return JsonResponse({
+                    "run_ids": get_matching_run_ids(access, request.GET)
+                })
             if action in ("jobs", "runs"):
                 return JsonResponse(list_work(access, request.GET, runs=action == "runs"))
             if action == "job":
@@ -312,7 +317,7 @@ def work_endpoint(
     request: HttpRequest, action: str, workId: uuid.UUID | None = None
 ) -> JsonResponse:
     """Explicit API keys do not use CSRF; cookie-authenticated writes always do."""
-    setReadOnly = {"job", "run", "rerun", "runs", "departments"}
+    setReadOnly = {"job", "run", "rerun", "runs", "run-selection", "departments"}
     if action in setReadOnly and request.method != "GET":
         return build_error_response("method_not_allowed", "Use GET.", statusCode=405)
     if action in {"control", "stop"} and request.method != "POST":
