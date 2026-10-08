@@ -14,7 +14,7 @@ import {
   ARR_LOG_LEVEL,
   type JsonValue,
   type LogLevel,
-  type RunSettings,
+  type RunOverrides,
   type RunSnapshot,
 } from "./runOptions";
 
@@ -268,7 +268,7 @@ export async function createJobs(
   packageId: string,
   executorIds: string[],
   groupId: string | null,
-  settings: RunSettings,
+  settings: RunOverrides,
   requestId: string,
 ): Promise<void> {
   await requestApi("/jobs/", {

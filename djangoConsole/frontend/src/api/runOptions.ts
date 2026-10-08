@@ -37,6 +37,7 @@ export interface RunSettings {
   api_input_keys: string[];
   run_email: RunEmailConfig;
 }
+export type RunOverrides = Omit<RunSettings, "api_input_keys">;
 export interface RunSnapshot extends RunSettings {
   python_environment_name: string;
 }

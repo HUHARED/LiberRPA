@@ -56,6 +56,19 @@ from .queries import (
 from .services import accept_request, control_job, get_existing_request
 
 _LOGGER = logging.getLogger("console.runs")
+_SET_RUN_OVERRIDE_FIELDS = frozenset({
+    "retry_count",
+    "timeout_min",
+    "builtin_log_level",
+    "builtin_record_video",
+    "builtin_stop_shortcut",
+    "builtin_highlight_ui",
+    "custom_prj_args",
+    "custom_arg_assets",
+    "run_conflict_policy",
+    "priority",
+    "run_email",
+})
 
 
 def _build_error(e: Exception) -> JsonResponse:
@@ -115,22 +128,19 @@ def _get_request_settings(
     package: Package, payload: JobCreationRequest, *, apiKey: bool
 ) -> dict:
     """Apply invocation overrides without changing Package defaults or API input permissions."""
-    dictSettings = copy.deepcopy(build_run_settings(package))
     dictOverrideSettings = payload.settings or {}
+    if not dictOverrideSettings.keys() <= _SET_RUN_OVERRIDE_FIELDS:
+        raise ValidationError(
+            "One or more settings cannot be overridden for a single run."
+        )
     if apiKey and any(
         strField in dictOverrideSettings
-        for strField in ("custom_prj_args", "custom_arg_assets", "api_input_keys")
+        for strField in ("custom_prj_args", "custom_arg_assets")
     ):
         raise ValidationError(
-            "Use custom_args for allowed API inputs; API requests cannot change argument bindings or the input whitelist."
+            "Use custom_args for API inputs; argument lists and bindings cannot be overridden."
         )
-    if (
-        "api_input_keys" in dictOverrideSettings
-        and dictOverrideSettings["api_input_keys"] != dictSettings["api_input_keys"]
-    ):
-        raise ValidationError(
-            "A single run cannot change the Package API input whitelist."
-        )
+    dictSettings = copy.deepcopy(build_run_settings(package))
     dictSettings.update(dictOverrideSettings)
     if not apiKey:
         if payload.custom_args is not None:
