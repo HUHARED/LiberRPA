@@ -5,6 +5,7 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import uuid
+from collections.abc import Iterable, Mapping
 
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
@@ -19,7 +20,7 @@ from organizations.permissions import (
     get_authorized_departments,
 )
 
-from .models import AssignmentState, Job, JobState, Run, RunResult
+from .models import Assignment, AssignmentState, Job, JobState, Run, RunResult
 
 _INT_PAGE_SIZE = 50
 _INT_MAX_SELECTED_RUNS = 20000
@@ -77,15 +78,33 @@ def get_history_departments(access: OrganizationAccessContext) -> list[dict]:
     )
 
 
-def build_job_payload(job: Job, *, details: bool = False) -> dict[str, object]:
-    assignment = job.assignments.filter(
-        state__in=(
-            AssignmentState.PREPARING,
-            AssignmentState.PERMITTED,
-            AssignmentState.RUNNING,
-            AssignmentState.REVIEW,
-        )
-    ).first()
+def _get_active_assignments(jobIds: list[uuid.UUID]) -> dict[uuid.UUID, Assignment]:
+    if not jobIds:
+        return {}
+    # The database permits only one active Assignment per Job.
+    return {
+        assignment.job_id: assignment
+        for assignment in Assignment.objects.filter(
+            job_id__in=jobIds,
+            state__in=(
+                AssignmentState.PREPARING,
+                AssignmentState.PERMITTED,
+                AssignmentState.RUNNING,
+                AssignmentState.REVIEW,
+            ),
+        ).only("job_id", "executor_id", "executor_name")
+    }
+
+
+def build_job_payload(
+    job: Job,
+    *,
+    details: bool = False,
+    assignmentsByJobId: Mapping[uuid.UUID, Assignment] | None = None,
+) -> dict[str, object]:
+    if assignmentsByJobId is None:
+        assignmentsByJobId = _get_active_assignments([job.id])
+    assignment = assignmentsByJobId.get(job.id)
     dictPayload: dict[str, object] = {
         "id": job.id,
         "job_request_id": job.request_id,
@@ -138,6 +157,15 @@ def build_job_payload(job: Job, *, details: bool = False) -> dict[str, object]:
             ],
         })
     return dictPayload
+
+
+def build_job_payloads(jobs: Iterable[Job]) -> list[dict[str, object]]:
+    listJob = list(jobs)
+    dictAssignmentByJobId = _get_active_assignments([job.id for job in listJob])
+    return [
+        build_job_payload(job, assignmentsByJobId=dictAssignmentByJobId)
+        for job in listJob
+    ]
 
 
 def build_run_payload(run: Run, *, details: bool = False) -> dict[str, object]:
@@ -276,14 +304,18 @@ def list_work(access: OrganizationAccessContext, query: QueryDict, *, runs: bool
     intPage = int(query.get("page", "1"))
     paginator: Paginator[Job | Run] = Paginator(workQuery, _INT_PAGE_SIZE)
     page = paginator.page(intPage)
+    listWork = list(page.object_list)
+    dictAssignmentByJobId = (
+        _get_active_assignments([entry.id for entry in listWork]) if not runs else {}
+    )
     return {
         "runs" if runs else "jobs": [
             (
                 build_run_payload(entry)
                 if isinstance(entry, Run)
-                else build_job_payload(entry)
+                else build_job_payload(entry, assignmentsByJobId=dictAssignmentByJobId)
             )
-            for entry in page.object_list
+            for entry in listWork
         ],
         "page": page.number,
         "page_size": _INT_PAGE_SIZE,

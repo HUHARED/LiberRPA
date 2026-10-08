@@ -86,62 +86,89 @@ def _handle_errors(view: Callable) -> Callable:
     return wrapped
 
 
-def _build_payload(
-    schedule: Schedule, access: OrganizationAccessContext, *, details: bool = False
-) -> dict[str, object]:
+def _build_payloads(
+    schedules: list[Schedule],
+    access: OrganizationAccessContext,
+    *,
+    details: bool = False,
+) -> list[dict[str, object]]:
+    if not schedules:
+        return []
     dictTree = get_department_tree(access.organization.pk)
-    creator = schedule.created_by
-    listExecutor = list(
-        Executor.objects.filter(pk__in=schedule.executor_ids).values("id", "name")
+    setManageableDepartmentId: set[uuid.UUID] = set(
+        get_authorized_departments(access, requiredRole=DepartmentRole.DEVELOPER)
+        .filter(pk__in={schedule.department_id for schedule in schedules})
+        .values_list("id", flat=True)
     )
-    group = (
-        ExecutorGroup.objects.filter(pk=schedule.group_id).values("id", "name").first()
-        if schedule.group_id
-        else None
-    )
-    dictPayload: dict[str, object] = {
-        "id": schedule.pk,
-        "name": schedule.name,
-        "department_id": schedule.department_id,
-        "department": {
-            "id": schedule.department_id,
-            "name": schedule.department.name,
-            "path": get_department_path(schedule.department, dictTree),
-        },
-        "package_id": schedule.package_id,
-        "project_name": schedule.package.project_name,
-        "project_version": schedule.package.version,
-        "executor_ids": schedule.executor_ids,
-        "executors": listExecutor,
-        "group_id": schedule.group_id,
-        "executor_group": group,
-        "enabled": schedule.enabled,
-        "notes": schedule.notes,
-        "cron": schedule.cron,
-        "time_zone": schedule.time_zone,
-        "active_from": schedule.active_from,
-        "active_until": schedule.active_until,
-        "created_at": schedule.created_at,
-        "created_by": None
-        if creator is None
-        else {"id": creator.pk, "email": creator.email, "username": creator.username},
-        "can_manage": get_authorized_departments(
-            access, requiredRole=DepartmentRole.DEVELOPER
-        )
-        .filter(pk=schedule.department_id)
-        .exists(),
+    setExecutorId = {
+        strExecutorId for schedule in schedules for strExecutorId in schedule.executor_ids
     }
-    if details:
-        dictPayload["settings"] = build_run_settings(schedule)
-        dictPayload["python_environment_name"] = schedule.package.python_environment_name
-        dictPayload["upcoming_triggers"] = preview_triggers(
-            schedule.cron,
-            schedule.time_zone,
-            schedule.active_from,
-            schedule.active_until,
-            timezone.now(),
+    dictExecutorById: dict[str, Executor] = {
+        str(executor.id): executor
+        for executor in Executor.objects.filter(pk__in=setExecutorId).only("id", "name")
+    }
+    dictGroupById: dict[uuid.UUID, ExecutorGroup] = ExecutorGroup.objects.only(
+        "id", "name"
+    ).in_bulk({
+        schedule.group_id for schedule in schedules if schedule.group_id is not None
+    })
+    listPayload: list[dict[str, object]] = []
+    for schedule in schedules:
+        creator = schedule.created_by
+        group = (
+            dictGroupById.get(schedule.group_id)
+            if schedule.group_id is not None
+            else None
         )
-    return dictPayload
+        dictPayload: dict[str, object] = {
+            "id": schedule.pk,
+            "name": schedule.name,
+            "department_id": schedule.department_id,
+            "department": {
+                "id": schedule.department_id,
+                "name": schedule.department.name,
+                "path": get_department_path(schedule.department, dictTree),
+            },
+            "package_id": schedule.package_id,
+            "project_name": schedule.package.project_name,
+            "project_version": schedule.package.version,
+            "executor_ids": schedule.executor_ids,
+            "executors": [
+                {"id": executor.id, "name": executor.name}
+                for strExecutorId in schedule.executor_ids
+                if (executor := dictExecutorById.get(strExecutorId)) is not None
+            ],
+            "group_id": schedule.group_id,
+            "executor_group": None
+            if group is None
+            else {"id": group.id, "name": group.name},
+            "enabled": schedule.enabled,
+            "notes": schedule.notes,
+            "cron": schedule.cron,
+            "time_zone": schedule.time_zone,
+            "active_from": schedule.active_from,
+            "active_until": schedule.active_until,
+            "created_at": schedule.created_at,
+            "created_by": None
+            if creator is None
+            else {"id": creator.pk, "email": creator.email, "username": creator.username},
+            "can_manage": schedule.department_id in setManageableDepartmentId,
+        }
+        if details:
+            dictPayload["settings"] = build_run_settings(schedule)
+            dictPayload["python_environment_name"] = (
+                schedule.package.python_environment_name
+            )
+            dictPayload["upcoming_triggers"] = preview_triggers(
+                schedule.cron,
+                schedule.time_zone,
+                schedule.active_from,
+                schedule.active_until,
+                timezone.now(),
+            )
+        listPayload.append(dictPayload)
+
+    return listPayload
 
 
 @never_cache
@@ -159,7 +186,8 @@ def list_or_create_schedules(request: HttpRequest) -> JsonResponse:
             access = lock_executor_write_access(request, membership)
             schedule = save_schedule(access, form, departmentId=form.department_id)
             return JsonResponse(
-                {"schedule": _build_payload(schedule, access, details=True)}, status=201
+                {"schedule": _build_payloads([schedule], access, details=True)[0]},
+                status=201,
             )
     access = resolve_organization_access(
         actorId=membership.user_id,
@@ -195,7 +223,7 @@ def list_or_create_schedules(request: HttpRequest) -> JsonResponse:
     paginator = Paginator(query.order_by("name", "id"), _INT_PAGE_SIZE)
     page = paginator.page(filters["pageNumber"])
     return JsonResponse({
-        "schedules": [_build_payload(schedule, access) for schedule in page.object_list],
+        "schedules": _build_payloads(list(page.object_list), access),
         "page": page.number,
         "page_size": _INT_PAGE_SIZE,
         "total_count": paginator.count,
@@ -221,7 +249,7 @@ def get_or_update_schedule(request: HttpRequest, scheduleId: uuid.UUID) -> JsonR
                 access, form, departmentId=schedule.department_id, schedule=schedule
             )
             return JsonResponse({
-                "schedule": _build_payload(schedule, access, details=True)
+                "schedule": _build_payloads([schedule], access, details=True)[0]
             })
     access = resolve_organization_access(
         actorId=membership.user_id,
@@ -229,9 +257,9 @@ def get_or_update_schedule(request: HttpRequest, scheduleId: uuid.UUID) -> JsonR
         channel=AccessChannel.SESSION,
     )
     return JsonResponse({
-        "schedule": _build_payload(
-            get_schedule_for_access(access, scheduleId), access, details=True
-        )
+        "schedule": _build_payloads(
+            [get_schedule_for_access(access, scheduleId)], access, details=True
+        )[0]
     })
 
 
@@ -249,7 +277,9 @@ def change_schedule_enabled(request: HttpRequest, scheduleId: uuid.UUID) -> Json
         access = lock_executor_write_access(request, membership)
         schedule = get_schedule_for_access(access, scheduleId, forUpdate=True)
         set_schedule_enabled(access, schedule, form.enabled)
-        return JsonResponse({"schedule": _build_payload(schedule, access, details=True)})
+        return JsonResponse({
+            "schedule": _build_payloads([schedule], access, details=True)[0]
+        })
 
 
 @never_cache

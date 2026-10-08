@@ -46,6 +46,7 @@ from .contracts import EmptyRequest, JobControlRequest, JobCreationRequest
 from .models import JobSource, JobState
 from .queries import (
     build_job_payload,
+    build_job_payloads,
     build_run_payload,
     get_visible_jobs,
     get_history_departments,
@@ -240,10 +241,9 @@ def _process_work_request(
                     return JsonResponse({
                         "request_id": previous.client_request_id,
                         "job_request_id": previous.id,
-                        "jobs": [
-                            build_job_payload(job)
-                            for job in previous.jobs.select_related("request")
-                        ],
+                        "jobs": build_job_payloads(
+                            previous.jobs.select_related("request")
+                        ),
                     })
                 package = Package.objects.select_related("department").get(
                     pk=creationRequest.package_id,
@@ -270,10 +270,9 @@ def _process_work_request(
                     {
                         "request_id": jobRequest.client_request_id,
                         "job_request_id": jobRequest.id,
-                        "jobs": [
-                            build_job_payload(job)
-                            for job in jobRequest.jobs.select_related("request")
-                        ],
+                        "jobs": build_job_payloads(
+                            jobRequest.jobs.select_related("request")
+                        ),
                     },
                     status=201,
                 )
