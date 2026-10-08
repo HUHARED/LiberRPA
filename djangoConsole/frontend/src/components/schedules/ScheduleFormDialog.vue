@@ -8,7 +8,11 @@
           {{ strError }}
         </v-alert>
         <v-progress-linear v-if="boolLoading" indeterminate />
-        <v-form ref="form" :disabled="boolBusy || boolLoading">
+        <v-form
+          v-if="boolInitialized"
+          ref="form"
+          :disabled="boolBusy"
+          @submit.prevent="save">
           <h2 class="text-h6 mb-4">Basic &amp; Target</h2>
           <v-row>
             <v-col cols="12" md="6">
@@ -41,6 +45,8 @@
                 item-value="id"
                 label="Project / Version"
                 :loading="boolPackagesLoading"
+                :disabled="boolBusy || boolPackagesLoading"
+                :error-messages="strPackagesError"
                 :rules="[(value) => !!value || 'Select a package.']"
                 @update:model-value="changePackage" />
             </v-col>
@@ -57,6 +63,9 @@
             v-model:group-id="strGroupId"
             :department-id="strDepartmentId"
             :disabled="boolBusy" />
+          <p class="text-body-2 text-medium-emphasis">
+            Offline or paused Executors and empty groups can be saved.
+          </p>
           <v-textarea v-model="strNotes" label="Notes (optional)" rows="2" class="mt-4" />
           <v-divider class="my-5" />
           <h2 class="text-h6 mb-4">Time</h2>
@@ -85,25 +94,21 @@
           <v-row>
             <v-col cols="12" md="5">
               <v-text-field
-                v-model="strCron"
+                :model-value="strCron"
                 label="Cron Expression"
                 hint="Five fields, or six fields with seconds first."
-                persistent-hint />
+                persistent-hint
+                @update:model-value="changeCron" />
             </v-col>
             <v-col cols="12" md="7">
               <cron-vuetify
+                v-if="strVisualCron"
+                :key="intVisualRevision"
                 :model-value="strVisualCron"
+                :disabled="boolBusy"
                 @update:model-value="changeVisualCron" />
-              <v-btn
-                size="small"
-                variant="tonal"
-                class="mt-2"
-                @click="strCron = strVisualCron">
-                Apply Visual Rule
-              </v-btn>
-              <p v-if="!boolVisualSupported" class="text-body-2 text-medium-emphasis">
-                Advanced Cron is preserved. Use the text field to edit it, or choose a new
-                visual rule.
+              <p v-else class="text-body-2 text-medium-emphasis">
+                Edit this rule in the Cron Expression field; it cannot be shown visually.
               </p>
             </v-col>
           </v-row>
@@ -141,7 +146,13 @@
         <v-btn
           color="primary"
           :loading="boolBusy"
-          :disabled="boolLoading || !settings || !boolArgsValid"
+          :disabled="
+            boolLoading ||
+            boolPackagesLoading ||
+            !boolInitialized ||
+            !settings ||
+            !boolArgsValid
+          "
           @click="save">
           Save
         </v-btn>
@@ -150,7 +161,15 @@
   </v-dialog>
 </template>
 <script setup lang="ts">
-import { shallowRef, computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import {
+  shallowRef,
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  watch,
+} from "vue";
 import type { Ref } from "vue";
 import type { VForm } from "vuetify/components";
 import cronstrue from "cronstrue";
@@ -197,9 +216,13 @@ const strActiveFrom = ref(
 );
 const strActiveUntil = ref("2084-04-04T00:00:00");
 const strCron = ref("0 0 * * *");
-const boolLoading = ref(false);
+const boolLoading = ref(true);
+const boolInitialized = ref(false);
 const boolBusy = ref(false);
 const boolPackagesLoading = ref(false);
+const strPackagesError = ref("");
+let intPackageRevision = 0;
+let boolDisposed = false;
 const strError = ref("");
 const boolArgsValid = ref(true);
 const arrPackage = shallowRef<PackageInfo[]>([]);
@@ -212,10 +235,50 @@ const strPreviewError = ref("");
 const boolPreviewLoading = ref(false);
 let intPreviewRevision = 0;
 let previewTimer: ReturnType<typeof setTimeout> | undefined;
-const boolVisualSupported = computed(() =>
-  /^([\d*/,-]+ ){4}[\d*/,-]+$/.test(strCron.value.trim()),
-);
-const strVisualCron = ref("0 0 * * *");
+const intVisualRevision = ref(0);
+let boolVisualSyncing = false;
+const strVisualCron = computed(() => {
+  const arrField = strCron.value.trim().split(/\s+/);
+  if (arrField.length === 6 && arrField[0] === "0") arrField.shift();
+  if (arrField.length !== 5) return "";
+  const arrBound = [
+    [0, 59],
+    [0, 23],
+    [1, 31],
+    [1, 12],
+    [0, 6],
+  ] as const;
+  // Only pass bounded, supported fields to the visual parser, not partial text input.
+  for (const [intIndex, strField] of arrField.entries()) {
+    const [intMin, intMax] = arrBound[intIndex]!;
+    for (const strPart of strField.split(",")) {
+      const match = /^(\*|\d+(?:-\d+)?)(?:\/([1-9]\d*))?$/.exec(strPart);
+      if (!match) return "";
+      const strRange = match[1]!;
+      const strStep = match[2];
+      if (
+        strStep !== undefined &&
+        (Number(strStep) > intMax - intMin + 1 ||
+          (strRange !== "*" && !strRange.includes("-")))
+      )
+        return "";
+      if (strRange === "*") {
+        if (strField !== strPart) return "";
+        continue;
+      }
+      const arrLimit = strRange.split("-").map(Number);
+      if (
+        arrLimit.some((value) => value < intMin || value > intMax) ||
+        arrLimit[0]! > arrLimit[arrLimit.length - 1]! ||
+        arrLimit.join("-") !== strRange
+      )
+        return "";
+    }
+  }
+  // Visual normalization can change the OR semantics when both day fields are restricted.
+  if (arrField[2] !== "*" && arrField[4] !== "*") return "";
+  return arrField.join(" ");
+});
 const strDescription = computed(() => {
   try {
     return cronstrue.toString(strCron.value, {
@@ -226,25 +289,42 @@ const strDescription = computed(() => {
     return "Enter a valid Cron expression.";
   }
 });
+async function changeCron(value: string): Promise<void> {
+  strCron.value = value;
+  boolVisualSyncing = true;
+  const intRevision = ++intVisualRevision.value;
+  // Recreate the visual editor so its selected period follows the new text.
+  await nextTick();
+  if (intRevision === intVisualRevision.value) boolVisualSyncing = false;
+}
 function changeVisualCron(value: string): void {
-  strVisualCron.value = value;
+  // Ignore normalization emitted while the editor is loading the text draft.
+  if (boolVisualSyncing || boolBusy.value || !strVisualCron.value) return;
+  const boolHasSeconds = strCron.value.trim().split(/\s+/).length === 6;
+  strCron.value = boolHasSeconds ? `0 ${value}` : value;
 }
 async function loadPackages(): Promise<void> {
+  const intRevision = ++intPackageRevision;
+  const strRequestedDepartmentId = strDepartmentId.value;
   arrPackage.value = [];
-  if (!strDepartmentId.value) return;
-  boolPackagesLoading.value = true;
+  strPackagesError.value = "";
+  boolPackagesLoading.value = !!strRequestedDepartmentId;
+  if (!strRequestedDepartmentId) return;
   try {
+    const arrResult: PackageInfo[] = [];
     let intPage = 1;
     let intTotal = 1;
     do {
-      const result = await getPackages([strDepartmentId.value], "", intPage++);
-      arrPackage.value = [...arrPackage.value, ...result.packages];
+      const result = await getPackages([strRequestedDepartmentId], "", intPage++);
+      if (intRevision !== intPackageRevision) return;
+      arrResult.push(...result.packages);
       intTotal = result.total_pages;
     } while (intPage <= intTotal);
+    arrPackage.value = arrResult;
   } catch (e) {
-    strError.value = getApiError(e).message;
+    if (intRevision === intPackageRevision) strPackagesError.value = getApiError(e).message;
   } finally {
-    boolPackagesLoading.value = false;
+    if (intRevision === intPackageRevision) boolPackagesLoading.value = false;
   }
 }
 function changeDepartment(): void {
@@ -255,13 +335,11 @@ function changeDepartment(): void {
   void loadPackages();
 }
 function changePackage(): void {
-  if (selectedPackage.value)
-    settings.value = cloneRunSettings(selectedPackage.value.settings);
+  settings.value = selectedPackage.value
+    ? cloneRunSettings(selectedPackage.value.settings)
+    : null;
 }
-async function refreshPreview(): Promise<void> {
-  const intRevision = ++intPreviewRevision;
-  boolPreviewLoading.value = true;
-  strPreviewError.value = "";
+async function refreshPreview(intRevision: number): Promise<void> {
   try {
     const result = await previewSchedule({
       cron: strCron.value,
@@ -280,11 +358,19 @@ async function refreshPreview(): Promise<void> {
   }
 }
 async function save(): Promise<void> {
-  if (!settings.value || !boolArgsValid.value || !(await form.value?.validate())?.valid)
+  if (
+    boolBusy.value ||
+    boolLoading.value ||
+    boolPackagesLoading.value ||
+    !boolInitialized.value ||
+    !settings.value ||
+    !boolArgsValid.value
+  )
     return;
   boolBusy.value = true;
   strError.value = "";
   try {
+    if (!(await form.value?.validate())?.valid || boolDisposed) return;
     const result = await saveSchedule(props.scheduleId ?? null, {
       name: strName.value,
       department_id: strDepartmentId.value,
@@ -299,22 +385,31 @@ async function save(): Promise<void> {
       active_until: strActiveUntil.value,
       settings: settings.value,
     });
-    emit("saved", result);
+    if (!boolDisposed) emit("saved", result);
   } catch (e) {
-    strError.value = getApiError(e).message;
+    if (!boolDisposed) strError.value = getApiError(e).message;
   } finally {
     boolBusy.value = false;
   }
 }
-watch([strCron, strTimeZone, strActiveFrom, strActiveUntil], () => {
-  clearTimeout(previewTimer);
-  previewTimer = setTimeout(() => void refreshPreview(), 400);
-});
+watch(
+  [boolInitialized, strCron, strTimeZone, strActiveFrom, strActiveUntil],
+  () => {
+    const intRevision = ++intPreviewRevision;
+    clearTimeout(previewTimer);
+    arrPreview.value = [];
+    strPreviewError.value = "";
+    boolPreviewLoading.value = boolInitialized.value;
+    if (!boolInitialized.value) return;
+    previewTimer = setTimeout(() => void refreshPreview(intRevision), 400);
+  },
+  { flush: "sync" },
+);
 onMounted(async () => {
-  boolLoading.value = true;
   try {
     if (!props.scheduleId) {
       const defaults = await requestApi("/schedules/defaults/");
+      if (boolDisposed) return;
       if (isRecord(defaults) && typeof defaults.time_zone === "string") {
         strTimeZone.value = defaults.time_zone;
         strActiveFrom.value =
@@ -326,6 +421,7 @@ onMounted(async () => {
     }
     if (props.scheduleId) {
       const schedule = await getSchedule(props.scheduleId);
+      if (boolDisposed) return;
       strName.value = schedule.name;
       strDepartmentId.value = schedule.department_id;
       strPackageId.value = schedule.package_id;
@@ -343,20 +439,24 @@ onMounted(async () => {
         schedule.time_zone,
       );
       strCron.value = schedule.cron;
-      if (boolVisualSupported.value) strVisualCron.value = schedule.cron;
       settings.value = cloneRunSettings(schedule.settings);
     }
     await loadPackages();
-    await refreshPreview();
+    if (boolDisposed) return;
+    boolInitialized.value = true;
+    void changeCron(strCron.value);
   } catch (e) {
-    strError.value = getApiError(e).message;
+    if (!boolDisposed) strError.value = getApiError(e).message;
   } finally {
-    boolLoading.value = false;
+    if (!boolDisposed) boolLoading.value = false;
   }
 });
 onBeforeUnmount(() => {
+  boolDisposed = true;
   clearTimeout(previewTimer);
+  intPackageRevision++;
   intPreviewRevision++;
+  intVisualRevision.value++;
 });
 </script>
 <style scoped></style>

@@ -4,7 +4,7 @@
     v-model="strTargetType"
     inline
     label="Target Type"
-    :disabled="disabled"
+    :disabled="disabled || boolLoading || !departmentId"
     @update:model-value="changeType">
     <v-radio label="Executors" value="executor" />
     <v-radio label="Executor Group" value="group" />
@@ -23,7 +23,7 @@
     chips
     closable-chips
     :loading="boolLoading"
-    :disabled="disabled"
+    :disabled="disabled || boolLoading || !departmentId"
     :rules="[(value) => value.length > 0 || 'Select at least one Executor.']">
     <template #item="{ props: itemProps, item }">
       <v-list-item
@@ -39,7 +39,7 @@
     item-value="id"
     label="Executor Group"
     :loading="boolLoading"
-    :disabled="disabled"
+    :disabled="disabled || boolLoading || !departmentId"
     :rules="[(value) => !!value || 'Select a group.']">
     <template #item="{ props: itemProps, item }">
       <v-list-item
@@ -47,13 +47,9 @@
         :subtitle="`${item.raw.member_count} members · ${item.raw.online_count} online`" />
     </template>
   </v-select>
-  <p class="text-body-2 text-medium-emphasis">
-    Offline or paused Executors and empty groups can be saved. Availability is checked when
-    dispatching.
-  </p>
 </template>
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { onBeforeUnmount, ref, watch } from "vue";
 import { getExecutorList } from "@/api/executors";
 import { getExecutorGroupList } from "@/api/executorGroups";
 import { getApiError } from "@/api/errors";
@@ -76,13 +72,12 @@ function changeType(): void {
 }
 async function loadTargets(): Promise<void> {
   const intCurrentRevision = ++intRevision;
-  if (!props.departmentId) {
-    arrExecutor.value = [];
-    arrGroup.value = [];
-    return;
-  }
-  boolLoading.value = true;
+  const strDepartmentId = props.departmentId;
+  arrExecutor.value = [];
+  arrGroup.value = [];
   strError.value = "";
+  boolLoading.value = !!strDepartmentId;
+  if (!strDepartmentId) return;
   try {
     const [arrExecutorResult, arrGroupResult] = await Promise.all([
       (async (): Promise<ExecutorListEntryResponse[]> => {
@@ -91,9 +86,10 @@ async function loadTargets(): Promise<void> {
         let intTotal: number;
         do {
           const result = await getExecutorList(
-            { name: "", departmentIds: [props.departmentId], dispatchStates: [] },
+            { name: "", departmentIds: [strDepartmentId], dispatchStates: [] },
             intPage++,
           );
+          if (intCurrentRevision !== intRevision) return [];
           arrResult.push(...result.executors);
           intTotal = result.total_pages;
         } while (intPage <= intTotal);
@@ -105,9 +101,10 @@ async function loadTargets(): Promise<void> {
         let intTotal: number;
         do {
           const result = await getExecutorGroupList(
-            { name: "", departmentIds: [props.departmentId] },
+            { name: "", departmentIds: [strDepartmentId] },
             intPage++,
           );
+          if (intCurrentRevision !== intRevision) return [];
           arrResult.push(...result.executor_groups);
           intTotal = result.total_pages;
         } while (intPage <= intTotal);
@@ -129,5 +126,8 @@ watch(
   () => void loadTargets(),
   { immediate: true },
 );
+onBeforeUnmount(() => {
+  intRevision++;
+});
 </script>
 <style scoped></style>
