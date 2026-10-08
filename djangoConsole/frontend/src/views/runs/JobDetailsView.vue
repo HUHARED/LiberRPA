@@ -102,7 +102,7 @@
       <v-expansion-panel title="Identifiers">
         <v-expansion-panel-text>
           <p>Job ID: {{ job.id }}</p>
-          <p>Request ID: {{ job.request_id }}</p>
+          <p>Job Request ID: {{ job.job_request_id }}</p>
         </v-expansion-panel-text>
       </v-expansion-panel>
     </v-expansion-panels>

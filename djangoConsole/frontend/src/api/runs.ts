@@ -46,7 +46,7 @@ export const ARR_OUTPUTS_STATUS = [
 ] as const;
 export interface JobInfo {
   id: string;
-  request_id: string;
+  job_request_id: string;
   department_id: string;
   source: (typeof ARR_JOB_SOURCE)[number];
   schedule_id: string | null;
@@ -198,6 +198,7 @@ function isJob(value: unknown): value is JobInfo {
   return (
     isRecord(value) &&
     typeof value.id === "string" &&
+    typeof value.job_request_id === "string" &&
     [...ARR_JOB_STATE, "finished"].some((state) => value.state === state) &&
     ARR_JOB_SOURCE.some((source) => value.source === source) &&
     ["high", "normal", "low"].some((priority) => value.priority === priority) &&
@@ -279,18 +280,29 @@ export async function createJobs(
   executorIds: string[],
   groupId: string | null,
   settings: RunOverrides,
-  requestId: string,
+  clientRequestId: string,
 ): Promise<void> {
-  await requestApi("/jobs/", {
+  const result = await requestApi("/jobs/", {
     method: "POST",
     body: {
-      request_id: requestId,
+      request_id: clientRequestId,
       package_id: packageId,
       executor_ids: executorIds,
       group_id: groupId,
       settings,
     },
   });
+  if (
+    !isRecord(result) ||
+    result.request_id !== clientRequestId ||
+    typeof result.job_request_id !== "string" ||
+    !Array.isArray(result.jobs) ||
+    result.jobs.length === 0 ||
+    !result.jobs.every(
+      (job: unknown) => isJob(job) && job.job_request_id === result.job_request_id,
+    )
+  )
+    return rejectInvalidResponse();
 }
 export async function controlJob(
   id: string,

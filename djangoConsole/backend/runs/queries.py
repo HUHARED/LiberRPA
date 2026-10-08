@@ -88,7 +88,7 @@ def build_job_payload(job: Job, *, details: bool = False) -> dict[str, object]:
     ).first()
     dictPayload: dict[str, object] = {
         "id": job.id,
-        "request_id": job.request_id,
+        "job_request_id": job.request_id,
         "department_id": job.department_id,
         "source": job.request.source,
         "schedule_id": job.request.schedule_id,

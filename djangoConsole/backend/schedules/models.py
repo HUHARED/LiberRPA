@@ -148,7 +148,7 @@ class ScheduleTrigger(models.Model):
         choices=TriggerStatus.choices,
     )
     reason = models.CharField(max_length=1000, blank=True, default="")
-    request_id = models.UUIDField(null=True, blank=True)
+    job_request_id = models.UUIDField(null=True, blank=True)
 
     class Meta:
         indexes = [

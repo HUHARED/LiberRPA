@@ -79,7 +79,7 @@ const boolLoading = ref(true);
 const boolBusy = ref(false);
 const boolArgsValid = ref(true);
 const strError = ref("");
-let strRequestId = crypto.randomUUID();
+let strClientRequestId = crypto.randomUUID();
 let strSubmittedBody = "";
 async function submit(): Promise<void> {
   if (boolBusy.value || boolLoading.value || !settings.value || !boolArgsValid.value)
@@ -106,14 +106,14 @@ async function submit(): Promise<void> {
     const strTargetGroupId = strGroupId.value;
     const strBody = JSON.stringify([arrTargetId, strTargetGroupId, runOverrides]);
     if (strSubmittedBody && strSubmittedBody !== strBody)
-      strRequestId = crypto.randomUUID();
+      strClientRequestId = crypto.randomUUID();
     strSubmittedBody = strBody;
     await createJobs(
       props.packageId,
       arrTargetId,
       strTargetGroupId,
       runOverrides,
-      strRequestId,
+      strClientRequestId,
     );
     emit("saved");
   } catch (e) {

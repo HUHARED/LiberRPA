@@ -14,6 +14,7 @@ from django.utils import timezone
 from organizations.models import Organization
 from organizations.permissions import is_organization_business_available
 from packages.runtime import build_run_settings
+from runs.models import JobSource
 from runs.services import accept_request
 
 from .cron import get_next_trigger
@@ -119,7 +120,7 @@ def _process_trigger(
         ).exists():
             _advance(schedule, scheduledAt)
             return
-        requestId = uuid.uuid4()
+        clientRequestId = uuid.uuid4()
         try:
             # A savepoint prevents partial Job acceptance if a current input or target fails validation.
             with transaction.atomic():
@@ -132,9 +133,9 @@ def _process_trigger(
                         uuid.UUID(strValue) for strValue in schedule.executor_ids
                     ],
                     groupId=schedule.group_id,
-                    source="schedule",
+                    source=JobSource.SCHEDULE,
                     actorId=schedule.created_by_id,
-                    requestId=requestId,
+                    clientRequestId=clientRequestId,
                     scheduleId=schedule.pk,
                     scheduleName=schedule.name,
                     scheduledAt=scheduledAt,
@@ -144,7 +145,7 @@ def _process_trigger(
                 schedule_id=schedule.pk,
                 scheduled_at=scheduledAt,
                 status=TriggerStatus.ACCEPTED,
-                request_id=jobRequest.pk,
+                job_request_id=jobRequest.pk,
             )
         except (ValidationError, PermissionDenied, ObjectDoesNotExist) as e:
             strReason = " ".join(e.messages) if isinstance(e, ValidationError) else str(e)

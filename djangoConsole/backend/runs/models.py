@@ -95,7 +95,7 @@ class JobRequest(models.Model):
         "organizations.Organization", on_delete=models.CASCADE
     )
     department = models.ForeignKey("organizations.Department", on_delete=models.PROTECT)
-    request_id = models.UUIDField()
+    client_request_id = models.UUIDField()
     actor_id = models.UUIDField(null=True)
     actor_name = models.CharField(
         max_length=INT_DISPLAY_NAME_SNAPSHOT_MAX_LENGTH, blank=True
@@ -113,7 +113,9 @@ class JobRequest(models.Model):
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=["organization", "request_id"], name="job_request_identity_unique"
+                fields=["organization", "actor_id", "source", "client_request_id"],
+                name="job_request_identity_unique",
+                nulls_distinct=False,
             ),
             models.UniqueConstraint(
                 fields=["schedule_id", "scheduled_at"],

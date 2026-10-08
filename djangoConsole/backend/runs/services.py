@@ -277,7 +277,7 @@ def get_existing_request(
     access: OrganizationAccessContext,
     *,
     source: JobSource,
-    requestId: uuid.UUID,
+    clientRequestId: uuid.UUID,
     requestContent: dict,
 ) -> JobRequest | None:
     """Return an authenticated receipt before parsing defaults that may have changed after admission."""
@@ -285,7 +285,7 @@ def get_existing_request(
         organization=access.organization,
         actor_id=access.actorId,
         source=source,
-        request_id=requestId,
+        client_request_id=clientRequestId,
     ).first()
     if previous is None:
         return None
@@ -313,9 +313,9 @@ def accept_request(
     settings: dict | None,
     executorIds: list[uuid.UUID],
     groupId: uuid.UUID | None,
-    source: str,
+    source: JobSource,
     actorId: uuid.UUID | None,
-    requestId: uuid.UUID,
+    clientRequestId: uuid.UUID,
     scheduleId: uuid.UUID | None = None,
     scheduleName: str = "",
     scheduledAt: datetime | None = None,
@@ -371,7 +371,7 @@ def accept_request(
         organization_id=organizationId,
         actor_id=actorId,
         source=jobSource,
-        request_id=requestId,
+        client_request_id=clientRequestId,
     ).first()
     if previous:
         if previous.request_sha256 != strFingerprint:
@@ -445,7 +445,7 @@ def accept_request(
     jobRequest = JobRequest.objects.create(
         organization=organization,
         department=department,
-        request_id=requestId,
+        client_request_id=clientRequestId,
         actor_id=actorId,
         actor_name=strActorName,
         source=jobSource,

@@ -233,12 +233,13 @@ def _process_work_request(
                 previous = get_existing_request(
                     access,
                     source=source,
-                    requestId=creationRequest.request_id,
+                    clientRequestId=creationRequest.request_id,
                     requestContent=creationRequest.model_dump(mode="json"),
                 )
                 if previous is not None:
                     return JsonResponse({
-                        "request_id": previous.id,
+                        "request_id": previous.client_request_id,
+                        "job_request_id": previous.id,
                         "jobs": [
                             build_job_payload(job)
                             for job in previous.jobs.select_related("request")
@@ -260,16 +261,15 @@ def _process_work_request(
                     settings=dictSettings,
                     executorIds=creationRequest.executor_ids,
                     groupId=creationRequest.group_id,
-                    source=JobSource.API
-                    if access.channel == AccessChannel.API_KEY
-                    else JobSource.MANUAL,
+                    source=source,
                     actorId=access.actorId,
-                    requestId=creationRequest.request_id,
+                    clientRequestId=creationRequest.request_id,
                     requestContent=creationRequest.model_dump(mode="json"),
                 )
                 return JsonResponse(
                     {
-                        "request_id": jobRequest.id,
+                        "request_id": jobRequest.client_request_id,
+                        "job_request_id": jobRequest.id,
                         "jobs": [
                             build_job_payload(job)
                             for job in jobRequest.jobs.select_related("request")
