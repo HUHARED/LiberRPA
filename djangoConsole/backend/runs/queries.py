@@ -167,7 +167,16 @@ def build_run_payload(run: Run, *, details: bool = False) -> dict[str, object]:
     if details:
         from .transfers import build_run_file_availability
 
+        dictDepartmentById: dict[uuid.UUID, Department] = (
+            Department.objects
+            .filter(organization_id=job.request.organization_id)
+            .only("id", "parent_id", "name", "deleted_at")
+            .in_bulk()
+        )
+        department = dictDepartmentById[job.department_id]
         dictPayload.update({
+            "department_path": get_department_path(department, dictDepartmentById),
+            "department_deleted_at": department.deleted_at,
             "files": build_run_file_availability(run),
             "inputs": job.inputs,
             "outputs": run.outputs,

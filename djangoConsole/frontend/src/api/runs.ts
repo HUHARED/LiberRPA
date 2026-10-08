@@ -4,6 +4,7 @@ import { requestApi } from "./client";
 import {
   isDateString,
   isNonnegativeInteger,
+  isNullableDateString,
   isRecord,
   parsePaginationResponse,
   rejectInvalidResponse,
@@ -111,6 +112,8 @@ export interface RunFileAvailability {
   size_bytes: number | null;
 }
 export interface RunDetails extends RunInfo {
+  department_path: string;
+  department_deleted_at: string | null;
   inputs: RunSnapshot;
   outputs: Record<string, JsonValue> | null;
   outputs_reason: string;
@@ -252,6 +255,9 @@ export async function getRun(id: string): Promise<RunDetails> {
   if (
     !isRecord(result) ||
     !isRecord(result.run) ||
+    typeof result.run.department_path !== "string" ||
+    result.run.department_path.length === 0 ||
+    !isNullableDateString(result.run.department_deleted_at) ||
     !isRecord(result.run.inputs) ||
     !isRun(result.run)
   )

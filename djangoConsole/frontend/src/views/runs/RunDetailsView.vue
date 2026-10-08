@@ -117,7 +117,10 @@
             <tbody>
               <tr>
                 <td>Department</td>
-                <td>{{ strDepartment }}</td>
+                <td>
+                  {{ run.department_path }}
+                  <span v-if="run.department_deleted_at !== null">(Deleted)</span>
+                </td>
               </tr>
               <tr>
                 <td>Source</td>
@@ -276,12 +279,6 @@ const strError = ref("");
 const rerunInfo = ref<Awaited<ReturnType<typeof getRerun>> | null>(null);
 let timer: ReturnType<typeof setInterval> | undefined;
 const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");
-const strDepartment = computed(
-  () =>
-    sessionStore.access?.departments.find(
-      (department) => department.id === run.value?.department_id,
-    )?.path ?? "Unavailable",
-);
 
 let intLoadRevision = 0;
 async function load(): Promise<void> {
