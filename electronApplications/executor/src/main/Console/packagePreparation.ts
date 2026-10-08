@@ -6,7 +6,9 @@ import path from "path";
 
 import { ensureNonEmptyString, ensureRecord } from "../Common/validation";
 import { getPythonEnvironmentPath, strDocumentsFolderPath } from "../Config/environment";
-import { extractProjectPackageArchive } from "../Package/packageArchive";
+import { runFileWorker } from "../FileSystem/fileWorker";
+import strPackageArchiveWorkerPath from "../Package/packageArchiveWorker?modulePath";
+import type { PackageArchiveArgs } from "../Package/packageArchiveWorker";
 import {
   readProjectPackageMetadata,
   validatePythonPackageEnvironment,
@@ -61,32 +63,48 @@ async function preparePackageFiles(
     if (!download.ok || !download.body)
       throw new Error(`Package download failed (${download.status}).`);
     const digest = createHash("sha256");
-    const intFile = fs.openSync(strArchive, "wx");
+    const fileObj = await fs.promises.open(strArchive, "wx");
     let intBytes = 0;
     try {
       for await (const chunk of download.body) {
         intBytes += chunk.byteLength;
         if (intBytes > INT_MAX_PACKAGE_BYTES)
           throw new Error("Package download exceeds 512 MiB.");
+        abortPreparation.signal.throwIfAborted();
         digest.update(chunk);
-        fs.writeSync(intFile, chunk);
+        let intOffset = 0;
+        while (intOffset < chunk.byteLength) {
+          const { bytesWritten } = await fileObj.write(chunk, intOffset);
+          if (bytesWritten === 0)
+            throw new Error("The package download could not be written.");
+          intOffset += bytesWritten;
+        }
       }
     } finally {
-      fs.closeSync(intFile);
+      await fileObj.close();
     }
     if (intBytes !== metadata.size_bytes || digest.digest("hex") !== packageInfo.sha256)
       throw new Error("Downloaded package size or SHA256 does not match Console.");
-    extractProjectPackageArchive(strArchive, strStaging);
+    await runFileWorker<PackageArchiveArgs>(
+      strPackageArchiveWorkerPath,
+      { packageFilePath: strArchive, stagedProjectPath: strStaging },
+      abortPreparation.signal,
+    );
+    abortPreparation.signal.throwIfAborted();
     const packageMetadata = await readProjectPackageMetadata(strStaging);
     if (
       packageMetadata.name !== packageInfo.name ||
       packageMetadata.version !== packageInfo.version
     )
       throw new Error("Package identity does not match the requested version.");
+    abortPreparation.signal.throwIfAborted();
     fs.renameSync(strStaging, packagePath);
   } finally {
-    fs.rmSync(strArchive, { force: true });
-    fs.rmSync(strStaging, { force: true, recursive: true });
+    try {
+      await fs.promises.rm(strArchive, { force: true });
+    } finally {
+      await fs.promises.rm(strStaging, { force: true, recursive: true });
+    }
   }
 }
 

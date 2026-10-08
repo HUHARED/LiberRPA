@@ -7,7 +7,6 @@ import { performance } from "perf_hooks";
 import { finished } from "stream/promises";
 import os from "os";
 import path from "path";
-import AdmZip from "adm-zip";
 
 import { getErrorMessage } from "../../shared/error";
 import {
@@ -15,9 +14,12 @@ import {
   ensurePositiveInteger,
   ensureRecord,
 } from "../Common/validation";
+import { runFileWorker } from "../FileSystem/fileWorker";
 import { loggerMain } from "../Logging/logger";
 import { ensureExistingRunLogFolderPath } from "../Run/logPath";
 import { requestConsole } from "./consoleApi";
+import strLogArchiveWorkerPath from "./logArchiveWorker?modulePath";
+import type { LogArchiveArgs } from "./logArchiveWorker";
 import type { ConsoleCredentialSnapshot } from "./consoleContextBridge";
 import {
   ConsoleRecordingStatus,
@@ -310,10 +312,16 @@ export async function flushConsoleLogs(
   }
 }
 
-function getTransferFile(
+async function prepareTransferFile(
   record: ConsoleWorkRecord,
   kind: string,
-): { filePath: string; temporaryFolder?: string; contentType: string; maxBytes: number } {
+): Promise<{
+  filePath: string;
+  temporaryFolder?: string;
+  contentType: string;
+  maxBytes: number;
+}> {
+  abortFiles.signal.throwIfAborted();
   if (!record.started || !record.ended)
     throw new Error("This actual Run has not ended on the original client.");
   const strFolder = ensureExistingRunLogFolderPath(record.started.logPath);
@@ -330,19 +338,23 @@ function getTransferFile(
       throw new Error("Recording finalization has not completed successfully.");
   }
   if (kind === "logs") {
-    const arrName = fs
-      .readdirSync(strFolder)
-      .filter((strName) => /^human_read_.+\.log(?:\.\d+)?$/.test(strName));
-    if (!arrName.length)
-      throw new Error("The original HumanReadableLog files are unavailable.");
-    const strTemporaryFolder = fs.mkdtempSync(path.join(os.tmpdir(), "liberrpa-logs-"));
+    const strTemporaryFolder = await fs.promises.mkdtemp(
+      path.join(os.tmpdir(), "liberrpa-logs-"),
+    );
     const strFilePath = path.join(
       strTemporaryFolder,
       `${record.assignment.run_id}-logs.zip`,
     );
-    const zipObj = new AdmZip();
-    for (const strName of arrName) zipObj.addLocalFile(path.join(strFolder, strName));
-    zipObj.writeZip(strFilePath);
+    try {
+      await runFileWorker<LogArchiveArgs>(
+        strLogArchiveWorkerPath,
+        { logFolderPath: strFolder, archiveFilePath: strFilePath },
+        abortFiles.signal,
+      );
+    } catch (e: unknown) {
+      await fs.promises.rm(strTemporaryFolder, { recursive: true, force: true });
+      throw e;
+    }
     return {
       filePath: strFilePath,
       temporaryFolder: strTemporaryFolder,
@@ -382,12 +394,12 @@ async function sendConsoleFile(
       ensureNonEmptyString(transfer.run_id, "Transfer Run ID"),
     );
     if (!record) throw new Error("The original Run is unavailable on this client.");
-    const source = getTransferFile(
+    const source = await prepareTransferFile(
       record,
       ensureNonEmptyString(transfer.kind, "File kind"),
     );
     strTemporaryFolder = source.temporaryFolder;
-    const stat = fs.statSync(source.filePath);
+    const stat = await fs.promises.stat(source.filePath);
     if (!stat.isFile() || stat.size > source.maxBytes)
       throw new Error(
         "The requested original file is missing or exceeds its download limit.",
@@ -520,7 +532,8 @@ async function sendConsoleFile(
       setTransferStarted.add(strTransferId);
     } else throw e;
   } finally {
-    if (strTemporaryFolder) fs.rmSync(strTemporaryFolder, { recursive: true, force: true });
+    if (strTemporaryFolder)
+      await fs.promises.rm(strTemporaryFolder, { recursive: true, force: true });
   }
 }
 

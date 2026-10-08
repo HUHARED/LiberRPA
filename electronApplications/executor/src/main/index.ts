@@ -38,6 +38,8 @@ import {
 import { loggerMain } from "./Logging/logger";
 import { strDefaultProjectLogFolderPath } from "./Config/basicConfig";
 import { dictConfigExecutor } from "./Config/executorConfig";
+import { stopFileWorkers } from "./FileSystem/fileWorker";
+import { waitForProjectPackageInstallation } from "./Package/packageInstallation";
 import { closeDatabase, initializeDatabase } from "./Database/connection";
 import { dbMarkUnfinishedRunsAfterRestart } from "./Database/runHistoryRepository";
 import { recoverProjectPackageInstallations } from "./Package/packageInstallationTransaction";
@@ -64,6 +66,7 @@ let tray: Tray | null = null;
 let boolAppQuitting = false;
 let boolShutdownStarted = false;
 let boolShutdownComplete = false;
+let promisePackageRecovery: Promise<void> | undefined;
 
 function sendMessageToRenderer(message: Dict_Message_Main): void {
   if (boolAppQuitting) {
@@ -170,8 +173,11 @@ function createWindow(): void {
 void app
   .whenReady()
   .then(async () => {
+    if (boolShutdownStarted) return;
     initializeDatabase();
-    recoverProjectPackageInstallations();
+    promisePackageRecovery = recoverProjectPackageInstallations();
+    await promisePackageRecovery;
+    if (boolShutdownStarted) return;
     recoverProjectPackageDeletions();
     dbMarkUnfinishedRunsAfterRestart();
     recoverConsoleWorkAfterRestart();
@@ -272,7 +278,12 @@ void app
 
 async function shutdownExecutor(): Promise<void> {
   stopRecoveredRunObservation();
+  const promiseFileWorkers = stopFileWorkers();
+  // Recovery can still read database records while removing old staging folders.
+  await promisePackageRecovery?.catch(() => {});
   await stopConsoleWork();
+  await promiseFileWorkers;
+  await waitForProjectPackageInstallation();
   stopConsoleContextBridge();
   await stopConsoleAccount();
   try {

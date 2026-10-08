@@ -66,12 +66,12 @@ function parseTransaction(transactionPath: string): Dict_PackageInstallation_Tra
   };
 }
 
-export function removePackageInstallationFolderBestEffort(
+export async function removePackageInstallationFolderBestEffort(
   folderPath: string,
   context: string,
-): boolean {
+): Promise<boolean> {
   try {
-    fs.rmSync(folderPath, { recursive: true, force: true });
+    await fs.promises.rm(folderPath, { recursive: true, force: true });
     return true;
   } catch (e: unknown) {
     loggerMain.warn(`${context}: ${getErrorMessage(e)}`);
@@ -121,7 +121,7 @@ export function writeProjectPackageInstallationTransaction({
   );
 }
 
-export function recoverProjectPackageInstallations(): void {
+export async function recoverProjectPackageInstallations(): Promise<void> {
   const strStagingRootPath = path.join(
     strExecutorPackageFolderPath,
     STR_STAGING_FOLDER_NAME,
@@ -133,7 +133,7 @@ export function recoverProjectPackageInstallations(): void {
   for (const entryObj of fs.readdirSync(strStagingRootPath, { withFileTypes: true })) {
     const strTransactionFolderPath = path.join(strStagingRootPath, entryObj.name);
     if (!entryObj.isDirectory()) {
-      removePackageInstallationFolderBestEffort(
+      await removePackageInstallationFolderBestEffort(
         strTransactionFolderPath,
         "Failed to remove an invalid Package installation staging entry",
       );
@@ -145,7 +145,7 @@ export function recoverProjectPackageInstallations(): void {
       STR_TRANSACTION_FILE_NAME,
     );
     if (!fs.existsSync(strTransactionPath)) {
-      removePackageInstallationFolderBestEffort(
+      await removePackageInstallationFolderBestEffort(
         strTransactionFolderPath,
         "Failed to remove a Package staging folder without a transaction",
       );
@@ -182,7 +182,7 @@ export function recoverProjectPackageInstallations(): void {
             "Roll back an incomplete Package installation: " +
               `${dictTransaction.projectName}-${dictTransaction.projectVersion}`,
           );
-          boolRecovered = removePackageInstallationFolderBestEffort(
+          boolRecovered = await removePackageInstallationFolderBestEffort(
             strTargetPath,
             "Failed to roll back an incomplete Package installation",
           );
@@ -203,7 +203,7 @@ export function recoverProjectPackageInstallations(): void {
     }
 
     if (boolRecovered) {
-      removePackageInstallationFolderBestEffort(
+      await removePackageInstallationFolderBestEffort(
         strTransactionFolderPath,
         "Failed to clean a recovered Package installation transaction",
       );

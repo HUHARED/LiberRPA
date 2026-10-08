@@ -10,10 +10,12 @@ import {
   dbInsertProjectDetail,
   dbSelectProjectDetail,
 } from "../Database/projectRepository";
+import { runFileWorker } from "../FileSystem/fileWorker";
 import { getExecutorPackageFolderPath } from "../FileSystem/executorFiles";
 import { loggerMain } from "../Logging/logger";
 import type { Dict_ProjectPackage_InstallResult } from "../../shared/project";
-import { extractProjectPackageArchive } from "./packageArchive";
+import strPackageArchiveWorkerPath from "./packageArchiveWorker?modulePath";
+import type { PackageArchiveArgs } from "./packageArchiveWorker";
 import {
   createProjectPackageInstallationStaging,
   removePackageInstallationFolderBestEffort,
@@ -27,30 +29,14 @@ const ARR_PACKAGE_RENAME_RETRY_DELAY_MS: readonly number[] = [
 ];
 const SET_PACKAGE_RENAME_RETRY_ERROR_CODE = new Set(["EPERM", "EBUSY", "EACCES"]);
 
-let boolPackageInstallationRunning = false;
+let boolPackageSelectionOpen = false;
+let promisePackageInstallation: Promise<Dict_ProjectPackage_InstallResult> | undefined;
 let strLastPackageFolderPath: string | undefined;
 
 async function runProjectPackageInstallation(
+  packageFilePath: string,
   ensureExecutorRunning: () => void,
 ): Promise<Dict_ProjectPackage_InstallResult> {
-  const dialogResult = await dialog.showOpenDialog({
-    defaultPath: strLastPackageFolderPath,
-    properties: ["openFile"],
-    title: "Select a Flow Project Package",
-    filters: [{ name: "LiberRPA Flow Project Package", extensions: ["rpa.zip"] }],
-  });
-  if (dialogResult.canceled) {
-    return { status: "canceled" };
-  }
-
-  // Shutdown may have started while the native file dialog was open.
-  ensureExecutorRunning();
-  if (dialogResult.filePaths.length !== 1) {
-    throw new Error("Exactly one Flow Project Package must be selected.");
-  }
-
-  const strPackageFilePath = dialogResult.filePaths[0];
-  strLastPackageFolderPath = path.dirname(strPackageFilePath);
   const { transactionFolderPath, stagedProjectPath } =
     createProjectPackageInstallationStaging();
 
@@ -59,7 +45,11 @@ async function runProjectPackageInstallation(
   let boolTargetRenamed = false;
   let boolDatabaseCommitted = false;
   try {
-    extractProjectPackageArchive(strPackageFilePath, stagedProjectPath);
+    await runFileWorker<PackageArchiveArgs>(strPackageArchiveWorkerPath, {
+      packageFilePath,
+      stagedProjectPath,
+    });
+    ensureExecutorRunning();
     const packageMetadata = await readProjectPackageMetadata(stagedProjectPath);
     ensureExecutorRunning();
 
@@ -140,7 +130,7 @@ async function runProjectPackageInstallation(
       );
     }
 
-    removePackageInstallationFolderBestEffort(
+    await removePackageInstallationFolderBestEffort(
       transactionFolderPath,
       "Failed to clean the completed Package installation transaction",
     );
@@ -164,7 +154,7 @@ async function runProjectPackageInstallation(
       ) {
         boolRollbackComplete = true;
       } else {
-        boolRollbackComplete = removePackageInstallationFolderBestEffort(
+        boolRollbackComplete = await removePackageInstallationFolderBestEffort(
           strTargetPath,
           "Failed to roll back the installed Package folder",
         );
@@ -172,7 +162,7 @@ async function runProjectPackageInstallation(
     }
 
     if (boolRollbackComplete) {
-      removePackageInstallationFolderBestEffort(
+      await removePackageInstallationFolderBestEffort(
         transactionFolderPath,
         "Failed to clean the failed Package installation transaction",
       );
@@ -188,14 +178,39 @@ async function runProjectPackageInstallation(
 export async function installProjectPackage(
   ensureExecutorRunning: () => void,
 ): Promise<Dict_ProjectPackage_InstallResult> {
-  if (boolPackageInstallationRunning) {
+  if (boolPackageSelectionOpen || promisePackageInstallation !== undefined) {
     throw new Error("Another Project Package installation is already running.");
   }
 
-  boolPackageInstallationRunning = true;
+  boolPackageSelectionOpen = true;
   try {
-    return await runProjectPackageInstallation(ensureExecutorRunning);
+    const dialogResult = await dialog.showOpenDialog({
+      defaultPath: strLastPackageFolderPath,
+      properties: ["openFile"],
+      title: "Select a Flow Project Package",
+      filters: [{ name: "LiberRPA Flow Project Package", extensions: ["rpa.zip"] }],
+    });
+    boolPackageSelectionOpen = false;
+    if (dialogResult.canceled) return { status: "canceled" };
+    // Shutdown may have started while the native file dialog was open.
+    ensureExecutorRunning();
+    if (dialogResult.filePaths.length !== 1) {
+      throw new Error("Exactly one Flow Project Package must be selected.");
+    }
+
+    const strPackageFilePath = dialogResult.filePaths[0];
+    strLastPackageFolderPath = path.dirname(strPackageFilePath);
+    promisePackageInstallation = runProjectPackageInstallation(
+      strPackageFilePath,
+      ensureExecutorRunning,
+    );
+    return await promisePackageInstallation;
   } finally {
-    boolPackageInstallationRunning = false;
+    boolPackageSelectionOpen = false;
+    promisePackageInstallation = undefined;
   }
+}
+
+export async function waitForProjectPackageInstallation(): Promise<void> {
+  await promisePackageInstallation?.catch(() => {});
 }
