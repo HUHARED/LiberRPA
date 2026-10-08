@@ -24,6 +24,13 @@ export enum ConsoleWorkState {
   Unknown = "unknown",
 }
 
+export enum ConsoleRecordingStatus {
+  Recording = "recording",
+  Processing = "processing",
+  Ready = "ready",
+  Unavailable = "unavailable",
+}
+
 export interface ConsoleAssignment {
   id: string;
   job_id: string;
@@ -107,7 +114,28 @@ export function getConsoleWork(id: string): ConsoleWorkRecord | undefined {
   return row ? (JSON.parse(row.content) as ConsoleWorkRecord) : undefined;
 }
 
-export function getConsoleWorkRecords(sessionKey: string): ConsoleWorkRecord[] {
+export function getConsoleWorkForRun(
+  sessionKey: string,
+  runId: string,
+): ConsoleWorkRecord | undefined {
+  const row = getDatabase()
+    .prepare(
+      `
+      SELECT
+          content
+      FROM
+          console_work
+      WHERE
+          session_key = ?
+          AND json_extract(content, '$.assignment.run_id') = ?;
+      `,
+    )
+    .get(sessionKey, runId) as { content: string } | undefined;
+  return row ? (JSON.parse(row.content) as ConsoleWorkRecord) : undefined;
+}
+
+export function getPendingConsoleLogWork(sessionKey: string): ConsoleWorkRecord[] {
+  // NOTE: Keep the pending predicate aligned with idx_console_work_pending_logs.
   const arrRow = getDatabase()
     .prepare(
       `
@@ -116,7 +144,27 @@ export function getConsoleWorkRecords(sessionKey: string): ConsoleWorkRecord[] {
       FROM
           console_work
       WHERE
-          session_key = ?;
+          session_key = ?
+          AND (
+              (
+                  json_type(content, '$.started') = 'object'
+                  AND json_extract(content, '$.logsComplete') = 0
+              )
+              OR (
+                  json_type(content, '$.ended') = 'object'
+                  AND json_extract(
+                      content,
+                      '$.assignment.snapshot.builtin_record_video'
+                  ) = 1
+                  AND COALESCE(
+                      json_extract(
+                          json_extract(content, '$.recordingReported'),
+                          '$.status'
+                      ),
+                      ''
+                  ) NOT IN ('ready', 'unavailable')
+              )
+          );
       `,
     )
     .all(sessionKey) as { content: string }[];

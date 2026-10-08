@@ -175,7 +175,33 @@ CREATE TABLE
         rejected INTEGER NOT NULL DEFAULT 0 CHECK (rejected IN (0, 1))
     ) STRICT;
 
-CREATE INDEX idx_console_work_session_key ON console_work (session_key);
+CREATE INDEX idx_console_work_run_session ON console_work (
+    JSON_EXTRACT(content, '$.assignment.run_id'),
+    session_key
+);
+
+CREATE INDEX idx_console_work_pending_logs ON console_work (session_key)
+WHERE
+    (
+        (
+            JSON_TYPE(content, '$.started') = 'object'
+            AND JSON_EXTRACT(content, '$.logsComplete') = 0
+        )
+        OR (
+            JSON_TYPE(content, '$.ended') = 'object'
+            AND JSON_EXTRACT(
+                content,
+                '$.assignment.snapshot.builtin_record_video'
+            ) = 1
+            AND COALESCE(
+                JSON_EXTRACT(
+                    JSON_EXTRACT(content, '$.recordingReported'),
+                    '$.status'
+                ),
+                ''
+            ) NOT IN ('ready', 'unavailable')
+        )
+    );
 
 CREATE INDEX idx_console_event_pending_session_key ON console_event (session_key)
 WHERE

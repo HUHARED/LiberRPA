@@ -20,7 +20,9 @@ import { ensureExistingRunLogFolderPath } from "../Run/logPath";
 import { requestConsole } from "./consoleApi";
 import type { ConsoleCredentialSnapshot } from "./consoleContextBridge";
 import {
-  getConsoleWorkRecords,
+  ConsoleRecordingStatus,
+  getConsoleWorkForRun,
+  getPendingConsoleLogWork,
   saveConsoleLogProgress,
   reportConsoleRecording,
   type ConsoleWorkRecord,
@@ -198,21 +200,24 @@ async function flushRunLogs(
   record: ConsoleWorkRecord,
   credential: ConsoleCredentialSnapshot,
 ): Promise<void> {
-  if (
-    record.ended &&
-    record.assignment.snapshot.builtin_record_video === true &&
-    !record.recordingReported?.includes('"status":"ready"') &&
-    !record.recordingReported?.includes('"status":"unavailable"')
-  ) {
-    const strMarkerPath = path.join(record.ended.logPath, "video_record.state.json");
-    if (fs.existsSync(strMarkerPath))
-      reportConsoleRecording(
-        record.assignment.id,
-        ensureRecord(
-          JSON.parse(fs.readFileSync(strMarkerPath, "utf8")) as unknown,
-          "Recording state",
-        ),
-      );
+  if (record.ended && record.assignment.snapshot.builtin_record_video === true) {
+    const recording = record.recordingReported
+      ? ensureRecord(JSON.parse(record.recordingReported) as unknown, "Recording state")
+      : undefined;
+    if (
+      recording?.status !== ConsoleRecordingStatus.Ready &&
+      recording?.status !== ConsoleRecordingStatus.Unavailable
+    ) {
+      const strMarkerPath = path.join(record.ended.logPath, "video_record.state.json");
+      if (fs.existsSync(strMarkerPath))
+        reportConsoleRecording(
+          record.assignment.id,
+          ensureRecord(
+            JSON.parse(fs.readFileSync(strMarkerPath, "utf8")) as unknown,
+            "Recording state",
+          ),
+        );
+    }
   }
   if (!record.started || record.logsComplete || !fs.existsSync(record.started.logPath))
     return;
@@ -285,7 +290,7 @@ export async function flushConsoleLogs(
   sessionKey: string,
   credential: ConsoleCredentialSnapshot,
 ): Promise<void> {
-  for (const record of getConsoleWorkRecords(sessionKey)) {
+  for (const record of getPendingConsoleLogWork(sessionKey)) {
     const retry = mapLogRetry.get(record.assignment.id);
     if (retry && retry.nextAt > Date.now()) continue;
     try {
@@ -320,7 +325,7 @@ function getTransferFile(
       ensureRecord(
         JSON.parse(fs.readFileSync(strMarker, "utf8")) as unknown,
         "Recording state",
-      ).status !== "ready"
+      ).status !== ConsoleRecordingStatus.Ready
     )
       throw new Error("Recording finalization has not completed successfully.");
   }
@@ -372,8 +377,9 @@ async function sendConsoleFile(
   let strTemporaryFolder: string | undefined;
   let boolReady = false;
   try {
-    const record = getConsoleWorkRecords(sessionKey).find(
-      (record) => record.assignment.run_id === transfer.run_id,
+    const record = getConsoleWorkForRun(
+      sessionKey,
+      ensureNonEmptyString(transfer.run_id, "Transfer Run ID"),
     );
     if (!record) throw new Error("The original Run is unavailable on this client.");
     const source = getTransferFile(
