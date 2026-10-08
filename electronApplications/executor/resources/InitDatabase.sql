@@ -70,9 +70,29 @@ CREATE TABLE
         source TEXT NOT NULL CHECK (source IN ('local', 'console')),
         run_id TEXT NOT NULL UNIQUE,
         job_id TEXT NOT NULL,
-        attempt INTEGER NOT NULL CHECK (attempt > 0),
+        attempt INTEGER NOT NULL CHECK (attempt BETWEEN 1 AND 4),
         inputs TEXT NOT NULL,
-        outputs TEXT NOT NULL,
+        -- NOTE: Keep this envelope aligned with RunOutputs in shared/run.ts; item validation stays in runState.ts.
+        outputs TEXT NOT NULL CHECK (
+            CASE
+                WHEN JSON_VALID(outputs) THEN (
+                    JSON_TYPE(outputs) IS 'object'
+                    AND JSON_TYPE(outputs, '$.status') IS 'text'
+                    AND JSON_TYPE(outputs, '$.unavailableKeys') IS 'array'
+                    AND JSON_TYPE(outputs, '$.reason') IS 'text'
+                    AND CASE JSON_EXTRACT(outputs, '$.status')
+                        WHEN 'complete' THEN JSON_TYPE(outputs, '$.values') IS 'array'
+                        AND JSON_ARRAY_LENGTH(outputs, '$.unavailableKeys') = 0
+                        WHEN 'partial' THEN JSON_TYPE(outputs, '$.values') IS 'array'
+                        AND JSON_ARRAY_LENGTH(outputs, '$.unavailableKeys') > 0
+                        WHEN 'unavailable' THEN JSON_TYPE(outputs, '$.values') IS 'null'
+                        AND JSON_ARRAY_LENGTH(outputs, '$.unavailableKeys') = 0
+                        ELSE 0
+                    END
+                ) IS TRUE
+                ELSE 0
+            END
+        ),
         error_summary TEXT NULL,
         schedule_name TEXT NULL DEFAULT NULL,
         project_id INTEGER NULL CHECK (
@@ -85,7 +105,7 @@ CREATE TABLE
         run_started_at_ms INTEGER NOT NULL CHECK (run_started_at_ms >= 0),
         run_ended_at_ms INTEGER NULL DEFAULT NULL CHECK (
             run_ended_at_ms IS NULL
-            OR run_ended_at_ms >= 0
+            OR run_ended_at_ms >= run_started_at_ms
         ),
         status TEXT NOT NULL DEFAULT 'running' CHECK (
             status IN (
@@ -154,5 +174,11 @@ CREATE TABLE
         payload TEXT NOT NULL,
         rejected INTEGER NOT NULL DEFAULT 0 CHECK (rejected IN (0, 1))
     ) STRICT;
+
+CREATE INDEX idx_console_work_session_key ON console_work (session_key);
+
+CREATE INDEX idx_console_event_pending_session_key ON console_event (session_key)
+WHERE
+    rejected = 0;
 
 PRAGMA user_version = 2;
