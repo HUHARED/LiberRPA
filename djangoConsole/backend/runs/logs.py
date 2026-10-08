@@ -13,7 +13,7 @@ from django.conf import settings
 from django.contrib.auth import HASH_SESSION_KEY
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError
 from django.db import transaction
-from django.db.models import Sum
+from django.db.models import Aggregate, Count, Sum
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
@@ -126,32 +126,11 @@ def _validate_log_text(value: JsonValue) -> None:
         validate_json_text(value)
 
 
-def _build_run_log(entryText: str, run: Run) -> RunLog:
-    def parse_log_object(fieldPairs: list[tuple[str, JsonValue]]) -> dict[str, JsonValue]:
-        dictField: dict[str, JsonValue] = {}
-        for strKey, value in fieldPairs:
-            if strKey in dictField:
-                raise ValueError("Duplicate JSON fields are not allowed.")
-            dictField[strKey] = value
-        return dictField
-
-    try:
-        intSourceBytes = len(entryText.encode("utf-8"))
-    except UnicodeEncodeError:
-        raise ValueError("The log entry is not valid UTF-8.") from None
-    if intSourceBytes > _INT_ENTRY_BYTES:
-        raise ValueError("The log entry exceeds 256 KiB.")
-    try:
-        value = cast(JsonValue, json.loads(entryText, object_pairs_hook=parse_log_object))
-    except (ValueError, RecursionError):
-        raise ValueError("Use a valid JSON log entry without duplicate fields.") from None
-    if not isinstance(value, dict):
-        raise ValueError("A log entry must be an object.")
+def _parse_run_log(value: dict[str, JsonValue], run: Run, logId: uuid.UUID) -> RunLog:
     if not _SET_BUILTIN_LOG_KEYS.issubset(value):
         raise ValueError("All MachineLog fields are required.")
     dictText: dict[str, str] = {}
     for strKey in (
-        "logId",
         "timestamp",
         "level",
         "userName",
@@ -164,12 +143,6 @@ def _build_run_log(entryText: str, run: Run) -> RunLog:
         if not isinstance(fieldValue, str):
             raise ValueError(f"The {strKey} field must be text.")
         dictText[strKey] = fieldValue
-    try:
-        logId = uuid.UUID(dictText["logId"])
-    except ValueError:
-        raise ValueError("A UUID4 logId is required.") from None
-    if logId.version != 4:
-        raise ValueError("A UUID4 logId is required.")
     try:
         timestamp = datetime.fromisoformat(dictText["timestamp"])
         if timezone.is_naive(timestamp):
@@ -226,6 +199,42 @@ def _build_run_log(entryText: str, run: Run) -> RunLog:
 @never_cache
 @require_POST
 def upload_logs(request: HttpRequest, runId: uuid.UUID) -> HttpResponse:
+    def parse_log_object(fieldPairs: list[tuple[str, JsonValue]]) -> dict[str, JsonValue]:
+        dictField: dict[str, JsonValue] = {}
+        for strKey, value in fieldPairs:
+            if strKey in dictField:
+                raise ValueError("Duplicate JSON fields are not allowed.")
+            dictField[strKey] = value
+        return dictField
+
+    def parse_log_identity(entryText: str) -> tuple[uuid.UUID, dict[str, JsonValue]]:
+        try:
+            intSourceBytes = len(entryText.encode("utf-8"))
+        except UnicodeEncodeError:
+            raise ValueError("The log entry is not valid UTF-8.") from None
+        if intSourceBytes > _INT_ENTRY_BYTES:
+            raise ValueError("The log entry exceeds 256 KiB.")
+        try:
+            value = cast(
+                JsonValue, json.loads(entryText, object_pairs_hook=parse_log_object)
+            )
+        except (ValueError, RecursionError):
+            raise ValueError(
+                "Use a valid JSON log entry without duplicate fields."
+            ) from None
+        if not isinstance(value, dict):
+            raise ValueError("A log entry must be an object.")
+        strLogId = value.get("logId")
+        if not isinstance(strLogId, str):
+            raise ValueError("A UUID4 logId is required.")
+        try:
+            logId = uuid.UUID(strLogId)
+        except ValueError:
+            raise ValueError("A UUID4 logId is required.") from None
+        if logId.version != 4:
+            raise ValueError("A UUID4 logId is required.")
+        return logId, value
+
     authentication = authenticate_resource_request(request)
     if isinstance(authentication, JsonResponse):
         return authentication
@@ -239,6 +248,16 @@ def upload_logs(request: HttpRequest, runId: uuid.UUID) -> HttpResponse:
     payload = parse_json_request(request, LogBatchRequest, maxBodyBytes=_INT_UPLOAD_BYTES)
     if isinstance(payload, JsonResponse):
         return payload
+    listEntry: list[tuple[int, uuid.UUID, dict[str, JsonValue]]] = []
+    dictRejected: dict[int, str] = {}
+    # Decode each source entry once, before acquiring the organization write lock.
+    for intIndex, strEntry in enumerate(payload.logs):
+        try:
+            logId, dictEntry = parse_log_identity(strEntry)
+        except ValueError as e:
+            dictRejected[intIndex] = str(e)
+            continue
+        listEntry.append((intIndex, logId, dictEntry))
     try:
         with transaction.atomic():
             access = lock_resource_write_access(authentication)
@@ -256,54 +275,66 @@ def upload_logs(request: HttpRequest, runId: uuid.UUID) -> HttpResponse:
                     "existing": [],
                     "rejected": [],
                 })
-            runLogQuery = RunLog.objects.filter(
-                run__job__request__organization=access.organization
-            )
-            intUsedBytes = runLogQuery.aggregate(total=Sum("byte_count"))["total"] or 0
-            boolNewGroup = not run.logs.exists()
-            if (
-                boolNewGroup
-                and runLogQuery.values("run_id").distinct().count()
-                >= settings.CONSOLE_LIMITS.maxRunLogGroupsPerOrganization
-            ):
-                return build_error_response(
-                    "run_log_capacity",
-                    "The organization log group limit has been reached.",
-                    statusCode=409,
+            dictLogRunId: dict[uuid.UUID, uuid.UUID] = (
+                dict(
+                    RunLog.objects.filter(
+                        log_id__in={logId for _, logId, _ in listEntry}
+                    ).values_list("log_id", "run_id")
                 )
+                if listEntry
+                else {}
+            )
             listSaved: list[str] = []
             listExisting: list[str] = []
-            listRejected: list[dict] = []
-            for intIndex, strEntry in enumerate(payload.logs):
-                try:
-                    runLog = _build_run_log(strEntry, run)
-                except ValueError as e:
-                    listRejected.append({
-                        "index": intIndex,
-                        "reason": str(e),
-                    })
-                    continue
-                existingLog = RunLog.objects.filter(log_id=runLog.log_id).first()
-                if existingLog is not None:
-                    if existingLog.run_id == run.pk:
-                        listExisting.append(str(runLog.log_id))
+            listRunLog: list[RunLog] = []
+            for intIndex, logId, dictEntry in listEntry:
+                existingRunId = dictLogRunId.get(logId)
+                if existingRunId is not None:
+                    if existingRunId == run.pk:
+                        listExisting.append(str(logId))
                     else:
-                        listRejected.append({
-                            "index": intIndex,
-                            "reason": "This log identity belongs to another Run.",
-                        })
+                        dictRejected[intIndex] = (
+                            "This log identity belongs to another Run."
+                        )
                     continue
+                try:
+                    runLog = _parse_run_log(dictEntry, run, logId)
+                except ValueError as e:
+                    dictRejected[intIndex] = str(e)
+                    continue
+                listRunLog.append(runLog)
+                listSaved.append(str(logId))
+                # Deduplicate later entries in this batch only after this entry passed validation.
+                dictLogRunId[logId] = run.pk
+            if listRunLog:
+                boolNewGroup = not run.logs.exists()
+                dictUsageQuery: dict[str, Aggregate] = {
+                    "total": Sum("byte_count", default=0)
+                }
+                if boolNewGroup:
+                    dictUsageQuery["groups"] = Count("run_id", distinct=True)
+                dictUsage = RunLog.objects.filter(
+                    run__job__request__organization=access.organization
+                ).aggregate(**dictUsageQuery)
                 if (
-                    intUsedBytes + runLog.byte_count
+                    boolNewGroup
+                    and dictUsage["groups"]
+                    >= settings.CONSOLE_LIMITS.maxRunLogGroupsPerOrganization
+                ):
+                    return build_error_response(
+                        "run_log_capacity",
+                        "The organization log group limit has been reached.",
+                        statusCode=409,
+                    )
+                if (
+                    dictUsage["total"] + sum(runLog.byte_count for runLog in listRunLog)
                     > settings.CONSOLE_LIMITS.maxRunLogBytesPerOrganization
                 ):
-                    # Roll back this batch; the sender retains original identities for retry after cleanup.
                     raise ValidationError(
                         "The organization log byte limit has been reached."
                     )
-                runLog.save(force_insert=True)
-                intUsedBytes += runLog.byte_count
-                listSaved.append(str(runLog.log_id))
+                # Do not ignore database conflicts: receipts must describe a fully committed batch.
+                RunLog.objects.bulk_create(listRunLog)
             if payload.complete:
                 RunLogState.objects.update_or_create(run=run, defaults={"complete": True})
             return JsonResponse({
@@ -311,7 +342,10 @@ def upload_logs(request: HttpRequest, runId: uuid.UUID) -> HttpResponse:
                 "accepting": True,
                 "saved": listSaved,
                 "existing": listExisting,
-                "rejected": listRejected,
+                "rejected": [
+                    {"index": intIndex, "reason": strReason}
+                    for intIndex, strReason in sorted(dictRejected.items())
+                ],
             })
     except (PermissionDenied, ObjectDoesNotExist):
         return build_error_response(
