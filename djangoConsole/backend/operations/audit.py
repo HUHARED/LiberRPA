@@ -175,7 +175,7 @@ def record_audit(
     dictChange = (
         {} if before is None else _build_changes(before, get_audit_snapshot(target))
     )
-    if before is not None and not dictChange:
+    if before is not None and not dictChange and not metadata:
         return
     strObjectName = (
         str(target.user)

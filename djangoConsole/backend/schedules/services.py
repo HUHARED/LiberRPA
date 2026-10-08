@@ -165,7 +165,7 @@ def save_schedule(
         organization=access.organization,
         target=schedule,
         channel=access.channel,
-        before=None if boolSettingsChanged else dictBefore,
+        before=dictBefore,
         metadata={"run_settings_changed": True} if boolSettingsChanged else None,
     )
     return schedule

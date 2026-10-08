@@ -51,25 +51,30 @@ def _notify_failure(
 
 
 def _process_trigger(
+    organizationId: uuid.UUID,
     scheduleId: uuid.UUID,
-    currentTime: datetime,
+    scheduledAt: datetime,
     *,
     recoveryFrom: datetime | None,
     recoveryUntil: datetime | None,
 ) -> None:
     with transaction.atomic():
-        organizationId = Schedule.objects.values_list(
-            "department__organization_id", flat=True
-        ).get(pk=scheduleId)
-        organization = Organization.objects.select_for_update().get(pk=organizationId)
-        schedule = Schedule.objects.select_for_update().get(pk=scheduleId)
-        scheduledAt = schedule.next_trigger_at
+        organization = (
+            Organization.objects.select_for_update().filter(pk=organizationId).first()
+        )
+        if organization is None:
+            return
+        schedule = Schedule.objects.select_for_update().filter(pk=scheduleId).first()
         if (
-            not schedule.enabled
+            schedule is None
+            or not schedule.enabled
             or schedule.deleted_at is not None
-            or scheduledAt is None
-            or scheduledAt > currentTime
+            or schedule.next_trigger_at != scheduledAt
         ):
+            return
+        # Lock waits count toward normal lateness, not the fixed recovery interval.
+        currentTime = timezone.now()
+        if scheduledAt > currentTime:
             return
         boolRecoveryPoint = recoveryUntil is not None and scheduledAt <= recoveryUntil
         boolCanRecover = (
@@ -159,28 +164,30 @@ def _process_trigger(
 def scan_schedules(
     *, recoveryFrom: datetime | None = None, recoveryUntil: datetime | None = None
 ) -> bool:
-    """Process a bounded ordered batch; return whether more due points remain."""
-    currentTime = timezone.now()
-    listScheduleId = list(
-        Schedule.objects
-        .filter(enabled=True, deleted_at__isnull=True, next_trigger_at__lte=currentTime)
-        .order_by("next_trigger_at", "id")
-        .values_list("id", flat=True)[:_INT_TRIGGER_BATCH_SIZE]
-    )
-    for scheduleId in listScheduleId:
+    """Process a bounded batch in trigger order; return whether more due points remain."""
+    scanUntil = timezone.now()
+    query = Schedule.objects.filter(
+        enabled=True, deleted_at__isnull=True, next_trigger_at__lte=scanUntil
+    ).order_by("next_trigger_at", "id")
+    for _ in range(_INT_TRIGGER_BATCH_SIZE):
+        # Advancing one Schedule may reveal the next earliest point across all Schedules.
+        nextTrigger = query.values_list(
+            "department__organization_id", "id", "next_trigger_at"
+        ).first()
+        if nextTrigger is None:
+            break
+        organizationId, scheduleId, scheduledAt = nextTrigger
         _process_trigger(
+            organizationId,
             scheduleId,
-            currentTime,
+            scheduledAt,
             recoveryFrom=recoveryFrom,
             recoveryUntil=recoveryUntil,
         )
-    boolMore = Schedule.objects.filter(
-        enabled=True, deleted_at__isnull=True, next_trigger_at__lte=currentTime
-    ).exists()
+    boolMore = query.exists()
     if not boolMore:
-        SchedulerState.objects.update_or_create(
-            pk=1, defaults={"scanned_at": currentTime}
-        )
+        # Later points were outside this scan and must not be included in its checkpoint.
+        SchedulerState.objects.update_or_create(pk=1, defaults={"scanned_at": scanUntil})
     return boolMore
 
 
