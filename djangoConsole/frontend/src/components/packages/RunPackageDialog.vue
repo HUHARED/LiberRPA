@@ -61,7 +61,7 @@ import RunDispatchEditor from "@/components/runOptions/RunDispatchEditor.vue";
 import TargetSelector from "@/components/runOptions/TargetSelector.vue";
 import { getPackageDetails, type PackageInfo } from "@/api/packages";
 import { createJobs } from "@/api/runs";
-import { cloneRunSettings, type RunSettings, type RunOverrides } from "@/api/runOptions";
+import { cloneRunSettings, type RunSettings } from "@/api/runOptions";
 import { getApiError } from "@/api/errors";
 const props = defineProps<{
   packageId: string;
@@ -89,22 +89,9 @@ async function submit(): Promise<void> {
   try {
     if (!(await form.value?.validate())?.valid) return;
     const runSettings = cloneRunSettings(settings.value);
-    const runOverrides: RunOverrides = {
-      retry_count: runSettings.retry_count,
-      timeout_min: runSettings.timeout_min,
-      builtin_log_level: runSettings.builtin_log_level,
-      builtin_record_video: runSettings.builtin_record_video,
-      builtin_stop_shortcut: runSettings.builtin_stop_shortcut,
-      builtin_highlight_ui: runSettings.builtin_highlight_ui,
-      custom_prj_args: runSettings.custom_prj_args,
-      custom_arg_assets: runSettings.custom_arg_assets,
-      run_conflict_policy: runSettings.run_conflict_policy,
-      priority: runSettings.priority,
-      run_email: runSettings.run_email,
-    };
     const arrTargetId = [...arrExecutorId.value];
     const strTargetGroupId = strGroupId.value;
-    const strBody = JSON.stringify([arrTargetId, strTargetGroupId, runOverrides]);
+    const strBody = JSON.stringify([arrTargetId, strTargetGroupId, runSettings]);
     if (strSubmittedBody && strSubmittedBody !== strBody)
       strClientRequestId = crypto.randomUUID();
     strSubmittedBody = strBody;
@@ -112,7 +99,7 @@ async function submit(): Promise<void> {
       props.packageId,
       arrTargetId,
       strTargetGroupId,
-      runOverrides,
+      runSettings,
       strClientRequestId,
     );
     emit("saved");

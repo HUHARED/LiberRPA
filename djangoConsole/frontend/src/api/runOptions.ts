@@ -34,10 +34,8 @@ export interface RunSettings {
   custom_arg_assets: (AssetBinding | null)[];
   run_conflict_policy: ConflictPolicy;
   priority: Priority;
-  api_input_keys: string[];
   run_email: RunEmailConfig;
 }
-export type RunOverrides = Omit<RunSettings, "api_input_keys">;
 export interface RunSnapshot extends RunSettings {
   python_environment_name: string;
 }
@@ -77,7 +75,6 @@ export function isRunSettings(value: unknown): value is RunSettings {
     Array.isArray(value.custom_arg_assets) &&
     ARR_CONFLICT_POLICY.some((entry) => entry.value === value.run_conflict_policy) &&
     ARR_PRIORITY.some((entry) => entry.value === value.priority) &&
-    Array.isArray(value.api_input_keys) &&
     isRecord(value.run_email)
   );
 }

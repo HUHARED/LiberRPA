@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 
 # NOTE: Keep these mappings aligned with RunSettings and both models when adding a run setting.
 def build_run_settings(source: "Package | Schedule") -> dict:
-    """Build the API settings group from explicit columns without revalidating stored values."""
+    """Build shared execution settings without Package-only API input permissions."""
     return {
         "retry_count": source.retry_count,
         "timeout_min": source.timeout_min,
@@ -36,7 +36,6 @@ def build_run_settings(source: "Package | Schedule") -> dict:
         "custom_arg_assets": source.custom_arg_assets,
         "run_conflict_policy": source.run_conflict_policy,
         "priority": source.priority,
-        "api_input_keys": source.api_input_keys,
         "run_email": source.run_email,
     }
 
@@ -53,7 +52,6 @@ def apply_run_settings(target: "Package | Schedule", values: dict) -> None:
     target.custom_arg_assets = values["custom_arg_assets"]
     target.run_conflict_policy = values["run_conflict_policy"]
     target.priority = values["priority"]
-    target.api_input_keys = values["api_input_keys"]
     target.run_email = values["run_email"]
 
 

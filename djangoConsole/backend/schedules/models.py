@@ -60,7 +60,6 @@ class Schedule(models.Model):
         choices=[(entry.value, entry.value) for entry in RunPriority],
         default=RunPriority.NORMAL,
     )
-    api_input_keys = models.JSONField(default=list, blank=True)
     run_email = models.JSONField(default=build_default_run_email)
     cron = models.CharField(max_length=200)
     time_zone = models.CharField(max_length=100)

@@ -371,10 +371,20 @@ def save_package_settings(
 ) -> None:
     require_package_department(access, package.department_id, manage=True)
     dictSettings = validate_run_settings(package, payload.settings)
+    if not set(payload.api_input_keys) <= set(package.argument_names):
+        raise ValidationError("API input keys must name existing custom arguments.")
     apply_run_settings(package, dictSettings)
+    package.api_input_keys = payload.api_input_keys
     package.python_environment_name = payload.python_environment_name
     package.updated_at = timezone.now()
-    package.save(update_fields=[*dictSettings, "python_environment_name", "updated_at"])
+    package.save(
+        update_fields=[
+            *dictSettings,
+            "api_input_keys",
+            "python_environment_name",
+            "updated_at",
+        ]
+    )
     from .preparation import request_referenced_preparation
 
     request_referenced_preparation(package)

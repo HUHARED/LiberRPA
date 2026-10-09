@@ -3,7 +3,7 @@
 import { requestApi } from "./client";
 import { isRecord, parsePaginationResponse, rejectInvalidResponse } from "./responses";
 import { getSha256 } from "./sharedFiles";
-import { isRunSettings, type RunSettings } from "./runOptions";
+import { isRunSettings, cloneRunSettings, type RunSettings } from "./runOptions";
 import type { PaginationResponse } from "./generated/browserApi";
 
 export interface PackageInfo {
@@ -19,6 +19,7 @@ export interface PackageInfo {
   size_bytes: number;
   python_environment_name: string;
   settings: RunSettings;
+  api_input_keys: string[];
   uploaded_at: string;
   uploaded_by_name: string;
   can_manage: boolean;
@@ -72,6 +73,8 @@ export function isPackageInfo(value: unknown): value is PackageInfo {
     typeof value.version === "string" &&
     typeof value.python_environment_name === "string" &&
     isRunSettings(value.settings) &&
+    Array.isArray(value.api_input_keys) &&
+    value.api_input_keys.every((name: unknown) => typeof name === "string") &&
     typeof value.can_manage === "boolean" &&
     typeof value.size_bytes === "number"
   );
@@ -128,10 +131,15 @@ export async function savePackageSettings(
   id: string,
   environment: string,
   settings: RunSettings,
+  apiInputKeys: string[],
 ): Promise<void> {
   await requestApi(`/packages/${encodeURIComponent(id)}/settings/`, {
     method: "POST",
-    body: { python_environment_name: environment, settings },
+    body: {
+      python_environment_name: environment,
+      settings: cloneRunSettings(settings),
+      api_input_keys: [...apiInputKeys],
+    },
   });
 }
 export async function cancelPackagePreparation(id: string): Promise<number> {

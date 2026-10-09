@@ -77,6 +77,7 @@ def build_package_payload(
         "size_bytes": package.blob.size_bytes,
         "python_environment_name": package.python_environment_name,
         "settings": build_run_settings(package),
+        "api_input_keys": package.api_input_keys,
         "uploaded_at": package.uploaded_at.isoformat(),
         "uploaded_by_name": package.uploaded_by_name,
         "can_manage": package.department_id in manageableDepartmentIds,

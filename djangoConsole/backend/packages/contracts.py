@@ -111,15 +111,10 @@ class RunSettings(JsonRequest):
         default=RunConflictPolicy.WAIT, strict=False
     )
     priority: RunPriority = Field(default=RunPriority.NORMAL, strict=False)
-    # Console-only whitelist of Custom Argument names that API-key requests may override; max_length limits the number of entries.
-    api_input_keys: list[str] = Field(
-        default_factory=list, max_length=INT_CUSTOM_ARGUMENT_MAX_COUNT
-    )
     run_email: RunEmailSettings = Field(default_factory=RunEmailSettings)
 
     @model_validator(mode="after")
     def validate_arguments(self) -> "RunSettings":
-        setArgumentName: set[str] = set()
         for intIndex, listArgument in enumerate(self.custom_prj_args):
             if len(listArgument) != 2:
                 raise ValueError(
@@ -130,14 +125,11 @@ class RunSettings(JsonRequest):
                 raise ValueError(
                     f"Custom argument {intIndex + 1} must contain a name and JSON value."
                 )
-            setArgumentName.add(argumentName)
         validate_custom_arguments(self.custom_prj_args)
         if self.custom_arg_assets and len(self.custom_arg_assets) != len(
             self.custom_prj_args
         ):
             raise ValueError("Asset bindings must match the custom argument positions.")
-        if not set(self.api_input_keys) <= setArgumentName:
-            raise ValueError("API input keys must name existing custom arguments.")
         return self
 
 
@@ -146,6 +138,7 @@ class PackageSettingsRequest(JsonRequest):
         min_length=1, max_length=INT_WINDOWS_NAME_MAX_LENGTH
     )
     settings: RunSettings
+    api_input_keys: list[str] = Field(max_length=INT_CUSTOM_ARGUMENT_MAX_COUNT)
 
     @field_validator("python_environment_name")
     @classmethod

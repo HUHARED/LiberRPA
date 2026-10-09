@@ -148,7 +148,7 @@ def _get_request_settings(
             raise ValidationError("Use run settings for a web request.")
         return dictSettings
     dictOverride = payload.custom_args or {}
-    if not set(dictOverride).issubset(set(dictSettings["api_input_keys"])):
+    if not set(dictOverride).issubset(set(package.api_input_keys)):
         raise ValidationError(
             "One or more input names are not enabled for API overrides."
         )

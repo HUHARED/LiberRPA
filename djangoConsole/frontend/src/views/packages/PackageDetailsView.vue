@@ -101,7 +101,7 @@
                 <tr>
                   <td>API Input Keys</td>
                   <td>
-                    {{ details.package.settings.api_input_keys.join(", ") || "None" }}
+                    {{ details.package.api_input_keys.join(", ") || "None" }}
                   </td>
                 </tr>
               </tbody>
@@ -204,7 +204,7 @@
             :disabled="boolBusy"
             @valid="boolArgsValid = $event" />
           <v-select
-            v-model="draft.api_input_keys"
+            v-model="arrApiInputKey"
             :items="[
               ...new Set(
                 draft.custom_prj_args.map((argument: [string, unknown]) => argument[0]),
@@ -316,6 +316,7 @@ const form = ref<InstanceType<typeof VForm> | null>(null);
 const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");
 const details = shallowRef<PackageDetails | null>(null);
 const draft: Ref<RunSettings | null> = ref(null);
+const arrApiInputKey = ref<string[]>([]);
 const strEnvironment = ref("");
 const strTab = ref("metadata");
 const boolCanRun = computed(
@@ -370,6 +371,7 @@ async function load(): Promise<void> {
 function edit(): void {
   if (!details.value) return;
   draft.value = cloneRunSettings(details.value.package.settings);
+  arrApiInputKey.value = [...details.value.package.api_input_keys];
   strEnvironment.value = details.value.package.python_environment_name;
   strEditError.value = "";
   boolEdit.value = true;
@@ -380,7 +382,12 @@ async function save(): Promise<void> {
   boolBusy.value = true;
   strEditError.value = "";
   try {
-    await savePackageSettings(props.packageId, strEnvironment.value, draft.value);
+    await savePackageSettings(
+      props.packageId,
+      strEnvironment.value,
+      draft.value,
+      arrApiInputKey.value,
+    );
     boolEdit.value = false;
     strSuccess.value =
       "Settings saved. Preparation on remote Executors may still be pending.";
