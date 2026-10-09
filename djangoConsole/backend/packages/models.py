@@ -23,6 +23,7 @@ from .contracts import (
     RunConflictPolicy,
     RunPriority,
     build_default_run_email,
+    PackagePreparationState,
 )
 
 
@@ -189,13 +190,6 @@ class PackageUploadChunk(models.Model):
                 fields=["upload", "offset"], name="package_chunk_offset_unique"
             )
         ]
-
-
-class PackagePreparationState(models.TextChoices):
-    PENDING = "pending", "Pending"
-    PREPARING = "preparing", "Preparing"
-    READY = "ready", "Ready"
-    FAILED = "failed", "Failed"
 
 
 class PackagePreparation(models.Model):

@@ -16,7 +16,8 @@ from executors.models import Executor, ExecutorSession, ExecutorGroupMember
 from organizations.permissions import OrganizationAccessContext
 from runs.control_notifications import notify_executor_control
 
-from .models import Package, PackagePreparation, PackagePreparationState
+from .contracts import PackagePreparationState, PackagePreparationResult
+from .models import Package, PackagePreparation
 from .queries import require_package_department
 
 
@@ -135,7 +136,7 @@ def complete_preparation(
     access: OrganizationAccessContext,
     authentication: NativeResourceAuthenticationContext,
     preparationId: uuid.UUID,
-    state: str,
+    state: PackagePreparationResult,
     reason: str,
 ) -> None:
     session = ExecutorSession.objects.get(pk=authentication.sessionId)
@@ -204,7 +205,7 @@ def record_package_preparation(
     executorId: uuid.UUID,
     sessionId: uuid.UUID,
     environmentName: str,
-    state: str,
+    state: PackagePreparationResult,
     reason: str = "",
 ) -> None:
     if state not in (PackagePreparationState.READY, PackagePreparationState.FAILED):

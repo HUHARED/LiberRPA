@@ -21,6 +21,7 @@ from executors.session_state import (
 )
 from organizations.models import Organization
 from organizations.permissions import require_organization_business_available
+from packages.contracts import PackagePreparationState
 
 from .models import (
     JobState,
@@ -520,7 +521,7 @@ def issue_permission(session: ExecutorSession, assignmentId: uuid.UUID) -> Assig
         assignment.executor_id,
         session.id,
         job.run_snapshot["python_environment_name"],
-        "ready",
+        PackagePreparationState.READY,
     )
     assignment.permit_expires_at = currentTime + timedelta(seconds=_INT_PERMIT_SECONDS)
     assignment.state = AssignmentState.PERMITTED

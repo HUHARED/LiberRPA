@@ -10,7 +10,7 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 
 from executors.models import ExecutorSession
-from packages.contracts import RunConflictPolicy
+from packages.contracts import RunConflictPolicy, PackagePreparationState
 
 from .models import (
     JobState,
@@ -177,7 +177,7 @@ def receive_event(session: ExecutorSession, event: WorkEvent) -> None:
             assignment.executor_id,
             session.id,
             job.run_snapshot["python_environment_name"],
-            "failed",
+            PackagePreparationState.FAILED,
             event.reason,
         )
         assignment.state = AssignmentState.FINISHED

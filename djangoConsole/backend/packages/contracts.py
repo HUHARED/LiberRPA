@@ -10,6 +10,7 @@ from enum import StrEnum
 from typing import Annotated, Literal, cast
 from uuid import UUID
 
+from django.db.models import TextChoices
 from pydantic import Field, field_validator, model_validator
 
 from console_project.contracts import JsonRequest, JsonValue
@@ -158,6 +159,18 @@ class EmptyRequest(JsonRequest):
     pass
 
 
+class PackagePreparationState(TextChoices):
+    PENDING = "pending", "Pending"
+    PREPARING = "preparing", "Preparing"
+    READY = "ready", "Ready"
+    FAILED = "failed", "Failed"
+
+
+type PackagePreparationResult = Literal[
+    PackagePreparationState.READY, PackagePreparationState.FAILED
+]
+
+
 class PreparationResultRequest(JsonRequest):
-    state: Literal["ready", "failed"]
+    state: PackagePreparationResult
     reason: str = Field(default="", max_length=2000)

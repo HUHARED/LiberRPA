@@ -38,14 +38,18 @@ from organizations.validators import get_path_name_key
 
 from .archive import read_package_archive
 from .cleanup import expire_uploads
-from .contracts import PackageUploadRequest, PackageSettingsRequest, PackageReferenceKind
+from .contracts import (
+    PackageReferenceKind,
+    PackageSettingsRequest,
+    PackageUploadRequest,
+    PackagePreparationState,
+)
 from .models import (
     Package,
     PackageUpload,
     PackageUploadChunk,
     PackageUploadState,
     PackagePreparation,
-    PackagePreparationState,
 )
 from .queries import (
     require_package_department,
