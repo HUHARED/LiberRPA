@@ -15,7 +15,7 @@ from organizations.models import Organization
 from organizations.permissions import is_organization_business_available
 from packages.runtime import build_run_settings
 from runs.models import JobSource
-from runs.services import accept_request
+from runs.admission import accept_request
 
 from .cron import get_next_trigger
 from .models import Schedule, SchedulerState, ScheduleTrigger, TriggerStatus

@@ -13,7 +13,8 @@ from console_project.workers import (
     hold_worker_session,
     stop_on_signals,
 )
-from runs.services import run_control_tick, start_control_cycle
+from runs.dispatch_control import start_control_cycle
+from runs.services import run_control_tick
 
 
 class Command(BaseCommand):

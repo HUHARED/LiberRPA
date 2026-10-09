@@ -54,7 +54,8 @@ from .queries import (
     get_matching_run_ids,
     list_work,
 )
-from .services import accept_request, control_job, get_existing_request
+from .admission import get_existing_request, accept_request
+from .services import control_job
 
 _LOGGER = logging.getLogger("console.runs")
 _SET_RUN_OVERRIDE_FIELDS = frozenset({

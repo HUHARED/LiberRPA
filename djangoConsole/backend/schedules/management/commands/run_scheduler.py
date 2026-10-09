@@ -18,7 +18,7 @@ from console_project.workers import (
     WorkerAlreadyRunningError,
     SCHEDULE_WORKER_LOCK_ID,
 )
-from runs.services import _require_control_service
+from runs.dispatch_control import require_control_service
 from schedules.worker import get_recovery_boundary, scan_schedules
 
 _LOGGER = logging.getLogger("console.scheduler")
@@ -49,7 +49,7 @@ class Command(BaseCommand):
                 _LOGGER.info("Schedule worker started.")
                 while not stopEvent.is_set():
                     try:
-                        control = _require_control_service(timezone.now())
+                        control = require_control_service(timezone.now())
                         boolReady = (
                             control.recovery_until is None
                             or control.recovery_until <= timezone.now()
