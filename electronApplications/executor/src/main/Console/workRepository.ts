@@ -31,6 +31,13 @@ export enum ConsoleRecordingStatus {
   Unavailable = "unavailable",
 }
 
+export interface ConsoleRecordingInfo {
+  status: ConsoleRecordingStatus;
+  videoSizeBytes?: number | null;
+  subtitleSizeBytes?: number | null;
+  reason?: string;
+}
+
 export interface ConsoleAssignment {
   id: string;
   job_id: string;
@@ -43,14 +50,14 @@ export interface ConsoleAssignment {
 export interface ConsoleWorkRecord {
   assignment: ConsoleAssignment;
   sessionKey: string;
-  consoleUrl: string;
   state: ConsoleWorkState;
   started?: RunStartedFact;
   ended?: RunEndedFact;
   logOffsets: Record<string, number>;
   logsComplete: boolean;
   permitExpiresAt?: string;
-  recordingReported?: string;
+  // Persisted with its reliable event; this is not a server acknowledgement.
+  recording?: ConsoleRecordingInfo;
   stopReason?: "cancel" | "shutdown" | "timeout";
 }
 
@@ -65,7 +72,7 @@ export function saveConsoleWork(record: ConsoleWorkRecord): void {
   if (existing) {
     record.logOffsets = { ...record.logOffsets, ...existing.logOffsets };
     record.logsComplete ||= existing.logsComplete;
-    record.recordingReported ??= existing.recordingReported;
+    record.recording ??= existing.recording;
   }
   getDatabase()
     .prepare(
@@ -74,13 +81,12 @@ export function saveConsoleWork(record: ConsoleWorkRecord): void {
           console_work (
               id,
               session_key,
-              console_url,
               state,
               content,
               updated_at_ms
           )
       VALUES
-          (?, ?, ?, ?, ?, ?)
+          (?, ?, ?, ?, ?)
       ON CONFLICT (id) DO UPDATE
       SET
           state = excluded.state,
@@ -91,7 +97,6 @@ export function saveConsoleWork(record: ConsoleWorkRecord): void {
     .run(
       record.assignment.id,
       record.sessionKey,
-      record.consoleUrl,
       record.state,
       JSON.stringify(record),
       Date.now(),
@@ -157,10 +162,7 @@ export function getPendingConsoleLogWork(sessionKey: string): ConsoleWorkRecord[
                       '$.assignment.snapshot.builtin_record_video'
                   ) = 1
                   AND COALESCE(
-                      json_extract(
-                          json_extract(content, '$.recordingReported'),
-                          '$.status'
-                      ),
+                      json_extract(content, '$.recording.status'),
                       ''
                   ) NOT IN ('ready', 'unavailable')
               )
@@ -422,14 +424,19 @@ export function saveConsoleLogProgress(
     .run(JSON.stringify(record), Date.now(), id);
 }
 
-export function reportConsoleRecording(
-  id: string,
-  recording: Record<string, unknown>,
-): void {
+export function reportConsoleRecording(id: string, recording: ConsoleRecordingInfo): void {
   const record = getConsoleWork(id);
-  const strRecording = JSON.stringify(recording);
-  if (!record || record.recordingReported === strRecording) return;
-  record.recordingReported = strRecording;
+  if (!record) return;
+  const previousRecording = record.recording;
+  if (
+    previousRecording?.status === recording.status &&
+    (previousRecording.videoSizeBytes ?? null) === (recording.videoSizeBytes ?? null) &&
+    (previousRecording.subtitleSizeBytes ?? null) ===
+      (recording.subtitleSizeBytes ?? null) &&
+    (previousRecording.reason ?? "") === (recording.reason ?? "")
+  )
+    return;
+  record.recording = recording;
   getDatabase().transaction(() => {
     saveConsoleWork(record);
     saveConsoleEvent(record, { kind: "recording", recording });

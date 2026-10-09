@@ -512,7 +512,6 @@ async function syncConsoleWork(
       const record: ConsoleWorkRecord = {
         assignment,
         sessionKey: strSessionKey,
-        consoleUrl: credential.consoleUrl,
         state: ConsoleWorkState.Preparing,
         logOffsets: {},
         logsComplete: false,

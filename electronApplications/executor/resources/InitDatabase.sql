@@ -152,7 +152,6 @@ CREATE TABLE
     console_work (
         id TEXT PRIMARY KEY,
         session_key TEXT NOT NULL,
-        console_url TEXT NOT NULL,
         state TEXT NOT NULL CHECK (
             state IN (
                 'preparing',
@@ -193,13 +192,7 @@ WHERE
                 content,
                 '$.assignment.snapshot.builtin_record_video'
             ) = 1
-            AND COALESCE(
-                JSON_EXTRACT(
-                    JSON_EXTRACT(content, '$.recordingReported'),
-                    '$.status'
-                ),
-                ''
-            ) NOT IN ('ready', 'unavailable')
+            AND COALESCE(JSON_EXTRACT(content, '$.recording.status'), '') NOT IN ('ready', 'unavailable')
         )
     );
 

@@ -13,6 +13,8 @@ import {
   ensureNonEmptyString,
   ensurePositiveInteger,
   ensureRecord,
+  ensureNullableNonNegativeInteger,
+  ensureString,
 } from "../Common/validation";
 import { runFileWorker } from "../FileSystem/fileWorker";
 import { loggerMain } from "../Logging/logger";
@@ -28,6 +30,7 @@ import {
   saveConsoleLogProgress,
   reportConsoleRecording,
   type ConsoleWorkRecord,
+  type ConsoleRecordingInfo,
 } from "./workRepository";
 
 const abortFiles = new AbortController();
@@ -198,27 +201,59 @@ function getLogRejections(response: Record<string, unknown>, logs: string[]): st
   return [...mapRejected].map(([intIndex, strReason]) => `${intIndex}: ${strReason}`);
 }
 
+function readConsoleRecording(filePath: string): ConsoleRecordingInfo {
+  const dictRecording = ensureRecord(
+    JSON.parse(fs.readFileSync(filePath, "utf8")) as unknown,
+    "Recording state",
+  );
+  if (
+    Object.keys(dictRecording).some(
+      (strKey) =>
+        !["status", "videoSizeBytes", "subtitleSizeBytes", "reason"].includes(strKey),
+    )
+  )
+    throw new Error("Recording state contains unsupported fields.");
+  const status = dictRecording.status;
+  if (
+    status !== ConsoleRecordingStatus.Recording &&
+    status !== ConsoleRecordingStatus.Processing &&
+    status !== ConsoleRecordingStatus.Ready &&
+    status !== ConsoleRecordingStatus.Unavailable
+  )
+    throw new Error("Recording state contains an unsupported status.");
+  const strReason = ensureString(
+    dictRecording.reason === undefined ? "" : dictRecording.reason,
+    "Recording reason",
+  );
+  if ([...strReason].length > 2000)
+    throw new Error("Recording reason cannot exceed 2000 characters.");
+  return {
+    status,
+    videoSizeBytes: ensureNullableNonNegativeInteger(
+      dictRecording.videoSizeBytes ?? null,
+      "Recording video size",
+    ),
+    subtitleSizeBytes: ensureNullableNonNegativeInteger(
+      dictRecording.subtitleSizeBytes ?? null,
+      "Recording subtitle size",
+    ),
+    reason: strReason,
+  };
+}
+
 async function flushRunLogs(
   record: ConsoleWorkRecord,
   credential: ConsoleCredentialSnapshot,
 ): Promise<void> {
   if (record.ended && record.assignment.snapshot.builtin_record_video === true) {
-    const recording = record.recordingReported
-      ? ensureRecord(JSON.parse(record.recordingReported) as unknown, "Recording state")
-      : undefined;
+    const recording = record.recording;
     if (
       recording?.status !== ConsoleRecordingStatus.Ready &&
       recording?.status !== ConsoleRecordingStatus.Unavailable
     ) {
       const strMarkerPath = path.join(record.ended.logPath, "video_record.state.json");
       if (fs.existsSync(strMarkerPath))
-        reportConsoleRecording(
-          record.assignment.id,
-          ensureRecord(
-            JSON.parse(fs.readFileSync(strMarkerPath, "utf8")) as unknown,
-            "Recording state",
-          ),
-        );
+        reportConsoleRecording(record.assignment.id, readConsoleRecording(strMarkerPath));
     }
   }
   if (!record.started || record.logsComplete || !fs.existsSync(record.started.logPath))
@@ -330,10 +365,7 @@ async function prepareTransferFile(
     const strMarker = path.join(strFolder, "video_record.state.json");
     if (
       !fs.existsSync(strMarker) ||
-      ensureRecord(
-        JSON.parse(fs.readFileSync(strMarker, "utf8")) as unknown,
-        "Recording state",
-      ).status !== ConsoleRecordingStatus.Ready
+      readConsoleRecording(strMarker).status !== ConsoleRecordingStatus.Ready
     )
       throw new Error("Recording finalization has not completed successfully.");
   }
