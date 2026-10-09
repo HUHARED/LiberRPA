@@ -1,10 +1,8 @@
 // FileName: schedule.ts
 
-import type { Dict_RunOptions } from "./runOptions";
+import type { RunConflictPolicy, RunOptions } from "./runOptions";
 
-export type Str_RunConflictPolicy = "skip" | "wait" | "concurrent";
-
-export interface Dict_ListItem_Schedule {
+export interface ScheduleListItem {
   id: number;
   name: string;
   project_name: string;
@@ -13,20 +11,20 @@ export interface Dict_ListItem_Schedule {
   enabled: boolean;
   period_start_ms: number;
   period_end_ms: number;
-  run_conflict_policy: Str_RunConflictPolicy;
+  run_conflict_policy: RunConflictPolicy;
 }
 
-export interface Dict_Detail_Schedule extends Dict_ListItem_Schedule, Dict_RunOptions {
+export interface ScheduleDetails extends ScheduleListItem, RunOptions {
   project_id: number;
   created_at_ms: number;
   updated_at_ms: number;
 }
 
-export type Dict_ScheduleCreate = Omit<
-  Dict_Detail_Schedule,
+export type ScheduleCreateData = Omit<
+  ScheduleDetails,
   "id" | "created_at_ms" | "updated_at_ms" | "project_name" | "project_version"
 >;
 
-export type Dict_ScheduleUpdate = Dict_ScheduleCreate & {
+export type ScheduleUpdateData = ScheduleCreateData & {
   id: number;
 };

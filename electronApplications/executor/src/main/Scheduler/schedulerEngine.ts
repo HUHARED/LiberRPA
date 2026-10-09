@@ -5,7 +5,7 @@ import { nextScheduleDate, parseScheduleCron } from "../../shared/cron";
 
 import { getErrorMessage } from "../../shared/error";
 import { RunSource, RunQueueState } from "../../shared/run";
-import { INT_RETRY_DELAY_MS } from "../../shared/runOptions";
+import { INT_RETRY_DELAY_MS, RunConflictPolicy } from "../../shared/runOptions";
 import { onRunFinished } from "../Run/lifecycle";
 import { dictConfigExecutor } from "../Config/executorConfig";
 import {
@@ -20,7 +20,6 @@ import {
 } from "../Run/projectRunner";
 import type { ProjectRunDetails, RunExecutionContext } from "../Run/types";
 import type { RunQueueItem } from "../../shared/run";
-import type { Str_RunConflictPolicy } from "../../shared/schedule";
 
 type Listener_RunQueueChanged = (arrItem: RunQueueItem[]) => void;
 
@@ -32,7 +31,7 @@ type LocalRunQueueItem = Omit<
 interface PendingRun {
   scheduleId: number;
   queueItem: LocalRunQueueItem;
-  runConflictPolicy: Str_RunConflictPolicy;
+  runConflictPolicy: RunConflictPolicy;
 }
 
 interface QueuedRun {
@@ -261,13 +260,17 @@ async function processSchedulerTick(): Promise<void> {
     (queuedRun) =>
       isQueuedRunReady(queuedRun, intReadyAtMs) &&
       (!boolOthersRunning ||
-        (queuedRun.runDetail.run_conflict_policy ?? "concurrent") !== "wait"),
+        (queuedRun.runDetail.run_conflict_policy ?? RunConflictPolicy.Concurrent) !==
+          RunConflictPolicy.Wait),
   );
   if (intReadyIndex !== -1) {
     const queuedRun = arrQueuedRun.splice(intReadyIndex, 1)[0];
     publishRunQueueChanged();
     try {
-      if (boolOthersRunning && queuedRun.runDetail.run_conflict_policy === "skip") {
+      if (
+        boolOthersRunning &&
+        queuedRun.runDetail.run_conflict_policy === RunConflictPolicy.Skip
+      ) {
         loggerMain.info("Skip local retry because another Run is active.");
       } else {
         await pythonRun(queuedRun.runDetail, queuedRun.context);
@@ -314,7 +317,7 @@ async function processSchedulerTick(): Promise<void> {
     }
 
     const strScheduleName = dictRunDetail.schedule_name ?? queueItem.schedule_name;
-    if (!boolOthersRunning || runConflictPolicy === "concurrent") {
+    if (!boolOthersRunning || runConflictPolicy === RunConflictPolicy.Concurrent) {
       try {
         await pythonRun(dictRunDetail);
         boolOthersRunning = hasActiveProjectRun();
@@ -326,7 +329,7 @@ async function processSchedulerTick(): Promise<void> {
       continue;
     }
 
-    if (runConflictPolicy === "wait") {
+    if (runConflictPolicy === RunConflictPolicy.Wait) {
       loggerMain.info(`Move Schedule '${strScheduleName}' Run into the waiting queue.`);
       enqueueLocalRun({
         queueItem: {

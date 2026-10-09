@@ -1,9 +1,13 @@
 // FileName: validation.ts
 
 import { RunSource, RunStatus } from "../../shared/run";
-import type { Str_RunConflictPolicy } from "../../shared/schedule";
-import { INT_MAX_RETRY_COUNT, INT_MAX_RUN_TIMEOUT_MIN } from "../../shared/runOptions";
-import type { Arr_CustomProjectArgs, Str_LogLevel } from "../../shared/runOptions";
+import {
+  INT_MAX_RETRY_COUNT,
+  INT_MAX_RUN_TIMEOUT_MIN,
+  LogLevel,
+  RunConflictPolicy,
+} from "../../shared/runOptions";
+import type { CustomProjectArgs } from "../../shared/runOptions";
 
 const INT_MAX_DESCRIPTION_LENGTH = 2000;
 const INT_MAX_VERSION_SUMMARY_LENGTH = 500;
@@ -230,14 +234,14 @@ export function ensureNullableNonNegativeInteger(
   return ensureNonNegativeInteger(value, sourceName);
 }
 
-export function ensureLogLevel(value: unknown, sourceName: string): Str_LogLevel {
+export function ensureLogLevel(value: unknown, sourceName: string): LogLevel {
   switch (value) {
-    case "VERBOSE":
-    case "DEBUG":
-    case "INFO":
-    case "WARNING":
-    case "ERROR":
-    case "CRITICAL":
+    case LogLevel.Verbose:
+    case LogLevel.Debug:
+    case LogLevel.Info:
+    case LogLevel.Warning:
+    case LogLevel.Error:
+    case LogLevel.Critical:
       return value;
     default:
       throw new Error(`${sourceName} contains an unsupported log level.`);
@@ -247,8 +251,12 @@ export function ensureLogLevel(value: unknown, sourceName: string): Str_LogLevel
 export function ensureRunConflictPolicy(
   value: unknown,
   sourceName: string,
-): Str_RunConflictPolicy {
-  if (value === "skip" || value === "wait" || value === "concurrent") {
+): RunConflictPolicy {
+  if (
+    value === RunConflictPolicy.Skip ||
+    value === RunConflictPolicy.Wait ||
+    value === RunConflictPolicy.Concurrent
+  ) {
     return value;
   }
   throw new Error(`${sourceName} must be 'skip', 'wait', or 'concurrent'.`);
@@ -335,7 +343,7 @@ export function ensureJsonValue(
 export function ensureCustomProjectArgs(
   value: unknown,
   sourceName: string,
-): Arr_CustomProjectArgs {
+): CustomProjectArgs {
   if (!Array.isArray(value)) {
     throw new Error(`${sourceName} must be an array.`);
   }
@@ -344,7 +352,7 @@ export function ensureCustomProjectArgs(
   }
   // Count depth from the complete ordered list, including its [name, value] pairs.
   ensureJsonValue(value, sourceName);
-  const arrArgument: Arr_CustomProjectArgs = value.map((item, intIndex) => {
+  const arrArgument: CustomProjectArgs = value.map((item, intIndex) => {
     if (!Array.isArray(item) || item.length !== 2) {
       throw new Error(`${sourceName}[${intIndex}] must be a [string, value] pair.`);
     }

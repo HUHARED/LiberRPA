@@ -1,9 +1,8 @@
 // FileName: project.ts
 
-import type { Dict_PythonEnvironmentSelection, Dict_RunOptions } from "./runOptions";
+import type { RunOptions, PythonEnvironmentSelection } from "./runOptions";
 
-export interface Dict_ProjectDetail
-  extends Dict_RunOptions, Dict_PythonEnvironmentSelection {
+export interface Dict_ProjectDetail extends RunOptions, PythonEnvironmentSelection {
   id: number;
   name: string;
   version: string;
@@ -19,8 +18,7 @@ export type Dict_ProjectCreate = Omit<
   "id" | "created_at_ms" | "updated_at_ms"
 >;
 
-export interface Dict_ProjectSettingsUpdate
-  extends Dict_RunOptions, Dict_PythonEnvironmentSelection {
+export interface Dict_ProjectSettingsUpdate extends RunOptions, PythonEnvironmentSelection {
   id: number;
 }
 

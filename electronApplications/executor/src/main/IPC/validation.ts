@@ -3,7 +3,7 @@
 import type { ConsoleSignInArgs } from "../../shared/consoleAccount";
 import type { Dict_ProjectSettingsUpdate } from "../../shared/project";
 import type { RunHistoryQueryOptions } from "../../shared/run";
-import type { Dict_ScheduleCreate, Dict_ScheduleUpdate } from "../../shared/schedule";
+import type { ScheduleCreateData, ScheduleUpdateData } from "../../shared/schedule";
 import type { Str_ExecutorInvokeCommand, Str_RendererLogLevel } from "../../shared/ipc";
 import { parseScheduleCron } from "../../shared/cron";
 import { dictConfigExecutor } from "../Config/executorConfig";
@@ -164,7 +164,7 @@ export function ensureProjectSettingsUpdate(value: unknown): Dict_ProjectSetting
 function ensureScheduleData(
   value: unknown,
   boolIncludeId: boolean,
-): Dict_ScheduleCreate | Dict_ScheduleUpdate {
+): ScheduleCreateData | ScheduleUpdateData {
   const arrExpectedKey = [
     "name",
     "project_id",
@@ -200,7 +200,7 @@ function ensureScheduleData(
 
   const strCron = ensureNonEmptyString(dictValue.cron, "Schedule request.cron");
   parseScheduleCron(strCron, dictConfigExecutor.timezone);
-  const dictBase: Dict_ScheduleCreate = {
+  const dictBase: ScheduleCreateData = {
     name: ensureTrimmedSingleLineString(dictValue.name, "Schedule request.name"),
     project_id: ensurePositiveInteger(dictValue.project_id, "Schedule request.project_id"),
     cron: strCron,
@@ -248,11 +248,11 @@ function ensureScheduleData(
   };
 }
 
-export function ensureScheduleCreate(value: unknown): Dict_ScheduleCreate {
+export function ensureScheduleCreate(value: unknown): ScheduleCreateData {
   return ensureScheduleData(value, false);
 }
 
-export function ensureScheduleUpdate(value: unknown): Dict_ScheduleUpdate {
+export function ensureScheduleUpdate(value: unknown): ScheduleUpdateData {
   const dictValue = ensureScheduleData(value, true);
   if (!("id" in dictValue)) {
     throw new Error("Schedule update request is missing id.");

@@ -98,7 +98,8 @@ import { loggerRenderer } from "../../Logging/logger";
 import { useScheduleStore } from "../../Store/scheduleStore";
 import { useSettingStore } from "../../Store/settingStore";
 import { getErrorMessage } from "../../../../shared/error";
-import type { Dict_ListItem_Schedule } from "../../../../shared/schedule";
+import { LogLevel, RunConflictPolicy } from "../../../../shared/runOptions";
+import type { ScheduleListItem } from "../../../../shared/schedule";
 
 const scheduleStore = useScheduleStore();
 const settingStore = useSettingStore();
@@ -124,13 +125,13 @@ function newSchedule(): void {
     project_name: undefined,
     project_version: undefined,
     cron: "0 8 * * *",
-    run_conflict_policy: "skip",
+    run_conflict_policy: RunConflictPolicy.Skip,
     period_start: dictDefaultPeriod.periodStartLocal,
     period_end: dictDefaultPeriod.periodEndLocal,
     enabled: true,
     retry_count: 0,
     timeout_min: 0,
-    builtin_log_level: "DEBUG",
+    builtin_log_level: LogLevel.Debug,
     builtin_record_video: true,
     builtin_stop_shortcut: true,
     builtin_highlight_ui: false,
@@ -141,7 +142,7 @@ function newSchedule(): void {
   scheduleStore.showFormDialog = true;
 }
 
-const arrHeader: DataTableHeader<Dict_ListItem_Schedule>[] = [
+const arrHeader: DataTableHeader<ScheduleListItem>[] = [
   { title: "Name", value: "name", align: "start", sortable: true },
   {
     title: "Project",
@@ -161,7 +162,7 @@ const arrHeader: DataTableHeader<Dict_ListItem_Schedule>[] = [
   { title: "Actions", key: "actions", align: "start", sortable: false },
 ];
 
-async function toggleSchedule(item: Dict_ListItem_Schedule): Promise<void> {
+async function toggleSchedule(item: ScheduleListItem): Promise<void> {
   await invokeMain("setScheduleEnabled", { id: item.id, enabled: !item.enabled });
   await scheduleStore.refreshScheduleList();
 }

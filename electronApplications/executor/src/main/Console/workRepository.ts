@@ -5,10 +5,10 @@ import fs from "fs";
 
 import { RunStatus, type RunTerminalStatus, type RunOutputs } from "../../shared/run";
 import type {
-  Dict_PythonEnvironmentSelection,
-  Dict_RunOptions,
+  RunConflictPolicy,
+  RunOptions,
+  PythonEnvironmentSelection,
 } from "../../shared/runOptions";
-import type { Str_RunConflictPolicy } from "../../shared/schedule";
 import { ensureNonEmptyString } from "../Common/validation";
 import {
   type ExecutorRunState,
@@ -94,13 +94,12 @@ export type ConsoleEvent = ConsoleEventData & {
 };
 
 // Only the fields consumed by Executor; the stored payload retains server-only fields.
-export interface ConsoleRunSnapshot
-  extends Dict_RunOptions, Dict_PythonEnvironmentSelection {
+export interface ConsoleRunSnapshot extends RunOptions, PythonEnvironmentSelection {
   project_name: string;
   project_version: string;
   sha256: string;
   schedule_name: string | null;
-  run_conflict_policy: Str_RunConflictPolicy;
+  run_conflict_policy: RunConflictPolicy;
 }
 
 export interface ConsoleAssignment {

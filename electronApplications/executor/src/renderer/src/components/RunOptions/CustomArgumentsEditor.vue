@@ -57,9 +57,9 @@ import {
   getArgumentValueNote,
   updateCustomProjectArgumentValue,
 } from "../../RunOptions/runOptions";
-import type { Arr_CustomProjectArgs } from "../../../../shared/runOptions";
+import type { CustomProjectArgs } from "../../../../shared/runOptions";
 
-const customArgs = defineModel<Arr_CustomProjectArgs>("customArgs", { required: true });
+const customArgs = defineModel<CustomProjectArgs>("customArgs", { required: true });
 
 const arrValueCache = ref<string[]>([]);
 

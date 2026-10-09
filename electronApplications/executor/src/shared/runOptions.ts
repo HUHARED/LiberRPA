@@ -5,21 +5,34 @@ export const INT_RETRY_DELAY_MS = 60_000;
 // Keep the timeout within the Node.js single-timer delay range.
 export const INT_MAX_RUN_TIMEOUT_MIN = 35_791;
 
-export type Str_LogLevel = "VERBOSE" | "DEBUG" | "INFO" | "WARNING" | "ERROR" | "CRITICAL";
+export enum LogLevel {
+  Verbose = "VERBOSE",
+  Debug = "DEBUG",
+  Info = "INFO",
+  Warning = "WARNING",
+  Error = "ERROR",
+  Critical = "CRITICAL",
+}
 
-export type Arr_CustomProjectArgs = [string, unknown][];
+export enum RunConflictPolicy {
+  Skip = "skip",
+  Wait = "wait",
+  Concurrent = "concurrent",
+}
 
-export interface Dict_RunOptions {
+export type CustomProjectArgs = [string, unknown][];
+
+export interface RunOptions {
   retry_count: number;
   timeout_min: number;
 
-  builtin_log_level: Str_LogLevel;
+  builtin_log_level: LogLevel;
   builtin_record_video: boolean;
   builtin_stop_shortcut: boolean;
   builtin_highlight_ui: boolean;
-  custom_prj_args: Arr_CustomProjectArgs;
+  custom_prj_args: CustomProjectArgs;
 }
 
-export interface Dict_PythonEnvironmentSelection {
+export interface PythonEnvironmentSelection {
   python_environment_name: string;
 }

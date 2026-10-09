@@ -173,8 +173,8 @@ import { loggerRenderer } from "../../Logging/logger";
 import { validateCronExpression } from "../../Schedule/cron";
 import { useScheduleStore } from "../../Store/scheduleStore";
 import { useSettingStore } from "../../Store/settingStore";
-import type { Dict_Detail_ScheduleForm } from "../../Schedule/types";
-import type { Str_RunConflictPolicy } from "../../../../shared/schedule";
+import type { ScheduleFormDraft } from "../../Schedule/types";
+import { RunConflictPolicy } from "../../../../shared/runOptions";
 import { previewScheduleCron } from "../../../../shared/cron";
 
 const scheduleStore = useScheduleStore();
@@ -182,7 +182,7 @@ const settingStore = useSettingStore();
 
 let intProjectSelectionRevision = 0;
 
-const detail = computed<Dict_Detail_ScheduleForm | undefined>(() => {
+const detail = computed<ScheduleFormDraft | undefined>(() => {
   if (scheduleStore.formMode === "new") {
     return scheduleStore.dictDetailNew;
   }
@@ -221,10 +221,10 @@ const arrPreview = computed(() => {
   );
 });
 
-const ARR_RUN_CONFLICT_POLICY: { title: string; value: Str_RunConflictPolicy }[] = [
-  { title: "Skip This Run", value: "skip" },
-  { title: "Wait", value: "wait" },
-  { title: "Run Concurrently", value: "concurrent" },
+const ARR_RUN_CONFLICT_POLICY: { title: string; value: RunConflictPolicy }[] = [
+  { title: "Skip This Run", value: RunConflictPolicy.Skip },
+  { title: "Wait", value: RunConflictPolicy.Wait },
+  { title: "Run Concurrently", value: RunConflictPolicy.Concurrent },
 ];
 
 async function whenProjectNameChanged(): Promise<void> {
@@ -282,7 +282,7 @@ async function whenProjectVersionChanged(): Promise<void> {
 }
 
 async function applyProjectDetailToSchedule(
-  currentDetail: Dict_Detail_ScheduleForm,
+  currentDetail: ScheduleFormDraft,
   name: string,
   version: string,
   intRevision: number,

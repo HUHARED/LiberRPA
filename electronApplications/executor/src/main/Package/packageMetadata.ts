@@ -25,7 +25,7 @@ import {
 } from "../Config/environment";
 import { getTargetFolderName } from "./packageArchive";
 import type { Dict_ProjectCreate } from "../../shared/project";
-import type { Arr_CustomProjectArgs, Str_LogLevel } from "../../shared/runOptions";
+import type { CustomProjectArgs, LogLevel } from "../../shared/runOptions";
 
 interface DictFlowManifest {
   schemaVersion: 1;
@@ -42,11 +42,11 @@ interface DictPackageManifest {
 }
 
 interface DictProjectFlow_RuntimeSettings {
-  logLevel: Str_LogLevel;
+  logLevel: LogLevel;
   recordVideo: boolean;
   stopShortcut: boolean;
   highlightUi: boolean;
-  customPrjArgs: Arr_CustomProjectArgs;
+  customPrjArgs: CustomProjectArgs;
 }
 
 interface Dict_ProjectPackage_Metadata {
@@ -165,7 +165,7 @@ function parsePackageManifest(value: unknown): DictPackageManifest {
   };
 }
 
-function parseCustomProjectArguments(value: unknown): Arr_CustomProjectArgs {
+function parseCustomProjectArguments(value: unknown): CustomProjectArgs {
   return ensureCustomProjectArgs(value, "project.flow customPrjArgs");
 }
 

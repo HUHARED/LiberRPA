@@ -8,15 +8,12 @@ import {
   formatTimestampForDateTimeLocal,
   parseDateTimeLocalToTimestamp,
 } from "../Common/time";
-import type {
-  Dict_Detail_NewScheduleForm,
-  Dict_Detail_ScheduleForm_All,
-} from "../Schedule/types";
+import type { ScheduleCreateDraft, ScheduleEditDraft } from "../Schedule/types";
 import { useSettingStore } from "./settingStore";
 import type {
-  Dict_ScheduleCreate,
-  Dict_ListItem_Schedule,
-  Dict_ScheduleUpdate,
+  ScheduleCreateData,
+  ScheduleListItem,
+  ScheduleUpdateData,
 } from "../../../shared/schedule";
 
 function getSchedulePeriodTimestamps({
@@ -44,19 +41,19 @@ function getSchedulePeriodTimestamps({
 export const useScheduleStore = defineStore("schedule", {
   state: () => {
     return {
-      arrListItem: [] as Dict_ListItem_Schedule[],
+      arrListItem: [] as ScheduleListItem[],
       arrProjectName: [] as string[],
       arrProjectVersion: [] as string[],
 
       // Edit and New use the same dialog size.
       showFormDialog: false as boolean,
       formMode: undefined as undefined | "edit" | "new",
-      dictDetailEdit: undefined as Dict_Detail_ScheduleForm_All | undefined,
+      dictDetailEdit: undefined as ScheduleEditDraft | undefined,
       strDetailCacheEdit: undefined as string | undefined,
       intDetailLoadRevision: 0 as number,
 
       showDeleteDialog: false as boolean,
-      dictDetailNew: undefined as Dict_Detail_NewScheduleForm | undefined,
+      dictDetailNew: undefined as ScheduleCreateDraft | undefined,
     };
   },
   actions: {
@@ -104,9 +101,7 @@ export const useScheduleStore = defineStore("schedule", {
       await this.loadScheduleList();
     },
 
-    async loadScheduleDetail(
-      scheduleName: string,
-    ): Promise<Dict_Detail_ScheduleForm_All | undefined> {
+    async loadScheduleDetail(scheduleName: string): Promise<ScheduleEditDraft | undefined> {
       const intRevision = ++this.intDetailLoadRevision;
       const dictDetail = await invokeMain("getScheduleDetail", scheduleName);
       if (intRevision !== this.intDetailLoadRevision) {
@@ -118,7 +113,7 @@ export const useScheduleStore = defineStore("schedule", {
 
       const settingStore = useSettingStore();
       const { period_start_ms, period_end_ms, ...dictDetailWithoutPeriod } = dictDetail;
-      const dictDetailEdit: Dict_Detail_ScheduleForm_All = {
+      const dictDetailEdit: ScheduleEditDraft = {
         ...dictDetailWithoutPeriod,
         period_start: formatTimestampForDateTimeLocal(
           period_start_ms,
@@ -142,7 +137,7 @@ export const useScheduleStore = defineStore("schedule", {
         periodEnd: this.dictDetailNew.period_end,
         timezone: settingStore.timezone,
       });
-      const dictTemp: Dict_ScheduleCreate = {
+      const dictTemp: ScheduleCreateData = {
         name: this.dictDetailNew.name,
         project_id: this.dictDetailNew.project_id,
         cron: this.dictDetailNew.cron,
@@ -176,7 +171,7 @@ export const useScheduleStore = defineStore("schedule", {
         periodEnd: this.dictDetailEdit.period_end,
         timezone: settingStore.timezone,
       });
-      const dictTemp: Dict_ScheduleUpdate = {
+      const dictTemp: ScheduleUpdateData = {
         id: this.dictDetailEdit.id,
         name: this.dictDetailEdit.name,
         project_id: this.dictDetailEdit.project_id,

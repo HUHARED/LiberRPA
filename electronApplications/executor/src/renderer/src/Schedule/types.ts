@@ -1,9 +1,9 @@
 // FileName: types.ts
 
-import type { Dict_Detail_Schedule } from "../../../shared/schedule";
+import type { ScheduleDetails } from "../../../shared/schedule";
 
-export type Dict_Detail_ScheduleForm_All = Omit<
-  Dict_Detail_Schedule,
+export type ScheduleEditDraft = Omit<
+  ScheduleDetails,
   "period_start_ms" | "period_end_ms" | "project_id"
 > & {
   project_id: number | undefined;
@@ -11,8 +11,8 @@ export type Dict_Detail_ScheduleForm_All = Omit<
   period_end: string;
 };
 
-export type Dict_Detail_NewScheduleForm = Omit<
-  Dict_Detail_ScheduleForm_All,
+export type ScheduleCreateDraft = Omit<
+  ScheduleEditDraft,
   | "id"
   | "project_id"
   | "project_name"
@@ -25,6 +25,4 @@ export type Dict_Detail_NewScheduleForm = Omit<
   project_version: string | undefined;
 };
 
-export type Dict_Detail_ScheduleForm =
-  | Dict_Detail_ScheduleForm_All
-  | Dict_Detail_NewScheduleForm;
+export type ScheduleFormDraft = ScheduleEditDraft | ScheduleCreateDraft;

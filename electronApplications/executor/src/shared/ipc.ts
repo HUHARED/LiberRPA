@@ -19,10 +19,10 @@ import type {
   RunQueueItem,
 } from "./run";
 import type {
-  Dict_ScheduleCreate,
-  Dict_Detail_Schedule,
-  Dict_ListItem_Schedule,
-  Dict_ScheduleUpdate,
+  ScheduleCreateData,
+  ScheduleDetails,
+  ScheduleListItem,
+  ScheduleUpdateData,
 } from "./schedule";
 
 export const IPC_CHANNEL_RENDERER_LOG = "executor:renderer-log";
@@ -95,18 +95,18 @@ interface Dict_ExecutorInvoke_Contract {
   };
   getScheduleList: {
     request: undefined;
-    response: Dict_ListItem_Schedule[];
+    response: ScheduleListItem[];
   };
   getScheduleDetail: {
     request: string;
-    response: Dict_Detail_Schedule | undefined;
+    response: ScheduleDetails | undefined;
   };
   createSchedule: {
-    request: Dict_ScheduleCreate;
+    request: ScheduleCreateData;
     response: void;
   };
   saveSchedule: {
-    request: Dict_ScheduleUpdate;
+    request: ScheduleUpdateData;
     response: void;
   };
   setScheduleEnabled: { request: { id: number; enabled: boolean }; response: void };

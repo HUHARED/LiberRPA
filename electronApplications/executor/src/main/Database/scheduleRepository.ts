@@ -2,10 +2,10 @@
 
 import type { ProjectRunDetails } from "../Run/types";
 import type {
-  Dict_ScheduleCreate,
-  Dict_Detail_Schedule,
-  Dict_ListItem_Schedule,
-  Dict_ScheduleUpdate,
+  ScheduleCreateData,
+  ScheduleDetails,
+  ScheduleListItem,
+  ScheduleUpdateData,
 } from "../../shared/schedule";
 import { loggerMain } from "../Logging/logger";
 import { getDatabase } from "./connection";
@@ -16,7 +16,7 @@ import {
   ensureSingleRowAffected,
 } from "./rowValidation";
 
-export function dbSelectScheduleList(): Dict_ListItem_Schedule[] {
+export function dbSelectScheduleList(): ScheduleListItem[] {
   loggerMain.debug("--dbSelectScheduleList--");
   const rows = getDatabase()
     .prepare(
@@ -42,7 +42,7 @@ export function dbSelectScheduleList(): Dict_ListItem_Schedule[] {
   return ensureScheduleListRows(rows, "Schedule list query result");
 }
 
-export function dbSelectScheduleDetail(name: string): Dict_Detail_Schedule | undefined {
+export function dbSelectScheduleDetail(name: string): ScheduleDetails | undefined {
   loggerMain.debug("--dbSelectScheduleDetail--");
   const row = getDatabase()
     .prepare(
@@ -114,7 +114,7 @@ export function dbSelectScheduleRunDetail(
     : ensureScheduleRunDetailRow(row, "Schedule Run detail query result");
 }
 
-export function dbInsertSchedule(detailDict: Dict_ScheduleCreate): void {
+export function dbInsertSchedule(detailDict: ScheduleCreateData): void {
   loggerMain.debug("--dbInsertSchedule--");
   const intNowMs = Date.now();
   const result = getDatabase()
@@ -164,7 +164,7 @@ export function dbInsertSchedule(detailDict: Dict_ScheduleCreate): void {
   ensureSingleRowAffected(result, `Insert Schedule '${detailDict.name}'`);
 }
 
-export function dbUpdateSchedule(detailDict: Dict_ScheduleUpdate): void {
+export function dbUpdateSchedule(detailDict: ScheduleUpdateData): void {
   loggerMain.debug("--dbUpdateSchedule--");
   const result = getDatabase()
     .prepare(

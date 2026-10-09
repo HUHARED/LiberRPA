@@ -6,8 +6,8 @@ import type { Dict_ProjectDetail } from "../../shared/project";
 import type { RunHistoryItem } from "../../shared/run";
 import { RunStatus } from "../../shared/run";
 import type { ProjectRunDetails } from "../Run/types";
-import type { Dict_Detail_Schedule, Dict_ListItem_Schedule } from "../../shared/schedule";
-import type { Arr_CustomProjectArgs } from "../../shared/runOptions";
+import type { ScheduleDetails, ScheduleListItem } from "../../shared/schedule";
+import type { CustomProjectArgs } from "../../shared/runOptions";
 import {
   ensureExactRecord,
   ensureString,
@@ -51,10 +51,7 @@ function ensureBinaryInteger(value: unknown, sourceName: string): 0 | 1 {
   return value;
 }
 
-function parseCustomProjectArgsJson(
-  value: unknown,
-  sourceName: string,
-): Arr_CustomProjectArgs {
+function parseCustomProjectArgsJson(value: unknown, sourceName: string): CustomProjectArgs {
   const strValue = ensureString(value, sourceName);
   let parsedValue: unknown;
   try {
@@ -169,10 +166,7 @@ export function ensureProjectDetailRow(
   };
 }
 
-function ensureScheduleListItemRow(
-  value: unknown,
-  sourceName: string,
-): Dict_ListItem_Schedule {
+function ensureScheduleListItemRow(value: unknown, sourceName: string): ScheduleListItem {
   const row = ensureExactRecord(
     value,
     [
@@ -222,14 +216,14 @@ function ensureScheduleListItemRow(
 export function ensureScheduleListRows(
   rows: unknown[],
   sourceName: string,
-): Dict_ListItem_Schedule[] {
+): ScheduleListItem[] {
   return ensureRows(rows, ensureScheduleListItemRow, sourceName);
 }
 
 export function ensureScheduleDetailRow(
   value: unknown,
   sourceName: string,
-): Dict_Detail_Schedule {
+): ScheduleDetails {
   const row = ensureExactRecord(
     value,
     [

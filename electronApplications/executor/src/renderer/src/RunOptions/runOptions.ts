@@ -1,16 +1,10 @@
 // FileName: runOptions.ts
 
 import { useInformationStore } from "../Store/informationStore";
-import type { Arr_CustomProjectArgs, Str_LogLevel } from "../../../shared/runOptions";
+import { LogLevel } from "../../../shared/runOptions";
+import type { CustomProjectArgs } from "../../../shared/runOptions";
 
-export const ARR_LOG_LEVEL: Str_LogLevel[] = [
-  "VERBOSE",
-  "DEBUG",
-  "INFO",
-  "WARNING",
-  "ERROR",
-  "CRITICAL",
-];
+export const ARR_LOG_LEVEL: LogLevel[] = Object.values(LogLevel);
 
 export function getArgumentValueNote(value: unknown): string {
   const strValue = JSON.stringify(value, null, 0) ?? "undefined";
@@ -27,7 +21,7 @@ export function getArgumentValueNote(value: unknown): string {
 }
 
 export function updateCustomProjectArgumentValue(
-  customProjectArgumentArr: Arr_CustomProjectArgs,
+  customProjectArgumentArr: CustomProjectArgs,
   valueCacheArr: string[],
   index: number,
   value: string,

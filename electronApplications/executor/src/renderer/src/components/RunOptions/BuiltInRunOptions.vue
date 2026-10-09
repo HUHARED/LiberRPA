@@ -84,7 +84,7 @@ import {
   INT_MAX_RETRY_COUNT,
   INT_MAX_RUN_TIMEOUT_MIN,
 } from "../../../../shared/runOptions";
-import type { Str_LogLevel } from "../../../../shared/runOptions";
+import type { LogLevel } from "../../../../shared/runOptions";
 
 const props = withDefaults(
   defineProps<{
@@ -99,7 +99,7 @@ const props = withDefaults(
 
 const retryCount = defineModel<number>("retryCount", { required: true });
 const timeoutMin = defineModel<number>("timeoutMin", { required: true });
-const logLevel = defineModel<Str_LogLevel>("logLevel", { required: true });
+const logLevel = defineModel<LogLevel>("logLevel", { required: true });
 const recordVideo = defineModel<boolean>("recordVideo", { required: true });
 const stopShortcut = defineModel<boolean>("stopShortcut", { required: true });
 const highlightUi = defineModel<boolean>("highlightUi", { required: true });

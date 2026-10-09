@@ -75,7 +75,7 @@ import ScheduleForm from "./ScheduleForm.vue";
 
 import { formatTimestamp, parseDateTimeLocalToTimestamp } from "../../Common/time";
 import { validateCronExpression } from "../../Schedule/cron";
-import type { Dict_Detail_ScheduleForm } from "../../Schedule/types";
+import type { ScheduleFormDraft } from "../../Schedule/types";
 import { useScheduleStore } from "../../Store/scheduleStore";
 import { useSettingStore } from "../../Store/settingStore";
 
@@ -84,7 +84,7 @@ const settingStore = useSettingStore();
 
 const boolCanSave = ref(false);
 
-const currentDetail = computed<Dict_Detail_ScheduleForm | undefined>(() => {
+const currentDetail = computed<ScheduleFormDraft | undefined>(() => {
   if (scheduleStore.formMode === "new") {
     return scheduleStore.dictDetailNew;
   }

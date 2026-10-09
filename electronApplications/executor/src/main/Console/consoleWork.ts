@@ -1,6 +1,7 @@
 // FileName: consoleWork.ts
 
 import { RunSource } from "../../shared/run";
+import { RunConflictPolicy } from "../../shared/runOptions";
 import { getErrorMessage } from "../../shared/error";
 import {
   ensureBoolean,
@@ -342,7 +343,7 @@ async function prepareAndRun(
         ensureWorkMayStart(record, credential);
         validateStartPermitTime(permit, startedAt);
         if (
-          detail.run_conflict_policy !== "concurrent" &&
+          detail.run_conflict_policy !== RunConflictPolicy.Concurrent &&
           (boolOtherRunActive || getLocalWaitingCount() > 0)
         )
           throw new ConsoleStartConflictError(

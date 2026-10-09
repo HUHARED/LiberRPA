@@ -1,15 +1,14 @@
 // FileName: types.ts
 
 import type { RunSource, RunOutputs, RunTerminalStatus } from "../../shared/run";
-import type { Str_RunConflictPolicy } from "../../shared/schedule";
 import type {
-  Dict_PythonEnvironmentSelection,
-  Dict_RunOptions,
+  RunConflictPolicy,
+  RunOptions,
+  PythonEnvironmentSelection,
 } from "../../shared/runOptions";
 
-export interface ProjectRunDetails
-  extends Dict_RunOptions, Dict_PythonEnvironmentSelection {
-  run_conflict_policy?: Str_RunConflictPolicy;
+export interface ProjectRunDetails extends RunOptions, PythonEnvironmentSelection {
+  run_conflict_policy?: RunConflictPolicy;
   schedule_name: string | null;
   id: number;
   name: string;
