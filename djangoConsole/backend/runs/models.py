@@ -146,7 +146,7 @@ class Job(models.Model):
     target_name = models.CharField(max_length=128)
     # Direct work stays bound to its accepted association, including retries.
     target_session_id = models.UUIDField(null=True)
-    inputs = models.JSONField()
+    run_snapshot = models.JSONField()
     state = models.CharField(
         max_length=max(len(value) for value in JobState.values),
         choices=JobState.choices,

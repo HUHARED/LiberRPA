@@ -117,7 +117,7 @@ def _build_assignment_payload(assignment: Assignment) -> dict:
         "package_id": assignment.job.package_id,
         "package_download_url": f"/api/clients/executor/packages/{assignment.job.package_id}/downloads/",
         "snapshot": {
-            **assignment.job.inputs,
+            **assignment.job.run_snapshot,
             "schedule_name": assignment.job.request.schedule_name or None,
         },
     }

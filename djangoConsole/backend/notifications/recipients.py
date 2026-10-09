@@ -126,7 +126,7 @@ def get_recipient_references(recipient: RunEmailRecipient) -> list[dict]:
         Job.objects
         .filter(
             request__organization_id=recipient.organization_id,
-            inputs__run_email__recipient_ids__contains=[strId],
+            run_snapshot__run_email__recipient_ids__contains=[strId],
         )
         .exclude(state=JobState.FINISHED)
         .exists()

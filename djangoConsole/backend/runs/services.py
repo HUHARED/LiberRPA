@@ -467,7 +467,7 @@ def accept_request(
             target_group_id=target.id if group else None,
             target_name=target.name,
             target_session_id=None if group else dictSession[target.id].id,
-            inputs=dictSnapshot,
+            run_snapshot=dictSnapshot,
             priority=_DICT_PRIORITY[dictSnapshot["priority"]],
             retry_count=dictSnapshot["retry_count"],
             queued_at=currentTime,
@@ -587,7 +587,7 @@ def _advance_job(
     listIdle = [
         entry for entry in listReady if not _is_busy(entry.id, dictWork[entry.id])
     ]
-    strPolicy = job.inputs["run_conflict_policy"]
+    strPolicy = job.run_snapshot["run_conflict_policy"]
     if not listIdle and strPolicy == "skip":
         _finish_job(job, "Skipped because all eligible targets are busy.")
         return
@@ -816,10 +816,10 @@ def issue_permission(session: ExecutorSession, assignmentId: uuid.UUID) -> Assig
             "Report current work state before requesting start permission.",
             code="work_state_required",
         )
-    if job.inputs["run_conflict_policy"] != "concurrent" and _is_busy(
+    if job.run_snapshot["run_conflict_policy"] != "concurrent" and _is_busy(
         assignment.executor_id, work, excludeAssignmentId=assignment.id
     ):
-        if not boolPermissionIssued and job.inputs["run_conflict_policy"] == "skip":
+        if not boolPermissionIssued and job.run_snapshot["run_conflict_policy"] == "skip":
             assignment.state = AssignmentState.FINISHED
             assignment.reason = (
                 "Skipped because a current local run or waiting task has priority."
@@ -849,7 +849,7 @@ def issue_permission(session: ExecutorSession, assignmentId: uuid.UUID) -> Assig
         job.package_id,
         assignment.executor_id,
         session.id,
-        job.inputs["python_environment_name"],
+        job.run_snapshot["python_environment_name"],
         "ready",
     )
     assignment.permit_expires_at = currentTime + timedelta(seconds=_INT_PERMIT_SECONDS)
@@ -1064,7 +1064,7 @@ def receive_event(session: ExecutorSession, event: WorkEvent) -> None:
             job.package_id,
             assignment.executor_id,
             session.id,
-            job.inputs["python_environment_name"],
+            job.run_snapshot["python_environment_name"],
             "failed",
             event.reason,
         )
@@ -1084,7 +1084,7 @@ def receive_event(session: ExecutorSession, event: WorkEvent) -> None:
                 "An actual Run already exists.", code="actual_run_exists"
             )
         if event.not_started_reason == RunNotStartedReason.LOCAL_CONFLICT:
-            strPolicy = job.inputs["run_conflict_policy"]
+            strPolicy = job.run_snapshot["run_conflict_policy"]
             if (
                 assignment.permit_expires_at is None
                 or assignment.state

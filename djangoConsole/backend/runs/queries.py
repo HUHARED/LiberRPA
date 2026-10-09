@@ -137,7 +137,7 @@ def build_job_payload(
     }
     if details:
         dictPayload.update({
-            "inputs": job.inputs,
+            "run_snapshot": job.run_snapshot,
             "runs": [
                 build_run_payload(run)
                 for run in job.runs.select_related("assignment", "job__request").order_by(
@@ -206,7 +206,7 @@ def build_run_payload(run: Run, *, details: bool = False) -> dict[str, object]:
             "department_path": get_department_path(department, dictDepartmentById),
             "department_deleted_at": department.deleted_at,
             "files": build_run_file_availability(run),
-            "inputs": job.inputs,
+            "run_snapshot": job.run_snapshot,
             "outputs": run.outputs,
             "outputs_reason": run.outputs_reason,
             "outputs_unavailable_keys": run.outputs_unavailable_keys,

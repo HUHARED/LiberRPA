@@ -208,7 +208,7 @@ def build_run_email(run: "Run", *, event: str, recipient: str) -> EmailMessage:
     zone = ZoneInfo(organization.default_time_zone)
     assignment = run.assignment
     strEventKey = _DICT_EVENT_KEY[RunEmailEvent(event)]
-    dictTemplate = job.inputs["run_email"][strEventKey]
+    dictTemplate = job.run_snapshot["run_email"][strEventKey]
     dictDefault = DEFAULT_TEMPLATES[strEventKey]
     strSubject = dictTemplate["subject"] or dictDefault["subject"]
     strBody = dictTemplate["body"] or dictDefault["body"]
@@ -227,7 +227,7 @@ def build_run_email(run: "Run", *, event: str, recipient: str) -> EmailMessage:
         "executor_name": assignment.executor_name,
         "computer_name": assignment.computer,
         "account_name": assignment.actor_name,
-        "python_environment_name": job.inputs["python_environment_name"],
+        "python_environment_name": job.run_snapshot["python_environment_name"],
         "started_at": _format_time(run.started_at, zone),
         "ended_at": _format_time(run.ended_at, zone),
         "elapsed_seconds": str((run.ended_at - run.started_at).total_seconds())
@@ -239,7 +239,7 @@ def build_run_email(run: "Run", *, event: str, recipient: str) -> EmailMessage:
         "error_type": (run.error_summary or {}).get("type", "Not available"),
         "error_message": (run.error_summary or {}).get("message", "Not available"),
     }
-    dictInput = dict(job.inputs["custom_prj_args"])
+    dictInput = dict(job.run_snapshot["custom_prj_args"])
     dictOutput = dict(run.outputs or [])
     for strField in dict.fromkeys(_RE_FIELD.findall(strSubject + strBody)):
         for strPrefix, dictValue in (

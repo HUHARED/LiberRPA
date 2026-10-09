@@ -107,7 +107,7 @@ export interface RunInfo {
   can_stop: boolean;
 }
 export interface JobDetails extends JobInfo {
-  inputs: RunSnapshot;
+  run_snapshot: RunSnapshot;
   runs: RunInfo[];
   events: JobEvent[];
 }
@@ -125,7 +125,7 @@ export interface RunFileAvailability {
 export interface RunDetails extends RunInfo {
   department_path: string;
   department_deleted_at: string | null;
-  inputs: RunSnapshot;
+  run_snapshot: RunSnapshot;
   outputs: [string, JsonValue][] | null;
   outputs_reason: string;
   outputs_unavailable_keys: string[];
@@ -248,7 +248,7 @@ export async function getJob(id: string): Promise<JobDetails> {
   if (
     !isRecord(result) ||
     !isRecord(result.job) ||
-    !isRecord(result.job.inputs) ||
+    !isRecord(result.job.run_snapshot) ||
     !isJob(result.job) ||
     !Array.isArray(result.job.events) ||
     !result.job.events.every(
@@ -270,7 +270,7 @@ export async function getRun(id: string): Promise<RunDetails> {
     typeof result.run.department_path !== "string" ||
     result.run.department_path.length === 0 ||
     !isNullableDateString(result.run.department_deleted_at) ||
-    !isRecord(result.run.inputs) ||
+    !isRecord(result.run.run_snapshot) ||
     !isRun(result.run) ||
     typeof result.run.outputs_reason !== "string" ||
     !Array.isArray(result.run.outputs_unavailable_keys) ||

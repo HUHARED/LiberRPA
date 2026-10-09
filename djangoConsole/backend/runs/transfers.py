@@ -142,7 +142,7 @@ def build_run_file_availability(run: Run) -> dict[RunFileKind, RunFileAvailabili
             strCommonReason = "The original Executor client is offline."
 
     boolRecordingReady = run.recording.get("status") == RecordingStatus.READY
-    boolRecordingEnabled = bool(run.job.inputs.get("builtin_record_video", False))
+    boolRecordingEnabled = bool(run.job.run_snapshot.get("builtin_record_video", False))
     dictSize = {
         RunFileKind.LOGS: None,
         RunFileKind.VIDEO: cast(int | None, run.recording.get("videoSizeBytes")),

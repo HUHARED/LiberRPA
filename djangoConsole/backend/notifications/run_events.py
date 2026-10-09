@@ -28,7 +28,7 @@ def notify_run_event(run: "Run", event: str) -> None:
         RunEmailEvent.COMPLETED: "on_completed",
         RunEmailEvent.ERROR: "on_error",
     }[emailEvent]
-    dictConfig = run.job.inputs.get("run_email", {})
+    dictConfig = run.job.run_snapshot.get("run_email", {})
     if not dictConfig.get(strKey, {}).get("enabled", False):
         return
     organizationId = run.job.request.organization_id

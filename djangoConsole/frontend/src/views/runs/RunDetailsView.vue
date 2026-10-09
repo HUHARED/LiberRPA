@@ -58,7 +58,7 @@
           :download-enabled="run.files.logs.available"
           :download-reason="run.files.logs.reason"
           @download="download('logs')" />
-        <RunInputs v-if="strTab === 'inputs'" :inputs="run.inputs" />
+        <RunInputs v-if="strTab === 'inputs'" :inputs="run.run_snapshot" />
         <template v-if="strTab === 'outputs'">
           <v-alert v-if="run.outputs_status === 'waiting'" type="info" variant="tonal">
             Waiting for the final outputs.
@@ -164,7 +164,7 @@
             show-attempt
             empty-text="No other runs." />
           <h2 class="text-h6 mt-5 mb-3">Video</h2>
-          <p v-if="!run.inputs.builtin_record_video">
+          <p v-if="!run.run_snapshot.builtin_record_video">
             Recording was not enabled for this run.
           </p>
           <template v-else>

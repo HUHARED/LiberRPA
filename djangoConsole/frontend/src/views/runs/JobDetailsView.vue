@@ -74,7 +74,7 @@
     </v-card>
     <v-card variant="outlined" class="mb-4">
       <v-card-title>Inputs</v-card-title>
-      <v-card-text><RunInputs :inputs="job.inputs" /></v-card-text>
+      <v-card-text><RunInputs :inputs="job.run_snapshot" /></v-card-text>
     </v-card>
     <v-card variant="outlined" class="mb-4">
       <v-card-title>Events</v-card-title>
