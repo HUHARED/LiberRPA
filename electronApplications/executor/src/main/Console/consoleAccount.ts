@@ -25,10 +25,15 @@ import {
   normalizeConsoleUrl,
   requestConsole,
   parseConsoleSession,
+  parseConsoleHeartbeat,
   parseExecutorChoices,
 } from "./consoleApi";
 import type { ConsoleCredentialSnapshot } from "./consoleContextBridge";
-import { startConsoleControl, stopConsoleControl } from "./consoleControl";
+import {
+  ConsoleControlMessage,
+  startConsoleControl,
+  stopConsoleControl,
+} from "./consoleControl";
 
 let strConsoleUrl = "";
 let strRememberedEmail = "";
@@ -77,7 +82,10 @@ function isInvalidSession(e: unknown): boolean {
 }
 
 function updateSession(response: Record<string, unknown>): ConsoleSessionInfo {
-  sessionInfo = parseConsoleSession(response);
+  sessionInfo =
+    response.type === ConsoleControlMessage.Heartbeat
+      ? parseConsoleHeartbeat(response, sessionInfo)
+      : parseConsoleSession(response);
   connection = sessionInfo.session.selection_required
     ? ConsoleConnection.SelectingExecutor
     : ConsoleConnection.Connected;

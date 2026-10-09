@@ -188,6 +188,46 @@ export function parseConsoleSession(response: Record<string, unknown>): ConsoleS
   };
 }
 
+export function parseConsoleHeartbeat(
+  response: Record<string, unknown>,
+  currentSession: ConsoleSessionInfo | null,
+): ConsoleSessionInfo {
+  if (currentSession?.executor == null) {
+    throw new Error("Console returned a heartbeat without an Executor association.");
+  }
+  const strSessionId = ensureNonEmptyString(response.session_id, "Console session_id");
+  const strExecutorId = ensureNonEmptyString(response.executor_id, "Console executor_id");
+  const account =
+    response.account === null
+      ? currentSession
+      : parseConsoleSession(ensureRecord(response.account, "Console account"));
+  if (
+    strSessionId !== currentSession.session.id ||
+    strExecutorId !== currentSession.executor.id ||
+    account.session.id !== strSessionId ||
+    account.executor?.id !== strExecutorId ||
+    account.user.id !== currentSession.user.id ||
+    account.organization.id !== currentSession.organization.id
+  ) {
+    throw new Error("Console returned a heartbeat for a different Executor association.");
+  }
+  return {
+    ...account,
+    session: {
+      ...account.session,
+      expires_at: ensureString(response.expires_at, "Console expires_at"),
+    },
+    executor: {
+      ...account.executor,
+      dispatch_enabled: ensureBoolean(
+        response.dispatch_enabled,
+        "Console dispatch_enabled",
+      ),
+    },
+    last_seen_at: ensureString(response.last_seen_at, "Console last_seen_at"),
+  };
+}
+
 export function parseExecutorChoices(
   response: Record<string, unknown>,
 ): ConsoleExecutorPage {

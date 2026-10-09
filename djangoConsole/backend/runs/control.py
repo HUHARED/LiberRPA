@@ -5,7 +5,7 @@ import logging
 import uuid
 from contextlib import suppress
 from enum import StrEnum
-from typing import Literal
+from typing import Literal, cast
 
 from asgiref.sync import sync_to_async
 from asgiref.typing import (
@@ -39,6 +39,7 @@ from executors.client_sessions import (
     open_executor_client_request,
 )
 from executors.client_views import build_client_session_payload
+from executors.models import Executor
 
 from .contracts import WorkPollRequest
 from .control_notifications import listen_for_executor_notifications
@@ -49,6 +50,7 @@ _STR_CONTROL_PATH = "/api/clients/executor/control/"
 _INT_MAX_MESSAGE_BYTES = 64 * 1024
 _INT_AUTHENTICATION_TIMEOUT_SECONDS = 10
 _INT_CONTACT_TIMEOUT_SECONDS = 45
+_INT_ACCOUNT_REFRESH_HEARTBEATS = 4
 
 
 class ControlMessageType(StrEnum):
@@ -128,6 +130,8 @@ def _process_message(
     clientAddress: str,
     token: SecretStr,
     payload: ControlAuthenticationRequest | ControlStateRequest,
+    *,
+    refreshAccount: bool = False,
 ) -> tuple[uuid.UUID, dict[str, object]] | JsonResponse:
     # Long-lived ASGI connections do not run Django's HTTP connection cleanup hooks.
     close_old_connections()
@@ -148,12 +152,25 @@ def _process_message(
             update_executor_work_state(session, payload)
             if payload.type == ControlMessageType.STATE:
                 dictPayload: dict[str, object] = {"type": ControlMessageType.STATE}
-            else:
+            elif payload.type == ControlMessageType.AUTHENTICATE:
                 dictPayload = {
-                    "type": ControlMessageType.READY
-                    if payload.type == ControlMessageType.AUTHENTICATE
-                    else ControlMessageType.HEARTBEAT,
+                    "type": ControlMessageType.READY,
                     **build_client_session_payload(session, authentication.access),
+                }
+            else:
+                executor = cast(Executor, session.executor)
+                dictPayload = {
+                    "type": ControlMessageType.HEARTBEAT,
+                    "session_id": session.id,
+                    "executor_id": executorId,
+                    "expires_at": session.expires_at,
+                    "last_seen_at": session.last_seen_at,
+                    "dispatch_enabled": executor.dispatch_enabled,
+                    "account": build_client_session_payload(
+                        session, authentication.access
+                    )
+                    if refreshAccount
+                    else None,
                 }
             return executorId, dictPayload
     except InvalidExecutorSessionError:
@@ -282,6 +299,7 @@ class ExecutorControl:
             _LOGGER.info("Executor control connected: executor=%s", executorId)
             loop = asyncio.get_running_loop()
             floatDeadline = loop.time() + _INT_CONTACT_TIMEOUT_SECONDS
+            intHeartbeatCount = 0
             receiveTask = asyncio.ensure_future(receive())
             wakeupTask = asyncio.create_task(wakeupEvent.wait())
             while True:
@@ -301,12 +319,25 @@ class ExecutorControl:
                     if isinstance(statePayload, JsonResponse):
                         await _send_error(send, statePayload)
                         return
+                    if statePayload.type == ControlMessageType.HEARTBEAT:
+                        intHeartbeatCount += 1
+                    # Display details refresh every four heartbeats; every contact still authenticates.
+                    boolRefreshAccount = (
+                        intHeartbeatCount == _INT_ACCOUNT_REFRESH_HEARTBEATS
+                    )
                     result = await sync_to_async(
                         _process_message, thread_sensitive=False
-                    )(strClientAddress, payload.token, statePayload)
+                    )(
+                        strClientAddress,
+                        payload.token,
+                        statePayload,
+                        refreshAccount=boolRefreshAccount,
+                    )
                     if isinstance(result, JsonResponse):
                         await _send_error(send, result)
                         return
+                    if boolRefreshAccount:
+                        intHeartbeatCount = 0
                     _, dictResponse = result
                     await _send_payload(send, dictResponse)
                     floatDeadline = loop.time() + _INT_CONTACT_TIMEOUT_SECONDS
