@@ -462,7 +462,7 @@ def accept_request(
             department=department,
             package_id=packageId,
             project_name=dictSnapshot["project_name"],
-            version=dictSnapshot["version"],
+            version=dictSnapshot["project_version"],
             target_executor_id=None if group else target.id,
             target_group_id=target.id if group else None,
             target_name=target.name,

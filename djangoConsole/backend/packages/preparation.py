@@ -102,7 +102,6 @@ def get_preparation_commands(
                 "requires_liberrpa": package.requires_liberrpa,
                 "project_name": package.project_name,
                 "project_version": package.version,
-                "version": package.version,
             },
         })
     return listCommand

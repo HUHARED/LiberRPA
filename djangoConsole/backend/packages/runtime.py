@@ -137,7 +137,6 @@ def get_run_snapshot(
         "department_id": str(package.department_id),
         "project_name": package.project_name,
         "project_version": package.version,
-        "version": package.version,
         "sha256": package.sha256,
         "requires_liberrpa": package.requires_liberrpa,
         "python_environment_name": package.python_environment_name,
