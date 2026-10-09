@@ -32,12 +32,15 @@ import { prepareConsolePackage, stopPackagePreparation } from "./packagePreparat
 import {
   acknowledgeConsoleEvents,
   ConsoleWorkState,
+  ConsoleEventKind,
+  ConsoleNotStartedReason,
   getConsoleWork,
   getPendingConsoleEvents,
   onConsoleEventSaved,
   getConsoleWorkSessionKey,
   saveConsoleEvent,
   saveConsoleWork,
+  type ConsoleEventData,
   type ConsoleAssignment,
   type ConsoleWorkRecord,
 } from "./workRepository";
@@ -47,10 +50,6 @@ enum ConsolePermitWaitReason {
   DispatchPaused = "dispatch_paused",
   ExecutorBusy = "executor_busy",
   WorkStateRequired = "work_state_required",
-}
-
-enum ConsoleNotStartedReason {
-  LocalConflict = "local_conflict",
 }
 
 interface ConsoleStartPermit {
@@ -341,7 +340,7 @@ async function prepareAndRun(
         getDatabase().transaction(() => {
           saveConsoleWork(record);
           saveConsoleEvent(record, {
-            kind: "started",
+            kind: ConsoleEventKind.Started,
             occurred_at: fact.startedAt,
             started_at: fact.startedAt,
           });
@@ -353,7 +352,7 @@ async function prepareAndRun(
         getDatabase().transaction(() => {
           saveConsoleWork(record);
           saveConsoleEvent(record, {
-            kind: "ended",
+            kind: ConsoleEventKind.Ended,
             occurred_at: fact.endedAt,
             started_at: fact.startedAt,
             result: fact.status,
@@ -367,27 +366,33 @@ async function prepareAndRun(
     const boolUncertain =
       record.state === ConsoleWorkState.Launching ||
       record.state === ConsoleWorkState.Running;
-    const strKind = boolUncertain
-      ? "unknown"
-      : boolStopped ||
-          boolPrepared ||
-          record.state === ConsoleWorkState.Permitted ||
-          setStoppedAssignment.has(record.assignment.id)
-        ? "not_started"
-        : "preparation_failed";
     const boolLocalConflict = !boolUncertain && e instanceof ConsoleStartConflictError;
+    const strReason = getErrorMessage(e);
+    let event: ConsoleEventData;
+    if (boolUncertain) {
+      event = { kind: ConsoleEventKind.Unknown, reason: strReason };
+    } else if (boolLocalConflict) {
+      event = {
+        kind: ConsoleEventKind.NotStarted,
+        reason: strReason,
+        not_started_reason: ConsoleNotStartedReason.LocalConflict,
+      };
+    } else if (
+      boolStopped ||
+      boolPrepared ||
+      record.state === ConsoleWorkState.Permitted ||
+      setStoppedAssignment.has(record.assignment.id)
+    ) {
+      event = { kind: ConsoleEventKind.NotStarted, reason: strReason };
+    } else {
+      event = { kind: ConsoleEventKind.PreparationFailed, reason: strReason };
+    }
     record.state = boolUncertain ? ConsoleWorkState.Unknown : ConsoleWorkState.Finished;
     getDatabase().transaction(() => {
       saveConsoleWork(record);
-      saveConsoleEvent(record, {
-        kind: strKind,
-        reason: getErrorMessage(e),
-        ...(boolLocalConflict && {
-          not_started_reason: ConsoleNotStartedReason.LocalConflict,
-        }),
-      });
+      saveConsoleEvent(record, event);
     })();
-    const strMessage = `Console assignment ${record.assignment.id}: ${getErrorMessage(e)}`;
+    const strMessage = `Console assignment ${record.assignment.id}: ${strReason}`;
     if (boolLocalConflict) loggerMain.info(strMessage);
     else loggerMain.warn(strMessage);
   } finally {

@@ -3,7 +3,7 @@
 import { createHash, randomUUID } from "crypto";
 import fs from "fs";
 
-import { RunStatus, type RunTerminalStatus } from "../../shared/run";
+import { RunStatus, type RunTerminalStatus, type RunOutputs } from "../../shared/run";
 import {
   type ExecutorRunState,
   createExecutorRunStatePath,
@@ -38,6 +38,53 @@ export interface ConsoleRecordingInfo {
   subtitleSizeBytes?: number | null;
   reason?: string;
 }
+
+export enum ConsoleEventKind {
+  PreparationFailed = "preparation_failed",
+  Started = "started",
+  NotStarted = "not_started",
+  Ended = "ended",
+  Unknown = "unknown",
+  Recording = "recording",
+}
+
+export enum ConsoleNotStartedReason {
+  LocalConflict = "local_conflict",
+}
+
+export type ConsoleEventData =
+  | {
+      kind: ConsoleEventKind.Started;
+      occurred_at: string;
+      started_at: string;
+    }
+  | {
+      kind: ConsoleEventKind.Ended;
+      occurred_at: string;
+      started_at: string;
+      result: RunTerminalStatus;
+      outputs: RunOutputs;
+      error_summary: RunEndedFact["errorSummary"];
+    }
+  | {
+      kind: ConsoleEventKind.NotStarted;
+      reason: string;
+      not_started_reason?: ConsoleNotStartedReason;
+    }
+  | {
+      kind: ConsoleEventKind.PreparationFailed | ConsoleEventKind.Unknown;
+      reason: string;
+    }
+  | {
+      kind: ConsoleEventKind.Recording;
+      recording: ConsoleRecordingInfo;
+    };
+
+export type ConsoleEvent = ConsoleEventData & {
+  event_id: string;
+  assignment_id: string;
+  occurred_at: string;
+};
 
 export interface ConsoleAssignment {
   id: string;
@@ -182,12 +229,15 @@ export function onConsoleEventSaved(listener: () => void): () => void {
   return () => setEventSavedListener.delete(listener);
 }
 
-export function saveConsoleEvent(
-  record: ConsoleWorkRecord,
-  event: Record<string, unknown>,
-): void {
+export function saveConsoleEvent(record: ConsoleWorkRecord, event: ConsoleEventData): void {
   const strEventId = randomUUID();
-  if (typeof event.reason === "string") event.reason = event.reason.slice(0, 2000);
+  const eventPayload: ConsoleEvent = {
+    ...event,
+    event_id: strEventId,
+    assignment_id: record.assignment.id,
+    occurred_at: "occurred_at" in event ? event.occurred_at : new Date().toISOString(),
+  };
+  if ("reason" in eventPayload) eventPayload.reason = eventPayload.reason.slice(0, 2000);
   getDatabase()
     .prepare(
       `
@@ -201,23 +251,14 @@ export function saveConsoleEvent(
           (?, ?, ?);
       `,
     )
-    .run(
-      strEventId,
-      record.sessionKey,
-      JSON.stringify({
-        event_id: strEventId,
-        assignment_id: record.assignment.id,
-        occurred_at: new Date().toISOString(),
-        ...event,
-      }),
-    );
+    .run(strEventId, record.sessionKey, JSON.stringify(eventPayload));
   // Notify after the caller's synchronous SQLite transaction has committed.
   queueMicrotask(() => {
     for (const listener of setEventSavedListener) listener();
   });
 }
 
-export function getPendingConsoleEvents(sessionKey: string): Record<string, unknown>[] {
+export function getPendingConsoleEvents(sessionKey: string): ConsoleEvent[] {
   const arrRow = getDatabase()
     .prepare(
       `
@@ -235,10 +276,10 @@ export function getPendingConsoleEvents(sessionKey: string): Record<string, unkn
       `,
     )
     .all(sessionKey) as { payload: string }[];
-  const arrEvent: Record<string, unknown>[] = [];
+  const arrEvent: ConsoleEvent[] = [];
   let intBytes = Buffer.byteLength(JSON.stringify({ events: [] }), "utf8");
   for (const row of arrRow) {
-    const event = JSON.parse(row.payload) as Record<string, unknown>;
+    const event = JSON.parse(row.payload) as ConsoleEvent;
     const intEventBytes =
       Buffer.byteLength(JSON.stringify(event), "utf8") + (arrEvent.length ? 1 : 0);
     if (intBytes + intEventBytes > INT_MAX_EVENT_REQUEST_BYTES) {
@@ -327,7 +368,7 @@ function recoverFinishedConsoleRun(record: ConsoleWorkRecord): boolean {
   getDatabase().transaction(() => {
     saveConsoleWork(record);
     saveConsoleEvent(record, {
-      kind: "ended",
+      kind: ConsoleEventKind.Ended,
       occurred_at: strEndedAt,
       started_at: started.startedAt,
       result: status,
@@ -369,7 +410,7 @@ export function recoverConsoleWorkAfterRestart(): void {
     if ([ConsoleWorkState.Preparing, ConsoleWorkState.Permitted].includes(record.state)) {
       getDatabase().transaction(() => {
         saveConsoleEvent(record, {
-          kind: "not_started",
+          kind: ConsoleEventKind.NotStarted,
           reason: "Executor restarted before creating the Python process.",
         });
         record.state = ConsoleWorkState.Finished;
@@ -384,7 +425,7 @@ export function recoverConsoleWorkAfterRestart(): void {
     if (record.state !== ConsoleWorkState.Unknown) {
       getDatabase().transaction(() => {
         saveConsoleEvent(record, {
-          kind: "unknown",
+          kind: ConsoleEventKind.Unknown,
           reason: "Executor restarted; the original process result cannot be confirmed.",
         });
         record.state = ConsoleWorkState.Unknown;
@@ -441,6 +482,6 @@ export function reportConsoleRecording(id: string, recording: ConsoleRecordingIn
   record.recording = recording;
   getDatabase().transaction(() => {
     saveConsoleWork(record);
-    saveConsoleEvent(record, { kind: "recording", recording });
+    saveConsoleEvent(record, { kind: ConsoleEventKind.Recording, recording });
   })();
 }
