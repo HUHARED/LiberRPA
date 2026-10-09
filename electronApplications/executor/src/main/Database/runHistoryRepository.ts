@@ -18,6 +18,7 @@ import {
   ensureCountRow,
   ensureRunHistoryLogLocationRow,
   ensureRunHistoryListRows,
+  parseRunHistoryConsoleLink,
   ensureSingleRowAffected,
 } from "./rowValidation";
 import { isRecoveredRunHistoryActive } from "../Run/recoveredRuns";
@@ -26,6 +27,7 @@ interface Dict_RunHistory_Insert {
   schedule_name: string | null;
   project_id: number | null;
   source: RunSource;
+  console_url: string | null;
   run_id: string;
   job_id: string;
   attempt: number;
@@ -68,6 +70,7 @@ export function dbInsertRunHistory(detailDict: Dict_RunHistory_Insert): Database
       INSERT INTO
           run_history (
               source,
+              console_url,
               run_id,
               job_id,
               attempt,
@@ -85,11 +88,12 @@ export function dbInsertRunHistory(detailDict: Dict_RunHistory_Insert): Database
               updated_at_ms
           )
       VALUES
-          (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+          (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
       `,
     )
     .run(
       detailDict.source,
+      detailDict.console_url,
       detailDict.run_id,
       detailDict.job_id,
       detailDict.attempt,
@@ -238,6 +242,11 @@ export function dbSelectRunHistoryPage(
     arrWhereParam.push(options.search.status);
   }
 
+  if (options.search.source !== null) {
+    arrWhereClause.push("source = ?");
+    arrWhereParam.push(options.search.source);
+  }
+
   const strWhereClause =
     arrWhereClause.length === 0 ? "" : `WHERE ${arrWhereClause.join(" AND ")}`;
 
@@ -255,6 +264,8 @@ export function dbSelectRunHistoryPage(
       SELECT
           id,
           source,
+          console_url,
+          run_id,
           attempt,
           schedule_name,
           project_name,
@@ -416,6 +427,7 @@ export function dbSelectRunDetails(id: number): RunDetails {
       `
       SELECT
           source,
+          console_url,
           run_id,
           job_id,
           attempt,
@@ -431,6 +443,7 @@ export function dbSelectRunDetails(id: number): RunDetails {
     .get(id) as
     | {
         source: RunSource;
+        console_url: string | null;
         run_id: string;
         job_id: string;
         attempt: number;
@@ -440,8 +453,14 @@ export function dbSelectRunDetails(id: number): RunDetails {
       }
     | undefined;
   if (!row) throw new Error("Run History record not found.");
+  const { console_url: strConsoleUrl, ...details } = row;
   return {
-    ...row,
+    ...details,
+    console_run_url: parseRunHistoryConsoleLink(
+      strConsoleUrl,
+      row.run_id,
+      "Run History details",
+    ),
     inputs: JSON.parse(row.inputs) as Record<string, unknown>,
     outputs: JSON.parse(row.outputs) as RunOutputs,
     error_summary:

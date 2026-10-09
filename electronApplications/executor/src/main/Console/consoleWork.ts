@@ -333,6 +333,7 @@ async function prepareAndRun(
     saveConsoleWork(record);
     await pythonRun(detail, {
       source: RunSource.Console,
+      consoleUrl: credential.consoleUrl,
       jobId: record.assignment.job_id,
       runId: record.assignment.run_id,
       attempt: record.assignment.attempt,

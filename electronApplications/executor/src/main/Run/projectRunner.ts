@@ -578,6 +578,8 @@ async function createRunHistory({
       schedule_name: detail.schedule_name,
       project_id: context.source === RunSource.Console ? null : detail.id,
       source: context.source,
+      console_url:
+        context.source === RunSource.Console ? (context.consoleUrl ?? null) : null,
       run_id: runId,
       job_id: context.jobId,
       attempt: context.attempt,

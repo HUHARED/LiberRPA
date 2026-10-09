@@ -1,6 +1,6 @@
 // FileName: validation.ts
 
-import { RunStatus } from "../../shared/run";
+import { RunSource, RunStatus } from "../../shared/run";
 import type { Str_RunConflictPolicy } from "../../shared/schedule";
 import { INT_MAX_RETRY_COUNT, INT_MAX_RUN_TIMEOUT_MIN } from "../../shared/runOptions";
 import type { Arr_CustomProjectArgs, Str_LogLevel } from "../../shared/runOptions";
@@ -252,6 +252,11 @@ export function ensureRunConflictPolicy(
     return value;
   }
   throw new Error(`${sourceName} must be 'skip', 'wait', or 'concurrent'.`);
+}
+
+export function ensureRunSource(value: unknown, sourceName: string): RunSource {
+  if (value === RunSource.Local || value === RunSource.Console) return value;
+  throw new Error(`${sourceName} contains an unsupported Run source.`);
 }
 
 export function ensureRunHistoryStatus(value: unknown, sourceName: string): RunStatus {

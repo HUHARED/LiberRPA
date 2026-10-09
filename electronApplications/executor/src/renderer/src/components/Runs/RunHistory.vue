@@ -17,6 +17,14 @@
       hover
       multi-sort
       @update:options="handleTableOptionsUpdate($event)">
+      <template #item.schedule_name="{ value }">
+        {{ value ?? "—" }}
+      </template>
+
+      <template #item.source="{ item }">
+        {{ DICT_RUN_SOURCE_LABEL[item.source] }}
+      </template>
+
       <template #item.run_started_at_ms="{ value }">
         <v-chip
           :text="formatTimestamp(value, settingStore.timezone)"
@@ -63,7 +71,7 @@
 
           <v-tooltip
             v-if="item.status === RunStatus.Running"
-            text="Cancel Run"
+            text="Stop Current Run"
             location="bottom"
             :open-on-focus="false">
             <template #activator="{ props }">
@@ -77,7 +85,7 @@
           </v-tooltip>
 
           <v-tooltip
-            v-else-if="item.source === 'local'"
+            v-else-if="item.source === RunSource.Local"
             text="Run Most Recently Installed Version"
             location="bottom"
             :open-on-focus="false">
@@ -90,47 +98,80 @@
                 @click="runMostRecentlyInstalledProjectVersion(item.project_name)"></v-icon>
             </template>
           </v-tooltip>
+
+          <v-tooltip
+            v-if="item.source === RunSource.Console"
+            :text="
+              item.console_run_url
+                ? 'Open in Console'
+                : 'The original Console address is unavailable.'
+            "
+            location="bottom"
+            :open-on-focus="false">
+            <template #activator="{ props }">
+              <span v-bind="props">
+                <v-btn
+                  :href="item.console_run_url ?? undefined"
+                  :disabled="item.console_run_url === null"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Open in Console"
+                  icon="mdi-open-in-new"
+                  variant="text"
+                  size="x-small" />
+              </span>
+            </template>
+          </v-tooltip>
         </div>
       </template>
 
-      <template #thead>
+      <template #body.prepend="{ columns }">
         <tr>
-          <td>
+          <td v-for="column in columns" :key="String(column.key)">
             <v-text-field
+              v-if="column.key === 'schedule_name'"
               v-model="runHistoryStore.filterScheduleName"
+              aria-label="Filter by Schedule"
               class="pa-0 ma-0 pl-2 pr-2"
               density="compact"
               hide-details
               variant="underlined"></v-text-field>
-          </td>
-          <td>
             <v-text-field
+              v-else-if="column.key === 'project_name'"
               v-model="runHistoryStore.filterProjectName"
+              aria-label="Filter by Project Name"
               class="pa-0 ma-0 pl-2 pr-2"
               density="compact"
               hide-details
               variant="underlined"></v-text-field>
-          </td>
-          <td>
             <v-text-field
+              v-else-if="column.key === 'project_version'"
               v-model="runHistoryStore.filterProjectVersion"
+              aria-label="Filter by Project Version"
               class="pa-0 ma-0 pl-2 pr-2"
               density="compact"
               hide-details
               variant="underlined"></v-text-field>
-          </td>
-          <td></td>
-          <td></td>
-          <td></td>
-          <td>
             <v-select
+              v-else-if="column.key === 'status'"
               v-model="runHistoryStore.filterStatus"
+              aria-label="Filter by Status"
               variant="underlined"
               class="pa-0 ma-0 pl-2 pr-2"
               density="compact"
               hide-details
               clearable
               :items="ARR_RUN_STATUS_OPTION"></v-select>
+            <v-select
+              v-else-if="column.key === 'source'"
+              v-model="runHistoryStore.filterSource"
+              aria-label="Filter by Source"
+              variant="underlined"
+              class="pa-0 ma-0 pl-2 pr-2"
+              density="compact"
+              hide-details
+              clearable
+              :items="ARR_RUN_SOURCE_OPTION"></v-select>
           </td>
         </tr>
       </template>
@@ -140,8 +181,11 @@
       <v-card v-if="runDetails" title="Run Details">
         <v-card-text>
           <div>
-            {{ runDetails.source }} · Job {{ runDetails.job_id }} · Attempt
+            {{ DICT_RUN_SOURCE_LABEL[runDetails.source] }} · Attempt
             {{ runDetails.attempt }}
+          </div>
+          <div v-if="runDetails.source === RunSource.Console">
+            Job {{ runDetails.job_id }}
           </div>
           <h3 class="mt-3">Inputs</h3>
           <pre class="text-wrap">{{ JSON.stringify(runDetails.inputs, null, 2) }}</pre>
@@ -182,6 +226,14 @@
           </v-alert>
         </v-card-text>
         <v-card-actions>
+          <v-btn
+            v-if="runDetails.source === RunSource.Console && runDetails.console_run_url"
+            :href="runDetails.console_run_url"
+            target="_blank"
+            rel="noopener noreferrer"
+            prepend-icon="mdi-open-in-new">
+            Open in Console
+          </v-btn>
           <v-spacer />
           <v-btn @click="boolShowDetails = false">Close</v-btn>
         </v-card-actions>
@@ -204,12 +256,22 @@ import { useSettingStore } from "../../Store/settingStore";
 import { formatTimestamp } from "../../Common/time";
 import { getErrorMessage } from "../../../../shared/error";
 import {
+  RunSource,
   RunStatus,
   type RunDetails,
   type Dict_RunHistory_Item,
   type Dict_RunHistory_Options,
   type Dict_RunHistory_Search,
 } from "../../../../shared/run";
+
+const DICT_RUN_SOURCE_LABEL: Record<RunSource, string> = {
+  [RunSource.Local]: "Local",
+  [RunSource.Console]: "Console",
+};
+const ARR_RUN_SOURCE_OPTION = Object.values(RunSource).map((source) => ({
+  title: DICT_RUN_SOURCE_LABEL[source],
+  value: source,
+}));
 
 const DICT_RUN_STATUS_DISPLAY: Record<RunStatus, { title: string; color: string }> = {
   [RunStatus.Running]: { title: "Running", color: "success" },
@@ -249,6 +311,7 @@ const dictSearch = computed<Dict_RunHistory_Search>(() => {
     project_name: runHistoryStore.filterProjectName,
     project_version: runHistoryStore.filterProjectVersion,
     status: runHistoryStore.filterStatus,
+    source: runHistoryStore.filterSource,
   };
 });
 

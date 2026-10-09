@@ -21,6 +21,7 @@ import {
   ensureLogLevel,
   ensureRunConflictPolicy,
   ensureRunHistoryStatus,
+  ensureRunSource,
   ensureCustomProjectArgs,
 } from "../Common/validation";
 
@@ -315,7 +316,7 @@ export function ensureRunHistoryOptions(value: unknown): Dict_RunHistory_Options
 
   const dictSearch = ensureExactRecord(
     dictValue.search,
-    ["schedule_name", "project_name", "project_version", "status"],
+    ["schedule_name", "project_name", "project_version", "status", "source"],
     "Run History options.search",
   );
 
@@ -345,6 +346,10 @@ export function ensureRunHistoryOptions(value: unknown): Dict_RunHistory_Options
         "Run History options.search.project_version",
       ),
       status,
+      source:
+        dictSearch.source === null
+          ? null
+          : ensureRunSource(dictSearch.source, "Run History options.search.source"),
     },
   };
 }

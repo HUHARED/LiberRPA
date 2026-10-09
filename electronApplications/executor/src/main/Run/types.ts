@@ -27,6 +27,7 @@ export interface RunExecutionContext {
   jobId: string;
   attempt: number;
   runId?: string;
+  consoleUrl?: string;
   packagePath?: string;
   beforeSpawn?: (hasOtherActiveRun: boolean, startedAt: string) => void;
   onStarted?: (fact: RunStartedFact) => void;

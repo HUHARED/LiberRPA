@@ -9,6 +9,7 @@ import type {
   Dict_RunHistory_Item,
   Dict_RunHistory_Options,
   RunStatus,
+  RunSource,
 } from "../../../shared/run";
 
 export const useRunHistoryStore = defineStore("runHistory", {
@@ -23,6 +24,7 @@ export const useRunHistoryStore = defineStore("runHistory", {
       filterProjectName: "" as string,
       filterProjectVersion: "" as string,
       filterStatus: null as RunStatus | null,
+      filterSource: null as RunSource | null,
     };
   },
   actions: {

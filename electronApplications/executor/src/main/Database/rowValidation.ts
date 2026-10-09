@@ -4,7 +4,7 @@ import type Database from "better-sqlite3";
 
 import type { Dict_ProjectDetail } from "../../shared/project";
 import type { Dict_RunHistory_Item } from "../../shared/run";
-import { RunSource, RunStatus } from "../../shared/run";
+import { RunStatus } from "../../shared/run";
 import type { Dict_ProjectRun_Detail } from "../Run/types";
 import type { Dict_Detail_Schedule, Dict_ListItem_Schedule } from "../../shared/schedule";
 import type { Arr_CustomProjectArgs } from "../../shared/runOptions";
@@ -24,6 +24,7 @@ import {
   ensureLogLevel,
   ensureRunConflictPolicy,
   ensureRunHistoryStatus,
+  ensureRunSource,
   ensureCustomProjectArgs,
 } from "../Common/validation";
 
@@ -384,6 +385,35 @@ export function ensureScheduleRunDetailRow(
   };
 }
 
+export function parseRunHistoryConsoleLink(
+  consoleUrl: unknown,
+  runId: unknown,
+  sourceName: string,
+): string | null {
+  const strConsoleUrl = ensureNullableString(consoleUrl, `${sourceName}.console_url`);
+  const strRunId = ensureNonEmptyString(runId, `${sourceName}.run_id`);
+  if (strConsoleUrl === null) return null;
+
+  let urlObj: URL;
+  try {
+    urlObj = new URL(strConsoleUrl);
+  } catch (e: unknown) {
+    throw new Error(`${sourceName} contains an invalid Console address.`, { cause: e });
+  }
+  if (
+    !["http:", "https:"].includes(urlObj.protocol) ||
+    urlObj.username ||
+    urlObj.password ||
+    urlObj.pathname !== "/" ||
+    urlObj.search ||
+    urlObj.hash
+  ) {
+    throw new Error(`${sourceName} contains an invalid Console address.`);
+  }
+  urlObj.pathname = `/runs/${encodeURIComponent(strRunId)}`;
+  return urlObj.href;
+}
+
 function ensureRunHistoryListItemRow(
   value: unknown,
   sourceName: string,
@@ -393,6 +423,8 @@ function ensureRunHistoryListItemRow(
     [
       "id",
       "source",
+      "console_url",
+      "run_id",
       "attempt",
       "schedule_name",
       "project_name",
@@ -419,7 +451,8 @@ function ensureRunHistoryListItemRow(
 
   return {
     id: ensurePositiveInteger(row.id, `${sourceName}.id`),
-    source: row.source === RunSource.Console ? RunSource.Console : RunSource.Local,
+    source: ensureRunSource(row.source, `${sourceName}.source`),
+    console_run_url: parseRunHistoryConsoleLink(row.console_url, row.run_id, sourceName),
     attempt: ensurePositiveInteger(row.attempt, `${sourceName}.attempt`),
     schedule_name: ensureNullableString(row.schedule_name, `${sourceName}.schedule_name`),
     project_name: ensureNonEmptyString(row.project_name, `${sourceName}.project_name`),
