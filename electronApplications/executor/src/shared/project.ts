@@ -31,3 +31,9 @@ export type Dict_ProjectPackage_InstallResult =
       name: string;
       version: string;
     };
+
+export interface ConsolePackageCleanupResult {
+  removed: number;
+  protected: number;
+  failed: number;
+}

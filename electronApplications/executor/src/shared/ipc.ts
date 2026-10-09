@@ -7,6 +7,7 @@ import type {
 } from "./consoleAccount";
 import type { Dict_ExecutorConfig } from "./config";
 import type {
+  ConsolePackageCleanupResult,
   Dict_ProjectDetail,
   Dict_ProjectPackage_InstallResult,
   Dict_ProjectSettingsUpdate,
@@ -59,6 +60,10 @@ interface Dict_ExecutorInvoke_Contract {
   getPythonEnvironmentNames: {
     request: undefined;
     response: string[];
+  };
+  clearUnusedConsolePackages: {
+    request: undefined;
+    response: ConsolePackageCleanupResult;
   };
   installProjectPackage: {
     request: undefined;

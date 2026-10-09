@@ -7,15 +7,17 @@
           class="pa-0 ma-0 mt-2 mr-2"
           color="medium-emphasis"
           icon="mdi-delete-clock-outline"
-          v-bind="props">
-        </v-icon>
+          v-bind="props"></v-icon>
       </template>
 
       <div>
         Delete run log folders older than the configured retention period, including logs
-        and videos.<br />
-        Minimum: 7 days.<br />
-        Checked when Executor starts and every hour while it is running.<br />
+        and videos.
+        <br />
+        Minimum: 7 days.
+        <br />
+        Checked when Executor starts and every hour while it is running.
+        <br />
         Changes take effect only after you click Apply.
       </div>
     </v-tooltip>
@@ -25,8 +27,7 @@
       class="clean-space"
       density="compact"
       label="Run Log Retention"
-      hide-details>
-    </v-checkbox>
+      hide-details></v-checkbox>
 
     <v-number-input
       v-model="intLogTimeoutDays"
@@ -38,8 +39,7 @@
       :min="7"
       :precision="0"
       style="max-width: 100px"
-      :disabled="!boolLogTimeoutEnable">
-    </v-number-input>
+      :disabled="!boolLogTimeoutEnable"></v-number-input>
 
     <span class="pa-0 ma-0 mt-2">days</span>
   </v-container>
@@ -51,14 +51,16 @@
           class="pa-0 ma-0 mt-2 mr-2"
           color="medium-emphasis"
           icon="mdi-video-off-outline"
-          v-bind="props">
-        </v-icon>
+          v-bind="props"></v-icon>
       </template>
 
       <div>
-        Delete run videos older than the configured retention period.<br />
-        Minimum: 1 day.<br />
-        Checked when Executor starts and every hour while it is running.<br />
+        Delete run videos older than the configured retention period.
+        <br />
+        Minimum: 1 day.
+        <br />
+        Checked when Executor starts and every hour while it is running.
+        <br />
         Changes take effect only after you click Apply.
       </div>
     </v-tooltip>
@@ -68,8 +70,7 @@
       class="clean-space"
       density="compact"
       label="Video Retention"
-      hide-details>
-    </v-checkbox>
+      hide-details></v-checkbox>
 
     <v-number-input
       v-model="intVideoTimeoutDays"
@@ -81,8 +82,7 @@
       :min="1"
       :precision="0"
       style="max-width: 100px"
-      :disabled="!boolVideoTimeoutEnable">
-    </v-number-input>
+      :disabled="!boolVideoTimeoutEnable"></v-number-input>
 
     <span class="pa-0 ma-0 mt-2">days</span>
   </v-container>
@@ -94,14 +94,16 @@
           class="pa-0 ma-0 mt-2 mr-2"
           color="medium-emphasis"
           icon="mdi-video-minus-outline"
-          v-bind="props">
-        </v-icon>
+          v-bind="props"></v-icon>
       </template>
 
       <div>
-        Delete the oldest run videos when total video storage exceeds this limit.<br />
-        Minimum: 1 GB.<br />
-        Checked when Executor starts and every hour while it is running.<br />
+        Delete the oldest run videos when total video storage exceeds this limit.
+        <br />
+        Minimum: 1 GB.
+        <br />
+        Checked when Executor starts and every hour while it is running.
+        <br />
         Changes take effect only after you click Apply.
       </div>
     </v-tooltip>
@@ -111,8 +113,7 @@
       class="clean-space"
       density="compact"
       label="Video Storage Limit"
-      hide-details>
-    </v-checkbox>
+      hide-details></v-checkbox>
 
     <v-number-input
       v-model="intVideoSizeGB"
@@ -124,8 +125,7 @@
       :min="1"
       :precision="0"
       style="max-width: 100px"
-      :disabled="!boolVideoSizeEnable">
-    </v-number-input>
+      :disabled="!boolVideoSizeEnable"></v-number-input>
 
     <span class="pa-0 ma-0 mt-2">GB</span>
 
@@ -149,6 +149,47 @@
     </v-btn>
   </v-container>
 
+  <v-container fluid class="pa-2 ma-0">
+    <v-btn
+      variant="tonal"
+      :loading="boolCacheCleanupBusy"
+      :disabled="boolCacheCleanupBusy"
+      @click="boolShowCacheCleanup = true">
+      Clear Unused Console Packages
+    </v-btn>
+    <v-alert v-if="strCacheCleanupResult" type="info" variant="tonal" class="mt-2">
+      {{ strCacheCleanupResult }}
+    </v-alert>
+    <v-alert v-if="strCacheCleanupError" type="error" variant="tonal" class="mt-2">
+      {{ strCacheCleanupError }}
+    </v-alert>
+  </v-container>
+
+  <v-dialog v-model="boolShowCacheCleanup" persistent max-width="560">
+    <v-card title="Clear Unused Console Packages?">
+      <v-card-text>
+        Remove unused downloaded packages from all Console addresses. They will be
+        downloaded again when needed. Packages still in use or awaiting confirmation are
+        kept. Run history, original logs and recordings, and pending reports are kept. Other
+        files written by a Flow inside these cache folders will also be removed.
+      </v-card-text>
+      <v-card-actions>
+        <v-spacer />
+        <v-btn :disabled="boolCacheCleanupBusy" @click="boolShowCacheCleanup = false">
+          Cancel
+        </v-btn>
+        <v-btn
+          color="warning"
+          variant="tonal"
+          :disabled="boolCacheCleanupBusy"
+          :loading="boolCacheCleanupBusy"
+          @click="clearConsolePackageCache">
+          Clear
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
+
   <v-dialog v-model="boolConfirmationDialogOpen" max-width="520">
     <v-card title="Apply Retention Settings?">
       <v-card-text>
@@ -158,7 +199,7 @@
 
       <v-card-actions>
         <v-spacer></v-spacer>
-        <v-btn variant="text" @click="boolConfirmationDialogOpen = false"> Cancel </v-btn>
+        <v-btn variant="text" @click="boolConfirmationDialogOpen = false">Cancel</v-btn>
         <v-btn color="warning" variant="tonal" @click="confirmRetentionSettings()">
           Apply
         </v-btn>
@@ -170,6 +211,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 
+import { getErrorMessage } from "../../../../shared/error";
+import { invokeMain } from "../../IPC/ipc";
 import { useInformationStore } from "../../Store/informationStore";
 import { useSettingStore } from "../../Store/settingStore";
 
@@ -192,6 +235,26 @@ const intVideoTimeoutDays = ref<number | null>(1);
 const boolVideoSizeEnable = ref(false);
 const intVideoSizeGB = ref<number | null>(1);
 const boolConfirmationDialogOpen = ref(false);
+const boolShowCacheCleanup = ref(false);
+const boolCacheCleanupBusy = ref(false);
+const strCacheCleanupResult = ref("");
+const strCacheCleanupError = ref("");
+
+async function clearConsolePackageCache(): Promise<void> {
+  if (boolCacheCleanupBusy.value) return;
+  boolCacheCleanupBusy.value = true;
+  strCacheCleanupResult.value = "";
+  strCacheCleanupError.value = "";
+  try {
+    const result = await invokeMain("clearUnusedConsolePackages");
+    strCacheCleanupResult.value = `Removed: ${result.removed}. Kept: ${result.protected}. Failed: ${result.failed}.`;
+  } catch (e: unknown) {
+    strCacheCleanupError.value = getErrorMessage(e);
+  } finally {
+    boolCacheCleanupBusy.value = false;
+    boolShowCacheCleanup.value = false;
+  }
+}
 
 const boolHasChanges = computed(
   () =>

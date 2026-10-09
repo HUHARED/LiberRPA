@@ -37,6 +37,7 @@ export function ensureInvokeCommand(value: unknown): Str_ExecutorInvokeCommand {
     case "saveExecutorConfig":
     case "runProject":
     case "getPythonEnvironmentNames":
+    case "clearUnusedConsolePackages":
     case "installProjectPackage":
     case "getProjectNames":
     case "getProjectVersions":
