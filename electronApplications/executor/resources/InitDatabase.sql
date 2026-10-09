@@ -178,7 +178,29 @@ CREATE TABLE
         id TEXT PRIMARY KEY,
         session_key TEXT NOT NULL,
         payload TEXT NOT NULL,
-        rejected INTEGER NOT NULL DEFAULT 0 CHECK (rejected IN (0, 1))
+        rejected INTEGER NOT NULL DEFAULT 0 CHECK (rejected IN (0, 1)),
+        rejection_code TEXT NULL CHECK (
+            rejection_code IS NULL
+            OR LENGTH(TRIM(rejection_code)) > 0
+        ),
+        rejection_message TEXT NULL,
+        rejected_at_ms INTEGER NULL CHECK (
+            rejected_at_ms IS NULL
+            OR rejected_at_ms >= 0
+        ),
+        CHECK (
+            (
+                rejection_code IS NULL
+                AND rejection_message IS NULL
+                AND rejected_at_ms IS NULL
+            )
+            OR (
+                rejected = 1
+                AND rejection_code IS NOT NULL
+                AND rejection_message IS NOT NULL
+                AND rejected_at_ms IS NOT NULL
+            )
+        )
     ) STRICT;
 
 CREATE INDEX idx_console_work_run_session ON console_work (

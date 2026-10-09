@@ -87,6 +87,17 @@ export type ConsoleEventData =
       recording: ConsoleRecordingInfo;
     };
 
+export interface ConsoleEventRejection {
+  eventId: string;
+  code: string;
+  message: string;
+}
+
+export interface ConsoleEventReceipt {
+  acceptedEventIds: string[];
+  rejectedEvents: ConsoleEventRejection[];
+}
+
 export type ConsoleEvent = ConsoleEventData & {
   event_id: string;
   assignment_id: string;
@@ -410,31 +421,50 @@ export function getPendingConsoleEvents(sessionKey: string): ConsoleEvent[] {
   return arrEvent;
 }
 
-export function acknowledgeConsoleEvents(accepted: string[], rejected: string[]): void {
-  getDatabase().transaction(() => {
-    for (const strId of accepted)
-      getDatabase()
-        .prepare(
-          `
-          DELETE FROM
-              console_event
-          WHERE
-              id = ?;
-          `,
-        )
-        .run(strId);
-    for (const strId of rejected)
-      getDatabase()
-        .prepare(
-          `
-          UPDATE console_event
-          SET
-              rejected = 1
-          WHERE
-              id = ?;
-          `,
-        )
-        .run(strId);
+export function acknowledgeConsoleEvents(
+  sessionKey: string,
+  receipt: ConsoleEventReceipt,
+): number {
+  // The HTTP boundary has matched every receipt ID to the submitted batch.
+  return getDatabase().transaction(() => {
+    const deleteAccepted = getDatabase().prepare(
+      `
+      DELETE FROM
+          console_event
+      WHERE
+          id = ?
+          AND session_key = ?
+          AND rejected = 0;
+      `,
+    );
+    const saveRejection = getDatabase().prepare(
+      `
+      UPDATE console_event
+      SET
+          rejected = 1,
+          rejection_code = ?,
+          rejection_message = ?,
+          rejected_at_ms = ?
+      WHERE
+          id = ?
+          AND session_key = ?
+          AND rejected = 0;
+      `,
+    );
+    // This is receipt time on Executor, not the original event's occurrence time.
+    const intRejectedAtMs = Date.now();
+    for (const strId of receipt.acceptedEventIds) deleteAccepted.run(strId, sessionKey);
+    let intRejectedCount = 0;
+    for (const rejection of receipt.rejectedEvents) {
+      intRejectedCount += saveRejection.run(
+        rejection.code,
+        rejection.message,
+        intRejectedAtMs,
+        rejection.eventId,
+        sessionKey,
+      ).changes;
+    }
+    return intRejectedCount;
   })();
 }
 

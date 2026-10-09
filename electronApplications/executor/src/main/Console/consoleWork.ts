@@ -5,6 +5,7 @@ import { RunConflictPolicy } from "../../shared/runOptions";
 import { getErrorMessage } from "../../shared/error";
 import {
   ensureBoolean,
+  ensureString,
   ensureCustomProjectArgs,
   ensureLogLevel,
   ensureNonEmptyString,
@@ -42,6 +43,7 @@ import {
   saveConsoleEvent,
   saveConsoleWork,
   type ConsoleEventData,
+  type ConsoleEventReceipt,
   type ConsoleAssignment,
   type ConsoleAssignmentData,
   type ConsoleWorkRecord,
@@ -441,19 +443,44 @@ async function sendPendingConsoleEvents(
     credential.token,
     { events: arrEvent },
   );
-  const arrAccepted = Array.isArray(response.accepted_event_ids)
-    ? response.accepted_event_ids.filter(
-        (value): value is string => typeof value === "string",
-      )
-    : [];
-  const arrRejected = Array.isArray(response.rejected_events)
-    ? response.rejected_events
-        .map((value) => ensureRecord(value, "Rejected event"))
-        .map((value) => ensureNonEmptyString(value.event_id, "Rejected event ID"))
-    : [];
-  if (!arrAccepted.length && !arrRejected.length)
-    throw new Error("Console did not acknowledge the pending Run events.");
-  acknowledgeConsoleEvents(arrAccepted, arrRejected);
+  if (
+    !Array.isArray(response.accepted_event_ids) ||
+    !Array.isArray(response.rejected_events)
+  )
+    throw new Error("Console returned an invalid Run event receipt.");
+
+  const setPendingEventId = new Set(arrEvent.map((event) => event.event_id));
+  const setAcknowledgedEventId = new Set<string>();
+  function parseReceiptEventId(value: unknown): string {
+    const strId = ensureNonEmptyString(value, "Acknowledged event ID");
+    if (!setPendingEventId.has(strId))
+      throw new Error("Console acknowledged an event outside the submitted batch.");
+    if (setAcknowledgedEventId.has(strId))
+      throw new Error("Console acknowledged the same Run event more than once.");
+    setAcknowledgedEventId.add(strId);
+    return strId;
+  }
+
+  const receipt: ConsoleEventReceipt = {
+    acceptedEventIds: response.accepted_event_ids.map(parseReceiptEventId),
+    rejectedEvents: response.rejected_events.map((value: unknown) => {
+      const rejection = ensureRecord(value, "Rejected event");
+      return {
+        eventId: parseReceiptEventId(rejection.event_id),
+        code: ensureNonEmptyString(rejection.code, "Event rejection code"),
+        message: ensureString(rejection.message, "Event rejection message"),
+      };
+    }),
+  };
+  if (setAcknowledgedEventId.size !== arrEvent.length)
+    throw new Error("Console did not acknowledge every event in the submitted batch.");
+
+  const intRejectedCount = acknowledgeConsoleEvents(strSessionKey, receipt);
+  if (intRejectedCount)
+    loggerMain.warn(
+      `Console rejected ${intRejectedCount} Run event(s). ` +
+        "The events and rejection details are retained in the local Executor database.",
+    );
   return isCurrentControlCredential(credential);
 }
 
