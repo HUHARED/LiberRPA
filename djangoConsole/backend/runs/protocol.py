@@ -36,7 +36,8 @@ from organizations.permissions import AccessChannel, resolve_organization_access
 
 from .contracts import WorkEventsRequest, WorkPermitRequest, WorkPollRequest
 from .models import Assignment, AssignmentState, ExecutorWorkState, JobState, RunEventKind
-from .services import get_start_evidence_not_before, issue_permission, receive_event
+from .dispatch import get_start_evidence_not_before, issue_permission
+from .events import receive_event
 
 _LOGGER = logging.getLogger("console.runs.protocol")
 

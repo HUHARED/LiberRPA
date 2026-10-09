@@ -14,7 +14,7 @@ from console_project.workers import (
     stop_on_signals,
 )
 from runs.dispatch_control import start_control_cycle
-from runs.services import run_control_tick
+from runs.dispatch import run_control_tick
 
 
 class Command(BaseCommand):
