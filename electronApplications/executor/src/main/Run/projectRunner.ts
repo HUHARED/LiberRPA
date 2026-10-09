@@ -7,8 +7,9 @@ import fs from "fs";
 import { getErrorMessage } from "../../shared/error";
 import {
   type RunOutputs,
-  type Str_RunHistoryTerminalStatus,
+  type RunTerminalStatus,
   RunSource,
+  RunStatus,
 } from "../../shared/run";
 import { isProcessRunning } from "../Common/process";
 import { getEffectiveProjectLogFolderPath } from "../Config/executorConfig";
@@ -35,17 +36,20 @@ import {
   removeExecutorRunStateFile,
   waitForExecutorRunStateAvailable,
 } from "./runState";
-import type { Dict_ProjectRun_Detail, RunExecutionContext, RunEndedFact } from "./types";
+import {
+  type Dict_ProjectRun_Detail,
+  type RunExecutionContext,
+  type RunEndedFact,
+  RunTerminationReason,
+} from "./types";
 import { hasRecoveredRun } from "./recoveredRuns";
-
-type Str_ProjectRunTerminationReason = "cancel" | "shutdown" | "timeout";
 
 interface ActiveProjectRun {
   processPy: ChildProcessWithoutNullStreams;
   strRunId: string;
   source: RunSource;
   onStopping?: RunExecutionContext["onStopping"];
-  terminationReason?: Str_ProjectRunTerminationReason;
+  terminationReason?: RunTerminationReason;
   terminationPromise?: Promise<void>;
   boolForceTerminationRequired: boolean;
 }
@@ -123,7 +127,7 @@ function trackActiveProjectRun(activeRun: ActiveProjectRun): void {
 
 function requestProjectRunTermination(
   activeRun: ActiveProjectRun,
-  reason: Str_ProjectRunTerminationReason,
+  reason: RunTerminationReason,
 ): Promise<void> {
   if (activeRun.terminationPromise !== undefined) {
     return activeRun.terminationPromise;
@@ -151,14 +155,14 @@ function requestProjectRunTermination(
   return promiseTermination;
 }
 
-function getRequestedRunHistoryStatus(
-  terminationReason: Str_ProjectRunTerminationReason | undefined,
-): "cancel" | "timeout" | undefined {
-  if (terminationReason === "timeout") {
-    return "timeout";
+function getRequestedRunStatus(
+  terminationReason: RunTerminationReason | undefined,
+): RunStatus.Canceled | RunStatus.TimedOut | undefined {
+  if (terminationReason === RunTerminationReason.Timeout) {
+    return RunStatus.TimedOut;
   }
   if (terminationReason !== undefined) {
-    return "cancel";
+    return RunStatus.Canceled;
   }
   return undefined;
 }
@@ -176,7 +180,9 @@ export async function shutdownProjectRuns(): Promise<void> {
       `Stop ${String(arrActiveRun.length)} active Project Run(s) before Executor exits.`,
     );
     await Promise.all(
-      arrActiveRun.map((activeRun) => requestProjectRunTermination(activeRun, "shutdown")),
+      arrActiveRun.map((activeRun) =>
+        requestProjectRunTermination(activeRun, RunTerminationReason.Shutdown),
+      ),
     );
   }
 
@@ -312,7 +318,7 @@ async function startProjectRun(
         }
 
         loggerMain.info(`Timeout reached. Stop ${detailDict.name}-${detailDict.version}.`);
-        void requestProjectRunTermination(activeRun, "timeout");
+        void requestProjectRunTermination(activeRun, RunTerminationReason.Timeout);
       },
       detailDict.timeout_min * 60 * 1000,
     );
@@ -335,8 +341,8 @@ async function startProjectRun(
       clearTimeout(timeoutId);
     }
 
-    const strRequestedStatus = getRequestedRunHistoryStatus(activeRun.terminationReason);
-    let strRunHistoryStatus: Str_RunHistoryTerminalStatus = strRequestedStatus ?? "error";
+    const requestedStatus = getRequestedRunStatus(activeRun.terminationReason);
+    let runStatus: RunTerminalStatus = requestedStatus ?? RunStatus.Error;
     let boolUnexpectedProcessFailure =
       getProcessError() !== undefined || activeRun.boolForceTerminationRequired;
     const intProcessExitedAtMs = Date.now();
@@ -370,22 +376,22 @@ async function startProjectRun(
 
       switch (dictFinalState.status) {
         case "completed":
-          strRunHistoryStatus = "completed";
+          runStatus = RunStatus.Completed;
           break;
 
         case "error":
-          strRunHistoryStatus = "error";
+          runStatus = RunStatus.Error;
           break;
 
         case "terminated":
-          strRunHistoryStatus = strRequestedStatus ?? "cancel";
+          runStatus = requestedStatus ?? RunStatus.Canceled;
           break;
 
         case "running":
           loggerMain.error(
             `Python exited before publishing a final Executor run state: ${strRunId}`,
           );
-          strRunHistoryStatus = strRequestedStatus ?? "error";
+          runStatus = requestedStatus ?? RunStatus.Error;
           boolUnexpectedProcessFailure = true;
           break;
       }
@@ -396,8 +402,8 @@ async function startProjectRun(
         boolUnexpectedProcessFailure = true;
         intRunEndedAtMs = intProcessExitedAtMs;
 
-        if (strRequestedStatus !== undefined) {
-          strRunHistoryStatus = strRequestedStatus;
+        if (requestedStatus !== undefined) {
+          runStatus = requestedStatus;
         } else {
           if (dictFinalState.status !== "error") {
             loggerMain.error(
@@ -406,14 +412,14 @@ async function startProjectRun(
                 `record Run History status 'interrupted' because the process lifecycle was not completed.`,
             );
           }
-          strRunHistoryStatus = "error";
+          runStatus = RunStatus.Error;
         }
       }
     } catch (e: unknown) {
       loggerMain.error(
         `Failed to read final Executor run state ${strRunId}: ${getErrorMessage(e)}`,
       );
-      strRunHistoryStatus = strRequestedStatus ?? "error";
+      runStatus = requestedStatus ?? RunStatus.Error;
       boolUnexpectedProcessFailure = true;
     }
 
@@ -426,13 +432,13 @@ async function startProjectRun(
       });
     }
 
-    if (boolUnexpectedProcessFailure && strRequestedStatus === undefined)
-      strRunHistoryStatus = "interrupted";
+    if (boolUnexpectedProcessFailure && requestedStatus === undefined)
+      runStatus = RunStatus.Interrupted;
     const endedFact: RunEndedFact = {
       ...startedFact,
       endedAt: new Date(intRunEndedAtMs).toISOString(),
-      status: strRunHistoryStatus,
-      retryEligible: strRunHistoryStatus === "error" && !boolUnexpectedProcessFailure,
+      status: runStatus,
+      retryEligible: runStatus === RunStatus.Error && !boolUnexpectedProcessFailure,
       outputs,
       errorSummary,
     };
@@ -441,7 +447,7 @@ async function startProjectRun(
         dbUpdateRunHistory({
           id: intRunHistoryId,
           run_ended_at_ms: intRunEndedAtMs,
-          status: strRunHistoryStatus,
+          status: runStatus,
           outputs,
           error_summary: errorSummary,
         });
@@ -542,7 +548,7 @@ async function createRunHistory({
       project_version: detail.version,
       python_environment_name: detail.python_environment_name,
       run_started_at_ms: parseExecutorRunTimestamp(runState.startedAt),
-      status: "running",
+      status: RunStatus.Running,
       log_path: runState.logPath,
     }).lastInsertRowid;
 
@@ -583,7 +589,7 @@ export function pythonCancel(runHistoryId: number): void {
   }
 
   loggerMain.info(`Cancel Run History ${String(runHistoryId)}.`);
-  void requestProjectRunTermination(activeRun, "cancel");
+  void requestProjectRunTermination(activeRun, RunTerminationReason.Cancel);
 }
 
 export function getActiveConsoleRunIds(): string[] {
@@ -594,7 +600,7 @@ export function getActiveConsoleRunIds(): string[] {
 
 export function cancelRunById(runId: string): void {
   const activeRun = mapActiveRunByRunId.get(runId);
-  if (activeRun) void requestProjectRunTermination(activeRun, "cancel");
+  if (activeRun) void requestProjectRunTermination(activeRun, RunTerminationReason.Cancel);
 }
 
 export function getLocalRunningCount(): number {

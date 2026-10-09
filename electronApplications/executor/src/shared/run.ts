@@ -22,19 +22,17 @@ export interface RunDetails {
   error_summary: { type: string; message: string } | null;
 }
 
-export type Str_RunHistory_Status =
-  | "running"
-  | "completed"
-  | "error"
-  | "cancel"
-  | "timeout"
-  | "interrupted"
-  | "unknown";
+export enum RunStatus {
+  Running = "running",
+  Completed = "completed",
+  Error = "error",
+  Canceled = "canceled",
+  TimedOut = "timed_out",
+  Interrupted = "interrupted",
+  Unknown = "unknown",
+}
 
-export type Str_RunHistoryTerminalStatus = Exclude<
-  Str_RunHistory_Status,
-  "running" | "unknown"
->;
+export type RunTerminalStatus = Exclude<RunStatus, RunStatus.Running | RunStatus.Unknown>;
 
 export interface Dict_RunHistory_Item {
   id: number;
@@ -46,14 +44,14 @@ export interface Dict_RunHistory_Item {
   python_environment_name: string;
   run_started_at_ms: number;
   run_ended_at_ms: number | null;
-  status: Str_RunHistory_Status;
+  status: RunStatus;
 }
 
 export interface Dict_RunHistory_Search {
   schedule_name: string;
   project_name: string;
   project_version: string;
-  status: Str_RunHistory_Status | null;
+  status: RunStatus | null;
 }
 
 export interface Dict_RunHistory_Options {

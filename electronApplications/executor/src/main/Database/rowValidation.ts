@@ -4,7 +4,7 @@ import type Database from "better-sqlite3";
 
 import type { Dict_ProjectDetail } from "../../shared/project";
 import type { Dict_RunHistory_Item } from "../../shared/run";
-import { RunSource } from "../../shared/run";
+import { RunSource, RunStatus } from "../../shared/run";
 import type { Dict_ProjectRun_Detail } from "../Run/types";
 import type { Dict_Detail_Schedule, Dict_ListItem_Schedule } from "../../shared/schedule";
 import type { Arr_CustomProjectArgs } from "../../shared/runOptions";
@@ -409,9 +409,10 @@ function ensureRunHistoryListItemRow(
     row.run_ended_at_ms,
     `${sourceName}.run_ended_at_ms`,
   );
+  const boolEndTimeUnknown = status === RunStatus.Running || status === RunStatus.Unknown;
   if (
-    (["running", "unknown"].includes(status) && intRunEndedAtMs !== null) ||
-    (!["running", "unknown", "interrupted"].includes(status) && intRunEndedAtMs === null)
+    (boolEndTimeUnknown && intRunEndedAtMs !== null) ||
+    (!boolEndTimeUnknown && status !== RunStatus.Interrupted && intRunEndedAtMs === null)
   ) {
     throw new Error(`${sourceName} has an inconsistent status and run_ended_at_ms.`);
   }

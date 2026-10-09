@@ -62,7 +62,7 @@
           </v-tooltip>
 
           <v-tooltip
-            v-if="item.status === 'running'"
+            v-if="item.status === RunStatus.Running"
             text="Cancel Run"
             location="bottom"
             :open-on-focus="false">
@@ -130,15 +130,7 @@
               density="compact"
               hide-details
               clearable
-              :items="[
-                { title: 'Running', value: 'running' },
-                { title: 'Completed', value: 'completed' },
-                { title: 'Error', value: 'error' },
-                { title: 'Canceled', value: 'cancel' },
-                { title: 'Timed Out', value: 'timeout' },
-                { title: 'Interrupted', value: 'interrupted' },
-                { title: 'Unknown', value: 'unknown' },
-              ]"></v-select>
+              :items="ARR_RUN_STATUS_OPTION"></v-select>
           </td>
         </tr>
       </template>
@@ -211,13 +203,27 @@ import { useRunHistoryStore } from "../../Store/runHistoryStore";
 import { useSettingStore } from "../../Store/settingStore";
 import { formatTimestamp } from "../../Common/time";
 import { getErrorMessage } from "../../../../shared/error";
-import type {
-  RunDetails,
-  Dict_RunHistory_Item,
-  Dict_RunHistory_Options,
-  Dict_RunHistory_Search,
-  Str_RunHistory_Status,
+import {
+  RunStatus,
+  type RunDetails,
+  type Dict_RunHistory_Item,
+  type Dict_RunHistory_Options,
+  type Dict_RunHistory_Search,
 } from "../../../../shared/run";
+
+const DICT_RUN_STATUS_DISPLAY: Record<RunStatus, { title: string; color: string }> = {
+  [RunStatus.Running]: { title: "Running", color: "success" },
+  [RunStatus.Completed]: { title: "Completed", color: "inactive" },
+  [RunStatus.Error]: { title: "Error", color: "error" },
+  [RunStatus.Canceled]: { title: "Canceled", color: "warning" },
+  [RunStatus.TimedOut]: { title: "Timed Out", color: "run-timeout" },
+  [RunStatus.Interrupted]: { title: "Interrupted", color: "run-interrupted" },
+  [RunStatus.Unknown]: { title: "Unknown", color: "inactive" },
+};
+const ARR_RUN_STATUS_OPTION = Object.values(RunStatus).map((status) => ({
+  title: DICT_RUN_STATUS_DISPLAY[status].title,
+  value: status,
+}));
 
 const runHistoryStore = useRunHistoryStore();
 const settingStore = useSettingStore();
@@ -307,40 +313,12 @@ const arrHeader: DataTableHeader<Dict_RunHistory_Item>[] = [
   { title: "Actions", key: "actions", align: "start", sortable: false },
 ];
 
-function getStatusLabel(status: Str_RunHistory_Status): string {
-  switch (status) {
-    case "running":
-      return "Running";
-    case "completed":
-      return "Completed";
-    case "error":
-      return "Error";
-    case "cancel":
-      return "Canceled";
-    case "timeout":
-      return "Timed Out";
-    case "interrupted":
-      return "Interrupted";
-    case "unknown":
-      return "Unknown";
-  }
+function getStatusLabel(status: RunStatus): string {
+  return DICT_RUN_STATUS_DISPLAY[status].title;
 }
 
-function getStatusColor(status: Str_RunHistory_Status): string {
-  switch (status) {
-    case "running":
-      return "success";
-    case "error":
-      return "error";
-    case "cancel":
-      return "warning";
-    case "timeout":
-      return "run-timeout";
-    case "interrupted":
-      return "run-interrupted";
-    default:
-      return "inactive";
-  }
+function getStatusColor(status: RunStatus): string {
+  return DICT_RUN_STATUS_DISPLAY[status].color;
 }
 
 async function openLogFolder(runHistoryId: number): Promise<void> {

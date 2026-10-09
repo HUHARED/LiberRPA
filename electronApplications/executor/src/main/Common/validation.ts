@@ -1,6 +1,6 @@
 // FileName: validation.ts
 
-import type { Str_RunHistory_Status } from "../../shared/run";
+import { RunStatus } from "../../shared/run";
 import type { Str_RunConflictPolicy } from "../../shared/schedule";
 import { INT_MAX_RETRY_COUNT, INT_MAX_RUN_TIMEOUT_MIN } from "../../shared/runOptions";
 import type { Arr_CustomProjectArgs, Str_LogLevel } from "../../shared/runOptions";
@@ -254,18 +254,15 @@ export function ensureRunConflictPolicy(
   throw new Error(`${sourceName} must be 'skip', 'wait', or 'concurrent'.`);
 }
 
-export function ensureRunHistoryStatus(
-  value: unknown,
-  sourceName: string,
-): Str_RunHistory_Status {
+export function ensureRunHistoryStatus(value: unknown, sourceName: string): RunStatus {
   switch (value) {
-    case "running":
-    case "completed":
-    case "error":
-    case "cancel":
-    case "timeout":
-    case "interrupted":
-    case "unknown":
+    case RunStatus.Running:
+    case RunStatus.Completed:
+    case RunStatus.Error:
+    case RunStatus.Canceled:
+    case RunStatus.TimedOut:
+    case RunStatus.Interrupted:
+    case RunStatus.Unknown:
       return value;
     default:
       throw new Error(`${sourceName} contains an unsupported status.`);

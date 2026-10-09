@@ -8,7 +8,7 @@ import { loggerRenderer } from "../Logging/logger";
 import type {
   Dict_RunHistory_Item,
   Dict_RunHistory_Options,
-  Str_RunHistory_Status,
+  RunStatus,
 } from "../../../shared/run";
 
 export const useRunHistoryStore = defineStore("runHistory", {
@@ -22,7 +22,7 @@ export const useRunHistoryStore = defineStore("runHistory", {
       filterScheduleName: "" as string,
       filterProjectName: "" as string,
       filterProjectVersion: "" as string,
-      filterStatus: null as Str_RunHistory_Status | null,
+      filterStatus: null as RunStatus | null,
     };
   },
   actions: {

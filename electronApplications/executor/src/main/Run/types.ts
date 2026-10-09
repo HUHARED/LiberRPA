@@ -1,6 +1,6 @@
 // FileName: types.ts
 
-import type { RunSource, RunOutputs, Str_RunHistoryTerminalStatus } from "../../shared/run";
+import type { RunSource, RunOutputs, RunTerminalStatus } from "../../shared/run";
 import type { Str_RunConflictPolicy } from "../../shared/schedule";
 import type {
   Dict_PythonEnvironmentSelection,
@@ -16,6 +16,12 @@ export interface Dict_ProjectRun_Detail
   version: string;
 }
 
+export enum RunTerminationReason {
+  Cancel = "cancel",
+  Shutdown = "shutdown",
+  Timeout = "timeout",
+}
+
 export interface RunExecutionContext {
   source: RunSource;
   jobId: string;
@@ -24,7 +30,7 @@ export interface RunExecutionContext {
   packagePath?: string;
   beforeSpawn?: (hasOtherActiveRun: boolean, startedAt: string) => void;
   onStarted?: (fact: RunStartedFact) => void;
-  onStopping?: (reason: "cancel" | "shutdown" | "timeout") => void;
+  onStopping?: (reason: RunTerminationReason) => void;
   onEnded?: (fact: RunEndedFact) => void;
 }
 
@@ -38,7 +44,7 @@ export interface RunStartedFact {
 
 export interface RunEndedFact extends RunStartedFact {
   endedAt: string;
-  status: Str_RunHistoryTerminalStatus;
+  status: RunTerminalStatus;
   retryEligible: boolean;
   outputs: RunOutputs;
   errorSummary: { type: string; message: string } | null;

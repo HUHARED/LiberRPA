@@ -6,12 +6,11 @@ import { getErrorMessage } from "../../shared/error";
 import type {
   Dict_RunHistory_Options,
   Dict_RunHistory_Page,
-  Str_RunHistory_Status,
-  Str_RunHistoryTerminalStatus,
+  RunTerminalStatus,
   RunDetails,
   RunOutputs,
 } from "../../shared/run";
-import { RunSource } from "../../shared/run";
+import { RunSource, RunStatus } from "../../shared/run";
 import { loggerMain } from "../Logging/logger";
 import { getDatabase } from "./connection";
 import {
@@ -35,14 +34,14 @@ interface Dict_RunHistory_Insert {
   project_version: string;
   python_environment_name: string;
   run_started_at_ms: number;
-  status: "running";
+  status: RunStatus.Running;
   log_path: string;
 }
 
 interface Dict_RunHistory_Update {
   id: number;
   run_ended_at_ms: number;
-  status: Str_RunHistoryTerminalStatus;
+  status: RunTerminalStatus;
   outputs: RunOutputs;
   error_summary: { type: string; message: string } | null;
 }
@@ -151,13 +150,19 @@ export function dbMarkUnfinishedRunsAfterRestart(): void {
       UPDATE run_history
       SET
           run_ended_at_ms = NULL,
-          status = CASE source WHEN ? THEN 'interrupted' ELSE 'unknown' END,
+          status = CASE source WHEN ? THEN ? ELSE ? END,
           updated_at_ms = ?
       WHERE
-          status = 'running';
+          status = ?;
       `,
     )
-    .run(RunSource.Local, Date.now());
+    .run(
+      RunSource.Local,
+      RunStatus.Interrupted,
+      RunStatus.Unknown,
+      Date.now(),
+      RunStatus.Running,
+    );
 
   if (result.changes > 0) {
     loggerMain.warn(
@@ -176,11 +181,11 @@ export function dbHasRunningRunForProject(projectId: number): boolean {
       FROM
           run_history
       WHERE
-          status = 'running'
+          status = ?
           AND project_id = ?;
       `,
     )
-    .get(projectId);
+    .get(RunStatus.Running, projectId);
   return (
     ensureCountRow(row, "runningCount", "Running Run count for Project query result") > 0
   );
@@ -224,7 +229,7 @@ export function dbSelectRunHistoryPage(
   }
 
   const arrWhereClause: string[] = [];
-  const arrWhereParam: (string | Str_RunHistory_Status)[] = [];
+  const arrWhereParam: string[] = [];
   if (options.search.schedule_name.trim() !== "") {
     arrWhereClause.push("schedule_name LIKE ?");
     arrWhereParam.push(`%${options.search.schedule_name.trim()}%`);
@@ -331,14 +336,14 @@ export function dbSelectLogFolderBefore(cutoffMs: number): Dict_RunHistory_LogLo
       FROM
           run_history
       WHERE
-          status <> 'running'
+          status <> ?
           AND no_log_folder = 0
           AND COALESCE(run_ended_at_ms, run_started_at_ms) < ?
       ORDER BY
           COALESCE(run_ended_at_ms, run_started_at_ms) DESC;
       `,
     )
-    .all(cutoffMs);
+    .all(RunStatus.Running, cutoffMs);
 
   return parseRetentionLogLocations(rows, "Expired log folder query result");
 }
@@ -354,14 +359,14 @@ export function dbSelectVideoBefore(cutoffMs: number): Dict_RunHistory_LogLocati
       FROM
           run_history
       WHERE
-          status <> 'running'
+          status <> ?
           AND no_log_video = 0
           AND COALESCE(run_ended_at_ms, run_started_at_ms) < ?
       ORDER BY
           COALESCE(run_ended_at_ms, run_started_at_ms) DESC;
       `,
     )
-    .all(cutoffMs);
+    .all(RunStatus.Running, cutoffMs);
 
   return parseRetentionLogLocations(rows, "Expired video query result");
 }
@@ -377,13 +382,13 @@ export function dbSelectVideo(): Dict_RunHistory_LogLocation[] {
       FROM
           run_history
       WHERE
-          status <> 'running'
+          status <> ?
           AND no_log_video = 0
       ORDER BY
           COALESCE(run_ended_at_ms, run_started_at_ms) DESC;
       `,
     )
-    .all();
+    .all(RunStatus.Running);
 
   return parseRetentionLogLocations(rows, "Video query result");
 }

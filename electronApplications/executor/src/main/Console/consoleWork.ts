@@ -356,12 +356,7 @@ async function prepareAndRun(
             kind: "ended",
             occurred_at: fact.endedAt,
             started_at: fact.startedAt,
-            result:
-              fact.status === "cancel"
-                ? "canceled"
-                : fact.status === "timeout"
-                  ? "timed_out"
-                  : fact.status,
+            result: fact.status,
             outputs: fact.outputs,
             error_summary: fact.errorSummary,
           });

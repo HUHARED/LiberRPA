@@ -3,6 +3,7 @@
 import { createHash, randomUUID } from "crypto";
 import fs from "fs";
 
+import { RunStatus, type RunTerminalStatus } from "../../shared/run";
 import {
   type ExecutorRunState,
   createExecutorRunStatePath,
@@ -11,7 +12,7 @@ import {
 } from "../Run/runState";
 import { dbUpdateRunHistory } from "../Database/runHistoryRepository";
 import { getDatabase } from "../Database/connection";
-import type { RunEndedFact, RunStartedFact } from "../Run/types";
+import { type RunEndedFact, type RunStartedFact, RunTerminationReason } from "../Run/types";
 import { isRecoveredProcessPresent, watchRecoveredRun } from "../Run/recoveredRuns";
 import type { ConsoleCredentialSnapshot } from "./consoleContextBridge";
 
@@ -58,7 +59,7 @@ export interface ConsoleWorkRecord {
   permitExpiresAt?: string;
   // Persisted with its reliable event; this is not a server acknowledgement.
   recording?: ConsoleRecordingInfo;
-  stopReason?: "cancel" | "shutdown" | "timeout";
+  stopReason?: RunTerminationReason;
 }
 
 export function getConsoleWorkSessionKey(credential: ConsoleCredentialSnapshot): string {
@@ -300,12 +301,14 @@ function recoverFinishedConsoleRun(record: ConsoleWorkRecord): boolean {
   }
   if (state.status === "running" || !state.endedAt) return false;
   const strEndedAt = state.endedAt;
-  const status =
+  const status: RunTerminalStatus =
     state.status === "terminated"
-      ? record.stopReason === "timeout"
-        ? "timeout"
-        : "cancel"
-      : state.status;
+      ? record.stopReason === RunTerminationReason.Timeout
+        ? RunStatus.TimedOut
+        : RunStatus.Canceled
+      : state.status === "completed"
+        ? RunStatus.Completed
+        : RunStatus.Error;
   const outputs = state.outputs ?? {
     status: "unavailable" as const,
     values: null,
@@ -316,7 +319,7 @@ function recoverFinishedConsoleRun(record: ConsoleWorkRecord): boolean {
     ...started,
     endedAt: strEndedAt,
     status,
-    retryEligible: status === "error",
+    retryEligible: status === RunStatus.Error,
     outputs,
     errorSummary: state.errorSummary ?? null,
   };
@@ -327,8 +330,7 @@ function recoverFinishedConsoleRun(record: ConsoleWorkRecord): boolean {
       kind: "ended",
       occurred_at: strEndedAt,
       started_at: started.startedAt,
-      result:
-        status === "cancel" ? "canceled" : status === "timeout" ? "timed_out" : status,
+      result: status,
       outputs,
       error_summary: state.errorSummary ?? null,
     });

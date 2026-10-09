@@ -112,8 +112,8 @@ CREATE TABLE
                 'running',
                 'completed',
                 'error',
-                'cancel',
-                'timeout',
+                'canceled',
+                'timed_out',
                 'interrupted',
                 'unknown'
             )
@@ -132,8 +132,8 @@ CREATE TABLE
                 status IN (
                     'completed',
                     'error',
-                    'cancel',
-                    'timeout',
+                    'canceled',
+                    'timed_out',
                     'interrupted'
                 )
                 AND (
