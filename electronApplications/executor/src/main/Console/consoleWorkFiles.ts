@@ -5,7 +5,6 @@ import http, { type IncomingMessage } from "http";
 import https from "https";
 import { performance } from "perf_hooks";
 import { finished } from "stream/promises";
-import os from "os";
 import path from "path";
 
 import { getErrorMessage } from "../../shared/error";
@@ -16,6 +15,7 @@ import {
   ensureNullableNonNegativeInteger,
   ensureString,
 } from "../Common/validation";
+import { strDocumentsFolderPath } from "../Config/environment";
 import { runFileWorker } from "../FileSystem/fileWorker";
 import { loggerMain } from "../Logging/logger";
 import { ensureExistingRunLogFolderPath } from "../Run/logPath";
@@ -33,6 +33,10 @@ import {
   type ConsoleRecordingInfo,
 } from "./workRepository";
 
+const strLogArchiveFolderPath = path.join(
+  strDocumentsFolderPath,
+  "LiberRPA/AppData/executor/log-archives",
+);
 const abortFiles = new AbortController();
 
 export function stopConsoleFiles(): void {
@@ -353,6 +357,34 @@ export async function flushConsoleLogs(
   }
 }
 
+export async function cleanConsoleLogArchives(): Promise<void> {
+  try {
+    if (!(await fs.promises.lstat(strLogArchiveFolderPath)).isDirectory()) return;
+    const arrEntry = await fs.promises.readdir(strLogArchiveFolderPath, {
+      withFileTypes: true,
+    });
+    let intRemoved = 0;
+    // Only this Executor's generated temporary folders; never scan the system Temp root.
+    for (const entry of arrEntry) {
+      if (!entry.isDirectory() || !/^archive-[A-Za-z0-9]{6}$/.test(entry.name)) continue;
+      const strArchivePath = path.join(strLogArchiveFolderPath, entry.name);
+      try {
+        await fs.promises.rm(strArchivePath, { recursive: true, force: true });
+        intRemoved += 1;
+      } catch (e: unknown) {
+        loggerMain.warn(
+          `Failed to remove temporary log archive ${strArchivePath}: ${getErrorMessage(e)}`,
+        );
+      }
+    }
+    if (intRemoved)
+      loggerMain.info(`Removed ${intRemoved} abandoned Console log archive folders.`);
+  } catch (e: unknown) {
+    if (!(e instanceof Error && "code" in e && e.code === "ENOENT"))
+      loggerMain.warn(`Failed to inspect Console log archives: ${getErrorMessage(e)}`);
+  }
+}
+
 async function prepareTransferFile(
   record: ConsoleWorkRecord,
   kind: ConsoleRunFileKind,
@@ -376,8 +408,9 @@ async function prepareTransferFile(
       throw new Error("Recording finalization has not completed successfully.");
   }
   if (kind === ConsoleRunFileKind.Logs) {
+    await fs.promises.mkdir(strLogArchiveFolderPath, { recursive: true });
     const strTemporaryFolder = await fs.promises.mkdtemp(
-      path.join(os.tmpdir(), "liberrpa-logs-"),
+      path.join(strLogArchiveFolderPath, "archive-"),
     );
     const strFilePath = path.join(
       strTemporaryFolder,

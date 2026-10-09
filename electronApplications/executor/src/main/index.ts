@@ -51,6 +51,8 @@ import { onRunEnded, onRunActivityChanged } from "./Run/lifecycle";
 import { stopRecoveredRunObservation } from "./Run/recoveredRuns";
 import { startRunHousekeeping, stopRunHousekeeping } from "./Run/housekeeping";
 import { startConsoleWork, stopConsoleWork } from "./Console/consoleWork";
+import { cleanConsolePackageStaging } from "./Console/packagePreparation";
+import { cleanConsoleLogArchives } from "./Console/consoleWorkFiles";
 import { recoverConsoleWorkAfterRestart } from "./Console/workRepository";
 import { beginProjectRunShutdown, shutdownProjectRuns } from "./Run/projectRunner";
 import {
@@ -66,7 +68,7 @@ let tray: Tray | null = null;
 let boolAppQuitting = false;
 let boolShutdownStarted = false;
 let boolShutdownComplete = false;
-let promisePackageRecovery: Promise<void> | undefined;
+let promiseFileRecovery: Promise<void> | undefined;
 
 function sendMessageToRenderer(message: Dict_Message_Main): void {
   if (boolAppQuitting) {
@@ -175,8 +177,14 @@ void app
   .then(async () => {
     if (boolShutdownStarted) return;
     initializeDatabase();
-    promisePackageRecovery = recoverProjectPackageInstallations();
-    await promisePackageRecovery;
+    promiseFileRecovery = (async () => {
+      await recoverProjectPackageInstallations();
+      if (boolShutdownStarted) return;
+      await cleanConsolePackageStaging();
+      if (boolShutdownStarted) return;
+      await cleanConsoleLogArchives();
+    })();
+    await promiseFileRecovery;
     if (boolShutdownStarted) return;
     recoverProjectPackageDeletions();
     dbMarkUnfinishedRunsAfterRestart();
@@ -283,8 +291,8 @@ void app
 async function shutdownExecutor(): Promise<void> {
   stopRecoveredRunObservation();
   const promiseFileWorkers = stopFileWorkers();
-  // Recovery can still read database records while removing old staging folders.
-  await promisePackageRecovery?.catch(() => {});
+  // Wait for startup recovery before closing storage or starting shutdown cleanup.
+  await promiseFileRecovery?.catch(() => {});
   await stopConsoleWork();
   await promiseFileWorkers;
   await waitForProjectPackageInstallation();

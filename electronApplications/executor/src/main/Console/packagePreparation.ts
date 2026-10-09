@@ -4,9 +4,11 @@ import { createHash, randomUUID } from "crypto";
 import fs from "fs";
 import path from "path";
 
+import { getErrorMessage } from "../../shared/error";
 import { ensureNonEmptyString, ensureRecord } from "../Common/validation";
 import { getPythonEnvironmentPath, strDocumentsFolderPath } from "../Config/environment";
 import { runFileWorker } from "../FileSystem/fileWorker";
+import { loggerMain } from "../Logging/logger";
 import strPackageArchiveWorkerPath from "../Package/packageArchiveWorker?modulePath";
 import type { PackageArchiveArgs } from "../Package/packageArchiveWorker";
 import {
@@ -24,8 +26,59 @@ export interface ConsolePackageInfo {
 }
 
 const INT_MAX_PACKAGE_BYTES = 512 * 1024 ** 2;
+const strConsolePackageFolderPath = path.join(
+  strDocumentsFolderPath,
+  "LiberRPA/ConsolePackage",
+);
 const abortPreparation = new AbortController();
 const mapPackageFilePreparation = new Map<string, Promise<void>>();
+
+export async function cleanConsolePackageStaging(): Promise<void> {
+  async function readEntries(folderPath: string): Promise<fs.Dirent[]> {
+    try {
+      // Do not traverse a linked cache root or a linked parent directory.
+      if (!(await fs.promises.lstat(folderPath)).isDirectory()) return [];
+      return await fs.promises.readdir(folderPath, { withFileTypes: true });
+    } catch (e: unknown) {
+      if (!(e instanceof Error && "code" in e && e.code === "ENOENT"))
+        loggerMain.warn(
+          `Failed to inspect Console package staging ${folderPath}: ${getErrorMessage(e)}`,
+        );
+      return [];
+    }
+  }
+
+  // Called before any new preparation; final hash directories are never traversed.
+  let intRemoved = 0;
+  for (const originEntry of await readEntries(strConsolePackageFolderPath)) {
+    if (!originEntry.isDirectory() || !/^[a-f0-9]{64}$/.test(originEntry.name)) continue;
+    const strOriginPath = path.join(strConsolePackageFolderPath, originEntry.name);
+    for (const packageEntry of await readEntries(strOriginPath)) {
+      if (!packageEntry.isDirectory() || !/^[a-f0-9-]{36}$/i.test(packageEntry.name))
+        continue;
+      const strPackagePath = path.join(strOriginPath, packageEntry.name);
+      for (const stagingEntry of await readEntries(strPackagePath)) {
+        if (
+          (!stagingEntry.isDirectory() && !stagingEntry.isFile()) ||
+          !/^\.staging-[a-f0-9-]{36}(?:\.zip)?$/.test(stagingEntry.name)
+        )
+          continue;
+        const strStagingPath = path.join(strPackagePath, stagingEntry.name);
+        try {
+          await fs.promises.rm(strStagingPath, { recursive: true, force: true });
+          intRemoved += 1;
+        } catch (e: unknown) {
+          loggerMain.warn(
+            `Failed to remove Console package staging ${strStagingPath}: ` +
+              getErrorMessage(e),
+          );
+        }
+      }
+    }
+  }
+  if (intRemoved)
+    loggerMain.info(`Removed ${intRemoved} abandoned Console package staging entries.`);
+}
 
 async function preparePackageFiles(
   packageInfo: ConsolePackageInfo,
@@ -121,8 +174,7 @@ export async function prepareConsolePackage(
     throw new Error("Console package identity is invalid.");
   const strOriginHash = createHash("sha256").update(credential.consoleUrl).digest("hex");
   const strPackagePath = path.join(
-    strDocumentsFolderPath,
-    "LiberRPA/ConsolePackage",
+    strConsolePackageFolderPath,
     strOriginHash,
     packageInfo.id,
     packageInfo.sha256,
