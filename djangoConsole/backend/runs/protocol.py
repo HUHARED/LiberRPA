@@ -5,7 +5,9 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import logging
-from typing import cast
+import uuid
+from datetime import datetime
+from typing import TYPE_CHECKING, TypedDict, cast
 
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError
 from django.db import DatabaseError, transaction
@@ -18,6 +20,7 @@ from django.views.decorators.debug import sensitive_variables
 from django.views.decorators.http import require_POST
 
 from accounts.rate_limits import apply_executor_client_rate_limit
+from console_project.contracts import JsonValue
 from console_project.http import (
     build_error_response,
     build_rate_limited_response,
@@ -39,7 +42,54 @@ from .models import Assignment, AssignmentState, ExecutorWorkState, JobState, Ru
 from .dispatch import get_start_evidence_not_before, issue_permission
 from .events import receive_event
 
+if TYPE_CHECKING:
+    from packages.preparation import PackagePreparationCommand
+
+    from .transfers import PendingRunFileTransfer
+
 _LOGGER = logging.getLogger("console.runs.protocol")
+
+
+class WorkAssignmentPayload(TypedDict):
+    id: uuid.UUID
+    job_id: uuid.UUID
+    run_id: uuid.UUID
+    attempt: int
+    package_id: uuid.UUID
+    package_download_url: str
+    snapshot: dict[str, JsonValue]
+
+
+class WorkStopCommand(TypedDict):
+    assignment_id: uuid.UUID
+    run_id: uuid.UUID
+
+
+class WorkPollResponse(TypedDict):
+    assignments: list[WorkAssignmentPayload]
+    stop_requests: list[WorkStopCommand]
+    file_transfers: list["PendingRunFileTransfer"]
+    preparations: list["PackagePreparationCommand"]
+    server_time: datetime
+
+
+class WorkPermitResponse(TypedDict):
+    assignment_id: uuid.UUID
+    run_id: uuid.UUID
+    permit_expires_at: datetime
+    start_evidence_not_before: datetime
+    server_time: datetime
+
+
+class WorkEventRejection(TypedDict):
+    event_id: uuid.UUID
+    code: str
+    message: str
+
+
+class WorkEventsResponse(TypedDict):
+    accepted_event_ids: list[uuid.UUID]
+    rejected_events: list[WorkEventRejection]
 
 
 @sensitive_variables()
@@ -109,24 +159,23 @@ def update_executor_work_state(
     work.save(update_fields=listUpdateField)
 
 
-def _build_assignment_payload(assignment: Assignment) -> dict:
-    return {
-        "id": assignment.id,
-        "job_id": assignment.job_id,
-        "run_id": assignment.run_id,
-        "attempt": assignment.attempt,
-        "package_id": assignment.job.package_id,
-        "package_download_url": f"/api/clients/executor/packages/{assignment.job.package_id}/downloads/",
-        "snapshot": {
-            **assignment.job.run_snapshot,
-            "schedule_name": assignment.job.request.schedule_name or None,
-        },
-    }
-
-
 def _poll(authentication: ExecutorClientResult, payload: WorkPollRequest) -> JsonResponse:
     from .transfers import get_pending_transfers
     from packages.preparation import get_preparation_commands
+
+    def build_assignment_payload(assignment: Assignment) -> WorkAssignmentPayload:
+        return {
+            "id": assignment.id,
+            "job_id": assignment.job_id,
+            "run_id": assignment.run_id,
+            "attempt": assignment.attempt,
+            "package_id": assignment.job.package_id,
+            "package_download_url": f"/api/clients/executor/packages/{assignment.job.package_id}/downloads/",
+            "snapshot": {
+                **assignment.job.run_snapshot,
+                "schedule_name": assignment.job.request.schedule_name or None,
+            },
+        }
 
     with transaction.atomic():
         session = lock_executor_work(authentication)
@@ -163,8 +212,8 @@ def _poll(authentication: ExecutorClientResult, payload: WorkPollRequest) -> Jso
             )
             .values("id", "run_id")
         )
-        return JsonResponse({
-            "assignments": [_build_assignment_payload(entry) for entry in listAssignment],
+        dictResponse: WorkPollResponse = {
+            "assignments": [build_assignment_payload(entry) for entry in listAssignment],
             "stop_requests": [
                 {"assignment_id": entry["id"], "run_id": entry["run_id"]}
                 for entry in listStop
@@ -172,7 +221,8 @@ def _poll(authentication: ExecutorClientResult, payload: WorkPollRequest) -> Jso
             "file_transfers": get_pending_transfers(session.pk),
             "preparations": get_preparation_commands(authentication.access, session),
             "server_time": timezone.now(),
-        })
+        }
+        return JsonResponse(dictResponse)
 
 
 @csrf_exempt
@@ -207,7 +257,7 @@ def executor_work_endpoint(request: HttpRequest, action: str) -> JsonResponse:
                         assignment.reason,
                         statusCode=409,
                     )
-                return JsonResponse({
+                dictPermit: WorkPermitResponse = {
                     "assignment_id": assignment.id,
                     "run_id": assignment.run_id,
                     "permit_expires_at": assignment.permit_expires_at,
@@ -215,9 +265,10 @@ def executor_work_endpoint(request: HttpRequest, action: str) -> JsonResponse:
                         assignment.permit_expires_at
                     ),
                     "server_time": timezone.now(),
-                })
-        listAccepted = []
-        listRejected = []
+                }
+                return JsonResponse(dictPermit)
+        listAccepted: list[uuid.UUID] = []
+        listRejected: list[WorkEventRejection] = []
         for event in cast(WorkEventsRequest, payload).events:
             try:
                 with transaction.atomic():
@@ -232,10 +283,11 @@ def executor_work_endpoint(request: HttpRequest, action: str) -> JsonResponse:
                     if isinstance(e, ValidationError)
                     else "The original assignment is unavailable.",
                 })
-        return JsonResponse({
+        dictEvents: WorkEventsResponse = {
             "accepted_event_ids": listAccepted,
             "rejected_events": listRejected,
-        })
+        }
+        return JsonResponse(dictEvents)
     except InvalidExecutorSessionError:
         return build_error_response(
             "executor_authentication_required",

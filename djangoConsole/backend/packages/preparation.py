@@ -5,6 +5,7 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import uuid
+from typing import TypedDict
 
 from django.core.exceptions import ValidationError
 from django.db.models import Q, F
@@ -19,6 +20,20 @@ from runs.control_notifications import notify_executor_control
 from .contracts import PackagePreparationState, PackagePreparationResult
 from .models import Package, PackagePreparation
 from .queries import require_package_department
+
+
+class PackagePreparationInputs(TypedDict):
+    package_id: str
+    sha256: str
+    python_environment_name: str
+    requires_liberrpa: str
+    project_name: str
+    project_version: str
+
+
+class PackagePreparationCommand(TypedDict):
+    preparation_id: str
+    inputs: PackagePreparationInputs
 
 
 def request_package_preparation(package: Package, executorIds: list[uuid.UUID]) -> None:
@@ -62,12 +77,12 @@ def request_referenced_preparation(package: Package) -> None:
 
 def get_preparation_commands(
     access: OrganizationAccessContext, session: ExecutorSession
-) -> list[dict]:
+) -> list[PackagePreparationCommand]:
     if session.executor_id is None:
         return []
     executor = Executor.objects.get(pk=session.executor_id, deleted_at__isnull=True)
     require_package_department(access, executor.department_id)
-    listCommand = []
+    listCommand: list[PackagePreparationCommand] = []
     preparations = (
         PackagePreparation.objects
         .filter(
