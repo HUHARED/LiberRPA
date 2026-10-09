@@ -470,24 +470,6 @@ async def _put_chunk(ticket: TransferTicket, content: bytes | None) -> None:
     raise ConnectionError("The browser download stopped accepting data.")
 
 
-async def _get_chunk(ticket: TransferTicket) -> bytes | None:
-    floatDeadline = min(time.monotonic() + _INT_IDLE_SECONDS, ticket.expiresAt)
-    while not ticket.canceledEvent.is_set() and time.monotonic() < floatDeadline:
-        try:
-            return await asyncio.to_thread(ticket.chunks.get, True, 1)
-        except queue.Empty:
-            continue
-    raise ConnectionError("The original file stream was interrupted.")
-
-
-async def _watch_disconnect(receive: ASGIReceiveCallable, ticket: TransferTicket) -> None:
-    while True:
-        message = await receive()
-        if message["type"] == "http.disconnect":
-            _cancel_ticket(ticket, "The browser download was disconnected.")
-            return
-
-
 async def _receive_file(
     scope: HTTPScope,
     receive: ASGIReceiveCallable,
@@ -557,10 +539,26 @@ async def _download_file(
     send: ASGISendCallable,
     ticket: TransferTicket,
 ) -> None:
+    async def get_chunk() -> bytes | None:
+        floatDeadline = min(time.monotonic() + _INT_IDLE_SECONDS, ticket.expiresAt)
+        while not ticket.canceledEvent.is_set() and time.monotonic() < floatDeadline:
+            try:
+                return await asyncio.to_thread(ticket.chunks.get, True, 1)
+            except queue.Empty:
+                continue
+        raise ConnectionError("The original file stream was interrupted.")
+
+    async def watch_disconnect() -> None:
+        while True:
+            message = await receive()
+            if message["type"] == "http.disconnect":
+                _cancel_ticket(ticket, "The browser download was disconnected.")
+                return
+
     await sync_to_async(_authorize_browser)(scope, ticket)
     if ticket.consumerEvent.is_set():
         raise PermissionDenied("The download has already started.")
-    taskDisconnect = asyncio.create_task(_watch_disconnect(receive, ticket))
+    taskDisconnect = asyncio.create_task(watch_disconnect())
     boolStarted = False
     try:
         ticket.consumerEvent.set()
@@ -586,7 +584,7 @@ async def _download_file(
             )
             boolStarted = True
             while True:
-                content = await _get_chunk(ticket)
+                content = await get_chunk()
                 if content is None:
                     await asyncio.wait_for(
                         send({

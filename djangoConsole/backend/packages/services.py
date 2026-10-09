@@ -184,31 +184,6 @@ def cancel_upload(upload: PackageUpload) -> None:
         StoredBlob.objects.filter(pk=upload.blob_id).update(state=StoredBlobState.GARBAGE)
 
 
-def _validate_package_capacity(
-    access: OrganizationAccessContext, departmentId: uuid.UUID, projectNameKey: str
-) -> None:
-    projectPackages = Package.objects.filter(
-        department_id=departmentId, project_name_key=projectNameKey
-    )
-    if projectPackages.count() >= settings.CONSOLE_LIMITS.maxPackagesPerProject:
-        raise FileOperationError(
-            "package_limit", "This project has reached its package limit."
-        )
-    if (
-        not projectPackages.exists()
-        and Package.objects
-        .filter(department__organization=access.organization)
-        .values("department_id", "project_name_key")
-        .distinct()
-        .count()
-        >= settings.CONSOLE_LIMITS.maxProjectsPerOrganization
-    ):
-        raise FileOperationError(
-            "package_project_limit",
-            "The organization has reached its Package project limit.",
-        )
-
-
 def _require_uploaded_blob(upload: PackageUpload) -> uuid.UUID:
     if get_upload_state(upload) != PackageUploadState.RECEIVING:
         raise FileOperationError(
@@ -278,6 +253,29 @@ def complete_upload(
     validationResult: PackageUploadValidationResult | FileOperationError,
 ) -> dict | FileOperationError:
     """Commit with freshly authorized upload facts while holding the organization lock."""
+
+    def validate_package_capacity(projectNameKey: str) -> None:
+        intPackageCount = Package.objects.filter(
+            department_id=upload.department_id, project_name_key=projectNameKey
+        ).count()
+        if intPackageCount >= settings.CONSOLE_LIMITS.maxPackagesPerProject:
+            raise FileOperationError(
+                "package_limit", "This project has reached its package limit."
+            )
+        if (
+            intPackageCount == 0
+            and Package.objects
+            .filter(department__organization=access.organization)
+            .values("department_id", "project_name_key")
+            .distinct()
+            .count()
+            >= settings.CONSOLE_LIMITS.maxProjectsPerOrganization
+        ):
+            raise FileOperationError(
+                "package_project_limit",
+                "The organization has reached its Package project limit.",
+            )
+
     if get_upload_state(upload) == PackageUploadState.COMPLETED:
         return build_upload_payload(upload)
     blobId = _require_uploaded_blob(upload)
@@ -326,7 +324,7 @@ def complete_upload(
                 "package_exists",
                 "This department already contains the project version; versions cannot be overwritten.",
             )
-        _validate_package_capacity(access, upload.department_id, strNameKey)
+        validate_package_capacity(strNameKey)
     except FileOperationError as e:
         # Return validation failures so the caller commits the failure and cleanup marker.
         upload.state = PackageUploadState.FAILED

@@ -97,23 +97,22 @@ def _normalize_version_specifier(value: object, label: str) -> str:
     return ",".join(sorted(dictSpecifier, key=lambda strItem: dictSpecifier[strItem]))
 
 
-def _parse_component_dependencies(value: object) -> dict[str, str]:
-    if not isinstance(value, dict):
-        raise ValidationError("componentDependencies must be an object.")
-    dictDependency: dict[str, str] = {}
-    for strId, specifier in value.items():
-        uuidObj = UUID(strId)
-        if uuidObj.version != 4 or str(uuidObj) != strId:
-            raise ValidationError(
-                "Component IDs must be canonical lowercase UUID v4 values."
-            )
-        dictDependency[strId] = _normalize_version_specifier(
-            specifier, f"componentDependencies.{strId}"
-        )
-    return dict(sorted(dictDependency.items()))
-
-
 def _read_metadata(archive: zipfile.ZipFile) -> dict:
+    def parse_component_dependencies(value: object) -> dict[str, str]:
+        if not isinstance(value, dict):
+            raise ValidationError("componentDependencies must be an object.")
+        dictDependency: dict[str, str] = {}
+        for strId, specifier in value.items():
+            uuidObj = UUID(strId)
+            if uuidObj.version != 4 or str(uuidObj) != strId:
+                raise ValidationError(
+                    "Component IDs must be canonical lowercase UUID v4 values."
+                )
+            dictDependency[strId] = _normalize_version_specifier(
+                specifier, f"componentDependencies.{strId}"
+            )
+        return dict(sorted(dictDependency.items()))
+
     flow = _parse_root_json(archive, "flow.json")
     manifest = _parse_root_json(archive, ".liberrpa-package.json")
     project = _parse_root_json(archive, "project.flow")
@@ -181,7 +180,7 @@ def _read_metadata(archive: zipfile.ZipFile) -> dict:
         "requires_liberrpa": _normalize_version_specifier(
             flow["requiresLiberrpa"], "requiresLiberrpa"
         ),
-        "component_dependencies": _parse_component_dependencies(
+        "component_dependencies": parse_component_dependencies(
             flow["componentDependencies"]
         ),
         "argument_names": [
