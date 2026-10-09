@@ -53,6 +53,12 @@ interface LogBatch {
   skipped: { offset: number; reason: string }[];
 }
 
+enum ConsoleRunFileKind {
+  Logs = "logs",
+  Video = "video",
+  Subtitles = "subtitles",
+}
+
 const setTransferStarted = new Set<string>();
 const mapLogRetry = new Map<string, { nextAt: number; delayMs: number }>();
 
@@ -349,7 +355,7 @@ export async function flushConsoleLogs(
 
 async function prepareTransferFile(
   record: ConsoleWorkRecord,
-  kind: string,
+  kind: ConsoleRunFileKind,
 ): Promise<{
   filePath: string;
   temporaryFolder?: string;
@@ -369,7 +375,7 @@ async function prepareTransferFile(
     )
       throw new Error("Recording finalization has not completed successfully.");
   }
-  if (kind === "logs") {
+  if (kind === ConsoleRunFileKind.Logs) {
     const strTemporaryFolder = await fs.promises.mkdtemp(
       path.join(os.tmpdir(), "liberrpa-logs-"),
     );
@@ -394,13 +400,13 @@ async function prepareTransferFile(
       maxBytes: 2 * 1024 ** 3,
     };
   }
-  if (kind === "video")
+  if (kind === ConsoleRunFileKind.Video)
     return {
       filePath: path.join(strFolder, "video_record.mkv"),
       contentType: "video/x-matroska",
       maxBytes: 512 * 1024 ** 2,
     };
-  if (kind === "subtitles")
+  if (kind === ConsoleRunFileKind.Subtitles)
     return {
       filePath: path.join(strFolder, "video_record.srt"),
       contentType: "application/x-subrip",
@@ -421,15 +427,15 @@ async function sendConsoleFile(
   let strTemporaryFolder: string | undefined;
   let boolReady = false;
   try {
+    const strKind = ensureNonEmptyString(transfer.kind, "File kind");
+    const fileKind = Object.values(ConsoleRunFileKind).find((kind) => kind === strKind);
+    if (fileKind === undefined) throw new Error("Unsupported Run file kind.");
     const record = getConsoleWorkForRun(
       sessionKey,
       ensureNonEmptyString(transfer.run_id, "Transfer Run ID"),
     );
     if (!record) throw new Error("The original Run is unavailable on this client.");
-    const source = await prepareTransferFile(
-      record,
-      ensureNonEmptyString(transfer.kind, "File kind"),
-    );
+    const source = await prepareTransferFile(record, fileKind);
     strTemporaryFolder = source.temporaryFolder;
     const stat = await fs.promises.stat(source.filePath);
     if (!stat.isFile() || stat.size > source.maxBytes)

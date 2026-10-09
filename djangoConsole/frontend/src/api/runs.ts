@@ -117,6 +117,11 @@ export interface RecordingInfo {
   videoSizeBytes?: number | null;
   subtitleSizeBytes?: number | null;
 }
+export enum RunFileKind {
+  Logs = "logs",
+  Video = "video",
+  Subtitles = "subtitles",
+}
 export interface RunFileAvailability {
   available: boolean;
   reason: string;
@@ -134,11 +139,7 @@ export interface RunDetails extends RunInfo {
   other_runs: RunInfo[];
   logs_cleared_at: string | null;
   recording: RecordingInfo;
-  files: {
-    logs: RunFileAvailability;
-    video: RunFileAvailability;
-    subtitles: RunFileAvailability;
-  };
+  files: Record<RunFileKind, RunFileAvailability>;
 }
 export interface RunFilters {
   departmentIds: string[];
@@ -284,6 +285,20 @@ export async function getRun(id: string): Promise<RunDetails> {
       : result.run.outputs !== null)
   )
     return rejectInvalidResponse();
+  const dictFiles = result.run.files;
+  if (
+    !isRecord(dictFiles) ||
+    !Object.values(RunFileKind).every((kind) => {
+      const availability = dictFiles[kind];
+      return (
+        isRecord(availability) &&
+        typeof availability.available === "boolean" &&
+        typeof availability.reason === "string" &&
+        (availability.size_bytes === null || isNonnegativeInteger(availability.size_bytes))
+      );
+    })
+  )
+    return rejectInvalidResponse();
   return result.run as unknown as RunDetails;
 }
 export async function createJobs(
@@ -417,10 +432,7 @@ export async function clearRunLogs(ids: string[]): Promise<{
     failed: { id: string; reason: string }[];
   };
 }
-export async function downloadRunFile(
-  id: string,
-  kind: "logs" | "video" | "subtitles",
-): Promise<void> {
+export async function downloadRunFile(id: string, kind: RunFileKind): Promise<void> {
   const result = await requestApi(`/runs/${encodeURIComponent(id)}/files/`, {
     method: "POST",
     body: { kind },

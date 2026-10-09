@@ -68,7 +68,7 @@ _INT_BYTES_PER_SECOND = 5 * 1024 * 1024
 _INT_PREPARATION_SECONDS = 60
 _INT_TRANSFER_SECONDS = 30 * 60
 _INT_IDLE_SECONDS = 60
-_DICT_MAX_FILE_BYTES = {
+_DICT_MAX_FILE_BYTES: dict[RunFileKind, int] = {
     RunFileKind.LOGS: 2 * 1024 * 1024 * 1024,
     RunFileKind.VIDEO: 512 * 1024 * 1024,
     RunFileKind.SUBTITLES: 10 * 1024 * 1024,
@@ -92,7 +92,7 @@ class TransferTicket:
     actorId: uuid.UUID
     sessionId: uuid.UUID
     runId: uuid.UUID
-    kind: str
+    kind: RunFileKind
     expiresAt: float
     readyEvent: threading.Event = field(default_factory=threading.Event)
     consumerEvent: threading.Event = field(default_factory=threading.Event)
@@ -105,6 +105,13 @@ class TransferTicket:
     filename: str = ""
     contentType: str = "application/octet-stream"
     error: str = ""
+
+
+class PendingRunFileTransfer(TypedDict):
+    id: str
+    run_id: str
+    kind: RunFileKind
+    expires_at: str
 
 
 class RunFileAvailability(TypedDict):
@@ -212,7 +219,7 @@ def _discard_ticket(ticket: TransferTicket) -> None:
     RunFileTransfer.objects.filter(pk=ticket.id).delete()
 
 
-def get_pending_transfers(sessionId: uuid.UUID) -> list[dict]:
+def get_pending_transfers(sessionId: uuid.UUID) -> list[PendingRunFileTransfer]:
     # Tickets are short-lived relay state, never a durable download queue.
     with _LOCK_TICKET:
         listTicket = list(_DICT_TICKET.values())
@@ -371,7 +378,7 @@ def set_file_ready(request: HttpRequest, transferId: uuid.UUID) -> HttpResponse:
                 "This transfer was already prepared with different metadata."
             )
         boolOwnPreparation = True
-        intMaxBytes = _DICT_MAX_FILE_BYTES[RunFileKind(ticket.kind)]
+        intMaxBytes = _DICT_MAX_FILE_BYTES[ticket.kind]
         if payload.size_bytes > intMaxBytes:
             raise ValidationError(
                 "This file exceeds the Console download limit; retrieve it on the Executor computer."

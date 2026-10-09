@@ -57,7 +57,7 @@
           :active="strTab === 'logs'"
           :download-enabled="run.files.logs.available"
           :download-reason="run.files.logs.reason"
-          @download="download('logs')" />
+          @download="download(RunFileKind.Logs)" />
         <RunInputs v-if="strTab === 'inputs'" :inputs="run.run_snapshot" />
         <template v-if="strTab === 'outputs'">
           <v-alert v-if="run.outputs_status === 'waiting'" type="info" variant="tonal">
@@ -202,7 +202,7 @@
                       :disabled="!run.files.video.available"
                       :loading="boolDownloading"
                       variant="text"
-                      @click="download('video')">
+                      @click="download(RunFileKind.Video)">
                       Download Video
                     </v-btn>
                     <p v-if="run.files.video.reason" class="text-caption">
@@ -218,7 +218,7 @@
                       :disabled="!run.files.subtitles.available"
                       :loading="boolDownloading"
                       variant="text"
-                      @click="download('subtitles')">
+                      @click="download(RunFileKind.Subtitles)">
                       Download Subtitles
                     </v-btn>
                     <p v-if="run.files.subtitles.reason" class="text-caption">
@@ -257,7 +257,14 @@ import RunInputs from "@/components/runOptions/RunInputs.vue";
 import RunLogs from "@/components/runs/RunLogs.vue";
 import RunTable from "@/components/runs/RunTable.vue";
 import RunPackageDialog from "@/components/packages/RunPackageDialog.vue";
-import { getRun, getRerun, stopRun, downloadRunFile, type RunDetails } from "@/api/runs";
+import {
+  getRun,
+  getRerun,
+  stopRun,
+  downloadRunFile,
+  RunFileKind,
+  type RunDetails,
+} from "@/api/runs";
 import { getApiError } from "@/api/errors";
 import { JOB_SOURCE_LABELS, RUN_RESULT_LABELS } from "@/app/runLabels";
 import { formatDateTime, formatFileSize, formatJsonValue } from "@/app/formatters";
@@ -312,7 +319,7 @@ async function rerun(): Promise<void> {
     boolBusy.value = false;
   }
 }
-async function download(kind: "logs" | "video" | "subtitles"): Promise<void> {
+async function download(kind: RunFileKind): Promise<void> {
   boolDownloading.value = true;
   strError.value = "";
   try {
