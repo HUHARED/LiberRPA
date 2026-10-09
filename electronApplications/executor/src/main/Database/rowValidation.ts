@@ -3,9 +3,9 @@
 import type Database from "better-sqlite3";
 
 import type { Dict_ProjectDetail } from "../../shared/project";
-import type { Dict_RunHistory_Item } from "../../shared/run";
+import type { RunHistoryItem } from "../../shared/run";
 import { RunStatus } from "../../shared/run";
-import type { Dict_ProjectRun_Detail } from "../Run/types";
+import type { ProjectRunDetails } from "../Run/types";
 import type { Dict_Detail_Schedule, Dict_ListItem_Schedule } from "../../shared/schedule";
 import type { Arr_CustomProjectArgs } from "../../shared/runOptions";
 import {
@@ -39,7 +39,7 @@ export function ensureSingleRowAffected(
   }
 }
 
-export interface Dict_RunHistory_LogLocation {
+export interface RunLogLocation {
   id: number;
   log_path: string;
 }
@@ -323,7 +323,7 @@ export function ensureScheduleDetailRow(
 export function ensureScheduleRunDetailRow(
   value: unknown,
   sourceName: string,
-): Dict_ProjectRun_Detail {
+): ProjectRunDetails {
   const row = ensureExactRecord(
     value,
     [
@@ -414,10 +414,7 @@ export function parseRunHistoryConsoleLink(
   return urlObj.href;
 }
 
-function ensureRunHistoryListItemRow(
-  value: unknown,
-  sourceName: string,
-): Dict_RunHistory_Item {
+function ensureRunHistoryListItemRow(value: unknown, sourceName: string): RunHistoryItem {
   const row = ensureExactRecord(
     value,
     [
@@ -476,7 +473,7 @@ function ensureRunHistoryListItemRow(
 export function ensureRunHistoryListRows(
   rows: unknown[],
   sourceName: string,
-): Dict_RunHistory_Item[] {
+): RunHistoryItem[] {
   return ensureRows(rows, ensureRunHistoryListItemRow, sourceName);
 }
 
@@ -492,7 +489,7 @@ export function ensureCountRow(
 export function ensureRunHistoryLogLocationRow(
   value: unknown,
   sourceName: string,
-): Dict_RunHistory_LogLocation {
+): RunLogLocation {
   const row = ensureExactRecord(value, ["id", "log_path"], sourceName);
   return {
     id: ensurePositiveInteger(row.id, `${sourceName}.id`),

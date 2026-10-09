@@ -4,8 +4,8 @@ import type Database from "better-sqlite3";
 
 import { getErrorMessage } from "../../shared/error";
 import type {
-  Dict_RunHistory_Options,
-  Dict_RunHistory_Page,
+  RunHistoryQueryOptions,
+  RunHistoryPage,
   RunTerminalStatus,
   RunDetails,
   RunOutputs,
@@ -14,7 +14,7 @@ import { RunSource, RunStatus } from "../../shared/run";
 import { loggerMain } from "../Logging/logger";
 import { getDatabase } from "./connection";
 import {
-  type Dict_RunHistory_LogLocation,
+  type RunLogLocation,
   ensureCountRow,
   ensureRunHistoryLogLocationRow,
   ensureRunHistoryListRows,
@@ -23,7 +23,7 @@ import {
 } from "./rowValidation";
 import { isRecoveredRunHistoryActive } from "../Run/recoveredRuns";
 
-interface Dict_RunHistory_Insert {
+interface RunHistoryInsertData {
   schedule_name: string | null;
   project_id: number | null;
   source: RunSource;
@@ -40,7 +40,7 @@ interface Dict_RunHistory_Insert {
   log_path: string;
 }
 
-interface Dict_RunHistory_Update {
+interface RunHistoryUpdateData {
   id: number;
   run_ended_at_ms: number;
   status: RunTerminalStatus;
@@ -49,7 +49,7 @@ interface Dict_RunHistory_Update {
 }
 
 const MAP_RUN_HISTORY_SORT_COLUMN: Record<
-  Dict_RunHistory_Options["sortBy"][number]["key"],
+  RunHistoryQueryOptions["sortBy"][number]["key"],
   string
 > = {
   schedule_name: "schedule_name",
@@ -61,7 +61,7 @@ const MAP_RUN_HISTORY_SORT_COLUMN: Record<
   status: "status",
 };
 
-export function dbInsertRunHistory(detailDict: Dict_RunHistory_Insert): Database.RunResult {
+export function dbInsertRunHistory(detailDict: RunHistoryInsertData): Database.RunResult {
   loggerMain.debug("--dbInsertRunHistory--");
   const intNowMs = Date.now();
   const result = getDatabase()
@@ -119,7 +119,7 @@ export function dbInsertRunHistory(detailDict: Dict_RunHistory_Insert): Database
   return result;
 }
 
-export function dbUpdateRunHistory(detailDict: Dict_RunHistory_Update): void {
+export function dbUpdateRunHistory(detailDict: RunHistoryUpdateData): void {
   loggerMain.debug("--dbUpdateRunHistory--");
   const result = getDatabase()
     .prepare(
@@ -195,9 +195,7 @@ export function dbHasRunningRunForProject(projectId: number): boolean {
   );
 }
 
-export function dbSelectRunHistoryLogLocation(
-  id: number,
-): Dict_RunHistory_LogLocation | undefined {
+export function dbSelectRunHistoryLogLocation(id: number): RunLogLocation | undefined {
   loggerMain.debug("--dbSelectRunHistoryLogLocation--");
   const row = getDatabase()
     .prepare(
@@ -217,9 +215,7 @@ export function dbSelectRunHistoryLogLocation(
     : ensureRunHistoryLogLocationRow(row, "Run History log location query result");
 }
 
-export function dbSelectRunHistoryPage(
-  options: Dict_RunHistory_Options,
-): Dict_RunHistory_Page {
+export function dbSelectRunHistoryPage(options: RunHistoryQueryOptions): RunHistoryPage {
   loggerMain.debug("--dbSelectRunHistoryPage--");
 
   // Request options have already been validated at the IPC boundary.
@@ -304,11 +300,8 @@ export function dbSelectRunHistoryPage(
   return { rows: arrRow, total: intTotal };
 }
 
-function parseRetentionLogLocations(
-  rows: unknown[],
-  sourceName: string,
-): Dict_RunHistory_LogLocation[] {
-  const arrLogLocation: Dict_RunHistory_LogLocation[] = [];
+function parseRetentionLogLocations(rows: unknown[], sourceName: string): RunLogLocation[] {
+  const arrLogLocation: RunLogLocation[] = [];
   for (const [intIndex, row] of rows.entries()) {
     try {
       const location = ensureRunHistoryLogLocationRow(row, `${sourceName}[${intIndex}]`);
@@ -320,7 +313,7 @@ function parseRetentionLogLocations(
   return arrLogLocation;
 }
 
-export function dbSelectLogFolderBefore(cutoffMs: number): Dict_RunHistory_LogLocation[] {
+export function dbSelectLogFolderBefore(cutoffMs: number): RunLogLocation[] {
   loggerMain.debug("--dbSelectLogFolderBefore--");
   const rows = getDatabase()
     .prepare(
@@ -343,7 +336,7 @@ export function dbSelectLogFolderBefore(cutoffMs: number): Dict_RunHistory_LogLo
   return parseRetentionLogLocations(rows, "Expired log folder query result");
 }
 
-export function dbSelectVideoBefore(cutoffMs: number): Dict_RunHistory_LogLocation[] {
+export function dbSelectVideoBefore(cutoffMs: number): RunLogLocation[] {
   loggerMain.debug("--dbSelectVideoBefore--");
   const rows = getDatabase()
     .prepare(
@@ -366,7 +359,7 @@ export function dbSelectVideoBefore(cutoffMs: number): Dict_RunHistory_LogLocati
   return parseRetentionLogLocations(rows, "Expired video query result");
 }
 
-export function dbSelectVideo(): Dict_RunHistory_LogLocation[] {
+export function dbSelectVideo(): RunLogLocation[] {
   loggerMain.debug("--dbSelectVideo--");
   const rows = getDatabase()
     .prepare(

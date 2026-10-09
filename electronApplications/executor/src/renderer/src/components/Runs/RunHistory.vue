@@ -259,9 +259,9 @@ import {
   RunSource,
   RunStatus,
   type RunDetails,
-  type Dict_RunHistory_Item,
-  type Dict_RunHistory_Options,
-  type Dict_RunHistory_Search,
+  type RunHistoryItem,
+  type RunHistoryQueryOptions,
+  type RunHistoryFilters,
 } from "../../../../shared/run";
 
 const DICT_RUN_SOURCE_LABEL: Record<RunSource, string> = {
@@ -305,7 +305,7 @@ const arrItemsPerPageOptions = [
   { value: 100, title: "100" },
 ];
 
-const dictSearch = computed<Dict_RunHistory_Search>(() => {
+const dictSearch = computed<RunHistoryFilters>(() => {
   return {
     schedule_name: runHistoryStore.filterScheduleName,
     project_name: runHistoryStore.filterProjectName,
@@ -332,12 +332,12 @@ onBeforeUnmount(() => {
   debouncedUpdateSearch.cancel();
 });
 
-type Dict_RunHistory_Options_Table = Omit<Dict_RunHistory_Options, "search"> & {
+type RunHistoryTableOptions = Omit<RunHistoryQueryOptions, "search"> & {
   search: string;
 };
 
 async function handleTableOptionsUpdate(
-  optionsDict: Dict_RunHistory_Options_Table,
+  optionsDict: RunHistoryTableOptions,
 ): Promise<void> {
   await runHistoryStore.loadRunHistoryPage({
     page: optionsDict.page,
@@ -347,7 +347,7 @@ async function handleTableOptionsUpdate(
   });
 }
 
-const arrHeader: DataTableHeader<Dict_RunHistory_Item>[] = [
+const arrHeader: DataTableHeader<RunHistoryItem>[] = [
   { title: "Schedule", value: "schedule_name", align: "start", sortable: true },
   {
     title: "Project",

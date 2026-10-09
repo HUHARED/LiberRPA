@@ -23,7 +23,7 @@ import { getExecutorPackageFolderPath } from "../FileSystem/executorFiles";
 import { loggerMain } from "../Logging/logger";
 import { notifyRunEnded, notifyRunActivityChanged, notifyRunFinished } from "./lifecycle";
 import {
-  type Dict_PythonProcess_DiagnosticOutput,
+  type PythonProcessDiagnosticOutput,
   logPythonDiagnosticOutput,
   requestPythonTermination,
   spawnProjectPythonProcess,
@@ -39,7 +39,7 @@ import {
   waitForExecutorRunStateAvailable,
 } from "./runState";
 import {
-  type Dict_ProjectRun_Detail,
+  type ProjectRunDetails,
   type RunExecutionContext,
   type RunEndedFact,
   RunTerminationReason,
@@ -205,7 +205,7 @@ export function isProjectRunStarting(projectId: number): boolean {
 }
 
 export async function pythonRun(
-  detailDict: Dict_ProjectRun_Detail,
+  detailDict: ProjectRunDetails,
   context: RunExecutionContext = {
     source: RunSource.Local,
     jobId: randomUUID(),
@@ -252,7 +252,7 @@ export async function pythonRun(
 }
 
 async function startProjectRun(
-  detailDict: Dict_ProjectRun_Detail,
+  detailDict: ProjectRunDetails,
   context: RunExecutionContext,
   runId: string,
 ): Promise<void> {
@@ -528,7 +528,7 @@ async function getInitialRunState({
   packageVersion: string;
   expectedStartedAt: string;
   expectedLogRootPath: string;
-  diagnosticOutput: Dict_PythonProcess_DiagnosticOutput;
+  diagnosticOutput: PythonProcessDiagnosticOutput;
 }): Promise<ExecutorRunState> {
   try {
     return await waitForExecutorRunStateAvailable({
@@ -569,9 +569,9 @@ async function createRunHistory({
   runId: string;
   runStatePath: string;
   runState: ExecutorRunState;
-  detail: Dict_ProjectRun_Detail;
+  detail: ProjectRunDetails;
   context: RunExecutionContext;
-  diagnosticOutput: Dict_PythonProcess_DiagnosticOutput;
+  diagnosticOutput: PythonProcessDiagnosticOutput;
 }): Promise<number> {
   try {
     const intRunHistoryIdValue = dbInsertRunHistory({

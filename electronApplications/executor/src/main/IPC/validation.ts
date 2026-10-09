@@ -2,7 +2,7 @@
 
 import type { ConsoleSignInArgs } from "../../shared/consoleAccount";
 import type { Dict_ProjectSettingsUpdate } from "../../shared/project";
-import type { Dict_RunHistory_Options } from "../../shared/run";
+import type { RunHistoryQueryOptions } from "../../shared/run";
 import type { Dict_ScheduleCreate, Dict_ScheduleUpdate } from "../../shared/schedule";
 import type { Str_ExecutorInvokeCommand, Str_RendererLogLevel } from "../../shared/ipc";
 import { parseScheduleCron } from "../../shared/cron";
@@ -259,11 +259,11 @@ export function ensureScheduleUpdate(value: unknown): Dict_ScheduleUpdate {
   return dictValue;
 }
 
-export function ensureRunHistoryOptions(value: unknown): Dict_RunHistory_Options {
+export function ensureRunHistoryOptions(value: unknown): RunHistoryQueryOptions {
   function ensureRunHistorySortKey(
     value: unknown,
     strSourceName: string,
-  ): Dict_RunHistory_Options["sortBy"][number]["key"] {
+  ): RunHistoryQueryOptions["sortBy"][number]["key"] {
     switch (value) {
       case "schedule_name":
       case "project_name":

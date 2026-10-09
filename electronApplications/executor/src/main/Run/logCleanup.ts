@@ -4,7 +4,7 @@ import fs from "fs";
 import path from "path";
 
 import { getErrorMessage } from "../../shared/error";
-import type { Dict_RunHistory_LogLocation } from "../Database/rowValidation";
+import type { RunLogLocation } from "../Database/rowValidation";
 import {
   dbSelectLogFolderBefore,
   dbSelectVideo,
@@ -32,7 +32,7 @@ function getExistingLogFilePath(folderPath: string, fileName: string): string | 
 }
 
 function getExistingRunLogFolderPath(
-  logLocation: Dict_RunHistory_LogLocation,
+  logLocation: RunLogLocation,
 ): string | undefined {
   if (!fs.existsSync(logLocation.log_path)) {
     return undefined;

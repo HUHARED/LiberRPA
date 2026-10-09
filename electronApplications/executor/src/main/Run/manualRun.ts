@@ -6,9 +6,9 @@ import {
   dbSelectProjectMostRecentlyInstalledDetail,
 } from "../Database/projectRepository";
 import { pythonRun } from "./projectRunner";
-import type { Dict_ProjectRun_Detail } from "./types";
+import type { ProjectRunDetails } from "./types";
 
-function createManualRunDetail(dictProject: Dict_ProjectDetail): Dict_ProjectRun_Detail {
+function createManualRunDetail(dictProject: Dict_ProjectDetail): ProjectRunDetails {
   return {
     schedule_name: null,
 

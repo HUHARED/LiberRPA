@@ -10,16 +10,16 @@ import { isProcessRunning } from "../Common/process";
 import { buildPythonProcessEnvironment } from "../Config/environment";
 import { getConsoleContextEnvironment } from "../Console/consoleContextBridge";
 import { loggerMain } from "../Logging/logger";
-import type { Dict_ProjectRun_Detail } from "./types";
+import type { ProjectRunDetails } from "./types";
 
-export interface Dict_PythonProcess_DiagnosticOutput {
+export interface PythonProcessDiagnosticOutput {
   strStdoutTail: string;
   strStderrTail: string;
 }
 
 interface StartedProjectPythonProcess {
   processPy: ChildProcessWithoutNullStreams;
-  diagnosticOutput: Dict_PythonProcess_DiagnosticOutput;
+  diagnosticOutput: PythonProcessDiagnosticOutput;
   getProcessError: () => Error | undefined;
 }
 
@@ -39,8 +39,8 @@ function appendProcessOutputTail(strCurrent: string, strChunk: string): string {
 
 function attachPythonDiagnosticStreams(
   processPy: ChildProcessWithoutNullStreams,
-): Dict_PythonProcess_DiagnosticOutput {
-  const dictDiagnosticOutput: Dict_PythonProcess_DiagnosticOutput = {
+): PythonProcessDiagnosticOutput {
+  const dictDiagnosticOutput: PythonProcessDiagnosticOutput = {
     strStdoutTail: "",
     strStderrTail: "",
   };
@@ -77,7 +77,7 @@ export function spawnProjectPythonProcess({
   startedAt,
   runStatePath,
 }: {
-  detail: Dict_ProjectRun_Detail;
+  detail: ProjectRunDetails;
   packagePath: string;
   pythonEnvironmentPath: string;
   runId: string;
@@ -163,7 +163,7 @@ export function logPythonDiagnosticOutput({
 }: {
   runId: string;
   reason: string;
-  diagnosticOutput: Dict_PythonProcess_DiagnosticOutput;
+  diagnosticOutput: PythonProcessDiagnosticOutput;
 }): void {
   const strStdoutTail = diagnosticOutput.strStdoutTail.trim();
   const strStderrTail = diagnosticOutput.strStderrTail.trim();

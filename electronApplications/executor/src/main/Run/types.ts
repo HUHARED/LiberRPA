@@ -7,7 +7,7 @@ import type {
   Dict_RunOptions,
 } from "../../shared/runOptions";
 
-export interface Dict_ProjectRun_Detail
+export interface ProjectRunDetails
   extends Dict_RunOptions, Dict_PythonEnvironmentSelection {
   run_conflict_policy?: Str_RunConflictPolicy;
   schedule_name: string | null;

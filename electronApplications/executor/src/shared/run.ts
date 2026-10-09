@@ -35,7 +35,7 @@ export enum RunStatus {
 
 export type RunTerminalStatus = Exclude<RunStatus, RunStatus.Running | RunStatus.Unknown>;
 
-export interface Dict_RunHistory_Item {
+export interface RunHistoryItem {
   id: number;
   source: RunSource;
   console_run_url: string | null;
@@ -49,7 +49,7 @@ export interface Dict_RunHistory_Item {
   status: RunStatus;
 }
 
-export interface Dict_RunHistory_Search {
+export interface RunHistoryFilters {
   schedule_name: string;
   project_name: string;
   project_version: string;
@@ -57,7 +57,7 @@ export interface Dict_RunHistory_Search {
   source: RunSource | null;
 }
 
-export interface Dict_RunHistory_Options {
+export interface RunHistoryQueryOptions {
   page: number;
   itemsPerPage: number;
   sortBy: {
@@ -72,11 +72,11 @@ export interface Dict_RunHistory_Options {
     order: "asc" | "desc";
   }[];
   // Vuetify also sends an unused groupBy value.
-  search: Dict_RunHistory_Search;
+  search: RunHistoryFilters;
 }
 
-export interface Dict_RunHistory_Page {
-  rows: Dict_RunHistory_Item[];
+export interface RunHistoryPage {
+  rows: RunHistoryItem[];
   total: number;
 }
 

@@ -18,7 +18,7 @@ import {
   hasActiveProjectRun,
   pythonRun,
 } from "../Run/projectRunner";
-import type { Dict_ProjectRun_Detail, RunExecutionContext } from "../Run/types";
+import type { ProjectRunDetails, RunExecutionContext } from "../Run/types";
 import type { RunQueueItem } from "../../shared/run";
 import type { Str_RunConflictPolicy } from "../../shared/schedule";
 
@@ -37,7 +37,7 @@ interface PendingRun {
 
 interface QueuedRun {
   queueItem: Omit<LocalRunQueueItem, "state">;
-  runDetail: Dict_ProjectRun_Detail;
+  runDetail: ProjectRunDetails;
   context?: RunExecutionContext;
 }
 

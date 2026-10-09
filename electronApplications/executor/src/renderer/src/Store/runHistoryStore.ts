@@ -6,8 +6,8 @@ import { cloneJsonSerializable } from "../Common/json";
 import { invokeMain } from "../IPC/ipc";
 import { loggerRenderer } from "../Logging/logger";
 import type {
-  Dict_RunHistory_Item,
-  Dict_RunHistory_Options,
+  RunHistoryItem,
+  RunHistoryQueryOptions,
   RunStatus,
   RunSource,
 } from "../../../shared/run";
@@ -15,9 +15,9 @@ import type {
 export const useRunHistoryStore = defineStore("runHistory", {
   state: () => {
     return {
-      arrListItem: [] as Dict_RunHistory_Item[],
+      arrListItem: [] as RunHistoryItem[],
       itemLength: 0 as number,
-      dictOptionsCache: undefined as Dict_RunHistory_Options | undefined,
+      dictOptionsCache: undefined as RunHistoryQueryOptions | undefined,
       intLoadRevision: 0 as number,
 
       filterScheduleName: "" as string,
@@ -28,7 +28,7 @@ export const useRunHistoryStore = defineStore("runHistory", {
     };
   },
   actions: {
-    async loadRunHistoryPage(optionsDict: Dict_RunHistory_Options | null): Promise<void> {
+    async loadRunHistoryPage(optionsDict: RunHistoryQueryOptions | null): Promise<void> {
       if (optionsDict) {
         // Keep an independent copy because v-data-table-server reuses its options object.
         this.dictOptionsCache = cloneJsonSerializable(optionsDict);

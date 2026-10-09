@@ -1,6 +1,6 @@
 // FileName: scheduleRepository.ts
 
-import type { Dict_ProjectRun_Detail } from "../Run/types";
+import type { ProjectRunDetails } from "../Run/types";
 import type {
   Dict_ScheduleCreate,
   Dict_Detail_Schedule,
@@ -82,7 +82,7 @@ export function dbSelectScheduleDetail(name: string): Dict_Detail_Schedule | und
 
 export function dbSelectScheduleRunDetail(
   scheduleId: number,
-): Dict_ProjectRun_Detail | undefined {
+): ProjectRunDetails | undefined {
   loggerMain.debug("--dbSelectScheduleRunDetail--");
   const row = getDatabase()
     .prepare(

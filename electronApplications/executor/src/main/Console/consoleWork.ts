@@ -17,7 +17,7 @@ import {
 import { getDatabase } from "../Database/connection";
 import { loggerMain } from "../Logging/logger";
 import { cancelRunById, pythonRun } from "../Run/projectRunner";
-import type { Dict_ProjectRun_Detail } from "../Run/types";
+import type { ProjectRunDetails } from "../Run/types";
 import { getLocalWaitingCount } from "../Scheduler/schedulerEngine";
 import { getConsolePythonCredential } from "./consoleAccount";
 import { ConsoleRequestError, requestConsole } from "./consoleApi";
@@ -309,7 +309,7 @@ async function prepareAndRun(
       sha256: strSha256,
       ...runSettings
     } = assignment.snapshot;
-    const detail: Dict_ProjectRun_Detail = {
+    const detail: ProjectRunDetails = {
       ...runSettings,
       id: 0,
       name: strProjectName,

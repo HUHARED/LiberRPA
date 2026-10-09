@@ -13,8 +13,8 @@ import type {
 } from "./project";
 import type {
   RunDetails,
-  Dict_RunHistory_Options,
-  Dict_RunHistory_Page,
+  RunHistoryQueryOptions,
+  RunHistoryPage,
   RunQueueItem,
 } from "./run";
 import type {
@@ -111,8 +111,8 @@ interface Dict_ExecutorInvoke_Contract {
   };
   getRunDetails: { request: number; response: RunDetails };
   getRunHistoryPage: {
-    request: Dict_RunHistory_Options;
-    response: Dict_RunHistory_Page;
+    request: RunHistoryQueryOptions;
+    response: RunHistoryPage;
   };
   getRunQueue: {
     request: undefined;

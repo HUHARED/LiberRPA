@@ -1,6 +1,6 @@
 // FileName: lifecycle.ts
 
-import type { Dict_ProjectRun_Detail, RunExecutionContext, RunEndedFact } from "./types";
+import type { ProjectRunDetails, RunExecutionContext, RunEndedFact } from "./types";
 import { getErrorMessage } from "../../shared/error";
 import { loggerMain } from "../Logging/logger";
 
@@ -42,7 +42,7 @@ export function notifyRunActivityChanged(): void {
 }
 
 type RunFinishedListener = (
-  detail: Dict_ProjectRun_Detail,
+  detail: ProjectRunDetails,
   context: RunExecutionContext,
   fact: RunEndedFact,
 ) => void;
@@ -53,7 +53,7 @@ export function onRunFinished(listener: RunFinishedListener): void {
 }
 
 export function notifyRunFinished(
-  detail: Dict_ProjectRun_Detail,
+  detail: ProjectRunDetails,
   context: RunExecutionContext,
   fact: RunEndedFact,
 ): void {
