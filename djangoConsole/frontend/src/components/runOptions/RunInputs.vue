@@ -62,7 +62,8 @@
 </template>
 <script setup lang="ts">
 import { computed } from "vue";
-import { formatJsonValue, type RunSnapshot } from "@/api/runOptions";
+import { formatJsonValue } from "@/app/formatters";
+import type { RunSnapshot } from "@/api/runOptions";
 const props = defineProps<{ inputs: RunSnapshot }>();
 const boolDuplicate = computed(
   () =>

@@ -114,20 +114,3 @@ export async function previewSchedule(
     return rejectInvalidResponse();
   return result as unknown as { normalized_cron: string; upcoming_triggers: string[] };
 }
-export function formatScheduleDateInput(value: string, timeZone: string): string {
-  const mapPart = new Map(
-    new Intl.DateTimeFormat("en", {
-      timeZone,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hourCycle: "h23",
-    })
-      .formatToParts(new Date(value))
-      .map((part) => [part.type, part.value]),
-  );
-  return `${mapPart.get("year")}-${mapPart.get("month")}-${mapPart.get("day")}T${mapPart.get("hour")}:${mapPart.get("minute")}:${mapPart.get("second")}`;
-}

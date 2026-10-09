@@ -1,5 +1,7 @@
 // FileName: sharedFiles.ts
 
+import { getSha256, saveBlob } from "@/app/files";
+
 import { requestApi } from "./client";
 import { ApiError } from "./errors";
 import { isRecord, isNonnegativeInteger } from "./responses";
@@ -55,12 +57,6 @@ function parseFileUploadResponse(value: unknown): FileUploadResponse {
   )
     return rejectInvalidFileResponse();
   return value as unknown as FileUploadResponse;
-}
-export async function getSha256(data: Blob | Uint8Array<ArrayBuffer>): Promise<string> {
-  const bytes = data instanceof Blob ? await data.arrayBuffer() : data;
-  return Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)), (value) =>
-    value.toString(16).padStart(2, "0"),
-  ).join("");
 }
 export async function getOrCreateFileRequestIdentity(
   userId: string,
@@ -192,13 +188,5 @@ export async function downloadSharedFile(path: string): Promise<void> {
     throw new ApiError(
       "The downloaded file failed its integrity check. Download it again.",
     );
-  const strUrl = URL.createObjectURL(fileBlob);
-  const link = document.createElement("a");
-  link.href = strUrl;
-  link.download = transfer.file.name;
-  document.body.append(link);
-  link.click();
-  link.remove();
-  // Leave enough time for the browser to accept the save request.
-  setTimeout(() => URL.revokeObjectURL(strUrl), 60000);
+  saveBlob(fileBlob, transfer.file.name);
 }

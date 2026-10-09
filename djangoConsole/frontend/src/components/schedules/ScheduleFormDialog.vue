@@ -181,7 +181,6 @@ import {
   getSchedule,
   saveSchedule,
   previewSchedule,
-  formatScheduleDateInput,
   type ScheduleInfo,
 } from "@/api/schedules";
 import { cloneRunSettings, type RunSettings } from "@/api/runOptions";
@@ -189,7 +188,7 @@ import { requestApi } from "@/api/client";
 import { isRecord } from "@/api/responses";
 import { getApiError } from "@/api/errors";
 import { useSessionStore } from "@/stores/sessionStore";
-import { formatDateTime } from "@/app/formatters";
+import { formatDateTime, formatDateTimeInput } from "@/app/formatters";
 const props = defineProps<{ scheduleId?: string }>();
 const emit = defineEmits<{ close: []; saved: [schedule: ScheduleInfo] }>();
 const sessionStore = useSessionStore();
@@ -211,7 +210,7 @@ const boolEnabled = ref(true);
 const strNotes = ref("");
 const strTimeZone = ref("UTC");
 const strActiveFrom = ref(
-  formatScheduleDateInput(new Date().toISOString(), strTimeZone.value).slice(0, 10) +
+  formatDateTimeInput(new Date().toISOString(), strTimeZone.value, true).slice(0, 10) +
     "T00:00:00",
 );
 const strActiveUntil = ref("2084-04-04T00:00:00");
@@ -413,7 +412,7 @@ onMounted(async () => {
       if (isRecord(defaults) && typeof defaults.time_zone === "string") {
         strTimeZone.value = defaults.time_zone;
         strActiveFrom.value =
-          formatScheduleDateInput(new Date().toISOString(), strTimeZone.value).slice(
+          formatDateTimeInput(new Date().toISOString(), strTimeZone.value, true).slice(
             0,
             10,
           ) + "T00:00:00";
@@ -430,13 +429,15 @@ onMounted(async () => {
       boolEnabled.value = schedule.enabled;
       strNotes.value = schedule.notes;
       strTimeZone.value = schedule.time_zone;
-      strActiveFrom.value = formatScheduleDateInput(
+      strActiveFrom.value = formatDateTimeInput(
         schedule.active_from,
         schedule.time_zone,
+        true,
       );
-      strActiveUntil.value = formatScheduleDateInput(
+      strActiveUntil.value = formatDateTimeInput(
         schedule.active_until,
         schedule.time_zone,
+        true,
       );
       strCron.value = schedule.cron;
       settings.value = cloneRunSettings(schedule.settings);

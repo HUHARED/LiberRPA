@@ -6,7 +6,7 @@ export function getDisplayName(username: string, email: string): string {
 
 export function formatDateTime(value: string | null, timeZone: string): string {
   if (value === null) return "—";
-  
+
   const dateValue = new Date(value);
   if (!Number.isFinite(dateValue.getTime())) return "Unknown";
   const arrPart = new Intl.DateTimeFormat("en", {
@@ -28,7 +28,11 @@ export function formatDateTime(value: string | null, timeZone: string): string {
   return `${strDate} ${strTime} ${strOffset}`;
 }
 
-export function formatDateTimeInput(value: string, timeZone: string): string {
+export function formatDateTimeInput(
+  value: string,
+  timeZone: string,
+  includeSeconds = false,
+): string {
   const arrPart = new Intl.DateTimeFormat("en", {
     timeZone,
     year: "numeric",
@@ -36,10 +40,13 @@ export function formatDateTimeInput(value: string, timeZone: string): string {
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
+    second: includeSeconds ? "2-digit" : undefined,
     hourCycle: "h23",
   }).formatToParts(new Date(value));
   const mapPart = new Map(arrPart.map((part) => [part.type, part.value]));
-  return `${mapPart.get("year")}-${mapPart.get("month")}-${mapPart.get("day")}T${mapPart.get("hour")}:${mapPart.get("minute")}`;
+  const strDate = `${mapPart.get("year")}-${mapPart.get("month")}-${mapPart.get("day")}`;
+  const strTime = `${mapPart.get("hour")}:${mapPart.get("minute")}`;
+  return `${strDate}T${strTime}${includeSeconds ? `:${mapPart.get("second")}` : ""}`;
 }
 
 export function formatFileSize(bytes: number): string {
@@ -47,4 +54,8 @@ export function formatFileSize(bytes: number): string {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KiB`;
   if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MiB`;
   return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GiB`;
+}
+
+export function formatJsonValue(value: unknown): string {
+  return JSON.stringify(value, null, 2) ?? "Unavailable";
 }

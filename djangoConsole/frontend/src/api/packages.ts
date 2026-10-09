@@ -1,8 +1,9 @@
 // FileName: packages.ts
 
+import { getSha256, saveBlob } from "@/app/files";
+
 import { requestApi } from "./client";
 import { isRecord, parsePaginationResponse, rejectInvalidResponse } from "./responses";
-import { getSha256 } from "./sharedFiles";
 import { isRunSettings, cloneRunSettings, type RunSettings } from "./runOptions";
 import type { PaginationResponse } from "./generated/browserApi";
 
@@ -207,14 +208,6 @@ export async function finishPackageUpload(
       timeoutMs: 120000,
     }),
   );
-}
-export function saveBlob(blob: Blob, name: string): void {
-  const strUrl = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = strUrl;
-  link.download = name;
-  link.click();
-  setTimeout(() => URL.revokeObjectURL(strUrl), 60000);
 }
 export async function downloadPackage(packageInfo: PackageInfo): Promise<void> {
   const response = await requestApi(

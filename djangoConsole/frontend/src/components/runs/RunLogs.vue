@@ -117,9 +117,9 @@
 <script setup lang="ts">
 import { shallowRef, computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { getRunLogs, type LogEntry } from "@/api/runs";
-import { ARR_LOG_LEVEL, formatJsonValue, type LogLevel } from "@/api/runOptions";
+import { ARR_LOG_LEVEL, type LogLevel } from "@/api/runOptions";
 import { getApiError } from "@/api/errors";
-import { formatDateTime, formatFileSize } from "@/app/formatters";
+import { formatDateTime, formatFileSize, formatJsonValue } from "@/app/formatters";
 const props = defineProps<{
   runId: string;
   running: boolean;

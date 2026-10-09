@@ -261,9 +261,8 @@ import {
   getStateLabel,
   type RunDetails,
 } from "@/api/runs";
-import { formatJsonValue } from "@/api/runOptions";
 import { getApiError } from "@/api/errors";
-import { formatDateTime, formatFileSize } from "@/app/formatters";
+import { formatDateTime, formatFileSize, formatJsonValue } from "@/app/formatters";
 import { useSessionStore } from "@/stores/sessionStore";
 const props = defineProps<{ runId: string }>();
 const sessionStore = useSessionStore();

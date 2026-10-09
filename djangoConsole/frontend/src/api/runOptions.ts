@@ -81,6 +81,3 @@ export function isRunSettings(value: unknown): value is RunSettings {
 export function cloneRunSettings(settings: RunSettings): RunSettings {
   return JSON.parse(JSON.stringify(settings)) as RunSettings;
 }
-export function formatJsonValue(value: unknown): string {
-  return JSON.stringify(value, null, 2) ?? "Unavailable";
-}

@@ -99,12 +99,12 @@ import type { SubmitEventPromise } from "vuetify";
 
 import { useSessionStore } from "@/stores/sessionStore";
 
+import { getSha256 } from "@/app/files";
 import { formatFileSize } from "@/app/formatters";
 import { validatePathName } from "@/app/validators";
 
 import { ApiError, getApiError } from "@/api/errors";
 import {
-  getSha256,
   getOrCreateFileRequestIdentity,
   clearFileRequestIdentity,
   createSharedUpload,
