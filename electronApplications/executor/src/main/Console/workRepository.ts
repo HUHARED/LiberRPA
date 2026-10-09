@@ -4,6 +4,12 @@ import { createHash, randomUUID } from "crypto";
 import fs from "fs";
 
 import { RunStatus, type RunTerminalStatus, type RunOutputs } from "../../shared/run";
+import type {
+  Dict_PythonEnvironmentSelection,
+  Dict_RunOptions,
+} from "../../shared/runOptions";
+import type { Str_RunConflictPolicy } from "../../shared/schedule";
+import { ensureNonEmptyString } from "../Common/validation";
 import {
   type ExecutorRunState,
   createExecutorRunStatePath,
@@ -86,17 +92,32 @@ export type ConsoleEvent = ConsoleEventData & {
   occurred_at: string;
 };
 
+// Only the fields consumed by Executor; the stored payload retains server-only fields.
+export interface ConsoleRunSnapshot
+  extends Dict_RunOptions, Dict_PythonEnvironmentSelection {
+  project_name: string;
+  project_version: string;
+  sha256: string;
+  schedule_name: string | null;
+  run_conflict_policy: Str_RunConflictPolicy;
+}
+
 export interface ConsoleAssignment {
   id: string;
   job_id: string;
   run_id: string;
   attempt: number;
   package_id: string;
-  snapshot: Record<string, unknown>;
+  snapshot: ConsoleRunSnapshot;
 }
 
+// Keep unvalidated inputs until preparation can report a reliable failure.
+export type ConsoleAssignmentData = Omit<ConsoleAssignment, "snapshot"> & {
+  snapshot: { [Key in keyof ConsoleRunSnapshot]?: unknown };
+};
+
 export interface ConsoleWorkRecord {
-  assignment: ConsoleAssignment;
+  assignment: ConsoleAssignmentData;
   sessionKey: string;
   state: ConsoleWorkState;
   started?: RunStartedFact;
@@ -331,8 +352,14 @@ function recoverFinishedConsoleRun(record: ConsoleWorkRecord): boolean {
     state = readExecutorRunState({
       filePath: strStatePath,
       expectedRunId: record.assignment.run_id,
-      expectedPackageName: String(record.assignment.snapshot.project_name),
-      expectedPackageVersion: String(record.assignment.snapshot.project_version),
+      expectedPackageName: ensureNonEmptyString(
+        record.assignment.snapshot.project_name,
+        "Package name",
+      ),
+      expectedPackageVersion: ensureNonEmptyString(
+        record.assignment.snapshot.project_version,
+        "Package version",
+      ),
       expectedStartedAt: started.startedAt,
       expectedLogRootPath: started.logPath,
       expectedLogPath: started.logPath,

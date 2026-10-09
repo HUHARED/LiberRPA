@@ -42,6 +42,7 @@ import {
   saveConsoleWork,
   type ConsoleEventData,
   type ConsoleAssignment,
+  type ConsoleAssignmentData,
   type ConsoleWorkRecord,
 } from "./workRepository";
 import { flushConsoleLogs, sendConsoleFiles, stopConsoleFiles } from "./consoleWorkFiles";
@@ -86,7 +87,7 @@ let promiseLogs: Promise<void> | undefined;
 let promisePreparation: Promise<void> | undefined;
 let promiseFiles: Promise<void> | undefined;
 
-function parseAssignment(value: unknown): ConsoleAssignment {
+function parseAssignmentData(value: unknown): ConsoleAssignmentData {
   const dictValue = ensureRecord(value, "Console assignment");
   return {
     id: ensureNonEmptyString(dictValue.id, "Assignment ID"),
@@ -94,32 +95,39 @@ function parseAssignment(value: unknown): ConsoleAssignment {
     run_id: ensureNonEmptyString(dictValue.run_id, "Run ID"),
     attempt: ensurePositiveInteger(dictValue.attempt, "Attempt"),
     package_id: ensureNonEmptyString(dictValue.package_id, "Package ID"),
-    snapshot: ensureRecord(dictValue.snapshot, "Job inputs"),
+    snapshot: ensureRecord(dictValue.snapshot, "Run snapshot"),
   };
 }
 
-function getRunDetail(assignment: ConsoleAssignment): Dict_ProjectRun_Detail {
-  const value = assignment.snapshot;
+function parseRunAssignment(assignment: ConsoleAssignmentData): ConsoleAssignment {
+  const snapshot = assignment.snapshot;
   return {
-    id: 0,
-    schedule_name: typeof value.schedule_name === "string" ? value.schedule_name : null,
-    name: ensureNonEmptyString(value.project_name, "Package name"),
-    version: ensureNonEmptyString(value.project_version, "Package version"),
-    python_environment_name: ensurePythonEnvironmentName(
-      value.python_environment_name,
-      "Python environment",
-    ),
-    retry_count: ensureRetryCount(value.retry_count, "Retry Count"),
-    timeout_min: ensureRunTimeoutMinutes(value.timeout_min, "Timeout"),
-    builtin_log_level: ensureLogLevel(value.builtin_log_level, "Log level"),
-    builtin_record_video: ensureBoolean(value.builtin_record_video, "Record video"),
-    builtin_stop_shortcut: ensureBoolean(value.builtin_stop_shortcut, "Stop shortcut"),
-    builtin_highlight_ui: ensureBoolean(value.builtin_highlight_ui, "Highlight UI"),
-    custom_prj_args: ensureCustomProjectArgs(value.custom_prj_args, "Custom arguments"),
-    run_conflict_policy: ensureRunConflictPolicy(
-      value.run_conflict_policy,
-      "Conflict policy",
-    ),
+    ...assignment,
+    snapshot: {
+      project_name: ensureNonEmptyString(snapshot.project_name, "Package name"),
+      project_version: ensureNonEmptyString(snapshot.project_version, "Package version"),
+      sha256: ensureNonEmptyString(snapshot.sha256, "Package SHA256"),
+      schedule_name:
+        typeof snapshot.schedule_name === "string" ? snapshot.schedule_name : null,
+      python_environment_name: ensurePythonEnvironmentName(
+        snapshot.python_environment_name,
+        "Python environment",
+      ),
+      retry_count: ensureRetryCount(snapshot.retry_count, "Retry Count"),
+      timeout_min: ensureRunTimeoutMinutes(snapshot.timeout_min, "Timeout"),
+      builtin_log_level: ensureLogLevel(snapshot.builtin_log_level, "Log level"),
+      builtin_record_video: ensureBoolean(snapshot.builtin_record_video, "Record video"),
+      builtin_stop_shortcut: ensureBoolean(snapshot.builtin_stop_shortcut, "Stop shortcut"),
+      builtin_highlight_ui: ensureBoolean(snapshot.builtin_highlight_ui, "Highlight UI"),
+      custom_prj_args: ensureCustomProjectArgs(
+        snapshot.custom_prj_args,
+        "Custom arguments",
+      ),
+      run_conflict_policy: ensureRunConflictPolicy(
+        snapshot.run_conflict_policy,
+        "Conflict policy",
+      ),
+    },
   };
 }
 
@@ -294,13 +302,25 @@ async function prepareAndRun(
 ): Promise<void> {
   let boolPrepared = false;
   try {
-    const detail = getRunDetail(record.assignment);
+    const assignment = parseRunAssignment(record.assignment);
+    const {
+      project_name: strProjectName,
+      project_version: strProjectVersion,
+      sha256: strSha256,
+      ...runSettings
+    } = assignment.snapshot;
+    const detail: Dict_ProjectRun_Detail = {
+      ...runSettings,
+      id: 0,
+      name: strProjectName,
+      version: strProjectVersion,
+    };
     const strPackagePath = await prepareConsolePackage(
       {
-        id: record.assignment.package_id,
+        id: assignment.package_id,
         name: detail.name,
         version: detail.version,
-        sha256: ensureNonEmptyString(record.assignment.snapshot.sha256, "Package SHA256"),
+        sha256: strSha256,
       },
       detail.python_environment_name,
       credential,
@@ -507,7 +527,7 @@ async function syncConsoleWork(
   }
   if (Array.isArray(response.assignments))
     for (const value of response.assignments) {
-      const assignment = parseAssignment(value);
+      const assignment = parseAssignmentData(value);
       if (getConsoleWork(assignment.id) || mapPreparingWork.has(assignment.id)) continue;
       const record: ConsoleWorkRecord = {
         assignment,
