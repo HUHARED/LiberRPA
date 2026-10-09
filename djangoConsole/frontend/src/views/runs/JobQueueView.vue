@@ -30,7 +30,7 @@
             <v-select
               v-model="filters.states"
               :items="
-                ARR_JOB_STATE.map((value) => ({ value, title: getStateLabel(value) }))
+                ARR_JOB_STATE.map((value) => ({ value, title: JOB_STATE_LABELS[value] }))
               "
               label="Status"
               multiple
@@ -89,13 +89,13 @@
           </RouterLink>
         </template>
       </template>
-      <template #item.priority="{ item }">{{ getStateLabel(item.priority) }}</template>
+      <template #item.priority="{ item }">{{ PRIORITY_LABELS[item.priority] }}</template>
       <template #item.queued_at="{ item }">
         {{ formatDateTime(item.queued_at, strTimeZone) }}
       </template>
       <template #item.state="{ item }">
         <v-chip size="small" :color="item.state === 'needs_review' ? 'warning' : undefined">
-          {{ getStateLabel(item.state) }}
+          {{ JOB_STATE_LABELS[item.state] }}
         </v-chip>
       </template>
       <template #item.actions="{ item }">
@@ -128,14 +128,9 @@
 import { shallowRef, computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { RouterLink, useRoute } from "vue-router";
 import JobActions from "@/components/runs/JobActions.vue";
-import {
-  ARR_JOB_STATE,
-  getJobs,
-  getStateLabel,
-  type JobPage,
-  type RunFilters,
-} from "@/api/runs";
+import { ARR_JOB_STATE, getJobs, type JobPage, type RunFilters } from "@/api/runs";
 import { getApiError } from "@/api/errors";
+import { PRIORITY_LABELS, JOB_STATE_LABELS } from "@/app/runLabels";
 import { formatDateTime } from "@/app/formatters";
 import { useSessionStore } from "@/stores/sessionStore";
 const ARR_HEADER = [

@@ -171,8 +171,7 @@ def build_run_file_availability(run: Run) -> dict[RunFileKind, RunFileAvailabili
             strReason = f"This file exceeds the {intLimitMiB} MiB download limit. Retrieve it on the Executor computer."
         dictAvailability[kind] = {
             "available": not bool(strReason),
-            "reason": strReason
-            or "The original client will verify that the files are still available when the download starts.",
+            "reason": strReason,
             "size_bytes": intSizeBytes,
         }
     return dictAvailability

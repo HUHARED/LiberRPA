@@ -21,8 +21,7 @@
           show-size
           :disabled="boolBusy || !!upload" />
         <p class="text-body-2 text-medium-emphasis">
-          Package metadata is checked before import. Existing packages cannot be
-          overwritten.
+          Existing package versions cannot be overwritten.
         </p>
         <v-progress-linear
           v-if="upload"
@@ -31,7 +30,7 @@
           class="my-4" />
         <p v-if="upload">
           {{ formatFileSize(upload.offset) }} / {{ formatFileSize(upload.size_bytes) }} ·
-          {{ upload.state }}
+          {{ PACKAGE_UPLOAD_LABELS[upload.state] }}
         </p>
       </v-card-text>
       <v-card-actions>
@@ -56,11 +55,13 @@ import {
   getPackageUpload,
   appendPackageChunk,
   finishPackageUpload,
+  PackageUploadState,
   type PackageUpload,
   type PackageInfo,
 } from "@/api/packages";
 import { getApiError } from "@/api/errors";
 import { formatFileSize } from "@/app/formatters";
+import { PACKAGE_UPLOAD_LABELS } from "@/app/runLabels";
 const emit = defineEmits<{ close: []; saved: [packageInfo: PackageInfo] }>();
 const sessionStore = useSessionStore();
 const arrDepartment = computed(
@@ -81,7 +82,7 @@ let strSubmittedIdentity = "";
 async function cancel(): Promise<void> {
   boolBusy.value = true;
   try {
-    if (upload.value && upload.value.state === "receiving")
+    if (upload.value && upload.value.state === PackageUploadState.Receiving)
       await finishPackageUpload(upload.value.upload_id, "cancel");
     emit("close");
   } catch (e) {
@@ -107,7 +108,10 @@ async function submit(): Promise<void> {
     upload.value = upload.value
       ? await getPackageUpload(upload.value.upload_id)
       : await createPackageUpload(file.value, strDepartmentId.value, strRequestId);
-    while (upload.value.state === "receiving" && upload.value.offset < file.value.size) {
+    while (
+      upload.value.state === PackageUploadState.Receiving &&
+      upload.value.offset < file.value.size
+    ) {
       upload.value = await appendPackageChunk(
         upload.value.upload_id,
         upload.value.offset,
@@ -117,11 +121,13 @@ async function submit(): Promise<void> {
         ),
       );
     }
-    if (upload.value.state === "receiving")
+    if (upload.value.state === PackageUploadState.Receiving)
       upload.value = await finishPackageUpload(upload.value.upload_id, "complete");
     if (upload.value.package) emit("saved", upload.value.package);
     else
-      strError.value = `The upload is ${upload.value.state}. Start a new import if this upload can no longer continue.`;
+      strError.value =
+        `Upload status: ${PACKAGE_UPLOAD_LABELS[upload.value.state]}. ` +
+        "Start a new import.";
   } catch (e) {
     strError.value = getApiError(e).message;
   } finally {

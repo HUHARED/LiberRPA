@@ -24,7 +24,7 @@
         <v-row>
           <v-col cols="12" md="4">
             <p>
-              <v-chip>{{ getStateLabel(run.result) }}</v-chip>
+              <v-chip>{{ RUN_RESULT_LABELS[run.result] }}</v-chip>
             </p>
             <p class="mt-2">Executor: {{ run.executor_name }}</p>
             <p>Account: {{ run.account_name }}</p>
@@ -122,7 +122,7 @@
               </tr>
               <tr>
                 <td>Source</td>
-                <td>{{ getStateLabel(run.job.source) }}</td>
+                <td>{{ JOB_SOURCE_LABELS[run.job.source] }}</td>
               </tr>
               <tr>
                 <td>Schedule</td>
@@ -205,7 +205,9 @@
                       @click="download('video')">
                       Download Video
                     </v-btn>
-                    <p class="text-caption">{{ run.files.video.reason }}</p>
+                    <p v-if="run.files.video.reason" class="text-caption">
+                      {{ run.files.video.reason }}
+                    </p>
                   </td>
                 </tr>
                 <tr v-if="typeof run.recording.subtitleSizeBytes === 'number'">
@@ -219,7 +221,9 @@
                       @click="download('subtitles')">
                       Download Subtitles
                     </v-btn>
-                    <p class="text-caption">{{ run.files.subtitles.reason }}</p>
+                    <p v-if="run.files.subtitles.reason" class="text-caption">
+                      {{ run.files.subtitles.reason }}
+                    </p>
                   </td>
                 </tr>
               </tbody>
@@ -253,15 +257,9 @@ import RunInputs from "@/components/runOptions/RunInputs.vue";
 import RunLogs from "@/components/runs/RunLogs.vue";
 import RunTable from "@/components/runs/RunTable.vue";
 import RunPackageDialog from "@/components/packages/RunPackageDialog.vue";
-import {
-  getRun,
-  getRerun,
-  stopRun,
-  downloadRunFile,
-  getStateLabel,
-  type RunDetails,
-} from "@/api/runs";
+import { getRun, getRerun, stopRun, downloadRunFile, type RunDetails } from "@/api/runs";
 import { getApiError } from "@/api/errors";
+import { JOB_SOURCE_LABELS, RUN_RESULT_LABELS } from "@/app/runLabels";
 import { formatDateTime, formatFileSize, formatJsonValue } from "@/app/formatters";
 import { useSessionStore } from "@/stores/sessionStore";
 const props = defineProps<{ runId: string }>();

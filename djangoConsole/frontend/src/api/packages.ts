@@ -42,10 +42,16 @@ export interface PackageReference {
   name: string;
   kind: PackageReferenceKind;
 }
+export enum PackagePreparationState {
+  Pending = "pending",
+  Preparing = "preparing",
+  Ready = "ready",
+  Failed = "failed",
+}
 export interface PackagePreparation {
   executor_id: string;
   executor_name: string;
-  state: string;
+  state: PackagePreparationState;
   reason: string;
 }
 export interface PackageDetails {
@@ -56,9 +62,16 @@ export interface PackageDetails {
 export interface PackagePage extends PaginationResponse {
   packages: PackageInfo[];
 }
+export enum PackageUploadState {
+  Receiving = "receiving",
+  Completed = "completed",
+  Failed = "failed",
+  Expired = "expired",
+  Canceled = "canceled",
+}
 export interface PackageUpload {
   upload_id: string;
-  state: string;
+  state: PackageUploadState;
   offset: number;
   size_bytes: number;
   chunk_bytes: number;
@@ -85,6 +98,16 @@ function parsePackageDetails(value: unknown): PackageDetails {
     !isRecord(value) ||
     !isPackageInfo(value.package) ||
     !Array.isArray(value.preparation) ||
+    !value.preparation.every(
+      (preparation) =>
+        isRecord(preparation) &&
+        typeof preparation.executor_id === "string" &&
+        typeof preparation.executor_name === "string" &&
+        Object.values(PackagePreparationState).some(
+          (state) => state === preparation.state,
+        ) &&
+        typeof preparation.reason === "string",
+    ) ||
     !Array.isArray(value.references) ||
     !value.references.every(
       (reference) =>
@@ -101,7 +124,7 @@ function parseUpload(value: unknown): PackageUpload {
   if (
     !isRecord(value) ||
     typeof value.upload_id !== "string" ||
-    typeof value.state !== "string" ||
+    !Object.values(PackageUploadState).some((state) => state === value.state) ||
     typeof value.offset !== "number" ||
     typeof value.chunk_bytes !== "number" ||
     !(value.package === null || isPackageInfo(value.package))

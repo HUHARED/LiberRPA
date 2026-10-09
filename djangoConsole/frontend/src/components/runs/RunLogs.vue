@@ -13,7 +13,7 @@
       Download Logs
     </v-btn>
   </div>
-  <p class="text-caption mb-3">{{ downloadReason }}</p>
+  <p v-if="downloadReason" class="text-caption mb-3">{{ downloadReason }}</p>
   <v-alert v-if="strError" type="error" variant="tonal" class="mb-3">
     {{ strError }}
   </v-alert>

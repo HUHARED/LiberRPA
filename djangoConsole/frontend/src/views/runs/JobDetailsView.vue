@@ -11,7 +11,7 @@
   <template v-if="job">
     <div class="d-flex align-center flex-wrap ga-3 mb-4">
       <h1 class="text-h5">{{ job.project_name }} · {{ job.version }}</h1>
-      <v-chip>{{ getStateLabel(job.state) }}</v-chip>
+      <v-chip>{{ JOB_STATE_LABELS[job.state] }}</v-chip>
       <v-spacer />
       <JobActions :job="job" @updated="load" @error="strError = $event" />
     </div>
@@ -29,7 +29,7 @@
           <tbody>
             <tr>
               <td>Source</td>
-              <td>{{ getStateLabel(job.source) }}</td>
+              <td>{{ JOB_SOURCE_LABELS[job.source] }}</td>
             </tr>
             <tr>
               <td>Schedule</td>
@@ -58,7 +58,7 @@
             </tr>
             <tr>
               <td>Priority</td>
-              <td>{{ getStateLabel(job.priority) }}</td>
+              <td>{{ PRIORITY_LABELS[job.priority] }}</td>
             </tr>
             <tr v-if="job.closed_at">
               <td>Closed At</td>
@@ -89,7 +89,7 @@
         <tbody>
           <tr v-for="(event, index) in job.events" :key="index">
             <td>{{ formatDateTime(event.occurred_at, strTimeZone) }}</td>
-            <td>{{ getStateLabel(event.kind) }}</td>
+            <td>{{ RUN_EVENT_LABELS[event.kind] }}</td>
             <td>{{ event.reason || "—" }}</td>
           </tr>
           <tr v-if="!job.events.length">
@@ -113,8 +113,14 @@ import { shallowRef, computed, onBeforeUnmount, onMounted, ref, watch } from "vu
 import JobActions from "@/components/runs/JobActions.vue";
 import RunTable from "@/components/runs/RunTable.vue";
 import RunInputs from "@/components/runOptions/RunInputs.vue";
-import { getJob, getStateLabel, type JobDetails } from "@/api/runs";
+import { getJob, type JobDetails } from "@/api/runs";
 import { getApiError } from "@/api/errors";
+import {
+  PRIORITY_LABELS,
+  JOB_SOURCE_LABELS,
+  JOB_STATE_LABELS,
+  RUN_EVENT_LABELS,
+} from "@/app/runLabels";
 import { formatDateTime } from "@/app/formatters";
 import { useSessionStore } from "@/stores/sessionStore";
 const props = defineProps<{ jobId: string }>();

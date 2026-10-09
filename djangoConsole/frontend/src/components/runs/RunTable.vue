@@ -25,7 +25,7 @@
         <td class="text-no-wrap">
           {{ run.ended_at ? formatDateTime(run.ended_at, timeZone) : "Unknown" }}
         </td>
-        <td>{{ getStateLabel(run.result) }}</td>
+        <td>{{ RUN_RESULT_LABELS[run.result] }}</td>
         <td>
           <v-btn
             :to="{ name: 'run-details', params: { runId: run.id } }"
@@ -42,7 +42,8 @@
   </v-table>
 </template>
 <script setup lang="ts">
-import { getStateLabel, type RunInfo } from "@/api/runs";
+import type { RunInfo } from "@/api/runs";
+import { RUN_RESULT_LABELS } from "@/app/runLabels";
 import { formatDateTime } from "@/app/formatters";
 defineProps<{
   runs: RunInfo[];

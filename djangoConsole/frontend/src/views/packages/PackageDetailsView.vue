@@ -92,11 +92,15 @@
               <tbody>
                 <tr>
                   <td>Conflict Policy</td>
-                  <td>{{ getStateLabel(details.package.settings.run_conflict_policy) }}</td>
+                  <td>
+                    {{
+                      CONFLICT_POLICY_LABELS[details.package.settings.run_conflict_policy]
+                    }}
+                  </td>
                 </tr>
                 <tr>
                   <td>Priority</td>
-                  <td>{{ getStateLabel(details.package.settings.priority) }}</td>
+                  <td>{{ PRIORITY_LABELS[details.package.settings.priority] }}</td>
                 </tr>
                 <tr>
                   <td>API Input Keys</td>
@@ -158,7 +162,7 @@
                       {{ preparation.executor_name }}
                     </RouterLink>
                   </td>
-                  <td>{{ getStateLabel(preparation.state) }}</td>
+                  <td>{{ PACKAGE_PREPARATION_LABELS[preparation.state] }}</td>
                   <td>{{ preparation.reason || "—" }}</td>
                 </tr>
                 <tr v-if="!details.preparation.length">
@@ -304,8 +308,12 @@ import {
   type PackageReference,
 } from "@/api/packages";
 import { cloneRunSettings, type RunSettings } from "@/api/runOptions";
-import { getStateLabel } from "@/api/runs";
 import { getApiError } from "@/api/errors";
+import {
+  CONFLICT_POLICY_LABELS,
+  PRIORITY_LABELS,
+  PACKAGE_PREPARATION_LABELS,
+} from "@/app/runLabels";
 import { formatDateTime, formatFileSize } from "@/app/formatters";
 import { validateEnvironmentName } from "@/app/validators";
 import { useSessionStore } from "@/stores/sessionStore";

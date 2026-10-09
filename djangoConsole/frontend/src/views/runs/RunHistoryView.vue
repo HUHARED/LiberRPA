@@ -33,7 +33,7 @@
             <v-select
               v-model="filters.states"
               :items="
-                ARR_RUN_RESULT.map((value) => ({ value, title: getStateLabel(value) }))
+                ARR_RUN_RESULT.map((value) => ({ value, title: RUN_RESULT_LABELS[value] }))
               "
               label="Status"
               multiple
@@ -125,7 +125,7 @@
       <template #item.ended_at="{ item }">
         {{ item.ended_at ? formatDateTime(item.ended_at, strTimeZone) : "Unknown" }}
       </template>
-      <template #item.result="{ item }">{{ getStateLabel(item.result) }}</template>
+      <template #item.result="{ item }">{{ RUN_RESULT_LABELS[item.result] }}</template>
       <template #item.actions="{ item }">
         <div class="d-flex">
           <v-btn
@@ -208,11 +208,11 @@ import {
   getRerun,
   stopRun,
   clearRunLogs,
-  getStateLabel,
   type RunPage,
   type RunFilters,
 } from "@/api/runs";
 import { getApiError } from "@/api/errors";
+import { RUN_RESULT_LABELS } from "@/app/runLabels";
 import { formatDateTime } from "@/app/formatters";
 import { useSessionStore } from "@/stores/sessionStore";
 const ARR_HEADER = [

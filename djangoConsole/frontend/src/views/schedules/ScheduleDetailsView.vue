@@ -74,11 +74,11 @@
             </tr>
             <tr>
               <td>Conflict Policy</td>
-              <td>{{ getStateLabel(schedule.settings.run_conflict_policy) }}</td>
+              <td>{{ CONFLICT_POLICY_LABELS[schedule.settings.run_conflict_policy] }}</td>
             </tr>
             <tr>
               <td>Priority</td>
-              <td>{{ getStateLabel(schedule.settings.priority) }}</td>
+              <td>{{ PRIORITY_LABELS[schedule.settings.priority] }}</td>
             </tr>
           </tbody>
         </v-table>
@@ -165,8 +165,8 @@ import ScheduleFormDialog from "@/components/schedules/ScheduleFormDialog.vue";
 import RunInputs from "@/components/runOptions/RunInputs.vue";
 import RunEmailEditor from "@/components/runOptions/RunEmailEditor.vue";
 import { getSchedule, deleteSchedule, type ScheduleInfo } from "@/api/schedules";
-import { getStateLabel } from "@/api/runs";
 import { getApiError } from "@/api/errors";
+import { CONFLICT_POLICY_LABELS, PRIORITY_LABELS } from "@/app/runLabels";
 import { formatDateTime } from "@/app/formatters";
 const props = defineProps<{ scheduleId: string }>();
 const router = useRouter();

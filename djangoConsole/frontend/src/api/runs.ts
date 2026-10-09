@@ -12,8 +12,10 @@ import {
 import type { PaginationResponse } from "./generated/browserApi";
 import {
   ARR_LOG_LEVEL,
+  ARR_PRIORITY,
   type JsonValue,
   type LogLevel,
+  type Priority,
   type RunSettings,
   type RunSnapshot,
 } from "./runOptions";
@@ -38,6 +40,15 @@ export const ARR_RUN_RESULT = [
 export type JobState = (typeof ARR_JOB_STATE)[number] | "finished";
 export type RunResult = (typeof ARR_RUN_RESULT)[number];
 export const ARR_JOB_SOURCE = ["manual", "api", "schedule"] as const;
+export type JobSource = (typeof ARR_JOB_SOURCE)[number];
+export enum RunEventKind {
+  Started = "started",
+  Ended = "ended",
+  PreparationFailed = "preparation_failed",
+  NotStarted = "not_started",
+  Unknown = "unknown",
+  Recording = "recording",
+}
 export const ARR_OUTPUTS_STATUS = [
   "waiting",
   "complete",
@@ -48,7 +59,7 @@ export interface JobInfo {
   id: string;
   job_request_id: string;
   department_id: string;
-  source: (typeof ARR_JOB_SOURCE)[number];
+  source: JobSource;
   schedule_id: string | null;
   schedule_name: string;
   scheduled_at: string | null;
@@ -60,7 +71,7 @@ export interface JobInfo {
   target_name: string;
   executor_id: string | null;
   executor_name: string | null;
-  priority: "high" | "normal" | "low";
+  priority: Priority;
   state: JobState;
   reason: string;
   queued_at: string;
@@ -72,7 +83,7 @@ export interface JobInfo {
   can_close: boolean;
 }
 export interface JobEvent {
-  kind: string;
+  kind: RunEventKind;
   occurred_at: string;
   reason: string;
 }
@@ -167,14 +178,6 @@ export interface LogPage {
   cleared: boolean;
   complete: boolean;
 }
-export function getStateLabel(state: string): string {
-  return state === "waiting_retry"
-    ? "Waiting for Retry"
-    : state
-        .split("_")
-        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-        .join(" ");
-}
 function buildQuery(
   filters: RunFilters,
   page: number | undefined,
@@ -201,7 +204,7 @@ function isJob(value: unknown): value is JobInfo {
     typeof value.job_request_id === "string" &&
     [...ARR_JOB_STATE, "finished"].some((state) => value.state === state) &&
     ARR_JOB_SOURCE.some((source) => value.source === source) &&
-    ["high", "normal", "low"].some((priority) => value.priority === priority) &&
+    ARR_PRIORITY.some((priority) => value.priority === priority) &&
     typeof value.project_name === "string" &&
     typeof value.can_stop === "boolean"
   );
@@ -246,7 +249,15 @@ export async function getJob(id: string): Promise<JobDetails> {
     !isRecord(result) ||
     !isRecord(result.job) ||
     !isRecord(result.job.inputs) ||
-    !isJob(result.job)
+    !isJob(result.job) ||
+    !Array.isArray(result.job.events) ||
+    !result.job.events.every(
+      (event) =>
+        isRecord(event) &&
+        Object.values(RunEventKind).some((kind) => kind === event.kind) &&
+        isDateString(event.occurred_at) &&
+        typeof event.reason === "string",
+    )
   )
     return rejectInvalidResponse();
   return result.job as unknown as JobDetails;

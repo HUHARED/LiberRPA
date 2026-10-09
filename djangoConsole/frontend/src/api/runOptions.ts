@@ -5,8 +5,10 @@ import { isRecord } from "./responses";
 
 export type JsonValue =
   null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
-export type ConflictPolicy = "skip" | "wait" | "concurrent";
-export type Priority = "high" | "normal" | "low";
+export const ARR_CONFLICT_POLICY = ["skip", "wait", "concurrent"] as const;
+export type ConflictPolicy = (typeof ARR_CONFLICT_POLICY)[number];
+export const ARR_PRIORITY = ["high", "normal", "low"] as const;
+export type Priority = (typeof ARR_PRIORITY)[number];
 export type LogLevel = "VERBOSE" | "DEBUG" | "INFO" | "WARNING" | "ERROR" | "CRITICAL";
 export interface AssetBinding {
   name: string;
@@ -47,16 +49,6 @@ export const ARR_LOG_LEVEL: LogLevel[] = [
   "ERROR",
   "CRITICAL",
 ];
-export const ARR_CONFLICT_POLICY = [
-  { title: "Skip This Run", value: "skip" },
-  { title: "Wait", value: "wait" },
-  { title: "Run Concurrently", value: "concurrent" },
-] as const;
-export const ARR_PRIORITY = [
-  { title: "High", value: "high" },
-  { title: "Normal", value: "normal" },
-  { title: "Low", value: "low" },
-] as const;
 export const INT_MAX_TIMEOUT_MIN = 35791;
 export function isRunSettings(value: unknown): value is RunSettings {
   return (
@@ -73,8 +65,8 @@ export function isRunSettings(value: unknown): value is RunSettings {
         Array.isArray(entry) && entry.length === 2 && typeof entry[0] === "string",
     ) &&
     Array.isArray(value.custom_arg_assets) &&
-    ARR_CONFLICT_POLICY.some((entry) => entry.value === value.run_conflict_policy) &&
-    ARR_PRIORITY.some((entry) => entry.value === value.priority) &&
+    ARR_CONFLICT_POLICY.some((policy) => policy === value.run_conflict_policy) &&
+    ARR_PRIORITY.some((priority) => priority === value.priority) &&
     isRecord(value.run_email)
   );
 }
