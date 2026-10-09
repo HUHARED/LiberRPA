@@ -17,6 +17,11 @@ from types import FrameType
 from typing import BinaryIO, TextIO
 
 _PATH_CONSOLE = Path(__file__).resolve().parent
+_DICT_WORKER_COMMAND: dict[str, str] = {
+    "email-worker": "run_email_worker",
+    "job-worker": "run_job_worker",
+    "scheduler": "run_scheduler",
+}
 # NOTE: Development retention is per service; the backup count excludes the current file.
 _INT_LOG_MAX_BYTES = 50 * 1024 * 1024
 _INT_LOG_BACKUP_COUNT = 9
@@ -180,7 +185,12 @@ def _run_service(service: str, logger: logging.Logger) -> int:
             "--no-use-colors",
         ]
     else:
-        listCommand = [sys.executable, "manage.py", "run_email_worker", "--no-color"]
+        listCommand = [
+            sys.executable,
+            "manage.py",
+            _DICT_WORKER_COMMAND[service],
+            "--no-color",
+        ]
 
     previousHandler = signal.signal(signal.SIGINT, _keep_capturing)
     try:
@@ -209,7 +219,7 @@ def main() -> int:
     argumentParser = argparse.ArgumentParser(
         description="Run a Console development service with terminal output and rotating local logs."
     )
-    argumentParser.add_argument("service", choices=("server", "email-worker"))
+    argumentParser.add_argument("service", choices=("server", *_DICT_WORKER_COMMAND))
     arguments = argumentParser.parse_args()
     strService: str = arguments.service
     pathLogs = _PATH_CONSOLE / ".local/logs"
