@@ -41,19 +41,29 @@ import { dictConfigExecutor } from "./Config/executorConfig";
 import { stopFileWorkers } from "./FileSystem/fileWorker";
 import { waitForProjectPackageInstallation } from "./Package/packageInstallation";
 import { closeDatabase, initializeDatabase } from "./Database/connection";
-import { dbMarkUnfinishedRunsAfterRestart } from "./Database/runHistoryRepository";
+import {
+  dbHasEndedLocalRun,
+  dbMarkUnfinishedRunsAfterRestart,
+} from "./Database/runHistoryRepository";
 import { recoverProjectPackageInstallations } from "./Package/packageInstallationTransaction";
 import { recoverProjectPackageDeletions } from "./Package/projectDeletion";
 import { startRdpSessionManager, stopRdpSessionManager } from "./Rdp/rdpSession";
 import { registerExecutorIpc } from "./IPC/ipc";
 import { sendMainMessage } from "./IPC/mainMessage";
 import { onRunEnded, onRunActivityChanged } from "./Run/lifecycle";
-import { stopRecoveredRunObservation } from "./Run/recoveredRuns";
+import {
+  isRecoveredProcessPresent,
+  stopRecoveredRunObservation,
+} from "./Run/recoveredRuns";
+import { cleanExecutorRunArguments } from "./Run/runState";
 import { startRunHousekeeping, stopRunHousekeeping } from "./Run/housekeeping";
 import { startConsoleWork, stopConsoleWork } from "./Console/consoleWork";
 import { cleanConsolePackageStaging } from "./Console/packagePreparation";
 import { cleanConsoleLogArchives } from "./Console/consoleWorkFiles";
-import { recoverConsoleWorkAfterRestart } from "./Console/workRepository";
+import {
+  getConsoleRunProcessId,
+  recoverConsoleWorkAfterRestart,
+} from "./Console/workRepository";
 import { beginProjectRunShutdown, shutdownProjectRuns } from "./Run/projectRunner";
 import {
   getRunQueueItems,
@@ -183,12 +193,18 @@ void app
       await cleanConsolePackageStaging();
       if (boolShutdownStarted) return;
       await cleanConsoleLogArchives();
+      if (boolShutdownStarted) return;
+      recoverProjectPackageDeletions();
+      dbMarkUnfinishedRunsAfterRestart();
+      recoverConsoleWorkAfterRestart();
+      await cleanExecutorRunArguments((runId) => {
+        if (dbHasEndedLocalRun(runId)) return true;
+        const intProcessId = getConsoleRunProcessId(runId);
+        return intProcessId !== undefined && !isRecoveredProcessPresent(intProcessId);
+      });
     })();
     await promiseFileRecovery;
     if (boolShutdownStarted) return;
-    recoverProjectPackageDeletions();
-    dbMarkUnfinishedRunsAfterRestart();
-    recoverConsoleWorkAfterRestart();
 
     // Set the Windows application user model ID.
     electronApp.setAppUserModelId("com.liberrpa.executor");

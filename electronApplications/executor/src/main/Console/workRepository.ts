@@ -15,6 +15,7 @@ import {
   createExecutorRunStatePath,
   readExecutorRunState,
   removeExecutorRunStateFile,
+  removeExecutorRunArgumentsFile,
 } from "../Run/runState";
 import { dbUpdateRunHistory } from "../Database/runHistoryRepository";
 import { getDatabase } from "../Database/connection";
@@ -186,6 +187,26 @@ export function getConsoleWork(id: string): ConsoleWorkRecord | undefined {
     )
     .get(id) as { content: string } | undefined;
   return row ? (JSON.parse(row.content) as ConsoleWorkRecord) : undefined;
+}
+
+export function getConsoleRunProcessId(runId: string): number | undefined {
+  const row = getDatabase()
+    .prepare(
+      `
+      SELECT
+          json_extract(content, '$.started.processId') AS process_id
+      FROM
+          console_work
+      WHERE
+          json_extract(content, '$.assignment.run_id') = ?;
+      `,
+    )
+    .get(runId) as { process_id: unknown } | undefined;
+  return typeof row?.process_id === "number" &&
+    Number.isSafeInteger(row.process_id) &&
+    row.process_id > 0
+    ? row.process_id
+    : undefined;
 }
 
 export function getConsoleWorkForRun(
@@ -416,7 +437,10 @@ function recoverFinishedConsoleRun(record: ConsoleWorkRecord): boolean {
 
 function recoverConsoleRunResult(assignmentId: string): void {
   const record = getConsoleWork(assignmentId);
-  if (record) recoverFinishedConsoleRun(record);
+  if (!record) return;
+  // The observer has confirmed process exit, even if its final result is unavailable.
+  removeExecutorRunArgumentsFile(record.assignment.run_id);
+  recoverFinishedConsoleRun(record);
 }
 
 export function recoverConsoleWorkAfterRestart(): void {
@@ -448,6 +472,9 @@ export function recoverConsoleWorkAfterRestart(): void {
     const started = record.started;
     const boolProcessPresent =
       started?.processId !== undefined && isRecoveredProcessPresent(started.processId);
+    if (started?.processId !== undefined && !boolProcessPresent) {
+      removeExecutorRunArgumentsFile(record.assignment.run_id);
+    }
     if (!boolProcessPresent && recoverFinishedConsoleRun(record)) continue;
     if (record.state !== ConsoleWorkState.Unknown) {
       getDatabase().transaction(() => {

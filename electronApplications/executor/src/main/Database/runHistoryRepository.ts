@@ -175,6 +175,26 @@ export function dbMarkUnfinishedRunsAfterRestart(): void {
   }
 }
 
+export function dbHasEndedLocalRun(runId: string): boolean {
+  // Restart reconciliation leaves the end time empty; a terminal label alone is not enough.
+  return (
+    getDatabase()
+      .prepare(
+        `
+        SELECT
+            1
+        FROM
+            run_history
+        WHERE
+            run_id = ?
+            AND source = ?
+            AND run_ended_at_ms IS NOT NULL;
+        `,
+      )
+      .get(runId, RunSource.Local) !== undefined
+  );
+}
+
 export function dbHasRunningRunForProject(projectId: number): boolean {
   loggerMain.debug("--dbHasRunningRunForProject--");
   const row = getDatabase()

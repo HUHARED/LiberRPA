@@ -10,6 +10,7 @@ import { isProcessRunning } from "../Common/process";
 import { buildPythonProcessEnvironment } from "../Config/environment";
 import { getConsoleContextEnvironment } from "../Console/consoleContextBridge";
 import { loggerMain } from "../Logging/logger";
+import { getExecutorRunArgumentsPath, removeExecutorRunArgumentsFile } from "./runState";
 import type { ProjectRunDetails } from "./types";
 
 export interface PythonProcessDiagnosticOutput {
@@ -84,7 +85,7 @@ export function spawnProjectPythonProcess({
   startedAt: string;
   runStatePath: string;
 }): StartedProjectPythonProcess {
-  const strArgumentsPath = path.join(path.dirname(runStatePath), `${runId}.args.json`);
+  const strArgumentsPath = getExecutorRunArgumentsPath(runId);
   const strArguments = JSON.stringify({
     logLevel: detail.builtin_log_level,
     recordVideo: detail.builtin_record_video,
@@ -92,13 +93,7 @@ export function spawnProjectPythonProcess({
     highlightUi: detail.builtin_highlight_ui,
     customPrjArgs: detail.custom_prj_args,
   });
-  const removeArgumentsFile = (): void => {
-    try {
-      fs.rmSync(strArgumentsPath, { force: true });
-    } catch (e: unknown) {
-      loggerMain.warn(`Failed to remove arguments for Run ${runId}: ${getErrorMessage(e)}`);
-    }
-  };
+  const removeArgumentsFile = (): void => removeExecutorRunArgumentsFile(runId);
 
   // Open exclusively so a failed launch cannot overwrite another run's arguments.
   const intArgumentsFd = fs.openSync(strArgumentsPath, "wx");

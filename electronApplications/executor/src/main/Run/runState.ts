@@ -64,6 +64,39 @@ export function createExecutorRunStatePath(runId: string): string {
   return path.join(strExecutorRunStateFolderPath, `${runId}.json`);
 }
 
+export function getExecutorRunArgumentsPath(runId: string): string {
+  return path.join(strExecutorRunStateFolderPath, `${runId}.args.json`);
+}
+
+export function removeExecutorRunArgumentsFile(runId: string): void {
+  try {
+    fs.rmSync(getExecutorRunArgumentsPath(runId), { force: true });
+  } catch (e: unknown) {
+    loggerMain.warn(`Failed to remove arguments for Run ${runId}: ${getErrorMessage(e)}`);
+  }
+}
+
+export async function cleanExecutorRunArguments(
+  canRemoveArguments: (runId: string) => boolean,
+): Promise<void> {
+  // Startup only: a final state file or elapsed time does not prove process exit.
+  const regexArgumentsFile =
+    /^([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\.args\.json$/i;
+  try {
+    const directoryStat = await fs.promises.lstat(strExecutorRunStateFolderPath);
+    if (!directoryStat.isDirectory()) return;
+    const directory = await fs.promises.opendir(strExecutorRunStateFolderPath);
+    for await (const entry of directory) {
+      if (!entry.isFile()) continue;
+      const match = regexArgumentsFile.exec(entry.name);
+      if (match && canRemoveArguments(match[1])) removeExecutorRunArgumentsFile(match[1]);
+    }
+  } catch (e: unknown) {
+    if (e instanceof Error && "code" in e && e.code === "ENOENT") return;
+    loggerMain.warn(`Failed to clean Executor Run arguments: ${getErrorMessage(e)}`);
+  }
+}
+
 export function removeExecutorRunStateFile(runStatePath: string): void {
   try {
     fs.rmSync(runStatePath, { force: true });
