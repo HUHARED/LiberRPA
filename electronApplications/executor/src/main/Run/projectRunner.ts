@@ -8,6 +8,8 @@ import { getErrorMessage } from "../../shared/error";
 import {
   type RunOutputs,
   type RunTerminalStatus,
+  type RunQueueItem,
+  RunQueueState,
   RunSource,
   RunStatus,
 } from "../../shared/run";
@@ -48,6 +50,7 @@ interface ActiveProjectRun {
   processPy: ChildProcessWithoutNullStreams;
   strRunId: string;
   source: RunSource;
+  queueItem?: RunQueueItem;
   onStopping?: RunExecutionContext["onStopping"];
   terminationReason?: RunTerminationReason;
   terminationPromise?: Promise<void>;
@@ -56,6 +59,7 @@ interface ActiveProjectRun {
 
 const mapActiveRunByHistoryId = new Map<number, ActiveProjectRun>();
 const mapActiveRunByRunId = new Map<string, ActiveProjectRun>();
+const mapStartingRunQueueItem = new Map<string, RunQueueItem>();
 
 const mapStartingRunCountByProject = new Map<number, number>();
 const setStartingRunPromise = new Set<Promise<void>>();
@@ -152,6 +156,7 @@ function requestProjectRunTermination(
     },
   );
   activeRun.terminationPromise = promiseTermination;
+  notifyRunActivityChanged();
   return promiseTermination;
 }
 
@@ -216,13 +221,32 @@ export async function pythonRun(
     throw new Error("Executor is shutting down and cannot start a new Project Run.");
   }
 
+  const strRunId = context.runId ?? randomUUID();
+  if (context.source === RunSource.Local) {
+    mapStartingRunQueueItem.set(strRunId, {
+      queue_id: strRunId,
+      source: RunSource.Local,
+      schedule_name: detailDict.schedule_name,
+      project_name: detailDict.name,
+      project_version: detailDict.version,
+      estimated_run_at_ms: null,
+      started_at_ms: null,
+      history_id: null,
+      state: RunQueueState.Starting,
+    });
+  }
   addStartingRun(detailDict.id, context.source);
-  const promiseStartingRun = startProjectRun(structuredClone(detailDict), context);
+  const promiseStartingRun = startProjectRun(
+    structuredClone(detailDict),
+    context,
+    strRunId,
+  );
   setStartingRunPromise.add(promiseStartingRun);
   try {
     await promiseStartingRun;
   } finally {
     setStartingRunPromise.delete(promiseStartingRun);
+    mapStartingRunQueueItem.delete(strRunId);
     removeStartingRun(detailDict.id, context.source);
   }
 }
@@ -230,6 +254,7 @@ export async function pythonRun(
 async function startProjectRun(
   detailDict: Dict_ProjectRun_Detail,
   context: RunExecutionContext,
+  runId: string,
 ): Promise<void> {
   const strExecutorPackagePath =
     context.packagePath ??
@@ -247,9 +272,8 @@ async function startProjectRun(
     `Use Python environment '${detailDict.python_environment_name}' for ${detailDict.name}-${detailDict.version}.`,
   );
 
-  const strRunId = context.runId ?? randomUUID();
   const strProjectLogRootPath = getEffectiveProjectLogFolderPath();
-  const strRunStatePath = createExecutorRunStatePath(strRunId);
+  const strRunStatePath = createExecutorRunStatePath(runId);
   const strStartedAt = new Date().toISOString();
   // This call already owns one starting slot; all other starts and actual Runs still count.
   context.beforeSpawn?.(hasActiveProjectRun(true), strStartedAt);
@@ -257,13 +281,13 @@ async function startProjectRun(
     detail: detailDict,
     packagePath: strExecutorPackagePath,
     pythonEnvironmentPath: strPythonEnvironmentPath,
-    runId: strRunId,
+    runId,
     startedAt: strStartedAt,
     runStatePath: strRunStatePath,
   });
   const activeRun: ActiveProjectRun = {
     processPy,
-    strRunId,
+    strRunId: runId,
     source: context.source,
     onStopping: context.onStopping,
     boolForceTerminationRequired: false,
@@ -273,7 +297,7 @@ async function startProjectRun(
   const dictRunState = await getInitialRunState({
     processPy,
     getProcessError,
-    runId: strRunId,
+    runId,
     runStatePath: strRunStatePath,
     packageName: detailDict.name,
     packageVersion: detailDict.version,
@@ -282,11 +306,11 @@ async function startProjectRun(
     diagnosticOutput,
   });
 
-  loggerMain.debug(`Executor run state is available: ${strRunId}`);
+  loggerMain.debug(`Executor run state is available: ${runId}`);
 
   const intRunHistoryId = await createRunHistory({
     processPy,
-    runId: strRunId,
+    runId,
     runStatePath: strRunStatePath,
     runState: dictRunState,
     detail: detailDict,
@@ -295,8 +319,21 @@ async function startProjectRun(
   });
 
   mapActiveRunByHistoryId.set(intRunHistoryId, activeRun);
+  // A Console row is visible only after its actual start has produced local history.
+  activeRun.queueItem = {
+    queue_id: runId,
+    source: context.source,
+    schedule_name: detailDict.schedule_name,
+    project_name: detailDict.name,
+    project_version: detailDict.version,
+    estimated_run_at_ms: null,
+    started_at_ms: parseExecutorRunTimestamp(dictRunState.startedAt),
+    history_id: intRunHistoryId,
+    state: RunQueueState.Running,
+  };
+  mapStartingRunQueueItem.delete(runId);
   const startedFact = {
-    runId: strRunId,
+    runId,
     historyId: intRunHistoryId,
     processId: processPy.pid,
     startedAt: strStartedAt,
@@ -358,7 +395,7 @@ async function startProjectRun(
     try {
       const dictFinalState = readExecutorRunState({
         filePath: strRunStatePath,
-        expectedRunId: strRunId,
+        expectedRunId: runId,
         expectedPackageName: detailDict.name,
         expectedPackageVersion: detailDict.version,
         expectedStartedAt: strStartedAt,
@@ -368,7 +405,7 @@ async function startProjectRun(
       outputs = dictFinalState.outputs ?? outputs;
       errorSummary = dictFinalState.errorSummary ?? null;
       if (dictFinalState.startedAt !== dictRunState.startedAt) {
-        throw new Error(`Final Executor run state changed startedAt for Run ${strRunId}.`);
+        throw new Error(`Final Executor run state changed startedAt for Run ${runId}.`);
       }
       if (dictFinalState.endedAt !== undefined) {
         intRunEndedAtMs = parseExecutorRunTimestamp(dictFinalState.endedAt);
@@ -389,7 +426,7 @@ async function startProjectRun(
 
         case "running":
           loggerMain.error(
-            `Python exited before publishing a final Executor run state: ${strRunId}`,
+            `Python exited before publishing a final Executor run state: ${runId}`,
           );
           runStatus = requestedStatus ?? RunStatus.Error;
           boolUnexpectedProcessFailure = true;
@@ -407,7 +444,8 @@ async function startProjectRun(
         } else {
           if (dictFinalState.status !== "error") {
             loggerMain.error(
-              `Python process ${strRunId} exited unexpectedly with code ${String(intExitCode)}` +
+              `Python process ${runId} exited unexpectedly with code ` +
+                String(intExitCode) +
                 `${strSignal === null ? "" : ` and signal ${strSignal}`}; ` +
                 `record Run History status 'interrupted' because the process lifecycle was not completed.`,
             );
@@ -417,7 +455,7 @@ async function startProjectRun(
       }
     } catch (e: unknown) {
       loggerMain.error(
-        `Failed to read final Executor run state ${strRunId}: ${getErrorMessage(e)}`,
+        `Failed to read final Executor run state ${runId}: ${getErrorMessage(e)}`,
       );
       runStatus = requestedStatus ?? RunStatus.Error;
       boolUnexpectedProcessFailure = true;
@@ -425,7 +463,7 @@ async function startProjectRun(
 
     if (boolUnexpectedProcessFailure) {
       logPythonDiagnosticOutput({
-        runId: strRunId,
+        runId,
         reason:
           "The Python process did not finish through the expected run-state lifecycle.",
         diagnosticOutput,
@@ -590,6 +628,21 @@ export function pythonCancel(runHistoryId: number): void {
 
   loggerMain.info(`Cancel Run History ${String(runHistoryId)}.`);
   void requestProjectRunTermination(activeRun, RunTerminationReason.Cancel);
+}
+
+export function getActiveRunQueueItems(): RunQueueItem[] {
+  const arrItem = [...mapStartingRunQueueItem.values()].map((item) => ({ ...item }));
+  for (const activeRun of mapActiveRunByRunId.values()) {
+    if (activeRun.queueItem === undefined) continue;
+    arrItem.push({
+      ...activeRun.queueItem,
+      state:
+        activeRun.terminationReason === undefined
+          ? RunQueueState.Running
+          : RunQueueState.Stopping,
+    });
+  }
+  return arrItem;
 }
 
 export function getActiveConsoleRunIds(): string[] {

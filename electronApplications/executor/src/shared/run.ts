@@ -81,13 +81,19 @@ export enum RunQueueState {
   Pending = "pending",
   WaitingRetry = "waiting_retry",
   Waiting = "waiting",
+  Starting = "starting",
+  Running = "running",
+  Stopping = "stopping",
 }
 
-export interface Dict_ListItem_RunQueue {
+export interface RunQueueItem {
   queue_id: string;
-  schedule_name: string;
+  source: RunSource;
+  schedule_name: string | null;
   project_name: string;
   project_version: string;
-  estimated_run_at_ms: number;
+  estimated_run_at_ms: number | null;
+  started_at_ms: number | null;
+  history_id: number | null;
   state: RunQueueState;
 }

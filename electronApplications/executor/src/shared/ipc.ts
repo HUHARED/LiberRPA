@@ -15,7 +15,7 @@ import type {
   RunDetails,
   Dict_RunHistory_Options,
   Dict_RunHistory_Page,
-  Dict_ListItem_RunQueue,
+  RunQueueItem,
 } from "./run";
 import type {
   Dict_ScheduleCreate,
@@ -116,7 +116,7 @@ interface Dict_ExecutorInvoke_Contract {
   };
   getRunQueue: {
     request: undefined;
-    response: Dict_ListItem_RunQueue[];
+    response: RunQueueItem[];
   };
   cancelQueuedRun: {
     request: string;
@@ -174,7 +174,7 @@ export type Dict_Message_Main =
   | {
       type: "runQueueChanged";
       data: {
-        items: Dict_ListItem_RunQueue[];
+        items: RunQueueItem[];
       };
     };
 

@@ -3,12 +3,12 @@
 import { defineStore } from "pinia";
 
 import { invokeMain } from "../IPC/ipc";
-import type { Dict_ListItem_RunQueue } from "../../../shared/run";
+import type { RunQueueItem } from "../../../shared/run";
 
 export const useRunQueueStore = defineStore("runQueue", {
   state: () => {
     return {
-      arrListItem: [] as Dict_ListItem_RunQueue[],
+      arrListItem: [] as RunQueueItem[],
       intLoadRevision: 0 as number,
     };
   },
@@ -21,13 +21,18 @@ export const useRunQueueStore = defineStore("runQueue", {
       }
     },
 
-    setRunQueue(arrItem: Dict_ListItem_RunQueue[]): void {
+    setRunQueue(arrItem: RunQueueItem[]): void {
       this.intLoadRevision += 1;
       this.arrListItem = arrItem;
     },
 
     async cancelQueuedRun(queueId: string): Promise<void> {
       await invokeMain("cancelQueuedRun", queueId);
+      await this.refreshRunQueue();
+    },
+
+    async stopCurrentRun(historyId: number): Promise<void> {
+      await invokeMain("pythonCancel", historyId);
       await this.refreshRunQueue();
     },
   },

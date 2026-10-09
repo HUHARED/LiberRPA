@@ -256,6 +256,10 @@ void app
         type: "consoleAccountChanged",
         data: getConsoleAccountState(),
       });
+      sendMessageToRenderer({
+        type: "runQueueChanged",
+        data: { items: getRunQueueItems() },
+      });
     });
     onRunEnded(() => {
       sendMessageToRenderer({ type: "runEnded" });

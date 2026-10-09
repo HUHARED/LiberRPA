@@ -13,21 +13,30 @@ import {
   dbSelectScheduleRunDetail,
 } from "../Database/scheduleRepository";
 import { loggerMain } from "../Logging/logger";
-import { hasActiveProjectRun, pythonRun } from "../Run/projectRunner";
+import {
+  getActiveRunQueueItems,
+  hasActiveProjectRun,
+  pythonRun,
+} from "../Run/projectRunner";
 import type { Dict_ProjectRun_Detail, RunExecutionContext } from "../Run/types";
-import type { Dict_ListItem_RunQueue } from "../../shared/run";
+import type { RunQueueItem } from "../../shared/run";
 import type { Str_RunConflictPolicy } from "../../shared/schedule";
 
-type Listener_RunQueueChanged = (arrItem: Dict_ListItem_RunQueue[]) => void;
+type Listener_RunQueueChanged = (arrItem: RunQueueItem[]) => void;
+
+type LocalRunQueueItem = Omit<
+  RunQueueItem,
+  "source" | "history_id" | "started_at_ms" | "estimated_run_at_ms"
+> & { estimated_run_at_ms: number };
 
 interface PendingRun {
   scheduleId: number;
-  queueItem: Dict_ListItem_RunQueue;
+  queueItem: LocalRunQueueItem;
   runConflictPolicy: Str_RunConflictPolicy;
 }
 
 interface QueuedRun {
-  queueItem: Omit<Dict_ListItem_RunQueue, "state">;
+  queueItem: Omit<LocalRunQueueItem, "state">;
   runDetail: Dict_ProjectRun_Detail;
   context?: RunExecutionContext;
 }
@@ -145,16 +154,25 @@ export function refreshSchedulerEngine(): void {
   publishRunQueueChanged();
 }
 
-export function getRunQueueItems(): Dict_ListItem_RunQueue[] {
+export function getRunQueueItems(): RunQueueItem[] {
   const intNowMs = Date.now();
   return [
+    ...getActiveRunQueueItems(),
     ...arrQueuedRun.map((queuedRun) => ({
       ...queuedRun.queueItem,
+      source: RunSource.Local,
+      started_at_ms: null,
+      history_id: null,
       state: isQueuedRunReady(queuedRun, intNowMs)
         ? RunQueueState.Waiting
         : RunQueueState.WaitingRetry,
     })),
-    ...arrPendingRun.map(({ queueItem }) => ({ ...queueItem })),
+    ...arrPendingRun.map(({ queueItem }) => ({
+      ...queueItem,
+      source: RunSource.Local,
+      started_at_ms: null,
+      history_id: null,
+    })),
   ];
 }
 
@@ -281,6 +299,8 @@ async function processSchedulerTick(): Promise<void> {
     }
 
     const { scheduleId, queueItem, runConflictPolicy } = dictDueRun;
+    arrPendingRun.splice(arrPendingRun.indexOf(dictDueRun), 1);
+    publishRunQueueChanged();
     loggerMain.info(
       `Schedule '${queueItem.schedule_name}' reached its run time. run_conflict_policy=${runConflictPolicy}`,
     );
