@@ -191,7 +191,7 @@ function resetPendingRuns(): void {
   const arrNextPending: PendingRun[] = [];
 
   for (const dictSchedule of arrSchedule) {
-    if (!dictSchedule.enable) {
+    if (!dictSchedule.enabled) {
       continue;
     }
 

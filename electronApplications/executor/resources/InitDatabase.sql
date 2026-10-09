@@ -42,7 +42,7 @@ CREATE TABLE
         ),
         period_start_ms INTEGER NOT NULL CHECK (period_start_ms >= 0),
         period_end_ms INTEGER NOT NULL CHECK (period_end_ms > period_start_ms),
-        enable INTEGER NOT NULL DEFAULT 1 CHECK (enable IN (0, 1)),
+        enabled INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)),
         retry_count INTEGER NOT NULL DEFAULT 0 CHECK (retry_count BETWEEN 0 AND 3),
         timeout_min INTEGER NOT NULL DEFAULT 0 CHECK (timeout_min >= 0),
         builtin_log_level TEXT NOT NULL DEFAULT 'DEBUG' CHECK (

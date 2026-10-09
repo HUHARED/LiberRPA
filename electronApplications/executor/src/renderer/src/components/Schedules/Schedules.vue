@@ -36,7 +36,7 @@
           size="small"></v-chip>
       </template>
 
-      <template #item.enable="{ item, value }">
+      <template #item.enabled="{ item, value }">
         <v-chip
           :border="`${getEnabledColor(value)} thin opacity-25`"
           :color="getEnabledColor(value)"
@@ -127,7 +127,7 @@ function newSchedule(): void {
     run_conflict_policy: "skip",
     period_start: dictDefaultPeriod.periodStartLocal,
     period_end: dictDefaultPeriod.periodEndLocal,
-    enable: true,
+    enabled: true,
     retry_count: 0,
     timeout_min: 0,
     builtin_log_level: "DEBUG",
@@ -157,17 +157,17 @@ const arrHeader: DataTableHeader<Dict_ListItem_Schedule>[] = [
     ],
   },
   { title: "Schedule", value: "cron", align: "start", sortable: true },
-  { title: "Enabled", value: "enable", align: "start", sortable: true },
+  { title: "Enabled", value: "enabled", align: "start", sortable: true },
   { title: "Actions", key: "actions", align: "start", sortable: false },
 ];
 
 async function toggleSchedule(item: Dict_ListItem_Schedule): Promise<void> {
-  await invokeMain("setScheduleEnabled", { id: item.id, enable: !item.enable });
+  await invokeMain("setScheduleEnabled", { id: item.id, enabled: !item.enabled });
   await scheduleStore.refreshScheduleList();
 }
 
-function getEnabledColor(enable: boolean): string {
-  return enable ? "success" : "inactive";
+function getEnabledColor(enabled: boolean): string {
+  return enabled ? "success" : "inactive";
 }
 
 async function editSchedule(scheduleName: string): Promise<void> {

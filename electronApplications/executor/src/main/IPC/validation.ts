@@ -195,7 +195,7 @@ function ensureScheduleData(
     "run_conflict_policy",
     "period_start_ms",
     "period_end_ms",
-    "enable",
+    "enabled",
     "retry_count",
     "timeout_min",
     "builtin_log_level",
@@ -233,7 +233,7 @@ function ensureScheduleData(
     ),
     period_start_ms: intPeriodStartMs,
     period_end_ms: intPeriodEndMs,
-    enable: ensureBoolean(dictValue.enable, "Schedule request.enable"),
+    enabled: ensureBoolean(dictValue.enabled, "Schedule request.enabled"),
     retry_count: ensureRetryCount(dictValue.retry_count, "Schedule request.retry_count"),
     timeout_min: ensureRunTimeoutMinutes(
       dictValue.timeout_min,
@@ -354,10 +354,14 @@ export function ensureConsoleSignIn(value: unknown): ConsoleSignInArgs {
   };
 }
 
-export function ensureScheduleEnabled(value: unknown): { id: number; enable: boolean } {
-  const dictValue = ensureExactRecord(value, ["id", "enable"], "Schedule enable request");
+export function ensureScheduleEnabled(value: unknown): { id: number; enabled: boolean } {
+  const dictValue = ensureExactRecord(
+    value,
+    ["id", "enabled"],
+    "Schedule enabled update request",
+  );
   return {
-    id: ensurePositiveInteger(dictValue.id, "Schedule enable request.id"),
-    enable: ensureBoolean(dictValue.enable, "Schedule enable request.enable"),
+    id: ensurePositiveInteger(dictValue.id, "Schedule enabled update request.id"),
+    enabled: ensureBoolean(dictValue.enabled, "Schedule enabled update request.enabled"),
   };
 }

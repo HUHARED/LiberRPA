@@ -10,7 +10,7 @@ export interface Dict_ListItem_Schedule {
   project_name: string;
   project_version: string;
   cron: string;
-  enable: boolean;
+  enabled: boolean;
   period_start_ms: number;
   period_end_ms: number;
   run_conflict_policy: Str_RunConflictPolicy;

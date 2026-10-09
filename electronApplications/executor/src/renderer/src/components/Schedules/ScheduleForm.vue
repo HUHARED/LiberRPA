@@ -65,7 +65,7 @@
             <v-label class="clean-space" style="font-size: 0.75em">Enabled</v-label>
 
             <v-switch
-              v-model="detail.enable"
+              v-model="detail.enabled"
               hide-details
               class="clean-space pl-1"
               density="compact"

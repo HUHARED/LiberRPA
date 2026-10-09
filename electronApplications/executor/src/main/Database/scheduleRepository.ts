@@ -27,7 +27,7 @@ export function dbSelectScheduleList(): Dict_ListItem_Schedule[] {
           p.name AS project_name,
           p.version AS project_version,
           s.cron,
-          s.enable,
+          s.enabled,
           s.period_start_ms,
           s.period_end_ms,
           s.run_conflict_policy
@@ -57,7 +57,7 @@ export function dbSelectScheduleDetail(name: string): Dict_Detail_Schedule | und
           s.run_conflict_policy,
           s.period_start_ms,
           s.period_end_ms,
-          s.enable,
+          s.enabled,
           s.retry_count,
           s.timeout_min,
           s.builtin_log_level,
@@ -128,7 +128,7 @@ export function dbInsertSchedule(detailDict: Dict_ScheduleCreate): void {
               run_conflict_policy,
               period_start_ms,
               period_end_ms,
-              enable,
+              enabled,
               retry_count,
               timeout_min,
               builtin_log_level,
@@ -150,7 +150,7 @@ export function dbInsertSchedule(detailDict: Dict_ScheduleCreate): void {
       detailDict.run_conflict_policy,
       detailDict.period_start_ms,
       detailDict.period_end_ms,
-      detailDict.enable ? 1 : 0,
+      detailDict.enabled ? 1 : 0,
       detailDict.retry_count,
       detailDict.timeout_min,
       detailDict.builtin_log_level,
@@ -177,7 +177,7 @@ export function dbUpdateSchedule(detailDict: Dict_ScheduleUpdate): void {
           run_conflict_policy = ?,
           period_start_ms = ?,
           period_end_ms = ?,
-          enable = ?,
+          enabled = ?,
           retry_count = ?,
           timeout_min = ?,
           builtin_log_level = ?,
@@ -197,7 +197,7 @@ export function dbUpdateSchedule(detailDict: Dict_ScheduleUpdate): void {
       detailDict.run_conflict_policy,
       detailDict.period_start_ms,
       detailDict.period_end_ms,
-      detailDict.enable ? 1 : 0,
+      detailDict.enabled ? 1 : 0,
       detailDict.retry_count,
       detailDict.timeout_min,
       detailDict.builtin_log_level,
@@ -217,17 +217,18 @@ export function dbDeleteSchedule(id: number): void {
   ensureSingleRowAffected(result, `Delete Schedule ID ${id}`);
 }
 
-export function dbSetScheduleEnabled(id: number, enable: boolean): void {
+export function dbSetScheduleEnabled(id: number, enabled: boolean): void {
   const result = getDatabase()
     .prepare(
       `
       UPDATE schedule
       SET
-          enable = ?,
+          enabled = ?,
           updated_at_ms = ?
       WHERE
           id = ?
-      `)
-    .run(enable ? 1 : 0, Date.now(), id);
+      `,
+    )
+    .run(enabled ? 1 : 0, Date.now(), id);
   ensureSingleRowAffected(result, `Set Schedule ${id} enabled`);
 }

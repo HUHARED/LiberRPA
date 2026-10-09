@@ -220,8 +220,8 @@ function createInvokeHandlerMap(
       refreshSchedulerEngine();
     },
 
-    setScheduleEnabled({ id, enable }) {
-      dbSetScheduleEnabled(id, enable);
+    setScheduleEnabled({ id, enabled }) {
+      dbSetScheduleEnabled(id, enabled);
       refreshSchedulerEngine();
     },
 

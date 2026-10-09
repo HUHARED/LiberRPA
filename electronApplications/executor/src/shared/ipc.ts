@@ -104,7 +104,7 @@ interface Dict_ExecutorInvoke_Contract {
     request: Dict_ScheduleUpdate;
     response: void;
   };
-  setScheduleEnabled: { request: { id: number; enable: boolean }; response: void };
+  setScheduleEnabled: { request: { id: number; enabled: boolean }; response: void };
   deleteSchedule: {
     request: number;
     response: void;
