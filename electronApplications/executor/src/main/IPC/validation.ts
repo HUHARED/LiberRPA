@@ -24,31 +24,6 @@ import {
   ensureCustomProjectArgs,
 } from "../Common/validation";
 
-function ensureRunHistorySortKey(
-  value: unknown,
-  strSourceName: string,
-): Dict_RunHistory_Options["sortBy"][number]["key"] {
-  switch (value) {
-    case "schedule_name":
-    case "project_name":
-    case "project_version":
-    case "python_environment_name":
-    case "run_started_at_ms":
-    case "run_ended_at_ms":
-    case "status":
-      return value;
-    default:
-      throw new Error(`${strSourceName} contains an unsupported sort key.`);
-  }
-}
-
-function ensureRunHistorySortOrder(value: unknown, strSourceName: string): "asc" | "desc" {
-  if (value === "asc" || value === "desc") {
-    return value;
-  }
-  throw new Error(`${strSourceName} must be 'asc' or 'desc'.`);
-}
-
 export function ensureInvokeCommand(value: unknown): Str_ExecutorInvokeCommand {
   switch (value) {
     case "getConsoleAccount":
@@ -284,6 +259,34 @@ export function ensureScheduleUpdate(value: unknown): Dict_ScheduleUpdate {
 }
 
 export function ensureRunHistoryOptions(value: unknown): Dict_RunHistory_Options {
+  function ensureRunHistorySortKey(
+    value: unknown,
+    strSourceName: string,
+  ): Dict_RunHistory_Options["sortBy"][number]["key"] {
+    switch (value) {
+      case "schedule_name":
+      case "project_name":
+      case "project_version":
+      case "python_environment_name":
+      case "run_started_at_ms":
+      case "run_ended_at_ms":
+      case "status":
+        return value;
+      default:
+        throw new Error(`${strSourceName} contains an unsupported sort key.`);
+    }
+  }
+
+  function ensureRunHistorySortOrder(
+    value: unknown,
+    strSourceName: string,
+  ): "asc" | "desc" {
+    if (value === "asc" || value === "desc") {
+      return value;
+    }
+    throw new Error(`${strSourceName} must be 'asc' or 'desc'.`);
+  }
+
   const dictValue = ensureExactRecord(
     value,
     ["page", "itemsPerPage", "sortBy", "search"],

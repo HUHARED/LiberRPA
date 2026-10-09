@@ -218,16 +218,7 @@ export function dbSelectRunHistoryPage(
 ): Dict_RunHistory_Page {
   loggerMain.debug("--dbSelectRunHistoryPage--");
 
-  if (!Number.isSafeInteger(options.page) || options.page < 1) {
-    throw new Error(`Invalid Run History page: ${String(options.page)}`);
-  }
-  if (!Number.isSafeInteger(options.itemsPerPage) || options.itemsPerPage < 1) {
-    throw new Error(`Invalid Run History itemsPerPage: ${String(options.itemsPerPage)}`);
-  }
-  if (!Array.isArray(options.sortBy)) {
-    throw new Error("Run History sortBy must be an array.");
-  }
-
+  // Request options have already been validated at the IPC boundary.
   const arrWhereClause: string[] = [];
   const arrWhereParam: string[] = [];
   if (options.search.schedule_name.trim() !== "") {
@@ -251,13 +242,6 @@ export function dbSelectRunHistoryPage(
     arrWhereClause.length === 0 ? "" : `WHERE ${arrWhereClause.join(" AND ")}`;
 
   const arrOrderByClause = options.sortBy.map((dictSort) => {
-    if (!Object.hasOwn(MAP_RUN_HISTORY_SORT_COLUMN, dictSort.key)) {
-      throw new Error(`Invalid Run History sort key: ${String(dictSort.key)}`);
-    }
-    if (dictSort.order !== "asc" && dictSort.order !== "desc") {
-      throw new Error(`Invalid Run History sort order: ${String(dictSort.order)}`);
-    }
-
     const strColumn = MAP_RUN_HISTORY_SORT_COLUMN[dictSort.key];
     const strOrder = dictSort.order === "asc" ? "ASC" : "DESC";
     return `${strColumn} ${strOrder}`;

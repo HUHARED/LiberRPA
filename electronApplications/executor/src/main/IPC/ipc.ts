@@ -232,9 +232,7 @@ function createInvokeHandlerMap(
 
     getRunDetails: dbSelectRunDetails,
 
-    getRunHistoryPage(optionsDict) {
-      return dbSelectRunHistoryPage(optionsDict);
-    },
+    getRunHistoryPage: dbSelectRunHistoryPage,
 
     getRunQueue() {
       return getRunQueueItems();
