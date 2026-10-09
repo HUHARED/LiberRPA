@@ -5,6 +5,7 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import uuid
+from collections.abc import Iterable
 from datetime import datetime, timedelta
 
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -60,16 +61,49 @@ def _get_candidates(job: Job) -> list[Executor]:
     )
 
 
+def _get_dispatch_sessions(
+    organizationId: uuid.UUID,
+    executorIds: Iterable[uuid.UUID],
+    currentTime: datetime,
+    *,
+    sessionsByExecutor: dict[uuid.UUID, ExecutorSession | None],
+) -> dict[uuid.UUID, ExecutorSession]:
+    """Reuse association checks only within the caller's locked organization dispatch pass."""
+    setExecutorId = set(executorIds)
+    setUnreadExecutorId = setExecutorId.difference(sessionsByExecutor)
+    if setUnreadExecutorId:
+        dictCurrentSession = get_current_executor_sessions(
+            organizationId, executorIds=setUnreadExecutorId, currentTime=currentTime
+        )
+        # Remember absent and invalid associations too, but never beyond this transaction.
+        for executorId in setUnreadExecutorId:
+            sessionsByExecutor[executorId] = dictCurrentSession.get(executorId)
+    dictSession: dict[uuid.UUID, ExecutorSession] = {}
+    for executorId in setExecutorId:
+        session = sessionsByExecutor[executorId]
+        if session is not None:
+            dictSession[executorId] = session
+    return dictSession
+
+
 def _get_live_candidates(
-    job: Job, currentTime: datetime
-) -> tuple[
-    list[Executor], dict[uuid.UUID, ExecutorSession], dict[uuid.UUID, ExecutorWorkState]
-]:
-    listCandidate = _get_candidates(job)
-    dictSession = get_current_executor_sessions(
+    job: Job,
+    currentTime: datetime,
+    *,
+    candidatesByTarget: dict[
+        tuple[uuid.UUID, uuid.UUID | None, uuid.UUID | None], list[Executor]
+    ],
+    sessionsByExecutor: dict[uuid.UUID, ExecutorSession | None],
+) -> tuple[list[Executor], dict[uuid.UUID, ExecutorSession]]:
+    targetKey = (job.department_id, job.target_executor_id, job.target_group_id)
+    if targetKey not in candidatesByTarget:
+        candidatesByTarget[targetKey] = _get_candidates(job)
+    listCandidate = candidatesByTarget[targetKey]
+    dictSession = _get_dispatch_sessions(
         job.request.organization_id,
-        executorIds=[executor.id for executor in listCandidate],
-        currentTime=currentTime,
+        (executor.id for executor in listCandidate),
+        currentTime,
+        sessionsByExecutor=sessionsByExecutor,
     )
     if job.target_executor_id:
         dictSession = {
@@ -77,11 +111,7 @@ def _get_live_candidates(
             for executorId, session in dictSession.items()
             if session.id == job.target_session_id
         }
-    dictWork = {
-        entry.executor_id: entry
-        for entry in ExecutorWorkState.objects.filter(executor_id__in=dictSession)
-    }
-    return listCandidate, dictSession, dictWork
+    return listCandidate, dictSession
 
 
 def _is_busy(
@@ -114,6 +144,10 @@ def _advance_job(
     control: DispatchControl,
     *,
     sourceDepartmentIdsByActor: dict[uuid.UUID, set[uuid.UUID]],
+    candidatesByTarget: dict[
+        tuple[uuid.UUID, uuid.UUID | None, uuid.UUID | None], list[Executor]
+    ],
+    sessionsByExecutor: dict[uuid.UUID, ExecutorSession | None],
 ) -> None:
     if job.state not in (JobState.WAITING, JobState.RETRY):
         return
@@ -124,7 +158,12 @@ def _advance_job(
         return
     if job.retry_at and job.retry_at > currentTime:
         return
-    listCandidate, dictSession, dictWork = _get_live_candidates(job, currentTime)
+    listCandidate, dictSession = _get_live_candidates(
+        job,
+        currentTime,
+        candidatesByTarget=candidatesByTarget,
+        sessionsByExecutor=sessionsByExecutor,
+    )
     if not dictSession:
         finish_job(
             job,
@@ -149,6 +188,15 @@ def _advance_job(
         if get_executor_association_status(dictSession[entry.id], currentTime=currentTime)
         == ExecutorAssociationStatus.ONLINE
     ]
+    # Work reports and last_assigned_at can change during this pass; read them for each eligible Job.
+    dictWork: dict[uuid.UUID, ExecutorWorkState] = {}
+    if listOnline:
+        dictWork = {
+            entry.executor_id: entry
+            for entry in ExecutorWorkState.objects.filter(
+                executor_id__in=[executor.id for executor in listOnline]
+            )
+        }
     listReady = [
         entry
         for entry in listOnline
@@ -239,6 +287,7 @@ def _reconcile_assignment(
     control: DispatchControl,
     *,
     sourceDepartmentIdsByActor: dict[uuid.UUID, set[uuid.UUID]],
+    session: ExecutorSession | None,
 ) -> None:
     job = assignment.job
     if not has_job_source_access(
@@ -263,12 +312,6 @@ def _reconcile_assignment(
             job.reason = assignment.reason
             job.save(update_fields=["state", "reason"])
         return
-    dictSession = get_current_executor_sessions(
-        job.request.organization_id,
-        executorIds=[assignment.executor_id],
-        currentTime=currentTime,
-    )
-    session = dictSession.get(assignment.executor_id)
     boolSessionValid = session is not None and session.id == assignment.session_id
     boolOnline = (
         boolSessionValid
@@ -321,17 +364,32 @@ def dispatch_organization(organizationId: uuid.UUID) -> None:
         control = require_control_service(currentTime)
     except (PermissionDenied, ValidationError):
         return
-    # Membership and department writes take the same organization lock; never reuse these facts after commit.
+    # Account, target and association writes take this organization lock; these lookups end at commit.
     dictSourceDepartmentIdsByActor: dict[uuid.UUID, set[uuid.UUID]] = {}
-    for assignment in Assignment.objects.filter(
-        job__request__organization=organization, state__in=ACTIVE_ASSIGNMENT_STATES
-    ).select_related("job__request"):
+    dictSessionByExecutor: dict[uuid.UUID, ExecutorSession | None] = {}
+    listAssignment = list(
+        Assignment.objects.filter(
+            job__request__organization=organization, state__in=ACTIVE_ASSIGNMENT_STATES
+        ).select_related("job__request")
+    )
+    dictAssignmentSession = _get_dispatch_sessions(
+        organization.id,
+        (assignment.executor_id for assignment in listAssignment),
+        currentTime,
+        sessionsByExecutor=dictSessionByExecutor,
+    )
+    for assignment in listAssignment:
         _reconcile_assignment(
             assignment,
             currentTime,
             control,
             sourceDepartmentIdsByActor=dictSourceDepartmentIdsByActor,
+            session=dictAssignmentSession.get(assignment.executor_id),
         )
+    dictCandidateByTarget: dict[
+        tuple[uuid.UUID, uuid.UUID | None, uuid.UUID | None], list[Executor]
+    ] = {}
+    # Reconciliation can return a Job to Waiting; query the queue only after that phase.
     for job in (
         Job.objects
         .filter(
@@ -346,6 +404,8 @@ def dispatch_organization(organizationId: uuid.UUID) -> None:
             currentTime,
             control,
             sourceDepartmentIdsByActor=dictSourceDepartmentIdsByActor,
+            candidatesByTarget=dictCandidateByTarget,
+            sessionsByExecutor=dictSessionByExecutor,
         )
 
 
