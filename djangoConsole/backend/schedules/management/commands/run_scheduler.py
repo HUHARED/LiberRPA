@@ -19,7 +19,7 @@ from console_project.workers import (
     SCHEDULE_WORKER_LOCK_ID,
 )
 from runs.dispatch_control import require_control_service
-from schedules.worker import get_recovery_boundary, scan_schedules
+from schedules.worker import ScheduleScanWindow, scan_schedules
 
 _LOGGER = logging.getLogger("console.scheduler")
 
@@ -44,8 +44,7 @@ class Command(BaseCommand):
                     lockId=SCHEDULE_WORKER_LOCK_ID, workerName="scheduler"
                 ),
             ):
-                recoveryFrom = recoveryUntil = None
-                boolInitialized = False
+                scanWindow: ScheduleScanWindow | None = None
                 _LOGGER.info("Schedule worker started.")
                 while not stopEvent.is_set():
                     try:
@@ -57,7 +56,7 @@ class Command(BaseCommand):
                     except ValidationError:
                         boolReady = False
                     if not boolReady:
-                        boolInitialized = False
+                        scanWindow = None
                         if options["once"]:
                             _LOGGER.info(
                                 "Schedule triggers are waiting for run control recovery."
@@ -65,18 +64,10 @@ class Command(BaseCommand):
                             break
                         stopEvent.wait(0.5)
                         continue
-                    if not boolInitialized:
-                        recoveryFrom, recoveryUntil = get_recovery_boundary()
-                        boolInitialized = True
-                    boolMore = scan_schedules(
-                        recoveryFrom=recoveryFrom, recoveryUntil=recoveryUntil
-                    )
-                    if not boolMore:
-                        recoveryFrom = None
-                        recoveryUntil = None
+                    scanWindow = scan_schedules(scanWindow)
                     if options["once"]:
                         break
-                    stopEvent.wait(0.01 if boolMore else 0.5)
+                    stopEvent.wait(0.01 if scanWindow is not None else 0.5)
         except (WorkerAlreadyRunningError, DatabaseError) as e:
             raise CommandError("Schedule worker stopped: " + type(e).__name__) from None
         _LOGGER.info("Schedule worker stopped.")

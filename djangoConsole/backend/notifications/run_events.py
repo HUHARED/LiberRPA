@@ -9,6 +9,8 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from runs.models import Job, Run
 
+from runs.models import JobSource
+
 from .models import (
     EmailDelivery,
     EmailType,
@@ -55,13 +57,12 @@ def notify_run_event(run: "Run", event: str) -> None:
 
 def notify_job_failure(job: "Job") -> None:
     jobRequest = job.request
-    if jobRequest.source == "api":
-        return
     creatorId = jobRequest.actor_id
     notify_prestart_failure(
         organizationId=jobRequest.organization_id,
         departmentId=job.department_id,
         creatorId=creatorId,
+        source=JobSource(jobRequest.source),
         title="Job could not start",
         detail=f"Project: {job.project_name}\nVersion: {job.version}\nTarget: {job.target_name}\nReason: {job.reason}",
         eventKey=f"job:{job.pk}:prestart_failure",

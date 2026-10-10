@@ -12,12 +12,14 @@ from django.core.exceptions import PermissionDenied
 from django.utils import timezone
 
 from accounts.models import User
-from organizations.models import DepartmentRole, Membership
+from organizations.models import Membership, DepartmentRole, DepartmentMembership
 from organizations.permissions import (
     AccessChannel,
     get_authorized_departments,
     resolve_organization_access,
 )
+
+from runs.models import JobSource
 
 from .models import Notification
 
@@ -42,18 +44,29 @@ def notify_prestart_failure(
     organizationId: uuid.UUID,
     departmentId: uuid.UUID,
     creatorId: uuid.UUID | None,
+    source: JobSource,
     title: str,
     detail: str,
     eventKey: str,
 ) -> None:
-    """Use current creator access; only an absent creator falls back to current admins."""
-    if creatorId is None or not User.objects.filter(pk=creatorId).exists():
-        listUserId = list(
-            Membership.objects.filter(
-                organization_id=organizationId, is_org_admin=True, user__is_active=True
-            ).values_list("user_id", flat=True)
-        )
-    else:
+    """Route Schedule failures by current department membership; keep manual access checks."""
+    if source == JobSource.API:
+        return
+    listUserId: list[uuid.UUID] = []
+    if source == JobSource.SCHEDULE:
+        if (
+            creatorId is not None
+            and DepartmentMembership.objects.filter(
+                membership_id=creatorId,
+                membership__organization_id=organizationId,
+                membership__user__is_active=True,
+                department_id=departmentId,
+                department__organization_id=organizationId,
+                department__deleted_at__isnull=True,
+            ).exists()
+        ):
+            listUserId = [creatorId]
+    elif creatorId is not None and User.objects.filter(pk=creatorId).exists():
         try:
             access = resolve_organization_access(
                 actorId=creatorId,
@@ -71,6 +84,12 @@ def notify_prestart_failure(
         except PermissionDenied:
             return
         listUserId = [creatorId]
+    if not listUserId:
+        listUserId = list(
+            Membership.objects.filter(
+                organization_id=organizationId, is_org_admin=True, user__is_active=True
+            ).values_list("user_id", flat=True)
+        )
     strDetail = detail.encode("utf-8")[:8192].decode("utf-8", errors="ignore")
     for userId in listUserId:
         Notification.objects.get_or_create(

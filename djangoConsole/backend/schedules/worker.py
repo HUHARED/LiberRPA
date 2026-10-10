@@ -5,6 +5,7 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import uuid
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError
@@ -13,6 +14,7 @@ from django.utils import timezone
 
 from organizations.models import Organization
 from organizations.permissions import is_organization_business_available
+
 from packages.runtime import build_run_settings
 from runs.models import JobSource
 from runs.admission import accept_request
@@ -20,15 +22,16 @@ from runs.admission import accept_request
 from .cron import get_next_trigger
 from .models import TriggerStatus, Schedule, ScheduleTrigger, SchedulerState
 
-_INT_NORMAL_LATENESS_SECONDS = 5
 _INT_RECOVERY_SECONDS = 600
 _INT_TRIGGER_BATCH_SIZE = 100
 
 
-def get_recovery_boundary() -> tuple[datetime | None, datetime]:
-    recoveryUntil = timezone.now()
-    state = SchedulerState.objects.filter(pk=1).first()
-    return (None if state is None else state.scanned_at), recoveryUntil
+@dataclass
+class ScheduleScanWindow:
+    """Keep one scan interval across bounded batches, including its first lock wait."""
+
+    previousScanAt: datetime | None
+    until: datetime | None = None
 
 
 def _advance(schedule: Schedule, after: datetime) -> None:
@@ -51,6 +54,7 @@ def _notify_failure(
         organizationId=organizationId,
         departmentId=schedule.department_id,
         creatorId=schedule.created_by_id,
+        source=JobSource.SCHEDULE,
         title="Schedule could not execute",
         detail=f"Schedule: {schedule.name}\nScheduled at: {scheduledAt.isoformat()}\nReason: {reason}",
         eventKey=f"schedule:{schedule.pk}:{scheduledAt.isoformat()}",
@@ -62,8 +66,7 @@ def _process_trigger(
     scheduleId: uuid.UUID,
     scheduledAt: datetime,
     *,
-    recoveryFrom: datetime | None,
-    recoveryUntil: datetime | None,
+    scanWindow: ScheduleScanWindow,
 ) -> None:
     with transaction.atomic():
         organization = (
@@ -79,27 +82,32 @@ def _process_trigger(
             or schedule.next_trigger_at != scheduledAt
         ):
             return
-        # Lock waits count toward normal lateness, not the fixed recovery interval.
         currentTime = timezone.now()
         if scheduledAt > currentTime:
             return
-        boolRecoveryPoint = recoveryUntil is not None and scheduledAt <= recoveryUntil
-        boolCanRecover = (
-            boolRecoveryPoint
-            and recoveryFrom is not None
-            and recoveryUntil is not None
-            and recoveryUntil - recoveryFrom <= timedelta(seconds=_INT_RECOVERY_SECONDS)
-            and schedule.updated_at <= recoveryFrom
-        )
+        # Freeze the interval only after its first valid candidate has acquired both locks.
+        if scanWindow.until is None:
+            scanWindow.until = currentTime
+        scanUntil = scanWindow.until
         if not is_organization_business_available(organization):
             _advance(schedule, currentTime)
             return
-        if boolRecoveryPoint and not boolCanRecover:
-            strReason = "The trigger service interruption exceeded 600 seconds, or the Schedule changed during the interruption. No missed triggers were replayed."
-        elif not boolCanRecover and currentTime - scheduledAt > timedelta(
-            seconds=_INT_NORMAL_LATENESS_SECONDS
+        if ScheduleTrigger.objects.filter(
+            schedule_id=schedule.pk, scheduled_at=scheduledAt
+        ).exists():
+            _advance(schedule, scheduledAt)
+            return
+        skipUntil = scanUntil
+        if scanWindow.previousScanAt is None:
+            strReason = "No previous Schedule scan time is available. Missed triggers were skipped."
+        elif scanUntil - scanWindow.previousScanAt > timedelta(
+            seconds=_INT_RECOVERY_SECONDS
         ):
-            strReason = f"The scheduler missed the normal {_INT_NORMAL_LATENESS_SECONDS}-second trigger tolerance."
+            strReason = "Schedule processing was interrupted for more than 10 minutes. Missed triggers in this interval were skipped."
+        elif schedule.updated_at > scheduledAt:
+            # Do not apply new settings to past points; keep future points of the revised Schedule.
+            strReason = "The Schedule changed after this trigger time. Earlier missed triggers were skipped."
+            skipUntil = schedule.updated_at
         else:
             strReason = ""
         if strReason:
@@ -113,18 +121,8 @@ def _process_trigger(
                 },
             )
             _notify_failure(schedule, organizationId, scheduledAt, strReason)
-            # One receipt describes the skipped interval; do not iterate millions of missed seconds.
-            _advance(
-                schedule,
-                recoveryUntil
-                if boolRecoveryPoint and recoveryUntil is not None
-                else currentTime,
-            )
-            return
-        if ScheduleTrigger.objects.filter(
-            schedule_id=schedule.pk, scheduled_at=scheduledAt
-        ).exists():
-            _advance(schedule, scheduledAt)
+            # One receipt describes skipped points; never replay the tail of a long interruption.
+            _advance(schedule, skipUntil)
             return
         clientRequestId = uuid.uuid4()
         try:
@@ -169,18 +167,26 @@ def _process_trigger(
 
 
 def scan_schedules(
-    *, recoveryFrom: datetime | None = None, recoveryUntil: datetime | None = None
-) -> bool:
-    """Process a bounded batch in trigger order; return whether more due points remain."""
-    scanUntil = timezone.now()
-    query = Schedule.objects.filter(
-        enabled=True, deleted_at__isnull=True, next_trigger_at__lte=scanUntil
-    ).order_by("next_trigger_at", "id")
+    scanWindow: ScheduleScanWindow | None = None,
+) -> ScheduleScanWindow | None:
+    """Return the same interval while more points remain, or None after saving its boundary."""
+    if scanWindow is None:
+        state = SchedulerState.objects.filter(pk=1).first()
+        scanWindow = ScheduleScanWindow(
+            previousScanAt=None if state is None else state.scanned_at
+        )
+    scanStartedAt = timezone.now()
+    query = Schedule.objects.filter(enabled=True, deleted_at__isnull=True).order_by(
+        "next_trigger_at", "id"
+    )
     for _ in range(_INT_TRIGGER_BATCH_SIZE):
         # Advancing one Schedule may reveal the next earliest point across all Schedules.
-        nextTrigger = query.values_list(
-            "department__organization_id", "id", "next_trigger_at"
-        ).first()
+        nextTrigger = (
+            query
+            .filter(next_trigger_at__lte=scanWindow.until or scanStartedAt)
+            .values_list("department__organization_id", "id", "next_trigger_at")
+            .first()
+        )
         if nextTrigger is None:
             break
         organizationId, scheduleId, scheduledAt = nextTrigger
@@ -188,11 +194,11 @@ def scan_schedules(
             organizationId,
             scheduleId,
             scheduledAt,
-            recoveryFrom=recoveryFrom,
-            recoveryUntil=recoveryUntil,
+            scanWindow=scanWindow,
         )
-    boolMore = query.exists()
-    if not boolMore:
-        # Later points were outside this scan and must not be included in its checkpoint.
-        SchedulerState.objects.update_or_create(pk=1, defaults={"scanned_at": scanUntil})
-    return boolMore
+    scanUntil = scanWindow.until or scanStartedAt
+    if query.filter(next_trigger_at__lte=scanUntil).exists():
+        return scanWindow
+    # Do not include time spent draining the batch in the completed scan boundary.
+    SchedulerState.objects.update_or_create(pk=1, defaults={"scanned_at": scanUntil})
+    return None
