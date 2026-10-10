@@ -181,6 +181,22 @@ CREATE TABLE
             rejected_at_ms IS NULL
             OR rejected_at_ms >= 0
         ),
+        retention_checked_at_ms INTEGER NULL CHECK (
+            retention_checked_at_ms IS NULL
+            OR (
+                rejected = 1
+                AND retention_checked_at_ms >= 0
+            )
+        ),
+        retention_started_at_ms INTEGER NULL CHECK (
+            retention_started_at_ms IS NULL
+            OR (
+                rejected = 1
+                AND retention_checked_at_ms IS NOT NULL
+                AND retention_started_at_ms >= 0
+                AND retention_started_at_ms <= retention_checked_at_ms
+            )
+        ),
         CHECK (
             (
                 rejection_code IS NULL
@@ -221,5 +237,20 @@ WHERE
 CREATE INDEX idx_console_event_pending_session_key ON console_event (session_key)
 WHERE
     rejected = 0;
+
+CREATE INDEX idx_console_work_job_session ON console_work (
+    session_key,
+    JSON_EXTRACT(content, '$.assignment.job_id')
+);
+
+CREATE INDEX idx_console_event_retention_check ON console_event (session_key, retention_checked_at_ms, id)
+WHERE
+    rejected = 1
+    AND retention_started_at_ms IS NULL;
+
+CREATE INDEX idx_console_event_retention_expiry ON console_event (retention_started_at_ms, id)
+WHERE
+    rejected = 1
+    AND retention_started_at_ms IS NOT NULL;
 
 PRAGMA user_version = 2;

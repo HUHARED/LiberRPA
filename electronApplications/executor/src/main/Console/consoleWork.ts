@@ -41,6 +41,7 @@ import {
   ConsoleNotStartedReason,
   type ConsoleEventData,
   type ConsoleEventReceipt,
+  type ConsoleEventRetentionResolution,
   getConsoleWorkSessionKey,
   getConsoleWork,
   saveConsoleWork,
@@ -48,6 +49,9 @@ import {
   saveConsoleEvent,
   getPendingConsoleEvents,
   acknowledgeConsoleEvents,
+  getConsoleEventRetentionCandidates,
+  confirmConsoleEventRetention,
+  pruneConsoleEventDiagnostics,
 } from "./workRepository";
 import { stopConsoleFiles, flushConsoleLogs, sendConsoleFile } from "./consoleWorkFiles";
 
@@ -66,6 +70,7 @@ interface ConsoleStartPermit {
 
 class ConsoleStartConflictError extends Error {}
 
+const INT_EVENT_MAINTENANCE_INTERVAL_MS = 60 * 60 * 1000;
 const INT_MIN_PERMIT_RETRY_MS = 2000;
 const INT_MAX_PERMIT_RETRY_MS = 30_000;
 const setStoppedAssignment = new Set<string>();
@@ -77,6 +82,9 @@ let timerRetry: NodeJS.Timeout | undefined;
 let timerEventRetry: NodeJS.Timeout | undefined;
 let promiseSync: Promise<void> | undefined;
 let promiseEvents: Promise<void> | undefined;
+let promiseEventMaintenance: Promise<void> | undefined;
+let floatNextEventMaintenanceAt = 0;
+let strEventMaintenanceSessionKey: string | undefined;
 let boolStopped = true;
 let boolWorkRequested = false;
 let boolEventsRequested = false;
@@ -555,6 +563,60 @@ function requestConsoleEvents(): void {
     });
 }
 
+async function maintainConsoleEventDiagnostics(
+  credential: ConsoleCredentialSnapshot | null,
+): Promise<void> {
+  const intDeleted = pruneConsoleEventDiagnostics();
+  if (intDeleted) loggerMain.info(`Removed ${intDeleted} expired Run event diagnostics.`);
+  if (!credential) return;
+  const strSessionKey = getConsoleWorkSessionKey(credential);
+  const arrCandidate = getConsoleEventRetentionCandidates(strSessionKey);
+  if (!arrCandidate.length) return;
+  const setAssignmentId = new Set(arrCandidate.map((entry) => entry.assignmentId));
+  const response = await requestConsole(
+    credential.consoleUrl,
+    "executor/work/event-retention/",
+    credential.token,
+    { assignment_ids: [...setAssignmentId] },
+  );
+  if (boolStopped || !isCurrentControlCredential(credential)) return;
+  if (!Array.isArray(response.resolved_assignments))
+    throw new Error("Console returned invalid event retention information.");
+  const setResolvedId = new Set<string>();
+  const arrResolution: ConsoleEventRetentionResolution[] = [];
+  for (const value of response.resolved_assignments) {
+    const item = ensureRecord(value, "Resolved assignment");
+    const strAssignmentId = ensureNonEmptyString(item.assignment_id, "Assignment ID");
+    if (!setAssignmentId.has(strAssignmentId) || setResolvedId.has(strAssignmentId))
+      throw new Error("Console returned an unexpected event retention identity.");
+    const boolRunStarted = ensureBoolean(item.run_started, "Run started");
+    setResolvedId.add(strAssignmentId);
+    arrResolution.push({ assignmentId: strAssignmentId, runStarted: boolRunStarted });
+  }
+  confirmConsoleEventRetention(strSessionKey, arrCandidate, arrResolution);
+}
+
+function requestEventDiagnosticMaintenance(): void {
+  if (boolStopped || promiseEventMaintenance) return;
+  const credential = getConsoleControlCredential();
+  const strSessionKey = credential ? getConsoleWorkSessionKey(credential) : undefined;
+  if (
+    performance.now() < floatNextEventMaintenanceAt &&
+    strSessionKey === strEventMaintenanceSessionKey
+  )
+    return;
+  strEventMaintenanceSessionKey = strSessionKey;
+  floatNextEventMaintenanceAt = performance.now() + INT_EVENT_MAINTENANCE_INTERVAL_MS;
+  // Independent of control and event delivery; no diagnostics means no extra HTTP request.
+  promiseEventMaintenance = maintainConsoleEventDiagnostics(credential)
+    .catch((e: unknown) => {
+      loggerMain.warn(`Run event diagnostic cleanup: ${getErrorMessage(e)}`);
+    })
+    .finally(() => {
+      promiseEventMaintenance = undefined;
+    });
+}
+
 function requestLogFlush(): void {
   const credential = getConsoleControlCredential();
   if (boolStopped || promiseLogs || !credential) return;
@@ -717,8 +779,14 @@ export function startConsoleWork(): void {
     requestConsoleEvents();
     requestLogFlush();
   });
-  timerLogs = setInterval(requestLogFlush, 2000);
+  floatNextEventMaintenanceAt = 0;
+  strEventMaintenanceSessionKey = undefined;
+  timerLogs = setInterval(() => {
+    requestLogFlush();
+    requestEventDiagnosticMaintenance();
+  }, 2000);
   requestConsoleWork();
+  requestEventDiagnosticMaintenance();
 }
 
 export async function stopConsoleWork(): Promise<void> {
@@ -740,6 +808,7 @@ export async function stopConsoleWork(): Promise<void> {
     ...mapPreparingWork.values(),
     promisePreparation,
     promiseLogs,
+    promiseEventMaintenance,
     ...setFileTransfers,
   ]);
 }

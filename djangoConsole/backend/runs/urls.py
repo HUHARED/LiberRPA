@@ -54,4 +54,10 @@ urlpatterns = [
         {"action": "events"},
         name="executor-work-events",
     ),
+    path(
+        "clients/executor/work/event-retention/",
+        executor_work_endpoint,
+        {"action": "event-retention"},
+        name="executor-work-event-retention",
+    ),
 ]
