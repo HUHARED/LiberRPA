@@ -10,8 +10,8 @@ import {
   type RunOutputs,
   RunStatus,
   type RunTerminalStatus,
-  RunQueueState,
-  type RunQueueItem,
+  JobQueueState,
+  type JobQueueItem,
 } from "../../shared/run";
 import { isProcessRunning } from "../Common/process";
 import { getEffectiveProjectLogFolderPath } from "../Config/executorConfig";
@@ -50,7 +50,7 @@ interface ActiveProjectRun {
   processPy: ChildProcessWithoutNullStreams;
   runId: string;
   source: RunSource;
-  queueItem?: RunQueueItem;
+  queueItem?: JobQueueItem;
   onStopping?: RunExecutionContext["onStopping"];
   terminationReason?: RunTerminationReason;
   terminationPromise?: Promise<void>;
@@ -59,7 +59,7 @@ interface ActiveProjectRun {
 
 const mapActiveRunByHistoryId = new Map<number, ActiveProjectRun>();
 const mapActiveRunByRunId = new Map<string, ActiveProjectRun>();
-const mapStartingRunQueueItem = new Map<string, RunQueueItem>();
+const mapStartingJobQueueItem = new Map<string, JobQueueItem>();
 
 const mapStartingRunCountByProject = new Map<number, number>();
 const setStartingRunPromise = new Set<Promise<void>>();
@@ -81,16 +81,16 @@ export function isProjectRunStarting(projectId: number): boolean {
   return mapStartingRunCountByProject.has(projectId);
 }
 
-export function getActiveRunQueueItems(): RunQueueItem[] {
-  const arrItem = [...mapStartingRunQueueItem.values()].map((item) => ({ ...item }));
+export function getActiveJobQueueItems(): JobQueueItem[] {
+  const arrItem = [...mapStartingJobQueueItem.values()].map((item) => ({ ...item }));
   for (const activeRun of mapActiveRunByRunId.values()) {
     if (activeRun.queueItem === undefined) continue;
     arrItem.push({
       ...activeRun.queueItem,
       state:
         activeRun.terminationReason === undefined
-          ? RunQueueState.Running
-          : RunQueueState.Stopping,
+          ? JobQueueState.Running
+          : JobQueueState.Stopping,
     });
   }
   return arrItem;
@@ -384,9 +384,9 @@ async function startProjectRun(
     estimated_run_at_ms: null,
     started_at_ms: parseExecutorRunTimestamp(dictRunState.startedAt),
     history_id: intRunHistoryId,
-    state: RunQueueState.Running,
+    state: JobQueueState.Running,
   };
-  mapStartingRunQueueItem.delete(runId);
+  mapStartingJobQueueItem.delete(runId);
   const startedFact = {
     runId,
     historyId: intRunHistoryId,
@@ -583,7 +583,7 @@ export async function pythonRun(
 
   const strRunId = context.runId ?? randomUUID();
   if (context.source === RunSource.Local) {
-    mapStartingRunQueueItem.set(strRunId, {
+    mapStartingJobQueueItem.set(strRunId, {
       queue_id: strRunId,
       source: RunSource.Local,
       schedule_name: detailDict.schedule_name,
@@ -592,7 +592,7 @@ export async function pythonRun(
       estimated_run_at_ms: null,
       started_at_ms: null,
       history_id: null,
-      state: RunQueueState.Starting,
+      state: JobQueueState.Starting,
     });
   }
   addStartingRun(detailDict.id, context.source);
@@ -606,7 +606,7 @@ export async function pythonRun(
     await promiseStartingRun;
   } finally {
     setStartingRunPromise.delete(promiseStartingRun);
-    mapStartingRunQueueItem.delete(strRunId);
+    mapStartingJobQueueItem.delete(strRunId);
     removeStartingRun(detailDict.id, context.source);
   }
 }

@@ -4,7 +4,9 @@
     <v-btn to="/runs" variant="text" prepend-icon="mdi-arrow-left">Run History</v-btn>
     <v-spacer />
     <v-btn :loading="boolLoading" variant="tonal" @click="load">Refresh</v-btn>
-    <v-btn v-if="run" :disabled="boolBusy" variant="tonal" @click="rerun">Rerun</v-btn>
+    <v-btn v-if="run" :disabled="boolBusy || !run.can_rerun" variant="tonal" @click="rerun">
+      Rerun
+    </v-btn>
     <v-btn
       v-if="run?.can_stop"
       :loading="boolBusy"
@@ -309,12 +311,15 @@ async function stop(): Promise<void> {
   }
 }
 async function rerun(): Promise<void> {
+  if (boolBusy.value || !run.value?.can_rerun) return;
+  const strRunId = props.runId;
   boolBusy.value = true;
   strError.value = "";
   try {
-    rerunInfo.value = await getRerun(props.runId);
+    const response = await getRerun(strRunId);
+    if (props.runId === strRunId) rerunInfo.value = response;
   } catch (e) {
-    strError.value = getApiError(e).message;
+    if (props.runId === strRunId) strError.value = getApiError(e).message;
   } finally {
     boolBusy.value = false;
   }
@@ -338,6 +343,7 @@ watch(
   () => props.runId,
   () => {
     run.value = null;
+    rerunInfo.value = null;
     strTab.value = "logs";
     void load();
   },

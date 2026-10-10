@@ -104,6 +104,7 @@ export interface RunInfo {
   result: RunResult;
   reason: string;
   outputs_status: "waiting" | "complete" | "partial" | "unavailable";
+  can_rerun: boolean;
   can_stop: boolean;
 }
 export interface JobDetails extends JobInfo {
@@ -217,6 +218,7 @@ function isRun(value: unknown): value is RunInfo {
     ARR_RUN_RESULT.some((result) => value.result === result) &&
     ARR_OUTPUTS_STATUS.some((status) => value.outputs_status === status) &&
     typeof value.project_name === "string" &&
+    typeof value.can_rerun === "boolean" &&
     typeof value.can_stop === "boolean"
   );
 }

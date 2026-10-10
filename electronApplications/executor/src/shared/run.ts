@@ -78,7 +78,7 @@ export interface RunHistoryPage {
   total: number;
 }
 
-export enum RunQueueState {
+export enum JobQueueState {
   Pending = "pending",
   WaitingRetry = "waiting_retry",
   Waiting = "waiting",
@@ -87,7 +87,7 @@ export enum RunQueueState {
   Stopping = "stopping",
 }
 
-export interface RunQueueItem {
+export interface JobQueueItem {
   queue_id: string;
   source: RunSource;
   schedule_name: string | null;
@@ -96,5 +96,5 @@ export interface RunQueueItem {
   estimated_run_at_ms: number | null;
   started_at_ms: number | null;
   history_id: number | null;
-  state: RunQueueState;
+  state: JobQueueState;
 }

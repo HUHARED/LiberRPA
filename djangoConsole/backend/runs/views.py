@@ -43,7 +43,7 @@ from packages.models import Package
 from packages.runtime import build_run_settings
 
 from .contracts import EmptyRequest, JobControlRequest, JobCreationRequest
-from .models import JobSource, JobState
+from .models import JobSource, JobState, RunResult
 from .queries import (
     build_job_payload,
     build_job_payloads,
@@ -193,6 +193,11 @@ def _process_work_request(
                 })
             run = get_visible_runs(access).get(pk=workId)
             if action == "rerun":
+                if run.ended_at is None or run.result == RunResult.RUNNING:
+                    raise ValidationError(
+                        "This Run has not been confirmed as ended.",
+                        code="run_not_ended",
+                    )
                 package = (
                     Package.objects
                     .filter(

@@ -7,7 +7,7 @@ import { loggerRenderer } from "../Logging/logger";
 type Str_ExecutorTab =
   | "projects"
   | "schedules"
-  | "runQueue"
+  | "jobQueue"
   | "runHistory"
   | "settings"
   | "console";

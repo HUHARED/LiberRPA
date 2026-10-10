@@ -12,6 +12,7 @@ import type {
 } from "../../shared/run";
 import { RunSource, RunStatus } from "../../shared/run";
 import { loggerMain } from "../Logging/logger";
+import { ensureExactRecord, ensureNonEmptyString } from "../Common/validation";
 import { getDatabase } from "./connection";
 import {
   type RunLogLocation,
@@ -229,6 +230,32 @@ export function dbSelectRunHistoryLogLocation(id: number): RunLogLocation | unde
   return row === undefined
     ? undefined
     : ensureRunHistoryLogLocationRow(row, "Run History log location query result");
+}
+
+export function dbSelectFinishedLocalRunProjectName(
+  runHistoryId: number,
+): string | undefined {
+  const row = getDatabase()
+    .prepare(
+      `
+      SELECT
+          project_name
+      FROM
+          run_history
+      WHERE
+          id = ?
+          AND source = ?
+          AND run_ended_at_ms IS NOT NULL
+          AND status NOT IN (?, ?);
+      `,
+    )
+    .get(runHistoryId, RunSource.Local, RunStatus.Running, RunStatus.Unknown);
+  if (row === undefined) return undefined;
+  const strSourceName = "Run History rerun query result";
+  return ensureNonEmptyString(
+    ensureExactRecord(row, ["project_name"], strSourceName).project_name,
+    `${strSourceName}.project_name`,
+  );
 }
 
 export function dbSelectRunHistoryPage(options: RunHistoryQueryOptions): RunHistoryPage {

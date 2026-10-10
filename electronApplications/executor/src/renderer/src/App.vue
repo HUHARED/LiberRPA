@@ -19,7 +19,7 @@ import Alert from "./components/Common/Alert.vue";
 import NavigationBar from "./components/Layout/NavigationBar.vue";
 import Projects from "./components/Projects/Projects.vue";
 import Schedules from "./components/Schedules/Schedules.vue";
-import RunQueue from "./components/Runs/RunQueue.vue";
+import JobQueue from "./components/Runs/JobQueue.vue";
 import RunHistory from "./components/Runs/RunHistory.vue";
 import Settings from "./components/Settings/Settings.vue";
 import Console from "./components/Console/Console.vue";
@@ -37,9 +37,9 @@ const componentCurrent = computed(() => {
     case "schedules":
       // Schedules refresh their data when opened.
       return Schedules;
-    case "runQueue":
-      // Run Queue displays the shared scheduling state.
-      return RunQueue;
+    case "jobQueue":
+      // Job Queue displays the shared scheduling state.
+      return JobQueue;
     case "runHistory":
       // Run History loads its data through the server table.
       return RunHistory;

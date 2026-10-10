@@ -4,7 +4,7 @@ import { getErrorMessage } from "../../../shared/error";
 import { loggerRenderer } from "../Logging/logger";
 import { useConsoleStore } from "../Store/consoleStore";
 import { useRunHistoryStore } from "../Store/runHistoryStore";
-import { useRunQueueStore } from "../Store/runQueueStore";
+import { useJobQueueStore } from "../Store/jobQueueStore";
 import { useInformationStore } from "../Store/informationStore";
 import { useSettingStore } from "../Store/settingStore";
 
@@ -34,9 +34,9 @@ export function registerMainMessageListener(): void {
           break;
         }
 
-        case "runQueueChanged": {
-          const runQueueStore = useRunQueueStore();
-          runQueueStore.setRunQueue(message.data.items);
+        case "jobQueueChanged": {
+          const jobQueueStore = useJobQueueStore();
+          jobQueueStore.setJobQueue(message.data.items);
           break;
         }
       }

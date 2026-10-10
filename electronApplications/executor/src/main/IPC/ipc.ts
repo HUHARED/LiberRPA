@@ -47,15 +47,12 @@ import { fileOpenFolder } from "../FileSystem/executorFiles";
 import { loggerMain } from "../Logging/logger";
 import { installProjectPackage } from "../Package/packageInstallation";
 import { deleteInstalledProject } from "../Package/projectDeletion";
-import {
-  runInstalledProject,
-  runMostRecentlyInstalledProjectVersion,
-} from "../Run/manualRun";
+import { runInstalledProject, rerunLocalRun } from "../Run/manualRun";
 import { ensureExistingRunLogFolderPath } from "../Run/logPath";
 import { pythonCancel } from "../Run/projectRunner";
 import {
   cancelQueuedRun,
-  getRunQueueItems,
+  getJobQueueItems,
   refreshSchedulerEngine,
 } from "../Scheduler/schedulerEngine";
 import {
@@ -130,12 +127,11 @@ const INVOKE_VALIDATOR = {
     ensurePositiveIntegerData(rawData, "deleteSchedule"),
   getRunDetails: (rawData: unknown) => ensurePositiveIntegerData(rawData, "Run History ID"),
   getRunHistoryPage: ensureRunHistoryOptions,
-  getRunQueue: (rawData: unknown) => ensureNoData(rawData, "getRunQueue"),
+  getJobQueue: (rawData: unknown) => ensureNoData(rawData, "getJobQueue"),
   cancelQueuedRun: ensureQueuedRunId,
   openRunLogFolder: (rawData: unknown) =>
     ensurePositiveIntegerData(rawData, "openRunLogFolder"),
-  runMostRecentlyInstalledProjectVersion: (rawData: unknown) =>
-    ensureStringData(rawData, "runMostRecentlyInstalledProjectVersion"),
+  rerunLocalRun: (rawData: unknown) => ensurePositiveIntegerData(rawData, "rerunLocalRun"),
   pythonCancel: (rawData: unknown) => ensurePositiveIntegerData(rawData, "pythonCancel"),
   chooseProjectLogFolder: (rawData: unknown) =>
     ensureNoData(rawData, "chooseProjectLogFolder"),
@@ -234,8 +230,8 @@ function createInvokeHandlerMap(
 
     getRunHistoryPage: dbSelectRunHistoryPage,
 
-    getRunQueue() {
-      return getRunQueueItems();
+    getJobQueue() {
+      return getJobQueueItems();
     },
 
     cancelQueuedRun(queueId) {
@@ -250,9 +246,7 @@ function createInvokeHandlerMap(
       await fileOpenFolder(ensureExistingRunLogFolderPath(logLocation.log_path));
     },
 
-    async runMostRecentlyInstalledProjectVersion(projectName) {
-      await runMostRecentlyInstalledProjectVersion(projectName);
-    },
+    rerunLocalRun,
 
     pythonCancel(runHistoryId) {
       pythonCancel(runHistoryId);

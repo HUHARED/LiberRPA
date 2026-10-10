@@ -1,39 +1,39 @@
-// FileName: runQueueStore.ts
+// FileName: jobQueueStore.ts
 
 import { defineStore } from "pinia";
 
 import { invokeMain } from "../IPC/ipc";
-import type { RunQueueItem } from "../../../shared/run";
+import type { JobQueueItem } from "../../../shared/run";
 
-export const useRunQueueStore = defineStore("runQueue", {
+export const useJobQueueStore = defineStore("jobQueue", {
   state: () => {
     return {
-      arrListItem: [] as RunQueueItem[],
+      arrListItem: [] as JobQueueItem[],
       intLoadRevision: 0 as number,
     };
   },
   actions: {
-    async refreshRunQueue(): Promise<void> {
+    async refreshJobQueue(): Promise<void> {
       const intRevision = ++this.intLoadRevision;
-      const arrItem = await invokeMain("getRunQueue");
+      const arrItem = await invokeMain("getJobQueue");
       if (intRevision === this.intLoadRevision) {
         this.arrListItem = arrItem;
       }
     },
 
-    setRunQueue(arrItem: RunQueueItem[]): void {
+    setJobQueue(arrItem: JobQueueItem[]): void {
       this.intLoadRevision += 1;
       this.arrListItem = arrItem;
     },
 
     async cancelQueuedRun(queueId: string): Promise<void> {
       await invokeMain("cancelQueuedRun", queueId);
-      await this.refreshRunQueue();
+      await this.refreshJobQueue();
     },
 
     async stopCurrentRun(historyId: number): Promise<void> {
       await invokeMain("pythonCancel", historyId);
-      await this.refreshRunQueue();
+      await this.refreshJobQueue();
     },
   },
 });

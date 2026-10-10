@@ -52,10 +52,10 @@ export function ensureInvokeCommand(value: unknown): Str_ExecutorInvokeCommand {
     case "deleteSchedule":
     case "getRunDetails":
     case "getRunHistoryPage":
-    case "getRunQueue":
+    case "getJobQueue":
     case "cancelQueuedRun":
     case "openRunLogFolder":
-    case "runMostRecentlyInstalledProjectVersion":
+    case "rerunLocalRun":
     case "pythonCancel":
     case "chooseProjectLogFolder":
       return value;

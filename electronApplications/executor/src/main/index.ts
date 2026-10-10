@@ -66,8 +66,8 @@ import {
 } from "./Console/workRepository";
 import { beginProjectRunShutdown, shutdownProjectRuns } from "./Run/projectRunner";
 import {
-  getRunQueueItems,
-  onRunQueueChanged,
+  getJobQueueItems,
+  onJobQueueChanged,
   startSchedulerEngine,
   stopSchedulerEngine,
 } from "./Scheduler/schedulerEngine";
@@ -128,8 +128,8 @@ function createWindow(): void {
       data: getConsoleAccountState(),
     });
     sendMainMessage(webContentsObj, {
-      type: "runQueueChanged",
-      data: { items: getRunQueueItems() },
+      type: "jobQueueChanged",
+      data: { items: getJobQueueItems() },
     });
   });
 
@@ -281,16 +281,16 @@ void app
         data: getConsoleAccountState(),
       });
       sendMessageToRenderer({
-        type: "runQueueChanged",
-        data: { items: getRunQueueItems() },
+        type: "jobQueueChanged",
+        data: { items: getJobQueueItems() },
       });
     });
     onRunEnded(() => {
       sendMessageToRenderer({ type: "runEnded" });
     });
-    onRunQueueChanged((arrItem) => {
+    onJobQueueChanged((arrItem) => {
       sendMessageToRenderer({
-        type: "runQueueChanged",
+        type: "jobQueueChanged",
         data: { items: arrItem },
       });
     });

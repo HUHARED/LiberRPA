@@ -15,7 +15,7 @@ import type {
   RunDetails,
   RunHistoryQueryOptions,
   RunHistoryPage,
-  RunQueueItem,
+  JobQueueItem,
 } from "./run";
 import type {
   ScheduleCreateData,
@@ -114,9 +114,9 @@ interface Dict_ExecutorInvoke_Contract {
     request: RunHistoryQueryOptions;
     response: RunHistoryPage;
   };
-  getRunQueue: {
+  getJobQueue: {
     request: undefined;
-    response: RunQueueItem[];
+    response: JobQueueItem[];
   };
   cancelQueuedRun: {
     request: string;
@@ -126,8 +126,8 @@ interface Dict_ExecutorInvoke_Contract {
     request: number;
     response: void;
   };
-  runMostRecentlyInstalledProjectVersion: {
-    request: string;
+  rerunLocalRun: {
+    request: number;
     response: void;
   };
   pythonCancel: {
@@ -172,9 +172,9 @@ export type Dict_Message_Main =
       type: "runEnded";
     }
   | {
-      type: "runQueueChanged";
+      type: "jobQueueChanged";
       data: {
-        items: RunQueueItem[];
+        items: JobQueueItem[];
       };
     };
 

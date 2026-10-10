@@ -1,7 +1,7 @@
-<!-- FileName: RunQueue.vue -->
+<!-- FileName: JobQueue.vue -->
 <template>
   <v-container fluid class="clean-space flex-row-grow-1 fill-height flex-column">
-    <v-label class="header-label tab-header">Run Queue</v-label>
+    <v-label class="header-label tab-header">Job Queue</v-label>
 
     <!-- Bug: The hover attribute only works when the window is on the primary screen. -->
     <v-label class="align-self-start text-subtitle-2 my-2">Current Jobs</v-label>
@@ -89,41 +89,41 @@ import { computed, onBeforeMount, ref } from "vue";
 import type { DataTableHeader } from "vuetify";
 
 import { loggerRenderer } from "../../Logging/logger";
-import { useRunQueueStore } from "../../Store/runQueueStore";
+import { useJobQueueStore } from "../../Store/jobQueueStore";
 import { useSettingStore } from "../../Store/settingStore";
 import { formatTimestamp } from "../../Common/time";
 import { getErrorMessage } from "../../../../shared/error";
-import { RunSource, RunQueueState, type RunQueueItem } from "../../../../shared/run";
+import { RunSource, JobQueueState, type JobQueueItem } from "../../../../shared/run";
 
-const runQueueStore = useRunQueueStore();
+const jobQueueStore = useJobQueueStore();
 const settingStore = useSettingStore();
 const setPendingAction = ref(new Set<string>());
 
 const arrCurrentRun = computed(() =>
-  runQueueStore.arrListItem.filter((item) => item.state !== RunQueueState.Pending),
+  jobQueueStore.arrListItem.filter((item) => item.state !== JobQueueState.Pending),
 );
 const arrUpcomingTrigger = computed(() =>
-  runQueueStore.arrListItem.filter((item) => item.state === RunQueueState.Pending),
+  jobQueueStore.arrListItem.filter((item) => item.state === JobQueueState.Pending),
 );
 
 const dictSourceLabel: Record<RunSource, string> = {
   [RunSource.Local]: "Local",
   [RunSource.Console]: "Console",
 };
-const dictQueueState: Record<RunQueueState, { label: string; color: string }> = {
-  [RunQueueState.Pending]: { label: "Pending", color: "inactive" },
-  [RunQueueState.WaitingRetry]: { label: "Waiting for Retry", color: "info" },
-  [RunQueueState.Waiting]: { label: "Waiting", color: "warning" },
-  [RunQueueState.Starting]: { label: "Starting", color: "info" },
-  [RunQueueState.Running]: { label: "Running", color: "success" },
-  [RunQueueState.Stopping]: { label: "Stopping", color: "warning" },
+const dictQueueState: Record<JobQueueState, { label: string; color: string }> = {
+  [JobQueueState.Pending]: { label: "Pending", color: "inactive" },
+  [JobQueueState.WaitingRetry]: { label: "Waiting for Retry", color: "info" },
+  [JobQueueState.Waiting]: { label: "Waiting", color: "warning" },
+  [JobQueueState.Starting]: { label: "Starting", color: "info" },
+  [JobQueueState.Running]: { label: "Running", color: "success" },
+  [JobQueueState.Stopping]: { label: "Stopping", color: "warning" },
 };
 
-const arrProjectHeader: DataTableHeader<RunQueueItem>[] = [
+const arrProjectHeader: DataTableHeader<JobQueueItem>[] = [
   { title: "Name", value: "project_name", align: "start", sortable: false },
   { title: "Version", value: "project_version", align: "start", sortable: false },
 ];
-const arrCurrentHeader: DataTableHeader<RunQueueItem>[] = [
+const arrCurrentHeader: DataTableHeader<JobQueueItem>[] = [
   { title: "Source", value: "source", align: "start", sortable: false },
   { title: "Schedule", value: "schedule_name", align: "start", sortable: false },
   { title: "Project", align: "center", children: arrProjectHeader },
@@ -137,7 +137,7 @@ const arrCurrentHeader: DataTableHeader<RunQueueItem>[] = [
   { title: "Status", value: "state", align: "start", sortable: false },
   { title: "Actions", key: "actions", align: "start", sortable: false },
 ];
-const arrUpcomingHeader: DataTableHeader<RunQueueItem>[] = [
+const arrUpcomingHeader: DataTableHeader<JobQueueItem>[] = [
   { title: "Schedule", value: "schedule_name", align: "start", sortable: false },
   { title: "Project", align: "center", children: arrProjectHeader },
   {
@@ -148,23 +148,23 @@ const arrUpcomingHeader: DataTableHeader<RunQueueItem>[] = [
   },
 ];
 
-function getControlLabel(item: RunQueueItem): string {
-  if (item.state === RunQueueState.WaitingRetry) return "Cancel Retry";
-  if (item.state === RunQueueState.Waiting) return "Cancel Run";
-  if (item.state === RunQueueState.Running && item.history_id !== null) {
+function getControlLabel(item: JobQueueItem): string {
+  if (item.state === JobQueueState.WaitingRetry) return "Cancel Retry";
+  if (item.state === JobQueueState.Waiting) return "Cancel Run";
+  if (item.state === JobQueueState.Running && item.history_id !== null) {
     return "Stop Current Run";
   }
   return "";
 }
 
-async function controlRun(item: RunQueueItem): Promise<void> {
+async function controlRun(item: JobQueueItem): Promise<void> {
   if (setPendingAction.value.has(item.queue_id) || !getControlLabel(item)) return;
   setPendingAction.value.add(item.queue_id);
   try {
-    if (item.state === RunQueueState.Running && item.history_id !== null) {
-      await runQueueStore.stopCurrentRun(item.history_id);
+    if (item.state === JobQueueState.Running && item.history_id !== null) {
+      await jobQueueStore.stopCurrentRun(item.history_id);
     } else {
-      await runQueueStore.cancelQueuedRun(item.queue_id);
+      await jobQueueStore.cancelQueuedRun(item.queue_id);
     }
   } catch (e: unknown) {
     loggerRenderer.error(`Failed to control Run: ${getErrorMessage(e)}`);
@@ -174,8 +174,8 @@ async function controlRun(item: RunQueueItem): Promise<void> {
 }
 
 onBeforeMount(() => {
-  void runQueueStore.refreshRunQueue().catch((e: unknown) => {
-    loggerRenderer.error(`Failed to load Run Queue: ${getErrorMessage(e)}`);
+  void jobQueueStore.refreshJobQueue().catch((e: unknown) => {
+    loggerRenderer.error(`Failed to load Job Queue: ${getErrorMessage(e)}`);
   });
 });
 </script>

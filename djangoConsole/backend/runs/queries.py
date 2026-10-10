@@ -188,6 +188,7 @@ def build_run_payload(run: Run, *, details: bool = False) -> dict[str, object]:
         "result": run.result,
         "reason": run.reason,
         "outputs_status": run.outputs_status,
+        "can_rerun": run.ended_at is not None and run.result != RunResult.RUNNING,
         "can_stop": run.ended_at is None
         and job.state != JobState.FINISHED
         and assignment.stop_requested_at is None,

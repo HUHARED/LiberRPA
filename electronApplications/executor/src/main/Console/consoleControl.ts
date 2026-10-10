@@ -8,7 +8,7 @@ import { getActiveConsoleRunIds, getLocalRunningCount } from "../Run/projectRunn
 import { onRunActivityChanged } from "../Run/lifecycle";
 import { getRecoveredConsoleRunIds, getOtherRecoveredRunCount } from "../Run/recoveredRuns";
 import { getConsoleWorkSessionKey } from "./workRepository";
-import { getLocalWaitingCount, onRunQueueChanged } from "../Scheduler/schedulerEngine";
+import { getLocalWaitingCount, onJobQueueChanged } from "../Scheduler/schedulerEngine";
 import { ConsoleRequestError } from "./consoleApi";
 import type { ConsoleCredentialSnapshot } from "./consoleContextBridge";
 
@@ -243,4 +243,4 @@ export function startConsoleControl(
 }
 
 onRunActivityChanged(publishConsoleWorkState);
-onRunQueueChanged(publishConsoleWorkState);
+onJobQueueChanged(publishConsoleWorkState);

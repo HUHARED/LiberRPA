@@ -137,7 +137,7 @@
           <v-btn
             size="small"
             variant="text"
-            :disabled="boolActionBusy"
+            :disabled="boolActionBusy || !item.can_rerun"
             @click="rerun(item.id)">
             Rerun
           </v-btn>
@@ -343,6 +343,7 @@ async function clearLogs(): Promise<void> {
   }
 }
 async function rerun(id: string): Promise<void> {
+  if (boolActionBusy.value) return;
   boolActionBusy.value = true;
   strError.value = "";
   try {

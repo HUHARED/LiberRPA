@@ -4,7 +4,7 @@ import { randomUUID } from "crypto";
 import { nextScheduleDate, parseScheduleCron } from "../../shared/cron";
 
 import { getErrorMessage } from "../../shared/error";
-import { RunSource, RunQueueState } from "../../shared/run";
+import { RunSource, JobQueueState } from "../../shared/run";
 import { INT_RETRY_DELAY_MS, RunConflictPolicy } from "../../shared/runOptions";
 import { onRunFinished } from "../Run/lifecycle";
 import { dictConfigExecutor } from "../Config/executorConfig";
@@ -14,28 +14,28 @@ import {
 } from "../Database/scheduleRepository";
 import { loggerMain } from "../Logging/logger";
 import {
-  getActiveRunQueueItems,
+  getActiveJobQueueItems,
   hasActiveProjectRun,
   pythonRun,
 } from "../Run/projectRunner";
 import type { ProjectRunDetails, RunExecutionContext } from "../Run/types";
-import type { RunQueueItem } from "../../shared/run";
+import type { JobQueueItem } from "../../shared/run";
 
-type Listener_RunQueueChanged = (arrItem: RunQueueItem[]) => void;
+type JobQueueChangedListener = (arrItem: JobQueueItem[]) => void;
 
-type LocalRunQueueItem = Omit<
-  RunQueueItem,
+type LocalJobQueueItem = Omit<
+  JobQueueItem,
   "source" | "history_id" | "started_at_ms" | "estimated_run_at_ms"
 > & { estimated_run_at_ms: number };
 
 interface PendingRun {
   scheduleId: number;
-  queueItem: LocalRunQueueItem;
+  queueItem: LocalJobQueueItem;
   runConflictPolicy: RunConflictPolicy;
 }
 
 interface QueuedRun {
-  queueItem: Omit<LocalRunQueueItem, "state">;
+  queueItem: Omit<LocalJobQueueItem, "state">;
   runDetail: ProjectRunDetails;
   context?: RunExecutionContext;
 }
@@ -44,7 +44,7 @@ const INT_SCHEDULER_CHECK_INTERVAL_MS = 1000;
 
 const arrPendingRun: PendingRun[] = [];
 const arrQueuedRun: QueuedRun[] = [];
-const setListener_RunQueueChanged = new Set<Listener_RunQueueChanged>();
+const setJobQueueChangedListener = new Set<JobQueueChangedListener>();
 let intLastPublishedWaitingCount = 0;
 
 function isQueuedRunReady(queuedRun: QueuedRun, nowMs: number): boolean {
@@ -79,7 +79,7 @@ onRunFinished((detail, context, fact) => {
       estimated_run_at_ms: intRetryAt,
     },
   });
-  publishRunQueueChanged();
+  publishJobQueueChanged();
 });
 
 export function getLocalWaitingCount(): number {
@@ -99,7 +99,7 @@ function requestSchedulerTick(): void {
 
   // Publish newly due retries even while another startup is still in progress.
   if (getLocalWaitingCount() !== intLastPublishedWaitingCount) {
-    publishRunQueueChanged();
+    publishJobQueueChanged();
   }
   if (promiseSchedulerTick !== undefined) {
     return;
@@ -144,27 +144,27 @@ export async function stopSchedulerEngine(): Promise<void> {
   }
   arrQueuedRun.splice(0);
   arrPendingRun.splice(0);
-  publishRunQueueChanged();
+  publishJobQueueChanged();
   loggerMain.info("Stop Scheduler engine.");
 }
 
 export function refreshSchedulerEngine(): void {
   resetPendingRuns();
-  publishRunQueueChanged();
+  publishJobQueueChanged();
 }
 
-export function getRunQueueItems(): RunQueueItem[] {
+export function getJobQueueItems(): JobQueueItem[] {
   const intNowMs = Date.now();
   return [
-    ...getActiveRunQueueItems(),
+    ...getActiveJobQueueItems(),
     ...arrQueuedRun.map((queuedRun) => ({
       ...queuedRun.queueItem,
       source: RunSource.Local,
       started_at_ms: null,
       history_id: null,
       state: isQueuedRunReady(queuedRun, intNowMs)
-        ? RunQueueState.Waiting
-        : RunQueueState.WaitingRetry,
+        ? JobQueueState.Waiting
+        : JobQueueState.WaitingRetry,
     })),
     ...arrPendingRun.map(({ queueItem }) => ({
       ...queueItem,
@@ -190,13 +190,13 @@ export function cancelQueuedRun(queueId: string): void {
 
   loggerMain.info(`Cancel queued Run: ${queueId}`);
   arrQueuedRun.splice(intIndex, 1);
-  publishRunQueueChanged();
+  publishJobQueueChanged();
 }
 
-export function onRunQueueChanged(listener: Listener_RunQueueChanged): () => void {
-  setListener_RunQueueChanged.add(listener);
+export function onJobQueueChanged(listener: JobQueueChangedListener): () => void {
+  setJobQueueChangedListener.add(listener);
   return () => {
-    setListener_RunQueueChanged.delete(listener);
+    setJobQueueChangedListener.delete(listener);
   };
 }
 
@@ -232,7 +232,7 @@ function resetPendingRuns(): void {
           project_name: dictSchedule.project_name,
           project_version: dictSchedule.project_version,
           estimated_run_at_ms: intEstimatedRunAtMs,
-          state: RunQueueState.Pending,
+          state: JobQueueState.Pending,
         },
         runConflictPolicy: dictSchedule.run_conflict_policy,
       });
@@ -265,7 +265,7 @@ async function processSchedulerTick(): Promise<void> {
   );
   if (intReadyIndex !== -1) {
     const queuedRun = arrQueuedRun.splice(intReadyIndex, 1)[0];
-    publishRunQueueChanged();
+    publishJobQueueChanged();
     try {
       if (
         boolOthersRunning &&
@@ -303,7 +303,7 @@ async function processSchedulerTick(): Promise<void> {
 
     const { scheduleId, queueItem, runConflictPolicy } = dictDueRun;
     arrPendingRun.splice(arrPendingRun.indexOf(dictDueRun), 1);
-    publishRunQueueChanged();
+    publishJobQueueChanged();
     loggerMain.info(
       `Schedule '${queueItem.schedule_name}' reached its run time. run_conflict_policy=${runConflictPolicy}`,
     );
@@ -354,19 +354,19 @@ async function processSchedulerTick(): Promise<void> {
   }
 
   resetPendingRuns();
-  publishRunQueueChanged();
+  publishJobQueueChanged();
 }
 
-function publishRunQueueChanged(): void {
-  const arrItem = getRunQueueItems();
+function publishJobQueueChanged(): void {
+  const arrItem = getJobQueueItems();
   intLastPublishedWaitingCount = arrItem.filter(
-    (item) => item.state === RunQueueState.Waiting,
+    (item) => item.state === JobQueueState.Waiting,
   ).length;
-  for (const listener of setListener_RunQueueChanged) {
+  for (const listener of setJobQueueChangedListener) {
     try {
       listener(arrItem);
     } catch (e: unknown) {
-      loggerMain.error(`Run Queue listener failed: ${getErrorMessage(e)}`);
+      loggerMain.error(`Job Queue listener failed: ${getErrorMessage(e)}`);
     }
   }
 }

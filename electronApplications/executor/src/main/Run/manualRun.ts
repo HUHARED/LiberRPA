@@ -5,6 +5,7 @@ import {
   dbSelectProjectDetailById,
   dbSelectProjectMostRecentlyInstalledDetail,
 } from "../Database/projectRepository";
+import { dbSelectFinishedLocalRunProjectName } from "../Database/runHistoryRepository";
 import { pythonRun } from "./projectRunner";
 import type { ProjectRunDetails } from "./types";
 
@@ -40,12 +41,14 @@ export async function runInstalledProject(
   await pythonRun(createManualRunDetail({ ...dictProject, ...settings }));
 }
 
-export async function runMostRecentlyInstalledProjectVersion(
-  projectName: string,
-): Promise<void> {
-  const dictProject = dbSelectProjectMostRecentlyInstalledDetail(projectName);
+export async function rerunLocalRun(runHistoryId: number): Promise<void> {
+  const strProjectName = dbSelectFinishedLocalRunProjectName(runHistoryId);
+  if (strProjectName === undefined) {
+    throw new Error("Only a local Run with a confirmed end can be rerun.");
+  }
+  const dictProject = dbSelectProjectMostRecentlyInstalledDetail(strProjectName);
   if (dictProject === undefined) {
-    throw new Error(`No installed Project version found: ${projectName}`);
+    throw new Error(`No installed Project version found: ${strProjectName}`);
   }
 
   await pythonRun(createManualRunDetail(dictProject));

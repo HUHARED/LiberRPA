@@ -10,28 +10,28 @@
     class="clean-space fill-height"
     style="width: 55px">
     <v-tab value="projects">
-      <v-icon size="x-large" icon="mdi-format-list-bulleted-square"> </v-icon>
-      <v-tooltip activator="parent" location="bottom"> Projects </v-tooltip>
+      <v-icon size="x-large" icon="mdi-format-list-bulleted-square"></v-icon>
+      <v-tooltip activator="parent" location="bottom">Projects</v-tooltip>
     </v-tab>
     <v-tab value="schedules">
-      <v-icon size="x-large" icon="mdi-timer-outline"> </v-icon>
-      <v-tooltip activator="parent" location="bottom"> Schedules </v-tooltip>
+      <v-icon size="x-large" icon="mdi-timer-outline"></v-icon>
+      <v-tooltip activator="parent" location="bottom">Schedules</v-tooltip>
     </v-tab>
-    <v-tab value="runQueue">
-      <v-icon size="x-large" icon="mdi-queue-first-in-last-out"> </v-icon>
-      <v-tooltip activator="parent" location="bottom"> Run Queue </v-tooltip>
+    <v-tab value="jobQueue">
+      <v-icon size="x-large" icon="mdi-queue-first-in-last-out"></v-icon>
+      <v-tooltip activator="parent" location="bottom">Job Queue</v-tooltip>
     </v-tab>
     <v-tab value="runHistory">
-      <v-icon size="x-large" icon="mdi-clipboard-text-clock-outline"> </v-icon>
-      <v-tooltip activator="parent" location="bottom"> Run History </v-tooltip>
+      <v-icon size="x-large" icon="mdi-clipboard-text-clock-outline"></v-icon>
+      <v-tooltip activator="parent" location="bottom">Run History</v-tooltip>
     </v-tab>
     <v-tab value="settings">
-      <v-icon size="x-large" icon="mdi-cog-outline"> </v-icon>
-      <v-tooltip activator="parent" location="bottom"> Settings </v-tooltip>
+      <v-icon size="x-large" icon="mdi-cog-outline"></v-icon>
+      <v-tooltip activator="parent" location="bottom">Settings</v-tooltip>
     </v-tab>
     <v-tab value="console">
-      <v-icon size="x-large" icon="mdi-cloud-outline"> </v-icon>
-      <v-tooltip activator="parent" location="bottom"> Console </v-tooltip>
+      <v-icon size="x-large" icon="mdi-cloud-outline"></v-icon>
+      <v-tooltip activator="parent" location="bottom">Console</v-tooltip>
     </v-tab>
   </v-tabs>
 </template>

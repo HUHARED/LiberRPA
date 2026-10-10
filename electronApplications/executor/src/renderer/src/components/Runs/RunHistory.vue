@@ -85,7 +85,11 @@
           </v-tooltip>
 
           <v-tooltip
-            v-else-if="item.source === RunSource.Local"
+            v-else-if="
+              item.source === RunSource.Local &&
+              item.run_ended_at_ms !== null &&
+              item.status !== RunStatus.Unknown
+            "
             text="Run Most Recently Installed Version"
             location="bottom"
             :open-on-focus="false">
@@ -95,7 +99,8 @@
                 color="medium-emphasis"
                 icon="mdi-replay"
                 size="small"
-                @click="runMostRecentlyInstalledProjectVersion(item.project_name)"></v-icon>
+                :disabled="setPendingRerun.has(item.id)"
+                @click="rerunLocalRun(item.id)"></v-icon>
             </template>
           </v-tooltip>
         </div>
@@ -260,6 +265,7 @@ const settingStore = useSettingStore();
 
 const boolShowDetails = ref(false);
 const runDetails = ref<RunDetails>();
+const setPendingRerun = ref(new Set<number>());
 async function showRunDetails(id: number): Promise<void> {
   runDetails.value = await invokeMain("getRunDetails", id);
   boolShowDetails.value = true;
@@ -365,11 +371,17 @@ async function cancelProcess(id: number): Promise<void> {
   await invokeMain("pythonCancel", id);
 }
 
-async function runMostRecentlyInstalledProjectVersion(projectName: string): Promise<void> {
-  loggerRenderer.info(`Run most recently installed version: ${projectName}`);
-
-  await invokeMain("runMostRecentlyInstalledProjectVersion", projectName);
-  await runHistoryStore.refreshRunHistory();
+async function rerunLocalRun(runHistoryId: number): Promise<void> {
+  if (setPendingRerun.value.has(runHistoryId)) return;
+  setPendingRerun.value.add(runHistoryId);
+  try {
+    await invokeMain("rerunLocalRun", runHistoryId);
+    await runHistoryStore.refreshRunHistory();
+  } catch (e: unknown) {
+    loggerRenderer.error(`Failed to rerun Run ${runHistoryId}: ${getErrorMessage(e)}`);
+  } finally {
+    setPendingRerun.value.delete(runHistoryId);
+  }
 }
 </script>
 
