@@ -98,30 +98,6 @@
                 @click="runMostRecentlyInstalledProjectVersion(item.project_name)"></v-icon>
             </template>
           </v-tooltip>
-
-          <v-tooltip
-            v-if="item.source === RunSource.Console"
-            :text="
-              item.console_run_url
-                ? 'Open in Console'
-                : 'The original Console address is unavailable.'
-            "
-            location="bottom"
-            :open-on-focus="false">
-            <template #activator="{ props }">
-              <span v-bind="props">
-                <v-btn
-                  :href="item.console_run_url ?? undefined"
-                  :disabled="item.console_run_url === null"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="Open in Console"
-                  icon="mdi-open-in-new"
-                  variant="text"
-                  size="x-small" />
-              </span>
-            </template>
-          </v-tooltip>
         </div>
       </template>
 
@@ -226,14 +202,6 @@
           </v-alert>
         </v-card-text>
         <v-card-actions>
-          <v-btn
-            v-if="runDetails.source === RunSource.Console && runDetails.console_run_url"
-            :href="runDetails.console_run_url"
-            target="_blank"
-            rel="noopener noreferrer"
-            prepend-icon="mdi-open-in-new">
-            Open in Console
-          </v-btn>
           <v-spacer />
           <v-btn @click="boolShowDetails = false">Close</v-btn>
         </v-card-actions>

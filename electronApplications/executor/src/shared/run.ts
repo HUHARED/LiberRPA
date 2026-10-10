@@ -14,7 +14,6 @@ export interface RunOutputs {
 
 export interface RunDetails {
   source: RunSource;
-  console_run_url: string | null;
   run_id: string;
   job_id: string;
   attempt: number;
@@ -38,7 +37,6 @@ export type RunTerminalStatus = Exclude<RunStatus, RunStatus.Running | RunStatus
 export interface RunHistoryItem {
   id: number;
   source: RunSource;
-  console_run_url: string | null;
   attempt: number;
   schedule_name: string | null;
   project_name: string;

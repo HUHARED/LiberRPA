@@ -379,43 +379,12 @@ export function ensureScheduleRunDetailRow(
   };
 }
 
-export function parseRunHistoryConsoleLink(
-  consoleUrl: unknown,
-  runId: unknown,
-  sourceName: string,
-): string | null {
-  const strConsoleUrl = ensureNullableString(consoleUrl, `${sourceName}.console_url`);
-  const strRunId = ensureNonEmptyString(runId, `${sourceName}.run_id`);
-  if (strConsoleUrl === null) return null;
-
-  let urlObj: URL;
-  try {
-    urlObj = new URL(strConsoleUrl);
-  } catch (e: unknown) {
-    throw new Error(`${sourceName} contains an invalid Console address.`, { cause: e });
-  }
-  if (
-    !["http:", "https:"].includes(urlObj.protocol) ||
-    urlObj.username ||
-    urlObj.password ||
-    urlObj.pathname !== "/" ||
-    urlObj.search ||
-    urlObj.hash
-  ) {
-    throw new Error(`${sourceName} contains an invalid Console address.`);
-  }
-  urlObj.pathname = `/runs/${encodeURIComponent(strRunId)}`;
-  return urlObj.href;
-}
-
 function ensureRunHistoryListItemRow(value: unknown, sourceName: string): RunHistoryItem {
   const row = ensureExactRecord(
     value,
     [
       "id",
       "source",
-      "console_url",
-      "run_id",
       "attempt",
       "schedule_name",
       "project_name",
@@ -443,7 +412,6 @@ function ensureRunHistoryListItemRow(value: unknown, sourceName: string): RunHis
   return {
     id: ensurePositiveInteger(row.id, `${sourceName}.id`),
     source: ensureRunSource(row.source, `${sourceName}.source`),
-    console_run_url: parseRunHistoryConsoleLink(row.console_url, row.run_id, sourceName),
     attempt: ensurePositiveInteger(row.attempt, `${sourceName}.attempt`),
     schedule_name: ensureNullableString(row.schedule_name, `${sourceName}.schedule_name`),
     project_name: ensureNonEmptyString(row.project_name, `${sourceName}.project_name`),

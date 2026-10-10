@@ -68,13 +68,6 @@ CREATE TABLE
     run_history (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         source TEXT NOT NULL CHECK (source IN ('local', 'console')),
-        console_url TEXT NULL CHECK (
-            console_url IS NULL
-            OR (
-                source = 'console'
-                AND LENGTH(TRIM(console_url)) > 0
-            )
-        ),
         run_id TEXT NOT NULL UNIQUE,
         job_id TEXT NOT NULL,
         attempt INTEGER NOT NULL CHECK (attempt BETWEEN 1 AND 4),

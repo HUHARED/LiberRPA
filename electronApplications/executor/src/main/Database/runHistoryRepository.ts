@@ -18,7 +18,6 @@ import {
   ensureCountRow,
   ensureRunHistoryLogLocationRow,
   ensureRunHistoryListRows,
-  parseRunHistoryConsoleLink,
   ensureSingleRowAffected,
 } from "./rowValidation";
 import { isRecoveredRunHistoryActive } from "../Run/recoveredRuns";
@@ -27,7 +26,6 @@ interface RunHistoryInsertData {
   schedule_name: string | null;
   project_id: number | null;
   source: RunSource;
-  console_url: string | null;
   run_id: string;
   job_id: string;
   attempt: number;
@@ -70,7 +68,6 @@ export function dbInsertRunHistory(detailDict: RunHistoryInsertData): Database.R
       INSERT INTO
           run_history (
               source,
-              console_url,
               run_id,
               job_id,
               attempt,
@@ -88,12 +85,11 @@ export function dbInsertRunHistory(detailDict: RunHistoryInsertData): Database.R
               updated_at_ms
           )
       VALUES
-          (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+          (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
       `,
     )
     .run(
       detailDict.source,
-      detailDict.console_url,
       detailDict.run_id,
       detailDict.job_id,
       detailDict.attempt,
@@ -280,8 +276,6 @@ export function dbSelectRunHistoryPage(options: RunHistoryQueryOptions): RunHist
       SELECT
           id,
           source,
-          console_url,
-          run_id,
           attempt,
           schedule_name,
           project_name,
@@ -440,7 +434,6 @@ export function dbSelectRunDetails(id: number): RunDetails {
       `
       SELECT
           source,
-          console_url,
           run_id,
           job_id,
           attempt,
@@ -456,7 +449,6 @@ export function dbSelectRunDetails(id: number): RunDetails {
     .get(id) as
     | {
         source: RunSource;
-        console_url: string | null;
         run_id: string;
         job_id: string;
         attempt: number;
@@ -466,14 +458,8 @@ export function dbSelectRunDetails(id: number): RunDetails {
       }
     | undefined;
   if (!row) throw new Error("Run History record not found.");
-  const { console_url: strConsoleUrl, ...details } = row;
   return {
-    ...details,
-    console_run_url: parseRunHistoryConsoleLink(
-      strConsoleUrl,
-      row.run_id,
-      "Run History details",
-    ),
+    ...row,
     inputs: JSON.parse(row.inputs) as Record<string, unknown>,
     outputs: JSON.parse(row.outputs) as RunOutputs,
     error_summary:
