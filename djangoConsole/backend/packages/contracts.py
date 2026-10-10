@@ -5,7 +5,6 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import json
-
 from enum import StrEnum
 from typing import Annotated, Literal, cast
 from uuid import UUID
@@ -13,12 +12,13 @@ from uuid import UUID
 from django.db.models import TextChoices
 from pydantic import Field, field_validator, model_validator
 
-from console_project.contracts import JsonRequest, JsonValue
+from console_project.contracts import JsonValue, JsonRequest
 from console_project.constants import INT_WINDOWS_NAME_MAX_LENGTH, RunLogLevel
-from console_project.validators import validate_json_value, validate_windows_name
+from console_project.validators import validate_windows_name, validate_json_value
 
 MAX_PACKAGE_BYTES = 512 * 1024 * 1024
 UPLOAD_CHUNK_BYTES = 4 * 1024 * 1024
+
 # NOTE: Keep these package limits aligned with Project Manager and Executor.
 INT_DESCRIPTION_MAX_LENGTH = 2000
 INT_VERSION_SUMMARY_MAX_LENGTH = 500
@@ -30,28 +30,23 @@ INT_MAX_TIMEOUT_MIN = 35791
 type RequestUuid = Annotated[UUID, Field(strict=False)]
 
 
-def validate_custom_arguments(arguments: list[list[JsonValue]]) -> None:
-    if len(arguments) > INT_CUSTOM_ARGUMENT_MAX_COUNT:
-        raise ValueError(
-            f"Custom Arguments must not contain more than {INT_CUSTOM_ARGUMENT_MAX_COUNT} entries."
-        )
-    validate_json_value(cast(JsonValue, arguments))
-    if (
-        len(
-            json.dumps(
-                arguments, ensure_ascii=False, allow_nan=False, separators=(",", ":")
-            ).encode("utf-8")
-        )
-        > INT_CUSTOM_ARGUMENT_MAX_BYTES
-    ):
-        raise ValueError("Custom Arguments exceed the 64 KiB JSON limit.")
-
-
 class PackageReferenceKind(StrEnum):
     SCHEDULE = "schedule"
     JOB = "job"
     PREPARATION = "preparation"
     DOWNLOAD = "download"
+
+
+class PackagePreparationState(TextChoices):
+    PENDING = "pending", "Pending"
+    PREPARING = "preparing", "Preparing"
+    READY = "ready", "Ready"
+    FAILED = "failed", "Failed"
+
+
+type PackagePreparationResult = Literal[
+    PackagePreparationState.READY, PackagePreparationState.FAILED
+]
 
 
 class RunConflictPolicy(StrEnum):
@@ -95,6 +90,23 @@ def build_default_run_email() -> dict:
     return RunEmailSettings().model_dump(mode="json")
 
 
+def validate_custom_arguments(arguments: list[list[JsonValue]]) -> None:
+    if len(arguments) > INT_CUSTOM_ARGUMENT_MAX_COUNT:
+        raise ValueError(
+            f"Custom Arguments must not contain more than {INT_CUSTOM_ARGUMENT_MAX_COUNT} entries."
+        )
+    validate_json_value(cast(JsonValue, arguments))
+    if (
+        len(
+            json.dumps(
+                arguments, ensure_ascii=False, allow_nan=False, separators=(",", ":")
+            ).encode("utf-8")
+        )
+        > INT_CUSTOM_ARGUMENT_MAX_BYTES
+    ):
+        raise ValueError("Custom Arguments exceed the 64 KiB JSON limit.")
+
+
 class RunSettings(JsonRequest):
     retry_count: int = Field(default=0, ge=0, le=INT_MAX_RETRY_COUNT)
     timeout_min: int = Field(default=0, ge=0, le=INT_MAX_TIMEOUT_MIN)
@@ -134,6 +146,17 @@ class RunSettings(JsonRequest):
         return self
 
 
+class EmptyRequest(JsonRequest):
+    pass
+
+
+class PackageUploadRequest(JsonRequest):
+    department_id: RequestUuid
+    request_id: RequestUuid
+    size_bytes: int = Field(gt=0, le=MAX_PACKAGE_BYTES)
+    sha256: str = Field(pattern="^[0-9a-f]{64}$")
+
+
 class PackageSettingsRequest(JsonRequest):
     python_environment_name: str = Field(
         min_length=1, max_length=INT_WINDOWS_NAME_MAX_LENGTH
@@ -146,29 +169,6 @@ class PackageSettingsRequest(JsonRequest):
     def validate_environment_name(cls, value: str) -> str:
         validate_windows_name(value)
         return value
-
-
-class PackageUploadRequest(JsonRequest):
-    department_id: RequestUuid
-    request_id: RequestUuid
-    size_bytes: int = Field(gt=0, le=MAX_PACKAGE_BYTES)
-    sha256: str = Field(pattern="^[0-9a-f]{64}$")
-
-
-class EmptyRequest(JsonRequest):
-    pass
-
-
-class PackagePreparationState(TextChoices):
-    PENDING = "pending", "Pending"
-    PREPARING = "preparing", "Preparing"
-    READY = "ready", "Ready"
-    FAILED = "failed", "Failed"
-
-
-type PackagePreparationResult = Literal[
-    PackagePreparationState.READY, PackagePreparationState.FAILED
-]
 
 
 class PreparationResultRequest(JsonRequest):

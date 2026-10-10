@@ -16,22 +16,23 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 
 from file_storage.models import (
-    StoredBlob,
     StoredBlobPurpose,
     StoredBlobState,
+    StoredBlob,
     DownloadSession,
 )
 from file_storage.services import (
     FileOperationError,
     get_blob_path,
-    open_blob_for_write,
     sync_directory,
+    open_blob_for_write,
     lock_storage,
     check_disk_capacity,
     get_storage_usage,
     require_transfer_slot,
     get_download_expiry,
 )
+
 from operations.audit import record_audit
 from organizations.permissions import OrganizationAccessContext
 from organizations.validators import get_path_name_key
@@ -40,23 +41,23 @@ from .archive import read_package_archive
 from .cleanup import expire_uploads
 from .contracts import (
     PackageReferenceKind,
-    PackageSettingsRequest,
-    PackageUploadRequest,
     PackagePreparationState,
+    PackageUploadRequest,
+    PackageSettingsRequest,
 )
 from .models import (
     Package,
+    PackageUploadState,
     PackageUpload,
     PackageUploadChunk,
-    PackageUploadState,
     PackagePreparation,
 )
 from .queries import (
     require_package_department,
     get_package_query,
     build_package_payload,
-    build_upload_payload,
     get_upload_state,
+    build_upload_payload,
 )
 from .runtime import apply_run_settings, validate_run_settings
 
@@ -179,13 +180,6 @@ def append_chunk(
     PackageUploadChunk.objects.create(
         upload=upload, offset=offset, size_bytes=len(chunkData), sha256=chunkSha256
     )
-
-
-def cancel_upload(upload: PackageUpload) -> None:
-    if get_upload_state(upload) == PackageUploadState.RECEIVING:
-        upload.state = PackageUploadState.CANCELED
-        upload.save(update_fields=["state"])
-        StoredBlob.objects.filter(pk=upload.blob_id).update(state=StoredBlobState.GARBAGE)
 
 
 def _require_uploaded_blob(upload: PackageUpload) -> uuid.UUID:
@@ -366,6 +360,13 @@ def complete_upload(
     return build_upload_payload(upload)
 
 
+def cancel_upload(upload: PackageUpload) -> None:
+    if get_upload_state(upload) == PackageUploadState.RECEIVING:
+        upload.state = PackageUploadState.CANCELED
+        upload.save(update_fields=["state"])
+        StoredBlob.objects.filter(pk=upload.blob_id).update(state=StoredBlobState.GARBAGE)
+
+
 def save_package_settings(
     access: OrganizationAccessContext,
     package: Package,
@@ -397,77 +398,6 @@ def save_package_settings(
         target=package,
         channel=access.channel,
     )
-
-
-def get_package_references(package: Package) -> list[dict[str, str]]:
-    from schedules.models import Schedule
-    from runs.models import Job, JobState
-
-    listReference: list[dict[str, str]] = [
-        {
-            "kind": PackageReferenceKind.SCHEDULE,
-            "id": str(schedule.pk),
-            "name": schedule.name,
-        }
-        for schedule in Schedule.objects.filter(package=package, deleted_at__isnull=True)
-    ]
-    listReference.extend(
-        {"kind": PackageReferenceKind.JOB, "id": str(job.pk), "name": str(job.pk)}
-        for job in Job.objects.filter(package_id=package.pk).exclude(
-            state=JobState.FINISHED
-        )
-    )
-    listReference.extend(
-        {
-            "kind": PackageReferenceKind.PREPARATION,
-            "id": str(preparation.pk),
-            "name": f"{preparation.executor.name} / {preparation.python_environment_name}",
-        }
-        for preparation in PackagePreparation.objects
-        .filter(
-            package=package,
-            state__in=[
-                PackagePreparationState.PENDING,
-                PackagePreparationState.PREPARING,
-            ],
-        )
-        .select_related("executor")
-        .order_by("executor__name", "python_environment_name", "pk")
-    )
-    # An unused download authorization still protects the content it is allowed to open.
-    listReference.extend(
-        {
-            "kind": PackageReferenceKind.DOWNLOAD,
-            "id": str(transfer.pk),
-            "name": transfer.name,
-        }
-        for transfer in DownloadSession.objects.filter(
-            blob_id=package.blob_id, expires_at__gt=timezone.now()
-        ).order_by("expires_at", "pk")
-    )
-    return listReference
-
-
-def delete_package(access: OrganizationAccessContext, package: Package) -> None:
-    require_package_department(access, package.department_id, manage=True)
-    if get_package_references(package):
-        raise FileOperationError(
-            "package_in_use",
-            "Remove Schedule references, finish or close active Jobs, cancel preparation requests, and finish downloads or wait for unused links to expire.",
-        )
-    record_audit(
-        "packages.delete",
-        actor=access.actor,
-        organization=access.organization,
-        target=package,
-        channel=access.channel,
-    )
-    from schedules.models import Schedule
-
-    Schedule.objects.filter(package=package, deleted_at__isnull=False).delete()
-    blobId = package.blob_id
-    package.delete()
-    StoredBlob.objects.filter(pk=blobId).update(state=StoredBlobState.GARBAGE)
 
 
 def prepare_download(access: OrganizationAccessContext, package: Package) -> dict:
@@ -534,3 +464,75 @@ def open_download(
         handle.close()
         raise
     return transfer, handle
+
+
+def get_package_references(package: Package) -> list[dict[str, str]]:
+    from schedules.models import Schedule
+    from runs.models import Job, JobState
+
+    listReference: list[dict[str, str]] = [
+        {
+            "kind": PackageReferenceKind.SCHEDULE,
+            "id": str(schedule.pk),
+            "name": schedule.name,
+        }
+        for schedule in Schedule.objects.filter(package=package, deleted_at__isnull=True)
+    ]
+    listReference.extend(
+        {"kind": PackageReferenceKind.JOB, "id": str(job.pk), "name": str(job.pk)}
+        for job in Job.objects.filter(package_id=package.pk).exclude(
+            state=JobState.FINISHED
+        )
+    )
+    listReference.extend(
+        {
+            "kind": PackageReferenceKind.PREPARATION,
+            "id": str(preparation.pk),
+            "name": f"{preparation.executor.name} / {preparation.python_environment_name}",
+        }
+        for preparation in PackagePreparation.objects
+        .filter(
+            package=package,
+            state__in=[
+                PackagePreparationState.PENDING,
+                PackagePreparationState.PREPARING,
+            ],
+        )
+        .select_related("executor")
+        .order_by("executor__name", "python_environment_name", "pk")
+    )
+    # An unused download authorization still protects the content it is allowed to open.
+    listReference.extend(
+        {
+            "kind": PackageReferenceKind.DOWNLOAD,
+            "id": str(transfer.pk),
+            "name": transfer.name,
+        }
+        for transfer in DownloadSession.objects.filter(
+            blob_id=package.blob_id, expires_at__gt=timezone.now()
+        ).order_by("expires_at", "pk")
+    )
+    return listReference
+
+
+def delete_package(access: OrganizationAccessContext, package: Package) -> None:
+    require_package_department(access, package.department_id, manage=True)
+    if get_package_references(package):
+        raise FileOperationError(
+            "package_in_use",
+            "Remove Schedule references, finish or close active Jobs, cancel preparation "
+            "requests, and finish downloads or wait for unused links to expire.",
+        )
+    record_audit(
+        "packages.delete",
+        actor=access.actor,
+        organization=access.organization,
+        target=package,
+        channel=access.channel,
+    )
+    from schedules.models import Schedule
+
+    Schedule.objects.filter(package=package, deleted_at__isnull=False).delete()
+    blobId = package.blob_id
+    package.delete()
+    StoredBlob.objects.filter(pk=blobId).update(state=StoredBlobState.GARBAGE)

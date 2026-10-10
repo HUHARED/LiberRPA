@@ -18,11 +18,17 @@ from runs.models import JobSource
 from runs.admission import accept_request
 
 from .cron import get_next_trigger
-from .models import Schedule, SchedulerState, ScheduleTrigger, TriggerStatus
+from .models import TriggerStatus, Schedule, ScheduleTrigger, SchedulerState
 
 _INT_NORMAL_LATENESS_SECONDS = 5
 _INT_RECOVERY_SECONDS = 600
 _INT_TRIGGER_BATCH_SIZE = 100
+
+
+def get_recovery_boundary() -> tuple[datetime | None, datetime]:
+    recoveryUntil = timezone.now()
+    state = SchedulerState.objects.filter(pk=1).first()
+    return (None if state is None else state.scanned_at), recoveryUntil
 
 
 def _advance(schedule: Schedule, after: datetime) -> None:
@@ -190,9 +196,3 @@ def scan_schedules(
         # Later points were outside this scan and must not be included in its checkpoint.
         SchedulerState.objects.update_or_create(pk=1, defaults={"scanned_at": scanUntil})
     return boolMore
-
-
-def get_recovery_boundary() -> tuple[datetime | None, datetime]:
-    recoveryUntil = timezone.now()
-    state = SchedulerState.objects.filter(pk=1).first()
-    return (None if state is None else state.scanned_at), recoveryUntil
