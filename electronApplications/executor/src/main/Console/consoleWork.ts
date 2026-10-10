@@ -3,52 +3,53 @@
 import { RunSource } from "../../shared/run";
 import { RunConflictPolicy } from "../../shared/runOptions";
 import { getErrorMessage } from "../../shared/error";
+
 import {
-  ensureBoolean,
+  ensureRecord,
   ensureString,
-  ensureCustomProjectArgs,
-  ensureLogLevel,
   ensureNonEmptyString,
   ensurePythonEnvironmentName,
+  ensureBoolean,
   ensurePositiveInteger,
-  ensureRecord,
   ensureRetryCount,
   ensureRunTimeoutMinutes,
+  ensureLogLevel,
   ensureRunConflictPolicy,
+  ensureCustomProjectArgs,
 } from "../Common/validation";
 import { getDatabase } from "../Database/connection";
 import { loggerMain } from "../Logging/logger";
-import { cancelRunById, pythonRun } from "../Run/projectRunner";
+import { pythonRun, cancelRunById } from "../Run/projectRunner";
 import type { ProjectRunDetails } from "../Run/types";
 import { getLocalWaitingCount } from "../Scheduler/schedulerEngine";
 import { getConsolePythonCredential } from "./consoleAccount";
 import { ConsoleRequestError, requestConsole } from "./consoleApi";
 import type { ConsoleCredentialSnapshot } from "./consoleContextBridge";
 import {
-  getConsoleControlCredential,
   getConsoleWorkState,
+  getConsoleControlCredential,
   onConsoleWorkAvailable,
   onConsoleWorkStateReported,
 } from "./consoleControl";
 import { prepareConsolePackage, stopPackagePreparation } from "./packagePreparation";
 import {
-  acknowledgeConsoleEvents,
   ConsoleWorkState,
-  ConsoleEventKind,
-  ConsoleNotStartedReason,
-  getConsoleWork,
-  getPendingConsoleEvents,
-  onConsoleEventSaved,
-  getConsoleWorkSessionKey,
-  saveConsoleEvent,
-  saveConsoleWork,
-  type ConsoleEventData,
-  type ConsoleEventReceipt,
   type ConsoleAssignment,
   type ConsoleAssignmentData,
   type ConsoleWorkRecord,
+  ConsoleEventKind,
+  ConsoleNotStartedReason,
+  type ConsoleEventData,
+  type ConsoleEventReceipt,
+  getConsoleWorkSessionKey,
+  getConsoleWork,
+  saveConsoleWork,
+  onConsoleEventSaved,
+  saveConsoleEvent,
+  getPendingConsoleEvents,
+  acknowledgeConsoleEvents,
 } from "./workRepository";
-import { flushConsoleLogs, sendConsoleFiles, stopConsoleFiles } from "./consoleWorkFiles";
+import { stopConsoleFiles, flushConsoleLogs, sendConsoleFiles } from "./consoleWorkFiles";
 
 enum ConsolePermitWaitReason {
   DispatchPaused = "dispatch_paused",
@@ -424,6 +425,40 @@ async function prepareAndRun(
   }
 }
 
+async function prepareRequestedPackages(
+  values: unknown[],
+  credential: ConsoleCredentialSnapshot,
+): Promise<void> {
+  for (const value of values) {
+    if (boolStopped) return;
+    const request = ensureRecord(value, "Package preparation request");
+    const strId = ensureNonEmptyString(request.preparation_id, "Preparation ID");
+    const inputs = ensureRecord(request.inputs, "Preparation inputs");
+    let strReason = "";
+    try {
+      await prepareConsolePackage(
+        {
+          id: ensureNonEmptyString(inputs.package_id, "Package ID"),
+          name: ensureNonEmptyString(inputs.project_name, "Package name"),
+          version: ensureNonEmptyString(inputs.project_version, "Package version"),
+          sha256: ensureNonEmptyString(inputs.sha256, "Package SHA256"),
+        },
+        ensurePythonEnvironmentName(inputs.python_environment_name, "Python environment"),
+        credential,
+      );
+    } catch (e: unknown) {
+      strReason = getErrorMessage(e);
+    }
+    if (boolStopped) return;
+    await requestConsole(
+      credential.consoleUrl,
+      `executor/packages/preparations/${encodeURIComponent(strId)}/complete/`,
+      credential.token,
+      { state: strReason ? "failed" : "ready", reason: strReason.slice(0, 2000) },
+    );
+  }
+}
+
 function isCurrentControlCredential(credential: ConsoleCredentialSnapshot): boolean {
   const current = getConsoleControlCredential();
   return (
@@ -522,6 +557,19 @@ function requestConsoleEvents(): void {
     });
 }
 
+function requestLogFlush(): void {
+  const credential = getConsoleControlCredential();
+  if (boolStopped || promiseLogs || !credential) return;
+  // The interval only reads local log progress; idle Runs do not issue HTTP requests.
+  promiseLogs = flushConsoleLogs(getConsoleWorkSessionKey(credential), credential)
+    .catch((e: unknown) => {
+      loggerMain.warn(`Console logs: ${getErrorMessage(e)}`);
+    })
+    .finally(() => {
+      promiseLogs = undefined;
+    });
+}
+
 async function syncConsoleWork(
   strSessionKey: string,
   credential: ConsoleCredentialSnapshot,
@@ -609,53 +657,6 @@ async function syncConsoleWork(
         });
     }
   }
-}
-
-async function prepareRequestedPackages(
-  values: unknown[],
-  credential: ConsoleCredentialSnapshot,
-): Promise<void> {
-  for (const value of values) {
-    if (boolStopped) return;
-    const request = ensureRecord(value, "Package preparation request");
-    const strId = ensureNonEmptyString(request.preparation_id, "Preparation ID");
-    const inputs = ensureRecord(request.inputs, "Preparation inputs");
-    let strReason = "";
-    try {
-      await prepareConsolePackage(
-        {
-          id: ensureNonEmptyString(inputs.package_id, "Package ID"),
-          name: ensureNonEmptyString(inputs.project_name, "Package name"),
-          version: ensureNonEmptyString(inputs.project_version, "Package version"),
-          sha256: ensureNonEmptyString(inputs.sha256, "Package SHA256"),
-        },
-        ensurePythonEnvironmentName(inputs.python_environment_name, "Python environment"),
-        credential,
-      );
-    } catch (e: unknown) {
-      strReason = getErrorMessage(e);
-    }
-    if (boolStopped) return;
-    await requestConsole(
-      credential.consoleUrl,
-      `executor/packages/preparations/${encodeURIComponent(strId)}/complete/`,
-      credential.token,
-      { state: strReason ? "failed" : "ready", reason: strReason.slice(0, 2000) },
-    );
-  }
-}
-
-function requestLogFlush(): void {
-  const credential = getConsoleControlCredential();
-  if (boolStopped || promiseLogs || !credential) return;
-  // The interval only reads local log progress; idle Runs do not issue HTTP requests.
-  promiseLogs = flushConsoleLogs(getConsoleWorkSessionKey(credential), credential)
-    .catch((e: unknown) => {
-      loggerMain.warn(`Console logs: ${getErrorMessage(e)}`);
-    })
-    .finally(() => {
-      promiseLogs = undefined;
-    });
 }
 
 async function processConsoleUpdates(): Promise<void> {

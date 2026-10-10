@@ -1,7 +1,8 @@
 // FileName: consoleControl.ts
 
 import { getErrorMessage } from "../../shared/error";
-import { ensureNonEmptyString, ensureRecord } from "../Common/validation";
+
+import { ensureRecord, ensureNonEmptyString } from "../Common/validation";
 import { loggerMain } from "../Logging/logger";
 import { getActiveConsoleRunIds, getLocalRunningCount } from "../Run/projectRunner";
 import { onRunActivityChanged } from "../Run/lifecycle";
@@ -75,6 +76,20 @@ export function onConsoleWorkStateReported(listener: () => void): () => void {
 
 function notifyWorkStateReported(): void {
   for (const listener of setWorkStateListener) listener();
+}
+
+function publishConsoleWorkState(): void {
+  if (boolStateQueued || !boolReady) return;
+  boolStateQueued = true;
+  queueMicrotask(() => {
+    boolStateQueued = false;
+    if (!boolReady || socket?.readyState !== WebSocket.OPEN) return;
+    const workState = getConsoleWorkState();
+    const strWorkState = JSON.stringify(workState);
+    if (strWorkState === strLastWorkState) return;
+    strLastWorkState = strWorkState;
+    socket.send(JSON.stringify({ type: ConsoleControlMessage.State, ...workState }));
+  });
 }
 
 export function stopConsoleControl(): void {
@@ -225,20 +240,6 @@ export function startConsoleControl(
   intReconnectDelayMs = 1000;
   boolUnavailableLogged = false;
   connectConsoleControl();
-}
-
-function publishConsoleWorkState(): void {
-  if (boolStateQueued || !boolReady) return;
-  boolStateQueued = true;
-  queueMicrotask(() => {
-    boolStateQueued = false;
-    if (!boolReady || socket?.readyState !== WebSocket.OPEN) return;
-    const workState = getConsoleWorkState();
-    const strWorkState = JSON.stringify(workState);
-    if (strWorkState === strLastWorkState) return;
-    strLastWorkState = strWorkState;
-    socket.send(JSON.stringify({ type: ConsoleControlMessage.State, ...workState }));
-  });
 }
 
 onRunActivityChanged(publishConsoleWorkState);

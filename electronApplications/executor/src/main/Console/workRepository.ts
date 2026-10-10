@@ -3,23 +3,24 @@
 import { createHash, randomUUID } from "crypto";
 import fs from "fs";
 
-import { RunStatus, type RunTerminalStatus, type RunOutputs } from "../../shared/run";
+import { type RunOutputs, RunStatus, type RunTerminalStatus } from "../../shared/run";
 import type {
   RunConflictPolicy,
   RunOptions,
   PythonEnvironmentSelection,
 } from "../../shared/runOptions";
+
 import { ensureNonEmptyString } from "../Common/validation";
 import {
   type ExecutorRunState,
   createExecutorRunStatePath,
-  readExecutorRunState,
-  removeExecutorRunStateFile,
   removeExecutorRunArgumentsFile,
+  removeExecutorRunStateFile,
+  readExecutorRunState,
 } from "../Run/runState";
 import { dbUpdateRunHistory } from "../Database/runHistoryRepository";
 import { getDatabase } from "../Database/connection";
-import { type RunEndedFact, type RunStartedFact, RunTerminationReason } from "../Run/types";
+import { RunTerminationReason, type RunStartedFact, type RunEndedFact } from "../Run/types";
 import { isRecoveredProcessPresent, watchRecoveredRun } from "../Run/recoveredRuns";
 import type { ConsoleCredentialSnapshot } from "./consoleContextBridge";
 
@@ -44,6 +45,43 @@ export interface ConsoleRecordingInfo {
   videoSizeBytes?: number | null;
   subtitleSizeBytes?: number | null;
   reason?: string;
+}
+
+// Only the fields consumed by Executor; the stored payload retains server-only fields.
+export interface ConsoleRunSnapshot extends RunOptions, PythonEnvironmentSelection {
+  project_name: string;
+  project_version: string;
+  sha256: string;
+  schedule_name: string | null;
+  run_conflict_policy: RunConflictPolicy;
+}
+
+export interface ConsoleAssignment {
+  id: string;
+  job_id: string;
+  run_id: string;
+  attempt: number;
+  package_id: string;
+  snapshot: ConsoleRunSnapshot;
+}
+
+// Keep unvalidated inputs until preparation can report a reliable failure.
+export type ConsoleAssignmentData = Omit<ConsoleAssignment, "snapshot"> & {
+  snapshot: { [Key in keyof ConsoleRunSnapshot]?: unknown };
+};
+
+export interface ConsoleWorkRecord {
+  assignment: ConsoleAssignmentData;
+  sessionKey: string;
+  state: ConsoleWorkState;
+  started?: RunStartedFact;
+  ended?: RunEndedFact;
+  logOffsets: Record<string, number>;
+  logsComplete: boolean;
+  permitExpiresAt?: string;
+  // Persisted with its reliable event; this is not a server acknowledgement.
+  recording?: ConsoleRecordingInfo;
+  stopReason?: RunTerminationReason;
 }
 
 export enum ConsoleEventKind {
@@ -87,6 +125,12 @@ export type ConsoleEventData =
       recording: ConsoleRecordingInfo;
     };
 
+export type ConsoleEvent = ConsoleEventData & {
+  event_id: string;
+  assignment_id: string;
+  occurred_at: string;
+};
+
 export interface ConsoleEventRejection {
   eventId: string;
   code: string;
@@ -98,129 +142,29 @@ export interface ConsoleEventReceipt {
   rejectedEvents: ConsoleEventRejection[];
 }
 
-export type ConsoleEvent = ConsoleEventData & {
-  event_id: string;
-  assignment_id: string;
-  occurred_at: string;
-};
-
-// Only the fields consumed by Executor; the stored payload retains server-only fields.
-export interface ConsoleRunSnapshot extends RunOptions, PythonEnvironmentSelection {
-  project_name: string;
-  project_version: string;
-  sha256: string;
-  schedule_name: string | null;
-  run_conflict_policy: RunConflictPolicy;
-}
-
-export interface ConsoleAssignment {
-  id: string;
-  job_id: string;
-  run_id: string;
-  attempt: number;
-  package_id: string;
-  snapshot: ConsoleRunSnapshot;
-}
-
-// Keep unvalidated inputs until preparation can report a reliable failure.
-export type ConsoleAssignmentData = Omit<ConsoleAssignment, "snapshot"> & {
-  snapshot: { [Key in keyof ConsoleRunSnapshot]?: unknown };
-};
-
-export interface ConsoleWorkRecord {
-  assignment: ConsoleAssignmentData;
-  sessionKey: string;
-  state: ConsoleWorkState;
-  started?: RunStartedFact;
-  ended?: RunEndedFact;
-  logOffsets: Record<string, number>;
-  logsComplete: boolean;
-  permitExpiresAt?: string;
-  // Persisted with its reliable event; this is not a server acknowledgement.
-  recording?: ConsoleRecordingInfo;
-  stopReason?: RunTerminationReason;
-}
-
-export function getConsolePackageCleanupProtection(): {
-  packageIds: Set<string>;
-  logPaths: string[];
-} {
-  const arrEvent = getDatabase()
-    .prepare(
-      `
-      SELECT DISTINCT
-          json_extract(payload, '$.assignment_id') AS assignment_id
-      FROM
-          console_event;
-      `,
-    )
-    .all() as { assignment_id: string }[];
-  // Rejected events remain evidence too; never prune them to make a cache disposable.
-  const setUnconfirmed = new Set(arrEvent.map((row) => row.assignment_id));
-  const arrWork = getDatabase()
-    .prepare(
-      `
-      SELECT
-          id,
-          state,
-          json_extract(content, '$.assignment.package_id') AS package_id,
-          json_type(content, '$.started') AS started_type,
-          json_type(content, '$.ended') AS ended_type,
-          json_extract(content, '$.started.processId') AS process_id,
-          json_extract(content, '$.started.logPath') AS log_path
-      FROM
-          console_work;
-      `,
-    )
-    .all() as {
-    id: string;
-    state: ConsoleWorkState;
-    package_id: string;
-    started_type: string | null;
-    ended_type: string | null;
-    process_id: number | null;
-    log_path: string | null;
-  }[];
-  const setPackageIds = new Set<string>();
-  const setLogPaths = new Set<string>();
-  for (const row of arrWork) {
-    if (row.log_path) setLogPaths.add(row.log_path);
-    const boolUnconfirmedProcess =
-      row.started_type !== null &&
-      (row.ended_type !== "object" ||
-        row.process_id === null ||
-        !Number.isSafeInteger(row.process_id) ||
-        row.process_id <= 0 ||
-        isRecoveredProcessPresent(row.process_id));
-    if (
-      row.state !== ConsoleWorkState.Finished ||
-      setUnconfirmed.has(row.id) ||
-      boolUnconfirmedProcess
-    ) {
-      // Protect matching IDs across origins rather than guess a lost source identity.
-      setPackageIds.add(
-        ensureNonEmptyString(row.package_id, "Cached Package ID").toLowerCase(),
-      );
-    }
-  }
-  const arrHistory = getDatabase()
-    .prepare(
-      `
-      SELECT DISTINCT
-          log_path
-      FROM
-          run_history;
-      `,
-    )
-    .all() as { log_path: string }[];
-  for (const row of arrHistory) if (row.log_path) setLogPaths.add(row.log_path);
-  return { packageIds: setPackageIds, logPaths: [...setLogPaths] };
-}
+const INT_MAX_EVENT_REQUEST_BYTES = 1024 * 1024;
+const setEventSavedListener = new Set<() => void>();
 
 export function getConsoleWorkSessionKey(credential: ConsoleCredentialSnapshot): string {
   return createHash("sha256")
     .update(`${credential.consoleUrl}\n${credential.token}`)
     .digest("hex");
+}
+
+export function getConsoleWork(id: string): ConsoleWorkRecord | undefined {
+  const row = getDatabase()
+    .prepare(
+      `
+      SELECT
+          content
+      FROM
+          console_work
+      WHERE
+          id = ?;
+      `,
+    )
+    .get(id) as { content: string } | undefined;
+  return row ? (JSON.parse(row.content) as ConsoleWorkRecord) : undefined;
 }
 
 export function saveConsoleWork(record: ConsoleWorkRecord): void {
@@ -258,99 +202,6 @@ export function saveConsoleWork(record: ConsoleWorkRecord): void {
       Date.now(),
     );
 }
-
-export function getConsoleWork(id: string): ConsoleWorkRecord | undefined {
-  const row = getDatabase()
-    .prepare(
-      `
-      SELECT
-          content
-      FROM
-          console_work
-      WHERE
-          id = ?;
-      `,
-    )
-    .get(id) as { content: string } | undefined;
-  return row ? (JSON.parse(row.content) as ConsoleWorkRecord) : undefined;
-}
-
-export function getConsoleRunProcessId(runId: string): number | undefined {
-  const row = getDatabase()
-    .prepare(
-      `
-      SELECT
-          json_extract(content, '$.started.processId') AS process_id
-      FROM
-          console_work
-      WHERE
-          json_extract(content, '$.assignment.run_id') = ?;
-      `,
-    )
-    .get(runId) as { process_id: unknown } | undefined;
-  return typeof row?.process_id === "number" &&
-    Number.isSafeInteger(row.process_id) &&
-    row.process_id > 0
-    ? row.process_id
-    : undefined;
-}
-
-export function getConsoleWorkForRun(
-  sessionKey: string,
-  runId: string,
-): ConsoleWorkRecord | undefined {
-  const row = getDatabase()
-    .prepare(
-      `
-      SELECT
-          content
-      FROM
-          console_work
-      WHERE
-          session_key = ?
-          AND json_extract(content, '$.assignment.run_id') = ?;
-      `,
-    )
-    .get(sessionKey, runId) as { content: string } | undefined;
-  return row ? (JSON.parse(row.content) as ConsoleWorkRecord) : undefined;
-}
-
-export function getPendingConsoleLogWork(sessionKey: string): ConsoleWorkRecord[] {
-  // NOTE: Keep the pending predicate aligned with idx_console_work_pending_logs.
-  const arrRow = getDatabase()
-    .prepare(
-      `
-      SELECT
-          content
-      FROM
-          console_work
-      WHERE
-          session_key = ?
-          AND (
-              (
-                  json_type(content, '$.started') = 'object'
-                  AND json_extract(content, '$.logsComplete') = 0
-              )
-              OR (
-                  json_type(content, '$.ended') = 'object'
-                  AND json_extract(
-                      content,
-                      '$.assignment.snapshot.builtin_record_video'
-                  ) = 1
-                  AND COALESCE(
-                      json_extract(content, '$.recording.status'),
-                      ''
-                  ) NOT IN ('ready', 'unavailable')
-              )
-          );
-      `,
-    )
-    .all(sessionKey) as { content: string }[];
-  return arrRow.map((row) => JSON.parse(row.content) as ConsoleWorkRecord);
-}
-
-const INT_MAX_EVENT_REQUEST_BYTES = 1024 * 1024;
-const setEventSavedListener = new Set<() => void>();
 
 export function onConsoleEventSaved(listener: () => void): () => void {
   setEventSavedListener.add(listener);
@@ -466,6 +317,122 @@ export function acknowledgeConsoleEvents(
     }
     return intRejectedCount;
   })();
+}
+
+export function getConsoleWorkForRun(
+  sessionKey: string,
+  runId: string,
+): ConsoleWorkRecord | undefined {
+  const row = getDatabase()
+    .prepare(
+      `
+      SELECT
+          content
+      FROM
+          console_work
+      WHERE
+          session_key = ?
+          AND json_extract(content, '$.assignment.run_id') = ?;
+      `,
+    )
+    .get(sessionKey, runId) as { content: string } | undefined;
+  return row ? (JSON.parse(row.content) as ConsoleWorkRecord) : undefined;
+}
+
+export function getPendingConsoleLogWork(sessionKey: string): ConsoleWorkRecord[] {
+  // NOTE: Keep the pending predicate aligned with idx_console_work_pending_logs.
+  const arrRow = getDatabase()
+    .prepare(
+      `
+      SELECT
+          content
+      FROM
+          console_work
+      WHERE
+          session_key = ?
+          AND (
+              (
+                  json_type(content, '$.started') = 'object'
+                  AND json_extract(content, '$.logsComplete') = 0
+              )
+              OR (
+                  json_type(content, '$.ended') = 'object'
+                  AND json_extract(
+                      content,
+                      '$.assignment.snapshot.builtin_record_video'
+                  ) = 1
+                  AND COALESCE(
+                      json_extract(content, '$.recording.status'),
+                      ''
+                  ) NOT IN ('ready', 'unavailable')
+              )
+          );
+      `,
+    )
+    .all(sessionKey) as { content: string }[];
+  return arrRow.map((row) => JSON.parse(row.content) as ConsoleWorkRecord);
+}
+
+export function saveConsoleLogProgress(
+  id: string,
+  offsets: Record<string, number>,
+  complete: boolean,
+): void {
+  const record = getConsoleWork(id);
+  if (!record) return;
+  record.logOffsets = offsets;
+  record.logsComplete ||= complete;
+  getDatabase()
+    .prepare(
+      `
+      UPDATE console_work
+      SET
+          content = ?,
+          updated_at_ms = ?
+      WHERE
+          id = ?;
+      `,
+    )
+    .run(JSON.stringify(record), Date.now(), id);
+}
+
+export function reportConsoleRecording(id: string, recording: ConsoleRecordingInfo): void {
+  const record = getConsoleWork(id);
+  if (!record) return;
+  const previousRecording = record.recording;
+  if (
+    previousRecording?.status === recording.status &&
+    (previousRecording.videoSizeBytes ?? null) === (recording.videoSizeBytes ?? null) &&
+    (previousRecording.subtitleSizeBytes ?? null) ===
+      (recording.subtitleSizeBytes ?? null) &&
+    (previousRecording.reason ?? "") === (recording.reason ?? "")
+  )
+    return;
+  record.recording = recording;
+  getDatabase().transaction(() => {
+    saveConsoleWork(record);
+    saveConsoleEvent(record, { kind: ConsoleEventKind.Recording, recording });
+  })();
+}
+
+export function getConsoleRunProcessId(runId: string): number | undefined {
+  const row = getDatabase()
+    .prepare(
+      `
+      SELECT
+          json_extract(content, '$.started.processId') AS process_id
+      FROM
+          console_work
+      WHERE
+          json_extract(content, '$.assignment.run_id') = ?;
+      `,
+    )
+    .get(runId) as { process_id: unknown } | undefined;
+  return typeof row?.process_id === "number" &&
+    Number.isSafeInteger(row.process_id) &&
+    row.process_id > 0
+    ? row.process_id
+    : undefined;
 }
 
 function recoverFinishedConsoleRun(record: ConsoleWorkRecord): boolean {
@@ -603,44 +570,78 @@ export function recoverConsoleWorkAfterRestart(): void {
   }
 }
 
-export function saveConsoleLogProgress(
-  id: string,
-  offsets: Record<string, number>,
-  complete: boolean,
-): void {
-  const record = getConsoleWork(id);
-  if (!record) return;
-  record.logOffsets = offsets;
-  record.logsComplete ||= complete;
-  getDatabase()
+export function getConsolePackageCleanupProtection(): {
+  packageIds: Set<string>;
+  logPaths: string[];
+} {
+  const arrEvent = getDatabase()
     .prepare(
       `
-      UPDATE console_work
-      SET
-          content = ?,
-          updated_at_ms = ?
-      WHERE
-          id = ?;
+      SELECT DISTINCT
+          json_extract(payload, '$.assignment_id') AS assignment_id
+      FROM
+          console_event;
       `,
     )
-    .run(JSON.stringify(record), Date.now(), id);
-}
-
-export function reportConsoleRecording(id: string, recording: ConsoleRecordingInfo): void {
-  const record = getConsoleWork(id);
-  if (!record) return;
-  const previousRecording = record.recording;
-  if (
-    previousRecording?.status === recording.status &&
-    (previousRecording.videoSizeBytes ?? null) === (recording.videoSizeBytes ?? null) &&
-    (previousRecording.subtitleSizeBytes ?? null) ===
-      (recording.subtitleSizeBytes ?? null) &&
-    (previousRecording.reason ?? "") === (recording.reason ?? "")
-  )
-    return;
-  record.recording = recording;
-  getDatabase().transaction(() => {
-    saveConsoleWork(record);
-    saveConsoleEvent(record, { kind: ConsoleEventKind.Recording, recording });
-  })();
+    .all() as { assignment_id: string }[];
+  // Rejected events remain evidence too; never prune them to make a cache disposable.
+  const setUnconfirmed = new Set(arrEvent.map((row) => row.assignment_id));
+  const arrWork = getDatabase()
+    .prepare(
+      `
+      SELECT
+          id,
+          state,
+          json_extract(content, '$.assignment.package_id') AS package_id,
+          json_type(content, '$.started') AS started_type,
+          json_type(content, '$.ended') AS ended_type,
+          json_extract(content, '$.started.processId') AS process_id,
+          json_extract(content, '$.started.logPath') AS log_path
+      FROM
+          console_work;
+      `,
+    )
+    .all() as {
+    id: string;
+    state: ConsoleWorkState;
+    package_id: string;
+    started_type: string | null;
+    ended_type: string | null;
+    process_id: number | null;
+    log_path: string | null;
+  }[];
+  const setPackageIds = new Set<string>();
+  const setLogPaths = new Set<string>();
+  for (const row of arrWork) {
+    if (row.log_path) setLogPaths.add(row.log_path);
+    const boolUnconfirmedProcess =
+      row.started_type !== null &&
+      (row.ended_type !== "object" ||
+        row.process_id === null ||
+        !Number.isSafeInteger(row.process_id) ||
+        row.process_id <= 0 ||
+        isRecoveredProcessPresent(row.process_id));
+    if (
+      row.state !== ConsoleWorkState.Finished ||
+      setUnconfirmed.has(row.id) ||
+      boolUnconfirmedProcess
+    ) {
+      // Protect matching IDs across origins rather than guess a lost source identity.
+      setPackageIds.add(
+        ensureNonEmptyString(row.package_id, "Cached Package ID").toLowerCase(),
+      );
+    }
+  }
+  const arrHistory = getDatabase()
+    .prepare(
+      `
+      SELECT DISTINCT
+          log_path
+      FROM
+          run_history;
+      `,
+    )
+    .all() as { log_path: string }[];
+  for (const row of arrHistory) if (row.log_path) setLogPaths.add(row.log_path);
+  return { packageIds: setPackageIds, logPaths: [...setLogPaths] };
 }
