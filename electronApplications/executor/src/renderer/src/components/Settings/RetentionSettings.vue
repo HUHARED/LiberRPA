@@ -149,47 +149,6 @@
     </v-btn>
   </v-container>
 
-  <v-container fluid class="pa-2 ma-0">
-    <v-btn
-      variant="tonal"
-      :loading="boolCacheCleanupBusy"
-      :disabled="boolCacheCleanupBusy"
-      @click="boolShowCacheCleanup = true">
-      Clear Unused Console Packages
-    </v-btn>
-    <v-alert v-if="strCacheCleanupResult" type="info" variant="tonal" class="mt-2">
-      {{ strCacheCleanupResult }}
-    </v-alert>
-    <v-alert v-if="strCacheCleanupError" type="error" variant="tonal" class="mt-2">
-      {{ strCacheCleanupError }}
-    </v-alert>
-  </v-container>
-
-  <v-dialog v-model="boolShowCacheCleanup" persistent max-width="560">
-    <v-card title="Clear Unused Console Packages?">
-      <v-card-text>
-        Remove unused downloaded packages from all Console addresses. They will be
-        downloaded again when needed. Packages still in use or awaiting confirmation are
-        kept. Run history, original logs and recordings, and pending reports are kept. Other
-        files written by a Flow inside these cache folders will also be removed.
-      </v-card-text>
-      <v-card-actions>
-        <v-spacer />
-        <v-btn :disabled="boolCacheCleanupBusy" @click="boolShowCacheCleanup = false">
-          Cancel
-        </v-btn>
-        <v-btn
-          color="warning"
-          variant="tonal"
-          :disabled="boolCacheCleanupBusy"
-          :loading="boolCacheCleanupBusy"
-          @click="clearConsolePackageCache">
-          Clear
-        </v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
-
   <v-dialog v-model="boolConfirmationDialogOpen" max-width="520">
     <v-card title="Apply Retention Settings?">
       <v-card-text>
@@ -211,8 +170,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 
-import { getErrorMessage } from "../../../../shared/error";
-import { invokeMain } from "../../IPC/ipc";
 import { useInformationStore } from "../../Store/informationStore";
 import { useSettingStore } from "../../Store/settingStore";
 
@@ -235,26 +192,6 @@ const intVideoTimeoutDays = ref<number | null>(1);
 const boolVideoSizeEnable = ref(false);
 const intVideoSizeGB = ref<number | null>(1);
 const boolConfirmationDialogOpen = ref(false);
-const boolShowCacheCleanup = ref(false);
-const boolCacheCleanupBusy = ref(false);
-const strCacheCleanupResult = ref("");
-const strCacheCleanupError = ref("");
-
-async function clearConsolePackageCache(): Promise<void> {
-  if (boolCacheCleanupBusy.value) return;
-  boolCacheCleanupBusy.value = true;
-  strCacheCleanupResult.value = "";
-  strCacheCleanupError.value = "";
-  try {
-    const result = await invokeMain("clearUnusedConsolePackages");
-    strCacheCleanupResult.value = `Removed: ${result.removed}. Kept: ${result.protected}. Failed: ${result.failed}.`;
-  } catch (e: unknown) {
-    strCacheCleanupError.value = getErrorMessage(e);
-  } finally {
-    boolCacheCleanupBusy.value = false;
-    boolShowCacheCleanup.value = false;
-  }
-}
 
 const boolHasChanges = computed(
   () =>

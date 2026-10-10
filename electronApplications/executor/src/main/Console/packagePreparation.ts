@@ -4,11 +4,9 @@ import { createHash, randomUUID } from "crypto";
 import fs from "fs";
 import path from "path";
 
-import type { ConsolePackageCleanupResult } from "../../shared/project";
 import { getErrorMessage } from "../../shared/error";
 import { ensureNonEmptyString, ensureRecord } from "../Common/validation";
 import { getPythonEnvironmentPath, strDocumentsFolderPath } from "../Config/environment";
-import { getEffectiveProjectLogFolderPath } from "../Config/executorConfig";
 import { runFileWorker } from "../FileSystem/fileWorker";
 import { loggerMain } from "../Logging/logger";
 import strPackageArchiveWorkerPath from "../Package/packageArchiveWorker?modulePath";
@@ -18,7 +16,6 @@ import {
   validatePythonPackageEnvironment,
 } from "../Package/packageMetadata";
 import { requestConsole } from "./consoleApi";
-import { getConsolePackageCleanupProtection } from "./workRepository";
 import type { ConsoleCredentialSnapshot } from "./consoleContextBridge";
 
 export interface ConsolePackageInfo {
@@ -35,8 +32,6 @@ const strConsolePackageFolderPath = path.join(
 );
 const abortPreparation = new AbortController();
 const mapPackageFilePreparation = new Map<string, Promise<void>>();
-const mapPackagePreparationUsers = new Map<string, number>();
-let promiseCacheCleanup: Promise<ConsolePackageCleanupResult> | undefined;
 
 export async function cleanConsolePackageStaging(): Promise<void> {
   async function readEntries(folderPath: string): Promise<fs.Dirent[]> {
@@ -172,8 +167,6 @@ export async function prepareConsolePackage(
   credential: ConsoleCredentialSnapshot,
 ): Promise<string> {
   abortPreparation.signal.throwIfAborted();
-  if (promiseCacheCleanup) await promiseCacheCleanup.catch(() => {});
-  abortPreparation.signal.throwIfAborted();
   if (
     !/^[a-f0-9]{64}$/.test(packageInfo.sha256) ||
     !/^[a-f0-9-]{36}$/i.test(packageInfo.id)
@@ -186,131 +179,25 @@ export async function prepareConsolePackage(
     packageInfo.id,
     packageInfo.sha256,
   );
-  mapPackagePreparationUsers.set(
-    strPackagePath,
-    (mapPackagePreparationUsers.get(strPackagePath) ?? 0) + 1,
-  );
-  try {
-    let promiseFiles = mapPackageFilePreparation.get(strPackagePath);
-    if (promiseFiles === undefined) {
-      // Share file work by its destination, not by the environment that will run it.
-      promiseFiles = preparePackageFiles(packageInfo, credential, strPackagePath).finally(
-        () => {
-          mapPackageFilePreparation.delete(strPackagePath);
-        },
-      );
-      mapPackageFilePreparation.set(strPackagePath, promiseFiles);
-    }
-    await promiseFiles;
-    abortPreparation.signal.throwIfAborted();
-    await validatePythonPackageEnvironment(
-      strPackagePath,
-      getPythonEnvironmentPath(environmentName),
+  let promiseFiles = mapPackageFilePreparation.get(strPackagePath);
+  if (promiseFiles === undefined) {
+    // Share file work by its destination, not by the environment that will run it.
+    promiseFiles = preparePackageFiles(packageInfo, credential, strPackagePath).finally(
+      () => {
+        mapPackageFilePreparation.delete(strPackagePath);
+      },
     );
-    return strPackagePath;
-  } finally {
-    const intUsers = (mapPackagePreparationUsers.get(strPackagePath) ?? 1) - 1;
-    if (intUsers) mapPackagePreparationUsers.set(strPackagePath, intUsers);
-    else mapPackagePreparationUsers.delete(strPackagePath);
+    mapPackageFilePreparation.set(strPackagePath, promiseFiles);
   }
-}
-
-export function clearUnusedConsolePackages(): Promise<ConsolePackageCleanupResult> {
-  if (promiseCacheCleanup) return promiseCacheCleanup;
+  await promiseFiles;
   abortPreparation.signal.throwIfAborted();
-
-  async function clearCache(): Promise<ConsolePackageCleanupResult> {
-    const protection = getConsolePackageCleanupProtection();
-    const setPreparingPaths = new Set(
-      [...mapPackagePreparationUsers.keys()].map((value) => value.toLowerCase()),
-    );
-    const result: ConsolePackageCleanupResult = { removed: 0, protected: 0, failed: 0 };
-
-    function getLogCachePath(logPath: string): string | undefined {
-      const strRelative = path.relative(strConsolePackageFolderPath, path.resolve(logPath));
-      if (
-        path.isAbsolute(strRelative) ||
-        strRelative === ".." ||
-        strRelative.startsWith(`..${path.sep}`)
-      )
-        return undefined;
-      const arrPart = strRelative.split(path.sep);
-      return arrPart.length >= 3
-        ? path.join(strConsolePackageFolderPath, ...arrPart.slice(0, 3)).toLowerCase()
-        : undefined;
-    }
-
-    const setLogCachePaths = new Set(protection.logPaths.map(getLogCachePath));
-
-    async function readEntries(folderPath: string): Promise<fs.Dirent[]> {
-      abortPreparation.signal.throwIfAborted();
-      try {
-        if (!(await fs.promises.lstat(folderPath)).isDirectory()) return [];
-        return await fs.promises.readdir(folderPath, { withFileTypes: true });
-      } catch (e: unknown) {
-        if (!(e instanceof Error && "code" in e && e.code === "ENOENT")) {
-          result.failed += 1;
-          loggerMain.warn(
-            `Failed to inspect Console package cache ${folderPath}: ${getErrorMessage(e)}`,
-          );
-        }
-        return [];
-      }
-    }
-
-    for (const originEntry of await readEntries(strConsolePackageFolderPath)) {
-      if (!originEntry.isDirectory() || !/^[a-f0-9]{64}$/.test(originEntry.name)) continue;
-      const strOriginPath = path.join(strConsolePackageFolderPath, originEntry.name);
-      for (const packageEntry of await readEntries(strOriginPath)) {
-        if (!packageEntry.isDirectory() || !/^[a-f0-9-]{36}$/i.test(packageEntry.name))
-          continue;
-        const strPackageRoot = path.join(strOriginPath, packageEntry.name);
-        for (const cacheEntry of await readEntries(strPackageRoot)) {
-          abortPreparation.signal.throwIfAborted();
-          if (!cacheEntry.isDirectory() || !/^[a-f0-9]{64}$/.test(cacheEntry.name))
-            continue;
-          const strPackagePath = path.join(strPackageRoot, cacheEntry.name);
-          const strPathKey = strPackagePath.toLowerCase();
-          if (
-            protection.packageIds.has(packageEntry.name.toLowerCase()) ||
-            setPreparingPaths.has(strPathKey) ||
-            setLogCachePaths.has(strPathKey) ||
-            getLogCachePath(getEffectiveProjectLogFolderPath()) === strPathKey
-          ) {
-            result.protected += 1;
-            continue;
-          }
-          // Detach before removing, so a partial failure cannot remain a valid cache hit.
-          const strStagingPath = path.join(strPackageRoot, `.staging-${randomUUID()}`);
-          try {
-            await fs.promises.rename(strPackagePath, strStagingPath);
-            await fs.promises.rm(strStagingPath, { recursive: true, force: true });
-            result.removed += 1;
-          } catch (e: unknown) {
-            result.failed += 1;
-            loggerMain.warn(
-              `Failed to clear Console package cache ${strPackagePath}: ` +
-                getErrorMessage(e),
-            );
-          }
-        }
-      }
-    }
-    loggerMain.info(
-      `Console package cache cleanup: ${result.removed} removed, ` +
-        `${result.protected} protected, ${result.failed} failed.`,
-    );
-    return result;
-  }
-
-  // New preparations wait; earlier users are protected for this entire cleanup pass.
-  promiseCacheCleanup = clearCache().finally(() => {
-    promiseCacheCleanup = undefined;
-  });
-  return promiseCacheCleanup;
+  await validatePythonPackageEnvironment(
+    strPackagePath,
+    getPythonEnvironmentPath(environmentName),
+  );
+  return strPackagePath;
 }
 
-export async function stopPackagePreparation(): Promise<void> {
+export function stopPackagePreparation(): void {
   abortPreparation.abort();
-  await promiseCacheCleanup?.catch(() => {});
 }

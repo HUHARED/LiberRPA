@@ -736,7 +736,7 @@ export async function stopConsoleWork(): Promise<void> {
   for (const checkRetry of mapPermitWaiter.values()) checkRetry();
   stopWorkListener?.();
   stopEventListener?.();
-  const promisePackageCleanup = stopPackagePreparation();
+  stopPackagePreparation();
   stopConsoleFiles();
   clearTimeout(timerRetry);
   clearTimeout(timerEventRetry);
@@ -747,7 +747,6 @@ export async function stopConsoleWork(): Promise<void> {
   boolEventsRequested = false;
   await Promise.all([promiseSync, promiseEvents]);
   await Promise.allSettled([
-    promisePackageCleanup,
     ...mapPreparingWork.values(),
     promisePreparation,
     promiseLogs,

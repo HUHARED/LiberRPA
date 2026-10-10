@@ -11,7 +11,6 @@ import {
   associateConsoleExecutor,
   signOutConsole,
 } from "../Console/consoleAccount";
-import { clearUnusedConsolePackages } from "../Console/packagePreparation";
 import { getErrorMessage } from "../../shared/error";
 import {
   chooseProjectLogFolder,
@@ -113,8 +112,6 @@ const INVOKE_VALIDATOR = {
   runProject: ensureProjectSettingsUpdate,
   getPythonEnvironmentNames: (rawData: unknown) =>
     ensureNoData(rawData, "getPythonEnvironmentNames"),
-  clearUnusedConsolePackages: (rawData: unknown) =>
-    ensureNoData(rawData, "clearUnusedConsolePackages"),
   installProjectPackage: (rawData: unknown) =>
     ensureNoData(rawData, "installProjectPackage"),
   getProjectNames: (rawData: unknown) => ensureNoData(rawData, "getProjectNames"),
@@ -148,7 +145,6 @@ function createInvokeHandlerMap(
   ensureExecutorRunning: () => void,
 ): Map_ExecutorInvoke_Handler {
   return {
-    clearUnusedConsolePackages,
     getConsoleAccount: getConsoleAccountState,
     saveConsoleAddress,
     signInConsole,
