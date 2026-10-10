@@ -92,6 +92,8 @@ class QueueDeleteItemsRequest(QueueMutationRequest):
             "count",
         }:
             raise ValueError("Choose item_ids or status/count/order, not both.")
+        if self.item_ids is None and not {"status", "count"} <= self.model_fields_set:
+            raise ValueError("Specify status and count when deleting without item_ids.")
         return self
 
 

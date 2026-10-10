@@ -244,7 +244,7 @@ def data_queue_reset_items(
     """
     Reset selected Data Queue items to Unclaimed.
 
-    Item IDs, data, and original queue order are preserved.
+    Item IDs, data, original queue order, and the last claimant's identity and time are preserved.
 
     Parameters:
         queuePath: The full Data Queue path, including its department path and name.
@@ -272,16 +272,16 @@ def data_queue_delete_items(
     """
     Delete Data Queue items by ID or by status, order, and count.
 
-    Supply itemIds or selection parameters, but not both. Prefer IDs from the items actually processed. Without IDs, the defaults select one Claimed item in oldest-first order.
+    Supply itemIds or selection parameters, but not both. Prefer IDs from the items actually processed. Without IDs, status and count are required; order defaults to oldest-first.
 
     If a network error leaves the result uncertain, check Console before deleting by conditions again; another call may delete a different batch.
 
     Parameters:
         queuePath: The full Data Queue path, including its department path and name.
         itemIds: One item UUID or a list containing 1 to 100 item UUIDs. Leave as None to use selection parameters.
-        status: The selection status: 'all', 'unclaimed', or 'claimed'. None uses 'claimed'.
+        status: The selection status: 'all', 'unclaimed', or 'claimed'. Required when itemIds is None.
         order: The selection order: 'oldest_first' or 'newest_first'. None uses 'oldest_first'.
-        count: The maximum number to delete, from 1 to 100. None uses 1.
+        count: The maximum number to delete, from 1 to 100. Required when itemIds is None.
 
     Returns:
         DataQueueMutationResult: The deleted, missing, and skipped item IDs.
@@ -293,10 +293,12 @@ def data_queue_delete_items(
             "item_ids": _normalize_queue_item_ids(itemIds)
         }
     else:
+        if status is None or count is None:
+            raise ValueError("Specify status and count when deleting without itemIds.")
         dictSelection = _parse_data_queue_selection(
-            status if status is not None else "claimed",
+            status,
             order if order is not None else "oldest_first",
-            1 if count is None else count,
+            count,
         )
     return _mutate_data_queue_items(
         _DataQueueMutationOperation.DELETE_ITEMS, queuePath, dictSelection
