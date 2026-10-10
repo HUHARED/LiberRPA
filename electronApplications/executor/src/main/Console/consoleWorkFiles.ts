@@ -448,7 +448,7 @@ async function prepareTransferFile(
   throw new Error("Unsupported Run file kind.");
 }
 
-async function sendConsoleFile(
+export async function sendConsoleFile(
   sessionKey: string,
   credential: ConsoleCredentialSnapshot,
   value: unknown,
@@ -588,31 +588,26 @@ async function sendConsoleFile(
     }
   } catch (e: unknown) {
     if (!boolReady) {
-      setTransferStarted.delete(strTransferId);
-      await requestConsole(
-        credential.consoleUrl,
-        `executor/file-transfers/${encodeURIComponent(strTransferId)}/ready/`,
-        credential.token,
-        {
-          size_bytes: 0,
-          filename: "",
-          content_type: "application/octet-stream",
-          error: getErrorMessage(e),
-        },
-      );
-      setTransferStarted.add(strTransferId);
+      try {
+        await requestConsole(
+          credential.consoleUrl,
+          `executor/file-transfers/${encodeURIComponent(strTransferId)}/ready/`,
+          credential.token,
+          {
+            size_bytes: 0,
+            filename: "",
+            content_type: "application/octet-stream",
+            error: getErrorMessage(e),
+          },
+        );
+      } catch (e: unknown) {
+        // Allow a later retry only after this preparation failure report has failed.
+        setTransferStarted.delete(strTransferId);
+        throw e;
+      }
     } else throw e;
   } finally {
     if (strTemporaryFolder)
       await fs.promises.rm(strTemporaryFolder, { recursive: true, force: true });
   }
-}
-
-export async function sendConsoleFiles(
-  sessionKey: string,
-  credential: ConsoleCredentialSnapshot,
-  value: unknown,
-): Promise<void> {
-  if (!Array.isArray(value)) return;
-  for (const transfer of value) await sendConsoleFile(sessionKey, credential, transfer);
 }

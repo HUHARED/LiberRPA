@@ -110,25 +110,48 @@ def _expire_downloads(organizationId: uuid.UUID) -> None:
     ).delete()
 
 
-def require_transfer_slot(organizationId: uuid.UUID) -> None:
-    """Count storage reservations, not business upload models, under the organization lock."""
-    _expire_downloads(organizationId)
-    intTransferCount = DownloadSession.objects.filter(
-        organization_id=organizationId
-    ).count()
-    intTransferCount += StoredBlob.objects.filter(
-        organization_id=organizationId, state=StoredBlobState.RECEIVING
-    ).count()
-    from runs.models import RunFileTransfer
+def require_upload_slot(organizationId: uuid.UUID) -> None:
+    """Count active incoming uploads under the caller's organization lock."""
+    from packages.models import PackageUpload, PackageUploadState
+    from shared_files.models import UploadSession, UploadState
 
-    RunFileTransfer.objects.filter(expires_at__lte=timezone.now()).delete()
-    intTransferCount += RunFileTransfer.objects.filter(
-        organization_id=organizationId
+    currentTime = timezone.now()
+    intUploadCount = PackageUpload.objects.filter(
+        organization_id=organizationId,
+        state=PackageUploadState.RECEIVING,
+        expires_at__gt=currentTime,
     ).count()
-    if intTransferCount >= settings.CONSOLE_LIMITS.maxActiveTransfersPerOrganization:
+    intUploadCount += UploadSession.objects.filter(
+        organization_id=organizationId,
+        state=UploadState.RECEIVING,
+        expires_at__gt=currentTime,
+    ).count()
+    if intUploadCount >= settings.CONSOLE_LIMITS.maxActiveUploadsPerOrganization:
         raise FileOperationError(
             "too_many_transfers",
-            "Too many active transfers. Please try again later.",
+            "The organization upload limit has been reached. Please try again later.",
+            429,
+        )
+
+
+def require_download_slot(organizationId: uuid.UUID) -> None:
+    """Count reserved and streaming downloads under the caller's organization lock."""
+    from runs.models import RunFileTransfer
+
+    _expire_downloads(organizationId)
+    RunFileTransfer.objects.filter(
+        organization_id=organizationId, expires_at__lte=timezone.now()
+    ).delete()
+    intDownloadCount = DownloadSession.objects.filter(
+        organization_id=organizationId
+    ).count()
+    intDownloadCount += RunFileTransfer.objects.filter(
+        organization_id=organizationId
+    ).count()
+    if intDownloadCount >= settings.CONSOLE_LIMITS.maxActiveDownloadsPerOrganization:
+        raise FileOperationError(
+            "too_many_transfers",
+            "The organization download limit has been reached. Please try again later.",
             429,
         )
 
@@ -143,6 +166,29 @@ def release_download(transferId: uuid.UUID, organizationId: uuid.UUID) -> None:
         DownloadSession.objects.filter(
             pk=transferId, organization_id=organizationId
         ).delete()
+
+
+def release_unstarted_download(
+    transferId: uuid.UUID, organizationId: uuid.UUID, actorId: uuid.UUID
+) -> None:
+    """Release a failed open after rollback, without canceling another active reader."""
+    try:
+        with transaction.atomic():
+            if (
+                Organization.objects
+                .select_for_update()
+                .filter(pk=organizationId)
+                .exists()
+            ):
+                DownloadSession.objects.filter(
+                    pk=transferId,
+                    organization_id=organizationId,
+                    actor_id=actorId,
+                    started=False,
+                ).delete()
+    except Exception:
+        # Expiry remains the fallback when immediate cleanup cannot commit.
+        _LOGGER.exception("Could not release an unstarted download slot immediately.")
 
 
 @transaction.atomic

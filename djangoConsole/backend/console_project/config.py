@@ -91,11 +91,12 @@ class LimitsConfig(_BaseConfig):
     queueReceiptRetentionDays: int = Field(default=30, ge=30, le=3650)
     maxQueueReceiptsPerOrganization: int = Field(default=100000, ge=1)
 
-    # Packages and shared files use one storage and transfer budget.
+    # Packages and shared files share storage; upload and download slots are independent.
     maxStoredBytesPerOrganization: int = Field(default=5368709120, ge=0)
     maxSharedFileBytes: int = Field(default=20971520, ge=0, le=20971520)
     minStorageFreeBytes: int = Field(default=5368709120, ge=0)
-    maxActiveTransfersPerOrganization: int = Field(default=4, ge=0)
+    maxActiveUploadsPerOrganization: int = Field(default=4, ge=0)
+    maxActiveDownloadsPerOrganization: int = Field(default=4, ge=0)
     fileReceiptRetentionDays: int = Field(default=30, ge=30, le=3650)
     maxFileReceiptsPerOrganization: int = Field(default=100000, ge=1)
 

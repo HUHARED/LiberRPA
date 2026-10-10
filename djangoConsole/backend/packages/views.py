@@ -13,7 +13,7 @@ from django.views.decorators.http import require_GET, require_POST, require_http
 
 from console_project.http import parse_json_request
 from console_project.contracts import JsonRequest
-from file_storage.services import FileOperationError
+from file_storage.services import FileOperationError, release_unstarted_download
 from file_storage.streaming import SyncFileStream, AsyncFileStream
 from organizations.access import get_department_access_info
 from organizations.http import parse_department_resource_filters
@@ -244,6 +244,7 @@ def download_content(
         raise FileOperationError(
             "range_not_supported", "Start a new complete Package download.", 416
         )
+    access = None
     stream = None
     try:
         with transaction.atomic():
@@ -264,6 +265,8 @@ def download_content(
     except Exception:
         if stream is not None:
             stream.close()
+        elif access is not None:
+            release_unstarted_download(transferId, access.organization.pk, access.actorId)
         raise
 
 

@@ -114,12 +114,16 @@
     "queueReceiptRetentionDays": 30,
     "maxQueueReceiptsPerOrganization": 100000,
 
-    // Packages and shared files share this organization pool and transfer limit.
+    // Packages and shared files share this organization storage pool.
     // Garbage remains charged until cleanup succeeds; overwrites reserve the full new size.
     "maxStoredBytesPerOrganization": 5368709120, // 5 GiB
     "maxSharedFileBytes": 20971520, // 20 MiB
     "minStorageFreeBytes": 5368709120, // 5 GiB
-    "maxActiveTransfersPerOrganization": 4,
+    // Separate organization-wide limits; 0 blocks new transfers in that direction.
+    // Downloads include packages, shared files, Run logs, videos and subtitles.
+    // Relaying one Run file counts as one download, not an additional upload.
+    "maxActiveUploadsPerOrganization": 4,
+    "maxActiveDownloadsPerOrganization": 4,
     "fileReceiptRetentionDays": 30,
     "maxFileReceiptsPerOrganization": 100000,
     // Run "python backend/manage.py cleanup_file_storage" at least once per minute.

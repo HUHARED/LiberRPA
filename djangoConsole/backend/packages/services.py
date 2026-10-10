@@ -29,7 +29,8 @@ from file_storage.services import (
     lock_storage,
     check_disk_capacity,
     get_storage_usage,
-    require_transfer_slot,
+    require_upload_slot,
+    require_download_slot,
     get_download_expiry,
 )
 
@@ -105,7 +106,7 @@ def create_upload(
         raise FileOperationError(
             "upload_receipt_limit", "The upload request history is full."
         )
-    require_transfer_slot(access.organization.pk)
+    require_upload_slot(access.organization.pk)
     lock_storage()
     usage = get_storage_usage(access.organization.pk)
     if (
@@ -401,8 +402,7 @@ def save_package_settings(
 
 
 def prepare_download(access: OrganizationAccessContext, package: Package) -> dict:
-    expire_uploads(access.organization.pk)
-    require_transfer_slot(access.organization.pk)
+    require_download_slot(access.organization.pk)
     path = get_blob_path(package.blob_id)
     if not path.is_file() or path.stat().st_size != package.blob.size_bytes:
         raise FileOperationError(

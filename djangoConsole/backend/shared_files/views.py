@@ -11,7 +11,7 @@ from django.http import HttpRequest, HttpResponse, JsonResponse, StreamingHttpRe
 from django.utils.http import content_disposition_header
 from django.views.decorators.http import require_http_methods, require_GET, require_POST
 
-from file_storage.services import FileOperationError
+from file_storage.services import FileOperationError, release_unstarted_download
 from file_storage.streaming import SyncFileStream, AsyncFileStream
 from organizations.validators import parse_resource_path
 
@@ -177,6 +177,7 @@ def download_file_content(
             "Start a new complete download; range requests are not supported.",
             416,
         )
+    access = None
     stream = None
     try:
         with transaction.atomic():
@@ -200,4 +201,6 @@ def download_file_content(
     except Exception:
         if stream is not None:
             stream.close()
+        elif access is not None:
+            release_unstarted_download(transferId, access.organization.pk, access.actorId)
         raise

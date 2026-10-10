@@ -29,7 +29,8 @@ from file_storage.services import (
     lock_storage,
     check_disk_capacity,
     get_storage_usage,
-    require_transfer_slot,
+    require_upload_slot,
+    require_download_slot,
     get_download_expiry,
 )
 from operations.audit import record_audit
@@ -145,7 +146,7 @@ def create_upload(
         )
     expire_uploads(access.organization.pk)
     _prune_receipts_and_require_capacity(access)
-    require_transfer_slot(access.organization.pk)
+    require_upload_slot(access.organization.pk)
     lock_storage()
     usage = get_storage_usage(access.organization.pk)
     if (
@@ -417,8 +418,7 @@ def prepare_download(
     access: OrganizationAccessContext, pathParts: tuple[str, ...]
 ) -> FileDownloadResponse:
     file, strDepartmentPath = resolve_file(access, pathParts)
-    expire_uploads(access.organization.pk)
-    require_transfer_slot(access.organization.pk)
+    require_download_slot(access.organization.pk)
     physicalPath = get_blob_path(file.blob_id)
     if not physicalPath.is_file() or physicalPath.stat().st_size != file.blob.size_bytes:
         raise FileOperationError(

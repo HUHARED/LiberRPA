@@ -49,7 +49,7 @@ import {
   getPendingConsoleEvents,
   acknowledgeConsoleEvents,
 } from "./workRepository";
-import { stopConsoleFiles, flushConsoleLogs, sendConsoleFiles } from "./consoleWorkFiles";
+import { stopConsoleFiles, flushConsoleLogs, sendConsoleFile } from "./consoleWorkFiles";
 
 enum ConsolePermitWaitReason {
   DispatchPaused = "dispatch_paused",
@@ -71,6 +71,7 @@ const INT_MAX_PERMIT_RETRY_MS = 30_000;
 const setStoppedAssignment = new Set<string>();
 const mapPermitWaiter = new Map<string, () => void>();
 const mapPreparingWork = new Map<string, Promise<void>>();
+const setFileTransfers = new Set<Promise<void>>();
 let timerLogs: NodeJS.Timeout | undefined;
 let timerRetry: NodeJS.Timeout | undefined;
 let timerEventRetry: NodeJS.Timeout | undefined;
@@ -82,14 +83,12 @@ let boolEventsRequested = false;
 let boolContactFailureLogged = false;
 let boolEventFailureLogged = false;
 let boolPreparationRefresh = false;
-let boolFilesRefresh = false;
 let intRetryDelayMs = 2000;
 let intEventRetryDelayMs = 2000;
 let stopWorkListener: (() => void) | undefined;
 let stopEventListener: (() => void) | undefined;
 let promiseLogs: Promise<void> | undefined;
 let promisePreparation: Promise<void> | undefined;
-let promiseFiles: Promise<void> | undefined;
 
 function parseAssignmentData(value: unknown): ConsoleAssignmentData {
   const dictValue = ensureRecord(value, "Console assignment");
@@ -637,25 +636,16 @@ async function syncConsoleWork(
         });
     }
   }
-  if (Array.isArray(response.file_transfers) && response.file_transfers.length) {
-    if (promiseFiles) {
-      boolFilesRefresh = true;
-    } else {
-      let boolFailed = false;
-      promiseFiles = sendConsoleFiles(strSessionKey, credential, response.file_transfers)
+  if (Array.isArray(response.file_transfers))
+    for (const transfer of response.file_transfers) {
+      const promiseFile = sendConsoleFile(strSessionKey, credential, transfer)
         .catch((e: unknown) => {
-          boolFailed = true;
           loggerMain.warn(`Console log/file transfer: ${getErrorMessage(e)}`);
+          requestConsoleWork(true);
         })
-        .finally(() => {
-          promiseFiles = undefined;
-          if (boolFailed || boolFilesRefresh) {
-            boolFilesRefresh = false;
-            requestConsoleWork(boolFailed);
-          }
-        });
+        .finally(() => setFileTransfers.delete(promiseFile));
+      setFileTransfers.add(promiseFile);
     }
-  }
 }
 
 async function processConsoleUpdates(): Promise<void> {
@@ -750,6 +740,6 @@ export async function stopConsoleWork(): Promise<void> {
     ...mapPreparingWork.values(),
     promisePreparation,
     promiseLogs,
-    promiseFiles,
+    ...setFileTransfers,
   ]);
 }
