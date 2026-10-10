@@ -116,10 +116,13 @@
 </template>
 <script setup lang="ts">
 import { shallowRef, computed, onBeforeUnmount, onMounted, ref } from "vue";
-import { getRunLogs, type LogEntry } from "@/api/runs";
-import { ARR_LOG_LEVEL, type LogLevel } from "@/api/runOptions";
+
+import { type LogEntry, getRunLogs } from "@/api/runs";
+import { type LogLevel, ARR_LOG_LEVEL } from "@/api/runOptions";
 import { getApiError } from "@/api/errors";
+
 import { formatDateTime, formatFileSize, formatJsonValue } from "@/app/formatters";
+
 const props = defineProps<{
   runId: string;
   running: boolean;
@@ -173,6 +176,7 @@ const arrFiltered = computed(() =>
         right.timestamp.localeCompare(left.timestamp) || right.sequence - left.sequence,
     ),
 );
+
 function getFields(log: LogEntry): Record<string, string> {
   return {
     user_name: formatJsonValue(log.user_name),
@@ -183,16 +187,7 @@ function getFields(log: LogEntry): Record<string, string> {
     custom_fields: formatJsonValue(log.custom_fields),
   };
 }
-function pauseFollow(): void {
-  boolFollow.value = false;
-}
-function resumeFollow(): void {
-  if (boolFollow.value) {
-    intPage.value = 1;
-    arrExpanded.value = [];
-    void load("newer");
-  }
-}
+
 async function load(mode: "initial" | "older" | "newer"): Promise<void> {
   if (boolLoading.value) return;
   boolLoading.value = true;
@@ -246,6 +241,24 @@ async function load(mode: "initial" | "older" | "newer"): Promise<void> {
     boolLoading.value = false;
   }
 }
+
+function pauseFollow(): void {
+  boolFollow.value = false;
+}
+
+function resumeFollow(): void {
+  if (boolFollow.value) {
+    intPage.value = 1;
+    arrExpanded.value = [];
+    void load("newer");
+  }
+}
+
+function loadOlder(): void {
+  boolFollow.value = false;
+  void load("older");
+}
+
 function refresh(): void {
   intBefore = null;
   intAfter = 0;
@@ -253,16 +266,14 @@ function refresh(): void {
   arrExpanded.value = [];
   void load("initial");
 }
-function loadOlder(): void {
-  boolFollow.value = false;
-  void load("older");
-}
+
 onMounted(() => {
   void load("initial");
   timer = setInterval(() => {
     if (boolFollow.value && props.active && !document.hidden) void load("newer");
   }, 2000);
 });
+
 onBeforeUnmount(() => clearInterval(timer));
 </script>
 <style scoped></style>

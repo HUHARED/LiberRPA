@@ -173,22 +173,26 @@ import {
 import type { Ref } from "vue";
 import type { VForm } from "vuetify/components";
 import cronstrue from "cronstrue";
+
 import RunOptionsEditor from "@/components/runOptions/RunOptionsEditor.vue";
 import RunDispatchEditor from "@/components/runOptions/RunDispatchEditor.vue";
 import TargetSelector from "@/components/runOptions/TargetSelector.vue";
-import { getPackages, type PackageInfo } from "@/api/packages";
+
+import { type PackageInfo, getPackages } from "@/api/packages";
 import {
+  type ScheduleInfo,
   getSchedule,
   saveSchedule,
   previewSchedule,
-  type ScheduleInfo,
 } from "@/api/schedules";
-import { cloneRunSettings, type RunSettings } from "@/api/runOptions";
+import { type RunSettings, cloneRunSettings } from "@/api/runOptions";
 import { requestApi } from "@/api/client";
 import { isRecord } from "@/api/responses";
 import { getApiError } from "@/api/errors";
+
 import { useSessionStore } from "@/stores/sessionStore";
 import { formatDateTime, formatDateTimeInput } from "@/app/formatters";
+
 const props = defineProps<{ scheduleId?: string }>();
 const emit = defineEmits<{ close: []; saved: [schedule: ScheduleInfo] }>();
 const sessionStore = useSessionStore();
@@ -288,20 +292,7 @@ const strDescription = computed(() => {
     return "Enter a valid Cron expression.";
   }
 });
-async function changeCron(value: string): Promise<void> {
-  strCron.value = value;
-  boolVisualSyncing = true;
-  const intRevision = ++intVisualRevision.value;
-  // Recreate the visual editor so its selected period follows the new text.
-  await nextTick();
-  if (intRevision === intVisualRevision.value) boolVisualSyncing = false;
-}
-function changeVisualCron(value: string): void {
-  // Ignore normalization emitted while the editor is loading the text draft.
-  if (boolVisualSyncing || boolBusy.value || !strVisualCron.value) return;
-  const boolHasSeconds = strCron.value.trim().split(/\s+/).length === 6;
-  strCron.value = boolHasSeconds ? `0 ${value}` : value;
-}
+
 async function loadPackages(): Promise<void> {
   const intRevision = ++intPackageRevision;
   const strRequestedDepartmentId = strDepartmentId.value;
@@ -326,6 +317,7 @@ async function loadPackages(): Promise<void> {
     if (intRevision === intPackageRevision) boolPackagesLoading.value = false;
   }
 }
+
 function changeDepartment(): void {
   arrExecutorId.value = [];
   strGroupId.value = null;
@@ -333,11 +325,29 @@ function changeDepartment(): void {
   settings.value = null;
   void loadPackages();
 }
+
 function changePackage(): void {
   settings.value = selectedPackage.value
     ? cloneRunSettings(selectedPackage.value.settings)
     : null;
 }
+
+async function changeCron(value: string): Promise<void> {
+  strCron.value = value;
+  boolVisualSyncing = true;
+  const intRevision = ++intVisualRevision.value;
+  // Recreate the visual editor so its selected period follows the new text.
+  await nextTick();
+  if (intRevision === intVisualRevision.value) boolVisualSyncing = false;
+}
+
+function changeVisualCron(value: string): void {
+  // Ignore normalization emitted while the editor is loading the text draft.
+  if (boolVisualSyncing || boolBusy.value || !strVisualCron.value) return;
+  const boolHasSeconds = strCron.value.trim().split(/\s+/).length === 6;
+  strCron.value = boolHasSeconds ? `0 ${value}` : value;
+}
+
 async function refreshPreview(intRevision: number): Promise<void> {
   try {
     const result = await previewSchedule({
@@ -356,6 +366,7 @@ async function refreshPreview(intRevision: number): Promise<void> {
     if (intRevision === intPreviewRevision) boolPreviewLoading.value = false;
   }
 }
+
 async function save(): Promise<void> {
   if (
     boolBusy.value ||
@@ -391,6 +402,7 @@ async function save(): Promise<void> {
     boolBusy.value = false;
   }
 }
+
 watch(
   [boolInitialized, strCron, strTimeZone, strActiveFrom, strActiveUntil],
   () => {
@@ -404,6 +416,7 @@ watch(
   },
   { flush: "sync" },
 );
+
 onMounted(async () => {
   try {
     if (!props.scheduleId) {
@@ -452,6 +465,7 @@ onMounted(async () => {
     if (!boolDisposed) boolLoading.value = false;
   }
 });
+
 onBeforeUnmount(() => {
   boolDisposed = true;
   clearTimeout(previewTimer);

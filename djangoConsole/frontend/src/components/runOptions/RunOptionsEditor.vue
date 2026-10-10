@@ -111,16 +111,19 @@
   </v-row>
 </template>
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
+
 import { getAssetList } from "@/api/assets";
 import { getApiError } from "@/api/errors";
 import type { AssetEntryResponse } from "@/api/generated/browserApi";
+
 import { validateJsonValue } from "@/app/validators";
+
 import {
-  ARR_LOG_LEVEL,
-  INT_MAX_TIMEOUT_MIN,
   type JsonValue,
   type RunSettings,
+  ARR_LOG_LEVEL,
+  INT_MAX_TIMEOUT_MIN,
 } from "@/api/runOptions";
 
 const props = defineProps<{ departmentId: string; disabled?: boolean }>();
@@ -160,12 +163,14 @@ const strArgumentsError = computed(() => {
     return e instanceof Error ? e.message : "Enter valid Custom Arguments.";
   }
 });
+
 function validateRetryCount(value: unknown): true | string {
   return (
     (typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= 3) ||
     "Enter an integer from 0 to 3."
   );
 }
+
 function validateTimeout(value: unknown): true | string {
   return (
     (typeof value === "number" &&
@@ -175,29 +180,11 @@ function validateTimeout(value: unknown): true | string {
     `Enter an integer from 0 to ${INT_MAX_TIMEOUT_MIN}.`
   );
 }
+
 function publishValid(): void {
   emit("valid", !strArgumentsError.value && arrError.value.every((value) => !value));
 }
-function setSource(index: number, source: string): void {
-  settings.value.custom_arg_assets = settings.value.custom_prj_args.map(
-    (_, intIndex) => settings.value.custom_arg_assets[intIndex] ?? null,
-  );
-  settings.value.custom_arg_assets[index] =
-    source === "asset" ? { name: "", asset_type: "text" } : null;
-  if (source === "value") updateValue(index, arrValue.value[index] ?? "");
-  else {
-    arrError.value[index] = "";
-    publishValid();
-  }
-}
-function setAsset(index: number, name: string): void {
-  const asset = arrAsset.value.find((entry) => entry.name === name);
-  if (asset)
-    settings.value.custom_arg_assets[index] = {
-      name: asset.name,
-      asset_type: asset.asset_type,
-    };
-}
+
 function updateValue(index: number, text: string): void {
   try {
     const value = JSON.parse(text) as JsonValue;
@@ -210,12 +197,36 @@ function updateValue(index: number, text: string): void {
   }
   publishValid();
 }
+
+function setSource(index: number, source: string): void {
+  settings.value.custom_arg_assets = settings.value.custom_prj_args.map(
+    (_, intIndex) => settings.value.custom_arg_assets[intIndex] ?? null,
+  );
+  settings.value.custom_arg_assets[index] =
+    source === "asset" ? { name: "", asset_type: "text" } : null;
+  if (source === "value") updateValue(index, arrValue.value[index] ?? "");
+  else {
+    arrError.value[index] = "";
+    publishValid();
+  }
+}
+
+function setAsset(index: number, name: string): void {
+  const asset = arrAsset.value.find((entry) => entry.name === name);
+  if (asset)
+    settings.value.custom_arg_assets[index] = {
+      name: asset.name,
+      asset_type: asset.asset_type,
+    };
+}
+
 async function loadAssets(): Promise<void> {
   const intRevision = ++intAssetRevision;
+  const strDepartmentId = props.departmentId;
   arrAsset.value = [];
   strAssetError.value = "";
-  if (!props.departmentId) return;
-  boolLoadingAssets.value = true;
+  boolLoadingAssets.value = !!strDepartmentId;
+  if (!strDepartmentId) return;
   try {
     const arrResult: AssetEntryResponse[] = [];
     let intPage = 1;
@@ -224,27 +235,31 @@ async function loadAssets(): Promise<void> {
       const result = await getAssetList(
         {
           name: "",
-          departmentIds: [props.departmentId],
+          departmentIds: [strDepartmentId],
           assetTypes: ["text", "integer", "number", "boolean", "json"],
         },
         intPage++,
       );
+      if (intRevision !== intAssetRevision) return;
       arrResult.push(...result.assets);
       intTotalPages = result.total_pages;
     } while (intPage <= intTotalPages);
-    if (intRevision === intAssetRevision) arrAsset.value = arrResult;
+    arrAsset.value = arrResult;
   } catch (e) {
     if (intRevision === intAssetRevision) strAssetError.value = getApiError(e).message;
   } finally {
     if (intRevision === intAssetRevision) boolLoadingAssets.value = false;
   }
 }
+
 watch(strArgumentsError, publishValid, { immediate: true });
+
 watch(
   () => props.departmentId,
   () => void loadAssets(),
   { immediate: true },
 );
+
 watch(
   () => settings.value,
   () => {
@@ -255,5 +270,9 @@ watch(
     publishValid();
   },
 );
+
+onBeforeUnmount(() => {
+  intAssetRevision += 1;
+});
 </script>
 <style scoped></style>

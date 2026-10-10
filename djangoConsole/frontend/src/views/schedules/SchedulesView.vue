@@ -137,18 +137,23 @@
 import { shallowRef, computed, onMounted, ref } from "vue";
 import { RouterLink, useRoute } from "vue-router";
 import cronstrue from "cronstrue";
+
 import { getExecutorList } from "@/api/executors";
 import { getExecutorGroupList } from "@/api/executorGroups";
+
 import ScheduleFormDialog from "@/components/schedules/ScheduleFormDialog.vue";
+
 import {
-  getSchedules,
-  setScheduleEnabled,
-  type ScheduleFilters,
   type ScheduleInfo,
   type SchedulePage,
+  type ScheduleFilters,
+  getSchedules,
+  setScheduleEnabled,
 } from "@/api/schedules";
 import { getApiError } from "@/api/errors";
+
 import { useSessionStore } from "@/stores/sessionStore";
+
 const ARR_HEADER = [
   { title: "Name", key: "name" },
   { title: "Department", key: "department" },
@@ -173,6 +178,7 @@ const boolCanCreate = computed(
     sessionStore.access?.is_org_admin ||
     sessionStore.access?.departments.some((department) => department.role === "developer"),
 );
+
 function emptyFilters(): ScheduleFilters {
   return { name: "", departmentIds: [], project: "", enabled: "", target: "" };
 }
@@ -188,6 +194,9 @@ const strEditId = ref<string | null>(null);
 const strChangingId = ref("");
 const boolLoading = ref(false);
 const strError = ref("");
+
+let intLoadRevision = 0;
+
 function describeCron(value: string): string {
   try {
     return cronstrue.toString(value, { use24HourTimeFormat: true });
@@ -195,48 +204,7 @@ function describeCron(value: string): string {
     return value;
   }
 }
-let intLoadRevision = 0;
-async function load(pageNumber = page.value?.page ?? 1): Promise<void> {
-  const intRevision = ++intLoadRevision;
-  boolLoading.value = true;
-  strError.value = "";
-  try {
-    const response = await getSchedules(appliedFilters, pageNumber);
-    if (intRevision === intLoadRevision) page.value = response;
-  } catch (e) {
-    if (intRevision === intLoadRevision) strError.value = getApiError(e).message;
-  } finally {
-    if (intRevision === intLoadRevision) boolLoading.value = false;
-  }
-}
-function apply(): void {
-  appliedFilters = { ...filters.value, departmentIds: [...filters.value.departmentIds] };
-  void load(1);
-}
-function clearFilters(): void {
-  filters.value = emptyFilters();
-  apply();
-}
-async function toggle(schedule: ScheduleInfo, enabled: boolean): Promise<void> {
-  strChangingId.value = schedule.id;
-  strError.value = "";
-  try {
-    await setScheduleEnabled(schedule.id, enabled);
-    schedule.enabled = enabled;
-  } catch (e) {
-    strError.value = getApiError(e).message;
-  } finally {
-    strChangingId.value = "";
-  }
-}
-function closeForm(): void {
-  boolNew.value = false;
-  strEditId.value = null;
-}
-function saved(): void {
-  closeForm();
-  void load();
-}
+
 async function loadTargets(): Promise<void> {
   boolTargetsLoading.value = true;
   try {
@@ -287,6 +255,54 @@ async function loadTargets(): Promise<void> {
     boolTargetsLoading.value = false;
   }
 }
+
+async function load(pageNumber = page.value?.page ?? 1): Promise<void> {
+  const intRevision = ++intLoadRevision;
+  boolLoading.value = true;
+  strError.value = "";
+  try {
+    const response = await getSchedules(appliedFilters, pageNumber);
+    if (intRevision === intLoadRevision) page.value = response;
+  } catch (e) {
+    if (intRevision === intLoadRevision) strError.value = getApiError(e).message;
+  } finally {
+    if (intRevision === intLoadRevision) boolLoading.value = false;
+  }
+}
+
+function apply(): void {
+  appliedFilters = { ...filters.value, departmentIds: [...filters.value.departmentIds] };
+  void load(1);
+}
+
+function clearFilters(): void {
+  filters.value = emptyFilters();
+  apply();
+}
+
+async function toggle(schedule: ScheduleInfo, enabled: boolean): Promise<void> {
+  strChangingId.value = schedule.id;
+  strError.value = "";
+  try {
+    await setScheduleEnabled(schedule.id, enabled);
+    schedule.enabled = enabled;
+  } catch (e) {
+    strError.value = getApiError(e).message;
+  } finally {
+    strChangingId.value = "";
+  }
+}
+
+function closeForm(): void {
+  boolNew.value = false;
+  strEditId.value = null;
+}
+
+function saved(): void {
+  closeForm();
+  void load();
+}
+
 onMounted(() => {
   void load();
   void loadTargets();

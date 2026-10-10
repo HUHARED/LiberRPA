@@ -291,24 +291,27 @@ import { shallowRef, computed, ref, watch } from "vue";
 import { RouterLink, useRouter, type RouteLocationRaw } from "vue-router";
 import type { Ref } from "vue";
 import type { VForm } from "vuetify/components";
+
 import RunInputs from "@/components/runOptions/RunInputs.vue";
 import RunOptionsEditor from "@/components/runOptions/RunOptionsEditor.vue";
 import RunDispatchEditor from "@/components/runOptions/RunDispatchEditor.vue";
 import RunEmailEditor from "@/components/runOptions/RunEmailEditor.vue";
 import RunPackageDialog from "@/components/packages/RunPackageDialog.vue";
+
 import {
+  PackageReferenceKind,
+  PACKAGE_REFERENCE_LABELS,
+  type PackageReference,
+  type PackageDetails,
   getPackageDetails,
   savePackageSettings,
   cancelPackagePreparation,
   deletePackage,
-  PackageReferenceKind,
-  PACKAGE_REFERENCE_LABELS,
   downloadPackage,
-  type PackageDetails,
-  type PackageReference,
 } from "@/api/packages";
-import { cloneRunSettings, type RunSettings } from "@/api/runOptions";
+import { type RunSettings, cloneRunSettings } from "@/api/runOptions";
 import { getApiError } from "@/api/errors";
+
 import {
   CONFLICT_POLICY_LABELS,
   PRIORITY_LABELS,
@@ -317,6 +320,7 @@ import {
 import { formatDateTime, formatFileSize } from "@/app/formatters";
 import { validateEnvironmentName } from "@/app/validators";
 import { useSessionStore } from "@/stores/sessionStore";
+
 const props = defineProps<{ packageId: string }>();
 const sessionStore = useSessionStore();
 const router = useRouter();
@@ -355,6 +359,9 @@ const strEditError = ref("");
 const strDeleteError = ref("");
 const strPreparationError = ref("");
 const strSuccess = ref("");
+
+let intLoadRevision = 0;
+
 function getReferenceLocation(reference: PackageReference): RouteLocationRaw | undefined {
   return reference.kind === PackageReferenceKind.Schedule
     ? { name: "schedule-details", params: { scheduleId: reference.id } }
@@ -362,7 +369,7 @@ function getReferenceLocation(reference: PackageReference): RouteLocationRaw | u
       ? { name: "job-details", params: { jobId: reference.id } }
       : undefined;
 }
-let intLoadRevision = 0;
+
 async function load(): Promise<void> {
   const intRevision = ++intLoadRevision;
   boolLoading.value = true;
@@ -376,6 +383,20 @@ async function load(): Promise<void> {
     if (intRevision === intLoadRevision) boolLoading.value = false;
   }
 }
+
+async function download(): Promise<void> {
+  if (!details.value) return;
+  boolDownload.value = true;
+  strError.value = "";
+  try {
+    await downloadPackage(details.value.package);
+  } catch (e) {
+    strError.value = getApiError(e).message;
+  } finally {
+    boolDownload.value = false;
+  }
+}
+
 function edit(): void {
   if (!details.value) return;
   draft.value = cloneRunSettings(details.value.package.settings);
@@ -384,6 +405,7 @@ function edit(): void {
   strEditError.value = "";
   boolEdit.value = true;
 }
+
 async function save(): Promise<void> {
   if (!draft.value || !boolArgsValid.value || !(await form.value?.validate())?.valid)
     return;
@@ -397,8 +419,7 @@ async function save(): Promise<void> {
       arrApiInputKey.value,
     );
     boolEdit.value = false;
-    strSuccess.value =
-      "Settings saved. Preparation on remote Executors may still be pending.";
+    strSuccess.value = "Settings saved.";
     await load();
   } catch (e) {
     strEditError.value = getApiError(e).message;
@@ -406,10 +427,12 @@ async function save(): Promise<void> {
     boolBusy.value = false;
   }
 }
+
 function openCancelPreparation(): void {
   strPreparationError.value = "";
   boolCancelPreparation.value = true;
 }
+
 async function cancelPreparation(): Promise<void> {
   if (boolBusy.value || !details.value?.package.can_manage) return;
   const strPackageId = props.packageId;
@@ -428,6 +451,7 @@ async function cancelPreparation(): Promise<void> {
     boolBusy.value = false;
   }
 }
+
 async function remove(): Promise<void> {
   if (boolBusy.value) return;
   boolBusy.value = true;
@@ -442,22 +466,12 @@ async function remove(): Promise<void> {
     boolBusy.value = false;
   }
 }
-async function download(): Promise<void> {
-  if (!details.value) return;
-  boolDownload.value = true;
-  strError.value = "";
-  try {
-    await downloadPackage(details.value.package);
-  } catch (e) {
-    strError.value = getApiError(e).message;
-  } finally {
-    boolDownload.value = false;
-  }
-}
+
 function handleRun(): void {
   boolRun.value = false;
   void router.push({ name: "job-queue" });
 }
+
 watch(
   () => props.packageId,
   () => {
