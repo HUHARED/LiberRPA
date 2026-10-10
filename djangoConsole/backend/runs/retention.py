@@ -8,7 +8,7 @@ from datetime import timedelta
 
 from django.conf import settings
 from django.db import transaction
-from django.db.models import Count, Sum, Q
+from django.db.models import Count, Exists, OuterRef, Q, Sum
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 
@@ -16,7 +16,20 @@ from organizations.models import Organization
 from notifications.models import EmailDelivery, EmailStatus, EmailReasonCode
 from schedules.models import ScheduleTrigger
 
-from .models import Job, JobRequest, JobState, Run, RunFileTransfer, RunLog
+from .models import (
+    JobState,
+    AssignmentState,
+    RunEventKind,
+    JobRequest,
+    Job,
+    Assignment,
+    Run,
+    RunLog,
+    RunFileTransfer,
+    RunEvent,
+)
+
+_INT_RECEIPT_RETENTION_DAYS = 30
 
 
 def prune_run_data(limit: int = 200) -> tuple[int, int]:
@@ -25,14 +38,19 @@ def prune_run_data(limit: int = 200) -> tuple[int, int]:
     intLogsCleared = 0
     currentTime = timezone.now()
     limits = settings.CONSOLE_LIMITS
+    receiptCutoff = currentTime - timedelta(days=_INT_RECEIPT_RETENTION_DAYS)
+    historyCutoff = currentTime - timedelta(days=limits.runHistoryRetentionDays)
     for organizationId in Organization.objects.values_list("id", flat=True).iterator(
         chunk_size=100
     ):
-        # Select eligible ages before limiting, so young Run history cannot hide expired no-Run receipts.
-        terminalCandidates = Job.objects.filter(
-            request__organization_id=organizationId, state=JobState.FINISHED
-        ).annotate(
-            run_count=Count("runs"), retention_start=Coalesce("closed_at", "ended_at")
+        # Actual history and explicit Close use ordinary retention. No-Run receipts have their own window.
+        terminalCandidates = (
+            Job.objects
+            .filter(request__organization_id=organizationId, state=JobState.FINISHED)
+            .annotate(
+                run_count=Count("runs"), retention_start=Coalesce("closed_at", "ended_at")
+            )
+            .filter(Q(run_count__gt=0) | Q(closed_at__isnull=False))
         )
         intExistingRuns = Run.objects.filter(
             job__request__organization_id=organizationId,
@@ -40,12 +58,11 @@ def prune_run_data(limit: int = 200) -> tuple[int, int]:
         ).count()
         if intExistingRuns <= limits.maxRunHistoryPerOrganization:
             terminalCandidates = terminalCandidates.filter(
-                Q(
-                    run_count__gt=0,
-                    retention_start__lt=currentTime
-                    - timedelta(days=limits.runHistoryRetentionDays),
-                )
-                | Q(run_count=0, retention_start__lt=currentTime - timedelta(days=30))
+                retention_start__lt=historyCutoff
+            )
+        else:
+            terminalCandidates = terminalCandidates.filter(
+                Q(run_count__gt=0) | Q(retention_start__lt=historyCutoff)
             )
         listCandidateJobId = list(
             terminalCandidates.order_by("retention_start", "id").values_list(
@@ -107,6 +124,7 @@ def prune_run_data(limit: int = 200) -> tuple[int, int]:
                 Job.objects
                 .filter(request__organization_id=organizationId, state=JobState.FINISHED)
                 .annotate(run_count=Count("runs"))
+                .filter(Q(run_count__gt=0) | Q(closed_at__isnull=False))
                 .order_by("ended_at", "id")
             )
             intRuns = Run.objects.filter(
@@ -119,10 +137,8 @@ def prune_run_data(limit: int = 200) -> tuple[int, int]:
                 retentionStart = closedAt or endedAt
                 if retentionStart is None:
                     continue
-                intDays = limits.runHistoryRetentionDays if intRunCount else 30
-                if (
-                    retentionStart >= currentTime - timedelta(days=intDays)
-                    and intRuns <= limits.maxRunHistoryPerOrganization
+                if retentionStart >= historyCutoff and (
+                    intRunCount == 0 or intRuns <= limits.maxRunHistoryPerOrganization
                 ):
                     continue
                 intRuns -= intRunCount
@@ -139,15 +155,49 @@ def prune_run_data(limit: int = 200) -> tuple[int, int]:
                 )
                 Job.objects.filter(pk=jobId).delete()
                 intJobsRemoved += 1
-            # Receipts do not recreate cleared history; expire them separately after the ordinary retry horizon.
-            JobRequest.objects.filter(
-                organization_id=organizationId,
-                accepted_at__lt=currentTime - timedelta(days=30),
-                jobs__isnull=True,
+            # Keep every no-Run target until the whole remaining request is resolved and old enough.
+            protectedJobs = Job.objects.filter(request_id=OuterRef("pk")).filter(
+                ~Q(state=JobState.FINISHED)
+                | Q(ended_at__isnull=True)
+                | Q(ended_at__gt=receiptCutoff)
+                | Q(retry_at__isnull=False)
+                | Q(attempts__gt=0)
+            )
+            # Expired permits and Close are not proof that no process was created. The first
+            # accepted non-start receipt starts this part of retention; later duplicates do not reset it.
+            oldNonStartReceipts = RunEvent.objects.filter(
+                assignment_id=OuterRef("pk"),
+                kind=RunEventKind.NOT_STARTED,
+                received_at__lte=receiptCutoff,
+            )
+            protectedAssignments = Assignment.objects.filter(
+                job__request_id=OuterRef("pk")
+            ).filter(
+                ~Q(state__in=(AssignmentState.FINISHED, AssignmentState.WITHDRAWN))
+                | (Q(permit_expires_at__isnull=False) & ~Exists(oldNonStartReceipts))
+            )
+            retainedRuns = Run.objects.filter(job__request_id=OuterRef("pk"))
+            listExpiredRequestId = list(
+                JobRequest.objects
+                .filter(
+                    ~Exists(protectedJobs),
+                    ~Exists(protectedAssignments),
+                    ~Exists(retainedRuns),
+                    organization_id=organizationId,
+                    accepted_at__lte=receiptCutoff,
+                )
+                .order_by("accepted_at", "id")
+                .values_list("id", flat=True)[:limit]
+            )
+            # Cascading removes the request, all remaining Jobs, assignments and server receipts together.
+            _, dictRemoved = JobRequest.objects.filter(
+                pk__in=listExpiredRequestId
             ).delete()
+            intJobsRemoved += dictRemoved.get(Job._meta.label, 0)
     listTriggerId = list(
         ScheduleTrigger.objects
-        .filter(recorded_at__lt=currentTime - timedelta(days=30))
+        .filter(recorded_at__lte=receiptCutoff)
+        .exclude(job_request_id__in=JobRequest.objects.values("id"))
         .order_by("recorded_at", "id")
         .values_list("id", flat=True)[:limit]
     )
