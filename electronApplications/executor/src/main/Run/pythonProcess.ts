@@ -14,8 +14,8 @@ import { getExecutorRunArgumentsPath, removeExecutorRunArgumentsFile } from "./r
 import type { ProjectRunDetails } from "./types";
 
 export interface PythonProcessDiagnosticOutput {
-  strStdoutTail: string;
-  strStderrTail: string;
+  stdoutTail: string;
+  stderrTail: string;
 }
 
 interface StartedProjectPythonProcess {
@@ -42,23 +42,23 @@ function attachPythonDiagnosticStreams(
   processPy: ChildProcessWithoutNullStreams,
 ): PythonProcessDiagnosticOutput {
   const dictDiagnosticOutput: PythonProcessDiagnosticOutput = {
-    strStdoutTail: "",
-    strStderrTail: "",
+    stdoutTail: "",
+    stderrTail: "",
   };
 
   processPy.stdout.setEncoding("utf8");
   processPy.stderr.setEncoding("utf8");
 
   processPy.stdout.on("data", (strChunk: string) => {
-    dictDiagnosticOutput.strStdoutTail = appendProcessOutputTail(
-      dictDiagnosticOutput.strStdoutTail,
+    dictDiagnosticOutput.stdoutTail = appendProcessOutputTail(
+      dictDiagnosticOutput.stdoutTail,
       strChunk,
     );
   });
 
   processPy.stderr.on("data", (strChunk: string) => {
-    dictDiagnosticOutput.strStderrTail = appendProcessOutputTail(
-      dictDiagnosticOutput.strStderrTail,
+    dictDiagnosticOutput.stderrTail = appendProcessOutputTail(
+      dictDiagnosticOutput.stderrTail,
       strChunk,
     );
   });
@@ -160,8 +160,8 @@ export function logPythonDiagnosticOutput({
   reason: string;
   diagnosticOutput: PythonProcessDiagnosticOutput;
 }): void {
-  const strStdoutTail = diagnosticOutput.strStdoutTail.trim();
-  const strStderrTail = diagnosticOutput.strStderrTail.trim();
+  const strStdoutTail = diagnosticOutput.stdoutTail.trim();
+  const strStderrTail = diagnosticOutput.stderrTail.trim();
 
   if (strStdoutTail.length === 0 && strStderrTail.length === 0) {
     return;
@@ -201,24 +201,26 @@ export function requestPythonTermination(
   }
 }
 
-export async function terminatePythonProcessAfterStartupFailure(
+function waitForPythonProcessClose(
   processPy: ChildProcessWithoutNullStreams,
-  runId: string,
-): Promise<void> {
+): Promise<boolean> {
   if (!isProcessRunning(processPy)) {
-    return;
+    return Promise.resolve(true);
   }
 
-  try {
-    processPy.kill();
-  } catch (e: unknown) {
-    loggerMain.error(
-      `Failed to terminate Python process ${runId} after startup failure: ${getErrorMessage(e)}`,
-    );
-    return;
-  }
+  return new Promise<boolean>((resolve) => {
+    const handleClose = (): void => {
+      clearTimeout(timeoutId);
+      resolve(true);
+    };
 
-  await waitForPythonProcessTermination(processPy, runId);
+    const timeoutId = setTimeout(() => {
+      processPy.removeListener("close", handleClose);
+      resolve(!isProcessRunning(processPy));
+    }, INT_PROCESS_TERMINATION_WAIT_MS);
+
+    processPy.once("close", handleClose);
+  });
 }
 
 export async function waitForPythonProcessTermination(
@@ -247,24 +249,22 @@ export async function waitForPythonProcessTermination(
   }
 }
 
-function waitForPythonProcessClose(
+export async function terminatePythonProcessAfterStartupFailure(
   processPy: ChildProcessWithoutNullStreams,
-): Promise<boolean> {
+  runId: string,
+): Promise<void> {
   if (!isProcessRunning(processPy)) {
-    return Promise.resolve(true);
+    return;
   }
 
-  return new Promise<boolean>((resolve) => {
-    const handleClose = (): void => {
-      clearTimeout(timeoutId);
-      resolve(true);
-    };
+  try {
+    processPy.kill();
+  } catch (e: unknown) {
+    loggerMain.error(
+      `Failed to terminate Python process ${runId} after startup failure: ${getErrorMessage(e)}`,
+    );
+    return;
+  }
 
-    const timeoutId = setTimeout(() => {
-      processPy.removeListener("close", handleClose);
-      resolve(!isProcessRunning(processPy));
-    }, INT_PROCESS_TERMINATION_WAIT_MS);
-
-    processPy.once("close", handleClose);
-  });
+  await waitForPythonProcessTermination(processPy, runId);
 }

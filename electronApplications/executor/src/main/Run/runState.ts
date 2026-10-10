@@ -9,17 +9,17 @@ import type { RunOutputs } from "../../shared/run";
 import { isProcessRunning } from "../Common/process";
 import {
   INT_MAX_CUSTOM_ARGUMENT_JSON_BYTES,
-  ensureJsonValue,
-  ensureExactRecord,
-  ensureNonEmptyString,
   ensureRecord,
+  ensureExactRecord,
   ensureString,
+  ensureNonEmptyString,
+  ensureJsonValue,
 } from "../Common/validation";
 import { strDocumentsFolderPath } from "../Config/environment";
 import { loggerMain } from "../Logging/logger";
-import { ensureExpectedRunLogFolderPath, ensureRunLogFolderPath } from "./logPath";
+import { ensureRunLogFolderPath, ensureExpectedRunLogFolderPath } from "./logPath";
 
-type Str_ExecutorRunState_Status = "running" | "completed" | "error" | "terminated";
+type ExecutorRunStateStatus = "running" | "completed" | "error" | "terminated";
 
 export interface ExecutorRunState {
   schemaVersion: 1;
@@ -28,7 +28,7 @@ export interface ExecutorRunState {
   packageVersion: string;
   startedAt: string;
   logPath: string;
-  status: Str_ExecutorRunState_Status;
+  status: ExecutorRunStateStatus;
   endedAt?: string;
   outputs?: RunOutputs;
   errorSummary?: { type: string; message: string } | null;
@@ -119,7 +119,7 @@ export function parseExecutorRunTimestamp(timestamp: string): number {
   return intTimestampMs;
 }
 
-function ensureExecutorRunStateStatus(value: unknown): Str_ExecutorRunState_Status {
+function ensureExecutorRunStateStatus(value: unknown): ExecutorRunStateStatus {
   switch (value) {
     case "running":
     case "completed":
@@ -128,6 +128,89 @@ function ensureExecutorRunStateStatus(value: unknown): Str_ExecutorRunState_Stat
       return value;
     default:
       throw new Error("Executor run state contains an unsupported status.");
+  }
+}
+
+function readRunOutputs(value: unknown): RunOutputs {
+  try {
+    const dictValue = ensureExactRecord(
+      value,
+      ["status", "values", "unavailableKeys", "reason"],
+      "Run outputs",
+    );
+    const status = dictValue.status;
+    if (status !== "complete" && status !== "partial" && status !== "unavailable")
+      throw new Error("Invalid Run outputs status.");
+    const strReason = ensureString(dictValue.reason, "Run outputs reason");
+    if ([...strReason].length > 2000)
+      throw new Error("Run outputs reason exceeds the length limit.");
+    if (!Array.isArray(dictValue.unavailableKeys))
+      throw new Error("Run unavailable keys must be an array.");
+    const arrUnavailableKey = dictValue.unavailableKeys.map((key: unknown) =>
+      ensureString(key, "Run unavailable key"),
+    );
+    const setKey = new Set(arrUnavailableKey);
+    if (setKey.size !== arrUnavailableKey.length)
+      throw new Error("Run unavailable keys contain duplicates.");
+    if (
+      Buffer.byteLength(JSON.stringify(arrUnavailableKey), "utf8") >
+      INT_MAX_CUSTOM_ARGUMENT_JSON_BYTES
+    )
+      throw new Error("Run unavailable keys exceed the 64 KiB JSON limit.");
+    if (status === "unavailable") {
+      if (dictValue.values !== null || arrUnavailableKey.length !== 0)
+        throw new Error("Unavailable outputs cannot contain values or keys.");
+      return { status, values: null, unavailableKeys: [], reason: strReason };
+    }
+    if (
+      !Array.isArray(dictValue.values) ||
+      (status === "partial") !== arrUnavailableKey.length > 0
+    )
+      throw new Error("Run outputs do not match their status.");
+    // The values budget and depth match the ordered CustomArgs input representation.
+    ensureJsonValue(dictValue.values, "Run output values");
+    const arrValue: [string, unknown][] = dictValue.values.map((entry: unknown) => {
+      if (!Array.isArray(entry) || entry.length !== 2 || typeof entry[0] !== "string")
+        throw new Error("A Run output must be a [string, value] pair.");
+      if (setKey.has(entry[0])) throw new Error("Run output keys must be unique.");
+      setKey.add(entry[0]);
+      return [entry[0], entry[1]];
+    });
+    if (
+      Buffer.byteLength(JSON.stringify(arrValue), "utf8") >
+      INT_MAX_CUSTOM_ARGUMENT_JSON_BYTES
+    )
+      throw new Error("Run output values exceed the 64 KiB JSON limit.");
+    return {
+      status,
+      values: arrValue,
+      unavailableKeys: arrUnavailableKey,
+      reason: strReason,
+    };
+  } catch {
+    return {
+      status: "unavailable",
+      values: null,
+      unavailableKeys: [],
+      reason: "Python returned an invalid or oversized output snapshot.",
+    };
+  }
+}
+
+function parseErrorSummary(value: unknown): { type: string; message: string } | null {
+  if (value === null) return null;
+  const dictValue = ensureRecord(value, "Run error summary");
+  return {
+    type: ensureString(dictValue.type, "Run error type"),
+    message: ensureString(dictValue.message, "Run error message"),
+  };
+}
+
+function readErrorSummary(value: unknown): { type: string; message: string } | null {
+  try {
+    return parseErrorSummary(value);
+  } catch {
+    return null;
   }
 }
 
@@ -218,89 +301,6 @@ export function readExecutorRunState({
     endedAt: strEndedAt,
     outputs: readRunOutputs(dictState.outputs),
     errorSummary: readErrorSummary(dictState.errorSummary),
-  };
-}
-
-function readRunOutputs(value: unknown): RunOutputs {
-  try {
-    const dictValue = ensureExactRecord(
-      value,
-      ["status", "values", "unavailableKeys", "reason"],
-      "Run outputs",
-    );
-    const status = dictValue.status;
-    if (status !== "complete" && status !== "partial" && status !== "unavailable")
-      throw new Error("Invalid Run outputs status.");
-    const strReason = ensureString(dictValue.reason, "Run outputs reason");
-    if ([...strReason].length > 2000)
-      throw new Error("Run outputs reason exceeds the length limit.");
-    if (!Array.isArray(dictValue.unavailableKeys))
-      throw new Error("Run unavailable keys must be an array.");
-    const arrUnavailableKey = dictValue.unavailableKeys.map((key: unknown) =>
-      ensureString(key, "Run unavailable key"),
-    );
-    const setKey = new Set(arrUnavailableKey);
-    if (setKey.size !== arrUnavailableKey.length)
-      throw new Error("Run unavailable keys contain duplicates.");
-    if (
-      Buffer.byteLength(JSON.stringify(arrUnavailableKey), "utf8") >
-      INT_MAX_CUSTOM_ARGUMENT_JSON_BYTES
-    )
-      throw new Error("Run unavailable keys exceed the 64 KiB JSON limit.");
-    if (status === "unavailable") {
-      if (dictValue.values !== null || arrUnavailableKey.length !== 0)
-        throw new Error("Unavailable outputs cannot contain values or keys.");
-      return { status, values: null, unavailableKeys: [], reason: strReason };
-    }
-    if (
-      !Array.isArray(dictValue.values) ||
-      (status === "partial") !== arrUnavailableKey.length > 0
-    )
-      throw new Error("Run outputs do not match their status.");
-    // The values budget and depth match the ordered CustomArgs input representation.
-    ensureJsonValue(dictValue.values, "Run output values");
-    const arrValue: [string, unknown][] = dictValue.values.map((entry: unknown) => {
-      if (!Array.isArray(entry) || entry.length !== 2 || typeof entry[0] !== "string")
-        throw new Error("A Run output must be a [string, value] pair.");
-      if (setKey.has(entry[0])) throw new Error("Run output keys must be unique.");
-      setKey.add(entry[0]);
-      return [entry[0], entry[1]];
-    });
-    if (
-      Buffer.byteLength(JSON.stringify(arrValue), "utf8") >
-      INT_MAX_CUSTOM_ARGUMENT_JSON_BYTES
-    )
-      throw new Error("Run output values exceed the 64 KiB JSON limit.");
-    return {
-      status,
-      values: arrValue,
-      unavailableKeys: arrUnavailableKey,
-      reason: strReason,
-    };
-  } catch {
-    return {
-      status: "unavailable",
-      values: null,
-      unavailableKeys: [],
-      reason: "Python returned an invalid or oversized output snapshot.",
-    };
-  }
-}
-
-function readErrorSummary(value: unknown): { type: string; message: string } | null {
-  try {
-    return parseErrorSummary(value);
-  } catch {
-    return null;
-  }
-}
-
-function parseErrorSummary(value: unknown): { type: string; message: string } | null {
-  if (value === null) return null;
-  const dictValue = ensureRecord(value, "Run error summary");
-  return {
-    type: ensureString(dictValue.type, "Run error type"),
-    message: ensureString(dictValue.message, "Run error message"),
   };
 }
 

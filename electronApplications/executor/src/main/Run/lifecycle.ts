@@ -1,14 +1,24 @@
 // FileName: lifecycle.ts
 
-import type { ProjectRunDetails, RunExecutionContext, RunEndedFact } from "./types";
 import { getErrorMessage } from "../../shared/error";
 import { loggerMain } from "../Logging/logger";
+import type { ProjectRunDetails, RunEndedFact, RunExecutionContext } from "./types";
 
-type Listener_RunEnded = () => void;
+type RunEndedListener = () => void;
 
-const setRunEndedListener = new Set<Listener_RunEnded>();
+type RunFinishedListener = (
+  detail: ProjectRunDetails,
+  context: RunExecutionContext,
+  fact: RunEndedFact,
+) => void;
 
-export function onRunEnded(listener: Listener_RunEnded): () => void {
+const setRunEndedListener = new Set<RunEndedListener>();
+
+const setRunActivityListener = new Set<() => void>();
+
+const setRunFinishedListener = new Set<RunFinishedListener>();
+
+export function onRunEnded(listener: RunEndedListener): () => void {
   setRunEndedListener.add(listener);
   return () => {
     setRunEndedListener.delete(listener);
@@ -25,8 +35,6 @@ export function notifyRunEnded(): void {
   }
 }
 
-const setRunActivityListener = new Set<() => void>();
-
 export function onRunActivityChanged(listener: () => void): void {
   setRunActivityListener.add(listener);
 }
@@ -40,13 +48,6 @@ export function notifyRunActivityChanged(): void {
     }
   }
 }
-
-type RunFinishedListener = (
-  detail: ProjectRunDetails,
-  context: RunExecutionContext,
-  fact: RunEndedFact,
-) => void;
-const setRunFinishedListener = new Set<RunFinishedListener>();
 
 export function onRunFinished(listener: RunFinishedListener): void {
   setRunFinishedListener.add(listener);

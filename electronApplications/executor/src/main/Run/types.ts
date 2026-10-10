@@ -21,19 +21,6 @@ export enum RunTerminationReason {
   Timeout = "timeout",
 }
 
-export interface RunExecutionContext {
-  source: RunSource;
-  jobId: string;
-  attempt: number;
-  runId?: string;
-  consoleUrl?: string;
-  packagePath?: string;
-  beforeSpawn?: (hasOtherActiveRun: boolean, startedAt: string) => void;
-  onStarted?: (fact: RunStartedFact) => void;
-  onStopping?: (reason: RunTerminationReason) => void;
-  onEnded?: (fact: RunEndedFact) => void;
-}
-
 export interface RunStartedFact {
   runId: string;
   historyId: number;
@@ -48,4 +35,17 @@ export interface RunEndedFact extends RunStartedFact {
   retryEligible: boolean;
   outputs: RunOutputs;
   errorSummary: { type: string; message: string } | null;
+}
+
+export interface RunExecutionContext {
+  source: RunSource;
+  jobId: string;
+  attempt: number;
+  runId?: string;
+  consoleUrl?: string;
+  packagePath?: string;
+  beforeSpawn?: (hasOtherActiveRun: boolean, startedAt: string) => void;
+  onStarted?: (fact: RunStartedFact) => void;
+  onStopping?: (reason: RunTerminationReason) => void;
+  onEnded?: (fact: RunEndedFact) => void;
 }
