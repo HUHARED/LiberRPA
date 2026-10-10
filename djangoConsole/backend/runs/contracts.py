@@ -21,7 +21,7 @@ from console_project.contracts import JsonRequest
 from console_project.validators import validate_json_text, validate_json_value
 from packages.contracts import INT_CUSTOM_ARGUMENT_MAX_BYTES
 
-from .models import RunEventKind, RunResult, OutputsStatus, RecordingStatus
+from .models import RunResult, OutputsStatus, RecordingStatus, RunEventKind
 
 UuidValue = Annotated[uuid.UUID, Field(strict=False)]
 
@@ -62,15 +62,15 @@ class WorkPermitRequest(JsonRequest):
     assignment_id: UuidValue
 
 
+class RunNotStartedReason(StrEnum):
+    LOCAL_CONFLICT = "local_conflict"
+
+
 class RecordingInfo(JsonRequest):
     status: Annotated[RecordingStatus, Field(strict=False)]
     videoSizeBytes: int | None = Field(default=None, ge=0)
     subtitleSizeBytes: int | None = Field(default=None, ge=0)
     reason: str = Field(default="", max_length=2000)
-
-
-class RunNotStartedReason(StrEnum):
-    LOCAL_CONFLICT = "local_conflict"
 
 
 class RunOutputs(JsonRequest):

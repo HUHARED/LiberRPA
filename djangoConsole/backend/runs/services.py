@@ -13,8 +13,8 @@ from django.utils import timezone
 from organizations.models import DepartmentRole
 from organizations.permissions import (
     AccessChannel,
-    get_authorized_departments,
     resolve_organization_access,
+    get_authorized_departments,
 )
 
 from .models import (
@@ -141,6 +141,55 @@ def reconcile_source_access(userId: uuid.UUID, organizationId: uuid.UUID) -> Non
         revoke_job_source_access(job, currentTime)
 
 
+def reconcile_revoked_sessions(sessionIds: list[uuid.UUID]) -> None:
+    """Close unpermitted direct work and preserve real or possible execution under the caller's organization lock."""
+    if not sessionIds:
+        return
+    setExecutorId = set(
+        ExecutorWorkState.objects.filter(session_id__in=sessionIds).values_list(
+            "executor_id", flat=True
+        )
+    )
+    currentTime = timezone.now()
+    for assignment in Assignment.objects.filter(
+        session_id__in=sessionIds, state__in=ACTIVE_ASSIGNMENT_STATES
+    ).select_related("job__request"):
+        setExecutorId.add(assignment.executor_id)
+        job = assignment.job
+        if assignment.state == AssignmentState.PREPARING:
+            assignment.state = AssignmentState.WITHDRAWN
+            assignment.reason = (
+                "The original Executor association was revoked before start permission."
+            )
+            assignment.save(update_fields=["state", "reason"])
+            if job.state == JobState.FINISHED:
+                continue
+            if job.target_group_id:
+                job.state = JobState.WAITING
+                job.reason = "The previous group member is unavailable; another eligible member may be selected."
+                job.save(update_fields=["state", "reason"])
+            else:
+                finish_job(job, assignment.reason)
+        else:
+            assignment.state = AssignmentState.REVIEW
+            assignment.reason = "The original Executor association was revoked; execution is not confirmed stopped."
+            assignment.save(update_fields=["state", "reason"])
+            if job.state != JobState.FINISHED:
+                job.state = JobState.REVIEW
+                job.reason = assignment.reason
+                job.stop_requested_at = job.stop_requested_at or currentTime
+                job.save(update_fields=["state", "reason", "stop_requested_at"])
+    for job in Job.objects.filter(
+        target_session_id__in=sessionIds, state__in=(JobState.WAITING, JobState.RETRY)
+    ).select_related("request"):
+        finish_job(
+            job,
+            "The original Executor association was revoked; remaining work is canceled.",
+        )
+    for executorId in setExecutorId:
+        notify_executor_control(executorId)
+
+
 def control_job(job: Job, action: str, *, run: Run | None = None) -> None:
     if job.state == JobState.FINISHED:
         return
@@ -199,52 +248,3 @@ def control_job(job: Job, action: str, *, run: Run | None = None) -> None:
         job.save(update_fields=["state", "reason"])
     if assignment is not None:
         notify_executor_control(assignment.executor_id)
-
-
-def reconcile_revoked_sessions(sessionIds: list[uuid.UUID]) -> None:
-    """Close unpermitted direct work and preserve real or possible execution under the caller's organization lock."""
-    if not sessionIds:
-        return
-    setExecutorId = set(
-        ExecutorWorkState.objects.filter(session_id__in=sessionIds).values_list(
-            "executor_id", flat=True
-        )
-    )
-    currentTime = timezone.now()
-    for assignment in Assignment.objects.filter(
-        session_id__in=sessionIds, state__in=ACTIVE_ASSIGNMENT_STATES
-    ).select_related("job__request"):
-        setExecutorId.add(assignment.executor_id)
-        job = assignment.job
-        if assignment.state == AssignmentState.PREPARING:
-            assignment.state = AssignmentState.WITHDRAWN
-            assignment.reason = (
-                "The original Executor association was revoked before start permission."
-            )
-            assignment.save(update_fields=["state", "reason"])
-            if job.state == JobState.FINISHED:
-                continue
-            if job.target_group_id:
-                job.state = JobState.WAITING
-                job.reason = "The previous group member is unavailable; another eligible member may be selected."
-                job.save(update_fields=["state", "reason"])
-            else:
-                finish_job(job, assignment.reason)
-        else:
-            assignment.state = AssignmentState.REVIEW
-            assignment.reason = "The original Executor association was revoked; execution is not confirmed stopped."
-            assignment.save(update_fields=["state", "reason"])
-            if job.state != JobState.FINISHED:
-                job.state = JobState.REVIEW
-                job.reason = assignment.reason
-                job.stop_requested_at = job.stop_requested_at or currentTime
-                job.save(update_fields=["state", "reason", "stop_requested_at"])
-    for job in Job.objects.filter(
-        target_session_id__in=sessionIds, state__in=(JobState.WAITING, JobState.RETRY)
-    ).select_related("request"):
-        finish_job(
-            job,
-            "The original Executor association was revoked; remaining work is canceled.",
-        )
-    for executorId in setExecutorId:
-        notify_executor_control(executorId)

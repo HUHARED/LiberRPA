@@ -23,22 +23,23 @@ from accounts.rate_limits import apply_executor_client_rate_limit
 from console_project.contracts import JsonValue
 from console_project.http import (
     build_error_response,
-    build_rate_limited_response,
     build_service_unavailable_response,
+    build_rate_limited_response,
     parse_json_request,
 )
+
 from executors.client_sessions import (
+    InvalidExecutorSessionError,
     ExecutorClientAction,
     ExecutorClientResult,
-    InvalidExecutorSessionError,
     get_locked_executor_session,
     open_executor_client_request,
 )
 from executors.models import ExecutorSession
 from organizations.permissions import AccessChannel, resolve_organization_access
 
-from .contracts import WorkEventsRequest, WorkPermitRequest, WorkPollRequest
-from .models import Assignment, AssignmentState, ExecutorWorkState, JobState, RunEventKind
+from .contracts import WorkPollRequest, WorkPermitRequest, WorkEventsRequest
+from .models import JobState, AssignmentState, RunEventKind, ExecutorWorkState, Assignment
 from .dispatch import get_start_evidence_not_before, issue_permission
 from .events import receive_event
 

@@ -13,14 +13,16 @@ from django.db import transaction
 from django.utils import timezone
 
 from console_project.constants import INT_DISPLAY_NAME_SNAPSHOT_MAX_LENGTH
+
 from executors.contracts import ExecutorAssociationStatus
-from executors.models import Executor, ExecutorGroup, ExecutorGroupMember, ExecutorSession
+from executors.models import Executor, ExecutorSession, ExecutorGroup, ExecutorGroupMember
 from executors.session_state import (
-    get_current_executor_sessions,
     get_executor_association_status,
+    get_current_executor_sessions,
 )
 from organizations.models import Organization
 from organizations.permissions import require_organization_business_available
+
 from packages.contracts import PackagePreparationState
 
 from .models import (
@@ -40,26 +42,10 @@ from .services import (
     revoke_job_source_access,
 )
 
-_INT_PERMIT_SECONDS = 15
-_INT_START_EVIDENCE_TOLERANCE_SECONDS = 5
 _INT_WORK_STATE_STALE_SECONDS = 45
 
-
-def _get_candidates(job: Job) -> list[Executor]:
-    executorQuery = Executor.objects.filter(
-        department_id=job.department_id, deleted_at__isnull=True
-    )
-    if job.target_executor_id:
-        return list(executorQuery.filter(pk=job.target_executor_id))
-    if not ExecutorGroup.objects.filter(
-        pk=job.target_group_id, department_id=job.department_id, deleted_at__isnull=True
-    ).exists():
-        return []
-    return list(
-        executorQuery.filter(group_memberships__group_id=job.target_group_id).order_by(
-            "group_memberships__joined_at", "group_memberships__id", "id"
-        )
-    )
+_INT_PERMIT_SECONDS = 15
+_INT_START_EVIDENCE_TOLERANCE_SECONDS = 5
 
 
 def _get_dispatch_sessions(
@@ -85,6 +71,97 @@ def _get_dispatch_sessions(
         if session is not None:
             dictSession[executorId] = session
     return dictSession
+
+
+def _reconcile_assignment(
+    assignment: Assignment,
+    currentTime: datetime,
+    control: DispatchControl,
+    *,
+    sourceDepartmentIdsByActor: dict[uuid.UUID, set[uuid.UUID]],
+    session: ExecutorSession | None,
+) -> None:
+    job = assignment.job
+    if not has_job_source_access(
+        job, sourceDepartmentIdsByActor=sourceDepartmentIdsByActor
+    ):
+        revoke_job_source_access(job, currentTime)
+        if assignment.state == AssignmentState.PREPARING:
+            return
+    if (
+        assignment.state == AssignmentState.PERMITTED
+        and assignment.permit_expires_at
+        and assignment.permit_expires_at <= currentTime
+    ):
+        assignment.state = AssignmentState.REVIEW
+        assignment.reason = (
+            "The start permission expired without confirmed start or non-start evidence."
+        )
+        assignment.save(update_fields=["state", "reason"])
+        notify_executor_control(assignment.executor_id)
+        if job.closed_at is None:
+            job.state = JobState.REVIEW
+            job.reason = assignment.reason
+            job.save(update_fields=["state", "reason"])
+        return
+    boolSessionValid = session is not None and session.id == assignment.session_id
+    boolOnline = (
+        boolSessionValid
+        and get_executor_association_status(session, currentTime=currentTime)
+        == ExecutorAssociationStatus.ONLINE
+    )
+    boolRecovering = (
+        control.recovery_until is not None and currentTime < control.recovery_until
+    )
+    boolGroupMemberValid = (
+        not job.target_group_id
+        or ExecutorGroupMember.objects.filter(
+            group_id=job.target_group_id,
+            executor_id=assignment.executor_id,
+            group__deleted_at__isnull=True,
+        ).exists()
+    )
+    if assignment.state == AssignmentState.PREPARING and (
+        not boolSessionValid
+        or not boolGroupMemberValid
+        or (not boolOnline and not boolRecovering)
+    ):
+        assignment.state = AssignmentState.WITHDRAWN
+        assignment.reason = "The target is no longer eligible before permission."
+        assignment.save(update_fields=["state", "reason"])
+        notify_executor_control(assignment.executor_id)
+        job.state = JobState.WAITING
+        job.save(update_fields=["state"])
+    elif assignment.state in (AssignmentState.RUNNING, AssignmentState.PERMITTED) and (
+        not boolSessionValid or (not boolOnline and not boolRecovering)
+    ):
+        assignment.state = AssignmentState.REVIEW
+        assignment.reason = (
+            "The original client is unavailable; actual execution remains unconfirmed."
+        )
+        assignment.save(update_fields=["state", "reason"])
+        notify_executor_control(assignment.executor_id)
+        if job.closed_at is None:
+            job.state = JobState.REVIEW
+            job.reason = assignment.reason
+            job.save(update_fields=["state", "reason"])
+
+
+def _get_candidates(job: Job) -> list[Executor]:
+    executorQuery = Executor.objects.filter(
+        department_id=job.department_id, deleted_at__isnull=True
+    )
+    if job.target_executor_id:
+        return list(executorQuery.filter(pk=job.target_executor_id))
+    if not ExecutorGroup.objects.filter(
+        pk=job.target_group_id, department_id=job.department_id, deleted_at__isnull=True
+    ).exists():
+        return []
+    return list(
+        executorQuery.filter(group_memberships__group_id=job.target_group_id).order_by(
+            "group_memberships__joined_at", "group_memberships__id", "id"
+        )
+    )
 
 
 def _get_live_candidates(
@@ -280,80 +357,6 @@ def _advance_job(
     job.retry_at = None
     job.save(update_fields=["state", "reason", "retry_at"])
     notify_executor_control(executor.id)
-
-
-def _reconcile_assignment(
-    assignment: Assignment,
-    currentTime: datetime,
-    control: DispatchControl,
-    *,
-    sourceDepartmentIdsByActor: dict[uuid.UUID, set[uuid.UUID]],
-    session: ExecutorSession | None,
-) -> None:
-    job = assignment.job
-    if not has_job_source_access(
-        job, sourceDepartmentIdsByActor=sourceDepartmentIdsByActor
-    ):
-        revoke_job_source_access(job, currentTime)
-        if assignment.state == AssignmentState.PREPARING:
-            return
-    if (
-        assignment.state == AssignmentState.PERMITTED
-        and assignment.permit_expires_at
-        and assignment.permit_expires_at <= currentTime
-    ):
-        assignment.state = AssignmentState.REVIEW
-        assignment.reason = (
-            "The start permission expired without confirmed start or non-start evidence."
-        )
-        assignment.save(update_fields=["state", "reason"])
-        notify_executor_control(assignment.executor_id)
-        if job.closed_at is None:
-            job.state = JobState.REVIEW
-            job.reason = assignment.reason
-            job.save(update_fields=["state", "reason"])
-        return
-    boolSessionValid = session is not None and session.id == assignment.session_id
-    boolOnline = (
-        boolSessionValid
-        and get_executor_association_status(session, currentTime=currentTime)
-        == ExecutorAssociationStatus.ONLINE
-    )
-    boolRecovering = (
-        control.recovery_until is not None and currentTime < control.recovery_until
-    )
-    boolGroupMemberValid = (
-        not job.target_group_id
-        or ExecutorGroupMember.objects.filter(
-            group_id=job.target_group_id,
-            executor_id=assignment.executor_id,
-            group__deleted_at__isnull=True,
-        ).exists()
-    )
-    if assignment.state == AssignmentState.PREPARING and (
-        not boolSessionValid
-        or not boolGroupMemberValid
-        or (not boolOnline and not boolRecovering)
-    ):
-        assignment.state = AssignmentState.WITHDRAWN
-        assignment.reason = "The target is no longer eligible before permission."
-        assignment.save(update_fields=["state", "reason"])
-        notify_executor_control(assignment.executor_id)
-        job.state = JobState.WAITING
-        job.save(update_fields=["state"])
-    elif assignment.state in (AssignmentState.RUNNING, AssignmentState.PERMITTED) and (
-        not boolSessionValid or (not boolOnline and not boolRecovering)
-    ):
-        assignment.state = AssignmentState.REVIEW
-        assignment.reason = (
-            "The original client is unavailable; actual execution remains unconfirmed."
-        )
-        assignment.save(update_fields=["state", "reason"])
-        notify_executor_control(assignment.executor_id)
-        if job.closed_at is None:
-            job.state = JobState.REVIEW
-            job.reason = assignment.reason
-            job.save(update_fields=["state", "reason"])
 
 
 @transaction.atomic

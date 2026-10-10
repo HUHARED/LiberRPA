@@ -17,20 +17,22 @@ from django.utils import timezone
 from accounts.models import User
 from console_project.config import LimitsConfig
 from console_project.constants import INT_DISPLAY_NAME_SNAPSHOT_MAX_LENGTH
-from organizations.models import Department, DepartmentRole, Organization
+
+from organizations.models import Organization, Department, DepartmentRole
 from organizations.permissions import (
     AccessChannel,
     OrganizationAccessContext,
-    get_authorized_departments,
     require_organization_business_available,
     resolve_organization_access,
+    get_authorized_departments,
 )
 from executors.contracts import ExecutorAssociationStatus
 from executors.models import Executor, ExecutorGroup
 from executors.session_state import (
-    get_current_executor_sessions,
     get_executor_association_status,
+    get_current_executor_sessions,
 )
+
 from operations.models import AuditChannel
 from operations.audit import record_audit
 
@@ -38,42 +40,6 @@ from .models import JobSource, JobState, JobRequest, Job, JobAdmissionBudget
 from .dispatch_control import require_control_service
 
 _DICT_PRIORITY = {"high": 0, "normal": 1, "low": 2}
-
-
-def _consume_admission_budget(
-    organizationId: uuid.UUID, count: int, currentTime: datetime
-) -> None:
-    limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
-    if (
-        Job.objects
-        .filter(request__organization_id=organizationId)
-        .exclude(state=JobState.FINISHED)
-        .count()
-        + count
-        > limits.maxActiveJobsPerOrganization
-    ):
-        raise ValidationError(
-            "The organization has reached its active Job limit.", code="active_job_limit"
-        )
-    budget, boolCreated = JobAdmissionBudget.objects.get_or_create(
-        organization_id=organizationId,
-        defaults={"tokens": float(limits.newJobsBurst), "updated_at": currentTime},
-    )
-    floatTokens = min(
-        float(limits.newJobsBurst),
-        budget.tokens
-        + max(0, (currentTime - budget.updated_at).total_seconds())
-        * limits.newJobsPerMinute
-        / 60,
-    )
-    if floatTokens < count:
-        raise ValidationError(
-            "The organization has reached its new Job rate limit.",
-            code="new_job_rate_limit",
-        )
-    budget.tokens = floatTokens - count
-    budget.updated_at = currentTime
-    budget.save(update_fields=["tokens", "updated_at"])
 
 
 def _get_request_fingerprint(content: dict) -> str:
@@ -114,6 +80,42 @@ def get_existing_request(
             code="request_conflict",
         )
     return previous
+
+
+def _consume_admission_budget(
+    organizationId: uuid.UUID, count: int, currentTime: datetime
+) -> None:
+    limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
+    if (
+        Job.objects
+        .filter(request__organization_id=organizationId)
+        .exclude(state=JobState.FINISHED)
+        .count()
+        + count
+        > limits.maxActiveJobsPerOrganization
+    ):
+        raise ValidationError(
+            "The organization has reached its active Job limit.", code="active_job_limit"
+        )
+    budget, boolCreated = JobAdmissionBudget.objects.get_or_create(
+        organization_id=organizationId,
+        defaults={"tokens": float(limits.newJobsBurst), "updated_at": currentTime},
+    )
+    floatTokens = min(
+        float(limits.newJobsBurst),
+        budget.tokens
+        + max(0, (currentTime - budget.updated_at).total_seconds())
+        * limits.newJobsPerMinute
+        / 60,
+    )
+    if floatTokens < count:
+        raise ValidationError(
+            "The organization has reached its new Job rate limit.",
+            code="new_job_rate_limit",
+        )
+    budget.tokens = floatTokens - count
+    budget.updated_at = currentTime
+    budget.save(update_fields=["tokens", "updated_at"])
 
 
 def accept_request(
