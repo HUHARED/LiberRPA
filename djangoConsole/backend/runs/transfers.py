@@ -64,6 +64,9 @@ from .control_notifications import notify_executor_control
 
 _INT_CHUNK_BYTES = 64 * 1024
 _INT_MAX_ACTIVE_TRANSFERS = 8
+_INT_MAX_RECORDING_TRANSFERS = 4
+_INT_MAX_EXECUTOR_RECORDING_TRANSFERS = 1
+_SET_RECORDING_FILE_KINDS = frozenset({RunFileKind.VIDEO, RunFileKind.SUBTITLES})
 _INT_BYTES_PER_SECOND = 5 * 1024 * 1024
 _INT_PREPARATION_SECONDS = 60
 _INT_TRANSFER_SECONDS = 30 * 60
@@ -91,6 +94,7 @@ class TransferTicket:
     organizationId: uuid.UUID
     actorId: uuid.UUID
     sessionId: uuid.UUID
+    executorId: uuid.UUID
     runId: uuid.UUID
     kind: RunFileKind
     expiresAt: float
@@ -195,12 +199,20 @@ class FileReadyRequest(JsonRequest):
     error: str = Field(default="", max_length=1000)
 
 
+def _cancel_ticket(ticket: TransferTicket, message: str) -> None:
+    with _LOCK_TICKET:
+        ticket.error = message
+        ticket.canceledEvent.set()
+        ticket.readyEvent.set()
+        ticket.consumerEvent.set()
+
+
 def _get_ticket(transferId: uuid.UUID) -> TransferTicket:
     with _LOCK_TICKET:
         ticket = _DICT_TICKET.get(transferId)
     if (
         ticket is None
-        or ticket.expiresAt < time.monotonic()
+        or ticket.expiresAt <= time.monotonic()
         or ticket.canceledEvent.is_set()
     ):
         raise PermissionDenied("The file transfer has expired or is unavailable.")
@@ -208,24 +220,46 @@ def _get_ticket(transferId: uuid.UUID) -> TransferTicket:
 
 
 def _discard_ticket(ticket: TransferTicket) -> None:
-    ticket.canceledEvent.set()
     with _LOCK_TICKET:
-        _DICT_TICKET.pop(ticket.id, None)
-        if not any(
-            other.organizationId == ticket.organizationId
-            for other in _DICT_TICKET.values()
-        ):
-            _DICT_RATE_TIME.pop(ticket.organizationId, None)
+        ticket.canceledEvent.set()
+        ticket.readyEvent.set()
+        ticket.consumerEvent.set()
     RunFileTransfer.objects.filter(pk=ticket.id).delete()
+
+    def remove_ticket() -> None:
+        with _LOCK_TICKET:
+            _DICT_TICKET.pop(ticket.id, None)
+            if not any(
+                other.organizationId == ticket.organizationId
+                for other in _DICT_TICKET.values()
+            ):
+                _DICT_RATE_TIME.pop(ticket.organizationId, None)
+
+    # Keep canceled tickets retryable if the database delete or its transaction fails.
+    transaction.on_commit(remove_ticket)
+
+
+def _expire_tickets() -> None:
+    # Reclaim before admission as well as polling; an offline source may never poll again.
+    with _LOCK_TICKET:
+        floatCurrentTime = time.monotonic()
+        listExpired = [
+            ticket
+            for ticket in _DICT_TICKET.values()
+            if ticket.expiresAt <= floatCurrentTime or ticket.canceledEvent.is_set()
+        ]
+        for ticket in listExpired:
+            # Ready uses the same lock, so an expired reservation cannot be revived.
+            ticket.canceledEvent.set()
+    for ticket in listExpired:
+        _discard_ticket(ticket)
 
 
 def get_pending_transfers(sessionId: uuid.UUID) -> list[PendingRunFileTransfer]:
     # Tickets are short-lived relay state, never a durable download queue.
+    _expire_tickets()
     with _LOCK_TICKET:
         listTicket = list(_DICT_TICKET.values())
-    for ticket in listTicket:
-        if ticket.expiresAt < time.monotonic():
-            _discard_ticket(ticket)
     return [
         {
             "id": str(ticket.id),
@@ -251,6 +285,8 @@ def create_file_transfer(request: HttpRequest, runId: uuid.UUID) -> HttpResponse
     ticket: TransferTicket | None = None
     boolCommitted = False
     try:
+        # Cleanup must not roll back with a subsequently rejected admission.
+        _expire_tickets()
         with transaction.atomic():
             access = get_web_access(request, forUpdate=True)
             run = get_accessible_run(access, runId)
@@ -258,9 +294,6 @@ def create_file_transfer(request: HttpRequest, runId: uuid.UUID) -> HttpResponse
             if not fileAvailability["available"]:
                 raise ValidationError(fileAvailability["reason"])
             require_transfer_slot(access.organization.pk)
-            with _LOCK_TICKET:
-                if len(_DICT_TICKET) >= _INT_MAX_ACTIVE_TRANSFERS:
-                    raise ValidationError("File transfer capacity is temporarily full.")
             transfer = RunFileTransfer.objects.create(
                 organization=access.organization,
                 run=run,
@@ -272,17 +305,53 @@ def create_file_transfer(request: HttpRequest, runId: uuid.UUID) -> HttpResponse
                 + timedelta(seconds=_INT_PREPARATION_SECONDS + _INT_TRANSFER_SECONDS),
             )
             ticket = TransferTicket(
-                transfer.pk,
-                access.organization.pk,
-                access.actorId,
-                run.assignment.session_id,
-                run.pk,
-                payload.kind,
-                time.monotonic() + _INT_PREPARATION_SECONDS,
+                id=transfer.pk,
+                organizationId=access.organization.pk,
+                actorId=access.actorId,
+                sessionId=run.assignment.session_id,
+                executorId=run.assignment.executor_id,
+                runId=run.pk,
+                kind=payload.kind,
+                expiresAt=time.monotonic() + _INT_PREPARATION_SECONDS,
             )
 
-            # The ticket must exist before the committed notification can wake its source.
+            # Check and reserve together across organizations in the single ASGI process.
+            # Hold this lock only for bounded in-memory work, never database or file I/O.
             with _LOCK_TICKET:
+                if len(_DICT_TICKET) >= _INT_MAX_ACTIVE_TRANSFERS:
+                    raise FileOperationError(
+                        "too_many_transfers",
+                        "File transfer capacity is temporarily full. "
+                        "Please try again later.",
+                        429,
+                    )
+                if ticket.kind in _SET_RECORDING_FILE_KINDS:
+                    listRecording = [
+                        other
+                        for other in _DICT_TICKET.values()
+                        if other.kind in _SET_RECORDING_FILE_KINDS
+                    ]
+                    if (
+                        sum(
+                            other.executorId == ticket.executorId
+                            for other in listRecording
+                        )
+                        >= _INT_MAX_EXECUTOR_RECORDING_TRANSFERS
+                    ):
+                        raise FileOperationError(
+                            "too_many_transfers",
+                            "This Executor already has an active recording download. "
+                            "Please try again later.",
+                            429,
+                        )
+                    if len(listRecording) >= _INT_MAX_RECORDING_TRANSFERS:
+                        raise FileOperationError(
+                            "too_many_transfers",
+                            "Recording download capacity is temporarily full. "
+                            "Please try again later.",
+                            429,
+                        )
+                # Publish before the committed notification can wake the source.
                 _DICT_TICKET[ticket.id] = ticket
             notify_executor_control(run.assignment.executor_id)
             response = JsonResponse({
@@ -367,40 +436,47 @@ def set_file_ready(request: HttpRequest, transferId: uuid.UUID) -> HttpResponse:
                 or access.organization.pk != ticket.organizationId
             ):
                 raise PermissionDenied
-        if ticket.state != TransferState.WAITING:
-            if (
-                ticket.sizeBytes == payload.size_bytes
-                and ticket.filename == payload.filename
-                and ticket.error == payload.error
-            ):
-                return build_ready_response(ticket)
-            raise ValidationError(
-                "This transfer was already prepared with different metadata."
+        with _LOCK_TICKET:
+            if ticket.canceledEvent.is_set() or ticket.expiresAt <= time.monotonic():
+                raise PermissionDenied
+            if ticket.state != TransferState.WAITING:
+                if (
+                    ticket.sizeBytes == payload.size_bytes
+                    and ticket.filename == payload.filename
+                    and ticket.error == payload.error
+                ):
+                    return build_ready_response(ticket)
+                raise ValidationError(
+                    "This transfer was already prepared with different metadata."
+                )
+            boolOwnPreparation = True
+            intMaxBytes = _DICT_MAX_FILE_BYTES[ticket.kind]
+            if payload.size_bytes > intMaxBytes:
+                raise ValidationError(
+                    "This file exceeds the Console download limit; "
+                    "retrieve it on the Executor computer."
+                )
+            if any(char in payload.filename for char in "\r\n/\\\x00"):
+                raise ValidationError("Invalid download filename.")
+            ticket.error = payload.error
+            ticket.sizeBytes = payload.size_bytes
+            ticket.filename = payload.filename
+            ticket.contentType = (
+                "application/zip"
+                if ticket.kind == RunFileKind.LOGS
+                else "text/plain; charset=utf-8"
+                if ticket.kind == RunFileKind.SUBTITLES
+                else "application/octet-stream"
             )
-        boolOwnPreparation = True
-        intMaxBytes = _DICT_MAX_FILE_BYTES[ticket.kind]
-        if payload.size_bytes > intMaxBytes:
-            raise ValidationError(
-                "This file exceeds the Console download limit; retrieve it on the Executor computer."
-            )
-        if any(char in payload.filename for char in "\r\n/\\\x00"):
-            raise ValidationError("Invalid download filename.")
-        ticket.error = payload.error
-        ticket.sizeBytes = payload.size_bytes
-        ticket.filename = payload.filename
-        ticket.contentType = (
-            "application/zip"
-            if ticket.kind == RunFileKind.LOGS
-            else "text/plain; charset=utf-8"
-            if ticket.kind == RunFileKind.SUBTITLES
-            else "application/octet-stream"
-        )
-        # Start the transfer budget once; repeated ready requests never renew it.
-        if not ticket.error:
-            ticket.expiresAt = time.monotonic() + _INT_TRANSFER_SECONDS
-        ticket.state = TransferState.READY
-        ticket.readyEvent.set()
-        return build_ready_response(ticket)
+            # Start the transfer budget once; repeated ready requests never renew it.
+            if not ticket.error:
+                ticket.expiresAt = time.monotonic() + _INT_TRANSFER_SECONDS
+            ticket.state = TransferState.READY
+            ticket.readyEvent.set()
+            response = build_ready_response(ticket)
+        if ticket.error:
+            _discard_ticket(ticket)
+        return response
     except (PermissionDenied, ObjectDoesNotExist):
         return build_error_response(
             "transfer_unavailable",
@@ -409,8 +485,8 @@ def set_file_ready(request: HttpRequest, transferId: uuid.UUID) -> HttpResponse:
         )
     except ValidationError as e:
         if boolOwnPreparation and ticket is not None:
-            ticket.error = e.messages[0]
-            ticket.readyEvent.set()
+            _cancel_ticket(ticket, e.messages[0])
+            _discard_ticket(ticket)
         return build_error_response("file_unavailable", e.messages[0], statusCode=409)
 
 
@@ -449,16 +525,11 @@ async def _send_error(send: ASGISendCallable, statusCode: int, message: str) -> 
     await send({"type": "http.response.body", "body": content, "more_body": False})
 
 
-def _cancel_ticket(ticket: TransferTicket, message: str) -> None:
-    ticket.error = message
-    ticket.canceledEvent.set()
-    ticket.readyEvent.set()
-    ticket.consumerEvent.set()
-
-
 async def _wait_event(event: threading.Event, ticket: TransferTicket) -> None:
     floatDeadline = min(time.monotonic() + _INT_IDLE_SECONDS, ticket.expiresAt)
     while True:
+        if ticket.error:
+            raise ValueError(ticket.error)
         if ticket.canceledEvent.is_set() or time.monotonic() >= floatDeadline:
             raise TimeoutError("The original Executor did not provide the file in time.")
         if event.is_set():
