@@ -91,12 +91,12 @@ def get_next_trigger(
         while True:
             localCandidate = iterator.get_next(datetime)
             candidate = localCandidate.replace(tzinfo=zone, fold=0).astimezone(UTC)
+            # Reject spring gaps before their provisional UTC values can end the search.
+            if candidate.astimezone(zone).replace(tzinfo=None) != localCandidate:
+                continue
             if candidate >= activeUntil:
                 return None
             if candidate <= after or candidate < activeFrom:
-                continue
-            # Round-trip rejects spring gaps without shifting them to another local time.
-            if candidate.astimezone(zone).replace(tzinfo=None) != localCandidate:
                 continue
             return candidate
     except (CroniterBadDateError, CroniterBadCronError):
