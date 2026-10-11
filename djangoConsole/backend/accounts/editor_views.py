@@ -51,8 +51,8 @@ _DICT_CLIENT_METHOD = {
 class EditorLoginRequest(JsonRequest):
     email: str
     password: SecretStr
-    computer: str
-    version: str
+    computer_name: str
+    client_version: str
 
 
 class EditorLogoutRequest(JsonRequest):
@@ -106,8 +106,8 @@ def _build_client_session_payload(result: EditorClientResult) -> dict[str, objec
             }
             for department in get_department_access_info(access)
         ],
-        "computer": session.computer,
-        "version": session.client_version,
+        "computer_name": session.computer_name,
+        "client_version": session.client_version,
         "last_seen_at": session.last_seen_at,
     }
 
@@ -145,8 +145,8 @@ def sign_in_editor(request: HttpRequest) -> JsonResponse:
         result = begin_editor_login(
             userId=user.id,
             verifiedAuthHash=user.get_session_auth_hash(),
-            computer=loginRequest.computer,
-            clientVersion=loginRequest.version,
+            computerName=loginRequest.computer_name,
+            clientVersion=loginRequest.client_version,
         )
         return JsonResponse({
             **_build_client_session_payload(result),

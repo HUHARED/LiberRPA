@@ -4,13 +4,11 @@ __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
-import hashlib
 import logging
 from collections.abc import Callable
 from functools import wraps
-from typing import Concatenate, cast
+from typing import Concatenate
 
-from django.contrib.auth import HASH_SESSION_KEY
 from django.core.exceptions import ImproperlyConfigured, PermissionDenied, ValidationError
 from django.core.paginator import InvalidPage
 from django.db import DatabaseError
@@ -20,16 +18,13 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.debug import sensitive_variables
 from pydantic import ValidationError as ContractValidationError
 
-from accounts.models import User
 from accounts.api_key_authentication import InvalidApiKeyError
 from accounts.resource_authentication import (
     InvalidResourceCredentialError,
-    ResourceAuthenticationContext,
     build_resource_authentication_required_response,
     authenticate_resource_request,
-    lock_resource_write_access,
 )
-from accounts.session_revocation import SessionInvalidatedError, lock_session_write_access
+from accounts.session_revocation import SessionInvalidatedError
 from console_project.contracts import JsonRequest, JsonResponsePayload
 from console_project.http import (
     build_error_response,
@@ -37,27 +32,20 @@ from console_project.http import (
     build_service_unavailable_response,
     parse_json_request,
 )
+from file_storage.http import (
+    FileAuthentication,
+    FileRequestError,
+    require_no_query_parameters,
+)
 from file_storage.models import DownloadSession
 from file_storage.services import FileOperationError
-from organizations.models import Membership, Department
-from organizations.permissions import (
-    AccessChannel,
-    OrganizationAccessContext,
-    get_current_membership,
-    resolve_organization_access,
-)
+from organizations.http import get_request_membership
+from organizations.models import Department
 
-from .contracts import MAX_FILE_RESPONSE_BYTES, UPLOAD_CHUNK_BYTES
+from .contracts import MAX_FILE_RESPONSE_BYTES
 from .models import SharedFile, UploadSession
 
 _LOGGER = logging.getLogger("console.shared_files")
-
-type FileAuthentication = Membership | ResourceAuthenticationContext
-
-
-class FileRequestError(Exception):
-    """Malformed HTTP parameters, not an internal response or persistence error."""
-
 
 _HANDLED_ERRORS = (
     PermissionDenied,
@@ -136,10 +124,10 @@ def session_file_view[**P](
     def wrapped(
         request: HttpRequest, *args: P.args, **kwargs: P.kwargs
     ) -> HttpResponseBase:
-        if not request.user.is_authenticated:
-            return build_authentication_required_response()
         try:
-            membership = get_current_membership(actorId=cast(User, request.user).id)
+            membership = get_request_membership(request)
+            if isinstance(membership, JsonResponse):
+                return membership
             return view(request, membership, *args, **kwargs)
         except _HANDLED_ERRORS as e:
             return build_file_error_response(e)
@@ -170,35 +158,6 @@ def api_file_view[**P](
     return wrapped
 
 
-def get_file_access(authentication: FileAuthentication) -> OrganizationAccessContext:
-    if not isinstance(authentication, Membership):
-        return authentication.access
-    return resolve_organization_access(
-        actorId=authentication.user_id,
-        organizationId=authentication.organization_id,
-        channel=AccessChannel.SESSION,
-    )
-
-
-def lock_file_access(
-    request: HttpRequest, authentication: FileAuthentication
-) -> OrganizationAccessContext:
-    if not isinstance(authentication, Membership):
-        return lock_resource_write_access(authentication)
-    return lock_session_write_access(
-        authentication.user_id,
-        authentication.organization_id,
-        AccessChannel.SESSION,
-        request.session.get(HASH_SESSION_KEY, ""),
-        request.session.get_expiry_date(),
-    )
-
-
-def require_no_query_parameters(request: HttpRequest) -> None:
-    if request.GET:
-        raise FileRequestError("Use the request body; query parameters are not accepted.")
-
-
 def parse_file_request[Payload: JsonRequest](
     request: HttpRequest, requestSchema: type[Payload]
 ) -> Payload | JsonResponse:
@@ -206,27 +165,6 @@ def parse_file_request[Payload: JsonRequest](
     return parse_json_request(
         request, requestSchema, maxBodyBytes=MAX_FILE_RESPONSE_BYTES
     )
-
-
-def parse_upload_chunk(request: HttpRequest) -> tuple[bytes, str]:
-    require_no_query_parameters(request)
-    if request.content_type != "application/octet-stream":
-        raise FileOperationError(
-            "invalid_chunk_type", "Send application/octet-stream content.", 415
-        )
-    chunkData = request.read(UPLOAD_CHUNK_BYTES + 1)
-    if not chunkData or len(chunkData) > UPLOAD_CHUNK_BYTES:
-        raise FileOperationError(
-            "invalid_chunk_size", "Send a non-empty chunk of at most 4 MiB.", 400
-        )
-    strChunkSha256 = hashlib.sha256(chunkData).hexdigest()
-    if strChunkSha256 != request.headers.get("X-Chunk-SHA256", ""):
-        raise FileOperationError(
-            "chunk_checksum_mismatch",
-            "The chunk checksum does not match its content.",
-            400,
-        )
-    return chunkData, strChunkSha256
 
 
 def build_file_response(

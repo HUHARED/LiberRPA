@@ -36,6 +36,7 @@ from console_project.http import build_error_response, build_rate_limited_respon
 from executors.client_sessions import (
     ExecutorClientAction,
     InvalidExecutorSessionError,
+    get_executor_session_identity,
     open_executor_client_request,
 )
 from executors.client_views import build_client_session_payload
@@ -140,7 +141,7 @@ def _process_message(
         if intRetryAfter:
             return build_rate_limited_response(intRetryAfter)
         with open_executor_client_request(
-            authorizationHeader=f"Bearer {token.get_secret_value()}",
+            identity=get_executor_session_identity(f"Bearer {token.get_secret_value()}"),
             action=ExecutorClientAction.HEARTBEAT,
         ) as authentication:
             if authentication is None:

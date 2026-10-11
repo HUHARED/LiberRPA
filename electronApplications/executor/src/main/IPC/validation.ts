@@ -1,10 +1,10 @@
 // FileName: validation.ts
 
 import type { ConsoleSignInArgs } from "../../shared/consoleAccount";
-import type { Dict_ProjectSettingsUpdate } from "../../shared/project";
+import type { ProjectSettingsUpdate } from "../../shared/project";
 import type { RunHistoryQueryOptions } from "../../shared/run";
 import type { ScheduleCreateData, ScheduleUpdateData } from "../../shared/schedule";
-import type { Str_ExecutorInvokeCommand, Str_RendererLogLevel } from "../../shared/ipc";
+import type { ExecutorInvokeCommand, RendererLogLevel } from "../../shared/ipc";
 import { parseScheduleCron } from "../../shared/cron";
 import { dictConfigExecutor } from "../Config/executorConfig";
 import {
@@ -16,7 +16,7 @@ import {
   ensureBoolean,
   ensureNonNegativeInteger,
   ensurePositiveInteger,
-  ensureRetryCount,
+  ensureMaxRetryCount,
   ensureRunTimeoutMinutes,
   ensureLogLevel,
   ensureRunConflictPolicy,
@@ -25,7 +25,7 @@ import {
   ensureCustomProjectArgs,
 } from "../Common/validation";
 
-export function ensureInvokeCommand(value: unknown): Str_ExecutorInvokeCommand {
+export function ensureInvokeCommand(value: unknown): ExecutorInvokeCommand {
   switch (value) {
     case "getConsoleAccount":
     case "saveConsoleAddress":
@@ -64,7 +64,7 @@ export function ensureInvokeCommand(value: unknown): Str_ExecutorInvokeCommand {
   }
 }
 
-export function ensureRendererLogLevel(value: unknown): Str_RendererLogLevel {
+export function ensureRendererLogLevel(value: unknown): RendererLogLevel {
   switch (value) {
     case "error":
     case "warn":
@@ -106,13 +106,13 @@ export function ensureQueuedRunId(value: unknown): string {
   return ensureNonEmptyString(value, "Queued Run ID");
 }
 
-export function ensureProjectSettingsUpdate(value: unknown): Dict_ProjectSettingsUpdate {
+export function ensureProjectSettingsUpdate(value: unknown): ProjectSettingsUpdate {
   const dictValue = ensureExactRecord(
     value,
     [
       "id",
       "python_environment_name",
-      "retry_count",
+      "max_retry_count",
       "timeout_min",
       "builtin_log_level",
       "builtin_record_video",
@@ -129,9 +129,9 @@ export function ensureProjectSettingsUpdate(value: unknown): Dict_ProjectSetting
       dictValue.python_environment_name,
       "Project settings update request.python_environment_name",
     ),
-    retry_count: ensureRetryCount(
-      dictValue.retry_count,
-      "Project settings update request.retry_count",
+    max_retry_count: ensureMaxRetryCount(
+      dictValue.max_retry_count,
+      "Project settings update request.max_retry_count",
     ),
     timeout_min: ensureRunTimeoutMinutes(
       dictValue.timeout_min,
@@ -172,7 +172,7 @@ function ensureScheduleData(
     "period_start_ms",
     "period_end_ms",
     "enabled",
-    "retry_count",
+    "max_retry_count",
     "timeout_min",
     "builtin_log_level",
     "builtin_record_video",
@@ -210,7 +210,10 @@ function ensureScheduleData(
     period_start_ms: intPeriodStartMs,
     period_end_ms: intPeriodEndMs,
     enabled: ensureBoolean(dictValue.enabled, "Schedule request.enabled"),
-    retry_count: ensureRetryCount(dictValue.retry_count, "Schedule request.retry_count"),
+    max_retry_count: ensureMaxRetryCount(
+      dictValue.max_retry_count,
+      "Schedule request.max_retry_count",
+    ),
     timeout_min: ensureRunTimeoutMinutes(
       dictValue.timeout_min,
       "Schedule request.timeout_min",

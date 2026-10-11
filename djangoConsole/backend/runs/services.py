@@ -17,6 +17,7 @@ from organizations.permissions import (
     get_authorized_departments,
 )
 
+from .contracts import JobControlAction
 from .models import (
     JobSource,
     JobState,
@@ -190,11 +191,11 @@ def reconcile_revoked_sessions(sessionIds: list[uuid.UUID]) -> None:
         notify_executor_control(executorId)
 
 
-def control_job(job: Job, action: str, *, run: Run | None = None) -> None:
+def control_job(job: Job, action: JobControlAction, *, run: Run | None = None) -> None:
     if job.state == JobState.FINISHED:
         return
     currentTime = timezone.now()
-    if action == "close":
+    if action == JobControlAction.CLOSE:
         if job.state != JobState.REVIEW:
             raise ValidationError(
                 "Only an unconfirmed Job can be closed.", code="job_not_unconfirmed"

@@ -69,8 +69,8 @@ class ExecutorListEntryResponse(ExecutorRecordResponse):
     association_status: ExecutorAssociationStatus
     session_id: UUID | None
     account: UserResponse | None
-    computer: str | None
-    version: str | None
+    computer_name: str | None
+    client_version: str | None
     last_seen_at: datetime | None
 
 
@@ -96,7 +96,7 @@ class ExecutorScheduleReferenceResponse(JsonResponsePayload):
 class ExecutorDetailsEntryResponse(ExecutorListEntryResponse):
     executor_groups: list[ExecutorGroupReferenceResponse]
     referencing_schedules: list[ExecutorScheduleReferenceResponse]
-    local_running_count: int | None
+    other_active_run_count: int | None
     central_running_count: int | None
     local_waiting_count: int | None
     last_work_reported_at: datetime | None

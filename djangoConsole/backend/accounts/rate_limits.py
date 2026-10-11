@@ -5,8 +5,10 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import math
+import time
 from datetime import timedelta
 from ipaddress import IPv6Address, ip_address
+from threading import Lock
 from typing import cast
 
 from django.conf import settings
@@ -21,23 +23,37 @@ from console_project.config import LimitsConfig
 from .models import AuthenticationRequestLimit
 
 _INT_PRUNE_BATCH_SIZE = 100
+_INT_PRUNE_INTERVAL_SECONDS = 60
+_LOCK_PRUNING = Lock()
+_floatNextPruneAt = 0.0
 
 
-@transaction.atomic
-def _delete_expired_request_counters() -> None:
-    # Cleanup locks are released before taking the current counter's lock.
-    # Skip active transactions and keep the work bounded for each request.
-    listExpiredSourceHash = list(
-        AuthenticationRequestLimit.objects
-        .select_for_update(skip_locked=True)
-        .filter(expires_at__lte=timezone.now())
-        .order_by("expires_at", "source_hash")
-        .values_list("source_hash", flat=True)[:_INT_PRUNE_BATCH_SIZE]
-    )
-    if listExpiredSourceHash:
-        AuthenticationRequestLimit.objects.filter(
-            source_hash__in=listExpiredSourceHash
-        ).delete()
+def _delete_expired_request_counters_if_due() -> None:
+    """Bound maintenance to one batch per minute per process, independently of request counts."""
+    global _floatNextPruneAt
+
+    floatCurrentTime = time.monotonic()
+    if floatCurrentTime < _floatNextPruneAt or not _LOCK_PRUNING.acquire(blocking=False):
+        return
+    try:
+        if floatCurrentTime < _floatNextPruneAt:
+            return
+        _floatNextPruneAt = floatCurrentTime + _INT_PRUNE_INTERVAL_SECONDS
+        # Cleanup commits before the request's counter transaction and skips counters currently in use.
+        with transaction.atomic():
+            listExpiredSourceHash = list(
+                AuthenticationRequestLimit.objects
+                .select_for_update(skip_locked=True)
+                .filter(expires_at__lte=timezone.now())
+                .order_by("expires_at", "source_hash")
+                .values_list("source_hash", flat=True)[:_INT_PRUNE_BATCH_SIZE]
+            )
+            if listExpiredSourceHash:
+                AuthenticationRequestLimit.objects.filter(
+                    source_hash__in=listExpiredSourceHash
+                ).delete()
+    finally:
+        _LOCK_PRUNING.release()
 
 
 @sensitive_variables()
@@ -89,7 +105,7 @@ def _apply_source_rate_limit(
     clientAddress: str, *, scope: str, maxRequests: int, windowSeconds: int
 ) -> int:
     strSourceHash = _hash_client_address(clientAddress, scope=f"{scope}.source")
-    _delete_expired_request_counters()
+    _delete_expired_request_counters_if_due()
     return _apply_request_rate_limit(
         strSourceHash, maxRequests=maxRequests, windowSeconds=windowSeconds
     )

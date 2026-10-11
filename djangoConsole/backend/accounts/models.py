@@ -122,7 +122,7 @@ class EditorSession(models.Model):
     )
     token_hash = models.CharField(max_length=64, unique=True, editable=False)
     auth_hash = models.CharField(max_length=64, editable=False)
-    computer = models.CharField(
+    computer_name = models.CharField(
         max_length=128,
         validators=[
             RegexValidator(

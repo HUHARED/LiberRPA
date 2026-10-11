@@ -1,25 +1,26 @@
 // FileName: manualRun.ts
 
-import type { Dict_ProjectDetail, Dict_ProjectSettingsUpdate } from "../../shared/project";
+import type { ProjectDetails, ProjectSettingsUpdate } from "../../shared/project";
+
 import {
   dbSelectProjectDetailById,
   dbSelectProjectMostRecentlyInstalledDetail,
 } from "../Database/projectRepository";
 import { dbSelectFinishedLocalRunProjectName } from "../Database/runHistoryRepository";
-import { pythonRun } from "./projectRunner";
-import type { ProjectRunDetails } from "./types";
+import { startProjectRun } from "./projectRunner";
+import type { ProjectRunConfig } from "./types";
 
-function createManualRunDetail(dictProject: Dict_ProjectDetail): ProjectRunDetails {
+function buildManualRunConfig(dictProject: ProjectDetails): ProjectRunConfig {
   return {
     schedule_name: null,
 
-    id: dictProject.id,
-    name: dictProject.name,
-    version: dictProject.version,
+    local_project_id: dictProject.id,
+    project_name: dictProject.name,
+    project_version: dictProject.version,
 
     python_environment_name: dictProject.python_environment_name,
 
-    retry_count: dictProject.retry_count,
+    max_retry_count: dictProject.max_retry_count,
     timeout_min: dictProject.timeout_min,
 
     builtin_log_level: dictProject.builtin_log_level,
@@ -30,15 +31,13 @@ function createManualRunDetail(dictProject: Dict_ProjectDetail): ProjectRunDetai
   };
 }
 
-export async function runInstalledProject(
-  settings: Dict_ProjectSettingsUpdate,
-): Promise<void> {
+export async function runInstalledProject(settings: ProjectSettingsUpdate): Promise<void> {
   const dictProject = dbSelectProjectDetailById(settings.id);
   if (dictProject === undefined) {
     throw new Error(`Project not found: ${settings.id}`);
   }
 
-  await pythonRun(createManualRunDetail({ ...dictProject, ...settings }));
+  await startProjectRun(buildManualRunConfig({ ...dictProject, ...settings }));
 }
 
 export async function rerunLocalRun(runHistoryId: number): Promise<void> {
@@ -51,5 +50,5 @@ export async function rerunLocalRun(runHistoryId: number): Promise<void> {
     throw new Error(`No installed Project version found: ${strProjectName}`);
   }
 
-  await pythonRun(createManualRunDetail(dictProject));
+  await startProjectRun(buildManualRunConfig(dictProject));
 }

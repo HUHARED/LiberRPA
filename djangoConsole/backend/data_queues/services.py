@@ -30,7 +30,7 @@ from organizations.permissions import (
 
 from .contracts import (
     MAX_QUEUE_RESPONSE_BYTES,
-    QueueStatus,
+    QueueItemStatus,
     QueueMutationRequest,
     QueueUploadRequest,
     QueueClaimRequest,
@@ -369,7 +369,7 @@ def claim_items(
                 intResponseBytes += intEntryBytes
         if result.item_ids:
             QueueItem.objects.filter(queue=queue, pk__in=result.item_ids).update(
-                status=QueueStatus.CLAIMED,
+                status=QueueItemStatus.CLAIMED,
                 last_claimed_by_id=access.actorId,
                 last_claimed_by_name=str(access.actor),
                 last_claimed_at=result.accepted_at,
@@ -406,15 +406,15 @@ def reset_items(
         result.skipped_ids.extend(
             itemId
             for itemId in itemIds
-            if statusById.get(itemId) == QueueStatus.UNCLAIMED
+            if statusById.get(itemId) == QueueItemStatus.UNCLAIMED
         )
         result.item_ids.extend(
-            itemId for itemId in itemIds if statusById.get(itemId) == QueueStatus.CLAIMED
+            itemId for itemId in itemIds if statusById.get(itemId) == QueueItemStatus.CLAIMED
         )
         QueueItem.objects.filter(
             queue=queue,
             pk__in=result.item_ids,
-        ).update(status=QueueStatus.UNCLAIMED)
+        ).update(status=QueueItemStatus.UNCLAIMED)
 
     return _mutate_items(
         access,

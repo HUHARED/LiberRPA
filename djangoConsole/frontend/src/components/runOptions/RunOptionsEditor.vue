@@ -3,12 +3,12 @@
   <v-row>
     <v-col cols="12" sm="4">
       <v-number-input
-        v-model="settings.retry_count"
-        label="Retry Count"
+        v-model="settings.max_retry_count"
+        label="Max Retry Count"
         :min="0"
         :max="3"
         :precision="0"
-        :rules="[validateRetryCount]"
+        :rules="[validateMaxRetryCount]"
         :disabled="disabled"
         hint="Maximum extra attempts after an execution error."
         persistent-hint />
@@ -164,7 +164,7 @@ const strArgumentsError = computed(() => {
   }
 });
 
-function validateRetryCount(value: unknown): true | string {
+function validateMaxRetryCount(value: unknown): true | string {
   return (
     (typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= 3) ||
     "Enter an integer from 0 to 3."
@@ -213,7 +213,7 @@ function setSource(index: number, source: string): void {
 
 function setAsset(index: number, name: string): void {
   const asset = arrAsset.value.find((entry) => entry.name === name);
-  if (asset)
+  if (asset && asset.asset_type !== "secret_text" && asset.asset_type !== "credential")
     settings.value.custom_arg_assets[index] = {
       name: asset.name,
       asset_type: asset.asset_type,
@@ -226,7 +226,10 @@ async function loadAssets(): Promise<void> {
   arrAsset.value = [];
   strAssetError.value = "";
   boolLoadingAssets.value = !!strDepartmentId;
-  if (!strDepartmentId) return;
+  if (!strDepartmentId || !settings.value.custom_prj_args.length) {
+    boolLoadingAssets.value = false;
+    return;
+  }
   try {
     const arrResult: AssetEntryResponse[] = [];
     let intPage = 1;
@@ -255,7 +258,7 @@ async function loadAssets(): Promise<void> {
 watch(strArgumentsError, publishValid, { immediate: true });
 
 watch(
-  () => props.departmentId,
+  [() => props.departmentId, () => settings.value.custom_prj_args.length > 0],
   () => void loadAssets(),
   { immediate: true },
 );

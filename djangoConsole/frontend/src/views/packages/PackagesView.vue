@@ -10,7 +10,7 @@
   </div>
   <v-card variant="outlined" class="mb-4">
     <v-card-text>
-      <form @submit.prevent="load(1)">
+      <form @submit.prevent="apply">
         <v-row>
           <v-col cols="12" md="6">
             <v-select
@@ -25,7 +25,11 @@
               hide-details />
           </v-col>
           <v-col cols="12" md="6">
-            <v-text-field v-model="strName" label="Project Name" clearable hide-details />
+            <v-text-field
+              v-model="strProjectName"
+              label="Project Name"
+              clearable
+              hide-details />
           </v-col>
         </v-row>
         <div class="d-flex ga-2 mt-4">
@@ -106,7 +110,7 @@ import { useSessionStore } from "@/stores/sessionStore";
 import { formatDateTime } from "@/app/formatters";
 const ARR_HEADER = [
   { title: "Project Name", key: "project_name" },
-  { title: "Version", key: "version" },
+  { title: "Version", key: "project_version" },
   { title: "Department", key: "department_path" },
   { title: "Python Environment", key: "python_environment_name" },
   { title: "Uploaded At", key: "uploaded_at" },
@@ -125,7 +129,11 @@ const boolCanCreate = computed(
 const arrDepartmentId = ref<string[]>(
   typeof route.query.department_id === "string" ? [route.query.department_id] : [],
 );
-const strName = ref<string | null>("");
+const strProjectName = ref<string | null>("");
+let appliedFilters = {
+  departmentIds: [...arrDepartmentId.value],
+  projectName: strProjectName.value ?? "",
+};
 const page = shallowRef<PackagePage | null>(null);
 const boolImport = ref(false);
 const boolLoading = ref(false);
@@ -147,8 +155,8 @@ async function load(pageNumber = page.value?.page ?? 1): Promise<void> {
   strError.value = "";
   try {
     const response = await getPackages(
-      arrDepartmentId.value,
-      strName.value ?? "",
+      appliedFilters.departmentIds,
+      appliedFilters.projectName,
       pageNumber,
     );
     if (intRevision === intLoadRevision) page.value = response;
@@ -158,10 +166,17 @@ async function load(pageNumber = page.value?.page ?? 1): Promise<void> {
     if (intRevision === intLoadRevision) boolLoading.value = false;
   }
 }
+function apply(): void {
+  appliedFilters = {
+    departmentIds: [...arrDepartmentId.value],
+    projectName: strProjectName.value ?? "",
+  };
+  void load(1);
+}
 function clearFilters(): void {
   arrDepartmentId.value = [];
-  strName.value = "";
-  void load(1);
+  strProjectName.value = "";
+  apply();
 }
 function handleImported(packageInfo: PackageInfo): void {
   boolImport.value = false;

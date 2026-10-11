@@ -26,8 +26,8 @@ from console_project.http import (
     build_rate_limited_response,
     parse_json_request,
 )
-from executors.http import get_executor_request_membership, lock_executor_write_access
 from operations.audit import record_audit
+from organizations.http import get_request_membership, lock_request_write_access
 from organizations.models import Organization
 from organizations.permissions import (
     AccessChannel,
@@ -78,7 +78,7 @@ def _handle_errors(view: Callable) -> Callable:
 
 
 def _get_access(request: HttpRequest) -> OrganizationAccessContext | JsonResponse:
-    membership = get_executor_request_membership(request)
+    membership = get_request_membership(request)
     if isinstance(membership, JsonResponse):
         return membership
     return resolve_organization_access(
@@ -141,14 +141,14 @@ def notification_details(request: HttpRequest, notificationId: uuid.UUID) -> Jso
 def change_notifications(
     request: HttpRequest, action: str, notificationId: uuid.UUID | None = None
 ) -> JsonResponse:
-    membership = get_executor_request_membership(request)
+    membership = get_request_membership(request)
     if isinstance(membership, JsonResponse):
         return membership
     form = parse_json_request(request, EmptyRequest)
     if isinstance(form, JsonResponse):
         return form
     with transaction.atomic():
-        access = lock_executor_write_access(request, membership)
+        access = lock_request_write_access(request, membership)
         query = Notification.objects.filter(
             user=access.actor, organization=access.organization
         )
@@ -175,7 +175,7 @@ def _recipient_payload(recipient: RunEmailRecipient) -> dict:
 @require_http_methods(["GET", "POST"])
 @_handle_errors
 def list_or_create_recipients(request: HttpRequest) -> JsonResponse:
-    membership = get_executor_request_membership(request)
+    membership = get_request_membership(request)
     if isinstance(membership, JsonResponse):
         return membership
     if request.method == "POST":
@@ -190,7 +190,7 @@ def list_or_create_recipients(request: HttpRequest) -> JsonResponse:
         if intRetry:
             return build_rate_limited_response(intRetry)
         with transaction.atomic():
-            access = lock_executor_write_access(request, membership)
+            access = lock_request_write_access(request, membership)
             recipient = create_recipient(access, email=form.email, notes=form.notes)
             return JsonResponse({"recipient": _recipient_payload(recipient)}, status=201)
     access = resolve_organization_access(
@@ -222,7 +222,7 @@ def list_or_create_recipients(request: HttpRequest) -> JsonResponse:
 def change_recipient(
     request: HttpRequest, recipientId: uuid.UUID, action: str
 ) -> JsonResponse:
-    membership = get_executor_request_membership(request)
+    membership = get_request_membership(request)
     if isinstance(membership, JsonResponse):
         return membership
     form = parse_json_request(
@@ -239,7 +239,7 @@ def change_recipient(
         if intRetry:
             return build_rate_limited_response(intRetry)
     with transaction.atomic():
-        access = lock_executor_write_access(request, membership)
+        access = lock_request_write_access(request, membership)
         require_organization_admin(access)
         recipient = RunEmailRecipient.objects.select_for_update().get(
             pk=recipientId, organization=access.organization

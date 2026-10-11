@@ -150,11 +150,11 @@
           </div>
           <div>
             <dt>Computer</dt>
-            <dd>{{ executorInfo.computer ?? "—" }}</dd>
+            <dd>{{ executorInfo.computer_name ?? "—" }}</dd>
           </div>
           <div>
             <dt>Version</dt>
-            <dd>{{ executorInfo.version ?? "—" }}</dd>
+            <dd>{{ executorInfo.client_version ?? "—" }}</dd>
           </div>
           <div>
             <dt>Last Seen</dt>
@@ -183,8 +183,8 @@
         <v-table>
           <tbody>
             <tr>
-              <td>Local Running</td>
-              <td>{{ executorInfo.local_running_count ?? "Unknown" }}</td>
+              <td>Other Active Runs</td>
+              <td>{{ executorInfo.other_active_run_count ?? "Unknown" }}</td>
             </tr>
             <tr>
               <td>Console Running</td>
@@ -333,7 +333,7 @@
           </div>
           <div>
             <dt>Computer</dt>
-            <dd>{{ unassociateTarget.computer ?? "—" }}</dd>
+            <dd>{{ unassociateTarget.computer_name ?? "—" }}</dd>
           </div>
           <div>
             <dt>Account</dt>
@@ -666,8 +666,8 @@ async function submitUnassociate(): Promise<void> {
       association_status: "unassociated",
       session_id: null,
       account: null,
-      computer: null,
-      version: null,
+      computer_name: null,
+      client_version: null,
       last_seen_at: null,
     };
     closeUnassociate();

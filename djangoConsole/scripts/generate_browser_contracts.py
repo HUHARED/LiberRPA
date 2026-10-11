@@ -25,6 +25,10 @@ from data_queues import contracts as queueContracts
 from shared_files import contracts as fileContracts
 from executors import contracts as executorContracts
 from operations import contracts as auditContracts
+from packages import contracts as packageContracts
+from schedules import contracts as scheduleContracts
+from runs import contracts as runContracts
+from notifications import contracts as notificationContracts
 
 # NOTE: Register browser contracts explicitly; keep each group in its source declaration order.
 _BROWSER_CONTRACTS: tuple[tuple[type[BaseModel], JsonSchemaMode], ...] = (
@@ -115,6 +119,46 @@ _BROWSER_CONTRACTS: tuple[tuple[type[BaseModel], JsonSchemaMode], ...] = (
     (executorContracts.ExecutorGroupDetailsResponse, "serialization"),
     (executorContracts.ExecutorGroupDeletionResponse, "serialization"),
     (executorContracts.ExecutorGroupWriteResponse, "serialization"),
+    # Package settings, imports and preparation.
+    (packageContracts.PackageUploadRequest, "validation"),
+    (packageContracts.PackageSettingsRequest, "validation"),
+    (packageContracts.PackageListResponse, "serialization"),
+    (packageContracts.PackageOptionsResponse, "serialization"),
+    (packageContracts.PackageDetailsResponse, "serialization"),
+    (packageContracts.PackageUploadResponse, "serialization"),
+    (packageContracts.PackagePreparationCancellationResponse, "serialization"),
+    (packageContracts.PackageDownloadResponse, "serialization"),
+    # Schedule configuration and previews.
+    (scheduleContracts.ScheduleTimeRequest, "validation"),
+    (scheduleContracts.ScheduleUpdateRequest, "validation"),
+    (scheduleContracts.ScheduleCreationRequest, "validation"),
+    (scheduleContracts.ScheduleEnabledRequest, "validation"),
+    (scheduleContracts.ScheduleListResponse, "serialization"),
+    (scheduleContracts.ScheduleDetailsResponse, "serialization"),
+    (scheduleContracts.ScheduleDefaultsResponse, "serialization"),
+    (scheduleContracts.SchedulePreviewResponse, "serialization"),
+    # Jobs, actual runs, logs and original files.
+    (runContracts.JobCreationRequest, "validation"),
+    (runContracts.JobControlRequest, "validation"),
+    (runContracts.ClearLogsRequest, "validation"),
+    (runContracts.RunFileRequest, "validation"),
+    (runContracts.JobListResponse, "serialization"),
+    (runContracts.JobDetailsResponse, "serialization"),
+    (runContracts.JobCreationResponse, "serialization"),
+    (runContracts.RunListResponse, "serialization"),
+    (runContracts.RunDetailsResponse, "serialization"),
+    (runContracts.RunSelectionResponse, "serialization"),
+    (runContracts.RunRerunResponse, "serialization"),
+    (runContracts.RunLogListResponse, "serialization"),
+    (runContracts.RunLogClearResponse, "serialization"),
+    (runContracts.RunDownloadResponse, "serialization"),
+    (runContracts.RunDepartmentListResponse, "serialization"),
+    # Run email recipients.
+    (notificationContracts.RecipientCreationRequest, "validation"),
+    (notificationContracts.RecipientNotesRequest, "validation"),
+    (notificationContracts.RecipientTokenRequest, "validation"),
+    (notificationContracts.RunEmailRecipientListResponse, "serialization"),
+    (notificationContracts.RunEmailVerificationResponse, "serialization"),
     # Audit history.
     (auditContracts.AuditListResponse, "serialization"),
     (auditContracts.AuditFilterOptionsResponse, "serialization"),

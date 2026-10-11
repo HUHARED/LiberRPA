@@ -24,6 +24,7 @@ from .contracts import (
     RunPriority,
     build_default_run_email,
     PackagePreparationState,
+    PackageUploadState,
 )
 
 
@@ -35,8 +36,8 @@ class Package(models.Model):
     department = models.ForeignKey("organizations.Department", on_delete=models.PROTECT)
     project_name = models.CharField(max_length=255)
     project_name_key = models.CharField(max_length=255, db_collation="C")
-    version = models.CharField(max_length=INT_WINDOWS_NAME_MAX_LENGTH)
-    version_key = models.CharField(
+    project_version = models.CharField(max_length=INT_WINDOWS_NAME_MAX_LENGTH)
+    project_version_key = models.CharField(
         max_length=INT_WINDOWS_NAME_MAX_LENGTH, db_collation="C"
     )
     description = models.CharField(max_length=INT_DESCRIPTION_MAX_LENGTH)
@@ -48,7 +49,7 @@ class Package(models.Model):
     python_environment_name = models.CharField(
         max_length=INT_WINDOWS_NAME_MAX_LENGTH, default="default"
     )
-    retry_count = models.PositiveSmallIntegerField(default=0)
+    max_retry_count = models.PositiveSmallIntegerField(default=0)
     timeout_min = models.PositiveIntegerField(default=0)
     builtin_log_level = models.CharField(
         max_length=max(len(entry.value) for entry in RunLogLevel),
@@ -84,7 +85,7 @@ class Package(models.Model):
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=["department", "project_name_key", "version_key"],
+                fields=["department", "project_name_key", "project_version_key"],
                 name="package_unique",
             ),
             models.CheckConstraint(
@@ -99,7 +100,7 @@ class Package(models.Model):
             ),
             models.CheckConstraint(
                 condition=models.Q(
-                    retry_count__gte=0, retry_count__lte=INT_MAX_RETRY_COUNT
+                    max_retry_count__gte=0, max_retry_count__lte=INT_MAX_RETRY_COUNT
                 ),
                 name="package_retry_valid",
             ),
@@ -118,15 +119,7 @@ class Package(models.Model):
         ]
 
     def __str__(self) -> str:
-        return f"{self.project_name} {self.version}"
-
-
-class PackageUploadState(models.TextChoices):
-    RECEIVING = "receiving", "Receiving"
-    COMPLETED = "completed", "Completed"
-    FAILED = "failed", "Failed"
-    EXPIRED = "expired", "Expired"
-    CANCELED = "canceled", "Canceled"
+        return f"{self.project_name} {self.project_version}"
 
 
 class PackageUpload(models.Model):

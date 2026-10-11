@@ -79,8 +79,8 @@ class DownloadSession(models.Model):
     actor_id = models.UUIDField()
     department_id = models.UUIDField()
     blob = models.ForeignKey(StoredBlob, on_delete=models.PROTECT)
-    # Snapshot the authorized name; renames and overwrites cannot alter this transfer.
-    path = models.TextField()
+    # Snapshot the authorized resource path and download name; renames cannot alter this transfer.
+    resource_path = models.TextField(blank=True, default="")
     name = models.CharField(max_length=128)
     started = models.BooleanField(default=False)
     expires_at = models.DateTimeField()

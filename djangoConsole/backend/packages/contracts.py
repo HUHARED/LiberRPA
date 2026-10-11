@@ -5,6 +5,7 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import json
+from datetime import datetime
 from enum import StrEnum
 from typing import Annotated, Literal, cast
 from uuid import UUID
@@ -12,12 +13,12 @@ from uuid import UUID
 from django.db.models import TextChoices
 from pydantic import Field, field_validator, model_validator
 
-from console_project.contracts import JsonValue, JsonRequest
+from console_project.contracts import JsonValue, JsonRequest, JsonResponsePayload
 from console_project.constants import INT_WINDOWS_NAME_MAX_LENGTH, RunLogLevel
 from console_project.validators import validate_windows_name, validate_json_value
+from organizations.contracts import PaginationResponse
 
 MAX_PACKAGE_BYTES = 512 * 1024 * 1024
-UPLOAD_CHUNK_BYTES = 4 * 1024 * 1024
 
 # NOTE: Keep these package limits aligned with Project Manager and Executor.
 INT_DESCRIPTION_MAX_LENGTH = 2000
@@ -59,6 +60,9 @@ class RunPriority(StrEnum):
     HIGH = "high"
     NORMAL = "normal"
     LOW = "low"
+
+
+RUN_PRIORITY_ORDER = (RunPriority.HIGH, RunPriority.NORMAL, RunPriority.LOW)
 
 
 class OrdinaryAssetBinding(JsonRequest):
@@ -108,7 +112,7 @@ def validate_custom_arguments(arguments: list[list[JsonValue]]) -> None:
 
 
 class RunSettings(JsonRequest):
-    retry_count: int = Field(default=0, ge=0, le=INT_MAX_RETRY_COUNT)
+    max_retry_count: int = Field(default=0, ge=0, le=INT_MAX_RETRY_COUNT)
     timeout_min: int = Field(default=0, ge=0, le=INT_MAX_TIMEOUT_MIN)
     builtin_log_level: RunLogLevel = Field(default=RunLogLevel.INFO, strict=False)
     builtin_record_video: bool = False
@@ -174,3 +178,117 @@ class PackageSettingsRequest(JsonRequest):
 class PreparationResultRequest(JsonRequest):
     state: PackagePreparationResult
     reason: str = Field(default="", max_length=2000)
+
+
+class PackageUploadState(TextChoices):
+    RECEIVING = "receiving", "Receiving"
+    COMPLETED = "completed", "Completed"
+    FAILED = "failed", "Failed"
+    EXPIRED = "expired", "Expired"
+    CANCELED = "canceled", "Canceled"
+
+
+class RunEmailTemplateResponse(JsonResponsePayload):
+    enabled: bool
+    subject: str
+    body: str
+
+
+class RunEmailSettingsResponse(JsonResponsePayload):
+    recipient_ids: list[UUID]
+    on_start: RunEmailTemplateResponse
+    on_completed: RunEmailTemplateResponse
+    on_error: RunEmailTemplateResponse
+
+
+class RunSettingsResponse(JsonResponsePayload):
+    max_retry_count: int
+    timeout_min: int
+    builtin_log_level: RunLogLevel
+    builtin_record_video: bool
+    builtin_stop_shortcut: bool
+    builtin_highlight_ui: bool
+    custom_prj_args: list[tuple[str, JsonValue]]
+    custom_arg_assets: list[OrdinaryAssetBinding | None]
+    run_conflict_policy: RunConflictPolicy
+    priority: RunPriority
+    run_email: RunEmailSettingsResponse
+
+
+class RunSnapshotResponse(RunSettingsResponse):
+    package_id: UUID
+    department_id: UUID
+    project_name: str
+    project_version: str
+    sha256: str
+    requires_liberrpa: str
+    python_environment_name: str
+
+
+class PackageListEntryResponse(JsonResponsePayload):
+    id: UUID
+    department_id: UUID
+    department_path: str
+    project_name: str
+    project_version: str
+    python_environment_name: str
+    size_bytes: int
+    uploaded_at: datetime
+    uploaded_by_name: str
+    can_manage: bool
+
+
+class PackageResponse(PackageListEntryResponse):
+    description: str
+    version_summary: str
+    requires_liberrpa: str
+    component_dependencies: dict[str, JsonValue]
+    sha256: str
+    settings: RunSettingsResponse
+    api_input_keys: list[str]
+
+
+class PackageReferenceResponse(JsonResponsePayload):
+    id: UUID
+    name: str
+    kind: PackageReferenceKind
+
+
+class PackagePreparationResponse(JsonResponsePayload):
+    executor_id: UUID
+    executor_name: str
+    state: PackagePreparationState
+    reason: str
+
+
+class PackageDetailsResponse(JsonResponsePayload):
+    package: PackageResponse
+    preparation: list[PackagePreparationResponse]
+    references: list[PackageReferenceResponse]
+
+
+class PackageListResponse(PaginationResponse):
+    packages: list[PackageListEntryResponse]
+
+
+class PackageOptionsResponse(JsonResponsePayload):
+    packages: list[PackageListEntryResponse]
+
+
+class PackageUploadResponse(JsonResponsePayload):
+    upload_id: UUID
+    state: PackageUploadState
+    offset: int
+    size_bytes: int
+    chunk_bytes: int
+    expires_at: datetime
+    package: PackageResponse | None
+
+
+class PackagePreparationCancellationResponse(JsonResponsePayload):
+    canceled_count: int
+
+
+class PackageDownloadResponse(JsonResponsePayload):
+    transfer_id: UUID
+    file_name: str

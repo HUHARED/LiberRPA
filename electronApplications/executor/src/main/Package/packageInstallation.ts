@@ -13,7 +13,7 @@ import {
 import { runFileWorker } from "../FileSystem/fileWorker";
 import { getExecutorPackageFolderPath } from "../FileSystem/executorFiles";
 import { loggerMain } from "../Logging/logger";
-import type { Dict_ProjectPackage_InstallResult } from "../../shared/project";
+import type { ProjectPackageInstallResult } from "../../shared/project";
 import strPackageArchiveWorkerPath from "./packageArchiveWorker?modulePath";
 import type { PackageArchiveArgs } from "./packageArchiveWorker";
 import {
@@ -30,13 +30,13 @@ const ARR_PACKAGE_RENAME_RETRY_DELAY_MS: readonly number[] = [
 const SET_PACKAGE_RENAME_RETRY_ERROR_CODE = new Set(["EPERM", "EBUSY", "EACCES"]);
 
 let boolPackageSelectionOpen = false;
-let promisePackageInstallation: Promise<Dict_ProjectPackage_InstallResult> | undefined;
+let promisePackageInstallation: Promise<ProjectPackageInstallResult> | undefined;
 let strLastPackageFolderPath: string | undefined;
 
 async function runProjectPackageInstallation(
   packageFilePath: string,
   ensureExecutorRunning: () => void,
-): Promise<Dict_ProjectPackage_InstallResult> {
+): Promise<ProjectPackageInstallResult> {
   const { transactionFolderPath, stagedProjectPath } =
     createProjectPackageInstallationStaging();
 
@@ -177,7 +177,7 @@ async function runProjectPackageInstallation(
 
 export async function installProjectPackage(
   ensureExecutorRunning: () => void,
-): Promise<Dict_ProjectPackage_InstallResult> {
+): Promise<ProjectPackageInstallResult> {
   if (boolPackageSelectionOpen || promisePackageInstallation !== undefined) {
     throw new Error("Another Project Package installation is already running.");
   }

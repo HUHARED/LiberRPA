@@ -11,6 +11,13 @@ from django.http import HttpRequest, HttpResponse, JsonResponse, StreamingHttpRe
 from django.utils.http import content_disposition_header
 from django.views.decorators.http import require_http_methods, require_GET, require_POST
 
+from file_storage.http import (
+    FileAuthentication,
+    get_file_access,
+    lock_file_access,
+    require_no_query_parameters,
+    parse_upload_chunk,
+)
 from file_storage.services import FileOperationError, release_unstarted_download
 from file_storage.streaming import SyncFileStream, AsyncFileStream
 from organizations.validators import parse_resource_path
@@ -39,13 +46,8 @@ from .services import (
     open_download,
 )
 from .http import (
-    FileAuthentication,
     build_file_error_response,
-    get_file_access,
-    lock_file_access,
-    require_no_query_parameters,
     parse_file_request,
-    parse_upload_chunk,
     build_file_response,
 )
 

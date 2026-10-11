@@ -22,10 +22,13 @@ from console_project.http import (
     build_error_response,
     parse_json_request,
 )
-from executors.http import get_executor_request_membership, lock_executor_write_access
 from executors.models import Executor, ExecutorGroup
 from organizations.department_queries import get_department_path, get_department_tree
-from organizations.http import parse_department_resource_filters
+from organizations.http import (
+    get_request_membership,
+    lock_request_write_access,
+    parse_department_resource_filters,
+)
 from organizations.models import DepartmentRole
 from organizations.permissions import (
     AccessChannel,
@@ -49,7 +52,7 @@ from .services import (
     get_schedule_for_access,
     save_schedule,
     set_schedule_enabled,
-    validate_schedule_time,
+    parse_schedule_time,
 )
 
 _INT_PAGE_SIZE = 50
@@ -131,7 +134,7 @@ def _build_payloads(
             },
             "package_id": schedule.package_id,
             "project_name": schedule.package.project_name,
-            "project_version": schedule.package.version,
+            "project_version": schedule.package.project_version,
             "executor_ids": schedule.executor_ids,
             "executors": [
                 {"id": executor.id, "name": executor.name}
@@ -175,7 +178,7 @@ def _build_payloads(
 @require_http_methods(["GET", "POST"])
 @_handle_errors
 def list_or_create_schedules(request: HttpRequest) -> JsonResponse:
-    membership = get_executor_request_membership(request)
+    membership = get_request_membership(request)
     if isinstance(membership, JsonResponse):
         return membership
     if request.method == "POST":
@@ -183,7 +186,7 @@ def list_or_create_schedules(request: HttpRequest) -> JsonResponse:
         if isinstance(form, JsonResponse):
             return form
         with transaction.atomic():
-            access = lock_executor_write_access(request, membership)
+            access = lock_request_write_access(request, membership)
             schedule = save_schedule(access, form, departmentId=form.department_id)
             return JsonResponse(
                 {"schedule": _build_payloads([schedule], access, details=True)[0]},
@@ -235,7 +238,7 @@ def list_or_create_schedules(request: HttpRequest) -> JsonResponse:
 @require_http_methods(["GET", "POST"])
 @_handle_errors
 def get_or_update_schedule(request: HttpRequest, scheduleId: uuid.UUID) -> JsonResponse:
-    membership = get_executor_request_membership(request)
+    membership = get_request_membership(request)
     if isinstance(membership, JsonResponse):
         return membership
     if request.method == "POST":
@@ -243,7 +246,7 @@ def get_or_update_schedule(request: HttpRequest, scheduleId: uuid.UUID) -> JsonR
         if isinstance(form, JsonResponse):
             return form
         with transaction.atomic():
-            access = lock_executor_write_access(request, membership)
+            access = lock_request_write_access(request, membership)
             schedule = get_schedule_for_access(access, scheduleId, forUpdate=True)
             schedule = save_schedule(
                 access, form, departmentId=schedule.department_id, schedule=schedule
@@ -267,14 +270,14 @@ def get_or_update_schedule(request: HttpRequest, scheduleId: uuid.UUID) -> JsonR
 @require_POST
 @_handle_errors
 def change_schedule_enabled(request: HttpRequest, scheduleId: uuid.UUID) -> JsonResponse:
-    membership = get_executor_request_membership(request)
+    membership = get_request_membership(request)
     if isinstance(membership, JsonResponse):
         return membership
     form = parse_json_request(request, ScheduleEnabledRequest)
     if isinstance(form, JsonResponse):
         return form
     with transaction.atomic():
-        access = lock_executor_write_access(request, membership)
+        access = lock_request_write_access(request, membership)
         schedule = get_schedule_for_access(access, scheduleId, forUpdate=True)
         set_schedule_enabled(access, schedule, form.enabled)
         return JsonResponse({
@@ -286,14 +289,14 @@ def change_schedule_enabled(request: HttpRequest, scheduleId: uuid.UUID) -> Json
 @require_POST
 @_handle_errors
 def delete_schedule_record(request: HttpRequest, scheduleId: uuid.UUID) -> JsonResponse:
-    membership = get_executor_request_membership(request)
+    membership = get_request_membership(request)
     if isinstance(membership, JsonResponse):
         return membership
     form = parse_json_request(request, ScheduleDeletionRequest)
     if isinstance(form, JsonResponse):
         return form
     with transaction.atomic():
-        access = lock_executor_write_access(request, membership)
+        access = lock_request_write_access(request, membership)
         delete_schedule(
             access, get_schedule_for_access(access, scheduleId, forUpdate=True)
         )
@@ -306,7 +309,7 @@ def delete_schedule_record(request: HttpRequest, scheduleId: uuid.UUID) -> JsonR
 @require_POST
 @_handle_errors
 def preview_schedule(request: HttpRequest) -> JsonResponse:
-    membership = get_executor_request_membership(request)
+    membership = get_request_membership(request)
     if isinstance(membership, JsonResponse):
         return membership
     resolve_organization_access(
@@ -317,7 +320,7 @@ def preview_schedule(request: HttpRequest) -> JsonResponse:
     form = parse_json_request(request, ScheduleTimeRequest)
     if isinstance(form, JsonResponse):
         return form
-    strCron, activeFrom, activeUntil = validate_schedule_time(form)
+    strCron, activeFrom, activeUntil = parse_schedule_time(form)
     return JsonResponse({
         "normalized_cron": strCron,
         "upcoming_triggers": preview_triggers(
@@ -330,7 +333,7 @@ def preview_schedule(request: HttpRequest) -> JsonResponse:
 @require_http_methods(["GET"])
 @_handle_errors
 def schedule_defaults(request: HttpRequest) -> JsonResponse:
-    membership = get_executor_request_membership(request)
+    membership = get_request_membership(request)
     if isinstance(membership, JsonResponse):
         return membership
     access = resolve_organization_access(
@@ -340,5 +343,4 @@ def schedule_defaults(request: HttpRequest) -> JsonResponse:
     )
     return JsonResponse({
         "time_zone": access.organization.default_time_zone,
-        "enabled": True,
     })

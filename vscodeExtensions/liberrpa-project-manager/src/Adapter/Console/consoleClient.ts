@@ -125,8 +125,8 @@ export function parseEditorSession(value: unknown): EditorSessionInfo {
     organization: value.organization,
     is_org_admin: value.is_org_admin,
     account_departments: value.account_departments,
-    computer: value.computer,
-    version: value.version,
+    computer_name: value.computer_name,
+    client_version: value.client_version,
     last_seen_at: value.last_seen_at,
   };
 }

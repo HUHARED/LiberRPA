@@ -18,6 +18,7 @@ from executors.client_sessions import (
     ExecutorClientAction,
     ExecutorClientResult,
     get_locked_executor_session,
+    get_executor_session_identity,
     open_executor_client_request,
 )
 from organizations.permissions import (
@@ -99,7 +100,7 @@ def authenticate_resource(authorizationHeader: str) -> ResourceAuthenticationCon
             )
         else:
             with open_executor_client_request(
-                authorizationHeader=authorizationHeader,
+                identity=get_executor_session_identity(authorizationHeader),
                 action=ExecutorClientAction.RESOURCE,
             ) as executorResult:
                 clientResult = cast(ExecutorClientResult, executorResult)

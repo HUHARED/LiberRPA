@@ -14,14 +14,26 @@ import psutil
 from pathlib import Path
 from datetime import datetime, timedelta
 from dataclasses import dataclass
+from enum import StrEnum
+import json
 import re
 import sys
 from screeninfo import get_monitors
 from screeninfo.common import Monitor
 
 _RECORD_FRAME_RATE = 5
+_RECORD_PRESET = "faster"
+_RECORD_CRF = 38
+_MAX_RECORD_CPU_COUNT = 4
 _DISPLAY_POLL_INTERVAL_SECONDS = 0.5
 _DISPLAY_CHANGE_GRACE_SECONDS = 1.0
+
+
+class _RecordingStatus(StrEnum):
+    RECORDING = "recording"
+    PROCESSING = "processing"
+    READY = "ready"
+    UNAVAILABLE = "unavailable"
 
 
 @dataclass(frozen=True, slots=True)
@@ -71,6 +83,26 @@ def _get_capture_area(
     )
 
 
+def _set_record_process_resources(processRecord: subprocess.Popen) -> None:
+    try:
+        listAvailableCpu = psutil.Process().cpu_affinity()
+        if not listAvailableCpu:
+            raise RuntimeError("No available logical CPU was reported for Local Server.")
+
+        intRecordCpuCount = max(
+            1,
+            min(_MAX_RECORD_CPU_COUNT, len(listAvailableCpu) // 2),
+        )
+        listRecordCpu = listAvailableCpu[-intRecordCpuCount:]
+        psutil.Process(processRecord.pid).cpu_affinity(listRecordCpu)
+        Log.debug(
+            f"Set ffmpeg CPU affinity to {listRecordCpu} "
+            f"from {len(listAvailableCpu)} available logical CPUs."
+        )
+    except Exception as e:
+        Log.warning(f"Failed to limit ffmpeg CPU affinity: {e}")
+
+
 def _start_record_part(
     folderName: str,
     partIndex: int,
@@ -107,9 +139,9 @@ def _start_record_part(
         "-c:v",
         "libx265",  # Use x265 codec, for a small size
         "-preset",
-        "faster",  # Use a faster preset for reducing CPU usage, compress its size later.
+        _RECORD_PRESET,  # Keep recording CPU usage low enough for the automation workload.
         "-crf",
-        "28",  # Set the default quality, compress later.
+        str(_RECORD_CRF),  # Record directly at the final diagnostic-video quality.
         str(pathPart),
     ])
 
@@ -119,8 +151,10 @@ def _start_record_part(
         stdout=subprocess.DEVNULL,
         # stderr=subprocess.PIPE wil cause ffmpeg can't stop.
         stderr=subprocess.DEVNULL,
-        creationflags=subprocess.CREATE_NO_WINDOW,
+        creationflags=subprocess.CREATE_NO_WINDOW
+        | subprocess.BELOW_NORMAL_PRIORITY_CLASS,
     )
+    _set_record_process_resources(processRecord=processRecord)
 
     return processRecord, pathPart
 
@@ -233,26 +267,126 @@ def _merge_record_parts(folderName: str, listPartPaths: list[Path]) -> bool:
     return True
 
 
-def record_screen(pid: int, folderName: str) -> None:
+def _create_log_subtitle(folderName: str) -> None:
+    strLogPath = str(Path(folderName).joinpath("human_read_MainProcess.log"))
 
-    primaryScreen = _get_primary_screen()
-    initialWidth = primaryScreen.width
-    initialHeight = primaryScreen.height
-    captureArea = _get_capture_area(
-        primaryScreen=primaryScreen,
-        initialWidth=initialWidth,
-        initialHeight=initialHeight,
-    )
+    if not Path(strLogPath).is_file():
+        Log.error("Log file not found, skipping subtitles.")
+        return
+
+    strSubtitlePath = str(Path(folderName).joinpath("video_record.srt"))
+
+    strLogTotal = Path(strLogPath).read_text(encoding="utf-8")
+    dictLogSeconds: dict[str, list[str]] = {}
+
+    listEachLine = strLogTotal.split("\n")
+    boolFoundSign = False
+
+    for strLine in listEachLine:
+        if not boolFoundSign:
+            # Before save log, should find the start sign.
+            if strLine.endswith(SIGN_START_RECORD_VIDEO):
+                boolFoundSign = True
+                timeBase: datetime = datetime.strptime(
+                    strLine[0:21], "[%Y-%m-%d %H:%M:%S]"
+                )
+                continue
+        else:
+            # Have found sign, add log to dictionary
+            strTime = strLine[0:21]
+            if not re.fullmatch(R"\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\]", strTime):
+                # The line has no time text, continue.
+                continue
+            if dictLogSeconds.get(strTime) is None:
+                # Limit the length of each line to avoid overwhelming video
+                dictLogSeconds[strTime] = [strLine[0:120]]
+            else:
+                # This second has some log. Only save 3 log.
+                if len(dictLogSeconds[strTime]) >= 3:
+                    continue
+                else:
+                    dictLogSeconds[strTime].append(strLine[0:120])
+
+    if not boolFoundSign:
+        Log.error("Not found SIGN_START_RECORD_VIDEO.")
+        return None
+
+    pathSubtitleTemp = Path(strSubtitlePath + ".tmp")
+    with pathSubtitleTemp.open(mode="w", encoding="utf-8") as fileObj:
+        intIndex = 1
+        for strTimestamp, listLog in dictLogSeconds.items():
+            # Parse time for SRT format
+            timeLog: datetime = datetime.strptime(strTimestamp, "[%Y-%m-%d %H:%M:%S]")
+            timeOffset = (timeLog - timeBase).total_seconds()
+
+            # Start time in HH:MM:SS,000 format
+            timeStart = (datetime(1, 1, 1) + timedelta(seconds=timeOffset)).strftime(
+                "%H:%M:%S,000"
+            )
+            # Show each log for 1 second
+            timeEnd = (datetime(1, 1, 1) + timedelta(seconds=timeOffset + 1)).strftime(
+                "%H:%M:%S,000"
+            )
+
+            # Write SRT entry
+            fileObj.write(f"{intIndex}\n")
+            fileObj.write(f"{timeStart} --> {timeEnd}\n")
+            fileObj.write("\n".join(listLog) + "\n\n")
+
+            intIndex += 1
+
+    pathSubtitleTemp.replace(strSubtitlePath)
+    Log.debug("Create subtitle: " + strSubtitlePath)
+
+
+def record_screen(pid: int, folderName: str) -> None:
+    def write_state(status: _RecordingStatus, reason: str = "") -> None:
+        dictState: dict[str, str | int | None] = {
+            "status": status,
+            "videoSizeBytes": None,
+            "subtitleSizeBytes": None,
+            "reason": reason
+            .replace("\0", "")
+            .encode("utf-8", errors="replace")
+            .decode("utf-8")[:2000],
+        }
+        pathState = Path(folderName) / "video_record.state.json"
+        pathTemp = pathState.with_suffix(".tmp")
+        try:
+            if status == _RecordingStatus.READY:
+                for strKey, strName in (
+                    ("videoSizeBytes", "video_record.mkv"),
+                    ("subtitleSizeBytes", "video_record.srt"),
+                ):
+                    pathFile = Path(folderName) / strName
+                    if pathFile.is_file() and (intSize := pathFile.stat().st_size) > 0:
+                        dictState[strKey] = intSize
+            pathTemp.write_text(
+                json.dumps(dictState, ensure_ascii=False), encoding="utf-8"
+            )
+            pathTemp.replace(pathState)
+        except OSError as e:
+            Log.error(f"Could not save recording state: {e}")
 
     processRecord: subprocess.Popen | None = None
     listPartPaths: list[Path] = []
     intPartIndex = 0
     boolRecordingFailed = False
 
-    Log.debug(f"Record start: {folderName}")
-    Log.debug(f"Record size: {initialWidth}x{initialHeight}")
-
+    write_state(_RecordingStatus.RECORDING)
     try:
+        primaryScreen = _get_primary_screen()
+        initialWidth = primaryScreen.width
+        initialHeight = primaryScreen.height
+        captureArea = _get_capture_area(
+            primaryScreen=primaryScreen,
+            initialWidth=initialWidth,
+            initialHeight=initialHeight,
+        )
+
+        Log.debug(f"Record start: {folderName}")
+        Log.debug(f"Record size: {initialWidth}x{initialHeight}")
+
         processRecord, pathPart = _start_record_part(
             folderName=folderName,
             partIndex=intPartIndex,
@@ -361,177 +495,40 @@ def record_screen(pid: int, folderName: str) -> None:
 
     finally:
         if processRecord is not None:
-            intReturnCode = _stop_ffmpeg(processRecord)
-            if intReturnCode != 0:
-                Log.warning(f"ffmpeg exit {intReturnCode}.")
+            try:
+                intReturnCode = _stop_ffmpeg(processRecord)
+                if intReturnCode != 0:
+                    Log.warning(f"ffmpeg exit {intReturnCode}.")
+                    boolRecordingFailed = True
+            except Exception as e:
+                Log.error(f"Failed to stop recording: {e}")
                 boolRecordingFailed = True
 
     if boolRecordingFailed:
-        Log.warning("Video recording did not complete successfully.")
-        return
-
-    if not _merge_record_parts(folderName=folderName, listPartPaths=listPartPaths):
-        return
-
-    Log.debug(f"Record end: {folderName} – clean exit.")
-    # Add subtitle.
-    _create_log_subtitle(folderName=folderName)
-    _compress_video(folderName=folderName)
-
-
-def _create_log_subtitle(folderName: str) -> None:
-    strLogPath = str(Path(folderName).joinpath("human_read_MainProcess.log"))
-
-    if not Path(strLogPath).is_file():
-        Log.error("Log file not found, skipping subtitles.")
-        return
-
-    strSubtitlePath = str(Path(folderName).joinpath("video_record.srt"))
-
-    strLogTotal = Path(strLogPath).read_text(encoding="utf-8")
-    dictLogSeconds: dict[str, list[str]] = {}
-
-    listEachLine = strLogTotal.split("\n")
-    boolFoundSign = False
-
-    for strLine in listEachLine:
-        if not boolFoundSign:
-            # Before save log, should find the start sign.
-            if strLine.endswith(SIGN_START_RECORD_VIDEO):
-                # print("Found sign.")
-                boolFoundSign = True
-                timeBase: datetime = datetime.strptime(
-                    strLine[0:21], "[%Y-%m-%d %H:%M:%S]"
-                )
-                continue
-        else:
-            # Have found sign, add log to dictionary
-            strTime = strLine[0:21]
-            if not re.fullmatch(R"\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\]", strTime):
-                # The line has no time text, continue.
-                continue
-            if dictLogSeconds.get(strTime) is None:
-                # Limit the length of each line to avoid overwhelming video
-                dictLogSeconds[strTime] = [strLine[0:120]]
-            else:
-                # This second has some log. Only save 3 log.
-                if len(dictLogSeconds[strTime]) >= 3:
-                    continue
-                else:
-                    dictLogSeconds[strTime].append(strLine[0:120])
-
-    if not boolFoundSign:
-        Log.error("Not found SIGN_START_RECORD_VIDEO.")
-        return None
-
-    # print(dictLogSeconds)
-
-    with open(file=strSubtitlePath, mode="w", encoding="utf-8") as fileObj:
-        intIndex = 1
-        for strTimestamp, listLog in dictLogSeconds.items():
-            # Parse time for SRT format
-            timeLog: datetime = datetime.strptime(strTimestamp, "[%Y-%m-%d %H:%M:%S]")
-            timeOffset = (timeLog - timeBase).total_seconds()
-
-            # Start time in HH:MM:SS,000 format
-            timeStart = (datetime(1, 1, 1) + timedelta(seconds=timeOffset)).strftime(
-                "%H:%M:%S,000"
-            )
-            # Show each log for 1 second
-            timeEnd = (datetime(1, 1, 1) + timedelta(seconds=timeOffset + 1)).strftime(
-                "%H:%M:%S,000"
-            )
-
-            # Write SRT entry
-            fileObj.write(f"{intIndex}\n")
-            fileObj.write(f"{timeStart} --> {timeEnd}\n")
-            fileObj.write("\n".join(listLog) + "\n\n")
-
-            intIndex += 1
-
-    Log.debug("Create subtitle: " + strSubtitlePath)
-
-
-def _compress_video(folderName: str) -> None:
-    pathOriginal = Path(folderName).joinpath("video_record.mkv")
-    pathTemp = Path(folderName).joinpath("video_record_temp.mkv")
-
-    if not pathOriginal.is_file():
-        Log.error(f"Original video not found: {str(pathOriginal)}")
-        return
-
-    # Users may change log folder, so add the checker.
-    if pathTemp.is_file():
-        pathTemp.unlink()
-
-    command = [
-        _strFfmpegPath,
-        "-y",  # Overwrite output files without asking
-        "-i",
-        str(pathOriginal),
-        "-map",
-        "0:v:0",  # Use only the first video stream.
-        "-c:v",
-        "libx265",  # Use x265 codec, for a small size
-        "-preset",
-        "slow",  # Use a slow preset for reducing its size.
-        "-crf",
-        "38",  # Set the quality to a higher CRF value for smaller size
-        str(pathTemp),
-    ]
-
-    # processCompleted: subprocess.CompletedProcess | None = None
-
-    try:
-        # Use subprocess.run() to wait it completed.
-        processCompleted = subprocess.run(
-            command,
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.PIPE,
-            text=True,
-            creationflags=subprocess.CREATE_NO_WINDOW,
+        write_state(
+            _RecordingStatus.UNAVAILABLE, "Video recording did not complete successfully."
         )
+        return
 
+    write_state(_RecordingStatus.PROCESSING)
+    try:
+        if not _merge_record_parts(folderName=folderName, listPartPaths=listPartPaths):
+            write_state(
+                _RecordingStatus.UNAVAILABLE, "The recorded video could not be assembled."
+            )
+            return
     except Exception as e:
-        Log.error(f"Failed to compress video: {e}")
+        Log.error(f"Failed to assemble the recording: {e}")
+        write_state(
+            _RecordingStatus.UNAVAILABLE, "The recorded video could not be assembled."
+        )
         return
 
-    """ if processCompleted is None:
-        Log.error("Failed to launch ffmpeg.")
-        return """
-
-    if processCompleted.returncode != 0:
-        Log.warning(f"ffmpeg exit {processCompleted.returncode}.")
-        Log.warning(processCompleted.stderr[-3000:])
-
-        if pathTemp.is_file():
-            pathTemp.unlink()
-
-        return
-
-    if not pathTemp.is_file():
-        Log.error("ffmpeg compression finished, but temp video was not created.")
-        return
-
-    # GPT said bigger output file is possible.
-    intOriginalSize = pathOriginal.stat().st_size
-    intNewSize = pathTemp.stat().st_size
-
-    Log.debug(f"Original size: {intOriginalSize}, compressed size: {intNewSize}")
-
-    if intNewSize >= intOriginalSize:
-        Log.warning("Compressed video is not smaller. Keep original video.")
-        pathTemp.unlink()
-        return
-
-    pathTemp.replace(pathOriginal)
-    Log.debug("Compressing done.")
-
-
-if __name__ == "__main__":
-    # print("Start.")
-    # record_screen(pid=4100, folderName="./")
-    # # time.sleep(5)
-    # print("Done.")
-    ...
+    strReason = ""
+    try:
+        _create_log_subtitle(folderName=folderName)
+    except Exception as e:
+        Log.error(f"Failed to create recording subtitles: {e}")
+        strReason = "Subtitles could not be created."
+    write_state(_RecordingStatus.READY, strReason)
+    Log.debug(f"Record end: {folderName} – clean exit.")

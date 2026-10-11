@@ -6,7 +6,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from functools import wraps
 from collections.abc import Callable
-from typing import cast, Concatenate
+from typing import Concatenate
 
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError
 from django.core.paginator import InvalidPage
@@ -16,7 +16,6 @@ from django.http import HttpRequest, JsonResponse, HttpResponseBase
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_exempt
 
-from accounts.models import User
 from accounts.resource_authentication import (
     authenticate_resource_request,
     InvalidResourceCredentialError,
@@ -27,9 +26,10 @@ from console_project.http import (
     build_authentication_required_response,
     build_service_unavailable_response,
 )
+from file_storage.http import FileAuthentication, FileRequestError
 from file_storage.services import FileOperationError
-from organizations.permissions import AccessChannel, get_current_membership
-from shared_files.http import FileRequestError, FileAuthentication
+from organizations.http import get_request_membership
+from organizations.permissions import AccessChannel
 
 
 def build_package_error(e: Exception) -> JsonResponse:
@@ -72,11 +72,9 @@ def package_view[**P](
     ) -> HttpResponseBase:
         try:
             if channel == AccessChannel.SESSION:
-                if not request.user.is_authenticated:
-                    return build_authentication_required_response()
-                authentication = get_current_membership(
-                    actorId=cast(User, request.user).pk
-                )
+                authentication = get_request_membership(request)
+                if isinstance(authentication, JsonResponse):
+                    return authentication
             else:
                 authentication = authenticate_resource_request(request)
                 if isinstance(authentication, JsonResponse):

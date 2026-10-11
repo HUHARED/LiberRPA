@@ -25,6 +25,8 @@ from console_project.http import (
     parse_json_request,
 )
 from organizations.http import (
+    get_request_membership,
+    lock_request_write_access,
     DepartmentResourceListParameters,
     parse_department_resource_filters,
 )
@@ -44,8 +46,6 @@ from .contracts import (
 )
 from .group_queries import get_executor_group_references
 from .http import (
-    get_executor_request_membership,
-    lock_executor_write_access,
     build_executor_payload,
     build_executor_info_payload,
     build_executor_work_payload,
@@ -165,7 +165,7 @@ def _get_list_parameters(request: HttpRequest) -> ExecutorListParameters | JsonR
 @sensitive_variables()
 def list_or_create_executors(request: HttpRequest) -> JsonResponse:
     try:
-        membership = get_executor_request_membership(request)
+        membership = get_request_membership(request)
         if isinstance(membership, JsonResponse):
             return membership
         if request.method == "POST":
@@ -177,7 +177,7 @@ def list_or_create_executors(request: HttpRequest) -> JsonResponse:
             if isinstance(executorRequest, JsonResponse):
                 return executorRequest
             with transaction.atomic():
-                access = lock_executor_write_access(request, membership)
+                access = lock_request_write_access(request, membership)
                 executor = create_executor(
                     access,
                     departmentId=executorRequest.department_id,
@@ -224,7 +224,7 @@ def list_or_create_executors(request: HttpRequest) -> JsonResponse:
 @sensitive_variables()
 def get_or_update_executor(request: HttpRequest, executorId: uuid.UUID) -> JsonResponse:
     try:
-        membership = get_executor_request_membership(request)
+        membership = get_request_membership(request)
         if isinstance(membership, JsonResponse):
             return membership
         if request.method == "POST":
@@ -234,7 +234,7 @@ def get_or_update_executor(request: HttpRequest, executorId: uuid.UUID) -> JsonR
             if isinstance(executorRequest, JsonResponse):
                 return executorRequest
             with transaction.atomic():
-                access = lock_executor_write_access(request, membership)
+                access = lock_request_write_access(request, membership)
                 executor = update_executor(
                     access,
                     executorId=executorId,
@@ -286,14 +286,14 @@ def get_or_update_executor(request: HttpRequest, executorId: uuid.UUID) -> JsonR
 @sensitive_variables()
 def change_executor_dispatch(request: HttpRequest, executorId: uuid.UUID) -> JsonResponse:
     try:
-        membership = get_executor_request_membership(request)
+        membership = get_request_membership(request)
         if isinstance(membership, JsonResponse):
             return membership
         dispatchRequest = parse_json_request(request, ExecutorDispatchRequest)
         if isinstance(dispatchRequest, JsonResponse):
             return dispatchRequest
         with transaction.atomic():
-            access = lock_executor_write_access(request, membership)
+            access = lock_request_write_access(request, membership)
             executor = set_executor_dispatch(
                 access,
                 executorId=executorId,
@@ -313,14 +313,14 @@ def change_executor_dispatch(request: HttpRequest, executorId: uuid.UUID) -> Jso
 @sensitive_variables()
 def delete_executor_record(request: HttpRequest, executorId: uuid.UUID) -> JsonResponse:
     try:
-        membership = get_executor_request_membership(request)
+        membership = get_request_membership(request)
         if isinstance(membership, JsonResponse):
             return membership
         deletionRequest = parse_json_request(request, ExecutorDeletionRequest)
         if isinstance(deletionRequest, JsonResponse):
             return deletionRequest
         with transaction.atomic():
-            access = lock_executor_write_access(request, membership)
+            access = lock_request_write_access(request, membership)
             executor = delete_executor(access, executorId=executorId)
             return JsonResponse(
                 ExecutorUpdateResponse.model_validate({
@@ -338,14 +338,14 @@ def unassociate_executor_record(
     request: HttpRequest, executorId: uuid.UUID
 ) -> JsonResponse:
     try:
-        membership = get_executor_request_membership(request)
+        membership = get_request_membership(request)
         if isinstance(membership, JsonResponse):
             return membership
         unassociateRequest = parse_json_request(request, ExecutorUnassociateRequest)
         if isinstance(unassociateRequest, JsonResponse):
             return unassociateRequest
         with transaction.atomic():
-            access = lock_executor_write_access(request, membership)
+            access = lock_request_write_access(request, membership)
             executor = unassociate_executor(
                 access,
                 executorId=executorId,

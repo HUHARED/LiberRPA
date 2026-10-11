@@ -20,6 +20,70 @@ function applyMessage(message: DictMessage_ExtensionToWebview): void {
   const componentManagementStore = useComponentManagementStore();
 
   switch (message.command) {
+    // Create Project.
+    case "loadCreateProject":
+      projectManagerStore.load("createProject", message.initialData.theme);
+      createProjectStore.load(message.initialData);
+      return;
+
+    case "targetFolderSelected":
+      createProjectStore.targetFolderPath = message.targetFolderPath;
+      return;
+
+    // Package Project.
+    case "loadPackageProject":
+      projectManagerStore.load("packageProject", message.initialData.theme);
+      packageProjectStore.load(message.initialData);
+      if (message.initialData.notification !== undefined) {
+        projectManagerStore.showMessage(
+          message.initialData.notification.type,
+          message.initialData.notification.message,
+        );
+      }
+      return;
+
+    case "consolePublishingDepartmentsLoaded":
+      packageProjectStore.consoleDepartments = message.departments;
+      packageProjectStore.consolePublishingMessage = message.message;
+      return;
+
+    case "consolePublishChanged":
+      packageProjectStore.consolePublishResult = message.result;
+      return;
+
+    // Publish Component.
+    case "loadPublishComponent":
+      projectManagerStore.load("publishComponent", message.initialData.theme);
+      publishComponentStore.load(message.initialData);
+      if (message.initialData.notification !== undefined) {
+        projectManagerStore.showMessage(
+          message.initialData.notification.type,
+          message.initialData.notification.message,
+        );
+      }
+      return;
+
+    // Manage Components.
+    case "loadManageComponents":
+      projectManagerStore.load("manageComponents", message.initialData.theme);
+      componentManagementStore.load(message.initialData);
+      if (message.initialData.notification !== undefined) {
+        projectManagerStore.showMessage(
+          message.initialData.notification.type,
+          message.initialData.notification.message,
+        );
+      }
+      return;
+
+    case "projectDependencyPlanBuilt":
+      componentManagementStore.setDependencyPlan(
+        message.dependencyOperation,
+        message.plan,
+        message.warningMessages,
+      );
+      return;
+
+    // Console account.
     case "loadConsole":
       projectManagerStore.load("console", message.theme);
       useConsoleAccountStore().load(message.state);
@@ -40,56 +104,7 @@ function applyMessage(message: DictMessage_ExtensionToWebview): void {
       }
       return;
 
-    case "loadCreateProject":
-      projectManagerStore.load("createProject", message.initialData.theme);
-      createProjectStore.load(message.initialData);
-      return;
-
-    case "loadPackageProject":
-      projectManagerStore.load("packageProject", message.initialData.theme);
-      packageProjectStore.load(message.initialData);
-      if (message.initialData.notification !== undefined) {
-        projectManagerStore.showMessage(
-          message.initialData.notification.type,
-          message.initialData.notification.message,
-        );
-      }
-      return;
-
-    case "loadPublishComponent":
-      projectManagerStore.load("publishComponent", message.initialData.theme);
-      publishComponentStore.load(message.initialData);
-      if (message.initialData.notification !== undefined) {
-        projectManagerStore.showMessage(
-          message.initialData.notification.type,
-          message.initialData.notification.message,
-        );
-      }
-      return;
-
-    case "loadManageComponents":
-      projectManagerStore.load("manageComponents", message.initialData.theme);
-      componentManagementStore.load(message.initialData);
-      if (message.initialData.notification !== undefined) {
-        projectManagerStore.showMessage(
-          message.initialData.notification.type,
-          message.initialData.notification.message,
-        );
-      }
-      return;
-
-    case "projectDependencyPlanBuilt":
-      componentManagementStore.setDependencyPlan(
-        message.dependencyOperation,
-        message.plan,
-        message.warningMessages,
-      );
-      return;
-
-    case "targetFolderSelected":
-      createProjectStore.targetFolderPath = message.targetFolderPath;
-      return;
-
+    // Shared feedback.
     case "setBusy":
       projectManagerStore.busy = message.busy;
       return;

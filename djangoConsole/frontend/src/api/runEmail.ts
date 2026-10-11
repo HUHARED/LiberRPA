@@ -3,16 +3,16 @@
 import { requestApi } from "./client";
 import { isRecord, rejectInvalidResponse } from "./responses";
 
-export interface RunEmailRecipient {
-  id: string;
-  email: string;
-  notes: string;
-  verified_at: string | null;
-  created_at: string;
-}
+import type {
+  RunEmailRecipientResponse,
+  RunEmailRecipientListResponse,
+  RunEmailVerificationResponse,
+} from "./generated/browserApi";
+
+export type RunEmailRecipient = RunEmailRecipientResponse;
 export async function getRunEmailRecipients(
-  status = "verified",
-): Promise<{ recipients: RunEmailRecipient[]; can_manage: boolean }> {
+  status: "all" | "pending" | "verified" = "verified",
+): Promise<RunEmailRecipientListResponse> {
   const response = await requestApi(
     `/run-email-recipients/?${new URLSearchParams({ status })}`,
   );
@@ -26,7 +26,7 @@ export async function getRunEmailRecipients(
     typeof response.can_manage !== "boolean"
   )
     return rejectInvalidResponse();
-  return response as unknown as { recipients: RunEmailRecipient[]; can_manage: boolean };
+  return response as unknown as RunEmailRecipientListResponse;
 }
 export async function saveRunEmailRecipient(
   id: string | null,
@@ -50,7 +50,7 @@ export async function actOnRunEmailRecipient(
 export async function verifyRunEmail(
   token: string,
   confirm = false,
-): Promise<{ organization_name: string; email: string; verified: boolean }> {
+): Promise<RunEmailVerificationResponse> {
   const response = await requestApi(
     `/run-email-recipients/verify/${confirm ? "" : `?${new URLSearchParams({ token })}`}`,
     confirm ? { method: "POST", body: { token } } : {},
@@ -62,9 +62,5 @@ export async function verifyRunEmail(
     typeof response.verified !== "boolean"
   )
     return rejectInvalidResponse();
-  return response as unknown as {
-    organization_name: string;
-    email: string;
-    verified: boolean;
-  };
+  return response as unknown as RunEmailVerificationResponse;
 }

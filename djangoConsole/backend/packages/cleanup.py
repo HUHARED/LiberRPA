@@ -15,7 +15,8 @@ from django.utils import timezone
 from file_storage.models import StoredBlobPurpose, StoredBlobState, StoredBlob
 from organizations.models import Organization
 
-from .models import Package, PackageUpload, PackageUploadState
+from .contracts import PackageUploadState
+from .models import Package, PackageUpload
 
 
 def expire_uploads(organizationId: uuid.UUID) -> None:

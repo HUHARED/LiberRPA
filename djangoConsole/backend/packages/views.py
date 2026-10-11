@@ -13,23 +13,28 @@ from django.views.decorators.http import require_GET, require_POST, require_http
 
 from console_project.http import parse_json_request
 from console_project.contracts import JsonRequest
-from file_storage.services import FileOperationError, release_unstarted_download
-from file_storage.streaming import SyncFileStream, AsyncFileStream
-from organizations.access import get_department_access_info
-from organizations.http import parse_department_resource_filters
-from organizations.models import DepartmentRole
-from shared_files.http import (
+from file_storage.http import (
     FileAuthentication,
     get_file_access,
     lock_file_access,
     require_no_query_parameters,
     parse_upload_chunk,
 )
+from file_storage.services import FileOperationError, release_unstarted_download
+from file_storage.streaming import SyncFileStream, AsyncFileStream
+from organizations.access import get_department_access_info
+from organizations.http import parse_department_resource_filters
+from organizations.models import DepartmentRole
 
-from .contracts import EmptyRequest, PackageUploadRequest, PackageSettingsRequest
-from .models import PackageUploadState
+from .contracts import (
+    EmptyRequest,
+    PackageUploadState,
+    PackageUploadRequest,
+    PackageSettingsRequest,
+)
 from .queries import (
     get_packages,
+    get_package_options,
     get_package_query,
     build_package_payload,
     get_upload,
@@ -76,11 +81,34 @@ def list_departments(
 def list_packages(
     request: HttpRequest, authentication: FileAuthentication
 ) -> JsonResponse:
+    if "name" in request.GET:
+        raise ValueError("Use project_name to filter Packages.")
+    queryParameters = request.GET.copy()
+    if "project_name" in queryParameters:
+        queryParameters.setlist("name", queryParameters.pop("project_name"))
+    filters = parse_department_resource_filters(queryParameters)
     return JsonResponse(
         get_packages(
             get_file_access(authentication),
-            **parse_department_resource_filters(request.GET),
+            pageNumber=filters["pageNumber"],
+            departmentIds=filters["departmentIds"],
+            projectName=filters["name"],
         )
+    )
+
+
+@require_GET
+def package_options(
+    request: HttpRequest, authentication: FileAuthentication
+) -> JsonResponse:
+    if (
+        set(request.GET) != {"department_id"}
+        or len(request.GET.getlist("department_id")) != 1
+    ):
+        raise ValueError("Select one department.")
+    departmentId = uuid.UUID(request.GET["department_id"])
+    return JsonResponse(
+        get_package_options(get_file_access(authentication), departmentId)
     )
 
 

@@ -146,7 +146,7 @@
                 label="Python Environment"
                 :items="projectStore.arrPythonEnvironmentName" />
               <BuiltInRunOptions
-                v-model:retry-count="runSettings.retry_count"
+                v-model:max-retry-count="runSettings.max_retry_count"
                 v-model:timeout-min="runSettings.timeout_min"
                 v-model:log-level="runSettings.builtin_log_level"
                 v-model:record-video="runSettings.builtin_record_video"
@@ -176,7 +176,7 @@ import CustomArgumentsEditor from "../RunOptions/CustomArgumentsEditor.vue";
 import BuiltInRunOptions from "../RunOptions/BuiltInRunOptions.vue";
 import VerticalDivider from "../Common/VerticalDivider.vue";
 import { cloneJsonSerializable } from "../../Common/json";
-import type { Dict_ProjectSettingsUpdate } from "../../../../shared/project";
+import type { ProjectSettingsUpdate } from "../../../../shared/project";
 
 import { onBeforeMount, onBeforeUnmount, ref, watch } from "vue";
 import { debounce } from "lodash";
@@ -189,14 +189,14 @@ import { useRunHistoryStore } from "../../Store/runHistoryStore";
 const projectStore = useProjectStore();
 const runHistoryStore = useRunHistoryStore();
 const boolShowRunDialog = ref(false);
-const runSettings = ref<Dict_ProjectSettingsUpdate>();
+const runSettings = ref<ProjectSettingsUpdate>();
 async function submitRun(): Promise<void> {
   if (!runSettings.value) return;
   const detail = runSettings.value;
   await invokeMain("runProject", {
     id: detail.id,
     python_environment_name: detail.python_environment_name,
-    retry_count: detail.retry_count,
+    max_retry_count: detail.max_retry_count,
     timeout_min: detail.timeout_min,
     builtin_log_level: detail.builtin_log_level,
     builtin_record_video: detail.builtin_record_video,

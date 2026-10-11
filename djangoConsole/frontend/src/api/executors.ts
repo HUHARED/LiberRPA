@@ -74,8 +74,8 @@ export function isExecutorListEntry(value: unknown): value is ExecutorListEntryR
         typeof value.account.id === "string" &&
         typeof value.account.email === "string" &&
         typeof value.account.username === "string")) &&
-    isNullableString(value.computer) &&
-    isNullableString(value.version) &&
+    isNullableString(value.computer_name) &&
+    isNullableString(value.client_version) &&
     isNullableDateString(value.last_seen_at)
   );
 }
@@ -101,7 +101,7 @@ export function parseExecutorDetailsResponse(payload: unknown): ExecutorDetailsR
     !Array.isArray(payload.executor.referencing_schedules) ||
     !payload.executor.referencing_schedules.every(isExecutorScheduleReference) ||
     ![
-      payload.executor.local_running_count,
+      payload.executor.other_active_run_count,
       payload.executor.central_running_count,
       payload.executor.local_waiting_count,
     ].every((value) => value === null || isNonnegativeInteger(value)) ||
@@ -118,7 +118,7 @@ export function parseExecutorDetailsResponse(payload: unknown): ExecutorDetailsR
       ...payload.executor,
       executor_groups: payload.executor.executor_groups,
       referencing_schedules: payload.executor.referencing_schedules,
-      local_running_count: payload.executor.local_running_count as number | null,
+      other_active_run_count: payload.executor.other_active_run_count as number | null,
       central_running_count: payload.executor.central_running_count as number | null,
       local_waiting_count: payload.executor.local_waiting_count as number | null,
       last_work_reported_at: payload.executor.last_work_reported_at,

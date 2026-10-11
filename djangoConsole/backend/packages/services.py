@@ -41,6 +41,7 @@ from organizations.validators import get_path_name_key
 from .archive import read_package_archive
 from .cleanup import expire_uploads
 from .contracts import (
+    PackageUploadState,
     PackageReferenceKind,
     PackagePreparationState,
     PackageUploadRequest,
@@ -48,7 +49,6 @@ from .contracts import (
 )
 from .models import (
     Package,
-    PackageUploadState,
     PackageUpload,
     PackageUploadChunk,
     PackagePreparation,
@@ -313,11 +313,11 @@ def complete_upload(
             )
         metadata = validationResult.metadata
         strNameKey = get_path_name_key(metadata["project_name"])
-        strVersionKey = get_path_name_key(metadata["version"])
+        strVersionKey = get_path_name_key(metadata["project_version"])
         if Package.objects.filter(
             department_id=upload.department_id,
             project_name_key=strNameKey,
-            version_key=strVersionKey,
+            project_version_key=strVersionKey,
         ).exists():
             raise FileOperationError(
                 "package_exists",
@@ -334,7 +334,7 @@ def complete_upload(
     package = Package.objects.create(
         department_id=upload.department_id,
         project_name_key=strNameKey,
-        version_key=strVersionKey,
+        project_version_key=strVersionKey,
         blob_id=upload.blob_id,
         uploaded_by_id=access.actorId,
         uploaded_by_name=str(access.actor),
@@ -354,7 +354,7 @@ def complete_upload(
         channel=access.channel,
         metadata={
             "project_name": package.project_name,
-            "version": package.version,
+            "project_version": package.project_version,
             "size_bytes": upload.size_bytes,
         },
     )
@@ -379,6 +379,9 @@ def save_package_settings(
         raise ValidationError("API input keys must name existing custom arguments.")
     apply_run_settings(package, dictSettings)
     package.api_input_keys = payload.api_input_keys
+    boolEnvironmentChanged = (
+        package.python_environment_name != payload.python_environment_name
+    )
     package.python_environment_name = payload.python_environment_name
     package.updated_at = timezone.now()
     package.save(
@@ -391,6 +394,15 @@ def save_package_settings(
     )
     from .preparation import request_referenced_preparation
 
+    if boolEnvironmentChanged:
+        # Superseded optional requests must not outlive the configuration that can dispatch them.
+        PackagePreparation.objects.filter(
+            package=package,
+            state__in=[
+                PackagePreparationState.PENDING,
+                PackagePreparationState.PREPARING,
+            ],
+        ).exclude(python_environment_name=package.python_environment_name).delete()
     request_referenced_preparation(package)
     record_audit(
         "packages.update",
@@ -409,13 +421,12 @@ def prepare_download(access: OrganizationAccessContext, package: Package) -> dic
             "package_content_unavailable", "The Package content is unavailable.", 503
         )
     strSuffix = ".rpa.zip"
-    strName = f"{package.project_name}_{package.version}"
+    strName = f"{package.project_name}_{package.project_version}"
     transfer = DownloadSession.objects.create(
         organization=access.organization,
         actor_id=access.actorId,
         department_id=package.department_id,
         blob=package.blob,
-        path=str(package.pk),
         # Preserve the suffix within DownloadSession.name's 128-character limit.
         name=strName[: 128 - len(strSuffix)] + strSuffix,
         expires_at=get_download_expiry(),

@@ -112,7 +112,8 @@ def _expire_downloads(organizationId: uuid.UUID) -> None:
 
 def require_upload_slot(organizationId: uuid.UUID) -> None:
     """Count active incoming uploads under the caller's organization lock."""
-    from packages.models import PackageUpload, PackageUploadState
+    from packages.contracts import PackageUploadState
+    from packages.models import PackageUpload
     from shared_files.models import UploadSession, UploadState
 
     currentTime = timezone.now()

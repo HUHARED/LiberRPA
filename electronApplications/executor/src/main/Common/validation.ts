@@ -199,7 +199,7 @@ export function ensurePositiveInteger(value: unknown, sourceName: string): numbe
   return intValue;
 }
 
-export function ensureRetryCount(value: unknown, sourceName: string): number {
+export function ensureMaxRetryCount(value: unknown, sourceName: string): number {
   const intValue = ensureNonNegativeInteger(value, sourceName);
   if (intValue > INT_MAX_RETRY_COUNT) {
     throw new Error(`${sourceName} must be between 0 and ${INT_MAX_RETRY_COUNT}.`);

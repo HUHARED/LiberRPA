@@ -13,7 +13,7 @@ from django.utils import timezone
 from console_project.constants import INT_DISPLAY_NAME_SNAPSHOT_MAX_LENGTH
 from organizations.validators import validate_path_segment
 
-from .contracts import QueueStatus
+from .contracts import QueueItemStatus
 
 
 class DataQueue(models.Model):
@@ -59,9 +59,9 @@ class QueueItem(models.Model):
     data_json = models.TextField(editable=False)
     size_bytes = models.PositiveIntegerField(editable=False)
     status = models.CharField(
-        max_length=max(len(entry.value) for entry in QueueStatus),
-        choices=[(state, state.value.title()) for state in QueueStatus],
-        default=QueueStatus.UNCLAIMED,
+        max_length=max(len(entry.value) for entry in QueueItemStatus),
+        choices=[(state, state.value.title()) for state in QueueItemStatus],
+        default=QueueItemStatus.UNCLAIMED,
     )
     # Historical identities survive account deletion without retaining an account foreign key.
     uploaded_by_id = models.UUIDField(editable=False)
@@ -84,11 +84,11 @@ class QueueItem(models.Model):
                 fields=["queue", "sequence"], name="queue_item_sequence_unique"
             ),
             models.CheckConstraint(
-                condition=models.Q(status__in=list(QueueStatus)),
+                condition=models.Q(status__in=list(QueueItemStatus)),
                 name="queue_item_status_valid",
             ),
             models.CheckConstraint(
-                condition=models.Q(status=QueueStatus.UNCLAIMED)
+                condition=models.Q(status=QueueItemStatus.UNCLAIMED)
                 | models.Q(
                     last_claimed_by_id__isnull=False, last_claimed_at__isnull=False
                 ),

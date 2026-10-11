@@ -23,7 +23,7 @@ export enum RunConflictPolicy {
 export type CustomProjectArgs = [string, unknown][];
 
 export interface RunOptions {
-  retry_count: number;
+  max_retry_count: number;
   timeout_min: number;
 
   builtin_log_level: LogLevel;

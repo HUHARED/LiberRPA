@@ -381,8 +381,8 @@ export class ConsoleAccount implements vscode.Disposable {
         {
           email: email.trim(),
           password,
-          computer: hostname(),
-          version: manifestValue["version"],
+          computer_name: hostname(),
+          client_version: manifestValue["version"],
         },
       );
       if (

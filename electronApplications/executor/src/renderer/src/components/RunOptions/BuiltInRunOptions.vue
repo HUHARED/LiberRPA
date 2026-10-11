@@ -3,8 +3,8 @@
   <v-row class="w-100">
     <v-col cols="12">
       <v-number-input
-        v-model="intRetryCount"
-        label="Retry Count"
+        v-model="intMaxRetryCount"
+        label="Max Retries"
         :min="0"
         :max="INT_MAX_RETRY_COUNT"
         :precision="0"
@@ -97,7 +97,7 @@ const props = withDefaults(
   },
 );
 
-const retryCount = defineModel<number>("retryCount", { required: true });
+const maxRetryCount = defineModel<number>("maxRetryCount", { required: true });
 const timeoutMin = defineModel<number>("timeoutMin", { required: true });
 const logLevel = defineModel<LogLevel>("logLevel", { required: true });
 const recordVideo = defineModel<boolean>("recordVideo", { required: true });
@@ -106,8 +106,8 @@ const highlightUi = defineModel<boolean>("highlightUi", { required: true });
 
 const informationStore = useInformationStore();
 
-const intRetryCount = computed<number>({
-  get: () => retryCount.value,
+const intMaxRetryCount = computed<number>({
+  get: () => maxRetryCount.value,
   set(newValue: number | null) {
     if (
       newValue === null ||
@@ -118,7 +118,7 @@ const intRetryCount = computed<number>({
       informationStore.showAlertMessage("Retry Count must be an integer from 0 to 3.");
       return;
     }
-    retryCount.value = newValue;
+    maxRetryCount.value = newValue;
   },
 });
 

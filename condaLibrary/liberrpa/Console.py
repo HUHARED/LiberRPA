@@ -18,22 +18,20 @@ from liberrpa.Common._ConsoleHttp import (
     request_json,
 )
 from liberrpa.Common._Console import (
-    DataQueueStatus as DataQueueStatus,
-    DataQueueFilterStatus as DataQueueFilterStatus,
-    DataQueueOrder as DataQueueOrder,
-    SharedFileSort as SharedFileSort,
-    SortOrder as SortOrder,
+    DataQueueItemFilterStatus,
+    DataQueueItemOrder,
+    SharedFileSort,
+    SortOrder,
     _DataQueueMutationOperation,
-    Credential as Credential,
-    DataQueueItem as DataQueueItem,
-    DataQueueItemDetails as DataQueueItemDetails,
-    DataQueuePage as DataQueuePage,
-    DataQueueMutationResult as DataQueueMutationResult,
+    Credential,
+    DataQueueItem,
+    DataQueuePage,
+    DataQueueMutationResult,
     DataQueueClaimReplayError as DataQueueClaimReplayError,
-    SharedFileInfo as SharedFileInfo,
-    SharedFileUsage as SharedFileUsage,
-    SharedFilePage as SharedFilePage,
-    SharedFileDeleteResult as SharedFileDeleteResult,
+    SharedFileInfo,
+    SharedFileUsage,
+    SharedFilePage,
+    SharedFileDeleteResult,
     _validate_choice,
     _validate_batch_items,
     _parse_data_queue_selection,
@@ -133,8 +131,8 @@ def asset_get_credential(path: str) -> Credential:
 def data_queue_query_items(
     queuePath: str,
     *,
-    status: DataQueueFilterStatus = "all",
-    order: DataQueueOrder = "oldest_first",
+    status: DataQueueItemFilterStatus = "all",
+    order: DataQueueItemOrder = "oldest_first",
     itemId: str | None = None,
     count: int = 50,
     afterSequence: int | None = None,
@@ -142,18 +140,18 @@ def data_queue_query_items(
     """
     Query Data Queue items without claiming them.
 
-    Results may contain fewer than count items because each response is limited to 2 MiB. Continue with nextSequence as afterSequence, keeping the same filters and order. Results may change between pages.
+    Results may contain fewer than count items because each response is limited to 2 MiB. Continue with nextAfterSequence as afterSequence, keeping the same filters and order. Results may change between pages.
 
     Parameters:
         queuePath: The full Data Queue path, including its department path and name.
         status: The status filter: 'all', 'unclaimed', or 'claimed'.
-        order: The queue order: 'oldest_first' or 'newest_first'.
+        order: The item selection order: 'oldest_first' or 'newest_first'.
         itemId: An optional item UUID used to narrow the query.
         count: The maximum number of items to return, from 1 to 100.
-        afterSequence: The previous result's nextSequence, or None for the first page.
+        afterSequence: The previous result's nextAfterSequence, or None for the first page.
 
     Returns:
-        DataQueuePage: The matching items and nextSequence. A nextSequence of None means there is no further page.
+        DataQueuePage: The matching items and nextAfterSequence. A nextAfterSequence of None means there is no further page.
     """
     if afterSequence is not None and (
         type(afterSequence) is not int or afterSequence < 0
@@ -173,7 +171,7 @@ def data_queue_query_items(
         items=[
             _parse_data_queue_item_details(dictItem) for dictItem in dictResponse["items"]
         ],
-        nextSequence=dictResponse["next_sequence"],
+        nextAfterSequence=dictResponse["next_after_sequence"],
     )
 
 
@@ -203,8 +201,8 @@ def data_queue_claim_items(
     queuePath: str,
     *,
     count: int = 1,
-    status: DataQueueFilterStatus = "unclaimed",
-    order: DataQueueOrder = "oldest_first",
+    status: DataQueueItemFilterStatus = "unclaimed",
+    order: DataQueueItemOrder = "oldest_first",
     itemId: str | None = None,
 ) -> list[DataQueueItem]:
     """
@@ -218,7 +216,7 @@ def data_queue_claim_items(
         queuePath: The full Data Queue path, including its department path and name.
         count: The maximum number of items to claim, from 1 to 100.
         status: The status filter: 'unclaimed', 'claimed', or 'all'.
-        order: The queue order: 'oldest_first' or 'newest_first'.
+        order: The item selection order: 'oldest_first' or 'newest_first'.
         itemId: An optional item UUID used to narrow the selection.
 
     Returns:
@@ -265,8 +263,8 @@ def data_queue_delete_items(
     queuePath: str,
     itemIds: str | list[str] | None = None,
     *,
-    status: DataQueueFilterStatus | None = None,
-    order: DataQueueOrder | None = None,
+    status: DataQueueItemFilterStatus | None = None,
+    order: DataQueueItemOrder | None = None,
     count: int | None = None,
 ) -> DataQueueMutationResult:
     """

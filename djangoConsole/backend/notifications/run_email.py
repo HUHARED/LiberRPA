@@ -216,7 +216,7 @@ def build_run_email(run: "Run", *, event: str, recipient: str) -> EmailMessage:
         "organization_name": organization.name,
         "department_name": job.department.name,
         "project_name": job.project_name,
-        "project_version": job.version,
+        "project_version": job.project_version,
         "trigger_source": "API"
         if jobRequest.source == "api"
         else jobRequest.source.capitalize(),
@@ -225,7 +225,7 @@ def build_run_email(run: "Run", *, event: str, recipient: str) -> EmailMessage:
         if jobRequest.scheduled_at
         else "Not applicable",
         "executor_name": assignment.executor_name,
-        "computer_name": assignment.computer,
+        "computer_name": assignment.computer_name,
         "account_name": assignment.actor_name,
         "python_environment_name": job.run_snapshot["python_environment_name"],
         "started_at": _format_time(run.started_at, zone),

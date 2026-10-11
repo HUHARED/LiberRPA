@@ -1,4 +1,4 @@
-<!-- FileName: RunInputs.vue -->
+<!-- FileName: RunSettingsDetails.vue -->
 <template>
   <v-table density="compact">
     <thead>
@@ -10,31 +10,33 @@
     <tbody>
       <tr>
         <td>Python Environment</td>
-        <td>{{ inputs.python_environment_name }}</td>
+        <td>{{ pythonEnvironmentName }}</td>
       </tr>
       <tr>
-        <td>Retry Count</td>
-        <td>{{ inputs.retry_count }}</td>
+        <td>Max Retry Count</td>
+        <td>{{ settings.max_retry_count }}</td>
       </tr>
       <tr>
         <td>Timeout</td>
-        <td>{{ inputs.timeout_min === 0 ? "No limit" : `${inputs.timeout_min} min` }}</td>
+        <td>
+          {{ settings.timeout_min === 0 ? "No limit" : `${settings.timeout_min} min` }}
+        </td>
       </tr>
       <tr>
         <td>Log Level</td>
-        <td>{{ inputs.builtin_log_level }}</td>
+        <td>{{ settings.builtin_log_level }}</td>
       </tr>
       <tr>
         <td>Record Video</td>
-        <td>{{ inputs.builtin_record_video ? "Enabled" : "Disabled" }}</td>
+        <td>{{ settings.builtin_record_video ? "Enabled" : "Disabled" }}</td>
       </tr>
       <tr>
         <td>Stop Shortcut</td>
-        <td>{{ inputs.builtin_stop_shortcut ? "Enabled" : "Disabled" }}</td>
+        <td>{{ settings.builtin_stop_shortcut ? "Enabled" : "Disabled" }}</td>
       </tr>
       <tr>
         <td>Highlight UI</td>
-        <td>{{ inputs.builtin_highlight_ui ? "Enabled" : "Disabled" }}</td>
+        <td>{{ settings.builtin_highlight_ui ? "Enabled" : "Disabled" }}</td>
       </tr>
     </tbody>
   </v-table>
@@ -42,7 +44,7 @@
   <v-alert v-if="boolDuplicate" type="warning" variant="tonal" class="mb-3">
     Duplicate keys exist. The last value with the same key takes effect.
   </v-alert>
-  <p v-if="!inputs.custom_prj_args.length">No custom arguments.</p>
+  <p v-if="!settings.custom_prj_args.length">No custom arguments.</p>
   <v-table v-else>
     <thead>
       <tr>
@@ -51,7 +53,7 @@
       </tr>
     </thead>
     <tbody>
-      <tr v-for="(argument, index) in inputs.custom_prj_args" :key="index">
+      <tr v-for="(argument, index) in settings.custom_prj_args" :key="index">
         <td>{{ argument[0] }}</td>
         <td>
           <pre class="text-pre-wrap py-2">{{ formatJsonValue(argument[1]) }}</pre>
@@ -63,12 +65,12 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { formatJsonValue } from "@/app/formatters";
-import type { RunSnapshot } from "@/api/runOptions";
-const props = defineProps<{ inputs: RunSnapshot }>();
+import type { RunSettings } from "@/api/runOptions";
+const props = defineProps<{ settings: RunSettings; pythonEnvironmentName: string }>();
 const boolDuplicate = computed(
   () =>
-    new Set(props.inputs.custom_prj_args.map((entry) => entry[0])).size !==
-    props.inputs.custom_prj_args.length,
+    new Set(props.settings.custom_prj_args.map((entry) => entry[0])).size !==
+    props.settings.custom_prj_args.length,
 );
 </script>
 <style scoped></style>

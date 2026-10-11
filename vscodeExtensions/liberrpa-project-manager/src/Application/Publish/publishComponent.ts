@@ -3,7 +3,7 @@
 import * as vscode from "vscode";
 
 import {
-  type Info_ComponentManagement_OperationResult,
+  type ComponentManagementOperationResult,
   publishComponent as runPublishComponent,
 } from "../../Adapter/Python/componentManagementClient";
 import {
@@ -18,7 +18,7 @@ import type { DictProjectManifest_Component } from "../../Domain/Project/project
 const STR_AST_SNIPPETS_FILE = "_Snippets/ast.snippets.json";
 const STR_SNIPPETS_CONFIG_FILE = "_Snippets/snippets.jsonc";
 
-interface Info_PublishComponentData {
+interface PublishComponentData {
   projectPath: string;
   manifest: DictProjectManifest_Component;
 
@@ -75,7 +75,7 @@ async function ensureComponentProject(
 export async function loadPublishComponentData(
   workspaceFolder: vscode.WorkspaceFolder,
   publishResult: DictProtocolResult_Publish | null = null,
-): Promise<Info_PublishComponentData> {
+): Promise<PublishComponentData> {
   await ensureComponentProject(workspaceFolder);
 
   const manifestFileUri = vscode.Uri.joinPath(workspaceFolder.uri, "component.json");
@@ -104,7 +104,7 @@ export async function loadPublishComponentData(
 
 export async function publishComponentProject(
   workspaceFolder: vscode.WorkspaceFolder,
-): Promise<Info_ComponentManagement_OperationResult<DictProtocolResult_Publish>> {
+): Promise<ComponentManagementOperationResult<DictProtocolResult_Publish>> {
   await ensureComponentProject(workspaceFolder);
   return await runPublishComponent(workspaceFolder.uri.fsPath);
 }

@@ -139,7 +139,7 @@
       <v-row class="clean-space flex-column-grow-1">
         <v-col cols="5" class="clean-space fill-height pt-3">
           <BuiltInRunOptions
-            v-model:retry-count="detail.retry_count"
+            v-model:max-retry-count="detail.max_retry_count"
             v-model:timeout-min="detail.timeout_min"
             v-model:log-level="detail.builtin_log_level"
             v-model:record-video="detail.builtin_record_video"
@@ -301,7 +301,7 @@ async function applyProjectDetailToSchedule(
   }
 
   currentDetail.project_id = projectDetail.id;
-  currentDetail.retry_count = projectDetail.retry_count;
+  currentDetail.max_retry_count = projectDetail.max_retry_count;
   currentDetail.timeout_min = projectDetail.timeout_min;
   currentDetail.builtin_log_level = projectDetail.builtin_log_level;
   currentDetail.builtin_record_video = projectDetail.builtin_record_video;

@@ -7,6 +7,7 @@ import fs from "fs";
 import { getErrorMessage } from "../../shared/error";
 import {
   RunSource,
+  RunOutputsStatus,
   type RunOutputs,
   RunStatus,
   type RunTerminalStatus,
@@ -18,7 +19,7 @@ import { getEffectiveProjectLogFolderPath } from "../Config/executorConfig";
 import { getPythonEnvironmentPath } from "../Config/environment";
 import { dbInsertRunHistory, dbUpdateRunHistory } from "../Database/runHistoryRepository";
 import { getDatabase } from "../Database/connection";
-import { validatePythonPackageEnvironment } from "../Package/packageMetadata";
+import { validatePackageLiberrpaRequirement } from "../Package/packageMetadata";
 import { getExecutorPackageFolderPath } from "../FileSystem/executorFiles";
 import { loggerMain } from "../Logging/logger";
 import { notifyRunEnded, notifyRunActivityChanged, notifyRunFinished } from "./lifecycle";
@@ -31,6 +32,7 @@ import {
   terminatePythonProcessAfterStartupFailure,
 } from "./pythonProcess";
 import {
+  ExecutorRunStateStatus,
   type ExecutorRunState,
   createExecutorRunStatePath,
   removeExecutorRunStateFile,
@@ -39,7 +41,7 @@ import {
   waitForExecutorRunStateAvailable,
 } from "./runState";
 import {
-  type ProjectRunDetails,
+  type ProjectRunConfig,
   RunTerminationReason,
   type RunEndedFact,
   type RunExecutionContext,
@@ -61,24 +63,25 @@ const mapActiveRunByHistoryId = new Map<number, ActiveProjectRun>();
 const mapActiveRunByRunId = new Map<string, ActiveProjectRun>();
 const mapStartingJobQueueItem = new Map<string, JobQueueItem>();
 
-const mapStartingRunCountByProject = new Map<number, number>();
+const mapStartingRun = new Map<
+  string,
+  { localProjectId: number | null; source: RunSource }
+>();
 const setStartingRunPromise = new Set<Promise<void>>();
-let intStartingRunCount = 0;
-let intStartingLocalRunCount = 0;
 let boolProjectRunShutdownStarted = false;
 let promiseConsoleAccountTransition: Promise<void> | undefined;
 let finishConsoleAccountTransition: (() => void) | undefined;
 
 export function hasActiveProjectRun(excludeCurrentStart = false): boolean {
   return (
-    intStartingRunCount > (excludeCurrentStart ? 1 : 0) ||
+    mapStartingRun.size > (excludeCurrentStart ? 1 : 0) ||
     mapActiveRunByRunId.size !== 0 ||
     hasRecoveredRun()
   );
 }
 
 export function isProjectRunStarting(projectId: number): boolean {
-  return mapStartingRunCountByProject.has(projectId);
+  return [...mapStartingRun.values()].some((run) => run.localProjectId === projectId);
 }
 
 export function getActiveJobQueueItems(): JobQueueItem[] {
@@ -102,12 +105,15 @@ export function getActiveConsoleRunIds(): string[] {
     .map((activeRun) => activeRun.runId);
 }
 
-export function getLocalRunningCount(): number {
-  return (
-    [...mapActiveRunByRunId.values()].filter(
-      (activeRun) => activeRun.source === RunSource.Local,
-    ).length + intStartingLocalRunCount
-  );
+export function getLocalActiveRunCount(): number {
+  const setLocalRunId = new Set<string>();
+  for (const [runId, run] of mapStartingRun) {
+    if (run.source === RunSource.Local) setLocalRunId.add(runId);
+  }
+  for (const run of mapActiveRunByRunId.values()) {
+    if (run.source === RunSource.Local) setLocalRunId.add(run.runId);
+  }
+  return setLocalRunId.size;
 }
 
 export function beginConsoleAccountTransition(): void {
@@ -128,28 +134,6 @@ export function endConsoleAccountTransition(): void {
   finishConsoleAccountTransition?.();
   finishConsoleAccountTransition = undefined;
   promiseConsoleAccountTransition = undefined;
-}
-
-function addStartingRun(projectId: number, source: RunSource): void {
-  intStartingRunCount += 1;
-  if (source === RunSource.Local) intStartingLocalRunCount += 1;
-  mapStartingRunCountByProject.set(
-    projectId,
-    (mapStartingRunCountByProject.get(projectId) ?? 0) + 1,
-  );
-  notifyRunActivityChanged();
-}
-
-function removeStartingRun(projectId: number, source: RunSource): void {
-  intStartingRunCount -= 1;
-  if (source === RunSource.Local) intStartingLocalRunCount -= 1;
-  const intProjectCount = mapStartingRunCountByProject.get(projectId);
-  if (intProjectCount === undefined || intProjectCount <= 1) {
-    mapStartingRunCountByProject.delete(projectId);
-  } else {
-    mapStartingRunCountByProject.set(projectId, intProjectCount - 1);
-  }
-  notifyRunActivityChanged();
 }
 
 function trackActiveProjectRun(activeRun: ActiveProjectRun): void {
@@ -205,7 +189,7 @@ function requestProjectRunTermination(
   return promiseTermination;
 }
 
-async function getInitialRunState({
+async function waitForInitialRunState({
   processPy,
   getProcessError,
   runId,
@@ -265,21 +249,21 @@ async function createRunHistory({
   runId: string;
   runStatePath: string;
   runState: ExecutorRunState;
-  detail: ProjectRunDetails;
+  detail: ProjectRunConfig;
   context: RunExecutionContext;
   diagnosticOutput: PythonProcessDiagnosticOutput;
 }): Promise<number> {
   try {
     const intRunHistoryIdValue = dbInsertRunHistory({
       schedule_name: detail.schedule_name,
-      project_id: context.source === RunSource.Console ? null : detail.id,
+      project_id: detail.local_project_id,
       source: context.source,
       run_id: runId,
       job_id: context.jobId,
-      attempt: context.attempt,
-      inputs: detail,
-      project_name: detail.name,
-      project_version: detail.version,
+      attempt_number: context.attemptNumber,
+      snapshot: detail,
+      project_name: detail.project_name,
+      project_version: detail.project_version,
       python_environment_name: detail.python_environment_name,
       run_started_at_ms: parseExecutorRunTimestamp(runState.startedAt),
       status: RunStatus.Running,
@@ -306,14 +290,20 @@ async function createRunHistory({
   }
 }
 
-async function startProjectRun(
-  detailDict: ProjectRunDetails,
+function ensureProjectRunMayStart(): void {
+  if (boolProjectRunShutdownStarted) {
+    throw new Error("Executor is shutting down and cannot start a new Project Run.");
+  }
+}
+
+async function spawnAndTrackProjectRun(
+  detailDict: ProjectRunConfig,
   context: RunExecutionContext,
   runId: string,
 ): Promise<void> {
   const strExecutorPackagePath =
     context.packagePath ??
-    getExecutorPackageFolderPath(detailDict.name, detailDict.version);
+    getExecutorPackageFolderPath(detailDict.project_name, detailDict.project_version);
 
   if (!fs.existsSync(strExecutorPackagePath)) {
     throw new Error(`Installed Project folder does not exist: ${strExecutorPackagePath}`);
@@ -322,9 +312,13 @@ async function startProjectRun(
   const strPythonEnvironmentPath = getPythonEnvironmentPath(
     detailDict.python_environment_name,
   );
-  await validatePythonPackageEnvironment(strExecutorPackagePath, strPythonEnvironmentPath);
+  await validatePackageLiberrpaRequirement(
+    strExecutorPackagePath,
+    strPythonEnvironmentPath,
+  );
+  ensureProjectRunMayStart();
   loggerMain.info(
-    `Use Python environment '${detailDict.python_environment_name}' for ${detailDict.name}-${detailDict.version}.`,
+    `Use Python environment '${detailDict.python_environment_name}' for ${detailDict.project_name}-${detailDict.project_version}.`,
   );
 
   const strProjectLogRootPath = getEffectiveProjectLogFolderPath();
@@ -349,13 +343,13 @@ async function startProjectRun(
   };
   trackActiveProjectRun(activeRun);
 
-  const dictRunState = await getInitialRunState({
+  const dictRunState = await waitForInitialRunState({
     processPy,
     getProcessError,
     runId,
     runStatePath: strRunStatePath,
-    packageName: detailDict.name,
-    packageVersion: detailDict.version,
+    packageName: detailDict.project_name,
+    packageVersion: detailDict.project_version,
     expectedStartedAt: strStartedAt,
     expectedLogRootPath: strProjectLogRootPath,
     diagnosticOutput,
@@ -379,9 +373,9 @@ async function startProjectRun(
     queue_id: runId,
     source: context.source,
     schedule_name: detailDict.schedule_name,
-    project_name: detailDict.name,
-    project_version: detailDict.version,
-    estimated_run_at_ms: null,
+    project_name: detailDict.project_name,
+    project_version: detailDict.project_version,
+    due_at_ms: null,
     started_at_ms: parseExecutorRunTimestamp(dictRunState.startedAt),
     history_id: intRunHistoryId,
     state: JobQueueState.Running,
@@ -409,7 +403,9 @@ async function startProjectRun(
           return;
         }
 
-        loggerMain.info(`Timeout reached. Stop ${detailDict.name}-${detailDict.version}.`);
+        loggerMain.info(
+          `Timeout reached. Stop ${detailDict.project_name}-${detailDict.project_version}.`,
+        );
         void requestProjectRunTermination(activeRun, RunTerminationReason.Timeout);
       },
       detailDict.timeout_min * 60 * 1000,
@@ -424,7 +420,7 @@ async function startProjectRun(
     boolFinalized = true;
 
     loggerMain.info(
-      `${detailDict.name}-${detailDict.version} exited with code ${String(intExitCode)}${
+      `${detailDict.project_name}-${detailDict.project_version} exited with code ${String(intExitCode)}${
         strSignal === null ? "" : ` and signal ${strSignal}`
       }`,
     );
@@ -440,7 +436,7 @@ async function startProjectRun(
     const intProcessExitedAtMs = Date.now();
     let intRunEndedAtMs = intProcessExitedAtMs;
     let outputs: RunOutputs = {
-      status: "unavailable",
+      status: RunOutputsStatus.Unavailable,
       values: null,
       unavailableKeys: [],
       reason: "Python did not publish a valid final snapshot.",
@@ -451,8 +447,8 @@ async function startProjectRun(
       const dictFinalState = readExecutorRunState({
         filePath: strRunStatePath,
         expectedRunId: runId,
-        expectedPackageName: detailDict.name,
-        expectedPackageVersion: detailDict.version,
+        expectedPackageName: detailDict.project_name,
+        expectedPackageVersion: detailDict.project_version,
         expectedStartedAt: strStartedAt,
         expectedLogRootPath: strProjectLogRootPath,
         expectedLogPath: dictRunState.logPath,
@@ -467,19 +463,19 @@ async function startProjectRun(
       }
 
       switch (dictFinalState.status) {
-        case "completed":
+        case ExecutorRunStateStatus.Completed:
           runStatus = RunStatus.Completed;
           break;
 
-        case "error":
+        case ExecutorRunStateStatus.Error:
           runStatus = RunStatus.Error;
           break;
 
-        case "terminated":
+        case ExecutorRunStateStatus.Terminated:
           runStatus = requestedStatus ?? RunStatus.Canceled;
           break;
 
-        case "running":
+        case ExecutorRunStateStatus.Running:
           loggerMain.error(
             `Python exited before publishing a final Executor run state: ${runId}`,
           );
@@ -497,7 +493,7 @@ async function startProjectRun(
         if (requestedStatus !== undefined) {
           runStatus = requestedStatus;
         } else {
-          if (dictFinalState.status !== "error") {
+          if (dictFinalState.status !== ExecutorRunStateStatus.Error) {
             loggerMain.error(
               `Python process ${runId} exited unexpectedly with code ` +
                 String(intExitCode) +
@@ -564,12 +560,12 @@ async function startProjectRun(
   }
 }
 
-export async function pythonRun(
-  detailDict: ProjectRunDetails,
+export async function startProjectRun(
+  detailDict: ProjectRunConfig,
   context: RunExecutionContext = {
     source: RunSource.Local,
     jobId: randomUUID(),
-    attempt: 1,
+    attemptNumber: 1,
   },
 ): Promise<void> {
   // Scheduled and manual launches wait without dropping work while a Console account change commits.
@@ -577,9 +573,7 @@ export async function pythonRun(
     await promiseConsoleAccountTransition;
   }
 
-  if (boolProjectRunShutdownStarted) {
-    throw new Error("Executor is shutting down and cannot start a new Project Run.");
-  }
+  ensureProjectRunMayStart();
 
   const strRunId = context.runId ?? randomUUID();
   if (context.source === RunSource.Local) {
@@ -587,16 +581,20 @@ export async function pythonRun(
       queue_id: strRunId,
       source: RunSource.Local,
       schedule_name: detailDict.schedule_name,
-      project_name: detailDict.name,
-      project_version: detailDict.version,
-      estimated_run_at_ms: null,
+      project_name: detailDict.project_name,
+      project_version: detailDict.project_version,
+      due_at_ms: null,
       started_at_ms: null,
       history_id: null,
       state: JobQueueState.Starting,
     });
   }
-  addStartingRun(detailDict.id, context.source);
-  const promiseStartingRun = startProjectRun(
+  mapStartingRun.set(strRunId, {
+    localProjectId: detailDict.local_project_id,
+    source: context.source,
+  });
+  notifyRunActivityChanged();
+  const promiseStartingRun = spawnAndTrackProjectRun(
     structuredClone(detailDict),
     context,
     strRunId,
@@ -607,7 +605,8 @@ export async function pythonRun(
   } finally {
     setStartingRunPromise.delete(promiseStartingRun);
     mapStartingJobQueueItem.delete(strRunId);
-    removeStartingRun(detailDict.id, context.source);
+    mapStartingRun.delete(strRunId);
+    notifyRunActivityChanged();
   }
 }
 
@@ -643,6 +642,14 @@ export function beginProjectRunShutdown(): void {
 export async function shutdownProjectRuns(): Promise<void> {
   beginProjectRunShutdown();
 
+  const arrStartingRunPromise = [...setStartingRunPromise];
+  if (arrStartingRunPromise.length !== 0) {
+    loggerMain.info(
+      `Wait for ${String(arrStartingRunPromise.length)} starting Project Run(s) before Executor exits.`,
+    );
+    await Promise.allSettled(arrStartingRunPromise);
+  }
+
   const arrActiveRun = [...mapActiveRunByRunId.values()];
   if (arrActiveRun.length !== 0) {
     loggerMain.info(
@@ -653,13 +660,5 @@ export async function shutdownProjectRuns(): Promise<void> {
         requestProjectRunTermination(activeRun, RunTerminationReason.Shutdown),
       ),
     );
-  }
-
-  const arrStartingRunPromise = [...setStartingRunPromise];
-  if (arrStartingRunPromise.length !== 0) {
-    loggerMain.info(
-      `Wait for ${String(arrStartingRunPromise.length)} starting Project Run(s) before Executor exits.`,
-    );
-    await Promise.allSettled(arrStartingRunPromise);
   }
 }

@@ -4,7 +4,7 @@ import { getErrorMessage } from "../../shared/error";
 
 import { ensureRecord, ensureNonEmptyString } from "../Common/validation";
 import { loggerMain } from "../Logging/logger";
-import { getActiveConsoleRunIds, getLocalRunningCount } from "../Run/projectRunner";
+import { getActiveConsoleRunIds, getLocalActiveRunCount } from "../Run/projectRunner";
 import { onRunActivityChanged } from "../Run/lifecycle";
 import { getRecoveredConsoleRunIds, getOtherRecoveredRunCount } from "../Run/recoveredRuns";
 import { getConsoleWorkSessionKey } from "./workRepository";
@@ -43,7 +43,7 @@ let reportError: ((e: unknown) => void) | undefined;
 export function getConsoleWorkState(): {
   running_run_ids: string[];
   local_waiting_count: number;
-  local_running_count: number;
+  other_active_run_count: number;
 } {
   const strSessionKey = credential ? getConsoleWorkSessionKey(credential) : undefined;
   return {
@@ -52,7 +52,8 @@ export function getConsoleWorkState(): {
       ...getRecoveredConsoleRunIds(strSessionKey),
     ],
     local_waiting_count: getLocalWaitingCount(),
-    local_running_count: getLocalRunningCount() + getOtherRecoveredRunCount(strSessionKey),
+    other_active_run_count:
+      getLocalActiveRunCount() + getOtherRecoveredRunCount(strSessionKey),
   };
 }
 

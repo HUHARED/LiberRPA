@@ -13,6 +13,9 @@ INT_DISPLAY_NAME_SNAPSHOT_MAX_LENGTH = 420
 # Windows file and directory names are measured in UTF-16 code units.
 INT_WINDOWS_NAME_MAX_LENGTH = 255
 
+# Package and shared-file uploads use the same 4 MiB transport chunks.
+INT_UPLOAD_CHUNK_BYTES = 4 * 1024 * 1024
+
 
 class RunLogLevel(StrEnum):
     VERBOSE = "VERBOSE"

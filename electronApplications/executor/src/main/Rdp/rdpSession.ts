@@ -15,7 +15,7 @@ import {
 } from "../Config/environment";
 import { loggerMain } from "../Logging/logger";
 
-interface Dict_PendingResolution {
+interface PendingResolution {
   width: number;
   height: number;
 }
@@ -91,8 +91,8 @@ let processPyMoveMouse: ChildProcessWithoutNullStreams | undefined;
 let intMoveMouseRestartAfterMs = 0;
 let processPySetSession: ChildProcessWithoutNullStreams | undefined;
 let processPySetResolution: ChildProcessWithoutNullStreams | undefined;
-let dictRunningResolution: Dict_PendingResolution | undefined;
-let dictPendingResolution: Dict_PendingResolution | undefined;
+let dictRunningResolution: PendingResolution | undefined;
+let dictPendingResolution: PendingResolution | undefined;
 let timerResolutionRestore: NodeJS.Timeout | undefined;
 let timerRdpHelperCheck: NodeJS.Timeout | undefined;
 

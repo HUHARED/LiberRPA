@@ -12,7 +12,7 @@ import { strExecutorPackageFolderPath } from "../FileSystem/executorFiles";
 import { loggerMain } from "../Logging/logger";
 import { getTargetFolderName } from "./packageArchive";
 
-interface Dict_PackageInstallation_Transaction {
+interface PackageInstallationTransaction {
   schemaVersion: 1;
   state: "prepared";
   projectName: string;
@@ -20,7 +20,7 @@ interface Dict_PackageInstallation_Transaction {
   targetFolderName: string;
 }
 
-interface Dict_PackageInstallation_StagingPaths {
+interface PackageInstallationStagingPaths {
   transactionFolderPath: string;
   stagedProjectPath: string;
 }
@@ -29,7 +29,9 @@ const STR_STAGING_FOLDER_NAME = ".staging";
 const STR_TRANSACTION_FILE_NAME = "transaction.json";
 const STR_STAGED_PROJECT_FOLDER_NAME = "project";
 
-function parseTransaction(transactionPath: string): Dict_PackageInstallation_Transaction {
+function readPackageInstallationTransaction(
+  transactionPath: string,
+): PackageInstallationTransaction {
   const dictTransaction = ensureExactRecord(
     readJsonFile(transactionPath, "Package installation transaction"),
     ["schemaVersion", "state", "projectName", "projectVersion", "targetFolderName"],
@@ -79,7 +81,7 @@ export async function removePackageInstallationFolderBestEffort(
   }
 }
 
-export function createProjectPackageInstallationStaging(): Dict_PackageInstallation_StagingPaths {
+export function createProjectPackageInstallationStaging(): PackageInstallationStagingPaths {
   fs.mkdirSync(strExecutorPackageFolderPath, { recursive: true });
 
   const strTransactionFolderPath = path.join(
@@ -108,7 +110,7 @@ export function writeProjectPackageInstallationTransaction({
   projectName: string;
   projectVersion: string;
 }): void {
-  const dictTransaction: Dict_PackageInstallation_Transaction = {
+  const dictTransaction: PackageInstallationTransaction = {
     schemaVersion: 1,
     state: "prepared",
     projectName,
@@ -154,7 +156,7 @@ export async function recoverProjectPackageInstallations(): Promise<void> {
 
     let boolRecovered = false;
     try {
-      const dictTransaction = parseTransaction(strTransactionPath);
+      const dictTransaction = readPackageInstallationTransaction(strTransactionPath);
       const strTargetPath = path.join(
         strExecutorPackageFolderPath,
         dictTransaction.targetFolderName,

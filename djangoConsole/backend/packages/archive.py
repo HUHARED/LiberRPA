@@ -16,7 +16,7 @@ from pydantic import ValidationError as ContractValidationError
 from packaging.specifiers import Specifier, SpecifierSet
 from packaging.version import Version
 
-from console_project.validators import validate_json_text, validate_windows_name
+from console_project.validators import validate_json_string, validate_windows_name
 
 from .contracts import (
     MAX_PACKAGE_BYTES,
@@ -62,7 +62,7 @@ def _require_text(
         or (singleLine and (value != value.strip() or "\n" in value or "\r" in value))
     ):
         raise ValidationError(f"Invalid {label}.")
-    validate_json_text(value)
+    validate_json_string(value)
     return value
 
 
@@ -167,7 +167,7 @@ def _read_metadata(archive: zipfile.ZipFile) -> dict:
     )
     return {
         "project_name": strName,
-        "version": strVersion,
+        "project_version": strVersion,
         "description": _require_text(
             flow["description"], "description", INT_DESCRIPTION_MAX_LENGTH, True, False
         ),

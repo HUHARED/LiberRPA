@@ -8,7 +8,7 @@ import {
   applyProjectDependencyPlan,
   repairProjectComponents,
 } from "../../Adapter/Python/componentManagementClient";
-import type { Info_ComponentManagement_OperationResult } from "../../Adapter/Python/componentManagementClient";
+import type { ComponentManagementOperationResult } from "../../Adapter/Python/componentManagementClient";
 import type {
   DictComponentManagementWarning,
   DictProtocolDependencyOperation,
@@ -19,7 +19,7 @@ import type {
   DictProtocolResult_ProjectComponentsRepaired,
 } from "../../Domain/ComponentManagement/componentManagementTypes";
 
-interface Info_ManageComponentsData {
+interface ManageComponentsData {
   projectState: DictProtocolResult_ProjectDependencyState;
   repositoryCatalog: DictProtocolResult_RepositoryCatalog | null;
   repositoryCatalogError: ComponentManagementOperationError | null;
@@ -33,7 +33,7 @@ const SET_RECOVERABLE_REPOSITORY_CATALOG_ERROR_CODE = new Set([
 
 export async function loadManageComponentsData(
   projectPath: string,
-): Promise<Info_ManageComponentsData> {
+): Promise<ManageComponentsData> {
   // Load the Repository first so its pending transactions are recovered before
   // Project state checks inspect exact Wheel availability for Repair.
   let repositoryCatalog: DictProtocolResult_RepositoryCatalog | null = null;
@@ -67,9 +67,7 @@ export async function loadManageComponentsData(
 export async function createProjectDependencyPlan(
   projectPath: string,
   dependencyOperation: DictProtocolDependencyOperation,
-): Promise<
-  Info_ComponentManagement_OperationResult<DictProtocolResult_ProjectDependencyPlan>
-> {
+): Promise<ComponentManagementOperationResult<DictProtocolResult_ProjectDependencyPlan>> {
   return await buildProjectDependencyPlan(projectPath, dependencyOperation);
 }
 
@@ -78,7 +76,7 @@ export async function confirmProjectDependencyPlan(
   dependencyOperation: DictProtocolDependencyOperation,
   confirmedPlanSha256: string,
 ): Promise<
-  Info_ComponentManagement_OperationResult<DictProtocolResult_ProjectDependencyPlanApplied>
+  ComponentManagementOperationResult<DictProtocolResult_ProjectDependencyPlanApplied>
 > {
   return await applyProjectDependencyPlan(
     projectPath,
@@ -90,7 +88,7 @@ export async function confirmProjectDependencyPlan(
 export async function repairProjectComponentFolder(
   projectPath: string,
 ): Promise<
-  Info_ComponentManagement_OperationResult<DictProtocolResult_ProjectComponentsRepaired>
+  ComponentManagementOperationResult<DictProtocolResult_ProjectComponentsRepaired>
 > {
   return await repairProjectComponents(projectPath);
 }

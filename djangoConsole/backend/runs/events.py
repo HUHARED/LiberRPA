@@ -108,8 +108,8 @@ def receive_event(session: ExecutorSession, event: WorkEvent) -> None:
             defaults={"job": job, "assignment": assignment, "started_at": startedAt},
         )
         if boolCreated:
-            job.attempts = max(job.attempts, assignment.attempt)
-            job.save(update_fields=["attempts"])
+            job.attempt_count = max(job.attempt_count, assignment.attempt_number)
+            job.save(update_fields=["attempt_count"])
             if job.closed_at is None:
                 notify_run_event(run, event="start")
         if event.kind == RunEventKind.ENDED and run.ended_at is None:
@@ -133,7 +133,7 @@ def receive_event(session: ExecutorSession, event: WorkEvent) -> None:
                 boolRunRetryable = (
                     run.result == RunResult.ERROR
                     and job.stop_requested_at is None
-                    and assignment.attempt <= job.retry_count
+                    and assignment.attempt_number <= job.max_retry_count
                 )
                 if boolRunRetryable and has_job_source_access(job):
                     job.state = JobState.RETRY

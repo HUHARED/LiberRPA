@@ -432,7 +432,7 @@ def prepare_download(
         actor_id=access.actorId,
         department_id=file.department_id,
         blob=file.blob,
-        path=filePayload.path,
+        resource_path=filePayload.path,
         name=file.name,
         expires_at=get_download_expiry(),
     )
@@ -478,7 +478,7 @@ def open_download(
             organization=access.organization,
             target=transfer,
             channel=access.channel,
-            metadata={"path": transfer.path},
+            metadata={"path": transfer.resource_path},
         )
     except Exception:
         handle.close()

@@ -5,11 +5,11 @@ import type {
   ConsoleExecutorPage,
   ConsoleSignInArgs,
 } from "./consoleAccount";
-import type { Dict_ExecutorConfig } from "./config";
+import type { ExecutorConfig } from "./config";
 import type {
-  Dict_ProjectDetail,
-  Dict_ProjectPackage_InstallResult,
-  Dict_ProjectSettingsUpdate,
+  ProjectDetails,
+  ProjectPackageInstallResult,
+  ProjectSettingsUpdate,
 } from "./project";
 import type {
   RunDetails,
@@ -28,7 +28,7 @@ export const IPC_CHANNEL_RENDERER_LOG = "executor:renderer-log";
 export const IPC_CHANNEL_RENDERER_INVOKE = "executor:renderer-invoke";
 export const IPC_CHANNEL_MAIN_MESSAGE = "executor:main-message";
 
-export type Str_RendererLogLevel =
+export type RendererLogLevel =
   | "error"
   | "warn"
   | "info"
@@ -37,7 +37,7 @@ export type Str_RendererLogLevel =
   | "debug"
   | "silly";
 
-interface Dict_ExecutorInvoke_Contract {
+interface ExecutorInvokeContract {
   getConsoleAccount: { request: undefined; response: ConsoleAccountState };
   saveConsoleAddress: { request: string; response: ConsoleAccountState };
   signInConsole: { request: ConsoleSignInArgs; response: ConsoleAccountState };
@@ -49,11 +49,11 @@ interface Dict_ExecutorInvoke_Contract {
     response: void;
   };
   saveExecutorConfig: {
-    request: Dict_ExecutorConfig;
+    request: ExecutorConfig;
     response: void;
   };
   runProject: {
-    request: Dict_ProjectSettingsUpdate;
+    request: ProjectSettingsUpdate;
     response: void;
   };
   getPythonEnvironmentNames: {
@@ -62,7 +62,7 @@ interface Dict_ExecutorInvoke_Contract {
   };
   installProjectPackage: {
     request: undefined;
-    response: Dict_ProjectPackage_InstallResult;
+    response: ProjectPackageInstallResult;
   };
   getProjectNames: {
     request: undefined;
@@ -74,10 +74,10 @@ interface Dict_ExecutorInvoke_Contract {
   };
   getProjectDetail: {
     request: { name: string; version: string };
-    response: Dict_ProjectDetail | undefined;
+    response: ProjectDetails | undefined;
   };
   saveProjectSettings: {
-    request: Dict_ProjectSettingsUpdate;
+    request: ProjectSettingsUpdate;
     response: void;
   };
   getProjectBoundSchedules: {
@@ -140,16 +140,16 @@ interface Dict_ExecutorInvoke_Contract {
   };
 }
 
-export type Str_ExecutorInvokeCommand = keyof Dict_ExecutorInvoke_Contract;
+export type ExecutorInvokeCommand = keyof ExecutorInvokeContract;
 
-export type Type_ExecutorInvoke_Request<C extends Str_ExecutorInvokeCommand> =
-  Dict_ExecutorInvoke_Contract[C]["request"];
-export type Type_ExecutorInvoke_Response<C extends Str_ExecutorInvokeCommand> =
-  Dict_ExecutorInvoke_Contract[C]["response"];
+export type ExecutorInvokeRequest<C extends ExecutorInvokeCommand> =
+  ExecutorInvokeContract[C]["request"];
+export type ExecutorInvokeResponse<C extends ExecutorInvokeCommand> =
+  ExecutorInvokeContract[C]["response"];
 
 export type TypeIpcArgs<T> = [T] extends [undefined] ? [] : [data: T];
 
-export type Dict_Result_Invoke<T> =
+export type InvokeResult<T> =
   | {
       success: true;
       data: T;
@@ -159,12 +159,12 @@ export type Dict_Result_Invoke<T> =
       error: string;
     };
 
-export type Dict_Message_Main =
+export type MainMessage =
   | { type: "consoleAccountChanged"; data: ConsoleAccountState }
   | {
       type: "initializeSetting";
       data: {
-        configDict: Dict_ExecutorConfig;
+        configDict: ExecutorConfig;
         defaultProjectLogFolderPath: string;
       };
     }
@@ -179,12 +179,12 @@ export type Dict_Message_Main =
     };
 
 export interface ExecutorPreloadApi {
-  sendLog(level: Str_RendererLogLevel, message: string): void;
+  sendLog(level: RendererLogLevel, message: string): void;
 
-  invoke<C extends Str_ExecutorInvokeCommand>(
+  invoke<C extends ExecutorInvokeCommand>(
     command: C,
-    ...args: TypeIpcArgs<Type_ExecutorInvoke_Request<C>>
-  ): Promise<Dict_Result_Invoke<Type_ExecutorInvoke_Response<C>>>;
+    ...args: TypeIpcArgs<ExecutorInvokeRequest<C>>
+  ): Promise<InvokeResult<ExecutorInvokeResponse<C>>>;
 
-  onMainMessage(listener: (message: Dict_Message_Main) => void): () => void;
+  onMainMessage(listener: (message: MainMessage) => void): () => void;
 }

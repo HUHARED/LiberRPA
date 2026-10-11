@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from datetime import timedelta
 from enum import StrEnum
 from http.cookies import SimpleCookie
-from typing import Annotated, TypedDict, cast
+from typing import TypedDict, cast
 
 from asgiref.sync import sync_to_async
 from asgiref.typing import (
@@ -56,10 +56,12 @@ from executors.session_state import (
     is_executor_session_current,
 )
 from file_storage.services import FileOperationError, require_download_slot
+from organizations.http import get_request_access
 from organizations.permissions import AccessChannel
 
+from .contracts import RunFileRequest
 from .models import RecordingStatus, Run, RunFileKind, RunFileTransfer
-from .logs import get_accessible_run, get_web_access
+from .queries import get_visible_runs
 from .control_notifications import notify_executor_control
 
 _INT_CHUNK_BYTES = 64 * 1024
@@ -183,10 +185,6 @@ def build_run_file_availability(run: Run) -> dict[RunFileKind, RunFileAvailabili
     return dictAvailability
 
 
-class FileRequest(JsonRequest):
-    kind: Annotated[RunFileKind, Field(strict=False)]
-
-
 class FileReadyRequest(JsonRequest):
     size_bytes: int = Field(default=0, ge=0, le=2 * 1024 * 1024 * 1024)
     filename: str = Field(default="download", max_length=180)
@@ -274,7 +272,7 @@ def get_pending_transfers(sessionId: uuid.UUID) -> list[PendingRunFileTransfer]:
 
 @require_POST
 def create_file_transfer(request: HttpRequest, runId: uuid.UUID) -> HttpResponse:
-    payload = parse_json_request(request, FileRequest)
+    payload = parse_json_request(request, RunFileRequest)
     if isinstance(payload, JsonResponse):
         return payload
     ticket: TransferTicket | None = None
@@ -283,8 +281,8 @@ def create_file_transfer(request: HttpRequest, runId: uuid.UUID) -> HttpResponse
         # Cleanup must not roll back with a subsequently rejected admission.
         _expire_tickets()
         with transaction.atomic():
-            access = get_web_access(request, forUpdate=True)
-            run = get_accessible_run(access, runId)
+            access = get_request_access(request, forUpdate=True)
+            run = get_visible_runs(access).get(pk=runId)
             fileAvailability = build_run_file_availability(run)[payload.kind]
             if not fileAvailability["available"]:
                 raise ValidationError(fileAvailability["reason"])
@@ -350,7 +348,7 @@ def _authorize_source(authorizationHeader: str, ticket: TransferTicket) -> None:
             or access.organization.pk != ticket.organizationId
         ):
             raise PermissionDenied("The original Executor session is required.")
-        run = get_accessible_run(access, ticket.runId)
+        run = get_visible_runs(access).get(pk=ticket.runId)
         if (
             run.assignment.session_id != ticket.sessionId
             or run.assignment.actor_id != access.actorId
@@ -481,13 +479,13 @@ def _authorize_browser(scope: HTTPScope, ticket: TransferTicket) -> None:
     request.get_host()
     request.session = SessionStore(session_key=morsel.value if morsel else None)
     request.user = get_user(request)
-    access = get_web_access(request)
+    access = get_request_access(request)
     if (
         access.actorId != ticket.actorId
         or access.organization.pk != ticket.organizationId
     ):
         raise PermissionDenied
-    get_accessible_run(access, ticket.runId)
+    get_visible_runs(access).get(pk=ticket.runId)
 
 
 async def _send_error(send: ASGISendCallable, statusCode: int, message: str) -> None:

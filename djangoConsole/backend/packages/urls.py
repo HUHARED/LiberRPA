@@ -12,6 +12,7 @@ from .http import package_view
 urlpatterns = [
     path("", package_view(views.list_packages)),
     path("departments/", package_view(views.list_departments)),
+    path("options/", package_view(views.package_options)),
     path("uploads/", package_view(views.start_upload)),
     path("uploads/<uuid:uploadId>/", package_view(views.upload_detail)),
     path(

@@ -32,6 +32,17 @@ export interface ConsolePublishDepartment {
   path: string;
 }
 
+export function isConsolePublishDepartment(
+  value: unknown,
+): value is ConsolePublishDepartment {
+  return (
+    isRecord(value) &&
+    typeof value["id"] === "string" &&
+    typeof value["name"] === "string" &&
+    typeof value["path"] === "string"
+  );
+}
+
 export enum ConsolePublishStatus {
   NotRequested = "notRequested",
   Publishing = "publishing",
@@ -58,8 +69,8 @@ export interface EditorSessionInfo {
   organization: { id: string; name: string };
   is_org_admin: boolean;
   account_departments: ConsoleDepartmentInfo[];
-  computer: string;
-  version: string;
+  computer_name: string;
+  client_version: string;
   last_seen_at: string;
 }
 
@@ -100,8 +111,8 @@ export function isEditorSessionInfo(value: unknown): value is EditorSessionInfo 
     typeof value["is_org_admin"] === "boolean" &&
     Array.isArray(value["account_departments"]) &&
     value["account_departments"].every(isConsoleDepartment) &&
-    typeof value["computer"] === "string" &&
-    typeof value["version"] === "string" &&
+    typeof value["computer_name"] === "string" &&
+    typeof value["client_version"] === "string" &&
     typeof value["last_seen_at"] === "string"
   );
 }

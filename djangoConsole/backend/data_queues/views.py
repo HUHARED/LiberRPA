@@ -17,8 +17,8 @@ from organizations.models import Membership
 from organizations.permissions import AccessChannel, resolve_organization_access
 
 from .contracts import (
-    QueueFilterStatus,
-    QueueOrder,
+    QueueItemFilterStatus,
+    QueueItemOrder,
     QueueDetailsRequest,
     QueueCreationRequest,
     QueueDeletionRequest,
@@ -144,8 +144,8 @@ def list_queue_items(
             len(request.GET.getlist(strKey)) != 1 for strKey in request.GET
         ):
             raise ValueError
-        status = QueueFilterStatus(request.GET.get("status", QueueFilterStatus.ALL))
-        order = QueueOrder(request.GET.get("order", QueueOrder.OLDEST_FIRST))
+        status = QueueItemFilterStatus(request.GET.get("status", QueueItemFilterStatus.ALL))
+        order = QueueItemOrder(request.GET.get("order", QueueItemOrder.OLDEST_FIRST))
         itemId = uuid.UUID(request.GET["item_id"]) if request.GET.get("item_id") else None
         intPageNumber = parse_page_number(request.GET)
     except ValueError:

@@ -31,9 +31,7 @@ function getExistingLogFilePath(folderPath: string, fileName: string): string | 
   return strFilePath;
 }
 
-function getExistingRunLogFolderPath(
-  logLocation: RunLogLocation,
-): string | undefined {
+function getExistingRunLogFolderPath(logLocation: RunLogLocation): string | undefined {
   if (!fs.existsSync(logLocation.log_path)) {
     return undefined;
   }
@@ -58,8 +56,8 @@ function deleteVideoFiles(logFolderPath: string): boolean {
   return true;
 }
 
-export function logCleanFolderByTimeout(timeoutDays: number): void {
-  const intCutoffMs = Date.now() - timeoutDays * INT_MILLISECONDS_PER_DAY;
+export function deleteExpiredRunLogs(retentionDays: number): void {
+  const intCutoffMs = Date.now() - retentionDays * INT_MILLISECONDS_PER_DAY;
   const arrLogLocation = dbSelectLogFolderBefore(intCutoffMs);
 
   for (const logLocation of arrLogLocation) {
@@ -81,8 +79,8 @@ export function logCleanFolderByTimeout(timeoutDays: number): void {
   }
 }
 
-export function logCleanVideoByTimeout(timeoutDays: number): void {
-  const intCutoffMs = Date.now() - timeoutDays * INT_MILLISECONDS_PER_DAY;
+export function deleteExpiredRunVideos(retentionDays: number): void {
+  const intCutoffMs = Date.now() - retentionDays * INT_MILLISECONDS_PER_DAY;
   const arrLogLocation = dbSelectVideoBefore(intCutoffMs);
 
   for (const logLocation of arrLogLocation) {
@@ -105,8 +103,8 @@ export function logCleanVideoByTimeout(timeoutDays: number): void {
   }
 }
 
-export function logCleanVideoBySize(sizeGb: number): void {
-  let floatSizeGbTotal = 0;
+export function enforceVideoStorageLimit(storageLimitGiB: number): void {
+  let floatTotalSizeGiB = 0;
   const arrLogLocation = dbSelectVideo();
 
   for (const logLocation of arrLogLocation) {
@@ -129,10 +127,10 @@ export function logCleanVideoBySize(sizeGb: number): void {
         continue;
       }
 
-      const floatVideoSizeGb = fs.statSync(strVideoFilePath).size / 1024 ** 3;
-      if (floatSizeGbTotal + floatVideoSizeGb <= sizeGb) {
-        floatSizeGbTotal += floatVideoSizeGb;
-        loggerMain.debug(`Video size total: ${floatSizeGbTotal} GB`);
+      const floatVideoSizeGiB = fs.statSync(strVideoFilePath).size / 1024 ** 3;
+      if (floatTotalSizeGiB + floatVideoSizeGiB <= storageLimitGiB) {
+        floatTotalSizeGiB += floatVideoSizeGiB;
+        loggerMain.debug(`Video size total: ${floatTotalSizeGiB} GiB`);
         continue;
       }
 

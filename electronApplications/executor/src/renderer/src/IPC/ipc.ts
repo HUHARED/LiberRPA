@@ -3,19 +3,19 @@
 import { cloneJsonSerializable } from "../Common/json";
 import { useInformationStore } from "../Store/informationStore";
 import type {
-  Str_ExecutorInvokeCommand,
-  Type_ExecutorInvoke_Request,
-  Type_ExecutorInvoke_Response,
+  ExecutorInvokeCommand,
+  ExecutorInvokeRequest,
+  ExecutorInvokeResponse,
   TypeIpcArgs,
 } from "../../../shared/ipc";
 
-export async function invokeMain<C extends Str_ExecutorInvokeCommand>(
+export async function invokeMain<C extends ExecutorInvokeCommand>(
   command: C,
-  ...args: TypeIpcArgs<Type_ExecutorInvoke_Request<C>>
-): Promise<Type_ExecutorInvoke_Response<C>> {
-  const arrSerializableArg = args.map((arg: Type_ExecutorInvoke_Request<C>) =>
+  ...args: TypeIpcArgs<ExecutorInvokeRequest<C>>
+): Promise<ExecutorInvokeResponse<C>> {
+  const arrSerializableArg = args.map((arg: ExecutorInvokeRequest<C>) =>
     cloneJsonSerializable(arg),
-  ) as TypeIpcArgs<Type_ExecutorInvoke_Request<C>>;
+  ) as TypeIpcArgs<ExecutorInvokeRequest<C>>;
   const result = await window.executor.invoke(command, ...arrSerializableArg);
 
   if (result.success === false) {

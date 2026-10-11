@@ -36,7 +36,7 @@ import {
   getComponentManagementWarningMessages,
 } from "../componentManagementOutput";
 
-export interface Info_CreateProjectResult {
+export interface CreateProjectResult {
   projectPath: string;
   warnings: string[];
 }
@@ -312,7 +312,7 @@ function removeIncompleteProject(projectPath: string): void {
 
 export async function createProject(
   input: DictCreateProjectInput,
-): Promise<Info_CreateProjectResult> {
+): Promise<CreateProjectResult> {
   validateCreateProjectInput(input);
 
   const arrTemplate = getProjectTemplates();

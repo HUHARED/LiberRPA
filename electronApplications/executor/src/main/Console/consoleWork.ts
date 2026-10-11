@@ -11,7 +11,7 @@ import {
   ensurePythonEnvironmentName,
   ensureBoolean,
   ensurePositiveInteger,
-  ensureRetryCount,
+  ensureMaxRetryCount,
   ensureRunTimeoutMinutes,
   ensureLogLevel,
   ensureRunConflictPolicy,
@@ -19,8 +19,8 @@ import {
 } from "../Common/validation";
 import { getDatabase } from "../Database/connection";
 import { loggerMain } from "../Logging/logger";
-import { pythonRun, cancelRunById } from "../Run/projectRunner";
-import type { ProjectRunDetails } from "../Run/types";
+import { startProjectRun, cancelRunById } from "../Run/projectRunner";
+import type { ProjectRunConfig } from "../Run/types";
 import { getLocalWaitingCount } from "../Scheduler/schedulerEngine";
 import { getConsolePythonCredential } from "./consoleAccount";
 import { ConsoleRequestError, requestConsole } from "./consoleApi";
@@ -37,14 +37,16 @@ import {
   type ConsoleAssignment,
   type ConsoleAssignmentData,
   type ConsoleWorkRecord,
+  getConsoleWorkSessionKey,
+  getConsoleWork,
+  saveConsoleWork,
+} from "./workRepository";
+import {
   ConsoleEventKind,
   ConsoleNotStartedReason,
   type ConsoleEventData,
   type ConsoleEventReceipt,
   type ConsoleEventRetentionResolution,
-  getConsoleWorkSessionKey,
-  getConsoleWork,
-  saveConsoleWork,
   onConsoleEventSaved,
   saveConsoleEvent,
   getPendingConsoleEvents,
@@ -52,7 +54,7 @@ import {
   getConsoleEventRetentionCandidates,
   confirmConsoleEventRetention,
   pruneConsoleEventDiagnostics,
-} from "./workRepository";
+} from "./eventRepository";
 import { stopConsoleFiles, flushConsoleLogs, sendConsoleFile } from "./consoleWorkFiles";
 
 enum ConsolePermitWaitReason {
@@ -93,6 +95,10 @@ let boolEventFailureLogged = false;
 let boolPreparationRefresh = false;
 let intRetryDelayMs = 2000;
 let intEventRetryDelayMs = 2000;
+let floatWorkRetryAt = 0;
+let floatEventRetryAt = 0;
+let strWorkRetrySessionKey: string | undefined;
+let strEventRetrySessionKey: string | undefined;
 let stopWorkListener: (() => void) | undefined;
 let stopEventListener: (() => void) | undefined;
 let promiseLogs: Promise<void> | undefined;
@@ -104,7 +110,7 @@ function parseAssignmentData(value: unknown): ConsoleAssignmentData {
     id: ensureNonEmptyString(dictValue.id, "Assignment ID"),
     job_id: ensureNonEmptyString(dictValue.job_id, "Job ID"),
     run_id: ensureNonEmptyString(dictValue.run_id, "Run ID"),
-    attempt: ensurePositiveInteger(dictValue.attempt, "Attempt"),
+    attempt_number: ensurePositiveInteger(dictValue.attempt_number, "Attempt"),
     package_id: ensureNonEmptyString(dictValue.package_id, "Package ID"),
     snapshot: ensureRecord(dictValue.snapshot, "Run snapshot"),
   };
@@ -124,7 +130,7 @@ function parseRunAssignment(assignment: ConsoleAssignmentData): ConsoleAssignmen
         snapshot.python_environment_name,
         "Python environment",
       ),
-      retry_count: ensureRetryCount(snapshot.retry_count, "Retry Count"),
+      max_retry_count: ensureMaxRetryCount(snapshot.max_retry_count, "Max retry count"),
       timeout_min: ensureRunTimeoutMinutes(snapshot.timeout_min, "Timeout"),
       builtin_log_level: ensureLogLevel(snapshot.builtin_log_level, "Log level"),
       builtin_record_video: ensureBoolean(snapshot.builtin_record_video, "Record video"),
@@ -169,7 +175,7 @@ function validateStartPermitTime(permit: ConsoleStartPermit, startedAt: string):
     );
 }
 
-async function getStartPermit(
+async function requestStartPermit(
   record: ConsoleWorkRecord,
   credential: ConsoleCredentialSnapshot,
 ): Promise<ConsoleStartPermit> {
@@ -307,7 +313,7 @@ async function getStartPermit(
   }
 }
 
-async function prepareAndRun(
+async function prepareAndStartRun(
   record: ConsoleWorkRecord,
   credential: ConsoleCredentialSnapshot,
 ): Promise<void> {
@@ -320,17 +326,17 @@ async function prepareAndRun(
       sha256: strSha256,
       ...runSettings
     } = assignment.snapshot;
-    const detail: ProjectRunDetails = {
+    const detail: ProjectRunConfig = {
       ...runSettings,
-      id: 0,
-      name: strProjectName,
-      version: strProjectVersion,
+      local_project_id: null,
+      project_name: strProjectName,
+      project_version: strProjectVersion,
     };
     const strPackagePath = await prepareConsolePackage(
       {
         id: assignment.package_id,
-        name: detail.name,
-        version: detail.version,
+        name: detail.project_name,
+        version: detail.project_version,
         sha256: strSha256,
       },
       detail.python_environment_name,
@@ -338,15 +344,15 @@ async function prepareAndRun(
     );
     boolPrepared = true;
     ensureWorkMayStart(record, credential);
-    const permit = await getStartPermit(record, credential);
+    const permit = await requestStartPermit(record, credential);
     record.permitExpiresAt = permit.expiresAt;
     record.state = ConsoleWorkState.Permitted;
     saveConsoleWork(record);
-    await pythonRun(detail, {
+    await startProjectRun(detail, {
       source: RunSource.Console,
       jobId: record.assignment.job_id,
       runId: record.assignment.run_id,
-      attempt: record.assignment.attempt,
+      attemptNumber: record.assignment.attempt_number,
       packagePath: strPackagePath,
       beforeSpawn(boolOtherRunActive, startedAt) {
         ensureWorkMayStart(record, credential);
@@ -439,17 +445,17 @@ async function prepareRequestedPackages(
     if (boolStopped) return;
     const request = ensureRecord(value, "Package preparation request");
     const strId = ensureNonEmptyString(request.preparation_id, "Preparation ID");
-    const inputs = ensureRecord(request.inputs, "Preparation inputs");
+    const snapshot = ensureRecord(request.snapshot, "Preparation snapshot");
     let strReason = "";
     try {
       await prepareConsolePackage(
         {
-          id: ensureNonEmptyString(inputs.package_id, "Package ID"),
-          name: ensureNonEmptyString(inputs.project_name, "Package name"),
-          version: ensureNonEmptyString(inputs.project_version, "Package version"),
-          sha256: ensureNonEmptyString(inputs.sha256, "Package SHA256"),
+          id: ensureNonEmptyString(snapshot.package_id, "Package ID"),
+          name: ensureNonEmptyString(snapshot.project_name, "Package name"),
+          version: ensureNonEmptyString(snapshot.project_version, "Package version"),
+          sha256: ensureNonEmptyString(snapshot.sha256, "Package SHA256"),
         },
-        ensurePythonEnvironmentName(inputs.python_environment_name, "Python environment"),
+        ensurePythonEnvironmentName(snapshot.python_environment_name, "Python environment"),
         credential,
       );
     } catch (e: unknown) {
@@ -529,19 +535,46 @@ function requestConsoleEvents(): void {
   if (boolStopped) return;
   boolEventsRequested = true;
   const credential = getConsoleControlCredential();
-  if (promiseEvents || timerEventRetry || !credential) return;
+  if (promiseEvents || !credential) return;
+  const strSessionKey = getConsoleWorkSessionKey(credential);
+  if (strEventRetrySessionKey !== strSessionKey) {
+    clearTimeout(timerEventRetry);
+    timerEventRetry = undefined;
+    strEventRetrySessionKey = strSessionKey;
+    floatEventRetryAt = 0;
+    intEventRetryDelayMs = 2000;
+    boolEventFailureLogged = false;
+  }
+  const floatRemainingMs = floatEventRetryAt - performance.now();
+  if (floatRemainingMs > 0) {
+    timerEventRetry ??= setTimeout(
+      () => {
+        timerEventRetry = undefined;
+        requestConsoleEvents();
+      },
+      Math.min(floatRemainingMs, 2_147_483_647),
+    );
+    return;
+  }
+  clearTimeout(timerEventRetry);
+  timerEventRetry = undefined;
   boolEventsRequested = false;
-  let boolFailed = false;
   // Send one bounded batch at a time without holding up control synchronization.
-  promiseEvents = sendPendingConsoleEvents(getConsoleWorkSessionKey(credential), credential)
+  promiseEvents = sendPendingConsoleEvents(strSessionKey, credential)
     .then((boolMoreEvents) => {
       boolEventsRequested ||= boolMoreEvents;
+      if (!isCurrentControlCredential(credential)) return;
       intEventRetryDelayMs = 2000;
+      floatEventRetryAt = 0;
       boolEventFailureLogged = false;
     })
     .catch((e: unknown) => {
-      boolFailed = true;
       boolEventsRequested = true;
+      if (!isCurrentControlCredential(credential)) return;
+      const intRetryAfterMs = e instanceof ConsoleRequestError ? e.retryAfterMs : 0;
+      floatEventRetryAt =
+        performance.now() + Math.max(intEventRetryDelayMs, intRetryAfterMs);
+      intEventRetryDelayMs = Math.min(intEventRetryDelayMs * 2, 30_000);
       if (!boolEventFailureLogged) {
         boolEventFailureLogged = true;
         loggerMain.warn(`Console Run events: ${getErrorMessage(e)}`);
@@ -549,17 +582,7 @@ function requestConsoleEvents(): void {
     })
     .finally(() => {
       promiseEvents = undefined;
-      if (boolStopped) return;
-      if (boolFailed) {
-        if (!getConsoleControlCredential()) return;
-        timerEventRetry = setTimeout(() => {
-          timerEventRetry = undefined;
-          requestConsoleEvents();
-        }, intEventRetryDelayMs);
-        intEventRetryDelayMs = Math.min(intEventRetryDelayMs * 2, 30_000);
-      } else if (boolEventsRequested) {
-        requestConsoleEvents();
-      }
+      if (!boolStopped && boolEventsRequested) requestConsoleEvents();
     });
 }
 
@@ -674,7 +697,7 @@ async function syncConsoleWork(
         logsComplete: false,
       };
       saveConsoleWork(record);
-      const promiseWork = prepareAndRun(record, credential).finally(() => {
+      const promiseWork = prepareAndStartRun(record, credential).finally(() => {
         mapPreparingWork.delete(assignment.id);
       });
       mapPreparingWork.set(assignment.id, promiseWork);
@@ -684,16 +707,20 @@ async function syncConsoleWork(
       boolPreparationRefresh = true;
     } else {
       let boolFailed = false;
+      let retryError: unknown;
       promisePreparation = prepareRequestedPackages(response.preparations, credential)
         .catch((e: unknown) => {
           boolFailed = true;
+          retryError = e;
           loggerMain.warn(`Console Package preparation: ${getErrorMessage(e)}`);
         })
         .finally(() => {
           promisePreparation = undefined;
           if (boolFailed || boolPreparationRefresh) {
             boolPreparationRefresh = false;
-            requestConsoleWork(boolFailed);
+            requestConsoleWork(
+              boolFailed && isCurrentControlCredential(credential) ? retryError : undefined,
+            );
           }
         });
     }
@@ -703,17 +730,20 @@ async function syncConsoleWork(
       const promiseFile = sendConsoleFile(strSessionKey, credential, transfer)
         .catch((e: unknown) => {
           loggerMain.warn(`Console log/file transfer: ${getErrorMessage(e)}`);
-          requestConsoleWork(true);
+          requestConsoleWork(isCurrentControlCredential(credential) ? e : undefined);
         })
         .finally(() => setFileTransfers.delete(promiseFile));
       setFileTransfers.add(promiseFile);
     }
 }
 
-async function processConsoleUpdates(): Promise<void> {
-  while (!boolStopped && boolWorkRequested) {
-    const credential = getConsoleControlCredential();
-    if (!credential) return;
+async function processConsoleUpdates(credential: ConsoleCredentialSnapshot): Promise<void> {
+  while (
+    !boolStopped &&
+    boolWorkRequested &&
+    isCurrentControlCredential(credential) &&
+    performance.now() >= floatWorkRetryAt
+  ) {
     boolWorkRequested = false;
     try {
       await syncConsoleWork(getConsoleWorkSessionKey(credential), credential);
@@ -724,25 +754,61 @@ async function processConsoleUpdates(): Promise<void> {
   }
 }
 
-function scheduleConsoleRetry(): void {
-  if (boolStopped || timerRetry || !getConsoleControlCredential()) return;
-  timerRetry = setTimeout(() => {
+function deferConsoleWork(error: unknown): void {
+  const credential = getConsoleControlCredential();
+  if (!credential) return;
+  const strSessionKey = getConsoleWorkSessionKey(credential);
+  if (strWorkRetrySessionKey !== strSessionKey) {
+    clearTimeout(timerRetry);
     timerRetry = undefined;
-    requestConsoleSync();
-  }, intRetryDelayMs);
+    strWorkRetrySessionKey = strSessionKey;
+    floatWorkRetryAt = 0;
+    intRetryDelayMs = 2000;
+    boolContactFailureLogged = false;
+  }
+  const intRetryAfterMs = error instanceof ConsoleRequestError ? error.retryAfterMs : 0;
+  floatWorkRetryAt = Math.max(
+    floatWorkRetryAt,
+    performance.now() + Math.max(intRetryDelayMs, intRetryAfterMs),
+  );
   intRetryDelayMs = Math.min(intRetryDelayMs * 2, 30_000);
 }
 
 function requestConsoleSync(): void {
-  if (boolStopped || promiseSync || !getConsoleControlCredential()) return;
-  let boolFailed = false;
-  promiseSync = processConsoleUpdates()
+  const credential = getConsoleControlCredential();
+  if (boolStopped || promiseSync || !credential || !boolWorkRequested) return;
+  const strSessionKey = getConsoleWorkSessionKey(credential);
+  if (strWorkRetrySessionKey !== strSessionKey) {
+    clearTimeout(timerRetry);
+    timerRetry = undefined;
+    strWorkRetrySessionKey = strSessionKey;
+    floatWorkRetryAt = 0;
+    intRetryDelayMs = 2000;
+    boolContactFailureLogged = false;
+  }
+  const floatRemainingMs = floatWorkRetryAt - performance.now();
+  if (floatRemainingMs > 0) {
+    // Notifications mark pending work but cannot shorten a failed request's backoff.
+    timerRetry ??= setTimeout(
+      () => {
+        timerRetry = undefined;
+        requestConsoleSync();
+      },
+      Math.min(floatRemainingMs, 2_147_483_647),
+    );
+    return;
+  }
+  clearTimeout(timerRetry);
+  timerRetry = undefined;
+  promiseSync = processConsoleUpdates(credential)
     .then(() => {
+      if (!isCurrentControlCredential(credential)) return;
       intRetryDelayMs = 2000;
       boolContactFailureLogged = false;
     })
     .catch((e: unknown) => {
-      boolFailed = true;
+      if (!isCurrentControlCredential(credential)) return;
+      deferConsoleWork(e);
       if (!boolContactFailureLogged) {
         boolContactFailureLogged = true;
         loggerMain.warn(`Console work contact: ${getErrorMessage(e)}`);
@@ -750,21 +816,16 @@ function requestConsoleSync(): void {
     })
     .finally(() => {
       promiseSync = undefined;
-      if (boolFailed) scheduleConsoleRetry();
-      else if (boolWorkRequested) requestConsoleSync();
+      if (boolWorkRequested) requestConsoleSync();
     });
 }
 
-function requestConsoleWork(delayed = false): void {
+function requestConsoleWork(error?: unknown): void {
   if (boolStopped) return;
   boolWorkRequested = true;
-  if (delayed) scheduleConsoleRetry();
-  else {
-    clearTimeout(timerRetry);
-    timerRetry = undefined;
-    requestConsoleSync();
-    requestLogFlush();
-  }
+  if (error !== undefined) deferConsoleWork(error);
+  requestConsoleSync();
+  requestLogFlush();
   requestConsoleEvents();
 }
 
@@ -772,6 +833,10 @@ export function startConsoleWork(): void {
   boolStopped = false;
   intRetryDelayMs = 2000;
   intEventRetryDelayMs = 2000;
+  floatWorkRetryAt = 0;
+  floatEventRetryAt = 0;
+  strWorkRetrySessionKey = undefined;
+  strEventRetrySessionKey = undefined;
   boolContactFailureLogged = false;
   boolEventFailureLogged = false;
   stopWorkListener = onConsoleWorkAvailable(() => requestConsoleWork());

@@ -128,7 +128,7 @@
 import { shallowRef, computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { RouterLink, useRoute } from "vue-router";
 import JobActions from "@/components/runs/JobActions.vue";
-import { ARR_JOB_STATE, getJobs, type JobPage, type RunFilters } from "@/api/runs";
+import { ARR_JOB_STATE, getJobs, type JobPage, type JobFilters } from "@/api/runs";
 import { getApiError } from "@/api/errors";
 import { PRIORITY_LABELS, JOB_STATE_LABELS } from "@/app/runLabels";
 import { formatDateTime } from "@/app/formatters";
@@ -136,7 +136,7 @@ import { useSessionStore } from "@/stores/sessionStore";
 const ARR_HEADER = [
   { title: "Schedule", key: "schedule_name" },
   { title: "Project", key: "project_name" },
-  { title: "Version", key: "version" },
+  { title: "Version", key: "project_version" },
   { title: "Target", key: "target_name" },
   { title: "Priority", key: "priority" },
   { title: "Queued At", key: "queued_at" },
@@ -146,19 +146,17 @@ const ARR_HEADER = [
 const sessionStore = useSessionStore();
 const route = useRoute();
 const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");
-function emptyFilters(): RunFilters {
+function emptyFilters(): JobFilters {
   return {
     departmentIds: [],
     projectName: "",
     scheduleName: "",
     states: [],
-    executorId: "",
-    startedFrom: "",
-    startedUntil: "",
   };
 }
 const filters = ref(emptyFilters());
-if (typeof route.query.state === "string") filters.value.states = [route.query.state];
+const initialState = ARR_JOB_STATE.find((state) => state === route.query.state);
+if (initialState) filters.value.states = [initialState];
 if (typeof route.query.department_id === "string")
   filters.value.departmentIds = [route.query.department_id];
 let appliedFilters = {

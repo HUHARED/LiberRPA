@@ -10,13 +10,12 @@ from datetime import datetime
 from typing import TYPE_CHECKING, TypedDict, cast
 
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError
-from django.db import DatabaseError, transaction
+from django.db import DatabaseError
 from django.db.models import Exists, OuterRef, Q
 from django.http import HttpRequest, JsonResponse
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.debug import sensitive_variables
 from django.views.decorators.http import require_POST
 
 from accounts.rate_limits import apply_executor_client_rate_limit
@@ -32,11 +31,10 @@ from executors.client_sessions import (
     InvalidExecutorSessionError,
     ExecutorClientAction,
     ExecutorClientResult,
-    get_locked_executor_session,
+    get_executor_session_identity,
     open_executor_client_request,
 )
 from executors.models import ExecutorSession
-from organizations.permissions import AccessChannel, resolve_organization_access
 
 from .contracts import (
     WorkPollRequest,
@@ -54,7 +52,7 @@ from .models import (
     Run,
     RunEvent,
 )
-from .dispatch import get_start_evidence_not_before, issue_permission
+from .dispatch import get_start_evidence_not_before, issue_start_permit
 from .events import receive_event
 
 if TYPE_CHECKING:
@@ -69,7 +67,7 @@ class WorkAssignmentPayload(TypedDict):
     id: uuid.UUID
     job_id: uuid.UUID
     run_id: uuid.UUID
-    attempt: int
+    attempt_number: int
     package_id: uuid.UUID
     package_download_url: str
     snapshot: dict[str, JsonValue]
@@ -116,36 +114,6 @@ class WorkEventRetentionResponse(TypedDict):
     resolved_assignments: list[ResolvedEventAssignment]
 
 
-@sensitive_variables()
-def authenticate_executor_work(
-    request: HttpRequest,
-) -> ExecutorClientResult | JsonResponse:
-    intRetryAfter = apply_executor_client_rate_limit(request.META.get("REMOTE_ADDR", ""))
-    if intRetryAfter:
-        return build_rate_limited_response(intRetryAfter)
-    with open_executor_client_request(
-        authorizationHeader=request.headers.get("Authorization", ""),
-        action=ExecutorClientAction.HEARTBEAT,
-    ) as authentication:
-        result = cast(ExecutorClientResult, authentication)
-        if result.session.executor_id is None:
-            raise InvalidExecutorSessionError("Select an Executor first.")
-        return result
-
-
-def lock_executor_work(authentication: ExecutorClientResult) -> ExecutorSession:
-    access = resolve_organization_access(
-        actorId=authentication.access.actorId,
-        organizationId=authentication.access.organization.id,
-        channel=AccessChannel.EXECUTOR,
-        forUpdate=True,
-    )
-    session = get_locked_executor_session(access, authentication.session.id)
-    if session.executor_id is None:
-        raise InvalidExecutorSessionError("The original association is unavailable.")
-    return session
-
-
 def update_executor_work_state(
     session: ExecutorSession, payload: WorkPollRequest
 ) -> None:
@@ -159,7 +127,7 @@ def update_executor_work_state(
             "reported_at": currentTime,
             "running_run_ids": listRunningRunId,
             "local_waiting_count": payload.local_waiting_count,
-            "local_running_count": payload.local_running_count,
+            "other_active_run_count": payload.other_active_run_count,
         },
     )
     if boolCreated:
@@ -177,22 +145,22 @@ def update_executor_work_state(
     if work.local_waiting_count != payload.local_waiting_count:
         work.local_waiting_count = payload.local_waiting_count
         listUpdateField.append("local_waiting_count")
-    if work.local_running_count != payload.local_running_count:
-        work.local_running_count = payload.local_running_count
-        listUpdateField.append("local_running_count")
+    if work.other_active_run_count != payload.other_active_run_count:
+        work.other_active_run_count = payload.other_active_run_count
+        listUpdateField.append("other_active_run_count")
     work.save(update_fields=listUpdateField)
 
 
 def _poll(authentication: ExecutorClientResult, payload: WorkPollRequest) -> JsonResponse:
     from .transfers import get_pending_transfers
-    from packages.preparation import get_preparation_commands
+    from packages.preparation import claim_package_preparations
 
     def build_assignment_payload(assignment: Assignment) -> WorkAssignmentPayload:
         return {
             "id": assignment.id,
             "job_id": assignment.job_id,
             "run_id": assignment.run_id,
-            "attempt": assignment.attempt,
+            "attempt_number": assignment.attempt_number,
             "package_id": assignment.job.package_id,
             "package_download_url": f"/api/clients/executor/packages/{assignment.job.package_id}/downloads/",
             "snapshot": {
@@ -201,104 +169,99 @@ def _poll(authentication: ExecutorClientResult, payload: WorkPollRequest) -> Jso
             },
         }
 
-    with transaction.atomic():
-        session = lock_executor_work(authentication)
-        update_executor_work_state(session, payload)
-        listAssignment = list(
-            Assignment.objects
-            .filter(
-                session_id=session.id,
-                state=AssignmentState.PREPARING,
-                job__state=JobState.PREPARING,
-                job__closed_at__isnull=True,
-                job__stop_requested_at__isnull=True,
-            )
-            .select_related("job__request")
-            .order_by("created_at", "id")[:1]
+    session = authentication.session
+    update_executor_work_state(session, payload)
+    listAssignment = list(
+        Assignment.objects
+        .filter(
+            session_id=session.id,
+            state=AssignmentState.PREPARING,
+            job__state=JobState.PREPARING,
+            job__closed_at__isnull=True,
+            job__stop_requested_at__isnull=True,
         )
-        listStop = list(
-            Assignment.objects
-            .filter(
-                Q(stop_requested_at__isnull=False)
-                | Q(job__stop_requested_at__isnull=False),
-                session_id=session.id,
-            )
-            .exclude(state=AssignmentState.FINISHED)
-            # A non-start receipt ends redelivery without changing withdrawal into preparation failure.
-            .exclude(
-                state=AssignmentState.WITHDRAWN,
-                events__kind=RunEventKind.NOT_STARTED,
-            )
-            .exclude(
-                state=AssignmentState.WITHDRAWN,
-                permit_expires_at__isnull=True,
-                events__kind=RunEventKind.PREPARATION_FAILED,
-            )
-            .values("id", "run_id")
+        .select_related("job__request")
+        .order_by("created_at", "id")[:1]
+    )
+    listStop = list(
+        Assignment.objects
+        .filter(
+            Q(stop_requested_at__isnull=False) | Q(job__stop_requested_at__isnull=False),
+            session_id=session.id,
         )
-        dictResponse: WorkPollResponse = {
-            "assignments": [build_assignment_payload(entry) for entry in listAssignment],
-            "stop_requests": [
-                {"assignment_id": entry["id"], "run_id": entry["run_id"]}
-                for entry in listStop
-            ],
-            "file_transfers": get_pending_transfers(session.pk),
-            "preparations": get_preparation_commands(authentication.access, session),
-            "server_time": timezone.now(),
-        }
-        return JsonResponse(dictResponse)
+        .exclude(state=AssignmentState.FINISHED)
+        # A non-start receipt ends redelivery without changing withdrawal into preparation failure.
+        .exclude(
+            state=AssignmentState.WITHDRAWN,
+            events__kind=RunEventKind.NOT_STARTED,
+        )
+        .exclude(
+            state=AssignmentState.WITHDRAWN,
+            permit_expires_at__isnull=True,
+            events__kind=RunEventKind.PREPARATION_FAILED,
+        )
+        .values("id", "run_id")
+    )
+    dictResponse: WorkPollResponse = {
+        "assignments": [build_assignment_payload(entry) for entry in listAssignment],
+        "stop_requests": [
+            {"assignment_id": entry["id"], "run_id": entry["run_id"]}
+            for entry in listStop
+        ],
+        "file_transfers": get_pending_transfers(session.pk),
+        "preparations": claim_package_preparations(authentication.access, session),
+        "server_time": timezone.now(),
+    }
+    return JsonResponse(dictResponse)
 
 
 def _check_event_retention(
     authentication: ExecutorClientResult, payload: WorkEventRetentionRequest
 ) -> JsonResponse:
     """Confirm settled original work without accepting, retrying or deleting any event."""
-    with transaction.atomic():
-        session = lock_executor_work(authentication)
-        nonStartReceipts = RunEvent.objects.filter(
-            assignment_id=OuterRef("pk"), kind=RunEventKind.NOT_STARTED
+    session = authentication.session
+    nonStartReceipts = RunEvent.objects.filter(
+        assignment_id=OuterRef("pk"), kind=RunEventKind.NOT_STARTED
+    )
+    endedRuns = Run.objects.filter(
+        assignment_id=OuterRef("pk"), ended_at__isnull=False
+    ).exclude(result=RunResult.RUNNING)
+    unsettledAssignments = Assignment.objects.filter(job_id=OuterRef("job_id")).filter(
+        ~Q(state__in=(AssignmentState.FINISHED, AssignmentState.WITHDRAWN))
+        | (
+            Q(permit_expires_at__isnull=False)
+            & ~Exists(nonStartReceipts)
+            & ~Exists(endedRuns)
         )
-        endedRuns = Run.objects.filter(
-            assignment_id=OuterRef("pk"), ended_at__isnull=False
-        ).exclude(result=RunResult.RUNNING)
-        unsettledAssignments = Assignment.objects.filter(
-            job_id=OuterRef("job_id")
-        ).filter(
-            ~Q(state__in=(AssignmentState.FINISHED, AssignmentState.WITHDRAWN))
-            | (
-                Q(permit_expires_at__isnull=False)
-                & ~Exists(nonStartReceipts)
-                & ~Exists(endedRuns)
-            )
+    )
+    unsettledRuns = Run.objects.filter(job_id=OuterRef("job_id")).filter(
+        Q(ended_at__isnull=True) | Q(result=RunResult.RUNNING)
+    )
+    assignments = (
+        Assignment.objects
+        .filter(
+            ~Exists(unsettledAssignments),
+            ~Exists(unsettledRuns),
+            pk__in=payload.assignment_ids,
+            session_id=session.id,
+            executor_id=session.executor_id,
+            job__request__organization_id=authentication.access.organization.id,
+            job__state=JobState.FINISHED,
+            job__ended_at__isnull=False,
+            job__retry_at__isnull=True,
         )
-        unsettledRuns = Run.objects.filter(job_id=OuterRef("job_id")).filter(
-            Q(ended_at__isnull=True) | Q(result=RunResult.RUNNING)
-        )
-        assignments = (
-            Assignment.objects
-            .filter(
-                ~Exists(unsettledAssignments),
-                ~Exists(unsettledRuns),
-                pk__in=payload.assignment_ids,
-                session_id=session.id,
-                executor_id=session.executor_id,
-                job__request__organization_id=authentication.access.organization.id,
-                job__state=JobState.FINISHED,
-                job__ended_at__isnull=False,
-                job__retry_at__isnull=True,
-            )
-            .annotate(has_run=Exists(Run.objects.filter(assignment_id=OuterRef("pk"))))
-            .order_by("id")
-            .values_list("id", "has_run")
-        )
-        # A missing assignment is not evidence of completion (for example after backup restore).
-        dictResponse: WorkEventRetentionResponse = {
-            "resolved_assignments": [
-                {"assignment_id": assignmentId, "run_started": boolHasRun}
-                for assignmentId, boolHasRun in assignments
-            ]
-        }
-        return JsonResponse(dictResponse)
+        .annotate(has_run=Exists(Run.objects.filter(assignment_id=OuterRef("pk"))))
+        .order_by("id")
+        .values_list("id", "has_run")
+    )
+    # A missing assignment is not evidence of completion (for example after backup restore).
+    dictResponse: WorkEventRetentionResponse = {
+        "resolved_assignments": [
+            {"assignment_id": assignmentId, "run_started": boolHasRun}
+            for assignmentId, boolHasRun in assignments
+        ]
+    }
+    return JsonResponse(dictResponse)
 
 
 @csrf_exempt
@@ -306,9 +269,12 @@ def _check_event_retention(
 @require_POST
 def executor_work_endpoint(request: HttpRequest, action: str) -> JsonResponse:
     try:
-        authentication = authenticate_executor_work(request)
-        if isinstance(authentication, JsonResponse):
-            return authentication
+        intRetryAfter = apply_executor_client_rate_limit(
+            request.META.get("REMOTE_ADDR", "")
+        )
+        if intRetryAfter:
+            return build_rate_limited_response(intRetryAfter)
+        identity = get_executor_session_identity(request.headers.get("Authorization", ""))
         requestClass = {
             "poll": WorkPollRequest,
             "permit": WorkPermitRequest,
@@ -318,43 +284,52 @@ def executor_work_endpoint(request: HttpRequest, action: str) -> JsonResponse:
         payload = parse_json_request(request, requestClass, maxBodyBytes=1024 * 1024)
         if isinstance(payload, JsonResponse):
             return payload
-        if action == "poll":
-            return _poll(authentication, cast(WorkPollRequest, payload))
-        if action == "event-retention":
-            return _check_event_retention(
-                authentication, cast(WorkEventRetentionRequest, payload)
-            )
-        if action == "permit":
-            with transaction.atomic():
-                session = lock_executor_work(authentication)
-                assignment = issue_permission(
-                    session, cast(WorkPermitRequest, payload).assignment_id
-                )
-                if assignment.permit_expires_at is None:
-                    return build_error_response(
-                        "assignment_skipped"
-                        if assignment.state == AssignmentState.FINISHED
-                        else "assignment_requeued",
-                        assignment.reason,
-                        statusCode=409,
+        if action != "events":
+            with open_executor_client_request(
+                identity=identity, action=ExecutorClientAction.HEARTBEAT
+            ) as result:
+                authentication = cast(ExecutorClientResult, result)
+                if action == "poll":
+                    return _poll(authentication, cast(WorkPollRequest, payload))
+                if action == "event-retention":
+                    return _check_event_retention(
+                        authentication, cast(WorkEventRetentionRequest, payload)
                     )
-                dictPermit: WorkPermitResponse = {
-                    "assignment_id": assignment.id,
-                    "run_id": assignment.run_id,
-                    "permit_expires_at": assignment.permit_expires_at,
-                    "start_evidence_not_before": get_start_evidence_not_before(
-                        assignment.permit_expires_at
-                    ),
-                    "server_time": timezone.now(),
-                }
-                return JsonResponse(dictPermit)
+                if action == "permit":
+                    session = authentication.session
+                    assignment = issue_start_permit(
+                        session, cast(WorkPermitRequest, payload).assignment_id
+                    )
+                    if assignment.permit_expires_at is None:
+                        return build_error_response(
+                            "assignment_skipped"
+                            if assignment.state == AssignmentState.FINISHED
+                            else "assignment_requeued",
+                            assignment.reason,
+                            statusCode=409,
+                        )
+                    dictPermit: WorkPermitResponse = {
+                        "assignment_id": assignment.id,
+                        "run_id": assignment.run_id,
+                        "permit_expires_at": assignment.permit_expires_at,
+                        "start_evidence_not_before": get_start_evidence_not_before(
+                            assignment.permit_expires_at
+                        ),
+                        "server_time": timezone.now(),
+                    }
+                    return JsonResponse(dictPermit)
         listAccepted: list[uuid.UUID] = []
         listRejected: list[WorkEventRejection] = []
+        boolContactRecorded = False
         for event in cast(WorkEventsRequest, payload).events:
             try:
-                with transaction.atomic():
-                    session = lock_executor_work(authentication)
-                    receive_event(session, event)
+                with open_executor_client_request(
+                    identity=identity,
+                    action=ExecutorClientAction.HEARTBEAT,
+                    recordContact=not boolContactRecorded,
+                ) as result:
+                    receive_event(cast(ExecutorClientResult, result).session, event)
+                boolContactRecorded = True
                 listAccepted.append(event.event_id)
             except (ValidationError, ObjectDoesNotExist) as e:
                 listRejected.append({

@@ -14,7 +14,8 @@ from executors.models import Executor, ExecutorGroup
 from assets.models import Asset
 from data_queues.models import DataQueue
 from shared_files.models import SharedFile, UploadState, UploadSession
-from packages.models import Package, PackageUpload, PackageUploadState
+from packages.contracts import PackageUploadState
+from packages.models import Package, PackageUpload
 from schedules.models import Schedule
 from runs.models import Job, JobState
 from operations.audit import record_audit

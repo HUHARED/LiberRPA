@@ -7,6 +7,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from liberrpa.Logging import Log
 from liberrpa.Common._Utils import PROCESS_NAME
+from liberrpa.Common._RunContext import ExecutorRunStateStatus
 from liberrpa.Dialog import show_notification
 from liberrpa.Common._TypedValue import MouseButton, HookKey
 import liberrpa.FlowControl.End as End
@@ -500,7 +501,7 @@ def _register_force_exit() -> None:
 
     def on_hotkey_pressed() -> None:
         # Assign the value to record exit reason.
-        End.executionResult = "terminated"
+        End.executionResult = ExecutorRunStateStatus.TERMINATED
         End.cleanup()
         Log.verbose("on_hotkey_pressed - os._exit")
         os._exit(0)
@@ -543,7 +544,7 @@ def _listen_for_exit(stdinFd: int) -> None:
         for bytesLine in listLine:
             if bytesLine.strip() == b"Executor-terminated":
                 Log.critical("Terminated by Executor.")
-                End.executionResult = "terminated"
+                End.executionResult = ExecutorRunStateStatus.TERMINATED
                 End.cleanup()
                 Log.verbose("_handle_sigterm - os._exit")
                 os._exit(0)

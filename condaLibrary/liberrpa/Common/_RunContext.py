@@ -14,7 +14,7 @@ from pathlib import Path
 from uuid import UUID
 from dataclasses import dataclass
 from functools import cache
-from typing import Literal, NotRequired, TypedDict, cast
+from typing import NotRequired, TypedDict, cast
 
 from liberrpa.Common._TypedValue import JsonValue
 
@@ -43,7 +43,11 @@ _INT_MAX_SAFE_INTEGER = 2**53 - 1
 _INT_MAX_ERROR_MESSAGE_LENGTH = 2000
 
 
-type Str_ExecutorRunStateStatus = Literal["running", "completed", "error", "terminated"]
+class ExecutorRunStateStatus(StrEnum):
+    RUNNING = "running"
+    COMPLETED = "completed"
+    ERROR = "error"
+    TERMINATED = "terminated"
 
 
 @dataclass(frozen=True, slots=True)
@@ -55,14 +59,14 @@ class ExecutorRunContext:
     startedAt: datetime
 
 
-class DictExecutorRunState(TypedDict):
+class ExecutorRunState(TypedDict):
     schemaVersion: int
     runId: str
     packageName: str
     packageVersion: str
     startedAt: str
     logPath: str
-    status: Str_ExecutorRunStateStatus
+    status: ExecutorRunStateStatus
     endedAt: NotRequired[str]
     outputs: NotRequired[OutputSnapshot]
     errorSummary: NotRequired[ExecutionErrorSummary | None]
@@ -258,10 +262,10 @@ def get_executor_run_context() -> ExecutorRunContext | None:
 
 def _build_executor_run_state(
     contextObj: ExecutorRunContext,
-    status: Str_ExecutorRunStateStatus,
+    status: ExecutorRunStateStatus,
     logPath: str,
-) -> DictExecutorRunState:
-    dictState: DictExecutorRunState = {
+) -> ExecutorRunState:
+    dictState: ExecutorRunState = {
         "schemaVersion": 1,
         "runId": contextObj.runId,
         "packageName": contextObj.packageName,
@@ -271,7 +275,7 @@ def _build_executor_run_state(
         "status": status,
     }
 
-    if status != "running":
+    if status != ExecutorRunStateStatus.RUNNING:
         dictState["endedAt"] = (
             datetime.now().astimezone().isoformat(timespec="microseconds")
         )
@@ -280,9 +284,9 @@ def _build_executor_run_state(
 
 
 def build_executor_run_state(
-    status: Str_ExecutorRunStateStatus,
+    status: ExecutorRunStateStatus,
     logPath: str,
-) -> DictExecutorRunState | None:
+) -> ExecutorRunState | None:
     contextObj = get_executor_run_context()
     if contextObj is None:
         return None
@@ -295,7 +299,7 @@ def build_executor_run_state(
 
 
 def write_executor_run_state(
-    status: Str_ExecutorRunStateStatus,
+    status: ExecutorRunStateStatus,
     logPath: str,
     outputs: OutputSnapshot | None = None,
     errorSummary: ExecutionErrorSummary | None = None,
@@ -310,10 +314,12 @@ def write_executor_run_state(
         logPath=logPath,
     )
 
-    if status != "running":
+    if status != ExecutorRunStateStatus.RUNNING:
         if outputs is not None:
             dictState["outputs"] = outputs
-        dictState["errorSummary"] = errorSummary if status == "error" else None
+        dictState["errorSummary"] = (
+            errorSummary if status == ExecutorRunStateStatus.ERROR else None
+        )
 
     pathRunState = contextObj.runStatePath
     pathTemp = pathRunState.with_name(f".{pathRunState.name}.{os.getpid()}.tmp")

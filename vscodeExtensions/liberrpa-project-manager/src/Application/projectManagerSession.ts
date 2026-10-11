@@ -2,6 +2,7 @@
 
 import * as vscode from "vscode";
 import { randomUUID } from "node:crypto";
+import * as path from "node:path";
 
 import {
   log,
@@ -51,6 +52,7 @@ import {
   loadPackageProjectData,
   selectPackageOutputFolder,
   packageFlowProject,
+  type PackageProjectData,
   openPackageProjectManifest,
   revealProjectPackage,
 } from "./Project/packageProject";
@@ -92,6 +94,8 @@ export class ProjectManagerSession {
   private packageResult: DictProjectPackageResult | null = null;
   private publishResult: DictProtocolResult_Publish | null = null;
   private consolePublishRequestId = "";
+  private consoleDepartments: ConsolePublishDepartment[] = [];
+  private consolePublishingMessage = "";
   private consolePublishResult: ConsolePublishResult = {
     status: ConsolePublishStatus.NotRequested,
     message: "",
@@ -126,26 +130,48 @@ export class ProjectManagerSession {
     }
   }
 
+  private async loadConsolePublishingDepartments(): Promise<void> {
+    this.consoleDepartments = [];
+    this.consolePublishingMessage = "";
+    try {
+      this.consoleDepartments = await this.consoleAccount.getPackageDepartments();
+      if (this.consoleDepartments.length === 0) {
+        this.consolePublishingMessage =
+          "Your account has no department where it can publish Packages.";
+      }
+    } catch (e: unknown) {
+      this.consolePublishingMessage = getErrorMessage(e);
+    }
+  }
+
   private async getPackageProjectInitialData(
     notification?: DictProjectManagerNotification,
     additionalWarningMessages: string[] = [],
+    checkedData?: PackageProjectData,
   ): Promise<DictPackageProjectInitialData> {
     const workspaceFolder = this.getSingleWorkspaceFolder();
     const input =
       this.packageProjectInput ?? getDefaultPackageProjectInput(workspaceFolder);
-    const data = await loadPackageProjectData(workspaceFolder, input);
+    const data = checkedData ?? (await loadPackageProjectData(workspaceFolder, input));
     logComponentManagementWarnings(data.warnings);
     this.packageProjectInput = data.input;
-    let arrConsoleDepartment: ConsolePublishDepartment[] = [];
-    let strConsolePublishingMessage = "";
-    try {
-      arrConsoleDepartment = await this.consoleAccount.getPackageDepartments();
-      if (arrConsoleDepartment.length === 0) {
-        strConsolePublishingMessage =
-          "Your account has no department where it can publish Packages.";
-      }
-    } catch (e: unknown) {
-      strConsolePublishingMessage = getErrorMessage(e);
+    if (
+      this.packageResult !== null &&
+      (!data.packageFileExists ||
+        data.packageFileName === null ||
+        path.join(input.outputFolderPath, data.packageFileName) !==
+          this.packageResult.packageFilePath)
+    ) {
+      this.packageResult = null;
+      this.consolePublishRequestId = "";
+      this.consolePublishResult = {
+        status: ConsolePublishStatus.NotRequested,
+        message: "",
+        packageId: null,
+      };
+    }
+    if (checkedData === undefined && input.publishToConsole) {
+      await this.loadConsolePublishingDepartments();
     }
 
     return {
@@ -164,8 +190,8 @@ export class ProjectManagerSession {
         ]),
       ],
       packageResult: this.packageResult,
-      consoleDepartments: arrConsoleDepartment,
-      consolePublishingMessage: strConsolePublishingMessage,
+      consoleDepartments: this.consoleDepartments,
+      consolePublishingMessage: this.consolePublishingMessage,
       consolePublishResult: this.consolePublishResult,
       ...(notification === undefined ? {} : { notification }),
     };
@@ -226,20 +252,6 @@ export class ProjectManagerSession {
 
     const intLoadId = ++this.operationLoadId;
     switch (this.operation) {
-      case "console": {
-        const state = await this.consoleAccount.getState();
-        if (intLoadId !== this.operationLoadId || this.operation !== "console") {
-          return;
-        }
-
-        await this.host.postMessage({
-          command: "loadConsole",
-          theme: getTheme(vscode.window.activeColorTheme),
-          state,
-        });
-        return;
-      }
-
       case "createProject": {
         const initialData = {
           templates: getProjectTemplates(),
@@ -288,6 +300,21 @@ export class ProjectManagerSession {
           command: "loadManageComponents",
           initialData,
         });
+        return;
+      }
+
+      case "console": {
+        const state = await this.consoleAccount.getState();
+        if (intLoadId !== this.operationLoadId || this.operation !== "console") {
+          return;
+        }
+
+        await this.host.postMessage({
+          command: "loadConsole",
+          theme: getTheme(vscode.window.activeColorTheme),
+          state,
+        });
+        return;
       }
     }
   }
@@ -326,15 +353,6 @@ export class ProjectManagerSession {
     const previousPublishResult = this.publishResult;
     const previousConsolePublishResult = this.consolePublishResult;
     this.operation = operation;
-    if (operation === "packageProject") {
-      this.packageProjectInput = null;
-      this.packageResult = null;
-      this.consolePublishResult = {
-        status: ConsolePublishStatus.NotRequested,
-        message: "",
-        packageId: null,
-      };
-    }
     if (operation === "publishComponent") {
       this.publishResult = null;
     }
@@ -388,8 +406,8 @@ export class ProjectManagerSession {
       packageId: null,
     };
     await this.host.postMessage({
-      command: "loadPackageProject",
-      initialData: await this.getPackageProjectInitialData(),
+      command: "consolePublishChanged",
+      result: this.consolePublishResult,
     });
     try {
       const strPackageId = await this.consoleAccount.publishPackage(
@@ -410,8 +428,8 @@ export class ProjectManagerSession {
       };
     }
     await this.host.postMessage({
-      command: "loadPackageProject",
-      initialData: await this.getPackageProjectInitialData(),
+      command: "consolePublishChanged",
+      result: this.consolePublishResult,
     });
   }
 
@@ -454,6 +472,7 @@ export class ProjectManagerSession {
                 : "The Flow Project was packaged successfully.",
           },
           getComponentManagementWarningMessages(operationResult.warnings),
+          operationResult.data,
         ),
       });
       if (input.publishToConsole) {
@@ -466,15 +485,23 @@ export class ProjectManagerSession {
     await this.runBusyOperation(async () => {
       await this.saveAllProjectFiles();
       this.packageProjectInput = input;
-      this.packageResult = null;
-      this.consolePublishResult = {
-        status: ConsolePublishStatus.NotRequested,
-        message: "",
-        packageId: null,
-      };
       await this.host.postMessage({
         command: "loadPackageProject",
         initialData: await this.getPackageProjectInitialData(),
+      });
+    });
+  }
+
+  private async refreshConsolePublishing(input: DictPackageProjectInput): Promise<void> {
+    await this.runBusyOperation(async () => {
+      this.packageProjectInput = input;
+      if (input.publishToConsole) {
+        await this.loadConsolePublishingDepartments();
+      }
+      await this.host.postMessage({
+        command: "consolePublishingDepartmentsLoaded",
+        departments: this.consoleDepartments,
+        message: this.consolePublishingMessage,
       });
     });
   }
@@ -743,30 +770,7 @@ export class ProjectManagerSession {
     }
 
     switch (message.command) {
-      case "changeConsoleAddress":
-        await this.runConsoleAction(ConsoleAction.ChangeAddress, () =>
-          this.consoleAccount.changeAddress(message.url),
-        );
-        return;
-
-      case "signInConsole":
-        await this.runConsoleAction(ConsoleAction.SignIn, () =>
-          this.consoleAccount.signIn(message.email, message.password),
-        );
-        return;
-
-      case "signOutConsole":
-        await this.runConsoleAction(ConsoleAction.SignOut, () =>
-          this.consoleAccount.signOut(),
-        );
-        return;
-
-      case "checkConsoleConnection":
-        await this.runConsoleAction(ConsoleAction.CheckConnection, () =>
-          this.consoleAccount.checkConnection(),
-        );
-        return;
-
+      // Shared commands.
       case "ready":
         if (!this.webviewReady) {
           this.webviewReady = true;
@@ -774,6 +778,7 @@ export class ProjectManagerSession {
         }
         return;
 
+      // Create Project.
       case "selectTargetFolder":
         if (this.operation !== "createProject") {
           return;
@@ -795,6 +800,7 @@ export class ProjectManagerSession {
         }
         return;
 
+      // Package Project.
       case "selectPackageOutputFolder":
         if (this.operation === "packageProject") {
           await this.selectPackageFolder(message.input);
@@ -810,6 +816,12 @@ export class ProjectManagerSession {
       case "refreshPackageProject":
         if (this.operation === "packageProject") {
           await this.refreshPackageProject(message.input);
+        }
+        return;
+
+      case "refreshConsolePublishing":
+        if (this.operation === "packageProject") {
+          await this.refreshConsolePublishing(message.input);
         }
         return;
 
@@ -837,6 +849,7 @@ export class ProjectManagerSession {
         }
         return;
 
+      // Publish Component.
       case "runPublishComponent":
         if (this.operation === "publishComponent") {
           await this.runPublishComponent();
@@ -855,6 +868,7 @@ export class ProjectManagerSession {
         }
         return;
 
+      // Manage Components.
       case "buildProjectDependencyPlan":
         if (this.operation === "manageComponents") {
           await this.buildDependencyPlan(message.dependencyOperation);
@@ -888,6 +902,32 @@ export class ProjectManagerSession {
         }
         return;
 
+      // Console account.
+      case "changeConsoleAddress":
+        await this.runConsoleAction(ConsoleAction.ChangeAddress, () =>
+          this.consoleAccount.changeAddress(message.url),
+        );
+        return;
+
+      case "signInConsole":
+        await this.runConsoleAction(ConsoleAction.SignIn, () =>
+          this.consoleAccount.signIn(message.email, message.password),
+        );
+        return;
+
+      case "signOutConsole":
+        await this.runConsoleAction(ConsoleAction.SignOut, () =>
+          this.consoleAccount.signOut(),
+        );
+        return;
+
+      case "checkConsoleConnection":
+        await this.runConsoleAction(ConsoleAction.CheckConnection, () =>
+          this.consoleAccount.checkConnection(),
+        );
+        return;
+
+      // Close the panel.
       case "cancel":
         this.host.dispose();
     }

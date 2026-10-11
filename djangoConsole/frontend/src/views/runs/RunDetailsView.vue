@@ -20,7 +20,7 @@
     {{ strError }}
   </v-alert>
   <template v-if="run">
-    <h1 class="text-h5 mb-3">{{ run.project_name }} · {{ run.version }}</h1>
+    <h1 class="text-h5 mb-3">{{ run.project_name }} · {{ run.project_version }}</h1>
     <v-card variant="outlined" class="mb-4">
       <v-card-text>
         <v-row>
@@ -60,7 +60,10 @@
           :download-enabled="run.files.logs.available"
           :download-reason="run.files.logs.reason"
           @download="download(RunFileKind.Logs)" />
-        <RunInputs v-if="strTab === 'inputs'" :inputs="run.run_snapshot" />
+        <RunSettingsDetails
+          v-if="strTab === 'inputs'"
+          :settings="run.run_snapshot"
+          :python-environment-name="run.run_snapshot.python_environment_name" />
         <template v-if="strTab === 'outputs'">
           <v-alert v-if="run.outputs_status === 'waiting'" type="info" variant="tonal">
             Waiting for the final outputs.
@@ -152,25 +155,23 @@
               </tr>
             </tbody>
           </v-table>
-          <h2 class="text-h6 my-4">Result &amp; Events</h2>
-          <p>{{ run.reason || "No additional result message." }}</p>
-          <pre
-            v-if="Object.keys(run.error_summary ?? {}).length"
-            class="text-pre-wrap text-break mt-3"
-            >{{ formatJsonValue(run.error_summary) }}</pre>
+          <template v-if="Object.keys(run.error_summary ?? {}).length">
+            <h2 class="text-h6 my-4">Error Details</h2>
+            <pre class="text-pre-wrap text-break mt-3">{{
+              formatJsonValue(run.error_summary)
+            }}</pre>
+          </template>
           <h2 class="text-h6 mt-5 mb-2">Other Runs in This Job</h2>
-          <p class="mb-3">Current attempt: {{ run.attempt }}</p>
+          <p class="mb-3">Current attempt: {{ run.attempt_number }}</p>
           <RunTable
             :runs="run.other_runs"
             :time-zone="strTimeZone"
-            show-attempt
             empty-text="No other runs." />
           <h2 class="text-h6 mt-5 mb-3">Video</h2>
           <p v-if="!run.run_snapshot.builtin_record_video">
             Recording was not enabled for this run.
           </p>
           <template v-else>
-            <p class="mb-3">Files are stored on the Executor.</p>
             <v-alert
               v-if="run.recording.status !== 'ready'"
               type="info"
@@ -255,7 +256,7 @@
 <script setup lang="ts">
 import { shallowRef, computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { RouterLink, useRouter } from "vue-router";
-import RunInputs from "@/components/runOptions/RunInputs.vue";
+import RunSettingsDetails from "@/components/runOptions/RunSettingsDetails.vue";
 import RunLogs from "@/components/runs/RunLogs.vue";
 import RunTable from "@/components/runs/RunTable.vue";
 import RunPackageDialog from "@/components/packages/RunPackageDialog.vue";
@@ -351,7 +352,15 @@ watch(
 );
 onMounted(() => {
   timer = setInterval(() => {
-    if (!document.hidden && !boolLoading.value && run.value?.result === "running")
+    if (
+      !document.hidden &&
+      !boolLoading.value &&
+      run.value &&
+      (run.value.result === "running" ||
+        (run.value.run_snapshot.builtin_record_video &&
+          run.value.recording.status !== "ready" &&
+          run.value.recording.status !== "unavailable"))
+    )
       void load();
   }, 10000);
 });

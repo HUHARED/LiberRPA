@@ -34,6 +34,7 @@ from .client_sessions import (
     ExecutorClientAction,
     InvalidExecutorSessionError,
     begin_executor_login,
+    get_executor_session_identity,
     open_executor_client_request,
 )
 from .models import Executor, ExecutorSession
@@ -58,8 +59,8 @@ _DICT_CLIENT_METHOD = {
 class ExecutorLoginRequest(JsonRequest):
     email: str
     password: SecretStr
-    computer: str
-    version: str
+    computer_name: str
+    client_version: str
 
 
 class ExecutorAssociationRequest(JsonRequest):
@@ -145,8 +146,8 @@ def build_client_session_payload(
             "department_id": executor.department_id,
             "dispatch_enabled": executor.dispatch_enabled,
         },
-        "computer": session.computer,
-        "version": session.client_version,
+        "computer_name": session.computer_name,
+        "client_version": session.client_version,
         "last_seen_at": session.last_seen_at,
         "heartbeat_interval_seconds": 15,
     }
@@ -185,8 +186,8 @@ def sign_in_executor(request: HttpRequest) -> JsonResponse:
         result = begin_executor_login(
             userId=user.id,
             verifiedAuthHash=user.get_session_auth_hash(),
-            computer=loginRequest.computer,
-            clientVersion=loginRequest.version,
+            computerName=loginRequest.computer_name,
+            clientVersion=loginRequest.client_version,
         )
         return JsonResponse({
             **build_client_session_payload(result.session, result.access),
@@ -248,7 +249,9 @@ def process_executor_client_request(
             if isinstance(contactRequest, JsonResponse):
                 return contactRequest
         with open_executor_client_request(
-            authorizationHeader=request.headers.get("Authorization", ""),
+            identity=get_executor_session_identity(
+                request.headers.get("Authorization", "")
+            ),
             action=action,
             executorId=executorId,
             pageNumber=intPageNumber,

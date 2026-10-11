@@ -3,14 +3,17 @@
 import type Database from "better-sqlite3";
 
 import { getErrorMessage } from "../../shared/error";
-import type {
-  RunHistoryQueryOptions,
-  RunHistoryPage,
-  RunTerminalStatus,
-  RunDetails,
-  RunOutputs,
+import {
+  RunSource,
+  RunOutputsStatus,
+  type RunOutputs,
+  type RunDetails,
+  RunStatus,
+  type RunTerminalStatus,
+  type RunHistoryQueryOptions,
+  type RunHistoryPage,
 } from "../../shared/run";
-import { RunSource, RunStatus } from "../../shared/run";
+
 import { loggerMain } from "../Logging/logger";
 import { ensureExactRecord, ensureNonEmptyString } from "../Common/validation";
 import { getDatabase } from "./connection";
@@ -29,8 +32,8 @@ interface RunHistoryInsertData {
   source: RunSource;
   run_id: string;
   job_id: string;
-  attempt: number;
-  inputs: object;
+  attempt_number: number;
+  snapshot: object;
   project_name: string;
   project_version: string;
   python_environment_name: string;
@@ -71,8 +74,8 @@ export function dbInsertRunHistory(detailDict: RunHistoryInsertData): Database.R
               source,
               run_id,
               job_id,
-              attempt,
-              inputs,
+              attempt_number,
+              snapshot,
               outputs,
               schedule_name,
               project_id,
@@ -93,10 +96,10 @@ export function dbInsertRunHistory(detailDict: RunHistoryInsertData): Database.R
       detailDict.source,
       detailDict.run_id,
       detailDict.job_id,
-      detailDict.attempt,
-      JSON.stringify(detailDict.inputs),
+      detailDict.attempt_number,
+      JSON.stringify(detailDict.snapshot),
       JSON.stringify({
-        status: "unavailable",
+        status: RunOutputsStatus.Unavailable,
         values: null,
         unavailableKeys: [],
         reason: "The Run has not produced an output snapshot.",
@@ -303,7 +306,7 @@ export function dbSelectRunHistoryPage(options: RunHistoryQueryOptions): RunHist
       SELECT
           id,
           source,
-          attempt,
+          attempt_number,
           schedule_name,
           project_name,
           project_version,
@@ -463,8 +466,8 @@ export function dbSelectRunDetails(id: number): RunDetails {
           source,
           run_id,
           job_id,
-          attempt,
-          inputs,
+          attempt_number,
+          snapshot,
           outputs,
           error_summary
       FROM
@@ -478,8 +481,8 @@ export function dbSelectRunDetails(id: number): RunDetails {
         source: RunSource;
         run_id: string;
         job_id: string;
-        attempt: number;
-        inputs: string;
+        attempt_number: number;
+        snapshot: string;
         outputs: string;
         error_summary: string | null;
       }
@@ -487,7 +490,7 @@ export function dbSelectRunDetails(id: number): RunDetails {
   if (!row) throw new Error("Run History record not found.");
   return {
     ...row,
-    inputs: JSON.parse(row.inputs) as Record<string, unknown>,
+    snapshot: JSON.parse(row.snapshot) as Record<string, unknown>,
     outputs: JSON.parse(row.outputs) as RunOutputs,
     error_summary:
       row.error_summary === null

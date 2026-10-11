@@ -19,7 +19,7 @@ import type {
   QueueItemsResponse,
   QueueListResponse,
   QueueMutationResponse,
-  JsonValueInput as JsonValue,
+  JsonValue,
 } from "./generated/browserApi";
 
 const API_ROOT = "/data-queues/";

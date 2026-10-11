@@ -84,7 +84,7 @@ class AssetReferenceResponse(JsonResponsePayload):
     kind: AssetReferenceKind
     id: UUID
     name: str
-    version: str | None = None
+    project_version: str | None = None
 
 
 class AssetDetailsEntryResponse(AssetEntryResponse):

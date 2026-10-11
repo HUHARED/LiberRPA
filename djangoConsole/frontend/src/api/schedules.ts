@@ -2,55 +2,61 @@
 
 import { requestApi } from "./client";
 import { isRecord, parsePaginationResponse, rejectInvalidResponse } from "./responses";
-import type { PaginationResponse } from "./generated/browserApi";
-import type { RunSettings } from "./runOptions";
+import type {
+  ScheduleCreationRequest,
+  ScheduleResponse,
+  ScheduleListEntryResponse,
+  ScheduleListResponse,
+  ScheduleDefaultsResponse,
+  SchedulePreviewResponse,
+} from "./generated/browserApi";
+import { isRunSettings, type RunSettings } from "./runOptions";
 
-export interface ScheduleDraft {
-  name: string;
-  department_id: string;
-  package_id: string;
-  executor_ids: string[];
-  group_id: string | null;
-  enabled: boolean;
-  notes: string;
-  cron: string;
-  time_zone: string;
-  active_from: string;
-  active_until: string;
+export type ScheduleDraft = Omit<Required<ScheduleCreationRequest>, "settings"> & {
   settings: RunSettings;
-}
-export interface ScheduleInfo extends ScheduleDraft {
-  id: string;
-  department: { id: string; name: string; path: string };
-  project_name: string;
-  project_version: string;
-  created_by: { id: string; username: string; email: string } | null;
-  can_manage: boolean;
-  upcoming_triggers: string[];
-  python_environment_name?: string;
-  executors?: { id: string; name: string }[];
-  executor_group?: { id: string; name: string } | null;
-}
-export interface SchedulePage extends PaginationResponse {
-  schedules: ScheduleInfo[];
-}
+};
+export type ScheduleInfo = ScheduleResponse;
+export type ScheduleListEntry = ScheduleListEntryResponse;
+export type SchedulePage = ScheduleListResponse;
 export interface ScheduleFilters {
   name: string;
   departmentIds: string[];
-  project: string;
-  enabled: string;
-  target: string;
+  projectName: string;
+  enabled: "" | "true" | "false";
+  targetId: string | null;
 }
-function parseSchedule(value: unknown): ScheduleInfo {
+function parseScheduleListEntry(value: unknown): ScheduleListEntry {
   if (
     !isRecord(value) ||
     typeof value.id !== "string" ||
     typeof value.name !== "string" ||
     typeof value.cron !== "string" ||
-    !isRecord(value.department)
+    typeof value.project_version !== "string" ||
+    !isRecord(value.department) ||
+    !Array.isArray(value.executor_ids) ||
+    !Array.isArray(value.executors) ||
+    typeof value.can_manage !== "boolean"
+  )
+    return rejectInvalidResponse();
+  return value as unknown as ScheduleListEntry;
+}
+function parseSchedule(value: unknown): ScheduleInfo {
+  parseScheduleListEntry(value);
+  if (
+    !isRecord(value) ||
+    !isRunSettings(value.settings) ||
+    typeof value.python_environment_name !== "string" ||
+    !Array.isArray(value.upcoming_triggers) ||
+    !value.upcoming_triggers.every((time: unknown) => typeof time === "string")
   )
     return rejectInvalidResponse();
   return value as unknown as ScheduleInfo;
+}
+export async function getScheduleDefaults(): Promise<ScheduleDefaultsResponse> {
+  const result = await requestApi("/schedules/defaults/");
+  if (!isRecord(result) || typeof result.time_zone !== "string")
+    return rejectInvalidResponse();
+  return { time_zone: result.time_zone };
 }
 export async function getSchedules(
   filters: ScheduleFilters,
@@ -59,15 +65,15 @@ export async function getSchedules(
   const query = new URLSearchParams({
     page: String(page),
     name: filters.name,
-    project_name: filters.project,
-    target: filters.target ?? "",
+    project_name: filters.projectName,
+    target: filters.targetId ?? "",
   });
   if (filters.enabled) query.set("enabled", filters.enabled);
   for (const id of filters.departmentIds) query.append("department_id", id);
   const result = await requestApi(`/schedules/?${query}`);
   if (!isRecord(result) || !Array.isArray(result.schedules)) return rejectInvalidResponse();
   return {
-    schedules: result.schedules.map(parseSchedule),
+    schedules: result.schedules.map(parseScheduleListEntry),
     ...parsePaginationResponse(result),
   };
 }
@@ -104,7 +110,7 @@ export async function deleteSchedule(id: string): Promise<void> {
 }
 export async function previewSchedule(
   body: Pick<ScheduleDraft, "cron" | "time_zone" | "active_from" | "active_until">,
-): Promise<{ normalized_cron: string; upcoming_triggers: string[] }> {
+): Promise<SchedulePreviewResponse> {
   const result = await requestApi("/schedules/preview/", { method: "POST", body });
   if (
     !isRecord(result) ||
@@ -112,5 +118,5 @@ export async function previewSchedule(
     !Array.isArray(result.upcoming_triggers)
   )
     return rejectInvalidResponse();
-  return result as unknown as { normalized_cron: string; upcoming_triggers: string[] };
+  return result as unknown as SchedulePreviewResponse;
 }

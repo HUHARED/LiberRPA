@@ -25,6 +25,8 @@ from console_project.http import (
     parse_json_request,
 )
 from organizations.http import (
+    get_request_membership,
+    lock_request_write_access,
     DepartmentResourceListParameters,
     parse_department_resource_filters,
 )
@@ -53,8 +55,6 @@ from .group_services import (
     delete_executor_group,
 )
 from .http import (
-    get_executor_request_membership,
-    lock_executor_write_access,
     build_executor_info_payload,
 )
 from .models import ExecutorGroup
@@ -192,7 +192,7 @@ def _get_list_parameters(
 @sensitive_variables()
 def list_or_create_executor_groups(request: HttpRequest) -> JsonResponse:
     try:
-        membership = get_executor_request_membership(request)
+        membership = get_request_membership(request)
         if isinstance(membership, JsonResponse):
             return membership
         if request.method == "POST":
@@ -204,7 +204,7 @@ def list_or_create_executor_groups(request: HttpRequest) -> JsonResponse:
             if isinstance(groupRequest, JsonResponse):
                 return groupRequest
             with transaction.atomic():
-                access = lock_executor_write_access(request, membership)
+                access = lock_request_write_access(request, membership)
                 result = create_executor_group(
                     access,
                     departmentId=groupRequest.department_id,
@@ -250,7 +250,7 @@ def get_or_update_executor_group(
     request: HttpRequest, groupId: uuid.UUID
 ) -> JsonResponse:
     try:
-        membership = get_executor_request_membership(request)
+        membership = get_request_membership(request)
         if isinstance(membership, JsonResponse):
             return membership
         if request.method == "POST":
@@ -262,7 +262,7 @@ def get_or_update_executor_group(
             if isinstance(groupRequest, JsonResponse):
                 return groupRequest
             with transaction.atomic():
-                access = lock_executor_write_access(request, membership)
+                access = lock_request_write_access(request, membership)
                 result = update_executor_group(
                     access,
                     groupId=groupId,
@@ -311,14 +311,14 @@ def delete_executor_group_record(
     request: HttpRequest, groupId: uuid.UUID
 ) -> JsonResponse:
     try:
-        membership = get_executor_request_membership(request)
+        membership = get_request_membership(request)
         if isinstance(membership, JsonResponse):
             return membership
         deletionRequest = parse_json_request(request, ExecutorGroupDeletionRequest)
         if isinstance(deletionRequest, JsonResponse):
             return deletionRequest
         with transaction.atomic():
-            access = lock_executor_write_access(request, membership)
+            access = lock_request_write_access(request, membership)
             group = delete_executor_group(access, groupId=groupId)
             return JsonResponse(
                 ExecutorGroupDeletionResponse.model_validate({

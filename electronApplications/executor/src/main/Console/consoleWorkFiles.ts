@@ -19,7 +19,8 @@ import { strDocumentsFolderPath } from "../Config/environment";
 import { runFileWorker } from "../FileSystem/fileWorker";
 import { loggerMain } from "../Logging/logger";
 import { ensureExistingRunLogFolderPath } from "../Run/logPath";
-import { requestConsole } from "./consoleApi";
+import { isRecoveredProcessPresent } from "../Run/recoveredRuns";
+import { ConsoleRequestError, requestConsole } from "./consoleApi";
 import strLogArchiveWorkerPath from "./logArchiveWorker?modulePath";
 import type { LogArchiveArgs } from "./logArchiveWorker";
 import type { ConsoleCredentialSnapshot } from "./consoleContextBridge";
@@ -47,6 +48,7 @@ const INT_LOG_READ_BYTES = 64 * 1024;
 const INT_LOG_ENTRY_BYTES = 256 * 1024;
 const INT_LOG_BATCH_BYTES = 1024 * 1024;
 const INT_LOG_BATCH_ENTRIES = 500;
+const INT_RECORDING_START_GRACE_MS = 60_000;
 
 interface LogBatch {
   fileKey: string;
@@ -65,6 +67,7 @@ enum ConsoleRunFileKind {
 
 const setTransferStarted = new Set<string>();
 const mapLogRetry = new Map<string, { nextAt: number; delayMs: number }>();
+const mapLogSessionRetryAt = new Map<string, number>();
 
 async function readLogBatch(
   filePath: string,
@@ -262,8 +265,21 @@ async function flushRunLogs(
       recording?.status !== ConsoleRecordingStatus.Unavailable
     ) {
       const strMarkerPath = path.join(record.ended.logPath, "video_record.state.json");
-      if (fs.existsSync(strMarkerPath))
+      if (fs.existsSync(strMarkerPath)) {
         reportConsoleRecording(record.assignment.id, readConsoleRecording(strMarkerPath));
+      } else if (
+        Date.now() - Date.parse(record.ended.endedAt) >= INT_RECORDING_START_GRACE_MS &&
+        (record.started?.processId === undefined ||
+          !isRecoveredProcessPresent(record.started.processId))
+      ) {
+        // A present recording/processing marker may outlive the Run while files finalize.
+        reportConsoleRecording(record.assignment.id, {
+          status: ConsoleRecordingStatus.Unavailable,
+          videoSizeBytes: null,
+          subtitleSizeBytes: null,
+          reason: "Recording did not start.",
+        });
+      }
     }
   }
   if (!record.started || record.logsComplete || !fs.existsSync(record.started.logPath))
@@ -337,9 +353,11 @@ export async function flushConsoleLogs(
   sessionKey: string,
   credential: ConsoleCredentialSnapshot,
 ): Promise<void> {
+  if ((mapLogSessionRetryAt.get(sessionKey) ?? 0) > performance.now()) return;
+  mapLogSessionRetryAt.delete(sessionKey);
   for (const record of getPendingConsoleLogWork(sessionKey)) {
     const retry = mapLogRetry.get(record.assignment.id);
-    if (retry && retry.nextAt > Date.now()) continue;
+    if (retry && retry.nextAt > performance.now()) continue;
     try {
       await flushRunLogs(record, credential);
       mapLogRetry.delete(record.assignment.id);
@@ -350,9 +368,17 @@ export async function flushConsoleLogs(
         );
       const intDelayMs = Math.min((retry?.delayMs ?? 1000) * 2, 30_000);
       mapLogRetry.set(record.assignment.id, {
-        nextAt: Date.now() + intDelayMs,
+        nextAt: performance.now() + intDelayMs,
         delayMs: intDelayMs,
       });
+      if (e instanceof ConsoleRequestError && (e.status === 429 || e.retryAfterMs > 0)) {
+        // All Run uploads share this client's server budget.
+        mapLogSessionRetryAt.set(
+          sessionKey,
+          performance.now() + Math.max(intDelayMs, e.retryAfterMs),
+        );
+        break;
+      }
     }
   }
 }

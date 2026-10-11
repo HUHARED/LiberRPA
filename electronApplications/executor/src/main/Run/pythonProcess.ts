@@ -11,7 +11,7 @@ import { buildPythonProcessEnvironment } from "../Config/environment";
 import { getConsoleContextEnvironment } from "../Console/consoleContextBridge";
 import { loggerMain } from "../Logging/logger";
 import { getExecutorRunArgumentsPath, removeExecutorRunArgumentsFile } from "./runState";
-import type { ProjectRunDetails } from "./types";
+import type { ProjectRunConfig } from "./types";
 
 export interface PythonProcessDiagnosticOutput {
   stdoutTail: string;
@@ -78,7 +78,7 @@ export function spawnProjectPythonProcess({
   startedAt,
   runStatePath,
 }: {
-  detail: ProjectRunDetails;
+  detail: ProjectRunConfig;
   packagePath: string;
   pythonEnvironmentPath: string;
   runId: string;
@@ -119,8 +119,8 @@ export function spawnProjectPythonProcess({
             LIBERRPA_RUN_STARTED_AT: startedAt,
             LIBERRPA_EXECUTOR_RUN_ID: runId,
             LIBERRPA_EXECUTOR_RUN_STATE_PATH: runStatePath,
-            LIBERRPA_EXECUTOR_PACKAGE_NAME: detail.name,
-            LIBERRPA_EXECUTOR_PACKAGE_VERSION: detail.version,
+            LIBERRPA_EXECUTOR_PACKAGE_NAME: detail.project_name,
+            LIBERRPA_EXECUTOR_PACKAGE_VERSION: detail.project_version,
           },
         }),
         stdio: ["pipe", "pipe", "pipe"],
@@ -140,7 +140,7 @@ export function spawnProjectPythonProcess({
   processPy.on("error", (e: Error) => {
     processError = e;
     loggerMain.error(
-      `Python process error for ${detail.name}-${detail.version} (${runId}): ${e.message}`,
+      `Python process error for ${detail.project_name}-${detail.project_version} (${runId}): ${e.message}`,
     );
   });
 

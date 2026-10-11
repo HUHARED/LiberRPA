@@ -9,7 +9,7 @@ CREATE TABLE
         description TEXT NOT NULL DEFAULT '',
         version_summary TEXT NOT NULL DEFAULT '',
         python_environment_name TEXT NOT NULL DEFAULT 'default' CHECK (LENGTH(TRIM(python_environment_name)) > 0),
-        retry_count INTEGER NOT NULL DEFAULT 0 CHECK (retry_count BETWEEN 0 AND 3),
+        max_retry_count INTEGER NOT NULL DEFAULT 0 CHECK (max_retry_count BETWEEN 0 AND 3),
         timeout_min INTEGER NOT NULL DEFAULT 0 CHECK (timeout_min >= 0),
         builtin_log_level TEXT NOT NULL DEFAULT 'DEBUG' CHECK (
             builtin_log_level IN (
@@ -43,7 +43,7 @@ CREATE TABLE
         period_start_ms INTEGER NOT NULL CHECK (period_start_ms >= 0),
         period_end_ms INTEGER NOT NULL CHECK (period_end_ms > period_start_ms),
         enabled INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)),
-        retry_count INTEGER NOT NULL DEFAULT 0 CHECK (retry_count BETWEEN 0 AND 3),
+        max_retry_count INTEGER NOT NULL DEFAULT 0 CHECK (max_retry_count BETWEEN 0 AND 3),
         timeout_min INTEGER NOT NULL DEFAULT 0 CHECK (timeout_min >= 0),
         builtin_log_level TEXT NOT NULL DEFAULT 'DEBUG' CHECK (
             builtin_log_level IN (
@@ -70,8 +70,8 @@ CREATE TABLE
         source TEXT NOT NULL CHECK (source IN ('local', 'console')),
         run_id TEXT NOT NULL UNIQUE,
         job_id TEXT NOT NULL,
-        attempt INTEGER NOT NULL CHECK (attempt BETWEEN 1 AND 4),
-        inputs TEXT NOT NULL,
+        attempt_number INTEGER NOT NULL CHECK (attempt_number BETWEEN 1 AND 4),
+        snapshot TEXT NOT NULL,
         -- NOTE: Keep this envelope aligned with RunOutputs in shared/run.ts; item validation stays in runState.ts.
         outputs TEXT NOT NULL CHECK (
             CASE
@@ -162,7 +162,42 @@ CREATE TABLE
                 'unknown'
             )
         ),
-        content TEXT NOT NULL,
+        content TEXT NOT NULL CHECK (
+            CASE
+                WHEN JSON_VALID(content) THEN (
+                    JSON_TYPE(content) IS 'object'
+                    AND JSON_TYPE(content, '$.state') IS NULL
+                    AND JSON_EXTRACT(content, '$.assignment.id') = id
+                    AND JSON_EXTRACT(content, '$.sessionKey') = session_key
+                    AND (
+                        JSON_TYPE(content, '$.recording') IS NULL
+                        OR (
+                            JSON_TYPE(content, '$.recording') IS 'object'
+                            AND JSON_EXTRACT(content, '$.recording.status') IN ('recording', 'processing', 'ready', 'unavailable')
+                        )
+                    )
+                    AND (
+                        JSON_TYPE(content, '$.stopReason') IS NULL
+                        OR JSON_EXTRACT(content, '$.stopReason') IN ('cancel', 'shutdown', 'timeout')
+                    )
+                    AND (
+                        JSON_TYPE(content, '$.ended') IS NULL
+                        OR (
+                            JSON_TYPE(content, '$.ended') IS 'object'
+                            AND JSON_EXTRACT(content, '$.ended.status') IN (
+                                'completed',
+                                'error',
+                                'canceled',
+                                'timed_out',
+                                'interrupted'
+                            )
+                            AND JSON_EXTRACT(content, '$.ended.outputs.status') IN ('complete', 'partial', 'unavailable')
+                        )
+                    )
+                ) IS TRUE
+                ELSE 0
+            END
+        ),
         updated_at_ms INTEGER NOT NULL
     ) STRICT;
 
@@ -170,7 +205,39 @@ CREATE TABLE
     console_event (
         id TEXT PRIMARY KEY,
         session_key TEXT NOT NULL,
-        payload TEXT NOT NULL,
+        payload TEXT NOT NULL CHECK (
+            CASE
+                WHEN JSON_VALID(payload) THEN (
+                    JSON_TYPE(payload) IS 'object'
+                    AND JSON_EXTRACT(payload, '$.event_id') = id
+                    AND JSON_EXTRACT(payload, '$.kind') IN (
+                        'preparation_failed',
+                        'started',
+                        'not_started',
+                        'ended',
+                        'unknown',
+                        'recording'
+                    )
+                    AND (
+                        JSON_TYPE(payload, '$.not_started_reason') IS NULL
+                        OR JSON_EXTRACT(payload, '$.not_started_reason') = 'local_conflict'
+                    )
+                    AND CASE JSON_EXTRACT(payload, '$.kind')
+                        WHEN 'ended' THEN JSON_EXTRACT(payload, '$.result') IN (
+                            'completed',
+                            'error',
+                            'canceled',
+                            'timed_out',
+                            'interrupted'
+                        )
+                        AND JSON_EXTRACT(payload, '$.outputs.status') IN ('complete', 'partial', 'unavailable')
+                        WHEN 'recording' THEN JSON_EXTRACT(payload, '$.recording.status') IN ('recording', 'processing', 'ready', 'unavailable')
+                        ELSE 1
+                    END
+                ) IS TRUE
+                ELSE 0
+            END
+        ),
         rejected INTEGER NOT NULL DEFAULT 0 CHECK (rejected IN (0, 1)),
         rejection_code TEXT NULL CHECK (
             rejection_code IS NULL

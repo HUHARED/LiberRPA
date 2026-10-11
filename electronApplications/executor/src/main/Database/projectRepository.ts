@@ -1,9 +1,9 @@
 // FileName: projectRepository.ts
 
 import type {
-  Dict_ProjectCreate,
-  Dict_ProjectDetail,
-  Dict_ProjectSettingsUpdate,
+  ProjectCreateData,
+  ProjectDetails,
+  ProjectSettingsUpdate,
 } from "../../shared/project";
 import { loggerMain } from "../Logging/logger";
 import { getDatabase } from "./connection";
@@ -76,7 +76,7 @@ export function dbSelectProjectBoundSchedules(id: number): { name: string }[] {
 export function dbSelectProjectDetail(
   name: string,
   version: string,
-): Dict_ProjectDetail | undefined {
+): ProjectDetails | undefined {
   loggerMain.debug("--dbSelectProjectDetail--");
   const row = getDatabase()
     .prepare(
@@ -88,7 +88,7 @@ export function dbSelectProjectDetail(
           description,
           version_summary,
           python_environment_name,
-          retry_count,
+          max_retry_count,
           timeout_min,
           builtin_log_level,
           builtin_record_video,
@@ -110,7 +110,7 @@ export function dbSelectProjectDetail(
     : ensureProjectDetailRow(row, "Project detail query result");
 }
 
-export function dbSelectProjectDetailById(id: number): Dict_ProjectDetail | undefined {
+export function dbSelectProjectDetailById(id: number): ProjectDetails | undefined {
   loggerMain.debug("--dbSelectProjectDetailById--");
   const row = getDatabase()
     .prepare(
@@ -122,7 +122,7 @@ export function dbSelectProjectDetailById(id: number): Dict_ProjectDetail | unde
           description,
           version_summary,
           python_environment_name,
-          retry_count,
+          max_retry_count,
           timeout_min,
           builtin_log_level,
           builtin_record_video,
@@ -143,7 +143,7 @@ export function dbSelectProjectDetailById(id: number): Dict_ProjectDetail | unde
     : ensureProjectDetailRow(row, "Project detail by ID query result");
 }
 
-export function dbInsertProjectDetail(dictDetail: Dict_ProjectCreate): void {
+export function dbInsertProjectDetail(dictDetail: ProjectCreateData): void {
   loggerMain.debug("--dbInsertProjectDetail--");
   const intNowMs = Date.now();
   const result = getDatabase()
@@ -156,7 +156,7 @@ export function dbInsertProjectDetail(dictDetail: Dict_ProjectCreate): void {
               description,
               version_summary,
               python_environment_name,
-              retry_count,
+              max_retry_count,
               timeout_min,
               builtin_log_level,
               builtin_record_video,
@@ -176,7 +176,7 @@ export function dbInsertProjectDetail(dictDetail: Dict_ProjectCreate): void {
       dictDetail.description,
       dictDetail.version_summary ?? "",
       dictDetail.python_environment_name,
-      dictDetail.retry_count,
+      dictDetail.max_retry_count,
       dictDetail.timeout_min,
       dictDetail.builtin_log_level,
       dictDetail.builtin_record_video ? 1 : 0,
@@ -192,7 +192,7 @@ export function dbInsertProjectDetail(dictDetail: Dict_ProjectCreate): void {
   );
 }
 
-export function dbUpdateProjectSettings(dictDetail: Dict_ProjectSettingsUpdate): void {
+export function dbUpdateProjectSettings(dictDetail: ProjectSettingsUpdate): void {
   loggerMain.debug("--dbUpdateProjectSettings--");
   const result = getDatabase()
     .prepare(
@@ -200,7 +200,7 @@ export function dbUpdateProjectSettings(dictDetail: Dict_ProjectSettingsUpdate):
       UPDATE project
       SET
           python_environment_name = ?,
-          retry_count = ?,
+          max_retry_count = ?,
           timeout_min = ?,
           builtin_log_level = ?,
           builtin_record_video = ?,
@@ -214,7 +214,7 @@ export function dbUpdateProjectSettings(dictDetail: Dict_ProjectSettingsUpdate):
     )
     .run(
       dictDetail.python_environment_name,
-      dictDetail.retry_count,
+      dictDetail.max_retry_count,
       dictDetail.timeout_min,
       dictDetail.builtin_log_level,
       dictDetail.builtin_record_video ? 1 : 0,
@@ -245,7 +245,7 @@ export function dbDeleteProject(id: number): void {
 
 export function dbSelectProjectMostRecentlyInstalledDetail(
   name: string,
-): Dict_ProjectDetail | undefined {
+): ProjectDetails | undefined {
   loggerMain.debug("--dbSelectProjectMostRecentlyInstalledDetail--");
   const row = getDatabase()
     .prepare(
@@ -257,7 +257,7 @@ export function dbSelectProjectMostRecentlyInstalledDetail(
           description,
           version_summary,
           python_environment_name,
-          retry_count,
+          max_retry_count,
           timeout_min,
           builtin_log_level,
           builtin_record_video,

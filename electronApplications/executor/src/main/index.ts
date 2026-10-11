@@ -60,10 +60,8 @@ import { startRunHousekeeping, stopRunHousekeeping } from "./Run/housekeeping";
 import { startConsoleWork, stopConsoleWork } from "./Console/consoleWork";
 import { cleanConsolePackageStaging } from "./Console/packagePreparation";
 import { cleanConsoleLogArchives } from "./Console/consoleWorkFiles";
-import {
-  getConsoleRunProcessId,
-  recoverConsoleWorkAfterRestart,
-} from "./Console/workRepository";
+import { getConsoleRunProcessId } from "./Console/workRepository";
+import { recoverConsoleWorkAfterRestart } from "./Console/workRecovery";
 import { beginProjectRunShutdown, shutdownProjectRuns } from "./Run/projectRunner";
 import {
   getJobQueueItems,
@@ -71,7 +69,7 @@ import {
   startSchedulerEngine,
   stopSchedulerEngine,
 } from "./Scheduler/schedulerEngine";
-import type { Dict_Message_Main } from "../shared/ipc";
+import type { MainMessage } from "../shared/ipc";
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
@@ -80,7 +78,7 @@ let boolShutdownStarted = false;
 let boolShutdownComplete = false;
 let promiseFileRecovery: Promise<void> | undefined;
 
-function sendMessageToRenderer(message: Dict_Message_Main): void {
+function sendMessageToRenderer(message: MainMessage): void {
   if (boolAppQuitting) {
     return;
   }

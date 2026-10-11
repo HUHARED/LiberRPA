@@ -1,4 +1,4 @@
-<!-- FileName: RunDispatchEditor.vue -->
+<!-- FileName: RunDispatchEmailEditor.vue -->
 <template>
   <v-row>
     <v-col cols="12" md="6">

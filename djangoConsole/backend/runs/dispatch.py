@@ -23,7 +23,7 @@ from executors.session_state import (
 from organizations.models import Organization
 from organizations.permissions import require_organization_business_available
 
-from packages.contracts import PackagePreparationState
+from packages.contracts import PackagePreparationState, RunConflictPolicy
 
 from .models import (
     JobState,
@@ -202,7 +202,7 @@ def _is_busy(
         work is None
         or work.running_run_ids
         or work.local_waiting_count
-        or work.local_running_count
+        or work.other_active_run_count
     ):
         return True
     assignmentQuery = Assignment.objects.filter(
@@ -297,7 +297,7 @@ def _advance_job(
         return
     setFailedExecutorId = set(
         Assignment.objects.filter(
-            job=job, attempt=job.attempts + 1, state=AssignmentState.FINISHED
+            job=job, attempt_number=job.attempt_count + 1, state=AssignmentState.FINISHED
         ).values_list("executor_id", flat=True)
     )
     listReady = [entry for entry in listReady if entry.id not in setFailedExecutorId]
@@ -310,10 +310,10 @@ def _advance_job(
         entry for entry in listReady if not _is_busy(entry.id, dictWork[entry.id])
     ]
     strPolicy = job.run_snapshot["run_conflict_policy"]
-    if not listIdle and strPolicy == "skip":
+    if not listIdle and strPolicy == RunConflictPolicy.SKIP:
         finish_job(job, "Skipped because all eligible targets are busy.")
         return
-    if not listIdle and strPolicy == "wait":
+    if not listIdle and strPolicy == RunConflictPolicy.WAIT:
         strReason = (
             "Waiting for an eligible Executor to finish running or locally waiting work."
         )
@@ -347,9 +347,9 @@ def _advance_job(
         session_id=session.id,
         actor_id=session.user_id,
         actor_name=str(session.user)[:INT_DISPLAY_NAME_SNAPSHOT_MAX_LENGTH],
-        computer=session.computer,
+        computer_name=session.computer_name,
         executor_name=executor.name,
-        attempt=job.attempts + 1,
+        attempt_number=job.attempt_count + 1,
     )
     ExecutorWorkState.objects.filter(pk=executor.id).update(last_assigned_at=currentTime)
     job.state = JobState.PREPARING
@@ -401,7 +401,7 @@ def dispatch_organization(organizationId: uuid.UUID) -> None:
             state__in=(JobState.WAITING, JobState.RETRY),
         )
         .select_related("request")
-        .order_by("priority", "attempt_queued_at", "id")
+        .order_by("priority_rank", "attempt_queued_at", "id")
     ):
         _advance_job(
             job,
@@ -432,7 +432,7 @@ def get_start_evidence_not_before(permitExpiresAt: datetime) -> datetime:
     )
 
 
-def issue_permission(session: ExecutorSession, assignmentId: uuid.UUID) -> Assignment:
+def issue_start_permit(session: ExecutorSession, assignmentId: uuid.UUID) -> Assignment:
     currentTime = timezone.now()
     control = require_control_service(currentTime)
     assignment = (
@@ -442,8 +442,8 @@ def issue_permission(session: ExecutorSession, assignmentId: uuid.UUID) -> Assig
         .get(pk=assignmentId, session_id=session.id, executor_id=session.executor_id)
     )
     job = assignment.job
-    boolPermissionIssued = assignment.permit_expires_at is not None
-    if boolPermissionIssued:
+    boolStartPermitIssued = assignment.permit_expires_at is not None
+    if boolStartPermitIssued:
         if (
             assignment.state not in (AssignmentState.PERMITTED, AssignmentState.RUNNING)
             or currentTime >= assignment.permit_expires_at
@@ -490,10 +490,15 @@ def issue_permission(session: ExecutorSession, assignmentId: uuid.UUID) -> Assig
             "Report current work state before requesting start permission.",
             code="work_state_required",
         )
-    if job.run_snapshot["run_conflict_policy"] != "concurrent" and _is_busy(
+    if job.run_snapshot[
+        "run_conflict_policy"
+    ] != RunConflictPolicy.CONCURRENT and _is_busy(
         assignment.executor_id, work, excludeAssignmentId=assignment.id
     ):
-        if not boolPermissionIssued and job.run_snapshot["run_conflict_policy"] == "skip":
+        if (
+            not boolStartPermitIssued
+            and job.run_snapshot["run_conflict_policy"] == RunConflictPolicy.SKIP
+        ):
             assignment.state = AssignmentState.FINISHED
             assignment.reason = (
                 "Skipped because a current local run or waiting task has priority."
@@ -502,7 +507,7 @@ def issue_permission(session: ExecutorSession, assignmentId: uuid.UUID) -> Assig
             finish_job(job, assignment.reason)
             notify_executor_control(assignment.executor_id)
             return assignment
-        if not boolPermissionIssued and job.target_group_id:
+        if not boolStartPermitIssued and job.target_group_id:
             assignment.state = AssignmentState.WITHDRAWN
             assignment.reason = "Current local work takes priority; return the group Job to central waiting."
             assignment.save(update_fields=["state", "reason"])
@@ -515,7 +520,7 @@ def issue_permission(session: ExecutorSession, assignmentId: uuid.UUID) -> Assig
             "Local work has priority; start permission is not available yet.",
             code="executor_busy",
         )
-    if boolPermissionIssued:
+    if boolStartPermitIssued:
         return assignment
     from packages.preparation import record_package_preparation
 

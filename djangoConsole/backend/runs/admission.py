@@ -36,13 +36,13 @@ from executors.session_state import (
 from operations.models import AuditChannel
 from operations.audit import record_audit
 
+from packages.contracts import RUN_PRIORITY_ORDER
+
 from .models import JobSource, JobState, JobRequest, Job, JobAdmissionBudget
 from .dispatch_control import require_control_service
 
-_DICT_PRIORITY = {"high": 0, "normal": 1, "low": 2}
 
-
-def _get_request_fingerprint(content: dict) -> str:
+def _get_request_digest(content: dict) -> str:
     return hashlib.sha256(
         json.dumps(
             content, ensure_ascii=False, separators=(",", ":"), sort_keys=True
@@ -74,7 +74,7 @@ def get_existing_request(
         raise PermissionDenied(
             "Current department access is required to read the original request."
         )
-    if previous.request_sha256 != _get_request_fingerprint(requestContent):
+    if previous.request_digest != _get_request_digest(requestContent):
         raise ValidationError(
             "This request ID was already used with different inputs.",
             code="request_conflict",
@@ -166,7 +166,7 @@ def accept_request(
             raise PermissionDenied("Operator access is required to run a package.")
         actor = access.actor
         strActorName = str(actor)[:INT_DISPLAY_NAME_SNAPSHOT_MAX_LENGTH]
-    strFingerprint = _get_request_fingerprint(
+    strRequestDigest = _get_request_digest(
         requestContent
         if requestContent is not None
         else {
@@ -187,7 +187,7 @@ def accept_request(
         client_request_id=clientRequestId,
     ).first()
     if previous:
-        if previous.request_sha256 != strFingerprint:
+        if previous.request_digest != strRequestDigest:
             raise ValidationError(
                 "This request ID was already used with different inputs.",
                 code="request_conflict",
@@ -262,7 +262,7 @@ def accept_request(
         actor_id=actorId,
         actor_name=strActorName,
         source=jobSource,
-        request_sha256=strFingerprint,
+        request_digest=strRequestDigest,
         schedule_id=scheduleId,
         schedule_name=scheduleName,
         scheduled_at=scheduledAt,
@@ -275,14 +275,14 @@ def accept_request(
             department=department,
             package_id=packageId,
             project_name=dictSnapshot["project_name"],
-            version=dictSnapshot["project_version"],
+            project_version=dictSnapshot["project_version"],
             target_executor_id=None if group else target.id,
             target_group_id=target.id if group else None,
             target_name=target.name,
             target_session_id=None if group else dictSession[target.id].id,
             run_snapshot=dictSnapshot,
-            priority=_DICT_PRIORITY[dictSnapshot["priority"]],
-            retry_count=dictSnapshot["retry_count"],
+            priority_rank=RUN_PRIORITY_ORDER.index(dictSnapshot["priority"]),
+            max_retry_count=dictSnapshot["max_retry_count"],
             queued_at=currentTime,
             attempt_queued_at=currentTime,
         )

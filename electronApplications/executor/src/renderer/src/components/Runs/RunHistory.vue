@@ -163,20 +163,21 @@
         <v-card-text>
           <div>
             {{ DICT_RUN_SOURCE_LABEL[runDetails.source] }} · Attempt
-            {{ runDetails.attempt }}
+            {{ runDetails.attempt_number }}
           </div>
           <div v-if="runDetails.source === RunSource.Console">
             Job {{ runDetails.job_id }}
           </div>
           <h3 class="mt-3">Inputs</h3>
-          <pre class="text-wrap">{{ JSON.stringify(runDetails.inputs, null, 2) }}</pre>
+          <pre class="text-wrap">{{ JSON.stringify(runDetails.snapshot, null, 2) }}</pre>
           <h3 class="mt-3">Outputs — {{ runDetails.outputs.status }}</h3>
           <v-alert v-if="runDetails.outputs.reason" variant="tonal" class="my-2">
             {{ runDetails.outputs.reason }}
           </v-alert>
           <p
             v-if="
-              runDetails.outputs.status === 'complete' && !runDetails.outputs.values?.length
+              runDetails.outputs.status === RunOutputsStatus.Complete &&
+              !runDetails.outputs.values?.length
             ">
             No output items.
           </p>
@@ -216,10 +217,20 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from "vue";
-import type { Ref } from "vue";
+import { computed, onBeforeUnmount, ref, watch, type Ref } from "vue";
 import { debounce } from "lodash";
 import type { DataTableHeader } from "vuetify";
+
+import { getErrorMessage } from "../../../../shared/error";
+import {
+  RunSource,
+  RunOutputsStatus,
+  RunStatus,
+  type RunDetails,
+  type RunHistoryItem,
+  type RunHistoryQueryOptions,
+  type RunHistoryFilters,
+} from "../../../../shared/run";
 
 import { invokeMain } from "../../IPC/ipc";
 import { loggerRenderer } from "../../Logging/logger";
@@ -227,15 +238,6 @@ import { cloneJsonSerializable } from "../../Common/json";
 import { useRunHistoryStore } from "../../Store/runHistoryStore";
 import { useSettingStore } from "../../Store/settingStore";
 import { formatTimestamp } from "../../Common/time";
-import { getErrorMessage } from "../../../../shared/error";
-import {
-  RunSource,
-  RunStatus,
-  type RunDetails,
-  type RunHistoryItem,
-  type RunHistoryQueryOptions,
-  type RunHistoryFilters,
-} from "../../../../shared/run";
 
 const DICT_RUN_SOURCE_LABEL: Record<RunSource, string> = {
   [RunSource.Local]: "Local",
@@ -346,7 +348,7 @@ const arrHeader: DataTableHeader<RunHistoryItem>[] = [
   { title: "Ended", value: "run_ended_at_ms", align: "center", sortable: true },
   { title: "Status", value: "status", align: "start", sortable: true },
   { title: "Source", value: "source", align: "start", sortable: false },
-  { title: "Attempt", value: "attempt", align: "start", sortable: false },
+  { title: "Attempt", value: "attempt_number", align: "start", sortable: false },
   { title: "Actions", key: "actions", align: "start", sortable: false },
 ];
 

@@ -326,8 +326,8 @@ export async function signInConsole(args: ConsoleSignInArgs): Promise<ConsoleAcc
     const dictResponse = await requestConsole(strConsoleUrl, "executor/login/", "", {
       email: args.email.trim(),
       password: args.password,
-      computer: os.hostname(),
-      version: app.getVersion(),
+      computer_name: os.hostname(),
+      client_version: app.getVersion(),
     });
     const strNewToken = ensureNonEmptyString(dictResponse.token, "Console token");
     if (!/^lrex_[A-Za-z0-9_-]{43}$/.test(strNewToken)) {

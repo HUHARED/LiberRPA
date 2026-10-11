@@ -7,13 +7,10 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 import json
 import uuid
 from datetime import UTC, datetime
-from typing import Annotated, cast
+from typing import cast
 
-from django.conf import settings
-from django.contrib.auth import HASH_SESSION_KEY
-from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError
+from django.core.exceptions import ObjectDoesNotExist, PermissionDenied
 from django.db import transaction
-from django.db.models import Aggregate, Count, Sum
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
@@ -21,28 +18,28 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 from pydantic import Field
 
-from accounts.models import User
 from accounts.resource_authentication import (
     NativeResourceAuthenticationContext,
     authenticate_resource_request,
     lock_resource_write_access,
 )
-from accounts.session_revocation import lock_session_write_access
 from console_project.constants import RunLogLevel
 from console_project.contracts import JsonRequest, JsonValue
 from console_project.http import build_error_response, parse_json_request
-from console_project.validators import validate_json_text
-from operations.audit import record_audit
-from organizations.models import DepartmentRole
-from organizations.permissions import (
-    AccessChannel,
-    OrganizationAccessContext,
-    get_authorized_departments,
-    get_current_membership,
-    resolve_organization_access,
-)
+from console_project.validators import validate_json_string
+from operations.audit import record_audit_batch
+from organizations.http import get_request_access
+from organizations.permissions import AccessChannel
 
+from .contracts import ClearLogsRequest
 from .models import JobState, Run, RunLog
+from .queries import get_visible_runs
+from .log_storage import (
+    get_or_create_run_log_usage,
+    clear_run_logs,
+    make_run_log_space,
+    add_run_log_usage,
+)
 
 _INT_UPLOAD_BYTES = 1024 * 1024
 _INT_ENTRY_BYTES = 256 * 1024
@@ -62,68 +59,21 @@ _SET_BUILTIN_LOG_KEYS = {
 
 
 class LogBatchRequest(JsonRequest):
-    logs: list[str] = Field(max_length=1000)
+    logs: list[str] = Field(max_length=500)
     complete: bool = False
-
-
-class ClearLogsRequest(JsonRequest):
-    run_ids: list[Annotated[uuid.UUID, Field(strict=False)]] = Field(
-        min_length=1, max_length=20000
-    )
-
-
-def get_web_access(
-    request: HttpRequest, *, forUpdate: bool = False
-) -> OrganizationAccessContext:
-    if not request.user.is_authenticated:
-        raise PermissionDenied("Sign in to continue.")
-    user = cast(User, request.user)
-    membership = get_current_membership(actorId=user.pk)
-    if forUpdate:
-        return lock_session_write_access(
-            user.pk,
-            membership.organization_id,
-            AccessChannel.SESSION,
-            request.session.get(HASH_SESSION_KEY, ""),
-            request.session.get_expiry_date(),
-        )
-    return resolve_organization_access(
-        actorId=user.pk,
-        organizationId=membership.organization_id,
-        channel=AccessChannel.SESSION,
-    )
-
-
-def get_accessible_run(access: OrganizationAccessContext, runId: uuid.UUID) -> Run:
-    run = Run.objects.select_related("job__request", "assignment").get(
-        pk=runId,
-        job__request__organization=access.organization,
-    )
-    # Administrators may inspect retained history belonging to a deleted department.
-    if (
-        not access.isOrgAdmin
-        and not get_authorized_departments(
-            access,
-            requiredRole=DepartmentRole.OPERATOR,
-        )
-        .filter(pk=run.job.department_id)
-        .exists()
-    ):
-        raise PermissionDenied("Run access is unavailable.")
-    return run
 
 
 def _validate_log_text(value: JsonValue) -> None:
     # Log messages retain ordinary JSON numbers, including integers above the API safe range.
     if isinstance(value, dict):
         for strKey, child in value.items():
-            validate_json_text(strKey)
+            validate_json_string(strKey)
             _validate_log_text(child)
     elif isinstance(value, list):
         for child in value:
             _validate_log_text(child)
     elif isinstance(value, str):
-        validate_json_text(value)
+        validate_json_string(value)
 
 
 def _parse_run_log(value: dict[str, JsonValue], run: Run, logId: uuid.UUID) -> RunLog:
@@ -307,34 +257,17 @@ def upload_logs(request: HttpRequest, runId: uuid.UUID) -> HttpResponse:
                 # Deduplicate later entries in this batch only after this entry passed validation.
                 dictLogRunId[logId] = run.pk
             if listRunLog:
-                boolNewGroup = not run.logs.exists()
-                dictUsageQuery: dict[str, Aggregate] = {
-                    "total": Sum("byte_count", default=0)
-                }
-                if boolNewGroup:
-                    dictUsageQuery["groups"] = Count("run_id", distinct=True)
-                dictUsage = RunLog.objects.filter(
-                    run__job__request__organization=access.organization
-                ).aggregate(**dictUsageQuery)
-                if (
-                    boolNewGroup
-                    and dictUsage["groups"]
-                    >= settings.CONSOLE_LIMITS.maxRunLogGroupsPerOrganization
-                ):
+                usage = get_or_create_run_log_usage(access.organization.id)
+                intAddedBytes = sum(runLog.byte_count for runLog in listRunLog)
+                if not make_run_log_space(usage, run, intAddedBytes):
                     return build_error_response(
                         "run_log_capacity",
-                        "The organization log group limit has been reached.",
+                        "Log capacity is exhausted and no eligible history can free enough space.",
                         statusCode=409,
                     )
-                if (
-                    dictUsage["total"] + sum(runLog.byte_count for runLog in listRunLog)
-                    > settings.CONSOLE_LIMITS.maxRunLogBytesPerOrganization
-                ):
-                    raise ValidationError(
-                        "The organization log byte limit has been reached."
-                    )
-                # Do not ignore database conflicts: receipts must describe a fully committed batch.
+                # Receipts and counters describe the same committed rows.
                 RunLog.objects.bulk_create(listRunLog)
+                add_run_log_usage(usage, run, intAddedBytes)
             if payload.complete and not run.logs_complete:
                 run.logs_complete = True
                 run.save(update_fields=["logs_complete"])
@@ -354,20 +287,14 @@ def upload_logs(request: HttpRequest, runId: uuid.UUID) -> HttpResponse:
             "The original Run and client association are required.",
             statusCode=403,
         )
-    except ValidationError:
-        return build_error_response(
-            "run_log_capacity",
-            "Log capacity is exhausted; retry after cleanup.",
-            statusCode=409,
-        )
 
 
 @never_cache
 @require_GET
 def list_logs(request: HttpRequest, runId: uuid.UUID) -> HttpResponse:
     try:
-        access = get_web_access(request)
-        run = get_accessible_run(access, runId)
+        access = get_request_access(request)
+        run = get_visible_runs(access).get(pk=runId)
         if set(request.GET) - {"before", "after"} or (
             "before" in request.GET and "after" in request.GET
         ):
@@ -475,37 +402,45 @@ def clear_logs(request: HttpRequest) -> HttpResponse:
         return payload
     try:
         with transaction.atomic():
-            access = get_web_access(request, forUpdate=True)
+            access = get_request_access(request, forUpdate=True)
+            listRunId = list(dict.fromkeys(payload.run_ids))
+            # Load only clearing metadata, not every selected Run's inputs, outputs and assignment.
+            dictRun = {
+                run.pk: run
+                for run in get_visible_runs(access)
+                .filter(pk__in=listRunId)
+                .select_related(None)
+                .select_related("job")
+                .only("id", "log_bytes", "job__state")
+            }
             listSkipped = []
             listFailed = []
-            intCleared = 0
-            for runId in dict.fromkeys(payload.run_ids):
-                try:
-                    run = get_accessible_run(access, runId)
-                except (PermissionDenied, ObjectDoesNotExist):
+            listClearableRun: list[Run] = []
+            for runId in listRunId:
+                run = dictRun.get(runId)
+                if run is None:
                     listFailed.append({
                         "id": str(runId),
                         "reason": "Run access is unavailable.",
                     })
-                    continue
-                if run.job.state != JobState.FINISHED:
+                elif run.job.state != JobState.FINISHED:
                     listSkipped.append({
                         "id": str(runId),
                         "reason": "This Job is still active or awaiting review.",
                     })
-                    continue
-                run.logs.all().delete()
-                run.logs_cleared_at = timezone.now()
-                run.save(update_fields=["logs_cleared_at"])
-                record_audit(
+                else:
+                    listClearableRun.append(run)
+            if listClearableRun:
+                usage = get_or_create_run_log_usage(access.organization.id)
+                clear_run_logs(usage, listClearableRun, timezone.now())
+                record_audit_batch(
                     "run.clear_logs",
                     actor=access.actor,
                     organization=access.organization,
-                    target=run,
+                    targets=listClearableRun,
                 )
-                intCleared += 1
             return JsonResponse({
-                "cleared": intCleared,
+                "cleared": len(listClearableRun),
                 "skipped": listSkipped,
                 "failed": listFailed,
             })

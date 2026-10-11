@@ -19,18 +19,18 @@ type QueueRequestUuid = Annotated[UUID, Field(strict=False)]
 type QueueItemIds = Annotated[list[QueueRequestUuid], Field(min_length=1, max_length=100)]
 
 
-class QueueStatus(StrEnum):
+class QueueItemStatus(StrEnum):
     UNCLAIMED = "unclaimed"
     CLAIMED = "claimed"
 
 
-class QueueFilterStatus(StrEnum):
+class QueueItemFilterStatus(StrEnum):
     ALL = "all"
-    UNCLAIMED = QueueStatus.UNCLAIMED
-    CLAIMED = QueueStatus.CLAIMED
+    UNCLAIMED = QueueItemStatus.UNCLAIMED
+    CLAIMED = QueueItemStatus.CLAIMED
 
 
-class QueueOrder(StrEnum):
+class QueueItemOrder(StrEnum):
     OLDEST_FIRST = "oldest_first"
     NEWEST_FIRST = "newest_first"
 
@@ -58,8 +58,8 @@ class QueueUploadRequest(QueueMutationRequest):
 
 
 class QueueSelectionRequest(JsonRequest):
-    status: QueueFilterStatus = Field(default=QueueFilterStatus.ALL, strict=False)
-    order: QueueOrder = Field(default=QueueOrder.OLDEST_FIRST, strict=False)
+    status: QueueItemFilterStatus = Field(default=QueueItemFilterStatus.ALL, strict=False)
+    order: QueueItemOrder = Field(default=QueueItemOrder.OLDEST_FIRST, strict=False)
     item_id: QueueRequestUuid | None = None
     count: int = Field(default=50, ge=1, le=100)
 
@@ -70,7 +70,9 @@ class QueueQueryRequest(QueueSelectionRequest):
 
 
 class QueueClaimRequest(QueueMutationRequest, QueueSelectionRequest):
-    status: QueueFilterStatus = Field(default=QueueFilterStatus.UNCLAIMED, strict=False)
+    status: QueueItemFilterStatus = Field(
+        default=QueueItemFilterStatus.UNCLAIMED, strict=False
+    )
     count: int = Field(default=1, ge=1, le=100)
 
 
@@ -80,8 +82,10 @@ class QueueResetRequest(QueueMutationRequest):
 
 class QueueDeleteItemsRequest(QueueMutationRequest):
     item_ids: QueueItemIds | None = None
-    status: QueueFilterStatus = Field(default=QueueFilterStatus.CLAIMED, strict=False)
-    order: QueueOrder = Field(default=QueueOrder.OLDEST_FIRST, strict=False)
+    status: QueueItemFilterStatus = Field(
+        default=QueueItemFilterStatus.CLAIMED, strict=False
+    )
+    order: QueueItemOrder = Field(default=QueueItemOrder.OLDEST_FIRST, strict=False)
     count: int = Field(default=1, ge=1, le=100)
 
     @model_validator(mode="after")
@@ -133,7 +137,7 @@ class QueueListResponse(QueuePageResponse):
 class QueueItemResponse(JsonResponsePayload):
     id: UUID
     sequence: int
-    status: QueueStatus = Field(strict=False)
+    status: QueueItemStatus = Field(strict=False)
     data_summary: str
     uploaded_by_id: UUID
     uploaded_by_name: str
@@ -169,4 +173,4 @@ class QueueMutationResponse(JsonResponsePayload):
 
 class QueueQueryResponse(JsonResponsePayload):
     items: list[QueueItemDetailsResponse]
-    next_sequence: int | None
+    next_after_sequence: int | None

@@ -11,6 +11,7 @@ from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
 from django.utils import timezone
 
+from console_project.constants import INT_UPLOAD_CHUNK_BYTES
 from file_storage.services import get_storage_usage
 from organizations.department_queries import (
     get_department_tree,
@@ -25,7 +26,6 @@ from organizations.permissions import (
 from organizations.validators import get_path_name_key
 
 from .contracts import (
-    UPLOAD_CHUNK_BYTES,
     FileListRequest,
     FileInfoResponse,
     FileUsageResponse,
@@ -126,7 +126,7 @@ def build_upload_payload(
         "state": get_upload_state(upload),
         "offset": upload.offset,
         "size_bytes": upload.size_bytes,
-        "chunk_bytes": UPLOAD_CHUNK_BYTES,
+        "chunk_bytes": INT_UPLOAD_CHUNK_BYTES,
         "expires_at": upload.expires_at,
         "file": filePayload,
     })

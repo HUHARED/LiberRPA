@@ -261,9 +261,9 @@ import {
 } from "../../../../shared/consoleAccount";
 import { getErrorMessage } from "../../../../shared/error";
 import type {
-  Str_ExecutorInvokeCommand,
-  Type_ExecutorInvoke_Request,
-  Type_ExecutorInvoke_Response,
+  ExecutorInvokeCommand,
+  ExecutorInvokeRequest,
+  ExecutorInvokeResponse,
   TypeIpcArgs,
 } from "../../../../shared/ipc";
 import { useConsoleStore } from "../../Store/consoleStore";
@@ -328,10 +328,10 @@ const strLastContact = computed(() => {
     : formatTimestamp(Date.parse(strTimestamp), settingStore.timezone);
 });
 
-async function invokeConsole<C extends Str_ExecutorInvokeCommand>(
+async function invokeConsole<C extends ExecutorInvokeCommand>(
   command: C,
-  ...args: TypeIpcArgs<Type_ExecutorInvoke_Request<C>>
-): Promise<Type_ExecutorInvoke_Response<C>> {
+  ...args: TypeIpcArgs<ExecutorInvokeRequest<C>>
+): Promise<ExecutorInvokeResponse<C>> {
   const result = await window.executor.invoke(command, ...args);
   if (!result.success) {
     throw new Error(result.error);

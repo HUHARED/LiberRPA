@@ -13,7 +13,7 @@
   </v-alert>
   <template v-if="details">
     <h1 class="text-h5 mb-2">
-      {{ details.package.project_name }} · {{ details.package.version }}
+      {{ details.package.project_name }} · {{ details.package.project_version }}
     </h1>
     <p class="mb-4 text-medium-emphasis">{{ details.package.department_path }}</p>
     <div class="d-flex flex-wrap ga-2 mb-4">
@@ -83,11 +83,9 @@
       <v-tabs-window-item value="settings">
         <v-card variant="outlined">
           <v-card-text>
-            <RunInputs
-              :inputs="{
-                ...details.package.settings,
-                python_environment_name: details.package.python_environment_name,
-              }" />
+            <RunSettingsDetails
+              :settings="details.package.settings"
+              :python-environment-name="details.package.python_environment_name" />
             <v-table class="mt-4">
               <tbody>
                 <tr>
@@ -221,7 +219,7 @@
             hint="Only these inputs can be supplied through an API key."
             persistent-hint />
           <h3 class="text-h6 my-4">Dispatch &amp; Email</h3>
-          <RunDispatchEditor v-model="draft" :disabled="boolBusy" />
+          <RunDispatchEmailEditor v-model="draft" :disabled="boolBusy" />
         </v-form>
       </v-card-text>
       <v-card-actions>
@@ -237,12 +235,11 @@
     <v-card>
       <v-card-title>Delete Package</v-card-title>
       <v-card-text>
-        <p>
-          Delete this package? Remove its Schedule references, finish or close active Jobs,
-          cancel preparation requests, and finish downloads first. Unused download links
-          must expire. Existing Run history is retained.
+        <p>Delete this package? Existing Run history is retained.</p>
+        <p v-if="details?.references.length" class="mt-3">
+          Resolve these references before deleting:
         </p>
-        <v-list v-if="details?.references.length" class="mt-3">
+        <v-list v-if="details?.references.length">
           <v-list-item
             v-for="reference in details.references"
             :key="`${reference.kind}:${reference.id}`"
@@ -292,9 +289,9 @@ import { RouterLink, useRouter, type RouteLocationRaw } from "vue-router";
 import type { Ref } from "vue";
 import type { VForm } from "vuetify/components";
 
-import RunInputs from "@/components/runOptions/RunInputs.vue";
+import RunSettingsDetails from "@/components/runOptions/RunSettingsDetails.vue";
 import RunOptionsEditor from "@/components/runOptions/RunOptionsEditor.vue";
-import RunDispatchEditor from "@/components/runOptions/RunDispatchEditor.vue";
+import RunDispatchEmailEditor from "@/components/runOptions/RunDispatchEmailEditor.vue";
 import RunEmailEditor from "@/components/runOptions/RunEmailEditor.vue";
 import RunPackageDialog from "@/components/packages/RunPackageDialog.vue";
 

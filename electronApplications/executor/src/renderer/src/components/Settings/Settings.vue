@@ -22,22 +22,22 @@ import LogAndTimeSettings from "./LogAndTimeSettings.vue";
 import { invokeMain } from "../../IPC/ipc";
 import { loggerRenderer } from "../../Logging/logger";
 import { useSettingStore } from "../../Store/settingStore";
-import type { Dict_ExecutorConfig } from "../../../../shared/config";
+import type { ExecutorConfig } from "../../../../shared/config";
 import { getErrorMessage } from "../../../../shared/error";
 
 const settingStore = useSettingStore();
 
-const dictConfigExecutor = computed<Dict_ExecutorConfig>(() => ({
+const dictConfigExecutor = computed<ExecutorConfig>(() => ({
   theme: settingStore.theme,
   keepRdpSession: settingStore.keepRdpSession,
   keepRdpSessionWidth: settingStore.keepRdpSessionWidth,
   keepRdpSessionHeight: settingStore.keepRdpSessionHeight,
-  logTimeoutEnable: settingStore.logTimeoutEnable,
-  logTimeoutDays: settingStore.logTimeoutDays,
-  videoTimeoutEnable: settingStore.videoTimeoutEnable,
-  videoTimeoutDays: settingStore.videoTimeoutDays,
-  videoSizeEnable: settingStore.videoSizeEnable,
-  videoSizeGB: settingStore.videoSizeGB,
+  logRetentionEnabled: settingStore.logRetentionEnabled,
+  logRetentionDays: settingStore.logRetentionDays,
+  videoRetentionEnabled: settingStore.videoRetentionEnabled,
+  videoRetentionDays: settingStore.videoRetentionDays,
+  videoStorageLimitEnabled: settingStore.videoStorageLimitEnabled,
+  videoStorageLimitGiB: settingStore.videoStorageLimitGiB,
   projectLogFolderPath: settingStore.projectLogFolderPath,
   timezone: settingStore.timezone,
 }));

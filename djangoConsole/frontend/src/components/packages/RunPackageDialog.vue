@@ -16,7 +16,9 @@
           ref="form"
           :disabled="boolBusy"
           @submit.prevent="submit">
-          <p class="text-h6">{{ packageInfo.project_name }} · {{ packageInfo.version }}</p>
+          <p class="text-h6">
+            {{ packageInfo.project_name }} · {{ packageInfo.project_version }}
+          </p>
           <p class="mb-4">Python Environment: {{ packageInfo.python_environment_name }}</p>
           <TargetSelector
             v-model:executor-ids="arrExecutorId"
@@ -32,7 +34,7 @@
             @valid="boolArgsValid = $event" />
           <v-divider class="my-5" />
           <h2 class="text-h6 mb-4">Dispatch &amp; Email</h2>
-          <RunDispatchEditor v-model="settings" :disabled="boolBusy" />
+          <RunDispatchEmailEditor v-model="settings" :disabled="boolBusy" />
           <p class="text-body-2 mt-4">
             {{ strGroupId ? 1 : arrExecutorId.length }} Jobs will be created.
           </p>
@@ -57,7 +59,7 @@ import { shallowRef, onMounted, ref } from "vue";
 import type { Ref } from "vue";
 import type { VForm } from "vuetify/components";
 import RunOptionsEditor from "@/components/runOptions/RunOptionsEditor.vue";
-import RunDispatchEditor from "@/components/runOptions/RunDispatchEditor.vue";
+import RunDispatchEmailEditor from "@/components/runOptions/RunDispatchEmailEditor.vue";
 import TargetSelector from "@/components/runOptions/TargetSelector.vue";
 import { getPackageDetails, type PackageInfo } from "@/api/packages";
 import { createJobs } from "@/api/runs";

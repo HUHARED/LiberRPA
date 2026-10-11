@@ -16,73 +16,20 @@ from console_project.constants import (
     RunLogLevel,
 )
 
+from .contracts import (
+    JobSource,
+    JobState,
+    AssignmentState,
+    RunResult,
+    OutputsStatus,
+    RecordingStatus,
+    RunEventKind,
+    RunFileKind,
+)
+
 
 if TYPE_CHECKING:
     from django.db.models.fields.related_descriptors import RelatedManager
-
-
-class JobSource(models.TextChoices):
-    MANUAL = "manual", "Manual"
-    API = "api", "API"
-    SCHEDULE = "schedule", "Schedule"
-
-
-class JobState(models.TextChoices):
-    WAITING = "waiting", "Waiting"
-    PREPARING = "preparing", "Preparing"
-    STARTING = "starting", "Starting"
-    RUNNING = "running", "Running"
-    STOPPING = "stopping", "Stopping"
-    RETRY = "waiting_retry", "Waiting for Retry"
-    REVIEW = "needs_review", "Needs Review"
-    FINISHED = "finished", "Finished"
-
-
-class AssignmentState(models.TextChoices):
-    PREPARING = "preparing", "Preparing"
-    PERMITTED = "permitted", "Permitted"
-    RUNNING = "running", "Running"
-    REVIEW = "needs_review", "Needs Review"
-    FINISHED = "finished", "Finished"
-    WITHDRAWN = "withdrawn", "Withdrawn"
-
-
-class RunResult(models.TextChoices):
-    RUNNING = "running", "Running"
-    COMPLETED = "completed", "Completed"
-    ERROR = "error", "Error"
-    CANCELED = "canceled", "Canceled"
-    TIMED_OUT = "timed_out", "Timed Out"
-    INTERRUPTED = "interrupted", "Interrupted"
-
-
-class OutputsStatus(models.TextChoices):
-    WAITING = "waiting", "Waiting"
-    COMPLETE = "complete", "Complete"
-    PARTIAL = "partial", "Partial"
-    UNAVAILABLE = "unavailable", "Unavailable"
-
-
-class RecordingStatus(models.TextChoices):
-    RECORDING = "recording", "Recording"
-    PROCESSING = "processing", "Processing"
-    READY = "ready", "Ready"
-    UNAVAILABLE = "unavailable", "Unavailable"
-
-
-class RunEventKind(models.TextChoices):
-    STARTED = "started", "Started"
-    ENDED = "ended", "Ended"
-    PREPARATION_FAILED = "preparation_failed", "Preparation Failed"
-    NOT_STARTED = "not_started", "Not Started"
-    UNKNOWN = "unknown", "Unknown"
-    RECORDING = "recording", "Recording"
-
-
-class RunFileKind(models.TextChoices):
-    LOGS = "logs", "Logs"
-    VIDEO = "video", "Video"
-    SUBTITLES = "subtitles", "Subtitles"
 
 
 class JobRequest(models.Model):
@@ -104,7 +51,7 @@ class JobRequest(models.Model):
         max_length=max(len(value) for value in JobSource.values),
         choices=JobSource.choices,
     )
-    request_sha256 = models.CharField(max_length=64)
+    request_digest = models.CharField(max_length=64)
     schedule_id = models.UUIDField(null=True)
     schedule_name = models.CharField(max_length=128, blank=True)
     scheduled_at = models.DateTimeField(null=True)
@@ -140,7 +87,7 @@ class Job(models.Model):
     department = models.ForeignKey("organizations.Department", on_delete=models.PROTECT)
     package_id = models.UUIDField()
     project_name = models.CharField(max_length=255)
-    version = models.CharField(max_length=INT_WINDOWS_NAME_MAX_LENGTH)
+    project_version = models.CharField(max_length=INT_WINDOWS_NAME_MAX_LENGTH)
     target_executor_id = models.UUIDField(null=True)
     target_group_id = models.UUIDField(null=True)
     target_name = models.CharField(max_length=128)
@@ -152,13 +99,13 @@ class Job(models.Model):
         choices=JobState.choices,
         default=JobState.WAITING,
     )
-    priority = models.PositiveSmallIntegerField(default=1)
+    priority_rank = models.PositiveSmallIntegerField(default=1)
     reason = models.CharField(max_length=2000, blank=True)
     queued_at = models.DateTimeField(default=timezone.now)
     attempt_queued_at = models.DateTimeField(default=timezone.now)
     retry_at = models.DateTimeField(null=True)
-    retry_count = models.PositiveSmallIntegerField(default=0)
-    attempts = models.PositiveSmallIntegerField(default=0)
+    max_retry_count = models.PositiveSmallIntegerField(default=0)
+    attempt_count = models.PositiveSmallIntegerField(default=0)
     # Revocation prevents future attempts without requesting a stop or closing unknown execution.
     source_access_revoked_at = models.DateTimeField(null=True)
     stop_requested_at = models.DateTimeField(null=True)
@@ -168,7 +115,7 @@ class Job(models.Model):
     class Meta:
         indexes = [
             models.Index(
-                fields=["state", "priority", "attempt_queued_at"],
+                fields=["state", "priority_rank", "attempt_queued_at"],
                 name="job_dispatch_order_idx",
             )
         ]
@@ -177,7 +124,9 @@ class Job(models.Model):
                 condition=models.Q(state__in=JobState.values), name="job_state_valid"
             ),
             models.CheckConstraint(
-                condition=models.Q(retry_count__lte=3, attempts__lte=4, priority__lte=2),
+                condition=models.Q(
+                    max_retry_count__lte=3, attempt_count__lte=4, priority_rank__lte=2
+                ),
                 name="job_attempt_bounds_valid",
             ),
             models.CheckConstraint(
@@ -204,7 +153,7 @@ class ExecutorWorkState(models.Model):
     reported_at = models.DateTimeField(default=timezone.now)
     running_run_ids = models.JSONField(default=list)
     local_waiting_count = models.PositiveIntegerField(default=0)
-    local_running_count = models.PositiveIntegerField(default=0)
+    other_active_run_count = models.PositiveIntegerField(default=0)
     last_assigned_at = models.DateTimeField(null=True)
 
 
@@ -218,10 +167,10 @@ class Assignment(models.Model):
     session_id = models.UUIDField()
     actor_id = models.UUIDField()
     actor_name = models.CharField(max_length=INT_DISPLAY_NAME_SNAPSHOT_MAX_LENGTH)
-    computer = models.CharField(max_length=128)
+    computer_name = models.CharField(max_length=128)
     executor_name = models.CharField(max_length=128)
     run_id = models.UUIDField(default=uuid.uuid4, unique=True)
-    attempt = models.PositiveSmallIntegerField()
+    attempt_number = models.PositiveSmallIntegerField()
     state = models.CharField(
         max_length=max(len(value) for value in AssignmentState.values),
         choices=AssignmentState.choices,
@@ -239,7 +188,7 @@ class Assignment(models.Model):
                 name="assignment_state_valid",
             ),
             models.CheckConstraint(
-                condition=models.Q(attempt__gte=1, attempt__lte=4),
+                condition=models.Q(attempt_number__gte=1, attempt_number__lte=4),
                 name="assignment_attempt_valid",
             ),
             models.UniqueConstraint(
@@ -285,6 +234,7 @@ class Run(models.Model):
     outputs_unavailable_keys = models.JSONField(default=list)
     error_summary = models.JSONField(null=True)
     logs_complete = models.BooleanField(default=False)
+    log_bytes = models.PositiveBigIntegerField(default=0)
     logs_cleared_at = models.DateTimeField(null=True)
     recording = models.JSONField(default=dict)
 
@@ -347,6 +297,16 @@ class RunLog(models.Model):
                 name="run_log_level_valid",
             ),
         ]
+
+
+class RunLogUsage(models.Model):
+    organization_id: uuid.UUID
+
+    organization = models.OneToOneField(
+        "organizations.Organization", primary_key=True, on_delete=models.CASCADE
+    )
+    used_bytes = models.PositiveBigIntegerField(default=0)
+    group_count = models.PositiveIntegerField(default=0)
 
 
 class RunFileTransfer(models.Model):

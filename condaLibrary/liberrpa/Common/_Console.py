@@ -33,9 +33,9 @@ _INT_MAX_SHARED_FILE_BYTES = 20 * 1024 * 1024
 _INT_FILE_CHUNK_BYTES = 4 * 1024 * 1024
 
 
-type DataQueueStatus = Literal["unclaimed", "claimed"]
-type DataQueueFilterStatus = Literal["all", "unclaimed", "claimed"]
-type DataQueueOrder = Literal["oldest_first", "newest_first"]
+type DataQueueItemStatus = Literal["unclaimed", "claimed"]
+type DataQueueItemFilterStatus = Literal["all", "unclaimed", "claimed"]
+type DataQueueItemOrder = Literal["oldest_first", "newest_first"]
 type SharedFileSort = Literal["name", "size", "uploaded_at"]
 type SortOrder = Literal["asc", "desc"]
 
@@ -71,7 +71,7 @@ class DataQueueItem:
 @dataclass(frozen=True)
 class DataQueueItemDetails(DataQueueItem):
     sequence: int
-    status: DataQueueStatus
+    status: DataQueueItemStatus
     dataSummary: str = field(repr=False)
     uploadedById: str
     uploadedByName: str
@@ -84,7 +84,7 @@ class DataQueueItemDetails(DataQueueItem):
 @dataclass(frozen=True)
 class DataQueuePage:
     items: list[DataQueueItemDetails]
-    nextSequence: int | None
+    nextAfterSequence: int | None
 
 
 @dataclass(frozen=True)
@@ -162,14 +162,14 @@ def _validate_batch_items(items: list[Any]) -> None:
 
 
 def _parse_data_queue_selection(
-    status: DataQueueFilterStatus,
-    order: DataQueueOrder,
+    status: DataQueueItemFilterStatus,
+    order: DataQueueItemOrder,
     count: int,
 ) -> dict[str, object]:
     if type(count) is not int or not 1 <= count <= _INT_MAX_BATCH_ITEMS:
         raise ValueError("count must be an integer between 1 and 100.")
-    _validate_choice(status, get_args(DataQueueFilterStatus.__value__), "status")
-    _validate_choice(order, get_args(DataQueueOrder.__value__), "order")
+    _validate_choice(status, get_args(DataQueueItemFilterStatus.__value__), "status")
+    _validate_choice(order, get_args(DataQueueItemOrder.__value__), "order")
     return {
         "status": status,
         "order": order,
@@ -185,13 +185,13 @@ def _normalize_queue_item_ids(itemIds: str | list[str]) -> list[str]:
 
 def _parse_data_queue_item_details(responseBody: dict[str, Any]) -> DataQueueItemDetails:
     _validate_choice(
-        responseBody["status"], get_args(DataQueueStatus.__value__), "status"
+        responseBody["status"], get_args(DataQueueItemStatus.__value__), "status"
     )
     return DataQueueItemDetails(
         id=responseBody["id"],
         data=responseBody["data"],
         sequence=responseBody["sequence"],
-        status=cast(DataQueueStatus, responseBody["status"]),
+        status=cast(DataQueueItemStatus, responseBody["status"]),
         dataSummary=responseBody["data_summary"],
         uploadedById=responseBody["uploaded_by_id"],
         uploadedByName=responseBody["uploaded_by_name"],

@@ -37,8 +37,11 @@ import type {
 } from "../../Domain/Project/projectTypes";
 
 const PROJECT_PACKAGE_MANIFEST_ENTRY_DATE = new Date(1984, 4, 4);
+const INT_MAX_PACKAGE_BYTES = 512 * 1024 ** 2; // 512 MiB per archive or file.
+const INT_MAX_PACKAGE_ENTRY_COUNT = 20_000;
+const INT_MAX_EXPANDED_BYTES = 2 * 1024 ** 3; // 2 GiB including generated metadata.
 
-interface Info_ProjectPackageEntry {
+interface ProjectPackageEntry {
   type: "file" | "folder";
   sourceEntryPath: string;
   archivePath: string;
@@ -46,7 +49,7 @@ interface Info_ProjectPackageEntry {
   size: number;
 }
 
-interface Info_PackageProjectData {
+export interface PackageProjectData {
   projectPath: string;
   manifest: DictProjectManifest_Flow;
   projectDependencyState: DictProtocolResult_ProjectDependencyState;
@@ -59,9 +62,10 @@ interface Info_PackageProjectData {
   warnings: DictComponentManagementWarning[];
 }
 
-interface Info_PackageProjectOperationResult {
+interface PackageProjectOperationResult {
   result: DictProjectPackageResult;
   warnings: DictComponentManagementWarning[];
+  data: PackageProjectData;
 }
 
 async function pathExists(fileSystemPath: string): Promise<boolean> {
@@ -224,7 +228,7 @@ async function getPackageBlockingReasons(
 export async function loadPackageProjectData(
   workspaceFolder: vscode.WorkspaceFolder,
   input: DictPackageProjectInput,
-): Promise<Info_PackageProjectData> {
+): Promise<PackageProjectData> {
   await ensureFlowProject(workspaceFolder);
 
   const projectPath = workspaceFolder.uri.fsPath;
@@ -308,19 +312,25 @@ export async function selectPackageOutputFolder(
 async function collectProjectPackageEntries(
   projectPath: string,
   input: DictPackageProjectInput,
-): Promise<Info_ProjectPackageEntry[]> {
+  packageManifestBytes: number,
+  projectFlowBytes: number,
+): Promise<ProjectPackageEntry[]> {
   const projectStat = await fs.promises.lstat(projectPath);
   if (!projectStat.isDirectory() || projectStat.isSymbolicLink()) {
     throw new Error(`Project path is not a normal folder: ${projectPath}`);
   }
 
-  const arrEntry: Info_ProjectPackageEntry[] = [];
+  const arrEntry: ProjectPackageEntry[] = [];
+  let intExpandedBytes = packageManifestBytes;
   const mapArchivePath = new Map<
     string,
     { archivePath: string; type: "file" | "folder" }
   >();
 
   function registerArchivePath(archivePath: string, type: "file" | "folder"): void {
+    if (mapArchivePath.size >= INT_MAX_PACKAGE_ENTRY_COUNT) {
+      throw new Error("The Package cannot contain more than 20,000 entries.");
+    }
     const strArchivePathKey = archivePath.toLowerCase();
     const existingEntry = mapArchivePath.get(strArchivePathKey);
     if (existingEntry !== undefined) {
@@ -378,13 +388,21 @@ async function collectProjectPackageEntries(
         ) {
           continue;
         }
+        const intSize = archivePath === "project.flow" ? projectFlowBytes : entryStat.size;
+        if (intSize > INT_MAX_PACKAGE_BYTES) {
+          throw new Error(`A Package file cannot exceed 512 MiB: ${archivePath}`);
+        }
+        intExpandedBytes += intSize;
+        if (intExpandedBytes > INT_MAX_EXPANDED_BYTES) {
+          throw new Error("The Package cannot exceed 2 GiB of uncompressed content.");
+        }
         registerArchivePath(archivePath, "file");
         arrEntry.push({
           type: "file",
           sourceEntryPath,
           archivePath,
           modifiedAt: entryStat.mtime,
-          size: entryStat.size,
+          size: intSize,
         });
         continue;
       }
@@ -403,7 +421,7 @@ async function collectProjectPackageEntries(
 
 async function createPackageArchive(
   tempPackageFilePath: string,
-  arrEntry: Info_ProjectPackageEntry[],
+  arrEntry: ProjectPackageEntry[],
   packageManifestContent: string,
   projectFlowContent: Buffer,
 ): Promise<void> {
@@ -476,9 +494,7 @@ async function createPackageArchive(
 export async function packageFlowProject(
   workspaceFolder: vscode.WorkspaceFolder,
   input: DictPackageProjectInput,
-): Promise<Info_PackageProjectOperationResult> {
-  await ensureFlowProject(workspaceFolder);
-
+): Promise<PackageProjectOperationResult> {
   const data = await loadPackageProjectData(workspaceFolder, input);
   if (data.blockingReasons.length > 0) {
     throw new Error(
@@ -497,18 +513,22 @@ export async function packageFlowProject(
     throw new Error(`Package file already exists: ${packageFilePath}`);
   }
 
-  const arrEntry = await collectProjectPackageEntries(data.projectPath, input);
+  const packageManifestContent = stringifyJson(
+    buildProjectPackageManifest(input.versionSummary),
+    2,
+  );
+  const arrEntry = await collectProjectPackageEntries(
+    data.projectPath,
+    input,
+    Buffer.byteLength(packageManifestContent, "utf-8"),
+    data.projectFlowContent.length,
+  );
   const projectFlowEntry = arrEntry.find(
     (entryObj) => entryObj.archivePath === "project.flow",
   );
   if (projectFlowEntry === undefined || projectFlowEntry.type !== "file") {
     throw new Error("project.flow must be a regular file at the Project root.");
   }
-  projectFlowEntry.size = data.projectFlowContent.length;
-  const packageManifestContent = stringifyJson(
-    buildProjectPackageManifest(input.versionSummary),
-    2,
-  );
 
   // Keep the temporary name independent of the final name so the UUID suffix cannot make a valid Windows filename exceed the entry name limit.
   const tempPackageFilePath = path.join(
@@ -523,6 +543,10 @@ export async function packageFlowProject(
       packageManifestContent,
       data.projectFlowContent,
     );
+    const packageStat = await fs.promises.stat(tempPackageFilePath);
+    if (packageStat.size > INT_MAX_PACKAGE_BYTES) {
+      throw new Error("The Package archive cannot exceed 512 MiB.");
+    }
     if (await pathExists(packageFilePath)) {
       throw new Error(`Package file already exists: ${packageFilePath}`);
     }
@@ -548,6 +572,7 @@ export async function packageFlowProject(
   );
 
   return {
+    data: { ...data, projectFlowContent: null, packageFileExists: true },
     result: {
       packageFilePath,
       packageFileName,

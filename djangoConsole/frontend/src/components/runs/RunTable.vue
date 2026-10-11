@@ -3,10 +3,7 @@
   <v-table>
     <thead>
       <tr>
-        <th v-if="showAttempt">Attempt</th>
-        <th>Schedule</th>
-        <th>Project</th>
-        <th>Version</th>
+        <th>Attempt</th>
         <th>Executor</th>
         <th>Started At</th>
         <th>Ended At</th>
@@ -16,10 +13,7 @@
     </thead>
     <tbody>
       <tr v-for="run in runs" :key="run.id">
-        <td v-if="showAttempt">{{ run.attempt }}</td>
-        <td>{{ run.schedule_name || "—" }}</td>
-        <td>{{ run.project_name }}</td>
-        <td>{{ run.version }}</td>
+        <td>{{ run.attempt_number }}</td>
         <td>{{ run.executor_name }}</td>
         <td class="text-no-wrap">{{ formatDateTime(run.started_at, timeZone) }}</td>
         <td class="text-no-wrap">
@@ -36,7 +30,7 @@
         </td>
       </tr>
       <tr v-if="!runs.length">
-        <td :colspan="showAttempt ? 9 : 8">{{ emptyText ?? "No runs." }}</td>
+        <td colspan="6">{{ emptyText ?? "No runs." }}</td>
       </tr>
     </tbody>
   </v-table>
@@ -48,7 +42,6 @@ import { formatDateTime } from "@/app/formatters";
 defineProps<{
   runs: RunInfo[];
   timeZone: string;
-  showAttempt?: boolean;
   emptyText?: string;
 }>();
 </script>

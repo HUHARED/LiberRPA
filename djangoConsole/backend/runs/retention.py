@@ -8,7 +8,7 @@ from datetime import timedelta
 
 from django.conf import settings
 from django.db import transaction
-from django.db.models import Count, Exists, OuterRef, Q, Sum
+from django.db.models import Count, Exists, OuterRef, Q
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 
@@ -24,9 +24,14 @@ from .models import (
     Job,
     Assignment,
     Run,
-    RunLog,
     RunFileTransfer,
     RunEvent,
+)
+
+from .log_storage import (
+    get_or_create_run_log_usage,
+    get_clearable_log_runs,
+    clear_run_logs,
 )
 
 _INT_RECEIPT_RETENTION_DAYS = 30
@@ -84,22 +89,11 @@ def prune_run_data(limit: int = 200) -> tuple[int, int]:
                 .values_list("id", flat=True)
             )
             Organization.objects.select_for_update().get(pk=organizationId)
-            logs = RunLog.objects.filter(
-                run__job__request__organization_id=organizationId
-            )
-            intBytes = logs.aggregate(total=Sum("byte_count"))["total"] or 0
-            intGroups = logs.values("run_id").distinct().count()
-            terminalRuns = (
-                Run.objects
-                .filter(
-                    job__request__organization_id=organizationId,
-                    job__state=JobState.FINISHED,
-                    logs_cleared_at__isnull=True,
-                )
-                .select_related("job")
-                .order_by("job__ended_at", "started_at", "id")
-            )
-            for run in terminalRuns[:limit]:
+            usage = get_or_create_run_log_usage(organizationId)
+            intBytes = usage.used_bytes
+            intGroups = usage.group_count
+            listExpiredRun: list[Run] = []
+            for run in get_clearable_log_runs(organizationId)[:limit]:
                 retentionStart = run.job.closed_at or run.job.ended_at
                 if retentionStart is None:
                     continue
@@ -112,14 +106,11 @@ def prune_run_data(limit: int = 200) -> tuple[int, int]:
                     and intGroups <= limits.maxRunLogGroupsPerOrganization
                 ):
                     continue
-                intRunBytes = run.logs.aggregate(total=Sum("byte_count"))["total"] or 0
-                boolHasLogs = run.logs.exists()
-                run.logs.all().delete()
-                run.logs_cleared_at = currentTime
-                run.save(update_fields=["logs_cleared_at"])
-                intBytes -= intRunBytes
-                intGroups -= int(boolHasLogs)
-                intLogsCleared += 1
+                listExpiredRun.append(run)
+                intBytes -= run.log_bytes
+                intGroups -= int(run.log_bytes > 0)
+            clear_run_logs(usage, listExpiredRun, currentTime)
+            intLogsCleared += len(listExpiredRun)
             terminalJobs = (
                 Job.objects
                 .filter(request__organization_id=organizationId, state=JobState.FINISHED)
@@ -131,6 +122,7 @@ def prune_run_data(limit: int = 200) -> tuple[int, int]:
                 job__request__organization_id=organizationId,
                 job__state=JobState.FINISHED,
             ).count()
+            listRemovedJobId = []
             for jobId, closedAt, endedAt, intRunCount in terminalJobs.filter(
                 pk__in=listCandidateJobId
             ).values_list("id", "closed_at", "ended_at", "run_count"):
@@ -142,26 +134,34 @@ def prune_run_data(limit: int = 200) -> tuple[int, int]:
                 ):
                     continue
                 intRuns -= intRunCount
+                listRemovedJobId.append(jobId)
+            if listRemovedJobId:
                 EmailDelivery.objects.filter(
                     pk__in=listPendingDeliveryId,
                     status=EmailStatus.PENDING,
-                    run_reference__run_id__in=Run.objects.filter(job_id=jobId).values(
-                        "id"
-                    ),
+                    run_reference__run_id__in=Run.objects.filter(
+                        job_id__in=listRemovedJobId
+                    ).values("id"),
                 ).update(
                     status=EmailStatus.NOT_SENT,
                     finished_at=currentTime,
                     reason_code=EmailReasonCode.RUN_NOT_ELIGIBLE,
                 )
-                Job.objects.filter(pk=jobId).delete()
-                intJobsRemoved += 1
+                listRemovedRun = list(
+                    Run.objects.filter(job_id__in=listRemovedJobId, log_bytes__gt=0).only(
+                        "id", "log_bytes"
+                    )
+                )
+                clear_run_logs(usage, listRemovedRun, currentTime)
+                Job.objects.filter(pk__in=listRemovedJobId).delete()
+                intJobsRemoved += len(listRemovedJobId)
             # Keep every no-Run target until the whole remaining request is resolved and old enough.
             protectedJobs = Job.objects.filter(request_id=OuterRef("pk")).filter(
                 ~Q(state=JobState.FINISHED)
                 | Q(ended_at__isnull=True)
                 | Q(ended_at__gt=receiptCutoff)
                 | Q(retry_at__isnull=False)
-                | Q(attempts__gt=0)
+                | Q(attempt_count__gt=0)
             )
             # Expired permits and Close are not proof that no process was created. The first
             # accepted non-start receipt starts this part of retention; later duplicates do not reset it.

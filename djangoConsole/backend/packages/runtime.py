@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 def build_run_settings(source: "Package | Schedule") -> dict:
     """Build shared execution settings without Package-only API input permissions."""
     return {
-        "retry_count": source.retry_count,
+        "max_retry_count": source.max_retry_count,
         "timeout_min": source.timeout_min,
         "builtin_log_level": source.builtin_log_level,
         "builtin_record_video": source.builtin_record_video,
@@ -42,7 +42,7 @@ def build_run_settings(source: "Package | Schedule") -> dict:
 
 def apply_run_settings(target: "Package | Schedule", values: dict) -> None:
     """Assign already validated settings; the caller owns the database write."""
-    target.retry_count = values["retry_count"]
+    target.max_retry_count = values["max_retry_count"]
     target.timeout_min = values["timeout_min"]
     target.builtin_log_level = values["builtin_log_level"]
     target.builtin_record_video = values["builtin_record_video"]
@@ -136,7 +136,7 @@ def get_run_snapshot(
         "package_id": str(package.pk),
         "department_id": str(package.department_id),
         "project_name": package.project_name,
-        "project_version": package.version,
+        "project_version": package.project_version,
         "sha256": package.sha256,
         "requires_liberrpa": package.requires_liberrpa,
         "python_environment_name": package.python_environment_name,

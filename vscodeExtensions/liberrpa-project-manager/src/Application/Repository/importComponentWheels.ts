@@ -8,7 +8,7 @@ import {
   showWarningMessageWithLogs,
 } from "../../Adapter/VsCode/output";
 import {
-  type Info_ComponentManagement_OperationResult,
+  type ComponentManagementOperationResult,
   ComponentManagementOperationError,
   importComponentWheels as runImportComponentWheels,
 } from "../../Adapter/Python/componentManagementClient";
@@ -39,9 +39,7 @@ export async function selectComponentWheelFilePaths(): Promise<string[] | undefi
 
 export async function importComponentWheelFiles(
   wheelFilePaths: string[],
-): Promise<
-  Info_ComponentManagement_OperationResult<DictProtocolResult_ComponentWheelsImported>
-> {
+): Promise<ComponentManagementOperationResult<DictProtocolResult_ComponentWheelsImported>> {
   const operationResult = await runImportComponentWheels(wheelFilePaths);
   logComponentManagementWarnings(operationResult.warnings);
 
@@ -57,7 +55,7 @@ export async function importComponentWheelFiles(
 }
 
 function getImportSummary(
-  operationResult: Info_ComponentManagement_OperationResult<DictProtocolResult_ComponentWheelsImported>,
+  operationResult: ComponentManagementOperationResult<DictProtocolResult_ComponentWheelsImported>,
 ): string {
   return (
     "Component Wheel import completed. " +

@@ -104,11 +104,9 @@
     <v-card variant="outlined" class="mb-4">
       <v-card-title>Run Settings</v-card-title>
       <v-card-text>
-        <RunInputs
-          :inputs="{
-            ...schedule.settings,
-            python_environment_name: schedule.python_environment_name || 'From package',
-          }" />
+        <RunSettingsDetails
+          :settings="schedule.settings"
+          :python-environment-name="schedule.python_environment_name" />
         <h3 class="text-subtitle-1 mt-4">Asset Bindings</h3>
         <p
           v-for="(binding, index) in schedule.settings.custom_arg_assets"
@@ -162,7 +160,7 @@ import { shallowRef, computed, ref, watch } from "vue";
 import { RouterLink, useRouter } from "vue-router";
 import cronstrue from "cronstrue";
 import ScheduleFormDialog from "@/components/schedules/ScheduleFormDialog.vue";
-import RunInputs from "@/components/runOptions/RunInputs.vue";
+import RunSettingsDetails from "@/components/runOptions/RunSettingsDetails.vue";
 import RunEmailEditor from "@/components/runOptions/RunEmailEditor.vue";
 import { getSchedule, deleteSchedule, type ScheduleInfo } from "@/api/schedules";
 import { getApiError } from "@/api/errors";

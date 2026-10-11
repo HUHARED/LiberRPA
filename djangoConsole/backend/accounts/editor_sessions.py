@@ -58,7 +58,7 @@ def revoke_user_editor_sessions(userId: uuid.UUID) -> None:
 
 @sensitive_variables()
 def begin_editor_login(
-    *, userId: uuid.UUID, verifiedAuthHash: str, computer: str, clientVersion: str
+    *, userId: uuid.UUID, verifiedAuthHash: str, computerName: str, clientVersion: str
 ) -> EditorClientResult:
     """Create an independent Editor credential after Django verifies the password."""
     with transaction.atomic(durable=True):
@@ -82,7 +82,7 @@ def begin_editor_login(
             organization=access.organization,
             token_hash=hashlib.sha256(strToken.encode("ascii")).hexdigest(),
             auth_hash=user.get_session_auth_hash(),
-            computer=computer.strip(),
+            computer_name=computerName.strip(),
             client_version=clientVersion.strip(),
             created_at=currentTime,
             last_seen_at=currentTime,

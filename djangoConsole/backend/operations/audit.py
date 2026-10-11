@@ -6,6 +6,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import json
 import re
+from collections.abc import Iterable
 from typing import cast
 
 from django.core.serializers.json import DjangoJSONEncoder
@@ -59,7 +60,12 @@ _DICT_SNAPSHOT_FIELD = {
         "deleted_at",
     ),
     "executors.executorgroup": ("name", "department_id", "notes", "deleted_at"),
-    "executors.executorsession": ("user_id", "executor_id", "computer", "client_version"),
+    "executors.executorsession": (
+        "user_id",
+        "executor_id",
+        "computer_name",
+        "client_version",
+    ),
     "assets.asset": ("name", "department_id", "asset_type", "notes"),
     "data_queues.dataqueue": ("name", "department_id", "notes"),
     "shared_files.sharedfile": ("name", "department_id", "blob_id"),
@@ -146,7 +152,7 @@ def _bound_details(details: dict[str, object]) -> dict[str, object]:
 
 
 @sensitive_variables()
-def record_audit(
+def _build_audit_record(
     action: str,
     *,
     actor: User | None,
@@ -156,8 +162,8 @@ def record_audit(
     before: dict[str, object] | None = None,
     scope: AuditScope | None = None,
     metadata: dict[str, object] | None = None,
-) -> None:
-    """Record verified identity snapshots in the caller's business transaction.
+) -> AuditRecord | None:
+    """Build verified identity snapshots in the caller's business transaction.
 
     The caller supplies the authenticated actor and the operation's organization.
     It must already hold the organization lock, or have created the organization in this transaction.
@@ -184,7 +190,7 @@ def record_audit(
         if isinstance(target, User)
         else str(getattr(target, "name", getattr(target, "email", target.pk)))
     )
-    AuditRecord.objects.create(
+    return AuditRecord(
         scope=scope
         or (AuditScope.ORGANIZATION if organization is not None else AuditScope.PLATFORM),
         organization_id=organization.pk if organization is not None else None,
@@ -208,3 +214,49 @@ def record_audit(
             **({"metadata": metadata} if metadata else {}),
         }),
     )
+
+
+@sensitive_variables()
+def record_audit(
+    action: str,
+    *,
+    actor: User | None,
+    organization: Organization | None,
+    target: models.Model,
+    channel: str = AuditChannel.SESSION,
+    before: dict[str, object] | None = None,
+    scope: AuditScope | None = None,
+    metadata: dict[str, object] | None = None,
+) -> None:
+    auditRecord = _build_audit_record(
+        action,
+        actor=actor,
+        organization=organization,
+        target=target,
+        channel=channel,
+        before=before,
+        scope=scope,
+        metadata=metadata,
+    )
+    if auditRecord is not None:
+        auditRecord.save(force_insert=True)
+
+
+@sensitive_variables()
+def record_audit_batch(
+    action: str,
+    *,
+    actor: User | None,
+    organization: Organization | None,
+    targets: Iterable[models.Model],
+    channel: str = AuditChannel.SESSION,
+) -> None:
+    """Preserve one audit record per target without one database write per target."""
+    listAuditRecord = []
+    for target in targets:
+        auditRecord = _build_audit_record(
+            action, actor=actor, organization=organization, target=target, channel=channel
+        )
+        if auditRecord is not None:
+            listAuditRecord.append(auditRecord)
+    AuditRecord.objects.bulk_create(listAuditRecord, batch_size=500)

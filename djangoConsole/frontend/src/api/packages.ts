@@ -5,92 +5,83 @@ import { getSha256, saveBlob } from "@/app/files";
 import { requestApi } from "./client";
 import { isRecord, parsePaginationResponse, rejectInvalidResponse } from "./responses";
 import { isRunSettings, cloneRunSettings, type RunSettings } from "./runOptions";
-import type { PaginationResponse } from "./generated/browserApi";
+import type {
+  PackageListEntryResponse,
+  PackageResponse,
+  PackageDetailsResponse,
+  PackageListResponse,
+  PackageUploadResponse,
+  PackageReferenceResponse,
+  PackagePreparationResponse,
+  PackageReferenceKind as PackageReferenceKindValue,
+  PackagePreparationState as PackagePreparationStateValue,
+  PackageUploadState as PackageUploadStateValue,
+} from "./generated/browserApi";
 
-export interface PackageInfo {
-  id: string;
-  department_id: string;
-  department_path: string;
-  project_name: string;
-  version: string;
-  description: string;
-  version_summary: string;
-  requires_liberrpa: string;
-  sha256: string;
-  size_bytes: number;
-  python_environment_name: string;
-  settings: RunSettings;
-  api_input_keys: string[];
-  uploaded_at: string;
-  uploaded_by_name: string;
-  can_manage: boolean;
-}
-export enum PackageReferenceKind {
-  Schedule = "schedule",
-  Job = "job",
-  Preparation = "preparation",
-  Download = "download",
-}
+export type PackageListEntry = PackageListEntryResponse;
+export type PackageInfo = PackageResponse;
+export type PackageDetails = PackageDetailsResponse;
+export type PackagePage = PackageListResponse;
+export type PackageReference = PackageReferenceResponse;
+export type PackagePreparation = PackagePreparationResponse;
+export type PackageUpload = PackageUploadResponse;
+export type PackageReferenceKind = PackageReferenceKindValue;
+export const PackageReferenceKind = {
+  Schedule: "schedule",
+  Job: "job",
+  Preparation: "preparation",
+  Download: "download",
+} as const satisfies Record<string, PackageReferenceKind>;
 export const PACKAGE_REFERENCE_LABELS: Record<PackageReferenceKind, string> = {
-  [PackageReferenceKind.Schedule]: "Schedule",
-  [PackageReferenceKind.Job]: "Job",
-  [PackageReferenceKind.Preparation]: "Preparation Request",
-  [PackageReferenceKind.Download]: "Download",
+  schedule: "Schedule",
+  job: "Job",
+  preparation: "Preparation Request",
+  download: "Download",
 };
-export interface PackageReference {
-  id: string;
-  name: string;
-  kind: PackageReferenceKind;
-}
-export enum PackagePreparationState {
-  Pending = "pending",
-  Preparing = "preparing",
-  Ready = "ready",
-  Failed = "failed",
-}
-export interface PackagePreparation {
-  executor_id: string;
-  executor_name: string;
-  state: PackagePreparationState;
-  reason: string;
-}
-export interface PackageDetails {
-  package: PackageInfo;
-  preparation: PackagePreparation[];
-  references: PackageReference[];
-}
-export interface PackagePage extends PaginationResponse {
-  packages: PackageInfo[];
-}
-export enum PackageUploadState {
-  Receiving = "receiving",
-  Completed = "completed",
-  Failed = "failed",
-  Expired = "expired",
-  Canceled = "canceled",
-}
-export interface PackageUpload {
-  upload_id: string;
-  state: PackageUploadState;
-  offset: number;
-  size_bytes: number;
-  chunk_bytes: number;
-  expires_at: string;
-  package: PackageInfo | null;
-}
-export function isPackageInfo(value: unknown): value is PackageInfo {
+export type PackagePreparationState = PackagePreparationStateValue;
+export const PackagePreparationState = {
+  Pending: "pending",
+  Preparing: "preparing",
+  Ready: "ready",
+  Failed: "failed",
+} as const satisfies Record<string, PackagePreparationState>;
+export type PackageUploadState = PackageUploadStateValue;
+export const PackageUploadState = {
+  Receiving: "receiving",
+  Completed: "completed",
+  Failed: "failed",
+  Expired: "expired",
+  Canceled: "canceled",
+} as const satisfies Record<string, PackageUploadState>;
+
+function isPackageListEntry(value: unknown): value is PackageListEntry {
   return (
     isRecord(value) &&
     typeof value.id === "string" &&
     typeof value.department_id === "string" &&
+    typeof value.department_path === "string" &&
     typeof value.project_name === "string" &&
-    typeof value.version === "string" &&
+    typeof value.project_version === "string" &&
     typeof value.python_environment_name === "string" &&
+    typeof value.can_manage === "boolean" &&
+    typeof value.size_bytes === "number" &&
+    typeof value.uploaded_at === "string" &&
+    typeof value.uploaded_by_name === "string"
+  );
+}
+export function isPackageInfo(value: unknown): value is PackageInfo {
+  return (
+    isRecord(value) &&
+    isPackageListEntry(value) &&
+    "settings" in value &&
     isRunSettings(value.settings) &&
     Array.isArray(value.api_input_keys) &&
     value.api_input_keys.every((name: unknown) => typeof name === "string") &&
-    typeof value.can_manage === "boolean" &&
-    typeof value.size_bytes === "number"
+    typeof value.description === "string" &&
+    typeof value.version_summary === "string" &&
+    typeof value.requires_liberrpa === "string" &&
+    typeof value.sha256 === "string" &&
+    isRecord(value.component_dependencies)
   );
 }
 function parsePackageDetails(value: unknown): PackageDetails {
@@ -134,19 +125,31 @@ function parseUpload(value: unknown): PackageUpload {
 }
 export async function getPackages(
   departmentIds: string[],
-  name = "",
+  projectName = "",
   page = 1,
 ): Promise<PackagePage> {
-  const query = new URLSearchParams({ page: String(page), name });
+  const query = new URLSearchParams({ page: String(page), project_name: projectName });
   for (const strId of departmentIds) query.append("department_id", strId);
   const response = await requestApi(`/packages/?${query}`);
   if (
     !isRecord(response) ||
     !Array.isArray(response.packages) ||
-    !response.packages.every(isPackageInfo)
+    !response.packages.every(isPackageListEntry)
   )
     return rejectInvalidResponse();
   return { packages: response.packages, ...parsePaginationResponse(response) };
+}
+export async function getPackageOptions(departmentId: string): Promise<PackageListEntry[]> {
+  const response = await requestApi(
+    `/packages/options/?${new URLSearchParams({ department_id: departmentId })}`,
+  );
+  if (
+    !isRecord(response) ||
+    !Array.isArray(response.packages) ||
+    !response.packages.every(isPackageListEntry)
+  )
+    return rejectInvalidResponse();
+  return response.packages;
 }
 export async function getPackageDetails(id: string): Promise<PackageDetails> {
   return parsePackageDetails(await requestApi(`/packages/${encodeURIComponent(id)}/`));

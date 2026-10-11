@@ -4,10 +4,7 @@ import { defineStore } from "pinia";
 
 import { invokeMain } from "../IPC/ipc";
 import { loggerRenderer } from "../Logging/logger";
-import type {
-  Dict_ProjectDetail,
-  Dict_ProjectSettingsUpdate,
-} from "../../../shared/project";
+import type { ProjectDetails, ProjectSettingsUpdate } from "../../../shared/project";
 
 export const useProjectStore = defineStore("project", {
   state: () => {
@@ -17,7 +14,7 @@ export const useProjectStore = defineStore("project", {
       arrPythonEnvironmentName: [] as string[],
       intSelectionRevision: 0,
 
-      dictDetailEdit: undefined as Dict_ProjectDetail | undefined,
+      dictDetailEdit: undefined as ProjectDetails | undefined,
       strDetailCacheEdit: undefined as string | undefined,
 
       // Delete dialog
@@ -100,10 +97,10 @@ export const useProjectStore = defineStore("project", {
         return;
       }
 
-      const dictTemp: Dict_ProjectSettingsUpdate = {
+      const dictTemp: ProjectSettingsUpdate = {
         id: this.dictDetailEdit.id,
         python_environment_name: this.dictDetailEdit.python_environment_name,
-        retry_count: this.dictDetailEdit.retry_count,
+        max_retry_count: this.dictDetailEdit.max_retry_count,
         timeout_min: this.dictDetailEdit.timeout_min,
         builtin_log_level: this.dictDetailEdit.builtin_log_level,
         builtin_record_video: this.dictDetailEdit.builtin_record_video,

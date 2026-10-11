@@ -9,17 +9,38 @@ import {
   parsePaginationResponse,
   rejectInvalidResponse,
 } from "./responses";
-import type { PaginationResponse } from "./generated/browserApi";
-import {
-  ARR_LOG_LEVEL,
-  ARR_PRIORITY,
-  type JsonValue,
-  type LogLevel,
-  type Priority,
-  type RunSettings,
-  type RunSnapshot,
-} from "./runOptions";
+import type {
+  JobState,
+  RunResult,
+  JobSource,
+  JobControlAction,
+  OutputsStatus,
+  RunEventKind as RunEventKindValue,
+  RunFileKind as RunFileKindValue,
+  JobResponse,
+  JobDetailsEntryResponse,
+  JobListResponse,
+  RunResponse,
+  RunDetailsEntryResponse,
+  RunListResponse,
+  RunLogEntryResponse,
+  RunLogListResponse,
+  RunDepartmentResponse,
+  RunRerunResponse,
+  RunLogClearResponse,
+} from "./generated/browserApi";
+import { ARR_LOG_LEVEL, ARR_PRIORITY, isRunSnapshot, type RunSettings } from "./runOptions";
 
+export type { JobState, RunResult, JobSource, JobControlAction };
+export type JobInfo = JobResponse;
+export type JobDetails = JobDetailsEntryResponse;
+export type JobPage = JobListResponse;
+export type RunInfo = RunResponse;
+export type RunDetails = RunDetailsEntryResponse;
+export type RunPage = RunListResponse;
+export type LogEntry = RunLogEntryResponse;
+export type LogPage = RunLogListResponse;
+export type RunDepartmentInfo = RunDepartmentResponse;
 export const ARR_JOB_STATE = [
   "waiting",
   "preparing",
@@ -28,7 +49,7 @@ export const ARR_JOB_STATE = [
   "stopping",
   "waiting_retry",
   "needs_review",
-] as const;
+] as const satisfies readonly JobState[];
 export const ARR_RUN_RESULT = [
   "running",
   "completed",
@@ -36,165 +57,60 @@ export const ARR_RUN_RESULT = [
   "canceled",
   "timed_out",
   "interrupted",
-] as const;
-export type JobState = (typeof ARR_JOB_STATE)[number] | "finished";
-export type RunResult = (typeof ARR_RUN_RESULT)[number];
-export const ARR_JOB_SOURCE = ["manual", "api", "schedule"] as const;
-export type JobSource = (typeof ARR_JOB_SOURCE)[number];
-export enum RunEventKind {
-  Started = "started",
-  Ended = "ended",
-  PreparationFailed = "preparation_failed",
-  NotStarted = "not_started",
-  Unknown = "unknown",
-  Recording = "recording",
-}
+] as const satisfies readonly RunResult[];
+export const ARR_JOB_SOURCE = [
+  "manual",
+  "api",
+  "schedule",
+] as const satisfies readonly JobSource[];
+export type RunEventKind = RunEventKindValue;
+export const RunEventKind = {
+  Started: "started",
+  Ended: "ended",
+  PreparationFailed: "preparation_failed",
+  NotStarted: "not_started",
+  Unknown: "unknown",
+  Recording: "recording",
+} as const satisfies Record<string, RunEventKind>;
 export const ARR_OUTPUTS_STATUS = [
   "waiting",
   "complete",
   "partial",
   "unavailable",
-] as const;
-export interface JobInfo {
-  id: string;
-  job_request_id: string;
-  department_id: string;
-  source: JobSource;
-  schedule_id: string | null;
-  schedule_name: string;
-  scheduled_at: string | null;
-  project_name: string;
-  version: string;
-  package_id: string | null;
-  target_type: "executor" | "group";
-  target_id: string;
-  target_name: string;
-  executor_id: string | null;
-  executor_name: string | null;
-  priority: Priority;
-  state: JobState;
-  reason: string;
-  queued_at: string;
-  retry_at: string | null;
-  closed_at: string | null;
-  ended_at: string | null;
-  can_cancel: boolean;
-  can_stop: boolean;
-  can_close: boolean;
-}
-export interface JobEvent {
-  kind: RunEventKind;
-  occurred_at: string;
-  reason: string;
-}
-export interface RunInfo {
-  id: string;
-  job_id: string;
-  department_id: string;
-  schedule_name: string;
-  project_name: string;
-  version: string;
-  executor_id: string;
-  executor_name: string;
-  account_name: string;
-  computer: string;
-  attempt: number;
-  started_at: string;
-  ended_at: string | null;
-  result: RunResult;
-  reason: string;
-  outputs_status: "waiting" | "complete" | "partial" | "unavailable";
-  can_rerun: boolean;
-  can_stop: boolean;
-}
-export interface JobDetails extends JobInfo {
-  run_snapshot: RunSnapshot;
-  runs: RunInfo[];
-  events: JobEvent[];
-}
-export interface RecordingInfo {
-  status?: "recording" | "processing" | "ready" | "unavailable";
-  reason?: string;
-  videoSizeBytes?: number | null;
-  subtitleSizeBytes?: number | null;
-}
-export enum RunFileKind {
-  Logs = "logs",
-  Video = "video",
-  Subtitles = "subtitles",
-}
-export interface RunFileAvailability {
-  available: boolean;
-  reason: string;
-  size_bytes: number | null;
-}
-export interface RunDetails extends RunInfo {
-  department_path: string;
-  department_deleted_at: string | null;
-  run_snapshot: RunSnapshot;
-  outputs: [string, JsonValue][] | null;
-  outputs_reason: string;
-  outputs_unavailable_keys: string[];
-  error_summary: Record<string, JsonValue> | null;
-  job: JobInfo;
-  other_runs: RunInfo[];
-  logs_cleared_at: string | null;
-  recording: RecordingInfo;
-  files: Record<RunFileKind, RunFileAvailability>;
-}
-export interface RunFilters {
+] as const satisfies readonly OutputsStatus[];
+export type RunFileKind = RunFileKindValue;
+export const RunFileKind = {
+  Logs: "logs",
+  Video: "video",
+  Subtitles: "subtitles",
+} as const satisfies Record<string, RunFileKind>;
+
+interface WorkFilters {
   departmentIds: string[];
   projectName: string;
   scheduleName: string;
-  states: string[];
+}
+export interface JobFilters extends WorkFilters {
+  states: JobState[];
+}
+export interface RunFilters extends WorkFilters {
+  results: RunResult[];
   executorId: string;
   startedFrom: string;
   startedUntil: string;
 }
-export interface JobPage extends PaginationResponse {
-  jobs: JobInfo[];
-}
-export interface RunPage extends PaginationResponse {
-  runs: RunInfo[];
-}
-export interface LogEntry {
-  log_id: string;
-  sequence: number;
-  timestamp: string;
-  received_at: string;
-  level: LogLevel;
-  user_name: string;
-  machine_name: string;
-  process_name: string;
-  file_name: string;
-  line_no: string;
-  project_name: string;
-  message_text: string;
-  custom_fields: Record<string, string>;
-}
-export interface LogPage {
-  logs: LogEntry[];
-  before_cursor: number | null;
-  after_cursor: number;
-  has_more: boolean;
-  cleared: boolean;
-  complete: boolean;
-}
-function buildQuery(
-  filters: RunFilters,
-  page: number | undefined,
-  isJob: boolean,
-): URLSearchParams {
+function buildQuery(filters: JobFilters | RunFilters, page?: number): URLSearchParams {
   const query = new URLSearchParams();
   if (page !== undefined) query.set("page", String(page));
   for (const id of filters.departmentIds) query.append("department_id", id);
-  for (const state of filters.states) query.append(isJob ? "state" : "result", state);
+  if ("states" in filters) for (const state of filters.states) query.append("state", state);
+  else for (const result of filters.results) query.append("result", result);
   for (const [key, value] of [
     ["project_name", filters.projectName],
     ["schedule_name", filters.scheduleName],
-    ["executor_id", filters.executorId],
-    ["started_from", filters.startedFrom],
-    ["started_until", filters.startedUntil],
+    ["executor_id", "executorId" in filters ? filters.executorId : ""],
+    ["started_from", "startedFrom" in filters ? filters.startedFrom : ""],
+    ["started_until", "startedUntil" in filters ? filters.startedUntil : ""],
   ])
     if (value && key) query.set(key, value);
   return query;
@@ -208,6 +124,7 @@ function isJob(value: unknown): value is JobInfo {
     ARR_JOB_SOURCE.some((source) => value.source === source) &&
     ARR_PRIORITY.some((priority) => value.priority === priority) &&
     typeof value.project_name === "string" &&
+    typeof value.project_version === "string" &&
     typeof value.can_stop === "boolean"
   );
 }
@@ -218,26 +135,28 @@ function isRun(value: unknown): value is RunInfo {
     ARR_RUN_RESULT.some((result) => value.result === result) &&
     ARR_OUTPUTS_STATUS.some((status) => value.outputs_status === status) &&
     typeof value.project_name === "string" &&
+    typeof value.project_version === "string" &&
+    isNonnegativeInteger(value.attempt_number) &&
+    value.attempt_number > 0 &&
+    typeof value.computer_name === "string" &&
     typeof value.can_rerun === "boolean" &&
     typeof value.can_stop === "boolean"
   );
 }
-export async function getJobs(filters: RunFilters, page = 1): Promise<JobPage> {
-  const result = await requestApi(`/jobs/?${buildQuery(filters, page, true)}`);
+export async function getJobs(filters: JobFilters, page = 1): Promise<JobPage> {
+  const result = await requestApi(`/jobs/?${buildQuery(filters, page)}`);
   if (!isRecord(result) || !Array.isArray(result.jobs) || !result.jobs.every(isJob))
     return rejectInvalidResponse();
   return { jobs: result.jobs, ...parsePaginationResponse(result) };
 }
 export async function getRuns(filters: RunFilters, page = 1): Promise<RunPage> {
-  const result = await requestApi(`/runs/?${buildQuery(filters, page, false)}`);
+  const result = await requestApi(`/runs/?${buildQuery(filters, page)}`);
   if (!isRecord(result) || !Array.isArray(result.runs) || !result.runs.every(isRun))
     return rejectInvalidResponse();
   return { runs: result.runs, ...parsePaginationResponse(result) };
 }
 export async function getMatchingRunIds(filters: RunFilters): Promise<string[]> {
-  const result = await requestApi(
-    `/runs/selection/?${buildQuery(filters, undefined, false)}`,
-  );
+  const result = await requestApi(`/runs/selection/?${buildQuery(filters)}`);
   if (
     !isRecord(result) ||
     !Array.isArray(result.run_ids) ||
@@ -251,8 +170,10 @@ export async function getJob(id: string): Promise<JobDetails> {
   if (
     !isRecord(result) ||
     !isRecord(result.job) ||
-    !isRecord(result.job.run_snapshot) ||
+    !isRunSnapshot(result.job.run_snapshot) ||
     !isJob(result.job) ||
+    !Array.isArray(result.job.runs) ||
+    !result.job.runs.every(isRun) ||
     !Array.isArray(result.job.events) ||
     !result.job.events.every(
       (event) =>
@@ -273,8 +194,12 @@ export async function getRun(id: string): Promise<RunDetails> {
     typeof result.run.department_path !== "string" ||
     result.run.department_path.length === 0 ||
     !isNullableDateString(result.run.department_deleted_at) ||
-    !isRecord(result.run.run_snapshot) ||
+    !isRunSnapshot(result.run.run_snapshot) ||
     !isRun(result.run) ||
+    !isJob(result.run.job) ||
+    !Array.isArray(result.run.other_runs) ||
+    !result.run.other_runs.every(isRun) ||
+    !isRecord(result.run.recording) ||
     typeof result.run.outputs_reason !== "string" ||
     !Array.isArray(result.run.outputs_unavailable_keys) ||
     !result.run.outputs_unavailable_keys.every((key: unknown) => typeof key === "string") ||
@@ -332,10 +257,7 @@ export async function createJobs(
   )
     return rejectInvalidResponse();
 }
-export async function controlJob(
-  id: string,
-  action: "cancel" | "stop" | "close",
-): Promise<void> {
+export async function controlJob(id: string, action: JobControlAction): Promise<void> {
   await requestApi(`/jobs/${encodeURIComponent(id)}/control/`, {
     method: "POST",
     body: { action },
@@ -344,25 +266,18 @@ export async function controlJob(
 export async function stopRun(id: string): Promise<void> {
   await requestApi(`/runs/${encodeURIComponent(id)}/stop/`, { method: "POST", body: {} });
 }
-export async function getRerun(id: string): Promise<{
-  package_id: string;
-  executor_ids: string[];
-  group_id: string | null;
-  original_job_active: boolean;
-}> {
+export async function getRerun(id: string): Promise<RunRerunResponse> {
   const result = await requestApi(`/runs/${encodeURIComponent(id)}/rerun/`);
   if (
     !isRecord(result) ||
     typeof result.package_id !== "string" ||
-    !Array.isArray(result.executor_ids)
+    !Array.isArray(result.executor_ids) ||
+    !result.executor_ids.every((id: unknown) => typeof id === "string") ||
+    !(result.group_id === null || typeof result.group_id === "string") ||
+    typeof result.original_job_active !== "boolean"
   )
     return rejectInvalidResponse();
-  return result as unknown as {
-    package_id: string;
-    executor_ids: string[];
-    group_id: string | null;
-    original_job_active: boolean;
-  };
+  return result as unknown as RunRerunResponse;
 }
 function isLogEntry(value: unknown): value is LogEntry {
   return (
@@ -412,11 +327,7 @@ export async function getRunLogs(
     complete: result.complete,
   };
 }
-export async function clearRunLogs(ids: string[]): Promise<{
-  cleared: number;
-  skipped: { id: string; reason: string }[];
-  failed: { id: string; reason: string }[];
-}> {
+export async function clearRunLogs(ids: string[]): Promise<RunLogClearResponse> {
   const result = await requestApi("/runs/clear-logs/", {
     method: "POST",
     body: { run_ids: ids },
@@ -428,11 +339,7 @@ export async function clearRunLogs(ids: string[]): Promise<{
     !Array.isArray(result.failed)
   )
     return rejectInvalidResponse();
-  return result as unknown as {
-    cleared: number;
-    skipped: { id: string; reason: string }[];
-    failed: { id: string; reason: string }[];
-  };
+  return result as unknown as RunLogClearResponse;
 }
 export async function downloadRunFile(id: string, kind: RunFileKind): Promise<void> {
   const result = await requestApi(`/runs/${encodeURIComponent(id)}/files/`, {
@@ -451,12 +358,6 @@ export async function downloadRunFile(id: string, kind: RunFileKind): Promise<vo
   link.click();
 }
 
-export interface RunDepartmentInfo {
-  id: string;
-  name: string;
-  path: string;
-  deleted_at: string | null;
-}
 export async function getRunDepartments(): Promise<RunDepartmentInfo[]> {
   const result = await requestApi("/runs/departments/");
   if (

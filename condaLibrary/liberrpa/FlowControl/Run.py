@@ -9,7 +9,7 @@ import multiprocessing
 
 
 from liberrpa.Logging import Log
-from liberrpa.Common._RunContext import build_executor_run_state
+from liberrpa.Common._RunContext import ExecutorRunStateStatus, build_executor_run_state
 from liberrpa.Common._Utils import PATH_PROJECT_ROOT, PROCESS_NAME
 from liberrpa.Trigger import _register_force_exit, _register_executor_exit_listener
 from liberrpa.Basic import _start_video_record
@@ -175,7 +175,7 @@ def _run_by_direction(id: str) -> str | None:
             return dictNonChooseNext[id]["Error"]
         else:
             # Assign the value to record exit reason.
-            End.executionResult = "error"
+            End.executionResult = ExecutorRunStateStatus.ERROR
             End.executionError = e
             # The node has no "Error" direction. return None to stop the loop.
             return None
@@ -220,7 +220,7 @@ def main() -> None:
     )
 
     dictExecutorRunState = build_executor_run_state(
-        status="running",
+        status=ExecutorRunStateStatus.RUNNING,
         logPath=Log.strLogFolder,
     )
     if dictExecutorRunState is not None:

@@ -122,7 +122,7 @@ def get_asset_references(
         (
             AssetReferenceKind.PACKAGE,
             Package.objects.filter(department__in=departments).values(
-                "id", "project_name", "version", "custom_arg_assets"
+                "id", "project_name", "project_version", "custom_arg_assets"
             ),
         ),
         (
@@ -147,7 +147,7 @@ def get_asset_references(
                         name=row["project_name"]
                         if kind == AssetReferenceKind.PACKAGE
                         else row["name"],
-                        version=row.get("version"),
+                        project_version=row.get("project_version"),
                     )
                 )
     return listReference

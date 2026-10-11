@@ -7,6 +7,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from liberrpa.Logging import Log
 from liberrpa.Common._RunContext import (
+    ExecutorRunStateStatus,
     capture_output_snapshot,
     capture_execution_error,
     write_executor_run_state,
@@ -19,13 +20,10 @@ from liberrpa.FlowControl.ProjectFlowInit import PrjArgs
 from datetime import timedelta
 import sys
 import threading
-from typing import Literal
 
 
-type FlowExecutionResult = Literal["completed", "error", "terminated"]
-
-# The final execution result of the current Flow. Executor maps "terminated" to "cancel" or "timeout" according to the action that requested termination.
-executionResult: FlowExecutionResult = "completed"
+# The final execution result of the current Flow. Executor maps "terminated" to "canceled" or "timed_out" according to the action that requested termination.
+executionResult = ExecutorRunStateStatus.COMPLETED
 executionError: Exception | None = None
 
 _LOCK_CLEANUP = threading.Lock()
@@ -55,9 +53,9 @@ def cleanup() -> None:
 
     try:
         dictResultMessage = {
-            "completed": f"{PrjArgs.projectName} - Completed.",
-            "error": f"{PrjArgs.projectName} - Encounter an error.",
-            "terminated": f"{PrjArgs.projectName} - You pressed Ctrl+F12 or Executor stopped it.",
+            ExecutorRunStateStatus.COMPLETED: f"{PrjArgs.projectName} - Completed.",
+            ExecutorRunStateStatus.ERROR: f"{PrjArgs.projectName} - Encounter an error.",
+            ExecutorRunStateStatus.TERMINATED: f"{PrjArgs.projectName} - You pressed Ctrl+F12 or Executor stopped it.",
         }
 
         show_notification(
@@ -99,20 +97,20 @@ def cleanup() -> None:
             )
 
         # Capture late termination requests, then use one result for the state and final log.
-        strExecutionResult = executionResult
+        finalResult = executionResult
         outputSnapshot = capture_output_snapshot(PrjArgs.customArgs)
         errorSummary = (
             capture_execution_error(executionError)
-            if strExecutionResult == "error"
+            if finalResult == ExecutorRunStateStatus.ERROR
             else None
         )
         write_executor_run_state(
-            status=strExecutionResult,
+            status=finalResult,
             logPath=Log.strLogFolder,
             outputs=outputSnapshot,
             errorSummary=errorSummary,
         )
-        Log.debug(dictResultMessage[strExecutionResult])
+        Log.debug(dictResultMessage[finalResult])
     except BaseException as e:
         _cleanupError = e
         raise

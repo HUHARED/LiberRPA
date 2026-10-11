@@ -194,11 +194,11 @@
         </v-chip>
       </template>
 
-      <template #item.computer="{ item }">
-        <div class="table-text-narrow">{{ item.computer ?? "—" }}</div>
+      <template #item.computer_name="{ item }">
+        <div class="table-text-narrow">{{ item.computer_name ?? "—" }}</div>
       </template>
 
-      <template #item.version="{ item }">{{ item.version ?? "—" }}</template>
+      <template #item.client_version="{ item }">{{ item.client_version ?? "—" }}</template>
 
       <template #item.last_seen_at="{ item }">
         {{ formatDateTime(item.last_seen_at, strTimeZone) }}
@@ -354,8 +354,8 @@ const ARR_HEADER = [
   { title: "Account", key: "account", minWidth: 220 },
   { title: "Association", key: "association_status", minWidth: 140 },
   { title: "Console Dispatch", key: "dispatch_enabled", minWidth: 170 },
-  { title: "Computer", key: "computer", minWidth: 150 },
-  { title: "Version", key: "version", minWidth: 100 },
+  { title: "Computer", key: "computer_name", minWidth: 150 },
+  { title: "Version", key: "client_version", minWidth: 100 },
   { title: "Last Seen", key: "last_seen_at", minWidth: 220 },
   { title: "Notes", key: "notes", minWidth: 200 },
 ];

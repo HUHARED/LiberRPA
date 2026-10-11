@@ -30,6 +30,7 @@ import {
   ConsoleAction,
   ConsolePublishStatus,
   type ConsolePublishDepartment,
+  isConsolePublishDepartment,
   type ConsolePublishResult,
   isConsoleAccountState,
   type ConsoleAccountState,
@@ -104,23 +105,29 @@ export interface DictManageComponentsInitialData {
 }
 
 export type DictMessage_WebviewToExtension =
+  // Shared commands.
   | { command: "ready" }
   | { command: "showLogs" }
+  // Create Project.
   | { command: "selectTargetFolder" }
   | { command: "confirmCreateProject"; input: DictCreateProjectInput }
+  // Package Project.
   | { command: "selectPackageOutputFolder"; input: DictPackageProjectInput }
   | { command: "runPackageProject"; input: DictPackageProjectInput }
   | { command: "refreshPackageProject"; input: DictPackageProjectInput }
+  | { command: "refreshConsolePublishing"; input: DictPackageProjectInput }
   | { command: "openPackageProjectManifest" }
   | { command: "revealProjectPackage" }
   | { command: "retryConsolePublish" }
   | { command: "openManageComponents" }
+  // Publish Component.
   | { command: "runPublishComponent" }
   | { command: "refreshPublishComponent" }
   | {
       command: "openPublishComponentFile";
       file: Str_PublishComponentFile;
     }
+  // Manage Components.
   | {
       command: "buildProjectDependencyPlan";
       dependencyOperation: DictProtocolDependencyOperation;
@@ -133,28 +140,38 @@ export type DictMessage_WebviewToExtension =
   | { command: "repairProjectComponents" }
   | { command: "importComponentWheels" }
   | { command: "refreshManageComponents" }
+  // Console account.
   | { command: "changeConsoleAddress"; url: string }
   | { command: "signInConsole"; email: string; password: string }
   | { command: "signOutConsole" }
   | { command: "checkConsoleConnection" }
+  // Close the panel.
   | { command: "cancel" };
 
 export type DictMessage_ExtensionToWebview =
-  | { command: "loadConsole"; theme: Theme; state: ConsoleAccountState }
-  | { command: "consoleStateChanged"; state: ConsoleAccountState }
-  | { command: "consoleActionFinished"; action: ConsoleAction; error: string | null }
+  // Create Project.
   | {
       command: "loadCreateProject";
       initialData: DictCreateProjectInitialData;
     }
+  | { command: "targetFolderSelected"; targetFolderPath: string }
+  // Package Project.
   | {
       command: "loadPackageProject";
       initialData: DictPackageProjectInitialData;
     }
   | {
+      command: "consolePublishingDepartmentsLoaded";
+      departments: ConsolePublishDepartment[];
+      message: string;
+    }
+  | { command: "consolePublishChanged"; result: ConsolePublishResult }
+  // Publish Component.
+  | {
       command: "loadPublishComponent";
       initialData: DictPublishComponentInitialData;
     }
+  // Manage Components.
   | {
       command: "loadManageComponents";
       initialData: DictManageComponentsInitialData;
@@ -165,7 +182,11 @@ export type DictMessage_ExtensionToWebview =
       plan: DictProtocolResult_ProjectDependencyPlan;
       warningMessages: string[];
     }
-  | { command: "targetFolderSelected"; targetFolderPath: string }
+  // Console account.
+  | { command: "loadConsole"; theme: Theme; state: ConsoleAccountState }
+  | { command: "consoleStateChanged"; state: ConsoleAccountState }
+  | { command: "consoleActionFinished"; action: ConsoleAction; error: string | null }
+  // Shared feedback.
   | { command: "setBusy"; busy: boolean }
   | {
       command: "componentManagementError";
@@ -473,13 +494,7 @@ function isPackageProjectInitialData(
     isStringArray(value["blockingReasons"]) &&
     isStringArray(value["warningMessages"]) &&
     Array.isArray(value["consoleDepartments"]) &&
-    value["consoleDepartments"].every(
-      (entry: unknown) =>
-        isRecord(entry) &&
-        typeof entry["id"] === "string" &&
-        typeof entry["name"] === "string" &&
-        typeof entry["path"] === "string",
-    ) &&
+    value["consoleDepartments"].every(isConsolePublishDepartment) &&
     typeof value["consolePublishingMessage"] === "string" &&
     isConsolePublishResult(value["consolePublishResult"]) &&
     (value["packageResult"] === null || isProjectPackageResult(value["packageResult"])) &&
@@ -581,34 +596,14 @@ export function isMessage_WebviewToExtension(
   }
 
   switch (value["command"]) {
+    // Shared commands.
     case "ready":
     case "showLogs":
-    case "selectTargetFolder":
-    case "openPackageProjectManifest":
-    case "revealProjectPackage":
-    case "retryConsolePublish":
-    case "openManageComponents":
-    case "runPublishComponent":
-    case "refreshPublishComponent":
-    case "repairProjectComponents":
-    case "importComponentWheels":
-    case "refreshManageComponents":
-    case "signOutConsole":
-    case "checkConsoleConnection":
-    case "cancel":
       return hasExactKeys(value, new Set(["command"]));
 
-    case "changeConsoleAddress":
-      return (
-        hasExactKeys(value, new Set(["command", "url"])) && typeof value["url"] === "string"
-      );
-
-    case "signInConsole":
-      return (
-        hasExactKeys(value, new Set(["command", "email", "password"])) &&
-        typeof value["email"] === "string" &&
-        typeof value["password"] === "string"
-      );
+    // Create Project.
+    case "selectTargetFolder":
+      return hasExactKeys(value, new Set(["command"]));
 
     case "confirmCreateProject":
       return (
@@ -616,13 +611,26 @@ export function isMessage_WebviewToExtension(
         isCreateProjectInput(value["input"])
       );
 
+    // Package Project.
     case "selectPackageOutputFolder":
     case "runPackageProject":
     case "refreshPackageProject":
+    case "refreshConsolePublishing":
       return (
         hasExactKeys(value, new Set(["command", "input"])) &&
         isPackageProjectInput(value["input"])
       );
+
+    case "openPackageProjectManifest":
+    case "revealProjectPackage":
+    case "retryConsolePublish":
+    case "openManageComponents":
+      return hasExactKeys(value, new Set(["command"]));
+
+    // Publish Component.
+    case "runPublishComponent":
+    case "refreshPublishComponent":
+      return hasExactKeys(value, new Set(["command"]));
 
     case "openPublishComponentFile":
       return (
@@ -630,6 +638,7 @@ export function isMessage_WebviewToExtension(
         (value["file"] === "astSnippets" || value["file"] === "snippetsConfig")
       );
 
+    // Manage Components.
     case "buildProjectDependencyPlan":
       return (
         hasExactKeys(value, new Set(["command", "dependencyOperation"])) &&
@@ -646,6 +655,32 @@ export function isMessage_WebviewToExtension(
         typeof value["confirmedPlanSha256"] === "string" &&
         /^[0-9a-f]{64}$/.test(value["confirmedPlanSha256"])
       );
+
+    case "repairProjectComponents":
+    case "importComponentWheels":
+    case "refreshManageComponents":
+      return hasExactKeys(value, new Set(["command"]));
+
+    // Console account.
+    case "changeConsoleAddress":
+      return (
+        hasExactKeys(value, new Set(["command", "url"])) && typeof value["url"] === "string"
+      );
+
+    case "signInConsole":
+      return (
+        hasExactKeys(value, new Set(["command", "email", "password"])) &&
+        typeof value["email"] === "string" &&
+        typeof value["password"] === "string"
+      );
+
+    case "signOutConsole":
+    case "checkConsoleConnection":
+      return hasExactKeys(value, new Set(["command"]));
+
+    // Close the panel.
+    case "cancel":
+      return hasExactKeys(value, new Set(["command"]));
   }
 
   return false;
@@ -659,6 +694,67 @@ export function isMessage_ExtensionToWebview(
   }
 
   switch (value["command"]) {
+    // Create Project.
+    case "loadCreateProject":
+      return (
+        hasExactKeys(value, new Set(["command", "initialData"])) &&
+        isCreateProjectInitialData(value["initialData"])
+      );
+
+    case "targetFolderSelected":
+      return (
+        hasExactKeys(value, new Set(["command", "targetFolderPath"])) &&
+        typeof value["targetFolderPath"] === "string"
+      );
+
+    // Package Project.
+    case "loadPackageProject":
+      return (
+        hasExactKeys(value, new Set(["command", "initialData"])) &&
+        isPackageProjectInitialData(value["initialData"])
+      );
+
+    case "consolePublishingDepartmentsLoaded":
+      return (
+        hasExactKeys(value, new Set(["command", "departments", "message"])) &&
+        Array.isArray(value["departments"]) &&
+        value["departments"].every(isConsolePublishDepartment) &&
+        typeof value["message"] === "string"
+      );
+
+    case "consolePublishChanged":
+      return (
+        hasExactKeys(value, new Set(["command", "result"])) &&
+        isConsolePublishResult(value["result"])
+      );
+
+    // Publish Component.
+    case "loadPublishComponent":
+      return (
+        hasExactKeys(value, new Set(["command", "initialData"])) &&
+        isPublishComponentInitialData(value["initialData"])
+      );
+
+    // Manage Components.
+    case "loadManageComponents":
+      return (
+        hasExactKeys(value, new Set(["command", "initialData"])) &&
+        isManageComponentsInitialData(value["initialData"])
+      );
+
+    case "projectDependencyPlanBuilt":
+      return (
+        hasExactKeys(
+          value,
+          new Set(["command", "dependencyOperation", "plan", "warningMessages"]),
+        ) &&
+        isDependencyOperation(value["dependencyOperation"]) &&
+        isRecord(value["plan"]) &&
+        value["plan"]["status"] === "projectDependencyPlanCreated" &&
+        isStringArray(value["warningMessages"])
+      );
+
+    // Console account.
     case "loadConsole":
       return (
         hasExactKeys(value, new Set(["command", "theme", "state"])) &&
@@ -679,48 +775,7 @@ export function isMessage_ExtensionToWebview(
         (value["error"] === null || typeof value["error"] === "string")
       );
 
-    case "loadCreateProject":
-      return (
-        hasExactKeys(value, new Set(["command", "initialData"])) &&
-        isCreateProjectInitialData(value["initialData"])
-      );
-
-    case "loadPackageProject":
-      return (
-        hasExactKeys(value, new Set(["command", "initialData"])) &&
-        isPackageProjectInitialData(value["initialData"])
-      );
-
-    case "loadPublishComponent":
-      return (
-        hasExactKeys(value, new Set(["command", "initialData"])) &&
-        isPublishComponentInitialData(value["initialData"])
-      );
-
-    case "loadManageComponents":
-      return (
-        hasExactKeys(value, new Set(["command", "initialData"])) &&
-        isManageComponentsInitialData(value["initialData"])
-      );
-
-    case "projectDependencyPlanBuilt":
-      return (
-        hasExactKeys(
-          value,
-          new Set(["command", "dependencyOperation", "plan", "warningMessages"]),
-        ) &&
-        isDependencyOperation(value["dependencyOperation"]) &&
-        isRecord(value["plan"]) &&
-        value["plan"]["status"] === "projectDependencyPlanCreated" &&
-        isStringArray(value["warningMessages"])
-      );
-
-    case "targetFolderSelected":
-      return (
-        hasExactKeys(value, new Set(["command", "targetFolderPath"])) &&
-        typeof value["targetFolderPath"] === "string"
-      );
-
+    // Shared feedback.
     case "setBusy":
       return (
         hasExactKeys(value, new Set(["command", "busy"])) &&

@@ -20,7 +20,7 @@ from data_queues.models import DataQueue
 from file_storage.models import StoredBlob
 from shared_files.models import SharedFile, UploadSession
 from packages.models import PackageUpload
-from runs.models import JobRequest
+from runs.models import JobRequest, RunLogUsage
 from schedules.models import Schedule
 from operations.audit import record_audit
 from operations.models import AuditScope, AuditRecord
@@ -80,6 +80,7 @@ def prepare_organization_execution_cleanup(organizationId: uuid.UUID) -> None:
     # Schedule protects Package; assignments protect Executor; Jobs protect Department.
     Schedule.objects.filter(department__organization_id=organizationId).delete()
     JobRequest.objects.filter(organization_id=organizationId).delete()
+    RunLogUsage.objects.filter(organization_id=organizationId).delete()
 
 
 def _delete_organization_departments(organizationId: uuid.UUID) -> None:

@@ -10,7 +10,7 @@
   </v-alert>
   <template v-if="job">
     <div class="d-flex align-center flex-wrap ga-3 mb-4">
-      <h1 class="text-h5">{{ job.project_name }} · {{ job.version }}</h1>
+      <h1 class="text-h5">{{ job.project_name }} · {{ job.project_version }}</h1>
       <v-chip>{{ JOB_STATE_LABELS[job.state] }}</v-chip>
       <v-spacer />
       <JobActions :job="job" @updated="load" @error="strError = $event" />
@@ -70,11 +70,15 @@
     </v-card>
     <v-card variant="outlined" class="mb-4">
       <v-card-title>Runs</v-card-title>
-      <RunTable :runs="job.runs" :time-zone="strTimeZone" show-attempt />
+      <RunTable :runs="job.runs" :time-zone="strTimeZone" />
     </v-card>
     <v-card variant="outlined" class="mb-4">
       <v-card-title>Inputs</v-card-title>
-      <v-card-text><RunInputs :inputs="job.run_snapshot" /></v-card-text>
+      <v-card-text>
+        <RunSettingsDetails
+          :settings="job.run_snapshot"
+          :python-environment-name="job.run_snapshot.python_environment_name" />
+      </v-card-text>
     </v-card>
     <v-card variant="outlined" class="mb-4">
       <v-card-title>Events</v-card-title>
@@ -112,7 +116,7 @@
 import { shallowRef, computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import JobActions from "@/components/runs/JobActions.vue";
 import RunTable from "@/components/runs/RunTable.vue";
-import RunInputs from "@/components/runOptions/RunInputs.vue";
+import RunSettingsDetails from "@/components/runOptions/RunSettingsDetails.vue";
 import { getJob, type JobDetails } from "@/api/runs";
 import { getApiError } from "@/api/errors";
 import {

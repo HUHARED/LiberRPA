@@ -2,7 +2,7 @@
 
 import type { RunOptions, PythonEnvironmentSelection } from "./runOptions";
 
-export interface Dict_ProjectDetail extends RunOptions, PythonEnvironmentSelection {
+export interface ProjectDetails extends RunOptions, PythonEnvironmentSelection {
   id: number;
   name: string;
   version: string;
@@ -13,16 +13,16 @@ export interface Dict_ProjectDetail extends RunOptions, PythonEnvironmentSelecti
   updated_at_ms: number;
 }
 
-export type Dict_ProjectCreate = Omit<
-  Dict_ProjectDetail,
+export type ProjectCreateData = Omit<
+  ProjectDetails,
   "id" | "created_at_ms" | "updated_at_ms"
 >;
 
-export interface Dict_ProjectSettingsUpdate extends RunOptions, PythonEnvironmentSelection {
+export interface ProjectSettingsUpdate extends RunOptions, PythonEnvironmentSelection {
   id: number;
 }
 
-export type Dict_ProjectPackage_InstallResult =
+export type ProjectPackageInstallResult =
   | { status: "canceled" }
   | {
       status: "projectPackageInstalled";

@@ -27,7 +27,7 @@
             <v-text-field v-model="filters.name" label="Name" hide-details />
           </v-col>
           <v-col cols="12" md="4">
-            <v-text-field v-model="filters.project" label="Project" hide-details />
+            <v-text-field v-model="filters.projectName" label="Project" hide-details />
           </v-col>
           <v-col cols="12" md="6">
             <v-select
@@ -38,7 +38,7 @@
           </v-col>
           <v-col cols="12" md="6">
             <v-autocomplete
-              v-model="filters.target"
+              v-model="filters.targetId"
               :items="arrTarget"
               item-title="title"
               item-value="id"
@@ -73,7 +73,7 @@
         </RouterLink>
       </template>
       <template #item.department="{ item }">{{ item.department.path }}</template>
-      <template #item.run_time="{ item }">
+      <template #item.cron="{ item }">
         <p>{{ describeCron(item.cron) }}</p>
         <span class="text-caption">{{ item.time_zone }}</span>
       </template>
@@ -144,7 +144,7 @@ import { getExecutorGroupList } from "@/api/executorGroups";
 import ScheduleFormDialog from "@/components/schedules/ScheduleFormDialog.vue";
 
 import {
-  type ScheduleInfo,
+  type ScheduleListEntry,
   type SchedulePage,
   type ScheduleFilters,
   getSchedules,
@@ -159,7 +159,7 @@ const ARR_HEADER = [
   { title: "Department", key: "department" },
   { title: "Project", key: "project_name" },
   { title: "Version", key: "project_version" },
-  { title: "Run Time", key: "run_time" },
+  { title: "Run Time", key: "cron" },
   { title: "Target", key: "target" },
   { title: "Enabled", key: "enabled" },
   { title: "Created By", key: "created_by" },
@@ -180,7 +180,7 @@ const boolCanCreate = computed(
 );
 
 function emptyFilters(): ScheduleFilters {
-  return { name: "", departmentIds: [], project: "", enabled: "", target: "" };
+  return { name: "", departmentIds: [], projectName: "", enabled: "", targetId: "" };
 }
 const arrTarget = ref<{ id: string; title: string }[]>([]);
 const boolTargetsLoading = ref(false);
@@ -280,7 +280,7 @@ function clearFilters(): void {
   apply();
 }
 
-async function toggle(schedule: ScheduleInfo, enabled: boolean): Promise<void> {
+async function toggle(schedule: ScheduleListEntry, enabled: boolean): Promise<void> {
   strChangingId.value = schedule.id;
   strError.value = "";
   try {

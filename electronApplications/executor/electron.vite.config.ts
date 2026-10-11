@@ -1,4 +1,5 @@
 // FileName: electron.vite.config.ts
+
 import { resolve } from "path";
 import { defineConfig } from "electron-vite";
 import vue from "@vitejs/plugin-vue";

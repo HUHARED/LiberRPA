@@ -14,7 +14,6 @@ from console_project.contracts import JsonRequest, JsonResponsePayload
 
 
 MAX_FILE_RESPONSE_BYTES = 2 * 1024 * 1024
-UPLOAD_CHUNK_BYTES = 4 * 1024 * 1024
 
 
 type FileRequestUuid = Annotated[UUID, Field(strict=False)]

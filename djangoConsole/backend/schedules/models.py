@@ -38,7 +38,7 @@ class Schedule(models.Model):
     enabled = models.BooleanField(default=True)
     executor_ids = models.JSONField(default=list)
     group_id = models.UUIDField(null=True, blank=True)
-    retry_count = models.PositiveSmallIntegerField(default=0)
+    max_retry_count = models.PositiveSmallIntegerField(default=0)
     timeout_min = models.PositiveIntegerField(default=0)
     builtin_log_level = models.CharField(
         max_length=max(len(entry.value) for entry in RunLogLevel),
@@ -84,6 +84,7 @@ class Schedule(models.Model):
                 "department",
                 condition=models.Q(deleted_at__isnull=True),
                 name="schedule_department_name_unique",
+                violation_error_message="A Schedule with this name already exists in this department.",
             ),
             models.CheckConstraint(
                 condition=models.Q(active_until__gt=models.F("active_from")),
@@ -104,7 +105,7 @@ class Schedule(models.Model):
             ),
             models.CheckConstraint(
                 condition=models.Q(
-                    retry_count__gte=0, retry_count__lte=INT_MAX_RETRY_COUNT
+                    max_retry_count__gte=0, max_retry_count__lte=INT_MAX_RETRY_COUNT
                 ),
                 name="schedule_retry_valid",
             ),

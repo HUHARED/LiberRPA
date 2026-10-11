@@ -4,7 +4,10 @@ import { createHash } from "node:crypto";
 import { open } from "node:fs/promises";
 
 import { isRecord } from "../../Common/typeCheck";
-import type { ConsolePublishDepartment } from "../../Domain/Console/consoleTypes";
+import {
+  type ConsolePublishDepartment,
+  isConsolePublishDepartment,
+} from "../../Domain/Console/consoleTypes";
 import { requestConsole } from "./consoleClient";
 
 const STR_PACKAGE_API = "/api/clients/editor/packages/";
@@ -63,17 +66,11 @@ export async function getConsolePackageDepartments(
   if (
     !isRecord(responseValue) ||
     !Array.isArray(responseValue["departments"]) ||
-    !responseValue["departments"].every(
-      (entry: unknown) =>
-        isRecord(entry) &&
-        typeof entry["id"] === "string" &&
-        typeof entry["name"] === "string" &&
-        typeof entry["path"] === "string",
-    )
+    !responseValue["departments"].every(isConsolePublishDepartment)
   ) {
     throw new Error("Console returned invalid publishing departments.");
   }
-  return responseValue["departments"] as ConsolePublishDepartment[];
+  return responseValue["departments"];
 }
 
 export async function publishConsolePackage(

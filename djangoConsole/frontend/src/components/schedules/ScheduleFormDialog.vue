@@ -40,11 +40,12 @@
                 v-model="strPackageId"
                 :items="arrPackage"
                 :item-title="
-                  (item: PackageInfo) => `${item.project_name} · ${item.version}`
+                  (item: PackageListEntry) =>
+                    `${item.project_name} · ${item.project_version}`
                 "
                 item-value="id"
                 label="Project / Version"
-                :loading="boolPackagesLoading"
+                :loading="boolPackagesLoading || boolSettingsLoading"
                 :disabled="boolBusy || boolPackagesLoading"
                 :error-messages="strPackagesError"
                 :rules="[(value) => !!value || 'Select a package.']"
@@ -63,9 +64,6 @@
             v-model:group-id="strGroupId"
             :department-id="strDepartmentId"
             :disabled="boolBusy" />
-          <p class="text-body-2 text-medium-emphasis">
-            Offline or paused Executors and empty groups can be saved.
-          </p>
           <v-textarea v-model="strNotes" label="Notes (optional)" rows="2" class="mt-4" />
           <v-divider class="my-5" />
           <h2 class="text-h6 mb-4">Time</h2>
@@ -136,7 +134,7 @@
               @valid="boolArgsValid = $event" />
             <v-divider class="my-5" />
             <h2 class="text-h6 mb-4">Dispatch &amp; Email</h2>
-            <RunDispatchEditor v-model="settings" :disabled="boolBusy" />
+            <RunDispatchEmailEditor v-model="settings" :disabled="boolBusy" />
           </template>
         </v-form>
       </v-card-text>
@@ -149,6 +147,7 @@
           :disabled="
             boolLoading ||
             boolPackagesLoading ||
+            boolSettingsLoading ||
             !boolInitialized ||
             !settings ||
             !boolArgsValid
@@ -175,19 +174,22 @@ import type { VForm } from "vuetify/components";
 import cronstrue from "cronstrue";
 
 import RunOptionsEditor from "@/components/runOptions/RunOptionsEditor.vue";
-import RunDispatchEditor from "@/components/runOptions/RunDispatchEditor.vue";
+import RunDispatchEmailEditor from "@/components/runOptions/RunDispatchEmailEditor.vue";
 import TargetSelector from "@/components/runOptions/TargetSelector.vue";
 
-import { type PackageInfo, getPackages } from "@/api/packages";
+import {
+  type PackageListEntry,
+  getPackageOptions,
+  getPackageDetails,
+} from "@/api/packages";
 import {
   type ScheduleInfo,
   getSchedule,
+  getScheduleDefaults,
   saveSchedule,
   previewSchedule,
 } from "@/api/schedules";
 import { type RunSettings, cloneRunSettings } from "@/api/runOptions";
-import { requestApi } from "@/api/client";
-import { isRecord } from "@/api/responses";
 import { getApiError } from "@/api/errors";
 
 import { useSessionStore } from "@/stores/sessionStore";
@@ -225,10 +227,12 @@ const boolBusy = ref(false);
 const boolPackagesLoading = ref(false);
 const strPackagesError = ref("");
 let intPackageRevision = 0;
+let intSettingsRevision = 0;
+const boolSettingsLoading = ref(false);
 let boolDisposed = false;
 const strError = ref("");
 const boolArgsValid = ref(true);
-const arrPackage = shallowRef<PackageInfo[]>([]);
+const arrPackage = shallowRef<PackageListEntry[]>([]);
 const settings: Ref<RunSettings | null> = ref(null);
 const selectedPackage = computed(() =>
   arrPackage.value.find((entry) => entry.id === strPackageId.value),
@@ -301,16 +305,8 @@ async function loadPackages(): Promise<void> {
   boolPackagesLoading.value = !!strRequestedDepartmentId;
   if (!strRequestedDepartmentId) return;
   try {
-    const arrResult: PackageInfo[] = [];
-    let intPage = 1;
-    let intTotal = 1;
-    do {
-      const result = await getPackages([strRequestedDepartmentId], "", intPage++);
-      if (intRevision !== intPackageRevision) return;
-      arrResult.push(...result.packages);
-      intTotal = result.total_pages;
-    } while (intPage <= intTotal);
-    arrPackage.value = arrResult;
+    const arrResult = await getPackageOptions(strRequestedDepartmentId);
+    if (intRevision === intPackageRevision) arrPackage.value = arrResult;
   } catch (e) {
     if (intRevision === intPackageRevision) strPackagesError.value = getApiError(e).message;
   } finally {
@@ -319,6 +315,8 @@ async function loadPackages(): Promise<void> {
 }
 
 function changeDepartment(): void {
+  intSettingsRevision += 1;
+  boolSettingsLoading.value = false;
   arrExecutorId.value = [];
   strGroupId.value = null;
   strPackageId.value = "";
@@ -326,10 +324,23 @@ function changeDepartment(): void {
   void loadPackages();
 }
 
-function changePackage(): void {
-  settings.value = selectedPackage.value
-    ? cloneRunSettings(selectedPackage.value.settings)
-    : null;
+async function changePackage(): Promise<void> {
+  const intRevision = ++intSettingsRevision;
+  const strSelectedPackageId = strPackageId.value;
+  settings.value = null;
+  strPackagesError.value = "";
+  boolSettingsLoading.value = !!strSelectedPackageId;
+  if (!strSelectedPackageId) return;
+  try {
+    const result = await getPackageDetails(strSelectedPackageId);
+    if (intRevision === intSettingsRevision)
+      settings.value = cloneRunSettings(result.package.settings);
+  } catch (e) {
+    if (intRevision === intSettingsRevision)
+      strPackagesError.value = getApiError(e).message;
+  } finally {
+    if (intRevision === intSettingsRevision) boolSettingsLoading.value = false;
+  }
 }
 
 async function changeCron(value: string): Promise<void> {
@@ -372,6 +383,7 @@ async function save(): Promise<void> {
     boolBusy.value ||
     boolLoading.value ||
     boolPackagesLoading.value ||
+    boolSettingsLoading.value ||
     !boolInitialized.value ||
     !settings.value ||
     !boolArgsValid.value
@@ -420,16 +432,14 @@ watch(
 onMounted(async () => {
   try {
     if (!props.scheduleId) {
-      const defaults = await requestApi("/schedules/defaults/");
+      const defaults = await getScheduleDefaults();
       if (boolDisposed) return;
-      if (isRecord(defaults) && typeof defaults.time_zone === "string") {
-        strTimeZone.value = defaults.time_zone;
-        strActiveFrom.value =
-          formatDateTimeInput(new Date().toISOString(), strTimeZone.value, true).slice(
-            0,
-            10,
-          ) + "T00:00:00";
-      }
+      strTimeZone.value = defaults.time_zone;
+      strActiveFrom.value =
+        formatDateTimeInput(new Date().toISOString(), strTimeZone.value, true).slice(
+          0,
+          10,
+        ) + "T00:00:00";
     }
     if (props.scheduleId) {
       const schedule = await getSchedule(props.scheduleId);
@@ -470,6 +480,7 @@ onBeforeUnmount(() => {
   boolDisposed = true;
   clearTimeout(previewTimer);
   intPackageRevision++;
+  intSettingsRevision++;
   intPreviewRevision++;
   intVisualRevision.value++;
 });

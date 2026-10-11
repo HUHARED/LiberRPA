@@ -86,7 +86,7 @@ def authenticate_api_key(authorizationHeader: str) -> ApiKeyAuthenticationContex
             apiKey.last_used_at = currentTime
             apiKey.save(update_fields=["last_used_at"])
 
-    # TODO: Key expiry/revocation must not cancel accepted Jobs; execution still checks current account permissions.
+    # NOTE: Key expiry/revocation does not cancel accepted Jobs; execution checks current account permissions.
     return ApiKeyAuthenticationContext(
         apiKeyId=apiKey.pk, expiresAt=apiKey.expires_at, access=access
     )

@@ -36,9 +36,9 @@ def validate_windows_name(name: str) -> None:
         raise ValueError(f"Invalid Windows file or directory name: {name!r}.")
 
 
-def validate_json_text(value: str) -> None:
+def validate_json_string(value: str) -> None:
     if "\0" in value:
-        raise ValueError("JSON text must not contain NUL characters.")
+        raise ValueError("JSON strings must not contain NUL characters.")
     value.encode("utf-8")
 
 
@@ -72,13 +72,13 @@ def validate_json_value(value: JsonValue) -> None:
             )
         if isinstance(child, dict):
             for strKey, entry in child.items():
-                validate_json_text(strKey)
+                validate_json_string(strKey)
                 validate_child(entry, depth + 1)
         elif isinstance(child, list):
             for entry in child:
                 validate_child(entry, depth + 1)
         elif isinstance(child, str):
-            validate_json_text(child)
+            validate_json_string(child)
 
     validate_child(value, 0)
 

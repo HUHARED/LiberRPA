@@ -2,12 +2,12 @@
 
 import { getErrorMessage } from "../../shared/error";
 import { loggerMain } from "../Logging/logger";
-import type { ProjectRunDetails, RunEndedFact, RunExecutionContext } from "./types";
+import type { ProjectRunConfig, RunEndedFact, RunExecutionContext } from "./types";
 
 type RunEndedListener = () => void;
 
 type RunFinishedListener = (
-  detail: ProjectRunDetails,
+  detail: ProjectRunConfig,
   context: RunExecutionContext,
   fact: RunEndedFact,
 ) => void;
@@ -54,7 +54,7 @@ export function onRunFinished(listener: RunFinishedListener): void {
 }
 
 export function notifyRunFinished(
-  detail: ProjectRunDetails,
+  detail: ProjectRunConfig,
   context: RunExecutionContext,
   fact: RunEndedFact,
 ): void {

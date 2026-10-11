@@ -9,7 +9,7 @@ import {
   type Range,
 } from "xlsx";
 
-import type { JsonValueInput as JsonValue } from "../api/generated/browserApi";
+import type { JsonValue } from "../api/generated/browserApi";
 
 import { validateJsonValue } from "./validators";
 

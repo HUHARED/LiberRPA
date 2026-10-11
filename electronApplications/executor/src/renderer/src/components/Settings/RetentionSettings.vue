@@ -23,14 +23,14 @@
     </v-tooltip>
 
     <v-checkbox
-      v-model="boolLogTimeoutEnable"
+      v-model="boolLogRetentionEnabled"
       class="clean-space"
       density="compact"
       label="Run Log Retention"
       hide-details></v-checkbox>
 
     <v-number-input
-      v-model="intLogTimeoutDays"
+      v-model="intLogRetentionDays"
       class="pa-0 ma-0 ml-2"
       density="compact"
       hide-details
@@ -39,7 +39,7 @@
       :min="7"
       :precision="0"
       style="max-width: 100px"
-      :disabled="!boolLogTimeoutEnable"></v-number-input>
+      :disabled="!boolLogRetentionEnabled"></v-number-input>
 
     <span class="pa-0 ma-0 mt-2">days</span>
   </v-container>
@@ -66,14 +66,14 @@
     </v-tooltip>
 
     <v-checkbox
-      v-model="boolVideoTimeoutEnable"
+      v-model="boolVideoRetentionEnabled"
       class="clean-space"
       density="compact"
       label="Video Retention"
       hide-details></v-checkbox>
 
     <v-number-input
-      v-model="intVideoTimeoutDays"
+      v-model="intVideoRetentionDays"
       class="pa-0 ma-0 ml-2"
       density="compact"
       hide-details
@@ -82,7 +82,7 @@
       :min="1"
       :precision="0"
       style="max-width: 100px"
-      :disabled="!boolVideoTimeoutEnable"></v-number-input>
+      :disabled="!boolVideoRetentionEnabled"></v-number-input>
 
     <span class="pa-0 ma-0 mt-2">days</span>
   </v-container>
@@ -100,7 +100,7 @@
       <div>
         Delete the oldest run videos when total video storage exceeds this limit.
         <br />
-        Minimum: 1 GB.
+        Minimum: 1 GiB.
         <br />
         Checked when Executor starts and every hour while it is running.
         <br />
@@ -109,14 +109,14 @@
     </v-tooltip>
 
     <v-checkbox
-      v-model="boolVideoSizeEnable"
+      v-model="boolVideoStorageLimitEnabled"
       class="clean-space"
       density="compact"
       label="Video Storage Limit"
       hide-details></v-checkbox>
 
     <v-number-input
-      v-model="intVideoSizeGB"
+      v-model="intVideoStorageLimitGiB"
       class="pa-0 ma-0 ml-2"
       density="compact"
       hide-details
@@ -125,9 +125,9 @@
       :min="1"
       :precision="0"
       style="max-width: 100px"
-      :disabled="!boolVideoSizeEnable"></v-number-input>
+      :disabled="!boolVideoStorageLimitEnabled"></v-number-input>
 
-    <span class="pa-0 ma-0 mt-2">GB</span>
+    <span class="pa-0 ma-0 mt-2">GiB</span>
 
     <v-btn
       class="ml-4"
@@ -174,44 +174,44 @@ import { useInformationStore } from "../../Store/informationStore";
 import { useSettingStore } from "../../Store/settingStore";
 
 interface RetentionValues {
-  logTimeoutEnable: boolean;
-  logTimeoutDays: number;
-  videoTimeoutEnable: boolean;
-  videoTimeoutDays: number;
-  videoSizeEnable: boolean;
-  videoSizeGB: number;
+  logRetentionEnabled: boolean;
+  logRetentionDays: number;
+  videoRetentionEnabled: boolean;
+  videoRetentionDays: number;
+  videoStorageLimitEnabled: boolean;
+  videoStorageLimitGiB: number;
 }
 
 const informationStore = useInformationStore();
 const settingStore = useSettingStore();
 
-const boolLogTimeoutEnable = ref(false);
-const intLogTimeoutDays = ref<number | null>(7);
-const boolVideoTimeoutEnable = ref(false);
-const intVideoTimeoutDays = ref<number | null>(1);
-const boolVideoSizeEnable = ref(false);
-const intVideoSizeGB = ref<number | null>(1);
+const boolLogRetentionEnabled = ref(false);
+const intLogRetentionDays = ref<number | null>(7);
+const boolVideoRetentionEnabled = ref(false);
+const intVideoRetentionDays = ref<number | null>(1);
+const boolVideoStorageLimitEnabled = ref(false);
+const intVideoStorageLimitGiB = ref<number | null>(1);
 const boolConfirmationDialogOpen = ref(false);
 
 const boolHasChanges = computed(
   () =>
-    boolLogTimeoutEnable.value !== settingStore.logTimeoutEnable ||
-    intLogTimeoutDays.value !== settingStore.logTimeoutDays ||
-    boolVideoTimeoutEnable.value !== settingStore.videoTimeoutEnable ||
-    intVideoTimeoutDays.value !== settingStore.videoTimeoutDays ||
-    boolVideoSizeEnable.value !== settingStore.videoSizeEnable ||
-    intVideoSizeGB.value !== settingStore.videoSizeGB,
+    boolLogRetentionEnabled.value !== settingStore.logRetentionEnabled ||
+    intLogRetentionDays.value !== settingStore.logRetentionDays ||
+    boolVideoRetentionEnabled.value !== settingStore.videoRetentionEnabled ||
+    intVideoRetentionDays.value !== settingStore.videoRetentionDays ||
+    boolVideoStorageLimitEnabled.value !== settingStore.videoStorageLimitEnabled ||
+    intVideoStorageLimitGiB.value !== settingStore.videoStorageLimitGiB,
 );
 
 watch(
   () =>
     [
-      settingStore.logTimeoutEnable,
-      settingStore.logTimeoutDays,
-      settingStore.videoTimeoutEnable,
-      settingStore.videoTimeoutDays,
-      settingStore.videoSizeEnable,
-      settingStore.videoSizeGB,
+      settingStore.logRetentionEnabled,
+      settingStore.logRetentionDays,
+      settingStore.videoRetentionEnabled,
+      settingStore.videoRetentionDays,
+      settingStore.videoStorageLimitEnabled,
+      settingStore.videoStorageLimitGiB,
     ] as const,
   () => {
     resetRetentionDraft();
@@ -220,72 +220,73 @@ watch(
 );
 
 function resetRetentionDraft(): void {
-  boolLogTimeoutEnable.value = settingStore.logTimeoutEnable;
-  intLogTimeoutDays.value = settingStore.logTimeoutDays;
-  boolVideoTimeoutEnable.value = settingStore.videoTimeoutEnable;
-  intVideoTimeoutDays.value = settingStore.videoTimeoutDays;
-  boolVideoSizeEnable.value = settingStore.videoSizeEnable;
-  intVideoSizeGB.value = settingStore.videoSizeGB;
+  boolLogRetentionEnabled.value = settingStore.logRetentionEnabled;
+  intLogRetentionDays.value = settingStore.logRetentionDays;
+  boolVideoRetentionEnabled.value = settingStore.videoRetentionEnabled;
+  intVideoRetentionDays.value = settingStore.videoRetentionDays;
+  boolVideoStorageLimitEnabled.value = settingStore.videoStorageLimitEnabled;
+  intVideoStorageLimitGiB.value = settingStore.videoStorageLimitGiB;
   boolConfirmationDialogOpen.value = false;
 }
 
 function getRetentionValues(): RetentionValues | undefined {
-  const intLogTimeoutDaysValue = intLogTimeoutDays.value;
+  const intLogRetentionDaysValue = intLogRetentionDays.value;
   if (
-    intLogTimeoutDaysValue === null ||
-    !Number.isSafeInteger(intLogTimeoutDaysValue) ||
-    intLogTimeoutDaysValue < 7
+    intLogRetentionDaysValue === null ||
+    !Number.isSafeInteger(intLogRetentionDaysValue) ||
+    intLogRetentionDaysValue < 7
   ) {
     informationStore.showAlertMessage(
-      `Run Log Retention must be an integer >= 7. (${String(intLogTimeoutDaysValue)})`,
+      `Run Log Retention must be an integer >= 7. (${String(intLogRetentionDaysValue)})`,
     );
     return undefined;
   }
 
-  const intVideoTimeoutDaysValue = intVideoTimeoutDays.value;
+  const intVideoRetentionDaysValue = intVideoRetentionDays.value;
   if (
-    intVideoTimeoutDaysValue === null ||
-    !Number.isSafeInteger(intVideoTimeoutDaysValue) ||
-    intVideoTimeoutDaysValue < 1
+    intVideoRetentionDaysValue === null ||
+    !Number.isSafeInteger(intVideoRetentionDaysValue) ||
+    intVideoRetentionDaysValue < 1
   ) {
     informationStore.showAlertMessage(
-      `Video Retention must be an integer >= 1. (${String(intVideoTimeoutDaysValue)})`,
+      `Video Retention must be an integer >= 1. (${String(intVideoRetentionDaysValue)})`,
     );
     return undefined;
   }
 
-  const intVideoSizeGBValue = intVideoSizeGB.value;
+  const intVideoStorageLimitGiBValue = intVideoStorageLimitGiB.value;
   if (
-    intVideoSizeGBValue === null ||
-    !Number.isSafeInteger(intVideoSizeGBValue) ||
-    intVideoSizeGBValue < 1
+    intVideoStorageLimitGiBValue === null ||
+    !Number.isSafeInteger(intVideoStorageLimitGiBValue) ||
+    intVideoStorageLimitGiBValue < 1
   ) {
     informationStore.showAlertMessage(
-      `Video Storage Limit must be an integer >= 1. (${String(intVideoSizeGBValue)})`,
+      `Video Storage Limit must be an integer >= 1. (${String(intVideoStorageLimitGiBValue)})`,
     );
     return undefined;
   }
 
   return {
-    logTimeoutEnable: boolLogTimeoutEnable.value,
-    logTimeoutDays: intLogTimeoutDaysValue,
-    videoTimeoutEnable: boolVideoTimeoutEnable.value,
-    videoTimeoutDays: intVideoTimeoutDaysValue,
-    videoSizeEnable: boolVideoSizeEnable.value,
-    videoSizeGB: intVideoSizeGBValue,
+    logRetentionEnabled: boolLogRetentionEnabled.value,
+    logRetentionDays: intLogRetentionDaysValue,
+    videoRetentionEnabled: boolVideoRetentionEnabled.value,
+    videoRetentionDays: intVideoRetentionDaysValue,
+    videoStorageLimitEnabled: boolVideoStorageLimitEnabled.value,
+    videoStorageLimitGiB: intVideoStorageLimitGiBValue,
   };
 }
 
 function mayDeleteMoreFiles(valuesDict: RetentionValues): boolean {
   return (
-    (valuesDict.logTimeoutEnable &&
-      (!settingStore.logTimeoutEnable ||
-        valuesDict.logTimeoutDays < settingStore.logTimeoutDays)) ||
-    (valuesDict.videoTimeoutEnable &&
-      (!settingStore.videoTimeoutEnable ||
-        valuesDict.videoTimeoutDays < settingStore.videoTimeoutDays)) ||
-    (valuesDict.videoSizeEnable &&
-      (!settingStore.videoSizeEnable || valuesDict.videoSizeGB < settingStore.videoSizeGB))
+    (valuesDict.logRetentionEnabled &&
+      (!settingStore.logRetentionEnabled ||
+        valuesDict.logRetentionDays < settingStore.logRetentionDays)) ||
+    (valuesDict.videoRetentionEnabled &&
+      (!settingStore.videoRetentionEnabled ||
+        valuesDict.videoRetentionDays < settingStore.videoRetentionDays)) ||
+    (valuesDict.videoStorageLimitEnabled &&
+      (!settingStore.videoStorageLimitEnabled ||
+        valuesDict.videoStorageLimitGiB < settingStore.videoStorageLimitGiB))
   );
 }
 
@@ -314,12 +315,12 @@ function confirmRetentionSettings(): void {
 }
 
 function saveRetentionSettings(dictValues: RetentionValues): void {
-  settingStore.logTimeoutEnable = dictValues.logTimeoutEnable;
-  settingStore.logTimeoutDays = dictValues.logTimeoutDays;
-  settingStore.videoTimeoutEnable = dictValues.videoTimeoutEnable;
-  settingStore.videoTimeoutDays = dictValues.videoTimeoutDays;
-  settingStore.videoSizeEnable = dictValues.videoSizeEnable;
-  settingStore.videoSizeGB = dictValues.videoSizeGB;
+  settingStore.logRetentionEnabled = dictValues.logRetentionEnabled;
+  settingStore.logRetentionDays = dictValues.logRetentionDays;
+  settingStore.videoRetentionEnabled = dictValues.videoRetentionEnabled;
+  settingStore.videoRetentionDays = dictValues.videoRetentionDays;
+  settingStore.videoStorageLimitEnabled = dictValues.videoStorageLimitEnabled;
+  settingStore.videoStorageLimitGiB = dictValues.videoStorageLimitGiB;
   boolConfirmationDialogOpen.value = false;
 }
 </script>

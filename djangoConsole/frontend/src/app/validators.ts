@@ -1,6 +1,6 @@
 // FileName: validators.ts
 
-import type { JsonValueInput as JsonValue } from "../api/generated/browserApi";
+import type { JsonValue } from "../api/generated/browserApi";
 
 export function validatePathName(value: string | null): true | string {
   // NOTE: Keep this rule aligned with backend/organizations/validators.py; do not rewrite user input.

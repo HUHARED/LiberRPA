@@ -5,7 +5,8 @@ import fs from "fs";
 import path from "path";
 
 import { getErrorMessage } from "../../shared/error";
-import type { RunOutputs } from "../../shared/run";
+import { RunOutputsStatus, type RunOutputs } from "../../shared/run";
+
 import { isProcessRunning } from "../Common/process";
 import {
   INT_MAX_CUSTOM_ARGUMENT_JSON_BYTES,
@@ -19,7 +20,12 @@ import { strDocumentsFolderPath } from "../Config/environment";
 import { loggerMain } from "../Logging/logger";
 import { ensureRunLogFolderPath, ensureExpectedRunLogFolderPath } from "./logPath";
 
-type ExecutorRunStateStatus = "running" | "completed" | "error" | "terminated";
+export enum ExecutorRunStateStatus {
+  Running = "running",
+  Completed = "completed",
+  Error = "error",
+  Terminated = "terminated",
+}
 
 export interface ExecutorRunState {
   schemaVersion: 1;
@@ -121,17 +127,17 @@ export function parseExecutorRunTimestamp(timestamp: string): number {
 
 function ensureExecutorRunStateStatus(value: unknown): ExecutorRunStateStatus {
   switch (value) {
-    case "running":
-    case "completed":
-    case "error":
-    case "terminated":
+    case ExecutorRunStateStatus.Running:
+    case ExecutorRunStateStatus.Completed:
+    case ExecutorRunStateStatus.Error:
+    case ExecutorRunStateStatus.Terminated:
       return value;
     default:
       throw new Error("Executor run state contains an unsupported status.");
   }
 }
 
-function readRunOutputs(value: unknown): RunOutputs {
+function parseRunOutputs(value: unknown): RunOutputs {
   try {
     const dictValue = ensureExactRecord(
       value,
@@ -139,7 +145,11 @@ function readRunOutputs(value: unknown): RunOutputs {
       "Run outputs",
     );
     const status = dictValue.status;
-    if (status !== "complete" && status !== "partial" && status !== "unavailable")
+    if (
+      status !== RunOutputsStatus.Complete &&
+      status !== RunOutputsStatus.Partial &&
+      status !== RunOutputsStatus.Unavailable
+    )
       throw new Error("Invalid Run outputs status.");
     const strReason = ensureString(dictValue.reason, "Run outputs reason");
     if ([...strReason].length > 2000)
@@ -157,14 +167,14 @@ function readRunOutputs(value: unknown): RunOutputs {
       INT_MAX_CUSTOM_ARGUMENT_JSON_BYTES
     )
       throw new Error("Run unavailable keys exceed the 64 KiB JSON limit.");
-    if (status === "unavailable") {
+    if (status === RunOutputsStatus.Unavailable) {
       if (dictValue.values !== null || arrUnavailableKey.length !== 0)
         throw new Error("Unavailable outputs cannot contain values or keys.");
       return { status, values: null, unavailableKeys: [], reason: strReason };
     }
     if (
       !Array.isArray(dictValue.values) ||
-      (status === "partial") !== arrUnavailableKey.length > 0
+      (status === RunOutputsStatus.Partial) !== arrUnavailableKey.length > 0
     )
       throw new Error("Run outputs do not match their status.");
     // The values budget and depth match the ordered CustomArgs input representation.
@@ -189,7 +199,7 @@ function readRunOutputs(value: unknown): RunOutputs {
     };
   } catch {
     return {
-      status: "unavailable",
+      status: RunOutputsStatus.Unavailable,
       values: null,
       unavailableKeys: [],
       reason: "Python returned an invalid or oversized output snapshot.",
@@ -199,16 +209,12 @@ function readRunOutputs(value: unknown): RunOutputs {
 
 function parseErrorSummary(value: unknown): { type: string; message: string } | null {
   if (value === null) return null;
-  const dictValue = ensureRecord(value, "Run error summary");
-  return {
-    type: ensureString(dictValue.type, "Run error type"),
-    message: ensureString(dictValue.message, "Run error message"),
-  };
-}
-
-function readErrorSummary(value: unknown): { type: string; message: string } | null {
   try {
-    return parseErrorSummary(value);
+    const dictValue = ensureRecord(value, "Run error summary");
+    return {
+      type: ensureString(dictValue.type, "Run error type"),
+      message: ensureString(dictValue.message, "Run error message"),
+    };
   } catch {
     return null;
   }
@@ -237,7 +243,9 @@ export function readExecutorRunState({
   const status = ensureExecutorRunStateStatus(dictRawState.status);
   const dictState = ensureExactRecord(
     value,
-    status === "running" ? ARR_RUNNING_RUN_STATE_KEY : ARR_FINAL_RUN_STATE_KEY,
+    status === ExecutorRunStateStatus.Running
+      ? ARR_RUNNING_RUN_STATE_KEY
+      : ARR_FINAL_RUN_STATE_KEY,
     "Executor run state",
   );
 
@@ -272,7 +280,7 @@ export function readExecutorRunState({
       ? ensureRunLogFolderPath(strRawLogPath, expectedLogRootPath)
       : ensureExpectedRunLogFolderPath(strRawLogPath, expectedLogPath);
 
-  if (status === "running") {
+  if (status === ExecutorRunStateStatus.Running) {
     return {
       schemaVersion: 1,
       runId: expectedRunId,
@@ -299,8 +307,8 @@ export function readExecutorRunState({
     logPath: strLogPath,
     status,
     endedAt: strEndedAt,
-    outputs: readRunOutputs(dictState.outputs),
-    errorSummary: readErrorSummary(dictState.errorSummary),
+    outputs: parseRunOutputs(dictState.outputs),
+    errorSummary: parseErrorSummary(dictState.errorSummary),
   };
 }
 

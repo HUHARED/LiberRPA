@@ -201,11 +201,8 @@
             label="Publish to Console"
             color="primary"
             :disabled="projectManagerStore.busy || packageCreated"
-            hide-details></v-switch>
-          <div class="text-body-2 text-medium-emphasis mb-3">
-            Create the local Package first, then upload it to the selected department. The
-            local file remains available if publishing fails.
-          </div>
+            hide-details
+            @update:model-value="refreshConsolePublishing"></v-switch>
           <template v-if="packageProjectStore.publishToConsole">
             <v-alert
               v-if="packageProjectStore.consolePublishingMessage"
@@ -442,6 +439,15 @@ function packageProject(): void {
 function retryConsolePublish(): void {
   if (!projectManagerStore.busy) {
     postMessage({ command: "retryConsolePublish" });
+  }
+}
+
+function refreshConsolePublishing(): void {
+  if (!projectManagerStore.busy) {
+    postMessage({
+      command: "refreshConsolePublishing",
+      input: packageProjectStore.getInput(),
+    });
   }
 }
 

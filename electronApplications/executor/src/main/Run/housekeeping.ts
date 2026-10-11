@@ -4,9 +4,9 @@ import { getErrorMessage } from "../../shared/error";
 import { dictConfigExecutor } from "../Config/executorConfig";
 import { loggerMain } from "../Logging/logger";
 import {
-  logCleanFolderByTimeout,
-  logCleanVideoBySize,
-  logCleanVideoByTimeout,
+  deleteExpiredRunLogs,
+  enforceVideoStorageLimit,
+  deleteExpiredRunVideos,
 } from "./logCleanup";
 
 const INT_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
@@ -15,23 +15,23 @@ let timerCleanup: NodeJS.Timeout | undefined;
 
 function runHousekeeping(): void {
   if (
-    !dictConfigExecutor.logTimeoutEnable &&
-    !dictConfigExecutor.videoTimeoutEnable &&
-    !dictConfigExecutor.videoSizeEnable
+    !dictConfigExecutor.logRetentionEnabled &&
+    !dictConfigExecutor.videoRetentionEnabled &&
+    !dictConfigExecutor.videoStorageLimitEnabled
   ) {
     loggerMain.debug("No log or video files need cleanup.");
     return;
   }
 
   try {
-    if (dictConfigExecutor.logTimeoutEnable) {
-      logCleanFolderByTimeout(dictConfigExecutor.logTimeoutDays);
+    if (dictConfigExecutor.logRetentionEnabled) {
+      deleteExpiredRunLogs(dictConfigExecutor.logRetentionDays);
     }
-    if (dictConfigExecutor.videoTimeoutEnable) {
-      logCleanVideoByTimeout(dictConfigExecutor.videoTimeoutDays);
+    if (dictConfigExecutor.videoRetentionEnabled) {
+      deleteExpiredRunVideos(dictConfigExecutor.videoRetentionDays);
     }
-    if (dictConfigExecutor.videoSizeEnable) {
-      logCleanVideoBySize(dictConfigExecutor.videoSizeGB);
+    if (dictConfigExecutor.videoStorageLimitEnabled) {
+      enforceVideoStorageLimit(dictConfigExecutor.videoStorageLimitGiB);
     }
   } catch (e: unknown) {
     loggerMain.error(`Run housekeeping failed: ${getErrorMessage(e)}`);

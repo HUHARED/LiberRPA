@@ -2,10 +2,10 @@
 
 import type Database from "better-sqlite3";
 
-import type { Dict_ProjectDetail } from "../../shared/project";
+import type { ProjectDetails } from "../../shared/project";
 import type { RunHistoryItem } from "../../shared/run";
 import { RunStatus } from "../../shared/run";
-import type { ProjectRunDetails } from "../Run/types";
+import type { ProjectRunConfig } from "../Run/types";
 import type { ScheduleDetails, ScheduleListItem } from "../../shared/schedule";
 import type { CustomProjectArgs } from "../../shared/runOptions";
 import {
@@ -17,7 +17,7 @@ import {
   ensureNonEmptyString,
   ensureNonNegativeInteger,
   ensurePositiveInteger,
-  ensureRetryCount,
+  ensureMaxRetryCount,
   ensureRunTimeoutMinutes,
   ensureNullableString,
   ensureNullableNonNegativeInteger,
@@ -91,10 +91,7 @@ export function ensureVersionRows(
   return ensureRows(rows, ensureVersionRow, sourceName);
 }
 
-export function ensureProjectDetailRow(
-  value: unknown,
-  sourceName: string,
-): Dict_ProjectDetail {
+export function ensureProjectDetailRow(value: unknown, sourceName: string): ProjectDetails {
   const row = ensureExactRecord(
     value,
     [
@@ -104,7 +101,7 @@ export function ensureProjectDetailRow(
       "description",
       "version_summary",
       "python_environment_name",
-      "retry_count",
+      "max_retry_count",
       "timeout_min",
       "builtin_log_level",
       "builtin_record_video",
@@ -130,7 +127,10 @@ export function ensureProjectDetailRow(
       row.python_environment_name,
       `${sourceName}.python_environment_name`,
     ),
-    retry_count: ensureRetryCount(row.retry_count, `${sourceName}.retry_count`),
+    max_retry_count: ensureMaxRetryCount(
+      row.max_retry_count,
+      `${sourceName}.max_retry_count`,
+    ),
     timeout_min: ensureRunTimeoutMinutes(row.timeout_min, `${sourceName}.timeout_min`),
     builtin_log_level: ensureLogLevel(
       row.builtin_log_level,
@@ -237,7 +237,7 @@ export function ensureScheduleDetailRow(
       "period_start_ms",
       "period_end_ms",
       "enabled",
-      "retry_count",
+      "max_retry_count",
       "timeout_min",
       "builtin_log_level",
       "builtin_record_video",
@@ -278,7 +278,10 @@ export function ensureScheduleDetailRow(
     period_start_ms: intPeriodStartMs,
     period_end_ms: intPeriodEndMs,
     enabled: ensureBinaryInteger(row.enabled, `${sourceName}.enabled`) === 1,
-    retry_count: ensureRetryCount(row.retry_count, `${sourceName}.retry_count`),
+    max_retry_count: ensureMaxRetryCount(
+      row.max_retry_count,
+      `${sourceName}.max_retry_count`,
+    ),
     timeout_min: ensureRunTimeoutMinutes(row.timeout_min, `${sourceName}.timeout_min`),
     builtin_log_level: ensureLogLevel(
       row.builtin_log_level,
@@ -317,17 +320,17 @@ export function ensureScheduleDetailRow(
 export function ensureScheduleRunDetailRow(
   value: unknown,
   sourceName: string,
-): ProjectRunDetails {
+): ProjectRunConfig {
   const row = ensureExactRecord(
     value,
     [
       "schedule_name",
       "run_conflict_policy",
-      "id",
-      "name",
-      "version",
+      "local_project_id",
+      "project_name",
+      "project_version",
       "python_environment_name",
-      "retry_count",
+      "max_retry_count",
       "timeout_min",
       "builtin_log_level",
       "builtin_record_video",
@@ -344,14 +347,23 @@ export function ensureScheduleRunDetailRow(
       row.run_conflict_policy,
       `${sourceName}.run_conflict_policy`,
     ),
-    id: ensurePositiveInteger(row.id, `${sourceName}.id`),
-    name: ensureNonEmptyString(row.name, `${sourceName}.name`),
-    version: ensureNonEmptyString(row.version, `${sourceName}.version`),
+    local_project_id: ensurePositiveInteger(
+      row.local_project_id,
+      `${sourceName}.local_project_id`,
+    ),
+    project_name: ensureNonEmptyString(row.project_name, `${sourceName}.project_name`),
+    project_version: ensureNonEmptyString(
+      row.project_version,
+      `${sourceName}.project_version`,
+    ),
     python_environment_name: ensurePythonEnvironmentName(
       row.python_environment_name,
       `${sourceName}.python_environment_name`,
     ),
-    retry_count: ensureRetryCount(row.retry_count, `${sourceName}.retry_count`),
+    max_retry_count: ensureMaxRetryCount(
+      row.max_retry_count,
+      `${sourceName}.max_retry_count`,
+    ),
     timeout_min: ensureRunTimeoutMinutes(row.timeout_min, `${sourceName}.timeout_min`),
     builtin_log_level: ensureLogLevel(
       row.builtin_log_level,
@@ -385,7 +397,7 @@ function ensureRunHistoryListItemRow(value: unknown, sourceName: string): RunHis
     [
       "id",
       "source",
-      "attempt",
+      "attempt_number",
       "schedule_name",
       "project_name",
       "project_version",
@@ -412,7 +424,10 @@ function ensureRunHistoryListItemRow(value: unknown, sourceName: string): RunHis
   return {
     id: ensurePositiveInteger(row.id, `${sourceName}.id`),
     source: ensureRunSource(row.source, `${sourceName}.source`),
-    attempt: ensurePositiveInteger(row.attempt, `${sourceName}.attempt`),
+    attempt_number: ensurePositiveInteger(
+      row.attempt_number,
+      `${sourceName}.attempt_number`,
+    ),
     schedule_name: ensureNullableString(row.schedule_name, `${sourceName}.schedule_name`),
     project_name: ensureNonEmptyString(row.project_name, `${sourceName}.project_name`),
     project_version: ensureNonEmptyString(

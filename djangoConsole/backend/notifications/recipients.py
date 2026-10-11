@@ -108,7 +108,7 @@ def get_recipient_references(recipient: RunEmailRecipient) -> list[dict]:
         listReference.append({
             "kind": "package",
             "id": str(package.pk),
-            "name": f"{package.project_name} {package.version}",
+            "name": f"{package.project_name} {package.project_version}",
             "department": package.department.name,
         })
     for schedule in Schedule.objects.filter(

@@ -26,7 +26,7 @@ import { isProjectRunStarting } from "../Run/projectRunner";
 import { hasQueuedRunForProject } from "../Scheduler/schedulerEngine";
 import { getTargetFolderName } from "./packageArchive";
 
-interface Dict_Transaction_ProjectPackageDelete {
+interface ProjectDeletionTransaction {
   schemaVersion: 1;
   projectId: number;
   projectName: string;
@@ -42,9 +42,9 @@ function getDeleteStagingRootPath(): string {
   return path.join(strExecutorPackageFolderPath, STR_DELETE_STAGING_FOLDER_NAME);
 }
 
-function parseDeleteTransaction(
+function readProjectDeletionTransaction(
   transactionPath: string,
-): Dict_Transaction_ProjectPackageDelete {
+): ProjectDeletionTransaction {
   const dictTransaction = ensureExactRecord(
     readJsonFile(transactionPath, "Project deletion transaction"),
     ["schemaVersion", "projectId", "projectName", "projectVersion", "targetFolderName"],
@@ -135,7 +135,7 @@ export function deleteInstalledProject(projectId: number): void {
   );
   fs.mkdirSync(strTransactionFolderPath, { recursive: true });
 
-  const dictTransaction: Dict_Transaction_ProjectPackageDelete = {
+  const dictTransaction: ProjectDeletionTransaction = {
     schemaVersion: 1,
     projectId,
     projectName: dictProject.name,
@@ -213,7 +213,7 @@ export function recoverProjectPackageDeletions(): void {
 
     let boolRecovered = false;
     try {
-      const dictTransaction = parseDeleteTransaction(strTransactionPath);
+      const dictTransaction = readProjectDeletionTransaction(strTransactionPath);
       const dictProject = dbSelectProjectDetailById(dictTransaction.projectId);
       const strTargetPath = getExecutorPackageFolderPath(
         dictTransaction.projectName,

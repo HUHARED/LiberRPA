@@ -5,7 +5,7 @@ import cronstrue from "cronstrue";
 import { getErrorMessage } from "../../../shared/error";
 import { parseScheduleCron } from "../../../shared/cron";
 
-type Dict_Result_CronValidation =
+type CronValidationResult =
   | {
       valid: true;
       description: string;
@@ -18,7 +18,7 @@ type Dict_Result_CronValidation =
 export function validateCronExpression(
   cron: string,
   timezone = "UTC",
-): Dict_Result_CronValidation {
+): CronValidationResult {
   try {
     parseScheduleCron(cron, timezone);
     return {

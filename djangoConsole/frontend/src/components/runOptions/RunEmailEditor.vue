@@ -37,11 +37,7 @@
           @focus="setField(event.key, 'body')" />
         <v-menu>
           <template #activator="{ props: menuProps }">
-            <v-btn
-              v-bind="menuProps"
-              variant="tonal"
-              :disabled="disabled"
-              @click="strEvent = event.key">
+            <v-btn v-bind="menuProps" variant="tonal" :disabled="disabled">
               Insert Field
             </v-btn>
           </template>
@@ -51,20 +47,19 @@
               v-for="field in getSystemFields(event.key)"
               :key="field"
               :title="field"
-              @click="insertField(field)" />
+              @click="insertField(event.key, field)" />
             <v-list-subheader>Custom Arguments</v-list-subheader>
             <template v-for="name in arrKey" :key="name">
-              <v-list-item :title="`Input: ${name}`" @click="insertArgument(name, true)" />
+              <v-list-item
+                :title="`Input: ${name}`"
+                @click="insertArgument(event.key, name, true)" />
               <v-list-item
                 v-if="event.key !== 'on_start'"
                 :title="`Output: ${name}`"
-                @click="insertArgument(name, false)" />
+                @click="insertArgument(event.key, name, false)" />
             </template>
           </v-list>
         </v-menu>
-        <span class="text-body-2 text-medium-emphasis ml-3">
-          Inserts at the end of the last focused field.
-        </span>
       </v-expansion-panel-text>
     </v-expansion-panel>
   </v-expansion-panels>
@@ -102,8 +97,11 @@ const ARR_SYSTEM_FIELD = [
 const arrKey = computed(() => [...new Set(props.argumentKeys)]);
 const arrRecipient = ref<RunEmailRecipient[]>([]);
 const strError = ref("");
-const strEvent = ref<EventKey>("on_start");
-const strField = ref<"subject" | "body">("body");
+const fieldByEvent = ref<Record<EventKey, "subject" | "body">>({
+  on_start: "body",
+  on_completed: "body",
+  on_error: "body",
+});
 function getSystemFields(event: EventKey): string[] {
   return [
     ...ARR_SYSTEM_FIELD,
@@ -112,17 +110,16 @@ function getSystemFields(event: EventKey): string[] {
   ];
 }
 function setField(event: EventKey, field: "subject" | "body"): void {
-  strEvent.value = event;
-  strField.value = field;
+  fieldByEvent.value[event] = field;
 }
-function insertArgument(name: string, input: boolean): void {
+function insertArgument(event: EventKey, name: string, input: boolean): void {
   const strHex = Array.from(new TextEncoder().encode(name), (value) =>
     value.toString(16).padStart(2, "0"),
   ).join("");
-  insertField(`${input ? "Input_CustomArgs_" : "CustomArgs_"}${strHex}`);
+  insertField(event, `${input ? "Input_CustomArgs_" : "CustomArgs_"}${strHex}`);
 }
-function insertField(field: string): void {
-  config.value[strEvent.value][strField.value] += `{{${field}}}`;
+function insertField(event: EventKey, field: string): void {
+  config.value[event][fieldByEvent.value[event]] += `{{${field}}}`;
 }
 onMounted(async () => {
   try {

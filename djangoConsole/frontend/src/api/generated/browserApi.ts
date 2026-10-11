@@ -6,37 +6,57 @@
 
 export type AssetType =
   "text" | "integer" | "number" | "boolean" | "json" | "secret_text" | "credential";
-export type JsonValueInput =
+export type JsonValue =
   | {
-      [k: string]: JsonValueInput;
+      [k: string]: JsonValue;
     }
-  | JsonValueInput[]
+  | JsonValue[]
   | string
   | number
   | boolean
   | null;
 export type AssetReferenceKind = "package" | "schedule";
-export type JsonValueOutput =
-  | {
-      [k: string]: JsonValueOutput;
-    }
-  | JsonValueOutput[]
-  | string
-  | number
-  | boolean
-  | null;
 export type ExecutorAssociationStatus = "unassociated" | "online" | "offline";
 export type FilePath = string;
 export type FileRequestUuid = string;
+export type JobControlAction = "cancel" | "stop" | "close";
+export type RunPriority = "high" | "normal" | "low";
+export type JobSource = "manual" | "api" | "schedule";
+export type JobState =
+  | "waiting"
+  | "preparing"
+  | "starting"
+  | "running"
+  | "stopping"
+  | "waiting_retry"
+  | "needs_review"
+  | "finished";
+export type RunEventKind =
+  "started" | "ended" | "preparation_failed" | "not_started" | "unknown" | "recording";
+export type RunLogLevel = "VERBOSE" | "DEBUG" | "INFO" | "WARNING" | "ERROR" | "CRITICAL";
+export type RunConflictPolicy = "skip" | "wait" | "concurrent";
+export type OutputsStatus = "waiting" | "complete" | "partial" | "unavailable";
+export type RunResult =
+  "running" | "completed" | "error" | "canceled" | "timed_out" | "interrupted";
+export type PackagePreparationState = "pending" | "preparing" | "ready" | "failed";
+export type PackageReferenceKind = "schedule" | "job" | "preparation" | "download";
+export type RunLogLevel1 = "VERBOSE" | "DEBUG" | "INFO" | "WARNING" | "ERROR" | "CRITICAL";
+export type RunPriority1 = "high" | "normal" | "low";
+export type RunConflictPolicy1 = "skip" | "wait" | "concurrent";
+export type RequestUuid = string;
+export type PackageUploadState =
+  "receiving" | "completed" | "failed" | "expired" | "canceled";
 export type QueueRequestUuid = string;
 /**
  * @minItems 1
  * @maxItems 100
  */
 export type QueueItemIds = [QueueRequestUuid, ...QueueRequestUuid[]];
-export type QueueOrder = "oldest_first" | "newest_first";
-export type QueueFilterStatus = "all" | "unclaimed" | "claimed";
-export type QueueStatus = "unclaimed" | "claimed";
+export type QueueItemOrder = "oldest_first" | "newest_first";
+export type QueueItemFilterStatus = "all" | "unclaimed" | "claimed";
+export type QueueItemStatus = "unclaimed" | "claimed";
+export type RecordingStatus = "recording" | "processing" | "ready" | "unavailable";
+export type RunFileKind = "logs" | "video" | "subtitles";
 
 export interface BrowserApiContracts {
   AccountAccessResponse: AccountAccessResponse;
@@ -56,6 +76,7 @@ export interface BrowserApiContracts {
   AuditDetailsResponse: AuditDetailsResponse;
   AuditFilterOptionsResponse: AuditFilterOptionsResponse;
   AuditListResponse: AuditListResponse;
+  ClearLogsRequest: ClearLogsRequest;
   CsrfResponse: CsrfResponse;
   DepartmentCreationRequest: DepartmentCreationRequest;
   DepartmentDeletionPreviewResponse: DepartmentDeletionPreviewResponse;
@@ -99,6 +120,11 @@ export interface BrowserApiContracts {
   InvitationListResponse: InvitationListResponse;
   InvitationRegistrationResponse: InvitationRegistrationResponse;
   InvitationTokenRequest: InvitationTokenRequest;
+  JobControlRequest: JobControlRequest;
+  JobCreationRequest: JobCreationRequest;
+  JobCreationResponse: JobCreationResponse;
+  JobDetailsResponse: JobDetailsResponse;
+  JobListResponse: JobListResponse;
   LoginRequest: LoginRequest;
   MemberDetailsResponse: MemberDetailsResponse;
   MemberListResponse: MemberListResponse;
@@ -107,6 +133,14 @@ export interface BrowserApiContracts {
   MessageResponse: MessageResponse;
   OrganizationSettingsRequest: OrganizationSettingsRequest;
   OrganizationSettingsResponse: OrganizationSettingsResponse;
+  PackageDetailsResponse: PackageDetailsResponse;
+  PackageDownloadResponse: PackageDownloadResponse;
+  PackageListResponse: PackageListResponse;
+  PackageOptionsResponse: PackageOptionsResponse;
+  PackagePreparationCancellationResponse: PackagePreparationCancellationResponse;
+  PackageSettingsRequest: PackageSettingsRequest;
+  PackageUploadRequest: PackageUploadRequest;
+  PackageUploadResponse: PackageUploadResponse;
   PasswordChangeRequest: PasswordChangeRequest;
   ProfileUpdateRequest: ProfileUpdateRequest;
   ProfileWriteResponse: ProfileWriteResponse;
@@ -120,6 +154,28 @@ export interface BrowserApiContracts {
   QueueMutationResponse: QueueMutationResponse;
   QueueResetRequest: QueueResetRequest;
   QueueUploadRequest: QueueUploadRequest;
+  RecipientCreationRequest: RecipientCreationRequest;
+  RecipientNotesRequest: RecipientNotesRequest;
+  RecipientTokenRequest: RecipientTokenRequest;
+  RunDepartmentListResponse: RunDepartmentListResponse;
+  RunDetailsResponse: RunDetailsResponse;
+  RunDownloadResponse: RunDownloadResponse;
+  RunEmailRecipientListResponse: RunEmailRecipientListResponse;
+  RunEmailVerificationResponse: RunEmailVerificationResponse;
+  RunFileRequest: RunFileRequest;
+  RunListResponse: RunListResponse;
+  RunLogClearResponse: RunLogClearResponse;
+  RunLogListResponse: RunLogListResponse;
+  RunRerunResponse: RunRerunResponse;
+  RunSelectionResponse: RunSelectionResponse;
+  ScheduleCreationRequest: ScheduleCreationRequest;
+  ScheduleDefaultsResponse: ScheduleDefaultsResponse;
+  ScheduleDetailsResponse: ScheduleDetailsResponse;
+  ScheduleEnabledRequest: ScheduleEnabledRequest;
+  ScheduleListResponse: ScheduleListResponse;
+  SchedulePreviewResponse: SchedulePreviewResponse;
+  ScheduleTimeRequest: ScheduleTimeRequest;
+  ScheduleUpdateRequest: ScheduleUpdateRequest;
   SessionResponse: SessionResponse;
   SessionRevocationRequest: SessionRevocationRequest;
 }
@@ -200,7 +256,7 @@ export interface AssetCreationRequest {
   department_id: string;
   name: string;
   notes?: string;
-  value: JsonValueInput;
+  value: JsonValue;
 }
 export interface AssetDeletionRequest {}
 export interface AssetDetailsRequest {
@@ -224,9 +280,9 @@ export interface AssetDetailsEntryResponse {
   updated_at: string;
   value?:
     | {
-        [k: string]: JsonValueOutput;
+        [k: string]: JsonValue;
       }
-    | JsonValueOutput[]
+    | JsonValue[]
     | string
     | number
     | boolean
@@ -241,7 +297,7 @@ export interface AssetReferenceResponse {
   id: string;
   kind: AssetReferenceKind;
   name: string;
-  version?: string | null;
+  project_version?: string | null;
 }
 export interface AssetListResponse {
   assets: AssetEntryResponse[];
@@ -264,7 +320,7 @@ export interface AssetEntryResponse {
   value_summary: string;
 }
 export interface AssetValueRequest {
-  value: JsonValueInput;
+  value: JsonValue;
 }
 export interface AuditDetailsResponse {
   record: AuditDetailsRecordResponse;
@@ -327,6 +383,13 @@ export interface AuditRecordResponse {
   object_name: string;
   object_type: string;
   result: "succeeded" | "failed";
+}
+export interface ClearLogsRequest {
+  /**
+   * @minItems 1
+   * @maxItems 20000
+   */
+  run_ids: [string, ...string[]];
 }
 export interface CsrfResponse {
   csrf_token: string;
@@ -433,7 +496,8 @@ export interface ExecutorDetailsEntryResponse {
   association_status: ExecutorAssociationStatus;
   can_manage: boolean;
   central_running_count: number | null;
-  computer: string | null;
+  client_version: string | null;
+  computer_name: string | null;
   created_at: string;
   deleted_at: string | null;
   department: ExecutorDepartmentResponse;
@@ -443,13 +507,12 @@ export interface ExecutorDetailsEntryResponse {
   id: string;
   last_seen_at: string | null;
   last_work_reported_at: string | null;
-  local_running_count: number | null;
   local_waiting_count: number | null;
   name: string;
   notes: string;
+  other_active_run_count: number | null;
   referencing_schedules: ExecutorScheduleReferenceResponse[];
   session_id: string | null;
-  version: string | null;
 }
 export interface ExecutorDepartmentResponse {
   id: string;
@@ -511,7 +574,8 @@ export interface ExecutorListEntryResponse {
   account: UserResponse | null;
   association_status: ExecutorAssociationStatus;
   can_manage: boolean;
-  computer: string | null;
+  client_version: string | null;
+  computer_name: string | null;
   created_at: string;
   deleted_at: string | null;
   department: ExecutorDepartmentResponse;
@@ -522,7 +586,6 @@ export interface ExecutorListEntryResponse {
   name: string;
   notes: string;
   session_id: string | null;
-  version: string | null;
 }
 export interface ExecutorGroupListResponse {
   executor_groups: ExecutorGroupListEntryResponse[];
@@ -722,6 +785,153 @@ export interface InvitationRegistrationResponse {
 export interface InvitationTokenRequest {
   token: string;
 }
+export interface JobControlRequest {
+  action: JobControlAction;
+}
+export interface JobCreationRequest {
+  custom_args?: {
+    [k: string]: JsonValue;
+  } | null;
+  executor_ids?: string[];
+  group_id?: string | null;
+  package_id: string;
+  request_id: string;
+  settings?: {
+    [k: string]: JsonValue;
+  } | null;
+}
+export interface JobCreationResponse {
+  job_request_id: string;
+  jobs: JobResponse[];
+  request_id: string;
+}
+export interface JobResponse {
+  can_cancel: boolean;
+  can_close: boolean;
+  can_stop: boolean;
+  closed_at: string | null;
+  department_id: string;
+  ended_at: string | null;
+  executor_id: string | null;
+  executor_name: string | null;
+  id: string;
+  job_request_id: string;
+  package_id: string | null;
+  priority: RunPriority;
+  project_name: string;
+  project_version: string;
+  queued_at: string;
+  reason: string;
+  retry_at: string | null;
+  schedule_id: string | null;
+  schedule_name: string;
+  scheduled_at: string | null;
+  source: JobSource;
+  state: JobState;
+  target_id: string;
+  target_name: string;
+  target_type: "executor" | "group";
+}
+export interface JobDetailsResponse {
+  job: JobDetailsEntryResponse;
+}
+export interface JobDetailsEntryResponse {
+  can_cancel: boolean;
+  can_close: boolean;
+  can_stop: boolean;
+  closed_at: string | null;
+  department_id: string;
+  ended_at: string | null;
+  events: JobEventResponse[];
+  executor_id: string | null;
+  executor_name: string | null;
+  id: string;
+  job_request_id: string;
+  package_id: string | null;
+  priority: RunPriority;
+  project_name: string;
+  project_version: string;
+  queued_at: string;
+  reason: string;
+  retry_at: string | null;
+  run_snapshot: RunSnapshotResponse;
+  runs: RunResponse[];
+  schedule_id: string | null;
+  schedule_name: string;
+  scheduled_at: string | null;
+  source: JobSource;
+  state: JobState;
+  target_id: string;
+  target_name: string;
+  target_type: "executor" | "group";
+}
+export interface JobEventResponse {
+  kind: RunEventKind;
+  occurred_at: string;
+  reason: string;
+}
+export interface RunSnapshotResponse {
+  builtin_highlight_ui: boolean;
+  builtin_log_level: RunLogLevel;
+  builtin_record_video: boolean;
+  builtin_stop_shortcut: boolean;
+  custom_arg_assets: (OrdinaryAssetBinding | null)[];
+  custom_prj_args: [string, JsonValue][];
+  department_id: string;
+  max_retry_count: number;
+  package_id: string;
+  priority: RunPriority;
+  project_name: string;
+  project_version: string;
+  python_environment_name: string;
+  requires_liberrpa: string;
+  run_conflict_policy: RunConflictPolicy;
+  run_email: RunEmailSettingsResponse;
+  sha256: string;
+  timeout_min: number;
+}
+export interface OrdinaryAssetBinding {
+  asset_type: "text" | "integer" | "number" | "boolean" | "json";
+  name: string;
+}
+export interface RunEmailSettingsResponse {
+  on_completed: RunEmailTemplateResponse;
+  on_error: RunEmailTemplateResponse;
+  on_start: RunEmailTemplateResponse;
+  recipient_ids: string[];
+}
+export interface RunEmailTemplateResponse {
+  body: string;
+  enabled: boolean;
+  subject: string;
+}
+export interface RunResponse {
+  account_name: string;
+  attempt_number: number;
+  can_rerun: boolean;
+  can_stop: boolean;
+  computer_name: string;
+  department_id: string;
+  ended_at: string | null;
+  executor_id: string;
+  executor_name: string;
+  id: string;
+  job_id: string;
+  outputs_status: OutputsStatus;
+  project_name: string;
+  project_version: string;
+  reason: string;
+  result: RunResult;
+  schedule_name: string;
+  started_at: string;
+}
+export interface JobListResponse {
+  jobs: JobResponse[];
+  page: number;
+  page_size: number;
+  total_count: number;
+  total_pages: number;
+}
 export interface LoginRequest {
   email: string;
   password: string;
@@ -781,6 +991,147 @@ export interface OrganizationSettingsRecordResponse {
   name: string;
   notes: string;
 }
+export interface PackageDetailsResponse {
+  package: PackageResponse;
+  preparation: PackagePreparationResponse[];
+  references: PackageReferenceResponse[];
+}
+export interface PackageResponse {
+  api_input_keys: string[];
+  can_manage: boolean;
+  component_dependencies: {
+    [k: string]: JsonValue;
+  };
+  department_id: string;
+  department_path: string;
+  description: string;
+  id: string;
+  project_name: string;
+  project_version: string;
+  python_environment_name: string;
+  requires_liberrpa: string;
+  settings: RunSettingsResponse;
+  sha256: string;
+  size_bytes: number;
+  uploaded_at: string;
+  uploaded_by_name: string;
+  version_summary: string;
+}
+export interface RunSettingsResponse {
+  builtin_highlight_ui: boolean;
+  builtin_log_level: RunLogLevel;
+  builtin_record_video: boolean;
+  builtin_stop_shortcut: boolean;
+  custom_arg_assets: (OrdinaryAssetBinding | null)[];
+  custom_prj_args: [string, JsonValue][];
+  max_retry_count: number;
+  priority: RunPriority;
+  run_conflict_policy: RunConflictPolicy;
+  run_email: RunEmailSettingsResponse;
+  timeout_min: number;
+}
+export interface PackagePreparationResponse {
+  executor_id: string;
+  executor_name: string;
+  reason: string;
+  state: PackagePreparationState;
+}
+export interface PackageReferenceResponse {
+  id: string;
+  kind: PackageReferenceKind;
+  name: string;
+}
+export interface PackageDownloadResponse {
+  file_name: string;
+  transfer_id: string;
+}
+export interface PackageListResponse {
+  packages: PackageListEntryResponse[];
+  page: number;
+  page_size: number;
+  total_count: number;
+  total_pages: number;
+}
+export interface PackageListEntryResponse {
+  can_manage: boolean;
+  department_id: string;
+  department_path: string;
+  id: string;
+  project_name: string;
+  project_version: string;
+  python_environment_name: string;
+  size_bytes: number;
+  uploaded_at: string;
+  uploaded_by_name: string;
+}
+export interface PackageOptionsResponse {
+  packages: PackageListEntryResponse[];
+}
+export interface PackagePreparationCancellationResponse {
+  canceled_count: number;
+}
+export interface PackageSettingsRequest {
+  /**
+   * @maxItems 100
+   */
+  api_input_keys: string[];
+  python_environment_name: string;
+  settings: RunSettings;
+}
+export interface RunSettings {
+  builtin_highlight_ui?: boolean;
+  builtin_log_level?: RunLogLevel1;
+  builtin_record_video?: boolean;
+  builtin_stop_shortcut?: boolean;
+  /**
+   * @maxItems 100
+   */
+  custom_arg_assets?: (OrdinaryAssetBinding | null)[];
+  /**
+   * @maxItems 100
+   */
+  custom_prj_args?: JsonValue[][];
+  max_retry_count?: number;
+  priority?: RunPriority1;
+  run_conflict_policy?: RunConflictPolicy1;
+  run_email?: RunEmailSettings;
+  timeout_min?: number;
+}
+export interface RunEmailSettings {
+  on_completed?: RunEmailTemplate;
+  on_error?: RunEmailTemplate;
+  on_start?: RunEmailTemplate;
+  /**
+   * @maxItems 5
+   */
+  recipient_ids?:
+    | []
+    | [RequestUuid]
+    | [RequestUuid, RequestUuid]
+    | [RequestUuid, RequestUuid, RequestUuid]
+    | [RequestUuid, RequestUuid, RequestUuid, RequestUuid]
+    | [RequestUuid, RequestUuid, RequestUuid, RequestUuid, RequestUuid];
+}
+export interface RunEmailTemplate {
+  body?: string;
+  enabled?: boolean;
+  subject?: string;
+}
+export interface PackageUploadRequest {
+  department_id: RequestUuid;
+  request_id: RequestUuid;
+  sha256: string;
+  size_bytes: number;
+}
+export interface PackageUploadResponse {
+  chunk_bytes: number;
+  expires_at: string;
+  offset: number;
+  package: PackageResponse | null;
+  size_bytes: number;
+  state: PackageUploadState;
+  upload_id: string;
+}
 export interface PasswordChangeRequest {
   confirm_password: string;
   current_password: string;
@@ -807,10 +1158,10 @@ export interface QueueCreationRequest {
 export interface QueueDeleteItemsRequest {
   count?: number;
   item_ids?: QueueItemIds | null;
-  order?: QueueOrder;
+  order?: QueueItemOrder;
   queue_path?: string | null;
   request_id: QueueRequestUuid;
-  status?: QueueFilterStatus;
+  status?: QueueItemFilterStatus;
 }
 export interface QueueDetailsRequest {
   name: string;
@@ -836,14 +1187,14 @@ export interface QueueDepartmentResponse {
   path: string;
 }
 export interface QueueItemDetailsResponse {
-  data: JsonValueOutput;
+  data: JsonValue;
   data_summary: string;
   id: string;
   last_claimed_at: string | null;
   last_claimed_by_id: string | null;
   last_claimed_by_name: string;
   sequence: number;
-  status: QueueStatus;
+  status: QueueItemStatus;
   uploaded_at: string;
   uploaded_by_id: string;
   uploaded_by_name: string;
@@ -863,7 +1214,7 @@ export interface QueueItemResponse {
   last_claimed_by_id: string | null;
   last_claimed_by_name: string;
   sequence: number;
-  status: QueueStatus;
+  status: QueueItemStatus;
   uploaded_at: string;
   uploaded_by_id: string;
   uploaded_by_name: string;
@@ -885,7 +1236,7 @@ export interface QueueMutationResponse {
   skipped_ids: string[];
 }
 export interface QueueClaimedItemResponse {
-  data: JsonValueOutput;
+  data: JsonValue;
   id: string;
 }
 export interface QueueResetRequest {
@@ -898,9 +1249,267 @@ export interface QueueUploadRequest {
    * @minItems 1
    * @maxItems 100
    */
-  items: [JsonValueInput, ...JsonValueInput[]];
+  items: [JsonValue, ...JsonValue[]];
   queue_path?: string | null;
   request_id: QueueRequestUuid;
+}
+export interface RecipientCreationRequest {
+  email: string;
+  notes?: string;
+}
+export interface RecipientNotesRequest {
+  notes: string;
+}
+export interface RecipientTokenRequest {
+  token: string;
+}
+export interface RunDepartmentListResponse {
+  departments: RunDepartmentResponse[];
+}
+export interface RunDepartmentResponse {
+  deleted_at: string | null;
+  id: string;
+  name: string;
+  path: string;
+}
+export interface RunDetailsResponse {
+  run: RunDetailsEntryResponse;
+}
+export interface RunDetailsEntryResponse {
+  account_name: string;
+  attempt_number: number;
+  can_rerun: boolean;
+  can_stop: boolean;
+  computer_name: string;
+  department_deleted_at: string | null;
+  department_id: string;
+  department_path: string;
+  ended_at: string | null;
+  error_summary: {
+    [k: string]: JsonValue;
+  } | null;
+  executor_id: string;
+  executor_name: string;
+  files: RunFilesResponse;
+  id: string;
+  job: JobResponse;
+  job_id: string;
+  logs_cleared_at: string | null;
+  other_runs: RunResponse[];
+  outputs: [string, JsonValue][] | null;
+  outputs_reason: string;
+  outputs_status: OutputsStatus;
+  outputs_unavailable_keys: string[];
+  project_name: string;
+  project_version: string;
+  reason: string;
+  recording: RunRecordingResponse;
+  result: RunResult;
+  run_snapshot: RunSnapshotResponse;
+  schedule_name: string;
+  started_at: string;
+}
+export interface RunFilesResponse {
+  logs: RunFileAvailabilityResponse;
+  subtitles: RunFileAvailabilityResponse;
+  video: RunFileAvailabilityResponse;
+}
+export interface RunFileAvailabilityResponse {
+  available: boolean;
+  reason: string;
+  size_bytes: number | null;
+}
+export interface RunRecordingResponse {
+  reason?: string;
+  status?: RecordingStatus | null;
+  subtitleSizeBytes?: number | null;
+  videoSizeBytes?: number | null;
+}
+export interface RunDownloadResponse {
+  download_url: string;
+}
+export interface RunEmailRecipientListResponse {
+  can_manage: boolean;
+  recipients: RunEmailRecipientResponse[];
+}
+export interface RunEmailRecipientResponse {
+  created_at: string;
+  email: string;
+  id: string;
+  notes: string;
+  verified_at: string | null;
+}
+export interface RunEmailVerificationResponse {
+  email: string;
+  organization_name: string;
+  verified: boolean;
+}
+export interface RunFileRequest {
+  kind: RunFileKind;
+}
+export interface RunListResponse {
+  page: number;
+  page_size: number;
+  runs: RunResponse[];
+  total_count: number;
+  total_pages: number;
+}
+export interface RunLogClearResponse {
+  cleared: number;
+  failed: RunLogClearEntryResponse[];
+  skipped: RunLogClearEntryResponse[];
+}
+export interface RunLogClearEntryResponse {
+  id: string;
+  reason: string;
+}
+export interface RunLogListResponse {
+  after_cursor: number;
+  before_cursor: number | null;
+  cleared: boolean;
+  complete: boolean;
+  has_more: boolean;
+  logs: RunLogEntryResponse[];
+}
+export interface RunLogEntryResponse {
+  custom_fields: {
+    [k: string]: string;
+  };
+  file_name: string;
+  level: RunLogLevel;
+  line_no: string;
+  log_id: string;
+  machine_name: string;
+  message_text: string;
+  process_name: string;
+  project_name: string;
+  received_at: string;
+  sequence: number;
+  timestamp: string;
+  user_name: string;
+}
+export interface RunRerunResponse {
+  executor_ids: string[];
+  group_id: string | null;
+  original_job_active: boolean;
+  package_id: string;
+}
+export interface RunSelectionResponse {
+  run_ids: string[];
+}
+export interface ScheduleCreationRequest {
+  active_from: string;
+  active_until: string;
+  cron: string;
+  department_id: string;
+  enabled?: boolean;
+  executor_ids?: string[];
+  group_id?: string | null;
+  name: string;
+  notes?: string;
+  package_id: string;
+  settings: RunSettings;
+  time_zone: string;
+}
+export interface ScheduleDefaultsResponse {
+  time_zone: string;
+}
+export interface ScheduleDetailsResponse {
+  schedule: ScheduleResponse;
+}
+export interface ScheduleResponse {
+  active_from: string;
+  active_until: string;
+  can_manage: boolean;
+  created_at: string;
+  created_by: ScheduleCreatorResponse | null;
+  cron: string;
+  department: ScheduleDepartmentResponse;
+  department_id: string;
+  enabled: boolean;
+  executor_group: ScheduleNamedObjectResponse | null;
+  executor_ids: string[];
+  executors: ScheduleNamedObjectResponse[];
+  group_id: string | null;
+  id: string;
+  name: string;
+  notes: string;
+  package_id: string;
+  project_name: string;
+  project_version: string;
+  python_environment_name: string;
+  settings: RunSettingsResponse;
+  time_zone: string;
+  upcoming_triggers: string[];
+}
+export interface ScheduleCreatorResponse {
+  email: string;
+  id: string;
+  username: string;
+}
+export interface ScheduleDepartmentResponse {
+  id: string;
+  name: string;
+  path: string;
+}
+export interface ScheduleNamedObjectResponse {
+  id: string;
+  name: string;
+}
+export interface ScheduleEnabledRequest {
+  enabled: boolean;
+}
+export interface ScheduleListResponse {
+  page: number;
+  page_size: number;
+  schedules: ScheduleListEntryResponse[];
+  total_count: number;
+  total_pages: number;
+}
+export interface ScheduleListEntryResponse {
+  active_from: string;
+  active_until: string;
+  can_manage: boolean;
+  created_at: string;
+  created_by: ScheduleCreatorResponse | null;
+  cron: string;
+  department: ScheduleDepartmentResponse;
+  department_id: string;
+  enabled: boolean;
+  executor_group: ScheduleNamedObjectResponse | null;
+  executor_ids: string[];
+  executors: ScheduleNamedObjectResponse[];
+  group_id: string | null;
+  id: string;
+  name: string;
+  notes: string;
+  package_id: string;
+  project_name: string;
+  project_version: string;
+  time_zone: string;
+}
+export interface SchedulePreviewResponse {
+  normalized_cron: string;
+  upcoming_triggers: string[];
+}
+export interface ScheduleTimeRequest {
+  active_from: string;
+  active_until: string;
+  cron: string;
+  time_zone: string;
+}
+export interface ScheduleUpdateRequest {
+  active_from: string;
+  active_until: string;
+  cron: string;
+  enabled?: boolean;
+  executor_ids?: string[];
+  group_id?: string | null;
+  name: string;
+  notes?: string;
+  package_id: string;
+  settings: RunSettings;
+  time_zone: string;
 }
 export interface SessionResponse {
   csrf_token: string;

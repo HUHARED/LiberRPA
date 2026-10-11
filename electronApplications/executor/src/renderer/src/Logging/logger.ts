@@ -1,8 +1,8 @@
 // FileName: logger.ts
 
-import type { Str_RendererLogLevel } from "../../../shared/ipc";
+import type { RendererLogLevel } from "../../../shared/ipc";
 
-function sendLogToMain(level: Str_RendererLogLevel, message: unknown): void {
+function sendLogToMain(level: RendererLogLevel, message: unknown): void {
   const strMessage = String(message);
   console.log(`[${level}] ${strMessage}`);
   window.executor.sendLog(level, strMessage);

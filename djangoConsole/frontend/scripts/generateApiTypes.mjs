@@ -2,6 +2,7 @@
 
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { isDeepStrictEqual } from "node:util";
 
 import { compile } from "json-schema-to-typescript";
 
@@ -11,11 +12,47 @@ process.stdin.setEncoding("utf8");
 let strSchema = "";
 for await (const strChunk of process.stdin) strSchema += strChunk;
 const dictSchema = JSON.parse(strSchema);
+const dictDefinitions = dictSchema.$defs ?? {};
+const dictJsonValueInput = dictDefinitions["JsonValue-Input"];
+const dictJsonValueOutput = dictDefinitions["JsonValue-Output"];
+const boolMergeJsonValue = Boolean(dictJsonValueInput && dictJsonValueOutput);
 // Pydantic's field titles are documentation, not separate TypeScript domain types.
-for (const dictDefinition of Object.values(dictSchema.$defs ?? {})) {
+for (const dictDefinition of Object.values(dictDefinitions)) {
   for (const dictProperty of Object.values(dictDefinition.properties ?? {})) {
     delete dictProperty.title;
   }
+}
+function normalizeSchemas(schema) {
+  if (!schema || typeof schema !== "object") return;
+  if (Array.isArray(schema)) {
+    for (const child of schema) normalizeSchemas(child);
+    return;
+  }
+  // Both modes describe the same recursive JSON value; normalize their self-references.
+  if (
+    boolMergeJsonValue &&
+    ["#/$defs/JsonValue-Input", "#/$defs/JsonValue-Output"].includes(schema.$ref)
+  ) {
+    schema.$ref = "#/$defs/JsonValue";
+  }
+  // The converter uses the earlier tuple spelling; Pydantic emits draft 2020-12 prefixItems.
+  if (Array.isArray(schema.prefixItems)) {
+    schema.items = schema.prefixItems;
+    delete schema.prefixItems;
+    schema.additionalItems = false;
+  }
+  for (const child of Object.values(schema)) normalizeSchemas(child);
+}
+normalizeSchemas(dictSchema);
+if (boolMergeJsonValue) {
+  if (!isDeepStrictEqual(dictJsonValueInput, dictJsonValueOutput)) {
+    throw new Error(
+      "JsonValue input and output schemas differ; review them before merging.",
+    );
+  }
+  dictDefinitions.JsonValue = dictJsonValueInput;
+  delete dictDefinitions["JsonValue-Input"];
+  delete dictDefinitions["JsonValue-Output"];
 }
 const strTypes = await compile(dictSchema, "BrowserApiContracts", {
   cwd: strFrontendPath,

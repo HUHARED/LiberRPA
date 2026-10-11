@@ -64,6 +64,6 @@ def notify_job_failure(job: "Job") -> None:
         creatorId=creatorId,
         source=JobSource(jobRequest.source),
         title="Job could not start",
-        detail=f"Project: {job.project_name}\nVersion: {job.version}\nTarget: {job.target_name}\nReason: {job.reason}",
+        detail=f"Project: {job.project_name}\nVersion: {job.project_version}\nTarget: {job.target_name}\nReason: {job.reason}",
         eventKey=f"job:{job.pk}:prestart_failure",
     )

@@ -7,7 +7,7 @@ import {
   IPC_CHANNEL_RENDERER_INVOKE,
   IPC_CHANNEL_RENDERER_LOG,
 } from "../shared/ipc";
-import type { Dict_Message_Main, ExecutorPreloadApi } from "../shared/ipc";
+import type { MainMessage, ExecutorPreloadApi } from "../shared/ipc";
 
 const sendLog: ExecutorPreloadApi["sendLog"] = (level, message) => {
   ipcRenderer.send(IPC_CHANNEL_RENDERER_LOG, level, message);
@@ -18,10 +18,7 @@ const invoke: ExecutorPreloadApi["invoke"] = (command, ...args) => {
 };
 
 const onMainMessage: ExecutorPreloadApi["onMainMessage"] = (listener) => {
-  const handleMessage = (
-    _event: Electron.IpcRendererEvent,
-    message: Dict_Message_Main,
-  ): void => {
+  const handleMessage = (_event: Electron.IpcRendererEvent, message: MainMessage): void => {
     listener(message);
   };
 

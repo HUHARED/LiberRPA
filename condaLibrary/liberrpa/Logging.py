@@ -22,6 +22,7 @@ from liberrpa.Common._BasicConfig import (
     get_liberrpa_folder_path,
 )
 from liberrpa.Common._RunContext import (
+    ExecutorRunStateStatus,
     get_executor_run_context,
     get_or_create_run_started_at,
     write_executor_run_state,
@@ -286,7 +287,7 @@ class Logger:
 
         strToolName: BasicConfigToolName
         strLogFolderName = os.getenv("LogFolderName")
-        dictExecutorRunContext = (
+        executorRunContext = (
             None if strLogFolderName is not None else get_executor_run_context()
         )
         datetimeStartedAt = get_or_create_run_started_at()
@@ -299,9 +300,9 @@ class Logger:
             strStartedAtFolderName = datetimeStartedAt.strftime("%Y-%m-%d_%H%M%S_%f")
             print("Set log folder name:", strLogFolderName)
 
-        elif dictExecutorRunContext is not None:
+        elif executorRunContext is not None:
             strToolName = "Executor"
-            self.strProjectName = dictExecutorRunContext.packageName
+            self.strProjectName = executorRunContext.packageName
 
         else:
             strToolName = "Editor"
@@ -309,7 +310,7 @@ class Logger:
 
         self.dictBasicConfig = get_basic_config_dict(toolName=strToolName)
 
-        if dictExecutorRunContext is not None and strLogFolderName is None:
+        if executorRunContext is not None and strLogFolderName is None:
             # Run by Executor.
             try:
                 dictExecutorConfig = cast(
@@ -329,14 +330,14 @@ class Logger:
                 strLogBasePath = (
                     strProjectLogFolderPath or self.dictBasicConfig["outputLogPath"]
                 )
-                strShortRunId = dictExecutorRunContext.runId.split("-", maxsplit=1)[0]
+                strShortRunId = executorRunContext.runId.split("-", maxsplit=1)[0]
                 strRunFolderName = f"{strStartedAtFolderName}_{strShortRunId}"
 
                 self.strLogFolder = sanitize_filepath(
                     os.path.join(
                         strLogBasePath,
                         self.strProjectName,
-                        dictExecutorRunContext.packageVersion,
+                        executorRunContext.packageVersion,
                         strRunFolderName,
                     )
                 )
@@ -357,13 +358,15 @@ class Logger:
         os.makedirs(self.strLogFolder, exist_ok=True)
 
         # Only the MainProcess publishes Executor runtime state.
-        if PROCESS_NAME == "MainProcess" and dictExecutorRunContext is not None:
-            write_executor_run_state(status="running", logPath=self.strLogFolder)
+        if PROCESS_NAME == "MainProcess" and executorRunContext is not None:
+            write_executor_run_state(
+                status=ExecutorRunStateStatus.RUNNING, logPath=self.strLogFolder
+            )
 
         # Executor runs keep formal logs in files. Console output is reserved for Editor and built-in tool runs.
         self.colorfulConsoleHandlerObj = (
             None
-            if dictExecutorRunContext is not None
+            if executorRunContext is not None
             else logging.StreamHandler(stream=sys.stderr)
         )  # Console handler
         self.humanLogger = self._create_logger(

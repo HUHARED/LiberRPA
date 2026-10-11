@@ -72,9 +72,16 @@ class ExecutorClientResult:
     choices: ExecutorPageInfo | None = None
 
 
+@dataclass(frozen=True)
+class ExecutorSessionIdentity:
+    sessionId: uuid.UUID
+    userId: uuid.UUID
+    organizationId: uuid.UUID
+
+
 @sensitive_variables()
 def begin_executor_login(
-    *, userId: uuid.UUID, verifiedAuthHash: str, computer: str, clientVersion: str
+    *, userId: uuid.UUID, verifiedAuthHash: str, computerName: str, clientVersion: str
 ) -> ExecutorLoginResult:
     """Create a short selection-only credential after Django verifies the account password."""
     with transaction.atomic(durable=True):
@@ -103,7 +110,7 @@ def begin_executor_login(
             organization=access.organization,
             token_hash=hashlib.sha256(strToken.encode("ascii")).hexdigest(),
             auth_hash=user.get_session_auth_hash(),
-            computer=computer.strip(),
+            computer_name=computerName.strip(),
             client_version=clientVersion.strip(),
             created_at=currentTime,
             expires_at=currentTime + _SELECTION_LIFETIME,
@@ -121,7 +128,8 @@ def begin_executor_login(
 
 
 @sensitive_variables()
-def _get_session_identity(authorizationHeader: str) -> ExecutorSession:
+def get_executor_session_identity(authorizationHeader: str) -> ExecutorSessionIdentity:
+    """Resolve the credential once; permissions are checked inside each write transaction."""
     credentialMatch = (
         _CLIENT_BEARER_PATTERN.fullmatch(authorizationHeader)
         if len(authorizationHeader) <= 128
@@ -131,13 +139,14 @@ def _get_session_identity(authorizationHeader: str) -> ExecutorSession:
         raise InvalidExecutorSessionError("A valid Executor session is required.")
     strTokenHash = hashlib.sha256(credentialMatch.group(1).encode("ascii")).hexdigest()
     try:
-        return ExecutorSession.objects.only("id", "user", "organization").get(
+        session = ExecutorSession.objects.only("id", "user", "organization").get(
             token_hash=strTokenHash
         )
     except ExecutorSession.DoesNotExist:
         raise InvalidExecutorSessionError(
             "A valid Executor session is required."
         ) from None
+    return ExecutorSessionIdentity(session.id, session.user_id, session.organization_id)
 
 
 @sensitive_variables()
@@ -164,17 +173,17 @@ def get_locked_executor_session(
 @sensitive_variables()
 def open_executor_client_request(
     *,
-    authorizationHeader: str,
+    identity: ExecutorSessionIdentity,
     action: ExecutorClientAction,
     executorId: uuid.UUID | None = None,
     pageNumber: int = 1,
+    recordContact: bool = True,
 ) -> Generator[ExecutorClientResult | None]:
     """Keep one authenticated contact and its caller's writes in the same transaction.
 
     Call outside other transactions; the organization/account locks precede the session lock.
     The yielded access is valid only inside this context, not for later business transactions.
     """
-    identity = _get_session_identity(authorizationHeader)
     boolInvalidSession = False
     result: ExecutorClientResult | None = None
     with transaction.atomic(durable=True):
@@ -183,13 +192,13 @@ def open_executor_client_request(
             organization = (
                 Organization.objects
                 .select_for_update()
-                .filter(pk=identity.organization_id)
+                .filter(pk=identity.organizationId)
                 .first()
             )
             session = (
                 ExecutorSession.objects
                 .select_related("user")
-                .filter(pk=identity.id)
+                .filter(pk=identity.sessionId)
                 .first()
             )
             if organization is None or session is None:
@@ -205,20 +214,22 @@ def open_executor_client_request(
             from runs.services import reconcile_revoked_sessions
 
             # The native client also guards actual local Runs before requesting logout.
-            intDeletedCount, _ = ExecutorSession.objects.filter(pk=identity.id).delete()
-            reconcile_revoked_sessions([identity.id])
+            intDeletedCount, _ = ExecutorSession.objects.filter(
+                pk=identity.sessionId
+            ).delete()
+            reconcile_revoked_sessions([identity.sessionId])
             if not intDeletedCount:
                 raise InvalidExecutorSessionError("A valid Executor session is required.")
             yield None
             return
         access = resolve_organization_access(
-            actorId=identity.user_id,
-            organizationId=identity.organization_id,
+            actorId=identity.userId,
+            organizationId=identity.organizationId,
             channel=AccessChannel.EXECUTOR,
             forUpdate=True,
         )
         try:
-            session = get_locked_executor_session(access, identity.id)
+            session = get_locked_executor_session(access, identity.sessionId)
             boolNewAssociation = (
                 action == ExecutorClientAction.ASSOCIATE and session.executor_id is None
             )
@@ -294,32 +305,33 @@ def open_executor_client_request(
                     raise InvalidExecutorSessionError(
                         "A valid Executor session is required."
                     )
-                session.expires_at = currentTime + _SESSION_IDLE_LIFETIME
-                listUpdateField = ["expires_at"]
-                if action != ExecutorClientAction.RESOURCE:
-                    # Python resource traffic does not prove that the Executor is online.
-                    session.last_seen_at = max(
-                        currentTime, session.last_seen_at or session.created_at
-                    )
-                    listUpdateField.append("last_seen_at")
-                if boolNewAssociation:
-                    listUpdateField.extend(["executor", "associated_at"])
-                session.save(update_fields=listUpdateField)
+                if recordContact:
+                    session.expires_at = currentTime + _SESSION_IDLE_LIFETIME
+                    listUpdateField = ["expires_at"]
+                    if action != ExecutorClientAction.RESOURCE:
+                        # Python resource traffic does not prove that the Executor is online.
+                        session.last_seen_at = max(
+                            currentTime, session.last_seen_at or session.created_at
+                        )
+                        listUpdateField.append("last_seen_at")
+                    if boolNewAssociation:
+                        listUpdateField.extend(["executor", "associated_at"])
+                    session.save(update_fields=listUpdateField)
 
-                if boolNewAssociation:
-                    record_audit(
-                        "executor.associate",
-                        actor=access.actor,
-                        organization=access.organization,
-                        target=session.executor,
-                        channel=AuditChannel.EXECUTOR,
-                    )
+                    if boolNewAssociation:
+                        record_audit(
+                            "executor.associate",
+                            actor=access.actor,
+                            organization=access.organization,
+                            target=session.executor,
+                            channel=AuditChannel.EXECUTOR,
+                        )
                 result = ExecutorClientResult(session=session, access=access)
         except InvalidExecutorSessionError:
             from runs.services import reconcile_revoked_sessions
 
-            ExecutorSession.objects.filter(pk=identity.id).delete()
-            reconcile_revoked_sessions([identity.id])
+            ExecutorSession.objects.filter(pk=identity.sessionId).delete()
+            reconcile_revoked_sessions([identity.sessionId])
             boolInvalidSession = True
         if result is not None:
             # Caller failures roll back contact writes; they do not invalidate a valid credential.

@@ -84,7 +84,8 @@ function parseAssetDetails(payload: unknown): AssetDetailsResponse {
         (reference.kind === "package" || reference.kind === "schedule") &&
         typeof reference.id === "string" &&
         typeof reference.name === "string" &&
-        (reference.version === null || typeof reference.version === "string"),
+        (reference.project_version === null ||
+          typeof reference.project_version === "string"),
     )
   )
     return rejectInvalidResponse();

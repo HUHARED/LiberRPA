@@ -9,6 +9,8 @@ from datetime import datetime
 
 from django.conf import settings
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.db.models import Value
+from django.db.models.functions import Lower
 from django.utils import timezone
 
 from console_project.validators import parse_zoned_time
@@ -52,7 +54,7 @@ def require_schedule_management(
         raise PermissionDenied("Developer access is required to manage Schedules.")
 
 
-def validate_schedule_time(
+def parse_schedule_time(
     timeRequest: ScheduleTimeRequest,
 ) -> tuple[str, datetime, datetime]:
     strCron = normalize_cron(timeRequest.cron)
@@ -94,7 +96,7 @@ def save_schedule(
     schedule: Schedule | None = None,
 ) -> Schedule:
     require_schedule_management(access, departmentId)
-    strCron, activeFrom, activeUntil = validate_schedule_time(form)
+    strCron, activeFrom, activeUntil = parse_schedule_time(form)
     package = Package.objects.get(pk=form.package_id, department_id=departmentId)
     _validate_targets(departmentId, form.executor_ids, form.group_id)
     dictSettings = validate_run_settings(package, form.settings)
@@ -144,7 +146,17 @@ def save_schedule(
         schedule.next_trigger_at = get_next_trigger(
             strCron, form.time_zone, activeFrom, activeUntil, schedule.updated_at
         )
-    schedule.validate_constraints()
+    if (
+        Schedule.objects
+        .filter(department_id=departmentId, deleted_at__isnull=True)
+        .exclude(pk=schedule.pk)
+        .alias(name_key=Lower("name"))
+        .filter(name_key=Lower(Value(schedule.name)))
+        .exists()
+    ):
+        raise ValidationError({
+            "name": "A Schedule with this name already exists in this department."
+        })
     schedule.save()
     from packages.preparation import request_package_preparation
     from executors.models import ExecutorGroupMember

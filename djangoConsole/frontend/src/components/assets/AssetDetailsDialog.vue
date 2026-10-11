@@ -69,7 +69,7 @@
                     {{ reference.name }}
                   </RouterLink>
                 </td>
-                <td>{{ reference.version || "—" }}</td>
+                <td>{{ reference.project_version || "—" }}</td>
                 <td>{{ reference.kind === "package" ? "Package" : "Schedule" }}</td>
               </tr>
             </tbody>

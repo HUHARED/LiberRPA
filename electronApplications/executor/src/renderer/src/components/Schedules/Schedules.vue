@@ -129,7 +129,7 @@ function newSchedule(): void {
     period_start: dictDefaultPeriod.periodStartLocal,
     period_end: dictDefaultPeriod.periodEndLocal,
     enabled: true,
-    retry_count: 0,
+    max_retry_count: 0,
     timeout_min: 0,
     builtin_log_level: LogLevel.Debug,
     builtin_record_video: true,

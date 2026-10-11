@@ -33,7 +33,7 @@
     </v-alert>
 
     <BuiltInRunOptions
-      v-model:retry-count="projectStore.dictDetailEdit.retry_count"
+      v-model:max-retry-count="projectStore.dictDetailEdit.max_retry_count"
       v-model:timeout-min="projectStore.dictDetailEdit.timeout_min"
       v-model:log-level="projectStore.dictDetailEdit.builtin_log_level"
       v-model:record-video="projectStore.dictDetailEdit.builtin_record_video"

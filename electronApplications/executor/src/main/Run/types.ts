@@ -7,12 +7,12 @@ import type {
   PythonEnvironmentSelection,
 } from "../../shared/runOptions";
 
-export interface ProjectRunDetails extends RunOptions, PythonEnvironmentSelection {
+export interface ProjectRunConfig extends RunOptions, PythonEnvironmentSelection {
   run_conflict_policy?: RunConflictPolicy;
   schedule_name: string | null;
-  id: number;
-  name: string;
-  version: string;
+  local_project_id: number | null;
+  project_name: string;
+  project_version: string;
 }
 
 export enum RunTerminationReason {
@@ -40,7 +40,7 @@ export interface RunEndedFact extends RunStartedFact {
 export interface RunExecutionContext {
   source: RunSource;
   jobId: string;
-  attempt: number;
+  attemptNumber: number;
   runId?: string;
   packagePath?: string;
   beforeSpawn?: (hasOtherActiveRun: boolean, startedAt: string) => void;

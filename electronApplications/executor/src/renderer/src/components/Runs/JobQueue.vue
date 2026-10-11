@@ -25,7 +25,7 @@
         {{ value ?? "—" }}
       </template>
 
-      <template #item.estimated_run_at_ms="{ value }">
+      <template #item.due_at_ms="{ value }">
         {{ value === null ? "—" : formatTimestamp(value, settingStore.timezone) }}
       </template>
 
@@ -77,7 +77,7 @@
       no-data-text="No upcoming triggers."
       density="compact"
       hover>
-      <template #item.estimated_run_at_ms="{ value }">
+      <template #item.due_at_ms="{ value }">
         {{ formatTimestamp(value, settingStore.timezone) }}
       </template>
     </v-data-table>
@@ -128,8 +128,8 @@ const arrCurrentHeader: DataTableHeader<JobQueueItem>[] = [
   { title: "Schedule", value: "schedule_name", align: "start", sortable: false },
   { title: "Project", align: "center", children: arrProjectHeader },
   {
-    title: "Scheduled At",
-    value: "estimated_run_at_ms",
+    title: "Due At",
+    value: "due_at_ms",
     align: "center",
     sortable: false,
   },
@@ -141,8 +141,8 @@ const arrUpcomingHeader: DataTableHeader<JobQueueItem>[] = [
   { title: "Schedule", value: "schedule_name", align: "start", sortable: false },
   { title: "Project", align: "center", children: arrProjectHeader },
   {
-    title: "Scheduled At",
-    value: "estimated_run_at_ms",
+    title: "Due At",
+    value: "due_at_ms",
     align: "center",
     sortable: false,
   },

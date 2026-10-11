@@ -33,7 +33,7 @@ import {
   parseProjectComponentsRepairedResult,
 } from "./Result/projectDependencyResult";
 
-export interface Info_ComponentManagement_OperationResult<T> {
+export interface ComponentManagementOperationResult<T> {
   result: T;
   warnings: DictComponentManagementWarning[];
 }
@@ -56,7 +56,7 @@ async function runOperation<T>(
   requestInfo: DictProtocolRequest,
   operationName: string,
   parseResult: (value: unknown) => T,
-): Promise<Info_ComponentManagement_OperationResult<T>> {
+): Promise<ComponentManagementOperationResult<T>> {
   const response: DictProtocolResponse_Raw = await runComponentManagement(requestInfo);
   if (!response.ok) {
     throw new ComponentManagementOperationError(operationName, response.error);
@@ -70,7 +70,7 @@ async function runOperation<T>(
 
 export async function publishComponent(
   projectPath: string,
-): Promise<Info_ComponentManagement_OperationResult<DictProtocolResult_Publish>> {
+): Promise<ComponentManagementOperationResult<DictProtocolResult_Publish>> {
   return await runOperation(
     {
       schemaVersion: 1,
@@ -84,9 +84,7 @@ export async function publishComponent(
 
 export async function importComponentWheels(
   wheelFilePaths: string[],
-): Promise<
-  Info_ComponentManagement_OperationResult<DictProtocolResult_ComponentWheelsImported>
-> {
+): Promise<ComponentManagementOperationResult<DictProtocolResult_ComponentWheelsImported>> {
   return await runOperation(
     {
       schemaVersion: 1,
@@ -99,7 +97,7 @@ export async function importComponentWheels(
 }
 
 export async function rebuildRepositoryIndex(): Promise<
-  Info_ComponentManagement_OperationResult<DictProtocolResult_RepositoryIndexRebuilt>
+  ComponentManagementOperationResult<DictProtocolResult_RepositoryIndexRebuilt>
 > {
   return await runOperation(
     {
@@ -112,7 +110,7 @@ export async function rebuildRepositoryIndex(): Promise<
 }
 
 export async function getComponentRepositoryCatalog(): Promise<
-  Info_ComponentManagement_OperationResult<DictProtocolResult_RepositoryCatalog>
+  ComponentManagementOperationResult<DictProtocolResult_RepositoryCatalog>
 > {
   return await runOperation(
     {
@@ -125,7 +123,7 @@ export async function getComponentRepositoryCatalog(): Promise<
 }
 
 export async function getProjectManifestDefaults(): Promise<
-  Info_ComponentManagement_OperationResult<DictProtocolResult_ProjectManifestDefaults>
+  ComponentManagementOperationResult<DictProtocolResult_ProjectManifestDefaults>
 > {
   return await runOperation(
     {
@@ -139,9 +137,7 @@ export async function getProjectManifestDefaults(): Promise<
 
 export async function getProjectDependencyState(
   projectPath: string,
-): Promise<
-  Info_ComponentManagement_OperationResult<DictProtocolResult_ProjectDependencyState>
-> {
+): Promise<ComponentManagementOperationResult<DictProtocolResult_ProjectDependencyState>> {
   return await runOperation(
     {
       schemaVersion: 1,
@@ -156,9 +152,7 @@ export async function getProjectDependencyState(
 export async function buildProjectDependencyPlan(
   projectPath: string,
   dependencyOperation: DictProtocolDependencyOperation,
-): Promise<
-  Info_ComponentManagement_OperationResult<DictProtocolResult_ProjectDependencyPlan>
-> {
+): Promise<ComponentManagementOperationResult<DictProtocolResult_ProjectDependencyPlan>> {
   return await runOperation(
     {
       schemaVersion: 1,
@@ -176,7 +170,7 @@ export async function applyProjectDependencyPlan(
   dependencyOperation: DictProtocolDependencyOperation,
   confirmedPlanSha256: string,
 ): Promise<
-  Info_ComponentManagement_OperationResult<DictProtocolResult_ProjectDependencyPlanApplied>
+  ComponentManagementOperationResult<DictProtocolResult_ProjectDependencyPlanApplied>
 > {
   return await runOperation(
     {
@@ -194,7 +188,7 @@ export async function applyProjectDependencyPlan(
 export async function repairProjectComponents(
   projectPath: string,
 ): Promise<
-  Info_ComponentManagement_OperationResult<DictProtocolResult_ProjectComponentsRepaired>
+  ComponentManagementOperationResult<DictProtocolResult_ProjectComponentsRepaired>
 > {
   return await runOperation(
     {

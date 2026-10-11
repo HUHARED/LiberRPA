@@ -31,7 +31,7 @@ from console_project.http import (
     build_service_unavailable_response,
     parse_json_request,
 )
-from executors.http import get_executor_request_membership, lock_executor_write_access
+from organizations.http import get_request_membership, lock_request_write_access
 from operations.audit import record_audit
 from organizations.models import Membership
 from organizations.permissions import (
@@ -42,7 +42,12 @@ from organizations.permissions import (
 from packages.models import Package
 from packages.runtime import build_run_settings
 
-from .contracts import EmptyRequest, JobControlRequest, JobCreationRequest
+from .contracts import (
+    EmptyRequest,
+    JobControlRequest,
+    JobCreationRequest,
+    JobControlAction,
+)
 from .models import JobSource, JobState, RunResult
 from .queries import (
     build_job_payload,
@@ -59,7 +64,7 @@ from .services import control_job
 
 _LOGGER = logging.getLogger("console.runs")
 _SET_RUN_OVERRIDE_FIELDS = frozenset({
-    "retry_count",
+    "max_retry_count",
     "timeout_min",
     "builtin_log_level",
     "builtin_record_video",
@@ -104,7 +109,7 @@ def _get_authentication(
         if not isinstance(authentication, ApiKeyAuthenticationContext):
             raise PermissionDenied("This endpoint requires a web session or API key.")
         return authentication
-    return get_executor_request_membership(request)
+    return get_request_membership(request)
 
 
 def _get_access(
@@ -118,7 +123,7 @@ def _get_access(
             lock_resource_write_access(authentication) if write else authentication.access
         )
     if write:
-        return lock_executor_write_access(request, authentication)
+        return lock_request_write_access(request, authentication)
     return resolve_organization_access(
         actorId=authentication.user_id,
         organizationId=authentication.organization_id,
@@ -302,7 +307,7 @@ def _process_work_request(
                     )
                 return JsonResponse({"job": build_job_payload(job, details=True)})
             run = get_visible_runs(access).select_for_update(of=("self",)).get(pk=workId)
-            control_job(run.job, "stop", run=run)
+            control_job(run.job, JobControlAction.STOP, run=run)
             record_audit(
                 "run.stop",
                 actor=access.actor,

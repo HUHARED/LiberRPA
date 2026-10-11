@@ -22,18 +22,17 @@ from .models import Package, PackagePreparation
 from .queries import require_package_department
 
 
-class PackagePreparationInputs(TypedDict):
+class PackagePreparationSnapshot(TypedDict):
     package_id: str
     sha256: str
     python_environment_name: str
-    requires_liberrpa: str
     project_name: str
     project_version: str
 
 
 class PackagePreparationCommand(TypedDict):
     preparation_id: str
-    inputs: PackagePreparationInputs
+    snapshot: PackagePreparationSnapshot
 
 
 def request_package_preparation(package: Package, executorIds: list[uuid.UUID]) -> None:
@@ -75,7 +74,7 @@ def request_referenced_preparation(package: Package) -> None:
     request_package_preparation(package, list(setExecutorId))
 
 
-def get_preparation_commands(
+def claim_package_preparations(
     access: OrganizationAccessContext, session: ExecutorSession
 ) -> list[PackagePreparationCommand]:
     if session.executor_id is None:
@@ -111,13 +110,12 @@ def get_preparation_commands(
         preparation.save(update_fields=["session_id", "state", "reason", "updated_at"])
         listCommand.append({
             "preparation_id": str(preparation.pk),
-            "inputs": {
+            "snapshot": {
                 "package_id": str(package.pk),
                 "sha256": package.sha256,
                 "python_environment_name": preparation.python_environment_name,
-                "requires_liberrpa": package.requires_liberrpa,
                 "project_name": package.project_name,
-                "project_version": package.version,
+                "project_version": package.project_version,
             },
         })
     return listCommand
@@ -199,10 +197,8 @@ def get_package_preparation(package: Package) -> list[dict]:
         {
             "executor_id": str(preparation.executor_id),
             "executor_name": preparation.executor.name,
-            "python_environment_name": preparation.python_environment_name,
             "state": preparation.state,
             "reason": preparation.reason,
-            "updated_at": preparation.updated_at.isoformat(),
         }
         for preparation in PackagePreparation.objects
         .filter(

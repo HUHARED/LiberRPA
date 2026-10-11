@@ -24,10 +24,10 @@ import {
   getPythonEnvironmentPath,
 } from "../Config/environment";
 import { getTargetFolderName } from "./packageArchive";
-import type { Dict_ProjectCreate } from "../../shared/project";
+import type { ProjectCreateData } from "../../shared/project";
 import type { CustomProjectArgs, LogLevel } from "../../shared/runOptions";
 
-interface DictFlowManifest {
+interface FlowManifest {
   schemaVersion: 1;
   name: string;
   version: string;
@@ -36,12 +36,12 @@ interface DictFlowManifest {
   componentDependencies: Record<string, string>;
 }
 
-interface DictPackageManifest {
+interface PackageManifest {
   schemaVersion: 1;
   versionSummary: string;
 }
 
-interface DictProjectFlow_RuntimeSettings {
+interface ProjectRuntimeSettings {
   logLevel: LogLevel;
   recordVideo: boolean;
   stopShortcut: boolean;
@@ -49,10 +49,10 @@ interface DictProjectFlow_RuntimeSettings {
   customPrjArgs: CustomProjectArgs;
 }
 
-interface Dict_ProjectPackage_Metadata {
+interface ProjectPackageMetadata {
   name: string;
   version: string;
-  projectDetail: Dict_ProjectCreate;
+  projectDetail: ProjectCreateData;
 }
 
 const execFileAsync = promisify(execFile);
@@ -60,7 +60,7 @@ const STR_FLOW_MANIFEST_FILE_NAME = "flow.json";
 const STR_PACKAGE_MANIFEST_FILE_NAME = ".liberrpa-package.json";
 const STR_PROJECT_FLOW_FILE_NAME = "project.flow";
 
-function parseFlowManifest(value: unknown): DictFlowManifest {
+function parseFlowManifest(value: unknown): FlowManifest {
   const dictManifest = ensureExactRecord(
     value,
     [
@@ -115,7 +115,7 @@ function parseFlowManifest(value: unknown): DictFlowManifest {
 }
 
 async function validateAndNormalizeFlowVersionMetadata(
-  manifest: DictFlowManifest,
+  manifest: FlowManifest,
 ): Promise<string> {
   const strResourcesPath = app.isPackaged
     ? path.join(process.resourcesPath, "app.asar.unpacked/resources")
@@ -147,7 +147,7 @@ async function validateAndNormalizeFlowVersionMetadata(
   return ensureTrimmedSingleLineString(stdout.trim(), "Normalized flow.json version");
 }
 
-function parsePackageManifest(value: unknown): DictPackageManifest {
+function parsePackageManifest(value: unknown): PackageManifest {
   const dictManifest = ensureExactRecord(
     value,
     ["schemaVersion", "versionSummary"],
@@ -165,11 +165,7 @@ function parsePackageManifest(value: unknown): DictPackageManifest {
   };
 }
 
-function parseCustomProjectArguments(value: unknown): CustomProjectArgs {
-  return ensureCustomProjectArgs(value, "project.flow customPrjArgs");
-}
-
-function parseProjectFlowRuntimeSettings(value: unknown): DictProjectFlow_RuntimeSettings {
+function parseProjectFlowRuntimeSettings(value: unknown): ProjectRuntimeSettings {
   const dictFlow = ensureExactRecord(
     value,
     [
@@ -196,7 +192,10 @@ function parseProjectFlowRuntimeSettings(value: unknown): DictProjectFlow_Runtim
     recordVideo: ensureBoolean(dictFlow.recordVideo, "project.flow recordVideo"),
     stopShortcut: ensureBoolean(dictFlow.stopShortcut, "project.flow stopShortcut"),
     highlightUi: ensureBoolean(dictFlow.highlightUi, "project.flow highlightUi"),
-    customPrjArgs: parseCustomProjectArguments(dictFlow.customPrjArgs),
+    customPrjArgs: ensureCustomProjectArgs(
+      dictFlow.customPrjArgs,
+      "project.flow customPrjArgs",
+    ),
   };
 }
 
@@ -209,17 +208,17 @@ function readRequiredRootJson(projectPath: string, fileName: string): unknown {
 }
 
 function buildProjectDetail(
-  flowManifest: DictFlowManifest,
-  packageManifest: DictPackageManifest,
-  runtimeSettings: DictProjectFlow_RuntimeSettings,
-): Dict_ProjectCreate {
+  flowManifest: FlowManifest,
+  packageManifest: PackageManifest,
+  runtimeSettings: ProjectRuntimeSettings,
+): ProjectCreateData {
   return {
     name: flowManifest.name,
     version: flowManifest.version,
     description: flowManifest.description,
     version_summary: packageManifest.versionSummary,
     python_environment_name: STR_DEFAULT_PYTHON_ENVIRONMENT_NAME,
-    retry_count: 0,
+    max_retry_count: 0,
     timeout_min: 0,
     builtin_log_level: runtimeSettings.logLevel,
     builtin_record_video: runtimeSettings.recordVideo,
@@ -231,7 +230,7 @@ function buildProjectDetail(
 
 export async function readProjectPackageMetadata(
   projectPath: string,
-): Promise<Dict_ProjectPackage_Metadata> {
+): Promise<ProjectPackageMetadata> {
   const flowManifest = parseFlowManifest(
     readRequiredRootJson(projectPath, STR_FLOW_MANIFEST_FILE_NAME),
   );
@@ -251,7 +250,7 @@ export async function readProjectPackageMetadata(
   };
 }
 
-export async function validatePythonPackageEnvironment(
+export async function validatePackageLiberrpaRequirement(
   packagePath: string,
   pythonEnvironmentPath: string,
 ): Promise<void> {

@@ -31,7 +31,7 @@
           </v-col>
           <v-col cols="12" md="4">
             <v-select
-              v-model="filters.states"
+              v-model="filters.results"
               :items="
                 ARR_RUN_RESULT.map((value) => ({ value, title: RUN_RESULT_LABELS[value] }))
               "
@@ -218,7 +218,7 @@ import { useSessionStore } from "@/stores/sessionStore";
 const ARR_HEADER = [
   { title: "Schedule", key: "schedule_name" },
   { title: "Project", key: "project_name" },
-  { title: "Version", key: "version" },
+  { title: "Version", key: "project_version" },
   { title: "Executor", key: "executor_name" },
   { title: "Started At", key: "started_at" },
   { title: "Ended At", key: "ended_at" },
@@ -234,7 +234,7 @@ function emptyFilters(): RunFilters {
     departmentIds: [],
     projectName: "",
     scheduleName: "",
-    states: [],
+    results: [],
     executorId: "",
     startedFrom: "",
     startedUntil: "",
@@ -242,13 +242,14 @@ function emptyFilters(): RunFilters {
 }
 const arrDepartment = ref<RunDepartmentInfo[]>([]);
 const filters = ref(emptyFilters());
-if (typeof route.query.result === "string") filters.value.states = [route.query.result];
+const initialResult = ARR_RUN_RESULT.find((result) => result === route.query.result);
+if (initialResult) filters.value.results = [initialResult];
 if (typeof route.query.department_id === "string")
   filters.value.departmentIds = [route.query.department_id];
 let appliedFilters = {
   ...filters.value,
   departmentIds: [...filters.value.departmentIds],
-  states: [...filters.value.states],
+  results: [...filters.value.results],
 };
 const page = shallowRef<RunPage | null>(null);
 const boolLoading = ref(false);
@@ -289,7 +290,7 @@ function apply(): void {
   appliedFilters = {
     ...filters.value,
     departmentIds: [...filters.value.departmentIds],
-    states: [...filters.value.states],
+    results: [...filters.value.results],
   };
   clearSelection();
   page.value = null;

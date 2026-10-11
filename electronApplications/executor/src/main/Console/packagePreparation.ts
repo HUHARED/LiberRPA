@@ -13,7 +13,7 @@ import strPackageArchiveWorkerPath from "../Package/packageArchiveWorker?moduleP
 import type { PackageArchiveArgs } from "../Package/packageArchiveWorker";
 import {
   readProjectPackageMetadata,
-  validatePythonPackageEnvironment,
+  validatePackageLiberrpaRequirement,
 } from "../Package/packageMetadata";
 import { requestConsole } from "./consoleApi";
 import type { ConsoleCredentialSnapshot } from "./consoleContextBridge";
@@ -25,7 +25,9 @@ export interface ConsolePackageInfo {
   sha256: string;
 }
 
-const INT_MAX_PACKAGE_BYTES = 512 * 1024 ** 2;
+const INT_MAX_PACKAGE_BYTES = 512 * 1024 ** 2; // 512 MiB.
+const INT_PACKAGE_DOWNLOAD_IDLE_MS = 60_000;
+const INT_PACKAGE_DOWNLOAD_TIMEOUT_MS = 30 * 60 * 1000;
 const strConsolePackageFolderPath = path.join(
   strDocumentsFolderPath,
   "LiberRPA/ConsolePackage",
@@ -104,40 +106,62 @@ async function preparePackageFiles(
     const metadata = ensureRecord(response.package, "Download package");
     if (metadata.sha256 !== packageInfo.sha256)
       throw new Error("Package digest changed during preparation.");
-    const download = await fetch(
-      `${credential.consoleUrl}/api/clients/executor/packages/downloads/${encodeURIComponent(strTransferId)}/content/`,
-      {
-        headers: { Authorization: `Bearer ${credential.token}` },
-        redirect: "error",
-        credentials: "omit",
-        signal: AbortSignal.any([AbortSignal.timeout(120_000), abortPreparation.signal]),
-      },
-    );
-    if (!download.ok || !download.body)
-      throw new Error(`Package download failed (${download.status}).`);
-    const digest = createHash("sha256");
-    const fileObj = await fs.promises.open(strArchive, "wx");
-    let intBytes = 0;
-    try {
-      for await (const chunk of download.body) {
-        intBytes += chunk.byteLength;
-        if (intBytes > INT_MAX_PACKAGE_BYTES)
-          throw new Error("Package download exceeds 512 MiB.");
-        abortPreparation.signal.throwIfAborted();
-        digest.update(chunk);
-        let intOffset = 0;
-        while (intOffset < chunk.byteLength) {
-          const { bytesWritten } = await fileObj.write(chunk, intOffset);
-          if (bytesWritten === 0)
-            throw new Error("The package download could not be written.");
-          intOffset += bytesWritten;
-        }
-      }
-    } finally {
-      await fileObj.close();
+    const abortDownload = new AbortController();
+    const signalDownload = AbortSignal.any([
+      abortDownload.signal,
+      AbortSignal.timeout(INT_PACKAGE_DOWNLOAD_TIMEOUT_MS),
+      abortPreparation.signal,
+    ]);
+    let timerProgress: NodeJS.Timeout | undefined;
+    function markDownloadProgress(): void {
+      clearTimeout(timerProgress);
+      timerProgress = setTimeout(() => {
+        abortDownload.abort(new Error("Package download stopped making progress."));
+      }, INT_PACKAGE_DOWNLOAD_IDLE_MS);
     }
-    if (intBytes !== metadata.size_bytes || digest.digest("hex") !== packageInfo.sha256)
-      throw new Error("Downloaded package size or SHA256 does not match Console.");
+    markDownloadProgress();
+    try {
+      const download = await fetch(
+        `${credential.consoleUrl}/api/clients/executor/packages/downloads/${encodeURIComponent(strTransferId)}/content/`,
+        {
+          headers: { Authorization: `Bearer ${credential.token}` },
+          redirect: "error",
+          credentials: "omit",
+          signal: signalDownload,
+        },
+      );
+      if (!download.ok || !download.body)
+        throw new Error(`Package download failed (${download.status}).`);
+      markDownloadProgress();
+      const digest = createHash("sha256");
+      const fileObj = await fs.promises.open(strArchive, "wx");
+      let intBytes = 0;
+      try {
+        for await (const chunk of download.body) {
+          intBytes += chunk.byteLength;
+          if (intBytes > INT_MAX_PACKAGE_BYTES)
+            throw new Error("Package download exceeds 512 MiB.");
+          signalDownload.throwIfAborted();
+          digest.update(chunk);
+          let intOffset = 0;
+          while (intOffset < chunk.byteLength) {
+            const { bytesWritten } = await fileObj.write(chunk, intOffset);
+            if (bytesWritten === 0)
+              throw new Error("The package download could not be written.");
+            intOffset += bytesWritten;
+            markDownloadProgress();
+          }
+        }
+      } finally {
+        await fileObj.close();
+      }
+      signalDownload.throwIfAborted();
+      if (intBytes !== metadata.size_bytes || digest.digest("hex") !== packageInfo.sha256)
+        throw new Error("Downloaded package size or SHA256 does not match Console.");
+    } finally {
+      clearTimeout(timerProgress);
+      abortDownload.abort();
+    }
     await runFileWorker<PackageArchiveArgs>(
       strPackageArchiveWorkerPath,
       { packageFilePath: strArchive, stagedProjectPath: strStaging },
@@ -191,7 +215,7 @@ export async function prepareConsolePackage(
   }
   await promiseFiles;
   abortPreparation.signal.throwIfAborted();
-  await validatePythonPackageEnvironment(
+  await validatePackageLiberrpaRequirement(
     strPackagePath,
     getPythonEnvironmentPath(environmentName),
   );

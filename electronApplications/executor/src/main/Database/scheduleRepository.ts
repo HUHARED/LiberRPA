@@ -1,6 +1,6 @@
 // FileName: scheduleRepository.ts
 
-import type { ProjectRunDetails } from "../Run/types";
+import type { ProjectRunConfig } from "../Run/types";
 import type {
   ScheduleCreateData,
   ScheduleDetails,
@@ -58,7 +58,7 @@ export function dbSelectScheduleDetail(name: string): ScheduleDetails | undefine
           s.period_start_ms,
           s.period_end_ms,
           s.enabled,
-          s.retry_count,
+          s.max_retry_count,
           s.timeout_min,
           s.builtin_log_level,
           s.builtin_record_video,
@@ -82,7 +82,7 @@ export function dbSelectScheduleDetail(name: string): ScheduleDetails | undefine
 
 export function dbSelectScheduleRunDetail(
   scheduleId: number,
-): ProjectRunDetails | undefined {
+): ProjectRunConfig | undefined {
   loggerMain.debug("--dbSelectScheduleRunDetail--");
   const row = getDatabase()
     .prepare(
@@ -90,11 +90,11 @@ export function dbSelectScheduleRunDetail(
       SELECT
           s.name AS schedule_name,
           s.run_conflict_policy,
-          s.project_id AS id,
-          p.name AS name,
-          p.version AS version,
+          s.project_id AS local_project_id,
+          p.name AS project_name,
+          p.version AS project_version,
           p.python_environment_name,
-          s.retry_count,
+          s.max_retry_count,
           s.timeout_min,
           s.builtin_log_level,
           s.builtin_record_video,
@@ -129,7 +129,7 @@ export function dbInsertSchedule(detailDict: ScheduleCreateData): void {
               period_start_ms,
               period_end_ms,
               enabled,
-              retry_count,
+              max_retry_count,
               timeout_min,
               builtin_log_level,
               builtin_record_video,
@@ -151,7 +151,7 @@ export function dbInsertSchedule(detailDict: ScheduleCreateData): void {
       detailDict.period_start_ms,
       detailDict.period_end_ms,
       detailDict.enabled ? 1 : 0,
-      detailDict.retry_count,
+      detailDict.max_retry_count,
       detailDict.timeout_min,
       detailDict.builtin_log_level,
       detailDict.builtin_record_video ? 1 : 0,
@@ -178,7 +178,7 @@ export function dbUpdateSchedule(detailDict: ScheduleUpdateData): void {
           period_start_ms = ?,
           period_end_ms = ?,
           enabled = ?,
-          retry_count = ?,
+          max_retry_count = ?,
           timeout_min = ?,
           builtin_log_level = ?,
           builtin_record_video = ?,
@@ -198,7 +198,7 @@ export function dbUpdateSchedule(detailDict: ScheduleUpdateData): void {
       detailDict.period_start_ms,
       detailDict.period_end_ms,
       detailDict.enabled ? 1 : 0,
-      detailDict.retry_count,
+      detailDict.max_retry_count,
       detailDict.timeout_min,
       detailDict.builtin_log_level,
       detailDict.builtin_record_video ? 1 : 0,

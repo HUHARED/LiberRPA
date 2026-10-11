@@ -4,7 +4,7 @@ import { dialog } from "electron";
 import fs from "fs";
 import path from "path";
 
-import type { Dict_ExecutorConfig } from "../../shared/config";
+import type { ExecutorConfig } from "../../shared/config";
 import { getErrorMessage } from "../../shared/error";
 import { getSystemIntlTimezone, isSupportedIntlTimezone } from "../../shared/timezone";
 import { writeJsonFileAtomic } from "../Common/jsonFile";
@@ -17,34 +17,34 @@ const STR_EXECUTOR_CONFIG_PATH = path.join(
   strLiberRPAEnvPath,
   "configFiles/Executor.jsonc",
 );
-const ARR_EXECUTOR_CONFIG_KEY: readonly (keyof Dict_ExecutorConfig)[] = [
+const ARR_EXECUTOR_CONFIG_KEY: readonly (keyof ExecutorConfig)[] = [
   "theme",
   "keepRdpSession",
   "keepRdpSessionWidth",
   "keepRdpSessionHeight",
-  "logTimeoutEnable",
-  "logTimeoutDays",
-  "videoTimeoutEnable",
-  "videoTimeoutDays",
-  "videoSizeEnable",
-  "videoSizeGB",
+  "logRetentionEnabled",
+  "logRetentionDays",
+  "videoRetentionEnabled",
+  "videoRetentionDays",
+  "videoStorageLimitEnabled",
+  "videoStorageLimitGiB",
   "projectLogFolderPath",
   "timezone",
 ];
 const SET_EXECUTOR_CONFIG_KEY = new Set<string>(ARR_EXECUTOR_CONFIG_KEY);
 
-function getDefaultExecutorConfig(): Dict_ExecutorConfig {
+function getDefaultExecutorConfig(): ExecutorConfig {
   return {
     theme: "light",
     keepRdpSession: false,
     keepRdpSessionWidth: 1920,
     keepRdpSessionHeight: 1080,
-    logTimeoutEnable: false,
-    logTimeoutDays: 1984,
-    videoTimeoutEnable: false,
-    videoTimeoutDays: 30,
-    videoSizeEnable: false,
-    videoSizeGB: 10,
+    logRetentionEnabled: false,
+    logRetentionDays: 1984,
+    videoRetentionEnabled: false,
+    videoRetentionDays: 30,
+    videoStorageLimitEnabled: false,
+    videoStorageLimitGiB: 10,
     projectLogFolderPath: "",
     timezone: getSystemIntlTimezone(),
   };
@@ -52,7 +52,7 @@ function getDefaultExecutorConfig(): Dict_ExecutorConfig {
 
 function getBooleanConfigValue(
   dictConfig: Record<string, unknown>,
-  strKey: keyof Dict_ExecutorConfig,
+  strKey: keyof ExecutorConfig,
 ): boolean {
   return ensureBoolean(dictConfig[strKey], `Executor config '${strKey}'`);
 }
@@ -64,7 +64,7 @@ function getIntegerConfigValue({
   max,
 }: {
   config: Record<string, unknown>;
-  key: keyof Dict_ExecutorConfig;
+  key: keyof ExecutorConfig;
   min: number;
   max?: number;
 }): number {
@@ -83,12 +83,12 @@ function getIntegerConfigValue({
 
 function getStringConfigValue(
   dictConfig: Record<string, unknown>,
-  strKey: keyof Dict_ExecutorConfig,
+  strKey: keyof ExecutorConfig,
 ): string {
   return ensureString(dictConfig[strKey], `Executor config '${strKey}'`);
 }
 
-export function validateExecutorConfig(value: unknown): Dict_ExecutorConfig {
+export function parseExecutorConfig(value: unknown): ExecutorConfig {
   const dictConfig = ensureRecord(value, "Executor config");
 
   for (const strKey of Object.keys(dictConfig)) {
@@ -134,22 +134,22 @@ export function validateExecutorConfig(value: unknown): Dict_ExecutorConfig {
       min: 480,
       max: 7680,
     }),
-    logTimeoutEnable: getBooleanConfigValue(dictConfig, "logTimeoutEnable"),
-    logTimeoutDays: getIntegerConfigValue({
+    logRetentionEnabled: getBooleanConfigValue(dictConfig, "logRetentionEnabled"),
+    logRetentionDays: getIntegerConfigValue({
       config: dictConfig,
-      key: "logTimeoutDays",
+      key: "logRetentionDays",
       min: 7,
     }),
-    videoTimeoutEnable: getBooleanConfigValue(dictConfig, "videoTimeoutEnable"),
-    videoTimeoutDays: getIntegerConfigValue({
+    videoRetentionEnabled: getBooleanConfigValue(dictConfig, "videoRetentionEnabled"),
+    videoRetentionDays: getIntegerConfigValue({
       config: dictConfig,
-      key: "videoTimeoutDays",
+      key: "videoRetentionDays",
       min: 1,
     }),
-    videoSizeEnable: getBooleanConfigValue(dictConfig, "videoSizeEnable"),
-    videoSizeGB: getIntegerConfigValue({
+    videoStorageLimitEnabled: getBooleanConfigValue(dictConfig, "videoStorageLimitEnabled"),
+    videoStorageLimitGiB: getIntegerConfigValue({
       config: dictConfig,
-      key: "videoSizeGB",
+      key: "videoStorageLimitGiB",
       min: 1,
     }),
     projectLogFolderPath: strProjectLogFolderPath,
@@ -157,7 +157,7 @@ export function validateExecutorConfig(value: unknown): Dict_ExecutorConfig {
   };
 }
 
-function getExecutorConfigDict(): Dict_ExecutorConfig {
+function loadExecutorConfig(): ExecutorConfig {
   if (!fs.existsSync(STR_EXECUTOR_CONFIG_PATH)) {
     const dictDefaultConfig = getDefaultExecutorConfig();
     writeJsonFileAtomic(STR_EXECUTOR_CONFIG_PATH, dictDefaultConfig);
@@ -168,7 +168,7 @@ function getExecutorConfigDict(): Dict_ExecutorConfig {
     const strContent = fs.readFileSync(STR_EXECUTOR_CONFIG_PATH, {
       encoding: "utf-8",
     });
-    const dictSettings = validateExecutorConfig(parseJsonc(strContent, "Executor.jsonc"));
+    const dictSettings = parseExecutorConfig(parseJsonc(strContent, "Executor.jsonc"));
 
     if (dictSettings.projectLogFolderPath === strDefaultProjectLogFolderPath) {
       dictSettings.projectLogFolderPath = "";
@@ -183,7 +183,7 @@ function getExecutorConfigDict(): Dict_ExecutorConfig {
   }
 }
 
-export const dictConfigExecutor = getExecutorConfigDict();
+export const dictConfigExecutor = loadExecutorConfig();
 
 export function getEffectiveProjectLogFolderPath(): string {
   return dictConfigExecutor.projectLogFolderPath === ""
@@ -191,7 +191,7 @@ export function getEffectiveProjectLogFolderPath(): string {
     : dictConfigExecutor.projectLogFolderPath;
 }
 
-export function saveExecutorConfigDict(dictSettings: Dict_ExecutorConfig): void {
+export function saveExecutorConfigDict(dictSettings: ExecutorConfig): void {
   try {
     writeJsonFileAtomic(STR_EXECUTOR_CONFIG_PATH, dictSettings);
   } catch (e: unknown) {

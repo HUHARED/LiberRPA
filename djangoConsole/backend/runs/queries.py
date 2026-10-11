@@ -20,11 +20,12 @@ from organizations.permissions import (
     get_authorized_departments,
 )
 
+from packages.contracts import RUN_PRIORITY_ORDER
+
 from .models import Assignment, AssignmentState, Job, JobState, Run, RunResult
 
 _INT_PAGE_SIZE = 50
 _INT_MAX_SELECTED_RUNS = 20000
-_DICT_PRIORITY_NAME = {0: "high", 1: "normal", 2: "low"}
 
 
 def get_visible_jobs(access: OrganizationAccessContext) -> QuerySet[Job]:
@@ -114,14 +115,14 @@ def build_job_payload(
         "schedule_name": job.request.schedule_name,
         "scheduled_at": job.request.scheduled_at,
         "project_name": job.project_name,
-        "version": job.version,
+        "project_version": job.project_version,
         "package_id": job.package_id,
         "target_type": "group" if job.target_group_id else "executor",
         "target_id": job.target_group_id or job.target_executor_id,
         "target_name": job.target_name,
         "executor_id": assignment.executor_id if assignment else None,
         "executor_name": assignment.executor_name if assignment else None,
-        "priority": _DICT_PRIORITY_NAME[job.priority],
+        "priority": RUN_PRIORITY_ORDER[job.priority_rank],
         "state": job.state,
         "reason": job.reason,
         "queued_at": job.queued_at,
@@ -141,7 +142,7 @@ def build_job_payload(
             "runs": [
                 build_run_payload(run)
                 for run in job.runs.select_related("assignment", "job__request").order_by(
-                    "assignment__attempt"
+                    "assignment__attempt_number"
                 )
             ],
             "events": [
@@ -177,12 +178,12 @@ def build_run_payload(run: Run, *, details: bool = False) -> dict[str, object]:
         "department_id": job.department_id,
         "schedule_name": job.request.schedule_name,
         "project_name": job.project_name,
-        "version": job.version,
+        "project_version": job.project_version,
         "executor_id": assignment.executor_id,
         "executor_name": assignment.executor_name,
         "account_name": assignment.actor_name,
-        "computer": assignment.computer,
-        "attempt": assignment.attempt,
+        "computer_name": assignment.computer_name,
+        "attempt_number": assignment.attempt_number,
         "started_at": run.started_at,
         "ended_at": run.ended_at,
         "result": run.result,
@@ -220,7 +221,7 @@ def build_run_payload(run: Run, *, details: bool = False) -> dict[str, object]:
                 for otherRun in job.runs
                 .exclude(pk=run.id)
                 .select_related("assignment", "job__request")
-                .order_by("assignment__attempt")
+                .order_by("assignment__attempt_number")
             ],
         })
     return dictPayload
@@ -279,7 +280,7 @@ def _get_filtered_work(
     return (
         workQuery.order_by("-started_at", "-id")
         if runs
-        else workQuery.order_by("priority", "queued_at", "id")
+        else workQuery.order_by("priority_rank", "attempt_queued_at", "id")
     )
 
 

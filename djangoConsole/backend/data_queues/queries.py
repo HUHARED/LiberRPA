@@ -30,9 +30,9 @@ from organizations.permissions import (
 
 from .contracts import (
     MAX_QUEUE_RESPONSE_BYTES,
-    QueueStatus,
-    QueueFilterStatus,
-    QueueOrder,
+    QueueItemStatus,
+    QueueItemFilterStatus,
+    QueueItemOrder,
     QueueQueryRequest,
     QueueDepartmentResponse,
     QueueEntryResponse,
@@ -62,9 +62,9 @@ def get_queue_query(
         query = query.annotate(
             unclaimed_count=Count(
                 "items",
-                filter=Q(items__status=QueueStatus.UNCLAIMED),
+                filter=Q(items__status=QueueItemStatus.UNCLAIMED),
             ),
-            claimed_count=Count("items", filter=Q(items__status=QueueStatus.CLAIMED)),
+            claimed_count=Count("items", filter=Q(items__status=QueueItemStatus.CLAIMED)),
         )
     return query
 
@@ -149,16 +149,18 @@ def get_queue_list(
 def select_items(
     queue: DataQueue,
     *,
-    status: QueueFilterStatus = QueueFilterStatus.ALL,
-    order: QueueOrder = QueueOrder.OLDEST_FIRST,
+    status: QueueItemFilterStatus = QueueItemFilterStatus.ALL,
+    order: QueueItemOrder = QueueItemOrder.OLDEST_FIRST,
     itemId: uuid.UUID | None = None,
 ) -> QuerySet[QueueItem]:
     query = QueueItem.objects.filter(queue=queue)
-    if status != QueueFilterStatus.ALL:
+    if status != QueueItemFilterStatus.ALL:
         query = query.filter(status=status)
     if itemId is not None:
         query = query.filter(pk=itemId)
-    return query.order_by("sequence" if order == QueueOrder.OLDEST_FIRST else "-sequence")
+    return query.order_by(
+        "sequence" if order == QueueItemOrder.OLDEST_FIRST else "-sequence"
+    )
 
 
 def _build_item_metadata(item: QueueItem, summary: str) -> dict[str, object]:
@@ -188,8 +190,8 @@ def get_item_list(
     access: OrganizationAccessContext,
     *,
     pageNumber: int = 1,
-    status: QueueFilterStatus = QueueFilterStatus.ALL,
-    order: QueueOrder = QueueOrder.OLDEST_FIRST,
+    status: QueueItemFilterStatus = QueueItemFilterStatus.ALL,
+    order: QueueItemOrder = QueueItemOrder.OLDEST_FIRST,
     itemId: uuid.UUID | None = None,
 ) -> QueueItemsResponse:
     query = (
@@ -217,10 +219,12 @@ def query_items(queue: DataQueue, payload: QueueQueryRequest) -> QueueQueryRespo
     )
     if payload.after_sequence is not None:
         strLookup = (
-            "sequence__gt" if payload.order == QueueOrder.OLDEST_FIRST else "sequence__lt"
+            "sequence__gt"
+            if payload.order == QueueItemOrder.OLDEST_FIRST
+            else "sequence__lt"
         )
         query = query.filter(**{strLookup: payload.after_sequence})
-    result = QueueQueryResponse(items=[], next_sequence=None)
+    result = QueueQueryResponse(items=[], next_after_sequence=None)
     intResponseBytes = len(result.model_dump_json().encode("utf-8"))
     # Read one body at a time and close the cursor even when the byte budget stops the loop.
     # NOTE: Django's iterator() returns a generator; django-stubs declares Iterator.
@@ -233,7 +237,7 @@ def query_items(queue: DataQueue, payload: QueueQueryRequest) -> QueueQueryRespo
         for item in candidates:
             if len(result.items) == payload.count:
                 return result.model_copy(
-                    update={"next_sequence": result.items[-1].sequence},
+                    update={"next_after_sequence": result.items[-1].sequence},
                 )
             entry = build_item_details(item)
             intEntryBytes = len(entry.model_dump_json().encode("utf-8")) + bool(
@@ -250,7 +254,7 @@ def query_items(queue: DataQueue, payload: QueueQueryRequest) -> QueueQueryRespo
                         code="queue_response_too_large",
                     )
                 return result.model_copy(
-                    update={"next_sequence": result.items[-1].sequence},
+                    update={"next_after_sequence": result.items[-1].sequence},
                 )
             result.items.append(entry)
             intResponseBytes += intEntryBytes

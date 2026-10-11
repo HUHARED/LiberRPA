@@ -17,7 +17,7 @@ import {
   dictConfigExecutor,
   getEffectiveProjectLogFolderPath,
   saveExecutorConfigDict,
-  validateExecutorConfig,
+  parseExecutorConfig,
 } from "../Config/executorConfig";
 import {
   getPythonEnvironmentNames,
@@ -72,28 +72,28 @@ import {
 } from "./validation";
 import { IPC_CHANNEL_RENDERER_INVOKE, IPC_CHANNEL_RENDERER_LOG } from "../../shared/ipc";
 import type {
-  Dict_Result_Invoke,
-  Str_ExecutorInvokeCommand,
-  Type_ExecutorInvoke_Request,
-  Type_ExecutorInvoke_Response,
+  InvokeResult,
+  ExecutorInvokeCommand,
+  ExecutorInvokeRequest,
+  ExecutorInvokeResponse,
 } from "../../shared/ipc";
 
-function createSuccessResult<T>(data: T): Dict_Result_Invoke<T> {
+function createSuccessResult<T>(data: T): InvokeResult<T> {
   return { success: true, data };
 }
 
-function createErrorResult(e: unknown): Dict_Result_Invoke<never> {
+function createErrorResult(e: unknown): InvokeResult<never> {
   return { success: false, error: getErrorMessage(e) };
 }
 
-type Map_ExecutorInvoke_Validator = {
-  [C in Str_ExecutorInvokeCommand]: (rawData: unknown) => Type_ExecutorInvoke_Request<C>;
+type ExecutorInvokeValidators = {
+  [C in ExecutorInvokeCommand]: (rawData: unknown) => ExecutorInvokeRequest<C>;
 };
 
-type Map_ExecutorInvoke_Handler = {
-  [C in Str_ExecutorInvokeCommand]: (
-    data: Type_ExecutorInvoke_Request<C>,
-  ) => Type_ExecutorInvoke_Response<C> | Promise<Type_ExecutorInvoke_Response<C>>;
+type ExecutorInvokeHandlers = {
+  [C in ExecutorInvokeCommand]: (
+    data: ExecutorInvokeRequest<C>,
+  ) => ExecutorInvokeResponse<C> | Promise<ExecutorInvokeResponse<C>>;
 };
 
 const INVOKE_VALIDATOR = {
@@ -105,7 +105,7 @@ const INVOKE_VALIDATOR = {
   associateConsoleExecutor: (rawData: unknown) => ensureStringData(rawData, "Executor ID"),
   signOutConsole: (rawData: unknown) => ensureNoData(rawData, "signOutConsole"),
   openProjectLogFolder: (rawData: unknown) => ensureNoData(rawData, "openProjectLogFolder"),
-  saveExecutorConfig: (rawData: unknown) => validateExecutorConfig(rawData),
+  saveExecutorConfig: (rawData: unknown) => parseExecutorConfig(rawData),
   runProject: ensureProjectSettingsUpdate,
   getPythonEnvironmentNames: (rawData: unknown) =>
     ensureNoData(rawData, "getPythonEnvironmentNames"),
@@ -135,11 +135,9 @@ const INVOKE_VALIDATOR = {
   pythonCancel: (rawData: unknown) => ensurePositiveIntegerData(rawData, "pythonCancel"),
   chooseProjectLogFolder: (rawData: unknown) =>
     ensureNoData(rawData, "chooseProjectLogFolder"),
-} satisfies Map_ExecutorInvoke_Validator;
+} satisfies ExecutorInvokeValidators;
 
-function createInvokeHandlerMap(
-  ensureExecutorRunning: () => void,
-): Map_ExecutorInvoke_Handler {
+function createInvokeHandlerMap(ensureExecutorRunning: () => void): ExecutorInvokeHandlers {
   return {
     getConsoleAccount: getConsoleAccountState,
     saveConsoleAddress,
@@ -258,12 +256,12 @@ function createInvokeHandlerMap(
   };
 }
 
-async function executeInvoke<C extends Str_ExecutorInvokeCommand>(
+async function executeInvoke<C extends ExecutorInvokeCommand>(
   command: C,
   rawData: unknown,
-  validatorMap: Map_ExecutorInvoke_Validator,
-  handlerMap: Map_ExecutorInvoke_Handler,
-): Promise<Type_ExecutorInvoke_Response<C>> {
+  validatorMap: ExecutorInvokeValidators,
+  handlerMap: ExecutorInvokeHandlers,
+): Promise<ExecutorInvokeResponse<C>> {
   const data = validatorMap[command](rawData);
   return await handlerMap[command](data);
 }
@@ -306,7 +304,7 @@ export function registerExecutorIpc(
       event: IpcMainInvokeEvent,
       rawCommand: unknown,
       rawData: unknown,
-    ): Promise<Dict_Result_Invoke<unknown>> => {
+    ): Promise<InvokeResult<unknown>> => {
       if (!isExpectedSender(event)) {
         loggerMain.warn("Rejected Renderer invoke from an unexpected sender.");
         return createErrorResult(new Error("Unexpected IPC sender."));

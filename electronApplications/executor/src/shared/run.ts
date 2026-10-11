@@ -5,8 +5,14 @@ export enum RunSource {
   Console = "console",
 }
 
+export enum RunOutputsStatus {
+  Complete = "complete",
+  Partial = "partial",
+  Unavailable = "unavailable",
+}
+
 export interface RunOutputs {
-  status: "complete" | "partial" | "unavailable";
+  status: RunOutputsStatus;
   values: [string, unknown][] | null;
   unavailableKeys: string[];
   reason: string;
@@ -16,8 +22,8 @@ export interface RunDetails {
   source: RunSource;
   run_id: string;
   job_id: string;
-  attempt: number;
-  inputs: Record<string, unknown>;
+  attempt_number: number;
+  snapshot: Record<string, unknown>;
   outputs: RunOutputs;
   error_summary: { type: string; message: string } | null;
 }
@@ -37,7 +43,7 @@ export type RunTerminalStatus = Exclude<RunStatus, RunStatus.Running | RunStatus
 export interface RunHistoryItem {
   id: number;
   source: RunSource;
-  attempt: number;
+  attempt_number: number;
   schedule_name: string | null;
   project_name: string;
   project_version: string;
@@ -93,7 +99,7 @@ export interface JobQueueItem {
   schedule_name: string | null;
   project_name: string;
   project_version: string;
-  estimated_run_at_ms: number | null;
+  due_at_ms: number | null;
   started_at_ms: number | null;
   history_id: number | null;
   state: JobQueueState;
