@@ -156,7 +156,8 @@
                       :to="{
                         name: 'executor-details',
                         params: { executorId: preparation.executor_id },
-                      }">
+                      }"
+                      class="text-primary">
                       {{ preparation.executor_name }}
                     </RouterLink>
                   </td>

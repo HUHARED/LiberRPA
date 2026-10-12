@@ -64,7 +64,8 @@
       <template #item.schedule_name="{ item }">
         <RouterLink
           v-if="item.schedule_id"
-          :to="{ name: 'schedule-details', params: { scheduleId: item.schedule_id } }">
+          :to="{ name: 'schedule-details', params: { scheduleId: item.schedule_id } }"
+          class="text-primary">
           {{ item.schedule_name }}
         </RouterLink>
         <span v-else>—</span>
@@ -78,13 +79,15 @@
               item.target_type === 'group'
                 ? { groupId: item.target_id }
                 : { executorId: item.target_id },
-          }">
+          }"
+          class="text-primary">
           {{ item.target_name }}
         </RouterLink>
         <template v-if="item.target_type === 'group' && item.executor_id">
           →
           <RouterLink
-            :to="{ name: 'executor-details', params: { executorId: item.executor_id } }">
+            :to="{ name: 'executor-details', params: { executorId: item.executor_id } }"
+            class="text-primary">
             {{ item.executor_name }}
           </RouterLink>
         </template>

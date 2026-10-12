@@ -138,6 +138,7 @@
                         name: 'schedule-details',
                         params: { scheduleId: schedule.id },
                       }"
+                      class="text-primary"
                       target="_blank"
                       rel="noopener">
                       {{ schedule.name }}

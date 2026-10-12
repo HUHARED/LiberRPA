@@ -86,14 +86,6 @@
       </template>
       <template #item.actions="{ item }">
         <v-btn
-          :to="{ name: 'member-details', params: { userId: item.user.id } }"
-          variant="text"
-          size="small"
-          prepend-icon="mdi-eye-outline"
-          :aria-label="`View member ${item.user.email}`">
-          View
-        </v-btn>
-        <v-btn
           variant="text"
           size="small"
           :disabled="boolActionBlocked"

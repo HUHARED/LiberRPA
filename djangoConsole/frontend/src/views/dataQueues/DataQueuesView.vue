@@ -112,7 +112,6 @@
       </template>
       <template #item.actions="{ item }">
         <div class="d-flex ga-1">
-          <v-btn :to="getDetailsLocation(item.id)" variant="text" size="small">View</v-btn>
           <v-btn variant="text" size="small" @click="copyPath(item.path)">Copy Path</v-btn>
           <v-btn
             v-if="item.can_manage"

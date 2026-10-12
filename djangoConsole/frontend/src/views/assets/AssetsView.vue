@@ -156,10 +156,7 @@
         <span class="text-no-wrap">{{ formatDateTime(item.updated_at, strTimeZone) }}</span>
       </template>
       <template #item.actions="{ item }">
-        <div class="d-flex ga-1">
-          <v-btn :to="getDetailsLocation(item.id)" variant="text" size="small">View</v-btn>
-          <v-btn variant="text" size="small" @click="copyPath(item.path)">Copy Path</v-btn>
-        </div>
+        <v-btn variant="text" size="small" @click="copyPath(item.path)">Copy Path</v-btn>
       </template>
       <template #no-data>
         {{

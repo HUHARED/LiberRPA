@@ -68,7 +68,9 @@
       disable-sort
       hide-default-footer>
       <template #item.name="{ item }">
-        <RouterLink :to="{ name: 'schedule-details', params: { scheduleId: item.id } }">
+        <RouterLink
+          :to="{ name: 'schedule-details', params: { scheduleId: item.id } }"
+          class="text-primary">
           {{ item.name }}
         </RouterLink>
       </template>
@@ -99,12 +101,6 @@
         }}
       </template>
       <template #item.actions="{ item }">
-        <v-btn
-          :to="{ name: 'schedule-details', params: { scheduleId: item.id } }"
-          size="small"
-          variant="text">
-          View
-        </v-btn>
         <v-btn
           v-if="item.can_manage"
           size="small"

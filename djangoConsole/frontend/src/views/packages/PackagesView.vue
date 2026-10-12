@@ -53,7 +53,9 @@
       disable-sort
       hide-default-footer>
       <template #item.project_name="{ item }">
-        <RouterLink :to="{ name: 'package-details', params: { packageId: item.id } }">
+        <RouterLink
+          :to="{ name: 'package-details', params: { packageId: item.id } }"
+          class="text-primary">
           {{ item.project_name }}
         </RouterLink>
       </template>
@@ -61,12 +63,6 @@
         {{ formatDateTime(item.uploaded_at, strTimeZone) }}
       </template>
       <template #item.actions="{ item }">
-        <v-btn
-          :to="{ name: 'package-details', params: { packageId: item.id } }"
-          size="small"
-          variant="text">
-          View
-        </v-btn>
         <v-btn
           v-if="canRun(item.department_id)"
           size="small"

@@ -86,14 +86,6 @@
       </template>
       <template #item.actions="{ item }">
         <v-btn
-          :to="{ name: 'department-details', params: { departmentId: item.id } }"
-          variant="text"
-          size="small"
-          prepend-icon="mdi-eye-outline"
-          :aria-label="`View department ${item.path}`">
-          View
-        </v-btn>
-        <v-btn
           v-if="boolCanManage"
           variant="text"
           size="small"

@@ -64,6 +64,7 @@
                           ? { packageId: reference.id }
                           : { scheduleId: reference.id },
                     }"
+                    class="text-primary"
                     target="_blank"
                     rel="noopener">
                     {{ reference.name }}
