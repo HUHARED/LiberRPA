@@ -223,7 +223,7 @@ def _create_request(
         Job.objects.create(
             request=jobRequest,
             department=department,
-            package=package,
+            package_id=package.pk,
             project_name=package.project_name,
             project_version=package.project_version,
             target_executor_id=None if group else target.id,
