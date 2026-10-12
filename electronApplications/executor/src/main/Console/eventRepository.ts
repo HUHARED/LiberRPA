@@ -2,7 +2,7 @@
 
 import { randomUUID } from "crypto";
 
-import type { RunOutputs, RunTerminalStatus, RunRecordingInfo } from "../../shared/run";
+import type { RunOutputs, RunEndedStatus, RunRecordingInfo } from "../../shared/run";
 import { getDatabase } from "../Database/connection";
 import type { RunEndedFact } from "../Run/types";
 import { isRecoveredProcessPresent } from "../Run/recoveredRuns";
@@ -31,7 +31,7 @@ export type ConsoleEventData =
       kind: ConsoleEventKind.Ended;
       occurred_at: string;
       started_at: string;
-      status: RunTerminalStatus;
+      status: RunEndedStatus;
       outputs: RunOutputs;
       error_summary: RunEndedFact["errorSummary"];
     }
@@ -99,37 +99,37 @@ const STR_REJECTED_EVENT_RETENTION_SELECT = `
     SELECT
         event.id,
         event.session_key,
-        json_extract(event.payload, '$.assignment_id') AS assignment_id,
+        JSON_EXTRACT(event.payload, '$.assignment_id') AS assignment_id,
         event.retention_checked_at_ms,
         event.retention_started_at_ms,
         work.state = 'finished' AS work_finished,
-        json_type(work.content, '$.started') AS started_type,
-        json_type(work.content, '$.ended') AS ended_type,
-        json_extract(work.content, '$.started.processId') AS process_id,
-        json_extract(work.content, '$.logsFinished') AS logs_finished,
-        json_extract(work.content, '$.assignment.snapshot.builtin_record_video')
+        JSON_TYPE(work.content, '$.started') AS started_type,
+        JSON_TYPE(work.content, '$.ended') AS ended_type,
+        JSON_EXTRACT(work.content, '$.started.processId') AS process_id,
+        JSON_EXTRACT(work.content, '$.logsFinished') AS logs_finished,
+        JSON_EXTRACT(work.content, '$.assignment.snapshot.builtin_record_video')
             AS record_video,
-        json_extract(work.content, '$.recording.status') IN ('ready', 'unavailable')
+        JSON_EXTRACT(work.content, '$.recording.status') IN ('ready', 'unavailable')
             AS recording_finished,
         EXISTS (
             SELECT 1 FROM console_work AS related_work
             WHERE related_work.session_key = event.session_key
-                AND json_extract(related_work.content, '$.assignment.job_id')
-                    = json_extract(work.content, '$.assignment.job_id')
+                AND JSON_EXTRACT(related_work.content, '$.assignment.job_id')
+                    = JSON_EXTRACT(work.content, '$.assignment.job_id')
                 AND related_work.state <> 'finished'
         ) AS has_pending_work,
         EXISTS (
             SELECT 1 FROM console_event AS pending
             JOIN console_work AS pending_work
-                ON pending_work.id = json_extract(pending.payload, '$.assignment_id')
+                ON pending_work.id = JSON_EXTRACT(pending.payload, '$.assignment_id')
                 AND pending_work.session_key = pending.session_key
             WHERE pending.session_key = event.session_key AND pending.rejected = 0
-                AND json_extract(pending_work.content, '$.assignment.job_id')
-                    = json_extract(work.content, '$.assignment.job_id')
+                AND JSON_EXTRACT(pending_work.content, '$.assignment.job_id')
+                    = JSON_EXTRACT(work.content, '$.assignment.job_id')
         ) AS has_pending_events
     FROM console_event AS event
     LEFT JOIN console_work AS work
-        ON work.id = json_extract(event.payload, '$.assignment_id')
+        ON work.id = JSON_EXTRACT(event.payload, '$.assignment_id')
         AND work.session_key = event.session_key
 `;
 
@@ -137,7 +137,7 @@ const INT_MAX_EVENT_REQUEST_BYTES = 1024 * 1024;
 const setEventSavedListener = new Set<() => void>();
 
 export function resetConsoleEventRetention(record: ConsoleWorkRecord): void {
-  // New local work or facts invalidate a previously observed quiet period for this Job.
+  // New work or events reset the retention timer because this Job may still need its diagnostics.
   getDatabase()
     .prepare(
       `
@@ -145,9 +145,9 @@ export function resetConsoleEventRetention(record: ConsoleWorkRecord): void {
       SET retention_started_at_ms = NULL, retention_checked_at_ms = NULL
       WHERE rejected = 1 AND session_key = ?
           AND (retention_started_at_ms IS NOT NULL OR retention_checked_at_ms IS NOT NULL)
-          AND json_extract(payload, '$.assignment_id') IN (
+          AND JSON_EXTRACT(payload, '$.assignment_id') IN (
               SELECT id FROM console_work
-              WHERE session_key = ? AND json_extract(content, '$.assignment.job_id') = ?
+              WHERE session_key = ? AND JSON_EXTRACT(content, '$.assignment.job_id') = ?
           );
       `,
     )
@@ -228,7 +228,7 @@ export function acknowledgeConsoleEvents(
   sessionKey: string,
   receipt: ConsoleEventReceipt,
 ): number {
-  // The HTTP boundary has matched every receipt ID to the submitted batch.
+  // The response handler has already matched every receipt ID to the submitted batch.
   return getDatabase().transaction(() => {
     const deleteAccepted = getDatabase().prepare(
       `
@@ -271,7 +271,7 @@ export function acknowledgeConsoleEvents(
   })();
 }
 
-function isRejectedEventLocallySettled(row: RejectedEventRetentionRow): boolean {
+function hasRejectedEventWorkFinished(row: RejectedEventRetentionRow): boolean {
   if (
     row.assignment_id === null ||
     row.work_finished !== 1 ||
@@ -316,9 +316,9 @@ export function getConsoleEventRetentionCandidates(
     const intCheckedAtMs = Date.now();
     const arrCandidate: ConsoleEventRetentionCandidate[] = [];
     for (const row of arrRow) {
-      // Remember unsuccessful checks too, so unresolved old rows cannot starve later ones.
+      // Record failed checks too, so the next batch can check later rows instead of repeating the same ones.
       checkEvent.run(intCheckedAtMs, row.id, sessionKey);
-      if (isRejectedEventLocallySettled(row) && row.assignment_id !== null) {
+      if (hasRejectedEventWorkFinished(row) && row.assignment_id !== null) {
         arrCandidate.push({
           eventId: row.id,
           assignmentId: row.assignment_id,
@@ -350,7 +350,7 @@ export function confirmConsoleEventRetention(
         `,
       )
       .all(sessionKey, ...mapCandidate.keys()) as RejectedEventRetentionRow[];
-    const markSettled = getDatabase().prepare(
+    const startRetentionPeriod = getDatabase().prepare(
       `
       UPDATE console_event
       SET retention_started_at_ms = ?, retention_checked_at_ms = ?
@@ -358,7 +358,7 @@ export function confirmConsoleEventRetention(
           AND retention_started_at_ms IS NULL AND retention_checked_at_ms = ?;
       `,
     );
-    const intSettledAtMs = Date.now();
+    const intRetentionStartedAtMs = Date.now();
     for (const row of arrRow) {
       const candidate = mapCandidate.get(row.id);
       if (
@@ -366,13 +366,13 @@ export function confirmConsoleEventRetention(
         row.assignment_id !== candidate.assignmentId ||
         row.retention_checked_at_ms !== candidate.checkedAtMs ||
         mapResolution.get(candidate.assignmentId) !== (row.started_type === "object") ||
-        !isRejectedEventLocallySettled(row)
+        !hasRejectedEventWorkFinished(row)
       )
         continue;
-      // Start locally observed retention now, not at the earlier rejection or Run end.
-      markSettled.run(
-        intSettledAtMs,
-        intSettledAtMs,
+      // Start the retention period when both sides confirm the work has finished, not when the event was rejected.
+      startRetentionPeriod.run(
+        intRetentionStartedAtMs,
+        intRetentionStartedAtMs,
         row.id,
         sessionKey,
         candidate.checkedAtMs,
@@ -381,7 +381,7 @@ export function confirmConsoleEventRetention(
   })();
 }
 
-export function pruneConsoleEventDiagnostics(): number {
+export function deleteExpiredConsoleEventDiagnostics(): number {
   return getDatabase().transaction(() => {
     const arrRow = getDatabase()
       .prepare(
@@ -408,7 +408,7 @@ export function pruneConsoleEventDiagnostics(): number {
     );
     let intDeleted = 0;
     for (const row of arrRow) {
-      if (isRejectedEventLocallySettled(row)) {
+      if (hasRejectedEventWorkFinished(row)) {
         intDeleted += deleteEvent.run(
           row.id,
           row.session_key,

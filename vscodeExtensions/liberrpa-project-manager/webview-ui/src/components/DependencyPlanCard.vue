@@ -138,3 +138,5 @@ function getResolvedChangeText(change: DictProjectDependency_ResolvedChange): st
   }
 }
 </script>
+
+<style scoped></style>

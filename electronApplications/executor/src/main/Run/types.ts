@@ -1,6 +1,6 @@
 // FileName: types.ts
 
-import type { RunSource, RunOutputs, RunTerminalStatus } from "../../shared/run";
+import type { RunSource, RunOutputs, RunEndedStatus } from "../../shared/run";
 export enum RunTerminationReason {
   Cancel = "cancel",
   Shutdown = "shutdown",
@@ -17,7 +17,7 @@ export interface RunStartedFact {
 
 export interface RunEndedFact extends RunStartedFact {
   endedAt: string;
-  status: RunTerminalStatus;
+  status: RunEndedStatus;
   retryEligible: boolean;
   outputs: RunOutputs;
   errorSummary: { type: string; message: string } | null;

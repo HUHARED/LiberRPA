@@ -16,8 +16,7 @@
         icon="mdi-refresh"
         variant="text"
         :disabled="projectManagerStore.busy"
-        @click="refresh">
-      </v-btn>
+        @click="refresh"></v-btn>
     </v-card-title>
 
     <v-card-subtitle class="px-5 pb-4">
@@ -88,13 +87,11 @@
         <div v-else class="mt-2">
           Check componentRepositoryPath and the Repository folder, then refresh this page.
         </div>
-        <v-btn class="mt-3" size="small" variant="text" @click="showLogs">
-          Show Logs
-        </v-btn>
+        <v-btn class="mt-3" size="small" variant="text" @click="showLogs">Show Logs</v-btn>
       </v-alert>
 
       <v-card variant="outlined" class="mb-5">
-        <v-card-title class="text-subtitle-1"> Current direct dependencies </v-card-title>
+        <v-card-title class="text-subtitle-1">Current direct dependencies</v-card-title>
         <v-card-text v-if="directDependencyRows.length === 0" class="text-medium-emphasis">
           This Project has no direct Component dependencies.
         </v-card-text>
@@ -326,3 +323,5 @@ function cancel(): void {
   }
 }
 </script>
+
+<style scoped></style>

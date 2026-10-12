@@ -98,3 +98,5 @@ const description = computed(() => {
   }
 });
 </script>
+
+<style scoped></style>

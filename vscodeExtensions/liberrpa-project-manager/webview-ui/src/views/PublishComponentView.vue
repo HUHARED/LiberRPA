@@ -8,8 +8,7 @@
         icon="mdi-refresh"
         variant="text"
         :disabled="projectManagerStore.busy"
-        @click="refresh">
-      </v-btn>
+        @click="refresh"></v-btn>
     </v-card-title>
 
     <v-card-subtitle class="px-5 pb-4">
@@ -130,7 +129,8 @@
         </template>
         <template v-else>
           Running Publish Component will first create the AST scan result and Snippet
-          configuration template.<br />
+          configuration template.
+          <br />
           Review the files in the VS Code editor, then run Publish Component again.
         </template>
       </v-alert>
@@ -298,3 +298,5 @@ function close(): void {
   }
 }
 </script>
+
+<style scoped></style>

@@ -96,14 +96,14 @@ def begin_executor_login(
         if not constant_time_compare(verifiedAuthHash, user.get_session_auth_hash()):
             raise InvalidExecutorSessionError("Sign in again to continue.")
         currentTime = timezone.now()
-        from runs.services import reconcile_revoked_sessions
+        from runs.services import update_jobs_for_revoked_sessions
 
         expiredSessions = ExecutorSession.objects.filter(
             organization=access.organization, expires_at__lte=currentTime
         )
         listExpiredSessionId = list(expiredSessions.values_list("id", flat=True))
         expiredSessions.delete()
-        reconcile_revoked_sessions(listExpiredSessionId)
+        update_jobs_for_revoked_sessions(listExpiredSessionId)
         strToken = f"lrex_{secrets.token_urlsafe(32)}"
         session = ExecutorSession(
             user=user,
@@ -211,13 +211,13 @@ def open_executor_client_request(
                 channel=AuditChannel.EXECUTOR,
                 before={},
             )
-            from runs.services import reconcile_revoked_sessions
+            from runs.services import update_jobs_for_revoked_sessions
 
             # The native client also guards actual local Runs before requesting logout.
             intDeletedCount, _ = ExecutorSession.objects.filter(
                 pk=identity.sessionId
             ).delete()
-            reconcile_revoked_sessions([identity.sessionId])
+            update_jobs_for_revoked_sessions([identity.sessionId])
             if not intDeletedCount:
                 raise InvalidExecutorSessionError("A valid Executor session is required.")
             yield None
@@ -277,11 +277,11 @@ def open_executor_client_request(
                                     "This Executor already has a valid association.",
                                     code="executor_already_associated",
                                 )
-                            from runs.services import reconcile_revoked_sessions
+                            from runs.services import update_jobs_for_revoked_sessions
 
                             previousSessionId = previousSession.pk
                             previousSession.delete()
-                            reconcile_revoked_sessions([previousSessionId])
+                            update_jobs_for_revoked_sessions([previousSessionId])
                         session.executor = executor
                         session.associated_at = max(timezone.now(), session.created_at)
                     # Repeating the same selection after a lost response preserves the original session.
@@ -328,10 +328,10 @@ def open_executor_client_request(
                         )
                 result = ExecutorClientResult(session=session, access=access)
         except InvalidExecutorSessionError:
-            from runs.services import reconcile_revoked_sessions
+            from runs.services import update_jobs_for_revoked_sessions
 
             ExecutorSession.objects.filter(pk=identity.sessionId).delete()
-            reconcile_revoked_sessions([identity.sessionId])
+            update_jobs_for_revoked_sessions([identity.sessionId])
             boolInvalidSession = True
         if result is not None:
             # Caller failures roll back contact writes; they do not invalidate a valid credential.

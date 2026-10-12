@@ -27,7 +27,7 @@ _INT_TRIGGER_BATCH_SIZE = 100
 
 @dataclass
 class ScheduleScanWindow:
-    """Keep one scan interval across bounded batches, including its first lock wait."""
+    """Keep the same scan time range across batches, including time spent waiting for the first lock."""
 
     previousScanAt: datetime | None
     until: datetime | None = None
@@ -116,7 +116,7 @@ def _process_trigger(
                 },
             )
             notify_failure(schedule, strReason)
-            # One receipt describes skipped points; never replay the tail of a long interruption.
+            # Record skipped triggers once, then advance past the whole interruption instead of running the remaining missed triggers.
             advance(schedule, skipUntil)
             return
         try:
@@ -148,7 +148,7 @@ def _process_trigger(
 def scan_schedules(
     scanWindow: ScheduleScanWindow | None = None,
 ) -> ScheduleScanWindow | None:
-    """Return the same interval while more points remain, or None after saving its boundary."""
+    """Keep the scan time range while more triggers remain; return None after saving the completed scan time."""
     if scanWindow is None:
         state = SchedulerState.objects.filter(pk=1).first()
         scanWindow = ScheduleScanWindow(
@@ -178,6 +178,6 @@ def scan_schedules(
     scanUntil = scanWindow.until or scanStartedAt
     if query.filter(next_trigger_at__lte=scanUntil).exists():
         return scanWindow
-    # Do not include time spent draining the batch in the completed scan boundary.
+    # Save the original scan end time, not the later time when batch processing finishes.
     SchedulerState.objects.update_or_create(pk=1, defaults={"scanned_at": scanUntil})
     return None

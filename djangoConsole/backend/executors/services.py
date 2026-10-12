@@ -211,7 +211,7 @@ def unassociate_executor(
         )
         sessionId = session.pk
         session.delete()
-        from runs.services import reconcile_revoked_sessions
+        from runs.services import update_jobs_for_revoked_sessions
 
-        reconcile_revoked_sessions([sessionId])
+        update_jobs_for_revoked_sessions([sessionId])
     return executor

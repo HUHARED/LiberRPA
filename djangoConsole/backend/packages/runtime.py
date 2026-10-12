@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 def build_run_settings(
     source: "Package | Schedule", *, overrides: dict[str, JsonValue] | None = None
 ) -> RunSettings:
-    """Parse persisted settings and invocation overrides once at the input boundary."""
+    """Parse saved settings and request overrides once when they enter this workflow."""
     dictSettings: dict[str, object] = {
         "max_retry_count": source.max_retry_count,
         "timeout_min": source.timeout_min,
@@ -50,7 +50,7 @@ def build_run_settings(
 
 
 def apply_run_settings(target: "Package | Schedule", values: RunSettings) -> None:
-    """Assign validated settings, serializing only at the persistence boundary."""
+    """Assign validated settings; convert structured values to JSON only for database storage."""
     target.max_retry_count = values.max_retry_count
     target.timeout_min = values.timeout_min
     target.builtin_log_level = values.builtin_log_level
@@ -140,7 +140,7 @@ def validate_run_settings(
 
 
 def get_run_snapshot(package: Package, settings: RunSettings) -> dict[str, JsonValue]:
-    """Resolve current asset values, then serialize the admitted run for persistence."""
+    """Read current asset values, then convert the accepted run settings to JSON for storage."""
     runSettings = validate_run_settings(package, settings, resolveAssets=True)
     dictSnapshot: dict[str, JsonValue] = runSettings.model_dump(mode="json")
     dictSnapshot.update({

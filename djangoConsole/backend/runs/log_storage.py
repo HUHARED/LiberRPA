@@ -41,7 +41,7 @@ def clear_run_logs(usage: RunLogUsage, runs: Sequence[Run], clearedAt: datetime)
 
 
 def get_clearable_log_runs(organizationId: uuid.UUID) -> QuerySet[Run]:
-    """Keep active, retrying and unresolved Jobs outside log eviction."""
+    """Exclude active, retrying and unconfirmed Jobs from log cleanup."""
     return (
         Run.objects
         .filter(
@@ -56,7 +56,7 @@ def get_clearable_log_runs(organizationId: uuid.UUID) -> QuerySet[Run]:
 
 
 def make_run_log_space(usage: RunLogUsage, run: Run, addedBytes: int) -> bool:
-    """Evict only enough eligible history to admit this batch, or leave it untouched."""
+    """Clear only enough old logs to store this batch; delete nothing if that cannot free enough space."""
     limits = settings.CONSOLE_LIMITS
     intAddedGroups = int(run.log_bytes == 0)
     intRequiredBytes = usage.used_bytes + addedBytes
@@ -72,27 +72,27 @@ def make_run_log_space(usage: RunLogUsage, run: Run, addedBytes: int) -> bool:
         or limits.maxRunLogGroupsPerOrganization == 0
     ):
         return False
-    listExpiredRun: list[Run] = []
+    listRunToClear: list[Run] = []
     for previousRun in (
         get_clearable_log_runs(usage.organization_id)
         .filter(log_bytes__gt=0)
         .exclude(pk=run.pk)
         .iterator(chunk_size=200)
     ):
-        listExpiredRun.append(previousRun)
+        listRunToClear.append(previousRun)
         intRequiredBytes -= previousRun.log_bytes
         intRequiredGroups -= 1
         if (
             intRequiredBytes <= limits.maxRunLogBytesPerOrganization
             and intRequiredGroups <= limits.maxRunLogGroupsPerOrganization
         ):
-            clear_run_logs(usage, listExpiredRun, timezone.now())
+            clear_run_logs(usage, listRunToClear, timezone.now())
             return True
     return False
 
 
 def add_run_log_usage(usage: RunLogUsage, run: Run, addedBytes: int) -> None:
-    """Account only for newly inserted rows after duplicate identities were removed."""
+    """Count only newly saved log entries, not entries already stored."""
     usage.used_bytes += addedBytes
     usage.group_count += int(run.log_bytes == 0)
     run.log_bytes += addedBytes

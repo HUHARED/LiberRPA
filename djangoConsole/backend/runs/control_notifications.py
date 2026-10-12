@@ -22,7 +22,7 @@ def notify_executor_control(executorId: uuid.UUID) -> None:
     """Wake the Executor only after the caller's current transaction commits."""
     with connection.cursor() as cursor:
         cursor.execute(
-            "SELECT pg_notify(%s, %s)",
+            "SELECT PG_NOTIFY(%s, %s)",
             [_STR_NOTIFICATION_CHANNEL, str(executorId)],
         )
 
@@ -46,7 +46,7 @@ def _listen_for_notifications(
                 else:
                     _LOGGER.info("Executor control notification listener connected.")
                 boolUnavailable = False
-                # LISTEN is active before clients reconcile state missed during a disconnect.
+                # Start LISTEN before clients refresh work state that may have changed while disconnected.
                 eventLoop.call_soon_threadsafe(onNotification, None)
                 while not stopEvent.is_set():
                     # This waits on the database socket; it does not issue periodic SQL queries.

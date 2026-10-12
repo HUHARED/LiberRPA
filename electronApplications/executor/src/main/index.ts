@@ -59,7 +59,7 @@ import { cleanExecutorRunArguments } from "./Run/runState";
 import { startRunHousekeeping, stopRunHousekeeping } from "./Run/housekeeping";
 import { startConsoleWork, stopConsoleWork } from "./Console/consoleWork";
 import { cleanConsolePackageStaging } from "./Console/packagePreparation";
-import { cleanConsoleLogArchives } from "./Console/consoleWorkFiles";
+import { cleanConsoleLogArchives } from "./Console/consoleFileTransfers";
 import { getConsoleRunProcessId } from "./Console/workRepository";
 import { recoverConsoleWorkAfterRestart } from "./Console/workRecovery";
 import { beginProjectRunShutdown, shutdownProjectRuns } from "./Run/projectRunner";

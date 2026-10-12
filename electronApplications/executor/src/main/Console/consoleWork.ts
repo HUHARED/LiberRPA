@@ -54,7 +54,8 @@ import {
   startConsoleEvents,
   stopConsoleEvents,
 } from "./consoleEvents";
-import { stopConsoleFiles, flushConsoleLogs, sendConsoleFile } from "./consoleWorkFiles";
+import { stopConsoleLogs, uploadConsoleLogs } from "./consoleLogs";
+import { stopConsoleFileTransfers, sendConsoleFile } from "./consoleFileTransfers";
 
 enum ConsolePermitWaitReason {
   DispatchPaused = "dispatch_paused",
@@ -286,7 +287,7 @@ async function requestStartPermit(
         // Server JSON timestamps lose sub-millisecond precision; keep both bounds safe.
         earliestStartMs: intEarliestStart + 1,
         expiresAtMs: intExpiresAt,
-        // Subtract the full request duration rather than assume symmetric network delay.
+        // Subtract the full request duration; the outgoing request and response may take different amounts of time.
         monotonicDeadlineMs: floatRequestedAt + (intExpiresAt - intServerTime - 1),
       };
       validateStartPermitTime(permit, new Date().toISOString());
@@ -457,11 +458,11 @@ async function prepareRequestedPackages(
   }
 }
 
-function requestLogFlush(): void {
+function requestLogUpload(): void {
   const credential = getConsoleControlCredential();
   if (boolStopped || promiseLogs || !credential) return;
   // The interval only reads local log progress; idle Runs do not issue HTTP requests.
-  promiseLogs = flushConsoleLogs(getConsoleWorkSessionKey(credential), credential)
+  promiseLogs = uploadConsoleLogs(getConsoleWorkSessionKey(credential), credential)
     .catch((e: unknown) => {
       loggerMain.warn(`Console logs: ${getErrorMessage(e)}`);
     })
@@ -607,7 +608,7 @@ function requestConsoleSync(): void {
   }
   const floatRemainingMs = floatWorkRetryAt - performance.now();
   if (floatRemainingMs > 0) {
-    // Notifications mark pending work but cannot shorten a failed request's backoff.
+    // Notifications mark pending work but do not shorten the delay before retrying a failed request.
     timerRetry ??= setTimeout(
       () => {
         timerRetry = undefined;
@@ -644,7 +645,7 @@ function requestConsoleWork(error?: unknown): void {
   boolWorkRequested = true;
   if (error !== undefined) deferConsoleWork(error);
   requestConsoleSync();
-  requestLogFlush();
+  requestLogUpload();
   requestConsoleEvents();
 }
 
@@ -655,8 +656,8 @@ export function startConsoleWork(): void {
   strWorkRetrySessionKey = undefined;
   boolContactFailureLogged = false;
   stopWorkListener = onConsoleWorkAvailable(() => requestConsoleWork());
-  stopEventListener = onConsoleEventSaved(requestLogFlush);
-  timerLogs = setInterval(requestLogFlush, 2000);
+  stopEventListener = onConsoleEventSaved(requestLogUpload);
+  timerLogs = setInterval(requestLogUpload, 2000);
   startConsoleEvents();
   requestConsoleWork();
 }
@@ -668,7 +669,8 @@ export async function stopConsoleWork(): Promise<void> {
   stopEventListener?.();
   const promiseStopEvents = stopConsoleEvents();
   stopPackagePreparation();
-  stopConsoleFiles();
+  stopConsoleLogs();
+  stopConsoleFileTransfers();
   clearTimeout(timerRetry);
   clearInterval(timerLogs);
   timerRetry = undefined;

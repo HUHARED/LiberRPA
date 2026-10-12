@@ -109,9 +109,9 @@ def revoke_user_executor_sessions(userId: uuid.UUID) -> None:
         ExecutorSession.objects.filter(user_id=userId).values_list("id", flat=True)
     )
     ExecutorSession.objects.filter(user_id=userId).delete()
-    from runs.services import reconcile_revoked_sessions
+    from runs.services import update_jobs_for_revoked_sessions
 
-    reconcile_revoked_sessions(listSessionId)
+    update_jobs_for_revoked_sessions(listSessionId)
 
 
 def revoke_unqualified_executor_sessions(
@@ -125,6 +125,6 @@ def revoke_unqualified_executor_sessions(
         if not is_executor_session_current(session, currentTime=currentTime)
     ]
     ExecutorSession.objects.filter(pk__in=listInvalidSessionId).delete()
-    from runs.services import reconcile_revoked_sessions
+    from runs.services import update_jobs_for_revoked_sessions
 
-    reconcile_revoked_sessions(listInvalidSessionId)
+    update_jobs_for_revoked_sessions(listInvalidSessionId)

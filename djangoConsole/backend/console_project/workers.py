@@ -38,7 +38,7 @@ def hold_worker_session(*, lockId: int, workerName: str) -> Generator[None]:
     try:
         with connection.cursor() as cursor:
             cursor.execute(
-                "SELECT pg_try_advisory_lock(%s, %s)",
+                "SELECT PG_TRY_ADVISORY_LOCK(%s, %s)",
                 [_INT_LOCK_NAMESPACE, lockId],
             )
             boolLockAcquired = cursor.fetchone()[0]

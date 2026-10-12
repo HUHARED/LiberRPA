@@ -1,4 +1,4 @@
-# FileName: prune_run_data.py
+# FileName: cleanup_run_data.py
 __author__ = "Jiyan Hu"
 __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
@@ -8,13 +8,11 @@ from typing import cast
 
 from django.core.management.base import BaseCommand, CommandError, CommandParser
 
-from runs.retention import prune_run_data
+from runs.retention import cleanup_run_data
 
 
 class Command(BaseCommand):
-    help = (
-        "Prune eligible Run History groups and central logs without changing active work."
-    )
+    help = "Remove expired Run History and central logs without changing active work."
 
     def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument("--limit", type=int, default=200)
@@ -23,7 +21,7 @@ class Command(BaseCommand):
         intLimit = cast(int, options["limit"])
         if not 1 <= intLimit <= 10000:
             raise CommandError("Use --limit between 1 and 10000.")
-        intJobs, intLogs = prune_run_data(intLimit)
+        intJobs, intLogs = cleanup_run_data(intLimit)
         self.stdout.write(
-            f"Removed {intJobs} terminal Jobs and cleared {intLogs} log groups."
+            f"Removed {intJobs} finished Jobs and cleared {intLogs} log groups."
         )

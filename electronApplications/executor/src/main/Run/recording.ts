@@ -16,7 +16,7 @@ function isRunRecordingActive(logFolderPath: string): boolean {
   let intFd: number | undefined;
   try {
     intFd = fs.openSync(path.join(logFolderPath, "video_record.lock"), "r");
-    // NOTE: _Record.py holds an exclusive Windows byte lock through finalization.
+    // NOTE: _Record.py holds an exclusive Windows byte lock until video merging and subtitle creation have finished.
     fs.readSync(intFd, Buffer.alloc(1), 0, 1, 0);
     return false;
   } catch (e: unknown) {

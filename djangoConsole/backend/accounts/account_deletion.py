@@ -16,7 +16,7 @@ from django.views.decorators.debug import sensitive_variables
 
 from executors.session_state import revoke_user_executor_sessions
 from operations.audit import record_audit
-from runs.services import reconcile_source_access
+from runs.services import recheck_job_source_access
 
 from organizations.models import Membership
 from organizations.permissions import (
@@ -149,5 +149,5 @@ def delete_account(
     )
     revoke_user_executor_sessions(userId)
     target.delete()
-    reconcile_source_access(userId, access.organization.id)
+    recheck_job_source_access(userId, access.organization.id)
     # Django rejects old web sessions because their User ID no longer resolves.

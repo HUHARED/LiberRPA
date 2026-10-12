@@ -31,7 +31,7 @@ from .control_notifications import notify_executor_control
 from .dispatch_control import require_control_service
 from .services import has_job_source_access, finish_job, revoke_job_source_access
 
-_INT_WORK_STATE_STALE_SECONDS = 45
+_INT_WORK_STATE_MAX_AGE_SECONDS = 45
 
 _INT_PERMIT_SECONDS = 15
 _INT_START_EVIDENCE_TOLERANCE_SECONDS = 5
@@ -44,7 +44,7 @@ def _get_dispatch_sessions(
     *,
     sessionsByExecutor: dict[uuid.UUID, ExecutorSession | None],
 ) -> dict[uuid.UUID, ExecutorSession]:
-    """Reuse association checks only within the caller's locked organization dispatch pass."""
+    """Reuse association checks only within this dispatch batch while the organization is locked."""
     setExecutorId = set(executorIds)
     setUnreadExecutorId = setExecutorId.difference(sessionsByExecutor)
     if setUnreadExecutorId:
@@ -62,7 +62,7 @@ def _get_dispatch_sessions(
     return dictSession
 
 
-def _reconcile_assignment(
+def _update_assignment_state(
     assignment: Assignment,
     currentTime: datetime,
     control: DispatchControl,
@@ -255,7 +255,7 @@ def _advance_job(
         if get_executor_association_status(dictSession[entry.id], currentTime=currentTime)
         == ExecutorAssociationStatus.ONLINE
     ]
-    # Work reports and last_assigned_at can change during this pass; read them for each eligible Job.
+    # Work reports and last_assigned_at can change during this batch; read them again for each Job.
     dictWork: dict[uuid.UUID, ExecutorWorkState] = {}
     if listOnline:
         dictWork = {
@@ -271,7 +271,7 @@ def _advance_job(
         and dictWork[entry.id].session_id == dictSession[entry.id].id
         and dictWork[entry.id].reported_at >= control.cycle_started_at
         and dictWork[entry.id].reported_at
-        >= currentTime - timedelta(seconds=_INT_WORK_STATE_STALE_SECONDS)
+        >= currentTime - timedelta(seconds=_INT_WORK_STATE_MAX_AGE_SECONDS)
     ]
     if not listReady:
         if control.recovery_until and currentTime < control.recovery_until:
@@ -372,7 +372,7 @@ def dispatch_organization(organizationId: uuid.UUID) -> None:
         sessionsByExecutor=dictSessionByExecutor,
     )
     for assignment in listAssignment:
-        _reconcile_assignment(
+        _update_assignment_state(
             assignment,
             currentTime,
             control,
@@ -382,7 +382,7 @@ def dispatch_organization(organizationId: uuid.UUID) -> None:
     dictCandidateByTarget: dict[
         tuple[uuid.UUID, uuid.UUID | None, uuid.UUID | None], list[Executor]
     ] = {}
-    # Reconciliation can return a Job to Waiting; query the queue only after that phase.
+    # Updating assignments can return Jobs to Waiting; read the queue after those updates.
     for job in (
         Job.objects
         .filter(
@@ -473,7 +473,7 @@ def issue_start_permit(session: ExecutorSession, assignmentId: uuid.UUID) -> Ass
         reported_at__gte=control.cycle_started_at,
     ).first()
     if work is None or work.reported_at < currentTime - timedelta(
-        seconds=_INT_WORK_STATE_STALE_SECONDS
+        seconds=_INT_WORK_STATE_MAX_AGE_SECONDS
     ):
         raise ValidationError(
             "Report current work state before requesting start permission.",

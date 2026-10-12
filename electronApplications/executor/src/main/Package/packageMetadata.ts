@@ -89,7 +89,7 @@ function parseFlowManifest(value: unknown): FlowManifest {
       )
     ) {
       throw new Error(
-        "flow.json component dependency IDs must use canonical lowercase UUID v4 format.",
+        "flow.json component dependency IDs must use lowercase UUID v4 format with hyphens.",
       );
     }
     dictDependency[strComponentId] = ensureTrimmedSingleLineString(

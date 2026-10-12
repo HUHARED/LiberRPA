@@ -107,7 +107,7 @@ def _read_metadata(archive: zipfile.ZipFile) -> dict:
             uuidObj = UUID(strId)
             if uuidObj.version != 4 or str(uuidObj) != strId:
                 raise ValidationError(
-                    "Component IDs must be canonical lowercase UUID v4 values."
+                    "Component IDs must use lowercase UUID v4 format with hyphens."
                 )
             dictDependency[strId] = _normalize_version_specifier(
                 specifier, f"componentDependencies.{strId}"
@@ -192,7 +192,7 @@ def _read_metadata(archive: zipfile.ZipFile) -> dict:
 
 
 def read_package_archive(handle: BinaryIO) -> dict:
-    """Validate the uploaded file boundary once without extracting executable content."""
+    """Validate the uploaded archive once without extracting its executable files."""
     try:
         with zipfile.ZipFile(handle) as archive:
             listEntry = archive.infolist()
@@ -234,7 +234,7 @@ def read_package_archive(handle: BinaryIO) -> dict:
                     raise ValidationError(
                         "The Package exceeds its uncompressed size limit."
                     )
-            # Stream every member to verify CRC and actual byte counts without retaining expanded content.
+            # Read each archive entry in chunks to check its CRC and size without keeping the whole uncompressed file in memory.
             for entry in listEntry:
                 intReadBytes = 0
                 with archive.open(entry) as entryHandle:

@@ -37,7 +37,7 @@ def has_job_source_access(
     *,
     sourceDepartmentIdsByActor: dict[uuid.UUID, set[uuid.UUID]] | None = None,
 ) -> bool:
-    """Share source departments only within one locked organization dispatch pass."""
+    """Reuse the initiating account's department access only within this dispatch batch while the organization is locked."""
     if job.request.source == JobSource.SCHEDULE:
         return True
     actorId = job.request.actor_id
@@ -80,7 +80,7 @@ def finish_job(job: Job, reason: str, *, notify: bool = False) -> None:
 
 
 def revoke_job_source_access(job: Job, currentTime: datetime) -> None:
-    """Persist lost source authority without inventing a stop or an execution result."""
+    """Record that the initiating account lost access without claiming the Run stopped or assigning it a result."""
     if job.state == JobState.FINISHED or job.source_access_revoked_at is not None:
         return
     job.source_access_revoked_at = currentTime
@@ -106,8 +106,8 @@ def revoke_job_source_access(job: Job, currentTime: datetime) -> None:
     finish_job(job, STR_SOURCE_ACCESS_REVOKED_REASON, notify=True)
 
 
-def reconcile_source_access(userId: uuid.UUID, organizationId: uuid.UUID) -> None:
-    """Revoke only this account's ineligible Jobs inside the permission change's organization lock."""
+def recheck_job_source_access(userId: uuid.UUID, organizationId: uuid.UUID) -> None:
+    """Update Jobs this account can no longer run, while the permission change still holds the organization lock."""
     jobQuery = Job.objects.filter(
         request__organization_id=organizationId,
         request__actor_id=userId,
@@ -134,8 +134,8 @@ def reconcile_source_access(userId: uuid.UUID, organizationId: uuid.UUID) -> Non
         revoke_job_source_access(job, currentTime)
 
 
-def reconcile_revoked_sessions(sessionIds: list[uuid.UUID]) -> None:
-    """Close unpermitted direct work and preserve real or possible execution under the caller's organization lock."""
+def update_jobs_for_revoked_sessions(sessionIds: list[uuid.UUID]) -> None:
+    """Update Jobs affected by revoked Executor sessions while the organization is locked; preserve runs that may have started."""
     if not sessionIds:
         return
     setExecutorId = set(
@@ -151,9 +151,7 @@ def reconcile_revoked_sessions(sessionIds: list[uuid.UUID]) -> None:
         job = assignment.job
         if assignment.state == AssignmentState.PREPARING:
             assignment.state = AssignmentState.WITHDRAWN
-            assignment.reason = (
-                "The original Executor association was revoked before start permission."
-            )
+            assignment.reason = "The Executor connection used for this Job is no longer valid. The run did not start."
             assignment.save(update_fields=["state", "reason"])
             if job.state == JobState.FINISHED:
                 continue
@@ -165,7 +163,7 @@ def reconcile_revoked_sessions(sessionIds: list[uuid.UUID]) -> None:
                 finish_job(job, assignment.reason)
         else:
             assignment.state = AssignmentState.NEEDS_REVIEW
-            assignment.reason = "The original Executor association was revoked; execution is not confirmed stopped."
+            assignment.reason = "The Executor connection used for this Job is no longer valid. Check whether the run is still active on the Executor."
             assignment.save(update_fields=["state", "reason"])
             if job.state != JobState.FINISHED:
                 job.state = JobState.NEEDS_REVIEW
@@ -198,7 +196,7 @@ def control_job(job: Job, action: JobControlAction, *, run: Run | None = None) -
         job.save(update_fields=["closed_at", "stop_requested_at"])
         finish_job(
             job,
-            "Closed by an authorized user; actual execution is not confirmed stopped.",
+            "Job closed. Check the Executor; the run may still be active.",
         )
         for executorId in (
             Assignment.objects
@@ -228,7 +226,7 @@ def control_job(job: Job, action: JobControlAction, *, run: Run | None = None) -
             assignment.stop_requested_at = currentTime
             assignment.save(update_fields=["state", "stop_requested_at"])
         finish_job(
-            job, "Canceled before start permission; remaining retries are canceled."
+            job, "Canceled before the run started; remaining retries are canceled."
         )
     else:
         assignment.stop_requested_at = assignment.stop_requested_at or currentTime

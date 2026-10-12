@@ -87,7 +87,7 @@ CREATE TABLE
                 ELSE 0
             END
         ),
-        -- NOTE: Keep this envelope aligned with RunOutputs in shared/run.ts; item validation stays in runState.ts.
+        -- NOTE: Keep this JSON structure aligned with RunOutputs in shared/run.ts; item validation stays in runState.ts.
         outputs TEXT NOT NULL CHECK (
             CASE
                 WHEN JSON_VALID(outputs) THEN (
@@ -248,7 +248,7 @@ CREATE TABLE
                         OR JSON_EXTRACT(payload, '$.not_started_reason') = 'local_conflict'
                     )
                     AND CASE JSON_EXTRACT(payload, '$.kind')
-                        WHEN 'ended' THEN JSON_EXTRACT(payload, '$.result') IN (
+                        WHEN 'ended' THEN JSON_EXTRACT(payload, '$.status') IN (
                             'completed',
                             'error',
                             'canceled',

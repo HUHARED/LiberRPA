@@ -2,7 +2,7 @@
 
 import fs from "fs";
 
-import { RunStatus, RunOutputsStatus, type RunTerminalStatus } from "../../shared/run";
+import { RunStatus, RunOutputsStatus, type RunEndedStatus } from "../../shared/run";
 import { ensureNonEmptyString } from "../Common/validation";
 import { getDatabase } from "../Database/connection";
 import { dbUpdateRunHistory } from "../Database/runHistoryRepository";
@@ -52,7 +52,7 @@ function recoverFinishedConsoleRun(record: ConsoleWorkRecord): boolean {
   }
   if (state.status === ExecutorRunStateStatus.Running || !state.endedAt) return false;
   const strEndedAt = state.endedAt;
-  const status: RunTerminalStatus =
+  const status: RunEndedStatus =
     state.status === ExecutorRunStateStatus.Terminated
       ? record.stopReason === RunTerminationReason.Timeout
         ? RunStatus.TimedOut

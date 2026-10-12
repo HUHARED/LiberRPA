@@ -66,7 +66,7 @@ export enum RunStatus {
   Unknown = "unknown",
 }
 
-export type RunTerminalStatus = Exclude<RunStatus, RunStatus.Running | RunStatus.Unknown>;
+export type RunEndedStatus = Exclude<RunStatus, RunStatus.Running | RunStatus.Unknown>;
 
 export interface RunHistoryItem {
   id: number;

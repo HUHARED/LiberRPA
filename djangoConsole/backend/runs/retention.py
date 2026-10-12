@@ -28,8 +28,8 @@ from .log_storage import (
 _INT_RECEIPT_RETENTION_DAYS = 30
 
 
-def prune_run_data(limit: int = 200) -> tuple[int, int]:
-    """Clear only terminal Job groups; active and unresolved work stays protected."""
+def cleanup_run_data(limit: int = 200) -> tuple[int, int]:
+    """Clear only finished Job groups; keep active and unconfirmed work."""
     intJobsRemoved = 0
     intLogsCleared = 0
     currentTime = timezone.now()
@@ -40,7 +40,7 @@ def prune_run_data(limit: int = 200) -> tuple[int, int]:
         chunk_size=100
     ):
         # Actual history and explicit Close use ordinary retention. No-Run receipts have their own window.
-        terminalCandidates = (
+        finishedCandidates = (
             Job.objects
             .filter(request__organization_id=organizationId, state=JobState.FINISHED)
             .annotate(
@@ -53,19 +53,19 @@ def prune_run_data(limit: int = 200) -> tuple[int, int]:
             job__state=JobState.FINISHED,
         ).count()
         if intExistingRuns <= limits.maxRunHistoryPerOrganization:
-            terminalCandidates = terminalCandidates.filter(
+            finishedCandidates = finishedCandidates.filter(
                 retention_start__lt=historyCutoff
             )
         else:
-            terminalCandidates = terminalCandidates.filter(
+            finishedCandidates = finishedCandidates.filter(
                 Q(run_count__gt=0) | Q(retention_start__lt=historyCutoff)
             )
         listCandidateJobId = list(
-            terminalCandidates.order_by("retention_start", "id").values_list(
+            finishedCandidates.order_by("retention_start", "id").values_list(
                 "id", flat=True
             )[:limit]
         )
-        # Terminal candidates cannot acquire new Run-email events; use delivery-before-organization lock order.
+        # Finished Jobs cannot create new Run-email events; lock email deliveries before the organization.
         with transaction.atomic():
             listPendingDeliveryId = list(
                 EmailDelivery.objects
@@ -102,7 +102,7 @@ def prune_run_data(limit: int = 200) -> tuple[int, int]:
                 intGroups -= int(run.log_bytes > 0)
             clear_run_logs(usage, listExpiredRun, currentTime)
             intLogsCleared += len(listExpiredRun)
-            terminalJobs = (
+            finishedJobs = (
                 Job.objects
                 .filter(request__organization_id=organizationId, state=JobState.FINISHED)
                 .annotate(run_count=Count("runs"))
@@ -114,7 +114,7 @@ def prune_run_data(limit: int = 200) -> tuple[int, int]:
                 job__state=JobState.FINISHED,
             ).count()
             listRemovedJobId = []
-            for jobId, closedAt, endedAt, intRunCount in terminalJobs.filter(
+            for jobId, closedAt, endedAt, intRunCount in finishedJobs.filter(
                 pk__in=listCandidateJobId
             ).values_list("id", "closed_at", "ended_at", "run_count"):
                 retentionStart = closedAt or endedAt
@@ -154,8 +154,8 @@ def prune_run_data(limit: int = 200) -> tuple[int, int]:
                 | Q(retry_at__isnull=False)
                 | Q(attempt_count__gt=0)
             )
-            # Expired permits and Close are not proof that no process was created. The first
-            # accepted non-start receipt starts this part of retention; later duplicates do not reset it.
+            # Expired permissions and Close do not prove that no process started.
+            # Count this retention period from the first accepted Not Started event; repeated events do not reset it.
             oldNonStartReceipts = RunEvent.objects.filter(
                 assignment_id=OuterRef("pk"),
                 kind=RunEventKind.NOT_STARTED,

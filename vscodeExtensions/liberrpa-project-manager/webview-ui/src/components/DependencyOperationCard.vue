@@ -29,15 +29,16 @@
           hint="Select a Component from the local Component Repository."
           persistent-hint
           clearable
-          :disabled="busy">
-        </v-autocomplete>
+          :disabled="busy"></v-autocomplete>
         <v-alert
           v-if="selectedComponentOnlyHasPrereleaseVersions"
           type="info"
           variant="tonal"
           class="mt-3 mb-1">
           This Component has only pre-release versions in the local Repository. Enter an
-          explicit pre-release requirement, such as <code>==1.2.0rc1</code>.
+          explicit pre-release requirement, such as
+          <code>==1.2.0rc1</code>
+          .
         </v-alert>
         <v-text-field
           v-model="requirement"
@@ -46,8 +47,7 @@
           placeholder=">=1.0.0,<2"
           hint="Use a Python PEP 440 version specifier. Pre-release versions must be requested explicitly."
           persistent-hint
-          :disabled="busy">
-        </v-text-field>
+          :disabled="busy"></v-text-field>
       </template>
 
       <template v-else-if="selectedAction === 'update'">
@@ -69,8 +69,7 @@
           closable-chips
           hint="Versions are updated only within the current Manifest requirements."
           persistent-hint
-          :disabled="busy">
-        </v-select>
+          :disabled="busy"></v-select>
       </template>
 
       <template v-else-if="selectedAction === 'changeRequirement'">
@@ -87,8 +86,7 @@
           item-title="title"
           item-value="value"
           label="Direct dependency"
-          :disabled="busy">
-        </v-select>
+          :disabled="busy"></v-select>
         <v-text-field
           v-model="requirement"
           class="mt-3"
@@ -96,8 +94,7 @@
           placeholder=">=1.0.0,<2"
           hint="Use a Python PEP 440 version specifier. Pre-release versions must be requested explicitly."
           persistent-hint
-          :disabled="busy">
-        </v-text-field>
+          :disabled="busy"></v-text-field>
       </template>
 
       <template v-else>
@@ -116,8 +113,7 @@
           label="Direct dependency to remove"
           hint="Unreachable transitive dependencies will also be removed."
           persistent-hint
-          :disabled="busy">
-        </v-select>
+          :disabled="busy"></v-select>
       </template>
     </v-card-text>
 
@@ -344,3 +340,5 @@ function previewPlan(): void {
   }
 }
 </script>
+
+<style scoped></style>

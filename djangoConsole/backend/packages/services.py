@@ -65,7 +65,7 @@ from .runtime import apply_run_settings, validate_run_settings
 
 @dataclass(frozen=True)
 class PackageUploadValidationResult:
-    """Bind validated metadata to the uploaded content, not to lasting write permission."""
+    """Record which uploaded file passed validation; write permission must still be checked at commit."""
 
     uploadId: uuid.UUID
     blobId: uuid.UUID
@@ -251,7 +251,7 @@ def complete_upload(
     upload: PackageUpload,
     validationResult: PackageUploadValidationResult | FileOperationError,
 ) -> dict | FileOperationError:
-    """Commit with freshly authorized upload facts while holding the organization lock."""
+    """Save the package after rechecking upload access while the organization is locked."""
 
     def validate_package_capacity(projectNameKey: str) -> None:
         intPackageCount = Package.objects.filter(
@@ -397,7 +397,7 @@ def save_package_settings(
     from .preparation import request_referenced_preparation
 
     if boolEnvironmentChanged:
-        # Superseded optional requests must not outlive the configuration that can dispatch them.
+        # Remove pending preparation requests that use the old environment setting.
         PackagePreparation.objects.filter(
             package=package,
             state__in=[

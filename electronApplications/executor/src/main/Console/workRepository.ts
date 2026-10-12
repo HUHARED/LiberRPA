@@ -26,7 +26,7 @@ export enum ConsoleWorkState {
   Unknown = "unknown",
 }
 
-// Only the fields consumed by Executor; the stored payload retains server-only fields.
+// Only fields used by Executor are typed here; the saved object also keeps fields used only by Console.
 export interface ConsoleRunSnapshot extends RunOptions, PythonEnvironmentSelection {
   project_name: string;
   project_version: string;
@@ -44,7 +44,7 @@ export interface ConsoleAssignment {
   snapshot: ConsoleRunSnapshot;
 }
 
-// Keep unvalidated snapshot until preparation can report a reliable failure.
+// Keep the raw snapshot so package preparation can report validation failures.
 export type ConsoleAssignmentData = Omit<ConsoleAssignment, "snapshot"> & {
   snapshot: { [Key in keyof ConsoleRunSnapshot]?: unknown };
 };
@@ -58,7 +58,7 @@ export interface ConsoleWorkRecord {
   logOffsets: Record<string, number>;
   logsFinished: boolean;
   logsUnavailableReason?: string;
-  // Persisted with its reliable event; this is not a server acknowledgement.
+  // Saved locally with the pending event; Console may not have received it yet.
   recording?: RunRecordingInfo;
   stopReason?: RunTerminationReason;
 }
@@ -150,7 +150,7 @@ export function getConsoleWorkForRun(
           console_work
       WHERE
           session_key = ?
-          AND json_extract(content, '$.assignment.run_id') = ?;
+          AND JSON_EXTRACT(content, '$.assignment.run_id') = ?;
       `,
     )
     .get(sessionKey, runId) as ConsoleWorkRow | undefined;
@@ -158,7 +158,7 @@ export function getConsoleWorkForRun(
 }
 
 export function getPendingConsoleLogWork(sessionKey: string): ConsoleWorkRecord[] {
-  // NOTE: Keep the pending predicate aligned with idx_console_work_pending_logs.
+  // NOTE: Keep these WHERE conditions aligned with idx_console_work_pending_logs.
   const arrRow = getDatabase()
     .prepare(
       `
@@ -171,17 +171,17 @@ export function getPendingConsoleLogWork(sessionKey: string): ConsoleWorkRecord[
           session_key = ?
           AND (
               (
-                  json_type(content, '$.started') = 'object'
-                  AND json_extract(content, '$.logsFinished') = 0
+                  JSON_TYPE(content, '$.started') = 'object'
+                  AND JSON_EXTRACT(content, '$.logsFinished') = 0
               )
               OR (
-                  json_type(content, '$.ended') = 'object'
-                  AND json_extract(
+                  JSON_TYPE(content, '$.ended') = 'object'
+                  AND JSON_EXTRACT(
                       content,
                       '$.assignment.snapshot.builtin_record_video'
                   ) = 1
                   AND COALESCE(
-                      json_extract(content, '$.recording.status'),
+                      JSON_EXTRACT(content, '$.recording.status'),
                       ''
                   ) NOT IN ('ready', 'unavailable')
               )
@@ -202,7 +202,7 @@ export function saveConsoleLogProgress(
   if (!record) return;
   resetConsoleEventRetention(record);
   record.logOffsets = offsets;
-  // Cleanup can finish while an upload is awaiting its receipt; do not lose its pending report.
+  // Cleanup may remove the logs while an upload is waiting for a response; keep the reason that still needs to be reported.
   record.logsFinished ||=
     finished &&
     (record.logsUnavailableReason === undefined ||
@@ -231,7 +231,7 @@ export function markConsoleLogsUnavailable(runId: string, reason: string): void 
       FROM
           console_work
       WHERE
-          json_extract(content, '$.assignment.run_id') = ?;
+          JSON_EXTRACT(content, '$.assignment.run_id') = ?;
       `,
     )
     .get(runId) as ConsoleWorkRow | undefined;
@@ -266,11 +266,11 @@ export function getConsoleRunProcessId(runId: string): number | undefined {
     .prepare(
       `
       SELECT
-          json_extract(content, '$.started.processId') AS process_id
+          JSON_EXTRACT(content, '$.started.processId') AS process_id
       FROM
           console_work
       WHERE
-          json_extract(content, '$.assignment.run_id') = ?;
+          JSON_EXTRACT(content, '$.assignment.run_id') = ?;
       `,
     )
     .get(runId) as { process_id: unknown } | undefined;

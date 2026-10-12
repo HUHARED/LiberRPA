@@ -74,7 +74,7 @@ class RetryBudget:
 
 
 def encode_json(value: object) -> bytes:
-    """Encode one JSON boundary; reject non-JSON values instead of stringifying them."""
+    """Encode JSON once; reject unsupported values instead of converting them to strings."""
     try:
         requestBodyBytes = json.dumps(
             value, ensure_ascii=False, allow_nan=False, separators=(",", ":")

@@ -122,7 +122,7 @@ class RunFileAvailability(TypedDict):
 
 
 def build_run_file_availability(run: Run) -> dict[RunFileKind, RunFileAvailability]:
-    """Describe known source eligibility; actual local files are checked by the original client."""
+    """Check whether a download can be requested; the Executor that ran the project checks the actual files."""
     strCommonReason = ""
     if run.ended_at is None:
         strCommonReason = (
@@ -162,9 +162,9 @@ def build_run_file_availability(run: Run) -> dict[RunFileKind, RunFileAvailabili
         intSizeBytes = dictSize[kind]
         if not strReason and boolRecordingEnabled and not boolRecordingReady:
             strReason = (
-                "Recording or finalization did not complete successfully. Retrieve available files on the Executor computer."
+                "The recording did not finish successfully. Check the Executor computer for any available files."
                 if run.recording.get("status") == RecordingStatus.UNAVAILABLE
-                else "Wait until this Run's recording has been finalized."
+                else "Wait until the recording is ready."
             )
         if not strReason and kind != RunFileKind.LOGS and not boolRecordingReady:
             strReason = "This Run has no completed recording available."
@@ -232,7 +232,7 @@ def _discard_ticket(ticket: TransferTicket) -> None:
 
 
 def _expire_tickets() -> None:
-    # Reclaim before admission as well as polling; an offline source may never poll again.
+    # Remove expired transfers before accepting new requests as well as during polling; an offline Executor may not poll again.
     with _LOCK_TICKET:
         floatCurrentTime = time.monotonic()
         listExpired = [
@@ -248,7 +248,7 @@ def _expire_tickets() -> None:
 
 
 def get_pending_transfers(sessionId: uuid.UUID) -> list[PendingRunFileTransfer]:
-    # Tickets are short-lived relay state, never a durable download queue.
+    # Transfer records exist only in memory for the current download; they are not a saved download queue.
     _expire_tickets()
     with _LOCK_TICKET:
         listTicket = list(_DICT_TICKET.values())
@@ -277,7 +277,7 @@ def create_file_transfer(request: HttpRequest, runId: uuid.UUID) -> HttpResponse
     ticket: TransferTicket | None = None
     boolCommitted = False
     try:
-        # Cleanup must not roll back with a subsequently rejected admission.
+        # Keep completed cleanup even if the new download request is later rejected.
         _expire_tickets()
         with transaction.atomic():
             access = get_request_access(request, forUpdate=True)
@@ -292,7 +292,7 @@ def create_file_transfer(request: HttpRequest, runId: uuid.UUID) -> HttpResponse
                 actor_id=access.actorId,
                 session_id=run.assignment.session_id,
                 kind=payload.kind,
-                # Ready extends this lease once; an abandoned preparation expires promptly.
+                # A Ready response extends this reservation once; preparation that never finishes expires on its original deadline.
                 expires_at=timezone.now() + timedelta(seconds=_INT_PREPARATION_SECONDS),
             )
             ticket = TransferTicket(
@@ -306,7 +306,7 @@ def create_file_transfer(request: HttpRequest, runId: uuid.UUID) -> HttpResponse
             )
 
             # The organization lock protects the shared download count and reservation.
-            # Publish before the committed notification can wake the source.
+            # Store the transfer before the post-commit notification can reach the Executor.
             with _LOCK_TICKET:
                 _DICT_TICKET[ticket.id] = ticket
             notify_executor_control(run.assignment.executor_id)
@@ -381,7 +381,7 @@ def set_file_ready(request: HttpRequest, transferId: uuid.UUID) -> HttpResponse:
 
     try:
         ticket = _get_ticket(transferId)
-        # Reuse the parsed credential context; only commit-time eligibility is rechecked.
+        # Reuse the parsed credentials; recheck only the current download conditions before saving.
         if (
             not isinstance(authentication, NativeResourceAuthenticationContext)
             or authentication.access.channel != AccessChannel.EXECUTOR
@@ -581,7 +581,7 @@ async def _receive_file(
                 _INT_IDLE_SECONDS,
             )
     except (Exception, asyncio.CancelledError) as e:
-        # Only this authenticated source owns the stream and may abort its browser consumer.
+        # Only the authenticated Executor sending this file may cancel its matching browser download.
         _cancel_ticket(ticket, "The original file stream was interrupted.")
         await sync_to_async(_discard_ticket)(ticket)
         if isinstance(e, TimeoutError):
@@ -682,10 +682,10 @@ async def _download_file(
 
 
 class RunFileRelay:
-    """Relay original files before Django's request-body spooling, with bounded memory and backpressure.
+    """Stream original files before Django buffers the request body; pause reads when the browser cannot keep up.
 
     Use one ASGI application process; control and mail workers remain independent processes.
-    A restart aborts ephemeral downloads and clients can explicitly request them again.
+    A restart cancels current downloads; users can request them again.
     """
 
     def __init__(self, application: ASGI3Application) -> None:

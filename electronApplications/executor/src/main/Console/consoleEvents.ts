@@ -24,7 +24,7 @@ import {
   acknowledgeConsoleEvents,
   getConsoleEventRetentionCandidates,
   confirmConsoleEventRetention,
-  pruneConsoleEventDiagnostics,
+  deleteExpiredConsoleEventDiagnostics,
 } from "./eventRepository";
 
 const INT_EVENT_MAINTENANCE_INTERVAL_MS = 60 * 60 * 1000;
@@ -153,7 +153,7 @@ export function requestConsoleEvents(): void {
 async function maintainConsoleEventDiagnostics(
   credential: ConsoleCredentialSnapshot | null,
 ): Promise<void> {
-  const intDeleted = pruneConsoleEventDiagnostics();
+  const intDeleted = deleteExpiredConsoleEventDiagnostics();
   if (intDeleted) loggerMain.info(`Removed ${intDeleted} expired Run event diagnostics.`);
   if (!credential) return;
   const strSessionKey = getConsoleWorkSessionKey(credential);

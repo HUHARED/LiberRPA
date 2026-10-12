@@ -209,7 +209,7 @@ def _poll(authentication: ExecutorClientResult, payload: WorkPollRequest) -> Jso
 def _check_event_retention(
     authentication: ExecutorClientResult, payload: WorkEventRetentionRequest
 ) -> JsonResponse:
-    """Confirm settled original work without accepting, retrying or deleting any event."""
+    """Check whether the original work has finished, without accepting, retrying or deleting events."""
     session = authentication.session
     nonStartReceipts = RunEvent.objects.filter(
         assignment_id=OuterRef("pk"), kind=RunEventKind.NOT_STARTED
@@ -217,7 +217,7 @@ def _check_event_retention(
     endedRuns = Run.objects.filter(
         assignment_id=OuterRef("pk"), ended_at__isnull=False
     ).exclude(status=RunStatus.RUNNING)
-    unsettledAssignments = Assignment.objects.filter(job_id=OuterRef("job_id")).filter(
+    unfinishedAssignments = Assignment.objects.filter(job_id=OuterRef("job_id")).filter(
         ~Q(state__in=(AssignmentState.FINISHED, AssignmentState.WITHDRAWN))
         | (
             Q(permit_expires_at__isnull=False)
@@ -225,14 +225,14 @@ def _check_event_retention(
             & ~Exists(endedRuns)
         )
     )
-    unsettledRuns = Run.objects.filter(job_id=OuterRef("job_id")).filter(
+    unfinishedRuns = Run.objects.filter(job_id=OuterRef("job_id")).filter(
         Q(ended_at__isnull=True) | Q(status=RunStatus.RUNNING)
     )
     assignments = (
         Assignment.objects
         .filter(
-            ~Exists(unsettledAssignments),
-            ~Exists(unsettledRuns),
+            ~Exists(unfinishedAssignments),
+            ~Exists(unfinishedRuns),
             pk__in=payload.assignment_ids,
             session_id=session.id,
             executor_id=session.executor_id,

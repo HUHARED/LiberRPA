@@ -20,7 +20,7 @@ export function isRecoveredProcessPresent(processId: number): boolean {
     process.kill(processId, 0);
     return true;
   } catch (e: unknown) {
-    // An inaccessible process is still occupancy; only ESRCH confirms its absence.
+    // A process we cannot inspect still counts toward the running limit; only ESRCH confirms it no longer exists.
     return !(e instanceof Error && "code" in e && e.code === "ESRCH");
   }
 }

@@ -12,7 +12,7 @@ import {
   type RunOutputs,
   type ProjectRunConfig,
   RunStatus,
-  type RunTerminalStatus,
+  type RunEndedStatus,
   JobQueueState,
   type JobQueueItem,
 } from "../../shared/run";
@@ -405,7 +405,7 @@ async function spawnAndTrackProjectRun(
       );
       void requestProjectRunTermination(activeRun, RunTerminationReason.Timeout);
     };
-    // Startup observation and history creation belong to this Run's timeout budget.
+    // Waiting for startup status and saving history both count toward this Run's timeout.
     const floatRemainingMs =
       detailDict.timeout_min * 60 * 1000 - (performance.now() - floatStartedAt);
     if (floatRemainingMs <= 0) stopTimedOutRun();
@@ -430,7 +430,7 @@ async function spawnAndTrackProjectRun(
     }
 
     const requestedStatus = getRequestedRunStatus(activeRun.terminationReason);
-    let runStatus: RunTerminalStatus = requestedStatus ?? RunStatus.Error;
+    let runStatus: RunEndedStatus = requestedStatus ?? RunStatus.Error;
     let boolUnexpectedProcessFailure =
       getProcessError() !== undefined || activeRun.forceTerminationRequired;
     const intProcessExitedAtMs = Date.now();

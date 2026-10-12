@@ -26,7 +26,7 @@ def normalize_cron(expression: str) -> str:
         })
     for strField in listField:
         for strPart in strField.split(","):
-            # Both clients reject descending ranges rather than assigning library-specific wrap semantics.
+            # Both clients reject ranges whose start is greater than their end; do not let the Cron library wrap them around.
             strRange = strPart.split("/")[0]
             if "-" in strRange and strRange.replace("-", "").isdigit():
                 listBound = strRange.split("-")
@@ -74,7 +74,7 @@ def get_schedule_zone(timeZone: str) -> ZoneInfo:
 def get_next_trigger(
     cron: str, timeZone: str, activeFrom: datetime, activeUntil: datetime, after: datetime
 ) -> datetime | None:
-    """Iterate wall-clock candidates, skip nonexistent times, and use only the first fold."""
+    """Check local times, skip times missing during a daylight-saving change, and use the first occurrence of repeated times."""
     zone = get_schedule_zone(timeZone)
     lowerBound = max(after, activeFrom - timedelta(microseconds=1))
     if lowerBound >= activeUntil:
@@ -91,7 +91,7 @@ def get_next_trigger(
         while True:
             localCandidate = iterator.get_next(datetime)
             candidate = localCandidate.replace(tzinfo=zone, fold=0).astimezone(UTC)
-            # Reject spring gaps before their provisional UTC values can end the search.
+            # Skip local times missing during a daylight-saving change before their converted UTC values can end the search.
             if candidate.astimezone(zone).replace(tzinfo=None) != localCandidate:
                 continue
             if candidate >= activeUntil:

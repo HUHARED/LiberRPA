@@ -218,7 +218,7 @@ class ExecutorControl:
             else list(self.connections.get(executorId, ()))
         )
         for wakeupEvent in listWakeup:
-            # Repeated changes only need one reconciliation request.
+            # Several changes can share one request to refresh the work state.
             wakeupEvent.set()
 
     async def _handle_lifespan(

@@ -306,7 +306,7 @@ class Run(models.Model):
                         )
                     )
                 ),
-                name="run_outputs_envelope_valid",
+                name="run_outputs_structure_valid",
             ),
             models.CheckConstraint(
                 condition=models.Q(logs_complete=False)
@@ -332,7 +332,7 @@ class Run(models.Model):
 class RunLog(models.Model):
     run_id: uuid.UUID
 
-    # The sequence is a receive cursor; log_id remains the source's immutable identity.
+    # The sequence records receive order; log_id stays the same across retries.
     sequence = models.BigAutoField(primary_key=True)
     log_id = models.UUIDField(unique=True)
     run = models.ForeignKey(Run, on_delete=models.CASCADE, related_name="logs")
@@ -428,7 +428,7 @@ class RunEvent(models.Model):
 
 
 class DispatchControl(models.Model):
-    # Only the dedicated control worker owns this singleton recovery cycle.
+    # Only the control worker updates this shared recovery state.
     id = models.PositiveSmallIntegerField(primary_key=True, default=1)
     cycle_started_at = models.DateTimeField(default=timezone.now)
     last_tick_at = models.DateTimeField(default=timezone.now)

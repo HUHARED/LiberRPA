@@ -72,7 +72,7 @@ class RunStatus(TextChoices):
     INTERRUPTED = "interrupted", "Interrupted"
 
 
-type RunTerminalStatus = Literal[
+type RunEndedStatus = Literal[
     RunStatus.COMPLETED,
     RunStatus.ERROR,
     RunStatus.CANCELED,
@@ -237,7 +237,7 @@ class RunOutputs(JsonRequest):
         try:
             return handler(value)
         except (ValueError, UnicodeError, RecursionError):
-            # Output diagnostics degrade without relaxing event identity or time checks.
+            # Invalid Outputs are reported as unavailable; event identity and time checks still apply.
             return cls.model_construct(
                 status=OutputsStatus.UNAVAILABLE,
                 values=None,
@@ -261,7 +261,7 @@ class WorkStartedEvent(WorkEventBase):
 class WorkEndedEvent(WorkEventBase):
     kind: Literal[RunEventKind.ENDED]
     started_at: Annotated[AwareDatetime, Field(strict=False)]
-    status: RunTerminalStatus
+    status: RunEndedStatus
     outputs: RunOutputs = Field(default_factory=RunOutputs)
     error_summary: dict[str, str] | None = None
 

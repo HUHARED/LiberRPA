@@ -36,7 +36,7 @@ class PackagePreparationCommand(TypedDict):
 
 
 def request_package_preparation(package: Package, executorIds: list[uuid.UUID]) -> None:
-    """Persist optional preparation independently of Schedule enablement and asset input values."""
+    """Save package preparation requests without depending on whether the Schedule is enabled or its asset values are available."""
     for executor in Executor.objects.filter(
         pk__in=executorIds,
         department_id=package.department_id,

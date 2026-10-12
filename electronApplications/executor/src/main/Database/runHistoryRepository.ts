@@ -10,7 +10,7 @@ import {
   type RunDetails,
   type ProjectRunConfig,
   RunStatus,
-  type RunTerminalStatus,
+  type RunEndedStatus,
   type RunHistoryQueryOptions,
   type RunHistoryPage,
 } from "../../shared/run";
@@ -46,7 +46,7 @@ interface RunHistoryInsertData {
 interface RunHistoryUpdateData {
   id: number;
   run_ended_at_ms: number;
-  status: RunTerminalStatus;
+  status: RunEndedStatus;
   outputs: RunOutputs;
   error_summary: { type: string; message: string } | null;
 }
@@ -171,13 +171,13 @@ export function dbMarkUnfinishedRunsAfterRestart(): void {
 
   if (result.changes > 0) {
     loggerMain.warn(
-      `Reconciled ${result.changes} unfinished local and Console Run(s) after restart.`,
+      `Updated ${result.changes} unfinished local and Console Run(s) after restart.`,
     );
   }
 }
 
 export function dbHasEndedLocalRun(runId: string): boolean {
-  // Restart reconciliation leaves the end time empty; a terminal label alone is not enough.
+  // Recovery after restart leaves the end time empty; a finished status alone does not confirm when the process ended.
   return (
     getDatabase()
       .prepare(
