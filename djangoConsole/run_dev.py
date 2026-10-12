@@ -11,6 +11,7 @@ import re
 import signal
 import subprocess
 import sys
+from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from types import FrameType
@@ -112,12 +113,25 @@ def _color_log_message(message: str, level: str, *, colorHttpStatus: bool = Fals
 
 
 class _TerminalFormatter(logging.Formatter):
-    """Color the original log level without changing the captured file output."""
+    """Display local times and optional colors without changing captured file output."""
+
+    def __init__(self, *, useColors: bool) -> None:
+        super().__init__()
+        self.useColors = useColors
 
     def format(self, record: logging.LogRecord) -> str:
         logLine = super().format(record)
         lineMatch = _RE_LOG_LINE.fullmatch(logLine)
         if lineMatch is not None:
+            strLocalTime = (
+                datetime
+                .fromisoformat(lineMatch["time"])
+                .astimezone()
+                .isoformat(timespec="milliseconds")
+            )
+            if not self.useColors:
+                return strLocalTime + logLine[lineMatch.end("time") :]
+
             level = lineMatch["level"]
             coloredMessage = _color_log_message(
                 lineMatch["message"],
@@ -125,12 +139,15 @@ class _TerminalFormatter(logging.Formatter):
                 colorHttpStatus=lineMatch["logger"] == "console.http",
             )
             return (
-                f"{_ANSI_GRAY}{lineMatch['time']}{_ANSI_RESET} "
+                f"{_ANSI_GRAY}{strLocalTime}{_ANSI_RESET} "
                 f"{_DICT_LEVEL_COLOR[level]}{level}{_ANSI_RESET} "
                 f"{_ANSI_CYAN}{lineMatch['logger']}{_ANSI_RESET} "
                 f"{_ANSI_GRAY}{lineMatch['request']}{_ANSI_RESET} "
                 f"{coloredMessage}"
             )
+
+        if not self.useColors:
+            return logLine
 
         levelMatch = _RE_UVICORN_LEVEL.match(logLine)
         if levelMatch is not None:
@@ -243,8 +260,9 @@ def main() -> int:
             encoding="utf-8",
         )
         terminalHandler = logging.StreamHandler(sys.stdout)
-        if _enable_terminal_colors(sys.stdout):
-            terminalHandler.setFormatter(_TerminalFormatter())
+        terminalHandler.setFormatter(
+            _TerminalFormatter(useColors=_enable_terminal_colors(sys.stdout))
+        )
         logger = logging.Logger("console.dev", level=logging.INFO)
         logger.addHandler(fileHandler)
         logger.addHandler(terminalHandler)
