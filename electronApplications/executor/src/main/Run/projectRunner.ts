@@ -3,6 +3,7 @@
 import type { ChildProcessWithoutNullStreams } from "child_process";
 import { randomUUID } from "crypto";
 import fs from "fs";
+import { performance } from "perf_hooks";
 
 import { getErrorMessage } from "../../shared/error";
 import {
@@ -24,6 +25,7 @@ import { getExecutorPackageFolderPath } from "../FileSystem/executorFiles";
 import { loggerMain } from "../Logging/logger";
 import { notifyRunEnded, notifyRunActivityChanged, notifyRunFinished } from "./lifecycle";
 import {
+  PythonProcessNotStartedError,
   type PythonProcessDiagnosticOutput,
   spawnProjectPythonProcess,
   logPythonDiagnosticOutput,
@@ -229,10 +231,11 @@ async function waitForInitialRunState({
       diagnosticOutput,
     });
     removeExecutorRunStateFile(runStatePath);
-    throw new Error(
-      `Failed to start ${packageName}-${packageVersion}: ${getErrorMessage(e)}`,
-      { cause: e },
-    );
+    const strMessage = `Failed to start ${packageName}-${packageVersion}: ${getErrorMessage(e)}`;
+    if (processPy.pid === undefined && getProcessError() !== undefined) {
+      throw new PythonProcessNotStartedError(strMessage, { cause: e });
+    }
+    throw new Error(strMessage, { cause: e });
   }
 }
 
@@ -324,6 +327,7 @@ async function spawnAndTrackProjectRun(
   const strProjectLogRootPath = getEffectiveProjectLogFolderPath();
   const strRunStatePath = createExecutorRunStatePath(runId);
   const strStartedAt = new Date().toISOString();
+  const floatStartedAt = performance.now();
   // This call already owns one starting slot; all other starts and actual Runs still count.
   context.beforeSpawn?.(hasActiveProjectRun(true), strStartedAt);
   const { processPy, diagnosticOutput, getProcessError } = spawnProjectPythonProcess({
@@ -397,19 +401,18 @@ async function spawnAndTrackProjectRun(
   let timeoutId: NodeJS.Timeout | undefined;
   if (detailDict.timeout_min !== 0) {
     loggerMain.info(`Set timeout: ${String(detailDict.timeout_min)} minute(s).`);
-    timeoutId = setTimeout(
-      () => {
-        if (!isProcessRunning(processPy)) {
-          return;
-        }
-
-        loggerMain.info(
-          `Timeout reached. Stop ${detailDict.project_name}-${detailDict.project_version}.`,
-        );
-        void requestProjectRunTermination(activeRun, RunTerminationReason.Timeout);
-      },
-      detailDict.timeout_min * 60 * 1000,
-    );
+    const stopTimedOutRun = (): void => {
+      if (!isProcessRunning(processPy)) return;
+      loggerMain.info(
+        `Timeout reached. Stop ${detailDict.project_name}-${detailDict.project_version}.`,
+      );
+      void requestProjectRunTermination(activeRun, RunTerminationReason.Timeout);
+    };
+    // Startup observation and history creation belong to this Run's timeout budget.
+    const floatRemainingMs =
+      detailDict.timeout_min * 60 * 1000 - (performance.now() - floatStartedAt);
+    if (floatRemainingMs <= 0) stopTimedOutRun();
+    else timeoutId = setTimeout(stopTimedOutRun, floatRemainingMs);
   }
 
   let boolFinalized = false;

@@ -18,6 +18,20 @@ export interface RunOutputs {
   reason: string;
 }
 
+export enum RunRecordingStatus {
+  Recording = "recording",
+  Processing = "processing",
+  Ready = "ready",
+  Unavailable = "unavailable",
+}
+
+export interface RunRecordingInfo {
+  status: RunRecordingStatus;
+  videoSizeBytes?: number | null;
+  subtitleSizeBytes?: number | null;
+  reason?: string;
+}
+
 export interface RunDetails {
   source: RunSource;
   run_id: string;

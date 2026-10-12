@@ -10,7 +10,7 @@ CREATE TABLE
         version_summary TEXT NOT NULL DEFAULT '',
         python_environment_name TEXT NOT NULL DEFAULT 'default' CHECK (LENGTH(TRIM(python_environment_name)) > 0),
         max_retry_count INTEGER NOT NULL DEFAULT 0 CHECK (max_retry_count BETWEEN 0 AND 3),
-        timeout_min INTEGER NOT NULL DEFAULT 0 CHECK (timeout_min >= 0),
+        timeout_min INTEGER NOT NULL DEFAULT 0 CHECK (timeout_min BETWEEN 0 AND 35791),
         builtin_log_level TEXT NOT NULL DEFAULT 'DEBUG' CHECK (
             builtin_log_level IN (
                 'VERBOSE',
@@ -25,7 +25,12 @@ CREATE TABLE
         builtin_record_video INTEGER NOT NULL DEFAULT 0 CHECK (builtin_record_video IN (0, 1)),
         builtin_stop_shortcut INTEGER NOT NULL DEFAULT 1 CHECK (builtin_stop_shortcut IN (0, 1)),
         builtin_highlight_ui INTEGER NOT NULL DEFAULT 0 CHECK (builtin_highlight_ui IN (0, 1)),
-        custom_prj_args TEXT NOT NULL DEFAULT '[]',
+        custom_prj_args TEXT NOT NULL DEFAULT '[]' CHECK (
+            CASE
+                WHEN JSON_VALID(custom_prj_args) THEN JSON_TYPE(custom_prj_args) IS 'array'
+                ELSE 0
+            END
+        ),
         created_at_ms INTEGER NOT NULL CHECK (created_at_ms >= 0),
         updated_at_ms INTEGER NOT NULL CHECK (updated_at_ms >= 0),
         UNIQUE (name, version)
@@ -44,7 +49,7 @@ CREATE TABLE
         period_end_ms INTEGER NOT NULL CHECK (period_end_ms > period_start_ms),
         enabled INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)),
         max_retry_count INTEGER NOT NULL DEFAULT 0 CHECK (max_retry_count BETWEEN 0 AND 3),
-        timeout_min INTEGER NOT NULL DEFAULT 0 CHECK (timeout_min >= 0),
+        timeout_min INTEGER NOT NULL DEFAULT 0 CHECK (timeout_min BETWEEN 0 AND 35791),
         builtin_log_level TEXT NOT NULL DEFAULT 'DEBUG' CHECK (
             builtin_log_level IN (
                 'VERBOSE',
@@ -58,7 +63,12 @@ CREATE TABLE
         builtin_record_video INTEGER NOT NULL DEFAULT 0 CHECK (builtin_record_video IN (0, 1)),
         builtin_stop_shortcut INTEGER NOT NULL DEFAULT 1 CHECK (builtin_stop_shortcut IN (0, 1)),
         builtin_highlight_ui INTEGER NOT NULL DEFAULT 0 CHECK (builtin_highlight_ui IN (0, 1)),
-        custom_prj_args TEXT NOT NULL DEFAULT '[]',
+        custom_prj_args TEXT NOT NULL DEFAULT '[]' CHECK (
+            CASE
+                WHEN JSON_VALID(custom_prj_args) THEN JSON_TYPE(custom_prj_args) IS 'array'
+                ELSE 0
+            END
+        ),
         created_at_ms INTEGER NOT NULL CHECK (created_at_ms >= 0),
         updated_at_ms INTEGER NOT NULL CHECK (updated_at_ms >= 0),
         FOREIGN KEY (project_id) REFERENCES project (id) ON DELETE RESTRICT
@@ -71,7 +81,12 @@ CREATE TABLE
         run_id TEXT NOT NULL UNIQUE,
         job_id TEXT NOT NULL,
         attempt_number INTEGER NOT NULL CHECK (attempt_number BETWEEN 1 AND 4),
-        snapshot TEXT NOT NULL,
+        snapshot TEXT NOT NULL CHECK (
+            CASE
+                WHEN JSON_VALID(snapshot) THEN JSON_TYPE(snapshot) IS 'object'
+                ELSE 0
+            END
+        ),
         -- NOTE: Keep this envelope aligned with RunOutputs in shared/run.ts; item validation stays in runState.ts.
         outputs TEXT NOT NULL CHECK (
             CASE
@@ -169,6 +184,16 @@ CREATE TABLE
                     AND JSON_TYPE(content, '$.state') IS NULL
                     AND JSON_EXTRACT(content, '$.assignment.id') = id
                     AND JSON_EXTRACT(content, '$.sessionKey') = session_key
+                    AND JSON_TYPE(content, '$.logsFinished') IN ('true', 'false')
+                    AND (
+                        JSON_TYPE(content, '$.logsUnavailableReason') IS NULL
+                        OR (
+                            JSON_TYPE(content, '$.logsUnavailableReason') IS 'text'
+                            AND LENGTH(
+                                TRIM(JSON_EXTRACT(content, '$.logsUnavailableReason'))
+                            ) > 0
+                        )
+                    )
                     AND (
                         JSON_TYPE(content, '$.recording') IS NULL
                         OR (
@@ -289,7 +314,7 @@ WHERE
     (
         (
             JSON_TYPE(content, '$.started') = 'object'
-            AND JSON_EXTRACT(content, '$.logsComplete') = 0
+            AND JSON_EXTRACT(content, '$.logsFinished') = 0
         )
         OR (
             JSON_TYPE(content, '$.ended') = 'object'

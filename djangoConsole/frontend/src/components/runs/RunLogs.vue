@@ -20,6 +20,9 @@
   <v-alert v-if="boolCleared" type="info" variant="tonal" class="mb-3">
     Logs for this Run were cleared from Console.
   </v-alert>
+  <v-alert v-else-if="strUnavailableReason" type="warning" variant="tonal" class="mb-3">
+    Log upload ended before completion. {{ strUnavailableReason }}
+  </v-alert>
   <v-row>
     <v-col cols="12" md="4">
       <v-select
@@ -72,13 +75,23 @@
     <template #item.level="{ item }">{{ item.level }}</template>
     <template #item.process="{ item }">{{ item.process_name || "—" }}</template>
     <template #item.message_text="{ item }">
-      <div class="text-truncate">{{ item.message_text }}</div>
+      <div class="text-truncate">
+        {{
+          item.message_omitted
+            ? "Message exceeds the preview size limit."
+            : item.message_text
+        }}
+      </div>
     </template>
     <template #expanded-row="{ item, columns }">
       <tr>
         <td :colspan="columns.length">
           <h3 class="text-subtitle-1 my-2">Message</h3>
-          <pre class="text-pre-wrap text-break mb-4">{{ item.message_text }}</pre>
+          <v-alert v-if="item.message_omitted" type="info" variant="tonal" class="mb-4">
+            This message exceeds the preview size limit. Download the original logs to read
+            it.
+          </v-alert>
+          <pre v-else class="text-pre-wrap text-break mb-4">{{ item.message_text }}</pre>
           <h3 class="text-subtitle-1 my-2">Fields</h3>
           <v-table density="compact" class="mb-4">
             <tbody>
@@ -109,7 +122,9 @@
       Preview window limit reached (10,000 entries / 10 MiB).
     </span>
     <span v-else-if="!boolHasMore" class="text-body-2">No older logs available.</span>
-    <span v-if="!boolComplete" class="text-body-2 text-medium-emphasis">
+    <span
+      v-if="!boolComplete && !strUnavailableReason && !boolCleared"
+      class="text-body-2 text-medium-emphasis">
       More logs may still arrive from the Executor.
     </span>
   </div>
@@ -152,6 +167,8 @@ const strError = ref("");
 const boolHasMore = ref(false);
 const boolCleared = ref(false);
 const boolComplete = ref(false);
+const strUnavailableReason = ref("");
+let boolLatestFinished = false;
 const boolLimit = ref(false);
 const intLoadedBytes = ref(0);
 let intAfter = 0;
@@ -203,7 +220,15 @@ async function load(mode: "initial" | "older" | "newer"): Promise<void> {
     );
     boolCleared.value = result.cleared;
     boolComplete.value = result.complete;
+    strUnavailableReason.value = result.unavailable_reason;
+    if (mode !== "older") {
+      // An older-page response cannot prove that the newest receive cursor is caught up.
+      boolLatestFinished =
+        (result.complete || Boolean(result.unavailable_reason)) &&
+        (mode === "initial" || !result.has_more);
+    }
     if (result.cleared) {
+      boolLatestFinished = true;
       arrLog.value = [];
       intLoadedBytes.value = 0;
       boolHasMore.value = false;
@@ -260,6 +285,8 @@ function loadOlder(): void {
 }
 
 function refresh(): void {
+  if (boolLoading.value) return;
+  boolLatestFinished = false;
   intBefore = null;
   intAfter = 0;
   boolLimit.value = false;
@@ -270,7 +297,8 @@ function refresh(): void {
 onMounted(() => {
   void load("initial");
   timer = setInterval(() => {
-    if (boolFollow.value && props.active && !document.hidden) void load("newer");
+    if (boolFollow.value && !boolLatestFinished && props.active && !document.hidden)
+      void load("newer");
   }, 2000);
 });
 

@@ -222,7 +222,10 @@ export function dbSelectRunHistoryLogLocation(id: number): RunLogLocation | unde
       `
       SELECT
           id,
-          log_path
+          run_id,
+          log_path,
+          JSON_EXTRACT(snapshot, '$.builtin_record_video') AS record_video,
+          COALESCE(run_ended_at_ms, updated_at_ms) AS finished_at_ms
       FROM
           run_history
       WHERE
@@ -364,7 +367,10 @@ export function dbSelectLogFolderBefore(cutoffMs: number): RunLogLocation[] {
       `
       SELECT
           id,
-          log_path
+          run_id,
+          log_path,
+          JSON_EXTRACT(snapshot, '$.builtin_record_video') AS record_video,
+          COALESCE(run_ended_at_ms, updated_at_ms) AS finished_at_ms
       FROM
           run_history
       WHERE
@@ -387,7 +393,10 @@ export function dbSelectVideoBefore(cutoffMs: number): RunLogLocation[] {
       `
       SELECT
           id,
-          log_path
+          run_id,
+          log_path,
+          JSON_EXTRACT(snapshot, '$.builtin_record_video') AS record_video,
+          COALESCE(run_ended_at_ms, updated_at_ms) AS finished_at_ms
       FROM
           run_history
       WHERE
@@ -410,7 +419,10 @@ export function dbSelectVideo(): RunLogLocation[] {
       `
       SELECT
           id,
-          log_path
+          run_id,
+          log_path,
+          JSON_EXTRACT(snapshot, '$.builtin_record_video') AS record_video,
+          COALESCE(run_ended_at_ms, updated_at_ms) AS finished_at_ms
       FROM
           run_history
       WHERE

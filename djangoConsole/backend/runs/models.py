@@ -8,6 +8,7 @@ import uuid
 from typing import TYPE_CHECKING
 
 from django.db import models
+from django.db.models.lookups import Exact
 from django.utils import timezone
 
 from console_project.constants import (
@@ -234,6 +235,7 @@ class Run(models.Model):
     outputs_unavailable_keys = models.JSONField(default=list)
     error_summary = models.JSONField(null=True)
     logs_complete = models.BooleanField(default=False)
+    logs_unavailable_reason = models.CharField(max_length=2000, blank=True)
     log_bytes = models.PositiveBigIntegerField(default=0)
     logs_cleared_at = models.DateTimeField(null=True)
     recording = models.JSONField(default=dict)
@@ -249,6 +251,73 @@ class Run(models.Model):
             models.CheckConstraint(
                 condition=models.Q(outputs_status__in=OutputsStatus.values),
                 name="run_outputs_status_valid",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(result=RunResult.RUNNING, ended_at__isnull=True)
+                    | models.Q(result=RunResult.INTERRUPTED)
+                    | models.Q(
+                        result__in=[
+                            RunResult.COMPLETED,
+                            RunResult.ERROR,
+                            RunResult.CANCELED,
+                            RunResult.TIMED_OUT,
+                        ],
+                        ended_at__isnull=False,
+                    )
+                ),
+                name="run_result_end_time_valid",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(
+                    Exact(
+                        models.Func(
+                            models.F("outputs_unavailable_keys"),
+                            function="jsonb_typeof",
+                            output_field=models.CharField(),
+                        ),
+                        models.Value("array"),
+                    )
+                )
+                & (
+                    models.Q(
+                        outputs_status__in=[
+                            OutputsStatus.WAITING,
+                            OutputsStatus.UNAVAILABLE,
+                        ],
+                        outputs__isnull=True,
+                        outputs_unavailable_keys=[],
+                    )
+                    | (
+                        models.Q(outputs__isnull=False)
+                        & models.Q(
+                            Exact(
+                                models.Func(
+                                    models.F("outputs"),
+                                    function="jsonb_typeof",
+                                    output_field=models.CharField(),
+                                ),
+                                models.Value("array"),
+                            )
+                        )
+                        & (
+                            models.Q(
+                                outputs_status=OutputsStatus.COMPLETE,
+                                outputs_unavailable_keys=[],
+                            )
+                            | (
+                                models.Q(outputs_status=OutputsStatus.PARTIAL)
+                                & ~models.Q(outputs_unavailable_keys=[])
+                            )
+                        )
+                    )
+                ),
+                name="run_outputs_envelope_valid",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(logs_complete=False)
+                | models.Q(logs_unavailable_reason=""),
+                name="run_logs_completion_valid",
             ),
             models.CheckConstraint(
                 condition=models.Q(recording={})

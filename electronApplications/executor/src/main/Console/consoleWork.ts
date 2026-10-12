@@ -20,6 +20,7 @@ import {
 import { getDatabase } from "../Database/connection";
 import { loggerMain } from "../Logging/logger";
 import { startProjectRun, cancelRunById } from "../Run/projectRunner";
+import { PythonProcessNotStartedError } from "../Run/pythonProcess";
 import type { ProjectRunConfig } from "../Run/types";
 import { getLocalWaitingCount } from "../Scheduler/schedulerEngine";
 import { getConsolePythonCredential } from "./consoleAccount";
@@ -64,7 +65,6 @@ enum ConsolePermitWaitReason {
 }
 
 interface ConsoleStartPermit {
-  expiresAt: string;
   earliestStartMs: number;
   expiresAtMs: number;
   monotonicDeadlineMs: number;
@@ -296,7 +296,6 @@ async function requestStartPermit(
       if (intEarliestStart >= intExpiresAt)
         throw new Error("Console returned an invalid start permission window.");
       const permit: ConsoleStartPermit = {
-        expiresAt: new Date(intExpiresAt).toISOString(),
         // Server JSON timestamps lose sub-millisecond precision; keep both bounds safe.
         earliestStartMs: intEarliestStart + 1,
         expiresAtMs: intExpiresAt,
@@ -345,7 +344,6 @@ async function prepareAndStartRun(
     boolPrepared = true;
     ensureWorkMayStart(record, credential);
     const permit = await requestStartPermit(record, credential);
-    record.permitExpiresAt = permit.expiresAt;
     record.state = ConsoleWorkState.Permitted;
     saveConsoleWork(record);
     await startProjectRun(detail, {
@@ -401,8 +399,9 @@ async function prepareAndStartRun(
     });
   } catch (e: unknown) {
     const boolUncertain =
-      record.state === ConsoleWorkState.Launching ||
-      record.state === ConsoleWorkState.Running;
+      !(e instanceof PythonProcessNotStartedError) &&
+      (record.state === ConsoleWorkState.Launching ||
+        record.state === ConsoleWorkState.Running);
     const boolLocalConflict = !boolUncertain && e instanceof ConsoleStartConflictError;
     const strReason = getErrorMessage(e);
     let event: ConsoleEventData;
@@ -694,7 +693,7 @@ async function syncConsoleWork(
         sessionKey: strSessionKey,
         state: ConsoleWorkState.Preparing,
         logOffsets: {},
-        logsComplete: false,
+        logsFinished: false,
       };
       saveConsoleWork(record);
       const promiseWork = prepareAndStartRun(record, credential).finally(() => {

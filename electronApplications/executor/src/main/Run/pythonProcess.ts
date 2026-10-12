@@ -13,6 +13,8 @@ import { loggerMain } from "../Logging/logger";
 import { getExecutorRunArgumentsPath, removeExecutorRunArgumentsFile } from "./runState";
 import type { ProjectRunConfig } from "./types";
 
+export class PythonProcessNotStartedError extends Error {}
+
 export interface PythonProcessDiagnosticOutput {
   stdoutTail: string;
   stderrTail: string;
@@ -96,9 +98,11 @@ export function spawnProjectPythonProcess({
   const removeArgumentsFile = (): void => removeExecutorRunArgumentsFile(runId);
 
   // Open exclusively so a failed launch cannot overwrite another run's arguments.
-  const intArgumentsFd = fs.openSync(strArgumentsPath, "wx");
+  let boolArgumentsCreated = false;
   let processPy: ChildProcessWithoutNullStreams;
   try {
+    const intArgumentsFd = fs.openSync(strArgumentsPath, "wx");
+    boolArgumentsCreated = true;
     try {
       fs.writeFileSync(intArgumentsFd, strArguments, "utf8");
     } finally {
@@ -127,8 +131,9 @@ export function spawnProjectPythonProcess({
       },
     );
   } catch (e: unknown) {
-    removeArgumentsFile();
-    throw e;
+    if (boolArgumentsCreated) removeArgumentsFile();
+    // This block has not returned a child process; no automation could have started.
+    throw new PythonProcessNotStartedError(getErrorMessage(e), { cause: e });
   }
 
   // Spawned Python workers re-import the run arguments, so keep the file until close.

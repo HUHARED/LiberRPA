@@ -9,6 +9,7 @@ from liberrpa.Logging import Log
 from liberrpa.Common._WebSocket import SIGN_START_RECORD_VIDEO
 
 import subprocess
+import msvcrt
 import time
 import psutil
 from pathlib import Path
@@ -368,87 +369,37 @@ def record_screen(pid: int, folderName: str) -> None:
         except OSError as e:
             Log.error(f"Could not save recording state: {e}")
 
-    processRecord: subprocess.Popen | None = None
-    listPartPaths: list[Path] = []
-    intPartIndex = 0
-    boolRecordingFailed = False
+    def record() -> None:
+        processRecord: subprocess.Popen | None = None
+        listPartPaths: list[Path] = []
+        intPartIndex = 0
+        boolRecordingFailed = False
 
-    write_state(_RecordingStatus.RECORDING)
-    try:
-        primaryScreen = _get_primary_screen()
-        initialWidth = primaryScreen.width
-        initialHeight = primaryScreen.height
-        captureArea = _get_capture_area(
-            primaryScreen=primaryScreen,
-            initialWidth=initialWidth,
-            initialHeight=initialHeight,
-        )
+        write_state(_RecordingStatus.RECORDING)
+        try:
+            primaryScreen = _get_primary_screen()
+            initialWidth = primaryScreen.width
+            initialHeight = primaryScreen.height
+            captureArea = _get_capture_area(
+                primaryScreen=primaryScreen,
+                initialWidth=initialWidth,
+                initialHeight=initialHeight,
+            )
 
-        Log.debug(f"Record start: {folderName}")
-        Log.debug(f"Record size: {initialWidth}x{initialHeight}")
+            Log.debug(f"Record start: {folderName}")
+            Log.debug(f"Record size: {initialWidth}x{initialHeight}")
 
-        processRecord, pathPart = _start_record_part(
-            folderName=folderName,
-            partIndex=intPartIndex,
-            captureArea=captureArea,
-            outputWidth=initialWidth,
-            outputHeight=initialHeight,
-        )
-        listPartPaths.append(pathPart)
+            processRecord, pathPart = _start_record_part(
+                folderName=folderName,
+                partIndex=intPartIndex,
+                captureArea=captureArea,
+                outputWidth=initialWidth,
+                outputHeight=initialHeight,
+            )
+            listPartPaths.append(pathPart)
 
-        while psutil.pid_exists(pid):
-            time.sleep(_DISPLAY_POLL_INTERVAL_SECONDS)
-
-            try:
-                primaryScreenCurrent = _get_primary_screen()
-                captureAreaCurrent = _get_capture_area(
-                    primaryScreen=primaryScreenCurrent,
-                    initialWidth=initialWidth,
-                    initialHeight=initialHeight,
-                )
-            except Exception as e:
-                # Display information can be temporarily unavailable while Windows changes display modes.
-                Log.debug(f"Could not query the primary monitor while recording: {e}")
-                continue
-
-            if captureAreaCurrent != captureArea:
-                Log.info(
-                    "Primary monitor capture area changed: "
-                    f"{captureArea.x},{captureArea.y} {captureArea.width}x{captureArea.height} -> "
-                    f"{captureAreaCurrent.x},{captureAreaCurrent.y} "
-                    f"{captureAreaCurrent.width}x{captureAreaCurrent.height}. "
-                    f"Keep recording output at {initialWidth}x{initialHeight}."
-                )
-
-                if processRecord.poll() is None:
-                    _stop_ffmpeg(processRecord)
-                else:
-                    processRecord.wait()
-
-                processRecord = None
-
-                if not psutil.pid_exists(pid):
-                    break
-
-                captureArea = captureAreaCurrent
-                intPartIndex += 1
-                processRecord, pathPart = _start_record_part(
-                    folderName=folderName,
-                    partIndex=intPartIndex,
-                    captureArea=captureArea,
-                    outputWidth=initialWidth,
-                    outputHeight=initialHeight,
-                )
-                listPartPaths.append(pathPart)
-                continue
-
-            if processRecord.poll() is not None:
-                # gdigrab can fail just before Windows exposes the new monitor metrics.
-                intReturnCode = processRecord.returncode
-                time.sleep(_DISPLAY_CHANGE_GRACE_SECONDS)
-
-                if not psutil.pid_exists(pid):
-                    break
+            while psutil.pid_exists(pid):
+                time.sleep(_DISPLAY_POLL_INTERVAL_SECONDS)
 
                 try:
                     primaryScreenCurrent = _get_primary_screen()
@@ -458,19 +409,28 @@ def record_screen(pid: int, folderName: str) -> None:
                         initialHeight=initialHeight,
                     )
                 except Exception as e:
-                    Log.warning(
-                        f"ffmpeg stopped and the primary monitor is unavailable: {e}"
-                    )
-                    boolRecordingFailed = True
-                    processRecord = None
-                    break
+                    # Display information can be temporarily unavailable while Windows changes display modes.
+                    Log.debug(f"Could not query the primary monitor while recording: {e}")
+                    continue
 
                 if captureAreaCurrent != captureArea:
                     Log.info(
-                        "ffmpeg stopped during a display mode change. "
-                        f"Restart recording at {captureAreaCurrent.width}x{captureAreaCurrent.height}, "
-                        f"keeping output at {initialWidth}x{initialHeight}."
+                        "Primary monitor capture area changed: "
+                        f"{captureArea.x},{captureArea.y} {captureArea.width}x{captureArea.height} -> "
+                        f"{captureAreaCurrent.x},{captureAreaCurrent.y} "
+                        f"{captureAreaCurrent.width}x{captureAreaCurrent.height}. "
+                        f"Keep recording output at {initialWidth}x{initialHeight}."
                     )
+
+                    if processRecord.poll() is None:
+                        _stop_ffmpeg(processRecord)
+                    else:
+                        processRecord.wait()
+
+                    processRecord = None
+
+                    if not psutil.pid_exists(pid):
+                        break
 
                     captureArea = captureAreaCurrent
                     intPartIndex += 1
@@ -484,51 +444,114 @@ def record_screen(pid: int, folderName: str) -> None:
                     listPartPaths.append(pathPart)
                     continue
 
-                Log.warning(f"ffmpeg exit {intReturnCode}.")
-                boolRecordingFailed = True
-                processRecord = None
-                break
+                if processRecord.poll() is not None:
+                    # gdigrab can fail just before Windows exposes the new monitor metrics.
+                    intReturnCode = processRecord.returncode
+                    time.sleep(_DISPLAY_CHANGE_GRACE_SECONDS)
 
-    except Exception as e:
-        Log.error(f"Failed to start or continue recording: {e}")
-        boolRecordingFailed = True
+                    if not psutil.pid_exists(pid):
+                        break
 
-    finally:
-        if processRecord is not None:
-            try:
-                intReturnCode = _stop_ffmpeg(processRecord)
-                if intReturnCode != 0:
+                    try:
+                        primaryScreenCurrent = _get_primary_screen()
+                        captureAreaCurrent = _get_capture_area(
+                            primaryScreen=primaryScreenCurrent,
+                            initialWidth=initialWidth,
+                            initialHeight=initialHeight,
+                        )
+                    except Exception as e:
+                        Log.warning(
+                            f"ffmpeg stopped and the primary monitor is unavailable: {e}"
+                        )
+                        boolRecordingFailed = True
+                        processRecord = None
+                        break
+
+                    if captureAreaCurrent != captureArea:
+                        Log.info(
+                            "ffmpeg stopped during a display mode change. "
+                            f"Restart recording at {captureAreaCurrent.width}x{captureAreaCurrent.height}, "
+                            f"keeping output at {initialWidth}x{initialHeight}."
+                        )
+
+                        captureArea = captureAreaCurrent
+                        intPartIndex += 1
+                        processRecord, pathPart = _start_record_part(
+                            folderName=folderName,
+                            partIndex=intPartIndex,
+                            captureArea=captureArea,
+                            outputWidth=initialWidth,
+                            outputHeight=initialHeight,
+                        )
+                        listPartPaths.append(pathPart)
+                        continue
+
                     Log.warning(f"ffmpeg exit {intReturnCode}.")
                     boolRecordingFailed = True
-            except Exception as e:
-                Log.error(f"Failed to stop recording: {e}")
-                boolRecordingFailed = True
+                    processRecord = None
+                    break
 
-    if boolRecordingFailed:
-        write_state(
-            _RecordingStatus.UNAVAILABLE, "Video recording did not complete successfully."
-        )
-        return
+        except Exception as e:
+            Log.error(f"Failed to start or continue recording: {e}")
+            boolRecordingFailed = True
 
-    write_state(_RecordingStatus.PROCESSING)
-    try:
-        if not _merge_record_parts(folderName=folderName, listPartPaths=listPartPaths):
+        finally:
+            if processRecord is not None:
+                try:
+                    intReturnCode = _stop_ffmpeg(processRecord)
+                    if intReturnCode != 0:
+                        Log.warning(f"ffmpeg exit {intReturnCode}.")
+                        boolRecordingFailed = True
+                except Exception as e:
+                    Log.error(f"Failed to stop recording: {e}")
+                    boolRecordingFailed = True
+
+        if boolRecordingFailed:
+            write_state(
+                _RecordingStatus.UNAVAILABLE,
+                "Video recording did not complete successfully.",
+            )
+            return
+
+        write_state(_RecordingStatus.PROCESSING)
+        try:
+            if not _merge_record_parts(
+                folderName=folderName, listPartPaths=listPartPaths
+            ):
+                write_state(
+                    _RecordingStatus.UNAVAILABLE,
+                    "The recorded video could not be assembled.",
+                )
+                return
+        except Exception as e:
+            Log.error(f"Failed to assemble the recording: {e}")
             write_state(
                 _RecordingStatus.UNAVAILABLE, "The recorded video could not be assembled."
             )
             return
-    except Exception as e:
-        Log.error(f"Failed to assemble the recording: {e}")
-        write_state(
-            _RecordingStatus.UNAVAILABLE, "The recorded video could not be assembled."
-        )
-        return
 
-    strReason = ""
-    try:
-        _create_log_subtitle(folderName=folderName)
-    except Exception as e:
-        Log.error(f"Failed to create recording subtitles: {e}")
-        strReason = "Subtitles could not be created."
-    write_state(_RecordingStatus.READY, strReason)
-    Log.debug(f"Record end: {folderName} – clean exit.")
+        strReason = ""
+        try:
+            _create_log_subtitle(folderName=folderName)
+        except Exception as e:
+            Log.error(f"Failed to create recording subtitles: {e}")
+            strReason = "Subtitles could not be created."
+        write_state(_RecordingStatus.READY, strReason)
+        Log.debug(f"Record end: {folderName} – clean exit.")
+
+    pathLock = Path(folderName) / "video_record.lock"
+    # NOTE: Executor probes this byte lock; keep it held until all recording work has ended.
+    with pathLock.open("a+b") as fileLock:
+        if fileLock.tell() == 0:
+            fileLock.write(b"1")
+            fileLock.flush()
+        fileLock.seek(0)
+        msvcrt.locking(fileLock.fileno(), msvcrt.LK_NBLCK, 1)
+        try:
+            record()
+        except BaseException:
+            write_state(_RecordingStatus.UNAVAILABLE, "Video recording was interrupted.")
+            raise
+        finally:
+            fileLock.seek(0)
+            msvcrt.locking(fileLock.fileno(), msvcrt.LK_UNLCK, 1)

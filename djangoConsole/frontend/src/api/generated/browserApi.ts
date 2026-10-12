@@ -1370,6 +1370,7 @@ export interface RunLogListResponse {
   complete: boolean;
   has_more: boolean;
   logs: RunLogEntryResponse[];
+  unavailable_reason: string;
 }
 export interface RunLogEntryResponse {
   custom_fields: {
@@ -1380,6 +1381,7 @@ export interface RunLogEntryResponse {
   line_no: string;
   log_id: string;
   machine_name: string;
+  message_omitted: boolean;
   message_text: string;
   process_name: string;
   project_name: string;

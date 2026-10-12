@@ -2,11 +2,11 @@
 
 import { randomUUID } from "crypto";
 
-import type { RunOutputs, RunTerminalStatus } from "../../shared/run";
+import type { RunOutputs, RunTerminalStatus, RunRecordingInfo } from "../../shared/run";
 import { getDatabase } from "../Database/connection";
 import type { RunEndedFact } from "../Run/types";
 import { isRecoveredProcessPresent } from "../Run/recoveredRuns";
-import type { ConsoleWorkRecord, ConsoleRecordingInfo } from "./workRepository";
+import type { ConsoleWorkRecord } from "./workRepository";
 
 export enum ConsoleEventKind {
   PreparationFailed = "preparation_failed",
@@ -46,7 +46,7 @@ export type ConsoleEventData =
     }
   | {
       kind: ConsoleEventKind.Recording;
-      recording: ConsoleRecordingInfo;
+      recording: RunRecordingInfo;
     };
 
 export type ConsoleEvent = ConsoleEventData & {
@@ -87,7 +87,7 @@ interface RejectedEventRetentionRow {
   started_type: string | null;
   ended_type: string | null;
   process_id: number | null;
-  logs_complete: number | null;
+  logs_finished: number | null;
   record_video: number | null;
   recording_finished: number | null;
   has_pending_work: number;
@@ -106,7 +106,7 @@ const STR_REJECTED_EVENT_RETENTION_SELECT = `
         json_type(work.content, '$.started') AS started_type,
         json_type(work.content, '$.ended') AS ended_type,
         json_extract(work.content, '$.started.processId') AS process_id,
-        json_extract(work.content, '$.logsComplete') AS logs_complete,
+        json_extract(work.content, '$.logsFinished') AS logs_finished,
         json_extract(work.content, '$.assignment.snapshot.builtin_record_video')
             AS record_video,
         json_extract(work.content, '$.recording.status') IN ('ready', 'unavailable')
@@ -283,7 +283,7 @@ function isRejectedEventLocallySettled(row: RejectedEventRetentionRow): boolean 
   return (
     row.started_type === "object" &&
     row.ended_type === "object" &&
-    row.logs_complete === 1 &&
+    row.logs_finished === 1 &&
     (row.record_video === 0 || row.recording_finished === 1) &&
     row.process_id !== null &&
     Number.isSafeInteger(row.process_id) &&

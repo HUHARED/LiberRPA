@@ -123,7 +123,7 @@
         {{ formatDateTime(item.started_at, strTimeZone) }}
       </template>
       <template #item.ended_at="{ item }">
-        {{ item.ended_at ? formatDateTime(item.ended_at, strTimeZone) : "Unknown" }}
+        {{ formatRunEndTime(item, strTimeZone) }}
       </template>
       <template #item.result="{ item }">{{ RUN_RESULT_LABELS[item.result] }}</template>
       <template #item.actions="{ item }">
@@ -213,7 +213,7 @@ import {
 } from "@/api/runs";
 import { getApiError } from "@/api/errors";
 import { RUN_RESULT_LABELS } from "@/app/runLabels";
-import { formatDateTime } from "@/app/formatters";
+import { formatDateTime, formatRunEndTime } from "@/app/formatters";
 import { useSessionStore } from "@/stores/sessionStore";
 const ARR_HEADER = [
   { title: "Schedule", key: "schedule_name" },

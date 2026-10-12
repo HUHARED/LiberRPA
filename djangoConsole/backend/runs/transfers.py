@@ -188,7 +188,6 @@ def build_run_file_availability(run: Run) -> dict[RunFileKind, RunFileAvailabili
 class FileReadyRequest(JsonRequest):
     size_bytes: int = Field(default=0, ge=0, le=2 * 1024 * 1024 * 1024)
     filename: str = Field(default="download", max_length=180)
-    content_type: str = Field(default="application/octet-stream", max_length=100)
     error: str = Field(default="", max_length=1000)
 
 

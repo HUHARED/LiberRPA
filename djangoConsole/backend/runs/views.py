@@ -34,6 +34,7 @@ from console_project.http import (
 from organizations.http import get_request_membership, lock_request_write_access
 from operations.audit import record_audit
 from organizations.models import Membership
+from organizations.validators import get_path_name_key
 from organizations.permissions import (
     AccessChannel,
     OrganizationAccessContext,
@@ -207,7 +208,7 @@ def _process_work_request(
                     Package.objects
                     .filter(
                         department_id=run.job.department_id,
-                        project_name=run.job.project_name,
+                        project_name_key=get_path_name_key(run.job.project_name),
                     )
                     .order_by("-uploaded_at", "-id")
                     .first()

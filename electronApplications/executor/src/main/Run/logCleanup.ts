@@ -3,6 +3,7 @@
 import fs from "fs";
 import path from "path";
 
+import { RunRecordingStatus } from "../../shared/run";
 import { getErrorMessage } from "../../shared/error";
 import type { RunLogLocation } from "../Database/rowValidation";
 import {
@@ -14,6 +15,8 @@ import {
 } from "../Database/runHistoryRepository";
 import { loggerMain } from "../Logging/logger";
 import { ensureExistingRunLogFolderPath } from "./logPath";
+import { readRunRecording } from "./recording";
+import { markConsoleLogsUnavailable } from "../Console/workRepository";
 
 const INT_MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
 const STR_VIDEO_FILE_NAME = "video_record.mkv";
@@ -32,10 +35,22 @@ function getExistingLogFilePath(folderPath: string, fileName: string): string | 
 }
 
 function getExistingRunLogFolderPath(logLocation: RunLogLocation): string | undefined {
-  if (!fs.existsSync(logLocation.log_path)) {
-    return undefined;
+  try {
+    fs.statSync(logLocation.log_path);
+  } catch (e: unknown) {
+    if (e instanceof Error && "code" in e && e.code === "ENOENT") return undefined;
+    throw e;
   }
   return ensureExistingRunLogFolderPath(logLocation.log_path);
+}
+
+function canCleanRunRecording(logLocation: RunLogLocation): boolean {
+  if (!logLocation.record_video) return true;
+  const recording = readRunRecording(logLocation.log_path, logLocation.finished_at_ms);
+  return (
+    recording?.status === RunRecordingStatus.Ready ||
+    recording?.status === RunRecordingStatus.Unavailable
+  );
 }
 
 function deleteVideoFiles(logFolderPath: string): boolean {
@@ -62,6 +77,7 @@ export function deleteExpiredRunLogs(retentionDays: number): void {
 
   for (const logLocation of arrLogLocation) {
     try {
+      if (!canCleanRunRecording(logLocation)) continue;
       const strLogFolderPath = getExistingRunLogFolderPath(logLocation);
       if (strLogFolderPath === undefined) {
         loggerMain.debug(`No log folder: ${logLocation.log_path}`);
@@ -70,6 +86,10 @@ export function deleteExpiredRunLogs(retentionDays: number): void {
         fs.rmSync(strLogFolderPath, { recursive: true });
       }
 
+      markConsoleLogsUnavailable(
+        logLocation.run_id,
+        "The local log retention period ended before upload completed.",
+      );
       dbUpdateNoLogFolderAndVideo(logLocation.id);
     } catch (e: unknown) {
       loggerMain.error(
@@ -85,6 +105,7 @@ export function deleteExpiredRunVideos(retentionDays: number): void {
 
   for (const logLocation of arrLogLocation) {
     try {
+      if (!canCleanRunRecording(logLocation)) continue;
       const strLogFolderPath = getExistingRunLogFolderPath(logLocation);
       if (strLogFolderPath === undefined) {
         loggerMain.debug(`No log folder for video: ${logLocation.log_path}`);
@@ -109,6 +130,7 @@ export function enforceVideoStorageLimit(storageLimitGiB: number): void {
 
   for (const logLocation of arrLogLocation) {
     try {
+      if (!canCleanRunRecording(logLocation)) continue;
       const strLogFolderPath = getExistingRunLogFolderPath(logLocation);
       if (strLogFolderPath === undefined) {
         loggerMain.debug(`No log folder for video: ${logLocation.log_path}`);

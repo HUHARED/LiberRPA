@@ -402,6 +402,7 @@ class RunLogEntryResponse(JsonResponsePayload):
     line_no: str
     project_name: str
     message_text: str
+    message_omitted: bool
     custom_fields: dict[str, str]
 
 
@@ -412,6 +413,7 @@ class RunLogListResponse(JsonResponsePayload):
     has_more: bool
     cleared: bool
     complete: bool
+    unavailable_reason: str
 
 
 class RunLogClearEntryResponse(JsonResponsePayload):

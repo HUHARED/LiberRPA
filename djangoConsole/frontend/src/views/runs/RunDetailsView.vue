@@ -35,7 +35,7 @@
             <p>Started At: {{ formatDateTime(run.started_at, strTimeZone) }}</p>
             <p>
               Ended At:
-              {{ run.ended_at ? formatDateTime(run.ended_at, strTimeZone) : "Unknown" }}
+              {{ formatRunEndTime(run, strTimeZone) }}
             </p>
             <p v-if="run.reason" class="text-pre-wrap">{{ run.reason }}</p>
           </v-col>
@@ -270,7 +270,12 @@ import {
 } from "@/api/runs";
 import { getApiError } from "@/api/errors";
 import { JOB_SOURCE_LABELS, RUN_RESULT_LABELS } from "@/app/runLabels";
-import { formatDateTime, formatFileSize, formatJsonValue } from "@/app/formatters";
+import {
+  formatDateTime,
+  formatRunEndTime,
+  formatFileSize,
+  formatJsonValue,
+} from "@/app/formatters";
 import { useSessionStore } from "@/stores/sessionStore";
 const props = defineProps<{ runId: string }>();
 const sessionStore = useSessionStore();

@@ -35,7 +35,7 @@ class Package(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     department = models.ForeignKey("organizations.Department", on_delete=models.PROTECT)
     project_name = models.CharField(max_length=255)
-    project_name_key = models.CharField(max_length=255, db_collation="C")
+    project_name_key = models.TextField(db_collation="C")
     project_version = models.CharField(max_length=INT_WINDOWS_NAME_MAX_LENGTH)
     project_version_key = models.CharField(
         max_length=INT_WINDOWS_NAME_MAX_LENGTH, db_collation="C"

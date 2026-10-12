@@ -295,6 +295,7 @@ function isLogEntry(value: unknown): value is LogEntry {
     /^(0|[1-9]\d*)$/.test(value.line_no) &&
     typeof value.project_name === "string" &&
     typeof value.message_text === "string" &&
+    typeof value.message_omitted === "boolean" &&
     isRecord(value.custom_fields) &&
     Object.values(value.custom_fields).every((field) => typeof field === "string")
   );
@@ -315,7 +316,8 @@ export async function getRunLogs(
     !isNonnegativeInteger(result.after_cursor) ||
     typeof result.has_more !== "boolean" ||
     typeof result.cleared !== "boolean" ||
-    typeof result.complete !== "boolean"
+    typeof result.complete !== "boolean" ||
+    typeof result.unavailable_reason !== "string"
   )
     return rejectInvalidResponse();
   return {
@@ -325,6 +327,7 @@ export async function getRunLogs(
     has_more: result.has_more,
     cleared: result.cleared,
     complete: result.complete,
+    unavailable_reason: result.unavailable_reason,
   };
 }
 export async function clearRunLogs(ids: string[]): Promise<RunLogClearResponse> {

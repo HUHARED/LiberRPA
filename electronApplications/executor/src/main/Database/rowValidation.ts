@@ -41,7 +41,10 @@ export function ensureSingleRowAffected(
 
 export interface RunLogLocation {
   id: number;
+  run_id: string;
   log_path: string;
+  record_video: boolean;
+  finished_at_ms: number;
 }
 
 function ensureBinaryInteger(value: unknown, sourceName: string): 0 | 1 {
@@ -467,9 +470,19 @@ export function ensureRunHistoryLogLocationRow(
   value: unknown,
   sourceName: string,
 ): RunLogLocation {
-  const row = ensureExactRecord(value, ["id", "log_path"], sourceName);
+  const row = ensureExactRecord(
+    value,
+    ["id", "run_id", "log_path", "record_video", "finished_at_ms"],
+    sourceName,
+  );
   return {
     id: ensurePositiveInteger(row.id, `${sourceName}.id`),
+    run_id: ensureNonEmptyString(row.run_id, `${sourceName}.run_id`),
     log_path: ensureNonEmptyString(row.log_path, `${sourceName}.log_path`),
+    record_video: ensureBinaryInteger(row.record_video, `${sourceName}.record_video`) === 1,
+    finished_at_ms: ensureNonNegativeInteger(
+      row.finished_at_ms,
+      `${sourceName}.finished_at_ms`,
+    ),
   };
 }

@@ -1,5 +1,7 @@
 // FileName: formatters.ts
 
+import type { RunResponse } from "@/api/generated/browserApi";
+
 export function getDisplayName(username: string, email: string): string {
   return username || email;
 }
@@ -26,6 +28,14 @@ export function formatDateTime(value: string | null, timeZone: string): string {
   const strDate = `${mapPart.get("year")}-${mapPart.get("month")}-${mapPart.get("day")}`;
   const strTime = `${mapPart.get("hour")}:${mapPart.get("minute")}:${mapPart.get("second")}`;
   return `${strDate} ${strTime} ${strOffset}`;
+}
+
+export function formatRunEndTime(
+  run: Pick<RunResponse, "result" | "ended_at">,
+  timeZone: string,
+): string {
+  if (run.ended_at !== null) return formatDateTime(run.ended_at, timeZone);
+  return run.result === "running" ? "—" : "Unknown";
 }
 
 export function formatDateTimeInput(

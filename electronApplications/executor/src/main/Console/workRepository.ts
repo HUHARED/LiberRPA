@@ -2,6 +2,7 @@
 
 import { createHash } from "crypto";
 
+import type { RunRecordingInfo } from "../../shared/run";
 import type {
   RunOptions,
   PythonEnvironmentSelection,
@@ -23,20 +24,6 @@ export enum ConsoleWorkState {
   Running = "running",
   Finished = "finished",
   Unknown = "unknown",
-}
-
-export enum ConsoleRecordingStatus {
-  Recording = "recording",
-  Processing = "processing",
-  Ready = "ready",
-  Unavailable = "unavailable",
-}
-
-export interface ConsoleRecordingInfo {
-  status: ConsoleRecordingStatus;
-  videoSizeBytes?: number | null;
-  subtitleSizeBytes?: number | null;
-  reason?: string;
 }
 
 // Only the fields consumed by Executor; the stored payload retains server-only fields.
@@ -69,10 +56,10 @@ export interface ConsoleWorkRecord {
   started?: RunStartedFact;
   ended?: RunEndedFact;
   logOffsets: Record<string, number>;
-  logsComplete: boolean;
-  permitExpiresAt?: string;
+  logsFinished: boolean;
+  logsUnavailableReason?: string;
   // Persisted with its reliable event; this is not a server acknowledgement.
-  recording?: ConsoleRecordingInfo;
+  recording?: RunRecordingInfo;
   stopReason?: RunTerminationReason;
 }
 
@@ -116,7 +103,8 @@ export function saveConsoleWork(record: ConsoleWorkRecord): void {
   const existing = getConsoleWork(record.assignment.id);
   if (existing) {
     record.logOffsets = { ...record.logOffsets, ...existing.logOffsets };
-    record.logsComplete ||= existing.logsComplete;
+    record.logsFinished ||= existing.logsFinished;
+    record.logsUnavailableReason ??= existing.logsUnavailableReason;
     record.recording ??= existing.recording;
   }
   getDatabase()
@@ -184,7 +172,7 @@ export function getPendingConsoleLogWork(sessionKey: string): ConsoleWorkRecord[
           AND (
               (
                   json_type(content, '$.started') = 'object'
-                  AND json_extract(content, '$.logsComplete') = 0
+                  AND json_extract(content, '$.logsFinished') = 0
               )
               OR (
                   json_type(content, '$.ended') = 'object'
@@ -207,13 +195,18 @@ export function getPendingConsoleLogWork(sessionKey: string): ConsoleWorkRecord[
 export function saveConsoleLogProgress(
   id: string,
   offsets: Record<string, number>,
-  complete: boolean,
+  finished: boolean,
+  acknowledgedUnavailableReason?: string,
 ): void {
   const record = getConsoleWork(id);
   if (!record) return;
   resetConsoleEventRetention(record);
   record.logOffsets = offsets;
-  record.logsComplete ||= complete;
+  // Cleanup can finish while an upload is awaiting its receipt; do not lose its pending report.
+  record.logsFinished ||=
+    finished &&
+    (record.logsUnavailableReason === undefined ||
+      record.logsUnavailableReason === acknowledgedUnavailableReason);
   getDatabase()
     .prepare(
       `
@@ -228,7 +221,28 @@ export function saveConsoleLogProgress(
     .run(JSON.stringify({ ...record, state: undefined }), Date.now(), id);
 }
 
-export function reportConsoleRecording(id: string, recording: ConsoleRecordingInfo): void {
+export function markConsoleLogsUnavailable(runId: string, reason: string): void {
+  const row = getDatabase()
+    .prepare(
+      `
+      SELECT
+          state,
+          content
+      FROM
+          console_work
+      WHERE
+          json_extract(content, '$.assignment.run_id') = ?;
+      `,
+    )
+    .get(runId) as ConsoleWorkRow | undefined;
+  if (!row) return;
+  const record = parseConsoleWorkRow(row);
+  if (record.logsFinished || record.logsUnavailableReason !== undefined) return;
+  record.logsUnavailableReason = reason;
+  saveConsoleWork(record);
+}
+
+export function reportConsoleRecording(id: string, recording: RunRecordingInfo): void {
   const record = getConsoleWork(id);
   if (!record) return;
   const previousRecording = record.recording;

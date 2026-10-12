@@ -17,7 +17,7 @@
         <td>{{ run.executor_name }}</td>
         <td class="text-no-wrap">{{ formatDateTime(run.started_at, timeZone) }}</td>
         <td class="text-no-wrap">
-          {{ run.ended_at ? formatDateTime(run.ended_at, timeZone) : "Unknown" }}
+          {{ formatRunEndTime(run, timeZone) }}
         </td>
         <td>{{ RUN_RESULT_LABELS[run.result] }}</td>
         <td>
@@ -38,7 +38,7 @@
 <script setup lang="ts">
 import type { RunInfo } from "@/api/runs";
 import { RUN_RESULT_LABELS } from "@/app/runLabels";
-import { formatDateTime } from "@/app/formatters";
+import { formatDateTime, formatRunEndTime } from "@/app/formatters";
 defineProps<{
   runs: RunInfo[];
   timeZone: string;

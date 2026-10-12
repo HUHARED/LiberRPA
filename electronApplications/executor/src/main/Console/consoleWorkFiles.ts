@@ -7,27 +7,25 @@ import { performance } from "perf_hooks";
 import { finished } from "stream/promises";
 import path from "path";
 
+import { RunRecordingStatus } from "../../shared/run";
 import { getErrorMessage } from "../../shared/error";
 import {
   ensureRecord,
-  ensureString,
   ensureNonEmptyString,
   ensurePositiveInteger,
-  ensureNullableNonNegativeInteger,
 } from "../Common/validation";
 import { strDocumentsFolderPath } from "../Config/environment";
 import { runFileWorker } from "../FileSystem/fileWorker";
 import { loggerMain } from "../Logging/logger";
 import { ensureExistingRunLogFolderPath } from "../Run/logPath";
-import { isRecoveredProcessPresent } from "../Run/recoveredRuns";
+import { readRunRecording } from "../Run/recording";
 import { ConsoleRequestError, requestConsole } from "./consoleApi";
 import strLogArchiveWorkerPath from "./logArchiveWorker?modulePath";
 import type { LogArchiveArgs } from "./logArchiveWorker";
 import type { ConsoleCredentialSnapshot } from "./consoleContextBridge";
 import {
-  ConsoleRecordingStatus,
-  type ConsoleRecordingInfo,
   type ConsoleWorkRecord,
+  getConsoleWork,
   getConsoleWorkForRun,
   getPendingConsoleLogWork,
   saveConsoleLogProgress,
@@ -48,7 +46,6 @@ const INT_LOG_READ_BYTES = 64 * 1024;
 const INT_LOG_ENTRY_BYTES = 256 * 1024;
 const INT_LOG_BATCH_BYTES = 1024 * 1024;
 const INT_LOG_BATCH_ENTRIES = 500;
-const INT_RECORDING_START_GRACE_MS = 60_000;
 
 interface LogBatch {
   fileKey: string;
@@ -214,46 +211,6 @@ function getLogRejections(response: Record<string, unknown>, logs: string[]): st
   return [...mapRejected].map(([intIndex, strReason]) => `${intIndex}: ${strReason}`);
 }
 
-function readConsoleRecording(filePath: string): ConsoleRecordingInfo {
-  const dictRecording = ensureRecord(
-    JSON.parse(fs.readFileSync(filePath, "utf8")) as unknown,
-    "Recording state",
-  );
-  if (
-    Object.keys(dictRecording).some(
-      (strKey) =>
-        !["status", "videoSizeBytes", "subtitleSizeBytes", "reason"].includes(strKey),
-    )
-  )
-    throw new Error("Recording state contains unsupported fields.");
-  const status = dictRecording.status;
-  if (
-    status !== ConsoleRecordingStatus.Recording &&
-    status !== ConsoleRecordingStatus.Processing &&
-    status !== ConsoleRecordingStatus.Ready &&
-    status !== ConsoleRecordingStatus.Unavailable
-  )
-    throw new Error("Recording state contains an unsupported status.");
-  const strReason = ensureString(
-    dictRecording.reason === undefined ? "" : dictRecording.reason,
-    "Recording reason",
-  );
-  if ([...strReason].length > 2000)
-    throw new Error("Recording reason cannot exceed 2000 characters.");
-  return {
-    status,
-    videoSizeBytes: ensureNullableNonNegativeInteger(
-      dictRecording.videoSizeBytes ?? null,
-      "Recording video size",
-    ),
-    subtitleSizeBytes: ensureNullableNonNegativeInteger(
-      dictRecording.subtitleSizeBytes ?? null,
-      "Recording subtitle size",
-    ),
-    reason: strReason,
-  };
-}
-
 async function flushRunLogs(
   record: ConsoleWorkRecord,
   credential: ConsoleCredentialSnapshot,
@@ -261,29 +218,34 @@ async function flushRunLogs(
   if (record.ended && record.assignment.snapshot.builtin_record_video === true) {
     const recording = record.recording;
     if (
-      recording?.status !== ConsoleRecordingStatus.Ready &&
-      recording?.status !== ConsoleRecordingStatus.Unavailable
+      recording?.status !== RunRecordingStatus.Ready &&
+      recording?.status !== RunRecordingStatus.Unavailable
     ) {
-      const strMarkerPath = path.join(record.ended.logPath, "video_record.state.json");
-      if (fs.existsSync(strMarkerPath)) {
-        reportConsoleRecording(record.assignment.id, readConsoleRecording(strMarkerPath));
-      } else if (
-        Date.now() - Date.parse(record.ended.endedAt) >= INT_RECORDING_START_GRACE_MS &&
-        (record.started?.processId === undefined ||
-          !isRecoveredProcessPresent(record.started.processId))
-      ) {
-        // A present recording/processing marker may outlive the Run while files finalize.
-        reportConsoleRecording(record.assignment.id, {
-          status: ConsoleRecordingStatus.Unavailable,
-          videoSizeBytes: null,
-          subtitleSizeBytes: null,
-          reason: "Recording did not start.",
-        });
-      }
+      const currentRecording = readRunRecording(
+        record.ended.logPath,
+        Date.parse(record.ended.endedAt),
+      );
+      if (currentRecording) reportConsoleRecording(record.assignment.id, currentRecording);
     }
   }
-  if (!record.started || record.logsComplete || !fs.existsSync(record.started.logPath))
+  if (!record.started || record.logsFinished) return;
+  if (record.logsUnavailableReason !== undefined) {
+    const response = await requestConsole(
+      credential.consoleUrl,
+      `executor/runs/${record.assignment.run_id}/logs/`,
+      credential.token,
+      { logs: [], complete: false, unavailable_reason: record.logsUnavailableReason },
+    );
+    getLogRejections(response, []);
+    saveConsoleLogProgress(
+      record.assignment.id,
+      record.logOffsets,
+      true,
+      record.logsUnavailableReason,
+    );
     return;
+  }
+  if (!fs.existsSync(record.started.logPath)) return;
   const strFolder = ensureExistingRunLogFolderPath(record.started.logPath);
   const arrName = fs
     .readdirSync(strFolder)
@@ -309,7 +271,7 @@ async function flushRunLogs(
       );
       arrRejected = getLogRejections(response, batch.logs);
       if (response.accepting === false) {
-        record.logsComplete = true;
+        record.logsFinished = true;
         saveConsoleLogProgress(record.assignment.id, record.logOffsets, true);
         break;
       }
@@ -317,7 +279,7 @@ async function flushRunLogs(
     if (batch.nextOffset === intOffset) continue;
     // Only acknowledged entries and locally rejected whole lines advance the saved cursor.
     record.logOffsets[strFileKey] = batch.nextOffset;
-    saveConsoleLogProgress(record.assignment.id, record.logOffsets, record.logsComplete);
+    saveConsoleLogProgress(record.assignment.id, record.logOffsets, record.logsFinished);
     if (arrRejected.length)
       loggerMain.warn(
         `Console rejected ${arrRejected.length} MachineLog entries for Run ` +
@@ -336,7 +298,9 @@ async function flushRunLogs(
       );
     }
   }
-  if (!record.logsComplete && record.ended && boolAtEnd) {
+  if (!record.logsFinished && record.ended && boolAtEnd) {
+    // A retention pass may have removed the source during the preceding upload.
+    if (getConsoleWork(record.assignment.id)?.logsUnavailableReason !== undefined) return;
     const response = await requestConsole(
       credential.consoleUrl,
       `executor/runs/${record.assignment.run_id}/logs/`,
@@ -344,7 +308,7 @@ async function flushRunLogs(
       { logs: [], complete: true },
     );
     getLogRejections(response, []);
-    record.logsComplete = true;
+    record.logsFinished = true;
     saveConsoleLogProgress(record.assignment.id, record.logOffsets, true);
   }
 }
@@ -426,10 +390,9 @@ async function prepareTransferFile(
   const strFolder = ensureExistingRunLogFolderPath(record.started.logPath);
   const boolVideo = record.assignment.snapshot.builtin_record_video === true;
   if (boolVideo) {
-    const strMarker = path.join(strFolder, "video_record.state.json");
     if (
-      !fs.existsSync(strMarker) ||
-      readConsoleRecording(strMarker).status !== ConsoleRecordingStatus.Ready
+      readRunRecording(strFolder, Date.parse(record.ended.endedAt))?.status !==
+      RunRecordingStatus.Ready
     )
       throw new Error("Recording finalization has not completed successfully.");
   }
@@ -510,7 +473,6 @@ export async function sendConsoleFile(
       {
         size_bytes: stat.size,
         filename: path.basename(source.filePath),
-        content_type: source.contentType,
       },
     );
     boolReady = true;
@@ -622,7 +584,6 @@ export async function sendConsoleFile(
           {
             size_bytes: 0,
             filename: "",
-            content_type: "application/octet-stream",
             error: getErrorMessage(e),
           },
         );

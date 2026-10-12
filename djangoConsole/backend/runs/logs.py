@@ -16,7 +16,7 @@ from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from accounts.resource_authentication import (
     NativeResourceAuthenticationContext,
@@ -61,6 +61,16 @@ _SET_BUILTIN_LOG_KEYS = {
 class LogBatchRequest(JsonRequest):
     logs: list[str] = Field(max_length=500)
     complete: bool = False
+    unavailable_reason: str = Field(default="", max_length=2000)
+
+    @model_validator(mode="after")
+    def validate_completion(self) -> "LogBatchRequest":
+        validate_json_string(self.unavailable_reason)
+        if self.unavailable_reason and (self.complete or self.logs):
+            raise ValueError(
+                "Report an unavailable log source separately from log entries or completion."
+            )
+        return self
 
 
 def _validate_log_text(value: JsonValue) -> None:
@@ -217,7 +227,7 @@ def upload_logs(request: HttpRequest, runId: uuid.UUID) -> HttpResponse:
                 assignment__session_id=authentication.sessionId,
                 assignment__actor_id=access.actorId,
             )
-            if run.logs_cleared_at is not None:
+            if run.logs_cleared_at is not None or run.logs_unavailable_reason:
                 return JsonResponse({
                     "accepted": True,
                     "accepting": False,
@@ -268,9 +278,13 @@ def upload_logs(request: HttpRequest, runId: uuid.UUID) -> HttpResponse:
                 # Receipts and counters describe the same committed rows.
                 RunLog.objects.bulk_create(listRunLog)
                 add_run_log_usage(usage, run, intAddedBytes)
-            if payload.complete and not run.logs_complete:
-                run.logs_complete = True
-                run.save(update_fields=["logs_complete"])
+            if not run.logs_complete:
+                if payload.unavailable_reason:
+                    run.logs_unavailable_reason = payload.unavailable_reason
+                    run.save(update_fields=["logs_unavailable_reason"])
+                elif payload.complete:
+                    run.logs_complete = True
+                    run.save(update_fields=["logs_complete"])
             return JsonResponse({
                 "accepted": True,
                 "accepting": True,
@@ -319,6 +333,7 @@ def list_logs(request: HttpRequest, runId: uuid.UUID) -> HttpResponse:
             "has_more": False,
             "cleared": run.logs_cleared_at is not None,
             "complete": run.logs_complete,
+            "unavailable_reason": run.logs_unavailable_reason,
         }
         intBeforeCursor: int | None = None
         intAfterCursor = 0
@@ -349,6 +364,7 @@ def list_logs(request: HttpRequest, runId: uuid.UUID) -> HttpResponse:
                     allow_nan=False,
                     separators=(",", ":"),
                 ),
+                "message_omitted": False,
                 "custom_fields": log.custom_fields,
             }
             intBytes = len(
@@ -369,8 +385,18 @@ def list_logs(request: HttpRequest, runId: uuid.UUID) -> HttpResponse:
             )
             intContentBytes = intTotalBytes + intBytes + (1 if listLog else 0)
             if intHeaderBytes + intContentBytes > _INT_PREVIEW_BYTES:
-                boolMore = True
-                break
+                if listLog:
+                    boolMore = True
+                    break
+                # Double encoding a structured message can exceed the preview budget even for a valid source entry.
+                # Preserve the stored message and advance this cursor with an explicit preview placeholder.
+                dictLog["message_text"] = ""
+                dictLog["message_omitted"] = True
+                intContentBytes = len(
+                    json.dumps(
+                        dictLog, ensure_ascii=False, separators=(",", ":")
+                    ).encode()
+                )
             listLog.append(dictLog)
             intTotalBytes = intContentBytes
             dictResponse = dictHeader

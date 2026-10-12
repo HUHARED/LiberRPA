@@ -69,7 +69,6 @@ class WorkAssignmentPayload(TypedDict):
     run_id: uuid.UUID
     attempt_number: int
     package_id: uuid.UUID
-    package_download_url: str
     snapshot: dict[str, JsonValue]
 
 
@@ -83,7 +82,6 @@ class WorkPollResponse(TypedDict):
     stop_requests: list[WorkStopCommand]
     file_transfers: list["PendingRunFileTransfer"]
     preparations: list["PackagePreparationCommand"]
-    server_time: datetime
 
 
 class WorkPermitResponse(TypedDict):
@@ -162,7 +160,6 @@ def _poll(authentication: ExecutorClientResult, payload: WorkPollRequest) -> Jso
             "run_id": assignment.run_id,
             "attempt_number": assignment.attempt_number,
             "package_id": assignment.job.package_id,
-            "package_download_url": f"/api/clients/executor/packages/{assignment.job.package_id}/downloads/",
             "snapshot": {
                 **assignment.job.run_snapshot,
                 "schedule_name": assignment.job.request.schedule_name or None,
@@ -210,7 +207,6 @@ def _poll(authentication: ExecutorClientResult, payload: WorkPollRequest) -> Jso
         ],
         "file_transfers": get_pending_transfers(session.pk),
         "preparations": claim_package_preparations(authentication.access, session),
-        "server_time": timezone.now(),
     }
     return JsonResponse(dictResponse)
 
