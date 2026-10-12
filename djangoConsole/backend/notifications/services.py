@@ -18,8 +18,7 @@ from organizations.permissions import (
     get_authorized_departments,
     resolve_organization_access,
 )
-
-from runs.models import JobSource
+from runs.contracts import JobSource
 
 from .models import Notification
 

@@ -481,7 +481,8 @@ def open_download(
 
 def get_package_references(package: Package) -> list[dict[str, str]]:
     from schedules.models import Schedule
-    from runs.models import Job, JobState
+    from runs.contracts import JobState
+    from runs.models import Job
 
     listReference: list[dict[str, str]] = [
         {

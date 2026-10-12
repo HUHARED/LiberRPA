@@ -1,6 +1,6 @@
 // FileName: scheduleRepository.ts
 
-import type { ProjectRunConfig } from "../Run/types";
+import type { ProjectRunConfig } from "../../shared/run";
 import type {
   ScheduleListItem,
   ScheduleDetails,

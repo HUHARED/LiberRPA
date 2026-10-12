@@ -183,7 +183,6 @@ def _run_by_direction(id: str) -> str | None:
 
 def _run_substart(id: str) -> None:
     # In Windows, the subprocess will re-import all, not forking anything from MainProcess.
-    # Log.set_level(level=dictFlowFile["logLevel"], loggerType="both")
     Log.info(f"Run an SubStart process, '{PROCESS_NAME}'")
 
     while True:
@@ -208,7 +207,6 @@ def main() -> None:
     )
 
     # Config running setting.
-    # Log.set_level(level=dictFlowFile["logLevel"])
     if dictFlowFile["stopShortcut"]:
         _register_force_exit()
     if dictFlowFile["recordVideo"]:
@@ -241,7 +239,6 @@ def main() -> None:
     intSubStartIndex: int = 0
     dictSubProcesses: dict[str, multiprocessing.Process] = {}
 
-    # multiprocessing.set_start_method(method="spawn")
     # Loop all keys(NodeId) of dictNonChooseNext, find the SubStart.
     for strNodeId in dictNonChooseNext:
         if dictNodeType[strNodeId] == "SubStart":

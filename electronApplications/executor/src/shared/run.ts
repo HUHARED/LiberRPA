@@ -1,5 +1,11 @@
 // FileName: run.ts
 
+import type {
+  RunConflictPolicy,
+  RunOptions,
+  PythonEnvironmentSelection,
+} from "./runOptions";
+
 export enum RunSource {
   Local = "local",
   Console = "console",
@@ -32,12 +38,20 @@ export interface RunRecordingInfo {
   reason?: string;
 }
 
+export interface ProjectRunConfig extends RunOptions, PythonEnvironmentSelection {
+  run_conflict_policy?: RunConflictPolicy;
+  schedule_name: string | null;
+  local_project_id: number | null;
+  project_name: string;
+  project_version: string;
+}
+
 export interface RunDetails {
   source: RunSource;
   run_id: string;
   job_id: string;
   attempt_number: number;
-  snapshot: Record<string, unknown>;
+  snapshot: ProjectRunConfig;
   outputs: RunOutputs;
   error_summary: { type: string; message: string } | null;
 }

@@ -10,11 +10,12 @@ import {
   parsePaginationResponse,
 } from "./responses";
 import type {
-  JobState,
-  RunResult,
+  JobState as JobStateValue,
+  RunStatus as RunStatusValue,
   JobSource,
   JobControlAction,
-  OutputsStatus,
+  OutputsStatus as OutputsStatusValue,
+  RecordingStatus as RecordingStatusValue,
   RunEventKind as RunEventKindValue,
   RunFileKind as RunFileKindValue,
   JobResponse,
@@ -32,7 +33,7 @@ import type {
 } from "./generated/browserApi";
 import { type RunSettings, ARR_PRIORITY, ARR_LOG_LEVEL, isRunSnapshot } from "./runOptions";
 
-export type { JobState, RunResult, JobSource, JobControlAction };
+export type { JobSource, JobControlAction };
 export type JobInfo = JobResponse;
 export type JobDetails = JobDetailsEntryResponse;
 export type JobPage = JobListResponse;
@@ -42,23 +43,30 @@ export type RunPage = RunListResponse;
 export type LogEntry = RunLogEntryResponse;
 export type LogPage = RunLogListResponse;
 export type RunDepartmentInfo = RunDepartmentResponse;
-export const ARR_JOB_STATE = [
-  "waiting",
-  "preparing",
-  "starting",
-  "running",
-  "stopping",
-  "waiting_retry",
-  "needs_review",
-] as const satisfies readonly JobState[];
-export const ARR_RUN_RESULT = [
-  "running",
-  "completed",
-  "error",
-  "canceled",
-  "timed_out",
-  "interrupted",
-] as const satisfies readonly RunResult[];
+export type JobState = JobStateValue;
+export const JobState = {
+  Waiting: "waiting",
+  Preparing: "preparing",
+  Starting: "starting",
+  Running: "running",
+  Stopping: "stopping",
+  WaitingRetry: "waiting_retry",
+  NeedsReview: "needs_review",
+  Finished: "finished",
+} as const satisfies Record<string, JobState>;
+export const ARR_JOB_STATE = Object.values(JobState).filter(
+  (state) => state !== JobState.Finished,
+);
+export type RunStatus = RunStatusValue;
+export const RunStatus = {
+  Running: "running",
+  Completed: "completed",
+  Error: "error",
+  Canceled: "canceled",
+  TimedOut: "timed_out",
+  Interrupted: "interrupted",
+} as const satisfies Record<string, RunStatus>;
+export const ARR_RUN_STATUS = Object.values(RunStatus);
 export const ARR_JOB_SOURCE = [
   "manual",
   "api",
@@ -73,12 +81,21 @@ export const RunEventKind = {
   Unknown: "unknown",
   Recording: "recording",
 } as const satisfies Record<string, RunEventKind>;
-export const ARR_OUTPUTS_STATUS = [
-  "waiting",
-  "complete",
-  "partial",
-  "unavailable",
-] as const satisfies readonly OutputsStatus[];
+export type OutputsStatus = OutputsStatusValue;
+export const OutputsStatus = {
+  Waiting: "waiting",
+  Complete: "complete",
+  Partial: "partial",
+  Unavailable: "unavailable",
+} as const satisfies Record<string, OutputsStatus>;
+export const ARR_OUTPUTS_STATUS = Object.values(OutputsStatus);
+export type RecordingStatus = RecordingStatusValue;
+export const RecordingStatus = {
+  Recording: "recording",
+  Processing: "processing",
+  Ready: "ready",
+  Unavailable: "unavailable",
+} as const satisfies Record<string, RecordingStatus>;
 export type RunFileKind = RunFileKindValue;
 export const RunFileKind = {
   Logs: "logs",
@@ -95,7 +112,7 @@ export interface JobFilters extends WorkFilters {
   states: JobState[];
 }
 export interface RunFilters extends WorkFilters {
-  results: RunResult[];
+  statuses: RunStatus[];
   executorId: string;
   startedFrom: string;
   startedUntil: string;
@@ -105,7 +122,7 @@ function buildQuery(filters: JobFilters | RunFilters, page?: number): URLSearchP
   if (page !== undefined) query.set("page", String(page));
   for (const id of filters.departmentIds) query.append("department_id", id);
   if ("states" in filters) for (const state of filters.states) query.append("state", state);
-  else for (const result of filters.results) query.append("result", result);
+  else for (const status of filters.statuses) query.append("status", status);
   for (const [key, value] of [
     ["project_name", filters.projectName],
     ["schedule_name", filters.scheduleName],
@@ -121,7 +138,7 @@ function isJob(value: unknown): value is JobInfo {
     isRecord(value) &&
     typeof value.id === "string" &&
     typeof value.job_request_id === "string" &&
-    [...ARR_JOB_STATE, "finished"].some((state) => value.state === state) &&
+    Object.values(JobState).some((state) => value.state === state) &&
     ARR_JOB_SOURCE.some((source) => value.source === source) &&
     ARR_PRIORITY.some((priority) => value.priority === priority) &&
     typeof value.project_name === "string" &&
@@ -133,7 +150,7 @@ function isRun(value: unknown): value is RunInfo {
   return (
     isRecord(value) &&
     typeof value.id === "string" &&
-    ARR_RUN_RESULT.some((result) => value.result === result) &&
+    ARR_RUN_STATUS.some((status) => value.status === status) &&
     ARR_OUTPUTS_STATUS.some((status) => value.outputs_status === status) &&
     typeof value.project_name === "string" &&
     typeof value.project_version === "string" &&

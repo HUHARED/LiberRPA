@@ -2,13 +2,13 @@
 
 import type { ProjectDetails, ProjectSettingsUpdate } from "../../shared/project";
 
+import type { ProjectRunConfig } from "../../shared/run";
 import {
   dbSelectProjectDetailById,
   dbSelectProjectMostRecentlyInstalledDetail,
 } from "../Database/projectRepository";
 import { dbSelectFinishedLocalRunProjectName } from "../Database/runHistoryRepository";
 import { startProjectRun } from "./projectRunner";
-import type { ProjectRunConfig } from "./types";
 
 function buildManualRunConfig(dictProject: ProjectDetails): ProjectRunConfig {
   return {

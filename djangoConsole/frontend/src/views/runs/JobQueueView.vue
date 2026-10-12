@@ -94,7 +94,9 @@
         {{ formatDateTime(item.queued_at, strTimeZone) }}
       </template>
       <template #item.state="{ item }">
-        <v-chip size="small" :color="item.state === 'needs_review' ? 'warning' : undefined">
+        <v-chip
+          size="small"
+          :color="item.state === JobState.NeedsReview ? 'warning' : undefined">
           {{ JOB_STATE_LABELS[item.state] }}
         </v-chip>
       </template>
@@ -128,7 +130,13 @@
 import { shallowRef, computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { RouterLink, useRoute } from "vue-router";
 import JobActions from "@/components/runs/JobActions.vue";
-import { ARR_JOB_STATE, getJobs, type JobPage, type JobFilters } from "@/api/runs";
+import {
+  JobState,
+  ARR_JOB_STATE,
+  getJobs,
+  type JobPage,
+  type JobFilters,
+} from "@/api/runs";
 import { getApiError } from "@/api/errors";
 import { PRIORITY_LABELS, JOB_STATE_LABELS } from "@/app/runLabels";
 import { formatDateTime } from "@/app/formatters";

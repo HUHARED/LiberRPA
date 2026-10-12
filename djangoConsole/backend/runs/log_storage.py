@@ -12,7 +12,8 @@ from django.conf import settings
 from django.db.models import QuerySet
 from django.utils import timezone
 
-from .models import JobState, Run, RunLog, RunLogUsage
+from .contracts import JobState
+from .models import Run, RunLog, RunLogUsage
 
 
 def get_or_create_run_log_usage(organizationId: uuid.UUID) -> RunLogUsage:

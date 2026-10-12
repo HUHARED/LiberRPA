@@ -179,7 +179,7 @@ def _prepare_email(deliveryId: uuid.UUID) -> EmailPreparationResult:
             .first()
         )
         if run is None or (
-            reference.event != RunEmailEvent.START and run.result != reference.event
+            reference.event != RunEmailEvent.START and run.status != reference.event
         ):
             return _mark_email_not_sent(
                 delivery, reasonCode=EmailReasonCode.RUN_NOT_ELIGIBLE

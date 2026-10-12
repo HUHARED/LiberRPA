@@ -97,7 +97,8 @@ def resend_recipient_verification(recipient: RunEmailRecipient) -> None:
 def get_recipient_references(recipient: RunEmailRecipient) -> list[dict]:
     from packages.models import Package
     from schedules.models import Schedule
-    from runs.models import Job, JobState
+    from runs.contracts import JobState
+    from runs.models import Job
 
     strId = str(recipient.pk)
     listReference = []

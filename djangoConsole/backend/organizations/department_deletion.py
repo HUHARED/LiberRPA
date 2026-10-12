@@ -17,7 +17,8 @@ from shared_files.models import SharedFile, UploadState, UploadSession
 from packages.contracts import PackageUploadState
 from packages.models import Package, PackageUpload
 from schedules.models import Schedule
-from runs.models import Job, JobState
+from runs.contracts import JobState
+from runs.models import Job
 from operations.audit import record_audit
 
 from .models import Department, DepartmentMembership

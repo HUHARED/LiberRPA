@@ -3,9 +3,8 @@
 import type Database from "better-sqlite3";
 
 import type { ProjectDetails } from "../../shared/project";
-import type { RunHistoryItem } from "../../shared/run";
-import { RunStatus } from "../../shared/run";
-import type { ProjectRunConfig } from "../Run/types";
+import { type ProjectRunConfig, RunStatus, type RunHistoryItem } from "../../shared/run";
+
 import type { ScheduleDetails, ScheduleListItem } from "../../shared/schedule";
 import type { CustomProjectArgs } from "../../shared/runOptions";
 import {

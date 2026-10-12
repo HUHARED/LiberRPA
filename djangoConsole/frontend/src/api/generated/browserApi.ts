@@ -36,7 +36,7 @@ export type RunEventKind =
 export type RunLogLevel = "VERBOSE" | "DEBUG" | "INFO" | "WARNING" | "ERROR" | "CRITICAL";
 export type RunConflictPolicy = "skip" | "wait" | "concurrent";
 export type OutputsStatus = "waiting" | "complete" | "partial" | "unavailable";
-export type RunResult =
+export type RunStatus =
   "running" | "completed" | "error" | "canceled" | "timed_out" | "interrupted";
 export type PackagePreparationState = "pending" | "preparing" | "ready" | "failed";
 export type PackageReferenceKind = "schedule" | "job" | "preparation" | "download";
@@ -921,9 +921,9 @@ export interface RunResponse {
   project_name: string;
   project_version: string;
   reason: string;
-  result: RunResult;
   schedule_name: string;
   started_at: string;
+  status: RunStatus;
 }
 export interface JobListResponse {
   jobs: JobResponse[];
@@ -1304,10 +1304,10 @@ export interface RunDetailsEntryResponse {
   project_version: string;
   reason: string;
   recording: RunRecordingResponse;
-  result: RunResult;
   run_snapshot: RunSnapshotResponse;
   schedule_name: string;
   started_at: string;
+  status: RunStatus;
 }
 export interface RunFilesResponse {
   logs: RunFileAvailabilityResponse;

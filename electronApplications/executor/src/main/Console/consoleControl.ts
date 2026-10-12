@@ -61,6 +61,15 @@ export function getConsoleControlCredential(): ConsoleCredentialSnapshot | null 
   return boolReady ? credential : null;
 }
 
+export function isCurrentConsoleControlCredential(
+  credential: ConsoleCredentialSnapshot,
+): boolean {
+  const current = getConsoleControlCredential();
+  return (
+    current?.token === credential.token && current.consoleUrl === credential.consoleUrl
+  );
+}
+
 export function onConsoleWorkAvailable(listener: () => void): () => void {
   setWorkListener.add(listener);
   return () => setWorkListener.delete(listener);

@@ -10,6 +10,7 @@ import {
   RunSource,
   RunOutputsStatus,
   type RunOutputs,
+  type ProjectRunConfig,
   RunStatus,
   type RunTerminalStatus,
   JobQueueState,
@@ -42,12 +43,8 @@ import {
   readExecutorRunState,
   waitForExecutorRunStateAvailable,
 } from "./runState";
-import {
-  type ProjectRunConfig,
-  RunTerminationReason,
-  type RunEndedFact,
-  type RunExecutionContext,
-} from "./types";
+import { RunTerminationReason, type RunEndedFact, type RunExecutionContext } from "./types";
+
 import { hasRecoveredRun } from "./recoveredRuns";
 
 interface ActiveProjectRun {
@@ -613,7 +610,7 @@ export async function startProjectRun(
   }
 }
 
-export function pythonCancel(runHistoryId: number): void {
+export function cancelRunByHistoryId(runHistoryId: number): void {
   const activeRun = mapActiveRunByHistoryId.get(runHistoryId);
   if (activeRun === undefined) {
     loggerMain.debug(

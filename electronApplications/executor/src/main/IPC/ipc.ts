@@ -49,7 +49,7 @@ import { installProjectPackage } from "../Package/packageInstallation";
 import { deleteInstalledProject } from "../Package/projectDeletion";
 import { runInstalledProject, rerunLocalRun } from "../Run/manualRun";
 import { ensureExistingRunLogFolderPath } from "../Run/logPath";
-import { pythonCancel } from "../Run/projectRunner";
+import { cancelRunByHistoryId } from "../Run/projectRunner";
 import {
   cancelQueuedRun,
   getJobQueueItems,
@@ -240,7 +240,7 @@ function createInvokeHandlerMap(ensureExecutorRunning: () => void): ExecutorInvo
     },
 
     pythonCancel(runHistoryId) {
-      pythonCancel(runHistoryId);
+      cancelRunByHistoryId(runHistoryId);
     },
 
     rerunLocalRun,

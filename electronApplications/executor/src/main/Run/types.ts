@@ -1,20 +1,6 @@
 // FileName: types.ts
 
 import type { RunSource, RunOutputs, RunTerminalStatus } from "../../shared/run";
-import type {
-  RunConflictPolicy,
-  RunOptions,
-  PythonEnvironmentSelection,
-} from "../../shared/runOptions";
-
-export interface ProjectRunConfig extends RunOptions, PythonEnvironmentSelection {
-  run_conflict_policy?: RunConflictPolicy;
-  schedule_name: string | null;
-  local_project_id: number | null;
-  project_name: string;
-  project_version: string;
-}
-
 export enum RunTerminationReason {
   Cancel = "cancel",
   Shutdown = "shutdown",

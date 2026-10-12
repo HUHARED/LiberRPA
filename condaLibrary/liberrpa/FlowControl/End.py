@@ -121,7 +121,6 @@ def cleanup() -> None:
 
 def main() -> None:
     cleanup()
-    # Stop the current process.
     Log.info(f"'{PROCESS_NAME}' exit.")
     sys.exit()
 

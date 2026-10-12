@@ -31,6 +31,9 @@ _INT_MAX_METADATA_BYTES = 2 * 1024**2
 
 
 def _parse_root_json(archive: zipfile.ZipFile, name: str) -> dict:
+    def reject_nonfinite_number(_value: str) -> None:
+        raise ValueError("JSON numbers must be finite.")
+
     try:
         entry = archive.getinfo(name)
     except KeyError:
@@ -39,9 +42,7 @@ def _parse_root_json(archive: zipfile.ZipFile, name: str) -> dict:
         raise ValidationError(f"{name} exceeds the 2 MiB metadata limit.")
     value = json.loads(
         archive.read(entry).decode("utf-8-sig"),
-        parse_constant=lambda _value: (_ for _ in ()).throw(
-            ValueError("JSON numbers must be finite.")
-        ),
+        parse_constant=reject_nonfinite_number,
     )
     if not isinstance(value, dict):
         raise ValidationError(f"{name} must be a JSON object.")

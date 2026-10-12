@@ -7,7 +7,7 @@ import {
   type Priority,
 } from "@/api/runOptions";
 import type { PackagePreparationState, PackageUploadState } from "@/api/packages";
-import type { JobSource, JobState, RunResult, RunEventKind } from "@/api/runs";
+import type { JobSource, JobState, RunStatus, RunEventKind } from "@/api/runs";
 
 export const CONFLICT_POLICY_LABELS: Record<ConflictPolicy, string> = {
   skip: "Skip This Run",
@@ -57,7 +57,7 @@ export const JOB_STATE_LABELS: Record<JobState, string> = {
   needs_review: "Needs Review",
   finished: "Finished",
 };
-export const RUN_RESULT_LABELS: Record<RunResult, string> = {
+export const RUN_STATUS_LABELS: Record<RunStatus, string> = {
   running: "Running",
   completed: "Completed",
   error: "Error",

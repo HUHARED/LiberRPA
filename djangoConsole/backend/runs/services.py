@@ -17,26 +17,18 @@ from organizations.permissions import (
     get_authorized_departments,
 )
 
-from .contracts import JobControlAction
-from .models import (
+from .contracts import (
     JobSource,
     JobState,
     AssignmentState,
-    Job,
-    ExecutorWorkState,
-    Assignment,
-    Run,
+    ACTIVE_ASSIGNMENT_STATES,
+    JobControlAction,
 )
+from .models import Job, ExecutorWorkState, Assignment, Run
 from .control_notifications import notify_executor_control
 
 STR_SOURCE_ACCESS_REVOKED_REASON = (
     "The initiating account lost run permission; no further attempts will be scheduled."
-)
-ACTIVE_ASSIGNMENT_STATES = (
-    AssignmentState.PREPARING,
-    AssignmentState.PERMITTED,
-    AssignmentState.RUNNING,
-    AssignmentState.REVIEW,
 )
 
 
@@ -172,16 +164,17 @@ def reconcile_revoked_sessions(sessionIds: list[uuid.UUID]) -> None:
             else:
                 finish_job(job, assignment.reason)
         else:
-            assignment.state = AssignmentState.REVIEW
+            assignment.state = AssignmentState.NEEDS_REVIEW
             assignment.reason = "The original Executor association was revoked; execution is not confirmed stopped."
             assignment.save(update_fields=["state", "reason"])
             if job.state != JobState.FINISHED:
-                job.state = JobState.REVIEW
+                job.state = JobState.NEEDS_REVIEW
                 job.reason = assignment.reason
                 job.stop_requested_at = job.stop_requested_at or currentTime
                 job.save(update_fields=["state", "reason", "stop_requested_at"])
     for job in Job.objects.filter(
-        target_session_id__in=sessionIds, state__in=(JobState.WAITING, JobState.RETRY)
+        target_session_id__in=sessionIds,
+        state__in=(JobState.WAITING, JobState.WAITING_RETRY),
     ).select_related("request"):
         finish_job(
             job,
@@ -196,7 +189,7 @@ def control_job(job: Job, action: JobControlAction, *, run: Run | None = None) -
         return
     currentTime = timezone.now()
     if action == JobControlAction.CLOSE:
-        if job.state != JobState.REVIEW:
+        if job.state != JobState.NEEDS_REVIEW:
             raise ValidationError(
                 "Only an unconfirmed Job can be closed.", code="job_not_unconfirmed"
             )
@@ -241,8 +234,8 @@ def control_job(job: Job, action: JobControlAction, *, run: Run | None = None) -
         assignment.stop_requested_at = assignment.stop_requested_at or currentTime
         assignment.save(update_fields=["stop_requested_at"])
         job.state = (
-            JobState.REVIEW
-            if assignment.state == AssignmentState.REVIEW
+            JobState.NEEDS_REVIEW
+            if assignment.state == AssignmentState.NEEDS_REVIEW
             else JobState.STOPPING
         )
         job.reason = "Stop requested; waiting for actual execution facts."

@@ -8,6 +8,7 @@ import {
   RunOutputsStatus,
   type RunOutputs,
   type RunDetails,
+  type ProjectRunConfig,
   RunStatus,
   type RunTerminalStatus,
   type RunHistoryQueryOptions,
@@ -33,7 +34,7 @@ interface RunHistoryInsertData {
   run_id: string;
   job_id: string;
   attempt_number: number;
-  snapshot: object;
+  snapshot: ProjectRunConfig;
   project_name: string;
   project_version: string;
   python_environment_name: string;
@@ -502,7 +503,7 @@ export function dbSelectRunDetails(id: number): RunDetails {
   if (!row) throw new Error("Run History record not found.");
   return {
     ...row,
-    snapshot: JSON.parse(row.snapshot) as Record<string, unknown>,
+    snapshot: JSON.parse(row.snapshot) as ProjectRunConfig,
     outputs: JSON.parse(row.outputs) as RunOutputs,
     error_summary:
       row.error_summary === null

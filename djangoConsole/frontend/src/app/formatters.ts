@@ -1,6 +1,6 @@
 // FileName: formatters.ts
 
-import type { RunResponse } from "@/api/generated/browserApi";
+import { RunStatus, type RunInfo } from "@/api/runs";
 
 export function getDisplayName(username: string, email: string): string {
   return username || email;
@@ -31,11 +31,11 @@ export function formatDateTime(value: string | null, timeZone: string): string {
 }
 
 export function formatRunEndTime(
-  run: Pick<RunResponse, "result" | "ended_at">,
+  run: Pick<RunInfo, "status" | "ended_at">,
   timeZone: string,
 ): string {
   if (run.ended_at !== null) return formatDateTime(run.ended_at, timeZone);
-  return run.result === "running" ? "—" : "Unknown";
+  return run.status === RunStatus.Running ? "—" : "Unknown";
 }
 
 export function formatDateTimeInput(

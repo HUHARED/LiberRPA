@@ -1,12 +1,11 @@
 // FileName: consoleWork.ts
 
-import { RunSource } from "../../shared/run";
+import { RunSource, type ProjectRunConfig } from "../../shared/run";
 import { RunConflictPolicy } from "../../shared/runOptions";
 import { getErrorMessage } from "../../shared/error";
 
 import {
   ensureRecord,
-  ensureString,
   ensureNonEmptyString,
   ensurePythonEnvironmentName,
   ensureBoolean,
@@ -21,7 +20,7 @@ import { getDatabase } from "../Database/connection";
 import { loggerMain } from "../Logging/logger";
 import { startProjectRun, cancelRunById } from "../Run/projectRunner";
 import { PythonProcessNotStartedError } from "../Run/pythonProcess";
-import type { ProjectRunConfig } from "../Run/types";
+
 import { getLocalWaitingCount } from "../Scheduler/schedulerEngine";
 import { getConsolePythonCredential } from "./consoleAccount";
 import { ConsoleRequestError, requestConsole } from "./consoleApi";
@@ -29,6 +28,7 @@ import type { ConsoleCredentialSnapshot } from "./consoleContextBridge";
 import {
   getConsoleWorkState,
   getConsoleControlCredential,
+  isCurrentConsoleControlCredential,
   onConsoleWorkAvailable,
   onConsoleWorkStateReported,
 } from "./consoleControl";
@@ -46,16 +46,14 @@ import {
   ConsoleEventKind,
   ConsoleNotStartedReason,
   type ConsoleEventData,
-  type ConsoleEventReceipt,
-  type ConsoleEventRetentionResolution,
   onConsoleEventSaved,
   saveConsoleEvent,
-  getPendingConsoleEvents,
-  acknowledgeConsoleEvents,
-  getConsoleEventRetentionCandidates,
-  confirmConsoleEventRetention,
-  pruneConsoleEventDiagnostics,
 } from "./eventRepository";
+import {
+  requestConsoleEvents,
+  startConsoleEvents,
+  stopConsoleEvents,
+} from "./consoleEvents";
 import { stopConsoleFiles, flushConsoleLogs, sendConsoleFile } from "./consoleWorkFiles";
 
 enum ConsolePermitWaitReason {
@@ -72,7 +70,6 @@ interface ConsoleStartPermit {
 
 class ConsoleStartConflictError extends Error {}
 
-const INT_EVENT_MAINTENANCE_INTERVAL_MS = 60 * 60 * 1000;
 const INT_MIN_PERMIT_RETRY_MS = 2000;
 const INT_MAX_PERMIT_RETRY_MS = 30_000;
 const setStoppedAssignment = new Set<string>();
@@ -81,24 +78,14 @@ const mapPreparingWork = new Map<string, Promise<void>>();
 const setFileTransfers = new Set<Promise<void>>();
 let timerLogs: NodeJS.Timeout | undefined;
 let timerRetry: NodeJS.Timeout | undefined;
-let timerEventRetry: NodeJS.Timeout | undefined;
 let promiseSync: Promise<void> | undefined;
-let promiseEvents: Promise<void> | undefined;
-let promiseEventMaintenance: Promise<void> | undefined;
-let floatNextEventMaintenanceAt = 0;
-let strEventMaintenanceSessionKey: string | undefined;
 let boolStopped = true;
 let boolWorkRequested = false;
-let boolEventsRequested = false;
 let boolContactFailureLogged = false;
-let boolEventFailureLogged = false;
 let boolPreparationRefresh = false;
 let intRetryDelayMs = 2000;
-let intEventRetryDelayMs = 2000;
 let floatWorkRetryAt = 0;
-let floatEventRetryAt = 0;
 let strWorkRetrySessionKey: string | undefined;
-let strEventRetrySessionKey: string | undefined;
 let stopWorkListener: (() => void) | undefined;
 let stopEventListener: (() => void) | undefined;
 let promiseLogs: Promise<void> | undefined;
@@ -390,7 +377,7 @@ async function prepareAndStartRun(
             kind: ConsoleEventKind.Ended,
             occurred_at: fact.endedAt,
             started_at: fact.startedAt,
-            result: fact.status,
+            status: fact.status,
             outputs: fact.outputs,
             error_summary: fact.errorSummary,
           });
@@ -470,175 +457,6 @@ async function prepareRequestedPackages(
   }
 }
 
-function isCurrentControlCredential(credential: ConsoleCredentialSnapshot): boolean {
-  const current = getConsoleControlCredential();
-  return (
-    current?.token === credential.token && current.consoleUrl === credential.consoleUrl
-  );
-}
-
-async function sendPendingConsoleEvents(
-  strSessionKey: string,
-  credential: ConsoleCredentialSnapshot,
-): Promise<boolean> {
-  const arrEvent = getPendingConsoleEvents(strSessionKey);
-  if (!arrEvent.length) return false;
-  const response = await requestConsole(
-    credential.consoleUrl,
-    "executor/work/events/",
-    credential.token,
-    { events: arrEvent },
-  );
-  if (
-    !Array.isArray(response.accepted_event_ids) ||
-    !Array.isArray(response.rejected_events)
-  )
-    throw new Error("Console returned an invalid Run event receipt.");
-
-  const setPendingEventId = new Set(arrEvent.map((event) => event.event_id));
-  const setAcknowledgedEventId = new Set<string>();
-  function parseReceiptEventId(value: unknown): string {
-    const strId = ensureNonEmptyString(value, "Acknowledged event ID");
-    if (!setPendingEventId.has(strId))
-      throw new Error("Console acknowledged an event outside the submitted batch.");
-    if (setAcknowledgedEventId.has(strId))
-      throw new Error("Console acknowledged the same Run event more than once.");
-    setAcknowledgedEventId.add(strId);
-    return strId;
-  }
-
-  const receipt: ConsoleEventReceipt = {
-    acceptedEventIds: response.accepted_event_ids.map(parseReceiptEventId),
-    rejectedEvents: response.rejected_events.map((value: unknown) => {
-      const rejection = ensureRecord(value, "Rejected event");
-      return {
-        eventId: parseReceiptEventId(rejection.event_id),
-        code: ensureNonEmptyString(rejection.code, "Event rejection code"),
-        message: ensureString(rejection.message, "Event rejection message"),
-      };
-    }),
-  };
-  if (setAcknowledgedEventId.size !== arrEvent.length)
-    throw new Error("Console did not acknowledge every event in the submitted batch.");
-
-  const intRejectedCount = acknowledgeConsoleEvents(strSessionKey, receipt);
-  if (intRejectedCount)
-    loggerMain.warn(
-      `Console rejected ${intRejectedCount} Run event(s). ` +
-        "The events and rejection details are retained in the local Executor database.",
-    );
-  return isCurrentControlCredential(credential);
-}
-
-function requestConsoleEvents(): void {
-  if (boolStopped) return;
-  boolEventsRequested = true;
-  const credential = getConsoleControlCredential();
-  if (promiseEvents || !credential) return;
-  const strSessionKey = getConsoleWorkSessionKey(credential);
-  if (strEventRetrySessionKey !== strSessionKey) {
-    clearTimeout(timerEventRetry);
-    timerEventRetry = undefined;
-    strEventRetrySessionKey = strSessionKey;
-    floatEventRetryAt = 0;
-    intEventRetryDelayMs = 2000;
-    boolEventFailureLogged = false;
-  }
-  const floatRemainingMs = floatEventRetryAt - performance.now();
-  if (floatRemainingMs > 0) {
-    timerEventRetry ??= setTimeout(
-      () => {
-        timerEventRetry = undefined;
-        requestConsoleEvents();
-      },
-      Math.min(floatRemainingMs, 2_147_483_647),
-    );
-    return;
-  }
-  clearTimeout(timerEventRetry);
-  timerEventRetry = undefined;
-  boolEventsRequested = false;
-  // Send one bounded batch at a time without holding up control synchronization.
-  promiseEvents = sendPendingConsoleEvents(strSessionKey, credential)
-    .then((boolMoreEvents) => {
-      boolEventsRequested ||= boolMoreEvents;
-      if (!isCurrentControlCredential(credential)) return;
-      intEventRetryDelayMs = 2000;
-      floatEventRetryAt = 0;
-      boolEventFailureLogged = false;
-    })
-    .catch((e: unknown) => {
-      boolEventsRequested = true;
-      if (!isCurrentControlCredential(credential)) return;
-      const intRetryAfterMs = e instanceof ConsoleRequestError ? e.retryAfterMs : 0;
-      floatEventRetryAt =
-        performance.now() + Math.max(intEventRetryDelayMs, intRetryAfterMs);
-      intEventRetryDelayMs = Math.min(intEventRetryDelayMs * 2, 30_000);
-      if (!boolEventFailureLogged) {
-        boolEventFailureLogged = true;
-        loggerMain.warn(`Console Run events: ${getErrorMessage(e)}`);
-      }
-    })
-    .finally(() => {
-      promiseEvents = undefined;
-      if (!boolStopped && boolEventsRequested) requestConsoleEvents();
-    });
-}
-
-async function maintainConsoleEventDiagnostics(
-  credential: ConsoleCredentialSnapshot | null,
-): Promise<void> {
-  const intDeleted = pruneConsoleEventDiagnostics();
-  if (intDeleted) loggerMain.info(`Removed ${intDeleted} expired Run event diagnostics.`);
-  if (!credential) return;
-  const strSessionKey = getConsoleWorkSessionKey(credential);
-  const arrCandidate = getConsoleEventRetentionCandidates(strSessionKey);
-  if (!arrCandidate.length) return;
-  const setAssignmentId = new Set(arrCandidate.map((entry) => entry.assignmentId));
-  const response = await requestConsole(
-    credential.consoleUrl,
-    "executor/work/event-retention/",
-    credential.token,
-    { assignment_ids: [...setAssignmentId] },
-  );
-  if (boolStopped || !isCurrentControlCredential(credential)) return;
-  if (!Array.isArray(response.resolved_assignments))
-    throw new Error("Console returned invalid event retention information.");
-  const setResolvedId = new Set<string>();
-  const arrResolution: ConsoleEventRetentionResolution[] = [];
-  for (const value of response.resolved_assignments) {
-    const item = ensureRecord(value, "Resolved assignment");
-    const strAssignmentId = ensureNonEmptyString(item.assignment_id, "Assignment ID");
-    if (!setAssignmentId.has(strAssignmentId) || setResolvedId.has(strAssignmentId))
-      throw new Error("Console returned an unexpected event retention identity.");
-    const boolRunStarted = ensureBoolean(item.run_started, "Run started");
-    setResolvedId.add(strAssignmentId);
-    arrResolution.push({ assignmentId: strAssignmentId, runStarted: boolRunStarted });
-  }
-  confirmConsoleEventRetention(strSessionKey, arrCandidate, arrResolution);
-}
-
-function requestEventDiagnosticMaintenance(): void {
-  if (boolStopped || promiseEventMaintenance) return;
-  const credential = getConsoleControlCredential();
-  const strSessionKey = credential ? getConsoleWorkSessionKey(credential) : undefined;
-  if (
-    performance.now() < floatNextEventMaintenanceAt &&
-    strSessionKey === strEventMaintenanceSessionKey
-  )
-    return;
-  strEventMaintenanceSessionKey = strSessionKey;
-  floatNextEventMaintenanceAt = performance.now() + INT_EVENT_MAINTENANCE_INTERVAL_MS;
-  // Independent of control and event delivery; no diagnostics means no extra HTTP request.
-  promiseEventMaintenance = maintainConsoleEventDiagnostics(credential)
-    .catch((e: unknown) => {
-      loggerMain.warn(`Run event diagnostic cleanup: ${getErrorMessage(e)}`);
-    })
-    .finally(() => {
-      promiseEventMaintenance = undefined;
-    });
-}
-
 function requestLogFlush(): void {
   const credential = getConsoleControlCredential();
   if (boolStopped || promiseLogs || !credential) return;
@@ -662,7 +480,7 @@ async function syncConsoleWork(
     credential.token,
     getConsoleWorkState(),
   );
-  if (boolStopped || !isCurrentControlCredential(credential)) return;
+  if (boolStopped || !isCurrentConsoleControlCredential(credential)) return;
   if (!Array.isArray(response.stop_requests))
     throw new Error("Console returned invalid stop requests.");
   for (const value of response.stop_requests) {
@@ -718,7 +536,9 @@ async function syncConsoleWork(
           if (boolFailed || boolPreparationRefresh) {
             boolPreparationRefresh = false;
             requestConsoleWork(
-              boolFailed && isCurrentControlCredential(credential) ? retryError : undefined,
+              boolFailed && isCurrentConsoleControlCredential(credential)
+                ? retryError
+                : undefined,
             );
           }
         });
@@ -729,7 +549,7 @@ async function syncConsoleWork(
       const promiseFile = sendConsoleFile(strSessionKey, credential, transfer)
         .catch((e: unknown) => {
           loggerMain.warn(`Console log/file transfer: ${getErrorMessage(e)}`);
-          requestConsoleWork(isCurrentControlCredential(credential) ? e : undefined);
+          requestConsoleWork(isCurrentConsoleControlCredential(credential) ? e : undefined);
         })
         .finally(() => setFileTransfers.delete(promiseFile));
       setFileTransfers.add(promiseFile);
@@ -740,7 +560,7 @@ async function processConsoleUpdates(credential: ConsoleCredentialSnapshot): Pro
   while (
     !boolStopped &&
     boolWorkRequested &&
-    isCurrentControlCredential(credential) &&
+    isCurrentConsoleControlCredential(credential) &&
     performance.now() >= floatWorkRetryAt
   ) {
     boolWorkRequested = false;
@@ -801,12 +621,12 @@ function requestConsoleSync(): void {
   timerRetry = undefined;
   promiseSync = processConsoleUpdates(credential)
     .then(() => {
-      if (!isCurrentControlCredential(credential)) return;
+      if (!isCurrentConsoleControlCredential(credential)) return;
       intRetryDelayMs = 2000;
       boolContactFailureLogged = false;
     })
     .catch((e: unknown) => {
-      if (!isCurrentControlCredential(credential)) return;
+      if (!isCurrentConsoleControlCredential(credential)) return;
       deferConsoleWork(e);
       if (!boolContactFailureLogged) {
         boolContactFailureLogged = true;
@@ -831,26 +651,14 @@ function requestConsoleWork(error?: unknown): void {
 export function startConsoleWork(): void {
   boolStopped = false;
   intRetryDelayMs = 2000;
-  intEventRetryDelayMs = 2000;
   floatWorkRetryAt = 0;
-  floatEventRetryAt = 0;
   strWorkRetrySessionKey = undefined;
-  strEventRetrySessionKey = undefined;
   boolContactFailureLogged = false;
-  boolEventFailureLogged = false;
   stopWorkListener = onConsoleWorkAvailable(() => requestConsoleWork());
-  stopEventListener = onConsoleEventSaved(() => {
-    requestConsoleEvents();
-    requestLogFlush();
-  });
-  floatNextEventMaintenanceAt = 0;
-  strEventMaintenanceSessionKey = undefined;
-  timerLogs = setInterval(() => {
-    requestLogFlush();
-    requestEventDiagnosticMaintenance();
-  }, 2000);
+  stopEventListener = onConsoleEventSaved(requestLogFlush);
+  timerLogs = setInterval(requestLogFlush, 2000);
+  startConsoleEvents();
   requestConsoleWork();
-  requestEventDiagnosticMaintenance();
 }
 
 export async function stopConsoleWork(): Promise<void> {
@@ -858,21 +666,18 @@ export async function stopConsoleWork(): Promise<void> {
   for (const checkRetry of mapPermitWaiter.values()) checkRetry();
   stopWorkListener?.();
   stopEventListener?.();
+  const promiseStopEvents = stopConsoleEvents();
   stopPackagePreparation();
   stopConsoleFiles();
   clearTimeout(timerRetry);
-  clearTimeout(timerEventRetry);
   clearInterval(timerLogs);
   timerRetry = undefined;
-  timerEventRetry = undefined;
   boolWorkRequested = false;
-  boolEventsRequested = false;
-  await Promise.all([promiseSync, promiseEvents]);
+  await Promise.all([promiseSync, promiseStopEvents]);
   await Promise.allSettled([
     ...mapPreparingWork.values(),
     promisePreparation,
     promiseLogs,
-    promiseEventMaintenance,
     ...setFileTransfers,
   ]);
 }

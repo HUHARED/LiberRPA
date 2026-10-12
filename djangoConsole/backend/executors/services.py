@@ -20,10 +20,11 @@ from organizations.permissions import (
     get_authorized_departments,
 )
 
+from runs.contracts import JobState, ACTIVE_ASSIGNMENT_STATES
 from .access import require_executor_management
 from .models import Executor, ExecutorGroupMember, ExecutorSession
 from runs.control_notifications import notify_executor_control
-from runs.models import Assignment, AssignmentState, Job, JobState
+from runs.models import Assignment, Job
 from schedules.models import Schedule
 
 # NOTE: Call these writes with freshly locked Session access inside the caller's transaction.
@@ -162,12 +163,7 @@ def delete_executor(
         or Assignment.objects
         .filter(
             executor=executor,
-            state__in=[
-                AssignmentState.PREPARING,
-                AssignmentState.PERMITTED,
-                AssignmentState.RUNNING,
-                AssignmentState.REVIEW,
-            ],
+            state__in=ACTIVE_ASSIGNMENT_STATES,
         )
         .exclude(job__state=JobState.FINISHED)
         .exists()

@@ -37,21 +37,16 @@ from executors.client_sessions import (
 from executors.models import ExecutorSession
 
 from .contracts import (
+    JobState,
+    AssignmentState,
+    RunStatus,
+    RunEventKind,
     WorkPollRequest,
     WorkEventRetentionRequest,
     WorkPermitRequest,
     WorkEventsRequest,
 )
-from .models import (
-    JobState,
-    AssignmentState,
-    RunEventKind,
-    RunResult,
-    ExecutorWorkState,
-    Assignment,
-    Run,
-    RunEvent,
-)
+from .models import ExecutorWorkState, Assignment, Run, RunEvent
 from .dispatch import get_start_evidence_not_before, issue_start_permit
 from .events import receive_event
 
@@ -221,7 +216,7 @@ def _check_event_retention(
     )
     endedRuns = Run.objects.filter(
         assignment_id=OuterRef("pk"), ended_at__isnull=False
-    ).exclude(result=RunResult.RUNNING)
+    ).exclude(status=RunStatus.RUNNING)
     unsettledAssignments = Assignment.objects.filter(job_id=OuterRef("job_id")).filter(
         ~Q(state__in=(AssignmentState.FINISHED, AssignmentState.WITHDRAWN))
         | (
@@ -231,7 +226,7 @@ def _check_event_retention(
         )
     )
     unsettledRuns = Run.objects.filter(job_id=OuterRef("job_id")).filter(
-        Q(ended_at__isnull=True) | Q(result=RunResult.RUNNING)
+        Q(ended_at__isnull=True) | Q(status=RunStatus.RUNNING)
     )
     assignments = (
         Assignment.objects

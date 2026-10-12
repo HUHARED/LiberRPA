@@ -21,7 +21,8 @@ from .contracts import (
     JobSource,
     JobState,
     AssignmentState,
-    RunResult,
+    ACTIVE_ASSIGNMENT_STATES,
+    RunStatus,
     OutputsStatus,
     RecordingStatus,
     RunEventKind,
@@ -194,14 +195,7 @@ class Assignment(models.Model):
             ),
             models.UniqueConstraint(
                 fields=["job"],
-                condition=models.Q(
-                    state__in=[
-                        AssignmentState.PREPARING,
-                        AssignmentState.PERMITTED,
-                        AssignmentState.RUNNING,
-                        AssignmentState.REVIEW,
-                    ]
-                ),
+                condition=models.Q(state__in=ACTIVE_ASSIGNMENT_STATES),
                 name="job_one_active_assignment",
             ),
         ]
@@ -219,10 +213,10 @@ class Run(models.Model):
     )
     started_at = models.DateTimeField()
     ended_at = models.DateTimeField(null=True)
-    result = models.CharField(
-        max_length=max(len(value) for value in RunResult.values),
-        choices=RunResult.choices,
-        default=RunResult.RUNNING,
+    status = models.CharField(
+        max_length=max(len(value) for value in RunStatus.values),
+        choices=RunStatus.choices,
+        default=RunStatus.RUNNING,
     )
     reason = models.CharField(max_length=2000, blank=True)
     outputs_status = models.CharField(
@@ -246,7 +240,7 @@ class Run(models.Model):
         ]
         constraints = [
             models.CheckConstraint(
-                condition=models.Q(result__in=RunResult.values), name="run_result_valid"
+                condition=models.Q(status__in=RunStatus.values), name="run_status_valid"
             ),
             models.CheckConstraint(
                 condition=models.Q(outputs_status__in=OutputsStatus.values),
@@ -254,19 +248,19 @@ class Run(models.Model):
             ),
             models.CheckConstraint(
                 condition=(
-                    models.Q(result=RunResult.RUNNING, ended_at__isnull=True)
-                    | models.Q(result=RunResult.INTERRUPTED)
+                    models.Q(status=RunStatus.RUNNING, ended_at__isnull=True)
+                    | models.Q(status=RunStatus.INTERRUPTED)
                     | models.Q(
-                        result__in=[
-                            RunResult.COMPLETED,
-                            RunResult.ERROR,
-                            RunResult.CANCELED,
-                            RunResult.TIMED_OUT,
+                        status__in=[
+                            RunStatus.COMPLETED,
+                            RunStatus.ERROR,
+                            RunStatus.CANCELED,
+                            RunStatus.TIMED_OUT,
                         ],
                         ended_at__isnull=False,
                     )
                 ),
-                name="run_result_end_time_valid",
+                name="run_status_end_time_valid",
             ),
             models.CheckConstraint(
                 condition=models.Q(

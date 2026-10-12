@@ -31,8 +31,8 @@ from operations.audit import record_audit_batch
 from organizations.http import get_request_access
 from organizations.permissions import AccessChannel
 
-from .contracts import ClearLogsRequest
-from .models import JobState, Run, RunLog
+from .contracts import JobState, ClearLogsRequest
+from .models import Run, RunLog
 from .queries import get_visible_runs
 from .log_storage import (
     get_or_create_run_log_usage,

@@ -6,10 +6,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from runs.models import Job, Run
-
-from runs.models import JobSource
+from runs.contracts import JobSource
 
 from .models import (
     EmailType,
@@ -19,6 +16,9 @@ from .models import (
     RunEmailReference,
 )
 from .services import notify_prestart_failure
+
+if TYPE_CHECKING:
+    from runs.models import Job, Run
 
 
 def notify_run_event(run: "Run", event: str) -> None:

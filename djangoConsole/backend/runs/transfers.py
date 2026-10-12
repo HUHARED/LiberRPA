@@ -59,8 +59,8 @@ from file_storage.services import FileOperationError, require_download_slot
 from organizations.http import get_request_access
 from organizations.permissions import AccessChannel
 
-from .contracts import RunFileRequest
-from .models import RecordingStatus, Run, RunFileKind, RunFileTransfer
+from .contracts import RecordingStatus, RunFileKind, RunFileRequest
+from .models import Run, RunFileTransfer
 from .queries import get_visible_runs
 from .control_notifications import notify_executor_control
 

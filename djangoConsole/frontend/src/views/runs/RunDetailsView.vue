@@ -26,7 +26,7 @@
         <v-row>
           <v-col cols="12" md="4">
             <p>
-              <v-chip>{{ RUN_RESULT_LABELS[run.result] }}</v-chip>
+              <v-chip>{{ RUN_STATUS_LABELS[run.status] }}</v-chip>
             </p>
             <p class="mt-2">Executor: {{ run.executor_name }}</p>
             <p>Account: {{ run.account_name }}</p>
@@ -54,7 +54,7 @@
           v-show="strTab === 'logs'"
           :key="run.id"
           :run-id="run.id"
-          :running="run.result === 'running'"
+          :running="run.status === RunStatus.Running"
           :time-zone="strTimeZone"
           :active="strTab === 'logs'"
           :download-enabled="run.files.logs.available"
@@ -65,18 +65,21 @@
           :settings="run.run_snapshot"
           :python-environment-name="run.run_snapshot.python_environment_name" />
         <template v-if="strTab === 'outputs'">
-          <v-alert v-if="run.outputs_status === 'waiting'" type="info" variant="tonal">
+          <v-alert
+            v-if="run.outputs_status === OutputsStatus.Waiting"
+            type="info"
+            variant="tonal">
             Waiting for the final outputs.
           </v-alert>
           <v-alert
-            v-else-if="run.outputs_status === 'unavailable'"
+            v-else-if="run.outputs_status === OutputsStatus.Unavailable"
             type="warning"
             variant="tonal">
             Outputs unavailable. {{ run.outputs_reason }}
           </v-alert>
           <template v-else>
             <v-alert
-              v-if="run.outputs_status === 'partial'"
+              v-if="run.outputs_status === OutputsStatus.Partial"
               type="warning"
               variant="tonal"
               class="mb-4">
@@ -84,7 +87,9 @@
             </v-alert>
             <p
               v-if="
-                run.outputs_status === 'complete' && run.outputs && run.outputs.length === 0
+                run.outputs_status === OutputsStatus.Complete &&
+                run.outputs &&
+                run.outputs.length === 0
               ">
               No output items.
             </p>
@@ -173,7 +178,7 @@
           </p>
           <template v-else>
             <v-alert
-              v-if="run.recording.status !== 'ready'"
+              v-if="run.recording.status !== RecordingStatus.Ready"
               type="info"
               variant="tonal"
               class="mb-3">
@@ -261,6 +266,9 @@ import RunLogs from "@/components/runs/RunLogs.vue";
 import RunTable from "@/components/runs/RunTable.vue";
 import RunPackageDialog from "@/components/packages/RunPackageDialog.vue";
 import {
+  RunStatus,
+  OutputsStatus,
+  RecordingStatus,
   getRun,
   getRerun,
   stopRun,
@@ -269,7 +277,7 @@ import {
   type RunDetails,
 } from "@/api/runs";
 import { getApiError } from "@/api/errors";
-import { JOB_SOURCE_LABELS, RUN_RESULT_LABELS } from "@/app/runLabels";
+import { JOB_SOURCE_LABELS, RUN_STATUS_LABELS } from "@/app/runLabels";
 import {
   formatDateTime,
   formatRunEndTime,
@@ -361,10 +369,10 @@ onMounted(() => {
       !document.hidden &&
       !boolLoading.value &&
       run.value &&
-      (run.value.result === "running" ||
+      (run.value.status === RunStatus.Running ||
         (run.value.run_snapshot.builtin_record_video &&
-          run.value.recording.status !== "ready" &&
-          run.value.recording.status !== "unavailable"))
+          run.value.recording.status !== RecordingStatus.Ready &&
+          run.value.recording.status !== RecordingStatus.Unavailable))
     )
       void load();
   }, 10000);

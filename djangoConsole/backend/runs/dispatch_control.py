@@ -10,14 +10,8 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 
-from .models import (
-    JobState,
-    AssignmentState,
-    Job,
-    ExecutorWorkState,
-    Assignment,
-    DispatchControl,
-)
+from .contracts import JobState, AssignmentState
+from .models import Job, ExecutorWorkState, Assignment, DispatchControl
 from .control_notifications import notify_executor_control
 
 _INT_CONTROL_STALE_SECONDS = 15

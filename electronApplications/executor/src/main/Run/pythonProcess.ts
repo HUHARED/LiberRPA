@@ -6,12 +6,12 @@ import fs from "fs";
 import path from "path";
 
 import { getErrorMessage } from "../../shared/error";
+import type { ProjectRunConfig } from "../../shared/run";
 import { isProcessRunning } from "../Common/process";
 import { buildPythonProcessEnvironment } from "../Config/environment";
 import { getConsoleContextEnvironment } from "../Console/consoleContextBridge";
 import { loggerMain } from "../Logging/logger";
 import { getExecutorRunArgumentsPath, removeExecutorRunArgumentsFile } from "./runState";
-import type { ProjectRunConfig } from "./types";
 
 export class PythonProcessNotStartedError extends Error {}
 

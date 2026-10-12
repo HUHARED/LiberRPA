@@ -9,10 +9,10 @@ import { isRecoveredProcessPresent } from "../Run/recoveredRuns";
 import type { ConsoleWorkRecord } from "./workRepository";
 
 export enum ConsoleEventKind {
-  PreparationFailed = "preparation_failed",
   Started = "started",
-  NotStarted = "not_started",
   Ended = "ended",
+  PreparationFailed = "preparation_failed",
+  NotStarted = "not_started",
   Unknown = "unknown",
   Recording = "recording",
 }
@@ -31,7 +31,7 @@ export type ConsoleEventData =
       kind: ConsoleEventKind.Ended;
       occurred_at: string;
       started_at: string;
-      result: RunTerminalStatus;
+      status: RunTerminalStatus;
       outputs: RunOutputs;
       error_summary: RunEndedFact["errorSummary"];
     }

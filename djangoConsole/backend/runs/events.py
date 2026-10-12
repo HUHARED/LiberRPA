@@ -12,18 +12,21 @@ from django.utils import timezone
 from executors.models import ExecutorSession
 from packages.contracts import RunConflictPolicy, PackagePreparationState
 
-from .models import (
+from .contracts import (
     JobState,
     AssignmentState,
-    RunResult,
+    RunStatus,
     RunEventKind,
-    Assignment,
-    Run,
-    RunEvent,
+    RunNotStartedReason,
+    WorkStartedEvent,
+    WorkEndedEvent,
+    WorkNotStartedEvent,
+    WorkRecordingEvent,
+    WorkEvent,
 )
-from .contracts import RunNotStartedReason, WorkEvent
 from .control_notifications import notify_executor_control
 from .dispatch import get_start_evidence_not_before
+from .models import Assignment, Run, RunEvent
 from .services import (
     STR_SOURCE_ACCESS_REVOKED_REASON,
     has_job_source_access,
@@ -69,7 +72,7 @@ def receive_event(session: ExecutorSession, event: WorkEvent) -> None:
             reason=event.reason,
         )
         return
-    if event.kind in (RunEventKind.STARTED, RunEventKind.ENDED):
+    if isinstance(event, (WorkStartedEvent, WorkEndedEvent)):
         if (
             assignment.state
             in (
@@ -89,14 +92,9 @@ def receive_event(session: ExecutorSession, event: WorkEvent) -> None:
                 "No start permission was issued for this assignment.",
                 code="permission_required",
             )
-        startedAt = (
-            event.started_at
-            if event.kind == RunEventKind.ENDED
-            else (event.started_at or event.occurred_at)
-        )
+        startedAt = event.started_at
         if (
-            startedAt is None
-            or startedAt > assignment.permit_expires_at
+            startedAt > assignment.permit_expires_at
             or startedAt < get_start_evidence_not_before(assignment.permit_expires_at)
         ):
             raise ValidationError(
@@ -112,13 +110,11 @@ def receive_event(session: ExecutorSession, event: WorkEvent) -> None:
             job.save(update_fields=["attempt_count"])
             if job.closed_at is None:
                 notify_run_event(run, event="start")
-        if event.kind == RunEventKind.ENDED and run.ended_at is None:
+        if isinstance(event, WorkEndedEvent) and run.ended_at is None:
             run.ended_at = event.occurred_at
-            run.result = event.result
+            run.status = event.status
             run.reason = event.reason
             run.error_summary = event.error_summary
-            if event.recording is not None:
-                run.recording = event.recording.model_dump(mode="json")
             run.outputs_status = event.outputs.status
             run.outputs = event.outputs.model_dump(mode="json")["values"]
             run.outputs_reason = event.outputs.reason
@@ -128,15 +124,15 @@ def receive_event(session: ExecutorSession, event: WorkEvent) -> None:
             assignment.reason = event.reason
             assignment.save(update_fields=["state", "reason"])
             if job.closed_at is None:
-                if run.result in (RunResult.COMPLETED, RunResult.ERROR):
-                    notify_run_event(run, event=str(run.result))
+                if run.status in (RunStatus.COMPLETED, RunStatus.ERROR):
+                    notify_run_event(run, event=str(run.status))
                 boolRunRetryable = (
-                    run.result == RunResult.ERROR
+                    run.status == RunStatus.ERROR
                     and job.stop_requested_at is None
                     and assignment.attempt_number <= job.max_retry_count
                 )
                 if boolRunRetryable and has_job_source_access(job):
-                    job.state = JobState.RETRY
+                    job.state = JobState.WAITING_RETRY
                     job.retry_at = timezone.now() + timedelta(seconds=_INT_RETRY_SECONDS)
                     job.attempt_queued_at = job.retry_at
                     job.reason = "Waiting 60 seconds before the next attempt."
@@ -144,7 +140,7 @@ def receive_event(session: ExecutorSession, event: WorkEvent) -> None:
                         update_fields=["state", "retry_at", "attempt_queued_at", "reason"]
                     )
                 else:
-                    strReason = event.reason or f"Run {run.result}."
+                    strReason = event.reason or f"Run {run.status}."
                     if boolRunRetryable:
                         strReason = (
                             f"{strReason[:1800]}\n"
@@ -190,7 +186,7 @@ def receive_event(session: ExecutorSession, event: WorkEvent) -> None:
                 job.save(update_fields=["state", "reason"])
             else:
                 finish_job(job, assignment.reason, notify=True)
-    elif event.kind == RunEventKind.NOT_STARTED:
+    elif isinstance(event, WorkNotStartedEvent):
         if Run.objects.filter(assignment=assignment).exists():
             raise ValidationError(
                 "An actual Run already exists.", code="actual_run_exists"
@@ -202,7 +198,7 @@ def receive_event(session: ExecutorSession, event: WorkEvent) -> None:
                 or assignment.state
                 not in (
                     AssignmentState.PERMITTED,
-                    AssignmentState.REVIEW,
+                    AssignmentState.NEEDS_REVIEW,
                 )
                 or strPolicy not in (RunConflictPolicy.WAIT, RunConflictPolicy.SKIP)
             ):
@@ -236,31 +232,24 @@ def receive_event(session: ExecutorSession, event: WorkEvent) -> None:
                     job.save(update_fields=["state", "reason", "retry_at"])
         else:
             assignment.state = AssignmentState.FINISHED
-            assignment.reason = (
-                event.reason or "The client confirmed no process was created."
-            )
+            assignment.reason = event.reason or "The run did not start."
             assignment.save(update_fields=["state", "reason"])
             if job.state != JobState.FINISHED:
                 finish_job(job, assignment.reason, notify=job.stop_requested_at is None)
-    elif event.kind == RunEventKind.RECORDING:
+    elif isinstance(event, WorkRecordingEvent):
         run = Run.objects.get(assignment=assignment)
-        if event.recording is None:
-            raise ValidationError(
-                "A recording event requires current recording facts.",
-                code="invalid_recording_event",
-            )
         run.recording = event.recording.model_dump(mode="json")
         run.save(update_fields=["recording"])
     elif event.kind == RunEventKind.UNKNOWN:
         if assignment.state not in (AssignmentState.FINISHED, AssignmentState.WITHDRAWN):
-            assignment.state = AssignmentState.REVIEW
+            assignment.state = AssignmentState.NEEDS_REVIEW
             assignment.reason = (
                 event.reason
-                or "The client cannot confirm whether execution started or ended."
+                or "Unable to confirm whether the run started or finished. Check the Executor."
             )
             assignment.save(update_fields=["state", "reason"])
             if job.state != JobState.FINISHED:
-                job.state = JobState.REVIEW
+                job.state = JobState.NEEDS_REVIEW
                 job.reason = assignment.reason
                 job.save(update_fields=["state", "reason"])
     RunEvent.objects.create(
@@ -270,7 +259,8 @@ def receive_event(session: ExecutorSession, event: WorkEvent) -> None:
         occurred_at=event.occurred_at,
         reason=event.reason,
     )
-    if (
-        boolWasPreparing and assignment.state != AssignmentState.PREPARING
-    ) or event.not_started_reason == RunNotStartedReason.LOCAL_CONFLICT:
+    if (boolWasPreparing and assignment.state != AssignmentState.PREPARING) or (
+        isinstance(event, WorkNotStartedEvent)
+        and event.not_started_reason == RunNotStartedReason.LOCAL_CONFLICT
+    ):
         notify_executor_control(assignment.executor_id)

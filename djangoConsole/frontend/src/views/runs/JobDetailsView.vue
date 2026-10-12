@@ -17,7 +17,7 @@
     </div>
     <v-alert
       v-if="job.reason"
-      :type="job.state === 'needs_review' ? 'warning' : 'info'"
+      :type="job.state === JobState.NeedsReview ? 'warning' : 'info'"
       variant="tonal"
       class="mb-4">
       {{ job.reason }}
@@ -117,7 +117,7 @@ import { shallowRef, computed, onBeforeUnmount, onMounted, ref, watch } from "vu
 import JobActions from "@/components/runs/JobActions.vue";
 import RunTable from "@/components/runs/RunTable.vue";
 import RunSettingsDetails from "@/components/runOptions/RunSettingsDetails.vue";
-import { getJob, type JobDetails } from "@/api/runs";
+import { JobState, getJob, type JobDetails } from "@/api/runs";
 import { getApiError } from "@/api/errors";
 import {
   PRIORITY_LABELS,
@@ -158,7 +158,7 @@ watch(
 );
 onMounted(() => {
   timer = setInterval(() => {
-    if (!document.hidden && !boolLoading.value && job.value?.state !== "finished")
+    if (!document.hidden && !boolLoading.value && job.value?.state !== JobState.Finished)
       void load();
   }, 10000);
 });

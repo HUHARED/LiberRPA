@@ -16,17 +16,8 @@ from organizations.models import Organization
 from notifications.models import EmailDelivery, EmailStatus, EmailReasonCode
 from schedules.models import ScheduleTrigger
 
-from .models import (
-    JobState,
-    AssignmentState,
-    RunEventKind,
-    JobRequest,
-    Job,
-    Assignment,
-    Run,
-    RunFileTransfer,
-    RunEvent,
-)
+from .contracts import JobState, AssignmentState, RunEventKind
+from .models import JobRequest, Job, Assignment, Run, RunFileTransfer, RunEvent
 
 from .log_storage import (
     get_or_create_run_log_usage,

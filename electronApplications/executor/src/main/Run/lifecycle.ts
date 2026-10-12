@@ -1,8 +1,9 @@
 // FileName: lifecycle.ts
 
 import { getErrorMessage } from "../../shared/error";
+import type { ProjectRunConfig } from "../../shared/run";
 import { loggerMain } from "../Logging/logger";
-import type { ProjectRunConfig, RunEndedFact, RunExecutionContext } from "./types";
+import type { RunEndedFact, RunExecutionContext } from "./types";
 
 type RunEndedListener = () => void;
 

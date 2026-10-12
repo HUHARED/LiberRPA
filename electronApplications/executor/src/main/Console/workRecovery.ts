@@ -81,7 +81,7 @@ function recoverFinishedConsoleRun(record: ConsoleWorkRecord): boolean {
       kind: ConsoleEventKind.Ended,
       occurred_at: strEndedAt,
       started_at: started.startedAt,
-      result: status,
+      status,
       outputs,
       error_summary: state.errorSummary ?? null,
     });

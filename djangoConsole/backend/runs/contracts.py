@@ -8,10 +8,9 @@ import json
 import uuid
 from datetime import datetime
 from enum import StrEnum
-
-from django.db.models import TextChoices
 from typing import Annotated, Literal, Self, cast
 
+from django.db.models import TextChoices
 from pydantic import (
     AwareDatetime,
     Field,
@@ -21,8 +20,8 @@ from pydantic import (
 
 from console_project.contracts import JsonValue, JsonRequest, JsonResponsePayload
 from console_project.constants import RunLogLevel
-from organizations.contracts import PaginationResponse
 from console_project.validators import validate_json_string, validate_json_value
+from organizations.contracts import PaginationResponse
 from packages.contracts import (
     INT_CUSTOM_ARGUMENT_MAX_BYTES,
     RunPriority,
@@ -42,8 +41,8 @@ class JobState(TextChoices):
     STARTING = "starting", "Starting"
     RUNNING = "running", "Running"
     STOPPING = "stopping", "Stopping"
-    RETRY = "waiting_retry", "Waiting for Retry"
-    REVIEW = "needs_review", "Needs Review"
+    WAITING_RETRY = "waiting_retry", "Waiting for Retry"
+    NEEDS_REVIEW = "needs_review", "Needs Review"
     FINISHED = "finished", "Finished"
 
 
@@ -51,18 +50,35 @@ class AssignmentState(TextChoices):
     PREPARING = "preparing", "Preparing"
     PERMITTED = "permitted", "Permitted"
     RUNNING = "running", "Running"
-    REVIEW = "needs_review", "Needs Review"
+    NEEDS_REVIEW = "needs_review", "Needs Review"
     FINISHED = "finished", "Finished"
     WITHDRAWN = "withdrawn", "Withdrawn"
 
 
-class RunResult(TextChoices):
+ACTIVE_ASSIGNMENT_STATES = (
+    AssignmentState.PREPARING,
+    AssignmentState.PERMITTED,
+    AssignmentState.RUNNING,
+    AssignmentState.NEEDS_REVIEW,
+)
+
+
+class RunStatus(TextChoices):
     RUNNING = "running", "Running"
     COMPLETED = "completed", "Completed"
     ERROR = "error", "Error"
     CANCELED = "canceled", "Canceled"
     TIMED_OUT = "timed_out", "Timed Out"
     INTERRUPTED = "interrupted", "Interrupted"
+
+
+type RunTerminalStatus = Literal[
+    RunStatus.COMPLETED,
+    RunStatus.ERROR,
+    RunStatus.CANCELED,
+    RunStatus.TIMED_OUT,
+    RunStatus.INTERRUPTED,
+]
 
 
 class OutputsStatus(TextChoices):
@@ -230,31 +246,59 @@ class RunOutputs(JsonRequest):
             )
 
 
-class WorkEvent(JsonRequest):
+class WorkEventBase(JsonRequest):
     event_id: UuidValue
     assignment_id: UuidValue
-    kind: Annotated[RunEventKind, Field(strict=False)]
     occurred_at: Annotated[AwareDatetime, Field(strict=False)]
-    started_at: Annotated[AwareDatetime, Field(strict=False)] | None = None
-    result: Annotated[RunResult, Field(strict=False)] | None = None
+    reason: str = Field(default="", max_length=2000)
+
+
+class WorkStartedEvent(WorkEventBase):
+    kind: Literal[RunEventKind.STARTED]
+    started_at: Annotated[AwareDatetime, Field(strict=False)]
+
+
+class WorkEndedEvent(WorkEventBase):
+    kind: Literal[RunEventKind.ENDED]
+    started_at: Annotated[AwareDatetime, Field(strict=False)]
+    status: RunTerminalStatus
     outputs: RunOutputs = Field(default_factory=RunOutputs)
     error_summary: dict[str, str] | None = None
-    recording: RecordingInfo | None = None
-    reason: str = Field(default="", max_length=2000)
-    not_started_reason: Annotated[RunNotStartedReason, Field(strict=False)] | None = None
 
     @model_validator(mode="after")
-    def validate_event(self) -> "WorkEvent":
-        if self.not_started_reason is not None and self.kind != RunEventKind.NOT_STARTED:
-            raise ValueError("A non-start reason requires a not_started event.")
-        if self.kind == RunEventKind.ENDED:
-            if self.started_at is None or self.result in (None, RunResult.RUNNING):
-                raise ValueError(
-                    "An ended event requires actual start time and a final result."
-                )
-            if self.occurred_at < self.started_at:
-                raise ValueError("The end time precedes the start time.")
+    def validate_times(self) -> Self:
+        if self.occurred_at < self.started_at:
+            raise ValueError("The end time precedes the start time.")
         return self
+
+
+class WorkPreparationFailedEvent(WorkEventBase):
+    kind: Literal[RunEventKind.PREPARATION_FAILED]
+
+
+class WorkNotStartedEvent(WorkEventBase):
+    kind: Literal[RunEventKind.NOT_STARTED]
+    not_started_reason: Annotated[RunNotStartedReason, Field(strict=False)] | None = None
+
+
+class WorkUnknownEvent(WorkEventBase):
+    kind: Literal[RunEventKind.UNKNOWN]
+
+
+class WorkRecordingEvent(WorkEventBase):
+    kind: Literal[RunEventKind.RECORDING]
+    recording: RecordingInfo
+
+
+type WorkEvent = Annotated[
+    WorkStartedEvent
+    | WorkEndedEvent
+    | WorkPreparationFailedEvent
+    | WorkNotStartedEvent
+    | WorkUnknownEvent
+    | WorkRecordingEvent,
+    Field(discriminator="kind"),
+]
 
 
 class WorkEventsRequest(JsonRequest):
@@ -309,7 +353,7 @@ class RunResponse(JsonResponsePayload):
     attempt_number: int
     started_at: datetime
     ended_at: datetime | None
-    result: RunResult
+    status: RunStatus
     reason: str
     outputs_status: OutputsStatus
     can_rerun: bool

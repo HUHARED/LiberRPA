@@ -19,7 +19,7 @@
         <td class="text-no-wrap">
           {{ formatRunEndTime(run, timeZone) }}
         </td>
-        <td>{{ RUN_RESULT_LABELS[run.result] }}</td>
+        <td>{{ RUN_STATUS_LABELS[run.status] }}</td>
         <td>
           <v-btn
             :to="{ name: 'run-details', params: { runId: run.id } }"
@@ -37,7 +37,7 @@
 </template>
 <script setup lang="ts">
 import type { RunInfo } from "@/api/runs";
-import { RUN_RESULT_LABELS } from "@/app/runLabels";
+import { RUN_STATUS_LABELS } from "@/app/runLabels";
 import { formatDateTime, formatRunEndTime } from "@/app/formatters";
 defineProps<{
   runs: RunInfo[];

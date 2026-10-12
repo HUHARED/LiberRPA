@@ -31,9 +31,9 @@
           </v-col>
           <v-col cols="12" md="4">
             <v-select
-              v-model="filters.results"
+              v-model="filters.statuses"
               :items="
-                ARR_RUN_RESULT.map((value) => ({ value, title: RUN_RESULT_LABELS[value] }))
+                ARR_RUN_STATUS.map((value) => ({ value, title: RUN_STATUS_LABELS[value] }))
               "
               label="Status"
               multiple
@@ -125,7 +125,7 @@
       <template #item.ended_at="{ item }">
         {{ formatRunEndTime(item, strTimeZone) }}
       </template>
-      <template #item.result="{ item }">{{ RUN_RESULT_LABELS[item.result] }}</template>
+      <template #item.status="{ item }">{{ RUN_STATUS_LABELS[item.status] }}</template>
       <template #item.actions="{ item }">
         <div class="d-flex">
           <v-btn
@@ -200,7 +200,7 @@ import { shallowRef, computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import RunPackageDialog from "@/components/packages/RunPackageDialog.vue";
 import {
-  ARR_RUN_RESULT,
+  ARR_RUN_STATUS,
   getRuns,
   getMatchingRunIds,
   getRunDepartments,
@@ -212,7 +212,7 @@ import {
   type RunFilters,
 } from "@/api/runs";
 import { getApiError } from "@/api/errors";
-import { RUN_RESULT_LABELS } from "@/app/runLabels";
+import { RUN_STATUS_LABELS } from "@/app/runLabels";
 import { formatDateTime, formatRunEndTime } from "@/app/formatters";
 import { useSessionStore } from "@/stores/sessionStore";
 const ARR_HEADER = [
@@ -222,7 +222,7 @@ const ARR_HEADER = [
   { title: "Executor", key: "executor_name" },
   { title: "Started At", key: "started_at" },
   { title: "Ended At", key: "ended_at" },
-  { title: "Status", key: "result" },
+  { title: "Status", key: "status" },
   { title: "Actions", key: "actions" },
 ];
 const sessionStore = useSessionStore();
@@ -234,7 +234,7 @@ function emptyFilters(): RunFilters {
     departmentIds: [],
     projectName: "",
     scheduleName: "",
-    results: [],
+    statuses: [],
     executorId: "",
     startedFrom: "",
     startedUntil: "",
@@ -242,14 +242,14 @@ function emptyFilters(): RunFilters {
 }
 const arrDepartment = ref<RunDepartmentInfo[]>([]);
 const filters = ref(emptyFilters());
-const initialResult = ARR_RUN_RESULT.find((result) => result === route.query.result);
-if (initialResult) filters.value.results = [initialResult];
+const initialStatus = ARR_RUN_STATUS.find((status) => status === route.query.status);
+if (initialStatus) filters.value.statuses = [initialStatus];
 if (typeof route.query.department_id === "string")
   filters.value.departmentIds = [route.query.department_id];
 let appliedFilters = {
   ...filters.value,
   departmentIds: [...filters.value.departmentIds],
-  results: [...filters.value.results],
+  statuses: [...filters.value.statuses],
 };
 const page = shallowRef<RunPage | null>(null);
 const boolLoading = ref(false);
@@ -290,7 +290,7 @@ function apply(): void {
   appliedFilters = {
     ...filters.value,
     departmentIds: [...filters.value.departmentIds],
-    results: [...filters.value.results],
+    statuses: [...filters.value.statuses],
   };
   clearSelection();
   page.value = null;

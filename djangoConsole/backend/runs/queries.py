@@ -22,7 +22,8 @@ from organizations.permissions import (
 
 from packages.contracts import RUN_PRIORITY_ORDER
 
-from .models import Assignment, AssignmentState, Job, JobState, Run, RunResult
+from .contracts import JobState, ACTIVE_ASSIGNMENT_STATES, RunStatus
+from .models import Assignment, Job, Run
 
 _INT_PAGE_SIZE = 50
 _INT_MAX_SELECTED_RUNS = 20000
@@ -87,12 +88,7 @@ def _get_active_assignments(jobIds: list[uuid.UUID]) -> dict[uuid.UUID, Assignme
         assignment.job_id: assignment
         for assignment in Assignment.objects.filter(
             job_id__in=jobIds,
-            state__in=(
-                AssignmentState.PREPARING,
-                AssignmentState.PERMITTED,
-                AssignmentState.RUNNING,
-                AssignmentState.REVIEW,
-            ),
+            state__in=ACTIVE_ASSIGNMENT_STATES,
         ).only("job_id", "executor_id", "executor_name")
     }
 
@@ -131,10 +127,15 @@ def build_job_payload(
         "ended_at": job.ended_at,
         "can_cancel": job.stop_requested_at is None
         and job.state
-        in (JobState.WAITING, JobState.PREPARING, JobState.STARTING, JobState.RETRY),
+        in (
+            JobState.WAITING,
+            JobState.PREPARING,
+            JobState.STARTING,
+            JobState.WAITING_RETRY,
+        ),
         "can_stop": job.stop_requested_at is None
-        and job.state in (JobState.RUNNING, JobState.REVIEW),
-        "can_close": job.state == JobState.REVIEW,
+        and job.state in (JobState.RUNNING, JobState.NEEDS_REVIEW),
+        "can_close": job.state == JobState.NEEDS_REVIEW,
     }
     if details:
         dictPayload.update({
@@ -186,10 +187,10 @@ def build_run_payload(run: Run, *, details: bool = False) -> dict[str, object]:
         "attempt_number": assignment.attempt_number,
         "started_at": run.started_at,
         "ended_at": run.ended_at,
-        "result": run.result,
+        "status": run.status,
         "reason": run.reason,
         "outputs_status": run.outputs_status,
-        "can_rerun": run.ended_at is not None and run.result != RunResult.RUNNING,
+        "can_rerun": run.ended_at is not None and run.status != RunStatus.RUNNING,
         "can_stop": run.ended_at is None
         and job.state != JobState.FINISHED
         and assignment.stop_requested_at is None,
@@ -259,13 +260,13 @@ def _get_filtered_work(
                 strExecutorId
             )
         })
-    listStatus = query.getlist("result" if runs else "state")
+    listStatus = query.getlist("status" if runs else "state")
     if listStatus:
-        setAllowed = set(RunResult.values if runs else JobState.values)
+        setAllowed = set(RunStatus.values if runs else JobState.values)
         if not set(listStatus).issubset(setAllowed):
             raise ValidationError("Unknown status filter.", code="invalid_filter")
         workQuery = workQuery.filter(**{
-            "result__in" if runs else "state__in": listStatus
+            "status__in" if runs else "state__in": listStatus
         })
     if runs:
         for strQueryKey, strLookup in (

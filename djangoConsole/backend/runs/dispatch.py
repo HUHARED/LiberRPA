@@ -25,22 +25,11 @@ from organizations.permissions import require_organization_business_available
 
 from packages.contracts import PackagePreparationState, RunConflictPolicy
 
-from .models import (
-    JobState,
-    AssignmentState,
-    Job,
-    ExecutorWorkState,
-    Assignment,
-    DispatchControl,
-)
+from .contracts import JobState, AssignmentState, ACTIVE_ASSIGNMENT_STATES
+from .models import Job, ExecutorWorkState, Assignment, DispatchControl
 from .control_notifications import notify_executor_control
 from .dispatch_control import require_control_service
-from .services import (
-    ACTIVE_ASSIGNMENT_STATES,
-    has_job_source_access,
-    finish_job,
-    revoke_job_source_access,
-)
+from .services import has_job_source_access, finish_job, revoke_job_source_access
 
 _INT_WORK_STATE_STALE_SECONDS = 45
 
@@ -93,14 +82,14 @@ def _reconcile_assignment(
         and assignment.permit_expires_at
         and assignment.permit_expires_at <= currentTime
     ):
-        assignment.state = AssignmentState.REVIEW
+        assignment.state = AssignmentState.NEEDS_REVIEW
         assignment.reason = (
-            "The start permission expired without confirmed start or non-start evidence."
+            "Unable to confirm whether the run started. Check the Executor."
         )
         assignment.save(update_fields=["state", "reason"])
         notify_executor_control(assignment.executor_id)
         if job.closed_at is None:
-            job.state = JobState.REVIEW
+            job.state = JobState.NEEDS_REVIEW
             job.reason = assignment.reason
             job.save(update_fields=["state", "reason"])
         return
@@ -127,7 +116,7 @@ def _reconcile_assignment(
         or (not boolOnline and not boolRecovering)
     ):
         assignment.state = AssignmentState.WITHDRAWN
-        assignment.reason = "The target is no longer eligible before permission."
+        assignment.reason = "The Executor is no longer available to start this run."
         assignment.save(update_fields=["state", "reason"])
         notify_executor_control(assignment.executor_id)
         job.state = JobState.WAITING
@@ -135,14 +124,14 @@ def _reconcile_assignment(
     elif assignment.state in (AssignmentState.RUNNING, AssignmentState.PERMITTED) and (
         not boolSessionValid or (not boolOnline and not boolRecovering)
     ):
-        assignment.state = AssignmentState.REVIEW
+        assignment.state = AssignmentState.NEEDS_REVIEW
         assignment.reason = (
             "The original client is unavailable; actual execution remains unconfirmed."
         )
         assignment.save(update_fields=["state", "reason"])
         notify_executor_control(assignment.executor_id)
         if job.closed_at is None:
-            job.state = JobState.REVIEW
+            job.state = JobState.NEEDS_REVIEW
             job.reason = assignment.reason
             job.save(update_fields=["state", "reason"])
 
@@ -227,7 +216,7 @@ def _advance_job(
     ],
     sessionsByExecutor: dict[uuid.UUID, ExecutorSession | None],
 ) -> None:
-    if job.state not in (JobState.WAITING, JobState.RETRY):
+    if job.state not in (JobState.WAITING, JobState.WAITING_RETRY):
         return
     if not has_job_source_access(
         job, sourceDepartmentIdsByActor=sourceDepartmentIdsByActor
@@ -398,7 +387,7 @@ def dispatch_organization(organizationId: uuid.UUID) -> None:
         Job.objects
         .filter(
             request__organization=organization,
-            state__in=(JobState.WAITING, JobState.RETRY),
+            state__in=(JobState.WAITING, JobState.WAITING_RETRY),
         )
         .select_related("request")
         .order_by("priority_rank", "attempt_queued_at", "id")

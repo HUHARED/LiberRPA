@@ -4,7 +4,12 @@ import { randomUUID } from "crypto";
 
 import { getErrorMessage } from "../../shared/error";
 import { nextScheduleDate, parseScheduleCron } from "../../shared/cron";
-import { RunSource, JobQueueState, type JobQueueItem } from "../../shared/run";
+import {
+  RunSource,
+  type ProjectRunConfig,
+  JobQueueState,
+  type JobQueueItem,
+} from "../../shared/run";
 import { INT_RETRY_DELAY_MS, RunConflictPolicy } from "../../shared/runOptions";
 
 import { dictConfigExecutor } from "../Config/executorConfig";
@@ -19,7 +24,7 @@ import {
   startProjectRun,
 } from "../Run/projectRunner";
 import { onRunFinished } from "../Run/lifecycle";
-import type { ProjectRunConfig, RunExecutionContext } from "../Run/types";
+import type { RunExecutionContext } from "../Run/types";
 
 type JobQueueChangedListener = (arrItem: JobQueueItem[]) => void;
 
