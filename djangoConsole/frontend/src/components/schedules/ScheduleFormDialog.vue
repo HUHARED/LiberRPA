@@ -18,6 +18,7 @@
             <v-col cols="12" md="6">
               <v-text-field
                 v-model="strName"
+                :error-messages="getFieldErrors(dictFieldError, 'name')"
                 label="Name"
                 maxlength="128"
                 :rules="[(value) => !!value.trim() || 'Enter a name.']" />
@@ -25,6 +26,7 @@
             <v-col cols="12" md="6">
               <v-select
                 v-model="strDepartmentId"
+                :error-messages="getFieldErrors(dictFieldError, 'department_id')"
                 :items="arrDepartment"
                 item-title="path"
                 item-value="id"
@@ -47,12 +49,18 @@
                 label="Project / Version"
                 :loading="boolPackagesLoading || boolSettingsLoading"
                 :disabled="boolBusy || boolPackagesLoading"
-                :error-messages="strPackagesError"
+                :error-messages="[
+                  ...(strPackagesError ? [strPackagesError] : []),
+                  ...getFieldErrors(dictFieldError, 'package_id'),
+                ]"
                 :rules="[(value) => !!value || 'Select a package.']"
                 @update:model-value="changePackage" />
             </v-col>
             <v-col cols="12" md="4">
-              <v-switch v-model="boolEnabled" label="Enabled" />
+              <v-switch
+                v-model="boolEnabled"
+                :error-messages="getFieldErrors(dictFieldError, 'enabled')"
+                label="Enabled" />
             </v-col>
           </v-row>
           <p class="mb-4">
@@ -62,19 +70,27 @@
             :key="strDepartmentId"
             v-model:executor-ids="arrExecutorId"
             v-model:group-id="strGroupId"
+            :field-errors="dictFieldError"
             :department-id="strDepartmentId"
             :disabled="boolBusy" />
-          <v-textarea v-model="strNotes" label="Notes (optional)" rows="2" class="mt-4" />
+          <v-textarea
+            v-model="strNotes"
+            :error-messages="getFieldErrors(dictFieldError, 'notes')"
+            label="Notes (optional)"
+            rows="2"
+            class="mt-4" />
           <v-divider class="my-5" />
           <h2 class="text-h6 mb-4">Time</h2>
           <v-text-field
             v-model="strTimeZone"
+            :error-messages="getFieldErrors(dictFieldError, 'time_zone')"
             label="Schedule Time Zone (IANA)"
             :rules="[(value) => !!value || 'Enter a time zone.']" />
           <v-row>
             <v-col cols="12" md="6">
               <v-text-field
                 v-model="strActiveFrom"
+                :error-messages="getFieldErrors(dictFieldError, 'active_from')"
                 type="datetime-local"
                 step="1"
                 label="Active From"
@@ -83,6 +99,7 @@
             <v-col cols="12" md="6">
               <v-text-field
                 v-model="strActiveUntil"
+                :error-messages="getFieldErrors(dictFieldError, 'active_until')"
                 type="datetime-local"
                 step="1"
                 label="Active Until"
@@ -93,6 +110,7 @@
             <v-col cols="12" md="5">
               <v-text-field
                 :model-value="strCron"
+                :error-messages="getFieldErrors(dictFieldError, 'cron')"
                 label="Cron Expression"
                 hint="Five fields, or six fields with seconds first."
                 persistent-hint
@@ -129,12 +147,16 @@
             <h2 class="text-h6 mb-4">Run Settings</h2>
             <RunOptionsEditor
               v-model="settings"
+              :field-errors="dictFieldError"
               :department-id="strDepartmentId"
               :disabled="boolBusy"
               @valid="boolArgsValid = $event" />
             <v-divider class="my-5" />
             <h2 class="text-h6 mb-4">Dispatch &amp; Email</h2>
-            <RunDispatchEmailEditor v-model="settings" :disabled="boolBusy" />
+            <RunDispatchEmailEditor
+              v-model="settings"
+              :disabled="boolBusy"
+              :field-errors="dictFieldError" />
           </template>
         </v-form>
       </v-card-text>
@@ -190,7 +212,7 @@ import {
   previewSchedule,
 } from "@/api/schedules";
 import { type RunSettings, cloneRunSettings } from "@/api/runOptions";
-import { getApiError } from "@/api/errors";
+import { getApiError, getFieldErrors } from "@/api/errors";
 
 import { useSessionStore } from "@/stores/sessionStore";
 import { formatDateTime, formatDateTimeInput } from "@/app/formatters";
@@ -231,6 +253,7 @@ let intSettingsRevision = 0;
 const boolSettingsLoading = ref(false);
 let boolDisposed = false;
 const strError = ref("");
+const dictFieldError = ref<Record<string, string[]>>({});
 const boolArgsValid = ref(true);
 const arrPackage = shallowRef<PackageListEntry[]>([]);
 const settings: Ref<RunSettings | null> = ref(null);
@@ -391,7 +414,9 @@ async function save(): Promise<void> {
     return;
   boolBusy.value = true;
   strError.value = "";
+  dictFieldError.value = {};
   try {
+    await nextTick();
     if (!(await form.value?.validate())?.valid || boolDisposed) return;
     const result = await saveSchedule(props.scheduleId ?? null, {
       name: strName.value,
@@ -409,7 +434,11 @@ async function save(): Promise<void> {
     });
     if (!boolDisposed) emit("saved", result);
   } catch (e) {
-    if (!boolDisposed) strError.value = getApiError(e).message;
+    if (!boolDisposed) {
+      const error = getApiError(e);
+      strError.value = error.message;
+      dictFieldError.value = error.fields;
+    }
   } finally {
     boolBusy.value = false;
   }
@@ -470,7 +499,11 @@ onMounted(async () => {
     boolInitialized.value = true;
     void changeCron(strCron.value);
   } catch (e) {
-    if (!boolDisposed) strError.value = getApiError(e).message;
+    if (!boolDisposed) {
+      const error = getApiError(e);
+      strError.value = error.message;
+      dictFieldError.value = error.fields;
+    }
   } finally {
     if (!boolDisposed) boolLoading.value = false;
   }

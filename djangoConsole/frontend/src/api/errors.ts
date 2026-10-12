@@ -31,3 +31,12 @@ export function getApiError(error: unknown): ApiError {
     ? error
     : new ApiError("The request could not be completed. Please try again.");
 }
+
+export function getFieldErrors(
+  fields: Record<string, string[]> | undefined,
+  path: string,
+): string[] {
+  return Object.entries(fields ?? {}).flatMap(([strField, arrMessage]) =>
+    strField === path || strField.startsWith(`${path}.`) ? arrMessage : [],
+  );
+}

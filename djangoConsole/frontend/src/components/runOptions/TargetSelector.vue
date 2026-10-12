@@ -11,6 +11,13 @@
   </v-radio-group>
   <v-alert v-if="strError" type="error" variant="tonal" class="mb-3">
     {{ strError }}
+    <v-btn
+      variant="text"
+      size="small"
+      :disabled="disabled || boolLoading"
+      @click="loadTargets">
+      Retry
+    </v-btn>
   </v-alert>
   <v-select
     v-if="strTargetType === 'executor'"
@@ -19,6 +26,7 @@
     item-title="name"
     item-value="id"
     label="Executors"
+    :error-messages="getFieldErrors(fieldErrors, 'executor_ids')"
     multiple
     chips
     closable-chips
@@ -38,6 +46,7 @@
     item-title="name"
     item-value="id"
     label="Executor Group"
+    :error-messages="getFieldErrors(fieldErrors, 'group_id')"
     :loading="boolLoading"
     :disabled="disabled || boolLoading || !departmentId"
     :rules="[(value) => !!value || 'Select a group.']">
@@ -52,68 +61,82 @@
 import { onBeforeUnmount, ref, watch } from "vue";
 import { getExecutorList } from "@/api/executors";
 import { getExecutorGroupList } from "@/api/executorGroups";
-import { getApiError } from "@/api/errors";
+import { getApiError, getFieldErrors } from "@/api/errors";
 import type {
   ExecutorListEntryResponse,
   ExecutorGroupListEntryResponse,
 } from "@/api/generated/browserApi";
-const props = defineProps<{ departmentId: string; disabled?: boolean }>();
+const props = defineProps<{
+  departmentId: string;
+  disabled?: boolean;
+  fieldErrors?: Record<string, string[]>;
+}>();
 const executorIds = defineModel<string[]>("executorIds", { required: true });
 const groupId = defineModel<string | null>("groupId", { required: true });
-const strTargetType = ref(groupId.value ? "group" : "executor");
+type TargetType = "executor" | "group";
+const strTargetType = ref<TargetType>(groupId.value ? "group" : "executor");
 const arrExecutor = ref<ExecutorListEntryResponse[]>([]);
 const arrGroup = ref<ExecutorGroupListEntryResponse[]>([]);
 const boolLoading = ref(false);
 const strError = ref("");
 let intRevision = 0;
+let strLoadedDepartmentId = "";
+let boolExecutorsLoaded = false;
+let boolGroupsLoaded = false;
+
 function changeType(): void {
   executorIds.value = [];
   groupId.value = null;
 }
+
 async function loadTargets(): Promise<void> {
   const intCurrentRevision = ++intRevision;
   const strDepartmentId = props.departmentId;
-  arrExecutor.value = [];
-  arrGroup.value = [];
+  const strRequestedType = strTargetType.value;
+  if (strLoadedDepartmentId !== strDepartmentId) {
+    strLoadedDepartmentId = strDepartmentId;
+    arrExecutor.value = [];
+    arrGroup.value = [];
+    boolExecutorsLoaded = false;
+    boolGroupsLoaded = false;
+  }
   strError.value = "";
-  boolLoading.value = !!strDepartmentId;
-  if (!strDepartmentId) return;
+  boolLoading.value = false;
+  if (
+    !strDepartmentId ||
+    (strRequestedType === "executor" ? boolExecutorsLoaded : boolGroupsLoaded)
+  )
+    return;
+  boolLoading.value = true;
   try {
-    const [arrExecutorResult, arrGroupResult] = await Promise.all([
-      (async (): Promise<ExecutorListEntryResponse[]> => {
-        const arrResult: ExecutorListEntryResponse[] = [];
-        let intPage = 1;
-        let intTotal: number;
-        do {
-          const result = await getExecutorList(
-            { name: "", departmentIds: [strDepartmentId], dispatchStates: [] },
-            intPage++,
-          );
-          if (intCurrentRevision !== intRevision) return [];
-          arrResult.push(...result.executors);
-          intTotal = result.total_pages;
-        } while (intPage <= intTotal);
-        return arrResult;
-      })(),
-      (async (): Promise<ExecutorGroupListEntryResponse[]> => {
-        const arrResult: ExecutorGroupListEntryResponse[] = [];
-        let intPage = 1;
-        let intTotal: number;
-        do {
-          const result = await getExecutorGroupList(
-            { name: "", departmentIds: [strDepartmentId] },
-            intPage++,
-          );
-          if (intCurrentRevision !== intRevision) return [];
-          arrResult.push(...result.executor_groups);
-          intTotal = result.total_pages;
-        } while (intPage <= intTotal);
-        return arrResult;
-      })(),
-    ]);
-    if (intRevision === intCurrentRevision) {
-      arrExecutor.value = arrExecutorResult;
-      arrGroup.value = arrGroupResult;
+    let intPage = 1;
+    let intTotalPages = 1;
+    if (strRequestedType === "executor") {
+      const arrResult: ExecutorListEntryResponse[] = [];
+      do {
+        const result = await getExecutorList(
+          { name: "", departmentIds: [strDepartmentId], dispatchStates: [] },
+          intPage++,
+        );
+        if (intCurrentRevision !== intRevision) return;
+        arrResult.push(...result.executors);
+        intTotalPages = result.total_pages;
+      } while (intPage <= intTotalPages);
+      arrExecutor.value = arrResult;
+      boolExecutorsLoaded = true;
+    } else {
+      const arrResult: ExecutorGroupListEntryResponse[] = [];
+      do {
+        const result = await getExecutorGroupList(
+          { name: "", departmentIds: [strDepartmentId] },
+          intPage++,
+        );
+        if (intCurrentRevision !== intRevision) return;
+        arrResult.push(...result.executor_groups);
+        intTotalPages = result.total_pages;
+      } while (intPage <= intTotalPages);
+      arrGroup.value = arrResult;
+      boolGroupsLoaded = true;
     }
   } catch (e) {
     if (intRevision === intCurrentRevision) strError.value = getApiError(e).message;
@@ -121,11 +144,17 @@ async function loadTargets(): Promise<void> {
     if (intRevision === intCurrentRevision) boolLoading.value = false;
   }
 }
-watch(
-  () => props.departmentId,
-  () => void loadTargets(),
-  { immediate: true },
-);
+
+// A Schedule may supply its saved target after this component has mounted.
+watch(groupId, (value) => {
+  if (value !== null) strTargetType.value = "group";
+});
+watch(executorIds, (value) => {
+  if (value.length) strTargetType.value = "executor";
+});
+watch([() => props.departmentId, strTargetType], () => void loadTargets(), {
+  immediate: true,
+});
 onBeforeUnmount(() => {
   intRevision++;
 });

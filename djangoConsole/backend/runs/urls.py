@@ -6,36 +6,34 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from django.urls import path
 
+from .views import (
+    list_or_create_jobs,
+    job_detail,
+    update_job,
+    list_runs,
+    run_selection,
+    history_departments,
+    run_detail,
+    stop_run,
+    rerun_options,
+)
+from .logs import clear_logs, list_logs, upload_logs
+from .transfers import create_file_transfer, set_file_ready
 from .protocol import executor_work_endpoint
-from .views import work_endpoint
 
 urlpatterns = [
-    path("jobs/", work_endpoint, {"action": "jobs"}, name="jobs"),
-    path("jobs/<uuid:workId>/", work_endpoint, {"action": "job"}, name="job"),
-    path(
-        "jobs/<uuid:workId>/control/",
-        work_endpoint,
-        {"action": "control"},
-        name="job-control",
-    ),
-    path("runs/", work_endpoint, {"action": "runs"}, name="runs"),
-    path(
-        "runs/selection/",
-        work_endpoint,
-        {"action": "run-selection"},
-        name="run-selection",
-    ),
-    path(
-        "runs/departments/",
-        work_endpoint,
-        {"action": "departments"},
-        name="run-history-departments",
-    ),
-    path("runs/<uuid:workId>/", work_endpoint, {"action": "run"}, name="run"),
-    path("runs/<uuid:workId>/stop/", work_endpoint, {"action": "stop"}, name="run-stop"),
-    path(
-        "runs/<uuid:workId>/rerun/", work_endpoint, {"action": "rerun"}, name="run-rerun"
-    ),
+    path("jobs/", list_or_create_jobs, name="jobs"),
+    path("jobs/<uuid:workId>/", job_detail, name="job"),
+    path("jobs/<uuid:workId>/control/", update_job, name="job-control"),
+    path("runs/", list_runs, name="runs"),
+    path("runs/selection/", run_selection, name="run-selection"),
+    path("runs/departments/", history_departments, name="run-history-departments"),
+    path("runs/clear-logs/", clear_logs),
+    path("runs/<uuid:workId>/", run_detail, name="run"),
+    path("runs/<uuid:workId>/stop/", stop_run, name="run-stop"),
+    path("runs/<uuid:workId>/rerun/", rerun_options, name="run-rerun"),
+    path("runs/<uuid:runId>/logs/", list_logs),
+    path("runs/<uuid:runId>/files/", create_file_transfer),
     path(
         "clients/executor/work/poll/",
         executor_work_endpoint,
@@ -60,4 +58,6 @@ urlpatterns = [
         {"action": "event-retention"},
         name="executor-work-event-retention",
     ),
+    path("clients/executor/runs/<uuid:runId>/logs/", upload_logs),
+    path("clients/executor/file-transfers/<uuid:transferId>/ready/", set_file_ready),
 ]

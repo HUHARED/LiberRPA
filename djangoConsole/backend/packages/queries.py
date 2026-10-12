@@ -87,7 +87,7 @@ def build_package_payload(
             "requires_liberrpa": package.requires_liberrpa,
             "component_dependencies": package.component_dependencies,
             "sha256": package.sha256,
-            "settings": build_run_settings(package),
+            "settings": build_run_settings(package).model_dump(mode="json"),
             "api_input_keys": package.api_input_keys,
         })
     return dictPayload

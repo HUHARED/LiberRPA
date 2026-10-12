@@ -4,6 +4,7 @@
     <v-col cols="12" sm="4">
       <v-number-input
         v-model="settings.max_retry_count"
+        :error-messages="getFieldErrors(fieldErrors, 'settings.max_retry_count')"
         label="Max Retry Count"
         :min="0"
         :max="3"
@@ -16,6 +17,7 @@
     <v-col cols="12" sm="4">
       <v-number-input
         v-model="settings.timeout_min"
+        :error-messages="getFieldErrors(fieldErrors, 'settings.timeout_min')"
         label="Timeout (min)"
         :min="0"
         :max="INT_MAX_TIMEOUT_MIN"
@@ -28,6 +30,7 @@
     <v-col cols="12" sm="4">
       <v-select
         v-model="settings.builtin_log_level"
+        :error-messages="getFieldErrors(fieldErrors, 'settings.builtin_log_level')"
         label="Log Level"
         :items="ARR_LOG_LEVEL"
         :disabled="disabled" />
@@ -37,22 +40,25 @@
     <v-col cols="12" sm="4">
       <v-switch
         v-model="settings.builtin_record_video"
+        :error-messages="getFieldErrors(fieldErrors, 'settings.builtin_record_video')"
         label="Record Video"
-        hide-details
+        hide-details="auto"
         :disabled="disabled" />
     </v-col>
     <v-col cols="12" sm="4">
       <v-switch
         v-model="settings.builtin_stop_shortcut"
+        :error-messages="getFieldErrors(fieldErrors, 'settings.builtin_stop_shortcut')"
         label="Stop Shortcut"
-        hide-details
+        hide-details="auto"
         :disabled="disabled" />
     </v-col>
     <v-col cols="12" sm="4">
       <v-switch
         v-model="settings.builtin_highlight_ui"
+        :error-messages="getFieldErrors(fieldErrors, 'settings.builtin_highlight_ui')"
         label="Highlight UI"
-        hide-details
+        hide-details="auto"
         :disabled="disabled" />
     </v-col>
   </v-row>
@@ -62,9 +68,30 @@
   </v-alert>
   <v-alert v-if="strAssetError" type="error" variant="tonal" class="mb-3">
     {{ strAssetError }}
+    <v-btn
+      variant="text"
+      size="small"
+      :disabled="disabled || boolLoadingAssets"
+      @click="loadAssets">
+      Retry
+    </v-btn>
   </v-alert>
   <v-alert v-if="strArgumentsError" type="error" variant="tonal" class="mb-3">
     {{ strArgumentsError }}
+  </v-alert>
+  <v-alert
+    v-if="fieldErrors?.['settings.custom_prj_args']"
+    type="error"
+    variant="tonal"
+    class="mb-3">
+    {{ fieldErrors?.["settings.custom_prj_args"]?.join(" ") }}
+  </v-alert>
+  <v-alert
+    v-if="fieldErrors?.['settings.custom_arg_assets']"
+    type="error"
+    variant="tonal"
+    class="mb-3">
+    {{ fieldErrors?.["settings.custom_arg_assets"]?.join(" ") }}
   </v-alert>
   <p v-if="settings.custom_prj_args.length === 0" class="text-medium-emphasis">
     No custom arguments.
@@ -89,6 +116,7 @@
         item-title="name"
         item-value="name"
         label="Asset (same department)"
+        :error-messages="getFieldErrors(fieldErrors, `settings.custom_arg_assets.${index}`)"
         :disabled="disabled"
         :loading="boolLoadingAssets"
         :rules="[(value) => !!value || 'Select an asset.']"
@@ -104,7 +132,10 @@
         rows="1"
         auto-grow
         :disabled="disabled"
-        :error-messages="arrError[index]"
+        :error-messages="[
+          ...(arrError[index] ? [arrError[index]!] : []),
+          ...getFieldErrors(fieldErrors, `settings.custom_prj_args.${index}`),
+        ]"
         spellcheck="false"
         @update:model-value="updateValue(index, $event)" />
     </v-col>
@@ -114,7 +145,7 @@
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 
 import { getAssetList } from "@/api/assets";
-import { getApiError } from "@/api/errors";
+import { getApiError, getFieldErrors } from "@/api/errors";
 import type { AssetEntryResponse } from "@/api/generated/browserApi";
 
 import { validateJsonValue } from "@/app/validators";
@@ -126,7 +157,11 @@ import {
   INT_MAX_TIMEOUT_MIN,
 } from "@/api/runOptions";
 
-const props = defineProps<{ departmentId: string; disabled?: boolean }>();
+const props = defineProps<{
+  departmentId: string;
+  disabled?: boolean;
+  fieldErrors?: Record<string, string[]>;
+}>();
 const INT_CUSTOM_ARGUMENT_MAX_COUNT = 100;
 const settings = defineModel<RunSettings>({ required: true });
 const emit = defineEmits<{ valid: [value: boolean] }>();
@@ -142,6 +177,8 @@ const arrAsset = ref<AssetEntryResponse[]>([]);
 const strAssetError = ref("");
 const boolLoadingAssets = ref(false);
 let intAssetRevision = 0;
+let strAssetDepartmentId = "";
+let boolAssetsLoaded = false;
 const boolDuplicate = computed(
   () =>
     new Set(settings.value.custom_prj_args.map((entry) => entry[0])).size !==
@@ -221,15 +258,25 @@ function setAsset(index: number, name: string): void {
 }
 
 async function loadAssets(): Promise<void> {
-  const intRevision = ++intAssetRevision;
   const strDepartmentId = props.departmentId;
-  arrAsset.value = [];
-  strAssetError.value = "";
-  boolLoadingAssets.value = !!strDepartmentId;
-  if (!strDepartmentId || !settings.value.custom_prj_args.length) {
+  if (strAssetDepartmentId !== strDepartmentId) {
+    intAssetRevision += 1;
+    strAssetDepartmentId = strDepartmentId;
+    arrAsset.value = [];
+    strAssetError.value = "";
     boolLoadingAssets.value = false;
-    return;
+    boolAssetsLoaded = false;
   }
+  if (
+    !strDepartmentId ||
+    !settings.value.custom_arg_assets.some((binding) => binding !== null) ||
+    boolAssetsLoaded ||
+    boolLoadingAssets.value
+  )
+    return;
+  const intRevision = ++intAssetRevision;
+  strAssetError.value = "";
+  boolLoadingAssets.value = true;
   try {
     const arrResult: AssetEntryResponse[] = [];
     let intPage = 1;
@@ -248,6 +295,7 @@ async function loadAssets(): Promise<void> {
       intTotalPages = result.total_pages;
     } while (intPage <= intTotalPages);
     arrAsset.value = arrResult;
+    boolAssetsLoaded = true;
   } catch (e) {
     if (intRevision === intAssetRevision) strAssetError.value = getApiError(e).message;
   } finally {
@@ -258,7 +306,10 @@ async function loadAssets(): Promise<void> {
 watch(strArgumentsError, publishValid, { immediate: true });
 
 watch(
-  [() => props.departmentId, () => settings.value.custom_prj_args.length > 0],
+  [
+    () => props.departmentId,
+    () => settings.value.custom_arg_assets.some((binding) => binding !== null),
+  ],
   () => void loadAssets(),
   { immediate: true },
 );

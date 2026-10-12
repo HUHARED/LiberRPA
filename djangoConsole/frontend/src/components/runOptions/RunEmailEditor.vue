@@ -9,28 +9,38 @@
     item-title="email"
     item-value="id"
     label="To (verified addresses, up to 5)"
+    :error-messages="getFieldErrors(fieldErrors, 'settings.run_email.recipient_ids')"
     multiple
     chips
     closable-chips
     :disabled="disabled"
     :rules="[(value) => value.length <= 5 || 'Select at most 5 addresses.']" />
-  <v-expansion-panels multiple variant="accordion">
-    <v-expansion-panel v-for="event in ARR_EVENT" :key="event.key">
+  <v-expansion-panels v-model="arrOpenPanel" multiple variant="accordion">
+    <v-expansion-panel v-for="event in ARR_EVENT" :key="event.key" :value="event.key">
       <v-expansion-panel-title>
         {{ event.title }} · {{ config[event.key].enabled ? "Enabled" : "Disabled" }}
       </v-expansion-panel-title>
       <v-expansion-panel-text>
         <v-switch
           v-model="config[event.key].enabled"
+          :error-messages="
+            getFieldErrors(fieldErrors, `settings.run_email.${event.key}.enabled`)
+          "
           :label="event.title"
           :disabled="disabled" />
         <v-text-field
           v-model="config[event.key].subject"
+          :error-messages="
+            getFieldErrors(fieldErrors, `settings.run_email.${event.key}.subject`)
+          "
           label="Subject"
           :disabled="disabled"
           @focus="setField(event.key, 'subject')" />
         <v-textarea
           v-model="config[event.key].body"
+          :error-messages="
+            getFieldErrors(fieldErrors, `settings.run_email.${event.key}.body`)
+          "
           label="Body (plain text)"
           rows="5"
           :disabled="disabled"
@@ -65,11 +75,15 @@
   </v-expansion-panels>
 </template>
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
-import { getApiError } from "@/api/errors";
+import { computed, onMounted, ref, watch } from "vue";
+import { getApiError, getFieldErrors } from "@/api/errors";
 import { getRunEmailRecipients, type RunEmailRecipient } from "@/api/runEmail";
 import type { RunEmailConfig } from "@/api/runOptions";
-const props = defineProps<{ argumentKeys: string[]; disabled?: boolean }>();
+const props = defineProps<{
+  argumentKeys: string[];
+  disabled?: boolean;
+  fieldErrors?: Record<string, string[]>;
+}>();
 const config = defineModel<RunEmailConfig>({ required: true });
 type EventKey = "on_start" | "on_completed" | "on_error";
 const ARR_EVENT: { key: EventKey; title: string }[] = [
@@ -95,6 +109,7 @@ const ARR_SYSTEM_FIELD = [
   "details_url",
 ];
 const arrKey = computed(() => [...new Set(props.argumentKeys)]);
+const arrOpenPanel = ref<EventKey[]>([]);
 const arrRecipient = ref<RunEmailRecipient[]>([]);
 const strError = ref("");
 const fieldByEvent = ref<Record<EventKey, "subject" | "body">>({
@@ -121,6 +136,17 @@ function insertArgument(event: EventKey, name: string, input: boolean): void {
   ).join("");
   insertField(event, `${input ? "Input_CustomArgs_" : "CustomArgs_"}${strHex}`);
 }
+watch(
+  () => props.fieldErrors,
+  (fields) => {
+    for (const event of ARR_EVENT)
+      if (
+        getFieldErrors(fields, `settings.run_email.${event.key}`).length &&
+        !arrOpenPanel.value.includes(event.key)
+      )
+        arrOpenPanel.value.push(event.key);
+  },
+);
 onMounted(async () => {
   try {
     arrRecipient.value = (await getRunEmailRecipients()).recipients;

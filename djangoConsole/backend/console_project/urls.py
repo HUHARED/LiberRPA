@@ -23,7 +23,6 @@ urlpatterns = [
     path("api/clients/editor/packages/", include("packages.editor_urls")),
     path("api/clients/executor/packages/", include("packages.executor_urls")),
     path("api/schedules/", include("schedules.urls")),
-    path("api/", include("runs.log_urls")),
     path("api/", include("runs.urls")),
     path("api/notifications/", include("notifications.urls")),
     path("api/run-email-recipients/", include("notifications.recipient_urls")),

@@ -56,6 +56,9 @@ def build_package_error(e: Exception) -> JsonResponse:
             "invalid_package_request",
             " ".join(e.messages) if isinstance(e, ValidationError) else str(e),
             statusCode=400,
+            fields=e.message_dict
+            if isinstance(e, ValidationError) and hasattr(e, "message_dict")
+            else None,
         )
     return build_service_unavailable_response()
 

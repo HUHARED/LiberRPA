@@ -22,7 +22,11 @@ from organizations.permissions import (
     get_authorized_departments,
 )
 from packages.models import Package
-from packages.runtime import build_run_settings, apply_run_settings, validate_run_settings
+from packages.runtime import (
+    build_run_settings,
+    apply_run_settings,
+    validate_run_settings,
+)
 
 from .contracts import ScheduleTimeRequest, ScheduleUpdateRequest
 from .cron import normalize_cron, get_schedule_zone, get_next_trigger
@@ -68,26 +72,6 @@ def parse_schedule_time(
     return strCron, activeFrom, activeUntil
 
 
-def _validate_targets(
-    departmentId: uuid.UUID, executorIds: list[uuid.UUID], groupId: uuid.UUID | None
-) -> None:
-    if (groupId is None) == (not executorIds) or len(executorIds) != len(
-        set(executorIds)
-    ):
-        raise ValidationError("Select distinct Executors or one Executor Group.")
-    if groupId is not None:
-        if not ExecutorGroup.objects.filter(
-            pk=groupId, department_id=departmentId, deleted_at__isnull=True
-        ).exists():
-            raise ValidationError({"group_id": "Select a group in this department."})
-    elif Executor.objects.filter(
-        pk__in=executorIds, department_id=departmentId, deleted_at__isnull=True
-    ).count() != len(executorIds):
-        raise ValidationError({
-            "executor_ids": "Select current Executors in this department."
-        })
-
-
 def save_schedule(
     access: OrganizationAccessContext,
     form: ScheduleUpdateRequest,
@@ -95,14 +79,33 @@ def save_schedule(
     departmentId: uuid.UUID,
     schedule: Schedule | None = None,
 ) -> Schedule:
+    def validate_targets(
+        departmentId: uuid.UUID, executorIds: list[uuid.UUID], groupId: uuid.UUID | None
+    ) -> None:
+        if (groupId is None) == (not executorIds) or len(executorIds) != len(
+            set(executorIds)
+        ):
+            raise ValidationError("Select distinct Executors or one Executor Group.")
+        if groupId is not None:
+            if not ExecutorGroup.objects.filter(
+                pk=groupId, department_id=departmentId, deleted_at__isnull=True
+            ).exists():
+                raise ValidationError({"group_id": "Select a group in this department."})
+        elif Executor.objects.filter(
+            pk__in=executorIds, department_id=departmentId, deleted_at__isnull=True
+        ).count() != len(executorIds):
+            raise ValidationError({
+                "executor_ids": "Select current Executors in this department."
+            })
+
     require_schedule_management(access, departmentId)
     strCron, activeFrom, activeUntil = parse_schedule_time(form)
     package = Package.objects.get(pk=form.package_id, department_id=departmentId)
-    _validate_targets(departmentId, form.executor_ids, form.group_id)
-    dictSettings = validate_run_settings(package, form.settings)
+    validate_targets(departmentId, form.executor_ids, form.group_id)
+    runSettings = validate_run_settings(package, form.settings)
     boolCreated = schedule is None
     boolSettingsChanged = (
-        schedule is not None and build_run_settings(schedule) != dictSettings
+        schedule is not None and build_run_settings(schedule) != runSettings
     )
     dictBefore = {} if schedule is None else get_audit_snapshot(schedule)
     if schedule is None:
@@ -133,7 +136,7 @@ def save_schedule(
     schedule.package = package
     schedule.executor_ids = [str(executorId) for executorId in form.executor_ids]
     schedule.group_id = form.group_id
-    apply_run_settings(schedule, dictSettings)
+    apply_run_settings(schedule, runSettings)
     schedule.enabled = form.enabled
     schedule.cron = strCron
     schedule.time_zone = form.time_zone

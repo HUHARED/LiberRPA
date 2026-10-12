@@ -198,15 +198,18 @@
           </v-alert>
           <v-text-field
             v-model="strEnvironment"
+            :error-messages="getFieldErrors(dictFieldError, 'python_environment_name')"
             label="Python Environment"
             :rules="[validateEnvironmentName]" />
           <RunOptionsEditor
             v-model="draft"
+            :field-errors="dictFieldError"
             :department-id="details.package.department_id"
             :disabled="boolBusy"
             @valid="boolArgsValid = $event" />
           <v-select
             v-model="arrApiInputKey"
+            :error-messages="getFieldErrors(dictFieldError, 'api_input_keys')"
             :items="[
               ...new Set(
                 draft.custom_prj_args.map((argument: [string, unknown]) => argument[0]),
@@ -219,7 +222,10 @@
             hint="Only these inputs can be supplied through an API key."
             persistent-hint />
           <h3 class="text-h6 my-4">Dispatch &amp; Email</h3>
-          <RunDispatchEmailEditor v-model="draft" :disabled="boolBusy" />
+          <RunDispatchEmailEditor
+            v-model="draft"
+            :disabled="boolBusy"
+            :field-errors="dictFieldError" />
         </v-form>
       </v-card-text>
       <v-card-actions>
@@ -284,7 +290,7 @@
     @saved="handleRun" />
 </template>
 <script setup lang="ts">
-import { shallowRef, computed, ref, watch } from "vue";
+import { nextTick, shallowRef, computed, ref, watch } from "vue";
 import { RouterLink, useRouter, type RouteLocationRaw } from "vue-router";
 import type { Ref } from "vue";
 import type { VForm } from "vuetify/components";
@@ -307,7 +313,7 @@ import {
   downloadPackage,
 } from "@/api/packages";
 import { type RunSettings, cloneRunSettings } from "@/api/runOptions";
-import { getApiError } from "@/api/errors";
+import { getApiError, getFieldErrors } from "@/api/errors";
 
 import {
   CONFLICT_POLICY_LABELS,
@@ -353,6 +359,7 @@ const boolRun = ref(false);
 const boolArgsValid = ref(true);
 const strError = ref("");
 const strEditError = ref("");
+const dictFieldError = ref<Record<string, string[]>>({});
 const strDeleteError = ref("");
 const strPreparationError = ref("");
 const strSuccess = ref("");
@@ -400,15 +407,18 @@ function edit(): void {
   arrApiInputKey.value = [...details.value.package.api_input_keys];
   strEnvironment.value = details.value.package.python_environment_name;
   strEditError.value = "";
+  dictFieldError.value = {};
   boolEdit.value = true;
 }
 
 async function save(): Promise<void> {
-  if (!draft.value || !boolArgsValid.value || !(await form.value?.validate())?.valid)
-    return;
+  if (boolBusy.value || !draft.value || !boolArgsValid.value) return;
   boolBusy.value = true;
   strEditError.value = "";
+  dictFieldError.value = {};
   try {
+    await nextTick();
+    if (!(await form.value?.validate())?.valid) return;
     await savePackageSettings(
       props.packageId,
       strEnvironment.value,
@@ -419,7 +429,9 @@ async function save(): Promise<void> {
     strSuccess.value = "Settings saved.";
     await load();
   } catch (e) {
-    strEditError.value = getApiError(e).message;
+    const error = getApiError(e);
+    strEditError.value = error.message;
+    dictFieldError.value = error.fields;
   } finally {
     boolBusy.value = false;
   }

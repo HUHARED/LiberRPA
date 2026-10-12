@@ -15,6 +15,9 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.mail import EmailMessage
 
+from console_project.contracts import JsonValue
+from packages.contracts import RunEmailSettings
+
 from .models import RunEmailRecipient, RunEmailEvent
 
 if TYPE_CHECKING:
@@ -114,61 +117,78 @@ def get_template_metadata() -> dict:
     }
 
 
-def validate_run_email(organizationId: uuid.UUID, config: dict, customArgs: list) -> None:
-    listRecipientId = config.get("recipient_ids", [])
-    if len(listRecipientId) > 5 or len(set(map(str, listRecipientId))) != len(
-        listRecipientId
-    ):
-        raise ValidationError(
+def validate_run_email(
+    organizationId: uuid.UUID, config: RunEmailSettings, customArgs: list[list[JsonValue]]
+) -> None:
+    listRecipientId = config.recipient_ids
+    dictFieldError: dict[str, list[str]] = {}
+    strRecipientField = "settings.run_email.recipient_ids"
+    if len(set(listRecipientId)) != len(listRecipientId):
+        dictFieldError[strRecipientField] = [
             "Select at most five distinct verified Run email recipients."
-        )
-    if RunEmailRecipient.objects.filter(
+        ]
+    elif listRecipientId and RunEmailRecipient.objects.filter(
         organization_id=organizationId, pk__in=listRecipientId, verified_at__isnull=False
     ).count() != len(listRecipientId):
-        raise ValidationError(
+        dictFieldError[strRecipientField] = [
             "Select currently verified Run email recipients in this organization."
-        )
+        ]
     setInputField = {
-        "Input_CustomArgs_" + strArgument[0].encode("utf-8").hex()
-        for strArgument in customArgs
+        "Input_CustomArgs_" + str(entry[0]).encode("utf-8").hex() for entry in customArgs
     }
     setOutputField = {
-        "CustomArgs_" + strArgument[0].encode("utf-8").hex() for strArgument in customArgs
+        "CustomArgs_" + str(entry[0]).encode("utf-8").hex() for entry in customArgs
     }
-    for event, strKey in _DICT_EVENT_KEY.items():
-        dictTemplate = config.get(strKey, {})
-        strSubject = dictTemplate.get("subject", "")
-        strBody = dictTemplate.get("body", "")
+    for event, strKey, template in (
+        (RunEmailEvent.START, "on_start", config.on_start),
+        (RunEmailEvent.COMPLETED, "on_completed", config.on_completed),
+        (RunEmailEvent.ERROR, "on_error", config.on_error),
+    ):
+        strPrefix = f"settings.run_email.{strKey}"
         if (
-            _RE_SUBJECT_CONTROL.search(strSubject) is not None
-            or len(strSubject) > _INT_MAX_SUBJECT_LENGTH
-            or len(strBody.encode("utf-8")) > _INT_MAX_BODY_TEMPLATE_BYTES
-            or "\x00" in strBody
+            _RE_SUBJECT_CONTROL.search(template.subject) is not None
+            or len(template.subject) > _INT_MAX_SUBJECT_LENGTH
         ):
-            raise ValidationError(
-                "Run email subjects must be one line up to 256 characters, and bodies at most 16 KiB."
-            )
-        if len(set(_RE_FIELD.findall(strSubject + strBody))) > _INT_MAX_CONTEXT_KEYS:
-            raise ValidationError(
+            dictFieldError[f"{strPrefix}.subject"] = [
+                "Enter one line of up to 256 characters without control characters."
+            ]
+        if (
+            len(template.body.encode("utf-8")) > _INT_MAX_BODY_TEMPLATE_BYTES
+            or "\x00" in template.body
+        ):
+            dictFieldError[f"{strPrefix}.body"] = [
+                "Enter a body of at most 16 KiB without null characters."
+            ]
+        if (
+            len(set(_RE_FIELD.findall(template.subject + template.body)))
+            > _INT_MAX_CONTEXT_KEYS
+        ):
+            dictFieldError[f"{strPrefix}.body"] = [
                 "A Run email template can reference at most 64 different fields."
-            )
+            ]
         setAllowed = _SET_COMMON_FIELD | setInputField
         if event != RunEmailEvent.START:
-            setAllowed = setAllowed | _SET_END_FIELD | setOutputField
+            setAllowed |= _SET_END_FIELD | setOutputField
         if event == RunEmailEvent.ERROR:
-            setAllowed = setAllowed | _SET_ERROR_FIELD
-        for strTemplate in (strSubject, strBody):
+            setAllowed |= _SET_ERROR_FIELD
+        for strField, strTemplate in (
+            ("subject", template.subject),
+            ("body", template.body),
+        ):
+            strRemainder = _RE_FIELD.sub("", strTemplate)
             if (
                 any(
-                    strField not in setAllowed
-                    for strField in _RE_FIELD.findall(strTemplate)
+                    strName not in setAllowed
+                    for strName in _RE_FIELD.findall(strTemplate)
                 )
-                or "{{" in _RE_FIELD.sub("", strTemplate)
-                or "}}" in _RE_FIELD.sub("", strTemplate)
+                or "{{" in strRemainder
+                or "}}" in strRemainder
             ):
-                raise ValidationError(
-                    "A Run email template references an unknown or unavailable field."
+                dictFieldError.setdefault(f"{strPrefix}.{strField}", []).append(
+                    "This template references an unknown or unavailable field."
                 )
+    if dictFieldError:
+        raise ValidationError(dictFieldError)
 
 
 def _format_time(value: datetime | None, zone: ZoneInfo) -> str:

@@ -10,7 +10,7 @@ import logging
 from django.http import HttpRequest, JsonResponse, QueryDict
 from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_variables
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError as ContractValidationError
 
 _LOGGER = logging.getLogger("console.http")
 _DEFAULT_MAX_JSON_BODY_BYTES = 4096
@@ -27,6 +27,19 @@ def build_error_response(
     if fields is not None:
         dictErrorDetail["fields"] = fields
     return JsonResponse({"error": dictErrorDetail}, status=statusCode)
+
+
+def get_contract_error_fields(
+    error: ContractValidationError, *, prefix: str = ""
+) -> dict[str, list[str]]:
+    dictField: dict[str, list[str]] = {}
+    for detail in error.errors(
+        include_url=False, include_input=False, include_context=False
+    ):
+        strPath = ".".join(str(part) for part in detail["loc"])
+        strField = ".".join(part for part in (prefix, strPath) if part) or "__all__"
+        dictField.setdefault(strField, []).append(detail["msg"])
+    return dictField
 
 
 def build_authentication_required_response(
@@ -84,6 +97,15 @@ def parse_json_request[Payload: BaseModel](
     try:
         return requestSchema.model_validate(
             json.loads(requestBody.decode("utf-8"), object_pairs_hook=parse_json_object)
+        )
+    except ContractValidationError as e:
+        dictField = get_contract_error_fields(e)
+        return build_error_response(
+            "invalid_request",
+            " ".join(dictField.get("__all__", dictField.get("settings", [])))
+            or "One or more request fields are invalid.",
+            statusCode=400,
+            fields=dictField,
         )
     except (ValueError, RecursionError):
         return build_error_response(

@@ -20,6 +20,7 @@ import type {
   JobResponse,
   JobDetailsEntryResponse,
   JobListResponse,
+  JobCreationResponse,
   RunResponse,
   RunDetailsEntryResponse,
   RunListResponse,
@@ -234,7 +235,7 @@ export async function createJobs(
   groupId: string | null,
   settings: RunSettings,
   clientRequestId: string,
-): Promise<void> {
+): Promise<JobCreationResponse> {
   const result = await requestApi("/jobs/", {
     method: "POST",
     body: {
@@ -251,11 +252,15 @@ export async function createJobs(
     typeof result.job_request_id !== "string" ||
     !Array.isArray(result.jobs) ||
     result.jobs.length === 0 ||
-    !result.jobs.every(
-      (job: unknown) => isJob(job) && job.job_request_id === result.job_request_id,
-    )
+    !result.jobs.every(isJob) ||
+    result.jobs.some((job) => job.job_request_id !== result.job_request_id)
   )
     return rejectInvalidResponse();
+  return {
+    request_id: clientRequestId,
+    job_request_id: result.job_request_id,
+    jobs: result.jobs,
+  };
 }
 export async function controlJob(id: string, action: JobControlAction): Promise<void> {
   await requestApi(`/jobs/${encodeURIComponent(id)}/control/`, {

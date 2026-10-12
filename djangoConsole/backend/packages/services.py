@@ -374,10 +374,12 @@ def save_package_settings(
     payload: PackageSettingsRequest,
 ) -> None:
     require_package_department(access, package.department_id, manage=True)
-    dictSettings = validate_run_settings(package, payload.settings)
+    runSettings = validate_run_settings(package, payload.settings)
     if not set(payload.api_input_keys) <= set(package.argument_names):
-        raise ValidationError("API input keys must name existing custom arguments.")
-    apply_run_settings(package, dictSettings)
+        raise ValidationError({
+            "api_input_keys": "API input keys must name existing custom arguments."
+        })
+    apply_run_settings(package, runSettings)
     package.api_input_keys = payload.api_input_keys
     boolEnvironmentChanged = (
         package.python_environment_name != payload.python_environment_name
@@ -386,7 +388,7 @@ def save_package_settings(
     package.updated_at = timezone.now()
     package.save(
         update_fields=[
-            *dictSettings,
+            *type(runSettings).model_fields,
             "api_input_keys",
             "python_environment_name",
             "updated_at",

@@ -79,7 +79,10 @@ def _handle_errors(view: Callable) -> Callable:
             )
         except ValidationError as e:
             return build_error_response(
-                "invalid_schedule", " ".join(e.messages), statusCode=400
+                "invalid_schedule",
+                " ".join(e.messages),
+                statusCode=400,
+                fields=e.message_dict if hasattr(e, "message_dict") else None,
             )
         except (ValueError, InvalidPage):
             return build_error_response(
@@ -158,7 +161,7 @@ def _build_payloads(
             "can_manage": schedule.department_id in setManageableDepartmentId,
         }
         if details:
-            dictPayload["settings"] = build_run_settings(schedule)
+            dictPayload["settings"] = build_run_settings(schedule).model_dump(mode="json")
             dictPayload["python_environment_name"] = (
                 schedule.package.python_environment_name
             )
@@ -269,7 +272,10 @@ def get_or_update_schedule(request: HttpRequest, scheduleId: uuid.UUID) -> JsonR
 @never_cache
 @require_POST
 @_handle_errors
-def change_schedule_enabled(request: HttpRequest, scheduleId: uuid.UUID) -> JsonResponse:
+def change_schedule_enabled(
+    request: HttpRequest,
+    scheduleId: uuid.UUID,
+) -> JsonResponse:
     membership = get_request_membership(request)
     if isinstance(membership, JsonResponse):
         return membership

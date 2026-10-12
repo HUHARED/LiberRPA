@@ -7,12 +7,19 @@
         <v-alert v-if="strError" type="error" variant="tonal" class="mb-4">
           {{ strError }}
         </v-alert>
-        <v-alert v-if="originalJobActive" type="info" variant="tonal" class="mb-4">
+        <v-alert
+          v-if="originalJobActive && intCreatedJobCount === null"
+          type="info"
+          variant="tonal"
+          class="mb-4">
           The original Job is still active. This creates a new independent Job.
+        </v-alert>
+        <v-alert v-if="intCreatedJobCount !== null" type="success" variant="tonal">
+          {{ intCreatedJobCount }} {{ intCreatedJobCount === 1 ? "Job" : "Jobs" }} created.
         </v-alert>
         <v-progress-linear v-if="boolLoading" indeterminate />
         <v-form
-          v-if="packageInfo && settings"
+          v-if="packageInfo && settings && intCreatedJobCount === null"
           ref="form"
           :disabled="boolBusy"
           @submit.prevent="submit">
@@ -24,17 +31,22 @@
             v-model:executor-ids="arrExecutorId"
             v-model:group-id="strGroupId"
             :department-id="packageInfo.department_id"
-            :disabled="boolBusy" />
+            :disabled="boolBusy"
+            :field-errors="dictFieldError" />
           <v-divider class="my-5" />
           <h2 class="text-h6 mb-3">Run Settings</h2>
           <RunOptionsEditor
             v-model="settings"
             :department-id="packageInfo.department_id"
             :disabled="boolBusy"
+            :field-errors="dictFieldError"
             @valid="boolArgsValid = $event" />
           <v-divider class="my-5" />
           <h2 class="text-h6 mb-4">Dispatch &amp; Email</h2>
-          <RunDispatchEmailEditor v-model="settings" :disabled="boolBusy" />
+          <RunDispatchEmailEditor
+            v-model="settings"
+            :disabled="boolBusy"
+            :field-errors="dictFieldError" />
           <p class="text-body-2 mt-4">
             {{ strGroupId ? 1 : arrExecutorId.length }} Jobs will be created.
           </p>
@@ -42,8 +54,14 @@
       </v-card-text>
       <v-card-actions>
         <v-spacer />
-        <v-btn :disabled="boolBusy" @click="emit('close')">Cancel</v-btn>
+        <v-btn :disabled="boolBusy" @click="emit('close')">
+          {{ intCreatedJobCount === null ? "Cancel" : "Close" }}
+        </v-btn>
+        <v-btn v-if="intCreatedJobCount !== null" color="primary" @click="emit('saved')">
+          View Job Queue
+        </v-btn>
         <v-btn
+          v-else
           color="primary"
           :loading="boolBusy"
           :disabled="!settings || boolLoading || boolBusy || !boolArgsValid"
@@ -55,7 +73,7 @@
   </v-dialog>
 </template>
 <script setup lang="ts">
-import { shallowRef, onMounted, ref } from "vue";
+import { shallowRef, nextTick, onMounted, ref } from "vue";
 import type { Ref } from "vue";
 import type { VForm } from "vuetify/components";
 import RunOptionsEditor from "@/components/runOptions/RunOptionsEditor.vue";
@@ -81,14 +99,24 @@ const boolLoading = ref(true);
 const boolBusy = ref(false);
 const boolArgsValid = ref(true);
 const strError = ref("");
+const dictFieldError = ref<Record<string, string[]>>({});
+const intCreatedJobCount = ref<number | null>(null);
 let strClientRequestId = crypto.randomUUID();
 let strSubmittedBody = "";
 async function submit(): Promise<void> {
-  if (boolBusy.value || boolLoading.value || !settings.value || !boolArgsValid.value)
+  if (
+    boolBusy.value ||
+    boolLoading.value ||
+    !settings.value ||
+    !boolArgsValid.value ||
+    intCreatedJobCount.value !== null
+  )
     return;
   boolBusy.value = true;
   strError.value = "";
+  dictFieldError.value = {};
   try {
+    await nextTick();
     if (!(await form.value?.validate())?.valid) return;
     const runSettings = cloneRunSettings(settings.value);
     const arrTargetId = [...arrExecutorId.value];
@@ -97,16 +125,18 @@ async function submit(): Promise<void> {
     if (strSubmittedBody && strSubmittedBody !== strBody)
       strClientRequestId = crypto.randomUUID();
     strSubmittedBody = strBody;
-    await createJobs(
+    const result = await createJobs(
       props.packageId,
       arrTargetId,
       strTargetGroupId,
       runSettings,
       strClientRequestId,
     );
-    emit("saved");
+    intCreatedJobCount.value = result.jobs.length;
   } catch (e) {
-    strError.value = getApiError(e).message;
+    const error = getApiError(e);
+    strError.value = error.message;
+    dictFieldError.value = error.fields;
   } finally {
     boolBusy.value = false;
   }

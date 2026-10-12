@@ -15,9 +15,8 @@ from django.utils import timezone
 from organizations.models import Organization
 from organizations.permissions import is_organization_business_available
 
-from packages.runtime import build_run_settings
-from runs.models import JobSource
-from runs.admission import accept_request
+from runs.contracts import JobSource
+from runs.admission import accept_schedule_trigger
 
 from .cron import get_next_trigger
 from .models import TriggerStatus, Schedule, ScheduleTrigger, SchedulerState
@@ -34,33 +33,6 @@ class ScheduleScanWindow:
     until: datetime | None = None
 
 
-def _advance(schedule: Schedule, after: datetime) -> None:
-    schedule.next_trigger_at = get_next_trigger(
-        schedule.cron,
-        schedule.time_zone,
-        schedule.active_from,
-        schedule.active_until,
-        after,
-    )
-    schedule.save(update_fields=["next_trigger_at"])
-
-
-def _notify_failure(
-    schedule: Schedule, organizationId: uuid.UUID, scheduledAt: datetime, reason: str
-) -> None:
-    from notifications.services import notify_prestart_failure
-
-    notify_prestart_failure(
-        organizationId=organizationId,
-        departmentId=schedule.department_id,
-        creatorId=schedule.created_by_id,
-        source=JobSource.SCHEDULE,
-        title="Schedule could not execute",
-        detail=f"Schedule: {schedule.name}\nScheduled at: {scheduledAt.isoformat()}\nReason: {reason}",
-        eventKey=f"schedule:{schedule.pk}:{scheduledAt.isoformat()}",
-    )
-
-
 def _process_trigger(
     organizationId: uuid.UUID,
     scheduleId: uuid.UUID,
@@ -68,6 +40,29 @@ def _process_trigger(
     *,
     scanWindow: ScheduleScanWindow,
 ) -> None:
+    def advance(schedule: Schedule, after: datetime) -> None:
+        schedule.next_trigger_at = get_next_trigger(
+            schedule.cron,
+            schedule.time_zone,
+            schedule.active_from,
+            schedule.active_until,
+            after,
+        )
+        schedule.save(update_fields=["next_trigger_at"])
+
+    def notify_failure(schedule: Schedule, reason: str) -> None:
+        from notifications.services import notify_prestart_failure
+
+        notify_prestart_failure(
+            organizationId=organizationId,
+            departmentId=schedule.department_id,
+            creatorId=schedule.created_by_id,
+            source=JobSource.SCHEDULE,
+            title="Schedule could not execute",
+            detail=f"Schedule: {schedule.name}\nScheduled at: {scheduledAt.isoformat()}\nReason: {reason}",
+            eventKey=f"schedule:{schedule.pk}:{scheduledAt.isoformat()}",
+        )
+
     with transaction.atomic():
         organization = (
             Organization.objects.select_for_update().filter(pk=organizationId).first()
@@ -90,12 +85,12 @@ def _process_trigger(
             scanWindow.until = currentTime
         scanUntil = scanWindow.until
         if not is_organization_business_available(organization):
-            _advance(schedule, currentTime)
+            advance(schedule, currentTime)
             return
         if ScheduleTrigger.objects.filter(
             schedule_id=schedule.pk, scheduled_at=scheduledAt
         ).exists():
-            _advance(schedule, scheduledAt)
+            advance(schedule, scheduledAt)
             return
         skipUntil = scanUntil
         if scanWindow.previousScanAt is None:
@@ -120,30 +115,14 @@ def _process_trigger(
                     "reason": strReason,
                 },
             )
-            _notify_failure(schedule, organizationId, scheduledAt, strReason)
+            notify_failure(schedule, strReason)
             # One receipt describes skipped points; never replay the tail of a long interruption.
-            _advance(schedule, skipUntil)
+            advance(schedule, skipUntil)
             return
-        clientRequestId = uuid.uuid4()
         try:
             # A savepoint prevents partial Job acceptance if a current input or target fails validation.
             with transaction.atomic():
-                jobRequest = accept_request(
-                    organizationId=organizationId,
-                    departmentId=schedule.department_id,
-                    packageId=schedule.package_id,
-                    settings=build_run_settings(schedule),
-                    executorIds=[
-                        uuid.UUID(strValue) for strValue in schedule.executor_ids
-                    ],
-                    groupId=schedule.group_id,
-                    source=JobSource.SCHEDULE,
-                    actorId=schedule.created_by_id,
-                    clientRequestId=clientRequestId,
-                    scheduleId=schedule.pk,
-                    scheduleName=schedule.name,
-                    scheduledAt=scheduledAt,
-                )
+                jobRequest = accept_schedule_trigger(organization, schedule, scheduledAt)
             ScheduleTrigger.objects.create(
                 organization_id=organizationId,
                 schedule_id=schedule.pk,
@@ -162,8 +141,8 @@ def _process_trigger(
                 reason=strReason,
             )
             if getattr(e, "code", None) != "target_paused":
-                _notify_failure(schedule, organizationId, scheduledAt, strReason)
-        _advance(schedule, scheduledAt)
+                notify_failure(schedule, strReason)
+        advance(schedule, scheduledAt)
 
 
 def scan_schedules(
