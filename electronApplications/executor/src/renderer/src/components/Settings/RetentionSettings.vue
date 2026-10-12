@@ -290,6 +290,16 @@ function mayDeleteMoreFiles(valuesDict: RetentionValues): boolean {
   );
 }
 
+function saveRetentionSettings(dictValues: RetentionValues): void {
+  settingStore.logRetentionEnabled = dictValues.logRetentionEnabled;
+  settingStore.logRetentionDays = dictValues.logRetentionDays;
+  settingStore.videoRetentionEnabled = dictValues.videoRetentionEnabled;
+  settingStore.videoRetentionDays = dictValues.videoRetentionDays;
+  settingStore.videoStorageLimitEnabled = dictValues.videoStorageLimitEnabled;
+  settingStore.videoStorageLimitGiB = dictValues.videoStorageLimitGiB;
+  boolConfirmationDialogOpen.value = false;
+}
+
 function applyRetentionSettings(): void {
   const dictValues = getRetentionValues();
   if (dictValues === undefined) {
@@ -312,16 +322,6 @@ function confirmRetentionSettings(): void {
   }
 
   saveRetentionSettings(dictValues);
-}
-
-function saveRetentionSettings(dictValues: RetentionValues): void {
-  settingStore.logRetentionEnabled = dictValues.logRetentionEnabled;
-  settingStore.logRetentionDays = dictValues.logRetentionDays;
-  settingStore.videoRetentionEnabled = dictValues.videoRetentionEnabled;
-  settingStore.videoRetentionDays = dictValues.videoRetentionDays;
-  settingStore.videoStorageLimitEnabled = dictValues.videoStorageLimitEnabled;
-  settingStore.videoStorageLimitGiB = dictValues.videoStorageLimitGiB;
-  boolConfirmationDialogOpen.value = false;
 }
 </script>
 

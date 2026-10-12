@@ -40,9 +40,9 @@ from .models import (
     EmailDispatchState,
     EmailDelivery,
     OrganizationDeletionNotice,
-    RunEmailReference,
-    RunEmailEvent,
     RunEmailRecipient,
+    RunEmailEvent,
+    RunEmailReference,
 )
 from .smtp import send_smtp_once
 

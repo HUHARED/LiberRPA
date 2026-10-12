@@ -19,41 +19,6 @@ const BOOL_LOG_DATABASE_QUERY = process.env["LIBERRPA_EXECUTOR_LOG_DATABASE_QUER
 
 let databaseObj: Database.Database | undefined;
 
-export function initializeDatabase(): void {
-  loggerMain.debug("--initializeDatabase--");
-  fs.mkdirSync(STR_DATABASE_FOLDER_PATH, { recursive: true });
-
-  if (!fs.existsSync(STR_DATABASE_FILE_PATH)) {
-    databaseObj = createDatabase();
-    return;
-  }
-
-  const existingDatabaseObj = openDatabase(STR_DATABASE_FILE_PATH);
-  const intSchemaVersion = getDatabaseSchemaVersionOrClose(existingDatabaseObj);
-
-  if (intSchemaVersion === INT_DATABASE_SCHEMA_VERSION) {
-    databaseObj = existingDatabaseObj;
-    loggerMain.info(`Opened Executor database schema ${intSchemaVersion}.`);
-    return;
-  }
-
-  existingDatabaseObj.close();
-  const strBackupPath = backupDatabaseFiles();
-  loggerMain.warn(
-    `Backed up Executor database schema ${intSchemaVersion} to ${strBackupPath}.`,
-  );
-  databaseObj = createDatabase();
-}
-
-export function closeDatabase(): void {
-  if (databaseObj === undefined) {
-    return;
-  }
-
-  databaseObj.close();
-  databaseObj = undefined;
-}
-
 function openDatabase(databasePath: string): Database.Database {
   const openedDatabaseObj = new Database(databasePath, {
     verbose: BOOL_LOG_DATABASE_QUERY
@@ -65,6 +30,29 @@ function openDatabase(databasePath: string): Database.Database {
 
   openedDatabaseObj.pragma("foreign_keys = ON");
   return openedDatabaseObj;
+}
+
+function getDatabaseSchemaVersion(targetDatabaseObj: Database.Database): number {
+  const value = targetDatabaseObj.pragma("user_version", { simple: true });
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) {
+    throw new Error(`Invalid Executor database schema version: ${String(value)}`);
+  }
+  return value;
+}
+
+function getDatabaseSchemaVersionOrClose(targetDatabaseObj: Database.Database): number {
+  try {
+    return getDatabaseSchemaVersion(targetDatabaseObj);
+  } catch (e: unknown) {
+    targetDatabaseObj.close();
+    throw e;
+  }
+}
+
+function removeDatabaseFiles(databasePath: string): void {
+  for (const strSuffix of ["", "-wal", "-shm", "-journal"]) {
+    fs.rmSync(databasePath + strSuffix, { force: true });
+  }
 }
 
 function createDatabase(): Database.Database {
@@ -92,23 +80,6 @@ function createDatabase(): Database.Database {
   }
 }
 
-function getDatabaseSchemaVersionOrClose(targetDatabaseObj: Database.Database): number {
-  try {
-    return getDatabaseSchemaVersion(targetDatabaseObj);
-  } catch (e: unknown) {
-    targetDatabaseObj.close();
-    throw e;
-  }
-}
-
-function getDatabaseSchemaVersion(targetDatabaseObj: Database.Database): number {
-  const value = targetDatabaseObj.pragma("user_version", { simple: true });
-  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) {
-    throw new Error(`Invalid Executor database schema version: ${String(value)}`);
-  }
-  return value;
-}
-
 function backupDatabaseFiles(): string {
   const strTimestamp = new Date().toISOString().replace(/[-:.]/g, "");
   const strBackupPath = path.join(
@@ -130,10 +101,30 @@ function backupDatabaseFiles(): string {
   return strBackupPath;
 }
 
-function removeDatabaseFiles(databasePath: string): void {
-  for (const strSuffix of ["", "-wal", "-shm", "-journal"]) {
-    fs.rmSync(databasePath + strSuffix, { force: true });
+export function initializeDatabase(): void {
+  loggerMain.debug("--initializeDatabase--");
+  fs.mkdirSync(STR_DATABASE_FOLDER_PATH, { recursive: true });
+
+  if (!fs.existsSync(STR_DATABASE_FILE_PATH)) {
+    databaseObj = createDatabase();
+    return;
   }
+
+  const existingDatabaseObj = openDatabase(STR_DATABASE_FILE_PATH);
+  const intSchemaVersion = getDatabaseSchemaVersionOrClose(existingDatabaseObj);
+
+  if (intSchemaVersion === INT_DATABASE_SCHEMA_VERSION) {
+    databaseObj = existingDatabaseObj;
+    loggerMain.info(`Opened Executor database schema ${intSchemaVersion}.`);
+    return;
+  }
+
+  existingDatabaseObj.close();
+  const strBackupPath = backupDatabaseFiles();
+  loggerMain.warn(
+    `Backed up Executor database schema ${intSchemaVersion} to ${strBackupPath}.`,
+  );
+  databaseObj = createDatabase();
 }
 
 export function getDatabase(): Database.Database {
@@ -141,4 +132,13 @@ export function getDatabase(): Database.Database {
     throw new Error("Executor database has not been initialized.");
   }
   return databaseObj;
+}
+
+export function closeDatabase(): void {
+  if (databaseObj === undefined) {
+    return;
+  }
+
+  databaseObj.close();
+  databaseObj = undefined;
 }

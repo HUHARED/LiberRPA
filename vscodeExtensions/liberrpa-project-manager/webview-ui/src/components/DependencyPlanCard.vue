@@ -75,9 +75,9 @@
 import { computed } from "vue";
 
 import type {
+  DictProtocolDependencyOperation,
   DictProjectDependency_DirectChange,
   DictProjectDependency_ResolvedChange,
-  DictProtocolDependencyOperation,
   DictProtocolResult_ProjectDependencyPlan,
 } from "../Domain/ComponentManagement/componentManagementTypes";
 

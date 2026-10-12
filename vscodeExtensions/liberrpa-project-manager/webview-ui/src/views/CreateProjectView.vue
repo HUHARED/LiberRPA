@@ -228,22 +228,6 @@ watch(
   },
 );
 
-function handleProjectTypeChange(value: unknown): void {
-  if (value === "flow" || value === "component") {
-    createProjectStore.selectProjectType(value);
-
-    if (value === "component") {
-      updateComponentSuggestions();
-    }
-  }
-}
-
-function handleTemplateChange(value: unknown): void {
-  if (typeof value === "string") {
-    createProjectStore.selectTemplate(value);
-  }
-}
-
 function updateComponentSuggestions(): void {
   const strProjectFolderName = createProjectStore.projectFolderName;
 
@@ -258,6 +242,22 @@ function updateComponentSuggestions(): void {
   if (createProjectStore.displayName.length === 0) {
     createProjectStore.displayName = strProjectFolderName;
     strLastSuggestedDisplayName = strProjectFolderName;
+  }
+}
+
+function handleProjectTypeChange(value: unknown): void {
+  if (value === "flow" || value === "component") {
+    createProjectStore.selectProjectType(value);
+
+    if (value === "component") {
+      updateComponentSuggestions();
+    }
+  }
+}
+
+function handleTemplateChange(value: unknown): void {
+  if (typeof value === "string") {
+    createProjectStore.selectTemplate(value);
   }
 }
 

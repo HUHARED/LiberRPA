@@ -8,7 +8,7 @@ from django.utils import timezone
 from django.db.models import Case, When, Value, IntegerField
 
 from .delivery import EmailDeliveryResult, deliver_email
-from .models import EmailStatus, EmailReasonCode, EmailDelivery, EmailType
+from .models import EmailType, EmailStatus, EmailReasonCode, EmailDelivery
 
 
 def recover_interrupted_email_deliveries() -> int:

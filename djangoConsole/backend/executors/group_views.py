@@ -25,9 +25,9 @@ from console_project.http import (
     parse_json_request,
 )
 from organizations.http import (
+    DepartmentResourceListParameters,
     get_request_membership,
     lock_request_write_access,
-    DepartmentResourceListParameters,
     parse_department_resource_filters,
 )
 from organizations.models import Department

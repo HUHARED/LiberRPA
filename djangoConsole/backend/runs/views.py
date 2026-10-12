@@ -43,19 +43,19 @@ from packages.models import Package
 from packages.runtime import build_run_settings
 
 from .contracts import (
-    EmptyRequest,
-    JobControlRequest,
-    JobCreationRequest,
     JobControlAction,
+    JobCreationRequest,
+    JobControlRequest,
+    EmptyRequest,
 )
 from .models import JobSource, JobState, RunResult
 from .queries import (
+    get_visible_jobs,
+    get_visible_runs,
+    get_history_departments,
     build_job_payload,
     build_job_payloads,
     build_run_payload,
-    get_visible_jobs,
-    get_history_departments,
-    get_visible_runs,
     get_matching_run_ids,
     list_work,
 )

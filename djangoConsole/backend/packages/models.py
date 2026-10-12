@@ -20,10 +20,10 @@ from .contracts import (
     INT_VERSION_SUMMARY_MAX_LENGTH,
     INT_MAX_RETRY_COUNT,
     INT_MAX_TIMEOUT_MIN,
+    PackagePreparationState,
     RunConflictPolicy,
     RunPriority,
     build_default_run_email,
-    PackagePreparationState,
     PackageUploadState,
 )
 

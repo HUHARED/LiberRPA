@@ -34,11 +34,11 @@ from organizations.models import Membership
 from organizations.permissions import AccessChannel
 
 from .api_keys import (
-    create_api_key,
-    get_api_key_list,
     get_api_key_status,
-    revoke_api_key,
+    get_api_key_list,
+    create_api_key,
     update_api_key_notes,
+    revoke_api_key,
 )
 from .contracts import (
     ApiKeyCreateRequest,

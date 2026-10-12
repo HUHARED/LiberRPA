@@ -225,11 +225,11 @@ import { getErrorMessage } from "../../../../shared/error";
 import {
   RunSource,
   RunOutputsStatus,
-  RunStatus,
   type RunDetails,
+  RunStatus,
   type RunHistoryItem,
-  type RunHistoryQueryOptions,
   type RunHistoryFilters,
+  type RunHistoryQueryOptions,
 } from "../../../../shared/run";
 
 import { invokeMain } from "../../IPC/ipc";

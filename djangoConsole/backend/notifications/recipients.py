@@ -24,13 +24,13 @@ from organizations.permissions import (
 )
 
 from .models import (
-    EmailDelivery,
-    EmailStatus,
     EmailType,
+    EmailStatus,
     EmailReasonCode,
+    EmailDelivery,
     RunEmailRecipient,
-    RunEmailReference,
     RunRecipientVerification,
+    RunEmailReference,
 )
 
 _STR_TOKEN_SALT = "console.run-email-recipient"

@@ -17,11 +17,11 @@ from .department_views import (
     get_or_delete_department,
 )
 from .invitation_views import (
+    list_or_create_invitations,
+    get_invitation_details,
+    resend_or_revoke_invitation,
     check_invitation_link,
     complete_invited_registration,
-    get_invitation_details,
-    list_or_create_invitations,
-    resend_or_revoke_invitation,
 )
 from .lifecycle_views import (
     cancel_scheduled_organization_deletion,

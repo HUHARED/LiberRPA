@@ -13,10 +13,10 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 
 from console_project.workers import (
+    SCHEDULE_WORKER_LOCK_ID,
+    WorkerAlreadyRunningError,
     hold_worker_session,
     stop_on_signals,
-    WorkerAlreadyRunningError,
-    SCHEDULE_WORKER_LOCK_ID,
 )
 from runs.dispatch_control import require_control_service
 from schedules.worker import ScheduleScanWindow, scan_schedules

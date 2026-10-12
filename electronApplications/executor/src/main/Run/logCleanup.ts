@@ -7,8 +7,8 @@ import { getErrorMessage } from "../../shared/error";
 import type { RunLogLocation } from "../Database/rowValidation";
 import {
   dbSelectLogFolderBefore,
-  dbSelectVideo,
   dbSelectVideoBefore,
+  dbSelectVideo,
   dbUpdateNoLogFolderAndVideo,
   dbUpdateNoVideo,
 } from "../Database/runHistoryRepository";

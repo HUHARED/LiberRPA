@@ -7,9 +7,9 @@ import { isRecord } from "../../Common/typeCheck";
 import { getErrorMessage } from "../../Common/utils";
 import {
   ConsoleConnection,
-  type ConsoleAccountState,
-  type EditorSessionInfo,
   type ConsolePublishDepartment,
+  type EditorSessionInfo,
+  type ConsoleAccountState,
 } from "../../Domain/Console/consoleTypes";
 import {
   ConsoleRequestError,

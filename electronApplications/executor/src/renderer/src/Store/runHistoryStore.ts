@@ -6,10 +6,10 @@ import { cloneJsonSerializable } from "../Common/json";
 import { invokeMain } from "../IPC/ipc";
 import { loggerRenderer } from "../Logging/logger";
 import type {
+  RunSource,
+  RunStatus,
   RunHistoryItem,
   RunHistoryQueryOptions,
-  RunStatus,
-  RunSource,
 } from "../../../shared/run";
 
 export const useRunHistoryStore = defineStore("runHistory", {

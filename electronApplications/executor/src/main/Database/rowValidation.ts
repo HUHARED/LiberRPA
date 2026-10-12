@@ -11,10 +11,10 @@ import type { CustomProjectArgs } from "../../shared/runOptions";
 import {
   ensureExactRecord,
   ensureString,
+  ensureNonEmptyString,
   ensurePackageDescription,
   ensureVersionSummary,
   ensurePythonEnvironmentName,
-  ensureNonEmptyString,
   ensureNonNegativeInteger,
   ensurePositiveInteger,
   ensureMaxRetryCount,
@@ -23,8 +23,8 @@ import {
   ensureNullableNonNegativeInteger,
   ensureLogLevel,
   ensureRunConflictPolicy,
-  ensureRunHistoryStatus,
   ensureRunSource,
+  ensureRunHistoryStatus,
   ensureCustomProjectArgs,
 } from "../Common/validation";
 

@@ -14,7 +14,7 @@ from executors.session_state import revoke_unqualified_executor_sessions
 from operations.audit import get_audit_snapshot, record_audit
 from runs.services import reconcile_source_access
 
-from .models import Department, DepartmentMembership, DepartmentRole, Membership
+from .models import Membership, Department, DepartmentRole, DepartmentMembership
 from .permissions import (
     AccessChannel,
     lock_organization_admin_access,

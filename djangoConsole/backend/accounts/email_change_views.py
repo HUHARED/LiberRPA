@@ -31,9 +31,9 @@ from .contracts import (
 )
 from .email_changes import (
     EmailChangeCooldownError,
-    confirm_email_change,
-    get_email_change_info,
     request_email_change,
+    get_email_change_info,
+    confirm_email_change,
 )
 from .models import User
 from .rate_limits import (

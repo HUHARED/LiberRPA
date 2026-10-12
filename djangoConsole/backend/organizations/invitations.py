@@ -27,14 +27,14 @@ from notifications.models import EmailDelivery, EmailType
 from operations.audit import get_audit_snapshot, record_audit
 
 from .models import (
+    Organization,
+    Membership,
     Department,
-    DepartmentMembership,
     DepartmentRole,
-    InvitationDepartmentRole,
+    DepartmentMembership,
     InvitationStatus,
     MemberInvitation,
-    Membership,
-    Organization,
+    InvitationDepartmentRole,
 )
 from .permissions import (
     AccessChannel,

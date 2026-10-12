@@ -9,11 +9,11 @@ import path from "path";
 
 import { getErrorMessage } from "../../shared/error";
 import {
+  ensureRecord,
+  ensureString,
   ensureNonEmptyString,
   ensurePositiveInteger,
-  ensureRecord,
   ensureNullableNonNegativeInteger,
-  ensureString,
 } from "../Common/validation";
 import { strDocumentsFolderPath } from "../Config/environment";
 import { runFileWorker } from "../FileSystem/fileWorker";
@@ -26,12 +26,12 @@ import type { LogArchiveArgs } from "./logArchiveWorker";
 import type { ConsoleCredentialSnapshot } from "./consoleContextBridge";
 import {
   ConsoleRecordingStatus,
+  type ConsoleRecordingInfo,
+  type ConsoleWorkRecord,
   getConsoleWorkForRun,
   getPendingConsoleLogWork,
   saveConsoleLogProgress,
   reportConsoleRecording,
-  type ConsoleWorkRecord,
-  type ConsoleRecordingInfo,
 } from "./workRepository";
 
 const strLogArchiveFolderPath = path.join(

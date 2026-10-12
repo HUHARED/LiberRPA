@@ -34,8 +34,8 @@ from pydantic import Field, SecretStr
 from accounts.rate_limits import apply_executor_client_rate_limit
 from console_project.http import build_error_response, build_rate_limited_response
 from executors.client_sessions import (
-    ExecutorClientAction,
     InvalidExecutorSessionError,
+    ExecutorClientAction,
     get_executor_session_identity,
     open_executor_client_request,
 )

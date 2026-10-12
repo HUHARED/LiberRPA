@@ -18,11 +18,11 @@ import { loggerMain } from "../Logging/logger";
 import { ensureExactRecord, ensureNonEmptyString } from "../Common/validation";
 import { getDatabase } from "./connection";
 import {
+  ensureSingleRowAffected,
   type RunLogLocation,
+  ensureRunHistoryListRows,
   ensureCountRow,
   ensureRunHistoryLogLocationRow,
-  ensureRunHistoryListRows,
-  ensureSingleRowAffected,
 } from "./rowValidation";
 import { isRecoveredRunHistoryActive } from "../Run/recoveredRuns";
 

@@ -17,7 +17,7 @@ from django.db.models.functions import Lower
 from accounts.models import User
 
 from .department_queries import get_department_path
-from .models import Department, DepartmentMembership, DepartmentRole, Membership
+from .models import Membership, Department, DepartmentRole, DepartmentMembership
 from .permissions import (
     AccessChannel,
     resolve_organization_access,

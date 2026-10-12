@@ -38,9 +38,9 @@ from executors.models import ExecutorSession
 
 from .contracts import (
     WorkPollRequest,
+    WorkEventRetentionRequest,
     WorkPermitRequest,
     WorkEventsRequest,
-    WorkEventRetentionRequest,
 )
 from .models import (
     JobState,

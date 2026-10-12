@@ -48,11 +48,11 @@ import {
   createProject,
 } from "./Project/createProject";
 import {
+  type PackageProjectData,
   getDefaultPackageProjectInput,
   loadPackageProjectData,
   selectPackageOutputFolder,
   packageFlowProject,
-  type PackageProjectData,
   openPackageProjectManifest,
   revealProjectPackage,
 } from "./Project/packageProject";
@@ -67,11 +67,11 @@ import {
 } from "./Repository/importComponentWheels";
 import type { ConsoleAccount } from "./Console/consoleAccount";
 import {
-  type ConsoleAccountState,
-  type ConsolePublishDepartment,
-  type ConsolePublishResult,
   ConsoleAction,
+  type ConsolePublishDepartment,
   ConsolePublishStatus,
+  type ConsolePublishResult,
+  type ConsoleAccountState,
 } from "../Domain/Console/consoleTypes";
 
 export interface ProjectManagerSessionHost {

@@ -18,9 +18,9 @@ import type {
   JobQueueItem,
 } from "./run";
 import type {
-  ScheduleCreateData,
-  ScheduleDetails,
   ScheduleListItem,
+  ScheduleDetails,
+  ScheduleCreateData,
   ScheduleUpdateData,
 } from "./schedule";
 
@@ -38,31 +38,10 @@ export type RendererLogLevel =
   | "silly";
 
 interface ExecutorInvokeContract {
-  getConsoleAccount: { request: undefined; response: ConsoleAccountState };
-  saveConsoleAddress: { request: string; response: ConsoleAccountState };
-  signInConsole: { request: ConsoleSignInArgs; response: ConsoleAccountState };
-  getConsoleExecutorChoices: { request: number; response: ConsoleExecutorPage };
-  associateConsoleExecutor: { request: string; response: ConsoleAccountState };
-  signOutConsole: { request: undefined; response: ConsoleAccountState };
-  openProjectLogFolder: {
-    request: undefined;
-    response: void;
-  };
-  saveExecutorConfig: {
-    request: ExecutorConfig;
-    response: void;
-  };
-  runProject: {
-    request: ProjectSettingsUpdate;
-    response: void;
-  };
+  // Projects.
   getPythonEnvironmentNames: {
     request: undefined;
     response: string[];
-  };
-  installProjectPackage: {
-    request: undefined;
-    response: ProjectPackageInstallResult;
   };
   getProjectNames: {
     request: undefined;
@@ -76,7 +55,15 @@ interface ExecutorInvokeContract {
     request: { name: string; version: string };
     response: ProjectDetails | undefined;
   };
+  installProjectPackage: {
+    request: undefined;
+    response: ProjectPackageInstallResult;
+  };
   saveProjectSettings: {
+    request: ProjectSettingsUpdate;
+    response: void;
+  };
+  runProject: {
     request: ProjectSettingsUpdate;
     response: void;
   };
@@ -88,6 +75,8 @@ interface ExecutorInvokeContract {
     request: number;
     response: void;
   };
+
+  // Schedules.
   getScheduleList: {
     request: undefined;
     response: ScheduleListItem[];
@@ -109,11 +98,8 @@ interface ExecutorInvokeContract {
     request: number;
     response: void;
   };
-  getRunDetails: { request: number; response: RunDetails };
-  getRunHistoryPage: {
-    request: RunHistoryQueryOptions;
-    response: RunHistoryPage;
-  };
+
+  // Job Queue.
   getJobQueue: {
     request: undefined;
     response: JobQueueItem[];
@@ -122,11 +108,14 @@ interface ExecutorInvokeContract {
     request: string;
     response: void;
   };
-  openRunLogFolder: {
-    request: number;
-    response: void;
+
+  // Run History.
+  getRunHistoryPage: {
+    request: RunHistoryQueryOptions;
+    response: RunHistoryPage;
   };
-  rerunLocalRun: {
+  getRunDetails: { request: number; response: RunDetails };
+  openRunLogFolder: {
     request: number;
     response: void;
   };
@@ -134,10 +123,32 @@ interface ExecutorInvokeContract {
     request: number;
     response: void;
   };
+  rerunLocalRun: {
+    request: number;
+    response: void;
+  };
+
+  // Settings.
+  saveExecutorConfig: {
+    request: ExecutorConfig;
+    response: void;
+  };
   chooseProjectLogFolder: {
     request: undefined;
     response: string | null;
   };
+  openProjectLogFolder: {
+    request: undefined;
+    response: void;
+  };
+
+  // Console.
+  getConsoleAccount: { request: undefined; response: ConsoleAccountState };
+  saveConsoleAddress: { request: string; response: ConsoleAccountState };
+  signInConsole: { request: ConsoleSignInArgs; response: ConsoleAccountState };
+  getConsoleExecutorChoices: { request: number; response: ConsoleExecutorPage };
+  associateConsoleExecutor: { request: string; response: ConsoleAccountState };
+  signOutConsole: { request: undefined; response: ConsoleAccountState };
 }
 
 export type ExecutorInvokeCommand = keyof ExecutorInvokeContract;
@@ -160,7 +171,6 @@ export type InvokeResult<T> =
     };
 
 export type MainMessage =
-  | { type: "consoleAccountChanged"; data: ConsoleAccountState }
   | {
       type: "initializeSetting";
       data: {
@@ -168,6 +178,7 @@ export type MainMessage =
         defaultProjectLogFolderPath: string;
       };
     }
+  | { type: "consoleAccountChanged"; data: ConsoleAccountState }
   | {
       type: "runEnded";
     }

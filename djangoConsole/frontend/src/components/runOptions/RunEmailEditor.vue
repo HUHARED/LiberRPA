@@ -112,14 +112,14 @@ function getSystemFields(event: EventKey): string[] {
 function setField(event: EventKey, field: "subject" | "body"): void {
   fieldByEvent.value[event] = field;
 }
+function insertField(event: EventKey, field: string): void {
+  config.value[event][fieldByEvent.value[event]] += `{{${field}}}`;
+}
 function insertArgument(event: EventKey, name: string, input: boolean): void {
   const strHex = Array.from(new TextEncoder().encode(name), (value) =>
     value.toString(16).padStart(2, "0"),
   ).join("");
   insertField(event, `${input ? "Input_CustomArgs_" : "CustomArgs_"}${strHex}`);
-}
-function insertField(event: EventKey, field: string): void {
-  config.value[event][fieldByEvent.value[event]] += `{{${field}}}`;
 }
 onMounted(async () => {
   try {

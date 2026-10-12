@@ -3,9 +3,9 @@
 import { requestApi } from "./client";
 import {
   isRecord,
+  isNonnegativeInteger,
   isNullableString,
   isNullableDateString,
-  isNonnegativeInteger,
   rejectInvalidResponse,
   parsePaginationResponse,
 } from "./responses";

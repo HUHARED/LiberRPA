@@ -9,14 +9,14 @@ import { app } from "electron";
 
 import { readJsonFile } from "../Common/jsonFile";
 import {
-  ensureBoolean,
-  ensureCustomProjectArgs,
-  ensureExactRecord,
-  ensureLogLevel,
   ensureRecord,
+  ensureExactRecord,
+  ensureTrimmedSingleLineString,
   ensurePackageDescription,
   ensureVersionSummary,
-  ensureTrimmedSingleLineString,
+  ensureBoolean,
+  ensureLogLevel,
+  ensureCustomProjectArgs,
 } from "../Common/validation";
 import {
   STR_DEFAULT_PYTHON_ENVIRONMENT_NAME,

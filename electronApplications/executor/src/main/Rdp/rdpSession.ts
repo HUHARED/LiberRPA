@@ -96,6 +96,114 @@ let dictPendingResolution: PendingResolution | undefined;
 let timerResolutionRestore: NodeJS.Timeout | undefined;
 let timerRdpHelperCheck: NodeJS.Timeout | undefined;
 
+function startSetResolution(width: number, height: number): void {
+  loggerMain.debug("--startSetResolution--");
+  const processPy = spawnRdpScript("SetResolution.py", [
+    "--width",
+    width.toString(),
+    "--height",
+    height.toString(),
+  ]);
+  processPySetResolution = processPy;
+  dictRunningResolution = { width, height };
+  attachLineLogging(processPy, "SetResolution");
+  processPy.once("close", (intExitCode, strSignal) => {
+    loggerMain.info(
+      `[SetResolution] Exited with code ${String(intExitCode)}, signal ${String(strSignal)}`,
+    );
+    if (processPySetResolution !== processPy) {
+      return;
+    }
+
+    processPySetResolution = undefined;
+    dictRunningResolution = undefined;
+    const dictNextResolution = dictPendingResolution;
+    dictPendingResolution = undefined;
+    if (
+      dictNextResolution !== undefined &&
+      boolRdpSessionManagerStarted &&
+      dictConfigExecutor.keepRdpSession
+    ) {
+      startSetResolution(dictNextResolution.width, dictNextResolution.height);
+    }
+  });
+}
+
+export function setResolution(width: number, height: number): void {
+  loggerMain.debug("--setResolution--");
+  if (!boolRdpSessionManagerStarted) {
+    return;
+  }
+  if (processPySetResolution !== undefined) {
+    if (dictRunningResolution?.width === width && dictRunningResolution.height === height) {
+      dictPendingResolution = undefined;
+      loggerMain.debug(
+        `SetResolution is already running for ${width}x${height}; ignore the duplicate request.`,
+      );
+      return;
+    }
+
+    dictPendingResolution = { width, height };
+    loggerMain.debug(
+      `SetResolution is already running; keep the latest request ${width}x${height}.`,
+    );
+    return;
+  }
+
+  startSetResolution(width, height);
+}
+
+function scheduleResolutionRestore(): void {
+  if (timerResolutionRestore !== undefined) {
+    clearTimeout(timerResolutionRestore);
+  }
+
+  timerResolutionRestore = setTimeout(() => {
+    timerResolutionRestore = undefined;
+    if (!boolRdpSessionManagerStarted || !dictConfigExecutor.keepRdpSession) {
+      return;
+    }
+
+    const width = dictConfigExecutor.keepRdpSessionWidth;
+    const height = dictConfigExecutor.keepRdpSessionHeight;
+    loggerMain.info(
+      `Restore the primary display resolution after RDP Session preservation: ${width}x${height}.`,
+    );
+    setResolution(width, height);
+  }, INT_RESOLUTION_RESTORE_DELAY_MS);
+}
+
+function setSession(): void {
+  if (!boolRdpSessionManagerStarted) {
+    return;
+  }
+  if (processPySetSession !== undefined) {
+    loggerMain.debug("SetSession is already running; ignore the duplicate request.");
+    return;
+  }
+
+  loggerMain.debug("--setSession--");
+  const processPy = spawnRdpScript("SetSession.py");
+  processPySetSession = processPy;
+  attachLineLogging(processPy, "SetSession");
+  processPy.once("close", (intExitCode, strSignal) => {
+    loggerMain.info(
+      `[SetSession] Exited with code ${String(intExitCode)}, signal ${String(strSignal)}`,
+    );
+    if (processPySetSession === processPy) {
+      processPySetSession = undefined;
+    }
+    if (
+      intExitCode === 0 &&
+      boolRdpSessionManagerStarted &&
+      dictConfigExecutor.keepRdpSession
+    ) {
+      // Let the Console display settle before applying the configured one-shot resolution.
+      scheduleResolutionRestore();
+    }
+  });
+}
+
 function startSessionListener(): void {
   if (
     processPySessionListener !== undefined ||
@@ -167,114 +275,6 @@ function startSessionListener(): void {
       intSessionListenerRestartAfterMs = Date.now() + INT_RDP_HELPER_RESTART_DELAY_MS;
     }
   });
-}
-
-function scheduleResolutionRestore(): void {
-  if (timerResolutionRestore !== undefined) {
-    clearTimeout(timerResolutionRestore);
-  }
-
-  timerResolutionRestore = setTimeout(() => {
-    timerResolutionRestore = undefined;
-    if (!boolRdpSessionManagerStarted || !dictConfigExecutor.keepRdpSession) {
-      return;
-    }
-
-    const width = dictConfigExecutor.keepRdpSessionWidth;
-    const height = dictConfigExecutor.keepRdpSessionHeight;
-    loggerMain.info(
-      `Restore the primary display resolution after RDP Session preservation: ${width}x${height}.`,
-    );
-    setResolution(width, height);
-  }, INT_RESOLUTION_RESTORE_DELAY_MS);
-}
-
-function setSession(): void {
-  if (!boolRdpSessionManagerStarted) {
-    return;
-  }
-  if (processPySetSession !== undefined) {
-    loggerMain.debug("SetSession is already running; ignore the duplicate request.");
-    return;
-  }
-
-  loggerMain.debug("--setSession--");
-  const processPy = spawnRdpScript("SetSession.py");
-  processPySetSession = processPy;
-  attachLineLogging(processPy, "SetSession");
-  processPy.once("close", (intExitCode, strSignal) => {
-    loggerMain.info(
-      `[SetSession] Exited with code ${String(intExitCode)}, signal ${String(strSignal)}`,
-    );
-    if (processPySetSession === processPy) {
-      processPySetSession = undefined;
-    }
-    if (
-      intExitCode === 0 &&
-      boolRdpSessionManagerStarted &&
-      dictConfigExecutor.keepRdpSession
-    ) {
-      // Let the Console display settle before applying the configured one-shot resolution.
-      scheduleResolutionRestore();
-    }
-  });
-}
-
-function startSetResolution(width: number, height: number): void {
-  loggerMain.debug("--startSetResolution--");
-  const processPy = spawnRdpScript("SetResolution.py", [
-    "--width",
-    width.toString(),
-    "--height",
-    height.toString(),
-  ]);
-  processPySetResolution = processPy;
-  dictRunningResolution = { width, height };
-  attachLineLogging(processPy, "SetResolution");
-  processPy.once("close", (intExitCode, strSignal) => {
-    loggerMain.info(
-      `[SetResolution] Exited with code ${String(intExitCode)}, signal ${String(strSignal)}`,
-    );
-    if (processPySetResolution !== processPy) {
-      return;
-    }
-
-    processPySetResolution = undefined;
-    dictRunningResolution = undefined;
-    const dictNextResolution = dictPendingResolution;
-    dictPendingResolution = undefined;
-    if (
-      dictNextResolution !== undefined &&
-      boolRdpSessionManagerStarted &&
-      dictConfigExecutor.keepRdpSession
-    ) {
-      startSetResolution(dictNextResolution.width, dictNextResolution.height);
-    }
-  });
-}
-
-export function setResolution(width: number, height: number): void {
-  loggerMain.debug("--setResolution--");
-  if (!boolRdpSessionManagerStarted) {
-    return;
-  }
-  if (processPySetResolution !== undefined) {
-    if (dictRunningResolution?.width === width && dictRunningResolution.height === height) {
-      dictPendingResolution = undefined;
-      loggerMain.debug(
-        `SetResolution is already running for ${width}x${height}; ignore the duplicate request.`,
-      );
-      return;
-    }
-
-    dictPendingResolution = { width, height };
-    loggerMain.debug(
-      `SetResolution is already running; keep the latest request ${width}x${height}.`,
-    );
-    return;
-  }
-
-  startSetResolution(width, height);
 }
 
 function startMoveMouse(): void {

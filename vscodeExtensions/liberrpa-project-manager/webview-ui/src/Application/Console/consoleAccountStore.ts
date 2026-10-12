@@ -3,8 +3,8 @@
 import { defineStore } from "pinia";
 
 import {
-  ConsoleAction,
   ConsoleConnection,
+  ConsoleAction,
   type EditorSessionInfo,
   type ConsoleAccountState,
 } from "../../Domain/Console/consoleTypes";

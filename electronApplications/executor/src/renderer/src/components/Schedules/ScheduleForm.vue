@@ -227,6 +227,35 @@ const ARR_RUN_CONFLICT_POLICY: { title: string; value: RunConflictPolicy }[] = [
   { title: "Run Concurrently", value: RunConflictPolicy.Concurrent },
 ];
 
+async function applyProjectDetailToSchedule(
+  currentDetail: ScheduleFormDraft,
+  name: string,
+  version: string,
+  intRevision: number,
+): Promise<void> {
+  const projectDetail = await invokeMain("getProjectDetail", { name, version });
+  if (
+    intRevision !== intProjectSelectionRevision ||
+    detail.value !== currentDetail ||
+    currentDetail.project_name !== name ||
+    currentDetail.project_version !== version
+  ) {
+    return;
+  }
+  if (projectDetail === undefined) {
+    throw new Error(`Project not found: ${name}-${version}`);
+  }
+
+  currentDetail.project_id = projectDetail.id;
+  currentDetail.max_retry_count = projectDetail.max_retry_count;
+  currentDetail.timeout_min = projectDetail.timeout_min;
+  currentDetail.builtin_log_level = projectDetail.builtin_log_level;
+  currentDetail.builtin_record_video = projectDetail.builtin_record_video;
+  currentDetail.builtin_stop_shortcut = projectDetail.builtin_stop_shortcut;
+  currentDetail.builtin_highlight_ui = projectDetail.builtin_highlight_ui;
+  currentDetail.custom_prj_args = cloneJsonSerializable(projectDetail.custom_prj_args);
+}
+
 async function whenProjectNameChanged(): Promise<void> {
   const currentDetail = detail.value;
   if (currentDetail === undefined) {
@@ -279,35 +308,6 @@ async function whenProjectVersionChanged(): Promise<void> {
   currentDetail.project_id = undefined;
   loggerRenderer.info(`Modified Project version: ${version}`);
   await applyProjectDetailToSchedule(currentDetail, name, version, intRevision);
-}
-
-async function applyProjectDetailToSchedule(
-  currentDetail: ScheduleFormDraft,
-  name: string,
-  version: string,
-  intRevision: number,
-): Promise<void> {
-  const projectDetail = await invokeMain("getProjectDetail", { name, version });
-  if (
-    intRevision !== intProjectSelectionRevision ||
-    detail.value !== currentDetail ||
-    currentDetail.project_name !== name ||
-    currentDetail.project_version !== version
-  ) {
-    return;
-  }
-  if (projectDetail === undefined) {
-    throw new Error(`Project not found: ${name}-${version}`);
-  }
-
-  currentDetail.project_id = projectDetail.id;
-  currentDetail.max_retry_count = projectDetail.max_retry_count;
-  currentDetail.timeout_min = projectDetail.timeout_min;
-  currentDetail.builtin_log_level = projectDetail.builtin_log_level;
-  currentDetail.builtin_record_video = projectDetail.builtin_record_video;
-  currentDetail.builtin_stop_shortcut = projectDetail.builtin_stop_shortcut;
-  currentDetail.builtin_highlight_ui = projectDetail.builtin_highlight_ui;
-  currentDetail.custom_prj_args = cloneJsonSerializable(projectDetail.custom_prj_args);
 }
 </script>
 

@@ -23,10 +23,10 @@ from organizations.permissions import (
 from .contracts import (
     AssetEntryResponse,
     AssetListResponse,
-    AssetDetailsEntryResponse,
-    AssetDetailsResponse,
     AssetReferenceKind,
     AssetReferenceResponse,
+    AssetDetailsEntryResponse,
+    AssetDetailsResponse,
 )
 from .models import SECRET_ASSET_TYPES, Asset
 

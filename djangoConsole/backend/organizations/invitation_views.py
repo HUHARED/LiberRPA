@@ -39,12 +39,12 @@ from notifications.models import EmailDelivery
 from .invitations import (
     InvitationConflictError,
     InvitationCooldownError,
-    complete_invitation_registration,
-    create_member_invitation,
-    get_invitation_registration_info,
     get_invitation_status,
+    create_member_invitation,
     resend_member_invitation,
     revoke_member_invitation,
+    get_invitation_registration_info,
+    complete_invitation_registration,
 )
 from .contracts import (
     InvitationCreateRequest,
@@ -55,7 +55,7 @@ from .contracts import (
     InvitationListResponse,
 )
 from .department_queries import get_department_path
-from .models import Department, DepartmentRole, InvitationDepartmentRole, MemberInvitation
+from .models import Department, DepartmentRole, MemberInvitation, InvitationDepartmentRole
 from .permissions import (
     AccessChannel,
     get_current_membership,

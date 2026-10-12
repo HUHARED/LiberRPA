@@ -2,9 +2,9 @@
 <template>
   <v-container class="pa-1 ma-0 d-flex flex-column">
     <!-- Label -->
-    <v-label class="pa-2 ma-0 text-center" style="display: block"
-      >Custom Project Arguments</v-label
-    >
+    <v-label class="pa-2 ma-0 text-center" style="display: block">
+      Custom Project Arguments
+    </v-label>
 
     <!-- All argument inputboxes -->
     <v-container class="pa-0 ma-0 flex-grow-1 overflow-y-auto">
@@ -116,6 +116,10 @@ const arrValueCache = ref<string[]>(
   ),
 );
 
+function toCustomPrjArgs(args: StoreCustomPrjArg[]): CustomPrjArg[] {
+  return args.map(([name, value]) => [name, value as JsonValue]);
+}
+
 const syncCustomPrjArgs = (): void => {
   arrKeyCache.value = argsStore.customPrjArgs.map(([key]) => stringifyKeyForInput(key));
 
@@ -133,10 +137,6 @@ const syncCustomPrjArgs = (): void => {
 };
 
 watch(() => argsStore.customPrjArgs, syncCustomPrjArgs, { deep: true });
-
-function toCustomPrjArgs(args: StoreCustomPrjArg[]): CustomPrjArg[] {
-  return args.map(([name, value]) => [name, value as JsonValue]);
-}
 
 function generateBgcolor(valueName: string): string {
   const arrNames = argsStore.customPrjArgs.filter((arrIn) => {
@@ -182,28 +182,6 @@ function commitArgumentAndRequestSave(
   });
 }
 
-function handleKeyInputKeydown(
-  event: KeyboardEvent,
-  item: StoreCustomPrjArg,
-  index: number,
-  input: string,
-): void {
-  commitArgumentAndRequestSave(event, () => {
-    updateKey(item, index, input);
-  });
-}
-
-function handleValueInputKeydown(
-  event: KeyboardEvent,
-  item: StoreCustomPrjArg,
-  index: number,
-  value: string,
-): void {
-  commitArgumentAndRequestSave(event, () => {
-    updateValue(item, index, value);
-  });
-}
-
 function updateKey(item: StoreCustomPrjArg, index: number, input: string): void {
   // Removing a focused row can emit blur after the row has already been removed.
   if (!isCurrentArgument(item, index)) {
@@ -235,6 +213,17 @@ function updateKey(item: StoreCustomPrjArg, index: number, input: string): void 
   }
 }
 
+function handleKeyInputKeydown(
+  event: KeyboardEvent,
+  item: StoreCustomPrjArg,
+  index: number,
+  input: string,
+): void {
+  commitArgumentAndRequestSave(event, () => {
+    updateKey(item, index, input);
+  });
+}
+
 function updateValue(item: StoreCustomPrjArg, index: number, value: string): void {
   if (!isCurrentArgument(item, index)) {
     return;
@@ -250,6 +239,17 @@ function updateValue(item: StoreCustomPrjArg, index: number, value: string): voi
       JSON.stringify(item[1], null, 0),
     );
   }
+}
+
+function handleValueInputKeydown(
+  event: KeyboardEvent,
+  item: StoreCustomPrjArg,
+  index: number,
+  value: string,
+): void {
+  commitArgumentAndRequestSave(event, () => {
+    updateValue(item, index, value);
+  });
 }
 
 function stringifyValue(value: unknown): string {

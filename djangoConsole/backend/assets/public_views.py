@@ -24,9 +24,9 @@ from accounts.api_key_authentication import InvalidApiKeyError
 from accounts.resource_authentication import (
     InvalidResourceCredentialError,
     ResourceAuthenticationContext,
+    lock_resource_write_access,
     build_resource_authentication_required_response,
     authenticate_resource_request,
-    lock_resource_write_access,
 )
 from console_project.contracts import JsonRequest, JsonResponsePayload
 from console_project.http import (

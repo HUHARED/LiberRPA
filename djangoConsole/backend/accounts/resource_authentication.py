@@ -17,8 +17,8 @@ from executors.client_sessions import (
     InvalidExecutorSessionError,
     ExecutorClientAction,
     ExecutorClientResult,
-    get_locked_executor_session,
     get_executor_session_identity,
+    get_locked_executor_session,
     open_executor_client_request,
 )
 from organizations.permissions import (

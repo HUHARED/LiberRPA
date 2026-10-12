@@ -44,8 +44,8 @@ from accounts.resource_authentication import (
     InvalidResourceCredentialError,
     NativeResourceAuthenticationContext,
     authenticate_resource,
-    authenticate_resource_request,
     lock_resource_write_access,
+    authenticate_resource_request,
 )
 from console_project.contracts import JsonRequest
 from console_project.http import build_error_response, parse_json_request

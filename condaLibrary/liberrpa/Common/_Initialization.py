@@ -64,62 +64,6 @@ def _check_update() -> None:
         print(f"LiberRPA can be updated: {strVersion} -> {strVersionNewest}")
 
 
-def _update_daily_data() -> None:
-    """Update some data on the first run of the day, to get some important data, but do not run it every time to save time."""
-
-    strBase = os.path.join(os.environ.get("USERPROFILE", "N/A"), "Documents\\LiberRPA\\")
-    if not os.path.isdir(strBase):
-        raise RuntimeError(
-            "LiberRPA folder is missing. Please run InitLiberRPA.exe before using LiberRPA."
-        )
-
-    strDatePath = os.path.join(strBase, "UpdateDate.txt")
-    strSystemDataPath = os.path.join(strBase, "SystemData.json")
-
-    strToday = datetime.strftime(datetime.now(), "%Y-%m-%d")
-
-    # Do update and save date file.
-    if not os.path.isfile(strDatePath):
-        Path(strSystemDataPath).write_text(
-            data=json.dumps(get_system_data(), indent=4, ensure_ascii=False),
-            encoding="utf-8",
-        )
-
-        _check_update()
-
-        print("Write system information and check update(Only once a day).")
-
-        # Update date file.
-        Path(strDatePath).write_text(data=strToday, encoding="utf-8")
-
-        return None
-
-    # Check the date of update. If it's not today, update.
-    strDate = Path(strDatePath).read_text(encoding="utf-8")
-    if strDate != strToday:
-        Path(strSystemDataPath).write_text(
-            data=json.dumps(get_system_data(), indent=4, ensure_ascii=False),
-            encoding="utf-8",
-        )
-
-        _check_update()
-
-        print("Write system information and check update(Only once a day).")
-
-        # Update date file.
-        Path(strDatePath).write_text(data=strToday, encoding="utf-8")
-
-        return None
-    else:
-        # Data is updated today. Do nothing.
-        return None
-
-
-def set_log_folder_name(folderName: str) -> None:
-    # Set the name of log folder before first import Log module, call it for making the log folder name more understandable when the Python process works alone.
-    os.environ["LogFolderName"] = folderName
-
-
 def _is_user_admin() -> bool:
     try:
         return ctypes.windll.shell32.IsUserAnAdmin() != 0
@@ -244,6 +188,62 @@ def get_system_data() -> dict[str, Any]:
     except Exception as e:
         print(f"Failed to get system data: {e}")
         return {}
+
+
+def _update_daily_data() -> None:
+    """Update some data on the first run of the day, to get some important data, but do not run it every time to save time."""
+
+    strBase = os.path.join(os.environ.get("USERPROFILE", "N/A"), "Documents\\LiberRPA\\")
+    if not os.path.isdir(strBase):
+        raise RuntimeError(
+            "LiberRPA folder is missing. Please run InitLiberRPA.exe before using LiberRPA."
+        )
+
+    strDatePath = os.path.join(strBase, "UpdateDate.txt")
+    strSystemDataPath = os.path.join(strBase, "SystemData.json")
+
+    strToday = datetime.strftime(datetime.now(), "%Y-%m-%d")
+
+    # Do update and save date file.
+    if not os.path.isfile(strDatePath):
+        Path(strSystemDataPath).write_text(
+            data=json.dumps(get_system_data(), indent=4, ensure_ascii=False),
+            encoding="utf-8",
+        )
+
+        _check_update()
+
+        print("Write system information and check update(Only once a day).")
+
+        # Update date file.
+        Path(strDatePath).write_text(data=strToday, encoding="utf-8")
+
+        return None
+
+    # Check the date of update. If it's not today, update.
+    strDate = Path(strDatePath).read_text(encoding="utf-8")
+    if strDate != strToday:
+        Path(strSystemDataPath).write_text(
+            data=json.dumps(get_system_data(), indent=4, ensure_ascii=False),
+            encoding="utf-8",
+        )
+
+        _check_update()
+
+        print("Write system information and check update(Only once a day).")
+
+        # Update date file.
+        Path(strDatePath).write_text(data=strToday, encoding="utf-8")
+
+        return None
+    else:
+        # Data is updated today. Do nothing.
+        return None
+
+
+def set_log_folder_name(folderName: str) -> None:
+    # Set the name of log folder before first import Log module, call it for making the log folder name more understandable when the Python process works alone.
+    os.environ["LogFolderName"] = folderName
 
 
 initialize_console_context()

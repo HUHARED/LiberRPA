@@ -21,8 +21,8 @@ from accounts.rate_limits import (
 )
 from accounts.session_revocation import SessionInvalidatedError
 from console_project.http import (
-    build_authentication_required_response,
     build_error_response,
+    build_authentication_required_response,
     build_rate_limited_response,
     parse_json_request,
 )
@@ -32,23 +32,23 @@ from organizations.models import Organization
 from organizations.permissions import (
     AccessChannel,
     OrganizationAccessContext,
-    require_organization_admin,
     resolve_organization_access,
+    require_organization_admin,
 )
 
 from .contracts import (
-    EmptyRequest,
     RecipientCreationRequest,
     RecipientNotesRequest,
+    EmptyRequest,
     RecipientTokenRequest,
 )
 from .models import Notification, RunEmailRecipient
 from .recipients import (
     create_recipient,
-    delete_recipient,
-    get_recipient_references,
-    load_verification_recipient,
     resend_recipient_verification,
+    get_recipient_references,
+    delete_recipient,
+    load_verification_recipient,
 )
 from .run_email import get_template_metadata
 from .services import prune_notifications

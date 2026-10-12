@@ -2,18 +2,18 @@
 
 import type { ProjectRunConfig } from "../Run/types";
 import type {
-  ScheduleCreateData,
-  ScheduleDetails,
   ScheduleListItem,
+  ScheduleDetails,
+  ScheduleCreateData,
   ScheduleUpdateData,
 } from "../../shared/schedule";
 import { loggerMain } from "../Logging/logger";
 import { getDatabase } from "./connection";
 import {
-  ensureScheduleDetailRow,
-  ensureScheduleListRows,
-  ensureScheduleRunDetailRow,
   ensureSingleRowAffected,
+  ensureScheduleListRows,
+  ensureScheduleDetailRow,
+  ensureScheduleRunDetailRow,
 } from "./rowValidation";
 
 export function dbSelectScheduleList(): ScheduleListItem[] {

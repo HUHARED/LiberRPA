@@ -11,8 +11,8 @@ import {
   ensureExactRecord,
   ensureString,
   ensureNonEmptyString,
-  ensurePythonEnvironmentName,
   ensureTrimmedSingleLineString,
+  ensurePythonEnvironmentName,
   ensureBoolean,
   ensureNonNegativeInteger,
   ensurePositiveInteger,
@@ -20,49 +20,10 @@ import {
   ensureRunTimeoutMinutes,
   ensureLogLevel,
   ensureRunConflictPolicy,
-  ensureRunHistoryStatus,
   ensureRunSource,
+  ensureRunHistoryStatus,
   ensureCustomProjectArgs,
 } from "../Common/validation";
-
-export function ensureInvokeCommand(value: unknown): ExecutorInvokeCommand {
-  switch (value) {
-    case "getConsoleAccount":
-    case "saveConsoleAddress":
-    case "signInConsole":
-    case "getConsoleExecutorChoices":
-    case "associateConsoleExecutor":
-    case "signOutConsole":
-    case "openProjectLogFolder":
-    case "saveExecutorConfig":
-    case "runProject":
-    case "getPythonEnvironmentNames":
-    case "installProjectPackage":
-    case "getProjectNames":
-    case "getProjectVersions":
-    case "getProjectDetail":
-    case "saveProjectSettings":
-    case "getProjectBoundSchedules":
-    case "deleteProject":
-    case "getScheduleList":
-    case "getScheduleDetail":
-    case "createSchedule":
-    case "saveSchedule":
-    case "setScheduleEnabled":
-    case "deleteSchedule":
-    case "getRunDetails":
-    case "getRunHistoryPage":
-    case "getJobQueue":
-    case "cancelQueuedRun":
-    case "openRunLogFolder":
-    case "rerunLocalRun":
-    case "pythonCancel":
-    case "chooseProjectLogFolder":
-      return value;
-    default:
-      throw new Error(`Unknown Renderer invoke command: ${String(value)}`);
-  }
-}
 
 export function ensureRendererLogLevel(value: unknown): RendererLogLevel {
   switch (value) {
@@ -76,6 +37,46 @@ export function ensureRendererLogLevel(value: unknown): RendererLogLevel {
       return value;
     default:
       throw new Error(`Unknown Renderer log level: ${String(value)}`);
+  }
+}
+
+export function ensureInvokeCommand(value: unknown): ExecutorInvokeCommand {
+  // Keep command order aligned with ExecutorInvokeContract.
+  switch (value) {
+    case "getPythonEnvironmentNames":
+    case "getProjectNames":
+    case "getProjectVersions":
+    case "getProjectDetail":
+    case "installProjectPackage":
+    case "saveProjectSettings":
+    case "runProject":
+    case "getProjectBoundSchedules":
+    case "deleteProject":
+    case "getScheduleList":
+    case "getScheduleDetail":
+    case "createSchedule":
+    case "saveSchedule":
+    case "setScheduleEnabled":
+    case "deleteSchedule":
+    case "getJobQueue":
+    case "cancelQueuedRun":
+    case "getRunHistoryPage":
+    case "getRunDetails":
+    case "openRunLogFolder":
+    case "pythonCancel":
+    case "rerunLocalRun":
+    case "saveExecutorConfig":
+    case "chooseProjectLogFolder":
+    case "openProjectLogFolder":
+    case "getConsoleAccount":
+    case "saveConsoleAddress":
+    case "signInConsole":
+    case "getConsoleExecutorChoices":
+    case "associateConsoleExecutor":
+    case "signOutConsole":
+      return value;
+    default:
+      throw new Error(`Unknown Renderer invoke command: ${String(value)}`);
   }
 }
 
@@ -100,10 +101,6 @@ export function ensureProjectRef(value: unknown): { name: string; version: strin
     name: ensureNonEmptyString(dictValue.name, "Project reference.name"),
     version: ensureNonEmptyString(dictValue.version, "Project reference.version"),
   };
-}
-
-export function ensureQueuedRunId(value: unknown): string {
-  return ensureNonEmptyString(value, "Queued Run ID");
 }
 
 export function ensureProjectSettingsUpdate(value: unknown): ProjectSettingsUpdate {
@@ -262,6 +259,22 @@ export function ensureScheduleUpdate(value: unknown): ScheduleUpdateData {
   return dictValue;
 }
 
+export function ensureScheduleEnabled(value: unknown): { id: number; enabled: boolean } {
+  const dictValue = ensureExactRecord(
+    value,
+    ["id", "enabled"],
+    "Schedule enabled update request",
+  );
+  return {
+    id: ensurePositiveInteger(dictValue.id, "Schedule enabled update request.id"),
+    enabled: ensureBoolean(dictValue.enabled, "Schedule enabled update request.enabled"),
+  };
+}
+
+export function ensureQueuedRunId(value: unknown): string {
+  return ensureNonEmptyString(value, "Queued Run ID");
+}
+
 export function ensureRunHistoryOptions(value: unknown): RunHistoryQueryOptions {
   function ensureRunHistorySortKey(
     value: unknown,
@@ -362,17 +375,5 @@ export function ensureConsoleSignIn(value: unknown): ConsoleSignInArgs {
   return {
     email: ensureNonEmptyString(dictValue.email, "Console sign in.email"),
     password: ensureNonEmptyString(dictValue.password, "Console sign in.password"),
-  };
-}
-
-export function ensureScheduleEnabled(value: unknown): { id: number; enabled: boolean } {
-  const dictValue = ensureExactRecord(
-    value,
-    ["id", "enabled"],
-    "Schedule enabled update request",
-  );
-  return {
-    id: ensurePositiveInteger(dictValue.id, "Schedule enabled update request.id"),
-    enabled: ensureBoolean(dictValue.enabled, "Schedule enabled update request.enabled"),
   };
 }

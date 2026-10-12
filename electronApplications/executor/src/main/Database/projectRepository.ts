@@ -8,10 +8,10 @@ import type {
 import { loggerMain } from "../Logging/logger";
 import { getDatabase } from "./connection";
 import {
-  ensureNameRows,
-  ensureProjectDetailRow,
   ensureSingleRowAffected,
+  ensureNameRows,
   ensureVersionRows,
+  ensureProjectDetailRow,
 } from "./rowValidation";
 
 export function dbSelectProjectNames(): { name: string }[] {

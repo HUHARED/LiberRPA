@@ -13,21 +13,21 @@ import {
 } from "../Console/consoleAccount";
 import { getErrorMessage } from "../../shared/error";
 import {
-  chooseProjectLogFolder,
+  parseExecutorConfig,
   dictConfigExecutor,
   getEffectiveProjectLogFolderPath,
   saveExecutorConfigDict,
-  parseExecutorConfig,
+  chooseProjectLogFolder,
 } from "../Config/executorConfig";
 import {
   getPythonEnvironmentNames,
   validatePythonEnvironmentName,
 } from "../Config/environment";
 import {
-  dbSelectProjectBoundSchedules,
-  dbSelectProjectDetail,
   dbSelectProjectNames,
   dbSelectProjectVersions,
+  dbSelectProjectBoundSchedules,
+  dbSelectProjectDetail,
   dbUpdateProjectSettings,
 } from "../Database/projectRepository";
 import {
@@ -36,12 +36,12 @@ import {
   dbSelectRunDetails,
 } from "../Database/runHistoryRepository";
 import {
-  dbSetScheduleEnabled,
-  dbDeleteSchedule,
-  dbInsertSchedule,
-  dbSelectScheduleDetail,
   dbSelectScheduleList,
+  dbSelectScheduleDetail,
+  dbInsertSchedule,
   dbUpdateSchedule,
+  dbDeleteSchedule,
+  dbSetScheduleEnabled,
 } from "../Database/scheduleRepository";
 import { fileOpenFolder } from "../FileSystem/executorFiles";
 import { loggerMain } from "../Logging/logger";
@@ -56,21 +56,21 @@ import {
   refreshSchedulerEngine,
 } from "../Scheduler/schedulerEngine";
 import {
-  ensureConsoleSignIn,
+  ensureRendererLogLevel,
   ensureInvokeCommand,
   ensureNoData,
+  ensureStringData,
   ensurePositiveIntegerData,
   ensureProjectRef,
   ensureProjectSettingsUpdate,
-  ensureRendererLogLevel,
-  ensureRunHistoryOptions,
-  ensureScheduleEnabled,
   ensureScheduleCreate,
   ensureScheduleUpdate,
-  ensureStringData,
+  ensureScheduleEnabled,
   ensureQueuedRunId,
+  ensureRunHistoryOptions,
+  ensureConsoleSignIn,
 } from "./validation";
-import { IPC_CHANNEL_RENDERER_INVOKE, IPC_CHANNEL_RENDERER_LOG } from "../../shared/ipc";
+import { IPC_CHANNEL_RENDERER_LOG, IPC_CHANNEL_RENDERER_INVOKE } from "../../shared/ipc";
 import type {
   InvokeResult,
   ExecutorInvokeCommand,
@@ -97,27 +97,21 @@ type ExecutorInvokeHandlers = {
 };
 
 const INVOKE_VALIDATOR = {
-  getConsoleAccount: (rawData: unknown) => ensureNoData(rawData, "getConsoleAccount"),
-  saveConsoleAddress: (rawData: unknown) => ensureStringData(rawData, "Console URL"),
-  signInConsole: ensureConsoleSignIn,
-  getConsoleExecutorChoices: (rawData: unknown) =>
-    ensurePositiveIntegerData(rawData, "Executor choices page"),
-  associateConsoleExecutor: (rawData: unknown) => ensureStringData(rawData, "Executor ID"),
-  signOutConsole: (rawData: unknown) => ensureNoData(rawData, "signOutConsole"),
-  openProjectLogFolder: (rawData: unknown) => ensureNoData(rawData, "openProjectLogFolder"),
-  saveExecutorConfig: (rawData: unknown) => parseExecutorConfig(rawData),
-  runProject: ensureProjectSettingsUpdate,
+  // Projects.
   getPythonEnvironmentNames: (rawData: unknown) =>
     ensureNoData(rawData, "getPythonEnvironmentNames"),
-  installProjectPackage: (rawData: unknown) =>
-    ensureNoData(rawData, "installProjectPackage"),
   getProjectNames: (rawData: unknown) => ensureNoData(rawData, "getProjectNames"),
   getProjectVersions: (rawData: unknown) => ensureStringData(rawData, "getProjectVersions"),
   getProjectDetail: ensureProjectRef,
+  installProjectPackage: (rawData: unknown) =>
+    ensureNoData(rawData, "installProjectPackage"),
   saveProjectSettings: ensureProjectSettingsUpdate,
+  runProject: ensureProjectSettingsUpdate,
   getProjectBoundSchedules: (rawData: unknown) =>
     ensurePositiveIntegerData(rawData, "getProjectBoundSchedules"),
   deleteProject: (rawData: unknown) => ensurePositiveIntegerData(rawData, "deleteProject"),
+
+  // Schedules.
   getScheduleList: (rawData: unknown) => ensureNoData(rawData, "getScheduleList"),
   getScheduleDetail: (rawData: unknown) => ensureStringData(rawData, "getScheduleDetail"),
   createSchedule: ensureScheduleCreate,
@@ -125,50 +119,40 @@ const INVOKE_VALIDATOR = {
   setScheduleEnabled: ensureScheduleEnabled,
   deleteSchedule: (rawData: unknown) =>
     ensurePositiveIntegerData(rawData, "deleteSchedule"),
-  getRunDetails: (rawData: unknown) => ensurePositiveIntegerData(rawData, "Run History ID"),
-  getRunHistoryPage: ensureRunHistoryOptions,
+
+  // Job Queue.
   getJobQueue: (rawData: unknown) => ensureNoData(rawData, "getJobQueue"),
   cancelQueuedRun: ensureQueuedRunId,
+
+  // Run History.
+  getRunHistoryPage: ensureRunHistoryOptions,
+  getRunDetails: (rawData: unknown) => ensurePositiveIntegerData(rawData, "Run History ID"),
   openRunLogFolder: (rawData: unknown) =>
     ensurePositiveIntegerData(rawData, "openRunLogFolder"),
-  rerunLocalRun: (rawData: unknown) => ensurePositiveIntegerData(rawData, "rerunLocalRun"),
   pythonCancel: (rawData: unknown) => ensurePositiveIntegerData(rawData, "pythonCancel"),
+  rerunLocalRun: (rawData: unknown) => ensurePositiveIntegerData(rawData, "rerunLocalRun"),
+
+  // Settings.
+  saveExecutorConfig: (rawData: unknown) => parseExecutorConfig(rawData),
   chooseProjectLogFolder: (rawData: unknown) =>
     ensureNoData(rawData, "chooseProjectLogFolder"),
+  openProjectLogFolder: (rawData: unknown) => ensureNoData(rawData, "openProjectLogFolder"),
+
+  // Console.
+  getConsoleAccount: (rawData: unknown) => ensureNoData(rawData, "getConsoleAccount"),
+  saveConsoleAddress: (rawData: unknown) => ensureStringData(rawData, "Console URL"),
+  signInConsole: ensureConsoleSignIn,
+  getConsoleExecutorChoices: (rawData: unknown) =>
+    ensurePositiveIntegerData(rawData, "Executor choices page"),
+  associateConsoleExecutor: (rawData: unknown) => ensureStringData(rawData, "Executor ID"),
+  signOutConsole: (rawData: unknown) => ensureNoData(rawData, "signOutConsole"),
 } satisfies ExecutorInvokeValidators;
 
 function createInvokeHandlerMap(ensureExecutorRunning: () => void): ExecutorInvokeHandlers {
   return {
-    getConsoleAccount: getConsoleAccountState,
-    saveConsoleAddress,
-    signInConsole,
-    getConsoleExecutorChoices,
-    associateConsoleExecutor,
-    signOutConsole,
-    async openProjectLogFolder() {
-      await fileOpenFolder(getEffectiveProjectLogFolderPath());
-    },
-
-    saveExecutorConfig(dictConfig) {
-      const boolTimezoneChanged = dictConfig.timezone !== dictConfigExecutor.timezone;
-      saveExecutorConfigDict(dictConfig);
-      // Other Main Process modules read this shared in-memory config.
-      Object.assign(dictConfigExecutor, dictConfig);
-      if (boolTimezoneChanged) {
-        refreshSchedulerEngine();
-      }
-    },
-
-    async runProject(intProjectId) {
-      await runInstalledProject(intProjectId);
-    },
-
+    // Projects.
     getPythonEnvironmentNames() {
       return getPythonEnvironmentNames();
-    },
-
-    async installProjectPackage() {
-      return await installProjectPackage(ensureExecutorRunning);
     },
 
     getProjectNames() {
@@ -183,9 +167,17 @@ function createInvokeHandlerMap(ensureExecutorRunning: () => void): ExecutorInvo
       return dbSelectProjectDetail(projectDict.name, projectDict.version);
     },
 
+    async installProjectPackage() {
+      return await installProjectPackage(ensureExecutorRunning);
+    },
+
     saveProjectSettings(detailDict) {
       validatePythonEnvironmentName(detailDict.python_environment_name);
       dbUpdateProjectSettings(detailDict);
+    },
+
+    async runProject(intProjectId) {
+      await runInstalledProject(intProjectId);
     },
 
     getProjectBoundSchedules(projectId) {
@@ -196,6 +188,7 @@ function createInvokeHandlerMap(ensureExecutorRunning: () => void): ExecutorInvo
       deleteInstalledProject(projectId);
     },
 
+    // Schedules.
     getScheduleList() {
       return dbSelectScheduleList();
     },
@@ -224,10 +217,7 @@ function createInvokeHandlerMap(ensureExecutorRunning: () => void): ExecutorInvo
       refreshSchedulerEngine();
     },
 
-    getRunDetails: dbSelectRunDetails,
-
-    getRunHistoryPage: dbSelectRunHistoryPage,
-
+    // Job Queue.
     getJobQueue() {
       return getJobQueueItems();
     },
@@ -235,6 +225,11 @@ function createInvokeHandlerMap(ensureExecutorRunning: () => void): ExecutorInvo
     cancelQueuedRun(queueId) {
       cancelQueuedRun(queueId);
     },
+
+    // Run History.
+    getRunHistoryPage: dbSelectRunHistoryPage,
+
+    getRunDetails: dbSelectRunDetails,
 
     async openRunLogFolder(runHistoryId) {
       const logLocation = dbSelectRunHistoryLogLocation(runHistoryId);
@@ -244,15 +239,43 @@ function createInvokeHandlerMap(ensureExecutorRunning: () => void): ExecutorInvo
       await fileOpenFolder(ensureExistingRunLogFolderPath(logLocation.log_path));
     },
 
-    rerunLocalRun,
-
     pythonCancel(runHistoryId) {
       pythonCancel(runHistoryId);
+    },
+
+    rerunLocalRun,
+
+    // Settings.
+    saveExecutorConfig(dictConfig) {
+      const boolTimezoneChanged = dictConfig.timezone !== dictConfigExecutor.timezone;
+      saveExecutorConfigDict(dictConfig);
+      // Other Main Process modules read this shared in-memory config.
+      Object.assign(dictConfigExecutor, dictConfig);
+      if (boolTimezoneChanged) {
+        refreshSchedulerEngine();
+      }
     },
 
     async chooseProjectLogFolder() {
       return await chooseProjectLogFolder();
     },
+
+    async openProjectLogFolder() {
+      await fileOpenFolder(getEffectiveProjectLogFolderPath());
+    },
+
+    // Console.
+    getConsoleAccount: getConsoleAccountState,
+
+    saveConsoleAddress,
+
+    signInConsole,
+
+    getConsoleExecutorChoices,
+
+    associateConsoleExecutor,
+
+    signOutConsole,
   };
 }
 

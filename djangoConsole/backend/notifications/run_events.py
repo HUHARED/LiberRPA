@@ -12,10 +12,10 @@ if TYPE_CHECKING:
 from runs.models import JobSource
 
 from .models import (
-    EmailDelivery,
     EmailType,
-    RunEmailEvent,
+    EmailDelivery,
     RunEmailRecipient,
+    RunEmailEvent,
     RunEmailReference,
 )
 from .services import notify_prestart_failure

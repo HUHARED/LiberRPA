@@ -28,12 +28,12 @@ import type {
 } from "../../Domain/Project/projectTypes";
 import {
   ConsoleAction,
-  ConsolePublishStatus,
   type ConsolePublishDepartment,
   isConsolePublishDepartment,
+  ConsolePublishStatus,
   type ConsolePublishResult,
-  isConsoleAccountState,
   type ConsoleAccountState,
+  isConsoleAccountState,
 } from "../../Domain/Console/consoleTypes";
 
 export type Theme = "light" | "dark";
