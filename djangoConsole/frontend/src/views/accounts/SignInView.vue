@@ -129,6 +129,15 @@
       </v-btn>
     </v-form>
 
+    <v-btn
+      :to="{ name: 'forgot-password' }"
+      variant="text"
+      block
+      class="mt-3"
+      :disabled="sessionStore.busy">
+      Forgot Password
+    </v-btn>
+
     <v-divider class="my-4" />
 
     <p class="text-medium-emphasis">

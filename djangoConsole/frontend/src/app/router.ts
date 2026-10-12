@@ -37,6 +37,18 @@ export function createAppRouter(history: RouterHistory = createWebHistory()): Ro
         meta: { title: "Sign In", public: true },
       },
       {
+        path: "/forgot-password",
+        name: "forgot-password",
+        component: () => import("@/views/accounts/ForgotPasswordView.vue"),
+        meta: { title: "Forgot Password", public: true },
+      },
+      {
+        path: "/reset-password",
+        name: "reset-password",
+        component: () => import("@/views/accounts/ResetPasswordView.vue"),
+        meta: { title: "Reset Password", public: true },
+      },
+      {
         path: "/packages",
         name: "packages",
         component: () => import("@/views/packages/PackagesView.vue"),
